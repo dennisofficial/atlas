@@ -2,6 +2,7 @@ import type { BeforeApplicationShutdown, OnApplicationShutdown } from '@nestjs/c
 import { DRAIN_HANDOFF_BUDGET_MS, type HostPresence } from '@dltech/atlas-host'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
+import type { PodMetricsBus } from '../bus/pod-metrics-bus'
 import type { PgWakeListener } from '../bus/pg-wake-listener'
 import type { RedisLiveFrames } from '../bus/redis-live-frames'
 import type { SessionStream } from '../stream/session-stream'
@@ -13,6 +14,7 @@ export type HostShutdownSequenceArgs = {
   presence: Pick<HostPresence, 'close'>
   wakes: Pick<PgWakeListener, 'close'>
   liveFrames: Pick<RedisLiveFrames, 'close'>
+  podMetrics: Pick<PodMetricsBus, 'close'>
   stream: Pick<SessionStream, 'drain' | 'stop'>
   holder: { drain(): Promise<void> }
   follow: Pick<FollowStack, 'close'>
@@ -46,6 +48,7 @@ export class HostShutdownSequence implements BeforeApplicationShutdown, OnApplic
     await this.args.presence.close()
     await this.args.wakes.close()
     await this.args.liveFrames.close()
+    await this.args.podMetrics.close()
     await this.args.stream.stop()
     await this.args.follow.close()
     await this.args.pool.end()

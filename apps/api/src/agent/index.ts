@@ -38,6 +38,7 @@ export { PRODUCT_ANALYTICS, TRACE_FOR } from './analytics/tokens'
 export {
   MCP_OAUTH_BEGIN,
   OPERATOR_ANSWERS,
+  POD_METRICS_BUS,
   POD_OPS,
   SESSION_STREAM,
   TERMINAL_DEMAND,
@@ -66,6 +67,8 @@ export {
 export { ForegroundOnlyShells } from './runtime/foreground-shells'
 export { createHostBus } from './bus/host-bus'
 export { startPgWakeListener, type PgWakeListener } from './bus/pg-wake-listener'
+export { createPodMetricsBus, type PodMetricsBus } from './bus/pod-metrics-bus'
+export { PodMetricsRelay } from './bus/pod-metrics-relay'
 export { createRedisLiveFrames, type RedisLiveFrames } from './bus/redis-live-frames'
 export {
   createSessionStream,
