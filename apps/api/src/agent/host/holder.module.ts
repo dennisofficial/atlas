@@ -10,7 +10,7 @@ import type {
 import type { LogPort, TracePort } from '@dltech/atlas-observability'
 
 import { TRACE_FOR } from '../analytics/tokens'
-import type { PodMetricsBus } from '../bus/pod-metrics-bus'
+import { createPodMetricsBus, type PodMetricsBus } from '../bus/pod-metrics-bus'
 import { PodMetricsRelay } from '../bus/pod-metrics-relay'
 import type { PgWakeListener } from '../bus/pg-wake-listener'
 import { composeAgentHost } from '../compose'
@@ -125,6 +125,13 @@ const podOpsProvider: Provider = {
   inject: [HOLDER],
 }
 
+const podMetricsBusProvider: Provider = {
+  provide: POD_METRICS_BUS,
+  useFactory: (env: AgentHostEnv, log: LogPort): PodMetricsBus =>
+    createPodMetricsBus({ url: env.redisUrl, log }),
+  inject: [AGENT_HOST_ENV, LOG],
+}
+
 const podMetricsRelayProvider: Provider = {
   provide: POD_METRICS_RELAY,
   useFactory: (ops: PodOps, bus: PodMetricsBus, log: LogPort): PodMetricsRelay =>
@@ -139,6 +146,7 @@ const podMetricsRelayProvider: Provider = {
     hostWatchProvider,
     holderProvider,
     podOpsProvider,
+    podMetricsBusProvider,
     podMetricsRelayProvider,
     terminalDemandProvider,
   ],
