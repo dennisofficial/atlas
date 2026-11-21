@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'5e85d8cdcd62571cf9e061d2d249db49c7b6c39f6d336e6cb5e8b35a04d52b4b'>;
+  StorageHashBase<'146b406219be1abe18c62f1a1110703555fc61a7afece7555a592afb45e52c4b'>;
 export type ExecutionHash =
   ExecutionHashBase<'4d369095acf9878e93e4d1ed1f070ee06bf20ff4203ec07d06fefbc68b869a45'>;
 export type ProfileHash =
@@ -1278,6 +1278,7 @@ export namespace Models {
     postedAt: FieldOutputTypes['v2']['V2InboxEntry']['postedAt'];
     senderSessionId: FieldOutputTypes['v2']['V2InboxEntry']['senderSessionId'];
     sessionId: FieldOutputTypes['v2']['V2InboxEntry']['sessionId'];
+    threadId: FieldOutputTypes['v2']['V2InboxEntry']['threadId'];
     session: v2_V2Session;
     readonly [RelationKeys]?: 'session';
   };
@@ -7438,6 +7439,12 @@ type ContractBase = Omit<
                   readonly nullable: false;
                   readonly many: false;
                 };
+                readonly threadId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
               };
               primaryKey: {
                 readonly columns: readonly ['sessionId', 'inboxId'];
@@ -7449,6 +7456,11 @@ type ContractBase = Omit<
                   readonly name: 'V2InboxEntry_consumedSeq_sessionId_idx_58d8d6fc';
                   readonly prefix: 'V2InboxEntry_consumedSeq_sessionId_idx';
                   readonly columns: readonly ['consumedSeq', 'sessionId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'V2InboxEntry_thread_open';
+                  readonly columns: readonly ['threadId', 'sessionId', 'consumedSeq'];
                   readonly unique: false;
                 },
               ];
@@ -14477,6 +14489,10 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
+              readonly threadId: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
             };
             readonly relations: {
               readonly session: {
@@ -14503,6 +14519,7 @@ type ContractBase = Omit<
                 readonly postedAt: { readonly column: 'postedAt' };
                 readonly senderSessionId: { readonly column: 'senderSessionId' };
                 readonly sessionId: { readonly column: 'sessionId' };
+                readonly threadId: { readonly column: 'threadId' };
               };
             };
           };

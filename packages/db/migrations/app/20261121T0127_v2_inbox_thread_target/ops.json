@@ -1,0 +1,98 @@
+[
+  {
+    "id": "column.v2.V2InboxEntry.threadId",
+    "label": "Add column \"threadId\" to \"V2InboxEntry\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "column",
+        "name": "threadId",
+        "table": "V2InboxEntry"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"threadId\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2InboxEntry",
+          "threadId"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"threadId\"",
+        "sql": "ALTER TABLE \"v2\".\"V2InboxEntry\" ADD COLUMN \"threadId\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"threadId\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2InboxEntry",
+          "threadId"
+        ]
+      },
+      {
+        "description": "verify column \"threadId\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "v2",
+          "V2InboxEntry",
+          "threadId",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.V2InboxEntry.V2InboxEntry_thread_open",
+    "label": "Create index \"V2InboxEntry_thread_open\" on \"V2InboxEntry\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "index",
+        "name": "V2InboxEntry_thread_open",
+        "table": "V2InboxEntry"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"V2InboxEntry_thread_open\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"v2\".\"V2InboxEntry_thread_open\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"V2InboxEntry_thread_open\"",
+        "sql": "CREATE INDEX \"V2InboxEntry_thread_open\" ON \"v2\".\"V2InboxEntry\" (\"threadId\", \"sessionId\", \"consumedSeq\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"V2InboxEntry_thread_open\" exists on \"V2InboxEntry\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"v2\".\"V2InboxEntry_thread_open\"",
+          "i",
+          "I",
+          "\"v2\".\"V2InboxEntry\"",
+          "btree",
+          "[\"threadId\",\"sessionId\",\"consumedSeq\"]"
+        ]
+      }
+    ]
+  }
+]

@@ -395,8 +395,16 @@ describe('steering a sub-agent across a handoff', () => {
     )
     expect(said.flatMap((event) => (event.type === 'user-said' ? [event.text] : []))).toEqual([
       CHILD_BRIEF,
-      STEERING,
     ])
+    const queued = (
+      await a.plane.readEvents({
+        threadId: childId as typeof THREAD_ID,
+        afterSeq: 0,
+        limit: 1000,
+        visible: false,
+      })
+    ).events.filter((event) => event.type === 'input-posted' && event.message?.text === STEERING)
+    expect(queued).toHaveLength(1)
 
     const b = await makeRig({
       plane: a.plane,
@@ -417,7 +425,10 @@ describe('steering a sub-agent across a handoff', () => {
     const afterSaid = (await eventsIn({ rig: a, threadId: childId })).filter(
       (event) => event.type === 'user-said',
     )
-    expect(afterSaid.length).toBe(2)
+    expect(afterSaid.flatMap((event) => (event.type === 'user-said' ? [event.text] : []))).toEqual([
+      CHILD_BRIEF,
+      STEERING,
+    ])
   }, 25_000)
 })
 

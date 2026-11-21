@@ -1,4 +1,4 @@
-import type { InboxEntry } from '@dltech/atlas-core'
+import type { InboxEntry, ThreadId } from '@dltech/atlas-core'
 
 import type { State } from './memory-state'
 
@@ -59,10 +59,12 @@ export const readInboxEntriesIn = (params: {
   afterId: number
   limit: number
   excludeKind?: string | undefined
+  forThread: ThreadId | null
 }): InboxEntry[] =>
   (params.state.inbox.get(params.sessionId) ?? [])
     .filter((entry) => entry.inboxId > params.afterId && entry.consumedSeq === null)
     .filter((entry) => entry.kind !== params.excludeKind)
+    .filter((entry) => entry.threadId === params.forThread)
     .sort((a, b) => a.inboxId - b.inboxId)
     .slice(0, params.limit)
     .map((entry) => ({ ...entry }))
@@ -71,8 +73,10 @@ export const recentInboxEntriesIn = (params: {
   state: State
   sessionId: string
   limit: number
+  forThread: ThreadId | null
 }): InboxEntry[] =>
   (params.state.inbox.get(params.sessionId) ?? [])
+    .filter((entry) => entry.threadId === params.forThread)
     .slice()
     .sort((a, b) => b.inboxId - a.inboxId)
     .slice(0, params.limit)

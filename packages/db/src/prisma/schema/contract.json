@@ -9389,6 +9389,13 @@
                   "codecId": "pg/text@1",
                   "kind": "scalar"
                 }
+              },
+              "threadId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
               }
             },
             "relations": {
@@ -9431,6 +9438,9 @@
                 },
                 "sessionId": {
                   "column": "sessionId"
+                },
+                "threadId": {
+                  "column": "threadId"
                 }
               },
               "namespaceId": "v2",
@@ -18173,6 +18183,11 @@
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
                   "nullable": false
+                },
+                "threadId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
                 }
               },
               "foreignKeys": [
@@ -18206,6 +18221,15 @@
                   ],
                   "name": "V2InboxEntry_consumedSeq_sessionId_idx_58d8d6fc",
                   "prefix": "V2InboxEntry_consumedSeq_sessionId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "threadId",
+                    "sessionId",
+                    "consumedSeq"
+                  ],
+                  "name": "V2InboxEntry_thread_open",
                   "unique": false
                 }
               ],
@@ -19435,7 +19459,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "5e85d8cdcd62571cf9e061d2d249db49c7b6c39f6d336e6cb5e8b35a04d52b4b"
+    "storageHash": "146b406219be1abe18c62f1a1110703555fc61a7afece7555a592afb45e52c4b"
   },
   "execution": {
     "executionHash": "4d369095acf9878e93e4d1ed1f070ee06bf20ff4203ec07d06fefbc68b869a45",

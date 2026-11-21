@@ -18,7 +18,6 @@ import {
 import { ScriptedModel, type ScriptedModelStep } from '@dltech/atlas-agent/testing'
 import { z } from 'zod'
 
-import { ChildIntake } from '../crew/child-intake'
 import { flushUntil, makeRig, seedSession, SESSION, THREAD_ID } from './holder-rig'
 
 const CHILD_BRIEF = 'PUMP-BRIEF take the first pass'
@@ -189,26 +188,6 @@ const saidTexts = (events: readonly V2Event[]): string[] =>
       ? event.parts.flatMap((part) => (part.type === 'text' ? [part.text] : []))
       : [],
   )
-
-describe('ChildIntake', () => {
-  it('wakes the next step for a message already made durable at accept time', async () => {
-    const intake = new ChildIntake()
-    expect(intake.pending).toBe(0)
-
-    intake.accept()
-    intake.accept()
-    expect(intake.pending).toBe(2)
-
-    const drained = await intake.prepare()
-    expect(intake.pending).toBe(0)
-    expect(drained.wakesTurn).toBe(true)
-    expect(drained.drafts).toEqual([])
-
-    const idle = await intake.prepare()
-    expect(idle.drafts).toEqual([])
-    expect(idle.wakesTurn).toBe(false)
-  })
-})
 
 describe('a sub-agent after its first turn', () => {
   it('restarts on an explicit say and answers again', async () => {

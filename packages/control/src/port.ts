@@ -1,4 +1,4 @@
-import type { Hash, InboxEntry, Lease, ModelChoice } from '@dltech/atlas-core'
+import type { Hash, InboxEntry, Lease, ModelChoice, ThreadId } from '@dltech/atlas-core'
 import type { SessionModelAsk } from '@dltech/atlas-models'
 import type { EChangeFileStatus, SessionChange } from '@dltech/atlas-protocol'
 
@@ -382,8 +382,13 @@ export interface ControlTx {
     afterId: number
     limit: number
     excludeKind?: string | undefined
+    forThread: ThreadId | null
   }): Promise<InboxEntry[]>
-  recentInboxEntries(params: { sessionId: string; limit: number }): Promise<InboxEntry[]>
+  recentInboxEntries(params: {
+    sessionId: string
+    limit: number
+    forThread: ThreadId | null
+  }): Promise<InboxEntry[]>
   notifyWake(sessionId: string): Promise<void>
   announce(change: SessionChange): Promise<void>
   readSessionView(sessionId: string): Promise<SessionViewRow | undefined>

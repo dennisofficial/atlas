@@ -188,6 +188,7 @@ export const stagesUnprepared = (kind: string): boolean =>
 export const logStagedInputs = async (params: {
   fetch: () => Promise<InboxEntry[]>
   resolveWithdraws: (entries: readonly InboxEntry[]) => Promise<ReadonlySet<number>>
+  skips?: ((entry: InboxEntry) => boolean) | undefined
   postedDraftsOf: (entry: InboxEntry) => RecordBody[]
   appendDrafts: AppendDrafts
   willDrain?: (() => boolean) | undefined
@@ -199,6 +200,7 @@ export const logStagedInputs = async (params: {
     if (params.willDrain?.() === true) return
     const resolved = await params.resolveWithdraws(entries)
     const drafts = entries
+      .filter((entry) => params.skips?.(entry) !== true)
       .filter((entry) => !resolved.has(entry.inboxId))
       .filter((entry) => params.prepared?.() !== false || stagesUnprepared(entry.kind))
       .flatMap((entry) => params.postedDraftsOf(entry))

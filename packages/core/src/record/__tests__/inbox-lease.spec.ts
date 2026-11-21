@@ -12,6 +12,7 @@ const entry = (consumedSeq: number | null): InboxEntry => ({
   payload: '{}',
   postedAt: NOW,
   consumedSeq,
+  threadId: null,
   senderSessionId: null,
 })
 
