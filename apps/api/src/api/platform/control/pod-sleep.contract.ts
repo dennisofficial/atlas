@@ -13,6 +13,7 @@ export type PodSleepPayload = z.infer<typeof podSleepPayloadSchema>
 export enum EPodSleepOutcome {
   Slept = 'slept',
   Absent = 'absent',
+  Superseded = 'superseded',
 }
 
 export type PodSleepOutput = { outcome: EPodSleepOutcome }

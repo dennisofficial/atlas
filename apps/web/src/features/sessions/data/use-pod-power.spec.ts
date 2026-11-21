@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { CloudApiError } from '@/lib/cloud-api'
 
-import { isPodTurnRunning, nextPodPower, POD_TURN_RUNNING } from './use-pod-power'
+import { isPodTurnRunning, nextPodPower, POD_TURN_RUNNING, podPowerSettled } from './use-pod-power'
 
 const turnRunning = (): CloudApiError =>
   new CloudApiError({
@@ -19,6 +19,38 @@ describe('isPodTurnRunning', () => {
   it('ignores any other failure', () => {
     expect(isPodTurnRunning(new CloudApiError({ message: 'gone', status: 404 }))).toBe(false)
     expect(isPodTurnRunning(new Error('the pod is busy'))).toBe(false)
+  })
+})
+
+describe('podPowerSettled', () => {
+  it('clears the stop in flight once the pod reports itself asleep', () => {
+    expect(podPowerSettled({ state: { phase: 'sleeping' }, declared: 'sleeping' })).toEqual({
+      phase: 'awake',
+    })
+  })
+
+  it('clears the wake in flight once the pod reports itself running', () => {
+    expect(podPowerSettled({ state: { phase: 'waking' }, declared: 'running' })).toEqual({
+      phase: 'awake',
+    })
+  })
+
+  it('keeps a stop in flight while the pod still runs', () => {
+    expect(podPowerSettled({ state: { phase: 'sleeping' }, declared: 'running' })).toEqual({
+      phase: 'sleeping',
+    })
+  })
+
+  it('keeps a wake in flight while the pod is still parked', () => {
+    expect(podPowerSettled({ state: { phase: 'waking' }, declared: 'sleeping' })).toEqual({
+      phase: 'waking',
+    })
+  })
+
+  it('leaves a confirmed stop alone until the operator answers', () => {
+    expect(podPowerSettled({ state: { phase: 'confirm' }, declared: 'sleeping' })).toEqual({
+      phase: 'confirm',
+    })
   })
 })
 

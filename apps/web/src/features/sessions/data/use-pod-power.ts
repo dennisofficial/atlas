@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type {
   SessionSleepPodInput,
   SessionSleepPodOutput,
@@ -26,6 +26,8 @@ export type PodPowerEvent =
   | { type: 'wake' }
   | { type: 'cancel' }
 
+export type PodDeclaredState = 'running' | 'sleeping' | undefined
+
 export const nextPodPower = (args: {
   state: PodPowerState
   event: PodPowerEvent
@@ -34,6 +36,19 @@ export const nextPodPower = (args: {
   if (args.event.type === 'turn-running') return { phase: 'confirm' }
   if (args.event.type === 'wake') return { phase: 'waking' }
   return { phase: 'sleeping' }
+}
+
+/**
+ * A request in flight ends when the pod the session reports reaches the state the request asked
+ * for, so the button works again without remounting the panel or reloading the page.
+ */
+export const podPowerSettled = (args: {
+  state: PodPowerState
+  declared: PodDeclaredState
+}): PodPowerState => {
+  if (args.state.phase === 'sleeping' && args.declared === 'sleeping') return { phase: 'awake' }
+  if (args.state.phase === 'waking' && args.declared === 'running') return { phase: 'awake' }
+  return args.state
 }
 
 export const isPodTurnRunning = (failure: unknown): boolean =>
@@ -61,10 +76,11 @@ export type PodPower = {
  */
 export function usePodPower(args: {
   sessionId: string
+  declared?: PodDeclaredState | undefined
   sleep?: (input: SessionSleepPodInput) => Promise<SessionSleepPodOutput>
   wake?: (input: SessionWakeInput) => Promise<SessionWakeOutput>
 }): PodPower {
-  const { sessionId } = args
+  const { sessionId, declared } = args
   const sleepCall = args.sleep ?? sleepRequest
   const wakeCall = args.wake ?? wakeRequest
   const [state, setState] = useState<PodPowerState>({ phase: 'awake' })
@@ -73,6 +89,10 @@ export function usePodPower(args: {
   const move = useCallback((event: PodPowerEvent) => {
     setState((previous) => nextPodPower({ state: previous, event }))
   }, [])
+
+  useEffect(() => {
+    setState((previous) => podPowerSettled({ state: previous, declared }))
+  }, [declared, state])
 
   const sleep = useCallback(
     (force: boolean) => {

@@ -75,7 +75,7 @@ describe('SessionsService.sleepPod', () => {
     expect(dispatcher.dispatches).toHaveLength(0)
   })
 
-  it('stops the turn through the inbox, releases the lease and dispatches the sleep with force', async () => {
+  it('stops the turn through the inbox and dispatches the sleep with force', async () => {
     const { plane, service, dispatcher } = setup()
     const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
     await startTurn({ plane, sessionId: created.sessionId, threadId: created.mainThreadId })
@@ -87,15 +87,27 @@ describe('SessionsService.sleepPod', () => {
 
     const inbox = await plane.readInbox({ sessionId: created.sessionId, afterId: 0, limit: 20 })
     expect(inbox.map((entry) => entry.kind)).toContain(INBOX_KIND_STOP)
-    expect((await plane.currentLease({ sessionId: created.sessionId })).lease.wantsHolder).toBe(
-      false,
-    )
     expect(dispatcher.dispatches).toEqual([
       {
-        payload: { sessionId: created.sessionId, epoch: lease.epoch + 1 },
-        idempotencyKey: `pod-sleep:${created.sessionId}:${lease.epoch + 1}`,
+        payload: { sessionId: created.sessionId, epoch: lease.epoch },
+        idempotencyKey: `pod-sleep:${created.sessionId}:${lease.epoch}`,
       },
     ])
+  })
+
+  it('leaves the stopped session with its holder, so no other host claims the pod it will sleep', async () => {
+    const { plane, service, store } = setup()
+    store.markHostPresent(9000)
+    const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
+    await startTurn({ plane, sessionId: created.sessionId, threadId: created.mainThreadId })
+
+    await service.sleepPod({ userId: 'user-a', sessionId: created.sessionId, force: true })
+
+    const held = await plane.currentLease({ sessionId: created.sessionId })
+    expect(held.lease.holderHostId).toBe(9000)
+    expect(held.lease.wantsHolder).toBe(false)
+    const claimed = await plane.claimNext({ hostId: 9001, limit: 10 })
+    expect(claimed.leases.map((lease) => lease.sessionId)).not.toContain(created.sessionId)
   })
 
   it('sleeps an idle pod without posting a stop', async () => {

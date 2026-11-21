@@ -1,11 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common'
 import { ControlPlane, type ControlSessionRow } from '@dltech/atlas-control'
-import { INBOX_KIND_STOP, podBusyFactsOf, podBusyOf, type PodBusy } from '@dltech/atlas-core'
-import { shellRosterOf } from '@dltech/atlas-plugin-shells/client'
-import { servicesOfView } from '@dltech/atlas-plugin-services/client'
+import { INBOX_KIND_STOP } from '@dltech/atlas-core'
 import type { SessionSleepPodOutput } from '@dltech/atlas-protocol'
 
 import { JobDispatcher } from '../../../_core/ports/job-dispatcher'
+import { readPodBusy } from './pod-busy'
 import { PodTurnRunningError } from './pod-power.error'
 import { podSleepIdempotencyKey, podSleepTaskContract } from './pod-sleep.contract'
 
@@ -29,17 +28,15 @@ export class PodPowerService implements PodPower {
     force: boolean
   }): Promise<SessionSleepPodOutput> {
     const podSessionId = args.session.podSessionId ?? args.session.sessionId
-    const busy = await this.busyOf({ session: args.session })
+    const busy = await readPodBusy({ plane: this.plane, session: args.session })
     if (busy.busy && !args.force) throw new PodTurnRunningError({ running: busy.running })
     if (busy.busy) {
       await this.plane.post({ sessionId: podSessionId, kind: INBOX_KIND_STOP, payload: '{}' })
     }
-    // Releasing a lease the pod no longer holds still moves its epoch on, and the epoch keys the
-    // job: the second press of stop has to land on the job the first one dispatched.
-    const current = await this.plane.currentLease({ sessionId: podSessionId })
-    const held = current.lease.holderHostId !== null || current.lease.wantsHolder
-    if (held) await this.plane.revoke({ sessionId: podSessionId, wantsHolder: false })
-    const { lease } = held ? await this.plane.currentLease({ sessionId: podSessionId }) : current
+    // The stop stays unread until the turn ends, and demand is what the claim loop reads: releasing
+    // here would let another host claim the session and wake the pod this sleep is about to stop.
+    // The job keeps the lease until the turn ends, then releases it and sleeps the pod.
+    const { lease } = await this.plane.currentLease({ sessionId: podSessionId })
     const payload = { sessionId: podSessionId, epoch: lease.epoch }
     await this.dispatcher.dispatch({
       task: podSleepTaskContract,
@@ -47,20 +44,5 @@ export class PodPowerService implements PodPower {
       idempotencyKey: podSleepIdempotencyKey(payload),
     })
     return { state: 'sleeping' }
-  }
-
-  private async busyOf(args: { session: ControlSessionRow }): Promise<PodBusy> {
-    const busy = await this.plane.readSessionBusy({
-      sessionId: args.session.sessionId,
-      threadId: args.session.mainThreadId,
-    })
-    return podBusyOf(
-      podBusyFactsOf({
-        state: busy.status.state,
-        shellsRunning: shellRosterOf(busy.pluginViews).running,
-        servicesRunning: servicesOfView(busy.pluginViews).filter((row) => row.status === 'running')
-          .length,
-      }),
-    )
   }
 }

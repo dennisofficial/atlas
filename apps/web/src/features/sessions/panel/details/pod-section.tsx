@@ -22,7 +22,7 @@ import type { PodMetricsSample } from '../../data/pod-metrics-series'
 import { resizePod } from '../../data/pod-resources'
 import { sessionsApi } from '../../data/sessions-api'
 import { usePodMetrics } from '../../data/use-pod-metrics'
-import { usePodPower, type PodPower } from '../../data/use-pod-power'
+import { usePodPower, type PodDeclaredState, type PodPower } from '../../data/use-pod-power'
 import type { SessionViewModel } from '../../data/session-view-model'
 import { useSessionPaneValue } from '../pane-value'
 import { SectionHead } from './rows'
@@ -36,8 +36,23 @@ export const podBusyOfView = (view: SessionViewModel, state: string | undefined)
     }),
   )
 
+export const declaredPodStateOf = (state: EPodState | undefined): PodDeclaredState => {
+  if (state === EPodState.Running) return 'running'
+  if (state === EPodState.Parked || state === EPodState.Stopped) return 'sleeping'
+  return undefined
+}
+
 /** The size a session pod runs at until it reports its own. */
 export const DEFAULT_POD_SHAPE: PodShape = { vcpus: 2, memoryGb: 4 }
+
+const podShapeOfView = (pod: SessionStatusOutput['pod']): PodShape | undefined => {
+  const actual = pod?.shape
+  if (actual === undefined) return undefined
+  if (actual.memoryGb !== null) return { vcpus: actual.vcpus, memoryGb: actual.memoryGb }
+  const desired = pod?.desiredShape
+  if (desired !== undefined && desired.vcpus === actual.vcpus) return desired
+  return (pod?.sizing?.offered ?? []).find((offered) => offered.vcpus === actual.vcpus)
+}
 
 export type PodSectionView = {
   state: EPodState
@@ -57,7 +72,7 @@ export const podSectionViewOf = (args: {
   const status = podChipStatusOf({ pod, live, sandbox })
   if (status === null) return null
   const offered = pod?.sizing?.offered ?? [DEFAULT_POD_SHAPE]
-  const shape = pod?.shape ?? pod?.desiredShape ?? offered[0] ?? DEFAULT_POD_SHAPE
+  const shape = podShapeOfView(pod) ?? pod?.desiredShape ?? offered[0] ?? DEFAULT_POD_SHAPE
   const pendingShape =
     pod?.phase === 'steady' || pod?.desiredShape === undefined ? undefined : pod.desiredShape
   return {
@@ -115,7 +130,7 @@ export function SessionPodSection() {
     live: status?.lease.live ?? false,
     sandbox: status?.sandbox,
   })
-  const power = usePodPower({ sessionId })
+  const power = usePodPower({ sessionId, declared: declaredPodStateOf(section?.state) })
   const running = section?.state === EPodState.Running
   const series = usePodMetrics({ sessionId, enabled: running })
   const { confirmation, handleResize } = useShapeResizeConfirmation({

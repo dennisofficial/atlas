@@ -156,6 +156,30 @@ describe('podSectionViewOf', () => {
     expect(view?.resizeError).toBe('vCPUs above 8 need an Enterprise plan')
     expect(view?.shape).toEqual({ vcpus: 2, memoryGb: 4 })
   })
+
+  it('keeps the cpu of a pod whose memory was never recorded, instead of the default shape', () => {
+    const view = podSectionViewOf({
+      pod: {
+        shape: { vcpus: 4, memoryGb: null },
+        actualVcpus: 4,
+        phase: 'steady',
+        sizing: {
+          cap: 8,
+          offered: [
+            { vcpus: 2, memoryGb: 4 },
+            { vcpus: 4, memoryGb: 8 },
+            { vcpus: 4, memoryGb: 32 },
+            { vcpus: 8, memoryGb: 64 },
+          ],
+          unavailable: [],
+        },
+      },
+      live: false,
+      sandbox: { status: ESandboxStatus.Sleeping, at: '2026-11-21T10:00:00.000Z' },
+    })
+
+    expect(view?.shape).toEqual({ vcpus: 4, memoryGb: 8 })
+  })
 })
 
 describe('PodPaneSection', () => {
