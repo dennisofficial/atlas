@@ -58,17 +58,31 @@ for path in "${paths[@]}"; do
   fi
 done
 
-additions='[]'
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+
+entries=()
+index=0
 for path in "${files[@]}"; do
   tree_path=${path#"$PWD"/}
   tree_path=${tree_path#./}
-  content=$(base64 < "$path" | tr -d '\n')
-  additions=$(jq --arg path "$tree_path" --arg content "$content" \
-    '. + [{path: $path, contents: $content}]' <<<"$additions")
+  index=$((index + 1))
+  base64 < "$path" | tr -d '\n' > "$work/content"
+  jq -n --arg path "$tree_path" --rawfile content "$work/content" \
+    '{path: $path, contents: $content}' > "$work/entry-$index.json"
+  entries+=("$work/entry-$index.json")
 done
 
-gh api graphql --input - --jq .data.createCommitOnBranch.commit.oid <<<"$(jq -n \
-  --arg repo "$repo" --arg branch "$branch" --arg message "$message" \
-  --arg head "$head" --argjson additions "$additions" \
+if [ "${#entries[@]}" -gt 0 ]; then
+  jq -s '.' "${entries[@]}" > "$work/additions.json"
+else
+  echo '[]' > "$work/additions.json"
+fi
+
+jq -n --arg repo "$repo" --arg branch "$branch" --arg message "$message" \
+  --arg head "$head" --slurpfile additions "$work/additions.json" \
   '{query: "mutation($repo: String!, $branch: String!, $message: String!, $head: GitObjectID!, $additions: [FileAddition!]!) { createCommitOnBranch(input: {branch: {repositoryNameWithOwner: $repo, branchName: $branch}, message: {headline: $message}, fileChanges: {additions: $additions}, expectedHeadOid: $head}) { commit { oid } } }",
-    variables: {repo: $repo, branch: $branch, message: $message, head: $head, additions: $additions}}')"
+    variables: {repo: $repo, branch: $branch, message: $message, head: $head, additions: $additions[0]}}' \
+  > "$work/payload.json"
+
+gh api graphql --input "$work/payload.json" --jq .data.createCommitOnBranch.commit.oid
