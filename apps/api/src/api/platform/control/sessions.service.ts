@@ -49,6 +49,7 @@ import {
   type SessionViewOutput,
   type SessionWakeOutput,
   type SessionHoldPodOutput,
+  type SessionSleepPodOutput,
   type SessionWithdrawOutput,
 } from '@dltech/atlas-protocol'
 import type { SessionPageOutput } from '@dltech/atlas-wire'
@@ -62,6 +63,7 @@ import {
   type PodOps,
 } from '../../../agent'
 import { sandboxLiveCpuMs } from '../../../agent/sandbox/sandbox-live-cpu'
+import { PodPowerService, type PodPower } from './pod-power.service'
 import { PodSizingService, type PodSizing } from './pod-sizing.service'
 import { pageSessions, type PageBucket } from '../sessions/session-pages'
 import { COMMAND_REGISTRY, postCommand } from './command-registry'
@@ -97,6 +99,7 @@ export class SessionsService {
     @Inject(MediaStore) private readonly store: MediaStore,
     @Inject(COMMAND_REGISTRY) private readonly commands: CommandRegistry,
     @Inject(PodSizingService) private readonly podSizing: PodSizing,
+    @Inject(PodPowerService) private readonly podPower: PodPower,
     @Optional() @Inject(POD_OPS) private readonly ops: PodOps | null = null,
     @Optional()
     @Inject(PRODUCT_ANALYTICS)
@@ -459,6 +462,19 @@ export class SessionsService {
     if (lease.holderHostId !== null && live) return { state: 'elsewhere' }
     await this.plane.revoke({ sessionId: args.sessionId, wantsHolder: true })
     return { state: 'waking' }
+  }
+
+  async sleepPod(args: {
+    userId: string
+    sessionId: string
+    force?: boolean | undefined
+  }): Promise<SessionSleepPodOutput> {
+    const session = await this.requireOwnedSession(args)
+    return this.podPower.sleep({ session, force: args.force === true })
+  }
+
+  async wakePod(args: { userId: string; sessionId: string }): Promise<SessionWakeOutput> {
+    return this.wake(args)
   }
 
   async holdPod(args: { userId: string; sessionId: string }): Promise<SessionHoldPodOutput> {

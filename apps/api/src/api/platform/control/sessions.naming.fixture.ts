@@ -54,6 +54,7 @@ export const setupNaming = () => {
     mediaStore,
     composeCommands([]),
     { resizeHandler: () => async () => undefined },
+    { sleep: async () => ({ state: 'sleeping' }) },
   )
   return { plane, service, titler, background, registry, mediaStore }
 }

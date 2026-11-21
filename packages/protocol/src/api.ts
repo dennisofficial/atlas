@@ -344,6 +344,15 @@ export const sessionWakeOutputSchema = z.strictObject({
 export type SessionWakeInput = z.infer<typeof sessionWakeInputSchema>
 export type SessionWakeOutput = z.infer<typeof sessionWakeOutputSchema>
 
+export const sessionSleepPodInputSchema = z.strictObject({
+  sessionId: z.string().min(1),
+  force: z.boolean().optional(),
+})
+
+export const sessionSleepPodOutputSchema = z.strictObject({ state: z.enum(['sleeping']) })
+export type SessionSleepPodInput = z.infer<typeof sessionSleepPodInputSchema>
+export type SessionSleepPodOutput = z.infer<typeof sessionSleepPodOutputSchema>
+
 export const sessionHoldPodInputSchema = z.strictObject({
   sessionId: z.string().min(1),
 })

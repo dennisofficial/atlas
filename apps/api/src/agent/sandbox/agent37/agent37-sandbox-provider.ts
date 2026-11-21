@@ -17,6 +17,7 @@ import { agent37CreateBodyOf } from './agent37-create'
 import {
   agent37BundleVersionOf,
   pinnedDaemonBundleUrlOf,
+  startAgent37InstanceIfAsleep,
   waitForAgent37Daemon,
   waitForAgent37Instance,
   type Agent37DaemonBundle,
@@ -166,8 +167,9 @@ export class Agent37SandboxProvider extends SandboxProvider {
     const sessionId = args.target.sandboxSessionId
     try {
       const resolved = await this.resolve(args)
-      await this.ensureDaemon({ target: args.target, instanceId: resolved.instanceId })
       const client = this.clientOf(apiKeyOf(args.target.credentials))
+      await startAgent37InstanceIfAsleep({ client, id: resolved.instanceId, log: this.args.log })
+      await this.ensureDaemon({ target: args.target, instanceId: resolved.instanceId })
       // The endpoint carries the instance's real cpu so the runtime can record the size as applied.
       const instance = await client.get({ id: resolved.instanceId })
       if (!resolved.created) {
