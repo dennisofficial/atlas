@@ -443,6 +443,27 @@ describe('a bookkeeping ending, and the retry line on endings that went wrong', 
       )[0] ?? ''
     expect(block).toContain('Send agent_say to retry it')
   })
+
+  it('says why the host could not continue a lost agent, not that a respawn fails again', () => {
+    const block =
+      blocksOf(
+        assembleWith({
+          drafts: [
+            ended({
+              status: EAgentStatus.Failed,
+              failureKind: ERunFailureKind.Lost,
+              failureCause:
+                'The host that took over this session could not reopen its record: thread brn_child is gone',
+            }),
+          ],
+        }),
+      )[0] ?? ''
+    expect(block).toContain('failed')
+    expect(block).toContain('could not reopen its record')
+    expect(block).toContain('Its host could not continue it')
+    expect(block).toContain('agent_say')
+    expect(block).not.toContain('Respawning the same sub-agent the same way usually fails')
+  })
 })
 
 describe('services a finished delegate left running', () => {

@@ -29,6 +29,9 @@ const RETRY = 'Send agent_say to retry it: a message restarts it with its thread
 const WEDGED =
   'Its thread is corrupt: prompt assembly fails on every step, so a message cannot restart it. The harness will not retry it. Spawn a fresh sub-agent for anything still outstanding.'
 
+const LOST_CONTINUES =
+  'Its host could not continue it. Its thread is intact, so a message with agent_say resumes its work, and spawning it again gives you a fresh one that finishes the same job instead.'
+
 const wedged = (event: Ending): boolean =>
   event.status === EAgentStatus.Failed && event.failureKind === ERunFailureKind.ExchangeFault
 
@@ -41,6 +44,7 @@ const retryAdvice = (event: Ending): readonly string[] =>
 
 const failedCauseAdvice = (event: Ending): readonly string[] => {
   if (event.status !== EAgentStatus.Failed || event.failureCause === undefined) return []
+  if (event.failureKind === ERunFailureKind.Lost) return [LOST_CONTINUES]
   if (wedged(event)) {
     return [`It failed on this error, not on its work: ${event.failureCause} ${WEDGED}`]
   }

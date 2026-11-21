@@ -15,6 +15,7 @@ import {
 } from '../pending-inputs'
 import { initialStatusFacts, stepStatusFacts } from '../views/status-facts'
 import { deriveStatus } from '../views/derive-status'
+import { ETurnCause } from '../turns'
 import { ESessionStatus } from '../views/status-types'
 import { mint, NOW, runId, threadId } from './support'
 
@@ -46,6 +47,8 @@ const said = (args: { inboxId?: number; text?: string }): V2Body => ({
 })
 
 const message = (text: string): V2Body => said({ text })
+
+const turnStarted: V2Body = { type: 'turn-started', turnId: 'turn-1', cause: ETurnCause.Input }
 
 describe('stepPending', () => {
   it('drops a posted message once user-said carries its inboxId', () => {
@@ -222,7 +225,11 @@ describe('status from the pending fold', () => {
   })
 
   it('leaves queued once the message is drained into user-said', () => {
-    const events = log([posted({ inboxId: 1, postedAt: EARLIER }), said({ inboxId: 1 })])
+    const events = log([
+      turnStarted,
+      posted({ inboxId: 1, postedAt: EARLIER }),
+      said({ inboxId: 1 }),
+    ])
     expect(status({ events }).state).toBe(ESessionStatus.Thinking)
   })
 
@@ -240,6 +247,7 @@ describe('status from the pending fold', () => {
 
   it('reports queued over a running turn and gives the turn its status back once drained', () => {
     const running: V2Body[] = [
+      turnStarted,
       { type: 'tool-dispatched', callId: toCallId('call-1'), name: 'bash' },
     ]
     const queued = log([...running, posted({ inboxId: 1, postedAt: EARLIER })])

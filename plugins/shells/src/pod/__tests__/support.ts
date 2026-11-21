@@ -39,6 +39,7 @@ export const rig = () => {
   const shells = new Map<string, FakeShell>()
   const listeners = new Set<(frame: DaemonEventFrame) => void>()
   const calls: CallOp[] = []
+  const failing = new Set<string>()
   const liveFrames: LiveFrame[] = []
 
   const append = async (drafts: readonly (EventDraft | RecordBody | PluginEventBody)[]) => {
@@ -71,6 +72,7 @@ export const rig = () => {
 
   const call = async (op: CallOp): Promise<CallResult> => {
     calls.push(op)
+    if (failing.has(op.op)) return failed(op.op, 'the daemon is gone')
     if (op.op === 'shells.launch') {
       const info: ShellInfo = {
         shellId: op.shellId,
@@ -150,7 +152,20 @@ export const rig = () => {
     return { kind: 'event', event: { type: 'shells.ended', shellId, info: shell.info } }
   }
 
-  return { ctx, log, shells, calls, liveFrames, print, output, finish, frame, listeners, notices }
+  return {
+    ctx,
+    log,
+    shells,
+    calls,
+    liveFrames,
+    print,
+    output,
+    finish,
+    frame,
+    listeners,
+    notices,
+    failing,
+  }
 }
 
 export const invoke = async (args: {

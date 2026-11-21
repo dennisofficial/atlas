@@ -19,6 +19,10 @@ export enum EKilledBy {
   Fault = 'fault',
 }
 
+export enum EShellEndCause {
+  SandboxStopped = 'sandbox-stopped',
+}
+
 export type ShellEnding = {
   status: EShellStatus
   exitCode?: number | undefined

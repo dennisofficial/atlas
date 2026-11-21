@@ -48,6 +48,7 @@ export const logReconcileFault = (args: { deps: HeldSessionDeps; error: unknown 
 export const startHeldTurn = (args: {
   deps: HeldSessionDeps
   turns: HeldTurns
+  record: SessionRecord
   pause: PauseSignal
   runner: LoopTurnRunner
   threadId: ThreadId
@@ -59,6 +60,7 @@ export const startHeldTurn = (args: {
   void args.turns
     .drive({
       runner: args.runner,
+      record: args.record,
       threadId: args.threadId,
       pause: args.pause,
       resume: args.resume,

@@ -27,6 +27,8 @@ import { HeldPrepare } from './held-prepare'
 import { readHeldAction } from './held-snapshot'
 import { drainNeedsHolder } from './held-needs-holder'
 import { lostOutcome } from './lost-outcome'
+import { closeOpenTurn } from './orphan-turn'
+import { STOPPED_BY_OPERATOR } from './turn-boundary'
 import { consumeStops } from './held-wait'
 import { Reconciler } from './reconciler'
 import type { SessionRecord } from './record/record-adapter'
@@ -312,6 +314,8 @@ export class HeldSession {
         await settleOperatorOnStop({ deps, record: this.record, runtime: this.runtime })
         await this.prepare.failStopped()
         await consumeStops({ deps, record: this.record, entries })
+        if (!this.turns.turnRunning)
+          await closeOpenTurn({ deps, record: this.record, ending: STOPPED_BY_OPERATOR })
         this.resumeAfterSeq = this.record?.eventCache().currentHead().seq ?? this.resumeAfterSeq
         this.reconciler?.request()
         return
@@ -326,11 +330,14 @@ export class HeldSession {
       case EHeldAction.StartTurn: {
         await this.branchesReady
         if (this.draining || this.ending.outcome !== undefined) return
+        const record = this.record
+        if (record === undefined) return
         this.takeOver?.firstStep()
-        this.resumeAfterSeq = this.record?.eventCache().currentHead().seq ?? this.resumeAfterSeq
+        this.resumeAfterSeq = record.eventCache().currentHead().seq ?? this.resumeAfterSeq
         startHeldTurn({
           deps,
           turns: this.turns,
+          record,
           pause: this.pause,
           runner: args.runner,
           threadId: args.threadId,

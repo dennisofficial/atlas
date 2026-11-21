@@ -1,4 +1,4 @@
-import type { ERunFailureKind } from '../events/run-failure'
+import { ERunFailureKind } from '../events/run-failure'
 import type { AssistantPart, EventDraft } from '../events/body'
 import type { Event, EventOfType } from '../events/envelope'
 import type { ThreadId } from '../events/ids'
@@ -122,6 +122,25 @@ export const isLost = (agent: Pick<RosteredAgent, 'endedAt'>): boolean =>
 
 export type AgentProgress = { turns: number; toolCalls: number; prose: string }
 
+export enum EAgentLostCause {
+  RecordUnreadable = 'record-unreadable',
+  NeverStarted = 'never-started',
+  SessionEnded = 'session-ended',
+}
+
+export type AgentLost = { cause: EAgentLostCause; detail: string }
+
+const LOST_CAUSE_TEXT: Readonly<Record<EAgentLostCause, string>> = {
+  [EAgentLostCause.RecordUnreadable]:
+    'The host that took over this session could not reopen its record',
+  [EAgentLostCause.NeverStarted]: 'The host that took over this session found no record of it',
+  [EAgentLostCause.SessionEnded]:
+    'The session it ran in ended before anything recorded how it ended',
+}
+
+export const lostAgentCause = (lost: AgentLost): string =>
+  `${LOST_CAUSE_TEXT[lost.cause]}: ${lost.detail}`
+
 const spokenText = (parts: readonly AssistantPart[]): string =>
   parts
     .filter((part) => part.type === 'text')
@@ -152,17 +171,20 @@ export function agentProgress(drafts: readonly EventDraft[]): AgentProgress {
 export function lostAgentEnding({
   agent,
   progress,
+  lost,
 }: {
   agent: Pick<RosteredAgent, 'agentId' | 'agentType' | 'intent'>
   progress: AgentProgress
+  lost: AgentLost
 }): EventDraft {
   return {
     type: 'agent-ended',
     agentId: agent.agentId,
     agentType: agent.agentType,
     intent: agent.intent,
-    status: EAgentStatus.Stopped,
-    killedBy: EKilledBy.Unrecorded,
+    status: EAgentStatus.Failed,
+    failureKind: ERunFailureKind.Lost,
+    failureCause: lostAgentCause(lost),
     prose: progress.prose,
     turns: progress.turns,
     toolCalls: progress.toolCalls,

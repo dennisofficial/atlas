@@ -1,6 +1,6 @@
 import { actionableInboxIds, type InboxEntry, type PrepareFailure } from '@dltech/atlas-core'
 
-import { wakesHolderOf } from './claim-ops'
+import { asksForHolderOf } from './claim-ops'
 
 export type IdleReleaseGuard = { inboxHead: number; reasons: readonly string[] }
 
@@ -11,7 +11,7 @@ export const idleReleaseGuardOf = (args: {
 }): IdleReleaseGuard => {
   const unconsumed = args.entries.filter((entry) => entry.consumedSeq === null)
   const claimable = actionableInboxIds({
-    entries: unconsumed.filter((entry) => wakesHolderOf(entry.kind)),
+    entries: unconsumed.filter((entry) => asksForHolderOf(entry.kind)),
     failure: args.failure,
   })
   return {

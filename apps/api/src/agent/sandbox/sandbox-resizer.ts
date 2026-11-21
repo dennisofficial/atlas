@@ -27,6 +27,7 @@ export const sandboxResizerOf = (args: {
     const cpuCumulativeMs = await sandboxCumulativeCpuMsOf({ sandbox, target })
     await recordSandboxRunClose({
       sessionId: sandboxSessionId,
+      sandboxStopped: false,
       ...(cpuCumulativeMs === undefined ? {} : { cpuCumulativeMs }),
     })
     return await sandbox.resize({ target, vcpus })

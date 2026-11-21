@@ -1,4 +1,11 @@
-import { EToolEffect, type EAgentStatus, type IdPort, type ThreadId } from '@dltech/atlas-core'
+import {
+  EAgentLostCause,
+  EToolEffect,
+  type AgentLost,
+  type EAgentStatus,
+  type IdPort,
+  type ThreadId,
+} from '@dltech/atlas-core'
 import { settleCrashedCalls } from '@dltech/atlas-agent'
 import type { WorktreeEntryInfo } from '@dltech/atlas-plugin-sdk'
 
@@ -46,9 +53,26 @@ export const childRecordOf = (spec: RecordArgs): Promise<SessionRecord> =>
     ...(spec.args.deps.log === undefined ? {} : { log: spec.args.deps.log }),
   })
 
-export const adoptRecordOf = async (spec: RecordArgs): Promise<SessionRecord | undefined> => {
-  const opened = await childRecordOf(spec).catch(() => undefined)
-  if (opened === undefined || opened.eventCache().eventsAfter(0).length === 0) return undefined
+export type AdoptRecordResult = { ok: true; record: SessionRecord } | { ok: false; lost: AgentLost }
+
+const messageOf = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error)
+
+export const adoptRecordOf = async (spec: RecordArgs): Promise<AdoptRecordResult> => {
+  let opened: SessionRecord
+  try {
+    opened = await childRecordOf(spec)
+  } catch (error) {
+    return {
+      ok: false,
+      lost: { cause: EAgentLostCause.RecordUnreadable, detail: messageOf(error) },
+    }
+  }
+  if (opened.eventCache().eventsAfter(0).length === 0)
+    return {
+      ok: false,
+      lost: { cause: EAgentLostCause.NeverStarted, detail: 'its log holds no events' },
+    }
   await settleCrashedCalls({
     record: opened,
     ids: spec.args.deps.ids,
@@ -56,7 +80,7 @@ export const adoptRecordOf = async (spec: RecordArgs): Promise<SessionRecord | u
     effectOf: (name) =>
       spec.args.runtime.daemonTools.has(name) ? EToolEffect.Read : spec.args.runtime.effectOf(name),
   })
-  return opened
+  return { ok: true, record: opened }
 }
 
 export const seedWorktreeOf = (spec: {
