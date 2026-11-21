@@ -1,7 +1,8 @@
-import { describe, expect, it, vi } from 'bun:test'
-import { ServiceUnavailableException } from '@nestjs/common'
+import { describe, expect, it, spyOn, vi } from 'bun:test'
+import { Logger, ServiceUnavailableException } from '@nestjs/common'
 import type { EventFrame, PodCallOutcome } from '@dltech/atlas-host'
 import {
+  ECallFailure,
   ECallStatus,
   ELiveOpFailure,
   type PodMetricsFrame,
@@ -40,6 +41,7 @@ const sessionsOf = () => ({
 const operationsOf = (args: {
   held: boolean
   backlog?: PodSample[] | null
+  subscribeFailure?: string | undefined
   onCall?: (op: string) => void
   awaitSubscribe?: Promise<void> | undefined
 }) => {
@@ -57,6 +59,15 @@ const operationsOf = (args: {
         result: { status: ECallStatus.Ok, op: 'metrics.unsubscribe', value: null },
       }
     await args.awaitSubscribe
+    if (args.subscribeFailure !== undefined)
+      return {
+        state: 'ok',
+        result: {
+          status: ECallStatus.Failed,
+          op: 'metrics.subscribe',
+          error: { code: ECallFailure.Internal, message: args.subscribeFailure },
+        },
+      }
     return outcomeOf(args.backlog === undefined ? [] : args.backlog)
   })
   const events = vi.fn((input: { listener: (frame: EventFrame) => void; onClose?: () => void }) => {
@@ -138,12 +149,36 @@ describe('PodMetricsService', () => {
     expect(run.frames).toEqual([{ type: 'sample', sample: sample(2_000) }])
   })
 
-  it('yields nothing when the pod cannot read its cgroup counters', async () => {
+  it('says usage is unavailable when the pod is asleep', async () => {
     const sessions = sessionsOf()
     const { ops } = operationsOf({ held: true, backlog: null })
     const run = collect(watch(serviceOf({ sessions, ops })))
     await run.done
-    expect(run.frames).toEqual([])
+    expect(run.frames).toEqual([{ type: 'unavailable', reason: 'pod metrics are not readable' }])
+  })
+
+  it('says why the stream ended and logs it when the pod cannot read metrics', async () => {
+    const sessions = sessionsOf()
+    const warn = spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined)
+    const calls: string[] = []
+    const { ops, state } = operationsOf({
+      held: true,
+      subscribeFailure: 'cgroup memory file is not readable',
+      onCall: (op) => calls.push(op),
+    })
+    const run = collect(watch(serviceOf({ sessions, ops })))
+    await run.done
+    expect(run.frames).toEqual([
+      { type: 'unavailable', reason: 'cgroup memory file is not readable' },
+    ])
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(warn.mock.calls[0]?.[0]).toEqual({
+      sessionId: 's1',
+      reason: 'cgroup memory file is not readable',
+    })
+    expect(calls).toEqual(['metrics.subscribe'])
+    expect(state.dispose).toHaveBeenCalled()
+    warn.mockRestore()
   })
 
   it('yields the backlog first and then every live sample once', async () => {

@@ -87,6 +87,7 @@ export const podSectionViewOf = (args: {
 
 export type PodPaneSectionProps = PodSectionView & {
   series: readonly PodMetricsSample[]
+  usageUnavailable?: boolean | undefined
   power: PodPower
   onStart: () => void
   onStop: () => void
@@ -103,6 +104,7 @@ const sectionOf = (props: PodPaneSectionProps): PodSectionProps => ({
   pendingShape: props.pendingShape,
   resizeError: props.resizeError,
   series: props.series,
+  usageUnavailable: props.usageUnavailable,
   throttled: props.series.at(-1)?.throttled,
   oomKills: props.series.at(-1)?.oomKills,
   stopping: props.power.state.phase === 'sleeping',
@@ -132,7 +134,7 @@ export function SessionPodSection() {
   })
   const power = usePodPower({ sessionId, declared: declaredPodStateOf(section?.state) })
   const running = section?.state === EPodState.Running
-  const series = usePodMetrics({ sessionId, enabled: running })
+  const metrics = usePodMetrics({ sessionId, enabled: running })
   const { confirmation, handleResize } = useShapeResizeConfirmation({
     busy: podBusyOfView(view, status?.state),
     onResize: async (request) => {
@@ -150,7 +152,8 @@ export function SessionPodSection() {
     <>
       <PodPaneSection
         {...section}
-        series={series}
+        series={metrics.series}
+        usageUnavailable={metrics.unavailable}
         power={power}
         onStart={power.wake}
         onStop={power.sleep}

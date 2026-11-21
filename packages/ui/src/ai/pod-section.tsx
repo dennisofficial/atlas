@@ -24,6 +24,7 @@ export interface PodSectionProps {
   shapes: readonly PodShape[]
   unavailable?: readonly UnavailablePodShape[] | undefined
   series: readonly PodMetricsSample[]
+  usageUnavailable?: boolean | undefined
   pendingShape?: PodShape | undefined
   resizeError?: string | undefined
   throttled?: boolean | undefined
@@ -74,7 +75,17 @@ function PodSeriesRow({
   )
 }
 
-function PodUsageIdle({ state }: { state: EPodState }) {
+function PodUsageIdle({ state, unavailable }: { state: EPodState; unavailable: boolean }) {
+  if (unavailable)
+    return (
+      <div
+        role="img"
+        aria-label="Usage unavailable"
+        className="flex h-9 w-28 items-center justify-center rounded-md border border-dashed border-border text-[11px] text-muted-foreground"
+      >
+        Usage unavailable
+      </div>
+    )
   return (
     <div
       role="img"
@@ -174,7 +185,11 @@ export function PodSection(props: PodSectionProps) {
           row="row-start-2"
         />
         <div className="col-start-3 row-span-2 row-start-1">
-          {running ? <PodUsageSpark data={data} /> : <PodUsageIdle state={props.state} />}
+          {running && props.usageUnavailable !== true ? (
+            <PodUsageSpark data={data} />
+          ) : (
+            <PodUsageIdle state={props.state} unavailable={props.usageUnavailable === true} />
+          )}
         </div>
       </div>
       <div className="flex flex-col gap-2 pl-[1.625rem]">

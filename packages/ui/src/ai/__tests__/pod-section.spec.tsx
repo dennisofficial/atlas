@@ -79,6 +79,12 @@ describe('pod section chart', () => {
     expect(htmlOf({ shape: { vcpus: 4, memoryGb: 8 } })).toContain('/ 8 GB')
   })
 
+  it('says usage is unavailable instead of drawing an empty chart', () => {
+    const html = htmlOf({ usageUnavailable: true, series: [] })
+    expect(html).toContain('Usage unavailable')
+    expect(html).not.toContain('CPU and RAM over the last 15 minutes')
+  })
+
   it('keeps the signals footer', () => {
     const loud = htmlOf({ throttled: true, oomKills: 1 })
     expect(loud).toContain('Throttled')

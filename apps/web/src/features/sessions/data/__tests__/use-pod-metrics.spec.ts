@@ -67,9 +67,14 @@ const mount = async (props: { sessionId: string; enabled?: boolean }) => {
   const { createRoot } = await import('react-dom/client')
   const container = document.createElement('div')
   document.body.append(container)
-  const seen: { series: readonly Sample[] } = { series: [] }
+  const seen: { series: readonly Sample[]; unavailable: boolean } = {
+    series: [],
+    unavailable: false,
+  }
   function Probe(): null {
-    seen.series = usePodMetrics(props) as readonly Sample[]
+    const state = usePodMetrics(props)
+    seen.series = state.series as readonly Sample[]
+    seen.unavailable = state.unavailable
     return null
   }
   let root: ReturnType<typeof createRoot> | undefined
@@ -114,5 +119,26 @@ describe('usePodMetrics', () => {
     expect(seen.series).toHaveLength(1)
     await unmount()
     expect(opened[1]?.unsubscribe).toHaveBeenCalledTimes(1)
+  })
+
+  it('stops retrying once the pod says usage is unavailable', async () => {
+    const { seen, unmount } = await mount({ sessionId: SESSION })
+    await act(async () => {
+      opened[0]?.handlers.onData({ type: 'unavailable', reason: 'pod metrics are not readable' })
+    })
+    expect(seen.unavailable).toBe(true)
+    expect(opened[0]?.unsubscribe).toHaveBeenCalledTimes(1)
+    await act(async () => {
+      await sleep(RESUBSCRIBE_MS + 200)
+    })
+    expect(opened).toHaveLength(1)
+    await unmount()
+  })
+
+  it('clears the unavailable reading when it is disabled', async () => {
+    const { seen, unmount } = await mount({ sessionId: SESSION, enabled: false })
+    expect(opened).toHaveLength(0)
+    expect(seen.unavailable).toBe(false)
+    await unmount()
   })
 })
