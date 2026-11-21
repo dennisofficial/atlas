@@ -49,6 +49,7 @@ const dark = {
   prDraft: '#9198a1',
   prMerged: '#ab7df8',
   prClosed: '#f85149',
+  prQueued: '#d29922',
   warning: amber[300],
   warningForeground: warm[925],
 
@@ -120,6 +121,7 @@ const light: SemanticTheme = {
   prDraft: '#59636e',
   prMerged: '#8250df',
   prClosed: '#cf222e',
+  prQueued: '#9a6700',
   warning: amber[600],
   warningForeground: '#fdfcfa',
 
