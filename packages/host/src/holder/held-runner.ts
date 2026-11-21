@@ -136,6 +136,11 @@ export const createBranchObserver = (args: {
         const fact = book().fact(`base:${repo}`)
         return fact.found && typeof fact.value === 'string' ? fact.value : undefined
       },
+      hasObservation: () =>
+        record
+          .eventCache()
+          .eventsAfter(0)
+          .some((event) => event.type === 'branches-observed'),
     },
     remoteCalls: runtime.remoteCalls,
     threadId,

@@ -115,5 +115,6 @@ export const fakeRecord = (): BranchRecorder & {
       appended.push(body)
     },
     lastObservation: (repo) => appended.findLast((body) => body.repo === repo),
+    hasObservation: () => appended.length > 0,
   }
 }

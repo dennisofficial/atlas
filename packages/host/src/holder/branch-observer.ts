@@ -20,6 +20,7 @@ export type BranchRecorder = {
   append(args: { threadId: ThreadId; runId: RunId; body: BranchesObserved }): Promise<unknown>
   lastObservation(repo: string): BranchObservation | undefined
   recordedBase(repo: string): string | undefined
+  hasObservation(): boolean
 }
 
 export type BranchObserverArgs = {
@@ -68,7 +69,8 @@ export class BranchObserver {
     this.unsubscribeRepos = this.args.onRepo?.((repoPath) => {
       void this.enqueue(() => this.readRepo(repoPath))
     })
-    return this.refreshRepos()
+    const boot = this.refreshRepos()
+    return this.args.record.hasObservation() ? Promise.resolve() : boot
   }
 
   stop(): void {

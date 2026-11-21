@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test'
+import { LogPort, type LogEntry } from '@dltech/atlas-observability'
 
 import type { BranchSet } from '@dltech/atlas-protocol'
 import { defineOp, type DaemonGroupFactory } from '@dltech/atlas-protocol/engine'
@@ -13,6 +14,16 @@ import {
   THREAD_ID,
   type HolderRig,
 } from './holder-rig'
+
+class CollectingLog extends LogPort {
+  readonly entries: LogEntry[] = []
+  record(entry: LogEntry): void {
+    this.entries.push(entry)
+  }
+}
+
+const takeoverTailOf = (log: CollectingLog): LogEntry | undefined =>
+  log.entries.find((entry) => entry.message.includes('after the first step'))
 
 const SET: BranchSet = {
   repoPath: '/w',
@@ -144,11 +155,13 @@ describe('the boot branch observation', () => {
       open = resolve
     })
     const state = stateOf(false)
+    const log = new CollectingLog()
     const rig = await makeRig({
       daemon: await readingDaemon(state),
       script: [{ text: 'made the branch' }],
       watchedRepos: () => gate.then(() => ['/w']),
       baseBranches: { '/w': 'main' },
+      log,
     })
     await seedSession(rig)
     await rig.holder.start()
@@ -176,6 +189,11 @@ describe('the boot branch observation', () => {
     expect(records.map((row) => row.base)).toEqual(records.map(() => 'main'))
     expect(records.at(-1)?.branches).toContain('feat-x')
     expect(await baseFactsOf(rig)).toEqual([])
+    const tail = takeoverTailOf(log)
+    expect(tail?.data).toMatchObject({
+      branchesMs: expect.any(Number),
+      afterFirstStepMs: expect.any(Number),
+    })
     rig.holder.discard()
   })
 
