@@ -5,6 +5,8 @@ export type WorkspaceGateOutcome =
   | { state: 'failed'; message: string }
   | { state: 'aborted' }
 
+export const POD_WAIT_INTERRUPTED = 'interrupted while waiting for the pod'
+
 export type WorkspaceGateSettled = 'pending' | 'prepared' | 'failed'
 
 const ABORTED = Symbol('aborted')

@@ -47,7 +47,8 @@ const needingHolderIn = (tx: Tx) =>
               WHERE e."threadId" = s."mainThreadId"
                 AND e."type" IN ('workspace-prepared', 'user-said', 'workspace-prepare-failed',
                   'session-start-failed')))
-          AND COALESCE(u."active", true)`.returnsRow({
+          AND COALESCE(u."active", true)
+          AND s."archivedAt" IS NULL`.returnsRow({
     id: 'pg/text@1',
     epoch: 'pg/int4@1',
     createdAt: 'pg/timestamptz-date@1',

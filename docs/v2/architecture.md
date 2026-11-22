@@ -551,7 +551,7 @@ ignores `archivedAt` (`sandbox-provisioning.service.ts`), and a teammate session
 keeps its subscriptions and can wake it. A failed cleanup dispatch is only logged. Storage is never
 freed: sandboxes are `persistent` with `keepLastSnapshots: 1` (`packages/wire/src/sandbox-mount.ts`),
 so every archived session keeps a stopped sandbox and its latest snapshot until the v1 archived
-sandbox sweep deletes it after seven days.
+sandbox sweep deletes it after six hours.
 
 **v2.** Archive is the operator inbox command of [slices/03-teammates.md](slices/03-teammates.md),
 logged as `session-archived`. Because the record lives in the CP and a sandbox is only a cache of
@@ -564,15 +564,22 @@ model change, subscribe, a peer's `message_session`, PR/CI deliveries — is ref
 
 **A2. The reconciler never places an archived session.** §13's rule becomes "unconsumed inbox
 entries, no live holder, and not archived". Archiving increments the epoch, so a worker mid-turn
-stops at its next append and the turn ends with an `archived` outcome.
+stops at its next append and the turn ends with an `archived` outcome. The claim query skips an
+archived session outright
+(`packages/control/src/postgres/postgres-claim-candidates.ts`), so a message posted to one waits
+in its inbox without waking it, and the session gains a holder only by being unarchived. Unarchive
+takes the pod's retirement lock first
+(`packages/control/src/postgres/postgres-pod-retire-lock.ts`), so it waits for a retirement in
+flight and the sweep re-reads the pod inside that lock before it stops or deletes it.
 
 **A3. Archive ends what the session owns.** The control plane ends every subscription row of the
 session with reason `archived` and posts an informational `record`. Owed notices are dropped;
 shells and services stop. Peers placed on the same pod are unaffected; the pod is released only
 when no placed session holds it.
 
-**A4. Archive stops the sandbox; retention deletes it.** The sandbox stops at archive. Seven days
-after archive the sandbox and its snapshots are deleted; the record, artifacts and views stay.
+**A4. Archive stops the sandbox; retention deletes it.** The sandbox stops at archive, and the
+archive parks the pod. Six hours after archive the sandbox and its snapshots are deleted; the
+record, artifacts and views stay.
 There is no unsaved-work guard: uncommitted or unpushed work in an archived sandbox is the
 operator's to lose. Unarchive after deletion provisions a fresh sandbox and re-clones from the
 session's checkout view (slice 4), like any lost sandbox.

@@ -2,6 +2,7 @@ import type { Tx } from '@dltech/atlas-db'
 
 import type { ControlSessionRow } from '../port'
 import { announceIn } from './postgres-notify'
+import { lockPodRetireOfSessionIn } from './postgres-pod-retire-lock'
 import { toSessionRow } from './postgres-rows'
 
 export const createSessionIn = async (params: {
@@ -146,6 +147,9 @@ export const setSessionArchivedIn = async (params: {
   sessionId: string
   archivedAt: string | null
 }): Promise<boolean> => {
+  if (params.archivedAt === null) {
+    await lockPodRetireOfSessionIn({ tx: params.tx, sessionId: params.sessionId })
+  }
   const changed = await params.tx.orm.v2.V2Session.where({
     id: params.sessionId,
   }).updateAndCount({

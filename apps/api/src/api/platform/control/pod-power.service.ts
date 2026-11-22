@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common'
+import { Inject, Injectable, Logger } from '@nestjs/common'
 import { ControlPlane, type ControlSessionRow } from '@dltech/atlas-control'
 import { INBOX_KIND_STOP } from '@dltech/atlas-core'
 import type { SessionSleepPodOutput } from '@dltech/atlas-protocol'
@@ -10,6 +10,7 @@ import { podSleepIdempotencyKey, podSleepTaskContract } from './pod-sleep.contra
 
 export type PodPower = {
   sleep(args: { session: ControlSessionRow; force: boolean }): Promise<SessionSleepPodOutput>
+  parkArchived(args: { session: ControlSessionRow }): Promise<void>
 }
 
 /**
@@ -18,6 +19,8 @@ export type PodPower = {
  */
 @Injectable()
 export class PodPowerService implements PodPower {
+  private readonly logger = new Logger(PodPowerService.name)
+
   constructor(
     @Inject(ControlPlane) private readonly plane: ControlPlane,
     @Inject(JobDispatcher) private readonly dispatcher: JobDispatcher,
@@ -44,5 +47,27 @@ export class PodPowerService implements PodPower {
       idempotencyKey: podSleepIdempotencyKey(payload),
     })
     return { state: 'sleeping' }
+  }
+
+  async parkArchived(args: { session: ControlSessionRow }): Promise<void> {
+    const { session } = args
+    if (!(await this.ownsItsPodAlone(session))) return
+    try {
+      await this.sleep({ session, force: true })
+    } catch (failure) {
+      this.logger.warn(
+        `parking the pod of archived session ${session.sessionId} failed: ${String(failure)}`,
+      )
+    }
+  }
+
+  private async ownsItsPodAlone(session: ControlSessionRow): Promise<boolean> {
+    const podSessionId = session.podSessionId ?? session.sessionId
+    if (podSessionId !== session.sessionId) return false
+    const peers = await this.plane.podPeersPlaced({
+      podSessionId,
+      excludeSessionId: session.sessionId,
+    })
+    return peers === 0
   }
 }

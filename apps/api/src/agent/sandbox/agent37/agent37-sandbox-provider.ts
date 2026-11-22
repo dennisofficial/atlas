@@ -23,18 +23,13 @@ import {
   type Agent37DaemonBundle,
 } from './agent37-daemon'
 import { agent37EndpointOf } from './agent37-endpoint'
+import { listAgent37Instances, removeAgent37Pod, sleepAgent37Pod } from './agent37-instance-sweep'
 import {
-  AGENT37_POD_SESSION_KEY,
   agent37InstanceNameOf,
   type Agent37Env,
   type Agent37InstanceIds,
 } from './agent37-instances'
-import {
-  Agent37Error,
-  isAgent37Missing,
-  liveAgent37Client,
-  type Agent37Client,
-} from './agent37-client'
+import { Agent37Error, liveAgent37Client, type Agent37Client } from './agent37-client'
 
 const apiKeyOf = (given: SandboxCredentials): string => {
   if (given.provider !== ESandboxProvider.Agent37) {
@@ -226,11 +221,11 @@ export class Agent37SandboxProvider extends SandboxProvider {
   }
 
   async stop(args: { target: SandboxTarget }): Promise<void> {
-    const instanceId = await this.args.instances.find({
+    await sleepAgent37Pod({
+      client: this.clientOf(apiKeyOf(args.target.credentials)),
+      instances: this.args.instances,
       podSessionId: args.target.sandboxSessionId,
     })
-    if (instanceId === null) return
-    await this.clientOf(apiKeyOf(args.target.credentials)).sleep({ id: instanceId })
   }
 
   async resize(args: {
@@ -276,68 +271,19 @@ export class Agent37SandboxProvider extends SandboxProvider {
     await this.clientOf(apiKeyOf(args.target.credentials)).exec({ id: instanceId, command: 'true' })
   }
 
-  /**
-   * Every instance this account holds for the pod, not just the remembered one: a create that died
-   * before it was remembered, or a session row that was soft-deleted, leaves an orphan the mapping
-   * no longer knows about. The pod key in the instance metadata is what survives both.
-   */
-  private async instanceIdsOf(args: {
-    client: Agent37Client
-    podSessionId: string
-  }): Promise<Set<string>> {
-    const ids = new Set<string>()
-    const known = await this.args.instances.find({ podSessionId: args.podSessionId })
-    if (known !== null) ids.add(known)
-    let cursor: string | undefined
-    for (;;) {
-      const page = await args.client.list(cursor === undefined ? {} : { cursor })
-      for (const instance of page.data) {
-        if (instance.metadata?.[AGENT37_POD_SESSION_KEY] === args.podSessionId) ids.add(instance.id)
-      }
-      if (page.next === undefined) return ids
-      cursor = page.next
-    }
-  }
-
   async delete(args: { target: SandboxTarget }): Promise<void> {
-    const podSessionId = args.target.sandboxSessionId
-    const client = this.clientOf(apiKeyOf(args.target.credentials))
-    let leftRunning = false
-    for (const instanceId of await this.instanceIdsOf({ client, podSessionId })) {
-      try {
-        // A running instance has someone behind it; the sweep stops it on one pass and deletes it
-        // on a later one, so a pod that came alive is never deleted under its user.
-        if ((await client.get({ id: instanceId })).status === 'running') {
-          leftRunning = true
-          continue
-        }
-        await client.remove({ id: instanceId })
-      } catch (failure) {
-        if (!isAgent37Missing(failure)) throw failure
-      }
-    }
-    // The mapping still has to find a pod that was left running, so it is only forgotten once the
-    // pod has nothing live left.
-    if (!leftRunning) await this.args.instances.forget({ podSessionId })
+    await removeAgent37Pod({
+      client: this.clientOf(apiKeyOf(args.target.credentials)),
+      instances: this.args.instances,
+      podSessionId: args.target.sandboxSessionId,
+      ...(this.args.log === undefined ? {} : { log: this.args.log }),
+    })
   }
 
   async list(args: { credentials: SandboxCredentials }): Promise<readonly SandboxListing[]> {
-    const client = this.clientOf(apiKeyOf(args.credentials))
-    const listings: SandboxListing[] = []
-    let cursor: string | undefined
-    for (;;) {
-      const page = await client.list(cursor === undefined ? {} : { cursor })
-      for (const instance of page.data) {
-        const sandboxSessionId = instance.metadata?.[AGENT37_POD_SESSION_KEY]
-        if (sandboxSessionId === undefined) continue
-        listings.push({
-          sandboxSessionId,
-          running: instance.status === 'running',
-          createdAt: (instance.created ?? 0) * 1000,
-        })
-      }
-      if (page.next === undefined) return listings
-      cursor = page.next
-    }
+    return listAgent37Instances({
+      client: this.clientOf(apiKeyOf(args.credentials)),
+      ...(this.args.log === undefined ? {} : { log: this.args.log }),
+    })
   }
 }
