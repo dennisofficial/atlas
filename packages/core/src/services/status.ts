@@ -13,7 +13,7 @@ export type ServiceEnding = {
 }
 
 export function serviceFailed(ending: ServiceEnding): boolean {
-  if (ending.status === EServiceStatus.Killed) return false
+  if (ending.status === EServiceStatus.Killed) return ending.killedBy === EKilledBy.OutOfMemory
   return ending.exitCode !== undefined && ending.exitCode !== 0
 }
 
@@ -24,6 +24,7 @@ function killEnding(killedBy: EKilledBy | undefined): string {
   if (killedBy === EKilledBy.Rewind) return 'was killed by a rewind'
   if (killedBy === EKilledBy.IdlePark)
     return 'was stopped because the sandbox parked after sitting idle'
+  if (killedBy === EKilledBy.OutOfMemory) return 'ran out of memory and was killed by the kernel'
   return 'was stopped'
 }
 

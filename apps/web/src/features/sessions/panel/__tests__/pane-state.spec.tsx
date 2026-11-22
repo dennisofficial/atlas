@@ -110,4 +110,14 @@ describe('useSessionPane', () => {
     const other = await mount('sized-other')
     expect(other().layout).toBeUndefined()
   })
+
+  it('hands the pod section a size request it consumes once', async () => {
+    const state = await mount()
+    expect(state().podSizeRequest).toBe(0)
+    await act(async () => state().requestPodSize())
+    await act(async () => state().requestPodSize())
+    expect(state().podSizeRequest).toBe(2)
+    await act(async () => state().consumePodSizeRequest())
+    expect(state().podSizeRequest).toBe(0)
+  })
 })

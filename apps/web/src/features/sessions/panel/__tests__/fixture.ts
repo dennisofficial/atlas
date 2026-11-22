@@ -131,6 +131,9 @@ export const paneValueFixture = (overrides: Partial<SessionPaneValue> = {}): Ses
   shellTails: {},
   openTab: () => undefined,
   openBrowser: () => undefined,
+  podSizeRequest: 0,
+  requestPodSize: () => undefined,
+  consumePodSizeRequest: () => undefined,
   ...overrides,
 })
 

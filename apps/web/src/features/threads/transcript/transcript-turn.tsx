@@ -46,6 +46,7 @@ export type TranscriptActions = {
   summarise: TranscriptSummarise | null
   openChanges: ((path: string) => void) | null
   openAgent: ((id: string) => void) | null
+  openPodSize: (() => void) | null
   repairDiagram: RepairDiagramAction | null
 }
 
@@ -270,7 +271,7 @@ function TurnViewBody({
     case ETurnKind.Report:
       return <ReportNotice item={turn.item} onOpenAgent={actions.openAgent} />
     case ETurnKind.Notice:
-      return <TranscriptNotice item={turn.item} />
+      return <TranscriptNotice item={turn.item} onChangePodSize={actions.openPodSize} />
     case ETurnKind.SignIn:
       return <TranscriptSignIn item={turn.item} />
     case ETurnKind.Request:

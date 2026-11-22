@@ -57,14 +57,20 @@ describe('recordShellEnding', () => {
     expect(event && 'exitCode' in event).toBe(false)
   })
 
-  it('maps an out-of-memory kill to a failed exit rather than an output overflow', async () => {
+  it('a background shell that ran out of memory ends as out of memory with the command limit', async () => {
+    const memory = { commandLimitBytes: 2_490_195_968, podBytes: 4_100_808_704 }
     const harness = rig()
     const shellId = await started(harness)
-    harness.finish(shellId, EShellRunStatus.OomKilled, 137)
+    const shell = harness.shells.get(shellId)
+    if (shell === undefined) throw new Error(`no shell ${shellId}`)
+    shell.info = { ...shell.info, status: EShellRunStatus.OomKilled, exitCode: 137, memory }
     await ending(harness, shellId)
     expect(harness.notices.at(-1)?.event).toMatchObject({
-      status: EShellStatus.Exited,
+      type: 'background-shell-ended',
+      status: EShellStatus.Killed,
+      killedBy: EKilledBy.OutOfMemory,
       exitCode: 137,
+      memory,
     })
   })
 

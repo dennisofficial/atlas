@@ -12,6 +12,8 @@ import { SessionPaneProvider, type SessionPaneValue } from '../../panel/pane-val
 
 const changes = { answer: undefined as SessionChangesOutput | Error | undefined }
 
+const realApiClient = { ...(await import('@/lib/api-client')) }
+
 mock.module('@/lib/api-client', () => ({
   api: createApiClient({
     baseUrl: '',
@@ -146,6 +148,7 @@ beforeAll(() => {
   globalThis.IS_REACT_ACT_ENVIRONMENT = true
 })
 afterAll(async () => {
+  mock.module('@/lib/api-client', () => realApiClient)
   window.localStorage.clear()
   await unregisterDom()
 })

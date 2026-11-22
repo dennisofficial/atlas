@@ -1,3 +1,4 @@
+import type { OomMemory } from '../pod/pod-oom'
 import type { ThreadId } from '../events/ids'
 
 export type SpawnCommand = {
@@ -17,7 +18,7 @@ export enum EProcessOutcome {
 export type ProcessOutcome =
   | { readonly kind: EProcessOutcome.Exited; readonly code: number }
   | { readonly kind: EProcessOutcome.Failed; readonly code: string; readonly message: string }
-  | { readonly kind: EProcessOutcome.OomKilled }
+  | { readonly kind: EProcessOutcome.OomKilled; readonly memory?: OomMemory | undefined }
   | { readonly kind: EProcessOutcome.Interrupted }
 
 export type ProcessHandle = {

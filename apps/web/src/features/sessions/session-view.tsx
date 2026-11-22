@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
 import { ESessionStatus } from '@dltech/atlas-core'
@@ -145,6 +145,9 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     model,
     snapshot,
     openTab: pane.openTab,
+    podSizeRequest: pane.podSizeRequest,
+    requestPodSize: pane.requestPodSize,
+    consumePodSizeRequest: pane.consumePodSizeRequest,
   })
   const stagedRun = useStagedMessages({
     sessionId,
@@ -164,6 +167,10 @@ export function SessionView({ sessionId }: { sessionId: string }) {
 
   const handleRetry = () => retrySessionNow(sessionId)
   const handleStop = () => void stopSession({ api: sessionsApi, sessionId, notify: toast.error })
+  const handleOpenPodSize = useCallback(() => {
+    pane.openTab(ESessionPaneTab.Details)
+    pane.requestPodSize()
+  }, [pane.openTab, pane.requestPodSize])
 
   const rewind = useSessionRewind({
     sessionId,
@@ -277,6 +284,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
                   turnStartedAt={turnStartedAt}
                   background={background}
                   onRetryBoot={() => void handleRetry()}
+                  onOpenPodSize={handleOpenPodSize}
                   rewind={rewind}
                   summarise={summarise.transcript}
                   boot={boot}

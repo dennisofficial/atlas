@@ -28,6 +28,10 @@ describe('the sentence a shell ends on', () => {
     expect(killedBy(EKilledBy.LostContact)).toBe('was killed because atlas lost contact with it')
   })
 
+  it('names an out-of-memory kill as the kernel running it out of memory', () => {
+    expect(killedBy(EKilledBy.OutOfMemory)).toBe('ran out of memory and was killed by the kernel')
+  })
+
   it('says only that it was killed when nobody was recorded', () => {
     expect(killedBy(EKilledBy.Unrecorded)).toBe('was killed')
     expect(shellEnding({ status: EShellStatus.Killed })).toBe('was killed')
@@ -62,5 +66,9 @@ describe('whether an ending counts as a failure', () => {
   it('counts a kill as an ending rather than a failure, however it was killed', () => {
     expect(shellFailed({ status: EShellStatus.Killed, killedBy: EKilledBy.Timeout })).toBe(false)
     expect(shellFailed({ status: EShellStatus.Killed, killedBy: EKilledBy.User })).toBe(false)
+  })
+
+  it('counts an out-of-memory kill as a failure', () => {
+    expect(shellFailed({ status: EShellStatus.Killed, killedBy: EKilledBy.OutOfMemory })).toBe(true)
   })
 })

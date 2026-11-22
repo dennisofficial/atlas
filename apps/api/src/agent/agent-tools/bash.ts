@@ -211,9 +211,9 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
 
     const { shell } = started
     const terminate = terminatorFor(shell)
-    let timedOut = false
+    let deadlineFired = false
     const deadline = setTimeout(() => {
-      timedOut = true
+      deadlineFired = true
       terminate()
     }, timeout)
     signal.addEventListener('abort', terminate, { once: true })
@@ -233,7 +233,11 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
       signal.removeEventListener('abort', terminate)
     }
 
-    if (signal.aborted && !timedOut) {
+    const oomKilled = read.outcome.kind === EProcessOutcome.OomKilled
+    const memory = read.outcome.kind === EProcessOutcome.OomKilled ? read.outcome.memory : undefined
+    const timedOut = deadlineFired && !oomKilled
+
+    if (signal.aborted && !deadlineFired && !oomKilled) {
       return {
         ok: false,
         reason: 'the operator interrupted the turn while the command was running',
@@ -247,7 +251,6 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
       }
     }
 
-    const oomKilled = read.outcome.kind === EProcessOutcome.OomKilled
     const exitCode = read.outcome.kind === EProcessOutcome.Exited ? read.outcome.code : 137
     const merged = mergeStreams({ stdout: read.stdout, stderr: read.stderr })
 
@@ -264,10 +267,12 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
         ...(oomKilled ? { oomKilled: true } : {}),
       },
       modelText: renderModelText({
+        command,
         merged: merged.text,
         exitCode,
         timedOut,
         oomKilled,
+        memory,
         timeoutMs: timeout,
         maximumTimeoutMs: MAXIMUM_TIMEOUT_MS,
       }),

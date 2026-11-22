@@ -4,6 +4,7 @@ import type { EExecutionLocation } from '../execution/location'
 import type { JsonValue } from '../json/value'
 import type { ReasoningPart, TextPart, UserContentPart } from '../message/parts'
 import type { CodeQualityReviewedBody } from '../quality/schema'
+import type { EOomScope, OomMemory } from '../pod/pod-oom'
 import type { EServiceStatus } from '../services/status'
 import type { EModelWaitCause, WaitEpisodeRef, WaitingForModel } from '../model-recovery/waiting'
 import type { EKilledBy, EShellEndCause } from '../shells/status'
@@ -181,6 +182,14 @@ export type EventBody =
     }
   | { type: 'nudge'; text: string; lifetimeSteps: number }
   | {
+      type: 'pod-ran-out-of-memory'
+      incidentId: string
+      scope: EOomScope
+      command?: string | undefined
+      processes: number
+      memory: OomMemory
+    }
+  | {
       type: 'sandbox-setup-reported'
       text: string
       failed: boolean
@@ -277,6 +286,7 @@ export type EventBody =
       exitCode?: number | undefined
       cause?: EShellEndCause | undefined
       logPath?: string | undefined
+      memory?: OomMemory | undefined
       tail: string
       restarting?: true | undefined
       notice?: NoticeStamp | undefined
