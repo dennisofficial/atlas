@@ -20,16 +20,17 @@ export const agent37CreateBodyOf = (args: {
   token: string
   bundleUrl: string
   vcpus?: number | undefined
+  diskGb?: number | undefined
 }): Agent37CreateArgs => ({
   template: args.env.template,
   type: 'vm',
   region: 'us',
   name: agent37InstanceNameOf(args.podSessionId),
   metadata: { [AGENT37_POD_SESSION_KEY]: args.podSessionId },
-  resources:
-    args.vcpus === undefined
-      ? args.env.resources
-      : { ...agent37ShapeOfVcpus(args.vcpus), disk: args.env.resources.disk },
+  resources: {
+    ...(args.vcpus === undefined ? args.env.resources : agent37ShapeOfVcpus(args.vcpus)),
+    disk: args.diskGb ?? args.env.resources.disk,
+  },
   mount_path: AGENT37_MOUNT_PATH,
   auto_sleep: true,
   idle_timeout_seconds: AGENT37_IDLE_TIMEOUT_SECONDS,

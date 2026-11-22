@@ -54,9 +54,11 @@ type ProjectRow = {
   additionalRepos: unknown
   setupScript: string
   sandboxVcpus: number | null
+  sandboxDiskGb: number | null
 }
 
 const SANDBOX_VCPUS_KEY = 'sandbox.vcpus'
+const SANDBOX_DISK_GB_KEY = 'sandbox.diskGb'
 
 const workspaceOf = (project: ProjectRow | null): WorkspaceConfig => {
   if (project === null)
@@ -106,7 +108,12 @@ export class ConfigReader implements ConfigSource {
       sandbox: this.sandboxOf({
         provider,
         credentialSource: session.credentialSource,
-        vcpus: project?.sandboxVcpus ?? (await this.personalVcpusOf({ userId })),
+        vcpus:
+          project?.sandboxVcpus ??
+          (await this.personalNumberSettingOf({ userId, key: SANDBOX_VCPUS_KEY })),
+        diskGb:
+          project?.sandboxDiskGb ??
+          (await this.personalNumberSettingOf({ userId, key: SANDBOX_DISK_GB_KEY })),
       }),
       podSize: {
         desiredVcpus: session.podDesiredVcpus ?? undefined,
@@ -120,6 +127,7 @@ export class ConfigReader implements ConfigSource {
     provider: ESandboxProvider
     credentialSource: string
     vcpus: number | undefined
+    diskGb: number | undefined
   }): SandboxConfig {
     if (args.credentialSource !== ECredentialSource.Platform) {
       return { configured: false, provider: args.provider, gap: BYOK_RETIRED_GAP }
@@ -133,6 +141,7 @@ export class ConfigReader implements ConfigSource {
       provider: args.provider,
       credentials,
       ...(args.vcpus === undefined ? {} : { vcpus: args.vcpus }),
+      ...(args.diskGb === undefined ? {} : { diskGb: args.diskGb }),
     }
   }
 
@@ -165,15 +174,18 @@ export class ConfigReader implements ConfigSource {
     })
   }
 
-  private async personalVcpusOf(args: { userId: string }): Promise<number | undefined> {
+  private async personalNumberSettingOf(args: {
+    userId: string
+    key: string
+  }): Promise<number | undefined> {
     const row = await this.args.db.orm.public.UserSetting.where({
       userId: args.userId,
-      key: SANDBOX_VCPUS_KEY,
+      key: args.key,
     })
       .select('value')
       .first()
     if (row === null) return undefined
-    if (!validateCloudSetting({ key: SANDBOX_VCPUS_KEY, stored: row.value }).ok) return undefined
+    if (!validateCloudSetting({ key: args.key, stored: row.value }).ok) return undefined
     const value = decodeSettingValue(row.value)
     return typeof value === 'number' ? value : undefined
   }

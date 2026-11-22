@@ -18,6 +18,7 @@ export const daemonSessionOf = (args: {
   provider: SandboxProvider
   target: SandboxTarget
   vcpus?: number | undefined
+  diskGb?: number | undefined
   onWake?: ((endpoint: DaemonEndpoint) => Promise<void>) | undefined
   daemonSecret: string
   timers: HostTimers
@@ -32,6 +33,7 @@ export const daemonSessionOf = (args: {
       target: args.target,
       signal: args.signal,
       ...(args.vcpus === undefined ? {} : { vcpus: args.vcpus }),
+      ...(args.diskGb === undefined ? {} : { diskGb: args.diskGb }),
     })
     current = endpoint
     await args.onWake?.(endpoint)

@@ -21,7 +21,11 @@ export class ProjectResourcesService {
 
   async readSandbox(args: Scope): Promise<ProjectSandbox> {
     const row = await this.projects.editable(args)
-    return { vcpus: row.sandboxVcpus, setupScript: row.setupScript }
+    return {
+      vcpus: row.sandboxVcpus,
+      diskGb: row.sandboxDiskGb,
+      setupScript: row.setupScript,
+    }
   }
 
   async writeSandbox(args: Scope & { sandbox: ProjectSandbox }): Promise<ProjectSandbox> {
@@ -32,10 +36,15 @@ export class ProjectResourcesService {
     await this.projects.editable(args)
     const row = await db.orm.public.Project.where({ id: args.projectId }).update({
       sandboxVcpus: args.sandbox.vcpus,
+      sandboxDiskGb: args.sandbox.diskGb,
       setupScript: args.sandbox.setupScript,
     })
     if (row === null) throw new NotFoundException(PROJECT_NOT_FOUND)
-    return { vcpus: row.sandboxVcpus, setupScript: row.setupScript }
+    return {
+      vcpus: row.sandboxVcpus,
+      diskGb: row.sandboxDiskGb,
+      setupScript: row.setupScript,
+    }
   }
 
   async listSecrets(args: Scope): Promise<SecretSummary[]> {

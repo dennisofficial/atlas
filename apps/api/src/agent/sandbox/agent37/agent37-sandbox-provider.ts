@@ -101,6 +101,7 @@ export class Agent37SandboxProvider extends SandboxProvider {
     target: SandboxTarget
     signal: AbortSignal
     vcpus?: number | undefined
+    diskGb?: number | undefined
   }): Promise<Resolved> {
     const podSessionId = args.target.sandboxSessionId
     const sandboxName = agent37InstanceNameOf(podSessionId)
@@ -115,6 +116,7 @@ export class Agent37SandboxProvider extends SandboxProvider {
         token: this.tokenOf(sandboxName),
         bundleUrl: this.args.daemonBundleUrl,
         ...(args.vcpus === undefined ? {} : { vcpus: args.vcpus }),
+        ...(args.diskGb === undefined ? {} : { diskGb: args.diskGb }),
       }),
     )
     this.args.log?.(`agent37 created instance ${instance.id} for ${podSessionId}`)
@@ -155,6 +157,7 @@ export class Agent37SandboxProvider extends SandboxProvider {
     target: SandboxTarget
     signal: AbortSignal
     vcpus?: number | undefined
+    diskGb?: number | undefined
   }): Promise<DaemonEndpoint> {
     const signal = AbortSignal.any([
       AbortSignal.timeout(this.args.wakeDeadlineMs ?? WAKE_DEADLINE_MS),
@@ -164,6 +167,7 @@ export class Agent37SandboxProvider extends SandboxProvider {
       target: args.target,
       signal,
       ...(args.vcpus === undefined ? {} : { vcpus: args.vcpus }),
+      ...(args.diskGb === undefined ? {} : { diskGb: args.diskGb }),
     })
     waking.catch(() => undefined)
     return Promise.race([waking, abortedWake({ signal, caller: args.signal })])
@@ -173,6 +177,7 @@ export class Agent37SandboxProvider extends SandboxProvider {
     target: SandboxTarget
     signal: AbortSignal
     vcpus?: number | undefined
+    diskGb?: number | undefined
   }): Promise<DaemonEndpoint> {
     const sessionId = args.target.sandboxSessionId
     try {

@@ -64,25 +64,32 @@ describe('project resources router', () => {
     await create({ ...PROJECT_BODY, shipBehavior: 'yolo' }).expect(400)
   })
 
-  it('reads and writes the sandbox, validating vcpus', async () => {
+  it('reads and writes the sandbox, validating vcpus and diskGb', async () => {
     const projectId = await createProjectAs({ app, token: 'session-a' })
     const initial = await query({ path: 'getSandbox', input: { projectId } }).expect(200)
-    expect(dataOf(initial.body)).toEqual({ vcpus: null, setupScript: '' })
+    expect(dataOf(initial.body)).toEqual({ vcpus: null, diskGb: null, setupScript: '' })
 
     const saved = await mutate({
       path: 'saveSandbox',
-      input: { projectId, vcpus: 4, setupScript: 'bun install' },
+      input: { projectId, vcpus: 4, diskGb: 40, setupScript: 'bun install' },
     }).expect(200)
-    expect(dataOf(saved.body)).toEqual({ vcpus: 4, setupScript: 'bun install' })
+    expect(dataOf(saved.body)).toEqual({ vcpus: 4, diskGb: 40, setupScript: 'bun install' })
 
     for (const vcpus of [3, 34, 0]) {
-      await mutate({ path: 'saveSandbox', input: { projectId, vcpus, setupScript: '' } }).expect(
-        400,
-      )
+      await mutate({
+        path: 'saveSandbox',
+        input: { projectId, vcpus, diskGb: null, setupScript: '' },
+      }).expect(400)
+    }
+    for (const diskGb of [0, 25, 120]) {
+      await mutate({
+        path: 'saveSandbox',
+        input: { projectId, vcpus: null, diskGb, setupScript: '' },
+      }).expect(400)
     }
     await mutate({
       path: 'saveSandbox',
-      input: { projectId, vcpus: null, setupScript: '' },
+      input: { projectId, vcpus: null, diskGb: null, setupScript: '' },
     }).expect(200)
   })
 
@@ -154,7 +161,7 @@ describe('project resources router', () => {
     await mutate({
       path: 'saveSandbox',
       token,
-      input: { projectId, vcpus: 2, setupScript: '' },
+      input: { projectId, vcpus: 2, diskGb: null, setupScript: '' },
     }).expect(404)
     await query({ path: 'listSecrets', token, input: { projectId } }).expect(404)
     await mutate({ path: 'setSecret', token, input: { projectId, name: 'A', value: 'v' } }).expect(

@@ -16,6 +16,8 @@ import {
   EVerdictTiming,
   EWebSearchBackendWire,
   modelRefSettingSchema,
+  DEFAULT_SANDBOX_DISK_GB,
+  sandboxDiskGbSchema,
   sandboxVcpusSchema,
 } from './setting-enums'
 
@@ -65,6 +67,12 @@ export const HARNESS_SETTING_ENTRIES = [
     key: 'sandbox.vcpus',
     schema: sandboxVcpusSchema,
     fallback: 2,
+    consumer: ESettingConsumer.Harness,
+  }),
+  settingEntry({
+    key: 'sandbox.diskGb',
+    schema: sandboxDiskGbSchema,
+    fallback: DEFAULT_SANDBOX_DISK_GB,
     consumer: ESettingConsumer.Harness,
   }),
   settingEntry({

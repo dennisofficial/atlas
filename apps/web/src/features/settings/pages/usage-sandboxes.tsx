@@ -6,7 +6,7 @@ import { PauseIcon, RefreshCwIcon, Trash2Icon } from 'lucide-react'
 import { Button } from '@dltech/atlas-ui/components/button'
 import { Skeleton } from '@dltech/atlas-ui/components/skeleton'
 
-import { DEFAULT_SANDBOX_VCPUS } from '@dltech/atlas-wire/web'
+import { DEFAULT_SANDBOX_DISK_GB, DEFAULT_SANDBOX_VCPUS } from '@dltech/atlas-wire/web'
 
 import { useCloudQuery } from '@/lib/use-cloud-query'
 
@@ -18,6 +18,7 @@ import type { SandboxRow } from '../fixtures/settings-usage-rows'
 import { SettingFieldsEditor } from '../parts/setting-fields-editor'
 import { SANDBOX_FIELDS } from '../fixtures/settings-fields'
 import { usePersonalSettings } from '../data/personal/use-settings-draft'
+import { SandboxDiskSection } from '../parts/sandbox-disk-section'
 import { SandboxSizeSection } from '../parts/sandbox-size-section'
 import { UsageSandboxEmpty } from '../parts/usage-sandbox-empty'
 import { UsageSandboxTable } from '../parts/usage-sandbox-table'
@@ -40,6 +41,23 @@ function PersonalSandboxSize() {
       onSave={async (vcpus) => {
         if (vcpus === null) return
         await settings.save({ 'sandbox.vcpus': vcpus })
+      }}
+    />
+  )
+}
+
+function PersonalSandboxDisk() {
+  const settings = usePersonalSettings()
+  const { data } = settings.query
+  if (data === undefined) return null
+  const stored = data.get('sandbox.diskGb')
+  return (
+    <SandboxDiskSection
+      key={`disk-${String(stored)}`}
+      value={typeof stored === 'number' ? stored : DEFAULT_SANDBOX_DISK_GB}
+      onSave={async (diskGb) => {
+        if (diskGb === null) return
+        await settings.save({ 'sandbox.diskGb': diskGb })
       }}
     />
   )
@@ -90,6 +108,7 @@ export function UsageSandboxesView({
         <UserVercelCardSlot />
       </SettingsSection>
       <PersonalSandboxSize />
+      <PersonalSandboxDisk />
       <SandboxImageField />
       <SettingsSection title={`Currently running (${running.length})`}>
         {running.length === 0 ? (

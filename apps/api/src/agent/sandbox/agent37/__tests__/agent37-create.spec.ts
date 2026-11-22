@@ -57,6 +57,31 @@ describe('agent37CreateBodyOf', () => {
     expect(bigger.resources).toEqual({ cpu: 4, memory: 8, disk: 20 })
   })
 
+  it('boots the disk the settings resolved, over the env default', () => {
+    const bigger = agent37CreateBodyOf({
+      env,
+      podSessionId: 'pod-1',
+      sandboxName: agent37InstanceNameOf('pod-1'),
+      token: 'unused',
+      bundleUrl: 'https://api.byatlas.io/agent/daemon/bundle',
+      diskGb: 80,
+    })
+    expect(bigger.resources).toEqual({ cpu: 2, memory: 4, disk: 80 })
+  })
+
+  it('takes a resolved vcpus and disk together', () => {
+    const both = agent37CreateBodyOf({
+      env,
+      podSessionId: 'pod-1',
+      sandboxName: agent37InstanceNameOf('pod-1'),
+      token: 'unused',
+      bundleUrl: 'https://api.byatlas.io/agent/daemon/bundle',
+      vcpus: 8,
+      diskGb: 60,
+    })
+    expect(both.resources).toEqual({ cpu: 8, memory: 64, disk: 60 })
+  })
+
   it('never carries the workspace api key', () => {
     expect(JSON.stringify(body)).not.toContain(env.apiKey)
   })

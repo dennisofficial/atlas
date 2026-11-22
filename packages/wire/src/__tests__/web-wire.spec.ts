@@ -19,16 +19,39 @@ describe('web wire schemas', () => {
   })
 
   it('project sandbox accepts null or a Vercel pod size of 1 or an even 2..32 vcpus', () => {
-    expect(projectSandboxSchema.safeParse({ vcpus: null, setupScript: '' }).success).toBe(true)
+    expect(
+      projectSandboxSchema.safeParse({ vcpus: null, diskGb: null, setupScript: '' }).success,
+    ).toBe(true)
     for (const vcpus of [1, 2, 16, 32]) {
-      expect(projectSandboxSchema.safeParse({ vcpus, setupScript: '' }).success).toBe(true)
+      expect(projectSandboxSchema.safeParse({ vcpus, diskGb: null, setupScript: '' }).success).toBe(
+        true,
+      )
     }
     for (const vcpus of [0, 3, 33, 34, 2.5]) {
-      expect(projectSandboxSchema.safeParse({ vcpus, setupScript: '' }).success).toBe(false)
+      expect(projectSandboxSchema.safeParse({ vcpus, diskGb: null, setupScript: '' }).success).toBe(
+        false,
+      )
     }
     expect(
-      projectSandboxSchema.safeParse({ vcpus: 2, setupScript: 'x'.repeat(20001) }).success,
+      projectSandboxSchema.safeParse({
+        vcpus: 2,
+        diskGb: null,
+        setupScript: 'x'.repeat(20001),
+      }).success,
     ).toBe(false)
+  })
+
+  it('project sandbox accepts null or one of the Agent37 disk sizes', () => {
+    for (const diskGb of [20, 30, 40, 60, 80, 100]) {
+      expect(projectSandboxSchema.safeParse({ vcpus: null, diskGb, setupScript: '' }).success).toBe(
+        true,
+      )
+    }
+    for (const diskGb of [0, 10, 25, 50, 120, 20.5]) {
+      expect(projectSandboxSchema.safeParse({ vcpus: null, diskGb, setupScript: '' }).success).toBe(
+        false,
+      )
+    }
   })
 
   it('project defaults description and shipBehavior so an old payload still parses', () => {

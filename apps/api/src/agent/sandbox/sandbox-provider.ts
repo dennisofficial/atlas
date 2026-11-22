@@ -30,6 +30,7 @@ export abstract class SandboxProvider {
     target: SandboxTarget
     signal: AbortSignal
     vcpus?: number | undefined
+    diskGb?: number | undefined
   }): Promise<DaemonEndpoint>
   abstract stop(args: { target: SandboxTarget }): Promise<void>
   abstract keepAlive(args: { target: SandboxTarget; until: number }): Promise<void>

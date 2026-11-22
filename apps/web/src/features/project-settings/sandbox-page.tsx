@@ -9,6 +9,7 @@ import { Label } from '@dltech/atlas-ui/components/label'
 import { Textarea } from '@dltech/atlas-ui/components/textarea'
 
 import { QueryGate } from '@/features/settings/data/shared/query-gate'
+import { SandboxDiskSection } from '@/features/settings/parts/sandbox-disk-section'
 import { SandboxSizeSection } from '@/features/settings/parts/sandbox-size-section'
 import { SandboxPageSkeleton } from './project-skeletons'
 import { runAction } from '@/features/settings/data/shared/run-action'
@@ -102,6 +103,12 @@ export function SandboxPage() {
               value={sandbox.vcpus}
               withAccountDefault
               onSave={(vcpus) => handleSave({ vcpus })}
+            />
+            <SandboxDiskSection
+              key={`disk-${sandbox.diskGb}`}
+              value={sandbox.diskGb}
+              withAccountDefault
+              onSave={(diskGb) => handleSave({ diskGb })}
             />
             <SetupScript
               key={`script-${sandbox.setupScript}`}
