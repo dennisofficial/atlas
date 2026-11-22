@@ -1,4 +1,5 @@
 import type { CommandRegistry } from '@dltech/atlas-commands'
+import type { ChangeContentStore } from '@dltech/atlas-control'
 import { toThreadId, type ModelPort, type ToolDefinition } from '@dltech/atlas-core'
 import { ControlPlane } from '@dltech/atlas-control'
 import { InMemoryControlStore } from '@dltech/atlas-control/testing'
@@ -56,6 +57,8 @@ export const makeRig = async (args: {
   appendRetryMs?: number | undefined
   sweepMs?: number | undefined
   watchedRepos?: (() => Promise<readonly string[]>) | undefined
+  watchedCheckouts?: (() => Promise<readonly string[]>) | undefined
+  changes?: { content: ChangeContentStore } | undefined
   runningShells?: (() => Promise<number>) | undefined
   model?: (() => ModelPort) | undefined
   hostTools?: readonly ToolDefinition[] | undefined
@@ -114,6 +117,7 @@ export const makeRig = async (args: {
     script,
     runtimes,
     watchedRepos: args.watchedRepos,
+    watchedCheckouts: args.watchedCheckouts,
     runningShells: args.runningShells,
     terminalStreams: args.terminalStreams,
     panelHolds: () => held?.demandOf().panel.countOf(SESSION) ?? 0,
@@ -147,6 +151,7 @@ export const makeRig = async (args: {
     commands: args.commands,
     commandHandlers: args.commandHandlers,
     control: args.control,
+    changes: args.changes,
     ...(args.log === undefined ? {} : { log: args.log }),
     onHostIdChanged: args.onHostIdChanged,
   })

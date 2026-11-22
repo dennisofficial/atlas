@@ -2,7 +2,12 @@ import { writeFileSync } from 'node:fs'
 
 import { SANDBOX_WORKLOADS_ENV } from './markers'
 import type { PriorityStep } from './serve-priority'
-import { CGROUP_ROOT, prepareWorkloadCgroups, type WorkloadCgroupsReport } from './workload-cgroups'
+import {
+  CGROUP_ROOT,
+  DAEMON_MEMORY_RESERVE,
+  prepareWorkloadCgroups,
+  type WorkloadCgroupsReport,
+} from './workload-cgroups'
 
 export const DAEMON_OOM_SCORE_ADJ = -900
 
@@ -36,6 +41,7 @@ export const applyDaemonProtection = (args: {
     platform,
     root: args.root ?? CGROUP_ROOT,
     meminfo: args.meminfo,
+    reserve: DAEMON_MEMORY_RESERVE,
   })
   const write = args.writeOomScoreAdj ?? writeSelfOomScoreAdj
   let oomScoreAdj: PriorityStep

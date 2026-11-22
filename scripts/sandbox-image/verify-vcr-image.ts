@@ -6,7 +6,7 @@ import { randomBytes } from 'node:crypto'
 const CREATE_BUDGET_MS = 10 * 60 * 1000
 const POLL_DELAY_MS = 20_000
 const HEAL_ATTEMPTS = 2
-const BAKE_ID_PATH = 'apps/serve/sandbox-image/atlas-serve.bake-id'
+const BAKE_ID_PATH = 'infra/sandbox-image/atlas-serve.bake-id'
 
 export type ImageReadiness = 'ready' | 'not-ready' | 'poisoned' | 'unexpected'
 
@@ -123,13 +123,13 @@ async function republishUnderFreshDigest(args: {
     --tag ${`${args.vcrImage}:${args.tag}`}
     --cache-from type=registry,ref=${`${args.ghcrImage}:buildcache`}
     --output type=image,push=true,oci-mediatypes=true,compression=zstd,compression-level=3,force-compression=true
-    apps/serve/sandbox-image`.quiet()
+    infra/sandbox-image`.quiet()
 }
 
 async function main(): Promise<number> {
   const image = process.argv[2]
   if (image === undefined) {
-    console.error('usage: bun apps/serve/scripts/verify-vcr-image.ts <image>')
+    console.error('usage: bun scripts/sandbox-image/verify-vcr-image.ts <image>')
     return 2
   }
   const token = process.env.VERCEL_TOKEN

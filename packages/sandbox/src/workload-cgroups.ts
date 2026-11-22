@@ -11,12 +11,28 @@ export const WORK_PIDS_MAX = 16_384
 export const WORKLOAD_PIDS_MAX_ENV = 'ATLAS_WORKLOAD_PIDS_MAX'
 export const WORK_CPU_WEIGHT = 20
 export const SERVE_CPU_WEIGHT = 500
-export const MIN_SERVE_RESERVE_BYTES = 1.5 * 1024 ** 3
-export const SERVE_RESERVE_FRACTION = 0.25
+export const SERVE_GROUP = 'atlas-serve'
+export const WORK_GROUP = 'atlas-work'
 export const BOX_PREFIX = 'w-'
 export const MIN_IDLE_BOX_AGE_MS = 10_000
 
 const MOVE_PASSES = 3
+
+export type MemoryReserve = { minBytes: number; fraction: number; protectedBytes: number }
+
+const MIB = 1024 ** 2
+
+export const SERVE_MEMORY_RESERVE: MemoryReserve = {
+  minBytes: 1536 * MIB,
+  fraction: 0.25,
+  protectedBytes: 0,
+}
+
+export const DAEMON_MEMORY_RESERVE: MemoryReserve = {
+  minBytes: 0,
+  fraction: 0,
+  protectedBytes: 384 * MIB,
+}
 
 export type WorkloadCgroupLimits = {
   pidsMax: number
@@ -24,6 +40,7 @@ export type WorkloadCgroupLimits = {
   memorySwapMax: number
   cpuWeight: number
   serveCpuWeight: number
+  serveMemoryMinBytes: number
 }
 
 export type WorkloadCgroupsReport =
@@ -56,11 +73,11 @@ export const pidsMaxFor = (env: Record<string, string | undefined>): number => {
   return parsed
 }
 
-export const memoryMaxFor = (args: { meminfo: string }): number => {
+export const memoryMaxFor = (args: { meminfo: string; reserve: MemoryReserve }): number => {
   const match = /^MemTotal:\s+(\d+)\s+kB/m.exec(args.meminfo)
   if (match?.[1] === undefined) throw new Error('MemTotal not found in meminfo')
   const total = Number(match[1]) * 1024
-  return total - Math.max(MIN_SERVE_RESERVE_BYTES, total * SERVE_RESERVE_FRACTION)
+  return total - Math.max(args.reserve.minBytes, total * args.reserve.fraction)
 }
 
 const write = (args: { path: string; value: string | number }): void =>
@@ -82,18 +99,22 @@ export const prepareWorkloadCgroups = (args: {
   platform?: NodeJS.Platform | undefined
   root?: string | undefined
   meminfo?: string | undefined
+  reserve: MemoryReserve
 }): WorkloadCgroupsReport => {
   const platform = args.platform ?? process.platform
   const workloads = mirrorsThreadState(args.env) || sandboxWorkloadsEnabled(args.env)
   if (platform !== 'linux' || !workloads) return { enabled: false }
 
   const root = args.root ?? CGROUP_ROOT
-  const serveGroup = join(root, 'atlas-serve')
-  const workGroup = join(root, 'atlas-work')
+  const serveGroup = join(root, SERVE_GROUP)
+  const workGroup = join(root, WORK_GROUP)
 
   try {
     const memoryMaxBytes = step('size-memory', () =>
-      memoryMaxFor({ meminfo: args.meminfo ?? readFileSync('/proc/meminfo', 'utf8') }),
+      memoryMaxFor({
+        meminfo: args.meminfo ?? readFileSync('/proc/meminfo', 'utf8'),
+        reserve: args.reserve,
+      }),
     )
     step('create-groups', () => {
       mkdirSync(serveGroup, { recursive: true })
@@ -112,6 +133,11 @@ export const prepareWorkloadCgroups = (args: {
       write({ path: join(workGroup, 'cpu.weight'), value: WORK_CPU_WEIGHT })
       write({ path: join(serveGroup, 'cpu.weight'), value: SERVE_CPU_WEIGHT })
     })
+    if (args.reserve.protectedBytes > 0) {
+      step('protect-serve', () =>
+        write({ path: join(serveGroup, 'memory.min'), value: args.reserve.protectedBytes }),
+      )
+    }
     step('enable-work-controllers', () =>
       write({ path: join(workGroup, 'cgroup.subtree_control'), value: '+memory +pids' }),
     )
@@ -127,6 +153,7 @@ export const prepareWorkloadCgroups = (args: {
         memorySwapMax: 0,
         cpuWeight: WORK_CPU_WEIGHT,
         serveCpuWeight: SERVE_CPU_WEIGHT,
+        serveMemoryMinBytes: args.reserve.protectedBytes,
       },
     }
   } catch (error) {
@@ -147,7 +174,7 @@ export const sweepIdleWorkloadBoxes = (args: {
   now?: number | undefined
   minAgeMs?: number | undefined
 }): void => {
-  const workGroup = join(args.root ?? CGROUP_ROOT, 'atlas-work')
+  const workGroup = join(args.root ?? CGROUP_ROOT, WORK_GROUP)
   const now = args.now ?? Date.now()
   const minAgeMs = args.minAgeMs ?? MIN_IDLE_BOX_AGE_MS
 

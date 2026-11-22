@@ -479,7 +479,7 @@ open, and pins four fixed clip strips to the panel's rect; the view exists exact
 open, so a host reload cannot strand one.
 
 **Agents get a browser too, a different one.** The `browser` tool drives the `agent-browser` CLI that the
-sandbox image bakes in (`apps/serve/sandbox-image/Dockerfile`), one `--session atlas-<threadId>` per
+sandbox image bakes in (`infra/sandbox-image/Dockerfile`), one `--session atlas-<threadId>` per
 thread so agents never share a daemon, with page output wrapped as untrusted data. It is Chrome in the
 pod, not the operator's Mac pane.
 

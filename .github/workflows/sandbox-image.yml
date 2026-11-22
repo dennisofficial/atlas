@@ -6,8 +6,8 @@ on:
     # Only the image's own bytes matter: a merge that touches neither the context nor this
     # workflow would republish the identical image under a new sha tag.
     paths:
-      - 'apps/serve/sandbox-image/**'
-      - '!apps/serve/sandbox-image/README.md'
+      - 'infra/sandbox-image/**'
+      - '!infra/sandbox-image/README.md'
       - '.github/workflows/sandbox-image.yml'
   # The retag job runs by dispatch, not on the release event: the release job in ci.yml
   # creates the release with GITHUB_TOKEN, and GitHub never starts workflow runs from events
@@ -66,8 +66,12 @@ jobs:
         id: meta
         run: |
           set -euo pipefail
-          tree_tag="tree-$(git ls-tree HEAD apps/serve/sandbox-image/ \
-            | grep -v '/README.md$' | git hash-object --stdin | cut -c1-12)"
+          # The hash covers the listed paths, so they are listed under the context's original home
+          # (apps/serve/sandbox-image): moving the directory must not rename every tree tag.
+          tree_tag="tree-$(git ls-tree HEAD infra/sandbox-image/ \
+            | grep -v '/README.md$' \
+            | sed 's#\tinfra/sandbox-image/#\tapps/serve/sandbox-image/#' \
+            | git hash-object --stdin | cut -c1-12)"
           echo "sha_tag=sha-$(git rev-parse HEAD | cut -c1-7)" >> "$GITHUB_OUTPUT"
           echo "tree_tag=${tree_tag}" >> "$GITHUB_OUTPUT"
           if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] \
@@ -88,7 +92,7 @@ jobs:
           # Build records are ~7,000 tiny artifacts that count against Actions storage.
           DOCKER_BUILD_RECORD_UPLOAD: false
         with:
-          context: apps/serve/sandbox-image
+          context: infra/sandbox-image
           push: true
           platforms: linux/amd64,linux/arm64
           tags: |
@@ -182,7 +186,7 @@ jobs:
         env:
           DOCKER_BUILD_RECORD_UPLOAD: false
         with:
-          context: apps/serve/sandbox-image
+          context: infra/sandbox-image
           platforms: linux/amd64
           provenance: false
           tags: ${{ env.VCR_IMAGE }}:latest
@@ -199,7 +203,7 @@ jobs:
           VERCEL_TEAM_ID: team_GR4aCzLIY5D3YYWgITz3Tere
           VERCEL_PROJECT_ID: prj_kmYGr5ZuEyOeZdJpjw2pZaVOaJwo
           VERCEL_PROJECT_NAME: atlas-sandboxes
-        run: bun apps/serve/scripts/prune-vcr-images.ts
+        run: bun scripts/sandbox-image/prune-vcr-images.ts
 
       # The Agent37 template must point at the same image release as VCR, or the two providers
       # drift apart with nothing to detect it. The digest resolved above is the release commit's
