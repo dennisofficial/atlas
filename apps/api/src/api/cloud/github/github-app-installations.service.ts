@@ -1,4 +1,3 @@
-import { Injectable } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import { markReposTargetsDue } from './github-due-scheduler'
 import { normalizedRepo } from './github-pr-identity'
@@ -39,7 +38,6 @@ const coverageOf = (row: CoverageFields): RepoCoverage =>
  * hook — this is what restores review/comment events on org repos the subscribing user cannot admin.
  * A suspended installation covers nothing until it is unsuspended.
  */
-@Injectable()
 export class GithubAppInstallationsService {
   private readonly known = new Map<string, number>()
 

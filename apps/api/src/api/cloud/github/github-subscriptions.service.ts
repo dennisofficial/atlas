@@ -1,4 +1,3 @@
-import { Injectable } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import {
   type GithubThreadActivity,
@@ -26,7 +25,6 @@ import { GithubSubscribeStateWriter } from './github-subscribe-state-writer'
 import { GithubUserReads } from './github-user-reads'
 import { GithubService } from './github.service'
 
-@Injectable()
 export class GithubSubscriptionsService {
   private readonly prs: GithubSubscribedPrResolver
   private readonly stateWriter: GithubSubscribeStateWriter

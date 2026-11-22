@@ -1,7 +1,7 @@
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { db } from '@dltech/atlas-db'
 import { afterEach, describe, expect, it, setSystemTime } from 'bun:test'
-import { EnvService } from '../../../_core/config/env/env.service'
+import { GithubConfig } from './github-config'
 import { GithubAppClient } from './github-app-client'
 import { GithubAppInstallationsService } from './github-app-installations.service'
 import { FAKE_TOKEN_LIFETIME_MS, fakeGithubApp, syncServiceWith } from './github-app-sync.fixture'
@@ -26,7 +26,7 @@ const seedCoverage = (args: {
 const tokensOver = (args: { configured?: boolean } = {}) => {
   if (args.configured === false) {
     return new GithubInstallationTokens(
-      new GithubAppClient(new EnvService({})),
+      new GithubAppClient(new GithubConfig({})),
       new GithubAppInstallationsService(),
     )
   }

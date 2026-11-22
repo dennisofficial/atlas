@@ -1,5 +1,3 @@
-import { Injectable, type OnModuleDestroy } from '@nestjs/common'
-import { DrainStateService } from '../../platform/health/drain-state.service'
 import {
   deliverEvent,
   deliverState,
@@ -11,6 +9,7 @@ import {
 } from './github-pr-fanout.delivery'
 import { EPrFrameKind, type PrFrame, parsePrFrame } from './github-pr-fanout.frame'
 import { githubLogOf } from './github-log'
+import type { GithubDrain } from './github-ports'
 import { LocalPrFrameBus, PrFrameBus } from './github-pr-fanout.transport'
 import { PrKeyWatchers, type PrKeyWatch } from './github-pr-fanout.watchers'
 import type { GithubPrEventDto, GithubPrStateDto } from './github-realtime.types'
@@ -34,8 +33,7 @@ type PendingPush = { state: GithubPrStateDto; userIds: readonly string[]; dirty:
  * no bus configured the flush delivers directly. On drain every open stream is closed outright:
  * the client reconnects and re-reads state instead of a frame riding a dying process.
  */
-@Injectable()
-export class GithubPrFanoutService implements OnModuleDestroy {
+export class GithubPrFanoutService {
   private readonly logger = githubLogOf(GithubPrFanoutService.name)
   private readonly streams = new Map<string, Set<OpenStream>>()
   private readonly pending = new Map<string, PendingPush>()
@@ -46,7 +44,7 @@ export class GithubPrFanoutService implements OnModuleDestroy {
   private subscribed = false
 
   constructor(
-    drain: DrainStateService,
+    drain: GithubDrain,
     private readonly bus: PrFrameBus = new LocalPrFrameBus(),
   ) {
     drain.onDrain(() => this.closeAll())

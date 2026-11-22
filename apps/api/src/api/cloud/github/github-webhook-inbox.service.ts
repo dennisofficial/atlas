@@ -1,4 +1,3 @@
-import { Injectable } from '@nestjs/common'
 import { db, or, type Row, type Tx } from '@dltech/atlas-db'
 import { isGithubBudgetParked } from './github-request-budget'
 import { githubLogOf } from './github-log'
@@ -31,7 +30,6 @@ export function retryDelayMs(attempts: number): number {
  * attempt; charging it walked whole bursts of deliveries into the dead letter and left their pull
  * requests permanently stale.
  */
-@Injectable()
 export class GithubWebhookInboxService {
   private readonly logger = githubLogOf(GithubWebhookInboxService.name)
 

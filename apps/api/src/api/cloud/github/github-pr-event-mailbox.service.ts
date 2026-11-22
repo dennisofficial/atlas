@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto'
-import { Injectable } from '@nestjs/common'
 import { db, or, type Row, type Tx } from '@dltech/atlas-db'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import {
@@ -33,7 +32,6 @@ export type GithubThreadReplay = (args: {
   threadId: string
 }) => Promise<GithubPrEventDto[]>
 
-@Injectable()
 export class GithubPrEventMailboxService {
   constructor(
     private readonly fanout: GithubPrFanoutService,

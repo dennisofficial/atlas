@@ -1,4 +1,3 @@
-import { Injectable } from '@nestjs/common'
 import { GithubDeliveryChecks } from './github-delivery-checks'
 import {
   GithubDeliveryFillDeferred,
@@ -15,7 +14,7 @@ import { normalizedRepo } from './github-pr-identity'
 import { inWatchScope } from './github-watch-scope'
 import { GithubRequestCoordinator } from './github-request-coordinator'
 import { withGithubRequestBudget } from './github-request-budget'
-import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
+import type { GithubSecretCipher } from './github-ports'
 import { GithubPrDiscussionDeliveryService } from './github-pr-discussion-delivery.service'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
@@ -61,7 +60,6 @@ const HANDLED_EVENTS = new Set([
   'pull_request_review_comment',
 ])
 
-@Injectable()
 export class GithubDeliveryService {
   private readonly logger = githubLogOf(GithubDeliveryService.name)
   private readonly checks: GithubDeliveryChecks
@@ -71,7 +69,7 @@ export class GithubDeliveryService {
     private readonly github: GithubService,
     private readonly reads: GithubUserReads,
     fanout: GithubPrFanoutService,
-    _cipher: SecretCipherService,
+    _cipher: GithubSecretCipher,
     mailbox: GithubPrEventMailboxService,
     private readonly discussion: GithubPrDiscussionDeliveryService,
     private readonly coordinator: GithubRequestCoordinator,

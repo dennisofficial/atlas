@@ -3,6 +3,7 @@ import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it } from 'bun:test'
 import { connectionRows, ensureUsers } from '../../../../test/github-seed'
 import { EnvService } from '../../../_core/config/env/env.service'
+import { GithubConfig } from './github-config'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import type { FetchFn, GithubHttpRequest, GithubHttpResponse } from './github-device-client'
 import { GithubDeviceClient } from './github-device-client'
@@ -42,7 +43,7 @@ describe('GithubService', () => {
     }
     service = new GithubService(
       new SecretCipherService(new EnvService({ SECRETS_ENCRYPTION_KEY: HEX_KEY })),
-      new EnvService({ GITHUB_CLIENT_ID: CLIENT_ID }),
+      new GithubConfig({ clientId: CLIENT_ID }),
       new GithubDeviceClient({ fetchFn }),
     )
   })
@@ -89,7 +90,7 @@ describe('GithubService', () => {
   it('begin answers 503 when github connect is not configured', async () => {
     service = new GithubService(
       new SecretCipherService(new EnvService({ SECRETS_ENCRYPTION_KEY: HEX_KEY })),
-      new EnvService({}),
+      new GithubConfig({}),
       new GithubDeviceClient({ fetchFn }),
     )
 

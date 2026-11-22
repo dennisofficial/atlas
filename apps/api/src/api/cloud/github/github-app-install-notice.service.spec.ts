@@ -1,17 +1,15 @@
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { describe, expect, it } from 'bun:test'
 import { ensureUsers, seedRepoHook } from '../../../../test/github-seed'
-import type { EnvService } from '../../../_core/config/env/env.service'
 import { GithubAppInstallNoticeService } from './github-app-install-notice.service'
 import { GithubAppInstallationsService } from './github-app-installations.service'
+import { GithubConfig } from './github-config'
 import type { GithubAppInstallationWebhookPayload } from './github-webhook.types'
 
-const ENV = {
-  get: (key: string) => (key === 'GITHUB_APP_SLUG' ? 'atlas-by-dl' : undefined),
-} as unknown as EnvService
+const CONFIG = new GithubConfig({ appSlug: 'atlas-by-dl' })
 
 const installations = new GithubAppInstallationsService()
-const service = new GithubAppInstallNoticeService(installations, ENV)
+const service = new GithubAppInstallNoticeService(installations, CONFIG)
 
 function seedAppCovering(repoFullName: string): Promise<void> {
   const payload: GithubAppInstallationWebhookPayload = {
@@ -67,9 +65,7 @@ describe('GithubAppInstallNoticeService', () => {
   })
 
   it('returns no install url when the slug is not configured', () => {
-    const noSlug = new GithubAppInstallNoticeService(installations, {
-      get: () => undefined,
-    } as unknown as EnvService)
+    const noSlug = new GithubAppInstallNoticeService(installations, new GithubConfig({}))
     expect(noSlug.installUrl()).toBeNull()
   })
 })

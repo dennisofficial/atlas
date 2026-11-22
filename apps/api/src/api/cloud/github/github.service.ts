@@ -1,8 +1,7 @@
 import { randomUUID } from 'node:crypto'
-import { Injectable } from '@nestjs/common'
-import { EnvService } from '../../../_core/config/env/env.service'
 import { db } from '@dltech/atlas-db'
-import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
+import { GithubConfig } from './github-config'
+import type { GithubSecretCipher } from './github-ports'
 import { EGithubHttpStatus, GithubHttpError } from './github-http-error'
 import type { GithubPollOutcome } from './github-device-client'
 import { GithubDeviceClient } from './github-device-client'
@@ -31,11 +30,10 @@ function mapPollError(outcome: { error: string; description?: string }): GithubP
   })
 }
 
-@Injectable()
 export class GithubService {
   constructor(
-    private readonly cipher: SecretCipherService,
-    private readonly env: EnvService,
+    private readonly cipher: GithubSecretCipher,
+    private readonly config: GithubConfig,
     private readonly client: GithubDeviceClient,
   ) {}
 
@@ -108,7 +106,7 @@ export class GithubService {
   }
 
   private clientId(): string {
-    const clientId = this.env.get('GITHUB_CLIENT_ID')
+    const clientId = this.config.values.clientId
     if (clientId === undefined || clientId.length === 0) {
       throw new GithubHttpError({
         status: EGithubHttpStatus.ServiceUnavailable,

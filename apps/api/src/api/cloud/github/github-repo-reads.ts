@@ -1,4 +1,3 @@
-import { Injectable } from '@nestjs/common'
 import type { EGithubCallSource } from './github-call-log'
 import { githubFetch } from './github-fetch'
 import {
@@ -48,7 +47,6 @@ const TREE_KINDS: Record<string, ERepoTreeEntryKind> = {
   tree: ERepoTreeEntryKind.Folder,
 }
 
-@Injectable()
 export class GithubRepoReads {
   async listRepos(args: {
     source: EGithubCallSource

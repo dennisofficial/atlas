@@ -1,4 +1,3 @@
-import { Injectable } from '@nestjs/common'
 import { EGithubCallSource } from './github-call-log'
 import { githubFetch } from './github-fetch'
 import { rateLimitOf } from './github-rate-limit'
@@ -18,7 +17,6 @@ export const pullStateOf = (pull: RestPullRequest): string => {
   return pull.draft ? 'draft' : 'open'
 }
 
-@Injectable()
 export class GithubHeadReads {
   private readonly parents = new Map<string, string | null>()
 

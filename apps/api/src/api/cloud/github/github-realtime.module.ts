@@ -5,29 +5,14 @@ import { RedisModule } from '../../../_lib/redis/redis.module'
 import { HealthModule } from '../../platform/health/health.module'
 import { SessionsModule } from '../../platform/sessions/sessions.module'
 import { GithubAppHookController } from './github-app-hook.controller'
-import { GithubAppInstallNoticeService } from './github-app-install-notice.service'
-import { GithubAppClient } from './github-app-client'
-import { GithubAppSyncGate } from './github-app-sync-gate'
-import { GithubAppSyncService } from './github-app-sync.service'
-import { GithubHookSweepService } from './github-hook-sweep.service'
-import { GithubAppInstallationsService } from './github-app-installations.service'
-import { GithubInstallationTokens } from './github-installation-tokens'
-import { GithubDeliveryService } from './github-delivery.service'
-import { GithubPrDiscussionDeliveryService } from './github-pr-discussion-delivery.service'
 import { GithubHookController } from './github-hook.controller'
-import { GithubHookLifecycleService } from './github-hook-lifecycle.service'
-import { GithubHeadReads } from './github-head-reads'
 import { sweepSchedulerProviders } from './github-sweep-scheduler'
-import { GithubPrFanoutService } from './github-pr-fanout.service'
-import { prFrameBusProvider } from './github-pr-fanout.transport'
 import { GithubSandboxWakeService } from './github-sandbox-wake.service'
 import { wakeDebounceProvider } from './github-sandbox-wake-debounce'
 import { sandboxWakeBootProvider } from './github-sandbox-wake-boot'
 import { GithubPrStreamRouter } from './github-pr-stream.router'
 import { GithubPrSubscriptionLinks } from './github-pr-subscription-links'
 import { GithubSubscriptionsRouter } from './github-subscriptions.router'
-import { GithubUserReads } from './github-user-reads'
-import { GithubWebhookInboxService } from './github-webhook-inbox.service'
 import { GithubModule } from './github.module'
 import {
   pollSweeperProvider,
@@ -39,6 +24,23 @@ import {
   prApplyWiringProvider,
   prStoreProvider,
 } from './github-pr-apply.providers'
+import {
+  githubAppClientProvider,
+  githubAppInstallationsProvider,
+  githubAppInstallNoticeProvider,
+  githubAppSyncGateProvider,
+  githubAppSyncServiceProvider,
+  githubDeliveryProvider,
+  githubHeadReadsProvider,
+  githubHookLifecycleProvider,
+  githubHookSweepProvider,
+  githubInstallationTokensProvider,
+  githubPrDiscussionDeliveryProvider,
+  githubPrFanoutProvider,
+  githubUserReadsProvider,
+  githubWebhookInboxProvider,
+  prFrameBusProvider,
+} from './github-realtime.providers'
 
 @Module({
   imports: [GithubModule, HealthModule, RedisModule, SessionsModule],
@@ -49,31 +51,31 @@ import {
     subscriptionsServiceProvider,
     GithubPrSubscriptionLinks,
     { provide: PrSubscriptionLinks, useExisting: GithubPrSubscriptionLinks },
-    GithubHookLifecycleService,
-    GithubHeadReads,
+    githubHookLifecycleProvider,
+    githubHeadReadsProvider,
     pollSweeperProvider,
     ...sweepSchedulerProviders(),
-    GithubDeliveryService,
-    GithubPrDiscussionDeliveryService,
+    githubDeliveryProvider,
+    githubPrDiscussionDeliveryProvider,
     prApplyWiringProvider,
     mailboxProvider,
     outboxDispatcherProvider,
     prStoreProvider,
-    GithubWebhookInboxService,
+    githubWebhookInboxProvider,
     prFrameBusProvider,
-    GithubPrFanoutService,
+    githubPrFanoutProvider,
     GithubSandboxWakeService,
-    GithubAppInstallationsService,
-    GithubAppClient,
-    GithubInstallationTokens,
-    GithubAppSyncGate,
-    GithubAppSyncService,
-    GithubHookSweepService,
-    GithubAppInstallNoticeService,
+    githubAppInstallationsProvider,
+    githubAppClientProvider,
+    githubInstallationTokensProvider,
+    githubAppSyncGateProvider,
+    githubAppSyncServiceProvider,
+    githubHookSweepProvider,
+    githubAppInstallNoticeProvider,
     sandboxWakeBootProvider,
     backgroundWorkProvider(),
     wakeDebounceProvider(),
-    GithubUserReads,
+    githubUserReadsProvider,
   ],
 })
 export class GithubRealtimeModule {}

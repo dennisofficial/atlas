@@ -1,7 +1,6 @@
-import { Injectable } from '@nestjs/common'
-import { EnvService } from '../../../_core/config/env/env.service'
 import { db } from '@dltech/atlas-db'
 import { GithubAppInstallationsService } from './github-app-installations.service'
+import { GithubConfig } from './github-config'
 
 /**
  * A poll-backed subscription means no webhook delivers the repo's PR discussion events, so reviews
@@ -9,15 +8,14 @@ import { GithubAppInstallationsService } from './github-app-installations.servic
  * org admin — so the recommendation is shown once per (user, repo) and dismissed thereafter, and is
  * never raised for a repo already covered by the app or a personal hook.
  */
-@Injectable()
 export class GithubAppInstallNoticeService {
   constructor(
     private readonly installations: GithubAppInstallationsService,
-    private readonly env: EnvService,
+    private readonly config: GithubConfig,
   ) {}
 
   installUrl(): string | null {
-    const slug = this.env.get('GITHUB_APP_SLUG')
+    const slug = this.config.values.appSlug
     if (slug === undefined || slug.length === 0) return null
     return `https://github.com/apps/${slug}/installations/new`
   }

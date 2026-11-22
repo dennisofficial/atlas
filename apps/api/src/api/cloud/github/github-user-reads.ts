@@ -1,4 +1,3 @@
-import { Injectable } from '@nestjs/common'
 import type { EGithubCallSource } from './github-call-log'
 import { githubFetch } from './github-fetch'
 import {
@@ -42,7 +41,6 @@ export interface HookConfig {
  * Every GitHub read in the realtime flow uses whichever token its caller passes: a user's OAuth
  * token, or the GitHub App installation token for a repo the app covers.
  */
-@Injectable()
 export class GithubUserReads {
   private readonly requiredChecks = new GithubRequiredChecksRead()
 

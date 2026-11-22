@@ -1,8 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import { EGithubCallSource } from './github-call-log'
-import { Injectable } from '@nestjs/common'
-import { EnvService } from '../../../_core/config/env/env.service'
-import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
+import { GithubConfig } from './github-config'
+import type { GithubSecretCipher } from './github-ports'
 import { db, or } from '@dltech/atlas-db'
 import { HOOK_EVENTS as GITHUB_HOOK_EVENTS } from './github-hook-events'
 import { ERepoHookStatus } from './github-realtime.types'
@@ -26,7 +25,6 @@ const REPO_HOOK_PRIMARY_KEY = 'GithubRepoHook_pkey'
 
 export type EnsureHookResult = 'created' | 'existing' | 'app-backed' | 'poll-backed'
 
-@Injectable()
 export class GithubHookLifecycleService {
   private readonly logger = githubLogOf(GithubHookLifecycleService.name)
   private readonly verifiedAliveAt = new Map<string, number>()
@@ -35,8 +33,8 @@ export class GithubHookLifecycleService {
   constructor(
     private readonly github: GithubService,
     private readonly reads: GithubUserReads,
-    private readonly cipher: SecretCipherService,
-    private readonly env: EnvService,
+    private readonly cipher: GithubSecretCipher,
+    private readonly config: GithubConfig,
     private readonly installations: GithubAppInstallationsService,
     private readonly coordinator: GithubRequestCoordinator,
   ) {
@@ -299,7 +297,7 @@ export class GithubHookLifecycleService {
   }
 
   private hookUrl(args: { repoFullName: string }): string {
-    const base = this.env.get('BETTER_AUTH_URL')
+    const base = this.config.values.publicApiUrl
     if (base === undefined || base.length === 0) {
       throw new Error('BETTER_AUTH_URL is not configured — cannot build the hook url')
     }

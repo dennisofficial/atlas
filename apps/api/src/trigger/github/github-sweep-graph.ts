@@ -5,6 +5,7 @@ import { ProcessBackgroundWork } from '../../_lib/background-work/background-wor
 import { SecretCipherService } from '../../_lib/crypto/secret-cipher.service'
 import { RedisService } from '../../_lib/redis/redis.service'
 import { GithubAppInstallationsService } from '../../api/cloud/github/github-app-installations.service'
+import { githubConfigOf } from '../../api/cloud/github/github.providers'
 import { GithubAppClient } from '../../api/cloud/github/github-app-client'
 import { GithubInstallationTokens } from '../../api/cloud/github/github-installation-tokens'
 import { GithubAppSyncGate } from '../../api/cloud/github/github-app-sync-gate'
@@ -74,7 +75,8 @@ export function buildGithubSweepGraph(args: { env: EnvService }): GithubSweepGra
     )
   }
   const bus: PrFrameBus = redis.isConfigured() ? new RedisPrFrameBus(redis) : new LocalPrFrameBus()
-  const github = new GithubService(cipher, env, new GithubDeviceClient({}))
+  const config = githubConfigOf(env)
+  const github = new GithubService(cipher, config, new GithubDeviceClient({}))
   const reads = new GithubUserReads()
   const coordinator = new GithubRequestCoordinator(redis, github)
   const fanout = new GithubPrFanoutService(new DrainStateService(), bus)
@@ -90,7 +92,7 @@ export function buildGithubSweepGraph(args: { env: EnvService }): GithubSweepGra
     fanout,
   )
   const installations = new GithubAppInstallationsService()
-  const appClient = new GithubAppClient(env)
+  const appClient = new GithubAppClient(config)
   const appTokens = new GithubInstallationTokens(appClient, installations)
   const fillTokens = new GithubFillTokens({ github, appTokens })
   const {
@@ -111,7 +113,7 @@ export function buildGithubSweepGraph(args: { env: EnvService }): GithubSweepGra
     github,
     reads,
     cipher,
-    env,
+    config,
     installations,
     coordinator,
   )

@@ -1,13 +1,11 @@
-import { Injectable } from '@nestjs/common'
-import { RedisService } from '../../../_lib/redis/redis.service'
+import { GithubRedis } from './github-ports'
 
 const KEY_PREFIX = 'github-app-sync:'
 
-@Injectable()
 export class GithubAppSyncGate {
   private readonly memo = new Map<string, number>()
 
-  constructor(private readonly redis: RedisService) {}
+  constructor(private readonly redis: GithubRedis) {}
 
   async claim(args: { key: string; ttlMs: number }): Promise<boolean> {
     if (this.redis.isConfigured()) {

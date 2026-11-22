@@ -1,10 +1,10 @@
 import { generateKeyPairSync } from 'node:crypto'
-import { EnvService } from '../../../_core/config/env/env.service'
 import type { RedisService } from '../../../_lib/redis/redis.service'
 import { GithubAppClient } from './github-app-client'
 import { GithubAppInstallationsService } from './github-app-installations.service'
 import { GithubAppSyncGate } from './github-app-sync-gate'
 import { GithubAppSyncService } from './github-app-sync.service'
+import { GithubConfig } from './github-config'
 
 const { privateKey, publicKey } = generateKeyPairSync('rsa', {
   modulusLength: 2048,
@@ -69,11 +69,7 @@ export function fakeGithubApp(args: { installations: FakeInstallation[] }) {
 }
 
 export function syncServiceWith() {
-  const env = new EnvService({
-    GITHUB_APP_ID: '4242',
-    GITHUB_APP_PRIVATE_KEY: privateKey,
-  })
-  const client = new GithubAppClient(env)
+  const client = new GithubAppClient(new GithubConfig({ appId: '4242', appPrivateKey: privateKey }))
   const installations = new GithubAppInstallationsService()
   const redis = { isConfigured: () => false } as unknown as RedisService
   const service = new GithubAppSyncService(client, installations, new GithubAppSyncGate(redis))

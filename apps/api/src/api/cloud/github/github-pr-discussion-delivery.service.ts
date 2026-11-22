@@ -1,4 +1,3 @@
-import { Injectable } from '@nestjs/common'
 import { and, db, or, type Row } from '@dltech/atlas-db'
 import { editExcerptOf } from './github-comment-edit-excerpt'
 import { subscriptionLiveWhere } from './github-delivery-routing'
@@ -58,7 +57,6 @@ function commentPayloadOf({
  * matches nobody is dropped, because a mailbox row for a user with no subscription can never
  * be replayed into a stream they have.
  */
-@Injectable()
 export class GithubPrDiscussionDeliveryService {
   constructor(private readonly mailbox: GithubPrEventMailboxService) {}
 

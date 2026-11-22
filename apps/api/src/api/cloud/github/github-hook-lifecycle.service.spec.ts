@@ -2,7 +2,7 @@ import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { localCoordinator } from './github-request-coordinator.fixture'
 import { beforeEach, describe, expect, it } from 'bun:test'
 import { ensureUsers, repoHookRows, seedRepoHook } from '../../../../test/github-seed'
-import type { EnvService } from '../../../_core/config/env/env.service'
+import { GithubConfig } from './github-config'
 import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import type { GithubAppInstallationsService } from './github-app-installations.service'
 import { GithubHookLifecycleService, HOOK_EVENTS } from './github-hook-lifecycle.service'
@@ -13,9 +13,7 @@ const CIPHER = {
   encrypt: (plain: string) => `sealed:${plain}`,
   decrypt: () => 'secret',
 } as unknown as SecretCipherService
-const ENV = {
-  get: (key: string) => (key === 'BETTER_AUTH_URL' ? 'https://api.byatlas.io' : undefined),
-} as unknown as EnvService
+const CONFIG = new GithubConfig({ publicApiUrl: 'https://api.byatlas.io' })
 
 function serviceWith(args: {
   tokens?: Record<string, string>
@@ -68,7 +66,7 @@ function serviceWith(args: {
       github,
       reads,
       CIPHER,
-      ENV,
+      CONFIG,
       installations,
       localCoordinator(github),
     ),

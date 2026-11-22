@@ -1,8 +1,7 @@
-import { type Provider } from '@nestjs/common'
 import type { Redis } from 'ioredis'
-import { RedisService } from '../../../_lib/redis/redis.service'
 import { PR_FRAME_CHANNEL, type PrFrame } from './github-pr-fanout.frame'
 import { githubLogOf } from './github-log'
+import type { GithubRedis } from './github-ports'
 
 export abstract class PrFrameBus {
   abstract readonly distributed: boolean
@@ -26,7 +25,7 @@ export class RedisPrFrameBus extends PrFrameBus {
   private readonly logger = githubLogOf(RedisPrFrameBus.name)
   private subscriber: Redis | undefined
 
-  constructor(private readonly redis: RedisService) {
+  constructor(private readonly redis: GithubRedis) {
     super()
   }
 
@@ -53,11 +52,4 @@ export class RedisPrFrameBus extends PrFrameBus {
     if (subscriber === undefined || subscriber.status === 'wait') return
     await subscriber.quit().catch(() => subscriber.disconnect())
   }
-}
-
-export const prFrameBusProvider: Provider = {
-  provide: PrFrameBus,
-  inject: [RedisService],
-  useFactory: (redis: RedisService): PrFrameBus =>
-    redis.isConfigured() ? new RedisPrFrameBus(redis) : new LocalPrFrameBus(),
 }

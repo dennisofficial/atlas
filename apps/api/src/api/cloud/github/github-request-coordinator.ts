@@ -1,6 +1,5 @@
-import { Inject, Injectable, Optional } from '@nestjs/common'
-import { RedisService } from '../../../_lib/redis/redis.service'
 import { normalizedRepo } from './github-linked-prs'
+import type { GithubRedis } from './github-ports'
 import {
   LocalCoordinatorAdapter,
   localCoordinatorAdapter,
@@ -17,13 +16,12 @@ import { GithubService } from './github.service'
 
 export const GITHUB_COORDINATOR_PREFIX = Symbol('GITHUB_COORDINATOR_PREFIX')
 
-@Injectable()
 export class GithubRequestCoordinator {
   private readonly adapter: CoordinatorAdapter
   constructor(
-    redis: RedisService,
+    redis: GithubRedis,
     private readonly github: GithubService,
-    @Optional() @Inject(GITHUB_COORDINATOR_PREFIX) prefix?: string,
+    prefix?: string,
   ) {
     this.adapter = redis.isConfigured()
       ? new RedisCoordinatorAdapter(redis.client(), prefix)

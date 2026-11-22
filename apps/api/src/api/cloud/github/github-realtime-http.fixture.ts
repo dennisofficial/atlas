@@ -1,13 +1,13 @@
 import { storeFixture } from './github-pr-store.fixture'
 import { spyOn } from 'bun:test'
 import type { RedisService } from '../../../_lib/redis/redis.service'
-import type { EnvService } from '../../../_core/config/env/env.service'
 import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { DrainStateService } from '../../platform/health/drain-state.service'
 import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
 import { inertMergeabilityRefresh, inertReconcile } from './github-pr-store.fixture'
 import type { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import type { GithubAppInstallationsService } from './github-app-installations.service'
+import { GithubConfig } from './github-config'
 import { GithubDeliveryService } from './github-delivery.service'
 import { GithubHookLifecycleService } from './github-hook-lifecycle.service'
 import { GithubRequestCoordinator } from './github-request-coordinator'
@@ -156,7 +156,7 @@ export function realGithubGraph(args: {
     encrypt: (plain: string) => plain,
     decrypt: (plain: string) => plain,
   } as unknown as SecretCipherService
-  const env = { get: () => 'https://api.byatlas.io' } as unknown as EnvService
+  const config = new GithubConfig({ publicApiUrl: 'https://api.byatlas.io' })
   const installations = {
     coversRepo: async () => args.appBacked ?? true,
   } as unknown as GithubAppInstallationsService
@@ -164,7 +164,7 @@ export function realGithubGraph(args: {
     github,
     reads,
     cipher,
-    env,
+    config,
     installations,
     coordinator,
   )

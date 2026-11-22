@@ -1,4 +1,3 @@
-import { Injectable } from '@nestjs/common'
 import { and, db, or, type Row } from '@dltech/atlas-db'
 import { endSubscriptionsIn } from '@dltech/atlas-control'
 import { controlTxOf } from '@dltech/atlas-control/postgres'
@@ -34,7 +33,6 @@ import {
 } from './github-user-reads'
 import { GithubService } from './github.service'
 
-@Injectable()
 export class GithubPollSweeperService {
   private readonly logger = githubLogOf(GithubPollSweeperService.name)
   constructor(

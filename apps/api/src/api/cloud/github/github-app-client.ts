@@ -1,7 +1,6 @@
 import { createSign } from 'node:crypto'
-import { Injectable } from '@nestjs/common'
-import { EnvService } from '../../../_core/config/env/env.service'
 import { EGithubCallSource } from './github-call-log'
+import { GithubConfig } from './github-config'
 import { githubFetch } from './github-fetch'
 import { normalizedRepo } from './github-pr-identity'
 
@@ -27,19 +26,18 @@ type InstallationListItem = {
 
 const base64Url = (value: Buffer | string): string => Buffer.from(value).toString('base64url')
 
-@Injectable()
 export class GithubAppClient {
-  constructor(private readonly env: EnvService) {}
+  constructor(private readonly config: GithubConfig) {}
 
   isConfigured(): boolean {
-    const appId = this.env.get('GITHUB_APP_ID')
-    const key = this.env.get('GITHUB_APP_PRIVATE_KEY')
+    const appId = this.config.values.appId
+    const key = this.config.values.appPrivateKey
     return appId !== undefined && appId.length > 0 && key !== undefined && key.length > 0
   }
 
   signJwt(args: { nowSeconds?: number } = {}): string {
-    const appId = this.env.get('GITHUB_APP_ID')
-    const key = this.env.get('GITHUB_APP_PRIVATE_KEY')
+    const appId = this.config.values.appId
+    const key = this.config.values.appPrivateKey
     if (appId === undefined || key === undefined) throw new Error('github app is not configured')
     const now = args.nowSeconds ?? Math.floor(Date.now() / 1_000)
     const unsigned = [

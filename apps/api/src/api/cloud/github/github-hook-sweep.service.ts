@@ -1,4 +1,3 @@
-import { Injectable } from '@nestjs/common'
 import { GithubAppInstallationsService } from './github-app-installations.service'
 import { GithubAppSyncGate } from './github-app-sync-gate'
 import { GithubAppSyncService } from './github-app-sync.service'
@@ -12,7 +11,6 @@ export const HOOK_LIVENESS_KEY = 'hook-liveness'
 export const HOOK_LIVENESS_INTERVAL_MS = 60 * 60_000
 export const HOOK_LIVENESS_PER_PASS = 5
 
-@Injectable()
 export class GithubHookSweepService {
   private readonly retirement: GithubHookRetirement
 
