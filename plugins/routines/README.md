@@ -47,7 +47,7 @@ The API composes it as the `routines` plugin.
 | `delete` | `routineId`                               | Remove a routine for good. Its past sessions stay.                                                                                |
 | `run`    | `routineId`                               | Start the routine now, off its schedule, in its own session.                                                                      |
 
-The tool sets `deferred`, so the model loads it with `tool_search` and calls it with `call_tool`.
+The tool sets `deferred`, so the model loads its schema with `tool_search` and then calls it by name.
 
 ## Usage
 

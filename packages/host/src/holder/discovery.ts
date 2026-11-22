@@ -1,7 +1,5 @@
 import { ToolRegistry } from '@dltech/atlas-agent'
 import {
-  CALL_TOOL_NAME,
-  callToolInputSchema,
   EToolEffect,
   SchemaTool,
   TAKES_NO_PATHS,
@@ -13,18 +11,12 @@ import {
   type ToolOutcome,
   type ToolRun,
 } from '@dltech/atlas-core'
-import { z } from 'zod'
 
 const SEARCH_DESCRIPTION = [
   'Find a tool that is available but not loaded, and read its input schema, without spending prompt space on every schema.',
   'Pass one or two words from the tool name or from what it does. It answers with up to 5 matching tools: the full name, the description and the input schema of each.',
   'An empty query, or a query that matches nothing, lists every deferred tool name by group.',
-  `Then call the tool by its name, or use ${CALL_TOOL_NAME} if the provider refuses the name.`,
-].join(' ')
-
-const CALL_DESCRIPTION = [
-  'Run a tool that is available but not loaded, by its full name.',
-  `Pass args as the object that tool's input schema describes, which ${TOOL_SEARCH_NAME} gives you.`,
+  'Then call the tool directly by its name.',
 ].join(' ')
 
 export class ToolSearchTool extends SchemaTool<typeof toolSearchInputSchema> {
@@ -49,14 +41,6 @@ export class ToolSearchTool extends SchemaTool<typeof toolSearchInputSchema> {
   }
 }
 
-const CALL_TOOL_DECLARATION: ToolDeclaration = {
-  name: CALL_TOOL_NAME,
-  description: CALL_DESCRIPTION,
-  effect: EToolEffect.Write,
-  inputSchema: callToolInputSchema,
-  jsonSchema: z.toJSONSchema(callToolInputSchema, { io: 'input' }),
-}
-
 export class DiscoveryToolsRegistry extends ToolRegistry {
   private readonly search: ToolSearchTool
 
@@ -66,7 +50,7 @@ export class DiscoveryToolsRegistry extends ToolRegistry {
   }
 
   declarations(): readonly ToolDeclaration[] {
-    return [...this.base.declarations(), CALL_TOOL_DECLARATION, this.search]
+    return [...this.base.declarations(), this.search]
   }
 
   find(name: string): ToolDefinition | undefined {

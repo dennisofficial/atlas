@@ -89,7 +89,7 @@ to the first `pod.boot` span is serve starting up.
 | `finishReason`, `toolCalls` | `model.call` | Why the step stopped and how many tools it asked for |
 | `size.*` | `model.call` | Characters per part of the request: `size.system.<source>`, `size.tools.builtin`, `size.tools.mcp.<server>`, their `.count`, `size.messages`, `size.messages.context.<source>`, `size.total` |
 | `delayMs` | `model.backoff` | Planned retry delay |
-| `tool`, `outcome` | `tool` | Tool name; `ok`, `error` or `denied`. A deferred tool called through `call_tool` reports the real tool, not `call_tool` |
+| `tool`, `outcome` | `tool` | Tool name; `ok`, `error` or `denied`. |
 | `drafts`, `events` | record and intake spans | How many events were written or read |
 | `verdict` | `loop.watch` | The judge's verdict |
 | `error.class` | any failed span | Error type only; the message is never exported |
@@ -132,9 +132,8 @@ gap between first chunk and first output is the model thinking.
 
 **Slow tools.** The same query with `"value": "tool"`, then break down by the `tool` attribute
 (`apm-attribute-breakdown`) or aggregate per operation (`apm-spans-aggregate`). A tool that is
-deferred in the prompt still reports its real name here when the model reached it through
-`call_tool`, so a breakdown needs no special case for deferred tools. To see what a slow call
-actually ran, find its `callId` in the session's event log.
+deferred in the prompt is called by its real name, so a breakdown needs no special case for
+deferred tools. To see what a slow call actually ran, find its `callId` in the session's event log.
 
 **Retries.** Look for `model.backoff` spans and more than one `model.call` per step. Failed attempts
 carry `error.class`.

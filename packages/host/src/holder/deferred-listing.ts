@@ -1,6 +1,5 @@
 import type { RegisteredHook } from '@dltech/atlas-agent'
 import {
-  CALL_TOOL_NAME,
   DEFERRED_TOOLS_SOURCE,
   EStage,
   TOOL_SEARCH_NAME,
@@ -13,8 +12,7 @@ import {
 const LISTING_INTRO = [
   'These tools are available but not loaded.',
   `To get the input schema of a tool, call ${TOOL_SEARCH_NAME}.`,
-  'Then call the tool by its name.',
-  `If the provider refuses the name, use ${CALL_TOOL_NAME}.`,
+  'Then call the tool directly by its name.',
 ].join(' ')
 
 export const deferredListingHook = (args: {

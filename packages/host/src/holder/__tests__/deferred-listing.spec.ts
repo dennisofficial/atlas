@@ -38,7 +38,8 @@ describe('the host deferred listing hook', () => {
     const text = next.system[0]?.text ?? ''
     expect(text).toContain('These tools are available but not loaded.')
     expect(text).toContain('call tool_search')
-    expect(text).toContain('use call_tool')
+    expect(text).toContain('call the tool directly by its name')
+    expect(text).not.toContain('call_tool')
     expect(text).toContain('docs: mcp__docs__search')
     expect(text).toContain('events: mcp__events__list')
     expect(text).toContain('atlas: routine')

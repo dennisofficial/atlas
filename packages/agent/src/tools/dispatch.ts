@@ -3,7 +3,6 @@ import {
   isParkedOutcome,
   modelFacingDeclarationsOf,
   parametersOf,
-  resolveToolCallOf,
   resolveBeforeTool,
   type ActiveWorktree,
   type CallId,
@@ -11,7 +10,6 @@ import {
   type EventDraft,
   type RunId,
   type ThreadId,
-  type ResolvedToolCall,
   type ToolCall,
   type OnToolOutput,
   type WorkspacePort,
@@ -100,31 +98,23 @@ export class HookedToolDispatcher extends ToolDispatcher {
 
   dispatch(args: DispatchArgs): Promise<readonly EventDraft[]> {
     const { call } = args
-    const resolved = resolveToolCallOf({
-      declarations: this.registry.declarations(),
-      name: call.name,
-      input: call.input,
-    })
     return spanWith(this.trace, {
       name: ESpan.Tool,
       fields: {
         threadId: call.threadId,
         runId: call.runId,
         callId: call.callId,
-        tool: resolved.name,
+        tool: call.name,
       },
       run: async (span) => {
-        const drafts = await this.dispatchTraced({ args, resolved })
+        const drafts = await this.dispatchTraced(args)
         span.set({ outcome: outcomeOf(drafts) })
         return drafts
       },
     })
   }
 
-  private async dispatchTraced(args: {
-    args: DispatchArgs
-    resolved: ResolvedToolCall
-  }): Promise<readonly EventDraft[]> {
+  private async dispatchTraced(args: DispatchArgs): Promise<readonly EventDraft[]> {
     const {
       call,
       signal,
@@ -135,24 +125,9 @@ export class HookedToolDispatcher extends ToolDispatcher {
       onOutput,
       onDispatchStarted,
       onceLedger,
-    } = args.args
-    if (args.resolved.kind === 'refused') {
-      return [
-        {
-          type: 'tool-result',
-          callId: call.callId,
-          name: call.name,
-          output: undefined,
-          error: { message: args.resolved.reason },
-        },
-      ]
-    }
-
-    const target = args.resolved
-    const declaration = this.registry
-      .declarations()
-      .find((declared) => declared.name === target.name)
-    const definition = this.registry.find(target.name)
+    } = args
+    const declaration = this.registry.declarations().find((declared) => declared.name === call.name)
+    const definition = this.registry.find(call.name)
     if (definition === undefined || declaration === undefined) {
       const available = modelFacingDeclarationsOf(this.registry.declarations()).map(
         (declared) => declared.name,
@@ -160,12 +135,12 @@ export class HookedToolDispatcher extends ToolDispatcher {
       return [unknownToolDraft({ call, available })]
     }
 
-    const parsed = definition.inputSchema.safeParse(target.input)
+    const parsed = definition.inputSchema.safeParse(call.input)
     if (!parsed.success) {
       return [
         invalidInputDraft({
           call,
-          toolName: target.name,
+          toolName: call.name,
           issues: parsed.error.issues,
           parameters: parametersOf({
             inputSchema: definition.inputSchema,
@@ -177,7 +152,7 @@ export class HookedToolDispatcher extends ToolDispatcher {
 
     const candidate: ToolCall = {
       callId: call.callId,
-      name: target.name,
+      name: call.name,
       input: parsed.data,
       effect: definition.effect,
       threadId: call.threadId,

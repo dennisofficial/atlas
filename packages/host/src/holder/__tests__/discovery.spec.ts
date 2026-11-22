@@ -2,7 +2,6 @@ import { describe, expect, it } from 'bun:test'
 
 import { InMemoryToolRegistry } from '@dltech/atlas-agent'
 import {
-  CALL_TOOL_NAME,
   EToolEffect,
   TOOL_SEARCH_NAME,
   ToolDefinition,
@@ -39,10 +38,9 @@ const registry = withDiscoveryTools(
 )
 
 describe('the discovery tools on a pod registry', () => {
-  it('lists tool_search and call_tool, and leaves the deferred tools out of the model-facing list', () => {
+  it('lists tool_search, and leaves the deferred tools out of the model-facing list', () => {
     expect(modelFacingDeclarationsOf(registry.declarations()).map((entry) => entry.name)).toEqual([
       'read',
-      CALL_TOOL_NAME,
       TOOL_SEARCH_NAME,
     ])
   })
