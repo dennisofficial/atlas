@@ -44,5 +44,6 @@ export const hostEnv = (args: {
     ...(knobs?.sweepMs === undefined ? {} : { SWEEP_MS: String(knobs.sweepMs) }),
     ...(knobs?.fault === undefined ? {} : { FAULT: knobs.fault }),
     ...(args.firstChunkFile === undefined ? {} : { FIRST_CHUNK_FILE: args.firstChunkFile }),
+    ...(knobs?.plugins === true ? { FAULT_PLUGINS: '1' } : {}),
   }
 }

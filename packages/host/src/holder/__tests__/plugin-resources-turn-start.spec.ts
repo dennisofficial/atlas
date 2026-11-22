@@ -5,12 +5,12 @@ import { describe, expect, it } from 'bun:test'
 import { z } from 'zod'
 
 import { watchIdOf } from '../plugin-resource-probes'
-import { pluginResourcesHook, refreshInFlightOf } from '../plugin-resources'
+import { pluginResourcesHook } from '../plugin-resources'
+import type { ResourceSync } from '../plugin-resource-sync'
 import { DIRECTORY, agentsRootOf, rig, THREAD } from './plugin-resources-rig'
 
 const BUDGET_MS = 50
 const LOAD_MS = 300
-const RELOAD_MS = 400
 const INDEX_TEXT = 'Memory index (stub)'
 const INSTRUCTIONS = 'INSTRUCTION TEXT'
 
@@ -70,13 +70,12 @@ const textAt = (args: { assembled: Assembled; source: string }): string | undefi
   args.assembled.system.find((block) => block.source === args.source)?.text
 
 const chainOf = (args: {
-  ctx: Parameters<typeof pluginResourcesHook>[0]['ctx']
-  resources: readonly PodResource<unknown>[]
+  sync: ResourceSync
   steps: readonly Step[]
   mishaps: string[]
 }): HookChain =>
   new HookChain({
-    beforeTurn: [pluginResourcesHook({ ctx: args.ctx, resources: args.resources })],
+    beforeTurn: [pluginResourcesHook({ sync: args.sync })],
     beforeStep: args.steps.map(stepOf),
     budgetMs: BUDGET_MS,
     onMishap: (mishap) => args.mishaps.push(`${mishap.label} ${mishap.kind}: ${mishap.detail}`),
@@ -89,8 +88,7 @@ describe('the turn starts from recorded plugin resources', () => {
     const turn = rig({ resources: [index, instructions] })
     const mishaps: string[] = []
     const chain = chainOf({
-      ctx: turn.ctx,
-      resources: [index, instructions],
+      sync: turn.sync,
       mishaps,
       steps: [
         {
@@ -115,30 +113,22 @@ describe('the turn starts from recorded plugin resources', () => {
     expect(textAt({ assembled: first, source: 'memory-index' })).toBe(INDEX_TEXT)
   }, 10_000)
 
-  it('returns at once when every resource is recorded and appends the reload after the call', async () => {
+  it('returns at once and calls nothing when every resource is recorded', async () => {
     const loads: string[] = []
-    let delay = 0
-    let value = 'one'
-    const root = agentsRootOf(DIRECTORY)
     const skills = watchedOf({
       name: 'skills',
-      root,
+      root: agentsRootOf(DIRECTORY),
       loads,
-      value: () => value,
-      delayMs: () => delay,
+      value: () => 'one',
     })
     const turn = rig({ resources: [skills] })
     await turn.run()
-    expect(readResource({ ctx: turn.ctx, resource: skills })).toBe('one')
-
-    delay = RELOAD_MS
-    value = 'two'
-    turn.daemon.seqs.set(watchIdOf({ roots: [root] }), 1)
+    turn.daemon.seqs.set(watchIdOf({ roots: [agentsRootOf(DIRECTORY)] }), 1)
+    turn.calls.length = 0
 
     const mishaps: string[] = []
     const chain = chainOf({
-      ctx: turn.ctx,
-      resources: [skills],
+      sync: turn.sync,
       mishaps,
       steps: [{ source: 'skills', read: () => readResource({ ctx: turn.ctx, resource: skills }) }],
     })
@@ -150,17 +140,14 @@ describe('the turn starts from recorded plugin resources', () => {
 
     expect(mishaps).toEqual([])
     expect(hookMs).toBeLessThan(BUDGET_MS)
+    expect(turn.calls).toEqual([])
     expect(textAt({ assembled: first, source: 'skills' })).toBe('one')
-
-    await refreshInFlightOf(turn.ctx)
-    expect(readResource({ ctx: turn.ctx, resource: skills })).toBe('two')
-    expect(loads).toEqual(['skills', 'skills'])
   }, 10_000)
 
   it('appends each resource as its own load settles', async () => {
     const resources = [memoryIndexOf(), instructionsOf(LOAD_MS)]
     const turn = rig({ resources })
-    const hook = pluginResourcesHook({ ctx: turn.ctx, resources })
+    const hook = pluginResourcesHook({ sync: turn.sync })
     const running = hook.run({ threadId: THREAD, projectDirectory: DIRECTORY })
 
     await sleep(LOAD_MS / 2)
@@ -176,7 +163,7 @@ describe('the turn starts from recorded plugin resources', () => {
     expect(settled.sort()).toEqual(['instructions', 'memory-index'])
   }, 10_000)
 
-  it('runs one refresh when two turns overlap', async () => {
+  it('runs one load when two turns start together', async () => {
     const loads: string[] = []
     const skills = watchedOf({
       name: 'skills',
@@ -186,7 +173,7 @@ describe('the turn starts from recorded plugin resources', () => {
       delayMs: () => LOAD_MS,
     })
     const turn = rig({ resources: [skills] })
-    const hook = pluginResourcesHook({ ctx: turn.ctx, resources: [skills] })
+    const hook = pluginResourcesHook({ sync: turn.sync })
 
     await Promise.all([
       hook.run({ threadId: THREAD, projectDirectory: DIRECTORY }),

@@ -47,6 +47,7 @@ export type HostKnobs = {
   toolOutputFile?: string
   sweepMs?: number
   fault?: EHostFault
+  plugins?: boolean
 }
 
 /**

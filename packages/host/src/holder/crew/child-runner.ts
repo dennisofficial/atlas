@@ -9,7 +9,13 @@ import type { PodCrew } from '@dltech/atlas-plugin-sdk'
 
 import { ScopedToolDispatcher } from '../../calls/call-scope'
 import type { HeldSessionDeps } from '../held-session-deps'
-import { pluginHooksOf, pluginPodContextOf, pluginToolsOf, resolvedEventsOf } from '../plugin-pod'
+import {
+  pluginHooksOf,
+  pluginPodContextOf,
+  pluginToolsOf,
+  resolvedEventsOf,
+  resourceSyncOf,
+} from '../plugin-pod'
 import { hookedToolsOf } from '../hooked-tools'
 import type { RoleModelChoice, SessionRuntime } from '../ports'
 import type { SessionRecord } from '../record/record-adapter'
@@ -46,11 +52,18 @@ export const childRunnerOf = (args: {
     pluginToolsOf({ runtime, ctx }),
     runtime.plugins?.pod.childDeny ?? [],
   )
+  const sync = resourceSyncOf({
+    runtime,
+    ctx,
+    record: args.parentRecord,
+    signal: args.signal,
+    shared: () => resolvedEventsOf(args.parentRecord),
+  })
   const hooks: HookChain = pluginHooksOf({
     runtime,
     ctx,
     declarations: () => registry.declarations(),
-    sharedEvents: () => resolvedEventsOf(args.parentRecord),
+    ...(sync === undefined ? {} : { sync }),
   })
   return new LoopTurnRunner({
     record,

@@ -192,6 +192,7 @@ const main = async (): Promise<void> => {
       },
       launchDirectory: workspace,
       panelHolds: (sessionId) => held?.demandOf().panel.countOf(sessionId) ?? 0,
+      plugins: process.env.FAULT_PLUGINS === '1' ? composedPlugins : undefined,
       log,
       pingMs: numberEnv('PING_MS', 10_000),
     }),

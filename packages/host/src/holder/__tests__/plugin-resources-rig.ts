@@ -15,10 +15,13 @@ import { podControlStub } from '@dltech/atlas-plugin-sdk/testing'
 import { ECallFailure, ECallStatus, type CallOp, type CallResult } from '@dltech/atlas-protocol'
 import { z } from 'zod'
 
-import { pluginResourcesHook, refreshInFlightOf } from '../plugin-resources'
+import { pluginResourcesClosedHook, pluginResourcesHook } from '../plugin-resources'
+import { ResourceSync } from '../plugin-resource-sync'
 
 export const THREAD = toThreadId('t1')
 export const DIRECTORY = '/work'
+
+type DaemonEventFrame = Parameters<Parameters<PluginPodContext['onDaemonEvent']>[0]>[0]
 
 export const versionsAt = (version: string): Record<ECloudSetting, string> => ({
   [ECloudSetting.McpServers]: version,
@@ -29,25 +32,37 @@ export const versionsAt = (version: string): Record<ECloudSetting, string> => ({
 export type Daemon = {
   readonly seqs: Map<string, number>
   instance(): string
-  versions(): Record<ECloudSetting, string>
+  readVersions(): Promise<Record<ECloudSetting, string>>
+  versionReads(): number
   setInstance(instance: string): void
   setVersions(versions: Record<ECloudSetting, string>): void
+  failVersions(failure: Error | undefined): void
 }
 
 export const daemonOf = (): Daemon => {
   const seqs = new Map<string, number>()
   let instance = 'instance-1'
   let versions = versionsAt('v1')
+  let failure: Error | undefined
+  let reads = 0
   return {
     seqs,
     instance: () => instance,
-    versions: () => versions,
+    readVersions: async () => {
+      reads += 1
+      if (failure !== undefined) throw failure
+      return versions
+    },
+    versionReads: () => reads,
     setInstance: (next) => {
       instance = next
       seqs.clear()
     },
     setVersions: (next) => {
       versions = next
+    },
+    failVersions: (next) => {
+      failure = next
     },
   }
 }
@@ -58,7 +73,12 @@ export type Rig = {
   calls: CallOp[]
   logs: string[]
   daemon: Daemon
+  sync: ResourceSync
   run(directory?: string): Promise<void>
+  closed(): Promise<void>
+  changed(watchId: string): void
+  reconnect(restart: boolean): void
+  settled(): Promise<void>
 }
 
 const stamp = (draft: object, seq: number): V2Event =>
@@ -91,10 +111,13 @@ export const rig = (args: {
   const events: V2Event[] = []
   const calls: CallOp[] = []
   const logs: string[] = []
+  const daemonListeners = new Set<(frame: DaemonEventFrame) => void>()
+  const readyListeners = new Set<(hello: { restart: boolean }) => void>()
+  let directory = DIRECTORY
 
   const ctx: PluginPodContext = {
     sessionId: 'session-1',
-    control: { ...podControlStub, settingsVersions: async () => daemon.versions() },
+    control: { ...podControlStub, settingsVersions: () => daemon.readVersions() },
     crew: EMPTY_CREW,
     sessions: EMPTY_SESSIONS,
     worktrees: EMPTY_WORKTREES,
@@ -105,7 +128,12 @@ export const rig = (args: {
     },
     notify: async () => undefined,
     live: () => undefined,
-    onDaemonEvent: () => () => undefined,
+    onDaemonEvent: (listener) => {
+      daemonListeners.add(listener)
+      return () => {
+        daemonListeners.delete(listener)
+      }
+    },
     log: (message) => logs.push(message),
     call: async (op) => {
       await args.beforeCall?.(op)
@@ -135,22 +163,49 @@ export const rig = (args: {
     },
   }
 
-  const hook = pluginResourcesHook({
+  const sync = new ResourceSync({
     ctx,
     resources: args.resources,
-    ...(args.trace === undefined ? {} : { trace: args.trace }),
-    ...(args.shared === undefined ? {} : { shared: args.shared }),
+    directory: () => directory,
+    trace: args.trace,
+    shared: args.shared,
+    reconnect: (listener) => {
+      readyListeners.add(listener)
+      return () => {
+        readyListeners.delete(listener)
+      }
+    },
   })
+  const hook = pluginResourcesHook({ sync })
+  const closing = pluginResourcesClosedHook({ sync })
   return {
     ctx,
     events,
     calls,
     logs,
     daemon,
-    run: async (directory = DIRECTORY) => {
-      await hook.run({ threadId: THREAD, projectDirectory: directory })
-      await refreshInFlightOf(ctx)?.catch(() => undefined)
+    sync,
+    run: async (next = DIRECTORY) => {
+      directory = next
+      sync.start()
+      await hook.run({ threadId: THREAD, projectDirectory: next })
+      await sync.settled()
     },
+    closed: async () => {
+      await closing.run({ threadId: THREAD })
+      await sync.settled()
+    },
+    changed: (watchId) => {
+      const frame = {
+        kind: 'event' as const,
+        event: { type: 'watch.changed' as const, watchId, paths: [`${directory}/.agents/skills`] },
+      } as DaemonEventFrame
+      for (const listener of daemonListeners) listener(frame)
+    },
+    reconnect: (restart) => {
+      for (const listener of readyListeners) listener({ restart })
+    },
+    settled: () => sync.settled(),
   }
 }
 

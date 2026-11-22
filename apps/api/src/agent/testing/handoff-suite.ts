@@ -15,6 +15,7 @@ import { makeFifo, releaseFifo, waitForFile } from '../__tests__/faults/fault-su
 import {
   startRig,
   type FaultRig,
+  type HostKnobs,
   type HostProcess,
   type ReadEvent,
   type RigDaemon,
@@ -90,6 +91,8 @@ export type HandoffScenario = {
   prepared?: boolean
   /** what the pod runs as the setup script; the work under test when the scenario is a setup */
   setupScript?: string
+  /** host knobs both hosts get, so the handover runs the same configuration */
+  knobs?: HostKnobs
   /** begins the work on host A, and waits until it is really in flight */
   start(ctx: HandoffContext): Promise<HostProcess>
   /** the record still says the work is in flight, after another host took the session over */
@@ -198,6 +201,7 @@ export const describeHandoff = (scenario: HandoffScenario): void => {
         workspace: ctx.workspace,
         scripts: { [ctx.sessionId]: [{ text: 'host b finished' }] },
         ...(scenario.setupScript === undefined ? {} : { setupScript: scenario.setupScript }),
+        ...(scenario.knobs === undefined ? {} : { knobs: scenario.knobs }),
       })
       await ctx.rig.claim({ sessionId: ctx.sessionId, label: 'host-b', timeoutMs: 30_000 })
       return hostB

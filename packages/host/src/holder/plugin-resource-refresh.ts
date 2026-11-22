@@ -15,6 +15,7 @@ import {
   versionsOf,
   watchIdOf,
 } from './plugin-resource-probes'
+import { ELoadReason, reasonOf } from './plugin-resource-reason'
 
 export const RELOADED = 'reloaded'
 
@@ -26,11 +27,15 @@ type Watch = { readonly spec: ResourceWatch; readonly id: string }
 
 type Entry = { readonly resource: PodResource<unknown>; readonly watch: Watch | undefined }
 
-type Candidate = Entry & { readonly cloud: string; readonly seq: number | undefined }
+type Candidate = Entry & {
+  readonly cloud: string
+  readonly seq: number | undefined
+  readonly reason: ELoadReason
+}
 
 type Prepared = Candidate & { readonly fingerprint: string }
 
-const watchOf = (args: {
+export const watchOf = (args: {
   resource: PodResource<unknown>
   directory: string
 }): Watch | undefined => {
@@ -96,7 +101,14 @@ const staleOf = (args: {
       (entry.watch === undefined || seq !== undefined)
     const staledByValue = latest !== undefined && entry.resource.stale?.(latest.value) === true
     if (settled && !staledByValue) return []
-    return [{ ...entry, cloud, seq }]
+    return [
+      {
+        ...entry,
+        cloud,
+        seq,
+        reason: reasonOf({ latest, staledByValue, instance: args.instance, seq }),
+      },
+    ]
   })
 
 const sharedValueOf = (args: {
@@ -114,7 +126,7 @@ const sharedValueOf = (args: {
   return { value: parsed.data }
 }
 
-const appendOf = async (args: {
+export const appendOf = async (args: {
   ctx: Ctx
   trace: TracePort | undefined
   drafts: readonly Appended[]
@@ -136,7 +148,7 @@ const loadOf = async (args: {
   try {
     return await spanWith(args.trace, {
       name: ESpan.ResourceLoad,
-      fields: { resource: args.entry.resource.name },
+      fields: { resource: args.entry.resource.name, phase: args.entry.reason },
       run: () =>
         loadedDraftsOf({
           resource: args.entry.resource,

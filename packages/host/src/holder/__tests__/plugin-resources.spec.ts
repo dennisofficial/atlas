@@ -13,7 +13,9 @@ import {
   versionsAt,
 } from './plugin-resources-rig'
 
-describe('the plugin-resources hook', () => {
+const watchIdAt = (directory: string): string => watchIdOf({ roots: [agentsRootOf(directory)] })
+
+describe('the plugin resources load at startup and on a push', () => {
   it('arms the watch, loads once, and leaves the snapshot readable', async () => {
     const loads: string[] = []
     const resource = skillsOf(loads)
@@ -24,42 +26,74 @@ describe('the plugin-resources hook', () => {
     expect(readResource({ ctx: turn.ctx, resource })).toBe('one')
   })
 
-  it('asks only for watch status when nothing changed', async () => {
+  it('makes no pod and no control call when a later turn starts unchanged', async () => {
+    const loads: string[] = []
+    const resource = skillsOf(loads, { cloud: [ECloudSetting.Skills] })
+    const turn = rig({ resources: [resource] })
+    await turn.run()
+    turn.calls.length = 0
+    await turn.run()
+    expect(turn.calls).toEqual([])
+    expect(loads).toEqual(['skills'])
+  })
+
+  it('reloads only the resource its own watch reports changed', async () => {
+    const loads: string[] = []
+    const skills = skillsOf(loads)
+    const crew = stringResource({ name: 'crew', loads, value: () => 'crew' })
+    const turn = rig({ resources: [skills, crew] })
+    await turn.run()
+    turn.calls.length = 0
+
+    turn.changed(watchIdAt(DIRECTORY))
+    await turn.settled()
+
+    expect(turn.calls.map((call) => call.op)).toEqual(['watch.status'])
+    expect(loads).toEqual(['skills', 'crew', 'skills'])
+    expect(readResource({ ctx: turn.ctx, resource: crew })).toBe('crew')
+  })
+
+  it('ignores a change reported for a watch it does not own', async () => {
     const loads: string[] = []
     const turn = rig({ resources: [skillsOf(loads)] })
     await turn.run()
     turn.calls.length = 0
-    await turn.run()
-    expect(turn.calls.map((call) => call.op)).toEqual(['watch.status'])
+
+    turn.changed('resource.someone-else')
+    await turn.settled()
+
+    expect(turn.calls).toEqual([])
     expect(loads).toEqual(['skills'])
   })
 
-  it('reloads when the watch seq moves', async () => {
-    const loads: string[] = []
-    let value = 'one'
-    const resource = stringResource({ name: 'skills', loads, value: () => value, watch: true })
-    const turn = rig({ resources: [resource] })
-    await turn.run()
-    expect(readResource({ ctx: turn.ctx, resource })).toBe('one')
-    value = 'two'
-    turn.daemon.seqs.set(watchIdOf({ roots: [agentsRootOf(DIRECTORY)] }), 1)
-    await turn.run()
-    expect(loads).toEqual(['skills', 'skills'])
-    expect(readResource({ ctx: turn.ctx, resource })).toBe('two')
-  })
-
-  it('re-arms and reloads on a new daemon instance', async () => {
+  it('re-arms and reloads when the daemon instance changed', async () => {
     const loads: string[] = []
     const turn = rig({ resources: [skillsOf(loads)] })
     await turn.run()
     turn.daemon.setInstance('instance-2')
     turn.calls.length = 0
-    await turn.run()
+
+    turn.reconnect(true)
+    await turn.settled()
+
     expect(turn.calls.map((call) => call.op)).toEqual(['watch.status', 'watch.start'])
     expect(loads).toEqual(['skills', 'skills'])
   })
 
-  it('reloads only the cloud-dependent resources when a version moves', async () => {
+  it('does nothing when the link comes back without a restart', async () => {
+    const loads: string[] = []
+    const turn = rig({ resources: [skillsOf(loads)] })
+    await turn.run()
+    turn.calls.length = 0
+
+    turn.reconnect(false)
+    await turn.settled()
+
+    expect(turn.calls).toEqual([])
+    expect(loads).toEqual(['skills'])
+  })
+
+  it('reloads only the cloud-dependent resources when a version moved, after the turn ends', async () => {
     const loads: string[] = []
     const cloud = stringResource({
       name: 'skills',
@@ -72,16 +106,20 @@ describe('the plugin-resources hook', () => {
     await turn.run()
     expect(loads).toEqual(['skills', 'crew'])
     turn.daemon.setVersions(versionsAt('v2'))
-    await turn.run()
+    await turn.closed()
     expect(loads).toEqual(['skills', 'crew', 'skills'])
   })
 
-  it('re-arms and reloads when the project directory moves', async () => {
+  it('re-arms and reloads after the turn that moved the project directory', async () => {
     const loads: string[] = []
     const turn = rig({ resources: [skillsOf(loads)] })
     await turn.run()
     turn.calls.length = 0
+
     await turn.run('/elsewhere')
+    expect(turn.calls).toEqual([])
+
+    await turn.closed()
     expect(turn.calls.map((call) => call.op)).toEqual(['watch.status', 'watch.start'])
     expect(loads).toEqual(['skills', 'skills'])
   })
@@ -101,7 +139,7 @@ describe('the plugin-resources hook', () => {
     expect(turn.logs.join(' ')).toContain('could not load')
   })
 
-  it('reloads when the resource reports its own value stale', async () => {
+  it('reloads a resource that reports its own value stale, after the turn ends', async () => {
     const loads: string[] = []
     let stale = false
     const resource = skillsOf(loads, { stale: () => stale })
@@ -109,6 +147,8 @@ describe('the plugin-resources hook', () => {
     await turn.run()
     stale = true
     await turn.run()
+    expect(loads).toEqual(['skills'])
+    await turn.closed()
     expect(loads).toEqual(['skills', 'skills'])
   })
 
@@ -137,7 +177,7 @@ describe('the plugin-resources hook', () => {
     expect(turn.events.map((event) => event.type)).toEqual(['resource-loaded', 'probe-observed'])
   })
 
-  it('announces on an explicit reload and forces the next turn to refresh', async () => {
+  it('announces on an explicit reload and leaves the next turn unblocked', async () => {
     const loads: string[] = []
     const resource = skillsOf(loads, {
       announce: (value) => [{ type: 'probe-observed', label: value }],
@@ -153,7 +193,7 @@ describe('the plugin-resources hook', () => {
     ])
     turn.calls.length = 0
     await turn.run()
-    expect(turn.calls.map((call) => call.op)).toEqual(['watch.status'])
-    expect(loads).toEqual(['skills', 'skills', 'skills'])
+    expect(turn.calls).toEqual([])
+    expect(loads).toEqual(['skills', 'skills'])
   })
 })

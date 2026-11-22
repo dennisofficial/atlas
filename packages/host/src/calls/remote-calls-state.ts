@@ -36,6 +36,7 @@ export class RemoteCallsState {
   private readonly asking = new Map<string, (answer: DaemonAnswer) => void>()
   private readonly link: DaemonLink
   private readonly log: LogPort | undefined
+  private readonly onReady: ((hello: { bootId: string; restart: boolean }) => void) | undefined
 
   private epoch = 0
   private linkBootId: string | undefined
@@ -66,6 +67,7 @@ export class RemoteCallsState {
         onFatal: (error) => this.failAll(error),
       },
     })
+    this.onReady = args.onReady
     this.acks = new ScopeAcks({
       timers: args.timers,
       sessionId: args.sessionId,
@@ -297,6 +299,7 @@ export class RemoteCallsState {
       })
     }
     if (restart) this.recoverAcrossRestart(previousBootId)
+    this.onReady?.({ bootId: frame.bootId, restart })
     for (const call of this.pending.values()) {
       if (call.done || call.awaitingAnswer) continue
       this.sendRun(call)
