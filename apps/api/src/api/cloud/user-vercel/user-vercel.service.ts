@@ -14,7 +14,7 @@ import { BadRequestException, Injectable } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import { sealJson, unsealJson } from '../mcp-oauth/mcp-oauth-seal'
+import { sealJson, unsealJson } from '../../../agent'
 import { openSecretValue, sealSecretValue } from '../secrets/sealed-secret'
 import { VercelPlanService } from './vercel-credential-plan'
 import {

@@ -72,8 +72,8 @@ operator's accounts. When the operator holds an active OpenAI OAuth connection, 
 with the live Codex list (`CodexModelsCatalogue`). The catalogue is cached per user in memory for 300 s and
 revalidated with `If-None-Match`. A Codex failure returns the static list plus `liveError`. The code lives in
 harness behind the subpath `@dltech/atlas-harness/models`. The API may import only the harness subpaths `models`,
-`titling`, `skill-specs` and `mcp-oauth`. The `mcp-oauth` subpath provides the OAuth protocol helpers behind
-`src/api/cloud/mcp-oauth`. It imports nothing else of harness.
+`titling` and `provider-oauth`. It imports nothing else of harness. `src/api/cloud/mcp-oauth` uses the agent's MCP
+OAuth helpers (`src/agent/mcp-oauth`) through `src/agent/index.ts`.
 `src/api/harness-boundary.spec.ts` and `architecture.spec.ts` enforce that rule. Harness's own subpath guard spec
 keeps `node:*`, Bun and the provider SDKs out of everything reachable from it.
 

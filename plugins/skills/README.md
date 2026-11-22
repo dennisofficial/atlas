@@ -20,21 +20,33 @@ frontmatter. The model sees the model-invocable skills in its system prompt and 
 
 ## Entry points
 
-| Import                               | Use it for                                                                                |
-| ------------------------------------ | ----------------------------------------------------------------------------------------- |
-| `@dltech/atlas-plugin-skills/core`   | `skillsCoreSlots`, the frontmatter parser, the validator, the precedence and the listing. |
-| `@dltech/atlas-plugin-skills/pod`    | `skillsPodOf`: the two tools, the `skills` resource and the listing hook.                 |
-| `@dltech/atlas-plugin-skills/client` | `skillsClient`, `latestSkillsOf` and `repoSkillsOf`.                                      |
+| Import                                  | Use it for                                                                               |
+| --------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `@dltech/atlas-plugin-skills/core`      | `skillsCoreSlots`, the frontmatter and spec parsers, the validator, precedence, listing. |
+| `@dltech/atlas-plugin-skills/pod`       | `skillsPodOf`: the two tools, the `skills` resource and the listing hook.                |
+| `@dltech/atlas-plugin-skills/catalogue` | The built-in skill catalogue and its lookups. No Node import, so a client can bundle it. |
+| `@dltech/atlas-plugin-skills/client`    | `skillsClient`, `latestSkillsOf` and `repoSkillsOf`.                                     |
 
 ## Capabilities
 
 ### Core, pure
 
 - `skillFrontmatterOf({ fields: frontmatterOf(text), fallbackName })`, `frontmatterOf`, `skillBodyOf`: split and read a `SKILL.md`.
+- `skillSpecOf({ text, fallbackName })`: the name, the summary and the argument hint of a `SKILL.md`, or nothing for blank text or an empty name. The API uses it to describe a stored skill.
 - `validateSkill`: the names, the limits (`SKILL_NAME_MAX_LENGTH`, `SKILL_DESCRIPTION_MAX_LENGTH`) and the warnings (`ESkillWarning`).
 - `resolveSkillShadowing`: which skill wins when two layers hold the same name. A repo skill beats a cloud project skill. A cloud project skill beats a cloud user skill. A cloud user skill beats a built-in skill.
 - `expandSkillBody`, `renderSkillListing`, `skillSummaryOf`.
 - `skillListRowSchema`, `skillsChangedSchema`, `ESkillOrigin`.
+
+### Built-in skills
+
+The source of the five built-in skills is `plugins/skills/skills`, in this package. `bun run
+generate` compiles it into `src/pod/builtin.generated.ts` and `src/catalogue/catalogue.generated.ts`.
+- `BUILT_IN_SKILLS`: the name, the `SKILL.md` text and the resource files of each built-in skill, for the pod.
+- `BUILT_IN_SKILL_CATALOGUE`: the name, the description, the entry digest and the digested resource files of each built-in skill. The API serves it.
+- `builtInSkills`, `builtInSkillEntry`, `builtInSkillNames`, `isBuiltInSkillName`: lookups over that catalogue.
+- `BUILT_IN_SKILL_SPECS`: the user-invocable built-in skills, parsed from `SKILL.md` by `skillSpecOf`.
+- `builtInSkillsRoot()`: the absolute directory of the source files, so a surface can read the bytes of a binary resource.
 
 ### Client
 

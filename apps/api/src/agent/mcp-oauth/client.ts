@@ -1,8 +1,7 @@
 import { EOAuthFailure, OAuthError, parseOAuthErrorBody } from './errors'
-import { unsealJson } from './seal'
+import { unsealJson, type JsonCipher } from './seal'
 import { sealedGrantSchema, type ClientInformation, type OAuthFetch } from './types'
 import type { McpServerGrantRow } from './types'
-import type { SecretCipher } from '../config/secret-cipher'
 
 const numberOr = (value: unknown): number | undefined =>
   typeof value === 'number' && Number.isFinite(value) ? value : undefined
@@ -69,7 +68,7 @@ export const registerClient = async (args: {
 
 const reusableClientOf = (args: {
   row: McpServerGrantRow
-  cipher: SecretCipher
+  cipher: JsonCipher
   nowMs: number
   redirectUri: string
   tokenEndpoint: string
@@ -94,7 +93,7 @@ const reusableClientOf = (args: {
 
 export const oauthClientFor = async (args: {
   row: McpServerGrantRow
-  cipher: SecretCipher
+  cipher: JsonCipher
   nowMs: number
   redirectUri: string
   tokenEndpoint: string

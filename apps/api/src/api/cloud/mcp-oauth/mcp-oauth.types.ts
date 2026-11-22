@@ -1,35 +1,11 @@
 import { EMcpOauthReturnSurface, EMcpServerSource } from '@dltech/atlas-wire'
 import { z } from 'zod'
-import type { HostResolver } from './mcp-oauth-ssrf'
+import { clientInformationSchema, type HostResolver } from '../../../agent'
 
 export enum EGrantRowStatus {
   Active = 'active',
   Expired = 'expired',
 }
-
-const clientInformationSchema = z.strictObject({
-  clientId: z.string(),
-  clientSecret: z.string().exactOptional(),
-  clientIdIssuedAt: z.number().exactOptional(),
-  clientSecretExpiresAt: z.number().exactOptional(),
-})
-
-const tokensSchema = z.strictObject({
-  accessToken: z.string(),
-  refreshToken: z.string().exactOptional(),
-  expiresAt: z.string().exactOptional(),
-  scope: z.string().exactOptional(),
-})
-
-export const sealedGrantSchema = z.strictObject({
-  clientInfo: clientInformationSchema,
-  tokens: tokensSchema,
-  tokenEndpoint: z.string(),
-  authMethods: z.array(z.string()).exactOptional(),
-  resource: z.string().exactOptional(),
-  redirectUri: z.string(),
-})
-export type SealedGrant = z.infer<typeof sealedGrantSchema>
 
 export const sealedPendingSchema = z.strictObject({
   codeVerifier: z.string(),

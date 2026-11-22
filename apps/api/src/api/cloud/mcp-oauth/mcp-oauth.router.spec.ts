@@ -29,7 +29,7 @@ import { McpOauthAccessService } from './mcp-oauth-access.service'
 import { McpOauthRouter } from './mcp-oauth.router'
 import { McpOauthService } from './mcp-oauth.service'
 import { McpOauthClock, McpOauthConfig, McpOauthFetcher, McpOauthStore } from './mcp-oauth.types'
-import { sealJson } from './mcp-oauth-seal'
+import { sealJson } from '../../../agent'
 import { EGrantRowStatus } from './mcp-oauth.types'
 import type { ServerGrantRow } from './mcp-oauth.types'
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { frontmatterOf, skillBodyOf } from '../frontmatter'
-import { skillFrontmatterOf } from '../parse'
+import { skillFrontmatterOf, skillSpecOf } from '../parse'
 import { ESkillWarning } from '../spec'
 import { validateSkill } from '../validate'
 
@@ -91,5 +91,43 @@ describe('frontmatterOf', () => {
   it('keeps the newlines of a literal block scalar', () => {
     const text = '---\nname: alpha\ndescription: |\n  does alpha\n  and beta\n---\n'
     expect(parsed(text).description).toBe('does alpha\nand beta')
+  })
+})
+
+describe('skillSpecOf', () => {
+  it('reads the name, the summary and the argument hint of a skill', () => {
+    expect(
+      skillSpecOf({
+        text: '---\nname: Deploy\ndescription: Ships it.\nargument-hint: <target>\n---\nbody',
+        fallbackName: 'folder',
+      }),
+    ).toEqual({
+      name: 'deploy',
+      summary: 'Ships it.',
+      argumentHint: '<target>',
+      userInvocable: true,
+    })
+  })
+
+  it('falls back to the given name and keeps a hidden skill visible to the parser', () => {
+    expect(
+      skillSpecOf({
+        text: '---\ndescription: d\nuser-invocable: false\n---\n',
+        fallbackName: 'Folder-Name',
+      }),
+    ).toEqual({ name: 'folder-name', summary: 'd', userInvocable: false })
+  })
+
+  it('returns nothing for blank text or an empty name', () => {
+    expect(skillSpecOf({ text: '', fallbackName: 'folder' })).toBeUndefined()
+    expect(skillSpecOf({ text: '   \n', fallbackName: 'folder' })).toBeUndefined()
+    expect(skillSpecOf({ text: '---\nname: ""\n---\n', fallbackName: '' })).toBeUndefined()
+    expect(skillSpecOf({ text: 'no frontmatter', fallbackName: '' })).toBeUndefined()
+  })
+
+  it('drops a blank argument hint', () => {
+    expect(
+      skillSpecOf({ text: '---\nname: x\nargument-hint: "  "\n---\n', fallbackName: 'x' }),
+    ).toEqual({ name: 'x', summary: '', userInvocable: true })
   })
 })

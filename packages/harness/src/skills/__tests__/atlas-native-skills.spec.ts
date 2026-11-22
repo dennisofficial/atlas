@@ -114,7 +114,9 @@ describe('native Atlas help skills', () => {
 
 describe('the shipped skill manifest', () => {
   it('embeds exactly the current authored Markdown content', async () => {
-    const directory = fileURLToPath(new URL('../../../skills/', import.meta.url))
+    const directory = fileURLToPath(
+      new URL('../../../../../plugins/skills/skills/', import.meta.url),
+    )
     const roots = await readdir(directory, { withFileTypes: true })
     const selected = await Promise.all(
       roots.map(async (root): Promise<readonly string[]> => {
@@ -138,7 +140,9 @@ describe('the shipped skill manifest', () => {
   })
 
   it('keeps every bundled resource path and digest synchronized with authored files', async () => {
-    const directory = fileURLToPath(new URL('../../../skills/', import.meta.url))
+    const directory = fileURLToPath(
+      new URL('../../../../../plugins/skills/skills/', import.meta.url),
+    )
     for (const entry of BUILT_IN_SKILLS) {
       if (!entry.path.includes('/')) continue
       const root = join(directory, dirname(entry.path))

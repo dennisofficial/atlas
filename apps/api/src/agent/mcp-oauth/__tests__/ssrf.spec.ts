@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { assertPublicHost, assertPublicUrl, SsrfRejectedError } from './mcp-oauth-ssrf'
+import { assertPublicHost, assertPublicUrl, SsrfRejectedError } from '../ssrf'
 
 const blocked = (url: string) =>
   expect(() => assertPublicUrl({ url, allowLocalTargets: false })).toThrow(SsrfRejectedError)
