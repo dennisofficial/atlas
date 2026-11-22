@@ -10,6 +10,8 @@ export default defineConfig({
   build: {
     // @dltech/atlas-wire ships raw TS under its `bun` export condition; its `default` points at an unbuilt dist.
     conditions: ['bun'],
+    // esbuild code splitting can evaluate Nest decorators before an inlined reflect-metadata chunk.
+    external: ['reflect-metadata'],
     extensions: [dotenvxTierExtension()],
   },
 })
