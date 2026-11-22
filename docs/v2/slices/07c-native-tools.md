@@ -48,7 +48,7 @@ brief I was handed were not tools at all, and two real tools were missing from i
 Already in v2, so out of scope: `bash edit multi_edit read write glob grep` (core tools,
 `apps/agent-host/src/runtime/tools.ts:90-98`), `shell_list/output/kill/input` (`plugins/shells`),
 `service_*` (`plugins/services`), the four `*_memory` tools (`plugins/memory`), `agent_spawn/say/stop/
-list`, `report_to_main`, `enter_worktree/exit_worktree/worktree_list` (`plugins/crew`),
+list`, `send_message`, `enter_worktree/exit_worktree/worktree_list` (`plugins/crew`),
 `subscribe/unsubscribe/list_subscriptions` (`plugins/github/src/pod/tools.ts:39`, `:85`, `:113`).
 `mcp-edit` and `skill_install` belong to slice 7b, which deliberately leaves `mcp-edit` out.
 

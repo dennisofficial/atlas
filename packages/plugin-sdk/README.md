@@ -8,8 +8,8 @@ author reads this package first. Every plugin in `plugins/*` builds its slots wi
 - The plugin shape: seven slots, `definePlugin`, and the composer `composePlugins`.
 - The pod tier: the pod context, the pod slot, the capabilities a tool reaches, and pod resources.
 - The control tier and the client tier slot types.
-- The plugin-facing capability types: crew, sessions, worktrees, routines, subscriptions and MCP
-  control, each with an `EMPTY_*` default. Memory and web search have no empty default.
+- The plugin-facing capability types (crew, messages, sessions, worktrees, routines,
+  subscriptions, MCP control), each with an `EMPTY_*` default.
 
 ## Does not own
 
@@ -19,10 +19,10 @@ author reads this package first. Every plugin in `plugins/*` builds its slots wi
 
 ## Entry points
 
-| Import                             | Use it for                                          |
-| ---------------------------------- | --------------------------------------------------- |
-| `@dltech/atlas-plugin-sdk`         | The slots, `definePlugin`, `composePlugins`, types. |
-| `@dltech/atlas-plugin-sdk/testing` | A fixture plugin that exercises every slot.         |
+| Import                             | Use it for                                             |
+| ---------------------------------- | ------------------------------------------------------ |
+| `@dltech/atlas-plugin-sdk`         | The slots, `definePlugin`, `composePlugins` and types. |
+| `@dltech/atlas-plugin-sdk/testing` | A fixture plugin that exercises every slot.            |
 
 ## The slot contract
 
@@ -104,13 +104,14 @@ through a resource: set `cloud: [ECloudSetting.McpServers]`, `ECloudSetting.Skil
   fragment, resource or command name. It merges only the client hooks, so collect `entryFolds`
   from each plugin yourself, as `apps/web/src/features/sessions/registered-plugins.ts` does.
 - `composePod(pods)`: the merged pod slot that the agent host builds once.
-- `eventSchemaOf(plugins)`, `eventTypesOf(plugins)`: the decoder and the type list for a session.
-  `PluginEventBodies` types the body of each event.
-- `crossLatch({ctx, name, level, mayFire})`: fire a level-triggered latch once, and record it.
-- `MacOfflineError`, `PodMcpProxyTransport`, `PodMcpProxyChannel`: the proxy to the Mac app.
-- `EMPTY_POD`, `EMPTY_CONTROL`, `EMPTY_CREW`, `EMPTY_SESSIONS`, `EMPTY_WORKTREES`,
-  `EMPTY_ROUTINES`, `EMPTY_SUBSCRIPTIONS`, `EMPTY_MCP_CONTROL`, `EMPTY_POD_RESOURCES`: the defaults
-  a tier spreads when it contributes nothing.
+- `eventSchemaOf(plugins)`, `eventTypesOf(plugins)`: the decoder and type list for a session.
+- `crossLatch({ctx, name, level, mayFire})`: fire a level-triggered latch once and record it.
+- `MacOfflineError`, `PodMcpProxyTransport`, `PodMcpProxyChannel`: the Mac proxy types.
+- `EMPTY_POD`, `EMPTY_CONTROL`, `EMPTY_CREW`, `EMPTY_MESSAGES`, `EMPTY_SESSIONS`, `EMPTY_WORKTREES`,
+  `EMPTY_ROUTINES`, `EMPTY_SUBSCRIPTIONS`, `EMPTY_MCP_CONTROL`, `EMPTY_POD_RESOURCES`: the defaults.
+- `PARENT_ADDRESS`, `MessageSent`, `PodMessages`: `ctx.messages.send({to, text})` is how a tool
+  messages another agent or session; `to` is an id, or `PARENT_ADDRESS` for its starter.
+- `PodSessions.spawn` takes `files` (`SpawnFile`), the values the child writes under its own `$ATLAS_CONTEXT_DIR` before its first turn.
 
 ## Usage
 

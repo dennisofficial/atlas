@@ -13,6 +13,7 @@ import {
   EMPTY_WORKTREES,
   EMPTY_POD_RESOURCES,
   UNVERSIONED_SETTINGS,
+  EMPTY_MESSAGES,
 } from '@dltech/atlas-plugin-sdk'
 import {
   ECallStatus,
@@ -125,6 +126,7 @@ export const rig = (args: { nodes?: Record<string, FakeNode>; crew?: PodCrew } =
     sessionId: 's1',
     resources: EMPTY_POD_RESOURCES,
     crew: args.crew ?? fakeCrew().port,
+    messages: EMPTY_MESSAGES,
     sessions: EMPTY_SESSIONS,
     worktrees: EMPTY_WORKTREES,
     control: {

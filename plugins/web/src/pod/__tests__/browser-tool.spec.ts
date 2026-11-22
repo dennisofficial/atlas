@@ -8,6 +8,7 @@ import {
   EMPTY_SUBSCRIPTIONS,
   type PluginPodContext,
   UNVERSIONED_SETTINGS,
+  EMPTY_MESSAGES,
 } from '@dltech/atlas-plugin-sdk'
 import {
   ECallFailure,
@@ -48,6 +49,7 @@ const ctxOf = (args: {
     },
     resources: EMPTY_POD_RESOURCES,
     crew: {} as never,
+    messages: EMPTY_MESSAGES,
     sessions: {} as never,
     worktrees: {} as never,
     notify: unsupported,

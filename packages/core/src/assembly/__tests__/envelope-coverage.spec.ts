@@ -4,7 +4,6 @@ import { EAgentRestart } from '../../agents/restart'
 import { EModelFallbackReason } from '../../events/agent-body'
 import { EAgentStart } from '../../agents/start'
 import { EAgentStatus } from '../../agents/status'
-import { EReportKind } from '../../agents/report'
 import { ELane } from '../../context/envelope'
 import { EContextSlot } from '../../context/slot'
 import {
@@ -177,7 +176,6 @@ const SAMPLES: { readonly [K in EventType]: SampleOf<K> } = {
     agentType: 'explore',
     intent: 'find the callers',
     prose: 'three callers',
-    kind: EReportKind.Done,
   },
   'model-fell-back': {
     type: 'model-fell-back',

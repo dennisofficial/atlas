@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
 import { EAgentStatus } from '../../agents/status'
-import { EReportKind } from '../../agents/report'
 import { EMessageOrigin, EPrEventKind, EPrVerdict } from '../../events/body'
 import { toThreadId } from '../../events/ids'
 import { EExecutionLocation } from '../../execution/location'
@@ -185,12 +184,11 @@ describe('transcriptOfRange', () => {
         agentType: 'builder',
         intent: 'wire the disposition table',
         prose: 'halfway through the rewiring',
-        kind: EReportKind.Progress,
       },
     ])
 
     expect(transcriptOfRange({ events, throughSeq: 1 })).toBe(
-      'Sub-agent thread-child (builder "wire the disposition table") reported progress: halfway through the rewiring',
+      'Sub-agent thread-child (builder "wire the disposition table") reported: halfway through the rewiring',
     )
   })
 

@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -17,7 +17,7 @@ export type RigDaemon = {
   home: string
   readonly bootId: string
   drain(args?: { deadlineMs?: number }): Promise<void>
-  restart(args: { keepHome: true }): Promise<void>
+  restart(args: { keepHome: boolean }): Promise<void>
   relocate(args: { keepHome: true }): Promise<void>
   stop(): Promise<void>
 }
@@ -173,11 +173,14 @@ export const startDaemon = async (args: {
     },
     async restart({ keepHome }) {
       if (stopped) throw new Error('cannot restart a stopped daemon')
-      if (!keepHome) throw new Error('restart requires keepHome: true')
       const current = child
       child = undefined
       if (current !== undefined) await killChild(current, 'SIGKILL')
       killOrphans(home)
+      if (!keepHome) {
+        rmSync(home, { recursive: true, force: true })
+        mkdirSync(home, { recursive: true })
+      }
       await spawn()
     },
     async relocate({ keepHome }) {

@@ -1,7 +1,6 @@
 import {
   attachmentSchema,
   EAttachmentStore,
-  EMessageOrigin,
   ESessionStatus,
   MAX_MESSAGE_UPLOADS,
   parseRef,
@@ -142,16 +141,12 @@ export type SessionArchiveInput = z.infer<typeof sessionArchiveInputSchema>
 export type SessionMarkReadInput = z.infer<typeof sessionMarkReadInputSchema>
 export type SessionStatusInput = z.infer<typeof sessionStatusInputSchema>
 
-export const inboxMessageSchema = z.strictObject({
-  text: z.string(),
-  clientId: z.string().min(1).max(200).optional(),
-  via: z.nativeEnum(EMessageOrigin).optional(),
-  media: z.array(inboxMediaSchema).optional(),
-  uploads: z.array(saidUploadSchema).optional(),
-  attachments: z.array(attachmentSchema).optional(),
-})
-
-export type InboxMessage = z.infer<typeof inboxMessageSchema>
+export {
+  inboxFileSchema,
+  inboxMessageSchema,
+  type InboxFile,
+  type InboxMessage,
+} from './inbox-message'
 
 export const INBOX_KIND_MESSAGE = 'message'
 

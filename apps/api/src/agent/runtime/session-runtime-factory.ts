@@ -4,6 +4,7 @@ import {
   DaemonAgentFileSystemPort,
   DaemonFileSystemPort,
   DaemonProcessPort,
+  contextFilesPlacerOf,
   type HostTimers,
   type SessionRuntimeFactory,
 } from '@dltech/atlas-host'
@@ -349,6 +350,7 @@ export const createSessionRuntimeFactory = (
       plugins: args.plugins,
       runningShells: () => countRunningShells({ calls }),
       env: sessionShellEnv,
+      placeContextFiles: contextFilesPlacerOf({ directory: paths.contextDir, port: files }),
       prepare: prepareController.prepare,
       subscribePrepareOutput: (listener) => steps.subscribeOutput(listener),
       // the setup script may start, or finish, before a replacement host subscribes: replay it

@@ -126,6 +126,16 @@ export function agentSaid(args: { from: string; text: string }): string {
   return envelopeOf({ lane: ELane.Agent, source: args.from, body: args.text })
 }
 
+export function replyHintOf(args: {
+  from: EMessageOrigin
+  sender: string | undefined
+  said: string
+}): string {
+  return args.from !== EMessageOrigin.PeerAgent || args.sender === undefined
+    ? args.said
+    : `${args.said}\n\nReply by sending a message to ${args.sender} if it needs something from you.`
+}
+
 export type LaneName = { phrase: string; heading: string }
 
 const LANE_NAMES: Record<EMessageOrigin, LaneName> = {

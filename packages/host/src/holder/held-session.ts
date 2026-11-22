@@ -9,6 +9,7 @@ import { PauseSignal } from '@dltech/atlas-agent'
 
 import { FencedSettlement } from './fenced-settlement'
 import type { SessionRuntime } from './ports'
+import { ContextSeedGate } from './context-seed'
 import { CrewRoom } from './crew'
 import { logDriveFault, logReconcileFault, settleAndCheckResume, wireHeldLoop } from './held-runner'
 import { teardownHeld } from './held-teardown'
@@ -34,6 +35,7 @@ export class HeldSession {
   private readonly pause = new PauseSignal()
   private readonly turns: HeldTurns
   private readonly prepare: HeldPrepare
+  private readonly seed: ContextSeedGate
   private readonly actions: HeldActions
   private readonly drain: HeldDrain
   private draining = false
@@ -55,12 +57,18 @@ export class HeldSession {
     this.deps = deps
     this.sessionId = deps.sessionId
     this.turns = new HeldTurns(deps)
+    this.seed = new ContextSeedGate({
+      deps,
+      runtime: () => this.runtime,
+      record: () => this.record,
+    })
     this.turns.onTurnEnd = () => {
       this.observation?.turnEnded()
       this.reconciler?.request()
     }
     this.prepare = new HeldPrepare({
       deps,
+      seed: this.seed,
       abandoned: () => this.draining || this.ending.outcome !== undefined,
       onSettled: ({ failed }) => {
         if (failed && !this.prepare.resumed) this.ending.finish(EHeldOutcome.Idle)
@@ -87,6 +95,7 @@ export class HeldSession {
       deps,
       turns: this.turns,
       prepare: this.prepare,
+      seed: this.seed,
       ending: this.ending,
       pause: this.pause,
       draining: () => this.draining,

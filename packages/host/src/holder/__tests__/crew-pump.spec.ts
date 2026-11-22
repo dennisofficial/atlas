@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
 import {
-  EReportKind,
   EToolEffect,
   ToolDefinition,
   type ModelPort,
@@ -27,7 +26,11 @@ const SPAWN_PROBE = 'pump_spawn_probe'
 const SAY_PROBE = 'pump_say_probe'
 const REPORT_PROBE = 'pump_report_probe'
 
-type ProbeState = { agentId: string | undefined; said: SubagentSaid | undefined }
+type ProbeState = {
+  agentId: string | undefined
+  said: SubagentSaid | undefined
+  reported: string | undefined
+}
 
 class SpawnProbe extends ToolDefinition {
   readonly name = SPAWN_PROBE
@@ -72,8 +75,8 @@ class SayProbe extends ToolDefinition {
     this.state.said = await this.ctx.crew.say({ agentId, text: SECOND_BRIEF })
     return {
       ok: true,
-      output: { queued: this.state.said.queued },
-      modelText: `queued ${String(this.state.said.queued)}`,
+      output: { queued: this.state.said?.queued === true },
+      modelText: `queued ${String(this.state.said?.queued === true)}`,
     }
   }
 }
@@ -89,7 +92,7 @@ class ReportProbe extends ToolDefinition {
   }
 
   async invoke(): Promise<ToolOutcome> {
-    await this.ctx.crew.report({ kind: EReportKind.Progress, text: PROGRESS_TEXT })
+    await this.ctx.messages.send({ to: 'parent', text: PROGRESS_TEXT })
     return { ok: true, output: {}, modelText: 'reported' }
   }
 }
@@ -115,7 +118,7 @@ const pumpRig = async (scripts: {
   parent: readonly ScriptedModelStep[]
   child: readonly ScriptedModelStep[]
 }) => {
-  const state: ProbeState = { agentId: undefined, said: undefined }
+  const state: ProbeState = { agentId: undefined, said: undefined, reported: undefined }
   const parent = new ScriptedModel(scripts.parent)
   const child = new ScriptedModel(scripts.child)
   const model: ModelPort = {
@@ -262,12 +265,12 @@ describe('a sub-agent after its first turn', () => {
     expect(saidTexts(before)).toEqual([])
   })
 
-  it('a progress report neither wakes the parent nor suppresses the ending wake', async () => {
+  it('a message to the parent reaches it, and the ending still arrives', async () => {
     const { rig } = await pumpRig({
       parent: [
         { calls: [{ callId: 'c1', name: SPAWN_PROBE, input: {} }] },
         { text: 'parent done' },
-        { text: 'saw the ending' },
+        { text: 'saw the report' },
       ],
       child: [
         { calls: [{ callId: 'r1', name: REPORT_PROBE, input: {} }] },
@@ -277,28 +280,23 @@ describe('a sub-agent after its first turn', () => {
 
     await rig.post('spawn one')
     await rig.wake()
-    const notices = await drainedEnding(rig)
-    expect(notices).not.toEqual([])
+    const reported = await flushUntil({
+      check: async () =>
+        (await eventsIn(rig, THREAD_ID)).some((event) => event.type === 'agent-reported'),
+      clock: rig.clock,
+      advanceMs: 60_000,
+      attempts: 200,
+    })
+    expect(reported).toBe(true)
     const childId = childIdOf(await eventsIn(rig, THREAD_ID))
 
     const parentEvents = await eventsIn(rig, THREAD_ID)
     expect(parentEvents.filter((event) => event.type === 'agent-reported')).toMatchObject([
-      { agentId: childId, kind: 'progress', prose: PROGRESS_TEXT },
+      { agentId: childId, prose: PROGRESS_TEXT },
     ])
     expect(parentEvents.filter((event) => event.type === 'agent-ended')).toMatchObject([
       { agentId: childId, status: 'finished', prose: 'child finished' },
     ])
-
-    const inbox = await rig.plane.readInbox({ sessionId: SESSION, afterId: 0, limit: 200 })
-    const payloads = inbox.filter((entry) => entry.kind === 'message').map((entry) => entry.payload)
-    expect(payloads.filter((payload) => payload.includes(PROGRESS_TEXT))).toEqual([])
-    expect(payloads.filter((payload) => payload.includes(childId))).toEqual([])
-    expect(inbox.filter((entry) => entry.kind === 'agent-notice')).toEqual([])
-    expect(notices.filter((payload) => payload.includes('"agent-reported"'))).toEqual([])
-    const endings = notices.filter((payload) => payload.includes('"agent-ended"'))
-    expect(endings).toHaveLength(1)
-    expect(endings[0]?.includes('child finished')).toBe(true)
-    const said = parentEvents.filter((event) => event.type === 'user-said')
-    expect(said.filter((event) => event.via === 'child-agent')).toEqual([])
+    expect(saidTexts(parentEvents)).toContain('saw the report')
   })
 })

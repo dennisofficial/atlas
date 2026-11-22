@@ -311,6 +311,7 @@ export interface ControlTx {
     at: string
   }): Promise<boolean>
   readSession(params: { sessionId: string }): Promise<ControlSessionRow | undefined>
+  readNestedChildren(params: { sessionId: string }): Promise<ControlSessionRow[]>
   lockSession(sessionId: string): Promise<ControlSessionRow | undefined>
   setSessionPodDesired(params: {
     sessionId: string

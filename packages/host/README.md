@@ -12,6 +12,7 @@ only what it can rebuild or drop.
 - The record adapter and its cache, and the once-ledger of a session.
 - The live step buffer, which flushes a streamed answer to the clients.
 - The change snapshotter, and the inbox intake of a held session.
+- Seeding a session's context folder from the files a spawner attached, before its first turn.
 - Terminal and panel demand, which keep a pod awake.
 - The drain budget, and the errors a lost sandbox raises.
 

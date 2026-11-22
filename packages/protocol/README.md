@@ -67,6 +67,14 @@ groups `changes.*`, `git.*`, `mcp.*`, `metrics.*`, `previews.*`, `services.*`, `
 - `sessionCreateInputSchema`, `sessionPostInputSchema`, `sessionEventsOutputSchema`: create, post, read.
 - `sessionSubscriptionSchema`, `sessionSubscribeInputSchema`, `sessionUnsubscribeInputSchema`.
 
+### Carry a message payload
+
+- `inboxMessageSchema`, `InboxMessage`: a message body: `text`, `clientId`, `via`, `media`,
+  `uploads`, `attachments` and `files`.
+- `inboxFileSchema`, `InboxFile`: one context file a spawn attaches for the child, `{path, text}`.
+  A message carries at most 32. These files belong to the child's context folder; they are not
+  model attachments.
+
 ### Speak the stream protocol
 
 - `parseServerMessage(raw)`, `parseClientMessage(raw)`: parse a frame, or refuse it.

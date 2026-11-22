@@ -1,4 +1,4 @@
-import type { EAgentStatus, EReportKind } from '@dltech/atlas-core'
+import type { EAgentStatus } from '@dltech/atlas-core'
 
 import type { WorktreeEntryInfo } from './worktrees'
 
@@ -27,8 +27,8 @@ export type PodCrew = {
     prompt: string
     worktree?: WorktreeEntryInfo | undefined
   }): Promise<SubagentSnapshot>
-  say(args: { agentId: string; text: string }): Promise<SubagentSaid>
+  say(args: { agentId: string; text: string }): Promise<SubagentSaid | undefined>
   stop(args: { agentId: string }): Promise<SubagentSnapshot>
   list(): readonly SubagentSnapshot[]
-  report(args: { kind: EReportKind; text: string }): Promise<SubagentSnapshot>
+  report(args: { text: string }): Promise<SubagentSnapshot>
 }

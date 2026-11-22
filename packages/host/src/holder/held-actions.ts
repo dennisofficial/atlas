@@ -1,6 +1,8 @@
 import { EHeldAction, EHeldOutcome, type InboxEntry, type ThreadId } from '@dltech/atlas-core'
 import { OPERATOR_STOP_REASON, type LoopTurnRunner, type PauseSignal } from '@dltech/atlas-agent'
+import { logFieldsOf } from '@dltech/atlas-observability'
 
+import type { ContextSeedGate } from './context-seed'
 import type { HeldEnding } from './held-ending'
 import type { HeldObservation } from './held-observation'
 import type { HeldPrepare } from './held-prepare'
@@ -28,6 +30,7 @@ export class HeldActions {
       deps: HeldSessionDeps
       turns: HeldTurns
       prepare: HeldPrepare
+      seed: ContextSeedGate
       ending: HeldEnding
       pause: PauseSignal
       draining(): boolean
@@ -84,11 +87,12 @@ export class HeldActions {
         return
       }
       case EHeldAction.StartTurn: {
-        this.startTurn({
+        await this.startTurn({
           runner: args.runner,
           threadId: args.threadId,
           resumable,
           preparedBefore,
+          inboxHead,
         })
         return
       }
@@ -123,16 +127,28 @@ export class HeldActions {
     if (started && this.args.prepare.running) this.args.request()
   }
 
-  private startTurn(args: {
+  private async startTurn(args: {
     runner: LoopTurnRunner
     threadId: ThreadId
     resumable: boolean
     preparedBefore: boolean
-  }): void {
+    inboxHead: number
+  }): Promise<void> {
     const { deps, ending, turns } = this.args
     if (this.args.draining() || ending.outcome !== undefined) return
     const record = this.args.record()
     if (record === undefined) return
+    const seeded = await this.args.seed.ensure()
+    if (!seeded.ok) {
+      await this.recordSeedFailure({
+        record,
+        threadId: args.threadId,
+        inboxHead: args.inboxHead,
+        reason: seeded.reason,
+      })
+      ending.finish(EHeldOutcome.Idle)
+      return
+    }
     this.args.takeOverFirstStep()
     this.resumeAfterSeq = record.eventCache().currentHead().seq ?? this.resumeAfterSeq
     if (args.preparedBefore) this.retryWake()
@@ -157,5 +173,28 @@ export class HeldActions {
     const runtime = this.args.runtime()
     if (runtime?.workspaceGate?.settled !== 'failed') return
     void runtime.prepare().catch(() => undefined)
+  }
+
+  private async recordSeedFailure(args: {
+    record: SessionRecord
+    threadId: ThreadId
+    inboxHead: number
+    reason: string
+  }): Promise<void> {
+    await args.record
+      .append({
+        threadId: args.threadId,
+        runId: this.args.deps.ids.nextRunId(),
+        drafts: [
+          { type: 'workspace-prepare-failed', reason: args.reason, inboxHead: args.inboxHead },
+        ],
+      })
+      .catch((error: unknown) => {
+        this.args.deps.log?.error({
+          source: 'holder.seed',
+          message: `recording the missing attached files of ${this.args.deps.sessionId} failed`,
+          ...logFieldsOf({ error }),
+        })
+      })
   }
 }

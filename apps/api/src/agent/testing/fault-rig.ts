@@ -11,7 +11,7 @@ import { PANEL_HOLD_CHANNEL } from '@dltech/atlas-protocol'
 import { Redis } from 'ioredis'
 
 import type { EHostFault } from './host-faults'
-import { seedSession } from './rig-seed'
+import { seedSession, type NewSessionArgs } from './rig-seed'
 import { startDaemon, type RigDaemon } from './rig-daemon'
 import { collectLines } from './rig-process'
 import { hostEnv, RIG_SECRET } from './rig-host-env'
@@ -71,7 +71,7 @@ const replaysAfterTakeOverOf = (host: HostProcess | undefined): number =>
 export type FaultRig = {
   plane: ControlPlane
   dbProxy: FaultProxy
-  newSession(args: { sessionId: string; text: string; prepared?: boolean }): Promise<string>
+  newSession(args: NewSessionArgs): Promise<string>
   wake(sessionId: string): Promise<void>
   claim(args: { sessionId: string; label: string; timeoutMs?: number }): Promise<void>
   waitHeldBy(args: { sessionId: string; label: string; timeoutMs?: number }): Promise<void>
@@ -155,8 +155,8 @@ export const startRig = async (args: {
     dbProxy,
     labelOf,
 
-    newSession({ sessionId, text, prepared }) {
-      return seedSession({ store, sessionId, text, prepared: prepared !== false })
+    newSession({ sessionId, text, prepared, files }) {
+      return seedSession({ store, sessionId, text, prepared: prepared !== false, files })
     },
 
     async wake(sessionId) {

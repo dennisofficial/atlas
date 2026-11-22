@@ -1,8 +1,16 @@
 import { describe, expect, it } from 'bun:test'
 
-import { ESessionStatus, EReportKind, toThreadId, type PromptContext } from '@dltech/atlas-core'
 import {
+  ESessionStatus,
+  SPAWN_FILE_MAX_BYTES,
+  toThreadId,
+  type PromptContext,
+} from '@dltech/atlas-core'
+import { ECallFailure, ECallStatus } from '@dltech/atlas-protocol'
+import {
+  EMPTY_MESSAGES,
   type PluginPodContext,
+  type PodMessages,
   type PodSessions,
   type SessionBrief,
   EMPTY_CREW,
@@ -17,6 +25,8 @@ import {
 import { sessionsPod } from '..'
 
 type Call = { method: string; args: unknown }
+
+const CONTEXT_DIRECTORY = '/atlas/home/sessions/s1/context'
 
 const promptCtx: PromptContext = {
   groups: [],
@@ -37,7 +47,6 @@ const briefOf = (overrides: Partial<SessionBrief> = {}): SessionBrief => ({
 
 const fakeSessions = (
   args: {
-    refused?: string | undefined
     briefs?: readonly SessionBrief[] | undefined
     teammateBriefs?: readonly SessionBrief[] | undefined
   } = {},
@@ -47,18 +56,6 @@ const fakeSessions = (
     spawn: async (spawnArgs) => {
       calls.push({ method: 'spawn', args: spawnArgs })
       return { sessionId: 'p1', mainThreadId: 't1' }
-    },
-    message: async (messageArgs) => {
-      calls.push({ method: 'message', args: messageArgs })
-      return args.refused === undefined ? { queued: true } : { refused: args.refused }
-    },
-    messageTeammate: async (messageArgs) => {
-      calls.push({ method: 'messageTeammate', args: messageArgs })
-      return args.refused === undefined ? { queued: true } : { refused: args.refused }
-    },
-    report: async (reportArgs) => {
-      calls.push({ method: 'report', args: reportArgs })
-      return args.refused === undefined ? { queued: true } : { refused: args.refused }
     },
     list: async () => {
       calls.push({ method: 'list', args: {} })
@@ -72,12 +69,18 @@ const fakeSessions = (
   return { port, calls }
 }
 
-const rig = (sessions: PodSessions) => {
+const rig = (
+  sessions: PodSessions,
+  messages: PodMessages = EMPTY_MESSAGES,
+  files: Readonly<Record<string, string>> | undefined = undefined,
+  daemon: { links?: Readonly<Record<string, string>>; notUtf8?: readonly string[] } = {},
+) => {
   const ctx: PluginPodContext = {
     sessionId: 's1',
     sessions,
     resources: EMPTY_POD_RESOURCES,
     crew: EMPTY_CREW,
+    messages,
     worktrees: EMPTY_WORKTREES,
     notify: async () => undefined,
     control: {
@@ -105,8 +108,39 @@ const rig = (sessions: PodSessions) => {
     },
     append: async () => undefined,
     events: () => [],
-    call: async () => {
-      throw new Error('this rig calls no daemon')
+    env: async () => ({ ATLAS_CONTEXT_DIR: CONTEXT_DIRECTORY }),
+    call: async (op) => {
+      const path = 'path' in op ? op.path : ''
+      if (op.op === 'readLink') {
+        return { status: ECallStatus.Ok, op: 'readLink', value: daemon.links?.[path] ?? null }
+      }
+      const text = files?.[path]
+      if (text !== undefined && op.op === 'stat') {
+        return {
+          status: ECallStatus.Ok,
+          op: 'stat',
+          value: { size: text.length, mode: 0o644, mtimeMs: 0, isFile: true, isDirectory: false },
+        }
+      }
+      if (text !== undefined && op.op === 'readTextForEdit') {
+        const broken = daemon.notUtf8?.includes(path) === true
+        return {
+          status: ECallStatus.Ok,
+          op: 'readTextForEdit',
+          value: { text, strict: broken ? null : text },
+        }
+      }
+      if (text !== undefined && op.op === 'readFile') {
+        return { status: ECallStatus.Ok, op: 'readFile', value: text }
+      }
+      return {
+        status: ECallStatus.Failed,
+        op: op.op,
+        error: {
+          code: ECallFailure.NotFound,
+          message: `no file at ${path}`,
+        },
+      }
     },
     live: () => undefined,
     onDaemonEvent: () => () => undefined,
@@ -131,14 +165,12 @@ const textOf = (outcome: Awaited<ReturnType<typeof invoke>>): string =>
   outcome.ok ? outcome.modelText : outcome.reason
 
 describe('the sessions pod', () => {
-  it('declares its seven tools and prompts a fragment, and denies a child none', () => {
+  it('declares its five tools and prompts a fragment, and denies a child none', () => {
     const { ctx } = rig(fakeSessions().port)
     expect(sessionsPod.tools?.(ctx).map((tool) => tool.name)).toEqual([
+      'send_message',
       'spawn_session',
       'spawn_teammate',
-      'message_session',
-      'message_teammate',
-      'report_to_spawner',
       'list_sessions',
       'list_teammates',
     ])
@@ -146,15 +178,13 @@ describe('the sessions pod', () => {
     expect(sessionsPod.childDeny).toBeUndefined()
   })
 
-  it('writes with spawn, message and report and reads with list', () => {
+  it('writes with send and spawn and reads with list', () => {
     const { ctx } = rig(fakeSessions().port)
     const effects = (sessionsPod.tools?.(ctx) ?? []).map((tool) => [tool.name, tool.effect])
     expect(effects).toEqual([
+      ['send_message', 'write'],
       ['spawn_session', 'write'],
       ['spawn_teammate', 'write'],
-      ['message_session', 'write'],
-      ['message_teammate', 'write'],
-      ['report_to_spawner', 'write'],
       ['list_sessions', 'read'],
       ['list_teammates', 'read'],
     ])
@@ -163,6 +193,7 @@ describe('the sessions pod', () => {
   it('describes every session as the operator’s own, with no lead or peer and no shared pod', () => {
     const { ctx } = rig(fakeSessions().port)
     for (const tool of sessionsPod.tools?.(ctx) ?? []) {
+      if (tool.name === 'send_message') continue
       expect(tool.description).not.toContain('peer')
       expect(tool.description).not.toContain('sub-agent')
       expect(tool.description).not.toContain('intoPod')
@@ -181,7 +212,7 @@ describe('the sessions pod', () => {
       spawner: { sessionId: 's0', title: 'the parser' },
     })
     expect(text).toContain('s0 (the parser) created this one')
-    expect(text).toContain('report_to_spawner')
+    expect(text).toContain('send_message')
   })
 
   it('says nothing about a creator when this session has no spawner', () => {
@@ -222,6 +253,18 @@ describe('spawn_session', () => {
     ])
     expect(textOf(outcome)).toContain('no brief')
     expect(textOf(outcome)).not.toContain('teammate')
+  })
+
+  it('reports files with no brief as started, not waiting', async () => {
+    const sessions = fakeSessions()
+    const { ctx } = rig(sessions.port, EMPTY_MESSAGES, {
+      [`${CONTEXT_DIRECTORY}/plan.md`]: 'the plan',
+    })
+    const outcome = await invoke({ ctx, name: 'spawn_session', input: { files: ['plan.md'] } })
+    expect(outcome.ok).toBe(true)
+    expect(textOf(outcome)).toContain('plan.md')
+    expect(textOf(outcome)).toContain('first message')
+    expect(textOf(outcome)).not.toContain('waits for a message')
   })
 
   it('refuses to place a top-level session under the caller', async () => {
@@ -275,38 +318,162 @@ describe('spawn_teammate', () => {
     ])
     expect(textOf(outcome)).toContain('no brief')
   })
-})
 
-describe('message_teammate', () => {
-  it('queues a message to a nested teammate and says so', async () => {
+  it('reads the attached files under the context folder and spawns with them', async () => {
     const sessions = fakeSessions()
-    const { ctx } = rig(sessions.port)
+    const { ctx } = rig(sessions.port, EMPTY_MESSAGES, {
+      [`${CONTEXT_DIRECTORY}/plan.md`]: 'the plan',
+      [`${CONTEXT_DIRECTORY}/sections/03-auth.md`]: 'the auth section',
+    })
     const outcome = await invoke({
       ctx,
-      name: 'message_teammate',
-      input: { teammateId: 'p1', text: 'how is it going' },
+      name: 'spawn_teammate',
+      input: { brief: 'do the work', files: ['plan.md', 'sections/03-auth.md'] },
     })
     expect(sessions.calls).toEqual([
-      { method: 'messageTeammate', args: { sessionId: 'p1', text: 'how is it going' } },
+      {
+        method: 'spawn',
+        args: {
+          title: undefined,
+          brief: 'do the work',
+          nested: true,
+          files: [
+            { path: 'plan.md', text: 'the plan' },
+            { path: 'sections/03-auth.md', text: 'the auth section' },
+          ],
+        },
+      },
     ])
-    expect(outcome.ok && outcome.output).toEqual({ ok: true })
-    expect(textOf(outcome)).toContain('queued')
+    expect(outcome.ok).toBe(true)
+    expect(textOf(outcome)).toContain('plan.md, sections/03-auth.md')
   })
 
-  it('turns a refusal for a non-teammate into the tool reason', async () => {
-    const sessions = fakeSessions({
-      refused: 'session p1 is not one of this session’s nested teammates',
+  it('refuses a file path that climbs out of the context folder, and spawns nothing', async () => {
+    const sessions = fakeSessions()
+    const { ctx } = rig(sessions.port, EMPTY_MESSAGES, {
+      '/atlas/home/sessions/s1/x.md': 'the sibling',
     })
-    const { ctx } = rig(sessions.port)
     const outcome = await invoke({
       ctx,
-      name: 'message_teammate',
-      input: { teammateId: 'p1', text: 'hello' },
+      name: 'spawn_teammate',
+      input: { brief: 'do the work', files: ['../x.md'] },
     })
-    expect(outcome).toEqual({
-      ok: false,
-      reason: 'session p1 is not one of this session’s nested teammates',
+    expect(outcome.ok).toBe(false)
+    expect(textOf(outcome)).toContain('../x.md')
+    expect(sessions.calls).toEqual([])
+  })
+
+  it('refuses an absolute file path, and spawns nothing', async () => {
+    const sessions = fakeSessions()
+    const { ctx } = rig(sessions.port, EMPTY_MESSAGES, { '/etc/hosts': 'local host' })
+    const outcome = await invoke({
+      ctx,
+      name: 'spawn_teammate',
+      input: { files: ['/etc/hosts'] },
     })
+    expect(outcome.ok).toBe(false)
+    expect(textOf(outcome)).toContain('/etc/hosts')
+    expect(sessions.calls).toEqual([])
+  })
+
+  it('refuses a file it cannot read, and spawns nothing', async () => {
+    const sessions = fakeSessions()
+    const { ctx } = rig(sessions.port, EMPTY_MESSAGES, {
+      [`${CONTEXT_DIRECTORY}/plan.md`]: 'the plan',
+    })
+    const outcome = await invoke({
+      ctx,
+      name: 'spawn_teammate',
+      input: { files: ['plan.md', 'missing.md'] },
+    })
+    expect(outcome.ok).toBe(false)
+    expect(textOf(outcome)).toContain('could not read missing.md')
+    expect(sessions.calls).toEqual([])
+  })
+
+  it('refuses files over the size cap, and spawns nothing', async () => {
+    const sessions = fakeSessions()
+    const { ctx } = rig(sessions.port, EMPTY_MESSAGES, {
+      [`${CONTEXT_DIRECTORY}/big.md`]: 'x'.repeat(SPAWN_FILE_MAX_BYTES + 1),
+    })
+    const outcome = await invoke({
+      ctx,
+      name: 'spawn_teammate',
+      input: { files: ['big.md'] },
+    })
+    expect(outcome.ok).toBe(false)
+    expect(textOf(outcome)).toContain('big.md')
+    expect(sessions.calls).toEqual([])
+  })
+
+  it('refuses a file behind a linked folder, and spawns nothing', async () => {
+    const sessions = fakeSessions()
+    const { ctx } = rig(
+      sessions.port,
+      EMPTY_MESSAGES,
+      { [`${CONTEXT_DIRECTORY}/linked/secret.md`]: 'outside the context folder' },
+      { links: { [`${CONTEXT_DIRECTORY}/linked`]: '/etc' } },
+    )
+    const outcome = await invoke({
+      ctx,
+      name: 'spawn_teammate',
+      input: { files: ['linked/secret.md'] },
+    })
+    expect(outcome.ok).toBe(false)
+    expect(textOf(outcome)).toContain('linked/secret.md')
+    expect(textOf(outcome)).toContain('link')
+    expect(sessions.calls).toEqual([])
+  })
+
+  it('refuses a file that is itself a link, and spawns nothing', async () => {
+    const sessions = fakeSessions()
+    const { ctx } = rig(
+      sessions.port,
+      EMPTY_MESSAGES,
+      { [`${CONTEXT_DIRECTORY}/plan.md`]: 'outside the context folder' },
+      { links: { [`${CONTEXT_DIRECTORY}/plan.md`]: '/etc/passwd' } },
+    )
+    const outcome = await invoke({ ctx, name: 'spawn_teammate', input: { files: ['plan.md'] } })
+    expect(outcome.ok).toBe(false)
+    expect(textOf(outcome)).toContain('link')
+    expect(sessions.calls).toEqual([])
+  })
+
+  it('refuses a file that is not UTF-8 text, and spawns nothing', async () => {
+    const sessions = fakeSessions()
+    const { ctx } = rig(
+      sessions.port,
+      EMPTY_MESSAGES,
+      { [`${CONTEXT_DIRECTORY}/bad.md`]: 'caf\uFFFD' },
+      { notUtf8: [`${CONTEXT_DIRECTORY}/bad.md`] },
+    )
+    const outcome = await invoke({ ctx, name: 'spawn_teammate', input: { files: ['bad.md'] } })
+    expect(outcome.ok).toBe(false)
+    expect(textOf(outcome)).toContain('not UTF-8 text')
+    expect(sessions.calls).toEqual([])
+  })
+
+  it('refuses a binary file holding a NUL byte, and spawns nothing', async () => {
+    const sessions = fakeSessions()
+    const { ctx } = rig(sessions.port, EMPTY_MESSAGES, {
+      [`${CONTEXT_DIRECTORY}/binary.md`]: 'ab\u0000cd',
+    })
+    const outcome = await invoke({ ctx, name: 'spawn_teammate', input: { files: ['binary.md'] } })
+    expect(outcome.ok).toBe(false)
+    expect(textOf(outcome)).toContain('NUL')
+    expect(sessions.calls).toEqual([])
+  })
+
+  it('reports files with no brief as started, not waiting', async () => {
+    const sessions = fakeSessions()
+    const { ctx } = rig(sessions.port, EMPTY_MESSAGES, {
+      [`${CONTEXT_DIRECTORY}/plan.md`]: 'the plan',
+    })
+    const outcome = await invoke({ ctx, name: 'spawn_teammate', input: { files: ['plan.md'] } })
+    expect(outcome.ok).toBe(true)
+    expect(textOf(outcome)).toContain('plan.md')
+    expect(textOf(outcome)).toContain('first message')
+    expect(textOf(outcome)).not.toContain('waits for a message')
   })
 })
 
@@ -338,73 +505,6 @@ describe('list_teammates', () => {
     expect(textOf(await invoke({ ctx, name: 'list_teammates', input: {} }))).toBe(
       'This session has no teammates.',
     )
-  })
-})
-
-describe('report_to_spawner', () => {
-  it('sends the kind and the text and says the report is with the parent agent', async () => {
-    const sessions = fakeSessions()
-    const { ctx } = rig(sessions.port)
-    const outcome = await invoke({
-      ctx,
-      name: 'report_to_spawner',
-      input: { kind: EReportKind.Blocked, text: 'the parser needs a fixture' },
-    })
-    expect(sessions.calls).toEqual([
-      {
-        method: 'report',
-        args: { kind: EReportKind.Blocked, text: 'the parser needs a fixture' },
-      },
-    ])
-    expect(outcome.ok && outcome.output).toEqual({ kind: EReportKind.Blocked })
-    expect(textOf(outcome)).toContain('with the parent agent')
-  })
-
-  it('turns a session with no spawner into the tool reason', async () => {
-    const sessions = fakeSessions({ refused: 'this session has no spawner' })
-    const { ctx } = rig(sessions.port)
-    const outcome = await invoke({
-      ctx,
-      name: 'report_to_spawner',
-      input: { kind: EReportKind.Done, text: 'all done' },
-    })
-    expect(outcome).toEqual({
-      ok: false,
-      reason: 'this session has no spawner',
-    })
-  })
-})
-
-describe('message_session', () => {
-  it('queues a message and says so', async () => {
-    const sessions = fakeSessions()
-    const { ctx } = rig(sessions.port)
-    const outcome = await invoke({
-      ctx,
-      name: 'message_session',
-      input: { sessionId: 'p1', text: 'how is it going' },
-    })
-    expect(sessions.calls).toEqual([
-      { method: 'message', args: { sessionId: 'p1', text: 'how is it going' } },
-    ])
-    expect(outcome.ok && outcome.output).toEqual({ ok: true })
-    expect(textOf(outcome)).toContain('queued')
-  })
-
-  it('turns a refusal into the tool reason and keeps the message', async () => {
-    const sessions = fakeSessions({
-      refused: 'this session has received all 20 messages',
-    })
-    const { ctx } = rig(sessions.port)
-    const outcome = await invoke({
-      ctx,
-      name: 'message_session',
-      input: { sessionId: 'p1', text: 'again' },
-    })
-    expect(outcome).toEqual({
-      ok: false,
-      reason: 'this session has received all 20 messages',
-    })
   })
 })
 

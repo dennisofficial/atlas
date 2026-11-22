@@ -1,4 +1,4 @@
-import type { Attachment, EReportKind, ETldrStatus } from '@dltech/atlas-core'
+import type { Attachment, ETldrStatus } from '@dltech/atlas-core'
 
 import { runLabel } from './tools'
 import { settled, type ToolRun } from './tool-runs'
@@ -170,7 +170,6 @@ export type AgentReportedEntry = {
   text: string
   agentId: string
   report: string
-  reportKind?: EReportKind | undefined
 }
 
 export type ModelFellBackEntry = {

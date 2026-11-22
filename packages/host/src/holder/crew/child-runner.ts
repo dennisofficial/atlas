@@ -48,6 +48,7 @@ export const childRunnerOf = (args: {
     threadId: args.agentId,
     signal: args.signal,
     crew: args.crew,
+    selfAgentId: args.agentId,
     notify: (event, options) => args.notify(event, options),
   })
   const registry = new DeniedToolRegistry(

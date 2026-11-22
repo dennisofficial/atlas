@@ -17,8 +17,8 @@ own pod.
 1. `spawn_session` has no `intoPod`, and every spawned session gets its own pod; the control plane
    cannot place a session on another session's pod.
 2. A spawned session's context names the session that created it, and it can report back
-   (`report_to_spawner`), which wakes the creator in the agent lane, once — the path #2223 fixed for
-   crew.
+   (`send_message {to: "parent"}`), which wakes the creator in the agent lane, once — the path #2223
+   fixed for crew.
 3. `list_sessions` carries status, so a creating session can see which teammate is working, idle or
    failed without asking.
 4. The sidebar keeps provenance grouping and stops calling a spawned session a teammate; a row shows
@@ -63,16 +63,15 @@ never share one), the plugin's spawn spec, and the fragment text.
 A teammate is a session; the report channel is therefore a session-shaped message, not a crew one.
 - **The child learns its creator.** A prompt fragment from `plugins/sessions` names the spawner's id
   and title, read from the session row the holder already has.
-- **`report_to_spawner {kind, text}`** posts to the creator's inbox with
-  `senderSessionId = the reporting session`, so intake stamps `via: peer-agent` and the sender
-  (`packages/host/src/holder/inbox-intake.ts`). The body is the message; there is no separate
-  durable event, unlike crew — a session's report _is_ its message.
-- **Wake rule** mirrors crew (`reportWakesParent`): done, blocked and needs-decision wake; progress
-  does not. The tool is a session's `report_to_main`, so the pod port grows one method
-  (`PodSessions.report`) and the control plane one operation (`reportToSpawner`), which resolves the
-  spawner from the session row rather than trusting an id from the model.
-- **Not a new lane.** #2223 made a `user-said` with a sender render and assemble as an agent message;
-  this slice only has to produce one.
+- **`send_message {to: "parent", text}`** posts an `agent-reported` event into the creator's inbox
+  (`packages/control/src/peer-sessions.ts`). The event carries the reporting session's id as
+  `senderSessionId`, its main thread as `agentId`, and the text as `prose`, so the creator reads a
+  sender-named notice with the session id as the reply address.
+- **Wake rule**: every message wakes its receiver. The control plane keeps one operation
+  (`reportToSpawner`), which resolves the spawner from the session row rather than trusting an id
+  from the model.
+- **No new lane.** #2223 gave the sender a first-class field; this slice reuses the `agent-reported`
+  rendering rather than adding a second one.
 
 ## 4. Status in `list_sessions`
 
@@ -109,7 +108,7 @@ branch. The change is that the contract says so:
 
 ## 8. Open question for the operator
 
-1. **Where a report lands.** Today `report_to_spawner` would post a normal message into the creator's
+1. **Where a report lands.** Today `send_message {to: "parent"}` would post a normal message into the creator's
    transcript. Confirm that is wanted, or that it should also mark the session view (a
    `spawned-report` counter) so a creating session sees outstanding reports without reading the
    transcript.

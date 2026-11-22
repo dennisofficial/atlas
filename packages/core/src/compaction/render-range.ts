@@ -1,6 +1,5 @@
 import { isTeammateType } from '../agents/kind'
 import { agentLabel } from '../agents/label'
-import { EReportKind } from '../agents/report'
 import { laneNameOf } from '../context/envelope'
 import { saidBy } from '../events/body'
 import type { Event, EventOfType } from '../events/envelope'
@@ -66,7 +65,7 @@ const SUMMARISED_LINES: {
   'agent-reported': ({ event, limit }) => {
     const named = `${event.agentId} (${agentLabel(event)})`
     const subject = isTeammateType(event.agentType) ? named : `Sub-agent ${named}`
-    return `${subject} reported ${event.kind ?? EReportKind.Done}: ${clipped(event.prose, limit)}`
+    return `${subject} reported: ${clipped(event.prose, limit)}`
   },
   'background-shell-ended': ({ event, limit }) =>
     `Background shell "${event.command}" ${event.status}: ${clipped(event.output, limit)}`,

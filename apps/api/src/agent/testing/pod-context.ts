@@ -1,5 +1,6 @@
 import {
   EMPTY_CREW,
+  EMPTY_MESSAGES,
   EMPTY_SESSIONS,
   EMPTY_WORKTREES,
   type PluginPodContext,
@@ -35,6 +36,7 @@ export const podContextOf = (sessionId: string): PluginPodContext => ({
     subscriptions: EMPTY_SUBSCRIPTIONS,
   },
   crew: EMPTY_CREW,
+  messages: EMPTY_MESSAGES,
   sessions: EMPTY_SESSIONS,
   worktrees: EMPTY_WORKTREES,
   resources: EMPTY_POD_RESOURCES,

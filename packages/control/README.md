@@ -40,7 +40,7 @@ a thread's event log.
   `titleUntitledSession`, `setSessionArchived`, `markSessionRead`.
 - `listSessions`, `listSessionDigests`, `readSession`, `sessionsOf`, `readSessionView`,
   `readSessionBusy`.
-- `spawnPeer`, `messagePeer`, `messageTeammate`, `reportToSpawner`, `podPeersPlaced`.
+- `spawnPeer`, `messagePeer`, `reportToSpawner`, `podPeersPlaced`.
 - `setSandboxInstanceId`, `setSandboxStatus`, `recordPodDesired`, `recordPodApplied`,
   `recordPodFailed`, `recordPodWaiting`.
 

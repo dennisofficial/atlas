@@ -30,6 +30,7 @@ import { podControlOf } from './pod-control'
 import { pluginResourcesClosedHook, pluginResourcesHook, reloadResource } from './plugin-resources'
 import { ResourceSync } from './plugin-resource-sync'
 import { podSessionsOf } from './plugin-sessions'
+import { heldMessagesOf } from './pod-messages'
 import { modelFellBackDraft } from './crew/model-fell-back'
 import type { RoleModelChoice, SessionRuntime } from './ports'
 import type { SessionRecord } from './record/record-adapter'
@@ -143,6 +144,7 @@ export const pluginPodContextOf = (args: {
   threadId: ThreadId
   signal: AbortSignal
   crew: PodCrew
+  selfAgentId?: string | undefined
   notify?: ((event: EventBody, options: { key: string }) => Promise<void>) | undefined
 }): PluginPodContext => {
   const { deps, runtime, record, threadId } = args
@@ -158,6 +160,7 @@ export const pluginPodContextOf = (args: {
       ...(deps.mcp === undefined ? {} : { mcp: deps.mcp(deps.sessionId) }),
     }),
     crew: args.crew,
+    messages: heldMessagesOf({ deps, crew: args.crew, selfAgentId: args.selfAgentId }),
     sessions: podSessionsOf({
       plane: deps.plane,
       sessionId: deps.sessionId,

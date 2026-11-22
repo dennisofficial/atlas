@@ -16,6 +16,7 @@ import type { CallOp, CallResult, DaemonEventFrame, LiveFrame } from '@dltech/at
 import type { PodCrew } from './crew'
 import { MacOfflineError, type PodMcpProxyChannel, type PodMcpProxyTransport } from './mcp-proxy'
 import type { PodMemory } from './memory'
+import type { PodMessages } from './messages'
 import type { ECloudSetting, PodResource, PodResources } from './resources'
 import type { PodRoutines } from './routines'
 import type { PodSessions } from './sessions'
@@ -23,8 +24,11 @@ import type { PodSubscriptions } from './subscriptions'
 import type { PodWorktrees } from './worktrees'
 
 export type { PodCrew, SubagentSaid, SubagentSnapshot, SubagentWorktree } from './crew'
-export type { PodSessions, SessionBrief, SessionMessage, SpawnedSession } from './sessions'
+export type { PodSessions, SessionBrief, SpawnedSession } from './sessions'
+export type { SpawnFile } from '@dltech/atlas-core'
 export { EMPTY_SESSIONS } from './sessions'
+export { EMPTY_MESSAGES, PARENT_ADDRESS } from './messages'
+export type { MessageSent, PodMessages } from './messages'
 export { EMPTY_WORKTREES } from './worktrees'
 export type {
   PodWorktrees,
@@ -96,6 +100,7 @@ export type PluginPodContext = {
   workspaceDirectory?: string | null | undefined
   control: PodControl
   crew: PodCrew
+  messages: PodMessages
   sessions: PodSessions
   worktrees: PodWorktrees
   resources: PodResources
