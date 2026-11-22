@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { renderToStaticMarkup } from 'react-dom/server'
 
-import { SandboxSizeSection, savedSizeValueOf } from '../sandbox-size-section'
+import { SandboxSizeSection, savedSizeValueOf, sizeValueToSave } from '../sandbox-size-section'
 
 const noop = async () => undefined
 
@@ -44,11 +44,34 @@ describe('SandboxSizeSection', () => {
     expect(html).toContain('4 vCPU')
   })
 
-  it('offers an account default only where the setting inherits one', () => {
+  it('offers Default only where the setting inherits one', () => {
     const withDefault = renderToStaticMarkup(
       <SandboxSizeSection value={null} withAccountDefault onSave={noop} />,
     )
-    expect(withDefault).toContain('Account default')
-    expect(html).not.toContain('Account default')
+    expect(withDefault).toContain('Default')
+    expect(withDefault).not.toContain('Account default')
+    expect(html).not.toContain('Default')
+  })
+
+  it('shows the inherited shape dimmed under Default', () => {
+    const inherited = renderToStaticMarkup(
+      <SandboxSizeSection value={null} inheritedVcpus={4} withAccountDefault onSave={noop} />,
+    )
+    expect(inherited).toContain('4 vCPU · 8 GB RAM')
+    expect(inherited).toContain('text-muted-foreground')
+  })
+
+  it('shows the built-in default shape when there is no personal size', () => {
+    const fallback = renderToStaticMarkup(
+      <SandboxSizeSection value={null} withAccountDefault onSave={noop} />,
+    )
+    expect(fallback).toContain('2 vCPU · 4 GB RAM')
+  })
+})
+
+describe('sizeValueToSave', () => {
+  it('saves Default as null so the project keeps inheriting', () => {
+    expect(sizeValueToSave({ selected: 'default', withAccountDefault: true })).toBeNull()
+    expect(sizeValueToSave({ selected: '4', withAccountDefault: true })).toBe(4)
   })
 })
