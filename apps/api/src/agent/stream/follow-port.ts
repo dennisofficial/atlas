@@ -56,14 +56,14 @@ export const createFollowSubscriptions = (
       const set = bySession.get(subscription.sessionId) ?? new Set()
       set.add(subscription)
       bySession.set(subscription.sessionId, set)
-      sessionViews.add(subscription)
+      if (subscription.isMainThread) sessionViews.add(subscription)
       overlay?.add(subscription)
     },
     remove: (subscription) => {
       const set = bySession.get(subscription.sessionId)
       set?.delete(subscription)
       if (set?.size === 0) bySession.delete(subscription.sessionId)
-      sessionViews.remove(subscription)
+      if (subscription.isMainThread) sessionViews.remove(subscription)
       overlay?.remove(subscription)
     },
     resnap: (subscription) => overlay?.resnap(subscription),

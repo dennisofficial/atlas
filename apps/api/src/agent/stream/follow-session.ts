@@ -69,6 +69,7 @@ export class FollowSession implements SubscriptionSession {
     const subscription = new FollowSubscription({
       id: message.id,
       sessionId: message.sessionId,
+      threadId: message.threadId,
       request: { afterSeq: message.afterSeq, afterHash: message.afterHash },
       connection: this.connection,
       deps: this.deps,

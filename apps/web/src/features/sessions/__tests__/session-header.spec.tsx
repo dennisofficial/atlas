@@ -313,6 +313,27 @@ describe('CrewPanel', () => {
     expect(html).toContain('Committed and pushed.')
     expect(html).toContain('1 turn · 2 tools')
   })
+
+  it('opens the clicked sub-agent', async () => {
+    const opened: string[] = []
+    const container = document.createElement('div')
+    const root = createRoot(container)
+    await act(async () =>
+      root.render(
+        <CrewPanel
+          rows={[crewRow({ agentId: 'agent-9' }), crewRow({ agentId: 'agent-10' })]}
+          onOpenAgent={(agentId) => opened.push(agentId)}
+        />,
+      ),
+    )
+
+    const button = container.querySelector<HTMLButtonElement>('[data-agent-id="agent-10"] button')
+    if (button === null) throw new Error('no crew row button')
+    await act(async () => button.dispatchEvent(new MouseEvent('click', { bubbles: true })))
+
+    expect(opened).toEqual(['agent-10'])
+    await act(async () => root.unmount())
+  })
 })
 
 describe('PreviewLinks', () => {

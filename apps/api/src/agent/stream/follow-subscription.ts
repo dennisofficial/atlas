@@ -18,6 +18,7 @@ import { resolveStart, type StartRequest } from './resolve-start'
 export type FollowSubscriptionArgs = {
   id: string
   sessionId: string
+  threadId: string | undefined
   request: StartRequest
   connection: FollowConnection
   deps: FollowDeps
@@ -29,6 +30,7 @@ export class FollowSubscription implements FollowTarget {
   readonly id: string
   readonly sessionId: string
   private thread: string | undefined
+  private main = false
   private cursor: number | undefined
   private dirty = false
   private pumping = false
@@ -54,7 +56,22 @@ export class FollowSubscription implements FollowTarget {
         this.stop()
         return
       }
-      this.thread = session.mainThreadId
+      const requested = this.args.threadId ?? session.mainThreadId
+      if (requested !== session.mainThreadId) {
+        const thread = await this.args.deps.plane.readThread({ threadId: requested })
+        if (this.stopped) return
+        if (thread === undefined || thread.sessionId !== this.sessionId) {
+          this.args.connection.send({
+            type: 'error',
+            id: this.id,
+            code: EStreamErrorCode.NotFound,
+          })
+          this.stop()
+          return
+        }
+      }
+      this.thread = requested
+      this.main = requested === session.mainThreadId
       this.args.deps.recordSurface?.({
         sessionId: this.sessionId,
         userId: this.args.connection.userId,
@@ -69,6 +86,14 @@ export class FollowSubscription implements FollowTarget {
 
   get threadId(): string | undefined {
     return this.thread
+  }
+
+  get isMainThread(): boolean {
+    return this.main
+  }
+
+  get liveKey(): string {
+    return this.main ? this.sessionId : (this.thread ?? this.sessionId)
   }
 
   get protocolVersion(): number {
@@ -173,7 +198,8 @@ export class FollowSubscription implements FollowTarget {
         head: { seq: head.seq, hash: head.hash },
         live,
       })
-      this.args.deps.viewHead?.({ sessionId: this.sessionId, headSeq: head.seq })
+      if (this.isMainThread)
+        this.args.deps.viewHead?.({ sessionId: this.sessionId, headSeq: head.seq })
       if (live) {
         this.announcedLive = true
         return

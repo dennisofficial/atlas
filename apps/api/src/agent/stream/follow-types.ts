@@ -12,7 +12,7 @@ import type { SubscriptionConnection } from './subscription-port'
 
 export type FollowPlane = Pick<
   ControlPlane,
-  'readSession' | 'head' | 'readEvents' | 'listSessionDigests' | 'readSessionView'
+  'readSession' | 'readThread' | 'head' | 'readEvents' | 'listSessionDigests' | 'readSessionView'
 >
 
 export type FollowDeps = {
@@ -45,6 +45,8 @@ export type FollowTarget = {
   readonly id: string
   readonly sessionId: string
   readonly threadId: string | undefined
+  readonly isMainThread: boolean
+  readonly liveKey: string
   readonly protocolVersion: number
   send(message: StreamServerMessage): void
   bufferedAmount(): number

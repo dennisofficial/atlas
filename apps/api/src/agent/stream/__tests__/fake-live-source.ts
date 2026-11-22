@@ -16,7 +16,7 @@ export class FakeLiveSource implements LiveSource {
   failReads = 0
   epoch = 1
   private nextN = 0
-  private readonly frameListeners = new Set<(args: { sessionId: string; raw: string }) => void>()
+  private readonly frameListeners = new Set<(args: { key: string; raw: string }) => void>()
   private readonly gapListeners = new Set<() => void>()
 
   stamped(frame: TestFrame): LiveFrame {
@@ -28,18 +28,18 @@ export class FakeLiveSource implements LiveSource {
     return { ...frame, at }
   }
 
-  publish(args: { sessionId: string; frame: TestFrame; deliver?: boolean }): void {
+  publish(args: { key: string; frame: TestFrame; deliver?: boolean }): void {
     const frame = this.stamped(args.frame)
     const json = JSON.stringify(frame)
     const line = `${json}\n`
-    const previous = this.buffers.get(args.sessionId) ?? ''
-    this.buffers.set(args.sessionId, frame.type === 'step-start' ? line : previous + line)
+    const previous = this.buffers.get(args.key) ?? ''
+    this.buffers.set(args.key, frame.type === 'step-start' ? line : previous + line)
     if (args.deliver === false) return
-    this.deliverRaw({ sessionId: args.sessionId, raw: json })
+    this.deliverRaw({ key: args.key, raw: json })
   }
 
-  deliverRaw(args: { sessionId: string; raw: string }): void {
-    if (!this.subscribed.has(args.sessionId)) return
+  deliverRaw(args: { key: string; raw: string }): void {
+    if (!this.subscribed.has(args.key)) return
     for (const listener of [...this.frameListeners]) listener(args)
   }
 
@@ -47,31 +47,31 @@ export class FakeLiveSource implements LiveSource {
     for (const listener of [...this.gapListeners]) listener()
   }
 
-  async subscribe(sessionId: string): Promise<void> {
-    this.subscribed.add(sessionId)
+  async subscribe(key: string): Promise<void> {
+    this.subscribed.add(key)
   }
 
-  async unsubscribe(sessionId: string): Promise<void> {
-    this.subscribed.delete(sessionId)
+  async unsubscribe(key: string): Promise<void> {
+    this.subscribed.delete(key)
   }
 
-  async readShellBacklog(sessionId: string): Promise<string[]> {
-    return this.shellBacklogs.get(sessionId) ?? []
+  async readShellBacklog(key: string): Promise<string[]> {
+    return this.shellBacklogs.get(key) ?? []
   }
 
-  async readBuffer(sessionId: string): Promise<string | null> {
+  async readBuffer(key: string): Promise<string | null> {
     this.reads += 1
     if (this.failReads > 0) {
       this.failReads -= 1
       throw new Error('read refused')
     }
     await this.beforeRead?.()
-    const captured = this.buffers.get(sessionId) ?? null
+    const captured = this.buffers.get(key) ?? null
     await this.afterCapture?.()
     return captured
   }
 
-  onFrame(listener: (args: { sessionId: string; raw: string }) => void): () => void {
+  onFrame(listener: (args: { key: string; raw: string }) => void): () => void {
     this.frameListeners.add(listener)
     return () => {
       this.frameListeners.delete(listener)

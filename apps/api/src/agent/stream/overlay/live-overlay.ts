@@ -8,18 +8,20 @@ import { OverlayWatcher } from './overlay-watcher'
 export type OverlayTarget = {
   readonly id: string
   readonly sessionId: string
+  readonly liveKey: string
   send(message: StreamServerMessage): void
   bufferedAmount(): number
 }
 
-type SessionEntry = {
+type OverlayEntry = {
   ready: Promise<void>
   watchers: Map<OverlayTarget, OverlayWatcher>
   live: boolean
+  main: boolean
 }
 
 export class LiveOverlay {
-  private readonly sessions = new Map<string, SessionEntry>()
+  private readonly entries = new Map<string, OverlayEntry>()
   private readonly offFrame: () => void
   private readonly offGap: () => void
 
@@ -31,19 +33,20 @@ export class LiveOverlay {
       onFrameWhileDead?: (sessionId: string) => void
     },
   ) {
-    this.offFrame = args.source.onFrame(({ sessionId, raw }) => this.handleRaw({ sessionId, raw }))
+    this.offFrame = args.source.onFrame(({ key, raw }) => this.handleRaw({ key, raw }))
     this.offGap = args.source.onGap(() => this.handleGap())
   }
 
   add(target: OverlayTarget): void {
-    const entry = this.sessions.get(target.sessionId) ?? this.subscribed(target.sessionId)
+    const entry =
+      this.entries.get(target.liveKey) ?? this.subscribed({ target, main: this.mainOf(target) })
     if (entry.watchers.has(target)) return
     const watcher = new OverlayWatcher({
       id: target.id,
       send: (message) => target.send(message),
       bufferedAmount: () => target.bufferedAmount(),
-      readBuffer: () => this.args.source.readBuffer(target.sessionId),
-      readShellBacklog: () => this.args.source.readShellBacklog(target.sessionId),
+      readBuffer: () => this.args.source.readBuffer(target.liveKey),
+      readShellBacklog: () => this.args.source.readShellBacklog(target.liveKey),
       timers: this.args.timers,
       log: this.args.log,
     })
@@ -55,28 +58,28 @@ export class LiveOverlay {
   }
 
   remove(target: OverlayTarget): void {
-    const entry = this.sessions.get(target.sessionId)
+    const entry = this.entries.get(target.liveKey)
     const watcher = entry?.watchers.get(target)
     if (entry === undefined || watcher === undefined) return
     watcher.stop()
     entry.watchers.delete(target)
     if (entry.watchers.size > 0) return
-    this.sessions.delete(target.sessionId)
-    this.args.source.unsubscribe(target.sessionId).catch((error: unknown) => {
-      this.logError({ message: `unsubscribing ${target.sessionId} failed`, error })
+    this.entries.delete(target.liveKey)
+    this.args.source.unsubscribe(target.liveKey).catch((error: unknown) => {
+      this.logError({ message: `unsubscribing ${target.liveKey} failed`, error })
     })
   }
 
   resnap(target: OverlayTarget): void {
-    this.sessions.get(target.sessionId)?.watchers.get(target)?.resync()
+    this.entries.get(target.liveKey)?.watchers.get(target)?.resync()
   }
 
   drained(target: OverlayTarget): void {
-    this.sessions.get(target.sessionId)?.watchers.get(target)?.handleDrain()
+    this.entries.get(target.liveKey)?.watchers.get(target)?.handleDrain()
   }
 
   liveness(args: { sessionId: string; live: boolean }): void {
-    const entry = this.sessions.get(args.sessionId)
+    const entry = this.entries.get(args.sessionId)
     if (entry === undefined) return
     entry.live = args.live
     for (const watcher of entry.watchers.values()) watcher.setLive(args.live)
@@ -85,31 +88,37 @@ export class LiveOverlay {
   close(): void {
     this.offFrame()
     this.offGap()
-    for (const entry of this.sessions.values()) {
+    for (const entry of this.entries.values()) {
       for (const watcher of entry.watchers.values()) watcher.stop()
     }
-    this.sessions.clear()
+    this.entries.clear()
   }
 
-  private subscribed(sessionId: string): SessionEntry {
-    const ready = this.args.source.subscribe(sessionId).catch((error: unknown) => {
-      this.logError({ message: `subscribing ${sessionId} failed`, error })
+  private mainOf(target: OverlayTarget): boolean {
+    return target.liveKey === target.sessionId
+  }
+
+  private subscribed(spec: { target: OverlayTarget; main: boolean }): OverlayEntry {
+    const liveKey = spec.target.liveKey
+    const ready = this.args.source.subscribe(liveKey).catch((error: unknown) => {
+      this.logError({ message: `subscribing ${liveKey} failed`, error })
     })
-    const entry: SessionEntry = {
+    const entry: OverlayEntry = {
       ready,
       watchers: new Map(),
       live: true,
+      main: spec.main,
     }
-    this.sessions.set(sessionId, entry)
+    this.entries.set(liveKey, entry)
     return entry
   }
 
-  private handleRaw(args: { sessionId: string; raw: string }): void {
-    const entry = this.sessions.get(args.sessionId)
+  private handleRaw(args: { key: string; raw: string }): void {
+    const entry = this.entries.get(args.key)
     if (entry === undefined) return
     const parsed = this.parse(args.raw)
     if (parsed === undefined) return
-    if (!entry.live) this.args.onFrameWhileDead?.(args.sessionId)
+    if (!entry.live && entry.main) this.args.onFrameWhileDead?.(args.key)
     const size = Buffer.byteLength(args.raw)
     for (const watcher of [...entry.watchers.values()]) {
       watcher.handleFrame({ frame: parsed, size })
@@ -128,7 +137,7 @@ export class LiveOverlay {
   }
 
   private handleGap(): void {
-    for (const entry of this.sessions.values()) {
+    for (const entry of this.entries.values()) {
       for (const watcher of entry.watchers.values()) watcher.resync()
     }
   }

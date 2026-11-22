@@ -1,5 +1,6 @@
 export * from './agent-answers'
 export * from './agent-ended-line'
+export * from './agent-status'
 export * from './derive-transcript'
 export * from './events-from-wire'
 export * from './durable-entries'

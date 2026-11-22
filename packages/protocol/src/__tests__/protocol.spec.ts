@@ -210,6 +210,10 @@ describe('session API inputs', () => {
 
     const events = { sessionId: 's-1', afterSeq: 41, limit: 1000 }
     expect(roundTrips(sessionEventsInputSchema, events)).toEqual(events)
+    expect(roundTrips(sessionEventsInputSchema, { ...events, threadId: 'child-1' })).toEqual({
+      ...events,
+      threadId: 'child-1',
+    })
 
     const status = { sessionId: 's-1' }
     expect(roundTrips(sessionStatusInputSchema, status)).toEqual(status)
@@ -219,6 +223,9 @@ describe('session API inputs', () => {
     expect(sessionPostInputSchema.safeParse({ sessionId: 's-1', text: '' }).success).toBe(false)
     expect(sessionCreateInputSchema.safeParse({ provider: 'docker' }).success).toBe(false)
     expect(sessionEventsInputSchema.safeParse({ sessionId: 's-1', limit: 1001 }).success).toBe(
+      false,
+    )
+    expect(sessionEventsInputSchema.safeParse({ sessionId: 's-1', threadId: '' }).success).toBe(
       false,
     )
   })

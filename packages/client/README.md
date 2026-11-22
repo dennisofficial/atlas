@@ -42,7 +42,8 @@ the mobile app use it.
 ### Follow a session
 
 - `createStreamConnection({ transport, scheduler, networkSignal?, eventSchema?, knownEventTypes?, views? })`:
-  returns a `StreamConnection`. `follow({ sessionId, log? })` gives a `FollowedSession`.
+  returns a `StreamConnection`. `follow({ sessionId, threadId?, log? })` gives a `FollowedSession`
+  for one thread of the session, the main thread when `threadId` is omitted.
   `followSessions()` gives the live session list.
 - `createSessionFollower(args)`: the follower for one session, with its connection state and its
   snapshot. `HYDRATE_TIMEOUT_MS` bounds the first load.
@@ -76,6 +77,8 @@ the mobile app use it.
 - `turnsBySeq(args)`, `settledAtOf(entries)`, `turnEndedEntry(turn)`: the turn rows and the settled
   time.
 - `ECallState`, `ToolCall`, `ToolRun`, `attachmentsOf`: the tool runs of a turn.
+- `agentsOf(args)`, `agentOf(args)`, `agentLabelOf(agent)`: the type, the intent and the running
+  state of a sub-agent, folded from the events of the thread that spawned it.
 - `thinkingVisibilityOf(value)`, `foldThoughts(args)`, `toolsAboveThoughts(entries)`: the thinking
   folds.
 - `revealedText({ key, text, gate })`: the text that a surface reveals at a set pace.

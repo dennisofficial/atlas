@@ -17,6 +17,7 @@ import {
   resourceSyncOf,
 } from '../plugin-pod'
 import { hookedToolsOf } from '../hooked-tools'
+import { liveOutputOf } from '../live-output'
 import type { RoleModelChoice, SessionRuntime } from '../ports'
 import type { SessionRecord } from '../record/record-adapter'
 import { V2OnceLedger } from '../record/v2-once-ledger'
@@ -29,6 +30,7 @@ export const childRunnerOf = (args: {
   runtime: SessionRuntime
   record: SessionRecord
   agentId: ThreadId
+  epoch: number
   model: RoleModelChoice
   signal: AbortSignal
   crew: PodCrew
@@ -80,6 +82,13 @@ export const childRunnerOf = (args: {
     tools: () => modelFacingDeclarationsOf(registry.declarations()),
     dispatch: new ScopedToolDispatcher(hookedToolsOf({ registry, hooks, trace: runtime.trace })),
     intake: args.intake,
+    output: liveOutputOf({
+      bus: deps.bus,
+      liveKey: args.agentId,
+      timers: deps.timers,
+      headSeq: () => record.eventCache().currentHead().seq,
+      epoch: args.epoch,
+    }),
     detachTool: (tool) => args.isDraining() && runtime.daemonTools.has(tool),
     launchDirectory: runtime.launchDirectory,
     normalizeFailure: runtime.normalizeFailure,

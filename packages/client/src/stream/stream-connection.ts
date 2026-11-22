@@ -11,11 +11,12 @@ import {
   type ConnectionInput,
   type ConnectionState,
 } from './connection-machine'
-import { memorySessionLog, type SessionLog } from './session-log'
+import { memorySessionLog } from './session-log'
 import { createSessionFollower, type SessionFollower } from './session-follower'
 import { createSessionsList, type FollowedSessionList, type SessionsList } from './sessions-list'
 import {
   browserNetworkSignal,
+  type FollowArgs,
   type StreamNetworkSignal,
   type StreamScheduler,
   type StreamSubscription,
@@ -34,7 +35,7 @@ export type StreamConnectionArgs = {
 export type FollowedSession = SessionFollower & { close(): void }
 
 export type StreamConnection = {
-  follow(args: { sessionId: string; log?: SessionLog | undefined }): FollowedSession
+  follow(args: FollowArgs): FollowedSession
   followSessions(): FollowedSessionList
   connect(): void
   reconnect(): void
@@ -42,21 +43,16 @@ export type StreamConnection = {
   state(): EStreamConnectionState
 }
 
-type Followed = {
+type Held = { subscription: StreamSubscription | undefined; epoch: number; watchdog: unknown }
+
+type Followed = Held & {
   id: string
   sessionId: string
+  threadId: string | undefined
   follower: SessionFollower
-  subscription: StreamSubscription | undefined
-  epoch: number
-  watchdog: unknown
 }
 
-type Listed = {
-  list: SessionsList
-  subscription: StreamSubscription | undefined
-  epoch: number
-  watchdog: unknown
-}
+type Listed = Held & { list: SessionsList }
 
 export const createStreamConnection = (args: StreamConnectionArgs): StreamConnection => {
   const { scheduler } = args
@@ -139,6 +135,7 @@ export const createStreamConnection = (args: StreamConnectionArgs): StreamConnec
     entry.subscription = args.transport.follow(
       {
         sessionId: entry.sessionId,
+        ...(entry.threadId === undefined ? {} : { threadId: entry.threadId }),
         ...(cursor === undefined ? {} : { afterSeq: cursor.seq, afterHash: cursor.hash }),
       },
       handlersOf(entry, (frame) => entry.follower.handleMessage(frame)),
@@ -226,12 +223,13 @@ export const createStreamConnection = (args: StreamConnectionArgs): StreamConnec
     }
   }
 
-  const follow: StreamConnection['follow'] = ({ sessionId, log }) => {
+  const follow: StreamConnection['follow'] = ({ sessionId, threadId, log }) => {
     nextId += 1
     const id = `s${nextId}`
     const entry: Followed = {
       id,
       sessionId,
+      threadId,
       follower: createSessionFollower({
         sessionId,
         log: log ?? memorySessionLog(),

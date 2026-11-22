@@ -97,6 +97,13 @@ describe('the stream connection', () => {
     expect(follows[0]?.closed).toBe(true)
   })
 
+  it('sends the thread id when it follows a child thread', async () => {
+    const { connection, follows } = setup()
+    connection.follow({ sessionId: 'session-1', threadId: 'child-1' })
+    await settle()
+    expect(follows[0]?.input).toEqual({ sessionId: 'session-1', threadId: 'child-1' })
+  })
+
   it('closes every subscription when the connection closes', async () => {
     const { connection, follows, lists } = setup()
     connection.follow({ sessionId: 'session-1' })

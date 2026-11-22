@@ -41,7 +41,7 @@ describe('live overlay', () => {
     rig.dispose()
   })
 
-  const publish = (frame: TestFrame): void => live.publish({ sessionId: SESSION, frame })
+  const publish = (frame: TestFrame): void => live.publish({ key: SESSION, frame })
   const overlayMessages = () =>
     rig.sent.filter((m) => ['overlay', 'delta', 'overlay-clear', 'frame'].includes(m.type))
   const client = (): ClientOverlay => {
@@ -105,17 +105,17 @@ describe('live overlay', () => {
         const localRig = new FollowRig({ live: local })
         localRig.store.markHostPresent(1)
         await localRig.seed({ events: 1 })
-        for (const frame of producer.slice(0, joinAt)) local.publish({ sessionId: SESSION, frame })
+        for (const frame of producer.slice(0, joinAt)) local.publish({ key: SESSION, frame })
         local.afterCapture = () => {
           local.afterCapture = undefined
           for (const frame of producer.slice(joinAt, joinAt + duringRead)) {
-            local.publish({ sessionId: SESSION, frame })
+            local.publish({ key: SESSION, frame })
           }
         }
         await localRig.subscribe({ session: localRig.open() })
         await localRig.settled()
         for (const frame of producer.slice(joinAt + duringRead)) {
-          local.publish({ sessionId: SESSION, frame })
+          local.publish({ key: SESSION, frame })
         }
         await localRig.settled()
         const view = new ClientOverlay()
@@ -132,7 +132,7 @@ describe('live overlay', () => {
     publish({ type: 'step-start', key: KEY, afterSeq: 0 })
     await rig.subscribe({ session: rig.open() })
     await rig.settled()
-    live.publish({ sessionId: SESSION, frame: delta({ from: 0, text: 'abc' }), deliver: false })
+    live.publish({ key: SESSION, frame: delta({ from: 0, text: 'abc' }), deliver: false })
     publish(delta({ from: 3, text: 'def' }))
     await rig.settled()
     expect(rig.frames('overlay').at(-1)?.blocks).toEqual([
@@ -189,7 +189,7 @@ describe('live overlay', () => {
     const next = { runId: 'run-2', step: 0, attempt: 0 }
     publish({ type: 'step-start', key: next, afterSeq: 0 })
     live.deliverRaw({
-      sessionId: SESSION,
+      key: SESSION,
       raw: JSON.stringify(delta({ from: 0, text: 'old', key: { ...KEY, step: 3 } })),
     })
     publish(delta({ from: 0, text: 'new', key: next }))
@@ -214,8 +214,8 @@ describe('live overlay', () => {
   it('drops a malformed frame', async () => {
     await rig.subscribe({ session: rig.open() })
     await rig.settled()
-    live.deliverRaw({ sessionId: SESSION, raw: '{"type":"delta"}' })
-    live.deliverRaw({ sessionId: SESSION, raw: 'not json' })
+    live.deliverRaw({ key: SESSION, raw: '{"type":"delta"}' })
+    live.deliverRaw({ key: SESSION, raw: 'not json' })
     await rig.settled()
     expect(overlayMessages()).toEqual([])
   })

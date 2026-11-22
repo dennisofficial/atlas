@@ -58,6 +58,7 @@ export class FollowRig {
   constructor(args: { live?: LiveSource } = {}) {
     const plane: FollowPlane = {
       readSession: (params) => this.plane.readSession(params),
+      readThread: (params) => this.plane.readThread(params),
       head: (params) => {
         this.headReads += 1
         return this.plane.head(params)
@@ -126,6 +127,24 @@ export class FollowRig {
     return events
   }
 
+  async appendTo(args: { threadId: string; bodies: readonly V2Body[] }): Promise<V2Event[]> {
+    const events = chainEvents({
+      threadId: toThreadId(args.threadId),
+      runId: toRunId('run-1'),
+      epoch: this.epoch,
+      at: AT,
+      bodies: args.bodies,
+      from: await this.plane.head({ threadId: args.threadId }),
+    })
+    const outcome = await this.plane.append({
+      threadId: args.threadId,
+      epoch: this.epoch,
+      events,
+    })
+    if (!outcome.ok) throw new Error('append refused')
+    return events
+  }
+
   hashAt(events: readonly V2Event[], seq: number): string {
     const event = events.find((candidate) => candidate.seq === seq)
     if (event === undefined) throw new Error(`no event ${seq}`)
@@ -147,6 +166,7 @@ export class FollowRig {
     session: SubscriptionSession
     id?: string
     sessionId?: string
+    threadId?: string
     afterSeq?: number
     afterHash?: string
   }): Promise<void> {
@@ -155,6 +175,7 @@ export class FollowRig {
       id: args.id ?? 'sub-1',
       kind: EStreamSubscribeKind.Session,
       sessionId: args.sessionId ?? SESSION,
+      ...(args.threadId === undefined ? {} : { threadId: args.threadId }),
       ...(args.afterSeq === undefined ? {} : { afterSeq: args.afterSeq }),
       ...(args.afterHash === undefined ? {} : { afterHash: args.afterHash }),
     }

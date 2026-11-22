@@ -14,12 +14,18 @@ const labelOf = (row: WorkRow): string => {
 
 const stepsLabelOf = (count: number): string => `${count} ${count === 1 ? 'step' : 'steps'}`
 
-const ItemView = ({ item }: { item: WorkItem }) => {
+const ItemView = ({
+  item,
+  onOpenAgent,
+}: {
+  item: WorkItem
+  onOpenAgent?: ((agentId: string) => void) | undefined
+}) => {
   if (item.kind === EEntryKind.ToolsRan) {
     return (
       <View style={styles.tools}>
         {item.run.calls.map((call) => (
-          <ToolRowView key={call.callId} call={call} />
+          <ToolRowView key={call.callId} call={call} onOpenAgent={onOpenAgent} />
         ))}
       </View>
     )
@@ -27,7 +33,13 @@ const ItemView = ({ item }: { item: WorkItem }) => {
   return <Reasoning text={item.text} live={item.streaming} />
 }
 
-export const WorkRowView = ({ row }: { row: WorkRow }) => {
+export const WorkRowView = ({
+  row,
+  onOpenAgent,
+}: {
+  row: WorkRow
+  onOpenAgent?: ((agentId: string) => void) | undefined
+}) => {
   const theme = useTheme()
   return (
     <Trace>
@@ -44,7 +56,7 @@ export const WorkRowView = ({ row }: { row: WorkRow }) => {
         autoOpen={row.running}
       >
         {row.items.map((item) => (
-          <ItemView key={item.id} item={item} />
+          <ItemView key={item.id} item={item} onOpenAgent={onOpenAgent} />
         ))}
       </Step>
     </Trace>

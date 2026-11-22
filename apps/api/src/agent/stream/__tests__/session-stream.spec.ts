@@ -216,4 +216,16 @@ describe('session stream adapters', () => {
     ])
     await generator.return(undefined)
   })
+
+  it('follows the child thread the caller names', async () => {
+    await rig.seed({ events: 1 })
+    const child = 'child-thread'
+    await rig.plane.createThread({ threadId: child, sessionId: SESSION })
+    await rig.appendTo({ threadId: child, bodies: [said('child work')] })
+
+    const generator = streamOf().follow({ userId: OWNER, sessionId: SESSION, threadId: child })
+    expect((await pull(generator)).type).toBe('ready')
+    expect(await liveSeqs(generator)).toEqual([1])
+    await generator.return(undefined)
+  })
 })

@@ -179,7 +179,7 @@ export const pluginPodContextOf = (args: {
       ...(runtime.env === undefined ? {} : { env: runtime.env }),
       ...(runtime.workspaceGate === undefined ? {} : { gate: runtime.workspaceGate }),
     }),
-    live: (frame) => fireLive({ bus: deps.bus, sessionId: deps.sessionId, frame }),
+    live: (frame) => fireLive({ bus: deps.bus, key: deps.sessionId, frame }),
     onDaemonEvent: (listener) => {
       const off = runtime.remoteCalls.onEvent(listener)
       args.signal.addEventListener('abort', off, { once: true })

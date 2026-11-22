@@ -51,6 +51,7 @@ a thread's event log.
   carries its `refusal` and the current head.
 - `readEvents({ threadId, afterSeq, limit, visible, hiddenTypes?, maxBytes? })`, `readBlob`,
   `blobReferencedBy`. `MAX_READ_LIMIT` and `MAX_SESSION_LIST_LIMIT` cap a read.
+- `readThread({ threadId })`: one thread row, including the session it belongs to.
 - `AppendHook`, `ChangeFeed`: the hooks that an append calls, and the change pointer it sends.
 
 ### Read a session view
