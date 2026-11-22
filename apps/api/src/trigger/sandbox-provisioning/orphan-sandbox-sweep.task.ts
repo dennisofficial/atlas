@@ -1,24 +1,13 @@
 import { schedules } from '@trigger.dev/sdk'
 import { db } from '@dltech/atlas-db'
-import { softDeleteArchivedSessionsIn } from '@dltech/atlas-control/postgres'
-import { ESandboxProvider } from '@dltech/atlas-protocol'
 import { SecretCipherService } from '../../_lib/crypto/secret-cipher.service'
 import { openSecretValue } from '../../api/cloud/secrets/sealed-secret'
 import {
   liveSandboxNames,
   retirableSandboxNames,
-  v2Pods,
 } from '../../api/cloud/sandbox-provisioning/live-sandbox-names'
 import type { OrphanSandboxProject } from '../../api/cloud/sandbox-provisioning/orphan-sandbox-sweep'
-import {
-  uniqueV2Scopes,
-  type V2PodSweepScope,
-} from '../../api/cloud/sandbox-provisioning/v2-pod-sweep'
 import { VercelOrphanSandboxStore } from '../../api/cloud/sandbox-provisioning/vercel-orphan-sandbox-store'
-import type { AgentHostEnv } from '../../agent/config/env'
-import { readAgentHostEnv } from '../../agent/config/env'
-import { platformCredentialsOf } from '../../agent/config/platform-credentials'
-import { sandboxProvidersOf } from '../../agent/sandbox/sandbox-providers'
 import { workerEnvService } from '../github/github-sweep-graph'
 import { runOrphanSweep } from './orphan-sweep-scopes'
 import { triggerLog } from '../trigger-logger'
@@ -80,21 +69,6 @@ async function storesOf(args: {
   return [...entries.values()]
 }
 
-/**
- * Every credential set a v2 pod can exist under: v2 sessions only ever run on the platform's own
- * Vercel project and Agent37 account, so those are the only accounts swept.
- */
-async function v2ScopesOf(args: { env: AgentHostEnv }): Promise<V2PodSweepScope[]> {
-  const sandbox = sandboxProvidersOf({ env: args.env, db })
-  const scopes: V2PodSweepScope[] = []
-  for (const provider of [ESandboxProvider.Vercel, ESandboxProvider.Agent37]) {
-    const credentials = platformCredentialsOf({ provider, env: args.env })
-    if ('configured' in credentials) continue
-    scopes.push({ label: `platform/${provider}`, credentials, sandbox: sandbox.for(provider) })
-  }
-  return uniqueV2Scopes(scopes)
-}
-
 export const orphanSandboxSweepTask = schedules.task({
   id: 'orphan-sandbox-sweep',
   cron: '5 * * * *',
@@ -106,13 +80,9 @@ export const orphanSandboxSweepTask = schedules.task({
       now,
       log: (line) => triggerLog.log(line),
       deps: {
-        pods: () => v2Pods({ now }),
-        v2Scopes: () => v2ScopesOf({ env: readAgentHostEnv() }),
         stores: () => storesOf({ cipher, log: (line) => triggerLog.log(line) }),
         liveNames: () => liveSandboxNames({ now }),
         retirableNames: () => retirableSandboxNames({ now }),
-        softDeleteArchived: ({ cutoff, at }) =>
-          db.transaction((tx) => softDeleteArchivedSessionsIn({ tx, cutoff, at })),
       },
     })
   },

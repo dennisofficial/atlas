@@ -2,10 +2,10 @@ import type { Db } from '@dltech/atlas-db'
 
 import type { ConfigSource } from './agent-host-config'
 import { ConfigReader } from './config-reader'
-import type { AgentHostEnv } from './env'
-import type { SecretCipher } from './secret-cipher'
+import type { PodsEnv } from '@dltech/atlas-pods/env'
+import type { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 
-export type ConfigSourceEnv = Pick<AgentHostEnv, 'platformVercel' | 'agent37'>
+export type ConfigSourceEnv = Pick<PodsEnv, 'platformVercel' | 'agent37'>
 
 export const configSourceOf = (args: {
   env: ConfigSourceEnv

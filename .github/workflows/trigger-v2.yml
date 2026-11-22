@@ -5,9 +5,9 @@ on:
     branches: [main]
     paths:
       - 'apps/trigger/**'
-      - 'packages/jobs/**'
-      - 'packages/control/**'
-      - 'packages/db/**'
+      - 'packages/**'
+      - 'plugins/**'
+      - 'commands/**'
       - 'package.json'
       - 'bun.lock'
       - 'tsconfig.base.json'

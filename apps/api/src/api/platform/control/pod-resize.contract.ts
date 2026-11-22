@@ -1,31 +1,13 @@
-import { RESIZE_MAX_DISK_GB } from '@dltech/atlas-native-commands'
-import { z } from 'zod'
+import {
+  POD_RESIZE_TASK_ID,
+  podResizePayloadSchema,
+  type PodResizeOutput,
+  type PodResizePayload,
+} from '@dltech/atlas-jobs/pod-resize'
+
 import type { Task, TaskContract } from '../../../_core/ports/job-dispatcher'
 
-export const POD_RESIZE_TASK_ID = 'pod-resize'
-
-export const podResizePayloadSchema = z.object({
-  sessionId: z.string().min(1),
-  generation: z.number().int().min(1),
-  vcpus: z.number().int().min(1),
-  memoryGb: z.number().int().min(1),
-  diskGb: z.number().int().min(1).max(RESIZE_MAX_DISK_GB).optional(),
-  whenIdle: z.boolean().optional(),
-  waits: z.number().int().min(0).optional(),
-})
-
-export type PodResizePayload = z.infer<typeof podResizePayloadSchema>
-
-export enum EPodResizeOutcome {
-  Applied = 'applied',
-  Stored = 'stored',
-  Superseded = 'superseded',
-  Failed = 'failed',
-  Deferred = 'deferred',
-  Waiting = 'waiting',
-}
-
-export type PodResizeOutput = { outcome: EPodResizeOutcome }
+export * from '@dltech/atlas-jobs/pod-resize'
 
 export type PodResizeTask = Task<typeof POD_RESIZE_TASK_ID, PodResizePayload, PodResizeOutput>
 
@@ -33,6 +15,3 @@ export const podResizeTaskContract: TaskContract<PodResizeTask> = {
   id: POD_RESIZE_TASK_ID,
   schema: podResizePayloadSchema,
 }
-
-export const podResizeIdempotencyKey = (payload: PodResizePayload): string =>
-  `pod-resize:${payload.sessionId}:${payload.generation}:${payload.waits ?? 0}`

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { CredentialsUnavailableError } from '../config/agent-host-credential-port'
 import { SessionNotFoundError } from '../config/config-reader'
-import { BYOK_RETIRED_GAP } from '../runtime/sandbox-not-configured-error'
+import { BYOK_RETIRED_GAP } from '@dltech/atlas-pods/runtime/sandbox-not-configured-error'
 import { SandboxNotConfiguredError } from '../runtime/session-runtime-factory'
 import { startFailureReason } from '../start-failure-reason'
 

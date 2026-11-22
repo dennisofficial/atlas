@@ -1,9 +1,16 @@
-import { describe, expect, it, mock } from 'bun:test'
+import { afterEach, describe, expect, it, mock } from 'bun:test'
 import { triggerSdkFake } from './trigger-sdk.fake'
 
 mock.module('@trigger.dev/sdk', () => triggerSdkFake)
 
 const { heartbeatTask, runHeartbeat } = await import('../trigger/heartbeat.task')
+
+const DATABASE_URL = process.env['DATABASE_URL']
+
+afterEach(() => {
+  if (DATABASE_URL === undefined) delete process.env['DATABASE_URL']
+  else process.env['DATABASE_URL'] = DATABASE_URL
+})
 
 describe('heartbeat task', () => {
   it('registers under the contract id on a fifteen minute cron', () => {

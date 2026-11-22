@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { eventTypesOf } from '@dltech/atlas-plugin-sdk'
 import { registeredPlugins as agentPlugins } from './agent/registered-plugins'
-import { registeredPlugins as controlPlugins } from './api/platform/control/registered-plugins'
+import { registeredPlugins as controlPlugins } from '@dltech/atlas-pods'
 
 describe('plugin event parity', () => {
   it('lets the control plane read every event type the agent can append', () => {

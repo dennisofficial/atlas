@@ -2,7 +2,7 @@ import { EOAuthFailure, OAuthError, parseOAuthErrorBody } from './errors'
 import { unsealJson } from './seal'
 import { sealedGrantSchema, type ClientInformation, type OAuthFetch } from './types'
 import type { McpServerGrantRow } from './types'
-import type { SecretCipher } from '../config/secret-cipher'
+import type { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 
 const numberOr = (value: unknown): number | undefined =>
   typeof value === 'number' && Number.isFinite(value) ? value : undefined

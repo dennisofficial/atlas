@@ -1,29 +1,19 @@
-import { z } from 'zod'
+import type { PodsEnv } from '@dltech/atlas-pods/env'
+import type { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
+import { readSandboxConfig, SessionNotFoundError } from '@dltech/atlas-pods/config/sandbox-config'
 import type { Db } from '@dltech/atlas-db'
-import { decodeSettingValue, validateCloudSetting } from '@dltech/atlas-core'
-import {
-  DEFAULT_SANDBOX_PROVIDER,
-  ECredentialSource,
-  ESandboxProvider,
-} from '@dltech/atlas-protocol'
+import { z } from 'zod'
 
-import type {
-  AgentHostConfig,
-  ConfigSource,
-  SandboxConfig,
-  WorkspaceConfig,
-} from './agent-host-config'
-import type { AgentHostEnv } from './env'
+import type { AgentHostConfig, ConfigSource, WorkspaceConfig } from './agent-host-config'
 import {
   modelSourceOf,
   type ActiveAccountRow,
   type AccountRow,
   type ModelSource,
 } from './model-config'
-import type { SecretCipher } from './secret-cipher'
 import { skillIndexOf } from './skill-index'
-import { platformCredentialsOf } from './platform-credentials'
-import { BYOK_RETIRED_GAP } from '../runtime/sandbox-not-configured-error'
+
+export { SessionNotFoundError }
 
 type ModelChoiceRow = {
   modelRef: string
@@ -33,32 +23,14 @@ type ModelChoiceRow = {
   credentialSource: string
 }
 
-const sandboxProviderOf = (pinned: string | null | undefined): ESandboxProvider => {
-  const value = pinned?.trim() ?? ''
-  if (value === '') return DEFAULT_SANDBOX_PROVIDER
-  return z.nativeEnum(ESandboxProvider).parse(value)
-}
-
 const repoSchema = z.object({ repo: z.string().min(1), branch: z.string().min(1).optional() })
-
-export class SessionNotFoundError extends Error {
-  constructor(public readonly sessionId: string) {
-    super(`session ${sessionId} not found`)
-    this.name = 'SessionNotFoundError'
-  }
-}
 
 type ProjectRow = {
   repo: string | null
   baseBranch: string | null
   additionalRepos: unknown
   setupScript: string
-  sandboxVcpus: number | null
-  sandboxDiskGb: number | null
 }
-
-const SANDBOX_VCPUS_KEY = 'sandbox.vcpus'
-const SANDBOX_DISK_GB_KEY = 'sandbox.diskGb'
 
 const workspaceOf = (project: ProjectRow | null): WorkspaceConfig => {
   if (project === null)
@@ -78,7 +50,7 @@ export class ConfigReader implements ConfigSource {
     private readonly args: {
       db: Db
       cipher: SecretCipher
-      platform: Pick<AgentHostEnv, 'platformVercel' | 'agent37'>
+      platform: Pick<PodsEnv, 'platformVercel' | 'agent37'>
       now?: (() => number) | undefined
     },
   ) {
@@ -90,13 +62,13 @@ export class ConfigReader implements ConfigSource {
     const session = await db.orm.v2.V2Session.first({ id: sessionId })
     if (session === null) throw new SessionNotFoundError(sessionId)
     const { userId, projectId } = session
-    const provider = sandboxProviderOf(session.sandboxProvider)
-    const [project, accounts, activeAccounts, settings, skills] = await Promise.all([
+    const [project, accounts, activeAccounts, settings, skills, sandbox] = await Promise.all([
       this.projectOf(projectId),
       db.orm.public.AgentAccount.where({ userId }).all(),
       db.orm.public.ActiveAccount.where({ userId }).all(),
       this.settingsOf({ userId, projectId }),
       skillIndexOf({ db, userId, projectId }),
+      readSandboxConfig({ db, platform: this.args.platform, sessionId }),
     ])
     const models = this.modelSourceFor({ session, accounts, activeAccounts, settings })
     return {
@@ -105,43 +77,12 @@ export class ConfigReader implements ConfigSource {
       model: models.main.config,
       models,
       workspace: workspaceOf(project),
-      sandbox: this.sandboxOf({
-        provider,
-        credentialSource: session.credentialSource,
-        vcpus:
-          project?.sandboxVcpus ??
-          (await this.personalNumberSettingOf({ userId, key: SANDBOX_VCPUS_KEY })),
-        diskGb:
-          project?.sandboxDiskGb ??
-          (await this.personalNumberSettingOf({ userId, key: SANDBOX_DISK_GB_KEY })),
-      }),
+      sandbox,
       podSize: {
         desiredVcpus: session.podDesiredVcpus ?? undefined,
         generation: session.podSizeGeneration,
       },
       skills,
-    }
-  }
-
-  private sandboxOf(args: {
-    provider: ESandboxProvider
-    credentialSource: string
-    vcpus: number | undefined
-    diskGb: number | undefined
-  }): SandboxConfig {
-    if (args.credentialSource !== ECredentialSource.Platform) {
-      return { configured: false, provider: args.provider, gap: BYOK_RETIRED_GAP }
-    }
-    const credentials = platformCredentialsOf({ provider: args.provider, env: this.args.platform })
-    if ('configured' in credentials) {
-      return { configured: false, provider: args.provider, gap: credentials.gap }
-    }
-    return {
-      configured: true,
-      provider: args.provider,
-      credentials,
-      ...(args.vcpus === undefined ? {} : { vcpus: args.vcpus }),
-      ...(args.diskGb === undefined ? {} : { diskGb: args.diskGb }),
     }
   }
 
@@ -172,22 +113,6 @@ export class ConfigReader implements ConfigSource {
       settings: args.settings,
       session: { ref: session.modelRef, effort: session.modelEffort, fast: session.modelFast },
     })
-  }
-
-  private async personalNumberSettingOf(args: {
-    userId: string
-    key: string
-  }): Promise<number | undefined> {
-    const row = await this.args.db.orm.public.UserSetting.where({
-      userId: args.userId,
-      key: args.key,
-    })
-      .select('value')
-      .first()
-    if (row === null) return undefined
-    if (!validateCloudSetting({ key: args.key, stored: row.value }).ok) return undefined
-    const value = decodeSettingValue(row.value)
-    return typeof value === 'number' ? value : undefined
   }
 
   private async projectOf(projectId: string | null): Promise<ProjectRow | null> {

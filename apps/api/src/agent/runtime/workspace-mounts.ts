@@ -1,6 +1,6 @@
 import { EProcessOutcome, outcomeOf, type ProcessPort } from '@dltech/atlas-core'
 import type { BootNotice } from '@dltech/atlas-host'
-import { SANDBOX_HOME_PATH } from '../sandbox/constants'
+import { SANDBOX_HOME_PATH } from '@dltech/atlas-pods/sandbox/constants'
 
 import { EProjectFileState, type ScopedFileMount } from './project-files'
 import { projectFileNoticeOf } from './project-file-notice'

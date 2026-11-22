@@ -2,7 +2,11 @@ import { EWorkspaceStep, EWorkspaceStepState } from '@dltech/atlas-core'
 import { RemoteCalls, type HostTimers } from '@dltech/atlas-host'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
-import type { DaemonEndpoint, SandboxProvider, SandboxTarget } from '../sandbox/sandbox-provider'
+import type {
+  DaemonEndpoint,
+  SandboxProvider,
+  SandboxTarget,
+} from '@dltech/atlas-pods/sandbox/sandbox-provider'
 import type { PrepareSteps } from './prepare-steps'
 import { rewakingConnector } from './rewaking-connector'
 

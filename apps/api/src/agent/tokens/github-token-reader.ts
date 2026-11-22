@@ -1,6 +1,6 @@
 import type { Db } from '@dltech/atlas-db'
 
-import type { SecretCipher } from '../config/secret-cipher'
+import type { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 
 export class GithubTokenReader {
   constructor(private readonly args: { db: Db; cipher: SecretCipher }) {}

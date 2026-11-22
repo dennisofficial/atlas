@@ -4,7 +4,7 @@ import { ControlPlane, type ControlSessionRow } from '@dltech/atlas-control'
 import { resizeArgs } from '@dltech/atlas-native-commands'
 import { ESandboxProvider } from '@dltech/atlas-protocol'
 
-import { JobDispatcher } from '../../../_core/ports/job-dispatcher'
+import { JobsProjectDispatcher } from '../../../_core/ports/job-dispatcher'
 import { podResizeIdempotencyKey, podResizeTaskContract } from './pod-resize.contract'
 import { assertWithinShapeLimit, podSizingLimitOf } from './pod-vcpu-limit'
 
@@ -24,7 +24,7 @@ export type PodSizing = {
 export class PodSizingService implements PodSizing {
   constructor(
     @Inject(ControlPlane) private readonly plane: ControlPlane,
-    @Inject(JobDispatcher) private readonly dispatcher: JobDispatcher,
+    @Inject(JobsProjectDispatcher) private readonly dispatcher: JobsProjectDispatcher,
   ) {}
 
   resizeHandler(args: {

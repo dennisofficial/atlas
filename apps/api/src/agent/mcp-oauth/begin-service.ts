@@ -1,7 +1,7 @@
 import type { Db } from '@dltech/atlas-db'
 import { z } from 'zod'
 
-import type { SecretCipher } from '../config/secret-cipher'
+import type { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 import { serverUrlOf } from './server-url'
 import { McpOauthStore } from './store'
 import { mcpReturnScreenSchema, mcpReturnSurfaceSchema, type McpOauthGateway } from './types'

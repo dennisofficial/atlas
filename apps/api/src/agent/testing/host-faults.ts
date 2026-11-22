@@ -3,7 +3,7 @@ import { COMMAND_OUTCOME_EVENT_TYPES, EMessageOrigin } from '@dltech/atlas-core'
 import type { LogPort } from '@dltech/atlas-observability'
 import { INBOX_KIND_MESSAGE } from '@dltech/atlas-protocol'
 
-import type { SandboxProvider } from '../sandbox/sandbox-provider'
+import type { SandboxProvider } from '@dltech/atlas-pods/sandbox/sandbox-provider'
 
 export enum EHostFault {
   TurnThrowsOnce = 'turn-throws-once',

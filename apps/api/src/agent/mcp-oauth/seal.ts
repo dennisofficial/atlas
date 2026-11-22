@@ -1,6 +1,6 @@
 import type { z } from 'zod'
 
-import type { SecretCipher } from '../config/secret-cipher'
+import type { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 
 export const sealJson = (args: { cipher: SecretCipher; value: unknown }): string =>
   args.cipher.encrypt(JSON.stringify(args.value))

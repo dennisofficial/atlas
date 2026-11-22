@@ -20,7 +20,7 @@ import { FakeMediaRegistry } from './media-registry.fake'
 import { SessionsService } from './sessions.service'
 import { PodPowerService } from './pod-power.service'
 import { PodSizingService } from './pod-sizing.service'
-import { JobDispatcher, type JobDispatch } from '../../../_core/ports/job-dispatcher'
+import { JobsProjectDispatcher, type JobDispatch } from '../../../_core/ports/job-dispatcher'
 import { ProjectAccess } from './project-access'
 import { modelSet } from './model-set'
 
@@ -133,8 +133,8 @@ export const setupSessionsService = (
   const mediaStore = new FakeMediaStore()
   const projects = new RecordingProjectAccess()
   const dispatcher = over.dispatcher ?? new FakePodResizeDispatcher()
-  const podSizing = new PodSizingService(plane, dispatcher as unknown as JobDispatcher)
-  const podPower = new PodPowerService(plane, dispatcher as unknown as JobDispatcher)
+  const podSizing = new PodSizingService(plane, dispatcher as unknown as JobsProjectDispatcher)
+  const podPower = new PodPowerService(plane, dispatcher as unknown as JobsProjectDispatcher)
   const service = new SessionsService(
     plane,
     projects,

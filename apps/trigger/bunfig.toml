@@ -1,2 +1,3 @@
 [test]
-preload = ["../../bun-test.setup.ts", "../../packages/bun-test-incremental/src/preload.ts"]
+timeout = 30000
+preload = ["../../bun-test.setup.ts", "../../packages/bun-test-incremental/src/preload.ts", "../../packages/db/src/testing/env.ts"]

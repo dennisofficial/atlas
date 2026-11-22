@@ -30,3 +30,5 @@ export class JobDispatchError extends Error {
 export abstract class JobDispatcher {
   abstract dispatch<TTask extends AnyTask>(args: JobDispatch<TTask>): Promise<{ runId: string }>
 }
+
+export abstract class JobsProjectDispatcher extends JobDispatcher {}

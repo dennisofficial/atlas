@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { SecretCipher } from '../../config/secret-cipher'
+import { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 import { webSearchConfigOf, type WebSearchRows } from '../web-search-config'
 
 const KEY = 'a'.repeat(64)

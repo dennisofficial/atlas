@@ -6,7 +6,7 @@ import {
   type WorkspaceStepRepo,
 } from '@dltech/atlas-core'
 import type { WorkspaceConfig } from '../config/agent-host-config'
-import { githubCloneUrlOf } from '../sandbox/constants'
+import { githubCloneUrlOf } from '@dltech/atlas-pods/sandbox/constants'
 
 import { branchFlagsOf, CLONE_TIMEOUT_MS, run } from './workspace-git'
 import { repoOfRemoteUrl, type RepoProgress } from './workspace-repos'
