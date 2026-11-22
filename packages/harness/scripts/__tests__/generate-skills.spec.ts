@@ -21,8 +21,6 @@ const layoutOf = () => ({
   skillsRoot: join(workspace, 'skills'),
   manifestFile: join(workspace, 'src', 'skills', 'manifest.generated.ts'),
   chunkDirectory: join(workspace, 'src', 'skills', 'bundle-files.generated'),
-  specsFile: join(workspace, 'src', 'skill-specs', 'builtin.generated.ts'),
-  catalogueFile: join(workspace, 'src', 'skill-catalogue', 'catalogue.generated.ts'),
 })
 
 const write = (args: { path: string; content: string | Uint8Array }): void => {

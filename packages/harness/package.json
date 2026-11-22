@@ -5,9 +5,6 @@
   "type": "module",
   "exports": {
     "./activity": "./src/activity/index.ts",
-    "./mcp-oauth": "./src/mcp-oauth/index.ts",
-    "./skill-specs": "./src/skill-specs/index.ts",
-    "./skill-catalogue": "./src/skill-catalogue/index.ts",
     ".": "./src/index.ts"
   },
   "scripts": {

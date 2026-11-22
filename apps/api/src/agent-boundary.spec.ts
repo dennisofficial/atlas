@@ -13,6 +13,7 @@ const CALLER_DIRS = ['api', '_core', '_lib', '_module', 'trigger']
 // load, therefore import the few agent values they construct their dependencies from out of their own
 // modules. An entry whose file stops importing agent internals fails the suite.
 const TRIGGER_VALUE_IMPORTS = new Set([
+  'api/cloud/mcp-servers/mcp-servers-put.ts',
   'api/cloud/sandbox-provisioning/pod-provision-rollback.ts',
   'api/cloud/sandbox-provisioning/pod-provision-run.ts',
   'trigger/pod-power/pod-sleep-graph.ts',

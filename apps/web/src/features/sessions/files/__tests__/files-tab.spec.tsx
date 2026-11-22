@@ -11,8 +11,8 @@ import { paneValueFixture } from '../../panel/__tests__/fixture'
 import { SessionPaneProvider, type SessionPaneValue } from '../../panel/pane-value'
 
 const changes = { answer: undefined as SessionChangesOutput | Error | undefined }
-
 const realApiClient = { ...(await import('@/lib/api-client')) }
+const realChangesApi = { ...(await import('@/features/sessions/changes/changes-api')) }
 
 mock.module('@/lib/api-client', () => ({
   api: createApiClient({
@@ -150,6 +150,7 @@ beforeAll(() => {
 afterAll(async () => {
   mock.module('@/lib/api-client', () => realApiClient)
   window.localStorage.clear()
+  mock.module('@/features/sessions/changes/changes-api', () => realChangesApi)
   await unregisterDom()
 })
 

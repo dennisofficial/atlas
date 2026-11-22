@@ -1,6 +1,7 @@
 import { EDefinitionOrigin } from '@dltech/atlas-core'
 import { db } from '@dltech/atlas-db'
-import { BUILT_IN_SKILL_SPECS, parseSkillSpec } from '@dltech/atlas-harness/skill-specs'
+import { skillSpecOf } from '@dltech/atlas-plugin-skills/core'
+import { BUILT_IN_SKILL_SPECS } from '@dltech/atlas-plugin-skills/pod'
 import type { SkillCatalogueEntry } from '@dltech/atlas-wire'
 import { Injectable } from '@nestjs/common'
 import { mergeSkills, originated, type OriginatedSkill } from './skill-catalogue.merge'
@@ -8,9 +9,9 @@ import { mergeSkills, originated, type OriginatedSkill } from './skill-catalogue
 const SKILL_ENTRY = 'SKILL.md'
 
 const entryOf = (args: { text: string; fallbackName: string }): SkillCatalogueEntry | undefined => {
-  const parsed = parseSkillSpec(args)
+  const parsed = skillSpecOf(args)
   if (parsed === undefined || !parsed.userInvocable) return undefined
-  const { name, summary, argumentHint } = parsed.spec
+  const { name, summary, argumentHint } = parsed
   return argumentHint === undefined ? { name, summary } : { name, summary, argumentHint }
 }
 

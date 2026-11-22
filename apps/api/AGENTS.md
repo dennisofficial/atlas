@@ -73,8 +73,8 @@ with the live Codex list (`CodexModelsCatalogue`). The catalogue is cached per u
 revalidated with `If-None-Match`. A Codex failure returns the static list plus `liveError`. The code lives in
 `@dltech/atlas-models`, and the provider sign-in helpers live in `@dltech/atlas-models/provider-oauth`. Session titles
 come from `src/agent/naming`, which calls the quick model through the same provider stack as the agent host. The API
-may import only the harness subpaths `skill-specs`, `skill-catalogue` and `mcp-oauth`. The `mcp-oauth` subpath
-provides the OAuth protocol helpers behind `src/api/cloud/mcp-oauth`. It imports nothing else of harness.
+imports nothing of harness. `src/api/cloud/mcp-oauth` uses the agent's MCP OAuth helpers (`src/agent/mcp-oauth`)
+through `src/agent/index.ts`, and the skills API reads built-ins and the catalogue from `@dltech/atlas-plugin-skills`.
 `src/api/harness-boundary.spec.ts` and `architecture.spec.ts` enforce that rule.
 
 ## One app: `src/api` and `src/agent`

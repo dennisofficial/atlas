@@ -10,8 +10,6 @@ import {
   digestOfText,
 } from '../src/skills/embedded-bundle'
 import { isSkillEntryFilename } from '../src/skills/skill'
-import { skillCatalogueModule, type SkillCatalogueSource } from './skill-catalogue-source'
-import { skillSpecsModule } from './skill-specs-source'
 
 const harnessRoot = join(dirname(fileURLToPath(import.meta.url)), '..')
 const FILES_PER_MODULE = 100
@@ -21,8 +19,6 @@ type Layout = {
   skillsRoot: string
   manifestFile: string
   chunkDirectory: string
-  specsFile: string
-  catalogueFile: string
 }
 
 type SourceFile = { path: string; digest: string; sizeBytes: number }
@@ -38,11 +34,9 @@ type SkillSource = {
 export type GenerateSkillsResult = { skills: number; resources: number; modules: number }
 
 const defaultLayout = (): Layout => ({
-  skillsRoot: join(harnessRoot, 'skills'),
+  skillsRoot: join(harnessRoot, '..', '..', 'plugins', 'skills', 'skills'),
   manifestFile: join(harnessRoot, 'src', 'skills', 'manifest.generated.ts'),
   chunkDirectory: join(harnessRoot, 'src', 'skills', 'bundle-files.generated'),
-  specsFile: join(harnessRoot, 'src', 'skill-specs', 'builtin.generated.ts'),
-  catalogueFile: join(harnessRoot, 'src', 'skill-catalogue', 'catalogue.generated.ts'),
 })
 
 const byCodePoint = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0)
@@ -295,27 +289,6 @@ export async function generateSkills(args: Partial<Layout> = {}): Promise<Genera
   const skills = await authoredSkills(layout.skillsRoot)
   const emitted = await writeChunks({ layout, skills })
   await writeManifest({ layout, emitted })
-  await mkdir(dirname(layout.specsFile), { recursive: true })
-  await writeIfChanged({
-    path: layout.specsFile,
-    text: skillSpecsModule(
-      skills.map((skill) => ({ entryPath: skill.entryPath, text: skill.text })),
-    ),
-  })
-  await mkdir(dirname(layout.catalogueFile), { recursive: true })
-  await writeIfChanged({
-    path: layout.catalogueFile,
-    text: skillCatalogueModule(
-      skills.map(
-        (skill): SkillCatalogueSource => ({
-          entryPath: skill.entryPath,
-          text: skill.text,
-          entryDigest: skill.entryDigest,
-          resources: skill.resources,
-        }),
-      ),
-    ),
-  })
   await removeStaleChunks({
     directory: layout.chunkDirectory,
     kept: new Set(emitted.flatMap((item) => item.chunkNames.map((name) => `${name}.ts`))),

@@ -1122,7 +1122,7 @@ graph, and an empty real corpus cannot justify calibrated detection claims or de
 
 ## Skills
 
-Skills are authored under `packages/harness/skills` and discovered through the shared harness's
+Skills are authored under `plugins/skills/skills` and discovered through the shared harness's
 skill registry. Project definitions shadow user definitions, which shadow embedded built-ins. A
 skill's description is listed in the prompt; its body is loaded through the `skill` tool only when
 needed. Supporting Markdown files and images are resources, never additional skill definitions.

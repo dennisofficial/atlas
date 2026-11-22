@@ -1,10 +1,4 @@
 import {
-  buildAuthorizationUrl,
-  exchangeAuthorizationCode,
-  generatePkce,
-  OAuthError,
-} from '@dltech/atlas-harness/mcp-oauth'
-import {
   EMcpOauthBeginOutcome,
   EMcpOauthReturnSurface,
   EMcpServerSource,
@@ -12,16 +6,26 @@ import {
   type McpOauthServer,
 } from '@dltech/atlas-wire'
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
+import {
+  assertPublicHost,
+  buildAuthorizationUrl,
+  discoverOauthEndpoints,
+  exchangeAuthorizationCode,
+  generatePkce,
+  guardedFetch,
+  OAuthError,
+  oauthClientFor,
+  sealJson,
+  SsrfRejectedError,
+  unsealJson,
+  type SealedGrant,
+} from '../../../agent'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import { discoverOauthEndpoints } from './mcp-oauth-discovery'
-import { oauthClientFor } from './mcp-oauth-client-reuse'
 import { callbackRedirectOf, DEFAULT_RETURN_TO } from './mcp-oauth-redirect'
-import { sealJson, unsealJson } from './mcp-oauth-seal'
 import { serverUrlOf, toWireMcpOauthServer } from './mcp-oauth-server-view'
-import { assertPublicHost, guardedFetch, SsrfRejectedError } from './mcp-oauth-ssrf'
 import { McpOauthClock, McpOauthConfig, McpOauthFetcher, McpOauthStore } from './mcp-oauth.types'
 import { sealedPendingSchema } from './mcp-oauth.types'
-import type { SealedGrant, SealedPending, ServerGrantRow } from './mcp-oauth.types'
+import type { SealedPending, ServerGrantRow } from './mcp-oauth.types'
 
 const PENDING_TTL_MS = 10 * 60_000
 const PROJECT_NOT_FOUND_MESSAGE = 'project not found'
@@ -177,21 +181,12 @@ export class McpOauthService {
       const tokens = await exchangeAuthorizationCode({
         tokenEndpoint: sealed.tokenEndpoint,
         code: args.code,
-        pkce: {
-          verifier: sealed.codeVerifier,
-          challenge: '',
-          state: pending.id,
-        },
+        codeVerifier: sealed.codeVerifier,
         redirectUri: sealed.redirectUri,
-        clientId: sealed.clientInfo.clientId,
-        ...(sealed.clientInfo.clientSecret === undefined
-          ? {}
-          : { clientSecret: sealed.clientInfo.clientSecret }),
-        ...(sealed.authMethods === undefined
-          ? {}
-          : { tokenEndpointAuthMethodsSupported: sealed.authMethods }),
-        ...(sealed.resource === undefined ? {} : { resource: sealed.resource }),
-        clock: { now: () => new Date(this.clock.now()).toISOString() },
+        client: sealed.clientInfo,
+        authMethods: sealed.authMethods,
+        resource: sealed.resource,
+        nowMs: this.clock.now(),
         fetch: this.guarded(),
       })
       const grant: SealedGrant = {
@@ -251,7 +246,7 @@ export class McpOauthService {
 
   private guarded() {
     return guardedFetch({
-      fetcher: this.fetcher,
+      fetch: (input, init) => this.fetcher.fetch(input, init),
       allowLocalTargets: this.config.allowLocalTargets,
       resolveHost: this.config.resolveHost,
     })

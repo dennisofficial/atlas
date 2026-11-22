@@ -3,10 +3,6 @@ import path from 'node:path'
 import { describe, expect, it } from 'bun:test'
 
 const SRC_ROOT = path.dirname(import.meta.dirname)
-const SKILL_SPECS_SUBPATH = '@dltech/atlas-harness/skill-specs'
-const MCP_OAUTH_SUBPATH = '@dltech/atlas-harness/mcp-oauth'
-const SKILL_CATALOGUE_SUBPATH = '@dltech/atlas-harness/skill-catalogue'
-const ALLOWED_SUBPATHS = [SKILL_SPECS_SUBPATH, MCP_OAUTH_SUBPATH, SKILL_CATALOGUE_SUBPATH]
 const SPECIFIER_PATTERN = /(?:from\s+|import\s*\(\s*|import\s+)['"]([^'"]+)['"]/g
 
 function listTsFiles({ dir }: { dir: string }): string[] {
@@ -24,11 +20,11 @@ function harnessSpecifiers({ file }: { file: string }): string[] {
 }
 
 describe('harness boundary', () => {
-  it('reaches @dltech/atlas-harness only through the skill-specs, skill-catalogue and mcp-oauth subpaths', () => {
+  it('never imports @dltech/atlas-harness', () => {
     const offenders = listTsFiles({ dir: SRC_ROOT }).flatMap((file) =>
-      harnessSpecifiers({ file })
-        .filter((specifier) => !ALLOWED_SUBPATHS.includes(specifier))
-        .map((specifier) => `${path.relative(SRC_ROOT, file)} -> ${specifier}`),
+      harnessSpecifiers({ file }).map(
+        (specifier) => `${path.relative(SRC_ROOT, file)} -> ${specifier}`,
+      ),
     )
     expect(offenders).toEqual([])
   })

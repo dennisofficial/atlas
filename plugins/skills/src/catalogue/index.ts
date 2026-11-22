@@ -1,11 +1,11 @@
 export type {
   BuiltInSkillCatalogueEntry,
   BuiltInSkillFileEntry,
-} from './catalogue-types'
+} from './types'
+export { BUILT_IN_SKILL_CATALOGUE } from './catalogue.generated'
 export {
   builtInSkillEntry,
   builtInSkillNames,
   builtInSkills,
   isBuiltInSkillName,
 } from './lookup'
-export { BUILT_IN_SKILL_CATALOGUE } from './catalogue.generated'

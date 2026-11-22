@@ -11,7 +11,7 @@
     "includes": [
       "**",
       "!deprecated",
-      "!packages/harness/skills",
+      "!plugins/skills/skills",
       "!.agents/skills",
       "!docs/research/openai-tool-schema-optional-params.md",
       "!packages/db/.agents",

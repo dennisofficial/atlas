@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useEffectEvent, useState } from 'react'
 import { toast } from 'sonner'
 import type { SkillFileMeta } from '@dltech/atlas-wire/web'
-import { isBuiltInSkillName } from '@dltech/atlas-harness/skill-catalogue'
+import { isBuiltInSkillName } from '@dltech/atlas-plugin-skills/catalogue'
 
 import { EMarkdownEditorVariant, MarkdownEditor } from '@dltech/atlas-ui/ai/markdown-editor'
 import { Button } from '@dltech/atlas-ui/components/button'

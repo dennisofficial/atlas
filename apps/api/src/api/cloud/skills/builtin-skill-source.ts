@@ -1,26 +1,21 @@
 import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
-import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   builtInSkillEntry,
+  builtInSkillsRoot as pluginBuiltInSkillsRoot,
   isBuiltInSkillName,
   type BuiltInSkillCatalogueEntry,
-} from '@dltech/atlas-harness/skill-catalogue'
+} from '@dltech/atlas-plugin-skills/pod'
 import { BUILT_IN_SKILLS_DIRECTORY } from './builtin-skills-directory'
 
 let cachedRoot: string | undefined
 
-const harnessSkillsRoot = (): string => {
-  const require = createRequire(import.meta.url)
-  return join(dirname(require.resolve('@dltech/atlas-harness/package.json')), 'skills')
-}
-
 export function builtInSkillsRoot(): string {
   if (cachedRoot !== undefined) return cachedRoot
   const bundled = join(dirname(fileURLToPath(import.meta.url)), BUILT_IN_SKILLS_DIRECTORY)
-  cachedRoot = existsSync(bundled) ? bundled : harnessSkillsRoot()
+  cachedRoot = existsSync(bundled) ? bundled : pluginBuiltInSkillsRoot()
   return cachedRoot
 }
 

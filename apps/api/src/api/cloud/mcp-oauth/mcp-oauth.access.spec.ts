@@ -1,9 +1,8 @@
 import { describe, expect, it } from 'bun:test'
 import { EMcpOauthAccessOutcome, EMcpServerSource } from '@dltech/atlas-wire'
 import { AUTH, SERVER, TEST_CONFIG, json } from './mcp-oauth.fakes'
-import { sealJson } from './mcp-oauth-seal'
+import { sealJson, type SealedGrant } from '../../../agent'
 import { EGrantRowStatus } from './mcp-oauth.types'
-import type { SealedGrant } from './mcp-oauth.types'
 import {
   accessArgs,
   addCloudServer,

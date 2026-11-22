@@ -1,4 +1,4 @@
-import type { BuiltInSkillCatalogueEntry } from './catalogue-types'
+import type { BuiltInSkillCatalogueEntry } from './types'
 import { BUILT_IN_SKILL_CATALOGUE } from './catalogue.generated'
 
 const byName = new Map(BUILT_IN_SKILL_CATALOGUE.map((skill) => [skill.name, skill]))
