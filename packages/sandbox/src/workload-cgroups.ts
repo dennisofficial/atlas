@@ -29,7 +29,7 @@ export const SERVE_MEMORY_RESERVE: MemoryReserve = {
 }
 
 export const DAEMON_MEMORY_RESERVE: MemoryReserve = {
-  minBytes: 512 * MIB,
+  minBytes: 0,
   fraction: 0,
   protectedBytes: 384 * MIB,
 }
