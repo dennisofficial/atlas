@@ -2,20 +2,69 @@ import type { Meta, StoryObj } from '@storybook/react'
 import { useEffect, useState } from 'react'
 
 import { EPodAction, PodSection, type PodSectionProps, type PodMetricsSample } from './pod-section'
+import { clamp } from './pod-metrics-model'
 import {
   nextPodSample,
   POD_SAMPLE_MS,
-  POD_SECTION_SHAPE,
   POD_SECTION_SHAPES,
-  POD_SERIES,
-  POD_SERIES_DISK_FULL,
-  POD_SERIES_WITH_DISK,
   VERCEL_HOBBY_UNAVAILABLE,
   VERCEL_PLAN_CAP_SHAPES,
   VERCEL_PRO_SHAPE,
   VERCEL_PRO_SHAPES,
 } from './pod-metrics.fixtures'
 import { EPodState } from './pod-status'
+
+const SERIES_END_AT = Date.parse('2026-11-21T14:41:00Z')
+const DISK_LIMIT_GB = 20
+const DISK_FULL_LIMIT_GB = 100
+
+function storySeriesOf({
+  samples,
+  spikeAt,
+  disk,
+}: {
+  samples: number
+  spikeAt: number
+  disk?: { usedGb: number; limitGb: number } | undefined
+}): readonly PodMetricsSample[] {
+  const start = SERIES_END_AT - (samples - 1) * POD_SAMPLE_MS
+  return Array.from({ length: samples }, (_, index) => {
+    const spike = index === spikeAt ? 1 : 0
+    const share = samples <= 1 ? 0 : index / (samples - 1)
+    return {
+      t: start + index * POD_SAMPLE_MS,
+      cpu: clamp({
+        value: 9 + 4 * Math.sin(index / 3.5) + 1.6 * Math.sin(index / 1.3) + spike * 26,
+        min: 3,
+        max: 95,
+      }),
+      ramGb: clamp({
+        value: 1.7 + 0.05 * Math.sin(index / 9) + 0.012 * Math.sin(index / 2.2) + spike * 0.1,
+        min: 1.62,
+        max: 1.86,
+      }),
+      ...(disk === undefined
+        ? {}
+        : { diskUsedGb: disk.usedGb + share * 3.2, diskLimitGb: disk.limitGb }),
+    }
+  })
+}
+
+const STORY_SHAPE = { vcpus: 4, memoryGb: 8 }
+
+const RUNNING_SERIES = storySeriesOf({ samples: 300, spikeAt: 220 })
+const RECENT_SERIES = storySeriesOf({ samples: 100, spikeAt: 62 })
+const FRESH_SERIES = storySeriesOf({ samples: 20, spikeAt: 14 })
+const DISK_SERIES = storySeriesOf({
+  samples: 300,
+  spikeAt: 220,
+  disk: { usedGb: 11, limitGb: DISK_LIMIT_GB },
+})
+const DISK_FULL_SERIES = storySeriesOf({
+  samples: 300,
+  spikeAt: 220,
+  disk: { usedGb: 11, limitGb: DISK_FULL_LIMIT_GB },
+})
 
 interface PodSectionStoryArgs extends PodSectionProps {
   live: boolean
@@ -53,9 +102,9 @@ const meta = {
   args: {
     live: false,
     state: EPodState.Running,
-    shape: POD_SECTION_SHAPE,
+    shape: STORY_SHAPE,
     shapes: POD_SECTION_SHAPES,
-    series: POD_SERIES,
+    series: RUNNING_SERIES,
     throttled: false,
     oomKills: 0,
     onStart: () => {},
@@ -73,16 +122,24 @@ type Story = StoryObj<typeof meta>
 
 export const Running: Story = {}
 
+export const Recent: Story = { args: { series: RECENT_SERIES } }
+
+export const FreshPod: Story = { args: { series: FRESH_SERIES } }
+
+export const TooltipOpen: Story = { args: { defaultActiveIndex: 220 } }
+
 export const RunningLive: Story = { args: { live: true } }
 
 export const Throttled: Story = { args: { throttled: true, oomKills: 2 } }
 
-export const WithDisk: Story = { args: { series: POD_SERIES_WITH_DISK } }
+export const WithDisk: Story = { args: { series: DISK_SERIES } }
 
-export const DiskGrow: Story = { args: { series: POD_SERIES_WITH_DISK, diskGrow: true } }
+export const DiskGrow: Story = { args: { series: DISK_SERIES, diskGrow: true } }
 
-export const DiskAtMaximum: Story = {
-  args: { series: POD_SERIES_DISK_FULL, diskGrow: true },
+export const DiskAtMaximum: Story = { args: { series: DISK_FULL_SERIES, diskGrow: true } }
+
+export const TooltipOpenWithDisk: Story = {
+  args: { series: DISK_SERIES, diskGrow: true, defaultActiveIndex: 220 },
 }
 
 export const Resizing: Story = { args: { pendingShape: { vcpus: 8, memoryGb: 64 } } }
@@ -103,6 +160,8 @@ export const HobbyCap: Story = {
 }
 
 export const Sleeping: Story = { args: { state: EPodState.Parked } }
+
+export const Stopped: Story = { args: { state: EPodState.Stopped } }
 
 export const Starting: Story = { args: { state: EPodState.Starting } }
 

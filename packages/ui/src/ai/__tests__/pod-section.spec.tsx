@@ -1,4 +1,6 @@
-import { describe, expect, it } from 'bun:test'
+import { GlobalRegistrator } from '@happy-dom/global-registrator'
+import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
+import { act } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 
 import {
@@ -19,6 +21,7 @@ import {
   VERCEL_PRO_SHAPE,
   VERCEL_PRO_SHAPES,
 } from '../pod-metrics.fixtures'
+import { formatCpu, formatRam } from '../pod-metrics-model'
 import { PodSection, type PodSectionProps } from '../pod-section'
 import { podShapeKey, podShapeLabel } from '../pod-shapes'
 import { EPodState } from '../pod-status'
@@ -32,6 +35,27 @@ const BASE: PodSectionProps = {
 
 function htmlOf(overrides: Partial<PodSectionProps> = {}): string {
   return renderToStaticMarkup(<PodSection {...BASE} {...overrides} />)
+}
+
+function sampleAt(index: number) {
+  const sample = POD_SERIES[index]
+  if (sample === undefined) throw new Error(`the fixture series has no sample ${index}`)
+  return sample
+}
+
+const legendTipOf = (index: number) => {
+  const sample = sampleAt(index)
+  return {
+    cpu: formatCpu(sample.cpu),
+    ram: formatRam({ usedGb: sample.ramGb, limitGb: POD_SECTION_SHAPE.memoryGb }),
+  }
+}
+
+function diskTipOf(index: number): string {
+  const sample = POD_SERIES_WITH_DISK[index]
+  if (sample?.diskUsedGb === undefined || sample.diskLimitGb === undefined)
+    throw new Error(`the fixture series has no disk at sample ${index}`)
+  return formatRam({ usedGb: sample.diskUsedGb, limitGb: sample.diskLimitGb })
 }
 
 describe('pod section header', () => {
@@ -53,6 +77,21 @@ describe('pod section header', () => {
     expect(html).toContain('Resizing…')
     expect(html).not.toContain('>Running<')
     expect(html).toContain('aria-label="Resizing pod"')
+  })
+
+  it('offers an outlined square to stop and a play triangle to start, both unfilled', () => {
+    const running = htmlOf()
+    expect(running).toContain('lucide-square')
+    expect(running).not.toContain('lucide-play')
+    const stopped = htmlOf({ state: EPodState.Stopped })
+    expect(stopped).toContain('lucide-play')
+    expect(stopped).not.toContain('lucide-square')
+    expect(running).not.toContain('fill-current')
+    expect(stopped).not.toContain('fill-current')
+  })
+
+  it('draws the power control as a bordered button', () => {
+    expect(htmlOf()).toMatch(/<button[^>]*aria-label="Stop pod"[^>]*border-border/)
   })
 
   it('spins and disables the power button while the pod comes up or a stop is in flight', () => {
@@ -88,6 +127,21 @@ describe('pod section chart', () => {
     expect(html).not.toContain('CPU and RAM over the last 15 minutes')
   })
 
+  it('keeps the spark inside a bordered chart box', () => {
+    const html = htmlOf()
+    expect(html).toContain('bg-muted/30')
+    expect(html).toContain('border border-border bg-muted/30 p-1')
+  })
+
+  it('shows the values at the pinned sample, never a stretched history', () => {
+    const html = htmlOf({ defaultActiveIndex: 4 })
+    expect(htmlOf()).not.toContain('data-slot="pod-spark-tip"')
+    expect(html).toContain('data-slot="pod-spark-tip"')
+    const expected = legendTipOf(4)
+    expect(html).toContain(`CPU ${expected.cpu}`)
+    expect(html).toContain(`RAM ${expected.ram}`)
+  })
+
   it('keeps the signals footer', () => {
     const loud = htmlOf({ throttled: true, oomKills: 1 })
     expect(loud).toContain('Throttled')
@@ -110,6 +164,15 @@ describe('pod disk row', () => {
     expect(html).toContain('/ 20 GB')
     expect(html).toContain('CPU, RAM and disk over the last 15 minutes')
     expect(html).toContain('aria-label="Increase disk"')
+  })
+
+  it('reads the disk of the pinned sample in the tip', () => {
+    const html = htmlOf({ series: POD_SERIES_WITH_DISK, defaultActiveIndex: 4 })
+    expect(html).toContain(`Disk ${diskTipOf(4)}`)
+  })
+
+  it('keeps the disk out of the tip of a pod that reports none', () => {
+    expect(htmlOf({ defaultActiveIndex: 4 })).not.toContain('Disk')
   })
 
   it('keeps the grow control off a pod whose provider cannot grow its disk', () => {
@@ -218,5 +281,65 @@ describe('pod action confirm', () => {
   it('asks before restarting for a resize', () => {
     expect(POD_CONFIRM_TITLE[EPodAction.Resize]).toBe('Restart the pod?')
     expect(POD_CONFIRM_LABEL[EPodAction.Resize]).toBe('Restart')
+  })
+})
+
+describe('pod spark on touch', () => {
+  beforeAll(() => {
+    GlobalRegistrator.register()
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
+  })
+
+  afterAll(async () => {
+    await GlobalRegistrator.unregister()
+  })
+
+  const mount = async (props: Partial<PodSectionProps> = {}) => {
+    const { createRoot } = await import('react-dom/client')
+    const container = document.createElement('div')
+    document.body.append(container)
+    const root = createRoot(container)
+    await act(async () => root.render(<PodSection {...BASE} {...props} />))
+    return { container, unmount: () => act(async () => root.unmount()) }
+  }
+
+  const plotOf = () => {
+    const plot = document.querySelector('[data-slot="pod-spark-plot"]')
+    if (plot === null) throw new Error('the spark plot did not render')
+    return plot
+  }
+
+  const tipOf = () => document.querySelector('[data-slot="pod-spark-tip"]')
+
+  const tap = async (target: Element) => {
+    await act(async () => {
+      target.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 40 }))
+    })
+  }
+
+  it('opens the tip with the sample under the finger and closes it on a tap outside', async () => {
+    const { unmount } = await mount()
+    expect(tipOf()).toBeNull()
+
+    await tap(plotOf())
+    const expected = legendTipOf(POD_SERIES.length - 1)
+    expect(tipOf()?.textContent).toContain(`CPU ${expected.cpu}`)
+    expect(tipOf()?.textContent).toContain(`RAM ${expected.ram}`)
+
+    await tap(document.body)
+    expect(tipOf()).toBeNull()
+    await unmount()
+  })
+
+  it('keeps the tip while the finger drags across the plot', async () => {
+    const { unmount } = await mount()
+    await tap(plotOf())
+    await act(async () => {
+      plotOf().dispatchEvent(
+        new PointerEvent('pointermove', { bubbles: true, clientX: 60, pointerType: 'touch' }),
+      )
+    })
+    expect(tipOf()).not.toBeNull()
+    await unmount()
   })
 })

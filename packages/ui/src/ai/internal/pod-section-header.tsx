@@ -16,14 +16,6 @@ const STATE_TEXT: Record<EPodState, string> = {
   [EPodState.Stopped]: 'Stopped',
 }
 
-const POWER_TONE: Record<EPodState, string> = {
-  [EPodState.Starting]: 'text-warning',
-  [EPodState.Running]: 'text-success',
-  [EPodState.Resuming]: 'text-warning',
-  [EPodState.Parked]: 'text-muted-foreground',
-  [EPodState.Stopped]: 'text-muted-foreground',
-}
-
 function wakingOf(state: EPodState): boolean {
   return state === EPodState.Starting || state === EPodState.Resuming
 }
@@ -83,21 +75,20 @@ export function PodSectionHeader({
             <TooltipTrigger
               render={
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="icon-xs"
                   aria-label={label}
                   disabled={busy}
                   onClick={handlePower}
-                  className={POWER_TONE[state]}
                 />
               }
             >
               {pending || stopping ? (
                 <InlineSpinner />
               ) : running ? (
-                <SquareIcon aria-hidden className="fill-current" />
+                <SquareIcon aria-hidden />
               ) : (
-                <PlayIcon aria-hidden className="fill-current" />
+                <PlayIcon aria-hidden />
               )}
             </TooltipTrigger>
             <TooltipContent>{label}</TooltipContent>

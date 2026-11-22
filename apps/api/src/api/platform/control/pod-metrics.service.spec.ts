@@ -2,12 +2,14 @@ import { describe, expect, it, spyOn, vi } from 'bun:test'
 import { Logger, ServiceUnavailableException } from '@nestjs/common'
 import type { EventFrame, PodCallOutcome } from '@dltech/atlas-host'
 import {
-  ECallFailure,
   ECallStatus,
   ELiveOpFailure,
   type PodMetricsFrame,
+  type PodMetricsWatch,
   type PodSample,
 } from '@dltech/atlas-protocol'
+
+import { PodMetricsRelay, type PodMetricsBus } from '../../../agent'
 import type { PodOps } from '../../../agent'
 import { PodMetricsService } from './pod-metrics.service'
 import type { SessionsService } from './sessions.service'
@@ -34,50 +36,73 @@ const outcomeOf = (value: PodSample[] | null): PodCallOutcome =>
         result: { status: ECallStatus.Ok, op: 'metrics.subscribe', value: { samples: value } },
       }
 
+type FakeBus = PodMetricsBus & {
+  frames: { sessionId: string; frame: PodMetricsFrame }[]
+  requests: PodMetricsWatch[]
+  watchersFor(sessionId: string): number
+}
+
+const fakeBusOf = (): FakeBus => {
+  const watchListeners = new Set<(request: PodMetricsWatch) => void>()
+  const frameListeners = new Map<string, Set<(frame: PodMetricsFrame) => void>>()
+  const frames: { sessionId: string; frame: PodMetricsFrame }[] = []
+  const requests: PodMetricsWatch[] = []
+  return {
+    frames,
+    requests,
+    watchersFor: (sessionId) => frameListeners.get(sessionId)?.size ?? 0,
+    async requestWatch(request) {
+      requests.push(request)
+      for (const listener of [...watchListeners]) listener(request)
+    },
+    onWatch(listener) {
+      watchListeners.add(listener)
+      return () => {
+        watchListeners.delete(listener)
+      }
+    },
+    async publish(args) {
+      frames.push(args)
+      for (const listener of [...(frameListeners.get(args.sessionId) ?? [])]) listener(args.frame)
+    },
+    async subscribe({ sessionId, listener }) {
+      const listeners = frameListeners.get(sessionId) ?? new Set<(frame: PodMetricsFrame) => void>()
+      listeners.add(listener)
+      frameListeners.set(sessionId, listeners)
+      return async () => {
+        listeners.delete(listener)
+      }
+    },
+    async close() {
+      return undefined
+    },
+  }
+}
+
 const sessionsOf = () => ({
   requireOwnedSession: vi.fn(async () => ({})),
 })
 
-const operationsOf = (args: {
-  held: boolean
-  backlog?: PodSample[] | null
-  subscribeFailure?: string | undefined
-  onCall?: (op: string) => void
-  awaitSubscribe?: Promise<void> | undefined
-}) => {
+const operationsOf = (args: { held: boolean; backlog?: PodSample[] | null }) => {
   const state: {
-    held: boolean
     listener: ((frame: EventFrame) => void) | undefined
-    close: (() => void) | undefined
     dispose: ReturnType<typeof vi.fn>
-  } = { held: args.held, listener: undefined, close: undefined, dispose: vi.fn() }
+  } = { listener: undefined, dispose: vi.fn() }
   const invoke = vi.fn(async (input: { op: { op: string } }) => {
-    args.onCall?.(input.op.op)
     if (input.op.op === 'metrics.unsubscribe')
       return {
         state: 'ok',
         result: { status: ECallStatus.Ok, op: 'metrics.unsubscribe', value: null },
       }
-    await args.awaitSubscribe
-    if (args.subscribeFailure !== undefined)
-      return {
-        state: 'ok',
-        result: {
-          status: ECallStatus.Failed,
-          op: 'metrics.subscribe',
-          error: { code: ECallFailure.Internal, message: args.subscribeFailure },
-        },
-      }
     return outcomeOf(args.backlog === undefined ? [] : args.backlog)
   })
-  const events = vi.fn((input: { listener: (frame: EventFrame) => void; onClose?: () => void }) => {
-    if (!state.held) return null
+  const events = vi.fn((input: { listener: (frame: EventFrame) => void }) => {
+    if (!args.held) return null
     state.listener = input.listener
-    state.close = input.onClose
     return state.dispose
   })
-  const ops = { invoke, events, hold: vi.fn(() => true) }
-  return { ops: ops as unknown as PodOps, invoke, events, state }
+  const ops = { events, invoke } as unknown as PodOps
+  return { ops, invoke, events, state }
 }
 
 const collect = (generator: AsyncGenerator<PodMetricsFrame>) => {
@@ -91,7 +116,7 @@ const collect = (generator: AsyncGenerator<PodMetricsFrame>) => {
 const until = async (check: () => boolean): Promise<void> => {
   for (let attempt = 0; attempt < 400; attempt += 1) {
     if (check()) return
-    await new Promise<void>((resolve) => setTimeout(resolve, 1))
+    await new Promise<void>((resolve) => setTimeout(resolve, 2))
   }
   throw new Error('timed out')
 }
@@ -105,10 +130,10 @@ const watch = (service: PodMetricsService, signal?: AbortSignal) =>
 
 const serviceOf = (args: {
   sessions: ReturnType<typeof sessionsOf>
-  ops: PodOps | null
-  unheldRecheckMs?: number
+  bus: PodMetricsBus | null
+  renewEveryMs?: number
 }) =>
-  new PodMetricsService(args.sessions as unknown as SessionsService, args.ops, args.unheldRecheckMs)
+  new PodMetricsService(args.sessions as unknown as SessionsService, args.bus, args.renewEveryMs)
 
 describe('PodMetricsService', () => {
   it('refuses a session the operator does not own', async () => {
@@ -116,153 +141,122 @@ describe('PodMetricsService', () => {
     sessions.requireOwnedSession.mockImplementationOnce(async () => {
       throw new Error('not yours')
     })
-    const { ops } = operationsOf({ held: true })
-    await expect(collect(watch(serviceOf({ sessions, ops }))).done).rejects.toThrow('not yours')
+    const bus = fakeBusOf()
+    await expect(collect(watch(serviceOf({ sessions, bus }))).done).rejects.toThrow('not yours')
+    expect(bus.requests).toEqual([])
   })
 
-  it('refuses the stream when the host is not mounted', async () => {
+  it('refuses the stream when the relay transport is not mounted', async () => {
     const sessions = sessionsOf()
-    await expect(collect(watch(serviceOf({ sessions, ops: null }))).done).rejects.toBeInstanceOf(
+    await expect(collect(watch(serviceOf({ sessions, bus: null }))).done).rejects.toBeInstanceOf(
       ServiceUnavailableException,
     )
   })
 
-  it('stays open and rechecks while no host of this process holds the pod', async () => {
-    const sessions = sessionsOf()
-    const { ops, invoke, events, state } = operationsOf({ held: false })
+  it('asks for a watch immediately and again on every renewal', async () => {
+    const bus = fakeBusOf()
     const abort = new AbortController()
-    let finished = false
-    const run = collect(watch(serviceOf({ sessions, ops, unheldRecheckMs: 2 }), abort.signal))
-    void run.done.then(() => {
-      finished = true
-    })
-    await until(() => events.mock.calls.length >= 3)
-    expect(finished).toBe(false)
-    expect(run.frames).toEqual([])
-    expect(invoke).not.toHaveBeenCalled()
-    state.held = true
-    await until(() => state.listener !== undefined)
-    state.listener?.(frameOf(sample(2_000)))
+    const run = collect(
+      watch(serviceOf({ sessions: sessionsOf(), bus, renewEveryMs: 2 }), abort.signal),
+    )
+    await until(() => bus.requests.length === 1)
+    await until(() => bus.requests.length >= 3)
+    abort.abort()
+    await run.done
+    expect(bus.requests[0]?.sessionId).toBe('s1')
+    expect(bus.requests[0]?.ttlMs).toBeGreaterThan(0)
+    expect(new Set(bus.requests.map((request) => request.watcherId)).size).toBe(1)
+  })
+
+  it('stops renewing and releases its subscription when the client goes away', async () => {
+    const bus = fakeBusOf()
+    const abort = new AbortController()
+    const run = collect(
+      watch(serviceOf({ sessions: sessionsOf(), bus, renewEveryMs: 2 }), abort.signal),
+    )
+    await until(() => bus.requests.length >= 2)
+    abort.abort()
+    await run.done
+    const asked = bus.requests.length
+    await new Promise<void>((resolve) => setTimeout(resolve, 20))
+    expect(bus.requests.length).toBe(asked)
+    expect(bus.watchersFor('s1')).toBe(0)
+  })
+
+  it('relays the backlog and every live sample from the instance that holds the pod', async () => {
+    const bus = fakeBusOf()
+    const { ops, state } = operationsOf({ held: true, backlog: [sample(1_000)] })
+    const relay = new PodMetricsRelay({ ops, bus })
+    relay.onModuleInit()
+    const stopping = new AbortController()
+    const run = collect(watch(serviceOf({ sessions: sessionsOf(), bus }), stopping.signal))
     await until(() => run.frames.length === 1)
-    abort.abort()
+    expect(run.frames).toEqual([{ type: 'samples', samples: [sample(1_000)] }])
+    state.listener?.(frameOf(sample(2_000)))
+    await until(() => run.frames.length === 2)
+    state.listener?.(frameOf(sample(2_000)))
+    state.listener?.(frameOf(sample(1_500)))
+    await new Promise<void>((resolve) => setTimeout(resolve, 10))
+    expect(run.frames).toEqual([
+      { type: 'samples', samples: [sample(1_000)] },
+      { type: 'sample', sample: sample(2_000) },
+    ])
+    stopping.abort()
     await run.done
-    expect(run.frames).toEqual([{ type: 'sample', sample: sample(2_000) }])
+    await relay.onModuleDestroy()
   })
 
-  it('ends without asking for the pod again when the client leaves while the pod is unheld', async () => {
-    const sessions = sessionsOf()
-    const { ops, events } = operationsOf({ held: false })
-    const abort = new AbortController()
-    const run = collect(watch(serviceOf({ sessions, ops, unheldRecheckMs: 60_000 }), abort.signal))
-    await until(() => events.mock.calls.length === 1)
-    abort.abort()
-    await run.done
-    expect(events).toHaveBeenCalledTimes(1)
-    expect(run.frames).toEqual([])
+  it('appends a later watcher ring instead of replacing the series', async () => {
+    const bus = fakeBusOf()
+    const { ops, state } = operationsOf({ held: true, backlog: [sample(1_000)] })
+    const relay = new PodMetricsRelay({ ops, bus })
+    relay.onModuleInit()
+    const stopping = new AbortController()
+    const first = collect(watch(serviceOf({ sessions: sessionsOf(), bus }), stopping.signal))
+    await until(() => first.frames.length === 1)
+    state.listener?.(frameOf(sample(2_000)))
+    await until(() => first.frames.length === 2)
+    const second = collect(watch(serviceOf({ sessions: sessionsOf(), bus }), stopping.signal))
+    await until(() => second.frames.length === 1)
+    expect(second.frames).toEqual([{ type: 'samples', samples: [sample(1_000), sample(2_000)] }])
+    expect(first.frames).toEqual([
+      { type: 'samples', samples: [sample(1_000)] },
+      { type: 'sample', sample: sample(2_000) },
+    ])
+    await relay.onModuleDestroy()
+    stopping.abort()
+    await first.done
+    await second.done
   })
 
-  it('says usage is unavailable when the pod is asleep', async () => {
-    const sessions = sessionsOf()
+  it('says usage is unavailable and logs why when the pod cannot read metrics', async () => {
+    const bus = fakeBusOf()
+    const warn = spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined)
     const { ops } = operationsOf({ held: true, backlog: null })
-    const run = collect(watch(serviceOf({ sessions, ops })))
+    const relay = new PodMetricsRelay({ ops, bus })
+    relay.onModuleInit()
+    const run = collect(watch(serviceOf({ sessions: sessionsOf(), bus })))
     await run.done
     expect(run.frames).toEqual([{ type: 'unavailable', reason: 'pod metrics are not readable' }])
-  })
-
-  it('says why the stream ended and logs it when the pod cannot read metrics', async () => {
-    const sessions = sessionsOf()
-    const warn = spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined)
-    const calls: string[] = []
-    const { ops, state } = operationsOf({
-      held: true,
-      subscribeFailure: 'cgroup memory file is not readable',
-      onCall: (op) => calls.push(op),
-    })
-    const run = collect(watch(serviceOf({ sessions, ops })))
-    await run.done
-    expect(run.frames).toEqual([
-      { type: 'unavailable', reason: 'cgroup memory file is not readable' },
-    ])
-    expect(warn).toHaveBeenCalledTimes(1)
-    expect(warn.mock.calls[0]?.[0]).toEqual({
-      sessionId: 's1',
-      reason: 'cgroup memory file is not readable',
-    })
-    expect(calls).toEqual(['metrics.subscribe'])
-    expect(state.dispose).toHaveBeenCalled()
+    expect(warn).toHaveBeenCalledWith({ sessionId: 's1', reason: 'pod metrics are not readable' })
+    expect(bus.watchersFor('s1')).toBe(0)
+    await relay.onModuleDestroy()
     warn.mockRestore()
   })
 
-  it('yields the backlog first and then every live sample once', async () => {
-    const sessions = sessionsOf()
-    const { ops, state } = operationsOf({ held: true, backlog: [sample(1_000)] })
-    const run = collect(watch(serviceOf({ sessions, ops })))
-    await until(() => state.listener !== undefined)
-    state.listener?.(frameOf(sample(1_500)))
-    state.listener?.(frameOf(sample(1_000)))
-    state.close?.()
-    await run.done
-    expect(run.frames).toEqual([
-      { type: 'samples', samples: [sample(1_000)] },
-      { type: 'sample', sample: sample(1_500) },
-    ])
-  })
-
-  it('ignores events that are not metrics samples', async () => {
-    const sessions = sessionsOf()
-    const { ops, state } = operationsOf({ held: true, backlog: [] })
-    const run = collect(watch(serviceOf({ sessions, ops })))
-    await until(() => state.listener !== undefined)
-    state.listener?.({
-      kind: 'event',
-      event: { type: 'watch.changed', watchId: 'w', paths: ['p'] },
-    })
-    state.close?.()
-    await run.done
+  it('keeps streaming when no instance of the fleet holds the pod yet', async () => {
+    const bus = fakeBusOf()
+    const { ops } = operationsOf({ held: false })
+    const relay = new PodMetricsRelay({ ops, bus })
+    relay.onModuleInit()
+    const stopping = new AbortController()
+    const run = collect(
+      watch(serviceOf({ sessions: sessionsOf(), bus, renewEveryMs: 2 }), stopping.signal),
+    )
+    await until(() => bus.requests.length >= 3)
     expect(run.frames).toEqual([])
-  })
-
-  it('unsubscribes on the pod when the client goes away', async () => {
-    const sessions = sessionsOf()
-    const calls: string[] = []
-    const { ops, state } = operationsOf({ held: true, onCall: (op) => calls.push(op) })
-    const abort = new AbortController()
-    const run = collect(watch(serviceOf({ sessions, ops }), abort.signal))
-    await until(() => state.listener !== undefined)
-    abort.abort()
+    stopping.abort()
     await run.done
-    expect(calls).toEqual(['metrics.subscribe', 'metrics.unsubscribe'])
-    expect(state.dispose).toHaveBeenCalled()
-  })
-
-  it('unsubscribes when the client goes away before the subscribe answers', async () => {
-    const sessions = sessionsOf()
-    const calls: string[] = []
-    let answer: () => void = () => undefined
-    const inFlight = new Promise<void>((resolve) => {
-      answer = resolve
-    })
-    const { ops, state } = operationsOf({
-      held: true,
-      onCall: (op) => calls.push(op),
-      awaitSubscribe: inFlight,
-    })
-    const abort = new AbortController()
-    const run = collect(watch(serviceOf({ sessions, ops }), abort.signal))
-    await until(() => calls.includes('metrics.subscribe'))
-    abort.abort()
-    answer()
-    await run.done
-    expect(run.frames).toEqual([])
-    expect(calls).toEqual(['metrics.subscribe', 'metrics.unsubscribe'])
-    expect(state.dispose).toHaveBeenCalled()
-  })
-
-  it('does not unsubscribe when it never subscribed', async () => {
-    const sessions = sessionsOf()
-    const calls: string[] = []
-    const { ops } = operationsOf({ held: true, backlog: null, onCall: (op) => calls.push(op) })
-    await collect(watch(serviceOf({ sessions, ops }))).done
-    expect(calls).toEqual(['metrics.subscribe'])
+    await relay.onModuleDestroy()
   })
 })

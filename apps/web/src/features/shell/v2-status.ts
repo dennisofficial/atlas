@@ -1,5 +1,5 @@
 import { ESessionStatus } from '@dltech/atlas-core'
-import type { ESandboxProvider } from '@dltech/atlas-protocol'
+import { ESandboxStatus, type ESandboxProvider } from '@dltech/atlas-protocol'
 
 import type { PullRequestEntry } from '@/features/threads/data/pull-request-entries'
 
@@ -7,6 +7,7 @@ import { EThreadStatus } from './thread-status'
 
 export type V2RowView = {
   status: ESessionStatus | undefined
+  sandboxStatus: ESandboxStatus | undefined
   branch: string | undefined
   pullRequest: PullRequestEntry | undefined
   routineId: string | undefined
@@ -31,12 +32,30 @@ const ICON: Record<ESessionStatus, EThreadStatus> = {
   [ESessionStatus.Idle]: EThreadStatus.Idle,
 }
 
-export const v2StatusIconOf = (status: ESessionStatus | undefined): EThreadStatus | undefined =>
-  status === undefined ? undefined : ICON[status]
+const POD_ICON: Partial<Record<ESandboxStatus, EThreadStatus>> = {
+  [ESandboxStatus.Provisioning]: EThreadStatus.Starting,
+  [ESandboxStatus.Starting]: EThreadStatus.Starting,
+  [ESandboxStatus.Restarting]: EThreadStatus.Starting,
+  [ESandboxStatus.Updating]: EThreadStatus.Starting,
+  [ESandboxStatus.Waking]: EThreadStatus.Starting,
+  [ESandboxStatus.Sleeping]: EThreadStatus.Parked,
+  [ESandboxStatus.Stopping]: EThreadStatus.Parked,
+  [ESandboxStatus.Stopped]: EThreadStatus.Parked,
+  [ESandboxStatus.Deleting]: EThreadStatus.Parked,
+  [ESandboxStatus.Deleted]: EThreadStatus.Parked,
+  [ESandboxStatus.Failed]: EThreadStatus.Failed,
+}
+
+export const v2StatusIconOf = (view: V2RowView | undefined): EThreadStatus | undefined => {
+  if (view === undefined || view.status === undefined) return undefined
+  const icon = ICON[view.status]
+  if (icon !== EThreadStatus.Idle || view.sandboxStatus === undefined) return icon
+  return POD_ICON[view.sandboxStatus] ?? icon
+}
 
 export const v2IsUnread = (args: { view: V2RowView; active: boolean }): boolean => {
   if (args.active) return false
   if (args.view.lastAssistantSeq <= 0) return false
-  if (v2StatusIconOf(args.view.status) === EThreadStatus.Running) return false
+  if (v2StatusIconOf(args.view) === EThreadStatus.Running) return false
   return args.view.lastAssistantSeq > (args.view.readSeq ?? -1)
 }
