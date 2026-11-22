@@ -6,6 +6,7 @@ import {
   EWorkspaceRepoState,
   EWorkspaceStep,
   EWorkspaceStepState,
+  type ProcessPort,
   type WorkspaceStepReport,
 } from '@dltech/atlas-core'
 import type { SetupLifecycle } from '@dltech/atlas-host'
@@ -17,7 +18,7 @@ import { GatedClones, RecordingProcessPort, StubFileSystemPort } from './workspa
 const TOKEN = 'ghp_progress-secret'
 
 const prepare = async (args: {
-  processes: RecordingProcessPort
+  processes: ProcessPort
   remoteUrl: string | null
   additionalRepos?: { repo: string }[]
   setupScript?: string
