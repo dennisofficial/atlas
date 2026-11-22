@@ -1,5 +1,5 @@
 import { db, type Row } from '@dltech/atlas-db'
-import type { Logger } from '@nestjs/common'
+import type { GithubLogger } from './github-log'
 import { ETargetOutcome, ETrackingTransport } from '@dltech/atlas-core'
 import { ERepoTracking } from '@dltech/atlas-wire'
 import { normalizedRepo, repoPattern } from './github-linked-prs'
@@ -28,7 +28,7 @@ export type TargetAttempt = { outcome: ETargetOutcome; retryAtMs?: number | unde
 export type QueueDeps = {
   hooks: GithubHookLifecycleService
   transport: TransportSelector
-  logger: Logger
+  logger: GithubLogger
   refresh: (args: {
     userId: string
     repoFullName: string
@@ -50,7 +50,7 @@ const transportOf = async (
   return ETrackingTransport.UserWebhook
 }
 
-export const parkedAttemptOf = (failure: unknown, logger: Logger): TargetAttempt => {
+export const parkedAttemptOf = (failure: unknown, logger: GithubLogger): TargetAttempt => {
   if (failure instanceof GithubCredentialCooldown)
     return { outcome: ETargetOutcome.CredentialLimited, retryAtMs: failure.until }
   if (isGithubBudgetParked(failure) || failure instanceof GithubHttpBudgetUnavailable)

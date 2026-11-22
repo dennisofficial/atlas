@@ -1,7 +1,7 @@
-import type { Logger } from '@nestjs/common'
 import type { MergeabilitySample } from '@dltech/atlas-core'
 import type { BranchProtectionRead } from './github-branch-protection'
 import { EGithubCallSource } from './github-call-log'
+import type { GithubLogger } from './github-log'
 import { GithubHttpBudgetUnavailable } from './github-request-budget'
 import type { CommitCheckInput } from './github-commit-checks'
 import type { PullRequestCacheFields, RestPullRequest } from './github-pull-request-mapping'
@@ -43,7 +43,7 @@ export class GithubDeliveryFillDeferred extends Error {
 
 export async function tryRestPull(args: {
   reads: GithubUserReads
-  logger: Logger
+  logger: GithubLogger
   token: string
   owner: string
   repo: string
@@ -77,7 +77,7 @@ export async function tryRestPull(args: {
 
 function failureOutcomeOf(args: {
   failure: unknown
-  logger: Logger
+  logger: GithubLogger
   label: string
 }): { kind: 'skipped' } | { kind: 'deferred' } {
   if (
@@ -95,7 +95,7 @@ function failureOutcomeOf(args: {
 
 export async function tryRestFill(args: {
   reads: GithubUserReads
-  logger: Logger
+  logger: GithubLogger
   token: string
   owner: string
   repo: string

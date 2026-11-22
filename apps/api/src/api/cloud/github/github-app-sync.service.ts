@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 import { GithubAppClient } from './github-app-client'
 import {
   GithubAppInstallationsService,
@@ -6,6 +6,7 @@ import {
 } from './github-app-installations.service'
 import { GithubAppSyncGate } from './github-app-sync-gate'
 import { markReposTargetsDue } from './github-due-scheduler'
+import { githubLogOf } from './github-log'
 
 const PERIODIC_SYNC_KEY = 'periodic'
 const PERIODIC_SYNC_INTERVAL_MS = 15 * 60 * 1_000
@@ -13,7 +14,7 @@ const UNKNOWN_INSTALLATION_DEBOUNCE_MS = 5 * 60 * 1_000
 
 @Injectable()
 export class GithubAppSyncService {
-  private readonly logger = new Logger(GithubAppSyncService.name)
+  private readonly logger = githubLogOf(GithubAppSyncService.name)
 
   constructor(
     private readonly client: GithubAppClient,

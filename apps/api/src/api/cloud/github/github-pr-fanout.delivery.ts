@@ -1,4 +1,4 @@
-import type { Logger } from '@nestjs/common'
+import type { GithubLogger } from './github-log'
 import type { GithubPrEventDto, GithubPrStateDto } from './github-realtime.types'
 
 export type PrStateHandler = (state: GithubPrStateDto) => void
@@ -13,7 +13,7 @@ export type OpenStream = {
   onClosed: (() => void) | undefined
 }
 
-type Delivery = { logger: Logger; userId: string; handlers: ReadonlySet<OpenStream> }
+type Delivery = { logger: GithubLogger; userId: string; handlers: ReadonlySet<OpenStream> }
 
 export function deliverState(args: Delivery & { state: GithubPrStateDto }): void {
   for (const entry of args.handlers) {

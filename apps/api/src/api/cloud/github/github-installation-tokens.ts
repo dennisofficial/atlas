@@ -1,6 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 import { GithubAppClient } from './github-app-client'
 import { GithubAppInstallationsService } from './github-app-installations.service'
+import { githubLogOf } from './github-log'
 
 const REFRESH_MARGIN_MS = 5 * 60 * 1_000
 
@@ -8,7 +9,7 @@ type CachedToken = { token: string; expiresAt: number }
 
 @Injectable()
 export class GithubInstallationTokens {
-  private readonly logger = new Logger(GithubInstallationTokens.name)
+  private readonly logger = githubLogOf(GithubInstallationTokens.name)
   private readonly held = new Map<string, CachedToken>()
   private readonly minting = new Map<string, Promise<string | undefined>>()
 

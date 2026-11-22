@@ -1,4 +1,4 @@
-import type { Logger } from '@nestjs/common'
+import type { GithubLogger } from './github-log'
 import type { PrStateHandler } from './github-pr-fanout.delivery'
 import { prIdentity } from './github-pr-identity'
 import type { GithubPrStateDto } from './github-realtime.types'
@@ -42,7 +42,7 @@ export class PrKeyWatchers {
   deliver(args: {
     state: GithubPrStateDto
     skip: ReadonlySet<PrStateHandler>
-    logger: Logger
+    logger: GithubLogger
   }): void {
     const watchers = this.index.get(prIdentity(args.state))
     if (watchers === undefined) return
@@ -58,7 +58,7 @@ export class PrKeyWatchers {
     }
   }
 
-  closeAll(args: { logger: Logger }): void {
+  closeAll(args: { logger: GithubLogger }): void {
     const watchers = [...this.entries]
     this.entries.clear()
     this.index.clear()

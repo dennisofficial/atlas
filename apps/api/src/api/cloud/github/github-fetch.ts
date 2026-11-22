@@ -1,10 +1,10 @@
-import { Logger } from '@nestjs/common'
 import {
   EGithubCallLane,
   EGithubCallSource,
   githubCallLane,
   githubCredentialKind,
 } from './github-call-log'
+import { githubLogOf } from './github-log'
 import { EGithubHttpCategory, type GithubRequestIdentity } from './github-request-coordinator.types'
 import {
   takeGithubRequestSlot,
@@ -16,7 +16,7 @@ import {
 } from './github-request-budget'
 import { rateLimitOfResponse } from './github-rate-limit'
 
-const logger = new Logger('GithubCall')
+const logger = githubLogOf('GithubCall')
 
 function numberHeader(headers: Headers, name: string): number | null {
   const raw = headers.get(name)

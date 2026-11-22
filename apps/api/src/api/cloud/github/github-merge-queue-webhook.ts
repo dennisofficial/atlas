@@ -1,4 +1,3 @@
-import { Logger } from '@nestjs/common'
 import {
   EMergeQueueMove,
   EPrEventKind,
@@ -9,10 +8,11 @@ import { postInboxEntryIn } from '@dltech/atlas-control/postgres'
 import { db } from '@dltech/atlas-db'
 
 import { branchRoutingOf, subscriberWhereOf } from './github-delivery-routing'
+import { githubLogOf } from './github-log'
 import { repoPattern } from './github-pr-identity'
 import type { GithubMergeQueueEntryWebhookPayload } from './github-webhook.types'
 
-const logger = new Logger('GithubMergeQueueWebhook')
+const logger = githubLogOf('GithubMergeQueueWebhook')
 
 const QUEUED_PR_IN_HEAD_REF = /\/pr-(\d+)-/
 

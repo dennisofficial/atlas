@@ -1,12 +1,12 @@
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { db } from '@dltech/atlas-db'
-import { Logger } from '@nestjs/common'
-import { afterEach, describe, expect, it, setSystemTime, spyOn } from 'bun:test'
+import { afterEach, describe, expect, it, setSystemTime } from 'bun:test'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { GithubAppClient } from './github-app-client'
 import { GithubAppInstallationsService } from './github-app-installations.service'
 import { FAKE_TOKEN_LIFETIME_MS, fakeGithubApp, syncServiceWith } from './github-app-sync.fixture'
 import { GithubInstallationTokens } from './github-installation-tokens'
+import { resetGithubLogSink, setGithubLogSink } from './github-log'
 
 const REFRESH_MARGIN_MS = 5 * 60 * 1_000
 
@@ -143,7 +143,12 @@ describe('GithubInstallationTokens', () => {
       attempts += 1
       return Response.json({ message: 'server error' }, { status: 500 })
     }) as unknown as typeof fetch
-    const warn = spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined)
+    const warnings: string[] = []
+    setGithubLogSink(() => ({
+      log: () => undefined,
+      warn: (message) => warnings.push(message),
+      error: () => undefined,
+    }))
     try {
       const tokens = tokensOver()
 
@@ -151,12 +156,12 @@ describe('GithubInstallationTokens', () => {
       expect(await tokens.tokenForRepo({ repoFullName: 'compai/app' })).toBeUndefined()
 
       expect(attempts).toBe(2)
-      expect(warn).toHaveBeenCalledTimes(2)
-      expect(String(warn.mock.calls[0]?.[0])).toContain('installation 11')
-      expect(String(warn.mock.calls[0]?.[0])).not.toContain('Bearer')
+      expect(warnings).toHaveLength(2)
+      expect(warnings[0]).toContain('installation 11')
+      expect(warnings[0]).not.toContain('Bearer')
     } finally {
       globalThis.fetch = earlier
-      warn.mockRestore()
+      resetGithubLogSink()
     }
   })
 })

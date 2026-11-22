@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 import { GithubDeliveryChecks } from './github-delivery-checks'
 import {
   GithubDeliveryFillDeferred,
@@ -10,6 +10,7 @@ import {
 import { EGithubCallSource } from './github-call-log'
 import { EMergeQueueMove, EPrSource } from '@dltech/atlas-core'
 import { mergeQueueMoveOfPullAction, notifyMergeQueueMove } from './github-merge-queue-webhook'
+import { githubLogOf } from './github-log'
 import { normalizedRepo } from './github-pr-identity'
 import { inWatchScope } from './github-watch-scope'
 import { GithubRequestCoordinator } from './github-request-coordinator'
@@ -62,7 +63,7 @@ const HANDLED_EVENTS = new Set([
 
 @Injectable()
 export class GithubDeliveryService {
-  private readonly logger = new Logger(GithubDeliveryService.name)
+  private readonly logger = githubLogOf(GithubDeliveryService.name)
   private readonly checks: GithubDeliveryChecks
   private readonly fillTokens: GithubFillTokens
 

@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto'
 import { EGithubCallSource } from './github-call-log'
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { db, or } from '@dltech/atlas-db'
@@ -8,6 +8,7 @@ import { HOOK_EVENTS as GITHUB_HOOK_EVENTS } from './github-hook-events'
 import { ERepoHookStatus } from './github-realtime.types'
 import { GithubAppInstallationsService } from './github-app-installations.service'
 import { GithubHookTeardown } from './github-hook-teardown'
+import { githubLogOf } from './github-log'
 import { GithubUserReads } from './github-user-reads'
 import { GithubService } from './github.service'
 import { isUniqueViolation } from './unique-violation'
@@ -27,7 +28,7 @@ export type EnsureHookResult = 'created' | 'existing' | 'app-backed' | 'poll-bac
 
 @Injectable()
 export class GithubHookLifecycleService {
-  private readonly logger = new Logger(GithubHookLifecycleService.name)
+  private readonly logger = githubLogOf(GithubHookLifecycleService.name)
   private readonly verifiedAliveAt = new Map<string, number>()
   private readonly teardown: GithubHookTeardown
 

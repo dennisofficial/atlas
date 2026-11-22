@@ -5,9 +5,10 @@ import {
   GITHUB_HTTP_LOW_WATER_RATIO,
   type GithubRequestIdentity,
 } from './github-request-coordinator.types'
+import { githubLogOf } from './github-log'
 export const credentialFingerprint = (token: string): string =>
   createHash('sha256').update(token).digest('hex')
-import { HttpException, HttpStatus, Logger } from '@nestjs/common'
+import { HttpException, HttpStatus } from '@nestjs/common'
 
 export type GithubHttpBudget = {
   takeHttpSlot(identity?: GithubRequestIdentity): Promise<boolean>
@@ -22,7 +23,7 @@ export type GithubHttpBudget = {
 }
 const scope = new AsyncLocalStorage<GithubHttpBudget>()
 const callCategory = new AsyncLocalStorage<EGithubHttpCategory>()
-const logger = new Logger('GithubBudget')
+const logger = githubLogOf('GithubBudget')
 
 export enum EGithubBudgetRefusal {
   Window = 'window',

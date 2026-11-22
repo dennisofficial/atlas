@@ -1,7 +1,8 @@
-import { Logger, type Provider } from '@nestjs/common'
+import { type Provider } from '@nestjs/common'
 import type { Redis } from 'ioredis'
 import { RedisService } from '../../../_lib/redis/redis.service'
 import { PR_FRAME_CHANNEL, type PrFrame } from './github-pr-fanout.frame'
+import { githubLogOf } from './github-log'
 
 export abstract class PrFrameBus {
   abstract readonly distributed: boolean
@@ -22,7 +23,7 @@ export class LocalPrFrameBus extends PrFrameBus {
 
 export class RedisPrFrameBus extends PrFrameBus {
   readonly distributed = true
-  private readonly logger = new Logger(RedisPrFrameBus.name)
+  private readonly logger = githubLogOf(RedisPrFrameBus.name)
   private subscriber: Redis | undefined
 
   constructor(private readonly redis: RedisService) {

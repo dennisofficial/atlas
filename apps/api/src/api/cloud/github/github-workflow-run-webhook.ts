@@ -1,6 +1,6 @@
-import { Logger } from '@nestjs/common'
 import { db, type Row } from '@dltech/atlas-db'
 
+import { githubLogOf } from './github-log'
 import { repoPattern } from './github-pr-identity'
 import { WORKFLOW_RUN_KIND, runSelectorOf, type RunSelector } from './github-run-selector'
 import type { WorkflowRunSnapshot } from './github-run-snapshot'
@@ -11,7 +11,7 @@ import type {
   GithubWorkflowRunWebhookRun,
 } from './github-webhook.types'
 
-const logger = new Logger('GithubWorkflowRunWebhook')
+const logger = githubLogOf('GithubWorkflowRunWebhook')
 
 const basenameOf = (path: string): string => path.slice(path.lastIndexOf('/') + 1)
 

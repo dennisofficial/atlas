@@ -1,7 +1,7 @@
-import { afterAll, afterEach, describe, expect, it, mock, spyOn } from 'bun:test'
-import { Logger } from '@nestjs/common'
+import { afterAll, afterEach, describe, expect, it, mock } from 'bun:test'
 import { EGithubCallSource } from './github-call-log'
 import { githubFetch } from './github-fetch'
+import { resetGithubLogSink, setGithubLogSink } from './github-log'
 import {
   credentialFingerprint,
   withGithubRequestBudget,
@@ -86,15 +86,18 @@ const recordingBudget = (): {
 
 function captureLines(): string[] {
   const lines: string[] = []
-  spyOn(Logger.prototype, 'log').mockImplementation((message: unknown) => {
-    lines.push(String(message))
-  })
+  setGithubLogSink(() => ({
+    log: (message) => lines.push(message),
+    warn: () => undefined,
+    error: () => undefined,
+  }))
   return lines
 }
 
 describe('githubFetch', () => {
   afterEach(() => {
     mock.restore()
+    resetGithubLogSink()
   })
 
   afterAll(() => {

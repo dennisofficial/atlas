@@ -38,6 +38,10 @@ import { ScopedSandboxCredentialsService } from '../../api/cloud/sandbox-credent
 import { buildScopedConfig } from '../../api/cloud/scoped-config/scoped-config.factory'
 import { DrainStateService } from '../../api/platform/health/drain-state.service'
 import { buildWorkerThreadSignals } from '../thread-signals-graph'
+import { Logger } from '@nestjs/common'
+import { setGithubLogSink } from '../../api/cloud/github/github-log'
+
+setGithubLogSink((context) => new Logger(context))
 
 export type GithubSweepGraph = {
   pollSweeper: GithubPollSweeperService

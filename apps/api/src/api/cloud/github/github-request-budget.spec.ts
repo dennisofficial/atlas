@@ -1,6 +1,6 @@
-import { afterEach, describe, expect, it, mock, setSystemTime, spyOn } from 'bun:test'
-import { Logger } from '@nestjs/common'
+import { afterEach, describe, expect, it, mock, setSystemTime } from 'bun:test'
 import { EGithubCallSource } from './github-call-log'
+import { resetGithubLogSink, setGithubLogSink } from './github-log'
 import { EGithubHttpCategory, type GithubRequestIdentity } from './github-request-coordinator.types'
 import {
   EGithubBudgetRefusal,
@@ -37,9 +37,11 @@ const refusalOf = async (args: GithubHttpBudget): Promise<unknown> =>
 
 function captureWarnings(): string[] {
   const lines: string[] = []
-  spyOn(Logger.prototype, 'warn').mockImplementation((message: unknown) => {
-    lines.push(String(message))
-  })
+  setGithubLogSink(() => ({
+    log: () => undefined,
+    warn: (message) => lines.push(message),
+    error: () => undefined,
+  }))
   return lines
 }
 
@@ -47,6 +49,7 @@ describe('takeGithubRequestSlot', () => {
   afterEach(() => {
     mock.restore()
     setSystemTime()
+    resetGithubLogSink()
   })
 
   it('spends no slot and reports nothing when no budget is installed', async () => {
@@ -131,6 +134,7 @@ describe('recordGithubRateHeadroom', () => {
   afterEach(() => {
     mock.restore()
     setSystemTime()
+    resetGithubLogSink()
   })
 
   const refused = async (args: GithubHttpBudget, call = identity): Promise<unknown> =>
@@ -207,6 +211,7 @@ describe('blockGithubRequests', () => {
   afterEach(() => {
     mock.restore()
     setSystemTime()
+    resetGithubLogSink()
   })
 
   it('records which call tripped the limit and forwards the cooldown', async () => {

@@ -1,4 +1,4 @@
-import { Injectable, Logger, type OnModuleDestroy } from '@nestjs/common'
+import { Injectable, type OnModuleDestroy } from '@nestjs/common'
 import { DrainStateService } from '../../platform/health/drain-state.service'
 import {
   deliverEvent,
@@ -10,6 +10,7 @@ import {
   type WakeHandler,
 } from './github-pr-fanout.delivery'
 import { EPrFrameKind, type PrFrame, parsePrFrame } from './github-pr-fanout.frame'
+import { githubLogOf } from './github-log'
 import { LocalPrFrameBus, PrFrameBus } from './github-pr-fanout.transport'
 import { PrKeyWatchers, type PrKeyWatch } from './github-pr-fanout.watchers'
 import type { GithubPrEventDto, GithubPrStateDto } from './github-realtime.types'
@@ -35,7 +36,7 @@ type PendingPush = { state: GithubPrStateDto; userIds: readonly string[]; dirty:
  */
 @Injectable()
 export class GithubPrFanoutService implements OnModuleDestroy {
-  private readonly logger = new Logger(GithubPrFanoutService.name)
+  private readonly logger = githubLogOf(GithubPrFanoutService.name)
   private readonly streams = new Map<string, Set<OpenStream>>()
   private readonly pending = new Map<string, PendingPush>()
   private readonly lastSent = new Map<string, number>()

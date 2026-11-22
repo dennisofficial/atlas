@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 import { and, db, or, type Row } from '@dltech/atlas-db'
 import { endSubscriptionsIn } from '@dltech/atlas-control'
 import { controlTxOf } from '@dltech/atlas-control/postgres'
@@ -18,6 +18,7 @@ import type { RestPullRequest } from './github-pull-request-mapping'
 import { EGithubCallSource } from './github-call-log'
 import { type GithubThreadActivity, liveUntilOf } from './github-delivery-routing'
 import { GithubHookLifecycleService } from './github-hook-lifecycle.service'
+import { githubLogOf } from './github-log'
 import { normalizedRepo } from './github-pr-identity'
 import { GithubRequestCoordinator } from './github-request-coordinator'
 import { readRepoTracking } from './github-repo-coverage'
@@ -35,7 +36,7 @@ import { GithubService } from './github.service'
 
 @Injectable()
 export class GithubPollSweeperService {
-  private readonly logger = new Logger(GithubPollSweeperService.name)
+  private readonly logger = githubLogOf(GithubPollSweeperService.name)
   constructor(
     private readonly github: GithubService,
     private readonly reads: GithubUserReads,

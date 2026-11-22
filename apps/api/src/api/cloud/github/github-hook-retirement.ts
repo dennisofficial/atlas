@@ -1,13 +1,13 @@
-import { Logger } from '@nestjs/common'
 import { db, or } from '@dltech/atlas-db'
 import type { GithubAppInstallationsService } from './github-app-installations.service'
 import type { GithubHookTeardown } from './github-hook-teardown'
+import { githubLogOf } from './github-log'
 import { ERepoHookStatus } from './github-realtime.types'
 
 const SWEEP_LEASE_MS = 5 * 60 * 1_000
 
 export class GithubHookRetirement {
-  private readonly logger = new Logger(GithubHookRetirement.name)
+  private readonly logger = githubLogOf(GithubHookRetirement.name)
 
   constructor(
     private readonly installations: GithubAppInstallationsService,

@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto'
-import { Logger } from '@nestjs/common'
 import { db, type Row, type Tx } from '@dltech/atlas-db'
 
 import type { GithubPrFanoutService } from './github-pr-fanout.service'
+import { githubLogOf } from './github-log'
 import {
   claimPrOutboxRows,
   completePrOutboxRows,
@@ -108,7 +108,7 @@ export class GithubPrOutboxDispatcher {
       now?: () => Date
     },
   ) {
-    this.logger = deps.logger ?? new Logger(GithubPrOutboxDispatcher.name)
+    this.logger = deps.logger ?? githubLogOf(GithubPrOutboxDispatcher.name)
     this.now = deps.now ?? (() => new Date())
   }
 
