@@ -19,8 +19,8 @@ export const COMMAND_OUTCOME_EVENT_TYPES: ReadonlySet<string> = new Set(
   Object.values(COMMAND_OUTCOMES).flat(),
 )
 
-const producesOutcome = (name: string | undefined): boolean =>
-  name !== undefined && COMMAND_OUTCOMES[name] !== undefined
+export const producesOutcome = (name: string | undefined): boolean =>
+  name === undefined || COMMAND_OUTCOMES[name] !== undefined
 
 export type CommandOutcomeEvent = {
   type: string

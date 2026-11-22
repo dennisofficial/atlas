@@ -63,8 +63,8 @@ describe('unfinishedCommandIdsOf', () => {
     expect(unfinishedCommandIdsOf(events)).toEqual([])
   })
 
-  it('does not count a consumed command whose posted event fell outside the window', () => {
-    expect(unfinishedCommandIdsOf(logOf([consumed(1)]))).toEqual([])
+  it('counts a consumed command whose posted event is not in the log, so recovery reads its kind', () => {
+    expect(unfinishedCommandIdsOf(logOf([consumed(1)]))).toEqual([1])
   })
 
   it('drops a consumed command once its outcome names it', () => {
