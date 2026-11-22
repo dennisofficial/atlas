@@ -8,8 +8,7 @@ import {
   TableRow,
 } from '@dltech/atlas-ui/components/table'
 
-import { SettingsCard } from '../settings-layout'
-import { ERowControl, Line, SettingsRowSkeleton } from './primitives'
+import { Line } from './primitives'
 
 const ROW_KEYS = ['a', 'b', 'c']
 
@@ -134,31 +133,5 @@ export function SandboxTableSkeleton({ rows = 2 }: { rows?: number }) {
         ))}
       </TableBody>
     </Table>
-  )
-}
-
-export function VercelCardSkeleton() {
-  return (
-    <SettingsCard
-      footer={
-        <>
-          <Skeleton className="mr-auto h-7 w-16 rounded-lg" />
-          <Skeleton className="h-7 w-14 rounded-lg" />
-        </>
-      }
-    >
-      <SettingsRowSkeleton media custom={<Skeleton className="h-4 w-24" />} lines={2} />
-      <SettingsRowSkeleton control={ERowControl.Input} lines={1} />
-      <SettingsRowSkeleton control={ERowControl.Input} lines={1} />
-      <SettingsRowSkeleton
-        lines={2}
-        custom={
-          <>
-            <Skeleton className="h-8 w-72 max-w-full rounded-lg" />
-            <Skeleton className="h-7 w-28 rounded-lg" />
-          </>
-        }
-      />
-    </SettingsCard>
   )
 }

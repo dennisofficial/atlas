@@ -1,15 +1,14 @@
 import { describe, expect, it } from 'bun:test'
 import { renderToStaticMarkup } from 'react-dom/server'
 
-import { hrefOfPage, ESettingsPage } from '@/features/settings/settings-nav'
-
+import { PLATFORM_NOT_CONFIGURED } from '../data/not-configured'
 import { NotConfiguredAlert } from '../not-configured-alert'
 
 describe('NotConfiguredAlert', () => {
-  it('links to the Usage & Sandboxes page where the Vercel credential lives', () => {
-    const html = renderToStaticMarkup(<NotConfiguredAlert error="Add a Vercel token." />)
-    expect(html).toContain(`href="${hrefOfPage(ESettingsPage.UsageSandboxes)}"`)
-    expect(html).toContain('Open your settings')
-    expect(html).toContain('Add a Vercel token.')
+  it('says the deployment is not configured and sends nobody to a credential setting', () => {
+    const html = renderToStaticMarkup(<NotConfiguredAlert error={PLATFORM_NOT_CONFIGURED} />)
+    expect(html).toContain(PLATFORM_NOT_CONFIGURED)
+    expect(html).not.toContain('href=')
+    expect(html).not.toContain('Vercel')
   })
 })

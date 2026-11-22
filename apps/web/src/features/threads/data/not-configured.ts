@@ -7,7 +7,8 @@ import {
   type RecordedBootStep,
 } from '@dltech/atlas-wire/web'
 
-export const NOT_CONFIGURED_FALLBACK = 'Atlas Cloud could not start a sandbox for this thread.'
+export const PLATFORM_NOT_CONFIGURED =
+  'This Atlas deployment is not configured to start cloud sandboxes.'
 
 export type NotConfigured = { error: string; gap: EVercelCredentialGap }
 
@@ -27,5 +28,5 @@ export function notConfiguredOf(pod: PodStatus | null): NotConfigured | null {
   const latest = latestProvisionOf(pod.steps)
   if (latest === undefined || latest.state !== EBootStepState.Error) return null
   if (latest.gap === undefined) return null
-  return { error: latest.error ?? NOT_CONFIGURED_FALLBACK, gap: latest.gap }
+  return { error: PLATFORM_NOT_CONFIGURED, gap: latest.gap }
 }

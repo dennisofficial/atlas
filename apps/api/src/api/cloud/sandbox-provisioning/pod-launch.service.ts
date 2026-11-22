@@ -1,4 +1,11 @@
-import { HttpStatus, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common'
+import {
+  HttpStatus,
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common'
 
 import { UserFacingException } from '../../../_core/http/user-facing-exception'
 import {
@@ -15,8 +22,7 @@ import { recordBootSteps } from '../../platform/sandboxes/sandbox-boot-steps'
 import { wakeClaimActive } from '../../platform/sandboxes/sandbox-lifecycle'
 import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import { failureText } from '../github/github-sandbox-wake-boot'
-import { VercelNotConfiguredError } from '../scoped-config/scoped-config.errors'
-import { ScopedConfigService, type ThreadOwner } from '../scoped-config/scoped-config.service'
+import { ScopedConfigService } from '../scoped-config/scoped-config.service'
 import {
   podProvisionIdempotencyKey,
   podProvisionTaskContract,
@@ -35,10 +41,9 @@ export const dispatchFailedReply: SandboxProvisionReply = {
 
 export type PodLaunchOutcome = { reply: SandboxProvisionReply; dispatchFailed: boolean }
 
-export const notConfiguredReplyOf = (failure: VercelNotConfiguredError): SandboxProvisionReply => ({
+export const notConfiguredReplyOf = (message: string): SandboxProvisionReply => ({
   state: ESandboxProvisionState.NotConfigured,
-  error: failure.message,
-  gap: failure.gap,
+  error: message,
 })
 
 @Injectable()
@@ -52,32 +57,25 @@ export class PodLaunchService {
     private readonly signals: ThreadSignalsService,
   ) {}
 
-  async credentialsOf(owner: ThreadOwner): Promise<VercelNotConfiguredError | null> {
+  async notConfiguredOf(): Promise<string | null> {
     try {
-      await this.scoped.vercelCredentials({ thread: owner })
+      await this.scoped.vercelCredentials()
       return null
     } catch (failure) {
-      if (failure instanceof VercelNotConfiguredError) return failure
+      if (failure instanceof ServiceUnavailableException) return failure.message
       throw failure
     }
   }
 
-  reportGap(args: {
+  reportNotConfigured(args: {
     writer?: RowWriter | undefined
     threadId: string
-    failure: VercelNotConfiguredError
+    message: string
   }): Promise<void> {
     return recordBootSteps({
       writer: args.writer,
       threadId: args.threadId,
-      steps: [
-        {
-          step: EBootStep.Provision,
-          state: EBootStepState.Error,
-          error: args.failure.message,
-          gap: args.failure.gap,
-        },
-      ],
+      steps: [{ step: EBootStep.Provision, state: EBootStepState.Error, error: args.message }],
     })
   }
 
@@ -161,11 +159,11 @@ export class PodLaunchService {
     if (session.executionLocation === null) {
       await db.orm.public.Session.where({ id: session.id }).update({ executionLocation: 'cloud' })
     }
-    const gap = await this.credentialsOf({ userId: thread.userId })
-    if (gap !== null) {
-      await this.reportGap({ threadId: thread.id, failure: gap })
+    const notConfigured = await this.notConfiguredOf()
+    if (notConfigured !== null) {
+      await this.reportNotConfigured({ threadId: thread.id, message: notConfigured })
       await this.signals.podChanged({ threadId: thread.id })
-      return { reply: notConfiguredReplyOf(gap), dispatchFailed: false }
+      return { reply: notConfiguredReplyOf(notConfigured), dispatchFailed: false }
     }
     const booting = { state: ESandboxProvisionState.Booting }
     const claim = await this.claim({ thread, existing, pendingVcpus })

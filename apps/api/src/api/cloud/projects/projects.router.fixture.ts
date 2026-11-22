@@ -18,8 +18,6 @@ import { ProjectSettingsService } from './project-settings.service'
 import { ProjectWorkspaceRouter } from './project-workspace.router'
 import { ProjectsRouter } from './projects.router'
 import { ProjectsService } from './projects.service'
-import { VercelPlanService } from '../user-vercel/vercel-credential-plan'
-import { unknownPlanService } from '../user-vercel/vercel-testkit'
 
 export const PROJECT_BODY = {
   name: 'atlas',
@@ -35,7 +33,6 @@ export const projectProviders = (
   ProjectsService,
   { provide: ThreadSignalsService, useValue: inertSignals() },
   ProjectResourcesService,
-  { provide: VercelPlanService, useValue: unknownPlanService() },
   ProjectFileMountsService,
   GithubRepoReads,
   { provide: GithubRequestCoordinator, useValue: coordinator },

@@ -1,0 +1,71 @@
+[
+  {
+    "id": "dropTable.UserVercelCredential",
+    "label": "Drop table \"UserVercelCredential\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "UserVercelCredential"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"UserVercelCredential\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"UserVercelCredential\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop table \"UserVercelCredential\"",
+        "sql": "DROP TABLE \"public\".\"UserVercelCredential\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"UserVercelCredential\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"UserVercelCredential\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "setDefault.V2Session.credentialSource",
+    "label": "Set default on \"V2Session\".\"credentialSource\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "column",
+        "name": "credentialSource",
+        "table": "V2Session"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"credentialSource\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "v2",
+          "V2Session",
+          "credentialSource"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "set default on \"credentialSource\"",
+        "sql": "ALTER TABLE \"v2\".\"V2Session\" ALTER COLUMN \"credentialSource\" SET DEFAULT 'platform'"
+      }
+    ],
+    "postcheck": []
+  }
+]

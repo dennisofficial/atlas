@@ -1,10 +1,8 @@
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import { describe, expect, it, vi } from 'bun:test'
+import { describe, expect, it } from 'bun:test'
 import { seedThreadRow, USER_A } from '../../../../test/session-seed'
-import type { EnvService } from '../../../_core/config/env/env.service'
 import { prepareSandboxes, THREAD } from '../../platform/sandboxes/sandboxes.fixture'
-import type { ScopedConfigService } from '../scoped-config/scoped-config.service'
 import {
   fakeScoped,
   launchWith,
@@ -12,22 +10,12 @@ import {
 } from '../sandbox-provisioning/sandbox-provisioning.fixture'
 import { ScopedSandboxCredentialsService } from './scoped-sandbox-credentials.service'
 
-const LEGACY_ENV = {
-  VERCEL_TOKEN: 'env-token',
-  VERCEL_TEAM_ID: 'env-team',
-  VERCEL_PROJECT_ID: 'env-prj',
-}
-
-const envWith = (values: Record<string, string>): EnvService =>
-  ({ get: (key: string) => values[key] }) as unknown as EnvService
-
-const serviceWith = (scoped: ScopedConfigService) =>
-  new ScopedSandboxCredentialsService(scoped, envWith(LEGACY_ENV))
+const serviceWith = () => new ScopedSandboxCredentialsService(fakeScoped())
 
 describe('ScopedSandboxCredentialsService provenance', () => {
   useTestDatabase()
 
-  it('keeps a TUI-registered no-project thread on the env credential with ownerCredential false', async () => {
+  it('gives a TUI-registered no-project thread the platform account', async () => {
     const { service } = await prepareSandboxes()
     await service.claim({
       userId: USER_A,
@@ -38,21 +26,19 @@ describe('ScopedSandboxCredentialsService provenance', () => {
     expect((await db.orm.public.Session.first({ id: `ses_${THREAD}` }))?.executionLocation).toBe(
       'cloud',
     )
-    const scoped = fakeScoped()
 
-    const credentials = await serviceWith(scoped).forThread({ threadId: THREAD })
+    const credentials = await serviceWith().forThread({ threadId: THREAD })
 
-    expect(credentials).toEqual({
-      token: 'env-token',
-      teamId: 'env-team',
-      projectId: 'env-prj',
-      ownerCredential: false,
-      userId: undefined,
+    expect(credentials).toMatchObject({
+      token: 'ws-token',
+      teamId: 'team-ws',
+      projectId: 'vcl-proj',
+      ownerCredential: true,
+      userId: USER_A,
     })
-    expect(scoped.vercelCredentials).not.toHaveBeenCalled()
   })
 
-  it('sends a launched no-project thread through the owner resolver', async () => {
+  it('gives a launched no-project thread the same platform account', async () => {
     await seedBase()
     const { service } = launchWith()
     const reply = await service.launch({
@@ -60,15 +46,13 @@ describe('ScopedSandboxCredentialsService provenance', () => {
       draft: {},
       firstMessage: { sendId: 'snd-1', text: 'hi' },
     })
-    const scoped = fakeScoped()
 
-    const credentials = await serviceWith(scoped).forThread({ threadId: reply.thread.id ?? '' })
+    const credentials = await serviceWith().forThread({ threadId: reply.thread.id ?? '' })
 
     expect(credentials).toMatchObject({ token: 'ws-token', ownerCredential: true })
-    expect(scoped.vercelCredentials).toHaveBeenCalledWith({ thread: { userId: 'usr-1' } })
   })
 
-  it('treats a thread whose launch hit a credential gap as API-provisioned', async () => {
+  it('gives a thread with a failed launch the platform account too', async () => {
     await seedBase()
     await seedThreadRow({ id: 'thr-gap', userId: 'usr-1' })
     await db.orm.public.SandboxBootStep.create({
@@ -77,11 +61,9 @@ describe('ScopedSandboxCredentialsService provenance', () => {
       state: 'error',
       error: 'no credential',
     })
-    const vercelCredentials = vi.fn(async () => ({ token: 't', teamId: 'tm', projectId: 'p' }))
-    const scoped = { vercelCredentials } as unknown as ScopedConfigService
 
-    const credentials = await serviceWith(scoped).forThread({ threadId: 'thr-gap' })
+    const credentials = await serviceWith().forThread({ threadId: 'thr-gap' })
 
-    expect(credentials.ownerCredential).toBe(true)
+    expect(credentials).toMatchObject({ token: 'ws-token', ownerCredential: true })
   })
 })

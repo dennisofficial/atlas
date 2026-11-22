@@ -1,19 +1,22 @@
-import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import { EVercelCredentialGap } from '@dltech/atlas-wire/web'
-import { NotFoundException } from '@nestjs/common'
+import { NotFoundException, ServiceUnavailableException } from '@nestjs/common'
 import { beforeEach, describe, expect, it } from 'bun:test'
 import { testCipher } from '../session-trpc-test-app'
-import { unknownTokenRefresher } from '../user-vercel/vercel-testkit'
 import { seedProject, seedSessionUsers } from '../../../test/web-settings.fake-db'
-import { VercelNotConfiguredError } from './scoped-config.errors'
-import { PROJECT, seedAllScopes, setting } from './scoped-config.fixture'
-import { ScopedConfigService } from './scoped-config.service'
+import {
+  envWith,
+  platformEnv,
+  PLATFORM_VERCEL_ENV,
+  PROJECT,
+  seedAllScopes,
+  setting,
+} from './scoped-config.fixture'
+import { NOT_CONFIGURED_MESSAGE, ScopedConfigService } from './scoped-config.service'
 
 describe('ScopedConfigService', () => {
   useTestDatabase()
   const cipher = testCipher()
-  const scoped = new ScopedConfigService(cipher, unknownTokenRefresher())
+  const scoped = new ScopedConfigService(cipher, platformEnv())
 
   beforeEach(async () => {
     await seedSessionUsers()
@@ -21,25 +24,27 @@ describe('ScopedConfigService', () => {
   })
 
   describe('vercelCredentials', () => {
-    it("hands the thread owner's own credential, team and project id", async () => {
-      expect(await scoped.vercelCredentials({ thread: { userId: 'user-a' } })).toEqual({
-        token: 'vtok_personal',
-        teamId: 'team_personal',
-        projectId: 'prj_personal',
+    it('hands the platform account that provisions every sandbox', async () => {
+      expect(await scoped.vercelCredentials()).toEqual({
+        token: 'plat-token',
+        teamId: 'plat-team',
+        projectId: 'plat-prj',
       })
     })
 
-    it('names UserCredential when the owner has none', async () => {
-      const failure = scoped.vercelCredentials({ thread: { userId: 'user-b' } })
-      await expect(failure).rejects.toBeInstanceOf(VercelNotConfiguredError)
-      await expect(failure).rejects.toMatchObject({ gap: EVercelCredentialGap.UserCredential })
+    it('answers 503 when the deployment carries no platform account', async () => {
+      const unconfigured = new ScopedConfigService(cipher, envWith({}))
+      const read = unconfigured.vercelCredentials()
+      await expect(read).rejects.toBeInstanceOf(ServiceUnavailableException)
+      await expect(read).rejects.toThrow(NOT_CONFIGURED_MESSAGE)
     })
 
-    it('names UserCredential after the owner removes theirs', async () => {
-      await db.orm.public.UserVercelCredential.where({ userId: 'user-a' }).deleteAndCount()
-      await expect(
-        scoped.vercelCredentials({ thread: { userId: 'user-a' } }),
-      ).rejects.toMatchObject({ gap: EVercelCredentialGap.UserCredential })
+    it('answers 503 when the platform account is only half configured', async () => {
+      const unconfigured = new ScopedConfigService(
+        cipher,
+        envWith({ PLATFORM_VERCEL_TOKEN: PLATFORM_VERCEL_ENV.PLATFORM_VERCEL_TOKEN }),
+      )
+      await expect(unconfigured.vercelCredentials()).rejects.toThrow(NOT_CONFIGURED_MESSAGE)
     })
   })
 

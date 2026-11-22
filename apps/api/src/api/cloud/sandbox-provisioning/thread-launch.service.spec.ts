@@ -1,10 +1,10 @@
 import { ESandboxProvisionState } from '@dltech/atlas-wire'
-import { EVercelCredentialGap } from '@dltech/atlas-wire/web'
 import { attachmentsOf } from '@dltech/atlas-core'
+import { ServiceUnavailableException } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import { seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
 import { describe, expect, it, spyOn, vi } from 'bun:test'
-import { VercelNotConfiguredError } from '../scoped-config/scoped-config.errors'
+import { NOT_CONFIGURED_MESSAGE } from '../scoped-config/scoped-config.service'
 import { DISPATCH_FAILED_MESSAGE, PodLaunchService } from './pod-launch.service'
 import {
   bootSteps,
@@ -95,13 +95,13 @@ describe('ThreadLaunchService', () => {
     const [created] = await threads()
     const owner = await db.orm.public.Session.first({ id: created?.sessionId ?? '' })
     expect(owner?.projectId).toBeNull()
-    expect(scoped.vercelCredentials).toHaveBeenCalledWith({ thread: { userId: 'usr-1' } })
+    expect(scoped.vercelCredentials).toHaveBeenCalled()
     expect(dispatch).toHaveBeenCalledTimes(1)
   })
 
   it('still creates the thread and message on a credential gap, with no claim and no dispatch', async () => {
     await seedBase()
-    const failure = new VercelNotConfiguredError(EVercelCredentialGap.UserCredential)
+    const failure = new ServiceUnavailableException(NOT_CONFIGURED_MESSAGE)
     const scoped = fakeScoped({ vercelCredentials: vi.fn(async () => Promise.reject(failure)) })
     const { service, dispatch } = launchWith({ scoped })
 
@@ -110,7 +110,6 @@ describe('ThreadLaunchService', () => {
     expect(reply.provision).toEqual({
       state: ESandboxProvisionState.NotConfigured,
       error: failure.message,
-      gap: EVercelCredentialGap.UserCredential,
     })
     expect(await threads()).toHaveLength(1)
     expect(await eventsOf(reply.thread.id)).toHaveLength(1)
@@ -119,7 +118,6 @@ describe('ThreadLaunchService', () => {
         step: 'provision',
         state: 'error',
         error: failure.message,
-        gap: EVercelCredentialGap.UserCredential,
       },
     ])
     expect(await sandboxRows()).toHaveLength(0)
@@ -176,7 +174,7 @@ describe('ThreadLaunchService', () => {
 
   it('schedules titling even when the launch is not configured', async () => {
     await seedBase()
-    const failure = new VercelNotConfiguredError(EVercelCredentialGap.UserCredential)
+    const failure = new ServiceUnavailableException(NOT_CONFIGURED_MESSAGE)
     const scoped = fakeScoped({ vercelCredentials: vi.fn(async () => Promise.reject(failure)) })
     const { service, titleFirstMessage } = launchWith({ scoped })
 
@@ -226,7 +224,7 @@ describe('ThreadLaunchService', () => {
 
   it('replays a credential gap as not-configured with its gap', async () => {
     await seedBase()
-    const failure = new VercelNotConfiguredError(EVercelCredentialGap.UserCredential)
+    const failure = new ServiceUnavailableException(NOT_CONFIGURED_MESSAGE)
     const scoped = fakeScoped({ vercelCredentials: vi.fn(async () => Promise.reject(failure)) })
     const { service } = launchWith({ scoped })
     await create(service)
@@ -236,7 +234,6 @@ describe('ThreadLaunchService', () => {
     expect(retry.provision).toEqual({
       state: ESandboxProvisionState.NotConfigured,
       error: failure.message,
-      gap: EVercelCredentialGap.UserCredential,
     })
   })
 

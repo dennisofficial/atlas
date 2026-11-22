@@ -26,7 +26,7 @@ const childOf = async (args: {
       modelEffort: 'medium',
       modelFast: false,
       sandboxProvider: 'vercel',
-      credentialSource: 'byok',
+      credentialSource: 'platform',
       sandboxInstanceId: null,
       podSessionId: args.parentId,
       at: NOW,

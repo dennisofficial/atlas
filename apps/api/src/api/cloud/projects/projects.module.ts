@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common'
 import { SessionsModule } from '../../platform/sessions/sessions.module'
 import { GithubModule } from '../github/github.module'
-import { UserVercelModule } from '../user-vercel/user-vercel.module'
 import { ProjectFileMountsService } from './project-file-mounts.service'
 import { ProjectResourcesRouter } from './project-resources.router'
 import { ProjectResourcesService } from './project-resources.service'
@@ -11,7 +10,7 @@ import { ProjectsRouter } from './projects.router'
 import { ProjectsService } from './projects.service'
 
 @Module({
-  imports: [GithubModule, SessionsModule, UserVercelModule],
+  imports: [GithubModule, SessionsModule],
   providers: [
     ProjectsService,
     ProjectResourcesService,

@@ -8,7 +8,6 @@ import type { ThreadSignalsService } from '../../platform/sessions/thread-signal
 import type { PodLaunchService } from './pod-launch.service'
 import { cipher, podLaunchWith } from './sandbox-provisioning.fixture'
 import { ThreadPodService } from './thread-pod.service'
-import { unknownPlanService } from '../user-vercel/vercel-testkit'
 
 export const SERVE_TOKEN = 'raw-serve-token-never-leaves-the-api'
 export const SERVE_URL = 'https://serve.example.test'
@@ -37,8 +36,7 @@ export const podServiceOver = (
   launch: PodLaunchService = podLaunchWith().pod,
   signals: ThreadSignalsService = inertSignals(),
   background: BackgroundWork = new RecordingBackground(),
-): ThreadPodService =>
-  new ThreadPodService(endpoints, vercel, launch, signals, unknownPlanService(), background)
+): ThreadPodService => new ThreadPodService(endpoints, vercel, launch, signals, background)
 
 export const realEndpoints = (): SandboxEndpointService =>
   new SandboxEndpointService(unreachableVercel(), cipher)

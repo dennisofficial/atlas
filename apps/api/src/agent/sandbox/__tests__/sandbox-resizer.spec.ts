@@ -6,7 +6,7 @@ import type { PodShape } from '@dltech/atlas-core'
 
 import type { AgentHostEnv } from '../../config/env'
 import { ConfigReader } from '../../config/config-reader'
-import { cipher, seedOwner, seedVercel } from '../../config/__tests__/config-reader.fixture'
+import { cipher, seedOwner } from '../../config/__tests__/config-reader.fixture'
 import { SandboxNotConfiguredError } from '../../runtime/sandbox-not-configured-error'
 import { sandboxRegistryOf } from '../provider-registry'
 import {
@@ -95,7 +95,6 @@ describe('sandboxResizerOf', () => {
   it('refuses a session still pinned to byok instead of resizing it on the owner credential', async () => {
     const { db, vercel, agent37, resizer } = setup()
     await seedOwner(db)
-    await seedVercel(db)
     await db.orm.v2.V2Session.where({ id: 's-1' }).update({
       credentialSource: ECredentialSource.Byok,
     })
