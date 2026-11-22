@@ -81,6 +81,7 @@ export function ThreadTranscript({
   failedLabel,
   pod,
   working,
+  turnStartedAt,
   background,
   onRetryBoot,
   rewind,
@@ -94,6 +95,7 @@ export function ThreadTranscript({
   failedLabel: string | null
   pod: PodStatus | null
   working: boolean
+  turnStartedAt?: string | undefined
   /** What the session left running: a live row while the turn is over and it is still out there. */
   background: BackgroundWork
   onRetryBoot: () => void
@@ -109,7 +111,10 @@ export function ThreadTranscript({
   const roster = useRoster(channel)
   const repairDiagram = useDiagramRepair()
   const models = useMemo(() => rosterModelsOf(roster), [roster])
-  const turns = useMemo(() => turnsOf({ items, working }), [items, working])
+  const turns = useMemo(
+    () => turnsOf({ items, working, turnStartedAt }),
+    [items, working, turnStartedAt],
+  )
   const settledAt = useMemo(() => lastTurnEndedAt(turns), [turns])
   const boot = useMemo(() => bootTimelineOf({ turns, pod, now: 0 }), [turns, pod])
   const userName = user?.name

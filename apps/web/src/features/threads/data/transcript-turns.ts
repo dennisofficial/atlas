@@ -206,18 +206,37 @@ function workStartAfter(args: {
   return args.fallback
 }
 
+function runningWorkOf(args: {
+  segment: WorkSegment
+  turnStartedAt: string | undefined
+}): WorkSegment {
+  const startedAt = latestOf([args.segment.startedAt, args.turnStartedAt])
+  return {
+    ...args.segment,
+    running: true,
+    ...(startedAt === undefined ? {} : { startedAt }),
+  }
+}
+
 function withRunningTail(args: {
   turnId: string
   segments: Segment[]
   startedAt: string | undefined
+  turnStartedAt: string | undefined
 }): Segment[] {
   const { segments } = args
   const tail = segments.at(-1)
   if (tail?.kind === ESegmentKind.Message && tail.item.streaming) return segments
   if (tail?.kind === ESegmentKind.Work)
-    return [...segments.slice(0, -1), { ...tail, running: true }]
+    return [
+      ...segments.slice(0, -1),
+      runningWorkOf({ segment: tail, turnStartedAt: args.turnStartedAt }),
+    ]
   const after = tail?.id ?? TURN_START
-  const startedAt = workStartAfter({ tail, fallback: args.startedAt })
+  const startedAt = latestOf([
+    workStartAfter({ tail, fallback: args.startedAt }),
+    args.turnStartedAt,
+  ])
   const placeholder = workSegmentOf({
     turnId: args.turnId,
     after,
@@ -230,7 +249,12 @@ function withRunningTail(args: {
 const isFastItem = (item: TranscriptRow): boolean =>
   item.kind === ETranscriptKind.Agent && item.fast === true
 
-function agentTurnOf(args: { run: Run[]; after: TurnStart | null; running: boolean }): AgentTurn {
+function agentTurnOf(args: {
+  run: Run[]
+  after: TurnStart | null
+  running: boolean
+  turnStartedAt?: string | undefined
+}): AgentTurn {
   const { run } = args
   const spawns = run.filter((item): item is SpawnItem => item.kind === ETranscriptKind.Spawn)
   const rest = run.filter(
@@ -242,20 +266,27 @@ function agentTurnOf(args: { run: Run[]; after: TurnStart | null; running: boole
   return {
     kind: ETurnKind.Agent,
     id,
-    segments: args.running ? withRunningTail({ turnId: id, segments, startedAt }) : segments,
+    segments: args.running
+      ? withRunningTail({ turnId: id, segments, startedAt, turnStartedAt: args.turnStartedAt })
+      : segments,
     spawns,
     running: args.running,
     ...(rest.some(isFastItem) ? { fast: true as const } : {}),
   }
 }
 
-export function turnsOf(args: { items: readonly TranscriptRow[]; working: boolean }): Turn[] {
+export function turnsOf(args: {
+  items: readonly TranscriptRow[]
+  working: boolean
+  turnStartedAt?: string | undefined
+}): Turn[] {
   const turns: Turn[] = []
   let run: Run[] = []
   let after: TurnStart | null = null
 
   const closeRun = (running: boolean) => {
-    if (run.length > 0 || running) turns.push(agentTurnOf({ run, after, running }))
+    if (run.length > 0 || running)
+      turns.push(agentTurnOf({ run, after, running, turnStartedAt: args.turnStartedAt }))
     run = []
   }
 

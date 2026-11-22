@@ -14,6 +14,7 @@ import { useComposerAttachments } from '@/features/threads/data/use-composer-att
 import { ModelPickerControls } from '@/features/threads/model-picker'
 import { ThreadComposer } from '@/features/threads/thread-composer'
 import { ThreadTranscript } from '@/features/threads/thread-transcript'
+import { turnStartedAtOf } from '@/features/threads/data/turn-start'
 import { SummariseDialog } from '@/features/threads/transcript/summarise-dialog'
 import { track } from '@/lib/analytics/analytics'
 import { sessionOpenedProps } from '@/lib/analytics/perf'
@@ -100,6 +101,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   const files = useComposerAttachments()
   const attachments = useSessionAttachments({ files })
   const working = isSessionWorking(snapshot.status)
+  const turnStartedAt = useMemo(() => turnStartedAtOf(snapshot.events), [snapshot.events])
   const reveal = useSessionReveal(snapshot)
   const view = useMemo(
     () =>
@@ -269,6 +271,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
                   failedLabel={failure.failedLabel}
                   pod={null}
                   working={working}
+                  turnStartedAt={turnStartedAt}
                   background={background}
                   onRetryBoot={() => void handleRetry()}
                   rewind={rewind}
