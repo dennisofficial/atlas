@@ -48,7 +48,7 @@ export const drainLoggedNotices = async (params: {
   let wakesTurn = false
   for (const notice of loggedNoticesOf({ events: params.events, staged: params.staged })) {
     await params.appendDrafts([notice.event, { type: 'input-consumed', inboxId: notice.inboxId }])
-    if (isTurnTaking(notice.event)) wakesTurn = true
+    if (!notice.record && isTurnTaking(notice.event)) wakesTurn = true
   }
   return wakesTurn
 }

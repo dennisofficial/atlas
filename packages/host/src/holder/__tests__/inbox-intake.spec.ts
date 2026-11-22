@@ -13,9 +13,12 @@ import {
   ECommandTiming,
   EInputConsumed,
   EMessageOrigin,
+  ESubscriptionActor,
+  ESubscriptionEnd,
   initialLoopState,
   toRunId,
   toThreadId,
+  type EventBody,
   type EventDraft,
   type InboxEntry,
 } from '@dltech/atlas-core'
@@ -331,6 +334,33 @@ describe('InboxIntake logStaged', () => {
     expect(rig.appends).toEqual([
       [posted(1, { text: 'm1' }), { type: 'input-withdrawn', inboxId: 1, requestInboxId: 2 }],
     ])
+  })
+
+  it('keeps a record staged mid-turn and logs its event once at the drain, waking no turn', async () => {
+    const ended: EventBody = {
+      type: 'subscription-ended',
+      subscriptionId: 'sub-1',
+      reason: ESubscriptionEnd.Unsubscribed,
+      by: ESubscriptionActor.Operator,
+    }
+    const record = entry(5, { event: ended }, 'record')
+    const rig = rigOf([record])
+    await rig.intake.logStaged()
+    expect(rig.appends).toEqual([
+      [
+        {
+          type: 'input-posted',
+          inboxId: 5,
+          kind: 'record',
+          postedAt: record.postedAt,
+          event: ended,
+        },
+      ],
+    ])
+    const drain = await rig.intake.prepare()
+    const bodies = rig.appended.filter((draft) => draft.type === 'subscription-ended')
+    expect(bodies).toEqual([ended])
+    expect(drain.wakesTurn).toBe(false)
   })
 
   it('logs a mid-turn send as input-posted, then says it in a separate commit at the drain', async () => {

@@ -5,11 +5,13 @@ import {
   attachmentsOf,
   EMessageOrigin,
   INBOX_KIND_EVENT,
+  INBOX_KIND_RECORD,
   inboxEventOf,
   INBOX_KIND_RETRY,
   INBOX_KIND_STOP,
   pendingInputsOf,
   pendingNoticesOf,
+  pendingRecordsOf,
   userSaidOf,
   type EventBody,
   type EventDraft,
@@ -103,7 +105,7 @@ export const postedDraftsOf = (params: {
 }): RecordBody[] => {
   const { entry } = params
   if (entry.kind === INBOX_KIND_STOP || entry.kind === INBOX_KIND_RETRY) return []
-  if (entry.kind === INBOX_KIND_EVENT) {
+  if (entry.kind === INBOX_KIND_EVENT || entry.kind === INBOX_KIND_RECORD) {
     const read = inboxEventOf(entry.payload)
     if (!read.ok) return []
     return [
@@ -175,12 +177,20 @@ export const loggedMessagesOf = (events: readonly V2Event[]): LoggedMessage[] =>
 export const loggedNoticesOf = (params: {
   events: readonly V2Event[]
   staged: ReadonlySet<number>
-}): { inboxId: number; event: EventBody }[] =>
-  pendingNoticesOf(pendingInputsOf(params.events)).flatMap((pending) =>
+}): { inboxId: number; event: EventBody; record: boolean }[] => {
+  const pending = pendingInputsOf(params.events)
+  return [...pendingNoticesOf(pending), ...pendingRecordsOf(pending)].flatMap((pending) =>
     pending.event === undefined || params.staged.has(pending.inboxId)
       ? []
-      : [{ inboxId: pending.inboxId, event: pending.event }],
+      : [
+          {
+            inboxId: pending.inboxId,
+            event: pending.event,
+            record: pending.kind === INBOX_KIND_RECORD,
+          },
+        ],
   )
+}
 
 export const stagesUnprepared = (kind: string): boolean =>
   kind === INBOX_KIND_MESSAGE || kind === INBOX_KIND_EVENT
