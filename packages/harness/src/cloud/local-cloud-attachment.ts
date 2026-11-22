@@ -6,9 +6,16 @@ import { RemoteEventLog } from './remote-event-log'
 import { RemoteThreadStore } from './remote-thread-store'
 import { RemoteTurnLedger } from './remote-turn-ledger'
 import type { CloudBridge, CloudSandboxes } from './cloud-bridge'
-import type { LocalCloudBridgeOptions } from './local-cloud-bridge-options'
 
-export type AttachOptions = Pick<LocalCloudBridgeOptions, 'lastEventSeq' | 'projectIdOf'>
+export type AttachOptions = {
+  /**
+   * The newest durable event seq the client holds for a thread, reported on the Hello so the serve
+   * can vouch the log is current. The truthful source is the local event store, so a Promise is
+   * honoured. Absent means the client can never be vouched current.
+   */
+  lastEventSeq?: ((args: { threadId: ThreadId }) => number | Promise<number>) | undefined
+  projectIdOf?: ((args: { threadId: ThreadId }) => Promise<string | null>) | undefined
+}
 
 export const attachmentOf =
   (args: { options: AttachOptions; sandboxes: CloudSandboxes }): CloudBridge['attach'] =>

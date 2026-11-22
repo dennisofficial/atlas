@@ -3,7 +3,7 @@ import { createDb, createPool, type Db } from '@dltech/atlas-db'
 import type { ScopedFileMount } from '../runtime/project-files'
 import { databaseUrlWithTls } from './database-url'
 import { readAgentHostEnv } from './env'
-import { SecretCipher } from './secret-cipher'
+import { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 
 const QUERY_TIMEOUT_MS = 10_000
 

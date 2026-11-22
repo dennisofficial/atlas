@@ -36,6 +36,7 @@ export const recordShellEnding = async (args: {
         status: outcome.status,
         ...(outcome.killedBy === undefined ? {} : { killedBy: outcome.killedBy }),
         ...(outcome.exitCode === undefined ? {} : { exitCode: outcome.exitCode }),
+        ...(outcome.memory === undefined ? {} : { memory: outcome.memory }),
         output: delta.text,
         droppedCharacters: delta.droppedCharacters,
         remainingCharacters: delta.remainingCharacters,

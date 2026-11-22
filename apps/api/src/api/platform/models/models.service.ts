@@ -12,7 +12,7 @@ import {
   modelsView,
   OPENAI_PROVIDER_ID,
   type CodexModelsPorts,
-} from '@dltech/atlas-harness/models'
+} from '@dltech/atlas-models'
 import { AccountsService } from '../accounts/accounts.service'
 import { OauthConnectionsService } from '../oauth-connections/oauth-connections.service'
 import type { AccessTokenDto } from '../oauth-connections/oauth-connections.types'

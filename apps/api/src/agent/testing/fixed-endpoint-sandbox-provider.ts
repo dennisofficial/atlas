@@ -10,8 +10,8 @@ import {
   type SandboxListing,
   type SandboxTarget,
   type PodResizeOutcome,
-} from '../sandbox/sandbox-provider'
-import { sandboxNameOf } from '../sandbox/vercel-names'
+} from '@dltech/atlas-pods/sandbox/sandbox-provider'
+import { sandboxNameOf } from '@dltech/atlas-pods/sandbox/vercel-names'
 
 export class FixedEndpointSandboxProvider extends SandboxProvider {
   constructor(

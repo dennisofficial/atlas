@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { type FSWatcher, realpathSync, watch } from 'node:fs'
+import { realpathSync } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
 
 import type { WatchStartOp } from '@dltech/atlas-protocol'
@@ -10,7 +10,11 @@ import {
   defineOp,
 } from '@dltech/atlas-protocol/engine'
 
+import { TreeWatch, guardedWatch } from './tree'
+
 const DEFAULT_DEBOUNCE_MS = 150
+
+type Closeable = { close(): void }
 
 type WatchRecord = {
   watchId: string
@@ -18,7 +22,7 @@ type WatchRecord = {
   basenames: ReadonlySet<string> | null
   debounceMs: number
   seq: number
-  watchers: Map<string, FSWatcher>
+  watchers: Map<string, Closeable>
   missing: Set<string>
   armed: string[]
   pending: Set<string>
@@ -81,6 +85,20 @@ const schedule = (args: { record: WatchRecord; ctx: GroupContext }): void => {
   record.timer = setTimeout(() => settle({ record, ctx }), record.debounceMs)
 }
 
+const reportWatchFailure = (args: {
+  record: WatchRecord
+  ctx: GroupContext
+  path: string
+  error: unknown
+}): void => {
+  const { record, ctx, path, error } = args
+  console.error(
+    `atlas-daemon watch ${record.watchId} lost ${path}: ${error instanceof Error ? error.message : String(error)}`,
+  )
+  record.pending.add(path)
+  schedule({ record, ctx })
+}
+
 const armRoot = (args: { record: WatchRecord; ctx: GroupContext; root: string }): void => {
   const { record, ctx, root } = args
   const real = realOf(root)
@@ -88,25 +106,34 @@ const armRoot = (args: { record: WatchRecord; ctx: GroupContext; root: string })
     const ancestor = existingAncestorOf(root)
     record.missing.add(root)
     if (record.watchers.has(ancestor)) return
-    record.watchers.set(
-      ancestor,
-      watch(ancestor, { persistent: true, recursive: false }, (_event, filename) => {
+    const watcher = guardedWatch({
+      path: ancestor,
+      recursive: false,
+      onEvent: (filename) => {
         record.pending.add(filename === null ? root : join(ancestor, filename))
         schedule({ record, ctx })
         armMissing({ record, ctx })
-      }),
-    )
+      },
+      onError: (error) => {
+        record.watchers.delete(ancestor)
+        reportWatchFailure({ record, ctx, path: ancestor, error })
+      },
+    })
+    if (watcher !== null) record.watchers.set(ancestor, watcher)
     return
   }
   record.missing.delete(root)
   if (record.watchers.has(real)) return
-  record.watchers.set(
-    real,
-    watch(real, { persistent: true, recursive: true }, (_event, filename) => {
-      record.pending.add(filename === null ? real : join(real, filename))
+  const tree = new TreeWatch({
+    root: real,
+    onChange: (path) => {
+      record.pending.add(path)
       schedule({ record, ctx })
-    }),
-  )
+    },
+    onError: (error) => reportWatchFailure({ record, ctx, path: real, error }),
+  })
+  record.watchers.set(real, tree)
+  tree.start()
   record.armed.push(real)
 }
 

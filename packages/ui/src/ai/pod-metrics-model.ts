@@ -69,6 +69,27 @@ export function formatRam({ usedGb, limitGb }: { usedGb: number; limitGb: number
   return `${gigabytes(usedGb)} / ${gigabytes(limitGb)} GB`
 }
 
+const processCount = (processes: number): string =>
+  processes === 1 ? '1 process' : `${processes} processes`
+
+export function oomSignalLabel({
+  oomEvents,
+  oomKills,
+}: {
+  oomEvents?: number | undefined
+  oomKills: number
+}): string | null {
+  if (oomEvents === undefined) {
+    return oomKills === 0 ? null : `${processCount(oomKills)} killed for memory`
+  }
+  if (oomEvents === 0) return null
+  const kills = oomEvents === 1 ? '1 out-of-memory kill' : `${oomEvents} out-of-memory kills`
+  return oomKills === 0 ? kills : `${kills} (${processCount(oomKills)})`
+}
+
+export const commandMemorySuffix = (commandRamLimitGb: number | undefined): string =>
+  commandRamLimitGb === undefined ? '' : ` · commands ≤ ${gigabytes(commandRamLimitGb)} GB`
+
 export function podMetricViewOf({
   series,
   vcpus = DEFAULT_VCPUS,

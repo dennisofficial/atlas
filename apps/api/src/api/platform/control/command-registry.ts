@@ -8,7 +8,7 @@ import {
 import { nativeCommands, nativeControlHandlers, resize } from '@dltech/atlas-native-commands'
 import type { ControlPlane } from '@dltech/atlas-control'
 import type { SessionCommandOutput } from '@dltech/atlas-protocol'
-import { composedPlugins } from './registered-plugins'
+import { composedPlugins } from '@dltech/atlas-pods'
 import { modelSet } from './model-set'
 
 export const COMMAND_REGISTRY = Symbol('COMMAND_REGISTRY')

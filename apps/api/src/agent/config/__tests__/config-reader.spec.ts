@@ -16,7 +16,6 @@ import {
   seedOwner,
   seedSetting,
   seedSkill,
-  seedVercel,
 } from './config-reader.fixture'
 
 const testDb = useTestDatabase()
@@ -97,7 +96,6 @@ describe('ConfigReader', () => {
   it('reports a retired gap for a session still pinned to its owner byok credential', async () => {
     const { db } = testDb()
     await seedOwner(db)
-    await seedVercel(db)
     await db.orm.v2.V2Session.where({ id: 's-1' }).update({
       credentialSource: ECredentialSource.Byok,
     })
@@ -111,7 +109,6 @@ describe('ConfigReader', () => {
   it('runs the model the session names, over the configured default', async () => {
     const { db } = testDb()
     await seedOwner(db)
-    await seedVercel(db)
     await seedApiKeyAccount(db)
     await seedApiKeyAccount({ db, id: 'acct-2', provider: 'openai', apiKey: 'sk-openai' })
     await seedSetting({ db, scope: 'user', value: 'anthropic/claude-sonnet-4-5' })
@@ -134,7 +131,6 @@ describe('ConfigReader', () => {
   it('resolves every role from the same settings, project over user', async () => {
     const { db } = testDb()
     await seedOwner(db)
-    await seedVercel(db)
     await seedApiKeyAccount(db)
     await seedApiKeyAccount({ db, id: 'acct-2', provider: 'openai', apiKey: 'sk-openai' })
     await seedSetting({
@@ -173,10 +169,9 @@ describe('ConfigReader', () => {
     expect(config.model).toEqual({ configured: false, gap: 'no model account' })
   })
 
-  it('reads platform credentials from the env without touching UserVercelCredential', async () => {
+  it('reads platform credentials from the env', async () => {
     const { db } = testDb()
     await seedOwner(db)
-    await seedVercel(db)
     const recording = recordingDb({ url: testDb().url })
     const config = await readerOver(recording.db, PLATFORM).read({ sessionId: 's-1' })
     await recording.end()
@@ -190,7 +185,6 @@ describe('ConfigReader', () => {
         projectId: 'platform-proj',
       },
     })
-    expect(recording.sql.some((text) => text.includes('"UserVercelCredential"'))).toBe(false)
   })
 
   it('reads the platform agent37 key for a session pinned to agent37', async () => {
@@ -209,7 +203,6 @@ describe('ConfigReader', () => {
   it('reports a platform gap when the env holds no credential for the pinned provider', async () => {
     const { db } = testDb()
     await seedOwner(db)
-    await seedVercel(db)
     expect((await readerOver().read({ sessionId: 's-1' })).sandbox).toEqual({
       configured: false,
       provider: ESandboxProvider.Vercel,
@@ -491,7 +484,6 @@ describe('ConfigReader model read', () => {
   ])('sizes the pod: $name', async ({ project, personal, want }) => {
     const { db } = testDb()
     await seedOwner(db)
-    await seedVercel(db)
     await seedApiKeyAccount(db)
     if (project !== null) {
       await db.orm.public.Project.where({ id: 'proj-1' }).update({ sandboxVcpus: project })
@@ -505,7 +497,6 @@ describe('ConfigReader model read', () => {
   it('takes the personal sandbox size over a project-scoped setting of the same key', async () => {
     const { db } = testDb()
     await seedOwner(db)
-    await seedVercel(db)
     await seedApiKeyAccount(db)
     await seedSetting({ db, scope: 'user', key: 'sandbox.vcpus', value: 8 })
     await seedSetting({ db, scope: 'project', key: 'sandbox.vcpus', value: 2 })

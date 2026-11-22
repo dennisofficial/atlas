@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
+import { EOomScope } from '@dltech/atlas-core'
+
 import {
   EEntryKind,
   EAuthor,
@@ -7,7 +9,7 @@ import {
   type TranscriptEntry,
 } from '@dltech/atlas-client/transcript'
 
-import { ENoticeTone, ETranscriptKind } from '../transcript-kind'
+import { ENoticeAction, ENoticeTone, ETranscriptKind } from '../transcript-kind'
 import { noticeItemOf, prNoticeItemOf } from '../transcript-notices'
 
 const prEntry = (over: Partial<PrEventEntry> & { key: string }): PrEventEntry => ({
@@ -108,6 +110,26 @@ describe('noticeItemOf', () => {
       tone: ENoticeTone.Ok,
     })
     expect(prNoticeItemOf([entry])).toEqual(noticeItemOf(entry))
+  })
+
+  it('a pod OOM notice carries the change-pod-size action', () => {
+    const entry: TranscriptEntry = {
+      kind: EEntryKind.PodOom,
+      author: EAuthor.Model,
+      key: 'evt_4',
+      text: "`bunx turbo run typecheck` ran out of memory (commands may use 2.3 GB of the pod's 4 GB)",
+      scope: EOomScope.Command,
+      processes: 3,
+    }
+
+    expect(noticeItemOf(entry)).toEqual({
+      kind: ETranscriptKind.Notice,
+      id: 'evt_4',
+      title: entry.text,
+      body: '',
+      tone: ENoticeTone.Failed,
+      action: ENoticeAction.ChangePodSize,
+    })
   })
 
   it('ignores entries the transcript renders elsewhere', () => {

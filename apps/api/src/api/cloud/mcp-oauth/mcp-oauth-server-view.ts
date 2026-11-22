@@ -1,7 +1,7 @@
 import { EMcpOauthGrantStatus, EMcpServerSource, type McpOauthServer } from '@dltech/atlas-wire'
 import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { openMcpServer } from '../mcp-servers/mcp-sealed'
-import { normalizeServerUrl } from './mcp-oauth-seal'
+import { normalizeServerUrl } from '../../../agent'
 import { EGrantRowStatus } from './mcp-oauth.types'
 import type { ServerGrantRow } from './mcp-oauth.types'
 

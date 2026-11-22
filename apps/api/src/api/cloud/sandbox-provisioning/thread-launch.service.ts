@@ -46,10 +46,8 @@ export class ThreadLaunchService extends ThreadLauncher {
 
   async launch(args: ThreadLaunch): Promise<ThreadLaunchReply> {
     const { userId, draft, firstMessage } = args
-    const [project, gap] = await Promise.all([
-      threadProjectColumn({ userId, projectId: draft.projectId }),
-      this.pod.credentialsOf({ userId }),
-    ])
+    const project = await threadProjectColumn({ userId, projectId: draft.projectId })
+    const notConfigured = await this.pod.notConfiguredOf()
 
     const { threadId, claim, existing, appended } = await db.transaction(async (tx) => {
       await lockFirstMessage({ tx, userId, sendId: firstMessage.sendId })
@@ -76,8 +74,12 @@ export class ThreadLaunchService extends ThreadLauncher {
         runId: nextRunId(),
         drafts: [userSaidDraftOf(firstMessage)],
       })
-      if (gap !== null) {
-        await this.pod.reportGap({ writer: tx, threadId: thread.id, failure: gap })
+      if (notConfigured !== null) {
+        await this.pod.reportNotConfigured({
+          writer: tx,
+          threadId: thread.id,
+          message: notConfigured,
+        })
         return { threadId: thread.id, claim: null, existing: false, appended }
       }
       const claimed: RowClaim | null = await this.pod.claim({ writer: tx, thread, existing: null })
@@ -85,7 +87,7 @@ export class ThreadLaunchService extends ThreadLauncher {
     })
 
     await this.pod.revokeAfterCommit(claim)
-    if (!existing && gap === null && claim !== null) {
+    if (!existing && notConfigured === null && claim !== null) {
       this.background.keepAlive(this.pod.dispatch({ threadId, claim }).catch(() => undefined))
     }
     const [row, session] = await Promise.all([
@@ -106,7 +108,7 @@ export class ThreadLaunchService extends ThreadLauncher {
       )
     }
     if (existing) return { thread, provision: await this.provisionOf(threadId) }
-    if (gap !== null) return { thread, provision: notConfiguredReplyOf(gap) }
+    if (notConfigured !== null) return { thread, provision: notConfiguredReplyOf(notConfigured) }
     return { thread, provision: { state: ESandboxProvisionState.Booting } }
   }
 
@@ -115,11 +117,10 @@ export class ThreadLaunchService extends ThreadLauncher {
     const row = await db.orm.public.CloudSandbox.first({ sessionId })
     const standing = row === null ? undefined : standingStateOf(row)
     if (standing !== undefined) return { state: standing }
+    const notConfigured = await this.pod.notConfiguredOf()
+    if (notConfigured !== null) return notConfiguredReplyOf(notConfigured)
     const last = (await readBootSteps({ threadId })).at(-1)
     if (last?.state !== EBootStepState.Error) return { state: ESandboxProvisionState.Booting }
-    if (last.gap !== undefined) {
-      return { state: ESandboxProvisionState.NotConfigured, error: last.error ?? '', gap: last.gap }
-    }
     return { ...dispatchFailedReply, error: last.error ?? DISPATCH_FAILED_MESSAGE }
   }
 }

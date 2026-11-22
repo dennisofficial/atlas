@@ -23,6 +23,7 @@ const killedOutcome = (killedBy: EKilledBy | undefined): string => {
   if (killedBy === EKilledBy.Rewind) return 'was killed by a rewind'
   if (killedBy === EKilledBy.LostContact) return 'was killed after atlas lost contact with it'
   if (killedBy === EKilledBy.Unrecorded) return 'was killed when the previous session ended'
+  if (killedBy === EKilledBy.OutOfMemory) return 'ran out of memory'
   return 'was killed'
 }
 
@@ -39,6 +40,7 @@ export const shellEndedLine = (ending: ShellEnding): string =>
 
 export const shellEndingFailed = (ending: ShellEnding): boolean =>
   ending.status === EShellStatus.Overflowed ||
+  ending.killedBy === EKilledBy.OutOfMemory ||
   ending.killedBy === EKilledBy.Timeout ||
   ending.killedBy === EKilledBy.LostContact ||
   (ending.exitCode !== undefined && ending.exitCode !== 0)

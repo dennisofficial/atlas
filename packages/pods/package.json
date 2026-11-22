@@ -1,0 +1,36 @@
+{
+  "name": "@dltech/atlas-pods",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@dltech/atlas-control": "workspace:*",
+    "@dltech/atlas-core": "workspace:*",
+    "@dltech/atlas-db": "workspace:*",
+    "@dltech/atlas-host": "workspace:*",
+    "@dltech/atlas-jobs": "workspace:*",
+    "@dltech/atlas-plugin-crew": "workspace:*",
+    "@dltech/atlas-plugin-github": "workspace:*",
+    "@dltech/atlas-plugin-mcp": "workspace:*",
+    "@dltech/atlas-plugin-operator": "workspace:*",
+    "@dltech/atlas-plugin-sdk": "workspace:*",
+    "@dltech/atlas-plugin-services": "workspace:*",
+    "@dltech/atlas-plugin-sessions": "workspace:*",
+    "@dltech/atlas-plugin-shells": "workspace:*",
+    "@dltech/atlas-plugin-skills": "workspace:*",
+    "@dltech/atlas-protocol": "workspace:*",
+    "@vercel/sandbox": "^3.3.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}

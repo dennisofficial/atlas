@@ -13,8 +13,8 @@ import {
 } from './mcp-oauth.fakes'
 import { McpOauthAccessService } from './mcp-oauth-access.service'
 import { McpOauthService } from './mcp-oauth.service'
-import { sealJson } from './mcp-oauth-seal'
-import type { SealedGrant, ServerGrantRow } from './mcp-oauth.types'
+import { sealJson, type SealedGrant } from '../../../agent'
+import type { ServerGrantRow } from './mcp-oauth.types'
 
 const HEX_KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
 export const START = Date.parse('2026-10-30T12:00:00.000Z')

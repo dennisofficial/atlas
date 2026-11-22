@@ -21,6 +21,7 @@ import { attachmentPartsOf, type DeliveryContext } from './attachment-parts'
 import { agentReportedBlock } from './agent-reported-block'
 import { nudgeBlock } from './nudge-block'
 import { operatorStopBlock, spokenPartsOf } from './operator-stop-block'
+import { podOomBlock } from './pod-oom-block'
 import { prEventBlock } from './pr-event-block'
 import { runEventBlock } from './run-event-block'
 import { sandboxSetupBlock } from './sandbox-setup-block'
@@ -378,6 +379,17 @@ function walkEvents({
     }
 
     if (event.type === 'agent-restarted') continue
+
+    if (event.type === 'pod-ran-out-of-memory') {
+      const text = podOomBlock(event)
+      if (text === undefined) continue
+
+      groups.push({
+        message: { role: 'user', content: [{ type: 'text', text }] },
+        origin: originOf(event),
+      })
+      continue
+    }
 
     if (event.type === 'tool-result' || event.type === 'tool-denied') {
       const open = openCallIds.get(event.callId) ?? []

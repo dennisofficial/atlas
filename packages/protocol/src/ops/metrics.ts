@@ -13,6 +13,8 @@ export const podSampleSchema = z
     ramLimitBytes: z.number().int().min(0).nullable(),
     throttled: z.boolean(),
     oomKills: z.number().int().min(0),
+    oomEvents: z.number().int().min(0).optional(),
+    commandRamLimitBytes: z.number().int().min(0).optional(),
     diskUsedBytes: z.number().int().min(0).optional(),
     diskLimitBytes: z.number().int().min(0).optional(),
   })

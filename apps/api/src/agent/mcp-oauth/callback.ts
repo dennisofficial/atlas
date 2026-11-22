@@ -1,6 +1,6 @@
 import type { Db } from '@dltech/atlas-db'
 
-import type { SecretCipher } from '../config/secret-cipher'
+import type { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 import { callbackAnswerOf, DEFAULT_RETURN_TARGET, type CallbackAnswer } from './redirect'
 import { sameServerUrl, sealJson, unsealJson } from './seal'
 import { serverUrlOf } from './server-url'

@@ -1,4 +1,3 @@
-import { sandboxNameFor, VercelDriver } from '@dltech/atlas-harness'
 import { isApiProvisioned } from '@dltech/atlas-wire'
 import type { ThreadId } from '@dltech/atlas-core'
 
@@ -33,14 +32,5 @@ export function deadlineControlFor(args: {
         }),
     }
   }
-  const token = args.env.VERCEL_TOKEN
-  const teamId = args.env.VERCEL_TEAM_ID
-  const projectId = args.env.VERCEL_PROJECT_ID
-  if (!token || !teamId || !projectId) return undefined
-  const driver = new VercelDriver({
-    credentials: { token, teamId, projectId },
-    cloudUrl: args.controlPlaneUrl,
-  })
-  const name = sandboxNameFor({ threadId: args.threadId })
-  return { renew: ({ until }) => driver.renewDeadline({ name, sessionId, until }) }
+  return undefined
 }

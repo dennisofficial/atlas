@@ -80,7 +80,7 @@ export function buildGithubSweepGraph(args: { env: EnvService }): GithubSweepGra
   const wake = new GithubSandboxWakeService(
     env,
     cipher,
-    new ScopedSandboxCredentialsService(buildScopedConfig({ cipher, env }), env),
+    new ScopedSandboxCredentialsService(buildScopedConfig({ cipher, env })),
     sandboxWakeBootProvider.useFactory(),
     new ProcessBackgroundWork(),
     WAKE_DEBOUNCE_MS,

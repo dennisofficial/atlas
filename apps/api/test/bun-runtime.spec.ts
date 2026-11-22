@@ -6,7 +6,10 @@ import { tmpdir } from 'node:os'
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 import { ensureTestDatabase } from '@dltech/atlas-db/testing'
 
+import { JSON_BODY_LIMIT } from '../src/_lib/body-limits'
+
 const API_ROOT = import.meta.dirname + '/..'
+const JSON_BODY_CAP_BYTES = Number.parseInt(JSON_BODY_LIMIT, 10) * 1024 * 1024
 const BOOT_TIMEOUT_MS = 60_000
 const TEST_DATABASE_URL = process.env.ATLAS_TEST_DATABASE_URL
 const TEST_REDIS_URL = process.env.ATLAS_TEST_REDIS_URL
@@ -34,6 +37,7 @@ function probeEnv({ port, databaseUrl }: { port: number; databaseUrl: string }):
     BETTER_AUTH_URL: `http://localhost:${port}`,
     SECRETS_ENCRYPTION_KEY: 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2',
     TRIGGER_SECRET_KEY: 'tr_dev_test-fixture-not-a-real-key',
+    TRIGGER_JOBS_SECRET_KEY: 'tr_dev_test-fixture-not-a-real-key',
     GOOGLE_CLIENT_ID: 'test-google-client-id.apps.googleusercontent.com',
     GOOGLE_CLIENT_SECRET: 'test-google-client-secret',
     RESEND_API_KEY: 're_test_fixture_not_a_real_key',
@@ -127,11 +131,11 @@ describeWithHost('api under the bun runtime', () => {
     expect(response.status).toBe(401)
   })
 
-  it('refuses a tRPC body over the 4mb global cap with 413', async () => {
+  it('refuses a tRPC body over the global JSON cap with 413', async () => {
     const response = await fetch(`${base}/v1/trpc/sandboxSelf.stop`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ sessionId: 'x'.repeat(5 * 1024 * 1024) }),
+      body: JSON.stringify({ sessionId: 'x'.repeat(JSON_BODY_CAP_BYTES) }),
     })
     expect(response.status).toBe(413)
   })

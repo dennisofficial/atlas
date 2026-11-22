@@ -13,7 +13,7 @@ import {
   type SandboxCredentials,
   type SandboxListing,
   type SandboxTarget,
-} from '../../sandbox/sandbox-provider'
+} from '@dltech/atlas-pods/sandbox/sandbox-provider'
 import { singleProviderRegistry } from '../../testing/sandbox-registry'
 import { fakeModelSourceOf } from '../../testing/model-source'
 import { createSessionRuntimeFactory } from '../session-runtime-factory'

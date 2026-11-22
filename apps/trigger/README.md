@@ -36,11 +36,21 @@ deployments.
 ## Encrypted tier
 
 `apps/trigger/.env.production.enc` is this app's own tier file, with its own keypair, and carries
-only what these tasks need (`DATABASE_URL`). The private key lives in `apps/trigger/.env.keys`,
+only what these tasks need: `DATABASE_URL`, the change storage keys (`ARTIFACT_S3_*`), the Blob
+token (`BLOB_READ_WRITE_TOKEN`), and the pod keys that `readPodsEnv` from `@dltech/atlas-pods`
+reads (`DAEMON_SECRET`, `SECRETS_ENCRYPTION_KEY`, `ATLAS_API_ORIGIN`, `PLATFORM_VERCEL_*`,
+`AGENT37_*`). A task that reads a new variable adds it here in the same PR. The private key lives in `apps/trigger/.env.keys`,
 which is gitignored; deploy targets hold only that key, as `DOTENV_PRIVATE_KEY_PRODUCTION_ENC`.
 `trigger-tier-extension.ts` ships the tier file into the worker bundle as `envs/` and points
 `DOTENVX_ENVS_DIR` at it; `src/trigger/init.ts` decrypts it into `process.env` before a task runs.
 Never add the API's tier file here.
+
+## How the API starts a task
+
+The API starts `pod-sleep`, `pod-resize` and `pod-disk-grow-one` by id with this project's key,
+`TRIGGER_JOBS_SECRET_KEY` in the API's tier files. Its `TRIGGER_SECRET_KEY` stays the v1 project's
+key for the v1 tasks. A task here that queues another task uses the SDK's `tasks.trigger`, which
+needs no key inside a worker.
 
 ## Local
 

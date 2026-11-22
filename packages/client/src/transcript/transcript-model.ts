@@ -1,4 +1,4 @@
-import type { Attachment, EReportKind, ETldrStatus } from '@dltech/atlas-core'
+import type { Attachment, EOomScope, EReportKind, ETldrStatus } from '@dltech/atlas-core'
 
 import { runLabel } from './tools'
 import { settled, type ToolRun } from './tool-runs'
@@ -20,6 +20,7 @@ export enum EEntryKind {
   BackgroundShellMatched = 'background-shell-matched',
   BackgroundShellStillRunning = 'background-shell-still-running',
   ServiceEnded = 'service-ended',
+  PodOom = 'pod-oom',
   AgentEnded = 'agent-ended',
   AgentReported = 'agent-reported',
   TldrWritten = 'tldr-written',
@@ -142,6 +143,15 @@ export type ServiceEndedEntry = {
   serviceId: string
   output: string
   failed: boolean
+}
+
+export type PodOomEntry = {
+  kind: EEntryKind.PodOom
+  author: EAuthor.Model
+  key: string
+  text: string
+  scope: EOomScope
+  processes: number
 }
 
 export type AgentSaidEntry = {
@@ -307,6 +317,7 @@ export type TranscriptEntry =
   | BackgroundShellMatchedEntry
   | BackgroundShellStillRunningEntry
   | ServiceEndedEntry
+  | PodOomEntry
   | AgentEndedEntry
   | AgentReportedEntry
   | TldrWrittenEntry

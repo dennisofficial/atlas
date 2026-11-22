@@ -1,10 +1,11 @@
-import { EKilledBy, EShellStatus, type V2Event } from '@dltech/atlas-core'
+import { EKilledBy, EShellStatus, type OomMemory, type V2Event } from '@dltech/atlas-core'
 import { EShellRunStatus, type ShellInfo } from '@dltech/atlas-protocol'
 
 export type ShellOutcome = {
   status: EShellStatus
   killedBy?: EKilledBy | undefined
   exitCode?: number | undefined
+  memory?: OomMemory | undefined
 }
 
 export const outcomeOf = (info: ShellInfo): ShellOutcome => {
@@ -12,6 +13,14 @@ export const outcomeOf = (info: ShellInfo): ShellOutcome => {
   if (info.status === EShellRunStatus.Running) return { status: EShellStatus.Running }
   if (info.status === EShellRunStatus.Exited) return { status: EShellStatus.Exited, exitCode }
   if (info.status === EShellRunStatus.Killed) return { status: EShellStatus.Killed, exitCode }
+  if (info.status === EShellRunStatus.OomKilled) {
+    return {
+      status: EShellStatus.Killed,
+      killedBy: EKilledBy.OutOfMemory,
+      exitCode,
+      memory: info.memory,
+    }
+  }
   if (info.status === EShellRunStatus.TimedOut) {
     return { status: EShellStatus.Killed, killedBy: EKilledBy.Timeout, exitCode }
   }

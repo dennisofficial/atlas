@@ -70,6 +70,7 @@ export const recordServiceFrame = async (args: {
         status: outcome.status,
         ...(outcome.killedBy === undefined ? {} : { killedBy: outcome.killedBy }),
         ...(outcome.exitCode === undefined ? {} : { exitCode: outcome.exitCode }),
+        ...(outcome.memory === undefined ? {} : { memory: outcome.memory }),
         tail,
         ...(state.restarting.has(serviceId) ? { restarting: true as const } : {}),
       },

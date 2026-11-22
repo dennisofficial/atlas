@@ -1,7 +1,7 @@
 import { mediaPathname, validUntilOf, windowStartOf } from '@dltech/atlas-core'
 import type { MediaStore, ReadDelegation } from '@dltech/atlas-media'
 
-import type { SecretCipher } from '../config/secret-cipher'
+import type { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 import type { MediaSigningWindows, SigningWindowRow } from './media-signing-windows'
 
 type HeldWindow = { windowStart: number; validUntil: number; delegation: ReadDelegation }

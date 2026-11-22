@@ -1,6 +1,7 @@
 import { db } from '@dltech/atlas-db'
 import { seedThread } from '@dltech/atlas-db/testing'
 import { encodeSettingValue } from '@dltech/atlas-wire/web'
+import type { EnvService } from '../../../_core/config/env/env.service'
 import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { sealSecretValue } from '../secrets/sealed-secret'
 import { seedProject } from '../../../test/web-settings.fake-db'
@@ -10,6 +11,17 @@ export const THREAD = 'thr-1'
 export const KEY = 'model.effort'
 
 export const setting = (value: string): string => encodeSettingValue(value)
+
+export const PLATFORM_VERCEL_ENV = {
+  PLATFORM_VERCEL_TOKEN: 'plat-token',
+  PLATFORM_VERCEL_TEAM_ID: 'plat-team',
+  PLATFORM_VERCEL_PROJECT_ID: 'plat-prj',
+}
+
+export const envWith = (values: Record<string, string | undefined>): EnvService =>
+  ({ get: (key: string) => values[key] }) as unknown as EnvService
+
+export const platformEnv = (): EnvService => envWith(PLATFORM_VERCEL_ENV)
 
 export async function seedAllScopes(cipher: SecretCipherService): Promise<void> {
   const seal = (value: string) => sealSecretValue({ cipher, value })
@@ -34,11 +46,5 @@ export async function seedAllScopes(cipher: SecretCipherService): Promise<void> 
     projectId: PROJECT,
     name: 'API',
     sealedValue: seal('proj'),
-  })
-  await db.orm.public.UserVercelCredential.create({
-    userId: 'user-a',
-    sealedToken: seal('vtok_personal'),
-    teamId: 'team_personal',
-    vercelProjectId: 'prj_personal',
   })
 }

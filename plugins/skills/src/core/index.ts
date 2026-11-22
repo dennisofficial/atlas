@@ -12,7 +12,7 @@ export {
   type SkillListingEntry,
 } from './listing'
 export { expandSkillBody } from './expand'
-export { skillFrontmatterOf } from './parse'
+export { skillFrontmatterOf, skillSpecOf, type ParsedSkillSpec } from './parse'
 export {
   resolveSkillShadowing,
   type OriginatedSkill,

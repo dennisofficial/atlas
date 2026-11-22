@@ -12,7 +12,7 @@ import {
   type PodResizeOutcome,
   type SandboxCredentials,
   type SandboxListing,
-} from '../../sandbox/sandbox-provider'
+} from '@dltech/atlas-pods/sandbox/sandbox-provider'
 import { POD_IDLE_WINDOW_MS, startKeepAlive } from '../keep-alive'
 
 class RecordingSandbox extends SandboxProvider {

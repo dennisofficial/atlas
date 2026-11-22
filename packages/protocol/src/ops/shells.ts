@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { oomMemorySchema } from './oom'
 import { okResultSchema } from './result'
 
 const envSchema = z.record(z.string(), z.string())
@@ -28,6 +29,7 @@ export const shellInfoSchema = z
     signal: z.string().min(1).nullable(),
     endedAt: z.iso.datetime().optional(),
     totalBytes: z.number().int().min(0),
+    memory: oomMemorySchema.optional(),
   })
   .strict()
 

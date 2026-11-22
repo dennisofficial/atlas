@@ -1,10 +1,11 @@
-import { EKilledBy, EServiceStatus, type V2Event } from '@dltech/atlas-core'
+import { EKilledBy, EServiceStatus, type OomMemory, type V2Event } from '@dltech/atlas-core'
 import { EServiceRunStatus, type ServiceInfo } from '@dltech/atlas-protocol'
 
 export type ServiceOutcome = {
   status: EServiceStatus
   killedBy?: EKilledBy | undefined
   exitCode?: number | undefined
+  memory?: OomMemory | undefined
 }
 
 export const outcomeOf = (args: { info: ServiceInfo; stoppedByModel: boolean }): ServiceOutcome => {
@@ -12,6 +13,14 @@ export const outcomeOf = (args: { info: ServiceInfo; stoppedByModel: boolean }):
   const exitCode = info.exitCode === null ? undefined : info.exitCode
   if (info.status === EServiceRunStatus.Starting || info.status === EServiceRunStatus.Ready) {
     return { status: EServiceStatus.Running }
+  }
+  if (info.status === EServiceRunStatus.OomKilled) {
+    return {
+      status: EServiceStatus.Killed,
+      killedBy: EKilledBy.OutOfMemory,
+      exitCode,
+      memory: info.memory,
+    }
   }
   if (info.status === EServiceRunStatus.Stopped) {
     return {

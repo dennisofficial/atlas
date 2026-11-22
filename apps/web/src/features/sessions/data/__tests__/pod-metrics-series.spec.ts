@@ -46,6 +46,21 @@ describe('seriesAfter', () => {
     expect(series).toEqual([mapped(1_000)])
   })
 
+  it('keeps the OOM event count and the command memory limit', () => {
+    const series = seriesAfter({
+      series: [],
+      frame: {
+        type: 'sample',
+        sample: {
+          ...sample(1_000),
+          oomEvents: 2,
+          commandRamLimitBytes: 2.5 * 1024 ** 3,
+        },
+      },
+    })
+    expect(series[0]).toMatchObject({ oomEvents: 2, commandRamLimitGb: 2.5 })
+  })
+
   it('keeps the series bounded to the ring size', () => {
     const series = Array.from({ length: POD_METRICS_SERIES_LIMIT }, (_value, index) =>
       mapped(index * 1_000),

@@ -4,6 +4,11 @@ import { EServiceStatus } from '../services/status'
 import { EKilledBy, EShellEndCause, EShellStatus } from '../shells/status'
 import { noticeStampSchema } from './notice-stamp-schema'
 
+export const oomMemorySchema = z.object({
+  commandLimitBytes: z.number().int().nonnegative(),
+  podBytes: z.number().int().nonnegative(),
+})
+
 export const shellEventSchemas = [
   z.object({
     type: z.literal('background-shell-started'),
@@ -24,6 +29,7 @@ export const shellEventSchemas = [
     killedBy: z.enum(EKilledBy).optional(),
     exitCode: z.number().int().optional(),
     cause: z.enum(EShellEndCause).optional(),
+    memory: oomMemorySchema.optional(),
     output: z.string(),
     droppedCharacters: z.number().int().nonnegative(),
     remainingCharacters: z.number().int().nonnegative(),
@@ -94,6 +100,7 @@ export const shellEventSchemas = [
     exitCode: z.number().int().optional(),
     cause: z.enum(EShellEndCause).optional(),
     logPath: z.string().min(1).optional(),
+    memory: oomMemorySchema.optional(),
     tail: z.string(),
     restarting: z.literal(true).optional(),
     notice: noticeStampSchema.optional(),

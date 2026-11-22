@@ -6,13 +6,16 @@
   "exports": {
     ".": "./src/index.ts",
     "./postgres": "./src/postgres/index.ts",
-    "./testing": "./src/testing/index.ts"
+    "./testing": "./src/testing/index.ts",
+    "./s3": "./src/s3/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "bun test"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1167.0",
+    "@aws-sdk/s3-request-presigner": "^3.1167.0",
     "@dltech/atlas-commands": "workspace:*",
     "@dltech/atlas-core": "workspace:*",
     "@dltech/atlas-db": "workspace:*",

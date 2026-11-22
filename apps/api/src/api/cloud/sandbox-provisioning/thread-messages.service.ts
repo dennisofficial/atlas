@@ -75,14 +75,14 @@ export class ThreadMessagesService {
     const session = await sessionOfThread({ reader: db, threadId })
     if (session.archivedAt !== null) await this.unarchive({ userId, threadId })
 
-    const gap = await this.pod.credentialsOf({ userId: thread.userId })
-    const staged = await this.appendAndClaim({ ...args, thread, claimable: gap === null })
+    const notConfigured = await this.pod.notConfiguredOf()
+    const staged = await this.appendAndClaim({ ...args, thread, claimable: notConfigured === null })
     if (staged.appended !== undefined) {
       await this.signals.eventsAppended({ threadId, ...staged.appended })
       await this.tickPodRoot({ threadId })
     }
-    if (gap !== null) {
-      await this.pod.reportGap({ threadId, failure: gap })
+    if (notConfigured !== null) {
+      await this.pod.reportNotConfigured({ threadId, message: notConfigured })
       await this.signals.podChanged({ threadId })
       return { state: EThreadMessageState.Queued }
     }

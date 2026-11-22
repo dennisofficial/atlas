@@ -59,7 +59,7 @@ import { recordBootSteps, recordRunningServeVersion } from './sandbox-boot-steps
 import { applyThreadActivity } from './thread-activity'
 import { registerPodChild } from './pod-child'
 import { deleteContextFile, deleteMissingContextFiles, putContextFile } from './pod-context-files'
-import { endPodTerminals } from './pod-terminals'
+import { endPodTerminals } from '@dltech/atlas-pods'
 import { applyPodEvents, truncatePodEvents } from './pod-events'
 import { assertWithinSandboxFamily } from './pod-family'
 import { keepaliveFrames } from './sandbox-watch-keepalive'

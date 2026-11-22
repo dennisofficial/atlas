@@ -2,7 +2,7 @@ import { isAbsolute, resolve } from 'node:path'
 
 import { z } from 'zod'
 
-import { SANDBOX_HOME_PATH } from '../sandbox/constants'
+import { SANDBOX_HOME_PATH } from '@dltech/atlas-pods/sandbox/constants'
 import {
   ATLAS_CONTEXT_DIR_ENV,
   ATLAS_SESSION_DIR_ENV,

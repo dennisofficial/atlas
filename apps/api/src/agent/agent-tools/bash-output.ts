@@ -1,4 +1,10 @@
-import { untrustedEnvelope } from '@dltech/atlas-core'
+import {
+  OOM_ADVICE,
+  memoryLimitNote,
+  ONLY_OPERATOR_RAISES_MEMORY,
+  untrustedEnvelope,
+  type OomMemory,
+} from '@dltech/atlas-core'
 
 import { countLineBreaks, render, type Tail } from './shell-process'
 
@@ -60,10 +66,12 @@ export function mergeStreams(args: { stdout: Tail; stderr: Tail }): {
 }
 
 export function renderModelText(args: {
+  command: string
   merged: string
   exitCode: number
   timedOut: boolean
   oomKilled: boolean
+  memory: OomMemory | undefined
   timeoutMs: number
   maximumTimeoutMs: number
 }): string {
@@ -77,7 +85,7 @@ export function renderModelText(args: {
   }
   if (args.oomKilled) {
     sections.push(
-      'The kernel killed the command because it ran out of memory: it exceeded the memory limit of the sandbox. A retry with no change fails the same way. Reduce its memory use before you run it again: smaller inputs, streaming or batching, fewer parallel workers.',
+      `The kernel killed \`${args.command}\` because it ran out of memory${memoryLimitNote(args.memory)}. ${OOM_ADVICE} ${ONLY_OPERATOR_RAISES_MEMORY}`,
     )
   }
   if (args.exitCode !== 0) sections.push(`Exit code: ${args.exitCode}`)

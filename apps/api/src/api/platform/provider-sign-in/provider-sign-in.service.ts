@@ -17,7 +17,7 @@ import {
   openaiPollDevice,
   openaiStartDevice,
   type OauthLogin,
-} from '@dltech/atlas-harness/provider-oauth'
+} from '@dltech/atlas-models/provider-oauth'
 import {
   EAccountOrigin,
   EAuthKind,

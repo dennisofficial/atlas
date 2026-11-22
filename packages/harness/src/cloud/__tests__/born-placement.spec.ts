@@ -9,22 +9,16 @@ import {
 } from '@dltech/atlas-core'
 
 import { createSettingsService, MemorySettingsStore } from '../../settings'
-import { bornPlacementFor, cloudProvisioningConfigured } from '../born-placement'
-import type { CloudClient } from '../cloud-client'
-import { VercelCredentialStore } from '../vercel-credential-store'
+import { bornPlacementFor } from '../born-placement'
 import { CLOUD_SETTING_DEFINITIONS, isCloudSettingId } from '../settings-definitions'
 
 class FakeSecrets extends SecretsPort {
-  constructor(private readonly held: Record<string, string>) {
-    super()
-  }
-
   origin(): string {
     return 'fake'
   }
 
-  read(name: string): string | undefined {
-    return this.held[name]
+  read(): string | undefined {
+    return undefined
   }
 
   write(): void {
@@ -47,123 +41,19 @@ const settingsWith = (values: Record<string, string | number>) =>
     user: new MemorySettingsStore({ document: { values } }),
   })
 
-const SCOPING = {
-  [ESettingId.VercelTeamId]: 'team_1',
-  [ESettingId.VercelProjectId]: 'prj_1',
-}
-const TOKEN = { [ESettingId.VercelToken]: 'vercel-token' }
-
 describe('bornPlacementFor', () => {
-  it('is the host on a fully configured machine', () => {
-    const placement = bornPlacementFor({
-      settings: settingsWith(SCOPING),
-      secrets: new FakeSecrets(TOKEN),
-    })
-
-    expect(placement).toEqual({ harness: EHarnessPlacement.Host, tools: EToolEnvironment.Host })
-  })
-
-  it('is the host on an unconfigured machine', () => {
-    const placement = bornPlacementFor({ settings: settingsWith({}), secrets: new FakeSecrets({}) })
+  it('is the host on a fresh machine', () => {
+    const placement = bornPlacementFor({ settings: settingsWith({}), secrets: new FakeSecrets() })
 
     expect(placement).toEqual({ harness: EHarnessPlacement.Host, tools: EToolEnvironment.Host })
   })
 
   it('is the host even when the last born placement was the cloud', () => {
     const placement = bornPlacementFor({
-      settings: settingsWith({ ...SCOPING, [ESettingId.LastBornPlacement]: 'cloud' }),
-      secrets: new FakeSecrets(TOKEN),
+      settings: settingsWith({ [ESettingId.LastBornPlacement]: 'cloud' }),
+      secrets: new FakeSecrets(),
     })
 
     expect(placement.harness).toBe(EHarnessPlacement.Host)
-  })
-})
-
-describe('cloudProvisioningConfigured', () => {
-  it('needs the token, the team and the project', async () => {
-    expect(
-      await cloudProvisioningConfigured({
-        settings: settingsWith(SCOPING),
-        secrets: new FakeSecrets(TOKEN),
-      }),
-    ).toBe(true)
-  })
-
-  it('is false without the token', async () => {
-    expect(
-      await cloudProvisioningConfigured({
-        settings: settingsWith(SCOPING),
-        secrets: new FakeSecrets({}),
-      }),
-    ).toBe(false)
-  })
-
-  it('is false with a blank token', async () => {
-    const secrets = new FakeSecrets({ [ESettingId.VercelToken]: '   ' })
-
-    expect(await cloudProvisioningConfigured({ settings: settingsWith(SCOPING), secrets })).toBe(
-      false,
-    )
-  })
-
-  it('is false without the team', async () => {
-    const settings = settingsWith({ [ESettingId.VercelProjectId]: 'prj_1' })
-
-    expect(await cloudProvisioningConfigured({ settings, secrets: new FakeSecrets(TOKEN) })).toBe(
-      false,
-    )
-  })
-
-  it('is false without the project', async () => {
-    const settings = settingsWith({ [ESettingId.VercelTeamId]: 'team_1' })
-
-    expect(await cloudProvisioningConfigured({ settings, secrets: new FakeSecrets(TOKEN) })).toBe(
-      false,
-    )
-  })
-
-  const cloudStore = (wire: {
-    configured: boolean
-    teamId: string | null
-    vercelProjectId: string | null
-  }) =>
-    new VercelCredentialStore(
-      () =>
-        ({
-          readVercel: async () => ({ ...wire, updatedAt: null }),
-        }) as unknown as CloudClient,
-    )
-
-  it('asks the cloud resource when signed in, ignoring local values', async () => {
-    const vercel = cloudStore({ configured: true, teamId: 't', vercelProjectId: 'p' })
-    expect(
-      await cloudProvisioningConfigured({
-        settings: settingsWith({}),
-        secrets: new FakeSecrets({}),
-        vercel,
-      }),
-    ).toBe(true)
-  })
-
-  it('is false when the cloud resource is unconfigured even with local values', async () => {
-    const vercel = cloudStore({ configured: false, teamId: null, vercelProjectId: null })
-    expect(
-      await cloudProvisioningConfigured({
-        settings: settingsWith(SCOPING),
-        secrets: new FakeSecrets(TOKEN),
-        vercel,
-      }),
-    ).toBe(false)
-  })
-
-  it('uses the local values when signed out', async () => {
-    const vercel = new VercelCredentialStore(() => null)
-    expect(
-      await cloudProvisioningConfigured({
-        settings: settingsWith(SCOPING),
-        secrets: new FakeSecrets(TOKEN),
-        vercel,
-      }),
-    ).toBe(true)
   })
 })

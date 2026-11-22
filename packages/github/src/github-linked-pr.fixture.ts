@@ -63,7 +63,7 @@ async function seedSessionLink(args: {
       modelEffort: 'medium',
       modelFast: false,
       sandboxProvider: 'vercel',
-      credentialSource: 'byok',
+      credentialSource: 'platform',
       spawnedBySessionId: null,
       nested: true,
       podSessionId: null,

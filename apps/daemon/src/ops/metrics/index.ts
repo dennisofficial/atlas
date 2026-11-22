@@ -16,6 +16,7 @@ import {
 import { CGROUP_ROOT } from '@dltech/atlas-sandbox'
 
 import type { DaemonOpsDeps } from '../deps'
+import { oomRecorderOf } from '../oom/recorder'
 import {
   METRICS_CGROUP_ROOT_ENV,
   METRICS_DISK_ROOT_ENV,
@@ -76,7 +77,14 @@ export const metricsGroup =
     const countersNow = (): PodCgroupCounters | null => {
       const counters = readPodCounters({ root, proc })
       if (counters === null) return null
-      return { ...counters, ...(readFirstPodDisk({ roots: diskRoots }) ?? {}) }
+      const recorder = oomRecorderOf(deps)
+      const commandMemoryLimitBytes = recorder.commandRamLimitBytes()
+      return {
+        ...counters,
+        ...(readFirstPodDisk({ roots: diskRoots }) ?? {}),
+        oomEvents: recorder.journal.count,
+        ...(commandMemoryLimitBytes === null ? {} : { commandMemoryLimitBytes }),
+      }
     }
 
     const sample = (): void => {

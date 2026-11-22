@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { SecretCipher } from '../secret-cipher'
+import { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 import { readEnvSecrets, type EnvSecretRows, type SealedSecretRow } from '../env-secrets'
 
 const KEY = 'a'.repeat(64)

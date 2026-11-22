@@ -40,6 +40,7 @@ export const COMPACTION_DISPOSITION = {
   'run-event': ECompactionDisposition.Summarise,
   nudge: ECompactionDisposition.Summarise,
   'sandbox-setup-reported': ECompactionDisposition.Summarise,
+  'pod-ran-out-of-memory': ECompactionDisposition.Summarise,
   parked: ECompactionDisposition.Summarise,
   'tool-parked': ECompactionDisposition.Drop,
   'tool-dispatched': ECompactionDisposition.Drop,

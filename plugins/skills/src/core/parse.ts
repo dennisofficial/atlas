@@ -1,4 +1,4 @@
-import type { FrontmatterFields } from './frontmatter'
+import { frontmatterOf, type FrontmatterFields } from './frontmatter'
 import { KNOWN_FIELDS, type SkillFrontmatter } from './spec'
 
 const AFFIRMATIVE: readonly string[] = ['1', 'true', 'on', 'yes']
@@ -47,5 +47,34 @@ export function skillFrontmatterOf(args: {
     }),
     argumentHint: textAt(fields, 'argument-hint'),
     unrecognised: unrecognisedOf(fields),
+  }
+}
+
+export type ParsedSkillSpec = {
+  name: string
+  summary: string
+  argumentHint?: string
+  userInvocable: boolean
+}
+
+export function skillSpecOf(args: {
+  text: string
+  fallbackName: string
+}): ParsedSkillSpec | undefined {
+  if (args.text.trim() === '') return undefined
+
+  const frontmatter = skillFrontmatterOf({
+    fields: frontmatterOf(args.text),
+    fallbackName: args.fallbackName,
+  })
+  const name = frontmatter.name.trim().toLowerCase()
+  if (name === '') return undefined
+
+  const hint = frontmatter.argumentHint?.trim()
+  return {
+    name,
+    summary: frontmatter.description,
+    ...(hint === undefined || hint === '' ? {} : { argumentHint: hint }),
+    userInvocable: frontmatter.userInvocable,
   }
 }

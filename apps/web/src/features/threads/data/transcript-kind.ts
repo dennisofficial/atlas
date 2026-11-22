@@ -16,3 +16,7 @@ export enum ENoticeTone {
   Attention = 'attention',
   Quiet = 'quiet',
 }
+
+export enum ENoticeAction {
+  ChangePodSize = 'change-pod-size',
+}

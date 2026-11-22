@@ -9,6 +9,7 @@ for specs.
 - `MediaStore`: the port with a read delegation, presigned get and put URLs, `head`, `read` and
   `delete`.
 - `VercelMediaStore`: the Vercel Blob implementation.
+- `listBlobsOlderThan`: the pathnames under a prefix that were uploaded before a cutoff.
 - `FakeMediaStore`: an in-memory store for a spec.
 
 ## Does not own
@@ -20,10 +21,10 @@ for specs.
 
 ## Entry points
 
-| Import                        | Use it for                                          |
-| ----------------------------- | --------------------------------------------------- |
-| `@dltech/atlas-media`         | `MediaStore`, `ReadDelegation`, `VercelMediaStore`. |
-| `@dltech/atlas-media/testing` | `FakeMediaStore` for a spec.                        |
+| Import                        | Use it for                                                                |
+| ----------------------------- | ------------------------------------------------------------------------- |
+| `@dltech/atlas-media`         | `MediaStore`, `ReadDelegation`, `VercelMediaStore`, `listBlobsOlderThan`. |
+| `@dltech/atlas-media/testing` | `FakeMediaStore` for a spec.                                              |
 
 ## Capabilities
 
@@ -43,6 +44,12 @@ for specs.
 - `head({ pathname })`: returns `{ size }`, or `null` when the blob does not exist.
 - `read({ pathname })`: returns the bytes, or `null`.
 - `delete({ pathnames })`: deletes the blobs. An empty list does nothing.
+
+### Sweep old blobs
+
+- `listBlobsOlderThan({ token, prefix, before })`: returns the pathnames under `prefix` whose
+  upload time is before `before`, across every page. It reads the whole listing, so it suits a
+  scheduled sweep, not a request.
 
 ### Test against the fake store
 
