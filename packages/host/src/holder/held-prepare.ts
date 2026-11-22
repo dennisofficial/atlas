@@ -116,7 +116,7 @@ export class HeldPrepare {
     args.runtime.subscribePrepareOutput?.((text) =>
       fireLive({
         bus: deps.bus,
-        sessionId: deps.sessionId,
+        key: deps.sessionId,
         frame: { type: 'tool-output', callId: setupOutputCallId(deps.sessionId), text },
       }),
     )

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from '
 import type { ApiClient } from '@dltech/atlas-api-router'
 import {
   ESessionConnection,
+  memorySessionLog,
   type FollowedSession,
   type SessionSnapshot,
 } from '@dltech/atlas-client/stream'
@@ -25,18 +26,23 @@ const NOT_FOLLOWING: SessionSnapshot = {
 
 const notFollowingSnapshot = (): SessionSnapshot => NOT_FOLLOWING
 
-export function useV2Session(args: { sessionId: string; api: ApiClient | undefined }): {
+export function useV2Session(args: {
+  sessionId: string
+  threadId?: string | undefined
+  api: ApiClient | undefined
+}): {
   snapshot: SessionSnapshot
   loadOlder: () => Promise<number>
 } {
   const [followed, setFollowed] = useState<FollowedSession | undefined>(undefined)
   const followedRef = useRef<FollowedSession | undefined>(undefined)
 
-  const { sessionId, api } = args
+  const { sessionId, threadId, api } = args
 
   useEffect(() => {
     if (api === undefined) return undefined
-    const session = sessionStream(api).follow({ sessionId, log: sessionLog() })
+    const log = threadId === undefined ? sessionLog() : memorySessionLog()
+    const session = sessionStream(api).follow({ sessionId, threadId, log })
     followedRef.current = session
     setFollowed(session)
     return () => {
@@ -44,7 +50,7 @@ export function useV2Session(args: { sessionId: string; api: ApiClient | undefin
       session.close()
       setFollowed(undefined)
     }
-  }, [sessionId, api])
+  }, [sessionId, threadId, api])
 
   const subscribe = useCallback(
     (listener: () => void) => followed?.subscribe(listener) ?? (() => undefined),

@@ -8,7 +8,8 @@ import {
   useTheme,
 } from '@dltech/atlas-ui-native'
 import { space } from '@dltech/atlas-ui/tokens'
-import { Stack, useLocalSearchParams } from 'expo-router'
+import { router, Stack, useLocalSearchParams } from 'expo-router'
+import { useCallback } from 'react'
 import { ActivityIndicator, StyleSheet, View } from 'react-native'
 
 import { KeyboardDock } from '../../../layout/keyboard-dock'
@@ -22,6 +23,13 @@ export default function SessionScreen() {
   const theme = useTheme()
   const { id, title } = useLocalSearchParams<{ id: string; title?: string }>()
   const session = useV2SessionScreen(id)
+
+  const handleOpenAgent = useCallback(
+    (agentId: string) => {
+      router.push(`/agents/${agentId}?sessionId=${id}`)
+    },
+    [id],
+  )
 
   return (
     <View style={[styles.screen, { backgroundColor: theme.background }]}>
@@ -42,6 +50,8 @@ export default function SessionScreen() {
             now={session.now}
             threadId={id}
             onLoadOlder={session.loadOlder}
+            agentLinks={session.agentLinks}
+            onOpenAgent={handleOpenAgent}
           />
           {session.failure === null ? null : (
             <View style={styles.failure}>

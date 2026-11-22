@@ -163,6 +163,7 @@ export const createBenchWorld = async (args: {
       return plane.readSessionView(params)
     },
     listSessionDigests: (params) => plane.listSessionDigests(params),
+    readThread: (params) => plane.readThread(params),
   }
 
   const follow = createFollowSubscriptions({

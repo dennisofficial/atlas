@@ -392,4 +392,40 @@ describe('SessionsService sandbox provider', () => {
       service.create({ userId: 'user-a', projectId: 'proj-a', provider: 'docker' }),
     ).rejects.toBeInstanceOf(BadRequestException)
   })
+
+  it('reads the events of a child thread the caller names', async () => {
+    const { plane, service } = setup()
+    const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
+    const child = 'child-thread'
+    await plane.createThread({ threadId: child, sessionId: created.sessionId })
+    const lease = await plane.grant({ sessionId: created.sessionId, hostId: 9001 })
+    await appendBodies({
+      plane,
+      threadId: child,
+      epoch: lease.epoch,
+      bodies: [{ type: 'user-said', text: 'child work' }],
+    })
+
+    const events = await service.events({
+      userId: 'user-a',
+      sessionId: created.sessionId,
+      threadId: child,
+    })
+    expect(events.events).toHaveLength(1)
+  })
+
+  it('refuses the events of a thread outside the session', async () => {
+    const { plane, service } = setup()
+    const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
+    const other = await service.create({ userId: 'user-a', projectId: 'proj-a' })
+
+    await expect(
+      service.events({
+        userId: 'user-a',
+        sessionId: created.sessionId,
+        threadId: other.mainThreadId,
+      }),
+    ).rejects.toBeInstanceOf(NotFoundException)
+    expect(await plane.readThread({ threadId: other.mainThreadId })).toBeDefined()
+  })
 })

@@ -38,7 +38,7 @@ describe.skipIf(process.env.ATLAS_TEST_REDIS_URL === undefined)('redis live fram
       received.push(JSON.parse(message) as LiveFrame)
     })
     frames.live({
-      sessionId: 'session-b',
+      key: 'session-b',
       frame: { type: 'tool-output', callId: 'call-1', text: 'ok' },
     })
     const deadline = Date.now() + 5_000
@@ -51,7 +51,7 @@ describe.skipIf(process.env.ATLAS_TEST_REDIS_URL === undefined)('redis live fram
   it('closes a live client and tolerates a second close', async () => {
     const frames = createRedisLiveFrames({ url })
     frames.live({
-      sessionId: 'session-close',
+      key: 'session-close',
       frame: { type: 'tool-output', callId: 'call-1', text: 'ok' },
     })
     await expect(frames.close()).resolves.toBeUndefined()
@@ -79,7 +79,7 @@ describe.skipIf(process.env.ATLAS_TEST_REDIS_URL === undefined)('redis live fram
       reader.on('message', (_channel: string, message: string) => {
         received.push(JSON.parse(message) as LiveFrame)
       })
-      for (const frame of args.frames) publisher.live({ sessionId: args.sessionId, frame })
+      for (const frame of args.frames) publisher.live({ key: args.sessionId, frame })
       const deadline = Date.now() + 5_000
       while (received.length < args.frames.length && Date.now() < deadline) {
         await new Promise((resolve) => setTimeout(resolve, 20))
@@ -143,9 +143,9 @@ describe.skipIf(process.env.ATLAS_TEST_REDIS_URL === undefined)('redis live fram
     const key = { runId: 'run-evict', step: 0, attempt: 0 }
     for (let n = 0; n < 50; n += 1) {
       const sessionId = `session-evict-${n}`
-      publisher.live({ sessionId, frame: { type: 'step-start', key, afterSeq: 0, at: STAMP } })
+      publisher.live({ key: sessionId, frame: { type: 'step-start', key, afterSeq: 0, at: STAMP } })
       publisher.live({
-        sessionId,
+        key: sessionId,
         frame: { type: 'step-end', key, reason: EStepEndReason.Finished, at: STAMP },
       })
     }
@@ -160,7 +160,7 @@ describe('redis live frames without a server', () => {
     const frames = createRedisLiveFrames({ url: 'redis://127.0.0.1:1' })
     await expect(
       frames.live({
-        sessionId: 'session-down',
+        key: 'session-down',
         frame: { type: 'step-start', key, afterSeq: 0, at: STAMP },
       }),
     ).rejects.toBeDefined()
@@ -171,7 +171,7 @@ describe('redis live frames without a server', () => {
     const frames = createRedisLiveFrames({ url: 'redis://127.0.0.1:1' })
     await expect(
       frames.live({
-        sessionId: 'session-down',
+        key: 'session-down',
         frame: { type: 'tool-output', callId: 'call-1', text: 'ok' },
       }),
     ).rejects.toBeDefined()

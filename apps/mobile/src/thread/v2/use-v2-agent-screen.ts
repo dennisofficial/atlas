@@ -1,0 +1,63 @@
+import { ESessionConnection } from '@dltech/atlas-client/stream'
+import { agentLabelOf, agentOf } from '@dltech/atlas-client/transcript'
+import { useEffect, useMemo, useState } from 'react'
+
+import { useAuth } from '../../auth/auth-provider'
+import { agentLinksOf, type AgentLinks } from './agent-links'
+import { v2ViewOf, type V2ThreadView } from './rows'
+import { useV2Session } from './use-v2-session'
+
+const TICK_MS = 1_000
+
+export type V2AgentScreen = V2ThreadView & {
+  now: number
+  title: string
+  agentLinks: AgentLinks
+  loaded: boolean
+  failedToLoad: boolean
+  loadOlder: () => Promise<number>
+}
+
+export function useV2AgentScreen(args: {
+  sessionId: string
+  agentId: string
+  parentThreadId?: string | undefined
+}): V2AgentScreen {
+  const { api } = useAuth()
+  const { sessionId, agentId, parentThreadId } = args
+  const child = useV2Session({ sessionId, threadId: agentId, api })
+  const parent = useV2Session({ sessionId, threadId: parentThreadId, api })
+  const [now, setNow] = useState(() => Date.now())
+
+  const agent = useMemo(
+    () => agentOf({ events: parent.snapshot.events, agentId }),
+    [parent.snapshot.events, agentId],
+  )
+  const working = agent?.running ?? false
+  const view = useMemo(() => v2ViewOf({ snapshot: child.snapshot, now }), [child.snapshot, now])
+  const agentLinks = useMemo(
+    () => agentLinksOf({ events: child.snapshot.events }),
+    [child.snapshot.events],
+  )
+
+  useEffect(() => {
+    if (!working) return undefined
+    setNow(Date.now())
+    const timer = setInterval(() => setNow(Date.now()), TICK_MS)
+    return () => clearInterval(timer)
+  }, [working])
+
+  const loaded =
+    child.snapshot.events.length > 0 || child.snapshot.connection === ESessionConnection.Live
+
+  return {
+    ...view,
+    working,
+    now,
+    title: agentLabelOf(agent),
+    agentLinks,
+    loaded,
+    failedToLoad: child.snapshot.error !== undefined && child.snapshot.events.length === 0,
+    loadOlder: child.loadOlder,
+  }
+}

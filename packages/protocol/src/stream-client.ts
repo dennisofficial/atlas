@@ -12,6 +12,7 @@ const subscribeSessionSchema = z
     id: z.string().min(1),
     kind: z.literal(EStreamSubscribeKind.Session),
     sessionId: z.string().min(1),
+    threadId: z.string().min(1).optional(),
     afterSeq: z.number().int().min(0).optional(),
     afterHash: z.string().min(1).optional(),
   })

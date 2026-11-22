@@ -12,15 +12,14 @@ import type { RunFailureCardProps } from '@/features/threads/transcript/run-fail
 import { sessionFailureCardOf, sessionAttentionOf } from './session-run-attention'
 import { retrySessionNow } from './use-retry-session'
 
-const noop = () => undefined
-
 export function useSessionRunFailure(args: {
   sessionId: string
   events: readonly V2Event[]
   working: boolean
+  openAgent: (agentId: string) => void
   onSwitchModel: () => void
 }): { card: RunFailureCardProps | null; failedLabel: null } {
-  const { sessionId, events, working, onSwitchModel } = args
+  const { sessionId, events, working, openAgent, onSwitchModel } = args
   const router = useRouter()
   const accountLabelOf = useAccountLabel()
 
@@ -42,10 +41,10 @@ export function useSessionRunFailure(args: {
               retry: handleRetry,
               fixCredential: handleFixCredential,
               switchModel: onSwitchModel,
-              openAgent: noop,
+              openAgent,
             },
           }),
-    [attention, accountLabelOf, handleRetry, handleFixCredential, onSwitchModel],
+    [attention, accountLabelOf, handleRetry, handleFixCredential, onSwitchModel, openAgent],
   )
 
   return { card, failedLabel: null }

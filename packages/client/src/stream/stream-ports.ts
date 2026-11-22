@@ -1,9 +1,16 @@
 import type { StreamServerMessage } from '@dltech/atlas-protocol'
 
+import type { SessionLog } from './session-log'
+
 export type StreamFollowInput = {
   sessionId: string
+  threadId?: string | undefined
   afterSeq?: number | undefined
   afterHash?: string | undefined
+}
+
+export type FollowArgs = Pick<StreamFollowInput, 'sessionId' | 'threadId'> & {
+  log?: SessionLog | undefined
 }
 
 export type StreamSubscription = { close(): void }

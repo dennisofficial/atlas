@@ -37,7 +37,7 @@ describe('live overlay ordering and liveness', () => {
   })
 
   const publish = (frame: TestFrame, deliver = true): void =>
-    live.publish({ sessionId: SESSION, frame, deliver })
+    live.publish({ key: SESSION, frame, deliver })
 
   const recheckStatus = async (): Promise<void> => {
     await rig.plane.wake({ sessionIds: [SESSION] })

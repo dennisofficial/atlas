@@ -36,11 +36,17 @@ describe.skipIf(process.env.ATLAS_TEST_REDIS_URL === undefined)('redis live sour
     sources.push(source)
     const overlay = new LiveOverlay({ source, timers: systemHostTimers, log: undefined })
     const sent: StreamServerMessage[] = []
-    overlay.add({ id: 'sub-1', sessionId, send: (m) => sent.push(m), bufferedAmount: () => 0 })
+    overlay.add({
+      id: 'sub-1',
+      sessionId,
+      liveKey: sessionId,
+      send: (m) => sent.push(m),
+      bufferedAmount: () => 0,
+    })
     const stamp = stampSeq()
     const delta = (args: { from: number; text: string }) =>
       producer.live({
-        sessionId,
+        key: sessionId,
         frame: {
           type: 'delta',
           key: KEY,
@@ -65,7 +71,7 @@ describe.skipIf(process.env.ATLAS_TEST_REDIS_URL === undefined)('redis live sour
     const sessionId = `join-${Date.now()}`
     const { producer, delta, text, sent, stamp } = setup(sessionId)
     producer.live({
-      sessionId,
+      key: sessionId,
       frame: { type: 'step-start', key: KEY, afterSeq: 0, at: stamp() },
     })
     delta({ from: 0, text: 'Hello' })
@@ -78,7 +84,7 @@ describe.skipIf(process.env.ATLAS_TEST_REDIS_URL === undefined)('redis live sour
     const sessionId = `gap-${Date.now()}`
     const { producer, delta, text, sent, stamp } = setup(sessionId)
     producer.live({
-      sessionId,
+      key: sessionId,
       frame: { type: 'step-start', key: KEY, afterSeq: 0, at: stamp() },
     })
     delta({ from: 0, text: 'abc' })

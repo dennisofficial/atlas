@@ -68,6 +68,18 @@ describe('client messages', () => {
     expect(streamClientMessageSchema.safeParse(tail).success).toBe(true)
   })
 
+  it('accepts a session subscription of a child thread and refuses an empty thread id', () => {
+    const child = {
+      type: 'subscribe',
+      id: 's',
+      kind: 'session',
+      sessionId: 'x',
+      threadId: 'child-1',
+    }
+    expect(streamClientMessageSchema.parse(child)).toEqual(child as never)
+    expect(streamClientMessageSchema.safeParse({ ...child, threadId: '' }).success).toBe(false)
+  })
+
   it('serializes a hello under the client frame limit', () => {
     const bytes = new TextEncoder().encode(JSON.stringify(streamClientFixtures.hello)).byteLength
     expect(bytes).toBeLessThan(STREAM_MAX_CLIENT_FRAME_BYTES)

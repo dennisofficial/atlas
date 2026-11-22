@@ -3,7 +3,14 @@ import type { ThreadPanelValue } from '@/features/threads/panel/thread-panel-con
 
 const noop = () => undefined
 
-export const panelValueOf = (args: { sessionId: string; working: boolean }): ThreadPanelValue => ({
+export const panelValueOf = (args: {
+  sessionId: string
+  working: boolean
+  agentId: string | undefined
+  parentAgentId?: string | undefined
+  openAgent: (agentId: string, parentAgentId?: string) => void
+  clearAgent: () => void
+}): ThreadPanelValue => ({
   threadId: args.sessionId,
   channel: null,
   pod: null,
@@ -12,13 +19,14 @@ export const panelValueOf = (args: { sessionId: string; working: boolean }): Thr
   error: null,
   working: args.working,
   changesPath: undefined,
-  agentId: undefined,
+  agentId: args.agentId,
+  agentParentId: args.parentAgentId,
   contextPath: undefined,
   filePath: undefined,
   openChanges: noop,
-  openAgent: noop,
+  openAgent: args.openAgent,
   openDetails: noop,
-  clearAgent: noop,
+  clearAgent: args.clearAgent,
   openContextFile: noop,
   toggleContextFile: noop,
   closeContextFile: noop,

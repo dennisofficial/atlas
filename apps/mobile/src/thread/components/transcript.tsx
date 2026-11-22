@@ -13,6 +13,7 @@ import {
 
 import { EMessageAuthor, ERowKind, type ThreadRow } from '../rows'
 import { useKeyboard } from '../../layout/use-keyboard'
+import type { AgentLinks } from '../v2/agent-links'
 import { MessageRowView } from './message-row'
 import { NoticeRowView } from './notice-row'
 import { WorkRowView } from './work-row'
@@ -50,12 +51,16 @@ export const Transcript = ({
   working,
   threadId,
   onLoadOlder,
+  agentLinks,
+  onOpenAgent,
 }: {
   rows: readonly ThreadRow[]
   working: boolean
   now: number
   threadId: string | undefined
   onLoadOlder?: (() => Promise<number>) | undefined
+  agentLinks?: AgentLinks | undefined
+  onOpenAgent?: ((agentId: string) => void) | undefined
 }) => {
   const listRef = useRef<FlatList<ThreadRow>>(null)
   const isNearBottom = useRef(true)
@@ -68,11 +73,17 @@ export const Transcript = ({
     ({ item }) => (
       <View style={styles.item}>
         {item.kind === ERowKind.Message ? <MessageRowView row={item} threadId={threadId} /> : null}
-        {item.kind === ERowKind.Work ? <WorkRowView row={item} /> : null}
-        {item.kind === ERowKind.Notice ? <NoticeRowView row={item} /> : null}
+        {item.kind === ERowKind.Work ? <WorkRowView row={item} onOpenAgent={onOpenAgent} /> : null}
+        {item.kind === ERowKind.Notice ? (
+          <NoticeRowView
+            row={item}
+            agentId={agentLinks?.byEventId.get(item.id)}
+            onOpenAgent={onOpenAgent}
+          />
+        ) : null}
       </View>
     ),
-    [threadId],
+    [threadId, agentLinks, onOpenAgent],
   )
 
   const scrollToEnd = () => listRef.current?.scrollToEnd({ animated: true })

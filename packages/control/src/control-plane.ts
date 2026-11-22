@@ -331,6 +331,10 @@ export class ControlPlane {
     return this.store.transact((tx) => tx.readSession(params))
   }
 
+  async readThread(params: { threadId: string }): Promise<ThreadRow | undefined> {
+    return this.store.transact((tx) => tx.readThread(params.threadId))
+  }
+
   async setSessionArchived(params: { sessionId: string; archivedAt: string | null }) {
     await this.store.transact((tx) => archiveIn({ tx, ...params }))
   }

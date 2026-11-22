@@ -5,7 +5,9 @@ import { Tabs, TabsContent } from '@dltech/atlas-ui/components/tabs'
 import { ChangesTab } from '@/features/sessions/changes/changes-tab'
 import { openPageCount } from '@/features/threads/data/preview-browser/browser-model'
 import { usePreviewBrowser } from '@/features/threads/data/preview-browser/use-preview-browser'
+import { useOptionalThreadPanel } from '@/features/threads/panel/thread-panel-context'
 
+import { SessionAgentPanel } from '../agents/session-agent-panel'
 import { BrowserTab } from './browser/browser-tab'
 import { FilesTab } from '../files/files-tab'
 import { TerminalTab } from '../terminal/terminal-tab'
@@ -38,9 +40,20 @@ function PaneBody({ tab }: { tab: ESessionPaneTab }) {
 
 export function SessionPane({ tab, onTabChange, tabBarClassName }: SessionPaneProps) {
   const { sessionId } = useSessionPaneValue()
+  const panel = useOptionalThreadPanel()
   const openTabs = openPageCount(usePreviewBrowser(sessionId).state)
   const handleTabChange = (value: unknown) => {
     if (isSessionPaneTab(value)) onTabChange(value)
+  }
+
+  if (panel?.agentId !== undefined) {
+    return (
+      <SessionAgentPanel
+        agentId={panel.agentId}
+        parentAgentId={panel.agentParentId}
+        onClose={panel.clearAgent}
+      />
+    )
   }
 
   return (

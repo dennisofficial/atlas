@@ -33,6 +33,7 @@ const readKey = (params: ReadEventsParams): string =>
 
 export const sharedReads = (plane: FollowPlane): FollowPlane => ({
   readSession: (params) => plane.readSession(params),
+  readThread: (params) => plane.readThread(params),
   readSessionView: (params) => plane.readSessionView(params),
   listSessionDigests: (params) => plane.listSessionDigests(params),
   head: shareInFlight({ call: (params) => plane.head(params), keyOf: (params) => params.threadId }),

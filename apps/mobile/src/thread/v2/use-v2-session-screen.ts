@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { useAuth } from '../../auth/auth-provider'
 import type { ThreadRow } from '../rows'
+import { agentLinksOf, type AgentLinks } from './agent-links'
 import { stagedQueueRowsOf, stagedRowsOf, v2ViewOf, type V2ThreadView } from './rows'
 import { clientIdOfSend, settlementOf, type StagedSend } from './staged-send'
 import { useV2Session } from './use-v2-session'
@@ -18,6 +19,7 @@ export type V2SessionScreen = V2ThreadView & {
   catchingUp: boolean
   failedToLoad: boolean
   stale: boolean
+  agentLinks: AgentLinks
   stagedRows: ThreadRow[]
   restored: { token: number; text: string } | undefined
   notice: string | undefined
@@ -33,6 +35,7 @@ export function useV2SessionScreen(sessionId: string): V2SessionScreen {
   const [now, setNow] = useState(() => Date.now())
   const view = useMemo(() => v2ViewOf({ snapshot, now }), [snapshot, now])
   const [staged, setStaged] = useState<readonly StagedSend[]>([])
+  const agentLinks = useMemo(() => agentLinksOf({ events: snapshot.events }), [snapshot.events])
   const [restored, setRestored] = useState<{ token: number; text: string } | undefined>(undefined)
   const [notice, setNotice] = useState<string | undefined>(undefined)
   const retryClientId = useRef<string | undefined>(undefined)
@@ -118,6 +121,7 @@ export function useV2SessionScreen(sessionId: string): V2SessionScreen {
     now,
     stateLine: sessionStateLineOf(snapshot),
     loaded,
+    agentLinks,
     fromCache: snapshot.fromCache,
     catchingUp: snapshot.fromCache && snapshot.connection !== ESessionConnection.Live,
     failedToLoad: snapshot.error !== undefined,
