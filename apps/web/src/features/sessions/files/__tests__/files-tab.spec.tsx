@@ -14,8 +14,6 @@ const changes = { answer: undefined as SessionChangesOutput | Error | undefined 
 const realApiClient = { ...(await import('@/lib/api-client')) }
 const realChangesApi = { ...(await import('@/features/sessions/changes/changes-api')) }
 
-const realApiClient = { ...(await import('@/lib/api-client')) }
-
 mock.module('@/lib/api-client', () => ({
   api: createApiClient({
     baseUrl: '',
@@ -152,7 +150,6 @@ beforeAll(() => {
 afterAll(async () => {
   mock.module('@/lib/api-client', () => realApiClient)
   window.localStorage.clear()
-  mock.module('@/lib/api-client', () => realApiClient)
   mock.module('@/features/sessions/changes/changes-api', () => realChangesApi)
   await unregisterDom()
 })
