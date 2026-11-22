@@ -7,7 +7,8 @@ import { afterEach, describe, expect, it } from 'bun:test'
 import { subpathViolations } from './subpath-walker'
 
 const MODELS_ENTRY = join(import.meta.dir, '..', 'index.ts')
-const ALLOWED = ['@dltech/atlas-core', '@dltech/atlas-models', 'zod']
+const PROVIDER_OAUTH_ENTRY = join(import.meta.dir, '..', 'provider-oauth', 'index.ts')
+const ALLOWED = ['@dltech/atlas-core', 'zod']
 
 let scratch: string | undefined
 
@@ -17,17 +18,21 @@ afterEach(() => {
 })
 
 const fixture = (files: Record<string, string>): string => {
-  scratch = mkdtempSync(join(tmpdir(), 'atlas-subpath-guard-'))
-  const root = join(scratch, 'models')
+  scratch = mkdtempSync(join(tmpdir(), 'atlas-purity-guard-'))
+  const root = join(scratch, 'subject')
   mkdirSync(root)
   for (const [name, text] of Object.entries(files)) writeFileSync(join(root, name), text)
   writeFileSync(join(scratch, 'outside.ts'), 'export const x = 1\n')
   return join(root, 'index.ts')
 }
 
-describe('subpath guard', () => {
-  it('finds nothing forbidden reachable from @dltech/atlas-harness/models', () => {
+describe('models purity guard', () => {
+  it('reaches nothing but core and zod from @dltech/atlas-models', () => {
     expect(subpathViolations({ entry: MODELS_ENTRY, allowedPackages: ALLOWED })).toEqual([])
+  })
+
+  it('reaches nothing but core and zod from @dltech/atlas-models/provider-oauth', () => {
+    expect(subpathViolations({ entry: PROVIDER_OAUTH_ENTRY, allowedPackages: ALLOWED })).toEqual([])
   })
 
   it('reports node:, bare packages outside the allowlist, escapes and runtime globals', () => {
@@ -51,7 +56,7 @@ describe('subpath guard', () => {
       expect.arrayContaining([
         'imports node:fs',
         'imports ai',
-        'imports outside src/models: ../outside',
+        'imports outside subject: ../outside',
         'uses process.',
         'uses Bun.',
       ]),

@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 
 import { EAuthKind, EAuthProvider, toAccountId, type OauthCredential } from '@dltech/atlas-core'
 
-import { CODEX_VERSION, CodexModelsCatalogue } from '../../models'
+import { CODEX_VERSION, CodexModelsCatalogue } from '@dltech/atlas-models'
 import { atlasDirectory } from '../../store/paths'
 import { codexModelsFsPorts } from '../codex-models-fs-ports'
 

@@ -2,7 +2,7 @@ import type { SharedV4ProviderOptions } from '@ai-sdk/provider'
 
 import type { ModelCard } from '@dltech/atlas-core'
 
-import { CODEX_FAST_SERVICE_TIER } from '../models/codex-models-response'
+import { CODEX_FAST_SERVICE_TIER } from '@dltech/atlas-models'
 import { mergedProviderOptions } from './openai-oauth'
 
 export const ANTHROPIC_FAST_OPTIONS: SharedV4ProviderOptions = { anthropic: { speed: 'fast' } }

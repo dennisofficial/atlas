@@ -10,7 +10,9 @@ import {
   type ModelCatalog,
   type ModelRef,
 } from '@dltech/atlas-core'
-import { cardsForProvider, enrichLiveCards, withoutDatedDuplicates } from '@dltech/atlas-models'
+
+import { enrichLiveCards } from '../enrich-live-cards'
+import { cardsForProvider, withoutDatedDuplicates } from '../generated-catalogue'
 
 import {
   CLAUDE_PLAN_LABEL,

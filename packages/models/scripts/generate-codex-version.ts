@@ -1,8 +1,8 @@
 import { readFile, writeFile } from 'node:fs/promises'
 
-import { CODEX_VERSION } from '../src/models/codex-version'
+import { CODEX_VERSION } from '../src/listing/codex-version'
 
-const VERSION_PATH = new URL('../src/models/codex-version.ts', import.meta.url)
+const VERSION_PATH = new URL('../src/listing/codex-version.ts', import.meta.url)
 const TAG_PREFIX = 'rust-v'
 const RELEASES_URL = 'https://api.github.com/repos/openai/codex/releases/latest'
 

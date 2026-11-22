@@ -12,7 +12,7 @@ import {
   type ModelCard,
 } from '@dltech/atlas-core'
 
-import { INFERENCE_LABEL, INFERENCE_PROVIDER_ID } from '../models/provider-ids'
+import { INFERENCE_LABEL, INFERENCE_PROVIDER_ID } from '@dltech/atlas-models'
 import { ProviderAdapter } from './adapter'
 import { inferenceEffortOptions } from './inference-effort'
 import { failingAs } from './failure-account'

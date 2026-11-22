@@ -28,8 +28,8 @@ jobs:
       - name: bump the pinned version and open a PR on drift
         run: |
           set -euo pipefail
-          (cd packages/harness && bun run generate:codex-version)
-          pinned=packages/harness/src/models/codex-version.ts
+          (cd packages/models && bun run generate:codex-version)
+          pinned=packages/models/src/listing/codex-version.ts
           if git diff --quiet -- "$pinned"; then
             echo "codex client version is fresh"
             exit 0
@@ -38,9 +38,9 @@ jobs:
           branch="codex-version/$version"
           .github/scripts/api-commit.sh \
             --branch "$branch" \
-            --message "fix(harness): bump codex client version to $version" \
+            --message "fix(models): bump codex client version to $version" \
             -- "$pinned"
           gh pr create --head "$branch" --base main \
-            --title "fix(harness): bump codex client version to $version" \
+            --title "fix(models): bump codex client version to $version" \
             --body "Automated bump of \`CODEX_VERSION\` to the latest \`openai/codex\` CLI release ($version). Queued for auto-merge; lands once ci is green."
           gh pr merge --squash --auto "$(gh pr list --head "$branch" --json number --jq '.[0].number')"

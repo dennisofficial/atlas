@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import type { CodexModelsPorts } from '@dltech/atlas-harness/models'
+import type { CodexModelsPorts } from '@dltech/atlas-models'
 
 const DEFAULT_MAX_USERS = 1000
 
