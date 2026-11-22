@@ -61,7 +61,7 @@ describe('applyDaemonProtection', () => {
     expect(process.env.ATLAS_WORKLOAD_CGROUP).toBe(join(root, 'atlas-work'))
   })
 
-  it('gives commands all but the small daemon reserve and guarantees the daemon group', () => {
+  it('gives commands the whole pod and guarantees the daemon group its memory', () => {
     const report = applyDaemonProtection({
       env: {},
       platform: 'linux',
@@ -69,7 +69,7 @@ describe('applyDaemonProtection', () => {
       meminfo: MEMINFO,
       writeOomScoreAdj: () => undefined,
     })
-    const commandsMax = 4 * 1024 ** 3 - DAEMON_MEMORY_RESERVE.minBytes
+    const commandsMax = 4 * 1024 ** 3
     expect(report.enabled && report.cgroups.enabled && report.cgroups.ok).toBe(true)
     expect(readFileSync(join(root, 'atlas-work', 'memory.max'), 'utf8')).toBe(String(commandsMax))
     expect(readFileSync(join(root, 'atlas-serve', 'memory.min'), 'utf8')).toBe(

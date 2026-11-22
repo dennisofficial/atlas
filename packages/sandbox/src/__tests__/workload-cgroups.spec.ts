@@ -169,10 +169,10 @@ describe('memoryMaxFor', () => {
     expect(commandsMaxOf({ totalGib: 16, reserve: SERVE_MEMORY_RESERVE })).toBe(12 * GIB)
   })
 
-  it('reserves a flat 512 MiB for the v2 daemon', () => {
-    expect(commandsMaxOf({ totalGib: 4, reserve: DAEMON_MEMORY_RESERVE })).toBe(3.5 * GIB)
-    expect(commandsMaxOf({ totalGib: 8, reserve: DAEMON_MEMORY_RESERVE })).toBe(7.5 * GIB)
-    expect(commandsMaxOf({ totalGib: 16, reserve: DAEMON_MEMORY_RESERVE })).toBe(15.5 * GIB)
+  it('lets v2 commands use the whole pod', () => {
+    expect(commandsMaxOf({ totalGib: 4, reserve: DAEMON_MEMORY_RESERVE })).toBe(4 * GIB)
+    expect(commandsMaxOf({ totalGib: 8, reserve: DAEMON_MEMORY_RESERVE })).toBe(8 * GIB)
+    expect(commandsMaxOf({ totalGib: 16, reserve: DAEMON_MEMORY_RESERVE })).toBe(16 * GIB)
   })
 })
 
