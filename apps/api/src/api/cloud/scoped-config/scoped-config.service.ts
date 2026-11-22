@@ -2,7 +2,7 @@ import type { ResolvedSandboxConfig, VercelProvisioningCredentials } from '@dlte
 import { EMPTY_SCOPE_LAYER, podFacingConfig, resolveScopedConfig } from '@dltech/atlas-wire/web'
 import { Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
-import type { EnvService } from '../../../_core/config/env/env.service'
+import { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { loadProjectLayer, loadUserLayer } from './scoped-config.layers'
 
