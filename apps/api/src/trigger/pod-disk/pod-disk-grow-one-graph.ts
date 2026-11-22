@@ -55,12 +55,12 @@ export const runPodDiskGrowOne = async (args: {
   maxGb: number
 }): Promise<PodDiskGrowOneOutput> => {
   const { payload, deps } = args
-  const targetGb = podDiskGrowthOf({
+  const reportedTargetGb = podDiskGrowthOf({
     usedBytes: payload.usedBytes,
     limitBytes: payload.limitBytes,
     maxGb: args.maxGb,
   })
-  if (targetGb === undefined) {
+  if (reportedTargetGb === undefined) {
     deps.log(`pod-disk-grow-one: ${payload.podSessionId} has no room to grow`)
     return skipped('nothing to grow')
   }
@@ -75,7 +75,7 @@ export const runPodDiskGrowOne = async (args: {
     deps.log(`pod-disk-grow-one: ${instanceId} is gone`)
     return skipped('no instance to grow')
   }
-  if ((instance.diskGb ?? 0) >= targetGb) {
+  if ((instance.diskGb ?? 0) >= reportedTargetGb) {
     deps.log(`pod-disk-grow-one: ${instanceId} already has ${instance.diskGb} GB`)
     return { outcome: EPodDiskGrowOneOutcome.Superseded }
   }
@@ -86,6 +86,7 @@ export const runPodDiskGrowOne = async (args: {
       instanceId,
       usedBytes: payload.usedBytes,
       limitBytes: payload.limitBytes,
+      sizeGb: instance.diskGb,
     },
     maxGb: args.maxGb,
   })
@@ -107,7 +108,7 @@ export const runPodDiskGrowOne = async (args: {
     deps.log(`pod-disk-grow-one: left ${instanceId} alone: ${decision.reason ?? 'no growth'}`)
     return skipped(decision.reason ?? 'no growth')
   }
-  const diskGb = decision.diskGb ?? targetGb
+  const diskGb = decision.diskGb ?? reportedTargetGb
   await deps.notice({ sessionId: payload.podSessionId, diskGb })
   deps.log(`pod-disk-grow-one: grew ${instanceId} for ${payload.podSessionId} to ${diskGb} GB`)
   return { outcome: EPodDiskGrowOneOutcome.Grown, diskGb }

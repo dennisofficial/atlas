@@ -43,6 +43,12 @@ describe('podDiskGrowthOf', () => {
     ).toBe(40)
   })
 
+  it('doubles the size the provider bills, not the smaller size the filesystem reports', () => {
+    expect(
+      podDiskGrowthOf({ usedBytes: 34 * GB, limitBytes: 42_091_216_896, maxGb: 100, sizeGb: 40 }),
+    ).toBe(80)
+  })
+
   it('has nothing to say about an unknown volume', () => {
     expect(podDiskGrowthOf({ usedBytes: 0, limitBytes: 0, maxGb: 100 })).toBeUndefined()
   })

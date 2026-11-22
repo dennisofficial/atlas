@@ -138,6 +138,27 @@ describe('diskPressureSamplerOf', () => {
     expect(events).toHaveLength(1)
   })
 
+  it('keeps sampling after a host disconnect and reports the standing level to the next host', async () => {
+    const events: PodDiskPressureEvent[] = []
+    const sampler = diskPressureSamplerOf({
+      read: () => figuresOf({ usedGb: 17, limitGb: 20 }),
+      publish: (event) => events.push(event),
+      intervalMs: 10,
+    })
+    const waitFor = async (count: number): Promise<void> => {
+      const deadline = Date.now() + 2_000
+      while (events.length < count && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 5))
+      }
+    }
+    sampler.start()
+    await waitFor(1)
+    sampler.forget()
+    await waitFor(2)
+    sampler.stop()
+    expect(events).toHaveLength(2)
+  })
+
   it('reads the sampling interval off the environment', () => {
     expect(diskPressureIntervalOf({})).toBe(DISK_PRESSURE_INTERVAL_MS)
     expect(diskPressureIntervalOf({ [DISK_PRESSURE_INTERVAL_ENV]: '250' })).toBe(250)
