@@ -136,6 +136,13 @@ const ALLOWED: AllowedOverride[] = [
     reason:
       "a project icon is the repository owner's avatar drawn as a rounded square, so it reads as a project rather than a person (#2302)",
   })),
+  ...['h-4', 'px-1', 'text-[10px]'].map((token) => ({
+    file: 'features/threads/thread-header.tsx',
+    component: 'Badge',
+    token,
+    reason:
+      'the v1 engine tag sits beside the thread title as a small mono marker, smaller than any badge size (#2460)',
+  })),
 ]
 
 const WEB_SRC = join(import.meta.dir, '..')
