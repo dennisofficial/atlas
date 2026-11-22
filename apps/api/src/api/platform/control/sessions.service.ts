@@ -353,7 +353,7 @@ export class SessionsService {
     sessionId: string
     archived: boolean
   }): Promise<SessionArchiveOutput> {
-    await this.requireOwnedSession(args)
+    const session = await this.requireOwnedSession(args)
     const archivedAt = args.archived ? new Date().toISOString() : null
     await this.plane.setSessionArchived({
       sessionId: args.sessionId,
@@ -365,6 +365,7 @@ export class SessionsService {
         by: ESubscriptionActor.Operator,
         reason: ESubscriptionEnd.Archived,
       })
+      await this.podPower.parkArchived({ session })
     }
     this.analytics?.capture({
       userId: args.userId,

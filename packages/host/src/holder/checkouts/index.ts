@@ -12,7 +12,7 @@ import type {
 import { DaemonFileSystemPort } from '../../calls/ports/filesystem'
 import { DaemonProcessPort } from '../../calls/ports/process'
 import type { RemoteCalls } from '../../calls/remote-calls'
-import type { WorkspaceGate } from '../../calls/workspace-gate'
+import { POD_WAIT_INTERRUPTED, type WorkspaceGate } from '../../calls/workspace-gate'
 import { complaintOf, runGit } from './git'
 import { parseStatus, parseWorktrees } from './parse'
 
@@ -24,14 +24,12 @@ const CHANGED_PATH_SAMPLE = 5
 
 type Base = { ref: string; fromOrigin: boolean }
 
-const WORKSPACE_INTERRUPTED = 'the workspace was interrupted while it was being prepared'
-
 const awaitWorkspace = async (gate: WorkspaceGate | undefined): Promise<void> => {
   if (gate === undefined) return
   const outcome = await gate.wait()
   if (outcome.state === 'prepared') return
   if (outcome.state === 'failed') throw new Error(outcome.message)
-  throw new CallInterruptedError(WORKSPACE_INTERRUPTED)
+  throw new CallInterruptedError(POD_WAIT_INTERRUPTED)
 }
 
 export class HostWorktrees implements PodWorktrees {

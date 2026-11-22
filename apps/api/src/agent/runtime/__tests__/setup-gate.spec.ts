@@ -13,7 +13,12 @@ import {
   type WorkspaceStepReport,
 } from '@dltech/atlas-core'
 import { ScriptedModel } from '@dltech/atlas-agent/testing'
-import { systemTimers, WorkspaceGate, type PrepareResult } from '@dltech/atlas-host'
+import {
+  POD_WAIT_INTERRUPTED,
+  systemTimers,
+  WorkspaceGate,
+  type PrepareResult,
+} from '@dltech/atlas-host'
 import { z } from 'zod'
 
 import { CollectingLog, sourceFor, unusedTokens } from '../../__tests__/e2e-support'
@@ -21,7 +26,7 @@ import { LocalSandboxProvider } from '../../testing/local-sandbox-provider'
 import { createSessionRuntimeFactory } from '../session-runtime-factory'
 import { SetupGatedTool } from '../tools'
 
-const GATE_REASON = 'interrupted while the workspace was being set up'
+const GATE_REASON = POD_WAIT_INTERRUPTED
 
 const invocation = (signal: AbortSignal): ToolInvocation => ({
   input: { path: '/nonexistent/file' },
