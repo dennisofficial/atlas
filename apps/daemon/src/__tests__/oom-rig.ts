@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import type { DaemonHandle, DaemonSession } from '@dltech/atlas-protocol/testing'
-import { memoryMaxFor } from '@dltech/atlas-sandbox'
+import { DAEMON_MEMORY_RESERVE, memoryMaxFor } from '@dltech/atlas-sandbox'
 
 import { realDaemonTarget } from '../testing'
 
@@ -26,7 +26,7 @@ export const memTotalBytes = (): number => {
 }
 
 export const commandLimitBytes = (): number =>
-  memoryMaxFor({ meminfo: readFileSync('/proc/meminfo', 'utf8') })
+  memoryMaxFor({ meminfo: readFileSync('/proc/meminfo', 'utf8'), reserve: DAEMON_MEMORY_RESERVE })
 
 export const expectedMemory = (): { commandLimitBytes: number; podBytes: number } => ({
   commandLimitBytes: commandLimitBytes(),
