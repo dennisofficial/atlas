@@ -1,12 +1,12 @@
 import {
   ESetupPhase,
   EWorkspaceStep,
+  EWorkspaceStepState,
   INBOX_KIND_EVENT,
   inboxEventPayloadOf,
   setupFinishedText,
   setupStartedText,
   setupInFlightOf,
-  withoutRepeatedContext,
   workspaceStepsOf,
   type EventDraft,
   type RunId,
@@ -16,21 +16,19 @@ import {
 import { logFieldsOf } from '@dltech/atlas-observability'
 import { setupOutputCallId } from '@dltech/atlas-protocol'
 
-import { baseFactDraftsOf } from './held-prepare-bases'
 import {
   appendAttemptStarted,
   appendSetupStep,
-  attemptFieldOf,
   elapsedMsOf,
   prepareAttemptOf,
   stoppedSetupDraftsOf,
 } from './prepare-attempt'
 import type { HeldSessionDeps } from './held-session-deps'
 import { fireLive, type PrepareResult, type SessionRuntime, type SetupLifecycle } from './ports'
-import { bootDraftOf, setupNoticesOf } from './prepare-notices'
+import { setupNoticesOf } from './prepare-notices'
+import { recordPrepare } from './prepare-record'
 import type { AppendBody } from './record/append-drafts'
 import type { SessionRecord } from './record/record-adapter'
-import { setupWarningText } from './setup-warning'
 
 const appendFailureReporter =
   (deps: HeldSessionDeps, verb: string) =>
@@ -70,6 +68,10 @@ export class HeldPrepare {
 
   get hasSetupRunning(): boolean {
     return this.setupRunning
+  }
+
+  get resumed(): boolean {
+    return this.resuming
   }
 
   start(args: {
@@ -246,47 +248,34 @@ export class HeldPrepare {
     result: PrepareResult
   }): Promise<void> {
     if (this.args.abandoned()) return
-    const { result, runId } = args
-    const started = setupNoticesOf(args.record).has(ESetupPhase.Started) ? [] : this.takeStarted()
-    if (!result.ok) {
-      await args.record.append({
-        threadId: args.threadId,
-        runId,
-        drafts: [
-          {
-            type: 'workspace-prepare-failed',
-            reason: result.reason,
-            inboxHead: args.inboxHead,
-            ...attemptFieldOf(this.attempt),
-          },
-        ],
-      })
-      return
-    }
-    const warnings = result.warnings ?? []
-    const notices = withoutRepeatedContext({
-      events: await args.record.composedEvents({ threadId: args.threadId }),
-      drafts: (result.notices ?? []).map(bootDraftOf),
+    const { result } = args
+    await recordPrepare({
+      record: args.record,
+      threadId: args.threadId,
+      runId: args.runId,
+      inboxHead: args.inboxHead,
+      result,
+      attempt: this.attempt,
+      resuming: this.resuming,
+      started: setupNoticesOf(args.record).has(ESetupPhase.Started) ? [] : this.takeStarted(),
+      lostSetup: result.ok ? [] : this.endLostSetup(result.reason),
     })
-    const drafts: AppendBody[] = [...started, ...baseFactDraftsOf(result.bases), ...notices]
-    if (warnings.length > 0) {
-      drafts.push({
-        type: 'sandbox-setup-reported',
-        text: setupWarningText(warnings),
-        failed: true,
-      })
-    }
-    // a resumed prepare of an already prepared workspace has its own notice to report, and must
-    // not claim the workspace was prepared a second time
-    if (!this.resuming) {
-      drafts.push(
-        warnings.length === 0
-          ? { type: 'workspace-prepared' }
-          : { type: 'workspace-prepared', warnings: [...warnings] },
-      )
-    }
-    if (drafts.length === 0) return
-    await args.record.append({ threadId: args.threadId, runId, drafts })
+  }
+
+  private endLostSetup(reason: string): AppendBody[] {
+    this.joined = false
+    if (!this.setupRunning) return []
+    this.setupRunning = false
+    return [
+      {
+        type: 'workspace-step',
+        step: EWorkspaceStep.Setup,
+        state: EWorkspaceStepState.Interrupted,
+        reason: `the setup was lost when the workspace could not be prepared again: ${reason}`,
+        ...(this.script === undefined ? {} : { command: this.script }),
+        ...(this.attempt === undefined ? {} : { attempt: this.attempt }),
+      },
+    ]
   }
 
   private takeStarted(): EventDraft[] {

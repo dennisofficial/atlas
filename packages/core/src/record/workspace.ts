@@ -90,6 +90,9 @@ export const countsAsPrepared = (event: V2Event): boolean =>
 export const isWorkspacePrepared = (events: readonly V2Event[]): boolean =>
   events.some(countsAsPrepared)
 
+export const preparedBeforeOf = (events: readonly V2Event[]): boolean =>
+  events.some((event) => event.type === 'workspace-prepared')
+
 export const lastPrepareFailure = (events: readonly V2Event[]): PrepareFailure | undefined => {
   const failures = withinLatestAttempt({
     events,
@@ -102,7 +105,7 @@ export const lastPrepareFailure = (events: readonly V2Event[]): PrepareFailure |
 }
 
 export const activeFailure = (events: readonly V2Event[]): PrepareFailure | undefined =>
-  isWorkspacePrepared(events) ? undefined : lastPrepareFailure(events)
+  preparedBeforeOf(events) ? undefined : lastPrepareFailure(events)
 
 export const actionableInboxIds = (args: {
   entries: readonly Pick<InboxEntry, 'inboxId' | 'kind'>[]
@@ -128,7 +131,7 @@ export type WorkspaceStateView = {
 }
 
 export const workspaceRecordOf = (events: readonly V2Event[]): WorkspaceRecord => ({
-  prepared: isWorkspacePrepared(events),
+  prepared: preparedBeforeOf(events),
   failure: lastPrepareFailure(events),
 })
 

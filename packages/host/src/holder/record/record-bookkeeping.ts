@@ -66,7 +66,6 @@ export class RecordBookkeeping {
         return
       case 'user-said':
         this.userSaidSeq = event.seq
-        this.workspaceRecord = { ...this.workspaceRecord, prepared: true }
         return
       default:
         return

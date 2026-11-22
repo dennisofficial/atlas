@@ -13,7 +13,8 @@ Applies [0021](../../decisions/0021-v2-loop-runs-on-the-agent-host.md) (D8),
   exists; a stop is a wake. See [0021](../../decisions/0021-v2-loop-runs-on-the-agent-host.md), Amendments.
 - The agent host imports nothing from `harness` or `wire`; the tools, model port, prompt fragments and
   sandbox helpers were copied into `apps/agent-host` (point 1).
-- A new session is prepared (clone, setup script) before its first turn, and an idle session stays
+- A new session is prepared (clone, setup script) before its first turn. A session that was prepared
+  before starts its turn at once, and only a pod call waits on the workspace gate. An idle session stays
   parked across an agent-host deploy ([architecture §13](../architecture.md)).
 - The `v2` prefix was dropped from names: `sessions.*`, `agentHost.*`, the task `reconcile-holders`.
 - Where the slice stands: the roadmap's Current state and [handoffs/slice-4.md](../handoffs/slice-4.md).

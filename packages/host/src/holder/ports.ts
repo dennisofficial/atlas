@@ -22,6 +22,7 @@ import type { ComposedPlugins } from '@dltech/atlas-plugin-sdk'
 import type { LiveFrame } from '@dltech/atlas-protocol'
 
 import type { RemoteCalls } from '../calls/remote-calls'
+import type { WorkspaceGate } from '../calls/workspace-gate'
 
 export type HostBus = {
   onWake(listener: (sessionId: string) => void): () => void
@@ -81,6 +82,7 @@ export type RoleModelChoice = ModelChoice & { unavailable?: ModelRef | undefined
 
 export type SessionRuntime = {
   remoteCalls: RemoteCalls
+  workspaceGate?: WorkspaceGate | undefined
   trace?: TracePort | undefined
   model: ModelPort
   modelChoice: ModelChoice

@@ -251,7 +251,7 @@ export const createSessionRuntimeFactory = (
       files,
       agentFiles,
       pathEnv: pathEnvironmentOf(paths),
-      setup: gate,
+      gate: prepareController.workspaceGate,
       shellEnv: sessionShellEnv,
     })
     const tools = [
@@ -302,6 +302,7 @@ export const createSessionRuntimeFactory = (
 
     return {
       remoteCalls: calls,
+      workspaceGate: prepareController.workspaceGate,
       ...(trace === undefined ? {} : { trace }),
       ...(args.terminalStreams === undefined
         ? {}

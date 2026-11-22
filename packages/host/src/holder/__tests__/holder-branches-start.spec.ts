@@ -119,7 +119,7 @@ const flipToAgentBranch = (state: ReadState): void => {
 }
 
 describe('the boot branch observation', () => {
-  it('holds the first turn until it is recorded', async () => {
+  it('starts the first turn before the branch observation is recorded', async () => {
     let open: () => void = () => {}
     const gate = new Promise<void>((resolve) => {
       open = resolve
@@ -136,20 +136,22 @@ describe('the boot branch observation', () => {
     await rig.wake()
     await rig.flush()
     expect(rig.runtimes).toHaveLength(1)
-    expect(await typesOf(rig)).not.toContain('assistant-said')
-
-    open()
     const said = await flushUntil({
       check: async () => (await typesOf(rig)).includes('assistant-said'),
     })
     expect(said).toBe(true)
+
+    open()
+    const observed = await flushUntil({
+      check: async () => (await typesOf(rig)).includes('branches-observed'),
+    })
+    expect(observed).toBe(true)
     const types = await typesOf(rig)
-    expect(types).toContain('branches-observed')
-    expect(types.indexOf('branches-observed')).toBeLessThan(types.indexOf('assistant-said'))
+    expect(types.indexOf('assistant-said')).toBeLessThan(types.indexOf('branches-observed'))
     rig.holder.discard()
   })
 
-  it('starts the turn on the refresh cap and keeps the prepared base', async () => {
+  it('starts the turn at once and keeps the prepared base', async () => {
     let open: () => void = () => {}
     const gate = new Promise<void>((resolve) => {
       open = resolve
@@ -169,13 +171,9 @@ describe('the boot branch observation', () => {
     await rig.wake()
     await rig.flush()
     expect(rig.runtimes).toHaveLength(1)
-    expect(await typesOf(rig)).not.toContain('assistant-said')
 
     const said = await flushUntil({
       check: async () => (await typesOf(rig)).includes('assistant-said'),
-      clock: rig.clock,
-      attempts: 10,
-      advanceMs: 10_000,
     })
     expect(said).toBe(true)
 

@@ -6,6 +6,7 @@ import {
 } from '@dltech/atlas-core'
 import {
   RemoteCalls,
+  WorkspaceGate,
   type HostTimers,
   type PrepareResult,
   type PrepareStepReporter,
@@ -29,6 +30,7 @@ const SETUP_DEADLINE_MS = 15 * 60_000
 
 export type PrepareController = {
   gate: Promise<void>
+  workspaceGate: WorkspaceGate
   prepare(onStep?: PrepareStepReporter): Promise<PrepareResult>
   subscribeSetup(listener: (lifecycle: SetupLifecycle) => void): void
   checkedOutBaseOf(repoPath: string): string | null
@@ -129,6 +131,7 @@ export const prepareControllerOf = (args: {
       })
   const deadlineMs = args.setupDeadlineMs ?? SETUP_DEADLINE_MS
   let failedAttempt: Promise<PrepareResult> | undefined
+  const workspaceGate = new WorkspaceGate()
   const start = (previous: Promise<unknown>): Promise<PrepareResult> => {
     const controller = new AbortController()
     const running = previous.then(() => attempt(controller.signal))
@@ -147,15 +150,18 @@ export const prepareControllerOf = (args: {
         })
       }, deadlineMs)
     })
-    return Promise.race([running, expired]).then((outcome) => {
+    const outcome = Promise.race([running, expired]).then((result) => {
       args.timers.clearTimeout(deadline)
-      if (!outcome.ok) failedAttempt = running
-      return outcome
+      if (!result.ok) failedAttempt = running
+      return result
     })
+    workspaceGate.arm(outcome)
+    return outcome
   }
   let current = start(Promise.resolve())
   return {
     gate: current.then(() => undefined),
+    workspaceGate,
     prepare: (onStep?: PrepareStepReporter): Promise<PrepareResult> => {
       if (onStep !== undefined) steps.subscribe(onStep)
       const previous = failedAttempt

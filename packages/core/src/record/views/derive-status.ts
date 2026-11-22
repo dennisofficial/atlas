@@ -9,6 +9,7 @@ const workspaceStatusOf = (args: {
   messageAfterFailure: boolean
 }): SessionStatus | undefined => {
   const { facts } = args
+  if (facts.openTurn !== null) return undefined
   if ((facts.firstSeq ?? 1) > 1 || facts.prepared) return undefined
   const failure = facts.prepareFailure
   if (failure === null || args.messageAfterFailure) return { state: ESessionStatus.Preparing }

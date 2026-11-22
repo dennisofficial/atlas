@@ -459,17 +459,24 @@ ping, one idle-release deadline armed only while idle, and the handoff deadline 
 backoff is not an in-memory timer: it is a recorded deadline (0021).
 
 **Session lifecycle.**
-- **New session: prepare, then the first turn.** Creating a session wakes a host, which claims the lease,
-  wakes the sandbox and runs the prepare ceremony: wait for the daemon, clone the repositories, run the
-  project's setup script. Status is `preparing`, then `idle` on success (`workspace-prepared` is appended)
-  or `setup-failed` with a reason (`workspace-prepare-failed{reason, inboxHead}`). A failed prepare starts
-  no model turn. Messages at or below the failure's `inboxHead` are covered: they do not retry the
-  prepare, keep their place in the inbox, and become the first turn's input once a later prepare succeeds.
-  A newer message retries on a fresh runtime. Each clone step leaves a marker, so a retry redoes only what
-  is missing.
-- **Parked session: the model starts at once.** Resuming a session whose sandbox is stopped does not wait
-  for the sandbox. The model call begins as soon as the record is open; a tool call waits for the daemon
-  link, and the acknowledgement of earlier tool results runs in the background.
+- **New session: prepare first, then the first turn.** Creating a session wakes a host, which claims the
+  lease, wakes the sandbox and runs the prepare ceremony: wait for the daemon, clone the repositories, run
+  the project's setup script. The first turn starts only after `workspace-prepared` is appended. Status is
+  `preparing` until then, or `setup-failed` with a reason (`workspace-prepare-failed{reason, inboxHead}`).
+  Messages at or below the failure's `inboxHead` keep their place and do not retry the prepare. A newer
+  message retries on a fresh runtime. Each clone step leaves a marker, so a retry redoes only what is
+  missing. A message never waits for the pod: it is an inbox entry, and the turn reads it when the
+  workspace is ready.
+- **Session prepared before: the turn starts at once.** A session whose record holds `workspace-prepared`
+  (a parked or sleeping sandbox) starts the model turn as soon as the record is open, while the wake runs
+  beside it. Only a call that needs the pod waits: it waits on the workspace gate, then on the daemon link,
+  and the acknowledgement of earlier tool results runs in the background. The gate resolves when the
+  current wake succeeds and fails the call with the reason when it fails, so a failed wake never hangs the
+  turn. A newer message retries a failed wake. Plugin resources (instructions, skills, MCP tools) are
+  loaded from the record at turn start, so nothing in the turn waits for the pod.
+- **Stop is the same at any time.** A stop aborts the turn and interrupts a call that waits on the gate. It
+  does not cancel the wake: the pod finishes waking, the prepare records its result, and the normal idle
+  release then applies. A stop only marks a first prepare of a brand-new session as stopped.
 - **Deploy drain keeps idle sessions parked.** On SIGTERM a host hands off the sessions that have work: a
   running turn, a resumable thread, an actionable inbox entry, or a workspace that is unprepared, preparing
   or failed with a retry pending. An idle, prepared session is released without a wake. The next message

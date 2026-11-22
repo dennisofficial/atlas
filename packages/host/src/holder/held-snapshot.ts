@@ -4,6 +4,7 @@ import {
   decideHeldAction,
   isResumableOf,
   loopStateOf,
+  preparedBeforeOf,
   setupInFlightOf,
   workspaceStateFrom,
   type InboxEntry,
@@ -66,6 +67,7 @@ export const readHeldAction = async (args: {
   inboxHead: number
   shellsRunning: boolean
   failure: PrepareFailure | undefined
+  preparedBefore: boolean
 }> => {
   const { deps } = args
   const cache = args.record?.eventCache()
@@ -74,6 +76,7 @@ export const readHeldAction = async (args: {
   const entries = await readFullInbox(deps)
   const resolvable = entries.filter((entry) => understandsCommand(deps, entry))
   const logIds = logPendingInputIdsOf(events)
+  const preparedBefore = preparedBeforeOf(events)
   const workspace = workspaceStateFrom({
     record: args.record?.eventCache().bookkeeping().workspace() ?? NO_WORKSPACE_RECORD,
     preparing: args.preparing,
@@ -109,6 +112,7 @@ export const readHeldAction = async (args: {
       messagePending,
       resumable,
       workspace: workspace.state,
+      preparedBefore,
       retryPending: workspace.retryPending,
       idleDue: quiet && runningShells === 0 && args.childrenRunning === 0 && !args.setupRunning,
     }),
@@ -123,5 +127,6 @@ export const readHeldAction = async (args: {
     inboxHead: Math.max(0, ...entries.map((entry) => entry.inboxId)),
     shellsRunning: runningShells > 0,
     failure: workspace.failure,
+    preparedBefore,
   }
 }

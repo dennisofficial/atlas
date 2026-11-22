@@ -17,6 +17,7 @@ export type HeldSnapshot = {
   resumable: boolean
   idleDue: boolean
   workspace: EWorkspaceState
+  preparedBefore: boolean
   retryPending: boolean
 }
 
@@ -30,6 +31,11 @@ const prepared = (snapshot: HeldSnapshot): EHeldAction => {
   return snapshot.idleDue ? EHeldAction.Release : EHeldAction.Wait
 }
 
+const preparing = (snapshot: HeldSnapshot): EHeldAction => {
+  const wanted = snapshot.messagePending || snapshot.resumable
+  return snapshot.preparedBefore && wanted ? EHeldAction.StartTurn : EHeldAction.Wait
+}
+
 export const decideHeldAction = (snapshot: HeldSnapshot): EHeldAction => {
   if (snapshot.draining) return EHeldAction.Wait
   if (snapshot.stopPending) {
@@ -40,7 +46,7 @@ export const decideHeldAction = (snapshot: HeldSnapshot): EHeldAction => {
     case EWorkspaceState.Unprepared:
       return EHeldAction.Prepare
     case EWorkspaceState.Preparing:
-      return EHeldAction.Wait
+      return preparing(snapshot)
     case EWorkspaceState.Failed:
       return afterFailure(snapshot)
     case EWorkspaceState.Prepared:
