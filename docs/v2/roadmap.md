@@ -34,7 +34,7 @@ _Updated at the end of every slice. Last update: 2026-11-17._
   server-side and wakes the agent with the result (#2294), a directory's build runs in the session
   and goes live on push (#2298), and a new session can tell an old one to push (#2301). Repo agent
   types load in v2, and an agent type no longer narrows the tool set (#2296). A built-in `researcher`
-  sub-agent does web and docs research (#2297). An archived session is soft-deleted 24 h after the
+  sub-agent does web and docs research (#2297). An archived session is soft-deleted 6 h after the
   archive (#2303).
 - **Built 2026-11-13: operator input is one parked call** ([spec](slices/operator-input.md)).
   `plugins/operator` gives a session `operator_input` and `operator_shell_input`: the tool returns a
@@ -383,9 +383,9 @@ _Updated at the end of every slice. Last update: 2026-11-17._
   `cgroup.kill` catches setsid escapees, and the split does not survive snapshot/resume, so it must
   be applied on every boot ([pod-saturation](research/pod-saturation.md) scenario 5).
 - **Design added 2026-11-02, read before specifying slices 3, 4, 6 and 7:** architecture §14
-  (archive is read-only and enforced by the CP; archived sandboxes are deleted after 7 days with no
+  (archive is read-only and enforced by the CP; archived sandboxes are deleted 6 hours after the archive with no
   unsaved-work guard; auto-archive after 72 h idle, pinned exempt; sandbox idle stop 5–10 min,
-  measured in slice 3). v1 gets the 7-day deletion now as a daily sweep.
+  measured in slice 3). v1 gets the six-hour deletion now as an hourly sweep.
 - **Design added 2026-11-02, read before specifying slices 1, 3, 4 and 5:** architecture §12 (a
   long thread, ~20k events, runs smoothly: ranged reads only, materialized current state, artifacts out of line,
   tail-first clients; evidence [log-scale](research/log-scale.md)) and §13 (the lease is liveness;

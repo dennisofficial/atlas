@@ -23,6 +23,7 @@ const TRIGGER_VALUE_IMPORTS = new Set([
   'trigger/pod-resize/pod-resize-graph.ts',
   'trigger/sandbox-cost/agent37-usage-reconcile.task.ts',
   'trigger/sandbox-provisioning/orphan-sandbox-sweep.task.ts',
+  'trigger/sandbox-provisioning/orphan-sweep-scopes.ts',
 ])
 
 const SPECIFIER_PATTERN = /(?:from\s+|import\s*\(\s*|import\s+)['"]([^'"]+)['"]/g

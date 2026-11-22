@@ -1,5 +1,7 @@
 import { db } from '@dltech/atlas-db'
+import { controlTxOf, lockPodRetireIn } from '@dltech/atlas-control/postgres'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
+import { PG_PRESENCE_LOCK_NAMESPACE } from '@dltech/atlas-protocol'
 import { describe, expect, it } from 'bun:test'
 import { sandboxNameFor } from '../../platform/sandboxes/sandbox-names'
 import { sandboxNameOf } from '../../../agent'
@@ -7,6 +9,7 @@ import { seedThreadRow, seedUsers } from '../../../../test/session-seed'
 import {
   liveSandboxNames,
   podStillRetirable,
+  podStillRetirableIn,
   retirableSandboxNames,
   v2Pods,
 } from './live-sandbox-names'
@@ -34,6 +37,37 @@ const v2Session = async (args: {
     ...(args.podSessionId === undefined ? {} : { podSessionId: args.podSessionId }),
     ...(args.archivedAt === undefined ? {} : { archivedAt: args.archivedAt }),
     createdAt: at,
+  })
+}
+
+const v2Lease = async (args: { sessionId: string; holderHostId: number | null }): Promise<void> => {
+  await db.orm.v2.V2Lease.create({
+    sessionId: args.sessionId,
+    epoch: 0,
+    holderHostId: args.holderHostId,
+    wantsHolder: false,
+    attempts: 0,
+    retryAfter: null,
+  })
+}
+
+const openSandboxRun = async (args: { id: string; sessionId: string }): Promise<void> => {
+  await db.orm.v2.V2SandboxRun.create({
+    id: args.id,
+    sessionId: args.sessionId,
+    userId: 'user-a',
+    provider: 'agent37',
+    sandboxInstanceId: null,
+    vcpus: 2,
+    memoryGb: 4,
+    diskGb: 20,
+    startedAt: hoursBefore(2),
+    endedAt: null,
+    activeCpuMs: null,
+    cpuBaselineMs: null,
+    awakeMs: null,
+    costUsd: null,
+    costSource: null,
   })
 }
 
@@ -147,5 +181,71 @@ describe('liveSandboxNames', () => {
 
     await db.orm.v2.V2Session.where({ id: 'v2-b' }).updateAndCount({ archivedAt: null })
     expect(await podStillRetirable({ podSessionId: 'v2-a', now: NOW })).toBe(false)
+  })
+
+  it('keeps the pod of an archived session live while a sandbox run on it is still open', async () => {
+    await v2Session({ id: 'v2-running', archivedAt: hoursBefore(25) })
+    await openSandboxRun({ id: 'run-1', sessionId: 'v2-running' })
+
+    const { live, retirable } = await v2Pods({ now: NOW })
+
+    expect(live.has('v2-running')).toBe(true)
+    expect(retirable.has('v2-running')).toBe(false)
+    expect(await podStillRetirable({ podSessionId: 'v2-running', now: NOW })).toBe(false)
+  })
+
+  it('keeps the pod of an archived session live while a present host holds its lease', async () => {
+    await v2Session({ id: 'v2-held', archivedAt: hoursBefore(25) })
+    await v2Lease({ sessionId: 'v2-held', holderHostId: 7 })
+
+    await db.transaction(async (tx) => {
+      await tx.query(
+        tx.raw
+          .sql`SELECT pg_advisory_xact_lock(${PG_PRESENCE_LOCK_NAMESPACE}::int, 7::int)::text AS "held"`
+          .returnsRow({ held: 'pg/text@1' })
+          .build(),
+      )
+      const { live, retirable } = await v2Pods({ now: NOW })
+
+      expect(live.has('v2-held')).toBe(true)
+      expect(retirable.has('v2-held')).toBe(false)
+      expect(await podStillRetirable({ podSessionId: 'v2-held', now: NOW })).toBe(false)
+    })
+  })
+
+  it('retires the pod of an archived session whose lease has no host behind it', async () => {
+    await v2Session({ id: 'v2-stale', archivedAt: hoursBefore(25) })
+    await v2Lease({ sessionId: 'v2-stale', holderHostId: 7 })
+
+    const { retirable } = await v2Pods({ now: NOW })
+
+    expect(retirable.get('v2-stale')).toBe(hoursBefore(25).getTime())
+  })
+
+  it('makes an unarchive wait for a held retirement, and the recheck then sees the session live', async () => {
+    await v2Session({ id: 'v2-fenced', archivedAt: hoursBefore(25) })
+    const holding = Promise.withResolvers<void>()
+    const release = Promise.withResolvers<void>()
+    const retirement = db.transaction(async (tx) => {
+      await lockPodRetireIn({ tx, podSessionId: 'v2-fenced' })
+      holding.resolve()
+      await release.promise
+      return podStillRetirableIn({ tx, podSessionId: 'v2-fenced', now: NOW })
+    })
+    await holding.promise
+
+    const unarchive = db.transaction((tx) =>
+      controlTxOf(tx).setSessionArchived({ sessionId: 'v2-fenced', archivedAt: null }),
+    )
+    const raced = await Promise.race([
+      unarchive.then(() => 'done'),
+      Bun.sleep(100).then(() => 'waiting'),
+    ])
+
+    expect(raced).toBe('waiting')
+    release.resolve()
+    expect(await retirement).toBe(true)
+    await unarchive
+    expect(await podStillRetirable({ podSessionId: 'v2-fenced', now: NOW })).toBe(false)
   })
 })

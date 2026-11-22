@@ -717,5 +717,32 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
       await plane.post({ sessionId: SESSION, kind: 'user', payload: '"later"' })
       expect(await claimable()).toEqual([SESSION])
     })
+
+    it('never claims an archived session, and claims it again once unarchived', async () => {
+      await seedSession({ sessionId: SESSION, offsetMs: 0, prepared: false })
+      await plane.setSessionArchived({
+        sessionId: SESSION,
+        archivedAt: after({ iso: T0, offsetMs: 1000 }),
+      })
+
+      expect(await claimable()).toEqual([])
+
+      await plane.setSessionArchived({ sessionId: SESSION, archivedAt: null })
+      expect(await claimable()).toEqual([SESSION])
+    })
+
+    it('leaves a posted message waiting in an archived session, and claims it on unarchive', async () => {
+      await seedSession({ sessionId: SESSION, offsetMs: 0 })
+      await plane.post({ sessionId: SESSION, kind: 'user', payload: '"later"' })
+      await plane.setSessionArchived({
+        sessionId: SESSION,
+        archivedAt: after({ iso: T0, offsetMs: 1000 }),
+      })
+
+      expect(await claimable()).toEqual([])
+
+      await plane.setSessionArchived({ sessionId: SESSION, archivedAt: null })
+      expect(await claimable()).toEqual([SESSION])
+    })
   })
 }

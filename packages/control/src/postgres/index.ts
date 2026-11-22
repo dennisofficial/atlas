@@ -1,6 +1,11 @@
 export { PostgresControlStore, controlTxOf } from './postgres-store'
 export { softDeleteArchivedSessionsIn } from './postgres-session-writes'
 export {
+  POD_RETIRE_LOCK_NAMESPACE,
+  lockPodRetireIn,
+  lockPodRetireOfSessionIn,
+} from './postgres-pod-retire-lock'
+export {
   announceSessionChangesIn,
   sessionsTrackingHeadIn,
   sessionsTrackingPullRequestIn,

@@ -76,7 +76,11 @@ const fakeClient = (
   return { client, removed }
 }
 
-const providerOf = (args: { client: Agent37Client; stored?: string | null }) => {
+const providerOf = (args: {
+  client: Agent37Client
+  stored?: string | null
+  log?: (line: string) => void
+}) => {
   let stored = args.stored ?? null
   const forgotten: string[] = []
   const provider = new Agent37SandboxProvider({
@@ -85,6 +89,7 @@ const providerOf = (args: { client: Agent37Client; stored?: string | null }) => 
     daemonBundleUrl: 'https://api.byatlas.io/agent/daemon/bundle',
     daemonSecret: 'secret',
     client: args.client,
+    ...(args.log === undefined ? {} : { log: args.log }),
     instances: {
       find: async ({ podSessionId }) => (podSessionId === TARGET.sandboxSessionId ? stored : null),
       remember: async (params) => {
@@ -102,7 +107,9 @@ const providerOf = (args: { client: Agent37Client; stored?: string | null }) => 
 
 describe('Agent37SandboxProvider.delete', () => {
   it('removes the remembered instance and forgets it', async () => {
-    const { client, removed } = fakeClient({})
+    const { client, removed } = fakeClient({
+      instances: [instanceOf({ id: 'inst-9', podSessionId: 'pod-1' })],
+    })
     const { provider, forgotten, stored } = providerOf({ client, stored: 'inst-9' })
 
     await provider.delete({ target: TARGET })
@@ -173,6 +180,7 @@ describe('Agent37SandboxProvider.delete', () => {
 
   it('treats an instance that vanished before the get as gone', async () => {
     const { client, removed } = fakeClient({
+      instances: [instanceOf({ id: 'inst-9', podSessionId: 'pod-1' })],
       get: async () => {
         throw new Agent37Error({ status: 404, code: 'not_found', retryable: false })
       },
@@ -181,6 +189,24 @@ describe('Agent37SandboxProvider.delete', () => {
 
     await expect(provider.delete({ target: TARGET })).resolves.toBeUndefined()
     expect(removed).toEqual([])
+  })
+
+  it('never deletes an instance whose metadata does not attribute it to the pod, and says so', async () => {
+    const lines: string[] = []
+    const { client, removed } = fakeClient({ instances: [instanceOf({ id: 'inst-x' })] })
+    const { provider, forgotten } = providerOf({
+      client,
+      stored: 'inst-x',
+      log: (line) => lines.push(line),
+    })
+
+    await provider.delete({ target: TARGET })
+
+    expect(removed).toEqual([])
+    expect(forgotten).toEqual([])
+    expect(lines).toEqual([
+      'agent37: instance inst-x carries no pod session id for pod-1, so the sweep never deletes it',
+    ])
   })
 })
 
@@ -210,6 +236,27 @@ describe('Agent37SandboxProvider.list', () => {
     expect(listed[0]?.running).toBe(true)
     expect(asked).toEqual([{}, { cursor: 'page-2' }])
   })
+
+  it('warns about the instances no sweep can attribute, and leaves them out of the listing', async () => {
+    const lines: string[] = []
+    const { client } = fakeClient({
+      instances: [
+        instanceOf({ id: 'inst-a', podSessionId: 'pod-a' }),
+        instanceOf({ id: 'inst-x' }),
+        instanceOf({ id: 'inst-y' }),
+      ],
+    })
+    const { provider } = providerOf({ client, log: (line) => lines.push(line) })
+
+    const listed = await provider.list({
+      credentials: { provider: ESandboxProvider.Agent37, apiKey: 'sk_live_test' },
+    })
+
+    expect(listed.map((listing) => listing.sandboxSessionId)).toEqual(['pod-a'])
+    expect(lines).toEqual([
+      'agent37: 2 instances carry no pod session id, so no sweep can attribute or delete them: inst-x, inst-y',
+    ])
+  })
 })
 
 describe('Agent37SandboxProvider.stop', () => {
@@ -224,5 +271,20 @@ describe('Agent37SandboxProvider.stop', () => {
     await provider.stop({ target: TARGET })
 
     expect(slept).toEqual(['inst-9'])
+  })
+
+  it('sleeps an instance the mapping lost, found by its pod key', async () => {
+    const slept: string[] = []
+    const { client } = fakeClient({
+      instances: [instanceOf({ id: 'inst-orphan', podSessionId: 'pod-1', status: 'running' })],
+    })
+    const { provider } = providerOf({
+      client: { ...client, sleep: async ({ id }) => void slept.push(id) },
+      stored: null,
+    })
+
+    await provider.stop({ target: TARGET })
+
+    expect(slept).toEqual(['inst-orphan'])
   })
 })
