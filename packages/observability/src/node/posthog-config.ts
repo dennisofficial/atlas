@@ -3,3 +3,12 @@ export const POSTHOG_HOST = 'https://us.i.posthog.com'
 export const TRACE_SERVICE_NAME = 'atlas'
 export const AGENT_TRACE_SERVICE_NAME = 'atlas-agent'
 export const LONGEST_TRACED_TURN_MS = 24 * 60 * 60 * 1000
+
+const nonEmpty = (value: string | undefined): string | undefined =>
+  value === undefined || value.length === 0 ? undefined : value
+
+export const deployCommitOf = (env: Record<string, string | undefined>): string | undefined =>
+  nonEmpty(env.ATLAS_APP_VERSION) ??
+  nonEmpty(env.RENDER_GIT_COMMIT) ??
+  nonEmpty(env.VERCEL_GIT_COMMIT_SHA) ??
+  nonEmpty(env.ATLAS_VERSION)

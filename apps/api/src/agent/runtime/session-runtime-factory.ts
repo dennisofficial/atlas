@@ -270,6 +270,7 @@ export const createSessionRuntimeFactory = (
             log: args.log,
           })
 
+    const trace = args.traceFor?.(config.userId)
     let models: SessionModels
     try {
       models = sessionModelsOf({
@@ -281,6 +282,7 @@ export const createSessionRuntimeFactory = (
         tokens: args.tokens,
         media: args.media,
         log: args.log,
+        ...(trace === undefined ? {} : { trace }),
         onFastRefused,
       })
     } catch (error) {
@@ -296,7 +298,6 @@ export const createSessionRuntimeFactory = (
       log: args.log,
     })
 
-    const trace = args.traceFor?.(config.userId)
     return {
       remoteCalls: calls,
       ...(trace === undefined ? {} : { trace }),

@@ -69,7 +69,7 @@ describe('TracedRecord', () => {
     expect(trace.named(ESpan.RecordAppend)).toHaveLength(1)
   })
 
-  it('reads straight through without a span', async () => {
+  it('spans every read so a slow turn shows which load cost the time', async () => {
     const { trace, inner, record } = setup()
 
     await trace.span({
@@ -83,7 +83,25 @@ describe('TracedRecord', () => {
     })
 
     expect(inner.reads).toBe(3)
-    expect(trace.named(ESpan.RecordRead)).toEqual([])
+    expect(trace.named(ESpan.RecordLoad).map((span) => span.fields.phase)).toEqual([
+      'own-events',
+      'composed-events',
+      'loop-state',
+    ])
     expect(trace.named(ESpan.Turn)).toHaveLength(1)
+  })
+
+  it('reports the post time of the input still queued behind this turn', () => {
+    const { record } = setup()
+
+    expect(record.queuedSince()).toBeNull()
+    expect(
+      new TracedRecord({
+        inner: Object.assign(new StubRecord(), {
+          queuedSince: () => '2026-11-20T10:00:00.000Z',
+        }),
+        trace: new RecordingTracer(),
+      }).queuedSince(),
+    ).toBe('2026-11-20T10:00:00.000Z')
   })
 })

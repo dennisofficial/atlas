@@ -115,6 +115,10 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
     return this.cache.loopState()
   }
 
+  queuedSince(): string | null {
+    return this.cache.queuedSince()
+  }
+
   async read(_args: { threadId: ThreadId }): Promise<{ events: readonly Event[] }> {
     return { events: this.cache.visibleLoopEvents() }
   }

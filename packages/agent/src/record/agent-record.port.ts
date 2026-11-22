@@ -14,6 +14,10 @@ export abstract class AgentRecordPort {
   abstract composedEvents(args: { threadId: ThreadId }): Promise<Event[]>
 
   abstract loopState(args: { threadId: ThreadId }): Promise<LoopState>
+
+  queuedSince(): string | null {
+    return null
+  }
 }
 
 export abstract class ModelContextPort {
