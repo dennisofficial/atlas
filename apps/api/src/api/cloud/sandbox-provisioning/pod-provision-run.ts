@@ -126,8 +126,8 @@ async function provisionClaimed(args: {
       cipher: deps.cipher,
       log: deps.log,
     })
-    const owner = await deps.scoped.vercelCredentials({ thread })
-    const credentials = { ...owner, projectId: row.vercelProjectId ?? owner.projectId }
+    const platform = await deps.scoped.vercelCredentials()
+    const credentials = { ...platform, projectId: row.vercelProjectId ?? platform.projectId }
     const vcpus = await podVcpusOf({ sessionId: session.id, userId: thread.userId })
     const resizing = row.pendingVcpus !== null
     if (payload.stopSessionId !== undefined) {

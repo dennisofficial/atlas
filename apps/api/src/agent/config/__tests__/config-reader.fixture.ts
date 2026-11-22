@@ -31,17 +31,6 @@ export const seedOwner = async (db: Db): Promise<void> => {
   })
 }
 
-export const seedVercel = async (db: Db, over: Record<string, unknown> = {}): Promise<void> => {
-  await db.orm.public.UserVercelCredential.create({
-    userId: 'user-1',
-    kind: 'token',
-    sealedToken: sealed('vercel-token'),
-    teamId: 'team-1',
-    vercelProjectId: 'vproj-1',
-    ...over,
-  })
-}
-
 export const seedApiKeyAccount = async (
   args: Db | { db: Db; id: string; provider: string; apiKey: string },
 ): Promise<void> => {

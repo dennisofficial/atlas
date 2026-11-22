@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { POD_NAME_ENV } from '@dltech/atlas-harness'
+import { API_PROVISIONED_ENV } from '@dltech/atlas-wire'
 import { toThreadId } from '@dltech/atlas-core'
 
 import { podPark, providerStopFor, sandboxPark, type SignalSender } from '../sandbox-park'
@@ -9,10 +10,8 @@ const threadId = toThreadId('pod-park-owner')
 const controlPlaneUrl = 'https://control-plane.invalid'
 const token = 'serve-token'
 
-const VERCEL_ENV = {
-  VERCEL_TOKEN: 'token',
-  VERCEL_TEAM_ID: 'team',
-  VERCEL_PROJECT_ID: 'project',
+const API_PROVISIONED = {
+  [API_PROVISIONED_ENV]: '1',
   ATLAS_SANDBOX_SESSION_ID: 'session',
 }
 
@@ -58,9 +57,9 @@ describe('providerStopFor', () => {
     expect(calls).toEqual([])
   })
 
-  it('prefers the Vercel stop over the pod stop when both envs are present', async () => {
+  it('prefers the api-provisioned stop over the pod stop when both envs are present', async () => {
     const { calls, sendSignal } = recordingSender()
-    const env = { ...VERCEL_ENV, [POD_NAME_ENV]: 'pod-a' }
+    const env = { ...API_PROVISIONED, [POD_NAME_ENV]: 'pod-a' }
     let vercelStops = 0
     const sandboxStopFor: typeof sandboxPark = (args) =>
       sandboxPark(args) === undefined
@@ -75,9 +74,15 @@ describe('providerStopFor', () => {
     expect(calls).toEqual([])
   })
 
-  it('falls through to the pod stop when the Vercel env is incomplete', async () => {
+  it('ignores a legacy Vercel env and falls through to the pod stop', async () => {
     const { calls, sendSignal } = recordingSender()
-    const env = { VERCEL_TOKEN: 'token', [POD_NAME_ENV]: 'pod-a' }
+    const env = {
+      VERCEL_TOKEN: 'token',
+      VERCEL_TEAM_ID: 'team',
+      VERCEL_PROJECT_ID: 'project',
+      ATLAS_SANDBOX_SESSION_ID: 'session',
+      [POD_NAME_ENV]: 'pod-a',
+    }
 
     await providerStopFor({ threadId, controlPlaneUrl, token, env, sendSignal })()
 

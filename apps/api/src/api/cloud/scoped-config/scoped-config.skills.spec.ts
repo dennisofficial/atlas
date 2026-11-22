@@ -3,8 +3,7 @@ import { seedThread, useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it } from 'bun:test'
 import { seedProject, seedSessionUsers } from '../../../test/web-settings.fake-db'
 import { testCipher } from '../session-trpc-test-app'
-import { unknownTokenRefresher } from '../user-vercel/vercel-testkit'
-import { PROJECT, THREAD } from './scoped-config.fixture'
+import { platformEnv, PROJECT, THREAD } from './scoped-config.fixture'
 import { ScopedConfigService } from './scoped-config.service'
 
 const seedSkill = async (args: {
@@ -29,7 +28,7 @@ const seedSkill = async (args: {
 describe('ScopedConfigService skill mounts', () => {
   useTestDatabase()
   const cipher = testCipher()
-  const scoped = new ScopedConfigService(cipher, unknownTokenRefresher())
+  const scoped = new ScopedConfigService(cipher, platformEnv())
 
   beforeEach(async () => {
     await seedSessionUsers()

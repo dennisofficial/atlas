@@ -1517,11 +1517,12 @@ download; previously archived local files are restored without replacing live fi
 not a synced domain: it lives in Atlas Cloud and pods read it through the memory tools.
 
 **Sessions originate on the operator's machine.** An iOS remote-control client asks a connected
-laptop to start a session; an offline laptop cannot receive that request. The laptop provisions
-Vercel sandboxes using its own Vercel credentials and hands the session's configuration and
-copyable credentials across at birth. Atlas Cloud owns identity, remote-control rendezvous, thread discovery,
-PR/CI webhook delivery and cloud-managed provider OAuth renewal, not sandbox provisioning or the
-model request path. Unsigned local-only accounts and API-key credentials do not require the API.
+laptop to start a session; an offline laptop cannot receive that request. The laptop asks Atlas
+Cloud for the Vercel sandbox, and the API provisions it on the platform's own Vercel account and
+hands the session's configuration and copyable credentials across at birth. Atlas Cloud owns
+identity, remote-control rendezvous, thread discovery, PR/CI webhook delivery, cloud-managed
+provider OAuth renewal and sandbox provisioning, not the model request path. Unsigned local-only
+accounts and API-key credentials do not require the API.
 
 ## Pods
 

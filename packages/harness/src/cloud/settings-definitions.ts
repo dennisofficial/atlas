@@ -13,30 +13,6 @@ import {
  */
 export const CLOUD_SETTING_DEFINITIONS: readonly SettingDefinition[] = [
   {
-    id: ESettingId.VercelTeamId,
-    storage: ESettingStorage.Local,
-    page: ESettingPage.Cloud,
-    group: 'Cloud sandboxes',
-    label: 'Vercel team',
-    description:
-      'The team ID (team_…) the sandbox belongs to — Vercel scopes every sandbox call to a team and a project, and a personal team still has one. Find it in the team’s settings page, or run `vercel teams ls`.',
-    environmentVariable: 'VERCEL_TEAM_ID',
-    kind: ESettingKind.Text,
-    fallback: '',
-  },
-  {
-    id: ESettingId.VercelProjectId,
-    storage: ESettingStorage.Local,
-    page: ESettingPage.Cloud,
-    group: 'Cloud sandboxes',
-    label: 'Vercel project',
-    description:
-      'The project ID (prj_…) the sandbox is billed and listed under — any project on the team does, since sandboxes attach to it in name only. Find it in the project’s settings page.',
-    environmentVariable: 'VERCEL_PROJECT_ID',
-    kind: ESettingKind.Text,
-    fallback: '',
-  },
-  {
     id: ESettingId.SandboxImage,
     page: ESettingPage.Cloud,
     group: 'Cloud sandboxes',

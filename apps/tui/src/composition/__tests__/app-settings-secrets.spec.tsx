@@ -1,8 +1,7 @@
-import { ESettingId, toThreadId } from '@dltech/atlas-core'
+import { toThreadId } from '@dltech/atlas-core'
 import { MemorySecretsStore } from '@dltech/atlas-harness'
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'bun:test'
-import React from 'react'
 
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
 import { App } from '../app'
@@ -40,17 +39,17 @@ async function landed(setup: Mounted): Promise<void> {
   await setup.flush()
 }
 
-async function openCloudPageWith(setup: Mounted): Promise<void> {
+async function openPageWith(setup: Mounted, needle: string): Promise<void> {
   setup.mockInput.pressKey('o', { ctrl: true })
   await landed(setup)
 
   for (let step = 0; step < 8; step += 1) {
-    if (setup.captureCharFrame().includes('Vercel token')) return
+    if (setup.captureCharFrame().includes(needle)) return
     setup.mockInput.pressTab()
     await landed(setup)
   }
 
-  throw new Error('never reached the cloud page')
+  throw new Error(`never reached the settings page holding ${needle}`)
 }
 
 const rowShowing = (setup: Mounted, needle: string): string =>
@@ -63,7 +62,7 @@ describe('the secret-kind settings rows', () => {
   it('shows the masked value of a secret another tile set before settings opened', async () => {
     const secrets = new MemorySecretsStore({
       label: 'settings-secrets spec',
-      secrets: { [ESettingId.VercelToken]: 'vercel-token-1234' },
+      secrets: { 'decisions.token.typesafe': 'decision-key-1234' },
     })
     const app = fakeApp({
       model: scriptedModelPort({ script: { thinking: 'weighing it', reply: 'done' } }),
@@ -72,9 +71,9 @@ describe('the secret-kind settings rows', () => {
     const setup = await opened(app)
 
     try {
-      await openCloudPageWith(setup)
+      await openPageWith(setup, 'Decision key')
 
-      const row = rowShowing(setup, 'Vercel token')
+      const row = rowShowing(setup, 'Decision key')
       expect(row).toContain('••••1234')
       expect(row).not.toContain('not set')
     } finally {

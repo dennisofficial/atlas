@@ -118,19 +118,8 @@ export function useSettings(args: {
     setRefused(result.ok ? null : result.message)
   }, [])
 
-  const vercel = app.cloud.vercel()
-  const secret = useSecretPrompt({
-    secrets: app.secrets,
-    resolution: held.resolution,
-    vercel,
-    settle,
-  })
-  const text = useTextPrompt({
-    settings: app.settings,
-    settle,
-    vercel,
-    onVercelChanged: secret.refresh,
-  })
+  const secret = useSecretPrompt({ secrets: app.secrets, resolution: held.resolution })
+  const text = useTextPrompt({ settings: app.settings, settle })
 
   const reloadSettings = useCallback(() => {
     app.settings.reload()

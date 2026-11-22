@@ -2,7 +2,7 @@ import { Skeleton } from '@dltech/atlas-ui/components/skeleton'
 
 import { SettingsCard, SettingsSection } from '../settings-layout'
 import { ERowControl, Line, RowCardSkeleton, SettingsRowSkeleton } from './primitives'
-import { EnvSecretsSkeleton, SandboxTableSkeleton, VercelCardSkeleton } from './table-skeletons'
+import { EnvSecretsSkeleton, SandboxTableSkeleton } from './table-skeletons'
 
 export function MemorySearchSkeleton() {
   return <Skeleton className="h-8 w-full rounded-lg sm:w-48" />
@@ -114,12 +114,6 @@ export function SecurityDevicesSkeleton() {
 export function UsageSandboxesSkeleton() {
   return (
     <>
-      <SettingsSection
-        title="Sandbox credential"
-        description="Lets Atlas Cloud create sandboxes for your projects and threads."
-      >
-        <VercelCardSkeleton />
-      </SettingsSection>
       <SettingsSection title="Currently running">
         <SandboxTableSkeleton rows={2} />
       </SettingsSection>

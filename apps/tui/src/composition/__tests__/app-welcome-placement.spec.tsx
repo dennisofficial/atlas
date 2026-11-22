@@ -57,7 +57,7 @@ describe('the welcome hero placement shape', () => {
   }, 60_000)
 
   it('flips the preference through the footer chip without starting anything', async () => {
-    const mounted = await mountUnborn({ app: bornThreadApp({ shape: 'hero', vercel: true }) })
+    const mounted = await mountUnborn({ app: bornThreadApp({ shape: 'hero' }) })
 
     try {
       expect(await mounted.frameHolds((frame) => frame.includes('· pod'))).toBe(true)

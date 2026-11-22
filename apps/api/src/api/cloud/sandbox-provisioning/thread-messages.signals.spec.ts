@@ -1,11 +1,11 @@
 import { EBootStep, EBootStepState, EThreadStreamFrame } from '@dltech/atlas-wire'
-import { EVercelCredentialGap } from '@dltech/atlas-wire/web'
+import { ServiceUnavailableException } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it, vi } from 'bun:test'
 import { recordBootSteps } from '../../platform/sandboxes/sandbox-boot-steps'
 import { recordingSignals } from '../../platform/sessions/thread-signals.fixture'
-import { VercelNotConfiguredError } from '../scoped-config/scoped-config.errors'
+import { NOT_CONFIGURED_MESSAGE } from '../scoped-config/scoped-config.service'
 import {
   fakeScoped,
   messagesWith,
@@ -87,7 +87,7 @@ describe('ThreadMessagesService signals', () => {
   })
 
   it('a credential gap signals the kept message and a pod change', async () => {
-    const failure = new VercelNotConfiguredError(EVercelCredentialGap.UserCredential)
+    const failure = new ServiceUnavailableException(NOT_CONFIGURED_MESSAGE)
     const scoped = fakeScoped({ vercelCredentials: vi.fn(async () => Promise.reject(failure)) })
     const { signals, framesOf } = recordingSignals()
     const frames = framesOf('thr-1')

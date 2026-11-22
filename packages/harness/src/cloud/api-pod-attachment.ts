@@ -3,13 +3,13 @@ import type { ThreadId } from '@dltech/atlas-core'
 
 import { RemoteSessionActivity } from '../activity/remote-session-activity'
 import type { CloudBridge } from './cloud-bridge'
-import type { LocalCloudBridgeOptions } from './local-cloud-bridge-options'
+import type { AttachOptions } from './local-cloud-attachment'
 import { createRemoteDeltaChannel, type SandboxWake } from './remote-delta-channel'
 import { RemoteEventLog } from './remote-event-log'
 import { RemoteThreadStore } from './remote-thread-store'
 import { RemoteTurnLedger } from './remote-turn-ledger'
 
-export type ApiPodAttachOptions = Pick<LocalCloudBridgeOptions, 'lastEventSeq'>
+export type ApiPodAttachOptions = Pick<AttachOptions, 'lastEventSeq'>
 
 export type PodTicketSource = (args: { threadId: ThreadId }) => Promise<PodConnectReply>
 

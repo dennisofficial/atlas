@@ -1,12 +1,12 @@
 import { EBootStep, EBootStepState, EThreadMessageState } from '@dltech/atlas-wire'
-import { EVercelCredentialGap } from '@dltech/atlas-wire/web'
 import { attachmentsOf } from '@dltech/atlas-core'
+import { ServiceUnavailableException } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { applyPodEvents } from '../../platform/sandboxes/pod-events'
 import { recordBootSteps } from '../../platform/sandboxes/sandbox-boot-steps'
 import { beforeEach, describe, expect, it, vi } from 'bun:test'
-import { VercelNotConfiguredError } from '../scoped-config/scoped-config.errors'
+import { NOT_CONFIGURED_MESSAGE } from '../scoped-config/scoped-config.service'
 import { DISPATCH_FAILED_MESSAGE } from './pod-launch.service'
 import {
   bootSteps,
@@ -116,7 +116,7 @@ describe('ThreadMessagesService.send', () => {
   })
 
   it('keeps the message, records a step and answers plain Queued on a credential gap', async () => {
-    const failure = new VercelNotConfiguredError(EVercelCredentialGap.UserCredential)
+    const failure = new ServiceUnavailableException(NOT_CONFIGURED_MESSAGE)
     const scoped = fakeScoped({ vercelCredentials: vi.fn(async () => Promise.reject(failure)) })
     const { service, dispatch } = messagesWith({ scoped })
 
@@ -129,7 +129,6 @@ describe('ThreadMessagesService.send', () => {
         step: EBootStep.Provision,
         state: 'error',
         error: failure.message,
-        gap: EVercelCredentialGap.UserCredential,
       },
     ])
     expect(await sandboxRows()).toHaveLength(0)

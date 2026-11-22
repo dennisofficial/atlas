@@ -9,7 +9,7 @@ import {
   type RecordedBootStep,
 } from '@dltech/atlas-wire/web'
 
-import { NOT_CONFIGURED_FALLBACK, notConfiguredOf } from '../not-configured'
+import { PLATFORM_NOT_CONFIGURED, notConfiguredOf } from '../not-configured'
 
 const step = (args: {
   step?: EBootStep
@@ -43,21 +43,21 @@ describe('notConfiguredOf', () => {
     expect(notConfiguredOf(pod(EPodState.Parked, []))).toBeNull()
   })
 
-  it('reads the error and gap from the failed Provision step, so it survives a reload', () => {
+  it('reports the deployment as not configured instead of the step error that asks for a credential', () => {
     expect(notConfiguredOf(pod(EPodState.Failed, [gapFailed]))).toEqual({
-      error: 'Add a Vercel token',
+      error: PLATFORM_NOT_CONFIGURED,
       gap: EVercelCredentialGap.UserCredential,
     })
   })
 
-  it('falls back to a generic message when the step carries no error text', () => {
+  it('reports the same message when the step carries no error text', () => {
     const bare = step({
       state: EBootStepState.Error,
       at: GAP_AT,
       gap: EVercelCredentialGap.UserCredential,
     })
     expect(notConfiguredOf(pod(EPodState.Failed, [bare]))).toEqual({
-      error: NOT_CONFIGURED_FALLBACK,
+      error: PLATFORM_NOT_CONFIGURED,
       gap: EVercelCredentialGap.UserCredential,
     })
   })
@@ -87,7 +87,7 @@ describe('notConfiguredOf', () => {
   it('finds the latest step by time, not by array order', () => {
     const early = step({ state: EBootStepState.Running, at: '2026-10-22T09:00:00.000Z' })
     expect(notConfiguredOf(pod(EPodState.Failed, [gapFailed, early]))).toEqual({
-      error: 'Add a Vercel token',
+      error: PLATFORM_NOT_CONFIGURED,
       gap: EVercelCredentialGap.UserCredential,
     })
   })

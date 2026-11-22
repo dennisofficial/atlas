@@ -65,13 +65,6 @@ export const fakeProjectsApi = (
   ]
   const created: CreatedProject[] = []
   const fetchFn = (async (url: string, init?: RequestInit) => {
-    if (String(url).includes('userVercel.get'))
-      return trpcData({
-        configured: true,
-        teamId: 'team_1',
-        vercelProjectId: 'prj_1',
-        updatedAt: null,
-      })
     if (init?.method === 'POST') {
       if (args.createFails === true) return trpcBadRequest('projects are read-only')
       const body = trpcBodyOf(String(init.body)) as CreatedProject
@@ -97,7 +90,6 @@ export const launchDirWith = (origin: string | null): string => {
 }
 
 export const bornThreadApp = (args: {
-  vercel?: boolean
   signedOut?: boolean
   shape?: 'chip' | 'hero'
   origin?: string | null
@@ -109,13 +101,9 @@ export const bornThreadApp = (args: {
     model: scriptedModelPort({ script: { thinking: 'weighing it', reply: 'done' } }),
     cwd: launchDirWith(args.origin === undefined ? ACME_ORIGIN : args.origin),
     cloud: args.signedOut === true ? fakeSignedOutCloud({ client }) : fakeCloud({ client }),
-    ...(args.vercel === true ? { secrets: { [ESettingId.VercelToken]: 'vercel-token' } } : {}),
     settings: {
       values: {
         [ESettingId.Accent]: 'clay',
-        ...(args.vercel === true
-          ? { [ESettingId.VercelTeamId]: 'team_1', [ESettingId.VercelProjectId]: 'prj_1' }
-          : {}),
         ...(args.shape === undefined ? {} : { [ESettingId.PlacementChooserShape]: args.shape }),
       },
     },

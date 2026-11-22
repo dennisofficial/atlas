@@ -36,7 +36,6 @@ const GRANDFATHERED_V1 = new Set([
   'src/api/cloud/sandbox-provisioning/thread-pod.service.ts',
   'src/api/cloud/sandbox-provisioning/thread-pod.status-cost.spec.ts',
   'src/api/cloud/sandbox-provisioning/vercel-orphan-sandbox-store.ts',
-  'src/api/cloud/sandbox-snapshots/vercel-sandbox-snapshot-store.ts',
   'src/api/platform/sandboxes/pod-resources-cache.spec.ts',
   'src/api/platform/sandboxes/pod-resources-cache.ts',
   'src/api/platform/sandboxes/sandbox-claim.ts',

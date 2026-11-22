@@ -43,11 +43,10 @@ preference, `placement.lastBorn`, which is also the default for the next thread
 
 The first send runs, in order (`apps/tui/src/composition/cloud/born-cloud.ts`):
 1. The Atlas Cloud sign-in gate. Signed out, the sign-in prompt opens.
-2. For Vercel, a check that Vercel credentials are configured.
-3. The runner preflight. Local pings the Docker socket; Vercel checks that its token, team and
-   project are configured, without contacting Vercel (`apps/tui/src/composition/live-pod.ts`).
-4. Project resolution (below).
-5. The birth itself, `birthInCloud` (`packages/harness/src/cloud/cloud-birth.ts`), which creates
+2. The runner preflight. Local pings the Docker socket; a Vercel sandbox needs no client check —
+   the API provisions it on the platform account (`apps/tui/src/composition/live-pod.ts`).
+3. Project resolution (below).
+4. The birth itself, `birthInCloud` (`packages/harness/src/cloud/cloud-birth.ts`), which creates
    the pod, attaches, commits the placement, and records the runner and `projectId` in the thread
    meta.
 
@@ -77,14 +76,14 @@ The `projectId` is stored in the thread meta, and a wake passes the same one bac
 
 ## The two runners
 
-|             | Local                                                                                                                    | Vercel                                                                                      |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
-| Driver      | `DockerPodDriver`, Docker Engine API over the Unix socket (`packages/harness/src/cloud/local-pod/driver.ts`)             | `VercelDriver` over `@vercel/sandbox` (`packages/harness/src/cloud/vercel-driver.ts`)       |
-| Image       | `ghcr.io/dennisofficial/atlas-sandbox:latest`, pulled anonymously (`packages/harness/src/cloud/local-pod/pod-create.ts`) | the `sandbox.image` setting, default `atlas-sandbox:latest` in Vercel's registry            |
-| Name        | `atlas-pod-<24 hex of sha256(threadId)>` (`packages/harness/src/cloud/local-pod/pod-create.ts`)                          | `atlas-thread-<24 hex of sha256(threadId)>` (`packages/harness/src/cloud/sandbox-names.ts`) |
-| Ports       | serve, published on `127.0.0.1` (`packages/harness/src/cloud/local-pod/pod-create.ts`)                                   | serve, provider-routed (`packages/wire/src/sandbox-sdk.ts`)                                 |
-| Resize      | live, `POST /containers/<id>/update`                                                                                     | applies on restart                                                                          |
-| Persistence | named volumes, kept across park and wake                                                                                 | a persistent sandbox in `iad1` (`packages/wire/src/sandbox-mount.ts`)                       |
+|             | Local                                                                                                                    | Vercel                                                                                                          |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
+| Driver      | `DockerPodDriver`, Docker Engine API over the Unix socket (`packages/harness/src/cloud/local-pod/driver.ts`)             | the API, on the platform's Vercel account (`apps/api/src/api/cloud/sandbox-provisioning/pod-launch.service.ts`) |
+| Image       | `ghcr.io/dennisofficial/atlas-sandbox:latest`, pulled anonymously (`packages/harness/src/cloud/local-pod/pod-create.ts`) | the `sandbox.image` setting, default `atlas-sandbox:latest` in Vercel's registry                                |
+| Name        | `atlas-pod-<24 hex of sha256(threadId)>` (`packages/harness/src/cloud/local-pod/pod-create.ts`)                          | `atlas-thread-<24 hex of sha256(threadId)>` (`packages/harness/src/cloud/sandbox-names.ts`)                     |
+| Ports       | serve, published on `127.0.0.1` (`packages/harness/src/cloud/local-pod/pod-create.ts`)                                   | serve, provider-routed (`packages/wire/src/sandbox-sdk.ts`)                                                     |
+| Resize      | live, `POST /containers/<id>/update`                                                                                     | applies on restart                                                                                              |
+| Persistence | named volumes, kept across park and wake                                                                                 | a persistent sandbox in `iad1` (`packages/wire/src/sandbox-mount.ts`)                                           |
 
 `exposePort` works the same on both runners: serve asks the API (`sandboxSelf.exposePort`), which
 routes `https://<port>-<label>.byatlas.dev` through the thread's Cloudflare tunnel and hands back its
@@ -246,7 +245,6 @@ Whether a setting lives locally or in Atlas Cloud is a property of the setting, 
   `container.memory`, `container.idleMinutes`.
 - Placement and flags: `experimental.pods`, `placement.lastBorn`,
   `experimental.placementChooserShape`.
-- `sandbox.vercelToken`, the local secret.
 
 Every other setting is Cloud, and the web edits the same ones the TUI does
 ([0016](decisions/0016-cloud-settings-are-the-source-of-truth.md)).

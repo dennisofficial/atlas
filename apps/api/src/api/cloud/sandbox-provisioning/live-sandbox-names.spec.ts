@@ -23,7 +23,7 @@ const v2Session = async (args: { id: string; podSessionId?: string }): Promise<v
     modelEffort: 'medium',
     modelFast: false,
     sandboxProvider: 'vercel',
-    credentialSource: 'byok',
+    credentialSource: 'platform',
     ...(args.podSessionId === undefined ? {} : { podSessionId: args.podSessionId }),
     createdAt: at,
   })

@@ -37,13 +37,14 @@ because the two rows point at each other. `threads.live` streams the sidebar as 
 through `managedBySessionId`. `threads.list` returns session main threads only. better-auth's table is
 `AuthSession`.
 
-A thread's owner is fixed at creation (`Thread.userId`). `ScopedConfigService.vercelCredentials`
-resolves the owner's `UserVercelCredential` (`userVercel.*`) with token, team and project id.
-**A sandbox keeps the Vercel project it was created in** (`CloudSandbox.vercelProjectId`, written by
-both boot paths on a fresh create and read by `platform/sandboxes/pod-project.ts`). Every later
-resume, renewal, stop, resize and delete targets that project. Moving the credential to another
-project therefore moves only the sandboxes created after it. Old sandboxes keep working until they
-are destroyed. The snapshot sweeper covers every project still in use.
+A thread's owner is fixed at creation (`Thread.userId`). Sandboxes run only on the platform
+account: `ScopedConfigService.vercelCredentials` reads `PLATFORM_VERCEL_TOKEN`,
+`PLATFORM_VERCEL_TEAM_ID` and `PLATFORM_VERCEL_PROJECT_ID`, and answers 503 when one is missing.
+Users never bring their own sandbox credential. **A sandbox keeps the Vercel project it was created
+in** (`CloudSandbox.vercelProjectId`, written by both boot paths on a fresh create and read by
+`platform/sandboxes/pod-project.ts`). Every later resume, renewal, stop, resize and delete targets
+that project. Moving the platform credential to another project therefore moves only the sandboxes
+created after it. Old sandboxes keep working until they are destroyed.
 **Sandbox storage ends six hours after a session is archived.**
 Archive parks the pod. `archived-sandbox-sweep` deletes the pod of a session archived past
 `ARCHIVED_SANDBOX_GRACE_MS` (6 h), and `orphan-sandbox-sweep` soft-deletes the v2 session rows at the
