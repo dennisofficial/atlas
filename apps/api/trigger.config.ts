@@ -10,6 +10,8 @@ export default defineConfig({
   build: {
     // @dltech/atlas-wire ships raw TS under its `bun` export condition; its `default` points at an unbuilt dist.
     conditions: ['bun'],
+    // Bundled, @nestjs/common's decorators can run before its own reflect-metadata import (deploy of 8880fc110 failed with "Reflect.getOwnMetadata is not a function"); loaded as a package, Node evaluates the polyfill first.
+    external: ['@nestjs/common'],
     extensions: [dotenvxTierExtension()],
   },
 })
