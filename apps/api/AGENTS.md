@@ -44,9 +44,10 @@ both boot paths on a fresh create and read by `platform/sandboxes/pod-project.ts
 resume, renewal, stop, resize and delete targets that project. Moving the credential to another
 project therefore moves only the sandboxes created after it. Old sandboxes keep working until they
 are destroyed. The snapshot sweeper covers every project still in use.
-**Sandbox storage ends a day after a session is archived.**
-`archived-sandbox-sweep` deletes the pod of a session archived past `ARCHIVED_SANDBOX_GRACE_MS`
-(24 h). `orphan-sandbox-sweep` deletes stopped
+**Sandbox storage ends six hours after a session is archived.**
+Archive parks the pod. `archived-sandbox-sweep` deletes the pod of a session archived past
+`ARCHIVED_SANDBOX_GRACE_MS` (6 h), and `orphan-sandbox-sweep` soft-deletes the v2 session rows at the
+same grace, measured from `archivedAt`. `orphan-sandbox-sweep` deletes stopped
 sandboxes whose name no unarchived session resolves: a deleted session's pod, a dead v2 session's, a
 probe's. A sandbox is addressed only by name, so a name that nothing resolves is unreachable storage.
 The session rows stay for analytics. A

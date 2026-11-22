@@ -36,6 +36,7 @@ export type OrphanSweepSummary = {
   kept: number
   reconciled: number
   failed: number
+  failedScopes: string[]
   dryRun: boolean
 }
 
@@ -133,57 +134,64 @@ export async function sweepOrphanSandboxes(args: {
     kept: 0,
     reconciled: 0,
     failed: 0,
+    failedScopes: [],
     dryRun: args.dryRun,
   }
   const liveNames = await args.liveNames()
   const retirableNames = await args.retirableNames?.()
   for (const { label, projectId, store } of args.stores) {
-    const sandboxes = await store.listSandboxes()
-    summary.scanned += sandboxes.length
-    const plan = planOrphanSandboxes({
-      sandboxes,
-      liveNames,
-      ...(retirableNames === undefined ? {} : { retirableNames }),
-      ...(args.ignoreName === undefined ? {} : { ignoreName: args.ignoreName }),
-      now: args.now,
-      ...(args.graceMs === undefined ? {} : { graceMs: args.graceMs }),
-    })
-    summary.kept += sandboxes.length - plan.delete.length - plan.stop.length
-    args.log(
-      `${label}: ${sandboxes.length} sandboxes, ${plan.delete.length} unreachable, ${plan.stop.length} to stop${args.dryRun ? ' (dry run)' : ''}`,
-    )
-    if (args.dryRun) continue
-    if (args.reconcileStates !== undefined) {
-      summary.reconciled += await args.reconcileStates({ projectId, sandboxes })
-    }
-    const failed = (name: string) => (failure: unknown) => {
+    try {
+      const sandboxes = await store.listSandboxes()
+      summary.scanned += sandboxes.length
+      const plan = planOrphanSandboxes({
+        sandboxes,
+        liveNames,
+        ...(retirableNames === undefined ? {} : { retirableNames }),
+        ...(args.ignoreName === undefined ? {} : { ignoreName: args.ignoreName }),
+        now: args.now,
+        ...(args.graceMs === undefined ? {} : { graceMs: args.graceMs }),
+      })
+      summary.kept += sandboxes.length - plan.delete.length - plan.stop.length
+      args.log(
+        `${label}: ${sandboxes.length} sandboxes, ${plan.delete.length} unreachable, ${plan.stop.length} to stop${args.dryRun ? ' (dry run)' : ''}`,
+      )
+      if (args.dryRun) continue
+      if (args.reconcileStates !== undefined) {
+        summary.reconciled += await args.reconcileStates({ projectId, sandboxes })
+      }
+      const failed = (name: string) => (failure: unknown) => {
+        summary.failed += 1
+        args.log(`${label}: ${name}: ${String(failure)}`)
+      }
+      await runBounded({
+        items: plan.stop,
+        task: async (sandbox) => {
+          try {
+            await store.stopSandbox({ name: sandbox.name })
+            summary.stopped += 1
+            await args.onStopped?.({ name: sandbox.name })
+          } catch (failure) {
+            failed(sandbox.name)(failure)
+          }
+        },
+      })
+      await runBounded({
+        items: plan.delete,
+        task: async (sandbox) => {
+          try {
+            await store.deleteSandbox({ name: sandbox.name })
+            summary.deleted += 1
+            await args.onRetired?.({ name: sandbox.name })
+          } catch (failure) {
+            failed(sandbox.name)(failure)
+          }
+        },
+      })
+    } catch (failure) {
       summary.failed += 1
-      args.log(`${label}: ${name}: ${String(failure)}`)
+      summary.failedScopes.push(label)
+      args.log(`${label}: could not sweep its sandboxes: ${String(failure)}`)
     }
-    await runBounded({
-      items: plan.stop,
-      task: async (sandbox) => {
-        try {
-          await store.stopSandbox({ name: sandbox.name })
-          summary.stopped += 1
-          await args.onStopped?.({ name: sandbox.name })
-        } catch (failure) {
-          failed(sandbox.name)(failure)
-        }
-      },
-    })
-    await runBounded({
-      items: plan.delete,
-      task: async (sandbox) => {
-        try {
-          await store.deleteSandbox({ name: sandbox.name })
-          summary.deleted += 1
-          await args.onRetired?.({ name: sandbox.name })
-        } catch (failure) {
-          failed(sandbox.name)(failure)
-        }
-      },
-    })
   }
   return summary
 }

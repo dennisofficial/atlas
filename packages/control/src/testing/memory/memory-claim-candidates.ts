@@ -15,6 +15,7 @@ const needingHolderIn = (params: { state: State; presentHosts: ReadonlySet<numbe
   const { state } = params
   return [...state.sessions.values()]
     .filter((row) => {
+      if (row.archivedAt !== null) return false
       const lease = state.leases.get(row.sessionId)
       if (lease !== undefined && lease.holderHostId !== null) {
         return !params.presentHosts.has(lease.holderHostId)
