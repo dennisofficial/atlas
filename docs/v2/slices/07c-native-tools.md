@@ -90,7 +90,7 @@ list`, `report_to_main`, `enter_worktree/exit_worktree/worktree_list` (`plugins/
   (`apps/agent-host/src/config/config-reader.ts:124-140`), and `SecretCipher`
   (`apps/agent-host/src/config/secret-cipher.ts:15`) already opens model keys and GitHub tokens.
 - **The sandbox image bakes `agent-browser` on `PATH`** with headless chromium already installed, and
-  the build proves it runs (`apps/serve/sandbox-image/Dockerfile:170-185`); the v2 sandbox is that
+  the build proves it runs (`infra/sandbox-image/Dockerfile:170-185`); the v2 sandbox is that
   image (`apps/agent-host/src/host/runtime.module.ts:41-48`).
 - **The plan types are in `core` and the prompt already promises the tool.** `TaskListFragment` is
   registered in the host's prompt (`apps/agent-host/src/runtime/prompt.ts:38`); `planInputSchema`,

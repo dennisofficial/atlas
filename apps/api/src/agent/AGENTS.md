@@ -69,7 +69,7 @@ Missing required vars exit 78 with the names on stderr.
 `/mcp-oauth/callback` is the redirect a provider opens. Keep the path and the origin.
 `GET /agent/daemon/bundle` serves the daemon bundle the host holds at `ATLAS_DAEMON_BUNDLE`. It
 authenticates the sandbox with its `DAEMON_TOKEN` and `X-Atlas-Sandbox` header. The Agent37
-image's boot loop fetches it on every wake (`apps/serve/sandbox-image/atlas-boot.sh`).
+image's boot loop fetches it on every wake (`infra/sandbox-image/atlas-boot.sh`).
 
 Locally, `bun run dev` in `apps/api` runs it with the api and needs docker Postgres and `test-redis`.
 The agent refuses to start without `REDIS_URL`. Tests run from `apps/api` too: `bun test src/agent`.
