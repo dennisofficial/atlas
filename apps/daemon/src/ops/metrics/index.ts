@@ -144,7 +144,7 @@ export const metricsGroup =
       onDisconnect: () => {
         subscribers = 0
         stopSampling()
-        pressure.stop()
+        pressure.forget()
       },
       stop: () => {
         subscribers = 0

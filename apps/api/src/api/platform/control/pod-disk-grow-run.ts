@@ -13,6 +13,7 @@ export type PodDisk = {
   instanceId: string
   usedBytes: number | undefined
   limitBytes: number | undefined
+  sizeGb?: number | undefined
 }
 
 export type PodDiskGrowDeps = {
@@ -62,6 +63,7 @@ export const growPodDisk = async (args: {
     usedBytes: pod.usedBytes,
     limitBytes: pod.limitBytes,
     maxGb: args.maxGb,
+    sizeGb: pod.sizeGb,
   })
   if (diskGb === undefined) {
     return skipped(`nothing to grow from ${limitGbOf(pod.limitBytes)} GB`)

@@ -43,6 +43,7 @@ export type PodDiskFigures = { usedBytes: number; limitBytes: number }
 export type DiskPressureSampler = {
   check(at: number): void
   start(): void
+  forget(): void
   stop(): void
 }
 
@@ -78,6 +79,9 @@ export const diskPressureSamplerOf = (args: {
         check(now())
       }, args.intervalMs)
       timer.unref()
+    },
+    forget: () => {
+      last = undefined
     },
     stop: () => {
       if (timer !== null) clearInterval(timer)

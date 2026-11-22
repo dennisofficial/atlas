@@ -77,6 +77,18 @@ describe('runPodDiskGrowOne', () => {
     expect(noticed).toEqual([40])
   })
 
+  it('doubles the instance disk, not the smaller filesystem size the pod reported', async () => {
+    const { deps, calls } = fakeDeps({ state: ESessionStatus.Thinking, diskGb: 40 })
+    expect(
+      await runPodDiskGrowOne({
+        payload: payloadOf({ usedBytes: 34 * GB, limitBytes: 42_091_216_896 }),
+        deps,
+        maxGb: 100,
+      }),
+    ).toEqual({ outcome: EPodDiskGrowOneOutcome.Grown, diskGb: 80 })
+    expect(calls).toContain('grow:inst-1:80')
+  })
+
   it('grows an urgent pod without reading what it is running', async () => {
     const { deps, calls } = fakeDeps({ state: ESessionStatus.RunningTool })
     await runPodDiskGrowOne({
