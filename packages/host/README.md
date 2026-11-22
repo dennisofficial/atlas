@@ -69,6 +69,8 @@ only what it can rebuild or drop.
 - `LiveStepBuffer`, `LIVE_FLUSH_MS`, `LIVE_FLUSH_BYTES`, `LIVE_STEP_CAP_BYTES`: buffer the output
   of a step and flush it to the live channel.
 - `ChangesSnapshotter`, `fingerprintOf`, `changeCheckoutId`: snapshot the files a session changed.
+  A checkout id is session-scoped: `sha256(sessionId, repo, realpath(worktreePath))`, so two
+  sessions of one project keep two rows for the same worktree path.
 - `TerminalDemand`, `PanelDemand`, `PANEL_HOLD_TTL_MS`: keep the pod awake for a terminal or panel.
 
 ### Drain and fail

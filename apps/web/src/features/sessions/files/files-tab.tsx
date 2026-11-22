@@ -20,6 +20,9 @@ import { EFileTreeStatus, useFileTree } from '@/features/threads/data/use-file-t
 import { useWorkspaceFile } from '@/features/threads/data/use-workspace-file'
 import { FileBody } from '@/features/threads/context-viewer/file-viewer'
 import { lineMarksOf } from '@/features/threads/data/line-marks'
+import { TabPlaceholder } from '@/features/threads/panel/tab-placeholder'
+import { useCheckoutChoice } from '../checkouts/checkout-choice-context'
+import { CheckoutSelect } from '../checkouts/checkout-select'
 import { usePodHold } from '../data/use-pod-hold'
 import { usePodWake } from '../data/use-pod-wake'
 import { podAttached } from '../data/pod-attachment'
@@ -28,6 +31,26 @@ import { PodDisconnected } from '../panel/pod-disconnected'
 import { recallSelectedFile, rememberSelectedFile } from './files-memory'
 
 const requestWake = (sessionId: string) => cloudCall(api.sessions.wake.mutate({ sessionId }))
+
+function Notice(args: { title: string; description: string }) {
+  return (
+    <TabPlaceholder
+      icon={<FolderTreeIcon aria-hidden />}
+      title={args.title}
+      description={args.description}
+    />
+  )
+}
+
+function Loading() {
+  return (
+    <div className="flex h-full p-4">
+      <p role="status" className="text-sm text-muted-foreground">
+        Loading files…
+      </p>
+    </div>
+  )
+}
 
 function FilesBody(props: { sessionId: string; source: FileSource; podAwake: boolean }) {
   const { source } = props
@@ -76,6 +99,7 @@ function FilesBody(props: { sessionId: string; source: FileSource; podAwake: boo
 
   return (
     <div className="flex h-full flex-col gap-2 p-2">
+      <CheckoutSelect />
       <InputGroup>
         <InputGroupAddon>
           <SearchIcon />
@@ -90,13 +114,17 @@ function FilesBody(props: { sessionId: string; source: FileSource; podAwake: boo
       </InputGroup>
       <div className="min-h-0 flex-1 overflow-auto">
         {query.trim() === '' ? (
-          <FileTree
-            nodes={nodes}
-            selected={selected}
-            onSelect={handleSelect}
-            open={open}
-            onOpenChange={handleOpenChange}
-          />
+          tree.status === EFileTreeStatus.Failed ? (
+            <Notice title="Files unavailable" description={tree.message} />
+          ) : (
+            <FileTree
+              nodes={nodes}
+              selected={selected}
+              onSelect={handleSelect}
+              open={open}
+              onOpenChange={handleOpenChange}
+            />
+          )
         ) : search.status === EFileSearchStatus.Ready ? (
           <FileSearchResults
             hits={search.paths}
@@ -116,10 +144,18 @@ function FilesBody(props: { sessionId: string; source: FileSource; podAwake: boo
   )
 }
 
-export function FilesTab(props: { sourceOf?: (sessionId: string) => FileSource } = {}) {
+export function FilesTab(
+  props: {
+    sourceOf?: (args: { sessionId: string; checkoutId?: string | undefined }) => FileSource
+  } = {},
+) {
   const { sessionId, status } = useSessionPaneValue()
-  const sourceOf = props.sourceOf ?? ((id: string) => v2FileSource({ sessionId: id }))
-  const source = useMemo(() => sourceOf(sessionId), [sourceOf, sessionId])
+  const { changes, selectedId } = useCheckoutChoice()
+  const sourceOf = props.sourceOf ?? v2FileSource
+  const source = useMemo(
+    () => (selectedId === undefined ? null : sourceOf({ sessionId, checkoutId: selectedId })),
+    [sourceOf, sessionId, selectedId],
+  )
   const attached = podAttached(status)
   usePodHold({ sessionId, active: attached })
   const { state, wakePod } = usePodWake({
@@ -128,7 +164,28 @@ export function FilesTab(props: { sourceOf?: (sessionId: string) => FileSource }
     wake: () => requestWake(sessionId).then(() => undefined),
   })
   if (!attached) return <PodDisconnected tab="Files" state={state} onWake={wakePod} />
-  return <FilesBody sessionId={sessionId} source={source} podAwake={attached} />
+  if (changes.status === 'loading') return <Loading />
+  if (changes.status === 'failed') {
+    return (
+      <div data-files-tab={changes.unavailable ? 'unavailable' : 'failed'}>
+        <Notice
+          title={changes.unavailable ? 'Change storage unavailable' : 'Files unavailable'}
+          description={changes.message}
+        />
+      </div>
+    )
+  }
+  if (source === null || selectedId === undefined) {
+    return (
+      <div data-files-tab="empty">
+        <Notice
+          title="No checkout yet"
+          description="Files appear once the workspace repository is ready."
+        />
+      </div>
+    )
+  }
+  return <FilesBody key={selectedId} sessionId={sessionId} source={source} podAwake={attached} />
 }
 
 export const FILES_TAB_ICON = <FolderTreeIcon />

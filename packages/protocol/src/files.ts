@@ -15,6 +15,7 @@ export type FileContent = z.infer<typeof fileContentSchema>
 export const filesTreeInputSchema = z.strictObject({
   sessionId: z.string().min(1),
   directory: z.string(),
+  checkoutId: z.string().min(1).optional(),
 })
 export const filesTreeEntrySchema = z.strictObject({
   name: z.string(),
@@ -31,6 +32,7 @@ export type FilesTreeOutput = z.infer<typeof filesTreeOutputSchema>
 export const filesSearchInputSchema = z.strictObject({
   sessionId: z.string().min(1),
   query: z.string().min(1).max(200),
+  checkoutId: z.string().min(1).optional(),
 })
 export type FilesSearchInput = z.infer<typeof filesSearchInputSchema>
 export const filesSearchOutputSchema = z.strictObject({
@@ -42,6 +44,7 @@ export type FilesSearchOutput = z.infer<typeof filesSearchOutputSchema>
 export const filesReadInputSchema = z.strictObject({
   sessionId: z.string().min(1),
   path: z.string().min(1),
+  checkoutId: z.string().min(1).optional(),
 })
 export type FilesReadInput = z.infer<typeof filesReadInputSchema>
 export const filesReadOutputSchema = z.strictObject({ file: fileContentSchema })

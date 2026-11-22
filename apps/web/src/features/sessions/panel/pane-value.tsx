@@ -15,6 +15,7 @@ export type SessionPaneValue = {
   view: SessionViewModel
   viewLoaded: boolean
   checkouts: SessionViewOutput['checkouts']
+  threadWorktreePath: string | undefined
   status: SessionStatusOutput | undefined
   shellTails: Readonly<Record<string, string>>
   openTab: (tab: ESessionPaneTab) => void

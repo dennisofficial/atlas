@@ -23,17 +23,41 @@ export const channelFileSource = (channel: FileChannel): FileSource => ({
   read: (args) => readWorkspaceFile({ channel, path: args.path }),
 })
 
-export const v2FileSource = (args: { sessionId: string }): FileSource => ({
+const checkoutScope = (checkoutId: string | undefined) =>
+  checkoutId === undefined ? {} : { checkoutId }
+
+export const v2FileSource = (args: {
+  sessionId: string
+  checkoutId?: string | undefined
+}): FileSource => ({
   browse: async (input) =>
     (
       await cloudCall(
-        api.files.tree.query({ sessionId: args.sessionId, directory: input.directory }),
+        api.files.tree.query({
+          sessionId: args.sessionId,
+          ...checkoutScope(args.checkoutId),
+          directory: input.directory,
+        }),
       )
     ).entries,
   search: (input) =>
-    cloudCall(api.files.search.query({ sessionId: args.sessionId, query: input.query })),
+    cloudCall(
+      api.files.search.query({
+        sessionId: args.sessionId,
+        ...checkoutScope(args.checkoutId),
+        query: input.query,
+      }),
+    ),
   read: async (input) =>
-    (await cloudCall(api.files.read.query({ sessionId: args.sessionId, path: input.path }))).file,
+    (
+      await cloudCall(
+        api.files.read.query({
+          sessionId: args.sessionId,
+          ...checkoutScope(args.checkoutId),
+          path: input.path,
+        }),
+      )
+    ).file,
 })
 
 export const isPodParked = (failure: unknown): boolean =>

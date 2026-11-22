@@ -45,6 +45,7 @@ export class ChangesSnapshotter {
   private readonly args: ChangesSnapshotterArgs
   private readonly watchId: string
   private running: Promise<void> | undefined
+  private readonly arming = new Set<Promise<void>>()
   private queued = false
   private timer: ReturnType<typeof setTimeout> | undefined
   private unsubscribe: (() => void) | undefined
@@ -62,7 +63,13 @@ export class ChangesSnapshotter {
       if (frame.event.watchId !== this.watchId) return
       this.schedule()
     })
-    void this.armWatches()
+    this.startArming()
+    void this.snapshotNow()
+  }
+
+  rearm(): void {
+    if (this.stopped) return
+    this.startArming()
     void this.snapshotNow()
   }
 
@@ -71,6 +78,7 @@ export class ChangesSnapshotter {
     this.unsubscribe?.()
     this.unsubscribe = undefined
     this.clearTimer()
+    await Promise.all([...this.arming])
     await this.disarmWatches()
     await this.running
   }
@@ -119,7 +127,11 @@ export class ChangesSnapshotter {
         base: checkout.base,
       })
       const repo = changeRepoOf({ originUrl: checkout.originUrl, repoPath })
-      const checkoutId = changeCheckoutId({ repo, worktreePath: repoPath })
+      const checkoutId = changeCheckoutId({
+        sessionId: this.args.sessionId,
+        repo,
+        worktreePath: repoPath,
+      })
       const fingerprint = fingerprintOf(manifest.files)
       const stored = await this.args.plane.readChanges({ sessionId: this.args.sessionId })
       const previous = stored.find((row) => row.checkoutId === checkoutId)
@@ -182,9 +194,17 @@ export class ChangesSnapshotter {
     return written
   }
 
+  private startArming(): void {
+    if (this.stopped) return
+    const arming = this.armWatches().finally(() => {
+      this.arming.delete(arming)
+    })
+    this.arming.add(arming)
+  }
+
   private async armWatches(): Promise<void> {
     const checkouts = await this.args.checkouts().catch(() => [])
-    if (checkouts.length === 0) return
+    if (this.stopped || checkouts.length === 0) return
     await this.args.remoteCalls
       .invoke({
         key: newKey(),

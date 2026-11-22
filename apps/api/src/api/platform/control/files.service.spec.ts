@@ -1,59 +1,17 @@
 import { describe, expect, it } from 'bun:test'
-import { ECallStatus, ELiveOpFailure, type CallOp, type CallResult } from '@dltech/atlas-protocol'
+import { ECallStatus, ELiveOpFailure, type CallOp } from '@dltech/atlas-protocol'
 
-import { FilesService } from './files.service'
 import { PodParkedError } from './pod-parked.error'
-import type { PodOps } from '../../../agent'
-import { setupSessionsService as setup } from './sessions.service.fixture'
-
-const ok = (result: CallResult): Awaited<ReturnType<PodOps['invoke']>> => ({
-  state: 'ok',
-  result,
-})
-
-const opsOf = (results: CallResult[], seen: CallOp[] = []): PodOps => ({
-  async invoke(args) {
-    seen.push(args.op)
-    const next = results.shift()
-    if (next === undefined) throw new Error('no result staged')
-    return ok(next)
-  },
-  events: () => null,
-  hold: () => true,
-})
-
-const setupFiles = (ops: PodOps) => {
-  const { plane, service: sessions } = setup()
-  return { sessions, files: new FilesService(plane, sessions, ops) }
-}
-
-const asUser = async (sessions: ReturnType<typeof setup>['service']) => {
-  const created = await sessions.create({ userId: 'user-a', projectId: 'proj-a' })
-  return created.sessionId
-}
+import { asUser, listing, opsOf, setupFiles } from './files.service.fixture'
 
 describe('FilesService', () => {
   it('maps readDirectory and joins the changed dot', async () => {
     const seen: CallOp[] = []
-    const { files, sessions } = setupFiles(
-      opsOf(
-        [
-          {
-            status: ECallStatus.Ok,
-            op: 'readDirectory',
-            value: [
-              { name: 'b.ts', isFile: true, isDirectory: false },
-              { name: 'src', isFile: false, isDirectory: true },
-            ],
-          },
-        ],
-        seen,
-      ),
-    )
+    const { files, sessions } = setupFiles(opsOf([listing(['b.ts', 'src'])], seen))
     const sessionId = await asUser(sessions)
     const output = await files.tree({ userId: 'user-a', sessionId, directory: '' })
     expect(seen[0]).toEqual({ op: 'readDirectory', path: '.' })
-    expect(output.entries.map((entry) => entry.name)).toEqual(['src', 'b.ts'])
+    expect(output.entries.map((entry) => entry.name)).toEqual(['b.ts', 'src'])
     expect(output.entries.every((entry) => entry.changed === false)).toBe(true)
   })
 

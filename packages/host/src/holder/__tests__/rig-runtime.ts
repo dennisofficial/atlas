@@ -107,6 +107,7 @@ export const makeRuntimeFactory = (args: {
   script: ScriptRef
   runtimes: RigRuntime[]
   watchedRepos?: (() => Promise<readonly string[]>) | undefined
+  watchedCheckouts?: (() => Promise<readonly string[]>) | undefined
   runningShells?: (() => Promise<number>) | undefined
   terminalStreams?: (() => number) | undefined
   panelHolds?: (() => number) | undefined
@@ -186,6 +187,7 @@ export const makeRuntimeFactory = (args: {
       launchDirectory: '/w',
       watched: [],
       watchedRepos: args.watchedRepos ?? (async () => runtime.watched),
+      watchedCheckouts: args.watchedCheckouts ?? args.watchedRepos ?? (async () => runtime.watched),
       baseBranchOf: (repoPath) => args.baseBranches?.[repoPath] ?? null,
       ...(args.plugins === undefined ? {} : { plugins: args.plugins }),
       runningShells: args.runningShells ?? (async () => 0),

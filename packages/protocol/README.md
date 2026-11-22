@@ -55,6 +55,12 @@ groups `changes.*`, `git.*`, `mcp.*`, `metrics.*`, `previews.*`, `services.*`, `
 - `sessionLiveChannel(sessionId)`, `PG_WAKE_CHANNEL`, `PG_CHANGE_CHANNEL`: the channel names.
 - `frameStampSchema`, `compareFrameStamp({left, right})`: order two frames.
 
+### Read a session's files
+
+- `filesTreeInputSchema`, `filesSearchInputSchema`, `filesReadInputSchema`: browse, search and read.
+  Each takes an optional `checkoutId`; when it is set, the directory or path resolves inside that
+  checkout's worktree instead of the session's launch directory.
+
 ### Speak the session API
 
 - `sessionListInputSchema`, `sessionSummarySchema`, `sessionListOutputSchema`: the session list.

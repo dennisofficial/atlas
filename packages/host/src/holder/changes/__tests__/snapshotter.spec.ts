@@ -1,201 +1,21 @@
-import { createHash } from 'node:crypto'
-
-import { ChangeContentStore, ControlPlane } from '@dltech/atlas-control'
-import { FakeChangeContentStore, InMemoryControlStore } from '@dltech/atlas-control/testing'
-import {
-  EChangeFileStatus,
-  EChangeSide,
-  type ChangePathEntry,
-  type ChangesManifest,
-} from '@dltech/atlas-protocol'
-import { defineOp, type DaemonGroupFactory } from '@dltech/atlas-protocol/engine'
-import {
-  createInMemoryDaemon,
-  inMemoryDaemonToken,
-  type InMemoryDaemonSocket,
-} from '@dltech/atlas-protocol/testing'
-import type { LogPort } from '@dltech/atlas-observability'
+import { FakeChangeContentStore } from '@dltech/atlas-control/testing'
+import { EChangeFileStatus } from '@dltech/atlas-protocol'
 import { describe, expect, it } from 'bun:test'
 
-import { RemoteCalls } from '../../../calls/remote-calls'
-import type { DaemonConnector } from '../../../calls/socket'
-import { FakeClock, SANDBOX, SECRET } from '../../__tests__/rig-fakes'
 import { changeCheckoutId } from '../identity'
-import { ChangesSnapshotter } from '../snapshotter'
-
-const SESSION = 'session-changes'
-const REPO = 'github.com/org/repo'
-const WORKTREE = '/w'
-const BASE = 'aaa111'
-
-const until = async (ready: () => boolean): Promise<void> => {
-  const deadline = Date.now() + 2_000
-  while (Date.now() < deadline) {
-    if (ready()) return
-    await new Promise((resolve) => setTimeout(resolve, 5))
-  }
-  throw new Error('the snapshotter never caught up')
-}
-
-const sha = (bytes: Uint8Array): string => createHash('sha256').update(bytes).digest('hex')
-const bytesOf = (text: string): Uint8Array => new TextEncoder().encode(text)
-
-const entryOf = (args: Partial<ChangePathEntry> & { path: string }): ChangePathEntry => ({
-  oldPath: null,
-  status: EChangeFileStatus.Modified,
-  additions: 1,
-  deletions: 0,
-  binary: false,
-  baseHash: null,
-  currentHash: null,
-  baseSize: null,
-  currentSize: null,
-  ...args,
-})
-
-type DaemonState = {
-  manifest: ChangesManifest
-  contents: Map<string, Uint8Array>
-  scans: number
-  reads: number
-  gate: (() => Promise<void>) | undefined
-  inFlight: number
-  peak: number
-}
-
-const daemonState = (manifest: ChangesManifest): DaemonState => ({
-  manifest,
-  contents: new Map(),
-  scans: 0,
-  reads: 0,
-  gate: undefined,
-  inFlight: 0,
-  peak: 0,
-})
-
-const changesGroup =
-  (state: DaemonState): DaemonGroupFactory =>
-  () => ({
-    name: 'changes',
-    ops: [
-      defineOp({
-        op: 'changes.scan',
-        run: async () => {
-          state.scans += 1
-          state.inFlight += 1
-          state.peak = Math.max(state.peak, state.inFlight)
-          try {
-            if (state.gate !== undefined) await state.gate()
-            return state.manifest
-          } finally {
-            state.inFlight -= 1
-          }
-        },
-      }),
-      defineOp({
-        op: 'changes.read',
-        run: async ({ op }) => {
-          state.reads += 1
-          const bytes = state.contents.get(`${op.path}:${op.side}`) ?? bytesOf('')
-          return {
-            hash: sha(bytes),
-            size: bytes.byteLength,
-            base64: Buffer.from(bytes).toString('base64'),
-          }
-        },
-      }),
-    ],
-  })
-
-const connect = async (state: DaemonState): Promise<RemoteCalls> => {
-  const daemon = await createInMemoryDaemon({
-    version: 'test',
-    sandboxName: SANDBOX,
-    secret: SECRET,
-    groups: () => [changesGroup(state)],
-  })
-  const calls = new RemoteCalls({
-    sessionId: SESSION,
-    token: inMemoryDaemonToken({ secret: SECRET, sandboxName: SANDBOX }),
-    connector: () =>
-      Promise.resolve<DaemonConnector>((handlers) =>
-        Promise.resolve<InMemoryDaemonSocket>(daemon.connectRaw(handlers)),
-      ),
-    timers: new FakeClock(),
-    onFenced: () => {},
-  })
-  calls.open({ epoch: 1 })
-  return calls
-}
-
-type Rig = {
-  state: DaemonState
-  errors: string[]
-  plane: ControlPlane
-  writes: number[]
-  content: FakeChangeContentStore
-  snapshotter: ChangesSnapshotter
-  calls: RemoteCalls
-}
-
-const rig = async (args: { state: DaemonState; content?: ChangeContentStore }): Promise<Rig> => {
-  const store = new InMemoryControlStore({ clock: () => new Date(0).toISOString() })
-  const plane = new ControlPlane({ store })
-  const writes: number[] = []
-  const write = plane.upsertChanges.bind(plane)
-  plane.upsertChanges = async (params) => {
-    writes.push(params.blobs.length)
-    await write(params)
-  }
-  const content = args.content ?? new FakeChangeContentStore({ clock: () => 1 })
-  const errors: string[] = []
-  const calls = await connect(args.state)
-  const snapshotter = new ChangesSnapshotter({
-    sessionId: SESSION,
-    plane,
-    content,
-    remoteCalls: calls,
-    checkouts: async () => [
-      { repoPath: WORKTREE, originUrl: 'git@github.com:org/repo.git', base: BASE },
-    ],
-    now: () => 1_700_000_000_000,
-    log: {
-      error: (entry: { message: string; data?: unknown }) => {
-        errors.push(`${entry.message} ${JSON.stringify(entry.data ?? {})} ${JSON.stringify(entry)}`)
-      },
-    } as unknown as LogPort,
-  })
-  return {
-    state: args.state,
-    errors,
-    plane,
-    writes,
-    content: content as FakeChangeContentStore,
-    snapshotter,
-    calls,
-  }
-}
-
-const singleFile = (): DaemonState => {
-  const before = bytesOf('one\n')
-  const after = bytesOf('one\ntwo\n')
-  const state = daemonState({
-    repoPath: WORKTREE,
-    base: BASE,
-    files: [
-      entryOf({
-        path: 'a.txt',
-        baseHash: sha(before),
-        currentHash: sha(after),
-        baseSize: before.byteLength,
-        currentSize: after.byteLength,
-      }),
-    ],
-  })
-  state.contents.set(`a.txt:${EChangeSide.Base}`, before)
-  state.contents.set(`a.txt:${EChangeSide.Current}`, after)
-  return state
-}
+import type { ChangesCheckout } from '../snapshotter'
+import {
+  BASE,
+  bytesOf,
+  REPO,
+  rig,
+  SECOND_WORKTREE,
+  SESSION,
+  sha,
+  singleFile,
+  until,
+  WORKTREE,
+} from './snapshotter-rig'
 
 describe('ChangesSnapshotter', () => {
   it('uploads only the missing hashes once and leaves an identical snapshot alone', async () => {
@@ -208,7 +28,9 @@ describe('ChangesSnapshotter', () => {
     expect(content.puts).toEqual([sha(before), sha(bytesOf('one\ntwo\n'))])
     expect(writes).toHaveLength(1)
     const [checkout] = await plane.readChanges({ sessionId: SESSION })
-    expect(checkout?.checkoutId).toBe(changeCheckoutId({ repo: REPO, worktreePath: WORKTREE }))
+    expect(checkout?.checkoutId).toBe(
+      changeCheckoutId({ sessionId: SESSION, repo: REPO, worktreePath: WORKTREE }),
+    )
     expect(checkout?.repo).toBe(REPO)
     expect(checkout?.base).toBe(BASE)
     expect(checkout?.files[0]).toMatchObject({
@@ -253,6 +75,34 @@ describe('ChangesSnapshotter', () => {
     calls.close()
   })
 
+  it('re-arms the watch and writes a second row when a worktree appears', async () => {
+    const state = singleFile()
+    let paths: readonly string[] = [WORKTREE]
+    const { snapshotter, plane, writes, watchRoots, calls } = await rig({
+      state,
+      checkouts: async () =>
+        paths.map((repoPath) => ({
+          repoPath,
+          originUrl: 'git@github.com:org/repo.git',
+          base: BASE,
+        })),
+    })
+
+    snapshotter.start()
+    await until(() => watchRoots.length === 1 && writes.length === 1)
+    paths = [WORKTREE, SECOND_WORKTREE]
+    snapshotter.rearm()
+
+    await until(() => watchRoots.some((roots) => roots.length === 2))
+    await until(() => writes.length === 2)
+
+    expect(watchRoots[0]).toEqual([WORKTREE])
+    expect(watchRoots[watchRoots.length - 1]).toEqual([WORKTREE, SECOND_WORKTREE])
+    const rows = await plane.readChanges({ sessionId: SESSION })
+    expect(rows.map((row) => row.worktreePath).sort()).toEqual([WORKTREE, SECOND_WORKTREE])
+    calls.close()
+  })
+
   it('coalesces a second request into one queued scan instead of running two at once', async () => {
     const state = singleFile()
     const { snapshotter, calls } = await rig({ state })
@@ -273,6 +123,34 @@ describe('ChangesSnapshotter', () => {
 
     expect(state.scans).toBe(2)
     expect(state.peak).toBe(1)
+    calls.close()
+  })
+
+  it('never arms the watch after stop when discovery resolves late', async () => {
+    const state = singleFile()
+    let release: (checkouts: readonly ChangesCheckout[]) => void = () => undefined
+    let asked = 0
+    const deferred = new Promise<readonly ChangesCheckout[]>((resolve) => {
+      release = resolve
+    })
+    const { snapshotter, calls, ops } = await rig({
+      state,
+      checkouts: () => {
+        asked += 1
+        return deferred
+      },
+    })
+
+    snapshotter.start()
+    await until(() => asked > 0)
+    const stopped = snapshotter.stop()
+    release([{ repoPath: WORKTREE, originUrl: 'git@github.com:org/repo.git', base: BASE }])
+    await stopped
+
+    const stopAt = ops.lastIndexOf('watch.stop')
+    expect(stopAt).toBeGreaterThanOrEqual(0)
+    expect(ops.slice(stopAt)).not.toContain('watch.start')
+    expect(ops).not.toContain('watch.start')
     calls.close()
   })
 })

@@ -9,6 +9,8 @@ import { useOptionalThreadPanel } from '@/features/threads/panel/thread-panel-co
 
 import { SessionAgentPanel } from '../agents/session-agent-panel'
 import { BrowserTab } from './browser/browser-tab'
+import { CheckoutChoiceProvider } from '../checkouts/checkout-choice-context'
+import { currentWorktreePathOf } from '../checkouts/checkout-options'
 import { FilesTab } from '../files/files-tab'
 import { TerminalTab } from '../terminal/terminal-tab'
 import { SessionDetailsTab } from './details-tab'
@@ -39,7 +41,7 @@ function PaneBody({ tab }: { tab: ESessionPaneTab }) {
 }
 
 export function SessionPane({ tab, onTabChange, tabBarClassName }: SessionPaneProps) {
-  const { sessionId } = useSessionPaneValue()
+  const { sessionId, status, checkouts, threadWorktreePath } = useSessionPaneValue()
   const panel = useOptionalThreadPanel()
   const openTabs = openPageCount(usePreviewBrowser(sessionId).state)
   const handleTabChange = (value: unknown) => {
@@ -58,17 +60,24 @@ export function SessionPane({ tab, onTabChange, tabBarClassName }: SessionPanePr
 
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col bg-card">
-      <Tabs value={tab} onValueChange={handleTabChange} className="min-h-0 flex-1">
-        <PaneTabStrip
-          className={tabBarClassName}
-          counts={{ [ESessionPaneTab.Browser]: openTabs }}
-        />
-        {Object.values(ESessionPaneTab).map((value) => (
-          <TabsContent key={value} value={value} className="min-h-0 flex-1 overflow-auto">
-            <PaneBody tab={value} />
-          </TabsContent>
-        ))}
-      </Tabs>
+      <CheckoutChoiceProvider
+        sessionId={sessionId}
+        status={status}
+        view={checkouts}
+        currentWorktreePath={threadWorktreePath ?? currentWorktreePathOf(checkouts)}
+      >
+        <Tabs value={tab} onValueChange={handleTabChange} className="min-h-0 flex-1">
+          <PaneTabStrip
+            className={tabBarClassName}
+            counts={{ [ESessionPaneTab.Browser]: openTabs }}
+          />
+          {Object.values(ESessionPaneTab).map((value) => (
+            <TabsContent key={value} value={value} className="min-h-0 flex-1 overflow-auto">
+              <PaneBody tab={value} />
+            </TabsContent>
+          ))}
+        </Tabs>
+      </CheckoutChoiceProvider>
     </div>
   )
 }

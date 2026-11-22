@@ -1,6 +1,6 @@
 import { Inject, Injectable, Optional, ServiceUnavailableException } from '@nestjs/common'
 import { TRPCError } from '@trpc/server'
-import { ControlPlane } from '@dltech/atlas-control'
+import { ControlPlane, type WorktreeChangesRead } from '@dltech/atlas-control'
 import {
   ECallStatus,
   ELiveOpFailure,
@@ -13,6 +13,7 @@ import {
   type FilesTreeOutput,
 } from '@dltech/atlas-protocol'
 import { POD_OPS, type PodOps } from '../../../agent'
+import { changedPathsIn, checkoutIn, latestPerWorktree, resolveInside } from './files-checkout'
 import { PodParkedError } from './pod-parked.error'
 import { SessionsService } from './sessions.service'
 
@@ -66,25 +67,48 @@ export class FilesService {
     return outcome.result
   }
 
-  private async changedPaths(sessionId: string): Promise<Set<string>> {
-    const checkouts = await this.plane.readChanges({ sessionId })
-    const checkout = checkouts[0]
-    return new Set(checkout === undefined ? [] : checkout.files.map((file) => file.path))
+  private async changes(args: {
+    sessionId: string
+    checkoutId: string | undefined
+  }): Promise<{ checkout: WorktreeChangesRead | undefined; changed: ReadonlySet<string> }> {
+    const checkouts = await this.plane.readChanges({ sessionId: args.sessionId })
+    if (args.checkoutId === undefined)
+      return { checkout: undefined, changed: changedPathsIn(latestPerWorktree(checkouts)[0]) }
+    const checkout = checkoutIn({ checkouts, checkoutId: args.checkoutId })
+    return { checkout, changed: changedPathsIn(checkout) }
+  }
+
+  private async checkoutOf(args: {
+    sessionId: string
+    checkoutId: string | undefined
+  }): Promise<WorktreeChangesRead | undefined> {
+    if (args.checkoutId === undefined) return undefined
+    const checkouts = await this.plane.readChanges({ sessionId: args.sessionId })
+    return checkoutIn({ checkouts, checkoutId: args.checkoutId })
   }
 
   async tree(args: {
     userId: string
     sessionId: string
     directory: string
+    checkoutId?: string | undefined
   }): Promise<FilesTreeOutput> {
     await this.sessions.requireOwnedSession({ userId: args.userId, sessionId: args.sessionId })
-    const [result, changed] = await Promise.all([
-      this.invoke({
-        sessionId: args.sessionId,
-        op: { op: 'readDirectory', path: args.directory === '' ? '.' : args.directory },
-      }),
-      this.changedPaths(args.sessionId),
-    ])
+    const { checkout, changed } = await this.changes({
+      sessionId: args.sessionId,
+      checkoutId: args.checkoutId,
+    })
+    const relative = args.directory === '' ? '.' : args.directory
+    const result = await this.invoke({
+      sessionId: args.sessionId,
+      op: {
+        op: 'readDirectory',
+        path:
+          checkout === undefined
+            ? relative
+            : resolveInside({ root: checkout.worktreePath, path: args.directory }),
+      },
+    })
     if (result.status === ECallStatus.Failed)
       throw new TRPCError({
         code: 'BAD_REQUEST',
@@ -112,11 +136,21 @@ export class FilesService {
     userId: string
     sessionId: string
     query: string
+    checkoutId?: string | undefined
   }): Promise<FilesSearchOutput> {
     await this.sessions.requireOwnedSession({ userId: args.userId, sessionId: args.sessionId })
+    const checkout = await this.checkoutOf({
+      sessionId: args.sessionId,
+      checkoutId: args.checkoutId,
+    })
     const result = await this.invoke({
       sessionId: args.sessionId,
-      op: { op: 'glob', pattern: `**/*${globEscaped(args.query)}*`, cwd: '.', dot: false },
+      op: {
+        op: 'glob',
+        pattern: `**/*${globEscaped(args.query)}*`,
+        cwd: checkout?.worktreePath ?? '.',
+        dot: false,
+      },
     })
     if (result.status === ECallStatus.Failed)
       throw new TRPCError({
@@ -135,11 +169,24 @@ export class FilesService {
     return { paths, truncated: matches.length > FILES_SEARCH_LIMIT }
   }
 
-  async read(args: { userId: string; sessionId: string; path: string }): Promise<FilesReadOutput> {
+  async read(args: {
+    userId: string
+    sessionId: string
+    path: string
+    checkoutId?: string | undefined
+  }): Promise<FilesReadOutput> {
     await this.sessions.requireOwnedSession({ userId: args.userId, sessionId: args.sessionId })
+    const checkout = await this.checkoutOf({
+      sessionId: args.sessionId,
+      checkoutId: args.checkoutId,
+    })
+    const target =
+      checkout === undefined
+        ? args.path
+        : resolveInside({ root: checkout.worktreePath, path: args.path })
     const stat = await this.invoke({
       sessionId: args.sessionId,
-      op: { op: 'stat', path: args.path },
+      op: { op: 'stat', path: target },
     })
     if (stat.status === ECallStatus.Failed)
       return { file: { type: 'refused', path: args.path, reason: stat.error.message } }
@@ -148,7 +195,7 @@ export class FilesService {
     if (refusal !== undefined) return { file: refusal }
     const read = await this.invoke({
       sessionId: args.sessionId,
-      op: { op: 'readFile', path: args.path },
+      op: { op: 'readFile', path: target },
     })
     if (read.status === ECallStatus.Failed)
       return { file: { type: 'refused', path: args.path, reason: read.error.message } }

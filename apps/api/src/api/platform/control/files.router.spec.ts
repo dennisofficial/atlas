@@ -14,6 +14,12 @@ describe('FilesRouter', () => {
       .set(token === undefined ? {} : as(token))
       .query({ input: JSON.stringify(input), ...(batch ? { batch: '1' } : {}) })
 
+  const search = (args: { token: string; input: object }) =>
+    request(app.getHttpServer())
+      .get('/v1/trpc/files.search')
+      .set(as(args.token))
+      .query({ input: JSON.stringify(args.input) })
+
   beforeEach(async () => {
     for (const fn of Object.values(files)) fn.mockReset()
     app = await createFilesApp()
@@ -42,6 +48,38 @@ describe('FilesRouter', () => {
     expect(response.status).toBe(200)
     expect(response.body.result.data).toEqual(output)
     expect(files.tree).toHaveBeenCalledWith({ userId: 'user-a', sessionId: 's1', directory: '' })
+  })
+
+  it('passes a checkout id through for the owner', async () => {
+    const output = { directory: '', entries: [] }
+    files.tree.mockResolvedValue(output)
+
+    const response = await tree('session-a', { sessionId: 's1', directory: '', checkoutId: 'c1' })
+
+    expect(response.status).toBe(200)
+    expect(files.tree).toHaveBeenCalledWith({
+      userId: 'user-a',
+      sessionId: 's1',
+      directory: '',
+      checkoutId: 'c1',
+    })
+  })
+
+  it('passes a checkout id through to search', async () => {
+    files.search.mockResolvedValue({ paths: [], truncated: false })
+
+    const response = await search({
+      token: 'session-a',
+      input: { sessionId: 's1', query: 'a', checkoutId: 'c1' },
+    })
+
+    expect(response.status).toBe(200)
+    expect(files.search).toHaveBeenCalledWith({
+      userId: 'user-a',
+      sessionId: 's1',
+      query: 'a',
+      checkoutId: 'c1',
+    })
   })
 
   it('answers a parked pod with PRECONDITION_FAILED', async () => {

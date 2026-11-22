@@ -5,6 +5,7 @@ import {
   type SessionChangeContentOutput,
   type SessionChangesOutput,
 } from '@dltech/atlas-protocol'
+import { latestPerWorktree } from './files-checkout'
 import { SessionsService } from './sessions.service'
 
 export const CHANGE_CONTENT_TTL_MS = 5 * 60 * 1000
@@ -19,7 +20,7 @@ export class ChangesService {
 
   async changes(args: { userId: string; sessionId: string }): Promise<SessionChangesOutput> {
     await this.sessions.requireOwnedSession(args)
-    const checkouts = await this.plane.readChanges({ sessionId: args.sessionId })
+    const checkouts = latestPerWorktree(await this.plane.readChanges({ sessionId: args.sessionId }))
     return {
       checkouts: checkouts.map((checkout) => ({
         checkoutId: checkout.checkoutId,

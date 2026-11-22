@@ -22,15 +22,19 @@ const fileOf = (overrides: Partial<ChangedFileWrite> = {}): ChangedFileWrite => 
   ...overrides,
 })
 
-const checkoutOf = (files: readonly ChangedFileWrite[]): WorktreeChangesRead => ({
-  checkoutId: 'checkout-1',
+const checkoutOf = (args: {
+  files: readonly ChangedFileWrite[]
+  checkoutId?: string
+  updatedAt?: number
+}): WorktreeChangesRead => ({
+  checkoutId: args.checkoutId ?? 'checkout-1',
   sessionId: 'ses-1',
   repo: 'github.com/acme/repo',
   worktreePath: '/workspace/repo',
   base: 'origin/main',
   fingerprint: 'f1',
-  updatedAt: 1_700_000_000_000,
-  files,
+  updatedAt: args.updatedAt ?? 1_700_000_000_000,
+  files: args.files,
 })
 
 const owned = (): SessionsService =>
@@ -69,13 +73,28 @@ describe('ChangesService', () => {
 
   it('returns every checkout of the session with its files', async () => {
     const service = serviceOf({
-      plane: planeOf({ checkouts: [checkoutOf([fileOf()])] }),
+      plane: planeOf({ checkouts: [checkoutOf({ files: [fileOf()] })] }),
       sessions: allows(),
     })
     const output = await service.changes({ userId: 'user-a', sessionId: 'ses-1' })
     expect(output.checkouts).toHaveLength(1)
     expect(output.checkouts[0]?.files).toEqual([fileOf()])
     expect(output.checkouts[0]?.updatedAt).toBe(1_700_000_000_000)
+  })
+
+  it('keeps only the newest row for a worktree written under two checkout ids', async () => {
+    const service = serviceOf({
+      plane: planeOf({
+        checkouts: [
+          checkoutOf({ checkoutId: 'legacy', files: [fileOf({ path: 'gone.ts' })], updatedAt: 5 }),
+          checkoutOf({ checkoutId: 'fresh', files: [fileOf()], updatedAt: 9 }),
+        ],
+      }),
+      sessions: allows(),
+    })
+    const output = await service.changes({ userId: 'user-a', sessionId: 'ses-1' })
+    expect(output.checkouts.map((checkout) => checkout.checkoutId)).toEqual(['fresh'])
+    expect(output.checkouts[0]?.files).toEqual([fileOf()])
   })
 
   it('signs a GET for the requested side and reports its hash', async () => {

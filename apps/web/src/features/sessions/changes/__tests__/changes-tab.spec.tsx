@@ -8,7 +8,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { CloudApiError } from '@/lib/cloud-api'
 
 import { paneValueFixture } from '../../panel/__tests__/fixture'
-import { SessionPaneProvider } from '../../panel/pane-value'
+import { SessionPaneProvider, type SessionPaneValue } from '../../panel/pane-value'
 
 const changes = { answer: undefined as SessionChangesOutput | Error | undefined }
 const contentCalls: string[] = []
@@ -30,6 +30,7 @@ mock.module('@/features/sessions/changes/changes-api', () => ({
   },
 }))
 
+const { CheckoutChoiceProvider } = await import('../../checkouts/checkout-choice-context')
 const { ChangesTab } = await import('../changes-tab')
 
 const realFetch = globalThis.fetch
@@ -81,12 +82,19 @@ afterEach(async () => {
   window.localStorage.clear()
 })
 
-const render = (): string =>
-  renderToStaticMarkup(
-    <SessionPaneProvider value={paneValueFixture()}>
+const wrap = (value: SessionPaneValue = paneValueFixture()) => (
+  <SessionPaneProvider value={value}>
+    <CheckoutChoiceProvider
+      sessionId="ses-1"
+      status={value.status}
+      currentWorktreePath={value.checkouts.primary === null ? undefined : '/work/app'}
+    >
       <ChangesTab />
-    </SessionPaneProvider>,
-  )
+    </CheckoutChoiceProvider>
+  </SessionPaneProvider>
+)
+
+const render = (): string => renderToStaticMarkup(wrap())
 
 const settle = async (): Promise<void> => {
   for (let round = 0; round < 4; round += 1) {
@@ -101,13 +109,7 @@ async function mount(): Promise<HTMLDivElement> {
   const container = document.createElement('div')
   const root = createRoot(container)
   roots.add(root)
-  await act(async () =>
-    root.render(
-      <SessionPaneProvider value={paneValueFixture()}>
-        <ChangesTab />
-      </SessionPaneProvider>,
-    ),
-  )
+  await act(async () => root.render(wrap()))
   await settle()
   return container
 }
@@ -136,7 +138,7 @@ describe('ChangesTab', () => {
     expect(text).toContain('the session is not yours')
   })
 
-  it('shows one section per checkout', async () => {
+  it('shows the selected checkout', async () => {
     changes.answer = {
       checkouts: [
         checkout({ checkoutId: 'co-1', files: [file()] }),
@@ -145,11 +147,54 @@ describe('ChangesTab', () => {
     }
     const container = await mount()
     const sections = container.querySelectorAll('[data-changes-checkout]')
-    expect([...sections].map((section) => section.getAttribute('data-changes-checkout'))).toEqual([
-      'co-1',
-      'co-2',
-    ])
-    expect(container.textContent).toContain('/work/wt')
+    expect(sections).toHaveLength(1)
+    expect(sections[0]?.getAttribute('data-changes-checkout')).toBe('co-1')
+    expect(container.textContent).not.toContain('/work/wt')
+  })
+
+  it('keeps the select when the chosen checkout has no changes', async () => {
+    changes.answer = {
+      checkouts: [
+        checkout({ checkoutId: 'co-1', files: [] }),
+        checkout({ checkoutId: 'co-2', worktreePath: '/work/wt', files: [file()] }),
+      ],
+    }
+    const container = await mount()
+    expect(container.querySelectorAll('[data-changes-checkout]')).toHaveLength(0)
+    expect(container.querySelectorAll('[data-checkout-select]')).toHaveLength(1)
+    expect(container.textContent).toContain('No changes yet')
+  })
+
+  it('remembers the chosen checkout', async () => {
+    window.localStorage.setItem(
+      'atlas:session-checkout',
+      JSON.stringify({ 'ses-1': { checkoutId: 'co-2' } }),
+    )
+    changes.answer = {
+      checkouts: [
+        checkout({ checkoutId: 'co-1', files: [file()] }),
+        checkout({ checkoutId: 'co-2', worktreePath: '/work/wt', files: [file()] }),
+      ],
+    }
+    const container = await mount()
+    const sections = container.querySelectorAll('[data-changes-checkout]')
+    expect(sections[0]?.getAttribute('data-changes-checkout')).toBe('co-2')
+  })
+
+  it('falls back to the first when the remembered id is gone', async () => {
+    window.localStorage.setItem(
+      'atlas:session-checkout',
+      JSON.stringify({ 'ses-1': { checkoutId: 'co-gone' } }),
+    )
+    changes.answer = {
+      checkouts: [
+        checkout({ checkoutId: 'co-1', files: [file()] }),
+        checkout({ checkoutId: 'co-2', worktreePath: '/work/wt', files: [file()] }),
+      ],
+    }
+    const container = await mount()
+    const sections = container.querySelectorAll('[data-changes-checkout]')
+    expect(sections[0]?.getAttribute('data-changes-checkout')).toBe('co-1')
   })
 
   it('shows the spinner, then the diff, of a remembered expanded file', async () => {

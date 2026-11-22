@@ -11,9 +11,13 @@ const realOf = (path: string): string => {
   }
 }
 
-export const changeCheckoutId = (args: { repo: string; worktreePath: string }): string =>
+export const changeCheckoutId = (args: {
+  sessionId: string
+  repo: string
+  worktreePath: string
+}): string =>
   createHash('sha256')
-    .update(`${args.repo}\n${realOf(args.worktreePath)}`)
+    .update(`${args.sessionId}\n${args.repo}\n${realOf(args.worktreePath)}`)
     .digest('hex')
 
 export const changeRepoOf = (args: { originUrl: string; repoPath: string }): string =>
