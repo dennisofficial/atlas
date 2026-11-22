@@ -7,7 +7,7 @@ import {
   type ModelCard,
 } from '@dltech/atlas-core'
 
-import { CLAUDE_PLAN_LABEL } from '../models/provider-ids'
+import { CLAUDE_PLAN_LABEL } from '@dltech/atlas-models'
 import { ProviderAdapter, type ModelBuildArgs } from './adapter'
 import { anthropicEffortOptions } from './anthropic-effort'
 import { createAnthropicOauthModel, type AnthropicFetch } from './anthropic-oauth'

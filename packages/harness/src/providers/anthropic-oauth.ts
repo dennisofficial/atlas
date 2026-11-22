@@ -14,7 +14,7 @@ import {
   type CredentialPort,
 } from '@dltech/atlas-core'
 
-import { CLAUDE_PLAN_LABEL } from '../models/provider-ids'
+import { CLAUDE_PLAN_LABEL } from '@dltech/atlas-models'
 import { isConfirmedAuthRefusal } from './auth-repair'
 import { failingAs, withFailureAccount } from './failure-account'
 import { admittedByAccount, type ProviderAdmission } from './provider-admission'

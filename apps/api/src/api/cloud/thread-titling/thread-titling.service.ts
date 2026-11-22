@@ -1,20 +1,11 @@
 import { Inject, Injectable, Logger } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
-import { parseRef } from '@dltech/atlas-core'
-import {
-  createStandaloneTitler,
-  type SaidImage,
-  type StandaloneTitler,
-} from '@dltech/atlas-harness/titling'
+import type { SaidImage } from '@dltech/atlas-core'
+import type { SessionNamer } from '../../../agent'
 import { SessionTitler } from '../../../_core/ports/session-titler'
-import { AccountsService } from '../../platform/accounts/accounts.service'
-import { OauthConnectionsService } from '../../platform/oauth-connections/oauth-connections.service'
 import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
-import { ScopedConfigService } from '../scoped-config/scoped-config.service'
-import { accountsOf, ApiCredentialPort } from './api-credential-port'
 
-export const TITLER_FACTORY = Symbol('TITLER_FACTORY')
-export type TitlerFactory = typeof createStandaloneTitler
+export const SESSION_NAMER = Symbol('SESSION_NAMER')
 
 export const TITLING_TIMEOUT_MS = 20_000
 
@@ -40,16 +31,13 @@ export class ThreadTitlingService extends SessionTitler {
   private readonly log = new Logger(ThreadTitlingService.name)
 
   constructor(
-    private readonly config: ScopedConfigService,
-    private readonly accounts: AccountsService,
-    private readonly oauth: OauthConnectionsService,
     private readonly signals: ThreadSignalsService,
-    @Inject(TITLER_FACTORY) private readonly titlerFactory: TitlerFactory,
+    @Inject(SESSION_NAMER) private readonly namer: SessionNamer,
   ) {
     super()
   }
 
-  nameOf(args: TitleSource & { projectId: string | null }): Promise<string | null> {
+  nameOf(args: TitleSource): Promise<string | null> {
     return this.generate(args)
   }
 
@@ -68,24 +56,8 @@ export class ThreadTitlingService extends SessionTitler {
     }
   }
 
-  private async generate(args: TitleSource): Promise<string | null> {
-    const [config, lease] = await Promise.all([
-      this.config.resolveForPod({ userId: args.userId, projectId: args.projectId }),
-      this.accounts.lease({ userId: args.userId }),
-    ])
-    const fallbackRef = args.modelRef === undefined ? undefined : parseRef(args.modelRef)
-    const titler: StandaloneTitler = this.titlerFactory({
-      settings: config.settings,
-      accounts: accountsOf(lease),
-      credentials: new ApiCredentialPort({ userId: args.userId, lease, oauth: this.oauth }),
-      ...(fallbackRef === undefined ? {} : { fallbackRef }),
-      ...(args.onFault === undefined ? {} : { onFault: args.onFault }),
-    })
-    return titler({
-      text: args.text,
-      images: args.images,
-      signal: AbortSignal.timeout(TITLING_TIMEOUT_MS),
-    })
+  private generate(args: TitleSource): Promise<string | null> {
+    return this.namer({ ...args, signal: AbortSignal.timeout(TITLING_TIMEOUT_MS) })
   }
 
   private async writeIfUntitled(args: { threadId: string; title: string }): Promise<boolean> {

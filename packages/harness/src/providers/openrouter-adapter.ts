@@ -9,7 +9,7 @@ import {
   type ModelCard,
 } from '@dltech/atlas-core'
 
-import { OPENROUTER_LABEL, OPENROUTER_PROVIDER_ID } from '../models/provider-ids'
+import { OPENROUTER_LABEL, OPENROUTER_PROVIDER_ID } from '@dltech/atlas-models'
 import { ProviderAdapter } from './adapter'
 import { openrouterEffortOptions } from './openrouter-effort'
 import { failingAs } from './failure-account'

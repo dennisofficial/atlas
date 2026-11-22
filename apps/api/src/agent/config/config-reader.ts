@@ -21,6 +21,7 @@ import {
   type ModelSource,
 } from './model-config'
 import type { SecretCipher } from './secret-cipher'
+import { scopedSettingsOf } from './scoped-settings'
 import { skillIndexOf } from './skill-index'
 import { platformCredentialsOf } from './platform-credentials'
 import { BYOK_RETIRED_GAP } from '../runtime/sandbox-not-configured-error'
@@ -195,16 +196,7 @@ export class ConfigReader implements ConfigSource {
     return await this.args.db.orm.public.Project.first({ id: projectId })
   }
 
-  private async settingsOf(args: {
-    userId: string
-    projectId: string | null
-  }): Promise<ReadonlyMap<string, string>> {
-    const { db } = this.args
-    const user = await db.orm.public.UserSetting.where({ userId: args.userId }).all()
-    const settings = new Map(user.map((row) => [row.key, row.value]))
-    if (args.projectId === null) return settings
-    const project = await db.orm.public.ProjectSetting.where({ projectId: args.projectId }).all()
-    for (const row of project) settings.set(row.key, row.value)
-    return settings
+  private settingsOf(args: { userId: string; projectId: string | null }) {
+    return scopedSettingsOf({ db: this.args.db, ...args })
   }
 }

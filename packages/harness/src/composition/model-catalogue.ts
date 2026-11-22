@@ -9,7 +9,7 @@ import {
   OPENROUTER_PROVIDER_ID,
   type ComposedCatalogue,
   type LiveCards,
-} from '../models'
+} from '@dltech/atlas-models'
 import type { ProviderAdapter } from '../providers/adapter'
 import { AnthropicAdapter } from '../providers/anthropic-adapter'
 import { GatewayAdapter } from '../providers/gateway-adapter'
@@ -26,7 +26,7 @@ export {
   unmeasuredWindowWarning,
   type CatalogueProvider,
   type LiveCards,
-} from '../models'
+} from '@dltech/atlas-models'
 
 export type ModelCatalogue = ComposedCatalogue & {
   adapterFor: (providerId: string) => ProviderAdapter | undefined

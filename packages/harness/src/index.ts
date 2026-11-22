@@ -1,6 +1,13 @@
 export const HARNESS_PACKAGE_NAME = '@dltech/atlas-harness'
 
 export {
+  unanswerableRef,
+  unmeasuredWindowWarning,
+  type CatalogueProvider,
+} from '@dltech/atlas-models'
+export { EDevicePoll } from '@dltech/atlas-models/provider-oauth'
+
+export {
   SessionActivityPort,
   UnavailableSessionActivity,
   RuntimeSessionActivity,
@@ -24,7 +31,6 @@ export * from './files'
 export * from './loop'
 export * from './model'
 export { runFailureOf, safeFailureMessage } from './model/run-failure'
-export * from './models'
 export * from './operator-input'
 export * from './pending'
 export * from './intake'

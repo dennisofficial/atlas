@@ -90,3 +90,4 @@ export {
   sandboxComputeFor,
 } from './sandbox/sandbox-runs'
 export { sandboxLiveCpuMs } from './sandbox/sandbox-live-cpu'
+export { sessionNamerOf, type SessionNamer } from './naming/session-namer'

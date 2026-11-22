@@ -6,7 +6,7 @@ import {
   type CredentialPort,
 } from '@dltech/atlas-core'
 
-import { CODEX_VERSION } from '../models/codex-version'
+import { CODEX_VERSION } from '@dltech/atlas-models'
 import { parseCodexUsage } from './parse-codex-usage'
 
 /**

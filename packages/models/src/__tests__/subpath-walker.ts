@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs'
-import { dirname, join, relative, resolve, sep } from 'node:path'
+import { basename, dirname, join, relative, resolve, sep } from 'node:path'
 
 export type SubpathViolation = { file: string; reason: string }
 
@@ -15,6 +15,9 @@ const packageName = (specifier: string): string => {
   return first?.startsWith('@') ? `${first}/${second ?? ''}` : (first ?? specifier)
 }
 
+const withinRoot = (args: { root: string; target: string }): boolean =>
+  args.target.startsWith(args.root + sep)
+
 const resolveRelative = (args: { from: string; specifier: string }): string | undefined =>
   [
     `${resolve(dirname(args.from), args.specifier)}.ts`,
@@ -26,6 +29,7 @@ export function subpathViolations(args: {
   allowedPackages: readonly string[]
 }): SubpathViolation[] {
   const root = dirname(args.entry)
+  const outside = `imports outside ${basename(root)}`
   const seen = new Set<string>()
   const violations: SubpathViolation[] = []
   const pending = [args.entry]
@@ -43,9 +47,15 @@ export function subpathViolations(args: {
       const specifier = match[1]
       if (specifier === undefined) continue
       if (specifier.startsWith('.')) {
+        if (specifier.endsWith('.json')) {
+          const data = resolve(dirname(file), specifier)
+          if (!withinRoot({ root, target: data }) || !existsSync(data))
+            report(`${outside}: ${specifier}`)
+          continue
+        }
         const target = resolveRelative({ from: file, specifier })
-        if (target === undefined || !target.startsWith(root + sep)) {
-          report(`imports outside src/models: ${specifier}`)
+        if (target === undefined || !withinRoot({ root, target })) {
+          report(`${outside}: ${specifier}`)
           continue
         }
         pending.push(target)

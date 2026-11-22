@@ -11,7 +11,7 @@ import {
   type ModelRole,
   type ResolvedModelChoice,
 } from '@dltech/atlas-core'
-import { defaultModelId } from '@dltech/atlas-harness/models'
+import { defaultModelId } from '@dltech/atlas-models'
 import type { ModelOption } from '@dltech/atlas-ui/ai/model-selector'
 
 import { EBuiltInAgentType } from '../../fixtures/settings-agent'

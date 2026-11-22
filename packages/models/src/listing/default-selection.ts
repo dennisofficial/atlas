@@ -1,9 +1,6 @@
-import { refKey, type ModelRef } from '@dltech/atlas-core'
+import { refKey } from '@dltech/atlas-core'
 
-export const SHIPPED_DEFAULT_REF: ModelRef = {
-  providerId: 'anthropic',
-  modelId: 'claude-haiku-4-5',
-}
+import { SHIPPED_DEFAULT_REF } from '../session-model'
 
 export type OfferedModel = { id: string; reachable: boolean }
 

@@ -2,7 +2,7 @@ import { join } from 'node:path'
 
 import { describe, expect, it } from 'bun:test'
 
-import { subpathViolations } from '../../models/__tests__/subpath-walker'
+import { subpathViolations } from './subpath-walker'
 
 const CATALOGUE_ENTRY = join(import.meta.dir, '..', 'index.ts')
 
