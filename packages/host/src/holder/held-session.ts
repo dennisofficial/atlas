@@ -229,6 +229,7 @@ export class HeldSession {
       work: () => settleAndCheckResume({ deps, runtime, record, threadId, crew }),
     })
     await takeOver.lapped({ lap: ETakeoverLap.Commands, work: recoverCommands })
+    runtime.workspaceGate?.hold(branchesStarted)
     void branchesStarted.then(() => takeOver.branchesSettled())
     const completion = this.ending.waitForDrive()
     if (this.lifetimeAbort.signal.aborted || this.ending.outcome !== undefined) return

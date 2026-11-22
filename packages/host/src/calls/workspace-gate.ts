@@ -38,6 +38,7 @@ export class WorkspaceGate {
   private attempt: Promise<PrepareResult> = Promise.resolve({ ok: true })
   private phase: WorkspaceGateSettled = 'prepared'
   private waiting = 0
+  private holds: Promise<void> = Promise.resolve()
 
   get blocked(): boolean {
     return this.waiting > 0
@@ -60,13 +61,24 @@ export class WorkspaceGate {
     )
   }
 
+  hold(until: Promise<void>): void {
+    const settled = until.catch(() => undefined)
+    this.holds = Promise.all([this.holds, settled]).then(() => undefined)
+  }
+
   async wait(signal?: AbortSignal | undefined): Promise<WorkspaceGateOutcome> {
     this.waiting += 1
     try {
       const outcome = await raceAbort({ attempt: this.attempt, signal })
       if (outcome === ABORTED) return { state: 'aborted' }
-      if (outcome.ok) return { state: 'prepared' }
-      return { state: 'failed', message: `the workspace failed to prepare: ${outcome.reason}` }
+      if (!outcome.ok) {
+        return { state: 'failed', message: `the workspace failed to prepare: ${outcome.reason}` }
+      }
+      const held = await raceAbort({
+        attempt: this.holds.then((): PrepareResult => ({ ok: true })),
+        signal,
+      })
+      return held === ABORTED ? { state: 'aborted' } : { state: 'prepared' }
     } finally {
       this.waiting -= 1
     }

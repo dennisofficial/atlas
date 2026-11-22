@@ -99,4 +99,33 @@ describe('WorkspaceGate', () => {
     controller.abort()
     expect(await gate.wait(controller.signal)).toEqual({ state: 'aborted' })
   })
+
+  it('holds a call until every held reading settles, even after the workspace prepared', async () => {
+    const gate = new WorkspaceGate()
+    let open: () => void = () => {}
+    gate.hold(
+      new Promise<void>((resolve) => {
+        open = resolve
+      }),
+    )
+    let through = false
+    const waiting = gate.wait().then((settled) => {
+      through = true
+      return settled
+    })
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(through).toBe(false)
+    open()
+    expect(await waiting).toEqual({ state: 'prepared' })
+  })
+
+  it('lets an aborted call out while a reading is held', async () => {
+    const gate = new WorkspaceGate()
+    gate.hold(new Promise<void>(() => {}))
+    const controller = new AbortController()
+    const waiting = gate.wait(controller.signal)
+    controller.abort()
+    expect(await waiting).toEqual({ state: 'aborted' })
+  })
 })
