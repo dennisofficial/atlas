@@ -3,6 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { EToolKind, EToolState } from '@dltech/atlas-ui/ai/tool'
 
 import { ENoticeTone, ETranscriptKind, type TranscriptItem } from '../transcript-items'
+import { spanMsOf } from '../clock-time'
 import {
   ESegmentKind,
   ETurnKind,
@@ -10,6 +11,7 @@ import {
   turnsOf,
   type AgentTurn,
   type Segment,
+  type WorkSegment,
 } from '../transcript-turns'
 
 const user = (id: string, at?: string): TranscriptItem => ({
@@ -327,5 +329,76 @@ describe('the instant a turn settled at', () => {
 
   it('says nothing before any agent has answered', () => {
     expect(lastTurnEndedAt(turnsOf({ items: [user('u1', 't0')], working: false }))).toBeUndefined()
+  })
+})
+
+describe('a turn that has just begun', () => {
+  const lastReplyAt = '2026-11-22T14:21:00.000Z'
+  const turnStartedAt = '2026-11-22T19:14:00.000Z'
+  const now = Date.parse('2026-11-22T19:14:02.000Z')
+
+  const tailWorkOf = (turns: ReturnType<typeof turnsOf>): WorkSegment | undefined => {
+    const tail = agentTurns(turns).at(-1)?.segments.at(-1)
+    return tail?.kind === ESegmentKind.Work ? tail : undefined
+  }
+
+  const elapsedOf = (segment: WorkSegment): number =>
+    spanMsOf({
+      startedAt: segment.startedAt,
+      endedAt: segment.endedAt,
+      now,
+      running: segment.running,
+    })
+
+  it('counts seconds, not the idle gap, when the previous turn said the last word', () => {
+    const turns = turnsOf({
+      items: [user('u1', '2026-11-22T14:20:00.000Z'), agent('a1', lastReplyAt)],
+      working: true,
+      turnStartedAt,
+    })
+    const tail = tailWorkOf(turns)
+    expect(tail).toMatchObject({ stepCount: 0, running: true, startedAt: turnStartedAt })
+    expect(tail === undefined ? undefined : elapsedOf(tail)).toBe(2000)
+  })
+
+  it('counts seconds, not the idle gap, for a work group the previous turn left open', () => {
+    const turns = turnsOf({
+      items: [user('u1', '2026-11-22T14:20:00.000Z'), tools('tl1', 1, lastReplyAt)],
+      working: true,
+      turnStartedAt,
+    })
+    const tail = tailWorkOf(turns)
+    expect(tail?.startedAt).toBe(turnStartedAt)
+    expect(tail === undefined ? undefined : elapsedOf(tail)).toBe(2000)
+  })
+
+  it('still times a group from the message that precedes it inside the turn', () => {
+    const turns = turnsOf({
+      items: [
+        user('u1', '2026-11-22T19:13:00.000Z'),
+        tools('tl1', 1, '2026-11-22T19:13:20.000Z'),
+        agent('a1', '2026-11-22T19:13:40.000Z'),
+      ],
+      working: true,
+      turnStartedAt: '2026-11-22T19:13:00.000Z',
+    })
+    expect(tailWorkOf(turns)?.startedAt).toBe('2026-11-22T19:13:40.000Z')
+  })
+
+  it('leaves the worked duration of a finished turn alone', () => {
+    const turns = turnsOf({
+      items: [
+        user('u1', '2026-11-22T14:20:00.000Z'),
+        tools('tl1', 1, '2026-11-22T14:20:30.000Z'),
+        agent('a1', lastReplyAt),
+      ],
+      working: true,
+      turnStartedAt,
+    })
+    expect(agentTurns(turns).at(-1)?.segments[0]).toMatchObject({
+      startedAt: '2026-11-22T14:20:00.000Z',
+      endedAt: lastReplyAt,
+      running: false,
+    })
   })
 })
