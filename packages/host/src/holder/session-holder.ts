@@ -11,7 +11,13 @@ import {
 import type { ChangeContentStore, ControlPlane } from '@dltech/atlas-control'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
-import type { HostBus, HostTimers, PodPeers, SessionRuntimeFactory } from './ports'
+import type {
+  HostBus,
+  HostTimers,
+  PodDiskPressurePort,
+  PodPeers,
+  SessionRuntimeFactory,
+} from './ports'
 import type { PodControlClient } from './pod-control'
 import { ClaimLoop } from './claim-loop'
 import { HolderDemand } from './holder-demand'
@@ -32,6 +38,7 @@ export class SessionHolder {
   private readonly runtimes: SessionRuntimeFactory
   private readonly ids: IdPort
   private readonly podPeers: PodPeers | undefined
+  private readonly diskPressure: PodDiskPressurePort | undefined
   private readonly appendRetryMs: number
   private readonly isPermanentStartError: (error: unknown) => boolean
   private readonly reasonOfStartError: ((error: unknown) => string) | undefined
@@ -80,6 +87,7 @@ export class SessionHolder {
     this.runtimes = args.runtimes
     this.ids = args.ids
     this.podPeers = args.podPeers
+    this.diskPressure = args.diskPressure
     this.appendRetryMs = args.appendRetryMs ?? DEFAULTS.appendRetryMs
     this.isPermanentStartError = args.isPermanentStartError ?? (() => false)
     this.reasonOfStartError = args.reasonOfStartError
@@ -267,6 +275,7 @@ export class SessionHolder {
       sessionId: args.lease.sessionId,
       podSessionId: args.podSessionId,
       podPeers: this.podPeers,
+      diskPressure: this.diskPressure,
       plane: this.plane,
       bus: this.bus,
       timers: this.timers,

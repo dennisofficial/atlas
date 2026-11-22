@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 import { changesOpSchemas, changesResultSchemas } from './changes'
+import { diskEventSchemas } from './disk'
 import { execEventSchemas, execOpSchemas, execResultSchemas } from './exec'
 import { filesEventSchemas, filesOpSchemas, filesResultSchemas } from './files'
 import { gitEventSchemas, gitOpSchemas, gitResultSchemas } from './git'
@@ -44,6 +45,7 @@ export const okCallResultSchema = z.discriminatedUnion('op', [
 export const callResultSchema = z.union([okCallResultSchema, failedCallResultSchema])
 
 export const daemonEventSchema = z.discriminatedUnion('type', [
+  ...diskEventSchemas,
   ...execEventSchemas,
   ...filesEventSchemas,
   ...gitEventSchemas,
@@ -64,6 +66,7 @@ export type CallResult = z.infer<typeof callResultSchema>
 export type DaemonEvent = z.infer<typeof daemonEventSchema>
 
 export * from './changes'
+export * from './disk'
 export * from './exec'
 export * from './files'
 export * from './git'

@@ -10,8 +10,8 @@ export const AGENT37_DISK_METRICS_HOURS = 1
 export type Agent37PodDisk = {
   podSessionId: string
   instanceId: string
-  usedBytes: number
-  limitBytes: number
+  usedBytes: number | undefined
+  limitBytes: number | undefined
 }
 
 const podSessionIdOf = (instance: Agent37Instance): string | undefined =>
@@ -26,7 +26,13 @@ const podDiskOf = async (args: {
   client: Agent37Client
   instance: Agent37Instance
   podSessionId: string
-}): Promise<Agent37PodDisk | undefined> => {
+}): Promise<Agent37PodDisk> => {
+  const pod = {
+    podSessionId: args.podSessionId,
+    instanceId: args.instance.id,
+    usedBytes: undefined,
+    limitBytes: undefined,
+  }
   try {
     const metrics = await args.client.metrics({
       id: args.instance.id,
@@ -34,10 +40,10 @@ const podDiskOf = async (args: {
     })
     const usedBytes = lastValueOf(metrics.series?.disk_bytes)
     const limitBytes = metrics.limits?.disk_bytes
-    if (usedBytes === undefined || limitBytes === undefined) return undefined
-    return { podSessionId: args.podSessionId, instanceId: args.instance.id, usedBytes, limitBytes }
+    if (usedBytes === undefined || limitBytes === undefined) return pod
+    return { ...pod, usedBytes, limitBytes }
   } catch {
-    return undefined
+    return pod
   }
 }
 
@@ -50,8 +56,7 @@ export const agent37DiskOf = (args: { client: Agent37Client }) => ({
       for (const instance of page.data) {
         const podSessionId = podSessionIdOf(instance)
         if (podSessionId === undefined) continue
-        const pod = await podDiskOf({ client: args.client, instance, podSessionId })
-        if (pod !== undefined) pods.push(pod)
+        pods.push(await podDiskOf({ client: args.client, instance, podSessionId }))
       }
       if (page.next === undefined) return pods
       cursor = page.next

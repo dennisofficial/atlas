@@ -1,5 +1,6 @@
 import type {
   AssemblyPipeline,
+  EPodDiskPressure,
   ESetupPhase,
   MediaUrlResolver,
   ModelChoice,
@@ -111,6 +112,18 @@ export type SessionRuntime = {
 
 export type PodPeers = {
   placed(args: { podSessionId: string; excludeSessionId: string }): Promise<number>
+}
+
+export type PodDiskPressureReport = {
+  sessionId: string
+  podSessionId: string
+  usedBytes: number
+  limitBytes: number
+  pressure: EPodDiskPressure
+}
+
+export type PodDiskPressurePort = {
+  report(args: PodDiskPressureReport): Promise<void>
 }
 
 export type SessionRuntimeFactory = (args: {

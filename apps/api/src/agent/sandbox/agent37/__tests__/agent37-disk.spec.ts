@@ -85,7 +85,7 @@ describe('agent37DiskOf', () => {
     ])
   })
 
-  it('skips an instance that carries no pod session and one with no disk sample yet', async () => {
+  it('reports a pod with no disk sample yet, and reads no metrics for one with no pod session', async () => {
     const { client, metricsRead } = fakeClient({
       pages: [[instanceOf({ id: 'inst-1' }), instanceOf({ id: 'inst-2', podSessionId: 'pod-2' })]],
       metrics: async () => ({
@@ -93,11 +93,18 @@ describe('agent37DiskOf', () => {
         series: { disk_bytes: [] },
       }),
     })
-    expect(await agent37DiskOf({ client }).runningPods()).toEqual([])
+    expect(await agent37DiskOf({ client }).runningPods()).toEqual([
+      {
+        podSessionId: 'pod-2',
+        instanceId: 'inst-2',
+        usedBytes: undefined,
+        limitBytes: undefined,
+      },
+    ])
     expect(metricsRead).toEqual(['inst-2'])
   })
 
-  it('skips one pod whose metrics fail rather than failing every pod', async () => {
+  it('reports one pod whose metrics fail without figures, rather than failing every pod', async () => {
     const { client } = fakeClient({
       pages: [
         [
@@ -111,7 +118,15 @@ describe('agent37DiskOf', () => {
       },
     })
     const pods = await agent37DiskOf({ client }).runningPods()
-    expect(pods.map((pod) => pod.instanceId)).toEqual(['inst-2'])
+    expect(pods).toEqual([
+      {
+        podSessionId: 'pod-1',
+        instanceId: 'inst-1',
+        usedBytes: undefined,
+        limitBytes: undefined,
+      },
+      { podSessionId: 'pod-2', instanceId: 'inst-2', usedBytes: 18 * GB, limitBytes: 20 * GB },
+    ])
   })
 
   it('grows an instance by the given size and nothing else', async () => {
