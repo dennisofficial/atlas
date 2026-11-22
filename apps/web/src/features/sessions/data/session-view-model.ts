@@ -5,19 +5,14 @@ import {
   type CrewRoster,
   type CrewRow,
 } from '@dltech/atlas-plugin-crew/client'
-import {
-  subscribedPullRequestsOf,
-  subscriptionRowsOf,
-  withPullRequestDetails,
-  type SubscribedPullRequest,
-  type SubscriptionListRow,
-} from '@dltech/atlas-plugin-github/client'
 import { previewsOfView, type PreviewItem } from '@dltech/atlas-plugin-services/client'
 import { planOfView } from '@dltech/atlas-plugin-sessions/client'
 import { shellRosterOf, type ShellRoster } from '@dltech/atlas-plugin-shells/client'
 import type { SessionSummary, SessionViewOutput } from '@dltech/atlas-protocol'
 
 import type { PullRequestEntry } from '@/features/threads/data/pull-request-entries'
+
+import { subscriptionRowsOf, type SubscriptionRow } from './subscription-rows'
 
 type LinkedPullRequest = SessionViewOutput['pullRequests'][number]
 type RowPullRequest = NonNullable<SessionSummary['pullRequest']>
@@ -30,8 +25,7 @@ export type SessionContextModel = {
 export type SessionViewModel = {
   branch: string | undefined
   entries: PullRequestEntry[]
-  subscriptions: readonly SubscribedPullRequest[]
-  subscriptionRows: readonly SubscriptionListRow[]
+  subscriptionRows: readonly SubscriptionRow[]
   shells: ShellRoster
   crew: CrewRoster
   crewRows: readonly CrewRow[]
@@ -102,7 +96,6 @@ export const sessionViewModelOf = (view: SessionViewOutput | undefined): Session
     return {
       branch: undefined,
       entries: [],
-      subscriptions: [],
       subscriptionRows: [],
       shells: { running: 0, awaitingInput: false, labels: [], rows: [] },
       crew: { running: 0, total: 0 },
@@ -120,9 +113,8 @@ export const sessionViewModelOf = (view: SessionViewOutput | undefined): Session
   return {
     branch: primaryBranch,
     entries,
-    subscriptions: subscribedPullRequestsOf(view.pluginViews),
-    subscriptionRows: withPullRequestDetails({
-      rows: subscriptionRowsOf(view.pluginViews),
+    subscriptionRows: subscriptionRowsOf({
+      subscriptions: view.subscriptions,
       pullRequests: entries,
     }),
     shells: shellRosterOf(view.pluginViews),

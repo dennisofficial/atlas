@@ -49,14 +49,15 @@ const clickBell = async (value: SessionPaneValue): Promise<Sent[]> => {
 describe('PullRequestBell', () => {
   it('subscribes the pull request when the session does not follow it', async () => {
     const sent = await clickBell(
-      paneValueFixture({ view: { ...populatedPaneValue().view, subscriptions: [] } }),
+      paneValueFixture({ view: { ...populatedPaneValue().view, subscriptionRows: [] } }),
     )
     expect(sent).toEqual([
       {
         sessionId: 'ses-1',
         command: {
           name: 'subscribe',
-          args: { provider: 'github.pull-request', target: 'owner/atlas#7' },
+          provider: 'github.pull-request',
+          target: 'owner/atlas#7',
         },
       },
     ])
@@ -65,7 +66,7 @@ describe('PullRequestBell', () => {
   it('unsubscribes the pull request when the session follows it', async () => {
     const sent = await clickBell(populatedPaneValue())
     expect(sent).toEqual([
-      { sessionId: 'ses-1', command: { name: 'unsubscribe', args: { subscriptionId: 'sub_7' } } },
+      { sessionId: 'ses-1', command: { name: 'unsubscribe', subscriptionId: 'sub_7' } },
     ])
   })
 })

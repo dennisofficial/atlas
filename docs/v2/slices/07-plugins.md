@@ -463,14 +463,12 @@ registered in `apps/api`, `apps/agent-host` and `apps/web`; the `subscriptions` 
 fragment; the control append hook that writes and removes the `GithubSubscription` lease in the
 append transaction. One writer: the pod appends the journal event, the CP derives the lease from it.
 
-**Lease lifetime.** v1's 5-minute `GithubSubscription.expiresAt` was a liveness heartbeat. v2 has
-no heartbeat, so the append hook sets `expiresAt` and `liveUntil` from the `subscription-created`
-body's own `expiresAt`, falling back to `DEFAULT_SUBSCRIPTION_TTL_MS` (24 h) when it is absent or
-unreadable. The subscription framework ends a subscription, not the plugin: the host's turn hooks
-append `subscription-ended` (`completed`) after an event that the provider's declared end rule
-(`PodSlot.subscriptionEnds`) matches, and (`expired`) once its declared `expiresAt` has passed. github
-declares merged or closed pull requests and a pinned run's finish; a selector subscription outlives
-every run. No timer or poller waits for either, and the lease hook deletes the lease from that event.
+**Rows.** The control plane owns a subscription, not the log. `PodControl.subscriptions`
+(`subscribe`, `unsubscribe`, `list`) is the agent's path. Each call writes or ends the
+`GithubSubscription` row in the request transaction, then posts an informational `record` that the
+holder copies to the log. The row `id` is the v2 subscription id. Endings are control-plane writes
+through the same service: a merged or closed pull request, a pinned run that finishes, expiry, and
+archive. No holder hook reads the log to end a subscription.
 
 **The wake.** The control plane cannot append to a session (no holder lease), so its write is the
 inbox. `GithubPrEventMailboxService.record` (the one place every webhook, poll and discussion event

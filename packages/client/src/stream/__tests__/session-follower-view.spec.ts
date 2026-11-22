@@ -72,6 +72,7 @@ const sessionView = (params: {
               },
       },
     ],
+    subscriptions: [],
     pluginViews: params.pluginViews ?? {},
   },
 })

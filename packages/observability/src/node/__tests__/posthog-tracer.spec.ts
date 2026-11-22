@@ -44,6 +44,16 @@ const attribute = (span: OtlpSpan | undefined, key: string): unknown => {
 }
 
 describe('PosthogTracer', () => {
+  it('stamps every span with the deploy commit the host runs', async () => {
+    const { client, spans } = capturingClient()
+    const trace = new PosthogTracer({ client, distinctId: 'anon-1', deployCommit: 'e980dd9' })
+
+    await trace.span({ name: ESpan.Turn, root: true, run: async () => {} })
+    await client.shutdown(2000)
+
+    expect(spans().map((span) => attribute(span, 'deploy.commit'))).toEqual(['e980dd9'])
+  })
+
   it('starts a new trace for a root span opened inside another trace', async () => {
     const { client, spans } = capturingClient()
     const trace = new PosthogTracer({ client, distinctId: 'anon-1' })

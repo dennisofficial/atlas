@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'bun:test'
 
-import { composeCommands, defineCommand, type CommandHandler } from '@dltech/atlas-commands'
+import {
+  composeCommands,
+  defineCommand,
+  type Command,
+  type CommandHandler,
+} from '@dltech/atlas-commands'
 import {
   chainEvents,
   ECommandGroup,
@@ -18,16 +23,21 @@ import { flushUntil, makeRig, seedSession, SESSION, THREAD_ID } from './holder-r
 
 type Rig = Awaited<ReturnType<typeof makeRig>>
 
-const ping = defineCommand({
-  spec: {
-    name: 'ping',
-    summary: 'records a fact',
-    group: ECommandGroup.Session,
-    args: z.strictObject({ word: z.string() }),
-    timing: ECommandTiming.Settled,
-    handledIn: 'holder',
-  },
-})
+const factCommand = (name: string): Command =>
+  defineCommand({
+    spec: {
+      name,
+      summary: 'records a fact',
+      group: ECommandGroup.Context,
+      args: z.strictObject({ word: z.string() }),
+      timing: ECommandTiming.Settled,
+      handledIn: 'holder',
+    },
+  })
+
+const summarise = factCommand('summarise')
+
+const subscribe = factCommand('subscribe')
 
 const handler: CommandHandler<unknown> = async ({ args, append }) => {
   const { word } = args as { word: string }
@@ -59,15 +69,15 @@ const summarised = (inboxId: number): V2Body => ({
 
 const deadHolderLeft = async (args: {
   rig: Rig
-  payload?: string
+  command: Command
   after?: (inboxId: number) => V2Body[]
 }): Promise<void> => {
   const { rig } = args
   await seedSession(rig)
   const posted = await rig.plane.post({
     sessionId: SESSION,
-    kind: ping.inboxKind,
-    payload: args.payload ?? '{"word":"hi"}',
+    kind: args.command.inboxKind,
+    payload: '{"word":"hi"}',
   })
   const { epoch } = await rig.plane.grant({ sessionId: SESSION, hostId: 9001 })
   const outcome = await rig.plane.append({
@@ -80,6 +90,12 @@ const deadHolderLeft = async (args: {
       at: new Date(0).toISOString(),
       bodies: [
         { type: 'workspace-prepared' },
+        {
+          type: 'input-posted',
+          inboxId: posted.inboxId,
+          kind: args.command.inboxKind,
+          postedAt: new Date(0).toISOString(),
+        },
         consumed(posted.inboxId),
         ...(args.after?.(posted.inboxId) ?? []),
       ],
@@ -90,10 +106,10 @@ const deadHolderLeft = async (args: {
   await rig.plane.revoke({ sessionId: SESSION, wantsHolder: true })
 }
 
-const rigWithPing = (): Promise<Rig> =>
+const rigWith = (command: Command): Promise<Rig> =>
   makeRig({
-    commands: composeCommands([ping]),
-    commandHandlers: new Map([[ping.inboxKind, handler]]),
+    commands: composeCommands([command]),
+    commandHandlers: new Map([[command.inboxKind, handler]]),
   })
 
 const takeOver = async (rig: Rig): Promise<void> => {
@@ -104,9 +120,9 @@ const takeOver = async (rig: Rig): Promise<void> => {
 }
 
 describe('SessionHolder command recovery', () => {
-  it('replays a consumed command whose holder died, once, without a second input-consumed', async () => {
-    const rig = await rigWithPing()
-    await deadHolderLeft({ rig })
+  it('replays a consumed command that owes an outcome, once, without a second input-consumed', async () => {
+    const rig = await rigWith(summarise)
+    await deadHolderLeft({ rig, command: summarise })
     await takeOver(rig)
     const replayed = await flushUntil({
       check: async () => (await typesOf(rig)).includes('fact-recorded'),
@@ -120,9 +136,22 @@ describe('SessionHolder command recovery', () => {
     expect(rig.runCount()).toBe(0)
   })
 
+  it('does not replay a consumed command that owes no outcome', async () => {
+    const rig = await rigWith(subscribe)
+    await deadHolderLeft({ rig, command: subscribe })
+    await takeOver(rig)
+    await rig.wake()
+    await rig.flush()
+    expect(await typesOf(rig)).not.toContain('fact-recorded')
+  })
+
   it('does not replay a command that an outcome already names', async () => {
-    const rig = await rigWithPing()
-    await deadHolderLeft({ rig, after: (inboxId) => [summarised(inboxId)] })
+    const rig = await rigWith(summarise)
+    await deadHolderLeft({
+      rig,
+      command: summarise,
+      after: (inboxId) => [summarised(inboxId)],
+    })
     await takeOver(rig)
     await rig.wake()
     await rig.flush()
@@ -130,9 +159,10 @@ describe('SessionHolder command recovery', () => {
   })
 
   it('does not replay a command whose payload was refused', async () => {
-    const rig = await rigWithPing()
+    const rig = await rigWith(summarise)
     await deadHolderLeft({
       rig,
+      command: summarise,
       after: (inboxId) => [{ type: 'input-refused', inboxId, reason: 'no' }],
     })
     await takeOver(rig)
@@ -141,7 +171,7 @@ describe('SessionHolder command recovery', () => {
   })
 
   it('appends nothing when the tail has no unfinished command', async () => {
-    const rig = await rigWithPing()
+    const rig = await rigWith(summarise)
     await seedSession(rig)
     await rig.holder.start()
     await rig.wake()
@@ -152,17 +182,17 @@ describe('SessionHolder command recovery', () => {
 
   it('logs and keeps the session alive when the replay throws', async () => {
     const rig = await makeRig({
-      commands: composeCommands([ping]),
+      commands: composeCommands([summarise]),
       commandHandlers: new Map([
         [
-          ping.inboxKind,
+          summarise.inboxKind,
           async () => {
             throw new Error('boom')
           },
         ],
       ]),
     })
-    await deadHolderLeft({ rig })
+    await deadHolderLeft({ rig, command: summarise })
     await takeOver(rig)
     await rig.post('hello')
     await rig.wake()

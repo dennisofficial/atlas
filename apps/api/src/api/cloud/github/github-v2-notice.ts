@@ -1,8 +1,12 @@
-import { postInboxEntryIn } from '@dltech/atlas-control/postgres'
+import { endSubscriptionsIn } from '@dltech/atlas-control'
+import { controlTxOf, postInboxEntryIn } from '@dltech/atlas-control/postgres'
 import {
   EPrEventKind as ECorePrEventKind,
   EPrReviewState,
   EPrVerdict,
+  EPullRequestState,
+  ESubscriptionActor,
+  ESubscriptionEnd,
   INBOX_KIND_EVENT,
   inboxEventPayloadOf,
   type EventBody,
@@ -113,13 +117,48 @@ const subscribedV2Sessions = async (args: {
   }))
 }
 
-export async function noticeV2Sessions(args: {
+const TERMINAL_PR_STATES: readonly string[] = [EPullRequestState.Merged, EPullRequestState.Closed]
+
+const endsPullRequest = (event: Row<'GithubPrEvent'>): boolean =>
+  event.kind === EApiPrEventKind.State &&
+  TERMINAL_PR_STATES.includes((event.payload as GithubPrEventPayload).state ?? '')
+
+const openRowsOf = async (args: {
   tx: Tx
   event: Row<'GithubPrEvent'>
-}): Promise<number> {
+}): Promise<Row<'GithubSubscription'>[]> =>
+  args.tx.orm.public.GithubSubscription.where({
+    userId: args.event.userId,
+    prNumber: args.event.prNumber,
+  })
+    .where((subscription) => subscription.repoFullName.ilike(repoPattern(args.event.repoFullName)))
+    .where((subscription) => subscription.threadId.neq(''))
+    .all()
+
+const endPullRequestSubscriptions = async (args: {
+  tx: Tx
+  event: Row<'GithubPrEvent'>
+  at: Date
+}): Promise<number> => {
+  const rows = await openRowsOf(args)
+  return endSubscriptionsIn({
+    tx: controlTxOf(args.tx),
+    rows: rows.map((row) => ({ subscriptionId: row.id, threadId: row.threadId })),
+    by: ESubscriptionActor.Provider,
+    reason: ESubscriptionEnd.Completed,
+    at: args.at.toISOString(),
+  })
+}
+
+const postEventNotices = async (args: {
+  tx: Tx
+  event: Row<'GithubPrEvent'>
+  at: Date
+}): Promise<number> => {
   const { tx, event } = args
-  const at = new Date()
-  const targets = await subscribedV2Sessions({ tx, event, now: at })
+  const id = event.id
+  const firedAt = args.at
+  const targets = await subscribedV2Sessions({ tx, event, now: firedAt })
   if (targets.length === 0) return 0
   const state = await tx.orm.public.GithubPrState.where({
     repoFullName: event.repoFullName,
@@ -131,9 +170,9 @@ export async function noticeV2Sessions(args: {
     const claimed = await tx.orm.public.GithubPrEventDelivery.createAndCount(
       [
         {
-          eventId: event.id,
+          eventId: id,
           threadId: target.threadId,
-          ackedAt: at,
+          ackedAt: firedAt,
           leaseExpiresAt: null,
         },
       ],
@@ -145,9 +184,19 @@ export async function noticeV2Sessions(args: {
       sessionId: target.sessionId,
       kind: INBOX_KIND_EVENT,
       payload,
-      at: at.toISOString(),
+      at: firedAt.toISOString(),
     })
     posted += 1
   }
+  return posted
+}
+
+export async function noticeV2Sessions(args: {
+  tx: Tx
+  event: Row<'GithubPrEvent'>
+}): Promise<number> {
+  const at = new Date()
+  const posted = await postEventNotices({ tx: args.tx, event: args.event, at })
+  if (endsPullRequest(args.event)) await endPullRequestSubscriptions({ ...args, at })
   return posted
 }

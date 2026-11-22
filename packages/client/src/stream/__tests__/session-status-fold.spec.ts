@@ -134,6 +134,7 @@ describe('the client status fold', () => {
         },
         checkouts: { repos: [], primary: null },
         pullRequests: [],
+        subscriptions: [],
         pluginViews: {},
       },
     })

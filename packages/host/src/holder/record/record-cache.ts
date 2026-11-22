@@ -7,6 +7,8 @@ import {
   initialLoopState,
   isVisible,
   loopStateOf,
+  pendingInputsOf,
+  queuedSinceOf,
   stepLoopState,
   resolveBody,
   stepVisibility,
@@ -163,6 +165,10 @@ export class RecordCache {
 
   loopState(): LoopState {
     return this.state
+  }
+
+  queuedSince(): string | null {
+    return queuedSinceOf(pendingInputsOf(this.events))
   }
 
   loopEventsAfter(seq: number): Event[] {

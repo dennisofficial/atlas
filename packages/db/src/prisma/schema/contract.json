@@ -3744,6 +3744,23 @@
                   }
                 }
               },
+              "createdBy": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "deadline": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
               "deliveredRunId": {
                 "nullable": false,
                 "type": {
@@ -3785,6 +3802,13 @@
                   "kind": "scalar"
                 }
               },
+              "label": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "lastRunCreatedAt": {
                 "nullable": false,
                 "type": {
@@ -3819,10 +3843,31 @@
                   "kind": "scalar"
                 }
               },
+              "provider": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "repoFullName": {
                 "nullable": false,
                 "type": {
                   "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "sessionId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "target": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/jsonb@1",
                   "kind": "scalar"
                 }
               },
@@ -3867,6 +3912,12 @@
                 "createdAt": {
                   "column": "createdAt"
                 },
+                "createdBy": {
+                  "column": "createdBy"
+                },
+                "deadline": {
+                  "column": "deadline"
+                },
                 "deliveredRunId": {
                   "column": "deliveredRunId"
                 },
@@ -3882,6 +3933,9 @@
                 "kind": {
                   "column": "kind"
                 },
+                "label": {
+                  "column": "label"
+                },
                 "lastRunCreatedAt": {
                   "column": "lastRunCreatedAt"
                 },
@@ -3894,8 +3948,17 @@
                 "prNumber": {
                   "column": "prNumber"
                 },
+                "provider": {
+                  "column": "provider"
+                },
                 "repoFullName": {
                   "column": "repoFullName"
+                },
+                "sessionId": {
+                  "column": "sessionId"
+                },
+                "target": {
+                  "column": "target"
                 },
                 "threadId": {
                   "column": "threadId"
@@ -14014,6 +14077,23 @@
                     "precision": 3
                   }
                 },
+                "createdBy": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "default": {
+                    "kind": "literal",
+                    "value": ""
+                  },
+                  "nullable": false
+                },
+                "deadline": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
                 "deliveredRunId": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
@@ -14057,6 +14137,15 @@
                   },
                   "nullable": false
                 },
+                "label": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "default": {
+                    "kind": "literal",
+                    "value": ""
+                  },
+                  "nullable": false
+                },
                 "lastRunCreatedAt": {
                   "codecId": "pg/timestamptz-date@1",
                   "dataType": "pg/timestamptz",
@@ -14095,10 +14184,33 @@
                   "dataType": "pg/int4",
                   "nullable": true
                 },
+                "provider": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "default": {
+                    "kind": "literal",
+                    "value": ""
+                  },
+                  "nullable": false
+                },
                 "repoFullName": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
                   "nullable": false
+                },
+                "sessionId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "default": {
+                    "kind": "literal",
+                    "value": ""
+                  },
+                  "nullable": false
+                },
+                "target": {
+                  "codecId": "pg/jsonb@1",
+                  "dataType": "pg/jsonb",
+                  "nullable": true
                 },
                 "threadId": {
                   "codecId": "pg/text@1",
@@ -19528,7 +19640,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "002ccde9a04c81afe52c0bdcff59c1f67b359a4488f643ef5bd5b4c3e301e321"
+    "storageHash": "41a31a761fa6cd6592e5d4a264897449d932fa00b5c4e72926904248ccde9acb"
   },
   "execution": {
     "executionHash": "4d369095acf9878e93e4d1ed1f070ee06bf20ff4203ec07d06fefbc68b869a45",

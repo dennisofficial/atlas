@@ -77,8 +77,7 @@ export const startHeldTurn = (args: {
     })
 }
 
-const COMMAND_ACTIONS: readonly EHeldAction[] = [
-  EHeldAction.RunImmediate,
+const IDLE_COMMAND_ACTIONS: readonly EHeldAction[] = [
   EHeldAction.StartTurn,
   EHeldAction.Wait,
   EHeldAction.Release,
@@ -90,19 +89,7 @@ export const ranQueuedCommand = async (args: {
   turnRunning: boolean
   runCommands?: ((entries: readonly InboxEntry[]) => Promise<boolean>) | undefined
 }): Promise<boolean> => {
-  if (!COMMAND_ACTIONS.includes(args.action)) return false
-  if (args.turnRunning && args.action !== EHeldAction.RunImmediate) return false
-  return (await args.runCommands?.(args.entries)) === true
-}
-
-export const ranImmediateCommands = async (args: {
-  action: EHeldAction
-  entries: readonly InboxEntry[]
-  turnRunning: boolean
-  runCommands?: ((entries: readonly InboxEntry[]) => Promise<boolean>) | undefined
-}): Promise<boolean> => {
-  if (args.entries.length === 0) return false
-  if (!args.turnRunning && !COMMAND_ACTIONS.includes(args.action)) return false
+  if (args.turnRunning || !IDLE_COMMAND_ACTIONS.includes(args.action)) return false
   return (await args.runCommands?.(args.entries)) === true
 }
 

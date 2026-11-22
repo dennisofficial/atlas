@@ -7,7 +7,6 @@ import type {
   PluginEventBody,
   PromptFragment,
   RecordBody,
-  SubscriptionEndRules,
   ToolDefinition,
   V2Event,
 } from '@dltech/atlas-core'
@@ -20,6 +19,7 @@ import type { PodMemory } from './memory'
 import type { ECloudSetting, PodResource, PodResources } from './resources'
 import type { PodRoutines } from './routines'
 import type { PodSessions } from './sessions'
+import type { PodSubscriptions } from './subscriptions'
 import type { PodWorktrees } from './worktrees'
 
 export type { PodCrew, SubagentSaid, SubagentSnapshot, SubagentWorktree } from './crew'
@@ -37,6 +37,12 @@ export type {
 } from './worktrees'
 export { EMPTY_ROUTINES } from './routines'
 export type { PodRoutineInput, PodRoutines } from './routines'
+export { EMPTY_SUBSCRIPTIONS } from './subscriptions'
+export type {
+  PodSubscribeArgs,
+  PodSubscriptionLease,
+  PodSubscriptions,
+} from './subscriptions'
 export type {
   MemoryAddress,
   MemoryEntry,
@@ -82,6 +88,7 @@ export type PodControl = {
   webSearch: PodWebSearch
   mcp: PodMcpControl
   routines: PodRoutines
+  subscriptions: PodSubscriptions
 }
 
 export type PluginPodContext = {
@@ -110,7 +117,6 @@ export type PodSlot = {
   childDeny?: readonly string[] | undefined
   tools?(ctx: PluginPodContext): readonly ToolDefinition[]
   hooks?(ctx: PluginPodContext): HookChainArgs
-  subscriptionEnds?: SubscriptionEndRules | undefined
   prompts: readonly PromptFragment[]
   commands: ReadonlyMap<string, CommandHandler<unknown>>
   resources?: readonly PodResource<unknown>[] | undefined

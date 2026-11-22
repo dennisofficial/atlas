@@ -3,6 +3,7 @@ import {
   EMPTY_CREW,
   EMPTY_MCP_CONTROL,
   EMPTY_SESSIONS,
+  EMPTY_SUBSCRIPTIONS,
   EMPTY_WORKTREES,
   type PluginPodContext,
   type PodRoutines,
@@ -111,6 +112,7 @@ export const rig = (routines: PodRoutines = fakeRoutines().port) => {
         throw new Error('this rig exposes no port')
       },
       routines,
+      subscriptions: EMPTY_SUBSCRIPTIONS,
       memory: {
         list: async () => ({ project: null, memories: [] }),
         read: async () => null,

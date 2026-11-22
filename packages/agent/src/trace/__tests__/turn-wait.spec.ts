@@ -4,7 +4,7 @@ import type { Event, ThreadId } from '@dltech/atlas-core'
 import { ETurnEntry, EWake } from '@dltech/atlas-observability'
 
 import type { AgentRecordPort } from '../../record/agent-record.port'
-import { createWakeTracker, promptQueuedMsOf, turnWaitOf } from '../turn-wait'
+import { createWakeTracker, promptQueuedMsOf, queuedMsSince, turnWaitOf } from '../turn-wait'
 
 const event = (args: { type: string; at: string }) =>
   ({
@@ -53,6 +53,21 @@ describe('promptQueuedMsOf', () => {
   })
 })
 
+describe('queuedMsSince', () => {
+  it('measures from the post of an input the drain has not reached yet', () => {
+    expect(
+      queuedMsSince({
+        since: '2026-11-20T10:00:00.000Z',
+        now: Date.parse('2026-11-20T10:00:07.393Z'),
+      }),
+    ).toBe(7393)
+  })
+
+  it('is absent when nothing is queued', () => {
+    expect(queuedMsSince({ since: null, now: 1 })).toBeUndefined()
+  })
+})
+
 describe('turnWaitOf', () => {
   it('reports warm on a thread whose earlier turn ran through another record instance', async () => {
     const threadId = 'thr-wake-across-records' as ThreadId
@@ -90,6 +105,23 @@ describe('turnWaitOf', () => {
     expect(await turnOf('thr-a', 0)).toEqual({ wake: EWake.Cold })
     expect(await turnOf('thr-b', 0)).toEqual({ wake: EWake.Cold })
     expect(await turnOf('thr-a', 0)).toEqual({ wake: EWake.Warm })
+  })
+
+  it('carries the queued input post time even when no user-said marks the turn yet', async () => {
+    const queued = {
+      ownEvents: async () => [],
+      queuedSince: () => '2026-11-20T10:00:00.000Z',
+    } as unknown as AgentRecordPort
+
+    expect(
+      await turnWaitOf({
+        record: queued,
+        threadId: 'thr-queued' as ThreadId,
+        entry: ETurnEntry.Start,
+        now: Date.parse('2026-11-20T10:00:19.000Z'),
+        wakes: createWakeTracker(),
+      }),
+    ).toEqual({ wake: EWake.Cold, queuedMs: 19000 })
   })
 
   it('carries nothing on a resume', async () => {

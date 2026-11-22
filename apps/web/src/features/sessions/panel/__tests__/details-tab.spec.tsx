@@ -149,7 +149,7 @@ describe('SessionDetailsTab', () => {
     const subscribed = render(populatedPaneValue())
     const unsubscribed = render(
       paneValueFixture({
-        view: { ...populatedPaneValue().view, subscriptions: [] },
+        view: { ...populatedPaneValue().view, subscriptionRows: [] },
       }),
     )
     expect(subscribed).toContain('aria-label="Unsubscribe from #7"')

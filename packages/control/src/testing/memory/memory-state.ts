@@ -13,6 +13,7 @@ import type {
   SessionPullRequestRow,
   SubscriptionLease,
   SubscriptionLeaseKey,
+  SubscriptionRow,
   SessionViewRow,
   StoredEvent,
   ThreadRow,
@@ -52,6 +53,7 @@ export type State = {
   sessionPullRequests: Map<string, SessionPullRequestRow>
   prStates: Map<string, PrStateRow>
   subscriptionLeases: Map<string, SubscriptionLease & { expiresAt: string }>
+  subscriptions: Map<string, SubscriptionRow>
   trackingTargets: Map<string, TrackingTarget>
   routines: Map<string, RoutineRow>
   routineRuns: InsertRoutineRunParams[]
@@ -84,6 +86,7 @@ export const emptyState = (): State => ({
   sessionPullRequests: new Map(),
   prStates: new Map(),
   subscriptionLeases: new Map(),
+  subscriptions: new Map(),
   trackingTargets: new Map(),
   routines: new Map(),
   routineRuns: [],
@@ -114,6 +117,9 @@ export const cloneState = (state: State): State => ({
   prStates: new Map(state.prStates),
   subscriptionLeases: new Map(
     [...state.subscriptionLeases].map(([key, value]) => [key, { ...value }]),
+  ),
+  subscriptions: new Map(
+    [...state.subscriptions].map(([key, value]) => [key, { ...value, events: [...value.events] }]),
   ),
   trackingTargets: new Map([...state.trackingTargets].map(([key, value]) => [key, { ...value }])),
   routines: new Map([...state.routines].map(([key, value]) => [key, { ...value }])),

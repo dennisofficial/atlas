@@ -63,7 +63,6 @@ export const childRunnerOf = (args: {
     runtime,
     ctx,
     declarations: () => registry.declarations(),
-    now: () => new Date(deps.timers.now()),
     ...(sync === undefined ? {} : { sync }),
   })
   return new LoopTurnRunner({

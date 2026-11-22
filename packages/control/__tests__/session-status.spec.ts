@@ -224,7 +224,7 @@ describe('readSessionStatus', () => {
     expect(listed?.[1]?.attachments).toBeUndefined()
   })
 
-  it('lists a posted command beside queued and keeps it as running once consumed', async () => {
+  it('lists a posted command beside queued and drops it once consumed', async () => {
     const { plane, append, read } = await setup()
     const lease = await plane.grant({ sessionId: SESSION, hostId: 7 })
     await append({ epoch: lease.epoch, bodies: [{ type: 'workspace-prepared' }] })
@@ -258,9 +258,7 @@ describe('readSessionStatus', () => {
         { type: 'input-consumed', inboxId: command.inboxId, consumed: EInputConsumed.Command },
       ],
     })
-    expect((await read()).value.commands).toEqual([
-      { inboxId: command.inboxId, name: 'rename', postedAt: NOW, state: ECommandState.Running },
-    ])
+    expect((await read()).value.commands).toBeUndefined()
   })
 
   it('omits queued when nothing is pending', async () => {

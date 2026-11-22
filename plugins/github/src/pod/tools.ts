@@ -1,7 +1,6 @@
 import {
   catalogText,
   EToolEffect,
-  ESubscriptionActor,
   SchemaTool,
   TAKES_NO_PATHS,
   type ToolOutcome,
@@ -11,13 +10,7 @@ import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 import { z } from 'zod'
 
 import { GITHUB_PROVIDER, GITHUB_RUN_PROVIDER, PULL_REQUEST_EVENTS } from '../core'
-import {
-  githubSubscriptionsOf,
-  isGithubProvider,
-  listText,
-  subscribeTo,
-  unsubscribeFrom,
-} from './subscribe'
+import { isGithubProvider, listText, subscribeTo, unsubscribeFrom } from './subscribe'
 
 export enum ESubscriptionAction {
   Subscribe = 'subscribe',
@@ -87,23 +80,18 @@ export class SubscriptionTool extends SchemaTool<typeof inputSchema> {
     projectDirectory,
   }: ToolRun<typeof inputSchema>): Promise<ToolOutcome> {
     if (input.action === ESubscriptionAction.List) {
-      const events = this.ctx.events()
+      const subscriptions = await this.ctx.control.subscriptions.list()
       return {
         ok: true,
-        output: { subscriptions: githubSubscriptionsOf(events) },
-        modelText: listText(events),
+        output: { subscriptions },
+        modelText: listText(subscriptions),
       }
     }
 
     if (input.action === ESubscriptionAction.Unsubscribe) {
       const { subscriptionId } = input
       if (subscriptionId === undefined) return missingRefusal(input.action)
-      const outcome = await unsubscribeFrom({
-        ctx: this.ctx,
-        events: this.ctx.events(),
-        subscriptionId,
-        by: ESubscriptionActor.Agent,
-      })
+      const outcome = await unsubscribeFrom({ ctx: this.ctx, subscriptionId })
       if (!outcome.ok) return { ok: false, reason: outcome.error }
       return {
         ok: true,
@@ -126,20 +114,17 @@ export class SubscriptionTool extends SchemaTool<typeof inputSchema> {
         : new Date(Date.now() + input.expiresInMinutes * 60_000).toISOString()
     const outcome = await subscribeTo({
       ctx: this.ctx,
-      events: this.ctx.events(),
       provider,
       input: input.target ?? '',
       cwd: projectDirectory,
-      by: ESubscriptionActor.Agent,
       expiresAt,
       requestedEvents: input.events,
     })
     if (!outcome.ok) return { ok: false, reason: outcome.error }
     const { subscription, existed, updated } = outcome
     const expiry =
-      subscription.expiresAt === undefined ? 'no expiry' : `expires ${subscription.expiresAt}`
-    const headline =
-      updated === true ? 'Updated filter on' : existed ? 'Already subscribed to' : 'Subscribed to'
+      subscription.expiresAt === null ? 'no expiry' : `expires ${subscription.expiresAt}`
+    const headline = existed ? (updated ? 'Updated' : 'Already subscribed to') : 'Subscribed to'
     return {
       ok: true,
       output: { subscriptionId: subscription.id, existed },

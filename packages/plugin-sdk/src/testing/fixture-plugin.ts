@@ -18,6 +18,7 @@ import { UNVERSIONED_SETTINGS, definePlugin, type Plugin } from '..'
 import {
   EMPTY_CONTROL,
   EMPTY_POD,
+  EMPTY_SUBSCRIPTIONS,
   type PluginPodContext,
   type PodControl,
   type PodSlot,
@@ -188,6 +189,7 @@ export const podControlStub: PodControl = {
   mcp: EMPTY_MCP_CONTROL,
   webSearch: { config: noControlPlane },
   routines: EMPTY_ROUTINES,
+  subscriptions: EMPTY_SUBSCRIPTIONS,
   memory: {
     list: noControlPlane,
     read: noControlPlane,

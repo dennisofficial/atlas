@@ -1,6 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common'
-import { db, type Row } from '@dltech/atlas-db'
-import { EPrSource, ETargetOutcome, ETrackingTransport } from '@dltech/atlas-core'
+import { and, db, or, type Row } from '@dltech/atlas-db'
+import { endSubscriptionsIn } from '@dltech/atlas-control'
+import { controlTxOf } from '@dltech/atlas-control/postgres'
+import {
+  EPrSource,
+  ETargetOutcome,
+  ETrackingTransport,
+  ESubscriptionActor,
+  ESubscriptionEnd,
+} from '@dltech/atlas-core'
 import { GithubHeadReads } from './github-head-reads'
 import { applyObservedPull } from './github-pr-observed-pull'
 import { GithubPrStore } from './github-pr-store'
@@ -40,6 +48,7 @@ export class GithubPollSweeperService {
 
   async handlePoll(args: { limit?: number } = {}): Promise<void> {
     await this.refreshLiveUntil()
+    await this.endExpired()
     await renewTrackedHeadTargets({})
     try {
       await withGithubRequestBudget({
@@ -70,6 +79,7 @@ export class GithubPollSweeperService {
       threadIds: linked.map((subscription) => subscription.threadId),
     })
     for (const subscription of linked) {
+      if (subscription.deadline !== null) continue
       const lastActivityAt = activity.get(subscription.threadId)
       if (lastActivityAt === undefined) continue
       const liveUntil = liveUntilOf({
@@ -79,6 +89,33 @@ export class GithubPollSweeperService {
       if (liveUntil.getTime() > subscription.liveUntil.getTime())
         await db.orm.public.GithubSubscription.where({ id: subscription.id }).update({ liveUntil })
     }
+  }
+
+  private async endExpired(): Promise<void> {
+    const now = new Date()
+    const lapsed = await db.orm.public.GithubSubscription.where((subscription) =>
+      subscription.threadId.neq(''),
+    )
+      .where((subscription) =>
+        or(
+          subscription.deadline.lt(now),
+          and(subscription.expiresAt.lt(now), subscription.liveUntil.lt(now)),
+        ),
+      )
+      .all()
+    if (lapsed.length === 0) return
+    const at = now.toISOString()
+    const ended = await db.transaction((tx) =>
+      endSubscriptionsIn({
+        tx: controlTxOf(tx),
+        rows: lapsed.map((row) => ({ subscriptionId: row.id, threadId: row.threadId })),
+        by: ESubscriptionActor.Clock,
+        reason: ESubscriptionEnd.Expired,
+        at,
+        endedBefore: at,
+      }),
+    )
+    if (ended > 0) this.logger.log(`ended ${ended} expired subscriptions`)
   }
 
   private async lookUp(args: {

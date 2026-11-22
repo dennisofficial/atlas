@@ -134,7 +134,6 @@ describe('a prepare that finished with warnings', () => {
         turn: 'idle',
         stopPending: false,
         messagePending: true,
-        immediatePending: false,
         resumable: false,
         idleDue: false,
         workspace: result.state,

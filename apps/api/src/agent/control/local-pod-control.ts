@@ -1,4 +1,5 @@
 import type { Db } from '@dltech/atlas-db'
+import { ESubscriptionActor, ESubscriptionEnd } from '@dltech/atlas-core'
 import {
   RoutineInvalidError,
   RoutineNotFoundError,
@@ -61,6 +62,21 @@ const projectFor = (args: {
     throw new Error('this session has no GitHub repository, so only global memory is available')
   }
   return args.project
+}
+
+const sessionOfThreadOf = async (args: {
+  db: Db
+  threadId: string
+}): Promise<{ sessionId: string }> => {
+  const main = await args.db.orm.v2.V2Session.where({ mainThreadId: args.threadId })
+    .select('id')
+    .first()
+  if (main !== null) return { sessionId: main.id }
+  const thread = await args.db.orm.v2.V2Thread.where({ id: args.threadId })
+    .select('sessionId')
+    .first()
+  if (thread === null) throw new Error(`unknown thread ${args.threadId}`)
+  return { sessionId: thread.sessionId }
 }
 
 const routineScopeOf = (owner: ThreadOwner): { userId: string; projectId: string } => {
@@ -158,6 +174,39 @@ export const localPodControlOf = (args: {
         } catch (failure) {
           return routineRefused(failure)
         }
+      },
+    },
+    subscriptions: {
+      list: async ({ threadId }) => {
+        const session = await sessionOfThreadOf({ db: args.db, threadId })
+        return await args.plane.listSubscriptions({ sessionId: session.sessionId, threadId })
+      },
+      subscribe: async ({ threadId, ...input }) => {
+        const session = await sessionOfThreadOf({ db: args.db, threadId })
+        return await args.plane.subscribe({
+          sessionId: session.sessionId,
+          threadId,
+          ...input,
+          by: ESubscriptionActor.Agent,
+        })
+      },
+      unsubscribe: async ({ threadId, subscriptionId }) => {
+        const session = await sessionOfThreadOf({ db: args.db, threadId })
+        return await args.plane.unsubscribe({
+          sessionId: session.sessionId,
+          subscriptionId,
+          by: ESubscriptionActor.Agent,
+          reason: ESubscriptionEnd.Unsubscribed,
+        })
+      },
+      end: async ({ threadId, subscriptionId, reason, by }) => {
+        const session = await sessionOfThreadOf({ db: args.db, threadId })
+        return await args.plane.unsubscribe({
+          sessionId: session.sessionId,
+          subscriptionId,
+          by,
+          reason,
+        })
       },
     },
     webSearch: {

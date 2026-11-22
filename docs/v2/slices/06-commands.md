@@ -196,7 +196,7 @@ composed command table and dispatches in `prepare()` (`:31-62`):
   its drafts, or append `input-refused{inboxId, reason}` when it refuses. Nothing wakes a turn.
 - A `command:<name>` entry with no handler: today's `input-consumed{discarded}` plus the warning, so
   an older holder meeting a newer client's command loses it visibly in the log rather than silently.
-- Settled only: while a turn runs, `prepare()` is not draining the inbox, so a command posted mid-turn
+- While a turn runs, `prepare()` is not draining the inbox, so a command posted mid-turn
   waits behind the turn exactly as a message does. The client does not need its own timing guard; it
   still refuses optimistically (`SETTLED_WHILE_WORKING`, `apps/web/src/features/threads/commands/dispatch.ts:20`)
   so a keystroke never lies.

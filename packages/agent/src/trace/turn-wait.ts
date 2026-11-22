@@ -19,6 +19,13 @@ export const promptQueuedMsOf = (args: {
   return Math.max(0, args.now - saidAt)
 }
 
+export const queuedMsSince = (args: { since: string | null; now: number }): number | undefined => {
+  if (args.since === null) return undefined
+  const postedAt = Date.parse(args.since)
+  if (Number.isNaN(postedAt)) return undefined
+  return Math.max(0, args.now - postedAt)
+}
+
 export type WakeTracker = {
   wakeOf: (args: { threadId: ThreadId }) => EWake
 }
@@ -46,6 +53,8 @@ export const turnWaitOf = async (args: {
   if (args.entry !== ETurnEntry.Start) return {}
   const wake = (args.wakes ?? processWakes).wakeOf({ threadId: args.threadId })
   const events = await args.record.ownEvents({ threadId: args.threadId }).catch(() => [])
-  const queuedMs = promptQueuedMsOf({ events, now: args.now })
+  const queuedMs =
+    queuedMsSince({ since: args.record.queuedSince?.() ?? null, now: args.now }) ??
+    promptQueuedMsOf({ events, now: args.now })
   return { wake, ...(queuedMs === undefined ? {} : { queuedMs }) }
 }

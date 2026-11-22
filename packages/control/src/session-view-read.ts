@@ -19,6 +19,7 @@ import {
   type PodShapeViewOutput,
   type SessionCommandRow,
   type SessionStatusOutput,
+  type SessionSubscription,
 } from '@dltech/atlas-protocol'
 
 import type { z } from 'zod'
@@ -35,6 +36,7 @@ import type {
 import { runningCommandsIn } from './command-rows'
 import { commandsOf, queuedOf } from './queued-messages'
 import { ensureSessionViewIn, usableState } from './session-view-ops'
+import { listSubscriptionsIn } from './subscription-ops'
 
 export type ControlPullRequestState = {
   title: string
@@ -58,6 +60,7 @@ export type ControlPullRequest = {
 export type ControlSessionViewValue = Omit<SessionViewValue, 'status' | 'pullRequests'> & {
   status: SessionStatusOutput
   pullRequests: ControlPullRequest[]
+  subscriptions: SessionSubscription[]
 }
 
 export type SessionViewRead = { at: number; value: ControlSessionViewValue }
@@ -257,6 +260,7 @@ export const readSessionViewIn = async (args: {
         session: await tx.readSession({ sessionId }),
       }),
       pullRequests: await trackedPullRequestsOf({ tx, sessionId }),
+      subscriptions: await listSubscriptionsIn({ tx, sessionId }),
     },
   }
 }

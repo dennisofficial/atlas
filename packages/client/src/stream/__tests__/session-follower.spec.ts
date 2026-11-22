@@ -52,6 +52,7 @@ const sessionView = (params: { at: number; live: boolean }): StreamServerMessage
     },
     checkouts: { repos: [], primary: null },
     pullRequests: [],
+    subscriptions: [],
     pluginViews: {},
   },
 })
