@@ -1,5 +1,6 @@
 export * from './frames'
 export * from './api'
+export * from './session-subscriptions'
 export * from './files'
 export * from './live-op'
 export * from './command-row'

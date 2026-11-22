@@ -3,7 +3,6 @@
 import { Bell, GitBranch, Globe, PanelRightIcon } from 'lucide-react'
 
 import type { CrewRoster, CrewRow } from '@dltech/atlas-plugin-crew/client'
-import type { SubscriptionListRow } from '@dltech/atlas-plugin-github/client'
 import type { PreviewItem } from '@dltech/atlas-plugin-services/client'
 import type { ShellRoster } from '@dltech/atlas-plugin-shells/client'
 
@@ -27,6 +26,7 @@ import {
 import { RenameAction } from '@/features/shell/rename-action'
 
 import { HeaderCrew } from './crew-panel'
+import type { SubscriptionRow } from './data/subscription-rows'
 import { HeaderShells } from './shell-tails'
 
 const BADGE_VARIANT: Record<EHeaderState, 'destructive' | 'default' | 'secondary'> = {
@@ -162,7 +162,7 @@ export function SessionHeader({
   naming: boolean
   branch: string | undefined
   entries: readonly PullRequestEntry[]
-  subscriptions: readonly SubscriptionListRow[]
+  subscriptions: readonly SubscriptionRow[]
   shells: ShellRoster
   shellTails: Readonly<Record<string, string>>
   crew: CrewRoster

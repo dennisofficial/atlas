@@ -1,0 +1,175 @@
+import type { ESubscriptionActor, JsonValue } from '@dltech/atlas-core'
+import type { SessionSubscription } from '@dltech/atlas-protocol'
+
+import type { ControlSessionRow, ControlTx, SubscriptionDraft } from './port'
+import { repoFullNameOf } from './repo-name'
+import { subscriptionSubjectKey } from './port'
+import { recordOf, subscriptionOf, tracked, type SubscriptionLeaseInput } from './subscription-rows'
+
+export const DEFAULT_SUBSCRIPTION_TTL_MS = 24 * 60 * 60_000
+
+const WRITE_ATTEMPTS = 3
+
+export type SubscribeResult = {
+  subscription: SessionSubscription
+  existed: boolean
+  updated: boolean
+}
+
+const expiryOf = (args: { at: string; expiresAt?: string | undefined }): string => {
+  const declared = args.expiresAt === undefined ? Number.NaN : Date.parse(args.expiresAt)
+  if (!Number.isNaN(declared)) return new Date(declared).toISOString()
+  return new Date(Date.parse(args.at) + DEFAULT_SUBSCRIPTION_TTL_MS).toISOString()
+}
+
+const sameEvents = (left: readonly string[], right: readonly string[]): boolean => {
+  const a = [...new Set(left)].sort()
+  const b = [...new Set(right)].sort()
+  return a.length === b.length && a.every((event, index) => event === b[index])
+}
+
+export type SubscribeArgs = {
+  tx: ControlTx
+  session: ControlSessionRow
+  threadId: string
+  provider: string
+  target: JsonValue
+  label: string
+  events?: readonly string[] | undefined
+  expiresAt?: string | undefined
+  lease: SubscriptionLeaseInput
+  by: ESubscriptionActor
+  at: string
+}
+
+const exclusiveExpiryOf = (args: {
+  at: string
+  expiresAt: string | undefined
+  held: { expiresAt: string; deadline: string | null } | undefined
+}): { expiresAt: string; deadline: string | null } => {
+  if (args.expiresAt !== undefined) {
+    const deadline = expiryOf({ at: args.at, expiresAt: args.expiresAt })
+    return { expiresAt: deadline, deadline }
+  }
+  if (args.held !== undefined) {
+    return { expiresAt: args.held.expiresAt, deadline: args.held.deadline }
+  }
+  return { expiresAt: expiryOf({ at: args.at }), deadline: null }
+}
+
+export const subscribeIn = async (args: SubscribeArgs): Promise<SubscribeResult> => {
+  const key = {
+    userId: args.session.userId,
+    repoFullName: repoFullNameOf(args.lease.repo),
+    branch: subscriptionSubjectKey(args.lease.subject),
+    threadId: args.threadId,
+  }
+  await args.tx.lockSubscriptionKey(key)
+  for (let attempt = 0; attempt < WRITE_ATTEMPTS; attempt += 1) {
+    const held = await args.tx.findSubscription(key)
+    const events = [...new Set(args.events ?? held?.events ?? [])]
+    const { expiresAt, deadline } = exclusiveExpiryOf({
+      at: args.at,
+      expiresAt: args.expiresAt,
+      held,
+    })
+    if (held === undefined) {
+      const draft: SubscriptionDraft = {
+        sessionId: args.session.sessionId,
+        provider: args.provider,
+        kind: args.lease.subject.kind,
+        prNumber: args.lease.subject.kind === 'pull-request' ? args.lease.subject.number : null,
+        target: args.target,
+        label: args.label,
+        createdBy: args.by,
+        events,
+        expiresAt,
+        deadline,
+        createdAt: args.at,
+        ...key,
+      }
+      const written = await args.tx.insertSubscriptionRow(draft)
+      if (!written.inserted) continue
+      await tracked({ tx: args.tx, session: args.session, lease: args.lease, expiresAt })
+      await recordOf({
+        tx: args.tx,
+        session: args.session,
+        threadId: args.threadId,
+        event: {
+          type: 'subscription-created',
+          subscriptionId: written.row.subscriptionId,
+          provider: args.provider,
+          target: args.target,
+          label: args.label,
+          createdBy: args.by,
+          expiresAt,
+          ...(events.length === 0 ? {} : { events }),
+        },
+        at: args.at,
+      })
+      return { subscription: subscriptionOf(written.row), existed: false, updated: false }
+    }
+    if (
+      sameEvents(held.events, events) &&
+      held.expiresAt === expiresAt &&
+      held.deadline === deadline
+    ) {
+      return { subscription: subscriptionOf(held), existed: true, updated: false }
+    }
+    const updated = await args.tx.updateSubscriptionRow({
+      subscriptionId: held.subscriptionId,
+      provider: args.provider,
+      target: args.target,
+      label: args.label,
+      events,
+      expiresAt,
+      deadline,
+    })
+    if (!updated) continue
+    await recordOf({
+      tx: args.tx,
+      session: args.session,
+      threadId: held.threadId,
+      event: {
+        type: 'subscription-created',
+        subscriptionId: held.subscriptionId,
+        provider: args.provider,
+        target: args.target,
+        label: args.label,
+        createdBy: args.by,
+        expiresAt,
+        ...(events.length === 0 ? {} : { events }),
+      },
+      at: args.at,
+    })
+    return {
+      subscription: subscriptionOf({
+        ...held,
+        provider: args.provider,
+        target: args.target,
+        label: args.label,
+        events,
+        expiresAt,
+        deadline,
+      }),
+      existed: true,
+      updated: true,
+    }
+  }
+  throw new Error(`the subscription for ${key.repoFullName}${key.branch} was not written`)
+}
+
+export const listSubscriptionsIn = async (args: {
+  tx: ControlTx
+  sessionId: string
+  threadId?: string | undefined
+}): Promise<SessionSubscription[]> => {
+  const rows = await args.tx.readSessionSubscriptionRows(args.sessionId)
+  return rows
+    .filter((row) => args.threadId === undefined || row.threadId === args.threadId)
+    .map(subscriptionOf)
+    .sort(
+      (left, right) =>
+        left.createdAt.localeCompare(right.createdAt) || left.id.localeCompare(right.id),
+    )
+}

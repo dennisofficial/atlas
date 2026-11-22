@@ -1,4 +1,4 @@
-import type { ThreadId } from '@dltech/atlas-core'
+import type { ESubscriptionActor, ESubscriptionEnd, JsonValue, ThreadId } from '@dltech/atlas-core'
 import { EMPTY_MCP_CONTROL } from '@dltech/atlas-plugin-sdk'
 import type {
   ECloudSetting,
@@ -11,6 +11,8 @@ import type {
   PodMcpControl,
   PodRoutineInput,
   PodRoutines,
+  PodSubscriptionLease,
+  PodSubscriptions,
   WebSearchConfig,
 } from '@dltech/atlas-plugin-sdk'
 import type {
@@ -18,6 +20,7 @@ import type {
   RoutineRemoveOutput,
   RoutineRunOutput,
   RoutineUpdateInput,
+  SessionSubscription,
 } from '@dltech/atlas-protocol'
 
 type Called = { threadId: string; signal?: AbortSignal | undefined }
@@ -42,6 +45,27 @@ export type PodControlClient = {
       args: Called & MemoryAddress & { old: string; new: string; revision: number },
     ): Promise<MemorySummary>
     remove(args: Called & MemoryAddress): Promise<boolean>
+  }
+  subscriptions: {
+    list(args: Called): Promise<readonly SessionSubscription[]>
+    subscribe(
+      args: Called & {
+        provider: string
+        target: JsonValue
+        label: string
+        events?: readonly string[] | undefined
+        expiresAt?: string | undefined
+        lease: PodSubscriptionLease
+      },
+    ): Promise<{ subscription: SessionSubscription; existed: boolean; updated: boolean }>
+    unsubscribe(args: Called & { subscriptionId: string }): Promise<{ ended: boolean }>
+    end(
+      args: Called & {
+        subscriptionId: string
+        reason: ESubscriptionEnd
+        by: ESubscriptionActor
+      },
+    ): Promise<{ ended: boolean }>
   }
   routines: {
     list(args: Called): Promise<readonly Routine[]>
@@ -85,6 +109,24 @@ const routinesOf = (args: {
   },
 })
 
+const subscriptionsOf = (args: {
+  client: PodControlClient | undefined
+  threadId: ThreadId
+}): PodSubscriptions => ({
+  list: async () => {
+    if (args.client === undefined) throw unreachable()
+    return await args.client.subscriptions.list({ threadId: args.threadId })
+  },
+  subscribe: async (input) => {
+    if (args.client === undefined) throw unreachable()
+    return await args.client.subscriptions.subscribe({ threadId: args.threadId, ...input })
+  },
+  unsubscribe: async ({ subscriptionId }) => {
+    if (args.client === undefined) throw unreachable()
+    return await args.client.subscriptions.unsubscribe({ threadId: args.threadId, subscriptionId })
+  },
+})
+
 export const podControlOf = (args: {
   client: PodControlClient | undefined
   threadId: ThreadId
@@ -105,6 +147,7 @@ export const podControlOf = (args: {
   },
   mcp: args.mcp ?? EMPTY_MCP_CONTROL,
   routines: routinesOf({ client: args.client, threadId: args.threadId }),
+  subscriptions: subscriptionsOf({ client: args.client, threadId: args.threadId }),
   webSearch: {
     config: async () => {
       if (args.client === undefined) throw unreachable()

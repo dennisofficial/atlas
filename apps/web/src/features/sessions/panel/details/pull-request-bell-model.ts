@@ -1,29 +1,31 @@
-import type { SubscribedPullRequest } from '@dltech/atlas-plugin-github/client'
+import { targetOf } from '@dltech/atlas-plugin-github/core'
 
 import type { PullRequestEntry } from '@/features/threads/data/pull-request-entries'
+
+import type { SubscriptionRow } from '../../data/subscription-rows'
 
 export const PULL_REQUEST_PROVIDER = 'github.pull-request'
 
 export type BellCommand =
-  | { name: 'subscribe'; args: { provider: string; target: string } }
-  | { name: 'unsubscribe'; args: { subscriptionId: string } }
+  | { name: 'subscribe'; provider: string; target: string }
+  | { name: 'unsubscribe'; subscriptionId: string }
 
 export const subscriptionOf = (args: {
   entry: PullRequestEntry
-  subscriptions: readonly SubscribedPullRequest[]
-}): SubscribedPullRequest | undefined =>
-  args.subscriptions.find((subscription) => subscription.number === args.entry.number)
+  rows: readonly SubscriptionRow[]
+}): SubscriptionRow | undefined =>
+  args.rows.find((row) => targetOf(row.target)?.number === args.entry.number)
 
 export const bellCommandOf = (args: {
   entry: PullRequestEntry
-  subscription: SubscribedPullRequest | undefined
-}): BellCommand | null => {
+  subscription: SubscriptionRow | undefined
+}): BellCommand => {
   if (args.subscription === undefined) {
     return {
       name: 'subscribe',
-      args: { provider: PULL_REQUEST_PROVIDER, target: `${args.entry.repo}#${args.entry.number}` },
+      provider: PULL_REQUEST_PROVIDER,
+      target: `${args.entry.repo}#${args.entry.number}`,
     }
   }
-  if (args.subscription.id === undefined) return null
-  return { name: 'unsubscribe', args: { subscriptionId: args.subscription.id } }
+  return { name: 'unsubscribe', subscriptionId: args.subscription.id }
 }

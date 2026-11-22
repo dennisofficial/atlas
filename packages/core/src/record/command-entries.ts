@@ -10,21 +10,44 @@ export const commandEntriesOf = (state: PendingInputsState): readonly CommandEnt
     return name === undefined ? [] : [{ inboxId: entry.inboxId, name, postedAt: entry.at }]
   })
 
+export const COMMAND_OUTCOMES: Readonly<Record<string, readonly string[]>> = {
+  rewind: ['history-rewound'],
+  summarise: ['history-summarised'],
+}
+
+export const COMMAND_OUTCOME_EVENT_TYPES: ReadonlySet<string> = new Set(
+  Object.values(COMMAND_OUTCOMES).flat(),
+)
+
+const producesOutcome = (name: string | undefined): boolean =>
+  name !== undefined && COMMAND_OUTCOMES[name] !== undefined
+
 export type CommandOutcomeEvent = {
   type: string
   seq: number
   inboxId?: number | undefined
+  kind?: string | undefined
   consumed?: EInputConsumed | undefined
 }
 
 export const unfinishedCommandIdsOf = (
   events: readonly CommandOutcomeEvent[],
 ): readonly number[] => {
+  const names = new Map<number, string>()
+  for (const event of events) {
+    if (event.type !== 'input-posted' || event.kind === undefined) continue
+    if (event.inboxId === undefined) continue
+    const name = commandInputName(event.kind)
+    if (name !== undefined) names.set(event.inboxId, name)
+  }
   const finished = new Set<number>()
   let unnamedOutcomeSeq = 0
   for (const event of events) {
-    if (event.type === 'input-refused' && event.inboxId !== undefined) finished.add(event.inboxId)
-    if (event.type !== 'history-rewound' && event.type !== 'history-summarised') continue
+    if (event.type === 'input-refused') {
+      if (event.inboxId !== undefined) finished.add(event.inboxId)
+      continue
+    }
+    if (!COMMAND_OUTCOME_EVENT_TYPES.has(event.type)) continue
     if (event.inboxId === undefined) unnamedOutcomeSeq = event.seq
     else finished.add(event.inboxId)
   }
@@ -33,7 +56,8 @@ export const unfinishedCommandIdsOf = (
     event.inboxId !== undefined &&
     event.consumed === EInputConsumed.Command &&
     event.seq > unnamedOutcomeSeq &&
-    !finished.has(event.inboxId)
+    !finished.has(event.inboxId) &&
+    producesOutcome(names.get(event.inboxId))
       ? [event.inboxId]
       : [],
   )

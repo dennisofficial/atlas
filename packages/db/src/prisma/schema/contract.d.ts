@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'002ccde9a04c81afe52c0bdcff59c1f67b359a4488f643ef5bd5b4c3e301e321'>;
+  StorageHashBase<'41a31a761fa6cd6592e5d4a264897449d932fa00b5c4e72926904248ccde9acb'>;
 export type ExecutionHash =
   ExecutionHashBase<'4d369095acf9878e93e4d1ed1f070ee06bf20ff4203ec07d06fefbc68b869a45'>;
 export type ProfileHash =
@@ -662,16 +662,22 @@ export namespace Models {
   export type public_GithubSubscription = {
     branch: FieldOutputTypes['public']['GithubSubscription']['branch'];
     createdAt: FieldOutputTypes['public']['GithubSubscription']['createdAt'];
+    createdBy: FieldOutputTypes['public']['GithubSubscription']['createdBy'];
+    deadline: FieldOutputTypes['public']['GithubSubscription']['deadline'];
     deliveredRunId: FieldOutputTypes['public']['GithubSubscription']['deliveredRunId'];
     events: FieldOutputTypes['public']['GithubSubscription']['events'];
     expiresAt: FieldOutputTypes['public']['GithubSubscription']['expiresAt'];
     id: FieldOutputTypes['public']['GithubSubscription']['id'];
     kind: FieldOutputTypes['public']['GithubSubscription']['kind'];
+    label: FieldOutputTypes['public']['GithubSubscription']['label'];
     lastRunCreatedAt: FieldOutputTypes['public']['GithubSubscription']['lastRunCreatedAt'];
     liveUntil: FieldOutputTypes['public']['GithubSubscription']['liveUntil'];
     pollBacked: FieldOutputTypes['public']['GithubSubscription']['pollBacked'];
     prNumber: FieldOutputTypes['public']['GithubSubscription']['prNumber'];
+    provider: FieldOutputTypes['public']['GithubSubscription']['provider'];
     repoFullName: FieldOutputTypes['public']['GithubSubscription']['repoFullName'];
+    sessionId: FieldOutputTypes['public']['GithubSubscription']['sessionId'];
+    target: FieldOutputTypes['public']['GithubSubscription']['target'];
     threadId: FieldOutputTypes['public']['GithubSubscription']['threadId'];
     userId: FieldOutputTypes['public']['GithubSubscription']['userId'];
     user: public_User;
@@ -3980,6 +3986,23 @@ type ContractBase = Omit<
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
+                readonly createdBy: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/text@1', ''>;
+                  };
+                  readonly many: false;
+                };
+                readonly deadline: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
                 readonly deliveredRunId: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
@@ -4023,6 +4046,16 @@ type ContractBase = Omit<
                   };
                   readonly many: false;
                 };
+                readonly label: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/text@1', ''>;
+                  };
+                  readonly many: false;
+                };
                 readonly lastRunCreatedAt: {
                   readonly dataType: 'pg/timestamptz';
                   readonly codecId: 'pg/timestamptz-date@1';
@@ -4055,10 +4088,36 @@ type ContractBase = Omit<
                   readonly nullable: true;
                   readonly many: false;
                 };
+                readonly provider: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/text@1', ''>;
+                  };
+                  readonly many: false;
+                };
                 readonly repoFullName: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly sessionId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/text@1', ''>;
+                  };
+                  readonly many: false;
+                };
+                readonly target: {
+                  readonly dataType: 'pg/jsonb';
+                  readonly codecId: 'pg/jsonb@1';
+                  readonly nullable: true;
                   readonly many: false;
                 };
                 readonly threadId: {
@@ -10918,6 +10977,18 @@ type ContractBase = Omit<
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
+              readonly createdBy: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly deadline: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
               readonly deliveredRunId: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -10940,6 +11011,10 @@ type ContractBase = Omit<
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
               readonly kind: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly label: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
@@ -10967,9 +11042,21 @@ type ContractBase = Omit<
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
               };
+              readonly provider: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
               readonly repoFullName: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly sessionId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly target: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/jsonb@1' };
               };
               readonly threadId: {
                 readonly nullable: false;
@@ -10997,16 +11084,22 @@ type ContractBase = Omit<
               readonly fields: {
                 readonly branch: { readonly column: 'branch' };
                 readonly createdAt: { readonly column: 'createdAt' };
+                readonly createdBy: { readonly column: 'createdBy' };
+                readonly deadline: { readonly column: 'deadline' };
                 readonly deliveredRunId: { readonly column: 'deliveredRunId' };
                 readonly events: { readonly column: 'events' };
                 readonly expiresAt: { readonly column: 'expiresAt' };
                 readonly id: { readonly column: 'id' };
                 readonly kind: { readonly column: 'kind' };
+                readonly label: { readonly column: 'label' };
                 readonly lastRunCreatedAt: { readonly column: 'lastRunCreatedAt' };
                 readonly liveUntil: { readonly column: 'liveUntil' };
                 readonly pollBacked: { readonly column: 'pollBacked' };
                 readonly prNumber: { readonly column: 'prNumber' };
+                readonly provider: { readonly column: 'provider' };
                 readonly repoFullName: { readonly column: 'repoFullName' };
+                readonly sessionId: { readonly column: 'sessionId' };
+                readonly target: { readonly column: 'target' };
                 readonly threadId: { readonly column: 'threadId' };
                 readonly userId: { readonly column: 'userId' };
               };

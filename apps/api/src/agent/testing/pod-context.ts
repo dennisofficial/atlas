@@ -5,6 +5,7 @@ import {
   type PluginPodContext,
   EMPTY_MCP_CONTROL,
   EMPTY_ROUTINES,
+  EMPTY_SUBSCRIPTIONS,
   EMPTY_POD_RESOURCES,
   UNVERSIONED_SETTINGS,
 } from '@dltech/atlas-plugin-sdk'
@@ -31,6 +32,7 @@ export const podContextOf = (sessionId: string): PluginPodContext => ({
     mcp: EMPTY_MCP_CONTROL,
     webSearch: { config: async () => ({ backend: undefined, key: undefined }) },
     routines: EMPTY_ROUTINES,
+    subscriptions: EMPTY_SUBSCRIPTIONS,
   },
   crew: EMPTY_CREW,
   sessions: EMPTY_SESSIONS,

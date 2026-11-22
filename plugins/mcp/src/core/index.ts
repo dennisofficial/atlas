@@ -1,9 +1,7 @@
-import { mcpCommand } from './commands'
 import { mcpServerChangedSchema, mcpServerRemovedSchema } from './roster-events'
 import { mcpRosterView } from './roster'
 import { mcpSignInResolvedSchema, mcpSignInStartedSchema } from './sign-in'
 
-export * from './commands'
 export * from './roster'
 export * from './roster-events'
 export * from './row'
@@ -19,5 +17,5 @@ export const mcpCoreSlots = {
     mcpSignInResolvedSchema,
   ],
   views: [mcpRosterView],
-  commands: [mcpCommand],
+  commands: [],
 } as const

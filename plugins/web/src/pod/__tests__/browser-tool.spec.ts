@@ -5,6 +5,7 @@ import {
   EMPTY_MCP_CONTROL,
   EMPTY_POD_RESOURCES,
   EMPTY_ROUTINES,
+  EMPTY_SUBSCRIPTIONS,
   type PluginPodContext,
   UNVERSIONED_SETTINGS,
 } from '@dltech/atlas-plugin-sdk'
@@ -43,6 +44,7 @@ const ctxOf = (args: {
       mcp: EMPTY_MCP_CONTROL,
       webSearch: { config: async () => ({ backend: 'bing', key: undefined }) },
       routines: EMPTY_ROUTINES,
+      subscriptions: EMPTY_SUBSCRIPTIONS,
     },
     resources: EMPTY_POD_RESOURCES,
     crew: {} as never,

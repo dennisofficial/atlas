@@ -49,6 +49,10 @@ import {
   sessionStatusOutputSchema,
   sessionStopInputSchema,
   sessionStopOutputSchema,
+  sessionSubscribeInputSchema,
+  sessionSubscribeOutputSchema,
+  sessionUnsubscribeInputSchema,
+  sessionUnsubscribeOutputSchema,
   sessionWithdrawInputSchema,
   sessionWithdrawOutputSchema,
   type SessionArchiveInput,
@@ -85,6 +89,10 @@ import {
   type SessionStatusOutput,
   type SessionStopInput,
   type SessionStopOutput,
+  type SessionSubscribeInput,
+  type SessionSubscribeOutput,
+  type SessionUnsubscribeInput,
+  type SessionUnsubscribeOutput,
   type SessionWithdrawInput,
   type SessionWithdrawOutput,
 } from '@dltech/atlas-protocol'
@@ -203,6 +211,22 @@ export class SessionsRouter {
     @Ctx() ctx: SessionTrpcCtx,
   ): Promise<SessionCommandOutput> {
     return this.sessions.command({ userId: ctx.auth.userId, ...input })
+  }
+
+  @Mutation({ input: sessionSubscribeInputSchema, output: sessionSubscribeOutputSchema })
+  subscribe(
+    @Input() input: SessionSubscribeInput,
+    @Ctx() ctx: SessionTrpcCtx,
+  ): Promise<SessionSubscribeOutput> {
+    return this.sessions.subscribe({ userId: ctx.auth.userId, ...input })
+  }
+
+  @Mutation({ input: sessionUnsubscribeInputSchema, output: sessionUnsubscribeOutputSchema })
+  unsubscribe(
+    @Input() input: SessionUnsubscribeInput,
+    @Ctx() ctx: SessionTrpcCtx,
+  ): Promise<SessionUnsubscribeOutput> {
+    return this.sessions.unsubscribe({ userId: ctx.auth.userId, ...input })
   }
 
   @Query({ input: sessionChangesInputSchema, output: sessionChangesOutputSchema })

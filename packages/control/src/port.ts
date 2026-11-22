@@ -1,4 +1,4 @@
-import type { Hash, InboxEntry, Lease, ModelChoice, ThreadId } from '@dltech/atlas-core'
+import type { Hash, InboxEntry, JsonValue, Lease, ModelChoice, ThreadId } from '@dltech/atlas-core'
 import type { SessionModelAsk } from '@dltech/atlas-models'
 import type { EChangeFileStatus, SessionChange } from '@dltech/atlas-protocol'
 
@@ -153,6 +153,31 @@ export type SubscriptionLease = SubscriptionLeaseKey & {
 
 export const subscriptionSubjectKey = (subject: SubscriptionSubject): string =>
   subject.kind === 'pull-request' ? `#${subject.number}` : subject.selector
+
+export type SubscriptionKey = {
+  userId: string
+  repoFullName: string
+  branch: string
+  threadId: string
+}
+
+export type SubscriptionDraft = SubscriptionKey & {
+  sessionId: string
+  provider: string
+  kind: string
+  prNumber: number | null
+  target: JsonValue | null
+  label: string
+  createdBy: string
+  events: readonly string[]
+  expiresAt: string
+  deadline: string | null
+  createdAt: string
+}
+
+export type SubscriptionRow = SubscriptionDraft & { subscriptionId: string }
+
+export type WrittenSubscriptionRow = { row: SubscriptionRow; inserted: boolean }
 
 export type ThreadRow = {
   threadId: string
@@ -405,6 +430,25 @@ export interface ControlTx {
   readTrackedPullRequests(sessionIds: readonly string[]): Promise<TrackedPullRequestRow[]>
   upsertSubscriptionLease(params: SubscriptionLease & { expiresAt: string }): Promise<void>
   deleteSubscriptionLease(params: SubscriptionLeaseKey): Promise<boolean>
+  lockSubscriptionKey(key: SubscriptionKey): Promise<void>
+  findSubscription(key: SubscriptionKey): Promise<SubscriptionRow | undefined>
+  readSubscription(subscriptionId: string): Promise<SubscriptionRow | undefined>
+  readSessionSubscriptionRows(sessionId: string): Promise<SubscriptionRow[]>
+  insertSubscriptionRow(row: SubscriptionDraft): Promise<WrittenSubscriptionRow>
+  updateSubscriptionRow(params: {
+    subscriptionId: string
+    provider: string
+    target: JsonValue
+    label: string
+    events: readonly string[]
+    expiresAt: string
+    deadline: string | null
+  }): Promise<boolean>
+  deleteSubscriptionRow(subscriptionId: string): Promise<boolean>
+  deleteSubscriptionRowIfEndedBefore(params: {
+    subscriptionId: string
+    at: string
+  }): Promise<boolean>
   upsertTrackingTarget(params: TrackingTarget): Promise<void>
   hostPresent(hostId: number): Promise<boolean>
   hostsPresent(hostIds: readonly number[]): Promise<ReadonlySet<number>>

@@ -29,6 +29,7 @@ const sessionViewFixture = {
   },
   checkouts: { repos: [], primary: null },
   pullRequests: [],
+  subscriptions: [],
   pluginViews: {},
 } satisfies SessionViewOutput
 
@@ -157,7 +158,6 @@ describe('sessionViewModelOf', () => {
     expect(sessionViewModelOf(undefined)).toEqual({
       branch: undefined,
       entries: [],
-      subscriptions: [],
       subscriptionRows: [],
       shells: { running: 0, awaitingInput: false, labels: [], rows: [] },
       crew: { running: 0, total: 0 },
@@ -195,57 +195,23 @@ describe('sessionViewModelOf', () => {
     expect(sessionViewModelOf(viewOf({})).branch).toBeUndefined()
   })
 
-  it('lists the active github subscriptions from the plugin view', () => {
-    const row = {
+  it('builds the subscription rows from the served subscriptions', () => {
+    const subscription = {
       id: 's1',
-      provider: 'github.pull-request',
-      target: { repo: 'github.com/owner/atlas', number: 31 },
-      label: 'owner/atlas#31',
       threadId: 't1',
-      createdBy: 'agent',
-      status: 'active',
-      createdAt: '2026-11-08T10:00:00.000Z',
-      held: 0,
-      presentation: {
-        icon: 'git-pull-request',
-        tone: 'open',
-        title: 'owner/atlas#31',
-        meta: ['Pull request', 'all events'],
-      },
-    }
-    const model = sessionViewModelOf(viewOf({ pluginViews: { subscriptions: [row] } }))
-    expect(model.subscriptions).toEqual([
-      {
-        id: 's1',
-        number: 31,
-        label: 'owner/atlas#31',
-        url: 'https://github.com/owner/atlas/pull/31',
-      },
-    ])
-  })
-
-  it('titles a subscription row with the pull request title and state it already knows', () => {
-    const row = {
-      id: 's1',
       provider: 'github.pull-request',
       target: { repo: 'github.com/owner/atlas', number: 7 },
       label: 'owner/atlas#7',
-      threadId: 't1',
+      events: [],
       createdBy: 'agent',
-      status: 'active',
       createdAt: '2026-11-08T10:00:00.000Z',
-      held: 0,
-      presentation: {
-        icon: 'git-pull-request',
-        tone: 'open',
-        title: 'owner/atlas#7',
-        meta: ['Pull request', 'all events'],
-      },
+      expiresAt: null,
     }
     const model = sessionViewModelOf(
-      viewOf({ pullRequests: [linked], pluginViews: { subscriptions: [row] } }),
+      viewOf({ pullRequests: [linked], subscriptions: [subscription] }),
     )
-    expect(model.subscriptionRows.map((entry) => entry.presentation.title)).toEqual(['#7 Fix it'])
+    expect(model.subscriptionRows.map((row) => row.presentation.title)).toEqual(['#7 Fix it'])
+    expect(model.subscriptionRows.map((row) => row.id)).toEqual(['s1'])
   })
 
   it('rosters the running shells from the plugin view', () => {

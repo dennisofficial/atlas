@@ -21,6 +21,7 @@ export type FrameFacts = {
   lease: SessionStatusOutput['lease']
   spendTally: SpendTally
   pullRequests: SessionViewOutput['pullRequests']
+  subscriptions: SessionViewOutput['subscriptions']
   pod: SessionStatusOutput['pod']
   sandbox: SessionStatusOutput['sandbox']
   sandboxProvider: SessionStatusOutput['sandboxProvider']
@@ -40,6 +41,7 @@ export const EMPTY_FRAME_FACTS: FrameFacts = {
   lease: { epoch: 0, holderHostId: null, live: false },
   spendTally: EMPTY_SPEND_TALLY,
   pullRequests: [],
+  subscriptions: [],
   pod: undefined,
   sandbox: undefined,
   sandboxProvider: undefined,
@@ -50,6 +52,7 @@ export const frameFactsOf = (view: SessionViewOutput): FrameFacts => ({
   lease: view.status.lease,
   spendTally: view.spend.tally,
   pullRequests: view.pullRequests,
+  subscriptions: view.subscriptions,
   pod: view.status.pod,
   sandbox: view.status.sandbox,
   sandboxProvider: view.status.sandboxProvider,
@@ -119,6 +122,7 @@ export const deriveViewOf = (args: {
   compute: { costUsd: null, running: false, tick: null },
   checkouts: checkoutsOutOf(args.window),
   pullRequests: args.frame.pullRequests,
+  subscriptions: args.frame.subscriptions,
   pluginViews: args.window.view.pluginViews,
 })
 

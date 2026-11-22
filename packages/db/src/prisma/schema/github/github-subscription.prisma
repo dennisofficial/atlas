@@ -11,7 +11,13 @@ model GithubSubscription {
   pollBacked     Boolean              @default(false)
   expiresAt      TimestamptzJsDate(3)
   liveUntil      TimestamptzJsDate(3) @default(now())
+  deadline       TimestamptzJsDate(3)?
   threadId       String               @default("")
+  provider       String               @default("")
+  target         Jsonb?
+  label          String               @default("")
+  createdBy      String               @default("")
+  sessionId      String               @default("")
   events         String[]             @default([])
   createdAt      TimestamptzJsDate(3) @default(now())
   user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "GithubSubscription_userId_repoFullName_branch_threadId_key")

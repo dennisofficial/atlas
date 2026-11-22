@@ -1,6 +1,7 @@
 import { ESubscriptionActor, ESubscriptionTone } from '@dltech/atlas-core'
-import type { SubscriptionListRow } from '@dltech/atlas-plugin-github/client'
 import { iconNames, type IconName } from 'lucide-react/dynamic'
+
+import type { SubscriptionRow } from '../../data/subscription-rows'
 
 export const SUBSCRIPTION_TONE_CLASS: Record<ESubscriptionTone, string> = {
   [ESubscriptionTone.Neutral]: 'text-muted-foreground',
@@ -42,12 +43,11 @@ export function expiryTextOf(args: { expiresAt: string | undefined; now: number 
   return `Expires in ${Math.round(hours / DAY_HOURS)}d`
 }
 
-export const subscriptionMetaOf = (args: { row: SubscriptionListRow; now: number }): string => {
+export const subscriptionMetaOf = (args: { row: SubscriptionRow; now: number }): string => {
   const { row, now } = args
   const parts = [
     row.presentation.meta.join(' · '),
     actorLabelOf(row.createdBy),
-    row.held > 0 ? `${row.held} held` : null,
     expiryTextOf({ expiresAt: row.expiresAt, now }),
   ]
   return parts.filter((part) => part !== null && part.length > 0).join(' · ')
@@ -62,10 +62,3 @@ export const subscriptionTitleOf = (title: string): SubscriptionTitle => {
   if (match?.[1] === undefined) return { number: undefined, text: title }
   return { number: match[1], text: match[2] ?? '' }
 }
-
-export type SubscriptionCommand = { name: 'unsubscribe'; args: { subscriptionId: string } }
-
-export const removeCommandOf = (row: SubscriptionListRow): SubscriptionCommand => ({
-  name: 'unsubscribe',
-  args: { subscriptionId: row.id },
-})

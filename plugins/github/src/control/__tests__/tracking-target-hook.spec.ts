@@ -36,16 +36,6 @@ const observed = (overrides: Record<string, unknown> = {}): V2Body =>
     ...overrides,
   }) as never
 
-const subscribed = (args: { id: string; number: number }): V2Body =>
-  ({
-    type: 'subscription-created',
-    subscriptionId: args.id,
-    provider: 'github.pull-request',
-    target: { repo: 'github.com/Dltech/Atlas', number: args.number },
-    label: `dltech/atlas#${args.number}`,
-    createdBy: 'agent',
-  }) as never
-
 describe('github tracking target hook on append (postgres)', () => {
   const testDb = useTestDatabase()
 
@@ -130,20 +120,5 @@ describe('github tracking target hook on append (postgres)', () => {
         new Date(Date.parse(later) + TRACKING_TARGET_TTL_MS).toISOString(),
       )
     }
-  })
-
-  it('records a pull-request target for a subscribed pull request', async () => {
-    const { append, targets } = await setup()
-
-    await append([subscribed({ id: 'a', number: 7 })])
-
-    expect(
-      (await targets()).map((row) => ({
-        kind: row.kind,
-        repo: row.repoFullName,
-        branch: row.branch,
-        prNumber: row.prNumber,
-      })),
-    ).toEqual([{ kind: 'pull-request', repo: 'dltech/atlas', branch: '', prNumber: 7 }])
   })
 })

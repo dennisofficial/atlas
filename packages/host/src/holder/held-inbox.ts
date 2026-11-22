@@ -1,6 +1,5 @@
 import {
   actionableInboxIds,
-  ECommandTiming,
   EInputConsumed,
   INBOX_KIND_STOP,
   pendingInputsOf,
@@ -108,63 +107,7 @@ export const stopSettledPromptOf = (events: readonly V2Event[]): boolean => {
   return lastPrompt >= 0 && lastStop > lastPrompt
 }
 
-const handledKind = (args: { deps: HeldSessionDeps; kind: string }): boolean =>
-  !isCommandKind(args.kind) ||
-  (args.deps.commands?.byInboxKind.has(args.kind) === true &&
-    args.deps.commandHandlers?.has(args.kind) === true)
-
 export const understandsCommand = (deps: HeldSessionDeps, entry: InboxEntry): boolean =>
-  handledKind({ deps, kind: entry.kind })
-
-const isImmediateKind = (args: { deps: HeldSessionDeps; kind: string }): boolean =>
-  isCommandKind(args.kind) &&
-  handledKind(args) &&
-  args.deps.commands?.byInboxKind.get(args.kind)?.spec.timing === ECommandTiming.Immediate
-
-export const immediateCommandsOf = (args: {
-  deps: HeldSessionDeps
-  entries: readonly InboxEntry[]
-}): InboxEntry[] =>
-  args.entries.filter((entry) => isImmediateKind({ deps: args.deps, kind: entry.kind }))
-
-export const loggedImmediateCommandIdsOf = (args: {
-  deps: HeldSessionDeps
-  events: readonly V2Event[]
-}): number[] =>
-  pendingInputsOf(args.events)
-    .pending.filter((input) => isImmediateKind({ deps: args.deps, kind: input.kind }))
-    .map((input) => input.inboxId)
-
-const readImmediateEntry = async (args: {
-  deps: HeldSessionDeps
-  inboxId: number
-}): Promise<InboxEntry | undefined> => {
-  const entry = await args.deps.plane.readInboxEntry({
-    sessionId: args.deps.sessionId,
-    inboxId: args.inboxId,
-  })
-  return entry !== undefined && isImmediateKind({ deps: args.deps, kind: entry.kind })
-    ? entry
-    : undefined
-}
-
-export const immediateCommandEntries = async (args: {
-  deps: HeldSessionDeps
-  entries: readonly InboxEntry[]
-  events: readonly V2Event[]
-  failure: PrepareFailure | undefined
-}): Promise<InboxEntry[]> => {
-  const staged = immediateCommandsOf({
-    deps: args.deps,
-    entries: actionableEntries({ entries: args.entries, failure: args.failure }),
-  })
-  const known = new Set(staged.map((entry) => entry.inboxId))
-  const logged = waitingInputIdsOf({
-    ids: loggedImmediateCommandIdsOf({ deps: args.deps, events: args.events }),
-    failure: args.failure,
-  }).filter((inboxId) => !known.has(inboxId))
-  const recovered = await Promise.all(
-    logged.map((inboxId) => readImmediateEntry({ deps: args.deps, inboxId })),
-  )
-  return [...staged, ...recovered.flatMap((entry) => (entry === undefined ? [] : [entry]))]
-}
+  !isCommandKind(entry.kind) ||
+  (deps.commands?.byInboxKind.has(entry.kind) === true &&
+    deps.commandHandlers?.has(entry.kind) === true)

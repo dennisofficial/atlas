@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import { BadRequestException, NotFoundException } from '@nestjs/common'
-import { chainEvents, toRunId, toThreadId } from '@dltech/atlas-core'
+import { ESubscriptionActor, chainEvents, toRunId, toThreadId } from '@dltech/atlas-core'
 import { ECredentialSource, ESandboxProvider, EWithdrawRefusal } from '@dltech/atlas-protocol'
 import {
   appendBodies,
@@ -223,6 +223,25 @@ describe('SessionsService', () => {
       await service.archive({ userId: 'user-a', sessionId: created.sessionId, archived: false }),
     ).toEqual({ archivedAt: null })
     expect((await service.list({ userId: 'user-a' })).sessions[0]?.archivedAt).toBeNull()
+  })
+
+  it('ends the subscriptions of an archived session', async () => {
+    const { plane, service } = setup()
+    const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
+    await plane.subscribe({
+      sessionId: created.sessionId,
+      threadId: created.mainThreadId,
+      provider: 'github.pull-request',
+      target: { repo: 'github.com/compai/app', number: 7 },
+      label: 'compai/app#7',
+      events: [],
+      lease: { repo: 'compai/app', subject: { kind: 'pull-request', number: 7 } },
+      by: ESubscriptionActor.Agent,
+    })
+
+    await service.archive({ userId: 'user-a', sessionId: created.sessionId, archived: true })
+
+    expect(await plane.listSubscriptions({ sessionId: created.sessionId })).toEqual([])
   })
 
   it('refuses to archive a session the user does not own or that does not exist', async () => {

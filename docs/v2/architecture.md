@@ -185,7 +185,7 @@ wake, not a stream the pod holds open:
 | Child / teammate threads                 | API create/open + pod spawn + registerChild                           | holder mints and logs `agent-spawned`; CP materializes rows from the log | CP rows are a view                                                       |
 | Title, model                             | API rename/chooseModel + serve requests + forwarding + home copy      | inbox command → holder logs `title-set` / `model-set`                    | view                                                                     |
 | PR links, branch, worktree               | events + session meta + client heuristics                             | pod-logged changes to the git ref set (`refs/heads`, worktrees; 0020)    | view: local branches except the default, with PR state joined by github  |
-| Subscriptions                            | runtime registry + event projection + GithubSubscription rows         | log events (intent)                                                      | CP derives transport leases from the view                                |
+| Subscriptions                            | runtime registry + event projection + GithubSubscription rows         | CP, in the request transaction                                           | clients (announced view); the log gets a `record`                        |
 | PR state / checks                        | GitHub → CP cache, pod cache, client merge                            | CP observation store                                                     | joined into views; pod reads it                                          |
 | Activity / status                        | pod → Thread.working etc., checkpoint, boot steps                     | fold(log) + lease liveness                                               | view                                                                     |
 | Runtime checkpoint                       | pod file + API mirror                                                 | mostly gone; lease + log replace it                                      | none                                                                     |
@@ -194,6 +194,10 @@ wake, not a stream the pod holds open:
 | Read cursor                              | API, Mac, TUI separately                                              | CP                                                                       | none                                                                     |
 | Drafts, uploads                          | CP (last write wins)                                                  | CP                                                                       | none                                                                     |
 | Spend ledger                             | pod + Turn upsert                                                     | holder logs `turn-ended{usage}`                                          | CP view                                                                  |
+
+The `GithubSubscription` row is the truth for a subscription. The control plane writes it in the
+request transaction. The log holds only an informational `record` of the change. A subscription
+does not roll back on rewind, and a fork does not copy it.
 
 ## 7. Package shape
 
@@ -555,9 +559,10 @@ model change, subscribe, a peer's `message_session`, PR/CI deliveries — is ref
 entries, no live holder, and not archived". Archiving increments the epoch, so a worker mid-turn
 stops at its next append and the turn ends with an `archived` outcome.
 
-**A3. Archive ends what the session owns, as events.** Subscriptions end with reason `archived`,
-owed notices are dropped, shells and services stop. Peers placed on the same pod are unaffected;
-the pod is released only when no placed session holds it.
+**A3. Archive ends what the session owns.** The control plane ends every subscription row of the
+session with reason `archived` and posts an informational `record`. Owed notices are dropped;
+shells and services stop. Peers placed on the same pod are unaffected; the pod is released only
+when no placed session holds it.
 
 **A4. Archive stops the sandbox; retention deletes it.** The sandbox stops at archive. Seven days
 after archive the sandbox and its snapshots are deleted; the record, artifacts and views stay.

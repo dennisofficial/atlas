@@ -29,7 +29,6 @@ import { pluginCallOf } from './plugin-call'
 import { podControlOf } from './pod-control'
 import { pluginResourcesHook, reloadResource } from './plugin-resources'
 import { podSessionsOf } from './plugin-sessions'
-import { subscriptionEndHooksOf } from './subscription-end-hooks'
 import { modelFellBackDraft } from './crew/model-fell-back'
 import type { RoleModelChoice, SessionRuntime } from './ports'
 import type { SessionRecord } from './record/record-adapter'
@@ -217,7 +216,6 @@ export const pluginHooksOf = (args: {
   runtime: SessionRuntime
   ctx: PluginPodContext
   declarations: () => readonly ToolDeclaration[]
-  now: () => Date
   sharedEvents?: (() => readonly V2Event[]) | undefined
 }): HookChain => {
   const { plugins } = args.runtime
@@ -236,15 +234,7 @@ export const pluginHooksOf = (args: {
             shared: args.sharedEvents,
           }),
         ]
-  const merged = mergeHooks([
-    host,
-    plugin,
-    subscriptionEndHooksOf({
-      rules: plugins.pod.subscriptionEnds,
-      events: args.ctx.events,
-      now: args.now,
-    }),
-  ])
+  const merged = mergeHooks([host, plugin])
   return new HookChain({
     ...merged,
     beforeTurn: [...resources, ...(merged.beforeTurn ?? [])],
@@ -275,7 +265,6 @@ export const pluginPodOf = (args: {
     runtime: args.runtime,
     ctx,
     declarations: () => tools.declarations(),
-    now: () => new Date(args.deps.timers.now()),
   })
   ctx.onDaemonEvent((frame) => plugins.pod.onDaemonEvent(frame))
   return { tools, hooks }
