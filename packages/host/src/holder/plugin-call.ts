@@ -3,8 +3,7 @@ import { CallInterruptedError } from '@dltech/atlas-core'
 import { ECallFailure, ECallStatus, type CallOp, type CallResult } from '@dltech/atlas-protocol'
 
 import { newKey } from '../calls/remote-calls'
-import type { WorkspaceGate } from '../calls/workspace-gate'
-import { interruptedMessage } from '../calls/errors'
+import { POD_WAIT_INTERRUPTED, type WorkspaceGate } from '../calls/workspace-gate'
 
 export const pluginCallOf = (args: {
   invoke: (call: {
@@ -28,7 +27,7 @@ export const pluginCallOf = (args: {
     const outcome = await args.gate.wait(signal)
     if (outcome.state === 'prepared') return null
     if (outcome.state === 'aborted') {
-      throw new CallInterruptedError(interruptedMessage(op.op))
+      throw new CallInterruptedError(POD_WAIT_INTERRUPTED)
     }
     return {
       status: ECallStatus.Failed,
