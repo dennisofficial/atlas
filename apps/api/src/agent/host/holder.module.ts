@@ -10,7 +10,7 @@ import type {
 } from '@dltech/atlas-host'
 import type { LogPort, TracePort } from '@dltech/atlas-observability'
 
-import type { JobDispatcher } from '../../_core/ports/job-dispatcher'
+import { JobDispatcher } from '../../_core/ports/job-dispatcher'
 
 import { TRACE_FOR } from '../analytics/tokens'
 import { createPodMetricsBus, type PodMetricsBus } from '../bus/pod-metrics-bus'
