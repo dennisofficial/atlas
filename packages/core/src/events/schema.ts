@@ -32,7 +32,8 @@ import { agentEventSchemas } from './agent-schema'
 import { policyEventSchemas } from './policy-schema'
 import { prEventSchemas } from './pr-schema'
 import { runEventSchemas } from './run-schema'
-import { shellEventSchemas } from './shell-schema'
+import { oomMemorySchema, shellEventSchemas } from './shell-schema'
+import { EOomScope } from '../pod/pod-oom'
 import { runFailureSchema } from './run-failure'
 import { threadIdSchema, callIdSchema, eventIdSchema, runIdSchema } from './ids'
 import {
@@ -155,6 +156,14 @@ const coreEventBodySchema = z.discriminatedUnion('type', [
     type: z.literal('nudge'),
     text: z.string(),
     lifetimeSteps: z.number().int().nonnegative(),
+  }),
+  z.object({
+    type: z.literal('pod-ran-out-of-memory'),
+    incidentId: z.string().min(1),
+    scope: z.enum(EOomScope),
+    command: z.string().min(1).optional(),
+    processes: z.number().int().positive(),
+    memory: oomMemorySchema,
   }),
   z.object({
     type: z.literal('sandbox-setup-reported'),

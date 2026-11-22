@@ -4,7 +4,7 @@ import {
   type TranscriptEntry,
 } from '@dltech/atlas-client/transcript'
 
-import { ENoticeTone, ETranscriptKind } from './transcript-kind'
+import { ENoticeAction, ENoticeTone, ETranscriptKind } from './transcript-kind'
 
 export type NoticeContext = {
   id: string
@@ -22,6 +22,7 @@ export type NoticeItem = {
   emptyNote?: string
   tone: ENoticeTone
   contexts?: NoticeContext[]
+  action?: ENoticeAction | undefined
   at?: string | undefined
 }
 
@@ -83,6 +84,13 @@ function fieldsOf(entry: TranscriptEntry): NoticeFields | null {
         title: `${NOTICED_PREFIX}${entry.text}`,
         body: entry.content,
         tone: ENoticeTone.Quiet,
+      }
+    case EEntryKind.PodOom:
+      return {
+        title: entry.text,
+        body: '',
+        tone: ENoticeTone.Failed,
+        action: ENoticeAction.ChangePodSize,
       }
     case EEntryKind.ModelFellBack:
       return { title: entry.text, body: entry.content, tone: ENoticeTone.Attention }

@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { oomMemorySchema } from './oom'
 import { okResultSchema } from './result'
 
 const envSchema = z.record(z.string(), z.string())
@@ -27,6 +28,7 @@ export const execResultSchema = z
     signal: z.string().min(1).nullable(),
     outcome: z.enum(EExecOutcome),
     outputBytes: z.number().int().min(0),
+    memory: oomMemorySchema.optional(),
   })
   .strict()
 

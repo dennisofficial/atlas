@@ -266,6 +266,39 @@ describe('ThreadTranscript harness notices', () => {
     expect(text).toContain('Atlas noticed — nudge')
     expect(text).toContain('It merged')
   })
+
+  it('offers the change-pod-size action on a pod OOM notice', async () => {
+    let opens = 0
+    await mountWith({
+      rewind: null,
+      onOpenPodSize: () => {
+        opens += 1
+      },
+      rows: rowsOfWire([
+        wire(1, { type: 'user-said', text: 'typecheck the workspace' }),
+        wire(2, {
+          type: 'pod-ran-out-of-memory',
+          incidentId: 'incident-1',
+          scope: 'command',
+          command: 'bunx turbo run typecheck',
+          processes: 3,
+          memory: { commandLimitBytes: Math.round(2.3 * 1024 ** 3), podBytes: 4 * 1024 ** 3 },
+        }),
+      ]),
+    })
+
+    expect(document.body.textContent ?? '').toContain(
+      "`bunx turbo run typecheck` ran out of memory (commands may use 2.3 GB of the pod's 4 GB)",
+    )
+    const button = [...document.body.querySelectorAll('button')].find(
+      (candidate) => candidate.textContent === 'Change pod size',
+    )
+    expect(button).toBeDefined()
+    await act(async () =>
+      button?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })),
+    )
+    expect(opens).toBe(1)
+  })
 })
 
 describe('ThreadTranscript staged rows', () => {

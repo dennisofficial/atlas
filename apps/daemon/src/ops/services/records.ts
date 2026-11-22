@@ -1,7 +1,8 @@
-import { EServiceRunStatus, type ServiceInfo } from '@dltech/atlas-protocol'
+import { EServiceRunStatus, type DaemonEvent, type ServiceInfo } from '@dltech/atlas-protocol'
 
 import { ManagedProcess, type ManagedExit } from '../../process/managed'
 import type { DaemonOpsDeps } from '../deps'
+import { oomRecorderOf } from '../oom/recorder'
 import { appendLog, closeLog, openLog } from './log-file'
 
 export type RunningService = {
@@ -19,6 +20,7 @@ export const isRunning = (record: RunningService | EndedService): record is Runn
 export type ServicesTable = {
   records: Map<string, RunningService | EndedService>
   deps: DaemonOpsDeps
+  publish: (event: DaemonEvent) => void
   onExit(args: { info: ServiceInfo }): void
 }
 
@@ -76,8 +78,21 @@ const settleExit = (args: {
   const current = args.table.records.get(args.record.info.serviceId)
   if (current !== args.record) return
   const info = args.record.info
-  if (info.status === EServiceRunStatus.Starting || info.status === EServiceRunStatus.Ready) {
-    info.status = args.exit.oom ? EServiceRunStatus.OomKilled : EServiceRunStatus.Exited
+  const memory = args.exit.oom
+    ? oomRecorderOf(args.table.deps).command({
+        pid: info.pid,
+        command: info.command,
+        publish: args.table.publish,
+      })
+    : null
+  if (memory !== null) info.memory = memory
+  if (args.exit.oom) {
+    info.status = EServiceRunStatus.OomKilled
+  } else if (
+    info.status === EServiceRunStatus.Starting ||
+    info.status === EServiceRunStatus.Ready
+  ) {
+    info.status = EServiceRunStatus.Exited
   }
   info.exitCode = args.exit.exitCode
   info.signal = args.exit.signal

@@ -34,8 +34,23 @@ export function useSessionPaneWiring(args: {
   snapshot: PaneSnapshot
   mainThreadId: string | undefined
   openTab: (tab: ESessionPaneTab) => void
+  podSizeRequest: number
+  requestPodSize: () => void
+  consumePodSizeRequest: () => void
 }): SessionPaneWiring {
-  const { sessionId, title, startedAt, projectId, model, snapshot, mainThreadId, openTab } = args
+  const {
+    sessionId,
+    title,
+    startedAt,
+    projectId,
+    model,
+    snapshot,
+    mainThreadId,
+    openTab,
+    podSizeRequest,
+    requestPodSize,
+    consumePodSizeRequest,
+  } = args
   const { view: viewOutput, status, shells, events } = snapshot
   const threadWorktreePath = useMemo(
     () =>
@@ -68,6 +83,9 @@ export function useSessionPaneWiring(args: {
       shellTails,
       openTab,
       openBrowser,
+      podSizeRequest,
+      requestPodSize,
+      consumePodSizeRequest,
     }),
     [
       sessionId,
@@ -81,6 +99,9 @@ export function useSessionPaneWiring(args: {
       shellTails,
       openTab,
       openBrowser,
+      podSizeRequest,
+      requestPodSize,
+      consumePodSizeRequest,
     ],
   )
   return { paneValue, ports, shellTails, openBrowser, openBrowserTab }

@@ -17,6 +17,7 @@ import { contextLoadedWith, contextRuns, NOTHING_ATTACHED } from './context-entr
 import { inOneBreath } from './entry-folds'
 import type { TranscriptEntryFold } from './entry-builders'
 import { noticeEntriesOf } from './notice-entries'
+import { podOomEntryOf } from './pod-oom-entry'
 import { attachmentsOf } from './tool-attachments'
 import { toolRuns, type ToolRun } from './tool-runs'
 import { EAuthor, EEntryKind, toolsRanEntry, type TranscriptEntry } from './transcript-model'
@@ -174,6 +175,8 @@ export function durableEntries(args: {
         },
       ]
     }
+
+    if (event.type === 'pod-ran-out-of-memory') return [podOomEntryOf(event)]
 
     if (event.type === 'tool-called') {
       const run = opened.get(event.callId)

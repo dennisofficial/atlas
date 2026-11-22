@@ -143,9 +143,9 @@ describe('pod section chart', () => {
   })
 
   it('keeps the signals footer', () => {
-    const loud = htmlOf({ throttled: true, oomKills: 1 })
+    const loud = htmlOf({ throttled: true, oomEvents: 1, oomKills: 3 })
     expect(loud).toContain('Throttled')
-    expect(loud).toContain('1 OOM kill')
+    expect(loud).toContain('1 out-of-memory kill (3 processes)')
     expect(htmlOf()).not.toContain('Throttled')
   })
 })
@@ -341,5 +341,51 @@ describe('pod spark on touch', () => {
     })
     expect(tipOf()).not.toBeNull()
     await unmount()
+  })
+})
+
+describe('pod memory signals', () => {
+  it('counts out-of-memory events, not killed processes', () => {
+    expect(htmlOf({ oomEvents: 1, oomKills: 12 })).toContain('1 out-of-memory kill (12 processes)')
+    expect(htmlOf({ oomEvents: 2, oomKills: 14 })).toContain('2 out-of-memory kills (14 processes)')
+    expect(htmlOf({ oomEvents: 2 })).toContain('2 out-of-memory kills')
+  })
+
+  it('falls back to the killed processes for a pod that reports no events', () => {
+    expect(htmlOf({ oomKills: 12 })).toContain('12 processes killed for memory')
+    expect(htmlOf({ oomKills: 1 })).toContain('1 process killed for memory')
+    expect(htmlOf()).not.toContain('killed for memory')
+  })
+
+  it('shows the command memory limit next to the pod RAM', () => {
+    expect(htmlOf({ commandRamLimitGb: 2.3 })).toContain('commands ≤ 2.3 GB')
+    expect(htmlOf()).not.toContain('commands ≤')
+  })
+})
+
+describe('pod size menu', () => {
+  beforeAll(() => {
+    GlobalRegistrator.register()
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
+  })
+
+  afterAll(async () => {
+    await GlobalRegistrator.unregister()
+  })
+
+  it('opens the size menu when asked', async () => {
+    const { createRoot } = await import('react-dom/client')
+    const container = document.createElement('div')
+    document.body.append(container)
+    const root = createRoot(container)
+    await act(async () =>
+      root.render(<PodSection {...BASE} sizeMenuOpen onSizeMenuOpenChange={() => {}} />),
+    )
+    expect(document.querySelector('[data-slot="select-content"]')).not.toBeNull()
+    expect(container.querySelector('[aria-label="Pod size"]')?.getAttribute('aria-expanded')).toBe(
+      'true',
+    )
+    await act(async () => root.unmount())
+    container.remove()
   })
 })

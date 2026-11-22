@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import type { ToolRun, TranscriptEntry } from '@dltech/atlas-client/transcript'
 import { EAuthor, EEntryKind } from '@dltech/atlas-client/transcript'
+import { EOomScope } from '@dltech/atlas-core'
 
 import { EMessageAuthor, ENoticeTone, ERowKind, rowsOf } from '../rows'
 
@@ -145,6 +146,22 @@ describe('rowsOf', () => {
       body: 'no image',
       tone: ENoticeTone.Attention,
     })
+  })
+
+  it('turns a pod out-of-memory record into a failed notice row', () => {
+    const text =
+      "`bunx turbo run typecheck` ran out of memory (commands may use 2.3 GB of the pod's 4 GB)"
+    const rows = rowsNow([
+      {
+        kind: EEntryKind.PodOom,
+        author: EAuthor.Model,
+        key: 'oom',
+        text,
+        scope: EOomScope.Command,
+        processes: 12,
+      },
+    ])
+    expect(rows[0]).toMatchObject({ kind: ERowKind.Notice, title: text, tone: ENoticeTone.Failed })
   })
 
   it('turns a model fallback into an attention row with its reason', () => {

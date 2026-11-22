@@ -7,6 +7,8 @@ export type PodCgroupCounters = {
   memoryBytes: number
   memoryLimitBytes: number | null
   oomKills: number
+  oomEvents?: number | undefined
+  commandMemoryLimitBytes?: number | undefined
   diskUsedBytes?: number | undefined
   diskLimitBytes?: number | undefined
 }
@@ -18,6 +20,8 @@ export type PodSample = {
   ramLimitBytes: number | null
   throttled: boolean
   oomKills: number
+  oomEvents?: number | undefined
+  commandRamLimitBytes?: number | undefined
   diskUsedBytes?: number | undefined
   diskLimitBytes?: number | undefined
 }
@@ -45,6 +49,10 @@ export const podSampleOf = (args: {
     ramLimitBytes: args.next.memoryLimitBytes,
     throttled: grown(args.prev.throttledUsec, args.next.throttledUsec) > 0,
     oomKills: Math.max(0, args.next.oomKills),
+    ...(args.next.oomEvents === undefined ? {} : { oomEvents: args.next.oomEvents }),
+    ...(args.next.commandMemoryLimitBytes === undefined
+      ? {}
+      : { commandRamLimitBytes: args.next.commandMemoryLimitBytes }),
     ...(args.next.diskUsedBytes === undefined ? {} : { diskUsedBytes: args.next.diskUsedBytes }),
     ...(args.next.diskLimitBytes === undefined ? {} : { diskLimitBytes: args.next.diskLimitBytes }),
   }

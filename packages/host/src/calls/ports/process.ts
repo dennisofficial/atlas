@@ -28,7 +28,9 @@ const OOM_KILLED_EXIT_CODE = 137
 const CANCELLED_EXIT_CODE = 130
 
 const exitedOutcomeOf = (result: ExecResult): ProcessOutcome => {
-  if (result.outcome === EExecOutcome.OomKilled) return { kind: EProcessOutcome.OomKilled }
+  if (result.outcome === EExecOutcome.OomKilled) {
+    return { kind: EProcessOutcome.OomKilled, memory: result.memory }
+  }
   if (result.exitCode !== null) return { kind: EProcessOutcome.Exited, code: result.exitCode }
   if (result.outcome === EExecOutcome.Cancelled) {
     return { kind: EProcessOutcome.Exited, code: CANCELLED_EXIT_CODE }

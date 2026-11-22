@@ -15,6 +15,7 @@ describe('rewindDisposition', () => {
       'location-changed',
       'model-wait-cleared',
       'model-waiting',
+      'pod-ran-out-of-memory',
       'pr-event',
       'run-event',
     ])

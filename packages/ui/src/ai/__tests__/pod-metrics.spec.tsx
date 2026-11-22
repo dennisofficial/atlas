@@ -148,6 +148,6 @@ describe('pod metrics sections', () => {
     expect(quiet).not.toContain('Throttled')
     const loud = renderToStaticMarkup(<PodMetricsRows {...PROPS} throttled oomKills={2} />)
     expect(loud).toContain('Throttled')
-    expect(loud).toContain('2 OOM kills')
+    expect(loud).toContain('2 processes killed for memory')
   })
 })
