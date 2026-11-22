@@ -1,10 +1,13 @@
 import { softDeleteArchivedSessionsIn } from '@dltech/atlas-control/postgres'
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
+import type { VercelCredentials } from '@dltech/atlas-wire'
 import { describe, expect, it, mock } from 'bun:test'
+import { readAgentHostEnv } from '../../agent'
 import type {
   OrphanSandbox,
   OrphanSandboxProject,
+  OrphanSandboxStore,
 } from '../../api/cloud/sandbox-provisioning/orphan-sandbox-sweep'
 import {
   AGENT37_CREDENTIALS,
@@ -12,10 +15,27 @@ import {
 } from '../../api/cloud/sandbox-provisioning/v2-pod-sweep.fixture'
 import { seedUsers } from '../../../test/session-seed'
 import { runOrphanSweep, type OrphanSweepDeps } from './orphan-sweep-scopes'
+import { storesOf } from './orphan-sandbox-sweep.task'
 
 mock.module('@trigger.dev/sdk', () => ({
   logger: { log: () => undefined, warn: () => undefined, error: () => undefined },
+  schedules: { task: (definition: unknown) => definition },
 }))
+
+const REQUIRED_ENV: Record<string, string> = {
+  DATABASE_URL: 'postgres://x',
+  DATABASE_DIRECT_URL: 'postgres://direct',
+  REDIS_URL: 'redis://x',
+  DAEMON_SECRET: 'secret',
+  SECRETS_ENCRYPTION_KEY: 'k'.repeat(64),
+  ATLAS_API_ORIGIN: 'https://api.byatlas.io',
+  CLOUDFLARE_API_TOKEN: 'cf-token',
+  CLOUDFLARE_ACCOUNT_ID: 'cf-account',
+  CLOUDFLARE_ZONE_ID: 'cf-zone',
+}
+
+const credentialsOf = (store: OrphanSandboxStore): VercelCredentials =>
+  (store as unknown as { credentials: VercelCredentials }).credentials
 
 const NOW = new Date('2026-11-10T06:00:00Z')
 const hoursBefore = (hours: number): Date => new Date(NOW.getTime() - hours * 60 * 60 * 1_000)
@@ -69,11 +89,51 @@ const expiredSession = async (): Promise<void> => {
     modelEffort: 'medium',
     modelFast: false,
     sandboxProvider: 'vercel',
-    credentialSource: 'byok',
+    credentialSource: 'platform',
     createdAt: hoursBefore(30),
     archivedAt: hoursBefore(7),
   })
 }
+
+describe('storesOf', () => {
+  it('sweeps the platform project named by PLATFORM_VERCEL_* and no user credential store', async () => {
+    const lines: string[] = []
+    const env = readAgentHostEnv({
+      ...REQUIRED_ENV,
+      PLATFORM_VERCEL_TOKEN: 'platform-token',
+      PLATFORM_VERCEL_TEAM_ID: 'team-platform',
+      PLATFORM_VERCEL_PROJECT_ID: 'prj-atlas-sandboxes',
+    })
+
+    const stores = await storesOf({ env, log: (line) => lines.push(line) })
+
+    expect(stores.map((store) => [store.label, store.projectId])).toEqual([
+      ['platform/prj-atlas-sandboxes', 'prj-atlas-sandboxes'],
+    ])
+    const store = stores[0]
+    expect(store === undefined ? undefined : credentialsOf(store.store)).toEqual({
+      token: 'platform-token',
+      teamId: 'team-platform',
+      projectId: 'prj-atlas-sandboxes',
+    })
+    expect(lines).toEqual([])
+  })
+
+  it('sweeps nothing when only the retired VERCEL_* vars are set', async () => {
+    const lines: string[] = []
+    const env = readAgentHostEnv({
+      ...REQUIRED_ENV,
+      VERCEL_TOKEN: 'legacy-token',
+      VERCEL_TEAM_ID: 'legacy-team',
+      VERCEL_PROJECT_ID: 'legacy-project',
+    })
+
+    const stores = await storesOf({ env, log: (line) => lines.push(line) })
+
+    expect(stores).toEqual([])
+    expect(lines).toEqual(['platform: PLATFORM_VERCEL_TOKEN/TEAM_ID/PROJECT_ID are not configured'])
+  })
+})
 
 describe('runOrphanSweep', () => {
   useTestDatabase()

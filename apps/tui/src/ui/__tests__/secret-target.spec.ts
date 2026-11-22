@@ -110,14 +110,4 @@ describe('secretTargetOf', () => {
       takesOne: true,
     })
   })
-
-  it('seals the Vercel token under its own setting id', () => {
-    expect(secretTargetOf({ id: ESettingId.VercelToken, resolution: resolutionOn() })).toEqual({
-      name: 'sandbox.vercelToken',
-      label: 'Vercel token',
-      masked: true,
-      required: false,
-      takesOne: true,
-    })
-  })
 })

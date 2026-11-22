@@ -2,7 +2,6 @@ import { ESettingId, toThreadId } from '@dltech/atlas-core'
 import { MemorySettingsStore } from '@dltech/atlas-harness'
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'bun:test'
-import React from 'react'
 
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
 import { DOWNLOAD_LABEL, UPLOAD_LABEL } from '../../ui/components/settings/cloud'
@@ -80,7 +79,7 @@ describe('the settings cloud tab', () => {
       expect(frame).toContain(UPLOAD_LABEL)
       expect(frame).toContain(DOWNLOAD_LABEL)
       expect(frame).toContain('GitHub')
-      expect(frame).toContain('Vercel token')
+      expect(frame).toContain('Sandbox image')
     } finally {
       await teardown(setup)
     }
@@ -113,8 +112,8 @@ describe('the settings cloud tab', () => {
       const frame = setup.captureCharFrame()
       expect(frame).toContain('not signed in')
       expect(frame).toContain('Sign in')
-      expect(frame).toContain('Vercel token')
       expect(frame).toContain('Sandbox image')
+      expect(frame).toContain('Sandbox size')
       expect(frame).not.toContain('from the accounts overlay')
       expect(frame).not.toContain('Sign out')
       expect(frame).not.toContain(UPLOAD_LABEL)
@@ -132,18 +131,18 @@ describe('the settings cloud tab', () => {
     try {
       setup.mockInput.pressArrow('down')
       await landed(setup)
-      setup.mockInput.pressArrow('down')
-      await landed(setup)
 
       setup.mockInput.pressEnter()
       await landed(setup)
 
-      setup.mockInput.typeText('team_42')
+      setup.mockInput.typeText('my/image:1')
       await landed(setup)
       setup.mockInput.pressEnter()
       await landed(setup)
 
-      expect(app.settings.snapshot().document.values[ESettingId.VercelTeamId]).toBe('team_42')
+      expect(app.settings.snapshot().document.values[ESettingId.SandboxImage]).toContain(
+        'my/image:1',
+      )
     } finally {
       await teardown(setup)
     }
@@ -295,7 +294,7 @@ describe('the settings cloud tab', () => {
         setup.mockInput.pressArrow('down')
         await landed(setup)
       }
-      expect(selectedRow(setup)).toContain('Vercel token')
+      expect(selectedRow(setup)).toContain('Sandbox image')
 
       setup.mockInput.pressArrow('up')
       await landed(setup)

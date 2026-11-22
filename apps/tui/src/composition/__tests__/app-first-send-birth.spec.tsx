@@ -36,7 +36,7 @@ describe('a thread before its first send', () => {
   }, 60_000)
 
   it('flips only the stored preference when the chip is toggled, touching no bridge', async () => {
-    const app = bornThreadApp({ vercel: true })
+    const app = bornThreadApp({})
     const mounted = await mountUnborn({ app })
 
     try {
@@ -97,7 +97,7 @@ describe('the first send', () => {
   }, 60_000)
 
   it('births on the runner the chip was toggled to', async () => {
-    const app = bornThreadApp({ vercel: true })
+    const app = bornThreadApp({})
     const mounted = await mountUnborn({ app })
 
     try {
@@ -165,7 +165,7 @@ describe('the first send', () => {
   }, 60_000)
 
   it('fixes the runner once born: the chip no longer flips', async () => {
-    const app = bornThreadApp({ vercel: true })
+    const app = bornThreadApp({})
     const mounted = await mountUnborn({ app })
 
     try {

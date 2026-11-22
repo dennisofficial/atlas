@@ -1,17 +1,17 @@
 import { describe, expect, it } from 'bun:test'
 
-import { ERunner, ESettingId, toThreadId } from '@dltech/atlas-core'
+import { ERunner, toThreadId } from '@dltech/atlas-core'
 import type { CloudBridge } from '@dltech/atlas-harness'
 
 import { fakeBridge } from '../cloud/__tests__/fixture'
-import { liveBridgeFor, liveBirthPreflight, type BridgeBuilders } from '../live-pod'
+import { liveBridgeFor, type BridgeBuilders } from '../live-pod'
 import { fakeApp, fakeCloud, scriptedModelPort } from './fake-app'
 
 const model = scriptedModelPort({ script: { thinking: '', reply: 'ok' } })
 
 const buildersThatName = () => {
   const built: string[] = []
-  const bridges = { pod: fakeBridge(), api: fakeBridge(), direct: fakeBridge() }
+  const bridges = { pod: fakeBridge(), api: fakeBridge() }
   const builders: BridgeBuilders = {
     pod: () => {
       built.push('pod')
@@ -20,10 +20,6 @@ const buildersThatName = () => {
     api: () => {
       built.push('api')
       return bridges.api
-    },
-    direct: () => {
-      built.push('direct')
-      return bridges.direct
     },
   }
   return { built, bridges, builders }
@@ -58,13 +54,13 @@ describe('which bridge a runner gets', () => {
     expect(bridge).toBe(bridges.pod)
   })
 
-  it('leaves the in-process Vercel path on the direct bridge when pods are off', () => {
+  it('starts a Vercel runner through the API bridge when pods are off', () => {
     const { built, bridges, builders } = buildersThatName()
 
     const bridge = liveBridgeFor(fakeApp({ model }), builders)({ runner: ERunner.Vercel })
 
-    expect(built).toEqual(['direct'])
-    expect(bridge).toBe(bridges.direct)
+    expect(built).toEqual(['api'])
+    expect(bridge).toBe(bridges.api)
   })
 
   it('provisions a new signed-in Vercel birth through the API even with pods off', () => {
@@ -82,12 +78,12 @@ describe('which bridge a runner gets', () => {
     expect(bridge).toBe(bridges.api)
   })
 
-  it('keeps waking an already-born Vercel thread on the direct bridge', () => {
+  it('wakes an already-born Vercel thread through the API bridge', () => {
     const { built, builders } = buildersThatName()
 
     liveBridgeFor(fakeApp({ model, cloud: fakeCloud() }), builders)({ runner: ERunner.Vercel })
 
-    expect(built).toEqual(['direct'])
+    expect(built).toEqual(['api'])
   })
 
   it('wakes an API-provisioned Vercel thread through the API bridge', () => {
@@ -102,20 +98,6 @@ describe('which bridge a runner gets', () => {
     })
 
     expect(built).toEqual(['api'])
-  })
-
-  it('keeps a direct-born thread on the direct bridge even when signed in', () => {
-    const { built, builders } = buildersThatName()
-
-    liveBridgeFor(
-      fakeApp({ model, cloud: fakeCloud() }),
-      builders,
-    )({
-      runner: ERunner.Vercel,
-      apiProvisioned: false,
-    })
-
-    expect(built).toEqual(['direct'])
   })
 
   it('hands the boot-step listener and the signed-in session to the API bridge', () => {
@@ -142,12 +124,5 @@ describe('which bridge a runner gets', () => {
     expect(seen[0]?.session()).toEqual(app.cloud.session())
     expect(seen[0]).not.toHaveProperty('settings')
     expect(steps).toEqual(['cloning the project'])
-  })
-})
-
-describe('the Vercel birth preflight', () => {
-  it('no longer asks the laptop for Vercel credentials', async () => {
-    expect(fakeApp({ model, pods: true }).secrets.read(ESettingId.VercelToken)).toBeUndefined()
-    expect(await liveBirthPreflight({ runner: ERunner.Vercel })).toBeNull()
   })
 })

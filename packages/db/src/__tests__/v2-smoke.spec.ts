@@ -19,7 +19,7 @@ const sessionRow = () => ({
   modelEffort: 'medium',
   modelFast: false,
   sandboxProvider: 'vercel',
-  credentialSource: 'byok',
+  credentialSource: 'platform',
   sandboxInstanceId: null,
   sandboxStatus: null,
   sandboxStatusAt: null,

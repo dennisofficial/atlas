@@ -22,8 +22,6 @@ import { SandboxDiskSection } from '../parts/sandbox-disk-section'
 import { SandboxSizeSection } from '../parts/sandbox-size-section'
 import { UsageSandboxEmpty } from '../parts/usage-sandbox-empty'
 import { UsageSandboxTable } from '../parts/usage-sandbox-table'
-import { UserVercelCardSlot } from '../parts/vercel-credential-card-live'
-import { VercelConnectReturn } from '../parts/vercel-connect-return'
 import { SettingsPage, SettingsSection } from '../settings-layout'
 
 const TITLE = 'Usage: Sandboxes'
@@ -100,13 +98,6 @@ export function UsageSandboxesView({
         </Button>
       }
     >
-      <SettingsSection
-        title="Sandbox credential"
-        description="Lets Atlas Cloud create sandboxes for your projects and threads."
-      >
-        <VercelConnectReturn />
-        <UserVercelCardSlot />
-      </SettingsSection>
       <PersonalSandboxSize />
       <PersonalSandboxDisk />
       <SandboxImageField />

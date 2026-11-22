@@ -35,7 +35,7 @@ const v2Session = async (args: {
     modelEffort: 'medium',
     modelFast: false,
     sandboxProvider: 'vercel',
-    credentialSource: 'byok',
+    credentialSource: 'platform',
     ...(args.podSessionId === undefined ? {} : { podSessionId: args.podSessionId }),
     ...(args.archivedAt === undefined ? {} : { archivedAt: args.archivedAt }),
     createdAt: at,

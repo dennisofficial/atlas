@@ -7,42 +7,17 @@ import {
 } from '../fixtures/settings-usage-rows'
 import { SandboxEmpty } from '../parts/sandbox-empty'
 import { SandboxTable } from '../parts/sandbox-table'
-import { VercelCredentialCard, type VercelCredentialView } from '../parts/vercel-credential-card'
 import { SettingsPage, SettingsSection } from '../settings-layout'
 
-export type UsageSandboxesVercelState = {
-  view?: VercelCredentialView
-  statusLine?: string
-}
-
-export const VERCEL_NOT_CONFIGURED: UsageSandboxesVercelState = { statusLine: 'Not configured' }
-
-export const VERCEL_CONFIGURED: UsageSandboxesVercelState = {
-  view: {
-    configured: true,
-    tokenHint: 'vcp_…a91f',
-    teamId: 'team_dennis',
-    vercelProjectId: 'prj_atlas_sandboxes',
-    updatedAt: '2026-10-21T09:00:00.000Z',
-  },
-  statusLine: 'Configured · updated 3h ago',
-}
-
 export function UsageSandboxesPage({
-  vercel = VERCEL_CONFIGURED,
   running = RUNNING_SANDBOXES,
   paused = PAUSED_SANDBOXES,
 }: {
-  vercel?: UsageSandboxesVercelState
   running?: SandboxRow[]
   paused?: SandboxRow[]
 }) {
   return (
-    <SettingsPage
-      title="Sandboxes"
-      description="Atlas Cloud runs your threads in sandboxes on your own Vercel account."
-    >
-      <VercelCredentialCard {...vercel} />
+    <SettingsPage title="Sandboxes" description="Cloud sandboxes your threads are running on.">
       <SettingsSection title="Running" count={running.length}>
         {running.length === 0 ? (
           <SandboxEmpty />

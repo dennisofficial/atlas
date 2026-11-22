@@ -1,9 +1,10 @@
+import { ServiceUnavailableException } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { describe, expect, it, vi } from 'bun:test'
-import { VercelNotConfiguredError } from '../scoped-config/scoped-config.errors'
-import { EBootStep, EBootStepState, EVercelCredentialGap } from '@dltech/atlas-wire'
+import { EBootStep, EBootStepState } from '@dltech/atlas-wire'
 import { recordBootSteps } from '../../platform/sandboxes/sandbox-boot-steps'
+import { NOT_CONFIGURED_MESSAGE } from '../scoped-config/scoped-config.service'
 import {
   appendRaw,
   cipher,
@@ -109,7 +110,7 @@ describe('recoverStuckSessions', () => {
     await seedStuckPod()
     const { deps, dispatch } = depsWith({ fetch: respondWith(503) as unknown as typeof fetch })
     const lost = {
-      credentialsOf: deps.pod.credentialsOf.bind(deps.pod),
+      notConfiguredOf: deps.pod.notConfiguredOf.bind(deps.pod),
       dispatchClaimed: deps.pod.dispatchClaimed.bind(deps.pod),
       claim: vi.fn(async () => null),
     }
@@ -124,7 +125,7 @@ describe('recoverStuckSessions', () => {
     await seedStuckPod()
     const scoped = fakeScoped({
       vercelCredentials: vi.fn(async () => {
-        throw new VercelNotConfiguredError(EVercelCredentialGap.UserCredential)
+        throw new ServiceUnavailableException(NOT_CONFIGURED_MESSAGE)
       }),
     })
     const { deps, dispatch } = depsWith({

@@ -1,7 +1,5 @@
 import type { ReactNode } from 'react'
 
-import { EVercelCredentialKind, EVercelPlan } from '@dltech/atlas-wire/web'
-
 import { EDeviceKind } from '../fixtures/settings-security'
 import { AccountProfileCard } from '../parts/account-profile-card'
 import { AccountSignInMethodsCard } from '../parts/account-sign-in-methods-card'
@@ -10,12 +8,11 @@ import { EQueryState } from '@/lib/use-cloud-query'
 import { EMemorySheetMode, MemorySheet } from '../parts/memory-sheet'
 import { EnvSecretsContent } from '../parts/env-secrets-table'
 import { DeviceRow } from '../parts/security-device-row'
-import { VercelCredentialCard } from '../parts/vercel-credential-card'
 import { SettingsCard, SettingsSection } from '../settings-layout'
 import { AccountSkeleton } from './account-skeletons'
 import { ModelsSkeleton, NotificationsSkeleton } from './agent-skeletons'
 import { MemorySkeleton, ProvidersSkeleton, SecurityDevicesSkeleton } from './library-skeletons'
-import { EnvSecretsSkeleton, VercelCardSkeleton } from './table-skeletons'
+import { EnvSecretsSkeleton } from './table-skeletons'
 
 function Pair({ loading, loaded }: { loading: ReactNode; loaded: ReactNode }) {
   return (
@@ -123,30 +120,6 @@ export const Secrets = {
           fetchValue={async () => 'value'}
           onSave={async () => true}
           onRemove={noop}
-        />
-      }
-    />
-  ),
-}
-
-export const VercelCredential = {
-  render: () => (
-    <Pair
-      loading={<VercelCardSkeleton />}
-      loaded={
-        <VercelCredentialCard
-          view={{
-            configured: true,
-            kind: EVercelCredentialKind.Token,
-            teamId: 'team_abc',
-            vercelProjectId: 'prj_abc',
-            plan: EVercelPlan.Unknown,
-            planCheckedAt: null,
-            needsReconnect: false,
-            oauthConfigured: false,
-            updatedAt: null,
-          }}
-          statusLine="Configured"
         />
       }
     />

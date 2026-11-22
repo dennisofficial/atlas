@@ -28,7 +28,7 @@ export class PodNotConfiguredError extends Error {
 
 const GAP_HINTS: Readonly<Record<EVercelCredentialGap, string>> = {
   [EVercelCredentialGap.UserCredential]:
-    'Add your Vercel credentials in your Atlas Cloud settings, then try again.',
+    'The platform sandbox credential is not set up yet — an Atlas operator has to configure it.',
 }
 
 const DEFAULT_NOT_CONFIGURED = 'Atlas Cloud cannot start a sandbox for this account yet.'

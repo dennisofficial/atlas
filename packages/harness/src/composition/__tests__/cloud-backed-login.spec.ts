@@ -188,7 +188,7 @@ describe('a TUI signed in to Atlas Cloud owns no accounts locally', () => {
     new FileSecretsStore({
       file: atlasSecretsFile(),
       cipher: new SecretCipher(atlasVaultKeyFile()),
-    }).write({ name: 'sandbox.vercelToken', value: 'vercel-local' })
+    }).write({ name: 'search.jina', value: 'jina-local' })
     await seedLocalClaude()
     new CloudSessionStore({ file: atlasCloudFile(), keyFile: atlasVaultKeyFile() }).write({
       url: cloud.url,
@@ -198,8 +198,8 @@ describe('a TUI signed in to Atlas Cloud owns no accounts locally', () => {
 
     const { app } = await compose()
 
-    expect(cloud.secrets.get('sandbox.vercelToken')).toBe('vercel-local')
-    expect(app.secrets.read('sandbox.vercelToken')).toBe('vercel-local')
+    expect(cloud.secrets.get('search.jina')).toBe('jina-local')
+    expect(app.secrets.read('search.jina')).toBe('jina-local')
     expect(cloud.accounts).toHaveLength(1)
     expect((await app.accounts.list()).map((held) => held.provider)).toEqual([
       EAuthProvider.Anthropic,

@@ -19,7 +19,7 @@ export function buildArchivedSandboxSweepGraph(args: {
   const { env } = args
   const cipher = new SecretCipherService(env)
   const vercel = new VercelSandboxClient(
-    new ScopedSandboxCredentialsService(buildScopedConfig({ cipher, env }), env),
+    new ScopedSandboxCredentialsService(buildScopedConfig({ cipher, env })),
   )
   const { signals, dispose } = buildWorkerThreadSignals({ env })
   return {
