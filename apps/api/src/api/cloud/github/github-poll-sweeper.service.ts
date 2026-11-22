@@ -16,8 +16,7 @@ import { mergeabilityObservationOfSample, pullObservationOfRest } from './github
 import { TransportSelector } from './github-transport-selector'
 import type { RestPullRequest } from './github-pull-request-mapping'
 import { EGithubCallSource } from './github-call-log'
-import { threadActivityAt } from './github-thread-activity'
-import { liveUntilOf } from './github-delivery-routing'
+import { type GithubThreadActivity, liveUntilOf } from './github-delivery-routing'
 import { GithubHookLifecycleService } from './github-hook-lifecycle.service'
 import { normalizedRepo } from './github-pr-identity'
 import { GithubRequestCoordinator } from './github-request-coordinator'
@@ -44,10 +43,11 @@ export class GithubPollSweeperService {
     private readonly coordinator: GithubRequestCoordinator,
     private readonly headReads: GithubHeadReads,
     private readonly store: GithubPrStore,
+    private readonly activityOf?: GithubThreadActivity,
   ) {}
 
   async handlePoll(args: { limit?: number } = {}): Promise<void> {
-    await this.refreshLiveUntil()
+    if (this.activityOf !== undefined) await this.refreshLiveUntil()
     await this.endExpired()
     await renewTrackedHeadTargets({})
     try {
@@ -71,11 +71,14 @@ export class GithubPollSweeperService {
     }
   }
 
-  private async refreshLiveUntil(): Promise<void> {
+  async refreshLiveUntil(): Promise<void> {
+    if (this.activityOf === undefined) {
+      throw new Error('the poll sweeper cannot refresh liveUntil without thread activity')
+    }
     const linked = await db.orm.public.GithubSubscription.where((subscription) =>
       subscription.threadId.neq(''),
     ).all()
-    const activity = await threadActivityAt({
+    const activity = await this.activityOf({
       threadIds: linked.map((subscription) => subscription.threadId),
     })
     for (const subscription of linked) {

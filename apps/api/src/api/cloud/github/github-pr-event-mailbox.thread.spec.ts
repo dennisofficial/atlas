@@ -17,18 +17,22 @@ import { EPrEventKind } from './github-realtime.types'
 import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
 import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
 import { inertMergeabilityRefresh, inertReconcile } from './github-pr-store.fixture'
+import { replayThreadEvents } from './github-pr-event-thread-replay'
+import { legacyOf } from './github-legacy-effects.fixture'
 
 function serviceWith(): { mailbox: GithubPrEventMailboxService; fanout: GithubPrFanoutService } {
   const fanout = new GithubPrFanoutService(new DrainStateService())
   const wake = { notifyEvent: () => undefined } as unknown as GithubSandboxWakeService
   const dispatcher = new GithubPrOutboxDispatcher({
     fanout,
-    signals: inertSignals(),
-    wake,
+    legacy: legacyOf({ signals: inertSignals(), wake: wake }),
     reconcile: inertReconcile(),
     mergeability: inertMergeabilityRefresh(),
   })
-  return { mailbox: new GithubPrEventMailboxService(fanout, dispatcher), fanout }
+  return {
+    mailbox: new GithubPrEventMailboxService(fanout, dispatcher, replayThreadEvents),
+    fanout,
+  }
 }
 
 const deliveryRows = () => db.orm.public.GithubPrEventDelivery.all()

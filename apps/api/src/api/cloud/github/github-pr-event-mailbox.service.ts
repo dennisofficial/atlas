@@ -8,7 +8,6 @@ import {
   PrEffectCollector,
   type PrOutboxWithin,
 } from './github-pr-outbox'
-import { replayThreadEvents } from './github-pr-event-thread-replay'
 import type { EPrEventKind, GithubPrEventDto, GithubPrEventPayload } from './github-realtime.types'
 
 type PrMailboxRecord = {
@@ -29,11 +28,17 @@ export const REPLAY_LEASE_MS = 5 * 60 * 1_000
  * `deliveredAt` the moment a live stream actually pushes it; a reconnect replays the nulls and
  * marks them delivered. Rows are never reconstructed from GitHub — the mailbox is the record.
  */
+export type GithubThreadReplay = (args: {
+  userId: string
+  threadId: string
+}) => Promise<GithubPrEventDto[]>
+
 @Injectable()
 export class GithubPrEventMailboxService {
   constructor(
     private readonly fanout: GithubPrFanoutService,
     private readonly dispatcher: GithubPrOutboxDispatcher,
+    private readonly replayThread?: GithubThreadReplay,
   ) {
     this.fanout.onEventDelivered(({ ackId, userId, userStream, threadIds }) => {
       if (userStream) {
@@ -182,7 +187,12 @@ export class GithubPrEventMailboxService {
   }
 
   async replayForThread(args: { userId: string; threadId: string }): Promise<GithubPrEventDto[]> {
-    return replayThreadEvents(args)
+    if (this.replayThread === undefined) {
+      throw new Error(
+        'the pr event mailbox has no thread replay; only the API serves thread streams',
+      )
+    }
+    return this.replayThread(args)
   }
 
   /**

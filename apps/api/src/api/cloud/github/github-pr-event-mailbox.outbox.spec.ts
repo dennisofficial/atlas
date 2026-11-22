@@ -11,6 +11,7 @@ import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { GithubPrOutboxDispatcher } from './github-pr-outbox'
 import { EPrEventKind } from './github-realtime.types'
 import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
+import { legacyOf } from './github-legacy-effects.fixture'
 
 function rig(): {
   fanout: GithubPrFanoutService
@@ -26,8 +27,7 @@ function rig(): {
   } as unknown as GithubSandboxWakeService
   const dispatcher = new GithubPrOutboxDispatcher({
     fanout,
-    signals: inertSignals(),
-    wake,
+    legacy: legacyOf({ signals: inertSignals(), wake: wake }),
     reconcile: inertReconcile(),
     mergeability: inertMergeabilityRefresh(),
   })
@@ -129,8 +129,7 @@ describe('GithubPrEventMailboxService outbox', () => {
 
     const dispatcher = new GithubPrOutboxDispatcher({
       fanout,
-      signals: inertSignals(),
-      wake,
+      legacy: legacyOf({ signals: inertSignals(), wake: wake }),
       reconcile: inertReconcile(),
       mergeability: inertMergeabilityRefresh(),
     })

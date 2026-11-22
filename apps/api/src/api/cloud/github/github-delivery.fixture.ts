@@ -25,6 +25,7 @@ import type { PullRequestCacheFields } from './github-pull-request-mapping'
 import { type CommitCheckInput, restCommitChecksOf } from './github-commit-checks'
 import type { GithubUserReads } from './github-user-reads'
 import type { GithubService } from './github.service'
+import { legacyOf } from './github-legacy-effects.fixture'
 
 export const PULL_REQUEST_PAYLOAD = {
   action: 'opened',
@@ -214,8 +215,7 @@ export function serviceWith(args: {
   })
   const dispatcher = new GithubPrOutboxDispatcher({
     fanout,
-    signals: inertSignals(),
-    wake,
+    legacy: legacyOf({ signals: inertSignals(), wake: wake }),
     reconcile: inertReconcile(),
     mergeability: (run) => mergeability.run(run),
   })
@@ -230,7 +230,6 @@ export function serviceWith(args: {
       cipher,
       mailbox,
       discussion,
-      inertSignals(),
       budget,
       store,
       args.appTokens,

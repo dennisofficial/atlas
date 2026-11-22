@@ -14,6 +14,7 @@ import type { GithubPrEventMailboxService } from './github-pr-event-mailbox.serv
 import { GithubPrOutboxDispatcher } from './github-pr-outbox'
 import { inertMergeabilityRefresh, inertReconcile } from './github-pr-store.fixture'
 import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
+import { legacyOf } from './github-legacy-effects.fixture'
 
 const seedSettledCheck = (args: { outcome: string } = { outcome: 'passed' }) =>
   recordCommitChecksLocked({
@@ -108,8 +109,10 @@ describe('GithubPrStore.apply', () => {
     const received: unknown[] = []
     const healthy = new GithubPrOutboxDispatcher({
       fanout: { push: (args) => void received.push(args), pushEvent: vi.fn() },
-      signals: recordingSignals().signals,
-      wake: { notifyEvent: vi.fn() } as unknown as GithubSandboxWakeService,
+      legacy: legacyOf({
+        signals: recordingSignals().signals,
+        wake: { notifyEvent: vi.fn() } as unknown as GithubSandboxWakeService,
+      }),
       reconcile: inertReconcile(),
       mergeability: inertMergeabilityRefresh(),
       now: () => new Date(Date.now() + 60_000),

@@ -20,6 +20,7 @@ import type { PullRequestCacheFields } from './github-pull-request-mapping'
 import type { GithubUserReads } from './github-user-reads'
 import type { RestPullRequest } from './github-pull-request-mapping'
 import type { GithubService } from './github.service'
+import { threadActivityAt } from './github-thread-activity'
 
 export const REST_FIELDS: PullRequestCacheFields = {
   title: 'add the thing',
@@ -66,6 +67,7 @@ export function serviceWith(args: {
       localCoordinator(github),
       args.headReads ?? (new GithubHeadReads() as unknown as GithubHeadReads),
       storeFixture({ fanout }),
+      threadActivityAt,
     ),
     fanout,
   }

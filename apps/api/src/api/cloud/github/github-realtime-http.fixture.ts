@@ -21,6 +21,8 @@ import { RedisPrFrameBus } from './github-pr-fanout.transport'
 import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
 import { GithubUserReads } from './github-user-reads'
 import type { GithubService } from './github.service'
+import { legacyOf } from './github-legacy-effects.fixture'
+import { threadActivityAt } from './github-thread-activity'
 
 export function mockGithubHttp() {
   const original = globalThis.fetch
@@ -175,8 +177,7 @@ export function realGithubGraph(args: {
     fanout,
     new GithubPrOutboxDispatcher({
       fanout,
-      signals,
-      wake,
+      legacy: legacyOf({ signals: signals, wake: wake }),
       reconcile: inertReconcile(),
       mergeability: inertMergeabilityRefresh(),
     }),
@@ -189,7 +190,6 @@ export function realGithubGraph(args: {
     cipher,
     mailbox,
     discussion,
-    signals,
     coordinator,
     storeFixture({ fanout, wake }),
   )
@@ -200,6 +200,7 @@ export function realGithubGraph(args: {
     coordinator,
     new GithubHeadReads(),
     storeFixture({ fanout, wake }),
+    threadActivityAt,
   )
   return {
     github,

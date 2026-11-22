@@ -7,7 +7,7 @@ import type { GithubAppInstallationsService } from './github-app-installations.s
 import type { GithubAppSyncService } from './github-app-sync.service'
 import type { GithubDeliveryService } from './github-delivery.service'
 import type { GithubWebhookInboxService } from './github-webhook-inbox.service'
-import type { GithubPrWebhookRequest } from './github-webhook.types'
+import type { GithubPrWebhookRequest } from './github-webhook-request'
 
 const SECRET = 'app-secret'
 

@@ -14,7 +14,6 @@ import { normalizedRepo } from './github-pr-identity'
 import { inWatchScope } from './github-watch-scope'
 import { GithubRequestCoordinator } from './github-request-coordinator'
 import { withGithubRequestBudget } from './github-request-budget'
-import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { GithubPrDiscussionDeliveryService } from './github-pr-discussion-delivery.service'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
@@ -74,7 +73,6 @@ export class GithubDeliveryService {
     _cipher: SecretCipherService,
     mailbox: GithubPrEventMailboxService,
     private readonly discussion: GithubPrDiscussionDeliveryService,
-    signals: ThreadSignalsService,
     private readonly coordinator: GithubRequestCoordinator,
     private readonly store: GithubPrStore,
     private readonly appTokens?: GithubInstallationTokens,

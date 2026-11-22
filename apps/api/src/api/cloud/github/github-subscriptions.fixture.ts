@@ -11,6 +11,7 @@ import { GithubSubscriptionsService } from './github-subscriptions.service'
 import type { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import type { GithubUserReads } from './github-user-reads'
 import type { GithubService } from './github.service'
+import { threadActivityAt } from './github-thread-activity'
 
 export const REST_FIELDS: PullRequestCacheFields = {
   title: 'add the thing',
@@ -67,5 +68,6 @@ export function serviceWith(args: {
       ? new GithubAppInstallationsService()
       : ({ coversRepo: args.coversRepo } as never),
     storeFixture(),
+    threadActivityAt,
   )
 }

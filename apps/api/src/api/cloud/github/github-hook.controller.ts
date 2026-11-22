@@ -20,7 +20,7 @@ import { parseHookRepoParam } from './github-pr-payload'
 import { verifyGithubSignature } from './github-webhook.signature'
 import { handleSupplementaryEvent } from './github-supplementary-events'
 import { GithubSandboxWakeService } from './github-sandbox-wake.service'
-import type { GithubPrWebhookRequest } from './github-webhook.types'
+import type { GithubPrWebhookRequest } from './github-webhook-request'
 
 /**
  * Per-repo webhook receiver for the realtime subscription flow: the hook URL embeds the repo so

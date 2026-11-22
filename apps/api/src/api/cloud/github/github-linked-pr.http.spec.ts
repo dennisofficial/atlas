@@ -37,6 +37,7 @@ import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { GithubPrStreamRouter } from './github-pr-stream.router'
 import { GithubService } from './github.service'
 import { GithubSubscriptionsService } from './github-subscriptions.service'
+import { threadActivityAt } from './github-thread-activity'
 
 const OWNER = 'usr-owner'
 const OTHER = 'usr-other'
@@ -133,6 +134,7 @@ describe('linked PR states across real HTTP, Redis and Postgres', () => {
       api.coordinator,
       { coversRepo: async () => false } as never,
       storeFixture(),
+      threadActivityAt,
     )
     app = await createMixedApp({
       controllers: [GithubHookController],

@@ -11,6 +11,7 @@ import {
   prOutboxBackoffMs,
 } from './github-pr-outbox-lease'
 import { GithubHttpBudgetUnavailable } from './github-request-budget'
+import { legacyOf } from './github-legacy-effects.fixture'
 
 const AT = new Date('2026-11-18T10:00:00Z')
 
@@ -49,8 +50,7 @@ function rig(args: { now: () => Date; reconcile: () => Promise<void> }) {
   const { signals, changedThreads } = recordingSignals()
   const dispatcher = new GithubPrOutboxDispatcher({
     fanout: { push: () => undefined, pushEvent: () => undefined },
-    signals,
-    wake: { notifyEvent: async () => undefined },
+    legacy: legacyOf({ signals: signals, wake: { notifyEvent: async () => undefined } }),
     reconcile: args.reconcile,
     mergeability: async () => undefined,
     logger: { warn: () => undefined },

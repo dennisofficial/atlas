@@ -10,6 +10,7 @@ import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
 import { waitFor } from '../../../../test/fake-timers'
 import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
 import { inertMergeabilityRefresh, inertReconcile } from './github-pr-store.fixture'
+import { legacyOf } from './github-legacy-effects.fixture'
 
 function serviceWith(): {
   mailbox: GithubPrEventMailboxService
@@ -19,8 +20,7 @@ function serviceWith(): {
   const wake = { notifyEvent: () => undefined } as unknown as GithubSandboxWakeService
   const dispatcher = new GithubPrOutboxDispatcher({
     fanout,
-    signals: inertSignals(),
-    wake,
+    legacy: legacyOf({ signals: inertSignals(), wake: wake }),
     reconcile: inertReconcile(),
     mergeability: inertMergeabilityRefresh(),
   })

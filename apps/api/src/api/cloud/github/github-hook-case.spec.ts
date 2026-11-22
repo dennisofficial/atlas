@@ -8,7 +8,7 @@ import { GithubHookController } from './github-hook.controller'
 import { GithubWebhookInboxService } from './github-webhook-inbox.service'
 import { PULL_REQUEST_PAYLOAD } from './github-delivery.fixture'
 import { mockGithubHttp, realGithubGraph } from './github-realtime-http.fixture'
-import type { GithubPrWebhookRequest } from './github-webhook.types'
+import type { GithubPrWebhookRequest } from './github-webhook-request'
 
 describe('legacy mixed-case hook identity', () => {
   useTestDatabase()

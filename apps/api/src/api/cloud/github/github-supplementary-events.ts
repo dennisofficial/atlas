@@ -1,5 +1,5 @@
 import type { GithubDeliveryService } from './github-delivery.service'
-import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
+import type { GithubLegacyEffects } from './github-legacy-effects'
 import type {
   GithubMergeQueueEntryWebhookPayload,
   GithubWorkflowRunWebhookPayload,
@@ -15,7 +15,7 @@ import { recordWorkflowRunFinished } from './github-workflow-run-webhook'
 export async function handleSupplementaryEvent(args: {
   event: string
   payload: unknown
-  wake: GithubSandboxWakeService
+  wake: Pick<GithubLegacyEffects, 'notifyEvent'>
   deliveries: { applyMergeQueued: GithubDeliveryService['applyMergeQueued'] }
 }): Promise<boolean> {
   if (args.event === 'workflow_run') {

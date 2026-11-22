@@ -17,6 +17,7 @@ import { GithubPrReconcile } from './github-pr-reconcile'
 import { GithubPrStore } from './github-pr-store'
 import { GithubHttpBudgetUnavailable, type GithubHttpBudget } from './github-request-budget'
 import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
+import { legacyOf } from './github-legacy-effects.fixture'
 
 const REPO = 'compai/app'
 const HEAD = 'abc123'
@@ -126,8 +127,7 @@ function rig(
   })
   const dispatcher = new GithubPrOutboxDispatcher({
     fanout,
-    signals: inertSignals(),
-    wake,
+    legacy: legacyOf({ signals: inertSignals(), wake: wake }),
     reconcile: (request) => reconcile.run(request),
     mergeability: async () => undefined,
     now: () => new Date(clock),

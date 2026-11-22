@@ -10,6 +10,7 @@ import { GithubPrOutboxDispatcher } from './github-pr-outbox'
 import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
 import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
 import { inertMergeabilityRefresh, inertReconcile } from './github-pr-store.fixture'
+import { legacyOf } from './github-legacy-effects.fixture'
 
 function discussionWith(): {
   discussion: GithubPrDiscussionDeliveryService
@@ -24,8 +25,7 @@ function discussionWith(): {
     fanout,
     new GithubPrOutboxDispatcher({
       fanout,
-      signals: inertSignals(),
-      wake,
+      legacy: legacyOf({ signals: inertSignals(), wake: wake }),
       reconcile: inertReconcile(),
       mergeability: inertMergeabilityRefresh(),
     }),

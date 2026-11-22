@@ -11,6 +11,7 @@ import type { GithubAppInstallNoticeService } from './github-app-install-notice.
 import type { GithubHookLifecycleService } from './github-hook-lifecycle.service'
 import type { GithubUserReads } from './github-user-reads'
 import type { GithubService } from './github.service'
+import { threadActivityAt } from './github-thread-activity'
 
 const SETTLED_FIELDS = {
   title: 'add the thing',
@@ -56,6 +57,7 @@ function serviceWith(args: {
     localCoordinator(github),
     { coversRepo: async () => false } as never,
     storeFixture(),
+    threadActivityAt,
   )
 }
 

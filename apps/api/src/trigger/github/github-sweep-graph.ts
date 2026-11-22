@@ -30,6 +30,7 @@ import {
 import { sandboxWakeBootProvider } from '../../api/cloud/github/github-sandbox-wake-boot'
 import { WAKE_DEBOUNCE_MS } from '../../api/cloud/github/github-sandbox-wake-debounce'
 import { GithubSandboxWakeService } from '../../api/cloud/github/github-sandbox-wake.service'
+import { threadActivityAt } from '../../api/cloud/github/github-thread-activity'
 import { GithubUserReads } from '../../api/cloud/github/github-user-reads'
 import { GithubService } from '../../api/cloud/github/github.service'
 import { GithubRequestCoordinator } from '../../api/cloud/github/github-request-coordinator'
@@ -94,8 +95,10 @@ export function buildGithubSweepGraph(args: { env: EnvService }): GithubSweepGra
     mailbox,
   } = buildPrApplyWiring({
     fanout,
-    signals: workerSignals.signals,
-    wake,
+    legacy: {
+      threadChanged: (changed) => workerSignals.signals.threadChanged(changed),
+      notifyEvent: (notice, event) => wake.notifyEvent(notice, event),
+    },
     reads,
     budget: coordinator,
     fillTokenOf: (args) => fillTokens.find(args),
@@ -129,6 +132,7 @@ export function buildGithubSweepGraph(args: { env: EnvService }): GithubSweepGra
       coordinator,
       new GithubHeadReads(),
       store,
+      threadActivityAt,
     ),
     hookLifecycle,
     hookSweep,
@@ -140,7 +144,6 @@ export function buildGithubSweepGraph(args: { env: EnvService }): GithubSweepGra
       cipher,
       mailbox,
       new GithubPrDiscussionDeliveryService(mailbox),
-      workerSignals.signals,
       coordinator,
       store,
       appTokens,

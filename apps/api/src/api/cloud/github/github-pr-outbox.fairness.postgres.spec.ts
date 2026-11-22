@@ -5,6 +5,7 @@ import { describe, expect, it } from 'bun:test'
 import { recordingSignals } from '../../platform/sessions/thread-signals.fixture'
 import { GithubPrOutboxDispatcher, PR_OUTBOX_BATCH } from './github-pr-outbox'
 import { GithubHttpBudgetUnavailable } from './github-request-budget'
+import { legacyOf } from './github-legacy-effects.fixture'
 
 const AT = new Date('2026-11-18T10:00:00Z')
 
@@ -32,8 +33,7 @@ function rig() {
   const { signals, changedThreads } = recordingSignals()
   const dispatcher = new GithubPrOutboxDispatcher({
     fanout: { push: () => undefined, pushEvent: () => undefined } as never,
-    signals,
-    wake: { notifyEvent: async () => undefined } as never,
+    legacy: legacyOf({ signals: signals, wake: { notifyEvent: async () => undefined } as never }),
     reconcile: async () => {
       throw new GithubHttpBudgetUnavailable()
     },

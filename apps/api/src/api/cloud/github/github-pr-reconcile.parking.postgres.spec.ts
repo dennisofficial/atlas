@@ -12,6 +12,7 @@ import { GithubPrReconcile } from './github-pr-reconcile'
 import type { GithubPrStore } from './github-pr-store'
 import { GithubHttpBudgetUnavailable, type GithubHttpBudget } from './github-request-budget'
 import { GithubUserReads } from './github-user-reads'
+import { legacyOf } from './github-legacy-effects.fixture'
 
 const REPO = 'compai/app'
 const GONE_REPO = 'gone/app'
@@ -77,8 +78,10 @@ function rig(
   })
   dispatcher = new GithubPrOutboxDispatcher({
     fanout: { push: () => undefined, pushEvent: () => undefined } as never,
-    signals: { threadChanged: () => undefined } as never,
-    wake: { notifyEvent: async () => undefined } as never,
+    legacy: legacyOf({
+      signals: { threadChanged: () => undefined } as never,
+      wake: { notifyEvent: async () => undefined } as never,
+    }),
     reconcile: (request) => reconcile.run(request),
     mergeability: async () => undefined,
     logger: { warn: () => undefined },

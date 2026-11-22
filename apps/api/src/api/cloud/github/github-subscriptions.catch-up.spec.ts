@@ -11,6 +11,7 @@ import { GithubSubscriptionsService } from './github-subscriptions.service'
 import type { GithubService } from './github.service'
 import type { PullRequestCacheFields } from './github-pull-request-mapping'
 import { stubGlobal, unstubAllGlobals } from '@dltech/bun-test-shims'
+import { threadActivityAt } from './github-thread-activity'
 
 const REST_FIELDS: PullRequestCacheFields = {
   title: 'add the thing',
@@ -59,6 +60,7 @@ function serviceWith(args: {
     localCoordinator(github),
     { coversRepo: async () => false } as never,
     storeFixture(),
+    threadActivityAt,
   )
 }
 

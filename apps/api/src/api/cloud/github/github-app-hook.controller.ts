@@ -27,8 +27,8 @@ import { GithubSandboxWakeService } from './github-sandbox-wake.service'
 import type {
   GithubAppInstallationRepositoriesWebhookPayload,
   GithubAppInstallationWebhookPayload,
-  GithubPrWebhookRequest,
 } from './github-webhook.types'
+import type { GithubPrWebhookRequest } from './github-webhook-request'
 
 const APP_EVENT_TYPES = new Set(['installation', 'installation_repositories'])
 

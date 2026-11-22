@@ -8,6 +8,7 @@ import { GithubPrOutboxDispatcher } from './github-pr-outbox'
 import { GithubPrStore } from './github-pr-store'
 import { inertMergeabilityRefresh, inertReconcile } from './github-pr-store.fixture'
 import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
+import { legacyOf } from './github-legacy-effects.fixture'
 
 export const SAMPLE: PullSample = {
   repoFullName: 'compai/app',
@@ -48,8 +49,7 @@ export function rig(
   const { signals, changedThreads } = recordingSignals()
   const dispatcher = new GithubPrOutboxDispatcher({
     fanout: overrides.fanout ?? fanout,
-    signals,
-    wake,
+    legacy: legacyOf({ signals: signals, wake: wake }),
     reconcile: inertReconcile(),
     mergeability: inertMergeabilityRefresh(),
   })

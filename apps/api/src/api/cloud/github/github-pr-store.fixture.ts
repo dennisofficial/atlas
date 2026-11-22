@@ -9,6 +9,7 @@ import {
 } from './github-pr-outbox'
 import { GithubPrStore } from './github-pr-store'
 import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
+import { legacyOf } from './github-legacy-effects.fixture'
 
 export function inertWake(): GithubSandboxWakeService {
   return { notifyEvent: async () => undefined } as unknown as GithubSandboxWakeService
@@ -33,8 +34,7 @@ export function storeFixture(
   const wake = args.wake ?? inertWake()
   const dispatcher = new GithubPrOutboxDispatcher({
     fanout,
-    signals: inertSignals(),
-    wake,
+    legacy: legacyOf({ signals: inertSignals(), wake: wake }),
     reconcile: inertReconcile(),
     mergeability: args.mergeability ?? inertMergeabilityRefresh(),
   })

@@ -1,5 +1,6 @@
 import type { Provider } from '@nestjs/common'
 import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
+import { replayThreadEvents } from './github-pr-event-thread-replay'
 import { buildPrApplyWiring, type PrApplyWiring } from './github-pr-apply-wiring'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
@@ -29,8 +30,11 @@ export const prApplyWiringProvider: Provider = {
 
     return buildPrApplyWiring({
       fanout,
-      signals,
-      wake,
+      legacy: {
+        threadChanged: (args) => signals.threadChanged(args),
+        notifyEvent: (notice, event) => wake.notifyEvent(notice, event),
+      },
+      replayThread: replayThreadEvents,
       reads,
       budget,
       fillTokenOf: (args) => fillTokens.find(args),

@@ -17,7 +17,6 @@ import { GithubPrDiscussionDeliveryService } from './github-pr-discussion-delive
 import { GithubHookController } from './github-hook.controller'
 import { GithubHookLifecycleService } from './github-hook-lifecycle.service'
 import { GithubHeadReads } from './github-head-reads'
-import { GithubPollSweeperService } from './github-poll-sweeper.service'
 import { sweepSchedulerProviders } from './github-sweep-scheduler'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { prFrameBusProvider } from './github-pr-fanout.transport'
@@ -27,10 +26,13 @@ import { sandboxWakeBootProvider } from './github-sandbox-wake-boot'
 import { GithubPrStreamRouter } from './github-pr-stream.router'
 import { GithubPrSubscriptionLinks } from './github-pr-subscription-links'
 import { GithubSubscriptionsRouter } from './github-subscriptions.router'
-import { GithubSubscriptionsService } from './github-subscriptions.service'
 import { GithubUserReads } from './github-user-reads'
 import { GithubWebhookInboxService } from './github-webhook-inbox.service'
 import { GithubModule } from './github.module'
+import {
+  pollSweeperProvider,
+  subscriptionsServiceProvider,
+} from './github-thread-activity.providers'
 import {
   mailboxProvider,
   outboxDispatcherProvider,
@@ -44,12 +46,12 @@ import {
   providers: [
     GithubSubscriptionsRouter,
     GithubPrStreamRouter,
-    GithubSubscriptionsService,
+    subscriptionsServiceProvider,
     GithubPrSubscriptionLinks,
     { provide: PrSubscriptionLinks, useExisting: GithubPrSubscriptionLinks },
     GithubHookLifecycleService,
     GithubHeadReads,
-    GithubPollSweeperService,
+    pollSweeperProvider,
     ...sweepSchedulerProviders(),
     GithubDeliveryService,
     GithubPrDiscussionDeliveryService,

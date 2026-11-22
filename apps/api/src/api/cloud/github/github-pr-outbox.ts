@@ -2,17 +2,21 @@ import { randomUUID } from 'node:crypto'
 import { Logger } from '@nestjs/common'
 import { db, type Row, type Tx } from '@dltech/atlas-db'
 
-import type { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import type { GithubPrFanoutService } from './github-pr-fanout.service'
 import {
   claimPrOutboxRows,
   completePrOutboxRows,
-  failPrOutboxRow,
   holdsPrOutboxLease,
   type PrOutboxClaim,
+  type PrOutboxKindScope,
 } from './github-pr-outbox-lease'
-import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
-import type { WakeEventNotice, WakePrEvent } from './github-sandbox-wake-intent'
+import { failPrOutboxRow } from './github-pr-outbox-failure'
+import {
+  type GithubLegacyEffects,
+  type GithubWakeEventNotice,
+  type GithubWakePrEvent,
+  LEGACY_OUTBOX_KINDS,
+} from './github-legacy-effects'
 import { noticeV2Sessions } from './github-v2-notice'
 import type { GithubPrEventDto, GithubPrStateDto } from './github-realtime.types'
 
@@ -23,7 +27,7 @@ export const PR_OUTBOX_RETENTION_MS = 24 * 60 * 60 * 1_000
 export type PrOutboxLogger = { warn(message: string): void }
 
 type OutboxPayload = Row<'GithubPrOutbox'>['payload']
-type WakePayload = { notice: WakeEventNotice; event: WakePrEvent }
+type WakePayload = { notice: GithubWakeEventNotice; event: GithubWakePrEvent }
 type FanoutPayload =
   | { userIds: readonly string[]; state: GithubPrStateDto }
   | { userIds: readonly string[]; event: GithubPrEventDto; ackId: string }
@@ -97,8 +101,7 @@ export class GithubPrOutboxDispatcher {
   constructor(
     private readonly deps: {
       fanout: Pick<GithubPrFanoutService, 'push' | 'pushEvent'>
-      signals: Pick<ThreadSignalsService, 'threadChanged'>
-      wake: Pick<GithubSandboxWakeService, 'notifyEvent'>
+      legacy?: GithubLegacyEffects
       reconcile: PrReconcileRun
       mergeability: PrMergeabilityRun
       logger?: PrOutboxLogger
@@ -111,13 +114,34 @@ export class GithubPrOutboxDispatcher {
 
   async dispatch(ids: readonly string[]): Promise<void> {
     if (ids.length === 0) return
-    await this.runClaim(await claimPrOutboxRows({ now: this.now(), limit: ids.length, ids }))
+    await this.runClaim(
+      await claimPrOutboxRows({ now: this.now(), limit: ids.length, ids, ...this.kindScope() }),
+    )
   }
 
-  async drain(): Promise<number> {
+  drain(): Promise<number> {
+    return this.drainScoped(this.kindScope())
+  }
+
+  drainLegacy(): Promise<number> {
+    if (this.deps.legacy === undefined) {
+      throw new Error('the pr outbox cannot drain v1 effects without the legacy effects port')
+    }
+    return this.drainScoped({ onlyKinds: LEGACY_OUTBOX_KINDS })
+  }
+
+  private kindScope(): PrOutboxKindScope {
+    return this.deps.legacy === undefined ? { excludeKinds: LEGACY_OUTBOX_KINDS } : {}
+  }
+
+  private async drainScoped(scope: PrOutboxKindScope): Promise<number> {
     let ran = 0
     for (let batch = 0; batch < PR_OUTBOX_DRAIN_BATCHES; batch += 1) {
-      const claimed = await claimPrOutboxRows({ now: this.now(), limit: PR_OUTBOX_BATCH })
+      const claimed = await claimPrOutboxRows({
+        now: this.now(),
+        limit: PR_OUTBOX_BATCH,
+        ...scope,
+      })
       if (claimed.rows.length === 0 && claimed.deadLettered.length === 0) break
       ran += claimed.rows.length
       await this.runClaim(claimed)
@@ -190,16 +214,23 @@ export class GithubPrOutboxDispatcher {
     return true
   }
 
+  private legacyEffects(): GithubLegacyEffects {
+    if (this.deps.legacy === undefined) {
+      throw new Error('a v1 pr outbox effect was claimed without the legacy effects port')
+    }
+    return this.deps.legacy
+  }
+
   private async perform(row: Row<'GithubPrOutbox'>): Promise<void> {
     if (row.kind === 'thread-signal') {
       const payload = row.payload as { threadId: string }
-      this.deps.signals.threadChanged({ threadId: payload.threadId })
+      this.legacyEffects().threadChanged({ threadId: payload.threadId })
 
       return
     }
     if (row.kind === 'wake') {
       const payload = row.payload as WakePayload
-      await this.deps.wake.notifyEvent(payload.notice, payload.event)
+      await this.legacyEffects().notifyEvent(payload.notice, payload.event)
 
       return
     }

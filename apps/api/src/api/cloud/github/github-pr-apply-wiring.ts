@@ -1,12 +1,14 @@
-import type { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
+import type { GithubLegacyEffects } from './github-legacy-effects'
 import type { GithubPrFanoutService } from './github-pr-fanout.service'
-import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
+import {
+  GithubPrEventMailboxService,
+  type GithubThreadReplay,
+} from './github-pr-event-mailbox.service'
 import { GithubPrOutboxDispatcher } from './github-pr-outbox'
 import { GithubPrMergeabilityRefresh } from './github-pr-mergeability-refresh'
 import { GithubPrReconcile } from './github-pr-reconcile'
 import { GithubPrStore } from './github-pr-store'
 import type { GithubHttpBudget } from './github-request-budget'
-import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
 import type { GithubUserReads } from './github-user-reads'
 
 export type PrApplyWiring = {
@@ -17,8 +19,8 @@ export type PrApplyWiring = {
 
 export function buildPrApplyWiring(args: {
   fanout: GithubPrFanoutService
-  signals: Pick<ThreadSignalsService, 'threadChanged'>
-  wake: Pick<GithubSandboxWakeService, 'notifyEvent'>
+  legacy?: GithubLegacyEffects
+  replayThread?: GithubThreadReplay
   reads: Pick<GithubUserReads, 'readHeadChecksOf' | 'readPullRequestObservation'>
   budget: GithubHttpBudget
   fillTokenOf: (args: {
@@ -45,12 +47,11 @@ export function buildPrApplyWiring(args: {
   })
   const dispatcher = new GithubPrOutboxDispatcher({
     fanout: args.fanout,
-    signals: args.signals,
-    wake: args.wake,
+    ...(args.legacy === undefined ? {} : { legacy: args.legacy }),
     reconcile: (run) => reconcile.run(run),
     mergeability: (run) => mergeability.run(run),
   })
-  const mailbox = new GithubPrEventMailboxService(args.fanout, dispatcher)
+  const mailbox = new GithubPrEventMailboxService(args.fanout, dispatcher, args.replayThread)
   bound = new GithubPrStore({ mailbox, dispatcher })
 
   return { mailbox, dispatcher, store: bound }

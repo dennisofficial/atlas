@@ -8,7 +8,7 @@ import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.ser
 import { GithubHookController } from './github-hook.controller'
 import { GithubWebhookInboxService } from './github-webhook-inbox.service'
 import type { GithubDeliveryService } from './github-delivery.service'
-import type { GithubPrWebhookRequest } from './github-webhook.types'
+import type { GithubPrWebhookRequest } from './github-webhook-request'
 
 const SECRET = 'whsec_per_repo_secret'
 

@@ -107,3 +107,7 @@ export function dtoOf(row: Row<'GithubPrState'>): GithubPrStateDto {
     updatedAt: row.updatedAt.toISOString(),
   }
 }
+
+export type GithubThreadActivity = (args: {
+  threadIds: readonly string[]
+}) => Promise<Map<string, Date>>

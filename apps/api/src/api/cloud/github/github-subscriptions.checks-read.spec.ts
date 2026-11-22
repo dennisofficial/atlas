@@ -11,6 +11,7 @@ import type { RestCheckRun, RestCommitStatus } from './github-pull-request-mappi
 import { GithubSubscriptionsService } from './github-subscriptions.service'
 import { GithubUserReads } from './github-user-reads'
 import type { GithubService } from './github.service'
+import { threadActivityAt } from './github-thread-activity'
 
 const SHA = 'abc123'
 const ACTIONS = { slug: 'github-actions' }
@@ -93,6 +94,7 @@ function subscriptionsService(): GithubSubscriptionsService {
     localCoordinator(github),
     { coversRepo: async () => false } as never,
     storeFixture(),
+    threadActivityAt,
   )
 }
 

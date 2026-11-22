@@ -18,6 +18,7 @@ import { GithubSubscribeStateWriter } from './github-subscribe-state-writer'
 import { GithubSubscribedPrResolver } from './github-subscribed-pr-resolver'
 import { GithubUserReads } from './github-user-reads'
 import type { GithubService } from './github.service'
+import { threadActivityAt } from './github-thread-activity'
 
 const SHA = 'abc123'
 const TOKEN = 'ghu_1'
@@ -143,6 +144,7 @@ describe('GithubPollSweeperService over a real read', () => {
       localCoordinator(github),
       new GithubHeadReads(),
       storeFixture({ fanout: fanoutOf() }),
+      threadActivityAt,
     )
   }
 
@@ -184,6 +186,7 @@ describe('GithubPollSweeperService over a real read', () => {
       localCoordinator(github),
       new GithubHeadReads(),
       store,
+      threadActivityAt,
     )
 
     const polled = service.handlePoll()

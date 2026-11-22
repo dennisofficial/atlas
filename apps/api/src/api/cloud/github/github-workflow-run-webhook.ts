@@ -4,8 +4,7 @@ import { db, type Row } from '@dltech/atlas-db'
 import { repoPattern } from './github-pr-identity'
 import { WORKFLOW_RUN_KIND, runSelectorOf, type RunSelector } from './github-run-selector'
 import type { WorkflowRunSnapshot } from './github-run-snapshot'
-import { failureText } from './github-sandbox-wake-boot'
-import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
+import { type GithubLegacyEffects, failureText } from './github-legacy-effects'
 import { postRunNoticeV2Sessions } from './github-v2-run-notice'
 import type {
   GithubWorkflowRunWebhookPayload,
@@ -106,7 +105,7 @@ async function notifyOne(args: {
   subscription: Row<'GithubSubscription'>
   run: WorkflowRunSnapshot
   runCreatedAt: Date
-  wake: GithubSandboxWakeService
+  wake: Pick<GithubLegacyEffects, 'notifyEvent'>
 }): Promise<boolean> {
   const claimed = await claimRun(args)
   if (claimed === 0) return false
@@ -126,7 +125,7 @@ async function notifyOne(args: {
 
 export async function recordWorkflowRunFinished(args: {
   payload: GithubWorkflowRunWebhookPayload
-  wake: GithubSandboxWakeService
+  wake: Pick<GithubLegacyEffects, 'notifyEvent'>
 }): Promise<number> {
   if (args.payload.action !== 'completed') return 0
   if (args.payload.workflow_run.status !== 'completed') return 0

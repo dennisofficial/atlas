@@ -12,6 +12,7 @@ import {
 import { GithubPrOutboxDispatcher, PR_OUTBOX_RETENTION_MS } from './github-pr-outbox'
 import { GithubHttpBudgetUnavailable } from './github-request-budget'
 import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
+import { legacyOf } from './github-legacy-effects.fixture'
 
 const AT = new Date('2026-11-18T10:00:00Z')
 
@@ -87,8 +88,10 @@ function rig(args: {
   const push = vi.fn((input: unknown) => args.push?.(input))
   const dispatcher = new GithubPrOutboxDispatcher({
     fanout: { push, pushEvent: vi.fn() },
-    signals,
-    wake: { notifyEvent: async () => args.wake?.() } as unknown as GithubSandboxWakeService,
+    legacy: legacyOf({
+      signals: signals,
+      wake: { notifyEvent: async () => args.wake?.() } as unknown as GithubSandboxWakeService,
+    }),
     reconcile: async (input) => args.reconcile?.(input),
     mergeability: async () => undefined,
     logger: { warn: () => undefined },
