@@ -19,10 +19,18 @@ export const SANDBOX_SIZE_TITLE = 'Sandbox size'
 const SECTION_DESCRIPTION =
   'The machine a new cloud sandbox boots on. Applies when a sandbox is created; resize a running one from its session.'
 
-const ACCOUNT_DEFAULT_OPTION: Agent37SizeOption = {
-  value: 'default',
-  label: 'Account default',
-  detail: 'Your personal default',
+const INHERIT_VALUE = 'default'
+
+export const defaultVcpusOf = (personalVcpus: number | undefined): number =>
+  personalVcpus ?? DEFAULT_SANDBOX_VCPUS
+
+const inheritOptionOf = (vcpus: number): Agent37SizeOption => {
+  const shape = agent37ShapeOfVcpus(vcpus)
+  return {
+    value: INHERIT_VALUE,
+    label: 'Default',
+    detail: `${shape.vcpus} vCPU · ${shape.memoryGb} GB RAM`,
+  }
 }
 
 const sizeValueOf = (vcpus: number): string => String(agent37ShapeOfVcpus(vcpus).vcpus)
@@ -32,20 +40,26 @@ export const savedSizeValueOf = (args: {
   withAccountDefault: boolean
 }): string => {
   if (args.vcpus === null) {
-    return args.withAccountDefault
-      ? ACCOUNT_DEFAULT_OPTION.value
-      : sizeValueOf(DEFAULT_SANDBOX_VCPUS)
+    return args.withAccountDefault ? INHERIT_VALUE : sizeValueOf(DEFAULT_SANDBOX_VCPUS)
   }
   return sizeValueOf(args.vcpus)
 }
 
+export const sizeValueToSave = (args: {
+  selected: string
+  withAccountDefault: boolean
+}): number | null =>
+  args.withAccountDefault && args.selected === INHERIT_VALUE ? null : Number(args.selected)
+
 export function SandboxSizeSection({
   value,
+  inheritedVcpus = DEFAULT_SANDBOX_VCPUS,
   withAccountDefault,
   options = AGENT37_SIZE_OPTIONS,
   onSave,
 }: {
   value: number | null
+  inheritedVcpus?: number
   withAccountDefault?: boolean
   options?: readonly Agent37SizeOption[]
   onSave: (vcpus: number | null) => Promise<unknown>
@@ -57,9 +71,7 @@ export function SandboxSizeSection({
   const handleSave = async () => {
     setSaving(true)
     try {
-      await onSave(
-        withAccountDefault && selected === ACCOUNT_DEFAULT_OPTION.value ? null : Number(selected),
-      )
+      await onSave(sizeValueToSave({ selected, withAccountDefault: withAccountDefault === true }))
     } finally {
       setSaving(false)
     }
@@ -79,9 +91,10 @@ export function SandboxSizeSection({
         <div className="px-4 py-3 sm:w-96">
           <VcpuSizeSelect
             sizes={[]}
-            options={withAccountDefault ? [ACCOUNT_DEFAULT_OPTION, ...options] : options}
+            options={withAccountDefault ? [inheritOptionOf(inheritedVcpus), ...options] : options}
             value={selected}
             onValueChange={setSelected}
+            showSelectedDetail={withAccountDefault === true}
             aria-label="Sandbox size"
             id="sandbox-size"
           />

@@ -16,6 +16,7 @@ export interface VcpuSizeSelectProps {
   onValueChange: (value: string) => void
   options?: readonly VcpuSizeOption[]
   disabled?: boolean
+  showSelectedDetail?: boolean
   'aria-label'?: string
   id?: string
 }
@@ -37,12 +38,29 @@ export function vcpuSizeItems({
   ]
 }
 
+function SelectedValue({
+  item,
+  showDetail,
+}: {
+  item: VcpuSizeOption | undefined
+  showDetail: boolean
+}) {
+  if (!showDetail || item === undefined || item.detail === undefined) return <SelectValue />
+  return (
+    <SelectValue>
+      {item.label}
+      <span className="font-mono text-xs text-muted-foreground">{item.detail}</span>
+    </SelectValue>
+  )
+}
+
 export function VcpuSizeSelect({
   sizes,
   value,
   onValueChange,
   options,
   disabled,
+  showSelectedDetail = false,
   'aria-label': ariaLabel = 'vCPUs',
   id,
 }: VcpuSizeSelectProps) {
@@ -50,6 +68,7 @@ export function VcpuSizeSelect({
     if (typeof next === 'string') onValueChange(next)
   }
   const items = vcpuSizeItems({ sizes, options })
+  const selected = items.find((item) => item.value === value)
 
   return (
     <Select
@@ -59,7 +78,7 @@ export function VcpuSizeSelect({
       disabled={disabled}
     >
       <SelectTrigger id={id} size="sm" className="w-full" aria-label={ariaLabel}>
-        <SelectValue />
+        <SelectedValue item={selected} showDetail={showSelectedDetail} />
       </SelectTrigger>
       <SelectContent>
         {items.map((item) => (

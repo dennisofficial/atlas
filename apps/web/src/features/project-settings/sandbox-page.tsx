@@ -9,8 +9,9 @@ import { Label } from '@dltech/atlas-ui/components/label'
 import { Textarea } from '@dltech/atlas-ui/components/textarea'
 
 import { QueryGate } from '@/features/settings/data/shared/query-gate'
-import { SandboxDiskSection } from '@/features/settings/parts/sandbox-disk-section'
-import { SandboxSizeSection } from '@/features/settings/parts/sandbox-size-section'
+import { usePersonalSettings } from '@/features/settings/data/personal/use-settings-draft'
+import { defaultDiskGbOf, SandboxDiskSection } from '@/features/settings/parts/sandbox-disk-section'
+import { defaultVcpusOf, SandboxSizeSection } from '@/features/settings/parts/sandbox-size-section'
 import { SandboxPageSkeleton } from './project-skeletons'
 import { runAction } from '@/features/settings/data/shared/run-action'
 
@@ -88,6 +89,13 @@ function SetupScript({
 export function SandboxPage() {
   const { projectId } = useProjectContext()
   const { query, save } = useSandbox(projectId)
+  const personal = usePersonalSettings()
+  const storedDiskGb = personal.query.data?.get('sandbox.diskGb')
+  const storedVcpus = personal.query.data?.get('sandbox.vcpus')
+  const inheritedVcpus = defaultVcpusOf(typeof storedVcpus === 'number' ? storedVcpus : undefined)
+  const inheritedDiskGb = defaultDiskGbOf(
+    typeof storedDiskGb === 'number' ? storedDiskGb : undefined,
+  )
   return (
     <QueryGate query={query} label="sandbox settings" skeleton={<SandboxPageSkeleton />}>
       {(sandbox) => {
@@ -101,12 +109,14 @@ export function SandboxPage() {
             <SandboxSizeSection
               key={`size-${sandbox.vcpus}`}
               value={sandbox.vcpus}
+              inheritedVcpus={inheritedVcpus}
               withAccountDefault
               onSave={(vcpus) => handleSave({ vcpus })}
             />
             <SandboxDiskSection
               key={`disk-${sandbox.diskGb}`}
               value={sandbox.diskGb}
+              inheritedDiskGb={inheritedDiskGb}
               withAccountDefault
               onSave={(diskGb) => handleSave({ diskGb })}
             />
