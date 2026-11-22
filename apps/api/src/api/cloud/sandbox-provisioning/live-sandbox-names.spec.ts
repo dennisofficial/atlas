@@ -14,6 +14,8 @@ import {
   v2Pods,
 } from './live-sandbox-names'
 
+const UNCLAIMED_HOST_ID = 2_000_000_007
+
 const NOW = new Date('2026-11-10T06:00:00Z')
 const hoursBefore = (hours: number): Date => new Date(NOW.getTime() - hours * 60 * 60 * 1_000)
 
@@ -196,12 +198,12 @@ describe('liveSandboxNames', () => {
 
   it('keeps the pod of an archived session live while a present host holds its lease', async () => {
     await v2Session({ id: 'v2-held', archivedAt: hoursBefore(25) })
-    await v2Lease({ sessionId: 'v2-held', holderHostId: 7 })
+    await v2Lease({ sessionId: 'v2-held', holderHostId: UNCLAIMED_HOST_ID })
 
     await db.transaction(async (tx) => {
       await tx.query(
         tx.raw
-          .sql`SELECT pg_advisory_xact_lock(${PG_PRESENCE_LOCK_NAMESPACE}::int, 7::int)::text AS "held"`
+          .sql`SELECT pg_advisory_xact_lock(${PG_PRESENCE_LOCK_NAMESPACE}::int, ${UNCLAIMED_HOST_ID}::int)::text AS "held"`
           .returnsRow({ held: 'pg/text@1' })
           .build(),
       )
@@ -215,7 +217,7 @@ describe('liveSandboxNames', () => {
 
   it('retires the pod of an archived session whose lease has no host behind it', async () => {
     await v2Session({ id: 'v2-stale', archivedAt: hoursBefore(25) })
-    await v2Lease({ sessionId: 'v2-stale', holderHostId: 7 })
+    await v2Lease({ sessionId: 'v2-stale', holderHostId: UNCLAIMED_HOST_ID })
 
     const { retirable } = await v2Pods({ now: NOW })
 
