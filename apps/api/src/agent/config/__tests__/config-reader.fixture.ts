@@ -4,7 +4,7 @@ import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 
 import { ESandboxProvider } from '@dltech/atlas-protocol'
 
-import { SecretCipher } from '../secret-cipher'
+import { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 
 export const KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
 export const cipher = new SecretCipher(KEY)

@@ -6,5 +6,4 @@ export abstract class ComposerUploadBlobStore {
   abstract head(args: { pathname: string }): Promise<{ size: number } | null>
   abstract presignDownload(args: { pathname: string }): Promise<{ downloadUrl: string }>
   abstract delete(args: { pathnames: string[] }): Promise<void>
-  abstract listOlderThan(args: { prefix: string; before: Date }): Promise<string[]>
 }

@@ -1,7 +1,7 @@
 import type { HostTimers } from '@dltech/atlas-host'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
-import type { SandboxProvider, SandboxTarget } from '../sandbox/sandbox-provider'
+import type { SandboxProvider, SandboxTarget } from '@dltech/atlas-pods/sandbox/sandbox-provider'
 
 const RENEW_EVERY_MS = 10 * 60_000
 export const POD_IDLE_WINDOW_MS = 30 * 60_000

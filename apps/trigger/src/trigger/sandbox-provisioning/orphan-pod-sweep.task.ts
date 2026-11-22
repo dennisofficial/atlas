@@ -1,0 +1,46 @@
+import { schedules } from '@trigger.dev/sdk'
+import { softDeleteArchivedSessionsIn } from '@dltech/atlas-control/postgres'
+import { db } from '@dltech/atlas-db'
+import { ESandboxProvider } from '@dltech/atlas-protocol'
+import {
+  platformCredentialsOf,
+  readPodsEnv,
+  sandboxProvidersOf,
+  uniqueV2Scopes,
+  v2Pods,
+  type V2PodSweepScope,
+} from '@dltech/atlas-pods'
+import '../init'
+import { triggerLog } from '../trigger-logger'
+import { runOrphanPodSweep } from './orphan-pod-sweep'
+
+const v2ScopesOf = async (): Promise<V2PodSweepScope[]> => {
+  const env = readPodsEnv()
+  const sandbox = sandboxProvidersOf({ env, db })
+  const scopes: V2PodSweepScope[] = []
+  for (const provider of [ESandboxProvider.Vercel, ESandboxProvider.Agent37]) {
+    const credentials = platformCredentialsOf({ provider, env })
+    if ('configured' in credentials) continue
+    scopes.push({ label: `platform/${provider}`, credentials, sandbox: sandbox.for(provider) })
+  }
+  return uniqueV2Scopes(scopes)
+}
+
+export const orphanPodSweepTask = schedules.task({
+  id: 'orphan-pod-sweep',
+  cron: '5 * * * *',
+  retry: { maxAttempts: 3 },
+  run: async () => {
+    const now = new Date()
+    return runOrphanPodSweep({
+      now,
+      log: (line) => triggerLog.log(line),
+      deps: {
+        pods: () => v2Pods({ now }),
+        v2Scopes: v2ScopesOf,
+        softDeleteArchived: ({ cutoff, at }) =>
+          db.transaction((tx) => softDeleteArchivedSessionsIn({ tx, cutoff, at })),
+      },
+    })
+  },
+})

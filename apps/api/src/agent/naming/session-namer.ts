@@ -3,7 +3,7 @@ import type { Db } from '@dltech/atlas-db'
 
 import { titlerModelsOf } from '../config/model-config'
 import { scopedSettingsOf } from '../config/scoped-settings'
-import type { SecretCipher } from '../config/secret-cipher'
+import type { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 import { providerModelOf } from '../runtime/model-port'
 import { OauthConnectionStore } from '../tokens/oauth-connection-store'
 import { ModelTokenService } from '../tokens/model-token-service'

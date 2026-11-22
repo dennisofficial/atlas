@@ -8,7 +8,7 @@ import { AnalyticsModule, PRODUCT_ANALYTICS, analyticsAppendHook } from '../../.
 import { changeContentStoreProvider } from '../../../_lib/changes/change-content.provider'
 import { backgroundWorkProvider } from '../../../_lib/background-work/background-work.providers'
 import { COMMAND_REGISTRY, nativeCommandRegistry } from './command-registry'
-import { composedPlugins, registeredPlugins } from './registered-plugins'
+import { composedPlugins, registeredPlugins } from '@dltech/atlas-pods'
 import { DbMediaRegistry, MediaRegistry } from './media-registry'
 import { mediaStoreProvider } from './media-store.provider'
 import { ChangesService } from './changes.service'

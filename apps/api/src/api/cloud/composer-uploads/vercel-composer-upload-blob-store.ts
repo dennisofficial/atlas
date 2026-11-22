@@ -1,4 +1,4 @@
-import { BlobNotFoundError, del, head, issueSignedToken, list, presignUrl } from '@vercel/blob'
+import { BlobNotFoundError, del, head, issueSignedToken, presignUrl } from '@vercel/blob'
 import { Injectable, ServiceUnavailableException } from '@nestjs/common'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { ComposerUploadBlobStore } from './composer-upload-blob-store'
@@ -67,24 +67,6 @@ export class VercelComposerUploadBlobStore extends ComposerUploadBlobStore {
   async delete(args: { pathnames: string[] }): Promise<void> {
     if (args.pathnames.length === 0) return
     await del(args.pathnames, { token: this.token() })
-  }
-
-  async listOlderThan(args: { prefix: string; before: Date }): Promise<string[]> {
-    const token = this.token()
-    const old: string[] = []
-    let cursor: string | undefined
-    do {
-      const page = await list({
-        prefix: args.prefix,
-        token,
-        ...(cursor === undefined ? {} : { cursor }),
-      })
-      for (const blob of page.blobs) {
-        if (blob.uploadedAt < args.before) old.push(blob.pathname)
-      }
-      cursor = page.hasMore ? page.cursor : undefined
-    } while (cursor !== undefined)
-    return old
   }
 
   private token(): string {

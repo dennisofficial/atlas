@@ -1,7 +1,7 @@
 import { ATLAS_SETTINGS, ESettingId, ESettingKind, type ChoiceDefinition } from '@dltech/atlas-core'
 import type { WebSearchConfig } from '@dltech/atlas-plugin-sdk'
 
-import type { SecretCipher } from '../config/secret-cipher'
+import type { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 
 const BACKEND_KEY = ESettingId.WebSearchBackend
 const SECRET_PREFIX = 'search.'

@@ -5,7 +5,7 @@ import {
   type VercelSdk,
 } from '@dltech/atlas-wire'
 import { db } from '@dltech/atlas-db'
-import { recordSandboxRunClose } from '../../../agent/sandbox/sandbox-runs'
+import { recordSandboxRunClose } from '@dltech/atlas-pods/sandbox/sandbox-runs'
 import { podSessionOf } from '../../platform/sessions/session-of-thread'
 import { failureText } from '../github/github-sandbox-wake-boot'
 

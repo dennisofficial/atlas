@@ -1,15 +1,15 @@
 import { EPodDiskPressure, podDiskGrowthOf } from '@dltech/atlas-core'
 import type { PodDiskPressurePort, PodDiskPressureReport } from '@dltech/atlas-host'
 
-import type { JobDispatcher } from '../../_core/ports/job-dispatcher'
-import { AGENT37_MAX_DISK_GB } from '../sandbox/agent37/agent37-disk'
+import type { JobsProjectDispatcher } from '../../_core/ports/job-dispatcher'
+import { AGENT37_MAX_DISK_GB } from '@dltech/atlas-pods/sandbox/agent37/agent37-disk'
 import {
   podDiskGrowOneIdempotencyKey,
   podDiskGrowOneTaskContract,
 } from './pod-disk-grow-one.contract'
 
 export const podDiskPressurePortOf = (args: {
-  dispatcher: JobDispatcher
+  dispatcher: JobsProjectDispatcher
 }): PodDiskPressurePort => ({
   report: async (report: PodDiskPressureReport) => {
     const targetGb = podDiskGrowthOf({

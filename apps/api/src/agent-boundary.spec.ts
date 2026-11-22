@@ -12,20 +12,7 @@ const CALLER_DIRS = ['api', '_core', '_lib', '_module', 'trigger']
 // deployed task (see src/trigger/trigger-bundle.spec.ts). These graphs, and the api modules only they
 // load, therefore import the few agent values they construct their dependencies from out of their own
 // modules. An entry whose file stops importing agent internals fails the suite.
-const TRIGGER_VALUE_IMPORTS = new Set([
-  'api/cloud/mcp-servers/mcp-servers-put.ts',
-  'api/cloud/sandbox-provisioning/pod-provision-rollback.ts',
-  'api/cloud/sandbox-provisioning/pod-provision-run.ts',
-  'trigger/pod-power/pod-sleep-graph.ts',
-  'trigger/pod-disk/pod-disk-grow-graph.ts',
-  'trigger/pod-disk/pod-disk-grow-one-graph.ts',
-  'trigger/pod-disk/pod-disk-grow-one-graph.spec.ts',
-  'trigger/pod-disk/pod-disk-grow-one.task.ts',
-  'trigger/pod-resize/pod-resize-graph.ts',
-  'trigger/sandbox-cost/agent37-usage-reconcile.task.ts',
-  'trigger/sandbox-provisioning/orphan-sandbox-sweep.task.ts',
-  'trigger/sandbox-provisioning/orphan-sweep-scopes.ts',
-])
+const TRIGGER_VALUE_IMPORTS = new Set<string>(['api/cloud/mcp-servers/mcp-servers-put.ts'])
 
 const SPECIFIER_PATTERN = /(?:from\s+|import\s*\(\s*|import\s+)['"]([^'"]+)['"]/g
 

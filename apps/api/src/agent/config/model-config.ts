@@ -26,7 +26,7 @@ import {
 } from '@dltech/atlas-models'
 
 import type { ModelConfig } from './agent-host-config'
-import type { SecretCipher } from './secret-cipher'
+import type { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 
 export type ActiveAccountRow = ActiveAccountRowLike
 

@@ -4,7 +4,7 @@ import { createInMemoryDaemon, inMemoryDaemonToken } from '@dltech/atlas-protoco
 
 import { RemoteCalls, type DaemonConnector } from '@dltech/atlas-host'
 
-import { sandboxNameOf } from '../../sandbox/vercel-names'
+import { sandboxNameOf } from '@dltech/atlas-pods/sandbox/vercel-names'
 import { ensureWorkspace } from '../workspace-setup'
 import { RecordingProcessPort, StubFileSystemPort } from './workspace-fakes'
 

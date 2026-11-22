@@ -4,7 +4,7 @@ import {
   type DaemonConnector,
 } from '@dltech/atlas-host'
 
-import type { DaemonEndpoint } from '../sandbox/sandbox-provider'
+import type { DaemonEndpoint } from '@dltech/atlas-pods/sandbox/sandbox-provider'
 
 const FAILED_CONNECTS_BEFORE_REWAKE = 2
 export const REWAKES_BEFORE_GIVING_UP = 3

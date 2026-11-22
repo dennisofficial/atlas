@@ -13,7 +13,7 @@ import {
 } from '@dltech/atlas-host'
 import { daemonToken } from '@dltech/atlas-protocol/engine'
 
-import { sandboxNameOf } from '../../sandbox/vercel-names'
+import { sandboxNameOf } from '@dltech/atlas-pods/sandbox/vercel-names'
 import { LocalSandboxProvider } from '../../testing/local-sandbox-provider'
 import { ensureWorkspace, WORKSPACE_STATE_DIR } from '../workspace-setup'
 import { additionalSentinelOf, PRIMARY_SENTINEL, SESSION_BASES_FILE } from '../workspace-state'

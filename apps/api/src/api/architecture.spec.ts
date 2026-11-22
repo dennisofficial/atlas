@@ -13,7 +13,7 @@ const FORBIDDEN_TARGETS: Record<Layer, readonly Layer[]> = {
 }
 
 const ALLOWED_EXTERNAL =
-  /^(?:@dltech\/(?:atlas-(?:wire|db|core|control|protocol|schedule|media|memory|models|previews|commands|native-commands|artifacts|plugin-sdk|plugin-github|plugin-mcp|plugin-operator|plugin-services|plugin-shells|plugin-crew|plugin-sessions|agent|host|observability|plugin-memory|plugin-skills|plugin-web|plugin-routines|plugin-instructions|daemon)|bun-test-shims)(?:\/|$))/
+  /^(?:@dltech\/(?:atlas-(?:wire|db|core|control|protocol|schedule|media|memory|models|previews|commands|native-commands|artifacts|plugin-sdk|plugin-github|plugin-mcp|plugin-operator|plugin-services|plugin-shells|plugin-crew|plugin-sessions|agent|host|observability|plugin-memory|plugin-skills|plugin-web|plugin-routines|plugin-instructions|daemon|pods|jobs)|bun-test-shims)(?:\/|$))/
 
 const API_ROOT = import.meta.dirname
 const SRC_ROOT = path.dirname(API_ROOT)
@@ -181,7 +181,7 @@ describe('api layer architecture', () => {
       collectInRepoViolations(),
       'the API composes the control plane from atlas-wire, atlas-db, atlas-core, atlas-control, ' +
         'atlas-protocol, atlas-schedule, atlas-media, atlas-memory, atlas-previews, atlas-commands, ' +
-        'atlas-native-commands, the plugin contract ' +
+        'atlas-native-commands, atlas-pods, atlas-jobs, the plugin contract ' +
         'and plugins, plus the harness subpaths it shares; a new in-repo import belongs in one of ' +
         'those or not at all',
     ).toEqual([])

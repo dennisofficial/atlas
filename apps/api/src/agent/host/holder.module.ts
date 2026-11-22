@@ -10,7 +10,7 @@ import type {
 } from '@dltech/atlas-host'
 import type { LogPort, TracePort } from '@dltech/atlas-observability'
 
-import { JobDispatcher } from '../../_core/ports/job-dispatcher'
+import { JobsProjectDispatcher } from '../../_core/ports/job-dispatcher'
 
 import { TRACE_FOR } from '../analytics/tokens'
 import { createPodMetricsBus, type PodMetricsBus } from '../bus/pod-metrics-bus'
@@ -31,7 +31,7 @@ import {
 } from './tokens'
 import type { ConfigSource } from '../config/agent-host-config'
 import type { AgentHostEnv } from '../config/env'
-import type { SandboxProviderRegistry } from '../sandbox/provider-registry'
+import type { SandboxProviderRegistry } from '@dltech/atlas-pods/sandbox/provider-registry'
 import type { GithubTokenReader } from '../tokens/github-token-reader'
 import type { ModelTokenService } from '../tokens/model-token-service'
 import type { SigningKeyReader } from '../tokens/signing-key-reader'
@@ -128,9 +128,9 @@ const holderProvider: Provider = {
 
 const podDiskPressureProvider: Provider = {
   provide: POD_DISK_PRESSURE,
-  useFactory: (dispatcher: JobDispatcher): PodDiskPressurePort =>
+  useFactory: (dispatcher: JobsProjectDispatcher): PodDiskPressurePort =>
     podDiskPressurePortOf({ dispatcher }),
-  inject: [JobDispatcher],
+  inject: [JobsProjectDispatcher],
 }
 
 const terminalDemandProvider: Provider = {

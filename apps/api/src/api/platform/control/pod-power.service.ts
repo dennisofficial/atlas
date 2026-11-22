@@ -3,8 +3,8 @@ import { ControlPlane, type ControlSessionRow } from '@dltech/atlas-control'
 import { INBOX_KIND_STOP } from '@dltech/atlas-core'
 import type { SessionSleepPodOutput } from '@dltech/atlas-protocol'
 
-import { JobDispatcher } from '../../../_core/ports/job-dispatcher'
-import { readPodBusy } from './pod-busy'
+import { JobsProjectDispatcher } from '../../../_core/ports/job-dispatcher'
+import { readPodBusy } from '@dltech/atlas-pods'
 import { PodTurnRunningError } from './pod-power.error'
 import { podSleepIdempotencyKey, podSleepTaskContract } from './pod-sleep.contract'
 
@@ -23,7 +23,7 @@ export class PodPowerService implements PodPower {
 
   constructor(
     @Inject(ControlPlane) private readonly plane: ControlPlane,
-    @Inject(JobDispatcher) private readonly dispatcher: JobDispatcher,
+    @Inject(JobsProjectDispatcher) private readonly dispatcher: JobsProjectDispatcher,
   ) {}
 
   async sleep(args: {

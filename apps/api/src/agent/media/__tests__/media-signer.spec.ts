@@ -3,7 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { SIGN_WINDOW_MS } from '@dltech/atlas-core'
 import { FakeMediaStore } from '@dltech/atlas-media/testing'
 
-import { SecretCipher } from '../../config/secret-cipher'
+import { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 import { MediaSigner } from '../media-signer'
 import { MemoryMediaSigningWindows } from './support'
 

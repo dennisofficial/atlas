@@ -31,6 +31,7 @@ a thread's event log.
 | `@dltech/atlas-control`          | `ControlPlane`, the store port, the refusal kinds and the routine service. |
 | `@dltech/atlas-control/postgres` | The Postgres store and the session write and view helpers.                 |
 | `@dltech/atlas-control/testing`  | `InMemoryControlStore`, the conformance suites and a fake change store.    |
+| `@dltech/atlas-control/s3`       | `S3ChangeContentStore` and `changesSettingsOf(env)`, framework-free.       |
 
 ## Capabilities
 
@@ -121,17 +122,11 @@ export const graphOf = () => {
 }
 ```
 
-From `apps/api/src/trigger/changes/changes-gc.task.ts`:
+From `apps/trigger/src/trigger/changes/changes-gc.ts`:
 
 ```ts
-import {
-  ControlPlane,
-  runChangesGc,
-  type ChangesGcContent,
-  type ChangesGcStore,
-} from '@dltech/atlas-control'
-
-const store: ChangesGcStore = new ControlPlane({ store: new PostgresControlStore(db) })
+const store = new ControlPlane({ store: new PostgresControlStore(db) })
+const content = new S3ChangeContentStore({ settings: () => changesSettingsOf(process.env) })
 const summary = await runChangesGc({ store, content })
 ```
 

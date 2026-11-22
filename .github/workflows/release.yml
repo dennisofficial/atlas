@@ -27,7 +27,7 @@ jobs:
           BEFORE: ${{ github.event.before }}
           EVENT: ${{ github.event_name }}
         run: |
-          trigger='^(apps/api/|packages/wire/|packages/db/|package\.json$|bun\.lock$|bunfig\.toml$|tsconfig\.base\.json$|\.github/workflows/release\.yml$)'
+          trigger='^(apps/api/|packages/wire/|packages/db/|packages/pods/|packages/jobs/|package\.json$|bun\.lock$|bunfig\.toml$|tsconfig\.base\.json$|\.github/workflows/release\.yml$)'
           worker='^(apps/preview-worker/|\.github/workflows/release\.yml$)'
           artifacts='^(apps/artifacts-host/|packages/artifacts/|\.github/workflows/release\.yml$)'
           if [ "$EVENT" = "workflow_dispatch" ] || ! git fetch --no-tags --depth=1 origin "$BEFORE"; then

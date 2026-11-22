@@ -1,6 +1,6 @@
 import type { Db } from '@dltech/atlas-db'
 
-import { SecretCipher } from '../../config/secret-cipher'
+import { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 import {
   OPERATOR_ANSWER_PATH,
   OperatorAnswerService,

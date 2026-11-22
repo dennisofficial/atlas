@@ -18,7 +18,7 @@ import {
   type SandboxTarget,
   type PodResizeOutcome,
   type SandboxListing,
-} from '../../sandbox/sandbox-provider'
+} from '@dltech/atlas-pods/sandbox/sandbox-provider'
 import { REWAKES_BEFORE_GIVING_UP } from '../rewaking-connector'
 import { createSessionRuntimeFactory } from '../session-runtime-factory'
 import { fakeModelSourceOf } from '../../testing/model-source'

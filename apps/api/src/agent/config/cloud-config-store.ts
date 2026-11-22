@@ -6,7 +6,7 @@ import { mcpSpecSchema, type McpTransport } from '@dltech/atlas-plugin-mcp/core'
 
 import { databaseUrlWithTls } from './database-url'
 import { readAgentHostEnv } from './env'
-import { SecretCipher } from './secret-cipher'
+import { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 
 const QUERY_TIMEOUT_MS = 10_000
 

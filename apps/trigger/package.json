@@ -12,9 +12,14 @@
   },
   "dependencies": {
     "@dltech/atlas-control": "workspace:*",
+    "@dltech/atlas-core": "workspace:*",
     "@dltech/atlas-db": "workspace:*",
     "@dltech/atlas-jobs": "workspace:*",
+    "@dltech/atlas-media": "workspace:*",
+    "@dltech/atlas-pods": "workspace:*",
+    "@dltech/atlas-protocol": "workspace:*",
     "@dltech/atlas-schedule": "workspace:*",
+    "@dltech/atlas-wire": "workspace:*",
     "@dotenvx/dotenvx": "^1.71.0",
     "@trigger.dev/sdk": "4.7.4"
   },

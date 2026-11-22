@@ -14,8 +14,8 @@ import {
   type SandboxListing,
   type SandboxTarget,
   type PodResizeOutcome,
-} from '../sandbox/sandbox-provider'
-import { sandboxNameOf } from '../sandbox/vercel-names'
+} from '@dltech/atlas-pods/sandbox/sandbox-provider'
+import { sandboxNameOf } from '@dltech/atlas-pods/sandbox/vercel-names'
 
 const daemonEntry = join(import.meta.dir, '../../../../daemon/src/index.ts')
 

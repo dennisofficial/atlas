@@ -1,6 +1,6 @@
 import { mcpSpecSchema } from '@dltech/atlas-plugin-mcp/core'
 
-import type { SecretCipher } from '../config/secret-cipher'
+import type { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 import { normalizeServerUrl } from './seal'
 import type { McpServerGrantRow } from './types'
 
