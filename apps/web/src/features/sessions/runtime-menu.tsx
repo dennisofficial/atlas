@@ -1,6 +1,6 @@
 'use client'
 
-import { ChevronDownIcon } from 'lucide-react'
+import { EllipsisIcon } from 'lucide-react'
 
 import { ESandboxProvider } from '@dltech/atlas-protocol'
 import { Button } from '@dltech/atlas-ui/components/button'
@@ -60,12 +60,18 @@ export function RuntimeMenu({
     <DropdownMenu>
       <DropdownMenuTrigger
         aria-label={`Runtime ${RUNTIME_LABELS[value]}`}
-        render={<Button variant="ghost" size="sm" className="text-muted-foreground" />}
+        render={
+          <Button
+            variant="ghost"
+            size={value === DEFAULT_RUNTIME ? 'icon-sm' : 'sm'}
+            className="text-muted-foreground"
+          />
+        }
       >
-        {RUNTIME_LABELS[value]}
-        <ChevronDownIcon />
+        {value === DEFAULT_RUNTIME ? null : RUNTIME_LABELS[value]}
+        <EllipsisIcon />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start">
+      <DropdownMenuContent align="end">
         <DropdownMenuGroup>
           <DropdownMenuLabel>v2 sandbox</DropdownMenuLabel>
           <DropdownMenuRadioGroup value={value} onValueChange={handleValueChange}>

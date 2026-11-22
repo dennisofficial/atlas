@@ -241,7 +241,7 @@ export function PromptInput({
           className={cn('max-md:min-h-10', sending && 'text-muted-foreground')}
           aria-label="Message"
         />
-        <InputGroupAddon align="block-end" className="flex-wrap">
+        <InputGroupAddon align="block-end" className="flex-wrap gap-1">
           <input
             ref={fileRef}
             type="file"
@@ -260,7 +260,9 @@ export function PromptInput({
           >
             <PlusIcon />
           </InputGroupButton>
-          <div className="flex min-w-0 flex-1 items-center gap-1">{children}</div>
+          <div className="flex min-w-0 flex-1 items-center [&>[data-size=sm]]:px-1.5">
+            {children}
+          </div>
           {showsStop ? (
             <InputGroupButton
               size="icon-sm"
