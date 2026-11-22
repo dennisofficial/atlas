@@ -19,18 +19,12 @@ import {
 import { buildInfo, clientVersionHeader } from '../build/info'
 import { ENoticeTone } from '../ui/notice-store'
 import type { BirthPreflight, BootStepListener, CloudBridgeFactory } from './cloud/bridge-factory'
-import { createCloudBridge } from './cloud/create-bridge'
 import { devServeResolverFor } from './cloud/dev-serve'
 import { ELinuxServeTarget } from './cloud/dev-serve-key'
 import type { AtlasApp } from './compose'
 import { durableOpLog } from './durable-op-log'
 import { messageOf } from './error-text'
-import {
-  cloudUrlOf,
-  liveBridgeOptionsFor,
-  releaseBuildOf,
-  telemetryEnvironmentOf,
-} from './live-cloud'
+import { cloudUrlOf, releaseBuildOf, telemetryEnvironmentOf } from './live-cloud'
 import { noticePortBinding } from './notice-binding'
 
 export const SIGN_IN_REQUIRED_MESSAGE = 'sign in to Atlas Cloud to start a session'
@@ -76,13 +70,11 @@ export const livePodBridgeOptionsFor = (app: AtlasApp): LocalPodBridgeOptions =>
 export type BridgeBuilders = {
   pod: typeof createLocalPodBridge
   api: typeof createSignedInApiPodBridge
-  direct: typeof createCloudBridge
 }
 
 const DEFAULT_BUILDERS: BridgeBuilders = {
   pod: createLocalPodBridge,
   api: createSignedInApiPodBridge,
-  direct: createCloudBridge,
 }
 
 export const liveApiPodBridgeFor = (args: {
@@ -99,11 +91,9 @@ export const liveApiPodBridgeFor = (args: {
 
 export const liveBridgeFor =
   (app: AtlasApp, builders: BridgeBuilders = DEFAULT_BUILDERS): CloudBridgeFactory =>
-  ({ runner, onBootStep, birth, apiProvisioned }) => {
+  ({ runner, onBootStep }) => {
     if (runner === ERunner.Local) return builders.pod(livePodBridgeOptionsFor(app))
-    const apiBorn = (birth === true || apiProvisioned === true) && app.cloud.session() !== null
-    if (app.pods || apiBorn) return liveApiPodBridgeFor({ app, onBootStep, build: builders.api })
-    return builders.direct(liveBridgeOptionsFor(app))
+    return liveApiPodBridgeFor({ app, onBootStep, build: builders.api })
   }
 
 export const dockerRefusal = async (): Promise<string | null> => {

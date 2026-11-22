@@ -5,7 +5,6 @@ import type { FileSecretsStore } from '../secrets/file-secrets-store'
 import { CloudClient, CloudError, cloudClientFor } from './cloud-client'
 import { composerDraftApiFor, type ComposerDraftApi } from './composer-draft-api'
 import type { CloudSession, CloudSessionStore } from './cloud-session'
-import { VercelCredentialStore } from './vercel-credential-store'
 import { SessionsClient } from './sessions-client'
 import { beginCloudLogin, type CloudLoginTicket } from './device-login'
 import { restoreArchivedLocalFiles } from './local-recovery'
@@ -52,7 +51,6 @@ export class CloudService {
   private readonly uploadOnSignIn: boolean
   private readonly onUploaded: (() => Promise<void>) | undefined
   private cached: { token: string; client: CloudClient } | undefined
-  private vercelStore: VercelCredentialStore | undefined
 
   constructor(args: {
     sessions: CloudSessionStore
@@ -140,11 +138,6 @@ export class CloudService {
     }
 
     return this.cached.client
-  }
-
-  vercel(): VercelCredentialStore {
-    this.vercelStore ??= new VercelCredentialStore(() => this.client())
-    return this.vercelStore
   }
 
   async beginLogin(args?: { url?: string }): Promise<CloudLoginTicket> {

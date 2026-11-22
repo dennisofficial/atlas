@@ -34,16 +34,6 @@ export function secretTargetOf(args: {
     }
   }
 
-  if (args.id === ESettingId.VercelToken) {
-    return {
-      name: ESettingId.VercelToken,
-      label: 'Vercel token',
-      masked: true,
-      required: false,
-      takesOne: true,
-    }
-  }
-
   if (args.id !== ESettingId.WebSearchKey) return undefined
 
   const chosen = choiceValueOf({
