@@ -108,7 +108,7 @@ export const runPodDiskGrowOne = async (args: {
     deps.log(`pod-disk-grow-one: left ${instanceId} alone: ${decision.reason ?? 'no growth'}`)
     return skipped(decision.reason ?? 'no growth')
   }
-  const diskGb = decision.diskGb ?? targetGb
+  const diskGb = decision.diskGb ?? reportedTargetGb
   await deps.notice({ sessionId: payload.podSessionId, diskGb })
   deps.log(`pod-disk-grow-one: grew ${instanceId} for ${payload.podSessionId} to ${diskGb} GB`)
   return { outcome: EPodDiskGrowOneOutcome.Grown, diskGb }
