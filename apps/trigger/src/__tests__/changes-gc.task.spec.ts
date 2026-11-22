@@ -24,7 +24,7 @@ describe('changes gc task', () => {
   it('registers under its task id every half hour', () => {
     expect(changesGcTask).toMatchObject({
       id: 'changes-gc',
-      cron: '*/30 * * * *',
+      cron: { pattern: '*/30 * * * *', window: '0m' },
       retry: { maxAttempts: 2 },
     })
     expect(CHANGES_GC_TASK_ID).toBe('changes-gc')

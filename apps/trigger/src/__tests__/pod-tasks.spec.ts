@@ -31,17 +31,17 @@ describe('the pod tasks this worker registers', () => {
     })
     expect(podDiskGrowTask).toMatchObject({
       id: 'pod-disk-grow',
-      cron: '*/5 * * * *',
+      cron: { pattern: '*/5 * * * *', window: '0m' },
       retry: { maxAttempts: 1 },
     })
     expect(agent37UsageReconcileTask).toMatchObject({
       id: 'agent37-usage-reconcile',
-      cron: '5 * * * *',
+      cron: { pattern: '5 * * * *', window: '0m' },
       retry: { maxAttempts: 3 },
     })
     expect(orphanPodSweepTask).toMatchObject({
       id: 'orphan-pod-sweep',
-      cron: '5 * * * *',
+      cron: { pattern: '5 * * * *', window: '0m' },
       retry: { maxAttempts: 3 },
     })
   })

@@ -40,7 +40,7 @@ describe('repo MCP server sweep', () => {
   it('runs daily under its own id', () => {
     expect(repoMcpServerSweepTask).toMatchObject({
       id: 'repo-mcp-server-sweep',
-      cron: '41 4 * * *',
+      cron: { pattern: '41 4 * * *', window: '0m' },
     })
   })
 
