@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
+import { ESessionStatus } from '@dltech/atlas-core'
+
 import {
   EPodDiskGrowOneOutcome,
   type PodDiskGrowOnePayload,
@@ -18,7 +20,7 @@ const payloadOf = (over: Partial<PodDiskGrowOnePayload> = {}): PodDiskGrowOnePay
 
 const fakeDeps = (args: {
   diskGb?: number
-  state?: string
+  state?: ESessionStatus
   instance?: boolean
   session?: boolean
 }) => {
@@ -37,7 +39,7 @@ const fakeDeps = (args: {
     facts: async () => {
       calls.push('facts')
       return {
-        state: (args.state ?? 'idle') as never,
+        state: args.state ?? ESessionStatus.Idle,
         shellsRunning: 0,
         servicesRunning: 0,
         backgroundAgents: 0,
@@ -66,7 +68,7 @@ const fakeDeps = (args: {
 
 describe('runPodDiskGrowOne', () => {
   it('grows a pod that is thinking, then tells the session why it restarted', async () => {
-    const { deps, calls, noticed } = fakeDeps({ state: 'thinking' })
+    const { deps, calls, noticed } = fakeDeps({ state: ESessionStatus.Thinking })
     expect(await runPodDiskGrowOne({ payload: payloadOf(), deps, maxGb: 100 })).toEqual({
       outcome: EPodDiskGrowOneOutcome.Grown,
       diskGb: 40,
@@ -76,7 +78,7 @@ describe('runPodDiskGrowOne', () => {
   })
 
   it('grows an urgent pod without reading what it is running', async () => {
-    const { deps, calls } = fakeDeps({ state: 'running-tool' })
+    const { deps, calls } = fakeDeps({ state: ESessionStatus.RunningTool })
     await runPodDiskGrowOne({
       payload: payloadOf({ urgent: true, usedBytes: 19.5 * GB }),
       deps,
@@ -94,7 +96,7 @@ describe('runPodDiskGrowOne', () => {
   })
 
   it('requeues itself in ten seconds while a tool call holds the pod', async () => {
-    const { deps, calls, requeued } = fakeDeps({ state: 'running-tool' })
+    const { deps, calls, requeued } = fakeDeps({ state: ESessionStatus.RunningTool })
     expect(await runPodDiskGrowOne({ payload: payloadOf(), deps, maxGb: 100 })).toEqual({
       outcome: EPodDiskGrowOneOutcome.Waiting,
     })
@@ -103,7 +105,7 @@ describe('runPodDiskGrowOne', () => {
   })
 
   it('stops waiting at the cap and leaves the sweep as the net', async () => {
-    const { deps, calls, requeued } = fakeDeps({ state: 'running-tool' })
+    const { deps, calls, requeued } = fakeDeps({ state: ESessionStatus.RunningTool })
     const payload = payloadOf({ waits: POD_DISK_GROW_MAX_WAITS })
     expect(await runPodDiskGrowOne({ payload, deps, maxGb: 100 })).toEqual({
       outcome: EPodDiskGrowOneOutcome.Waiting,

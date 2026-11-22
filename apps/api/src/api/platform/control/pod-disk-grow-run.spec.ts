@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
+import { ESessionStatus } from '@dltech/atlas-core'
+
 import {
   EPodDiskGrowOutcome,
   growPodDisk,
@@ -24,14 +26,14 @@ type FakeArgs = {
 }
 
 const factsOf = (over: {
-  state?: string
+  state?: ESessionStatus
   shellsRunning?: number
   servicesRunning?: number
   backgroundAgents?: number
   terminalsHeld?: number
   peersPlaced?: number
 }) => ({
-  state: over.state as never,
+  state: over.state,
   shellsRunning: over.shellsRunning ?? 0,
   servicesRunning: over.servicesRunning ?? 0,
   backgroundAgents: over.backgroundAgents ?? 0,
@@ -46,7 +48,9 @@ const fakeDeps = (args: FakeArgs) => {
     pods: async () => args.pods,
     facts: async ({ podSessionId }) => {
       calls.push(`facts:${podSessionId}`)
-      return await (args.facts ?? (async () => factsOf({ state: 'idle' })))(podSessionId)
+      return await (args.facts ?? (async () => factsOf({ state: ESessionStatus.Idle })))(
+        podSessionId,
+      )
     },
     closeRun: async ({ podSessionId }) => {
       calls.push(`closeRun:${podSessionId}`)
@@ -76,7 +80,7 @@ describe('runPodDiskGrow', () => {
   it('waits for a pod in the middle of a tool call', async () => {
     const { deps, calls, lines } = fakeDeps({
       pods: [podOf({ podSessionId: 'pod-1', usedGb: 17, limitGb: 20 })],
-      facts: async () => factsOf({ state: 'running-tool' }),
+      facts: async () => factsOf({ state: ESessionStatus.RunningTool }),
     })
     expect(await runPodDiskGrow({ deps, maxGb: 100 })).toEqual({
       checked: 1,
@@ -90,7 +94,7 @@ describe('runPodDiskGrow', () => {
   it('grows under a thinking turn, which does not live in the pod', async () => {
     const { deps, calls, lines } = fakeDeps({
       pods: [podOf({ podSessionId: 'pod-1', usedGb: 17, limitGb: 20 })],
-      facts: async () => factsOf({ state: 'thinking' }),
+      facts: async () => factsOf({ state: ESessionStatus.Thinking }),
     })
     expect(await runPodDiskGrow({ deps, maxGb: 100 })).toEqual({
       checked: 1,
@@ -104,7 +108,8 @@ describe('runPodDiskGrow', () => {
   it('grows an urgent pod at once, whatever it is running', async () => {
     const { deps, calls } = fakeDeps({
       pods: [podOf({ podSessionId: 'pod-1', usedGb: 19.5, limitGb: 20 })],
-      facts: async () => factsOf({ state: 'running-tool', shellsRunning: 3, peersPlaced: 1 }),
+      facts: async () =>
+        factsOf({ state: ESessionStatus.RunningTool, shellsRunning: 3, peersPlaced: 1 }),
     })
     expect(await runPodDiskGrow({ deps, maxGb: 100 })).toEqual({
       checked: 1,
@@ -118,7 +123,7 @@ describe('runPodDiskGrow', () => {
     const order: string[] = []
     const deps: PodDiskSweepDeps = {
       pods: async () => [podOf({ podSessionId: 'pod-1', usedGb: 17, limitGb: 20 })],
-      facts: async () => factsOf({ state: 'idle' }),
+      facts: async () => factsOf({ state: ESessionStatus.Idle }),
       closeRun: async () => {
         order.push('closeRun')
       },
@@ -192,7 +197,7 @@ describe('growPodDisk', () => {
   it('reports the decision a single pod earns on its own', async () => {
     const { deps } = fakeDeps({
       pods: [],
-      facts: async () => factsOf({ state: 'waiting-to-retry' }),
+      facts: async () => factsOf({ state: ESessionStatus.WaitingToRetry }),
     })
     expect(
       await growPodDisk({
