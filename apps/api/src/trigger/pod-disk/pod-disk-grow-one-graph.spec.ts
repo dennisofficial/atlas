@@ -45,6 +45,7 @@ const fakeDeps = (args: {
         backgroundAgents: 0,
         terminalsHeld: 0,
         peersPlaced: 0,
+        setupRunning: false,
       }
     },
     closeRun: async () => {
