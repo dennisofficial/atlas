@@ -9,6 +9,7 @@ import { NullTracer, type TracePort } from '../trace/trace.port'
 import { telemetryEnabled } from '../telemetry/telemetry-policy'
 import {
   AGENT_TRACE_SERVICE_NAME,
+  deployCommitOf,
   LONGEST_TRACED_TURN_MS,
   POSTHOG_HOST,
   POSTHOG_KEY,
@@ -74,7 +75,12 @@ export function serverObservability(args: {
     })
     return {
       analytics: new PosthogProductAnalytics({ client, version: args.version }),
-      traceFor: (distinctId) => new PosthogTracer({ client, distinctId }),
+      traceFor: (distinctId) =>
+        new PosthogTracer({
+          client,
+          distinctId,
+          deployCommit: deployCommitOf(args.env ?? process.env),
+        }),
     }
   } catch {
     return { analytics: new NullProductAnalytics(), traceFor: () => new NullTracer() }

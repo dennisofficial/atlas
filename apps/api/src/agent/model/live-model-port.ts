@@ -1,3 +1,4 @@
+import { ESpan, spanWith, type SpanHandle, type TracePort } from '@dltech/atlas-observability'
 import {
   ModelPort,
   type ModelStepResult,
@@ -40,6 +41,7 @@ export class LiveModelPort extends ModelPort {
       read: () => Promise<ResolvedRoleModel>
       build: (resolved: ResolvedRoleModel) => AiSdkModelPort
       onReadFailure?: (error: unknown) => void
+      trace?: TracePort | undefined
     },
   ) {
     super()
@@ -60,17 +62,35 @@ export class LiveModelPort extends ModelPort {
     return this.inner.step(args)
   }
 
-  private async refresh(): Promise<void> {
+  private refresh(): Promise<void> {
+    return spanWith(this.args.trace, {
+      name: ESpan.ModelResolve,
+      fields: { provider: this.inner.identity.id, model: this.inner.identity.modelId },
+      run: (span) => this.applyRefresh(span),
+    })
+  }
+
+  private async applyRefresh(span: SpanHandle): Promise<void> {
     let next: ResolvedRoleModel
     try {
       next = await this.args.read()
     } catch (error) {
+      span.set({ phase: 'read-failed' })
       this.args.onReadFailure?.(error)
       return
     }
     const key = keyOf(next)
-    if (key === this.key) return
+    if (key === this.key) {
+      span.set({ phase: 'kept' })
+      return
+    }
     this.inner = this.args.build(next)
     this.key = key
+    span.set({
+      phase: 'rebuilt',
+      provider:
+        next.config.configured === true ? next.config.ref.providerId : next.choice.ref.providerId,
+      model: next.choice.ref.modelId,
+    })
   }
 }
