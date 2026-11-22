@@ -45,6 +45,31 @@ const personalOf = async (args: {
     return null
   })
 
+const CONCURRENT_READS = 16
+
+const textsOf = async (args: {
+  ctx: PluginPodContext
+  paths: readonly string[]
+}): Promise<readonly (string | undefined)[]> => {
+  const texts: (string | undefined)[] = args.paths.map(() => undefined)
+  let next = 0
+
+  const readOne = async (): Promise<void> => {
+    for (;;) {
+      const index = next
+      next += 1
+      const path = args.paths[index]
+      if (path === undefined) return
+      const read = await textOf({ ctx: args.ctx, path })
+      texts[index] = read.ok ? read.value : undefined
+    }
+  }
+
+  const readers = Math.min(CONCURRENT_READS, args.paths.length)
+  await Promise.all(Array.from({ length: readers }, async () => await readOne()))
+  return texts
+}
+
 const filesUnder = async (args: {
   ctx: PluginPodContext
   root: string
@@ -52,13 +77,14 @@ const filesUnder = async (args: {
   const found = await pathsOf({ ctx: args.ctx, pattern: `**/${INSTRUCTION_FILE}`, cwd: args.root })
   if (!found.ok) return {}
 
+  const candidates = found.value.filter(readablePath).map((relative) => join(args.root, relative))
+  const texts = await textsOf({ ctx: args.ctx, paths: candidates })
+
   const files: Record<string, string> = {}
-  for (const relative of found.value) {
-    if (!readablePath(relative)) continue
-    const path = join(args.root, relative)
-    const read = await textOf({ ctx: args.ctx, path })
-    if (!read.ok || Buffer.byteLength(read.value, 'utf8') > MAX_INSTRUCTION_BYTES) continue
-    files[path] = read.value
+  for (const [index, path] of candidates.entries()) {
+    const text = texts[index]
+    if (text === undefined || Buffer.byteLength(text, 'utf8') > MAX_INSTRUCTION_BYTES) continue
+    files[path] = text
     if (Object.keys(files).length >= MAX_INSTRUCTION_FILES) break
   }
   return files
@@ -72,11 +98,14 @@ export const instructionsResource = (
   watch: (directory) => ({ roots: [directory], basenames: [INSTRUCTION_FILE] }),
   cloud: [ECloudSetting.PersonalInstructions],
   load: async ({ ctx, directory }) => {
-    const root = await repoRootOf({ ctx, directory })
+    const [root, personal] = await Promise.all([
+      repoRootOf({ ctx, directory }),
+      personalOf({ ctx, options }),
+    ])
     return {
       root,
       directory,
-      personal: await personalOf({ ctx, options }),
+      personal,
       files: await filesUnder({ ctx, root }),
     }
   },

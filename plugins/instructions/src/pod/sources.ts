@@ -14,15 +14,26 @@ const GIT_MARK = '.git'
 
 const PATH_FIELDS = ['path', 'file_path', 'workdir'] as const
 
-export const repoRootOf = async (args: { ctx: Ctx; directory: string }): Promise<string> => {
-  let current = args.directory
+const selfAndParentsOf = (directory: string): readonly string[] => {
+  const candidates: string[] = []
+  let current = directory
   for (;;) {
-    const found = await statOf({ ctx: args.ctx, path: join(current, GIT_MARK) })
-    if (found.ok) return current
+    candidates.push(current)
     const parent = dirname(current)
-    if (parent === current) return args.directory
+    if (parent === current) return candidates
     current = parent
   }
+}
+
+export const repoRootOf = async (args: { ctx: Ctx; directory: string }): Promise<string> => {
+  const candidates = selfAndParentsOf(args.directory)
+  const marks = await Promise.all(
+    candidates.map(
+      async (candidate) => await statOf({ ctx: args.ctx, path: join(candidate, GIT_MARK) }),
+    ),
+  )
+  const found = marks.findIndex((mark) => mark.ok)
+  return (found === -1 ? undefined : candidates[found]) ?? args.directory
 }
 
 const segmentsBelow = (args: { root: string; path: string }): readonly string[] | null => {

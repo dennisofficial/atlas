@@ -74,6 +74,41 @@ const skillAt = async (args: {
   }
 }
 
+const entrySkillOf = async (args: {
+  ctx: Ctx
+  root: string
+  entry: DirectoryEntry
+  signal?: AbortSignal | undefined
+}): Promise<RepoCatalogueSkill | undefined> => {
+  const path = join(args.root, args.entry.name)
+  const kind = await kindOf({ ctx: args.ctx, path, entry: args.entry, signal: args.signal })
+
+  if (kind === EEntryKind.Directory) {
+    const inside = await directoryOf({ ctx: args.ctx, path, signal: args.signal })
+    if (!inside.ok) return undefined
+    const filename = inside.value.find((candidate) => SKILL_ENTRY.test(candidate.name))?.name
+    if (filename === undefined) return undefined
+    return await skillAt({
+      ctx: args.ctx,
+      directory: path,
+      entryPath: join(path, filename),
+      fallbackName: args.entry.name,
+      signal: args.signal,
+    })
+  }
+
+  if (kind !== EEntryKind.File) return undefined
+  const extension = extname(args.entry.name)
+  if (extension.toLowerCase() !== MARKDOWN) return undefined
+  return await skillAt({
+    ctx: args.ctx,
+    directory: args.root,
+    entryPath: path,
+    fallbackName: basename(args.entry.name, extension),
+    signal: args.signal,
+  })
+}
+
 const skillsUnder = async (args: {
   ctx: Ctx
   root: string
@@ -82,40 +117,13 @@ const skillsUnder = async (args: {
   const listed = await directoryOf({ ctx: args.ctx, path: args.root, signal: args.signal })
   if (!listed.ok) return []
 
-  const found: RepoCatalogueSkill[] = []
-  for (const entry of listed.value) {
-    const path = join(args.root, entry.name)
-    const kind = await kindOf({ ctx: args.ctx, path, entry, signal: args.signal })
-
-    if (kind === EEntryKind.Directory) {
-      const inside = await directoryOf({ ctx: args.ctx, path, signal: args.signal })
-      if (!inside.ok) continue
-      const filename = inside.value.find((candidate) => SKILL_ENTRY.test(candidate.name))?.name
-      if (filename === undefined) continue
-      const skill = await skillAt({
-        ctx: args.ctx,
-        directory: path,
-        entryPath: join(path, filename),
-        fallbackName: entry.name,
-        signal: args.signal,
-      })
-      if (skill !== undefined) found.push(skill)
-      continue
-    }
-
-    if (kind !== EEntryKind.File) continue
-    const extension = extname(entry.name)
-    if (extension.toLowerCase() !== MARKDOWN) continue
-    const skill = await skillAt({
-      ctx: args.ctx,
-      directory: args.root,
-      entryPath: path,
-      fallbackName: basename(entry.name, extension),
-      signal: args.signal,
-    })
-    if (skill !== undefined) found.push(skill)
-  }
-  return found
+  const found = await Promise.all(
+    listed.value.map(
+      async (entry) =>
+        await entrySkillOf({ ctx: args.ctx, root: args.root, entry, signal: args.signal }),
+    ),
+  )
+  return found.flatMap((skill) => (skill === undefined ? [] : [skill]))
 }
 
 export const discoverRepoSkills = async (args: {
@@ -123,15 +131,15 @@ export const discoverRepoSkills = async (args: {
   projectDirectory: string
   signal?: AbortSignal | undefined
 }): Promise<readonly RepoCatalogueSkill[]> => {
-  const discovered: RepoCatalogueSkill[] = []
-  for (const root of REPO_SKILL_ROOTS) {
-    discovered.push(
-      ...(await skillsUnder({
-        ctx: args.ctx,
-        root: join(args.projectDirectory, root),
-        signal: args.signal,
-      })),
-    )
-  }
-  return discovered
+  const perRoot = await Promise.all(
+    REPO_SKILL_ROOTS.map(
+      async (root) =>
+        await skillsUnder({
+          ctx: args.ctx,
+          root: join(args.projectDirectory, root),
+          signal: args.signal,
+        }),
+    ),
+  )
+  return perRoot.flatMap((skills) => [...skills])
 }
