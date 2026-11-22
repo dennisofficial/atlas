@@ -14,7 +14,7 @@ import {
   inMemoryDaemonToken,
   type InMemoryDaemonSocket,
 } from '@dltech/atlas-protocol/testing'
-import type { LogPort } from '@dltech/atlas-observability'
+import { ELogSeverity, LogPort, type LogEntry } from '@dltech/atlas-observability'
 
 import { RemoteCalls } from '../../../calls/remote-calls'
 import type { DaemonConnector } from '../../../calls/socket'
@@ -138,6 +138,7 @@ const connect = async (state: DaemonState): Promise<RemoteCalls> => {
 export type Rig = {
   state: DaemonState
   errors: string[]
+  triggers: string[]
   plane: ControlPlane
   writes: number[]
   watchRoots: string[][]
@@ -145,6 +146,24 @@ export type Rig = {
   content: FakeChangeContentStore
   snapshotter: ChangesSnapshotter
   calls: RemoteCalls
+}
+
+class RigLog extends LogPort {
+  constructor(
+    private readonly errors: string[],
+    private readonly triggers: string[],
+  ) {
+    super()
+  }
+
+  record(entry: LogEntry): void {
+    const trigger = entry.data?.trigger
+    if (typeof trigger === 'string') this.triggers.push(trigger)
+    if (entry.severity !== ELogSeverity.Error) return
+    this.errors.push(
+      `${entry.message} ${JSON.stringify(entry.data ?? {})} ${JSON.stringify(entry)}`,
+    )
+  }
 }
 
 export const rig = async (args: {
@@ -162,6 +181,7 @@ export const rig = async (args: {
   }
   const content = args.content ?? new FakeChangeContentStore({ clock: () => 1 })
   const errors: string[] = []
+  const triggers: string[] = []
   const calls = await connect(args.state)
   const watchRoots: string[][] = []
   const ops: string[] = []
@@ -180,15 +200,12 @@ export const rig = async (args: {
       args.checkouts ??
       (async () => [{ repoPath: WORKTREE, originUrl: 'git@github.com:org/repo.git', base: BASE }]),
     now: () => 1_700_000_000_000,
-    log: {
-      error: (entry: { message: string; data?: unknown }) => {
-        errors.push(`${entry.message} ${JSON.stringify(entry.data ?? {})} ${JSON.stringify(entry)}`)
-      },
-    } as unknown as LogPort,
+    log: new RigLog(errors, triggers),
   })
   return {
     state: args.state,
     errors,
+    triggers,
     plane,
     writes,
     watchRoots,

@@ -1,6 +1,6 @@
 import { DaemonProcessPort } from '../calls/ports/process'
 import type { BranchObserver } from './branch-observer'
-import { type ChangesCheckout, ChangesSnapshotter } from './changes/snapshotter'
+import { type ChangesCheckout, ChangesSnapshotter, ESnapshotTrigger } from './changes/snapshotter'
 import { runGit } from './checkouts/git'
 import type { DiskPressureObserver } from './disk-pressure-observer'
 import { logDriveFault } from './held-runner'
@@ -77,7 +77,7 @@ export class HeldObservation {
   }
 
   turnEnded(): void {
-    void this.changes?.snapshotNow()
+    void this.changes?.snapshotNow(ESnapshotTrigger.TurnEnd)
   }
 
   refreshBranches(): void {
@@ -99,8 +99,8 @@ export class HeldObservation {
   }
 
   async observeBeforeRelease(): Promise<void> {
+    this.changes?.quiesce()
     await this.branches.refresh().catch((error: unknown) => this.faulted(error))
-    await this.changes?.snapshotNow().catch((error: unknown) => this.faulted(error))
   }
 
   private releaseCheckouts(): void {
