@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { ESessionStatus } from '@dltech/atlas-core'
+import { ESessionStatus, type PodRebootFacts } from '@dltech/atlas-core'
 
 import {
   EPodDiskGrowOutcome,
@@ -21,7 +21,7 @@ const podOf = (args: { podSessionId: string; usedGb?: number; limitGb?: number }
 
 type FakeArgs = {
   pods: readonly PodDisk[]
-  facts?: (podSessionId: string) => Promise<Parameters<typeof factsOf>[0] | undefined>
+  facts?: (podSessionId: string) => Promise<PodRebootFacts | undefined>
   grow?: (args: { instanceId: string; diskGb: number }) => Promise<void>
 }
 
@@ -32,7 +32,7 @@ const factsOf = (over: {
   backgroundAgents?: number
   terminalsHeld?: number
   peersPlaced?: number
-}) => ({
+}): PodRebootFacts => ({
   state: over.state,
   shellsRunning: over.shellsRunning ?? 0,
   servicesRunning: over.servicesRunning ?? 0,
