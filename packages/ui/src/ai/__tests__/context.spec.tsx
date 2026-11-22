@@ -24,10 +24,11 @@ describe('Context', () => {
     expect(formatTokens(1_000_000)).toBe('1.0M')
   })
 
-  it('shows the percentage in the trigger', () => {
+  it('shows only the percentage in the trigger and names it for screen readers', () => {
     const html = renderToStaticMarkup(<Context used={50_000} limit={200_000} />)
 
-    expect(html.replace(/<[^>]+>/g, '')).toContain('25% context')
+    expect(html.replace(/<[^>]+>/g, '').trim()).toBe('25%')
+    expect(html).toContain('aria-label="25% of context used"')
   })
 
   it('shows an em dash and says so when nothing measured the window', () => {

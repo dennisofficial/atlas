@@ -49,17 +49,14 @@ export function Context({ used, limit, breakdown = [], trigger, className }: Con
           <Button
             variant="ghost"
             size="sm"
-            aria-label={percent === null ? 'Context not measured yet' : undefined}
-            className={cn('tabular-nums', className)}
+            aria-label={
+              percent === null ? 'Context not measured yet' : `${percent}% of context used`
+            }
+            className={cn('text-sm font-bold tabular-nums', className)}
           />
         }
       >
-        {trigger ?? (
-          <>
-            {reading}
-            {percent === null ? null : <span className="max-md:sr-only"> context</span>}
-          </>
-        )}
+        {trigger ?? reading}
       </HoverCardTrigger>
       <HoverCardContent className="flex w-64 flex-col gap-3">
         <div className="flex items-center justify-between gap-3 text-sm">

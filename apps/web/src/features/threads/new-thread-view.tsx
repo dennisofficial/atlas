@@ -188,7 +188,6 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
         placeholder="Describe a task for Atlas…"
       >
         <RunnerToggle desktop={desktop} value={runner} onValueChange={setRunner} />
-        {onThisMac ? null : <RuntimeMenu value={runtime} onValueChange={setRuntime} />}
         <ModelPickerControls
           picker={picker}
           selection={selection}
@@ -202,6 +201,7 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
             projectId={projectId}
             onProjectChange={handleProjectChange}
           />
+          {onThisMac ? null : <RuntimeMenu value={runtime} onValueChange={setRuntime} />}
         </div>
       </ThreadComposer>
     </>

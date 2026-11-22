@@ -26,11 +26,19 @@ describe('runtimeTargetOf', () => {
 })
 
 describe('RuntimeMenu', () => {
-  it('shows only the chosen runtime until opened', () => {
+  it('hides the default runtime behind an icon-only menu', () => {
     const html = renderToStaticMarkup(
       <RuntimeMenu value={ERuntime.Agent37} onValueChange={() => undefined} />,
     )
-    expect(html).toContain('Agent37')
+    expect(html).toContain('aria-label="Runtime Agent37"')
+    expect(html).not.toContain('>Agent37<')
     expect(html).not.toContain('Vercel')
+  })
+
+  it('names a non-default runtime on the trigger', () => {
+    const html = renderToStaticMarkup(
+      <RuntimeMenu value={ERuntime.Vercel} onValueChange={() => undefined} />,
+    )
+    expect(html).toContain('>Vercel<')
   })
 })
