@@ -4,6 +4,7 @@ import { EAgentStatus } from '@dltech/atlas-core'
 import { formatElapsed } from '@dltech/atlas-client/transcript'
 
 import { useNowEvery } from '@/features/threads/data/use-now'
+import { useOptionalThreadPanel } from '@/features/threads/panel/thread-panel-context'
 
 import { useSessionPaneValue } from '../pane-value'
 import { Dot, FoldedRows, Row, SectionHead } from './rows'
@@ -22,6 +23,7 @@ const TICK_MS = 30_000
 
 export function SessionCrewSection() {
   const { view } = useSessionPaneValue()
+  const openAgent = useOptionalThreadPanel()?.openAgent
   const now = useNowEvery({ enabled: view.crewRows.length > 0, tickMs: TICK_MS })
   if (view.crew.total === 0) return null
   return (
@@ -40,6 +42,8 @@ export function SessionCrewSection() {
               title={row.agentType}
               meta={row.intent}
               trailing={elapsed === null ? null : <span className="font-mono">{elapsed}</span>}
+              label={`Open the ${row.agentType} sub-agent: ${row.intent}`}
+              onSelect={openAgent === undefined ? undefined : () => openAgent(row.agentId)}
             />
           )
         }}
