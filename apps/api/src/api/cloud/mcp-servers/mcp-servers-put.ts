@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { db, type Tx } from '@dltech/atlas-db'
 import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import { normalizeServerUrl } from '../mcp-oauth/mcp-oauth-seal'
+import { normalizeServerUrl } from '../../../agent/mcp-oauth/seal'
 import { openMcpServer } from './mcp-sealed'
 
 const CLEARED_GRANT = {

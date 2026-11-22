@@ -101,7 +101,7 @@ describe('recordServiceFrame', () => {
     expect(harness.notices.at(-1)?.event).toMatchObject({ type: 'service-ended', tail: '' })
   })
 
-  it('maps a stop to a kill, and an out-of-memory kill to a failed exit', async () => {
+  it('maps a stop to a kill', async () => {
     const harness = rig()
     const serviceId = await started(harness)
     await record(
@@ -112,15 +112,23 @@ describe('recordServiceFrame', () => {
       status: EServiceStatus.Killed,
       killedBy: EKilledBy.Unrecorded,
     })
-    const other = rig()
-    const oomId = await started(other)
+  })
+
+  it('a service that ran out of memory ends as out of memory with the command limit', async () => {
+    const memory = { commandLimitBytes: 2_490_195_968, podBytes: 4_100_808_704 }
+    const harness = rig()
+    const serviceId = await started(harness)
     await record(
-      other,
-      endedFrame({ serviceId: oomId, status: EServiceRunStatus.OomKilled, exitCode: 137 }),
+      harness,
+      endedFrame({ serviceId, status: EServiceRunStatus.OomKilled, exitCode: 137, memory }),
     )
-    const event = other.notices.at(-1)?.event
-    expect(event).toMatchObject({ status: EServiceStatus.Exited, exitCode: 137 })
-    expect(event && 'killedBy' in event).toBe(false)
+    expect(harness.notices.at(-1)?.event).toMatchObject({
+      type: 'service-ended',
+      status: EServiceStatus.Killed,
+      killedBy: EKilledBy.OutOfMemory,
+      exitCode: 137,
+      memory,
+    })
   })
 
   it('skips an ending the journal already holds', async () => {

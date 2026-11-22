@@ -12,7 +12,7 @@ const CALLER_DIRS = ['api', '_core', '_lib', '_module', 'trigger']
 // deployed task (see src/trigger/trigger-bundle.spec.ts). These graphs, and the api modules only they
 // load, therefore import the few agent values they construct their dependencies from out of their own
 // modules. An entry whose file stops importing agent internals fails the suite.
-const TRIGGER_VALUE_IMPORTS = new Set<string>([])
+const TRIGGER_VALUE_IMPORTS = new Set<string>(['api/cloud/mcp-servers/mcp-servers-put.ts'])
 
 const SPECIFIER_PATTERN = /(?:from\s+|import\s*\(\s*|import\s+)['"]([^'"]+)['"]/g
 

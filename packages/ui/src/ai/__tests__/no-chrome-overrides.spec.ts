@@ -35,6 +35,12 @@ const ALLOWED: AllowedOverride[] = [
     token: 'gap-1.5',
     reason: 'spaces the caption and body the inbound bubble composes',
   },
+  {
+    file: 'prompt-input.tsx',
+    component: 'InputGroupAddon',
+    token: 'gap-1',
+    reason: 'spaces the attach, runtime and send controls the composer row wraps',
+  },
 ]
 
 const SRC_ROOT = join(import.meta.dir, '..', '..')

@@ -70,6 +70,12 @@ describe('serviceEnding', () => {
     )
     expect(serviceEnding({ status: EServiceStatus.Killed })).toBe('was stopped')
   })
+
+  it('names an out-of-memory kill as the kernel running it out of memory', () => {
+    expect(serviceEnding({ status: EServiceStatus.Killed, killedBy: EKilledBy.OutOfMemory })).toBe(
+      'ran out of memory and was killed by the kernel',
+    )
+  })
 })
 
 describe('serviceFailed', () => {
@@ -77,5 +83,8 @@ describe('serviceFailed', () => {
     expect(serviceFailed({ status: EServiceStatus.Exited, exitCode: 1 })).toBe(true)
     expect(serviceFailed({ status: EServiceStatus.Exited, exitCode: 0 })).toBe(false)
     expect(serviceFailed({ status: EServiceStatus.Killed, killedBy: EKilledBy.User })).toBe(false)
+    expect(serviceFailed({ status: EServiceStatus.Killed, killedBy: EKilledBy.OutOfMemory })).toBe(
+      true,
+    )
   })
 })

@@ -67,6 +67,8 @@ export interface PodSizeControlProps {
   resizeError?: string | undefined
   disabled?: boolean | undefined
   defaultOpen?: boolean | undefined
+  open?: boolean | undefined
+  onOpenChange?: ((open: boolean) => void) | undefined
   onResize?: ((shape: PodShape) => void) | undefined
 }
 
@@ -93,7 +95,9 @@ export function PodSizeSelect(props: PodSizeControlProps) {
     <Select
       items={options.map((option) => ({ value: option.key, label: option.label }))}
       value={podShapeKey(props.pendingShape ?? props.shape)}
-      defaultOpen={props.defaultOpen === true}
+      defaultOpen={props.open === undefined ? props.defaultOpen === true : undefined}
+      open={props.open}
+      onOpenChange={props.onOpenChange}
       onValueChange={handleValueChange}
       disabled={props.disabled === true}
     >

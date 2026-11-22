@@ -17,6 +17,7 @@ export enum EKilledBy {
   IdlePark = 'idle-park',
   Unrecorded = 'unrecorded',
   Fault = 'fault',
+  OutOfMemory = 'out-of-memory',
 }
 
 export enum EShellEndCause {
@@ -32,7 +33,7 @@ export type ShellEnding = {
 
 export function shellFailed(ending: ShellEnding): boolean {
   if (ending.status === EShellStatus.Overflowed) return true
-  if (ending.status === EShellStatus.Killed) return false
+  if (ending.status === EShellStatus.Killed) return ending.killedBy === EKilledBy.OutOfMemory
   return ending.exitCode !== undefined && ending.exitCode !== 0
 }
 
@@ -47,6 +48,7 @@ function killEnding(killedBy: EKilledBy | undefined): string {
   if (killedBy === EKilledBy.IdlePark)
     return 'was stopped because the sandbox parked after sitting idle'
   if (killedBy === EKilledBy.Fault) return 'ended permanently on a fault it cannot recover from'
+  if (killedBy === EKilledBy.OutOfMemory) return 'ran out of memory and was killed by the kernel'
   return 'was killed'
 }
 

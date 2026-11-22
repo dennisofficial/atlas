@@ -1,7 +1,6 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-
 import {
   type PaneLayout,
   recallPaneLayout,
@@ -23,6 +22,9 @@ export type SessionPaneState = {
   toggleCollapsed: () => void
   openPane: () => void
   openTab: (tab: ESessionPaneTab) => void
+  podSizeRequest: number
+  requestPodSize: () => void
+  consumePodSizeRequest: () => void
   layout: PaneLayout | undefined
   rememberLayout: (layout: PaneLayout) => void
 }
@@ -40,6 +42,9 @@ export function useSessionPane(sessionId: string): SessionPaneState {
     [sessionId],
   )
   const [sheetOpen, setSheetOpen] = useState(false)
+  const [podSizeRequest, setPodSizeRequest] = useState(0)
+  const requestPodSize = useCallback(() => setPodSizeRequest((count) => count + 1), [])
+  const consumePodSizeRequest = useCallback(() => setPodSizeRequest(0), [])
   const { collapsed, setCollapsed } = useRightPanelCollapsed()
   useEffect(() => rememberPaneTab({ sessionId, tab }), [sessionId, tab])
 
@@ -68,6 +73,9 @@ export function useSessionPane(sessionId: string): SessionPaneState {
     toggleCollapsed,
     openPane,
     openTab,
+    podSizeRequest,
+    requestPodSize,
+    consumePodSizeRequest,
     layout,
     rememberLayout,
   }

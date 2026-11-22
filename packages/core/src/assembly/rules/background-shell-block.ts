@@ -4,6 +4,7 @@ import { elapsedPhrase } from '../../shells/elapsed'
 import { shellLabel } from '../../shells/label'
 import type { ShellEventContext } from '../../shells/lifecycle'
 import { EKilledBy, EShellEndCause, shellEnding } from '../../shells/status'
+import { outOfMemoryNote } from '../../pod/pod-oom'
 
 const PRINTED_NOTHING = 'It printed nothing.'
 
@@ -75,6 +76,8 @@ export function backgroundShellBlock(
   if (event.cause === EShellEndCause.SandboxStopped) sections.push(SANDBOX_STOPPED)
 
   if (event.killedBy === EKilledBy.User) sections.push(USER_KILLED)
+
+  if (event.killedBy === EKilledBy.OutOfMemory) sections.push(outOfMemoryNote(event.memory))
 
   if (event.droppedCharacters > 0) sections.push(droppedNote(event.droppedCharacters))
 

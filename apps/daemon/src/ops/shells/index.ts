@@ -1,3 +1,4 @@
+import type { OomMemory } from '@dltech/atlas-core'
 import {
   CallFailureError,
   ECallFailure,
@@ -9,6 +10,7 @@ import { type DaemonGroupFactory, type GroupContext, defineOp } from '@dltech/at
 
 import { ManagedProcess } from '../../process/managed'
 import type { DaemonOpsDeps } from '../deps'
+import { oomRecorderOf } from '../oom/recorder'
 import { ShellRecord, type ShellEnd, ShellStore } from './state'
 
 type RunningShell = {
@@ -62,6 +64,15 @@ export const shellsGroup =
         .then((exit) => {
           const entry = running.get(args.shellId)
           running.delete(args.shellId)
+          const shell = store.get(args.shellId)
+          const memory: OomMemory | null =
+            exit.oom && shell !== undefined
+              ? oomRecorderOf(deps).command({
+                  pid: args.process.pid,
+                  command: shell.command,
+                  publish: groupCtx.publish,
+                })
+              : null
           finish({
             shellId: args.shellId,
             end: {
@@ -74,6 +85,7 @@ export const shellsGroup =
               }),
               exitCode: exit.exitCode,
               signal: exit.signal,
+              ...(memory === null ? {} : { memory }),
             },
           })
         })

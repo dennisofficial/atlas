@@ -1,8 +1,10 @@
+import { type OomMemory } from '@dltech/atlas-core'
 import { EExecOutcome } from '@dltech/atlas-protocol'
 import { type DaemonGroupFactory, defineOp } from '@dltech/atlas-protocol/engine'
 
 import { ManagedProcess } from '../../process/managed'
 import type { DaemonOpsDeps } from '../deps'
+import { commandNameOf, oomRecorderOf } from '../oom/recorder'
 
 const outcomeOf = (args: { oom: boolean; cancelled: boolean; timedOut: boolean }): EExecOutcome => {
   if (args.oom) return EExecOutcome.OomKilled
@@ -44,12 +46,21 @@ export const execGroup =
           if (ctx.signal.aborted) child.kill()
           try {
             const exit = await child.exit()
-            if (exit.oom) ctx.publish({ type: 'exec.oom-kill', key: ctx.key })
+            let memory: OomMemory | null = null
+            if (exit.oom) {
+              ctx.publish({ type: 'exec.oom-kill', key: ctx.key })
+              memory = oomRecorderOf(deps).command({
+                pid: child.pid,
+                command: commandNameOf(op.argv),
+                publish: ctx.publish,
+              })
+            }
             return {
               exitCode: exit.exitCode,
               signal: exit.signal,
               outcome: outcomeOf({ oom: exit.oom, cancelled: ctx.signal.aborted, timedOut }),
               outputBytes,
+              ...(memory === null ? {} : { memory }),
             }
           } finally {
             if (timer !== undefined) clearTimeout(timer)

@@ -4,7 +4,7 @@ import { type CredentialPort, type EEffort, type ModelCard } from '@dltech/atlas
 
 import type { OpenAIProviderSettings } from '@ai-sdk/openai'
 
-import { CODEX_PLAN_LABEL, OPENAI_PROVIDER_ID } from '../models/provider-ids'
+import { CODEX_PLAN_LABEL, OPENAI_PROVIDER_ID } from '@dltech/atlas-models'
 import { ProviderAdapter, type ModelBuildArgs } from './adapter'
 import { OPENAI_FAST_OPTIONS, runsFast, withFastOptions } from './fast-options'
 import { openaiEffortOptions } from './openai-effort'

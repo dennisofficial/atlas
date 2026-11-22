@@ -6,6 +6,7 @@
   "exports": {
     "./client": "./src/client/index.ts",
     "./core": "./src/core/index.ts",
+    "./catalogue": "./src/catalogue/index.ts",
     "./pod": "./src/pod/index.ts"
   },
   "scripts": {

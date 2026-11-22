@@ -27,6 +27,7 @@ export class HolderDemand {
   readonly panel: PanelDemand
   private readonly waits: HeldWaits
   private readonly unsubPanelHold: () => void
+  private readonly inFlight = new Map<string, Promise<boolean>>()
   private readonly args: {
     plane: ControlPlane
     bus: HostBus
@@ -56,7 +57,11 @@ export class HolderDemand {
       },
       onIdle: (sessionId) => this.requestReconcile(sessionId),
     })
-    this.unsubPanelHold = args.bus.onPanelHold((hold) => this.panel.hold(hold))
+    this.unsubPanelHold = args.bus.onPanelHold((hold) => {
+      this.panel.hold(hold)
+      if (this.args.holds(hold.sessionId)) return
+      void this.requestHolder(hold.sessionId).catch((error: unknown) => this.logFault(error))
+    })
   }
 
   holdPanel(args: { sessionId: string; ttlMs?: number | undefined }): boolean {
@@ -78,11 +83,15 @@ export class HolderDemand {
 
   requestHolder(sessionId: string): Promise<boolean> {
     if (this.args.draining()) return Promise.resolve(false)
-    return requestHolderFor({
+    const inFlight = this.inFlight.get(sessionId)
+    if (inFlight !== undefined) return inFlight
+    const request = requestHolderFor({
       plane: this.args.plane,
       holds: this.args.holds,
       sessionId,
-    })
+    }).finally(() => this.inFlight.delete(sessionId))
+    this.inFlight.set(sessionId, request)
+    return request
   }
 
   async ensureHeld(args: {

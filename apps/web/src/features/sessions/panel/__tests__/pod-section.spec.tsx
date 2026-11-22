@@ -237,10 +237,15 @@ describe('PodPaneSection', () => {
 
   it('keeps the throttle and OOM signals from the latest sample', () => {
     const html = renderToStaticMarkup(
-      sectionOf({ series: [sample({ throttled: true, oomKills: 2 })] }),
+      sectionOf({ series: [sample({ throttled: true, oomEvents: 2, oomKills: 3 })] }),
     )
     expect(html).toContain('Throttled')
-    expect(html).toContain('2 OOM kills')
+    expect(html).toContain('2 out-of-memory kills (3 processes)')
+  })
+
+  it('shows the command memory limit beside the pod RAM', () => {
+    const html = renderToStaticMarkup(sectionOf({ series: [sample({ commandRamLimitGb: 2.3 })] }))
+    expect(html).toContain('3 / 16 GB · commands ≤ 2.3 GB')
   })
 
   it('offers to start a parked pod instead of stopping it', () => {

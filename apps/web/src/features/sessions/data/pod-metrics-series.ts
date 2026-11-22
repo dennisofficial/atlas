@@ -10,6 +10,8 @@ export type PodMetricsSample = {
   ramGb: number
   throttled: boolean
   oomKills: number
+  oomEvents?: number | undefined
+  commandRamLimitGb?: number | undefined
   diskUsedGb?: number | undefined
   diskLimitGb?: number | undefined
 }
@@ -20,6 +22,10 @@ export const podMetricsSampleOf = (sample: PodSample): PodMetricsSample => ({
   ramGb: sample.ramBytes / GIGABYTE,
   throttled: sample.throttled,
   oomKills: sample.oomKills,
+  ...(sample.oomEvents === undefined ? {} : { oomEvents: sample.oomEvents }),
+  ...(sample.commandRamLimitBytes === undefined
+    ? {}
+    : { commandRamLimitGb: sample.commandRamLimitBytes / GIGABYTE }),
   ...(sample.diskUsedBytes === undefined ? {} : { diskUsedGb: sample.diskUsedBytes / GIGABYTE }),
   ...(sample.diskLimitBytes === undefined ? {} : { diskLimitGb: sample.diskLimitBytes / GIGABYTE }),
 })

@@ -70,10 +70,30 @@ export {
   type McpOauthBeginRequest,
 } from './mcp-oauth/begin-service'
 export {
+  clientInformationSchema,
   mcpReturnScreenSchema,
+  sealedGrantSchema,
   type McpReturnScreen,
   type McpReturnSurface,
+  type OAuthTokens,
+  type SealedGrant,
 } from './mcp-oauth/types'
+export { oauthClientFor } from './mcp-oauth/client'
+export { discoverOauthEndpoints } from './mcp-oauth/discovery'
+export { OAuthError } from './mcp-oauth/errors'
+export { generatePkce } from './mcp-oauth/pkce'
+export { normalizeServerUrl, sealJson, unsealJson } from './mcp-oauth/seal'
+export {
+  assertPublicHost,
+  guardedFetch,
+  SsrfRejectedError,
+  type HostResolver,
+} from './mcp-oauth/ssrf'
+export {
+  buildAuthorizationUrl,
+  exchangeAuthorizationCode,
+  refreshAuthorization,
+} from './mcp-oauth/token'
 export { ForegroundOnlyShells } from './runtime/foreground-shells'
 export { createHostBus } from './bus/host-bus'
 export { startPgWakeListener, type PgWakeListener } from './bus/pg-wake-listener'
@@ -100,3 +120,4 @@ export {
   sandboxComputeFor,
 } from '@dltech/atlas-pods/sandbox/sandbox-runs'
 export { sandboxLiveCpuMs } from '@dltech/atlas-pods/sandbox/sandbox-live-cpu'
+export { sessionNamerOf, type SessionNamer } from './naming/session-namer'

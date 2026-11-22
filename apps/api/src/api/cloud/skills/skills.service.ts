@@ -7,8 +7,8 @@ import {
   NotFoundException,
 } from '@nestjs/common'
 import { db, isUniqueViolation, violatedConstraint, type Row } from '@dltech/atlas-db'
-import { parseSkillSpec } from '@dltech/atlas-harness/skill-specs'
-import { builtInSkills } from '@dltech/atlas-harness/skill-catalogue'
+import { skillSpecOf } from '@dltech/atlas-plugin-skills/core'
+import { builtInSkills } from '@dltech/atlas-plugin-skills/pod'
 import {
   ESkillOrigin,
   ESkillScope,
@@ -70,8 +70,8 @@ function isTextPath(path: string): boolean {
 }
 
 function descriptionOf(args: { text: string; skill: string }): string {
-  const parsed = parseSkillSpec({ text: args.text, fallbackName: args.skill })
-  return parsed === undefined ? '' : parsed.spec.summary
+  const parsed = skillSpecOf({ text: args.text, fallbackName: args.skill })
+  return parsed === undefined ? '' : parsed.summary
 }
 
 function toMetaDto(row: Row<'SkillFile'>): SkillFileMeta {

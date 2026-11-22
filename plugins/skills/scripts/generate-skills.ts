@@ -1,16 +1,44 @@
 #!/usr/bin/env bun
+import { createHash } from 'node:crypto'
 import { lstat, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { frontmatterOf, skillFrontmatterOf } from '../src/core'
+
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
-const skillsRoot = join(root, '..', '..', 'packages', 'harness', 'skills')
+const skillsRoot = join(root, 'skills')
 const filesDirectory = join(root, 'src', 'pod', 'builtin-files.generated')
 const manifestFile = join(root, 'src', 'pod', 'builtin.generated.ts')
+const catalogueFile = join(root, 'src', 'catalogue', 'catalogue.generated.ts')
 
 const ENTRY = 'SKILL.md'
 const FILES_PER_MODULE = 60
 const IGNORED: ReadonlySet<string> = new Set(['.DS_Store'])
+
+const TEXT_EXTENSIONS: ReadonlySet<string> = new Set([
+  'md',
+  'txt',
+  'json',
+  'yaml',
+  'yml',
+  'ts',
+  'tsx',
+  'js',
+  'jsx',
+  'mjs',
+  'cjs',
+  'toml',
+  'sh',
+  'py',
+  'rb',
+  'go',
+  'rs',
+  'css',
+  'html',
+  'xml',
+  'svg',
+])
 
 const byCodePoint = (left: string, right: string): number =>
   left < right ? -1 : left > right ? 1 : 0
@@ -48,32 +76,62 @@ const CONTENT_TYPES: Readonly<Record<string, string>> = {
 const contentTypeOf = (path: string): string =>
   CONTENT_TYPES[path.slice(path.lastIndexOf('.'))] ?? 'application/octet-stream'
 
+const extensionOf = (path: string): string => path.slice(path.lastIndexOf('.') + 1).toLowerCase()
+
+const digestOf = (bytes: Uint8Array): string => createHash('sha256').update(bytes).digest('hex')
+
 type ReadFile = { kind: 'text'; text: string } | { kind: 'binary' }
 
-const readOf = async (path: string): Promise<ReadFile> => {
-  const bytes = await readFile(path)
+const readOf = (bytes: Uint8Array): ReadFile => {
   if (bytes.includes(0)) return { kind: 'binary' }
-  const text = bytes.toString('utf8')
+  const text = Buffer.from(bytes).toString('utf8')
   return text.includes('\uFFFD') ? { kind: 'binary' } : { kind: 'text', text }
 }
 
 type GeneratedFile = { path: string; text: string } | { path: string; binary: string }
 
-type Generated = { name: string; text: string; files: readonly GeneratedFile[] }
+type CatalogueFile = { path: string; digest: string; sizeBytes: number; isText: boolean }
+
+type Generated = {
+  name: string
+  text: string
+  files: readonly GeneratedFile[]
+  catalogueFiles: readonly CatalogueFile[]
+}
+
+const resourceOf = (args: { directory: string; path: string }): Promise<GeneratedFile> =>
+  readFile(join(args.directory, args.path)).then((bytes): GeneratedFile => {
+    const read = readOf(bytes)
+    return read.kind === 'text'
+      ? { path: args.path, text: read.text }
+      : { path: args.path, binary: contentTypeOf(args.path) }
+  })
+
+const catalogueFileOf = (args: { directory: string; path: string }): Promise<CatalogueFile> =>
+  readFile(join(args.directory, args.path)).then((bytes) => ({
+    path: args.path,
+    digest: digestOf(bytes),
+    sizeBytes: bytes.byteLength,
+    isText: TEXT_EXTENSIONS.has(extensionOf(args.path)),
+  }))
 
 const skillOf = async (name: string): Promise<Generated> => {
   const directory = join(skillsRoot, name)
   const files: GeneratedFile[] = []
+  const catalogueFiles: CatalogueFile[] = []
 
   for (const path of await pathsUnder({ directory, at: '' })) {
     if (path === ENTRY) continue
-    const read = await readOf(join(directory, path))
-    files.push(
-      read.kind === 'text' ? { path, text: read.text } : { path, binary: contentTypeOf(path) },
-    )
+    files.push(await resourceOf({ directory, path }))
+    catalogueFiles.push(await catalogueFileOf({ directory, path }))
   }
 
-  return { name, text: await readFile(join(directory, ENTRY), 'utf8'), files }
+  return {
+    name,
+    text: await readFile(join(directory, ENTRY), 'utf8'),
+    files,
+    catalogueFiles,
+  }
 }
 
 const chunked = (files: readonly GeneratedFile[]) => {
@@ -127,10 +185,46 @@ const manifestOf = (skills: readonly Generated[]): string =>
     '',
   ].join('\n')
 
+const catalogueEntryOf = (skill: Generated): string[] => {
+  const description = skillFrontmatterOf({
+    fields: frontmatterOf(skill.text),
+    fallbackName: skill.name,
+  }).description
+  const entryBytes = Buffer.from(skill.text, 'utf8')
+
+  return [
+    '  {',
+    `    name: ${JSON.stringify(skill.name)},`,
+    `    description: ${JSON.stringify(description)},`,
+    `    updatedAt: ${JSON.stringify(new Date(0).toISOString())},`,
+    `    entry: { path: 'SKILL.md', digest: ${JSON.stringify(digestOf(entryBytes))}, sizeBytes: ${entryBytes.byteLength} },`,
+    '    files: [',
+    ...skill.catalogueFiles.map(
+      (file) =>
+        `      { path: ${JSON.stringify(file.path)}, digest: ${JSON.stringify(file.digest)}, sizeBytes: ${file.sizeBytes}, isText: ${file.isText} },`,
+    ),
+    '    ],',
+    '  },',
+  ]
+}
+
+const catalogueOf = (skills: readonly Generated[]): string =>
+  [
+    '// GENERATED by plugins/skills/scripts/generate-skills.ts — do not edit.',
+    '',
+    "import type { BuiltInSkillCatalogueEntry } from './types'",
+    '',
+    'export const BUILT_IN_SKILL_CATALOGUE: readonly BuiltInSkillCatalogueEntry[] = [',
+    ...skills.flatMap(catalogueEntryOf),
+    ']',
+    '',
+  ].join('\n')
+
 export async function generateSkills(): Promise<{
   skills: number
   files: number
   manifestFile: string
+  catalogueFile: string
 }> {
   const names = (await readdir(skillsRoot)).sort(byCodePoint)
   const skills = await Promise.all(names.map(skillOf))
@@ -148,14 +242,20 @@ export async function generateSkills(): Promise<{
   }
 
   await writeFile(manifestFile, manifestOf(skills))
+  await rm(catalogueFile, { force: true })
+  await mkdir(dirname(catalogueFile), { recursive: true })
+  await writeFile(catalogueFile, catalogueOf(skills))
+
   return {
     skills: skills.length,
     files: skills.reduce((total, skill) => total + skill.files.length, 0),
     manifestFile,
+    catalogueFile,
   }
 }
 
 if (import.meta.main) {
   const result = await generateSkills()
   console.log(`skills: ${result.skills} built-ins, ${result.files} files → ${result.manifestFile}`)
+  console.log(`catalogue → ${result.catalogueFile}`)
 }

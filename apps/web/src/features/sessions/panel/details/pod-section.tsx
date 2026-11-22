@@ -1,5 +1,7 @@
 'use client'
 
+import { useEffect, useState } from 'react'
+
 import { podBusyFactsOf, podBusyOf, type PodBusy } from '@dltech/atlas-core'
 import {
   EPodAction,
@@ -97,6 +99,8 @@ export type PodPaneSectionProps = PodSectionView & {
   series: readonly PodMetricsSample[]
   usageUnavailable?: boolean | undefined
   power: PodPower
+  sizeMenuOpen?: boolean | undefined
+  onSizeMenuOpenChange?: ((open: boolean) => void) | undefined
   onStart: () => void
   onStop: () => void
   onConfirm: () => void
@@ -105,27 +109,34 @@ export type PodPaneSectionProps = PodSectionView & {
   onGrowDisk: (diskGb: number) => void
 }
 
-const sectionOf = (props: PodPaneSectionProps): PodSectionProps => ({
-  state: props.state,
-  shape: props.shape,
-  shapes: props.shapes,
-  unavailable: props.unavailable,
-  pendingShape: props.pendingShape,
-  resizeError: props.resizeError,
-  series: props.series,
-  usageUnavailable: props.usageUnavailable,
-  throttled: props.series.at(-1)?.throttled,
-  oomKills: props.series.at(-1)?.oomKills,
-  stopping: props.power.state.phase === 'sleeping',
-  confirmAction: props.power.state.phase === 'confirm' ? EPodAction.Stop : undefined,
-  onStart: props.onStart,
-  onStop: props.onStop,
-  onResize: props.onResize,
-  diskGrow: props.agent37,
-  onGrowDisk: props.onGrowDisk,
-  onConfirm: props.onConfirm,
-  onCancel: props.onCancel,
-})
+const sectionOf = (props: PodPaneSectionProps): PodSectionProps => {
+  const latest = props.series.at(-1)
+  return {
+    state: props.state,
+    shape: props.shape,
+    shapes: props.shapes,
+    unavailable: props.unavailable,
+    pendingShape: props.pendingShape,
+    resizeError: props.resizeError,
+    series: props.series,
+    usageUnavailable: props.usageUnavailable,
+    throttled: latest?.throttled,
+    oomKills: latest?.oomKills,
+    oomEvents: latest?.oomEvents,
+    commandRamLimitGb: latest?.commandRamLimitGb,
+    sizeMenuOpen: props.sizeMenuOpen,
+    onSizeMenuOpenChange: props.onSizeMenuOpenChange,
+    stopping: props.power.state.phase === 'sleeping',
+    confirmAction: props.power.state.phase === 'confirm' ? EPodAction.Stop : undefined,
+    onStart: props.onStart,
+    onStop: props.onStop,
+    onResize: props.onResize,
+    diskGrow: props.agent37,
+    onGrowDisk: props.onGrowDisk,
+    onConfirm: props.onConfirm,
+    onCancel: props.onCancel,
+  }
+}
 
 export function PodPaneSection(props: PodPaneSectionProps) {
   return (
@@ -137,7 +148,15 @@ export function PodPaneSection(props: PodPaneSectionProps) {
 }
 
 export function SessionPodSection() {
-  const { sessionId, view, status } = useSessionPaneValue()
+  const { sessionId, view, status, podSizeRequest, consumePodSizeRequest } = useSessionPaneValue()
+  const [sizeMenuOpen, setSizeMenuOpen] = useState(false)
+  const handleSizeMenuOpenChange = (open: boolean) => setSizeMenuOpen(open)
+  useEffect(() => {
+    if (podSizeRequest === 0) return
+    consumePodSizeRequest()
+    document.querySelector('[data-session-pod]')?.scrollIntoView({ block: 'nearest' })
+    setSizeMenuOpen(true)
+  }, [podSizeRequest, consumePodSizeRequest])
   const section = podSectionViewOf({
     pod: status?.pod,
     live: status?.lease.live ?? false,
@@ -182,6 +201,8 @@ export function SessionPodSection() {
         series={metrics.series}
         usageUnavailable={metrics.unavailable}
         power={power}
+        sizeMenuOpen={sizeMenuOpen}
+        onSizeMenuOpenChange={handleSizeMenuOpenChange}
         onStart={power.wake}
         onStop={power.sleep}
         onConfirm={power.forceSleep}

@@ -1,4 +1,3 @@
-import { OAuthError, refreshAuthorization, type OAuthTokens } from '@dltech/atlas-harness/mcp-oauth'
 import { db } from '@dltech/atlas-db'
 import {
   EMcpServerSource,
@@ -8,10 +7,19 @@ import {
 import { Injectable } from '@nestjs/common'
 import { TRPCError } from '@trpc/server'
 import { randomBytes } from 'node:crypto'
+import {
+  guardedFetch,
+  normalizeServerUrl,
+  OAuthError,
+  refreshAuthorization,
+  sealedGrantSchema,
+  sealJson,
+  unsealJson,
+  type OAuthTokens,
+  type SealedGrant,
+} from '../../../agent'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { RefreshLock } from '../../../_lib/refresh-lock/refresh-lock'
-import { normalizeServerUrl, sealJson, unsealJson } from './mcp-oauth-seal'
-import { guardedFetch } from './mcp-oauth-ssrf'
 import {
   EGrantRowStatus,
   McpOauthClock,
@@ -19,8 +27,7 @@ import {
   McpOauthFetcher,
   McpOauthStore,
 } from './mcp-oauth.types'
-import { sealedGrantSchema } from './mcp-oauth.types'
-import type { SealedGrant, ServerGrantRow } from './mcp-oauth.types'
+import type { ServerGrantRow } from './mcp-oauth.types'
 
 const FRESH_MARGIN_MS = 60_000
 const REJECTING_STATUSES = [400, 401]
@@ -206,17 +213,12 @@ export class McpOauthAccessService {
       const tokens = await refreshAuthorization({
         tokenEndpoint: grant.tokenEndpoint,
         refreshToken: grant.tokens.refreshToken,
-        clientId: grant.clientInfo.clientId,
-        ...(grant.clientInfo.clientSecret === undefined
-          ? {}
-          : { clientSecret: grant.clientInfo.clientSecret }),
-        ...(grant.authMethods === undefined
-          ? {}
-          : { tokenEndpointAuthMethodsSupported: grant.authMethods }),
-        ...(grant.resource === undefined ? {} : { resource: grant.resource }),
-        clock: { now: () => new Date(nowMs).toISOString() },
+        client: grant.clientInfo,
+        authMethods: grant.authMethods,
+        resource: grant.resource,
+        nowMs,
         fetch: guardedFetch({
-          fetcher: this.fetcher,
+          fetch: (input, init) => this.fetcher.fetch(input, init),
           allowLocalTargets: this.config.allowLocalTargets,
           resolveHost: this.config.resolveHost,
         }),

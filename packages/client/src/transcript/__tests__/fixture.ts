@@ -129,6 +129,7 @@ export const fromTheModel = (model: TranscriptModel) =>
       | { kind: EEntryKind.SystemContext }
       | { kind: EEntryKind.SystemNotice }
       | { kind: EEntryKind.OperatorInput }
+      | { kind: EEntryKind.PodOom }
       | { kind: EEntryKind.PrEvent }
     > =>
       entry.kind !== EEntryKind.OperatorSaid &&
@@ -149,6 +150,7 @@ export const fromTheModel = (model: TranscriptModel) =>
       entry.kind !== EEntryKind.OperatorInput &&
       entry.kind !== EEntryKind.OperatorRequest &&
       entry.kind !== EEntryKind.SignIn &&
+      entry.kind !== EEntryKind.PodOom &&
       entry.kind !== EEntryKind.PrEvent,
   )
 

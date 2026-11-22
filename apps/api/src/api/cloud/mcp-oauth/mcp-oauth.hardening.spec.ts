@@ -144,7 +144,7 @@ describe('begin robustness and client reuse', () => {
   it('does not reuse an expired client secret', async () => {
     const env = build()
     const { NORMALIZED, START, addCloudServer: add } = await import('./mcp-oauth.testkit')
-    const { sealJson } = await import('./mcp-oauth-seal')
+    const { sealJson } = await import('../../../agent')
     const server = await add(env)
     await env.store.writeGrant({
       id: server.id,

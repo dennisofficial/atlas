@@ -5,6 +5,7 @@ import { EAgentStatus } from '../../agents/status'
 import { ECompactionAnchor, EPrEventKind, EPrVerdict, type EventType } from '../../events/body'
 import { toCallId, toThreadId } from '../../events/ids'
 import { EExecutionLocation } from '../../execution/location'
+import { EOomScope } from '../../pod/pod-oom'
 import { EServiceStatus } from '../../services/status'
 import { EShellStatus } from '../../shells/status'
 import { ESubscriptionActor } from '../../subscriptions/subscription'
@@ -133,6 +134,14 @@ const SURVIVOR_MINIMAL = {
     type: 'sandbox-setup-reported',
     text: 'installed the toolchain',
     failed: false,
+  },
+  'pod-ran-out-of-memory': {
+    type: 'pod-ran-out-of-memory',
+    incidentId: 'oom-1',
+    scope: EOomScope.Command,
+    command: 'bunx turbo run typecheck',
+    processes: 12,
+    memory: { commandLimitBytes: 2_490_195_968, podBytes: 4_100_808_704 },
   },
   parked: {
     type: 'parked',

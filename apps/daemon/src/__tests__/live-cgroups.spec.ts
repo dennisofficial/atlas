@@ -75,4 +75,44 @@ describe.skipIf(!live)('daemon on a real cgroup v2 sandbox', () => {
       await handle.stop()
     }
   }, 90_000)
+
+  it('reports a grandchild killed by the kernel as the command running out of memory', async () => {
+    const handle = await target.start()
+    try {
+      const session = await handle.connect()
+      session.send({ kind: 'hello', sessionId: 's', epoch: 1, token: handle.token })
+      await session.until((frame) => frame.kind === 'health')
+      session.send({
+        kind: 'run',
+        key: 'live-grandchild-oom',
+        epoch: 1,
+        op: {
+          op: 'exec',
+          argv: [
+            '/bin/sh',
+            '-c',
+            'echo 64M > /sys/fs/cgroup/atlas-work/w-$$/memory.max; sh -c "head -c 512M /dev/zero | tail"',
+          ],
+        },
+      })
+      const oom = await session.until(
+        (frame) => frame.kind === 'result' && frame.key === 'live-grandchild-oom',
+        { timeoutMs: 60_000 },
+      )
+      if (oom.kind !== 'result' || oom.result.status !== 'ok' || oom.result.op !== 'exec') {
+        throw new Error(`unexpected ${JSON.stringify(oom)}`)
+      }
+      expect(oom.result.value.outcome).toBe(EExecOutcome.OomKilled)
+      expect(oom.result.value.memory?.commandLimitBytes).toBeGreaterThan(0)
+      const incident = session
+        .frames()
+        .flatMap((frame) =>
+          frame.kind === 'event' && frame.event.type === 'pod.oom' ? [frame.event.incident] : [],
+        )
+        .find((candidate) => candidate.scope === 'command')
+      expect(incident?.processes).toBeGreaterThanOrEqual(1)
+    } finally {
+      await handle.stop()
+    }
+  }, 90_000)
 })

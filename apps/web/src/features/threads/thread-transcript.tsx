@@ -89,6 +89,7 @@ export function ThreadTranscript({
   boot: sessionBoot,
   staged,
   onLoadOlder,
+  onOpenPodSize,
 }: {
   items: readonly TranscriptRow[]
   failureCard: RunFailureCardProps | null
@@ -101,6 +102,7 @@ export function ThreadTranscript({
   onRetryBoot: () => void
   rewind: TranscriptRewind | null
   summarise: TranscriptSummarise | null
+  onOpenPodSize?: (() => void) | undefined
   boot?: BootView | null
   staged?: readonly QueuedMessageEntry[]
   onLoadOlder?: () => Promise<number>
@@ -119,8 +121,15 @@ export function ThreadTranscript({
   const boot = useMemo(() => bootTimelineOf({ turns, pod, now: 0 }), [turns, pod])
   const userName = user?.name
   const actions = useMemo(
-    () => ({ rewind, summarise, openChanges, openAgent, repairDiagram }),
-    [rewind, summarise, openChanges, openAgent, repairDiagram],
+    () => ({
+      rewind,
+      summarise,
+      openChanges,
+      openAgent,
+      openPodSize: onOpenPodSize ?? null,
+      repairDiagram,
+    }),
+    [rewind, summarise, openChanges, openAgent, onOpenPodSize, repairDiagram],
   )
   const bootAfter = (index: number): ReactNode[] =>
     boot

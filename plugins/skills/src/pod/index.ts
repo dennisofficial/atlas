@@ -17,6 +17,19 @@ export { SKILLS_RESOURCE, skillsResource, type SkillsPodOptions } from './resour
 export { BUILT_IN_SKILL_NAMES, ESkillWriteLayer } from './write-support'
 export { REPO_SKILL_ROOTS } from './repo-source'
 export { SKILL_LISTING_HEADING } from './listing'
+export type {
+  BuiltInSkillCatalogueEntry,
+  BuiltInSkillFileEntry,
+} from '../catalogue'
+export {
+  BUILT_IN_SKILL_CATALOGUE,
+  builtInSkillEntry,
+  builtInSkillNames,
+  builtInSkills,
+  isBuiltInSkillName,
+} from '../catalogue'
+export { BUILT_IN_SKILL_SPECS, type BuiltInSkillSpec } from './builtin-specs'
+export { builtInSkillsRoot } from './builtin-skills-root'
 
 export const SKILL_TOOLS = ['skill', 'skill_manage'] as const
 

@@ -17,13 +17,12 @@ import {
   json,
 } from '../src/api/cloud/mcp-oauth/mcp-oauth.fakes'
 import { McpOauthAccessService } from '../src/api/cloud/mcp-oauth/mcp-oauth-access.service'
-import { sealJson } from '../src/api/cloud/mcp-oauth/mcp-oauth-seal'
+import { sealJson, type SealedGrant } from '../src/agent'
 import {
   EGrantRowStatus,
   McpOauthClock,
   type McpOauthFetcher,
 } from '../src/api/cloud/mcp-oauth/mcp-oauth.types'
-import type { SealedGrant } from '../src/api/cloud/mcp-oauth/mcp-oauth.types'
 import { PrismaMcpOauthStore } from '../src/api/cloud/mcp-oauth/prisma-mcp-oauth.store'
 
 const HEX_KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'

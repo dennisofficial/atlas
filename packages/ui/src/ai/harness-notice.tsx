@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { BellIcon, CircleAlertIcon, CircleCheckIcon, CircleXIcon } from 'lucide-react'
 
+import { Button } from '#components/button'
 import { Trace } from '#components/trace'
 import { Step } from './internal/step'
 
@@ -18,12 +19,18 @@ export interface HarnessNoticeSection {
   note?: string
 }
 
+export interface HarnessNoticeAction {
+  label: string
+  onClick: () => void
+}
+
 export interface HarnessNoticeProps {
   title: string
   tone: ENoticeTone
   body?: string
   emptyNote?: string
   sections?: HarnessNoticeSection[]
+  action?: HarnessNoticeAction | undefined
 }
 
 const ICON_OF_TONE: Record<ENoticeTone, ReactNode> = {
@@ -63,7 +70,7 @@ function SingleSectionNotice({
   tone,
   emptyNote,
   section,
-}: Omit<HarnessNoticeProps, 'sections' | 'body'> & { section: HarnessNoticeSection }) {
+}: Omit<HarnessNoticeProps, 'sections' | 'body' | 'action'> & { section: HarnessNoticeSection }) {
   const hasContent = hasText(section.content)
   return (
     <Trace data-tone={tone}>
@@ -80,15 +87,25 @@ function SingleSectionNotice({
   )
 }
 
-export function HarnessNotice({ title, tone, body, emptyNote, sections }: HarnessNoticeProps) {
+function NoticeAction({ action }: { action: HarnessNoticeAction }) {
+  return (
+    <Button variant="outline" size="xs" onClick={action.onClick} className="ml-6">
+      {action.label}
+    </Button>
+  )
+}
+
+export function HarnessNotice({
+  title,
+  tone,
+  body,
+  emptyNote,
+  sections,
+  action,
+}: HarnessNoticeProps) {
   const hasBody = hasText(body)
   const hasSections = sections !== undefined && sections.length > 0
   const [onlySection] = sections ?? []
-  if (!hasBody && sections?.length === 1 && onlySection !== undefined) {
-    return (
-      <SingleSectionNotice title={title} tone={tone} emptyNote={emptyNote} section={onlySection} />
-    )
-  }
   const content =
     hasBody || hasSections ? (
       <>
@@ -98,17 +115,27 @@ export function HarnessNotice({ title, tone, body, emptyNote, sections }: Harnes
           : null}
       </>
     ) : undefined
+  const notice =
+    !hasBody && sections?.length === 1 && onlySection !== undefined ? (
+      <SingleSectionNotice title={title} tone={tone} emptyNote={emptyNote} section={onlySection} />
+    ) : (
+      <Trace data-tone={tone}>
+        <Step
+          icon={ICON_OF_TONE[tone]}
+          title={title}
+          description={hasBody || hasSections ? undefined : emptyNote}
+          status={tone === ENoticeTone.Failed ? 'error' : undefined}
+          contentClassName="pt-1 pl-6"
+        >
+          {content}
+        </Step>
+      </Trace>
+    )
+  if (action === undefined) return notice
   return (
-    <Trace data-tone={tone}>
-      <Step
-        icon={ICON_OF_TONE[tone]}
-        title={title}
-        description={hasBody || hasSections ? undefined : emptyNote}
-        status={tone === ENoticeTone.Failed ? 'error' : undefined}
-        contentClassName="pt-1 pl-6"
-      >
-        {content}
-      </Step>
-    </Trace>
+    <div className="flex flex-col items-start gap-1.5">
+      {notice}
+      <NoticeAction action={action} />
+    </div>
   )
 }

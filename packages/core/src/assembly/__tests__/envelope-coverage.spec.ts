@@ -28,6 +28,7 @@ import { EClassifierMode, ETriage } from '../../policy/classifier/triage'
 import { ERiskDimension } from '../../policy/classifier/dimension'
 import { EGrantScope } from '../../policy/classifier/grant'
 import { EJudgment } from '../../policy/classifier/verdict'
+import { EOomScope } from '../../pod/pod-oom'
 import { EQualityReviewStatus } from '../../quality/policy'
 import { EServiceStatus } from '../../services/status'
 import { EShellStatus } from '../../shells/status'
@@ -98,6 +99,13 @@ const SAMPLES: { readonly [K in EventType]: SampleOf<K> } = {
   },
   nudge: { type: 'nudge', text: 'keep going', lifetimeSteps: 3 },
   'sandbox-setup-reported': { type: 'sandbox-setup-reported', text: 'installed', failed: false },
+  'pod-ran-out-of-memory': {
+    type: 'pod-ran-out-of-memory',
+    incidentId: 'oom-1',
+    scope: EOomScope.Pod,
+    processes: 2,
+    memory: { commandLimitBytes: 2_490_195_968, podBytes: 4_100_808_704 },
+  },
   'turn-failed': { type: 'turn-failed', message: 'provider said no' },
   'loop-watch-verdict': { type: 'loop-watch-verdict', consulted: true, looping: true, steps: 4 },
   'worktree-entered': { type: 'worktree-entered', path: '/w/tree', branch: 'dennis/envelope' },

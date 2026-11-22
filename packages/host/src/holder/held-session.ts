@@ -206,6 +206,7 @@ export class HeldSession {
       runner,
       branches,
       diskPressure,
+      oom,
       branchesStarted,
       recoverCommands,
       runCommands,
@@ -221,7 +222,14 @@ export class HeldSession {
       crew: crew.port(),
       isDraining: () => this.draining,
     })
-    this.observation = new HeldObservation({ deps, runtime, record, branches, diskPressure })
+    this.observation = new HeldObservation({
+      deps,
+      runtime,
+      record,
+      branches,
+      diskPressure,
+      oom,
+    })
     this.observation.start()
     this.actions.attach({ logStaged, runCommands })
     await takeOver.lapped({

@@ -7,6 +7,7 @@ import { filesEventSchemas, filesOpSchemas, filesResultSchemas } from './files'
 import { gitEventSchemas, gitOpSchemas, gitResultSchemas } from './git'
 import { mcpEventSchemas, mcpOpSchemas, mcpResultSchemas } from './mcp'
 import { metricsEventSchemas, metricsOpSchemas, metricsResultSchemas } from './metrics'
+import { oomEventSchemas, oomOpSchemas, oomResultSchemas } from './oom'
 import { previewsOpSchemas, previewsResultSchemas } from './previews'
 import { failedCallResultSchema } from './result'
 import { servicesEventSchemas, servicesOpSchemas, servicesResultSchemas } from './services'
@@ -21,6 +22,7 @@ export const callOpSchema = z.discriminatedUnion('op', [
   ...gitOpSchemas,
   ...mcpOpSchemas,
   ...metricsOpSchemas,
+  ...oomOpSchemas,
   ...previewsOpSchemas,
   ...servicesOpSchemas,
   ...terminalOpSchemas,
@@ -35,6 +37,7 @@ export const okCallResultSchema = z.discriminatedUnion('op', [
   ...gitResultSchemas,
   ...mcpResultSchemas,
   ...metricsResultSchemas,
+  ...oomResultSchemas,
   ...previewsResultSchemas,
   ...servicesResultSchemas,
   ...terminalResultSchemas,
@@ -51,6 +54,7 @@ export const daemonEventSchema = z.discriminatedUnion('type', [
   ...gitEventSchemas,
   ...mcpEventSchemas,
   ...metricsEventSchemas,
+  ...oomEventSchemas,
   ...servicesEventSchemas,
   ...terminalEventSchemas,
   ...shellsEventSchemas,
@@ -72,6 +76,7 @@ export * from './files'
 export * from './git'
 export * from './mcp'
 export * from './metrics'
+export * from './oom'
 export * from './previews'
 export * from './result'
 export * from './services'

@@ -1,4 +1,4 @@
-import { watch, type FSWatcher } from 'node:fs'
+import type { FSWatcher } from 'node:fs'
 import { sep } from 'node:path'
 
 import type { BranchSet } from '@dltech/atlas-protocol'
@@ -20,6 +20,7 @@ import {
 import { RepoDiscovery } from './discover'
 import { commonGitDirOf, runGit, runGitOrEmpty } from './git'
 import { readReflogs } from './reflogs'
+import { guardedWatch } from '../watch/tree'
 
 const DEBOUNCE_MS = 500
 
@@ -127,8 +128,10 @@ export const gitGroup =
     }
 
     const watchTarget = (repo: WatchedRepo, target: string): FSWatcher | null => {
-      try {
-        return watch(target, { recursive: true }, (_event, filename) => {
+      return guardedWatch({
+        path: target,
+        recursive: true,
+        onEvent: (filename) => {
           const name =
             filename === null || filename === ''
               ? ''
@@ -136,10 +139,9 @@ export const gitGroup =
                 ? `${repo.gitDir}${sep}${filename}`
                 : filename
           onFsEvent(repo, name)
-        })
-      } catch {
-        return null
-      }
+        },
+        onError: () => scheduleRefresh(repo),
+      })
     }
 
     const unwatchRepo = (repo: WatchedRepo): void => {

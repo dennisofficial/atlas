@@ -6,6 +6,10 @@ import {
   type TranscriptEntry,
 } from '@dltech/atlas-client/transcript'
 
+import { ENoticeTone, noticeFieldsOf } from './notice-fields'
+
+export { ENoticeTone } from './notice-fields'
+
 export enum ERowKind {
   Message = 'message',
   Work = 'work',
@@ -15,13 +19,6 @@ export enum ERowKind {
 export enum EMessageAuthor {
   You = 'you',
   Atlas = 'atlas',
-}
-
-export enum ENoticeTone {
-  Ok = 'ok',
-  Failed = 'failed',
-  Attention = 'attention',
-  Quiet = 'quiet',
 }
 
 export type MessageRow = {
@@ -73,8 +70,6 @@ export type NoticeRow = {
 
 export type ThreadRow = MessageRow | WorkRow | NoticeRow
 
-const NOTICED_PREFIX = 'Atlas noticed — '
-
 const stampOf = (value: string | undefined | null): number | undefined => {
   if (value === undefined || value === null) return undefined
   const stamp = Date.parse(value)
@@ -116,56 +111,6 @@ const noticeOf = (args: {
   body: args.body ?? '',
   tone: args.tone,
 })
-
-const toneOfFailed = (failed: boolean): ENoticeTone =>
-  failed ? ENoticeTone.Failed : ENoticeTone.Ok
-
-function noticeFieldsOf(entry: TranscriptEntry): {
-  title: string
-  body: string
-  tone: ENoticeTone
-} | null {
-  switch (entry.kind) {
-    case EEntryKind.SystemNotice:
-      return {
-        title: `${NOTICED_PREFIX}${entry.text}`,
-        body: entry.content,
-        tone: ENoticeTone.Quiet,
-      }
-    case EEntryKind.SystemContext:
-    case EEntryKind.Rotated:
-    case EEntryKind.OperatorInput:
-    case EEntryKind.HistoryCompacted:
-    case EEntryKind.TldrWritten:
-      return { title: entry.text, body: '', tone: ENoticeTone.Quiet }
-    case EEntryKind.SandboxNotice: {
-      const [title = '', ...rest] = entry.text.split('\n\n')
-      return {
-        title,
-        body: rest.join('\n\n'),
-        tone: entry.failed ? ENoticeTone.Attention : ENoticeTone.Quiet,
-      }
-    }
-    case EEntryKind.BackgroundShellEnded:
-    case EEntryKind.ServiceEnded:
-      return { title: entry.text, body: entry.output, tone: toneOfFailed(entry.failed) }
-    case EEntryKind.BackgroundShellAwaitingInput:
-      return { title: entry.text, body: entry.output, tone: ENoticeTone.Failed }
-    case EEntryKind.BackgroundShellMatched:
-    case EEntryKind.BackgroundShellStillRunning:
-      return { title: entry.text, body: entry.output, tone: ENoticeTone.Ok }
-    case EEntryKind.AgentEnded:
-      return { title: entry.text, body: entry.report, tone: toneOfFailed(entry.failed) }
-    case EEntryKind.AgentReported:
-      return { title: entry.text, body: entry.report, tone: ENoticeTone.Ok }
-    case EEntryKind.ModelFellBack:
-      return { title: entry.text, body: entry.content, tone: ENoticeTone.Attention }
-    case EEntryKind.PrEvent:
-      return { title: entry.text, body: entry.body, tone: toneOfFailed(entry.failed) }
-    default:
-      return null
-  }
-}
 
 const elapsedOf = (args: { building: Building; now: number }): string => {
   if (args.building.durationMs !== undefined) return formatElapsed(args.building.durationMs)
