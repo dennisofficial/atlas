@@ -13,12 +13,16 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import {
+  DAEMON_MEMORY_RESERVE,
+  SERVE_MEMORY_RESERVE,
   killWorkloadBox,
+  memoryMaxFor,
   prepareWorkloadCgroups,
   sweepIdleWorkloadBoxes,
 } from '../workload-cgroups'
 
 const POD_ENV = { ATLAS_API_PROVISIONED: '1' }
+const reserve = SERVE_MEMORY_RESERVE
 const GIB_KB = 1024 * 1024
 const meminfoOf = (kb: number): string => `MemTotal:       ${kb} kB\nMemFree:  1 kB\n`
 
@@ -45,7 +49,7 @@ afterEach(() => {
 
 describe('prepareWorkloadCgroups', () => {
   it('is disabled outside an api-provisioned pod and touches nothing', () => {
-    const report = prepareWorkloadCgroups({ env: {}, platform: 'linux', root })
+    const report = prepareWorkloadCgroups({ env: {}, platform: 'linux', root, reserve })
     expect(report).toEqual({ enabled: false })
     expect(existsSync(join(root, 'atlas-work'))).toBe(false)
     expect(process.env.ATLAS_WORKLOAD_CGROUP).toBeUndefined()
@@ -53,10 +57,10 @@ describe('prepareWorkloadCgroups', () => {
 
   it('is disabled in a local docker pod and off linux', () => {
     const docker = { ...POD_ENV, ATLAS_POD_NAME: 'pod-1' }
-    expect(prepareWorkloadCgroups({ env: docker, platform: 'linux', root })).toEqual({
+    expect(prepareWorkloadCgroups({ env: docker, platform: 'linux', root, reserve })).toEqual({
       enabled: false,
     })
-    expect(prepareWorkloadCgroups({ env: POD_ENV, platform: 'darwin', root })).toEqual({
+    expect(prepareWorkloadCgroups({ env: POD_ENV, platform: 'darwin', root, reserve })).toEqual({
       enabled: false,
     })
   })
@@ -66,6 +70,7 @@ describe('prepareWorkloadCgroups', () => {
       env: POD_ENV,
       platform: 'linux',
       root,
+      reserve,
       meminfo: meminfoOf(8 * GIB_KB),
     })
 
@@ -79,6 +84,7 @@ describe('prepareWorkloadCgroups', () => {
         memorySwapMax: 0,
         cpuWeight: 20,
         serveCpuWeight: 500,
+        serveMemoryMinBytes: 0,
       },
     })
     expect(read('cgroup.subtree_control')).toBe('+cpu +pids +memory')
@@ -90,6 +96,7 @@ describe('prepareWorkloadCgroups', () => {
     expect(read('atlas-work/cpu.weight')).toBe('20')
     expect(read('atlas-serve/cpu.weight')).toBe('500')
     expect(['1', '2', '3']).toContain(read('atlas-serve/cgroup.procs'))
+    expect(existsSync(join(root, 'atlas-serve', 'memory.min'))).toBe(false)
     expect(process.env.ATLAS_WORKLOAD_CGROUP).toBe(join(root, 'atlas-work'))
   })
 
@@ -99,6 +106,7 @@ describe('prepareWorkloadCgroups', () => {
         env: POD_ENV,
         platform: 'linux',
         root,
+        reserve,
         meminfo: meminfoOf(totalGib * GIB_KB),
       })
       return report.enabled && report.ok ? report.limits.memoryMaxBytes : -1
@@ -112,6 +120,7 @@ describe('prepareWorkloadCgroups', () => {
       env: POD_ENV,
       platform: 'linux' as const,
       root,
+      reserve,
       meminfo: meminfoOf(8 * GIB_KB),
     }
     const first = prepareWorkloadCgroups(args)
@@ -128,6 +137,7 @@ describe('prepareWorkloadCgroups', () => {
       env: POD_ENV,
       platform: 'linux',
       root,
+      reserve,
       meminfo: meminfoOf(8 * GIB_KB),
     })
 
@@ -141,9 +151,28 @@ describe('prepareWorkloadCgroups', () => {
       env: POD_ENV,
       platform: 'linux',
       root,
+      reserve,
       meminfo: 'nothing useful',
     })
     expect(report.enabled && !report.ok && report.step).toBe('size-memory')
+  })
+})
+
+describe('memoryMaxFor', () => {
+  const GIB = 1024 ** 3
+  const commandsMaxOf = (args: { totalGib: number; reserve: typeof reserve }): number =>
+    memoryMaxFor({ meminfo: meminfoOf(args.totalGib * GIB_KB), reserve: args.reserve })
+
+  it('keeps the v1 serve reserve of max(1.5 GiB, 25%)', () => {
+    expect(commandsMaxOf({ totalGib: 4, reserve: SERVE_MEMORY_RESERVE })).toBe(2.5 * GIB)
+    expect(commandsMaxOf({ totalGib: 8, reserve: SERVE_MEMORY_RESERVE })).toBe(6 * GIB)
+    expect(commandsMaxOf({ totalGib: 16, reserve: SERVE_MEMORY_RESERVE })).toBe(12 * GIB)
+  })
+
+  it('reserves a flat 512 MiB for the v2 daemon', () => {
+    expect(commandsMaxOf({ totalGib: 4, reserve: DAEMON_MEMORY_RESERVE })).toBe(3.5 * GIB)
+    expect(commandsMaxOf({ totalGib: 8, reserve: DAEMON_MEMORY_RESERVE })).toBe(7.5 * GIB)
+    expect(commandsMaxOf({ totalGib: 16, reserve: DAEMON_MEMORY_RESERVE })).toBe(15.5 * GIB)
   })
 })
 
