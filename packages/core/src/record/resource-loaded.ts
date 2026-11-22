@@ -31,6 +31,12 @@ export const latestResourceOf = (args: {
   return undefined
 }
 
+export const loadedUnderCloudOf = (args: {
+  fingerprint: string
+  cloud: string
+  directory: string
+}): boolean => args.fingerprint.endsWith(`:${args.cloud}:${args.directory}`)
+
 export const resourceFingerprintOf = (args: {
   instance: string
   seq: number | undefined

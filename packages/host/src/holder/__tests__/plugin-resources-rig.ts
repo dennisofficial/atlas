@@ -32,25 +32,37 @@ export const versionsAt = (version: string): Record<ECloudSetting, string> => ({
 export type Daemon = {
   readonly seqs: Map<string, number>
   instance(): string
-  versions(): Record<ECloudSetting, string>
+  readVersions(): Promise<Record<ECloudSetting, string>>
+  versionReads(): number
   setInstance(instance: string): void
   setVersions(versions: Record<ECloudSetting, string>): void
+  failVersions(failure: Error | undefined): void
 }
 
 export const daemonOf = (): Daemon => {
   const seqs = new Map<string, number>()
   let instance = 'instance-1'
   let versions = versionsAt('v1')
+  let failure: Error | undefined
+  let reads = 0
   return {
     seqs,
     instance: () => instance,
-    versions: () => versions,
+    readVersions: async () => {
+      reads += 1
+      if (failure !== undefined) throw failure
+      return versions
+    },
+    versionReads: () => reads,
     setInstance: (next) => {
       instance = next
       seqs.clear()
     },
     setVersions: (next) => {
       versions = next
+    },
+    failVersions: (next) => {
+      failure = next
     },
   }
 }
@@ -105,7 +117,7 @@ export const rig = (args: {
 
   const ctx: PluginPodContext = {
     sessionId: 'session-1',
-    control: { ...podControlStub, settingsVersions: async () => daemon.versions() },
+    control: { ...podControlStub, settingsVersions: () => daemon.readVersions() },
     crew: EMPTY_CREW,
     sessions: EMPTY_SESSIONS,
     worktrees: EMPTY_WORKTREES,

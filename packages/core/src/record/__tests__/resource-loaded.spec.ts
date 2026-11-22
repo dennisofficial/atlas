@@ -3,7 +3,12 @@ import { describe, expect, it } from 'bun:test'
 import { toEventId, toRunId, toThreadId } from '../../events/ids'
 import { RECORD_ONLY_TYPES, type Hash, type V2Event } from '../event'
 import { toLoopEvent } from '../loop-events'
-import { latestResourceOf, resourceFingerprintOf, resourceLoadedSchema } from '../resource-loaded'
+import {
+  latestResourceOf,
+  loadedUnderCloudOf,
+  resourceFingerprintOf,
+  resourceLoadedSchema,
+} from '../resource-loaded'
 
 const HASH = 'a'.repeat(64) as Hash
 const THREAD = toThreadId('t')
@@ -87,5 +92,53 @@ describe('resource-loaded', () => {
     expect(
       resourceFingerprintOf({ instance: 'i', seq: undefined, cloud: '', directory: '/w' }),
     ).toBe('i:unarmed::/w')
+  })
+
+  it('finds a fingerprint was loaded under a cloud string that holds its own colons', () => {
+    const fingerprint = resourceFingerprintOf({
+      instance: 'instance-1',
+      seq: 4,
+      cloud: '2:1700000000000|7:1700000000001',
+      directory: '/work',
+    })
+    expect(
+      loadedUnderCloudOf({
+        fingerprint,
+        cloud: '2:1700000000000|7:1700000000001',
+        directory: '/work',
+      }),
+    ).toBe(true)
+    expect(
+      loadedUnderCloudOf({
+        fingerprint,
+        cloud: '3:1700000000000|7:1700000000001',
+        directory: '/work',
+      }),
+    ).toBe(false)
+    expect(
+      loadedUnderCloudOf({
+        fingerprint,
+        cloud: '2:1700000000000|7:1700000000001',
+        directory: '/elsewhere',
+      }),
+    ).toBe(false)
+  })
+
+  it('does not read a fingerprint with no cloud string as loaded under a known one', () => {
+    expect(
+      loadedUnderCloudOf({ fingerprint: 'reloaded', cloud: '1:1700000000000', directory: '/work' }),
+    ).toBe(false)
+    expect(
+      loadedUnderCloudOf({
+        fingerprint: resourceFingerprintOf({
+          instance: 'i',
+          seq: 0,
+          cloud: 'unknown|unknown|unknown',
+          directory: '/work',
+        }),
+        cloud: '1:1700000000000|2:1700000000001|3:1700000000002',
+        directory: '/work',
+      }),
+    ).toBe(false)
   })
 })

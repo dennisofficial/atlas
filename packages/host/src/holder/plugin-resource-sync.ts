@@ -1,13 +1,15 @@
-import { latestResourceOf, type V2Event } from '@dltech/atlas-core'
-import type { TracePort } from '@dltech/atlas-observability'
-import type { PluginPodContext, PodResource } from '@dltech/atlas-plugin-sdk'
+import { latestResourceOf, loadedUnderCloudOf, type V2Event } from '@dltech/atlas-core'
+import { ESpan, spanWith, type TracePort } from '@dltech/atlas-observability'
+import type { ECloudSetting, PluginPodContext, PodResource } from '@dltech/atlas-plugin-sdk'
 
-import { messageOf } from './plugin-resource-probes'
+import { cloudStringOf, messageOf, versionsKnownOf, versionsOf } from './plugin-resource-probes'
 import { ELoadReason } from './plugin-resource-reason'
 import { refresh, watchOf } from './plugin-resource-refresh'
 import { reloadOne } from './plugin-resource-reload'
 
 type Ctx = PluginPodContext
+
+type Versions = Readonly<Record<ECloudSetting, string>>
 
 export type ReconnectWatch = (listener: (hello: { restart: boolean }) => void) => () => void
 
@@ -59,8 +61,11 @@ export class ResourceSync {
   }
 
   async turnStart(): Promise<void> {
-    if (this.args.resources.every((resource) => this.recordedOf(resource))) return
-    await (this.initial ?? this.refreshStart())
+    if (!this.args.resources.every((resource) => this.recordedOf(resource))) {
+      await (this.initial ?? this.refreshStart())
+      return
+    }
+    await this.reloadCloudChanged()
   }
 
   refreshInBackground(): void {
@@ -82,6 +87,46 @@ export class ResourceSync {
     if (latest === undefined) return false
     const parsed = resource.schema.safeParse(latest.value)
     return parsed.success && resource.stale?.(parsed.data) !== true
+  }
+
+  private async reloadCloudChanged(): Promise<void> {
+    const cloud = this.args.resources.filter((resource) => resource.cloud !== undefined)
+    if (cloud.length === 0) return
+    const versions = await spanWith(this.args.trace, {
+      name: ESpan.ResourceVersions,
+      run: () => versionsOf({ ctx: this.args.ctx, needed: true }),
+    })
+    if (!versionsKnownOf(versions)) return
+    const directory = this.args.directory()
+    await Promise.all(
+      cloud
+        .filter((resource) => this.cloudChangedOf({ resource, versions, directory }))
+        .map((resource) => {
+          const reason = ELoadReason.Cloud
+          if (resource.background === true) {
+            void this.reload({ resource, directory, reason })
+            return undefined
+          }
+          return this.reload({ resource, directory, reason })
+        }),
+    )
+  }
+
+  private cloudChangedOf(args: {
+    resource: PodResource<unknown>
+    versions: Versions
+    directory: string
+  }): boolean {
+    const latest = latestResourceOf({
+      events: this.args.ctx.events(),
+      resource: args.resource.name,
+    })
+    if (latest === undefined) return false
+    return !loadedUnderCloudOf({
+      fingerprint: latest.fingerprint,
+      cloud: cloudStringOf({ settings: args.resource.cloud, versions: args.versions }),
+      directory: args.directory,
+    })
   }
 
   private refreshStart(): Promise<void> {
@@ -109,26 +154,40 @@ export class ResourceSync {
     for (const resource of this.args.resources) {
       const watch = watchOf({ resource, directory })
       if (watch === undefined || watch.id !== watchId) continue
-      this.reload({ resource, directory })
+      if (this.running.has(resource.name)) {
+        this.queued.add(resource.name)
+        continue
+      }
+      void this.reload({ resource, directory, reason: ELoadReason.Changed })
     }
   }
 
-  private reload(args: { resource: PodResource<unknown>; directory: string }): void {
+  private reload(args: {
+    resource: PodResource<unknown>
+    directory: string
+    reason: ELoadReason
+  }): Promise<void> {
     const name = args.resource.name
-    if (this.running.has(name)) {
-      this.queued.add(name)
-      return
-    }
+    const running = this.running.get(name)
+    if (running !== undefined) return running
     const attempt = this.reloadNow(args).finally(() => {
       this.running.delete(name)
-      if (this.queued.delete(name)) this.reload(args)
+      if (this.queued.delete(name)) {
+        void this.reload({
+          resource: args.resource,
+          directory: args.directory,
+          reason: ELoadReason.Changed,
+        })
+      }
     })
     this.running.set(name, attempt)
+    return attempt
   }
 
   private async reloadNow(args: {
     resource: PodResource<unknown>
     directory: string
+    reason: ELoadReason
   }): Promise<void> {
     const initial = this.initial
     if (initial !== undefined) await initial.catch(() => undefined)
@@ -137,7 +196,7 @@ export class ResourceSync {
       trace: this.args.trace,
       resource: args.resource,
       directory: this.args.directory(),
-      reason: ELoadReason.Changed,
+      reason: args.reason,
     })
   }
 }

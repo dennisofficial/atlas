@@ -40,6 +40,9 @@ export const versionsOf = async (args: {
   }
 }
 
+export const versionsKnownOf = (versions: Readonly<Record<ECloudSetting, string>>): boolean =>
+  Object.values(ECloudSetting).every((setting) => versions[setting] !== UNKNOWN)
+
 export const cloudStringOf = (args: {
   settings: readonly ECloudSetting[] | undefined
   versions: Readonly<Record<ECloudSetting, string>>
