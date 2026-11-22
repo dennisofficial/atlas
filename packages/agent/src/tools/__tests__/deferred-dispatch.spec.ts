@@ -1,11 +1,9 @@
 import { describe, expect, it } from 'bun:test'
 
 import {
-  CALL_TOOL_NAME,
   EBeforeToolDecision,
   EStage,
   EToolEffect,
-  TOOL_SEARCH_NAME,
   ToolDefinition,
   toCallId,
   toRunId,
@@ -18,7 +16,7 @@ import {
 import { z } from 'zod'
 
 import { HookChain } from '../../hooks/registry'
-import { FakeTool, fakeToolRegistry } from '../../testing'
+import { fakeToolRegistry } from '../../testing'
 import { HookedToolDispatcher, type DispatchArgs } from '../dispatch'
 import { filteredToolRegistry } from '../registry'
 
@@ -43,7 +41,7 @@ const THREAD = toThreadId('thread-1')
 const RUN = toRunId('run-1')
 const CALL = toCallId('call-1')
 
-const argsOf = (input: unknown, name = CALL_TOOL_NAME): DispatchArgs => ({
+const argsOf = (input: unknown, name = 'mcp__meetings__search'): DispatchArgs => ({
   call: { callId: CALL, name, input, runId: RUN, threadId: THREAD },
   signal: new AbortController().signal,
   projectDirectory: '/w',
@@ -68,7 +66,7 @@ const denier = {
   }),
 }
 
-describe('call_tool to a deferred tool', () => {
+describe('a direct call to a deferred tool', () => {
   it('runs the real tool, and the hooks see its real name and input', async () => {
     const target = new DeferredTool('mcp__meetings__search')
     const seen: ToolCall[] = []
@@ -77,9 +75,7 @@ describe('call_tool to a deferred tool', () => {
       hooks: new HookChain({ beforeTool: [recorder(seen)] }),
     })
 
-    const drafts = await dispatcher.dispatch(
-      argsOf({ tool: target.name, args: { query: 'weekly' } }),
-    )
+    const drafts = await dispatcher.dispatch(argsOf({ query: 'weekly' }))
 
     expect(target.inputs).toEqual([{ query: 'weekly' }])
     expect(seen).toHaveLength(1)
@@ -88,33 +84,31 @@ describe('call_tool to a deferred tool', () => {
     expect(drafts).toHaveLength(1)
     expect(drafts[0]).toMatchObject({
       type: 'tool-result',
-      name: CALL_TOOL_NAME,
+      name: target.name,
       callId: CALL,
       modelText: 'one meeting',
     })
   })
 
-  it('lets a deny hook stop it, under the name the model called', async () => {
+  it('lets a deny hook stop it, under its real name', async () => {
     const target = new DeferredTool('mcp__meetings__search')
     const dispatcher = new HookedToolDispatcher({
       registry: fakeToolRegistry([target]),
       hooks: new HookChain({ beforeTool: [denier] }),
     })
 
-    const drafts = await dispatcher.dispatch(
-      argsOf({ tool: target.name, args: { query: 'weekly' } }),
-    )
+    const drafts = await dispatcher.dispatch(argsOf({ query: 'weekly' }))
 
     expect(target.inputs).toEqual([])
     expect(drafts).toContainEqual({
       type: 'tool-denied',
       callId: CALL,
-      name: CALL_TOOL_NAME,
+      name: target.name,
       reason: 'no meeting tools here',
     })
   })
 
-  it('refuses a target the filtered registry denies, and names tool_search', async () => {
+  it('refuses a target the filtered registry denies', async () => {
     const target = new DeferredTool('mcp__meetings__search')
     const dispatcher = new HookedToolDispatcher({
       registry: filteredToolRegistry({
@@ -124,41 +118,11 @@ describe('call_tool to a deferred tool', () => {
       hooks: new HookChain({}),
     })
 
-    const drafts = await dispatcher.dispatch(
-      argsOf({ tool: target.name, args: { query: 'weekly' } }),
-    )
+    const drafts = await dispatcher.dispatch(argsOf({ query: 'weekly' }))
 
     expect(target.inputs).toEqual([])
-    expect(drafts[0]).toMatchObject({ type: 'tool-result', name: CALL_TOOL_NAME })
+    expect(drafts[0]).toMatchObject({ type: 'tool-result', name: target.name })
     const error = drafts[0]?.type === 'tool-result' ? drafts[0].error?.message : undefined
     expect(error).toContain(target.name)
-    expect(error).toContain(TOOL_SEARCH_NAME)
-  })
-
-  it('refuses a tool that was never deferred', async () => {
-    const dispatcher = new HookedToolDispatcher({
-      registry: fakeToolRegistry([new FakeTool('read', 'x')]),
-      hooks: new HookChain({}),
-    })
-
-    const drafts = await dispatcher.dispatch(argsOf({ tool: 'read', args: {} }))
-
-    const error = drafts[0]?.type === 'tool-result' ? drafts[0].error?.message : undefined
-    expect(error).toContain('"read" is not a deferred tool')
-    expect(error).toContain(TOOL_SEARCH_NAME)
-  })
-
-  it('runs a direct call to a deferred tool by its real name', async () => {
-    const target = new DeferredTool('mcp__meetings__search')
-    const dispatcher = new HookedToolDispatcher({
-      registry: fakeToolRegistry([target]),
-      hooks: new HookChain({}),
-    })
-
-    const drafts = await dispatcher.dispatch(argsOf({ query: 'weekly' }, 'mcp__meetings__search'))
-
-    expect(target.inputs).toEqual([{ query: 'weekly' }])
-    const result = drafts.find((draft) => draft.type === 'tool-result')
-    expect(result?.type === 'tool-result' ? result.error : 'missing').toBeUndefined()
   })
 })

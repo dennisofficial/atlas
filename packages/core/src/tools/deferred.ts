@@ -2,8 +2,6 @@ import { z } from 'zod'
 
 import type { ToolDeclaration } from './tool'
 
-export const CALL_TOOL_NAME = 'call_tool'
-
 export const TOOL_SEARCH_NAME = 'tool_search'
 
 export const DEFERRED_TOOLS_SOURCE = 'deferred-tools'
@@ -15,11 +13,6 @@ const MCP_TOOL_SEPARATOR = '__'
 const ATLAS_TOOL_GROUP = 'atlas'
 
 const TOOL_SEARCH_LIMIT = 5
-
-export const callToolInputSchema = z.strictObject({
-  tool: z.string().min(1),
-  args: z.record(z.string(), z.unknown()),
-})
 
 export const toolSearchInputSchema = z.strictObject({ query: z.string() })
 
@@ -129,48 +122,4 @@ export const toolSearchTextOf = (args: {
       ? `${matches.length} deferred tools matched; the first ${shown.length}:`
       : `${matches.length} deferred ${noun} matched:`
   return [header, ...shown.map(renderMatch)].join('\n\n')
-}
-
-export type ResolvedToolCall =
-  | { kind: 'direct'; name: string; input: unknown }
-  | { kind: 'deferred'; name: string; input: unknown }
-  | { kind: 'refused'; name: string; reason: string }
-
-const refused = (args: { name: string; reason: string }): ResolvedToolCall => ({
-  kind: 'refused',
-  name: args.name,
-  reason: args.reason,
-})
-
-export const resolveToolCallOf = (args: {
-  declarations: readonly ToolDeclaration[]
-  name: string
-  input: unknown
-}): ResolvedToolCall => {
-  if (args.name !== CALL_TOOL_NAME) {
-    const called = args.declarations.find((declaration) => declaration.name === args.name)
-    const kind = called !== undefined && isDeferredDeclaration(called) ? 'deferred' : 'direct'
-    return { kind, name: args.name, input: args.input }
-  }
-
-  const parsed = callToolInputSchema.safeParse(args.input)
-  if (!parsed.success)
-    return refused({
-      name: args.name,
-      reason: `${CALL_TOOL_NAME} takes a tool name and its args object: ${z.prettifyError(parsed.error)}. Nothing ran; call ${TOOL_SEARCH_NAME} to get the tool's schema.`,
-    })
-
-  const target = args.declarations.find((declaration) => declaration.name === parsed.data.tool)
-  if (target === undefined)
-    return refused({
-      name: args.name,
-      reason: `no tool is named "${parsed.data.tool}" in this session; call ${TOOL_SEARCH_NAME} to find one. Nothing ran.`,
-    })
-  if (!isDeferredDeclaration(target))
-    return refused({
-      name: args.name,
-      reason: `"${parsed.data.tool}" is not a deferred tool, so call it directly instead of through ${CALL_TOOL_NAME}; ${TOOL_SEARCH_NAME} lists the tools that are deferred. Nothing ran.`,
-    })
-
-  return { kind: 'deferred', name: target.name, input: parsed.data.args }
 }

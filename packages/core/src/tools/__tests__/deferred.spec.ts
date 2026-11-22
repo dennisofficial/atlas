@@ -2,13 +2,10 @@ import { describe, expect, it } from 'bun:test'
 import { z } from 'zod'
 
 import {
-  CALL_TOOL_NAME,
-  TOOL_SEARCH_NAME,
   deferredDeclarationsOf,
   deferredListingTextOf,
   mcpPartsOf,
   modelFacingDeclarationsOf,
-  resolveToolCallOf,
   serverListingTextOf,
   toolNamesByServerOf,
   toolSearchTextOf,
@@ -152,79 +149,5 @@ describe('tool_search text', () => {
     expect(toolSearchTextOf({ declarations: [readFile], query: '' })).toBe(
       'no deferred tools are in this session.',
     )
-  })
-})
-
-describe('unwrapping call_tool', () => {
-  it('passes an ordinary call through untouched', () => {
-    expect(resolveToolCallOf({ declarations, name: 'read', input: { path: '/w/a' } })).toEqual({
-      kind: 'direct',
-      name: 'read',
-      input: { path: '/w/a' },
-    })
-  })
-
-  it('unwraps call_tool into the deferred tool and its args', () => {
-    expect(
-      resolveToolCallOf({
-        declarations,
-        name: CALL_TOOL_NAME,
-        input: { tool: 'mcp__posthog__exec', args: { command: 'info project-get' } },
-      }),
-    ).toEqual({
-      kind: 'deferred',
-      name: 'mcp__posthog__exec',
-      input: { command: 'info project-get' },
-    })
-  })
-
-  it('refuses a tool that is not deferred and points at tool_search', () => {
-    const resolved = resolveToolCallOf({
-      declarations,
-      name: CALL_TOOL_NAME,
-      input: { tool: 'read', args: {} },
-    })
-
-    expect(resolved.kind).toBe('refused')
-    if (resolved.kind === 'refused') {
-      expect(resolved.name).toBe(CALL_TOOL_NAME)
-      expect(resolved.reason).toContain('"read" is not a deferred tool')
-      expect(resolved.reason).toContain(TOOL_SEARCH_NAME)
-    }
-  })
-
-  it('refuses an unknown tool and points at tool_search', () => {
-    const resolved = resolveToolCallOf({
-      declarations,
-      name: CALL_TOOL_NAME,
-      input: { tool: 'mcp__gone__exec', args: {} },
-    })
-
-    expect(resolved.kind).toBe('refused')
-    if (resolved.kind === 'refused')
-      expect(resolved.reason).toContain('no tool is named "mcp__gone__exec"')
-  })
-
-  it('refuses malformed args without running anything', () => {
-    for (const input of [
-      { tool: 'mcp__posthog__exec' },
-      { tool: 'mcp__posthog__exec', args: [] },
-      { args: {} },
-      { tool: '', args: {} },
-    ]) {
-      const resolved = resolveToolCallOf({ declarations, name: CALL_TOOL_NAME, input })
-      expect(resolved.kind).toBe('refused')
-      if (resolved.kind === 'refused') expect(resolved.reason).toContain(TOOL_SEARCH_NAME)
-    }
-  })
-
-  it('runs a direct call to a deferred tool by its own name', () => {
-    expect(
-      resolveToolCallOf({
-        declarations,
-        name: 'mcp__posthog__exec',
-        input: { command: 'info' },
-      }),
-    ).toEqual({ kind: 'deferred', name: 'mcp__posthog__exec', input: { command: 'info' } })
   })
 })
