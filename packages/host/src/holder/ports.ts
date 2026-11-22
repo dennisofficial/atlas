@@ -99,6 +99,8 @@ export type SessionRuntime = {
   launchDirectory: string
   watchedRepos(): Promise<readonly string[]>
   onRepo?: ((listener: (repoPath: string) => void) => () => void) | undefined
+  watchedCheckouts(): Promise<readonly string[]>
+  onCheckout?: ((listener: (checkoutPath: string) => void) => () => void) | undefined
   baseBranchOf(repoPath: string): string | null
   plugins?: ComposedPlugins | undefined
   runningShells(): Promise<number>

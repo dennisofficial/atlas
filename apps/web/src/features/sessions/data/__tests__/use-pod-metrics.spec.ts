@@ -14,6 +14,8 @@ type Opened = {
 
 const opened: Opened[] = []
 
+const realApiClient = { ...(await import('@/lib/api-client')) }
+
 mock.module('@/lib/api-client', () => ({
   cloudCall: <T>(promise: Promise<T>): Promise<T> => promise,
   api: {
@@ -56,6 +58,7 @@ beforeAll(() => {
 })
 
 afterAll(async () => {
+  mock.module('@/lib/api-client', () => realApiClient)
   await unregisterDom()
 })
 

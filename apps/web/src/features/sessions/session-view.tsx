@@ -140,6 +140,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     title: listed?.title ?? undefined,
     startedAt: listed?.createdAt,
     projectId: listed?.projectId ?? undefined,
+    mainThreadId: listed?.mainThreadId,
     model,
     snapshot,
     openTab: pane.openTab,

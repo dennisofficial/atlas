@@ -24,9 +24,9 @@ const createChangesSnapshotter = (args: {
     remoteCalls: args.runtime.remoteCalls,
     checkouts: async () => {
       if (!args.record.eventCache().bookkeeping().workspace().prepared) return []
-      const repos = await args.runtime.watchedRepos()
+      const checkoutPaths = await args.runtime.watchedCheckouts()
       const found: ChangesCheckout[] = []
-      for (const repoPath of repos) {
+      for (const repoPath of checkoutPaths) {
         const origin = await runGit({
           processes,
           cwd: repoPath,
@@ -47,9 +47,11 @@ const createChangesSnapshotter = (args: {
 
 export class HeldObservation {
   private readonly deps: HeldSessionDeps
+  private readonly runtime: SessionRuntime
   private readonly branches: BranchObserver
   private readonly diskPressure: DiskPressureObserver | undefined
   private readonly changes: ChangesSnapshotter | undefined
+  private unsubscribeCheckouts: (() => void) | undefined
 
   constructor(args: {
     deps: HeldSessionDeps
@@ -59,6 +61,7 @@ export class HeldObservation {
     diskPressure?: DiskPressureObserver | undefined
   }) {
     this.deps = args.deps
+    this.runtime = args.runtime
     this.branches = args.branches
     this.diskPressure = args.diskPressure
     this.changes = createChangesSnapshotter(args)
@@ -69,6 +72,7 @@ export class HeldObservation {
   }
 
   start(): void {
+    this.unsubscribeCheckouts = this.runtime.onCheckout?.(() => this.changes?.rearm())
     this.changes?.start()
   }
 
@@ -83,18 +87,25 @@ export class HeldObservation {
   drain(): void {
     this.branches.stop()
     this.diskPressure?.stop()
+    this.releaseCheckouts()
     void this.changes?.stop()
   }
 
   async stop(): Promise<void> {
     this.branches.stop()
     this.diskPressure?.stop()
+    this.releaseCheckouts()
     await this.changes?.stop().catch((error: unknown) => this.faulted(error))
   }
 
   async observeBeforeRelease(): Promise<void> {
     await this.branches.refresh().catch((error: unknown) => this.faulted(error))
     await this.changes?.snapshotNow().catch((error: unknown) => this.faulted(error))
+  }
+
+  private releaseCheckouts(): void {
+    this.unsubscribeCheckouts?.()
+    this.unsubscribeCheckouts = undefined
   }
 
   private faulted(error: unknown): void {

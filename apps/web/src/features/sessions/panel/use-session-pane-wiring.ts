@@ -11,8 +11,9 @@ import { openBrowserUrl } from './browser/open-browser'
 import { ESessionPaneTab } from './pane-tab'
 import type { SessionPaneValue } from './pane-value'
 import { previewPortsOf } from './preview-ports'
+import { enteredWorktreePathOf } from '../data/entered-worktree'
 
-export type PaneSnapshot = Pick<SessionSnapshot, 'view' | 'status' | 'shells'>
+export type PaneSnapshot = Pick<SessionSnapshot, 'view' | 'status' | 'shells' | 'events'>
 
 const NO_CHECKOUTS: SessionViewOutput['checkouts'] = { repos: [], primary: null }
 
@@ -31,10 +32,18 @@ export function useSessionPaneWiring(args: {
   projectId: string | undefined
   model: SessionViewModel
   snapshot: PaneSnapshot
+  mainThreadId: string | undefined
   openTab: (tab: ESessionPaneTab) => void
 }): SessionPaneWiring {
-  const { sessionId, title, startedAt, projectId, model, snapshot, openTab } = args
-  const { view: viewOutput, status, shells } = snapshot
+  const { sessionId, title, startedAt, projectId, model, snapshot, mainThreadId, openTab } = args
+  const { view: viewOutput, status, shells, events } = snapshot
+  const threadWorktreePath = useMemo(
+    () =>
+      mainThreadId === undefined
+        ? undefined
+        : enteredWorktreePathOf({ events, threadId: mainThreadId }),
+    [mainThreadId, events],
+  )
   const shellTails = useMemo(() => shellTailTextOf(shells), [shells])
   const ports = useMemo(() => previewPortsOf(model.previews), [model.previews])
   const openBrowserTab = useCallback(() => openTab(ESessionPaneTab.Browser), [openTab])
@@ -54,6 +63,7 @@ export function useSessionPaneWiring(args: {
       view: model,
       viewLoaded: viewOutput !== undefined,
       checkouts: viewOutput?.checkouts ?? NO_CHECKOUTS,
+      threadWorktreePath,
       status,
       shellTails,
       openTab,
@@ -66,6 +76,7 @@ export function useSessionPaneWiring(args: {
       projectId,
       model,
       viewOutput,
+      threadWorktreePath,
       status,
       shellTails,
       openTab,

@@ -342,6 +342,8 @@ export const createSessionRuntimeFactory = (
       launchDirectory,
       watchedRepos: () => gitWatch.watchedRepos(),
       onRepo: (listener) => gitWatch.onRepo(listener),
+      watchedCheckouts: () => gitWatch.watchedCheckouts(),
+      onCheckout: (listener) => gitWatch.onCheckout(listener),
       baseBranchOf: (repoPath) =>
         repoAt(repoPath)?.base ?? prepareController.checkedOutBaseOf(repoPath),
       plugins: args.plugins,

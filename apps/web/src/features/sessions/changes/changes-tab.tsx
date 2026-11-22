@@ -1,7 +1,6 @@
 'use client'
 
 import { ChangesPanel, type ChangesLayout } from '@dltech/atlas-ui/ai/changes-panel'
-import type { SessionStatusOutput } from '@dltech/atlas-protocol'
 import { GitCompareIcon } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
@@ -9,18 +8,17 @@ import { isSessionWorking } from '@/features/sessions/data/session-state'
 import { useSessionPaneValue } from '@/features/sessions/panel/pane-value'
 import { TabPlaceholder } from '@/features/threads/panel/tab-placeholder'
 
+import { useCheckoutChoice } from '../checkouts/checkout-choice-context'
+import { CheckoutSelect } from '../checkouts/checkout-select'
 import { recallChanges, rememberChanges, scopedPathsOf, withScopedPaths } from './changes-memory'
 import { DiffBody } from './diff-body'
 import { changedFilesOf } from './rows'
 import { snapshotLabel } from './snapshot-age'
-import { type CheckoutChanges, useChanges } from './use-changes'
+import type { CheckoutChanges } from './use-changes'
 
 export const CHANGES_SCOPE = 'branch'
 
 const SCOPES = [{ id: CHANGES_SCOPE, label: 'All changes', detail: 'since the branch point' }]
-
-export const changesSignalOf = (status: SessionStatusOutput | undefined): string =>
-  status === undefined ? 'no-status' : `${status.state}:${status.since ?? ''}`
 
 function Notice(args: { title: string; description: string }) {
   return (
@@ -35,7 +33,6 @@ function Notice(args: { title: string; description: string }) {
 function CheckoutSection(args: {
   sessionId: string
   checkout: CheckoutChanges
-  titled: boolean
   layout: ChangesLayout
   onLayoutChange: (layout: ChangesLayout) => void
   expanded: string[]
@@ -50,14 +47,6 @@ function CheckoutSection(args: {
     )
   return (
     <section data-changes-checkout={checkout.checkoutId} className="flex min-h-0 flex-col">
-      {args.titled ? (
-        <div className="flex shrink-0 items-baseline justify-between gap-2 border-b border-border px-3 py-2">
-          <span className="min-w-0 truncate text-sm text-foreground">{checkout.repo}</span>
-          <span className="min-w-0 truncate text-xs text-muted-foreground">
-            {checkout.worktreePath}
-          </span>
-        </div>
-      ) : null}
       <ChangesPanel
         files={files}
         scopes={SCOPES}
@@ -81,7 +70,7 @@ function CheckoutSection(args: {
 
 export function ChangesTab() {
   const { sessionId, status } = useSessionPaneValue()
-  const changes = useChanges({ sessionId, signal: changesSignalOf(status) })
+  const { changes, options, selectedId } = useCheckoutChoice()
   const [layout, setLayout] = useState<ChangesLayout>('flat')
   const [expanded, setExpanded] = useState<string[]>(() => recallChanges(sessionId))
   useEffect(() => {
@@ -114,41 +103,50 @@ export function ChangesTab() {
       </div>
     )
   }
-  const recorded = changes.checkouts.filter((checkout) => checkout.files.length > 0)
-  if (recorded.length === 0) {
+  const shown =
+    changes.checkouts.find((checkout) => checkout.checkoutId === selectedId) ?? changes.checkouts[0]
+  const empty = shown === undefined || shown.files.length === 0
+  if (empty && options.length < 2) {
     return (
       <div data-changes-tab="empty">
         <Notice
           title="No changes yet"
-          description="The pod has snapshotted this session's checkouts and none of them differ from the branch point."
+          description="The pod has snapshotted this session's checkout and it does not differ from the branch point."
         />
       </div>
     )
   }
   const live = status !== undefined && isSessionWorking(status)
-  const latest = recorded.reduce((newest, checkout) => Math.max(checkout.updatedAt, newest), 0)
   return (
-    <div data-changes-tab="ready" className="flex h-full min-h-0 flex-col">
-      <p
+    <div data-changes-tab={empty ? 'empty' : 'ready'} className="flex h-full min-h-0 flex-col">
+      <div
         data-changes-snapshot
-        className="shrink-0 border-b border-border px-3 py-1.5 text-xs text-muted-foreground"
+        className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-3 py-1.5 text-xs text-muted-foreground"
       >
-        {snapshotLabel({ updatedAt: latest, live, now: Date.now() })}
-      </p>
-      <div className="min-h-0 flex-1 overflow-auto">
-        {recorded.map((checkout) => (
+        <span className="min-w-0 truncate">
+          {shown === undefined
+            ? null
+            : snapshotLabel({ updatedAt: shown.updatedAt, live, now: Date.now() })}
+        </span>
+        <CheckoutSelect />
+      </div>
+      {shown === undefined || shown.files.length === 0 ? (
+        <Notice
+          title="No changes yet"
+          description="The pod has snapshotted this session's checkout and it does not differ from the branch point."
+        />
+      ) : (
+        <div className="min-h-0 flex-1 overflow-auto">
           <CheckoutSection
-            key={checkout.checkoutId}
             sessionId={sessionId}
-            checkout={checkout}
-            titled={recorded.length > 1}
+            checkout={shown}
             layout={layout}
             onLayoutChange={setLayout}
             expanded={expanded}
             onExpandedChange={setExpanded}
           />
-        ))}
-      </div>
+        </div>
+      )}
     </div>
   )
 }
