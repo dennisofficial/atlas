@@ -15,6 +15,13 @@ import { changeCheckoutId, changeRepoOf } from './identity'
 
 const WATCH_DEBOUNCE_MS = 1500
 
+export enum ESnapshotTrigger {
+  Start = 'start',
+  TurnEnd = 'turn-end',
+  Watch = 'watch',
+  Rearm = 'rearm',
+}
+
 export type ChangesCheckout = { repoPath: string; originUrl: string; base: string | null }
 
 export type ChangesSnapshotterArgs = {
@@ -46,7 +53,7 @@ export class ChangesSnapshotter {
   private readonly watchId: string
   private running: Promise<void> | undefined
   private readonly arming = new Set<Promise<void>>()
-  private queued = false
+  private queued: ESnapshotTrigger | undefined
   private timer: ReturnType<typeof setTimeout> | undefined
   private unsubscribe: (() => void) | undefined
   private stopped = false
@@ -64,20 +71,26 @@ export class ChangesSnapshotter {
       this.schedule()
     })
     this.startArming()
-    void this.snapshotNow()
+    void this.snapshotNow(ESnapshotTrigger.Start)
   }
 
   rearm(): void {
     if (this.stopped) return
     this.startArming()
-    void this.snapshotNow()
+    void this.snapshotNow(ESnapshotTrigger.Rearm)
   }
 
-  async stop(): Promise<void> {
+  quiesce(): void {
+    if (this.stopped) return
     this.stopped = true
+    this.queued = undefined
     this.unsubscribe?.()
     this.unsubscribe = undefined
     this.clearTimer()
+  }
+
+  async stop(): Promise<void> {
+    this.quiesce()
     await Promise.all([...this.arming])
     await this.disarmWatches()
     await this.running
@@ -88,21 +101,27 @@ export class ChangesSnapshotter {
     this.clearTimer()
     this.timer = setTimeout(() => {
       this.timer = undefined
-      void this.snapshotNow()
+      void this.snapshotNow(ESnapshotTrigger.Watch)
     }, WATCH_DEBOUNCE_MS)
   }
 
-  snapshotNow(): Promise<void> {
+  snapshotNow(trigger: ESnapshotTrigger): Promise<void> {
     if (this.stopped) return Promise.resolve()
     if (this.running !== undefined) {
-      this.queued = true
+      this.queued = trigger
       return this.running
     }
+    this.args.log?.info({
+      source: 'holder.changes',
+      message: `changes snapshot for ${this.args.sessionId} started`,
+      data: { sessionId: this.args.sessionId, trigger },
+    })
     this.running = this.snapshotAll().finally(() => {
       this.running = undefined
-      if (!this.queued) return
-      this.queued = false
-      void this.snapshotNow()
+      const queued = this.queued
+      this.queued = undefined
+      if (queued === undefined) return
+      void this.snapshotNow(queued)
     })
     return this.running
   }
@@ -115,7 +134,10 @@ export class ChangesSnapshotter {
       this.fail({ phase: 'checkouts', error })
       return
     }
-    for (const checkout of checkouts) await this.snapshotCheckout(checkout)
+    for (const checkout of checkouts) {
+      if (this.stopped) return
+      await this.snapshotCheckout(checkout)
+    }
   }
 
   private async snapshotCheckout(checkout: ChangesCheckout): Promise<void> {
@@ -231,6 +253,7 @@ export class ChangesSnapshotter {
   }
 
   private fail(args: { repoPath?: string | undefined; phase: string; error: unknown }): void {
+    if (this.stopped) return
     this.args.log?.error({
       source: 'holder.changes',
       message: `changes snapshot for ${this.args.sessionId} failed`,

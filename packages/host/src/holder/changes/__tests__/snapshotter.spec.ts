@@ -3,7 +3,7 @@ import { EChangeFileStatus } from '@dltech/atlas-protocol'
 import { describe, expect, it } from 'bun:test'
 
 import { changeCheckoutId } from '../identity'
-import type { ChangesCheckout } from '../snapshotter'
+import { ESnapshotTrigger, type ChangesCheckout } from '../snapshotter'
 import {
   BASE,
   bytesOf,
@@ -22,7 +22,7 @@ describe('ChangesSnapshotter', () => {
     const state = singleFile()
     const { snapshotter, content, writes, plane, calls, errors } = await rig({ state })
 
-    await snapshotter.snapshotNow()
+    await snapshotter.snapshotNow(ESnapshotTrigger.TurnEnd)
     expect(errors).toEqual([])
     const before = bytesOf('one\n')
     expect(content.puts).toEqual([sha(before), sha(bytesOf('one\ntwo\n'))])
@@ -39,7 +39,7 @@ describe('ChangesSnapshotter', () => {
       size: 8,
     })
 
-    await snapshotter.snapshotNow()
+    await snapshotter.snapshotNow(ESnapshotTrigger.TurnEnd)
     expect(content.puts).toHaveLength(2)
     expect(writes).toHaveLength(1)
     calls.close()
@@ -54,7 +54,7 @@ describe('ChangesSnapshotter', () => {
     const state = singleFile()
     const { snapshotter, writes, plane, calls } = await rig({ state, content: new FailingStore() })
 
-    await snapshotter.snapshotNow()
+    await snapshotter.snapshotNow(ESnapshotTrigger.TurnEnd)
 
     expect(writes).toHaveLength(0)
     expect(await plane.readChanges({ sessionId: SESSION })).toHaveLength(0)
@@ -65,9 +65,9 @@ describe('ChangesSnapshotter', () => {
     const state = singleFile()
     const { snapshotter, plane, writes, calls } = await rig({ state })
 
-    await snapshotter.snapshotNow()
+    await snapshotter.snapshotNow(ESnapshotTrigger.TurnEnd)
     state.manifest = { repoPath: WORKTREE, base: BASE, files: [] }
-    await snapshotter.snapshotNow()
+    await snapshotter.snapshotNow(ESnapshotTrigger.TurnEnd)
 
     expect(writes).toHaveLength(2)
     const [checkout] = await plane.readChanges({ sessionId: SESSION })
@@ -112,8 +112,8 @@ describe('ChangesSnapshotter', () => {
         open = resolve
       })
 
-    const first = snapshotter.snapshotNow()
-    const second = snapshotter.snapshotNow()
+    const first = snapshotter.snapshotNow(ESnapshotTrigger.TurnEnd)
+    const second = snapshotter.snapshotNow(ESnapshotTrigger.Rearm)
     await until(() => state.scans === 1)
     state.gate = undefined
     open()
@@ -151,6 +151,57 @@ describe('ChangesSnapshotter', () => {
     expect(stopAt).toBeGreaterThanOrEqual(0)
     expect(ops.slice(stopAt)).not.toContain('watch.start')
     expect(ops).not.toContain('watch.start')
+    calls.close()
+  })
+
+  it('drops the queued run and every later request once quiesced', async () => {
+    const state = singleFile()
+    const { snapshotter, calls, triggers, errors } = await rig({ state })
+    let open: () => void = () => undefined
+    state.gate = () =>
+      new Promise<void>((resolve) => {
+        open = resolve
+      })
+
+    const running = snapshotter.snapshotNow(ESnapshotTrigger.Start)
+    await until(() => state.scans === 1)
+    void snapshotter.snapshotNow(ESnapshotTrigger.TurnEnd)
+    snapshotter.rearm()
+    snapshotter.quiesce()
+    state.gate = undefined
+    open()
+    await running
+    await until(() => state.inFlight === 0)
+
+    snapshotter.rearm()
+    await snapshotter.snapshotNow(ESnapshotTrigger.Watch)
+    await until(() => state.inFlight === 0)
+
+    expect(state.scans).toBe(1)
+    expect(triggers).toEqual(['start'])
+    expect(errors).toEqual([])
+    calls.close()
+  })
+
+  it('names the trigger of the run it starts, including a queued one', async () => {
+    const state = singleFile()
+    const { snapshotter, calls, triggers } = await rig({ state })
+    let open: () => void = () => undefined
+    state.gate = () =>
+      new Promise<void>((resolve) => {
+        open = resolve
+      })
+
+    const running = snapshotter.snapshotNow(ESnapshotTrigger.Start)
+    await until(() => state.scans === 1)
+    const queued = snapshotter.snapshotNow(ESnapshotTrigger.Rearm)
+    state.gate = undefined
+    open()
+    await running
+    await queued
+    await until(() => triggers.length === 2)
+
+    expect(triggers).toEqual(['start', 'rearm'])
     calls.close()
   })
 })
