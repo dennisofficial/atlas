@@ -40,6 +40,10 @@ where the compiler should enforce a dependency rule.
   `createApiClient`). They never import `apps/api`.
 - **`deprecated/` is frozen prior art** outside the workspace. Read it. Never import, extend or fix
   it. Do not copy its comment density.
+- **Each package carries a consumer README.** Every package in `packages/*`, every plugin in
+  `plugins/*` and `commands/` has a `README.md` that describes its public surface. The template is
+  `docs/package-readmes.md`, and `scripts/check-package-readmes.ts` enforces it. Update the README
+  in the same PR as a public-surface change.
 
 ## Code style
 

@@ -1,0 +1,95 @@
+# @dltech/atlas-plugin-sessions
+
+The tools a pod uses to reach other sessions, and the plan view. The API composes it as the
+`sessions` plugin; a surface reads the plan and the peer tree from the client tier.
+
+## Owns
+
+- Seven tools: `spawn_session`, `spawn_teammate`, `message_session`, `message_teammate`,
+  `report_to_spawner`, `list_sessions` and `list_teammates`.
+- The `plan` view, which folds the plan tasks the model keeps for its turn.
+- `nestPeers`, which builds the tree of teammates under each spawner.
+- The `sessions.peers` prompt fragment, which adds the spawner line for a nested session.
+
+## Does not own
+
+- The session store and the sandbox of a spawned session. The `PodSessions` port owns them.
+- Archiving and stopping a session. The operator does that.
+- The title of a session. The `rename` command sets it (`@dltech/atlas-native-commands`).
+
+## Entry points
+
+| Import                                  | Use it for                                                                  |
+| --------------------------------------- | --------------------------------------------------------------------------- |
+| `@dltech/atlas-plugin-sessions/core`    | `sessionsCoreSlots` with the `plan` view, `PLAN_VIEW` and `planViewSchema`. |
+| `@dltech/atlas-plugin-sessions/pod`     | `sessionsPod`: the seven tools and the `sessions.peers` prompt fragment.    |
+| `@dltech/atlas-plugin-sessions/control` | `sessionsControl`, an empty control slot.                                   |
+| `@dltech/atlas-plugin-sessions/client`  | `nestPeers` and `planOfView`.                                               |
+
+## Capabilities
+
+### Read the plan
+
+- `PLAN_VIEW`: the view name, `plan`.
+- `planViewSchema`: the schema of the plan view. The fold itself stays in `@dltech/atlas-core`.
+- `planOfView(views)`: the `PlanTask[]` of the plan view, or an empty list.
+
+### Build the peer tree
+
+- `nestPeers(rows)`: rows to a tree by `spawnedBy`. A row with `nested: false`, a row with no
+  spawner and a row whose spawner is archived all become a root.
+
+## Plugin contributions
+
+### The tools the model sees
+
+| Tool                | What it does                                                                                               |
+| ------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `spawn_session`     | Create an independent session at the top level, like the new-session button. `brief` is its first message. |
+| `spawn_teammate`    | Create a teammate nested under this session. It reports back with `report_to_spawner`.                     |
+| `message_session`   | Send a message to any session of the operator's.                                                           |
+| `message_teammate`  | Send a message to one teammate of this session.                                                            |
+| `report_to_spawner` | Report to the session that spawned this one. `done`, `blocked` and `needs-decision` wake it.               |
+| `list_sessions`     | List the sessions of the operator, with the current one marked.                                            |
+| `list_teammates`    | List the nested teammates of this session, newest first.                                                   |
+
+Every line of a list names whether the session is working, idle, failed or archived.
+
+### The slots
+
+`sessionsPod` gives the seven tools and the `sessions.peers` prompt fragment.
+
+`sessionsCoreSlots` gives the `plan` view and no events or commands. The client tier gives
+functions, not a slot object; the API passes `client: { hooks: [] }`.
+
+## Usage
+
+```ts
+import { definePlugin } from '@dltech/atlas-plugin-sdk'
+import { sessionsControl } from '@dltech/atlas-plugin-sessions/control'
+import { sessionsCoreSlots } from '@dltech/atlas-plugin-sessions/core'
+import { sessionsPod } from '@dltech/atlas-plugin-sessions/pod'
+
+definePlugin({
+  name: 'sessions',
+  ...sessionsCoreSlots,
+  pod: sessionsPod,
+  control: sessionsControl,
+  client: { hooks: [] },
+  transport: 'none',
+})
+```
+
+## Rules
+
+- A pod with no sessions port refuses `spawn_session` and `spawn_teammate`. The message and
+  report tools return a refusal.
+- Use `spawn_teammate` for a workstream this session owns. Use `spawn_session` only for work that
+  belongs to the operator.
+- Pass `{ hooks: [] }` as the client slot. This package exports no client slot object.
+
+## See also
+
+- `docs/v2/architecture.md`
+- `docs/decisions/0020-v2-sub-agent-worktrees-and-peer-sessions.md`
+- `packages/plugin-sdk/src/slots.ts` for the `PodSlot` contract.

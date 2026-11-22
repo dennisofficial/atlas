@@ -1,0 +1,88 @@
+# @dltech/atlas-plugin-shells
+
+Background shells for a pod: start a command that outlives the turn, read what it prints, answer
+its prompt, stop it and list it. The API composes it as the `shells` plugin, and a surface reads
+its roster view.
+
+## Owns
+
+- The `shell` tool family: `shell`, `shell_output`, `shell_input`, `shell_kill` and `shell_list`.
+- The record of each shell: its status, its printed size and its read cursor.
+- The `shells` view, which folds the `background-shell-*` events into one row for each shell.
+- The `shells.background` prompt fragment.
+
+## Does not own
+
+- A command that the model waits on. The harness tool set gives the model `bash` for it.
+- The terminal pane and the way a surface draws it. The surface reads the `shells` view.
+
+## Entry points
+
+| Import                                | Use it for                                                        |
+| ------------------------------------- | ----------------------------------------------------------------- |
+| `@dltech/atlas-plugin-shells/core`    | `shellsCoreSlots`, the `shells` view fold and its schemas.        |
+| `@dltech/atlas-plugin-shells/pod`     | `shellsPod`: five tools, the daemon hook and the prompt fragment. |
+| `@dltech/atlas-plugin-shells/control` | `shellsControl`, an empty control slot.                           |
+| `@dltech/atlas-plugin-shells/client`  | `shellsClient`, `shellsOfView` and `shellRosterOf`.               |
+
+## Capabilities
+
+### Read the roster
+
+- `shellsView`: the view fold with the name `shells`.
+- `foldShells(state, event)`: add or update one row. The status is `running`, `exited`, `killed` or `overflowed`.
+- `shellsOfEvents(events)` and `shellsOfView(views)`: the rows of a log or of a view record.
+- `shellRosterOf(views)`: the running shells, their count and whether one waits for input.
+- `looksLikePrompt(text)`: true when the printed text ends in a prompt.
+
+## Plugin contributions
+
+### The tools the model sees
+
+| Tool           | What it does                                                                                                                             |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `shell`        | Start `command` as a background shell and return the new `shellId` at once. Optional `description`, `workdir`, `timeoutMs`, `input`.     |
+| `shell_output` | Read what the shell printed since the last read. Each call consumes what it returns.                                                     |
+| `shell_input`  | Write `text` to the stdin of a shell started with `input: true`. Set `end` to close the stdin for good.                                  |
+| `shell_kill`   | Signal the whole process group. Return the next unread chunk, at most 32,768 bytes by default, with the count of characters that remain. |
+| `shell_list`   | List the shells this session started, with id, command, state and printed size. `runningOnly` leaves out ended shells.                   |
+
+### The slots
+
+`shellsPod` gives the five tools, one daemon-event hook and the `shells.background` prompt
+fragment. The hook records a shell ending and marks a shell that waits for input.
+
+`shellsCoreSlots` gives the `shells` view and no events or commands. `shellsClient` gives one
+hook, `shells-roster`, which applies to the `background-shell-*` events.
+
+## Usage
+
+```ts
+import { definePlugin } from '@dltech/atlas-plugin-sdk'
+import { shellsClient } from '@dltech/atlas-plugin-shells/client'
+import { shellsControl } from '@dltech/atlas-plugin-shells/control'
+import { shellsCoreSlots } from '@dltech/atlas-plugin-shells/core'
+import { shellsPod } from '@dltech/atlas-plugin-shells/pod'
+
+definePlugin({
+  name: 'shells',
+  ...shellsCoreSlots,
+  pod: shellsPod,
+  control: shellsControl,
+  client: shellsClient,
+  transport: 'stream',
+})
+```
+
+## Rules
+
+- Import the pod tier in a pod only. It calls the host of the session.
+- Import the core tier in a client. It is pure and reads no filesystem.
+- Do not call `shell_output` to learn whether a shell ended. The ending arrives as its own event.
+- The stdin of a shell is a pipe, not a terminal. A full-screen program does not work there.
+
+## See also
+
+- `docs/v2/architecture.md`
+- `docs/decisions/0019-v2-package-map.md`
+- `packages/plugin-sdk/src/slots.ts` for the `PodSlot` contract.
