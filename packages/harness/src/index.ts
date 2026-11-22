@@ -80,6 +80,7 @@ export { LocalProcessPort } from './execution/local-process'
 export { applyServePriority, type ServePriorityReport } from './execution/serve-priority'
 export {
   prepareWorkloadCgroups,
+  SERVE_MEMORY_RESERVE,
   sweepIdleWorkloadBoxes,
   type WorkloadCgroupsReport,
 } from './execution/workload-cgroups'
