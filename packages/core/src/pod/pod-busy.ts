@@ -31,10 +31,11 @@ export const podBusyFactsOf = (args: {
   state: ESessionStatus | undefined
   shellsRunning: number
   servicesRunning: number
+  setupRunning?: boolean | undefined
 }): PodBusyFacts => ({
   shellsRunning: args.shellsRunning,
   servicesRunning: args.servicesRunning,
-  setupRunning: args.state === ESessionStatus.Preparing,
+  setupRunning: args.setupRunning === true || args.state === ESessionStatus.Preparing,
   turnInFlight: args.state !== undefined && TURN_STATES.has(args.state),
 })
 
@@ -52,6 +53,7 @@ export const podBusyOf = (facts: PodBusyFacts): PodBusy => {
 
 export enum EPodRebootHold {
   Preparing = 'preparing',
+  Setup = 'setup',
   RunningTool = 'running-tool',
   Shells = 'shells',
   Services = 'services',
@@ -62,6 +64,7 @@ export enum EPodRebootHold {
 
 export type PodRebootFacts = {
   state: ESessionStatus | undefined
+  setupRunning: boolean
   shellsRunning: number
   servicesRunning: number
   backgroundAgents: number
@@ -77,6 +80,7 @@ export type PodRebootSafety = {
 export const podRebootSafeOf = (facts: PodRebootFacts): PodRebootSafety => {
   const holds: EPodRebootHold[] = []
   if (facts.state === ESessionStatus.Preparing) holds.push(EPodRebootHold.Preparing)
+  if (facts.setupRunning) holds.push(EPodRebootHold.Setup)
   if (facts.state === ESessionStatus.RunningTool) holds.push(EPodRebootHold.RunningTool)
   if (facts.shellsRunning > 0) holds.push(EPodRebootHold.Shells)
   if (facts.servicesRunning > 0) holds.push(EPodRebootHold.Services)

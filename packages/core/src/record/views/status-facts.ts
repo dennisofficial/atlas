@@ -1,8 +1,9 @@
 import { EWaitEpisodeKind } from '../../model-recovery/waiting'
+import { ESetupPhase } from '../../workspace/setup-notice'
 import type { V2Event, V2EventType } from '../event'
 import { endsStartFailure } from '../start-failure'
 import type { OpenTurn, TurnEnd } from '../turns'
-import { countsAsPrepared } from '../workspace'
+import { countsAsPrepared, EWorkspaceStep, EWorkspaceStepState } from '../workspace'
 import { attemptTagOf } from '../workspace-attempts'
 import { NO_BACKGROUND, stepBackground, type BackgroundFacts } from './background-facts'
 
@@ -20,6 +21,15 @@ export type ParkedFact = { name: string; at: string }
 
 export type ParkedFacts = Readonly<Record<string, ParkedFact>>
 
+export type SetupRun = { at: string }
+
+const SETUP_RUN_LIMIT_MS = 30 * 60_000
+
+export const setupRunningOf = (args: { run: SetupRun | null; now: string }): boolean => {
+  if (args.run === null) return false
+  return Date.parse(args.now) - Date.parse(args.run.at) < SETUP_RUN_LIMIT_MS
+}
+
 export type StatusFacts = {
   firstSeq: number | null
   attempt: number
@@ -34,6 +44,7 @@ export type StatusFacts = {
   retries: readonly RetryFact[]
   parked: ParkedFacts
   background: BackgroundFacts
+  setupRun: SetupRun | null
 }
 
 export const initialStatusFacts: StatusFacts = {
@@ -50,6 +61,7 @@ export const initialStatusFacts: StatusFacts = {
   retries: [],
   parked: {},
   background: NO_BACKGROUND,
+  setupRun: null,
 }
 
 const LABEL_TYPES: ReadonlySet<V2EventType> = new Set<V2EventType>([
@@ -151,16 +163,41 @@ const stepTurn = (facts: StatusFacts, event: V2Event): StatusFacts => {
   return { ...facts, turn: label, unfinishedFailure: unfinishedFailureAfter(event) }
 }
 
+const setupRunAfter = (event: V2Event): SetupRun | null | undefined => {
+  if (event.type === 'workspace-attempt-started') return null
+  if (event.type === 'workspace-step') {
+    if (event.step !== EWorkspaceStep.Setup) return undefined
+    return event.state === EWorkspaceStepState.Started ? { at: event.at } : null
+  }
+  if (event.type !== 'sandbox-setup-reported') return undefined
+  if (event.phase === ESetupPhase.Started) return { at: event.at }
+  if (event.phase === ESetupPhase.Finished) return null
+  return undefined
+}
+
+const stepSetupRun = (facts: StatusFacts, event: V2Event): StatusFacts => {
+  const run = setupRunAfter(event)
+  if (run === undefined) return facts
+  if (run === null && facts.setupRun === null) return facts
+  return { ...facts, setupRun: run }
+}
+
 const stepBackgroundFacts = (facts: StatusFacts, event: V2Event): StatusFacts => {
   const background = stepBackground(facts.background, event)
   return background === facts.background ? facts : { ...facts, background }
 }
 
 export const stepStatusFacts = (facts: StatusFacts, event: V2Event): StatusFacts =>
-  stepBackgroundFacts(
-    stepParked(
-      stepTurn(
-        stepWaits(stepWorkspace({ ...facts, firstSeq: facts.firstSeq ?? event.seq }, event), event),
+  stepSetupRun(
+    stepBackgroundFacts(
+      stepParked(
+        stepTurn(
+          stepWaits(
+            stepWorkspace({ ...facts, firstSeq: facts.firstSeq ?? event.seq }, event),
+            event,
+          ),
+          event,
+        ),
         event,
       ),
       event,

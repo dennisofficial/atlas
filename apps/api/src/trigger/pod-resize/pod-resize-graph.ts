@@ -26,6 +26,7 @@ const busyOf = async (args: { plane: ControlPlane; sessionId: string }) => {
   return podBusyOf(
     podBusyFactsOf({
       state: busy.status.state,
+      setupRunning: busy.setupRunning,
       shellsRunning: shellRosterOf(busy.pluginViews).running,
       servicesRunning: servicesOfView(busy.pluginViews).filter((row) => row.status === 'running')
         .length,

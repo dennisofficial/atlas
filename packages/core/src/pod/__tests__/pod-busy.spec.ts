@@ -1,10 +1,17 @@
 import { describe, expect, it } from 'bun:test'
 
 import { ESessionStatus } from '../../record/views/status-types'
-import { EPodRebootHold, podRebootSafeOf, type PodRebootFacts } from '../pod-busy'
+import {
+  EPodRebootHold,
+  podBusyFactsOf,
+  podRebootSafeOf,
+  type PodBusyFacts,
+  type PodRebootFacts,
+} from '../pod-busy'
 
 const factsOf = (over: Partial<PodRebootFacts>): PodRebootFacts => ({
   state: undefined,
+  setupRunning: false,
   shellsRunning: 0,
   servicesRunning: 0,
   backgroundAgents: 0,
@@ -31,6 +38,12 @@ describe('podRebootSafeOf', () => {
     expect(podRebootSafeOf(factsOf({ state: ESessionStatus.Preparing })).holds).toEqual([
       EPodRebootHold.Preparing,
     ])
+  })
+
+  it('holds the reboot for a background setup script on an idle session', () => {
+    expect(
+      podRebootSafeOf(factsOf({ state: ESessionStatus.Idle, setupRunning: true })).holds,
+    ).toEqual([EPodRebootHold.Setup])
   })
 
   it('holds the reboot while a tool call is in flight', () => {
@@ -76,5 +89,30 @@ describe('podRebootSafeOf', () => {
 
   it('holds the reboot while a terminal is open', () => {
     expect(podRebootSafeOf(factsOf({ terminalsHeld: 1 })).holds).toEqual([EPodRebootHold.Terminals])
+  })
+})
+
+describe('podBusyFactsOf', () => {
+  const factsFor = (over: {
+    state: ESessionStatus | undefined
+    setupRunning?: boolean | undefined
+  }): PodBusyFacts =>
+    podBusyFactsOf({
+      state: over.state,
+      setupRunning: over.setupRunning,
+      shellsRunning: 0,
+      servicesRunning: 0,
+    })
+
+  it('counts a background setup script the session status does not carry', () => {
+    expect(factsFor({ state: ESessionStatus.Idle, setupRunning: true }).setupRunning).toBe(true)
+  })
+
+  it('counts the setup phase of a preparing session', () => {
+    expect(factsFor({ state: ESessionStatus.Preparing }).setupRunning).toBe(true)
+  })
+
+  it('does not count a setup script once it ended', () => {
+    expect(factsFor({ state: ESessionStatus.Idle, setupRunning: false }).setupRunning).toBe(false)
   })
 })

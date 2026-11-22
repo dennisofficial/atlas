@@ -27,6 +27,7 @@ type FakeArgs = {
 
 const factsOf = (over: {
   state?: ESessionStatus
+  setupRunning?: boolean
   shellsRunning?: number
   servicesRunning?: number
   backgroundAgents?: number
@@ -34,6 +35,7 @@ const factsOf = (over: {
   peersPlaced?: number
 }): PodRebootFacts => ({
   state: over.state,
+  setupRunning: over.setupRunning ?? false,
   shellsRunning: over.shellsRunning ?? 0,
   servicesRunning: over.servicesRunning ?? 0,
   backgroundAgents: over.backgroundAgents ?? 0,
@@ -91,6 +93,20 @@ describe('runPodDiskGrow', () => {
     expect(lines.join('\n')).toContain('running-tool')
   })
 
+  it('waits for a background setup script that runs while the session is idle', async () => {
+    const { deps, calls, lines } = fakeDeps({
+      pods: [podOf({ podSessionId: 'pod-1', usedGb: 17, limitGb: 20 })],
+      facts: async () => factsOf({ state: ESessionStatus.Idle, setupRunning: true }),
+    })
+    expect(await runPodDiskGrow({ deps, maxGb: 100 })).toEqual({
+      checked: 1,
+      grown: 0,
+      waiting: 1,
+    })
+    expect(calls).toEqual(['facts:pod-1'])
+    expect(lines.join('\n')).toContain('setup')
+  })
+
   it('grows under a thinking turn, which does not live in the pod', async () => {
     const { deps, calls, lines } = fakeDeps({
       pods: [podOf({ podSessionId: 'pod-1', usedGb: 17, limitGb: 20 })],
@@ -109,7 +125,12 @@ describe('runPodDiskGrow', () => {
     const { deps, calls } = fakeDeps({
       pods: [podOf({ podSessionId: 'pod-1', usedGb: 19.5, limitGb: 20 })],
       facts: async () =>
-        factsOf({ state: ESessionStatus.RunningTool, shellsRunning: 3, peersPlaced: 1 }),
+        factsOf({
+          state: ESessionStatus.RunningTool,
+          setupRunning: true,
+          shellsRunning: 3,
+          peersPlaced: 1,
+        }),
     })
     expect(await runPodDiskGrow({ deps, maxGb: 100 })).toEqual({
       checked: 1,
