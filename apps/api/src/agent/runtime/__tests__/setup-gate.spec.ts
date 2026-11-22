@@ -13,7 +13,7 @@ import {
   type WorkspaceStepReport,
 } from '@dltech/atlas-core'
 import { ScriptedModel } from '@dltech/atlas-agent/testing'
-import { systemTimers } from '@dltech/atlas-host'
+import { systemTimers, WorkspaceGate, type PrepareResult } from '@dltech/atlas-host'
 import { z } from 'zod'
 
 import { CollectingLog, sourceFor, unusedTokens } from '../../__tests__/e2e-support'
@@ -45,37 +45,74 @@ class FakeInnerTool extends ToolDefinition {
 }
 
 describe('SetupGatedTool', () => {
-  it('returns an interrupted outcome on abort without calling the inner tool', async () => {
+  const armedWith = (attempt: Promise<PrepareResult>): WorkspaceGate => {
+    const gate = new WorkspaceGate()
+    gate.arm(attempt)
+    return gate
+  }
+
+  it('runs the inner tool once the current attempt has prepared', async () => {
     const inner = new FakeInnerTool()
-    const open = new SetupGatedTool(inner, Promise.resolve())
+    const open = new SetupGatedTool(inner, armedWith(Promise.resolve({ ok: true })))
     const outcome = await open.invoke(invocation(new AbortController().signal))
     expect(outcome.ok).toBe(true)
     expect(inner.calls).toBe(1)
+  })
 
-    const stalled = new SetupGatedTool(inner, new Promise<void>(() => {}))
+  it('returns an interrupted outcome on abort without calling the inner tool', async () => {
+    const inner = new FakeInnerTool()
+    const stalled = new SetupGatedTool(inner, armedWith(new Promise<PrepareResult>(() => {})))
     const aborted = new AbortController()
     aborted.abort()
     const interrupted = await stalled.invoke(invocation(aborted.signal))
     expect(interrupted).toEqual({ ok: false, reason: GATE_REASON })
-    expect(inner.calls).toBe(1)
+    expect(inner.calls).toBe(0)
   })
 
-  it('lets a waiting tool through when the setup resolves', async () => {
+  it('fails the call with the reason the prepare failed, without calling the inner tool', async () => {
     const inner = new FakeInnerTool()
-    let release = (): void => {}
-    const gated = new SetupGatedTool(
+    const failed = new SetupGatedTool(
       inner,
-      new Promise<void>((resolve) => {
-        release = resolve
+      armedWith(Promise.resolve({ ok: false, reason: 'the clone failed' })),
+    )
+    const outcome = await failed.invoke(invocation(new AbortController().signal))
+    expect(outcome).toEqual({
+      ok: false,
+      reason: 'the workspace failed to prepare: the clone failed',
+    })
+    expect(inner.calls).toBe(0)
+  })
+
+  it('waits for the retried attempt once the gate re-arms', async () => {
+    const inner = new FakeInnerTool()
+    const gate = armedWith(Promise.resolve({ ok: false, reason: 'the clone failed' }))
+    const tool = new SetupGatedTool(inner, gate)
+    expect(await tool.invoke(invocation(new AbortController().signal))).toMatchObject({
+      ok: false,
+    })
+
+    let release = (): void => {}
+    gate.arm(
+      new Promise<PrepareResult>((resolve) => {
+        release = () => resolve({ ok: true })
       }),
     )
-    const pending = gated.invoke(invocation(new AbortController().signal))
+    const pending = tool.invoke(invocation(new AbortController().signal))
     await new Promise((resolve) => setTimeout(resolve, 50))
     expect(inner.calls).toBe(0)
     release()
-    const outcome = await pending
-    expect(outcome.ok).toBe(true)
+    expect((await pending).ok).toBe(true)
     expect(inner.calls).toBe(1)
+  })
+
+  it('returns as soon as the call aborts while the gate still waits', async () => {
+    const inner = new FakeInnerTool()
+    const tool = new SetupGatedTool(inner, armedWith(new Promise<PrepareResult>(() => {})))
+    const controller = new AbortController()
+    const pending = tool.invoke(invocation(controller.signal))
+    controller.abort()
+    expect(await pending).toEqual({ ok: false, reason: GATE_REASON })
+    expect(inner.calls).toBe(0)
   })
 })
 

@@ -164,7 +164,10 @@ export const pluginPodContextOf = (args: {
       model: teammateModelOf(runtime),
       ...teammateFallbackOf({ runtime, append }),
     }),
-    worktrees: worktreesOf({ calls: runtime.remoteCalls }),
+    worktrees: worktreesOf({
+      calls: runtime.remoteCalls,
+      ...(runtime.workspaceGate === undefined ? {} : { gate: runtime.workspaceGate }),
+    }),
     append,
     notify: async (event, options) =>
       await (args.notify === undefined
@@ -174,6 +177,7 @@ export const pluginPodContextOf = (args: {
     call: pluginCallOf({
       invoke: (call) => runtime.remoteCalls.invoke(call),
       ...(runtime.env === undefined ? {} : { env: runtime.env }),
+      ...(runtime.workspaceGate === undefined ? {} : { gate: runtime.workspaceGate }),
     }),
     live: (frame) => fireLive({ bus: deps.bus, sessionId: deps.sessionId, frame }),
     onDaemonEvent: (listener) => {

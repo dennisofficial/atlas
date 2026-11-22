@@ -6,6 +6,7 @@ import {
   actionableInboxIds,
   EWorkspaceState,
   isWorkspacePrepared,
+  preparedBeforeOf,
   workspaceStateOf,
 } from '../workspace'
 import { isRecordOnly, toLoopEvent } from '../loop-events'
@@ -67,6 +68,20 @@ describe('isWorkspacePrepared', () => {
   })
 })
 
+describe('preparedBeforeOf', () => {
+  it('reads a prepare that succeeded', () => {
+    expect(preparedBeforeOf(log([prepared]))).toBe(true)
+  })
+
+  it('does not read a message as a prepare', () => {
+    expect(preparedBeforeOf(log([said]))).toBe(false)
+  })
+
+  it('does not read a failed prepare as a prepare', () => {
+    expect(preparedBeforeOf(log([failed(1)]))).toBe(false)
+  })
+})
+
 describe('workspaceStateOf', () => {
   it('is unprepared for a fresh log', () => {
     expect(state({ bodies: [] }).state).toBe(EWorkspaceState.Unprepared)
@@ -116,6 +131,39 @@ describe('actionableInboxIds', () => {
   })
 })
 
+describe('a record that holds a message and no prepare', () => {
+  const snapshotOf = (args: { preparing: boolean; pending: number[] }) => {
+    const view = state({ bodies: [said], preparing: args.preparing, pending: args.pending })
+    return {
+      draining: false,
+      turn: 'idle' as const,
+      stopPending: false,
+      messagePending: true,
+      resumable: false,
+      idleDue: true,
+      workspace: view.state,
+      preparedBefore: preparedBeforeOf(log([said])),
+      retryPending: view.retryPending,
+    }
+  }
+
+  it('is unprepared, because only workspace-prepared makes a workspace prepared', () => {
+    expect(state({ bodies: [said] }).state).toBe(EWorkspaceState.Unprepared)
+  })
+
+  it('prepares before it starts the turn', () => {
+    expect(decideHeldAction(snapshotOf({ preparing: false, pending: [1] }))).toBe(
+      EHeldAction.Prepare,
+    )
+  })
+
+  it('waits for the first prepare instead of starting a resumable turn', () => {
+    const snapshot = snapshotOf({ preparing: true, pending: [1] })
+    expect(snapshot.workspace).toBe(EWorkspaceState.Preparing)
+    expect(decideHeldAction(snapshot)).toBe(EHeldAction.Wait)
+  })
+})
+
 describe('a prepare that finished with warnings', () => {
   const warned: V2Body = { type: 'workspace-prepared', warnings: ['workspace clone failed: nope'] }
 
@@ -136,6 +184,7 @@ describe('a prepare that finished with warnings', () => {
         messagePending: true,
         resumable: false,
         idleDue: false,
+        preparedBefore: true,
         workspace: result.state,
         retryPending: result.retryPending,
       }),

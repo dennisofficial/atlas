@@ -13,6 +13,7 @@ import type {
   DaemonAgentFileSystemPort,
   DaemonFileSystemPort,
   DaemonProcessPort,
+  WorkspaceGate,
 } from '@dltech/atlas-host'
 
 import { BashTool } from '../agent-tools/bash'
@@ -26,14 +27,7 @@ import { WriteTool } from '../agent-tools/write'
 import { ForegroundOnlyShells } from './foreground-shells'
 import type { PathEnvironment } from './session-paths'
 
-const abortedWith = (signal: AbortSignal): Promise<true> =>
-  new Promise((resolve) => {
-    if (signal.aborted) {
-      resolve(true)
-      return
-    }
-    signal.addEventListener('abort', () => resolve(true), { once: true })
-  })
+const INTERRUPTED_REASON = 'interrupted while the workspace was being set up'
 
 export class SetupGatedTool extends ToolDefinition {
   readonly name: string
@@ -45,7 +39,7 @@ export class SetupGatedTool extends ToolDefinition {
 
   constructor(
     private readonly inner: ToolDefinition,
-    private readonly setup: Promise<void>,
+    private readonly gate: WorkspaceGate,
   ) {
     super()
     this.name = inner.name
@@ -69,13 +63,9 @@ export class SetupGatedTool extends ToolDefinition {
   }
 
   async invoke(args: ToolInvocation): Promise<ToolOutcome> {
-    const interrupted = await Promise.race([
-      this.setup.then(() => false as const),
-      abortedWith(args.signal),
-    ])
-    if (interrupted) {
-      return { ok: false, reason: 'interrupted while the workspace was being set up' }
-    }
+    const workspace = await this.gate.wait(args.signal)
+    if (workspace.state === 'aborted') return { ok: false, reason: INTERRUPTED_REASON }
+    if (workspace.state === 'failed') return { ok: false, reason: workspace.message }
     return this.inner.invoke(args)
   }
 }
@@ -85,7 +75,7 @@ export const daemonToolsOf = (args: {
   files: DaemonFileSystemPort
   agentFiles: DaemonAgentFileSystemPort
   pathEnv: PathEnvironment
-  setup: Promise<void>
+  gate: WorkspaceGate
   shellEnv?: (() => Promise<Record<string, string>>) | undefined
 }): ToolDefinition[] => {
   const guard = new SerializedWrites()
@@ -98,5 +88,5 @@ export const daemonToolsOf = (args: {
     new GlobTool(args.agentFiles, args.pathEnv),
     new BashTool(new ForegroundOnlyShells(), args.files, args.processes, args.shellEnv),
   ]
-  return tools.map((tool) => new SetupGatedTool(tool, args.setup))
+  return tools.map((tool) => new SetupGatedTool(tool, args.gate))
 }

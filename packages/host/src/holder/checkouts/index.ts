@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 
-import type { FileSystemPort, ProcessPort } from '@dltech/atlas-core'
+import { CallInterruptedError, type FileSystemPort, type ProcessPort } from '@dltech/atlas-core'
 import type {
   PodWorktrees,
   WorktreeEntryInfo,
@@ -12,6 +12,7 @@ import type {
 import { DaemonFileSystemPort } from '../../calls/ports/filesystem'
 import { DaemonProcessPort } from '../../calls/ports/process'
 import type { RemoteCalls } from '../../calls/remote-calls'
+import type { WorkspaceGate } from '../../calls/workspace-gate'
 import { complaintOf, runGit } from './git'
 import { parseStatus, parseWorktrees } from './parse'
 
@@ -23,8 +24,24 @@ const CHANGED_PATH_SAMPLE = 5
 
 type Base = { ref: string; fromOrigin: boolean }
 
+const WORKSPACE_INTERRUPTED = 'the workspace was interrupted while it was being prepared'
+
+const awaitWorkspace = async (gate: WorkspaceGate | undefined): Promise<void> => {
+  if (gate === undefined) return
+  const outcome = await gate.wait()
+  if (outcome.state === 'prepared') return
+  if (outcome.state === 'failed') throw new Error(outcome.message)
+  throw new CallInterruptedError(WORKSPACE_INTERRUPTED)
+}
+
 export class HostWorktrees implements PodWorktrees {
-  constructor(private readonly args: { processes: ProcessPort; files: FileSystemPort }) {}
+  constructor(
+    private readonly args: {
+      processes: ProcessPort
+      files: FileSystemPort
+      gate?: WorkspaceGate | undefined
+    },
+  ) {}
 
   async list(args: { cwd: string }): Promise<WorktreeListing> {
     const run = await this.git(args.cwd, ['worktree', 'list', '--porcelain'])
@@ -163,13 +180,18 @@ export class HostWorktrees implements PodWorktrees {
     return Number.parseInt(text, 10)
   }
 
-  private git(cwd: string, argv: readonly string[]) {
-    return runGit({ processes: this.args.processes, cwd, argv })
+  private async git(cwd: string, argv: readonly string[]) {
+    await awaitWorkspace(this.args.gate)
+    return await runGit({ processes: this.args.processes, cwd, argv })
   }
 }
 
-export const worktreesOf = (args: { calls: RemoteCalls }): PodWorktrees =>
+export const worktreesOf = (args: {
+  calls: RemoteCalls
+  gate?: WorkspaceGate | undefined
+}): PodWorktrees =>
   new HostWorktrees({
     processes: new DaemonProcessPort({ calls: args.calls }),
     files: new DaemonFileSystemPort({ calls: args.calls }),
+    ...(args.gate === undefined ? {} : { gate: args.gate }),
   })

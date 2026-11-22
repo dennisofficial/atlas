@@ -1,44 +1,29 @@
 import {
-  crashedCallsOf,
   crashLooped,
-  EHeldAction,
   EHeldOutcome,
   type HeldOutcome,
-  type InboxEntry,
   type Lease,
   type ThreadId,
 } from '@dltech/atlas-core'
-import { LoopTurnRunner, OPERATOR_STOP_REASON, PauseSignal } from '@dltech/atlas-agent'
+import { PauseSignal } from '@dltech/atlas-agent'
 
 import { FencedSettlement } from './fenced-settlement'
-import { settleOperatorOnStop } from './operator-stop'
 import type { SessionRuntime } from './ports'
 import { CrewRoom } from './crew'
-import {
-  logDriveFault,
-  logReconcileFault,
-  ranQueuedCommand,
-  settleAndCheckResume,
-  startHeldTurn,
-  wireHeldLoop,
-} from './held-runner'
+import { logDriveFault, logReconcileFault, settleAndCheckResume, wireHeldLoop } from './held-runner'
 import { teardownHeld } from './held-teardown'
 import { HeldPrepare } from './held-prepare'
-import { readHeldAction } from './held-snapshot'
-import { drainNeedsHolder } from './held-needs-holder'
 import { lostOutcome } from './lost-outcome'
-import { closeOpenTurn } from './orphan-turn'
-import { STOPPED_BY_OPERATOR } from './turn-boundary'
-import { consumeStops } from './held-wait'
 import { Reconciler } from './reconciler'
 import type { SessionRecord } from './record/record-adapter'
 import type { HeldSessionDeps } from './held-session-deps'
 import { HeldTurns } from './held-turns'
 import { ETakeoverLap, TakeOver } from './held-takeover'
 import { quarantineOutcome } from './start-failure-record'
-import { DRAIN_IN_FLIGHT_CAP_MS } from './drain-cap'
 import { HeldEnding } from './held-ending'
 import { HeldObservation } from './held-observation'
+import { HeldActions } from './held-actions'
+import { HeldDrain } from './held-drain'
 
 export type { HeldSessionDeps }
 
@@ -49,11 +34,12 @@ export class HeldSession {
   private readonly pause = new PauseSignal()
   private readonly turns: HeldTurns
   private readonly prepare: HeldPrepare
+  private readonly actions: HeldActions
+  private readonly drain: HeldDrain
   private draining = false
   private runtime: SessionRuntime | undefined
   private record: SessionRecord | undefined
   private observation: HeldObservation | undefined
-  private branchesReady: Promise<void> = Promise.resolve()
   private crew: CrewRoom | undefined
   private reconciler: Reconciler | undefined
   private readonly fenced: FencedSettlement
@@ -62,11 +48,8 @@ export class HeldSession {
     return this.runtime
   }
 
-  private resumeAfterSeq = 0
   private settleFence = true
   private takeOver: TakeOver | undefined
-  private logStaged: (() => Promise<void>) | undefined
-  private runCommands: ((entries: readonly InboxEntry[]) => Promise<boolean>) | undefined
 
   constructor(deps: HeldSessionDeps) {
     this.deps = deps
@@ -80,7 +63,7 @@ export class HeldSession {
       deps,
       abandoned: () => this.draining || this.ending.outcome !== undefined,
       onSettled: ({ failed }) => {
-        if (failed) this.ending.finish(EHeldOutcome.Idle)
+        if (failed && !this.prepare.resumed) this.ending.finish(EHeldOutcome.Idle)
         else this.reconciler?.request()
       },
       onSetupEnded: () => {
@@ -100,6 +83,29 @@ export class HeldSession {
       reconciler: () => this.reconciler,
       beforeRelease: () => this.observation?.observeBeforeRelease() ?? Promise.resolve(),
     })
+    this.actions = new HeldActions({
+      deps,
+      turns: this.turns,
+      prepare: this.prepare,
+      ending: this.ending,
+      pause: this.pause,
+      draining: () => this.draining,
+      runtime: () => this.runtime,
+      record: () => this.record,
+      observation: () => this.observation,
+      childrenRunning: () => this.crew?.runningCount() ?? 0,
+      takeOverFirstStep: () => this.takeOver?.firstStep(),
+      request: () => this.reconciler?.request(),
+    })
+    this.drain = new HeldDrain({
+      deps,
+      sessionId: this.sessionId,
+      turns: this.turns,
+      ending: this.ending,
+      record: () => this.record,
+      runtime: () => this.runtime,
+      childrenPause: () => this.crew?.pauseAll(),
+    })
   }
 
   notifyWake(): void {
@@ -112,7 +118,14 @@ export class HeldSession {
     this.observation?.drain()
     this.pause.pause()
     this.record?.markDraining()
+    this.abortCallsWaitingOnTheWorkspace()
     this.reconciler?.request()
+  }
+
+  private abortCallsWaitingOnTheWorkspace(): void {
+    if (!this.turns.turnRunning) return
+    if (this.runtime?.workspaceGate?.blocked !== true) return
+    this.turns.abort('handoff')
   }
 
   run(args: { lease: Lease; threadId: ThreadId; claimMs?: number }): Promise<HeldOutcome> {
@@ -128,61 +141,7 @@ export class HeldSession {
   async handoff(): Promise<void> {
     this.beginDrain()
     this.runtime?.remoteCalls.handoff()
-    const children = this.crew?.pauseAll()
-    await this.settleInFlight()
-    await children
-    await this.ending.handBack({
-      needsHolder: await drainNeedsHolder({
-        deps: this.deps,
-        record: this.record,
-        turnRunning: this.turns.turnRunning,
-      }),
-    })
-  }
-
-  private async settleInFlight(): Promise<void> {
-    if (!this.turns.turnRunning) return
-    const startedAt = this.deps.timers.now()
-    await new Promise<void>((resolve) => {
-      const timer = this.deps.timers.setTimeout(() => {
-        void this.abortPastCap({ startedAt }).then(() => resolve())
-      }, DRAIN_IN_FLIGHT_CAP_MS)
-      void this.turns.whenIdle().then(() => {
-        this.deps.timers.clearTimeout(timer)
-        resolve()
-      })
-    })
-  }
-
-  private async abortPastCap(args: { startedAt: number }): Promise<void> {
-    this.logDrainCap(args)
-    await this.detachInFlightCalls()
-    this.turns.abort('handoff')
-  }
-
-  private async detachInFlightCalls(): Promise<void> {
-    const record = this.record
-    const state = record?.eventCache().loopState()
-    if (record === undefined || state === undefined) return
-    const daemonTools = this.runtime?.daemonTools
-    for (const call of crashedCallsOf(state)) {
-      if (daemonTools?.has(call.name) === true) continue
-      await record.append({
-        threadId: call.threadId,
-        runId: this.deps.ids.nextRunId(),
-        drafts: [{ type: 'tool-dispatched', callId: call.callId, name: call.name, detached: true }],
-      })
-    }
-  }
-
-  private logDrainCap(args: { startedAt: number }): void {
-    const state = this.record?.eventCache().loopState()
-    const call = state === undefined ? undefined : crashedCallsOf(state)[0]
-    const inFlight = call === undefined ? 'an in-flight model step' : `the tool call ${call.name}`
-    this.deps.log?.warn({
-      source: 'holder.drain',
-      message: `session ${this.sessionId} ran ${inFlight} for ${this.deps.timers.now() - args.startedAt}ms, past the ${DRAIN_IN_FLIGHT_CAP_MS}ms drain cap; aborting the turn`,
-    })
+    await this.drain.handoff()
   }
 
   private async drive(args: {
@@ -264,20 +223,23 @@ export class HeldSession {
     })
     this.observation = new HeldObservation({ deps, runtime, record, branches, diskPressure })
     this.observation.start()
-    this.logStaged = logStaged
-    this.runCommands = runCommands
+    this.actions.attach({ logStaged, runCommands })
     await takeOver.lapped({
       lap: ETakeoverLap.Settle,
       work: () => settleAndCheckResume({ deps, runtime, record, threadId, crew }),
     })
     await takeOver.lapped({ lap: ETakeoverLap.Commands, work: recoverCommands })
     void branchesStarted.then(() => takeOver.branchesSettled())
-    this.branchesReady = branchesStarted
     const completion = this.ending.waitForDrive()
     if (this.lifetimeAbort.signal.aborted || this.ending.outcome !== undefined) return
     const reconciler = new Reconciler({
       timers: deps.timers,
-      step: () => this.step({ runner, threadId }),
+      step: () =>
+        this.actions.step({
+          runner,
+          threadId,
+          lap: (worked) => this.lapped(worked),
+        }),
       onError: (error) => logReconcileFault({ deps, error }),
     })
     this.reconciler = reconciler
@@ -288,84 +250,6 @@ export class HeldSession {
   private async lapped<T>(args: { lap: ETakeoverLap; work: () => Promise<T> }): Promise<T> {
     const takeOver = this.takeOver
     return takeOver === undefined ? args.work() : takeOver.lapped(args)
-  }
-
-  private async step(args: { runner: LoopTurnRunner; threadId: ThreadId }): Promise<void> {
-    if (this.ending.outcome !== undefined) return
-    const deps = this.deps
-    const turnRunning = this.turns.turnRunning
-    if (this.draining) return turnRunning ? undefined : this.ending.finish(EHeldOutcome.Drained)
-    const { entries, action, resumable, inboxHead, failure } = await this.lapped({
-      lap: ETakeoverLap.Decide,
-      work: () =>
-        readHeldAction({
-          deps,
-          draining: this.draining,
-          turnRunning,
-          resumeAfterSeq: this.resumeAfterSeq,
-          runtime: this.runtime,
-          record: this.record,
-          preparing: this.prepare.running,
-          setupRunning: this.prepare.hasSetupRunning,
-          childrenRunning: this.crew?.runningCount() ?? 0,
-        }),
-    })
-    if (action === EHeldAction.AbortTurn) return this.turns.abort(OPERATOR_STOP_REASON)
-    if (action !== EHeldAction.StartTurn) await this.logStaged?.()
-    if (await ranQueuedCommand({ action, entries, turnRunning, runCommands: this.runCommands })) {
-      this.reconciler?.request()
-      return
-    }
-    switch (action) {
-      case EHeldAction.ConsumeStop: {
-        await settleOperatorOnStop({ deps, record: this.record, runtime: this.runtime })
-        await this.prepare.failStopped()
-        await consumeStops({ deps, record: this.record, entries })
-        if (!this.turns.turnRunning)
-          await closeOpenTurn({ deps, record: this.record, ending: STOPPED_BY_OPERATOR })
-        this.resumeAfterSeq = this.record?.eventCache().currentHead().seq ?? this.resumeAfterSeq
-        this.reconciler?.request()
-        return
-      }
-      case EHeldAction.Prepare: {
-        const { runtime, record } = this
-        if (runtime === undefined || record === undefined) return
-        this.takeOver?.firstStep()
-        this.prepare.start({ runtime, record, threadId: args.threadId, inboxHead })
-        return
-      }
-      case EHeldAction.StartTurn: {
-        await this.branchesReady
-        if (this.draining || this.ending.outcome !== undefined) return
-        const record = this.record
-        if (record === undefined) return
-        this.takeOver?.firstStep()
-        this.resumeAfterSeq = record.eventCache().currentHead().seq ?? this.resumeAfterSeq
-        startHeldTurn({
-          deps,
-          turns: this.turns,
-          record,
-          pause: this.pause,
-          runner: args.runner,
-          threadId: args.threadId,
-          resume: resumable,
-          refreshBranches: () => {
-            if (this.draining || this.ending.outcome !== undefined) return
-            this.observation?.refreshBranches()
-          },
-          onFault: () => this.ending.finish(EHeldOutcome.Faulted),
-          onSettled: () => this.reconciler?.request(),
-        })
-        return
-      }
-      case EHeldAction.Release: {
-        await this.ending.releaseIdle({ entries, failure, threadId: args.threadId })
-        return
-      }
-      case EHeldAction.Wait: {
-        return
-      }
-    }
   }
 
   losePresence(): void {

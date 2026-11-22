@@ -24,6 +24,7 @@ import type { ComposedPlugins } from '@dltech/atlas-plugin-sdk'
 import { inMemoryDaemonToken, type InMemoryDaemon } from '@dltech/atlas-protocol/testing'
 
 import { RemoteCalls } from '../../calls/remote-calls'
+import { WorkspaceGate } from '../../calls/workspace-gate'
 import { scopeDispatchedBootId } from '../../calls/call-scope'
 import type {
   PrepareResult,
@@ -57,11 +58,21 @@ class BashTool extends ToolDefinition {
   readonly effect = EToolEffect.Write
   readonly inputSchema = z.object({ command: z.string() })
 
-  constructor(private readonly calls: RemoteCalls) {
+  constructor(
+    private readonly calls: RemoteCalls,
+    private readonly gate: WorkspaceGate | undefined,
+  ) {
     super()
   }
 
   async invoke(args: ToolInvocation): Promise<ToolOutcome> {
+    const workspace = await this.gate?.wait(args.signal)
+    if (workspace !== undefined && workspace.state !== 'prepared') {
+      return {
+        ok: false,
+        reason: workspace.state === 'failed' ? workspace.message : 'interrupted',
+      }
+    }
     const result = await this.calls.invoke({
       key: args.idempotencyKey,
       op: { op: 'exec', argv: ['/bin/sh', '-c', bashCommandOf(args.input)] },
@@ -138,6 +149,13 @@ export const makeRuntimeFactory = (args: {
       await originalAckScope({ scopeKey, count })
       ackedScopes.push(scopeKey)
     }
+    const preparePort = args.prepare ?? (async () => ({ ok: true as const }))
+    const gate = new WorkspaceGate()
+    const attempt = (onStep?: PrepareStepReporter): Promise<PrepareResult> => {
+      const running = preparePort(onStep)
+      gate.arm(running)
+      return running
+    }
     const modelOfCalls: RoleModelChoice[] = []
     const runtime: RigRuntime = {
       remoteCalls: calls,
@@ -150,7 +168,7 @@ export const makeRuntimeFactory = (args: {
       },
       choiceFor: (request) => request.root ?? RIG_MODEL_CHOICE,
       modelLabelOf: (ref) => refKey(ref),
-      tools: fakeToolRegistry([new BashTool(calls), ...(args.hostTools ?? [])]),
+      tools: fakeToolRegistry([new BashTool(calls, gate), ...(args.hostTools ?? [])]),
       daemonTools: new Set(['bash']),
       ackedScopes,
       effectOf: () => EToolEffect.Read,
@@ -173,7 +191,8 @@ export const makeRuntimeFactory = (args: {
       runningShells: args.runningShells ?? (async () => 0),
       ...(args.terminalStreams === undefined ? {} : { terminalStreams: args.terminalStreams }),
       ...(args.panelHolds === undefined ? {} : { panelHolds: args.panelHolds }),
-      prepare: (onStep) => (args.prepare ?? (async () => ({ ok: true as const })))(onStep),
+      workspaceGate: gate,
+      prepare: (onStep) => attempt(onStep),
       ...(args.subscribePrepareOutput === undefined
         ? {}
         : { subscribePrepareOutput: args.subscribePrepareOutput }),

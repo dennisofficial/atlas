@@ -18,11 +18,11 @@ const previous = { ...process.env }
 const identityFetch = (async () =>
   new Response(JSON.stringify({ id: 583231, login: 'octocat' }))) as unknown as typeof fetch
 
-const shellOutputOf = async (args: {
+const runShell = async (args: {
   token: string | null
   read?: () => Promise<string | null>
   expectPrepare?: boolean
-}): Promise<string> => {
+}): Promise<ToolOutcome> => {
   const sandbox = new LocalSandboxProvider({ daemonSecret: 'shell-env-secret' })
   const launchDirectory = mkdtempSync(join(tmpdir(), 'atlas-shell-env-'))
   try {
@@ -59,11 +59,20 @@ const shellOutputOf = async (args: {
       threadId: toThreadId('shell-env-thread'),
     })
     await runtime.stop()
-    if (outcome === undefined || !outcome.ok) throw new Error('bash did not run')
-    return outcome.modelText ?? ''
+    return outcome ?? { ok: false, reason: 'the bash tool is missing' }
   } finally {
     await sandbox.stopAll()
   }
+}
+
+const shellOutputOf = async (args: {
+  token: string | null
+  read?: () => Promise<string | null>
+  expectPrepare?: boolean
+}): Promise<string> => {
+  const outcome = await runShell(args)
+  if (!outcome.ok) throw new Error('bash did not run')
+  return outcome.modelText ?? ''
 }
 
 afterEach(() => {
@@ -83,19 +92,18 @@ describe('a shell in the sandbox', () => {
     expect(output).not.toContain('host-secret-')
   }, 60_000)
 
-  it('has the token even when workspace prepare failed before reading it', async () => {
-    let reads = 0
-    const output = await shellOutputOf({
+  it('fails the call with the prepare reason when the token read failed', async () => {
+    const outcome = await runShell({
       token: null,
       expectPrepare: false,
       read: async () => {
-        reads += 1
-        if (reads === 1) throw new Error('token read failed during prepare')
-        return 'gho_late'
+        throw new Error('token read failed during prepare')
       },
     })
-    expect(output).toContain('token=gho_late')
-    expect(output).toContain('name=octocat')
+    expect(outcome).toEqual({
+      ok: false,
+      reason: 'the workspace failed to prepare: token read failed during prepare',
+    })
   }, 60_000)
 
   it('has no token and no identity without a github connection', async () => {

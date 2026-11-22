@@ -11,6 +11,7 @@ const base: HeldSnapshot = {
   resumable: false,
   idleDue: false,
   workspace: EWorkspaceState.Prepared,
+  preparedBefore: true,
   retryPending: false,
 }
 
@@ -112,8 +113,38 @@ const cases: { name: string; snapshot: HeldSnapshot; action: EHeldAction }[] = [
     action: EHeldAction.Prepare,
   },
   {
-    name: 'a preparing session waits and never starts a turn',
+    name: 'a workspace prepared before starts the turn while it prepares again',
     snapshot: { ...base, workspace: EWorkspaceState.Preparing, messagePending: true },
+    action: EHeldAction.StartTurn,
+  },
+  {
+    name: 'a workspace prepared before starts the resumed turn while it prepares again',
+    snapshot: { ...base, workspace: EWorkspaceState.Preparing, resumable: true },
+    action: EHeldAction.StartTurn,
+  },
+  {
+    name: 'a preparing session with nothing pending waits',
+    snapshot: { ...base, workspace: EWorkspaceState.Preparing },
+    action: EHeldAction.Wait,
+  },
+  {
+    name: 'a brand-new session waits for its prepare before the turn',
+    snapshot: {
+      ...base,
+      workspace: EWorkspaceState.Preparing,
+      messagePending: true,
+      preparedBefore: false,
+    },
+    action: EHeldAction.Wait,
+  },
+  {
+    name: 'a brand-new session waits for its prepare before the resumed turn',
+    snapshot: {
+      ...base,
+      workspace: EWorkspaceState.Preparing,
+      resumable: true,
+      preparedBefore: false,
+    },
     action: EHeldAction.Wait,
   },
   {
