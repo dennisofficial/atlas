@@ -6,9 +6,9 @@ import {
   type GithubRequestIdentity,
 } from './github-request-coordinator.types'
 import { githubLogOf } from './github-log'
+import { EGithubHttpStatus, GithubHttpError } from './github-http-error'
 export const credentialFingerprint = (token: string): string =>
   createHash('sha256').update(token).digest('hex')
-import { HttpException, HttpStatus } from '@nestjs/common'
 
 export type GithubHttpBudget = {
   takeHttpSlot(identity?: GithubRequestIdentity): Promise<boolean>
@@ -51,14 +51,14 @@ const messageOf = (args: { refusal: EGithubBudgetRefusal; until?: number | undef
   return "Atlas is pacing its own GitHub calls: this minute's budget is spent. GitHub still has quota; retry in a few seconds."
 }
 
-export class GithubHttpBudgetUnavailable extends HttpException {
+export class GithubHttpBudgetUnavailable extends GithubHttpError {
   readonly rateLimited = true
   readonly parked = true
   constructor(
     readonly refusal: EGithubBudgetRefusal = EGithubBudgetRefusal.Window,
     readonly until?: number,
   ) {
-    super(messageOf({ refusal, until }), HttpStatus.TOO_MANY_REQUESTS)
+    super({ status: EGithubHttpStatus.TooManyRequests, message: messageOf({ refusal, until }) })
   }
 }
 

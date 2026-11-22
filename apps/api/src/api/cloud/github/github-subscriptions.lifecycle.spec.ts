@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common'
+import { EGithubHttpStatus } from './github-http-error'
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
@@ -64,7 +64,7 @@ describe('GithubSubscriptionsService heartbeat, unsubscribe and current states',
 
     await expect(
       service.heartbeat({ userId: 'usr_2', subscriptionId: dto.id }),
-    ).rejects.toBeInstanceOf(NotFoundException)
+    ).rejects.toHaveProperty('status', EGithubHttpStatus.NotFound)
   })
 
   it('unsubscribe removes the row and marks the repo idle when nothing live remains', async () => {
@@ -102,7 +102,7 @@ describe('GithubSubscriptionsService heartbeat, unsubscribe and current states',
 
     await expect(
       service.unsubscribe({ userId: 'usr_1', subscriptionId: 'sub-nope' }),
-    ).rejects.toBeInstanceOf(NotFoundException)
+    ).rejects.toHaveProperty('status', EGithubHttpStatus.NotFound)
   })
 
   it('currentStates returns the cached state for every live subscription with a pr number', async () => {

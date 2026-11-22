@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import {
   type GithubThreadActivity,
@@ -11,6 +11,7 @@ import { GithubAppInstallNoticeService } from './github-app-install-notice.servi
 import { GithubAppInstallationsService } from './github-app-installations.service'
 import { parseRepo, subscriptionDtoOf } from './github-subscriptions-dto'
 import { GithubHookLifecycleService } from './github-hook-lifecycle.service'
+import { EGithubHttpStatus, GithubHttpError } from './github-http-error'
 import type {
   GithubPrStateDto,
   GithubSubscriptionDto,
@@ -68,7 +69,10 @@ export class GithubSubscriptionsService {
       ...(args.threadId === undefined ? {} : { threadId: args.threadId }),
     })
     if (prNumber === null && args.branch === undefined) {
-      throw new NotFoundException('no such pull request')
+      throw new GithubHttpError({
+        status: EGithubHttpStatus.NotFound,
+        message: 'no such pull request',
+      })
     }
 
     const hook = await this.hooks.ensureHook({
@@ -153,7 +157,10 @@ export class GithubSubscriptionsService {
       userId: args.userId,
     }).deleteAndCount()
     if (removed === 0) {
-      throw new NotFoundException('no such subscription')
+      throw new GithubHttpError({
+        status: EGithubHttpStatus.NotFound,
+        message: 'no such subscription',
+      })
     }
     if (held !== null) {
       await this.markIdleWhenDrained({ repoFullName: held.repoFullName })
@@ -169,10 +176,16 @@ export class GithubSubscriptionsService {
       id: args.subscriptionId,
     }).first()
     if (subscription === null || subscription.userId !== args.userId) {
-      throw new NotFoundException('no such subscription')
+      throw new GithubHttpError({
+        status: EGithubHttpStatus.NotFound,
+        message: 'no such subscription',
+      })
     }
     if (args.threadId !== undefined && subscription.threadId !== args.threadId) {
-      throw new NotFoundException('no such subscription')
+      throw new GithubHttpError({
+        status: EGithubHttpStatus.NotFound,
+        message: 'no such subscription',
+      })
     }
     const expiresAt = nextExpiry()
     const liveUntil = await this.liveCeiling({ threadId: subscription.threadId, expiresAt })
@@ -180,7 +193,11 @@ export class GithubSubscriptionsService {
       expiresAt,
       liveUntil,
     })
-    if (updated === null) throw new NotFoundException('no such subscription')
+    if (updated === null)
+      throw new GithubHttpError({
+        status: EGithubHttpStatus.NotFound,
+        message: 'no such subscription',
+      })
     return { expiresAt: updated.expiresAt.toISOString() }
   }
 
@@ -271,7 +288,10 @@ export class GithubSubscriptionsService {
   private async requireToken(args: { userId: string }): Promise<string> {
     const token = await this.github.findToken({ userId: args.userId })
     if (token === undefined) {
-      throw new ForbiddenException('connect github to subscribe to pull requests')
+      throw new GithubHttpError({
+        status: EGithubHttpStatus.Forbidden,
+        message: 'connect github to subscribe to pull requests',
+      })
     }
     return token
   }

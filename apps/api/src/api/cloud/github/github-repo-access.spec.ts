@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, setSystemTime, vi } from 'bun:test'
-import { ForbiddenException, HttpException } from '@nestjs/common'
 import { stubGlobal, unstubAllGlobals } from '@dltech/bun-test-shims'
 import { advanceTimersByTimeAsync } from '../../../../test/fake-timers'
 import { EGithubCallSource } from './github-call-log'
+import { EGithubHttpStatus, GithubHttpError } from './github-http-error'
 import { RepoAccessChecker } from './github-repo-access'
 import { ACCESS_PROOF_DENIAL_TTL_MS } from './github-request-coordinator.types'
 import { hangingFetch, stubAbortSignalTimeout } from './github-timeout.fakes'
@@ -96,9 +96,9 @@ describe('RepoAccessChecker rate limits', () => {
     const failure = await new RepoAccessChecker(async () => 't')
       .require(args)
       .catch((e: unknown) => e)
-    expect(failure).toBeInstanceOf(HttpException)
-    expect((failure as HttpException).getStatus()).toBe(429)
-    expect((failure as HttpException).message).toMatch(/rate limit.*retry in (119|120|121)s/)
+    expect(failure).toBeInstanceOf(GithubHttpError)
+    expect((failure as GithubHttpError).status).toBe(EGithubHttpStatus.TooManyRequests)
+    expect((failure as GithubHttpError).message).toMatch(/rate limit.*retry in (119|120|121)s/)
   })
 
   it('turns 429 with retry-after into a 429', async () => {
@@ -106,8 +106,8 @@ describe('RepoAccessChecker rate limits', () => {
     const failure = await new RepoAccessChecker(async () => 't')
       .require(args)
       .catch((e: unknown) => e)
-    expect((failure as HttpException).getStatus()).toBe(429)
-    expect((failure as HttpException).message).toContain('retry in 17s')
+    expect((failure as GithubHttpError).status).toBe(EGithubHttpStatus.TooManyRequests)
+    expect((failure as GithubHttpError).message).toContain('retry in 17s')
   })
 
   it('turns a secondary-limit 403 with retry-after into a 429', async () => {
@@ -118,7 +118,7 @@ describe('RepoAccessChecker rate limits', () => {
     const failure = await new RepoAccessChecker(async () => 't')
       .require(args)
       .catch((e: unknown) => e)
-    expect((failure as HttpException).getStatus()).toBe(429)
+    expect((failure as GithubHttpError).status).toBe(EGithubHttpStatus.TooManyRequests)
   })
 
   it('keeps a plain 403 forbidden', async () => {
@@ -126,7 +126,8 @@ describe('RepoAccessChecker rate limits', () => {
     const failure = await new RepoAccessChecker(async () => 't')
       .require(args)
       .catch((e: unknown) => e)
-    expect(failure).toBeInstanceOf(ForbiddenException)
+    expect(failure).toBeInstanceOf(GithubHttpError)
+    expect((failure as GithubHttpError).status).toBe(EGithubHttpStatus.Forbidden)
   })
 
   it('does not cache a rate-limited check', async () => {
@@ -179,13 +180,13 @@ describe('RepoAccessChecker denial cache', () => {
     const fetched = answering(404)
     const subject = new RepoAccessChecker(async () => 't')
 
-    await expect(subject.require(args)).rejects.toBeInstanceOf(ForbiddenException)
+    await expect(subject.require(args)).rejects.toBeInstanceOf(GithubHttpError)
     setSystemTime(new Date(Date.now() + ACCESS_PROOF_DENIAL_TTL_MS - 1))
-    await expect(subject.require(args)).rejects.toBeInstanceOf(ForbiddenException)
+    await expect(subject.require(args)).rejects.toBeInstanceOf(GithubHttpError)
     expect(fetched).toHaveBeenCalledTimes(1)
 
     setSystemTime(new Date(Date.now() + 1))
-    await expect(subject.require(args)).rejects.toBeInstanceOf(ForbiddenException)
+    await expect(subject.require(args)).rejects.toBeInstanceOf(GithubHttpError)
     expect(fetched).toHaveBeenCalledTimes(2)
   })
 

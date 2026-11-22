@@ -1,6 +1,6 @@
-import { ForbiddenException } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import { EGithubCallSource } from './github-call-log'
+import { EGithubHttpStatus, GithubHttpError } from './github-http-error'
 import { GithubRequestCoordinator } from './github-request-coordinator'
 import {
   GithubUserReads,
@@ -33,7 +33,10 @@ export class GithubSubscribedPrResolver {
         failure instanceof GithubUserReadFailed &&
         (failure.status === 403 || failure.status === 404)
       )
-        throw new ForbiddenException(`no access to ${args.repoFullName}`)
+        throw new GithubHttpError({
+          status: EGithubHttpStatus.Forbidden,
+          message: `no access to ${args.repoFullName}`,
+        })
       throw failure
     }
   }

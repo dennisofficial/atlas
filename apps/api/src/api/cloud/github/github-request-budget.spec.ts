@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, mock, setSystemTime } from 'bun:test'
 import { EGithubCallSource } from './github-call-log'
 import { resetGithubLogSink, setGithubLogSink } from './github-log'
+import { EGithubHttpStatus } from './github-http-error'
 import { EGithubHttpCategory, type GithubRequestIdentity } from './github-request-coordinator.types'
 import {
   EGithubBudgetRefusal,
@@ -64,7 +65,7 @@ describe('takeGithubRequestSlot', () => {
     expect(failure).toBeInstanceOf(GithubHttpBudgetUnavailable)
     const error = failure as GithubHttpBudgetUnavailable
     expect(error.refusal).toBe(EGithubBudgetRefusal.Window)
-    expect(error.getStatus()).toBe(429)
+    expect(error.status).toBe(EGithubHttpStatus.TooManyRequests)
     expect(error.message).toContain("this minute's budget is spent")
     expect(error.message).toContain('GitHub still has quota')
     expect(JSON.parse(warnings[0] ?? '')).toMatchObject({

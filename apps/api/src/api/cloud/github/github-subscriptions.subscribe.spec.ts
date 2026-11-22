@@ -1,4 +1,4 @@
-import { ForbiddenException } from '@nestjs/common'
+import { EGithubHttpStatus } from './github-http-error'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test'
 import { ensureUsers, prStateRows, subscriptionRows } from '../../../../test/github-seed'
@@ -194,7 +194,7 @@ describe('GithubSubscriptionsService subscribe', () => {
 
     await expect(
       service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 }),
-    ).rejects.toBeInstanceOf(ForbiddenException)
+    ).rejects.toHaveProperty('status', EGithubHttpStatus.Forbidden)
     expect(await subscriptionRows()).toHaveLength(0)
   })
 
@@ -208,7 +208,7 @@ describe('GithubSubscriptionsService subscribe', () => {
 
     await expect(
       service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', branch: 'dennis/x' }),
-    ).rejects.toBeInstanceOf(ForbiddenException)
+    ).rejects.toHaveProperty('status', EGithubHttpStatus.Forbidden)
     expect(await subscriptionRows()).toHaveLength(0)
   })
 
@@ -217,6 +217,6 @@ describe('GithubSubscriptionsService subscribe', () => {
 
     await expect(
       service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 }),
-    ).rejects.toBeInstanceOf(ForbiddenException)
+    ).rejects.toHaveProperty('status', EGithubHttpStatus.Forbidden)
   })
 })

@@ -1,6 +1,6 @@
-import { ForbiddenException, HttpException, HttpStatus } from '@nestjs/common'
 import type { EGithubCallSource } from './github-call-log'
 import { githubFetch } from './github-fetch'
+import { EGithubHttpStatus, GithubHttpError } from './github-http-error'
 import { rateLimitOf } from './github-rate-limit'
 import { ACCESS_PROOF_DENIAL_TTL_MS } from './github-request-coordinator.types'
 
@@ -8,10 +8,10 @@ const GITHUB_REQUEST_TIMEOUT_MS = 8_000
 
 type AccessOutcome =
   | { verdict: 'granted' }
-  | { verdict: 'denied'; failure: ForbiddenException }
+  | { verdict: 'denied'; failure: GithubHttpError }
   | { verdict: 'failed'; failure: unknown }
 
-type HeldDenial = { failure: ForbiddenException; expiresAt: number }
+type HeldDenial = { failure: GithubHttpError; expiresAt: number }
 
 type AccessArgs = {
   source: EGithubCallSource
@@ -78,30 +78,36 @@ export class RepoAccessChecker {
     if (rateLimit !== null) {
       return {
         verdict: 'failed',
-        failure: new HttpException(
-          `github rate limit reached checking access to ${args.owner}/${args.repo} — retry in ${rateLimit.retryAfterSeconds}s`,
-          HttpStatus.TOO_MANY_REQUESTS,
-        ),
+        failure: new GithubHttpError({
+          status: EGithubHttpStatus.TooManyRequests,
+          message: `github rate limit reached checking access to ${args.owner}/${args.repo} — retry in ${rateLimit.retryAfterSeconds}s`,
+        }),
       }
     }
     if (response.status === 401) {
       return {
         verdict: 'failed',
-        failure: new ForbiddenException(
-          'the stored github token was rejected (expired or revoked) — reconnect github in settings',
-        ),
+        failure: new GithubHttpError({
+          status: EGithubHttpStatus.Forbidden,
+          message:
+            'the stored github token was rejected (expired or revoked) — reconnect github in settings',
+        }),
       }
     }
     if (response.status === 404) {
       return {
         verdict: 'denied',
-        failure: new ForbiddenException(`no access to ${args.owner}/${args.repo}`),
+        failure: new GithubHttpError({
+          status: EGithubHttpStatus.Forbidden,
+          message: `no access to ${args.owner}/${args.repo}`,
+        }),
       }
     }
     if (!response.ok) {
-      const failure = new ForbiddenException(
-        `github answered ${response.status} checking access to ${args.owner}/${args.repo}`,
-      )
+      const failure = new GithubHttpError({
+        status: EGithubHttpStatus.Forbidden,
+        message: `github answered ${response.status} checking access to ${args.owner}/${args.repo}`,
+      })
       return response.status === 403
         ? { verdict: 'denied', failure }
         : { verdict: 'failed', failure }

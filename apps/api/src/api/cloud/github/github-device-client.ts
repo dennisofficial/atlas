@@ -1,5 +1,5 @@
-import { BadGatewayException } from '@nestjs/common'
 import { EGithubCallSource } from './github-call-log'
+import { EGithubHttpStatus, GithubHttpError } from './github-http-error'
 import { githubFetch } from './github-fetch'
 import type { GithubDeviceCodesDto } from './github.types'
 
@@ -32,7 +32,10 @@ function asHttpResponse(value: unknown): GithubHttpResponse {
     !('status' in value) ||
     !('text' in value)
   ) {
-    throw new BadGatewayException('fetch returned an unreadable response')
+    throw new GithubHttpError({
+      status: EGithubHttpStatus.BadGateway,
+      message: 'fetch returned an unreadable response',
+    })
   }
   return value as GithubHttpResponse
 }
@@ -59,7 +62,10 @@ async function readJson(response: GithubHttpResponse): Promise<Record<string, un
 function requireString(body: Record<string, unknown>, key: string): string {
   const value = body[key]
   if (typeof value !== 'string' || value.length === 0) {
-    throw new BadGatewayException(`github returned an unexpected response (missing ${key})`)
+    throw new GithubHttpError({
+      status: EGithubHttpStatus.BadGateway,
+      message: `github returned an unexpected response (missing ${key})`,
+    })
   }
   return value
 }
@@ -67,7 +73,10 @@ function requireString(body: Record<string, unknown>, key: string): string {
 function requireSeconds(body: Record<string, unknown>, key: string): number {
   const value = body[key]
   if (typeof value !== 'number' || !Number.isFinite(value)) {
-    throw new BadGatewayException(`github returned an unexpected response (missing ${key})`)
+    throw new GithubHttpError({
+      status: EGithubHttpStatus.BadGateway,
+      message: `github returned an unexpected response (missing ${key})`,
+    })
   }
   return value * 1000
 }
@@ -76,12 +85,15 @@ function gatewayFailure(
   operation: string,
   body: Record<string, unknown>,
   status: number,
-): BadGatewayException {
+): GithubHttpError {
   const description = body.error_description
   if (typeof description === 'string' && description.length > 0) {
-    return new BadGatewayException(description)
+    return new GithubHttpError({ status: EGithubHttpStatus.BadGateway, message: description })
   }
-  return new BadGatewayException(`${operation} failed with status ${status}`)
+  return new GithubHttpError({
+    status: EGithubHttpStatus.BadGateway,
+    message: `${operation} failed with status ${status}`,
+  })
 }
 
 export class GithubDeviceClient {

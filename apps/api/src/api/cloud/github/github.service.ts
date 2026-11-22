@@ -1,13 +1,9 @@
 import { randomUUID } from 'node:crypto'
-import {
-  BadGatewayException,
-  Injectable,
-  NotFoundException,
-  ServiceUnavailableException,
-} from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { db } from '@dltech/atlas-db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
+import { EGithubHttpStatus, GithubHttpError } from './github-http-error'
 import type { GithubPollOutcome } from './github-device-client'
 import { GithubDeviceClient } from './github-device-client'
 import { missingScopesOf, splitScopes } from './github-scopes'
@@ -29,9 +25,10 @@ function mapPollError(outcome: { error: string; description?: string }): GithubP
   if (outcome.error === 'slow_down') return { status: EGithubPollStatus.SlowDown }
   if (outcome.error === 'access_denied') return { status: EGithubPollStatus.Denied }
   if (outcome.error === 'expired_token') return { status: EGithubPollStatus.Expired }
-  throw new BadGatewayException(
-    outcome.description ?? `github token poll failed with ${outcome.error}`,
-  )
+  throw new GithubHttpError({
+    status: EGithubHttpStatus.BadGateway,
+    message: outcome.description ?? `github token poll failed with ${outcome.error}`,
+  })
 }
 
 @Injectable()
@@ -86,7 +83,11 @@ export class GithubService {
 
   async readToken(args: { userId: string }): Promise<GithubTokenDto> {
     const token = await this.findToken(args)
-    if (token === undefined) throw new NotFoundException('github is not connected')
+    if (token === undefined)
+      throw new GithubHttpError({
+        status: EGithubHttpStatus.NotFound,
+        message: 'github is not connected',
+      })
     return { token }
   }
 
@@ -109,7 +110,10 @@ export class GithubService {
   private clientId(): string {
     const clientId = this.env.get('GITHUB_CLIENT_ID')
     if (clientId === undefined || clientId.length === 0) {
-      throw new ServiceUnavailableException('github connect is not configured')
+      throw new GithubHttpError({
+        status: EGithubHttpStatus.ServiceUnavailable,
+        message: 'github connect is not configured',
+      })
     }
     return clientId
   }

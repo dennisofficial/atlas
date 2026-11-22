@@ -1,5 +1,5 @@
-import { ForbiddenException } from '@nestjs/common'
 import { EGithubCallSource } from './github-call-log'
+import { EGithubHttpStatus, GithubHttpError } from './github-http-error'
 import { normalizedRepo } from './github-pr-identity'
 import { RepoAccessChecker } from './github-repo-access'
 import { withGithubRequestBudget } from './github-request-budget'
@@ -60,7 +60,8 @@ export class LinkedPrAccess {
       await this.deps.coordinator.recordAccess(args)
       return ELinkedPrAccess.Allowed
     } catch (failure) {
-      if (!(failure instanceof ForbiddenException)) return ELinkedPrAccess.Pending
+      if (!(failure instanceof GithubHttpError) || failure.status !== EGithubHttpStatus.Forbidden)
+        return ELinkedPrAccess.Pending
       await this.deps.coordinator.recordDenial({ ...args, message: failure.message })
       return ELinkedPrAccess.Denied
     }
