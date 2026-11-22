@@ -28,14 +28,14 @@ export type InMemoryBus = HostBus & {
   reset(): void
   wake(sessionId: string): Promise<void>
   wakes: string[]
-  lives: { sessionId: string; frame: unknown }[]
+  lives: { key: string; frame: unknown }[]
 }
 
 export const makeInMemoryBus = (): InMemoryBus => {
   const listeners = new Set<(sessionId: string) => void>()
   const holdListeners = new Set<(hold: { sessionId: string; ttlMs: number }) => void>()
   const wakes: string[] = []
-  const lives: { sessionId: string; frame: unknown }[] = []
+  const lives: { key: string; frame: unknown }[] = []
   return {
     onWake(listener) {
       listeners.add(listener)
@@ -50,8 +50,8 @@ export const makeInMemoryBus = (): InMemoryBus => {
       wakes.push(sessionId)
       for (const listener of [...listeners]) listener(sessionId)
     },
-    async live({ sessionId, frame }) {
-      lives.push({ sessionId, frame })
+    async live({ key, frame }) {
+      lives.push({ key, frame })
     },
     async panelHold(hold) {
       for (const listener of [...holdListeners]) listener(hold)

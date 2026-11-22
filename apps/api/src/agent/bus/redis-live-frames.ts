@@ -18,7 +18,7 @@ export const LIVE_BUFFER_TTL_SECONDS = 600
 export const LIVE_BUFFER_EXPIRE_EVERY_MS = 1_000
 
 export type RedisLiveFrames = {
-  live(args: { sessionId: string; frame: LiveFrame }): Promise<void>
+  live(args: { key: string; frame: LiveFrame }): Promise<void>
   hold(hold: PanelHold): Promise<void>
   onHold(listener: (hold: PanelHold) => void): () => void
   trackedSessions(): number
@@ -95,41 +95,41 @@ export const createRedisLiveFrames = (args: {
     return client
   }
 
-  const publishStepFrame = (args: { sessionId: string; frame: LiveFrame }): Promise<unknown> => {
-    const { sessionId, frame } = args
+  const publishStepFrame = (args: { key: string; frame: LiveFrame }): Promise<unknown> => {
+    const { key, frame } = args
     const json = JSON.stringify(frame)
-    const bufferKey = sessionLiveBufferKey(sessionId)
+    const bufferKey = sessionLiveBufferKey(key)
     const line = `${json}\n`
     const multi = publisher.multi()
     if (frame.type === 'step-start') multi.set(bufferKey, line)
     else multi.append(bufferKey, line)
-    multi.publish(sessionLiveChannel(sessionId), json)
+    multi.publish(sessionLiveChannel(key), json)
     const now = Date.now()
     const ended = frame.type === 'step-end'
-    const due = now - (expiredAt.get(sessionId) ?? 0) >= LIVE_BUFFER_EXPIRE_EVERY_MS
+    const due = now - (expiredAt.get(key) ?? 0) >= LIVE_BUFFER_EXPIRE_EVERY_MS
     if (frame.type === 'step-start' || ended || due) {
       multi.expire(bufferKey, LIVE_BUFFER_TTL_SECONDS)
-      if (ended) expiredAt.delete(sessionId)
-      else expiredAt.set(sessionId, now)
+      if (ended) expiredAt.delete(key)
+      else expiredAt.set(key, now)
     }
     return multi.exec()
   }
 
-  const publishShellFrame = (args: { sessionId: string; frame: LiveFrame }): Promise<unknown> => {
-    const { sessionId, frame } = args
+  const publishShellFrame = (args: { key: string; frame: LiveFrame }): Promise<unknown> => {
+    const { key, frame } = args
     const json = JSON.stringify(frame)
-    const key = sessionShellBacklogKey(sessionId)
+    const backlogKey = sessionShellBacklogKey(key)
     return publisher
       .multi()
-      .rpush(key, json)
-      .ltrim(key, -SHELL_BACKLOG_FRAMES, -1)
-      .expire(key, SHELL_BACKLOG_TTL_SECONDS)
-      .publish(sessionLiveChannel(sessionId), json)
+      .rpush(backlogKey, json)
+      .ltrim(backlogKey, -SHELL_BACKLOG_FRAMES, -1)
+      .expire(backlogKey, SHELL_BACKLOG_TTL_SECONDS)
+      .publish(sessionLiveChannel(key), json)
       .exec()
   }
 
   return {
-    async live({ sessionId, frame }) {
+    async live({ key, frame }) {
       const result = liveFrameSchema.safeParse(frame)
       if (!result.success) {
         args.log?.error({
@@ -142,14 +142,14 @@ export const createRedisLiveFrames = (args: {
       const { data } = result
       const sent =
         data.type === 'shell-output'
-          ? publishShellFrame({ sessionId, frame: data })
+          ? publishShellFrame({ key, frame: data })
           : data.type === 'step-start' || data.type === 'delta' || data.type === 'step-end'
-            ? publishStepFrame({ sessionId, frame: data })
-            : publisher.publish(sessionLiveChannel(sessionId), JSON.stringify(data))
+            ? publishStepFrame({ key, frame: data })
+            : publisher.publish(sessionLiveChannel(key), JSON.stringify(data))
       await sent.catch((error: unknown) => {
         args.log?.error({
           source: 'bus.live',
-          message: `publishing a live frame for ${sessionId} failed`,
+          message: `publishing a live frame for ${key} failed`,
           ...logFieldsOf({ error }),
         })
         throw error

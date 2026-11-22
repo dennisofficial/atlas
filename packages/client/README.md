@@ -42,8 +42,8 @@ the mobile app use it.
 ### Follow a session
 
 - `createStreamConnection({ transport, scheduler, networkSignal?, eventSchema?, knownEventTypes?, views? })`:
-  returns a `StreamConnection`. `follow({ sessionId, log? })` gives a `FollowedSession`.
-  `followSessions()` gives the live session list.
+  returns a `StreamConnection`. `follow({ sessionId, threadId?, log? })` follows one thread, the
+  main thread by default. `followSessions()` gives the live session list.
 - `createSessionFollower(args)`: the follower for one session, with its connection state and its
   snapshot. `HYDRATE_TIMEOUT_MS` bounds the first load.
 - `createSessionsFeed({ follow, write })`: a retained subscription to the session list.
@@ -76,6 +76,7 @@ the mobile app use it.
 - `turnsBySeq(args)`, `settledAtOf(entries)`, `turnEndedEntry(turn)`: the turn rows and the settled
   time.
 - `ECallState`, `ToolCall`, `ToolRun`, `attachmentsOf`: the tool runs of a turn.
+- `agentsOf(args)`, `agentOf(args)`, `agentLabelOf(agent)`: a sub-agent's type, intent and state.
 - `thinkingVisibilityOf(value)`, `foldThoughts(args)`, `toolsAboveThoughts(entries)`: the thinking
   folds.
 - `revealedText({ key, text, gate })`: the text that a surface reveals at a set pace.
@@ -145,6 +146,5 @@ const release = createSessionsFeed({
 
 ## See also
 
-- `docs/decisions/0024-v2-realtime.md` describes the stream, the resume by sequence and hash, and
-  the overlay.
+- `docs/decisions/0024-v2-realtime.md`: the stream, the resume by sequence and hash, the overlay.
 - `docs/decisions/0020-v2-sub-agent-worktrees-and-peer-sessions.md` describes the crew.

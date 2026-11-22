@@ -40,6 +40,7 @@ const setup = () => {
 const mount = async (params: {
   connection: ReturnType<typeof setup>['connection']
   sessionId: string
+  threadId?: string
 }) => {
   const { createRoot } = await import('react-dom/client')
   const host = document.createElement('div')
@@ -50,6 +51,7 @@ const mount = async (params: {
   function Probe() {
     const { snapshot, loadOlder } = useSessionStream({
       sessionId: params.sessionId,
+      threadId: params.threadId,
       connection,
       log,
     })
@@ -93,6 +95,16 @@ describe('useSessionStream', () => {
 
     await act(async () => root.unmount())
     expect(subscription.closed).toBe(true)
+  })
+
+  it('follows the given thread when a thread id is set', async () => {
+    const { connection, follows } = setup()
+    const { root } = await mount({ connection, sessionId: 'session-1', threadId: 'agent-1' })
+
+    const subscription = follows[0]
+    if (subscription === undefined) throw new Error('no subscription')
+    expect(subscription.input).toEqual({ sessionId: 'session-1', threadId: 'agent-1' })
+    await act(async () => root.unmount())
   })
 
   it('follows the new session when the id changes', async () => {

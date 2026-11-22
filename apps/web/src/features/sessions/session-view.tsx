@@ -21,7 +21,7 @@ import { sessionOpenedProps } from '@/lib/analytics/perf'
 
 import { attachmentsOf } from '@dltech/atlas-core'
 
-import { panelValueOf } from './data/panel-value'
+import { useSessionAgentWiring } from './data/use-session-agent-wiring'
 import { postInputOf } from './data/session-media'
 import { sessionsApi } from './data/sessions-api'
 import { stopSession } from './data/stop-session'
@@ -54,7 +54,6 @@ import { QueuedDock } from './queued-dock'
 import { RefusalRows } from './refusal-rows'
 import { SessionPreviewsProvider } from './panel/browser/previews-provider'
 import { ESessionPaneTab } from './panel/pane-tab'
-import { useSessionPane } from './panel/pane-state'
 import { SessionPaneProvider } from './panel/pane-value'
 import { SessionPaneLayout } from './panel/session-pane-layout'
 import { useSessionPaneWiring } from './panel/use-session-pane-wiring'
@@ -133,8 +132,10 @@ export function SessionView({ sessionId }: { sessionId: string }) {
       }),
     [snapshot.events, snapshot.connection],
   )
-  const panel = useMemo(() => panelValueOf({ sessionId, working }), [sessionId, working])
-  const pane = useSessionPane(sessionId)
+  const { panel, pane, openAgent, sheetOpenChange } = useSessionAgentWiring({
+    sessionId,
+    working,
+  })
   const wiring = useSessionPaneWiring({
     sessionId,
     title: listed?.title ?? undefined,
@@ -198,6 +199,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     sessionId,
     events: snapshot.events,
     working,
+    openAgent,
     onSwitchModel: () => choice.setOpen(true),
   })
 
@@ -259,7 +261,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
               tab={pane.tab}
               setTab={pane.setTab}
               sheetOpen={pane.sheetOpen}
-              setSheetOpen={pane.setSheetOpen}
+              setSheetOpen={sheetOpenChange}
               layout={pane.layout}
               rememberLayout={pane.rememberLayout}
               collapsed={pane.collapsed}

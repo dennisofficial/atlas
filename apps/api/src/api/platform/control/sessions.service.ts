@@ -353,7 +353,7 @@ export class SessionsService {
     sessionId: string
     archived: boolean
   }): Promise<SessionArchiveOutput> {
-    await this.requireOwnedSession(args)
+    const session = await this.requireOwnedSession(args)
     const archivedAt = args.archived ? new Date().toISOString() : null
     await this.plane.setSessionArchived({
       sessionId: args.sessionId,
@@ -365,6 +365,7 @@ export class SessionsService {
         by: ESubscriptionActor.Operator,
         reason: ESubscriptionEnd.Archived,
       })
+      await this.podPower.parkArchived({ session })
     }
     this.analytics?.capture({
       userId: args.userId,
@@ -387,13 +388,15 @@ export class SessionsService {
   async events(args: {
     userId: string
     sessionId: string
+    threadId?: string | undefined
     afterSeq?: number | undefined
     limit?: number | undefined
     maxBytes?: number | undefined
   }): Promise<SessionEventsOutput> {
     const session = await this.requireOwnedSession(args)
+    const threadId = await this.threadOf({ session, threadId: args.threadId })
     const page = await this.plane.readEvents({
-      threadId: session.mainThreadId,
+      threadId,
       afterSeq: args.afterSeq ?? 0,
       limit: args.limit ?? STATUS_EVENT_LIMIT,
       visible: true,
@@ -403,6 +406,19 @@ export class SessionsService {
       events: page.events.map(toPageEvent),
       ...(page.next === undefined ? {} : { next: page.next }),
     }
+  }
+
+  private async threadOf(args: {
+    session: ControlSessionRow
+    threadId: string | undefined
+  }): Promise<string> {
+    const { session, threadId } = args
+    if (threadId === undefined || threadId === session.mainThreadId) return session.mainThreadId
+    const thread = await this.plane.readThread({ threadId })
+    if (thread === undefined || thread.sessionId !== session.sessionId) {
+      throw new NotFoundException('thread not found')
+    }
+    return threadId
   }
 
   async blob(args: {

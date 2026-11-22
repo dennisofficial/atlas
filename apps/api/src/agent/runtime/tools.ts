@@ -9,11 +9,12 @@ import {
   type WholeFileClaim,
 } from '@dltech/atlas-core'
 import type { ZodType } from 'zod'
-import type {
-  DaemonAgentFileSystemPort,
-  DaemonFileSystemPort,
-  DaemonProcessPort,
-  WorkspaceGate,
+import {
+  POD_WAIT_INTERRUPTED,
+  type DaemonAgentFileSystemPort,
+  type DaemonFileSystemPort,
+  type DaemonProcessPort,
+  type WorkspaceGate,
 } from '@dltech/atlas-host'
 
 import { BashTool } from '../agent-tools/bash'
@@ -26,8 +27,6 @@ import { SerializedWrites } from '../agent-tools/write-guard'
 import { WriteTool } from '../agent-tools/write'
 import { ForegroundOnlyShells } from './foreground-shells'
 import type { PathEnvironment } from './session-paths'
-
-const INTERRUPTED_REASON = 'interrupted while the workspace was being set up'
 
 export class SetupGatedTool extends ToolDefinition {
   readonly name: string
@@ -64,7 +63,7 @@ export class SetupGatedTool extends ToolDefinition {
 
   async invoke(args: ToolInvocation): Promise<ToolOutcome> {
     const workspace = await this.gate.wait(args.signal)
-    if (workspace.state === 'aborted') return { ok: false, reason: INTERRUPTED_REASON }
+    if (workspace.state === 'aborted') return { ok: false, reason: POD_WAIT_INTERRUPTED }
     if (workspace.state === 'failed') return { ok: false, reason: workspace.message }
     return this.inner.invoke(args)
   }

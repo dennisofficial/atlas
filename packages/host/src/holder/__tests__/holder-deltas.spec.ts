@@ -19,7 +19,7 @@ describe('SessionHolder live deltas', () => {
     expect(saw).toBe(true)
 
     const frames: LiveFrame[] = rig.bus.frames
-      .filter((entry) => entry.sessionId === SESSION)
+      .filter((entry) => entry.key === SESSION)
       .map((entry) => entry.frame)
     const stepFrames = frames.filter((frame) =>
       ['step-start', 'delta', 'step-end'].includes(frame.type),

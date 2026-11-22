@@ -23,7 +23,7 @@ export const createRedisLiveSource = (args: {
   const subscriber = new Redis(args.url, { ...options, autoResubscribe: false })
   const reader = new Redis(args.url, options)
   const channels = new Set<string>()
-  const frameListeners = new Set<(args: { sessionId: string; raw: string }) => void>()
+  const frameListeners = new Set<(args: { key: string; raw: string }) => void>()
   const gapListeners = new Set<() => void>()
   let readyBefore = false
   let closing: Promise<void> | undefined
@@ -56,8 +56,8 @@ export const createRedisLiveSource = (args: {
   })
   subscriber.on('message', (channel: string, raw: string) => {
     if (!channel.startsWith(CHANNEL_PREFIX)) return
-    const sessionId = channel.slice(CHANNEL_PREFIX.length)
-    for (const listener of [...frameListeners]) listener({ sessionId, raw })
+    const key = channel.slice(CHANNEL_PREFIX.length)
+    for (const listener of [...frameListeners]) listener({ key, raw })
   })
 
   const quit = async (client: Redis): Promise<void> => {
@@ -65,18 +65,18 @@ export const createRedisLiveSource = (args: {
   }
 
   return {
-    async subscribe(sessionId) {
-      const channel = sessionLiveChannel(sessionId)
+    async subscribe(key) {
+      const channel = sessionLiveChannel(key)
       channels.add(channel)
       await subscriber.subscribe(channel)
     },
-    async unsubscribe(sessionId) {
-      const channel = sessionLiveChannel(sessionId)
+    async unsubscribe(key) {
+      const channel = sessionLiveChannel(key)
       channels.delete(channel)
       await subscriber.unsubscribe(channel)
     },
-    readBuffer: (sessionId) => reader.get(sessionLiveBufferKey(sessionId)),
-    readShellBacklog: (sessionId) => reader.lrange(sessionShellBacklogKey(sessionId), 0, -1),
+    readBuffer: (key) => reader.get(sessionLiveBufferKey(key)),
+    readShellBacklog: (key) => reader.lrange(sessionShellBacklogKey(key), 0, -1),
     onFrame(listener) {
       frameListeners.add(listener)
       return () => {

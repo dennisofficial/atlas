@@ -9,7 +9,7 @@ import {
 } from '@dltech/atlas-protocol'
 
 import type { PrepareResult } from '../ports'
-import { WorkspaceGate } from '../../calls/workspace-gate'
+import { POD_WAIT_INTERRUPTED, WorkspaceGate } from '../../calls/workspace-gate'
 import { pluginCallOf } from '../plugin-call'
 
 const EXEC: CallOp = { op: 'exec', argv: ['/bin/sh', '-c', 'echo hi'] }
@@ -78,6 +78,7 @@ describe('a plugin call that needs the pod', () => {
     const running = call(EXEC, { signal: controller.signal })
     controller.abort()
     await expect(running).rejects.toBeInstanceOf(CallInterruptedError)
+    await expect(running).rejects.toThrow(POD_WAIT_INTERRUPTED)
     expect(invocations).toHaveLength(0)
   })
 })

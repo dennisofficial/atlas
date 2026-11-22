@@ -255,6 +255,7 @@ export class ChildRun {
         runtime: this.args.runtime,
         record: this.record,
         agentId: this.agentId,
+        epoch: this.args.epoch,
         model: this.model,
         signal: listeners.signal,
         crew: this.port(),

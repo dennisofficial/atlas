@@ -8,6 +8,7 @@ import { httpStatusOf, type ApiClient } from './client'
 
 export type SessionStreamFollowInput = {
   sessionId: string
+  threadId?: string | undefined
   afterSeq?: number | undefined
   afterHash?: string | undefined
 }

@@ -20,6 +20,8 @@ import { FilePen, FileText, ListChecks, Terminal, Wrench } from 'lucide-react-na
 import { ActivityIndicator, ScrollView, StyleSheet } from 'react-native'
 
 import { McpServerMark } from './mcp-server-mark'
+import { AgentOpenLink } from './agent-open-link'
+import { agentIdOfSpawnCall } from '../v2/agent-links'
 
 const OUTPUT_MAX_HEIGHT = 240
 
@@ -54,7 +56,13 @@ const McpTitle = ({ mcp, failed }: { mcp: { server: string; tool: string }; fail
   </>
 )
 
-export const ToolRowView = ({ call }: { call: ToolCall }) => {
+export const ToolRowView = ({
+  call,
+  onOpenAgent,
+}: {
+  call: ToolCall
+  onOpenAgent?: ((agentId: string) => void) | undefined
+}) => {
   const theme = useTheme()
   const { klass, line, note, failed, mcp } = classify({ call, cwd: '' })
   const output = call.liveOutput ?? call.modelText
@@ -63,6 +71,9 @@ export const ToolRowView = ({ call }: { call: ToolCall }) => {
   const elapsed = elapsedOf(call)
   const description = elapsed.length > 0 ? elapsed : note
   const status = failed ? ETraceStatus.Error : isOpen(call) ? ETraceStatus.Running : undefined
+  const agentId = agentIdOfSpawnCall(call)
+  const handleOpenAgent =
+    agentId === undefined || onOpenAgent === undefined ? undefined : () => onOpenAgent(agentId)
   const icon = isOpen(call) ? (
     <ActivityIndicator size="small" color={theme.mutedForeground} />
   ) : mcp !== undefined ? (
@@ -92,6 +103,7 @@ export const ToolRowView = ({ call }: { call: ToolCall }) => {
           </ScrollView>
         ) : undefined}
       </Step>
+      {handleOpenAgent === undefined ? null : <AgentOpenLink onPress={handleOpenAgent} />}
     </Trace>
   )
 }

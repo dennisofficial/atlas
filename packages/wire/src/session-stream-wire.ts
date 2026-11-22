@@ -4,6 +4,7 @@ import { z } from 'zod'
 export const sessionStreamFollowInputSchema = z
   .strictObject({
     sessionId: z.string().min(1),
+    threadId: z.string().min(1).optional(),
     surface: z.enum(EStreamSurface).optional(),
     afterSeq: z.number().int().min(0).optional(),
     afterHash: z.string().min(1).optional(),

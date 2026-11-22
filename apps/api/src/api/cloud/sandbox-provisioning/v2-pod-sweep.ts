@@ -11,10 +11,13 @@ export type V2PodSweepScope = {
   sandbox: SandboxProvider
 }
 
-/** Pod session ids, the only identity the port knows a pod by. */
+/**
+ * Pod session ids, the only identity the port knows a pod by. `retirable` maps a pod to the latest
+ * `archivedAt` of the sessions on it, in milliseconds.
+ */
 export type V2PodSweepPods = {
   live: ReadonlySet<string>
-  retirable: ReadonlySet<string>
+  retirable: ReadonlyMap<string, number>
 }
 
 export type V2PodPlan = { stop: string[]; delete: string[] }
@@ -47,19 +50,22 @@ export type V2PodSweepSummary = {
   deleted: number
   kept: number
   failed: number
+  failedScopes: string[]
   dryRun: boolean
 }
 
-/**
- * A pod nothing live can resume is storage once it is stopped, so it is deleted. A *running* one is
- * left alone unless every session on it is archived past the grace (`retirable`), because a running
- * pod normally means someone is using it — stopping one parks it, and a later pass deletes it. The
- * grace covers a create in flight, which is a pod with no session row yet.
- */
+export type V2PodFenceOutcome = 'acted' | 'kept'
+
+/** Re-check the pod and act on it as one step that no unarchive can split. */
+export type V2PodFence = (args: {
+  podSessionId: string
+  act: () => Promise<void>
+}) => Promise<V2PodFenceOutcome>
+
 export function planV2Pods(args: {
   pods: readonly SandboxListing[]
   live: ReadonlySet<string>
-  retirable: ReadonlySet<string>
+  retirable: ReadonlyMap<string, number>
   now: Date
   graceMs?: number | undefined
 }): V2PodPlan {
@@ -67,13 +73,13 @@ export function planV2Pods(args: {
   const stop: string[] = []
   const doomed: string[] = []
   for (const pod of args.pods) {
-    if (args.live.has(pod.sandboxSessionId)) continue
-    if (pod.createdAt >= cutoff) continue
-    if (pod.running) {
-      if (args.retirable.has(pod.sandboxSessionId)) stop.push(pod.sandboxSessionId)
-      continue
-    }
-    doomed.push(pod.sandboxSessionId)
+    const podSessionId = pod.sandboxSessionId
+    if (args.live.has(podSessionId)) continue
+    const archivedAt = args.retirable.get(podSessionId)
+    const pastGrace = archivedAt === undefined ? pod.createdAt < cutoff : archivedAt < cutoff
+    if (!pastGrace) continue
+    if (pod.running) stop.push(podSessionId)
+    else doomed.push(podSessionId)
   }
   return { stop, delete: doomed }
 }
@@ -89,15 +95,10 @@ async function runBounded<T>(args: {
   await Promise.all(Array.from({ length: WORK_CONCURRENCY }, worker))
 }
 
-/**
- * Every pod sandbox a provider holds is listed through the port and stopped or deleted by the same
- * rules as `planOrphanSandboxes`, for every provider rather than Vercel alone.
- */
 export async function sweepV2Pods(args: {
   scopes: readonly V2PodSweepScope[]
   pods: V2PodSweepPods
-  /** Re-read immediately before each stop or delete: a pod can come back to life after the list. */
-  stillRetirable?: ((args: { podSessionId: string }) => Promise<boolean>) | undefined
+  fence: V2PodFence
   onRetired?: ((args: { podSessionId: string }) => Promise<void>) | undefined
   onStopped?:
     | ((args: { podSessionId: string; cpuCumulativeMs?: number | undefined }) => Promise<void>)
@@ -115,6 +116,7 @@ export async function sweepV2Pods(args: {
     deleted: 0,
     kept: 0,
     failed: 0,
+    failedScopes: [],
     dryRun: args.dryRun,
   }
   for (const scope of args.scopes) {
@@ -123,6 +125,7 @@ export async function sweepV2Pods(args: {
       listings = await scope.sandbox.list({ credentials: scope.credentials })
     } catch (failure) {
       summary.failed += 1
+      summary.failedScopes.push(scope.label)
       args.log(`${scope.label}: could not list its pods: ${String(failure)}`)
       continue
     }
@@ -157,56 +160,55 @@ export async function sweepV2Pods(args: {
         return undefined
       }
     }
-    const retirableNow = async (podSessionId: string): Promise<boolean> => {
-      if (args.stillRetirable === undefined) return true
+    const retire = async (work: {
+      podSessionId: string
+      stopOrDelete: (target: ReturnType<typeof targetOf>) => Promise<void>
+      count: () => void
+    }): Promise<void> => {
       try {
-        return await args.stillRetirable({ podSessionId })
+        let cpuCumulativeMs: number | undefined
+        const outcome = await args.fence({
+          podSessionId: work.podSessionId,
+          act: async () => {
+            cpuCumulativeMs = await cpuCumulativeMsBeforeRetire(work.podSessionId)
+            await work.stopOrDelete(targetOf(work.podSessionId))
+          },
+        })
+        if (outcome === 'kept') {
+          summary.kept += 1
+          return
+        }
+        await args.onStopped?.({
+          podSessionId: work.podSessionId,
+          ...(cpuCumulativeMs === undefined ? {} : { cpuCumulativeMs }),
+        })
+        work.count()
+        swept.push(work.podSessionId)
       } catch (failure) {
-        failed(podSessionId)(failure)
-        return false
+        failed(work.podSessionId)(failure)
       }
     }
     await runBounded({
       items: plan.stop,
-      task: async (podSessionId) => {
-        try {
-          if (!(await retirableNow(podSessionId))) {
-            summary.kept += 1
-            return
-          }
-          const cpuCumulativeMs = await cpuCumulativeMsBeforeRetire(podSessionId)
-          await scope.sandbox.stop({ target: targetOf(podSessionId) })
-          await args.onStopped?.({
-            podSessionId,
-            ...(cpuCumulativeMs === undefined ? {} : { cpuCumulativeMs }),
-          })
-          summary.stopped += 1
-          swept.push(podSessionId)
-        } catch (failure) {
-          failed(podSessionId)(failure)
-        }
-      },
+      task: (podSessionId) =>
+        retire({
+          podSessionId,
+          stopOrDelete: (target) => scope.sandbox.stop({ target }),
+          count: () => {
+            summary.stopped += 1
+          },
+        }),
     })
     await runBounded({
       items: plan.delete,
-      task: async (podSessionId) => {
-        try {
-          if (!(await retirableNow(podSessionId))) {
-            summary.kept += 1
-            return
-          }
-          const cpuCumulativeMs = await cpuCumulativeMsBeforeRetire(podSessionId)
-          await scope.sandbox.delete({ target: targetOf(podSessionId) })
-          await args.onStopped?.({
-            podSessionId,
-            ...(cpuCumulativeMs === undefined ? {} : { cpuCumulativeMs }),
-          })
-          summary.deleted += 1
-          swept.push(podSessionId)
-        } catch (failure) {
-          failed(podSessionId)(failure)
-        }
-      },
+      task: (podSessionId) =>
+        retire({
+          podSessionId,
+          stopOrDelete: (target) => scope.sandbox.delete({ target }),
+          count: () => {
+            summary.deleted += 1
+          },
+        }),
     })
     for (const podSessionId of swept) {
       try {

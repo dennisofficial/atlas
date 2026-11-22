@@ -55,7 +55,7 @@ export class FakeClock implements HostTimers {
 
 export class FakeBus implements HostBus {
   readonly wakes: string[] = []
-  readonly frames: { sessionId: string; frame: LiveFrame }[] = []
+  readonly frames: { key: string; frame: LiveFrame }[] = []
   readonly holds: { sessionId: string; ttlMs: number }[] = []
   private readonly listeners = new Set<(sessionId: string) => void>()
   private readonly resyncListeners = new Set<() => void>()
@@ -84,7 +84,7 @@ export class FakeBus implements HostBus {
     for (const listener of [...this.listeners]) listener(sessionId)
   }
 
-  async live(args: { sessionId: string; frame: LiveFrame }): Promise<void> {
+  async live(args: { key: string; frame: LiveFrame }): Promise<void> {
     this.frames.push({ ...args })
   }
 

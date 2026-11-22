@@ -33,10 +33,12 @@ export type SessionStream = {
 
 export function useSessionStream({
   sessionId,
+  threadId,
   connection,
   log,
 }: {
   sessionId: string
+  threadId?: string | undefined
   connection: () => StreamConnection
   log: SessionLog
 }): SessionStream {
@@ -44,7 +46,7 @@ export function useSessionStream({
   const followedRef = useRef<FollowedSession | undefined>(undefined)
 
   useEffect(() => {
-    const session = connection().follow({ sessionId, log })
+    const session = connection().follow({ sessionId, threadId, log })
     followedRef.current = session
     setFollowed(session)
     return () => {
@@ -52,7 +54,7 @@ export function useSessionStream({
       session.close()
       setFollowed(undefined)
     }
-  }, [connection, sessionId, log])
+  }, [connection, sessionId, threadId, log])
 
   const subscribe = useCallback(
     (listener: () => void) => followed?.subscribe(listener) ?? (() => undefined),

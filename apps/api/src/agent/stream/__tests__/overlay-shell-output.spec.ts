@@ -26,7 +26,7 @@ describe('live shell output', () => {
     await rig.subscribe({ session: rig.open() })
     await rig.settled()
     live.publish({
-      sessionId: SESSION,
+      key: SESSION,
       frame: { type: 'shell-output', shellId: 'shell-1', offset: 4, text: 'two\n' },
     })
     await rig.settled()
@@ -51,7 +51,7 @@ describe('live shell output', () => {
     ])
     live.beforeRead = () => {
       live.publish({
-        sessionId: SESSION,
+        key: SESSION,
         frame: { type: 'shell-output', shellId: 'shell-1', offset: 4, text: 'two\n' },
       })
     }

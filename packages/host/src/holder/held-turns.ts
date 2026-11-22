@@ -9,8 +9,7 @@ import {
 } from '@dltech/atlas-core'
 import { logFieldsOf } from '@dltech/atlas-observability'
 
-import { LiveStepBuffer } from './live-step-buffer'
-import { fireLive } from './ports'
+import { liveOutputOf } from './live-output'
 import type { HeldSessionDeps } from './held-session-deps'
 import type { AppendBody } from './record/append-drafts'
 import {
@@ -94,46 +93,13 @@ export class HeldTurns {
   }
 
   liveOutput(args: { headSeq: () => number; epoch: number }): AgentOutput {
-    const deps = this.deps
-    const steps = new LiveStepBuffer({
-      timers: deps.timers,
+    return liveOutputOf({
+      bus: this.deps.bus,
+      liveKey: this.deps.sessionId,
+      timers: this.deps.timers,
       headSeq: args.headSeq,
       epoch: args.epoch,
-      emit: (frame) => deps.bus.live({ sessionId: deps.sessionId, frame }),
     })
-    return {
-      emit: (event) => {
-        if (event.type === 'step-start' || event.type === 'chunk' || event.type === 'step-end') {
-          steps.push(event)
-          return
-        }
-        if (event.type === 'tool-output') {
-          fireLive({
-            bus: deps.bus,
-            sessionId: deps.sessionId,
-            frame: {
-              type: 'tool-output',
-              callId: event.output.callId,
-              text: event.output.text,
-            },
-          })
-          return
-        }
-        if (event.type === 'retrying') {
-          fireLive({
-            bus: deps.bus,
-            sessionId: deps.sessionId,
-            frame: {
-              type: 'retrying',
-              attempt: event.attempt,
-              maxAttempts: event.maxAttempts,
-              reason: String(event.reason),
-              delayMs: event.delayMs,
-            },
-          })
-        }
-      },
-    }
   }
 
   private async startTurn(args: { record: TurnLog; resume: boolean }): Promise<string> {

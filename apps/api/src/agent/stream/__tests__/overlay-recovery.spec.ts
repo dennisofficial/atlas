@@ -36,7 +36,7 @@ describe('live overlay recovery', () => {
     rig.dispose()
   })
 
-  const publish = (frame: TestFrame): void => live.publish({ sessionId: SESSION, frame })
+  const publish = (frame: TestFrame): void => live.publish({ key: SESSION, frame })
 
   it('keeps the newer run when an older run is queued behind the snapshot', async () => {
     live.beforeRead = () => {

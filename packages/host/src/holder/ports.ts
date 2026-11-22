@@ -27,12 +27,12 @@ import type { WorkspaceGate } from '../calls/workspace-gate'
 export type HostBus = {
   onWake(listener: (sessionId: string) => void): () => void
   onResync(listener: () => void): () => void
-  live(args: { sessionId: string; frame: LiveFrame }): Promise<void>
+  live(args: { key: string; frame: LiveFrame }): Promise<void>
   panelHold(args: { sessionId: string; ttlMs: number }): Promise<void>
   onPanelHold(listener: (hold: { sessionId: string; ttlMs: number }) => void): () => void
 }
 
-export const fireLive = (args: { bus: HostBus; sessionId: string; frame: LiveFrame }): void => {
+export const fireLive = (args: { bus: HostBus; key: string; frame: LiveFrame }): void => {
   const { bus, ...frameArgs } = args
   void bus.live(frameArgs).catch(() => undefined)
 }

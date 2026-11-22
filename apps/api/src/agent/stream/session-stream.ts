@@ -40,6 +40,7 @@ export type SessionStreamDeps = {
 export type SessionStreamFollowArgs = {
   userId: string
   sessionId: string
+  threadId?: string | undefined
   surface?: EStreamSurface | undefined
   afterSeq?: number | undefined
   afterHash?: string | undefined
@@ -160,6 +161,7 @@ export const createSessionStream = (deps: SessionStreamDeps): SessionStream => {
           id,
           kind: EStreamSubscribeKind.Session,
           sessionId: args.sessionId,
+          ...(args.threadId === undefined ? {} : { threadId: args.threadId }),
           ...(args.afterSeq === undefined ? {} : { afterSeq: args.afterSeq }),
           ...(args.afterHash === undefined ? {} : { afterHash: args.afterHash }),
         }),

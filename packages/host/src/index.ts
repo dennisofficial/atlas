@@ -32,7 +32,11 @@ export {
   type DaemonLinkHandlers,
   type DaemonSocket,
 } from './calls/socket'
-export { WorkspaceGate, type WorkspaceGateOutcome } from './calls/workspace-gate'
+export {
+  POD_WAIT_INTERRUPTED,
+  WorkspaceGate,
+  type WorkspaceGateOutcome,
+} from './calls/workspace-gate'
 export { DaemonAgentFileSystemPort } from './calls/ports/agent-filesystem'
 export { DaemonFileSystemPort } from './calls/ports/filesystem'
 export {
