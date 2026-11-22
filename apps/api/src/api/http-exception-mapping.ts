@@ -9,8 +9,8 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common'
 import { databaseErrorCode, isNoRows, isUniqueViolation } from '@dltech/atlas-db'
-import { EGithubHttpStatus, GithubHttpError } from './cloud/github/github-http-error'
-import { GithubUserReadFailed } from './cloud/github/github-user-reads'
+import { EGithubHttpStatus, GithubHttpError } from '@dltech/atlas-github'
+import { GithubUserReadFailed } from '@dltech/atlas-github'
 
 const UPSTREAM_TIMEOUT_MESSAGE = 'upstream request timed out'
 const TIMEOUT_ERROR_NAMES: readonly string[] = ['TimeoutError', 'AbortError']

@@ -1,6 +1,6 @@
 import { db } from '@dltech/atlas-db'
 import { threadsPullRequests } from '../../platform/sessions/places'
-import { type LinkedPr, normalizedRepo, prIdentity } from './github-linked-prs'
+import { type LinkedPr, normalizedRepo, prIdentity } from '@dltech/atlas-github'
 
 export async function linkedPrs(args: { userId: string }): Promise<LinkedPr[]> {
   const threads = await db.orm.public.Thread.where({ userId: args.userId })

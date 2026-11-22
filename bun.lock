@@ -30,6 +30,7 @@
         "@dltech/atlas-control": "workspace:*",
         "@dltech/atlas-core": "workspace:*",
         "@dltech/atlas-db": "workspace:*",
+        "@dltech/atlas-github": "workspace:*",
         "@dltech/atlas-harness": "workspace:*",
         "@dltech/atlas-host": "workspace:*",
         "@dltech/atlas-media": "workspace:*",
@@ -561,6 +562,23 @@
         "@types/pg": "8.20.4",
         "prisma": "8.0.0-rc.24",
         "typescript": "6.0.3",
+      },
+    },
+    "packages/github": {
+      "name": "@dltech/atlas-github",
+      "version": "0.1.0",
+      "dependencies": {
+        "@dltech/atlas-control": "workspace:*",
+        "@dltech/atlas-core": "workspace:*",
+        "@dltech/atlas-db": "workspace:*",
+        "@dltech/atlas-plugin-github": "workspace:*",
+        "@dltech/atlas-wire": "workspace:*",
+        "ioredis": "^6.0.0",
+        "zod": "^4.4.3",
+      },
+      "devDependencies": {
+        "@dltech/bun-test-shims": "workspace:*",
+        "@types/bun": "latest",
       },
     },
     "packages/harness": {
@@ -1437,6 +1455,8 @@
     "@dltech/atlas-daemon": ["@dltech/atlas-daemon@workspace:apps/daemon"],
 
     "@dltech/atlas-db": ["@dltech/atlas-db@workspace:packages/db"],
+
+    "@dltech/atlas-github": ["@dltech/atlas-github@workspace:packages/github"],
 
     "@dltech/atlas-evals": ["@dltech/atlas-evals@workspace:evals"],
 

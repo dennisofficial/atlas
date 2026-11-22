@@ -1,4 +1,4 @@
-import { EGithubHttpStatus } from './github-http-error'
+import { EGithubHttpStatus } from '@dltech/atlas-github'
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'

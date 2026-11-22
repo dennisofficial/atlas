@@ -1,0 +1,27 @@
+{
+  "name": "@dltech/atlas-github",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./src/testing/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@dltech/atlas-control": "workspace:*",
+    "@dltech/atlas-core": "workspace:*",
+    "@dltech/atlas-db": "workspace:*",
+    "@dltech/atlas-plugin-github": "workspace:*",
+    "@dltech/atlas-wire": "workspace:*",
+    "ioredis": "^6.0.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@dltech/bun-test-shims": "workspace:*",
+    "@types/bun": "latest"
+  }
+}

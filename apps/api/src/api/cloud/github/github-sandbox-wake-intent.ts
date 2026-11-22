@@ -7,7 +7,7 @@ import type {
   GithubWakeEventNotice,
   GithubWakePrEvent,
   GithubWakePrNotice,
-} from './github-legacy-effects'
+} from '@dltech/atlas-github'
 
 export type WakePrEvent = GithubWakePrEvent
 

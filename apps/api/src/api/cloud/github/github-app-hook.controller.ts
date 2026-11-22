@@ -16,18 +16,18 @@ import {
 import { SkipThrottle } from '@nestjs/throttler'
 import { BackgroundWork } from '../../../_core/ports/background-work'
 import { EnvService } from '../../../_core/config/env/env.service'
-import { GithubAppSyncService } from './github-app-sync.service'
-import { GithubAppInstallationsService } from './github-app-installations.service'
-import { installLandingPage } from './github-app-install-landing'
-import { GithubDeliveryService } from './github-delivery.service'
-import { GithubWebhookInboxService } from './github-webhook-inbox.service'
-import { verifyGithubSignature } from './github-webhook.signature'
-import { handleSupplementaryEvent } from './github-supplementary-events'
+import { GithubAppSyncService } from '@dltech/atlas-github'
+import { GithubAppInstallationsService } from '@dltech/atlas-github'
+import { installLandingPage } from '@dltech/atlas-github'
+import { GithubDeliveryService } from '@dltech/atlas-github'
+import { GithubWebhookInboxService } from '@dltech/atlas-github'
+import { verifyGithubSignature } from '@dltech/atlas-github'
+import { handleSupplementaryEvent } from '@dltech/atlas-github'
 import { GithubSandboxWakeService } from './github-sandbox-wake.service'
 import type {
   GithubAppInstallationRepositoriesWebhookPayload,
   GithubAppInstallationWebhookPayload,
-} from './github-webhook.types'
+} from '@dltech/atlas-github'
 import type { GithubPrWebhookRequest } from './github-webhook-request'
 
 const APP_EVENT_TYPES = new Set(['installation', 'installation_repositories'])

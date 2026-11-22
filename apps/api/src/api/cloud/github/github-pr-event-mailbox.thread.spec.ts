@@ -10,15 +10,15 @@ import {
 import { seedThreadRow } from '../../../../test/session-seed'
 import { waitFor } from '../../../../test/fake-timers'
 import { DrainStateService } from '../../platform/health/drain-state.service'
-import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
-import { GithubPrFanoutService } from './github-pr-fanout.service'
-import { GithubPrOutboxDispatcher } from './github-pr-outbox'
-import { EPrEventKind } from './github-realtime.types'
+import { GithubPrEventMailboxService } from '@dltech/atlas-github'
+import { GithubPrFanoutService } from '@dltech/atlas-github'
+import { GithubPrOutboxDispatcher } from '@dltech/atlas-github'
+import { EPrEventKind } from '@dltech/atlas-github'
 import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
 import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
-import { inertMergeabilityRefresh, inertReconcile } from './github-pr-store.fixture'
+import { inertMergeabilityRefresh, inertReconcile } from '@dltech/atlas-github/testing'
 import { replayThreadEvents } from './github-pr-event-thread-replay'
-import { legacyOf } from './github-legacy-effects.fixture'
+import { legacyOf } from '@dltech/atlas-github/testing'
 
 function serviceWith(): { mailbox: GithubPrEventMailboxService; fanout: GithubPrFanoutService } {
   const fanout = new GithubPrFanoutService(new DrainStateService())

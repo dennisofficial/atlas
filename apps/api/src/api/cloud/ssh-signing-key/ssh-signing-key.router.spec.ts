@@ -3,9 +3,9 @@ import { db } from '@dltech/atlas-db'
 import { seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import { GithubConfig } from '../github/github-config'
-import { GithubDeviceClient } from '../github/github-device-client'
-import { GithubService } from '../github/github.service'
+import { GithubConfig } from '@dltech/atlas-github'
+import { GithubDeviceClient } from '@dltech/atlas-github'
+import { GithubService } from '@dltech/atlas-github'
 import {
   buildSessionTrpcApp,
   dataOf,

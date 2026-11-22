@@ -1,13 +1,13 @@
 import { Logger, Module } from '@nestjs/common'
 import { RedisModule } from '../../../_lib/redis/redis.module'
-import { GithubConfig } from './github-config'
-import { GithubDeviceClient } from './github-device-client'
-import { GithubRepoReads } from './github-repo-reads'
+import { GithubConfig } from '@dltech/atlas-github'
+import { GithubDeviceClient } from '@dltech/atlas-github'
+import { GithubRepoReads } from '@dltech/atlas-github'
 import { GithubReposRouter } from './github-repos.router'
-import { GithubRequestCoordinator } from './github-request-coordinator'
+import { GithubRequestCoordinator } from '@dltech/atlas-github'
 import { GithubRouter } from './github.router'
-import { GithubService } from './github.service'
-import { setGithubLogSink } from './github-log'
+import { GithubService } from '@dltech/atlas-github'
+import { setGithubLogSink } from '@dltech/atlas-github'
 import {
   githubConfigProvider,
   githubRepoReadsProvider,

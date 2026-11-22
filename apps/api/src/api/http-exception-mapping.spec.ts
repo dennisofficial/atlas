@@ -7,7 +7,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common'
 import { describe, expect, it } from 'bun:test'
-import { EGithubHttpStatus, GithubHttpError } from './cloud/github/github-http-error'
+import { EGithubHttpStatus, GithubHttpError } from '@dltech/atlas-github'
 import { mapToHttpException } from './http-exception-mapping'
 
 const MESSAGE = 'github said no'

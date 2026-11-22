@@ -1,5 +1,5 @@
 import { schedules } from '@trigger.dev/sdk'
-import { pruneCommitChecks } from '../../api/cloud/github/github-commit-checks'
+import { pruneCommitChecks } from '@dltech/atlas-github'
 import { withGithubSweepGraph } from './github-sweep-graph'
 
 export const githubWebhookReconcileTask = schedules.task({

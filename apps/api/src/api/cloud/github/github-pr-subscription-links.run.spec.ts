@@ -1,11 +1,11 @@
-import { storeFixture } from './github-pr-store.fixture'
+import { storeFixture } from '@dltech/atlas-github/testing'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it } from 'bun:test'
 import { db } from '@dltech/atlas-db'
 
 import { ensureUsers, seedRepoHook } from '../../../../test/github-seed'
 import { seedEventRow, seedThreadRow } from '../../../../test/session-seed'
-import { GithubSubscriptionsService } from './github-subscriptions.service'
+import { GithubSubscriptionsService } from '@dltech/atlas-github'
 import { GithubPrSubscriptionLinks } from './github-pr-subscription-links'
 import { threadActivityAt } from './github-thread-activity'
 

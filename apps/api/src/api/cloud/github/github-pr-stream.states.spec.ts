@@ -4,7 +4,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'bun:te
 import { stubGlobal, unstubAllGlobals } from '@dltech/bun-test-shims'
 import { waitFor } from '../../../../test/fake-timers'
 import { seedPrState } from '../../../../test/github-seed'
-import { seedLinkedPr } from './github-linked-pr.fixture'
+import { seedLinkedPr } from '@dltech/atlas-github/testing'
 import { ctxFor, optionsFor, routerWith, STATE } from './github-pr-stream.fixture'
 
 const HEARTBEAT: GithubPrStatesFrame = { type: EGithubPrStatesFrame.Heartbeat }

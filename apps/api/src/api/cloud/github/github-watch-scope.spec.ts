@@ -9,8 +9,8 @@ import {
   seedRepoHook,
   seedSubscription,
 } from '../../../../test/github-seed'
-import { REST_FIELDS, prepareDelivery, serviceWith } from './github-delivery.fixture'
-import { seedLinkedPr } from './github-linked-pr.fixture'
+import { REST_FIELDS, prepareDelivery, serviceWith } from '@dltech/atlas-github/testing'
+import { seedLinkedPr } from '@dltech/atlas-github/testing'
 import { seedTarget } from './github-poll-sweeper.fixture'
 import { serviceWith as subscriptionsWith } from './github-subscriptions.fixture'
 

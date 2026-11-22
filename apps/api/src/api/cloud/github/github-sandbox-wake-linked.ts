@@ -2,7 +2,7 @@ import { db, type Row } from '@dltech/atlas-db'
 import { podSessionsOf } from '../../platform/sessions/session-of-thread'
 import { wakeableOf, wakeClaimActive } from '../../platform/sandboxes/sandbox-lifecycle'
 import { ESandboxState } from '../../platform/sandboxes/sandboxes.types'
-import { WORKFLOW_RUN_KIND } from './github-run-selector'
+import { WORKFLOW_RUN_KIND } from '@dltech/atlas-github'
 import type { WakeEventNotice } from './github-sandbox-wake-intent'
 
 export const WAKE_FAILURE_BACKOFF_MS = 5 * 60 * 1_000

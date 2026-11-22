@@ -43,11 +43,11 @@ import {
   SessionOrSandboxMiddleware,
   type SessionOrSandboxTrpcCtx,
 } from '../../platform/sessions/session-or-sandbox.middleware'
-import { EGithubCallSource } from '../github/github-call-log'
-import { GithubRepoReads } from '../github/github-repo-reads'
-import { isGithubBudgetParked, withGithubRequestBudget } from '../github/github-request-budget'
-import { GithubRequestCoordinator } from '../github/github-request-coordinator'
-import { GithubUserReadFailed } from '../github/github-user-reads'
+import { EGithubCallSource } from '@dltech/atlas-github'
+import { GithubRepoReads } from '@dltech/atlas-github'
+import { isGithubBudgetParked, withGithubRequestBudget } from '@dltech/atlas-github'
+import { GithubRequestCoordinator } from '@dltech/atlas-github'
+import { GithubUserReadFailed } from '@dltech/atlas-github'
 import { ProjectFileMountsService } from './project-file-mounts.service'
 import { ProjectResourcesService } from './project-resources.service'
 import { assertProjectReach, assertRevealAllowed } from './project-reach'

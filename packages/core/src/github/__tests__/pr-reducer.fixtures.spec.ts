@@ -20,7 +20,7 @@ import {
 } from '../pr-reducer'
 
 const payloadDir = fileURLToPath(
-  new URL('../../../../../apps/api/src/api/cloud/github/__fixtures__/payloads/', import.meta.url),
+  new URL('../../../../github/src/__fixtures__/payloads/', import.meta.url),
 )
 
 function payloadOf(name: string): unknown {

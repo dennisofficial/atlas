@@ -1,11 +1,11 @@
-import { EGithubHttpStatus } from './github-http-error'
+import { EGithubHttpStatus } from '@dltech/atlas-github'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test'
 import { ensureUsers, prStateRows, subscriptionRows } from '../../../../test/github-seed'
 import { unstubAllGlobals } from '@dltech/bun-test-shims'
 import { serviceWith } from './github-subscriptions.fixture'
-import { seedHeadChecks } from './github-pr-checks.fixture'
-import { GithubUserReadFailed } from './github-user-reads'
+import { seedHeadChecks } from '@dltech/atlas-github/testing'
+import { GithubUserReadFailed } from '@dltech/atlas-github'
 
 describe('GithubSubscriptionsService subscribe', () => {
   useTestDatabase()

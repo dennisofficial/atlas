@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'bun:test'
 import { EnvService } from '../../_core/config/env/env.service'
-import { GithubHookLifecycleService } from '../../api/cloud/github/github-hook-lifecycle.service'
-import { GithubPollSweeperService } from '../../api/cloud/github/github-poll-sweeper.service'
-import { GithubPrFanoutService } from '../../api/cloud/github/github-pr-fanout.service'
+import { GithubHookLifecycleService } from '@dltech/atlas-github'
+import { GithubPollSweeperService } from '@dltech/atlas-github'
+import { GithubPrFanoutService } from '@dltech/atlas-github'
 import { GithubSandboxWakeService } from '../../api/cloud/github/github-sandbox-wake.service'
 import { buildGithubSweepGraph } from './github-sweep-graph'
 

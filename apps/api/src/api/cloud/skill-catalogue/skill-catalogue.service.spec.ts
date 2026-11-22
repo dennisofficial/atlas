@@ -2,7 +2,7 @@ import { db } from '@dltech/atlas-db'
 import { seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
 import { ESkillCatalogueOrigin, skillCatalogueRequestSchema } from '@dltech/atlas-wire'
 import { beforeEach, describe, expect, it, vi } from 'bun:test'
-import { GithubRepoReads } from '../github/github-repo-reads'
+import { GithubRepoReads } from '@dltech/atlas-github'
 import { SkillCatalogueService } from './skill-catalogue.service'
 
 const USER = 'user-a'

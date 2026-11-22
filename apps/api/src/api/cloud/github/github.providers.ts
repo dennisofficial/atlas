@@ -2,11 +2,11 @@ import type { Provider } from '@nestjs/common'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { RedisService } from '../../../_lib/redis/redis.service'
-import { GithubConfig } from './github-config'
-import { GithubDeviceClient } from './github-device-client'
-import { GithubRepoReads } from './github-repo-reads'
-import { GithubRequestCoordinator } from './github-request-coordinator'
-import { GithubService } from './github.service'
+import { GithubConfig } from '@dltech/atlas-github'
+import { GithubDeviceClient } from '@dltech/atlas-github'
+import { GithubRepoReads } from '@dltech/atlas-github'
+import { GithubRequestCoordinator } from '@dltech/atlas-github'
+import { GithubService } from '@dltech/atlas-github'
 
 export function githubConfigOf(env: EnvService): GithubConfig {
   return new GithubConfig({
