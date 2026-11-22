@@ -3,6 +3,7 @@ import type { BranchObserver } from './branch-observer'
 import { type ChangesCheckout, ChangesSnapshotter, ESnapshotTrigger } from './changes/snapshotter'
 import { runGit } from './checkouts/git'
 import type { DiskPressureObserver } from './disk-pressure-observer'
+import type { OomObserver } from './oom-observer'
 import { logDriveFault } from './held-runner'
 import type { HeldSessionDeps } from './held-session-deps'
 import type { SessionRuntime } from './ports'
@@ -50,6 +51,7 @@ export class HeldObservation {
   private readonly runtime: SessionRuntime
   private readonly branches: BranchObserver
   private readonly diskPressure: DiskPressureObserver | undefined
+  private readonly oom: OomObserver | undefined
   private readonly changes: ChangesSnapshotter | undefined
   private unsubscribeCheckouts: (() => void) | undefined
 
@@ -59,11 +61,13 @@ export class HeldObservation {
     record: SessionRecord
     branches: BranchObserver
     diskPressure?: DiskPressureObserver | undefined
+    oom?: OomObserver | undefined
   }) {
     this.deps = args.deps
     this.runtime = args.runtime
     this.branches = args.branches
     this.diskPressure = args.diskPressure
+    this.oom = args.oom
     this.changes = createChangesSnapshotter(args)
   }
 
@@ -87,6 +91,7 @@ export class HeldObservation {
   drain(): void {
     this.branches.stop()
     this.diskPressure?.stop()
+    this.oom?.stop()
     this.releaseCheckouts()
     void this.changes?.stop()
   }
@@ -94,6 +99,7 @@ export class HeldObservation {
   async stop(): Promise<void> {
     this.branches.stop()
     this.diskPressure?.stop()
+    this.oom?.stop()
     this.releaseCheckouts()
     await this.changes?.stop().catch((error: unknown) => this.faulted(error))
   }

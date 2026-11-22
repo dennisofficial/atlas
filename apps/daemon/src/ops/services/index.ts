@@ -2,6 +2,7 @@ import {
   CallFailureError,
   ECallFailure,
   EServiceRunStatus,
+  type DaemonEvent,
   type ServiceInfo,
   type ServicesStartOp,
 } from '@dltech/atlas-protocol'
@@ -28,6 +29,7 @@ export const servicesGroup =
     const table = {
       records,
       deps,
+      publish: (event: DaemonEvent): void => groupCtx.publish(event),
       onExit: ({ info }: { info: ServiceInfo }): void =>
         groupCtx.publish({ type: 'services.ended', serviceId: info.serviceId, info }),
     }

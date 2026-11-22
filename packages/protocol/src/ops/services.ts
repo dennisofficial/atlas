@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { oomMemorySchema } from './oom'
 import { okResultSchema } from './result'
 
 export enum EServiceRunStatus {
@@ -56,6 +57,7 @@ export const serviceInfoSchema = z
     signal: z.string().min(1).nullable(),
     startedAt: z.number(),
     endedAt: z.number().optional(),
+    memory: oomMemorySchema.optional(),
   })
   .strict()
 

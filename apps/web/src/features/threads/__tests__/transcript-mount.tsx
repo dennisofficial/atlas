@@ -62,6 +62,7 @@ export const mountWith = async (args: {
   onLoadOlder?: () => Promise<number>
   boot?: BootView | null
   onRetryBoot?: () => void
+  onOpenPodSize?: () => void
 }) => {
   const { createRoot } = await import('react-dom/client')
   const container = document.createElement('div')
@@ -84,6 +85,7 @@ export const mountWith = async (args: {
             {...(args.boot === undefined ? {} : { boot: args.boot })}
             {...(args.staged === undefined ? {} : { staged: args.staged })}
             {...(args.onLoadOlder === undefined ? {} : { onLoadOlder: args.onLoadOlder })}
+            {...(args.onOpenPodSize === undefined ? {} : { onOpenPodSize: args.onOpenPodSize })}
           />
         </ThreadPanelProvider>
       </TestQueryProvider>,

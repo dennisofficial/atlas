@@ -1,4 +1,5 @@
 import type { EKilledBy, EShellEndCause, EShellStatus } from '../shells/status'
+import type { OomMemory } from '../pod/pod-oom'
 import type { NoticeStamp } from './notice-stage'
 
 export type BackgroundShellEventBody =
@@ -21,6 +22,7 @@ export type BackgroundShellEventBody =
       killedBy?: EKilledBy | undefined
       exitCode?: number | undefined
       cause?: EShellEndCause | undefined
+      memory?: OomMemory | undefined
       output: string
       droppedCharacters: number
       remainingCharacters: number

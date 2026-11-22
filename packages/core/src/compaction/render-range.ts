@@ -10,6 +10,7 @@ import { elapsedPhrase } from '../shells/elapsed'
 import { prEventContent } from '../assembly/rules/pr-event-block'
 import { runEventContent } from '../assembly/rules/run-event-block'
 import type { SummarisedType } from './disposition'
+import { podOomLine } from '../pod/pod-oom'
 
 const PAYLOAD_CHARACTER_LIMIT = 600
 
@@ -82,6 +83,7 @@ const SUMMARISED_LINES: {
   'run-event': ({ event }) => runEventContent(event),
   nudge: ({ event, limit }) => `Harness notice: ${clipped(event.text, limit)}`,
   'sandbox-setup-reported': ({ event }) => `Atlas sandbox setup: ${event.text}`,
+  'pod-ran-out-of-memory': ({ event }) => podOomLine(event),
   parked: ({ event }) => `Atlas parked this session (${event.reason})`,
 }
 

@@ -88,6 +88,30 @@ describe('podSampleOf', () => {
     expect(sample.oomKills).toBe(2)
   })
 
+  it('carries the oom incident count and the command memory ceiling when known', () => {
+    const sample = podSampleOf({
+      prev: counters(),
+      next: counters({ oomEvents: 3, commandMemoryLimitBytes: 2_684_354_560 }),
+      intervalMs: 3_000,
+      vcpus: 4,
+      at: 1,
+    })
+    expect(sample.oomEvents).toBe(3)
+    expect(sample.commandRamLimitBytes).toBe(2_684_354_560)
+  })
+
+  it('omits the incident count and command ceiling when the daemon has neither', () => {
+    const sample = podSampleOf({
+      prev: counters(),
+      next: counters(),
+      intervalMs: 3_000,
+      vcpus: 4,
+      at: 1,
+    })
+    expect(sample.oomEvents).toBeUndefined()
+    expect(sample.commandRamLimitBytes).toBeUndefined()
+  })
+
   it('treats a counter reset as no usage rather than a negative share', () => {
     const sample = podSampleOf({
       prev: counters({ usageUsec: 9_000_000, throttledUsec: 50 }),

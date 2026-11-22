@@ -7,6 +7,8 @@ import { TriangleAlertIcon, ZapIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Area, AreaChart, YAxis } from 'recharts'
 
+import { oomSignalLabel } from '../pod-metrics-model'
+
 export enum ESparkTone {
   Accent = 'accent',
   Muted = 'muted',
@@ -119,8 +121,17 @@ export function SeriesKey({
   )
 }
 
-export function MetricSignals({ throttled, oomKills }: { throttled: boolean; oomKills: number }) {
-  if (!throttled && oomKills === 0) return null
+export function MetricSignals({
+  throttled,
+  oomEvents,
+  oomKills,
+}: {
+  throttled: boolean
+  oomEvents?: number | undefined
+  oomKills: number
+}) {
+  const oom = oomSignalLabel({ oomEvents, oomKills })
+  if (!throttled && oom === null) return null
   return (
     <span className="flex items-center gap-2.5 text-[11px] leading-4">
       {throttled ? (
@@ -129,12 +140,12 @@ export function MetricSignals({ throttled, oomKills }: { throttled: boolean; oom
           Throttled
         </span>
       ) : null}
-      {oomKills > 0 ? (
+      {oom === null ? null : (
         <span className="flex items-center gap-1 text-destructive">
           <TriangleAlertIcon aria-hidden className="size-3" />
-          {oomKills === 1 ? '1 OOM kill' : `${oomKills} OOM kills`}
+          {oom}
         </span>
-      ) : null}
+      )}
     </span>
   )
 }

@@ -10,6 +10,7 @@ import { PodSectionHeader } from './internal/pod-section-header'
 import { PodSizeSelect, PodSizeStatus, type PodSizeControlProps } from './internal/pod-size-control'
 import { PodUsageSpark } from './internal/pod-spark'
 import {
+  commandMemorySuffix,
   diskPercentOf,
   formatRam,
   podDiskOf,
@@ -36,9 +37,13 @@ export interface PodSectionProps {
   resizeError?: string | undefined
   throttled?: boolean | undefined
   oomKills?: number | undefined
+  oomEvents?: number | undefined
+  commandRamLimitGb?: number | undefined
   stopping?: boolean | undefined
   confirmAction?: EPodAction | undefined
   defaultActiveIndex?: number | undefined
+  sizeMenuOpen?: boolean | undefined
+  onSizeMenuOpenChange?: ((open: boolean) => void) | undefined
   onStart?: (() => void) | undefined
   onStop?: (() => void) | undefined
   onResize?: ((shape: PodShape) => void) | undefined
@@ -130,8 +135,12 @@ export function PodSection(props: PodSectionProps) {
     disabled:
       !canResize(props.state) || props.stopping === true || props.pendingShape !== undefined,
     defaultOpen: props.defaultSizeMenuOpen === true,
+    open: props.sizeMenuOpen,
+    onOpenChange: props.onSizeMenuOpenChange,
     onResize: props.onResize,
   }
+
+  const ramValue = running ? view.ramLabel : `— / ${view.ramLimitGb} GB`
 
   return (
     <div className="flex flex-col gap-2">
@@ -152,7 +161,7 @@ export function PodSection(props: PodSectionProps) {
         />
         <PodSeriesRow
           label="RAM"
-          value={running ? view.ramLabel : `— / ${view.ramLimitGb} GB`}
+          value={`${ramValue}${commandMemorySuffix(props.commandRamLimitGb)}`}
           swatch="bg-muted-foreground"
           row="row-start-2"
         />
@@ -190,7 +199,11 @@ export function PodSection(props: PodSectionProps) {
         )}
       </div>
       <div className="flex flex-col gap-2 pl-[1.625rem]">
-        <MetricSignals throttled={props.throttled === true} oomKills={props.oomKills ?? 0} />
+        <MetricSignals
+          throttled={props.throttled === true}
+          oomEvents={props.oomEvents}
+          oomKills={props.oomKills ?? 0}
+        />
         <PodSizeStatus {...sizeProps} />
       </div>
       {props.confirmAction === undefined ? null : (

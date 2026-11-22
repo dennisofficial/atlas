@@ -1,6 +1,7 @@
 import { appendFile, mkdir, open, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 
+import type { OomMemory } from '@dltech/atlas-core'
 import { EShellRunStatus, type ShellInfo } from '@dltech/atlas-protocol'
 
 import type { DaemonOpsDeps } from '../deps'
@@ -11,6 +12,7 @@ export type ShellEnd = {
   status: EShellRunStatus
   exitCode: number | null
   signal: string | null
+  memory?: OomMemory | undefined
 }
 
 type EndHandler = (end: ShellEnd) => void
@@ -49,6 +51,7 @@ export class ShellRecord {
       signal: ended === null ? null : ended.signal,
       ...(ended === null ? {} : { endedAt: this.endAt }),
       totalBytes: this.totalBytes,
+      ...(ended?.memory === undefined ? {} : { memory: ended.memory }),
     }
   }
 

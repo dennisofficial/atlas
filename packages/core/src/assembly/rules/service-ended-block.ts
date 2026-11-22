@@ -3,6 +3,7 @@ import type { EventOfType } from '../../events/envelope'
 import { serviceEnding } from '../../services/status'
 import { shellLabel } from '../../shells/label'
 import { EKilledBy, EShellEndCause } from '../../shells/status'
+import { outOfMemoryNote } from '../../pod/pod-oom'
 
 const PRINTED_NOTHING = 'Its log is empty.'
 
@@ -33,6 +34,7 @@ export function serviceEndedBlock(event: EventOfType<'service-ended'>): string {
   if (event.killedBy === EKilledBy.User) sections.push(USER_KILLED)
   if (SLEPT_THROUGH.has(event.killedBy)) sections.push(WOKE_UP)
   if (event.cause === EShellEndCause.SandboxStopped) sections.push(SANDBOX_STOPPED)
+  if (event.killedBy === EKilledBy.OutOfMemory) sections.push(outOfMemoryNote(event.memory))
 
   sections.push(event.tail.trimEnd() === '' ? PRINTED_NOTHING : event.tail.trimEnd())
 

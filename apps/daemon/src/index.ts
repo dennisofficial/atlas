@@ -38,8 +38,8 @@ try {
 delete env.DAEMON_TOKEN
 
 const home = daemonHomeFromEnv(env)
-const childEnv = sanitizeChildEnv(env)
 const protection = protectDaemon(env)
+const childEnv = sanitizeChildEnv(env)
 const bootId = randomUUID()
 const engine = new DaemonEngine({
   bootId,
