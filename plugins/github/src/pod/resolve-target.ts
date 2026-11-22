@@ -6,6 +6,7 @@ import {
   NO_PULL_REQUEST_ERROR,
   NO_REPOSITORY_ERROR,
   NO_RUN_ERROR,
+  NO_RUN_FOR_PUSH_ERROR,
   NO_RUN_REPOSITORY_ERROR,
   parseRunTargetInput,
   parseTargetInput,
@@ -16,7 +17,8 @@ import {
   type PullRequestTarget,
   type RunTarget,
 } from '../core'
-import { runGh } from './gh'
+import { runGh, runGit } from './gh'
+import { finishedRunRefusal } from './run-status'
 
 type GhCtx = Pick<PluginPodContext, 'call'>
 
@@ -66,6 +68,21 @@ const LATEST_RUN_ARGV: readonly string[] = [
   'databaseId,name',
 ]
 
+const HEAD_SHA_ARGV: readonly string[] = ['rev-parse', 'HEAD']
+
+const HEAD_SHA = /^[0-9a-f]{7,64}$/i
+
+const headRunArgv = (sha: string): readonly string[] => [
+  'run',
+  'list',
+  '--commit',
+  sha,
+  '--limit',
+  '1',
+  '--json',
+  'databaseId,name',
+]
+
 const resolved = (target: PullRequestTarget): ResolvedTarget => ({ target, label: labelOf(target) })
 
 const resolvedRun = (target: RunTarget): ResolvedRun => ({ target, label: runLabelOf(target) })
@@ -99,6 +116,30 @@ const checkoutBranch = async (args: { ctx: GhCtx; cwd?: string | undefined }): P
   if (name.length > 0) return name
   const fallback = await runGh({ ctx: args.ctx, cwd: args.cwd, argv: DEFAULT_BRANCH_ARGV })
   return fallback.ok ? fallback.text.trim() : ''
+}
+
+const headShaHeld = async (args: {
+  ctx: GhCtx
+  cwd?: string | undefined
+}): Promise<string | null> => {
+  const head = await runGit({ ctx: args.ctx, cwd: args.cwd, argv: HEAD_SHA_ARGV })
+  const sha = head.ok ? head.text.trim() : ''
+  return HEAD_SHA.test(sha) ? sha : null
+}
+
+const checkedRun = async (args: {
+  ctx: GhCtx
+  cwd?: string | undefined
+  target: RunTarget
+}): Promise<RunResolveOutcome> => {
+  if (args.target.kind !== 'run') return resolvedRun(args.target)
+  const refused = await finishedRunRefusal({
+    ctx: args.ctx,
+    cwd: args.cwd,
+    repo: args.target.repo,
+    runId: args.target.runId,
+  })
+  return refused ?? resolvedRun(args.target)
 }
 
 export const readCheckout = async (args: {
@@ -155,9 +196,15 @@ const currentRun = async (args: {
 }): Promise<RunResolveOutcome> => {
   const repo = await checkoutRepo(args)
   if (repo === null) return { error: NO_RUN_REPOSITORY_ERROR }
-  const listed = await runGh({ ctx: args.ctx, cwd: args.cwd, argv: LATEST_RUN_ARGV })
+  const sha = await headShaHeld(args)
+  const listed = await runGh({
+    ctx: args.ctx,
+    cwd: args.cwd,
+    argv: sha === null ? LATEST_RUN_ARGV : headRunArgv(sha),
+  })
   const runId = listed.ok ? latestRunOf(listed.text) : null
-  return runId === null ? { error: NO_RUN_ERROR } : resolvedRun({ kind: 'run', repo, runId })
+  if (runId === null) return { error: sha === null ? NO_RUN_ERROR : NO_RUN_FOR_PUSH_ERROR }
+  return checkedRun({ ctx: args.ctx, cwd: args.cwd, target: { kind: 'run', repo, runId } })
 }
 
 const runInCheckout = async (args: {
@@ -168,7 +215,11 @@ const runInCheckout = async (args: {
   const repo = await checkoutRepo(args)
   return repo === null
     ? { error: NO_RUN_REPOSITORY_ERROR }
-    : resolvedRun({ kind: 'run', repo, runId: args.runId })
+    : checkedRun({
+        ctx: args.ctx,
+        cwd: args.cwd,
+        target: { kind: 'run', repo, runId: args.runId },
+      })
 }
 
 const selectorInCheckout = async (args: {
@@ -194,7 +245,11 @@ export const resolveRunTarget = async (args: {
   if (parsed.kind === 'error') return { error: parsed.error }
   if (parsed.kind === 'run') {
     if (parsed.repo !== undefined) {
-      return resolvedRun({ kind: 'run', repo: parsed.repo, runId: parsed.runId })
+      return checkedRun({
+        ctx: args.ctx,
+        cwd: args.cwd,
+        target: { kind: 'run', repo: parsed.repo, runId: parsed.runId },
+      })
     }
     return args.explicitOnly === true
       ? { error: UNRECOGNIZED_RUN_ERROR }

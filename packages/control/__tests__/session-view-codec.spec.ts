@@ -31,6 +31,13 @@ describe('session view codec', () => {
     expect(usableState(row({ version: SESSION_VIEW_VERSION, state: oldShape }))).toBeUndefined()
   })
 
+  it('rejects a state of the current version whose facts miss a status fact', () => {
+    const { setupRun: _dropped, ...oldFacts } = STATE.facts
+    const oldShape = { ...STATE, facts: oldFacts }
+    expect(decodeViewState(JSON.stringify(oldShape))).toBeUndefined()
+    expect(usableState(row({ version: SESSION_VIEW_VERSION, state: oldShape }))).toBeUndefined()
+  })
+
   it('rejects a row written by an older view version', () => {
     expect(usableState(row({ version: SESSION_VIEW_VERSION - 1, state: STATE }))).toBeUndefined()
   })

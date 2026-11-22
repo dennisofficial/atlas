@@ -16,6 +16,14 @@ const logger = new Logger('GithubWorkflowRunWebhook')
 
 const basenameOf = (path: string): string => path.slice(path.lastIndexOf('/') + 1)
 
+const WORKFLOW_EXTENSION = /\.ya?ml$/i
+
+const workflowKeyOf = (raw: string | null | undefined): string | null => {
+  if (raw === undefined || raw === null) return null
+  const base = basenameOf(raw).toLowerCase().replace(WORKFLOW_EXTENSION, '')
+  return base.length === 0 ? null : base
+}
+
 export function runSnapshotOf(payload: GithubWorkflowRunWebhookPayload): WorkflowRunSnapshot {
   const run = payload.workflow_run
   return {
@@ -39,8 +47,9 @@ export function runMatchesSelector(args: {
   if (selector === null) return false
   if (selector.selector === 'run') return selector.runId === run.id
   if (run.head_branch !== selector.branch) return false
-  if (run.name === selector.workflow) return true
-  return run.path !== undefined && run.path !== null && basenameOf(run.path) === selector.workflow
+  const wanted = workflowKeyOf(selector.workflow)
+  if (wanted === null) return false
+  return [run.name, run.path].some((name) => workflowKeyOf(name) === wanted)
 }
 
 const createdAtOf = (run: GithubWorkflowRunWebhookRun): Date | null => {

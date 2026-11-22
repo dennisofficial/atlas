@@ -13,6 +13,10 @@ import {
 
 const GITHUB_PREFIX = /^github\.com\//i
 
+const WORKFLOW_RUN_KIND = 'workflow-run'
+
+const firstRunWatermark = new Date(0)
+
 const rowOf = (params: SubscriptionLeaseKey) => ({
   userId: params.userId,
   repoFullName: params.repo.replace(GITHUB_PREFIX, '').toLowerCase(),
@@ -177,6 +181,7 @@ export const insertSubscriptionRowIn = async (params: {
   row: SubscriptionDraft
 }): Promise<WrittenSubscriptionRow> => {
   const { row } = params
+  const runWatermark = row.kind === WORKFLOW_RUN_KIND ? { lastRunCreatedAt: firstRunWatermark } : {}
   await params.tx.orm.public.GithubSubscription.createAndCount([
     {
       ...keyOf(row),
@@ -192,6 +197,7 @@ export const insertSubscriptionRowIn = async (params: {
       liveUntil: new Date(row.expiresAt),
       deadline: timeOf(row.deadline),
       createdAt: new Date(row.createdAt),
+      ...runWatermark,
     },
   ])
   const created = await params.tx.orm.public.GithubSubscription.where(keyOf(row)).first()

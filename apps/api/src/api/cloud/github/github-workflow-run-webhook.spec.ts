@@ -22,12 +22,14 @@ const USER = 'usr-1'
 const V2_SESSION = 'ses_v2_run'
 const V2_THREAD = 'thr_v2_run'
 
-const seedV2Thread = async () => {
-  const plane = new ControlPlane({
+const controlPlane = () =>
+  new ControlPlane({
     store: new PostgresControlStore(db),
     eventSchema: createV2EventSchema({ pluginBodies: [] }),
   })
-  await plane.createSession({
+
+const seedV2Thread = async () => {
+  await controlPlane().createSession({
     sessionId: V2_SESSION,
     userId: USER,
     projectId: 'prj_1',
@@ -194,6 +196,73 @@ describe('recordWorkflowRunFinished', () => {
     const [row] = await rows()
     expect(row?.deliveredRunId).toBe('')
     expect(row?.lastRunCreatedAt.getTime()).toBe(at.getTime())
+  })
+
+  it('notifies a selector made after the run started, once, and keeps its watermark on a re-subscribe', async () => {
+    await seedV2Thread()
+    const plane = controlPlane()
+    const created = new Date(Date.now() - 60_000)
+    const lease = {
+      repo: 'github.com/compai/app',
+      subject: { kind: 'workflow-run', selector: '#workflow:release.yml@main' } as const,
+    }
+    const target = {
+      kind: 'selector',
+      repo: 'github.com/compai/app',
+      workflow: 'release.yml',
+      branch: 'main',
+    }
+    await plane.subscribe({
+      sessionId: V2_SESSION,
+      threadId: V2_THREAD,
+      provider: 'github.workflow-run',
+      target,
+      label: 'compai/app release.yml@main',
+      events: [],
+      lease,
+      by: ESubscriptionActor.Agent,
+    })
+    const { wake, notices } = wakeStub()
+    const run = payloadOf({
+      name: 'release',
+      path: '.github/workflows/release.yml',
+      createdAt: created.toISOString(),
+    })
+
+    expect(await recordWorkflowRunFinished({ payload: run, wake })).toBe(1)
+    expect(notices).toHaveLength(1)
+
+    const again = await plane.subscribe({
+      sessionId: V2_SESSION,
+      threadId: V2_THREAD,
+      provider: 'github.workflow-run',
+      target,
+      label: 'compai/app release.yml@main',
+      events: [],
+      expiresAt: new Date(Date.now() + 48 * 60 * 60_000).toISOString(),
+      lease,
+      by: ESubscriptionActor.Agent,
+    })
+
+    expect(again.updated).toBe(true)
+    expect(await recordWorkflowRunFinished({ payload: run, wake })).toBe(0)
+    expect(notices).toHaveLength(1)
+    const [row] = await rows()
+    expect(row?.lastRunCreatedAt.getTime()).toBe(created.getTime())
+  })
+
+  it('matches a workflow selector regardless of the case of the run name or path', async () => {
+    await seedV2Thread()
+    await seedRunRow({ branch: '#workflow:release.yml@main' })
+    const { wake, notices } = wakeStub()
+
+    expect(
+      await recordWorkflowRunFinished({
+        payload: payloadOf({ name: 'Release', path: '.github/workflows/Release.yaml' }),
+        wake,
+      }),
+    ).toBe(1)
+    expect(notices).toHaveLength(1)
   })
 
   it('posts nothing for a run created before the watermark of a workflow selector', async () => {
