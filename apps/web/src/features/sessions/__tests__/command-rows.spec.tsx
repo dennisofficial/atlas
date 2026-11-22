@@ -36,13 +36,6 @@ const row = (name: string, state: ECommandState, inboxId = 1): SessionCommandRow
 })
 
 describe('commandRowLabelOf', () => {
-  it('shows an immediate command as running whether it waits or runs', () => {
-    expect(commandRowLabelOf(row('unsubscribe', ECommandState.Queued))).toBe('Unsubscribing…')
-    expect(commandRowLabelOf(row('unsubscribe', ECommandState.Running))).toBe('Unsubscribing…')
-    expect(commandRowLabelOf(row('subscribe', ECommandState.Queued))).toBe('Subscribing…')
-    expect(commandRowLabelOf(row('mcp', ECommandState.Queued))).toBe('Listing MCP servers…')
-  })
-
   it('says a settled command waits for the turn, and names it while running', () => {
     expect(commandRowLabelOf(row('summarise', ECommandState.Queued))).toBe(
       'Summarise after this turn',

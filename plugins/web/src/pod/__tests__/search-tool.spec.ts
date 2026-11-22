@@ -7,6 +7,7 @@ import {
   EMPTY_MCP_CONTROL,
   EMPTY_ROUTINES,
   EMPTY_POD_RESOURCES,
+  EMPTY_SUBSCRIPTIONS,
   UNVERSIONED_SETTINGS,
 } from '@dltech/atlas-plugin-sdk'
 
@@ -26,6 +27,7 @@ const ctxWith = (config: WebSearchConfig): PluginPodContext => {
       mcp: EMPTY_MCP_CONTROL,
       webSearch: { config: async () => config },
       routines: EMPTY_ROUTINES,
+      subscriptions: EMPTY_SUBSCRIPTIONS,
     },
     resources: EMPTY_POD_RESOURCES,
     crew: {} as never,

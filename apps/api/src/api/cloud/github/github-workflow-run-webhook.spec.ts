@@ -1,7 +1,14 @@
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { ControlPlane } from '@dltech/atlas-control'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
-import { createV2EventSchema, INBOX_KIND_EVENT, inboxEventOf } from '@dltech/atlas-core'
+import {
+  createV2EventSchema,
+  ESubscriptionActor,
+  ESubscriptionEnd,
+  INBOX_KIND_EVENT,
+  INBOX_KIND_RECORD,
+  inboxEventOf,
+} from '@dltech/atlas-core'
 import { db } from '@dltech/atlas-db'
 import { beforeEach, describe, expect, it } from 'bun:test'
 
@@ -120,8 +127,33 @@ describe('recordWorkflowRunFinished', () => {
       failedJobs: [],
     })
     expect(notices).toEqual([{ userId: USER, repoFullName: 'compai/app', kind: 'workflow-run' }])
-    const [row] = await rows()
-    expect(row?.deliveredRunId).toBe('9001')
+    expect(await rows()).toEqual([])
+  })
+
+  it('records that the one-shot run subscription ended, and only once', async () => {
+    await seedV2Thread()
+    const held = await seedRunRow()
+    const { wake } = wakeStub()
+
+    expect(await recordWorkflowRunFinished({ payload: payloadOf(), wake })).toBe(1)
+    expect(await recordWorkflowRunFinished({ payload: payloadOf(), wake })).toBe(0)
+
+    const entries = await inboxEvents(V2_SESSION)
+    const ended = entries.flatMap((entry) =>
+      entry.kind === INBOX_KIND_RECORD &&
+      entry.read.ok &&
+      entry.read.event.type === 'subscription-ended'
+        ? [entry.read.event]
+        : [],
+    )
+    expect(ended).toEqual([
+      {
+        type: 'subscription-ended',
+        subscriptionId: held.id,
+        reason: ESubscriptionEnd.Completed,
+        by: ESubscriptionActor.Provider,
+      },
+    ])
   })
 
   it('matches a workflow selector by run name and branch', async () => {

@@ -1,10 +1,4 @@
-import {
-  EBeforeToolDecision,
-  EStage,
-  type BeforeToolOutcome,
-  type Event,
-  type V2Event,
-} from '@dltech/atlas-core'
+import { EBeforeToolDecision, EStage, type BeforeToolOutcome } from '@dltech/atlas-core'
 import type { HookChainArgs } from '@dltech/atlas-agent'
 import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 import { z } from 'zod'
@@ -12,6 +6,7 @@ import { z } from 'zod'
 import {
   ciWatchIntent,
   ECiWatch,
+  GITHUB_PROVIDER,
   GITHUB_RUN_PROVIDER,
   runTargetOf,
   sameTarget,
@@ -36,32 +31,47 @@ const bashInput = z.object({ command: z.string() })
 
 type Watching = { ctx: PluginPodContext; cwd?: string | undefined }
 
-const holdsPullRequest = (args: {
-  events: readonly (Event | V2Event)[]
+type Held = { provider: string; target: unknown }
+
+const heldSubscriptions = async (ctx: PluginPodContext): Promise<readonly Held[]> => {
+  try {
+    return await ctx.control.subscriptions.list()
+  } catch {
+    return githubSubscriptionsOf(ctx.events())
+  }
+}
+
+const holdsPullRequest = async (args: {
+  ctx: PluginPodContext
   repo: string
   number: number
-}): boolean =>
-  githubSubscriptionsOf(args.events).some((row) => {
+}): Promise<boolean> => {
+  const rows = await heldSubscriptions(args.ctx)
+  return rows.some((row) => {
+    if (row.provider !== GITHUB_PROVIDER) return false
     const target = targetOf(row.target)
     return target !== null && sameTarget(target, { repo: args.repo, number: args.number })
   })
+}
 
-const holdsWorkflowRun = (args: {
-  events: readonly (Event | V2Event)[]
+const holdsWorkflowRun = async (args: {
+  ctx: PluginPodContext
   repo: string
   branch: string
-}): boolean =>
-  githubSubscriptionsOf(args.events).some((row) => {
+}): Promise<boolean> => {
+  const rows = await heldSubscriptions(args.ctx)
+  return rows.some((row) => {
     if (row.provider !== GITHUB_RUN_PROVIDER) return false
     const target = runTargetOf(row.target)
     if (target === null || target.repo !== args.repo) return false
     return target.kind === 'run' || target.branch === args.branch
   })
+}
 
 const pullRequestReason = async (args: Watching): Promise<string | null> => {
   const current = await currentPullRequest({ ctx: args.ctx, cwd: args.cwd })
   if ('error' in current) return null
-  return holdsPullRequest({ events: args.ctx.events(), ...current.target })
+  return (await holdsPullRequest({ ctx: args.ctx, ...current.target }))
     ? CI_WATCH_DENY_REASON
     : PULL_REQUEST_SUBSCRIBE_REASON
 }
@@ -69,7 +79,7 @@ const pullRequestReason = async (args: Watching): Promise<string | null> => {
 const workflowRunReason = async (args: Watching): Promise<string> => {
   const checkout = await readCheckout({ ctx: args.ctx, cwd: args.cwd })
   if (checkout === null) return WORKFLOW_RUN_SUBSCRIBE_REASON
-  return holdsWorkflowRun({ events: args.ctx.events(), ...checkout })
+  return (await holdsWorkflowRun({ ctx: args.ctx, ...checkout }))
     ? WORKFLOW_RUN_WAKE_REASON
     : WORKFLOW_RUN_SUBSCRIBE_REASON
 }

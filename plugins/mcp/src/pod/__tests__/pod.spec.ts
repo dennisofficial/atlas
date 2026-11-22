@@ -1,7 +1,7 @@
 import { EDefinitionOrigin, EToolEffect } from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 
-import { mcpCommand, type McpCloudRow } from '../../core'
+import type { McpCloudRow } from '../../core'
 import { EMcpRejection, EMcpViewStatus } from '../../core'
 import { mcpPod } from '..'
 import { McpBridgeTool } from '../bridge-tool'
@@ -160,37 +160,6 @@ describe('bridge tools from a recorded snapshot', () => {
         threadId: 't1' as never,
       }),
     ).toEqual({ ok: false, reason: "the 'gone' MCP server is not connected" })
-  })
-})
-
-describe('the mcp report command', () => {
-  it('renders the rows the session recorded, without asking the pod', async () => {
-    const pod = mcpPod({ config: { read: async () => ({ rows: [], rejections: [] }) } })
-    const report = pod.commands.get(mcpCommand.inboxKind)
-    const appended: unknown[] = []
-    const result = await report?.({
-      args: undefined,
-      sessionId: 's1',
-      inboxId: 1,
-      visibleEvents: () =>
-        [snapshotEventOf({ resource: 'mcp-server-changed', value: null }) as never].flatMap(() => [
-          {
-            type: 'mcp-server-changed',
-            row: {
-              name: 'docs',
-              transport: 'stdio',
-              status: EMcpViewStatus.Connected,
-              toolCount: 1,
-              layer: EDefinitionOrigin.User,
-            },
-          } as never,
-        ]),
-      append: async (drafts) => void appended.push(...drafts),
-      log: () => undefined,
-    })
-
-    expect(result).toEqual({ kind: 'done' })
-    expect(JSON.stringify(appended)).toContain('docs Connected 1 tool user')
   })
 })
 

@@ -8,6 +8,7 @@ import {
   EMPTY_CREW,
   EMPTY_MCP_CONTROL,
   EMPTY_ROUTINES,
+  EMPTY_SUBSCRIPTIONS,
   EMPTY_WORKTREES,
   EMPTY_POD_RESOURCES,
   UNVERSIONED_SETTINGS,
@@ -89,6 +90,7 @@ const rig = (sessions: PodSessions) => {
         config: async () => ({ backend: undefined, key: undefined }),
       },
       routines: EMPTY_ROUTINES,
+      subscriptions: EMPTY_SUBSCRIPTIONS,
       memory: {
         list: async () => ({ project: null, memories: [] }),
         read: async () => null,

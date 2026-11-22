@@ -1,4 +1,3 @@
-import type { CommandHandler } from '@dltech/atlas-commands'
 import {
   EMPTY_POD,
   readResource,
@@ -7,9 +6,8 @@ import {
   type PodSlot,
 } from '@dltech/atlas-plugin-sdk'
 
-import { mcpCommand, mcpRosterOfEvents, type LoadedMcpEntry } from '../core'
+import type { LoadedMcpEntry } from '../core'
 import type { McpConfigPort } from './config'
-import { mcpReport } from './report'
 import { mcpConfigResource, mcpToolsResource, resolveMcpServers } from './resources'
 import { rowsOf } from './roster'
 import { McpSignInBook } from './sign-in-book'
@@ -20,7 +18,6 @@ import { McpTransportError } from './types'
 
 export { MCP_NAME_PREFIX, McpBridgeTool } from './bridge-tool'
 export { mcpInstructionsDraftsOf } from './instructions'
-export { mcpReport, mcpReportRow, NO_MCP_SERVERS } from './report'
 export { mcpRosterDraftsOf, rowsOf } from './roster'
 export {
   MCP_CONFIG,
@@ -84,14 +81,6 @@ export const mcpPod = (args: McpPodArgs): PodSlot => {
     return entry
   }
 
-  const report: CommandHandler<unknown> = async (context) => {
-    const rows = mcpRosterOfEvents(context.visibleEvents())
-    await context.append([
-      { type: 'assistant-said', parts: [{ type: 'text', text: mcpReport(rows) }] },
-    ])
-    return { kind: 'done' }
-  }
-
   return {
     ...EMPTY_POD,
     resources: [config, tools],
@@ -109,7 +98,6 @@ export const mcpPod = (args: McpPodArgs): PodSlot => {
         new McpSignInTool({ ctx, resource: config, signIns }),
       ]
     },
-    commands: new Map([[mcpCommand.inboxKind, report]]),
   }
 }
 

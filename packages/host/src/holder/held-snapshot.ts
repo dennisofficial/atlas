@@ -14,10 +14,8 @@ import { idleReleaseDue } from './held-idle'
 import { countRunningShells } from './held-shells'
 import {
   actionableEntries,
-  immediateCommandsOf,
   isStop,
   logPendingInputIdsOf,
-  loggedImmediateCommandIdsOf,
   readFullInbox,
   stopSettledPromptOf,
   understandsCommand,
@@ -85,12 +83,6 @@ export const readHeldAction = async (args: {
     ],
   })
   const actionable = actionableEntries({ entries: resolvable, failure: workspace.failure })
-  const immediatePending =
-    immediateCommandsOf({ deps, entries: actionable }).length > 0 ||
-    waitingInputIdsOf({
-      ids: loggedImmediateCommandIdsOf({ deps, events }),
-      failure: workspace.failure,
-    }).length > 0
   const messagePending =
     actionable.some((entry) => !isStop(entry)) ||
     waitingInputIdsOf({ ids: logIds, failure: workspace.failure }).length > 0
@@ -115,7 +107,6 @@ export const readHeldAction = async (args: {
       turn: args.turnRunning ? 'running' : 'idle',
       stopPending: actionable.some(isStop),
       messagePending,
-      immediatePending,
       resumable,
       workspace: workspace.state,
       retryPending: workspace.retryPending,

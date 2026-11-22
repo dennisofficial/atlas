@@ -29,6 +29,7 @@ import {
   WORKFLOW_RUN_SUBSCRIBE_REASON,
   WORKFLOW_RUN_WAKE_REASON,
 } from '../ci-watch-hook'
+import { fakeSubscriptions, subscriptionRow } from './support'
 
 type Drafts = readonly (EventDraft | RecordBody | PluginEventBody)[]
 
@@ -43,7 +44,10 @@ const exec =
     } as CallResult
   }
 
-const rig = (answers: Record<string, ReturnType<typeof exec>>) => {
+const rig = (
+  answers: Record<string, ReturnType<typeof exec>>,
+  subscriptions = fakeSubscriptions(),
+) => {
   const log: V2Event[] = []
   const append = async (drafts: Drafts): Promise<void> => {
     for (const body of drafts) {
@@ -56,7 +60,7 @@ const rig = (answers: Record<string, ReturnType<typeof exec>>) => {
     }
   }
   const ctx: PluginPodContext = {
-    control: podControlStub,
+    control: { ...podControlStub, subscriptions: subscriptions.port },
     resources: EMPTY_POD_RESOURCES,
     crew: EMPTY_CREW,
     sessions: EMPTY_SESSIONS,
@@ -75,7 +79,7 @@ const rig = (answers: Record<string, ReturnType<typeof exec>>) => {
     onDaemonEvent: () => () => undefined,
     log: () => undefined,
   }
-  return { ctx, log }
+  return { ctx, log, subscriptions }
 }
 
 const NAME = 'gh repo view --json nameWithOwner -q .nameWithOwner'
@@ -104,17 +108,14 @@ const hold = async (args: {
   rigged: ReturnType<typeof rig>
   provider: string
   target: PullRequestTarget | RunTarget
-}) => {
-  await args.rigged.ctx.append([
-    {
-      type: 'subscription-created',
-      subscriptionId: 's1',
-      provider: args.provider,
-      target: args.target,
-      label: 'held',
-      createdBy: ESubscriptionActor.Agent,
-    },
-  ])
+}): Promise<void> => {
+  const row = subscriptionRow({
+    id: `held-${args.rigged.subscriptions.rows.size + 1}`,
+    provider: args.provider,
+    target: args.target,
+    label: 'held',
+  })
+  args.rigged.subscriptions.rows.set(row.id, row)
 }
 
 const selector = (branch: string): RunTarget => ({
@@ -211,6 +212,35 @@ describe('github ci watch hook on pull requests', () => {
     expect(await consult({ rigged, command: 'gh pr checks --watch' })).toEqual({
       decision: EBeforeToolDecision.Deny,
       reason: CI_WATCH_DENY_REASON,
+    })
+  })
+})
+
+describe('github ci watch hook when the control plane does not answer', () => {
+  it('falls back to the records in the log', async () => {
+    const offline = fakeSubscriptions()
+    const rigged = rig(CHECKOUT, {
+      ...offline,
+      port: {
+        ...offline.port,
+        list: async () => {
+          throw new Error('this session cannot reach the control plane')
+        },
+      },
+    })
+    await rigged.ctx.append([
+      {
+        type: 'subscription-created',
+        subscriptionId: 's1',
+        provider: 'github.workflow-run',
+        target: selector('main'),
+        label: 'held',
+        createdBy: ESubscriptionActor.Agent,
+      },
+    ])
+    expect(await consult({ rigged, command: 'gh run watch 12' })).toEqual({
+      decision: EBeforeToolDecision.Deny,
+      reason: WORKFLOW_RUN_WAKE_REASON,
     })
   })
 })

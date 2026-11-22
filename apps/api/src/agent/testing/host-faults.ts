@@ -1,5 +1,5 @@
 import { ControlPlane, RecordCorruptError } from '@dltech/atlas-control'
-import { EMessageOrigin } from '@dltech/atlas-core'
+import { COMMAND_OUTCOME_EVENT_TYPES, EMessageOrigin } from '@dltech/atlas-core'
 import type { LogPort } from '@dltech/atlas-observability'
 import { INBOX_KIND_MESSAGE } from '@dltech/atlas-protocol'
 
@@ -39,8 +39,6 @@ const turnThrowsOnce = (args: { plane: ControlPlane; log: LogPort }): Append => 
   }
 }
 
-const COMMAND_OUTCOME_TYPES: readonly string[] = ['history-rewound', 'history-summarised']
-
 const commandOutcomeHangs = (args: { plane: ControlPlane; log: LogPort }): Append => {
   return async (params) => {
     const isOutcome = params.events.some(
@@ -49,7 +47,7 @@ const commandOutcomeHangs = (args: { plane: ControlPlane; log: LogPort }): Appen
         event !== null &&
         'type' in event &&
         typeof event.type === 'string' &&
-        COMMAND_OUTCOME_TYPES.includes(event.type),
+        COMMAND_OUTCOME_EVENT_TYPES.has(event.type),
     )
     if (!isOutcome) return args.plane.append(params)
     announce({ log: args.log, message: 'fault: command outcome hangs' })

@@ -50,7 +50,6 @@ export const childRunnerOf = (args: {
     runtime,
     ctx,
     declarations: () => registry.declarations(),
-    now: () => new Date(deps.timers.now()),
     sharedEvents: () => resolvedEventsOf(args.parentRecord),
   })
   return new LoopTurnRunner({

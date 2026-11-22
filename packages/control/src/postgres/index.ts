@@ -1,4 +1,4 @@
-export { PostgresControlStore } from './postgres-store'
+export { PostgresControlStore, controlTxOf } from './postgres-store'
 export { softDeleteArchivedSessionsIn } from './postgres-session-writes'
 export {
   announceSessionChangesIn,

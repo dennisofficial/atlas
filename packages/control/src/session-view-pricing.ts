@@ -46,6 +46,7 @@ export const pricedView = (args: {
       branch: link.branch,
       state: link.state,
     })),
+    subscriptions: value.subscriptions.map((subscription) => ({ ...subscription })),
     pluginViews: value.pluginViews,
   }
 }

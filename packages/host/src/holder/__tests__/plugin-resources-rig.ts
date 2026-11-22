@@ -15,7 +15,7 @@ import { podControlStub } from '@dltech/atlas-plugin-sdk/testing'
 import { ECallFailure, ECallStatus, type CallOp, type CallResult } from '@dltech/atlas-protocol'
 import { z } from 'zod'
 
-import { pluginResourcesHook } from '../plugin-resources'
+import { pluginResourcesHook, refreshInFlightOf } from '../plugin-resources'
 
 export const THREAD = toThreadId('t1')
 export const DIRECTORY = '/work'
@@ -85,6 +85,7 @@ export const rig = (args: {
   daemon?: Daemon | undefined
   shared?: (() => readonly V2Event[]) | undefined
   trace?: TracePort | undefined
+  beforeCall?: ((op: CallOp) => Promise<void>) | undefined
 }): Rig => {
   const daemon = args.daemon ?? daemonOf()
   const events: V2Event[] = []
@@ -107,6 +108,7 @@ export const rig = (args: {
     onDaemonEvent: () => () => undefined,
     log: (message) => logs.push(message),
     call: async (op) => {
+      await args.beforeCall?.(op)
       calls.push(op)
       if (op.op === 'watch.status') {
         return {
@@ -147,6 +149,7 @@ export const rig = (args: {
     daemon,
     run: async (directory = DIRECTORY) => {
       await hook.run({ threadId: THREAD, projectDirectory: directory })
+      await refreshInFlightOf(ctx)?.catch(() => undefined)
     },
   }
 }

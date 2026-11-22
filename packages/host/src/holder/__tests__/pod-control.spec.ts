@@ -97,6 +97,21 @@ const memoryStub: PodControlClient['memory'] = {
   remove: async () => false,
 }
 
+const subscriptionsStub: PodControlClient['subscriptions'] = {
+  list: async () => {
+    throw new Error('this test lists no subscription')
+  },
+  subscribe: async () => {
+    throw new Error('this test subscribes to nothing')
+  },
+  unsubscribe: async () => {
+    throw new Error('this test ends no subscription')
+  },
+  end: async () => {
+    throw new Error('this test ends no subscription')
+  },
+}
+
 const versionsStub = async (): Promise<Readonly<Record<ECloudSetting, string>>> => ({
   [ECloudSetting.McpServers]: 'unversioned',
   [ECloudSetting.Skills]: 'unversioned',
@@ -113,6 +128,7 @@ const recordingClient = (): PodControlClient & { calls: { threadId: string; port
     },
     memory: memoryStub,
     routines: routinesStub,
+    subscriptions: subscriptionsStub,
     settingsVersions: versionsStub,
     webSearch: { config: async () => ({ backend: 'bing', key: undefined }) },
   }
@@ -139,6 +155,7 @@ describe('podControlOf', () => {
       client: {
         memory: memoryStub,
         routines: routinesStub,
+        subscriptions: subscriptionsStub,
         settingsVersions: versionsStub,
         webSearch: { config: async () => ({ backend: 'bing', key: undefined }) },
         exposePort: async () => {
@@ -184,6 +201,7 @@ describe('a plugin tool reaching ctx.control', () => {
       control: {
         memory: memoryStub,
         routines: routinesStub,
+        subscriptions: subscriptionsStub,
         settingsVersions: versionsStub,
         webSearch: { config: async () => ({ backend: 'bing', key: undefined }) },
         exposePort: async () => {
@@ -201,11 +219,80 @@ describe('a plugin tool reaching ctx.control', () => {
   })
 })
 
+describe('podControlOf subscriptions', () => {
+  const subscription = {
+    id: 'sub_1',
+    threadId: THREAD,
+    provider: 'github.pull-request',
+    target: { repo: 'github.com/acme/atlas', number: 7 },
+    label: 'acme/atlas#7',
+    events: [],
+    createdBy: 'agent',
+    createdAt: '2026-11-22T00:00:00.000Z',
+    expiresAt: '2026-11-23T00:00:00.000Z',
+  }
+
+  it('calls the client for the holder thread', async () => {
+    const seen: string[] = []
+    const client: PodControlClient = {
+      memory: memoryStub,
+      routines: routinesStub,
+      settingsVersions: versionsStub,
+      webSearch: { config: async () => ({ backend: 'bing', key: undefined }) },
+      exposePort: async () => ({ url: 'u', tunnelToken: 't' }),
+      subscriptions: {
+        list: async (args) => {
+          seen.push(`list:${args.threadId}`)
+          return [subscription]
+        },
+        subscribe: async (args) => {
+          seen.push(`subscribe:${args.threadId}:${args.lease.repo}`)
+          return { subscription, existed: false, updated: false }
+        },
+        unsubscribe: async (args) => {
+          seen.push(`unsubscribe:${args.threadId}:${args.subscriptionId}`)
+          return { ended: true }
+        },
+        end: async (args) => {
+          seen.push(`end:${args.threadId}:${args.reason}`)
+          return { ended: true }
+        },
+      },
+    }
+    const control = podControlOf({ client, threadId: THREAD_ID })
+    await expect(control.subscriptions.list()).resolves.toHaveLength(1)
+    const subscribed = await control.subscriptions.subscribe({
+      provider: 'github.pull-request',
+      target: { repo: 'github.com/acme/atlas', number: 7 },
+      label: 'acme/atlas#7',
+      events: [],
+      lease: { repo: 'github.com/acme/atlas', subject: { kind: 'pull-request', number: 7 } },
+    })
+    expect(subscribed.existed).toBe(false)
+    await expect(control.subscriptions.unsubscribe({ subscriptionId: 'sub_1' })).resolves.toEqual({
+      ended: true,
+    })
+    expect(seen).toEqual([
+      `list:${THREAD}`,
+      `subscribe:${THREAD}:github.com/acme/atlas`,
+      `unsubscribe:${THREAD}:sub_1`,
+    ])
+  })
+
+  it('rejects with the documented message when the session has no client', async () => {
+    const control = podControlOf({ client: undefined, threadId: THREAD_ID })
+    await expect(control.subscriptions.list()).rejects.toThrow(
+      'this session cannot reach the control plane',
+    )
+  })
+})
+
 describe('podControlOf wiring', () => {
   it('does not read a thread id from the tool input', async () => {
     const client = {
       memory: memoryStub,
       routines: routinesStub,
+      subscriptions: subscriptionsStub,
       settingsVersions: versionsStub,
       webSearch: { config: async () => ({ backend: 'bing', key: undefined }) },
       exposePort: vi.fn(async () => ({ url: 'u', tunnelToken: 't' })),

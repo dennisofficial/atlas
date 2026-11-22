@@ -1,6 +1,5 @@
 'use client'
 
-import type { SubscriptionListRow } from '@dltech/atlas-plugin-github/client'
 import { Button } from '@dltech/atlas-ui/components/button'
 import { cn } from '@dltech/atlas-ui/lib/utils'
 import { Bell, Trash2Icon } from 'lucide-react'
@@ -12,30 +11,29 @@ import { useNowEvery } from '@/features/threads/data/use-now'
 import { messageOf } from '@/features/threads/data/use-send'
 
 import { sessionsApi } from '../../data/sessions-api'
+import type { SubscriptionRow } from '../../data/subscription-rows'
 import { useSessionPaneValue } from '../pane-value'
 import { Row, SectionHead } from './rows'
 import {
   iconNameOf,
-  removeCommandOf,
   SUBSCRIPTION_TONE_CLASS,
   subscriptionMetaOf,
   subscriptionTitleOf,
-  type SubscriptionCommand,
 } from './subscription-row-model'
 
 const VISIBLE_ROWS = 5
 const TICK_MS = 30_000
 
-export type SubscriptionRun = (args: {
+export type UnsubscribeRun = (args: {
   sessionId: string
-  command: SubscriptionCommand
-}) => Promise<void>
+  subscriptionId: string
+}) => Promise<unknown>
 
-const runThroughApi: SubscriptionRun = async ({ sessionId, command }) => {
-  await sessionsApi.command({ sessionId, name: command.name, args: command.args })
+const runThroughApi: UnsubscribeRun = async ({ sessionId, subscriptionId }) => {
+  await sessionsApi.unsubscribe({ sessionId, subscriptionId })
 }
 
-function SubscriptionIcon({ row }: { row: SubscriptionListRow }) {
+function SubscriptionIcon({ row }: { row: SubscriptionRow }) {
   const name = iconNameOf(row.presentation.icon)
   const className = cn('size-3.5', SUBSCRIPTION_TONE_CLASS[row.presentation.tone])
   const fallback = () => <Bell className={className} aria-hidden />
@@ -43,11 +41,7 @@ function SubscriptionIcon({ row }: { row: SubscriptionListRow }) {
   return <DynamicIcon name={name} className={className} fallback={fallback} />
 }
 
-function SubscriptionRowItem(props: {
-  row: SubscriptionListRow
-  now: number
-  onRemove: () => void
-}) {
+function SubscriptionRowItem(props: { row: SubscriptionRow; now: number; onRemove: () => void }) {
   const { row, now } = props
   const meta = subscriptionMetaOf({ row, now })
   const title = subscriptionTitleOf(row.presentation.title)
@@ -80,7 +74,7 @@ function SubscriptionRowItem(props: {
   )
 }
 
-export function SessionSubscriptionsSection({ run = runThroughApi }: { run?: SubscriptionRun }) {
+export function SessionSubscriptionsSection({ run = runThroughApi }: { run?: UnsubscribeRun }) {
   const { sessionId, view } = useSessionPaneValue()
   const rows = view.subscriptionRows
   const [expanded, setExpanded] = useState(false)
@@ -107,9 +101,9 @@ export function SessionSubscriptionsSection({ run = runThroughApi }: { run?: Sub
       next.delete(subscriptionId)
       return next
     })
-  const handleRemove = (row: SubscriptionListRow) => {
+  const handleRemove = (row: SubscriptionRow) => {
     setRemoving((current) => new Set(current).add(row.id))
-    run({ sessionId, command: removeCommandOf(row) }).catch((failure: unknown) => {
+    run({ sessionId, subscriptionId: row.id }).catch((failure: unknown) => {
       restore(row.id)
       toast.error(messageOf(failure))
     })

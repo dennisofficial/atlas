@@ -66,6 +66,7 @@ export const sessionViewFixture = {
   },
   checkouts: { repos: [], primary: null },
   pullRequests: [],
+  subscriptions: [],
   pluginViews: {},
   compute: { costUsd: null, running: false, tick: null },
 } satisfies SessionViewOutput

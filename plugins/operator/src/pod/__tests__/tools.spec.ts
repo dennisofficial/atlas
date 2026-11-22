@@ -10,6 +10,7 @@ import {
   type PluginPodContext,
   type PodControl,
   EMPTY_POD_RESOURCES,
+  EMPTY_SUBSCRIPTIONS,
   UNVERSIONED_SETTINGS,
 } from '@dltech/atlas-plugin-sdk'
 
@@ -28,6 +29,7 @@ const control: PodControl = {
   mcp: EMPTY_MCP_CONTROL,
   webSearch: { config: unavailable },
   routines: EMPTY_ROUTINES,
+  subscriptions: EMPTY_SUBSCRIPTIONS,
   memory: {
     list: unavailable,
     read: unavailable,

@@ -20,6 +20,8 @@ import {
 import type { ControlSessionRow } from '@dltech/atlas-control'
 import {
   EMessageOrigin,
+  ESubscriptionActor,
+  ESubscriptionEnd,
   INBOX_KIND_RETRY,
   INBOX_KIND_STOP,
   type Attachment,
@@ -38,6 +40,8 @@ import {
   type SessionBlobOutput,
   type SessionCommandInput,
   type SessionCommandOutput,
+  type SessionSubscribeInput,
+  type SessionUnsubscribeInput,
   type SessionEventsOutput,
   type SessionListOutput,
   type SessionMarkReadOutput,
@@ -46,6 +50,8 @@ import {
   type SessionRetryOutput,
   type SessionStatusOutput,
   type SessionStopOutput,
+  type SessionSubscribeOutput,
+  type SessionUnsubscribeOutput,
   type SessionViewOutput,
   type SessionWakeOutput,
   type SessionHoldPodOutput,
@@ -67,6 +73,7 @@ import { PodPowerService, type PodPower } from './pod-power.service'
 import { PodSizingService, type PodSizing } from './pod-sizing.service'
 import { pageSessions, type PageBucket } from '../sessions/session-pages'
 import { COMMAND_REGISTRY, postCommand } from './command-registry'
+import { SubscriptionTargetError, resolvedSubscriptionTargetOf } from './subscription-target'
 import { modelSet, modelSetArgs, modelSetHandlers } from './model-set'
 import { MediaRegistry } from './media-registry'
 import { ProjectAccess } from './project-access'
@@ -352,6 +359,13 @@ export class SessionsService {
       sessionId: args.sessionId,
       archivedAt,
     })
+    if (args.archived) {
+      await this.plane.endSubscriptions({
+        sessionId: args.sessionId,
+        by: ESubscriptionActor.Operator,
+        reason: ESubscriptionEnd.Archived,
+      })
+    }
     this.analytics?.capture({
       userId: args.userId,
       event: args.archived ? 'session_archived' : 'session_unarchived',
@@ -496,6 +510,47 @@ export class SessionsService {
     })
     if (args.name === modelSet.spec.name) this.captureModelChanged(args)
     return output
+  }
+
+  async subscribe(
+    args: { userId: string } & SessionSubscribeInput,
+  ): Promise<SessionSubscribeOutput> {
+    const session = await this.requireOwnedSession(args)
+    const resolved = this.resolvedTargetOf({ provider: args.provider, target: args.target })
+    return await this.plane.subscribe({
+      sessionId: args.sessionId,
+      threadId: session.mainThreadId,
+      provider: args.provider,
+      target: resolved.target,
+      label: resolved.label,
+      events: args.events,
+      expiresAt: args.expiresAt,
+      lease: resolved.lease,
+      by: ESubscriptionActor.Operator,
+    })
+  }
+
+  async unsubscribe(
+    args: { userId: string } & SessionUnsubscribeInput,
+  ): Promise<SessionUnsubscribeOutput> {
+    await this.requireOwnedSession(args)
+    return await this.plane.unsubscribe({
+      sessionId: args.sessionId,
+      subscriptionId: args.subscriptionId,
+      by: ESubscriptionActor.Operator,
+      reason: ESubscriptionEnd.Unsubscribed,
+    })
+  }
+
+  private resolvedTargetOf(args: { provider: string; target: string }) {
+    try {
+      return resolvedSubscriptionTargetOf(args)
+    } catch (failure) {
+      if (failure instanceof SubscriptionTargetError) {
+        throw new BadRequestException(failure.message)
+      }
+      throw failure
+    }
   }
 
   private captureModelChanged(args: {

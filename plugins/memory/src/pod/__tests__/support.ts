@@ -9,6 +9,7 @@ import {
   EMPTY_MCP_CONTROL,
   EMPTY_ROUTINES,
   EMPTY_SESSIONS,
+  EMPTY_SUBSCRIPTIONS,
   EMPTY_WORKTREES,
   EMPTY_POD_RESOURCES,
   UNVERSIONED_SETTINGS,
@@ -101,6 +102,7 @@ export const rig = (memory: PodMemory = fakeMemory().port) => {
       mcp: EMPTY_MCP_CONTROL,
       webSearch: { config: async () => ({ backend: undefined, key: undefined }) },
       routines: EMPTY_ROUTINES,
+      subscriptions: EMPTY_SUBSCRIPTIONS,
       settingsVersions: async () => UNVERSIONED_SETTINGS,
       exposePort: async () => {
         throw new Error('this rig exposes no port')

@@ -87,6 +87,13 @@ describe('session command state', () => {
     expect(await commands()).toBeUndefined()
   })
 
+  it('drops a consumed command whose command has no outcome', async () => {
+    const { append, post, commands, consume } = await setup()
+    const { inboxId } = await post('subscribe')
+    await append([consume(inboxId)])
+    expect(await commands()).toBeUndefined()
+  })
+
   it('drops a running command when it is refused', async () => {
     const { append, post, commands, consume } = await setup()
     const { inboxId } = await post('rewind')

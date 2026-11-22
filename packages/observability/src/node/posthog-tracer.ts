@@ -16,6 +16,7 @@ import {
 type Settled<T> = { ok: true; value: T } | { ok: false; error: unknown }
 
 const POSTHOG_DISTINCT_ID_ATTRIBUTE = 'posthogDistinctId'
+const DEPLOY_COMMIT_ATTRIBUTE = 'deploy.commit'
 
 const OUTSIDE_EVERY_TRACE = AsyncLocalStorage.snapshot()
 
@@ -62,11 +63,13 @@ const handleOf = (span: Span): SpanHandle => {
 export class PosthogTracer extends TracePort {
   private readonly client: PostHog
   private readonly distinctId: string
+  private readonly deployCommit: string | undefined
 
-  constructor(args: { client: PostHog; distinctId: string }) {
+  constructor(args: { client: PostHog; distinctId: string; deployCommit?: string | undefined }) {
     super()
     this.client = args.client
     this.distinctId = args.distinctId
+    this.deployCommit = args.deployCommit
   }
 
   span<T>(request: SpanRequest<T>): Promise<T> {
@@ -84,6 +87,9 @@ export class PosthogTracer extends TracePort {
           attributes: {
             ...spanAttributesOf(request.fields),
             [POSTHOG_DISTINCT_ID_ATTRIBUTE]: this.distinctId,
+            ...(this.deployCommit === undefined
+              ? {}
+              : { [DEPLOY_COMMIT_ATTRIBUTE]: this.deployCommit }),
           },
         },
         (span) => {

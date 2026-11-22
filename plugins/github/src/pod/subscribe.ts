@@ -1,24 +1,20 @@
 import {
   catalogText,
-  ESubscriptionActor,
-  ESubscriptionEnd,
   filterLabelSuffix,
   resolveEventFilter,
   type Event,
   type V2Event,
 } from '@dltech/atlas-core'
-import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
+import type { PluginPodContext, PodSubscriptionLease } from '@dltech/atlas-plugin-sdk'
+import type { SessionSubscription } from '@dltech/atlas-protocol'
 
 import {
   eventCatalogOf,
   GITHUB_PROVIDER,
   GITHUB_RUN_PROVIDER,
   PULL_REQUEST_EVENTS,
-  runTargetOf,
-  sameRunTarget,
-  sameTarget,
+  runSelectorOf,
   subscriptionsOfEvents,
-  targetOf,
   type PullRequestTarget,
   type RunTarget,
   type SubscriptionRow,
@@ -30,28 +26,29 @@ import {
   type ResolvedTarget,
 } from './resolve-target'
 
-type Appender = Pick<PluginPodContext, 'append' | 'call'>
-
 const GITHUB_PROVIDERS: readonly string[] = [GITHUB_PROVIDER, GITHUB_RUN_PROVIDER]
 
 export const isGithubProvider = (provider: string): boolean => GITHUB_PROVIDERS.includes(provider)
 
 export type SubscribeOutcome =
-  | {
-      ok: true
-      subscription: SubscriptionRow | { id: string; label: string; expiresAt?: string }
-      existed: boolean
-      updated?: boolean
-    }
+  | { ok: true; subscription: SessionSubscription; existed: boolean; updated: boolean }
   | { ok: false; error: string }
-
-type Resolution = ResolvedTarget | ResolvedRun | { error: string }
 
 export const githubSubscriptionsOf = (events: readonly (Event | V2Event)[]): SubscriptionRow[] =>
   subscriptionsOfEvents(events).filter((row) => isGithubProvider(row.provider))
 
+const noSubscription = (subscriptionId: string): string =>
+  `This session has no subscription "${subscriptionId}". subscription with action list shows the ones it has.`
+
+type Resolution = ResolvedTarget | ResolvedRun | { error: string }
+
+const leaseOf = (target: PullRequestTarget | RunTarget): PodSubscriptionLease =>
+  'kind' in target
+    ? { repo: target.repo, subject: { kind: 'workflow-run', selector: runSelectorOf(target) } }
+    : { repo: target.repo, subject: { kind: 'pull-request', number: target.number } }
+
 const resolveProviderTarget = async (args: {
-  ctx: Appender
+  ctx: Pick<PluginPodContext, 'call'>
   provider: string
   input: string
   cwd?: string | undefined
@@ -71,36 +68,14 @@ const resolveProviderTarget = async (args: {
         explicitOnly: args.explicitOnly,
       })
 
-const holdsTarget = (args: {
-  row: SubscriptionRow
-  provider: string
-  target: PullRequestTarget | RunTarget
-}): boolean => {
-  if (args.row.provider !== args.provider) return false
-  if (args.provider === GITHUB_RUN_PROVIDER) {
-    const held = runTargetOf(args.row.target)
-    const wanted = runTargetOf(args.target)
-    return held !== null && wanted !== null && sameRunTarget(held, wanted)
-  }
-  const held = targetOf(args.row.target)
-  const wanted = targetOf(args.target)
-  return held !== null && wanted !== null && sameTarget(held, wanted)
-}
-
-const sameEvents = (held: readonly string[], wanted: readonly string[]): boolean =>
-  held.length === wanted.length && wanted.every((name) => held.includes(name))
-
 export const subscribeTo = async (args: {
-  ctx: Appender
-  events: readonly (Event | V2Event)[]
+  ctx: Pick<PluginPodContext, 'call' | 'control'>
   input: string
   provider?: string | undefined
   cwd?: string | undefined
-  by: ESubscriptionActor
   expiresAt?: string | undefined
   explicitOnly?: boolean | undefined
   requestedEvents?: readonly string[] | undefined
-  newId?: () => string
 }): Promise<SubscribeOutcome> => {
   const provider = args.provider ?? GITHUB_PROVIDER
   const filter = resolveEventFilter({
@@ -117,84 +92,34 @@ export const subscribeTo = async (args: {
     explicitOnly: args.explicitOnly,
   })
   if ('error' in resolved) return { ok: false, error: resolved.error }
-  const label = resolved.label + filterLabelSuffix(filter.events)
-  const held = githubSubscriptionsOf(args.events).find((row) =>
-    holdsTarget({ row, provider, target: resolved.target }),
-  )
-  if (held !== undefined) {
-    if (args.requestedEvents === undefined || sameEvents(held.events, filter.events)) {
-      return { ok: true, subscription: held, existed: true }
-    }
-    const expiresAt = args.expiresAt ?? held.expiresAt
-    await args.ctx.append([
-      {
-        type: 'subscription-created',
-        subscriptionId: held.id,
-        provider,
-        target: resolved.target,
-        label,
-        createdBy: args.by,
-        ...(expiresAt === undefined ? {} : { expiresAt }),
-        ...(filter.events.length === 0 ? {} : { events: filter.events }),
-      },
-    ])
-    return {
-      ok: true,
-      existed: true,
-      updated: true,
-      subscription: { id: held.id, label, ...(expiresAt === undefined ? {} : { expiresAt }) },
-    }
-  }
-  const id = (args.newId ?? crypto.randomUUID.bind(crypto))()
-  await args.ctx.append([
-    {
-      type: 'subscription-created',
-      subscriptionId: id,
-      provider,
-      target: resolved.target,
-      label,
-      createdBy: args.by,
-      ...(args.expiresAt === undefined ? {} : { expiresAt: args.expiresAt }),
-      ...(filter.events.length === 0 ? {} : { events: filter.events }),
-    },
-  ])
-  return {
-    ok: true,
-    existed: false,
-    subscription: {
-      id,
-      label,
-      ...(args.expiresAt === undefined ? {} : { expiresAt: args.expiresAt }),
-    },
-  }
+  const subscribed = await args.ctx.control.subscriptions.subscribe({
+    provider,
+    target: resolved.target,
+    label: resolved.label + filterLabelSuffix(filter.events),
+    ...(args.requestedEvents === undefined ? {} : { events: filter.events }),
+    ...(args.expiresAt === undefined ? {} : { expiresAt: args.expiresAt }),
+    lease: leaseOf(resolved.target),
+  })
+  return { ok: true, ...subscribed }
 }
 
 export const unsubscribeFrom = async (args: {
-  ctx: Pick<PluginPodContext, 'append'>
-  events: readonly (Event | V2Event)[]
+  ctx: Pick<PluginPodContext, 'control'>
   subscriptionId: string
-  by: ESubscriptionActor
 }): Promise<{ ok: true; label: string } | { ok: false; error: string }> => {
-  const found = githubSubscriptionsOf(args.events).find((row) => row.id === args.subscriptionId)
-  if (found === undefined) {
-    return {
-      ok: false,
-      error: `This session has no subscription "${args.subscriptionId}". subscription with action list shows the ones it has.`,
-    }
-  }
-  await args.ctx.append([
-    {
-      type: 'subscription-ended',
-      subscriptionId: found.id,
-      reason: ESubscriptionEnd.Unsubscribed,
-      by: args.by,
-    },
-  ])
-  return { ok: true, label: found.label }
+  const rows = await args.ctx.control.subscriptions.list()
+  const held = rows.find((row) => row.id === args.subscriptionId)
+  if (held === undefined) return { ok: false, error: noSubscription(args.subscriptionId) }
+  const ended = await args.ctx.control.subscriptions.unsubscribe({
+    subscriptionId: args.subscriptionId,
+  })
+  return ended.ended
+    ? { ok: true, label: held.label }
+    : { ok: false, error: noSubscription(args.subscriptionId) }
 }
 
-const lineOf = (row: SubscriptionRow): string => {
-  const expiry = row.expiresAt === undefined ? 'no expiry' : `expires ${row.expiresAt}`
+const lineOf = (row: SessionSubscription): string => {
+  const expiry = row.expiresAt === null ? 'no expiry' : `expires ${row.expiresAt}`
   return `${row.id}  ${row.label}  by ${row.createdBy}  ${expiry}`
 }
 
@@ -209,8 +134,8 @@ const PROVIDER_LINES: readonly string[] = [
   `${GITHUB_RUN_PROVIDER}  workflow runs finishing (success, failure, cancelled)  target: ${RUN_HINT}`,
 ]
 
-export const listText = (events: readonly (Event | V2Event)[]): string => {
-  const mine = githubSubscriptionsOf(events)
+export const listText = (rows: readonly SessionSubscription[]): string => {
+  const mine = rows.filter((row) => isGithubProvider(row.provider))
   const held =
     mine.length === 0
       ? 'This session has no subscriptions.'

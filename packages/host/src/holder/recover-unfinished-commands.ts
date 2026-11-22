@@ -1,5 +1,5 @@
 import { unfinishedCommandIdsOf, type ControlPlane } from '@dltech/atlas-control'
-import { visibleEvents } from '@dltech/atlas-core'
+import { commandInputName, producesOutcome, visibleEvents } from '@dltech/atlas-core'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
 import { isCommandKind, type CommandIntake } from './command-intake'
@@ -18,6 +18,7 @@ export const recoverUnfinishedCommands = async (params: {
     try {
       const entry = await plane.readInboxEntry({ sessionId, inboxId })
       if (entry === undefined || !isCommandKind(entry.kind)) continue
+      if (!producesOutcome(commandInputName(entry.kind))) continue
       log?.info({
         source: 'holder.intake',
         message: `re-running consumed command ${inboxId} of kind "${entry.kind}" after takeover`,

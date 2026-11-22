@@ -1,6 +1,6 @@
 import { findCard, toAccountId, type ModelChoice, type ModelPort } from '@dltech/atlas-core'
 import type { RoleModelChoice, RoleModelRequest } from '@dltech/atlas-host'
-import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
+import { logFieldsOf, type LogPort, type TracePort } from '@dltech/atlas-observability'
 import { generatedCatalogue } from '@dltech/atlas-models'
 
 import { AgentHostCredentialPort } from '../config/agent-host-credential-port'
@@ -18,6 +18,7 @@ type PortDeps = {
   tokens: Pick<ModelTokenService, 'issue'>
   media?: MediaSigner | undefined
   log?: LogPort | undefined
+  trace?: TracePort | undefined
   onFastRefused?: ((refusal: FastRefusal) => Promise<void> | void) | undefined
 }
 
@@ -64,7 +65,11 @@ const readFailureLogOf = (log: LogPort | undefined): ((error: unknown) => void) 
         })
 
 export const liveSessionModelsOf = (
-  args: PortDeps & { initial: ModelSource; read: () => Promise<ModelSource> },
+  args: PortDeps & {
+    initial: ModelSource
+    read: () => Promise<ModelSource>
+    trace?: TracePort | undefined
+  },
 ): SessionModels => {
   let latest = args.initial
   const refreshed = async (): Promise<ModelSource> => {
@@ -78,6 +83,7 @@ export const liveSessionModelsOf = (
       read: async () => pick(await refreshed()),
       build: (resolved) => modelPortOf({ ...args, resolved }),
       ...(onReadFailure === undefined ? {} : { onReadFailure }),
+      ...(args.trace === undefined ? {} : { trace: args.trace }),
     })
   return {
     main: liveFor((source) => source.main),
@@ -96,6 +102,7 @@ export const sessionModelsOf = (args: {
   tokens: Pick<ModelTokenService, 'issue'>
   media?: MediaSigner | undefined
   log?: LogPort | undefined
+  trace?: TracePort | undefined
   onFastRefused?: ((refusal: FastRefusal) => Promise<void> | void) | undefined
 }): SessionModels => {
   const override = args.override
@@ -107,6 +114,7 @@ export const sessionModelsOf = (args: {
       tokens: args.tokens,
       media: args.media,
       log: args.log,
+      ...(args.trace === undefined ? {} : { trace: args.trace }),
       onFastRefused: args.onFastRefused,
     })
   }
