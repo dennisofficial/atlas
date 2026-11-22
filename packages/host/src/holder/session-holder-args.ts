@@ -4,7 +4,14 @@ import type { IdPort } from '@dltech/atlas-core'
 import type { ChangeContentStore, ControlPlane } from '@dltech/atlas-control'
 import type { LogPort } from '@dltech/atlas-observability'
 
-import type { HostBus, HostPresence, HostTimers, PodPeers, SessionRuntimeFactory } from './ports'
+import type {
+  HostBus,
+  HostPresence,
+  HostTimers,
+  PodDiskPressurePort,
+  PodPeers,
+  SessionRuntimeFactory,
+} from './ports'
 import type { PodControlClient } from './pod-control'
 import type { CommandHandlers } from './command-intake'
 import type { PanelDemand } from './panel-demand'
@@ -19,6 +26,7 @@ export type SessionHolderArgs = {
   runtimes: SessionRuntimeFactory
   ids: IdPort
   podPeers?: PodPeers | undefined
+  diskPressure?: PodDiskPressurePort | undefined
   appendRetryMs?: number | undefined
   sweepMs?: number | undefined
   isPermanentStartError?: ((error: unknown) => boolean) | undefined

@@ -2,6 +2,7 @@ import { DaemonProcessPort } from '../calls/ports/process'
 import type { BranchObserver } from './branch-observer'
 import { type ChangesCheckout, ChangesSnapshotter } from './changes/snapshotter'
 import { runGit } from './checkouts/git'
+import type { DiskPressureObserver } from './disk-pressure-observer'
 import { logDriveFault } from './held-runner'
 import type { HeldSessionDeps } from './held-session-deps'
 import type { SessionRuntime } from './ports'
@@ -47,6 +48,7 @@ const createChangesSnapshotter = (args: {
 export class HeldObservation {
   private readonly deps: HeldSessionDeps
   private readonly branches: BranchObserver
+  private readonly diskPressure: DiskPressureObserver | undefined
   private readonly changes: ChangesSnapshotter | undefined
 
   constructor(args: {
@@ -54,9 +56,11 @@ export class HeldObservation {
     runtime: SessionRuntime
     record: SessionRecord
     branches: BranchObserver
+    diskPressure?: DiskPressureObserver | undefined
   }) {
     this.deps = args.deps
     this.branches = args.branches
+    this.diskPressure = args.diskPressure
     this.changes = createChangesSnapshotter(args)
   }
 
@@ -78,11 +82,13 @@ export class HeldObservation {
 
   drain(): void {
     this.branches.stop()
+    this.diskPressure?.stop()
     void this.changes?.stop()
   }
 
   async stop(): Promise<void> {
     this.branches.stop()
+    this.diskPressure?.stop()
     await this.changes?.stop().catch((error: unknown) => this.faulted(error))
   }
 

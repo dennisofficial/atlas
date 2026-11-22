@@ -49,3 +49,39 @@ export const podBusyOf = (facts: PodBusyFacts): PodBusy => {
   if (facts.turnInFlight) running.push('Agent turn')
   return { busy: running.length > 0, running }
 }
+
+export enum EPodRebootHold {
+  Preparing = 'preparing',
+  RunningTool = 'running-tool',
+  Shells = 'shells',
+  Services = 'services',
+  BackgroundAgents = 'background-agents',
+  Terminals = 'terminals',
+  Peers = 'peers',
+}
+
+export type PodRebootFacts = {
+  state: ESessionStatus | undefined
+  shellsRunning: number
+  servicesRunning: number
+  backgroundAgents: number
+  terminalsHeld: number
+  peersPlaced: number
+}
+
+export type PodRebootSafety = {
+  safe: boolean
+  holds: readonly EPodRebootHold[]
+}
+
+export const podRebootSafeOf = (facts: PodRebootFacts): PodRebootSafety => {
+  const holds: EPodRebootHold[] = []
+  if (facts.state === ESessionStatus.Preparing) holds.push(EPodRebootHold.Preparing)
+  if (facts.state === ESessionStatus.RunningTool) holds.push(EPodRebootHold.RunningTool)
+  if (facts.shellsRunning > 0) holds.push(EPodRebootHold.Shells)
+  if (facts.servicesRunning > 0) holds.push(EPodRebootHold.Services)
+  if (facts.backgroundAgents > 0) holds.push(EPodRebootHold.BackgroundAgents)
+  if (facts.terminalsHeld > 0) holds.push(EPodRebootHold.Terminals)
+  if (facts.peersPlaced > 0) holds.push(EPodRebootHold.Peers)
+  return { safe: holds.length === 0, holds }
+}

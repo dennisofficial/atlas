@@ -6,6 +6,7 @@ import {
   TerminalDemand,
   type HostPresence,
   type PodControlClient,
+  type PodDiskPressurePort,
 } from '@dltech/atlas-host'
 import { nativeCommandHandlers, nativeCommands } from '@dltech/atlas-native-commands'
 import { cloudConfigStore } from './config/cloud-config-store'
@@ -56,6 +57,7 @@ export type ComposeAgentHostArgs = {
   changes?: { content: ChangeContentStore } | undefined
   presence: HostPresence
   control: PodControlClient
+  diskPressure?: PodDiskPressurePort | undefined
   macLink: MacLink
   onHostIdChanged?: (() => void) | undefined
 }
@@ -97,6 +99,7 @@ export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
     commands: composeCommands([...nativeCommands, ...composedPlugins.commands]),
     commandHandlers: new Map([...nativeCommandHandlers, ...composedPlugins.pod.commands]),
     control: args.control,
+    ...(args.diskPressure === undefined ? {} : { diskPressure: args.diskPressure }),
     mcp: (sessionId) => mcpControl.of(sessionId),
     operator: {
       sessionDir: sessionDirOf,

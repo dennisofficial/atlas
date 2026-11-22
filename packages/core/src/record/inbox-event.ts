@@ -14,6 +14,7 @@ export const INBOX_EVENT_TYPES: ReadonlySet<string> = new Set([
   'service-ended',
   'sandbox-setup-reported',
   'model-fell-back',
+  'nudge',
   'subscription-created',
   'subscription-ended',
 ])

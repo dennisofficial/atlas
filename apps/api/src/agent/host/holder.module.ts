@@ -4,10 +4,13 @@ import type {
   HostBus,
   HostPresence,
   PodControlClient,
+  PodDiskPressurePort,
   SessionHolder,
   TerminalDemand,
 } from '@dltech/atlas-host'
 import type { LogPort, TracePort } from '@dltech/atlas-observability'
+
+import { JobDispatcher } from '../../_core/ports/job-dispatcher'
 
 import { TRACE_FOR } from '../analytics/tokens'
 import { createPodMetricsBus, type PodMetricsBus } from '../bus/pod-metrics-bus'
@@ -17,8 +20,15 @@ import { composeAgentHost } from '../compose'
 import { MacLinkModule } from '../mac-link/mac-link.module'
 import { MAC_LINK } from '../mac-link/port'
 import type { MacLink } from '../mac-link/port'
+import { podDiskPressurePortOf } from './pod-disk-pressure.port'
 import { podOpsOf, type PodOps } from './pod-ops'
-import { POD_METRICS_BUS, POD_METRICS_RELAY, POD_OPS, TERMINAL_DEMAND } from './tokens'
+import {
+  POD_DISK_PRESSURE,
+  POD_METRICS_BUS,
+  POD_METRICS_RELAY,
+  POD_OPS,
+  TERMINAL_DEMAND,
+} from './tokens'
 import type { ConfigSource } from '../config/agent-host-config'
 import type { AgentHostEnv } from '../config/env'
 import type { SandboxProviderRegistry } from '../sandbox/provider-registry'
@@ -74,6 +84,7 @@ const holderProvider: Provider = {
     watch: HostWatchService,
     macLink: MacLink,
     traceFor: (distinctId: string) => TracePort,
+    diskPressure: PodDiskPressurePort,
   ): SessionHolder =>
     composeAgentHost({
       env,
@@ -87,6 +98,7 @@ const holderProvider: Provider = {
       presence,
       control,
       macLink,
+      diskPressure,
       log,
       traceFor,
       onHostIdChanged: () => watch.recompute(),
@@ -110,7 +122,15 @@ const holderProvider: Provider = {
     HOST_WATCH,
     MAC_LINK,
     TRACE_FOR,
+    POD_DISK_PRESSURE,
   ],
+}
+
+const podDiskPressureProvider: Provider = {
+  provide: POD_DISK_PRESSURE,
+  useFactory: (dispatcher: JobDispatcher): PodDiskPressurePort =>
+    podDiskPressurePortOf({ dispatcher }),
+  inject: [JobDispatcher],
 }
 
 const terminalDemandProvider: Provider = {
@@ -145,6 +165,7 @@ const podMetricsRelayProvider: Provider = {
   providers: [
     hostWatchProvider,
     holderProvider,
+    podDiskPressureProvider,
     podOpsProvider,
     podMetricsBusProvider,
     podMetricsRelayProvider,

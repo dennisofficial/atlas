@@ -42,9 +42,17 @@ describe('inboxEventOf', () => {
   })
 
   it('throws when building a payload for a disallowed event', () => {
-    expect(() =>
-      inboxEventPayloadOf({ event: { type: 'nudge', text: 'x', lifetimeSteps: 1 } }),
-    ).toThrow()
+    expect(() => inboxEventPayloadOf({ event: { type: 'user-said', text: 'x' } })).toThrow()
+  })
+
+  it('carries a nudge, which wakes a thread to read why its pod restarted', () => {
+    const payload = inboxEventPayloadOf({
+      event: { type: 'nudge', text: 'the pod restarted', lifetimeSteps: 2 },
+    })
+    expect(inboxEventOf(payload)).toEqual({
+      ok: true,
+      event: { type: 'nudge', text: 'the pod restarted', lifetimeSteps: 2 },
+    })
   })
 
   it('accepts every notice type a turn can take', () => {

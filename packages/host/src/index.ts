@@ -57,6 +57,8 @@ export type {
   HostTimers,
   PrepareResult,
   PrepareStepReporter,
+  PodDiskPressurePort,
+  PodDiskPressureReport,
   PodPeers,
   RoleModelChoice,
   RoleModelRequest,

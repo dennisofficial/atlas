@@ -11,6 +11,9 @@ export const HANDSHAKE_MS = 15_000
 const BACKOFF_MIN_MS = 250
 const BACKOFF_MAX_MS = 10_000
 
+const isEventFrame = (json: unknown): boolean =>
+  typeof json === 'object' && json !== null && 'kind' in json && json.kind === 'event'
+
 const CLOSE_UNAUTHENTICATED = 4001
 const CLOSE_SUPERSEDED = 4002
 
@@ -212,6 +215,7 @@ export class DaemonLink {
       return
     }
     const parsed = daemonFrameSchema.safeParse(json)
+    if (!parsed.success && isEventFrame(json)) return
     if (!parsed.success) {
       this.args.events.onFatal(
         new ProtocolViolationError(`daemon sent an invalid frame: ${parsed.error.message}`),
