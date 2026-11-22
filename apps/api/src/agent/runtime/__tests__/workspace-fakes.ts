@@ -124,3 +124,66 @@ export class StubFileSystemPort extends FileSystemPort {
     return Promise.resolve([])
   }
 }
+
+const CLONED_REPO = /github\.com[/:]([^/]+\/[^/.\s]+)/
+
+const clonedRepoOf = (cmd: readonly string[]): string | null => {
+  if (!cmd.includes('clone')) return null
+  for (const part of cmd) {
+    const match = CLONED_REPO.exec(part)
+    if (match?.[1] !== undefined) return match[1]
+  }
+  return null
+}
+
+export class GatedClones extends ProcessPort {
+  readonly spawned: SpawnCommand[] = []
+  readonly terminated: string[] = []
+  maxInFlight = 0
+  private inFlight = 0
+  private readonly waiting: Array<() => void> = []
+
+  constructor(private readonly gate: { expected: number; failing?: string }) {
+    super()
+  }
+
+  override spawn(args: SpawnCommand): ProcessHandle {
+    this.spawned.push(args)
+    const repo = clonedRepoOf(args.cmd)
+    let finish: (code: number) => void = () => {}
+    const exited = new Promise<number>((resolve) => {
+      finish = resolve
+    })
+    if (repo === null) finish(0)
+    else this.hold({ repo, finish })
+    return {
+      stdout: new ReadableStream<Uint8Array>({
+        start: (sink) => {
+          void exited.then(() => sink.close())
+        },
+      }),
+      stderr: new ReadableStream<Uint8Array>({ start: (sink) => sink.close() }),
+      exited,
+      terminate: () => {
+        if (repo !== null) this.terminated.push(repo)
+        finish(143)
+      },
+    }
+  }
+
+  override which(): string | null {
+    return null
+  }
+
+  private hold(args: { repo: string; finish: (code: number) => void }): void {
+    this.inFlight += 1
+    this.maxInFlight = Math.max(this.maxInFlight, this.inFlight)
+    const release = (): void => {
+      if (args.repo === this.gate.failing) args.finish(1)
+      else if (this.gate.failing === undefined) args.finish(0)
+    }
+    this.waiting.push(release)
+    if (this.inFlight < this.gate.expected) return
+    for (const open of this.waiting.splice(0)) open()
+  }
+}

@@ -11,7 +11,8 @@ import {
 import type { SetupLifecycle } from '@dltech/atlas-host'
 
 import { ensureWorkspace, SETUP_INTERRUPTED_REASON } from '../workspace-setup'
-import { RecordingProcessPort, StubFileSystemPort } from './workspace-fakes'
+import { PRIMARY_CLONE_FAILURE } from '../workspace-clone-additional'
+import { GatedClones, RecordingProcessPort, StubFileSystemPort } from './workspace-fakes'
 
 const TOKEN = 'ghp_progress-secret'
 
@@ -68,36 +69,63 @@ describe('workspace clone progress', () => {
     expect(clone.at(-1)?.state).toBe(EWorkspaceStepState.Done)
   })
 
-  it('walks primary then additional repos through cloning to done', async () => {
+  it('clones the primary and every additional repo at the same time', async () => {
+    const processes = new GatedClones({ expected: 3 })
     const { steps } = await prepare({
-      processes: new RecordingProcessPort(),
+      processes,
       remoteUrl: 'git@github.com:acme/app.git',
       additionalRepos: [{ repo: 'acme/lib' }, { repo: 'acme/docs' }],
     })
+    expect(processes.maxInFlight).toBe(3)
     const clone = steps.filter((step) => step.step === EWorkspaceStep.Clone).map(reposOf)
     expect(clone[0]).toEqual(['acme/app:pending', 'acme/lib:pending', 'acme/docs:pending'])
-    expect(clone[1]).toEqual(['acme/app:cloning', 'acme/lib:pending', 'acme/docs:pending'])
-    expect(clone[2]).toEqual(['acme/app:done', 'acme/lib:pending', 'acme/docs:pending'])
-    expect(clone[3]).toEqual(['acme/app:done', 'acme/lib:cloning', 'acme/docs:pending'])
+    expect(clone).toContainEqual(['acme/app:cloning', 'acme/lib:cloning', 'acme/docs:cloning'])
     expect(clone.at(-1)).toEqual(['acme/app:done', 'acme/lib:done', 'acme/docs:done'])
   })
 
-  it('marks the repo that failed to clone', async () => {
+  it('fails only the additional repo that failed, with its reason, and still runs setup', async () => {
     const processes = new RecordingProcessPort({
       exitCodeOf: (call) => (call.cmd.some((part) => part.includes('acme/lib')) ? 1 : 0),
     })
     const { result, steps } = await prepare({
       processes,
       remoteUrl: 'https://github.com/acme/app',
-      additionalRepos: [{ repo: 'acme/lib' }],
+      additionalRepos: [{ repo: 'acme/lib' }, { repo: 'acme/docs' }],
+      setupScript: 'bun install',
     })
     expect(result.ok).toBe(true)
-    const failed = steps.at(-1)
-    expect(failed?.state).toBe(EWorkspaceStepState.Failed)
-    expect(reposOf(failed)).toEqual([
+    const warnings = result.ok ? (result.warnings ?? []) : []
+    expect(warnings.join('\n')).toContain('additional repo acme/lib clone failed')
+    const clone = steps.filter((step) => step.step === EWorkspaceStep.Clone).at(-1)
+    expect(clone?.state).toBe(EWorkspaceStepState.Done)
+    expect(reposOf(clone)).toEqual([
       `acme/app:${EWorkspaceRepoState.Done}`,
       `acme/lib:${EWorkspaceRepoState.Failed}`,
+      `acme/docs:${EWorkspaceRepoState.Done}`,
     ])
+    expect(clone?.repos?.[1]?.reason).toBe('git clone failed without output')
+    expect(steps.some((step) => step.step === EWorkspaceStep.Setup)).toBe(true)
+    expect(processes.spawned.some((call) => call.cmd[0] === 'sh')).toBe(true)
+  })
+
+  it('stops the additional clones and fails the clone when the primary fails', async () => {
+    const processes = new GatedClones({ expected: 2, failing: 'acme/app' })
+    const { result, steps } = await prepare({
+      processes,
+      remoteUrl: 'https://github.com/acme/app',
+      additionalRepos: [{ repo: 'acme/lib' }],
+      setupScript: 'bun install',
+    })
+    expect(result.ok).toBe(true)
+    expect(processes.terminated).toEqual(['acme/lib'])
+    const clone = steps.filter((step) => step.step === EWorkspaceStep.Clone).at(-1)
+    expect(clone?.state).toBe(EWorkspaceStepState.Failed)
+    expect(reposOf(clone)).toEqual([
+      `acme/app:${EWorkspaceRepoState.Failed}`,
+      `acme/lib:${EWorkspaceRepoState.Failed}`,
+    ])
+    expect(clone?.repos?.[1]?.reason).toBe(PRIMARY_CLONE_FAILURE)
+    expect(processes.spawned.some((call) => call.cmd[0] === 'sh')).toBe(false)
   })
 })
 

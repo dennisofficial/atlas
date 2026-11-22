@@ -1,4 +1,4 @@
-import { run } from './workspace-clone'
+import { run } from './workspace-git'
 import { fail, report, type Deps } from './workspace-state'
 
 const TOOLCHAIN_TIMEOUT_MS = 5 * 60_000

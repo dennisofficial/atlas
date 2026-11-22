@@ -1,6 +1,5 @@
 import {
   ESetupPhase,
-  EWorkspaceRepoState,
   EWorkspaceStep,
   EWorkspaceStepOutcome,
   EWorkspaceStepState,
@@ -22,6 +21,7 @@ import type { WorkspaceConfig } from '../config/agent-host-config'
 
 import type { ScopedFileMount } from './project-files'
 import { replayCapturedBases } from './workspace-bases'
+import { replayedReposOf } from './workspace-clone-additional'
 import { mountProjectFiles } from './workspace-mounts'
 import type { CheckoutReport } from './workspace-checkout'
 import { prepareFailureResult, prepareWorkspace, resultOf } from './workspace-materialize'
@@ -155,7 +155,7 @@ export const ensureWorkspace = async (args: {
         step: EWorkspaceStep.Clone,
         state: EWorkspaceStepState.Done,
         outcome: EWorkspaceStepOutcome.Skipped,
-        repos: progress.snapshot().map((entry) => ({ ...entry, state: EWorkspaceRepoState.Done })),
+        repos: await replayedReposOf({ files: args.files, workspace, launchDirectory }),
       })
     } else {
       const prepared = await runInCallScope({

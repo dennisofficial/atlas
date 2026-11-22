@@ -51,6 +51,7 @@ export enum EWorkspaceRepoState {
 export const workspaceStepRepoSchema = z.object({
   repo: z.string(),
   state: z.enum(EWorkspaceRepoState),
+  reason: z.string().optional(),
 })
 
 export const workspaceStepSchema = z.object({

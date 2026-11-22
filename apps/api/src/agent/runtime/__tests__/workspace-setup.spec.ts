@@ -336,7 +336,7 @@ describe('ensureWorkspace', () => {
     calls.close()
   }, 60_000)
 
-  it('warns and does not mark the workspace materialized after a failed additional clone', async () => {
+  it('warns once and still materializes the workspace when an additional clone fails', async () => {
     const root = mkdtempSync(join(tmpdir(), 'atlas-workspace-extra-'))
     const launchDirectory = join(root, 'workspace')
     const { calls, processes, files } = await openPorts({ sessionId: 'setup-session-extra' })
@@ -357,17 +357,15 @@ describe('ensureWorkspace', () => {
       })
 
     const { result: failed } = await run()
-    expect(failed.ok && (failed.warnings ?? []).length > 0).toBe(true)
-    expect(existsSync(join(root, WORKSPACE_STATE_DIR, MATERIALIZED_SENTINEL))).toBe(false)
+    expect(failed.ok).toBe(true)
+    const warned = failed.ok ? (failed.warnings ?? []).join('\n') : ''
+    expect(warned).toContain('additional repo nobody/missing-extra clone failed')
+    expect(existsSync(join(root, WORKSPACE_STATE_DIR, MATERIALIZED_SENTINEL))).toBe(true)
     writeFileSync(join(launchDirectory, 'marker.txt'), 'primary stays\n')
 
     const { result: retried } = await run()
-    expect(retried.ok).toBe(true)
-    if (retried.ok) {
-      expect((retried.warnings ?? []).join('\n')).toContain('additional repo nobody/missing-extra')
-    }
+    expect(retried.ok && (retried.warnings ?? []).length === 0).toBe(true)
     expect(readFileSync(join(launchDirectory, 'marker.txt'), 'utf8')).toBe('primary stays\n')
-    expect(existsSync(join(root, WORKSPACE_STATE_DIR, MATERIALIZED_SENTINEL))).toBe(false)
     calls.close()
   }, 60_000)
 

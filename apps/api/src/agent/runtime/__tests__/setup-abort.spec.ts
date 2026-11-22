@@ -12,7 +12,7 @@ import { CollectingLog, sourceFor, unusedTokens } from '../../__tests__/e2e-supp
 import { LocalSandboxProvider } from '../../testing/local-sandbox-provider'
 import { abortable } from '../abortable'
 import { createSessionRuntimeFactory } from '../session-runtime-factory'
-import { run } from '../workspace-clone'
+import { run } from '../workspace-git'
 
 class HangingProcesses extends ProcessPort {
   terminated = 0
