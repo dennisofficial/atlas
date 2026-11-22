@@ -24,12 +24,12 @@ export function Row(props: {
   title: ReactNode
   meta?: ReactNode
   trailing?: ReactNode
+  label?: string
+  onSelect?: (() => void) | undefined
 }) {
-  return (
-    <div
-      data-pane-row
-      className="grid grid-cols-[1rem_minmax(0,1fr)_auto] items-start gap-x-2.5 py-1"
-    >
+  const layout = 'grid grid-cols-[1rem_minmax(0,1fr)_auto] items-start gap-x-2.5 py-1'
+  const body = (
+    <>
       <span className="flex h-4 items-center justify-center text-muted-foreground">
         {props.leading}
       </span>
@@ -44,7 +44,28 @@ export function Row(props: {
           {props.trailing}
         </span>
       )}
-    </div>
+    </>
+  )
+  if (props.onSelect === undefined) {
+    return (
+      <div data-pane-row className={layout}>
+        {body}
+      </div>
+    )
+  }
+  return (
+    <button
+      type="button"
+      data-pane-row
+      aria-label={props.label}
+      onClick={props.onSelect}
+      className={cn(
+        layout,
+        '-mx-1.5 w-[calc(100%+0.75rem)] rounded-md px-1.5 text-left outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/50',
+      )}
+    >
+      {body}
+    </button>
   )
 }
 
