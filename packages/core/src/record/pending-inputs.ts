@@ -3,6 +3,7 @@ import type { V2Event } from './event'
 import { inputMessageOfRow, type InputMessage } from './input-message'
 import { isMessageInputKind } from './input-events'
 import { INBOX_KIND_EVENT } from './inbox-event'
+import { INBOX_KIND_RECORD } from './inbox'
 
 export type PendingInput = {
   inboxId: number
@@ -73,6 +74,9 @@ export const pendingMessagesOf = (state: PendingInputsState): readonly PendingIn
 
 export const pendingNoticesOf = (state: PendingInputsState): readonly PendingInput[] =>
   state.pending.filter((entry) => entry.kind === INBOX_KIND_EVENT && entry.event !== undefined)
+
+export const pendingRecordsOf = (state: PendingInputsState): readonly PendingInput[] =>
+  state.pending.filter((entry) => entry.kind === INBOX_KIND_RECORD && entry.event !== undefined)
 
 export const queuedSinceOf = (state: PendingInputsState): string | null =>
   pendingMessagesOf(state)[0]?.at ?? null
