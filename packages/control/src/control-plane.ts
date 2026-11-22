@@ -1,6 +1,9 @@
 import {
   type EReportKind,
+  type ESubscriptionActor,
+  type ESubscriptionEnd,
   type InboxEntry,
+  type JsonValue,
   type Lease,
   type LeaseWriteResult,
   type LogHead,
@@ -11,6 +14,7 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 import type { SessionModelAsk } from '@dltech/atlas-models'
+import type { SessionSubscription } from '@dltech/atlas-protocol'
 import type { z } from 'zod'
 import type { AppendHook } from './append-hooks'
 import { appendIn } from './append-ops'
@@ -81,6 +85,9 @@ import {
   titleUntitledIn,
 } from './session-ops'
 import { EMPTY_VISIBILITY_TEXT } from './stored-event'
+import { endSubscriptionsIn, unsubscribeIn } from './subscription-endings'
+import { listSubscriptionsIn, subscribeIn, type SubscribeResult } from './subscription-ops'
+import type { SubscriptionLeaseInput } from './subscription-rows'
 
 export const MAX_READ_LIMIT = 1000
 export const MAX_SESSION_LIST_LIMIT = 100
@@ -580,6 +587,63 @@ export class ControlPlane {
     await this.store.transact((tx) => tx.deleteChangeBlobs(params))
   }
 
+  async subscribe(params: {
+    sessionId: string
+    threadId: string
+    provider: string
+    target: JsonValue
+    label: string
+    events?: readonly string[] | undefined
+    expiresAt?: string | undefined
+    lease: SubscriptionLeaseInput
+    by: ESubscriptionActor
+  }): Promise<SubscribeResult> {
+    return this.store.transact(async (tx) => {
+      const session = await this.requireSession({ tx, sessionId: params.sessionId })
+      const thread = await this.requireThread({ tx, threadId: params.threadId })
+      if (thread.sessionId !== params.sessionId) {
+        throw new Error(`thread ${params.threadId} belongs to another session`)
+      }
+      return subscribeIn({ tx, session, ...params, at: await this.nowIn(tx) })
+    })
+  }
+
+  async unsubscribe(params: {
+    sessionId: string
+    subscriptionId: string
+    by: ESubscriptionActor
+    reason: ESubscriptionEnd
+  }): Promise<{ ended: boolean }> {
+    return this.store.transact(async (tx) => {
+      const session = await this.requireSession({ tx, sessionId: params.sessionId })
+      return unsubscribeIn({ tx, session, ...params, at: await this.nowIn(tx) })
+    })
+  }
+
+  async endSubscriptions(params: {
+    sessionId: string
+    by: ESubscriptionActor
+    reason: ESubscriptionEnd
+  }): Promise<number> {
+    return this.store.transact(async (tx) => {
+      const rows = await tx.readSessionSubscriptionRows(params.sessionId)
+      return endSubscriptionsIn({
+        tx,
+        rows: rows.map((row) => ({ subscriptionId: row.subscriptionId, threadId: row.threadId })),
+        by: params.by,
+        reason: params.reason,
+        at: await this.nowIn(tx),
+      })
+    })
+  }
+
+  async listSubscriptions(params: {
+    sessionId: string
+    threadId?: string | undefined
+  }): Promise<readonly SessionSubscription[]> {
+    return this.store.transact((tx) => listSubscriptionsIn({ tx, ...params }))
+  }
+
   async post(params: {
     sessionId: string
     kind: string
@@ -712,6 +776,15 @@ export class ControlPlane {
 
   async listRoutineRuns(params: ListRoutineRunsParams): Promise<RoutineRunRow[]> {
     return this.store.listRoutineRuns(params)
+  }
+
+  private async requireSession(params: {
+    tx: ControlTx
+    sessionId: string
+  }): Promise<ControlSessionRow> {
+    const row = await params.tx.readSession({ sessionId: params.sessionId })
+    if (row === undefined) throw new Error(`unknown session ${params.sessionId}`)
+    return row
   }
 
   private async requireThread(params: { tx: ControlTx; threadId: string }): Promise<ThreadRow> {

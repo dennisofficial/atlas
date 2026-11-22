@@ -1,3 +1,9 @@
+import type {
+  SessionSubscribeInput,
+  SessionSubscribeOutput,
+  SessionUnsubscribeInput,
+  SessionUnsubscribeOutput,
+} from '@dltech/atlas-protocol'
 import type { SessionPageInput } from '@dltech/atlas-wire/web'
 
 import { api, cloudCall } from '@/lib/api-client'
@@ -24,11 +30,23 @@ export const markV2SessionRead = async (args: { sessionId: string; seq: number }
 export const fetchSessionPage = (input: SessionPageInput) =>
   cloudCall(api.sessions.page.query(input))
 
-export const sessionsApi: SessionsApi & WithdrawApi & RetryApi & StopApi & RewindApi = {
+export type SubscriptionsApi = {
+  subscribe(input: SessionSubscribeInput): Promise<SessionSubscribeOutput>
+  unsubscribe(input: SessionUnsubscribeInput): Promise<SessionUnsubscribeOutput>
+}
+
+export const sessionsApi: SessionsApi &
+  WithdrawApi &
+  RetryApi &
+  StopApi &
+  RewindApi &
+  SubscriptionsApi = {
   create: (input) => cloudCall(api.sessions.create.mutate(input)),
   post: (input) => cloudCall(api.sessions.post.mutate(input)),
   withdraw: (input) => cloudCall(api.sessions.withdraw.mutate(input)),
   retry: (input) => cloudCall(api.sessions.retry.mutate(input)),
   stop: (input) => cloudCall(api.sessions.stop.mutate(input)),
   command: (input) => cloudCall(api.sessions.command.mutate(input)),
+  subscribe: (input) => cloudCall(api.sessions.subscribe.mutate(input)),
+  unsubscribe: (input) => cloudCall(api.sessions.unsubscribe.mutate(input)),
 }

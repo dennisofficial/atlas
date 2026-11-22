@@ -6,9 +6,6 @@ const COMMAND_WORDS: Readonly<Record<string, CommandWords>> = {
   rewind: { running: 'Rewinding…', afterTurn: 'Rewind after this turn' },
   summarise: { running: 'Summarising…', afterTurn: 'Summarise after this turn' },
   rename: { running: 'Renaming…' },
-  subscribe: { running: 'Subscribing…' },
-  unsubscribe: { running: 'Unsubscribing…' },
-  mcp: { running: 'Listing MCP servers…' },
 }
 
 const titleCased = (word: string): string => `${word.charAt(0).toUpperCase()}${word.slice(1)}`

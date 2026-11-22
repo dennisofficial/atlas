@@ -13,8 +13,12 @@ import {
   type ChangedFileWrite,
   type ClaimedBatch,
   type ControlTx,
+  type SubscriptionDraft,
+  type SubscriptionKey,
   type SubscriptionLease,
   type SubscriptionLeaseKey,
+  type SubscriptionRow,
+  type WrittenSubscriptionRow,
   type TrackingTarget,
   type ReadEventsParams,
   type StoredEvent,
@@ -46,6 +50,15 @@ import {
   updateRoutineIn,
 } from './memory-routines'
 import { subscriptionLeaseKey, trackingTargetKey } from './memory-state'
+import {
+  deleteSubscriptionRowIfEndedBeforeIn,
+  deleteSubscriptionRowIn,
+  findSubscriptionIn,
+  insertSubscriptionRowIn,
+  readSessionSubscriptionRowsIn,
+  readSubscriptionIn,
+  updateSubscriptionRowIn,
+} from './memory-subscriptions'
 import { blobHashesPresent, insertBlobRows, readBlobRow } from './memory-blobs'
 import {
   changeBlobsUnreferencedIn,
@@ -407,6 +420,47 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
 
   async deleteSubscriptionLease(params: SubscriptionLeaseKey): Promise<boolean> {
     return this.state.subscriptionLeases.delete(subscriptionLeaseKey(params))
+  }
+
+  async findSubscription(key: SubscriptionKey): Promise<SubscriptionRow | undefined> {
+    return findSubscriptionIn({ state: this.state, key })
+  }
+
+  async lockSubscriptionKey(_key: SubscriptionKey): Promise<void> {}
+
+  async readSubscription(subscriptionId: string): Promise<SubscriptionRow | undefined> {
+    return readSubscriptionIn({ state: this.state, subscriptionId })
+  }
+
+  async readSessionSubscriptionRows(sessionId: string): Promise<SubscriptionRow[]> {
+    return readSessionSubscriptionRowsIn({ state: this.state, sessionId })
+  }
+
+  async insertSubscriptionRow(row: SubscriptionDraft): Promise<WrittenSubscriptionRow> {
+    return insertSubscriptionRowIn({ state: this.state, row })
+  }
+
+  async updateSubscriptionRow(params: {
+    subscriptionId: string
+    provider: string
+    target: SubscriptionRow['target']
+    label: string
+    events: readonly string[]
+    expiresAt: string
+    deadline: string | null
+  }): Promise<boolean> {
+    return updateSubscriptionRowIn({ state: this.state, ...params })
+  }
+
+  async deleteSubscriptionRow(subscriptionId: string): Promise<boolean> {
+    return deleteSubscriptionRowIn({ state: this.state, subscriptionId })
+  }
+
+  async deleteSubscriptionRowIfEndedBefore(params: {
+    subscriptionId: string
+    at: string
+  }): Promise<boolean> {
+    return deleteSubscriptionRowIfEndedBeforeIn({ state: this.state, ...params })
   }
 
   async upsertTrackingTarget(params: TrackingTarget): Promise<void> {

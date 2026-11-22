@@ -13,6 +13,7 @@ import { changeFileStatusSchema, changeSideSchema } from './changes-state'
 import { METRICS_RING_SIZE, podSampleSchema } from './ops/metrics'
 import { sessionCommandRowSchema } from './command-row'
 import { inboxMediaSchema, sessionPostMediaListSchema } from './media'
+import { sessionSubscriptionSchema } from './session-subscriptions'
 
 export const sessionListInputSchema = z.strictObject({
   projectId: z.string().min(1).optional(),
@@ -500,6 +501,7 @@ export const sessionViewOutputSchema = z.strictObject({
   }),
   checkouts: sessionCheckoutsSchema,
   pullRequests: z.array(sessionLinkedPullRequestSchema),
+  subscriptions: z.array(sessionSubscriptionSchema),
   pluginViews: z.record(z.string(), z.unknown()),
 })
 

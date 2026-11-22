@@ -26,9 +26,13 @@ import {
   type StoredEvent,
   type ThreadRow,
   type ControlSessionRow,
+  type SubscriptionDraft,
+  type SubscriptionKey,
   type SubscriptionLease,
   type SubscriptionLeaseKey,
+  type SubscriptionRow,
   type TrackingTarget,
+  type WrittenSubscriptionRow,
   type SessionDigestRow,
   type SessionListParams,
   type PrHead,
@@ -116,7 +120,18 @@ import {
   userRoutineIn,
   userRoutinesIn,
 } from './postgres-routines'
-import { deleteSubscriptionLeaseIn, upsertSubscriptionLeaseIn } from './postgres-subscriptions'
+import {
+  deleteSubscriptionLeaseIn,
+  deleteSubscriptionRowIfEndedBeforeIn,
+  deleteSubscriptionRowIn,
+  findSubscriptionIn,
+  insertSubscriptionRowIn,
+  lockSubscriptionKeyIn,
+  readSessionSubscriptionRowsIn,
+  readSubscriptionIn,
+  updateSubscriptionRowIn,
+  upsertSubscriptionLeaseIn,
+} from './postgres-subscriptions'
 import { upsertTrackingTargetIn } from './postgres-tracking-targets'
 import { toLease, toThreadRow } from './postgres-rows'
 import { insertEventsIn, listSessionsIn, readEventsIn, writeThreadHeadIn } from './postgres-threads'
@@ -131,7 +146,7 @@ import {
   renameTerminalIn,
 } from './postgres-terminals'
 
-class PostgresTx implements ControlTx {
+export class PostgresTx implements ControlTx {
   constructor(private readonly tx: Tx) {}
 
   async now(): Promise<string> {
@@ -504,6 +519,49 @@ class PostgresTx implements ControlTx {
     return deleteSubscriptionLeaseIn({ tx: this.tx, ...params })
   }
 
+  async findSubscription(key: SubscriptionKey): Promise<SubscriptionRow | undefined> {
+    return findSubscriptionIn({ tx: this.tx, key })
+  }
+
+  async readSubscription(subscriptionId: string): Promise<SubscriptionRow | undefined> {
+    return readSubscriptionIn({ tx: this.tx, subscriptionId })
+  }
+
+  async readSessionSubscriptionRows(sessionId: string): Promise<SubscriptionRow[]> {
+    return readSessionSubscriptionRowsIn({ tx: this.tx, sessionId })
+  }
+
+  async insertSubscriptionRow(row: SubscriptionDraft): Promise<WrittenSubscriptionRow> {
+    return insertSubscriptionRowIn({ tx: this.tx, row })
+  }
+
+  async lockSubscriptionKey(key: SubscriptionKey): Promise<void> {
+    await lockSubscriptionKeyIn({ tx: this.tx, key })
+  }
+
+  async updateSubscriptionRow(params: {
+    subscriptionId: string
+    provider: string
+    target: SubscriptionRow['target']
+    label: string
+    events: readonly string[]
+    expiresAt: string
+    deadline: string | null
+  }): Promise<boolean> {
+    return updateSubscriptionRowIn({ tx: this.tx, ...params })
+  }
+
+  async deleteSubscriptionRow(subscriptionId: string): Promise<boolean> {
+    return deleteSubscriptionRowIn({ tx: this.tx, subscriptionId })
+  }
+
+  async deleteSubscriptionRowIfEndedBefore(params: {
+    subscriptionId: string
+    at: string
+  }): Promise<boolean> {
+    return deleteSubscriptionRowIfEndedBeforeIn({ tx: this.tx, ...params })
+  }
+
   async upsertTrackingTarget(params: TrackingTarget): Promise<void> {
     await upsertTrackingTargetIn({ tx: this.tx, ...params })
   }
@@ -637,3 +695,5 @@ export class PostgresControlStore extends ControlStorePort {
     )
   }
 }
+
+export const controlTxOf = (tx: Tx): ControlTx => new PostgresTx(tx)

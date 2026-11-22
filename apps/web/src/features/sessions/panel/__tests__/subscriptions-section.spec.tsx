@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from 'bun:test'
 import { registerDom, unregisterDom } from '@/lib/__tests__/happy-dom-globals'
 import { ESubscriptionActor, ESubscriptionTone } from '@dltech/atlas-core'
-import type { SubscriptionListRow } from '@dltech/atlas-plugin-github/client'
 import { act } from 'react'
 import type { Root } from 'react-dom/client'
 import { renderToStaticMarkup } from 'react-dom/server'
@@ -9,13 +8,14 @@ import { toast } from 'sonner'
 
 import { createTestQueryClient, TestQueryProvider } from '@/lib/__tests__/query-test-provider'
 
-import { SessionSubscriptionsSection, type SubscriptionRun } from '../details/subscriptions-section'
+import type { SubscriptionRow } from '../../data/subscription-rows'
+import { SessionSubscriptionsSection, type UnsubscribeRun } from '../details/subscriptions-section'
 import { SessionPaneProvider, type SessionPaneValue } from '../pane-value'
 import { paneValueFixture, populatedPaneValue, subscriptionRowFixture } from './fixture'
 
 const TAKEN = '#7 Add the session pane'
 
-const valueOf = (rows: readonly SubscriptionListRow[]): SessionPaneValue =>
+const valueOf = (rows: readonly SubscriptionRow[]): SessionPaneValue =>
   paneValueFixture({ view: { ...populatedPaneValue().view, subscriptionRows: rows } })
 
 const render = (value: SessionPaneValue): string =>
@@ -43,7 +43,7 @@ afterEach(async () => {
   await unregisterDom()
 })
 
-const mount = async (args: { value: SessionPaneValue; run: SubscriptionRun }) => {
+const mount = async (args: { value: SessionPaneValue; run: UnsubscribeRun }) => {
   await act(async () =>
     root.render(
       <SessionPaneProvider value={args.value}>
@@ -62,7 +62,7 @@ const click = async (label: string) => {
 const rowSelector = '[data-subscription-row="sub_7"]'
 
 const press = async (value: SessionPaneValue, label: string) => {
-  const sent: Awaited<Parameters<SubscriptionRun>[0]>[] = []
+  const sent: Awaited<Parameters<UnsubscribeRun>[0]>[] = []
   await mount({
     value,
     run: async (args) => {
@@ -87,11 +87,11 @@ describe('SessionSubscriptionsSection', () => {
     expect(html).toContain(`aria-label="Remove ${TAKEN}"`)
   })
 
-  it('counts the held events and the time left on an expiring subscription', () => {
+  it('shows the time left on an expiring subscription', () => {
     const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString()
-    const html = render(valueOf([subscriptionRowFixture({ held: 3, expiresAt })]))
-    expect(html).toContain('3 held')
+    const html = render(valueOf([subscriptionRowFixture({ expiresAt })]))
     expect(html).toContain('Expires in 2h')
+    expect(html).toContain('Pull request · all events · Agent · Expires in 2h')
   })
 
   it('names the actor that created the subscription', () => {
@@ -105,8 +105,7 @@ describe('SessionSubscriptionsSection', () => {
     const html = render(
       valueOf([
         subscriptionRowFixture({
-          provider: 'github.workflow-run',
-          number: undefined,
+          target: { workflow: 'deploy.yml', branch: 'main' },
           presentation: {
             icon: 'circle-play',
             tone: ESubscriptionTone.Running,
@@ -122,7 +121,7 @@ describe('SessionSubscriptionsSection', () => {
 
   it('shows five rows and offers the rest', () => {
     const rows = Array.from({ length: 6 }, (_, index) =>
-      subscriptionRowFixture({ id: `sub_${index + 1}`, number: index + 1 }),
+      subscriptionRowFixture({ id: `sub_${index + 1}` }),
     )
     const html = render(valueOf(rows))
     expect(html.match(/data-subscription-row/g)?.length).toBe(5)
@@ -131,9 +130,7 @@ describe('SessionSubscriptionsSection', () => {
 
   it('sends unsubscribe for the trash click', async () => {
     const sent = await press(valueOf([subscriptionRowFixture()]), `Remove ${TAKEN}`)
-    expect(sent).toEqual([
-      { sessionId: 'ses-1', command: { name: 'unsubscribe', args: { subscriptionId: 'sub_7' } } },
-    ])
+    expect(sent).toEqual([{ sessionId: 'ses-1', subscriptionId: 'sub_7' }])
   })
 
   it('hides the row before the log answers', async () => {

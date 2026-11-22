@@ -1,7 +1,7 @@
 import { ESubscriptionActor, ESubscriptionTone } from '@dltech/atlas-core'
-import type { SubscriptionListRow } from '@dltech/atlas-plugin-github/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
+import type { SubscriptionRow } from '../data/subscription-rows'
 import { paneValueFixture, populatedPaneValue, subscriptionRowFixture } from './__tests__/fixture'
 import { SessionDetailsTab } from './details-tab'
 import { SessionPaneProvider } from './pane-value'
@@ -33,12 +33,12 @@ export const Empty = {
   render: () => pane(paneValueFixture()),
 }
 
-const subscriptionRows = (): readonly SubscriptionListRow[] => {
+const subscriptionRows = (): readonly SubscriptionRow[] => {
   const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString()
   return [
     subscriptionRowFixture({
       id: 'sub_2443',
-      number: 2443,
+      target: { repo: 'github.com/owner/atlas', number: 2443 },
       presentation: {
         icon: 'git-pull-request',
         tone: ESubscriptionTone.Open,
@@ -48,8 +48,7 @@ const subscriptionRows = (): readonly SubscriptionListRow[] => {
     }),
     subscriptionRowFixture({
       id: 'sub_2441',
-      number: 2441,
-      held: 2,
+      target: { repo: 'github.com/owner/atlas', number: 2441 },
       presentation: {
         icon: 'git-pull-request',
         tone: ESubscriptionTone.Merged,
@@ -59,8 +58,12 @@ const subscriptionRows = (): readonly SubscriptionListRow[] => {
     }),
     subscriptionRowFixture({
       id: 'sub_deploy',
-      provider: 'github.workflow-run',
-      number: undefined,
+      target: {
+        kind: 'selector',
+        repo: 'github.com/owner/atlas',
+        workflow: 'deploy.yml',
+        branch: 'main',
+      },
       createdBy: ESubscriptionActor.Operator,
       expiresAt,
       presentation: {
@@ -72,7 +75,7 @@ const subscriptionRows = (): readonly SubscriptionListRow[] => {
     }),
     subscriptionRowFixture({
       id: 'sub_2424',
-      number: 2424,
+      target: { repo: 'github.com/owner/atlas', number: 2424 },
       presentation: {
         icon: 'git-pull-request',
         tone: ESubscriptionTone.Open,

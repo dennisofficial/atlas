@@ -2,7 +2,10 @@ import { ControlPlane } from '@dltech/atlas-control'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import {
   INBOX_KIND_EVENT,
+  INBOX_KIND_RECORD,
   createV2EventSchema,
+  ESubscriptionActor,
+  ESubscriptionEnd,
   inboxEventOf,
   prEventContent,
   type EventBody,
@@ -202,5 +205,64 @@ describe('v2 session notice for a PR event', () => {
     })
 
     expect(await noticeOf('comment')).toBe(1)
+  })
+
+  const stateEventOf = (state: string) =>
+    seedPrEvent({
+      userId: 'usr-a',
+      kind: 'state',
+      payload: { url: 'https://github.com/compai/app/pull/42', state },
+    })
+
+  const subscriptionsOf = () => db.orm.public.GithubSubscription.where({ userId: 'usr-a' }).all()
+
+  const endedRecordsOf = async () => {
+    const entries = await inboxOf(SESSION)
+    return entries.flatMap((entry) => {
+      if (entry.kind !== INBOX_KIND_RECORD || !entry.read.ok) return []
+      return entry.read.event.type === 'subscription-ended' ? [entry.read.event] : []
+    })
+  }
+
+  it('ends the row of the pull request once it merges', async () => {
+    await seedWatchedPr()
+    const [held] = await subscriptionsOf()
+    const { noticeV2Sessions } = await import('./github-v2-notice')
+    const event = await stateEventOf('merged')
+
+    await db.transaction((tx) => noticeV2Sessions({ tx, event }))
+
+    expect(await subscriptionsOf()).toEqual([])
+    expect(await endedRecordsOf()).toEqual([
+      {
+        type: 'subscription-ended',
+        subscriptionId: held?.id ?? '',
+        reason: ESubscriptionEnd.Completed,
+        by: ESubscriptionActor.Provider,
+      },
+    ])
+  })
+
+  it('ends a row whose liveness lapsed, so no notice went out', async () => {
+    await seedWatchedPr({ liveUntil: new Date(Date.now() - 1_000) })
+    const { noticeV2Sessions } = await import('./github-v2-notice')
+    const event = await stateEventOf('closed')
+
+    await db.transaction((tx) => noticeV2Sessions({ tx, event }))
+
+    expect(await subscriptionsOf()).toEqual([])
+    expect(await inboxOf(SESSION)).toHaveLength(1)
+    expect(await endedRecordsOf()).toHaveLength(1)
+  })
+
+  it('leaves the row in place for a state that does not end the pull request', async () => {
+    await seedWatchedPr()
+    const { noticeV2Sessions } = await import('./github-v2-notice')
+    const event = await stateEventOf('open')
+
+    await db.transaction((tx) => noticeV2Sessions({ tx, event }))
+
+    expect(await subscriptionsOf()).toHaveLength(1)
+    expect(await endedRecordsOf()).toEqual([])
   })
 })

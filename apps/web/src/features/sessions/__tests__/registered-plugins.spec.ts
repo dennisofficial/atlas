@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { sessionViews } from '../registered-plugins'
 
-const serverViewNames = ['crew', 'mcp', 'plan', 'services', 'shells', 'subscriptions']
+const serverViewNames = ['crew', 'mcp', 'plan', 'services', 'shells']
 
 describe('the web plugin views', () => {
   it('folds the same plugin views as apps/api/src/agent/registered-plugins.ts', () => {

@@ -2,7 +2,6 @@ import { podControlStub } from '@dltech/atlas-plugin-sdk/testing'
 import { describe, expect, it } from 'bun:test'
 
 import {
-  ESubscriptionActor,
   toThreadId,
   type EventDraft,
   type PluginEventBody,
@@ -26,6 +25,7 @@ import {
 } from '../../core'
 import { githubPod } from '..'
 import { resolveRunTarget } from '../resolve-target'
+import { fakeSubscriptions } from './support'
 
 type Drafts = readonly (EventDraft | RecordBody | PluginEventBody)[]
 
@@ -43,6 +43,7 @@ const exec =
 const rig = (answers: Record<string, ReturnType<typeof exec>>) => {
   const log: V2Event[] = []
   const calls: string[] = []
+  const subscriptions = fakeSubscriptions()
   const append = async (drafts: Drafts): Promise<void> => {
     for (const body of drafts) {
       log.push({
@@ -54,7 +55,7 @@ const rig = (answers: Record<string, ReturnType<typeof exec>>) => {
     }
   }
   const ctx: PluginPodContext = {
-    control: podControlStub,
+    control: { ...podControlStub, subscriptions: subscriptions.port },
     resources: EMPTY_POD_RESOURCES,
     crew: EMPTY_CREW,
     sessions: EMPTY_SESSIONS,
@@ -74,7 +75,7 @@ const rig = (answers: Record<string, ReturnType<typeof exec>>) => {
     onDaemonEvent: () => () => undefined,
     log: () => undefined,
   }
-  return { ctx, log, calls }
+  return { ctx, log, calls, subscriptions }
 }
 
 const invoke = async (args: { ctx: PluginPodContext; name: string; input: unknown }) => {
@@ -172,39 +173,47 @@ describe('resolveRunTarget', () => {
 })
 
 describe('github pod workflow-run subscriptions', () => {
-  it('subscribes to a run and appends its target as the API parses it', async () => {
-    const { ctx, log } = rig({})
+  it('subscribes to a run and leases it by its run id', async () => {
+    const { ctx, subscriptions } = rig({})
     const outcome = await invoke({
       ctx,
       name: 'subscription',
       input: { action: 'subscribe', provider: 'github.workflow-run', target: 'o/r#5' },
     })
     expect(outcome.ok).toBe(true)
-    expect(log).toHaveLength(1)
-    expect(log[0]).toMatchObject({
-      type: 'subscription-created',
-      provider: 'github.workflow-run',
-      label: 'o/r#5',
-      target: { kind: 'run', repo: 'github.com/o/r', runId: 5 },
-      createdBy: ESubscriptionActor.Agent,
-    })
+    expect([...subscriptions.rows.values()]).toMatchObject([
+      {
+        provider: 'github.workflow-run',
+        label: 'o/r#5',
+        target: { kind: 'run', repo: 'github.com/o/r', runId: 5 },
+      },
+    ])
+    expect(subscriptions.leases).toEqual([
+      { repo: 'github.com/o/r', subject: { kind: 'workflow-run', selector: '#run:5' } },
+    ])
   })
 
-  it('subscribes to a selector as a selector target', async () => {
-    const { ctx, log } = rig({ [NAME]: exec('o/r') })
+  it('subscribes to a selector as a selector target and leases its workflow at its branch', async () => {
+    const { ctx, subscriptions } = rig({ [NAME]: exec('o/r') })
     await invoke({
       ctx,
       name: 'subscription',
       input: { action: 'subscribe', provider: 'github.workflow-run', target: 'deploy.yml@main' },
     })
-    expect(log[0]).toMatchObject({
+    expect([...subscriptions.rows.values()][0]).toMatchObject({
       target: { kind: 'selector', repo: 'github.com/o/r', workflow: 'deploy.yml', branch: 'main' },
       label: 'o/r deploy.yml@main',
     })
+    expect(subscriptions.leases).toEqual([
+      {
+        repo: 'github.com/o/r',
+        subject: { kind: 'workflow-run', selector: '#workflow:deploy.yml@main' },
+      },
+    ])
   })
 
   it('returns the existing subscription for the same run', async () => {
-    const { ctx, log } = rig({})
+    const { ctx, subscriptions } = rig({})
     await invoke({
       ctx,
       name: 'subscription',
@@ -220,11 +229,11 @@ describe('github pod workflow-run subscriptions', () => {
       },
     })
     expect(again.ok && again.modelText).toContain('Already subscribed')
-    expect(log).toHaveLength(1)
+    expect(subscriptions.rows.size).toBe(1)
   })
 
   it('keeps a pull request and a run that share a number apart', async () => {
-    const { ctx, log } = rig({})
+    const { ctx, subscriptions } = rig({})
     await invoke({
       ctx,
       name: 'subscription',
@@ -235,7 +244,7 @@ describe('github pod workflow-run subscriptions', () => {
       name: 'subscription',
       input: { action: 'subscribe', provider: 'github.workflow-run', target: 'o/r#5' },
     })
-    expect(log.map((event) => (event as { provider?: string }).provider)).toEqual([
+    expect([...subscriptions.rows.values()].map((row) => row.provider)).toEqual([
       'github.pull-request',
       'github.workflow-run',
     ])

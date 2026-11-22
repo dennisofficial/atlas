@@ -4,6 +4,7 @@ import {
   EMPTY_POD_RESOURCES,
   EMPTY_ROUTINES,
   EMPTY_SESSIONS,
+  EMPTY_SUBSCRIPTIONS,
   EMPTY_WORKTREES,
   UNVERSIONED_SETTINGS,
   type PluginPodContext,
@@ -62,6 +63,7 @@ export const rig = (crew: PodCrew) => {
       mcp: EMPTY_MCP_CONTROL,
       webSearch: { config: async () => ({ backend: undefined, key: undefined }) },
       routines: EMPTY_ROUTINES,
+      subscriptions: EMPTY_SUBSCRIPTIONS,
       settingsVersions: async () => UNVERSIONED_SETTINGS,
       exposePort: async () => {
         throw new Error('this rig exposes no port')

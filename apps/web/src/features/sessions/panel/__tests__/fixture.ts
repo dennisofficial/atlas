@@ -7,13 +7,17 @@ import {
   type SpendTally,
 } from '@dltech/atlas-core'
 import type { CrewRow } from '@dltech/atlas-plugin-crew/client'
-import type { SubscribedPullRequest, SubscriptionListRow } from '@dltech/atlas-plugin-github/client'
 import type { PreviewItem } from '@dltech/atlas-plugin-services/client'
-import type { SessionStatusOutput, SessionViewOutput } from '@dltech/atlas-protocol'
+import type {
+  SessionStatusOutput,
+  SessionSubscription,
+  SessionViewOutput,
+} from '@dltech/atlas-protocol'
 
 import type { PullRequestEntry } from '@/features/threads/data/pull-request-entries'
 
 import type { SessionViewModel } from '../../data/session-view-model'
+import type { SubscriptionRow } from '../../data/subscription-rows'
 import type { SessionPaneValue } from '../pane-value'
 
 export const statusFixture: SessionStatusOutput = {
@@ -47,22 +51,27 @@ export const pullRequestFixture: PullRequestEntry = {
   via: undefined,
 }
 
-export const subscriptionFixture: SubscribedPullRequest = {
+export const sessionSubscriptionFixture = (
+  overrides: Partial<SessionSubscription> = {},
+): SessionSubscription => ({
   id: 'sub_7',
-  number: 7,
+  threadId: 't1',
+  provider: 'github.pull-request',
+  target: { repo: 'github.com/owner/atlas', number: 7 },
   label: 'owner/atlas#7',
-  url: 'https://github.com/owner/atlas/pull/7',
-}
+  events: [],
+  createdBy: 'agent',
+  createdAt: '2026-11-08T10:00:00.000Z',
+  expiresAt: null,
+  ...overrides,
+})
 
 export const subscriptionRowFixture = (
-  overrides: Partial<SubscriptionListRow> = {},
-): SubscriptionListRow => ({
+  overrides: Partial<SubscriptionRow> = {},
+): SubscriptionRow => ({
   id: 'sub_7',
-  provider: 'github.pull-request',
   createdBy: ESubscriptionActor.Agent,
-  threadId: 't1',
-  number: 7,
-  held: 0,
+  target: { repo: 'github.com/owner/atlas', number: 7 },
   presentation: {
     icon: 'git-pull-request',
     tone: ESubscriptionTone.Open,
@@ -93,7 +102,6 @@ export const crewRowFixture = (overrides: Partial<CrewRow> = {}): CrewRow => ({
 export const viewModelFixture = (overrides: Partial<SessionViewModel> = {}): SessionViewModel => ({
   branch: undefined,
   entries: [],
-  subscriptions: [],
   subscriptionRows: [],
   shells: { running: 0, awaitingInput: false, labels: [], rows: [] },
   crew: { running: 0, total: 0 },
@@ -130,7 +138,6 @@ export const populatedPaneValue = (): SessionPaneValue =>
     view: viewModelFixture({
       branch: 'dennis/v2-session-pane',
       entries: [pullRequestFixture],
-      subscriptions: [subscriptionFixture],
       subscriptionRows: [subscriptionRowFixture()],
       shells: {
         running: 1,

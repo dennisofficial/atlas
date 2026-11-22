@@ -6,7 +6,6 @@ import { renderToStaticMarkup } from 'react-dom/server'
 
 import { ESubscriptionActor, ESubscriptionTone } from '@dltech/atlas-core'
 import type { CrewRow } from '@dltech/atlas-plugin-crew/client'
-import type { SubscriptionListRow } from '@dltech/atlas-plugin-github/client'
 import type { PreviewItem } from '@dltech/atlas-plugin-services/client'
 import type { ShellRoster } from '@dltech/atlas-plugin-shells/client'
 import { SidebarProvider } from '@dltech/atlas-ui/components/sidebar'
@@ -15,6 +14,7 @@ import { EHeaderState } from '@/features/threads/data/header-model'
 import type { PullRequestEntry } from '@/features/threads/data/pull-request-entries'
 
 import { CrewPanel } from '../crew-panel'
+import type { SubscriptionRow } from '../data/subscription-rows'
 import { PreviewLinks, SessionHeader } from '../session-header'
 import { ShellTails } from '../shell-tails'
 
@@ -33,13 +33,10 @@ const entry = (overrides: Partial<PullRequestEntry> = {}): PullRequestEntry => (
   ...overrides,
 })
 
-const subscriptionRow = (overrides: Partial<SubscriptionListRow> = {}): SubscriptionListRow => ({
+const subscriptionRow = (overrides: Partial<SubscriptionRow> = {}): SubscriptionRow => ({
   id: 'sub_31',
-  provider: 'github.pull-request',
   createdBy: ESubscriptionActor.Agent,
-  threadId: 't1',
-  number: 31,
-  held: 0,
+  target: { repo: 'github.com/owner/atlas', number: 31 },
   presentation: {
     icon: 'git-pull-request',
     tone: ESubscriptionTone.Open,
@@ -72,7 +69,7 @@ type HeaderProps = {
   branch?: string
   routineId?: string | null
   entries: PullRequestEntry[]
-  subscriptions?: SubscriptionListRow[]
+  subscriptions?: SubscriptionRow[]
   shells?: ShellRoster
   shellTails?: Readonly<Record<string, string>>
   crewRows?: readonly CrewRow[]
@@ -198,7 +195,15 @@ describe('SessionHeader', () => {
       entries: [],
       subscriptions: [
         subscriptionRow(),
-        subscriptionRow({ id: 'sub_32', provider: 'github.workflow-run', number: undefined }),
+        subscriptionRow({
+          id: 'sub_32',
+          target: {
+            kind: 'selector',
+            repo: 'github.com/owner/atlas',
+            workflow: 'deploy.yml',
+            branch: 'main',
+          },
+        }),
       ],
     })
     expect(html).toContain('data-session-subscriptions')

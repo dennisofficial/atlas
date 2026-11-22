@@ -1,7 +1,5 @@
-import type { Command } from '@dltech/atlas-commands'
 import {
   awaitsReplyOf,
-  ECommandTiming,
   EInputConsumed,
   pendingInputsOf,
   type InboxEntry,
@@ -76,20 +74,15 @@ export const runCommand = async (params: CommandEntryArgs): Promise<void> => {
     await leaveUnknownCommand(params)
     return
   }
-  if (await waitsForTurn({ resolved, turnOpen: params.turnOpen })) return
+  if (await params.turnOpen()) return
   await params.commandIntake.run({ entry: params.entry, ...resolved })
 }
-
-const waitsForTurn = async (params: {
-  resolved: { command: Command }
-  turnOpen: () => Promise<boolean>
-}): Promise<boolean> =>
-  params.resolved.command.spec.timing === ECommandTiming.Settled && (await params.turnOpen())
 
 export const runLoggedCommands = async (params: LoggedCommandsArgs): Promise<void> => {
   if (params.commandIntake === undefined) return
   for (const input of pendingInputsOf(params.events).pending) {
     if (!isCommandKind(input.kind)) continue
+    if (await params.turnOpen()) return
     const entry = await params.readEntry(input.inboxId)
     if (entry === undefined || !isCommandKind(entry.kind)) continue
     await runCommand({ ...params, entry })

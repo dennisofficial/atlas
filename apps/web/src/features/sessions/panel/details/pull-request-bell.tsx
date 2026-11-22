@@ -15,7 +15,11 @@ import { bellCommandOf, subscriptionOf, type BellCommand } from './pull-request-
 export type BellRun = (args: { sessionId: string; command: BellCommand }) => Promise<void>
 
 const runThroughApi: BellRun = async ({ sessionId, command }) => {
-  await sessionsApi.command({ sessionId, name: command.name, args: command.args })
+  if (command.name === 'subscribe') {
+    await sessionsApi.subscribe({ sessionId, provider: command.provider, target: command.target })
+    return
+  }
+  await sessionsApi.unsubscribe({ sessionId, subscriptionId: command.subscriptionId })
 }
 
 export function PullRequestBell({
@@ -27,13 +31,12 @@ export function PullRequestBell({
 }) {
   const { sessionId, view } = useSessionPaneValue()
   const [busy, setBusy] = useState(false)
-  const subscription = subscriptionOf({ entry, subscriptions: view.subscriptions })
+  const subscription = subscriptionOf({ entry, rows: view.subscriptionRows })
   const watching = subscription !== undefined
   const command = bellCommandOf({ entry, subscription })
   const label = watching ? 'Unsubscribe from' : 'Subscribe to'
 
   const handleClick = () => {
-    if (command === null) return
     setBusy(true)
     void run({ sessionId, command }).finally(() => setBusy(false))
   }
@@ -47,7 +50,7 @@ export function PullRequestBell({
             size="icon-xs"
             aria-label={`${label} #${entry.number}`}
             aria-pressed={watching}
-            disabled={busy || command === null}
+            disabled={busy}
             onClick={handleClick}
           />
         }

@@ -17,17 +17,6 @@ const ping = defineCommand({
   },
 })
 
-const listen = defineCommand({
-  spec: {
-    name: 'listen',
-    summary: 'records a fact at once',
-    group: ECommandGroup.Session,
-    args: z.strictObject({ word: z.string() }),
-    timing: ECommandTiming.Immediate,
-    handledIn: 'holder',
-  },
-})
-
 const handlerOf = (result: 'done' | string): CommandHandler<unknown> => {
   return async ({ args, append }) => {
     if (result !== 'done') return { kind: 'refused', reason: result }
@@ -56,44 +45,6 @@ const rigWith = async (result: 'done' | string) => {
 
 const postPing = (rig: Awaited<ReturnType<typeof makeRig>>, payload: string) =>
   rig.plane.post({ sessionId: SESSION, kind: ping.inboxKind, payload })
-
-const runMidTurn = async (args: {
-  command: typeof ping | typeof listen
-  handler: CommandHandler<unknown>
-  payload: string
-}) => {
-  const rig = await makeRig({
-    script: [
-      {
-        calls: [{ callId: 'call-1', name: 'bash', input: { command: 'sleep 0.4; echo done' } }],
-      },
-      { text: 'finished' },
-    ],
-    commands: composeCommands([args.command]),
-    commandHandlers: new Map([[args.command.inboxKind, args.handler]]),
-  })
-  await seedSession(rig)
-  await rig.holder.start()
-  await rig.post('go')
-  await rig.wake()
-  await flushUntil({ check: async () => (await typesOf(rig)).includes('tool-dispatched') })
-  await rig.plane.post({
-    sessionId: SESSION,
-    kind: args.command.inboxKind,
-    payload: args.payload,
-  })
-  await rig.wake()
-  const done = (): Promise<boolean> =>
-    flushUntil({
-      check: async () => {
-        const types = await typesOf(rig)
-        return types.includes('fact-recorded') && types.includes('assistant-said')
-      },
-      attempts: 1500,
-    })
-  expect(await done()).toBe(true)
-  return rig
-}
 
 describe('SessionHolder command intake', () => {
   it('consumes a command then lets the handler append its own event, without waking a turn', async () => {
@@ -223,30 +174,5 @@ describe('SessionHolder command intake', () => {
     expect(settled).toBe(true)
     const types = await typesOf(rig)
     expect(types.indexOf('fact-recorded')).toBeGreaterThan(types.indexOf('assistant-said'))
-  })
-
-  it('runs an immediate command before the turn it interrupts ends', async () => {
-    const rig = await runMidTurn({
-      command: listen,
-      handler: handlerOf('done'),
-      payload: '{"word":"now"}',
-    })
-    const types = await typesOf(rig)
-    expect(types.indexOf('fact-recorded')).toBeLessThan(types.lastIndexOf('assistant-said'))
-    expect(types.filter((type) => type === 'fact-recorded')).toHaveLength(1)
-    expect(types.filter((type) => type === 'input-consumed')).toHaveLength(1)
-    expect(rig.runCount()).toBe(1)
-  })
-
-  it('keeps the log chained when an immediate command appends mid-turn', async () => {
-    const rig = await runMidTurn({
-      command: listen,
-      handler: handlerOf('done'),
-      payload: '{"word":"now"}',
-    })
-    const seqs = (await eventsOf(rig)).map((event) => event.seq)
-    expect(seqs).toEqual(seqs.map((_, index) => index + 1))
-    const types = await typesOf(rig)
-    expect(types.indexOf('input-consumed')).toBeLessThan(types.indexOf('fact-recorded'))
   })
 })
