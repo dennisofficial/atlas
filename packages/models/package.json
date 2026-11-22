@@ -4,12 +4,14 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./provider-oauth": "./src/provider-oauth/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "bun test",
-    "generate:catalogue": "bun scripts/generate-catalogue.ts"
+    "generate:catalogue": "bun scripts/generate-catalogue.ts",
+    "generate:codex-version": "bun scripts/generate-codex-version.ts"
   },
   "dependencies": {
     "@dltech/atlas-core": "workspace:*",

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
-import { DEFAULT_MODEL_REF } from '../../composition/config'
-import { defaultModelId, SHIPPED_DEFAULT_REF } from '../default-selection'
+import { SHIPPED_DEFAULT_REF } from '../../session-model'
+import { defaultModelId } from '../default-selection'
 
 const offered = (...entries: [id: string, reachable: boolean][]) =>
   entries.map(([id, reachable]) => ({ id, reachable }))
@@ -11,10 +11,6 @@ const SHIPPED = 'anthropic/claude-haiku-4-5'
 describe('defaultModelId', () => {
   it('ships the haiku default the harness falls back to', () => {
     expect(SHIPPED_DEFAULT_REF).toEqual({ providerId: 'anthropic', modelId: 'claude-haiku-4-5' })
-  })
-
-  it('stays the ref the harness composition falls back to', () => {
-    expect(SHIPPED_DEFAULT_REF).toEqual(DEFAULT_MODEL_REF)
   })
 
   it('prefers the personal default when it is reachable', () => {

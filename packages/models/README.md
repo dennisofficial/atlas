@@ -1,7 +1,8 @@
 # @dltech/atlas-models
 
 The model catalogue and the rules that choose the model of a session. The API, the TUI and the web
-read the catalogue and resolve a model choice with this package.
+read the catalogue, list the models of a provider account, and resolve a model choice with this
+package.
 
 ## Owns
 
@@ -10,6 +11,10 @@ read the catalogue and resolve a model choice with this package.
 - The resolution of the main model of a session from its settings and its provider accounts.
 - The image capability of a model, the fast-mode flag, and the merge of live cards with generated
   cards.
+- The listing that a surface shows: the provider labels, the composed catalogue, the Codex
+  catalogue and the default model.
+- The Anthropic and OpenAI sign-in: PKCE, the device login, the token exchange and the token
+  refresh.
 
 ## Does not own
 
@@ -17,12 +22,15 @@ read the catalogue and resolve a model choice with this package.
   `@dltech/atlas-core` owns them.
 - The provider clients and the model calls. `@dltech/atlas-agent` owns them.
 - The picker UI. Each surface owns its own.
+- The provider network calls and the credential store. The caller passes the fetch function and the
+  credential port.
 
 ## Entry points
 
-| Import                 | Use it for                                                        |
-| ---------------------- | ----------------------------------------------------------------- |
-| `@dltech/atlas-models` | The catalogue, the card helpers and the session model resolution. |
+| Import                                | Use it for                                                                     |
+| ------------------------------------- | ------------------------------------------------------------------------------ |
+| `@dltech/atlas-models`                | The catalogue, the card helpers, the listing and the session model resolution. |
+| `@dltech/atlas-models/provider-oauth` | The Anthropic and OpenAI sign-in helpers.                                      |
 
 ## Capabilities
 
@@ -44,6 +52,41 @@ read the catalogue and resolve a model choice with this package.
 - `offersFastMode(ref)`: says if the ref is an Anthropic model with fast mode.
 - `imageCapabilitiesOf({ api, inputModalities })`: returns the `ImageCapabilities` of an API. A
   model with no image input reads `images: 'none'`.
+
+### List the models of an account
+
+- `composeModelCatalogue({ providers, accounts?, live? })`: returns a `ComposedCatalogue`. It merges
+  the generated cards with the live cards of a subscribed provider. It tells which providers are
+  reachable, and it notifies a listener when the accounts or the live cards change.
+- `catalogueProviders()`: returns the five `CatalogueSource` entries, one for each provider.
+- `modelsView({ accounts, liveCards? })`: returns the flat `ModelsViewProvider[]` that the API and
+  the web show. A provider is `connected`, `expired` or `unavailable`.
+- `CodexModelsCatalogue`: reads the model list of the Codex backend for a ChatGPT login, and caches
+  it for `CODEX_MODELS_TTL_MS`. `codexCatalogueFor({ login, ports, clientVersion })` builds one.
+- `CODEX_VERSION`: the `openai/codex` client version that the catalogue request sends.
+- `defaultModelId({ offered, personalId })`: picks the default model of a surface. It prefers the
+  personal model, then `SHIPPED_DEFAULT_REF`, then the first reachable model.
+- `CLAUDE_PLAN_LABEL`, `CODEX_PLAN_LABEL`, `OPENROUTER_LABEL`, `INFERENCE_LABEL`, `GATEWAY_LABEL`
+  and the `*_PROVIDER_ID` constants: the provider names and ids. The ids match `EAuthProvider`.
+
+### Sign a provider account in
+
+The helpers of `@dltech/atlas-models/provider-oauth` take the fetch function and the clock, and
+they return the tokens. They do not write the credential store.
+- `anthropicPkce()`: returns a `Pkce` for the Anthropic login.
+- `anthropicManualAuthorizeUrl(pkce)` and `anthropicLoopbackAuthorizeUrl({ pkce, redirectUri })`:
+  return the authorize URL of the pasted-code flow and of the loopback flow.
+- `anthropicExchangeCode`, `anthropicExchangePasted` and `anthropicRefresh`: exchange the code and
+  refresh the token.
+- `openaiBrowserAuthorizeUrl`, `openaiExchangeCode` and `openaiRefresh`: the same steps for the
+  OpenAI login.
+- `openaiStartDevice({ fetch })` and `openaiPollDevice(...)`: the device login. The poll answers an
+  `EDevicePoll`.
+- `decodeJwtClaims(jwt)`: returns the `JwtClaims` of a token, or `undefined`.
+- `ANTHROPIC_OAUTH` and `OPENAI_OAUTH`: the client id, the scopes and the endpoints of each
+  provider.
+- `OauthHttpError`, `OauthResponseError` and `DeviceCodeDisabledError`: the errors of the flow.
+  `isHardAuthFailure(error)` tells if the login must be discarded.
 
 ### Resolve the session model
 
@@ -83,5 +126,6 @@ const fallback = defaultMainModelOf(inputs)
 
 ## See also
 
-- `packages/models/scripts/` holds the catalogue generator and its source readers.
+- `packages/models/scripts/` holds the catalogue generator, the Codex version pin script and their
+  source readers.
 - `docs/` and `apps/api/src/agent/config/model-config.ts` show the resolution in use.

@@ -8,6 +8,7 @@ import {
   parseRef,
   resolveModelChoice,
   type ModelChoice,
+  type ModelRef,
   type ModelRole,
   type ResolvedModelChoice,
 } from '@dltech/atlas-core'
@@ -94,19 +95,18 @@ const configuredWith = (args: {
   return { ...base, credential: { kind: 'oauth', connectionId } }
 }
 
-export const modelSourceOf = (args: ModelSourceArgs): ModelSource => {
+export type ModelAccountsArgs = Omit<ModelSourceArgs, 'session'>
+
+type ChoiceRequest = { role: ModelRole; stale: EStalePolicy; root?: ModelChoice | undefined }
+
+const chooserOf = (args: ModelAccountsArgs) => {
   const parsed = parsedAccountsOf(args.accounts)
   const reachable = reachableOf({ parsed, activeAccounts: args.activeAccounts })
   const capabilitiesOf = capabilitiesOver(reachable)
   const read = readOf(args.settings)
   const fallback =
     fallbackRefOf({ parsed, activeAccounts: args.activeAccounts }) ?? SHIPPED_DEFAULT_REF
-
-  const choose = (request: {
-    role: ModelRole
-    stale: EStalePolicy
-    root?: ModelChoice | undefined
-  }): ResolvedModelChoice =>
+  const choose = (request: ChoiceRequest): ResolvedModelChoice =>
     resolveModelChoice({
       role: request.role,
       read,
@@ -115,6 +115,35 @@ export const modelSourceOf = (args: ModelSourceArgs): ModelSource => {
       stale: request.stale,
       ...(request.root === undefined ? {} : { root: request.root }),
     })
+  const resolvedOf = (choice: ResolvedModelChoice): ResolvedRoleModel => ({
+    choice,
+    config: configuredWith({
+      cipher: args.cipher,
+      parsed,
+      activeAccounts: args.activeAccounts,
+      choice,
+    }),
+  })
+  return { fallback, choose, resolvedOf }
+}
+
+export type TitlerModels = { titler: ResolvedRoleModel; fallback?: ResolvedRoleModel | undefined }
+
+export const titlerModelsOf = (
+  args: ModelAccountsArgs & { sessionRef?: ModelRef | undefined },
+): TitlerModels => {
+  const { choose, resolvedOf } = chooserOf(args)
+  const titler = resolvedOf(choose({ role: EModelRole.Quick, stale: EStalePolicy.Follow }))
+  if (args.sessionRef === undefined) return { titler }
+  const root = { ref: args.sessionRef, effort: titler.choice.effort, fast: false }
+  return {
+    titler,
+    fallback: resolvedOf(choose({ role: EModelRole.Main, stale: EStalePolicy.Keep, root })),
+  }
+}
+
+export const modelSourceOf = (args: ModelSourceArgs): ModelSource => {
+  const { fallback, choose, resolvedOf } = chooserOf(args)
 
   const mainChoice = choose({
     role: EModelRole.Main,
@@ -126,15 +155,6 @@ export const modelSourceOf = (args: ModelSourceArgs): ModelSource => {
     },
   })
 
-  const resolvedOf = (choice: ResolvedModelChoice): ResolvedRoleModel => ({
-    choice,
-    config: configuredWith({
-      cipher: args.cipher,
-      parsed,
-      activeAccounts: args.activeAccounts,
-      choice,
-    }),
-  })
   const main = resolvedOf(mainChoice)
 
   return {

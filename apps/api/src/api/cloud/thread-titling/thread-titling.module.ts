@@ -1,14 +1,21 @@
 import { Module } from '@nestjs/common'
-import { createStandaloneTitler } from '@dltech/atlas-harness/titling'
-import { AccountsModule } from '../../platform/accounts/accounts.module'
-import { OauthConnectionsModule } from '../../platform/oauth-connections/oauth-connections.module'
+import { db } from '@dltech/atlas-db'
+import { SecretCipher, sessionNamerOf, type SessionNamer } from '../../../agent'
+import { EnvService } from '../../../_core/config/env/env.service'
 import { SessionsModule } from '../../platform/sessions/sessions.module'
-import { ScopedConfigModule } from '../scoped-config/scoped-config.module'
-import { ThreadTitlingService, TITLER_FACTORY } from './thread-titling.service'
+import { SESSION_NAMER, ThreadTitlingService } from './thread-titling.service'
 
 @Module({
-  imports: [ScopedConfigModule, AccountsModule, OauthConnectionsModule, SessionsModule],
-  providers: [ThreadTitlingService, { provide: TITLER_FACTORY, useValue: createStandaloneTitler }],
+  imports: [SessionsModule],
+  providers: [
+    ThreadTitlingService,
+    {
+      provide: SESSION_NAMER,
+      useFactory: (env: EnvService): SessionNamer =>
+        sessionNamerOf({ db, cipher: new SecretCipher(env.get('SECRETS_ENCRYPTION_KEY')) }),
+      inject: [EnvService],
+    },
+  ],
   exports: [ThreadTitlingService],
 })
 export class ThreadTitlingModule {}

@@ -11,11 +11,11 @@ import {
   type OauthLogin,
   type Pkce,
   type ProviderFetch,
-} from '../../provider-oauth'
+} from '@dltech/atlas-models/provider-oauth'
 import { AnthropicLoopbackServer, type AnthropicLoopback } from './anthropic-loopback'
 import type { BrowserLoginClient, BrowserLoginSession } from './browser-login'
 
-export type { OauthLogin, Pkce } from '../../provider-oauth'
+export type { OauthLogin, Pkce } from '@dltech/atlas-models/provider-oauth'
 
 const base64url = (bytes: Buffer): string => bytes.toString('base64url')
 

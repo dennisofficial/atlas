@@ -18,7 +18,7 @@ import {
   ModelCardSourceToken,
   SelectableModelToken,
 } from '../container/tokens'
-import { CODEX_VERSION, CodexModelsCatalogue } from '../models'
+import { CODEX_VERSION, CodexModelsCatalogue } from '@dltech/atlas-models'
 import { codexModelsFsPorts } from './codex-models-fs-ports'
 import { AnthropicAdapter } from '../providers/anthropic-adapter'
 import { GatewayAdapter, GATEWAY_PROVIDER_ID } from '../providers/gateway-adapter'

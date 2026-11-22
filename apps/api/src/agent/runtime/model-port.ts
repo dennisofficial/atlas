@@ -1,3 +1,4 @@
+import type { LanguageModelV4 } from '@ai-sdk/provider'
 import { findCard, toAccountId, type ModelChoice, type ModelPort } from '@dltech/atlas-core'
 import type { RoleModelChoice, RoleModelRequest } from '@dltech/atlas-host'
 import { logFieldsOf, type LogPort, type TracePort } from '@dltech/atlas-observability'
@@ -29,22 +30,32 @@ export type SessionModels = {
   choiceFor(request: RoleModelRequest): RoleModelChoice
 }
 
+export const providerModelOf = (args: {
+  userId: string
+  tokens: Pick<ModelTokenService, 'issue'>
+  resolved: ResolvedRoleModel
+  onFastRefused?: ((refusal: FastRefusal) => Promise<void> | void) | undefined
+}): LanguageModelV4 => {
+  const { choice, config } = args.resolved
+  return createProviderModel({
+    ref: config.configured === true ? config.ref : choice.ref,
+    credentials: new AgentHostCredentialPort({
+      userId: args.userId,
+      model: config,
+      tokens: args.tokens,
+    }),
+    ...(config.configured === true ? { accountId: toAccountId(config.accountId) } : {}),
+    effort: () => choice.effort,
+    fast: () => choice.fast,
+    ...(args.onFastRefused === undefined ? {} : { onFastRefused: args.onFastRefused }),
+  })
+}
+
 export const modelPortOf = (args: PortDeps & { resolved: ResolvedRoleModel }): AiSdkModelPort => {
   const { choice, config } = args.resolved
   const ref = config.configured === true ? config.ref : choice.ref
   return new AiSdkModelPort({
-    model: createProviderModel({
-      ref,
-      credentials: new AgentHostCredentialPort({
-        userId: args.userId,
-        model: config,
-        tokens: args.tokens,
-      }),
-      ...(config.configured === true ? { accountId: toAccountId(config.accountId) } : {}),
-      effort: () => choice.effort,
-      fast: () => choice.fast,
-      ...(args.onFastRefused === undefined ? {} : { onFastRefused: args.onFastRefused }),
-    }),
+    model: providerModelOf(args),
     card: () => findCard({ catalog: generatedCatalogue(), ref }),
     ...(args.log === undefined ? {} : { log: args.log }),
     mediaSource:

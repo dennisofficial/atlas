@@ -20,8 +20,8 @@ import {
   OPENAI_PROVIDER_ID,
   OPENROUTER_LABEL,
   OPENROUTER_PROVIDER_ID,
-} from '@dltech/atlas-harness/models'
-import { withoutDatedDuplicates } from '@dltech/atlas-models'
+  withoutDatedDuplicates,
+} from '@dltech/atlas-models'
 import { EModelProviderStatus, type ModelEntry, type ModelsResponse } from '@dltech/atlas-wire/web'
 import { EBrand } from '@dltech/atlas-ui/components/brand-mark'
 import { EEffort, type ModelOption } from '@dltech/atlas-ui/ai/model-selector'

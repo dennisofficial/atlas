@@ -4,7 +4,8 @@ import { Logger } from '@nestjs/common'
 import { describe, expect, it, vi } from 'bun:test'
 import { recordingSignals } from '../../platform/sessions/thread-signals.fixture'
 import { seedThread, threadRow } from '../sandbox-provisioning/sandbox-provisioning.fixture'
-import { ThreadTitlingService, type TitlerFactory } from './thread-titling.service'
+import type { SessionNamer } from '../../../agent'
+import { ThreadTitlingService } from './thread-titling.service'
 
 const sessionTitle = async () => {
   const thread = await threadRow()
@@ -14,19 +15,13 @@ const sessionTitle = async () => {
 
 const REQUEST = { userId: 'usr-1', threadId: 'thr-1', projectId: 'prj-1', text: 'fix login' }
 
+type NamerAsk = Parameters<SessionNamer>[0]
+
 function serviceWith(args: { titler: () => Promise<string | null> }) {
-  const factory = vi.fn((_settings: Parameters<TitlerFactory>[0]) => args.titler)
+  const namer = vi.fn((_ask: NamerAsk) => args.titler())
   const { signals, framesOf, changedThreads } = recordingSignals()
-  const config = { resolveForPod: vi.fn(async () => ({ settings: { 'model.quickModel': 'x/y' } })) }
-  const accounts = { lease: vi.fn(async () => ({ accounts: [], active: [] })) }
-  const service = new ThreadTitlingService(
-    config as never,
-    accounts as never,
-    {} as never,
-    signals,
-    factory as unknown as TitlerFactory,
-  )
-  return { service, factory, framesOf, changedThreads }
+  const service = new ThreadTitlingService(signals, namer)
+  return { service, namer, framesOf, changedThreads }
 }
 
 describe('ThreadTitlingService', () => {
@@ -34,7 +29,7 @@ describe('ThreadTitlingService', () => {
 
   it('writes the generated title and signals the thread change', async () => {
     await seedThread()
-    const { service, factory, framesOf, changedThreads } = serviceWith({
+    const { service, namer, framesOf, changedThreads } = serviceWith({
       titler: async () => 'Fix login',
     })
     const frames = framesOf('thr-1')
@@ -44,7 +39,7 @@ describe('ThreadTitlingService', () => {
     expect(await sessionTitle()).toBe('Fix login')
     expect(frames).toHaveLength(0)
     expect(changedThreads).toEqual(['thr-1'])
-    expect(factory).toHaveBeenCalledTimes(1)
+    expect(namer).toHaveBeenCalledTimes(1)
   })
 
   it('does not overwrite an existing title', async () => {
@@ -60,8 +55,8 @@ describe('ThreadTitlingService', () => {
     expect(frames).toHaveLength(0)
   })
 
-  it('names a session with the model the session itself runs on when the quick model cannot answer', async () => {
-    const { service, factory } = serviceWith({ titler: async () => 'Fix login' })
+  it('hands the session model to the namer as the fallback, with a timeout', async () => {
+    const { service, namer } = serviceWith({ titler: async () => 'Fix login' })
 
     await service.nameOf({
       userId: 'usr-1',
@@ -70,20 +65,18 @@ describe('ThreadTitlingService', () => {
       modelRef: 'gateway/deepseek/deepseek-v4.1-flash-1017-fast',
     })
 
-    expect(factory.mock.calls[0]?.[0].fallbackRef).toEqual({
-      providerId: 'gateway',
-      modelId: 'deepseek/deepseek-v4.1-flash-1017-fast',
-    })
+    expect(namer.mock.calls[0]?.[0].modelRef).toBe('gateway/deepseek/deepseek-v4.1-flash-1017-fast')
+    expect(namer.mock.calls[0]?.[0].signal).toBeInstanceOf(AbortSignal)
   })
 
   it('logs the reason a titling pass reported instead of leaving it silent', async () => {
     await seedThread()
     const warned = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined)
     try {
-      const { service, factory } = serviceWith({ titler: async () => null })
+      const { service, namer } = serviceWith({ titler: async () => null })
 
       await service.titleFirstMessage(REQUEST)
-      factory.mock.calls[0]?.[0].onFault?.(
+      namer.mock.calls[0]?.[0].onFault?.(
         new Error('This request would exceed your account monthly spend limit'),
       )
 
