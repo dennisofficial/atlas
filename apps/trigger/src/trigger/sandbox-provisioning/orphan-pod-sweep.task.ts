@@ -28,7 +28,7 @@ const v2ScopesOf = async (): Promise<V2PodSweepScope[]> => {
 
 export const orphanPodSweepTask = schedules.task({
   id: 'orphan-pod-sweep',
-  cron: '5 * * * *',
+  cron: { pattern: '5 * * * *', window: '0m' },
   retry: { maxAttempts: 3 },
   run: async () => {
     const now = new Date()

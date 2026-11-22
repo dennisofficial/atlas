@@ -66,7 +66,7 @@ describe('sweepComposerUploads', () => {
   it('registers the daily schedule', () => {
     expect(composerUploadSweepTask).toMatchObject({
       id: 'composer-upload-sweep',
-      cron: '17 4 * * *',
+      cron: { pattern: '17 4 * * *', window: '0m' },
       retry: { maxAttempts: 3 },
     })
   })

@@ -11,7 +11,7 @@ export async function runPodDiskGrowTask(): Promise<PodDiskGrowSummary> {
 
 export const podDiskGrowTask = schedules.task({
   id: POD_DISK_GROW_TASK_ID,
-  cron: '*/5 * * * *',
+  cron: { pattern: '*/5 * * * *', window: '0m' },
   retry: { maxAttempts: 1 },
   run: async () => await runPodDiskGrowTask(),
 })

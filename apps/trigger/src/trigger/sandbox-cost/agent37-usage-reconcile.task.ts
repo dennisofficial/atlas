@@ -24,7 +24,7 @@ export async function runAgent37UsageReconcile(args: {
 
 export const agent37UsageReconcileTask = schedules.task({
   id: 'agent37-usage-reconcile',
-  cron: '5 * * * *',
+  cron: { pattern: '5 * * * *', window: '0m' },
   retry: { maxAttempts: 3 },
   run: async () => await runAgent37UsageReconcile({}),
 })
