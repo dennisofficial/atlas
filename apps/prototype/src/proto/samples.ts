@@ -4,7 +4,7 @@ export interface ProtoSample {
 }
 
 export const PROTO_SAMPLES: Record<string, ProtoSample[]> = {
-  '/artifacts/[slug]': [
+  '/artifacts/[subdomain]': [
     { label: 'Ready', path: '/artifacts/atlas-landing' },
     { label: 'Building', path: '/artifacts/launch-deck' },
     { label: 'Failed', path: '/artifacts/pricing-table' },
