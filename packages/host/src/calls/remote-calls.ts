@@ -16,6 +16,8 @@ export type EventFrame = Extract<DaemonFrame, { kind: 'event' }>
 
 export type RemoteCloseReason = 'asleep' | 'detached'
 
+export type RemoteHello = { bootId: string; restart: boolean }
+
 export type RemoteCallsArgs = {
   sessionId: string
   token: string | (() => string)
@@ -28,12 +30,14 @@ export type RemoteCallsArgs = {
   handshakeMs?: number | undefined
   readyTimeoutMs?: number | undefined
   onEvent?: ((frame: EventFrame) => void) | undefined
+  onReady?: ((hello: RemoteHello) => void) | undefined
 }
 
 export class RemoteCalls {
   private readonly state: RemoteCallsState
   private readonly eventListeners = new Set<(frame: EventFrame) => void>()
   private readonly closeListeners = new Set<(reason: RemoteCloseReason) => void>()
+  private readonly readyListeners = new Set<(hello: RemoteHello) => void>()
   private readonly log: LogPort | undefined
 
   constructor(args: RemoteCallsArgs) {
@@ -41,6 +45,7 @@ export class RemoteCalls {
     this.state = new RemoteCallsState({
       ...args,
       onEvent: (frame) => this.emitEvent(frame),
+      onReady: (hello) => this.emitReady(hello),
     })
   }
 
@@ -51,10 +56,31 @@ export class RemoteCalls {
     }
   }
 
+  onReady(listener: (hello: RemoteHello) => void): () => void {
+    this.readyListeners.add(listener)
+    return () => {
+      this.readyListeners.delete(listener)
+    }
+  }
+
   onClose(listener: (reason: RemoteCloseReason) => void): () => void {
     this.closeListeners.add(listener)
     return () => {
       this.closeListeners.delete(listener)
+    }
+  }
+
+  private emitReady(hello: RemoteHello): void {
+    for (const listener of [...this.readyListeners]) {
+      try {
+        listener(hello)
+      } catch (error) {
+        this.log?.error({
+          source: 'remote-calls',
+          message: 'ready listener threw',
+          ...logFieldsOf({ error }),
+        })
+      }
     }
   }
 
@@ -92,6 +118,7 @@ export class RemoteCalls {
     const listeners = [...this.closeListeners]
     this.closeListeners.clear()
     this.eventListeners.clear()
+    this.readyListeners.clear()
     this.state.close()
     for (const listener of listeners) {
       try {

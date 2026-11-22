@@ -154,7 +154,7 @@ describe('watches shared between resources', () => {
     expect(loads).toEqual(['skills', 'crew'])
   })
 
-  it('retries a failed load on the next turn without arming again', async () => {
+  it('retries a failed load once the turn ends, without arming again', async () => {
     let attempts = 0
     const resource: PodResource<string> = {
       name: 'skills',
@@ -168,10 +168,11 @@ describe('watches shared between resources', () => {
     }
     const turn = rig({ resources: [resource] })
     await turn.run()
+    await turn.closed()
     turn.calls.length = 0
     await turn.run()
 
-    expect(turn.calls.map((call) => call.op)).toEqual(['watch.status'])
+    expect(turn.calls).toEqual([])
     expect(attempts).toBe(2)
     expect(readResource({ ctx: turn.ctx, resource })).toBe('one')
   })
@@ -189,7 +190,7 @@ describe('the plugin-resources spans', () => {
       { resource: 'skills' },
     ])
     expect(trace.named(ESpan.ResourceLoad).map((span) => span.fields)).toEqual([
-      { resource: 'skills' },
+      { resource: 'skills', phase: 'missing' },
     ])
     expect(trace.named(ESpan.ResourceAppend).map((span) => span.fields)).toEqual([{ drafts: 1 }])
   })

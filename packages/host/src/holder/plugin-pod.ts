@@ -27,7 +27,8 @@ import { fireLive } from './ports'
 import { MirrorPlanHook } from './plan-mirror'
 import { pluginCallOf } from './plugin-call'
 import { podControlOf } from './pod-control'
-import { pluginResourcesHook, reloadResource } from './plugin-resources'
+import { pluginResourcesClosedHook, pluginResourcesHook, reloadResource } from './plugin-resources'
+import { ResourceSync } from './plugin-resource-sync'
 import { podSessionsOf } from './plugin-sessions'
 import { subscriptionEndHooksOf } from './subscription-end-hooks'
 import { modelFellBackDraft } from './crew/model-fell-back'
@@ -206,6 +207,35 @@ const composedToolsOf = (args: {
   )
 }
 
+export const resourceSyncOf = (args: {
+  runtime: SessionRuntime
+  ctx: PluginPodContext
+  record: SessionRecord
+  signal: AbortSignal
+  shared?: (() => readonly V2Event[]) | undefined
+}): ResourceSync | undefined => {
+  const resources = args.runtime.plugins?.pod.resources ?? []
+  if (resources.length === 0) return undefined
+  const sync: ResourceSync = new ResourceSync({
+    ctx: args.ctx,
+    resources,
+    directory: () =>
+      projectDirectoryOfState({
+        state: args.record.eventCache().loopState(),
+        launchDirectory: args.runtime.launchDirectory,
+      }),
+    trace: args.runtime.trace,
+    shared: args.shared,
+    reconnect: (listener) =>
+      args.runtime.remoteCalls.onReady((hello) => {
+        listener({ restart: hello.restart })
+      }),
+    signal: args.signal,
+  })
+  sync.start()
+  return sync
+}
+
 export const hostHooksOf = (args: {
   declarations: () => readonly ToolDeclaration[]
 }): HookChainArgs => ({
@@ -218,24 +248,15 @@ export const pluginHooksOf = (args: {
   ctx: PluginPodContext
   declarations: () => readonly ToolDeclaration[]
   now: () => Date
-  sharedEvents?: (() => readonly V2Event[]) | undefined
+  sync?: ResourceSync | undefined
 }): HookChain => {
   const { plugins } = args.runtime
   const host = hostHooksOf({ declarations: args.declarations })
   if (plugins === undefined) return new HookChain(host)
 
   const plugin = plugins.pod.hooks(args.ctx)
-  const resources =
-    plugins.pod.resources.length === 0
-      ? []
-      : [
-          pluginResourcesHook({
-            ctx: args.ctx,
-            resources: plugins.pod.resources,
-            trace: args.runtime.trace,
-            shared: args.sharedEvents,
-          }),
-        ]
+  const resources = args.sync === undefined ? [] : [pluginResourcesHook({ sync: args.sync })]
+  const closed = args.sync === undefined ? [] : [pluginResourcesClosedHook({ sync: args.sync })]
   const merged = mergeHooks([
     host,
     plugin,
@@ -248,6 +269,7 @@ export const pluginHooksOf = (args: {
   return new HookChain({
     ...merged,
     beforeTurn: [...resources, ...(merged.beforeTurn ?? [])],
+    afterTurn: [...closed, ...(merged.afterTurn ?? [])],
     trace: args.runtime.trace,
     onMishap: (mishap) => args.ctx.log(`hook ${mishap.label} ${mishap.kind}: ${mishap.detail}`),
   })
@@ -271,11 +293,18 @@ export const pluginPodOf = (args: {
   }
   const ctx = pluginPodContextOf(args)
   const tools = pluginToolsOf({ runtime: args.runtime, ctx })
+  const sync = resourceSyncOf({
+    runtime: args.runtime,
+    ctx,
+    record: args.record,
+    signal: args.signal,
+  })
   const hooks = pluginHooksOf({
     runtime: args.runtime,
     ctx,
     declarations: () => tools.declarations(),
     now: () => new Date(args.deps.timers.now()),
+    ...(sync === undefined ? {} : { sync }),
   })
   ctx.onDaemonEvent((frame) => plugins.pod.onDaemonEvent(frame))
   return { tools, hooks }
