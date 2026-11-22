@@ -255,6 +255,11 @@ jobs:
           BUN_TEST_INCREMENTAL_SUMMARY_DIR: ${{ runner.temp }}/summaries
           CHANGED_ARG: ${{ steps.diff-base.outputs.changed }}
 
+      # scripts/ is not a workspace member, so the filtered `test` above never reaches it. Its specs
+      # are plain bun:test files that need no bunfig preload; run them from the root.
+      - name: test scripts
+        run: bun test ./scripts
+
       # The incremental package's own suite spawns child `bun test` runs, so it runs with
       # BUN_TEST_INCREMENTAL unset (the child runs set it themselves as the thing under test).
       - name: test the incremental package itself

@@ -1,0 +1,94 @@
+# @dltech/atlas-ui
+
+The Atlas design system: vendored shadcn `base-nova` components, the AI patterns built from them,
+and the design tokens. `apps/web`, `apps/prototype`, `apps/storybook` and `apps/mobile` consume it.
+The package ships TypeScript source with no build step.
+
+## Owns
+
+- The component library in `src/components`, written by the shadcn CLI.
+- The AI patterns in `src/ai`: message, tool, reasoning, prompt input, diff viewer, file tree and
+  the rest. Each pattern is presentational, with local prop types.
+- The design tokens in `src/tokens`, as plain TypeScript.
+- The generated stylesheet `theme.css`, and the hand-written `base.css` and `fonts.css`.
+- The `cn` helper, the highlighting hooks and the development fixtures.
+
+## Does not own
+
+- Native components. `@dltech/atlas-ui-native` owns them, and it reads these tokens.
+- App-specific composition. An app owns a composition that imports a Prisma type or a route.
+- Storybook hosting. `apps/storybook` owns it.
+- The TypeScript and React versions. The root `package.json` `overrides` pins them.
+
+## Entry points
+
+| Import                             | Use it for                                                         |
+| ---------------------------------- | ------------------------------------------------------------------ |
+| `@dltech/atlas-ui`                 | `cn` and the tokens, from one import.                              |
+| `@dltech/atlas-ui/tokens`          | Pure token values. No platform import.                             |
+| `@dltech/atlas-ui/components/*`    | A vendored component, such as `components/button`.                 |
+| `@dltech/atlas-ui/ai/*`            | An AI pattern, such as `ai/message` or `ai/tool`.                  |
+| `@dltech/atlas-ui/lib/*`           | `lib/utils` (`cn`), `lib/language-of-path`, `lib/shiki-languages`. |
+| `@dltech/atlas-ui/lib/highlighter` | The lazy shiki highlighter.                                        |
+| `@dltech/atlas-ui/hooks/*`         | `hooks/use-highlighted-code`, `hooks/use-mobile`.                  |
+| `@dltech/atlas-ui/fixtures/*`      | Development data, such as `fixtures/settings-agent`.               |
+| `@dltech/atlas-ui/fixtures/*.json` | Raw recorded data, such as `real-transcript.json`.                 |
+| `@dltech/atlas-ui/theme.css`       | The generated color variables.                                     |
+| `@dltech/atlas-ui/base.css`        | The base layer and the safe-area variables.                        |
+| `@dltech/atlas-ui/fonts.css`       | The Geist, JetBrains Mono and Space Grotesk faces.                 |
+
+## Capabilities
+
+### Read the tokens
+
+- `semantic`, `EColorScheme`: the light and dark color maps.
+- `SemanticTheme`, `SemanticToken`: the theme type and a token name.
+- `primitives`, `font`, `radiusBase`, `radiusScale`, `radius`, `space`, `spacingUnit`.
+- `ETextRole`, `typeScale`, `EFontFamily`, `EFontWeight`, `fontFaceNames`, `REM_PX`.
+- `buildThemeCss()`: the stylesheet text for the tokens.
+
+### Compose an AI pattern
+
+- `ai/message`, `ai/message-response`, `ai/tool`, `ai/reasoning`, `ai/chain-of-thought`.
+- `ai/prompt-input`, `ai/confirmation`, `ai/diff-viewer`, `ai/code-viewer`, `ai/file-tree`.
+- `ai/chat`, `ai/plan`, `ai/agents-panel`, `ai/terminal`, `ai/preview-browser`.
+
+### Highlight code
+
+- `useHighlightedCode(value, language)`: the renderable lines of a code string, once shiki loads.
+  A line is a string or a line of React nodes. With no highlighter it returns plain text lines.
+- `lib/highlighter`: `loadHighlighter` and the shiki setup.
+- `lib/language-of-path`: the language of a file path.
+
+## Usage
+
+An app imports the stylesheets once in its global CSS. Then it imports one component by name.
+
+```ts
+import { Button } from '@dltech/atlas-ui/components/button'
+import { Alert, AlertDescription } from '@dltech/atlas-ui/components/alert'
+```
+
+```css
+@import "@dltech/atlas-ui/theme.css";
+@import "@dltech/atlas-ui/base.css";
+```
+
+## Rules
+
+- Import a component through `@dltech/atlas-ui/components/<name>`. Do not add a second component
+  library to an app.
+- Use a semantic utility such as `bg-primary` or `text-muted-foreground`. Do not use a raw hex
+  value, and do not pass a chrome class such as `p-*`, `gap-*`, `rounded-*` or `shadow-*` to a
+  design-system component. A spec fails on it.
+- Select a variant with the component's own props. Use `className` only for layout.
+- Do not hand-edit `theme.css`. Run `bun run --filter @dltech/atlas-ui generate` after a token
+  change.
+- Point Tailwind's `@source` at this package's `src/`, and list the package in a Next app's
+  `transpilePackages`.
+- Import `@dltech/atlas-ui/tokens` in a pure context. It has no platform module.
+
+## See also
+
+- [AGENTS.md](./AGENTS.md) for the vendored files, the deliberate forks and the story rule.
+- `docs/package-readmes.md` for the shape of a package README.

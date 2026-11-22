@@ -1729,23 +1729,9 @@ itself; tone only picks the glyph and the ink.
 
 ## Packages
 
-```
-atlas/
-  packages/
-    core/       pure. no I/O, no clock, no randomness, no network, no database
-    harness/    the loop, hooks, tools, model adapters, credentials, store
-    models/     the generated model catalogue and its generator, shared by harness and web
-    ui/         design tokens (pure TS, platform-agnostic) + web UI atoms + Storybook
-    wire/       the wire contract: channel/session zod schemas, protocol version, serve-env.
-                No in-repo deps, so the NodeNext api can build it where core cannot.
-  apps/
-    tui/        OpenTUI + React; wraps the shared composition root with terminal bindings
-    api/        Atlas Cloud backend (NestJS): auth, users, credential storage
-  docs/
-  deprecated/   frozen reference: the previous TUI, the never-run agent-engine and the codex-sdk
-                client, and the paused backend/web/shared cloud stack with its CI and infra
-  .spikes/      four reference implementations (gitignored)
-```
+The v2 package map is in `docs/decisions/0019-v2-package-map.md`. Each package in `packages/*`,
+each plugin in `plugins/*` and `commands/` carries a `README.md` for a consumer, with the template
+in `docs/package-readmes.md`. `bun scripts/check-package-readmes.ts` enforces it.
 
 `deprecated/` is not a Bun workspace member. It is read for prior art and never imported.
 
