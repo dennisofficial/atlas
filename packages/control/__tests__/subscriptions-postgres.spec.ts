@@ -179,4 +179,27 @@ describe('subscription rows on postgres', () => {
     expect(ended).toBe(0)
     expect(await control.listSubscriptions({ sessionId })).toHaveLength(1)
   })
+
+  it('starts a workflow-run row at the epoch so an in-flight run still matches', async () => {
+    const { plane: control, sessionId, threadId } = await seeded()
+    const written = await control.subscribe({
+      sessionId,
+      threadId,
+      provider: 'github.workflow-run',
+      target: { kind: 'selector', repo: REPO, workflow: 'release.yml', branch: 'main' },
+      label: 'acme/atlas release.yml@main',
+      events: [],
+      lease: {
+        repo: REPO,
+        subject: { kind: 'workflow-run', selector: '#workflow:release.yml@main' },
+      },
+      by: ESubscriptionActor.Agent,
+    })
+
+    const row = await testDb()
+      .db.orm.public.GithubSubscription.where({ id: written.subscription.id })
+      .first()
+    expect(row?.lastRunCreatedAt.getTime()).toBe(0)
+    expect(row?.deliveredRunId).toBe('')
+  })
 })

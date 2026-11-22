@@ -35,7 +35,10 @@ Subscribe a thread to a GitHub pull request or workflow run, so the events reach
 
 - `GITHUB_PROVIDER` and `GITHUB_RUN_PROVIDER`: the two provider names.
 - `parseTargetInput(raw)`: reads `#123`, `owner/repo#123`, a pull request URL, or a blank string for the pull request of the project directory.
-- `parseRunTargetInput(raw)`: reads `#<run id>`, `owner/repo#<run id>`, a run URL, `<workflow>@<branch>`, or a blank string for the run of this push.
+- `parseRunTargetInput(raw)`: reads `#<run id>`, `owner/repo#<run id>`, a run URL, `<workflow>@<branch>`, or a blank string for the newest run of this push.
+- A run that has already finished is refused with its name, conclusion and URL, because no
+  webhook arrives for it. A blank target with no run for the pushed commit is refused the same way
+  and points at `<workflow>@<branch>`.
 
 ### Describe a subscription
 
@@ -56,8 +59,9 @@ Subscribe a thread to a GitHub pull request or workflow run, so the events reach
 | `list`        | nothing          | Show each subscription and the providers that a thread can subscribe to.    |
 
 `target` is a pull request reference or a workflow run reference. Leave it out when the provider
-works the target out from the session. `events` keeps only the named filters. `expiresInMinutes`
-ends the subscription later.
+works the target out from the session. A `github.workflow-run` target that names a run which
+already finished is refused, and a blank one names the newest run of the pushed commit. `events`
+keeps only the named filters. `expiresInMinutes` ends the subscription later.
 
 ### Refuse a CI watch
 
