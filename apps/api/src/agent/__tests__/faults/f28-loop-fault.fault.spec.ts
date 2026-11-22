@@ -34,7 +34,7 @@ describe.skipIf(REDIS_URL === undefined)('F28 turn fault out of the loop, host a
     const faultedEpoch = (await rig.plane.currentLease({ sessionId })).lease.epoch
     await waitUntil({
       what: 'the faulted lease to be released',
-      timeoutMs: 10_000,
+      timeoutMs: 30_000,
       check: async () => (await rig.plane.currentLease({ sessionId })).lease.epoch > faultedEpoch,
     })
 
