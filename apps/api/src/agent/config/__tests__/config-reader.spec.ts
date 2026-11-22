@@ -41,6 +41,9 @@ const readerOver = (
 const vcpusOf = (sandbox: SandboxConfig): number | undefined =>
   sandbox.configured ? sandbox.vcpus : undefined
 
+const diskGbOf = (sandbox: SandboxConfig): number | undefined =>
+  sandbox.configured ? sandbox.diskGb : undefined
+
 describe('ConfigReader', () => {
   it('reads workspace, platform credentials and the model choice for a session', async () => {
     const { db } = testDb()
@@ -256,6 +259,40 @@ describe('ConfigReader', () => {
     await seedSetting({ db, scope: 'project', key: 'sandbox.vcpus', value: 2 })
     const config = await readerOver(db, PLATFORM).read({ sessionId: 's-1' })
     expect(vcpusOf(config.sandbox)).toBe(8)
+  })
+
+  it.each([
+    { name: "uses the session project's disk", project: 40, personal: 80, want: 40 },
+    {
+      name: "falls through to the owner's sandbox.diskGb setting",
+      project: null,
+      personal: 60,
+      want: 60,
+    },
+    {
+      name: 'leaves the disk to the configured default when neither layer sets one',
+      project: null,
+      personal: null,
+      want: undefined,
+    },
+    {
+      name: 'ignores a personal value outside the disk sizes',
+      project: null,
+      personal: 25,
+      want: undefined,
+    },
+  ])('sizes the pod disk: $name', async ({ project, personal, want }) => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await seedApiKeyAccount(db)
+    if (project !== null) {
+      await db.orm.public.Project.where({ id: 'proj-1' }).update({ sandboxDiskGb: project })
+    }
+    if (personal !== null) {
+      await seedSetting({ db, scope: 'user', key: 'sandbox.diskGb', value: personal })
+    }
+    const config = await readerOver(db, PLATFORM).read({ sessionId: 's-1' })
+    expect(diskGbOf(config.sandbox)).toBe(want)
   })
 
   it('throws a typed error for an unknown session', async () => {

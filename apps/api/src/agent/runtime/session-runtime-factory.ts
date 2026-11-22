@@ -121,6 +121,7 @@ export const createSessionRuntimeFactory = (
     const paths = sessionPathsOf({ sessionId, threadId })
     const podSize = config.podSize
     const desiredVcpus = podSize?.desiredVcpus ?? config.sandbox.vcpus
+    const desiredDiskGb = config.sandbox.diskGb
     // A resize writes its desired size and generation on the pod row while this runtime is still
     // the one waking its sandbox, so the size is read at wake time: the snapshot taken when the
     // runtime was built predates the resize, and a pod never resized has no snapshot at all.
@@ -174,6 +175,7 @@ export const createSessionRuntimeFactory = (
       provider,
       target,
       ...(desiredVcpus === undefined ? {} : { vcpus: desiredVcpus }),
+      ...(desiredDiskGb === undefined ? {} : { diskGb: desiredDiskGb }),
       onWake,
       daemonSecret: args.daemonSecret,
       timers: args.timers,

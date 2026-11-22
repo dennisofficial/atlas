@@ -40,6 +40,7 @@ export type SandboxConfig =
       provider: ESandboxProvider
       credentials: SandboxCredentials
       vcpus?: number | undefined
+      diskGb?: number | undefined
     }
   | { configured: false; provider: ESandboxProvider; gap: string }
 

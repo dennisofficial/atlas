@@ -491,6 +491,23 @@ describe('Agent37SandboxProvider.wake size', () => {
     }
   })
 
+  it('creates a new instance at the requested disk, over the template one', async () => {
+    const { bundle: b, cleanup } = bundle()
+    const version = await agent37BundleVersionOf(b.path)
+    const { client, creates } = fakeClient({ version })
+    const { provider } = providerOf({ client, bundlePath: b.path })
+    try {
+      await provider.wake({ target: TARGET, signal: new AbortController().signal, diskGb: 60 })
+      expect(creates[0]?.resources).toEqual({
+        cpu: ENV.resources.cpu,
+        memory: ENV.resources.memory,
+        disk: 60,
+      })
+    } finally {
+      cleanup()
+    }
+  })
+
   it('leaves the shape to the template when no vcpus is asked for', async () => {
     const { bundle: b, cleanup } = bundle()
     const version = await agent37BundleVersionOf(b.path)

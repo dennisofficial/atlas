@@ -86,6 +86,12 @@ export const SANDBOX_MEMORY_GB_PER_VCPU = 2
 
 export const SANDBOX_VCPU_PLAN_CAP_NOTE = 'Hobby up to 4 vCPU · Pro up to 8 · Enterprise up to 32'
 
+// https://www.agent37.com/docs/agents-api/instance-sizing.md — an Agent37 vm disk runs from 2 GB to
+// 100 GB and only ever grows, so the sizes offered for a new pod start at the shipped default.
+export const SANDBOX_DISK_GB_SIZES = [20, 30, 40, 60, 80, 100] as const
+
+export const DEFAULT_SANDBOX_DISK_GB = 20
+
 export enum EVercelPlan {
   Hobby = 'hobby',
   Pro = 'pro',
@@ -119,6 +125,13 @@ export const sandboxVcpusSchema = z
   .int()
   .refine((value) => (SANDBOX_VCPU_SIZES as readonly number[]).includes(value), {
     message: 'must be 1 or an even number from 2 to 32',
+  })
+
+export const sandboxDiskGbSchema = z
+  .number()
+  .int()
+  .refine((value) => (SANDBOX_DISK_GB_SIZES as readonly number[]).includes(value), {
+    message: 'must be 20, 30, 40, 60, 80 or 100 GB',
   })
 
 function isModelRef(value: string): boolean {

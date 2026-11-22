@@ -53,6 +53,12 @@ describe('cloud setting registry', () => {
       ['sandbox.vcpus', 33, false],
       ['sandbox.vcpus', 34, false],
       ['sandbox.vcpus', 2.5, false],
+      ['sandbox.diskGb', 20, true],
+      ['sandbox.diskGb', 100, true],
+      ['sandbox.diskGb', 0, false],
+      ['sandbox.diskGb', 25, false],
+      ['sandbox.diskGb', 120, false],
+      ['sandbox.diskGb', '40', false],
       ['experimental.grillingCeremony', true, true],
       ['experimental.grillingCeremony', 'yes', false],
       ['model.favourites', '["a/b"]', true],
@@ -113,6 +119,7 @@ describe('cloud setting registry', () => {
     )
     expect(eventKeys).toHaveLength(18)
     expect(CLOUD_SETTING_REGISTRY.get('sandbox.vcpus')?.consumer).toBe(ESettingConsumer.Harness)
+    expect(CLOUD_SETTING_REGISTRY.get('sandbox.diskGb')?.consumer).toBe(ESettingConsumer.Harness)
     expect(CLOUD_SETTING_REGISTRY.get('github.prEvents.verdictTiming')?.consumer).toBe(
       ESettingConsumer.Api,
     )
