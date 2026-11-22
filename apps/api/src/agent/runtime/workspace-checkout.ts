@@ -1,6 +1,6 @@
 import type { CapturedBase } from '@dltech/atlas-host'
 import type { WorkspaceConfig } from '../config/agent-host-config'
-import { run } from './workspace-clone'
+import { run } from './workspace-git'
 import { workspaceRepoMap } from './workspace-repo-map'
 import type { Deps } from './workspace-state'
 

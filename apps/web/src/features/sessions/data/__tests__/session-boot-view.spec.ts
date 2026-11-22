@@ -303,6 +303,26 @@ describe('sessionBootViewOf detail', () => {
     ])
   })
 
+  it('carries a failed repo reason as its child detail', () => {
+    const view = sessionBootViewOf({
+      events: eventsOf([
+        step(EWorkspaceStep.Clone, EWorkspaceStepState.Done, {
+          repos: [
+            { repo: 'acme/app', state: EWorkspaceRepoState.Done },
+            { repo: 'acme/lib', state: EWorkspaceRepoState.Failed, reason: 'Repository not found' },
+          ],
+        }),
+      ]),
+      status: statusOf(ESessionStatus.Preparing),
+    })
+    expect(view?.steps[2]?.children?.[1]).toEqual({
+      id: 'acme/lib',
+      label: 'lib',
+      state: EBootStepState.Error,
+      detail: 'Repository not found',
+    })
+  })
+
   it('shows the setup command with live output while running', () => {
     const view = sessionBootViewOf({
       events: eventsOf([

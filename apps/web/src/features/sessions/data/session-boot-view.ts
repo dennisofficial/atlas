@@ -98,10 +98,11 @@ const stateOf = (args: {
 }
 
 const repoChildrenOf = (recorded: WorkspaceStepStatus | undefined): BootStepChild[] | undefined =>
-  recorded?.repos?.map(({ repo, state }) => ({
+  recorded?.repos?.map(({ repo, state, reason }) => ({
     id: repo,
     label: repo.slice(repo.lastIndexOf('/') + 1),
     state: REPO_STATE[state],
+    ...(reason === undefined ? {} : { detail: reason }),
   }))
 
 const outputOf = (args: {

@@ -179,6 +179,30 @@ describe('SandboxBoot', () => {
   })
 })
 
+describe('SandboxBoot with a failed repo in a finished boot', () => {
+  it('stays open so the failed repo and its reason show', () => {
+    const html = render({
+      state: Done,
+      elapsedMs: 9800,
+      steps: [
+        {
+          id: 'clone',
+          label: 'Repository cloned',
+          state: Done,
+          children: [
+            { id: 'acme/app', label: 'app', state: Done },
+            { id: 'acme/lib', label: 'lib', state: Error, detail: 'Repository not found' },
+          ],
+        },
+      ],
+    })
+
+    expect(html).toContain('Sandbox ready')
+    expect(html).toContain('Repository not found')
+    expect(html).not.toContain('Retry')
+  })
+})
+
 describe('SandboxBoot command step', () => {
   it('renders the command and its output under the step', () => {
     const html = render({

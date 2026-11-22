@@ -178,7 +178,8 @@ export function SandboxBoot({
   const open =
     state === EBootStepState.Running ||
     state === EBootStepState.Interrupted ||
-    state === EBootStepState.Error
+    state === EBootStepState.Error ||
+    steps.some(carriesError)
   const showRetry = state === EBootStepState.Error && onRetry !== undefined
   const headerError =
     state === EBootStepState.Error && error !== undefined && !steps.some(carriesError)

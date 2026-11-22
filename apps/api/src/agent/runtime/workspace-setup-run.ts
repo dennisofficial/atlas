@@ -1,6 +1,6 @@
 import { EWorkspaceStep, EWorkspaceStepState, type WorkspaceStepReport } from '@dltech/atlas-core'
 
-import { run } from './workspace-clone'
+import { run } from './workspace-git'
 import {
   clearSetupStarted,
   report,

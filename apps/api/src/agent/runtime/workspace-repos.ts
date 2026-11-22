@@ -41,9 +41,15 @@ export class RepoProgress {
     this.args.emit(this.snapshot())
   }
 
-  set(args: { repo: string; state: EWorkspaceRepoState }): void {
+  set(args: { repo: string; state: EWorkspaceRepoState; reason?: string | undefined }): void {
     this.repos = this.repos.map((entry) =>
-      entry.repo === args.repo ? { ...entry, state: args.state } : entry,
+      entry.repo === args.repo
+        ? {
+            repo: entry.repo,
+            state: args.state,
+            ...(args.reason === undefined ? {} : { reason: args.reason }),
+          }
+        : entry,
     )
     this.args.emit(this.snapshot())
   }
