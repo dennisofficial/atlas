@@ -6,6 +6,7 @@ import {
   podSizingOf,
   SANDBOX_MEMORY_GB_PER_VCPU,
   sessionViewOf,
+  setupRunningOf,
   type Lease,
   type PendingInputsState,
   type PluginViewFold,
@@ -88,6 +89,7 @@ export type LiveView = {
   value: SessionViewValue
   lease: Lease
   live: boolean
+  setupRunning: boolean
 }
 
 export const liveViewIn = async (args: {
@@ -108,7 +110,12 @@ export const liveViewIn = async (args: {
     messageAfterFailure: messageAfterFailureIn({ state }),
     now: args.now,
   })
-  return { value, lease, live }
+  return {
+    value,
+    lease,
+    live,
+    setupRunning: setupRunningOf({ run: state.facts.setupRun, now: args.now }),
+  }
 }
 
 const pullRequestOf = (row: TrackedPullRequestRow): ControlPullRequest => ({
@@ -221,6 +228,7 @@ export const statusOutputOf = (args: {
     state: status.state,
     ...(status.reason === undefined ? {} : { reason: status.reason }),
     ...(status.since === undefined ? {} : { since: status.since }),
+    ...(live.setupRunning ? { setupRunning: true } : {}),
     lease: { epoch: live.lease.epoch, holderHostId: live.lease.holderHostId, live: live.live },
     ...(sandbox === undefined ? {} : { sandbox }),
     ...sandboxChoiceOf(args.session),
@@ -268,6 +276,7 @@ export const readSessionViewIn = async (args: {
 export type SessionBusyRead = {
   at: number
   status: SessionStatus
+  setupRunning: boolean
   pluginViews: Readonly<Record<string, unknown>>
 }
 
@@ -284,7 +293,12 @@ export const readSessionBusyIn = async (args: {
   const state = usableState(await tx.readSessionView(sessionId))
   if (state === undefined || state.at !== row.headSeq) return undefined
   const live = await liveViewIn({ ...args, state })
-  return { at: state.at, status: live.value.status, pluginViews: live.value.pluginViews }
+  return {
+    at: state.at,
+    status: live.value.status,
+    setupRunning: live.setupRunning,
+    pluginViews: live.value.pluginViews,
+  }
 }
 
 const VIEW_READ_ATTEMPTS = 5

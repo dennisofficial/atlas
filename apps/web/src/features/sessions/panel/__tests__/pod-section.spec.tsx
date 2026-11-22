@@ -3,6 +3,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, mock } from 'bun:
 import { act, useState } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 
+import { ESessionStatus } from '@dltech/atlas-core'
 import { EPodState, ResizeDeclinedError } from '@dltech/atlas-ui/ai/pod-status-chip'
 import { ESandboxProvider, ESandboxStatus } from '@dltech/atlas-protocol'
 
@@ -33,6 +34,8 @@ afterAll(async () => {
 afterEach(() => {
   document.body.innerHTML = ''
 })
+
+type BusyStatus = { state: ESessionStatus; setupRunning?: boolean | undefined }
 
 const mount = async (element: React.ReactElement) => {
   const { createRoot } = await import('react-dom/client')
@@ -344,10 +347,11 @@ describe('pod resize confirmation', () => {
 
 function Harness(props: {
   view: ReturnType<typeof viewModelFixture>
+  status?: BusyStatus | undefined
   onResize: (request: PodShapeRequest) => Promise<void>
 }) {
   const { confirmation, handleResize } = useShapeResizeConfirmation({
-    busy: podBusyOfView(props.view, undefined),
+    busy: podBusyOfView({ view: props.view, status: props.status }),
     onResize: props.onResize,
   })
   const [outcome, setOutcome] = useState('pending')
@@ -390,14 +394,30 @@ describe('disk grow confirmation', () => {
     expect(onGrow).toHaveBeenCalledWith({ diskGb: 30, whenIdle: false })
     await unmount()
   })
+
+  it('asks before growing while the setup script runs', async () => {
+    const onGrow = mock((_request: PodDiskRequest) => Promise.resolve())
+    const unmount = await mount(
+      <DiskHarness
+        view={viewModelFixture()}
+        status={{ state: ESessionStatus.Idle, setupRunning: true }}
+        onGrow={onGrow}
+      />,
+    )
+    await click(buttonNamed('grow'))
+    expect(document.body.textContent).toContain('Setup script running.')
+    expect(onGrow).not.toHaveBeenCalled()
+    await unmount()
+  })
 })
 
 function DiskHarness(props: {
   view: ReturnType<typeof viewModelFixture>
+  status?: BusyStatus | undefined
   onGrow: (request: PodDiskRequest) => Promise<void>
 }) {
   const { confirmation, handleGrow } = useDiskResizeConfirmation({
-    busy: podBusyOfView(props.view, undefined),
+    busy: podBusyOfView({ view: props.view, status: props.status }),
     onResize: props.onGrow,
   })
   const handleClick = () => {
@@ -450,15 +470,33 @@ describe('resizePod', () => {
 
 describe('podBusyOfView', () => {
   it('is idle with no shells and no services', () => {
-    expect(podBusyOfView(paneValueFixture().view, 'idle')).toEqual({ busy: false, running: [] })
+    expect(podBusyOfView({ view: paneValueFixture().view, status: undefined })).toEqual({
+      busy: false,
+      running: [],
+    })
   })
 
   it('is busy with a running shell or a running service', () => {
-    expect(podBusyOfView(populatedPaneValue().view, 'idle').busy).toBe(true)
+    expect(podBusyOfView({ view: populatedPaneValue().view, status: undefined }).busy).toBe(true)
   })
 
   it('counts a turn in flight and a running setup script', () => {
-    expect(podBusyOfView(paneValueFixture().view, 'thinking').running).toEqual(['Agent turn'])
-    expect(podBusyOfView(paneValueFixture().view, 'preparing').running).toEqual(['Setup script'])
+    expect(
+      podBusyOfView({ view: paneValueFixture().view, status: { state: ESessionStatus.Thinking } })
+        .running,
+    ).toEqual(['Agent turn'])
+    expect(
+      podBusyOfView({ view: paneValueFixture().view, status: { state: ESessionStatus.Preparing } })
+        .running,
+    ).toEqual(['Setup script'])
+  })
+
+  it('counts a background setup script whose session is idle', () => {
+    expect(
+      podBusyOfView({
+        view: paneValueFixture().view,
+        status: { state: ESessionStatus.Idle, setupRunning: true },
+      }),
+    ).toEqual({ busy: true, running: ['Setup script'] })
   })
 })

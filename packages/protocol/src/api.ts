@@ -309,6 +309,7 @@ export const sessionStatusOutputSchema = z.strictObject({
   state: z.enum(ESessionStatus),
   reason: z.string().optional(),
   since: z.string().optional(),
+  setupRunning: z.boolean().optional(),
   lease: sessionLeaseSchema,
   sandbox: sessionSandboxStatusSchema.nullable().optional(),
   sandboxProvider: z.enum(ESandboxProvider).optional(),

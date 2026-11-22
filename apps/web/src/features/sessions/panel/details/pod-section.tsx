@@ -28,12 +28,16 @@ import type { SessionViewModel } from '../../data/session-view-model'
 import { useSessionPaneValue } from '../pane-value'
 import { SectionHead } from './rows'
 
-export const podBusyOfView = (view: SessionViewModel, state: string | undefined): PodBusy =>
+export const podBusyOfView = (args: {
+  view: SessionViewModel
+  status: { state: SessionStatusOutput['state']; setupRunning?: boolean | undefined } | undefined
+}): PodBusy =>
   podBusyOf(
     podBusyFactsOf({
-      state: state as never,
-      shellsRunning: view.shells.running,
-      servicesRunning: view.previews.length,
+      state: args.status?.state,
+      setupRunning: args.status?.setupRunning === true,
+      shellsRunning: args.view.shells.running,
+      servicesRunning: args.view.previews.length,
     }),
   )
 
@@ -143,7 +147,7 @@ export function SessionPodSection() {
   const power = usePodPower({ sessionId, declared: declaredPodStateOf(section?.state) })
   const running = section?.state === EPodState.Running
   const metrics = usePodMetrics({ sessionId, enabled: running })
-  const busy = podBusyOfView(view, status?.state)
+  const busy = podBusyOfView({ view, status })
   const { confirmation, handleResize } = useShapeResizeConfirmation({
     busy,
     onResize: async (request) => {

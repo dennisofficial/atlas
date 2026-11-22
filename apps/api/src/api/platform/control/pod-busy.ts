@@ -17,6 +17,7 @@ export const readPodBusy = async (args: {
   return podBusyOf(
     podBusyFactsOf({
       state: busy.status.state,
+      setupRunning: busy.setupRunning,
       shellsRunning: shellRosterOf(busy.pluginViews).running,
       servicesRunning: runningServicesOf(busy.pluginViews),
     }),
@@ -38,6 +39,7 @@ export const readPodRebootFacts = async (args: {
   })
   return {
     state: busy.status.state,
+    setupRunning: busy.setupRunning,
     shellsRunning: shellRosterOf(busy.pluginViews).running,
     servicesRunning: runningServicesOf(busy.pluginViews),
     backgroundAgents: 0,
