@@ -1,5 +1,7 @@
 'use client'
 
+import { readingClasses } from '@dltech/atlas-ui/tokens'
+
 import { NotConfiguredAlert } from './not-configured-alert'
 import { OperatorInputCard, type OperatorInputCardProps } from './operator-input-card'
 import { ComposerContext, ComposerDock } from './composer-dock'
@@ -42,7 +44,9 @@ export function ComposerFooter(props: Props) {
     ...composer
   } = props
   return (
-    <div className="mx-auto flex w-full max-w-4xl shrink-0 flex-col gap-2 px-3 pb-3 md:px-4 md:pb-4">
+    <div
+      className={`mx-auto flex w-full ${readingClasses.measure} shrink-0 flex-col gap-2 px-3 pb-3 md:px-4 md:pb-4`}
+    >
       {notConfigured === null ? null : <NotConfiguredAlert error={notConfigured.error} />}
       {operator.request === null ? null : (
         <OperatorInputCard

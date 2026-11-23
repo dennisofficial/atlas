@@ -1,5 +1,5 @@
+import { nestPeers as nestPeerRows } from '@dltech/atlas-client/stream'
 import type { SessionListOutput } from '@dltech/atlas-protocol'
-import { nestPeers as nestPeerRows } from '@dltech/atlas-plugin-sessions/client'
 import type { WireThread } from '@dltech/atlas-wire/web'
 
 import { rowPullRequestEntryOf } from '@/features/sessions/data/session-view-model'

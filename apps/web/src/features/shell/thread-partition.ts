@@ -1,10 +1,15 @@
+import {
+  INACTIVE_AFTER_MS,
+  isRecentProject as isRecentlyActiveProject,
+  lastActivityAt,
+} from '@dltech/atlas-client/stream'
 import type { Project, WireThread } from '@dltech/atlas-wire/web'
 
 import type { SessionNode } from '@/features/threads/data/threads-api'
 
 import type { V2RowView } from './v2-status'
 
-export const INACTIVE_AFTER_MS = 72 * 60 * 60 * 1000
+export { INACTIVE_AFTER_MS }
 
 export enum EThreadBucket {
   Active = 'active',
@@ -41,12 +46,6 @@ export interface ThreadPartition {
 const isSet = (stamp: string | null | undefined): stamp is string =>
   stamp !== null && stamp !== undefined
 
-const activityStampOf = (stamp: string | null | undefined): number => {
-  if (!isSet(stamp)) return Number.NEGATIVE_INFINITY
-  const parsed = Date.parse(stamp)
-  return Number.isNaN(parsed) ? Number.POSITIVE_INFINITY : parsed
-}
-
 const createdAtOf = (thread: WireThread): number => {
   const parsed = Date.parse(thread.createdAt)
   return Number.isNaN(parsed) ? 0 : parsed
@@ -72,16 +71,20 @@ export function sortSessions(sessions: readonly SessionNode[]): SessionNode[] {
 const withSessions = (entries: ProjectThreads[]): ProjectThreads[] =>
   entries.filter((entry) => entry.sessions.length > 0)
 
+const activityStampsOf = (entry: ProjectThreads): (string | null | undefined)[] =>
+  mainThreadsOf(entry.sessions).flatMap((thread) => [thread.updatedAt, thread.archivedAt])
+
 export function lastActivityOf(entry: ProjectThreads): number {
-  return mainThreadsOf(entry.sessions).reduce(
-    (latest, thread) =>
-      Math.max(latest, activityStampOf(thread.updatedAt), activityStampOf(thread.archivedAt)),
-    activityStampOf(entry.project?.createdAt),
-  )
+  return lastActivityAt({ createdAt: entry.project?.createdAt, stamps: activityStampsOf(entry) })
 }
 
 const isRecentProject = (args: { entry: ProjectThreads; now: number }): boolean =>
-  args.entry.project !== null && args.now - lastActivityOf(args.entry) <= INACTIVE_AFTER_MS
+  args.entry.project !== null &&
+  isRecentlyActiveProject({
+    createdAt: args.entry.project.createdAt,
+    stamps: activityStampsOf(args.entry),
+    now: args.now,
+  })
 
 export function partitionThreads(args: {
   entries: readonly ProjectThreads[]
