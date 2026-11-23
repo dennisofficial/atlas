@@ -15,19 +15,29 @@ import type { TurnLog } from '../held-turns'
 import type { AppendBody } from '../record/append-drafts'
 
 export const THREAD = toThreadId('thread-turns')
-const AT = '2026-11-21T00:00:00.000Z'
+export const AT = '2026-11-21T00:00:00.000Z'
 
 export class FakeLog implements TurnLog {
   readonly appended: AppendBody[] = []
   failAppend = false
+  headSeq = 1
+  queued: string | null = null
 
   constructor(
     readonly threadId: ThreadId = THREAD,
     private readonly events: readonly V2Event[] = [],
   ) {}
 
-  eventCache(): { eventsAfter(seq: number): V2Event[] } {
-    return { eventsAfter: () => [...this.events] }
+  eventCache(): {
+    eventsAfter(seq: number): V2Event[]
+    currentHead(): { seq: number }
+    queuedSince(): string | null
+  } {
+    return {
+      eventsAfter: () => [...this.events],
+      currentHead: () => ({ seq: this.headSeq }),
+      queuedSince: () => this.queued,
+    }
   }
 
   async append(args: {
@@ -55,8 +65,13 @@ const idsOf = (): IdPort => {
   } as IdPort
 }
 
-export const depsOf = (): HeldSessionDeps =>
-  ({ sessionId: 'session-turns', ids: idsOf() }) as HeldSessionDeps
+export const depsOf = (over: Partial<HeldSessionDeps> = {}): HeldSessionDeps =>
+  ({
+    sessionId: 'session-turns',
+    ids: idsOf(),
+    timers: { now: () => Date.parse(AT) },
+    ...over,
+  }) as HeldSessionDeps
 
 export const openTurnIn = (turnId: string): V2Event[] =>
   [
