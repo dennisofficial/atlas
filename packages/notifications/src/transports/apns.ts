@@ -8,6 +8,7 @@ import {
   NOTIFY_DATA_CLEAR_SESSION_KEY,
   NOTIFY_DATA_SEQ_KEY,
   NOTIFY_DATA_SESSION_KEY,
+  momentDataOf,
   routineDataOf,
   type AtlasNotification,
   type NotifyDevice,
@@ -158,6 +159,7 @@ const requestOf = (args: {
       [NOTIFY_DATA_SESSION_KEY]: notification.sessionId,
       [NOTIFY_DATA_SEQ_KEY]: notification.seq,
       ...routineDataOf(notification),
+      ...momentDataOf(notification),
     }),
   }
 }

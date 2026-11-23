@@ -99,6 +99,8 @@ describe('apnsTransport.deliver', () => {
       },
       sessionId: 'session-1',
       seq: 7,
+      moment: ENotifyMoment.TurnFinished,
+      sentAt: '2026-11-23T14:02:00.000Z',
     })
   })
 

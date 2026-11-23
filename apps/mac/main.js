@@ -7,7 +7,12 @@ import { Notification, pushNotifications } from 'electron'
 // rather than destructured by the ESM loader.
 import electronUpdater from 'electron-updater'
 
-import { createApnsBridge, sessionIdOfLaunchInfo, urlForSession } from './apns.js'
+import {
+  createApnsBridge,
+  sessionIdOfLaunchInfo,
+  urlForSession,
+  userInfoOfLaunchInfo,
+} from './apns.js'
 import { contextMenuTemplate } from './context-menu.js'
 import { hostEnvironment, resolveBun, resolveHostScript, webRootAt } from './host-paths.js'
 import { externalUrlOf, sameOrigin } from './links.js'
@@ -289,6 +294,7 @@ let launchSessionId
 
 app.on('ready', (_event, launchInfo) => {
   launchSessionId = sessionIdOfLaunchInfo(launchInfo)
+  if (launchSessionId !== undefined) void apns.opened(userInfoOfLaunchInfo(launchInfo))
 })
 
 app.whenReady().then(async () => {

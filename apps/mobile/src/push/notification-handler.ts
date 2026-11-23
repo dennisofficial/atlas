@@ -48,13 +48,17 @@ export const dismissPresentedRead = async (
 
 export const subscribeToNotificationResponses = ({
   onTap,
+  onResponse,
 }: {
   onTap: (tap: TNotificationTap) => void
+  onResponse?: ((response: Notifications.NotificationResponse) => void) | undefined
 }): Notifications.EventSubscription =>
   Notifications.addNotificationResponseReceivedListener((response) => {
+    onResponse?.(response)
     onTap({
       identifier: response.notification.request.identifier,
       data: response.notification.request.content.data,
+      actionIdentifier: response.actionIdentifier,
     })
   })
 
@@ -65,6 +69,7 @@ export const lastNotificationTap = (): TNotificationTap | undefined => {
     return {
       identifier: response.notification.request.identifier,
       data: response.notification.request.content.data,
+      actionIdentifier: response.actionIdentifier,
     }
   } catch {
     return undefined

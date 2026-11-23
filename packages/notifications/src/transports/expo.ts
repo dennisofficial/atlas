@@ -2,9 +2,11 @@ import { z } from 'zod'
 
 import {
   ENotifyDeviceKind,
+  NOTIFY_CATEGORY_ID,
   NOTIFY_DATA_CLEAR_SESSION_KEY,
   NOTIFY_DATA_SEQ_KEY,
   NOTIFY_DATA_SESSION_KEY,
+  momentDataOf,
   routineDataOf,
   type AtlasNotification,
   type NotifyDevice,
@@ -21,6 +23,7 @@ export type ExpoMessage =
       title: string
       body: string
       sound?: 'default'
+      categoryId?: string
       collapseId: string
       threadId: string
       data: { sessionId: string; seq: number }
@@ -65,12 +68,14 @@ const alertMessageOf = (device: NotifyDevice, notification: AtlasNotification): 
   title: notification.title,
   body: notification.body,
   ...(notification.silent === true ? {} : { sound: 'default' as const }),
+  categoryId: NOTIFY_CATEGORY_ID,
   collapseId: notification.sessionId,
   threadId: notification.sessionId,
   data: {
     [NOTIFY_DATA_SESSION_KEY]: notification.sessionId,
     [NOTIFY_DATA_SEQ_KEY]: notification.seq,
     ...routineDataOf(notification),
+    ...momentDataOf(notification),
   },
 })
 
