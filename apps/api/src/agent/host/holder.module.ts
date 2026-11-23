@@ -26,6 +26,7 @@ import type { GithubTokenReader } from '../tokens/github-token-reader'
 import type { ModelTokenService } from '../tokens/model-token-service'
 import type { SigningKeyReader } from '../tokens/signing-key-reader'
 import { UnavailableChangeContentStore } from '../../_lib/changes/change-content.provider'
+import { JobsProjectDispatcher } from '../../_core/ports/job-dispatcher'
 import { ControlModule } from './control.module'
 import { HostWatchService } from './host-watch-service'
 import type { MediaSignerSource } from './media-signer-source'
@@ -73,6 +74,7 @@ const holderProvider: Provider = {
     log: LogPort,
     watch: HostWatchService,
     macLink: MacLink,
+    dispatcher: JobsProjectDispatcher,
     traceFor: (distinctId: string) => TracePort,
   ): SessionHolder =>
     composeAgentHost({
@@ -87,6 +89,7 @@ const holderProvider: Provider = {
       presence,
       control,
       macLink,
+      dispatcher,
       log,
       traceFor,
       onHostIdChanged: () => watch.recompute(),
@@ -109,6 +112,7 @@ const holderProvider: Provider = {
     LOG,
     HOST_WATCH,
     MAC_LINK,
+    JobsProjectDispatcher,
     TRACE_FOR,
   ],
 }

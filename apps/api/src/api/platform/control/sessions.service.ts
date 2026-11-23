@@ -520,7 +520,7 @@ export class SessionsService {
       registry: this.commands,
       controlHandlers: new Map([
         ...modelSetHandlers({ plane: this.plane, session }),
-        [resize.spec.name, this.podSizing.resizeHandler({ userId: args.userId, session })],
+        [resize.spec.name, this.podSizing.resizeHandler()],
       ]),
       ...args,
     })

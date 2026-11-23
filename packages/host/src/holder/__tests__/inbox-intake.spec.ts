@@ -11,6 +11,7 @@ import {
   type ControlCommandHandler,
 } from '@dltech/atlas-commands'
 import type { ControlPlane } from '@dltech/atlas-control'
+import { resize } from '@dltech/atlas-native-commands'
 import {
   type InputMessage,
   EContextSlot,
@@ -757,6 +758,32 @@ describe('InboxIntake typed text commands', () => {
       ],
     ])
     expect(renames).toEqual([{ sessionId: 'session-1', title: 'bench' }])
+    expect(rig.appended.some((draft) => draft.type === 'user-said')).toBe(false)
+  })
+
+  it('runs a typed resize in the host without saying it', async () => {
+    const resizes: unknown[] = []
+    const resizeHandler: ControlCommandHandler<ControlPlane, unknown> = async ({ args }) => {
+      resizes.push(args)
+    }
+    const rig = rigOf([entry(1, { text: '/resize 2 4' })], {
+      registry: composeCommands([resize]),
+      controlHandlers: new Map([['resize', resizeHandler]]),
+    })
+    const drain = await rig.intake.prepare()
+    expect(drain).toEqual({ drafts: [], wakesTurn: false })
+    expect(rig.appends).toEqual([
+      [posted(1, { text: '/resize 2 4' })],
+      [
+        {
+          type: 'input-consumed',
+          inboxId: 1,
+          consumed: EInputConsumed.Command,
+          command: { name: 'resize', argumentText: '2 4', text: '/resize 2 4' },
+        },
+      ],
+    ])
+    expect(resizes).toEqual([{ vcpus: 2, memoryGb: 4 }])
     expect(rig.appended.some((draft) => draft.type === 'user-said')).toBe(false)
   })
 
