@@ -1,5 +1,5 @@
 import type { Chunk } from '@dltech/atlas-core'
-import type { ChannelSignal, RetryWaitingSignal } from '@dltech/atlas-harness'
+import type { ChannelSignal, RetryWaitingSignal } from '@dltech/atlas-client/channel'
 
 import { IDLE_TURN, NO_LIVE_INPUT, type LiveInput, type TurnClock } from '../ui/turn-clock'
 

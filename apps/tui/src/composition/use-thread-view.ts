@@ -22,6 +22,7 @@ import {
 import type { LogAccumulator } from '../store/log-accumulator'
 import type { TurnClock } from '../ui/turn-clock'
 import type { AtlasApp } from './compose'
+import { channelSignalFeed } from './channel-signal-feed'
 import { createThreadPager, type ThreadIdentity } from './thread-reads'
 import {
   cloudChannelOf,
@@ -129,11 +130,14 @@ export function useThreadView(args: {
 
   const effects = useCallback((name: string) => app.tools.find(name)?.effect, [app.tools])
 
+  const channel = app.channel
+  const signals = useMemo(() => channelSignalFeed({ channel, threadId }), [channel, threadId])
+
   const store = useMemo(() => {
     const seed = initial?.()
 
     return createConversationStore({
-      channel: app.channel,
+      signals,
       threadId,
       events: seed?.events ?? NO_EVENTS,
       ...(seed?.turns === undefined ? {} : { turns: seed.turns }),
@@ -146,7 +150,7 @@ export function useThreadView(args: {
       ...(projectEvents === undefined ? {} : { projectEvents }),
     })
   }, [
-    app.channel,
+    signals,
     app.containerStatus,
     app.executionLocation,
     threadId,
