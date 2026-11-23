@@ -7,10 +7,11 @@ import type { ContextSeedGate } from './context-seed'
 import type { HeldEnding } from './held-ending'
 import type { HeldObservation } from './held-observation'
 import type { HeldPrepare } from './held-prepare'
-import { ranQueuedCommand, startHeldTurn } from './held-runner'
+import { ranQueuedCommand } from './held-runner'
 import type { HeldSessionDeps } from './held-session-deps'
 import { readHeldAction } from './held-snapshot'
 import type { HeldTurns } from './held-turns'
+import { startHeldTurn } from './held-turns'
 import { ETakeoverLap } from './held-takeover'
 import { consumeStops } from './held-wait'
 import { settleOperatorOnStop } from './operator-stop'
@@ -60,22 +61,23 @@ export class HeldActions {
     if (ending.outcome !== undefined) return
     const turnRunning = turns.turnRunning
     if (this.args.draining()) return turnRunning ? undefined : ending.finish(EHeldOutcome.Drained)
-    const { entries, action, resumable, inboxHead, failure, preparedBefore } = await args.lap({
-      lap: ETakeoverLap.Decide,
-      work: () =>
-        readHeldAction({
-          deps,
-          threadId: args.threadId,
-          draining: this.args.draining(),
-          turnRunning,
-          resumeAfterSeq: this.resumeAfterSeq,
-          runtime: this.args.runtime(),
-          record: this.args.record(),
-          preparing: this.args.prepare.running,
-          setupRunning: this.args.prepare.hasSetupRunning,
-          childrenRunning: this.args.childrenRunning(),
-        }),
-    })
+    const { entries, action, resumable, inboxHead, failure, preparedBefore, queuedAt } =
+      await args.lap({
+        lap: ETakeoverLap.Decide,
+        work: () =>
+          readHeldAction({
+            deps,
+            threadId: args.threadId,
+            draining: this.args.draining(),
+            turnRunning,
+            resumeAfterSeq: this.resumeAfterSeq,
+            runtime: this.args.runtime(),
+            record: this.args.record(),
+            preparing: this.args.prepare.running,
+            setupRunning: this.args.prepare.hasSetupRunning,
+            childrenRunning: this.args.childrenRunning(),
+          }),
+      })
     if (action === EHeldAction.AbortTurn) return turns.abort(OPERATOR_STOP_REASON)
     if (action !== EHeldAction.StartTurn) await this.staged?.()
     if (!turnRunning && (await this.retryChildren({ entries, threadId: args.threadId }))) {
@@ -102,6 +104,7 @@ export class HeldActions {
           resumable,
           preparedBefore,
           inboxHead,
+          queuedAt,
         })
         return
       }
@@ -159,6 +162,7 @@ export class HeldActions {
     resumable: boolean
     preparedBefore: boolean
     inboxHead: number
+    queuedAt: string | undefined
   }): Promise<void> {
     const { deps, ending, turns } = this.args
     if (this.args.draining() || ending.outcome !== undefined) return
@@ -186,6 +190,7 @@ export class HeldActions {
       runner: args.runner,
       threadId: args.threadId,
       resume: args.resumable,
+      queuedAt: args.queuedAt,
       refreshBranches: () => {
         if (this.args.draining() || ending.outcome !== undefined) return
         this.args.observation()?.refreshBranches()

@@ -26,6 +26,7 @@ import {
   isStop,
   logPendingInputIdsOf,
   logPendingNoticeIdsOf,
+  queuedPromptAtOf,
   readFullInbox,
   stopSettledPromptOf,
   understandsCommand,
@@ -78,6 +79,7 @@ export const readHeldAction = async (args: {
   shellsRunning: boolean
   failure: PrepareFailure | undefined
   preparedBefore: boolean
+  queuedAt: string | undefined
 }> => {
   const { deps } = args
   const cache = args.record?.eventCache()
@@ -154,5 +156,6 @@ export const readHeldAction = async (args: {
     shellsRunning: runningShells > 0,
     failure: workspace.failure,
     preparedBefore,
+    queuedAt: queuedPromptAtOf({ entries, events, threadId: args.threadId }),
   }
 }

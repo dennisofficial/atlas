@@ -96,6 +96,7 @@ export const traceTurn = async (args: {
   record: AgentRecordPort
   threadId: ThreadId
   entry: ETurnEntry
+  queuedAt?: string | undefined
   firstToken?: FirstTokenClock | undefined
   run: () => Promise<TurnOutcome>
 }): Promise<TurnOutcome> => {
@@ -106,6 +107,7 @@ export const traceTurn = async (args: {
           record: args.record,
           threadId: args.threadId,
           now: Date.now(),
+          ...(args.queuedAt === undefined ? {} : { queuedAt: args.queuedAt }),
         })
   const fields: SpanFields = {
     threadId: args.threadId,
