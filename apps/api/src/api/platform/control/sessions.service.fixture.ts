@@ -4,11 +4,11 @@ import {
   ECommandGroup,
   ECommandRunsIn,
 } from '@dltech/atlas-commands'
-import { resize } from '@dltech/atlas-native-commands'
+import { rename, resize } from '@dltech/atlas-native-commands'
 import { chainEvents, toRunId, toThreadId, type V2Body } from '@dltech/atlas-core'
 import { z } from 'zod'
 import { FakeMediaStore } from '@dltech/atlas-media/testing'
-import type { ProductAnalytics } from '@dltech/atlas-observability'
+import type { ProductAnalytics, TracePort } from '@dltech/atlas-observability'
 import { ControlPlane, INBOX_KIND_WITHDRAW, withdrawPayloadOf } from '@dltech/atlas-control'
 import { InMemoryControlStore } from '@dltech/atlas-control/testing'
 import type { PodOps } from '../../../agent'
@@ -121,6 +121,7 @@ export const setupSessionsService = (
     dispatcher?: FakePodResizeDispatcher
     ops?: PodOps | null
     analytics?: ProductAnalytics | null
+    traceFor?: ((distinctId: string) => TracePort) | null
   } = {},
 ) => {
   const store = new InMemoryControlStore({ clock: () => NOW })
@@ -139,12 +140,13 @@ export const setupSessionsService = (
     new NoBackgroundWork(),
     registry,
     mediaStore,
-    composeCommands([TEST_COMMAND, modelSet, resize]),
+    composeCommands([TEST_COMMAND, rename, modelSet, resize]),
     podSizing,
     podPower,
     dispatcher as unknown as JobsProjectDispatcher,
     over.ops ?? null,
     over.analytics ?? null,
+    over.traceFor ?? null,
   )
   return {
     plane,

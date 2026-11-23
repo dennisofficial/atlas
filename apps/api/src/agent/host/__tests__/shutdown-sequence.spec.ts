@@ -40,6 +40,7 @@ const sequenceOf = (
     wakes: { close: record('wakes.close') },
     liveFrames: { close: record('liveFrames.close') },
     podMetrics: { close: record('podMetrics.close') },
+    podCalls: { close: record('podCalls.close') },
     stream: { drain: () => undefined, stop: record('stream.stop') },
     holder: { drain: record('holder.drain') },
     follow: { close: record('follow.close') },
@@ -85,6 +86,7 @@ describe('HostShutdownSequence', () => {
       'podMetrics.close',
       'stream.stop',
       'follow.close',
+      'podCalls.close',
       'pool.end',
     ])
   })

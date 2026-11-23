@@ -11,6 +11,7 @@ import {
   type UnavailablePodShape,
 } from '../pod-shapes'
 import { InlineSpinner } from './status-dot'
+import { PodResizeWait } from './pod-resize-wait'
 
 export interface PodShapeOption {
   key: string
@@ -64,12 +65,15 @@ export interface PodSizeControlProps {
   shapes: readonly PodShape[]
   unavailable?: readonly UnavailablePodShape[] | undefined
   pendingShape?: PodShape | undefined
+  resizeWaiting?: boolean | undefined
   resizeError?: string | undefined
   disabled?: boolean | undefined
   defaultOpen?: boolean | undefined
   open?: boolean | undefined
   onOpenChange?: ((open: boolean) => void) | undefined
   onResize?: ((shape: PodShape) => void) | undefined
+  onResizeNow?: (() => Promise<void>) | undefined
+  onCancelResize?: (() => Promise<void>) | undefined
 }
 
 function podSizeOptionsOf(props: PodSizeControlProps): PodShapeOption[] {
@@ -121,7 +125,14 @@ export function PodSizeSelect(props: PodSizeControlProps) {
   )
 }
 
-export function PodSizeStatus({ pendingShape, resizeError, onResize }: PodSizeControlProps) {
+export function PodSizeStatus({
+  pendingShape,
+  resizeWaiting,
+  resizeError,
+  onResize,
+  onResizeNow,
+  onCancelResize,
+}: PodSizeControlProps) {
   const handleRetry = () => {
     if (pendingShape === undefined) return
     onResize?.(pendingShape)
@@ -144,5 +155,12 @@ export function PodSizeStatus({ pendingShape, resizeError, onResize }: PodSizeCo
       </p>
     )
   }
-  return null
+  if (resizeWaiting !== true || pendingShape === undefined) return null
+  return (
+    <PodResizeWait
+      pendingShape={pendingShape}
+      onResizeNow={onResizeNow}
+      onCancelResize={onCancelResize}
+    />
+  )
 }

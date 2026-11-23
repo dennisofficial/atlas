@@ -1,25 +1,15 @@
-import type { CommandRegistry } from '@dltech/atlas-commands'
-import type { PodMcpControl } from '@dltech/atlas-plugin-sdk'
-import {
-  EHeldOutcome,
-  startVerdict,
-  toThreadId,
-  type HeldOutcome,
-  type IdPort,
-  type Lease,
-} from '@dltech/atlas-core'
-import type { ChangeContentStore, ControlPlane } from '@dltech/atlas-control'
+import { EHeldOutcome, toThreadId, type HeldOutcome, type Lease } from '@dltech/atlas-core'
+import type { ControlPlane } from '@dltech/atlas-control'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
-import type { HostBus, HostTimers, PodPeers, SessionRuntimeFactory } from './ports'
-import type { PodControlClient } from './pod-control'
+import type { HostBus } from './ports'
 import { ClaimLoop } from './claim-loop'
-import type { NotifyDispatch } from './notify-dispatch'
-import type { TurnEndedHook } from './turn-ended-hook'
 import { HolderDemand } from './holder-demand'
 import { PodCalls } from './pod-calls'
-import type { CommandHandlers, ControlHandlers } from './command-intake'
+import { HolderPods } from './pod-route/holder-pods'
+import type { PodRouter } from './pod-route/pod-router'
 import { HeldSession, type HeldSessionDeps } from './held-session'
+import { heldSessionDepsOf } from './held-deps'
 import { HolderPresence } from './holder-presence'
 import { auditOwnLeases } from './own-lease-audit'
 import { runHeld } from './run-held'
@@ -30,26 +20,12 @@ export class SessionHolder {
   private readonly presence: HolderPresence
   private readonly plane: ControlPlane
   private readonly bus: HostBus
-  private readonly timers: HostTimers
-  private readonly runtimes: SessionRuntimeFactory
-  private readonly ids: IdPort
-  private readonly podPeers: PodPeers | undefined
-  private readonly appendRetryMs: number
-  private readonly isPermanentStartError: (error: unknown) => boolean
-  private readonly reasonOfStartError: ((error: unknown) => string) | undefined
-  private readonly commands: CommandRegistry | undefined
-  private readonly commandHandlers: CommandHandlers | undefined
-  private readonly controlHandlers: ControlHandlers | undefined
-  private readonly control: PodControlClient | undefined
-  private readonly mcp: ((sessionId: string) => PodMcpControl) | undefined
-  private readonly operator: SessionHolderArgs['operator']
-  private readonly changes: { content: ChangeContentStore } | undefined
-  private readonly notify: NotifyDispatch | undefined
-  private readonly turnEnded: TurnEndedHook | undefined
   private readonly log: LogPort | undefined
+  private readonly args: SessionHolderArgs
 
   private readonly held = new Map<string, HeldSession>()
   private readonly demand: HolderDemand
+  private readonly pods: HolderPods
   private readonly retryAt = new Map<string, string | null>()
   private lostRetries: (string | null)[] = []
   private unsubWake: (() => void) | undefined
@@ -60,6 +36,7 @@ export class SessionHolder {
   private draining = false
 
   constructor(args: SessionHolderArgs) {
+    this.args = args
     this.presence = new HolderPresence({
       presence: args.presence,
       timers: args.timers,
@@ -70,7 +47,6 @@ export class SessionHolder {
     })
     this.plane = args.plane
     this.bus = args.bus
-    this.timers = args.timers
     this.demand = new HolderDemand({
       plane: args.plane,
       bus: args.bus,
@@ -82,22 +58,18 @@ export class SessionHolder {
       panel: args.panelDemand,
       log: args.log,
     })
-    this.runtimes = args.runtimes
-    this.ids = args.ids
-    this.podPeers = args.podPeers
-    this.appendRetryMs = args.appendRetryMs ?? DEFAULTS.appendRetryMs
-    this.isPermanentStartError = args.isPermanentStartError ?? (() => false)
-    this.reasonOfStartError = args.reasonOfStartError
-    this.commands = args.commands
-    this.commandHandlers = args.commandHandlers
-    this.controlHandlers = args.controlHandlers
-    this.control = args.control
-    this.mcp = args.mcp
-    this.operator = args.operator
-    this.changes = args.changes
-    this.notify = args.notify
-    this.turnEnded = args.turnEnded
     this.log = args.log
+    this.pods = new HolderPods({
+      calls: this.podCalls(),
+      demand: this.demand,
+      plane: args.plane,
+      bus: args.podCallBus,
+      hostId: () => this.hostId(),
+      runtimeOpen: (sessionId) => this.held.get(sessionId)?.runtimeOf() !== undefined,
+      holds: (sessionId) => this.held.has(sessionId),
+      timers: args.timers,
+      log: args.log,
+    })
     this.settler = new LeaseSettler({
       plane: args.plane,
       timers: args.timers,
@@ -120,6 +92,7 @@ export class SessionHolder {
 
   async start(): Promise<void> {
     await this.presence.start()
+    this.pods.start()
     this.unsubWake = this.bus.onWake((sessionId) => {
       this.onWake(sessionId)
     })
@@ -129,6 +102,7 @@ export class SessionHolder {
 
   async drain(): Promise<void> {
     this.draining = true
+    this.pods.beginDrain()
     this.stopTriggers()
     const sessions = [...this.held.values()]
     for (const session of sessions) session.beginDrain()
@@ -143,6 +117,7 @@ export class SessionHolder {
         }),
       ),
     )
+    this.pods.stop()
   }
 
   private stopTriggers(): void {
@@ -169,12 +144,17 @@ export class SessionHolder {
     return new PodCalls({ held: (sessionId) => this.held.get(sessionId)?.runtimeOf() })
   }
 
+  podRouter(): PodRouter {
+    return this.pods.router
+  }
+
   demandOf(): HolderDemand {
     return this.demand
   }
 
   discard(): void {
     this.draining = true
+    this.pods.stop()
     this.stopTriggers()
     this.demand.panel.stop()
     for (const session of this.held.values()) session.discard()
@@ -246,7 +226,6 @@ export class SessionHolder {
       this.deps({ lease, podSessionId: row.podSessionId ?? row.sessionId }),
     )
     this.held.set(lease.sessionId, session)
-    this.demand.notifyHeld(lease.sessionId)
     this.retryAt.set(lease.sessionId, lease.retryAfter)
     const finished = this.runAndSettle({
       session,
@@ -271,39 +250,10 @@ export class SessionHolder {
   }
 
   private deps(args: { lease: Lease; podSessionId: string }): HeldSessionDeps {
-    return {
-      sessionId: args.lease.sessionId,
-      podSessionId: args.podSessionId,
-      podPeers: this.podPeers,
-      plane: this.plane,
-      bus: this.bus,
-      timers: this.timers,
-      ids: this.ids,
-      appendRetryMs: this.appendRetryMs,
-      runtimeFor: this.runtimes,
-      judgeStartFailure: (error) =>
-        startVerdict({
-          attempts: args.lease.attempts,
-          permanent: this.isPermanentStartError(error),
-        }),
-      reasonOfStartError: this.reasonOfStartError,
-      commands: this.commands,
-      commandHandlers: this.commandHandlers,
-      controlHandlers: this.controlHandlers,
-      control: this.control,
-      mcp: this.mcp,
-      changes: this.changes,
-      notify: this.notify,
-      turnEnded: this.turnEnded,
-      ...(this.operator === undefined
-        ? {}
-        : {
-            operator: {
-              sessionDir: this.operator.sessionDir(args.lease.sessionId),
-              openValue: this.operator.openValue,
-            },
-          }),
-      log: this.log,
-    }
+    return heldSessionDepsOf({
+      args: this.args,
+      onRuntimeReady: (sessionId) => this.pods.ready(sessionId),
+      ...args,
+    })
   }
 }

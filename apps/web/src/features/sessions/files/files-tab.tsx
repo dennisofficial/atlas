@@ -183,7 +183,11 @@ export function FilesTab(
   )
   const attached = podAttached(status)
   usePodHold({ sessionId, active: attached })
-  const { state, wakePod } = usePodWake({
+  const {
+    state,
+    message: wakeMessage,
+    wakePod,
+  } = usePodWake({
     sessionId,
     live: attached,
     wake: () => requestWake(sessionId).then(() => undefined),
@@ -214,7 +218,8 @@ export function FilesTab(
   const handleOpened = useCallback(() => setOpenPath(undefined), [])
   const handleBack = useCallback(() => setContextPath(undefined), [])
 
-  if (!attached) return <PodDisconnected tab="Files" state={state} onWake={wakePod} />
+  if (!attached)
+    return <PodDisconnected tab="Files" state={state} message={wakeMessage} onWake={wakePod} />
   if (contextPath !== undefined) {
     return (
       <ContextFileView

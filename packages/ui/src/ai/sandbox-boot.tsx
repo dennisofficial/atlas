@@ -40,6 +40,7 @@ export interface SandboxBootStep {
 export interface SandboxBootProps {
   steps: SandboxBootStep[]
   state: EBootStepState
+  title?: string
   elapsedMs?: number
   error?: string
   onRetry?: () => void
@@ -169,6 +170,7 @@ const carriesError = (step: SandboxBootStep): boolean =>
 export function SandboxBoot({
   steps,
   state,
+  title,
   elapsedMs,
   error,
   onRetry,
@@ -190,7 +192,7 @@ export function SandboxBoot({
     <Trace data-slot="sandbox-boot" className={className}>
       <Step
         icon={<StatusIcon status={status} />}
-        title={sandboxBootTitle(state)}
+        title={title ?? sandboxBootTitle(state)}
         description={sandboxBootSummary({ steps, state, elapsedMs })}
         status={traceStatusOf(status)}
         autoOpen={open}

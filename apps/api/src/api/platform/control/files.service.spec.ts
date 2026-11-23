@@ -22,8 +22,10 @@ describe('FilesService', () => {
         waits.push(args.waitForHolder)
         return { state: 'ok', result: listing(['a.ts']) }
       },
+      follow: async () => null,
       events: () => null,
       hold: () => true,
+      servesLocally: async () => true,
     })
     const sessionId = await asUser(sessions)
     await files.tree({ userId: 'user-a', sessionId, directory: '' })
@@ -33,8 +35,10 @@ describe('FilesService', () => {
   it('throws the parked failure when the pod is asleep', async () => {
     const { files, sessions } = setupFiles({
       invoke: async () => ({ state: 'unavailable', reason: ELiveOpFailure.Asleep }),
+      follow: async () => null,
       events: () => null,
       hold: () => true,
+      servesLocally: async () => true,
     })
     const sessionId = await asUser(sessions)
     await expect(files.tree({ userId: 'user-a', sessionId, directory: '' })).rejects.toBeInstanceOf(

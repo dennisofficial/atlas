@@ -7,8 +7,10 @@ import {
   type ToolCall,
   type ToolOutcome,
 } from '@dltech/atlas-core'
+import { EShellRunStatus } from '@dltech/atlas-protocol'
 
 import { adoptedShellHook } from '../adopted-shell'
+import { recordShellEnding } from '../ending'
 import { stateFor } from '../state'
 import { rig } from './support'
 
@@ -37,6 +39,12 @@ const backgrounded = (over: Record<string, unknown> = {}): ToolOutcome => ({
   },
   modelText: 'still running',
 })
+
+const seedShellUnrecorded = async (harness: ReturnType<typeof rig>): Promise<string> => {
+  const shellId = `shell-${crypto.randomUUID().slice(0, 8)}`
+  await harness.ctx.call({ op: 'shells.launch', shellId, command: 'bun test', cwd: '/work' })
+  return shellId
+}
 
 const settle = async (): Promise<void> => {
   for (let turns = 0; turns < 20; turns += 1) await Bun.sleep(1)
@@ -106,6 +114,32 @@ describe('a bash call the daemon moved to the background', () => {
         cwd: '/work',
       },
     ])
+  })
+
+  it('records the named start, then the ending that arrived before the call returned', async () => {
+    const harness = rig()
+    const shellId = await seedShellUnrecorded(harness)
+    harness.print(shellId, 'done\n')
+    harness.finish(shellId, EShellRunStatus.Exited, 0)
+    await recordShellEnding({
+      ctx: harness.ctx,
+      state: stateFor(harness.ctx),
+      frame: harness.frame(shellId),
+    })
+
+    const outcome = await run({ harness, result: backgrounded({ shellId }) })
+
+    expect(outcome).toEqual({})
+    expect(harness.log).toMatchObject([
+      { type: 'background-shell-started', shellId, description: 'Run the suite' },
+    ])
+    expect(harness.notices.at(-1)?.event).toMatchObject({
+      type: 'background-shell-ended',
+      shellId,
+      description: 'Run the suite',
+      output: 'done\n',
+    })
+    expect(stateFor(harness.ctx).unclaimed.has(shellId)).toBe(false)
   })
 
   it('leaves the row alone when the ending already recorded it', async () => {

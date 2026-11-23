@@ -1,7 +1,7 @@
 'use client'
 
 import { ENotifyDeviceKind } from '@dltech/atlas-core'
-import type { NotifyDeviceView } from '@dltech/atlas-wire'
+import type { NotifyDeviceView } from '@dltech/atlas-wire/web'
 import { Switch } from '@dltech/atlas-ui/components/switch'
 import { useState } from 'react'
 

@@ -17,6 +17,7 @@ import {
   type SubscriptionKey,
   type SubscriptionLease,
   type SubscriptionLeaseKey,
+  type ReleasePullRequestTrackingParams,
   type SubscriptionRow,
   type WrittenSubscriptionRow,
   type TrackingTarget,
@@ -57,8 +58,10 @@ import {
   deleteSubscriptionRowIn,
   findSubscriptionIn,
   insertSubscriptionRowIn,
+  laterLiveUntilOf,
   readSessionSubscriptionRowsIn,
   readSubscriptionIn,
+  releasePullRequestTrackingIn,
   updateSubscriptionRowIn,
 } from './memory-subscriptions'
 import { blobHashesPresent, insertBlobRows, readBlobRow } from './memory-blobs'
@@ -90,6 +93,7 @@ import {
   setSessionPodDesiredIn,
   setSessionPodDiskIn,
   setSessionPodFailedIn,
+  setSessionPodWaitCancelledIn,
   setSessionPodWaitingIn,
   setSessionReadSeqIn,
   setSessionTitleIfUntitledIn,
@@ -179,6 +183,10 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
 
   async setSessionPodWaiting(params: Parameters<ControlTx['setSessionPodWaiting']>[0]) {
     return setSessionPodWaitingIn({ state: this.state, ...params })
+  }
+
+  async setSessionPodWaitCancelled(params: Parameters<ControlTx['setSessionPodWaitCancelled']>[0]) {
+    return setSessionPodWaitCancelledIn({ state: this.state, ...params })
   }
 
   async setSessionArchived(params: { sessionId: string; archivedAt: string | null }) {
@@ -462,7 +470,7 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
     target: SubscriptionRow['target']
     label: string
     events: readonly string[]
-    expiresAt: string
+    expiresAt: string | null
     deadline: string | null
   }): Promise<boolean> {
     return updateSubscriptionRowIn({ state: this.state, ...params })
@@ -483,10 +491,14 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
     const key = trackingTargetKey(params)
     const held = this.state.trackingTargets.get(key)
     const liveUntil =
-      held !== undefined && Date.parse(held.liveUntil) > Date.parse(params.liveUntil)
-        ? held.liveUntil
-        : params.liveUntil
+      held === undefined
+        ? params.liveUntil
+        : laterLiveUntilOf(held.liveUntil ?? null, params.liveUntil)
     this.state.trackingTargets.set(key, { ...params, liveUntil })
+  }
+
+  async releasePullRequestTracking(params: ReleasePullRequestTrackingParams): Promise<void> {
+    releasePullRequestTrackingIn({ state: this.state, ...params })
   }
 
   async hostPresent(hostId: number): Promise<boolean> {

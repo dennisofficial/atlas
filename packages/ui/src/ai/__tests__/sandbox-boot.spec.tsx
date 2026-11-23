@@ -90,6 +90,19 @@ describe('SandboxBoot', () => {
     expect(html).not.toContain('Retry')
   })
 
+  it('renders a given title instead of the state title', () => {
+    const html = render({
+      steps: steps([Done, Error]),
+      state: Error,
+      title: 'Setup script failed',
+      onRetry: () => {},
+    })
+
+    expect(html).toContain('Setup script failed')
+    expect(html).not.toContain('Sandbox failed to start')
+    expect(html).toContain('Retry')
+  })
+
   it('renders open on error with the failed step title and the error in a card', () => {
     const html = render({ steps: steps([Done, Error, Pending]), state: Error })
 

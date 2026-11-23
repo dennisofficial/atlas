@@ -18,8 +18,10 @@ import {
 import { logFieldsOf } from '@dltech/atlas-observability'
 
 import { liveOutputOf } from './live-output'
+import { logDriveFault } from './held-runner'
 import type { HeldSessionDeps } from './held-session-deps'
 import type { AppendBody } from './record/append-drafts'
+import type { SessionRecord } from './record/record-adapter'
 import {
   ETurnAborted,
   FAILED_BY_HOST,
@@ -42,12 +44,46 @@ export type TurnLog = {
   }
 }
 
+export const startHeldTurn = (args: {
+  deps: HeldSessionDeps
+  turns: HeldTurns
+  record: SessionRecord
+  pause: PauseSignal
+  runner: LoopTurnRunner
+  threadId: ThreadId
+  resume: boolean
+  queuedAt?: string | undefined
+  refreshBranches(): void
+  onFault(): void
+  onSettled(): void
+}): void => {
+  void args.turns
+    .drive({
+      runner: args.runner,
+      record: args.record,
+      threadId: args.threadId,
+      pause: args.pause,
+      resume: args.resume,
+      ...(args.queuedAt === undefined ? {} : { queuedAt: args.queuedAt }),
+    })
+    .then(() => {
+      args.refreshBranches()
+    })
+    .catch((error) => {
+      logDriveFault({ deps: args.deps, error })
+      args.onFault()
+    })
+    .finally(() => {
+      args.onSettled()
+    })
+}
+
 export class HeldTurns {
   private turnAbort: AbortController | undefined
   private turnAborted = ETurnAborted.Other
   private readonly idleWaiters: (() => void)[] = []
   turnRunning = false
-  onTurnEnd: (() => void) | undefined
+  onTurnEnd: (() => void | Promise<void>) | undefined
 
   constructor(private readonly deps: HeldSessionDeps) {}
 
@@ -67,6 +103,7 @@ export class HeldTurns {
     threadId: ThreadId
     pause: PauseSignal
     resume: boolean
+    queuedAt?: string | undefined
   }): Promise<void> {
     this.turnAborted = ETurnAborted.Other
     this.turnAbort = new AbortController()
@@ -79,11 +116,13 @@ export class HeldTurns {
             threadId: args.threadId,
             signal: this.turnAbort.signal,
             pause: args.pause,
+            ...(args.queuedAt === undefined ? {} : { queuedAt: args.queuedAt }),
           })
         : await args.runner.runTurn({
             threadId: args.threadId,
             signal: this.turnAbort.signal,
             pause: args.pause,
+            ...(args.queuedAt === undefined ? {} : { queuedAt: args.queuedAt }),
           })
       await this.endTurn({
         record: args.record,
@@ -99,11 +138,23 @@ export class HeldTurns {
       }
       throw error
     } finally {
+      await this.settleTurnEnd()
       this.turnRunning = false
       this.turnAbort = undefined
       const idle = this.idleWaiters.splice(0)
       for (const resolve of idle) resolve()
-      this.onTurnEnd?.()
+    }
+  }
+
+  private async settleTurnEnd(): Promise<void> {
+    try {
+      await this.onTurnEnd?.()
+    } catch (error) {
+      this.deps.log?.warn({
+        source: 'holder.turn',
+        message: `the work after the turn on ${this.deps.sessionId} failed`,
+        ...logFieldsOf({ error }),
+      })
     }
   }
 

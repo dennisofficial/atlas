@@ -53,10 +53,6 @@ export interface ProjectCommit {
   age: string
 }
 
-export interface ThreadBuckets {
-  inactive: number
-}
-
 export const USER: AppUser = {
   name: 'Dennis Lysenko',
   initials: 'DL',
@@ -215,8 +211,6 @@ export const THREADS: AppThread[] = [
     model: SONNET_MEDIUM,
   },
 ]
-
-export const BUCKETS: ThreadBuckets = { inactive: 12 }
 
 export const RECENT_COMMITS: ProjectCommit[] = [
   {

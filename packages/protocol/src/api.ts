@@ -59,7 +59,11 @@ export const messageDraftSchema = z
   .refine(withinAttachmentLimit, `a message carries at most ${MAX_MESSAGE_UPLOADS} attachments`)
 
 export const sessionPostInputSchema = z
-  .strictObject({ sessionId: z.string().min(1), ...messageDraftFields })
+  .strictObject({
+    sessionId: z.string().min(1),
+    ...messageDraftFields,
+    sentAt: z.string().min(1).optional(),
+  })
   .refine(hasMessageContent, 'a message needs text or an attachment')
   .refine(withinAttachmentLimit, `a message carries at most ${MAX_MESSAGE_UPLOADS} attachments`)
 

@@ -7,6 +7,7 @@ import type { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { PRINCIPAL_CACHE_TTL_MS } from './sandbox-principal-cache'
 import { hashSessionToken } from './sandbox-tokens'
+import { databaseEnv } from './sandboxes.fixture'
 import { SandboxesService } from './sandboxes.service'
 import { ETokenPrincipalKind } from './token-principal'
 import type { VercelSandboxClient } from './vercel-sandbox.client'
@@ -24,7 +25,12 @@ describe('SandboxesService.verifyTokenPrincipal', () => {
 
   beforeEach(async () => {
     await seedUsers('user-a', 'user-b')
-    service = new SandboxesService({} as unknown as VercelSandboxClient, cipher, inertSignals())
+    service = new SandboxesService(
+      {} as unknown as VercelSandboxClient,
+      cipher,
+      inertSignals(),
+      databaseEnv(),
+    )
     await seedSandboxRow({
       id: 'sbx_1',
       userId: 'user-a',

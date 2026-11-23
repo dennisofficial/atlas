@@ -76,6 +76,8 @@ they read. `apps/api` and `apps/trigger` both use it. It has no framework import
 
 - `registeredPlugins` and `composedPlugins` are the one control-plane plugin list.
 - `jobsControlPlaneOf({ db })` builds a `ControlPlane` over Postgres with that list.
+- `composedControlPlaneOver({ store })` builds the same `ControlPlane` over any store. A plane
+  built without the list cannot read a stored plugin event.
 
 ## Usage
 

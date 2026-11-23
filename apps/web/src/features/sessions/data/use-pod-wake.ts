@@ -21,21 +21,26 @@ export function usePodWake(args: {
   live: boolean
   wake: () => Promise<void>
   timeoutMs?: number
-}): { state: PodWakeState; wakePod: () => void } {
+}): { state: PodWakeState; message: string | undefined; wakePod: () => void } {
   const { sessionId, live, wake } = args
   const timeoutMs = args.timeoutMs ?? WAKE_TIMEOUT_MS
   const [local, setLocal] = useState<PodWakeState | 'idle'>('idle')
+  const [message, setMessage] = useState<string | undefined>(undefined)
   const [liveBefore, setLiveBefore] = useState(live)
 
   useEffect(() => {
     if (live !== liveBefore) {
       setLiveBefore(live)
-      if (live) setLocal('idle')
+      if (live) {
+        setLocal('idle')
+        setMessage(undefined)
+      }
     }
   }, [live, liveBefore])
 
   useEffect(() => {
     setLocal('idle')
+    setMessage(undefined)
   }, [sessionId])
 
   useEffect(() => {
@@ -46,13 +51,17 @@ export function usePodWake(args: {
 
   const wakePod = useCallback(() => {
     if (local === 'waking') return
+    setMessage(undefined)
     setLocal('waking')
     wake().then(
       () => undefined,
-      () => setLocal('timeout'),
+      (failure: unknown) => {
+        setMessage(failure instanceof Error ? failure.message : undefined)
+        setLocal('timeout')
+      },
     )
   }, [local, wake])
 
-  if (live) return { state: 'asleep', wakePod }
-  return { state: local === 'idle' ? 'asleep' : local, wakePod }
+  if (live) return { state: 'asleep', message, wakePod }
+  return { state: local === 'idle' ? 'asleep' : local, message, wakePod }
 }

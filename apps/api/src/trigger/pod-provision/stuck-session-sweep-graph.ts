@@ -4,7 +4,7 @@ import { TriggerJobDispatcher } from '../../_lib/trigger/trigger-job-dispatcher'
 import { PodLaunchService } from '../../api/cloud/sandbox-provisioning/pod-launch.service'
 import type { StuckRecoveryDeps } from '../../api/cloud/sandbox-provisioning/stuck-session-recovery'
 import { buildScopedConfig } from '../../api/cloud/scoped-config/scoped-config.factory'
-import { workerEnvService } from '../github/github-sweep-graph'
+import { validatedEnvService } from '../../_core/config/env/validated-env'
 import { triggerLog } from '../trigger-logger'
 import { buildWorkerThreadSignals, type WorkerThreadSignals } from '../thread-signals-graph'
 
@@ -30,4 +30,4 @@ export function buildStuckSessionSweepGraph(args: { env: EnvService }): StuckSes
 }
 
 export const workerStuckSessionSweepGraph = (): StuckSessionSweepGraph =>
-  buildStuckSessionSweepGraph({ env: workerEnvService() })
+  buildStuckSessionSweepGraph({ env: validatedEnvService() })

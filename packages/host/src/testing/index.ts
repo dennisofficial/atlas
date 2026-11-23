@@ -1,4 +1,5 @@
 export { FaultProxy, type ProxyFault } from './fault-proxy'
+export { createMemoryPodCallHub, type PodCallHub } from './memory-pod-call-bus'
 export { createMemoryHostPresence, type MemoryHostPresence } from './memory-host-presence'
 export {
   describeHostPresence,

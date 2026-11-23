@@ -14,6 +14,7 @@ const UI_STATE: Record<EBootStepState, EUiBootState> = {
 export function sandboxBootPropsOf(view: BootView) {
   return {
     state: UI_STATE[view.state],
+    ...(view.title === undefined ? {} : { title: view.title }),
     steps: view.steps.map((step) => ({
       id: step.id,
       label: step.label,

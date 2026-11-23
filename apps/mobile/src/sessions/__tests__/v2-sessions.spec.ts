@@ -3,12 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { ESessionDisplay } from '@dltech/atlas-client/stream'
 import { ESessionStatus as CoreStatus } from '@dltech/atlas-core'
 
-import {
-  EPullRequestState,
-  EWorkKind,
-  INACTIVE_AFTER_MS,
-  partitionSessions,
-} from '../session-groups'
+import { EPullRequestState, EWorkKind, partitionSessions } from '../session-groups'
 import { listV2Sessions, type V2SessionSummary } from '../v2-sessions'
 
 const NOW = Date.parse('2026-11-09T12:00:00.000Z')
@@ -73,16 +68,16 @@ describe('partitionSessions with v2 sessions', () => {
     })
   })
 
-  it('files an archived session in the archived bucket and an old one as inactive', () => {
+  it('keeps an old session in its project group and files an archived one in the archived bucket', () => {
     const partition = partitionSessions({
       projects,
       sessions: [
-        summaryOf({ sessionId: 'ses_old', updatedAt: hoursAgo(INACTIVE_AFTER_MS / 3_600_000 + 1) }),
+        summaryOf({ sessionId: 'ses_old', updatedAt: hoursAgo(100) }),
         summaryOf({ sessionId: 'ses_archived', archivedAt: hoursAgo(2) }),
       ],
       now: NOW,
     })
-    expect(partition.inactive[0]?.sessions.map((entry) => entry.id)).toEqual(['ses_old'])
+    expect(partition.groups[0]?.sessions.map((entry) => entry.id)).toEqual(['ses_old'])
     expect(partition.archived[0]?.sessions.map((entry) => entry.id)).toEqual(['ses_archived'])
   })
 

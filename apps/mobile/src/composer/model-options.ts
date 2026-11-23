@@ -1,4 +1,5 @@
 import { outputPriceLabel } from '@dltech/atlas-core'
+import { brandOfProvider, type EBrand } from '@dltech/atlas-ui/brand'
 import type { ModelsResponse } from '@dltech/atlas-wire/web'
 
 export const EFFORT_LADDER = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const
@@ -28,6 +29,7 @@ export interface IModelOption {
   provider: string
   providerId: string
   monogram: string
+  brand?: EBrand
   efforts: readonly string[]
   context: string
   rate: string | null
@@ -68,19 +70,21 @@ const rateOf = (model: {
 export const modelOptionsOf = (response: ModelsResponse): IModelOption[] =>
   response.providers
     .filter((provider) => provider.status === 'connected')
-    .flatMap((provider) =>
-      provider.models.map((model) => ({
+    .flatMap((provider) => {
+      const brand = brandOfProvider(provider.id)
+      return provider.models.map((model) => ({
         id: model.id,
         label: labelOf(model.label),
         provider: provider.label,
         providerId: provider.id,
         monogram: provider.label.charAt(0).toUpperCase(),
+        ...(brand === undefined ? {} : { brand }),
         efforts: model.efforts,
         context: contextLabelOf(model.contextWindow),
         rate: rateOf(model),
         fast: model.fast === true,
-      })),
-    )
+      }))
+    })
 
 export const modelGroupsOf = (models: readonly IModelOption[]): readonly IModelGroup[] => {
   const held = new Map<string, IModelOption[]>()

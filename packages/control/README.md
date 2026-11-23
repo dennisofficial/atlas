@@ -40,11 +40,12 @@ a thread's event log.
 - `createSession`, `createSessionWithMessage`, `setSessionModel`, `renameSession`,
   `titleUntitledSession`, `setSessionArchived`, `markSessionRead`.
 - `listSessions`, `listSessionDigests`, `countSessionBuckets`, `readSession`, `sessionsOf`,
-  `readSessionView`, `readSessionBusy`. A digest listing takes a bucket filter (archived, or
-  inactive below an idle cutoff), a title or first-message search, and a creation-time keyset cursor.
+  `readSessionBusy`. A digest listing can keep only archived sessions, takes a title or
+  first-message search, and a creation-time keyset cursor.
 - `spawnPeer`, `messagePeer`, `reportToSpawner`, `podPeersPlaced`.
 - `setSandboxInstanceId`, `setSandboxStatus`, `recordPodDesired`, `recordPodApplied`,
-  `recordPodDisk`, `recordPodFailed`, `recordPodWaiting`.
+  `recordPodDisk`, `recordPodFailed`, `recordPodWaiting`. `cancelPodWait` reverts a resize that
+  waits for the pod to go idle and returns false when nothing is waiting.
 
 ### Append to the thread record
 
@@ -59,6 +60,7 @@ a thread's event log.
 
 - `pricedView({ at, value, compute? })`: the priced `SessionViewOutput` of a control session value.
 - `sessionSummaryOf({ digest, now })`: returns the `SessionSummary` of a session digest.
+- `readSessionStatus({ plane, sessionId, threadId })`: returns the status of a session view.
 - `idleReleaseGuardOf({ entries, failure, wantsHolder })`: returns an `IdleReleaseGuard` with the
   inbox head and the reasons.
 
@@ -73,8 +75,7 @@ a thread's event log.
 
 - `post`, `withdraw`, `readInbox`, `readInboxEntry`; `INBOX_KIND_WITHDRAW`,
   `withdrawPayloadOf`.
-- `subscribe`, `unsubscribe`, `endSubscriptions`, `listSubscriptions`,
-  `DEFAULT_SUBSCRIPTION_TTL_MS`.
+- `subscribe`, `unsubscribe`, `endSubscriptions`, `listSubscriptions`.
 - `listTerminals`, `readTerminal`, `createTerminal`, `renameTerminal`, `markTerminalOpen`,
   `endTerminal`, `endTerminals`, `deleteTerminal`.
 
@@ -105,7 +106,8 @@ a thread's event log.
 - `PostgresControlStore`, `controlTxOf(tx)`: the Postgres adapter, and its transaction wrapper.
 - `InMemoryControlStore`: the in-memory adapter for a spec.
 - `describeControlPlaneConformance(params)`, `describeControlPlaneSessions`,
-  `describeControlPlaneClaims`, `describeControlPlanePeers`: the shared spec suites.
+  `describeControlPlaneClaims`, `describeControlPlanePeers`, `describeControlPlaneSessionBuckets`:
+  the shared spec suites.
 - `FakeChangeContentStore`: a change content store that keeps the blobs in memory.
 
 ## Usage
@@ -117,7 +119,7 @@ import { ControlPlane } from '@dltech/atlas-control'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import { db } from '@dltech/atlas-db'
 
-export const graphOf = () => {
+export const buildRoutineGraph = () => {
   const store = new PostgresControlStore(db)
   return { store, plane: new ControlPlane({ store }) }
 }

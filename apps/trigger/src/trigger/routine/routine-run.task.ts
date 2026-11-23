@@ -8,6 +8,8 @@ import {
 import { concurrencyLimit, schemaTask } from '@trigger.dev/sdk'
 import '../init'
 import { cronOf, nextOccurrenceFrom, nextRunAtAfterFailure, wedgedAfterMs } from './routine-cron'
+import { withNotifyGraph } from '../notify/notify-send-graph'
+import { notifyRoutineFailure, type RoutineFailure } from './routine-failure-notify'
 import { buildRoutineGraph, type RoutineGraph } from './routine-graph'
 
 export const ROUTINE_RUN_MAX_DURATION_SECONDS = 60
@@ -50,12 +52,12 @@ export const recordRoutineFailure = async (params: {
   payload: RoutineRunPayload
   error: unknown
   now: string
-}): Promise<void> => {
+}): Promise<RoutineFailure | undefined> => {
   const reason = `failed: ${messageOf(params.error)}`.slice(0, FAILURE_REASON_LIMIT)
 
-  await params.graph.store.transact(async (tx) => {
+  return params.graph.store.transact(async (tx) => {
     const routine = await tx.readRoutine(params.payload.routineId)
-    if (routine === undefined) return
+    if (routine === undefined) return undefined
 
     const nextRunAt = nextRunAtAfterFailure({
       cronExpression: routine.cron,
@@ -70,7 +72,7 @@ export const recordRoutineFailure = async (params: {
       nextRunAt,
       at: params.now,
     })
-    if (!advanced) return
+    if (!advanced) return undefined
 
     await tx.insertRoutineRun({
       id: randomUUID(),
@@ -80,6 +82,12 @@ export const recordRoutineFailure = async (params: {
       reason,
       at: params.now,
     })
+    return {
+      routineId: routine.routineId,
+      routineName: routine.name,
+      userId: routine.userId,
+      reason,
+    }
   })
 }
 
@@ -95,11 +103,13 @@ export const routineRunTask = schemaTask({
   run: async (payload) =>
     runRoutineOnce({ graph: buildRoutineGraph(), payload, now: new Date().toISOString() }),
   onFailure: async ({ payload, error }) => {
-    await recordRoutineFailure({
+    const failure = await recordRoutineFailure({
       graph: buildRoutineGraph(),
       payload,
       error,
       now: new Date().toISOString(),
     })
+    if (failure === undefined) return
+    await withNotifyGraph((graph) => notifyRoutineFailure({ graph, failure }))
   },
 })

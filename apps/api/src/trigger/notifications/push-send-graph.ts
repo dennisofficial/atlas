@@ -1,10 +1,10 @@
 import { db } from '@dltech/atlas-db'
 import { createExpoPushClient } from '../../_lib/expo-push/expo-push.client'
 import type { PushSendDeps } from '../../api/platform/notifications/push-send-run'
-import { workerEnvService } from '../github/github-sweep-graph'
+import { validatedEnvService } from '../../_core/config/env/validated-env'
 
 export function buildPushSendDeps(args: { wait: (ms: number) => Promise<void> }): PushSendDeps {
-  const env = workerEnvService()
+  const env = validatedEnvService()
   const client = createExpoPushClient({ accessToken: env.get('EXPO_ACCESS_TOKEN') })
   return {
     send: (messages) => client.send(messages),

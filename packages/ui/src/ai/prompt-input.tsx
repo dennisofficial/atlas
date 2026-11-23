@@ -23,23 +23,16 @@ import {
 import { Spinner } from '#components/spinner'
 import { useIsMobile } from '#hooks/use-mobile'
 import { cn } from '#lib/utils'
+import { readingClasses } from '../tokens'
 import { handleLiteralHyphen } from './internal/literal-hyphen'
 import { useCoarsePointer } from './internal/use-coarse-pointer'
-import {
-  COMPOSER_HEIGHT_CLASS,
-  useComposerHeightStyle,
-} from './internal/use-visual-viewport-height'
-
 import {
   EPromptAttachmentStatus,
   type PromptAttachment,
   PromptAttachmentChip,
 } from './prompt-attachment-chip'
 
-export {
-  EPromptAttachmentStatus,
-  type PromptAttachment,
-} from './prompt-attachment-chip'
+export { EPromptAttachmentStatus, type PromptAttachment } from './prompt-attachment-chip'
 
 export interface PromptInputProps {
   value?: string
@@ -131,7 +124,6 @@ export function PromptInput({
 }: PromptInputProps) {
   const isMobile = useIsMobile()
   const coarsePointer = useCoarsePointer()
-  const composerHeightStyle = useComposerHeightStyle()
   const [draft, setDraft] = useState(defaultValue)
   const formRef = useRef<HTMLFormElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -243,10 +235,10 @@ export function PromptInput({
           autoCorrect={isMobile ? 'on' : 'off'}
           readOnly={sending}
           aria-busy={sending}
-          style={composerHeightStyle}
           className={cn(
             'max-md:min-h-10',
-            COMPOSER_HEIGHT_CLASS,
+            readingClasses.composer,
+            'max-h-[max(6rem,calc(100lvh/3))] overflow-y-auto',
             sending && 'text-muted-foreground',
           )}
           aria-label="Message"

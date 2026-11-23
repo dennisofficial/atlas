@@ -47,5 +47,8 @@ export const hostEnv = (args: {
     ...(knobs?.fault === undefined ? {} : { FAULT: knobs.fault }),
     ...(args.firstChunkFile === undefined ? {} : { FIRST_CHUNK_FILE: args.firstChunkFile }),
     ...(knobs?.plugins === true ? { FAULT_PLUGINS: '1' } : {}),
+    ...(knobs?.modelRequestsFile === undefined
+      ? {}
+      : { MODEL_REQUESTS_FILE: knobs.modelRequestsFile }),
   }
 }

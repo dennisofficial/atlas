@@ -86,7 +86,7 @@ definePlugin({
 
 - A name is lowercase words joined by hyphens, at most 100 characters, and states one claim.
 - `write` needs `scope`, `name`, `description`, `type` and `body`. `type` is `user`, `feedback`, `project` or `reference`.
-- `edit` needs the `revision` that the last read reported. The tool refuses the edit when the entry changed since that read.
+- `edit` needs the `revision` that the last read reported, plus `old` and `new`. The tool refuses the edit when the entry changed since that read.
 - `old` must occur exactly once in the body. The edit fails when it does not.
 - The description is one line and one claim, at most 200 characters. The index shows it, so a long description crowds the prompt.
 - A body is at most 20,000 characters.

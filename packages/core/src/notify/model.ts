@@ -15,6 +15,7 @@ export type AtlasNotification = {
   title: string
   body: string
   at: string
+  routineId?: string | undefined
 }
 
 export const atlasNotificationSchema = z.object({
@@ -24,4 +25,5 @@ export const atlasNotificationSchema = z.object({
   title: z.string().min(1),
   body: z.string().min(1),
   at: z.string().min(1),
+  routineId: z.string().min(1).optional(),
 })

@@ -27,11 +27,13 @@ export abstract class TurnRunner {
     threadId: ThreadId
     signal?: AbortSignal
     pause?: PauseSignal
+    queuedAt?: string | undefined
   }): Promise<TurnOutcome>
 
   abstract resume(args: {
     threadId: ThreadId
     signal?: AbortSignal
     pause?: PauseSignal
+    queuedAt?: string | undefined
   }): Promise<TurnOutcome>
 }

@@ -12,9 +12,10 @@ import type { ComposedPlugins } from '@dltech/atlas-plugin-sdk'
 import { SequentialIds, type ScriptedModelStep } from '@dltech/atlas-agent/testing'
 import { createInMemoryDaemon, type InMemoryDaemon } from '@dltech/atlas-protocol/testing'
 
-import type { LogPort } from '@dltech/atlas-observability'
+import type { LogPort, TracePort } from '@dltech/atlas-observability'
 
 import type { CommandHandlers, ControlHandlers } from '../command-intake'
+import type { PodCallBus } from '../pod-call-port'
 import type { PodControlClient } from '../pod-control'
 import type { PrepareResult, PrepareStepReporter, SessionRuntime } from '../ports'
 import { SessionHolder } from '../session-holder'
@@ -87,8 +88,11 @@ export const makeRig = async (args: {
   control?: PodControlClient | undefined
   log?: LogPort | undefined
   onHostIdChanged?: (() => void) | undefined
+  podCallBus?: PodCallBus | undefined
   plugins?: ComposedPlugins | undefined
+  rotation?: { autoRotateAtPercent: number } | undefined
   placeContextFiles?: SessionRuntime['placeContextFiles'] | undefined
+  trace?: TracePort | undefined
 }): Promise<HolderRig> => {
   const clock = args.clock ?? new FakeClock()
   const store =
@@ -142,7 +146,9 @@ export const makeRig = async (args: {
     beforeRuntime: args.beforeRuntime,
     stopGate: args.stopGate,
     plugins: args.plugins,
+    rotation: args.rotation,
     placeContextFiles: args.placeContextFiles,
+    trace: args.trace,
   })
 
   const holder = new SessionHolder({
@@ -165,6 +171,7 @@ export const makeRig = async (args: {
     changes: args.changes,
     ...(args.log === undefined ? {} : { log: args.log }),
     onHostIdChanged: args.onHostIdChanged,
+    ...(args.podCallBus === undefined ? {} : { podCallBus: args.podCallBus }),
   })
   held = holder
 

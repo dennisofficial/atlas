@@ -1,11 +1,13 @@
 import {
   chainEvents,
+  projectedEvents,
   toLoopEvent,
   type Event,
   type LoopState,
   type RunId,
   type ThreadId,
   type V2Body,
+  type V2Event,
 } from '@dltech/atlas-core'
 import type { BlobWrite, ControlPlane } from '@dltech/atlas-control'
 import type { AgentRecordPort, ModelContextPort } from '@dltech/atlas-agent'
@@ -27,6 +29,13 @@ export type { AppendBody }
 export const BLOB_SPILL_BYTES = 256 * 1024
 
 const STEP_EVENT_TYPES: ReadonlySet<string> = new Set(['assistant-said', 'tool-called'])
+
+const postedInputAtsOf = (events: readonly V2Event[]): ReadonlyMap<number, string> =>
+  new Map(
+    events.flatMap((event) =>
+      event.type === 'input-posted' ? [[event.inboxId, event.postedAt] as const] : [],
+    ),
+  )
 
 export type SessionRecordArgs = {
   plane: ControlPlane
@@ -119,8 +128,12 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
     return this.cache.queuedSince()
   }
 
+  async postedInputAts(_args: { threadId: ThreadId }): Promise<ReadonlyMap<number, string>> {
+    return postedInputAtsOf(this.cache.eventsAfter(0))
+  }
+
   async read(_args: { threadId: ThreadId }): Promise<{ events: readonly Event[] }> {
-    return { events: this.cache.visibleLoopEvents() }
+    return { events: projectedEvents(this.cache.visibleLoopEvents()) }
   }
 
   append(args: {

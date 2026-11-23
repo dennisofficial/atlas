@@ -45,7 +45,6 @@ export type {
   RoutineRunRow,
   SessionBucketCountParams,
   SessionBucketCounts,
-  SessionBucketFilter,
   SessionListParams,
   SessionPageCursor,
   StoredEvent,
@@ -118,11 +117,7 @@ export type {
   SandboxRunStore,
 } from './sandbox-runs'
 export { PostgresSandboxRunStore } from './postgres/postgres-sandbox-runs'
-export {
-  DEFAULT_SUBSCRIPTION_TTL_MS,
-  listSubscriptionsIn,
-  subscribeIn,
-} from './subscription-ops'
+export { listSubscriptionsIn, subscribeIn } from './subscription-ops'
 export type { SubscribeArgs, SubscribeResult } from './subscription-ops'
 export { endSubscriptionsIn, unsubscribeIn } from './subscription-endings'
 export type { SubscriptionEndingRow, UnsubscribeArgs } from './subscription-endings'

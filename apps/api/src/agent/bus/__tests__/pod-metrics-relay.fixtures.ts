@@ -90,22 +90,22 @@ export const operationsOf = (args: {
     return outcomeOf(args.backlog === undefined ? [] : args.backlog)
   })
   const hold = vi.fn((_input: { sessionId: string; ttlMs?: number }) => true)
-  const waitForHolder = vi.fn(async (_input: { sessionId: string }) => holders.value)
+  const servesLocally = vi.fn(async (_input: { sessionId: string }) => holders.value)
   const events = vi.fn((input: { listener: (frame: EventFrame) => void; onClose?: () => void }) => {
     if (!args.held) return null
     state.listener = input.listener
     state.close = input.onClose
     return state.dispose
   })
-  const ops = { events, invoke, hold, waitForHolder } as unknown as Pick<
+  const ops = { events, invoke, hold, servesLocally } as unknown as Pick<
     PodOps,
-    'events' | 'hold' | 'invoke' | 'waitForHolder'
+    'events' | 'hold' | 'invoke' | 'servesLocally'
   >
-  return { ops, invoke, events, hold, waitForHolder, holders, state, calls }
+  return { ops, invoke, events, hold, servesLocally, holders, state, calls }
 }
 
 export const relayOf = (args: {
-  ops: Pick<PodOps, 'events' | 'hold' | 'invoke' | 'waitForHolder'>
+  ops: Pick<PodOps, 'events' | 'hold' | 'invoke' | 'servesLocally'>
   bus: Pick<PodMetricsBus, 'onWatch' | 'publish'>
   log?: LogPort
 }) => {

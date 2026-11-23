@@ -1,7 +1,6 @@
 # @dltech/atlas-client
 
-The headless client library that web, the TUI and the mobile app share. It follows a session live,
-keeps the log, derives the transcript, and holds the rewind, image upload and device login.
+The headless client library that web, the TUI and the mobile app share.
 
 ## Owns
 
@@ -10,16 +9,14 @@ keeps the log, derives the transcript, and holds the rewind, image upload and de
 - The session window, the overlay of live steps, and the derived session views.
 - The pod channel: the delta channel over a websocket, its frame codecs and its request timeouts.
 - The transcript model: the rows of a turn, the tool runs and the thinking folds.
-- The crew readout: the state and the labels of a sub-agent, and the background work.
+- The crew readout and the sidebar partition: sub-agent state, background work, teammate nesting.
 - The session rewind, the composer image upload, the message input and the Atlas Cloud device login.
 - The chat step types for the AI SDK.
 
 ## Does not own
 
-- The frame and payload schemas, and the channel protocol. `@dltech/atlas-wire` and
-  `@dltech/atlas-protocol` own them.
-- The records, and the transport to the API. `@dltech/atlas-control` and `@dltech/atlas-api-router`
-  own them.
+- Frame and payload schemas, the channel protocol: `@dltech/atlas-wire`, `@dltech/atlas-protocol`.
+- Records and the API transport: `@dltech/atlas-control`, `@dltech/atlas-api-router`.
 - The visual components, their styles, and the held composer state that a surface draws.
 
 ## Entry points
@@ -28,7 +25,7 @@ keeps the log, derives the transcript, and holds the rewind, image upload and de
 | ----------------------------------------------- | --------------------------------------------------------------------------------- |
 | `@dltech/atlas-client/stream`                   | The stream connection, the session follower, the log, the window and the overlay. |
 | `@dltech/atlas-client/channel`                  | The pod delta channel, the frame codecs and the tool requests.                    |
-| `@dltech/atlas-client/chat`                     | The chat transport, the step signals and the step messages.                       |
+| `@dltech/atlas-client/chat`                     | The chat transport, the step chunks and the step messages.                        |
 | `@dltech/atlas-client/crew`                     | The crew readout, the sub-agent state and the background work.                    |
 | `@dltech/atlas-client/session`                  | The session create input, the rewind, the image upload and the message input.     |
 | `@dltech/atlas-client/account`                  | The Atlas Cloud device-code login.                                                |
@@ -46,11 +43,13 @@ keeps the log, derives the transcript, and holds the rewind, image upload and de
 - `createStreamConnection({ transport, scheduler, networkSignal?, eventSchema?, knownEventTypes?, views? })`:
   the `StreamConnection`. `follow({ sessionId, threadId?, log? })` follows one thread, the main one
   by default; `followSessions()` gives the live list.
-- `createSessionFollower(args)`: one session's follower, with its connection state and snapshot.
-  `HYDRATE_TIMEOUT_MS` bounds the first load. `createSessionsFeed({ follow, write })` is a retained
-  subscription to the session list.
+- `createSessionFollower(args)`: a session's follower, its connection state and snapshot.
+  `HYDRATE_TIMEOUT_MS` bounds the first load. `createSessionsFeed({ follow, write })` holds the list.
 - `StreamTransport`, `StreamScheduler`, `systemStreamScheduler`, `browserNetworkSignal`: the ports
   that a surface supplies.
+- `nestPeers(rows)` nests each teammate under its spawner. `peerBucketOf({ row })` and
+  `EPeerBucket` give a row's bucket; `splitTeammates(rows)` gives its active and done teammates.
+  `isRecentProject(args)`, `lastActivityAt(args)` and `RECENT_PROJECT_WINDOW_MS` keep new projects.
 
 ### Keep the log and the view
 
@@ -61,27 +60,26 @@ keeps the log, derives the transcript, and holds the rewind, image upload and de
 - `applyOverlayMessage`, `closeOverlay`, `closeOverlayForEvents`, `EMPTY_OVERLAY_STATE`: the live
   step overlay. `overlaySignalsOf` and `overlayRewrote` give its step signals, append or rewrite.
 - `derivedViewOf`, `deriveViewOf`, `deriveStatusOf`, `frameFactsOf`: the view of a followed session.
-  `sessionDisplayOf` and `isSessionUnreadOf` map the status and the unread mark of a row.
+  `sessionDisplayOf`, `isSessionUnreadOf`, `startFailureOf`: the status, unread mark, start failure.
 
 ### Read the pod channel
 
 - `createRemoteDeltaChannel(args)`: the delta channel to the serve in a pod. `webSocketFactory`,
   `sessionSocketUrlOf`, `ChannelSocket`: the socket adapter. `encodeFrame`, `decodeClientFrame`,
   `EServeFrame`, `EClientFrame`: the client side of the frame codec.
-- `turn-outcome`, `signal`, `session-tools`, `subscription-tools`, `rewind-tools`, `in-flight`: the
-  request and reply helpers.
+- `turn-outcome`, `signal`, `session-tools`, `subscription-tools`, `rewind-tools`, `in-flight`.
 
 ### Build the transcript
 
 - `deriveTranscript(args)`, `assembleTranscript(args)`, `durableEntries(args)`, `EEntryKind`: the
-  transcript rows and the durable rows of a thread.
+  transcript rows and the durable rows of a thread. `summariesAtTarget(events)`: the events with
+  each compaction summary at its target.
 - `turnsBySeq(args)`, `settledAtOf(entries)`, `turnEndedEntry(turn)`: the turn rows and the settled
-  time.
-- `ECallState`, `ToolCall`, `ToolRun`, `attachmentsOf`, `qualityNoticeOf`, `qualityNoticeLine`,
-  `EQualityNoticeTone`: the tool runs and a call's quality indicator. `agentsOf(args)`,
-  `agentOf(args)` and `agentLabelOf(agent)` give a sub-agent's type, intent and state.
-- `thinkingVisibilityOf(value)`, `foldThoughts(args)`, `toolsAboveThoughts(entries)`: the thinking
-  folds.
+  time. `turnStartedAtOf(events)`: the start of the main thread's open turn.
+- `ECallState`, `ECallKind`, `callKindOf(name)`, `ToolCall`, `ToolRun`, `attachmentsOf`,
+  `qualityNoticeOf`, `qualityNoticeLine`, `EQualityNoticeTone`: the tool runs and a call's quality
+  line. `agentsOf(args)`, `agentOf(args)`, `agentLabelOf(agent)`: a sub-agent's type, intent, state.
+- `thinkingVisibilityOf`, `foldThoughts`, `toolsAboveThoughts`: the thinking folds.
 - `revealedText({ key, text, gate })`, `runAttentionOf(args)`, `plural(many, one, rest?)`,
   `formatElapsed(ms)`: the revealed text and the helpers that a surface also uses.
 
@@ -113,6 +111,8 @@ keeps the log, derives the transcript, and holds the rewind, image upload and de
   supported type and the presign-put-confirm sequence; `messageInputOf(args)` and `postInputOf(args)`
   make the draft and the post input. `MediaUploadApi`, `PutImage`, `UploadHandle`: the ports.
 - `sessionCreateInputOf(args)`, `initialProjectIdOf(args)`: a new session's create input and project.
+- `composerSendStateOf(args)`, `contextPercentOf(args)`: send or stop, and context use.
+- `queuedMessagesOf`, `queuedNoticesOf`, `stagedQueuedMessagesOf`: the queue above the composer.
 
 ### Sign in to Atlas Cloud
 
@@ -142,7 +142,7 @@ connection.connect()
   `createRemoteDeltaChannel` opens the websocket to the pod, through the socket factory.
 - Pass the events through the protocol schema of the surface, which the log and the connection take
   as an `eventSchema`. Keep the derivation pure: a transcript or a view is a function of its inputs.
-- Send a message through the channel. `transport.sendMessages` throws.
+- Send a message through the channel. `SignalChatTransport.transport.sendMessages` throws.
 
 ## See also
 

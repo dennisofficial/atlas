@@ -15,6 +15,7 @@ const TITLES: Readonly<Record<string, string>> = {
   [agentKey(EBuiltInAgentType.Explore)]: 'explore',
   [agentKey(EBuiltInAgentType.GeneralPurpose)]: 'general-purpose',
   [agentKey(EBuiltInAgentType.Preview)]: 'preview',
+  [agentKey(EBuiltInAgentType.Researcher)]: 'researcher',
   [agentKey(EBuiltInAgentType.Reviewer)]: 'reviewer',
 }
 
@@ -35,6 +36,8 @@ const TIPS: Readonly<Record<string, string>> = {
     'Open-ended sub-agents for research and multi-step tasks.',
   [agentKey(EBuiltInAgentType.Preview)]:
     'Sub-agents that stand up and verify preview servers so the work opens in a browser.',
+  [agentKey(EBuiltInAgentType.Researcher)]:
+    'Sub-agents that read the web and third-party docs and return cited answers.',
   [agentKey(EBuiltInAgentType.Reviewer)]:
     'Sub-agents that review code they did not write and report findings.',
 }

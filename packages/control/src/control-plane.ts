@@ -70,6 +70,7 @@ import {
 import { AppendAbort, type AppendOutcome } from './refusal'
 import {
   archiveIn,
+  cancelPodWaitIn,
   createSessionIn,
   markReadIn,
   recordPodAppliedIn,
@@ -230,6 +231,10 @@ export class ControlPlane {
     since: string
   }): Promise<boolean> {
     return this.store.transact((tx) => recordPodWaitingIn({ tx, ...params }))
+  }
+
+  async cancelPodWait(params: { sessionId: string }): Promise<boolean> {
+    return this.store.transact((tx) => cancelPodWaitIn({ tx, ...params }))
   }
 
   async spawnPeer(params: {

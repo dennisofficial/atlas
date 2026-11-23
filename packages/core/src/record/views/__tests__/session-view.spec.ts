@@ -5,7 +5,7 @@ import { tokenSpendOf } from '../../../models/cost'
 import { contextMeterOf, type ContextMeter } from '../../context-meter'
 import type { V2Event } from '../../event'
 import { sessionStatusOf } from '../../session-status'
-import { visibleEvents } from '../../visibility'
+import { foldableEvents, visibleEvents } from '../../visibility'
 import {
   initialSessionViewState,
   needsRebuild,
@@ -29,6 +29,7 @@ const foldWithRebuilds = (events: readonly V2Event[]): SessionViewState => {
     state = rebuildEditSensitive({
       state,
       visibleTail: visibleEvents(events.slice(0, index + 1)),
+      foldableTail: foldableEvents(events.slice(0, index + 1)),
     })
   })
   return state
@@ -91,7 +92,7 @@ describe('session view fold against the whole-log oracles', () => {
         const events = eventsOf(ops)
         const view = sessionViewOf({ state: foldWithRebuilds(events), now: NOW, ...live })
         expect(view.status).toEqual(
-          sessionStatusOf({ events: visibleEvents(events), now: NOW, ...live }),
+          sessionStatusOf({ events: foldableEvents(events), now: NOW, ...live }),
         )
         expectContext(view.context, contextMeterOf(events))
         expect(view.spend).toEqual(spendOracle(events))
@@ -334,7 +335,7 @@ describe('refoldRewindable', () => {
 
   it('carries plugin views through a rebuild for the folds that did not opt in', () => {
     const state = { ...initialSessionViewState, pluginViews: { kept: 4 } }
-    const rebuilt = rebuildEditSensitive({ state, visibleTail: events })
+    const rebuilt = rebuildEditSensitive({ state, visibleTail: events, foldableTail: events })
     expect(rebuilt.pluginViews).toBe(state.pluginViews)
   })
 })

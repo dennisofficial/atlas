@@ -9,7 +9,7 @@ import {
   type InboxEntry,
 } from '@dltech/atlas-core'
 
-import { drainRecordEntry } from '../notice-drain'
+import { drainRecordEntry, releaseNothingDraft } from '../notice-drain'
 
 const entry = (payload: string): InboxEntry => ({
   sessionId: 'ses_1',
@@ -45,6 +45,7 @@ describe('draining a record entry', () => {
       appendDrafts: async (drafts) => {
         committed.push([...drafts])
       },
+      release: releaseNothingDraft,
     })
 
     expect(committed).toHaveLength(1)
@@ -62,6 +63,7 @@ describe('draining a record entry', () => {
       appendDrafts: async (drafts) => {
         committed.push([...drafts])
       },
+      release: releaseNothingDraft,
     })
 
     expect(committed[0]).toMatchObject([{ type: 'input-refused', inboxId: 7 }])

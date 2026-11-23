@@ -1,5 +1,6 @@
 import type { Command, CommandHandler, ControlCommandHandler } from '@dltech/atlas-commands'
 
+import { cancelResize, cancelResizeArgs } from './cancel-resize/spec'
 import { help } from './help/spec'
 import { model } from './model/spec'
 import { renameHandler, type RenamePlane } from './rename/control'
@@ -18,6 +19,7 @@ export const nativeCommands: readonly Command[] = [
   summarise,
   rotate,
   resize,
+  cancelResize,
   model,
   help,
 ]
@@ -33,7 +35,16 @@ export const nativeControlHandlers: ReadonlyMap<
   ControlCommandHandler<RenamePlane, unknown>
 > = new Map([[rename.spec.name, renameHandler]])
 
-export { help, model, RESIZE_MAX_DISK_GB, resize, resizeArgs }
+export {
+  cancelResize,
+  cancelResizeArgs,
+  help,
+  model,
+  rename,
+  RESIZE_MAX_DISK_GB,
+  resize,
+  resizeArgs,
+}
 export type { ResizeArgs } from './resize/spec'
 export { REFUSAL_RENAME_NEEDS_NAME } from './rename/spec'
 export { REFUSAL_RESIZE_USAGE } from './resize/spec'

@@ -6,7 +6,7 @@ a higher out-of-memory score. `apps/daemon`, `apps/serve` and `packages/harness`
 
 ## Owns
 
-- The daemon's own protection: the cgroup layout, and the `oom_score_adj` of the serve process.
+- The daemon's own protection: the cgroup layout, and the `oom_score_adj` of the daemon process.
 - The workload policy: the `nice` value, the `oom_score_adj` and the cgroup of a child command.
 - The shell prelude that applies the policy to a command, and the wrapped command.
 - The cgroup limits, the idle-box sweep and the kill of one workload box.

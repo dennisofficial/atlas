@@ -81,6 +81,7 @@ const rigOf = (entries: readonly InboxEntry[], options: RigOptions = {}) => {
     },
     eventCache: () => ({
       eventsAfter: () => eventsOf(appended as unknown as EventDraft[]),
+      loopEventsAfter: () => eventsOf(appended as unknown as EventDraft[]),
     }),
     loopState: async () => initialLoopState(),
   } as unknown as SessionRecord
@@ -890,6 +891,39 @@ describe('InboxIntake typed skill text', () => {
       [{ type: 'input-refused', inboxId: 1, reason: 'the review skill has no body' }],
     ])
     expect(rig.appended.some((draft) => draft.type === 'user-said')).toBe(false)
+  })
+
+  it('reads no skill names for an empty inbox or a plain message', async () => {
+    let reads = 0
+    const slash = skillSlash({
+      names: async () => {
+        reads += 1
+        return ['review']
+      },
+    })
+    const empty = rigOf([], { registry: composeCommands([]), slash })
+    await empty.intake.prepare()
+    const plain = rigOf([entry(1, { text: 'review src/app.ts' })], {
+      registry: composeCommands([]),
+      slash,
+    })
+    await plain.intake.prepare()
+    expect(reads).toBe(0)
+  })
+
+  it('reads the skill names once for a pass with two typed lines', async () => {
+    let reads = 0
+    const rig = rigOf([entry(1, { text: '/review a.ts' }), entry(2, { text: '/review b.ts' })], {
+      registry: composeCommands([]),
+      slash: skillSlash({
+        names: async () => {
+          reads += 1
+          return ['review']
+        },
+      }),
+    })
+    await rig.intake.prepare()
+    expect(reads).toBe(1)
   })
 
   it('lets a command name beat a skill name', async () => {

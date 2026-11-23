@@ -208,6 +208,60 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
           sizing: VERCEL_SIZING,
         })
       })
+
+      it('cancels the wait by reverting to the applied shape', async () => {
+        await seedSession({ sessionId: SESSION, offsetMs: 0 })
+        const applied = await plane.recordPodDesired({
+          sessionId: SESSION,
+          vcpus: 2,
+          memoryGb: 4,
+        })
+        await plane.recordPodApplied({
+          sessionId: SESSION,
+          vcpus: 2,
+          memoryGb: 4,
+          generation: applied,
+        })
+        const waiting = await plane.recordPodDesired({
+          sessionId: SESSION,
+          vcpus: 4,
+          memoryGb: 8,
+          diskGb: 30,
+        })
+        await plane.recordPodWaiting({ sessionId: SESSION, generation: waiting, since: waitAt })
+
+        expect(await plane.cancelPodWait({ sessionId: SESSION })).toBe(true)
+
+        const row = await plane.readSession({ sessionId: SESSION })
+        expect(row?.podSizeGeneration).toBe(waiting + 1)
+        expect(row?.podAppliedGeneration).toBe(waiting + 1)
+        expect(row?.podWaitingSince).toBeNull()
+        expect(row?.podDesiredDiskGb).toBeNull()
+        expect(await podOf()).toEqual({
+          shape: { vcpus: 2, memoryGb: 4 },
+          actualVcpus: 2,
+          desiredShape: { vcpus: 2, memoryGb: 4 },
+          desiredVcpus: 2,
+          phase: 'steady',
+          sizing: VERCEL_SIZING,
+        })
+      })
+
+      it('refuses to cancel when nothing waits for the pod', async () => {
+        await seedSession({ sessionId: SESSION, offsetMs: 0 })
+        const generation = await plane.recordPodDesired({
+          sessionId: SESSION,
+          vcpus: 4,
+          memoryGb: 8,
+        })
+
+        expect(await plane.cancelPodWait({ sessionId: SESSION })).toBe(false)
+
+        const row = await plane.readSession({ sessionId: SESSION })
+        expect(row?.podSizeGeneration).toBe(generation)
+        expect(row?.podDesiredVcpus).toBe(4)
+        expect(row?.podWaitingSince).toBeNull()
+      })
     })
 
     it('creates a session and its main thread in one transaction', async () => {

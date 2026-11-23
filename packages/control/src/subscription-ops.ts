@@ -6,8 +6,6 @@ import { repoFullNameOf } from './repo-name'
 import { subscriptionSubjectKey } from './port'
 import { recordOf, subscriptionOf, tracked, type SubscriptionLeaseInput } from './subscription-rows'
 
-export const DEFAULT_SUBSCRIPTION_TTL_MS = 24 * 60 * 60_000
-
 const WRITE_ATTEMPTS = 3
 
 export type SubscribeResult = {
@@ -16,10 +14,9 @@ export type SubscribeResult = {
   updated: boolean
 }
 
-const expiryOf = (args: { at: string; expiresAt?: string | undefined }): string => {
-  const declared = args.expiresAt === undefined ? Number.NaN : Date.parse(args.expiresAt)
-  if (!Number.isNaN(declared)) return new Date(declared).toISOString()
-  return new Date(Date.parse(args.at) + DEFAULT_SUBSCRIPTION_TTL_MS).toISOString()
+const declaredExpiryOf = (expiresAt: string | undefined): string | null => {
+  const declared = expiresAt === undefined ? Number.NaN : Date.parse(expiresAt)
+  return Number.isNaN(declared) ? null : new Date(declared).toISOString()
 }
 
 const sameEvents = (left: readonly string[], right: readonly string[]): boolean => {
@@ -43,18 +40,13 @@ export type SubscribeArgs = {
 }
 
 const exclusiveExpiryOf = (args: {
-  at: string
   expiresAt: string | undefined
-  held: { expiresAt: string; deadline: string | null } | undefined
-}): { expiresAt: string; deadline: string | null } => {
-  if (args.expiresAt !== undefined) {
-    const deadline = expiryOf({ at: args.at, expiresAt: args.expiresAt })
-    return { expiresAt: deadline, deadline }
-  }
-  if (args.held !== undefined) {
-    return { expiresAt: args.held.expiresAt, deadline: args.held.deadline }
-  }
-  return { expiresAt: expiryOf({ at: args.at }), deadline: null }
+  held: { deadline: string | null } | undefined
+}): { expiresAt: string | null; deadline: string | null } => {
+  const declared = declaredExpiryOf(args.expiresAt)
+  if (declared !== null) return { expiresAt: declared, deadline: declared }
+  const deadline = args.held?.deadline ?? null
+  return { expiresAt: deadline, deadline }
 }
 
 export const subscribeIn = async (args: SubscribeArgs): Promise<SubscribeResult> => {
@@ -69,7 +61,6 @@ export const subscribeIn = async (args: SubscribeArgs): Promise<SubscribeResult>
     const held = await args.tx.findSubscription(key)
     const events = [...new Set(args.events ?? held?.events ?? [])]
     const { expiresAt, deadline } = exclusiveExpiryOf({
-      at: args.at,
       expiresAt: args.expiresAt,
       held,
     })
@@ -102,7 +93,7 @@ export const subscribeIn = async (args: SubscribeArgs): Promise<SubscribeResult>
           target: args.target,
           label: args.label,
           createdBy: args.by,
-          expiresAt,
+          ...(expiresAt === null ? {} : { expiresAt }),
           ...(events.length === 0 ? {} : { events }),
         },
         at: args.at,
@@ -137,7 +128,7 @@ export const subscribeIn = async (args: SubscribeArgs): Promise<SubscribeResult>
         target: args.target,
         label: args.label,
         createdBy: args.by,
-        expiresAt,
+        ...(expiresAt === null ? {} : { expiresAt }),
         ...(events.length === 0 ? {} : { events }),
       },
       at: args.at,

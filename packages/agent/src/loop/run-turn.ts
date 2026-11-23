@@ -36,6 +36,7 @@ import { TurnRunner } from './turn-runner.port'
 import type { TurnDeps } from './turn-deps'
 import { ETurnEntry, type LogPort, type TracePort } from '@dltech/atlas-observability'
 import { traceTurn, tracedTurnDeps } from '../trace/traced-turn-deps'
+import type { FirstTokenClock } from '../trace/first-token'
 
 export type { PendingDrain }
 export type { TurnDeps } from './turn-deps'
@@ -55,11 +56,13 @@ export class LoopTurnRunner extends TurnRunner {
   private readonly failureDiagnostics: FailureDiagnostics | undefined
   private readonly expandContext: ExpandContext | undefined
   private readonly trace: TracePort | undefined
+  private readonly firstToken: FirstTokenClock | undefined
 
   constructor(untraced: TurnDeps) {
     super()
     const deps = tracedTurnDeps(untraced)
     this.trace = deps.trace
+    this.firstToken = deps.firstToken
     this.record = deps.record
     this.model = deps.model
     this.ids = deps.ids
@@ -131,10 +134,12 @@ export class LoopTurnRunner extends TurnRunner {
     threadId,
     signal,
     pause,
+    queuedAt,
   }: {
     threadId: ThreadId
     signal?: AbortSignal
     pause?: PauseSignal
+    queuedAt?: string | undefined
   }): Promise<TurnOutcome> {
     await appendResumeDrafts({
       record: this.record,
@@ -147,6 +152,7 @@ export class LoopTurnRunner extends TurnRunner {
       entry: ETurnEntry.Resume,
       ...(signal === undefined ? {} : { signal }),
       ...(pause === undefined ? {} : { pause }),
+      ...(queuedAt === undefined ? {} : { queuedAt }),
     })
   }
 
@@ -154,16 +160,19 @@ export class LoopTurnRunner extends TurnRunner {
     threadId,
     signal,
     pause,
+    queuedAt,
   }: {
     threadId: ThreadId
     signal?: AbortSignal
     pause?: PauseSignal
+    queuedAt?: string | undefined
   }): Promise<TurnOutcome> {
     return this.tracedTurn({
       threadId,
       entry: ETurnEntry.Start,
       ...(signal === undefined ? {} : { signal }),
       ...(pause === undefined ? {} : { pause }),
+      ...(queuedAt === undefined ? {} : { queuedAt }),
     })
   }
 
@@ -172,11 +181,13 @@ export class LoopTurnRunner extends TurnRunner {
     entry,
     signal,
     pause,
+    queuedAt,
   }: {
     threadId: ThreadId
     entry: ETurnEntry
     signal?: AbortSignal
     pause?: PauseSignal
+    queuedAt?: string | undefined
   }): Promise<TurnOutcome> {
     return traceTurn({
       trace: this.trace,
@@ -184,6 +195,8 @@ export class LoopTurnRunner extends TurnRunner {
       record: this.record,
       threadId,
       entry,
+      ...(queuedAt === undefined ? {} : { queuedAt }),
+      ...(this.firstToken === undefined ? {} : { firstToken: this.firstToken }),
       run: () =>
         this.runTracedTurn({
           threadId,

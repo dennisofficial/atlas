@@ -1,7 +1,13 @@
-import { NOTIFY_DATA_SEQ_KEY, NOTIFY_DATA_SESSION_KEY } from '@dltech/atlas-notifications'
+import {
+  NOTIFY_DATA_ROUTINE_KEY,
+  NOTIFY_DATA_SEQ_KEY,
+  NOTIFY_DATA_SESSION_KEY,
+} from '@dltech/atlas-notifications'
 import { z } from 'zod'
 
 const sessionIdSchema = z.object({ [NOTIFY_DATA_SESSION_KEY]: z.string().min(1) })
+
+const routineSchema = z.object({ [NOTIFY_DATA_ROUTINE_KEY]: z.string().min(1) })
 
 const presentedSchema = z.object({
   [NOTIFY_DATA_SESSION_KEY]: z.string().min(1),
@@ -11,6 +17,7 @@ const presentedSchema = z.object({
 export type PresentedNotification = { identifier: string; sessionId: string; seq: number }
 
 export const sessionIdOfData = (data: unknown): string | undefined => {
+  if (routineSchema.safeParse(data).success) return undefined
   const parsed = sessionIdSchema.safeParse(data)
   return parsed.success ? parsed.data[NOTIFY_DATA_SESSION_KEY] : undefined
 }

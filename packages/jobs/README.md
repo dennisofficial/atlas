@@ -48,6 +48,10 @@ The worker registers the tasks. This package only names them and validates their
 - `POD_RESIZE_TASK_ID`: `pod-resize`, a payload of a session, a generation and the pod shape.
 - `POD_RESIZE_MAX_DISK_GB`: the 100 GB ceiling a resize payload enforces, the same ceiling
   `RESIZE_MAX_DISK_GB` names in `@dltech/atlas-native-commands`.
+- `podSleepPayloadSchema`, `PodSleepPayload`, `EPodSleepOutcome`: the sleep payload and its
+  outcome.
+- `podResizePayloadSchema`, `PodResizePayload`, `EPodResizeOutcome`: the resize payload and its
+  outcome.
 
 ### Name a notify task
 
@@ -65,7 +69,9 @@ The worker registers the tasks. This package only names them and validates their
 - `notifySendIdempotencyKey(payload)`: gives `notify:<sessionId>:<seq>`, so one moment reaches the
   devices once.
 - `notifyTestIdempotencyKey({ payload, now })`: gives `notify-test:<userId>:<minute>`, so repeated
-  presses inside one minute send one test.
+  presses inside one minute send one test. `NOTIFY_TEST_WINDOW_MS` is that one-minute window.
+- `podSleepIdempotencyKey(payload)`: gives `pod-sleep:<sessionId>:<epoch>`.
+- `podResizeIdempotencyKey(payload)`: gives `pod-resize:<sessionId>:<generation>:<waits>`.
 - `notifyClearIdempotencyKey({ sessionId, momentSeq })`: gives `notify-clear:<sessionId>:<momentSeq>`,
   so one moment clears the devices once.
 
@@ -98,7 +104,8 @@ export const heartbeatTask = schedules.task({
 
 ## Rules
 
-- Keep the schemas strict. An unknown payload key is a failure, not a silent drop.
+- Send only the keys that a payload schema names. `heartbeatPayloadSchema`,
+  `routineSweepPayloadSchema` and `routineRunPayloadSchema` are strict, so an unknown key fails.
 - Use `routineRunIdempotencyKey` as the idempotency key of a routine run. Do not build the key at
   the caller.
 

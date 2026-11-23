@@ -12,10 +12,10 @@ import { childRetryAgentIdOf } from './child-retry'
 import { consumeQuietly, consumeUnknown, runCommand, type CommandGlue } from './command-intake-glue'
 import { ESkillDrafts, isCommandKind } from './command-intake'
 import { EIntakeScope, skipsInChildScope } from './intake-scope'
-import { drainEventEntry, stagedMessageOf } from './notice-drain'
+import { drainEventEntry, stagedMessageOf, type DraftRelease } from './notice-drain'
 import type { OperatorAnswerIntake } from './operator-answer'
 import type { AppendDrafts, StagedDrainable } from './staged-log'
-import { ETextPlan } from './text-command'
+import { ETextPlan, type SkillNames } from './text-command'
 
 export type EntryDrain = { drainable: StagedDrainable[]; wakesTurn: boolean }
 
@@ -26,7 +26,8 @@ export const drainEntries = async (args: {
   superseded: ReadonlySet<number>
   glue: CommandGlue
   appendDrafts: AppendDrafts
-  skills?: readonly string[] | undefined
+  skills?: SkillNames | undefined
+  release: DraftRelease
   operatorAnswers?: OperatorAnswerIntake | undefined
 }): Promise<EntryDrain> => {
   const drainable: StagedDrainable[] = []
@@ -50,7 +51,14 @@ export const drainEntries = async (args: {
       continue
     }
     if (entry.kind === INBOX_KIND_EVENT || entry.kind === INBOX_KIND_RECORD) {
-      if (await drainEventEntry({ entry, appendDrafts: args.appendDrafts })) wakesTurn = true
+      if (
+        await drainEventEntry({
+          entry,
+          appendDrafts: args.appendDrafts,
+          release: args.release,
+        })
+      )
+        wakesTurn = true
       continue
     }
     if (entry.kind === INBOX_KIND_MESSAGE) {

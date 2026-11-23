@@ -43,6 +43,24 @@ describe('parseVerdict', () => {
     })
   })
 
+  it('clips a long reason to 299 characters and an ellipsis', () => {
+    const parsed = parseVerdict({
+      text: `<verdict>proceed</verdict><reason>${'a'.repeat(500)}</reason>`,
+      targets: TARGETS,
+    })
+
+    expect(parsed.verdict.reason).toBe(`${'a'.repeat(299)}…`)
+  })
+
+  it('keeps a reason of exactly 300 characters whole', () => {
+    const parsed = parseVerdict({
+      text: `<verdict>proceed</verdict><reason>${'a'.repeat(300)}</reason>`,
+      targets: TARGETS,
+    })
+
+    expect(parsed.verdict.reason).toBe('a'.repeat(300))
+  })
+
   it('reads a check that names a surviving target', () => {
     const parsed = parseVerdict({
       text: '<verdict>check</verdict><reason>contention: eng-412-sidebar carries three uncommitted changes that would be lost</reason>',

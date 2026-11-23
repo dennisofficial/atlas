@@ -31,6 +31,21 @@ const choiceKeyOf = (choice: ResolvedModelChoice): string =>
 const keyOf = (resolved: ResolvedRoleModel): string =>
   `${choiceKeyOf(resolved.choice)}|${configKeyOf(resolved.config)}`
 
+export const MODEL_READ_TIMEOUT_MS = 500
+
+const TIMED_OUT = Symbol('timed-out')
+
+const withinTimeout = <T>(args: {
+  work: Promise<T>
+  ms: number
+}): Promise<T | typeof TIMED_OUT> => {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const timeout = new Promise<typeof TIMED_OUT>((resolve) => {
+    timer = setTimeout(() => resolve(TIMED_OUT), args.ms)
+  })
+  return Promise.race([args.work, timeout]).finally(() => clearTimeout(timer))
+}
+
 export class LiveModelPort extends ModelPort {
   private inner: AiSdkModelPort
   private key: string
@@ -41,6 +56,8 @@ export class LiveModelPort extends ModelPort {
       read: () => Promise<ResolvedRoleModel>
       build: (resolved: ResolvedRoleModel) => AiSdkModelPort
       onReadFailure?: (error: unknown) => void
+      onReadTimeout?: (args: { timeoutMs: number }) => void
+      readTimeoutMs?: number | undefined
       trace?: TracePort | undefined
     },
   ) {
@@ -71,12 +88,18 @@ export class LiveModelPort extends ModelPort {
   }
 
   private async applyRefresh(span: SpanHandle): Promise<void> {
-    let next: ResolvedRoleModel
+    const timeoutMs = this.args.readTimeoutMs ?? MODEL_READ_TIMEOUT_MS
+    let next: ResolvedRoleModel | typeof TIMED_OUT
     try {
-      next = await this.args.read()
+      next = await withinTimeout({ work: this.args.read(), ms: timeoutMs })
     } catch (error) {
       span.set({ phase: 'read-failed' })
       this.args.onReadFailure?.(error)
+      return
+    }
+    if (next === TIMED_OUT) {
+      span.set({ phase: 'timed-out' })
+      this.args.onReadTimeout?.({ timeoutMs })
       return
     }
     const key = keyOf(next)

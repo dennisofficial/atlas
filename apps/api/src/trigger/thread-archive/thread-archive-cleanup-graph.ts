@@ -7,7 +7,7 @@ import { PreviewTunnelService } from '../../api/platform/sandboxes/preview-tunne
 import { SandboxesService } from '../../api/platform/sandboxes/sandboxes.service'
 import { VercelSandboxClient } from '../../api/platform/sandboxes/vercel-sandbox.client'
 import type { ThreadArchiveCleanupDeps } from '../../api/platform/sessions/thread-archive-cleanup-run'
-import { workerEnvService } from '../github/github-sweep-graph'
+import { validatedEnvService } from '../../_core/config/env/validated-env'
 import { buildWorkerThreadSignals } from '../thread-signals-graph'
 
 export function buildThreadArchiveCleanupDeps(args: { env: EnvService }): ThreadArchiveCleanupDeps {
@@ -17,7 +17,7 @@ export function buildThreadArchiveCleanupDeps(args: { env: EnvService }): Thread
     new ScopedSandboxCredentialsService(buildScopedConfig({ cipher, env })),
   )
   const { signals } = buildWorkerThreadSignals({ env })
-  const sandboxes = new SandboxesService(vercel, cipher, signals)
+  const sandboxes = new SandboxesService(vercel, cipher, signals, env)
   const previews = new PreviewTunnelService(
     env,
     cipher,
@@ -34,4 +34,4 @@ export function buildThreadArchiveCleanupDeps(args: { env: EnvService }): Thread
 }
 
 export const workerThreadArchiveCleanupDeps = (): ThreadArchiveCleanupDeps =>
-  buildThreadArchiveCleanupDeps({ env: workerEnvService() })
+  buildThreadArchiveCleanupDeps({ env: validatedEnvService() })

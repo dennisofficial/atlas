@@ -561,6 +561,10 @@ record plus world state (0021), deleting an archived sandbox loses nothing the s
 the command handlers accept only `unarchive` and reads. Every other command — say, retry, resize,
 model change, subscribe, a peer's `send_message`, PR/CI deliveries — is refused with a typed
 `Archived` rejection. Sending does not unarchive; unarchive is an explicit operator command.
+`apps/api/src/api/platform/control/session-archived.ts` holds the guard that refuses the
+holder-bound calls (`post`, `retry`, `wake`, `wakePod`, `holdPod`) and every command but `rename`
+with `SessionArchivedError`. Rename stays allowed because a title is sidebar metadata the archived
+session never runs.
 
 **A2. The reconciler never places an archived session.** §13's rule becomes "unconsumed inbox
 entries, no live holder, and not archived". Archiving increments the epoch, so a worker mid-turn

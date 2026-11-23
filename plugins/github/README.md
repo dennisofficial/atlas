@@ -35,7 +35,7 @@ Subscribe a thread to a GitHub pull request or workflow run, so the events reach
 
 - `GITHUB_PROVIDER` and `GITHUB_RUN_PROVIDER`: the two provider names.
 - `parseTargetInput(raw)`: reads `#123`, `owner/repo#123`, a pull request URL, or a blank string for the pull request of the project directory.
-- `parseRunTargetInput(raw)`: reads `#<run id>`, `owner/repo#<run id>`, a run URL, `<workflow>@<branch>`, or a blank string for the newest run of this push.
+- `parseRunTargetInput(raw)`: reads `#<run id>`, `owner/repo#<run id>`, a run URL, `<workflow>@<branch>`, or a blank string for the newest run of this push. A bare workflow name or file, such as `deploy.yml`, selects that workflow on the branch of the checkout.
 - A run that has already finished is refused with its name, conclusion and URL, because no
   webhook arrives for it. A blank target with no run for the pushed commit is refused the same way
   and points at `<workflow>@<branch>`.

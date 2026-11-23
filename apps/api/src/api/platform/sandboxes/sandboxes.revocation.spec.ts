@@ -1,4 +1,4 @@
-import { db } from '@dltech/atlas-db'
+import { db, sharedPool } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { seedSandboxRow, seedThreadRow, seedUsers, USER_A } from '../../../../test/session-seed'
@@ -6,7 +6,9 @@ import type { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { inertSignals } from '../sessions/thread-signals.fixture'
 import { notifyPrincipalRevoked } from './sandbox-principal-notify'
+import { PRINCIPAL_WATCH_APPLICATION_NAME } from './sandbox-principal-watch'
 import { hashSessionToken } from './sandbox-tokens'
+import { databaseEnv, envWithoutDatabase } from './sandboxes.fixture'
 import { SandboxesService } from './sandboxes.service'
 import { ETokenPrincipalKind } from './token-principal'
 import type { VercelSandboxClient } from './vercel-sandbox.client'
@@ -18,8 +20,16 @@ const cipher = new SecretCipherService({
   get: (key: string) => (key === 'SECRETS_ENCRYPTION_KEY' ? '0'.repeat(64) : undefined),
 } as unknown as EnvService)
 
-const newService = (): SandboxesService =>
-  new SandboxesService({} as unknown as VercelSandboxClient, cipher, inertSignals())
+const newService = (env: EnvService = databaseEnv()): SandboxesService =>
+  new SandboxesService({} as unknown as VercelSandboxClient, cipher, inertSignals(), env)
+
+const openWatches = async (): Promise<number> => {
+  const { rows } = await sharedPool().query<{ count: string }>(
+    'SELECT count(*) FROM pg_stat_activity WHERE application_name = $1 AND datname = current_database()',
+    [PRINCIPAL_WATCH_APPLICATION_NAME],
+  )
+  return Number(rows[0]?.count ?? 0)
+}
 
 const refused = (service: SandboxesService, token = TOKEN) =>
   service.verifyTokenPrincipal({ token }).then(
@@ -44,8 +54,8 @@ describe('sandbox token revocation', () => {
   useTestDatabase()
   const services: SandboxesService[] = []
 
-  const watch = (): SandboxesService => {
-    const service = newService()
+  const watch = (env?: EnvService): SandboxesService => {
+    const service = newService(env)
     service.startPrincipalWatch()
     services.push(service)
     return service
@@ -125,6 +135,15 @@ describe('sandbox token revocation', () => {
 
     await waitUntil(async () => refused(second), 5_000)
     expect(await refused(watch())).toBe(true)
+  })
+
+  it('listens on the database the env names, and starts no listener when it names none', async () => {
+    watch(envWithoutDatabase())
+    await Bun.sleep(200)
+    expect(await openWatches()).toBe(0)
+
+    watch()
+    await waitUntil(async () => (await openWatches()) === 1, 5_000)
   })
 
   it('makes a second instance refuse a retirement written straight into the row, as the sweep does', async () => {

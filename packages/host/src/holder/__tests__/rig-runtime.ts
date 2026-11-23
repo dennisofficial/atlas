@@ -23,6 +23,7 @@ import {
   fakeToolRegistry,
   type ScriptedModelStep,
 } from '@dltech/atlas-agent/testing'
+import type { TracePort } from '@dltech/atlas-observability'
 import type { ComposedPlugins } from '@dltech/atlas-plugin-sdk'
 import { inMemoryDaemonToken, type InMemoryDaemon } from '@dltech/atlas-protocol/testing'
 
@@ -167,7 +168,9 @@ export const makeRuntimeFactory = (args: {
   beforeRuntime?: (() => Promise<void>) | undefined
   stopGate?: Promise<void> | undefined
   plugins?: ComposedPlugins | undefined
+  rotation?: { autoRotateAtPercent: number } | undefined
   placeContextFiles?: SessionRuntime['placeContextFiles'] | undefined
+  trace?: TracePort | undefined
 }): ((params: {
   sessionId: string
   threadId: ThreadId
@@ -210,6 +213,7 @@ export const makeRuntimeFactory = (args: {
       model,
       classifier: OFF_CLASSIFIER,
       classifierStatus: { on: false, reason: 'the rig has no classifier' },
+      rotation: args.rotation ?? { autoRotateAtPercent: 0 },
       modelChoice: RIG_MODEL_CHOICE,
       modelOfCalls,
       modelOf: (choice) => {
@@ -260,6 +264,7 @@ export const makeRuntimeFactory = (args: {
       watchedCheckouts: args.watchedCheckouts ?? args.watchedRepos ?? (async () => runtime.watched),
       baseBranchOf: (repoPath) => args.baseBranches?.[repoPath] ?? null,
       ...(args.plugins === undefined ? {} : { plugins: args.plugins }),
+      ...(args.trace === undefined ? {} : { trace: args.trace }),
       runningShells: args.runningShells ?? (async () => 0),
       ...(args.terminalStreams === undefined ? {} : { terminalStreams: args.terminalStreams }),
       ...(args.panelHolds === undefined ? {} : { panelHolds: args.panelHolds }),

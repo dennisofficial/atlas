@@ -4,6 +4,7 @@ import { EBeforeToolDecision } from '../../before-tool'
 import { ERiskDimension, ESeverity } from '../dimension'
 import type { RiskSignal } from '../signals'
 import { EClassifierMode, ETriage } from '../triage'
+import { EConsultation } from '../adjudicate'
 import { EJudgment } from '../verdict'
 import {
   BUDGETED,
@@ -99,6 +100,16 @@ describe('adjudicate', () => {
     })
 
     expect(draftOf(outcome).judgeFault).toBe('fetch failed')
+  })
+
+  it('clips a long fault to 399 characters and an ellipsis', () => {
+    const outcome = decide({
+      mode: EClassifierMode.Shadow,
+      triage: triageOver({ triage: ETriage.Consult, standing: [SERIOUS] }),
+      consultation: { kind: EConsultation.Unreachable, fault: 'f'.repeat(500) },
+    })
+
+    expect(draftOf(outcome).judgeFault).toBe(`${'f'.repeat(399)}…`)
   })
 
   it('writes no fault when the judge answered', () => {

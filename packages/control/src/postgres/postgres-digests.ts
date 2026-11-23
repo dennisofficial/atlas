@@ -36,10 +36,7 @@ export const sessionDigestsIn = async (
   const sessionId = params.sessionId ?? ''
   const anySpawner = params.spawnedBySessionId === undefined
   const spawnedBySessionId = params.spawnedBySessionId ?? ''
-  const anyBucket = params.bucket === undefined
-  const archivedOnly = params.bucket?.archived === true
-  const inactiveOnly = params.bucket?.archived === false
-  const idleBefore = params.bucket?.archived === false ? params.bucket.idleBefore : EPOCH_ISO
+  const anyArchived = params.archivedOnly !== true
   const anySearch = params.search === undefined || params.search.length === 0
   const search = likePatternOf(params.search ?? '')
   const anyAfter = params.after === undefined
@@ -84,12 +81,7 @@ export const sessionDigestsIn = async (
         AND (${anyProject}::boolean OR s."projectId" = ${projectId})
         AND (${anySession}::boolean OR s."id" = ${sessionId})
         AND (${anySpawner}::boolean OR s."spawnedBySessionId" = ${spawnedBySessionId})
-        AND (${anyBucket}::boolean
-          OR (${archivedOnly}::boolean AND s."archivedAt" IS NOT NULL)
-          OR (${inactiveOnly}::boolean AND s."archivedAt" IS NULL
-            AND COALESCE((SELECT e."at" FROM "v2"."V2Event" e
-              WHERE e."threadId" = s."mainThreadId" ORDER BY e."seq" DESC LIMIT 1),
-              s."createdAt") < ${idleBefore}::timestamptz))
+        AND (${anyArchived}::boolean OR s."archivedAt" IS NOT NULL)
         AND (${anySearch}::boolean OR s."title" ILIKE ${search} OR first."text" ILIKE ${search})
         AND (${anyAfter}::boolean
           OR (s."createdAt", s."id") < (${afterCreatedAt}::timestamptz, ${afterId}::text))

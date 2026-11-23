@@ -1,6 +1,6 @@
 import { Module, type Provider } from '@nestjs/common'
 import type { Pool } from '@dltech/atlas-db'
-import type { HostPresence, SessionHolder } from '@dltech/atlas-host'
+import type { HostPresence, PodCallBus, SessionHolder } from '@dltech/atlas-host'
 import type { LogPort } from '@dltech/atlas-observability'
 
 import type { PodMetricsBus } from '../bus/pod-metrics-bus'
@@ -20,6 +20,7 @@ import {
   HOST_WATCH,
   LIVE_FRAMES,
   LOG,
+  POD_CALL_BUS,
   POD_METRICS_BUS,
   POOL,
   PRESENCE,
@@ -48,6 +49,7 @@ const shutdownProvider: Provider = {
     wakes: PgWakeListener,
     liveFrames: RedisLiveFrames,
     podMetrics: PodMetricsBus,
+    podCalls: PodCallBus,
     stream: SessionStream,
     follow: FollowStack,
     pool: Pool,
@@ -60,6 +62,7 @@ const shutdownProvider: Provider = {
       wakes,
       liveFrames,
       podMetrics,
+      podCalls,
       stream,
       follow,
       pool,
@@ -72,6 +75,7 @@ const shutdownProvider: Provider = {
     WAKE_LISTENER,
     LIVE_FRAMES,
     POD_METRICS_BUS,
+    POD_CALL_BUS,
     SESSION_STREAM,
     FOLLOW_STACK,
     POOL,

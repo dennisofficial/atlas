@@ -3,6 +3,7 @@ import {
   EToolEffect,
   type AgentLost,
   type EAgentStatus,
+  type EventDraft,
   type IdPort,
   type ThreadId,
 } from '@dltech/atlas-core'
@@ -23,6 +24,9 @@ export type ChildRunArgs = {
   epoch: number
   agentType: string
   intent: string
+  group?: string | undefined
+  groupHold?: ((draft: EventDraft) => EventDraft) | undefined
+  postHold?: ((post: () => Promise<void>) => Promise<void>) | undefined
   worktree?: WorktreeEntryInfo | undefined
   signal: AbortSignal
   onLeaseLost(error: LeaseLostError): void

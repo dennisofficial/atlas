@@ -25,8 +25,11 @@ import { ScriptedModel, type ScriptedModelStep } from '@dltech/atlas-agent/testi
 import { createHostBus } from '../bus/host-bus'
 import { startPgWakeListener } from '../bus/pg-wake-listener'
 import { createRedisLiveFrames } from '../bus/redis-live-frames'
+import { createRedisPodCallBus } from '../bus/redis-pod-call-bus'
 import type { ConfigSource } from '../config/agent-host-config'
 import { fakeModelSourceOf } from './model-source'
+import { recordingModelOf } from './model-requests'
+import { routedModelOf, scriptRoutesOf } from './script-routing'
 import { createSessionRuntimeFactory } from '../runtime/session-runtime-factory'
 import { FixedEndpointSandboxProvider } from './fixed-endpoint-sandbox-provider'
 import { faultedPlane, faultSandbox, hostFaultOf } from './host-faults'
@@ -88,6 +91,12 @@ const withFirstChunkMarker = (model: ModelPort): ModelPort => {
   return new FirstChunkMarker(model, path)
 }
 
+const recordModelOf = (args: { model: ModelPort; host: string; sessionId: string }): ModelPort => {
+  const path = process.env.MODEL_REQUESTS_FILE
+  if (path === undefined || path === '') return args.model
+  return recordingModelOf({ inner: args.model, path, host: args.host, sessionId: args.sessionId })
+}
+
 const tapToolOutput = (liveFrames: ReturnType<typeof createRedisLiveFrames>): void => {
   const path = process.env.TOOL_OUTPUT_FILE
   if (path === undefined || path === '') return
@@ -114,6 +123,7 @@ const testSource = (): ConfigSource => ({
       models: fakeModelSourceOf(model),
       classifier: { on: false, reason: 'no classifier model is set' },
       quality: { enabled: false, policies: {} },
+      rotation: { autoRotateAtPercent: 85 },
       sandbox: {
         configured: true,
         provider: ESandboxProvider.Vercel,
@@ -178,6 +188,7 @@ const main = async (): Promise<void> => {
   const plane = faultedPlane({ plane: realPlane, fault, log })
   const liveFrames = createRedisLiveFrames({ url: requireEnv('REDIS_URL'), log })
   tapToolOutput(liveFrames)
+  const podCalls = createRedisPodCallBus({ url: requireEnv('REDIS_URL'), log })
   const wakes = startPgWakeListener({ url: requireEnv('DATABASE_DIRECT_URL'), log })
   const bus = createHostBus({ wakes, liveFrames })
   const timers = { now: () => Date.now(), ...systemTimers }
@@ -220,9 +231,14 @@ const main = async (): Promise<void> => {
         const generation = (generations.get(sessionId) ?? 0) + 1
         generations.set(sessionId, generation)
         const script = scripts[`${sessionId}@${generation}`] ?? scripts[sessionId] ?? []
-        return withFirstChunkMarker(
-          new ScriptedModel(scriptedStepsOf(script), undefined, existsSync),
-        )
+        const plain = (): ModelPort =>
+          new ScriptedModel(scriptedStepsOf(script), undefined, existsSync)
+        const routes = scriptRoutesOf({ sessionId, host: holderLabel, scripts })
+        const model =
+          routes.length === 0
+            ? plain()
+            : routedModelOf({ routes, fallback: plain, fileExists: existsSync })
+        return withFirstChunkMarker(recordModelOf({ model, host: holderLabel, sessionId }))
       },
       launchDirectory: workspace,
       sandboxHome: process.env.SANDBOX_HOME,
@@ -241,6 +257,7 @@ const main = async (): Promise<void> => {
       [resize.spec.name, podResizeHandlerOf({ plane, dispatcher: noPodResizeDispatcher })],
     ]),
     log,
+    podCallBus: podCalls,
     onHostIdChanged: () => watch?.recompute(),
   })
   held = holder
@@ -266,6 +283,7 @@ const main = async (): Promise<void> => {
     await pgPresence.close()
     await wakes.close()
     await liveFrames.close()
+    await podCalls.close()
     await pool.end()
     process.exit(0)
   }
