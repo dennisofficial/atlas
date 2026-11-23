@@ -1,4 +1,3 @@
-// Duplicated from packages/harness/src/cloud/openssh-keygen.ts: the client package stays browser-safe, so this surface keeps its own copy.
 import { generateKeyPairSync, randomBytes } from 'node:crypto'
 
 const KEY_TYPE = 'ssh-ed25519'
