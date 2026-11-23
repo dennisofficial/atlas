@@ -12,10 +12,13 @@ import { router, Stack, usePathname } from 'expo-router'
 import { ChevronLeft, Menu, Plus } from 'lucide-react-native'
 import { StyleSheet, View } from 'react-native'
 
+import { useAuth } from '../../auth/auth-provider'
 import { DrawerContent } from '../../drawer/drawer-content'
 import { DrawerProvider, useDrawer } from '../../drawer/drawer-provider'
 import { AppHeader } from '../../navigation/app-header'
 import { InAppNoticesProvider } from '../../notifications/in-app-notices-provider'
+import { sessionIdOfPathname } from '../../thread/v2/presence-state'
+import { usePresenceReport } from '../../thread/v2/use-presence-report'
 
 const MenuButton = () => {
   const drawer = useDrawer()
@@ -96,6 +99,8 @@ const AppStack = () => {
 
 export default function AppLayout() {
   const pathname = usePathname()
+  const { api } = useAuth()
+  usePresenceReport({ api, sessionId: sessionIdOfPathname(pathname) })
   return (
     <DrawerProvider drawer={<DrawerContent />} swipeEnabled={pathname === '/'}>
       <InAppNoticesProvider>

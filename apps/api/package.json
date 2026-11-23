@@ -49,6 +49,7 @@
     "@dltech/atlas-memory": "workspace:*",
     "@dltech/atlas-models": "workspace:*",
     "@dltech/atlas-native-commands": "workspace:*",
+    "@dltech/atlas-notifications": "workspace:*",
     "@dltech/atlas-observability": "workspace:*",
     "@dltech/atlas-plugin-crew": "workspace:*",
     "@dltech/atlas-plugin-github": "workspace:*",
