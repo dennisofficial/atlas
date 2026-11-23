@@ -1,4 +1,5 @@
 const SHORT_SHA_LENGTH = 7
+const DESKTOP_VERSION_PLACEHOLDER = '0.000.0'
 
 export interface IWebBuild {
   commit: string
@@ -29,4 +30,14 @@ export function versionLines({
   ].filter((part) => part.length > 0)
   if (interfaceParts.length > 0) lines.push(`Interface ${interfaceParts.join(' · ')}`)
   return lines
+}
+
+export function expectedVersionLines({
+  web,
+  isDesktop,
+}: {
+  web: IWebBuild
+  isDesktop: boolean
+}): string[] {
+  return versionLines({ web, desktopVersion: isDesktop ? DESKTOP_VERSION_PLACEHOLDER : null })
 }

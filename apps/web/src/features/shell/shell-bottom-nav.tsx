@@ -14,7 +14,7 @@ interface NavItem {
   Icon: LucideIcon
 }
 
-const NAV_ITEMS: NavItem[] = [
+export const NAV_ITEMS: readonly NavItem[] = [
   { nav: EAppNav.Threads, label: 'Threads', href: '/threads', Icon: MessagesSquare },
   { nav: EAppNav.Routines, label: 'Routines', href: '/routines', Icon: CalendarClock },
   {

@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 
 import { SidebarProvider } from '@dltech/atlas-ui/components/sidebar'
 
-import { SidebarVersionLines } from '../sidebar-version'
+import { SidebarVersionLines, SidebarVersionSkeletonLines } from '../sidebar-version'
 
 const render = (lines: string[]): string =>
   renderToStaticMarkup(
@@ -24,5 +24,25 @@ describe('SidebarVersionLines', () => {
 
   it('renders nothing when no version is known', () => {
     expect(render([])).not.toContain('sidebar-version')
+  })
+})
+
+const renderSkeleton = (lines: string[]): string =>
+  renderToStaticMarkup(
+    <SidebarProvider>
+      <SidebarVersionSkeletonLines lines={lines} />
+    </SidebarProvider>,
+  )
+
+describe('SidebarVersionSkeletonLines', () => {
+  it('renders one skeleton bar per expected line after a separator', () => {
+    const html = renderSkeleton(['App 0.000.0', 'Interface 0123456'])
+    expect(html).toContain('data-slot="sidebar-separator"')
+    expect(html.match(/data-slot="skeleton"/g)).toHaveLength(2)
+    expect(html).not.toContain('Interface')
+  })
+
+  it('renders nothing when no version line is expected', () => {
+    expect(renderSkeleton([])).not.toContain('sidebar-version-skeleton')
   })
 })

@@ -1,3 +1,4 @@
+import { ChevronsUpDown } from 'lucide-react'
 import type { CSSProperties } from 'react'
 
 import {
@@ -12,6 +13,9 @@ import {
   SidebarProvider,
 } from '@dltech/atlas-ui/components/sidebar'
 import { Skeleton } from '@dltech/atlas-ui/components/skeleton'
+
+import { NAV_ITEMS } from './shell-bottom-nav'
+import { SidebarVersionSkeleton } from './sidebar-version'
 
 const SIDEBAR_STYLE = { '--sidebar-width': '18rem' } as CSSProperties
 
@@ -87,14 +91,22 @@ function TopBarSkeleton() {
 function FooterSkeleton() {
   return (
     <SidebarFooter variant="bordered">
-      <div className="flex items-center gap-1">
-        <Skeleton className="h-7 flex-1" />
-        <Skeleton className="h-7 flex-1" />
+      <div className="flex items-center gap-1 group-data-[collapsible=icon]:flex-col">
+        {NAV_ITEMS.map(({ nav }) => (
+          <Skeleton
+            key={nav}
+            className="h-7 flex-1 group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:flex-none"
+          />
+        ))}
       </div>
-      <div className="flex h-10 items-center gap-2 px-2">
+      <div className="flex h-10 items-center gap-2 p-2 group-data-[collapsible=icon]:px-1">
         <Skeleton className="size-6 shrink-0 rounded-full" />
-        <Skeleton className="h-3.5 w-28" />
+        <span className="flex min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
+          <Skeleton className="h-3.5 w-28 max-w-full" />
+        </span>
+        <ChevronsUpDown className="ml-auto size-4 shrink-0 text-muted-foreground group-data-[collapsible=icon]:hidden" />
       </div>
+      <SidebarVersionSkeleton />
     </SidebarFooter>
   )
 }
