@@ -49,8 +49,7 @@ The headless client library that web, the TUI and the mobile app share.
   that a surface supplies.
 - `nestPeers(rows)` nests each teammate under its spawner. `peerBucketOf({ row })` and
   `EPeerBucket` give a row's bucket; `splitTeammates(rows)` gives its active and done teammates.
-  `isRecentProject(args)`, `lastActivityAt(args)` and `RECENT_PROJECT_WINDOW_MS` keep the fresh
-  projects.
+  `isRecentProject(args)`, `lastActivityAt(args)` and `RECENT_PROJECT_WINDOW_MS` keep new projects.
 
 ### Keep the log and the view
 
