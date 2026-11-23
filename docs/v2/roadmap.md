@@ -56,6 +56,14 @@ _Updated at the end of every slice. Last update: 2026-11-23._
   classifier packages, a Classifier settings page), [skill suggestion](slices/skill-suggestion.md) and
   [Jev quality review](slices/jev-quality.md). Shared code that lived in v1 places moved to v2 homes on
   2026-11-22/23 (#2556, #2557, #2560, #2562, #2567, #2569). Mobile parity runs in its own session.
+- **Built 2026-11-23: plan usage meters** ([spec](slices/usage-meters.md), #2606, #2618, #2619, #2637).
+  The Claude and Codex usage readers live in `@dltech/atlas-credentials/usage`, the parsers in core.
+  The API reads a plan account's usage with its own token (`usage.report`, a 20 s cache per
+  account, single flight), and refreshes the session's account when a turn ends. Settings →
+  Providers shows the 5-hour and 7-day share used for each plan account, and the session composer
+  shows one line for the provider's active account. Colour only, no warnings, no client timer.
+  Live check: Claude and ChatGPT plans answered; a ChatGPT Pro plan and Dennis's Claude plan report
+  only a weekly window today, so their 5-hour meter reads `—`.
 - **Built 2026-11-23: the classifier role** ([spec](slices/classifier.md), #2576, #2582, this PR). Provider
   accounts live in `@dltech/atlas-credentials`. `@dltech/atlas-classifier` owns the decision model table
   (Jev direct, Jev through Vercel AI Gateway, OpenAI Decisions), the transports and the availability
