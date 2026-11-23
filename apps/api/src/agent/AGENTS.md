@@ -56,8 +56,12 @@ a command that returns, or the instance dies and takes every exec with it.
 Every Agent37 instance mounts its disk at `/atlas` through `mount_path`, which hides whatever the
 image ships in that folder. The image must therefore keep nothing it needs under `/atlas`.
 Writes outside `/atlas` share a 10 GB OS layer that Agent37 neither measures nor grows, so
-`atlas-boot.sh` overlays `/root`, `/opt/bun/install`, `/tmp` and `/var/tmp` onto `/atlas`, and the
-daemon home is `/atlas/home/.atlas/daemon`.
+`atlas-boot.sh` overlays `/root`, `/tmp` and `/var/tmp` onto `/atlas`, and the daemon home is
+`/atlas/home/.atlas/daemon`. The bun cache is a plain folder, `/atlas/.atlas/bun-cache`
+(`BUN_INSTALL_CACHE_DIR`), not an overlay: bun hardlinks only within one mount, and an overlay cache
+made every worktree install a full copy that filled `/atlas` faster than a grow could follow.
+The boot also keeps a 512 MiB `disk-reserve` file in the daemon home. The daemon deletes it on its
+first `ENOSPC`, so a full disk still journals the calls that free space.
 A pod starts at `AGENT37_DISK_GB`. The `pod-disk-grow` schedule runs every minute on Agent37's
 `disk_bytes` metric. It doubles the disk at 70% full when no turn is running, and at once when the
 disk is urgent (90% full, or less than 15% and 2 GB free), up to Agent37's 100 GB ceiling. A grow
