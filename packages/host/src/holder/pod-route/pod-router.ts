@@ -4,6 +4,7 @@ import { EPodReachStep, podReachStepOf } from '@dltech/atlas-core'
 import type { ControlPlane } from '@dltech/atlas-control'
 import {
   ELiveOpFailure,
+  EPodCallFailure,
   EPodCallKind,
   LIVE_OP_TIMEOUT_MS,
   type CallOp,
@@ -11,6 +12,7 @@ import {
 } from '@dltech/atlas-protocol'
 
 import type { EventFrame } from '../../calls/remote-calls'
+import { FencedError } from '../../calls/errors'
 import type { HolderDemand } from '../holder-demand'
 import type { PodCalls, PodCallOutcome } from '../pod-calls'
 import type { PodCallBus } from '../pod-call-port'
@@ -20,6 +22,13 @@ import { armPodReady, awaitPodReady } from './pod-ready-wait'
 import { EPodReach, type PodFollowClose, type PodReach } from './pod-reach'
 
 export const POD_HOLDER_WAIT_MS = 10_000
+
+export type PodInvokeArgs = {
+  sessionId: string
+  op: CallOp
+  signal?: AbortSignal | undefined
+  waitForHolder?: boolean | undefined
+}
 
 export type PodRouterArgs = {
   calls: PodCalls
@@ -66,19 +75,14 @@ export class PodRouter {
     }
   }
 
-  async invoke(args: {
-    sessionId: string
-    op: CallOp
-    signal?: AbortSignal | undefined
-    waitForHolder?: boolean | undefined
-  }): Promise<PodCallOutcome> {
-    if (args.waitForHolder !== true) return this.invokeLocally(args)
-    const reach = await this.reach(args)
-    if (reach.kind === EPodReach.Local) return this.invokeLocally(args)
-    if (reach.kind === EPodReach.Unreachable) {
-      return { state: 'unavailable', reason: ELiveOpFailure.Asleep }
+  async invoke(args: PodInvokeArgs): Promise<PodCallOutcome> {
+    if (args.waitForHolder === true) this.args.demand.holdPanel({ sessionId: args.sessionId })
+    try {
+      return await this.invokeOnce(args)
+    } catch (error) {
+      if (!(error instanceof FencedError)) throw error
+      return this.retryAfterFence({ invoke: args, error })
     }
-    return this.forwardInvoke({ ...args, hostId: reach.hostId })
   }
 
   async follow(args: {
@@ -87,6 +91,7 @@ export class PodRouter {
     onClose?: ((reason: PodFollowClose) => void) | undefined
     signal?: AbortSignal | undefined
   }): Promise<(() => void) | null> {
+    this.args.demand.holdPanel({ sessionId: args.sessionId })
     const reach = await this.reach({ sessionId: args.sessionId, signal: args.signal })
     if (reach.kind === EPodReach.Unreachable) return null
     if (reach.kind === EPodReach.Local) {
@@ -108,6 +113,26 @@ export class PodRouter {
       ...(args.signal === undefined ? {} : { signal: args.signal }),
       timeoutMs: this.callTimeoutMs(),
     })
+  }
+
+  private async invokeOnce(args: PodInvokeArgs): Promise<PodCallOutcome> {
+    if (args.waitForHolder !== true) return this.invokeLocally(args)
+    const reach = await this.reach(args)
+    if (reach.kind === EPodReach.Local) return this.invokeLocally(args)
+    if (reach.kind === EPodReach.Unreachable) {
+      return { state: 'unavailable', reason: ELiveOpFailure.Asleep }
+    }
+    return this.forwardInvoke({ ...args, hostId: reach.hostId })
+  }
+
+  private async retryAfterFence(args: {
+    invoke: PodInvokeArgs
+    error: FencedError
+  }): Promise<PodCallOutcome> {
+    const reach = await this.reach(args.invoke)
+    if (reach.kind === EPodReach.Local) return this.invokeLocally(args.invoke)
+    if (reach.kind === EPodReach.Unreachable) throw args.error
+    return this.forwardInvoke({ ...args.invoke, hostId: reach.hostId })
   }
 
   private awaitReady(args: {
@@ -160,7 +185,10 @@ export class PodRouter {
     if (step === EPodReachStep.Forward && current.lease.holderHostId !== null) {
       return { kind: EPodReach.Remote, hostId: current.lease.holderHostId }
     }
-    return args.requested ? undefined : { kind: EPodReach.Unreachable }
+    if (step === EPodReachStep.AwaitLocal) return undefined
+    if (args.requested) return undefined
+    const requested = await this.args.demand.requestHolder(args.sessionId).catch(() => false)
+    return requested ? undefined : { kind: EPodReach.Unreachable }
   }
 
   private async forwardInvoke(args: {
@@ -230,7 +258,9 @@ const outcomeOf = (reply: PodCallReplyOutcome): PodCallOutcome => {
     case 'unavailable':
       return { state: 'unavailable', reason: reply.reason }
     case 'failed':
-      throw new Error(reply.message)
+      throw reply.reason === EPodCallFailure.Fenced
+        ? new FencedError(reply.message)
+        : new Error(reply.message)
     case 'open':
       throw new Error('a pod call answered an invoke with a stream reply')
   }

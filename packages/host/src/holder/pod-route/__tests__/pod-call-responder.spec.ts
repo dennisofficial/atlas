@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'bun:test'
 
-import { ELiveOpFailure, type PodStreamFrame } from '@dltech/atlas-protocol'
+import { ELiveOpFailure, EPodCallFailure, type PodStreamFrame } from '@dltech/atlas-protocol'
 
+import { FencedError } from '../../../calls/errors'
 import {
   SESSION,
   STREAM,
@@ -157,5 +158,36 @@ describe('PodCallResponder', () => {
     rig.bus.emitRequest({ ...invokeRequest(), requestId: 'req-9' })
     await flush()
     expect(rig.bus.replies).toHaveLength(1)
+  })
+
+  it('holds the session while it serves a forwarded invoke', async () => {
+    const rig = makeResponder({ runtime: runtimeOf({ invoke: async () => STAT_OK }) })
+    rig.bus.emitRequest(invokeRequest())
+    await flush()
+
+    expect(rig.demand.panel.holds(SESSION)).toBe(true)
+  })
+
+  it('marks a fenced failure so the router can retry', async () => {
+    const rig = makeResponder({
+      runtime: runtimeOf({
+        invoke: async () => {
+          throw new FencedError('session ses_respond closed its daemon link')
+        },
+      }),
+    })
+    rig.bus.emitRequest(invokeRequest())
+    await flush()
+
+    expect(rig.bus.replies).toEqual([
+      {
+        requestId: 'req-1',
+        outcome: {
+          state: 'failed',
+          message: 'session ses_respond closed its daemon link',
+          reason: EPodCallFailure.Fenced,
+        },
+      },
+    ])
   })
 })

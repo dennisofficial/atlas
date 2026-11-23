@@ -99,6 +99,53 @@ describe('PodRouter.reach', () => {
     expect(await pending).toEqual({ kind: EPodReach.Local })
   })
 
+  it('requests another holder when the lease emptied between the request and the re-read', async () => {
+    const bus = new FakePodCallBus()
+    const plane = fakePlaneOf(
+      { holderHostId: null, wantsHolder: true },
+      {
+        reads: [
+          { holderHostId: null, wantsHolder: true },
+          { holderHostId: 7, wantsHolder: true, live: true },
+          { holderHostId: null, wantsHolder: true },
+          { holderHostId: null, wantsHolder: true },
+        ],
+      },
+    )
+    const { router } = makeRouter({ plane, bus, hostId: 1, holderWaitMs: 10_000 })
+    const pending = router.reach({ sessionId: SESSION })
+
+    await flush()
+    expect(plane.calls.wakes).toEqual([{ sessionIds: [SESSION] }])
+    bus.emitReady({ sessionId: SESSION, hostId: 9 })
+
+    expect(await pending).toEqual({ kind: EPodReach.Remote, hostId: 9 })
+  })
+
+  it('waits for the local runtime when it is named the holder but holds nothing', async () => {
+    const plane = fakePlaneOf(
+      { holderHostId: null, wantsHolder: true },
+      {
+        reads: [
+          { holderHostId: null, wantsHolder: true },
+          { holderHostId: 1, wantsHolder: true, live: true },
+          { holderHostId: 1, wantsHolder: true, live: true },
+        ],
+      },
+    )
+    const { router, demand } = makeRouter({
+      plane,
+      hostId: 1,
+      holderWaitMs: 10_000,
+    })
+    const pending = router.reach({ sessionId: SESSION })
+
+    await flush()
+    demand.notifyHeld(SESSION)
+
+    expect(await pending).toEqual({ kind: EPodReach.Local })
+  })
+
   it('is unreachable when the holder wait elapses', async () => {
     const plane = fakePlaneOf({ holderHostId: null, wantsHolder: true })
     const clock = new FakeClock()

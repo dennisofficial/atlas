@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'bun:test'
 
-import { ELiveOpFailure, EPodCallKind, type CallOp } from '@dltech/atlas-protocol'
+import { ELiveOpFailure, EPodCallFailure, EPodCallKind, type CallOp } from '@dltech/atlas-protocol'
 
+import { FencedError } from '../../../calls/errors'
 import { FakePodCallBus, fakePlaneOf } from './pod-route-fakes'
 import { SESSION, STAT_OK, flush, makeRouter, runtimeOf } from './pod-router-rig'
 
@@ -69,7 +70,7 @@ describe('PodRouter.invoke', () => {
     expect(outcome.state).toBe('ok')
     expect(outcome).toMatchObject({ state: 'ok', result: STAT_OK })
     expect(bus.requests).toHaveLength(2)
-    expect(plane.calls.reads).toBe(2)
+    expect(plane.calls.reads).toBe(3)
   })
 
   it('waits for the next ready when the draining holder gave the lease back', async () => {
@@ -78,6 +79,7 @@ describe('PodRouter.invoke', () => {
       { holderHostId: 7, wantsHolder: true },
       {
         reads: [
+          { holderHostId: 7, wantsHolder: true, live: true },
           { holderHostId: 7, wantsHolder: true, live: true },
           { holderHostId: null, wantsHolder: true },
           { holderHostId: null, wantsHolder: true },
@@ -105,6 +107,7 @@ describe('PodRouter.invoke', () => {
       { holderHostId: 7, wantsHolder: true },
       {
         reads: [
+          { holderHostId: 7, wantsHolder: true, live: true },
           { holderHostId: 7, wantsHolder: true, live: true },
           { holderHostId: 8, wantsHolder: true, live: true },
         ],
@@ -157,5 +160,78 @@ describe('PodRouter.invoke', () => {
       state: 'unavailable',
       reason: ELiveOpFailure.Asleep,
     })
+  })
+
+  it('holds the session while it serves a routed read', async () => {
+    const plane = fakePlaneOf({ holderHostId: 1, wantsHolder: true })
+    const runtime = runtimeOf({ invoke: async () => STAT_OK })
+    const { router, demand } = makeRouter({ plane, runtime })
+
+    await router.invoke({ sessionId: SESSION, op: OP, waitForHolder: true })
+
+    expect(demand.panel.holds(SESSION)).toBe(true)
+  })
+
+  it('reaches again and retries once when the local call was fenced', async () => {
+    const plane = fakePlaneOf({ holderHostId: 1, wantsHolder: true })
+    const bus = new FakePodCallBus()
+    let calls = 0
+    const runtime = runtimeOf({
+      invoke: async () => {
+        calls += 1
+        if (calls === 1) throw new FencedError('session ses_route closed its daemon link')
+        return STAT_OK
+      },
+    })
+    const { router } = makeRouter({ plane, bus, runtime })
+
+    const outcome = await router.invoke({ sessionId: SESSION, op: OP, waitForHolder: true })
+
+    expect(outcome).toMatchObject({ state: 'ok', result: STAT_OK })
+    expect(calls).toBe(2)
+  })
+
+  it('asks the new holder when the forwarded call was fenced', async () => {
+    const plane = fakePlaneOf(
+      { holderHostId: 7, wantsHolder: true },
+      {
+        reads: [
+          { holderHostId: 7, wantsHolder: true, live: true },
+          { holderHostId: 7, wantsHolder: true, live: true },
+          { holderHostId: 8, wantsHolder: true, live: true },
+        ],
+      },
+    )
+    const bus = new FakePodCallBus()
+    bus.answer = () =>
+      bus.requests.length === 1
+        ? {
+            state: 'failed',
+            message: 'session ses_route closed its daemon link',
+            reason: EPodCallFailure.Fenced,
+          }
+        : { state: 'ok', result: STAT_OK }
+    const { router } = makeRouter({ plane, bus, hostId: 1 })
+
+    const outcome = await router.invoke({ sessionId: SESSION, op: OP, waitForHolder: true })
+
+    expect(outcome).toMatchObject({ state: 'ok', result: STAT_OK })
+    expect(targets(bus)).toEqual([7, 8])
+  })
+
+  it('raises the fence when the retry is fenced too', async () => {
+    const plane = fakePlaneOf({ holderHostId: 7, wantsHolder: true })
+    const bus = new FakePodCallBus()
+    bus.answer = () => ({
+      state: 'failed',
+      message: 'session ses_route closed its daemon link',
+      reason: EPodCallFailure.Fenced,
+    })
+    const { router } = makeRouter({ plane, bus, hostId: 1 })
+
+    await expect(
+      router.invoke({ sessionId: SESSION, op: OP, waitForHolder: true }),
+    ).rejects.toThrow(FencedError)
+    expect(bus.requests).toHaveLength(2)
   })
 })
