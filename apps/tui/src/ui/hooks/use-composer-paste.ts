@@ -2,9 +2,9 @@ import type { PasteEvent } from '@opentui/core'
 import { usePaste } from '@opentui/react'
 import { useCallback } from 'react'
 
-import { tokenizablePaste } from '../ui/composer-tokens'
-import type { useDraftTokens } from '../ui/hooks/use-draft-tokens'
-import { isEmptyPaste, pastedContent } from '../ui/pasted-text'
+import { tokenizablePaste } from '../composer-tokens'
+import type { useDraftTokens } from './use-draft-tokens'
+import { isEmptyPaste, pastedContent } from '../pasted-text'
 
 export function useComposerPaste(args: {
   overlaid: boolean

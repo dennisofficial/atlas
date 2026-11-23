@@ -1,8 +1,7 @@
-import type { MentionReader } from '@dltech/atlas-harness'
 import { afterEach, describe, expect, it } from 'bun:test'
 import React, { useEffect } from 'react'
 
-import { useFileMenu, type FileMenuControl } from '../use-file-menu'
+import { useFileMenu, type FileMenuControl, type MentionListing } from '../use-file-menu'
 import {
   file,
   mountProbe,
@@ -12,7 +11,7 @@ import {
   type Mounted,
 } from './mention-reader-fixture'
 
-type Props = { files: MentionReader | undefined }
+type Props = { reader: MentionListing | undefined }
 
 type Probe = {
   control: FileMenuControl | null
@@ -24,7 +23,7 @@ const probe: Probe = { control: null, completions: [], problems: [] }
 
 function Menu(props: Props): React.ReactNode {
   probe.control = useFileMenu({
-    files: props.files,
+    reader: props.reader,
     onComplete: (text) => probe.completions.push(text),
     onProblem: (reason) => probe.problems.push(reason),
   })
@@ -40,13 +39,13 @@ const names = (): string[] => control().state?.matches.map((entry) => entry.name
 
 const open: Mounted<Props>[] = []
 
-async function mounted(files: MentionReader | undefined): Promise<Mounted<Props>> {
+async function mounted(reader: MentionListing | undefined): Promise<Mounted<Props>> {
   probe.control = null
   probe.completions = []
   probe.problems = []
   const harness = await mountProbe<Props>({
     render: (props) => <Menu {...props} />,
-    props: { files },
+    props: { reader },
   })
   open.push(harness)
   return harness
@@ -111,7 +110,7 @@ describe('the file menu over a mention reader', () => {
     await harness.act(() => local.pendingLists[0]?.resolve([file('app.ts')]))
     expect(names()).toEqual(['app.ts'])
 
-    await harness.rerender({ files: cloud })
+    await harness.rerender({ reader: cloud })
     expect(control().state).toBeNull()
     expect(cloud.listed).toEqual(['src/'])
 
@@ -125,7 +124,7 @@ describe('the file menu over a mention reader', () => {
     const harness = await mounted(local)
 
     await harness.act(() => control().handleTextChanged('@re'))
-    await harness.rerender({ files: cloud })
+    await harness.rerender({ reader: cloud })
 
     await harness.act(() => local.pendingLists[0]?.resolve([file('reader-local.md')]))
     expect(control().state).toBeNull()
@@ -139,7 +138,7 @@ describe('the file menu over a mention reader', () => {
     const harness = await mounted(reader)
 
     await harness.act(() => control().handleTextChanged('@re'))
-    await harness.rerender({ files: undefined })
+    await harness.rerender({ reader: undefined })
     await harness.act(() => reader.pendingLists[0]?.resolve([file('late.md')]))
 
     expect(control().state).toBeNull()
@@ -169,13 +168,13 @@ describe('the file menu over a mention reader', () => {
     try {
       const reader = scriptedReader()
       function Bare(props: Props): React.ReactNode {
-        const menu = useFileMenu({ files: props.files, onComplete: () => undefined })
+        const menu = useFileMenu({ reader: props.reader, onComplete: () => undefined })
         useEffect(() => menu.handleTextChanged('@re'), [menu.handleTextChanged])
         return <text>bare</text>
       }
       const harness = await mountProbe<Props>({
         render: (props) => <Bare {...props} />,
-        props: { files: reader },
+        props: { reader },
       })
       open.push(harness)
 

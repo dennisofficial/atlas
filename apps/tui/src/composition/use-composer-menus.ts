@@ -9,7 +9,7 @@ import type { CommandMenuState } from '../ui/command-menu-model'
 import type { FileMenuState } from '../ui/file-menu-model'
 import { useCdMenu } from './use-cd-menu'
 import { useCommandMenu } from './use-command-menu'
-import { useFileMenu } from './use-file-menu'
+import { useFileMenu } from '../ui/hooks/use-file-menu'
 
 export type ComposerMenus = {
   command: CommandMenuState | null
@@ -33,7 +33,7 @@ export function useComposerMenus(args: {
   const cdFiles = args.cdFiles ?? files
 
   const commands = useCommandMenu({ specs: args.specs, onComplete })
-  const mentions = useFileMenu({ files, onComplete, onProblem })
+  const mentions = useFileMenu({ reader: files, onComplete, onProblem })
   const cd = useCdMenu({
     files: cdFiles,
     currentDirectory: args.currentDirectory,

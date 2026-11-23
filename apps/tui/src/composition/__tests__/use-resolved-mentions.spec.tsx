@@ -9,7 +9,7 @@ import {
   scriptedReader,
   trackUnhandledRejections,
   type Mounted,
-} from './mention-reader-fixture'
+} from '../../ui/hooks/__tests__/mention-reader-fixture'
 
 type Props = { text: string; files: MentionReader | undefined }
 

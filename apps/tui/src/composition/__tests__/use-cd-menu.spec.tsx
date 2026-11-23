@@ -4,7 +4,12 @@ import { afterEach, describe, expect, it } from 'bun:test'
 import React from 'react'
 
 import { useCdMenu, type CdMenuControl } from '../use-cd-menu'
-import { mountProbe, press, scriptedReader, type Mounted } from './mention-reader-fixture'
+import {
+  mountProbe,
+  press,
+  scriptedReader,
+  type Mounted,
+} from '../../ui/hooks/__tests__/mention-reader-fixture'
 
 type Props = { files: MentionReader | undefined }
 

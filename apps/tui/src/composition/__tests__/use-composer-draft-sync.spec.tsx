@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from 'bun:test'
 import React from 'react'
 
 import { useComposerDraftSync } from '../use-composer-draft-sync'
-import { mountProbe, type Mounted } from './mention-reader-fixture'
+import { mountProbe, type Mounted } from '../../ui/hooks/__tests__/mention-reader-fixture'
 
 type Props = { value: string; scope: string | null; api: ComposerDraftApi | null }
 

@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import type { FollowedSessionList } from '@dltech/atlas-client/stream'
 
+import { NoticeStack } from '../ui/components/notice-stack'
 import { Threads } from '../ui/components/threads'
 import { isSettlingLogin } from '../ui/settings-login-model'
 import type { ThreadRow } from '../ui/threads-model'
@@ -24,11 +25,10 @@ import {
   type ScreenState,
 } from './app-screen'
 import { AwaitingAccessScreen } from './awaiting-access-screen'
+import { ChatScreenHost } from './chat-screen-host'
 import { createSessionClient, type AuthRefusal, type SessionClient } from './session-client'
 import { SignInScreen } from './sign-in-screen'
-import { TranscriptScreen } from './transcript-screen'
 import { useSessionList } from './use-session-list'
-import { useSessionTranscript } from './use-session-transcript'
 
 export type SessionClientArgs = {
   apiUrl: string
@@ -65,7 +65,7 @@ export function AppNext(props: AppNextProps): React.ReactNode {
   const [screen, setScreen] = useState<ScreenState>(() =>
     screenOfAccount({ account: props.initialAccount }),
   )
-  const { width } = useTerminalDimensions()
+  const { width, height } = useTerminalDimensions()
   const now = useMemo(() => props.now ?? Date.now, [props.now])
 
   const held = useRef<AccountFile | null>(account)
@@ -151,6 +151,8 @@ export function AppNext(props: AppNextProps): React.ReactNode {
 
   const list = useSessionList({ follow, onPick: handlePick, now })
 
+  const chatKeys = useRef<((key: KeyEvent) => boolean) | null>(null)
+
   const handleKey = useCallback(
     (key: KeyEvent) => {
       if (key.ctrl && key.name === 'c') {
@@ -171,7 +173,7 @@ export function AppNext(props: AppNextProps): React.ReactNode {
           else list.handleKey(key)
           return
         case EScreen.Transcript:
-          if (key.name === 'escape') setScreen(screenOnBack())
+          chatKeys.current?.(key)
           return
       }
     },
@@ -205,12 +207,17 @@ export function AppNext(props: AppNextProps): React.ReactNode {
   if (screen.screen === EScreen.Transcript) {
     if (client === null) return null
     return (
-      <TranscriptRoute
+      <ChatScreenHost
         client={client}
         sessionId={screen.sessionId}
         title={screen.title}
         width={width}
+        height={height}
         now={now}
+        onBack={() => setScreen(screenOnBack())}
+        onKeys={(handler) => {
+          chatKeys.current = handler
+        }}
       />
     )
   }
@@ -225,30 +232,7 @@ export function AppNext(props: AppNextProps): React.ReactNode {
         onDismiss={props.onQuit}
         onQueryChange={list.handleQuery}
       />
+      <NoticeStack width={width} />
     </box>
-  )
-}
-
-function TranscriptRoute(props: {
-  client: SessionClient
-  sessionId: string
-  title: string | null
-  width: number
-  now: () => number
-}): React.ReactNode {
-  const transcript = useSessionTranscript({
-    client: props.client,
-    sessionId: props.sessionId,
-    title: props.title,
-    now: props.now,
-  })
-
-  return (
-    <TranscriptScreen
-      transcript={transcript}
-      width={props.width}
-      cwd={process.cwd()}
-      now={props.now()}
-    />
   )
 }
