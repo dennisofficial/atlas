@@ -9,6 +9,8 @@ import {
 } from '@dltech/atlas-core'
 import { z } from 'zod'
 
+import { commandEntrySchema } from '@dltech/atlas-commands'
+
 import { changeFileStatusSchema, changeSideSchema } from './changes-state'
 import { METRICS_RING_SIZE, podSampleSchema } from './ops/metrics'
 import { sessionCommandRowSchema } from './command-row'
@@ -421,6 +423,12 @@ export const sessionStopOutputSchema = z.strictObject({ inboxId: z.number().int(
 export const sessionCommandOutputSchema = z.strictObject({
   inboxId: z.number().int().min(1).optional(),
 })
+
+export const sessionCommandsOutputSchema = z.strictObject({
+  commands: z.array(commandEntrySchema),
+})
+
+export type SessionCommandsOutput = z.infer<typeof sessionCommandsOutputSchema>
 
 const tokenSpendShape = {
   inputTokens: z.number().int().min(0),

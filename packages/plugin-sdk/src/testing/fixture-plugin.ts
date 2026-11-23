@@ -1,8 +1,6 @@
 import { EMPTY_MCP_CONTROL, EMPTY_ROUTINES } from '@dltech/atlas-plugin-sdk'
-import { defineCommand } from '@dltech/atlas-commands'
+import { defineCommand, ECommandGroup, ECommandRunsIn } from '@dltech/atlas-commands'
 import {
-  ECommandGroup,
-  ECommandTiming,
   EStage,
   EToolEffect,
   PromptFragment,
@@ -57,8 +55,7 @@ export const probeObserve = defineCommand({
     summary: 'record a probe observation',
     group: ECommandGroup.Session,
     args: probeArgs,
-    timing: ECommandTiming.Settled,
-    handledIn: 'holder',
+    runsIn: ECommandRunsIn.Host,
   },
 })
 
@@ -68,8 +65,7 @@ export const probeRead = defineCommand({
     summary: 'read the probe without writing',
     group: ECommandGroup.Session,
     args: z.strictObject({}),
-    timing: ECommandTiming.Immediate,
-    handledIn: 'control',
+    runsIn: ECommandRunsIn.Control,
   },
 })
 

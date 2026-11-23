@@ -1,5 +1,5 @@
-import { defineCommand } from '@dltech/atlas-commands'
-import { ECommandGroup, ECommandTiming, type Event } from '@dltech/atlas-core'
+import { defineCommand, ECommandGroup, ECommandRunsIn } from '@dltech/atlas-commands'
+import type { Event } from '@dltech/atlas-core'
 import { z } from 'zod'
 
 export const REFUSAL_NOT_A_MESSAGE = 'Only one of your messages can be rewound to'
@@ -15,8 +15,7 @@ export const rewind = defineCommand({
     summary: 'Rewind the conversation to one of your messages and edit it again',
     group: ECommandGroup.Context,
     args: rewindArgs,
-    timing: ECommandTiming.Settled,
-    handledIn: 'holder',
+    runsIn: ECommandRunsIn.Host,
   },
 })
 

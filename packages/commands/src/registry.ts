@@ -1,4 +1,4 @@
-import type { CommandSpec } from './spec'
+import { ECommandRunsIn, type CommandSpec } from './spec'
 
 export const COMMAND_INBOX_PREFIX = 'command:'
 
@@ -16,6 +16,12 @@ export function defineCommand({ spec }: { spec: CommandSpec }): Command {
   if (!NAME_PATTERN.test(spec.name)) {
     throw new Error(`command name "${spec.name}" must be lowercase, without a slash`)
   }
+  if (spec.runsIn === ECommandRunsIn.Client && spec.opens === undefined) {
+    throw new Error(`client command "${spec.name}" must name the client action it opens`)
+  }
+  if (spec.runsIn !== ECommandRunsIn.Client && spec.opens !== undefined) {
+    throw new Error(`command "${spec.name}" runs in ${spec.runsIn} and cannot open a client action`)
+  }
   return Object.freeze({
     spec: Object.freeze({ ...spec }),
     inboxKind: `${COMMAND_INBOX_PREFIX}${spec.name}`,
@@ -30,7 +36,7 @@ export function composeCommands(commands: readonly Command[]): CommandRegistry {
       throw new Error(`duplicate command "${command.spec.name}"`)
     }
     byName.set(command.spec.name, command)
-    if (command.spec.handledIn === 'holder') byInboxKind.set(command.inboxKind, command)
+    if (command.spec.runsIn === ECommandRunsIn.Host) byInboxKind.set(command.inboxKind, command)
   }
   return Object.freeze({ all: Object.freeze([...commands]), byName, byInboxKind })
 }

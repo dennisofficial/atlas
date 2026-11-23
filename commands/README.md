@@ -1,18 +1,19 @@
 # @dltech/atlas-native-commands
 
-The native session commands: `rewind`, `rename` and `summarise`, plus the `resize` spec. The API
+The native session commands: `rewind`, `summarise`, `rename`, `resize`, `model` and `help`. The API
 adds them to the command registry of every session.
 
 ## Owns
 
-- The command specs `rewind`, `rename` and `summarise`, and their zod arguments.
-- The holder handlers for `rewind` and `summarise`, which run in the pod.
+- The six command specs, their zod arguments and the text form of `rename` and `resize`.
+- The holder handlers for `rewind` and `summarise`, which run in the agent host.
 - The control handler for `rename`, which sets the session title.
-- The `resize` spec, its arguments and its disk limit.
+- The disk limit of a resize.
 
 ## Does not own
 
-- The command contract, the registry and the argument parsing. `@dltech/atlas-commands` owns them.
+- The command contract, the registry, the catalogue and the parser. `@dltech/atlas-commands` owns
+  them.
 - The handler that applies a resize. The control plane supplies it for each session.
 - The commands of a feature, such as `/shells`. They live in that plugin.
 
@@ -20,17 +21,20 @@ adds them to the command registry of every session.
 
 | Import                          | Use it for                                                           |
 | ------------------------------- | -------------------------------------------------------------------- |
-| `@dltech/atlas-native-commands` | The specs, the two handler maps, the `resize` spec and the refusals. |
+| `@dltech/atlas-native-commands` | The specs, the two handler maps, the resize pieces and the refusals. |
 
 ## Capabilities
 
 ### The command list
 
-- `nativeCommands`: the specs of `rewind`, `rename` and `summarise`. The holder handles `rewind` and `summarise`. The control plane handles `rename`.
-- `nativeCommandHandlers`: one holder handler for each holder command, keyed by `inboxKind`.
+- `nativeCommands`: the specs, in declaration order — `rewind`, `rename`, `summarise`, `resize`,
+  `model`, `help`.
+- `nativeCommandHandlers`: one holder handler for each `host` command, keyed by `inboxKind`.
 - `nativeControlHandlers`: the `rename` handler, keyed by the command name.
-- `resize`, `resizeArgs`, `RESIZE_MAX_DISK_GB`: the resize spec and its limit of 100 GB. The
-  control plane adds this spec to its own registry and supplies its handler.
+- `resize`, `resizeArgs`, `RESIZE_MAX_DISK_GB`: the resize spec and its disk limit of 100 GB. The
+  API supplies the handler, so `nativeControlHandlers` has none for it.
+- `model`, `help`: the two client commands. Each opens one `EClientAction`, and neither runs
+  anywhere on the server.
 
 ### Read a rewind target
 
@@ -38,31 +42,36 @@ adds them to the command registry of every session.
   `user-said` event can be a target, and not the last event.
 - `REFUSAL_NOT_A_MESSAGE`, `REFUSAL_NOTHING_TO_REWIND`: the refusal texts.
 
-### Summarise refusals
+### Refusals
 
-- `REFUSAL_NO_MODEL`, `REFUSAL_EMPTY_SUMMARY`, `REFUSAL_SUMMARY_FAILED`.
+- `REFUSAL_RENAME_NEEDS_NAME`: what `/rename` answers with no name.
+- `REFUSAL_RESIZE_USAGE`: what `/resize` answers with arguments it cannot read.
+- `REFUSAL_NO_MODEL`, `REFUSAL_EMPTY_SUMMARY`, `REFUSAL_SUMMARY_FAILED`: the summarise sentences.
 
 ## Usage
 
 ```ts
-import { composeCommands } from '@dltech/atlas-commands'
+import { composeCommands, ECommandSource, entryOf } from '@dltech/atlas-commands'
 import { nativeCommandHandlers, nativeCommands } from '@dltech/atlas-native-commands'
 
 const commands = composeCommands([...nativeCommands, ...pluginCommands])
-const commandHandlers = new Map([...nativeCommandHandlers, ...pluginPodCommands])
+const handlers = new Map([...nativeCommandHandlers, ...pluginPodCommands])
+const builtinEntries = nativeCommands.map((command) =>
+  entryOf({ command, source: ECommandSource.Builtin }),
+)
 ```
 
 ## Rules
 
 - Register a holder handler under `command.inboxKind`. Register a control handler under
   `command.spec.name`. The two maps never mix.
-- The `resize` spec is not in `nativeCommands`. Add it to the control registry yourself, with its
-  handler.
-- `rewind` and `summarise` change the event log of the session. They run in the holder, and they
+- `resize` is in `nativeCommands` but has no handler here. The control plane supplies one per
+  session.
+- `rewind` and `summarise` change the event log of the session. They run in the host, and they
   refuse a sequence number that names no message.
 
 ## See also
 
 - `docs/v2/architecture.md`
 - `docs/decisions/0019-v2-package-map.md`
-- `packages/commands/src/spec.ts` for the `CommandSpec` contract.
+- `packages/commands/README.md` for the `CommandSpec` contract.

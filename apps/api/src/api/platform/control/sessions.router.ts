@@ -10,6 +10,7 @@ import {
   UseMiddlewares,
 } from 'nestjs-trpc'
 import { TRPCError } from '@trpc/server'
+import { z } from 'zod'
 import {
   sessionArchiveInputSchema,
   sessionArchiveOutputSchema,
@@ -21,6 +22,7 @@ import {
   sessionBlobOutputSchema,
   sessionCommandInputSchema,
   sessionCommandOutputSchema,
+  sessionCommandsOutputSchema,
   sessionCreateInputSchema,
   sessionCreateOutputSchema,
   sessionEventsInputSchema,
@@ -65,6 +67,7 @@ import {
   type SessionBlobOutput,
   type SessionCommandInput,
   type SessionCommandOutput,
+  type SessionCommandsOutput,
   type SessionCreateInput,
   type SessionCreateOutput,
   type SessionEventsInput,
@@ -104,6 +107,7 @@ import {
 } from '@dltech/atlas-wire'
 import { SessionMiddleware, type SessionTrpcCtx } from '../../../_module/session/session.middleware'
 import { ChangesService } from './changes.service'
+import { commandCatalogue } from './command-registry'
 import { PodMetricsService } from './pod-metrics.service'
 import { SessionsService } from './sessions.service'
 
@@ -211,6 +215,11 @@ export class SessionsRouter {
     @Ctx() ctx: SessionTrpcCtx,
   ): Promise<SessionCommandOutput> {
     return this.sessions.command({ userId: ctx.auth.userId, ...input })
+  }
+
+  @Query({ input: z.strictObject({}), output: sessionCommandsOutputSchema })
+  commands(): SessionCommandsOutput {
+    return { commands: [...commandCatalogue()] }
   }
 
   @Mutation({ input: sessionSubscribeInputSchema, output: sessionSubscribeOutputSchema })
