@@ -3,6 +3,7 @@ import {
   activeWorktreeOf,
   type AssistantPart,
   type Event,
+  type RunFailure,
   type ThreadId,
   type V2Event,
 } from '@dltech/atlas-core'
@@ -65,6 +66,23 @@ export const statusOf = (outcome: TurnOutcome): EAgentStatus => {
 
 export const failureOf = (outcome: TurnOutcome): string | undefined =>
   outcome.status === ETurnStatus.Failed ? outcome.message : undefined
+
+export const runFailureOf = (outcome: TurnOutcome): RunFailure | undefined =>
+  outcome.status === ETurnStatus.Failed ? outcome.failure : undefined
+
+export const recordedFailureOf = (events: readonly V2Event[]): RunFailure | undefined => {
+  let started = false
+  let failure: RunFailure | undefined
+  for (const event of events) {
+    if (event.type === 'turn-started' || event.type === 'user-said') {
+      started = true
+      failure = undefined
+      continue
+    }
+    if (started && event.type === 'run-failed') failure = event.failure
+  }
+  return failure
+}
 
 export const activeWorktreeSnapshotOf = (args: {
   events: readonly Event[]
