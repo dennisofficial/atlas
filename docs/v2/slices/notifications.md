@@ -601,7 +601,9 @@ It gets three real parts and loses the rest:
   two selects (`apps/web/src/features/settings/parts/interface-quiet-hours.tsx`), plus a time-zone
   field stored in `web.notifications.timezone` and defaulted to
   `Intl.DateTimeFormat().resolvedOptions().timeZone` on first load. Quiet hours need a zone; with no
-  zone they do nothing, which is honest and cheap.
+  zone they do nothing, which is honest and cheap. The field is the Routines combobox
+  (`apps/web/src/features/routines/routine-timezone-field.tsx`), and the page writes the detected
+  zone to the key once while it is empty, so the task and the page agree.
 
 **Storage decision.** Settings stay in the settings registry: `UserSetting` rows per user, validated
 by one zod entry per key in core, served by `settings.router.ts:21-36`, which is exactly what the
