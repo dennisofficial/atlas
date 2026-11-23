@@ -5,6 +5,8 @@ import { seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
 import {
   AGENT37_CREDENTIALS,
   FakeSandboxProvider,
+  listing,
+  scope,
 } from '@dltech/atlas-pods/pods/v2-pod-sweep.fixture'
 import type { OrphanPodSweepDeps } from '../trigger/sandbox-provisioning/orphan-pod-sweep'
 import { triggerSdkFake } from './trigger-sdk.fake'
@@ -29,8 +31,26 @@ const depsOf = (overrides: Partial<OrphanPodSweepDeps>): OrphanPodSweepDeps => (
   pods: async () => emptyPods,
   v2Scopes: async () => [],
   softDeleteArchived,
+  markPreviewDeleting: async () => undefined,
   ...overrides,
 })
+
+const archivedSession = async (args: { id: string; archivedAt: Date }): Promise<void> => {
+  await seedUser({ db, id: 'user-a' })
+  await db.orm.v2.V2Session.create({
+    id: args.id,
+    userId: 'user-a',
+    mainThreadId: `thr_${args.id}`,
+    nextInboxId: 1,
+    modelRef: 'anthropic/claude-haiku-4-5',
+    modelEffort: 'medium',
+    modelFast: false,
+    sandboxProvider: 'agent37',
+    credentialSource: 'platform',
+    createdAt: hoursBefore(30),
+    archivedAt: args.archivedAt,
+  })
+}
 
 const expiredSession = async (): Promise<void> => {
   await seedUser({ db, id: 'user-a' })
@@ -106,6 +126,35 @@ describe('runOrphanPodSweep', () => {
     await expect(attempt).rejects.toThrow(
       'orphan-pod-sweep could not run any scope: v2 pods, archive retention',
     )
+  })
+
+  it('marks the preview tunnel of a retired pod for deletion', async () => {
+    await archivedSession({ id: 'pod-retired', archivedAt: hoursBefore(7) })
+    const marked: string[] = []
+
+    const result = await runOrphanPodSweep({
+      now: NOW,
+      log: () => undefined,
+      fail: () => undefined,
+      deps: depsOf({
+        pods: async () => ({
+          live: new Set<string>(),
+          retirable: new Map([['pod-retired', hoursBefore(7).getTime()]]),
+          sessionIdsByPod: new Map([['pod-retired', ['pod-retired']]]),
+        }),
+        v2Scopes: async () => [
+          scope(
+            new FakeSandboxProvider({ listings: [listing({ sandboxSessionId: 'pod-retired' })] }),
+          ),
+        ],
+        markPreviewDeleting: async ({ podSessionId }) => {
+          marked.push(podSessionId)
+        },
+      }),
+    })
+
+    expect(result.v2?.deleted).toBe(1)
+    expect(marked).toEqual(['pod-retired'])
   })
 
   it('fails the run when every listing failed and retention threw', async () => {

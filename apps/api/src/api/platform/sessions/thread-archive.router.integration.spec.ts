@@ -130,8 +130,8 @@ describe('threads.archive sandbox ownership through HTTP and dispatched cleanup'
       await db.orm.public.PreviewTunnel.where({ id: family.managerPreview.id }).first(),
     ).toBeNull()
     expect(await db.orm.public.PreviewTunnel.where({ id: childPreview.id }).first()).not.toBeNull()
-    expect(fixture.deleteTunnel.mock.calls).toEqual([[{ tunnelId: 'tunnel-manager' }]])
-    expect(fixture.deleteDnsRecord.mock.calls).toEqual([[{ recordId: 'dns-manager' }]])
+    expect(fixture.deleteTunnel.mock.calls).toEqual([[{ tunnelId: 'tunnel-ses_manager' }]])
+    expect(fixture.deleteDnsRecord.mock.calls).toEqual([[{ recordId: 'dns-ses_manager' }]])
   })
 
   it.each(['child', 'nested'] as const)(
@@ -162,8 +162,8 @@ describe('threads.archive sandbox ownership through HTTP and dispatched cleanup'
       expect(
         await db.orm.public.PreviewTunnel.where({ id: family.managerPreview.id }).first(),
       ).not.toBeNull()
-      expect(fixture.deleteTunnel.mock.calls).toEqual([[{ tunnelId: `tunnel-${target}` }]])
-      expect(fixture.deleteDnsRecord.mock.calls).toEqual([[{ recordId: `dns-${target}` }]])
+      expect(fixture.deleteTunnel.mock.calls).toEqual([[{ tunnelId: `tunnel-ses_${target}` }]])
+      expect(fixture.deleteDnsRecord.mock.calls).toEqual([[{ recordId: `dns-ses_${target}` }]])
     },
   )
 })
