@@ -8,7 +8,11 @@ import {
 } from '@nestjs/common'
 import { db, isUniqueViolation, violatedConstraint, type Row } from '@dltech/atlas-db'
 import { skillSpecOf } from '@dltech/atlas-plugin-skills/core'
-import { builtInSkills } from '@dltech/atlas-plugin-skills/pod'
+import {
+  builtInSkillEntry,
+  builtInSkills,
+  isBuiltInSkillName,
+} from '@dltech/atlas-plugin-skills/pod'
 import {
   ESkillOrigin,
   ESkillScope,
@@ -20,7 +24,7 @@ import {
 } from '@dltech/atlas-wire'
 import { ProjectsService } from '../projects/projects.service'
 import { SkillUsageService } from './skill-usage.service'
-import { builtInSkill, isBuiltIn, readBuiltInFile } from './builtin-skill-source'
+import { readBuiltInFile } from './builtin-skill-source'
 
 const SKILL_NAME_PATTERN = /^[a-z0-9][a-z0-9-]*$/
 const MAX_PATH_LENGTH = 500
@@ -122,7 +126,7 @@ export class SkillsService {
   }
 
   private assertNotBuiltIn(skill: string): void {
-    if (isBuiltIn(skill)) {
+    if (isBuiltInSkillName(skill)) {
       throw new BadRequestException(
         `'${skill}' is a built-in skill; it cannot be edited or deleted`,
       )
@@ -176,7 +180,7 @@ export class SkillsService {
         updatedAt: skill.updatedAt.toISOString(),
         usage: usage.get(skill.name) ?? { usedCount30d: 0, lastUsedAt: null },
         origin,
-        overridesBuiltIn: isBuiltIn(skill.name),
+        overridesBuiltIn: isBuiltInSkillName(skill.name),
       }
     })
     if (args.scope !== ESkillScope.Personal) return rows
@@ -225,7 +229,7 @@ export class SkillsService {
       name: args.skill.toLowerCase(),
     })
     if (row !== null) return undefined
-    const skill = builtInSkill(args.skill)
+    const skill = builtInSkillEntry(args.skill)
     if (skill === undefined) return undefined
     return [
       {
@@ -272,7 +276,7 @@ export class SkillsService {
     skill: string
     path: string
   }): Promise<SkillFileContent | undefined> {
-    const skill = builtInSkill(args.skill)
+    const skill = builtInSkillEntry(args.skill)
     if (skill === undefined) return undefined
     const meta =
       args.path === skill.entry.path

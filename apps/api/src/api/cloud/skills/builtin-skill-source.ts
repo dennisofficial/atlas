@@ -5,8 +5,6 @@ import { fileURLToPath } from 'node:url'
 import {
   builtInSkillEntry,
   builtInSkillsRoot as pluginBuiltInSkillsRoot,
-  isBuiltInSkillName,
-  type BuiltInSkillCatalogueEntry,
 } from '@dltech/atlas-plugin-skills/pod'
 import { BUILT_IN_SKILLS_DIRECTORY } from './builtin-skills-directory'
 
@@ -17,14 +15,6 @@ export function builtInSkillsRoot(): string {
   const bundled = join(dirname(fileURLToPath(import.meta.url)), BUILT_IN_SKILLS_DIRECTORY)
   cachedRoot = existsSync(bundled) ? bundled : pluginBuiltInSkillsRoot()
   return cachedRoot
-}
-
-export function isBuiltIn(name: string): boolean {
-  return isBuiltInSkillName(name)
-}
-
-export function builtInSkill(name: string): BuiltInSkillCatalogueEntry | undefined {
-  return builtInSkillEntry(name)
 }
 
 export async function readBuiltInFile(args: {
