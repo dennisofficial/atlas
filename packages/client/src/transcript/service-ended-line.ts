@@ -1,4 +1,6 @@
 import {
+  EKilledBy,
+  EServiceStatus,
   quotedShellCommand,
   serviceEnding,
   serviceFailed,
@@ -18,7 +20,14 @@ const named = (service: NamedService): string => {
   return description === '' ? quotedShellCommand(service.command) : `"${description}"`
 }
 
+const outcomeOf = (ending: ServiceEnding): string => {
+  if (ending.status !== EServiceStatus.Killed) return serviceEnding(ending)
+  if (ending.killedBy === EKilledBy.User) return 'was stopped by you'
+  if (ending.killedBy === EKilledBy.Model) return 'was stopped by atlas'
+  return serviceEnding(ending)
+}
+
 export const serviceEndedLine = (ended: ServiceEndedNotice): string =>
-  `Service ${ended.serviceId} ${named(ended)} ${serviceEnding(ended)}`
+  `Service ${ended.serviceId} ${named(ended)} ${outcomeOf(ended)}`
 
 export const serviceEndingFailed = (ending: ServiceEnding): boolean => serviceFailed(ending)
