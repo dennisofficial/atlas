@@ -74,6 +74,8 @@ groups `changes.*`, `git.*`, `mcp.*`, `metrics.*`, `previews.*`, `services.*`, `
 - `sessionListInputSchema`, `sessionSummarySchema`, `sessionListOutputSchema`: the session list.
 - `sessionCreateInputSchema`, `sessionPostInputSchema`, `sessionEventsOutputSchema`: create, post, read.
 - `sessionSubscriptionSchema`, `sessionSubscribeInputSchema`, `sessionUnsubscribeInputSchema`.
+- `usageReportInputSchema`, `usageReportDtoSchema`, `usageWindowDtoSchema`: a plan account's usage
+  as the API reports it, by account id or by provider, with the age of the reading.
 
 ### Carry a message payload
 

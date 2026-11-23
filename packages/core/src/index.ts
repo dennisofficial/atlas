@@ -304,6 +304,7 @@ export * from './models/choice/resolve-choice'
 export * from './models/choice/effort-labels'
 export * from './models/choice/unavailable-copy'
 
+export * from './usage/report'
 export * from './usage/window'
 export * from './usage/meter'
 export * from './usage/metering'
