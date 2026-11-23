@@ -1,4 +1,5 @@
 import type {
+  SessionBucketPageInput,
   SessionSubscribeInput,
   SessionSubscribeOutput,
   SessionUnsubscribeInput,
@@ -29,6 +30,9 @@ export const markV2SessionRead = async (args: { sessionId: string; seq: number }
 
 export const fetchSessionPage = (input: SessionPageInput) =>
   cloudCall(api.sessions.page.query(input))
+
+export const fetchV2BucketPage = (input: SessionBucketPageInput) =>
+  cloudCall(api.sessions.bucketPage.query(input))
 
 export type SubscriptionsApi = {
   subscribe(input: SessionSubscribeInput): Promise<SessionSubscribeOutput>

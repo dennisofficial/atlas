@@ -15,9 +15,13 @@ import type {
 import type {
   ControlSessionRow,
   PrChecks,
+  SessionBucketCountParams,
+  SessionBucketCounts,
+  SessionBucketFilter,
   SessionDigestRow,
   SessionListParams,
   SessionModelRow,
+  SessionPageCursor,
 } from './session-rows'
 import type {
   ControlTerminalRow,
@@ -40,9 +44,13 @@ export type {
   ControlSessionDigest,
   ControlSessionRow,
   PrChecks,
+  SessionBucketCountParams,
+  SessionBucketCounts,
+  SessionBucketFilter,
   SessionDigestRow,
   SessionListParams,
   SessionModelRow,
+  SessionPageCursor,
   SessionTurnEnding,
 } from './session-rows'
 
@@ -351,6 +359,7 @@ export interface ControlTx {
     limit: number
   }): Promise<ControlSessionRow[]>
   listSessionDigests(params: SessionListParams): Promise<SessionDigestRow[]>
+  countSessionBuckets(params: SessionBucketCountParams): Promise<SessionBucketCounts>
   podPeersPlaced(params: { podSessionId: string; excludeSessionId: string }): Promise<number>
   createThread(params: {
     threadId: string

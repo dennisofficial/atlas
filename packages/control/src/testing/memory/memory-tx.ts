@@ -25,6 +25,8 @@ import {
   type ThreadRow,
   type ControlSessionRow,
   type SessionDigestRow,
+  type SessionBucketCountParams,
+  type SessionBucketCounts,
   type InsertRoutineRunParams,
   type RoutineRow,
   type SessionListParams,
@@ -73,7 +75,7 @@ import { insertEventsIn, readEventsIn } from './memory-events'
 import { claimNeedingIn } from './memory-claim-next'
 import { leasesHeldByIn, writeLeaseIn } from './memory-leases'
 import { createThreadIn, readThreadIn, writeThreadHeadIn } from './memory-threads'
-import { sessionDigestsIn } from './memory-digests'
+import { sessionBucketCountsIn, sessionDigestsIn } from './memory-digests'
 import { podPeersPlacedIn } from './memory-peers'
 import {
   clearTitleFromIn,
@@ -203,6 +205,10 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
 
   async listSessionDigests(params: SessionListParams): Promise<SessionDigestRow[]> {
     return sessionDigestsIn({ state: this.state, ...params })
+  }
+
+  async countSessionBuckets(params: SessionBucketCountParams): Promise<SessionBucketCounts> {
+    return sessionBucketCountsIn({ state: this.state, ...params })
   }
 
   async createThread(params: {

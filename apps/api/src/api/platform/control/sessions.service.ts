@@ -37,6 +37,8 @@ import {
   INBOX_KIND_MESSAGE,
   inboxMessageSchema,
   type SessionArchiveOutput,
+  type SessionBucketPageInput,
+  type SessionBucketPageOutput,
   type SessionBlobOutput,
   type SessionCommandInput,
   type SessionCommandOutput,
@@ -72,6 +74,7 @@ import {
 import { PodPowerService, type PodPower } from './pod-power.service'
 import { PodSizingService, type PodSizing } from './pod-sizing.service'
 import { pageSessions, type PageBucket } from '../sessions/session-pages'
+import { bucketPageSessions } from './session-bucket-page'
 import { COMMAND_REGISTRY, postCommand } from './command-registry'
 import { SubscriptionTargetError, resolvedSubscriptionTargetOf } from './subscription-target'
 import { modelSet, modelSetArgs, modelSetHandlers } from './model-set'
@@ -248,6 +251,12 @@ export class SessionsService {
     search?: string | undefined
   }): Promise<SessionPageOutput> {
     return pageSessions(args)
+  }
+
+  async bucketPage(
+    args: { userId: string } & SessionBucketPageInput,
+  ): Promise<SessionBucketPageOutput> {
+    return bucketPageSessions({ plane: this.plane, ...args })
   }
 
   async post(args: {

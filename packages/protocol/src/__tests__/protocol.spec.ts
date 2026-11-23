@@ -19,7 +19,10 @@ import {
   resultFrameSchema,
   runFrameSchema,
   runReplyFrameSchema,
+  sessionBucketPageInputSchema,
+  sessionBucketPageOutputSchema,
   sessionCreateInputSchema,
+  ESessionPageBucket,
   sessionEventsInputSchema,
   sessionListInputSchema,
   inboxMessageSchema,
@@ -289,5 +292,20 @@ describe('session post with images', () => {
         validUntil: 1,
       }).success,
     ).toBe(true)
+  })
+})
+
+describe('session bucket page', () => {
+  it('round-trips the inactive and archived page inputs and output', () => {
+    const input = { bucket: ESessionPageBucket.Inactive, limit: 20, search: 'report' }
+    expect(roundTrips(sessionBucketPageInputSchema, input)).toEqual(input)
+    const cursor = { bucket: ESessionPageBucket.Archived, cursor: '2026-11-20T12:00:00.000Z|s-1' }
+    expect(roundTrips(sessionBucketPageInputSchema, cursor)).toEqual(cursor)
+    expect(
+      sessionBucketPageInputSchema.safeParse({ bucket: ESessionPageBucket.Inactive, limit: 101 })
+        .success,
+    ).toBe(false)
+    const output = { sessions: [], counts: { inactive: 2, archived: 0 } }
+    expect(roundTrips(sessionBucketPageOutputSchema, output)).toEqual(output)
   })
 })

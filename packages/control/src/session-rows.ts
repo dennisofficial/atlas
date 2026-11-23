@@ -34,13 +34,28 @@ export type ControlSessionRow = {
   routineId: string | null
 }
 
+export type SessionBucketFilter = { archived: true } | { archived: false; idleBefore: string }
+
+export type SessionPageCursor = { createdAt: string; sessionId: string }
+
 export type SessionListParams = {
   userId: string
   projectId?: string | undefined
   sessionId?: string | undefined
   spawnedBySessionId?: string | undefined
   limit: number
+  bucket?: SessionBucketFilter | undefined
+  search?: string | undefined
+  after?: SessionPageCursor | undefined
 }
+
+export type SessionBucketCountParams = {
+  userId: string
+  idleBefore: string
+  search?: string | undefined
+}
+
+export type SessionBucketCounts = { inactive: number; archived: number }
 
 export type SessionTurnEnding = {
   seq: number
