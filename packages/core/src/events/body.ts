@@ -104,6 +104,14 @@ export enum EAssistantPlaceholder {
   NoContent = 'no-content',
 }
 
+export enum EResumePoint {
+  Clean = 'clean',
+  ToolInterrupted = 'tool-interrupted',
+  NotResumable = 'not-resumable',
+}
+
+export type ResumeDiscard = { fromSeq: number; throughSeq: number }
+
 export type AssistantPart = TextPart | ReasoningPart
 
 import type { SaidFile, SaidImage, SaidMedia, SaidUpload } from '../attachments/legacy-said'
@@ -262,6 +270,13 @@ export type EventBody =
   | { type: 'checkout-observed'; path: string; branch: string | null; detached: boolean }
   | BackgroundShellEventBody
   | AgentEventBody
+  | {
+      type: 'resume-marked'
+      point: EResumePoint.Clean | EResumePoint.ToolInterrupted
+      discards: readonly ResumeDiscard[]
+      callIds: readonly string[]
+      inboxId?: number | undefined
+    }
   | PolicyEventBody
   | SubscriptionEventBody
   | PrEventBody

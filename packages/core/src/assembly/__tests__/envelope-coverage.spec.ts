@@ -21,6 +21,7 @@ import {
 import { toCallId, toEventId, toThreadId } from '../../events/ids'
 import { CORE_EVENT_TYPES } from '../../events/schema'
 import { ERunFailureKind } from '../../events/run-failure'
+import { EResumePoint } from '../../record/resume-point'
 import { EExecutionLocation } from '../../execution/location'
 import { EModelWaitCause, EWaitEpisodeKind } from '../../model-recovery/waiting'
 import { EClassifierMode, ETriage } from '../../policy/classifier/triage'
@@ -117,6 +118,7 @@ const SAMPLES: { readonly [K in EventType]: SampleOf<K> } = {
     cause: ELocationChangeCause.SandboxExpired,
   },
   rotated: { type: 'rotated', handoff: 'the plan, the files and the branch' },
+  'resume-marked': { type: 'resume-marked', point: EResumePoint.Clean, discards: [], callIds: [] },
   parked: {
     type: 'parked',
     reason: 'idle',

@@ -71,6 +71,7 @@ export const EVENT_DURABILITY = {
   nudge: false,
   parked: false,
   rotated: false,
+  'resume-marked': false,
   'input-posted': false,
   'input-consumed': false,
   'input-withdrawn': false,

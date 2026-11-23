@@ -148,6 +148,7 @@ export * from './agents/status'
 export * from './agents/label'
 export * from './agents/name'
 export * from './agents/roster'
+export * from './agents/resume'
 export * from './agents/crew-standing'
 export * from './agents/crew-fold'
 

@@ -15,8 +15,10 @@ import {
   ELocationChangeCause,
   EMessageOrigin,
   EOperatorInputOutcome,
+  EResumePoint,
   EWorktreeExit,
   type EventBody,
+  type ResumeDiscard,
 } from './body'
 import type { EventEnvelope } from './envelope'
 import {
@@ -64,6 +66,11 @@ export const eventEnvelopeSchema: z.ZodType<EventEnvelope> = z.object({
   parentRunId: runIdSchema.optional(),
   depth: z.number().int().nonnegative(),
   at: z.string().min(1),
+})
+
+const resumeDiscardSchema: z.ZodType<ResumeDiscard> = z.object({
+  fromSeq: z.number().int().min(1),
+  throughSeq: z.number().int().min(1),
 })
 
 const coreEventBodySchema = z.discriminatedUnion('type', [
@@ -290,6 +297,13 @@ const coreEventBodySchema = z.discriminatedUnion('type', [
   ...agentEventSchemas,
   ...shellEventSchemas,
   ...prEventSchemas,
+  z.object({
+    type: z.literal('resume-marked'),
+    point: z.enum([EResumePoint.Clean, EResumePoint.ToolInterrupted]),
+    discards: z.array(resumeDiscardSchema),
+    callIds: z.array(z.string().min(1)),
+    inboxId: z.number().int().min(1).optional(),
+  }),
   ...runEventSchemas,
   diagramRepairedSchema,
   ...policyEventSchemas,
