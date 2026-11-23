@@ -71,6 +71,7 @@ export * from './events/plugin-registry'
 export * from './events/stamp'
 export * from './subscriptions'
 export * from './record'
+export * from './notify'
 
 export * from './message/hoist-tool-files'
 export * from './message/image-bytes'
