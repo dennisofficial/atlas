@@ -1,0 +1,22 @@
+{
+  "accountId": "042ea0a078628cea286f0c984ceccedf",
+  "buckets": [
+    {
+      "bucket": "atlas-artifacts",
+      "rules": [
+        {
+          "allowed": {
+            "origins": [
+              "https://byatlas.io",
+              "http://127.0.0.1*",
+              "http://localhost:3001",
+              "https://3001-*.byatlas.dev"
+            ],
+            "methods": ["GET", "HEAD"]
+          },
+          "maxAgeSeconds": 3600
+        }
+      ]
+    }
+  ]
+}
