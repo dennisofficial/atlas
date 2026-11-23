@@ -80,6 +80,7 @@ export type BootStepView = {
 export type BootView = {
   steps: BootStepView[]
   state: EBootStepState
+  title?: string
   error?: string
   elapsedMs?: number
   startedAtMs?: number
