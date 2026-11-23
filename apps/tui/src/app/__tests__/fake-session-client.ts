@@ -1,11 +1,15 @@
 import type { SaidUpload, V2Event } from '@dltech/atlas-core'
 import { STREAM_PROTOCOL_MIN_VERSION } from '@dltech/atlas-protocol'
+import type { CommandEntry } from '@dltech/atlas-commands'
 import type {
   FilesSearchInput,
   FilesTreeInput,
   FilesTreeOutput,
   MediaConfirmInput,
   MediaPresignInput,
+  SessionCommandInput,
+  SessionCreateInput,
+  SessionCreateOutput,
   SessionPostInput,
   SessionRetryInput,
   SessionStopInput,
@@ -27,10 +31,15 @@ import {
 
 import { v2EventSchema, v2EventTypes, v2Views } from '../registered-plugins'
 import type { AuthRefusal, SessionClient } from '../session-client'
+import type { ProjectChoice } from '../../ui/project-prompt-model'
 import type {
   DraftPutBody,
+  ModelsProvider,
+  ModelsReply,
   OperatorAnswerBody,
+  ProjectSaveBody,
   SessionApi,
+  SkillCatalogueReply,
   UploadPresignBody,
   UploadPresignReply,
 } from '../session-api'
@@ -51,10 +60,22 @@ export type FakeCalls = {
   clearDraft: string[]
   treeFiles: FilesTreeInput[]
   searchFiles: FilesSearchInput[]
+  createSession: SessionCreateInput[]
+  runCommand: SessionCommandInput[]
+  createProject: ProjectSaveBody[]
+  listProjects: number
+  listModels: number
+  commands: number
+  skills: number
 }
 
 export type FakeSessionClient = SessionClient & {
   calls: FakeCalls
+  setProjects: (projects: readonly ProjectChoice[]) => void
+  setModels: (models: ModelsReply) => void
+  setCommands: (commands: readonly CommandEntry[]) => void
+  setSkills: (skills: SkillCatalogueReply['skills']) => void
+  pushCreated: (created: SessionCreateOutput) => void
   pushRows: (rows: readonly StreamSessionRow[]) => void
   pushEvents: (args: { sessionId: string; events: readonly V2Event[]; live: boolean }) => void
   pushOverlay: (args: {
@@ -81,6 +102,48 @@ const uploadOf = (body: UploadPresignBody): SaidUpload => ({
   size: body.size,
   mediaType: body.mediaType,
 })
+
+const CONNECTED = 'connected' as ModelsProvider['status']
+
+const DEFAULT_MODELS: ModelsReply = {
+  providers: [
+    {
+      id: 'anthropic',
+      label: 'Anthropic',
+      status: CONNECTED,
+      live: false,
+      models: [
+        {
+          id: 'anthropic/claude-sonnet-4-5',
+          label: 'Claude Sonnet 4.5',
+          contextWindow: 200_000,
+          efforts: ['low', 'medium', 'high'],
+          fast: true,
+        },
+        {
+          id: 'anthropic/claude-opus-5-5',
+          label: 'Claude Opus 5.5',
+          contextWindow: 200_000,
+          efforts: ['low', 'medium', 'high'],
+        },
+      ],
+    },
+    {
+      id: 'openai',
+      label: 'OpenAI',
+      status: CONNECTED,
+      live: false,
+      models: [
+        {
+          id: 'openai/gpt-5',
+          label: 'GPT-5',
+          contextWindow: 400_000,
+          efforts: ['low', 'medium', 'high'],
+        },
+      ],
+    },
+  ],
+}
 
 export const fakeSessionClient = (args: {
   onAuthLost: (status: AuthRefusal) => void
@@ -112,6 +175,13 @@ export const fakeSessionClient = (args: {
     clearDraft: [],
     treeFiles: [],
     searchFiles: [],
+    createSession: [],
+    runCommand: [],
+    createProject: [],
+    listProjects: 0,
+    listModels: 0,
+    commands: 0,
+    skills: 0,
   }
 
   let frames = 0
@@ -127,6 +197,12 @@ export const fakeSessionClient = (args: {
   }
 
   const trees: FilesTreeOutput[] = []
+  let projects: readonly ProjectChoice[] = []
+  let models: ModelsReply = DEFAULT_MODELS
+  let commandEntries: readonly CommandEntry[] = []
+  let skillEntries: SkillCatalogueReply['skills'] = []
+  const created: SessionCreateOutput[] = []
+  let projectCount = 0
   let postHeld = false
   let releaseHeld: (() => void) | null = null
 
@@ -199,6 +275,40 @@ export const fakeSessionClient = (args: {
     readFile: async (input) => ({
       file: { type: 'text', path: input.path, content: '', truncated: false, bytes: 0 },
     }),
+    createSession: async (input) => {
+      calls.createSession.push(input)
+      return created.shift() ?? { sessionId: 'session-created', mainThreadId: 'thread-created' }
+    },
+    listProjects: async () => {
+      calls.listProjects += 1
+      return projects
+    },
+    createProject: async (input) => {
+      calls.createProject.push(input)
+      projectCount += 1
+      return {
+        id: `project-${projectCount}`,
+        name: input.name,
+        repo: input.repo,
+        updatedAt: '2026-11-20T00:00:00.000Z',
+      }
+    },
+    listModels: async () => {
+      calls.listModels += 1
+      return models
+    },
+    runCommand: async (input) => {
+      calls.runCommand.push(input)
+      return { inboxId: nextInbox() }
+    },
+    commands: async () => {
+      calls.commands += 1
+      return commandEntries
+    },
+    skills: async () => {
+      calls.skills += 1
+      return skillEntries
+    },
   }
 
   return {
@@ -209,6 +319,21 @@ export const fakeSessionClient = (args: {
     close: () => connection.close(),
     queueTrees: (next) => {
       trees.push(...next)
+    },
+    setProjects: (next) => {
+      projects = next
+    },
+    setModels: (next) => {
+      models = next
+    },
+    setCommands: (next) => {
+      commandEntries = next
+    },
+    setSkills: (next) => {
+      skillEntries = next
+    },
+    pushCreated: (next) => {
+      created.push(next)
     },
     pushRows: (rows) => {
       for (const subscription of fake.lists) {

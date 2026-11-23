@@ -2,7 +2,7 @@
   "name": "@dltech/atlas",
   "version": "0.1.0",
   "private": true,
-  "description": "Atlas — a coding-agent harness in the shape of Claude Code.",
+  "description": "Atlas \u2014 a coding-agent harness in the shape of Claude Code.",
   "type": "module",
   "bin": {
     "atlas": "./bin/atlas",
@@ -29,6 +29,7 @@
   "dependencies": {
     "@dltech/atlas-api-router": "workspace:*",
     "@dltech/atlas-client": "workspace:*",
+    "@dltech/atlas-commands": "workspace:*",
     "@dltech/atlas-core": "workspace:*",
     "@dltech/atlas-harness": "workspace:*",
     "@dltech/atlas-models": "workspace:*",

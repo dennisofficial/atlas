@@ -16,7 +16,7 @@ import type { SendArgs } from './conversation-types'
 import { messageOf } from './error-text'
 import { unstartedConversation, type OpenedConversation } from './open-conversation'
 import type { ContainerMoveControl } from './use-container-move'
-import type { ProjectPromptControl } from './use-project-prompt'
+import type { ProjectPromptControl } from '../ui/hooks/use-project-prompt'
 
 export type UnbornSend = { send: SendArgs; onUndelivered: () => void }
 

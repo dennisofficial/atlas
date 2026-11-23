@@ -16,7 +16,7 @@ import { useComposerDraft } from './use-composer-draft'
 import { draftSubmissionOf } from './draft-submission'
 import { pasteDirectoryOf } from './paste-directory'
 import type { SessionApi } from './session-api'
-import { sessionFilesOf } from './session-files'
+import { NO_SESSION_FILES, sessionFilesOf } from './session-files'
 import type { SessionAttachments } from './use-session-attachments'
 import type { SessionSend } from './use-session-send'
 
@@ -69,7 +69,7 @@ export function useSessionComposer(args: {
   })
 
   const files = useMemo(
-    () => (sessionId === null ? undefined : sessionFilesOf({ api, sessionId })),
+    () => (sessionId === null ? NO_SESSION_FILES : sessionFilesOf({ api, sessionId })),
     [api, sessionId],
   )
 
