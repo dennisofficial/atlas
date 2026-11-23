@@ -11,6 +11,8 @@ import type {
   MediaConfirmOutput,
   MediaPresignInput,
   MediaPresignOutput,
+  SessionChangesInput,
+  SessionChangesOutput,
   SessionCommandInput,
   SessionCommandOutput,
   SessionCreateInput,
@@ -21,6 +23,10 @@ import type {
   SessionRetryOutput,
   SessionStopInput,
   SessionStopOutput,
+  SessionSubscribeInput,
+  SessionSubscribeOutput,
+  SessionUnsubscribeInput,
+  SessionUnsubscribeOutput,
   SessionWakeInput,
   SessionWakeOutput,
   SessionWithdrawInput,
@@ -31,6 +37,7 @@ import type { ProjectChoice } from '../ui/project-prompt-model'
 import type { AuthRefusal } from './session-client'
 
 export type OperatorAnswerBody = Parameters<ApiClient['operatorRequests']['answer']['mutate']>[0]
+export type PresenceBody = Parameters<ApiClient['notifications']['reportPresence']['mutate']>[0]
 export type DraftPutBody = Parameters<ApiClient['composerDrafts']['put']['mutate']>[0]
 export type UploadPresignBody = Parameters<ApiClient['composerUploads']['presign']['mutate']>[0]
 export type UploadPresignReply = Awaited<
@@ -66,6 +73,10 @@ export type SessionApi = {
   runCommand(input: SessionCommandInput): Promise<SessionCommandOutput>
   commands(): Promise<readonly CommandEntry[]>
   skills(): Promise<SkillCatalogueReply['skills']>
+  subscribe(input: SessionSubscribeInput): Promise<SessionSubscribeOutput>
+  unsubscribe(input: SessionUnsubscribeInput): Promise<SessionUnsubscribeOutput>
+  changes(input: SessionChangesInput): Promise<SessionChangesOutput>
+  reportPresence(input: PresenceBody): Promise<void>
 }
 
 const authStatusOf = (failure: unknown): AuthRefusal | null => {
@@ -143,6 +154,16 @@ export const sessionApiOf = (args: {
     skills: async () => {
       const reply = await guarded(() => args.api.skillCatalogue.list.query({}))
       return reply.skills
+    },
+    subscribe: (input) => guarded(() => args.api.sessions.subscribe.mutate(input)),
+    unsubscribe: (input) => guarded(() => args.api.sessions.unsubscribe.mutate(input)),
+    changes: (input) => guarded(() => args.api.sessions.changes.query(input)),
+    reportPresence: async (input) => {
+      try {
+        await guarded(() => args.api.notifications.reportPresence.mutate(input))
+      } catch {
+        return
+      }
     },
   }
 }

@@ -17,8 +17,6 @@ import type { SessionTranscript } from './use-session-transcript'
 
 const TICK_MS = 1_000
 
-const NO_SECTIONS: readonly SidebarSection[] = []
-
 const usePaneNow = (ticking: boolean): number => {
   const [now, setNow] = useState(() => Date.now())
 
@@ -48,6 +46,7 @@ export function useSessionPanes(args: {
   transcript: SessionTranscript
   sessionId: string
   teammates: readonly StreamSessionRow[]
+  sections: readonly SidebarSection[]
   onOpenSession: (agentId: string) => void
   onProblem: (reason: string) => void
 }): SessionPanesControl {
@@ -93,10 +92,19 @@ export function useSessionPanes(args: {
         panes,
         crew: { rows: crew.rows, standings: crew.standings },
         teammates: args.teammates,
-        sections: NO_SECTIONS,
+        sections: args.sections,
         now: paneNow,
       }),
-    [args.teammates, crew.rows, crew.standings, paneNow, panes, transcript.events, transcript.name],
+    [
+      args.sections,
+      args.teammates,
+      crew.rows,
+      crew.standings,
+      paneNow,
+      panes,
+      transcript.events,
+      transcript.name,
+    ],
   )
 
   const { handleKey: handleShellsKey } = shells

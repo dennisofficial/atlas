@@ -5,6 +5,7 @@ import {
   type StreamNetworkSignal,
   systemStreamScheduler,
 } from '@dltech/atlas-client/stream'
+import { EStreamSurface } from '@dltech/atlas-protocol'
 import { EventSource } from 'eventsource'
 
 import { authWatchingTransport } from './auth-transport'
@@ -40,6 +41,7 @@ export const createSessionClient = (args: {
   const transport = authWatchingTransport({
     transport: sessionStreamTransport({
       client,
+      surface: EStreamSurface.Terminal,
       handleUnauthorized: () => args.onAuthLost(401),
     }),
     onAuthLost: args.onAuthLost,

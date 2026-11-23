@@ -38,6 +38,7 @@ import { useModelChoice } from './use-model-choice'
 import { useSessionNav } from './use-session-nav'
 import { useSessionList } from './use-session-list'
 import { useSessionModels } from './use-session-models'
+import { useAppSessionWatch } from './use-app-session-watch'
 
 export type SessionClientArgs = {
   apiUrl: string
@@ -99,25 +100,22 @@ export function AppNext(props: AppNextProps): React.ReactNode {
   )
 
   useEffect(() => () => client?.close(), [client])
+  const watching = screen.screen === EScreen.Transcript ? screen.sessionId : null
 
   const clientHeld = useRef<SessionClient | null>(client)
   clientHeld.current = client
-
   const follow = useCallback(
     () => clientHeld.current?.connection.followSessions() ?? EMPTY_SESSION_LIST,
     [],
   )
-
   const lookupModel = useRef<(sessionId: string) => SessionModelChoice | null>(() => null)
 
   const initialModel = launch.model === null ? null : modelOfRef(launch.model)
 
   const models = useSessionModels({ api: client?.api ?? null, onProblem: problemOf })
 
-  const currentModel: SessionModelChoice | null =
-    screen.screen === EScreen.Transcript || screen.screen === EScreen.NewSession
-      ? screen.model
-      : initialModel
+  const canPickModel = screen.screen === EScreen.Transcript || screen.screen === EScreen.NewSession
+  const currentModel: SessionModelChoice | null = canPickModel ? screen.model : initialModel
 
   const handleModelPick = useCallback(
     (picked: SwitcherChoice) => {
@@ -157,11 +155,10 @@ export function AppNext(props: AppNextProps): React.ReactNode {
   })
   lookupModel.current = list.modelOf
   rowOfRef.current = list.rowOf
+  useAppSessionWatch({ api: client?.api ?? null, sessionId: watching, rows: list.rows })
 
   const chatKeys = useRef<((key: KeyEvent) => boolean) | null>(null)
   const newKeys = useRef<((key: KeyEvent) => boolean) | null>(null)
-
-  const canPickModel = screen.screen === EScreen.Transcript || screen.screen === EScreen.NewSession
 
   const handleKey = useCallback(
     (key: KeyEvent) => {
@@ -254,6 +251,8 @@ export function AppNext(props: AppNextProps): React.ReactNode {
           choosingModel={choice.state !== null}
           clientVersion={props.clientVersion}
           teammates={list.rows}
+          row={list.rowOf(screen.sessionId)}
+          openUrl={props.openUrl}
           onOpenSession={nav.handleOpenSession}
         />
         {switcher}

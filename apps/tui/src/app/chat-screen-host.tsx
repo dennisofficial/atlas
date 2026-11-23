@@ -4,7 +4,6 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import type { EClientAction } from '@dltech/atlas-commands'
 import type { StreamSessionRow } from '@dltech/atlas-protocol'
 
-import { ENoticeTone, notify } from '../ui/notice-store'
 import { AgentTranscriptScreen } from './agent-transcript'
 import { ChatScreen } from './chat-screen'
 import { connectionViewOf } from './connection-view'
@@ -22,13 +21,12 @@ import { useSessionComposer } from './use-session-composer'
 import { useTuiCommands } from './use-tui-commands'
 import { useSessionSend } from './use-session-send'
 import { useChatKeys } from './use-chat-keys'
+import { useSessionChrome } from './use-session-chrome'
 import { useSessionPanes } from './use-session-panes'
 import { useSessionTranscript } from './use-session-transcript'
 import { useSessionWake } from './use-session-wake'
-
-const problemOf = (reason: string): void => {
-  notify({ text: reason, tone: ENoticeTone.Warn })
-}
+import { MIN_TRANSCRIPT_WIDTH, SIDEBAR_WIDTH } from '../ui/theme'
+import { problemOf } from './app-next-support'
 
 export function ChatScreenHost(props: {
   client: SessionClient
@@ -46,6 +44,8 @@ export function ChatScreenHost(props: {
   choosingModel: boolean
   clientVersion: string
   teammates: readonly StreamSessionRow[]
+  row: StreamSessionRow | undefined
+  openUrl: (url: string) => void
   onOpenSession: (agentId: string) => void
 }): React.ReactNode {
   const transcript = useSessionTranscript({
@@ -55,15 +55,10 @@ export function ChatScreenHost(props: {
     now: props.now,
   })
 
-  const panes = useSessionPanes({
-    transcript,
-    sessionId: props.sessionId,
-    teammates: props.teammates,
-    onOpenSession: props.onOpenSession,
-    onProblem: problemOf,
-  })
   const [sidebarOpen, setSidebarOpen] = useState(true)
-
+  const contentWidth = sidebarOpen
+    ? Math.max(MIN_TRANSCRIPT_WIDTH, props.width - SIDEBAR_WIDTH)
+    : props.width
   const restoreText = useRef<(args: { text: string; reason: string | undefined }) => void>(
     () => undefined,
   )
@@ -74,13 +69,11 @@ export function ChatScreenHost(props: {
     working: transcript.working,
     onRestore: (args) => restoreText.current(args),
   })
-
   const attachments = useSessionAttachments({
     api: props.client.api,
     sessionId: props.sessionId,
     onProblem: problemOf,
   })
-
   const send = useSessionSend({
     api: props.client.api,
     sessionId: props.sessionId,
@@ -101,6 +94,29 @@ export function ChatScreenHost(props: {
     composer.tokens.restore({ text: args.text, images: [] })
     if (args.reason !== undefined) problemOf(args.reason)
   }
+
+  const chrome = useSessionChrome({
+    api: props.client.api,
+    sessionId: props.sessionId,
+    row: props.row,
+    view: transcript.view,
+    status: transcript.status,
+    working: transcript.working,
+    width: contentWidth,
+    now: props.now,
+    draft: composer.draft,
+    openUrl: props.openUrl,
+    onProblem: problemOf,
+  })
+
+  const panes = useSessionPanes({
+    transcript,
+    sessionId: props.sessionId,
+    teammates: props.teammates,
+    sections: chrome.sections,
+    onOpenSession: props.onOpenSession,
+    onProblem: problemOf,
+  })
 
   const takeBack = usePendingTakeBack({
     api: props.client.api,
@@ -216,6 +232,7 @@ export function ChatScreenHost(props: {
     menu,
     rewind,
     panes,
+    footerStrip: chrome.footerStrip,
     working: transcript.working,
     onToggleSidebar: () => setSidebarOpen((open) => !open),
     onBack,
@@ -274,6 +291,10 @@ export function ChatScreenHost(props: {
       services={panes.services}
       onSelectSubagent={panes.crew.handleSelect}
       onOpenTeammate={props.onOpenSession}
+      header={chrome.header}
+      footer={chrome.footer}
+      footerContext={chrome.footerContext}
+      footerStrip={chrome.footerStrip}
     />
   )
 }
