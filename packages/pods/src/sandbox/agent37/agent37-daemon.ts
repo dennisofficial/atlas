@@ -14,6 +14,7 @@ const DEFAULT_LISTEN_BUDGET_MS = 3 * 60_000
 const LISTEN_POLL_MS = 1_000
 const READY_POLL_MS = 2_000
 const DEFAULT_READY_BUDGET_MS = 2 * 60_000
+const DEFAULT_REPAIR_AFTER_MS = 30_000
 const RESTART_ACCEPTED = new Set([202, 409])
 
 export type Agent37DaemonBundle = { path: string }
@@ -107,28 +108,6 @@ export const waitForAgent37Instance = async (args: {
   )
 }
 
-const ASLEEP_STATUSES: ReadonlySet<string> = new Set(['sleeping', 'stopped'])
-
-/**
- * https://www.agent37.com/docs/agents-api/instances/start — a checkpointed instance answers nothing
- * on its ports until it is started, so a wake that only waited for the daemon spent its budget on a
- * pod that was never coming back.
- */
-export const startAgent37InstanceIfAsleep = async (args: {
-  client: Agent37Client
-  id: string
-  log?: ((line: string) => void) | undefined
-}): Promise<void> => {
-  const instance = await args.client.get({ id: args.id })
-  if (!ASLEEP_STATUSES.has(instance.status)) return
-  await args.client.start({ id: args.id })
-  await waitForAgent37Instance({
-    client: args.client,
-    instanceId: args.id,
-    ...(args.log === undefined ? {} : { log: args.log }),
-  })
-}
-
 const daemonReportOf = async (args: {
   client: Agent37Client
   instanceId: string
@@ -171,15 +150,33 @@ export const waitForAgent37Daemon = async (args: {
   want: Agent37DaemonWant
   token: string
   budgetMs?: number | undefined
+  pollMs?: number | undefined
+  repairAfterMs?: number | undefined
+  repair?: (() => Promise<boolean>) | undefined
   log?: ((line: string) => void) | undefined
 }): Promise<void> => {
   const budgetMs = args.budgetMs ?? DEFAULT_LISTEN_BUDGET_MS
-  const deadline = Date.now() + budgetMs
+  const pollMs = args.pollMs ?? LISTEN_POLL_MS
+  const repairAfterMs = args.repairAfterMs ?? DEFAULT_REPAIR_AFTER_MS
+  const startedAt = Date.now()
+  let deadline = startedAt + budgetMs
   let running: string | undefined
   let restarted = false
+  let repaired = false
   for (;;) {
     const report = await daemonReportOf(args)
     running = report?.version
+    if (report === undefined && !repaired) {
+      if (args.repair !== undefined && Date.now() - startedAt >= repairAfterMs) {
+        repaired = true
+        args.log?.(
+          `agent37 instance ${args.instanceId} answers no daemon after ${Math.floor(
+            (Date.now() - startedAt) / 1000,
+          )}s; checking whether its container crash-loops`,
+        )
+        if (await args.repair()) deadline = Date.now() + budgetMs
+      }
+    }
     if (report !== undefined) {
       const skew = daemonSkewOf({ report, want: args.want })
       if (skew === EDaemonSkew.Compatible) {
@@ -209,7 +206,7 @@ export const waitForAgent37Daemon = async (args: {
       }
     }
     if (Date.now() >= deadline) break
-    await sleep(LISTEN_POLL_MS)
+    await sleep(pollMs)
   }
   throw new Error(
     `agent37 instance ${args.instanceId} daemon did not answer version ${

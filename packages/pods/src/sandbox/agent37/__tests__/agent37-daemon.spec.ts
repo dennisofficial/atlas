@@ -60,6 +60,13 @@ const clientOf = (args: {
     sleep: async () => undefined,
     start: async ({ id }) => ({ id, status: 'running' }),
     resize: async ({ id }) => ({ ...INSTANCE, id }),
+    update: async ({ id }) => ({ id, status: 'updating' }),
+    logs: async () => ({
+      logs: '',
+      truncated: false,
+      health: { running: true, restart_count: 0, exit_code: null, oom_suspected: false },
+      fetched_at: 0,
+    }),
     exec: async (body) => {
       execs.push(body)
       return { exit_code: 0, stdout: '', stderr: '', truncated: false }
@@ -173,6 +180,32 @@ describe('waitForAgent37Daemon', () => {
           bundleVersion: bundle.version,
         }),
       })
+    } finally {
+      bundle.cleanup()
+    }
+  })
+
+  it('asks for a repair once when nothing answers, and resets the deadline when it repaired', async () => {
+    const bundle = bundleOf()
+    try {
+      const { client } = clientOf({ versions: () => ({ status: 0, body: '' }) })
+      let repairs = 0
+      await expect(
+        waitForAgent37Daemon({
+          client,
+          instanceId: 'inst-1',
+          want: { version: bundle.version, url: 'https://api/agent/daemon/bundle' },
+          token: 'daemon-token',
+          budgetMs: 50,
+          pollMs: 5,
+          repairAfterMs: 0,
+          repair: async () => {
+            repairs += 1
+            return true
+          },
+        }),
+      ).rejects.toThrow('last version "none"')
+      expect(repairs).toBe(1)
     } finally {
       bundle.cleanup()
     }

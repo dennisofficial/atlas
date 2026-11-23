@@ -1,6 +1,7 @@
 import type { SandboxListing } from '../sandbox-provider'
 import { isAgent37Missing, type Agent37Client, type Agent37Instance } from './agent37-client'
 import { AGENT37_POD_SESSION_KEY, type Agent37InstanceIds } from './agent37-instances'
+import { sleepAgent37Instance } from './agent37-lifecycle'
 
 const pagesOf = async (client: Agent37Client): Promise<Agent37Instance[]> => {
   const instances: Agent37Instance[] = []
@@ -51,6 +52,7 @@ export const sleepAgent37Pod = async (args: {
   client: Agent37Client
   instances: Agent37InstanceIds
   podSessionId: string
+  log?: ((line: string) => void) | undefined
 }): Promise<void> => {
   const known = await args.instances.find({ podSessionId: args.podSessionId })
   const attributed = await attributedInstanceIdsOf({
@@ -58,7 +60,13 @@ export const sleepAgent37Pod = async (args: {
     podSessionId: args.podSessionId,
   })
   const ids = new Set([...(known === null ? [] : [known]), ...attributed])
-  for (const id of ids) await args.client.sleep({ id })
+  for (const id of ids) {
+    await sleepAgent37Instance({
+      client: args.client,
+      id,
+      ...(args.log === undefined ? {} : { log: args.log }),
+    })
+  }
 }
 
 export const removeAgent37Pod = async (args: {

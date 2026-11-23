@@ -12,6 +12,7 @@ import { agent37ShapeOfVcpus } from './agent37-resize'
 
 export const AGENT37_IDLE_TIMEOUT_SECONDS = 1800
 export const AGENT37_MOUNT_PATH = SANDBOX_HOME_PATH.replace(/\/home$/, '')
+export const AGENT37_DAEMON_HOME = `${SANDBOX_HOME_PATH}/.atlas/daemon`
 
 export const agent37CreateBodyOf = (args: {
   env: Agent37Env
@@ -38,6 +39,7 @@ export const agent37CreateBodyOf = (args: {
     DAEMON_TOKEN: args.token,
     ATLAS_DAEMON_BUNDLE_URL: args.bundleUrl,
     ATLAS_SANDBOX_NAME: args.sandboxName,
+    ATLAS_DAEMON_HOME: AGENT37_DAEMON_HOME,
     [DAEMON_PORT_ENV]: String(DAEMON_PORT),
   },
 })

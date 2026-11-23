@@ -23,6 +23,7 @@ type FakeArgs = {
   pods: readonly PodDisk[]
   facts?: (podSessionId: string) => Promise<PodRebootFacts | undefined>
   grow?: (args: { instanceId: string; diskGb: number }) => Promise<void>
+  notice?: (args: { sessionId: string; diskGb: number }) => Promise<void>
 }
 
 const factsOf = (over: {
@@ -61,6 +62,10 @@ const fakeDeps = (args: FakeArgs) => {
       calls.push(`grow:${growArgs.instanceId}:${growArgs.diskGb}`)
       await (args.grow ?? (async () => undefined))(growArgs)
     },
+    notice: async (noticeArgs) => {
+      calls.push(`notice:${noticeArgs.sessionId}:${noticeArgs.diskGb}`)
+      await (args.notice ?? (async () => undefined))(noticeArgs)
+    },
     log: (line) => lines.push(line),
   }
   return { deps, calls, lines }
@@ -69,7 +74,7 @@ const fakeDeps = (args: FakeArgs) => {
 describe('runPodDiskGrow', () => {
   it('leaves a pod whose disk is under the threshold alone, without reading its session', async () => {
     const { deps, calls } = fakeDeps({
-      pods: [podOf({ podSessionId: 'pod-1', usedGb: 15, limitGb: 20 })],
+      pods: [podOf({ podSessionId: 'pod-1', usedGb: 13, limitGb: 20 })],
     })
     expect(await runPodDiskGrow({ deps, maxGb: 100 })).toEqual({
       checked: 1,
@@ -117,7 +122,12 @@ describe('runPodDiskGrow', () => {
       grown: 1,
       waiting: 0,
     })
-    expect(calls).toEqual(['facts:pod-1', 'closeRun:pod-1', 'grow:inst-pod-1:40'])
+    expect(calls).toEqual([
+      'facts:pod-1',
+      'closeRun:pod-1',
+      'grow:inst-pod-1:40',
+      'notice:pod-1:40',
+    ])
     expect(lines.join('\n')).toContain('grew inst-pod-1 for pod-1 to 40 GB')
   })
 
@@ -137,7 +147,7 @@ describe('runPodDiskGrow', () => {
       grown: 1,
       waiting: 0,
     })
-    expect(calls).toEqual(['closeRun:pod-1', 'grow:inst-pod-1:40'])
+    expect(calls).toEqual(['closeRun:pod-1', 'grow:inst-pod-1:40', 'notice:pod-1:40'])
   })
 
   it('closes the open run with the sandbox stopped before it grows, and never revokes', async () => {
@@ -151,10 +161,13 @@ describe('runPodDiskGrow', () => {
       grow: async () => {
         order.push('grow')
       },
+      notice: async () => {
+        order.push('notice')
+      },
       log: () => undefined,
     }
     await runPodDiskGrow({ deps, maxGb: 100 })
-    expect(order).toEqual(['closeRun', 'grow'])
+    expect(order).toEqual(['closeRun', 'grow', 'notice'])
   })
 
   it('skips a pod whose Agent37 metrics are still empty, and says so', async () => {
@@ -168,6 +181,43 @@ describe('runPodDiskGrow', () => {
     })
     expect(calls).toEqual([])
     expect(lines.join('\n')).toContain('no disk figures yet')
+  })
+
+  it('skips a pod whose disk figures are stale, and says so', async () => {
+    const { deps, calls, lines } = fakeDeps({
+      pods: [
+        {
+          podSessionId: 'pod-1',
+          instanceId: 'inst-pod-1',
+          usedBytes: undefined,
+          limitBytes: undefined,
+          stale: true,
+        },
+      ],
+    })
+    expect(await runPodDiskGrow({ deps, maxGb: 100 })).toEqual({
+      checked: 1,
+      grown: 0,
+      waiting: 0,
+    })
+    expect(calls).toEqual([])
+    expect(lines.join('\n')).toContain('disk figures are stale')
+  })
+
+  it('counts the grow as done when the notice fails, and logs the notice failure', async () => {
+    const { deps, lines } = fakeDeps({
+      pods: [podOf({ podSessionId: 'pod-1', usedGb: 17, limitGb: 20 })],
+      facts: async () => factsOf({ state: ESessionStatus.Idle }),
+      notice: async () => {
+        throw new Error('inbox is down')
+      },
+    })
+    expect(await runPodDiskGrow({ deps, maxGb: 100 })).toEqual({
+      checked: 1,
+      grown: 1,
+      waiting: 0,
+    })
+    expect(lines.join('\n')).toContain('inbox is down')
   })
 
   it('skips a pod whose session the control plane no longer has', async () => {

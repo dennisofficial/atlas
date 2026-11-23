@@ -57,7 +57,7 @@ they read. `apps/api` and `apps/trigger` both use it. It has no framework import
 
 ### Run a pod job
 
-- `runPodSleep`, `runPodResize`, `runPodDiskGrow`, `growPodDisk`, `runPodDiskGrowOne` are plain
+- `runPodSleep`, `runPodResize`, `runPodDiskGrow`, `growPodDisk` are plain
   functions over injected deps: no database, clock or network of their own.
 - `readPodBusy` and `readPodRebootFacts` read a session's busy state from a `ControlPlane`.
 - `reconcileAgent37Usage` meters the instances the wallet billed.

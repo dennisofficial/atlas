@@ -14,6 +14,39 @@ if [ -z "$BUNDLE_URL" ]; then
   exec sleep infinity
 fi
 
+spill_keep() {
+  dir="$1"
+  name="$2"
+  if mountpoint -q "$dir"; then
+    return 0
+  fi
+  if ! mkdir -p "$dir" "/atlas/.atlas/os/$name/upper" "/atlas/.atlas/os/$name/work"; then
+    echo "atlas-boot: $dir stays on the os layer" >&2
+    return 0
+  fi
+  if ! mount -t overlay overlay \
+    -o "lowerdir=$dir,upperdir=/atlas/.atlas/os/$name/upper,workdir=/atlas/.atlas/os/$name/work" \
+    "$dir"; then
+    echo "atlas-boot: $dir stays on the os layer" >&2
+  fi
+  return 0
+}
+
+spill_fresh() {
+  rm -rf "/atlas/.atlas/os/$2/upper" "/atlas/.atlas/os/$2/work"
+  spill_keep "$1" "$2"
+}
+
+# Agent37 measures and grows only the volume at its mount_path: writes elsewhere share a 10 GB OS
+# layer that disk_bytes does not report and a resize does not grow.
+# https://www.agent37.com/docs/agents-api/instance-lifecycle.md
+if mountpoint -q /atlas; then
+  spill_keep /root root
+  spill_keep /opt/bun/install bun-install
+  spill_fresh /tmp tmp
+  spill_fresh /var/tmp var-tmp
+fi
+
 mkdir -p "$DAEMON_HOME" /atlas/docker
 # Not the shim: a mise shim rewrites PATH for every process it starts, and the daemon passes its
 # env to every agent shell, which would then ignore the repository's pinned bun and node. mise
@@ -66,6 +99,10 @@ while :; do
     fi
   fi
   if [ -f "$DAEMON_HOME/daemon.js" ]; then
+    if [ -f "$DAEMON_HOME/daemon.log" ] &&
+      [ "$(stat -c %s "$DAEMON_HOME/daemon.log")" -gt 33554432 ]; then
+      mv -f "$DAEMON_HOME/daemon.log" "$DAEMON_HOME/daemon.log.1"
+    fi
     ATLAS_DAEMON_BUNDLE_VERSION="$(sha256sum "$DAEMON_HOME/daemon.js" | cut -d' ' -f1)"
     printf '%s\n' "$ATLAS_DAEMON_BUNDLE_VERSION" >"$DAEMON_HOME/version"
     ATLAS_DAEMON_BUNDLE_VERSION="$ATLAS_DAEMON_BUNDLE_VERSION" \

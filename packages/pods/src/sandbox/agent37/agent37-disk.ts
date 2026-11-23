@@ -7,20 +7,31 @@ export const AGENT37_MAX_DISK_GB = 100
 
 export const AGENT37_DISK_METRICS_HOURS = 1
 
+export const AGENT37_DISK_SAMPLE_MAX_AGE_SECONDS = 300
+
 export type Agent37PodDisk = {
   podSessionId: string
   instanceId: string
   usedBytes: number | undefined
   limitBytes: number | undefined
+  stale?: boolean | undefined
 }
 
 const podSessionIdOf = (instance: Agent37Instance): string | undefined =>
   instance.status === 'running' ? instance.metadata?.[AGENT37_POD_SESSION_KEY] : undefined
 
-const lastValueOf = (
-  samples: readonly (readonly [number, number])[] | undefined,
-): number | undefined =>
-  samples === undefined || samples.length === 0 ? undefined : samples[samples.length - 1]?.[1]
+const maxValueSince = (args: {
+  samples: readonly (readonly [number, number])[]
+  sinceSeconds: number
+}): number | undefined => {
+  let max: number | undefined
+  for (const sample of args.samples) {
+    const [at, value] = sample
+    if (at < args.sinceSeconds) continue
+    if (max === undefined || value > max) max = value
+  }
+  return max
+}
 
 const podDiskOf = async (args: {
   client: Agent37Client
@@ -38,9 +49,15 @@ const podDiskOf = async (args: {
       id: args.instance.id,
       hours: AGENT37_DISK_METRICS_HOURS,
     })
-    const usedBytes = lastValueOf(metrics.series?.disk_bytes)
+    const samples = metrics.series?.disk_bytes
     const limitBytes = metrics.limits?.disk_bytes
-    if (usedBytes === undefined || limitBytes === undefined) return pod
+    if (samples === undefined || samples.length === 0) return pod
+    const usedBytes = maxValueSince({
+      samples,
+      sinceSeconds: metrics.fetched_at - AGENT37_DISK_SAMPLE_MAX_AGE_SECONDS,
+    })
+    if (usedBytes === undefined) return { ...pod, stale: true }
+    if (limitBytes === undefined) return pod
     return { ...pod, usedBytes, limitBytes }
   } catch {
     return pod

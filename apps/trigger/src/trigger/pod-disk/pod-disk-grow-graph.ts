@@ -1,9 +1,12 @@
 import type { ControlPlane } from '@dltech/atlas-control'
+import { INBOX_KIND_EVENT, inboxEventPayloadOf } from '@dltech/atlas-core'
 import {
   AGENT37_MAX_DISK_GB,
   agent37DiskOf,
   jobsControlPlaneOf,
   liveAgent37Client,
+  POD_DISK_GROWN_LIFETIME_STEPS,
+  podDiskGrownNotice,
   readPodRebootFacts,
   readPodsEnv,
   recordSandboxRunClose,
@@ -33,6 +36,19 @@ const depsOf = (args: {
       await recordSandboxRunClose({ sessionId: closeArgs.podSessionId, sandboxStopped: true })
     },
     grow: (growArgs) => args.disk.grow(growArgs),
+    notice: async (noticeArgs) => {
+      await args.plane.post({
+        sessionId: noticeArgs.sessionId,
+        kind: INBOX_KIND_EVENT,
+        payload: inboxEventPayloadOf({
+          event: {
+            type: 'nudge',
+            text: podDiskGrownNotice(noticeArgs.diskGb),
+            lifetimeSteps: POD_DISK_GROWN_LIFETIME_STEPS,
+          },
+        }),
+      })
+    },
     log: (line) => triggerLog.log(line),
   }
   return { ...growDeps, pods: () => args.disk.runningPods() }

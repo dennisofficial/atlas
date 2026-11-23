@@ -43,6 +43,7 @@ describe('agent37CreateBodyOf', () => {
     expect(body.env.ATLAS_DAEMON_PORT).toBe('47300')
     expect(body.env.PORT).toBeUndefined()
     expect(body.env.ATLAS_DAEMON_BUNDLE_URL).toBe('https://api.byatlas.io/agent/daemon/bundle')
+    expect(body.env.ATLAS_DAEMON_HOME).toBe('/atlas/home/.atlas/daemon')
   })
 
   it('takes the shape of the requested vcpus, keeping the template disk', () => {

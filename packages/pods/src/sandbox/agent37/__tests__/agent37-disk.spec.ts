@@ -46,6 +46,8 @@ const fakeClient = (args: {
     remove: async () => undefined,
     sleep: async () => undefined,
     start: async ({ id }) => ({ id, status: 'running' }),
+    update: async ({ id }) => ({ id, status: 'running' }),
+    logs: async () => ({ logs: '', truncated: false, health: null, fetched_at: 0 }),
     resize: async (body) => {
       resized.push(body)
       return instanceOf({ id: body.id })
@@ -102,6 +104,43 @@ describe('agent37DiskOf', () => {
       },
     ])
     expect(metricsRead).toEqual(['inst-2'])
+  })
+
+  it('reports the highest recent sample, not merely the last', async () => {
+    const { client } = fakeClient({
+      pages: [[instanceOf({ id: 'inst-1', podSessionId: 'pod-1' })]],
+      metrics: async () => ({
+        ...metricsOf({ limitGb: 20 }),
+        series: {
+          disk_bytes: [
+            [1_783_293_600 - 120, 18 * GB],
+            [1_783_293_600 - 60, 5 * GB],
+          ],
+        },
+      }),
+    })
+    expect(await agent37DiskOf({ client }).runningPods()).toEqual([
+      { podSessionId: 'pod-1', instanceId: 'inst-1', usedBytes: 18 * GB, limitBytes: 20 * GB },
+    ])
+  })
+
+  it('reports a pod whose every disk sample is stale as stale', async () => {
+    const { client } = fakeClient({
+      pages: [[instanceOf({ id: 'inst-1', podSessionId: 'pod-1' })]],
+      metrics: async () => ({
+        ...metricsOf({ limitGb: 20 }),
+        series: { disk_bytes: [[1_783_293_660 - 600, 12 * GB]] },
+      }),
+    })
+    expect(await agent37DiskOf({ client }).runningPods()).toEqual([
+      {
+        podSessionId: 'pod-1',
+        instanceId: 'inst-1',
+        usedBytes: undefined,
+        limitBytes: undefined,
+        stale: true,
+      },
+    ])
   })
 
   it('reports one pod whose metrics fail without figures, rather than failing every pod', async () => {

@@ -14,12 +14,14 @@ export type PodDisk = {
   usedBytes: number | undefined
   limitBytes: number | undefined
   sizeGb?: number | undefined
+  stale?: boolean | undefined
 }
 
 export type PodDiskGrowDeps = {
   facts(args: { podSessionId: string }): Promise<PodRebootFacts | undefined>
   closeRun(args: { podSessionId: string }): Promise<void>
   grow(args: { instanceId: string; diskGb: number }): Promise<void>
+  notice(args: { sessionId: string; diskGb: number }): Promise<void>
   log(line: string): void
 }
 
@@ -55,12 +57,27 @@ const BYTES_PER_GB = 2 ** 30
 
 const limitGbOf = (limitBytes: number): number => Math.round(limitBytes / BYTES_PER_GB)
 
+const noticeGrew = async (args: {
+  deps: PodDiskGrowDeps
+  sessionId: string
+  diskGb: number
+}): Promise<void> => {
+  try {
+    await args.deps.notice({ sessionId: args.sessionId, diskGb: args.diskGb })
+  } catch (failure) {
+    args.deps.log(
+      `pod-disk-grow: notifying ${args.sessionId} of the grow failed: ${failureText(failure)}`,
+    )
+  }
+}
+
 export const growPodDisk = async (args: {
   deps: PodDiskGrowDeps
   pod: PodDisk
   maxGb: number
 }): Promise<PodDiskGrowDecision> => {
   const { deps, pod } = args
+  if (pod.stale === true) return skipped('disk figures are stale')
   if (pod.usedBytes === undefined || pod.limitBytes === undefined) {
     return skipped('no disk figures yet')
   }
@@ -85,6 +102,7 @@ export const growPodDisk = async (args: {
   }
   await deps.closeRun({ podSessionId: pod.podSessionId })
   await deps.grow({ instanceId: pod.instanceId, diskGb })
+  await noticeGrew({ deps, sessionId: pod.podSessionId, diskGb })
   return { outcome: EPodDiskGrowOutcome.Grown, diskGb }
 }
 

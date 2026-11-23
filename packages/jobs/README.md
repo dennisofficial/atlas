@@ -6,7 +6,7 @@ The worker registers the tasks. This package only names them and validates their
 ## Owns
 
 - The task ids: `HEARTBEAT_TASK_ID`, `ROUTINE_SWEEP_TASK_ID`, `ROUTINE_RUN_TASK_ID`,
-  `POD_SLEEP_TASK_ID`, `POD_RESIZE_TASK_ID` and `POD_DISK_GROW_ONE_TASK_ID`.
+  `POD_SLEEP_TASK_ID` and `POD_RESIZE_TASK_ID`.
 - The pod payload schemas, their outcome enums and their idempotency keys.
 - The payload schemas and their types for each task.
 - The heartbeat output schema and type.
@@ -19,12 +19,11 @@ The worker registers the tasks. This package only names them and validates their
 
 ## Entry points
 
-| Import                                 | Use it for                                          |
-| -------------------------------------- | --------------------------------------------------- |
-| `@dltech/atlas-jobs`                   | Every task id, schema and key.                      |
-| `@dltech/atlas-jobs/pod-sleep`         | The pod-sleep id, payload schema, outcome and key.  |
-| `@dltech/atlas-jobs/pod-resize`        | The pod-resize id, payload schema, outcome and key. |
-| `@dltech/atlas-jobs/pod-disk-grow-one` | The pod-disk-grow-one id, payload schema and key.   |
+| Import                          | Use it for                                          |
+| ------------------------------- | --------------------------------------------------- |
+| `@dltech/atlas-jobs`            | Every task id, schema and key.                      |
+| `@dltech/atlas-jobs/pod-sleep`  | The pod-sleep id, payload schema, outcome and key.  |
+| `@dltech/atlas-jobs/pod-resize` | The pod-resize id, payload schema, outcome and key. |
 
 ## Capabilities
 
@@ -45,7 +44,6 @@ The worker registers the tasks. This package only names them and validates their
 
 - `POD_SLEEP_TASK_ID`: `pod-sleep`, a payload of a `sessionId` and an `epoch`.
 - `POD_RESIZE_TASK_ID`: `pod-resize`, a payload of a session, a generation and the pod shape.
-- `POD_DISK_GROW_ONE_TASK_ID`: `pod-disk-grow-one`, a payload of a pod session and its disk figures.
 - `POD_RESIZE_MAX_DISK_GB`: the 100 GB ceiling a resize payload enforces, the same ceiling
   `RESIZE_MAX_DISK_GB` names in `@dltech/atlas-native-commands`.
 

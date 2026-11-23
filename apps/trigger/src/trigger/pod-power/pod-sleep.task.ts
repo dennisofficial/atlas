@@ -14,6 +14,6 @@ export const podSleepTask = schemaTask({
   id: POD_SLEEP_TASK_ID,
   schema: podSleepPayloadSchema,
   retry: { maxAttempts: 3 },
-  maxDuration: 120,
+  maxDuration: 900,
   run: runPodSleepTask,
 })

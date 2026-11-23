@@ -102,6 +102,35 @@ describe('liveAgent37Client', () => {
     expect(answer.series.disk_bytes).toEqual([[1_783_293_600, 17_179_869_184]])
   })
 
+  it('resets the os layer on the API host with no body', async () => {
+    const { fetchImpl, calls } = fakeFetch([
+      { status: 200, body: { id: 'ab12', status: 'updating' } },
+    ])
+    const client = liveAgent37Client({ apiKey: 'sk_live_9', fetch: fetchImpl })
+    const updated = await client.update({ id: 'ab12' })
+    expect(calls[0]?.url).toBe('https://api.agent37.com/v1/instances/ab12/update')
+    expect(calls[0]?.method).toBe('POST')
+    expect(calls[0]?.headers.Authorization).toBe('Bearer sk_live_9')
+    expect(calls[0]?.body).toBeUndefined()
+    expect(updated.status).toBe('updating')
+  })
+
+  it('reads the instance logs and health on the API host, in any instance state', async () => {
+    const logs = {
+      logs: 'fatal: open /etc/hostname: read-only file system\n',
+      truncated: false,
+      health: { running: false, restart_count: 62, exit_code: 1, oom_suspected: false },
+      fetched_at: 1_763_000_000,
+    }
+    const { fetchImpl, calls } = fakeFetch([{ status: 200, body: logs }])
+    const client = liveAgent37Client({ apiKey: 'sk_live_10', fetch: fetchImpl })
+    const answer = await client.logs({ id: 'ab12' })
+    expect(calls[0]?.url).toBe('https://api.agent37.com/v1/instances/ab12/logs')
+    expect(calls[0]?.method).toBe('GET')
+    expect(calls[0]?.headers.Authorization).toBe('Bearer sk_live_10')
+    expect(answer.health?.restart_count).toBe(62)
+  })
+
   it('starts a stopped instance on the API host', async () => {
     const { fetchImpl, calls } = fakeFetch([
       { status: 200, body: { id: 'ab12', status: 'running' } },

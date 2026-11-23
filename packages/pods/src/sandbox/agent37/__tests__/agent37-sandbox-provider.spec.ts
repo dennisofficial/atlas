@@ -49,6 +49,7 @@ const fakeClient = (args: {
   list?: Agent37Client['list']
   status?: Agent37Status
   resources?: Agent37Resources
+  logs?: Agent37Client['logs']
 }) => {
   const creates: Agent37CreateArgs[] = []
   const execs: Agent37ExecArgs[] = []
@@ -56,6 +57,7 @@ const fakeClient = (args: {
   const started: string[] = []
   const resized: Agent37ResizeArgs[] = []
   const removed: string[] = []
+  const updated: string[] = []
   const instance = { status: args.status ?? 'running' } as { status: Agent37Status }
   const client: Agent37Client = {
     create: async (body) => {
@@ -86,6 +88,18 @@ const fakeClient = (args: {
       resized.push(body)
       return { id: body.id, status: 'running', url: `https://${body.id}.agent37.app` }
     },
+    update: async ({ id }) => {
+      updated.push(id)
+      return { id, status: 'updating' }
+    },
+    logs:
+      args.logs ??
+      (async () => ({
+        logs: '',
+        truncated: false,
+        health: { running: true, restart_count: 0, exit_code: null, oom_suspected: false },
+        fetched_at: 0,
+      })),
     exec: async (body) => {
       execs.push(body)
       return { exit_code: 0, stdout: '', stderr: '', truncated: false }
@@ -102,7 +116,7 @@ const fakeClient = (args: {
     }),
     events: async () => ({ from: '', to: '', events: [] }),
   }
-  return { client, creates, execs, slept, started, resized, removed }
+  return { client, creates, execs, slept, started, resized, removed, updated }
 }
 
 const providerOf = (args: {
@@ -178,18 +192,58 @@ describe('Agent37SandboxProvider.wake', () => {
     }
   })
 
-  it('wakes a known instance without creating another and without an exec', async () => {
+  it('settles an instance that is waking before waiting for its daemon', async () => {
     const { bundle: b, cleanup } = bundle()
     const version = await agent37BundleVersionOf(b.path)
-    const { client, creates, execs } = fakeClient({ version, status: 'waking' })
+    let reads = 0
+    const { client, creates, execs } = fakeClient({
+      version,
+      get: async ({ id }) => {
+        reads += 1
+        return {
+          id,
+          status: reads === 1 ? 'waking' : 'running',
+          url: `https://${id}.agent37.app`,
+        }
+      },
+    })
     const { provider, seeded } = providerOf({ client, bundlePath: b.path, stored: 'inst-9' })
     try {
       const endpoint = await provider.wake({ target: TARGET, signal: new AbortController().signal })
 
       expect(creates).toHaveLength(0)
       expect(execs).toHaveLength(0)
-      expect(seeded.map((seed) => [seed.podSessionId, seed.status])).toEqual([['pod-1', 'waking']])
+      expect(seeded.map((seed) => [seed.podSessionId, seed.status])).toEqual([['pod-1', 'running']])
       expect(endpoint.url).toContain('inst-9-47300')
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('repairs a crash-looping running instance before probing its daemon', async () => {
+    const { bundle: b, cleanup } = bundle()
+    const version = await agent37BundleVersionOf(b.path)
+    let reads = 0
+    const { client, updated } = fakeClient({
+      version,
+      logs: async () => {
+        reads += 1
+        return {
+          logs: '',
+          truncated: false,
+          health:
+            reads === 1
+              ? { running: false, restart_count: 5, exit_code: null, oom_suspected: false }
+              : { running: true, restart_count: 0, exit_code: null, oom_suspected: false },
+          fetched_at: 0,
+        }
+      },
+    })
+    const { provider } = providerOf({ client, bundlePath: b.path, stored: 'inst-9' })
+    try {
+      await provider.wake({ target: TARGET, signal: new AbortController().signal })
+
+      expect(updated).toEqual(['inst-9'])
     } finally {
       cleanup()
     }
