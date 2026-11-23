@@ -365,14 +365,7 @@ export class SessionsService {
       sessionId: args.sessionId,
       archivedAt,
     })
-    if (args.archived) {
-      await this.plane.endSubscriptions({
-        sessionId: args.sessionId,
-        by: ESubscriptionActor.Operator,
-        reason: ESubscriptionEnd.Archived,
-      })
-      await this.podPower.parkArchived({ session })
-    }
+    if (args.archived) await this.podPower.parkArchived({ session })
     this.analytics?.capture({
       userId: args.userId,
       event: args.archived ? 'session_archived' : 'session_unarchived',

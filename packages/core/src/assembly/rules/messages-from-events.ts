@@ -1,4 +1,4 @@
-import { agentSaid, laneNameOf, operatorSaid } from '../../context/envelope'
+import { agentSaid, laneNameOf, operatorSaid, replyHintOf } from '../../context/envelope'
 import { contextBlock } from '../../context/render'
 import { currentContextEvents } from '../../context/supersede'
 import { EMessageOrigin, saidBy, type AssistantPart } from '../../events/body'
@@ -145,7 +145,7 @@ function saidContent({
       ? operatorSaid({ text: said })
       : agentSaid({
           from: laneNameOf({ origin: from, sender: event.sender?.session }).phrase,
-          text: said,
+          text: replyHintOf({ from, sender: event.sender?.session, said }),
         })
 
   return [

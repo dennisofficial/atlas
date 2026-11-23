@@ -38,6 +38,8 @@ export {
   type WorkspaceGateOutcome,
 } from './calls/workspace-gate'
 export { DaemonAgentFileSystemPort } from './calls/ports/agent-filesystem'
+export { DaemonWorkspaceIdentity } from './quality/workspace-identity'
+export { QUALITY_REVIEW_BUDGET_MS, qualityStageOf } from './quality/quality-stage'
 export { DaemonFileSystemPort } from './calls/ports/filesystem'
 export {
   DaemonProcessPort,
@@ -49,6 +51,11 @@ export {
   LEASE_HAND_BACK_MARGIN_MS,
 } from './holder/drain-cap'
 export { PodCalls, type PodCallOutcome } from './holder/pod-calls'
+export {
+  contextFilesPlacerOf,
+  placeContextFiles,
+  type ContextFileWrites,
+} from './holder/place-context-files'
 export { SessionHolder } from './holder/session-holder'
 export { TerminalDemand } from './holder/terminal-demand'
 export { PANEL_HOLD_TTL_MS, PanelDemand } from './holder/panel-demand'

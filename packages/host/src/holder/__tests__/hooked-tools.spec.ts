@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { HookChain } from '@dltech/atlas-agent'
+import { HookChain, type QualityStagePort } from '@dltech/atlas-agent'
 import { FakeTool, fakeToolRegistry } from '@dltech/atlas-agent/testing'
 import { toCallId, toRunId, toThreadId } from '@dltech/atlas-core'
 import { ESpan, ESpanOutcome } from '@dltech/atlas-observability'
@@ -47,6 +47,41 @@ describe('hookedToolsOf', () => {
       registry: fakeToolRegistry([new FakeTool('read', 'contents')]),
       hooks: new HookChain({}),
       trace: undefined,
+    })
+
+    const drafts = await dispatcher.dispatch(dispatchArgs)
+
+    expect(drafts.some((draft) => draft.type === 'tool-result')).toBe(true)
+  })
+})
+
+describe('hookedToolsOf with a quality stage', () => {
+  it('forwards the runtime quality stage to the dispatcher', async () => {
+    const asked: string[] = []
+    const quality: QualityStagePort = {
+      captureEnabled: ({ threadId }) => {
+        asked.push(threadId)
+        return false
+      },
+      review: async () => ({ reviews: [], nudge: undefined }),
+    }
+
+    const dispatcher = hookedToolsOf({
+      registry: fakeToolRegistry([new FakeTool('read', 'contents')]),
+      hooks: new HookChain({}),
+      quality,
+    })
+
+    await dispatcher.dispatch(dispatchArgs)
+
+    expect(asked).toEqual([THREAD])
+  })
+
+  it('carries no stage when the runtime has none', async () => {
+    const dispatcher = hookedToolsOf({
+      registry: fakeToolRegistry([new FakeTool('read', 'contents')]),
+      hooks: new HookChain({}),
+      quality: undefined,
     })
 
     const drafts = await dispatcher.dispatch(dispatchArgs)

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EAgentStatus, EReportKind, toThreadId } from '@dltech/atlas-core'
+import { EAgentStatus, toThreadId } from '@dltech/atlas-core'
 import { EMPTY_CREW, type PluginPodContext } from '@dltech/atlas-plugin-sdk'
 
 import { CREW_AGENT_TYPES, crewAgentTypeOf } from '../../core'
@@ -23,19 +23,17 @@ const textOf = (outcome: Awaited<ReturnType<typeof invoke>>): string =>
   outcome.ok ? outcome.modelText : outcome.reason
 
 describe('the crew pod', () => {
-  it('declares its five crew tools and three worktree tools, and denies four to a child', () => {
+  it('declares its three crew tools and three worktree tools, and denies three to a child', () => {
     const { ctx } = rig(fakeCrew().port)
     expect(crewPod.tools?.(ctx).map((tool) => tool.name)).toEqual([
       'agent_spawn',
-      'agent_say',
       'agent_stop',
       'agent_list',
-      'report_to_main',
       'enter_worktree',
       'exit_worktree',
       'worktree_list',
     ])
-    expect(crewPod.childDeny).toEqual(['agent_spawn', 'agent_say', 'agent_stop', 'agent_list'])
+    expect(crewPod.childDeny).toEqual(['agent_spawn', 'agent_stop', 'agent_list'])
   })
 })
 
@@ -98,33 +96,6 @@ describe('agent_spawn', () => {
   })
 })
 
-describe('agent_say', () => {
-  it('tells the model a mid-step agent queued the message', async () => {
-    const crew = fakeCrew({ queued: true })
-    const { ctx } = rig(crew.port)
-    const outcome = await invoke({
-      ctx,
-      name: 'agent_say',
-      input: { agentId: 'a1', text: 'also check docs' },
-    })
-    expect(crew.calls).toEqual([
-      { method: 'say', args: { agentId: 'a1', text: 'also check docs' } },
-    ])
-    expect(textOf(outcome)).toBe(
-      'Sub-agent a1 is mid-step, so it queues your message and reads it before its next step.',
-    )
-  })
-
-  it('tells the model a stopped agent is running again', async () => {
-    const crew = fakeCrew({ queued: false })
-    const { ctx } = rig(crew.port)
-    const outcome = await invoke({ ctx, name: 'agent_say', input: { agentId: 'a1', text: 'more' } })
-    expect(textOf(outcome)).toBe(
-      'Sub-agent a1 took your message and is running again. Its answer reaches you when it stops.',
-    )
-  })
-})
-
 describe('agent_stop', () => {
   it('signals a running agent and says how it ends', async () => {
     const crew = fakeCrew({ held: [snapshotOf({ status: EAgentStatus.Running })] })
@@ -176,34 +147,5 @@ describe('agent_list', () => {
         'a2  reviewer  review the diff  finished, turns 5, tool calls 9',
       ].join('\n'),
     )
-  })
-})
-
-describe('report_to_main', () => {
-  it('sends the kind and the text to the parent', async () => {
-    const crew = fakeCrew()
-    const { ctx } = rig(crew.port)
-    const outcome = await invoke({
-      ctx,
-      name: 'report_to_main',
-      input: { kind: EReportKind.Done, text: 'The port is wired.' },
-    })
-    expect(crew.calls).toEqual([
-      { method: 'report', args: { kind: EReportKind.Done, text: 'The port is wired.' } },
-    ])
-    expect(textOf(outcome)).toBe(
-      'Your report is on its way to the parent agent. Continue, or end your turn if there is nothing else to do.',
-    )
-  })
-
-  it('turns a port with no parent into a refusal', async () => {
-    const { ctx } = rig(EMPTY_CREW)
-    const outcome = await invoke({
-      ctx,
-      name: 'report_to_main',
-      input: { kind: EReportKind.Progress, text: 'still going' },
-    })
-    expect(outcome.ok).toBe(false)
-    expect(textOf(outcome)).toBe('this pod has no parent to report to')
   })
 })

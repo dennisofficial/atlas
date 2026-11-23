@@ -4,7 +4,6 @@ import {
   EAgentStatus,
   EMergeQueueMove,
   EPrEventKind,
-  EReportKind,
   EShellStatus,
   toThreadId,
   type EventBody,
@@ -64,7 +63,6 @@ const agentReported: EventBody = {
   agentType: 'builder',
   intent: 'fix the flaky spec',
   prose: 'halfway there',
-  kind: EReportKind.Progress,
 }
 
 describe('queuedNoticesOf', () => {
@@ -123,15 +121,13 @@ describe('queuedNoticesOf', () => {
     expect(queuedNoticesOf(pending)).toEqual([])
   })
 
-  it('keeps a notice that needs attention', () => {
+  it('keeps an agent report with no tint', () => {
     const pending: PendingInputsState = {
-      pending: [
-        noticeInput({ inboxId: 9, event: { ...agentReported, kind: EReportKind.Blocked } }),
-      ],
+      pending: [noticeInput({ inboxId: 9, event: agentReported })],
     }
 
     expect(queuedNoticesOf(pending)).toEqual([
-      { id: '9', text: 'Sub-agent fix the flaky reported it is blocked', failed: true },
+      { id: '9', text: 'Sub-agent fix the flaky reported', failed: false },
     ])
   })
 

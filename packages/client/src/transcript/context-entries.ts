@@ -49,7 +49,7 @@ const KNOWN_SLOT_LABELS: ReadonlyMap<string, string> = new Map([
   [EContextSlot.McpInstructions, 'MCP server instructions'],
 ])
 
-const SKILL_SUGGESTION_NAME = /skill classifier picked '([a-z0-9-]+)' as relevant/
+const SKILL_SUGGESTION_NAME = /^skill: ([a-z0-9][a-z0-9-]*)/
 
 const slotLabelOf = (event: EventOfType<'context-loaded'>): string => {
   const label = KNOWN_SLOT_LABELS.get(event.slot)

@@ -4,8 +4,6 @@ import {
   EAgentStatus,
   EKilledBy,
   EModelFallbackReason,
-  EReportKind,
-  reportWakesParent,
   type EventDraft,
   type ModelRef,
   type ThreadId,
@@ -89,18 +87,13 @@ export class ChildTranscript {
     ])
   }
 
-  async reported(args: { kind: EReportKind; text: string }): Promise<void> {
+  async reported(args: { text: string }): Promise<void> {
     const event: EventDraft = {
       type: 'agent-reported',
       agentId: this.args.agentId,
       agentType: this.args.agentType,
       intent: this.args.intent,
       prose: args.text,
-      kind: args.kind,
-    }
-    if (!reportWakesParent(args.kind)) {
-      await this.append([event])
-      return
     }
     await postNotice(this.parent, {
       event,

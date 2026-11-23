@@ -10,7 +10,6 @@ import { CONTEXT_FIELDS, EXPERIMENTAL_FIELDS, QUALITY_FIELDS } from '../fixtures
 import { ROLE_GROUPS } from '../parts/models/role-groups'
 import { SettingsCard, SettingsSection } from '../settings-layout'
 import { SettingFieldRowsSkeleton } from './field-rows'
-import { NotifyMatrixSkeleton } from './table-skeletons'
 import {
   ConfigFooterSkeleton,
   ERowControl,
@@ -152,12 +151,23 @@ export function ModelsSkeleton() {
 export function NotificationsSkeleton() {
   return (
     <>
-      <SettingsSection title="Channels" description="Where notifications can be delivered.">
-        <RowCardSkeleton controls={[ERowControl.Switch, ERowControl.Switch]} />
+      <SettingsSection
+        title="Notify me when"
+        description="Each switch holds or sends this moment on every device."
+      >
+        <RowCardSkeleton controls={[ERowControl.Switch, ERowControl.Switch, ERowControl.Switch]} />
       </SettingsSection>
-      <SettingsSection title="Notify me when" description="Pick a delivery channel for each event.">
+      <SettingsSection
+        title="Devices"
+        description="Where Atlas reaches you when no Atlas window is in front of you."
+      >
+        <RowCardSkeleton controls={[ERowControl.Switch]} />
+      </SettingsSection>
+      <SettingsSection
+        title="Quiet hours"
+        description="Nothing leaves Atlas during this window, read in the time zone below."
+      >
         <SettingsCard footer={<SaveFooterSkeleton />}>
-          <NotifyMatrixSkeleton />
           <SettingsRowSkeleton
             control={ERowControl.None}
             custom={

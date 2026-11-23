@@ -68,6 +68,17 @@ export const readSessionIn = async (params: {
   return row === null ? undefined : toSessionRow(row)
 }
 
+export const readNestedChildrenIn = async (params: {
+  tx: Tx
+  sessionId: string
+}): Promise<ControlSessionRow[]> => {
+  const rows = await params.tx.orm.v2.V2Session.where({
+    spawnedBySessionId: params.sessionId,
+    nested: true,
+  }).all()
+  return rows.map(toSessionRow)
+}
+
 export const softDeleteArchivedSessionsIn = async (params: {
   tx: Tx
   cutoff: Date

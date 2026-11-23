@@ -10,13 +10,15 @@ export class PeerSessionsFragment extends PromptFragment {
       'the new-session button in the UI. Its `brief` is its first message. It knows nothing else of',
       'this session, you are not responsible for it, and `spawnedBy` on it is provenance only.',
       '`spawn_teammate` creates a teammate nested under this session in the sidebar. You write its',
-      'brief, and it reports back to you, so a workstream under this session takes the shape of a',
-      'fan-out. A spawned session can commit on its own worktree branch, push it and open a pull',
-      'request with `gh`. It reports the URL back. `message_session` reaches any session of the',
-      'operator’s. `message_teammate` reaches only one of yours. `list_sessions` lists them all with',
-      'the current one marked. `list_teammates` lists only this session’s nested teammates. Every',
-      'line names whether the session is working, idle, failed or archived. Archiving and stopping',
-      'belong to the operator.',
+      'brief, and it reaches you with `send_message`, so a workstream under this session takes the',
+      'shape of a fan-out. Either spawn tool takes `files`: paths under $ATLAS_CONTEXT_DIR, which are',
+      'copied into the spawned session’s own context folder before its first turn. A spawned session',
+      'can commit on its own worktree branch, push it and open',
+      'a pull request with `gh`. It reports the URL back. `send_message` reaches any agent or session',
+      'of the operator’s by its id, and "parent" reaches whoever started you. `list_sessions` lists',
+      'every session with the current one marked. `list_teammates` lists only this session’s nested',
+      'teammates. Every line names whether the session is working, idle, failed or archived.',
+      'Archiving and stopping belong to the operator.',
       ...this.creatorLine(ctx),
     ].join('\n')
   }
@@ -27,10 +29,9 @@ export class PeerSessionsFragment extends PromptFragment {
     const title = spawner.title === null ? '' : ` (${spawner.title})`
     return [
       '',
-      `The session ${spawner.sessionId}${title} created this one. Report to it with`,
-      '`report_to_spawner` when the work touches it. done, blocked and needs-decision wake it, and',
-      'progress waits for its next turn. Read its report kinds the way it reads yours: the whole',
-      'outcome, none of your steps.',
+      `The session ${spawner.sessionId}${title} created this one. Message it with \`send_message\` to`,
+      '"parent" when the work touches it. Carry the whole outcome, none of your steps: none of them',
+      'are in its history.',
     ]
   }
 }

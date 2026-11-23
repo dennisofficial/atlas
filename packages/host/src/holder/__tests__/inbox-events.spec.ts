@@ -5,7 +5,6 @@ import {
   ENoticeStage,
   EPrEventKind,
   EPrVerdict,
-  EReportKind,
   initialLoopState,
   toRunId,
   toThreadId,
@@ -31,13 +30,12 @@ const prEvent: Extract<EventDraft, { type: 'pr-event' }> = {
   verdict: EPrVerdict.Green,
 }
 
-const reportedOf = (kind: EReportKind): Extract<EventDraft, { type: 'agent-reported' }> => ({
+const reportedOf = (): Extract<EventDraft, { type: 'agent-reported' }> => ({
   type: 'agent-reported',
   agentId: toThreadId('thr_2'),
   agentType: 'teammate',
   intent: 'audit the inbox',
   prose: 'still working',
-  kind,
 })
 
 const entryOf = (args: { inboxId: number; event: unknown }): InboxEntry => ({
@@ -115,19 +113,11 @@ describe('InboxIntake events', () => {
     expect(typesOf(rig.appended)).not.toContain('input-posted')
   })
 
-  it('drains a progress report without waking the turn', async () => {
-    const rig = rigOf([entryOf({ inboxId: 2, event: reportedOf(EReportKind.Progress) })])
+  it('wakes the turn for a report, which is always a message to its parent', async () => {
+    const rig = rigOf([entryOf({ inboxId: 2, event: reportedOf() })])
     const drain = await rig.intake.prepare()
-    expect(drain).toEqual({ drafts: [], wakesTurn: false })
-    expect(rig.appends).toEqual([
-      [reportedOf(EReportKind.Progress), { type: 'input-consumed', inboxId: 2 }],
-    ])
-  })
-
-  it('wakes the turn for a report that needs its parent', async () => {
-    const rig = rigOf([entryOf({ inboxId: 2, event: reportedOf(EReportKind.Blocked) })])
-    const drain = await rig.intake.prepare()
-    expect(drain.wakesTurn).toBe(true)
+    expect(drain).toEqual({ drafts: [], wakesTurn: true })
+    expect(rig.appends).toEqual([[reportedOf(), { type: 'input-consumed', inboxId: 2 }]])
   })
 
   it('refuses an event whose type cannot arrive through the inbox', async () => {

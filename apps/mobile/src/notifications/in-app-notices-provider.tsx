@@ -1,5 +1,5 @@
 import { createSessionsFeed } from '@dltech/atlas-client/stream'
-import type { AtlasNotification } from '@dltech/atlas-core'
+import { type AtlasNotification, notifyEventSettingKey } from '@dltech/atlas-core'
 import {
   type InAppRow,
   inAppNoticesOf,
@@ -9,8 +9,10 @@ import {
 import type { StreamSessionRow } from '@dltech/atlas-protocol'
 import { router, usePathname } from 'expo-router'
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
+import { z } from 'zod'
 
 import { useAuth } from '../auth/auth-provider'
+import { useSettings } from '../settings/settings-provider'
 import { dismissPresentedRead } from '../push/notification-handler'
 import { sessionStream } from '../thread/v2/session-stream'
 import { InAppBanner } from './in-app-banner'
@@ -21,6 +23,7 @@ export const BANNER_MS = 5000
 
 export const InAppNoticesProvider = ({ children }: { children: ReactNode }) => {
   const { api } = useAuth()
+  const settings = useSettings()
   const [live, setLive] = useState<readonly StreamSessionRow[] | undefined>(undefined)
   const [notice, setNotice] = useState<AtlasNotification | null>(null)
   const [shown, setShown] = useState<readonly AtlasNotification[]>([])
@@ -58,14 +61,15 @@ export const InAppNoticesProvider = ({ children }: { children: ReactNode }) => {
       next: rows,
       openSessionId,
       focused,
-      enabled: () => true,
+      enabled: (moment) =>
+        settings.read({ key: notifyEventSettingKey(moment), schema: z.boolean() }),
       now: new Date().toISOString(),
     })
     previous.current = rowMap
     if (notices.length === 0) return
     setShown((current) => [...current, ...notices])
     setNotice(notices.at(-1) ?? null)
-  }, [rows, rowMap, openSessionId, focused])
+  }, [rows, rowMap, openSessionId, focused, settings])
 
   useEffect(() => {
     const stale = staleNoticeIdsOf({ notices: shown, rows: rowMap, openSessionId })

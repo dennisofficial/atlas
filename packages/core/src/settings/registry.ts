@@ -322,7 +322,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     group: 'Skills',
     label: 'Suggest a skill per turn',
     description:
-      'Before each turn, the decision model from the Decisions group on the models page ranks every skill against your message, re-reads the top three in full, and names at most one to the agent as a hint it is free to ignore — or says that nothing fits, which is what talks the roster out of loads that never should have happened. The roster itself never changes, so prompt caching over it still holds. Without a decision endpoint configured, no ranking happens and turns cost nothing extra.',
+      'Before each turn, the classifier from the Classifier settings page reads the last three messages and replies of the thread, asks one yes/no question per likely skill, and names at most one to the agent with its score, as a hint it is free to ignore. It stays quiet when nothing scores high enough or two skills are too close. Off whenever the classifier is off: no request is made and turns cost nothing extra.',
     environmentVariable: 'ATLAS_SKILL_SUGGEST',
     kind: ESettingKind.Toggle,
     fallback: true,
