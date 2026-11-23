@@ -26,7 +26,11 @@ export class HeldDrain {
     await this.settleInFlight()
     await children
     const record = this.args.record()
-    const commandUnfinished = outcomeCommandPending(record?.eventCache().eventsAfter(0) ?? [])
+    const { plane, sessionId } = this.args.deps
+    const commandUnfinished = await outcomeCommandPending({
+      events: record?.eventCache().eventsAfter(0) ?? [],
+      kindOf: async (inboxId) => (await plane.readInboxEntry({ sessionId, inboxId }))?.kind,
+    })
     await this.args.ending.handBack({
       needsHolder:
         commandUnfinished ||

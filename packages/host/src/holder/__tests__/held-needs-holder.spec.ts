@@ -140,13 +140,26 @@ describe('outcomeCommandPending, which a drain hands to the next holder', () => 
     { type: 'input-consumed', inboxId: 9, consumed: EInputConsumed.Command },
   ]
 
-  it('is pending while a consumed command owes its outcome', () => {
-    expect(outcomeCommandPending(eventsOf(consumedRotate()))).toBe(true)
+  const pending = (params: { bodies: readonly V2Body[]; kind: string }): Promise<boolean> =>
+    outcomeCommandPending({ events: eventsOf(params.bodies), kindOf: async () => params.kind })
+
+  it('is pending while a consumed command owes its outcome', async () => {
+    expect(await pending({ bodies: consumedRotate(), kind: 'command:rotate' })).toBe(true)
   })
 
-  it('is not pending once the outcome landed', () => {
-    const events = eventsOf([...consumedRotate(), { type: 'rotated', handoff: 'brief' }])
-    expect(outcomeCommandPending(events)).toBe(false)
+  it('is pending when only the inbox names the consumed command', async () => {
+    const bodies = consumedRotate().filter((body) => body.type !== 'input-posted')
+    expect(await pending({ bodies, kind: 'command:rotate' })).toBe(true)
+  })
+
+  it('is not pending for a consumed command that owes no outcome', async () => {
+    const bodies = consumedRotate().filter((body) => body.type !== 'input-posted')
+    expect(await pending({ bodies, kind: 'command:subscribe' })).toBe(false)
+  })
+
+  it('is not pending once the outcome landed', async () => {
+    const bodies = [...consumedRotate(), { type: 'rotated' as const, handoff: 'brief' }]
+    expect(await pending({ bodies, kind: 'command:rotate' })).toBe(false)
   })
 })
 
