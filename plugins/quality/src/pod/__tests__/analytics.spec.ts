@@ -246,6 +246,7 @@ describe('the completed review event', () => {
       skip_reason: EQualitySkipReason.ReviewDeadline,
       notified: false,
     })
+    expect(Number(captured[0]?.properties.total_ms)).toBeGreaterThan(0)
   })
 
   it('reports an operational error when the classifier fails', async () => {

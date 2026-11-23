@@ -74,7 +74,8 @@ export const qualityReviewHook = (args: {
     })
 
     const events = args.ctx.events()
-    const outcome = await reviewWithinBudget({
+    const startedAt = args.options.clock()
+    const attempted = await reviewWithinBudget({
       review,
       clock: args.options.clock,
       log: (message) => args.ctx.log(message),
@@ -85,6 +86,16 @@ export const qualityReviewHook = (args: {
       signal,
       budgetMs: args.options.budgetMs,
     })
+    const outcome =
+      attempted.timings.totalMs === 0
+        ? {
+            ...attempted,
+            timings: {
+              ...attempted.timings,
+              totalMs: Math.max(0, args.options.clock() - startedAt),
+            },
+          }
+        : attempted
 
     args.ctx.analytics.capture({
       event: QUALITY_REVIEW_COMPLETED,
