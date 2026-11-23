@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { EPendingWork } from '../notify/pending-work'
 import type { V2Event } from './event'
 
 export enum ETurnCause {
@@ -26,16 +27,24 @@ export const turnStartedSchema = z.object({
   cause: z.enum(ETurnCause),
 })
 
+export const turnNotifySchema = z.object({
+  pending: z.array(z.enum(EPendingWork)),
+  operatorTurn: z.boolean(),
+})
+
 export const turnEndedSchema = z.object({
   type: z.literal('turn-ended'),
   turnId: z.string().min(1),
   outcome: z.enum(ETurnOutcome),
   by: z.enum(ETurnEndedBy),
+  notify: turnNotifySchema.optional(),
 })
 
 export type TurnStarted = z.infer<typeof turnStartedSchema>
 
 export type TurnEnded = z.infer<typeof turnEndedSchema>
+
+export type TurnNotify = z.infer<typeof turnNotifySchema>
 
 export type OpenTurn = { turnId: string; startedAt: string }
 

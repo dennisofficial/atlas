@@ -20,7 +20,7 @@ export type ExpoMessage =
       to: string
       title: string
       body: string
-      sound: 'default'
+      sound?: 'default'
       collapseId: string
       threadId: string
       data: { sessionId: string; seq: number }
@@ -64,7 +64,7 @@ const alertMessageOf = (device: NotifyDevice, notification: AtlasNotification): 
   to: device.token,
   title: notification.title,
   body: notification.body,
-  sound: 'default',
+  ...(notification.silent === true ? {} : { sound: 'default' as const }),
   collapseId: notification.sessionId,
   threadId: notification.sessionId,
   data: {

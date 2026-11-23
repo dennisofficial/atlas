@@ -1,4 +1,4 @@
-import { ENotifyMoment } from '@dltech/atlas-core'
+import { ENotifyMoment, EPendingWork } from '@dltech/atlas-core'
 import { z } from 'zod'
 
 export const NOTIFY_SEND_TASK_ID = 'notify-send'
@@ -12,6 +12,10 @@ export const notifySendPayloadSchema = z.object({
   threadId: z.string().min(1),
   seq: z.number().int().nonnegative(),
   moment: z.enum(ENotifyMoment),
+  holdMs: z.number().int().nonnegative().optional(),
+  pending: z.array(z.enum(EPendingWork)).optional(),
+  operatorTurn: z.boolean().optional(),
+  endedAt: z.string().min(1).optional(),
 })
 
 export const notifyTestPayloadSchema = z.object({

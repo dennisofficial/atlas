@@ -50,6 +50,7 @@ self.addEventListener('push', (event) => {
         body: notification.body,
         tag: notification.sessionId,
         renotify: false,
+        silent: notification.silent === true,
         data: {
           sessionId: notification.sessionId,
           seq: notification.seq,

@@ -8,6 +8,7 @@ import {
   expoDeviceOf,
   notifyGraphOf,
   presenceOf,
+  sessionOf,
 } from './notify-graph.fake'
 
 mock.module('@trigger.dev/sdk', () => triggerSdkFake)
@@ -48,9 +49,69 @@ describe('runNotifySend', () => {
     expect(record.delivered).toEqual([])
   })
 
+  it('sends nothing when a newer turn started after the held one', async () => {
+    const { graph, record } = notifyGraphOf({ superseded: true })
+
+    expect(await runNotifySend({ graph, payload: { ...PAYLOAD, holdMs: 3_600_000 } })).toEqual({
+      sent: 0,
+      gone: 0,
+    })
+    expect(record.delivered).toEqual([])
+    expect(record.supersededChecks).toEqual([{ threadId: 'thread-1', seq: 7 }])
+  })
+
+  it('reads no turn when the pushed moment was not held', async () => {
+    const { graph, record } = notifyGraphOf()
+
+    await runNotifySend({ graph, payload: PAYLOAD })
+
+    expect(record.supersededChecks).toEqual([])
+    expect(record.delivered).toHaveLength(1)
+  })
+
+  it('sends nothing when a nested session finished a turn no operator started', async () => {
+    const { graph, record } = notifyGraphOf({
+      session: sessionOf({ nested: true, spawnedBySessionId: 'session-0' }),
+    })
+
+    expect(await runNotifySend({ graph, payload: { ...PAYLOAD, operatorTurn: false } })).toEqual({
+      sent: 0,
+      gone: 0,
+    })
+    expect(record.delivered).toEqual([])
+  })
+
+  it('sends the finished notice of a nested session when the operator started the turn', async () => {
+    const { graph, record } = notifyGraphOf({
+      session: sessionOf({ nested: true, spawnedBySessionId: 'session-0' }),
+    })
+
+    expect(await runNotifySend({ graph, payload: { ...PAYLOAD, operatorTurn: true } })).toEqual({
+      sent: 1,
+      gone: 0,
+    })
+    expect(record.delivered[0]?.notification.silent).toBeUndefined()
+  })
+
+  it('sends the same notification silently when another push just sounded', async () => {
+    const { graph, record } = notifyGraphOf({ sound: false })
+
+    expect(await runNotifySend({ graph, payload: PAYLOAD })).toEqual({ sent: 1, gone: 0 })
+    expect(record.delivered[0]?.notification.silent).toBe(true)
+    expect(record.soundClaims).toEqual(['usr-1'])
+  })
+
+  it('claims no sound slot when the plan sends nothing', async () => {
+    const { graph, record } = notifyGraphOf({ session: sessionOf({ readSeq: 7 }) })
+
+    await runNotifySend({ graph, payload: PAYLOAD })
+
+    expect(record.soundClaims).toEqual([])
+  })
+
   it('sends nothing when the session is already read', async () => {
     const { graph, record } = notifyGraphOf({
-      session: { userId: 'usr-1', title: 'Fix', readSeq: 7 },
+      session: sessionOf({ title: 'Fix', readSeq: 7 }),
     })
 
     expect(await runNotifySend({ graph, payload: PAYLOAD })).toEqual({ sent: 0, gone: 0 })
