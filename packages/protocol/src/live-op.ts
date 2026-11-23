@@ -27,6 +27,10 @@ export const CP_POD_OPS = [
   'services.log',
 ] as const
 
+export enum EPodNotReady {
+  NotReady = 'pod-not-ready',
+}
+
 export const LIVE_OP_MAX_BYTES = 1_048_576
 export const LIVE_OP_TIMEOUT_MS = 15_000
 export const FILES_SEARCH_LIMIT = 200

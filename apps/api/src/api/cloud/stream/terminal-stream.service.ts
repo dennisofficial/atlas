@@ -7,7 +7,7 @@ import {
   type TerminalStreamFrame,
 } from '@dltech/atlas-protocol'
 import { POD_OPS, TERMINAL_DEMAND, type PodOps, type TerminalDemand } from '../../../agent'
-import { PodParkedError } from '../../platform/control/pod-parked.error'
+import { PodNotReadyError } from '../../platform/control/pod-errors'
 import { TerminalService } from '../../platform/control/terminal.service'
 import { DrainStateService } from '../../platform/health/drain-state.service'
 import { HOST_ABSENT } from './session-stream.router'
@@ -19,7 +19,7 @@ const STREAM_LIFETIME_MS = 10 * 60_000
 type ReplayClose = 'asleep' | 'detached'
 
 const closeReasonOf = (error: unknown): ReplayClose =>
-  error instanceof PodParkedError ? 'asleep' : 'detached'
+  error instanceof PodNotReadyError ? 'asleep' : 'detached'
 
 export type TerminalStreamAttachArgs = {
   userId: string
