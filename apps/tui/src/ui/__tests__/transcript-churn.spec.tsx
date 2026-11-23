@@ -28,6 +28,7 @@ mock.module('../components/entry-view', () => {
 
 const { EEntryKind, createConversationStore, deriveTranscript } = await import('../../store')
 const { createDeltaChannel } = await import('@dltech/atlas-harness')
+const { channelSignalFeed } = await import('../../composition/channel-signal-feed')
 const { fixtureThreadId } = await import('@dltech/atlas-client/transcript-fixture')
 const { called, callId, clocked, result, said } = await import(
   '@dltech/atlas-client/transcript-tool-fixture'
@@ -181,7 +182,7 @@ describe('a chunk landing in a settled transcript', () => {
   it('re-renders only the row the chunk lands in, as it grows', async () => {
     const channel = createDeltaChannel()
     const store = createConversationStore({
-      channel,
+      signals: channelSignalFeed({ channel, threadId: fixtureThreadId }),
       threadId: fixtureThreadId,
       events: clocked([
         { draft: { type: 'user-said', text: 'go' }, at: AT },

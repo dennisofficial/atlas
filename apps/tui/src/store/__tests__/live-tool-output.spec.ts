@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'bun:test'
 import { createDeltaChannel, type DeltaChannel } from '@dltech/atlas-harness'
 
 import { createConversationStore, type ConversationStore } from '../conversation-store'
+import { channelSignalFeed } from '../../composition/channel-signal-feed'
 import { EEntryKind } from '@dltech/atlas-client/transcript'
 import { fixtureThreadId, log } from '@dltech/atlas-client/transcript-fixture'
 import { called, callId, result } from '@dltech/atlas-client/transcript-tool-fixture'
@@ -24,7 +25,10 @@ describe('what a running command has printed so far', () => {
 
   beforeEach(() => {
     channel = createDeltaChannel()
-    store = createConversationStore({ channel, threadId: fixtureThreadId })
+    store = createConversationStore({
+      signals: channelSignalFeed({ channel, threadId: fixtureThreadId }),
+      threadId: fixtureThreadId,
+    })
   })
 
   it('attaches the live tail to the call it belongs to', async () => {
