@@ -20,9 +20,8 @@ Redis and sends the pushes.
 
 ## Does not own
 
-- The decision to notify. `@dltech/atlas-core` owns it in `notifyPlanOf` and `inAppNoticeOf`.
-- The notification shape. `@dltech/atlas-core` owns `AtlasNotification`.
-- When to stay silent. `@dltech/atlas-core` owns `inAppNoticeOf` and `notifyMomentOf`.
+- The decision to notify or stay silent. `@dltech/atlas-core` owns `notifyPlanOf`, `inAppDueOf`
+  and `inAppNoticeOf`, and the `AtlasNotification` shape.
 - The persistent device rows. `packages/db` owns them.
 - The send tasks. `apps/trigger` owns them.
 
@@ -126,15 +125,11 @@ Redis and sends the pushes.
 ### Show a notice
 
 ```ts
-import { inAppRowOf, inAppNoticesOf, staleNoticeIdsOf } from '@dltech/atlas-notifications/client'
+import { inAppRowOf, inAppScanOf, earliestDueAt } from '@dltech/atlas-notifications/client'
 
 const rows = summaries.map(inAppRowOf)
-const notices = inAppNoticesOf({ previous, next: rows, openSessionId, focused, enabled, now })
-const stale = staleNoticeIdsOf({
-  notices,
-  rows: new Map(rows.map((r) => [r.sessionId, r])),
-  openSessionId,
-})
+const scan = inAppScanOf({ previous, next: rows, held, openSessionId, focused, enabled, now })
+const nextTimerAt = earliestDueAt(scan.held)
 ```
 
 ## Rules
