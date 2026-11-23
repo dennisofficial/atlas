@@ -137,7 +137,7 @@ export class CloudflareTunnelClient {
     const body = await this.http.request({
       operation: 'find tunnel',
       method: 'GET',
-      path: this.tunnelListPath({ page: 1, name: args.name }),
+      path: this.tunnelListPath({ page: 1, filter: 'name', value: args.name }),
     })
     for (const tunnel of resultsOf(body)) {
       if (stringOf(tunnel, 'name') !== args.name) continue
@@ -183,7 +183,7 @@ export class CloudflareTunnelClient {
       const body = await this.http.request({
         operation: 'list tunnels',
         method: 'GET',
-        path: this.tunnelListPath({ page, name: args.namePrefix }),
+        path: this.tunnelListPath({ page, filter: 'include_prefix', value: args.namePrefix }),
       })
       const results = resultsOf(body)
       for (const tunnel of results) {
@@ -217,9 +217,13 @@ export class CloudflareTunnelClient {
     }
   }
 
-  private tunnelListPath(args: { page: number; name: string }): string {
-    const name = encodeURIComponent(args.name)
-    return `/accounts/${this.config.accountId}/cfd_tunnel?name=${name}&is_deleted=false&page=${args.page}`
+  private tunnelListPath(args: {
+    page: number
+    filter: 'name' | 'include_prefix'
+    value: string
+  }): string {
+    const value = encodeURIComponent(args.value)
+    return `/accounts/${this.config.accountId}/cfd_tunnel?${args.filter}=${value}&is_deleted=false&page=${args.page}`
   }
 }
 

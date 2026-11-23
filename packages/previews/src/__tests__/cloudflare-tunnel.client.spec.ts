@@ -286,6 +286,9 @@ describe('CloudflareTunnelClient', () => {
       { id: 'tun-2', name: 'atlas-pod-2' },
     ])
     expect(calls.map((call) => call.url.includes('page=2'))).toEqual([false, true])
+    expect(calls[0]?.url).toBe(
+      'https://api.cloudflare.com/client/v4/accounts/acct/cfd_tunnel?include_prefix=atlas-&is_deleted=false&page=1',
+    )
   })
 
   it('pages through the zone and keeps only names under the domain', async () => {
