@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { versionLines } from '../build-info'
+import { expectedVersionLines, versionLines } from '../build-info'
 
 const SHA = '0123456789abcdef0123456789abcdef01234567'
 
@@ -25,5 +25,23 @@ describe('versionLines', () => {
 
   it('is empty when nothing is known', () => {
     expect(versionLines({ web: { commit: '', version: '' }, desktopVersion: '' })).toEqual([])
+  })
+})
+
+describe('expectedVersionLines', () => {
+  it('reserves the app line in the Mac app before the host answers', () => {
+    expect(
+      expectedVersionLines({ web: { commit: SHA, version: '1.42.0' }, isDesktop: true }),
+    ).toHaveLength(2)
+  })
+
+  it('reserves only the interface line on plain web', () => {
+    expect(expectedVersionLines({ web: { commit: SHA, version: '' }, isDesktop: false })).toEqual([
+      'Interface 0123456',
+    ])
+  })
+
+  it('reserves nothing when no version is known', () => {
+    expect(expectedVersionLines({ web: { commit: '', version: '' }, isDesktop: false })).toEqual([])
   })
 })

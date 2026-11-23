@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 
-import { versionLines, webBuild } from '@/lib/build-info'
+import { expectedVersionLines, versionLines, webBuild } from '@/lib/build-info'
 
 import { useIsDesktop } from './use-is-desktop'
 import { desktopVersion } from './version-wire'
@@ -23,4 +23,8 @@ export function useVersionLines(): string[] {
   }, [isDesktop])
 
   return versionLines({ web: webBuild(), desktopVersion: macVersion })
+}
+
+export function useExpectedVersionLines(): string[] {
+  return expectedVersionLines({ web: webBuild(), isDesktop: useIsDesktop() })
 }
