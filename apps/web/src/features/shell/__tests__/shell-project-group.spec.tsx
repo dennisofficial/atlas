@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import { renderToString } from 'react-dom/server'
 
 import { ProjectGroup } from '../shell-project-group'
-import { sessionOf, threadOf } from './fixtures'
+import { projectOf, sessionOf, threadOf } from './fixtures'
 
 const entry = {
   project: null,
@@ -28,5 +28,19 @@ describe('ProjectGroup', () => {
 
   it('keeps the count hover-only when expanded', () => {
     expect(render({ open: true, sessions: [] })).not.toMatch(visibleCountPattern)
+  })
+
+  it('links to project settings from the header on touch screens', () => {
+    const html = renderToString(
+      <ProjectGroup
+        entry={{ project: projectOf('p1'), sessions: [] }}
+        open
+        onOpenChange={() => {}}
+        activeThreadId={null}
+      />,
+    )
+    expect(html).toMatch(
+      /<span class="hidden pointer-coarse:contents"><a[^>]*href="\/projects\/p1\/settings\/overview"/,
+    )
   })
 })
