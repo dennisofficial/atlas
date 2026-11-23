@@ -5,7 +5,7 @@
 > nudge saying the operator chose to resume. A stop followed by a typed message is a normal prompt
 > and ends resumability. `/resume` takes no free text. Fork is dropped and appears nowhere here.
 
-Status: **proposed**. Anchors are `path:line` at `251b18d54` (origin/main, 2026-11-23). Re-check an
+Status: **approved, 2026-11-23** (Dennis). Anchors are `path:line` at `251b18d54` (origin/main, 2026-11-23). Re-check an
 anchor before relying on it.
 
 Prior art: [slash-commands.md](slash-commands.md) is the command contract this file spends, and
@@ -618,11 +618,10 @@ Record the results in `evidence/` with the request and response lines and one sc
 - Mobile, until it has a stopped line (§9.1).
 - The v1 surfaces. v1 already resumes, and it is deleted when v2 is stable.
 
-## 15. Open question
+## 15. Decision: the discard is permanent
 
-**Q1. Is the discard permanent for the thread, or only for the resumed turn?**
-Recommendation: permanent. The marker is a fact in the log, so every later request of that thread
-assembles without the cut step — which is what "as if no stop happened" means, and it costs no extra
-machinery. The cost of the alternative (a one-turn window) is that a later request would show the model
-a step that the operator watched being cut, and the window would need its own state and its own
-expiry rule. The operator keeps the rows in the transcript either way.
+After a clean stop, the cut step stays out of every later request of the thread, not only the resumed
+turn (Dennis, 2026-11-23). From the model's view nothing paused. Explaining pause and resume mechanics
+to the model only adds noise and causes hallucination. The `resume-marked` event is a fact in the log,
+so every later assembly skips the cut range with no extra state. The operator keeps the cut rows and
+the `Stopped` line in the transcript.
