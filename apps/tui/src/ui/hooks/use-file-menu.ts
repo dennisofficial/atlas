@@ -2,7 +2,6 @@ import type { KeyEvent } from '@opentui/core'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import type { DirectoryEntry } from '@dltech/atlas-core'
-import type { MentionReader } from '@dltech/atlas-harness'
 
 import {
   completedMention,
@@ -10,8 +9,14 @@ import {
   moveFileSelection,
   openFileMenu,
   type FileMenuState,
-} from '../ui/file-menu-model'
-import { messageOf } from './error-text'
+} from '../file-menu-model'
+
+const messageOf = (failure: unknown): string =>
+  failure instanceof Error ? failure.message : String(failure)
+
+export type MentionListing = {
+  list: (directory: string) => Promise<readonly DirectoryEntry[]>
+}
 
 export type FileMenuControl = {
   state: FileMenuState | null
@@ -21,18 +26,18 @@ export type FileMenuControl = {
 }
 
 type HeldMenu = {
-  reader: MentionReader | undefined
+  reader: MentionListing | undefined
   ticket: number
   menu: FileMenuState | null
 }
 
 export function useFileMenu(args: {
-  files?: MentionReader | undefined
+  reader?: MentionListing | undefined
   onComplete: (text: string) => void
   onProblem?: ((reason: string) => void) | undefined
 }): FileMenuControl {
-  const { files, onComplete } = args
-  const [held, setHeld] = useState<HeldMenu>({ reader: files, ticket: 0, menu: null })
+  const { reader, onComplete } = args
+  const [held, setHeld] = useState<HeldMenu>({ reader, ticket: 0, menu: null })
   const current = useRef<HeldMenu>(held)
   const typed = useRef('')
   const asked = useRef(0)
@@ -41,11 +46,11 @@ export function useFileMenu(args: {
 
   const setMenu = useCallback(
     (menu: FileMenuState | null): void => {
-      const next = { reader: files, ticket: asked.current, menu }
+      const next = { reader, ticket: asked.current, menu }
       current.current = next
       setHeld(next)
     },
-    [files],
+    [reader],
   )
 
   const ask = useCallback(
@@ -54,10 +59,10 @@ export function useFileMenu(args: {
       setMenu(null)
 
       const query = mentionQueryOf(text)
-      if (query === null || files === undefined) return
+      if (query === null || reader === undefined) return
 
       const ticket = asked.current
-      files.list(query.directory).then(
+      reader.list(query.directory).then(
         (entries: readonly DirectoryEntry[]) => {
           if (ticket !== asked.current) return
           setMenu(openFileMenu({ query, entries }))
@@ -68,7 +73,7 @@ export function useFileMenu(args: {
         },
       )
     },
-    [files, setMenu],
+    [reader, setMenu],
   )
 
   useEffect(() => {
@@ -76,9 +81,9 @@ export function useFileMenu(args: {
 
     return () => {
       asked.current += 1
-      current.current = { reader: files, ticket: asked.current, menu: null }
+      current.current = { reader, ticket: asked.current, menu: null }
     }
-  }, [ask, files])
+  }, [ask, reader])
 
   const handleTextChanged = useCallback(
     (text: string) => {
@@ -96,7 +101,7 @@ export function useFileMenu(args: {
   const handleKey = useCallback(
     (key: KeyEvent): boolean => {
       const shown = current.current
-      if (shown.reader !== files || shown.ticket !== asked.current || shown.menu === null)
+      if (shown.reader !== reader || shown.ticket !== asked.current || shown.menu === null)
         return false
 
       const state = shown.menu
@@ -121,16 +126,16 @@ export function useFileMenu(args: {
       onComplete(completed)
       return true
     },
-    [files, handleDismiss, onComplete, setMenu],
+    [reader, handleDismiss, onComplete, setMenu],
   )
 
   return useMemo(
     () => ({
-      state: held.reader === files ? held.menu : null,
+      state: held.reader === reader ? held.menu : null,
       handleTextChanged,
       handleKey,
       handleDismiss,
     }),
-    [files, held, handleDismiss, handleKey, handleTextChanged],
+    [reader, held, handleDismiss, handleKey, handleTextChanged],
   )
 }

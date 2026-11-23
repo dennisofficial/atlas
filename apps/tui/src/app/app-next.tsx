@@ -3,8 +3,12 @@ import { useKeyboard, useTerminalDimensions } from '@opentui/react'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import type { FollowedSessionList } from '@dltech/atlas-client/stream'
+import { chordMatches } from '../ui/keys'
 
+import { EPendingKind, type PendingRow } from '../store'
+import { NoticeStack } from '../ui/components/notice-stack'
 import { Threads } from '../ui/components/threads'
+import { ENoticeTone, notify } from '../ui/notice-store'
 import { isSettlingLogin } from '../ui/settings-login-model'
 import type { ThreadRow } from '../ui/threads-model'
 import {
@@ -24,11 +28,16 @@ import {
   type ScreenState,
 } from './app-screen'
 import { AwaitingAccessScreen } from './awaiting-access-screen'
+import { chatBindings, pressHandled } from './chat-bindings'
+import { ChatScreen } from './chat-screen'
 import { createSessionClient, type AuthRefusal, type SessionClient } from './session-client'
 import { SignInScreen } from './sign-in-screen'
-import { TranscriptScreen } from './transcript-screen'
+import { useSessionAttachments } from './use-session-attachments'
+import { useSessionComposer } from './use-session-composer'
 import { useSessionList } from './use-session-list'
+import { useSessionSend } from './use-session-send'
 import { useSessionTranscript } from './use-session-transcript'
+import { useStagedMessages } from './staged-messages'
 
 export type SessionClientArgs = {
   apiUrl: string
@@ -65,7 +74,7 @@ export function AppNext(props: AppNextProps): React.ReactNode {
   const [screen, setScreen] = useState<ScreenState>(() =>
     screenOfAccount({ account: props.initialAccount }),
   )
-  const { width } = useTerminalDimensions()
+  const { width, height } = useTerminalDimensions()
   const now = useMemo(() => props.now ?? Date.now, [props.now])
 
   const held = useRef<AccountFile | null>(account)
@@ -151,6 +160,8 @@ export function AppNext(props: AppNextProps): React.ReactNode {
 
   const list = useSessionList({ follow, onPick: handlePick, now })
 
+  const chatKeys = useRef<((key: KeyEvent) => boolean) | null>(null)
+
   const handleKey = useCallback(
     (key: KeyEvent) => {
       if (key.ctrl && key.name === 'c') {
@@ -171,7 +182,7 @@ export function AppNext(props: AppNextProps): React.ReactNode {
           else list.handleKey(key)
           return
         case EScreen.Transcript:
-          if (key.name === 'escape') setScreen(screenOnBack())
+          chatKeys.current?.(key)
           return
       }
     },
@@ -205,12 +216,17 @@ export function AppNext(props: AppNextProps): React.ReactNode {
   if (screen.screen === EScreen.Transcript) {
     if (client === null) return null
     return (
-      <TranscriptRoute
+      <ChatScreenHost
         client={client}
         sessionId={screen.sessionId}
         title={screen.title}
         width={width}
+        height={height}
         now={now}
+        onBack={() => setScreen(screenOnBack())}
+        onKeys={(handler) => {
+          chatKeys.current = handler
+        }}
       />
     )
   }
@@ -225,16 +241,24 @@ export function AppNext(props: AppNextProps): React.ReactNode {
         onDismiss={props.onQuit}
         onQueryChange={list.handleQuery}
       />
+      <NoticeStack width={width} />
     </box>
   )
 }
 
-function TranscriptRoute(props: {
+const problemOf = (reason: string): void => {
+  notify({ text: reason, tone: ENoticeTone.Warn })
+}
+
+function ChatScreenHost(props: {
   client: SessionClient
   sessionId: string
   title: string | null
   width: number
+  height: number
   now: () => number
+  onBack: () => void
+  onKeys: (handler: (key: KeyEvent) => boolean) => void
 }): React.ReactNode {
   const transcript = useSessionTranscript({
     client: props.client,
@@ -243,12 +267,103 @@ function TranscriptRoute(props: {
     now: props.now,
   })
 
+  const restore = useRef<(args: { text: string; reason: string | undefined }) => void>(
+    () => undefined,
+  )
+
+  const staged = useStagedMessages({
+    sessionId: props.sessionId,
+    events: transcript.rawEvents,
+    working: transcript.working,
+    onRestore: (args) => restore.current(args),
+  })
+
+  const attachments = useSessionAttachments({
+    api: props.client.api,
+    sessionId: props.sessionId,
+    onProblem: problemOf,
+  })
+
+  const send = useSessionSend({
+    api: props.client.api,
+    sessionId: props.sessionId,
+    staged,
+    onProblem: problemOf,
+  })
+
+  const composer = useSessionComposer({
+    api: props.client.api,
+    sessionId: props.sessionId,
+    attachments,
+    send,
+    onProblem: problemOf,
+  })
+
+  restore.current = (args: { text: string; reason: string | undefined }) => {
+    composer.tokens.restore({ text: args.text, images: [] })
+    if (args.reason !== undefined) problemOf(args.reason)
+  }
+
+  const pending = useMemo<readonly PendingRow[]>(
+    () =>
+      [...staged.transcript, ...staged.queue].map((message) => ({
+        kind: EPendingKind.Sending,
+        id: message.clientId,
+        text: message.text,
+        failed: staged.failed.has(message.clientId),
+      })),
+    [staged.queue, staged.transcript, staged.failed],
+  )
+
+  const { onBack } = props
+  const { handleStop } = send
+
+  const handleEscape = useCallback(() => {
+    if (transcript.working) {
+      handleStop()
+      return
+    }
+    onBack()
+  }, [handleStop, onBack, transcript.working])
+
+  const bindings = useMemo(
+    () =>
+      chatBindings({
+        draftIsEmpty: composer.draftIsEmpty,
+        working: () => transcript.working,
+        onSubmit: composer.handleSubmit,
+        onTakeBackPending: composer.handleTakeBackPending,
+        onAttachImage: composer.handleAttachImage,
+        onEscape: handleEscape,
+      }),
+    [composer, handleEscape, transcript.working],
+  )
+
+  const handleKey = useCallback(
+    (key: KeyEvent): boolean => {
+      if (composer.handleKey(key)) return true
+      return pressHandled({ press: key, bindings, match: chordMatches })
+    },
+    [bindings, composer],
+  )
+
+  const onKeys = props.onKeys
+  useEffect(() => {
+    onKeys(handleKey)
+  }, [handleKey, onKeys])
+
   return (
-    <TranscriptScreen
+    <ChatScreen
       transcript={transcript}
+      composer={composer}
+      pending={pending}
       width={props.width}
-      cwd={process.cwd()}
+      height={props.height}
+      cwd="/"
       now={props.now()}
+      sends={send.sends}
+      working={transcript.working}
+      sending={send.sending}
     />
   )
 }

@@ -9,11 +9,13 @@ import { EventSource } from 'eventsource'
 
 import { authWatchingTransport } from './auth-transport'
 import { v2EventSchema, v2EventTypes, v2Views } from './registered-plugins'
+import { sessionApiOf, type SessionApi } from './session-api'
 
 export type AuthRefusal = 401 | 403
 
 export type SessionClient = {
   apiUrl: string
+  api: SessionApi
   connection: StreamConnection
   close: () => void
 }
@@ -27,7 +29,7 @@ export const createSessionClient = (args: {
   fetchFn?: typeof fetch | undefined
   onAuthLost: (status: AuthRefusal) => void
 }): SessionClient => {
-  const api = createApiClient({
+  const client = createApiClient({
     baseUrl: args.apiUrl,
     token: args.token,
     clientVersion: args.clientVersion,
@@ -37,7 +39,7 @@ export const createSessionClient = (args: {
 
   const transport = authWatchingTransport({
     transport: sessionStreamTransport({
-      client: api,
+      client,
       handleUnauthorized: () => args.onAuthLost(401),
     }),
     onAuthLost: args.onAuthLost,
@@ -52,5 +54,10 @@ export const createSessionClient = (args: {
     views: v2Views,
   })
 
-  return { apiUrl: args.apiUrl, connection, close: () => connection.close() }
+  return {
+    apiUrl: args.apiUrl,
+    api: sessionApiOf({ api: client, onAuthLost: args.onAuthLost }),
+    connection,
+    close: () => connection.close(),
+  }
 }
