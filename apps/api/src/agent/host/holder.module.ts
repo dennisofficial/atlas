@@ -32,6 +32,8 @@ import { ControlModule } from './control.module'
 import { HostWatchService } from './host-watch-service'
 import type { MediaSignerSource } from './media-signer-source'
 import { RuntimeModule } from './runtime.module'
+import { USAGE } from './tokens'
+import type { UsageService } from '../usage/usage-service'
 import {
   AGENT_HOST_ENV,
   CONFIG_SOURCE,
@@ -77,6 +79,7 @@ const holderProvider: Provider = {
     macLink: MacLink,
     traceFor: (distinctId: string) => TracePort,
     jobs: JobsProjectDispatcher,
+    usage: UsageService,
   ): SessionHolder =>
     composeAgentHost({
       env,
@@ -93,6 +96,7 @@ const holderProvider: Provider = {
       log,
       traceFor,
       notify: notifyDispatchOf({ dispatcher: jobs }),
+      turnEnded: (args) => usage.refreshAfterTurn({ sessionId: args.sessionId }),
       onHostIdChanged: () => watch.recompute(),
       ...(media.signer === undefined ? {} : { media: media.signer }),
       ...(content instanceof UnavailableChangeContentStore ? {} : { changes: { content } }),
@@ -115,6 +119,7 @@ const holderProvider: Provider = {
     MAC_LINK,
     TRACE_FOR,
     JobsProjectDispatcher,
+    USAGE,
   ],
 }
 

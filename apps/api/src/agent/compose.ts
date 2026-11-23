@@ -7,6 +7,7 @@ import {
   type HostPresence,
   type NotifyDispatch,
   type PodControlClient,
+  type TurnEndedHook,
 } from '@dltech/atlas-host'
 import {
   nativeCommandHandlers,
@@ -63,6 +64,7 @@ export type ComposeAgentHostArgs = {
   control: PodControlClient
   macLink: MacLink
   notify?: NotifyDispatch | undefined
+  turnEnded?: TurnEndedHook | undefined
   onHostIdChanged?: (() => void) | undefined
 }
 
@@ -111,6 +113,7 @@ export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
     },
     ...(args.changes === undefined ? {} : { changes: args.changes }),
     ...(args.notify === undefined ? {} : { notify: args.notify }),
+    ...(args.turnEnded === undefined ? {} : { turnEnded: args.turnEnded }),
     terminalDemand,
     panelDemand,
     onHostIdChanged: args.onHostIdChanged,

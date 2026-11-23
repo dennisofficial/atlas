@@ -2,7 +2,9 @@ export {
   AgentHostCredentialPort,
   CredentialsUnavailableError,
 } from './config/agent-host-credential-port'
+export { classifierConfigOf } from './config/classifier-config'
 export { ConfigReader, SessionNotFoundError } from './config/config-reader'
+export { scopedSettingsOf } from './config/scoped-settings'
 export { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 export type { AgentHostConfig, ConfigSource } from './config/agent-host-config'
 export { AgentHostEnvError, readAgentHostEnv, type AgentHostEnv } from './config/env'
@@ -52,7 +54,14 @@ export {
   POD_OPS,
   SESSION_STREAM,
   TERMINAL_DEMAND,
+  USAGE,
 } from './host/tokens'
+export { UsageService, USAGE_FLOOR_MS, type UsageReportRequest } from './usage/usage-service'
+export type {
+  UsageAccountRow,
+  UsageAccounts,
+  UsageSessionOwner,
+} from './usage/usage-accounts'
 export { podResizerOf, type SandboxResizer } from '@dltech/atlas-pods/sandbox/sandbox-resizer'
 export { HOLDER_WAIT_MS, podOpsOf, type PodOps } from './host/pod-ops'
 export type { TerminalDemand } from '@dltech/atlas-host'

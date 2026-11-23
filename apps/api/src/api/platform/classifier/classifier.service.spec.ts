@@ -5,13 +5,18 @@ import { beforeEach, describe, expect, it } from 'bun:test'
 
 import { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import { sealed } from '../../../agent/config/__tests__/config-reader.fixture'
-import { setting } from '../../../agent/config/__tests__/model-config.fixture'
 import { ClassifierService } from './classifier.service'
 
 const HEX_KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
 const USER = 'user-classifier'
 const GATEWAY_MODEL = 'gateway/typesafe-ai/jev'
+
+const cipherOf = (): SecretCipherService =>
+  new SecretCipherService(new EnvService({ SECRETS_ENCRYPTION_KEY: HEX_KEY }))
+
+const sealed = (value: unknown): string => cipherOf().encrypt(JSON.stringify(value))
+
+const setting = (value: unknown): string => `atlas-setting:v1:${JSON.stringify(value)}`
 
 const asFetch = (impl: () => Promise<Response>): typeof fetch => impl as unknown as typeof fetch
 
@@ -50,10 +55,7 @@ const seedClassifierModel = async (): Promise<void> => {
 }
 
 const serviceWith = (http: typeof fetch): ClassifierService =>
-  new ClassifierService(
-    new SecretCipherService(new EnvService({ SECRETS_ENCRYPTION_KEY: HEX_KEY })),
-    http,
-  )
+  new ClassifierService(cipherOf(), http)
 
 describe('ClassifierService.test', () => {
   const database = useTestDatabase()
