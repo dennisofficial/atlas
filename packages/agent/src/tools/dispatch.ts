@@ -64,7 +64,9 @@ export abstract class ToolDispatcher {
   abstract dispatch(args: DispatchArgs): Promise<readonly EventDraft[]>
 }
 
-const outcomeOf = (drafts: readonly EventDraft[]): ESpanOutcome => {
+const outcomeOf = (args: { drafts: readonly EventDraft[]; signal: AbortSignal }): ESpanOutcome => {
+  const { drafts } = args
+  if (args.signal.aborted && args.signal.reason === 'handoff') return ESpanOutcome.Handoff
   if (drafts.some((draft) => draft.type === 'tool-denied')) return ESpanOutcome.Denied
   const failed = drafts.some((draft) => draft.type === 'tool-result' && draft.error !== undefined)
   return failed ? ESpanOutcome.Error : ESpanOutcome.Ok
@@ -110,7 +112,7 @@ export class HookedToolDispatcher extends ToolDispatcher {
       },
       run: async (span) => {
         const drafts = await this.dispatchTraced(args)
-        span.set({ outcome: outcomeOf(drafts) })
+        span.set({ outcome: outcomeOf({ drafts, signal: args.signal }) })
         return drafts
       },
     })

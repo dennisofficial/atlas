@@ -215,7 +215,7 @@ export class HookChain {
       const carried = assembled
       assembled = await bounded({
         hook,
-        bounds: this.bounds,
+        bounds: { ...this.bounds, trace: undefined },
         phase: EHookPhase.BeforeStep,
         run: () => hook.run({ assembled: carried, trace: args.trace }),
         fallback: carried,
