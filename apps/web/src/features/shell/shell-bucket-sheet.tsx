@@ -11,13 +11,13 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@dltech/atlas-ui/components/sheet'
-import { ESessionBucket, type LiveThreadRow } from '@dltech/atlas-wire/web'
+import { ESessionBucket } from '@dltech/atlas-wire/web'
 
 import { relativeTime } from '@/features/settings/data/personal/relative-time'
 import { UNTITLED } from '@/features/threads/data/untitled'
 
+import type { PageBucket, SheetRow } from './session-pager'
 import { useClock } from './use-clock'
-import type { PageBucket } from './session-pager'
 import { useSessionPager } from './use-session-pager'
 
 const TITLES: Record<PageBucket, string> = {
@@ -30,18 +30,16 @@ const PLACEHOLDERS: Record<PageBucket, string> = {
   [ESessionBucket.Archived]: 'Search archived sessions',
 }
 
-const hrefOf = (row: LiveThreadRow): string => `/threads/${encodeURIComponent(row.thread.id)}`
-
-function PageRow({ row, now }: { row: LiveThreadRow; now: number }) {
+function PageRow({ row, now }: { row: SheetRow; now: number }) {
   return (
     <li>
       <Link
-        href={hrefOf(row)}
+        href={row.href}
         className="flex flex-col gap-0.5 rounded-md px-2 py-1.5 hover:bg-sidebar-accent"
       >
-        <span className="truncate text-sm text-foreground">{row.thread.title ?? UNTITLED}</span>
+        <span className="truncate text-sm text-foreground">{row.title ?? UNTITLED}</span>
         <span className="text-xs text-muted-foreground">
-          {relativeTime({ from: row.thread.updatedAt, now })}
+          {relativeTime({ from: row.updatedAt, now })}
         </span>
       </Link>
     </li>
@@ -56,8 +54,7 @@ export interface BucketSheetProps {
 export function BucketSheet({ bucket, onOpenChange }: BucketSheetProps) {
   const { snapshot, term, setTerm, loadMore } = useSessionPager(bucket)
   const now = useClock()
-  const total = snapshot.counts?.[bucket]
-  const count = total === undefined ? snapshot.rows.length : total
+  const count = snapshot.total ?? snapshot.rows.length
 
   return (
     <Sheet open onOpenChange={onOpenChange}>
@@ -88,10 +85,10 @@ export function BucketSheet({ bucket, onOpenChange }: BucketSheetProps) {
           )}
           <ul className="flex flex-col gap-0.5">
             {snapshot.rows.map((row) => (
-              <PageRow key={row.thread.id} row={row} now={now} />
+              <PageRow key={row.id} row={row} now={now} />
             ))}
           </ul>
-          {snapshot.next !== null && (
+          {snapshot.next && (
             <Button
               variant="ghost"
               size="sm"

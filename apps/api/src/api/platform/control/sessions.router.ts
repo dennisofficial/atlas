@@ -15,6 +15,8 @@ import {
   sessionArchiveInputSchema,
   sessionArchiveOutputSchema,
   sessionBlobInputSchema,
+  sessionBucketPageInputSchema,
+  sessionBucketPageOutputSchema,
   sessionChangeContentInputSchema,
   sessionChangeContentOutputSchema,
   sessionChangesInputSchema,
@@ -60,6 +62,8 @@ import {
   type SessionArchiveInput,
   type SessionArchiveOutput,
   type SessionBlobInput,
+  type SessionBucketPageInput,
+  type SessionBucketPageOutput,
   type SessionChangeContentInput,
   type SessionChangeContentOutput,
   type SessionChangesInput,
@@ -171,6 +175,14 @@ export class SessionsRouter {
   @Query({ input: sessionPageInputSchema, output: sessionPageOutputSchema })
   page(@Input() input: SessionPageInput, @Ctx() ctx: SessionTrpcCtx): Promise<SessionPageOutput> {
     return this.sessions.page({ userId: ctx.auth.userId, ...input })
+  }
+
+  @Query({ input: sessionBucketPageInputSchema, output: sessionBucketPageOutputSchema })
+  bucketPage(
+    @Input() input: SessionBucketPageInput,
+    @Ctx() ctx: SessionTrpcCtx,
+  ): Promise<SessionBucketPageOutput> {
+    return this.sessions.bucketPage({ userId: ctx.auth.userId, ...input })
   }
 
   @Query({ input: sessionEventsInputSchema, output: sessionEventsOutputSchema })

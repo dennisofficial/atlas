@@ -42,6 +42,8 @@ import {
   type ListRoutinesParams,
   type RoutineRow,
   type RoutineRunRow,
+  type SessionBucketCountParams,
+  type SessionBucketCounts,
   type SessionListParams,
   type SessionModelRow,
   type ControlTerminalRow,
@@ -370,6 +372,10 @@ export class ControlPlane {
         timings,
       })
     })
+  }
+
+  async countSessionBuckets(params: SessionBucketCountParams): Promise<SessionBucketCounts> {
+    return this.store.transact((tx) => tx.countSessionBuckets(params))
   }
 
   async readSessionView(params: { sessionId: string; threadId: string }): Promise<SessionViewRead> {

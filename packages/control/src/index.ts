@@ -43,7 +43,11 @@ export type {
   RoutineRow,
   RoutineRunOutcome,
   RoutineRunRow,
+  SessionBucketCountParams,
+  SessionBucketCounts,
+  SessionBucketFilter,
   SessionListParams,
+  SessionPageCursor,
   StoredEvent,
   ThreadRow,
 } from './port'

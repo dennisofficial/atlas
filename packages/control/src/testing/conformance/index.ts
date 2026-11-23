@@ -10,6 +10,7 @@ export { describeControlPlanePresence, type PresenceParams } from './conformance
 export { describeControlPlaneReads } from './conformance-reads'
 export { describeControlPlaneRoutines } from './conformance-routines'
 export type { RoutinesConformanceParams } from './conformance-routines'
+export { describeControlPlaneSessionBuckets } from './conformance-session-buckets'
 export { describeControlPlaneSessionArchive } from './conformance-session-archive'
 export { describeControlPlaneSessions } from './conformance-sessions'
 export { describeControlPlaneWakes } from './conformance-wakes'

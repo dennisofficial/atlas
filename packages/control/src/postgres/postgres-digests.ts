@@ -7,6 +7,10 @@ import { iso } from './postgres-rows'
 
 export const FIRST_MESSAGE_CHARS = 400
 
+const EPOCH_ISO = '1970-01-01T00:00:00.000Z'
+
+export const likePatternOf = (search: string): string => `%${search.replace(/[\\%_]/g, '\\$&')}%`
+
 const TURN_OUTCOME = z.enum(ETurnOutcome)
 
 const TURN_ENDED_BY = z.enum(ETurnEndedBy)
@@ -32,6 +36,15 @@ export const sessionDigestsIn = async (
   const sessionId = params.sessionId ?? ''
   const anySpawner = params.spawnedBySessionId === undefined
   const spawnedBySessionId = params.spawnedBySessionId ?? ''
+  const anyBucket = params.bucket === undefined
+  const archivedOnly = params.bucket?.archived === true
+  const inactiveOnly = params.bucket?.archived === false
+  const idleBefore = params.bucket?.archived === false ? params.bucket.idleBefore : EPOCH_ISO
+  const anySearch = params.search === undefined || params.search.length === 0
+  const search = likePatternOf(params.search ?? '')
+  const anyAfter = params.after === undefined
+  const afterCreatedAt = params.after?.createdAt ?? EPOCH_ISO
+  const afterId = params.after?.sessionId ?? ''
   const rows = await params.tx.query(
     params.tx.raw
       .sql`SELECT s."id", s."userId", s."projectId", s."title", s."mainThreadId", s."createdAt", s."archivedAt",
@@ -71,7 +84,16 @@ export const sessionDigestsIn = async (
         AND (${anyProject}::boolean OR s."projectId" = ${projectId})
         AND (${anySession}::boolean OR s."id" = ${sessionId})
         AND (${anySpawner}::boolean OR s."spawnedBySessionId" = ${spawnedBySessionId})
-      ORDER BY s."createdAt" DESC
+        AND (${anyBucket}::boolean
+          OR (${archivedOnly}::boolean AND s."archivedAt" IS NOT NULL)
+          OR (${inactiveOnly}::boolean AND s."archivedAt" IS NULL
+            AND COALESCE((SELECT e."at" FROM "v2"."V2Event" e
+              WHERE e."threadId" = s."mainThreadId" ORDER BY e."seq" DESC LIMIT 1),
+              s."createdAt") < ${idleBefore}::timestamptz))
+        AND (${anySearch}::boolean OR s."title" ILIKE ${search} OR first."text" ILIKE ${search})
+        AND (${anyAfter}::boolean
+          OR (s."createdAt", s."id") < (${afterCreatedAt}::timestamptz, ${afterId}::text))
+      ORDER BY s."createdAt" DESC, s."id" DESC
       LIMIT ${params.limit}`
       .returnsRow({
         id: 'pg/text@1',

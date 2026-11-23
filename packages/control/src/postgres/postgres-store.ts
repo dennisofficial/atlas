@@ -34,6 +34,8 @@ import {
   type TrackingTarget,
   type WrittenSubscriptionRow,
   type SessionDigestRow,
+  type SessionBucketCountParams,
+  type SessionBucketCounts,
   type SessionListParams,
   type PrHead,
   type PrRef,
@@ -70,6 +72,7 @@ import { announceIn, notifyWakeIn } from './postgres-notify'
 import { hostPresentIn, hostsPresentIn } from './postgres-presence'
 import { resolveSessionModelIn } from './postgres-session-model'
 import { sessionDigestsIn } from './postgres-digests'
+import { sessionBucketCountsIn } from './postgres-session-buckets'
 import { podPeersPlacedIn } from './postgres-peers'
 import {
   clearTitleFromIn,
@@ -271,6 +274,10 @@ export class PostgresTx implements ControlTx {
 
   async listSessionDigests(params: SessionListParams): Promise<SessionDigestRow[]> {
     return sessionDigestsIn({ tx: this.tx, ...params })
+  }
+
+  async countSessionBuckets(params: SessionBucketCountParams): Promise<SessionBucketCounts> {
+    return sessionBucketCountsIn({ tx: this.tx, ...params })
   }
 
   async podPeersPlaced(params: {
