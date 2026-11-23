@@ -46,7 +46,7 @@ type RelayState = {
 const ringOf = (relay: RelayState): PodSample[] => [...relay.ring]
 
 export type PodMetricsRelayArgs = {
-  ops: Pick<PodOps, 'events' | 'hold' | 'invoke' | 'waitForHolder'>
+  ops: Pick<PodOps, 'events' | 'hold' | 'invoke' | 'servesLocally'>
   bus: Pick<PodMetricsBus, 'onWatch' | 'publish'>
   log?: LogPort | undefined
 }
@@ -92,16 +92,17 @@ export class PodMetricsRelay implements OnModuleInit, OnModuleDestroy {
   }
 
   private async open(relay: RelayState): Promise<void> {
-    const wait = this.args.ops.waitForHolder
-    const held = wait === undefined ? true : await wait({ sessionId: relay.sessionId })
+    const serves = await this.args.ops.servesLocally({ sessionId: relay.sessionId })
     if (this.relays.get(relay.sessionId) !== relay) return
-    const dispose = held
-      ? this.args.ops.events({
-          sessionId: relay.sessionId,
-          listener: (frame) => this.receiveSample({ relay, frame }),
-          onClose: () => this.stop({ relay, release: false }),
-        })
-      : null
+    if (!serves) {
+      this.stop({ relay, release: false })
+      return
+    }
+    const dispose = this.args.ops.events({
+      sessionId: relay.sessionId,
+      listener: (frame) => this.receiveSample({ relay, frame }),
+      onClose: () => this.stop({ relay, release: false }),
+    })
     if (dispose === null) {
       this.args.log?.warn({
         source: 'bus.pod-metrics',

@@ -32,8 +32,9 @@ adds them to the command registry of every session.
   `model`, `help`.
 - `nativeCommandHandlers`: one holder handler for each `host` command, keyed by `inboxKind`.
 - `nativeControlHandlers`: the `rename` handler, keyed by the command name.
-- `resize`, `resizeArgs`, `RESIZE_MAX_DISK_GB`: the resize spec and its disk limit of 100 GB. The
-  API supplies the handler, so `nativeControlHandlers` has none for it.
+- `rename`, `resize`, `resizeArgs`, `RESIZE_MAX_DISK_GB`: the rename and resize specs, and the
+  resize disk limit of 100 GB. The API supplies the resize handler, so `nativeControlHandlers` has
+  none for it.
 - `model`, `help`: the two client commands. Each opens one `EClientAction`, and neither runs
   anywhere on the server.
 

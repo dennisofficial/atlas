@@ -84,6 +84,17 @@ only what it can rebuild or drop.
   sessions of one project keep two rows for the same worktree path.
 - `TerminalDemand`, `PanelDemand`, `PANEL_HOLD_TTL_MS`: keep the pod awake for a terminal or panel.
 
+### Route a pod call to its holder
+
+- `SessionHolder.podRouter()`: a `PodRouter`. `reach` decides local, remote or unreachable;
+  `invoke` serves a call here or forwards it to the host that holds the session; `follow` streams
+  the frames of a held session to this host.
+- `SessionHolderArgs.podCallBus`: the bus the router and the responder share. Without it a host
+  answers only what it holds itself.
+- `PodRouter`, `PodReach`, `EPodReach`, `PodFollowClose`: the router and its decision.
+- `PodCallResponder`, `POD_RESPONDER_READY_WAIT_MS`: serves the calls another host addresses to
+  this one, and holds the terminal demand of a remote stream.
+
 ### Drain and fail
 
 - `DRAIN_IN_FLIGHT_CAP_MS`, `LEASE_HAND_BACK_MARGIN_MS`, `DRAIN_HANDOFF_BUDGET_MS`: the budget of
@@ -104,6 +115,7 @@ only what it can rebuild or drop.
 
 - `FaultProxy`, `ProxyFault`: a proxy that drops, delays or corrupts a frame.
 - `createMemoryHostPresence()`: a presence store in memory.
+- `createMemoryPodCallHub()`: a `PodCallBus` hub in memory, where every bus sees every request.
 - `describeRemoteCalls(target)`, `describeHostPresence(target)`: the two shared suites, run against
   the real implementation.
 

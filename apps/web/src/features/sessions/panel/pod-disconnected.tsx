@@ -7,7 +7,12 @@ import { Spinner } from '@dltech/atlas-ui/components/spinner'
 
 import type { PodWakeState } from '../data/use-pod-wake'
 
-export function PodDisconnected(props: { tab: string; state: PodWakeState; onWake: () => void }) {
+export function PodDisconnected(props: {
+  tab: string
+  state: PodWakeState
+  message?: string | undefined
+  onWake: () => void
+}) {
   const handleWake = () => props.onWake()
   const asleep = props.state === 'asleep'
   const waking = props.state === 'waking'
@@ -30,7 +35,9 @@ export function PodDisconnected(props: { tab: string; state: PodWakeState; onWak
           Waking pod…
         </span>
       ) : null}
-      {timeout ? <p className="text-xs text-muted-foreground">Pod did not wake</p> : null}
+      {timeout ? (
+        <p className="text-xs text-muted-foreground">{props.message ?? 'Pod did not wake'}</p>
+      ) : null}
       {asleep || timeout ? (
         <Button size="sm" variant="outline" onClick={handleWake}>
           {timeout ? 'Try again' : 'Wake pod'}

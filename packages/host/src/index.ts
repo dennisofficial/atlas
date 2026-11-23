@@ -51,6 +51,14 @@ export {
   LEASE_HAND_BACK_MARGIN_MS,
 } from './holder/drain-cap'
 export { PodCalls, type PodCallOutcome } from './holder/pod-calls'
+export type { PodCallBus } from './holder/pod-call-port'
+export { PodRouter, type PodRouterArgs } from './holder/pod-route/pod-router'
+export {
+  POD_RESPONDER_READY_WAIT_MS,
+  PodCallResponder,
+  type PodCallResponderArgs,
+} from './holder/pod-route/pod-call-responder'
+export { EPodReach, type PodFollowClose, type PodReach } from './holder/pod-route/pod-reach'
 export {
   contextFilesPlacerOf,
   placeContextFiles,
