@@ -2,6 +2,7 @@ import { ECompactionAnchor } from '../events/body'
 import type { Event } from '../events/envelope'
 import { keptThroughCompaction } from '../compaction/disposition'
 import type { SummariseReach } from '../compaction/summarise-points'
+import { rotationStartSeq } from './rotation'
 
 export const SUMMARY_REFUSAL_CANNOT = 'That message cannot be summarised'
 export const SUMMARY_REFUSAL_NOTHING = 'There is nothing to summarise'
@@ -61,7 +62,8 @@ export function summaryTargetOf({
   if (!Number.isInteger(throughSeq) || next?.type !== 'user-said') {
     return refused(SUMMARY_REFUSAL_CANNOT)
   }
-  const inside = events.filter((event) => event.seq <= throughSeq)
+  const boundary = rotationStartSeq(events)
+  const inside = events.filter((event) => event.seq > boundary && event.seq <= throughSeq)
   if (inside.length === 0) return refused(SUMMARY_REFUSAL_NOTHING)
   const spans = spansOf(events)
   const open = inside.filter((event) => !covered({ spans, seq: event.seq }))
@@ -81,7 +83,8 @@ export function summaryTargetOf({
 export function summaryPointsOf(
   events: readonly { type: string; id: string; seq: number }[],
 ): ReadonlyMap<string, SummariseReach> {
-  const said = events.filter((event) => event.type === 'user-said')
+  const boundary = events.findLast((event) => event.type === 'rotated')?.seq ?? 0
+  const said = events.filter((event) => event.type === 'user-said' && event.seq > boundary)
   const points = new Map<string, SummariseReach>()
   said.forEach((event, index) => {
     if (index === 0) return
