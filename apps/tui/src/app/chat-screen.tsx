@@ -24,7 +24,6 @@ export function ChatScreen(props: {
   now: number
   sends: number
   working: boolean
-  sending: boolean
 }): React.ReactNode {
   const { composer, transcript } = props
   const registry = useMemo(() => createKeyRegistry(), [])
@@ -60,7 +59,7 @@ export function ChatScreen(props: {
           width={props.width}
           height={props.height}
           working={props.working}
-          interrupting={props.sending}
+          interrupting={false}
           focused
           onCursorMoved={composer.handleCursorMoved}
         />

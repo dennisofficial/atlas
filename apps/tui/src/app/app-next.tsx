@@ -363,7 +363,6 @@ function ChatScreenHost(props: {
       now={props.now()}
       sends={send.sends}
       working={transcript.working}
-      sending={send.sending}
     />
   )
 }
