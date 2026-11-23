@@ -1,22 +1,33 @@
-import { Module } from '@nestjs/common'
+import { Logger, Module } from '@nestjs/common'
 import { RedisModule } from '../../../_lib/redis/redis.module'
-import { GithubDeviceClient } from './github-device-client'
-import { GithubRepoReads } from './github-repo-reads'
+import { GithubConfig } from '@dltech/atlas-github'
+import { GithubDeviceClient } from '@dltech/atlas-github'
+import { GithubRepoReads } from '@dltech/atlas-github'
 import { GithubReposRouter } from './github-repos.router'
-import { GithubRequestCoordinator } from './github-request-coordinator'
+import { GithubRequestCoordinator } from '@dltech/atlas-github'
 import { GithubRouter } from './github.router'
-import { GithubService } from './github.service'
+import { GithubService } from '@dltech/atlas-github'
+import { setGithubLogSink } from '@dltech/atlas-github'
+import {
+  githubConfigProvider,
+  githubRepoReadsProvider,
+  githubRequestCoordinatorProvider,
+  githubServiceProvider,
+} from './github.providers'
+
+setGithubLogSink((context) => new Logger(context))
 
 @Module({
   imports: [RedisModule],
   providers: [
     GithubRouter,
     GithubReposRouter,
-    GithubService,
-    GithubRepoReads,
-    GithubRequestCoordinator,
+    githubConfigProvider,
+    githubServiceProvider,
+    githubRepoReadsProvider,
+    githubRequestCoordinatorProvider,
     { provide: GithubDeviceClient, useFactory: () => new GithubDeviceClient({}) },
   ],
-  exports: [GithubService, GithubRepoReads, GithubRequestCoordinator],
+  exports: [GithubService, GithubRepoReads, GithubRequestCoordinator, GithubConfig],
 })
 export class GithubModule {}

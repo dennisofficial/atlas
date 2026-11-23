@@ -48,6 +48,20 @@ export const SPLIT_RULES: readonly SplitRule[] = [
     forbidden: ['@dltech/atlas-agent', '@dltech/atlas-host', '@dltech/atlas-control'],
   },
   {
+    name: 'the github domain package and the v2 trigger worker stay off nest and v1',
+    roots: ['packages/github', 'apps/trigger'],
+    forbidden: [
+      '@nestjs/common',
+      '@nestjs/core',
+      '@nestjs/schedule',
+      '@nestjs/throttler',
+      'nestjs-trpc',
+      '@dltech/atlas-harness',
+      '@dltech/atlas-agent-v1',
+      '@dltech/atlas-serve',
+    ],
+  },
+  {
     name: 'a plugin must not import another plugin',
     roots: ['plugins'],
     forbidden: [],

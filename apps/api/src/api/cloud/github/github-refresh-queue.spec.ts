@@ -3,8 +3,8 @@ import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it, vi } from 'bun:test'
 import { ETargetOutcome } from '@dltech/atlas-core'
 import { ensureUsers, seedSubscription as seedSubscriptionRow } from '../../../../test/github-seed'
-import type { QueueDeps } from './github-refresh-queue'
-import { POLLED_REPO, queueDeps, seedTarget, sweep } from './github-refresh-queue.fixture'
+import type { QueueDeps } from '@dltech/atlas-github'
+import { POLLED_REPO, queueDeps, seedTarget, sweep } from '@dltech/atlas-github/testing'
 
 describe('refreshGithubQueue claims by due time', () => {
   useTestDatabase()

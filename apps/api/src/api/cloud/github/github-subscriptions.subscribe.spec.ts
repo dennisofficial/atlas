@@ -1,11 +1,11 @@
-import { ForbiddenException } from '@nestjs/common'
+import { EGithubHttpStatus } from '@dltech/atlas-github'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test'
 import { ensureUsers, prStateRows, subscriptionRows } from '../../../../test/github-seed'
 import { unstubAllGlobals } from '@dltech/bun-test-shims'
 import { serviceWith } from './github-subscriptions.fixture'
-import { seedHeadChecks } from './github-pr-checks.fixture'
-import { GithubUserReadFailed } from './github-user-reads'
+import { seedHeadChecks } from '@dltech/atlas-github/testing'
+import { GithubUserReadFailed } from '@dltech/atlas-github'
 
 describe('GithubSubscriptionsService subscribe', () => {
   useTestDatabase()
@@ -194,7 +194,7 @@ describe('GithubSubscriptionsService subscribe', () => {
 
     await expect(
       service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 }),
-    ).rejects.toBeInstanceOf(ForbiddenException)
+    ).rejects.toHaveProperty('status', EGithubHttpStatus.Forbidden)
     expect(await subscriptionRows()).toHaveLength(0)
   })
 
@@ -208,7 +208,7 @@ describe('GithubSubscriptionsService subscribe', () => {
 
     await expect(
       service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', branch: 'dennis/x' }),
-    ).rejects.toBeInstanceOf(ForbiddenException)
+    ).rejects.toHaveProperty('status', EGithubHttpStatus.Forbidden)
     expect(await subscriptionRows()).toHaveLength(0)
   })
 
@@ -217,6 +217,6 @@ describe('GithubSubscriptionsService subscribe', () => {
 
     await expect(
       service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 }),
-    ).rejects.toBeInstanceOf(ForbiddenException)
+    ).rejects.toHaveProperty('status', EGithubHttpStatus.Forbidden)
   })
 })

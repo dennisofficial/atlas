@@ -29,13 +29,13 @@ import {
   SessionOrSandboxMiddleware,
   type SessionOrSandboxTrpcCtx,
 } from '../../platform/sessions/session-or-sandbox.middleware'
-import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
-import { type PrFrameSink, prStreamFrames } from './github-pr-stream.frames'
-import { GithubPrFanoutService } from './github-pr-fanout.service'
-import { GithubSubscriptionsService } from './github-subscriptions.service'
-import { GithubRequestCoordinator } from './github-request-coordinator'
-import { GithubService } from './github.service'
-import { LinkedPrAccess } from './github-linked-pr-access'
+import { GithubPrEventMailboxService } from '@dltech/atlas-github'
+import { type PrFrameSink, prStreamFrames } from '@dltech/atlas-github'
+import { GithubPrFanoutService } from '@dltech/atlas-github'
+import { GithubSubscriptionsService } from '@dltech/atlas-github'
+import { GithubRequestCoordinator } from '@dltech/atlas-github'
+import { GithubService } from '@dltech/atlas-github'
+import { LinkedPrAccess } from '@dltech/atlas-github'
 import { attachPrStates } from './github-pr-states.stream'
 import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 

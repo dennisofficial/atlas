@@ -1,16 +1,17 @@
 import type { Provider } from '@nestjs/common'
 import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
-import { buildPrApplyWiring, type PrApplyWiring } from './github-pr-apply-wiring'
-import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
-import { GithubPrFanoutService } from './github-pr-fanout.service'
-import { GithubPrOutboxDispatcher } from './github-pr-outbox'
-import { GithubPrStore } from './github-pr-store'
-import { GithubFillTokens } from './github-fill-token'
-import { GithubInstallationTokens } from './github-installation-tokens'
-import { GithubRequestCoordinator } from './github-request-coordinator'
+import { replayThreadEvents } from './github-pr-event-thread-replay'
+import { buildPrApplyWiring, type PrApplyWiring } from '@dltech/atlas-github'
+import { GithubPrEventMailboxService } from '@dltech/atlas-github'
+import { GithubPrFanoutService } from '@dltech/atlas-github'
+import { GithubPrOutboxDispatcher } from '@dltech/atlas-github'
+import { GithubPrStore } from '@dltech/atlas-github'
+import { GithubFillTokens } from '@dltech/atlas-github'
+import { GithubInstallationTokens } from '@dltech/atlas-github'
+import { GithubRequestCoordinator } from '@dltech/atlas-github'
 import { GithubSandboxWakeService } from './github-sandbox-wake.service'
-import { GithubUserReads } from './github-user-reads'
-import { GithubService } from './github.service'
+import { GithubUserReads } from '@dltech/atlas-github'
+import { GithubService } from '@dltech/atlas-github'
 
 export const PR_APPLY_WIRING = 'PrApplyWiring'
 
@@ -29,8 +30,11 @@ export const prApplyWiringProvider: Provider = {
 
     return buildPrApplyWiring({
       fanout,
-      signals,
-      wake,
+      legacy: {
+        threadChanged: (args) => signals.threadChanged(args),
+        notifyEvent: (notice, event) => wake.notifyEvent(notice, event),
+      },
+      replayThread: replayThreadEvents,
       reads,
       budget,
       fillTokenOf: (args) => fillTokens.find(args),

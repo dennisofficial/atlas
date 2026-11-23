@@ -3,7 +3,7 @@ import { reposOf, toProject } from '../../platform/sessions/live-project'
 import { Injectable, NotFoundException } from '@nestjs/common'
 import { db, type Row } from '@dltech/atlas-db'
 import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
-import { GithubService } from '../github/github.service'
+import { GithubService } from '@dltech/atlas-github'
 import { assertProjectRules } from './projects.rules'
 import { withRepoTracking } from './project-repo-tracking'
 

@@ -5,19 +5,20 @@ import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { afterEach, beforeEach, describe, expect, it, spyOn } from 'bun:test'
 import { prStateRows } from '../../../../test/github-seed'
 import { DrainStateService } from '../../platform/health/drain-state.service'
-import type { GithubHookLifecycleService } from './github-hook-lifecycle.service'
-import { GithubHeadReads } from './github-head-reads'
+import type { GithubHookLifecycleService } from '@dltech/atlas-github'
+import { GithubHeadReads } from '@dltech/atlas-github'
 import { preparePollSweeper, seedSubscription } from './github-poll-sweeper.fixture'
-import { GithubPrFanoutService } from './github-pr-fanout.service'
-import { GithubPollSweeperService } from './github-poll-sweeper.service'
-import { storeFixture } from './github-pr-store.fixture'
-import { mergeabilityObservationOfSample, pullObservationOfRest } from './github-pr-observations'
-import { applyObservedPull } from './github-pr-observed-pull'
-import { localCoordinator } from './github-request-coordinator.fixture'
-import { GithubSubscribeStateWriter } from './github-subscribe-state-writer'
-import { GithubSubscribedPrResolver } from './github-subscribed-pr-resolver'
-import { GithubUserReads } from './github-user-reads'
-import type { GithubService } from './github.service'
+import { GithubPrFanoutService } from '@dltech/atlas-github'
+import { GithubPollSweeperService } from '@dltech/atlas-github'
+import { storeFixture } from '@dltech/atlas-github/testing'
+import { mergeabilityObservationOfSample, pullObservationOfRest } from '@dltech/atlas-github'
+import { applyObservedPull } from '@dltech/atlas-github'
+import { localCoordinator } from '@dltech/atlas-github/testing'
+import { GithubSubscribeStateWriter } from '@dltech/atlas-github'
+import { GithubSubscribedPrResolver } from '@dltech/atlas-github'
+import { GithubUserReads } from '@dltech/atlas-github'
+import type { GithubService } from '@dltech/atlas-github'
+import { threadActivityAt } from './github-thread-activity'
 
 const SHA = 'abc123'
 const TOKEN = 'ghu_1'
@@ -143,6 +144,7 @@ describe('GithubPollSweeperService over a real read', () => {
       localCoordinator(github),
       new GithubHeadReads(),
       storeFixture({ fanout: fanoutOf() }),
+      threadActivityAt,
     )
   }
 
@@ -184,6 +186,7 @@ describe('GithubPollSweeperService over a real read', () => {
       localCoordinator(github),
       new GithubHeadReads(),
       store,
+      threadActivityAt,
     )
 
     const polled = service.handlePoll()

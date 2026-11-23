@@ -5,7 +5,7 @@ import { Test } from '@nestjs/testing'
 import request from 'supertest'
 import type { Mock } from 'bun:test'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test'
-import { GithubUserReadFailed } from './cloud/github/github-user-reads'
+import { GithubUserReadFailed } from '@dltech/atlas-github'
 import { GlobalExceptionFilter } from './global-exception.filter'
 
 const databaseError = ({ sqlState }: { sqlState: string }): Error =>

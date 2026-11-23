@@ -5,12 +5,12 @@ import { seedPrEvent, seedSubscription } from '../../../../test/github-seed'
 import { waitFor } from '../../../../test/fake-timers'
 import { DrainStateService } from '../../platform/health/drain-state.service'
 import type { SandboxesService } from '../../platform/sandboxes/sandboxes.service'
-import { prepareDelivery, serviceWith } from './github-delivery.fixture'
-import { localCoordinator } from './github-request-coordinator.fixture'
+import { prepareDelivery, serviceWith } from '@dltech/atlas-github/testing'
+import { localCoordinator } from '@dltech/atlas-github/testing'
 import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
 import { fakeGithub, fakeSubscriptions, sandboxCtxFor } from './github-pr-stream.fixture'
 import { GithubPrStreamRouter } from './github-pr-stream.router'
-import type { GithubSubscriptionsService } from './github-subscriptions.service'
+import type { GithubSubscriptionsService } from '@dltech/atlas-github'
 
 const COMMENT_PAYLOAD = {
   action: 'created',

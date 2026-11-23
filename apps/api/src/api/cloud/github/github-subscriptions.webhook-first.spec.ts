@@ -8,7 +8,7 @@ import {
   seedPrState,
   seedSubscription,
 } from '../../../../test/github-seed'
-import { GithubHttpBudgetUnavailable } from './github-request-budget'
+import { GithubHttpBudgetUnavailable } from '@dltech/atlas-github'
 import { REST_FIELDS } from './github-poll-sweeper.fixture'
 import { serviceWith } from './github-subscriptions.fixture'
 

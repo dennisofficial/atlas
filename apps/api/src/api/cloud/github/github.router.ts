@@ -13,7 +13,7 @@ import {
 import { Ctx, Input, Mutation, Query, Router, UseMiddlewares } from 'nestjs-trpc'
 import { z } from 'zod'
 import { SessionMiddleware, type SessionTrpcCtx } from '../../../_module/session/session.middleware'
-import { GithubService } from './github.service'
+import { GithubService } from '@dltech/atlas-github'
 
 @Router({ alias: 'github' })
 @UseMiddlewares(SessionMiddleware)

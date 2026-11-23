@@ -1,0 +1,274 @@
+import { useTestDatabase } from '@dltech/atlas-db/testing'
+import { RecordingDrain } from './testing/drain.fixture'
+import { beforeEach, describe, expect, it } from 'bun:test'
+import { prEventRows } from './testing/github-seed'
+import { prepareDelivery, PULL_REQUEST_PAYLOAD, seedSubscription } from './github-delivery.fixture'
+import { GithubPrDiscussionDeliveryService } from './github-pr-discussion-delivery.service'
+import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
+import { GithubPrFanoutService } from './github-pr-fanout.service'
+import { GithubPrOutboxDispatcher } from './github-pr-outbox'
+import type { WakeStub } from './github-legacy-effects.fixture'
+import { inertSignals } from './testing/thread-signals.fixture'
+import { inertMergeabilityRefresh, inertReconcile } from './github-pr-store.fixture'
+import { legacyOf } from './github-legacy-effects.fixture'
+
+function discussionWith(): {
+  discussion: GithubPrDiscussionDeliveryService
+  wakes: unknown[]
+} {
+  const wakes: unknown[] = []
+  const wake = {
+    notifyEvent: (args: unknown) => wakes.push(args),
+  } as unknown as WakeStub
+  const fanout = new GithubPrFanoutService(new RecordingDrain())
+  const mailbox = new GithubPrEventMailboxService(
+    fanout,
+    new GithubPrOutboxDispatcher({
+      fanout,
+      legacy: legacyOf({ signals: inertSignals(), wake: wake }),
+      reconcile: inertReconcile(),
+      mergeability: inertMergeabilityRefresh(),
+    }),
+  )
+  return { discussion: new GithubPrDiscussionDeliveryService(mailbox), wakes }
+}
+
+const REPOSITORY = { full_name: 'compai/app' }
+const ISSUE = {
+  number: 42,
+  html_url: 'https://github.com/compai/app/pull/42',
+  pull_request: { html_url: 'https://github.com/compai/app/pull/42' },
+}
+
+function issueComment(args: {
+  action: string
+  body: string
+  changes?: { body?: { from: string } }
+  user?: { login: string } | null
+}) {
+  return {
+    action: args.action,
+    issue: ISSUE,
+    comment: {
+      id: 901,
+      body: args.body,
+      html_url: 'https://github.com/compai/app/pull/42#issuecomment-901',
+      user: args.user === undefined ? { login: 'vercel[bot]' } : args.user,
+    },
+    ...(args.changes === undefined ? {} : { changes: args.changes }),
+    sender: { login: 'dennis' },
+    repository: REPOSITORY,
+  }
+}
+
+describe('GithubPrDiscussionDeliveryService edited comments', () => {
+  useTestDatabase()
+
+  beforeEach(async () => {
+    await prepareDelivery()
+    await seedSubscription({ userId: 'usr-a', prNumber: 42 })
+  })
+
+  it('records an edited issue_comment with edited, commentId, excerpt and the comment author', async () => {
+    const { discussion } = discussionWith()
+
+    await discussion.handleIssueComment(
+      issueComment({
+        action: 'edited',
+        body: 'a\nready',
+        changes: { body: { from: 'a\nbuilding' } },
+      }),
+    )
+
+    expect(await prEventRows()).toHaveLength(1)
+    expect((await prEventRows())[0]).toMatchObject({
+      kind: 'comment',
+      payload: {
+        url: 'https://github.com/compai/app/pull/42#issuecomment-901',
+        authorLogin: 'vercel[bot]',
+        body: 'ready',
+        commentId: '901',
+        edited: true,
+      },
+    })
+  })
+
+  it('falls back to the sender when an edited comment has no user', async () => {
+    const { discussion } = discussionWith()
+
+    await discussion.handleIssueComment(
+      issueComment({
+        action: 'edited',
+        body: 'b',
+        changes: { body: { from: 'a' } },
+        user: null,
+      }),
+    )
+
+    expect((await prEventRows())[0]).toMatchObject({ payload: { authorLogin: 'dennis' } })
+  })
+
+  it('ignores an edit that did not change the body', async () => {
+    const { discussion } = discussionWith()
+
+    await discussion.handleIssueComment(issueComment({ action: 'edited', body: 'x', changes: {} }))
+    await discussion.handleIssueComment(issueComment({ action: 'edited', body: 'x' }))
+
+    expect(await prEventRows()).toHaveLength(0)
+  })
+
+  it('records an edited review comment with the head sha', async () => {
+    const { discussion } = discussionWith()
+
+    await discussion.handleReviewComment({
+      action: 'edited',
+      pull_request: PULL_REQUEST_PAYLOAD.pull_request,
+      comment: {
+        id: 77,
+        body: 'nit: rename\nand move',
+        html_url: 'https://github.com/compai/app/pull/42#discussion_r77',
+        user: { login: 'reviewer' },
+      },
+      changes: { body: { from: 'nit: rename' } },
+      sender: { login: 'dennis' },
+      repository: REPOSITORY,
+    })
+
+    expect((await prEventRows())[0]).toMatchObject({
+      kind: 'review-comment',
+      payload: {
+        authorLogin: 'reviewer',
+        body: 'and move',
+        commentId: '77',
+        edited: true,
+        headSha: 'abc123',
+      },
+    })
+  })
+
+  it('edits never wake a sandbox, created comments do', async () => {
+    const { discussion, wakes } = discussionWith()
+
+    await discussion.handleIssueComment(
+      issueComment({
+        action: 'edited',
+        body: 'b',
+        changes: { body: { from: 'a' } },
+      }),
+    )
+    expect(wakes).toHaveLength(0)
+
+    await discussion.handleIssueComment(issueComment({ action: 'created', body: 'hi' }))
+    expect(wakes).toHaveLength(1)
+  })
+
+  it('a created comment carries its commentId and the sender as author', async () => {
+    const { discussion } = discussionWith()
+
+    await discussion.handleIssueComment(issueComment({ action: 'created', body: 'hi' }))
+
+    const payload = (await prEventRows())[0]?.payload as Record<string, unknown>
+    expect(payload).toMatchObject({ commentId: '901', authorLogin: 'dennis' })
+    expect(payload.edited).toBeUndefined()
+  })
+})
+
+describe('GithubPrDiscussionDeliveryService review comment location', () => {
+  useTestDatabase()
+
+  beforeEach(async () => {
+    await prepareDelivery()
+    await seedSubscription({ userId: 'usr-a', prNumber: 42 })
+  })
+
+  const reviewComment = (over: Record<string, unknown>) => ({
+    action: 'created',
+    pull_request: PULL_REQUEST_PAYLOAD.pull_request,
+    comment: {
+      id: 77,
+      body: 'rename this',
+      html_url: 'https://github.com/compai/app/pull/42#discussion_r77',
+      user: { login: 'reviewer' },
+      ...over,
+    },
+    sender: { login: 'reviewer' },
+    repository: REPOSITORY,
+  })
+
+  it('records the file, lines, side, hunk tail and parent comment', async () => {
+    const { discussion } = discussionWith()
+    const hunk = Array.from({ length: 20 }, (_, index) => `+line ${index + 1}`).join('\n')
+
+    await discussion.handleReviewComment(
+      reviewComment({
+        path: 'src/foo.ts',
+        line: 12,
+        start_line: 10,
+        side: 'RIGHT',
+        diff_hunk: hunk,
+        in_reply_to_id: 55,
+      }),
+    )
+
+    expect((await prEventRows())[0]).toMatchObject({
+      kind: 'review-comment',
+      payload: {
+        path: 'src/foo.ts',
+        line: 12,
+        startLine: 10,
+        side: 'RIGHT',
+        diffHunk: Array.from({ length: 12 }, (_, index) => `+line ${index + 9}`).join('\n'),
+        inReplyTo: '55',
+        commentId: '77',
+        headSha: 'abc123',
+      },
+    })
+  })
+
+  it('falls back to original_line for an outdated comment and omits null fields', async () => {
+    const { discussion } = discussionWith()
+
+    await discussion.handleReviewComment(
+      reviewComment({
+        path: 'src/foo.ts',
+        line: null,
+        original_line: 7,
+        start_line: null,
+        side: null,
+        diff_hunk: null,
+        in_reply_to_id: null,
+      }),
+    )
+
+    const payload = (await prEventRows())[0]?.payload as Record<string, unknown>
+    expect(payload).toMatchObject({ path: 'src/foo.ts', line: 7 })
+    for (const key of ['startLine', 'side', 'diffHunk', 'inReplyTo']) {
+      expect(key in payload).toBe(false)
+    }
+  })
+
+  it('clips a long hunk to 1500 characters', async () => {
+    const { discussion } = discussionWith()
+
+    await discussion.handleReviewComment(
+      reviewComment({ path: 'a.ts', line: 1, diff_hunk: `+${'y'.repeat(4000)}` }),
+    )
+
+    const payload = (await prEventRows())[0]?.payload as { diffHunk: string }
+    expect(payload.diffHunk).toHaveLength(1500)
+  })
+
+  it('an edited review comment keeps its location', async () => {
+    const { discussion } = discussionWith()
+
+    await discussion.handleReviewComment({
+      ...reviewComment({ path: 'src/foo.ts', line: 12, body: 'a\nb' }),
+      action: 'edited',
+      changes: { body: { from: 'a' } },
+    })
+
+    expect((await prEventRows())[0]).toMatchObject({
+      payload: { edited: true, path: 'src/foo.ts', line: 12 },
+    })
+  })
+})

@@ -1,13 +1,14 @@
-import { BadGatewayException, NotFoundException, ServiceUnavailableException } from '@nestjs/common'
+import { EGithubHttpStatus } from '@dltech/atlas-github'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it } from 'bun:test'
 import { connectionRows, ensureUsers } from '../../../../test/github-seed'
 import { EnvService } from '../../../_core/config/env/env.service'
+import { GithubConfig } from '@dltech/atlas-github'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import type { FetchFn, GithubHttpRequest, GithubHttpResponse } from './github-device-client'
-import { GithubDeviceClient } from './github-device-client'
-import { GithubService } from './github.service'
-import { EGithubPollStatus } from './github.types'
+import type { FetchFn, GithubHttpRequest, GithubHttpResponse } from '@dltech/atlas-github'
+import { GithubDeviceClient } from '@dltech/atlas-github'
+import { GithubService } from '@dltech/atlas-github'
+import { EGithubPollStatus } from '@dltech/atlas-github'
 
 const HEX_KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
 
@@ -42,7 +43,7 @@ describe('GithubService', () => {
     }
     service = new GithubService(
       new SecretCipherService(new EnvService({ SECRETS_ENCRYPTION_KEY: HEX_KEY })),
-      new EnvService({ GITHUB_CLIENT_ID: CLIENT_ID }),
+      new GithubConfig({ clientId: CLIENT_ID }),
       new GithubDeviceClient({ fetchFn }),
     )
   })
@@ -79,18 +80,24 @@ describe('GithubService', () => {
     fetchImpl = async () =>
       jsonResponse({ error: 'unauthorized', error_description: 'bad client id' }, 401)
 
-    await expect(service.beginConnect()).rejects.toBeInstanceOf(BadGatewayException)
+    await expect(service.beginConnect()).rejects.toHaveProperty(
+      'status',
+      EGithubHttpStatus.BadGateway,
+    )
     await expect(service.beginConnect()).rejects.toThrow('bad client id')
   })
 
   it('begin answers 503 when github connect is not configured', async () => {
     service = new GithubService(
       new SecretCipherService(new EnvService({ SECRETS_ENCRYPTION_KEY: HEX_KEY })),
-      new EnvService({}),
+      new GithubConfig({}),
       new GithubDeviceClient({ fetchFn }),
     )
 
-    await expect(service.beginConnect()).rejects.toBeInstanceOf(ServiceUnavailableException)
+    await expect(service.beginConnect()).rejects.toHaveProperty(
+      'status',
+      EGithubHttpStatus.ServiceUnavailable,
+    )
     await expect(service.beginConnect()).rejects.toThrow('github connect is not configured')
   })
 
@@ -114,7 +121,7 @@ describe('GithubService', () => {
 
     await expect(
       service.pollConnect({ userId: USER_A, deviceCode: 'dc-1' }),
-    ).rejects.toBeInstanceOf(BadGatewayException)
+    ).rejects.toHaveProperty('status', EGithubHttpStatus.BadGateway)
   })
 
   it('poll verifies the granted token and stores it sealed', async () => {
@@ -178,7 +185,10 @@ describe('GithubService', () => {
     await service.pollConnect({ userId: USER_A, deviceCode: 'dc-1' })
 
     await expect(service.read({ userId: USER_B })).resolves.toEqual({ connected: false })
-    await expect(service.readToken({ userId: USER_B })).rejects.toBeInstanceOf(NotFoundException)
+    await expect(service.readToken({ userId: USER_B })).rejects.toHaveProperty(
+      'status',
+      EGithubHttpStatus.NotFound,
+    )
 
     const own = await service.read({ userId: USER_A })
     expect(own.connected).toBe(true)
@@ -186,7 +196,10 @@ describe('GithubService', () => {
   })
 
   it('readToken answers 404 when nothing is connected', async () => {
-    await expect(service.readToken({ userId: USER_A })).rejects.toBeInstanceOf(NotFoundException)
+    await expect(service.readToken({ userId: USER_A })).rejects.toHaveProperty(
+      'status',
+      EGithubHttpStatus.NotFound,
+    )
   })
 
   it('disconnect is idempotent', async () => {

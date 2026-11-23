@@ -10,7 +10,7 @@ import {
   trpcMutation,
   trpcQuery,
 } from '../session-trpc-test-app'
-import { GithubService } from '../github/github.service'
+import { GithubService } from '@dltech/atlas-github'
 import { ProjectsService } from '../projects/projects.service'
 import { appendStoredWithin } from '../../platform/sessions/append'
 import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'

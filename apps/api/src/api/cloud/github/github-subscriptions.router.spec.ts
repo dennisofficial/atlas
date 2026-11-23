@@ -11,7 +11,7 @@ import { SessionOrSandboxMiddleware } from '../../platform/sessions/session-or-s
 import { SandboxesService } from '../../platform/sandboxes/sandboxes.service'
 import { ETokenPrincipalKind } from '../../platform/sandboxes/token-principal'
 import { GithubSubscriptionsRouter } from './github-subscriptions.router'
-import { GithubSubscriptionsService } from './github-subscriptions.service'
+import { GithubSubscriptionsService } from '@dltech/atlas-github'
 
 const SANDBOX_TOKEN = 'sandbox-token'
 const POD_TOKEN = 'pod-token'

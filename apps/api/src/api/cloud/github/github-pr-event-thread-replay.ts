@@ -1,10 +1,10 @@
 import { db, type Row } from '@dltech/atlas-db'
-import { PARK_WAKE_WINDOW_MS } from './github-delivery-routing'
-import { wantsPrEvent } from './github-event-filter'
-import { eventDtoOf, REPLAY_LEASE_MS } from './github-pr-event-mailbox.service'
-import { claimDeliveries } from './github-pr-event-claim'
+import { PARK_WAKE_WINDOW_MS } from '@dltech/atlas-github'
+import { wantsPrEvent } from '@dltech/atlas-github'
+import { eventDtoOf, REPLAY_LEASE_MS } from '@dltech/atlas-github'
+import { claimDeliveries } from '@dltech/atlas-github'
 import { teammateThreadIds } from '../../platform/sessions/thread-subscriptions'
-import type { GithubPrEventDto } from './github-realtime.types'
+import type { GithubPrEventDto } from '@dltech/atlas-github'
 
 type ThreadReplay = { threadId: string; events: GithubPrEventDto[] }
 

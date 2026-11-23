@@ -1,7 +1,7 @@
 import { BadGatewayException } from '@nestjs/common'
-import { EGithubCallSource } from '../github/github-call-log'
-import type { FetchFn, GithubHttpRequest, GithubHttpResponse } from '../github/github-device-client'
-import { defaultGithubFetch } from '../github/github-device-client'
+import { EGithubCallSource } from '@dltech/atlas-github'
+import type { FetchFn, GithubHttpRequest, GithubHttpResponse } from '@dltech/atlas-github'
+import { defaultGithubFetch } from '@dltech/atlas-github'
 
 const API_BASE = 'https://api.github.com'
 const TIMEOUT_MS = 8_000

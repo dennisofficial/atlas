@@ -16,7 +16,7 @@ import {
   type SandboxWakeBoot,
   type WakeBootArgs,
 } from '../src/api/cloud/github/github-sandbox-wake.service'
-import { GithubPrFanoutService } from '../src/api/cloud/github/github-pr-fanout.service'
+import { GithubPrFanoutService } from '@dltech/atlas-github'
 import { DrainStateService } from '../src/api/platform/health/drain-state.service'
 import { inertSignals } from '../src/api/platform/sessions/thread-signals.fixture'
 import { seedCloudSandbox, seedSubscription as seedSubscriptionRow } from './github-seed'

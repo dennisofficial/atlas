@@ -10,7 +10,7 @@ import {
 } from '../../../../test/github-sandbox-wake-fixture'
 import { ensureUsers, seedSubscription } from '../../../../test/github-seed'
 import { DrainStateService } from '../../platform/health/drain-state.service'
-import { GithubPrFanoutService } from './github-pr-fanout.service'
+import { GithubPrFanoutService } from '@dltech/atlas-github'
 
 const LOCAL_THREAD = 'thr-local'
 

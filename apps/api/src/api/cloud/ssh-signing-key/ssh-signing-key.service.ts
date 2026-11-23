@@ -14,8 +14,8 @@ import {
 } from '@dltech/atlas-wire'
 import { db, violatedConstraint } from '@dltech/atlas-db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import { hasSigningScope } from '../github/github-scopes'
-import { GithubService } from '../github/github.service'
+import { hasSigningScope } from '@dltech/atlas-github'
+import { GithubService } from '@dltech/atlas-github'
 import { GithubSigningKeysClient, SigningScopeMissing } from './github-signing-keys.client'
 import { publicKeyLineOf } from './openssh-key'
 

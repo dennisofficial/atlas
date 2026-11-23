@@ -2,10 +2,10 @@ import type { INestApplication } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import { seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
-import { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import { GithubDeviceClient } from '../github/github-device-client'
-import { GithubService } from '../github/github.service'
+import { GithubConfig } from '@dltech/atlas-github'
+import { GithubDeviceClient } from '@dltech/atlas-github'
+import { GithubService } from '@dltech/atlas-github'
 import {
   buildSessionTrpcApp,
   dataOf,
@@ -59,7 +59,7 @@ describe('SshSigningKeyRouter', () => {
         {
           provide: GithubService,
           useFactory: (secrets: SecretCipherService) =>
-            new GithubService(secrets, new EnvService({}), new GithubDeviceClient({})),
+            new GithubService(secrets, new GithubConfig({}), new GithubDeviceClient({})),
           inject: [SecretCipherService],
         },
       ],

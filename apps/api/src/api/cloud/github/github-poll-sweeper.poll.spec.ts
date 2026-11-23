@@ -1,5 +1,5 @@
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import { EGithubCallSource } from './github-call-log'
+import { EGithubCallSource } from '@dltech/atlas-github'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test'
 import { prStateRows } from '../../../../test/github-seed'
 import { advanceTimersByTimeAsync } from '../../../../test/fake-timers'
@@ -10,7 +10,7 @@ import {
   seedSubscription,
   serviceWith,
 } from './github-poll-sweeper.fixture'
-import { GithubUserReadFailed } from './github-user-reads'
+import { GithubUserReadFailed } from '@dltech/atlas-github'
 
 describe('GithubPollSweeperService polling', () => {
   afterEach(() => {

@@ -9,14 +9,14 @@ import {
   GITHUB_WORKFLOW_RUN_PROVIDER_KIND,
   PULL_REQUEST_PROVIDER_KIND,
 } from '../../platform/sessions/thread-subscriptions'
-import { liveUntilOf, nextExpiry } from './github-delivery-routing'
+import { liveUntilOf, nextExpiry } from '@dltech/atlas-github'
 import {
   PULL_REQUEST_KIND,
   WORKFLOW_RUN_KIND,
   runBranchOf,
   workflowBranchOf,
-} from './github-run-selector'
-import { GithubSubscriptionsService } from './github-subscriptions.service'
+} from '@dltech/atlas-github'
+import { GithubSubscriptionsService } from '@dltech/atlas-github'
 import { threadActivityAt } from './github-thread-activity'
 
 type LinkTarget = {

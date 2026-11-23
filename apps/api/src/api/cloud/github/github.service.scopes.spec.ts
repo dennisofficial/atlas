@@ -2,11 +2,12 @@ import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it } from 'bun:test'
 import { connectionRows, ensureUsers, seedConnection } from '../../../../test/github-seed'
 import { EnvService } from '../../../_core/config/env/env.service'
+import { GithubConfig } from '@dltech/atlas-github'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import type { FetchFn, GithubHttpResponse } from './github-device-client'
-import { GithubDeviceClient } from './github-device-client'
-import { GithubService } from './github.service'
-import { EGithubPollStatus } from './github.types'
+import type { FetchFn, GithubHttpResponse } from '@dltech/atlas-github'
+import { GithubDeviceClient } from '@dltech/atlas-github'
+import { GithubService } from '@dltech/atlas-github'
+import { EGithubPollStatus } from '@dltech/atlas-github'
 
 const HEX_KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
 
@@ -39,7 +40,7 @@ describe('GithubService scopes', () => {
     }
     service = new GithubService(
       new SecretCipherService(new EnvService({ SECRETS_ENCRYPTION_KEY: HEX_KEY })),
-      new EnvService({ GITHUB_CLIENT_ID: 'gh-client-id' }),
+      new GithubConfig({ clientId: 'gh-client-id' }),
       new GithubDeviceClient({ fetchFn }),
     )
   })
