@@ -6,7 +6,7 @@ Gives a thread its sub-agents and its git worktrees. The main thread starts a su
 
 - The three crew tools: `agent_spawn`, `agent_stop` and `agent_list`.
 - The three worktree tools: `enter_worktree`, `exit_worktree` and `worktree_list`.
-- The four built-in agent types `general-purpose`, `explore`, `builder` and `reviewer`, each with its prompt contract.
+- The five built-in agent types `general-purpose`, `explore`, `researcher`, `builder` and `reviewer`, each with its prompt contract.
 - The agent types that a repository defines in `.agents/agents/*.md`. Each file needs a `description` and a prompt body.
 - The `crew` view: one row for each sub-agent of the session.
 - The `worktree-entered` and `worktree-exited` event drafts that the worktree tools make.
