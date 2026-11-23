@@ -2,6 +2,10 @@ import { describe, expect, it } from 'bun:test'
 
 import {
   chainEvents,
+  EResumePoint,
+  ETurnCause,
+  ETurnEndedBy,
+  ETurnOutcome,
   toCallId,
   toRunId,
   toThreadId,
@@ -324,5 +328,69 @@ describe('sessionTranscriptOf', () => {
       subject: 'posthog',
       url: 'https://provider.test/authorize?client_id=c',
     })
+  })
+})
+
+describe('a stopped turn in the transcript', () => {
+  const stoppedRun = (): V2Body[] => [
+    { type: 'user-said', text: 'go' },
+    { type: 'turn-started', turnId: 'turn-1', cause: ETurnCause.Input },
+    {
+      type: 'assistant-said',
+      parts: [{ type: 'text', text: 'It was the' }],
+      interrupted: true,
+      stopped: true,
+    },
+    {
+      type: 'turn-ended',
+      turnId: 'turn-1',
+      outcome: ETurnOutcome.Stopped,
+      by: ETurnEndedBy.Operator,
+    },
+  ]
+
+  it('carries the resume point on the cut reply', () => {
+    const items = sessionTranscriptOf(snapshotOf({ events: mint(stoppedRun()) })).items
+    const reply = items.find((item) => item.kind === ETranscriptKind.Agent)
+
+    expect(reply?.kind === ETranscriptKind.Agent && reply.stopped).toBe(true)
+    expect(reply?.kind === ETranscriptKind.Agent ? reply.resume : null).toEqual({
+      kind: EResumePoint.Clean,
+      discard: { fromSeq: 3, throughSeq: 3 },
+    })
+  })
+
+  it('carries no resume point once the operator sends a message after the stop', () => {
+    const items = sessionTranscriptOf(
+      snapshotOf({ events: mint([...stoppedRun(), { type: 'user-said', text: 'carry on' }]) }),
+    ).items
+    const reply = items.find((item) => item.kind === ETranscriptKind.Agent)
+
+    expect(reply?.kind === ETranscriptKind.Agent ? reply.resume : null).toEqual({
+      kind: EResumePoint.NotResumable,
+      because: 'A message follows the stop; the turn continues from it.',
+    })
+  })
+
+  it('carries no resume point on a turn that finished', () => {
+    const items = sessionTranscriptOf(
+      snapshotOf({
+        events: mint([
+          { type: 'user-said', text: 'go' },
+          { type: 'turn-started', turnId: 'turn-1', cause: ETurnCause.Input },
+          { type: 'assistant-said', parts: [{ type: 'text', text: 'Done.' }] },
+          {
+            type: 'turn-ended',
+            turnId: 'turn-1',
+            outcome: ETurnOutcome.Completed,
+            by: ETurnEndedBy.Agent,
+          },
+        ]),
+      }),
+    ).items
+
+    expect(items.some((item) => item.kind === ETranscriptKind.Agent && item.resume != null)).toBe(
+      false,
+    )
   })
 })

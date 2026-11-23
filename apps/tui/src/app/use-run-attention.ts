@@ -1,6 +1,7 @@
-import type { Event } from '@dltech/atlas-core'
-import { ERunRemedy } from '@dltech/atlas-core'
+import type { Event, V2Event } from '@dltech/atlas-core'
+import { ERunRemedy, resumableOf, resumePointOf } from '@dltech/atlas-core'
 import {
+  INTERRUPTED_TITLE,
   runAttentionOf,
   type InFlightStep,
   type RunAttention,
@@ -38,34 +39,54 @@ export const modelWithAttentionFailure = (args: {
 const messageOf = (failure: unknown): string =>
   failure instanceof Error ? failure.message : String(failure)
 
+const resumeAttention = (): RunAttention => ({
+  failure: null,
+  message: INTERRUPTED_TITLE,
+  failureSeq: null,
+  runId: null,
+  remedies: [{ remedy: ERunRemedy.Resume, enabled: true }],
+  dismissible: false,
+  busyReason: null,
+})
+
 export function useRunAttention(args: {
   api: SessionApi
   sessionId: string
   events: readonly Event[]
+  rawEvents: readonly V2Event[]
   live: readonly InFlightStep[]
   working: boolean
   connected: boolean
   onProblem: (reason: string) => void
 }): RunAttentionControl {
-  const { api, sessionId, events, live, working, connected } = args
+  const { api, sessionId, events, rawEvents, live, working, connected } = args
   const problem = useRef(args.onProblem)
   problem.current = args.onProblem
 
-  const attention = useMemo(
-    () =>
-      runAttentionOf({
-        events,
-        live,
-        working,
-        turnInFlight: working,
-        channelReady: connected,
-        settling: false,
-      }),
-    [connected, events, live, working],
-  )
+  const resumable = useMemo(() => resumableOf(resumePointOf({ events: rawEvents })), [rawEvents])
+
+  const attention = useMemo(() => {
+    const found = runAttentionOf({
+      events,
+      live,
+      working,
+      turnInFlight: working,
+      channelReady: connected,
+      settling: false,
+    })
+    if (found !== null) return found
+    if (!resumable || working || !connected) return null
+    return resumeAttention()
+  }, [connected, events, live, working, resumable])
 
   const rerun = useCallback(() => {
     void api.retry({ sessionId }).catch((failure: unknown) => {
+      problem.current(messageOf(failure))
+    })
+  }, [api, sessionId])
+
+  const resume = useCallback(() => {
+    void api.runCommand({ sessionId, name: 'resume', args: {} }).catch((failure: unknown) => {
       problem.current(messageOf(failure))
     })
   }, [api, sessionId])
@@ -76,7 +97,7 @@ export function useRunAttention(args: {
   return {
     attention,
     handleRetry: enabled(ERunRemedy.Retry) ? rerun : null,
-    handleResume: enabled(ERunRemedy.Resume) ? rerun : null,
+    handleResume: resumable && enabled(ERunRemedy.Resume) ? resume : null,
     handleDismiss: null,
   }
 }

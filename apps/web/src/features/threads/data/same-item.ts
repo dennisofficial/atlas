@@ -1,4 +1,15 @@
+import { EResumePoint, type ResumePoint } from '@dltech/atlas-core'
+
 import { ETranscriptKind, type ToolCallItem, type TranscriptItem } from './transcript-items'
+
+const resumeKeyOf = (resume: ResumePoint | null | undefined): string => {
+  if (resume === null || resume === undefined) return ''
+  if (resume.kind === EResumePoint.Clean) {
+    return `clean:${resume.discard?.fromSeq ?? ''}:${resume.discard?.throughSeq ?? ''}`
+  }
+  if (resume.kind === EResumePoint.ToolInterrupted) return `tool:${resume.callIds.join(',')}`
+  return `not:${resume.because}`
+}
 
 const isSameCall = (previous: ToolCallItem, next: ToolCallItem): boolean =>
   previous.id === next.id &&
@@ -75,9 +86,11 @@ export function isSameItem(args: { previous: TranscriptItem; next: TranscriptIte
     )
   if (previous.kind === ETranscriptKind.Thought && next.kind === ETranscriptKind.Thought) {
     if (previous.heldOpen !== next.heldOpen || previous.stopped !== next.stopped) return false
+    if (resumeKeyOf(previous.resume) !== resumeKeyOf(next.resume)) return false
   }
   if (previous.kind === ETranscriptKind.Agent && next.kind === ETranscriptKind.Agent) {
     if (previous.fast !== next.fast || previous.stopped !== next.stopped) return false
+    if (resumeKeyOf(previous.resume) !== resumeKeyOf(next.resume)) return false
   }
   return previous.streaming === next.streaming
 }

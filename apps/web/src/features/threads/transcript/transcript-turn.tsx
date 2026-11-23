@@ -36,7 +36,7 @@ import { TranscriptRequest } from './transcript-request'
 import { TranscriptSignIn } from './transcript-sign-in'
 import { TranscriptMarkdown } from './transcript-markdown'
 import { ToolRow } from './transcript-tool-row'
-import { StoppedLine, workStopped } from './stopped-line'
+import { StoppedLine, workResume, workStopped, type TranscriptResume } from './stopped-line'
 
 export type TranscriptRewind = {
   points: ReadonlySet<string>
@@ -47,6 +47,7 @@ export type { TranscriptSummarise }
 
 export type TranscriptActions = {
   rewind: TranscriptRewind | null
+  resume: TranscriptResume | null
   summarise: TranscriptSummarise | null
   openChanges: ((path: string) => void) | null
   openAgent: ((id: string) => void) | null
@@ -126,6 +127,7 @@ function AgentTurnView({
           now={now}
           onOpenChanges={actions.openChanges}
           repairDiagram={actions.repairDiagram}
+          resume={actions.resume}
         />
       ))}
       {turn.spawns.length === 0 ? null : (
@@ -147,6 +149,7 @@ function AgentTurnView({
           now={now}
           onOpenChanges={actions.openChanges}
           repairDiagram={actions.repairDiagram}
+          resume={actions.resume}
         />
       )}
     </div>
@@ -158,11 +161,13 @@ function SegmentView({
   now,
   onOpenChanges,
   repairDiagram,
+  resume,
 }: {
   segment: Segment
   now: number
   onOpenChanges: ((path: string) => void) | null
   repairDiagram: RepairDiagramAction | null
+  resume: TranscriptResume | null
 }) {
   const messageId = segment.kind === ESegmentKind.Message ? eventIdOf(segment.item.id) : null
   const messageText = segment.kind === ESegmentKind.Message ? segment.item.text : ''
@@ -200,7 +205,9 @@ function SegmentView({
             {item.text}
           </TranscriptMarkdown>
         </AgentMessage>
-        {item.stopped === true ? <StoppedLine /> : null}
+        {item.stopped === true ? (
+          <StoppedLine resume={item.resume ?? null} action={resume} />
+        ) : null}
       </>
     )
   }
@@ -228,7 +235,9 @@ function SegmentView({
           <WorkItem key={item.id} item={item} onOpenChanges={onOpenChanges} />
         ))}
       </WorkSummary>
-      {workStopped(segment.items) ? <StoppedLine /> : null}
+      {workStopped(segment.items) ? (
+        <StoppedLine resume={workResume(segment.items)} action={resume} />
+      ) : null}
     </>
   )
 }

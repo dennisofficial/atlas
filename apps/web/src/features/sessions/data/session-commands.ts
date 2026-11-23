@@ -4,6 +4,32 @@ import {
   ESurface,
   type CommandEntry,
 } from '@dltech/atlas-commands'
+import type {
+  SessionCommandInput,
+  SessionCommandOutput,
+  SessionCommandRow,
+} from '@dltech/atlas-protocol'
+
+export const RESUME_COMMAND = 'resume'
+
+export type ResumeApi = {
+  command(input: SessionCommandInput): Promise<SessionCommandOutput>
+}
+
+export const requestResume = async (args: {
+  api: ResumeApi
+  sessionId: string
+  agentId?: string | undefined
+}): Promise<void> => {
+  await args.api.command({
+    sessionId: args.sessionId,
+    name: RESUME_COMMAND,
+    args: args.agentId === undefined ? {} : { agentId: args.agentId },
+  })
+}
+
+export const resumePendingOf = (rows: readonly SessionCommandRow[] | undefined): boolean =>
+  rows?.some((row) => row.name === RESUME_COMMAND) === true
 
 export const composerEntriesOf = (args: {
   commands: readonly CommandEntry[]

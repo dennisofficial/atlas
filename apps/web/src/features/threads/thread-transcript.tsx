@@ -34,8 +34,9 @@ import {
   type TranscriptRewind,
   type TranscriptSummarise,
 } from './transcript/transcript-turn'
+import type { TranscriptResume } from './transcript/stopped-line'
 
-export type { TranscriptRewind, TranscriptSummarise }
+export type { TranscriptResume, TranscriptRewind, TranscriptSummarise }
 
 const BOOT_TICK_MS = 100
 
@@ -92,6 +93,7 @@ export function ThreadTranscript({
   onRetryBoot,
   rewind,
   summarise,
+  resume,
   repairDiagram: repairDiagramProp,
   boot: sessionBoot,
   queued,
@@ -110,6 +112,7 @@ export function ThreadTranscript({
   onRetryBoot: () => void
   rewind: TranscriptRewind | null
   summarise: TranscriptSummarise | null
+  resume?: TranscriptResume | null
   repairDiagram?: RepairDiagramAction | null
   onOpenPodSize?: (() => void) | undefined
   boot?: BootView | null
@@ -134,12 +137,13 @@ export function ThreadTranscript({
     () => ({
       rewind,
       summarise,
+      resume: resume ?? null,
       openChanges,
       openAgent,
       openPodSize: onOpenPodSize ?? null,
       repairDiagram,
     }),
-    [rewind, summarise, openChanges, openAgent, onOpenPodSize, repairDiagram],
+    [rewind, summarise, resume, openChanges, openAgent, onOpenPodSize, repairDiagram],
   )
   const bootAfter = (index: number): ReactNode[] =>
     boot
