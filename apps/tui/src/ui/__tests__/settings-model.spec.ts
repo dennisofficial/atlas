@@ -73,9 +73,10 @@ describe('settingsModel', () => {
       ['Notifications', 1],
       ['Development', 1],
       ['Web', 2],
+      ['Images', 1],
       ['Execution', 4],
     ])
-    expect(general?.rows).toHaveLength(29)
+    expect(general?.rows).toHaveLength(30)
   })
 
   it('leaves the cloud page to the definitions the harness adds', () => {
@@ -197,7 +198,7 @@ describe('moving around the page', () => {
     const top = openSettings()
 
     expect(moveRow({ state: top, model, delta: -1 })).toEqual({ pageIndex: 0, rowIndex: 0 })
-    expect(moveRow({ state: top, model, delta: 99 })).toEqual({ pageIndex: 0, rowIndex: 28 })
+    expect(moveRow({ state: top, model, delta: 99 })).toEqual({ pageIndex: 0, rowIndex: 29 })
   })
 
   it('wraps around the tab strip and lands on its first row', () => {
