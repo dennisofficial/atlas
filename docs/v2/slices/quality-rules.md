@@ -3,7 +3,7 @@
 > **Approved by Dennis 2026-11-23.** Unawaited promises are out of scope, with no linter rule
 > either. A rule that passes the §5.3 ship bar ships on by default.
 
-Status: **approved**, 2026-11-23. Owner: the quality plugin (`plugins/quality`, after the plugin move
+Status: **approved**, 2026-11-23; rule v2 and holdout results in §4 and §5.5. Owner: the quality plugin (`plugins/quality`, after the plugin move
 lands). Anchors read at `729f35521`. Builds on `jev-quality.md` (the review) and `classifier.md`
 (the port).
 
@@ -89,9 +89,12 @@ Each policy copies the single-responsibility design
 
 ### 4.1 Shared mechanics
 
-- **Subjects.** The same as single responsibility (`single-responsibility.ts:94-126`): the
-  outermost changed class, else a changed named top-level function. All three policies select the
-  same scopes, so they share one request (`review-scopes.ts:177-197`).
+- **Subjects.** The outermost changed class or named function: a scope that has a reviewable class
+  or function ancestor is not a subject (open/closed needs this to see a chain in a parent).
+- **Requests.** Single responsibility keeps its own request. The new rules share a second request
+  for the scopes they select. Request units already run in parallel
+  (`packages/quality/src/scope-review.ts:182`), so latency does not grow. In one shared request
+  with all three, single responsibility lost 3 of 34 resolves (§5.5).
 - **Gate.** `selectScopes` drops a scope whose diff has no line that the rule's gate matches. The
   gate reads both `+` and `-` lines, so an edit that removes a swallow or a chain can still resolve
   a finding. A gated-out scope costs nothing.
@@ -99,12 +102,13 @@ Each policy copies the single-responsibility design
   (choice over `scope.evidence` ids, `none` and `uncertain`) only when the scope has evidence (a
   class). Instructions use the same state, untrusted-text and scoping guides as single
   responsibility.
-- **Transitions.** The same as `single-responsibility.ts:287-356`. Introduce: concern ≥ T and an
-  introduced or worsened impact ≥ T. Track debt: concern ≥ T otherwise. Resolve: concern ≤ 0.2 and
-  a confident resolved, improved or unchanged impact. A contradiction is inconclusive. A focus
-  candidate ≥ 0.8 becomes the evidence id.
-- **Threshold.** T = 0.8 for both rules at first, the same as single responsibility. §5.3 says when
-  T moves to 0.7.
+- **Transitions.** The same as `single-responsibility.ts:287-356`, with two thresholds. Introduce:
+  concern ≥ T_c and an introduced or worsened impact ≥ T_i. Track debt: concern ≥ T_c otherwise.
+  Resolve: concern ≤ 0.2 and a resolved, improved or unchanged impact ≥ 0.8. A contradiction is
+  inconclusive. A focus candidate ≥ 0.8 becomes the evidence id.
+- **Thresholds.** Jev is sure of the concern and unsure of the impact on both rules, so the two
+  are separate. Picked on development data and frozen before any holdout: silent failure
+  T_c 0.8 and T_i 0.4, open/closed T_c 0.9 and T_i 0.5 (§5.5).
 
 ### 4.2 Silent failure (`silent-failure`, setting `quality.policies.silentFailure`)
 
@@ -119,12 +123,16 @@ Each policy copies the single-responsibility design
   handle. An expected absence by contract (`tryParse`, `findX`, a narrow catch of one expected
   error). Best-effort side work (close a handle, delete a temporary file, write a cache, emit
   telemetry). A top-level boundary that reports the error and turns it into a visible outcome. Test
-  code. Unawaited promises (out of scope, §9).
+  code. Unawaited promises, including a `.catch` attached to one (out of scope, §9).
+- **Test paths.** `selectScopes` never selects a file under `__tests__/` or named `*.spec.*` or
+  `*.test.*`. Jev ignored the test-code exception at 0.84–0.98 (holdout v1).
 - **Gate.** A diff line contains `catch`, `.then(`, `finally`, `??`, `||`, `allSettled`,
   `return null|undefined|[]|{}|false`, `ok:`, `.ok`, `error` or `err`.
 - **Impact.** Introduced: the edit added a hidden failure that BEFORE did not have (a new scope:
   the new code hides one). Worsened: BEFORE hid a failure and the edit hides another or widens it.
-  The other values as single responsibility.
+  The other values as single responsibility. Adding a log, count or report to a failure that was
+  silent before is improved: no new nudge. If the scope still logs and continues, the concern stays,
+  so the finding stays tracked debt and does not resolve.
 - **Nudge.** `"Silent failure" suggests that <kind> <name> may hide a failure from its caller
   (concern NN%).` + the definition + `Consider handling, returning or rethrowing that failure. If the
   failure is truly expected or harmless, leaving it unchanged is fine.`
@@ -144,8 +152,10 @@ Each policy copies the single-responsibility design
   unrelated conditions (guards, validation, ranges, flags). A closed set that will not grow (days,
   HTTP status classes). The edit adds a handler, table entry or registry entry. Fewer than 3
   branches.
-- **Gate.** `before` is not null (an extension, not a creation), and a diff line matches
-  `^\s*case\b`, `\belse\s+if\s*\(`, `\b(instanceof|typeof)\b` or `\.(kind|type|tag|name)\s*===`.
+- **Gate.** The file existed before the write (the module scope's `before` is not null), so a chain
+  in a new function of an existing file counts as an extension. A diff line matches `^\s*case\b`,
+  `\belse\s+if\s*\(`, `\b(instanceof|typeof)\b`, a `kind`, `type` or `tag` comparison with `===`,
+  or a ternary on one of them.
 - **Impact.** Introduced: the edit created a chain that new variants must edit, or grew a 2-branch
   conditional to 3. Worsened: the edit added a branch to a chain that already had 3 or more.
   Resolved: the edit replaced the chain with handlers or a table.
@@ -227,6 +237,45 @@ manifest (`code-quality/<policyId>`), renames the expected schema to a policy-ne
 `QualityExpected`, and adds `evals/datasets/code-quality/{silent-failure,open-closed}/`. The rubric
 for each rule is a section in `evals/code-quality/AGENTS.md`. This lands on top of the evals move
 into the plugin, not before it.
+
+### 5.5 Holdout results (2026-11-23, `gateway/typesafe-ai/jev`, 3 trials, majority vote)
+
+Data: `docs/v2/research/quality-rules-holdout/` (v1) and `docs/v2/research/quality-rules-holdout-v2/`
+(rule v2 tuning and holdout v2).
+
+**Holdout v1, rule v1, T = 0.8.** 81 accepted cases per rule, real and synthetic. Both rules failed.
+
+| Rule           | TP  | FP  | FN  | TN  | Precision | Recall | Real-code TP / positives |
+| -------------- | --- | --- | --- | --- | --------- | ------ | ------------------------ |
+| silent failure | 8   | 2   | 18  | 53  | 0.80      | 0.31   | 2 / 9                    |
+| open/closed    | 20  | 1   | 11  | 49  | 0.95      | 0.65   | 0 / 7                    |
+
+The silent-failure false positives were both test helpers. Open/closed missed real dispatch that
+sat in a parent scope, in a new function of an existing file, or in a ternary. Holdout v1 then
+became development data for rule v2 (§4).
+
+**Rule v2 on development data** (121 cases per rule): no false positive anywhere on the grid
+T_c ∈ {0.8, 0.85, 0.9} × T_i ∈ {0.4 … 0.8}. Picks: silent failure 0.8 / 0.4 (precision 1.00,
+lower bound 0.86, recall 0.58), open/closed 0.9 / 0.5 (1.00, 0.91, 0.82).
+
+**Holdout v2, rule v2, frozen thresholds, real code only, from repositories and commits not used
+before.**
+
+| Rule           | Drafted | Accepted | Positives | TP  | FP  | FN  | TN  | Precision | Lower bound | Recall |
+| -------------- | ------- | -------- | --------- | --- | --- | --- | --- | --------- | ----------- | ------ |
+| silent failure | 50      | 27       | 8         | 6   | 0   | 2   | 19  | 1.00      | 0.61        | 0.75   |
+| open/closed    | 45      | 32       | 1         | 1   | 0   | 0   | 31  | 1.00      | 0.21        | 1.00   |
+- **No false nudge on real code** for either rule.
+- **Too few real positives to prove the bar.** Silent failure needs about 22 TP with 0 FP. A third
+  real-code round is running. For open/closed, inline variant behaviour in a growing chain is about
+  1% of real edits that match its gate. Real TypeScript dispatches through registries, tables,
+  grammars and handler methods, which are exceptions. Whether open/closed ships or is dropped waits
+  on Dennis.
+- **Label agreement on real code** was 71–72%. Most disagreements were drafts that called a
+  documented fallback a swallowed failure, or an edit that only moved a chain an extension.
+- **Size bound.** About 5% of selected real scopes go over 48 KB and are skipped, as today.
+- **Single responsibility.** In one shared request with both rules, its field answers were the
+  same, but 3 of 34 resolves were lost. It keeps its own request (§4.1).
 
 ---
 
