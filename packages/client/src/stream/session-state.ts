@@ -7,6 +7,7 @@ type Status = SessionSnapshot['status']
 
 const WORKING: ReadonlySet<ESessionStatus> = new Set([
   ESessionStatus.Preparing,
+  ESessionStatus.Queued,
   ESessionStatus.Thinking,
   ESessionStatus.RunningTool,
   ESessionStatus.WaitingToRetry,

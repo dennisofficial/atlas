@@ -31,7 +31,7 @@ a thread's event log.
 | `@dltech/atlas-control`          | `ControlPlane`, the store port, the refusal kinds and the routine service. |
 | `@dltech/atlas-control/postgres` | The Postgres store and the session write and view helpers.                 |
 | `@dltech/atlas-control/testing`  | `InMemoryControlStore`, the conformance suites and a fake change store.    |
-| `@dltech/atlas-control/s3`       | `S3ChangeContentStore` and `changesSettingsOf(env)`, framework-free.       |
+| `@dltech/atlas-control/s3`       | The S3 change and context content stores, and the settings of each.        |
 
 ## Capabilities
 
@@ -42,8 +42,7 @@ a thread's event log.
 - `archiveSpawned({ fromSessionId, sessionId })`: archive a settled session the caller spawned and
   record `session-archived` in its inbox. Returns a `SpawnedArchive`.
 - `listSessions`, `listSessionDigests`, `countSessionBuckets`, `readSession`, `sessionsOf`,
-  `readSessionBusy`. A digest listing can keep only archived sessions, takes a title or
-  first-message search, and a creation-time keyset cursor.
+  `readSessionBusy`. A digest listing can filter on archived, a title search and a keyset cursor.
 - `spawnPeer`, `messagePeer`, `reportToSpawner`, `podPeersPlaced`.
 - `setSandboxInstanceId`, `setSandboxStatus`, `recordPodDesired`, `recordPodApplied`,
   `recordPodDisk`, `recordPodFailed`, `recordPodWaiting`. `cancelPodWait` reverts a resize that
@@ -75,19 +74,20 @@ a thread's event log.
 
 ### Post, subscribe and open a terminal
 
-- `post`, `withdraw`, `readInbox`, `readInboxEntry`; `INBOX_KIND_WITHDRAW`,
-  `withdrawPayloadOf`.
+- `post`, `withdraw`, `readInbox`, `readInboxEntry`; `INBOX_KIND_WITHDRAW`, `withdrawPayloadOf`.
 - `subscribe`, `unsubscribe`, `endSubscriptions`, `listSubscriptions`.
 - `listTerminals`, `readTerminal`, `createTerminal`, `renameTerminal`, `markTerminalOpen`,
   `endTerminal`, `endTerminals`, `deleteTerminal`.
 
-### Track the worktree changes
+### Track the worktree changes and the context mirror
 
 - `upsertChanges`, `readChanges`, `readChangeFile`, `changesUpdatedAt`, `changeBlobsPresent`,
   `changeBlobsUnreferenced`, `deleteChangeBlobs`.
-- `changeHashOf(content)`, `changeBlobKey(hash)`, `ChangeContentStore`.
-- `runChangesGc({ store, content, graceMs? })`: removes the change blobs that no row uses.
+- `changeHashOf(content)`, `changeBlobKey(hash)`, `ChangeContentStore`, `ContextContentStore`.
+- `runChangesGc` and `runContextFilesGc({ store, content, graceMs? })`: remove blobs no row uses.
   `CHANGES_GC_GRACE_MS` and `CHANGES_GC_ROW_LIMIT` set the default.
+- Context mirror: `upsertContextFiles`, `removeContextFiles`, `listContextFiles`, `contextFileOf`,
+  `contextDigestsReferenced`, `publishContextFile`, `removeContextBytesIfUnreferenced` (locked).
 
 ### Record a sandbox run
 
@@ -108,9 +108,9 @@ a thread's event log.
 - `PostgresControlStore`, `controlTxOf(tx)`: the Postgres adapter, and its transaction wrapper.
 - `InMemoryControlStore`: the in-memory adapter for a spec.
 - `describeControlPlaneConformance(params)`, `describeControlPlaneSessions`,
-  `describeControlPlaneClaims`, `describeControlPlanePeers`, `describeControlPlaneSessionBuckets`:
-  the shared spec suites.
-- `FakeChangeContentStore`: a change content store that keeps the blobs in memory.
+  `describeControlPlaneClaims`, `describeControlPlanePeers`, `describeControlPlaneSessionBuckets`,
+  `describeControlPlaneContextFiles`.
+- `FakeChangeContentStore`, `FakeContextContentStore`: the change and context stores, in memory.
 
 ## Usage
 

@@ -1,5 +1,5 @@
 import { Global, Module, type Provider } from '@nestjs/common'
-import { ChangeContentStore, type ControlPlane } from '@dltech/atlas-control'
+import { ChangeContentStore, ContextContentStore, type ControlPlane } from '@dltech/atlas-control'
 import type {
   HostBus,
   HostPresence,
@@ -29,8 +29,13 @@ import type { GithubTokenReader } from '../tokens/github-token-reader'
 import type { ModelTokenService } from '../tokens/model-token-service'
 import type { SigningKeyReader } from '../tokens/signing-key-reader'
 import { UnavailableChangeContentStore } from '../../_lib/changes/change-content.provider'
+import {
+  contextContentStoreProvider,
+  UnavailableContextContentStore,
+} from '../../_lib/changes/context-content.provider'
 import { JobsProjectDispatcher } from '../../_core/ports/job-dispatcher'
 import { ControlModule } from './control.module'
+import { contextDirOf } from '../runtime/session-paths'
 import { HostWatchService } from './host-watch-service'
 import type { MediaSignerSource } from './media-signer-source'
 import { RuntimeModule } from './runtime.module'
@@ -77,6 +82,7 @@ const holderProvider: Provider = {
     presence: HostPresence,
     control: PodControlClient,
     content: ChangeContentStore,
+    context: ContextContentStore,
     log: LogPort,
     watch: HostWatchService,
     macLink: MacLink,
@@ -107,6 +113,9 @@ const holderProvider: Provider = {
       onHostIdChanged: () => watch.recompute(),
       ...(media.signer === undefined ? {} : { media: media.signer }),
       ...(content instanceof UnavailableChangeContentStore ? {} : { changes: { content } }),
+      ...(context instanceof UnavailableContextContentStore
+        ? {}
+        : { contextMirror: { content: context, contextDir: contextDirOf } }),
     }),
   inject: [
     AGENT_HOST_ENV,
@@ -121,6 +130,7 @@ const holderProvider: Provider = {
     PRESENCE,
     POD_CONTROL,
     ChangeContentStore,
+    ContextContentStore,
     LOG,
     HOST_WATCH,
     MAC_LINK,
@@ -167,7 +177,16 @@ const podMetricsRelayProvider: Provider = {
     podMetricsBusProvider,
     podMetricsRelayProvider,
     terminalDemandProvider,
+    contextContentStoreProvider,
   ],
-  exports: [HOST_WATCH, HOLDER, POD_OPS, POD_METRICS_BUS, POD_METRICS_RELAY, TERMINAL_DEMAND],
+  exports: [
+    HOST_WATCH,
+    HOLDER,
+    POD_OPS,
+    POD_METRICS_BUS,
+    POD_METRICS_RELAY,
+    TERMINAL_DEMAND,
+    ContextContentStore,
+  ],
 })
 export class HolderModule {}

@@ -2,6 +2,7 @@ import type { InboxEntry, Lease } from '@dltech/atlas-core'
 
 import { subscriptionSubjectKey } from '../../port'
 import type { ChangeBlobState } from './memory-changes'
+import type { ContextFileRow } from '../../context-files'
 import type {
   BlobRow,
   WorktreeChangesWrite,
@@ -46,6 +47,7 @@ export type State = {
   blobs: Map<string, BlobRow>
   blobRefs: Set<string>
   changeBlobs: Map<string, ChangeBlobState>
+  contextFiles: Map<string, ContextFileRow>
   worktreeChanges: Map<string, WorktreeChangesWrite>
   notifications: string[]
   views: Map<string, SessionViewRow>
@@ -79,6 +81,7 @@ export const emptyState = (): State => ({
   blobs: new Map(),
   blobRefs: new Set(),
   changeBlobs: new Map(),
+  contextFiles: new Map(),
   worktreeChanges: new Map(),
   notifications: [],
   views: new Map(),
@@ -102,6 +105,7 @@ export const cloneState = (state: State): State => ({
   blobs: new Map([...state.blobs].map(([key, value]) => [key, { ...value }])),
   blobRefs: new Set(state.blobRefs),
   changeBlobs: new Map([...state.changeBlobs].map(([key, value]) => [key, { ...value }])),
+  contextFiles: new Map([...state.contextFiles].map(([key, value]) => [key, { ...value }])),
   worktreeChanges: new Map(
     [...state.worktreeChanges].map(([key, value]) => [
       key,

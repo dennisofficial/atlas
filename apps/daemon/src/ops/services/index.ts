@@ -11,6 +11,7 @@ import { type DaemonGroupFactory, type GroupContext, defineOp } from '@dltech/at
 import type { DaemonOpsDeps } from '../deps'
 import { readLog } from './log-file'
 import { waitForHealth, waitForPort } from './port-probe'
+import { reapService } from './reap'
 import { type EndedService, type RunningService, isRunning, spawnService } from './records'
 
 const READY_TIMEOUT_DEFAULT_MS = 60_000
@@ -150,12 +151,20 @@ export const servicesGroup =
 
     const list = (): ServiceInfo[] => [...records.values()].map((record) => ({ ...record.info }))
 
+    const ownedByLiveRecord = (pid: number): boolean =>
+      [...records.values()].some((record) => isRunning(record) && record.info.pid === pid)
+
+    const reap = async (args: { pid: number; command: string }) => ({
+      outcome: await reapService({ ...args, owned: ownedByLiveRecord(args.pid) }),
+    })
+
     return {
       name: 'services',
       ops: [
         defineOp({ op: 'services.start', run: ({ op }) => start(op) }),
         defineOp({ op: 'services.stop', run: ({ op }) => stop(op.serviceId) }),
         defineOp({ op: 'services.list', run: () => Promise.resolve(list()) }),
+        defineOp({ op: 'services.reap', run: ({ op }) => reap(op) }),
         defineOp({
           op: 'services.log',
           run: ({ op }) => {

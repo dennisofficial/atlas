@@ -1,6 +1,6 @@
 import type { CommandRegistry } from '@dltech/atlas-commands'
 import type { IdPort } from '@dltech/atlas-core'
-import type { ChangeContentStore, ControlPlane } from '@dltech/atlas-control'
+import type { ChangeContentStore, ContextContentStore, ControlPlane } from '@dltech/atlas-control'
 import type { LogPort } from '@dltech/atlas-observability'
 import type { PodMcpControl } from '@dltech/atlas-plugin-sdk'
 
@@ -32,6 +32,9 @@ export type HeldSessionDeps = {
   mcp?: ((sessionId: string) => PodMcpControl) | undefined
   operator?: { sessionDir: string; openValue: (sealed: string) => string } | undefined
   changes?: { content: ChangeContentStore } | undefined
+  contextMirror?:
+    | { content: ContextContentStore; contextDir: (sessionId: string) => string }
+    | undefined
   notify?: NotifyDispatch | undefined
   parkArchived?: ParkArchivedPod | undefined
   turnEnded?: TurnEndedHook | undefined

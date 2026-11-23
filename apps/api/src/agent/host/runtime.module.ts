@@ -2,10 +2,16 @@ import { hostname } from 'node:os'
 
 import { Module, type Provider } from '@nestjs/common'
 import { ChangeContentStore, ControlPlane } from '@dltech/atlas-control'
+import { livePodSessionsIn, podSessionIdOfThreadIn } from '@dltech/atlas-control/postgres'
 import type { Db } from '@dltech/atlas-db'
 import type { HostPresence, PodControlClient } from '@dltech/atlas-host'
 import type { LogPort } from '@dltech/atlas-observability'
-import { CloudflareTunnelClient, PreviewTunnels } from '@dltech/atlas-previews'
+import {
+  CloudflareTunnelClient,
+  PreviewReconciler,
+  PreviewTunnels,
+  type PreviewReconcileDeps,
+} from '@dltech/atlas-previews'
 
 import { changeContentStoreProvider } from '../../_lib/changes/change-content.provider'
 import type { ConfigSource } from '../config/agent-host-config'
@@ -35,6 +41,7 @@ import {
   MODEL_TOKENS,
   POD_CONTROL,
   PREVIEWS,
+  PREVIEW_RECONCILER,
   PRESENCE,
   SANDBOX,
   SIGNING_KEYS,
@@ -47,19 +54,41 @@ const sandboxProvider: Provider = {
   inject: [AGENT_HOST_ENV, DB],
 }
 
+const cloudflareOf = (env: AgentHostEnv): CloudflareTunnelClient =>
+  new CloudflareTunnelClient({
+    apiToken: env.cloudflare.apiToken,
+    accountId: env.cloudflare.accountId,
+    zoneId: env.cloudflare.zoneId,
+  })
+
+const livePeersOf =
+  (db: Db) =>
+  (podSessionId: string): Promise<number> =>
+    db.transaction((tx) => livePodSessionsIn({ tx, podSessionId }))
+
+const previewDepsOf = (args: {
+  env: AgentHostEnv
+  db: Db
+  cipher: SecretCipher
+}): PreviewReconcileDeps => ({
+  db: args.db,
+  cipher: args.cipher,
+  domain: args.env.previewDomain,
+  cloudflare: cloudflareOf(args.env),
+  livePeersOf: livePeersOf(args.db),
+})
+
 const previewsProvider: Provider = {
   provide: PREVIEWS,
   useFactory: (env: AgentHostEnv, db: Db, cipher: SecretCipher): PreviewTunnels =>
-    new PreviewTunnels({
-      db,
-      cipher,
-      domain: env.previewDomain,
-      cloudflare: new CloudflareTunnelClient({
-        apiToken: env.cloudflare.apiToken,
-        accountId: env.cloudflare.accountId,
-        zoneId: env.cloudflare.zoneId,
-      }),
-    }),
+    new PreviewTunnels({ ...previewDepsOf({ env, db, cipher }) }),
+  inject: [AGENT_HOST_ENV, DB, CIPHER],
+}
+
+const previewReconcilerProvider: Provider = {
+  provide: PREVIEW_RECONCILER,
+  useFactory: (env: AgentHostEnv, db: Db, cipher: SecretCipher): PreviewReconciler =>
+    new PreviewReconciler(previewDepsOf({ env, db, cipher })),
   inject: [AGENT_HOST_ENV, DB, CIPHER],
 }
 
@@ -70,8 +99,17 @@ const podControlProvider: Provider = {
     previews: PreviewTunnels,
     cipher: SecretCipher,
     plane: ControlPlane,
-  ): PodControlClient => localPodControlOf({ db, previews, cipher, plane }),
-  inject: [DB, PREVIEWS, CIPHER, CONTROL_PLANE],
+    reconciler: PreviewReconciler,
+  ): PodControlClient =>
+    localPodControlOf({
+      db,
+      previews,
+      cipher,
+      plane,
+      reconciler,
+      podOf: ({ threadId }) => db.transaction((tx) => podSessionIdOfThreadIn({ tx, threadId })),
+    }),
+  inject: [DB, PREVIEWS, CIPHER, CONTROL_PLANE, PREVIEW_RECONCILER],
 }
 
 const configProvider: Provider = {
@@ -128,6 +166,7 @@ const presenceProvider: Provider = {
 export const runtimeProviders: readonly Provider[] = [
   sandboxProvider,
   previewsProvider,
+  previewReconcilerProvider,
   podControlProvider,
   configProvider,
   githubTokensProvider,

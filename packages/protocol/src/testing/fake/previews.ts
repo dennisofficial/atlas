@@ -1,35 +1,12 @@
 import { defineOp, type DaemonGroupFactory } from '../../engine'
-import type { PreviewInfo } from '../../ops'
+import type { PreviewTunnelStatus } from '../../ops'
 
-export const fakePreviewsGroup = (): DaemonGroupFactory => () => {
-  const previews = new Map<number, number>()
-  let nextPid = 5000
+const UP: PreviewTunnelStatus = { state: 'up', pid: 5000, restarts: 0, tail: '' }
 
-  return {
-    name: 'previews',
-    ops: [
-      defineOp({
-        op: 'previews.expose',
-        run: ({ op }) => {
-          nextPid += 1
-          previews.set(op.port, nextPid)
-          return Promise.resolve<PreviewInfo>({ port: op.port, pid: nextPid })
-        },
-      }),
-      defineOp({
-        op: 'previews.stop',
-        run: ({ op }) => Promise.resolve({ stopped: previews.delete(op.port) }),
-      }),
-      defineOp({
-        op: 'previews.list',
-        run: () =>
-          Promise.resolve(
-            [...previews].map(([port, pid]) => ({ port, pid }) satisfies PreviewInfo),
-          ),
-      }),
-    ],
-    stop: async () => {
-      previews.clear()
-    },
-  }
-}
+export const fakePreviewsGroup = (): DaemonGroupFactory => () => ({
+  name: 'previews',
+  ops: [
+    defineOp({ op: 'previews.ensure', run: () => Promise.resolve<PreviewTunnelStatus>(UP) }),
+    defineOp({ op: 'previews.status', run: () => Promise.resolve<PreviewTunnelStatus>(UP) }),
+  ],
+})

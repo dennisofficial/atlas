@@ -163,6 +163,8 @@ export type PodSlash = {
   load(input: { name: string; argumentText: string }): Promise<SlashLoadResult>
 }
 
+export type DaemonReady = { bootId: string; restart: boolean }
+
 export type PodSlot = {
   childDeny?: readonly string[] | undefined
   tools?(ctx: PluginPodContext): readonly ToolDefinition[]
@@ -172,6 +174,7 @@ export type PodSlot = {
   resources?: readonly PodResource<unknown>[] | undefined
   slash?: ((ctx: PluginPodContext) => PodSlash) | undefined
   onDaemonEvent?(frame: DaemonEventFrame): void
+  onDaemonReady?(args: { ctx: PluginPodContext; hello: DaemonReady }): void
 }
 
 export type ControlHook = AppendHook

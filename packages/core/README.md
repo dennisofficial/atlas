@@ -122,7 +122,7 @@ assembly, settings, ports, and the record folds. It imports `zod` and nothing el
 - `contextFilePathOf({directory, relativePath})`: resolve a name under the context folder, or the reason to refuse it: absolute, `.`, `..`, an empty segment, or more than 200 characters.
 - `spawnFilesRefusalOf(files)`: the reason a payload is unusable, or `null`. Text only: a NUL byte is refused.
 - `SPAWN_FILES_MAX_COUNT` (32), `SPAWN_FILE_MAX_BYTES` (256 KB), `SPAWN_FILES_MAX_BYTES` (1 MB), `ATLAS_CONTEXT_DIR_ENV`: the limits and the folder variable.
-- `attachedFilesLineOf(files)`, `spawnBriefOf({brief, files})`: the line that names the attached paths.
+- `attachedFilesLineOf(files)`, `spawnBriefOf({brief, files})`: the line that names the attached paths. `contextFileKindOf({path, head})`, `contextMimeOf(path)`, `EContextFileKind`, `CONTEXT_MIRROR_MAX_BYTES`: whether a mirrored context file is text, an image or bytes, its media type, and the size past which it is not mirrored, name a mirrored context file.
 
 ## Usage
 

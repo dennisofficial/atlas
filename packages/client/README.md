@@ -10,7 +10,7 @@ The headless client library that web, the TUI and the mobile app share.
 - The pod channel: the delta channel over a websocket, its frame codecs and its request timeouts.
 - The transcript model: the rows of a turn, the tool runs and the thinking folds.
 - The crew readout and the sidebar partition: sub-agent state, background work, teammate nesting.
-- The session rewind, the composer image upload, the message input and the Atlas Cloud device login.
+- The session rewind, the composer image upload and draft, the message input and the device login.
 - The chat step types for the AI SDK.
 
 ## Does not own
@@ -21,20 +21,20 @@ The headless client library that web, the TUI and the mobile app share.
 
 ## Entry points
 
-| Import                                          | Use it for                                                                        |
-| ----------------------------------------------- | --------------------------------------------------------------------------------- |
-| `@dltech/atlas-client/stream`                   | The stream connection, the session follower, the log, the window and the overlay. |
-| `@dltech/atlas-client/channel`                  | The pod delta channel, the frame codecs and the tool requests.                    |
-| `@dltech/atlas-client/chat`                     | The chat transport, the step chunks and the step messages.                        |
-| `@dltech/atlas-client/crew`                     | The crew readout, the sub-agent state and the background work.                    |
-| `@dltech/atlas-client/session`                  | The session create input, the rewind, the image upload and the message input.     |
-| `@dltech/atlas-client/account`                  | The Atlas Cloud device-code login.                                                |
-| `@dltech/atlas-client/transcript`               | The transcript rows, the tool runs and the turn rows.                             |
-| `@dltech/atlas-client/stream-fixture`           | A fake scheduler and transport, and the event factories, for a spec.              |
-| `@dltech/atlas-client/channel-fixture`          | A fake channel socket and a channel harness, for a spec.                          |
-| `@dltech/atlas-client/transcript-fixture`       | The event drafts and the step signals of a transcript, for a spec.                |
-| `@dltech/atlas-client/transcript-tool-fixture`  | The tool call and result drafts, for a spec.                                      |
-| `@dltech/atlas-client/transcript-tools-fixture` | A sample tool call and shell call, for a spec or a prototype.                     |
+| Import                                          | Use it for                                                                                    |
+| ----------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `@dltech/atlas-client/stream`                   | The stream connection, the session follower, the log, the window and the overlay.             |
+| `@dltech/atlas-client/channel`                  | The pod delta channel, the frame codecs and the tool requests.                                |
+| `@dltech/atlas-client/chat`                     | The chat transport, the step chunks and the step messages.                                    |
+| `@dltech/atlas-client/crew`                     | The crew readout, the sub-agent state and the background work.                                |
+| `@dltech/atlas-client/session`                  | The session create input, the rewind, the image upload, the message input and the draft sync. |
+| `@dltech/atlas-client/account`                  | The Atlas Cloud device-code login.                                                            |
+| `@dltech/atlas-client/transcript`               | The transcript rows, the tool runs and the turn rows.                                         |
+| `@dltech/atlas-client/stream-fixture`           | A fake scheduler and transport, and the event factories, for a spec.                          |
+| `@dltech/atlas-client/channel-fixture`          | A fake channel socket and a channel harness, for a spec.                                      |
+| `@dltech/atlas-client/transcript-fixture`       | The event drafts and the step signals of a transcript, for a spec.                            |
+| `@dltech/atlas-client/transcript-tool-fixture`  | The tool call and result drafts, for a spec.                                                  |
+| `@dltech/atlas-client/transcript-tools-fixture` | A sample tool call and shell call, for a spec or a prototype.                                 |
 
 ## Capabilities
 
@@ -111,7 +111,7 @@ The headless client library that web, the TUI and the mobile app share.
   supported type and the presign-put-confirm sequence; `messageInputOf(args)` and `postInputOf(args)`
   make the draft and the post input. `MediaUploadApi`, `PutImage`, `UploadHandle`: the ports.
 - `sessionCreateInputOf(args)`, `initialProjectIdOf(args)`: a new session's create input and project.
-- `composerSendStateOf(args)`, `contextPercentOf(args)`: send or stop, and context use.
+- `composerSendStateOf`, `contextPercentOf`, `createDraftSync(args)`: send, context, draft write.
 - `queuedMessagesOf`, `queuedNoticesOf`, `stagedQueuedMessagesOf`, `optimisticPlacementOf(args)`: the queued rows.
 
 ### Sign in to Atlas Cloud

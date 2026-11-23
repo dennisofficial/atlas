@@ -13,7 +13,7 @@ import { recordServiceFrame } from './frames'
 import type { ServicePodState } from './state'
 import { hasEnded, outcomeOf, startedOf } from './status'
 
-const recordQuietEnding = async (args: {
+export const recordQuietEnding = async (args: {
   ctx: PluginPodContext
   state: ServicePodState
   service: ServiceLifecycle

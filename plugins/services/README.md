@@ -9,7 +9,9 @@ its roster and its preview URLs.
 - The `service` tool, with the actions `start`, `stop`, `restart` and `list`.
 - The declared services file `.atlas/services.yaml`: its names, its hashes and its start order.
 - The `service-ready` plugin event and the `services` view.
-- The public URL of a service port, through the control plane and the `previews.expose` call.
+- The public URL of a service port: the control plane mints the hostname and the token, and the pod
+  ensures its one tunnel runs (`previews.ensure`).
+- The resume of declared services after the daemon restarts the pod.
 - The `services.lifecycle` prompt fragment, which also tells the agent to start a long-running
   process by its declared name, to add a declaration when the project has none, and never to hold a
   server alive from bash.
@@ -17,16 +19,17 @@ its roster and its preview URLs.
 ## Does not own
 
 - A monitor that exits on its own. That is a background shell (`@dltech/atlas-plugin-shells`).
-- The tunnel. The control plane exposes the port, and the pod starts `cloudflared`.
+- The tunnel. The daemon supervises one `cloudflared` per pod from boot; a publish only ensures it
+  runs. A service stopping never stops the tunnel.
 
 ## Entry points
 
-| Import                                  | Use it for                                                                            |
-| --------------------------------------- | ------------------------------------------------------------------------------------- |
-| `@dltech/atlas-plugin-services/core`    | `servicesCoreSlots`, the declaration parser, the `services` view and `service-ready`. |
-| `@dltech/atlas-plugin-services/pod`     | `servicesPod`: the tool, the daemon hook, the reconcile and the prompt fragment.      |
-| `@dltech/atlas-plugin-services/control` | `servicesControl`, an empty control slot.                                             |
-| `@dltech/atlas-plugin-services/client`  | `servicesClient`, `servicesOfView` and `previewsOfView`.                              |
+| Import                                  | Use it for                                                                                   |
+| --------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `@dltech/atlas-plugin-services/core`    | `servicesCoreSlots`, the declaration parser, the `services` view and `service-ready`.        |
+| `@dltech/atlas-plugin-services/pod`     | `servicesPod`: the tool, the daemon hook, the reconcile, the resume and the prompt fragment. |
+| `@dltech/atlas-plugin-services/control` | `servicesControl`, an empty control slot.                                                    |
+| `@dltech/atlas-plugin-services/client`  | `servicesClient`, `servicesOfView` and `previewsOfView`.                                     |
 
 ## Capabilities
 
@@ -88,6 +91,11 @@ definePlugin({
 - `${services.<name>.url|port|publicUrl}` in `env` resolves against the services of the same checkout, and starts them first.
 - `stop`, `restart` and the stale mark of a `name` act on the service of the current checkout. A list row names the worktree branch.
 - `start` takes a `name` or a `command`, never both.
+- When the daemon restarts, or a host reattaches after one, each declared service that was running
+  is stopped in the sandbox, ended in the transcript with cause `SandboxStopped` and started again in
+  declaration order, on the same port and behind the same URL. A pid the record cannot prove was
+  that service, or a port another process now holds, falls back to a fresh port. An ad-hoc `command`
+  service stays ended: its env and its setup exist only in the call that started it.
 - `restart` takes a `serviceId` or a `name`, exactly one.
 - Import the pod tier in a pod only. It spawns processes on the host of the session.
 

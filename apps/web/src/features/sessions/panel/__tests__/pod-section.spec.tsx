@@ -552,11 +552,16 @@ describe('podBusyOfView', () => {
     expect(podBusyOfView({ view: populatedPaneValue().view, status: undefined }).busy).toBe(true)
   })
 
-  it('counts a turn in flight and a running setup script', () => {
+  it('resizes under a thinking turn and holds for a tool call or a setup script', () => {
     expect(
-      podBusyOfView({ view: paneValueFixture().view, status: { state: ESessionStatus.Thinking } })
-        .running,
-    ).toEqual(['Agent turn'])
+      podBusyOfView({ view: paneValueFixture().view, status: { state: ESessionStatus.Thinking } }),
+    ).toEqual({ busy: false, running: [] })
+    expect(
+      podBusyOfView({
+        view: paneValueFixture().view,
+        status: { state: ESessionStatus.RunningTool },
+      }).running,
+    ).toEqual(['Tool call'])
     expect(
       podBusyOfView({ view: paneValueFixture().view, status: { state: ESessionStatus.Preparing } })
         .running,

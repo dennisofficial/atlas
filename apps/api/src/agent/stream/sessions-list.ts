@@ -86,17 +86,21 @@ export class SessionsListIndex {
     }
     const state = { dirty: false }
     this.inflight.set(sessionId, state)
-    let affected = [...this.subscriptions]
     try {
       do {
         state.dirty = false
         const owner = await this.ownerOf(sessionId)
         if (owner === undefined) return
-        affected = this.targetsOf(owner)
-        if (affected.length > 0) await this.recompute({ sessionId, owner, targets: affected })
+        const targets = this.targetsOf(owner)
+        if (targets.length > 0) await this.recompute({ sessionId, owner, targets })
       } while (state.dirty)
     } catch (error) {
-      this.fail({ error, targets: affected })
+      this.deps.log?.error({
+        source: 'stream',
+        data: { sessionId },
+        message: 'sessions refresh failed',
+        ...logFieldsOf({ error }),
+      })
     } finally {
       this.inflight.delete(sessionId)
     }

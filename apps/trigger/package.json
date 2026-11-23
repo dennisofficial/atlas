@@ -19,6 +19,7 @@
     "@dltech/atlas-media": "workspace:*",
     "@dltech/atlas-notifications": "workspace:*",
     "@dltech/atlas-pods": "workspace:*",
+    "@dltech/atlas-previews": "workspace:*",
     "@dltech/atlas-protocol": "workspace:*",
     "@dltech/atlas-schedule": "workspace:*",
     "@dltech/atlas-wire": "workspace:*",

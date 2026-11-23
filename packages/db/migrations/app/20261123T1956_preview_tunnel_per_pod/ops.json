@@ -1,0 +1,714 @@
+[
+  {
+    "id": "data.preview-reset.PreviewRoute",
+    "label": "Delete every PreviewRoute row",
+    "operationClass": "data",
+    "target": {
+      "id": "table.PreviewRoute",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "PreviewRoute"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "Delete every PreviewRoute row",
+        "sql": "DELETE FROM \"public\".\"PreviewRoute\""
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "data.preview-reset.PreviewTunnel",
+    "label": "Delete every PreviewTunnel row",
+    "operationClass": "data",
+    "target": {
+      "id": "table.PreviewTunnel",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "PreviewTunnel"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "Delete every PreviewTunnel row",
+        "sql": "DELETE FROM \"public\".\"PreviewTunnel\""
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "dropConstraint.PreviewTunnel.PreviewTunnel_threadId_key",
+    "label": "Drop constraint \"PreviewTunnel_threadId_key\" on \"PreviewTunnel\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "PreviewTunnel_threadId_key",
+        "table": "PreviewTunnel"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"PreviewTunnel_threadId_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "PreviewTunnel_threadId_key",
+          "public",
+          "\"public\".\"PreviewTunnel\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop constraint \"PreviewTunnel_threadId_key\"",
+        "sql": "ALTER TABLE \"public\".\"PreviewTunnel\" DROP CONSTRAINT \"PreviewTunnel_threadId_key\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"PreviewTunnel_threadId_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "PreviewTunnel_threadId_key",
+          "public",
+          "\"public\".\"PreviewTunnel\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropColumn.PreviewTunnel.threadId",
+    "label": "Drop column \"threadId\" from \"PreviewTunnel\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "threadId",
+        "table": "PreviewTunnel"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"threadId\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "PreviewTunnel",
+          "threadId"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop column \"threadId\"",
+        "sql": "ALTER TABLE \"public\".\"PreviewTunnel\" DROP COLUMN \"threadId\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"threadId\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "PreviewTunnel",
+          "threadId"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.PreviewTunnel.lastError",
+    "label": "Add column \"lastError\" to \"PreviewTunnel\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "lastError",
+        "table": "PreviewTunnel"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"lastError\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "PreviewTunnel",
+          "lastError"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"lastError\"",
+        "sql": "ALTER TABLE \"public\".\"PreviewTunnel\" ADD COLUMN \"lastError\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"lastError\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "PreviewTunnel",
+          "lastError"
+        ]
+      },
+      {
+        "description": "verify column \"lastError\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "PreviewTunnel",
+          "lastError",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.PreviewTunnel.state",
+    "label": "Add column \"state\" to \"PreviewTunnel\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "state",
+        "table": "PreviewTunnel"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"state\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "PreviewTunnel",
+          "state"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"state\"",
+        "sql": "ALTER TABLE \"public\".\"PreviewTunnel\" ADD COLUMN \"state\" text DEFAULT 'Pending' NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"state\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "PreviewTunnel",
+          "state"
+        ]
+      },
+      {
+        "description": "verify column \"state\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "PreviewTunnel",
+          "state",
+          "text"
+        ]
+      },
+      {
+        "description": "verify column \"state\" is NOT NULL",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "PreviewTunnel",
+          "state",
+          "NO"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.PreviewTunnel.syncedAt",
+    "label": "Add column \"syncedAt\" to \"PreviewTunnel\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "syncedAt",
+        "table": "PreviewTunnel"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"syncedAt\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "PreviewTunnel",
+          "syncedAt"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"syncedAt\"",
+        "sql": "ALTER TABLE \"public\".\"PreviewTunnel\" ADD COLUMN \"syncedAt\" timestamptz(3)"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"syncedAt\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "PreviewTunnel",
+          "syncedAt"
+        ]
+      },
+      {
+        "description": "verify column \"syncedAt\" has type \"timestamp(3) with time zone\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "PreviewTunnel",
+          "syncedAt",
+          "timestamp(3) with time zone"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "alterNullability.dropNotNull.PreviewRoute.dnsRecordId",
+    "label": "Drop NOT NULL on \"PreviewRoute\".\"dnsRecordId\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "dnsRecordId",
+        "table": "PreviewRoute"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"dnsRecordId\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "PreviewRoute",
+          "dnsRecordId"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop NOT NULL on \"dnsRecordId\"",
+        "sql": "ALTER TABLE \"public\".\"PreviewRoute\" ALTER COLUMN \"dnsRecordId\" DROP NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"dnsRecordId\" is nullable",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "PreviewRoute",
+          "dnsRecordId",
+          "YES"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "setDefault.PreviewTunnel.sealedTunnelToken",
+    "label": "Set default on \"PreviewTunnel\".\"sealedTunnelToken\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "sealedTunnelToken",
+        "table": "PreviewTunnel"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"sealedTunnelToken\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "PreviewTunnel",
+          "sealedTunnelToken"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "set default on \"sealedTunnelToken\"",
+        "sql": "ALTER TABLE \"public\".\"PreviewTunnel\" ALTER COLUMN \"sealedTunnelToken\" SET DEFAULT ''"
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "setDefault.PreviewTunnel.tunnelId",
+    "label": "Set default on \"PreviewTunnel\".\"tunnelId\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "tunnelId",
+        "table": "PreviewTunnel"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"tunnelId\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "PreviewTunnel",
+          "tunnelId"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "set default on \"tunnelId\"",
+        "sql": "ALTER TABLE \"public\".\"PreviewTunnel\" ALTER COLUMN \"tunnelId\" SET DEFAULT ''"
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "column.PreviewRoute.updatedAt",
+    "label": "Add column updatedAt to PreviewRoute",
+    "summary": "Adds column updatedAt to table PreviewRoute",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "PreviewRoute"
+      }
+    },
+    "operationClass": "additive",
+    "precheck": [
+      {
+        "description": "ensure column \"updatedAt\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "PreviewRoute",
+          "updatedAt"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"updatedAt\"",
+        "sql": "ALTER TABLE \"public\".\"PreviewRoute\" ADD COLUMN \"updatedAt\" timestamptz(3) DEFAULT ('epoch') NOT NULL"
+      },
+      {
+        "description": "drop temporary default from column \"updatedAt\"",
+        "sql": "ALTER TABLE \"public\".\"PreviewRoute\" ALTER COLUMN \"updatedAt\" DROP DEFAULT"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"updatedAt\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "PreviewRoute",
+          "updatedAt"
+        ]
+      },
+      {
+        "description": "verify column \"updatedAt\" is NOT NULL",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "PreviewRoute",
+          "updatedAt",
+          "NO"
+        ]
+      },
+      {
+        "description": "verify column \"updatedAt\" has no default after temporary default removal",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"column_default\" IS NOT NULL)) AS \"result\"",
+        "params": [
+          "public",
+          "PreviewRoute",
+          "updatedAt"
+        ]
+      },
+      {
+        "description": "verify column \"updatedAt\" has type \"timestamp(3) with time zone\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "PreviewRoute",
+          "updatedAt",
+          "timestamp(3) with time zone"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.PreviewTunnel.createdByThreadId",
+    "label": "Add column createdByThreadId to PreviewTunnel",
+    "summary": "Adds column createdByThreadId to table PreviewTunnel",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "PreviewTunnel"
+      }
+    },
+    "operationClass": "additive",
+    "precheck": [
+      {
+        "description": "ensure column \"createdByThreadId\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "PreviewTunnel",
+          "createdByThreadId"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"createdByThreadId\"",
+        "sql": "ALTER TABLE \"public\".\"PreviewTunnel\" ADD COLUMN \"createdByThreadId\" text DEFAULT ('') NOT NULL"
+      },
+      {
+        "description": "drop temporary default from column \"createdByThreadId\"",
+        "sql": "ALTER TABLE \"public\".\"PreviewTunnel\" ALTER COLUMN \"createdByThreadId\" DROP DEFAULT"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"createdByThreadId\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "PreviewTunnel",
+          "createdByThreadId"
+        ]
+      },
+      {
+        "description": "verify column \"createdByThreadId\" is NOT NULL",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "PreviewTunnel",
+          "createdByThreadId",
+          "NO"
+        ]
+      },
+      {
+        "description": "verify column \"createdByThreadId\" has no default after temporary default removal",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"column_default\" IS NOT NULL)) AS \"result\"",
+        "params": [
+          "public",
+          "PreviewTunnel",
+          "createdByThreadId"
+        ]
+      },
+      {
+        "description": "verify column \"createdByThreadId\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "PreviewTunnel",
+          "createdByThreadId",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.PreviewTunnel.podSessionId",
+    "label": "Add column podSessionId to PreviewTunnel",
+    "summary": "Adds column podSessionId to table PreviewTunnel",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "podSessionId",
+        "table": "PreviewTunnel"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"podSessionId\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "PreviewTunnel",
+          "podSessionId"
+        ]
+      },
+      {
+        "description": "ensure table \"PreviewTunnel\" is empty before adding NOT NULL column without default",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"public\".\"PreviewTunnel\" LIMIT 1) AS \"result\"",
+        "params": [],
+        "meta": {
+          "requiredColumn": {
+            "table": "PreviewTunnel",
+            "column": "podSessionId",
+            "reason": "newField"
+          }
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"podSessionId\"",
+        "sql": "ALTER TABLE \"public\".\"PreviewTunnel\" ADD COLUMN \"podSessionId\" text NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"podSessionId\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "PreviewTunnel",
+          "podSessionId"
+        ]
+      },
+      {
+        "description": "verify column \"podSessionId\" is NOT NULL",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "PreviewTunnel",
+          "podSessionId",
+          "NO"
+        ]
+      },
+      {
+        "description": "verify column \"podSessionId\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "PreviewTunnel",
+          "podSessionId",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.PreviewTunnel.PreviewTunnel_podSessionId_key",
+    "label": "Add unique constraint on \"PreviewTunnel\" (podSessionId)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "PreviewTunnel_podSessionId_key",
+        "table": "PreviewTunnel"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"PreviewTunnel_podSessionId_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "PreviewTunnel_podSessionId_key",
+          "public",
+          "\"public\".\"PreviewTunnel\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"PreviewTunnel_podSessionId_key\"",
+        "sql": "ALTER TABLE \"public\".\"PreviewTunnel\" ADD CONSTRAINT \"PreviewTunnel_podSessionId_key\" UNIQUE (\"podSessionId\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"PreviewTunnel_podSessionId_key\" exists on (podSessionId)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "PreviewTunnel_podSessionId_key",
+          "public",
+          "\"public\".\"PreviewTunnel\"",
+          "u",
+          "[\"podSessionId\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.PreviewTunnel.PreviewTunnel_state_idx",
+    "label": "Create index \"PreviewTunnel_state_idx\" on \"PreviewTunnel\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "PreviewTunnel_state_idx",
+        "table": "PreviewTunnel"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"PreviewTunnel_state_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"PreviewTunnel_state_idx\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"PreviewTunnel_state_idx\"",
+        "sql": "CREATE INDEX \"PreviewTunnel_state_idx\" ON \"public\".\"PreviewTunnel\" (\"state\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"PreviewTunnel_state_idx\" exists on \"PreviewTunnel\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"PreviewTunnel_state_idx\"",
+          "i",
+          "I",
+          "\"public\".\"PreviewTunnel\"",
+          "btree",
+          "[\"state\"]"
+        ]
+      }
+    ]
+  }
+]

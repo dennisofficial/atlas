@@ -4,9 +4,14 @@ import { triggerSdkFake } from './trigger-sdk.fake'
 mock.module('@trigger.dev/sdk', () => triggerSdkFake)
 
 const { ChangeContentStore, CHANGES_GC_GRACE_MS } = await import('@dltech/atlas-control')
-const { FakeChangeContentStore } = await import('@dltech/atlas-control/testing')
+const { FakeChangeContentStore, FakeContextContentStore } = await import(
+  '@dltech/atlas-control/testing'
+)
 const { changesGcDepsOf, CHANGES_GC_CRON, CHANGES_GC_TASK_ID, graceMsOf, runChangesGcTask } =
   await import('../trigger/changes/changes-gc')
+const { contextFilesGcDepsOf, runContextFilesGcTask } = await import(
+  '../trigger/changes/context-files-gc'
+)
 const { changesGcTask } = await import('../trigger/changes/changes-gc.task')
 
 const DAY_MS = 24 * 60 * 60 * 1_000
@@ -74,6 +79,44 @@ describe('changes gc task', () => {
     expect(() => graceMsOf({ CHANGES_GC_GRACE_MS: 'soon' })).toThrow(
       'CHANGES_GC_GRACE_MS must be a number, got soon',
     )
+  })
+
+  it('deletes context content that no index row references', async () => {
+    const hash = 'b'.repeat(64)
+    const content = new FakeContextContentStore({ clock: () => Date.now() - 8 * DAY_MS })
+    await content.put({ hash, bytes: new Uint8Array([2]) })
+    const asked: string[][] = []
+
+    const summary = await runContextFilesGcTask({
+      store: {
+        contextDigestsReferenced: async (params) => {
+          asked.push([...params.digests])
+          return new Set<string>()
+        },
+        removeContextBytesIfUnreferenced: async (params) => {
+          await params.content.removing([params.digest])
+          return true
+        },
+      },
+      content,
+    })
+
+    expect(summary).toEqual({ objectsDeleted: 1, failures: 0 })
+    expect(asked).toEqual([[hash]])
+    expect(await content.read({ hash })).toBeNull()
+  })
+
+  it('builds the context worker dependencies under the context prefix', () => {
+    const deps = contextFilesGcDepsOf(s3Env({ CHANGES_GC_GRACE_MS: '0' }))
+
+    expect(typeof deps.store.contextDigestsReferenced).toBe('function')
+    expect(typeof deps.content.list).toBe('function')
+    expect(deps.graceMs).toBe(0)
+  })
+
+  it('reports missing context storage when the tier has no bucket', async () => {
+    const deps = contextFilesGcDepsOf({})
+    await expect(deps.content.list()).rejects.toThrow('change storage is missing CHANGES_S3_BUCKET')
   })
 
   it('reports missing change storage when the tier has no bucket', async () => {

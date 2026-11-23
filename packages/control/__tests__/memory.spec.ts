@@ -4,6 +4,7 @@ import { InMemoryControlStore } from '../src/testing/memory'
 import {
   describeControlPlaneBlobs,
   describeControlPlaneChanges,
+  describeControlPlaneContextFiles,
   describeControlPlaneClaimCommands,
   describeControlPlaneClaimNext,
   describeControlPlaneClaims,
@@ -56,6 +57,7 @@ describeControlPlaneClaimCommands(conformanceParams)
 describeControlPlaneBlobs(conformanceParams)
 describeControlPlaneWakes(conformanceParams)
 describeControlPlaneChanges(conformanceParams)
+describeControlPlaneContextFiles(conformanceParams)
 describeControlPlaneViews(conformanceParams)
 describeControlPlaneWorktreeChanges(conformanceParams)
 

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
-import { toThreadId } from '@dltech/atlas-core'
+import type { Event, PendingInputsState, V2Event } from '@dltech/atlas-core'
+import { EMPTY_PENDING, toThreadId } from '@dltech/atlas-core'
+import type { SessionStatusOutput } from '@dltech/atlas-protocol'
 import {
   ESessionConnection,
   isSessionWorking,
@@ -20,6 +22,8 @@ import type { SessionClient } from './session-client'
 
 const NOT_CONNECTED = ESessionConnection.Reconnecting
 
+const NO_EVENTS: readonly Event[] = Object.freeze([])
+
 export type SessionTranscript = {
   model: TranscriptModel
   turn: TurnClock
@@ -28,6 +32,11 @@ export type SessionTranscript = {
   name: string | null
   sessionId: string
   loadOlder: () => Promise<number>
+  events: readonly Event[]
+  rawEvents: readonly V2Event[]
+  status: SessionStatusOutput | undefined
+  pending: PendingInputsState
+  working: boolean
 }
 
 export function useSessionTranscript(args: {
@@ -55,6 +64,12 @@ export function useSessionTranscript(args: {
 
   const followed = useRef<FollowedSession | undefined>(undefined)
   const [connection, setConnection] = useState<ESessionConnection>(NOT_CONNECTED)
+  const [rawEvents, setRawEvents] = useState<readonly V2Event[]>([])
+  const [status, setStatus] = useState<SessionStatusOutput | undefined>(undefined)
+  const [pending, setPending] = useState<PendingInputsState>(EMPTY_PENDING)
+  const [working, setWorking] = useState(false)
+
+  const mapped = useRef<{ source: readonly V2Event[]; events: Event[] } | null>(null)
 
   useEffect(() => {
     const handle = client.connection.follow({ sessionId, log: memorySessionLog() })
@@ -70,8 +85,18 @@ export function useSessionTranscript(args: {
       if (overlayRewrote({ previous: previous.current, next })) store.resetSteps()
       previous.current = next
       feed.publish(next)
-      store.setEvents({ events: transcriptEventsOf(snapshot.events, v2EventTypes) })
+      if (mapped.current?.source !== snapshot.events) {
+        mapped.current = {
+          source: snapshot.events,
+          events: transcriptEventsOf(snapshot.events, v2EventTypes),
+        }
+      }
+      store.setEvents({ events: mapped.current.events })
       setConnection(snapshot.connection)
+      setRawEvents(snapshot.events)
+      setStatus(snapshot.status)
+      setPending(snapshot.pending)
+      setWorking(isSessionWorking(snapshot.status))
     }
 
     const unsubscribe = handle.subscribe(push)
@@ -88,6 +113,8 @@ export function useSessionTranscript(args: {
   const turn = useSyncExternalStore(store.subscribe, store.getTurn)
   const loadOlder = useCallback(() => followed.current?.loadOlder() ?? Promise.resolve(0), [])
 
+  const events = mapped.current?.events ?? NO_EVENTS
+
   return {
     model,
     turn,
@@ -96,5 +123,10 @@ export function useSessionTranscript(args: {
     name: title,
     sessionId,
     loadOlder,
+    events,
+    rawEvents,
+    status,
+    pending,
+    working,
   }
 }

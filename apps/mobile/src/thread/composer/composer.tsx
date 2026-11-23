@@ -25,6 +25,7 @@ import { hasFailed, isUploading, readyAttachments, REMOVE_FAILED_FILES } from '.
 import { SlashMenu } from './slash-menu'
 import { completedDraftOf, menuCandidatesOf, menuQueryOf, pickActionOf } from './slash-menu-model'
 import type { ComposerAttachments } from './use-attachments'
+import { useComposerDraft } from './use-composer-draft'
 
 const PLACEHOLDER = 'Ask the agent to change your code...'
 
@@ -37,6 +38,7 @@ export const Composer = ({
   placeholder = PLACEHOLDER,
   autoFocus = false,
   restored,
+  draftSessionId,
   refusal,
   entries = [],
   clientActions,
@@ -50,6 +52,7 @@ export const Composer = ({
   placeholder?: string
   autoFocus?: boolean
   restored?: { token: number; text: string } | undefined
+  draftSessionId?: string | null | undefined
   refusal?: string | undefined
   entries?: readonly CommandEntry[]
   clientActions?: Record<EClientAction, () => void> | undefined
@@ -61,6 +64,13 @@ export const Composer = ({
   const [sending, setSending] = useState(false)
   const [failed, setFailed] = useState(false)
   const [choosing, setChoosing] = useState(false)
+  const { handleSent } = useComposerDraft({
+    sessionId: draftSessionId,
+    text: draft,
+    attachments: attachments?.attachments ?? [],
+    onRestore: (restoredDraft) =>
+      setDraft((current) => mergeIntoDraft({ withdrawn: restoredDraft.text, draft: current })),
+  })
 
   const held = attachments?.held ?? []
   const sendState = composerSendStateOf({
@@ -85,18 +95,21 @@ export const Composer = ({
       if (action !== null) {
         clientActions[action]()
         setDraft('')
+        handleSent(draft)
         return
       }
     }
     setSending(true)
     setFailed(false)
-    const sent = await onSend({ text: draft.trim(), attachments: attachments?.attachments ?? [] })
+    const text = draft.trim()
+    const sent = await onSend({ text, attachments: attachments?.attachments ?? [] })
     setSending(false)
     if (!sent) {
       setFailed(true)
       return
     }
     setDraft('')
+    handleSent(text)
     attachments?.clear()
   }
 
@@ -113,6 +126,7 @@ export const Composer = ({
     if (action !== null && clientActions !== undefined) {
       clientActions[action]()
       setDraft('')
+      handleSent(draft)
       return
     }
     setDraft(completedDraftOf(entry.name))

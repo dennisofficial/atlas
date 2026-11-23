@@ -70,6 +70,7 @@ import {
   sandboxLiveCpuMs,
   type PodOps,
 } from '../../../agent'
+import { PreviewTeardownService } from '../sandboxes/preview-teardown.service'
 import { PodPowerService, type PodPower } from './pod-power.service'
 import { PodSizingService, type PodSizing } from './pod-sizing.service'
 import { COMMAND_REGISTRY, postCommand } from './command-registry'
@@ -115,6 +116,9 @@ export class SessionsService {
     @Optional()
     @Inject(TRACE_FOR)
     private readonly traceFor: ((distinctId: string) => TracePort) | null = null,
+    @Optional()
+    @Inject(PreviewTeardownService)
+    private readonly previews: PreviewTeardownService | null = null,
   ) {}
 
   async accessibleProjectId(args: { userId: string; projectId: string }): Promise<string> {
@@ -344,12 +348,23 @@ export class SessionsService {
       archivedAt,
     })
     if (args.archived) await this.podPower.parkArchived({ session })
+    await this.markPreviewTunnel({ session, archived: args.archived })
     this.analytics?.capture({
       userId: args.userId,
       event: args.archived ? 'session_archived' : 'session_unarchived',
       properties: { session_id: args.sessionId },
     })
     return { archivedAt }
+  }
+
+  private async markPreviewTunnel(args: {
+    session: ControlSessionRow
+    archived: boolean
+  }): Promise<void> {
+    if (this.previews === null) return
+    const podSessionId = args.session.podSessionId ?? args.session.sessionId
+    if (args.archived) await this.previews.markDeleting({ podSessionId })
+    else await this.previews.clearDeleting({ podSessionId })
   }
 
   async markRead(args: {

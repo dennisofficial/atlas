@@ -11,9 +11,15 @@ import {
   type ConnectionInput,
   type ConnectionState,
 } from './connection-machine'
+import { createListRetry, type ListRetry } from './list-retry'
 import { memorySessionLog } from './session-log'
 import { createSessionFollower, type SessionFollower } from './session-follower'
-import { createSessionsList, type FollowedSessionList, type SessionsList } from './sessions-list'
+import {
+  createSessionsList,
+  sessionsListFrameHandler,
+  type FollowedSessionList,
+  type SessionsList,
+} from './sessions-list'
 import {
   browserNetworkSignal,
   type FollowArgs,
@@ -52,7 +58,7 @@ type Followed = Held & {
   follower: SessionFollower
 }
 
-type Listed = Held & { list: SessionsList }
+type Listed = Held & { list: SessionsList; retry: ListRetry; stop(): void }
 
 export const createStreamConnection = (args: StreamConnectionArgs): StreamConnection => {
   const { scheduler } = args
@@ -65,6 +71,7 @@ export const createStreamConnection = (args: StreamConnectionArgs): StreamConnec
   const lists = new Set<Listed>()
 
   const stopSubscription = (holder: Followed | Listed): void => {
+    if ('retry' in holder) holder.retry.cancel()
     holder.epoch += 1
     clearWatchdog(holder)
     holder.subscription?.close()
@@ -156,13 +163,7 @@ export const createStreamConnection = (args: StreamConnectionArgs): StreamConnec
 
   const subscribeList = (entry: Listed): void => {
     stopSubscription(entry)
-    entry.subscription = args.transport.list(
-      handlersOf(entry, (frame) => {
-        if (frame.type === 'snapshot' || frame.type === 'upsert' || frame.type === 'remove') {
-          entry.list.handleMessage(frame)
-        }
-      }),
-    )
+    entry.subscription = args.transport.list(handlersOf(entry, sessionsListFrameHandler(entry)))
   }
 
   const subscribeAll = (): void => {
@@ -223,6 +224,14 @@ export const createStreamConnection = (args: StreamConnectionArgs): StreamConnec
     }
   }
 
+  const ensureConnected = (): void => {
+    if (machine.phase === EStreamConnectionState.Closed && machine.reason === undefined) {
+      dispatch({ type: 'connect' })
+      return
+    }
+    retryIfBackingOff()
+  }
+
   const follow: StreamConnection['follow'] = ({ sessionId, threadId, log }) => {
     nextId += 1
     const id = `s${nextId}`
@@ -243,11 +252,7 @@ export const createStreamConnection = (args: StreamConnectionArgs): StreamConnec
       epoch: 0,
       watchdog: undefined,
     }
-    if (machine.phase === EStreamConnectionState.Closed && machine.reason === undefined) {
-      dispatch({ type: 'connect' })
-    } else {
-      retryIfBackingOff()
-    }
+    ensureConnected()
     followed.set(id, entry)
     entry.follower.setConnection(machine.phase)
     if (live()) subscribeWhenHydrated(entry)
@@ -264,15 +269,13 @@ export const createStreamConnection = (args: StreamConnectionArgs): StreamConnec
   const followSessions: StreamConnection['followSessions'] = () => {
     const entry: Listed = {
       list: createSessionsList(),
+      retry: createListRetry({ scheduler, live, resubscribe: () => subscribeList(entry) }),
+      stop: () => stopSubscription(entry),
       subscription: undefined,
       epoch: 0,
       watchdog: undefined,
     }
-    if (machine.phase === EStreamConnectionState.Closed && machine.reason === undefined) {
-      dispatch({ type: 'connect' })
-    } else {
-      retryIfBackingOff()
-    }
+    ensureConnected()
     lists.add(entry)
     if (live()) subscribeList(entry)
     return {
