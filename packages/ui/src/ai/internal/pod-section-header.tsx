@@ -20,7 +20,16 @@ function wakingOf(state: EPodState): boolean {
   return state === EPodState.Starting || state === EPodState.Resuming
 }
 
-function stateTextOf({ state, resizing }: { state: EPodState; resizing: boolean }): string {
+function stateTextOf({
+  state,
+  resizing,
+  waiting,
+}: {
+  state: EPodState
+  resizing: boolean
+  waiting: boolean
+}): string {
+  if (waiting) return 'Waiting for idle…'
   return resizing ? 'Resizing…' : STATE_TEXT[state]
 }
 
@@ -28,12 +37,15 @@ function powerLabelOf({
   state,
   stopping,
   resizing,
+  waiting,
 }: {
   state: EPodState
   stopping: boolean
   resizing: boolean
+  waiting: boolean
 }): string {
   if (stopping) return 'Stopping pod'
+  if (waiting) return 'Waiting to resize pod'
   if (resizing) return 'Resizing pod'
   if (wakingOf(state)) return 'Starting pod'
   return state === EPodState.Running ? 'Stop pod' : 'Start pod'
@@ -43,6 +55,7 @@ export interface PodSectionHeaderProps {
   state: EPodState
   stopping?: boolean | undefined
   resizing?: boolean | undefined
+  waiting?: boolean | undefined
   sizeControl?: ReactNode
   onStart?: (() => void) | undefined
   onStop?: (() => void) | undefined
@@ -52,12 +65,13 @@ export function PodSectionHeader({
   state,
   stopping = false,
   resizing = false,
+  waiting = false,
   sizeControl,
   onStart,
   onStop,
 }: PodSectionHeaderProps) {
-  const label = powerLabelOf({ state, stopping, resizing })
-  const pending = resizing || wakingOf(state)
+  const label = powerLabelOf({ state, stopping, resizing, waiting })
+  const pending = resizing || waiting || wakingOf(state)
   const busy = stopping || pending
   const running = state === EPodState.Running
 
@@ -94,7 +108,9 @@ export function PodSectionHeader({
             <TooltipContent>{label}</TooltipContent>
           </Tooltip>
         </span>
-        <span className="truncate text-[13px] leading-4">{stateTextOf({ state, resizing })}</span>
+        <span className="truncate text-[13px] leading-4">
+          {stateTextOf({ state, resizing, waiting })}
+        </span>
       </span>
       {sizeControl}
     </div>

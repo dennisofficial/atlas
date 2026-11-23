@@ -120,6 +120,25 @@ export const setSessionPodWaitingIn = (params: {
   return true
 }
 
+export const setSessionPodWaitCancelledIn = (params: {
+  state: State
+  sessionId: string
+  generation: number
+  vcpus: number | null
+  memoryGb: number | null
+}): boolean => {
+  const row = params.state.sessions.get(params.sessionId)
+  if (row === undefined) return false
+  row.podDesiredVcpus = params.vcpus
+  row.podDesiredMemoryGb = params.memoryGb
+  row.podDesiredDiskGb = null
+  row.podSizeGeneration = params.generation
+  row.podAppliedGeneration = params.generation
+  row.podResizeError = null
+  row.podWaitingSince = null
+  return true
+}
+
 export const setSessionArchivedIn = (params: {
   state: State
   sessionId: string

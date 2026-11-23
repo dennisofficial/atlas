@@ -1,11 +1,11 @@
 # @dltech/atlas-native-commands
 
-The native session commands: `rewind`, `summarise`, `rename`, `resize`, `model` and `help`. The API
-adds them to the command registry of every session.
+The native session commands: `rewind`, `summarise`, `rename`, `resize`, `cancel-resize`, `rotate`,
+`model` and `help`. The API adds them to the command registry of every session.
 
 ## Owns
 
-- The six command specs, their zod arguments, their argument hints and the text form of `rewind`,
+- The eight command specs, their zod arguments, their argument hints and the text form of `rewind`,
   `summarise`, `rename` and `resize`.
 - The holder handlers for `rewind` and `summarise`, which run in the agent host.
 - The control handler for `rename`, which sets the session title.
@@ -28,12 +28,14 @@ adds them to the command registry of every session.
 
 ### The command list
 
-- `nativeCommands`: the specs, in declaration order — `rewind`, `rename`, `summarise`, `resize`,
-  `model`, `help`.
+- `nativeCommands`: the specs, in declaration order — `rewind`, `rename`, `summarise`, `rotate`,
+  `resize`, `cancel-resize`, `model`, `help`.
 - `nativeCommandHandlers`: one holder handler for each `host` command, keyed by `inboxKind`.
 - `nativeControlHandlers`: the `rename` handler, keyed by the command name.
 - `resize`, `resizeArgs`, `RESIZE_MAX_DISK_GB`: the resize spec and its disk limit of 100 GB. The
   API supplies the handler, so `nativeControlHandlers` has none for it.
+- `cancelResize`, `cancelResizeArgs`: the cancel spec, which takes an empty argument object and
+  cancels a resize that waits for the pod to go idle. The API supplies the handler.
 - `model`, `help`: the two client commands. Each opens one `EClientAction`, and neither runs
   anywhere on the server.
 
@@ -72,8 +74,8 @@ const builtinEntries = nativeCommands.map((command) =>
 
 - Register a holder handler under `command.inboxKind`. Register a control handler under
   `command.spec.name`. The two maps never mix.
-- `resize` is in `nativeCommands` but has no handler here. The control plane supplies one per
-  session.
+- `resize` and `cancel-resize` are in `nativeCommands` but have no handler here. The control plane
+  supplies one per session.
 - `rewind` and `summarise` change the event log of the session. They run in the host, and they
   refuse a sequence number that names no message.
 

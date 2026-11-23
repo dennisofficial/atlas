@@ -13,6 +13,7 @@ import {
   nativeCommandHandlers,
   nativeCommands,
   nativeControlHandlers,
+  cancelResize,
   resize,
 } from '@dltech/atlas-native-commands'
 import { cloudConfigStore } from './config/cloud-config-store'
@@ -36,6 +37,7 @@ import { systemTimers, type HostBus, type HostTimers } from '@dltech/atlas-host'
 import { SessionNotFoundError } from './config/config-reader'
 import { CredentialsUnavailableError } from './config/agent-host-credential-port'
 import type { JobsProjectDispatcher } from '../_core/ports/job-dispatcher'
+import { podResizeCancelHandlerOf } from '../_lib/pod-resize/pod-resize-cancel-handler'
 import { podResizeHandlerOf } from '../_lib/pod-resize/pod-resize-handler'
 import { sessionDirOf } from './runtime/session-paths'
 import { startFailureReason } from './start-failure-reason'
@@ -111,6 +113,7 @@ export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
     controlHandlers: new Map([
       ...nativeControlHandlers,
       [resize.spec.name, podResizeHandlerOf({ plane: args.plane, dispatcher: args.dispatcher })],
+      [cancelResize.spec.name, podResizeCancelHandlerOf({ plane: args.plane })],
     ]),
     control: args.control,
     mcp: (sessionId) => mcpControl.of(sessionId),

@@ -346,6 +346,12 @@ export interface ControlTx {
     generation: number
     since: string | null
   }): Promise<boolean>
+  setSessionPodWaitCancelled(params: {
+    sessionId: string
+    generation: number
+    vcpus: number | null
+    memoryGb: number | null
+  }): Promise<boolean>
   setSessionArchived(params: { sessionId: string; archivedAt: string | null }): Promise<boolean>
   setSessionReadSeq(params: { sessionId: string; seq: number }): Promise<number | undefined>
   setSessionTitleIfUntitled(params: {

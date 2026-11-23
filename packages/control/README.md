@@ -44,7 +44,8 @@ a thread's event log.
   inactive below an idle cutoff), a title or first-message search, and a creation-time keyset cursor.
 - `spawnPeer`, `messagePeer`, `reportToSpawner`, `podPeersPlaced`.
 - `setSandboxInstanceId`, `setSandboxStatus`, `recordPodDesired`, `recordPodApplied`,
-  `recordPodDisk`, `recordPodFailed`, `recordPodWaiting`.
+  `recordPodDisk`, `recordPodFailed`, `recordPodWaiting`. `cancelPodWait` reverts a resize that
+  waits for the pod to go idle and returns false when nothing is waiting.
 
 ### Append to the thread record
 

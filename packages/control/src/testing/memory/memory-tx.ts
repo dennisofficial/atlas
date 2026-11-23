@@ -90,6 +90,7 @@ import {
   setSessionPodDesiredIn,
   setSessionPodDiskIn,
   setSessionPodFailedIn,
+  setSessionPodWaitCancelledIn,
   setSessionPodWaitingIn,
   setSessionReadSeqIn,
   setSessionTitleIfUntitledIn,
@@ -179,6 +180,10 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
 
   async setSessionPodWaiting(params: Parameters<ControlTx['setSessionPodWaiting']>[0]) {
     return setSessionPodWaitingIn({ state: this.state, ...params })
+  }
+
+  async setSessionPodWaitCancelled(params: Parameters<ControlTx['setSessionPodWaitCancelled']>[0]) {
+    return setSessionPodWaitCancelledIn({ state: this.state, ...params })
   }
 
   async setSessionArchived(params: { sessionId: string; archivedAt: string | null }) {
