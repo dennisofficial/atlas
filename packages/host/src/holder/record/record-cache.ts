@@ -54,6 +54,7 @@ export class RecordCache {
   private loopEventsHandedOut = false
   private state: LoopState = initialLoopState()
   private revealed = false
+  private visibleCache: V2Event[] | undefined = undefined
   private readonly blobValues = new Map<string, unknown>()
   private fetchedBlobBytes = 0
   private head: LogHead = { seq: 0, hash: '' as LogHead['hash'] }
@@ -106,6 +107,7 @@ export class RecordCache {
     this.loopSources = []
     this.loopEvents = []
     this.loopEventsHandedOut = false
+    this.visibleCache = undefined
     this.state = initialLoopState()
     for (const event of events) {
       this.book.step(this.resolvedEvent(event))
@@ -158,6 +160,11 @@ export class RecordCache {
     return this.events.slice(firstIndexAfter({ items: this.events, seq }))
   }
 
+  visibleEvents(): readonly V2Event[] {
+    this.visibleCache ??= this.events.filter((event) => isVisible(this.visibility, event))
+    return this.visibleCache
+  }
+
   visibleLoopEvents(): Event[] {
     this.loopEventsHandedOut = true
     return this.loopEvents
@@ -194,6 +201,7 @@ export class RecordCache {
       if (isVisible(this.visibility, event)) this.addLoopEvent(event)
     }
     this.head = args.head
+    this.visibleCache = undefined
   }
 
   private addLoopEvent(event: V2Event): void {

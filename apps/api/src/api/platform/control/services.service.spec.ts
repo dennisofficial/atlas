@@ -33,6 +33,22 @@ const smallLog = logResult({ offset: 0, text: 'listening on :4321\n', totalBytes
 const bigHead = logResult({ offset: 0, text: 'x'.repeat(LIMIT), totalBytes: 200_000 })
 
 describe('ServicesService', () => {
+  it('waits for a holder before it reads the log', async () => {
+    const waits: (boolean | undefined)[] = []
+    const { service: sessions } = setupSessionsService()
+    const services = new ServicesService(sessions, {
+      invoke: async (args) => {
+        waits.push(args.waitForHolder)
+        return { state: 'ok', result: smallLog }
+      },
+      events: () => null,
+      hold: () => true,
+    })
+    const sessionId = await asUser(sessions)
+    await services.log({ userId: 'user-a', sessionId, serviceId: 'web' })
+    expect(waits).toEqual([true])
+  })
+
   it('reads a short log in one call', async () => {
     const seen: CallOp[] = []
     const { services, sessions } = setup([smallLog], seen)

@@ -176,11 +176,10 @@ web action is a small data module beside its surface (`session-rewind.ts`, `sess
 never enters `byInboxKind`, so a holder can never pick one up; `sessions.command` runs it inline and
 answers `{}`.
 
-**No text layer yet.** Parsing text into arguments (`/rename my thing`) and building a slash menu are
-what a surface that takes text needs, and only the TUI does. They land with the TUI at slice 9 beside
-its first consumer; web posts structured arguments from the affordance the operator clicked, so it
-never needs them. The contract is what stops that from being duplicated: one spec, one argument
-schema, one inbox kind, validated once on the server.
+**Text layer (history).** This slice built no text layer: web posted structured arguments from the
+affordance the operator clicked. The text layer, the slash menu and typed skills landed on 2026-11-23
+in [slash-commands.md](slash-commands.md): the host parses every message against the one registry,
+so no surface parses text. `handledIn` became `runsIn: 'client' | 'host' | 'control'` there.
 
 **Wire: `sessions.command`.** One mutation, `{ sessionId, name, args }`. It resolves `name` in the
 composed registry, validates `args` with that command's schema, and posts an inbox entry of kind

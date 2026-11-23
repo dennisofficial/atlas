@@ -171,6 +171,22 @@ export class HeldTurns {
       return
     }
     this.notifyTurn({ record: args.record, ending: args.ending })
+    this.reportTurnEnded({ record: args.record })
+  }
+
+  private reportTurnEnded(args: { record: TurnLog }): void {
+    const turnEnded = this.deps.turnEnded
+    if (turnEnded === undefined) return
+    void turnEnded({
+      sessionId: this.deps.sessionId,
+      threadId: args.record.threadId,
+    }).catch((error: unknown) => {
+      this.deps.log?.warn({
+        source: 'holder.turn',
+        message: `reporting the end of the turn on ${this.deps.sessionId} failed`,
+        ...logFieldsOf({ error }),
+      })
+    })
   }
 
   private notifyTurn(args: { record: TurnLog; ending: TurnEnding | null }): void {

@@ -32,6 +32,7 @@ export class ServicesService {
     if (this.ops === null) throw new ServiceUnavailableException('pod access is not running')
     const outcome = await this.ops.invoke({
       sessionId: args.sessionId,
+      waitForHolder: true,
       op: {
         op: 'services.log',
         serviceId: args.serviceId,

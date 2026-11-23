@@ -45,11 +45,11 @@ frontmatter. The model sees the model-invocable skills in its system prompt and 
   inbox counts as the latest turn, and `trigger` names it as `inbox:<id>`. Nothing when the latest
   message is answered or already has a suggestion. Rewound events are not read.
 - `skillSuggestionAskOf({ input, candidates })`: a word-overlap shortlist of at most
-  `SKILL_SUGGEST_SHORTLIST` skills, the classifier state and one `noul` question per skill plus the
-  `needsProcedure` gate. Nothing when no skill overlaps.
-- `skillSuggestionOf({ answers, names })`: the winner, or nothing when the gate is below
-  `SKILL_SUGGEST_GATE_THRESHOLD`, the best is below `SKILL_SUGGEST_FITS_THRESHOLD`, or the runner-up
-  is within `SKILL_SUGGEST_MARGIN`. `skillSuggestionBlockOf` writes `skill: <name> — <score>`.
+  `SKILL_SUGGEST_SHORTLIST` skills, the classifier state and one `noul` question per skill. Nothing
+  when no skill overlaps.
+- `skillSuggestionOf({ answers, names })`: the winner, or nothing when the best is below
+  `SKILL_SUGGEST_FITS_THRESHOLD` or the runner-up is within `SKILL_SUGGEST_MARGIN`.
+  `skillSuggestionBlockOf` writes `skill: <name> — <score>`.
 
 ### Built-in skills
 
