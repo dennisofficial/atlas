@@ -1,38 +1,28 @@
-import type { Row, Tx } from '@dltech/atlas-db'
+import type { Tx } from '@dltech/atlas-db'
 
-const MAX_MANAGER_DEPTH = 8
+import { UnknownThreadError } from '../errors'
 
-const sessionIn = async (args: { tx: Tx; sessionId: string }): Promise<Row<'Session'>> =>
-  args.tx.orm.public.Session.where({ id: args.sessionId }).all().firstOrThrow()
+type PodOwner = { id: string; podSessionId: string | null }
+
+const owningSessionIn = async (args: { tx: Tx; threadId: string }): Promise<PodOwner | null> => {
+  const main = await args.tx.orm.v2.V2Session.where({ mainThreadId: args.threadId })
+    .select('id', 'podSessionId')
+    .first()
+  if (main !== null) return main
+  const thread = await args.tx.orm.v2.V2Thread.where({ id: args.threadId })
+    .select('sessionId')
+    .first()
+  if (thread === null) return null
+  return await args.tx.orm.v2.V2Session.where({ id: thread.sessionId })
+    .select('id', 'podSessionId')
+    .first()
+}
 
 export const podSessionIdOfThreadIn = async (args: {
   tx: Tx
   threadId: string
 }): Promise<string> => {
-  const own = await sessionIn({
-    tx: args.tx,
-    sessionId: await threadSessionIdIn(args),
-  })
-  let cursor = own
-  for (let hop = 0; hop < MAX_MANAGER_DEPTH; hop += 1) {
-    const sandbox = await args.tx.orm.public.CloudSandbox.where({ sessionId: cursor.id })
-      .select('id')
-      .first()
-    if (sandbox !== null) return cursor.id
-    if (cursor.managedBySessionId === null) break
-    const manager = await args.tx.orm.public.Session.where({ id: cursor.managedBySessionId })
-      .all()
-      .first()
-    if (manager === null) break
-    cursor = manager
-  }
-  return own.id
-}
-
-const threadSessionIdIn = async (args: { tx: Tx; threadId: string }): Promise<string> => {
-  const thread = await args.tx.orm.public.Thread.where({ id: args.threadId })
-    .select('sessionId')
-    .first()
-  if (thread === null) throw new Error(`unknown thread ${args.threadId}`)
-  return thread.sessionId
+  const session = await owningSessionIn(args)
+  if (session === null) throw new UnknownThreadError(args.threadId)
+  return session.podSessionId ?? session.id
 }
