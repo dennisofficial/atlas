@@ -44,12 +44,6 @@ export const stagedRowsOf = (args: {
   now: number
 }): ThreadRow[] => stagedSplitOf(args).transcript.map(stagedRowOf)
 
-export const stagedQueueRowsOf = (args: {
-  snapshot: SessionSnapshot
-  staged: readonly { clientId: string; text: string }[]
-  now: number
-}): ThreadRow[] => stagedSplitOf(args).queue.map(stagedRowOf)
-
 export const v2ViewOf = (args: { snapshot: SessionSnapshot; now: number }): V2ThreadView => {
   const working = isSessionWorking(args.snapshot.status)
   const model = deriveTranscript({

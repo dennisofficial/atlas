@@ -62,6 +62,7 @@ The headless client library that web, the TUI and the mobile app share.
   step overlay.
 - `derivedViewOf`, `deriveViewOf`, `deriveStatusOf`, `frameFactsOf`: the view of a followed session.
   `sessionDisplayOf` and `isSessionUnreadOf` map the status and the unread mark of a row.
+  `startFailureOf(status)` gives the reason when the session failed to start.
 
 ### Read the pod channel
 
@@ -75,7 +76,7 @@ The headless client library that web, the TUI and the mobile app share.
 - `deriveTranscript(args)`, `assembleTranscript(args)`, `durableEntries(args)`, `EEntryKind`: the
   transcript rows and the durable rows of a thread.
 - `turnsBySeq(args)`, `settledAtOf(entries)`, `turnEndedEntry(turn)`: the turn rows and the settled
-  time.
+  time. `turnStartedAtOf(events)`: the start of the main thread's open turn.
 - `ECallState`, `ToolCall`, `ToolRun`, `attachmentsOf`, `qualityNoticeOf`, `qualityNoticeLine`,
   `EQualityNoticeTone`: the tool runs and a call's quality indicator. `agentsOf(args)`,
   `agentOf(args)` and `agentLabelOf(agent)` give a sub-agent's type, intent and state.
@@ -113,6 +114,8 @@ The headless client library that web, the TUI and the mobile app share.
   make the draft and the post input. `MediaUploadApi`, `PutImage`, `UploadHandle`: the ports.
 - `sessionCreateInputOf(args)`, `initialProjectIdOf(args)`: a new session's create input and project.
 - `composerSendStateOf(args)`, `contextPercentOf(args)`: send or stop, and context use.
+- `queuedMessagesOf(pending)`, `queuedNoticesOf(pending)`, `stagedQueuedMessagesOf(staged)`: the
+  messages and notices that wait in the queue above the composer.
 
 ### Sign in to Atlas Cloud
 

@@ -1,16 +1,13 @@
 import { describe, expect, it } from 'bun:test'
 
 import {
-  EAgentStatus,
-  EMergeQueueMove,
-  EPrEventKind,
   EShellStatus,
   toThreadId,
   type EventBody,
   type PendingInputsState,
 } from '@dltech/atlas-core'
 
-import { queuedNoticesOf, visibleQueuedOf } from '../queued-messages'
+import { visibleQueuedOf } from '../queued-messages'
 
 const noticeInput = (args: {
   inboxId: number
@@ -48,38 +45,7 @@ const shellEnded: EventBody = {
   remainingCharacters: 0,
 }
 
-const prEvent: EventBody = {
-  type: 'pr-event',
-  repo: 'github.com/o/r',
-  prNumber: 1284,
-  kind: EPrEventKind.MergeQueue,
-  queue: EMergeQueueMove.Entered,
-  url: 'https://github.com/o/r/pull/1284',
-}
-
-const agentReported: EventBody = {
-  type: 'agent-reported',
-  agentId: toThreadId('thread-a'),
-  agentType: 'builder',
-  intent: 'fix the flaky spec',
-  prose: 'halfway there',
-}
-
-describe('queuedNoticesOf', () => {
-  it('lists one notice per pending event, keyed by its inboxId', () => {
-    const pending: PendingInputsState = {
-      pending: [
-        noticeInput({ inboxId: 7, event: shellEnded }),
-        noticeInput({ inboxId: 8, event: prEvent }),
-      ],
-    }
-
-    expect(queuedNoticesOf(pending)).toEqual([
-      { id: '7', text: 'Background shell "unit tests" completed (exit code 0)', failed: false },
-      { id: '8', text: 'PR #1284: entered the merge queue', failed: false },
-    ])
-  })
-
+describe('visibleQueuedOf', () => {
   it('leaves the queued messages alone', () => {
     const pending: PendingInputsState = {
       pending: [
@@ -101,61 +67,24 @@ describe('queuedNoticesOf', () => {
     }
 
     expect(visibleQueuedOf({ pending }).map((entry) => entry.id)).toEqual(['1', '3'])
-    expect(queuedNoticesOf(pending).map((notice) => notice.id)).toEqual(['2'])
   })
 
-  it('drops an event with no one-line notice', () => {
+  it('drops an agent report that carries no message', () => {
     const pending: PendingInputsState = {
       pending: [
         noticeInput({
-          inboxId: 4,
+          inboxId: 9,
           event: {
-            type: 'background-shell-started',
-            shellId: 'shell-1',
-            command: 'bun test',
-          },
-        }),
-      ],
-    }
-
-    expect(queuedNoticesOf(pending)).toEqual([])
-  })
-
-  it('keeps an agent report with no tint', () => {
-    const pending: PendingInputsState = {
-      pending: [noticeInput({ inboxId: 9, event: agentReported })],
-    }
-
-    expect(queuedNoticesOf(pending)).toEqual([
-      { id: '9', text: 'Sub-agent fix the flaky reported', failed: false },
-    ])
-  })
-
-  it('keeps a stopped agent with its ending line', () => {
-    const pending: PendingInputsState = {
-      pending: [
-        noticeInput({
-          inboxId: 10,
-          event: {
-            type: 'agent-ended',
+            type: 'agent-reported',
             agentId: toThreadId('thread-a'),
             agentType: 'builder',
             intent: 'fix the flaky spec',
-            status: EAgentStatus.Finished,
-            prose: 'done',
-            turns: 3,
-            toolCalls: 9,
+            prose: 'halfway there',
           },
         }),
       ],
     }
 
-    expect(queuedNoticesOf(pending)).toEqual([
-      {
-        id: '10',
-        text: 'Sub-agent fix the flaky finished after 3 turns and 9 tool calls',
-        failed: false,
-      },
-    ])
+    expect(visibleQueuedOf({ pending })).toEqual([])
   })
 })
