@@ -82,6 +82,8 @@ assembly, settings, ports, and the record folds. It imports `zod` and nothing el
 
 - `EModelRole`, `ModelCard`, `EEffort`: the model a role resolves to.
 - `formatUtilization(value)`: a usage figure for the operator.
+- `formatCountdown({ resetsAt, now })`: how long a usage window has left, in minutes, hours or
+  days.
 - `UsageReport`: a reading and the time it was fetched, so a surface can show its age.
 - `parseAnthropicUsage(body)`, `parseCodexUsage({ body, nowMs })`: the 5-hour and 7-day windows of
   a provider's plan usage body. A window the body does not state is `null`.
