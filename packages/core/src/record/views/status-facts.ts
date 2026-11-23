@@ -1,3 +1,4 @@
+import type { ERunFailureKind } from '../../events/run-failure'
 import { EWaitEpisodeKind } from '../../model-recovery/waiting'
 import { ESetupPhase } from '../../workspace/setup-notice'
 import type { V2Event, V2EventType } from '../event'
@@ -39,7 +40,7 @@ export type StatusFacts = {
   turn: TurnFact | null
   openTurn: OpenTurn | null
   lastTurnEnd: TurnEnd | null
-  unfinishedFailure: { message: string; at: string } | null
+  unfinishedFailure: { message: string; kind: ERunFailureKind; at: string } | null
   credentialWait: { reason: string | null; at: string } | null
   retries: readonly RetryFact[]
   parked: ParkedFacts
@@ -84,7 +85,9 @@ const labelOf = (event: V2Event): TurnFact | null => {
 }
 
 const unfinishedFailureAfter = (event: V2Event): StatusFacts['unfinishedFailure'] =>
-  event.type === 'run-failed' ? { message: event.failure.message, at: event.at } : null
+  event.type === 'run-failed'
+    ? { message: event.failure.message, kind: event.failure.kind, at: event.at }
+    : null
 
 const withRetry = (retries: readonly RetryFact[], retry: RetryFact): readonly RetryFact[] => {
   const deadline = Date.parse(retry.notBefore)

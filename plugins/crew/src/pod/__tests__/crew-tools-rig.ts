@@ -1,4 +1,12 @@
-import { EAgentStatus } from '@dltech/atlas-core'
+import {
+  EAgentStatus,
+  toCallId,
+  toEventId,
+  toRunId,
+  toThreadId,
+  type Hash,
+  type V2Event,
+} from '@dltech/atlas-core'
 import {
   EMPTY_CLASSIFIER,
   EMPTY_MCP_CONTROL,
@@ -52,6 +60,51 @@ export const fakeCrew = (args: { queued?: boolean; held?: readonly SubagentSnaps
     },
   }
   return { port, calls }
+}
+
+export const withEvents = (args: {
+  ctx: PluginPodContext
+  events: readonly V2Event[]
+}): PluginPodContext => ({ ...args.ctx, events: () => args.events })
+
+const HASH = 'a'.repeat(64) as Hash
+
+export const eventLog = () => {
+  let seq = 0
+  const envelope = () => {
+    seq += 1
+    return {
+      id: toEventId(`event-${seq}`),
+      seq,
+      threadId: toThreadId('t1'),
+      runId: toRunId('run-1'),
+      depth: 0,
+      at: startedAt,
+      epoch: 1,
+      prevHash: HASH,
+    }
+  }
+  return {
+    called: (args: { name: string; ordinal: number }): V2Event => ({
+      ...envelope(),
+      type: 'tool-called',
+      callId: toCallId(`call-${seq}`),
+      name: args.name,
+      input: {},
+      ordinal: args.ordinal,
+    }),
+    said: (): V2Event => ({
+      ...envelope(),
+      type: 'assistant-said',
+      parts: [{ type: 'text', text: 'a step' }],
+    }),
+    resulted: (args: { name: string }): V2Event => ({
+      ...envelope(),
+      type: 'tool-result',
+      callId: toCallId(`call-${seq}`),
+      name: args.name,
+    }),
+  }
 }
 
 export const rig = (crew: PodCrew) => {

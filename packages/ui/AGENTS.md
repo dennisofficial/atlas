@@ -79,7 +79,7 @@ files is expected.
 - `select.tsx`: the inset moved from the optional `SelectGroup` onto the internal `SelectPrimitive.List`, so ungrouped items are inset too. `SelectTrigger` has `variant: 'default' | 'ghost'`. The ghost variant is borderless and takes the Button-ghost hover. Consumers do not fake it with `border-0`.
 - `command.tsx`: `CommandGroup` lost its extra `p-1`. Items use the shared menu row (`rounded-md px-1.5 py-1 gap-1.5`), so Command rows match DropdownMenu.
 - `popover.tsx`: a popover whose direct child is a `Command` drops its own padding and gap. Consumers do not pass `p-0 gap-0`.
-- `sheet.tsx`: `SheetContent` owns `p-4`. `SheetHeader`/`SheetFooter` carry no padding, and `SheetHeader` reserves `pr-8` for the close button. Its top, left and right edges sit inside the safe-area insets (`--safe-area-*` from `base.css`), so a sheet never opens under the iOS status bar. The bottom edge stays at 0.
+- `sheet.tsx`: `SheetContent` owns `p-4`. `SheetHeader`/`SheetFooter` carry no padding, and `SheetHeader` reserves `pr-8` for the close button. Its top, left and right edges sit inside the safe-area insets (`--safe-area-*` from `base.css`), so a sheet never opens under the iOS status bar. The bottom edge stays at 0, and the body pads `max(1rem, var(--safe-area-bottom))` so its content clears the home indicator.
 - `drawer.tsx`: `DrawerContent` owns `p-4 gap-4`. `DrawerHeader`/`DrawerFooter` carry no padding.
 - `attachment.tsx`: content padding sits on the base of each size, not behind `has-data-[slot=attachment-content]`. The media override stays.
 - `input.tsx`: `size: 'default' | 'lg'` (lg = `h-9`, matching Button `lg`).

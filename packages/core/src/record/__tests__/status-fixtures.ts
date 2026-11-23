@@ -165,10 +165,13 @@ export const inputConsumed = (consumed: EInputConsumed = EInputConsumed.Stop): V
   consumed,
 })
 
-export const runFailed = (args: { message?: string } = {}): V2Event => ({
+export const runFailed = (args: { message?: string; kind?: ERunFailureKind } = {}): V2Event => ({
   ...envelope(),
   type: 'run-failed',
-  failure: { kind: ERunFailureKind.Network, message: args.message ?? 'connection reset' },
+  failure: {
+    kind: args.kind ?? ERunFailureKind.Network,
+    message: args.message ?? 'connection reset',
+  },
 })
 
 export const dismissFailure = (failure: V2Event): V2Event => ({

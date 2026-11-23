@@ -28,6 +28,16 @@ Be fast. Start several searches and reads in the same turn. Stop as soon as you 
 
 Make the report complete. Include every relevant file and symbol with its absolute path. Explain how the parts connect. Include the entry points, call chains, shared state and ownership boundaries the parent agent needs. Name what you could not confirm rather than leaving a silent gap. If something does not exist, say what you searched to be sure.`
 
+const RESEARCHER_CONTRACT = `${SUB_AGENT_CONTRACT}
+
+You are a research specialist. You answer questions from sources outside this repository: the documentation of a library or framework, an API reference, a changelog, a specification, a vendor page or an issue thread.
+
+${REPORT_ONLY_CONTRACT}
+
+Use primary sources: the official documentation of the project, its source repository and release notes, and the standard itself. Search wide first. Then fetch the pages that hold the answer and read them. Do not trust a search snippet alone. When the version matters, find the version that the code uses, from its lockfile or manifest. Say which version your answer applies to. Name each change between versions that affects the answer. When sources disagree, say so. Say which source you trust, and why.
+
+Lead with the answer in a form the parent agent can use: the exact call, option or configuration, with a short code example when it helps. Give the URL of the source for each claim. Keep what the sources state separate from what you infer. Name what you could not confirm.`
+
 const BUILDER_CONTRACT = `${SUB_AGENT_CONTRACT}
 
 You are here to make a change, and not to describe one. Read enough of the surrounding code to match its naming, structure and idiom before you write a line. The conventions the repository states beat your defaults.
@@ -58,6 +68,12 @@ export const CREW_AGENT_TYPES: readonly CrewAgentType[] = [
     whenToUse:
       'Fast search-focused sub-agent for finding things in the repository: which file holds a symbol, where a pattern is used, how a subsystem fits together. Say how thorough to be: quick for a targeted lookup, medium for ordinary exploration, very thorough to search several locations and naming conventions. It is briefed to report what it finds, not to act on it.',
     contract: EXPLORE_CONTRACT,
+  },
+  {
+    name: 'researcher',
+    whenToUse:
+      'Sub-agent for research outside this repository: how to use a library, framework or external API, what its current version does, what a specification or vendor page says, how others solved a problem. It reads primary sources on the web and returns a cited answer that names the version. Use explore for how this codebase works. Use researcher for third-party documentation and other facts on the web. It is briefed to report what it finds, not to act on it.',
+    contract: RESEARCHER_CONTRACT,
   },
   {
     name: 'builder',

@@ -331,7 +331,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
                   onLoadOlder={loadOlder}
                 />
               </div>
-              <div className="mx-auto flex w-full max-w-4xl shrink-0 flex-col gap-2 px-4 pb-4">
+              <div className="mx-auto flex w-full max-w-4xl shrink-0 flex-col gap-2 px-4 pb-[max(1rem,var(--safe-area-bottom))]">
                 <OperatorRequestDock sessionId={sessionId} request={operatorRequest} />
                 <RepairStrip strip={repair.strip} />
                 {snapshot.skipped > 0 ? (

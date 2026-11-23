@@ -73,6 +73,7 @@ const preparedRecord = (events: readonly V2Event[]): SessionRecord =>
       bookkeeping: () => ({ workspace: () => ({ prepared: true, failure: undefined }) }),
       loopState: () => initialLoopState(),
       eventsAfter: () => [...events],
+      loopEventsAfter: () => [...events],
       visibleLoopEvents: () => [...events],
     }),
   }) as unknown as SessionRecord

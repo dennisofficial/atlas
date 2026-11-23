@@ -13,6 +13,8 @@ export type AgentEventBody =
       agentType: string
       intent: string
       mode: EAgentStart
+      /** The spawn step this sub-agent belongs to: the call id of the step's first tool call. */
+      group?: string | undefined
       worktree?:
         | { path: string; branch: string; base?: string | undefined; adopted?: boolean | undefined }
         | undefined
@@ -32,6 +34,8 @@ export type AgentEventBody =
       toolCalls: number
       /** False for a bookkeeping ending that never wakes the parent or reaches the model; older logs also wrote it for a child that still held live work. */
       relayed?: boolean | undefined
+      /** True when the holder stored this clean ending without waking the parent, because a sibling from the same spawn step is still running. */
+      held?: boolean | undefined
       leftServices?: readonly string[] | undefined
       notice?: NoticeStamp | undefined
     }

@@ -1,6 +1,8 @@
 import {
   actionableInboxIds,
   EInputConsumed,
+  INBOX_KIND_EVENT,
+  INBOX_KIND_RECORD,
   INBOX_KIND_STOP,
   pendingInputsOf,
   pendingMessagesOf,
@@ -79,6 +81,12 @@ export const logPendingInputIdsOf = (events: readonly V2Event[]): number[] => {
   const pending = pendingInputsOf(events)
   return [...pendingMessagesOf(pending), ...pendingNoticesOf(pending)].map((entry) => entry.inboxId)
 }
+
+export const logPendingNoticeIdsOf = (events: readonly V2Event[]): number[] =>
+  pendingNoticesOf(pendingInputsOf(events)).map((entry) => entry.inboxId)
+
+export const isNoticeEntry = (entry: InboxEntry): boolean =>
+  entry.kind === INBOX_KIND_EVENT || entry.kind === INBOX_KIND_RECORD
 
 export const waitingInputIdsOf = (args: {
   ids: readonly number[]

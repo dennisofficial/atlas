@@ -64,6 +64,9 @@ export const probeObservedSchema = z.object({
 
 A `PodSlot` declares:
 - `tools(ctx)` and `hooks(ctx)`: the `ToolDefinition` values and the `HookChainArgs` of each phase.
+  An `afterTool` hook may opt into captured file changes with `capturesFileChanges({call, signal})`
+  and then read `result.fileChanges`; it may key its `additionalContext` to the call with
+  `contextKey: call.callId`, so later findings do not supersede it.
 - `prompts`: the `PromptFragment` values the plugin adds to the system prompt.
 - `commands`: a map from inbox kind to `CommandHandler`, for commands the pod runs.
 - `resources`: the `PodResource` values the plugin loads, such as a skill directory.
@@ -74,7 +77,7 @@ A `PodSlot` declares:
 `ctx` is a `PluginPodContext`. It gives `sessionId`, `workspaceDirectory`, `append(drafts)`,
 `notify(event, {key})`, `events()`, `call(op)`, `live(frame)`, `onDaemonEvent(listener)`, `log`,
 and the capabilities `control`, `crew`, `classifier`, `sessions`, `worktrees` and `resources`.
-`ctx.control` is a `PodControl`: `exposePort({port})`, `settingsVersions()`, `memory`, `webSearch`,
+`ctx.crew` is a `PodCrew`. Its `spawn` takes `group`, the key of the spawn step. `ctx.control` is a `PodControl`: `exposePort({port})`, `settingsVersions()`, `memory`, `webSearch`,
 `gateway` (`apiKey()`, `imageModel()`), `mcp`, `routines`, `subscriptions`. `ctx.classifier.status()` / `classify(...)` answer core types.
 
 ### The control and client slots
