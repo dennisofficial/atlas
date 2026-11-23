@@ -4,7 +4,6 @@ import {
   EAgentStatus,
   EEffort,
   EModelFallbackReason,
-  EReportKind,
   refKey,
   type EventDraft,
   type ModelChoice,
@@ -117,7 +116,7 @@ describe('ChildTranscript', () => {
   it('posts the ending as its own notice even when a report already woke the parent', async () => {
     const posted: string[] = []
     const { transcript } = transcriptOf(MAIN, posted, 12)
-    await transcript.reported({ kind: EReportKind.Blocked, text: 'stuck' })
+    await transcript.reported({ text: 'stuck' })
     await transcript.ended({
       progress: { turns: 1, toolCalls: 0, prose: '', lastTool: undefined },
       status: EAgentStatus.Finished,

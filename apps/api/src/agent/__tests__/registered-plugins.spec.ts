@@ -15,7 +15,7 @@ describe('the agent host plugin composition', () => {
   it('keeps memory and spawn tools away from a sub-agent', () => {
     expect(composedPlugins.pod.childDeny).toContain('memory')
     expect(composedPlugins.pod.childDeny).toContain('agent_spawn')
-    expect(composedPlugins.pod.childDeny).not.toContain('report_to_main')
+    expect(composedPlugins.pod.childDeny).not.toContain('send_message')
   })
 
   it('registers the peer sessions plugin with its fragment', () => {
@@ -46,11 +46,8 @@ describe('the agent host plugin composition', () => {
       'agent_list',
       'list_sessions',
       'list_teammates',
-      'message_session',
-      'message_teammate',
       'operator_mcp_sign_in',
       'operator_shell_input',
-      'report_to_spawner',
       'routine',
       'skill_manage',
       'spawn_session',

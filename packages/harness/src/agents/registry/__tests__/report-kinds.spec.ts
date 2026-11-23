@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 
-import { EReportKind, type ThreadId } from '@dltech/atlas-core'
+import type { ThreadId } from '@dltech/atlas-core'
 
 import { TEAMMATE_AGENT_TYPE } from '../../types'
 import {
@@ -33,15 +33,11 @@ async function openWithTeammate(): Promise<{ entry: OpenedSupervisor; teammate: 
   return { entry, teammate: outcome.snapshot.agentId }
 }
 
-describe('a typed teammate report', () => {
-  it('journals a progress report with its kind and queues no notice', async () => {
+describe('a teammate report', () => {
+  it('journals it and queues a waking notice for its parent', async () => {
     const { entry, teammate } = await openWithTeammate()
 
-    const outcome = await entry.supervisor.reportToParent({
-      threadId: teammate,
-      text: 'still waiting on CI',
-      kind: EReportKind.Progress,
-    })
+    const outcome = await entry.supervisor.reportToParent({ threadId: teammate, text: 'a result' })
 
     expect(outcome.ok).toBe(true)
     const logged = await loggedOfType({
@@ -49,25 +45,7 @@ describe('a typed teammate report', () => {
       threadId: entry.parent,
       type: 'agent-reported',
     })
-    expect(logged.map((event) => event.kind)).toEqual([EReportKind.Progress])
-    expect(entry.supervisor.pendingNotices({ threadId: entry.parent })).toHaveLength(0)
-    expect(entry.supervisor.prepareNotifications({ threadId: entry.parent }).wakesTurn).toBe(false)
+    expect(logged.map((event) => event.prose)).toEqual(['a result'])
+    expect(entry.supervisor.prepareNotifications({ threadId: entry.parent }).wakesTurn).toBe(true)
   })
-
-  it.each([EReportKind.Done, EReportKind.Blocked, EReportKind.NeedsDecision])(
-    'queues a waking notice for a %s report',
-    async (kind) => {
-      const { entry, teammate } = await openWithTeammate()
-
-      await entry.supervisor.reportToParent({ threadId: teammate, text: 'a result', kind })
-
-      const logged = await loggedOfType({
-        harness: entry.harness,
-        threadId: entry.parent,
-        type: 'agent-reported',
-      })
-      expect(logged.map((event) => event.kind)).toEqual([kind])
-      expect(entry.supervisor.prepareNotifications({ threadId: entry.parent }).wakesTurn).toBe(true)
-    },
-  )
 })

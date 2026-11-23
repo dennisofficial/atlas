@@ -92,8 +92,7 @@ class MissingProbe extends ToolDefinition {
   async invoke(): Promise<ToolOutcome> {
     this.state.missing = await this.ctx.crew
       .say({ agentId: 'thread-nowhere', text: SECOND_BRIEF })
-      .then(() => undefined)
-      .catch((error: unknown) => (error instanceof Error ? error.message : String(error)))
+      .then((said) => (said === undefined ? 'no such sub-agent' : 'unexpectedly said'))
     return { ok: true, output: {}, modelText: 'tried' }
   }
 }
@@ -265,6 +264,6 @@ describe('a say to a finished sub-agent after its parent’s lease was released'
       ).length,
     ).toBe(1)
     expect(saidTexts(parent).filter((text) => text === 'saw the second answer').length).toBe(1)
-    expect(state.missing).toContain('no sub-agent thread-nowhere in this session')
+    expect(state.missing).toBe('no such sub-agent')
   }, 30_000)
 })

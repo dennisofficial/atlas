@@ -1,24 +1,10 @@
 import { describe, expect, it } from 'bun:test'
 
-import {
-  EEffort,
-  EMessageOrigin,
-  EReportKind,
-  INBOX_KIND_EVENT,
-  inboxEventOf,
-  initialLoopState,
-  toRunId,
-  toThreadId,
-  type EventDraft,
-} from '@dltech/atlas-core'
+import { EEffort } from '@dltech/atlas-core'
 import { ControlPlane } from '@dltech/atlas-control'
 import { InMemoryControlStore } from '@dltech/atlas-control/testing'
 
-import { InboxIntake } from '../inbox-intake'
-import { EIntakeScope } from '../intake-scope'
-import { eventsOf } from './operator-answer-rig'
 import { podSessionsOf } from '../plugin-sessions'
-import type { AppendBody, SessionRecord } from '../record/record-adapter'
 
 const T0 = '2026-11-09T10:00:00.000Z'
 const SPAWNER = {
@@ -31,37 +17,6 @@ const OTHER = {
   sessionId: 'other',
   mainThreadId: 't9',
   userId: 'u1',
-  projectId: 'p1',
-}
-
-const saidDraftsOf = async (
-  plane: ControlPlane,
-  sessionId: string,
-  mainThreadId: string,
-): Promise<AppendBody[]> => {
-  const appended: AppendBody[] = []
-  const record = {
-    append: async ({ drafts }: { drafts: readonly AppendBody[] }) => {
-      appended.push(...drafts)
-    },
-    eventCache: () => ({ eventsAfter: () => eventsOf(appended as unknown as EventDraft[]) }),
-    loopState: async () => initialLoopState(),
-  } as unknown as SessionRecord
-  await new InboxIntake({
-    plane,
-    sessionId,
-    record,
-    scope: EIntakeScope.Main,
-    threadId: toThreadId(mainThreadId),
-    runId: () => toRunId('run-1'),
-  }).prepare()
-  return appended.filter((draft) => draft.type === 'user-said')
-}
-
-const STRANGER = {
-  sessionId: 'stranger',
-  mainThreadId: 't8',
-  userId: 'u2',
   projectId: 'p1',
 }
 
@@ -179,23 +134,6 @@ describe('podSessionsOf', () => {
     expect(roster.map((row) => row.sessionId)).not.toContain(flat.sessionId)
   })
 
-  it('messages a nested teammate but refuses a flat spawn', async () => {
-    const { plane, sessions } = await rig()
-    await plane.createSession(OTHER)
-    const teammate = await sessions.spawn({ nested: true })
-    const flat = await sessions.spawn({ nested: false })
-    expect(
-      await sessions.messageTeammate({ sessionId: teammate.sessionId, text: 'how is it going' }),
-    ).toEqual({ queued: true })
-    expect(await inboxOf(plane, teammate.sessionId)).toHaveLength(1)
-    expect(await sessions.messageTeammate({ sessionId: flat.sessionId, text: 'hello' })).toEqual({
-      refused: `session ${flat.sessionId} is not one of this session’s nested teammates`,
-    })
-    expect(await sessions.messageTeammate({ sessionId: OTHER.sessionId, text: 'hello' })).toEqual({
-      refused: `session ${OTHER.sessionId} is not one of this session’s nested teammates`,
-    })
-  })
-
   it('delivers the brief as the peer first message, and nothing without one', async () => {
     const { plane, sessions } = await rig()
     const briefed = await sessions.spawn({ brief: 'read the port' })
@@ -204,74 +142,6 @@ describe('podSessionsOf', () => {
     expect(briefedInbox).toHaveLength(1)
     expect(briefedInbox[0]?.payload).toContain('read the port')
     expect(await inboxOf(plane, bare.sessionId)).toHaveLength(0)
-  })
-
-  it('names the sender on the entry, not inside the payload, of a message to a peer', async () => {
-    const { plane, sessions } = await rig()
-    const peer = await sessions.spawn({})
-    const sent = await sessions.message({
-      sessionId: peer.sessionId,
-      text: 'how is it going',
-    })
-    expect(sent).toEqual({ queued: true })
-    const inbox = await inboxOf(plane, peer.sessionId)
-    expect(inbox[0]?.senderSessionId).toBe(SPAWNER.sessionId)
-    expect(JSON.parse(inbox[0]?.payload ?? '{}')).toEqual({
-      text: 'how is it going',
-      via: EMessageOrigin.PeerAgent,
-    })
-  })
-
-  it('reaches the spawned session’s intake as a draft sent by the spawner', async () => {
-    const { plane, sessions } = await rig()
-    const spawned = await sessions.spawn({ brief: 'read the port' })
-    const drafts = await saidDraftsOf(plane, spawned.sessionId, spawned.mainThreadId)
-    expect(drafts).toEqual([
-      {
-        type: 'user-said',
-        text: 'read the port',
-        sender: { session: SPAWNER.sessionId },
-        via: EMessageOrigin.PeerAgent,
-        requestId: 'inbox:1',
-        inboxId: 1,
-      },
-    ])
-  })
-
-  it('sends any number of messages, with no budget', async () => {
-    const { sessions } = await rig()
-    const peer = await sessions.spawn({})
-    for (let index = 0; index < 25; index += 1) {
-      expect(
-        await sessions.message({
-          sessionId: peer.sessionId,
-          text: `m${index}`,
-        }),
-      ).toEqual({
-        queued: true,
-      })
-    }
-  })
-
-  it('messages any session of the same user, spawned by this one or not', async () => {
-    const { plane, sessions } = await rig()
-    await plane.createSession(OTHER)
-    expect(await sessions.message({ sessionId: OTHER.sessionId, text: 'hello' })).toEqual({
-      queued: true,
-    })
-    const inbox = await inboxOf(plane, OTHER.sessionId)
-    expect(inbox[0]?.senderSessionId).toBe(SPAWNER.sessionId)
-  })
-
-  it('refuses a session of another user and posts nothing', async () => {
-    const { plane, sessions } = await rig()
-    await plane.createSession(STRANGER)
-    const refused = await sessions.message({
-      sessionId: STRANGER.sessionId,
-      text: 'hello',
-    })
-    expect('refused' in refused && refused.refused).toContain('no session')
-    expect(await inboxOf(plane, STRANGER.sessionId)).toHaveLength(0)
   })
 
   it('gives every spawned session a pod of its own', async () => {
@@ -294,58 +164,6 @@ describe('podSessionsOf', () => {
       spawnedBySessionId: child.sessionId,
       podSessionId: null,
     })
-  })
-
-  it('reports to the spawner as a message from the reporting session', async () => {
-    const { plane, sessions } = await rig()
-    const child = await sessions.spawn({})
-    const sent = await podSessionsOf({
-      plane,
-      sessionId: child.sessionId,
-      model: () => TEAMMATE_MODEL,
-    }).report({
-      kind: EReportKind.Done,
-      text: 'the parser is green',
-    })
-    expect(sent).toEqual({ queued: true })
-    const inbox = await inboxOf(plane, SPAWNER.sessionId)
-    expect(inbox).toHaveLength(1)
-    expect(inbox[0]?.senderSessionId).toBe(child.sessionId)
-    expect(inbox[0]?.kind).toBe(INBOX_KIND_EVENT)
-    expect(inboxEventOf(inbox[0]?.payload ?? '')).toMatchObject({
-      ok: true,
-      event: { type: 'agent-reported', prose: 'the parser is green' },
-    })
-  })
-
-  it('reaches the spawner as an event, never as a draft the operator could have written', async () => {
-    const { plane, sessions } = await rig()
-    const child = await sessions.spawn({})
-    await podSessionsOf({ plane, sessionId: child.sessionId, model: () => TEAMMATE_MODEL }).report({
-      kind: EReportKind.NeedsDecision,
-      text: 'which parser',
-    })
-    const inbox = await inboxOf(plane, SPAWNER.sessionId)
-    expect(inbox[0]?.kind).toBe(INBOX_KIND_EVENT)
-    expect(inboxEventOf(inbox[0]?.payload ?? '')).toMatchObject({
-      ok: true,
-      event: {
-        type: 'agent-reported',
-        prose: 'which parser',
-        kind: EReportKind.NeedsDecision,
-      },
-    })
-    expect(await saidDraftsOf(plane, SPAWNER.sessionId, SPAWNER.mainThreadId)).toEqual([])
-  })
-
-  it('refuses a report from a session it did not spawn, and posts nothing', async () => {
-    const { plane, sessions } = await rig()
-    const refused = await sessions.report({
-      kind: EReportKind.Done,
-      text: 'nothing to say',
-    })
-    expect('refused' in refused && refused.refused).toContain('no spawner')
-    expect(await inboxOf(plane, SPAWNER.sessionId)).toHaveLength(0)
   })
 
   it('lists every session of the user with the current one marked', async () => {

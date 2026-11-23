@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EReportKind } from '../../agents/report'
 import { EAgentStatus } from '../../agents/status'
 import { ECompactionAnchor, EPrEventKind, EPrVerdict, type EventType } from '../../events/body'
 import { toCallId, toThreadId } from '../../events/ids'
@@ -65,7 +64,6 @@ const SURVIVOR_MINIMAL = {
     agentType: 'explore',
     intent: 'find the callers',
     prose: 'halfway through',
-    kind: EReportKind.Progress,
   },
   'background-shell-ended': {
     type: 'background-shell-ended',

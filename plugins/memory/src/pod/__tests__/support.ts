@@ -14,6 +14,7 @@ import {
   EMPTY_WORKTREES,
   EMPTY_POD_RESOURCES,
   UNVERSIONED_SETTINGS,
+  EMPTY_MESSAGES,
 } from '@dltech/atlas-plugin-sdk'
 
 import { memoryPod } from '..'
@@ -97,6 +98,7 @@ export const rig = (memory: PodMemory = fakeMemory().port) => {
     sessionId: 's1',
     resources: EMPTY_POD_RESOURCES,
     crew: EMPTY_CREW,
+    messages: EMPTY_MESSAGES,
     classifier: EMPTY_CLASSIFIER,
     sessions: EMPTY_SESSIONS,
     worktrees: EMPTY_WORKTREES,

@@ -2,7 +2,6 @@ import { describe, expect, it } from 'bun:test'
 
 import {
   EMessageOrigin,
-  EReportKind,
   inboxEventOf,
   TEAMMATE_AGENT_TYPE,
   type InboxEntry,
@@ -46,7 +45,6 @@ describe('a teammate reporting to its spawner', () => {
 
     const posted = await plane.reportToSpawner({
       sessionId: TEAMMATE,
-      kind: EReportKind.Done,
       text: 'the lexer is rewritten',
     })
 
@@ -64,22 +62,17 @@ describe('a teammate reporting to its spawner', () => {
       agentType: TEAMMATE_AGENT_TYPE,
       intent: 'Lexer rewrite',
       prose: 'the lexer is rewritten',
-      kind: EReportKind.Done,
     })
     expect(posted).toEqual({ inboxId: 1 })
   })
 
-  it('wakes the spawner only for a report that asks for it', async () => {
+  it('wakes the spawner for every report', async () => {
     const { store, plane } = await setup()
     const before = store.wakeCount(SPAWNER)
 
-    await plane.reportToSpawner({
-      sessionId: TEAMMATE,
-      kind: EReportKind.Progress,
-      text: 'still lexing',
-    })
+    await plane.reportToSpawner({ sessionId: TEAMMATE, text: 'still lexing' })
 
-    expect(store.wakeCount(SPAWNER)).toBe(before)
+    expect(store.wakeCount(SPAWNER)).toBe(before + 1)
   })
 })
 

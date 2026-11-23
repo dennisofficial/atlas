@@ -27,6 +27,7 @@ import type { HeldSessionDeps } from './held-session-deps'
 import { fireLive, type PrepareResult, type SessionRuntime, type SetupLifecycle } from './ports'
 import { setupNoticesOf } from './prepare-notices'
 import { recordPrepare } from './prepare-record'
+import { preparedWithContextFiles, type ContextSeedGate } from './context-seed'
 import type { AppendBody } from './record/append-drafts'
 import type { SessionRecord } from './record/record-adapter'
 
@@ -56,6 +57,7 @@ export class HeldPrepare {
   constructor(
     private readonly args: {
       deps: HeldSessionDeps
+      seed: ContextSeedGate
       abandoned(): boolean
       onSettled(args: { failed: boolean }): void
       onSetupEnded(): void
@@ -133,10 +135,16 @@ export class HeldPrepare {
       })
       .then(async (result) => {
         await this.steps
-        await this.record({ ...args, runId, result })
+        const recorded = await preparedWithContextFiles({
+          seed: this.args.seed,
+          result,
+          log: deps.log,
+          sessionId: deps.sessionId,
+        })
+        await this.record({ ...args, runId, result: recorded })
         this.settled = true
         await this.flushSetupEnd()
-        failed = !result.ok
+        failed = !recorded.ok
       })
       .catch((error) => {
         deps.log?.error({

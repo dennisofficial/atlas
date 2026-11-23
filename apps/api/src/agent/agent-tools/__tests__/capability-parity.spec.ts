@@ -39,6 +39,7 @@ const CONSTANT_DECLARATION = /export const ([A-Z][A-Z0-9_]*) = '([^']+)'/g
 const SESSION_VARIABLE = /^ATLAS_(?:SESSION|CONTEXT|THREAD)_DIR$/
 
 export const EXCEPTIONS: Readonly<Record<string, string>> = {
+  agent_say: 'v2 ships the one messaging tool send_message, which reaches sub-agents and sessions',
   artifact_list: 'artifacts are the v2 control plane’s, listed over its API, so a pod has no tool',
   artifact_push: 'artifacts are the v2 control plane’s, pushed over its API, so a pod has no tool',
   artifact_pull: 'artifacts are the v2 control plane’s, fetched over its API, so a pod has no tool',
@@ -46,6 +47,8 @@ export const EXCEPTIONS: Readonly<Record<string, string>> = {
     'artifacts are the v2 control plane’s, unpublished over its API, so a pod has no tool',
   execution_location:
     'a v2 pod never moves execution location; the control plane decides where a session runs',
+  report_to_main:
+    'v2 ships the one messaging tool send_message, which reaches sub-agents and sessions',
   subscription_list: 'v2 ships the same capability under the github plugin’s list_subscriptions',
   write_memory: 'v2 merges the memory family into `memory`, action write',
   read_memory: 'v2 merges the memory family into `memory`, action read',
