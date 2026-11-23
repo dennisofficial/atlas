@@ -3,13 +3,11 @@ import type {
   DiagramRepairListInput,
   DiagramRepairListOutput,
   DiagramRepairOutput,
-  SessionBucketPageInput,
   SessionSubscribeInput,
   SessionSubscribeOutput,
   SessionUnsubscribeInput,
   SessionUnsubscribeOutput,
 } from '@dltech/atlas-protocol'
-import type { SessionPageInput } from '@dltech/atlas-wire/web'
 
 import { api, cloudCall } from '@/lib/api-client'
 
@@ -31,12 +29,6 @@ export const markV2SessionRead = async (args: { sessionId: string; seq: number }
   const { readSeq } = await cloudCall(api.sessions.markRead.mutate(args))
   return { readSeq }
 }
-
-export const fetchSessionPage = (input: SessionPageInput) =>
-  cloudCall(api.sessions.page.query(input))
-
-export const fetchV2BucketPage = (input: SessionBucketPageInput) =>
-  cloudCall(api.sessions.bucketPage.query(input))
 
 export type SubscriptionsApi = {
   subscribe(input: SessionSubscribeInput): Promise<SessionSubscribeOutput>

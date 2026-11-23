@@ -15,8 +15,6 @@ import {
   sessionArchiveInputSchema,
   sessionArchiveOutputSchema,
   sessionBlobInputSchema,
-  sessionBucketPageInputSchema,
-  sessionBucketPageOutputSchema,
   sessionChangeContentInputSchema,
   sessionChangeContentOutputSchema,
   sessionChangesInputSchema,
@@ -62,8 +60,6 @@ import {
   type SessionArchiveInput,
   type SessionArchiveOutput,
   type SessionBlobInput,
-  type SessionBucketPageInput,
-  type SessionBucketPageOutput,
   type SessionChangeContentInput,
   type SessionChangeContentOutput,
   type SessionChangesInput,
@@ -103,12 +99,6 @@ import {
   type SessionWithdrawInput,
   type SessionWithdrawOutput,
 } from '@dltech/atlas-protocol'
-import {
-  sessionPageInputSchema,
-  sessionPageOutputSchema,
-  type SessionPageInput,
-  type SessionPageOutput,
-} from '@dltech/atlas-wire'
 import { SessionMiddleware, type SessionTrpcCtx } from '../../../_module/session/session.middleware'
 import { ChangesService } from './changes.service'
 import { commandCatalogue } from './command-registry'
@@ -170,19 +160,6 @@ export class SessionsRouter {
     @Ctx() ctx: SessionTrpcCtx,
   ): Promise<SessionMarkReadOutput> {
     return this.sessions.markRead({ userId: ctx.auth.userId, ...input })
-  }
-
-  @Query({ input: sessionPageInputSchema, output: sessionPageOutputSchema })
-  page(@Input() input: SessionPageInput, @Ctx() ctx: SessionTrpcCtx): Promise<SessionPageOutput> {
-    return this.sessions.page({ userId: ctx.auth.userId, ...input })
-  }
-
-  @Query({ input: sessionBucketPageInputSchema, output: sessionBucketPageOutputSchema })
-  bucketPage(
-    @Input() input: SessionBucketPageInput,
-    @Ctx() ctx: SessionTrpcCtx,
-  ): Promise<SessionBucketPageOutput> {
-    return this.sessions.bucketPage({ userId: ctx.auth.userId, ...input })
   }
 
   @Query({ input: sessionEventsInputSchema, output: sessionEventsOutputSchema })

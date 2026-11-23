@@ -47,9 +47,10 @@ The headless client library that web, the TUI and the mobile app share.
   `HYDRATE_TIMEOUT_MS` bounds the first load. `createSessionsFeed({ follow, write })` holds the list.
 - `StreamTransport`, `StreamScheduler`, `systemStreamScheduler`, `browserNetworkSignal`: the ports
   that a surface supplies.
-- `nestPeers(rows)` nests each teammate under its spawner. `peerBucketOf({ row, now })` and
+- `nestPeers(rows)` nests each teammate under its spawner. `peerBucketOf({ row })` and
   `EPeerBucket` give a row's bucket; `splitTeammates(rows)` gives its active and done teammates.
-  `isRecentProject(args)`, `lastActivityAt(args)` and `INACTIVE_AFTER_MS` keep the fresh projects.
+  `isRecentProject(args)`, `lastActivityAt(args)` and `RECENT_PROJECT_WINDOW_MS` keep the fresh
+  projects.
 
 ### Keep the log and the view
 

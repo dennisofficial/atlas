@@ -45,7 +45,6 @@ export type {
   RoutineRunRow,
   SessionBucketCountParams,
   SessionBucketCounts,
-  SessionBucketFilter,
   SessionListParams,
   SessionPageCursor,
   StoredEvent,

@@ -11,7 +11,7 @@ import { attachLiveStream } from './thread-live-stream'
 import { THREAD_STREAM_HEARTBEAT_INTERVAL_MS, THREAD_STREAM_LIFETIME_MS } from './thread-stream'
 import { ThreadSignalsService } from './thread-signals.service'
 
-const EMPTY_COUNTS = { active: 0, inactive: 0, archived: 0 }
+const EMPTY_COUNTS = { active: 0, archived: 0 }
 
 const until = async (ready: () => boolean): Promise<void> => {
   const deadline = Date.now() + 5000

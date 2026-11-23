@@ -14,7 +14,7 @@ export enum ELoadState {
   Failed = 'failed',
 }
 
-const EMPTY: ISessionPartition = { groups: [], inactive: [], archived: [] }
+const EMPTY: ISessionPartition = { groups: [], archived: [] }
 
 export const useSessions = () => {
   const { api } = useAuth()

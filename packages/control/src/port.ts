@@ -17,11 +17,9 @@ import type {
   PrChecks,
   SessionBucketCountParams,
   SessionBucketCounts,
-  SessionBucketFilter,
   SessionDigestRow,
   SessionListParams,
   SessionModelRow,
-  SessionPageCursor,
 } from './session-rows'
 import type {
   ControlTerminalRow,
@@ -46,7 +44,6 @@ export type {
   PrChecks,
   SessionBucketCountParams,
   SessionBucketCounts,
-  SessionBucketFilter,
   SessionDigestRow,
   SessionListParams,
   SessionModelRow,

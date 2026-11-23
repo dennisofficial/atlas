@@ -1,6 +1,5 @@
 import {
   EPeerBucket,
-  INACTIVE_AFTER_MS,
   isRecentProject as isRecentlyActiveProject,
   lastActivityAt,
   peerBucketOf,
@@ -10,8 +9,6 @@ import type { Project, WireThread } from '@dltech/atlas-wire/web'
 import type { SessionNode } from '@/features/threads/data/threads-api'
 
 import type { V2RowView } from './v2-status'
-
-export { INACTIVE_AFTER_MS }
 
 export { EPeerBucket as EThreadBucket } from '@dltech/atlas-client/stream'
 
@@ -37,7 +34,6 @@ export const projectNameOf = (project: Project | null): string => project?.name 
 
 export interface ThreadPartition {
   groups: ProjectThreads[]
-  inactive: ProjectThreads[]
   archived: ProjectThreads[]
 }
 
@@ -49,8 +45,8 @@ const createdAtOf = (thread: WireThread): number => {
   return Number.isNaN(parsed) ? 0 : parsed
 }
 
-export const bucketOf = (args: { thread: WireThread; now: number }): EPeerBucket =>
-  peerBucketOf({ row: args.thread, now: args.now })
+export const bucketOf = (args: { thread: WireThread }): EPeerBucket =>
+  peerBucketOf({ row: args.thread })
 
 export function sortSessions(sessions: readonly SessionNode[]): SessionNode[] {
   return [...sessions].sort((left, right) => {
@@ -83,30 +79,23 @@ export function partitionThreads(args: {
   now: number
 }): ThreadPartition {
   const groups: ProjectThreads[] = []
-  const inactive: ProjectThreads[] = []
   const archived: ProjectThreads[] = []
   for (const entry of args.entries) {
     const { project, sessions } = entry
     const byBucket: Record<EPeerBucket, SessionNode[]> = {
       [EPeerBucket.Active]: [],
-      [EPeerBucket.Inactive]: [],
       [EPeerBucket.Archived]: [],
     }
     for (const session of sortSessions(sessions)) {
-      byBucket[bucketOf({ thread: session.mainThread, now: args.now })].push(session)
+      byBucket[bucketOf({ thread: session.mainThread })].push(session)
     }
     const active = byBucket[EPeerBucket.Active]
     if (active.length > 0 || isRecentProject({ entry, now: args.now })) {
       groups.push({ project, sessions: active })
     }
-    inactive.push({ project, sessions: byBucket[EPeerBucket.Inactive] })
     archived.push({ project, sessions: byBucket[EPeerBucket.Archived] })
   }
-  return {
-    groups,
-    inactive: withSessions(inactive),
-    archived: withSessions(archived),
-  }
+  return { groups, archived: withSessions(archived) }
 }
 
 export const countThreads = (entries: readonly ProjectThreads[]): number =>

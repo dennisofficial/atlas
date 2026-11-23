@@ -30,8 +30,7 @@ const partition: ISessionPartition = {
     { key: 'atlas', name: 'atlas', projectId: 'atlas', sessions: [entry('a'), entry('b')] },
     { key: 'rcp', name: 'RCP', projectId: 'rcp', sessions: [] },
   ],
-  inactive: [{ key: 'rcp', name: 'RCP', projectId: 'rcp', sessions: [entry('old', 'RCP')] }],
-  archived: [],
+  archived: [{ key: 'rcp', name: 'RCP', projectId: 'rcp', sessions: [entry('old', 'RCP')] }],
 }
 
 const sessionIds = (data: ReturnType<typeof sectionsOf>[number]['data']) =>
@@ -64,7 +63,6 @@ const partitionWithDone: ISessionPartition = {
       ],
     },
   ],
-  inactive: [],
   archived: [],
 }
 
@@ -74,17 +72,17 @@ describe('sectionsOf', () => {
     expect(sections.map((section) => [section.title, section.count, section.data.length])).toEqual([
       ['atlas', 2, 2],
       ['RCP', 0, 0],
-      ['Inactive', 1, 0],
+      ['Archived', 1, 0],
     ])
     expect(sections.map((section) => section.gapBefore)).toEqual([0, GROUP_GAP, GROUP_GAP])
-    expect(sections[2]?.hint).toBe('Last 72h')
+    expect(sections[2]?.hint).toBeNull()
   })
 
   it('labels each project inside an open bucket', () => {
     const open = sectionsOf({
       partition,
       query: '',
-      toggled: new Set<string>([ESectionKind.Inactive]),
+      toggled: new Set<string>([ESectionKind.Archived]),
     })
     expect(open.at(-1)?.data.map((item) => item.kind)).toEqual([
       EItemKind.ProjectLabel,
@@ -107,7 +105,6 @@ describe('sectionsOf', () => {
           sessions: [{ ...entry('main'), children: [entry('mate')] }],
         },
       ],
-      inactive: [],
       archived: [],
     }
     const [section] = sectionsOf({ partition: nested, query: '', toggled: new Set() })
@@ -132,7 +129,6 @@ describe('sectionsOf', () => {
           sessions: [{ ...entry('main'), children: [entry('mate')] }],
         },
       ],
-      inactive: [],
       archived: [],
     }
     const sections = sectionsOf({ partition: nested, query: 'session mate', toggled: new Set() })
@@ -178,7 +174,7 @@ describe('sectionsOf', () => {
 
   it('filters by title or project name and opens folded sections while searching', () => {
     const byProject = sectionsOf({ partition, query: ' rcp ', toggled: new Set() })
-    expect(byProject.map((section) => section.title)).toEqual(['Inactive'])
+    expect(byProject.map((section) => section.title)).toEqual(['Archived'])
     expect(sessionIds(byProject[0]?.data ?? [])).toEqual(['old'])
     const byTitle = sectionsOf({ partition, query: 'session b', toggled: new Set() })
     expect(byTitle.flatMap((section) => sessionIds(section.data))).toEqual(['b'])

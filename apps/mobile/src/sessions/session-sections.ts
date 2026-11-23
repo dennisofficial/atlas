@@ -4,7 +4,6 @@ import type { IProjectGroup, ISessionEntry, ISessionPartition } from './session-
 
 export enum ESectionKind {
   Project = 'project',
-  Inactive = 'inactive',
   Archived = 'archived',
 }
 
@@ -202,12 +201,6 @@ export const sectionsOf = ({
     }
   }
   const tail = [
-    bucket({
-      kind: ESectionKind.Inactive,
-      title: 'Inactive',
-      hint: 'Last 72h',
-      groups: partition.inactive,
-    }),
     bucket({
       kind: ESectionKind.Archived,
       title: 'Archived',

@@ -7,7 +7,6 @@ import { ESandboxStatus } from '@dltech/atlas-protocol'
 import {
   EPullRequestState,
   EWorkKind,
-  INACTIVE_AFTER_MS,
   NO_PROJECT_NAME,
   partitionSessions,
   type V2SessionSummary,
@@ -156,22 +155,18 @@ describe('partitionSessions', () => {
     expect(partition.archived[0]?.sessions.map((entry) => entry.id)).toEqual(['archived-main'])
   })
 
-  it('splits stale and archived sessions into per-project buckets', () => {
-    const stale = (INACTIVE_AFTER_MS + 3_600_000) / 3_600_000
+  it('keeps an old session in its project and files archived sessions per project', () => {
     const partition = partitionSessions({
       projects,
       now: NOW,
       sessions: [
-        summaryOf({ sessionId: 'stale', updatedAt: hoursAgo(stale) }),
+        summaryOf({ sessionId: 'stale', updatedAt: hoursAgo(100) }),
         summaryOf({ sessionId: 'kept' }),
         summaryOf({ sessionId: 'gone', projectId: 'neo', archivedAt: hoursAgo(1) }),
       ],
     })
-    expect(
-      partition.inactive.map((group) => [group.name, group.sessions.map((s) => s.id)]),
-    ).toEqual([['atlas', ['stale']]])
     expect(partition.archived.map((group) => group.name)).toEqual(['comp-neo'])
-    expect(partition.groups[0]?.sessions.map((session) => session.id)).toEqual(['kept'])
+    expect(partition.groups[0]?.sessions.map((session) => session.id)).toEqual(['stale', 'kept'])
   })
 
   it('describes a session by its latest pull request, then its branch', () => {
