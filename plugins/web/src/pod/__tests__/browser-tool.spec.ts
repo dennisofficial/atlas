@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { toThreadId } from '@dltech/atlas-core'
 import {
+  EMPTY_CLASSIFIER,
   EMPTY_MCP_CONTROL,
   EMPTY_POD_RESOURCES,
   EMPTY_ROUTINES,
@@ -48,6 +49,7 @@ const ctxOf = (args: {
     },
     resources: EMPTY_POD_RESOURCES,
     crew: {} as never,
+    classifier: EMPTY_CLASSIFIER,
     sessions: {} as never,
     worktrees: {} as never,
     notify: unsupported,

@@ -74,7 +74,8 @@ assembly, settings, ports, and the record folds. It imports `zod` and nothing el
 
 ### Bind a port
 
-- `EventLogPort`, `ModelPort`, `ProcessPort`, `FileSystemPort`, `ClockPort`: the contracts.
+- `EventLogPort`, `ModelPort`, `ProcessPort`, `FileSystemPort`, `ClockPort`, `ClassifierPort`: the
+  contracts.
 - `PortRegistryEntries`, `RegisteredPort`, `PortBindings`: the registry that a composition must fill.
 
 ### Describe a model, its spend, and a secret

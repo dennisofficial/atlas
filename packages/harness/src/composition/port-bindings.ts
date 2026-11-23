@@ -33,6 +33,7 @@ export const sharedPortBindings = {
   WorkspaceIdentityPort: { runtime: 'shared', transport: null },
   QualityReviewPort: { runtime: 'shared', transport: null },
   DecisionPort: { runtime: 'shared', transport: null },
+  ClassifierPort: { runtime: 'shared', transport: null },
   JudgePort: { runtime: 'shared', transport: null },
   NoticePort: { runtime: 'surface', transport: null },
   ExecutionLocationSinkPort: { runtime: 'shared', transport: null },

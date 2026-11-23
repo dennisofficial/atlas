@@ -401,3 +401,26 @@ describe('ThreadTranscript sandbox boot', () => {
     expect(document.body.textContent).toContain('Sandbox failed to start')
   })
 })
+
+describe('a typed command in the transcript', () => {
+  it('draws the typed line once, as a command row rather than a bubble', async () => {
+    await mountWith({
+      rewind: null,
+      rows: [
+        {
+          kind: ETranscriptKind.User,
+          id: 'evt_command',
+          text: '/rename bench',
+          command: { name: 'rename', argumentText: 'bench', text: '/rename bench' },
+          at: '2026-10-28T10:00:00.000Z',
+        },
+      ],
+    })
+
+    const rows = document.body.querySelectorAll('[data-slot="message"][data-align="end"]')
+    expect(rows).toHaveLength(1)
+    expect(rows[0]?.querySelector('.font-mono')?.textContent).toBe('/rename')
+    expect(rows[0]?.textContent).toContain('/rename bench')
+    expect(document.body.querySelector('[data-slot="bubble"]')).toBeNull()
+  })
+})

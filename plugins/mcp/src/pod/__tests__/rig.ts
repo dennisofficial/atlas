@@ -1,6 +1,7 @@
 import { toThreadId } from '@dltech/atlas-core'
 import {
   EMPTY_CREW,
+  EMPTY_CLASSIFIER,
   EMPTY_POD_RESOURCES,
   EMPTY_SESSIONS,
   EMPTY_WORKTREES,
@@ -20,6 +21,7 @@ export const rig = (
   control: over.mcp === undefined ? podControlStub : { ...podControlStub, mcp: over.mcp },
   resources: EMPTY_POD_RESOURCES,
   crew: EMPTY_CREW,
+  classifier: EMPTY_CLASSIFIER,
   sessions: EMPTY_SESSIONS,
   worktrees: EMPTY_WORKTREES,
   append: async () => undefined,
