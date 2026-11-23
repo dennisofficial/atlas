@@ -53,6 +53,8 @@ also include the groups `changes.*`, `git.*`, `mcp.*`, `metrics.*`, `oom.*`, `pr
   stream. `podReadySchema`, `PodReady`: the message that the host publishes when it holds the pod.
 - `ELiveOpFailure`, `liveOpFailureSchema`, `CP_POD_OPS`: why the API cannot reach the op, and the
   ops that the API calls on a pod. Any other op answers `unavailable`.
+- `EPodNotReady`: the marker a client finds in the error details when the pod cannot serve yet, so
+  it waits rather than showing a failure.
 
 ### Carry a frame over the link
 
