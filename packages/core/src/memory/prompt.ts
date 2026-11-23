@@ -24,6 +24,8 @@ const notWorthSaving: readonly string[] = [
   '## What not to save',
   '',
   'Do not save facts readable from the current project. This includes architecture, layout, conventions, fix outcomes, git history, existing instructions and the current session state. Also anything a single session can falsify: test counts, suite greenness, what is uncommitted, which branch is checked out. The durable part is never the count. It is the reason behind it. If the operator asks you to remember something in this category, save it. Find the durable part first, and say that is what you did.',
+  '',
+  'Do not save how the Atlas harness itself behaves or misbehaves: its tools, prompts, sessions, sub-agents and services. A correction about the harness is a harness defect to fix in its code, not a rule to remember.',
 ]
 
 const howToSave: readonly string[] = [
