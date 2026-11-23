@@ -55,7 +55,7 @@ describe('the Inference.net API key row', () => {
       <ApiKeyRow
         provider={providerOf(EProviderId.Inference)}
         entry={null}
-        onSave={() => {}}
+        onSave={async () => true}
         onRemove={() => {}}
       />,
     )
@@ -69,7 +69,7 @@ describe('the Inference.net API key row', () => {
       <ApiKeyRow
         provider={providerOf(EProviderId.Inference)}
         entry={{ id: 'acc_1', label: 'Key saved', added: 'Added Oct 30' }}
-        onSave={() => {}}
+        onSave={async () => true}
         onRemove={() => {}}
       />,
     )

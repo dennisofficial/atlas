@@ -17,7 +17,7 @@ export function ApiKeyRow({
   provider: ApiKeyProvider
   entry: ApiKeyEntry | null
   busy?: boolean
-  onSave: (key: string) => void
+  onSave: (key: string) => Promise<boolean>
   onRemove: () => void
 }) {
   const prefix = KEY_PREFIXES[provider.id]

@@ -180,7 +180,7 @@ function ProvidersContent({
                 entry={entry}
                 busy={saving}
                 onSave={(apiKey) =>
-                  void handleKeySave({
+                  handleKeySave({
                     provider: provider.id,
                     apiKey,
                     existingId: entry?.id ?? null,

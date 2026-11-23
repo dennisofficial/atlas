@@ -4,6 +4,7 @@ import {
   activeAccountDtoSchema,
   activeAccountInputSchema,
   createAccountInputSchema,
+  EAuthKind,
   replaceSecretInputSchema,
   setActiveInputSchema,
   setStatusInputSchema,
@@ -22,11 +23,15 @@ import { Ctx, Input, Mutation, Query, Router, UseMiddlewares } from 'nestjs-trpc
 import { z } from 'zod'
 import { SessionMiddleware, type SessionTrpcCtx } from '../../../_module/session/session.middleware'
 import { AccountsService } from './accounts.service'
+import { ProviderKeyCheckService } from './provider-key-check.service'
 
 @Router({ alias: 'accounts' })
 @UseMiddlewares(SessionMiddleware)
 export class AccountsRouter {
-  constructor(private readonly accounts: AccountsService) {}
+  constructor(
+    private readonly accounts: AccountsService,
+    private readonly keyCheck: ProviderKeyCheckService,
+  ) {}
 
   @Query({ output: z.array(accountDtoSchema) })
   list(@Ctx() ctx: SessionTrpcCtx): Promise<AccountDto[]> {
@@ -34,7 +39,12 @@ export class AccountsRouter {
   }
 
   @Mutation({ input: createAccountInputSchema, output: accountDtoSchema })
-  create(@Input() input: CreateAccountInput, @Ctx() ctx: SessionTrpcCtx): Promise<AccountDto> {
+  async create(
+    @Input() input: CreateAccountInput,
+    @Ctx() ctx: SessionTrpcCtx,
+  ): Promise<AccountDto> {
+    if (input.secret.kind === EAuthKind.ApiKey)
+      await this.keyCheck.check({ provider: input.provider, apiKey: input.secret.apiKey ?? '' })
     return this.accounts.add({ userId: ctx.auth.userId, draft: input })
   }
 
@@ -61,6 +71,13 @@ export class AccountsRouter {
     @Input() input: ReplaceSecretInput,
     @Ctx() ctx: SessionTrpcCtx,
   ): Promise<void> {
+    if (input.secret.kind === EAuthKind.ApiKey) {
+      const provider = await this.accounts.providerOf({
+        userId: ctx.auth.userId,
+        accountId: input.accountId,
+      })
+      await this.keyCheck.check({ provider, apiKey: input.secret.apiKey ?? '' })
+    }
     await this.accounts.replaceSecret({
       userId: ctx.auth.userId,
       accountId: input.accountId,
