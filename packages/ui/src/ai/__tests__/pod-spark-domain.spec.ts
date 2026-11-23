@@ -4,6 +4,7 @@ import {
   POD_SERIES_WINDOW_MS,
   podSparkDiskOf,
   podSparkDomainOf,
+  podSparkMarksPoints,
   podSparkNearest,
   podSparkTimeAt,
   podSparkTipOf,
@@ -140,5 +141,16 @@ describe('podSparkTipOf', () => {
       ram: '1.7 / 8 GB',
       disk: '11.4 / 20 GB',
     })
+  })
+})
+
+describe('podSparkMarksPoints', () => {
+  it('marks a lone sample, which draws no line', () => {
+    expect(podSparkMarksPoints([{ at: 1 }])).toBe(true)
+  })
+
+  it('draws only the line once there are two samples', () => {
+    expect(podSparkMarksPoints([{ at: 1 }, { at: 2 }])).toBe(false)
+    expect(podSparkMarksPoints([])).toBe(false)
   })
 })

@@ -107,6 +107,7 @@ export default function NewSessionScreen() {
           working={false}
           sendable={api !== undefined}
           placeholder="Describe a task for Atlas…"
+          draftSessionId={null}
           onSend={handleSend}
         >
           <View style={styles.footer}>

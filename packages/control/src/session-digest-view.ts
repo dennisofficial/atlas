@@ -1,7 +1,6 @@
 import {
   checkoutsOf,
   sessionViewOf,
-  type Lease,
   type PluginViewFold,
   type SessionViewState,
   type V2Event,
@@ -9,7 +8,6 @@ import {
 import { sessionSandboxStatusSchema } from '@dltech/atlas-protocol'
 import type { z } from 'zod'
 
-import { UnknownThreadError } from './errors'
 import type { LeaseOps } from './lease-ops'
 import type {
   ControlDigestView,
@@ -84,18 +82,13 @@ const pullRequestViewOf = (
         autoMerge: row.state.autoMerge,
       }
 
-const digestViewOf = async (args: {
-  tx: ControlTx
-  sessionId: string
-  threadId: string
+const digestViewOf = (args: {
   state: SessionViewState
-  lease: Lease
   live: boolean
   pullRequest: TrackedPullRequestRow | undefined
   sandbox: ControlDigestView['sandbox']
   now: string
-  eventSchema?: z.ZodType<V2Event> | undefined
-}): Promise<ControlDigestView> => {
+}): ControlDigestView => {
   const messageAfterFailure = messageAfterFailureIn({ state: args.state })
   const value = sessionViewOf({
     state: args.state,
@@ -153,7 +146,10 @@ export const withDigestViews = async (args: {
   const digests: ControlSessionDigest[] = []
   for (const row of rows) {
     const thread = threads.get(row.mainThreadId)
-    if (thread === undefined) throw new UnknownThreadError(row.mainThreadId)
+    if (thread === undefined) {
+      digests.push({ ...row, view: null })
+      continue
+    }
     const cached = usableState(views.get(row.sessionId))
     const cachedIsCurrent = cached !== undefined && cached.at === thread.headSeq
     const viewStartedAt = performance.now()
@@ -170,19 +166,12 @@ export const withDigestViews = async (args: {
       staleRows += 1
       staleMs += performance.now() - viewStartedAt
     }
-    const current = leases.get(row.sessionId)
-    if (current === undefined) throw new Error(`missing lease for ${row.sessionId}`)
-    const view = await digestViewOf({
-      tx,
-      sessionId: row.sessionId,
-      threadId: row.mainThreadId,
+    const view = digestViewOf({
       state,
-      lease: current.lease,
-      live: current.live,
+      live: leases.get(row.sessionId)?.live ?? false,
       pullRequest: pullRequests.get(row.sessionId)?.[0],
       sandbox: sandboxOf(row),
       now: args.now,
-      eventSchema: args.eventSchema,
     })
     digests.push({ ...row, view })
   }

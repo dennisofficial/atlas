@@ -372,6 +372,7 @@ export * from './notices/notice'
 export * from './notices/queue'
 export * from './paths/home-paths'
 export * from './paths/context-files'
+export * from './paths/context-mirror'
 
 export * from './yaml/value'
 export * from './yaml/parse'

@@ -5,6 +5,7 @@ import { createContext, useContext } from 'react'
 import type { SessionStatusOutput, SessionViewOutput } from '@dltech/atlas-protocol'
 
 import type { SessionViewModel } from '../data/session-view-model'
+import type { ContextChange } from '../data/context-files'
 import type { EPaneOpen, PaneOpenRequest } from './pane-open'
 import type { ESessionPaneTab } from './pane-tab'
 
@@ -18,6 +19,8 @@ export type SessionPaneValue = {
   checkouts: SessionViewOutput['checkouts']
   threadWorktreePath: string | undefined
   status: SessionStatusOutput | undefined
+  contextChanged: ContextChange | undefined
+  turnEnds: number
   shellTails: Readonly<Record<string, string>>
   podSizeRequest: number
   requestPodSize: () => void

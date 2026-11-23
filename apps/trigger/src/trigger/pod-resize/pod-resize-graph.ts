@@ -1,6 +1,6 @@
 import type { ControlPlane } from '@dltech/atlas-control'
 import { db } from '@dltech/atlas-db'
-import { podBusyFactsOf, podBusyOf, type PodBusy } from '@dltech/atlas-core'
+import { podBusyFactsOf, podResizeBusyOf, type PodBusy } from '@dltech/atlas-core'
 import {
   POD_RESIZE_TASK_ID,
   podResizeIdempotencyKey,
@@ -11,7 +11,7 @@ import {
   failureText,
   jobsControlPlaneOf,
   podResizerOf,
-  readPodBusy,
+  readPodResizeBusy,
   readPodsEnv,
   type PodResizeDeps,
 } from '@dltech/atlas-pods'
@@ -40,8 +40,10 @@ export const requeuePodResize = async (args: {
 const busyOf = async (args: { plane: ControlPlane; sessionId: string }): Promise<PodBusy> => {
   const session = await args.plane.readSession({ sessionId: args.sessionId })
   if (session === undefined)
-    return podBusyOf(podBusyFactsOf({ state: undefined, shellsRunning: 0, servicesRunning: 0 }))
-  return await readPodBusy({ plane: args.plane, session })
+    return podResizeBusyOf(
+      podBusyFactsOf({ state: undefined, shellsRunning: 0, servicesRunning: 0 }),
+    )
+  return await readPodResizeBusy({ plane: args.plane, session })
 }
 
 export function buildPodResizeGraph(): PodResizeGraph {

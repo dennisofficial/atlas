@@ -125,7 +125,7 @@ describe('usePodMetrics', () => {
     expect(opened[1]?.unsubscribe).toHaveBeenCalledTimes(1)
   })
 
-  it('stops retrying once the pod says usage is unavailable', async () => {
+  it('retries after the pod says usage is unavailable and clears it on the next sample', async () => {
     const { seen, unmount } = await mount({ sessionId: SESSION })
     await act(async () => {
       opened[0]?.handlers.onData({ type: 'unavailable', reason: 'pod metrics are not readable' })
@@ -135,9 +135,30 @@ describe('usePodMetrics', () => {
     await act(async () => {
       await sleep(RESUBSCRIBE_MS + 200)
     })
-    expect(opened).toHaveLength(1)
+    expect(opened).toHaveLength(2)
+    expect(seen.unavailable).toBe(true)
+    await act(async () => {
+      opened[1]?.handlers.onData({ type: 'samples', samples: [sample(1_000)] })
+    })
+    expect(seen.unavailable).toBe(false)
+    expect(seen.series).toHaveLength(1)
     await unmount()
   })
+
+  it('backs off longer after a second unavailable answer', async () => {
+    const { unmount } = await mount({ sessionId: SESSION })
+    await act(async () => {
+      opened[0]?.handlers.onData({ type: 'unavailable', reason: 'asleep' })
+      await sleep(RESUBSCRIBE_MS + 200)
+    })
+    expect(opened).toHaveLength(2)
+    await act(async () => {
+      opened[1]?.handlers.onData({ type: 'unavailable', reason: 'asleep' })
+      await sleep(RESUBSCRIBE_MS + 200)
+    })
+    expect(opened).toHaveLength(2)
+    await unmount()
+  }, 10_000)
 
   it('clears the unavailable reading when it is disabled', async () => {
     const { seen, unmount } = await mount({ sessionId: SESSION, enabled: false })

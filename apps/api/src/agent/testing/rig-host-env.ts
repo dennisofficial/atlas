@@ -50,5 +50,8 @@ export const hostEnv = (args: {
     ...(knobs?.modelRequestsFile === undefined
       ? {}
       : { MODEL_REQUESTS_FILE: knobs.modelRequestsFile }),
+    ...(knobs?.contextMirrorDir === undefined
+      ? {}
+      : { CONTEXT_MIRROR_DIR: knobs.contextMirrorDir }),
   }
 }

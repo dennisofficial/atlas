@@ -1,6 +1,6 @@
 import { Module, type Provider } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
-import { ControlPlane } from '@dltech/atlas-control'
+import { ContextContentStore, ControlPlane } from '@dltech/atlas-control'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import type { ProductAnalytics } from '@dltech/atlas-observability'
 import { eventSchemaOf } from '@dltech/atlas-plugin-sdk'
@@ -13,6 +13,7 @@ import {
 } from '../../../agent'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { changeContentStoreProvider } from '../../../_lib/changes/change-content.provider'
+import { contextContentStoreProvider } from '../../../_lib/changes/context-content.provider'
 import { backgroundWorkProvider } from '../../../_lib/background-work/background-work.providers'
 import { COMMAND_REGISTRY, nativeCommandRegistry } from './command-registry'
 import { composedPlugins, registeredPlugins } from '@dltech/atlas-pods'
@@ -26,6 +27,8 @@ import { RoutinesRouter } from './routines.router'
 import { RoutinesService } from './routines.service'
 import { FilesRouter } from './files.router'
 import { FilesService } from './files.service'
+import { ContextMirrorRouter } from './context-mirror.router'
+import { ContextMirrorService } from './context-mirror.service'
 import { ServicesRouter } from './services.router'
 import { ServicesService } from './services.service'
 import { SessionsRouter } from './sessions.router'
@@ -42,6 +45,8 @@ import { NotifyDevicesService } from './notify-devices.service'
 import { PresenceRegistry } from './presence-registry'
 import { DiagramsRouter } from './diagrams.router'
 import { DIAGRAM_REPAIRER, DiagramRepairService } from './diagram-repair.service'
+import { SessionDraftsRouter } from './session-drafts.router'
+import { SessionDraftsService } from './session-drafts.service'
 
 export const controlPlaneProvider: Provider = {
   provide: ControlPlane,
@@ -64,6 +69,7 @@ export const controlPlaneProvider: Provider = {
     { provide: MediaRegistry, useClass: DbMediaRegistry },
     mediaStoreProvider,
     changeContentStoreProvider,
+    contextContentStoreProvider,
     { provide: COMMAND_REGISTRY, useFactory: nativeCommandRegistry },
     SessionsService,
     PodMetricsService,
@@ -72,6 +78,8 @@ export const controlPlaneProvider: Provider = {
     SessionsRouter,
     FilesService,
     FilesRouter,
+    ContextMirrorService,
+    ContextMirrorRouter,
     ServicesService,
     ServicesRouter,
     ChangesService,
@@ -95,7 +103,9 @@ export const controlPlaneProvider: Provider = {
       inject: [EnvService],
     },
     DiagramsRouter,
+    SessionDraftsService,
+    SessionDraftsRouter,
   ],
-  exports: [ControlPlane, TerminalService],
+  exports: [ControlPlane, TerminalService, ContextContentStore],
 })
 export class ControlPlaneModule {}

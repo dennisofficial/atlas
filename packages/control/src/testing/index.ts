@@ -8,3 +8,4 @@ export {
 } from './conformance'
 export type { ConformanceParams } from './conformance'
 export { FakeChangeContentStore } from './fake-change-content'
+export { FakeContextContentStore } from './fake-context-content'

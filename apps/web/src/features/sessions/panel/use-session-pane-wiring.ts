@@ -3,6 +3,7 @@
 import { useCallback, useMemo } from 'react'
 
 import type { SessionSnapshot } from '@dltech/atlas-client/stream'
+import { isSessionWorking } from '@dltech/atlas-client/stream'
 import type { SessionViewOutput } from '@dltech/atlas-protocol'
 import type { PreviewPort } from '@dltech/atlas-ui/ai/preview-browser'
 
@@ -13,6 +14,8 @@ import type { SessionPaneState } from './pane-state'
 import type { SessionPaneValue } from './pane-value'
 import { previewPortsOf } from './preview-ports'
 import { enteredWorktreePathOf } from '../data/entered-worktree'
+import { contextChangesOf } from '../data/context-files'
+import { useTurnEndCount } from '@/features/threads/data/use-git-changes'
 
 export type PaneSnapshot = Pick<SessionSnapshot, 'view' | 'status' | 'shells' | 'events'>
 
@@ -47,6 +50,8 @@ export function useSessionPaneWiring(args: {
     [mainThreadId, events],
   )
   const shellTails = useMemo(() => shellTailTextOf(shells), [shells])
+  const contextChanged = useMemo(() => contextChangesOf(events), [events])
+  const turnEnds = useTurnEndCount(isSessionWorking(status))
   const ports = useMemo(() => previewPortsOf(model.previews), [model.previews])
   const openBrowserTab = useCallback(() => openTab(ESessionPaneTab.Browser), [openTab])
   const openBrowser = useCallback(
@@ -67,6 +72,8 @@ export function useSessionPaneWiring(args: {
       checkouts: viewOutput?.checkouts ?? NO_CHECKOUTS,
       threadWorktreePath,
       status,
+      contextChanged,
+      turnEnds,
       shellTails,
       openTab,
       openRequest,
@@ -86,6 +93,8 @@ export function useSessionPaneWiring(args: {
       viewOutput,
       threadWorktreePath,
       status,
+      contextChanged,
+      turnEnds,
       shellTails,
       openTab,
       openRequest,
