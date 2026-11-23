@@ -2,13 +2,12 @@ import type { KeyEvent } from '@opentui/core'
 import { useKeyboard, useTerminalDimensions } from '@opentui/react'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import type { SessionModelChoice } from '@dltech/atlas-protocol'
+import type { SessionModelChoice, StreamSessionRow } from '@dltech/atlas-protocol'
 
 import { NoticeStack } from '../ui/components/notice-stack'
 import { Threads } from '../ui/components/threads'
 import { isSettlingLogin } from '../ui/settings-login-model'
 import type { SwitcherChoice } from '../ui/switcher-model'
-import type { ThreadRow } from '../ui/threads-model'
 import type { AccountFile } from './account/account-file'
 import {
   DEFAULT_LAUNCH,
@@ -24,7 +23,6 @@ import {
   screenOnBack,
   screenOnCreated,
   screenOnNew,
-  screenOnPick,
   type ScreenState,
 } from './app-screen'
 import { AwaitingAccessScreen } from './awaiting-access-screen'
@@ -37,6 +35,7 @@ import { createSessionClient, type AuthRefusal, type SessionClient } from './ses
 import { SignInScreen } from './sign-in-screen'
 import { useAccountFlow } from './use-account-flow'
 import { useModelChoice } from './use-model-choice'
+import { useSessionNav } from './use-session-nav'
 import { useSessionList } from './use-session-list'
 import { useSessionModels } from './use-session-models'
 
@@ -111,14 +110,7 @@ export function AppNext(props: AppNextProps): React.ReactNode {
 
   const lookupModel = useRef<(sessionId: string) => SessionModelChoice | null>(() => null)
 
-  const handlePick = useCallback((row: ThreadRow) => {
-    setScreen(screenOnPick({ row, model: lookupModel.current(row.threadId) }))
-  }, [])
-
-  const initialModel = useMemo(
-    () => (launch.model === null ? null : modelOfRef(launch.model)),
-    [launch.model],
-  )
+  const initialModel = launch.model === null ? null : modelOfRef(launch.model)
 
   const models = useSessionModels({ api: client?.api ?? null, onProblem: problemOf })
 
@@ -147,14 +139,24 @@ export function AppNext(props: AppNextProps): React.ReactNode {
     onPick: handleModelPick,
   })
 
+  const rowOfRef = useRef<(sessionId: string) => StreamSessionRow | undefined>(() => undefined)
+
+  const nav = useSessionNav({
+    screen,
+    setScreen,
+    modelOf: (sessionId) => lookupModel.current(sessionId),
+    titleOf: (sessionId) => rowOfRef.current(sessionId)?.title ?? null,
+  })
+
   const list = useSessionList({
     follow,
-    onPick: handlePick,
+    onPick: nav.handlePick,
     now,
     pendingOpen: launch.open,
     onProblem: problemOf,
   })
   lookupModel.current = list.modelOf
+  rowOfRef.current = list.rowOf
 
   const chatKeys = useRef<((key: KeyEvent) => boolean) | null>(null)
   const newKeys = useRef<((key: KeyEvent) => boolean) | null>(null)
@@ -242,7 +244,7 @@ export function AppNext(props: AppNextProps): React.ReactNode {
           height={height}
           now={now}
           cwd={cwd}
-          onBack={() => setScreen(screenOnBack())}
+          onBack={nav.handleBack}
           onNew={() => setScreen(screenOnNew({ model: currentModel }))}
           onModel={choice.handleOpen}
           onQuit={props.onQuit}
@@ -250,6 +252,9 @@ export function AppNext(props: AppNextProps): React.ReactNode {
             chatKeys.current = handler
           }}
           choosingModel={choice.state !== null}
+          clientVersion={props.clientVersion}
+          teammates={list.rows}
+          onOpenSession={nav.handleOpenSession}
         />
         {switcher}
       </box>
