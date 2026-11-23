@@ -18,6 +18,8 @@ import { sessionRowsOf } from './session-rows'
 
 export type SessionListControl = {
   state: ThreadsState
+  rows: readonly StreamSessionRow[]
+  rowOf: (sessionId: string) => StreamSessionRow | undefined
   handlePick: (row: ThreadRow) => void
   handleQuery: (query: string) => void
   handleKey: (key: KeyEvent) => void
@@ -36,6 +38,8 @@ export function useSessionList(args: {
   const held = useRef<ThreadsState>(loadingThreads({ now: now() }))
   const [state, setState] = useState<ThreadsState>(held.current)
   const models = useRef<ReadonlyMap<string, SessionModelChoice>>(new Map())
+  const [rows, setRows] = useState<readonly StreamSessionRow[]>([])
+  const heldRows = useRef<readonly StreamSessionRow[]>([])
   const resumed = useRef(false)
   const argsRef = useRef(args)
   argsRef.current = args
@@ -80,6 +84,8 @@ export function useSessionList(args: {
       put(selectedIndex >= 0 ? { ...rebuilt, index: selectedIndex } : rebuilt)
 
       models.current = new Map(rows.map((row) => [row.sessionId, row.model]))
+      heldRows.current = rows
+      setRows(rows)
       argsRef.current.onRows?.(rows)
       resumeTo({ rows, next })
     },
@@ -125,5 +131,11 @@ export function useSessionList(args: {
     [],
   )
 
-  return { state, handlePick, handleQuery, handleKey, modelOf }
+  const rowOf = useCallback(
+    (sessionId: string): StreamSessionRow | undefined =>
+      heldRows.current.find((row) => row.sessionId === sessionId),
+    [],
+  )
+
+  return { state, rows, rowOf, handlePick, handleQuery, handleKey, modelOf }
 }

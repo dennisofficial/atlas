@@ -12,7 +12,9 @@ import type {
   SessionCreateOutput,
   SessionPostInput,
   SessionRetryInput,
+  SessionStatusOutput,
   SessionStopInput,
+  SessionViewOutput,
   SessionWakeInput,
   SessionWithdrawInput,
   StreamSessionRow,
@@ -78,6 +80,14 @@ export type FakeSessionClient = SessionClient & {
   pushCreated: (created: SessionCreateOutput) => void
   pushRows: (rows: readonly StreamSessionRow[]) => void
   pushEvents: (args: { sessionId: string; events: readonly V2Event[]; live: boolean }) => void
+  pushView: (args: { sessionId: string; view: SessionViewOutput }) => void
+  pushStatus: (args: { sessionId: string; status: SessionStatusOutput }) => void
+  pushShellOutput: (args: {
+    sessionId: string
+    shellId: string
+    offset: number
+    text: string
+  }) => void
   pushReset: (args: { sessionId: string; tailFrom?: number }) => void
   pushOverlay: (args: {
     sessionId: string
@@ -353,6 +363,48 @@ export const fakeSessionClient = (args: {
         subscription.handlers.handleFrame(
           eventsMessage({ id: input.sessionId, events: input.events, live: input.live }),
         )
+      }
+    },
+    pushView: (input) => {
+      for (const subscription of fake.follows) {
+        if (subscription.closed) continue
+        if (subscription.input?.sessionId !== input.sessionId) continue
+        subscription.handlers.handleFrame({
+          type: 'view',
+          id: nextId(),
+          name: 'session',
+          at: input.view.at,
+          value: input.view,
+        })
+      }
+    },
+    pushStatus: (input) => {
+      for (const subscription of fake.follows) {
+        if (subscription.closed) continue
+        if (subscription.input?.sessionId !== input.sessionId) continue
+        subscription.handlers.handleFrame({
+          type: 'view',
+          id: nextId(),
+          name: 'status',
+          at: 0,
+          value: input.status,
+        })
+      }
+    },
+    pushShellOutput: (input) => {
+      for (const subscription of fake.follows) {
+        if (subscription.closed) continue
+        if (subscription.input?.sessionId !== input.sessionId) continue
+        subscription.handlers.handleFrame({
+          type: 'frame',
+          id: nextId(),
+          frame: {
+            type: 'shell-output',
+            shellId: input.shellId,
+            offset: input.offset,
+            text: input.text,
+          },
+        })
       }
     },
     pushReset: (input) => {

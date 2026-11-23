@@ -1,11 +1,11 @@
 import type { KeyEvent } from '@opentui/core'
-import React, { useCallback, useEffect, useMemo, useRef } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 
 import type { EClientAction } from '@dltech/atlas-commands'
+import type { StreamSessionRow } from '@dltech/atlas-protocol'
 
-import { chordMatches, EKeyGroup, EKeyLayer, type KeyBinding } from '../ui/keys'
 import { ENoticeTone, notify } from '../ui/notice-store'
-import { chatBindings, chatPressHandled } from './chat-bindings'
+import { AgentTranscriptScreen } from './agent-transcript'
 import { ChatScreen } from './chat-screen'
 import { connectionViewOf } from './connection-view'
 import { pendingOperatorRequestOf } from './operator-request'
@@ -21,17 +21,14 @@ import { useRewind } from './use-rewind'
 import { useSessionComposer } from './use-session-composer'
 import { useTuiCommands } from './use-tui-commands'
 import { useSessionSend } from './use-session-send'
+import { useChatKeys } from './use-chat-keys'
+import { useSessionPanes } from './use-session-panes'
 import { useSessionTranscript } from './use-session-transcript'
-import { EPodWake, useSessionWake } from './use-session-wake'
+import { useSessionWake } from './use-session-wake'
 
 const problemOf = (reason: string): void => {
   notify({ text: reason, tone: ENoticeTone.Warn })
 }
-
-const global = (binding: Omit<KeyBinding, 'layer'>): KeyBinding => ({
-  ...binding,
-  layer: EKeyLayer.Global,
-})
 
 export function ChatScreenHost(props: {
   client: SessionClient
@@ -47,6 +44,9 @@ export function ChatScreenHost(props: {
   onQuit: () => void
   onKeys: (handler: (key: KeyEvent) => boolean) => void
   choosingModel: boolean
+  clientVersion: string
+  teammates: readonly StreamSessionRow[]
+  onOpenSession: (agentId: string) => void
 }): React.ReactNode {
   const transcript = useSessionTranscript({
     client: props.client,
@@ -54,6 +54,15 @@ export function ChatScreenHost(props: {
     title: props.title,
     now: props.now,
   })
+
+  const panes = useSessionPanes({
+    transcript,
+    sessionId: props.sessionId,
+    teammates: props.teammates,
+    onOpenSession: props.onOpenSession,
+    onProblem: problemOf,
+  })
+  const [sidebarOpen, setSidebarOpen] = useState(true)
 
   const restoreText = useRef<(args: { text: string; reason: string | undefined }) => void>(
     () => undefined,
@@ -171,6 +180,7 @@ export function ChatScreenHost(props: {
     onHelp: menu.handleOpen,
     onRewind: rewind.handleOpen,
     onWake: wake.handleWake,
+    onShells: panes.shells.handleToggle,
     onProblem: problemOf,
   })
   runName.current = commands.run
@@ -195,96 +205,44 @@ export function ChatScreenHost(props: {
   )
 
   const { onBack } = props
-  const { handleStop } = send
 
-  const handleEscape = useCallback(() => {
-    if (transcript.working) {
-      handleStop()
-      return
-    }
-    onBack()
-  }, [handleStop, onBack, transcript.working])
-
-  const extra = useMemo<readonly KeyBinding[]>(() => {
-    const list: KeyBinding[] = []
-    if (!connection.cloudConnected) {
-      list.push(
-        global({
-          chord: 'ctrl+r',
-          hint: 'reconnect',
-          describe: 'wake the sandbox and follow it again',
-          group: EKeyGroup.Turn,
-          run: wake.handleWake,
-        }),
-      )
-    } else if (attention.handleRetry !== null) {
-      list.push(
-        global({
-          chord: 'ctrl+r',
-          hint: 'retry',
-          describe: 'run the failed turn again',
-          group: EKeyGroup.Turn,
-          run: attention.handleRetry,
-        }),
-      )
-    } else if (attention.handleResume !== null) {
-      list.push(
-        global({
-          chord: 'ctrl+r',
-          hint: 'resume',
-          describe: 'pick the stopped turn up where it left off',
-          group: EKeyGroup.Turn,
-          run: attention.handleResume,
-        }),
-      )
-    }
-    if (wake.state !== EPodWake.Asleep) {
-      list.push(
-        global({
-          chord: 'r',
-          hint: 'wake',
-          describe: 'wake the sandbox',
-          group: EKeyGroup.Turn,
-          run: () => {
-            if (!composer.draftIsEmpty()) return false
-            wake.handleWake()
-            return true
-          },
-        }),
-      )
-    }
-    return list
-  }, [attention.handleRetry, attention.handleResume, composer, connection.cloudConnected, wake])
-
-  const bindings = useMemo(
-    () => [
-      ...chatBindings({
-        draftIsEmpty: composer.draftIsEmpty,
-        onSubmit: composer.handleSubmit,
-        onTakeBackPending: takeBack.handleTakeBack,
-        onAttachImage: composer.handleAttachImage,
-        onEscape: handleEscape,
-      }),
-      ...extra,
-    ],
-    [composer, extra, handleEscape, takeBack.handleTakeBack],
-  )
-
-  const handleKey = useCallback(
-    (key: KeyEvent): boolean => {
-      if (operator.state !== null) return operator.handleKey(key)
-      if (menu.handleKey(key)) return true
-      if (composer.handleKey(key)) return true
-      if (rewind.handleKey(key)) return true
-      return chatPressHandled({ press: key, bindings, match: chordMatches })
-    },
-    [bindings, composer, menu, operator, rewind],
-  )
+  const handleKey = useChatKeys({
+    composer,
+    handleTakeBack: takeBack.handleTakeBack,
+    attention,
+    wake,
+    connection,
+    operator,
+    menu,
+    rewind,
+    panes,
+    working: transcript.working,
+    onToggleSidebar: () => setSidebarOpen((open) => !open),
+    onBack,
+    onStop: send.handleStop,
+  })
 
   const onKeys = props.onKeys
   useEffect(() => {
     onKeys(handleKey)
   }, [handleKey, onKeys])
+
+  const viewing = panes.crew.viewing
+  if (viewing !== null) {
+    return (
+      <AgentTranscriptScreen
+        client={props.client}
+        sessionId={props.sessionId}
+        agentId={viewing}
+        name={panes.crew.rows.find((row) => row.id === viewing)?.name ?? viewing}
+        width={props.width}
+        cwd={props.cwd}
+        now={props.now}
+        backLabel={panes.crew.backLabel}
+        onBack={onBack}
+      />
+    )
+  }
 
   return (
     <ChatScreen
@@ -306,6 +264,16 @@ export function ChatScreenHost(props: {
       menu={menu}
       rewind={rewind}
       onMenuSelect={menu.handleSelectRow}
+      sidebar={sidebarOpen ? panes.sidebar : null}
+      sidebarRoot={panes.panes.repo ?? props.cwd}
+      clientVersion={props.clientVersion}
+      paneNow={panes.paneNow}
+      shellFold={panes.shells.fold}
+      serviceFold={panes.serviceFold}
+      shells={panes.shells}
+      services={panes.services}
+      onSelectSubagent={panes.crew.handleSelect}
+      onOpenTeammate={props.onOpenSession}
     />
   )
 }

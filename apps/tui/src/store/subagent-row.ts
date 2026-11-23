@@ -1,15 +1,15 @@
 import {
   agentDisplayName,
   EAgentStatus,
+  TEAMMATE_AGENT_TYPE,
   type ProviderIdentity,
   type ThreadId,
 } from '@dltech/atlas-core'
-import {
-  TEAMMATE_AGENT_TYPE,
-  type AgentSnapshot,
-  type ChildContext,
-  type PullRequestBadge,
-  type ShellSnapshot,
+import type {
+  AgentSnapshot,
+  ChildContext,
+  PullRequestBadge,
+  ShellSnapshot,
 } from '@dltech/atlas-harness'
 
 import {

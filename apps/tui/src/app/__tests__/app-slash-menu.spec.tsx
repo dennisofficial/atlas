@@ -137,7 +137,7 @@ describe('the slash menu in a v2 session', () => {
       await mounted.setup.mockInput.typeText('/')
 
       const frame = await frameShowing({ setup: mounted.setup, text: 'Commands', within: WITHIN })
-      expect(frame).toContain('/rewind <message>')
+      expect(frame).toContain('/rewind')
       expect(frame).toContain('/new')
       expect(frame).toContain('/sessions')
     } finally {

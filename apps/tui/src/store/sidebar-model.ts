@@ -2,12 +2,12 @@ import {
   EExecutionLocation,
   EPlanStatus,
   EServiceStatus,
+  TEAMMATE_AGENT_TYPE,
   type ECrewStanding,
   type Event,
 } from '@dltech/atlas-core'
 
 import {
-  TEAMMATE_AGENT_TYPE,
   type BoundPort,
   type SandboxContainer,
   type SandboxLimits,
@@ -74,7 +74,7 @@ export const IDLE_SIDEBAR: SidebarModel = {
   lastActivity: null,
 }
 
-const TASK_STATE_OF: Record<EPlanStatus, ESidebarTaskState> = {
+export const TASK_STATE_OF: Record<EPlanStatus, ESidebarTaskState> = {
   [EPlanStatus.Pending]: ESidebarTaskState.Pending,
   [EPlanStatus.InProgress]: ESidebarTaskState.Running,
   [EPlanStatus.Completed]: ESidebarTaskState.Done,

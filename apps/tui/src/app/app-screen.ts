@@ -63,3 +63,21 @@ export const screenOnCreated = (args: {
 })
 
 export const screenOnBack = (): ScreenState => ({ screen: EScreen.Sessions })
+
+export type OpenSession = {
+  sessionId: string
+  title: string | null
+  model: SessionModelChoice | null
+}
+
+const screenOfOpen = (opened: OpenSession): ScreenState => ({
+  screen: EScreen.Transcript,
+  sessionId: opened.sessionId,
+  title: opened.title,
+  model: opened.model,
+})
+
+export const screenOnTeammate = (args: { teammate: OpenSession }): ScreenState =>
+  screenOfOpen(args.teammate)
+
+export const screenOnReturn = (args: { back: OpenSession }): ScreenState => screenOfOpen(args.back)

@@ -1,4 +1,5 @@
-import { EChecksState, EPullRequestState, type PullRequestBadge } from '@dltech/atlas-harness'
+import { EChecksState, EPullRequestState } from '@dltech/atlas-core'
+import type { PullRequestBadge } from '@dltech/atlas-harness'
 
 import type { Span } from '../../ui/components/spans'
 import { theme } from '../../ui/theme'

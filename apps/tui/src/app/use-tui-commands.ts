@@ -19,10 +19,11 @@ export function useTuiCommands(args: {
   onHelp: () => void
   onRewind: () => void
   onWake: () => void
+  onShells: () => void
   onProblem: (reason: string) => void
 }): TuiCommands {
   const { sessionId, cwd, onProblem } = args
-  const { onNew, onSessions, onQuit, onModel, onHelp, onRewind, onWake } = args
+  const { onNew, onSessions, onQuit, onModel, onHelp, onRewind, onWake, onShells } = args
 
   const run = useCallback(
     (name: string) => {
@@ -43,6 +44,11 @@ export function useTuiCommands(args: {
 
       if (name === 'rewind') {
         onRewind()
+        return
+      }
+
+      if (name === 'shells') {
+        onShells()
         return
       }
 
@@ -71,7 +77,7 @@ export function useTuiCommands(args: {
 
       onProblem(`/${name} is not a command in this build`)
     },
-    [cwd, onNew, onProblem, onQuit, onRewind, onSessions, onWake, sessionId],
+    [cwd, onNew, onProblem, onQuit, onRewind, onSessions, onShells, onWake, sessionId],
   )
 
   const action = useCallback(

@@ -78,7 +78,8 @@ export function rowTone(row: ServiceRow): EServiceTone {
   return isRowRunning(row) ? EServiceTone.Ok : EServiceTone.Idle
 }
 
-export const rowUrl = (row: ServiceRow): string | undefined => row.declared?.url
+export const rowUrl = (row: ServiceRow): string | undefined =>
+  row.declared?.url ?? row.snapshot?.exposure?.url
 
 export const rowServiceId = (row: ServiceRow): string | undefined =>
   row.declared?.serviceId ?? row.snapshot?.serviceId
