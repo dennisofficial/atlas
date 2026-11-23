@@ -167,6 +167,7 @@ export const makeRuntimeFactory = (args: {
   beforeRuntime?: (() => Promise<void>) | undefined
   stopGate?: Promise<void> | undefined
   plugins?: ComposedPlugins | undefined
+  rotation?: { autoRotateAtPercent: number } | undefined
   placeContextFiles?: SessionRuntime['placeContextFiles'] | undefined
 }): ((params: {
   sessionId: string
@@ -210,6 +211,7 @@ export const makeRuntimeFactory = (args: {
       model,
       classifier: OFF_CLASSIFIER,
       classifierStatus: { on: false, reason: 'the rig has no classifier' },
+      rotation: args.rotation ?? { autoRotateAtPercent: 0 },
       modelChoice: RIG_MODEL_CHOICE,
       modelOfCalls,
       modelOf: (choice) => {
