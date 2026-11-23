@@ -17,11 +17,8 @@ describe('destinationOfUrl', () => {
     })
   })
 
-  it('reads a thread from the app scheme', () => {
-    expect(destinationOfUrl('atlas://thread/thr_1')).toEqual({
-      pathname: '/thread/[id]',
-      params: { id: 'thr_1' },
-    })
+  it('ignores the v1 thread path', () => {
+    expect(destinationOfUrl('atlas://thread/thr_1')).toBeUndefined()
   })
 
   it('accepts the app scheme with a leading triple slash', () => {

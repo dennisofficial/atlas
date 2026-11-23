@@ -63,7 +63,6 @@ export const useSessions = () => {
         ? EMPTY
         : partitionSessions({
             projects: loaded.projects,
-            threads: loaded.threads,
             sessions: live ?? loaded.sessions,
             now,
           }),

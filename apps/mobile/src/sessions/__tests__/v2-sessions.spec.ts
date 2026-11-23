@@ -1,15 +1,14 @@
 import { describe, expect, it } from 'bun:test'
 
+import { ESessionDisplay } from '@dltech/atlas-client/stream'
 import { ESessionStatus as CoreStatus } from '@dltech/atlas-core'
 
 import {
   EPullRequestState,
-  ESessionKind,
   EWorkKind,
   INACTIVE_AFTER_MS,
   partitionSessions,
 } from '../session-groups'
-import { ESessionStatus } from '../session-status'
 import { listV2Sessions, type V2SessionSummary } from '../v2-sessions'
 
 const NOW = Date.parse('2026-11-09T12:00:00.000Z')
@@ -52,10 +51,9 @@ describe('listV2Sessions', () => {
 })
 
 describe('partitionSessions with v2 sessions', () => {
-  it('files a v2 session under its project with a v2 kind and its running status', () => {
+  it('files a v2 session under its project with its working display', () => {
     const partition = partitionSessions({
       projects,
-      threads: [],
       sessions: [
         summaryOf({
           sessionId: 'ses_1',
@@ -69,9 +67,8 @@ describe('partitionSessions with v2 sessions', () => {
     const entry = partition.groups[0]?.sessions[0]
     expect(entry).toMatchObject({
       id: 'ses_1',
-      kind: ESessionKind.V2,
       title: 'Ship mobile v2',
-      status: ESessionStatus.Running,
+      status: ESessionDisplay.Working,
       work: { kind: EWorkKind.Branch, branch: 'dennis/mobile-v2' },
     })
   })
@@ -79,7 +76,6 @@ describe('partitionSessions with v2 sessions', () => {
   it('files an archived session in the archived bucket and an old one as inactive', () => {
     const partition = partitionSessions({
       projects,
-      threads: [],
       sessions: [
         summaryOf({ sessionId: 'ses_old', updatedAt: hoursAgo(INACTIVE_AFTER_MS / 3_600_000 + 1) }),
         summaryOf({ sessionId: 'ses_archived', archivedAt: hoursAgo(2) }),
@@ -93,7 +89,6 @@ describe('partitionSessions with v2 sessions', () => {
   it('names an untitled session and a pull request branch', () => {
     const partition = partitionSessions({
       projects,
-      threads: [],
       sessions: [
         summaryOf({
           sessionId: 'ses_2',
@@ -112,7 +107,7 @@ describe('partitionSessions with v2 sessions', () => {
     })
     const entry = partition.groups[0]?.sessions[0]
     expect(entry?.title).toBe('Untitled')
-    expect(entry?.status).toBe(ESessionStatus.Failed)
+    expect(entry?.status).toBe(ESessionDisplay.Failed)
     expect(entry?.work).toEqual({
       kind: EWorkKind.PullRequest,
       number: 42,

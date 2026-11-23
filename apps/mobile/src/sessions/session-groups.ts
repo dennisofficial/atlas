@@ -1,14 +1,11 @@
+import {
+  type ESessionDisplay,
+  isSessionUnreadOf,
+  sessionDisplayOf,
+} from '@dltech/atlas-client/stream'
 import type { SessionListOutput } from '@dltech/atlas-protocol'
-import type { WireThread } from '@dltech/atlas-wire/web'
-
-import { ESessionStatus, isUnread, sessionStatusOf } from './session-status'
 
 export type V2SessionSummary = SessionListOutput['sessions'][number]
-
-export enum ESessionKind {
-  V1 = 'v1',
-  V2 = 'v2',
-}
 
 export const INACTIVE_AFTER_MS = 72 * 60 * 60 * 1000
 export const NO_PROJECT_KEY = '__no-project__'
@@ -38,13 +35,11 @@ export interface IProjectSummary {
 
 export interface ISessionEntry {
   id: string
-  kind: ESessionKind
   title: string
   projectName: string
   createdAt: string
   updatedAt: string
-  pinned: boolean
-  status: ESessionStatus
+  status: ESessionDisplay | undefined
   unread: boolean
   work: SessionWork
 }
@@ -70,6 +65,11 @@ enum EBucket {
 
 const isSet = (stamp: string | null | undefined): boolean => stamp !== null && stamp !== undefined
 
+const timeOf = (stamp: string): number => {
+  const parsed = Date.parse(stamp)
+  return Number.isNaN(parsed) ? 0 : parsed
+}
+
 const placementOf = ({
   projectId,
   nameOf,
@@ -81,15 +81,23 @@ const placementOf = ({
   return name === undefined ? undefined : { key: projectId ?? NO_PROJECT_KEY, name }
 }
 
-const timeOf = (stamp: string): number => {
-  const parsed = Date.parse(stamp)
-  return Number.isNaN(parsed) ? 0 : parsed
+const isRootSession = ({
+  summary,
+  byId,
+}: {
+  summary: V2SessionSummary
+  byId: ReadonlyMap<string, V2SessionSummary>
+}): boolean => {
+  if (summary.nested === false) return true
+  const spawnerId = summary.spawnedBy ?? null
+  if (spawnerId === null || spawnerId === summary.sessionId) return true
+  const spawner = byId.get(spawnerId)
+  return spawner === undefined || isSet(spawner.archivedAt)
 }
 
-const bucketOf = ({ thread, now }: { thread: WireThread; now: number }): EBucket => {
-  if (isSet(thread.archivedAt)) return EBucket.Archived
-  if (isSet(thread.pinnedAt)) return EBucket.Active
-  const updatedAt = Date.parse(thread.updatedAt)
+const bucketOf = ({ summary, now }: { summary: V2SessionSummary; now: number }): EBucket => {
+  if (isSet(summary.archivedAt)) return EBucket.Archived
+  const updatedAt = Date.parse(summary.updatedAt)
   if (Number.isNaN(updatedAt)) return EBucket.Active
   return now - updatedAt > INACTIVE_AFTER_MS ? EBucket.Inactive : EBucket.Active
 }
@@ -102,77 +110,7 @@ const pullRequestStateOf = (state: string | undefined): EPullRequestState => {
   return EPullRequestState.Open
 }
 
-type PullRequest = NonNullable<WireThread['pullRequests']>[number]
-
-const workOf = (thread: WireThread): SessionWork => {
-  const latest = (thread.pullRequests ?? []).reduce<PullRequest | undefined>(
-    (best, entry) => (best === undefined || entry.number > best.number ? entry : best),
-    undefined,
-  )
-  if (latest !== undefined) {
-    return {
-      kind: EWorkKind.PullRequest,
-      number: latest.number,
-      state: pullRequestStateOf(latest.state),
-    }
-  }
-  return {
-    kind: EWorkKind.Branch,
-    branch: thread.worktree?.branch ?? thread.checkout?.branch ?? null,
-  }
-}
-
-const isMainSession = (thread: WireThread): boolean =>
-  thread.parent === undefined && thread.agent === undefined
-
-export const toSessionEntry = ({
-  thread,
-  projectName,
-}: {
-  thread: WireThread
-  projectName: string
-}): ISessionEntry => ({
-  id: thread.id,
-  kind: ESessionKind.V1,
-  title: thread.title === undefined || thread.title.length === 0 ? 'Untitled' : thread.title,
-  projectName,
-  createdAt: thread.createdAt,
-  updatedAt: thread.updatedAt,
-  pinned: isSet(thread.pinnedAt),
-  status: sessionStatusOf(thread),
-  unread: isUnread(thread),
-  work: workOf(thread),
-})
-
-const RUNNING_STATES: ReadonlySet<string> = new Set([
-  'preparing',
-  'thinking',
-  'running-tool',
-  'waiting-to-retry',
-  'resuming',
-  'waiting-for-background',
-])
-
-const FAILED_STATES: ReadonlySet<string> = new Set(['failed', 'setup-failed', 'start-failed'])
-
-const statusOfV2 = (summary: V2SessionSummary): ESessionStatus => {
-  const state = summary.status?.state
-  if (state === undefined) return ESessionStatus.Idle
-  if (state === 'waiting-for-credentials' || state === 'waiting-for-operator') {
-    return ESessionStatus.Awaiting
-  }
-  if (FAILED_STATES.has(state)) return ESessionStatus.Failed
-  return RUNNING_STATES.has(state) ? ESessionStatus.Running : ESessionStatus.Idle
-}
-
-const isUnreadV2 = (summary: V2SessionSummary): boolean => {
-  const lastAssistantSeq = summary.lastAssistantSeq ?? 0
-  if (lastAssistantSeq <= 0) return false
-  if (statusOfV2(summary) === ESessionStatus.Running) return false
-  return lastAssistantSeq > (summary.readSeq ?? -1)
-}
-
-const workOfV2 = (summary: V2SessionSummary): SessionWork => {
+const workOf = (summary: V2SessionSummary): SessionWork => {
   const pullRequest = summary.pullRequest
   if (pullRequest !== null && pullRequest !== undefined) {
     return {
@@ -184,74 +122,63 @@ const workOfV2 = (summary: V2SessionSummary): SessionWork => {
   return { kind: EWorkKind.Branch, branch: summary.primaryBranch ?? null }
 }
 
-const v2EntryOf = ({
+const entryOf = ({
   summary,
   projectName,
 }: {
   summary: V2SessionSummary
   projectName: string
-}): ISessionEntry => ({
-  id: summary.sessionId,
-  kind: ESessionKind.V2,
-  title: summary.title === null || summary.title.length === 0 ? 'Untitled' : summary.title,
-  projectName,
-  createdAt: summary.createdAt,
-  updatedAt: summary.updatedAt,
-  pinned: false,
-  status: statusOfV2(summary),
-  unread: isUnreadV2(summary),
-  work: workOfV2(summary),
-})
-
-const v2BucketOf = ({ summary, now }: { summary: V2SessionSummary; now: number }): EBucket => {
-  if (isSet(summary.archivedAt)) return EBucket.Archived
-  const updatedAt = Date.parse(summary.updatedAt)
-  if (Number.isNaN(updatedAt)) return EBucket.Active
-  return now - updatedAt > INACTIVE_AFTER_MS ? EBucket.Inactive : EBucket.Active
+}): ISessionEntry => {
+  const display = sessionDisplayOf({
+    state: summary.status?.state,
+    sandboxStatus: summary.sandbox?.status,
+  })
+  return {
+    id: summary.sessionId,
+    title: summary.title === null || summary.title.length === 0 ? 'Untitled' : summary.title,
+    projectName,
+    createdAt: summary.createdAt,
+    updatedAt: summary.updatedAt,
+    status: display,
+    unread: isSessionUnreadOf({
+      display,
+      lastAssistantSeq: summary.lastAssistantSeq ?? 0,
+      readSeq: summary.readSeq ?? null,
+    }),
+    work: workOf(summary),
+  }
 }
 
 export const sortSessions = (sessions: readonly ISessionEntry[]): ISessionEntry[] =>
-  [...sessions].sort((left, right) => {
-    const pinned = Number(right.pinned) - Number(left.pinned)
-    return pinned !== 0 ? pinned : timeOf(left.createdAt) - timeOf(right.createdAt)
-  })
+  [...sessions].sort((left, right) => timeOf(left.createdAt) - timeOf(right.createdAt))
 
 export const partitionSessions = ({
   projects,
-  threads,
   sessions,
   now,
 }: {
   projects: readonly IProjectSummary[]
-  threads: readonly WireThread[]
-  sessions?: readonly V2SessionSummary[]
+  sessions: readonly V2SessionSummary[]
   now: number
 }): ISessionPartition => {
   const ordered = [...projects].sort(
     (left, right) => timeOf(left.createdAt) - timeOf(right.createdAt),
   )
   const nameOf = new Map(ordered.map((project) => [project.id, project.name]))
+  const byId = new Map(sessions.map((summary) => [summary.sessionId, summary]))
   const buckets: Record<EBucket, Map<string, ISessionEntry[]>> = {
     [EBucket.Active]: new Map(),
     [EBucket.Inactive]: new Map(),
     [EBucket.Archived]: new Map(),
   }
-  for (const thread of threads.filter(isMainSession)) {
-    const placement = placementOf({ projectId: thread.projectId ?? null, nameOf })
-    if (placement === undefined) continue
-    const bucket = buckets[bucketOf({ thread, now })]
-    bucket.set(placement.key, [
-      ...(bucket.get(placement.key) ?? []),
-      toSessionEntry({ thread, projectName: placement.name }),
-    ])
-  }
-  for (const summary of sessions ?? []) {
+  for (const summary of sessions) {
+    if (!isRootSession({ summary, byId })) continue
     const placement = placementOf({ projectId: summary.projectId, nameOf })
     if (placement === undefined) continue
-    const bucket = buckets[v2BucketOf({ summary, now })]
+    const bucket = buckets[bucketOf({ summary, now })]
     bucket.set(placement.key, [
       ...(bucket.get(placement.key) ?? []),
-      v2EntryOf({ summary, projectName: placement.name }),
+      entryOf({ summary, projectName: placement.name }),
     ])
   }
   const groupsOf = (bucket: EBucket): IProjectGroup[] => [

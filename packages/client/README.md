@@ -1,8 +1,7 @@
 # @dltech/atlas-client
 
-The headless client library that every surface shares. It follows a session live, keeps a local
-session log, derives the session state and the transcript, and reads the crew. The web, the TUI and
-the mobile app use it.
+The headless client library that web, the TUI and the mobile app share. It follows a session live,
+keeps a local session log, derives the session state and the transcript, and reads the crew.
 
 ## Owns
 
@@ -59,6 +58,7 @@ the mobile app use it.
 - `applyOverlayMessage`, `closeOverlay`, `closeOverlayForEvents`, `EMPTY_OVERLAY_STATE`: the live
   step overlay.
 - `derivedViewOf`, `deriveViewOf`, `deriveStatusOf`, `frameFactsOf`: the view of a followed session.
+- `sessionDisplayOf` and `isSessionUnreadOf`: the shared status and unread mapping of a row.
 
 ### Read the pod channel
 

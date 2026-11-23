@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'bun:test'
 
-import { ESessionStatus as ECoreSessionStatus } from '@dltech/atlas-core'
-import type { WireThread } from '@dltech/atlas-wire/web'
+import { ESessionStatus as CoreStatus } from '@dltech/atlas-core'
+import { ESessionDisplay } from '@dltech/atlas-client/stream'
+import { ESandboxStatus } from '@dltech/atlas-protocol'
 
 import {
   EPullRequestState,
@@ -11,20 +12,9 @@ import {
   partitionSessions,
   type V2SessionSummary,
 } from '../session-groups'
-import { ESessionStatus, isUnread, sessionStatusOf } from '../session-status'
 
 const NOW = Date.parse('2026-11-03T20:00:00.000Z')
 const hoursAgo = (hours: number): string => new Date(NOW - hours * 3_600_000).toISOString()
-
-const threadOf = (overrides: Partial<WireThread> & { id: string }): WireThread => ({
-  head: 0,
-  createdAt: hoursAgo(100),
-  updatedAt: hoursAgo(1),
-  workspace: null,
-  repo: null,
-  projectId: 'atlas',
-  ...overrides,
-})
 
 const projects = [
   { id: 'neo', name: 'comp-neo', createdAt: hoursAgo(500) },
@@ -46,77 +36,101 @@ const summaryOf = (
   ...overrides,
 })
 
+const entriesOf = (partition: ReturnType<typeof partitionSessions>) =>
+  partition.groups.flatMap((group) => group.sessions)
+
 describe('partitionSessions', () => {
-  it('orders projects by creation and sessions pinned-first then oldest-created first', () => {
+  it('orders projects by creation and sessions oldest-created first', () => {
     const partition = partitionSessions({
       projects,
       now: NOW,
-      threads: [
-        threadOf({ id: 'late', createdAt: hoursAgo(5) }),
-        threadOf({ id: 'early', createdAt: hoursAgo(50) }),
-        threadOf({ id: 'pinned', createdAt: hoursAgo(2), pinnedAt: hoursAgo(1) }),
-        threadOf({ id: 'neo', projectId: 'neo' }),
+      sessions: [
+        summaryOf({ sessionId: 'late', createdAt: hoursAgo(5) }),
+        summaryOf({ sessionId: 'early', createdAt: hoursAgo(50) }),
+        summaryOf({ sessionId: 'neo', projectId: 'neo' }),
       ],
     })
     expect(partition.groups.map((group) => group.name)).toEqual(['atlas', 'comp-neo', 'RCP'])
-    expect(partition.groups[0]?.sessions.map((session) => session.id)).toEqual([
-      'pinned',
-      'early',
-      'late',
-    ])
+    expect(partition.groups[0]?.sessions.map((session) => session.id)).toEqual(['early', 'late'])
     expect(partition.groups[2]?.sessions).toEqual([])
   })
 
   it('shows a No project group only when it has sessions', () => {
-    const empty = partitionSessions({ projects, now: NOW, threads: [] })
+    const empty = partitionSessions({ projects, now: NOW, sessions: [] })
     expect(empty.groups.some((group) => group.projectId === null)).toBe(false)
     const loose = partitionSessions({
       projects,
       now: NOW,
-      threads: [threadOf({ id: 'loose', projectId: null })],
+      sessions: [summaryOf({ sessionId: 'loose', projectId: null })],
     })
     expect(loose.groups.at(-1)).toMatchObject({ name: NO_PROJECT_NAME, projectId: null })
   })
 
-  it('marks a v2 row unread until its read cursor reaches the last assistant seq', () => {
+  it('files a session of a deleted project nowhere', () => {
     const partition = partitionSessions({
       projects,
       now: NOW,
-      threads: [],
+      sessions: [summaryOf({ sessionId: 'gone', projectId: 'deleted' })],
+    })
+    expect(entriesOf(partition)).toEqual([])
+  })
+
+  it('marks a session unread until its read cursor reaches the last assistant seq', () => {
+    const partition = partitionSessions({
+      projects,
+      now: NOW,
       sessions: [
         summaryOf({ sessionId: 'unread', lastAssistantSeq: 6, readSeq: 5 }),
         summaryOf({ sessionId: 'read', lastAssistantSeq: 6, readSeq: 6 }),
         summaryOf({
           sessionId: 'working',
           lastAssistantSeq: 6,
-          status: { state: ECoreSessionStatus.Thinking },
+          status: { state: CoreStatus.Thinking },
         }),
       ],
     })
-    const entries = partition.groups.flatMap((group) => group.sessions)
+    const entries = entriesOf(partition)
     expect(entries.find((entry) => entry.id === 'unread')?.unread).toBe(true)
     expect(entries.find((entry) => entry.id === 'read')?.unread).toBe(false)
     expect(entries.find((entry) => entry.id === 'working')?.unread).toBe(false)
   })
 
-  it('files a v2 session with no project under the No project group', () => {
+  it('keeps a session that spawned itself as a peer at the top level', () => {
     const partition = partitionSessions({
       projects,
       now: NOW,
-      threads: [],
       sessions: [
-        summaryOf({ sessionId: 'loose', projectId: null }),
-        summaryOf({ sessionId: 'atl', projectId: 'atlas' }),
-        summaryOf({ sessionId: 'gone', projectId: 'deleted' }),
+        summaryOf({ sessionId: 'main' }),
+        summaryOf({ sessionId: 'peer', spawnedBy: 'main', nested: false }),
       ],
     })
-    expect(partition.groups.map((group) => [group.name, group.sessions.map((s) => s.id)])).toEqual([
-      ['atlas', ['atl']],
-      ['comp-neo', []],
-      ['RCP', []],
-      [NO_PROJECT_NAME, ['loose']],
-    ])
-    expect(partition.groups.at(-1)).toMatchObject({ projectId: null })
+    expect(entriesOf(partition).map((entry) => entry.id)).toEqual(['main', 'peer'])
+  })
+
+  it('drops a nested teammate of a session in the list', () => {
+    const partition = partitionSessions({
+      projects,
+      now: NOW,
+      sessions: [
+        summaryOf({ sessionId: 'main' }),
+        summaryOf({ sessionId: 'mate', spawnedBy: 'main', nested: true }),
+      ],
+    })
+    expect(entriesOf(partition).map((entry) => entry.id)).toEqual(['main'])
+  })
+
+  it('keeps a teammate whose spawner is archived or missing', () => {
+    const partition = partitionSessions({
+      projects,
+      now: NOW,
+      sessions: [
+        summaryOf({ sessionId: 'archived-main', archivedAt: hoursAgo(2) }),
+        summaryOf({ sessionId: 'mate', spawnedBy: 'archived-main', nested: true }),
+        summaryOf({ sessionId: 'orphan', spawnedBy: 'vanished', nested: true }),
+      ],
+    })
+    expect(entriesOf(partition).map((entry) => entry.id)).toEqual(['mate', 'orphan'])
+    expect(partition.archived[0]?.sessions.map((entry) => entry.id)).toEqual(['archived-main'])
   })
 
   it('splits stale and archived sessions into per-project buckets', () => {
@@ -124,10 +138,10 @@ describe('partitionSessions', () => {
     const partition = partitionSessions({
       projects,
       now: NOW,
-      threads: [
-        threadOf({ id: 'stale', updatedAt: hoursAgo(stale) }),
-        threadOf({ id: 'kept', updatedAt: hoursAgo(stale), pinnedAt: hoursAgo(200) }),
-        threadOf({ id: 'gone', projectId: 'neo', archivedAt: hoursAgo(1) }),
+      sessions: [
+        summaryOf({ sessionId: 'stale', updatedAt: hoursAgo(stale) }),
+        summaryOf({ sessionId: 'kept' }),
+        summaryOf({ sessionId: 'gone', projectId: 'neo', archivedAt: hoursAgo(1) }),
       ],
     })
     expect(
@@ -137,35 +151,27 @@ describe('partitionSessions', () => {
     expect(partition.groups[0]?.sessions.map((session) => session.id)).toEqual(['kept'])
   })
 
-  it('drops sub-agent threads and threads of unknown projects', () => {
-    const partition = partitionSessions({
-      projects,
-      now: NOW,
-      threads: [
-        threadOf({ id: 'agent', agent: { spawnedBy: 'main', type: 'builder' } }),
-        threadOf({ id: 'orphan', projectId: 'deleted' }),
-      ],
-    })
-    expect(partition.groups.flatMap((group) => group.sessions)).toEqual([])
-  })
-
   it('describes a session by its latest pull request, then its branch', () => {
     const partition = partitionSessions({
       projects,
       now: NOW,
-      threads: [
-        threadOf({
-          id: 'pr',
-          pullRequests: [
-            { number: 1700, url: '', repo: 'r', branch: 'a', state: 'OPEN' },
-            { number: 1755, url: '', repo: 'r', branch: 'b', state: 'MERGED' },
-          ],
+      sessions: [
+        summaryOf({
+          sessionId: 'pr',
+          pullRequest: {
+            repo: 'dennisofficial/atlas',
+            number: 1755,
+            url: 'https://github.com/dennisofficial/atlas/pull/1755',
+            state: 'merged',
+            checks: null,
+            mergeable: null,
+          },
         }),
-        threadOf({ id: 'branch', worktree: { path: '/w', branch: 'dennis/expo' } }),
-        threadOf({ id: 'bare', title: '' }),
+        summaryOf({ sessionId: 'branch', primaryBranch: 'dennis/expo' }),
+        summaryOf({ sessionId: 'bare', title: '' }),
       ],
     })
-    const byId = new Map(partition.groups[0]?.sessions.map((session) => [session.id, session]))
+    const byId = new Map(entriesOf(partition).map((entry) => [entry.id, entry]))
     expect(byId.get('pr')?.work).toEqual({
       kind: EWorkKind.PullRequest,
       number: 1755,
@@ -177,41 +183,47 @@ describe('partitionSessions', () => {
   })
 })
 
-describe('session status', () => {
-  const status = (
-    overrides: Partial<NonNullable<WireThread['status']>>,
-  ): NonNullable<WireThread['status']> => ({
-    working: false,
-    awaiting: null,
-    lastOutcome: null,
-    podState: 'running',
-    lastAssistantSeq: 0,
-    readSeq: null,
-    ...overrides,
-  })
-  const of = (value: NonNullable<WireThread['status']>) => threadOf({ id: 't', status: value })
+describe('session display', () => {
+  const displayOf = (overrides: Partial<V2SessionSummary>) =>
+    entriesOf(
+      partitionSessions({
+        projects,
+        now: NOW,
+        sessions: [summaryOf({ sessionId: 's', ...overrides })],
+      }),
+    )[0]?.status
 
-  it('ranks awaiting over working over pod state', () => {
-    expect(sessionStatusOf(of(status({ awaiting: 'input', working: true })))).toBe(
-      ESessionStatus.Awaiting,
+  it('maps every session state to one display', () => {
+    expect(displayOf({ status: { state: CoreStatus.Thinking } })).toBe(ESessionDisplay.Working)
+    expect(displayOf({ status: { state: CoreStatus.WaitingForOperator } })).toBe(
+      ESessionDisplay.WaitingForYou,
     )
-    expect(sessionStatusOf(of(status({ working: true, podState: 'booting' })))).toBe(
-      ESessionStatus.Running,
+    expect(displayOf({ status: { state: CoreStatus.SetupFailed } })).toBe(
+      ESessionDisplay.StartFailed,
     )
-    expect(sessionStatusOf(of(status({ podState: 'booting' })))).toBe(ESessionStatus.Starting)
-    expect(sessionStatusOf(of(status({ lastOutcome: 'failed' })))).toBe(ESessionStatus.Failed)
-    expect(sessionStatusOf(of(status({ podState: 'parked' })))).toBe(ESessionStatus.Parked)
-    expect(sessionStatusOf(of(status({})))).toBe(ESessionStatus.Idle)
-    expect(sessionStatusOf(threadOf({ id: 'none' }))).toBe(ESessionStatus.Idle)
+    expect(displayOf({ status: { state: CoreStatus.Failed } })).toBe(ESessionDisplay.Failed)
+    expect(displayOf({})).toBeUndefined()
   })
 
-  it('is unread when the assistant spoke after the last read, unless still working', () => {
-    const unread = (overrides: Partial<NonNullable<WireThread['status']>>) =>
-      isUnread(of(status({ lastAssistantSeq: 5, readSeq: 3, ...overrides })))
-    expect(unread({})).toBe(true)
-    expect(unread({ readSeq: 5 })).toBe(false)
-    expect(unread({ working: true })).toBe(false)
-    expect(unread({ working: true, awaiting: 'input' })).toBe(true)
-    expect(unread({ lastAssistantSeq: 0, readSeq: null })).toBe(false)
+  it('lets the pod state override an idle session', () => {
+    const idled = { status: { state: CoreStatus.Idle } }
+    expect(
+      displayOf({
+        ...idled,
+        sandbox: { status: ESandboxStatus.Sleeping, at: hoursAgo(1) },
+      }),
+    ).toBe(ESessionDisplay.Parked)
+    expect(
+      displayOf({
+        ...idled,
+        sandbox: { status: ESandboxStatus.Waking, at: hoursAgo(1) },
+      }),
+    ).toBe(ESessionDisplay.Starting)
+    expect(
+      displayOf({
+        ...idled,
+        sandbox: { status: ESandboxStatus.Failed, at: hoursAgo(1) },
+      }),
+    ).toBe(ESessionDisplay.Failed)
   })
 })

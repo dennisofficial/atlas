@@ -47,7 +47,7 @@ const RootStack = ({ fontsReady }: { fontsReady: boolean }) => {
 
   useEffect(() => {
     const subscription = subscribeToNotificationResponses({
-      onThreadId: (id) => setIncoming({ pathname: '/thread/[id]', params: { id } }),
+      onSessionId: (id) => setIncoming({ pathname: '/sessions/[id]', params: { id } }),
     })
     return () => subscription.remove()
   }, [])
