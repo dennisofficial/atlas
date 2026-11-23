@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'797903f7d98c5c4990d8f823d9aaffd5af00b717b65716135c2d3f0e1be7afe7'>;
+  StorageHashBase<'f005b101051af98b8ae70d1fa7bff5df7f9a581c7e6b90c96006761bbe3d2c26'>;
 export type ExecutionHash =
   ExecutionHashBase<'ab28df152a1a27a9a0756638f29813a6c6f20a2d2b25c449f0f8e363cc1d9af0'>;
 export type ProfileHash =
@@ -1238,6 +1238,16 @@ export namespace Models {
     size: FieldOutputTypes['v2']['V2ChangeBlob']['size'];
     readonly [RelationKeys]?: never;
   };
+  export type v2_V2ComposerDraft = {
+    attachments: FieldOutputTypes['v2']['V2ComposerDraft']['attachments'];
+    scopeKey: FieldOutputTypes['v2']['V2ComposerDraft']['scopeKey'];
+    sessionId: FieldOutputTypes['v2']['V2ComposerDraft']['sessionId'];
+    text: FieldOutputTypes['v2']['V2ComposerDraft']['text'];
+    updatedAt: FieldOutputTypes['v2']['V2ComposerDraft']['updatedAt'];
+    userId: FieldOutputTypes['v2']['V2ComposerDraft']['userId'];
+    session: v2_V2Session | null;
+    readonly [RelationKeys]?: 'session';
+  };
   export type v2_V2DiagramRepair = {
     createdAt: FieldOutputTypes['v2']['V2DiagramRepair']['createdAt'];
     modelRef: FieldOutputTypes['v2']['V2DiagramRepair']['modelRef'];
@@ -1389,6 +1399,7 @@ export namespace Models {
     titledFromInboxId: FieldOutputTypes['v2']['V2Session']['titledFromInboxId'];
     userId: FieldOutputTypes['v2']['V2Session']['userId'];
     branches: v2_V2SessionBranch[];
+    composerDrafts: v2_V2ComposerDraft[];
     diagramRepairs: v2_V2DiagramRepair[];
     inbox: v2_V2InboxEntry[];
     lease: v2_V2Lease | null;
@@ -1400,6 +1411,7 @@ export namespace Models {
     worktreeChanges: v2_V2WorktreeChanges[];
     readonly [RelationKeys]?:
       | 'branches'
+      | 'composerDrafts'
       | 'diagramRepairs'
       | 'inbox'
       | 'lease'
@@ -1552,6 +1564,7 @@ export declare const models: {
     V2Blob: Models.v2_V2Blob;
     V2BlobRef: Models.v2_V2BlobRef;
     V2ChangeBlob: Models.v2_V2ChangeBlob;
+    V2ComposerDraft: Models.v2_V2ComposerDraft;
     V2DiagramRepair: Models.v2_V2DiagramRepair;
     V2Event: Models.v2_V2Event;
     V2Host: Models.v2_V2Host;
@@ -7245,6 +7258,71 @@ type ContractBase = Omit<
               ];
               foreignKeys: readonly [];
             };
+            readonly V2ComposerDraft: {
+              columns: {
+                readonly attachments: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly scopeKey: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly sessionId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly text: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly updatedAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly userId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+              };
+              primaryKey: { readonly columns: readonly ['userId', 'scopeKey'] };
+              uniques: readonly [];
+              indexes: readonly [
+                {
+                  readonly name: 'V2ComposerDraft_sessionId_idx_29f415d4';
+                  readonly prefix: 'V2ComposerDraft_sessionId_idx';
+                  readonly columns: readonly ['sessionId'];
+                  readonly unique: false;
+                },
+              ];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'v2' & NamespaceId;
+                    readonly tableName: 'V2ComposerDraft';
+                    readonly columns: readonly ['sessionId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'v2' & NamespaceId;
+                    readonly tableName: 'V2Session';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+              ];
+            };
             readonly V2DiagramRepair: {
               columns: {
                 readonly createdAt: {
@@ -8930,6 +9008,10 @@ type ContractBase = Omit<
     readonly V2ChangeBlob: {
       readonly namespace: 'v2' & NamespaceId;
       readonly model: 'V2ChangeBlob';
+    };
+    readonly V2ComposerDraft: {
+      readonly namespace: 'v2' & NamespaceId;
+      readonly model: 'V2ComposerDraft';
     };
     readonly V2DiagramRepair: {
       readonly namespace: 'v2' & NamespaceId;
@@ -14432,6 +14514,64 @@ type ContractBase = Omit<
               };
             };
           };
+          readonly V2ComposerDraft: {
+            readonly fields: {
+              readonly attachments: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly scopeKey: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly sessionId: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly text: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly updatedAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly userId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+            };
+            readonly relations: {
+              readonly session: {
+                readonly to: {
+                  readonly namespace: 'v2' & NamespaceId;
+                  readonly model: 'V2Session';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: true;
+                readonly on: {
+                  readonly localFields: readonly ['sessionId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'V2ComposerDraft';
+              readonly namespaceId: 'v2';
+              readonly fields: {
+                readonly attachments: { readonly column: 'attachments' };
+                readonly scopeKey: { readonly column: 'scopeKey' };
+                readonly sessionId: { readonly column: 'sessionId' };
+                readonly text: { readonly column: 'text' };
+                readonly updatedAt: { readonly column: 'updatedAt' };
+                readonly userId: { readonly column: 'userId' };
+              };
+            };
+          };
           readonly V2DiagramRepair: {
             readonly fields: {
               readonly createdAt: {
@@ -15239,6 +15379,17 @@ type ContractBase = Omit<
                 readonly to: {
                   readonly namespace: 'v2' & NamespaceId;
                   readonly model: 'V2SessionBranch';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['sessionId'];
+                };
+              };
+              readonly composerDrafts: {
+                readonly to: {
+                  readonly namespace: 'v2' & NamespaceId;
+                  readonly model: 'V2ComposerDraft';
                 };
                 readonly cardinality: '1:N';
                 readonly on: {

@@ -7,7 +7,7 @@ share. Every frame and every call is a `zod` schema here, and the daemon engine 
 
 - The daemon link frames: host frames, daemon frames, call keys, epochs and error kinds.
 - The call operations the host sends to the daemon, and their results and events.
-- The session API schemas: list, create, post, events, blob, withdraw, archive and status.
+- The session API schemas: list, create, post, events, blob, withdraw, archive, status and drafts.
 - The live frames, the pod call frames, the bus channel names, and the stream protocol constants.
 - The daemon engine: the call journal, the ledger, fencing and the op groups.
 - The terminal, files, media, health, subscription, changes and diagram repair schemas.
