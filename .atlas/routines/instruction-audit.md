@@ -3,7 +3,7 @@
 Checkable rules taken from the repo's instruction files (`AGENTS.md` = `CLAUDE.md`, `apps/*/AGENTS.md`,
 `apps/web/CLAUDE.md` = its `AGENTS.md`, `packages/*/AGENTS.md`, `evals/**/AGENTS.md`). `deprecated/` is
 out of scope. Layering/import boundaries belong to the Abstraction police routine; test conventions to
-the Test audit routine. Rule list rebuilt 2026-11-20 after #2425 and #2467 rewrote the instruction files.
+the Test audit routine. Rule list rebuilt 2026-11-23 after #2538 (package READMEs) and #2503/#2569/#2571 edits.
 
 ## Rules
 
@@ -25,21 +25,21 @@ the Test audit routine. Rule list rebuilt 2026-11-20 after #2425 and #2467 rewro
 | R14 | Only `lucide-react` icons, no Radix                                                | `packages/ui/AGENTS.md:140`                | grep deps                                                                          |
 | R15 | Stories import from `@storybook/react`, never a framework package                  | `packages/ui/AGENTS.md:135`                | grep `*.stories.tsx`                                                               |
 | R16 | TUI: no inline `content={new StyledText(` ; clickables use `useClickRegion`        | `apps/tui/AGENTS.md:5,20`                  | grep                                                                               |
+| R17 | Every `packages/*`, `plugins/*`, `commands/` has a template `README.md`            | `AGENTS.md:43`                             | `bun scripts/check-package-readmes.ts`                                             |
 
-R3, R4, R6, R8–R12, R14–R16 measured clean 2026-11-20. R13 not yet measured.
+R3, R4, R6, R8–R12, R14–R16 measured clean 2026-11-20. R17 clean 2026-11-23 (45 packages). R13: 0 raw hex,
+105 arbitrary-value `className` hits in `apps/web/src` (stories included).
 
 ## Backlog (ranked)
 
 1. R7 — remaining `process.env` reads in `apps/api` app code: `src/api/cloud/github/github-sweep-scheduler.ts:14`
-   (`GITHUB_SWEEPS_IN_PROCESS`, set by `package.json` dev scripts; decides Nest providers at module-decoration
-   time, so it needs a module factory, not a field read), `src/api/platform/sandboxes/sandbox-principal-revocations.ts:20`
-   (`DATABASE_URL`; inject `EnvService` into `SandboxesService`), `src/_lib/version/api-version.ts:4`
-   (`ATLAS_APP_VERSION`), `src/_core/config/env/env.module.ts:15` (`NODE_ENV`), `src/agent/config/env.ts:130`
-   (default parameter), `src/agent/testing/*` (test rigs; candidate for ruled-out).
-2. R13 — measure `apps/web/src` for raw hex / arbitrary values.
-3. R1 — 68+ production source files over 300 lines. Largest: `packages/core/src/settings/registry.ts` (961),
-   `packages/control/src/control-plane.ts` (620), `packages/control/src/postgres/postgres-store.ts` (541),
-   `packages/protocol/src/api.ts` (538), `apps/tui/src/composition/use-accounts.ts` (517). One split per run.
+   (`GITHUB_SWEEPS_IN_PROCESS`; decides Nest providers at decoration time, needs a module factory),
+   `src/_lib/version/api-version.ts:10` (`ATLAS_APP_VERSION`), `src/_core/config/env/env.module.ts:15` (`NODE_ENV`),
+   `src/agent/config/env.ts:67` (default parameter), `src/agent/testing/*` (test rigs; candidate for ruled-out).
+2. R13 — triage the 105 arbitrary values in `apps/web/src`; e.g. `features/sessions/panel/details/rows.tsx:14,16,23`
+   (`text-[11px]`). Separate stories (layout frames) from screens before fixing.
+3. R1 — 75 production source files over 300 lines. Largest: `packages/core/src/settings/registry.ts`,
+   `packages/control/src/control-plane.ts`, `packages/control/src/postgres/postgres-store.ts`. One split per run.
 4. R5 — comment lines in ~430 package source files; pick per-file alongside R1 splits.
 
 ## Ruled out
@@ -53,6 +53,15 @@ R3, R4, R6, R8–R12, R14–R16 measured clean 2026-11-20. R13 not yet measured.
 - `packages/harness/src/prompt/AGENTS.md`: nothing mechanically checkable.
 
 ## Runs
+
+### 2026-11-23
+
+- Rebuilt the rule list: added R17 (package READMEs, clean). Other instruction edits since 2026-11-20 are prose
+  (glossary names, Vercel platform account, Agent37 disk) with nothing new to measure.
+- Fixed R7 for `DATABASE_URL` in `sandbox-principal-revocations.ts:20`: `SandboxesService` now takes `EnvService`
+  and hands the URL to `PrincipalRevocations`. New revocation spec counts `pg_stat_activity` listeners; proved it
+  fails with the URL read from `process.env` and with `undefined`, then restored.
+- Clean main fails ~470 `apps/api` specs in this sandbox (no Redis); CI is the full-suite gate.
 
 ### 2026-11-20
 
