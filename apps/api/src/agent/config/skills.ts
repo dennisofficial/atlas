@@ -1,4 +1,6 @@
+import { ESettingId } from '@dltech/atlas-core'
 import { createDb, createPool, type Db } from '@dltech/atlas-db'
+import { readOf } from '@dltech/atlas-models'
 import {
   BUILT_IN_SKILL_NAMES,
   type CloudSkillEntry,
@@ -9,6 +11,7 @@ import {
 
 import { databaseUrlWithTls } from './database-url'
 import { readAgentHostEnv } from './env'
+import { scopedSettingsOf } from './scoped-settings'
 import { skillFrontmattersOf, skillTextOf, type SkillOwner } from './skill-body'
 import { skillIndexOf } from './skill-index'
 import { skillWriterOf } from './skill-writes'
@@ -24,6 +27,7 @@ const refusal = (reason: string): CloudSkillWriteResult => ({ ok: false, reason,
 export type SkillCloudPort = {
   source(sessionId: string): CloudSkillSource
   writer(sessionId: string): CloudSkillWriter
+  suggests(sessionId: string): Promise<boolean>
 }
 
 const ownerOf = async (args: { db: Db; sessionId: string }): Promise<SkillOwner | null> => {
@@ -75,6 +79,16 @@ const sourceOf = (args: {
       })
     },
   }
+}
+
+const suggestsOf = async (args: {
+  db: () => Db
+  owner: () => Promise<SkillOwner | null>
+}): Promise<boolean> => {
+  const owner = await args.owner()
+  if (owner === null) return false
+  const settings = await scopedSettingsOf({ db: args.db(), ...owner })
+  return readOf(settings)(ESettingId.SkillSuggest) !== false
 }
 
 const writerOf = (args: {
@@ -134,5 +148,7 @@ export const skillCloudPort = (args: { db?: Db | undefined } = {}): SkillCloudPo
   return {
     source: (sessionId) => sourceOf({ db: database, owner: () => ownerFor(sessionId) }),
     writer: (sessionId) => writerOf({ db: database, owner: () => ownerFor(sessionId) }),
+    suggests: async (sessionId) =>
+      await suggestsOf({ db: database, owner: () => ownerFor(sessionId) }),
   }
 }

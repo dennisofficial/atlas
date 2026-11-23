@@ -22,7 +22,13 @@ Each slice is built in its own Atlas session and handed to a fresh session when 
 
 ## Current state
 
-_Updated at the end of every slice. Last update: 2026-11-17._
+_Updated at the end of every slice. Last update: 2026-11-23._
+- **Done 2026-11-23: skill suggestion** ([spec](slices/skill-suggestion.md), deviations in its header).
+  A `beforeTurn` hook in `plugins/skills` reads the last three operator messages with the agent's
+  replies from the log, shortlists at most twelve skills by word overlap and asks the classifier one
+  yes/no per skill plus a gate (0.7 gate, 0.75 fit, 0.15 margin). A winner is one
+  `skill: <name> — <score>` block. Off when the classifier is off or `skills.suggest` is false.
+  Live check waits for the Classifier settings page (classifier slice 3).
 - **Specs approved 2026-11-23: v1 parity.** Before v1 is deleted, v2 gets these features, each with its own spec:
   [slash commands](slices/slash-commands.md), [notifications](slices/notifications.md) (in-app, Web Push,
   iOS and Mac native behind one package), the [classifier role](slices/classifier.md) (new credentials and

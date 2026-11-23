@@ -57,6 +57,7 @@ const instructionsPod = instructionsPodOf({
 const skillsPod = skillsPodOf({
   cloud: (ctx) => skillCloud.source(ctx.sessionId),
   writes: (ctx) => skillCloud.writer(ctx.sessionId),
+  suggests: async (ctx) => await skillCloud.suggests(ctx.sessionId),
 })
 
 export const registeredPlugins: readonly Plugin[] = [
