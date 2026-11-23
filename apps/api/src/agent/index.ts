@@ -94,7 +94,6 @@ export {
   exchangeAuthorizationCode,
   refreshAuthorization,
 } from './mcp-oauth/token'
-export { ForegroundOnlyShells } from './runtime/foreground-shells'
 export { createHostBus } from './bus/host-bus'
 export { startPgWakeListener, type PgWakeListener } from './bus/pg-wake-listener'
 export { createPodMetricsBus, type PodMetricsBus } from './bus/pod-metrics-bus'

@@ -8,8 +8,7 @@ import { toThreadId, type ToolOutcome } from '@dltech/atlas-core'
 
 import { BashTool } from '../bash'
 import { bashDescription } from '../bash-prose'
-import { ForegroundOnlyShells } from '../../runtime/foreground-shells'
-import { files, processes, useTempAtlasHome } from './support'
+import { files, launcher, processes, useTempAtlasHome } from './support'
 
 useTempAtlasHome()
 
@@ -20,7 +19,7 @@ beforeAll(async () => {
 })
 
 const invoke = (input: Record<string, unknown>): Promise<ToolOutcome> =>
-  new BashTool(new ForegroundOnlyShells(), files, processes).invoke({
+  new BashTool({ launcher, files, processes }).invoke({
     input: { description: 'Exercise the shell', ...input },
     signal: new AbortController().signal,
     idempotencyKey: `bash-no-exposure-${crypto.randomUUID()}`,
@@ -30,8 +29,8 @@ const invoke = (input: Record<string, unknown>): Promise<ToolOutcome> =>
 
 describe('bash no longer publishes ports', () => {
   it('rejects exposePort in the foreground and the background', async () => {
-    for (const runInBackground of [false, true]) {
-      const outcome = await invoke({ command: 'echo hi', exposePort: 3000, runInBackground })
+    for (const background of [false, true]) {
+      const outcome = await invoke({ command: 'echo hi', exposePort: 3000, background })
       expect(outcome.ok).toBe(false)
     }
   }, 30_000)

@@ -95,7 +95,7 @@ export class ShellsRegistry {
     let process: ManagedProcess
     try {
       process = ManagedProcess.spawn({
-        cmd: ['/bin/sh', '-c', op.command],
+        cmd: ['bash', '-c', op.command],
         cwd: op.cwd,
         env: { ...this.deps.env, ...op.env },
         onStdout: onOutput,

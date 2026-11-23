@@ -26,34 +26,6 @@ const run = async (args: {
   return { ok: true, value: result }
 }
 
-export const newShellId = (): string => `shell-${crypto.randomUUID().slice(0, 8)}`
-
-export const launchShell = async (args: {
-  ctx: Ctx
-  shellId: string
-  command: string
-  cwd: string
-  timeoutMs?: number | undefined
-  input: boolean
-  signal?: AbortSignal | undefined
-}): Promise<DaemonCall<ShellInfo>> => {
-  const answer = await run({
-    ctx: args.ctx,
-    signal: args.signal,
-    op: {
-      op: 'shells.launch',
-      shellId: args.shellId,
-      command: args.command,
-      cwd: args.cwd,
-      input: args.input,
-      ...(args.timeoutMs === undefined ? {} : { timeoutMs: args.timeoutMs }),
-    },
-  })
-  if (!answer.ok) return answer
-  if (answer.value.op !== 'shells.launch') return { ok: false, reason: WRONG_ANSWER }
-  return { ok: true, value: answer.value.value }
-}
-
 export const readShell = async (args: {
   ctx: Ctx
   shellId: string
