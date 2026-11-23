@@ -118,7 +118,7 @@ const withOpen = (
   kind: EPaneOpen = EPaneOpen.File,
 ): SessionPaneValue => ({ ...value, openRequest: { kind, path, id: 1 } })
 
-const wrap = (value: SessionPaneValue, pick?: { checkoutId: string }) => (
+const wrap = (value: SessionPaneValue, pick?: { checkoutId: string }, readyDeadlineMs?: number) => (
   <SessionPaneProvider value={value}>
     <CheckoutChoiceProvider
       sessionId="ses-1"
@@ -126,7 +126,7 @@ const wrap = (value: SessionPaneValue, pick?: { checkoutId: string }) => (
       currentWorktreePath="/work/co-1"
     >
       {pick === undefined ? null : <Picker checkoutId={pick.checkoutId} />}
-      <FilesTab sourceOf={sourceOf} />
+      <FilesTab sourceOf={sourceOf} readyDeadlineMs={readyDeadlineMs} />
     </CheckoutChoiceProvider>
   </SessionPaneProvider>
 )
@@ -153,11 +153,12 @@ const settle = async (): Promise<void> => {
 async function mount(
   value: SessionPaneValue,
   pick?: { checkoutId: string },
+  readyDeadlineMs?: number,
 ): Promise<HTMLDivElement> {
   const host = document.createElement('div')
   const root = createRoot(host)
   roots.add(root)
-  await act(async () => root.render(wrap(value, pick)))
+  await act(async () => root.render(wrap(value, pick, readyDeadlineMs)))
   await settle()
   return host
 }
@@ -196,9 +197,19 @@ describe('FilesTab', () => {
     expect(browsed).toHaveLength(0)
   })
 
-  it('renders the tree while the pod runs without a holder', async () => {
+  it('shows a waking state, and browses nothing, while the pod runs without a holder', async () => {
     const host = await mount(attachedValue())
     expect(host.innerHTML).not.toContain('Disconnected')
+    expect(host.textContent).toContain('Waking the pod…')
+    expect(browsed).toEqual([])
+  })
+
+  it('stops waking and offers a retry when no host picks the pod up in time', async () => {
+    const host = await mount(attachedValue(), undefined, 5)
+    expect(host.textContent).toContain('Pod not ready')
+    expect(host.textContent).toContain('Try again')
+    expect(host.textContent).not.toContain('Waking the pod…')
+    expect(browsed).toEqual([])
   })
 
   it('renders the live tree once the pod is awake', async () => {

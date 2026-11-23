@@ -1,14 +1,10 @@
 import { describe, expect, it } from 'bun:test'
 
 import { EAttachmentStore, type PendingInputsState } from '@dltech/atlas-core'
+import { EOutgoingPlacement } from '@dltech/atlas-client/stream'
 import { EQueuedAttachmentKind } from '@dltech/atlas-ui/ai/queued-messages'
 
-import {
-  mergeWithdrawnIntoDraft,
-  queuedMediaHashesOf,
-  stagedQueuedOf,
-  visibleQueuedOf,
-} from '../queued-messages'
+import { mergeWithdrawnIntoDraft, queuedMediaHashesOf, visibleQueuedOf } from '../queued-messages'
 
 type StoredSeed = {
   id: string
@@ -64,16 +60,6 @@ describe('visibleQueuedOf', () => {
 
   it('shows nothing when the fold holds no message', () => {
     expect(visibleQueuedOf({ pending: { pending: [] } })).toEqual([])
-  })
-})
-
-describe('stagedQueuedOf', () => {
-  it('renders a staged message keyed by its clientId, before any inboxId exists', () => {
-    expect(
-      stagedQueuedOf({
-        staged: [{ clientId: 'client-9', text: 'queued while working', attachments: [] }],
-      }),
-    ).toEqual([{ id: 'client-9', text: 'queued while working', attachments: [] }])
   })
 })
 
@@ -135,6 +121,8 @@ describe('queued attachments', () => {
             clientId: 'client-5',
             text: 'the same picture again',
             attachments: [{ ...storedPicture, id: 'att-4' }],
+            placement: EOutgoingPlacement.Queue,
+            at: '2026-11-18T10:00:00.000Z',
           },
         ],
       }),

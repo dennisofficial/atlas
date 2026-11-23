@@ -466,6 +466,11 @@ export const sessionContextMeterSchema = z.strictObject({
   used: z.number().min(0).nullable(),
   window: z.number().nullable(),
   measuredThroughSeq: z.number().int().nullable(),
+  breakdown: z
+    .array(z.strictObject({ label: z.string(), tokens: z.number().int().min(0) }))
+    .readonly()
+    .nullable()
+    .optional(),
 })
 
 export const sessionCheckoutsSchema = z.strictObject({

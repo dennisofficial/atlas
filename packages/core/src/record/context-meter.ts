@@ -1,3 +1,4 @@
+import type { ContextPart } from '../assembly/context-breakdown'
 import type { V2Event } from './event'
 import { visibleEvents } from './visibility'
 import { stepReadingOf } from './views/step-reading'
@@ -6,6 +7,7 @@ export type ContextMeter = {
   used: number | null
   window: number | null
   measuredThroughSeq: number | null
+  breakdown: readonly ContextPart[] | null
 }
 
 const lastWindowIn = (events: readonly V2Event[]): number | null => {
@@ -30,12 +32,13 @@ export function contextMeterOf(events: readonly V2Event[]): ContextMeter {
 
   const reading = readingAt < 0 ? undefined : stepReadingOf(visible[readingAt] as V2Event)
   if (reading === undefined || summarisedAt > readingAt) {
-    return { used: null, window, measuredThroughSeq: null }
+    return { used: null, window, measuredThroughSeq: null, breakdown: null }
   }
 
   return {
     used: Math.max(0, reading.inputTokens) + Math.max(0, reading.outputTokens),
     window,
     measuredThroughSeq: (visible[readingAt] as V2Event).seq,
+    breakdown: reading.breakdown ?? null,
   }
 }

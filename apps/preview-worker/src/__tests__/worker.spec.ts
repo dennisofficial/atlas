@@ -16,12 +16,18 @@ function recorder(response: () => Response) {
   }
 }
 
-async function run(args: { url: string; init?: RequestInit; response: () => Response }) {
-  const { url, init, response } = args
+async function run(args: {
+  url: string
+  init?: RequestInit
+  response: () => Response
+  domain?: string
+}) {
+  const { url, init, response, domain } = args
   const upstream = recorder(response)
   const result = await handlePreviewRequest({
     request: new Request(url, init),
     upstream: upstream.upstream,
+    domain,
   })
   return { result, seen: upstream.seen }
 }
@@ -52,6 +58,24 @@ describe('host gate', () => {
     })
     expect(result.status).toBe(404)
     expect(seen).toHaveLength(0)
+  })
+
+  it('reads the domain it gates on, and refuses the default domain when another is set', async () => {
+    const domain = 'preview.example.dev'
+    const proxied = await run({
+      url: 'https://3000-abcdefghij.preview.example.dev/api',
+      response: () => new Response('ok'),
+      domain,
+    })
+    const refused = await run({
+      url: `${HOST}/api`,
+      response: () => new Response('secret'),
+      domain,
+    })
+    expect(proxied.result.status).toBe(200)
+    expect(proxied.seen).toHaveLength(1)
+    expect(refused.result.status).toBe(404)
+    expect(refused.seen).toHaveLength(0)
   })
 
   it('proxies a matching host once with the original request', async () => {
@@ -98,7 +122,10 @@ describe('response headers', () => {
         init: { headers: { 'sec-fetch-site': 'cross-site', 'sec-fetch-dest': destination } },
         response: twoCookies,
       })
-      expect(result.headers.getSetCookie()).toEqual([
+      const cookies = result.headers
+        .getSetCookie()
+        .filter((cookie) => !cookie.startsWith('atlas-preview='))
+      expect(cookies).toEqual([
         'a=1; HttpOnly; Secure; Partitioned; SameSite=None',
         'b=2; Secure; Partitioned; SameSite=None',
       ])

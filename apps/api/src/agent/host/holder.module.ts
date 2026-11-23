@@ -19,6 +19,7 @@ import { MacLinkModule } from '../mac-link/mac-link.module'
 import { MAC_LINK } from '../mac-link/port'
 import type { MacLink } from '../mac-link/port'
 import { notifyDispatchOf } from './notify.port'
+import { parkArchivedDispatchOf } from './park-archived.port'
 import { podOpsOf, type PodOps } from './pod-ops'
 import { POD_METRICS_BUS, POD_METRICS_RELAY, POD_OPS, TERMINAL_DEMAND } from './tokens'
 import type { ConfigSource } from '../config/agent-host-config'
@@ -101,6 +102,7 @@ const holderProvider: Provider = {
       traceFor,
       podCallBus,
       notify: notifyDispatchOf({ dispatcher }),
+      parkArchived: parkArchivedDispatchOf({ plane, dispatcher, log }),
       turnEnded: (args) => usage.refreshAfterTurn({ sessionId: args.sessionId }),
       onHostIdChanged: () => watch.recompute(),
       ...(media.signer === undefined ? {} : { media: media.signer }),

@@ -1,10 +1,9 @@
 import { Inject, Injectable, Optional, ServiceUnavailableException } from '@nestjs/common'
-import { TRPCError } from '@trpc/server'
 import { ControlPlane, type WorktreeChangesRead } from '@dltech/atlas-control'
 import {
+  ECallFailure,
   ECallStatus,
   EFilesRoot,
-  ELiveOpFailure,
   FILES_SEARCH_LIMIT,
   LIVE_OP_MAX_BYTES,
   type CallResult,
@@ -15,8 +14,16 @@ import {
 } from '@dltech/atlas-protocol'
 import { contextDirOf, POD_OPS, type PodOps } from '../../../agent'
 import { changedPathsIn, checkoutIn, latestPerWorktree, resolveInside } from './files-checkout'
-import { PodParkedError } from './pod-parked.error'
+import {
+  podFailureError,
+  PodNotReadyError,
+  reachablePodOutcome,
+  type FailedResult,
+} from './pod-errors'
 import { SessionsService } from './sessions.service'
+
+const filesFailureError = (result: FailedResult) =>
+  result.error.code === ECallFailure.NotFound ? new PodNotReadyError() : podFailureError(result)
 
 const HIDDEN_NAMES: ReadonlySet<string> = new Set(['.git', 'node_modules'])
 
@@ -60,12 +67,7 @@ export class FilesService {
     op: Parameters<PodOps['invoke']>[0]['op']
   }): Promise<CallResult> {
     if (this.ops === null) throw new ServiceUnavailableException('pod access is not running')
-    const outcome = await this.ops.invoke({ ...args, waitForHolder: true })
-    if (outcome.state === 'unavailable') {
-      if (outcome.reason === ELiveOpFailure.Asleep) throw new PodParkedError()
-      throw new TRPCError({ code: 'BAD_REQUEST', message: 'this pod op is not allowed' })
-    }
-    return outcome.result
+    return reachablePodOutcome(await this.ops.invoke({ ...args, waitForHolder: true })).result
   }
 
   private async changes(args: {
@@ -123,11 +125,7 @@ export class FilesService {
         path: base === undefined ? relative : resolveInside({ root: base, path: args.directory }),
       },
     })
-    if (result.status === ECallStatus.Failed)
-      throw new TRPCError({
-        code: 'BAD_REQUEST',
-        message: result.error.message,
-      })
+    if (result.status === ECallStatus.Failed) throw filesFailureError(result)
     const listing = result as DirectoryResult
     const entries = listing.value
       .filter((entry) => !HIDDEN_NAMES.has(entry.name))
@@ -166,11 +164,7 @@ export class FilesService {
         dot: false,
       },
     })
-    if (result.status === ECallStatus.Failed)
-      throw new TRPCError({
-        code: 'BAD_REQUEST',
-        message: result.error.message,
-      })
+    if (result.status === ECallStatus.Failed) throw filesFailureError(result)
     const globbed = result as GlobResult
     const matches = globbed.value
       .map((path) => path.replace(/^\.\//, ''))

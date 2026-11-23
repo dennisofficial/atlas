@@ -1,4 +1,4 @@
-import { EPreviewStatus, type PreviewPort } from '@dltech/atlas-ui/ai/preview-browser'
+import type { PreviewPort } from '@dltech/atlas-ui/ai/preview-browser'
 import { PREVIEW_CALLBACK_HOST, PREVIEW_CALLBACK_START_PATH } from '@dltech/atlas-wire/web'
 
 import { previewPortForUrl } from '../preview-ports'
@@ -9,10 +9,8 @@ export function previewOriginFor(args: {
   currentUrl: string
   ports: PreviewPort[]
 }): string | null {
-  const port =
-    previewPortForUrl({ url: args.currentUrl, ports: args.ports }) ??
-    args.ports.find((candidate) => candidate.status === EPreviewStatus.Live)
-  return port === undefined ? null : (parseWebUrl(port.url)?.origin ?? null)
+  const port = previewPortForUrl({ url: args.currentUrl, ports: args.ports })
+  return port === null ? null : (parseWebUrl(port.url)?.origin ?? null)
 }
 
 export function previewCallbackUrlOf(args: {

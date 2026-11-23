@@ -62,6 +62,10 @@ const fakeSessions = (
       calls.push({ method: 'list', args: {} })
       return args.briefs ?? []
     },
+    archive: async (archiveArgs) => {
+      calls.push({ method: 'archive', args: archiveArgs })
+      return { archived: true, already: false }
+    },
     teammates: async () => {
       calls.push({ method: 'teammates', args: {} })
       return args.teammateBriefs ?? []
@@ -165,10 +169,11 @@ const textOf = (outcome: Awaited<ReturnType<typeof invoke>>): string =>
   outcome.ok ? outcome.modelText : outcome.reason
 
 describe('the sessions pod', () => {
-  it('declares its five tools and prompts a fragment, and denies a child none', () => {
+  it('declares its six tools and prompts a fragment, and denies a child none', () => {
     const { ctx } = rig(fakeSessions().port)
     expect(sessionsPod.tools?.(ctx).map((tool) => tool.name)).toEqual([
       'send_message',
+      'archive_session',
       'spawn_session',
       'spawn_teammate',
       'list_sessions',
@@ -183,6 +188,7 @@ describe('the sessions pod', () => {
     const effects = (sessionsPod.tools?.(ctx) ?? []).map((tool) => [tool.name, tool.effect])
     expect(effects).toEqual([
       ['send_message', 'write'],
+      ['archive_session', 'write'],
       ['spawn_session', 'write'],
       ['spawn_teammate', 'write'],
       ['list_sessions', 'read'],

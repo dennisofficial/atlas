@@ -1,4 +1,5 @@
 import {
+  contextBreakdownOf,
   costOf,
   EFinishReason,
   estimateCostUsd,
@@ -24,6 +25,7 @@ const calledDraft = ({ call, ordinal }: { call: ModelToolCall; ordinal: number }
 export type StepDraftsArgs = {
   result: ModelStepResult
   model?: { identity?: ProviderIdentity; traits?: () => ModelTraits } | undefined
+  sizes?: Readonly<Record<string, number>> | undefined
 }
 
 const costUsdOf = (args: {
@@ -34,13 +36,21 @@ const costUsdOf = (args: {
     ? undefined
     : estimateCostUsd({ spend: tokenSpendOf(args.usage), cost: args.cost })
 
-const readingOf = ({ result, model }: StepDraftsArgs): StepReading | undefined => {
+const readingOf = ({ result, model, sizes }: StepDraftsArgs): StepReading | undefined => {
   if (result.usage === undefined) return undefined
   const contextWindow = model === undefined ? 0 : (model.traits?.().contextWindow ?? 0)
   const costUsd = costUsdOf({
     usage: result.usage,
     cost: model === undefined ? undefined : costOf(model),
   })
+  const breakdown =
+    sizes === undefined
+      ? undefined
+      : contextBreakdownOf({
+          sizes,
+          inputTokens: result.usage.inputTokens,
+          outputTokens: result.usage.outputTokens,
+        })
   return {
     ...result.usage,
     ...(contextWindow > 0 ? { contextWindow } : {}),
@@ -48,6 +58,7 @@ const readingOf = ({ result, model }: StepDraftsArgs): StepReading | undefined =
       ? {}
       : { providerId: model.identity.id, modelId: model.identity.modelId }),
     ...(costUsd === undefined ? {} : { costUsd }),
+    ...(breakdown === undefined ? {} : { breakdown }),
   }
 }
 

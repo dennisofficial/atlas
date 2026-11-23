@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { ESandboxStatus, type SessionStatusOutput } from '@dltech/atlas-protocol'
 
-import { isPodParked, podAttached } from '../pod-attachment'
+import { isPodParked, podAttached, podReady } from '../pod-attachment'
 
 const statusOf = (status: ESandboxStatus): SessionStatusOutput => ({
   state: 'idle' as SessionStatusOutput['state'],
@@ -19,6 +19,29 @@ describe('pod attachment', () => {
   it('treats a parked sandbox as parked', () => {
     expect(isPodParked(statusOf(ESandboxStatus.Sleeping))).toBe(true)
     expect(podAttached(statusOf(ESandboxStatus.Stopped))).toBe(false)
+  })
+
+  it('waits for a live holder before it calls the pod ready', () => {
+    expect(podReady(undefined)).toBe(false)
+    expect(podReady(statusOf(ESandboxStatus.Running))).toBe(false)
+    expect(
+      podReady({
+        ...statusOf(ESandboxStatus.Running),
+        lease: { epoch: 1, holderHostId: 7, live: true },
+      }),
+    ).toBe(true)
+    expect(
+      podReady({
+        ...statusOf(ESandboxStatus.Running),
+        lease: { epoch: 1, holderHostId: 7, live: false },
+      }),
+    ).toBe(false)
+    expect(
+      podReady({
+        ...statusOf(ESandboxStatus.Sleeping),
+        lease: { epoch: 1, holderHostId: 7, live: true },
+      }),
+    ).toBe(false)
   })
 
   it('treats an unrecorded sandbox as attached so a request can wake it', () => {

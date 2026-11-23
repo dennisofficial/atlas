@@ -16,6 +16,7 @@ import {
   describeControlPlaneSessionBuckets,
   describeControlPlaneSessionArchive,
   describeControlPlaneSessions,
+  describeControlPlaneSpawnedArchive,
   describeControlPlaneSessionTitles,
   describeControlPlaneViews,
   describeControlPlaneWakes,
@@ -44,6 +45,7 @@ describeControlPlaneConformance(conformanceParams)
 describeControlPlaneSessions(conformanceParams)
 describeControlPlaneSessionBuckets(conformanceParams)
 describeControlPlaneSessionArchive(conformanceParams)
+describeControlPlaneSpawnedArchive(conformanceParams)
 describeControlPlanePeers(conformanceParams)
 describeControlPlanePeerMessages(conformanceParams)
 describeControlPlaneSessionTitles(conformanceParams)

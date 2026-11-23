@@ -101,7 +101,10 @@ export function useV2SessionScreen(args: {
     [snapshot, staged, now],
   )
   const queued = useMemo(() => queuedDockOf({ snapshot, staged }), [snapshot, staged])
-  const turnStartedAt = useMemo(() => turnStartedAtOf(snapshot.foldable), [snapshot.foldable])
+  const turnStartedAt = useMemo(
+    () => turnStartedAtOf({ events: snapshot.foldable, status: snapshot.status }),
+    [snapshot.foldable, snapshot.status],
+  )
   const header = useMemo(
     () => sessionHeaderOf({ summary, fallbackTitle, status: snapshot.status, turnStartedAt, now }),
     [summary, fallbackTitle, snapshot.status, turnStartedAt, now],

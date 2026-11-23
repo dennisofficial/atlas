@@ -145,11 +145,25 @@ describe('contextOfView', () => {
   })
 
   it('reports used and limit, leaving an unmeasured reading null', () => {
-    expect(contextOfView(viewOf({ context: meter }))).toEqual({ used: 1200, limit: 200000 })
+    expect(contextOfView(viewOf({ context: meter }))).toEqual({
+      used: 1200,
+      limit: 200000,
+      breakdown: [],
+    })
     expect(contextOfView(viewOf({ context: { ...meter, used: null } }))).toEqual({
       used: null,
       limit: 200000,
+      breakdown: [],
     })
+  })
+
+  it('carries the estimated breakdown, empty when the producer had none', () => {
+    const breakdown = [{ label: 'Tools', tokens: 400 }]
+
+    expect(contextOfView(viewOf({ context: { ...meter, breakdown } }))?.breakdown).toEqual(
+      breakdown,
+    )
+    expect(contextOfView(viewOf({ context: { ...meter, breakdown: null } }))?.breakdown).toEqual([])
   })
 })
 

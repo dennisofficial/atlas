@@ -163,7 +163,7 @@ export const rebuildEditSensitive: (args: { state: SessionViewState; visibleTail
 export const sessionViewOf: (args: {
   state: SessionViewState
   live: boolean
-  queuedSince: string | null
+  queuedSince: string | null   // an open turn outranks it; Queued means no turn runs and a message waits
   messageAfterFailure: boolean
   queued: readonly SessionQueuedMessage[]   // or core's own type; protocol stays out of core
   lease: Lease

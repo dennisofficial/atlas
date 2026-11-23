@@ -40,7 +40,7 @@ only what it can rebuild or drop.
   ids, the commands and their pod and control handlers. It also takes the optional control, MCP,
   operator, changes, notify and turn-ended hooks, the log, the pod peers, the terminal and panel
   demand, and the two start-error classifiers. `NotifyDispatch` tells another process that a turn
-  ended or parked. `TurnEndedHook` reports a finished turn here, so later work can start at once.
+  ended or parked. `ParkArchivedPod` sleeps an archived pod. `TurnEndedHook` reports an ended turn.
 - `PodCalls`, `PodCallOutcome`: invoke an op on a held session, or listen to its frames.
 - `podControlOf(...)`: the control-plane client that a plugin's `PodControl` reaches.
 - `SessionRuntime.classifier`, `SessionRuntime.classifierStatus`: the core `ClassifierPort` of a

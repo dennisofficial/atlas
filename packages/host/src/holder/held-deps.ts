@@ -37,6 +37,7 @@ export const heldSessionDepsOf = (args: HeldDepsArgs): HeldSessionDeps => {
     changes: holder.changes,
     notify: holder.notify,
     turnEnded: holder.turnEnded,
+    parkArchived: holder.parkArchived,
     onRuntimeReady: () => args.onRuntimeReady(args.lease.sessionId),
     ...(holder.operator === undefined
       ? {}

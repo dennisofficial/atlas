@@ -5,7 +5,7 @@ import { toast } from 'sonner'
 
 import { liveBackgroundOf } from '@dltech/atlas-client/crew'
 import { mergedDraftOf, postInputOf } from '@dltech/atlas-client/session'
-import { ESessionConnection, startFailureOf } from '@dltech/atlas-client/stream'
+import { ESessionConnection, placementOf, startFailureOf } from '@dltech/atlas-client/stream'
 import { turnStartedAtOf } from '@dltech/atlas-client/transcript'
 
 import { useV2Sessions } from '@/features/shell/use-v2-sessions'
@@ -45,7 +45,7 @@ import { RepairKeyDialog } from './repair-key-dialog'
 import { RepairSignInDialog } from './repair-sign-in-dialog'
 import { RepairStrip } from './repair-strip'
 import { SessionUpdateCard } from './session-update-card'
-import { useQueuedDock } from './data/use-queued-dock'
+import { useQueuedTranscript } from './data/use-queued-transcript'
 import { useStagedMessages } from './data/use-staged-messages'
 import { useSessionAttachments } from './data/use-session-attachments'
 import { useSessionReveal } from './data/use-session-reveal'
@@ -59,7 +59,6 @@ import { useSessionStream } from './data/use-session-stream'
 import { CommandRows } from './command-rows'
 import { CommandListDialog } from './command-list-dialog'
 import { ConnectionLine } from './connection-line'
-import { QueuedDock } from './queued-dock'
 import { RefusalRows } from './refusal-rows'
 import { SessionPreviewsProvider } from './panel/browser/previews-provider'
 import { ESessionPaneTab } from './panel/pane-tab'
@@ -111,7 +110,10 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   const attachments = useSessionAttachments({ files })
   const working = isSessionWorking(snapshot.status)
   const startFailure = startFailureOf(snapshot.status)
-  const turnStartedAt = useMemo(() => turnStartedAtOf(snapshot.foldable), [snapshot.foldable])
+  const turnStartedAt = useMemo(
+    () => turnStartedAtOf({ events: snapshot.foldable, status: snapshot.status }),
+    [snapshot.foldable, snapshot.status],
+  )
   const reveal = useSessionReveal(snapshot)
   const view = useMemo(
     () =>
@@ -164,15 +166,16 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   const stagedRun = useStagedMessages({
     sessionId,
     events: snapshot.events,
-    working,
+    pending: snapshot.pending,
     draft,
     onDraftChange: setDraft,
   })
-  const queuedDock = useQueuedDock({
+  const queuedTranscript = useQueuedTranscript({
     sessionId,
     pending: snapshot.pending,
-    queueStaged: stagedRun.queue,
-    transcriptStaged: stagedRun.transcript,
+    events: snapshot.events,
+    staged: stagedRun.staged,
+    items: transcriptItems,
     draft,
     onDraftChange: setDraft,
   })
@@ -253,16 +256,19 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     const { media, uploads } = attachments
     if (text.trim().length === 0 && media.length === 0 && uploads.length === 0) return
     const clientId = retryClientId.current ?? crypto.randomUUID()
+    const at = new Date().toISOString()
     setSending(true)
     try {
       await sessionsApi.post({
         ...postInputOf({ sessionId, text, clientId, media, uploads }),
-        sentAt: new Date().toISOString(),
+        sentAt: at,
       })
       stagedRun.stage({
         clientId,
         text,
         attachments: [...media, ...attachmentsOf({ uploads })],
+        placement: placementOf({ working }),
+        at,
       })
       retryClientId.current = undefined
       setDraft('')
@@ -317,7 +323,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
             >
               <div className="min-h-0 flex-1">
                 <ThreadTranscript
-                  items={transcriptItems}
+                  items={queuedTranscript.transcript}
                   failureCard={failure.card}
                   repairCard={failure.repairCard}
                   failedLabel={failure.failedLabel}
@@ -331,7 +337,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
                   summarise={summarise.transcript}
                   repairDiagram={repairDiagram}
                   boot={boot}
-                  staged={queuedDock.transcriptEntries}
+                  queued={queuedTranscript.queued}
                   onLoadOlder={loadOlder}
                 />
               </div>
@@ -364,7 +370,6 @@ export function SessionView({ sessionId }: { sessionId: string }) {
                   entries={composerEntries}
                 />
                 <CommandRows rows={snapshot.status?.commands} />
-                <QueuedDock dock={queuedDock} />
                 <ThreadComposer
                   value={draft}
                   onValueChange={setDraft}

@@ -21,7 +21,6 @@ import { Pill } from './rows'
 const PILL_TONE: Record<EHeaderState, string> = {
   [EHeaderState.Failed]: 'bg-destructive/10 text-destructive',
   [EHeaderState.NeedsYou]: 'bg-primary/10 text-primary',
-  [EHeaderState.Queued]: 'bg-muted text-muted-foreground',
   [EHeaderState.Running]: 'bg-success/10 text-success',
   [EHeaderState.Idle]: 'bg-muted text-muted-foreground',
 }

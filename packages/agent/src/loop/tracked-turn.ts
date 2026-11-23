@@ -5,6 +5,7 @@ import {
   EMPTY_STEP_RAW_RETRIES,
   openParkedCallOfState,
   projectDirectoryOfState,
+  requestSizeOf,
   settleablePendingOf,
   retriableEmptyStep,
   withoutRepeatedContext,
@@ -209,11 +210,12 @@ export async function runTrackedTurn(
     position.previous = assembled
 
     const stream = stepStreamerFor({ output: deps.streamOutput, runId, step: position.modelSteps })
+    const tools = deps.tools()
 
     const stepOnce = () =>
       takeModelStepWithRetry({
         model: deps.model,
-        tools: deps.tools(),
+        tools,
         onChunk: deps.onChunk,
         streamer: stream,
         assembled,
@@ -272,7 +274,11 @@ export async function runTrackedTurn(
       return interrupted()
     }
 
-    const step = { result: stepped.result, model: deps.model }
+    const step = {
+      result: stepped.result,
+      model: deps.model,
+      sizes: requestSizeOf({ assembled, tools }),
+    }
     const drafts = dedupeCallIds({ drafts: draftsFor(step), taken: callIdsIn(events) })
     if (drafts.length > 0) await record.append({ threadId, runId, drafts })
 
