@@ -6,7 +6,7 @@ import {
   type InboxEntry,
   type ThreadId,
 } from '@dltech/atlas-core'
-import { LoopTurnRunner, type PauseSignal, settleCrashedCalls } from '@dltech/atlas-agent'
+import { LoopTurnRunner, settleCrashedCalls } from '@dltech/atlas-agent'
 import { logFieldsOf } from '@dltech/atlas-observability'
 
 import { ScopedToolDispatcher } from '../calls/call-scope'
@@ -45,38 +45,6 @@ export const logReconcileFault = (args: { deps: HeldSessionDeps; error: unknown 
     message: `reconciling ${args.deps.sessionId} failed`,
     ...logFieldsOf({ error: args.error }),
   })
-}
-
-export const startHeldTurn = (args: {
-  deps: HeldSessionDeps
-  turns: HeldTurns
-  record: SessionRecord
-  pause: PauseSignal
-  runner: LoopTurnRunner
-  threadId: ThreadId
-  resume: boolean
-  refreshBranches(): void
-  onFault(): void
-  onSettled(): void
-}): void => {
-  void args.turns
-    .drive({
-      runner: args.runner,
-      record: args.record,
-      threadId: args.threadId,
-      pause: args.pause,
-      resume: args.resume,
-    })
-    .then(() => {
-      args.refreshBranches()
-    })
-    .catch((error) => {
-      logDriveFault({ deps: args.deps, error })
-      args.onFault()
-    })
-    .finally(() => {
-      args.onSettled()
-    })
 }
 
 const IDLE_COMMAND_ACTIONS: readonly EHeldAction[] = [

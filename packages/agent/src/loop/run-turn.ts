@@ -134,10 +134,12 @@ export class LoopTurnRunner extends TurnRunner {
     threadId,
     signal,
     pause,
+    queuedAt,
   }: {
     threadId: ThreadId
     signal?: AbortSignal
     pause?: PauseSignal
+    queuedAt?: string | undefined
   }): Promise<TurnOutcome> {
     await appendResumeDrafts({
       record: this.record,
@@ -150,6 +152,7 @@ export class LoopTurnRunner extends TurnRunner {
       entry: ETurnEntry.Resume,
       ...(signal === undefined ? {} : { signal }),
       ...(pause === undefined ? {} : { pause }),
+      ...(queuedAt === undefined ? {} : { queuedAt }),
     })
   }
 
@@ -157,16 +160,19 @@ export class LoopTurnRunner extends TurnRunner {
     threadId,
     signal,
     pause,
+    queuedAt,
   }: {
     threadId: ThreadId
     signal?: AbortSignal
     pause?: PauseSignal
+    queuedAt?: string | undefined
   }): Promise<TurnOutcome> {
     return this.tracedTurn({
       threadId,
       entry: ETurnEntry.Start,
       ...(signal === undefined ? {} : { signal }),
       ...(pause === undefined ? {} : { pause }),
+      ...(queuedAt === undefined ? {} : { queuedAt }),
     })
   }
 
@@ -175,11 +181,13 @@ export class LoopTurnRunner extends TurnRunner {
     entry,
     signal,
     pause,
+    queuedAt,
   }: {
     threadId: ThreadId
     entry: ETurnEntry
     signal?: AbortSignal
     pause?: PauseSignal
+    queuedAt?: string | undefined
   }): Promise<TurnOutcome> {
     return traceTurn({
       trace: this.trace,
@@ -187,6 +195,7 @@ export class LoopTurnRunner extends TurnRunner {
       record: this.record,
       threadId,
       entry,
+      ...(queuedAt === undefined ? {} : { queuedAt }),
       ...(this.firstToken === undefined ? {} : { firstToken: this.firstToken }),
       run: () =>
         this.runTracedTurn({

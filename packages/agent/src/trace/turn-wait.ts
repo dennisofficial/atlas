@@ -37,13 +37,14 @@ export const promptAtOf = async (args: {
   record: AgentRecordPort
   events: readonly Event[]
   threadId: ThreadId
+  queuedAt?: string | undefined
 }): Promise<number | undefined> => {
   const said = promptAwaiting(args.events)
   const saidAt =
     said === undefined
       ? undefined
       : await saidPromptAtOf({ said, record: args.record, threadId: args.threadId })
-  return saidAt ?? epochOf(args.record.queuedSince?.() ?? null)
+  return saidAt ?? epochOf(args.queuedAt) ?? epochOf(args.record.queuedSince?.() ?? null)
 }
 
 export const promptQueuedMsOf = (args: {
@@ -81,6 +82,7 @@ export const turnWaitOf = async (args: {
   threadId: ThreadId
   now: number
   wakes?: WakeTracker
+  queuedAt?: string | undefined
 }): Promise<TurnWait> => {
   const wake = (args.wakes ?? processWakes).wakeOf({ threadId: args.threadId })
   const events = await args.record.ownEvents({ threadId: args.threadId }).catch(() => [])
@@ -88,6 +90,7 @@ export const turnWaitOf = async (args: {
     record: args.record,
     events,
     threadId: args.threadId,
+    ...(args.queuedAt === undefined ? {} : { queuedAt: args.queuedAt }),
   })
   const queuedMs = promptQueuedMsOf({ now: args.now, promptAt })
   return {
