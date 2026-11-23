@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   type PaneLayout,
   recallPaneLayout,
@@ -10,6 +10,7 @@ import { samePaneLayout } from '@/features/threads/panel/pane-split'
 import { useRightPanelCollapsed } from '@/features/threads/panel/right-panel-collapsed'
 
 import { recallPaneTab, rememberPaneTab } from './pane-memory'
+import { EPaneOpen, type PaneOpenRequest } from './pane-open'
 import { ESessionPaneTab } from './pane-tab'
 
 export type SessionPaneState = {
@@ -22,6 +23,9 @@ export type SessionPaneState = {
   toggleCollapsed: () => void
   openPane: () => void
   openTab: (tab: ESessionPaneTab) => void
+  openRequest: PaneOpenRequest | undefined
+  requestOpen: (request: { kind: EPaneOpen; path: string }) => void
+  consumeOpenRequest: (id: number) => void
   podSizeRequest: number
   requestPodSize: () => void
   consumePodSizeRequest: () => void
@@ -42,6 +46,8 @@ export function useSessionPane(sessionId: string): SessionPaneState {
     [sessionId],
   )
   const [sheetOpen, setSheetOpen] = useState(false)
+  const [openRequest, setOpenRequest] = useState<PaneOpenRequest | undefined>(undefined)
+  const nextOpenId = useRef(0)
   const [podSizeRequest, setPodSizeRequest] = useState(0)
   const requestPodSize = useCallback(() => setPodSizeRequest((count) => count + 1), [])
   const consumePodSizeRequest = useCallback(() => setPodSizeRequest(0), [])
@@ -63,6 +69,20 @@ export function useSessionPane(sessionId: string): SessionPaneState {
     [openPane],
   )
 
+  const requestOpen = useCallback(
+    (request: { kind: EPaneOpen; path: string }) => {
+      nextOpenId.current += 1
+      setOpenRequest({ ...request, id: nextOpenId.current })
+      setTab(request.kind === EPaneOpen.Changes ? ESessionPaneTab.Changes : ESessionPaneTab.Files)
+      openPane()
+    },
+    [openPane],
+  )
+
+  const consumeOpenRequest = useCallback((id: number) => {
+    setOpenRequest((held) => (held?.id === id ? undefined : held))
+  }, [])
+
   return {
     tab,
     setTab,
@@ -73,6 +93,9 @@ export function useSessionPane(sessionId: string): SessionPaneState {
     toggleCollapsed,
     openPane,
     openTab,
+    openRequest,
+    requestOpen,
+    consumeOpenRequest,
     podSizeRequest,
     requestPodSize,
     consumePodSizeRequest,

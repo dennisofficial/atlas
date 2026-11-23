@@ -9,6 +9,7 @@ import type { PreviewPort } from '@dltech/atlas-ui/ai/preview-browser'
 import { type SessionViewModel, shellTailTextOf } from '../data/session-view-model'
 import { openBrowserUrl } from './browser/open-browser'
 import { ESessionPaneTab } from './pane-tab'
+import type { SessionPaneState } from './pane-state'
 import type { SessionPaneValue } from './pane-value'
 import { previewPortsOf } from './preview-ports'
 import { enteredWorktreePathOf } from '../data/entered-worktree'
@@ -33,24 +34,10 @@ export function useSessionPaneWiring(args: {
   model: SessionViewModel
   snapshot: PaneSnapshot
   mainThreadId: string | undefined
-  openTab: (tab: ESessionPaneTab) => void
-  podSizeRequest: number
-  requestPodSize: () => void
-  consumePodSizeRequest: () => void
+  pane: SessionPaneState
 }): SessionPaneWiring {
-  const {
-    sessionId,
-    title,
-    startedAt,
-    projectId,
-    model,
-    snapshot,
-    mainThreadId,
-    openTab,
-    podSizeRequest,
-    requestPodSize,
-    consumePodSizeRequest,
-  } = args
+  const { sessionId, title, startedAt, projectId, model, snapshot, mainThreadId, pane } = args
+  const { openTab, openRequest, requestOpen, consumeOpenRequest } = pane
   const { view: viewOutput, status, shells, events } = snapshot
   const threadWorktreePath = useMemo(
     () =>
@@ -82,10 +69,13 @@ export function useSessionPaneWiring(args: {
       status,
       shellTails,
       openTab,
+      openRequest,
+      requestOpen,
+      consumeOpenRequest,
       openBrowser,
-      podSizeRequest,
-      requestPodSize,
-      consumePodSizeRequest,
+      podSizeRequest: pane.podSizeRequest,
+      requestPodSize: pane.requestPodSize,
+      consumePodSizeRequest: pane.consumePodSizeRequest,
     }),
     [
       sessionId,
@@ -98,10 +88,13 @@ export function useSessionPaneWiring(args: {
       status,
       shellTails,
       openTab,
+      openRequest,
+      requestOpen,
+      consumeOpenRequest,
       openBrowser,
-      podSizeRequest,
-      requestPodSize,
-      consumePodSizeRequest,
+      pane.podSizeRequest,
+      pane.requestPodSize,
+      pane.consumePodSizeRequest,
     ],
   )
   return { paneValue, ports, shellTails, openBrowser, openBrowserTab }
