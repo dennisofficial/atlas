@@ -66,7 +66,7 @@ describe('settingsModel', () => {
       ['Project context', 4],
       ['Plugins', 1],
       ['Skills', 1],
-      ['Context window', 1],
+      ['Context window', 2],
       ['Worktrees', 1],
       ['Usage meters', 3],
       ['Nudges', 1],
@@ -76,7 +76,7 @@ describe('settingsModel', () => {
       ['Images', 1],
       ['Execution', 4],
     ])
-    expect(general?.rows).toHaveLength(30)
+    expect(general?.rows).toHaveLength(31)
   })
 
   it('leaves the cloud page to the definitions the harness adds', () => {
@@ -198,7 +198,7 @@ describe('moving around the page', () => {
     const top = openSettings()
 
     expect(moveRow({ state: top, model, delta: -1 })).toEqual({ pageIndex: 0, rowIndex: 0 })
-    expect(moveRow({ state: top, model, delta: 99 })).toEqual({ pageIndex: 0, rowIndex: 29 })
+    expect(moveRow({ state: top, model, delta: 99 })).toEqual({ pageIndex: 0, rowIndex: 30 })
   })
 
   it('wraps around the tab strip and lands on its first row', () => {
