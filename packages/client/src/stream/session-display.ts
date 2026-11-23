@@ -18,7 +18,7 @@ const BASE: Record<ESessionStatus, ESessionDisplay> = {
   [ESessionStatus.WaitingForCredentials]: ESessionDisplay.WaitingForYou,
   [ESessionStatus.WaitingForOperator]: ESessionDisplay.WaitingForYou,
   [ESessionStatus.Preparing]: ESessionDisplay.Starting,
-  [ESessionStatus.Queued]: ESessionDisplay.Idle,
+  [ESessionStatus.Queued]: ESessionDisplay.Working,
   [ESessionStatus.Thinking]: ESessionDisplay.Working,
   [ESessionStatus.RunningTool]: ESessionDisplay.Working,
   [ESessionStatus.WaitingToRetry]: ESessionDisplay.Working,

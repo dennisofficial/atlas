@@ -4,6 +4,19 @@ export { ControlPlane, MAX_READ_LIMIT, MAX_SESSION_LIST_LIMIT } from './control-
 export type { ControlPlaneParams, ReadEventsPage } from './control-plane'
 export { changeBlobKey, ChangeContentStore, changeHashOf } from './change-content'
 export { CHANGES_GC_GRACE_MS, CHANGES_GC_ROW_LIMIT, runChangesGc } from './changes-gc'
+export { ContextContentStore } from './context-content'
+export type { ContextFileRow, ContextFileWrite } from './context-files'
+export {
+  CONTEXT_FILES_GC_GRACE_MS,
+  CONTEXT_FILES_GC_ROW_LIMIT,
+  runContextFilesGc,
+} from './context-files-gc'
+export type {
+  ContextFilesGcContent,
+  ContextFilesGcParams,
+  ContextFilesGcStore,
+  ContextFilesGcSummary,
+} from './context-files-gc'
 export type {
   ChangesGcContent,
   ChangesGcParams,

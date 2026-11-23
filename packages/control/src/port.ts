@@ -2,6 +2,7 @@ import type { Hash, InboxEntry, JsonValue, Lease, ModelChoice, ThreadId } from '
 import type { SessionModelAsk } from '@dltech/atlas-models'
 import type { EChangeFileStatus, SessionChange } from '@dltech/atlas-protocol'
 
+import type { ContextFileRow, ContextFileWrite } from './context-files'
 import type {
   AdvanceRoutineParams,
   InsertRoutineRunParams,
@@ -416,6 +417,15 @@ export interface ControlTx {
     limit: number
   }): Promise<readonly ChangeBlobRow[]>
   deleteChangeBlobs(params: { hashes: readonly string[] }): Promise<void>
+  upsertContextFiles(params: {
+    sessionId: string
+    files: readonly ContextFileWrite[]
+  }): Promise<void>
+  removeContextFiles(params: { sessionId: string; paths: readonly string[] }): Promise<void>
+  listContextFiles(params: { sessionId: string }): Promise<readonly ContextFileRow[]>
+  contextFileOf(params: { sessionId: string; path: string }): Promise<ContextFileRow | null>
+  contextDigestsReferenced(params: { digests: readonly string[] }): Promise<ReadonlySet<string>>
+  lockContextDigest(params: { digest: string }): Promise<void>
   readLease(sessionId: string): Promise<Lease | undefined>
   readLeases(sessionIds: readonly string[]): Promise<Lease[]>
   leasesHeldBy(params: { hostId: number; limit: number }): Promise<Lease[]>

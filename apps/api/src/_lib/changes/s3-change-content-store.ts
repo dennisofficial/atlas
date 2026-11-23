@@ -10,6 +10,7 @@ import { EnvService } from '../../_core/config/env/env.service'
 const SETTING_KEYS = [
   'CHANGES_S3_BUCKET',
   'CHANGES_S3_PREFIX',
+  'CONTEXT_S3_PREFIX',
   'ARTIFACT_S3_BUCKET',
   'ARTIFACT_S3_ENDPOINT',
   'ARTIFACT_S3_REGION',
