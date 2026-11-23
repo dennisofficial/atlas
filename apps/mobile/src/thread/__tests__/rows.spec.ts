@@ -6,6 +6,19 @@ import { EOomScope } from '@dltech/atlas-core'
 
 import { EMessageAuthor, ENoticeTone, ERowKind, rowsOf } from '../rows'
 
+const commanded = (key: string, text: string, name: string): TranscriptEntry => ({
+  kind: EEntryKind.OperatorSaid,
+  author: EAuthor.Operator,
+  key,
+  text,
+  said: [text],
+  steer: false,
+  skills: [],
+  files: [],
+  attachments: [],
+  command: { name, argumentText: text.slice(name.length + 2), text },
+})
+
 const said = (key: string, text: string): TranscriptEntry => ({
   kind: EEntryKind.OperatorSaid,
   author: EAuthor.Operator,
@@ -87,6 +100,19 @@ describe('rowsOf', () => {
     expect(rows.map((row) => row.kind)).toEqual([ERowKind.Message, ERowKind.Message])
     expect(rows[0]).toMatchObject({ author: EMessageAuthor.You, text: 'hello' })
     expect(rows[1]).toMatchObject({ author: EMessageAuthor.Atlas, text: 'hi there' })
+  })
+
+  it('marks a consumed command row with the exact line the operator typed', () => {
+    const rows = rowsNow([commanded('u1', '/rename bench', 'rename')])
+    expect(rows[0]?.kind).toBe(ERowKind.Message)
+    if (rows[0]?.kind !== ERowKind.Message) return
+    expect(rows[0].command).toEqual({ text: '/rename bench', name: 'rename' })
+    expect(rows[0].text).toBe('/rename bench')
+  })
+
+  it('leaves an ordinary message row without a command', () => {
+    const rows = rowsNow([said('u1', 'hello')])
+    expect(rows[0]?.kind === ERowKind.Message ? rows[0].command : 'set').toBeUndefined()
   })
 
   it('drops a muted or empty reply', () => {

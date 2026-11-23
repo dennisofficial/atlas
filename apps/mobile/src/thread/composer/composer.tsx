@@ -1,3 +1,4 @@
+import { clientActionOfEntries, EClientAction, type CommandEntry } from '@dltech/atlas-commands'
 import type { Attachment } from '@dltech/atlas-core'
 import { radius, space } from '@dltech/atlas-ui/tokens'
 import {
@@ -20,6 +21,8 @@ import { mergeIntoDraft } from '../v2/staged-send'
 import { AttachmentChips } from './attachment-chips'
 import { AttachMenu } from './attach-menu'
 import { REMOVE_FAILED_FILES, sendableOf } from './attachment-plan'
+import { SlashMenu } from './slash-menu'
+import { completedDraftOf, menuCandidatesOf, menuQueryOf, pickActionOf } from './slash-menu-model'
 import type { ComposerAttachments } from './use-attachments'
 
 const PLACEHOLDER = 'Ask the agent to change your code...'
@@ -34,6 +37,8 @@ export const Composer = ({
   autoFocus = false,
   restored,
   refusal,
+  entries = [],
+  clientActions,
   children,
 }: {
   working: boolean
@@ -45,6 +50,8 @@ export const Composer = ({
   autoFocus?: boolean
   restored?: { token: number; text: string } | undefined
   refusal?: string | undefined
+  entries?: readonly CommandEntry[]
+  clientActions?: Record<EClientAction, () => void> | undefined
   children?: ReactNode
 }) => {
   const theme = useTheme()
@@ -55,6 +62,7 @@ export const Composer = ({
   const [choosing, setChoosing] = useState(false)
 
   const canSend = sendableOf({ text: draft, held: attachments?.held ?? [] }) && !sending
+  const candidates = menuCandidatesOf({ draft, entries })
 
   useEffect(() => {
     if (restored === undefined) return
@@ -63,6 +71,14 @@ export const Composer = ({
 
   const handleSend = async () => {
     if (!canSend) return
+    if (clientActions !== undefined) {
+      const action = clientActionOfEntries({ text: draft, entries })
+      if (action !== null) {
+        clientActions[action]()
+        setDraft('')
+        return
+      }
+    }
     setSending(true)
     setFailed(false)
     const sent = await onSend({ text: draft.trim(), attachments: attachments?.attachments ?? [] })
@@ -83,6 +99,16 @@ export const Composer = ({
       attachments?.notice ??
       (attachments?.failed === true ? REMOVE_FAILED_FILES : null))
 
+  const handleCommand = (entry: CommandEntry) => {
+    const action = pickActionOf(entry)
+    if (action !== null && clientActions !== undefined) {
+      clientActions[action]()
+      setDraft('')
+      return
+    }
+    setDraft(completedDraftOf(entry.name))
+  }
+
   const handlePick = (pick: () => Promise<void>) => {
     setChoosing(false)
     void pick()
@@ -90,6 +116,9 @@ export const Composer = ({
 
   return (
     <View style={styles.dock}>
+      {menuQueryOf(draft) === null || candidates.length === 0 ? null : (
+        <SlashMenu entries={candidates} onPick={handleCommand} />
+      )}
       {choosing && attachments !== undefined ? (
         <AttachMenu
           onPhoto={() => handlePick(attachments.pickPhotos)}
