@@ -8,7 +8,7 @@ import {
   withAlpha,
 } from '@dltech/atlas-ui-native'
 import { radius, space } from '@dltech/atlas-ui/tokens'
-import { ChevronDown, Search } from 'lucide-react-native'
+import { Search } from 'lucide-react-native'
 import { useState } from 'react'
 import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native'
 
@@ -16,7 +16,6 @@ import {
   type IModelOption,
   type IModelSelection,
   modelGroupsOf,
-  modelTriggerLabelOf,
   personalModelLabelOf,
   pinnedModelsOf,
   searchModelsOf,
@@ -24,7 +23,8 @@ import {
   togglePinnedModel,
   withoutPinned,
 } from './model-options'
-import { DefaultRow, ModelRow, ProviderMark } from './model-picker-rows'
+import { DefaultRow, ModelRow } from './model-picker-rows'
+import { ModelTrigger } from './model-trigger'
 
 type Props = {
   models: readonly IModelOption[]
@@ -190,26 +190,11 @@ export const ModelSelect = ({
   onPinnedChange,
   onSelect,
 }: Props) => {
-  const theme = useTheme()
   const [open, setOpen] = useState(false)
-  const label = modelTriggerLabelOf({ models, selection })
-  const mark = selection?.model.monogram
 
   return (
     <>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`Model: ${label}`}
-        accessibilityState={{ expanded: open }}
-        onPress={() => setOpen(true)}
-        style={({ pressed }) => [styles.trigger, pressed ? { backgroundColor: theme.muted } : null]}
-      >
-        {mark === undefined ? null : <ProviderMark monogram={mark} />}
-        <Text size={ETextRole.Sm} numberOfLines={1} style={styles.value}>
-          {label}
-        </Text>
-        <Icon icon={ChevronDown} color={theme.mutedForeground} size={16} />
-      </Pressable>
+      <ModelTrigger models={models} selection={selection} onPress={() => setOpen(true)} />
       <ModelSheet
         open={open}
         onClose={() => setOpen(false)}
@@ -225,18 +210,6 @@ export const ModelSelect = ({
 }
 
 const styles = StyleSheet.create({
-  trigger: {
-    alignItems: 'center',
-    borderRadius: radius(0.8),
-    flexDirection: 'row',
-    gap: space(1.5),
-    height: 28,
-    maxWidth: 200,
-    paddingHorizontal: space(2),
-  },
-  value: {
-    flexShrink: 1,
-  },
   overlay: {
     alignItems: 'center',
     flex: 1,

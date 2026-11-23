@@ -10,10 +10,12 @@ import { WorkSummary } from './work-summary'
 export const SessionRow = ({
   entry,
   now,
+  depth = 0,
   onPress,
 }: {
   entry: ISessionEntry
   now: number
+  depth?: number
   onPress: () => void
 }) => {
   const theme = useTheme()
@@ -23,6 +25,7 @@ export const SessionRow = ({
       onPress={onPress}
       style={({ pressed }) => [
         styles.row,
+        depth > 0 ? { paddingLeft: space(2) + depth * space(4) } : null,
         pressed ? { backgroundColor: theme.sidebarAccent } : null,
       ]}
     >

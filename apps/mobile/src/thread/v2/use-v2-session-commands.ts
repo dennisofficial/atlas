@@ -53,7 +53,7 @@ export const useV2SessionCommands = (args: {
   const model = useSessionModelChoice({
     api: args.api,
     sessionId: args.sessionId,
-    open: modelOpen,
+    open: true,
   })
 
   return {
