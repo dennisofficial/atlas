@@ -10,6 +10,7 @@ import { type PodMetricsSample, seriesAfter } from './pod-metrics-series'
 
 const NONE: readonly PodMetricsSample[] = []
 const RESUBSCRIBE_MS = 2_000
+const UNAVAILABLE_BACKOFF_MAX_MS = 30_000
 
 export type PodMetricsState = {
   series: readonly PodMetricsSample[]
@@ -28,6 +29,7 @@ export function usePodMetrics(args: { sessionId: string; enabled?: boolean }): P
     let stopped = false
     let active: { unsubscribe: () => void } | undefined
     let retry: ReturnType<typeof setTimeout> | undefined
+    let backoffMs = RESUBSCRIBE_MS
     const close = (): void => {
       clearTimeout(retry)
       retry = undefined
@@ -35,10 +37,10 @@ export function usePodMetrics(args: { sessionId: string; enabled?: boolean }): P
       active = undefined
       previous?.unsubscribe()
     }
-    const resubscribe = (): void => {
+    const resubscribe = (delayMs: number): void => {
       if (stopped) return
       close()
-      retry = setTimeout(open, RESUBSCRIBE_MS)
+      retry = setTimeout(open, delayMs)
     }
     const open = (): void => {
       if (stopped) return
@@ -49,18 +51,19 @@ export function usePodMetrics(args: { sessionId: string; enabled?: boolean }): P
             const frame = podMetricsFrameSchema.safeParse(value)
             if (!frame.success) return
             if (frame.data.type === 'unavailable') {
-              stopped = true
-              close()
               setState((current) => ({ series: current.series, unavailable: true }))
+              resubscribe(backoffMs)
+              backoffMs = Math.min(backoffMs * 2, UNAVAILABLE_BACKOFF_MAX_MS)
               return
             }
+            backoffMs = RESUBSCRIBE_MS
             setState((current) => ({
               series: seriesAfter({ series: current.series, frame: frame.data }),
               unavailable: false,
             }))
           },
-          onError: () => resubscribe(),
-          onComplete: () => resubscribe(),
+          onError: () => resubscribe(RESUBSCRIBE_MS),
+          onComplete: () => resubscribe(RESUBSCRIBE_MS),
         },
       )
       if (stopped) subscription.unsubscribe()
