@@ -1,7 +1,8 @@
 import { useMemo } from 'react'
 import { toast } from 'sonner'
 
-import { pendingMessagesOf, type PendingInputsState } from '@dltech/atlas-core'
+import { pendingMessagesOf, type Attachment, type PendingInputsState } from '@dltech/atlas-core'
+import { queuedMessagesOf } from '@dltech/atlas-client/session'
 import {
   optimisticPlacementOf,
   transcriptEventsOf,
@@ -9,10 +10,11 @@ import {
 } from '@dltech/atlas-client/stream'
 
 import type { TranscriptRow } from '@/features/threads/data/transcript-items'
+import { mediaUrls } from '@/features/threads/data/media-urls'
 import { messageOf } from '@/features/threads/data/use-send'
 
 import { sessionEventTypes } from '../registered-plugins'
-import { queuedMediaHashesOf, visibleQueuedOf, type StagedMessage } from './queued-messages'
+import { queuedMediaHashesOf, type StagedMessage } from './queued-messages'
 import { optimisticQueuedRowsOf, optimisticUserItemsOf, queuedRowsOf } from './queued-transcript'
 import { sessionsApi } from './sessions-api'
 import { useMediaUrls } from './use-media-urls'
@@ -26,8 +28,13 @@ export function useQueuedTranscript(args: {
   items: readonly TranscriptRow[]
   draft: string
   onDraftChange: (draft: string) => void
+  onRestoreAttachments: (restored: {
+    attachments: readonly Attachment[]
+    previewOf: (hash: string) => Promise<string>
+  }) => void
 }) {
-  const { sessionId, pending, events, staged, items: listed, draft, onDraftChange } = args
+  const { sessionId, pending, events, staged, items: listed, draft } = args
+  const { onDraftChange, onRestoreAttachments } = args
   const pendingInputs = useMemo(() => pendingMessagesOf(pending), [pending])
   const hashes = useMemo(() => queuedMediaHashesOf({ pending, staged }), [pending, staged])
   const urls = useMediaUrls({ sessionId, hashes })
@@ -50,7 +57,7 @@ export function useQueuedTranscript(args: {
   )
   const items = useMemo(() => optimisticUserItemsOf(placement.transcript), [placement])
   const transcript = useMemo(() => [...listed, ...items], [listed, items])
-  const queued = useMemo(() => visibleQueuedOf({ pending, urls }), [pending, urls])
+  const queued = useMemo(() => queuedMessagesOf(pending), [pending])
   const withdrawIds = useMemo(
     () => new Set(pendingInputs.map((input) => String(input.inboxId))),
     [pendingInputs],
@@ -65,11 +72,20 @@ export function useQueuedTranscript(args: {
         sessionId,
         inboxId: Number(entry.id),
         text: entry.text,
+        attachments: entry.attachments,
         draft,
         restoreText: params.restoreText,
       })
-      if (result.outcome === EWithdrawOutcome.Refused) toast(result.notice)
-      else onDraftChange(result.draft)
+      if (result.outcome === EWithdrawOutcome.Refused) {
+        toast(result.notice)
+        return
+      }
+      onDraftChange(result.draft)
+      if (result.attachments.length === 0) return
+      onRestoreAttachments({
+        attachments: result.attachments,
+        previewOf: (hash) => mediaUrls.urlOf({ sessionId, hash }),
+      })
     } catch (failure) {
       toast.error(messageOf(failure))
     }

@@ -175,6 +175,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     items: transcriptItems,
     draft,
     onDraftChange: setDraft,
+    onRestoreAttachments: attachments.restore,
   })
 
   const handleRetry = () => retrySessionNow(sessionId)
