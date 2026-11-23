@@ -7,7 +7,7 @@ import type { useComposerAttachments } from '@/features/threads/data/use-compose
 import type { Attachment } from '@dltech/atlas-core'
 
 import { routeAttachments } from './session-attachments'
-import { restorePlanOf } from './session-rewind'
+import { restorePlanOf } from '@dltech/atlas-client/session'
 import { useSessionMedia } from './use-session-media'
 
 export function useSessionAttachments({

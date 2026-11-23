@@ -15,7 +15,7 @@ import { api, cloudCall } from '@/lib/api-client'
 
 import type { SessionsApi } from './create-session'
 import type { RetryApi } from './retry-session'
-import type { RewindApi } from './session-rewind'
+import type { RewindApi } from '@dltech/atlas-client/session'
 import type { StopApi } from './stop-session'
 import type { WithdrawApi } from './withdraw-queued'
 

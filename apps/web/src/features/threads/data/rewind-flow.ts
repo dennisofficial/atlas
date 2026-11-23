@@ -1,13 +1,8 @@
 import type { Event } from '@dltech/atlas-core'
+import type { RewindKillRow } from '@dltech/atlas-client/session'
 import type { EPodState, RewindCutWire, RosterWire } from '@dltech/atlas-wire/web'
 
-import {
-  ERewindRoute,
-  planRewind,
-  rewindRouteOf,
-  userRewindPoints,
-  type RewindKillRow,
-} from './rewind'
+import { ERewindRoute, planRewind, rewindRouteOf, userRewindPoints } from './rewind'
 
 export const REWIND_WAITS_FOR_TURN =
   'Rewind has to wait for this turn — pick the point again when it settles'
