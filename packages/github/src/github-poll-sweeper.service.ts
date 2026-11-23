@@ -1,4 +1,4 @@
-import { and, db, or, type Row } from '@dltech/atlas-db'
+import { db, type Row } from '@dltech/atlas-db'
 import { endSubscriptionsIn } from '@dltech/atlas-control'
 import { controlTxOf } from '@dltech/atlas-control/postgres'
 import {
@@ -9,6 +9,10 @@ import {
   ESubscriptionEnd,
 } from '@dltech/atlas-core'
 import { GithubHeadReads } from './github-head-reads'
+import {
+  dropLapsedSubscriptionsWithoutThread,
+  lapsedSubscriptionsWithThread,
+} from './github-lapsed-subscriptions'
 import { applyObservedPull } from './github-pr-observed-pull'
 import { GithubPrStore } from './github-pr-store'
 import { mergeabilityObservationOfSample, pullObservationOfRest } from './github-pr-observations'
@@ -76,12 +80,13 @@ export class GithubPollSweeperService {
     }
     const linked = await db.orm.public.GithubSubscription.where((subscription) =>
       subscription.threadId.neq(''),
-    ).all()
+    )
+      .where((subscription) => subscription.deadline.isNull())
+      .all()
     const activity = await this.activityOf({
       threadIds: linked.map((subscription) => subscription.threadId),
     })
     for (const subscription of linked) {
-      if (subscription.deadline !== null) continue
       const lastActivityAt = activity.get(subscription.threadId)
       if (lastActivityAt === undefined) continue
       const liveUntil = liveUntilOf({
@@ -94,23 +99,14 @@ export class GithubPollSweeperService {
   }
 
   private async endExpired(): Promise<void> {
-    const now = new Date()
-    const lapsed = await db.orm.public.GithubSubscription.where((subscription) =>
-      subscription.threadId.neq(''),
-    )
-      .where((subscription) =>
-        or(
-          subscription.deadline.lt(now),
-          and(subscription.expiresAt.lt(now), subscription.liveUntil.lt(now)),
-        ),
-      )
-      .all()
+    const at = new Date().toISOString()
+    await dropLapsedSubscriptionsWithoutThread({ at })
+    const lapsed = await lapsedSubscriptionsWithThread({ at })
     if (lapsed.length === 0) return
-    const at = now.toISOString()
     const ended = await db.transaction((tx) =>
       endSubscriptionsIn({
         tx: controlTxOf(tx),
-        rows: lapsed.map((row) => ({ subscriptionId: row.id, threadId: row.threadId })),
+        rows: lapsed,
         by: ESubscriptionActor.Clock,
         reason: ESubscriptionEnd.Expired,
         at,

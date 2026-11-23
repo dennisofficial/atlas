@@ -43,6 +43,7 @@ export const preparePollSweeper = async (): Promise<void> => {
 
 export function serviceWith(args: {
   tokens?: Record<string, string>
+  ensureHook?: () => Promise<'created' | 'existing' | 'app-backed' | 'poll-backed'>
   readPullRequest?: GithubUserReads['readPullRequest']
   findOpenPrForBranch?: GithubUserReads['findOpenPrForBranch']
   headReads?: GithubHeadReads
@@ -58,7 +59,9 @@ export function serviceWith(args: {
     findOpenPrForBranch: args.findOpenPrForBranch ?? (async () => null),
   } as unknown as GithubUserReads
   const fanout = new GithubPrFanoutService(new DrainStateService())
-  const hooks = { ensureHook: async () => 'poll-backed' } as unknown as GithubHookLifecycleService
+  const hooks = {
+    ensureHook: args.ensureHook ?? (async () => 'poll-backed'),
+  } as unknown as GithubHookLifecycleService
   return {
     service: new GithubPollSweeperService(
       github,
