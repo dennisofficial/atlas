@@ -97,14 +97,14 @@ const operationsOf = (args: { held: boolean; backlog?: PodSample[] | null }) => 
     return outcomeOf(args.backlog === undefined ? [] : args.backlog)
   })
   const hold = vi.fn((_input: { sessionId: string; ttlMs?: number }) => true)
-  const waitForHolder = vi.fn(async (_input: { sessionId: string }) => args.held)
+  const servesLocally = vi.fn(async (_input: { sessionId: string }) => args.held)
   const events = vi.fn((input: { listener: (frame: EventFrame) => void }) => {
     if (!args.held) return null
     state.listener = input.listener
     return state.dispose
   })
-  const ops = { events, hold, invoke, waitForHolder } as unknown as PodOps
-  return { ops, hold, waitForHolder, invoke, events, state }
+  const ops = { events, hold, invoke, servesLocally } as unknown as PodOps
+  return { ops, hold, servesLocally, invoke, events, state }
 }
 
 const collect = (generator: AsyncGenerator<PodMetricsFrame>) => {

@@ -206,6 +206,7 @@ export class HeldSession {
       onLeaseLost: (error) => this.ending.lose(lostOutcome(error)),
       onRuntime: (opened) => {
         this.runtime = opened
+        deps.onRuntimeReady?.()
       },
     })
     this.record = record

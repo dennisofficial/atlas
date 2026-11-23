@@ -33,5 +33,6 @@ export type HeldSessionDeps = {
   changes?: { content: ChangeContentStore } | undefined
   notify?: NotifyDispatch | undefined
   turnEnded?: TurnEndedHook | undefined
+  onRuntimeReady?: (() => void) | undefined
   log?: LogPort | undefined
 }

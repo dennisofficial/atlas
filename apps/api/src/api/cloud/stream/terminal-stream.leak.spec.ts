@@ -48,8 +48,15 @@ const hostOf = () => {
   const calls = new PodCalls({
     held: () => runtime as unknown as SessionRuntime,
   })
+  const ops: PodOps = {
+    invoke: (input) => calls.invoke(input),
+    follow: async (input) => calls.events(input),
+    events: (input) => calls.events(input),
+    hold: () => true,
+    servesLocally: async () => true,
+  }
   return {
-    ops: calls as unknown as PodOps,
+    ops,
     listeners,
     closes,
     emit: (frame: EventFrame) => {
@@ -113,8 +120,8 @@ describe('TerminalStreamService retention', () => {
       const abort = new AbortController()
       const stream = attach(service, abort.signal)
       await stream.next()
-      const pending = stream.next()
       const before = host.listeners.size
+      const pending = stream.next()
       await until(() => host.listeners.size === before + 1)
       host.emit(outputFrame({ terminalId: 't1', offset: index * 2, data: 'aGk=' }))
       await pending
@@ -128,12 +135,13 @@ describe('TerminalStreamService retention', () => {
     const host = hostOf()
     const ops: PodOps = {
       invoke: (input) => host.ops.invoke(input),
+      follow: async (input) => {
+        await Bun.sleep(20)
+        return host.ops.events(input)
+      },
       events: (input) => host.ops.events(input),
       hold: () => true,
-      waitForHolder: async () => {
-        await Bun.sleep(20)
-        return true
-      },
+      servesLocally: async () => true,
     }
     const abort = new AbortController()
     const stream = attach(serviceOf({ ops }), abort.signal)

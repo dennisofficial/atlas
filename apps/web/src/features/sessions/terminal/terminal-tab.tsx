@@ -49,7 +49,11 @@ export function TerminalTab(props: { transportOf?: TerminalTransportOf } = {}) {
   const snapshot = useTerminals(sessionId)
   const attached = podAttached(status)
   usePodHold({ sessionId, active: attached })
-  const { state: wakeState, wakePod } = usePodWake({
+  const {
+    state: wakeState,
+    message: wakeMessage,
+    wakePod,
+  } = usePodWake({
     sessionId,
     live: attached,
     wake: () => requestWake(sessionId).then(() => undefined),
@@ -199,7 +203,9 @@ export function TerminalTab(props: { transportOf?: TerminalTransportOf } = {}) {
   )
 
   if (!attached || snapshot.link === ETerminalConnection.Disconnected) {
-    return <PodDisconnected tab="Terminal" state={wakeState} onWake={wakePod} />
+    return (
+      <PodDisconnected tab="Terminal" state={wakeState} message={wakeMessage} onWake={wakePod} />
+    )
   }
 
   const active = activeTab(snapshot)

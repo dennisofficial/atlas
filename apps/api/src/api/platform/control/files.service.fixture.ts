@@ -24,8 +24,10 @@ export const opsOf = (results: CallResult[], seen: CallOp[] = []): PodOps => ({
     if (next === undefined) throw new Error('no result staged')
     return ok(next)
   },
+  follow: async () => null,
   events: () => null,
   hold: () => true,
+  servesLocally: async () => true,
 })
 
 export const listing = (names: readonly string[]): CallResult => ({

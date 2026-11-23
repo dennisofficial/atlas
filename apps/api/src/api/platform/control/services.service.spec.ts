@@ -41,8 +41,10 @@ describe('ServicesService', () => {
         waits.push(args.waitForHolder)
         return { state: 'ok', result: smallLog }
       },
+      follow: async () => null,
       events: () => null,
       hold: () => true,
+      servesLocally: async () => true,
     })
     const sessionId = await asUser(sessions)
     await services.log({ userId: 'user-a', sessionId, serviceId: 'web' })
@@ -83,8 +85,10 @@ describe('ServicesService', () => {
     const { service: sessions } = setupSessionsService()
     const services = new ServicesService(sessions, {
       invoke: async () => ({ state: 'unavailable', reason: ELiveOpFailure.Asleep }),
+      follow: async () => null,
       events: () => null,
       hold: () => true,
+      servesLocally: async () => true,
     })
     const sessionId = await asUser(sessions)
 
