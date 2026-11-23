@@ -21,8 +21,8 @@ beforeAll(() => {
   globalThis.IS_REACT_ACT_ENVIRONMENT = true
 })
 
-afterAll(() => {
-  unregisterDom()
+afterAll(async () => {
+  await unregisterDom()
 })
 
 afterEach(() => {
