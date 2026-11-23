@@ -97,6 +97,8 @@ export type HandoffScenario = {
   knobs?: HostKnobs
   /** begins the work on host A, and waits until it is really in flight */
   start(ctx: HandoffContext): Promise<HostProcess>
+  /** wakes a session that waits for the operator and wants no holder until then */
+  wake?(ctx: HandoffContext): Promise<void>
   /** the record still says the work is in flight, after another host took the session over */
   inFlight(ctx: HandoffContext): Promise<void>
   /** lets the work finish */
@@ -198,6 +200,7 @@ export const describeHandoff = (scenario: HandoffScenario): void => {
     }
 
     const takeOver = async (ctx: HandoffContext): Promise<HostProcess> => {
+      await scenario.wake?.(ctx)
       const hostB = await ctx.rig.spawnHost({
         label: 'host-b',
         daemonUrl: ctx.daemon.url,

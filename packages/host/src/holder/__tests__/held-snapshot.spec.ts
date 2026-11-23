@@ -57,6 +57,7 @@ const actionOf = async (args: {
 }): Promise<EHeldAction> => {
   const { action } = await readHeldAction({
     deps: depsOf(),
+    threadId: THREAD,
     draining: false,
     turnRunning: false,
     resumeAfterSeq: args.resumeAfterSeq ?? 0,
