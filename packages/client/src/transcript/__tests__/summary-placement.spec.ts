@@ -97,3 +97,28 @@ describe('placing a summary where its range ends', () => {
     ])
   })
 })
+
+describe('the time a moved summary carries', () => {
+  it('takes the time of the last row it now follows', () => {
+    const events = log([
+      { type: 'user-said', text: 'first' },
+      { type: 'user-said', text: 'second' },
+      compacted({ fromSeq: 1, throughSeq: 1, summary: 'one row' }),
+    ]).map((event, index) => ({ ...event, at: `2026-01-01T00:00:0${index}.000Z` }))
+
+    const moved = summariesAtTarget(events).find((event) => event.type === 'history-compacted')
+
+    expect(moved?.at).toBe('2026-01-01T00:00:00.000Z')
+  })
+
+  it('keeps its own time when it stays in place', () => {
+    const events = log([
+      { type: 'user-said', text: 'first' },
+      compacted({ fromSeq: 1, throughSeq: 1, summary: 'one row' }),
+    ]).map((event, index) => ({ ...event, at: `2026-01-01T00:00:0${index}.000Z` }))
+
+    const kept = summariesAtTarget(events).find((event) => event.type === 'history-compacted')
+
+    expect(kept?.at).toBe('2026-01-01T00:00:01.000Z')
+  })
+})
