@@ -13,10 +13,8 @@ import {
   type V2Event,
 } from '@dltech/atlas-core'
 import {
-  EMPTY_ANALYTICS,
   mergeHooks,
   type PluginPodContext,
-  type PodAnalytics,
   type PodCrew,
   type PodResources,
   type PodSlash,
@@ -32,6 +30,7 @@ import { pluginCallOf } from './plugin-call'
 import { podControlOf } from './pod-control'
 import { pluginResourcesClosedHook, pluginResourcesHook, reloadResource } from './plugin-resources'
 import { ResourceSync } from './plugin-resource-sync'
+import { analyticsOf } from './pod-analytics'
 import { podSessionsOf } from './plugin-sessions'
 import { heldMessagesOf } from './pod-messages'
 import { modelFellBackDraft } from './crew/model-fell-back'
@@ -133,21 +132,6 @@ const postNoticeToSession = async (args: {
     kind: INBOX_KIND_EVENT,
     payload: inboxEventPayloadOf({ event: args.event, clientId: args.key }),
   })
-}
-
-export const analyticsOf = (args: {
-  analytics: PodAnalytics | undefined
-  sessionId: string
-  threadId: ThreadId
-}): PodAnalytics => {
-  const analytics = args.analytics ?? EMPTY_ANALYTICS
-  return {
-    capture: ({ event, properties }) =>
-      analytics.capture({
-        event,
-        properties: { ...properties, session_id: args.sessionId, thread_id: args.threadId },
-      }),
-  }
 }
 
 export const resolvedEventsOf = (record: SessionRecord): readonly V2Event[] => {
