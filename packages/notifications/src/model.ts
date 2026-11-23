@@ -21,3 +21,14 @@ export const routineDataOf = (notification: AtlasNotification): Record<string, s
   notification.routineId === undefined ? {} : { [NOTIFY_DATA_ROUTINE_KEY]: notification.routineId }
 
 export const NOTIFY_DATA_CLEAR_SESSION_KEY = 'clearSessionId'
+
+export const NOTIFY_DATA_MOMENT_KEY = 'moment'
+
+export const NOTIFY_DATA_SENT_AT_KEY = 'sentAt'
+
+export const NOTIFY_CATEGORY_ID = 'atlas-notification'
+
+export const momentDataOf = (notification: AtlasNotification): Record<string, string> => ({
+  [NOTIFY_DATA_MOMENT_KEY]: notification.moment,
+  [NOTIFY_DATA_SENT_AT_KEY]: notification.at,
+})

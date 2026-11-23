@@ -64,9 +64,15 @@ describe('expoTransport.deliver', () => {
         title: 'Fix the parser',
         body: 'Finished',
         sound: 'default',
+        categoryId: 'atlas-notification',
         collapseId: 'session-1',
         threadId: 'session-1',
-        data: { sessionId: 'session-1', seq: 7 },
+        data: {
+          sessionId: 'session-1',
+          seq: 7,
+          moment: ENotifyMoment.TurnFinished,
+          sentAt: '2026-11-23T14:02:00.000Z',
+        },
       },
     ])
   })
@@ -94,6 +100,8 @@ describe('expoTransport.deliver', () => {
       sessionId: 'session-1',
       seq: 7,
       routineId: 'rtn-1',
+      moment: ENotifyMoment.TurnFinished,
+      sentAt: '2026-11-23T14:02:00.000Z',
     })
   })
 

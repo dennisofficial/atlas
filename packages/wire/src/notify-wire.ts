@@ -1,4 +1,10 @@
-import { EClientSurface, ENotifyDeviceKind } from '@dltech/atlas-core'
+import {
+  EClientSurface,
+  ENotifyDeviceKind,
+  ENotifyInAppKind,
+  ENotifyMoment,
+  ENotifyTrackEvent,
+} from '@dltech/atlas-core'
 import { z } from 'zod'
 
 export const reportNotifyPresenceInputSchema = z.strictObject({
@@ -57,3 +63,22 @@ export const sendTestNotificationOutputSchema = z.strictObject({
   devices: z.number().int().nonnegative(),
 })
 export type SendTestNotificationOutput = z.infer<typeof sendTestNotificationOutputSchema>
+
+export const notifyTrackDeviceKindSchema = z.union([
+  z.enum(ENotifyDeviceKind),
+  z.enum(ENotifyInAppKind),
+])
+export type NotifyTrackDeviceKind = z.infer<typeof notifyTrackDeviceKindSchema>
+
+export const notifyTrackEventSchema = z.enum(ENotifyTrackEvent)
+export type NotifyTrackEventName = z.infer<typeof notifyTrackEventSchema>
+
+export const trackNotificationInputSchema = z.strictObject({
+  event: notifyTrackEventSchema,
+  sessionId: z.string().min(1),
+  seq: z.number().int().nonnegative(),
+  moment: z.enum(ENotifyMoment),
+  deviceKind: notifyTrackDeviceKindSchema,
+  sentAt: z.iso.datetime().optional(),
+})
+export type TrackNotificationInput = z.infer<typeof trackNotificationInputSchema>

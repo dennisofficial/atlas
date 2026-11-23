@@ -15,6 +15,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
+import { reportInAppShown } from '@/features/sessions/data/notify-api'
 import { fetchV2Sessions } from '@/features/sessions/data/sessions-api'
 import { activeSessionIdOf } from '@/features/shell/active-route'
 import { v2SessionHref } from '@/features/shell/v2-rows'
@@ -56,6 +57,7 @@ export function useInAppNotices(): void {
     (notices: readonly AtlasNotification[]) => {
       if (notices.length === 0) return
       for (const notice of notices) {
+        void reportInAppShown(notice)
         toast(notice.title, {
           id: notice.sessionId,
           description: notice.body,

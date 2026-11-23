@@ -1,3 +1,5 @@
+import { ENotifyTrackEvent } from '@dltech/atlas-core'
+import type { ProductAnalytics } from '@dltech/atlas-observability'
 import {
   listNotifyDevicesOutputSchema,
   reportNotifyPresenceInputSchema,
@@ -6,6 +8,7 @@ import {
   registerNotifyDeviceOutputSchema,
   sendTestNotificationOutputSchema,
   setNotifyDeviceEnabledInputSchema,
+  trackNotificationInputSchema,
   unregisterNotifyDeviceInputSchema,
   type ListNotifyDevicesOutput,
   type NotifyWebPushKeyOutput,
@@ -14,11 +17,14 @@ import {
   type ReportNotifyPresenceInput,
   type SendTestNotificationOutput,
   type SetNotifyDeviceEnabledInput,
+  type TrackNotificationInput,
   type UnregisterNotifyDeviceInput,
 } from '@dltech/atlas-wire'
 import { TRPCError } from '@trpc/server'
 import { Ctx, Input, Mutation, Query, Router, UseMiddlewares } from 'nestjs-trpc'
+import { Inject, Optional } from '@nestjs/common'
 import { z } from 'zod'
+import { PRODUCT_ANALYTICS } from '../../../agent'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { JobsProjectDispatcher } from '../../../_core/ports/job-dispatcher'
 import { SessionMiddleware, type SessionTrpcCtx } from '../../../_module/session/session.middleware'
@@ -31,6 +37,15 @@ import { PresenceRegistry } from './presence-registry'
 
 const NO_INPUT = z.strictObject({})
 
+const CLIENT_EVENT_OF: Record<ENotifyTrackEvent, string> = {
+  [ENotifyTrackEvent.Delivered]: 'notification_delivered',
+  [ENotifyTrackEvent.Opened]: 'notification_opened',
+  [ENotifyTrackEvent.Dismissed]: 'notification_dismissed',
+  [ENotifyTrackEvent.InAppShown]: 'notification_in_app',
+}
+
+const notificationEventOf = (event: ENotifyTrackEvent): string => CLIENT_EVENT_OF[event]
+
 @Router({ alias: 'notifications' })
 @UseMiddlewares(SessionMiddleware)
 export class NotificationsRouter {
@@ -39,7 +54,33 @@ export class NotificationsRouter {
     private readonly devices: NotifyDevicesService,
     private readonly dispatcher: JobsProjectDispatcher,
     private readonly env: EnvService,
+    @Optional()
+    @Inject(PRODUCT_ANALYTICS)
+    private readonly analytics: ProductAnalytics | null = null,
   ) {}
+
+  private captureTrack(args: { userId: string; input: TrackNotificationInput }): void {
+    if (this.analytics === null) return
+    try {
+      const sentAtMs = args.input.sentAt === undefined ? null : Date.parse(args.input.sentAt)
+      this.analytics.capture({
+        userId: args.userId,
+        event: notificationEventOf(args.input.event),
+        properties: {
+          moment: args.input.moment,
+          device_kind: args.input.deviceKind,
+          session_id: args.input.sessionId,
+          seq: args.input.seq,
+          ...(sentAtMs === null || Number.isNaN(sentAtMs)
+            ? {}
+            : { after_send_ms: Date.now() - sentAtMs }),
+          ...(args.input.event === ENotifyTrackEvent.InAppShown ? { source: 'client' } : {}),
+        },
+      })
+    } catch {
+      // Metrics must never fail a tap or a notification.
+    }
+  }
 
   private refuseBatched(ctx: SessionTrpcCtx): void {
     if (ctx.req.query.batch === '1') {
@@ -92,6 +133,12 @@ export class NotificationsRouter {
   ): Promise<void> {
     this.refuseBatched(ctx)
     await this.devices.setEnabled({ userId: ctx.auth.userId, input })
+  }
+
+  @Mutation({ input: trackNotificationInputSchema, output: z.void() })
+  async track(@Input() input: TrackNotificationInput, @Ctx() ctx: SessionTrpcCtx): Promise<void> {
+    this.refuseBatched(ctx)
+    this.captureTrack({ userId: ctx.auth.userId, input })
   }
 
   @Mutation({ input: NO_INPUT, output: sendTestNotificationOutputSchema })

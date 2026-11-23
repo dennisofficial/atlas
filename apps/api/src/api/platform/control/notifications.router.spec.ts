@@ -1,4 +1,10 @@
-import { EClientSurface } from '@dltech/atlas-core'
+import {
+  EClientSurface,
+  ENotifyDeviceKind,
+  ENotifyMoment,
+  ENotifyTrackEvent,
+} from '@dltech/atlas-core'
+import { ProductAnalytics } from '@dltech/atlas-observability'
 import type { NestExpressApplication } from '@nestjs/platform-express'
 import request from 'supertest'
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
@@ -11,6 +17,7 @@ import {
   createMiddlewareApp,
   UNTHROTTLED_RATE_LIMIT,
 } from '../../../_module/trpc/trpc-middleware.fixture'
+import { PRODUCT_ANALYTICS } from '../../../agent'
 import { NotificationsRouter } from './notifications.router'
 import { NotifyDevicesService } from './notify-devices.service'
 import { PresenceRegistry } from './presence-registry'
@@ -28,6 +35,27 @@ const unregistered: unknown[] = []
 const enabled: unknown[] = []
 
 const dispatched: { taskId: string; payload: unknown; idempotencyKey: string }[] = []
+
+type Captured = { userId: string; event: string; properties: Record<string, unknown> }
+
+class FakeAnalytics extends ProductAnalytics {
+  captured: Captured[] = []
+
+  fail = false
+
+  capture(args: { userId: string; event: string; properties?: Record<string, unknown> }): void {
+    if (this.fail) throw new Error('analytics is down')
+    this.captured.push({
+      userId: args.userId,
+      event: args.event,
+      properties: args.properties ?? {},
+    })
+  }
+
+  async flush(): Promise<void> {}
+}
+
+const analytics = new FakeAnalytics()
 
 const presence = {
   report: async (args: PresenceReport) => {
@@ -85,6 +113,8 @@ describe('NotificationsRouter', () => {
     unregistered.length = 0
     enabled.length = 0
     dispatched.length = 0
+    analytics.captured = []
+    analytics.fail = false
     app = await createMiddlewareApp({
       rateLimit: UNTHROTTLED_RATE_LIMIT,
       envValues: { WEB_PUSH_PUBLIC_KEY },
@@ -93,6 +123,7 @@ describe('NotificationsRouter', () => {
         { provide: PresenceRegistry, useValue: presence },
         { provide: NotifyDevicesService, useValue: devices },
         { provide: JobsProjectDispatcher, useValue: dispatcher },
+        { provide: PRODUCT_ANALYTICS, useValue: analytics },
         SessionMiddleware,
         { provide: SESSION_VERIFIER, useValue: verifier },
       ],
@@ -281,5 +312,121 @@ describe('NotificationsRouter', () => {
     expect(dispatched[0]?.taskId).toBe('notify-test')
     expect(dispatched[0]?.payload).toEqual({ userId: 'usr-1' })
     expect(dispatched[0]?.idempotencyKey).toMatch(/^notify-test:usr-1:\d+$/)
+  })
+
+  const track = (args: { body: object; token?: string }) =>
+    mutation({ procedure: 'track', ...args })
+
+  const deliveredBody = {
+    event: ENotifyTrackEvent.Delivered,
+    sessionId: 'session-1',
+    seq: 7,
+    moment: ENotifyMoment.TurnFinished,
+    deviceKind: ENotifyDeviceKind.WebPush,
+    sentAt: '2026-11-23T14:02:00.000Z',
+  }
+
+  it('captures a delivered event for the caller with the send latency', async () => {
+    const reply = await track({ token: 's1', body: deliveredBody })
+
+    expect(reply.status).toBe(200)
+    expect(analytics.captured).toHaveLength(1)
+    expect(analytics.captured[0]).toMatchObject({
+      userId: 'usr-1',
+      event: 'notification_delivered',
+      properties: {
+        moment: ENotifyMoment.TurnFinished,
+        device_kind: ENotifyDeviceKind.WebPush,
+        session_id: 'session-1',
+        seq: 7,
+      },
+    })
+    expect(typeof analytics.captured[0]?.properties.after_send_ms).toBe('number')
+  })
+
+  it('captures opened and dismissed with the device that reported them', async () => {
+    await track({
+      token: 's1',
+      body: {
+        ...deliveredBody,
+        event: ENotifyTrackEvent.Opened,
+        deviceKind: ENotifyDeviceKind.Expo,
+      },
+    })
+    await track({
+      token: 's2',
+      body: {
+        ...deliveredBody,
+        event: ENotifyTrackEvent.Dismissed,
+        deviceKind: ENotifyDeviceKind.ApnsMac,
+      },
+    })
+
+    expect(analytics.captured.map((entry) => entry.event)).toEqual([
+      'notification_opened',
+      'notification_dismissed',
+    ])
+    expect(analytics.captured.map((entry) => entry.properties.device_kind)).toEqual([
+      ENotifyDeviceKind.Expo,
+      ENotifyDeviceKind.ApnsMac,
+    ])
+    expect(analytics.captured[1]?.userId).toBe('usr-2')
+  })
+
+  it('captures an in-app notice shown on a client under notification_in_app', async () => {
+    const reply = await track({
+      token: 's1',
+      body: {
+        ...deliveredBody,
+        event: ENotifyTrackEvent.InAppShown,
+        deviceKind: 'in-app-web',
+        sentAt: undefined,
+      },
+    })
+
+    expect(reply.status).toBe(200)
+    expect(analytics.captured[0]).toMatchObject({
+      event: 'notification_in_app',
+      properties: { source: 'client', device_kind: 'in-app-web' },
+    })
+    expect(analytics.captured[0]?.properties).not.toHaveProperty('after_send_ms')
+  })
+
+  it('omits the send latency when the device has no send time', async () => {
+    await track({ token: 's1', body: { ...deliveredBody, sentAt: undefined } })
+
+    expect(analytics.captured[0]?.properties).not.toHaveProperty('after_send_ms')
+  })
+
+  it('accepts the report when analytics throws', async () => {
+    analytics.fail = true
+
+    const reply = await track({ token: 's1', body: deliveredBody })
+
+    expect(reply.status).toBe(200)
+    expect(analytics.captured).toEqual([])
+  })
+
+  it('rejects an unknown event and an unknown device kind', async () => {
+    const badEvent = await track({ token: 's1', body: { ...deliveredBody, event: 'bounced' } })
+    const badKind = await track({ token: 's1', body: { ...deliveredBody, deviceKind: 'carrier' } })
+
+    expect(badEvent.status).toBe(400)
+    expect(badKind.status).toBe(400)
+    expect(analytics.captured).toEqual([])
+  })
+
+  it('answers 401 without a session and refuses a batched report', async () => {
+    const anonymous = await track({ body: deliveredBody })
+    const batched = await mutation({
+      procedure: 'track',
+      token: 's1',
+      batch: true,
+      body: deliveredBody,
+    })
+
+    expect(anonymous.status).toBe(401)
+    expect(batched.status).toBe(400)
+    expect(analytics.captured).toEqual([])
   })
 })

@@ -8,6 +8,18 @@ export enum ENotifyDeviceKind {
   ApnsMac = 'apns-mac',
 }
 
+export enum ENotifyInAppKind {
+  Web = 'in-app-web',
+  Ios = 'in-app-ios',
+}
+
+export enum ENotifyTrackEvent {
+  Delivered = 'delivered',
+  Opened = 'opened',
+  Dismissed = 'dismissed',
+  InAppShown = 'in-app-shown',
+}
+
 export type AtlasNotification = {
   sessionId: string
   seq: number

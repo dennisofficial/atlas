@@ -269,13 +269,20 @@ its own `PosthogProductAnalytics` and flushes before it returns.
 | `notification_dismissed` | device, via `notifications.track`                            | same                                                                                               |
 | `notification_cleared`   | API `markRead` (`sessions.service.ts:355`)                   | `session_id`, `moment_seq`, `read_after_ms`                                                        |
 
-What a device can know:
+What a device can know, and what each surface reports today (slice 6):
 
-| Device                                      | Delivered                                                | Opened              | Dismissed                                        |
-| ------------------------------------------- | -------------------------------------------------------- | ------------------- | ------------------------------------------------ |
-| Web Push (Home Screen app, desktop browser) | service worker `push` event                              | `notificationclick` | `notificationclose` where the browser fires it   |
-| iOS app (Expo)                              | not knowable without a native extension; `accepted` only | response listener   | category with `customDismissAction`, set from JS |
-| Mac (APNs)                                  | `received-apns-notification` while the app runs          | not knowable today  | not knowable                                     |
+| Device                                      | Delivered                                                | Opened                                 | Dismissed                                                       |
+| ------------------------------------------- | -------------------------------------------------------- | -------------------------------------- | --------------------------------------------------------------- |
+| Web Push (Home Screen app, desktop browser) | service worker `push` event, reported at once            | `notificationclick`, before navigation | `notificationclose` where the browser fires it                  |
+| iOS app (Expo)                              | not knowable without a native extension; `accepted` only | response listener, including a launch  | category with `customDismissAction`, set from JS; working today |
+| Mac (APNs)                                  | `received-apns-notification` while the app runs          | launch tap of the notification         | not knowable; no category is registered                         |
+| Web app, in-app notice                      | not applicable                                           | not applicable                         | reports `in-app-shown` through `notifications.track`            |
+| iOS app, in-app notice                      | not applicable                                           | not applicable                         | reports `in-app-shown` through `notifications.track`            |
+
+A device reports through one mutation, `notifications.track`, with `{event, sessionId, seq, moment,
+deviceKind, sentAt?}`. Web push reads `moment` and `sentAt` from the push payload; Expo and APNs
+carry them in the push data. A report never blocks a notification or a tap and its failure is
+swallowed. The Mac reports through the desktop host, which holds the sign-in token.
 
 `notifications.track` is one new tRPC mutation in
 `apps/api/src/api/platform/control/notifications.router.ts`, input

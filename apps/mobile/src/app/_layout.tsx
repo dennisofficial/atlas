@@ -19,6 +19,7 @@ import {
   lastNotificationTap,
   subscribeToNotificationResponses,
 } from '../push/notification-handler'
+import { installNotificationCategory, reportNotificationResponse } from '../push/notification-track'
 import { claimSessionTap, type TNotificationTap } from '../push/session-tap'
 import { SettingsProvider } from '../settings/settings-provider'
 import { SplashOverlay } from '../splash/splash-overlay'
@@ -30,6 +31,7 @@ import { UpdateCard } from '../updates/update-card'
 export const ErrorBoundary = CrashScreen
 
 installNotificationHandler()
+void installNotificationCategory()
 installBackgroundNotifications()
 installWebReset()
 void SplashScreen.preventAutoHideAsync()
@@ -39,7 +41,7 @@ const pushAfterGuardSettles = (destination: TDestination): void => {
 }
 
 const RootStack = ({ fontsReady }: { fontsReady: boolean }) => {
-  const { state } = useAuth()
+  const { state, api } = useAuth()
   const [incoming, setIncoming] = useState<TDestination | undefined>(undefined)
   const [launchUrl] = useState(() => Linking.getInitialURL())
   const launchRead = useRef(false)
@@ -50,6 +52,11 @@ const RootStack = ({ fontsReady }: { fontsReady: boolean }) => {
   useEffect(() => {
     const handled = new Set<string>()
     const route = (tap: TNotificationTap) => {
+      void reportNotificationResponse({
+        client: api,
+        actionIdentifier: tap.actionIdentifier ?? '',
+        data: tap.data,
+      })
       const sessionId = claimSessionTap({ handled, tap })
       if (sessionId === undefined) return
       setIncoming((current) => current ?? { pathname: '/sessions/[id]', params: { id: sessionId } })
@@ -58,7 +65,7 @@ const RootStack = ({ fontsReady }: { fontsReady: boolean }) => {
     const launch = lastNotificationTap()
     if (launch !== undefined) route(launch)
     return () => subscription.remove()
-  }, [])
+  }, [api])
 
   useEffect(() => {
     if (state !== EAuthState.SignedOut || launchRead.current) return

@@ -21,6 +21,7 @@ import { z } from 'zod'
 import { useAuth } from '../auth/auth-provider'
 import { useSettings } from '../settings/settings-provider'
 import { dismissPresentedRead } from '../push/notification-handler'
+import { reportInAppShown } from '../push/notification-track'
 import { sessionStream } from '../thread/v2/session-stream'
 import { InAppBanner } from './in-app-banner'
 import { openSessionOf } from './open-session-of'
@@ -83,6 +84,7 @@ export const InAppNoticesProvider = ({ children }: { children: ReactNode }) => {
     previous.current = rowMap
     held.current = scan.held
     if (scan.notices.length > 0) {
+      for (const notice of scan.notices) void reportInAppShown({ client: api, notice })
       setShown((current) => [...current, ...scan.notices])
       setNotice(scan.notices.at(-1) ?? null)
     }
@@ -93,7 +95,7 @@ export const InAppNoticesProvider = ({ children }: { children: ReactNode }) => {
       dueDelayMs({ dueAt, nowMs: Date.now() }),
     )
     return () => clearTimeout(timer)
-  }, [rows, rowMap, openSessionId, focused, enabled, tick])
+  }, [rows, rowMap, openSessionId, focused, enabled, tick, api])
 
   useEffect(() => {
     const stale = staleNoticeIdsOf({ notices: shown, rows: rowMap, openSessionId })

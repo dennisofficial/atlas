@@ -67,6 +67,19 @@ describe('webPushTransport.deliver', () => {
     expect(recorder.sent[0]?.options.topic).toBe(webPushTopicOf('session-1'))
   })
 
+  it('carries the moment and the send time so the worker can report without a lookup', async () => {
+    const recorder = recorderOf()
+    const transport = webPushTransport({ vapid: VAPID, send: recorder.send })
+
+    await transport.deliver({ devices: [deviceOf()], notification: NOTIFICATION })
+
+    const payload = JSON.parse(recorder.sent[0]?.payload ?? '{}') as {
+      notification: Record<string, unknown>
+    }
+    expect(payload.notification.moment).toBe(ENotifyMoment.TurnFinished)
+    expect(payload.notification.at).toBe('2026-11-23T14:02:00.000Z')
+  })
+
   it('gives two moments of one session the same topic and keeps it under 32 characters', () => {
     const topic = webPushTopicOf('session-1')
 

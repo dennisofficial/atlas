@@ -79,6 +79,11 @@ export function createDesktopHost({
   })
   const apns = createApnsRoutes({
     signedIn: () => authService.status().state === 'signed-in',
+    track: async (input) => {
+      const authToken = authService.token()
+      if (authToken === undefined) return
+      await createApiClient({ baseUrl: origin, token: authToken }).notifications.track.mutate(input)
+    },
     register: async ({ token }) => {
       const authToken = authService.token()
       if (authToken === undefined) return
