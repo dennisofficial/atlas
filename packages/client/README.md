@@ -79,6 +79,7 @@ The headless client library that web, the TUI and the mobile app share.
 - `ECallState`, `ECallKind`, `callKindOf(name)`, `ToolCall`, `ToolRun`, `attachmentsOf`,
   `qualityNoticeOf`, `qualityNoticeLine`, `EQualityNoticeTone`: the tool runs and a call's quality
   line. `agentsOf(args)`, `agentOf(args)`, `agentLabelOf(agent)`: a sub-agent's type, intent, state.
+- `noticeEntriesOf(event)`: the notice rows of one event, the same rows a posted notice is built from.
 - `thinkingVisibilityOf`, `foldThoughts`, `toolsAboveThoughts`: the thinking folds.
 - `revealedText({ key, text, gate })`, `runAttentionOf(args)`, `plural(many, one, rest?)`,
   `formatElapsed(ms)`: the revealed text and the helpers that a surface also uses.
@@ -113,6 +114,8 @@ The headless client library that web, the TUI and the mobile app share.
 - `sessionCreateInputOf(args)`, `initialProjectIdOf(args)`: a new session's create input and project.
 - `composerSendStateOf(args)`, `contextPercentOf(args)`: send or stop, and context use.
 - `queuedMessagesOf`, `queuedNoticesOf`, `stagedQueuedMessagesOf`: the queue above the composer.
+- `optimisticPlacementOf(args)`: where each sent message still renders before the log names it, and which pending
+  rows that hides.
 
 ### Sign in to Atlas Cloud
 
