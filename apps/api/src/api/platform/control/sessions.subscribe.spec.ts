@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { BadRequestException, NotFoundException } from '@nestjs/common'
 import { ESubscriptionActor, ESubscriptionEnd, INBOX_KIND_RECORD } from '@dltech/atlas-core'
-import { NOW, setupSessionsService as setup } from './sessions.service.fixture'
+import { setupSessionsService as setup } from './sessions.service.fixture'
 
 const REPO = 'github.com/acme/atlas'
 
@@ -29,7 +29,7 @@ describe('SessionsService subscribe', () => {
       target: { repo: REPO, number: 7 },
       label: 'acme/atlas#7',
       createdBy: ESubscriptionActor.Operator,
-      expiresAt: new Date(Date.parse(NOW) + 24 * 60 * 60_000).toISOString(),
+      expiresAt: null,
     })
     const inbox = await plane.readInbox({ sessionId, afterId: 0, limit: 10 })
     expect(inbox.map((entry) => entry.kind)).toEqual([INBOX_KIND_RECORD])

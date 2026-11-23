@@ -1,10 +1,12 @@
 import type {
+  ReleasePullRequestTrackingParams,
   SubscriptionDraft,
   SubscriptionKey,
   SubscriptionRow,
   WrittenSubscriptionRow,
 } from '../../port'
-import type { State } from './memory-state'
+import { repoFullNameOf } from '../../repo-name'
+import { trackingTargetKey, type State } from './memory-state'
 
 const subscriptionKeyOf = (key: SubscriptionKey): string =>
   `${key.userId} ${key.repoFullName} ${key.branch} ${key.threadId}`
@@ -63,7 +65,7 @@ export const updateSubscriptionRowIn = (params: {
   target: SubscriptionRow['target']
   label: string
   events: readonly string[]
-  expiresAt: string
+  expiresAt: string | null
   deadline: string | null
 }): boolean => {
   const row = params.state.subscriptions.get(params.subscriptionId)
@@ -82,9 +84,46 @@ export const deleteSubscriptionRowIn = (params: {
   subscriptionId: string
 }): boolean => params.state.subscriptions.delete(params.subscriptionId)
 
+const endingOf = (row: SubscriptionRow): string | null => row.deadline ?? row.expiresAt
+
 const endedBefore = (row: SubscriptionRow, at: string): boolean => {
-  const ending = row.deadline ?? row.expiresAt
-  return Date.parse(ending) < Date.parse(at)
+  const ending = endingOf(row)
+  return ending !== null && Date.parse(ending) < Date.parse(at)
+}
+
+const liveAt = (row: SubscriptionRow, at: string): boolean => {
+  const ending = endingOf(row)
+  return ending === null || Date.parse(ending) > Date.parse(at)
+}
+
+export const laterLiveUntilOf = (held: string | null, next: string | null): string | null => {
+  if (held === null || next === null) return null
+  return Date.parse(held) > Date.parse(next) ? held : next
+}
+
+export const releasePullRequestTrackingIn = (
+  params: ReleasePullRequestTrackingParams & { state: State },
+): void => {
+  const repoFullName = repoFullNameOf(params.repoFullName)
+  const stillLive = [...params.state.subscriptions.values()].some(
+    (row) =>
+      row.userId === params.userId &&
+      row.repoFullName === repoFullName &&
+      row.prNumber === params.prNumber &&
+      liveAt(row, params.at),
+  )
+  if (stillLive) return
+  const key = trackingTargetKey({
+    userId: params.userId,
+    kind: 'pull-request',
+    repoFullName,
+    branch: '',
+    prNumber: params.prNumber,
+    liveUntil: null,
+  })
+  const held = params.state.trackingTargets.get(key)
+  if (held === undefined) return
+  params.state.trackingTargets.set(key, { ...held, liveUntil: params.at })
 }
 
 export const deleteSubscriptionRowIfEndedBeforeIn = (params: {

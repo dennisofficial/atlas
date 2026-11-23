@@ -1,5 +1,5 @@
 import { ControlPlane } from '@dltech/atlas-control'
-import { PostgresControlStore } from '@dltech/atlas-control/postgres'
+import { NO_EXPIRY_AT, PostgresControlStore } from '@dltech/atlas-control/postgres'
 import {
   createV2EventSchema,
   ESubscriptionActor,
@@ -111,6 +111,22 @@ describe('GithubPollSweeperService expiry', () => {
         by: ESubscriptionActor.Clock,
       },
     ])
+  })
+
+  it('keeps a row that named no expiry', async () => {
+    await seedSubscription({
+      userId: USER,
+      threadId: THREAD,
+      expiresAt: NO_EXPIRY_AT,
+      liveUntil: NO_EXPIRY_AT,
+      deadline: null,
+    })
+    const { service } = serviceWith({})
+
+    await service.handlePoll()
+
+    expect(await subscriptions()).toHaveLength(1)
+    expect(await endedRecordsOf()).toEqual([])
   })
 
   it('keeps a row that is not linked to a session thread', async () => {

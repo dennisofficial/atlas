@@ -142,7 +142,7 @@ export type TrackingTarget = {
   repoFullName: string
   branch: string
   prNumber: number | null
-  liveUntil: string
+  liveUntil: string | null
 }
 
 export type SubscriptionSubject =
@@ -179,7 +179,7 @@ export type SubscriptionDraft = SubscriptionKey & {
   label: string
   createdBy: string
   events: readonly string[]
-  expiresAt: string
+  expiresAt: string | null
   deadline: string | null
   createdAt: string
 }
@@ -187,6 +187,13 @@ export type SubscriptionDraft = SubscriptionKey & {
 export type SubscriptionRow = SubscriptionDraft & { subscriptionId: string }
 
 export type WrittenSubscriptionRow = { row: SubscriptionRow; inserted: boolean }
+
+export type ReleasePullRequestTrackingParams = {
+  userId: string
+  repoFullName: string
+  prNumber: number
+  at: string
+}
 
 export type ThreadRow = {
   threadId: string
@@ -459,7 +466,7 @@ export interface ControlTx {
     target: JsonValue
     label: string
     events: readonly string[]
-    expiresAt: string
+    expiresAt: string | null
     deadline: string | null
   }): Promise<boolean>
   deleteSubscriptionRow(subscriptionId: string): Promise<boolean>
@@ -468,6 +475,7 @@ export interface ControlTx {
     at: string
   }): Promise<boolean>
   upsertTrackingTarget(params: TrackingTarget): Promise<void>
+  releasePullRequestTracking(params: ReleasePullRequestTrackingParams): Promise<void>
   hostPresent(hostId: number): Promise<boolean>
   hostsPresent(hostIds: readonly number[]): Promise<ReadonlySet<number>>
   lockRoutine(routineId: string): Promise<RoutineRow | undefined>

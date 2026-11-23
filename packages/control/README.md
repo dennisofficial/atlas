@@ -75,8 +75,7 @@ a thread's event log.
 
 - `post`, `withdraw`, `readInbox`, `readInboxEntry`; `INBOX_KIND_WITHDRAW`,
   `withdrawPayloadOf`.
-- `subscribe`, `unsubscribe`, `endSubscriptions`, `listSubscriptions`,
-  `DEFAULT_SUBSCRIPTION_TTL_MS`.
+- `subscribe`, `unsubscribe`, `endSubscriptions`, `listSubscriptions`.
 - `listTerminals`, `readTerminal`, `createTerminal`, `renameTerminal`, `markTerminalOpen`,
   `endTerminal`, `endTerminals`, `deleteTerminal`.
 
