@@ -34,6 +34,13 @@ _Updated at the end of every slice. Last update: 2026-11-23._
   `Resume` on the `Stopped` row and in the sub-agent pane; the TUI binds `ctrl+r` and its session picker
   moved to `/sessions`. Mobile has no stopped line yet, so it offers no Resume. As-built list and
   deviations in the spec's §11.1.
+- **Done 2026-11-23: notify only when needed** ([spec](slices/notify-when-needed.md); PRs #2724, #2726,
+  #2734, #2733, #2723, #2740, #2731 and this docs PR). A "finished" push or in-app notice waits while a
+  background shell or sub-agent (60 min) or an active subscription (10 min) is open; a newer turn drops it.
+  Nested teammates notify "finished" only for an operator turn. Later pushes inside 60 s are silent.
+  Every moment, skip reason, send and device report goes to PostHog (dashboard "Notifications").
+  Taps open the session on web, iOS and a cold-launched Mac. Live-checked on production; baseline
+  1252 dispatches per day, simulated 443 ([research](research/notify-rate-2026-11-23.md)).
 - **Done 2026-11-23: /rotate** ([spec](slices/rotate.md); PRs #2607, #2644, #2645, #2650, #2668 and this
   docs PR). `/rotate [instructions]` is a host command on every surface. One model call writes a handoff
   brief, and the holder appends one `rotated` event to the same thread. The transcript keeps every row and

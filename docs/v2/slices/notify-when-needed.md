@@ -1,8 +1,9 @@
 # Slice spec: notify only when the agent needs you
 
-Status: **approved by Dennis 2026-11-23**, with the answers in §10. It changes the v2 notifications
-built from [notifications.md](notifications.md). One rule governs push and in-app notices. Anchors are `path:line` at `05856454f`. Check an anchor again
-before you rely on it.
+Status: **built 2026-11-23** (approved by Dennis the same day, answers in §10). PRs #2724, #2726,
+#2734, #2733, #2723, #2740, plus #2731 (fault rig). Live-checked on production (§12). It changes the
+v2 notifications built from [notifications.md](notifications.md). One rule governs push and in-app
+notices. Anchors are `path:line` at `05856454f`. Check an anchor again before you rely on it.
 
 ## 1. Product contract
 
@@ -260,7 +261,7 @@ its own `PosthogProductAnalytics` and flushes before it returns.
 
 | Event                    | Where                                                        | Properties                                                                                         |
 | ------------------------ | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
-| `notification_moment`    | API, `notify.port.ts`                                        | `moment`, `verdict`, `hold_ms`, `pending_kinds`, `operator_turn`, `session_id`, `seq`              |
+| `notification_moment`    | trigger, `notify-send` (at run time, see §12)                | `moment`, `verdict`, `hold_ms`, `pending_kinds`, `operator_turn`, `session_id`, `seq`              |
 | `notification_skipped`   | trigger, `notify-send`                                       | `moment`, `reason` (`ENotifySkip`), `held`, `nested`, `session_id`, `seq`                          |
 | `notification_in_app`    | trigger (decided), clients via `notifications.track` (shown) | `moment`, `session_id`, `seq`, `source`                                                            |
 | `notification_sent`      | trigger, one per device                                      | `moment`, `device_kind`, `accepted`, `gone`, `sound`, `held_ms`, `latency_ms`, `session_id`, `seq` |
@@ -423,3 +424,34 @@ which Dennis has off today.
 The slice proves each fix with a spec: the service worker source navigates to the session href;
 the iOS launch response routes once; the Mac handler loads the session URL. The live check (§7)
 taps one notification on each surface.
+
+**Result (#2723, #2740).** Web Push opens `/sessions/<id>` in the open window or a new one. iOS reads
+the launch tap once and routes after sign-in. The Mac opens the session on a cold launch from a tap.
+Electron 45 gives a running app no click event for an APNs alert
+([pushNotifications](https://www.electronjs.org/docs/latest/api/push-notifications)), so a tap on a
+running Mac app only brings it forward. No surface scrolls to `seq`.
+
+## 12. Live check on production (2026-11-23)
+
+Six probe sessions on Dennis's user, archived after; the temporary `AuthSession` row deleted.
+Dennis has "finished" push off, so every send ends as `notification_skipped` `disabled`.
+
+| Case             | Result    | Proof                                                                                                                    |
+| ---------------- | --------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Background shell | pass      | `turn-ended.notify.pending = [shell]`, run delayed 3600 s; the shell's end woke the agent; the next end sent with hold 0 |
+| Sub-agent        | pass      | `pending = [agent]`, delayed 3600 s; `agent-ended` woke it; sent with hold 0                                             |
+| Subscription     | hold only | `pending = [subscription]`, delayed 600 s. The PR was already merged, so no notice woke the agent                        |
+| Teammate         | pass      | briefed turn: `operator_turn false`, skipped `nested-agent-turn`; operator message: skipped only `disabled`              |
+| Plain question   | pass      | sent at once, hold 0, no delay                                                                                           |
+| In-app row       | pass      | `sessions.list` `lastTurn` carries `notify` and `at`                                                                     |
+
+An independent fold of `v2."V2Event"` matched the recorded `pending` on all 11 turn ends; 16 turn
+ends gave 16 `notify-send` runs with no duplicate key.
+
+Known gaps:
+- `notification_moment` is captured when the `notify-send` run executes, so a held moment lands in
+  PostHog up to 60 min after the turn ended. Daily charts are right; hourly ones lag.
+- A subscription to a pull request that merged before the subscription existed gets no notice and
+  never ends, so its turn holds the full 10 min.
+- Dashboard: [Notifications](https://us.posthog.com/project/411591/dashboard/2403278). Insight 7 is a
+  person-level funnel; PostHog cannot join send and open on `session_id` + `seq`.
