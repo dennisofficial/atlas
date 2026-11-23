@@ -4,33 +4,33 @@ import {
   type AccountId,
   type AccountUsage,
   type CredentialPort,
+  parseAnthropicUsage,
 } from '@dltech/atlas-core'
 
-import { ANTHROPIC_OAUTH_BETA } from '../providers/anthropic-oauth'
-import { CLAUDE_CODE_VERSION } from '../providers/anthropic-subscription-attribution'
-import type { UsageClient } from './account-usage-service'
-import { parseAnthropicUsage } from './parse-anthropic-usage'
+import type { UsageClient } from './usage-client'
 
-/**
- * The only source of a real 5-hour / 7-day percentage. Inference responses carry no rate-limit
- * headers even while this endpoint reports headroom, so nothing on the transport can stand in for
- * it. It needs the `user:profile` scope, which the login flow already requests, and it expects the
- * Claude Code CLI's user-agent — bump CLAUDE_CODE_VERSION if it starts refusing.
- */
+// Undocumented: Claude Code's own usage endpoint. It needs the `user:profile` scope and the Claude
+// Code user-agent; inference responses carry no plan-window headers.
 export const ANTHROPIC_USAGE_URL = 'https://api.anthropic.com/api/oauth/usage'
 
 const REQUEST_TIMEOUT_MS = 10_000
+const OAUTH_BETA = 'oauth-2025-04-20'
 
 export class AnthropicUsageClient implements UsageClient {
   private readonly credentials: CredentialPort
+  private readonly clientVersion: string
   private readonly fetch: typeof globalThis.fetch
 
-  constructor(args: { credentials: CredentialPort; fetch?: typeof globalThis.fetch }) {
+  constructor(args: {
+    credentials: CredentialPort
+    clientVersion: string
+    fetch?: typeof globalThis.fetch
+  }) {
     this.credentials = args.credentials
+    this.clientVersion = args.clientVersion
     this.fetch = args.fetch ?? globalThis.fetch
   }
 
-  /** A meter is decoration: losing one must never take a turn, or opening a thread, down. */
   async read(args: { accountId?: AccountId | undefined }): Promise<AccountUsage | null> {
     try {
       const credential = await this.credentials.read({
@@ -42,8 +42,8 @@ export class AnthropicUsageClient implements UsageClient {
       const response = await this.fetch(ANTHROPIC_USAGE_URL, {
         headers: {
           authorization: `Bearer ${credential.accessToken}`,
-          'anthropic-beta': ANTHROPIC_OAUTH_BETA,
-          'user-agent': `claude-code/${CLAUDE_CODE_VERSION}`,
+          'anthropic-beta': OAUTH_BETA,
+          'user-agent': `claude-code/${this.clientVersion}`,
           'content-type': 'application/json',
         },
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),

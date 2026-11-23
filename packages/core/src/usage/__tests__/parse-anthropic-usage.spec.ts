@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { EUsageWindow } from '@dltech/atlas-core'
+import { EUsageWindow } from '../window'
 
 import { parseAnthropicUsage } from '../parse-anthropic-usage'
 

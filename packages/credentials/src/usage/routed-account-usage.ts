@@ -9,7 +9,7 @@ import {
   type UsageReading,
 } from '@dltech/atlas-core'
 
-import type { UsageClient } from './account-usage-service'
+import type { UsageClient } from './usage-client'
 
 type UsageClients = Partial<Record<EAuthProvider, UsageClient>>
 

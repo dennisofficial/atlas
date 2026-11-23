@@ -9,7 +9,7 @@ import {
   type CredentialRequest,
 } from '@dltech/atlas-core'
 
-import { CODEX_USAGE_URL, CodexUsageClient } from '../codex-usage-client'
+import { ANTHROPIC_USAGE_URL, AnthropicUsageClient } from '../anthropic-usage-client'
 
 const ACCOUNT = toAccountId('account-1')
 
@@ -18,7 +18,6 @@ const OAUTH: Credential = {
   accountId: ACCOUNT,
   accessToken: 'access-token',
   expiresAt: '2099-01-01T00:00:00.000Z',
-  providerAccountId: 'chatgpt-account-9',
 }
 
 class StubCredentials extends CredentialPort {
@@ -46,21 +45,20 @@ const respondingWith = (body: unknown, status = 200): typeof globalThis.fetch =>
 const clientOf = (args: {
   fetch: typeof globalThis.fetch
   credential?: () => Promise<Credential>
-}): { client: CodexUsageClient; credentials: StubCredentials } => {
-  const credentials = new StubCredentials(args.credential ?? (async () => OAUTH))
-  return { client: new CodexUsageClient({ credentials, fetch: args.fetch }), credentials }
-}
+  credentials?: StubCredentials
+}): AnthropicUsageClient =>
+  new AnthropicUsageClient({
+    credentials: args.credentials ?? new StubCredentials(args.credential ?? (async () => OAUTH)),
+    clientVersion: '2.1.330',
+    fetch: args.fetch,
+  })
 
-describe('CodexUsageClient', () => {
+describe('AnthropicUsageClient', () => {
   it('reads both windows for an account', async () => {
-    const { client } = clientOf({
+    const client = clientOf({
       fetch: respondingWith({
-        rate_limit: {
-          allowed: true,
-          limit_reached: false,
-          primary_window: { used_percent: 34, reset_at: 1_788_000_000 },
-          secondary_window: { used_percent: 61, reset_at: 1_788_500_000 },
-        },
+        five_hour: { utilization: 34, resets_at: '2026-08-29T19:30:00Z' },
+        seven_day: { utilization: 61, resets_at: '2026-09-02T10:00:00Z' },
       }),
     })
 
@@ -70,26 +68,29 @@ describe('CodexUsageClient', () => {
     expect(usage?.[EUsageWindow.SevenDay]?.utilization).toBe(61)
   })
 
-  it('scopes the credential read to the OpenAI provider and the requested account', async () => {
-    const { client, credentials } = clientOf({ fetch: respondingWith({}) })
+  it('scopes the credential read to the Anthropic provider and the asked account', async () => {
+    const credentials = new StubCredentials(async () => OAUTH)
+    const client = clientOf({ fetch: respondingWith({}), credentials })
 
     await client.read({ accountId: ACCOUNT })
 
-    expect(credentials.requests).toEqual([{ provider: EAuthProvider.OpenAI, accountId: ACCOUNT }])
+    expect(credentials.requests).toEqual([
+      { provider: EAuthProvider.Anthropic, accountId: ACCOUNT },
+    ])
   })
 
-  it('still scopes to the OpenAI provider when no account is named', async () => {
-    const { client, credentials } = clientOf({ fetch: respondingWith({}) })
+  it('scopes the credential read to the Anthropic provider when no account is named', async () => {
+    const credentials = new StubCredentials(async () => OAUTH)
+    const client = clientOf({ fetch: respondingWith({}), credentials })
 
     await client.read({})
 
-    expect(credentials.requests[0]?.provider).toBe(EAuthProvider.OpenAI)
-    expect(credentials.requests[0]?.accountId).toBeUndefined()
+    expect(credentials.requests[0]?.provider).toBe(EAuthProvider.Anthropic)
   })
 
-  it('presents the bearer token, the chatgpt account id, and the codex user-agent', async () => {
+  it('presents the bearer token and the headers the endpoint expects', async () => {
     const seen: { url?: string; headers?: Record<string, string> } = {}
-    const { client } = clientOf({
+    const client = clientOf({
       fetch: (async (url: string, init: RequestInit) => {
         seen.url = url
         seen.headers = init.headers as Record<string, string>
@@ -99,49 +100,28 @@ describe('CodexUsageClient', () => {
 
     await client.read({ accountId: ACCOUNT })
 
-    expect(seen.url).toBe(CODEX_USAGE_URL)
-    expect(seen.headers?.Authorization).toBe('Bearer access-token')
-    expect(seen.headers?.['ChatGPT-Account-ID']).toBe('chatgpt-account-9')
-    expect(seen.headers?.['user-agent']).toStartWith('codex-cli/')
+    expect(seen.url).toBe(ANTHROPIC_USAGE_URL)
+    expect(seen.headers?.authorization).toBe('Bearer access-token')
+    expect(seen.headers?.['anthropic-beta']).toBe('oauth-2025-04-20')
+    expect(seen.headers?.['user-agent']).toBe('claude-code/2.1.330')
   })
 
-  it('omits the chatgpt account id when the credential carries none', async () => {
-    const seen: { headers?: Record<string, string> } = {}
-    const { client } = clientOf({
-      fetch: (async (_url: string, init: RequestInit) => {
-        seen.headers = init.headers as Record<string, string>
-        return new Response('{}', { status: 200 })
-      }) as unknown as typeof globalThis.fetch,
-      credential: async () => ({ ...OAUTH, providerAccountId: undefined }),
-    })
-
-    await client.read({ accountId: ACCOUNT })
-
-    expect(seen.headers).toBeDefined()
-    expect('ChatGPT-Account-ID' in (seen.headers ?? {})).toBe(false)
-  })
-
-  it('has nothing to report for an api key, and never calls the endpoint', async () => {
-    let calls = 0
-    const { client } = clientOf({
-      fetch: (async () => {
-        calls += 1
-        return new Response('{}', { status: 200 })
-      }) as unknown as typeof globalThis.fetch,
+  it('has nothing to report for an api key, which carries no subscription windows', async () => {
+    const client = clientOf({
+      fetch: respondingWith({ five_hour: { utilization: 34, resets_at: null } }),
       credential: async () => ({ kind: EAuthKind.ApiKey, accountId: ACCOUNT, apiKey: 'sk-x' }),
     })
 
     expect(await client.read({ accountId: ACCOUNT })).toBeNull()
-    expect(calls).toBe(0)
   })
 
   it('goes quiet rather than failing when the endpoint refuses', async () => {
-    const { client } = clientOf({ fetch: respondingWith({ error: 'nope' }, 401) })
+    const client = clientOf({ fetch: respondingWith({ error: 'nope' }, 401) })
     expect(await client.read({ accountId: ACCOUNT })).toBeNull()
   })
 
   it('goes quiet rather than failing when the request never lands', async () => {
-    const { client } = clientOf({
+    const client = clientOf({
       fetch: (async () => {
         throw new Error('socket hang up')
       }) as unknown as typeof globalThis.fetch,
@@ -150,15 +130,15 @@ describe('CodexUsageClient', () => {
   })
 
   it('goes quiet rather than failing when the body is not json', async () => {
-    const { client } = clientOf({
+    const client = clientOf({
       fetch: (async () =>
-        new Response('<html>', { status: 200 })) as unknown as typeof globalThis.fetch,
+        new Response('&lt;html&gt;', { status: 200 })) as unknown as typeof globalThis.fetch,
     })
     expect(await client.read({ accountId: ACCOUNT })).toBeNull()
   })
 
   it('goes quiet rather than failing when there is no account to ask about', async () => {
-    const { client } = clientOf({
+    const client = clientOf({
       fetch: respondingWith({}),
       credential: async () => {
         throw new Error('no account')

@@ -1,4 +1,4 @@
-import { EUsageWindow, type AccountUsage, type UsageWindow } from '@dltech/atlas-core'
+import { EUsageWindow, type AccountUsage, type UsageWindow } from './window'
 
 type RawWindow = {
   used_percent?: unknown
@@ -14,21 +14,17 @@ function isoOf(epochMs: number): string | null {
   return Number.isNaN(date.getTime()) ? null : date.toISOString()
 }
 
-function resetOf(args: { window: RawWindow; now: () => number }): string | null {
-  const { window, now } = args
+function resetOf(args: { window: RawWindow; nowMs: number }): string | null {
+  const { window, nowMs } = args
   if (isFiniteNumber(window.reset_at)) return isoOf(window.reset_at * 1000)
   if (isFiniteNumber(window.reset_after_seconds)) {
-    return isoOf(now() + window.reset_after_seconds * 1000)
+    return isoOf(nowMs + window.reset_after_seconds * 1000)
   }
   return null
 }
 
-/**
- * `used_percent` is the share consumed (0..100), not the share remaining, and `reset_at` is unix
- * seconds. Mirrors codex-rs's RateLimitStatusPayload (backend-client, rate_limit_resets.rs).
- */
-function readWindow(args: { raw: unknown; now: () => number }): UsageWindow | null {
-  const { raw, now } = args
+function readWindow(args: { raw: unknown; nowMs: number }): UsageWindow | null {
+  const { raw, nowMs } = args
   if (raw === null || typeof raw !== 'object') return null
 
   const window = raw as RawWindow
@@ -36,11 +32,12 @@ function readWindow(args: { raw: unknown; now: () => number }): UsageWindow | nu
 
   return {
     utilization: Math.round(Math.min(100, Math.max(0, window.used_percent))),
-    resetsAt: resetOf({ window, now }),
+    resetsAt: resetOf({ window, nowMs }),
   }
 }
 
-export function parseCodexUsage(body: unknown, now: () => number = Date.now): AccountUsage {
+export function parseCodexUsage(args: { body: unknown; nowMs: number }): AccountUsage {
+  const { body, nowMs } = args
   const rateLimit =
     body !== null && typeof body === 'object' ? (body as Record<string, unknown>).rate_limit : null
   if (rateLimit === null || typeof rateLimit !== 'object') {
@@ -49,7 +46,7 @@ export function parseCodexUsage(body: unknown, now: () => number = Date.now): Ac
 
   const root = rateLimit as Record<string, unknown>
   return {
-    [EUsageWindow.FiveHour]: readWindow({ raw: root.primary_window, now }),
-    [EUsageWindow.SevenDay]: readWindow({ raw: root.secondary_window, now }),
+    [EUsageWindow.FiveHour]: readWindow({ raw: root.primary_window, nowMs }),
+    [EUsageWindow.SevenDay]: readWindow({ raw: root.secondary_window, nowMs }),
   }
 }
