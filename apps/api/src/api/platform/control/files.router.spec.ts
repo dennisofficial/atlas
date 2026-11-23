@@ -3,7 +3,7 @@ import request from 'supertest'
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { as } from '../../../_module/trpc/trpc-middleware.fixture'
 import { createFilesApp, files } from './files.router.fixture'
-import { PodParkedError } from './pod-parked.error'
+import { PodNotReadyError } from './pod-errors'
 
 describe('FilesRouter', () => {
   let app: NestExpressApplication
@@ -83,11 +83,12 @@ describe('FilesRouter', () => {
   })
 
   it('answers a parked pod with PRECONDITION_FAILED', async () => {
-    files.tree.mockRejectedValue(new PodParkedError())
+    files.tree.mockRejectedValue(new PodNotReadyError())
 
     const response = await tree('session-a', { sessionId: 's1', directory: '' })
 
     expect(response.status).toBe(412)
     expect(JSON.stringify(response.body)).toContain('pod is asleep')
+    expect(JSON.stringify(response.body)).toContain('pod-not-ready')
   })
 })

@@ -1,13 +1,7 @@
 import { Inject, Injectable, Optional, ServiceUnavailableException } from '@nestjs/common'
-import { TRPCError } from '@trpc/server'
-import {
-  ECallStatus,
-  ELiveOpFailure,
-  type CallResult,
-  type ServicesLogOutput,
-} from '@dltech/atlas-protocol'
+import { ECallStatus, type CallResult, type ServicesLogOutput } from '@dltech/atlas-protocol'
 import { POD_OPS, type PodOps } from '../../../agent'
-import { PodParkedError } from './pod-parked.error'
+import { podFailureError, reachablePodOutcome } from './pod-errors'
 import { SessionsService } from './sessions.service'
 
 const LOG_TAIL_BYTES = 64 * 1024
@@ -30,22 +24,19 @@ export class ServicesService {
     offset: number
   }): Promise<LogResult['value']> {
     if (this.ops === null) throw new ServiceUnavailableException('pod access is not running')
-    const outcome = await this.ops.invoke({
-      sessionId: args.sessionId,
-      waitForHolder: true,
-      op: {
-        op: 'services.log',
-        serviceId: args.serviceId,
-        offset: args.offset,
-        limit: LOG_TAIL_BYTES,
-      },
-    })
-    if (outcome.state === 'unavailable') {
-      if (outcome.reason === ELiveOpFailure.Asleep) throw new PodParkedError()
-      throw new TRPCError({ code: 'BAD_REQUEST', message: 'this pod op is not allowed' })
-    }
-    if (outcome.result.status === ECallStatus.Failed)
-      throw new TRPCError({ code: 'BAD_REQUEST', message: outcome.result.error.message })
+    const outcome = reachablePodOutcome(
+      await this.ops.invoke({
+        sessionId: args.sessionId,
+        waitForHolder: true,
+        op: {
+          op: 'services.log',
+          serviceId: args.serviceId,
+          offset: args.offset,
+          limit: LOG_TAIL_BYTES,
+        },
+      }),
+    )
+    if (outcome.result.status === ECallStatus.Failed) throw podFailureError(outcome.result)
     return (outcome.result as LogResult).value
   }
 

@@ -7,7 +7,7 @@ import {
   type TerminalStreamFrame,
 } from '@dltech/atlas-protocol'
 import type { PodOps, TerminalDemand } from '../../../agent'
-import { PodParkedError } from '../../platform/control/pod-parked.error'
+import { PodNotReadyError } from '../../platform/control/pod-errors'
 import type { TerminalService } from '../../platform/control/terminal.service'
 import type { DrainStateService } from '../../platform/health/drain-state.service'
 import { TerminalStreamQueue } from './terminal-stream-queue'
@@ -169,7 +169,7 @@ describe('TerminalStreamService', () => {
 
   it('closes asleep only when the pod is parked during replay', async () => {
     const terminals = terminalsOf()
-    terminals.read.mockRejectedValueOnce(new PodParkedError())
+    terminals.read.mockRejectedValueOnce(new PodNotReadyError())
     const { ops } = operationsOf(true)
     const run = collect(attach(serviceOf({ terminals, ops })))
     await run.done
