@@ -85,8 +85,7 @@ and the capabilities `control`, `crew`, `classifier`, `sessions`, `worktrees` an
 inside the append transaction. It receives a stamped `V2Event` and returns `Promise<void>`, so it
 adds a transactional side effect. It cannot rewrite the event.
 
-`ClientSlot` holds `hooks` with a `name` and an `appliesTo(event)` predicate, and optional
-`entryFolds`.
+`ClientSlot` holds `hooks` with a `name` and an `appliesTo(event)` predicate, and optional `entryFolds`.
 
 ### Load a resource
 
