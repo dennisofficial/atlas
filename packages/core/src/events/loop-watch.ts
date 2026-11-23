@@ -1,4 +1,5 @@
 import { untrustedEnvelope } from '../context/envelope'
+import { clipText } from '../text/clip-text'
 import { EPrEventKind, type EventDraft } from './body'
 import type { Event } from './envelope'
 import { reachesModel } from './notice-stage'
@@ -17,11 +18,8 @@ const SPEECH_CLIP = 300
 const INPUT_CLIP = 200
 const RESULT_CLIP = 100
 
-const clip = (text: string, limit: number): string =>
-  text.length <= limit ? text : `${text.slice(0, limit - 1)}…`
-
 const labelOf = (event: { description?: string | undefined; command: string }): string =>
-  event.description ?? clip(event.command, 80)
+  event.description ?? clipText({ text: event.command, limit: 80 })
 
 const prEventLabel = (event: Event & { type: 'pr-event' }): string => {
   const author = event.authorLogin === undefined ? '' : ` from ${event.authorLogin}`
@@ -52,26 +50,28 @@ const lineOf = (event: Event): string | undefined => {
   if (!reachesModel(event)) return undefined
   if (event.type === 'assistant-said') {
     const speech = speechOf(event)
-    return speech.length === 0 ? undefined : `agent: ${clip(speech, SPEECH_CLIP)}`
+    return speech.length === 0
+      ? undefined
+      : `agent: ${clipText({ text: speech, limit: SPEECH_CLIP })}`
   }
   if (event.type === 'tool-called') {
-    return `tool ${event.name}: ${clip(JSON.stringify(event.input) ?? '', INPUT_CLIP)}`
+    return `tool ${event.name}: ${clipText({ text: JSON.stringify(event.input) ?? '', limit: INPUT_CLIP })}`
   }
   if (event.type === 'tool-result') {
     const seen = event.modelText ?? JSON.stringify(event.output) ?? ''
-    return `result: ${clip(seen, RESULT_CLIP)}`
+    return `result: ${clipText({ text: seen, limit: RESULT_CLIP })}`
   }
   if (event.type === 'tool-denied') {
-    return `${event.name} was refused: ${clip(event.reason, RESULT_CLIP)}`
+    return `${event.name} was refused: ${clipText({ text: event.reason, limit: RESULT_CLIP })}`
   }
   if (event.type === 'nudge') {
-    return `harness: ${clip(event.text, RESULT_CLIP)}`
+    return `harness: ${clipText({ text: event.text, limit: RESULT_CLIP })}`
   }
   if (event.type === 'agent-ended') {
-    return `sub-agent "${clip(event.intent, 120)}" (${event.agentType}) ${event.status}: ${clip(event.prose, 160)}`
+    return `sub-agent "${clipText({ text: event.intent, limit: 120 })}" (${event.agentType}) ${event.status}: ${clipText({ text: event.prose, limit: 160 })}`
   }
   if (event.type === 'agent-reported') {
-    return `agent "${clip(event.intent, 120)}" reported: ${clip(event.prose, 160)}`
+    return `agent "${clipText({ text: event.intent, limit: 120 })}" reported: ${clipText({ text: event.prose, limit: 160 })}`
   }
   if (event.type === 'background-shell-ended') {
     const exit = event.exitCode === undefined ? '' : `, exit ${event.exitCode}`

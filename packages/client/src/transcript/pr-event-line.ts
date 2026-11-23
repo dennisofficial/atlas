@@ -6,6 +6,7 @@ import {
   failedCheckConclusionLabel,
   reviewCommentPlace,
   stripHtmlComments,
+  clipText,
   type EventBody,
 } from '@dltech/atlas-core'
 
@@ -13,13 +14,10 @@ type PrEvent = Extract<EventBody, { type: 'pr-event' }>
 
 const LINE_CLIP = 120
 
-const clip = (text: string, limit: number): string =>
-  text.length <= limit ? text : `${text.slice(0, limit - 1)}…`
-
 const firstLineOf = (body: string | undefined): string => {
   const trimmed = stripHtmlComments(body ?? '').trim()
   if (trimmed === '') return ''
-  return clip(trimmed.split('\n')[0] ?? '', LINE_CLIP)
+  return clipText({ text: trimmed.split('\n')[0] ?? '', limit: LINE_CLIP })
 }
 
 const withBody = (lead: string, body: string | undefined): string => {

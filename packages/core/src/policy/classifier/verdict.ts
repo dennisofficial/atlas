@@ -1,3 +1,4 @@
+import { clipText } from '../../text/clip-text'
 import type { ERiskDimension } from './dimension'
 import type { RiskSignal } from './signals'
 
@@ -25,8 +26,7 @@ const REASON_LIMIT = 300
 
 const collapsed = (text: string): string => text.replace(/\s+/g, ' ').trim()
 
-const clipped = (text: string): string =>
-  text.length <= REASON_LIMIT ? text : `${text.slice(0, REASON_LIMIT - 1)}…`
+const clipped = (text: string): string => clipText({ text, limit: REASON_LIMIT })
 
 export function withoutThinking({ text }: { text: string }): string {
   return text.replace(CLOSED_THINKING, ' ').replace(UNCLOSED_THINKING, ' ')

@@ -239,6 +239,15 @@ describe('loopWatchState', () => {
     expect(state).toContain('…')
   })
 
+  it('clips a long speech to 299 characters and an ellipsis', () => {
+    const events = eventsFrom([heard('go'), said('x'.repeat(1000)), ...round(2), ...round(3)])
+
+    const state = loopWatchState({ events }) ?? ''
+
+    expect(state).toContain(`agent: ${'x'.repeat(299)}…`)
+    expect(state).not.toContain('x'.repeat(300))
+  })
+
   it('keeps at most the newest window of events', () => {
     const drafts: EventDraft[] = [heard('go')]
     for (let ordinal = 1; ordinal <= 20; ordinal += 1) drafts.push(...round(ordinal))
