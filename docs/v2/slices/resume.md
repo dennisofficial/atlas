@@ -328,10 +328,9 @@ export async function resumeNow(args: {
 
 Two texts, and only one of them is new.
 
-| Cause             | What is appended to the model's messages          |
-| ----------------- | ------------------------------------------------- |
-| `Clean`           | Nothing. No nudge, no notice, no marker text.     |
-| `ToolInterrupted` | One user block: `RESUME_AFTER_INTERRUPTED_TOOL`.  |
+What is appended to the model's messages, by cause:
+- `Clean`: nothing. No nudge, no notice, no marker text.
+- `ToolInterrupted`: one user block, `RESUME_AFTER_INTERRUPTED_TOOL`.
 
 ```ts
 // packages/core/src/events/resume-plan.ts, beside RESUME_NUDGE
