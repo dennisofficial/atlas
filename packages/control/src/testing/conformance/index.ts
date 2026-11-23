@@ -1,5 +1,6 @@
 export { describeControlPlaneBlobs } from './conformance-blobs'
 export { describeControlPlaneChanges } from './conformance-changes'
+export { describeControlPlaneContextFiles } from './conformance-context-files'
 export { describeControlPlaneClaimCommands } from './conformance-claim-commands'
 export { describeControlPlaneClaimNext } from './conformance-claim-next'
 export { describeControlPlaneClaims } from './conformance-claims'

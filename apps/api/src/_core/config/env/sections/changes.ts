@@ -3,6 +3,7 @@ import Joi from 'joi'
 export interface IChangesEnv {
   CHANGES_S3_BUCKET?: string
   CHANGES_S3_PREFIX?: string
+  CONTEXT_S3_PREFIX?: string
   CHANGES_GC_GRACE_MS?: number
 }
 
@@ -11,6 +12,9 @@ export const changesEnvSchema = {
   CHANGES_S3_PREFIX: Joi.string()
     .pattern(/^[a-z0-9][a-z0-9-]*$/)
     .default('worktree-changes'),
+  CONTEXT_S3_PREFIX: Joi.string()
+    .pattern(/^[a-z0-9][a-z0-9-]*$/)
+    .default('context-files'),
   CHANGES_GC_GRACE_MS: Joi.number()
     .integer()
     .min(0)

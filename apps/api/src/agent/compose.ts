@@ -24,7 +24,7 @@ import { mcpControlPort } from './config/mcp-control'
 import type { MacLink } from './mac-link/port'
 import { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 import { composedPlugins } from './registered-plugins'
-import type { ChangeContentStore, ControlPlane } from '@dltech/atlas-control'
+import type { ChangeContentStore, ContextContentStore, ControlPlane } from '@dltech/atlas-control'
 import type { LogPort, TracePort } from '@dltech/atlas-observability'
 
 import type { ModelTokenService } from './tokens/model-token-service'
@@ -66,6 +66,9 @@ export type ComposeAgentHostArgs = {
   traceFor?: ((distinctId: string) => TracePort) | undefined
   media?: MediaSigner | undefined
   changes?: { content: ChangeContentStore } | undefined
+  contextMirror?:
+    | { content: ContextContentStore; contextDir: (sessionId: string) => string }
+    | undefined
   presence: HostPresence
   control: PodControlClient
   macLink: MacLink
@@ -124,6 +127,7 @@ export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
       openValue: (sealed) => cipher.decrypt(sealed),
     },
     ...(args.changes === undefined ? {} : { changes: args.changes }),
+    ...(args.contextMirror === undefined ? {} : { contextMirror: args.contextMirror }),
     ...(args.notify === undefined ? {} : { notify: args.notify }),
     ...(args.turnEnded === undefined ? {} : { turnEnded: args.turnEnded }),
     terminalDemand,

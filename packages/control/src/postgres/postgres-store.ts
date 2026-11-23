@@ -51,6 +51,7 @@ import {
   type WorktreeChangesRead,
   type WorktreeChangesWrite,
 } from '../port'
+import type { ContextFileRow, ContextFileWrite } from '../context-files'
 import {
   changeBlobHashesPresentIn,
   changeBlobsUnreferencedIn,
@@ -60,6 +61,14 @@ import {
   readChangesIn,
   upsertChangesIn,
 } from './postgres-changes'
+import {
+  contextDigestsReferencedIn,
+  contextFileIn,
+  listContextFilesIn,
+  lockContextDigestIn,
+  removeContextFilesIn,
+  upsertContextFilesIn,
+} from './postgres-context-files'
 import {
   blobHashesPresent,
   blobReferencedIn,
@@ -413,6 +422,35 @@ export class PostgresTx implements ControlTx {
 
   async deleteChangeBlobs(params: { hashes: readonly string[] }): Promise<void> {
     await deleteChangeBlobRowsIn({ tx: this.tx, ...params })
+  }
+
+  async upsertContextFiles(params: {
+    sessionId: string
+    files: readonly ContextFileWrite[]
+  }): Promise<void> {
+    await upsertContextFilesIn({ tx: this.tx, ...params })
+  }
+
+  async removeContextFiles(params: { sessionId: string; paths: readonly string[] }): Promise<void> {
+    await removeContextFilesIn({ tx: this.tx, ...params })
+  }
+
+  async listContextFiles(params: { sessionId: string }): Promise<readonly ContextFileRow[]> {
+    return listContextFilesIn({ tx: this.tx, ...params })
+  }
+
+  async contextFileOf(params: { sessionId: string; path: string }): Promise<ContextFileRow | null> {
+    return contextFileIn({ tx: this.tx, ...params })
+  }
+
+  async contextDigestsReferenced(params: {
+    digests: readonly string[]
+  }): Promise<ReadonlySet<string>> {
+    return contextDigestsReferencedIn({ tx: this.tx, ...params })
+  }
+
+  async lockContextDigest(params: { digest: string }): Promise<void> {
+    await lockContextDigestIn({ tx: this.tx, ...params })
   }
 
   async readEvents(params: ReadEventsParams): Promise<StoredEvent[]> {

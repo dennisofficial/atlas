@@ -182,14 +182,21 @@ export function FilesTab(
     [sourceOf, sessionId, selectedId],
   )
   const attached = podAttached(status)
-  usePodHold({ sessionId, active: attached })
+  const requestedContextPath =
+    openRequest === undefined
+      ? undefined
+      : (contextPathOf({ path: openRequest.path, sessionId }) ??
+        (openRequest.kind === EPaneOpen.Context ? openRequest.path : undefined))
+  const shownContextPath = contextPath ?? requestedContextPath
+  const showingContext = shownContextPath !== undefined
+  usePodHold({ sessionId, active: attached && !showingContext })
   const {
     state,
     message: wakeMessage,
     wakePod,
   } = usePodWake({
     sessionId,
-    live: attached,
+    live: attached && !showingContext,
     wake: () => requestWake(sessionId).then(() => undefined),
   })
   useEffect(() => {
@@ -197,7 +204,7 @@ export function FilesTab(
     if (openRequest.kind === EPaneOpen.Changes) return
     if (handledOpen.current === openRequest.id) return
     const context = contextPathOf({ path: openRequest.path, sessionId })
-    if (openRequest.kind === EPaneOpen.Context) {
+    if (context !== undefined || openRequest.kind === EPaneOpen.Context) {
       handledOpen.current = openRequest.id
       consumeOpenRequest(openRequest.id)
       setContextPath(context ?? openRequest.path)
@@ -207,10 +214,7 @@ export function FilesTab(
     const target = checkoutPathOf({ path: openRequest.path, options, selectedId })
     handledOpen.current = openRequest.id
     consumeOpenRequest(openRequest.id)
-    if (target === undefined) {
-      if (context !== undefined) setContextPath(context)
-      return
-    }
+    if (target === undefined) return
     setContextPath(undefined)
     select(target.checkoutId)
     setOpenPath(target.path)
@@ -218,19 +222,11 @@ export function FilesTab(
   const handleOpened = useCallback(() => setOpenPath(undefined), [])
   const handleBack = useCallback(() => setContextPath(undefined), [])
 
+  if (shownContextPath !== undefined) {
+    return <ContextFileView sessionId={sessionId} path={shownContextPath} onBack={handleBack} />
+  }
   if (!attached)
     return <PodDisconnected tab="Files" state={state} message={wakeMessage} onWake={wakePod} />
-  if (contextPath !== undefined) {
-    return (
-      <ContextFileView
-        sessionId={sessionId}
-        path={contextPath}
-        podAwake={attached}
-        onBack={handleBack}
-        sourceOf={sourceOf}
-      />
-    )
-  }
   if (changes.status === 'loading') return <Loading />
   if (changes.status === 'failed') {
     return (

@@ -4,14 +4,14 @@ import { renderToStaticMarkup } from 'react-dom/server'
 
 import { createTestQueryClient, TestQueryProvider } from '@/lib/__tests__/query-test-provider'
 
-import { contextDirectoryKey } from '../../data/context-files'
+import { contextMirrorKey } from '../../data/context-files'
 import { SessionDetailsTab } from '../details-tab'
 import { SessionPaneProvider, type SessionPaneValue } from '../pane-value'
 import { paneValueFixture, populatedPaneValue, serviceRowFixture } from './fixture'
 
 const client = (value: SessionPaneValue) => {
   const created = createTestQueryClient()
-  created.setQueryData(contextDirectoryKey({ sessionId: value.sessionId, directory: '' }), [])
+  created.setQueryData(contextMirrorKey(value.sessionId), { files: [] })
   return created
 }
 

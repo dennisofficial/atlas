@@ -157,6 +157,8 @@ export const paneValueFixture = (overrides: Partial<SessionPaneValue> = {}): Ses
   checkouts: checkoutsFixture(),
   threadWorktreePath: undefined,
   status: statusFixture,
+  contextChanged: undefined,
+  turnEnds: 0,
   shellTails: {},
   openTab: () => undefined,
   openRequest: undefined,

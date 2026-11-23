@@ -12,6 +12,7 @@ only what it can rebuild or drop.
 - The record adapter and its cache, and the once-ledger of a session.
 - The live step buffer, which flushes a streamed answer to the clients.
 - The change snapshotter, and the inbox intake of a held session.
+- The context mirror, which keeps a held session's context folder in the content store and index.
 - Seeding a session's context folder from the files a spawner attached, before its first turn.
 - Terminal and panel demand, which keep a pod awake.
 - The drain budget, and the errors a lost sandbox raises.
@@ -37,10 +38,10 @@ only what it can rebuild or drop.
 - `SessionHolder`: `start()`, `drain()`, `heldIds()`, `hostId()`, `ring()`, `podCalls()`,
   `demandOf()` and `discard()`.
 - `SessionHolderArgs`: presence, the control plane, the bus, the timers, the runtime factory, the
-  ids, the commands and their pod and control handlers. It also takes the optional control, MCP,
-  operator, changes, notify and turn-ended hooks, the log, the pod peers, the terminal and panel
-  demand, and the two start-error classifiers. `NotifyDispatch` tells another process that a turn
-  ended or parked. `TurnEndedHook` reports a finished turn here, so later work can start at once.
+  ids, and the commands with their pod and control handlers. It also takes the optional control,
+  MCP, operator, changes, the context mirror, notify and turn-ended hooks, the log, the pod peers,
+  the terminal and panel demand, and the two start-error classifiers. `NotifyDispatch` tells another
+  process that a turn ended or parked, and `TurnEndedHook` reports a finished turn here.
 - `PodCalls`, `PodCallOutcome`: invoke an op on a held session, or listen to its frames.
 - `podControlOf(...)`: the control-plane client that a plugin's `PodControl` reaches.
 - `SessionRuntime.classifier`, `SessionRuntime.classifierStatus`: the core `ClassifierPort` of a
@@ -49,9 +50,8 @@ only what it can rebuild or drop.
   session and every child it spawns review their writes through one stage.
 - `placeContextFiles`, `contextFilesPlacerOf`: write the files a spawner attached into the context
   folder of a session, before its first turn.
-- The holder holds a clean sub-agent ending while a sibling from the same spawn step still runs.
-  Then it wakes the parent once the last member ends. The parent reads one notice for each ending.
-  A compacted log cannot lose the group.
+- The holder holds a clean sub-agent ending while a sibling from the same spawn step still runs, then
+  wakes the parent once the last member ends. A compacted log cannot lose the group.
 
 ### Call the daemon
 
@@ -66,8 +66,7 @@ only what it can rebuild or drop.
 
 ### Reach the sandbox through a port
 
-- `DaemonFileSystemPort`, `DaemonAgentFileSystemPort`, `DaemonProcessPort`: the daemon-backed
-  ports, which send an op and wait for its result.
+- `DaemonFileSystemPort`, `DaemonAgentFileSystemPort`, `DaemonProcessPort`: the daemon-backed ports.
 - `DEFAULT_SANDBOX_COMMANDS`: the command names the sandbox resolves.
 
 ### Keep the record
@@ -86,6 +85,8 @@ only what it can rebuild or drop.
   session changed. The checkout id is `sha256(sessionId, repo, realpath(worktreePath))`, so it is
   session-scoped: one worktree path keeps two rows for two sessions.
 - `TerminalDemand`, `PanelDemand`, `PANEL_HOLD_TTL_MS`: keep a pod awake for a terminal or panel.
+- `ContextMirror`: the rescanner that keeps a held session's context folder in the content store and
+  its index, one file at a time, and skips the removal of a row its scan could not see.
 
 ### Route a pod call to its holder
 
@@ -107,15 +108,14 @@ only what it can rebuild or drop.
 - `qualityStageOf({review, clock, logPort, budgetMs})`: the `QualityStagePort` the tool dispatcher
   calls. It bounds one review, validates the drafts and never replaces a committed write's result.
 - `QUALITY_REVIEW_BUDGET_MS`: the 1000 ms budget one review gets.
-- `DaemonWorkspaceIdentity`: the `WorkspaceIdentityPort` over the daemon process port. It reads
-  the layout, the origin and the branch with `git`, and caches the layout of a thread and a
-  directory. The default bound is 750 ms; the maximum is 1000 ms.
+- `DaemonWorkspaceIdentity`: the `WorkspaceIdentityPort` over the daemon process port. It reads the
+  layout, origin and branch with `git` and caches a thread and directory layout (750–1000 ms).
 
 ### Test a host
 
 - `FaultProxy`, `ProxyFault`: a proxy that drops, delays, throttles, refuses or holds a link.
-- `createMemoryHostPresence({store})`: a presence store in memory.
-- `createMemoryPodCallHub()`: a `PodCallBus` hub in memory, where every bus sees every request.
+- `createMemoryHostPresence({store})`, `createMemoryPodCallHub()`: presence and the `PodCallBus` in
+  memory, where every bus sees every request.
 - `describeRemoteCalls(target)`, `describeHostPresence(target)`: the two shared suites.
 
 ## Usage
@@ -138,8 +138,7 @@ await holder.start()
 ## Rules
 
 - Read `@dltech/atlas-host/testing` in a spec only. It opens sockets and injects faults.
-- Never import app code, Nest or tRPC here. A boundary spec fails the build on a harness, UI,
-  Nest or tRPC import.
+- Never import app code, Nest or tRPC here; a boundary spec fails the build on those imports.
 - Do not keep the state of a session in a field of your class. Write it to the record, because a
   SIGKILL can end the host at any moment.
 

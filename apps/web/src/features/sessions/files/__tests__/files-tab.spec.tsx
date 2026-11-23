@@ -1,12 +1,12 @@
 import { registerDom, unregisterDom } from '@/lib/__tests__/happy-dom-globals'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, mock } from 'bun:test'
-import { createApiClient } from '@dltech/atlas-api-router'
-import { EChangeFileStatus, EFilesRoot, type SessionChangesOutput } from '@dltech/atlas-protocol'
-import { act } from 'react'
+import type { EFilesRoot, SessionChangesOutput } from '@dltech/atlas-protocol'
+import { act, useState } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { renderToStaticMarkup } from 'react-dom/server'
 
 import type { FileSource } from '@/features/threads/data/file-source'
+import { createTestQueryClient, TestQueryProvider } from '@/lib/__tests__/query-test-provider'
 import { paneValueFixture } from '../../panel/__tests__/fixture'
 import { SessionPaneProvider, type SessionPaneValue } from '../../panel/pane-value'
 
@@ -15,10 +15,12 @@ const realApiClient = { ...(await import('@/lib/api-client')) }
 const realChangesApi = { ...(await import('@/features/sessions/changes/changes-api')) }
 
 mock.module('@/lib/api-client', () => ({
-  api: createApiClient({
-    baseUrl: '',
-    fetchFn: async () => new Response('', { status: 500 }),
-  }),
+  api: {
+    sessions: {
+      holdPod: { mutate: async () => ({ ok: true }) },
+      wake: { mutate: async () => ({ ok: true }) },
+    },
+  },
   cloudCall: (promise: Promise<unknown>) => promise,
 }))
 
@@ -78,19 +80,7 @@ const checkout = (overrides: Partial<SessionChangesOutput['checkouts'][number]> 
   worktreePath: `/work/${overrides.checkoutId ?? 'co-1'}`,
   base: 'main',
   updatedAt: 1,
-  files: [
-    {
-      path: 'src/app.ts',
-      oldPath: null,
-      status: EChangeFileStatus.Modified,
-      additions: 1,
-      deletions: 1,
-      binary: false,
-      size: 8,
-      baseHash: 'base',
-      currentHash: 'current',
-    },
-  ],
+  files: [],
   ...overrides,
 })
 
@@ -112,23 +102,33 @@ const attachedValue = (): SessionPaneValue =>
     },
   } as never)
 
-const withOpen = (
-  value: SessionPaneValue,
-  path: string,
-  kind: EPaneOpen = EPaneOpen.File,
-): SessionPaneValue => ({ ...value, openRequest: { kind, path, id: 1 } })
+const withOpen = (value: SessionPaneValue, path: string): SessionPaneValue => ({
+  ...value,
+  openRequest: { kind: EPaneOpen.File, path, id: 1 },
+})
+
+function Wrapped(props: { value: SessionPaneValue; pick?: { checkoutId: string } | undefined }) {
+  const [value, setValue] = useState(props.value)
+  const consumeOpenRequest = (id: number) =>
+    setValue((held) => (held.openRequest?.id === id ? { ...held, openRequest: undefined } : held))
+  return (
+    <TestQueryProvider client={createTestQueryClient()}>
+      <SessionPaneProvider value={{ ...value, consumeOpenRequest }}>
+        <CheckoutChoiceProvider
+          sessionId="ses-1"
+          status={value.status}
+          currentWorktreePath="/work/co-1"
+        >
+          {props.pick === undefined ? null : <Picker checkoutId={props.pick.checkoutId} />}
+          <FilesTab sourceOf={sourceOf} />
+        </CheckoutChoiceProvider>
+      </SessionPaneProvider>
+    </TestQueryProvider>
+  )
+}
 
 const wrap = (value: SessionPaneValue, pick?: { checkoutId: string }) => (
-  <SessionPaneProvider value={value}>
-    <CheckoutChoiceProvider
-      sessionId="ses-1"
-      status={value.status}
-      currentWorktreePath="/work/co-1"
-    >
-      {pick === undefined ? null : <Picker checkoutId={pick.checkoutId} />}
-      <FilesTab sourceOf={sourceOf} />
-    </CheckoutChoiceProvider>
-  </SessionPaneProvider>
+  <Wrapped value={value} pick={pick} />
 )
 
 function Picker(props: { checkoutId: string }) {
@@ -256,11 +256,13 @@ describe('FilesTab', () => {
     roots.add(root)
     await act(async () =>
       root.render(
-        <SessionPaneProvider value={valueOf(true)}>
-          <CheckoutChoiceProvider sessionId="ses-1" status={valueOf(true).status}>
-            <FilesTab sourceOf={failingSource} />
-          </CheckoutChoiceProvider>
-        </SessionPaneProvider>,
+        <TestQueryProvider client={createTestQueryClient()}>
+          <SessionPaneProvider value={valueOf(true)}>
+            <CheckoutChoiceProvider sessionId="ses-1" status={valueOf(true).status}>
+              <FilesTab sourceOf={failingSource} />
+            </CheckoutChoiceProvider>
+          </SessionPaneProvider>
+        </TestQueryProvider>,
       ),
     )
     await settle()
@@ -284,26 +286,5 @@ describe('FilesTab', () => {
     await mount(withOpen(valueOf(true), '/work/co-2/src/app.ts'))
     expect(sources).toContainEqual({ sessionId: 'ses-1', checkoutId: 'co-2' })
     expect(reads).toContain('src/app.ts')
-  })
-
-  it('opens a context path given relative to the context folder', async () => {
-    const host = await mount(withOpen(valueOf(true), 'sections/01.md', EPaneOpen.Context))
-    expect(host.textContent).toContain('Context · sections/01.md')
-    expect(reads).toContain('sections/01.md')
-  })
-
-  it('shows a context file from the context root and goes back to the tree', async () => {
-    const host = await mount(
-      withOpen(valueOf(true), '$ATLAS_CONTEXT_DIR/plan.md', EPaneOpen.Context),
-    )
-    expect(host.textContent).toContain('Context · plan.md')
-    expect(sources).toContainEqual({ sessionId: 'ses-1', root: EFilesRoot.Context })
-    expect(reads).toContain('plan.md')
-    const back = host.querySelector('[data-context-file] button')
-    if (!(back instanceof HTMLElement)) throw new Error('back button missing')
-    await act(async () => back.click())
-    await settle()
-    expect(host.textContent).not.toContain('Context ·')
-    expect(host.textContent).toContain('src')
   })
 })

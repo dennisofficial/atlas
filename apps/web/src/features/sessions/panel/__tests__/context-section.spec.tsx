@@ -1,4 +1,5 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'bun:test'
+import { EContextFileKind } from '@dltech/atlas-core'
 import { act } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 
@@ -6,10 +7,10 @@ import { registerDom, unregisterDom } from '@/lib/__tests__/happy-dom-globals'
 import { createTestQueryClient, TestQueryProvider } from '@/lib/__tests__/query-test-provider'
 
 import { panelValueOf } from '../../data/panel-value'
-import { contextDirectoryKey } from '../../data/context-files'
+import { contextMirrorKey } from '../../data/context-files'
 import { EPaneOpen } from '../pane-open'
 import { ThreadPanelProvider } from '@/features/threads/panel/thread-panel-context'
-import { SessionContextSection } from '../details/context-section'
+import { ContextMirrorBody, SessionContextSection } from '../details/context-section'
 import { SessionPaneProvider, type SessionPaneValue } from '../pane-value'
 import { paneValueFixture } from './fixture'
 
@@ -33,16 +34,27 @@ const sleeper = (): SessionPaneValue =>
     status: { state: 'idle' as never, lease: null, sandbox: { status: 'sleeping' } as never },
   })
 
+const fileOf = (path: string) => ({
+  path,
+  size: 4,
+  mime: 'text/markdown',
+  kind: EContextFileKind.Text,
+  mtimeMs: 1,
+  mirrored: true,
+})
+
 const mountSection = async (args: {
   value: SessionPaneValue
-  entries?: readonly { name: string; isDirectory: boolean }[]
+  paths?: readonly string[]
+  seeded?: boolean
   opened?: Array<{ kind: EPaneOpen; path: string }>
 }): Promise<HTMLDivElement> => {
   const client = createTestQueryClient()
-  client.setQueryData(
-    contextDirectoryKey({ sessionId: args.value.sessionId, directory: '' }),
-    args.entries ?? [],
-  )
+  if (args.seeded !== false) {
+    client.setQueryData(contextMirrorKey(args.value.sessionId), {
+      files: (args.paths ?? []).map(fileOf),
+    })
+  }
   const { createRoot } = await import('react-dom/client')
   const container = document.createElement('div')
   document.body.append(container)
@@ -87,37 +99,51 @@ describe('SessionContextSection', () => {
     expect(container.textContent).toContain('No context files yet')
   })
 
-  it('lists the context files and folders', async () => {
+  it('lists the context files and folders from the mirror', async () => {
     const container = await mountSection({
       value: paneValueFixture(),
-      entries: [
-        { name: 'sections', isDirectory: true },
-        { name: 'plan.md', isDirectory: false },
-      ],
+      paths: ['sections/01-store.md', 'plan.md'],
     })
     expect(container.textContent).toContain('sections')
     expect(container.textContent).toContain('plan.md')
+  })
+
+  it('lists the context of a sleeping pod', async () => {
+    const container = await mountSection({
+      value: sleeper(),
+      paths: ['plan.md'],
+    })
+    expect(container.textContent).toContain('plan.md')
+    expect(container.textContent).not.toContain('while the pod sleeps')
+  })
+
+  it('says the context is unavailable when the mirror fails', () => {
+    const html = renderToStaticMarkup(<ContextMirrorBody state="failed" files={[]} />)
+    expect(html).toContain('Context unavailable')
+  })
+
+  it('says it is still reading while the mirror loads', () => {
+    const html = renderToStaticMarkup(<ContextMirrorBody state="loading" files={[]} />)
+    expect(html).toContain('Reading context…')
   })
 
   it('opens a context file in the Files tab', async () => {
     const opened: Array<{ kind: EPaneOpen; path: string }> = []
     const container = await mountSection({
       value: paneValueFixture(),
-      entries: [{ name: 'plan.md', isDirectory: false }],
+      paths: ['plan.md'],
       opened,
     })
     await click(container.querySelector('[aria-label="Open plan.md"]'))
     expect(opened).toEqual([{ kind: EPaneOpen.Context, path: 'plan.md' }])
   })
 
-  it('says the context is unavailable while the pod sleeps', () => {
-    const html = renderToStaticMarkup(
-      <TestQueryProvider client={createTestQueryClient()}>
-        <SessionPaneProvider value={sleeper()}>
-          <SessionContextSection />
-        </SessionPaneProvider>
-      </TestQueryProvider>,
-    )
-    expect(html).toContain('Context unavailable while the pod sleeps')
+  it('expands a folder into its mirrored files', async () => {
+    const container = await mountSection({
+      value: paneValueFixture(),
+      paths: ['sections/01-store.md', 'plan.md'],
+    })
+    await click(container.querySelector('[aria-label="Expand sections"]'))
+    expect(container.textContent).toContain('01-store.md')
   })
 })

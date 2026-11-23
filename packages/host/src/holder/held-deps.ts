@@ -35,6 +35,7 @@ export const heldSessionDepsOf = (args: HeldDepsArgs): HeldSessionDeps => {
     control: holder.control,
     mcp: holder.mcp,
     changes: holder.changes,
+    contextMirror: holder.contextMirror,
     notify: holder.notify,
     turnEnded: holder.turnEnded,
     onRuntimeReady: () => args.onRuntimeReady(args.lease.sessionId),

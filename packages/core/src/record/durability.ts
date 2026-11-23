@@ -32,6 +32,7 @@ export const EVENT_DURABILITY = {
   'checkout-observed': false,
   'branches-observed': false,
   'resource-loaded': false,
+  'context-changed': false,
   'permission-granted': false,
   'permission-revoked': false,
   'pull-request-linked': false,

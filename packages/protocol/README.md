@@ -10,7 +10,7 @@ share. Every frame and every call is a `zod` schema here, and the daemon engine 
 - The session API schemas: list, create, post, events, blob, withdraw, archive and status.
 - The live frames, the pod call frames, the bus channel names, and the stream protocol constants.
 - The daemon engine: the call journal, the ledger, fencing and the op groups.
-- The terminal, files, media, health, subscription, changes and diagram repair schemas.
+- The terminal, files, context mirror, media, health, subscription, changes and diagram repair schemas.
 - The Mac app link frames and JSON-RPC messages.
 
 ## Does not own

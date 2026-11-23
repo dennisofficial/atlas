@@ -23,6 +23,8 @@ import { UnknownThreadError } from './errors'
 import { postIn, withdrawIn } from './inbox-ops'
 import { messagePeerIn, reportToSpawnerIn, sessionsOfIn, spawnPeerIn } from './peer-sessions'
 import { LeaseOps } from './lease-ops'
+import type { ContextContentStore } from './context-content'
+import type { ContextFileRow, ContextFileWrite } from './context-files'
 import {
   ControlStorePort,
   SeqConflictError,
@@ -587,6 +589,63 @@ export class ControlPlane {
 
   async deleteChangeBlobs(params: { hashes: readonly string[] }): Promise<void> {
     await this.store.transact((tx) => tx.deleteChangeBlobs(params))
+  }
+
+  async upsertContextFiles(params: {
+    sessionId: string
+    files: readonly ContextFileWrite[]
+  }): Promise<void> {
+    await this.store.transact((tx) => tx.upsertContextFiles(params))
+  }
+
+  async removeContextFiles(params: { sessionId: string; paths: readonly string[] }): Promise<void> {
+    await this.store.transact((tx) => tx.removeContextFiles(params))
+  }
+
+  async listContextFiles(params: { sessionId: string }): Promise<readonly ContextFileRow[]> {
+    return this.store.transact((tx) => tx.listContextFiles(params))
+  }
+
+  async contextFileOf(params: { sessionId: string; path: string }): Promise<ContextFileRow | null> {
+    return this.store.transact((tx) => tx.contextFileOf(params))
+  }
+
+  async contextDigestsReferenced(params: {
+    digests: readonly string[]
+  }): Promise<ReadonlySet<string>> {
+    return this.store.transact((tx) => tx.contextDigestsReferenced(params))
+  }
+
+  async publishContextFile(params: {
+    sessionId: string
+    write: ContextFileWrite
+    bytes?: Uint8Array | undefined
+    content: Pick<ContextContentStore, 'put'>
+  }): Promise<void> {
+    await this.store.transact(async (tx) => {
+      const { digest } = params.write
+      if (digest !== null && params.bytes !== undefined) {
+        await tx.lockContextDigest({ digest })
+        const referenced = await tx.contextDigestsReferenced({ digests: [digest] })
+        if (!referenced.has(digest)) {
+          await params.content.put({ hash: digest, bytes: params.bytes })
+        }
+      }
+      await tx.upsertContextFiles({ sessionId: params.sessionId, files: [params.write] })
+    })
+  }
+
+  async removeContextBytesIfUnreferenced(params: {
+    digest: string
+    content: Pick<ContextContentStore, 'removing'>
+  }): Promise<boolean> {
+    return this.store.transact(async (tx) => {
+      await tx.lockContextDigest({ digest: params.digest })
+      const referenced = await tx.contextDigestsReferenced({ digests: [params.digest] })
+      if (referenced.has(params.digest)) return false
+      await params.content.removing([params.digest])
+      return true
+    })
   }
 
   async subscribe(params: {

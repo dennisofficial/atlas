@@ -49,6 +49,7 @@ export type HostKnobs = {
   fault?: EHostFault
   plugins?: boolean
   modelRequestsFile?: string
+  contextMirrorDir?: string
 }
 
 /**
