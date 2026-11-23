@@ -20,24 +20,21 @@ import {
 import type { ControlSessionRow } from '@dltech/atlas-control'
 import {
   clearMomentSeqOf,
-  EMessageOrigin,
   ESessionStatus,
   ESubscriptionActor,
   ESubscriptionEnd,
   INBOX_KIND_RETRY,
   INBOX_KIND_STOP,
   type Attachment,
-  type SaidUpload,
 } from '@dltech/atlas-core'
 import { MediaStore } from '@dltech/atlas-media'
-import type { ProductAnalytics } from '@dltech/atlas-observability'
+import type { ProductAnalytics, TracePort } from '@dltech/atlas-observability'
 import {
   DEFAULT_SANDBOX_PROVIDER,
   ECredentialSource,
   ESandboxProvider,
   EWithdrawRefusal,
   INBOX_KIND_MESSAGE,
-  inboxMessageSchema,
   type SessionArchiveOutput,
   type SessionBucketPageInput,
   type SessionBucketPageOutput,
@@ -50,7 +47,6 @@ import {
   type SessionListOutput,
   type SessionMarkReadOutput,
   type SessionMessageDraft,
-  type SessionPostMedia,
   type SessionRetryOutput,
   type SessionStatusOutput,
   type SessionStopOutput,
@@ -71,6 +67,7 @@ import { SessionTitler } from '../../../_core/ports/session-titler'
 import {
   POD_OPS,
   PRODUCT_ANALYTICS,
+  TRACE_FOR,
   digestTimingProperties,
   sandboxComputeFor,
   sandboxLiveCpuMs,
@@ -92,14 +89,13 @@ import {
   EVENTS_DEFAULT_MAX_BYTES,
   toPageEvent,
 } from './session-events-page'
-import { postedAttachmentsOf } from './post-attachments'
+import { postMessageOf, type MessageDraftInput } from './post-message'
+import { withPromptPostSpan, type PromptPostSpan } from './prompt-post-span'
 
-type MessageDraftInput = {
-  text: string
-  clientId?: string | undefined
-  media?: readonly SessionPostMedia[] | undefined
-  uploads?: readonly SaidUpload[] | undefined
-  attachments?: readonly Attachment[] | undefined
+type PostArgs = MessageDraftInput & {
+  userId: string
+  sessionId: string
+  sentAt?: string | undefined
 }
 
 @Injectable()
@@ -121,6 +117,9 @@ export class SessionsService {
     @Optional()
     @Inject(PRODUCT_ANALYTICS)
     private readonly analytics: ProductAnalytics | null = null,
+    @Optional()
+    @Inject(TRACE_FOR)
+    private readonly traceFor: ((distinctId: string) => TracePort) | null = null,
   ) {}
 
   async accessibleProjectId(args: { userId: string; projectId: string }): Promise<string> {
@@ -163,7 +162,12 @@ export class SessionsService {
       this.captureSessionCreated({ sessionId, args, provider: sandboxProvider })
       return { sessionId, mainThreadId }
     }
-    const message = await this.messageOf({ userId: args.userId, draft: args.firstMessage })
+    const message = await postMessageOf({
+      registry: this.media,
+      store: this.store,
+      userId: args.userId,
+      draft: args.firstMessage,
+    })
     const { inboxId, modelRef } = await this.plane.createSessionWithMessage({
       ...session,
       message: { kind: INBOX_KIND_MESSAGE, payload: message.payload },
@@ -266,57 +270,42 @@ export class SessionsService {
     return bucketPageSessions({ plane: this.plane, ...args })
   }
 
-  async post(args: {
-    userId: string
-    sessionId: string
-    text: string
-    media?: readonly SessionPostMedia[] | undefined
-    uploads?: readonly SaidUpload[] | undefined
-    attachments?: readonly Attachment[] | undefined
-  }) {
-    const session = requireLiveSession(await this.requireOwnedSession(args))
-    const message = await this.messageOf({ userId: args.userId, draft: args })
-    const { inboxId } = await this.plane.post({
+  async post(args: PostArgs) {
+    return await withPromptPostSpan({
+      trace: this.traceFor?.(args.userId),
       sessionId: args.sessionId,
+      sentAt: args.sentAt,
+      serverNow: Date.now(),
+      run: (post) => this.posted({ input: args, post }),
+    })
+  }
+
+  private async posted(args: { input: PostArgs; post: PromptPostSpan }) {
+    const { input, post } = args
+    const session = requireLiveSession(await this.requireOwnedSession(input))
+    const message = await postMessageOf({
+      registry: this.media,
+      store: this.store,
+      userId: input.userId,
+      draft: input,
+    })
+    const { inboxId } = await this.plane.post({
+      sessionId: input.sessionId,
       kind: INBOX_KIND_MESSAGE,
       payload: message.payload,
     })
+    post.delivered({ inboxId, hasMedia: message.attachments.length > 0 })
     this.nameIfUntitled({
-      userId: args.userId,
-      sessionId: args.sessionId,
+      userId: input.userId,
+      sessionId: input.sessionId,
       projectId: session.projectId,
       title: session.title,
-      text: args.text,
+      text: input.text,
       attachments: message.attachments,
       inboxId,
       modelRef: session.modelRef,
     })
     return { inboxId }
-  }
-
-  private async messageOf(args: {
-    userId: string
-    draft: MessageDraftInput
-  }): Promise<{ payload: string; attachments: readonly Attachment[] }> {
-    const attachments = await postedAttachmentsOf({
-      registry: this.media,
-      store: this.store,
-      userId: args.userId,
-      media: args.draft.media,
-      uploads: args.draft.uploads,
-      attachments: args.draft.attachments,
-    })
-    return {
-      payload: JSON.stringify(
-        inboxMessageSchema.parse({
-          text: args.draft.text,
-          via: EMessageOrigin.Operator,
-          ...(args.draft.clientId === undefined ? {} : { clientId: args.draft.clientId }),
-          ...(attachments.length === 0 ? {} : { attachments }),
-        }),
-      ),
-      attachments,
-    }
   }
 
   private nameIfUntitled(args: {

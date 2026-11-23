@@ -23,6 +23,7 @@ import type { LoopWatch } from './loop-watchdog'
 import type { ModelWaitObserver, SleepPrevention } from './loop-ports'
 import type { OnceLedger } from './once-ledger.port'
 import type { RetryDeps } from './retrying-step'
+import type { FirstTokenClock } from '../trace/first-token'
 
 export type TurnDeps = {
   record: AgentRecordPort
@@ -56,4 +57,5 @@ export type TurnDeps = {
   failureDiagnostics?: FailureDiagnostics | undefined
   onceLedger?: OnceLedger | undefined
   trace?: TracePort | undefined
+  firstToken?: FirstTokenClock | undefined
 }

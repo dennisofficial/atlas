@@ -56,4 +56,8 @@ export class TracedRecord extends AgentRecordPort {
   override queuedSince(): string | null {
     return this.inner.queuedSince?.() ?? null
   }
+
+  override postedInputAts(args: { threadId: ThreadId }): Promise<ReadonlyMap<number, string>> {
+    return this.inner.postedInputAts?.(args) ?? Promise.resolve(new Map())
+  }
 }

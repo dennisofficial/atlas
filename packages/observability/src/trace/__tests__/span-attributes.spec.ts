@@ -26,6 +26,24 @@ describe('spanAttributesOf', () => {
     ).toEqual({ model: 'm', 'hash.tools': '0a1b2c3d', 'hash.system.memory-index': 'ffee0011' })
   })
 
+  it('flattens timings into ms-suffixed attributes and keeps a boolean flag', () => {
+    expect(
+      spanAttributesOf({
+        sessionId: 'ses-1',
+        inboxId: 7,
+        hasMedia: true,
+        timings: { claim: 12, firstStep: 640 },
+      }),
+    ).toEqual({
+      sessionId: 'ses-1',
+      inboxId: 7,
+      hasMedia: true,
+      claimMs: 12,
+      firstStepMs: 640,
+    })
+    expect('timings' in spanAttributesOf({ timings: { claim: 1 } })).toBe(false)
+  })
+
   it('drops a field that carries no value', () => {
     expect(spanAttributesOf({ provider: 'anthropic', model: undefined })).toEqual({
       provider: 'anthropic',

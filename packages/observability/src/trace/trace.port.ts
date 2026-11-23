@@ -27,6 +27,8 @@ export enum ESpan {
   PodProvisionSandbox = 'pod.provision.sandbox',
   PodProvisionAgent = 'pod.provision.agent',
   PromptSend = 'prompt.send',
+  PromptPost = 'prompt.post',
+  Takeover = 'holder.takeover',
   ResourceStatus = 'resource.status',
   ResourceVersions = 'resource.versions',
   ResourceArm = 'resource.arm',
@@ -64,6 +66,9 @@ export enum ESpanOutcome {
 /** Names, ids and counts only: nothing a user or a model wrote can be attached to a span. */
 export type SpanFields = {
   readonly threadId?: ThreadId | undefined
+  readonly sessionId?: string | undefined
+  readonly inboxId?: number | undefined
+  readonly hasMedia?: boolean | undefined
   readonly runId?: RunId | undefined
   readonly callId?: CallId | undefined
   readonly provider?: string | undefined
@@ -80,6 +85,8 @@ export type SpanFields = {
   readonly entry?: ETurnEntry | undefined
   readonly wake?: EWake | undefined
   readonly queuedMs?: number | undefined
+  readonly firstTokenMs?: number | undefined
+  readonly clientToApiMs?: number | undefined
   readonly speed?: ESpanSpeed | undefined
   readonly step?: number | undefined
   readonly delayMs?: number | undefined
@@ -92,6 +99,7 @@ export type SpanFields = {
   readonly cacheWriteTokens?: number | undefined
   readonly sizes?: Readonly<Record<string, number>> | undefined
   readonly hashes?: Readonly<Record<string, string>> | undefined
+  readonly timings?: Readonly<Record<string, number>> | undefined
 }
 
 export type SpanHandle = {
@@ -132,6 +140,7 @@ export const markAttributeOf = (mark: ESpanMark): string => `${mark}_ms`
 
 const SIZE_ATTRIBUTE_PREFIX = 'size.'
 const HASH_ATTRIBUTE_PREFIX = 'hash.'
+const TIMING_ATTRIBUTE_SUFFIX = 'Ms'
 
 const prefixed = <T>(args: {
   prefix: string
@@ -141,17 +150,26 @@ const prefixed = <T>(args: {
     Object.entries(args.values ?? {}).map(([key, value]) => [`${args.prefix}${key}`, value]),
   )
 
+const suffixed = (args: {
+  suffix: string
+  values: Readonly<Record<string, number>> | undefined
+}): Record<string, number> =>
+  Object.fromEntries(
+    Object.entries(args.values ?? {}).map(([key, value]) => [`${key}${args.suffix}`, value]),
+  )
+
 export const spanAttributesOf = (
   fields: SpanFields | undefined,
-): Record<string, string | number> => {
+): Record<string, string | number | boolean> => {
   if (fields === undefined) return {}
-  const { sizes, hashes, ...rest } = fields
+  const { sizes, hashes, timings, ...rest } = fields
   return {
     ...Object.fromEntries(
       Object.entries(rest).filter(
-        (entry): entry is [string, string | number] => entry[1] !== undefined,
+        (entry): entry is [string, string | number | boolean] => entry[1] !== undefined,
       ),
     ),
+    ...suffixed({ suffix: TIMING_ATTRIBUTE_SUFFIX, values: timings }),
     ...prefixed({ prefix: SIZE_ATTRIBUTE_PREFIX, values: sizes }),
     ...prefixed({ prefix: HASH_ATTRIBUTE_PREFIX, values: hashes }),
   }

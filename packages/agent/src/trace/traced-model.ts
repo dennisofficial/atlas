@@ -16,6 +16,8 @@ import {
   type TracePort,
 } from '@dltech/atlas-observability'
 
+import type { FirstTokenClock } from './first-token'
+
 const REASONING_CHUNKS: ReadonlySet<ChunkType> = new Set(['reasoning-start', 'reasoning-delta'])
 const OUTPUT_CHUNKS: ReadonlySet<ChunkType> = new Set([
   'text-start',
@@ -25,9 +27,18 @@ const OUTPUT_CHUNKS: ReadonlySet<ChunkType> = new Set([
 ])
 
 const markingFilter =
-  ({ span, inner }: { span: SpanHandle; inner: ChunkFilter | undefined }): ChunkFilter =>
+  ({
+    span,
+    inner,
+    firstToken,
+  }: {
+    span: SpanHandle
+    inner: ChunkFilter | undefined
+    firstToken: FirstTokenClock | undefined
+  }): ChunkFilter =>
   (chunk) => {
     span.mark(ESpanMark.FirstChunk)
+    firstToken?.firstChunk()
     if (REASONING_CHUNKS.has(chunk.type)) span.mark(ESpanMark.FirstReasoning)
     if (OUTPUT_CHUNKS.has(chunk.type)) span.mark(ESpanMark.FirstOutput)
     return inner === undefined ? chunk : inner(chunk)
@@ -46,11 +57,17 @@ const resultFieldsOf = (result: ModelStepResult): SpanFields => ({
 export class TracedModel extends ModelPort {
   private readonly inner: ModelPort
   private readonly trace: TracePort
+  private readonly firstToken: FirstTokenClock | undefined
 
-  constructor(args: { inner: ModelPort; trace: TracePort }) {
+  constructor(args: {
+    inner: ModelPort
+    trace: TracePort
+    firstToken?: FirstTokenClock | undefined
+  }) {
     super()
     this.inner = args.inner
     this.trace = args.trace
+    this.firstToken = args.firstToken
   }
 
   get identity(): ModelPort['identity'] {
@@ -63,6 +80,7 @@ export class TracedModel extends ModelPort {
 
   step(args: Parameters<ModelPort['step']>[0]): Promise<ModelStepResult> {
     const { id, modelId } = this.inner.identity
+    const firstCall = this.firstToken?.claimsFirstCall() === true
     return this.trace.span({
       name: ESpan.ModelCall,
       fields: {
@@ -74,7 +92,11 @@ export class TracedModel extends ModelPort {
       run: async (span) => {
         const result = await this.inner.step({
           ...args,
-          onChunk: markingFilter({ span, inner: args.onChunk }),
+          onChunk: markingFilter({
+            span,
+            inner: args.onChunk,
+            firstToken: firstCall ? this.firstToken : undefined,
+          }),
         })
         span.set(resultFieldsOf(result))
         return result
