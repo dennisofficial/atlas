@@ -1,4 +1,4 @@
-import { EResumePoint, type ResumeDiscard } from '../events/body'
+import { EResumePoint, type EventDraft, type ResumeDiscard } from '../events/body'
 import { APPROVAL_WAITING, carriesInterruption, TOOL_PARKED_WAITING } from '../events/resume-plan'
 import type { V2Event } from './event'
 import { loopStateOf, openParkedCallOfState, outstandingApprovalOf } from './loop-state'
@@ -29,6 +29,22 @@ const notResumable = (because: string): ResumePoint => ({
 })
 
 export const resumableOf = (point: ResumePoint): boolean => point.kind !== EResumePoint.NotResumable
+
+export type ResumablePoint = Exclude<ResumePoint, { kind: EResumePoint.NotResumable }>
+
+const discardsOf = (point: ResumablePoint): readonly ResumeDiscard[] =>
+  point.kind === EResumePoint.Clean && point.discard !== null ? [point.discard] : []
+
+export const resumeMarkedDraft = (params: {
+  point: ResumablePoint
+  inboxId?: number | undefined
+}): EventDraft => ({
+  type: 'resume-marked',
+  point: params.point.kind,
+  discards: discardsOf(params.point),
+  callIds: params.point.kind === EResumePoint.ToolInterrupted ? [...params.point.callIds] : [],
+  ...(params.inboxId === undefined ? {} : { inboxId: params.inboxId }),
+})
 
 const blockedReasonOf = (events: readonly V2Event[]): string | undefined => {
   const state = loopStateOf({ events: visibleLoopEvents(events) })

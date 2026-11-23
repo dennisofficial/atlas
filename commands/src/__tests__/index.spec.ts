@@ -14,6 +14,7 @@ describe('native commands', () => {
       'model',
       'rename',
       'resize',
+      'resume',
       'rewind',
       'rotate',
       'summarise',

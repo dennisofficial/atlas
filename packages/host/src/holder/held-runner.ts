@@ -175,6 +175,8 @@ export const createLoopRunner = (args: {
     childrenRunning: args.childrenRunning,
     ...(operator === undefined ? {} : { operatorAnswers: operator }),
     crewRunning: () => args.crewRunning(),
+    crew: args.crew,
+    mainThreadId: threadId,
     now: () => deps.timers.now(),
     ...(deps.log === undefined ? {} : { log: deps.log }),
   })

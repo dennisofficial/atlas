@@ -78,7 +78,7 @@ A `PodSlot` declares:
 `notify(event, {key})`, `events()`, `call(op)`, `live(frame)`, `onDaemonEvent(listener)`, `log`, and
 the capabilities `control`, `crew`, `messages`, `classifier`, `sessions`, `worktrees`, `resources`.
 `ctx.crew` is a `PodCrew`. Its `spawn` takes `group`; the parent wakes once, after every sub-agent of
-that group ends. `ctx.control` is a `PodControl`: `exposePort({port})`, `settingsVersions()`,
+that group ends. `resume({agentId})` continues a stopped sub-agent turn with an `EResumeOutcome`. `ctx.control` is a `PodControl`: `exposePort({port})`, `settingsVersions()`,
 `memory`, `webSearch`, `gateway` (`apiKey()`, `imageModel()`), `mcp`, `routines`, `subscriptions`.
 
 ### The control and client slots

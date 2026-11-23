@@ -1,13 +1,13 @@
 # @dltech/atlas-native-commands
 
 The native session commands: `rewind`, `summarise`, `rename`, `resize`, `cancel-resize`, `rotate`,
-`model` and `help`. The API adds them to the command registry of every session.
+`resume`, `model` and `help`. The API adds them to the command registry of every session.
 
 ## Owns
 
-- The eight command specs, their zod arguments, their argument hints and the text form of `rewind`,
-  `summarise`, `rename`, `resize` and `rotate`.
-- The holder handlers for `rewind`, `summarise` and `rotate`, which run in the agent host.
+- The nine command specs, their zod arguments, their argument hints and the text form of `rewind`,
+  `summarise`, `rename`, `resize`, `rotate` and `resume`.
+- The holder handlers for `rewind`, `summarise`, `rotate` and `resume`, which run in the agent host.
 - The control handler for `rename`, which sets the session title.
 - The disk limit of a resize.
 
@@ -29,7 +29,7 @@ The native session commands: `rewind`, `summarise`, `rename`, `resize`, `cancel-
 ### The command list
 
 - `nativeCommands`: the specs, in declaration order — `rewind`, `rename`, `summarise`, `rotate`,
-  `resize`, `cancel-resize`, `model`, `help`.
+  `resume`, `resize`, `cancel-resize`, `model`, `help`.
 - `nativeCommandHandlers`: one holder handler for each `host` command, keyed by `inboxKind`.
 - `nativeControlHandlers`: the `rename` handler, keyed by the command name.
 - `rename`, `resize`, `resizeArgs`, `RESIZE_MAX_DISK_GB`: the rename and resize specs, and the
@@ -61,12 +61,22 @@ The native session commands: `rewind`, `summarise`, `rename`, `resize`, `cancel-
   `REFUSAL_ROTATE_EMPTY`, `REFUSAL_ROTATE_FAILED`: the refusal sentences of the handler.
 - `ROTATE_TIMEOUT_MS`: the 120-second limit on the model call.
 
+### Resume a stopped turn
+
+- `resume`: the spec. It takes an optional `agentId`, and its text form accepts only `--agent <id>`;
+  any other argument refuses with `REFUSAL_RESUME_TEXT`.
+- `resumeNow({point, inboxId, append})`: append one `resume-marked` event for a resumable point, or
+  refuse with the point's own sentence.
+- `resumeMarkedDraft({point, inboxId})`: the marker draft of a clean or tool-interrupted point.
+- `REFUSAL_RESUME_AGENT`: what `/resume --agent` answers for an id this session does not have.
+
 ### Refusals
 
 - `REFUSAL_RENAME_NEEDS_NAME`: what `/rename` answers with no name.
 - `REFUSAL_RESIZE_USAGE`: what `/resize` answers with arguments it cannot read.
 - `REFUSAL_NO_MODEL`, `REFUSAL_EMPTY_SUMMARY`, `REFUSAL_SUMMARY_FAILED`: the summarise sentences.
 - `REFUSAL_SUMMARISE_ARGS`: what `/summarise` answers with an argument that names no message.
+- `REFUSAL_RESUME_TEXT`: what `/resume` answers with words after it.
 
 ## Usage
 
@@ -87,8 +97,8 @@ const builtinEntries = nativeCommands.map((command) =>
   `command.spec.name`. The two maps never mix.
 - `resize` and `cancel-resize` are in `nativeCommands` but have no handler here. The control plane
   supplies one per session.
-- `rewind`, `summarise` and `rotate` change the event log of the session. They run in the host.
-  `rewind` and `summarise` refuse a sequence number that names no message.
+- `rewind`, `summarise`, `rotate` and `resume` change the event log of the session. They run in the
+  host. `rewind` and `summarise` refuse a sequence number that names no message.
 
 ## See also
 

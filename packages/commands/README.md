@@ -65,7 +65,8 @@ message. Native commands and plugin commands both use it.
 
 ### Handle a command
 
-- `CommandHandler<Args>`: runs in the agent host with a `CommandContext<Args>`.
+- `CommandHandler<Args>`: runs in the agent host with a `CommandContext<Args>`, which reads the
+  loop events and the whole log, and names the session's main thread and its crew.
 - `CommandResult`: `{kind: 'done'}` or `{kind: 'refused', reason}`.
 - `ControlCommandHandler<Plane, Args>`: runs in the control plane with `{plane, sessionId, args}`.
 

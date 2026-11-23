@@ -1,4 +1,5 @@
 import {
+  EResumeOutcome,
   INBOX_KIND_STOP,
   pendingInputsOf,
   unheldDraftOf,
@@ -72,6 +73,8 @@ export type InboxIntakeArgs = {
   childrenRunning?: (() => number) | undefined
   operatorAnswers?: OperatorAnswerIntake | undefined
   crewRunning?: (() => number) | undefined
+  crew?: { resume(args: { agentId: string }): Promise<EResumeOutcome> } | undefined
+  mainThreadId?: string | undefined
   log?: LogPort | undefined
   now?: (() => number) | undefined
 }
@@ -95,6 +98,9 @@ export class InboxIntake implements AgentIntake {
             sessionId: args.sessionId,
             model: args.model,
             visibleEvents: () => args.record.eventCache().visibleLoopEvents(),
+            logEvents: () => this.events(),
+            ...(args.crew === undefined ? {} : { crew: args.crew }),
+            ...(args.mainThreadId === undefined ? {} : { mainThreadId: args.mainThreadId }),
             ...(args.childrenRunning === undefined
               ? {}
               : { childrenRunning: args.childrenRunning }),

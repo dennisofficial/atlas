@@ -1,4 +1,12 @@
-import type { Event, EventDraft, ModelPort, PluginEventBody, RecordBody } from '@dltech/atlas-core'
+import type {
+  EResumeOutcome,
+  Event,
+  EventDraft,
+  ModelPort,
+  PluginEventBody,
+  RecordBody,
+  V2Event,
+} from '@dltech/atlas-core'
 
 export type CommandContext<Args> = {
   args: Args
@@ -6,7 +14,10 @@ export type CommandContext<Args> = {
   inboxId: number
   model?: ModelPort | undefined
   visibleEvents(): readonly Event[]
+  logEvents(): readonly V2Event[]
   runningChildren(): number
+  crew?: { resume(args: { agentId: string }): Promise<EResumeOutcome> } | undefined
+  mainThreadId?: string | undefined
   append(drafts: readonly (EventDraft | RecordBody | PluginEventBody)[]): Promise<void>
   log: (message: string) => void
 }

@@ -1,5 +1,6 @@
 import {
   EAgentStatus,
+  EResumeOutcome,
   toCallId,
   toEventId,
   toRunId,
@@ -52,6 +53,10 @@ export const fakeCrew = (args: { queued?: boolean; held?: readonly SubagentSnaps
     stop: async (stopArgs) => {
       calls.push({ method: 'stop', args: stopArgs })
       return snapshotOf({ agentId: stopArgs.agentId, status: EAgentStatus.Stopped })
+    },
+    resume: async (resumeArgs) => {
+      calls.push({ method: 'resume', args: resumeArgs })
+      return EResumeOutcome.Resumed
     },
     list: () => args.held ?? [],
     report: async (reportArgs) => {

@@ -206,6 +206,7 @@ export const EMPTY_CREW: PodCrew = Object.freeze({
   spawn: async () => noCrew('sub-agents')(),
   say: async () => noCrew('sub-agents')(),
   stop: async () => noCrew('sub-agents')(),
+  resume: async () => noCrew('sub-agents')(),
   list: () => [],
   report: async () => noCrew('parent to report to')(),
 })
