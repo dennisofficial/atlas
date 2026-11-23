@@ -61,13 +61,18 @@ Redis and sends the pushes.
 ### Find the moment in a sessions list
 
 - `InAppRow`: one row of the list. It holds the session id, the title, the status, the read
-  marker, the head seq and the last turn ending.
+  marker, the head seq, whether the row is a nested session, and the last turn ending with its
+  time and its notify facts.
 - `inAppRowOf`: reads a session summary into a row.
-- `inAppMomentsOf`: gives the rows that changed since the previous list. It says nothing for the
-  first list or a new row. A row gives a moment when its last turn ending is newer, or when its
-  status newly waits for the operator.
-- `inAppNoticesOf`: gives the notices to show, through `inAppNoticeOf`, so an on-screen row, a
-  disabled moment and a read row stay silent.
+- `HeldNotice`: a notice that waits for its turn: the session id, the turn seq and the due time.
+- `inAppScanOf`: gives the notices to show now and the held notices to keep. It says nothing for
+  the first list or a new row. A row gives a moment when its last turn ending is newer, or when
+  its status newly waits for the operator. `inAppDueOf` decides whether the moment shows, stays
+  silent or waits until a due time.
+- `dueNoticesOf`: turns the held notices that are due into moments, and drops the ones a newer
+  turn replaced, or whose session runs again.
+- `earliestDueAt`: the first due time in a held list, so a caller arms one timer.
+- `dueDelayMs`: the wait until a due time, never below zero.
 - `staleNoticeIdsOf`: gives the session ids whose notice must go: its session opened, or the read
   marker reached its seq.
 

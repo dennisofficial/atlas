@@ -14,16 +14,17 @@ export type NotifyDecision = {
   operatorTurn: boolean
 }
 
-const kindsOf = (pending: readonly PendingWork[]): readonly EPendingWork[] => [
-  ...new Set(pending.map((work) => work.kind)),
-]
+const uniqueKinds = (kinds: readonly EPendingWork[]): readonly EPendingWork[] => [...new Set(kinds)]
 
-export const notifyDecisionOf = (args: {
+const kindsOf = (pending: readonly PendingWork[]): readonly EPendingWork[] =>
+  uniqueKinds(pending.map((work) => work.kind))
+
+export const notifyDecisionOfKinds = (args: {
   moment: ENotifyMoment
-  pending: readonly PendingWork[]
+  pending: readonly EPendingWork[]
   operatorTurn: boolean
 }): NotifyDecision => {
-  const pending = kindsOf(args.pending)
+  const pending = uniqueKinds(args.pending)
   const held = args.moment === ENotifyMoment.TurnFinished && pending.length > 0
   return {
     moment: args.moment,
@@ -33,3 +34,14 @@ export const notifyDecisionOf = (args: {
     operatorTurn: args.operatorTurn,
   }
 }
+
+export const notifyDecisionOf = (args: {
+  moment: ENotifyMoment
+  pending: readonly PendingWork[]
+  operatorTurn: boolean
+}): NotifyDecision =>
+  notifyDecisionOfKinds({
+    moment: args.moment,
+    pending: kindsOf(args.pending),
+    operatorTurn: args.operatorTurn,
+  })

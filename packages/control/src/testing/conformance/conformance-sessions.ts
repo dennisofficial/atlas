@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
-import { ETurnCause, ETurnEndedBy, ETurnOutcome, type V2Body } from '@dltech/atlas-core'
+import {
+  EPendingWork,
+  ETurnCause,
+  ETurnEndedBy,
+  ETurnOutcome,
+  type V2Body,
+} from '@dltech/atlas-core'
 
 import { ControlPlane } from '../../control-plane'
 import type { ControlStorePort, ControlTx } from '../../port'
@@ -634,6 +640,42 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
         seq: appended.head.seq,
         outcome: ETurnOutcome.Completed,
         by: ETurnEndedBy.Agent,
+        at: T0,
+      })
+    })
+
+    it('digests the notify facts and the time of the last turn ending', async () => {
+      await seedSession({ sessionId: 's-a', offsetMs: 0 })
+      const granted = await plane.grant({ sessionId: 's-a', hostId: HOLDER_HOST })
+      const head = await plane.head({ threadId: 't-s-a' })
+      const appended = await plane.append({
+        threadId: 't-s-a',
+        epoch: granted.epoch,
+        events: mint({
+          bodies: [
+            { type: 'turn-started', turnId: 'turn-1', cause: ETurnCause.Input },
+            {
+              type: 'turn-ended',
+              turnId: 'turn-1',
+              outcome: ETurnOutcome.Completed,
+              by: ETurnEndedBy.Agent,
+              notify: { pending: [EPendingWork.Shell], operatorTurn: false },
+            },
+          ],
+          epoch: granted.epoch,
+          from: head,
+          threadId: 't-s-a',
+        }),
+      })
+      if (!appended.ok) throw new Error(JSON.stringify(appended.refusal))
+
+      const [digest] = await plane.listSessionDigests({ userId: USER, limit: 10 })
+      expect(digest?.lastTurn).toEqual({
+        seq: appended.head.seq,
+        outcome: ETurnOutcome.Completed,
+        by: ETurnEndedBy.Agent,
+        at: T0,
+        notify: { pending: [EPendingWork.Shell], operatorTurn: false },
       })
     })
 

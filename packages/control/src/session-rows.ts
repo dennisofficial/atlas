@@ -1,4 +1,4 @@
-import type { SessionStatus, ETurnEndedBy, ETurnOutcome } from '@dltech/atlas-core'
+import type { SessionStatus, ETurnEndedBy, ETurnOutcome, TurnNotify } from '@dltech/atlas-core'
 import type { SessionSandboxStatus } from '@dltech/atlas-protocol'
 
 export type ControlSessionRow = {
@@ -58,6 +58,8 @@ export type SessionTurnEnding = {
   seq: number
   outcome: ETurnOutcome
   by: ETurnEndedBy
+  at?: string | undefined
+  notify?: TurnNotify | undefined
 }
 
 export type SessionDigestRow = ControlSessionRow & {
