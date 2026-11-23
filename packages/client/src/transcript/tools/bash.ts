@@ -24,6 +24,8 @@ export type Shell = {
   stdout: string
   exitCode: number | null
   ok: boolean
+  backgrounded?: boolean | undefined
+  shellId?: string | undefined
 }
 
 /**
@@ -238,6 +240,15 @@ const stagesOf = (command: string): string[] =>
     .filter((stage) => stage.length > 0)
 
 export function readShell(shell: Shell): Classification {
+  if (shell.backgrounded === true) {
+    return named({
+      line: said(shell),
+      note: shell.shellId ?? 'background',
+      failed: false,
+      detail: EDetail.Terminal,
+    })
+  }
+
   const command = withoutCd(shell.command)
   const stages = stagesOf(firstLine(command))
   const staged: Staged = { ...shell, command, ownsExit: stages.length <= 1 }

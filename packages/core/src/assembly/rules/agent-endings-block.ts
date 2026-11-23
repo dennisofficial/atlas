@@ -13,7 +13,7 @@ import { defineRule, type Rule } from '../rule'
 const REPORTED_NOTHING = 'It reported nothing.'
 
 const NO_REPLY_CONTENT =
-  'It ended with no text. The provider dropped its end-turn message even after the Atlas harness retried the request and nudged it, so the harness ended the turn cleanly instead of failing the thread. There is no answer here to act on. Send it a message with agent_say to try again. Otherwise compensate for what it never delivered. Do not treat this as a quiet success.'
+  'It ended with no text. The provider dropped its end-turn message even after the Atlas harness retried the request and nudged it, so the harness ended the turn cleanly instead of failing the thread. There is no answer here to act on. Send it a message to try again. Otherwise compensate for what it never delivered. Do not treat this as a quiet success.'
 
 const USER_STOPPED =
   'The operator stopped this sub-agent deliberately. You did not stop it, and nothing went wrong with it. Do not spawn it again to finish its work unless the operator asks.'
@@ -24,13 +24,13 @@ const LOST_AGENT =
 const RELOCATED =
   'This sub-agent was not stopped. The session moved where it runs, and the sub-agent is resuming there. It will report again when the real ending arrives.'
 
-const RETRY = 'Send agent_say to retry it: a message restarts it with its thread intact.'
+const RETRY = 'Send it a message to retry it: a message restarts it with its thread intact.'
 
 const WEDGED =
   'Its thread is corrupt: prompt assembly fails on every step, so a message cannot restart it. The harness will not retry it. Spawn a fresh sub-agent for anything still outstanding.'
 
 const LOST_CONTINUES =
-  'Its host could not continue it. Its thread is intact, so a message with agent_say resumes its work, and spawning it again gives you a fresh one that finishes the same job instead.'
+  'Its host could not continue it. Its thread is intact, so a message resumes its work, and spawning it again gives you a fresh one that finishes the same job instead.'
 
 const wedged = (event: Ending): boolean =>
   event.status === EAgentStatus.Failed && event.failureKind === ERunFailureKind.ExchangeFault

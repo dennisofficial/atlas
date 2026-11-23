@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EReportKind } from '../../agents/report'
 import { EAgentStatus } from '../../agents/status'
 import type { EventDraft } from '../body'
 import type { Event } from '../envelope'
@@ -38,13 +37,12 @@ const ended = (over: Partial<Extract<EventDraft, { type: 'agent-ended' }>> = {})
   ...over,
 })
 
-const reported = (kind?: EReportKind): EventDraft => ({
+const reported = (): EventDraft => ({
   type: 'agent-reported',
   agentId: toThreadId('brn-child'),
   agentType: 'teammate',
   intent: 'port the sidebar',
   prose: 'CI is still running',
-  kind,
 })
 
 const stateAround = (event: EventDraft): string =>
@@ -72,13 +70,7 @@ describe('the loop watchdog reading agent events', () => {
     expect(stateAround(ended({ relayed: false }))).not.toContain('finished')
   })
 
-  it('renders a report with its kind', () => {
-    expect(stateAround(reported(EReportKind.Progress))).toContain(
-      'agent "port the sidebar" reported (progress): CI is still running',
-    )
-  })
-
-  it('renders a legacy report with no kind as before', () => {
+  it('renders a report without a kind', () => {
     expect(stateAround(reported())).toContain(
       'agent "port the sidebar" reported: CI is still running',
     )

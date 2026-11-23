@@ -1,12 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import {
-  EAgentStatus,
-  EReportKind,
-  toThreadId,
-  type Event,
-  type EventDraft,
-} from '@dltech/atlas-core'
+import { EAgentStatus, toThreadId, type Event, type EventDraft } from '@dltech/atlas-core'
 
 import { durableEntries } from '../durable-entries'
 import { EEntryKind } from '../transcript-model'
@@ -32,7 +26,6 @@ const reported = (over: Record<string, unknown> = {}): EventDraft => ({
   agentType: 'explore',
   intent: 'audit',
   prose: 'found three issues',
-  kind: EReportKind.Done,
   ...over,
 })
 
@@ -58,8 +51,8 @@ describe('one answer per finished agent', () => {
     ])
   })
 
-  it('keeps a progress note, which is not the answer', () => {
-    expect(kindsOf(log([ended(), reported({ kind: EReportKind.Progress })]))).toEqual([
+  it('keeps a report that says something the ending does not', () => {
+    expect(kindsOf(log([ended(), reported({ prose: 'a note first' })]))).toEqual([
       EEntryKind.AgentEnded,
       EEntryKind.AgentReported,
     ])

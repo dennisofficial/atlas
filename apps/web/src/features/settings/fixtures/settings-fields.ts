@@ -26,7 +26,7 @@ export const CONTEXT_FIELDS: SettingField[] = [
     key: 'skills.suggest',
     title: 'Suggest a skill per turn',
     description:
-      'Before each turn, the decision model ranks every skill against your message and names at most one to the agent as a hint it can ignore.',
+      'Before each turn, the classifier scores the likely skills against the thread and names at most one to the agent as a hint it can ignore. Off when the classifier is off.',
     fallback: true,
   }),
   {
@@ -93,14 +93,7 @@ export const QUALITY_FIELDS: SettingField[] = [
     key: 'quality.enabled',
     title: 'Code quality review',
     description:
-      'After a file write, a decision model reviews the changed scope against the enabled policies and may leave the agent a one-time nudge. It never blocks or reverts a write.',
-    fallback: false,
-  }),
-  toggle({
-    key: 'quality.recordExamples',
-    title: 'Record examples',
-    description:
-      'Save the source of each reviewed change, before and after, as an example file under the conversation’s data directory.',
-    fallback: false,
+      'Runs whenever a classifier is set on the Classifier settings page, and is off without one. After a file write, the classifier reviews the changed scope against the enabled policies and may leave the agent a one-time nudge. It never blocks or reverts a write.',
+    fallback: true,
   }),
 ]

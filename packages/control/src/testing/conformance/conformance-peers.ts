@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 
-import { EMessageOrigin, EReportKind, inboxEventOf, toThreadId } from '@dltech/atlas-core'
+import { EMessageOrigin, inboxEventOf, toThreadId } from '@dltech/atlas-core'
 
 import { DEFAULT_SANDBOX_PROVIDER } from '@dltech/atlas-protocol'
 
@@ -25,14 +25,14 @@ export function describeControlPlanePeers(params: ConformanceParams): void {
 
     afterEach(() => hosts.releaseAll())
 
-    const spawn = (args: {
+    const spawn = async (args: {
       sessionId: string
       mainThreadId: string
       brief?: string | undefined
       nested?: boolean | undefined
       spawner?: string | undefined
-    }) =>
-      plane.spawnPeer({
+    }) => {
+      const spawned = await plane.spawnPeer({
         spawnerSessionId: args.spawner ?? SESSION,
         sessionId: args.sessionId,
         mainThreadId: args.mainThreadId,
@@ -40,6 +40,9 @@ export function describeControlPlanePeers(params: ConformanceParams): void {
         ...(args.brief === undefined ? {} : { brief: args.brief }),
         ...(args.nested === undefined ? {} : { nested: args.nested }),
       })
+      if ('refused' in spawned) throw new Error(`the spawn was refused: ${spawned.refused}`)
+      return spawned
+    }
 
     it('links a spawned session to its spawner with no pod of its own', async () => {
       await plane.createSession(createSessionParams({ sessionId: SESSION, mainThreadId: THREAD }))
@@ -135,7 +138,6 @@ export function describeControlPlanePeers(params: ConformanceParams): void {
       const before = await params.wakes(SESSION)
       const sent = await plane.reportToSpawner({
         sessionId: 'peer-1',
-        kind: EReportKind.Done,
         text: 'the parser is green',
       })
       expect(sent).toEqual({ inboxId: 1 })
@@ -154,105 +156,32 @@ export function describeControlPlanePeers(params: ConformanceParams): void {
         agentId: toThreadId('peer-thread-1'),
         agentType: 'teammate',
         prose: 'the parser is green',
-        kind: EReportKind.Done,
         senderSessionId: 'peer-1',
       })
       expect(await params.wakes(SESSION)).toBe(before + 1)
     })
 
-    it('posts a progress report without waking the spawner', async () => {
+    it('wakes the spawner for every report', async () => {
       await plane.createSession(createSessionParams({ sessionId: SESSION, mainThreadId: THREAD }))
       await spawn({ sessionId: 'peer-1', mainThreadId: 'peer-thread-1' })
       const before = await params.wakes(SESSION)
-      expect(
-        await plane.reportToSpawner({
-          sessionId: 'peer-1',
-          kind: EReportKind.Progress,
-          text: 'halfway',
-        }),
-      ).toEqual({ inboxId: 1 })
+      expect(await plane.reportToSpawner({ sessionId: 'peer-1', text: 'halfway' })).toEqual({
+        inboxId: 1,
+      })
       expect(await plane.readInbox({ sessionId: SESSION, afterId: 0, limit: 10 })).toHaveLength(1)
-      expect(await params.wakes(SESSION)).toBe(before)
+      expect(await params.wakes(SESSION)).toBe(before + 1)
     })
 
     it('refuses a report from a session no other session created', async () => {
       await plane.createSession(createSessionParams({ sessionId: SESSION, mainThreadId: THREAD }))
       const refused = await plane.reportToSpawner({
         sessionId: SESSION,
-        kind: EReportKind.Done,
         text: 'nothing to report to',
       })
       expect(refused).toEqual({
         refused: 'this session was not created by another session, so it has no spawner',
       })
       expect(await plane.readInbox({ sessionId: SESSION, afterId: 0, limit: 10 })).toEqual([])
-    })
-
-    it('posts a message with the sender named', async () => {
-      await plane.createSession(createSessionParams({ sessionId: SESSION, mainThreadId: THREAD }))
-      await spawn({ sessionId: 'peer-1', mainThreadId: 'peer-thread-1' })
-      const sent = await plane.messagePeer({
-        fromSessionId: SESSION,
-        toSessionId: 'peer-1',
-        text: 'm0',
-      })
-      expect(sent).toEqual({ inboxId: 1 })
-      const inbox = await plane.readInbox({
-        sessionId: 'peer-1',
-        afterId: 0,
-        limit: 100,
-      })
-      expect(inbox.length).toBe(1)
-      expect(inbox[0]?.senderSessionId).toBe(SESSION)
-      expect(JSON.parse(inbox[0]?.payload ?? '{}')).toEqual({
-        text: 'm0',
-        via: EMessageOrigin.PeerAgent,
-      })
-    })
-
-    it('lets two sessions of one user message each other with no spawn link', async () => {
-      await plane.createSession(createSessionParams({ sessionId: SESSION, mainThreadId: THREAD }))
-      await plane.createSession(
-        createSessionParams({
-          sessionId: 'stranger',
-          mainThreadId: 'stranger-thread',
-        }),
-      )
-      const sent = await plane.messagePeer({
-        fromSessionId: SESSION,
-        toSessionId: 'stranger',
-        text: 'hello',
-      })
-      expect(sent).toEqual({ inboxId: 1 })
-      const inbox = await plane.readInbox({
-        sessionId: 'stranger',
-        afterId: 0,
-        limit: 10,
-      })
-      expect(inbox[0]?.senderSessionId).toBe(SESSION)
-      expect(JSON.parse(inbox[0]?.payload ?? '{}')).toEqual({
-        text: 'hello',
-        via: EMessageOrigin.PeerAgent,
-      })
-    })
-
-    it('refuses a message to a session another user owns', async () => {
-      await plane.createSession(createSessionParams({ sessionId: SESSION, mainThreadId: THREAD }))
-      await plane.createSession({
-        sessionId: 'foreign',
-        userId: 'another-user',
-        projectId: PROJECT,
-        mainThreadId: 'foreign-thread',
-      })
-      const refused = await plane.messagePeer({
-        fromSessionId: SESSION,
-        toSessionId: 'foreign',
-        text: 'hello',
-      })
-      expect(refused).toEqual({
-        refused: 'there is no session foreign in this project',
-      })
-      expect(await plane.readInbox({ sessionId: 'foreign', afterId: 0, limit: 10 })).toEqual([])
     })
 
     it('lists every session of the user with its status, the current one included', async () => {

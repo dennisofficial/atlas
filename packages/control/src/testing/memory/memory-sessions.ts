@@ -9,6 +9,14 @@ export const readSessionIn = (params: {
   return row === undefined ? undefined : sessionRowOf(row)
 }
 
+export const readNestedChildrenIn = (params: {
+  state: State
+  sessionId: string
+}): ControlSessionRow[] =>
+  [...params.state.sessions.values()]
+    .filter((row) => row.spawnedBySessionId === params.sessionId && row.nested)
+    .map(sessionRowOf)
+
 export const setSandboxInstanceIdIn = (params: {
   state: State
   sessionId: string
@@ -73,6 +81,17 @@ export const setSessionPodAppliedIn = (params: {
   row.podAppliedGeneration = params.generation
   row.podResizeError = null
   row.podWaitingSince = null
+  return true
+}
+
+export const setSessionPodDiskIn = (params: {
+  state: State
+  sessionId: string
+  diskGb: number
+}): boolean => {
+  const row = params.state.sessions.get(params.sessionId)
+  if (row === undefined) return false
+  row.podDesiredDiskGb = params.diskGb
   return true
 }
 

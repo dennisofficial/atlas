@@ -1,5 +1,10 @@
 import { createApiClient } from '@dltech/atlas-api-router'
-import type { RegisterNotifyDeviceInput, ReportNotifyPresenceInput } from '@dltech/atlas-wire'
+import type {
+  ListNotifyDevicesOutput,
+  RegisterNotifyDeviceInput,
+  ReportNotifyPresenceInput,
+  SetNotifyDeviceEnabledInput,
+} from '@dltech/atlas-wire'
 
 import { apiBaseUrl } from '@/lib/api-base-url'
 import { api, cloudCall } from '@/lib/api-client'
@@ -28,3 +33,9 @@ export const registerNotifyDevice = (input: RegisterNotifyDeviceInput) =>
   cloudCall(api.notifications.registerDevice.mutate(input))
 
 export const sendTestNotification = () => cloudCall(api.notifications.sendTest.mutate({}))
+
+export const listNotifyDevices = (): Promise<ListNotifyDevicesOutput> =>
+  cloudCall(api.notifications.listDevices.query({}))
+
+export const setNotifyDeviceEnabled = (input: SetNotifyDeviceEnabledInput): Promise<void> =>
+  cloudCall(api.notifications.setDeviceEnabled.mutate(input))

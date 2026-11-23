@@ -1,6 +1,6 @@
 'use client'
 
-import { type AtlasNotification } from '@dltech/atlas-core'
+import { type AtlasNotification, notifySettingsOf } from '@dltech/atlas-core'
 import {
   type InAppRow,
   inAppNoticesOf,
@@ -16,6 +16,7 @@ import { fetchV2Sessions } from '@/features/sessions/data/sessions-api'
 import { activeSessionIdOf } from '@/features/shell/active-route'
 import { v2SessionHref } from '@/features/shell/v2-rows'
 import { V2_SESSIONS_KEY } from '@/lib/cloud-keys'
+import { useCloudSettings } from '@/lib/cloud-settings'
 
 import { useWindowFocus } from './use-window-focus'
 
@@ -30,6 +31,12 @@ export function useInAppNotices(): void {
   const pathname = usePathname()
   const router = useRouter()
   const focused = useWindowFocus()
+  const settings = useCloudSettings()
+  const settingsValues = settings.query.data
+  const notifySettings = useMemo(
+    () => notifySettingsOf({ values: settingsValues ?? new Map() }),
+    [settingsValues],
+  )
   const previous = useRef<ReadonlyMap<string, InAppRow> | null>(null)
   const shown = useRef<readonly AtlasNotification[]>([])
   const rows = useMemo(() => (query.data ?? []).map(inAppRowOf), [query.data])
@@ -42,7 +49,7 @@ export function useInAppNotices(): void {
       next: rows,
       openSessionId,
       focused,
-      enabled: () => true,
+      enabled: (moment) => notifySettings.enabled(moment),
       now: new Date().toISOString(),
     })
     previous.current = rowMap
@@ -58,7 +65,7 @@ export function useInAppNotices(): void {
       })
     }
     shown.current = [...shown.current, ...notices]
-  }, [rows, rowMap, openSessionId, focused, router])
+  }, [rows, rowMap, openSessionId, focused, router, notifySettings])
 
   useEffect(() => {
     const stale = staleNoticeIdsOf({ notices: shown.current, rows: rowMap, openSessionId })

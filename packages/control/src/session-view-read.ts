@@ -168,10 +168,14 @@ const actualShapeOf = (session: ControlSessionRow): PodShapeViewOutput | undefin
   }
 }
 
+const podDiskGbOf = (session: ControlSessionRow): number | undefined =>
+  session.podDesiredDiskGb ?? undefined
+
 export const podStatusOf = (session: ControlSessionRow | undefined): SessionStatusOutput['pod'] => {
   if (session === undefined) return undefined
   const actual = actualShapeOf(session)
   const desired = shapeOf({ vcpus: session.podDesiredVcpus, memoryGb: session.podDesiredMemoryGb })
+  const diskGb = podDiskGbOf(session)
   const pending =
     desired !== undefined && session.podAppliedGeneration !== session.podSizeGeneration
   const phase =
@@ -185,6 +189,7 @@ export const podStatusOf = (session: ControlSessionRow | undefined): SessionStat
   return {
     ...(actual === undefined ? {} : { shape: actual, actualVcpus: actual.vcpus }),
     ...(desired === undefined ? {} : { desiredShape: desired, desiredVcpus: desired.vcpus }),
+    ...(diskGb === undefined ? {} : { diskGb }),
     phase,
     ...(session.podResizeError === null ? {} : { error: session.podResizeError }),
     sizing: podSizingOf({ sandboxProvider: session.sandboxProvider }),

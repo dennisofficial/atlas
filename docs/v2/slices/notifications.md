@@ -2,7 +2,7 @@
 
 > **Approved by Dennis 2026-11-23.** Mac push ships with the release pipeline change (option A). The agent sets up Apple signing itself: the App ID push capability, the APNs key and the provisioning profile, through the App Store Connect API key stored in EAS (read with EXPO_TOKEN), with clear names.
 
-Status: **draft 4, 2026-11-23**. The operator's words are in §1, and his answers of 2026-11-23
+Status: **built 2026-11-23** (roadmap entry lists the PRs). The operator's words are in §1, and his answers of 2026-11-23
 are binding (`decisions.md`). v2 has no notification of any kind today, so this is new design,
 not a port. The v1 code is evidence of what went wrong, never a base. Anchors are `path:line` at
 `ee5fdfde`; re-check one before you rely on it. Style follows `docs/v2/slices/operator-input.md`.
@@ -555,9 +555,16 @@ on it: the dot is the durable signal.
 One path, expressed once: "the session is read" → every enabled device of the user gets `clear`.
 - **Trigger.** `markSessionRead` (`packages/control/src/session-ops.ts:88`, reached from
   `sessions.router.ts:160-164`) advances `readSeq`; the API then dispatches `notify-clear`
-  `{userId, sessionId}` with idempotency key `notify-clear:<sessionId>:<readSeq>`. No ledger and no
-  `lastNotifiedSeq`: a clear that finds nothing is a few HTTP calls, and one user has a handful of
-  devices. That deletes v1's push-ledger idea instead of porting it.
+  `{userId, sessionId}` with idempotency key `notify-clear:<sessionId>:<momentSeq>`. No ledger and
+  no `lastNotifiedSeq`: a clear that finds nothing is a few HTTP calls, and one user has a handful
+  of devices. That deletes v1's push-ledger idea instead of porting it.
+- **Cost.** The web marks read as events stream in while a session is open
+  (`apps/web/src/features/sessions/data/use-session-mark-read.ts`, debounced to one call a second),
+  so a clear per `markRead` would run a trigger job every second. Dispatch only when the advance
+  passes a seq that could have notified: the session's last `turn-ended` seq, or the head seq while
+  the status waits for the operator or credentials. The API reads the session's digest before it
+  marks, and dispatch happens when `previousReadSeq < momentSeq <= readSeq` (`previousReadSeq` of
+  `null` counts as -1). It is fire and forget, logged when it fails, and never fails `markRead`.
 - **Task.** `apps/trigger/src/trigger/notify/notify-clear.task.ts` reads the devices, calls each
   transport's `clear`, prunes anything that reports `gone`. Web Push subscriptions hosted by Apple
   are skipped (§4.9). An `apns-mac` device gets `content-available`, which the app reads only while
@@ -601,7 +608,9 @@ It gets three real parts and loses the rest:
   two selects (`apps/web/src/features/settings/parts/interface-quiet-hours.tsx`), plus a time-zone
   field stored in `web.notifications.timezone` and defaulted to
   `Intl.DateTimeFormat().resolvedOptions().timeZone` on first load. Quiet hours need a zone; with no
-  zone they do nothing, which is honest and cheap.
+  zone they do nothing, which is honest and cheap. The field is the Routines combobox
+  (`apps/web/src/features/routines/routine-timezone-field.tsx`), and the page writes the detected
+  zone to the key once while it is empty, so the task and the page agree.
 
 **Storage decision.** Settings stay in the settings registry: `UserSetting` rows per user, validated
 by one zod entry per key in core, served by `settings.router.ts:21-36`, which is exactly what the

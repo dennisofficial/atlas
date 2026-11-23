@@ -50,5 +50,6 @@ namespace v2 {
     @@index([mainThreadId])
     @@index([userId, createdAt])
     @@index([sandboxInstanceId])
+    @@index([spawnedBySessionId, nested])
   }
 }

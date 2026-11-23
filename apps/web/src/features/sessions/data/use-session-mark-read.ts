@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef } from 'react'
 
 import { V2_SESSIONS_KEY } from '@/lib/cloud-keys'
+import { closeSessionNotifications } from '@/lib/web-push'
 import { usePageVisible } from '@/lib/use-page-visible'
 import {
   createMarkReadScheduler,
@@ -18,6 +19,10 @@ export function useSessionMarkRead(args: { sessionId: string; head: number | und
   const queryClient = useQueryClient()
   const visible = usePageVisible()
   const scheduler = useRef<MarkReadScheduler | undefined>(undefined)
+
+  useEffect(() => {
+    void closeSessionNotifications(sessionId).catch(() => undefined)
+  }, [sessionId])
 
   useEffect(() => {
     if (!visible) return undefined

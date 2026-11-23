@@ -1,4 +1,4 @@
-import { EReportKind, type Event } from '@dltech/atlas-core'
+import type { Event } from '@dltech/atlas-core'
 
 const breaksEveryRun = (event: Event): boolean =>
   event.type === 'user-said' ||
@@ -10,7 +10,7 @@ const breaksEveryRun = (event: Event): boolean =>
   event.type === 'background-shell-still-running' ||
   (event.type === 'service-ended' && event.restarting !== true) ||
   (event.type === 'agent-ended' && event.relayed !== false) ||
-  (event.type === 'agent-reported' && event.kind !== EReportKind.Progress) ||
+  event.type === 'agent-reported' ||
   event.type === 'pr-event' ||
   event.type === 'location-changed' ||
   event.type === 'parked' ||

@@ -72,8 +72,8 @@ class SayProbe extends ToolDefinition {
     this.state.said = await this.ctx.crew.say({ agentId, text: STEER })
     return {
       ok: true,
-      output: { queued: this.state.said.queued },
-      modelText: `queued ${String(this.state.said.queued)}`,
+      output: { queued: this.state.said?.queued === true },
+      modelText: `queued ${String(this.state.said?.queued === true)}`,
     }
   }
 }

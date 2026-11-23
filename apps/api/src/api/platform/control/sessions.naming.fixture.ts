@@ -5,6 +5,7 @@ import { FakeMediaStore } from '@dltech/atlas-media/testing'
 import { BackgroundWork } from '../../../_core/ports/background-work'
 import { SessionTitler } from '../../../_core/ports/session-titler'
 import { FakeMediaRegistry } from './media-registry.fake'
+import { NoJobsDispatcher } from './jobs-dispatcher.fake'
 import { ProjectAccess } from './project-access'
 import { SessionsService } from './sessions.service'
 
@@ -55,6 +56,7 @@ export const setupNaming = () => {
     composeCommands([]),
     { resizeHandler: () => async () => undefined },
     { sleep: async () => ({ state: 'sleeping' }), parkArchived: async () => undefined },
+    new NoJobsDispatcher(),
   )
   return { plane, service, titler, background, registry, mediaStore }
 }

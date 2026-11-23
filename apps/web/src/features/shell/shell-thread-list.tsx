@@ -21,6 +21,7 @@ import {
   projectKeyOf,
   type ProjectThreads,
 } from './thread-partition'
+import { isV2Session } from './v2-rows'
 
 export interface ThreadListProps {
   entries: readonly ProjectThreads[]
@@ -58,14 +59,31 @@ export function ThreadList(props: ThreadListProps) {
   )
 }
 
+const countV2Sessions = (entries: readonly ProjectThreads[]): number =>
+  entries.reduce((total, entry) => total + entry.sessions.filter(isV2Session).length, 0)
+
+const bucketTotalOf = (args: {
+  streamCount: number | undefined
+  entries: readonly ProjectThreads[]
+}): number =>
+  args.streamCount === undefined
+    ? countThreads(args.entries)
+    : args.streamCount + countV2Sessions(args.entries)
+
 function ThreadListContent({ entries, counts, activeThreadId }: ThreadListProps) {
   const [collapsed, setCollapsed] = useState<string[]>([])
   const [paging, setPaging] = useState<PageBucket | null>(null)
   const now = useClock()
   const partition = useMemo(() => partitionThreads({ entries, now }), [entries, now])
   const totals = {
-    [ESessionBucket.Inactive]: counts?.inactive ?? countThreads(partition.inactive),
-    [ESessionBucket.Archived]: counts?.archived ?? countThreads(partition.archived),
+    [ESessionBucket.Inactive]: bucketTotalOf({
+      streamCount: counts?.inactive,
+      entries: partition.inactive,
+    }),
+    [ESessionBucket.Archived]: bucketTotalOf({
+      streamCount: counts?.archived,
+      entries: partition.archived,
+    }),
   }
 
   const handleOpenChange = (projectId: string, open: boolean) => {

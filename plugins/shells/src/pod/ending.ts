@@ -3,7 +3,7 @@ import type { DaemonEventFrame } from '@dltech/atlas-protocol'
 
 import { readDelta } from './cursors'
 import type { ShellPodState } from './state'
-import { hasEnded, outcomeOf, startedOf } from './status'
+import { hasEnded, hasStarted, outcomeOf, startedOf } from './status'
 
 export const recordShellEnding = async (args: {
   ctx: PluginPodContext
@@ -20,6 +20,9 @@ export const recordShellEnding = async (args: {
     if (hasEnded({ events: ctx.events(), shellId })) {
       state.cursors.reset(shellId)
       return
+    }
+    if (!hasStarted({ events: ctx.events(), shellId })) {
+      await ctx.append([{ type: 'background-shell-started', shellId, command: info.command }])
     }
     const read = await readDelta({ ctx, cursors: state.cursors, shellId })
     const delta = read.ok

@@ -58,6 +58,12 @@ function diskTipOf(index: number): string {
   return formatRam({ usedGb: sample.diskUsedGb, limitGb: sample.diskLimitGb })
 }
 
+function growButtonOf(html: string): string {
+  const button = html.match(/<button[^>]*aria-label="Increase disk"[^>]*>/)?.[0]
+  if (button === undefined) throw new Error('the grow control did not render')
+  return button
+}
+
 describe('pod section header', () => {
   it('labels the single power button with what pressing it does', () => {
     expect(htmlOf()).toContain('aria-label="Stop pod"')
@@ -151,11 +157,28 @@ describe('pod section chart', () => {
 })
 
 describe('pod disk row', () => {
-  it('stays away when the sample reports no disk', () => {
+  it('keeps the disk row with an empty value when the sample reports no disk', () => {
     const html = htmlOf()
-    expect(html).not.toContain('Disk')
+    expect(html).toMatch(/Disk<\/span><span[^>]*>—<\/span>/)
     expect(html).not.toContain('aria-label="Increase disk"')
     expect(html).toContain('CPU and RAM over the last 15 minutes')
+  })
+
+  it('keeps the disk row and its limit while the pod sleeps', () => {
+    const asleep = htmlOf({ state: EPodState.Parked, series: POD_SERIES_WITH_DISK })
+    expect(asleep).toContain('— / 20 GB')
+  })
+
+  it('keeps the grow control, disabled, until the disk size is known', () => {
+    expect(growButtonOf(htmlOf({ diskGrow: true }))).toContain('disabled=""')
+  })
+
+  it('keeps every row and an empty chart before the first sample arrives', () => {
+    const html = htmlOf({ series: [] })
+    expect(html).toContain('CPU')
+    expect(html).toContain('RAM')
+    expect(html).toContain('Disk')
+    expect(html).toContain('No samples')
   })
 
   it('reads used of limit in GB off the sample and adds disk to the chart', () => {
@@ -172,13 +195,34 @@ describe('pod disk row', () => {
   })
 
   it('keeps the disk out of the tip of a pod that reports none', () => {
-    expect(htmlOf({ defaultActiveIndex: 4 })).not.toContain('Disk')
+    expect(htmlOf({ defaultActiveIndex: 4 })).not.toMatch(/Disk \d/)
   })
 
   it('keeps the grow control off a pod whose provider cannot grow its disk', () => {
     const html = htmlOf({ series: POD_SERIES_WITH_DISK })
     expect(html).toContain('Disk')
     expect(html).not.toContain('aria-label="Increase disk"')
+  })
+
+  it('reads the disk limit off the sample, over the limit the status pushes', () => {
+    const html = htmlOf({ series: POD_SERIES_WITH_DISK, diskLimitGb: 40 })
+    expect(html).toContain('/ 20 GB')
+    expect(html).not.toContain('/ 40 GB')
+  })
+
+  it('keeps the pushed disk limit before the first sample arrives', () => {
+    const html = htmlOf({ series: [], diskLimitGb: 40 })
+    expect(html).toContain('— / 40 GB')
+  })
+
+  it('keeps the pushed disk limit while the pod sleeps', () => {
+    const asleep = htmlOf({ state: EPodState.Parked, series: [], diskLimitGb: 40 })
+    expect(asleep).toContain('— / 40 GB')
+  })
+
+  it('enables the grow control from the pushed limit, before any sample arrives', () => {
+    const grow = growButtonOf(htmlOf({ series: [], diskLimitGb: 40, diskGrow: true }))
+    expect(grow).not.toContain('disabled=""')
   })
 
   it('offers only the sizes above the current limit', () => {

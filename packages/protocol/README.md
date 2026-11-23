@@ -7,7 +7,8 @@ share. Every frame and every call is a `zod` schema here, and the daemon engine 
 
 - The daemon link frames: host frames, daemon frames, call keys, epochs and error kinds.
 - The call operations the host sends to the daemon, and their results and events.
-- The session API schemas: list, create, post, events, blob, withdraw, archive, status.
+- The session API schemas: list, create, post, events, blob, withdraw, archive, status, and the
+  inactive and archived bucket page (`sessionBucketPageInputSchema`, `sessionBucketPageOutputSchema`).
 - The live frames, the bus channel names, and the stream protocol constants.
 - The daemon engine: the call journal, the ledger, fencing and the op groups.
 - The terminal, files, media, health, subscription and changes schemas.
@@ -66,6 +67,14 @@ groups `changes.*`, `git.*`, `mcp.*`, `metrics.*`, `previews.*`, `services.*`, `
 - `sessionListInputSchema`, `sessionSummarySchema`, `sessionListOutputSchema`: the session list.
 - `sessionCreateInputSchema`, `sessionPostInputSchema`, `sessionEventsOutputSchema`: create, post, read.
 - `sessionSubscriptionSchema`, `sessionSubscribeInputSchema`, `sessionUnsubscribeInputSchema`.
+
+### Carry a message payload
+
+- `inboxMessageSchema`, `InboxMessage`: a message body: `text`, `clientId`, `via`, `media`,
+  `uploads`, `attachments` and `files`.
+- `inboxFileSchema`, `InboxFile`: one context file a spawn attaches for the child, `{path, text}`.
+  A message carries at most 32. These files belong to the child's context folder; they are not
+  model attachments.
 
 ### Speak the stream protocol
 

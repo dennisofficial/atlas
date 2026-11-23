@@ -75,7 +75,7 @@ keeps a local session log, derives the session state and the transcript, and rea
 - `durableEntries(args)`, `EEntryKind`: the durable rows of a transcript.
 - `turnsBySeq(args)`, `settledAtOf(entries)`, `turnEndedEntry(turn)`: the turn rows and the settled
   time.
-- `ECallState`, `ToolCall`, `ToolRun`, `attachmentsOf`: the tool runs of a turn.
+- `ECallState`, `ToolCall`, `ToolRun`, `attachmentsOf`: the tool runs of a turn. `qualityNoticeOf`, `qualityNoticeLine` and `EQualityNoticeTone`: a tool call's quality indicator.
 - `agentsOf(args)`, `agentOf(args)`, `agentLabelOf(agent)`: a sub-agent's type, intent and state.
 - `thinkingVisibilityOf(value)`, `foldThoughts(args)`, `toolsAboveThoughts(entries)`: the thinking
   folds.

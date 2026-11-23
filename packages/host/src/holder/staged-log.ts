@@ -46,7 +46,13 @@ export const inputMessageOf = (params: {
   entry: InboxEntry
   message: InboxMessage
 }): InputMessage => {
-  const attachments = attachmentsOf(params.message)
+  const attachments = attachmentsOf({
+    ...(params.message.attachments === undefined
+      ? {}
+      : { attachments: params.message.attachments }),
+    ...(params.message.uploads === undefined ? {} : { uploads: params.message.uploads }),
+    ...(params.message.media === undefined ? {} : { media: params.message.media }),
+  })
   const sender = params.entry.senderSessionId
   const origin = sender === null ? params.message.via : EMessageOrigin.PeerAgent
   return {

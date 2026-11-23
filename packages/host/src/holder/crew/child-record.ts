@@ -7,12 +7,13 @@ import {
   type ThreadId,
 } from '@dltech/atlas-core'
 import { settleCrashedCalls } from '@dltech/atlas-agent'
-import type { WorktreeEntryInfo } from '@dltech/atlas-plugin-sdk'
+import type { SubagentSaid, WorktreeEntryInfo } from '@dltech/atlas-plugin-sdk'
 
 import type { HeldSessionDeps } from '../held-session-deps'
 import type { SessionRuntime } from '../ports'
 import type { LeaseLostError, SessionRecord } from '../record/record-adapter'
 import { SessionRecord as RecordAdapter } from '../record/record-adapter'
+import type { CrewSender } from './child-message'
 
 export type ChildRunArgs = {
   deps: HeldSessionDeps
@@ -25,6 +26,11 @@ export type ChildRunArgs = {
   worktree?: WorktreeEntryInfo | undefined
   signal: AbortSignal
   onLeaseLost(error: LeaseLostError): void
+  saySibling(said: {
+    agentId: string
+    text: string
+    from: CrewSender
+  }): Promise<SubagentSaid | undefined>
 }
 
 export type AdoptedChildArgs = ChildRunArgs & {

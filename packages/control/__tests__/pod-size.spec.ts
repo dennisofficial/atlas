@@ -164,4 +164,28 @@ describe('pod size', () => {
 
     expect(await podOf(plane)).toEqual({ phase: 'steady', sizing: AGENT37_SIZING })
   })
+
+  it('records the disk a pod was created with, without asking for a resize', async () => {
+    const { plane } = await seed()
+
+    expect(await plane.recordPodDisk({ sessionId: SESSION, diskGb: 80 })).toBe(true)
+
+    const session = await plane.readSession({ sessionId: SESSION })
+    expect(session?.podDesiredDiskGb).toBe(80)
+    expect(session?.podSizeGeneration).toBe(0)
+    expect(session?.podResizeError).toBeNull()
+    expect(await podOf(plane)).toEqual({ phase: 'steady', diskGb: 80, sizing: AGENT37_SIZING })
+  })
+
+  it('leaves an unknown session alone', async () => {
+    const { plane } = await seed()
+
+    expect(await plane.recordPodDisk({ sessionId: 'missing', diskGb: 80 })).toBe(false)
+  })
+
+  it('reports no disk until a pod row records one', async () => {
+    const { plane } = await seed()
+
+    expect((await podOf(plane))?.diskGb).toBeUndefined()
+  })
 })

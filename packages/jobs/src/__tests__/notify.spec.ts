@@ -2,8 +2,11 @@ import { describe, expect, it } from 'bun:test'
 import { ENotifyMoment } from '@dltech/atlas-core'
 
 import {
+  NOTIFY_CLEAR_TASK_ID,
   NOTIFY_SEND_TASK_ID,
   NOTIFY_TEST_TASK_ID,
+  notifyClearIdempotencyKey,
+  notifyClearPayloadSchema,
   notifySendIdempotencyKey,
   notifySendPayloadSchema,
   notifyTestIdempotencyKey,
@@ -80,6 +83,29 @@ describe('the notify test task', () => {
     )
     expect(notifyTestIdempotencyKey({ payload, now: '2026-11-23T14:03:00.000Z' })).not.toBe(
       notifyTestIdempotencyKey({ payload, now: '2026-11-23T14:02:59.999Z' }),
+    )
+  })
+})
+
+describe('the notify clear task', () => {
+  it('registers under the dispatch id', () => {
+    expect(NOTIFY_CLEAR_TASK_ID).toBe('notify-clear')
+  })
+
+  it('takes one user and one session', () => {
+    expect(notifyClearPayloadSchema.parse({ userId: 'usr-1', sessionId: 'session-1' })).toEqual({
+      userId: 'usr-1',
+      sessionId: 'session-1',
+    })
+    expect(notifyClearPayloadSchema.safeParse({ userId: 'usr-1', sessionId: '' }).success).toBe(
+      false,
+    )
+    expect(notifyClearPayloadSchema.safeParse({ userId: 'usr-1' }).success).toBe(false)
+  })
+
+  it('keys one clear per session and moment', () => {
+    expect(notifyClearIdempotencyKey({ sessionId: 'session-1', momentSeq: 7 })).toBe(
+      'notify-clear:session-1:7',
     )
   })
 })

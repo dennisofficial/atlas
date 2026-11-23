@@ -217,7 +217,12 @@ export const createLoopRunner = (args: {
     ...(runtime.mediaUrls === undefined ? {} : { mediaUrls: runtime.mediaUrls }),
     tools: () => modelFacingDeclarationsOf(pod.tools.declarations()),
     dispatch: new ScopedToolDispatcher(
-      hookedToolsOf({ registry: pod.tools, hooks: pod.hooks, trace: runtime.trace }),
+      hookedToolsOf({
+        registry: pod.tools,
+        hooks: pod.hooks,
+        quality: runtime.quality,
+        trace: runtime.trace,
+      }),
     ),
     intake,
     output: args.turns.liveOutput({

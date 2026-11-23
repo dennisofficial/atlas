@@ -3,6 +3,7 @@ import { randomUUID } from 'expo-crypto'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { useAuth } from '../../auth/auth-provider'
+import { dismissPresentedForSession } from '../../push/notification-handler'
 import type { ThreadRow } from '../rows'
 import { agentLinksOf, type AgentLinks } from './agent-links'
 import { stagedQueueRowsOf, stagedRowsOf, v2ViewOf, type V2ThreadView } from './rows'
@@ -43,6 +44,10 @@ export function useV2SessionScreen(sessionId: string): V2SessionScreen {
   const [notice, setNotice] = useState<string | undefined>(undefined)
   const retryClientId = useRef<string | undefined>(undefined)
   const restoreToken = useRef(0)
+
+  useEffect(() => {
+    void dismissPresentedForSession(sessionId).catch(() => undefined)
+  }, [sessionId])
 
   useEffect(() => {
     if (!view.working) return undefined

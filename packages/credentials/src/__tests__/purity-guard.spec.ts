@@ -13,6 +13,7 @@ const ENTRIES = {
     'provider-oauth',
     'index.ts',
   ),
+  '@dltech/atlas-credentials/usage': join(import.meta.dir, '..', 'usage', 'index.ts'),
 }
 
 describe('credentials purity guard', () => {

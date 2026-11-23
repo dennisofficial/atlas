@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EReportKind } from '../../../agents/report'
 import { agentReportedBlock } from '../agent-reported-block'
 
 const reported = (over: Partial<Parameters<typeof agentReportedBlock>[0]> = {}) =>
@@ -19,23 +18,38 @@ const reported = (over: Partial<Parameters<typeof agentReportedBlock>[0]> = {}) 
     ...over,
   }) as Parameters<typeof agentReportedBlock>[0]
 
-describe('handing a teammate report to the main agent', () => {
-  it('names the teammate and carries what it said', () => {
+describe('handing an agent report to the parent', () => {
+  it('names the sender and carries what it said', () => {
     const block = agentReportedBlock(reported())
 
     expect(block).toContain('brn_child')
     expect(block).toContain('teammate "port #336 to comp-v3"')
+    expect(block).toContain('reported:')
     expect(block).toContain('The sidebar spacing fix is live and needs your pick.')
   })
 
-  it('says the teammate has not ended, so the report is not an ending', () => {
+  it('says the sender has not ended, so the report is not an ending', () => {
     const block = agentReportedBlock(reported())
 
     expect(block).toContain('has not ended')
-    expect(block).toContain('agent_say')
   })
 
-  it('separates the teammate from the developer so the report cannot widen the task', () => {
+  it('names the id to answer', () => {
+    const block = agentReportedBlock(reported())
+
+    expect(block).toContain(
+      'Reply by sending a message to brn_child if it needs something from you.',
+    )
+  })
+
+  it('names no tool, so a reader that lacks send_message is never told to call it', () => {
+    const block = agentReportedBlock(reported())
+
+    expect(block).not.toContain('send_message')
+    expect(block).not.toContain('agent_say')
+  })
+
+  it('separates the sender from the operator so the report cannot widen the task', () => {
     const block = agentReportedBlock(reported())
 
     expect(block).toContain('not the operator speaking')
@@ -47,73 +61,21 @@ describe('handing a teammate report to the main agent', () => {
   })
 })
 
-describe('a typed teammate report', () => {
-  it('marks a progress note as one that did not wake the parent and needs no reply', () => {
-    const block = agentReportedBlock(
-      reported({ kind: EReportKind.Progress, prose: 'CI still running' }),
-    )
-
-    expect(block).toContain('sent a progress note:')
-    expect(block).toContain('CI still running')
-    expect(block).toContain('This is a progress note. It did not wake you and needs no reply')
-    expect(block).not.toContain('may still be working')
-    expect(block).not.toContain('agent_say')
-  })
-
-  it('leads a blocked report with what is needed', () => {
-    const block = agentReportedBlock(reported({ kind: EReportKind.Blocked }))
-
-    expect(block).toContain('teammate "port #336 to comp-v3" is blocked:')
-    expect(block).toContain('agent_say')
-  })
-
-  it('leads a needs-decision report with the decision', () => {
-    const block = agentReportedBlock(reported({ kind: EReportKind.NeedsDecision }))
-
-    expect(block).toContain('teammate "port #336 to comp-v3" needs a decision:')
-  })
-
-  it('drops the may-still-be-working wording for a done report', () => {
-    const block = agentReportedBlock(reported({ kind: EReportKind.Done }))
-
-    expect(block).toContain('reported:')
-    expect(block).toContain('has not ended')
-    expect(block).not.toContain('may still be working')
-  })
-
-  it('keeps a legacy kindless report as it was', () => {
-    const block = agentReportedBlock(reported())
-
-    expect(block).toContain('reported:')
-    expect(block).toContain('has not ended and may still be working')
-  })
-})
-
 describe('a report from a v2 teammate session', () => {
   const session = 'c3150ddf-cb9d-4397-8374-7c731b9b0649'
 
-  it('names the teammate session id that message_teammate accepts, not its thread', () => {
+  it('names the teammate session id that a reply accepts, not its thread', () => {
     const block = agentReportedBlock(reported({ senderSessionId: session }))
 
     expect(block).toContain(`${session} teammate "port #336 to comp-v3" reported:`)
     expect(block).not.toContain('brn_child')
   })
 
-  it('says to answer with message_teammate rather than agent_say', () => {
-    const block = agentReportedBlock(
-      reported({ kind: EReportKind.Blocked, senderSessionId: session }),
+  it('names the sender session as the reply address', () => {
+    const block = agentReportedBlock(reported({ senderSessionId: session }))
+
+    expect(block).toContain(
+      `Reply by sending a message to ${session} if it needs something from you.`,
     )
-
-    expect(block).toContain('message_teammate')
-    expect(block).toContain('teammateId')
-    expect(block).not.toContain('agent_say')
-  })
-
-  it('names the session on a done report too', () => {
-    const block = agentReportedBlock(reported({ kind: EReportKind.Done, senderSessionId: session }))
-
-    expect(block).toContain(`${session} teammate`)
-    expect(block).toContain('message_teammate')
-    expect(block).not.toContain('agent_say')
   })
 })

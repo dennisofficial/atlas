@@ -1,4 +1,5 @@
 import {
+  agentLabel,
   attachmentsOf,
   EAttachmentStore,
   type Attachment,
@@ -7,6 +8,8 @@ import {
 } from '@dltech/atlas-core'
 import type { SessionCommandInput, SessionCommandOutput } from '@dltech/atlas-protocol'
 import type { SaidImageWire } from '@dltech/atlas-wire/web'
+
+import type { RewindKillRow } from '@/features/threads/data/rewind'
 
 export type RewindApi = {
   command(input: SessionCommandInput): Promise<SessionCommandOutput>
@@ -48,6 +51,49 @@ export const rewoundMessageOf = (args: {
     text: picked.text,
     attachments: attachmentsOf(picked),
   }
+}
+
+const shellLabelOf = (event: { command: string; description?: string | undefined }): string =>
+  event.description?.trim() || event.command.replace(/\s+/g, ' ').trim()
+
+export const rewindKillsOf = (args: {
+  events: readonly V2Event[]
+  toSeq: number
+}): readonly RewindKillRow[] => {
+  const seeds = new Map<string, { kind: RewindKillRow['kind']; id: string; label: string }>()
+  const running = new Set<string>()
+  for (const event of args.events) {
+    if (event.seq <= args.toSeq) continue
+    switch (event.type) {
+      case 'agent-spawned': {
+        const key = `agent:${event.agentId}`
+        seeds.set(key, {
+          kind: 'agent',
+          id: event.agentId,
+          label: agentLabel({ agentType: event.agentType, intent: event.intent }),
+        })
+        running.add(key)
+        break
+      }
+      case 'agent-ended':
+        running.delete(`agent:${event.agentId}`)
+        break
+      case 'background-shell-started': {
+        const key = `shell:${event.shellId}`
+        seeds.set(key, { kind: 'shell', id: event.shellId, label: shellLabelOf(event) })
+        running.add(key)
+        break
+      }
+      case 'background-shell-ended':
+        running.delete(`shell:${event.shellId}`)
+        break
+    }
+  }
+  return [...seeds.values()].map((seed) => ({
+    kind: seed.kind,
+    label: seed.label || seed.id,
+    running: running.has(`${seed.kind}:${seed.id}`),
+  }))
 }
 
 /**

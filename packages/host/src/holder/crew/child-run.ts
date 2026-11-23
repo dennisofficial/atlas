@@ -1,7 +1,6 @@
 import {
   EAgentStatus,
   EKilledBy,
-  EReportKind,
   finishedTurnOf,
   type AgentLost,
   INBOX_KIND_EVENT,
@@ -10,7 +9,6 @@ import {
   isResumableOf,
   type ThreadId,
 } from '@dltech/atlas-core'
-import { INBOX_KIND_MESSAGE } from '@dltech/atlas-protocol'
 import { PauseSignal, type LoopTurnRunner, type TurnOutcome } from '@dltech/atlas-agent'
 import { logFieldsOf } from '@dltech/atlas-observability'
 import type { PodCrew, SubagentSaid, SubagentSnapshot } from '@dltech/atlas-plugin-sdk'
@@ -18,6 +16,7 @@ import type { PodCrew, SubagentSaid, SubagentSnapshot } from '@dltech/atlas-plug
 import type { RoleModelChoice } from '../ports'
 import type { LeaseLostError, SessionRecord } from '../record/record-adapter'
 import { childInboxOf, type ChildInbox } from './child-inbox'
+import { inboxInputOf, type CrewSender } from './child-message'
 import { childPortOf } from './child-port'
 import { childChoiceOf } from './child-model'
 import {
@@ -31,7 +30,7 @@ import { DRAIN_IN_FLIGHT_CAP_MS } from '../drain-cap'
 import { childRunnerOf } from './child-runner'
 import { ChildTranscript } from './child-transcript'
 import { driveLifecycle, type DriveArgs } from './child-turns'
-import { lastSeqOf, messagePayloadOf } from './child-reports'
+import { lastSeqOf } from './child-reports'
 import {
   adoptRecordOf,
   childRecordOf,
@@ -136,8 +135,8 @@ export class ChildRun {
     return this.pump ?? Promise.resolve()
   }
 
-  async say(text: string): Promise<SubagentSaid> {
-    await this.inbox.post({ kind: INBOX_KIND_MESSAGE, payload: messagePayloadOf({ text }) })
+  async say(args: { text: string; from?: CrewSender | undefined }): Promise<SubagentSaid> {
+    await this.inbox.post(inboxInputOf(args))
     if (this.pump !== undefined) return { queued: true, snapshot: this.snapshot() }
     this.begin({ restart: this.ending !== undefined })
     return { queued: false, snapshot: this.snapshot() }
@@ -231,7 +230,14 @@ export class ChildRun {
   }
 
   port(): PodCrew {
-    return childPortOf({ report: (report) => this.report(report) })
+    return childPortOf({
+      say: (said) =>
+        this.args.saySibling({
+          ...said,
+          from: { agentId: this.agentId, agentType: this.args.agentType, intent: this.args.intent },
+        }),
+      report: (report) => this.report(report),
+    })
   }
 
   private begin(args: DriveArgs): void {
@@ -329,7 +335,7 @@ export class ChildRun {
     await this.transcript.ended({ progress, ...args })
   }
 
-  private async report(args: { kind: EReportKind; text: string }): Promise<SubagentSnapshot> {
+  private async report(args: { text: string }): Promise<SubagentSnapshot> {
     await this.transcript.reported(args)
     return this.snapshot()
   }

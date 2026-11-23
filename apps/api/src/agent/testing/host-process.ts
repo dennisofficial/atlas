@@ -109,6 +109,7 @@ const testSource = (): ConfigSource => ({
       model,
       models: fakeModelSourceOf(model),
       classifier: { on: false, reason: 'no classifier model is set' },
+      quality: { enabled: false, policies: {} },
       sandbox: {
         configured: true,
         provider: ESandboxProvider.Vercel,
@@ -196,6 +197,7 @@ const main = async (): Promise<void> => {
         return withFirstChunkMarker(new ScriptedModel(script, undefined, existsSync))
       },
       launchDirectory: workspace,
+      sandboxHome: process.env.SANDBOX_HOME,
       panelHolds: (sessionId) => held?.demandOf().panel.countOf(sessionId) ?? 0,
       plugins: process.env.FAULT_PLUGINS === '1' ? composedPlugins : undefined,
       log,
