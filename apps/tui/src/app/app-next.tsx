@@ -6,7 +6,7 @@ import type { FollowedSessionList } from '@dltech/atlas-client/stream'
 
 import { Threads } from '../ui/components/threads'
 import { isSettlingLogin } from '../ui/settings-login-model'
-import { theme } from '../ui/theme'
+import type { ThreadRow } from '../ui/threads-model'
 import {
   ACCOUNT_FILE_VERSION,
   deleteAccount,
@@ -15,11 +15,20 @@ import {
 } from './account/account-file'
 import { fetchSessionEmail, signOutSession } from './account/session-email'
 import { useDeviceSignIn } from './account/use-device-sign-in'
-import { EScreen, screenOfAccount, screenOnAuthLost, type ScreenState } from './app-screen'
+import {
+  EScreen,
+  screenOfAccount,
+  screenOnAuthLost,
+  screenOnBack,
+  screenOnPick,
+  type ScreenState,
+} from './app-screen'
 import { AwaitingAccessScreen } from './awaiting-access-screen'
 import { createSessionClient, type AuthRefusal, type SessionClient } from './session-client'
 import { SignInScreen } from './sign-in-screen'
+import { TranscriptScreen } from './transcript-screen'
 import { useSessionList } from './use-session-list'
+import { useSessionTranscript } from './use-session-transcript'
 
 export type SessionClientArgs = {
   apiUrl: string
@@ -48,8 +57,6 @@ const EMPTY_SESSION_LIST: FollowedSessionList = {
   subscribe: () => () => undefined,
   close: () => undefined,
 }
-
-const LIST_HINT = 'opening a conversation arrives next week'
 
 const isEnter = (key: KeyEvent): boolean => key.name === 'return' || key.name === 'enter'
 
@@ -131,7 +138,7 @@ export function AppNext(props: AppNextProps): React.ReactNode {
     [],
   )
 
-  const handlePick = useCallback((): void => undefined, [])
+  const handlePick = useCallback((row: ThreadRow) => setScreen(screenOnPick({ row })), [])
 
   const handleSignOut = useCallback(async () => {
     const open = held.current
@@ -164,6 +171,7 @@ export function AppNext(props: AppNextProps): React.ReactNode {
           else list.handleKey(key)
           return
         case EScreen.Transcript:
+          if (key.name === 'escape') setScreen(screenOnBack())
           return
       }
     },
@@ -194,14 +202,22 @@ export function AppNext(props: AppNextProps): React.ReactNode {
     )
   }
 
-  if (screen.screen === EScreen.Transcript) return null
+  if (screen.screen === EScreen.Transcript) {
+    if (client === null) return null
+    return (
+      <TranscriptRoute
+        client={client}
+        sessionId={screen.sessionId}
+        title={screen.title}
+        width={width}
+        now={now}
+      />
+    )
+  }
 
   return (
     <box flexDirection="column" flexGrow={1} width={width}>
       <box flexGrow={1} />
-      <box flexShrink={0} paddingLeft={2} paddingRight={2}>
-        <text fg={theme.hint}>{LIST_HINT}</text>
-      </box>
       <Threads
         width={width}
         state={list.state}
@@ -210,5 +226,29 @@ export function AppNext(props: AppNextProps): React.ReactNode {
         onQueryChange={list.handleQuery}
       />
     </box>
+  )
+}
+
+function TranscriptRoute(props: {
+  client: SessionClient
+  sessionId: string
+  title: string | null
+  width: number
+  now: () => number
+}): React.ReactNode {
+  const transcript = useSessionTranscript({
+    client: props.client,
+    sessionId: props.sessionId,
+    title: props.title,
+    now: props.now,
+  })
+
+  return (
+    <TranscriptScreen
+      transcript={transcript}
+      width={props.width}
+      cwd={process.cwd()}
+      now={props.now()}
+    />
   )
 }

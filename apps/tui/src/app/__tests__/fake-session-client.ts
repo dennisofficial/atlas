@@ -1,6 +1,10 @@
 import type { V2Event } from '@dltech/atlas-core'
-import type { StreamSessionRow } from '@dltech/atlas-protocol'
-import { createStreamConnection, type StreamConnection } from '@dltech/atlas-client/stream'
+import type { StreamSessionRow, StreamStepKey } from '@dltech/atlas-protocol'
+import {
+  createStreamConnection,
+  type OverlayBlock,
+  type StreamConnection,
+} from '@dltech/atlas-client/stream'
 import {
   createFakeScheduler,
   createFakeTransport,
@@ -13,6 +17,11 @@ import type { AuthRefusal, SessionClient } from '../session-client'
 export type FakeSessionClient = SessionClient & {
   pushRows: (rows: readonly StreamSessionRow[]) => void
   pushEvents: (args: { sessionId: string; events: readonly V2Event[]; live: boolean }) => void
+  pushOverlay: (args: {
+    sessionId: string
+    key: StreamStepKey
+    blocks: readonly OverlayBlock[]
+  }) => void
   refuse: (status: AuthRefusal) => void
 }
 
@@ -59,6 +68,19 @@ export const fakeSessionClient = (args: {
         subscription.handlers.handleFrame(
           eventsMessage({ id: input.sessionId, events: input.events, live: input.live }),
         )
+      }
+    },
+    pushOverlay: (input) => {
+      for (const subscription of fake.follows) {
+        if (subscription.closed) continue
+        if (subscription.input?.sessionId !== input.sessionId) continue
+        subscription.handlers.handleFrame({
+          type: 'overlay',
+          id: nextId(),
+          key: input.key,
+          afterSeq: 0,
+          blocks: input.blocks.map((block) => ({ ...block })),
+        })
       }
     },
     refuse: (status) => {
