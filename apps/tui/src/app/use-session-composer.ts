@@ -74,6 +74,12 @@ export function useSessionComposer(args: {
   )
 
   const fileMenu = useFileMenu({ reader: files, onComplete: draft.setValue, onProblem })
+  const readDraft = useRef(fileMenu.handleTextChanged)
+  readDraft.current = fileMenu.handleTextChanged
+
+  useEffect(() => {
+    readDraft.current(draft.value)
+  }, [draft.value, files])
 
   useComposerDraft({
     api,
@@ -86,7 +92,8 @@ export function useSessionComposer(args: {
   const [spans, setSpans] = useState<readonly HighlightSpan[]>(NO_SPANS)
 
   const handleTextChanged = useCallback(
-    (_text: string) => {
+    (text: string) => {
+      fileMenu.handleTextChanged(text)
       const editor = draft.editor.current
       setSpans(
         editor === null
@@ -94,7 +101,7 @@ export function useSessionComposer(args: {
           : liveTokens(editor).map((token) => ({ start: token.start, end: token.end })),
       )
     },
-    [draft.editor],
+    [draft.editor, fileMenu],
   )
 
   useEffect(() => {

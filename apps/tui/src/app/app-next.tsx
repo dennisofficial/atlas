@@ -28,7 +28,7 @@ import {
   type ScreenState,
 } from './app-screen'
 import { AwaitingAccessScreen } from './awaiting-access-screen'
-import { chatBindings, pressHandled } from './chat-bindings'
+import { chatBindings, chatPressHandled } from './chat-bindings'
 import { ChatScreen } from './chat-screen'
 import { createSessionClient, type AuthRefusal, type SessionClient } from './session-client'
 import { SignInScreen } from './sign-in-screen'
@@ -330,7 +330,6 @@ function ChatScreenHost(props: {
     () =>
       chatBindings({
         draftIsEmpty: composer.draftIsEmpty,
-        working: () => transcript.working,
         onSubmit: composer.handleSubmit,
         onTakeBackPending: composer.handleTakeBackPending,
         onAttachImage: composer.handleAttachImage,
@@ -342,7 +341,7 @@ function ChatScreenHost(props: {
   const handleKey = useCallback(
     (key: KeyEvent): boolean => {
       if (composer.handleKey(key)) return true
-      return pressHandled({ press: key, bindings, match: chordMatches })
+      return chatPressHandled({ press: key, bindings, match: chordMatches })
     },
     [bindings, composer],
   )

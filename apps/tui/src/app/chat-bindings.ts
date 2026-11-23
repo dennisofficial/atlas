@@ -4,7 +4,6 @@ import { EKeyGroup, EKeyLayer, type KeyBinding } from '../ui/keys'
 
 export type ChatHandlers = {
   draftIsEmpty: () => boolean
-  working: () => boolean
   onSubmit: () => void
   onTakeBackPending: () => boolean
   onAttachImage: () => void
@@ -50,7 +49,7 @@ export const chatBindings = (handlers: ChatHandlers): readonly KeyBinding[] => [
   }),
 ]
 
-export const pressHandled = (args: {
+export const chatPressHandled = (args: {
   press: KeyEvent
   bindings: readonly KeyBinding[]
   match: (args: { chord: string; press: KeyEvent }) => boolean
