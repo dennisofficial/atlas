@@ -149,6 +149,13 @@ export type Drainable = {
 
 export type LoggedMessage = { inboxId: number; message: InputMessage }
 
+export const drainDraftsOf = (item: Drainable): (EventDraft | RecordBody | PluginEventBody)[] => {
+  if (item.posted || item.entry === undefined) {
+    return [userSaidOf({ inboxId: item.inboxId, message: item.message })]
+  }
+  return postedAndSaidOf({ entry: item.entry, message: item.message })
+}
+
 export const drainOrderOf = (params: {
   staged: readonly { entry: InboxEntry; message: InputMessage }[]
   logged: readonly LoggedMessage[]
@@ -167,12 +174,15 @@ export const drainOrderOf = (params: {
   return [...staged, ...logged].sort((left, right) => left.inboxId - right.inboxId)
 }
 
-export const loggedMessagesOf = (events: readonly V2Event[]): LoggedMessage[] =>
-  pendingInputsOf(events).pending.flatMap((pending) =>
-    pending.kind !== INBOX_KIND_MESSAGE || pending.message === undefined
-      ? []
-      : [{ inboxId: pending.inboxId, message: pending.message }],
-  )
+export const loggedMessagesOf = (params: {
+  events: readonly V2Event[]
+  isCommandText?: ((text: string) => boolean) | undefined
+}): LoggedMessage[] =>
+  pendingInputsOf(params.events).pending.flatMap((pending) => {
+    if (pending.kind !== INBOX_KIND_MESSAGE || pending.message === undefined) return []
+    if (params.isCommandText?.(pending.message.text) === true) return []
+    return [{ inboxId: pending.inboxId, message: pending.message }]
+  })
 
 export const loggedNoticesOf = (params: {
   events: readonly V2Event[]

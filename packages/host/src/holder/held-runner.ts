@@ -198,6 +198,7 @@ export const createLoopRunner = (args: {
     scope: EIntakeScope.Main,
     commands: deps.commands,
     handlers: deps.commandHandlers,
+    controlHandlers: deps.controlHandlers,
     model: runtime.model,
     ...(operator === undefined ? {} : { operatorAnswers: operator }),
     now: () => deps.timers.now(),

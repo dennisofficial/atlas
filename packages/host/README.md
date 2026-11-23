@@ -36,7 +36,8 @@ only what it can rebuild or drop.
 - `SessionHolder`: `start()`, `drain()`, `heldIds()`, `hostId()`, `ring()`, `podCalls()`,
   `demandOf()` and `discard()`.
 - `SessionHolderArgs`: presence, the control plane, the bus, the timers, the runtime factory, the
-  ids and the commands. It also takes the optional control, MCP, operator and changes hooks.
+  ids, the commands and their pod and control handlers. It also takes the optional control, MCP,
+  operator and changes hooks.
 - `PodCalls`: invoke an op on a held session, or listen to its frames.
 - `podControlOf(...)`: the control-plane client that a plugin's `PodControl` reaches.
 
@@ -101,6 +102,7 @@ const holder = new SessionHolder({
   ids,
   commands,
   commandHandlers,
+  controlHandlers,
 })
 
 await holder.start()

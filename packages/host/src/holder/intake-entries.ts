@@ -14,6 +14,7 @@ import { EIntakeScope, skipsInChildScope } from './intake-scope'
 import { drainEventEntry, stagedMessageOf, type StagedMessage } from './notice-drain'
 import type { OperatorAnswerIntake } from './operator-answer'
 import type { AppendDrafts } from './staged-log'
+import { ETextPlan } from './text-command'
 
 export type EntryDrain = { drainable: StagedMessage[]; wakesTurn: boolean }
 
@@ -51,7 +52,18 @@ export const drainEntries = async (args: {
     }
     if (entry.kind === INBOX_KIND_MESSAGE) {
       const staged = await stagedMessageOf({ entry, appendDrafts: args.appendDrafts })
-      if (staged !== undefined) drainable.push(staged)
+      if (staged === undefined) continue
+      const intake = args.glue.commandIntake
+      const plan = intake?.planText(staged.message.text)
+      if (intake === undefined || plan === undefined || plan.kind === ETextPlan.Message) {
+        drainable.push(staged)
+        continue
+      }
+      if (plan.kind === ETextPlan.Command && (await args.glue.turnOpen())) {
+        await intake.stageText({ entry, message: staged.message })
+        continue
+      }
+      await intake.runText({ entry, message: staged.message, plan })
       continue
     }
     if (isCommandKind(entry.kind)) {

@@ -3,10 +3,12 @@ import { describe, expect, it } from 'bun:test'
 import {
   composeCommands,
   defineCommand,
+  EClientAction,
   ECommandGroup,
   ECommandRunsIn,
   type CommandHandler,
   type CommandRegistry,
+  type ControlCommandHandler,
 } from '@dltech/atlas-commands'
 import type { ControlPlane } from '@dltech/atlas-control'
 import {
@@ -24,7 +26,7 @@ import {
 } from '@dltech/atlas-core'
 import { z } from 'zod'
 
-import type { CommandHandlers } from '../command-intake'
+import type { CommandHandlers, ControlHandlers } from '../command-intake'
 import { InboxIntake } from '../inbox-intake'
 import { EIntakeScope } from '../intake-scope'
 import type { AppendBody, SessionRecord } from '../record/record-adapter'
@@ -52,6 +54,8 @@ type RigOptions = {
   commands?: boolean
   registry?: CommandRegistry
   handlers?: CommandHandlers
+  controlHandlers?: ControlHandlers
+  renames?: { sessionId: string; title: string }[]
   now?: number
   source?: (args: { afterId: number; limit: number }) => Promise<InboxEntry[]>
 }
@@ -84,6 +88,9 @@ const rigOf = (entries: readonly InboxEntry[], options: RigOptions = {}) => {
       readInbox: source,
       readInboxEntry: async ({ inboxId }: { inboxId: number }) =>
         entries.find((kept) => kept.inboxId === inboxId),
+      renameSession: async (params: { sessionId: string; title: string }) => {
+        options.renames?.push(params)
+      },
       endTerminals: async () => 0,
     } as unknown as ControlPlane,
     sessionId: 'session-1',
@@ -94,6 +101,7 @@ const rigOf = (entries: readonly InboxEntry[], options: RigOptions = {}) => {
     ...(options.registry === undefined ? {} : { commands: options.registry }),
     ...(options.commands === true ? { commands: composeCommands([]) } : {}),
     ...(options.handlers === undefined ? {} : { handlers: options.handlers }),
+    ...(options.controlHandlers === undefined ? {} : { controlHandlers: options.controlHandlers }),
     now: () => options.now ?? NOW,
     log: {
       warn: (line: { message: string }) => warnings.push(line.message),
@@ -680,5 +688,87 @@ describe('InboxIntake in the child scope', () => {
     const drain = await rig.intake.prepare()
     expect(drain).toEqual({ drafts: [], wakesTurn: false })
     expect(rig.appends).toEqual([])
+  })
+})
+
+const renameArgs = z.strictObject({ name: z.string().trim().min(1) })
+
+const renameCommand = defineCommand({
+  spec: {
+    name: 'rename',
+    summary: 'Rename this session',
+    group: ECommandGroup.Session,
+    argumentHint: '<name>',
+    args: renameArgs,
+    runsIn: ECommandRunsIn.Control,
+    fromText: (argumentText) =>
+      argumentText === ''
+        ? { ok: false, reason: '/rename needs a name' }
+        : { ok: true, args: { name: argumentText } },
+  },
+})
+
+const modelCommand = defineCommand({
+  spec: {
+    name: 'model',
+    summary: 'Pick a model',
+    group: ECommandGroup.Session,
+    args: z.strictObject({}),
+    runsIn: ECommandRunsIn.Client,
+    opens: EClientAction.ModelPicker,
+  },
+})
+
+const renameHandler: ControlCommandHandler<ControlPlane, unknown> = async ({
+  plane,
+  sessionId,
+  args,
+}) => {
+  const { name } = renameArgs.parse(args)
+  await plane.renameSession({ sessionId, title: name })
+}
+
+describe('InboxIntake typed text commands', () => {
+  const registry = composeCommands([renameCommand, modelCommand])
+
+  it('posts, consumes and runs a typed control command without saying it', async () => {
+    const renames: { sessionId: string; title: string }[] = []
+    const rig = rigOf([entry(1, { text: '/rename bench' })], {
+      registry,
+      controlHandlers: new Map([['rename', renameHandler]]),
+      renames,
+    })
+    const drain = await rig.intake.prepare()
+    expect(drain).toEqual({ drafts: [], wakesTurn: false })
+    expect(rig.appends).toEqual([
+      [posted(1, { text: '/rename bench' })],
+      [
+        {
+          type: 'input-consumed',
+          inboxId: 1,
+          consumed: EInputConsumed.Command,
+          command: { name: 'rename', argumentText: 'bench', text: '/rename bench' },
+        },
+      ],
+    ])
+    expect(renames).toEqual([{ sessionId: 'session-1', title: 'bench' }])
+    expect(rig.appended.some((draft) => draft.type === 'user-said')).toBe(false)
+  })
+
+  it('refuses a typed client command with the sentence that sends it to the menu', async () => {
+    const rig = rigOf([entry(1, { text: '/model' })], { registry })
+    const drain = await rig.intake.prepare()
+    expect(drain).toEqual({ drafts: [], wakesTurn: false })
+    expect(rig.appends).toEqual([
+      [posted(1, { text: '/model' })],
+      [
+        {
+          type: 'input-refused',
+          inboxId: 1,
+          reason: '/model opens in the app. Pick it from the / menu.',
+        },
+      ],
+    ])
+    expect(rig.appended.some((draft) => draft.type === 'user-said')).toBe(false)
   })
 })

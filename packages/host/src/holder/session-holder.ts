@@ -16,7 +16,7 @@ import type { PodControlClient } from './pod-control'
 import { ClaimLoop } from './claim-loop'
 import { HolderDemand } from './holder-demand'
 import { PodCalls } from './pod-calls'
-import type { CommandHandlers } from './command-intake'
+import type { CommandHandlers, ControlHandlers } from './command-intake'
 import { HeldSession, type HeldSessionDeps } from './held-session'
 import { HolderPresence } from './holder-presence'
 import { auditOwnLeases } from './own-lease-audit'
@@ -37,6 +37,7 @@ export class SessionHolder {
   private readonly reasonOfStartError: ((error: unknown) => string) | undefined
   private readonly commands: CommandRegistry | undefined
   private readonly commandHandlers: CommandHandlers | undefined
+  private readonly controlHandlers: ControlHandlers | undefined
   private readonly control: PodControlClient | undefined
   private readonly mcp: ((sessionId: string) => PodMcpControl) | undefined
   private readonly operator: SessionHolderArgs['operator']
@@ -85,6 +86,7 @@ export class SessionHolder {
     this.reasonOfStartError = args.reasonOfStartError
     this.commands = args.commands
     this.commandHandlers = args.commandHandlers
+    this.controlHandlers = args.controlHandlers
     this.control = args.control
     this.mcp = args.mcp
     this.operator = args.operator
@@ -281,6 +283,7 @@ export class SessionHolder {
       reasonOfStartError: this.reasonOfStartError,
       commands: this.commands,
       commandHandlers: this.commandHandlers,
+      controlHandlers: this.controlHandlers,
       control: this.control,
       mcp: this.mcp,
       changes: this.changes,
