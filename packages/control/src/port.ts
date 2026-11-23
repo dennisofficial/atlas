@@ -43,6 +43,7 @@ export type {
   SessionDigestRow,
   SessionListParams,
   SessionModelRow,
+  SessionTurnEnding,
 } from './session-rows'
 
 export type {

@@ -83,3 +83,5 @@ export * from './desktop-auth-wire.js'
 export * from './push-devices-wire.js'
 export * from './presence-wire.js'
 export * from './session-stream-wire.js'
+
+export * from './notify-wire.js'

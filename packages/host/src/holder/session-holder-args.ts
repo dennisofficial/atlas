@@ -6,7 +6,7 @@ import type { LogPort } from '@dltech/atlas-observability'
 
 import type { HostBus, HostPresence, HostTimers, PodPeers, SessionRuntimeFactory } from './ports'
 import type { PodControlClient } from './pod-control'
-import type { CommandHandlers } from './command-intake'
+import type { CommandHandlers, ControlHandlers } from './command-intake'
 import type { PanelDemand } from './panel-demand'
 import type { TerminalDemand } from './terminal-demand'
 import { DEFAULT_APPEND_RETRY_MS } from './record/retry-deadline'
@@ -25,6 +25,7 @@ export type SessionHolderArgs = {
   reasonOfStartError?: ((error: unknown) => string) | undefined
   commands?: CommandRegistry | undefined
   commandHandlers?: CommandHandlers | undefined
+  controlHandlers?: ControlHandlers | undefined
   control?: PodControlClient | undefined
   mcp?: ((sessionId: string) => PodMcpControl) | undefined
   operator?:

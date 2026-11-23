@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'bun:test'
 
-import { composeCommands, defineCommand, type CommandHandler } from '@dltech/atlas-commands'
-import { ECommandGroup, ECommandTiming, EInputConsumed, type V2Event } from '@dltech/atlas-core'
+import {
+  composeCommands,
+  defineCommand,
+  ECommandGroup,
+  ECommandRunsIn,
+  type CommandHandler,
+} from '@dltech/atlas-commands'
+import { EInputConsumed, type V2Event } from '@dltech/atlas-core'
 import { z } from 'zod'
 
 import { flushUntil, makeRig, seedSession, SESSION, THREAD_ID } from './holder-rig'
@@ -12,8 +18,8 @@ const ping = defineCommand({
     summary: 'records a fact',
     group: ECommandGroup.Session,
     args: z.strictObject({ word: z.string() }),
-    timing: ECommandTiming.Settled,
-    handledIn: 'holder',
+    runsIn: ECommandRunsIn.Host,
+    fromText: (argumentText) => ({ ok: true, args: { word: argumentText } }),
   },
 })
 
@@ -174,5 +180,38 @@ describe('SessionHolder command intake', () => {
     expect(settled).toBe(true)
     const types = await typesOf(rig)
     expect(types.indexOf('fact-recorded')).toBeGreaterThan(types.indexOf('assistant-said'))
+  })
+
+  it('runs a typed command posted mid-turn after the turn settles, once, without a second turn', async () => {
+    const rig = await makeRig({
+      script: [
+        {
+          calls: [{ callId: 'call-1', name: 'bash', input: { command: 'sleep 0.3; echo done' } }],
+        },
+        { text: 'finished' },
+      ],
+      commands: composeCommands([ping]),
+      commandHandlers: new Map([[ping.inboxKind, handlerOf('done')]]),
+    })
+    await seedSession(rig)
+    await rig.holder.start()
+    await rig.post('go')
+    await rig.wake()
+    await flushUntil({
+      check: async () => (await typesOf(rig)).includes('tool-dispatched'),
+    })
+    await rig.post('/ping late')
+    await rig.wake()
+    expect((await typesOf(rig)).includes('fact-recorded')).toBe(false)
+    const settled = await flushUntil({
+      check: async () => (await typesOf(rig)).includes('fact-recorded'),
+      attempts: 1500,
+    })
+    expect(settled).toBe(true)
+    const types = await typesOf(rig)
+    expect(types.indexOf('fact-recorded')).toBeGreaterThan(types.indexOf('assistant-said'))
+    expect(types.filter((type) => type === 'assistant-said')).toHaveLength(1)
+    expect(types.filter((type) => type === 'user-said')).toHaveLength(1)
+    expect(rig.runCount()).toBe(1)
   })
 })

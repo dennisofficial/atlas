@@ -1,4 +1,4 @@
-import { EInputConsumed, type V2Event } from './event'
+import { EInputConsumed, type ConsumedCommand, type V2Event } from './event'
 import { commandInputName } from './input-events'
 import type { PendingInputsState } from './pending-inputs'
 
@@ -28,6 +28,7 @@ export type CommandOutcomeEvent = {
   inboxId?: number | undefined
   kind?: string | undefined
   consumed?: EInputConsumed | undefined
+  command?: ConsumedCommand | string | undefined
 }
 
 export const unfinishedCommandIdsOf = (
@@ -35,10 +36,16 @@ export const unfinishedCommandIdsOf = (
 ): readonly number[] => {
   const names = new Map<number, string>()
   for (const event of events) {
-    if (event.type !== 'input-posted' || event.kind === undefined) continue
     if (event.inboxId === undefined) continue
-    const name = commandInputName(event.kind)
-    if (name !== undefined) names.set(event.inboxId, name)
+    if (event.type === 'input-posted') {
+      if (event.kind === undefined) continue
+      const name = commandInputName(event.kind)
+      if (name !== undefined) names.set(event.inboxId, name)
+      continue
+    }
+    if (event.type === 'input-consumed' && typeof event.command === 'object') {
+      names.set(event.inboxId, event.command.name)
+    }
   }
   const finished = new Set<number>()
   let unnamedOutcomeSeq = 0
@@ -77,12 +84,21 @@ export const commandLogOf = (events: readonly V2Event[]): readonly V2Event[] =>
   events.filter(isCommandLogEvent)
 
 export const runningCommandEntriesOf = (events: readonly V2Event[]): readonly CommandEntry[] => {
+  const postedAt = new Map<number, string>()
   const posted = new Map<number, CommandEntry>()
   for (const event of events) {
     if (event.type !== 'input-posted') continue
+    postedAt.set(event.inboxId, event.postedAt)
     const name = commandInputName(event.kind)
-    if (name === undefined) continue
-    posted.set(event.inboxId, { inboxId: event.inboxId, name, postedAt: event.postedAt })
+    if (name !== undefined) {
+      posted.set(event.inboxId, { inboxId: event.inboxId, name, postedAt: event.postedAt })
+    }
+  }
+  for (const event of events) {
+    if (event.type !== 'input-consumed' || event.command === undefined) continue
+    const at = postedAt.get(event.inboxId)
+    if (at === undefined) continue
+    posted.set(event.inboxId, { inboxId: event.inboxId, name: event.command.name, postedAt: at })
   }
   return unfinishedCommandIdsOf(events).flatMap((inboxId) => {
     const entry = posted.get(inboxId)

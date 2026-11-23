@@ -3,6 +3,8 @@ import { ScriptedModel } from '@dltech/atlas-agent/testing'
 import {
   ECompactionAnchor,
   SUMMARY_REFUSAL_CANNOT,
+  SUMMARY_REFUSAL_NOTHING,
+  type Event,
   type EventDraft,
   type ModelPort,
   type RecordBody,
@@ -22,17 +24,19 @@ const conversation = () =>
 const run = async ({
   throughSeq,
   model,
+  visibleEvents = conversation,
 }: {
-  throughSeq: number
+  throughSeq?: number | undefined
   model?: ModelPort | undefined
+  visibleEvents?: () => readonly Event[]
 }) => {
   const appended: (EventDraft | RecordBody)[] = []
   const result = await summariseHandler({
-    args: { throughSeq },
+    args: throughSeq === undefined ? {} : { throughSeq },
     sessionId: 's1',
     inboxId: 7,
     model,
-    visibleEvents: conversation,
+    visibleEvents,
     append: async (drafts) => {
       appended.push(...drafts)
     },
@@ -61,6 +65,47 @@ describe('summariseHandler', () => {
     expect(request?.assembled.messages).toHaveLength(1)
     expect(JSON.stringify(request?.assembled.messages[0]?.message)).toContain('Operator: first')
     expect(JSON.stringify(request?.assembled.messages[0]?.message)).not.toContain('second')
+  })
+
+  it('defaults to everything before the last message', async () => {
+    const model = new ScriptedModel([{ text: 'the notes' }])
+    const { appended, result } = await run({ model })
+    expect(result).toEqual({ kind: 'done' })
+    expect(appended).toEqual([
+      {
+        type: 'history-summarised',
+        fromSeq: 1,
+        throughSeq: 2,
+        anchor: ECompactionAnchor.Prefix,
+        summary: 'the notes',
+        inboxId: 7,
+      },
+    ])
+    expect(JSON.stringify(model.requests[0]?.assembled.messages[0]?.message)).not.toContain(
+      'second',
+    )
+  })
+
+  it('refuses the default with no message of its own', async () => {
+    const model = new ScriptedModel([{ text: 'the notes' }])
+    const { appended, result } = await run({
+      model,
+      visibleEvents: () => eventsFrom([replied('one')]),
+    })
+    expect(result).toEqual({ kind: 'refused', reason: SUMMARY_REFUSAL_NOTHING })
+    expect(appended).toEqual([])
+    expect(model.requests).toHaveLength(0)
+  })
+
+  it('refuses the default when nothing comes before the first message', async () => {
+    const model = new ScriptedModel([{ text: 'the notes' }])
+    const { appended, result } = await run({
+      model,
+      visibleEvents: () => eventsFrom([said('only'), replied('one')]),
+    })
+    expect(result).toEqual({ kind: 'refused', reason: SUMMARY_REFUSAL_NOTHING })
+    expect(appended).toEqual([])
+    expect(model.requests).toHaveLength(0)
   })
 
   it('refuses without a model', async () => {

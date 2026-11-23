@@ -10,31 +10,24 @@ import {
 import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 import { z } from 'zod'
 
-import { ESkillOrigin, expandSkillBody, skillBodyOf } from '../core'
-import type { SkillCatalogue } from './catalogue'
 import { catalogueOf } from './catalogue-source'
+import type { BuiltInFile } from './builtin-files'
 import { textOf } from './daemon'
 import type { CloudSkillBody } from './port'
 import type { SkillsPodOptions } from './resources'
-import type { BuiltInFile } from './builtin-files'
-import type {
-  BuiltInCatalogueSkill,
-  CatalogueSkill,
-  CloudCatalogueSkill,
-  RepoCatalogueSkill,
-} from './types'
-
-const isRepoSkill = (skill: CatalogueSkill): skill is RepoCatalogueSkill => 'entryPath' in skill
-
-const isBuiltInSkill = (skill: CatalogueSkill): skill is BuiltInCatalogueSkill => 'text' in skill
+import {
+  entryPathOf,
+  isBuiltInSkill,
+  isCloudSkill,
+  isRepoSkill,
+  loadSkillBodyOf,
+  SKILLS_UNREADABLE_REASON,
+  unknownReason,
+} from './skill-body'
+import type { CatalogueSkill, CloudCatalogueSkill } from './types'
 
 const isBinaryFile = (file: BuiltInFile): file is { path: string; binary: string } =>
   'binary' in file
-
-const isCloudSkill = (skill: CatalogueSkill): skill is CloudCatalogueSkill =>
-  skill.origin === ESkillOrigin.CloudUser || skill.origin === ESkillOrigin.CloudProject
-
-const SUGGESTION_LIMIT = 3
 
 const inputSchema = z.strictObject({
   name: z.string().min(1),
@@ -48,67 +41,6 @@ const description = [
   'Pass name exactly as the listing spells it, and arguments only when the task has a subject the skill should be pointed at. Most skills need none.',
   'Pass path to read one file a skill bundles: the path is relative to the skill\u2019s own directory.',
 ].join(' ')
-
-const editDistance = (left: string, right: string): number => {
-  let previous = Array.from({ length: right.length + 1 }, (_, index) => index)
-
-  for (let row = 1; row <= left.length; row += 1) {
-    const current = [row]
-    for (let column = 1; column <= right.length; column += 1) {
-      const matched = left[row - 1] === right[column - 1]
-      current.push(
-        Math.min(
-          (previous[column - 1] ?? 0) + (matched ? 0 : 1),
-          (previous[column] ?? 0) + 1,
-          (current[column - 1] ?? 0) + 1,
-        ),
-      )
-    }
-    previous = current
-  }
-
-  return previous[right.length] ?? 0
-}
-
-const nearestNames = (args: { requested: string; names: readonly string[] }): readonly string[] =>
-  args.names
-    .map((name) => ({ name, distance: editDistance(args.requested, name) }))
-    .filter(
-      (one) => one.distance <= Math.ceil(Math.max(args.requested.length, one.name.length) / 2),
-    )
-    .sort((left, right) => left.distance - right.distance || left.name.localeCompare(right.name))
-    .slice(0, SUGGESTION_LIMIT)
-    .map((one) => one.name)
-
-const unknownReason = (args: { requested: string; catalogue: SkillCatalogue }): string => {
-  const names = args.catalogue.skills
-    .filter((skill) => skill.modelInvocable)
-    .map((skill) => skill.name)
-  if (names.length === 0) return `no skill is named ${args.requested}, and none is available to you`
-
-  const nearest = nearestNames({ requested: args.requested, names })
-  if (nearest.length === 0)
-    return `no skill is named ${args.requested}; the listing in your system prompt names the ones you have`
-  return `no skill is named ${args.requested}; the closest are ${nearest.join(', ')}`
-}
-
-const directoryNoteOf = (skill: CatalogueSkill): string =>
-  skill.directory === null
-    ? ''
-    : `The ${skill.name} skill is installed at ${skill.directory}. Every relative path below names a file inside that directory. Read one by joining it onto that path rather than onto the project directory.`
-
-const bundlesFiles = (skill: CatalogueSkill): boolean =>
-  isCloudSkill(skill) || (isBuiltInSkill(skill) && skill.files.length > 0)
-
-const bundledNoteOf = (skill: CatalogueSkill): string =>
-  bundlesFiles(skill)
-    ? `The ${skill.name} skill has no directory in this session. Read a file it bundles by calling this tool again with path set to that file's path.`
-    : ''
-
-const noteOf = (skill: CatalogueSkill): string => directoryNoteOf(skill) || bundledNoteOf(skill)
-
-const entryPathOf = (skill: CatalogueSkill): string | null =>
-  isRepoSkill(skill) ? skill.entryPath : null
 
 const isInsideDirectory = (path: string): boolean =>
   !isAbsolute(path) && path.split('/').every((segment) => segment !== '..')
@@ -143,8 +75,7 @@ export class SkillTool extends SchemaTool<typeof inputSchema> {
       options: this.options,
       directory: projectDirectory,
     })
-    if (catalogue === null)
-      return { ok: false, reason: 'the skills could not be read in this session' }
+    if (catalogue === null) return { ok: false, reason: SKILLS_UNREADABLE_REASON }
 
     const requested = input.name.trim().toLowerCase()
     const found = catalogue.skills.find((skill) => skill.name === requested)
@@ -223,13 +154,16 @@ export class SkillTool extends SchemaTool<typeof inputSchema> {
     skill: CatalogueSkill
     arguments: string | undefined
   }): Promise<ToolOutcome> {
-    const loaded = await this.skillText(args.skill)
-    if (loaded === null)
-      return { ok: false, reason: `the ${args.skill.name} skill's text could not be read` }
-
     const argumentText = args.arguments?.trim() ?? ''
-    const body = expandSkillBody({ body: skillBodyOf(loaded.text), argumentText })
-    const note = noteOf(args.skill)
+    const loaded = await loadSkillBodyOf({
+      ctx: this.ctx,
+      options: this.options,
+      skill: args.skill,
+      argumentText,
+    })
+    if (!loaded.ok) return { ok: false, reason: loaded.reason }
+
+    const { body, note, revision, hash } = loaded.loaded
     return {
       ok: true,
       output: {
@@ -238,19 +172,10 @@ export class SkillTool extends SchemaTool<typeof inputSchema> {
         path: entryPathOf(args.skill),
         text: body,
         argumentText,
-        revision: loaded.revision,
-        hash: loaded.hash,
+        revision,
+        hash,
       },
       modelText: note === '' ? body : `${note}\n\n${body}`,
     }
-  }
-
-  private async skillText(skill: CatalogueSkill): Promise<CloudSkillBody | null> {
-    if (isBuiltInSkill(skill)) return { text: skill.text, revision: 0, hash: '' }
-    if (isRepoSkill(skill)) {
-      const read = await textOf({ ctx: this.ctx, path: skill.entryPath })
-      return read.ok ? { text: read.value, revision: 0, hash: '' } : null
-    }
-    return await this.options.cloud(this.ctx).body(cloudEntryOf(skill))
   }
 }

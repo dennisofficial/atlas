@@ -422,11 +422,15 @@ two `fetch` callers, built by hand beside `routine-graph.ts`
   load: iOS rejects a request that is not in response to a user action
   (<https://webkit.org/blog/13878/web-push-for-web-apps-on-ios-and-ipados/>).
 - **Secrets.** A VAPID key pair in the encrypted tiers: `WEB_PUSH_PUBLIC_KEY`,
-  `WEB_PUSH_PRIVATE_KEY`, `WEB_PUSH_SUBJECT` for the sender in `apps/trigger/.env.production.enc`,
-  and the public key exposed to the page through the `env` block of `apps/web/next.config.ts:34-39`
-  with the value in `apps/web/.env.production.enc`. Encrypt with `bunx dotenvx`, per `AGENTS.md`.
-- **Dependency.** `web-push` (with its types) declared in `apps/trigger/package.json`. The isolated
-  linker means an undeclared dependency will not resolve.
+  `WEB_PUSH_PRIVATE_KEY` and `WEB_PUSH_SUBJECT` for the sender in
+  `apps/trigger/.env.production.enc`, and `WEB_PUSH_PUBLIC_KEY` in the API tiers. The page reads
+  the public key from the `notifications.webPushKey` query, which answers `{ publicKey }` or null
+  when the tier carries none: the web build has no tier env file, so the key cannot ride in the
+  `env` block of `apps/web/next.config.ts:34-39`. Encrypt with `bunx dotenvx`, per `AGENTS.md`.
+- **Dependency.** `web-push` (with its types) declared in `packages/notifications/package.json`,
+  because the transport that imports it lives there. The isolated linker means an undeclared
+  dependency will not resolve. `apps/trigger` declares `@dltech/atlas-notifications` and
+  `ioredis`.
 
 ### 4.6 Expo on iOS
 
@@ -475,19 +479,25 @@ The third server transport, and the only one that reaches a quit app on a comput
 
 ### 4.8 In Atlas, in another session: the in-app transport
 
-A client renders the notice itself. It already holds the events of every session it follows, so it
-runs `notifyMomentOf` and `inAppNoticeOf` on the frames it receives and needs no server call.
+A client renders the notice itself, from the sessions list it already follows, and needs no server
+call. A list row carries `lastTurn` (the newest `turn-ended` on the main thread, with its `seq`,
+`outcome` and `by`) and `headSeq` (the newest event seq on the main thread), so the client makes a
+moment for a session it does not have open: `lastTurn.seq` grew → `notifyMomentOf({ending: lastTurn,
+status})`; the status newly entered a waiting state → `notifyMomentOf({ending: null, status})` with
+`headSeq` as the seq. `inAppNoticeOf` then decides, as in §4.3. `packages/notifications/src/client/
+{in-app,clear}.ts` holds this pure part for both surfaces.
 - **Web and Mac.** A toast (`sonner` is already in the dependency list, e.g.
   `apps/web/src/features/sessions/session-view.tsx:4`), a clickable row that opens the session, and
   the existing unread dot (`apps/web/src/features/shell/v2-status.ts:57-61`). The toast is the only
   signal inside the app on the Mac: the Mac's OS banner comes from APNs (§4.7), so the Mac raises no
-  second one. A desktop browser, which has no APNs, also raises a page-level
-  `new Notification(title, {tag: sessionId})` while the window is visible but not focused, and keeps
-  the object per tag so it can `close()` it.
+  second one. A desktop browser raises no page-level `Notification` of its own: presence counts an
+  unfocused window as away (§4.2), so Web Push (§4.5) sends the OS notification with the same
+  `tag: sessionId`, and a page-level copy would duplicate it. The page listens to `focus`, `blur` and
+  `visibilitychange` only to decide whether a notice is due.
 - **iOS.** The app already receives the frames, and its push arrives through the same handler. With
   `AppState === 'active'` the handler shows no banner, so the app draws an in-app banner instead.
 - **Clear.** When the session opens, or when `readSeq` reaches the notice's `seq`, the client drops
-  the toast and closes its tagged notification.
+  the toast, and closes its tagged OS notification on the surfaces that raise one.
 
 ### 4.9 Show and clear, per surface: what is guaranteed and what is best effort
 
@@ -590,13 +600,13 @@ Each slice is one PR that merges alone, in this order.
    re-export beside the record exports. No caller, so zero risk, and it reviews as pure logic.
    Files: `packages/core/src/notify/**`, `packages/notifications/**`.
 2. **Presence.** `packages/wire/src/notify-wire.ts` (report input), the mutation in the v2 router,
-   `apps/api/src/agent/stream/presence-registry.ts` and its Redis client, the web hook
+   `apps/api/src/api/platform/control/presence-registry.ts` and its Redis client, the web hook
    `apps/web/src/features/sessions/data/use-presence-report.ts`, the iOS hook in
    `apps/mobile/src/thread/v2/`, the shared loop from `packages/notifications/src/client/presence.ts`.
    No user-visible change, so it can merge before anything reads presence.
    Files: `packages/wire/src/notify-wire.ts`, `apps/api/src/api/platform/control/`,
-   `apps/api/src/agent/stream/presence-registry.ts`, `apps/web/src/features/sessions/data/`,
-   `apps/mobile/src/thread/v2/`, `packages/notifications/src/client/presence.ts`.
+   `apps/web/src/features/sessions/data/`, `apps/mobile/src/thread/v2/`,
+   `packages/notifications/src/client/presence.ts`.
 3. **In Atlas.** The toast and the page notification, click to open, and clearing from `readSeq`, on
    web and in the iOS app. Needs only the stream, so it delivers value on its own.
    Files: `packages/notifications/src/client/{in-app,clear}.ts`,
@@ -654,16 +664,16 @@ Each slice is one PR that merges alone, in this order.
   and stops when the app goes inactive.
 - **Service worker** (`apps/web/src/lib/__tests__/service-worker-source.spec.ts`): the generated
   source reads the same payload keys as the model, shows with `tag: sessionId`, and closes by tag.
-- **API** (`apps/api/src/agent/stream/__tests__/`): a report writes the field with its surface, an
-  away report deletes it, and an expired field never counts. (`apps/api/src/agent/host/__tests__`):
+- **API** (`apps/api/src/api/platform/control/presence-registry.spec.ts` and
+  `notifications.router.spec.ts`): a report writes the field with its surface, an away report
+  deletes it, and an expired field never counts. (`apps/api/src/agent/host/__tests__`):
   a turn that ends dispatches one job with the moment and the appended seq; a parked turn dispatches
   `waiting-for-you`; an operator stop dispatches nothing; a dispatcher failure leaves the turn green.
 - **Trigger** (fake graph, like `routine-graph.fake.ts`): presence in front of another session sends
   nothing; no presence with two devices sends two messages with the same `collapseId`; a dead token
   is pruned; the clear sends to every enabled device and skips an Apple endpoint.
 - **Web** (`apps/web`): the toast appears for a session that is not on screen and not for the open
-  one; the page notification is created with `tag: sessionId` and closed when `readSeq` reaches its
-  seq; the device list shows a disabled device.
+  one; the toast goes when `readSeq` reaches its seq; the device list shows a disabled device.
 - **Mobile** (`apps/mobile`): registration sends `kind` and `clientId`; a clear payload dismisses
   exactly that session's notifications; the foreground handler still suppresses banners.
 - **Mac** (`apps/mac`): the token from `pushNotifications` reaches `registerDevice` once, with kind

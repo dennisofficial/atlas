@@ -54,8 +54,4 @@ export enum EStreamSubscribeKind {
   Sessions = 'sessions',
 }
 
-export enum EStreamSurface {
-  Web = 'web',
-  Desktop = 'desktop',
-  Ios = 'ios',
-}
+export { EClientSurface as EStreamSurface } from '@dltech/atlas-core'

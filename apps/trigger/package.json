@@ -17,12 +17,14 @@
     "@dltech/atlas-github": "workspace:*",
     "@dltech/atlas-jobs": "workspace:*",
     "@dltech/atlas-media": "workspace:*",
+    "@dltech/atlas-notifications": "workspace:*",
     "@dltech/atlas-pods": "workspace:*",
     "@dltech/atlas-protocol": "workspace:*",
     "@dltech/atlas-schedule": "workspace:*",
     "@dltech/atlas-wire": "workspace:*",
     "@dotenvx/dotenvx": "^1.71.0",
-    "@trigger.dev/sdk": "4.7.4"
+    "@trigger.dev/sdk": "4.7.4",
+    "ioredis": "^6.0.0"
   },
   "devDependencies": {
     "@trigger.dev/build": "4.7.4",

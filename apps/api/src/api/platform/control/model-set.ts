@@ -1,7 +1,6 @@
 import type { ControlCommandHandler } from '@dltech/atlas-commands'
 import type { ControlPlane, ControlSessionRow } from '@dltech/atlas-control'
-import { defineCommand } from '@dltech/atlas-commands'
-import { ECommandGroup, ECommandTiming } from '@dltech/atlas-core'
+import { defineCommand, ECommandGroup, ECommandRunsIn } from '@dltech/atlas-commands'
 import { z } from 'zod'
 
 import { controlCommandHandlers } from './command-registry'
@@ -18,8 +17,7 @@ export const modelSet = defineCommand({
     summary: 'Run this session on another model, effort or fast mode',
     group: ECommandGroup.Session,
     args: modelSetArgs,
-    timing: ECommandTiming.Immediate,
-    handledIn: 'control',
+    runsIn: ECommandRunsIn.Control,
   },
 })
 

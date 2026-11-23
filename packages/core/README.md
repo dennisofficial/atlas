@@ -56,6 +56,8 @@ assembly, settings, ports, and the record folds. It imports `zod` and nothing el
 - `SchemaTool`: a `ToolDefinition` that parses its input against its schema.
 - `EToolEffect`: `Read`, `Write`, `Destructive`.
 - `ToolOutcome`, `ToolInvocation`, `ToolDeclaration`: the result, the call, and what the model sees.
+- `typedDeferredInputOf({declaration, input})`: restore the JSON types of a deferred tool's
+  arguments from its schema. `toolJsonSchemaOf(declaration)`: the JSON schema of a declaration.
 
 ### Write a prompt fragment and order a hook
 
@@ -72,7 +74,8 @@ assembly, settings, ports, and the record folds. It imports `zod` and nothing el
 
 ### Bind a port
 
-- `EventLogPort`, `ModelPort`, `ProcessPort`, `FileSystemPort`, `ClockPort`: the contracts.
+- `EventLogPort`, `ModelPort`, `ProcessPort`, `FileSystemPort`, `ClockPort`, `ClassifierPort`: the
+  contracts.
 - `PortRegistryEntries`, `RegisteredPort`, `PortBindings`: the registry that a composition must fill.
 
 ### Describe a model, its spend, and a secret

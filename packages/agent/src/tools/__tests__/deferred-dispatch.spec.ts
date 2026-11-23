@@ -37,6 +37,26 @@ class DeferredTool extends ToolDefinition {
   }
 }
 
+class RoutineLikeTool extends ToolDefinition {
+  readonly name = 'routine'
+  readonly description = 'manage routines'
+  readonly effect = EToolEffect.Write
+  readonly inputSchema = z.strictObject({
+    action: z.enum(['update']),
+    routineId: z.string(),
+    enabled: z.boolean().optional(),
+    model: z.string().min(1).nullable().optional(),
+    fast: z.boolean().nullable().optional(),
+  })
+  readonly deferred = true
+  readonly inputs: unknown[] = []
+
+  async invoke(args: ToolInvocation): Promise<ToolOutcome> {
+    this.inputs.push(args.input)
+    return { ok: true, output: 'paused', modelText: 'paused' }
+  }
+}
+
 const THREAD = toThreadId('thread-1')
 const RUN = toRunId('run-1')
 const CALL = toCallId('call-1')
@@ -124,5 +144,39 @@ describe('a direct call to a deferred tool', () => {
     expect(drafts[0]).toMatchObject({ type: 'tool-result', name: target.name })
     const error = drafts[0]?.type === 'tool-result' ? drafts[0].error?.message : undefined
     expect(error).toContain(target.name)
+  })
+})
+
+describe('the input of a deferred tool', () => {
+  const update = { action: 'update', routineId: 'r-1', enabled: false, fast: null, model: null }
+
+  it('reaches the tool typed when the provider sent its scalars as strings', async () => {
+    const target = new RoutineLikeTool()
+    const dispatcher = new HookedToolDispatcher({
+      registry: fakeToolRegistry([target]),
+      hooks: new HookChain({}),
+    })
+
+    const drafts = await dispatcher.dispatch(
+      argsOf(
+        { action: 'update', routineId: 'r-1', enabled: 'false', fast: 'null', model: 'null' },
+        target.name,
+      ),
+    )
+
+    expect(drafts[0]).toMatchObject({ type: 'tool-result', name: target.name, modelText: 'paused' })
+    expect(target.inputs).toEqual([update])
+  })
+
+  it('reaches the tool unchanged when it was already typed', async () => {
+    const target = new RoutineLikeTool()
+    const dispatcher = new HookedToolDispatcher({
+      registry: fakeToolRegistry([target]),
+      hooks: new HookChain({}),
+    })
+
+    await dispatcher.dispatch(argsOf(update, target.name))
+
+    expect(target.inputs).toEqual([update])
   })
 })

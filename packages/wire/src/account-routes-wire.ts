@@ -6,6 +6,7 @@ export enum EAuthProvider {
   OpenRouter = 'openrouter',
   Inference = 'inference',
   Gateway = 'gateway',
+  Typesafe = 'typesafe',
 }
 
 export enum EAuthKind {

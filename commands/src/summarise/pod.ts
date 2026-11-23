@@ -4,6 +4,7 @@ import {
   SUMMARY_REFUSAL_NOTHING,
   summaryTargetOf,
   transcriptOfRange,
+  type Event,
   type EventRef,
   type ModelPort,
 } from '@dltech/atlas-core'
@@ -42,6 +43,12 @@ const summaryFrom = async ({
     .trim()
 }
 
+const beforeLastMessage = (events: readonly Event[]): number | undefined => {
+  const last = events.findLast((event) => event.type === 'user-said')
+  if (last === undefined || last.seq < 2) return undefined
+  return last.seq - 1
+}
+
 export const summariseHandler: CommandHandler<unknown> = async ({
   args,
   inboxId,
@@ -54,9 +61,11 @@ export const summariseHandler: CommandHandler<unknown> = async ({
   if (!parsed.success) return { kind: 'refused', reason: parsed.error.message }
   if (model === undefined) return { kind: 'refused', reason: REFUSAL_NO_MODEL }
   const events = visibleEvents()
-  const target = summaryTargetOf({ events, throughSeq: parsed.data.throughSeq })
+  const throughSeq = parsed.data.throughSeq ?? beforeLastMessage(events)
+  if (throughSeq === undefined) return { kind: 'refused', reason: SUMMARY_REFUSAL_NOTHING }
+  const target = summaryTargetOf({ events, throughSeq })
   if (!target.ok) return { kind: 'refused', reason: target.reason }
-  const { fromSeq, throughSeq } = target
+  const { fromSeq } = target
   const last = events.findLast((event) => event.seq <= throughSeq)
   if (last === undefined) return { kind: 'refused', reason: SUMMARY_REFUSAL_NOTHING }
   const origin = { eventId: last.id, seq: last.seq }

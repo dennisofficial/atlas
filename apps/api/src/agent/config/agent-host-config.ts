@@ -1,4 +1,5 @@
 import type { EEffort, ModelRef } from '@dltech/atlas-core'
+import type { ClassifierConfig } from '@dltech/atlas-classifier'
 import type { SandboxConfig } from '@dltech/atlas-pods/config/sandbox-config'
 
 import type { ModelSource } from './model-config'
@@ -42,6 +43,7 @@ export type AgentHostConfig = {
   projectId: string | null
   model: ModelConfig
   models: ModelSource
+  classifier: ClassifierConfig
   workspace: WorkspaceConfig
   sandbox: SandboxConfig
   podSize?: { desiredVcpus: number | undefined; generation: number } | undefined

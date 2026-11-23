@@ -1,10 +1,10 @@
 import { refKey, type ModelChoice } from '@dltech/atlas-core'
+import type { AccountRowLike } from '@dltech/atlas-credentials'
 import type { Tx } from '@dltech/atlas-db'
 import {
   sessionModelOf,
   settingsWithProjectOverUser,
   type SessionModelAsk,
-  type AccountRowLike,
 } from '@dltech/atlas-models'
 
 import type { SessionModelRow } from '../port'

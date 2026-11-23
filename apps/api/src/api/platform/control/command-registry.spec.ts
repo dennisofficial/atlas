@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'bun:test'
 import { BadRequestException } from '@nestjs/common'
 import { setupSessionsService } from './sessions.service.fixture'
-import { composeCommands } from '@dltech/atlas-commands'
+import { composeCommands, ECommandEntryKind, ECommandSource } from '@dltech/atlas-commands'
 import { composePlugins } from '@dltech/atlas-plugin-sdk'
 import { createFixturePlugin } from '@dltech/atlas-plugin-sdk/testing'
-import { nativeCommandRegistry, postCommand } from './command-registry'
+import { nativeCommands } from '@dltech/atlas-native-commands'
+import { commandCatalogue, nativeCommandRegistry, postCommand } from './command-registry'
 
 const seed = async () => {
   const context = setupSessionsService()
@@ -84,6 +85,21 @@ describe('nativeCommandRegistry', () => {
     await refused.catch(() => undefined)
   })
 
+  it('refuses a command that runs in the client', async () => {
+    const { plane, sessionId } = await seed()
+    const refused = postCommand({
+      plane,
+      registry: nativeCommandRegistry(),
+      sessionId,
+      name: 'model',
+      args: {},
+    })
+    expect(refused).rejects.toBeInstanceOf(BadRequestException)
+    expect(refused).rejects.toThrow('"model" runs in the client')
+    await refused.catch(() => undefined)
+    expect(await plane.readInbox({ sessionId, afterId: 0, limit: 10 })).toEqual([])
+  })
+
   it('refuses an unregistered name', async () => {
     const { plane, sessionId } = await seed()
     const refused = postCommand({
@@ -135,5 +151,30 @@ describe('a plugin command', () => {
     expect(record.controlReads).toEqual([sessionId])
     expect(await plane.readInbox({ sessionId, afterId: 0, limit: 10 })).toEqual([])
     expect(registry.byInboxKind.has('command:probe-read')).toBe(false)
+  })
+})
+
+describe('commandCatalogue', () => {
+  it('lists every composed command once, tagged by its source, and never model-set', () => {
+    const catalogue = commandCatalogue()
+    const names = catalogue.map((entry) => entry.name)
+    expect(new Set(names).size).toBe(names.length)
+    expect(catalogue.every((entry) => entry.kind === ECommandEntryKind.Command)).toBe(true)
+    expect(names).not.toContain('model-set')
+
+    const builtin = catalogue
+      .filter((entry) => entry.source === ECommandSource.Builtin)
+      .map((entry) => entry.name)
+    expect(builtin).toEqual(nativeCommands.map((command) => command.spec.name))
+
+    const composed = nativeCommandRegistry().all.map((command) => command.spec.name)
+    const plugin = catalogue
+      .filter((entry) => entry.source === ECommandSource.Plugin)
+      .map((entry) => entry.name)
+    const expectedPlugin = composed.filter(
+      (name) =>
+        name !== 'model-set' && !nativeCommands.some((command) => command.spec.name === name),
+    )
+    expect(plugin).toEqual(expectedPlugin)
   })
 })

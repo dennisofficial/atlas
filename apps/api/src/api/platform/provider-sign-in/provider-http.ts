@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import type { ProviderFetch } from '@dltech/atlas-models/provider-oauth'
+import type { ProviderFetch } from '@dltech/atlas-credentials/provider-oauth'
 
 export abstract class ProviderHttp {
   abstract readonly fetch: ProviderFetch

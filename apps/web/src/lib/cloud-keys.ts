@@ -1,6 +1,7 @@
 export const PROJECTS_KEY = 'projects'
 export const SHELL_THREADS_KEY = 'shell-threads'
 export const V2_SESSIONS_KEY = 'v2-sessions'
+export const SESSION_COMMANDS_KEY = 'session-commands'
 export const MODEL_PICKER_KEY = 'model-picker-source'
 export const ROUTINES_KEY = 'routines'
 export const ROUTINE_RUNS_KEY = 'routine-runs'

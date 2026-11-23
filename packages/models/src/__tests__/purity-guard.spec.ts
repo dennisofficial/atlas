@@ -7,8 +7,7 @@ import { afterEach, describe, expect, it } from 'bun:test'
 import { subpathViolations } from './subpath-walker'
 
 const MODELS_ENTRY = join(import.meta.dir, '..', 'index.ts')
-const PROVIDER_OAUTH_ENTRY = join(import.meta.dir, '..', 'provider-oauth', 'index.ts')
-const ALLOWED = ['@dltech/atlas-core', 'zod']
+const ALLOWED = ['@dltech/atlas-core', '@dltech/atlas-credentials', 'zod']
 
 let scratch: string | undefined
 
@@ -27,12 +26,8 @@ const fixture = (files: Record<string, string>): string => {
 }
 
 describe('models purity guard', () => {
-  it('reaches nothing but core and zod from @dltech/atlas-models', () => {
+  it('reaches nothing but core, credentials and zod from @dltech/atlas-models', () => {
     expect(subpathViolations({ entry: MODELS_ENTRY, allowedPackages: ALLOWED })).toEqual([])
-  })
-
-  it('reaches nothing but core and zod from @dltech/atlas-models/provider-oauth', () => {
-    expect(subpathViolations({ entry: PROVIDER_OAUTH_ENTRY, allowedPackages: ALLOWED })).toEqual([])
   })
 
   it('reports node:, bare packages outside the allowlist, escapes and runtime globals', () => {

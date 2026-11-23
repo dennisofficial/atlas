@@ -1,15 +1,14 @@
 import { describe, expect, it } from 'bun:test'
-import { ECommandGroup, ECommandTiming } from '@dltech/atlas-core'
 import { z } from 'zod'
 import { commandOf, composeCommands, defineCommand } from '../registry'
+import { EClientAction, ECommandGroup, ECommandRunsIn } from '../spec'
 
-const specOf = (name: string, handledIn: 'holder' | 'control' = 'holder') => ({
+const specOf = (name: string, runsIn: ECommandRunsIn = ECommandRunsIn.Host) => ({
   name,
   summary: `${name} summary`,
   group: ECommandGroup.Session,
   args: z.strictObject({ title: z.string() }),
-  timing: ECommandTiming.Settled,
-  handledIn,
+  runsIn,
 })
 
 describe('defineCommand', () => {
@@ -27,6 +26,27 @@ describe('defineCommand', () => {
 
   it.each(['/rename', 'Rename', '', 'two words', '1st'])('refuses the name %p', (name) => {
     expect(() => defineCommand({ spec: specOf(name) })).toThrow('lowercase')
+  })
+
+  it('refuses a client command that names no client action', () => {
+    expect(() => defineCommand({ spec: specOf('model', ECommandRunsIn.Client) })).toThrow(
+      'must name the client action it opens',
+    )
+  })
+
+  it('refuses a host command that names a client action', () => {
+    expect(() =>
+      defineCommand({
+        spec: { ...specOf('model'), opens: EClientAction.ModelPicker },
+      }),
+    ).toThrow('cannot open a client action')
+  })
+
+  it('accepts a client command with its client action', () => {
+    const command = defineCommand({
+      spec: { ...specOf('model', ECommandRunsIn.Client), opens: EClientAction.ModelPicker },
+    })
+    expect(command.spec.opens).toBe(EClientAction.ModelPicker)
   })
 })
 
@@ -46,19 +66,24 @@ describe('composeCommands', () => {
     expect(() => composeCommands([first, second])).toThrow('duplicate command "rename"')
   })
 
-  it('keeps control-handled commands out of the inbox index', () => {
-    const rename = defineCommand({ spec: specOf('rename', 'control') })
+  it('keeps control and client commands out of the inbox index', () => {
+    const rename = defineCommand({ spec: specOf('rename', ECommandRunsIn.Control) })
+    const model = defineCommand({
+      spec: { ...specOf('model', ECommandRunsIn.Client), opens: EClientAction.CommandList },
+    })
     const summarise = defineCommand({ spec: specOf('summarise') })
-    const registry = composeCommands([rename, summarise])
+    const registry = composeCommands([rename, model, summarise])
     expect(registry.byName.get('rename')).toBe(rename)
+    expect(registry.byName.get('model')).toBe(model)
     expect(registry.byInboxKind.has('command:rename')).toBe(false)
+    expect(registry.byInboxKind.has('command:model')).toBe(false)
     expect(registry.byInboxKind.get('command:summarise')).toBe(summarise)
   })
 
   it('refuses the same name across handling kinds', () => {
-    const pod = defineCommand({ spec: specOf('rename') })
-    const control = defineCommand({ spec: specOf('rename', 'control') })
-    expect(() => composeCommands([pod, control])).toThrow('duplicate command "rename"')
+    const host = defineCommand({ spec: specOf('rename') })
+    const control = defineCommand({ spec: specOf('rename', ECommandRunsIn.Control) })
+    expect(() => composeCommands([host, control])).toThrow('duplicate command "rename"')
   })
 
   it('composes an empty registry', () => {

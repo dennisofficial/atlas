@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import { ANTHROPIC_OAUTH, OPENAI_OAUTH } from '@dltech/atlas-models/provider-oauth'
+import { ANTHROPIC_OAUTH, OPENAI_OAUTH } from '@dltech/atlas-credentials/provider-oauth'
 import { EOauthProvider } from '@dltech/atlas-wire'
 import { OauthIssuer, OauthRateLimitedError, OauthRejectedError } from './oauth-connections.types'
 

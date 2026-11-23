@@ -12,6 +12,7 @@ import { usePersonalSettings, useSettingsDraft } from '../data/personal/use-sett
 import { type ChannelState, type ENotifyChannel } from '../fixtures/settings-interface'
 import { NotifyMatrixTable } from '../parts/interface-notify-matrix'
 import { QuietHourSelect } from '../parts/interface-quiet-hours'
+import { ThisDeviceNotifications } from '../parts/this-device-notifications'
 import {
   Mono,
   SaveFooter,
@@ -79,6 +80,7 @@ function NotificationsEditor({
 
   return (
     <SettingsPage title={TITLE} description={DESCRIPTION}>
+      <ThisDeviceNotifications />
       <SettingsSection title="Channels" description="Where notifications can be delivered.">
         <SettingsCard>
           <SettingsRow
