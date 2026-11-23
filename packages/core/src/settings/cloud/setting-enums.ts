@@ -54,7 +54,17 @@ export enum EWebSearchBackendWire {
   SearXNG = 'searxng',
 }
 
+export enum EImageModelWire {
+  Gemini31FlashImage = 'google/gemini-3.1-flash-image',
+  Gemini3ProImage = 'google/gemini-3-pro-image',
+  MaiImage27 = 'microsoft/mai-image-2.7',
+  MaiImage27Flash = 'microsoft/mai-image-2.7-flash',
+  GrokImagineImage20 = 'spacexai/grok-imagine-image-2.0',
+}
+
 export const DEFAULT_DECISIONS_PROVIDER_WIRE = EDecisionsProviderWire.Typesafe
+
+export const DEFAULT_IMAGE_MODEL_WIRE = EImageModelWire.Gemini31FlashImage
 
 export const DEFAULT_DECISIONS_MODEL_WIRE = 'jev-latest'
 

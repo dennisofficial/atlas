@@ -12,6 +12,7 @@ import { AgentSkeleton } from '../skeletons/agent-skeletons'
 import { useAgentKeys } from '../data/personal/use-agent-keys'
 import { usePersonalSettings, useSettingsDraft } from '../data/personal/use-settings-draft'
 import { SEARCH_BACKEND_ITEMS } from '../fixtures/settings-search'
+import { IMAGE_MODEL_ITEMS } from '../fixtures/settings-images'
 import { CONTEXT_FIELDS } from '../fixtures/settings-fields'
 import { SettingFieldRows } from '../parts/setting-fields'
 import { ConfigFooter } from '../parts/agent-config-footer'
@@ -100,7 +101,7 @@ function AgentEditor({
                 label="Search backend"
                 items={SEARCH_BACKEND_ITEMS}
                 value={value.searchBackend}
-                onChange={(searchBackend) => setValue({ searchBackend })}
+                onChange={(searchBackend) => setValue({ ...value, searchBackend })}
               />
             }
           />
@@ -108,6 +109,25 @@ function AgentEditor({
             backend={value.searchBackend}
             savedNames={savedNames}
             onSave={handleSaveKey}
+          />
+        </SettingsCard>
+      </SettingsSection>
+      <SettingsSection
+        title="Images"
+        description="Which model the agent asks when it generates or edits a picture."
+      >
+        <SettingsCard>
+          <SettingsRow
+            title="Image model"
+            description="The model image_generate uses when the agent names none. Only models that support Zero Data Retention are listed."
+            control={
+              <ChoiceSelect
+                label="Image model"
+                items={IMAGE_MODEL_ITEMS}
+                value={value.imageModel}
+                onChange={(imageModel) => setValue({ ...value, imageModel })}
+              />
+            }
           />
         </SettingsCard>
       </SettingsSection>

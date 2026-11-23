@@ -32,14 +32,16 @@ const LAYOUT_SECTIONS = [
   EProbeSection.Paths,
   EProbeSection.Worktrees,
   EProbeSection.WorktreeConfig,
-  EProbeSection.Roots,
 ] as const
 
 const REF_SECTIONS = [EProbeSection.Origin, EProbeSection.Branch] as const
 
 const probeOutputOf = (args: { repo: Repo; scope: string | undefined }): string => {
-  const names =
-    args.scope === EProbeScope.Layout ? [...LAYOUT_SECTIONS, ...REF_SECTIONS] : REF_SECTIONS
+  const names: EProbeSection[] = [
+    ...(args.scope === EProbeScope.Layout ? LAYOUT_SECTIONS : []),
+    ...REF_SECTIONS,
+    ...(args.repo[EProbeSection.Origin].exit === 0 ? [] : [EProbeSection.Roots]),
+  ]
   return names
     .map((name) => `\x1e${name}\n${args.repo[name].stdout ?? ''}\x1f${args.repo[name].exit}\n`)
     .join('')
@@ -231,6 +233,34 @@ describe('DaemonWorkspaceIdentity over a real git repository', () => {
     const result = Bun.spawnSync(['git', ...args], { cwd, stdout: 'ignore', stderr: 'pipe' })
     if (result.exitCode !== 0) throw new Error(result.stderr.toString())
   }
+
+  it('names a repository without an origin by its root commit', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'identity-probe-'))
+    try {
+      git(root, 'init', '-q', '-b', 'trunk')
+      git(
+        root,
+        '-c',
+        'user.email=a@b.c',
+        '-c',
+        'user.name=a',
+        'commit',
+        '-q',
+        '--allow-empty',
+        '-m',
+        'root',
+      )
+      const rootCommit = Bun.spawnSync(['git', 'rev-parse', 'HEAD'], { cwd: root })
+        .stdout.toString()
+        .trim()
+
+      const identity = await identify(identifyOver(new LocalProcess()), root)
+
+      expect(identity).toEqual({ remote: `local:${rootCommit}`, worktreePath: 'trunk:.' })
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
 
   it('runs the probe script and reads origin, branch and layout from its sections', async () => {
     const root = mkdtempSync(join(tmpdir(), 'identity-probe-'))
