@@ -184,7 +184,7 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
         sending={creating || (v2 ? session.uploading : images.uploading)}
         {...(v2 ? session.composerProps : images.composerProps)}
         sendsAttachmentsAlone={v2}
-        commandSpecs={commands.specs}
+        entries={commands.entries}
         placeholder="Describe a task for Atlas…"
       >
         <RunnerToggle desktop={desktop} value={runner} onValueChange={setRunner} />

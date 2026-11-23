@@ -9,6 +9,7 @@ import {
 } from '@dltech/atlas-core'
 import {
   EMPTY_CREW,
+  EMPTY_CLASSIFIER,
   EMPTY_SESSIONS,
   EMPTY_WORKTREES,
   type PluginPodContext,
@@ -93,6 +94,7 @@ export const rig = (options: { control?: PodControl; env?: Record<string, string
     resources: EMPTY_POD_RESOURCES,
     crew: EMPTY_CREW,
     messages: EMPTY_MESSAGES,
+    classifier: EMPTY_CLASSIFIER,
     sessions: EMPTY_SESSIONS,
     worktrees: EMPTY_WORKTREES,
     sessionId: 's1',

@@ -162,6 +162,10 @@ export const pluginPodContextOf = (args: {
     }),
     crew: args.crew,
     messages: heldMessagesOf({ deps, crew: args.crew, selfAgentId: args.selfAgentId }),
+    classifier: {
+      status: () => runtime.classifierStatus,
+      classify: (args) => runtime.classifier.classify(args),
+    },
     sessions: podSessionsOf({
       plane: deps.plane,
       sessionId: deps.sessionId,

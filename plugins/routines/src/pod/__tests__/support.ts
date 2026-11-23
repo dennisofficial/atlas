@@ -1,6 +1,7 @@
 import { toThreadId } from '@dltech/atlas-core'
 import {
   EMPTY_CREW,
+  EMPTY_CLASSIFIER,
   EMPTY_MCP_CONTROL,
   EMPTY_SESSIONS,
   EMPTY_SUBSCRIPTIONS,
@@ -104,6 +105,7 @@ export const rig = (routines: PodRoutines = fakeRoutines().port) => {
     resources: EMPTY_POD_RESOURCES,
     crew: EMPTY_CREW,
     messages: EMPTY_MESSAGES,
+    classifier: EMPTY_CLASSIFIER,
     sessions: EMPTY_SESSIONS,
     worktrees: EMPTY_WORKTREES,
     control: {

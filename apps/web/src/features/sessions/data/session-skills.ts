@@ -1,13 +1,35 @@
+import { skillEntryOf, type CommandEntry } from '@dltech/atlas-commands'
 import type { CommandSpec, V2Event } from '@dltech/atlas-core'
 import { repoSkillsOf } from '@dltech/atlas-plugin-skills/client'
+import type { CommandSkillWire } from '@dltech/atlas-wire/web'
 
-import { mergeSkillSpecs, repoSkillSpecOf } from '@/features/threads/commands/skill-specs'
+export const skillEntryOfWire = (skill: CommandSkillWire): CommandEntry =>
+  skillEntryOf({
+    name: skill.name,
+    description: skill.summary,
+    argumentHint: skill.argumentHint ?? null,
+  })
 
-export const repoSkillSpecsOf = (events: readonly V2Event[]): readonly CommandSpec[] =>
-  repoSkillsOf(events).map(repoSkillSpecOf)
+export const skillEntryOfSpec = (spec: CommandSpec): CommandEntry =>
+  skillEntryOf({
+    name: spec.name,
+    description: spec.summary,
+    argumentHint: spec.argumentHint ?? null,
+  })
 
-export const skillMenuSpecs = (args: {
-  catalogue: readonly CommandSpec[]
+export const repoSkillEntriesOf = (events: readonly V2Event[]): readonly CommandEntry[] =>
+  repoSkillsOf(events).map(skillEntryOf)
+
+export const mergeSkillEntries = (args: {
+  catalogue: readonly CommandEntry[]
+  sandbox: readonly CommandEntry[]
+}): readonly CommandEntry[] => {
+  const sandboxNames = new Set(args.sandbox.map((entry) => entry.name))
+  return [...args.catalogue.filter((entry) => !sandboxNames.has(entry.name)), ...args.sandbox]
+}
+
+export const skillMenuEntries = (args: {
+  catalogue: readonly CommandEntry[]
   events: readonly V2Event[]
-}): readonly CommandSpec[] =>
-  mergeSkillSpecs({ catalogue: args.catalogue, sandbox: repoSkillSpecsOf(args.events) })
+}): readonly CommandEntry[] =>
+  mergeSkillEntries({ catalogue: args.catalogue, sandbox: repoSkillEntriesOf(args.events) })

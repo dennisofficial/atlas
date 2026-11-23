@@ -72,6 +72,7 @@ describe('port registry', () => {
       WorkspaceIdentityPort: true,
       QualityReviewPort: true,
       DecisionPort: true,
+      ClassifierPort: true,
       JudgePort: true,
       NoticePort: true,
       ExecutionLocationSinkPort: true,

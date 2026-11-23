@@ -6,6 +6,7 @@ import {
   type PluginPodContext,
   type PodMemory,
   EMPTY_CREW,
+  EMPTY_CLASSIFIER,
   EMPTY_MCP_CONTROL,
   EMPTY_ROUTINES,
   EMPTY_SESSIONS,
@@ -98,6 +99,7 @@ export const rig = (memory: PodMemory = fakeMemory().port) => {
     resources: EMPTY_POD_RESOURCES,
     crew: EMPTY_CREW,
     messages: EMPTY_MESSAGES,
+    classifier: EMPTY_CLASSIFIER,
     sessions: EMPTY_SESSIONS,
     worktrees: EMPTY_WORKTREES,
     control: {

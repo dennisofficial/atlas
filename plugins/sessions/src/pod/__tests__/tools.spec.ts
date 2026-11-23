@@ -14,6 +14,7 @@ import {
   type PodSessions,
   type SessionBrief,
   EMPTY_CREW,
+  EMPTY_CLASSIFIER,
   EMPTY_MCP_CONTROL,
   EMPTY_ROUTINES,
   EMPTY_SUBSCRIPTIONS,
@@ -81,6 +82,7 @@ const rig = (
     resources: EMPTY_POD_RESOURCES,
     crew: EMPTY_CREW,
     messages,
+    classifier: EMPTY_CLASSIFIER,
     worktrees: EMPTY_WORKTREES,
     notify: async () => undefined,
     control: {

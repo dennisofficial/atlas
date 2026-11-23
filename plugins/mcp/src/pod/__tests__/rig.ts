@@ -2,6 +2,7 @@ import { toThreadId } from '@dltech/atlas-core'
 import {
   EMPTY_CREW,
   EMPTY_MESSAGES,
+  EMPTY_CLASSIFIER,
   EMPTY_POD_RESOURCES,
   EMPTY_SESSIONS,
   EMPTY_WORKTREES,
@@ -22,6 +23,7 @@ export const rig = (
   resources: EMPTY_POD_RESOURCES,
   crew: EMPTY_CREW,
   messages: EMPTY_MESSAGES,
+  classifier: EMPTY_CLASSIFIER,
   sessions: EMPTY_SESSIONS,
   worktrees: EMPTY_WORKTREES,
   append: async () => undefined,

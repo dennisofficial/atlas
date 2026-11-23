@@ -50,6 +50,14 @@ export const PROVIDER_SPECS: readonly ProviderSpec[] = [
     reachable: true,
   },
   {
+    provider: EAuthProvider.Typesafe,
+    label: 'TypeSafe AI',
+    kinds: [EAuthKind.ApiKey],
+    logins: [ELoginFlow.ApiKey],
+    apiKeyVariable: 'TYPESAFE_API_KEY',
+    reachable: false,
+  },
+  {
     provider: EAuthProvider.Gateway,
     label: 'Vercel AI Gateway',
     kinds: [EAuthKind.ApiKey],

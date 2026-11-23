@@ -1,5 +1,6 @@
 import {
   defaultPipeline,
+  EClassifierFault,
   EEffort,
   EMPTY_PROMPT,
   EProviderFailureKind,
@@ -8,6 +9,7 @@ import {
   EToolEffect,
   refKey,
   ToolDefinition,
+  type ClassifierPort,
   type ModelPort,
   type SpawnFile,
   type ThreadId,
@@ -39,6 +41,13 @@ import { placeContextFiles } from '../place-context-files'
 import { SANDBOX, SECRET, type FakeClock } from './rig-fakes'
 
 export const CONTEXT_DIRECTORY = '/atlas/home/sessions/s-1/context'
+const OFF_CLASSIFIER: ClassifierPort = {
+  classify: async () => ({
+    ok: false,
+    fault: EClassifierFault.Unavailable,
+    detail: 'the rig has no classifier',
+  }),
+}
 
 export const RIG_MODEL_CHOICE = {
   ref: { providerId: 'anthropic', modelId: 'claude-sonnet-4-5' },
@@ -170,6 +179,8 @@ export const makeRuntimeFactory = (args: {
       placedContextFiles,
       remoteCalls: calls,
       model,
+      classifier: OFF_CLASSIFIER,
+      classifierStatus: { on: false, reason: 'the rig has no classifier' },
       modelChoice: RIG_MODEL_CHOICE,
       modelOfCalls,
       modelOf: (choice) => {

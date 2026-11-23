@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { toThreadId } from '@dltech/atlas-core'
 import {
+  EMPTY_CLASSIFIER,
   EMPTY_CREW,
   EMPTY_MCP_CONTROL,
   EMPTY_MESSAGES,
@@ -38,6 +39,7 @@ const rig = (messages: PodMessages = EMPTY_MESSAGES) => {
     resources: EMPTY_POD_RESOURCES,
     crew: EMPTY_CREW,
     messages,
+    classifier: EMPTY_CLASSIFIER,
     worktrees: EMPTY_WORKTREES,
     notify: async () => undefined,
     control: {

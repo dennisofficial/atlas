@@ -1,5 +1,7 @@
 import type {
   AssemblyPipeline,
+  ClassifierPort,
+  ClassifierStatus,
   ESetupPhase,
   MediaUrlResolver,
   ModelChoice,
@@ -85,6 +87,8 @@ export type SessionRuntime = {
   workspaceGate?: WorkspaceGate | undefined
   trace?: TracePort | undefined
   model: ModelPort
+  classifier: ClassifierPort
+  classifierStatus: ClassifierStatus
   modelChoice: ModelChoice
   choiceFor(request: RoleModelRequest): RoleModelChoice
   modelLabelOf(ref: ModelRef): string

@@ -8,8 +8,8 @@ author reads this package first. Every plugin in `plugins/*` builds its slots wi
 - The plugin shape: seven slots, `definePlugin`, and the composer `composePlugins`.
 - The pod tier: the pod context, the pod slot, the capabilities a tool reaches, and pod resources.
 - The control tier and the client tier slot types.
-- The plugin-facing capability types (crew, messages, sessions, worktrees, routines,
-  subscriptions, MCP control), each with an `EMPTY_*` default.
+- The plugin-facing capability types: crew, messages, classifier, sessions, worktrees, routines,
+  subscriptions and MCP control, each with an `EMPTY_*` default (none for memory and web search).
 
 ## Does not own
 
@@ -73,10 +73,11 @@ A `PodSlot` declares:
 - `onDaemonEvent(frame)`: handle an event the daemon pushes.
 
 `ctx` is a `PluginPodContext`. It gives `sessionId`, `workspaceDirectory`, `append(drafts)`,
-`notify(event, {key})`, `events()`, `call(op)`, `live(frame)`, `onDaemonEvent(listener)`,
-`log(message)`, and the capabilities `control`, `crew`, `sessions`, `worktrees` and `resources`.
+`notify(event, {key})`, `events()`, `call(op)`, `live(frame)`, `onDaemonEvent(listener)`, `log`,
+and the capabilities `control`, `crew`, `classifier`, `sessions`, `worktrees` and `resources`.
 `ctx.control` is a `PodControl`: `exposePort({port})`, `settingsVersions()`, and the `memory`,
-`webSearch`, `mcp`, `routines` and `subscriptions` capabilities.
+`webSearch`, `mcp`, `routines` and `subscriptions` capabilities. `ctx.classifier` is a `PodClassifier`:
+`status()` answers a core `ClassifierStatus` and `classify(...)` a core `ClassifierOutcome`.
 
 ### The control and client slots
 
@@ -105,14 +106,12 @@ through a resource: set `cloud: [ECloudSetting.McpServers]`, `ECloudSetting.Skil
   fragment, resource or command name. It merges only the client hooks, so collect `entryFolds`
   from each plugin yourself, as `apps/web/src/features/sessions/registered-plugins.ts` does.
 - `composePod(pods)`: the merged pod slot that the agent host builds once.
-- `eventSchemaOf(plugins)`, `eventTypesOf(plugins)`: the decoder and type list for a session.
-- `crossLatch({ctx, name, level, mayFire})`: fire a level-triggered latch once and record it.
-- `MacOfflineError`, `PodMcpProxyTransport`, `PodMcpProxyChannel`: the Mac proxy types.
-- `EMPTY_POD`, `EMPTY_CONTROL`, `EMPTY_CREW`, `EMPTY_MESSAGES`, `EMPTY_SESSIONS`, `EMPTY_WORKTREES`,
-  `EMPTY_ROUTINES`, `EMPTY_SUBSCRIPTIONS`, `EMPTY_MCP_CONTROL`, `EMPTY_POD_RESOURCES`: the defaults.
-- `PARENT_ADDRESS`, `MessageSent`, `PodMessages`: `ctx.messages.send({to, text})` is how a tool
-  messages another agent or session; `to` is an id, or `PARENT_ADDRESS` for its starter.
-- `PodSessions.spawn` takes `files` (`SpawnFile`), the values the child writes under its own `$ATLAS_CONTEXT_DIR` before its first turn.
+- `eventSchemaOf(plugins)`, `eventTypesOf(plugins)`: the decoder and the type list for a session.
+  `PluginEventBodies` types the body of each event.
+- `crossLatch({ctx, name, level, mayFire})`: fire a level-triggered latch once, and record it.
+- `MacOfflineError`, `PodMcpProxyTransport`, `PodMcpProxyChannel`: the proxy to the Mac app.
+- `EMPTY_*` (for example `EMPTY_POD`, `EMPTY_CONTROL`, `EMPTY_CLASSIFIER`): the default of each
+  slot, which a tier spreads when it contributes nothing.
 
 ## Usage
 

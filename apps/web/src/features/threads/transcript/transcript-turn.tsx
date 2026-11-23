@@ -9,6 +9,8 @@ import { Reasoning } from '@dltech/atlas-ui/ai/reasoning'
 import { WorkSummary } from '@dltech/atlas-ui/ai/work-summary'
 import { formatElapsed, messageTimeOf } from '@dltech/atlas-client/transcript'
 
+import { CommandMessageRow } from '@/features/sessions/command-message-row'
+
 import { spanMsOf } from '../data/clock-time'
 import type { RepairDiagramAction } from '../data/diagram-repair'
 import { useAttachmentViews } from '../data/use-attachment-views'
@@ -243,6 +245,13 @@ function TurnViewBody({
   })
   switch (turn.kind) {
     case ETurnKind.User:
+      if (turn.item.command !== undefined)
+        return (
+          <CommandMessageRow
+            text={turn.item.command.text}
+            timestamp={messageTimeOf({ at: turn.item.at, now })}
+          />
+        )
       return (
         <UserMessage
           author={userName}

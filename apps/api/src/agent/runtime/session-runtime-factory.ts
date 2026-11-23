@@ -1,5 +1,6 @@
 import { defaultPipeline, type ModelPort } from '@dltech/atlas-core'
 import { InMemoryToolRegistry } from '@dltech/atlas-agent'
+import { classifierOf, classifierStatusOf } from '@dltech/atlas-classifier'
 import {
   DaemonAgentFileSystemPort,
   DaemonFileSystemPort,
@@ -294,6 +295,8 @@ export const createSessionRuntimeFactory = (
       throw error
     }
 
+    const classifier = classifierOf(config.classifier)
+
     const keepAlive = startKeepAlive({
       sandbox: provider,
       target,
@@ -313,6 +316,8 @@ export const createSessionRuntimeFactory = (
         ? {}
         : { panelHolds: () => args.panelHolds?.(sessionId) ?? 0 }),
       model: models.main,
+      classifier,
+      classifierStatus: classifierStatusOf(config.classifier),
       get modelChoice() {
         return models.modelChoice()
       },
