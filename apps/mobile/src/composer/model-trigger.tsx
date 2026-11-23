@@ -17,7 +17,7 @@ export const ModelTrigger = ({
 }) => {
   const theme = useTheme()
   const label = modelTriggerLabelOf({ models, selection })
-  const mark = selection?.model.monogram
+  const model = selection?.model
 
   return (
     <Pressable
@@ -26,7 +26,7 @@ export const ModelTrigger = ({
       onPress={onPress}
       style={({ pressed }) => [styles.trigger, pressed ? { backgroundColor: theme.muted } : null]}
     >
-      {mark === undefined ? null : <ProviderMark monogram={mark} />}
+      {model === undefined ? null : <ProviderMark monogram={model.monogram} brand={model.brand} />}
       <Text size={ETextRole.Sm} numberOfLines={1} style={styles.value}>
         {label}
       </Text>

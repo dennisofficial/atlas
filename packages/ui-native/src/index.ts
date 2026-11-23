@@ -1,4 +1,5 @@
 export { AtlasMark } from './atlas-mark'
+export { BrandMark } from './brand-mark'
 export { Alert, EAlertTone } from './alert'
 export { Avatar, EAvatarSize } from './avatar'
 export { Bubble, MessageAction, MessageActions, MessageFooter } from './bubble'

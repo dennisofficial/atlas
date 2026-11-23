@@ -1,10 +1,12 @@
 import {
   type ESessionDisplay,
+  EPeerBucket,
   INACTIVE_AFTER_MS,
   isRecentProject,
   isSessionUnreadOf,
   nestPeers,
   type PeerTreeNode,
+  peerBucketOf,
   sessionDisplayOf,
 } from '@dltech/atlas-client/stream'
 import type { SessionListOutput } from '@dltech/atlas-protocol'
@@ -44,6 +46,7 @@ export interface ISessionEntry {
   projectName: string
   createdAt: string
   updatedAt: string
+  archivedAt: string | null
   status: ESessionDisplay | undefined
   unread: boolean
   work: SessionWork
@@ -63,18 +66,10 @@ export interface ISessionPartition {
   archived: IProjectGroup[]
 }
 
-enum EBucket {
-  Active = 'active',
-  Inactive = 'inactive',
-  Archived = 'archived',
-}
-
 interface IPlacedProject {
   name: string
   sessions: V2SessionSummary[]
 }
-
-const isSet = (stamp: string | null | undefined): boolean => stamp !== null && stamp !== undefined
 
 const timeOf = (stamp: string): number => {
   const parsed = Date.parse(stamp)
@@ -107,13 +102,6 @@ const placedOf = ({
     placed.set(placement.key, { ...current, sessions: [...current.sessions, summary] })
   }
   return placed
-}
-
-const bucketOf = ({ summary, now }: { summary: V2SessionSummary; now: number }): EBucket => {
-  if (isSet(summary.archivedAt)) return EBucket.Archived
-  const updatedAt = Date.parse(summary.updatedAt)
-  if (Number.isNaN(updatedAt)) return EBucket.Active
-  return now - updatedAt > INACTIVE_AFTER_MS ? EBucket.Inactive : EBucket.Active
 }
 
 const pullRequestStateOf = (state: string | undefined): EPullRequestState => {
@@ -154,6 +142,7 @@ const entryOf = ({
     projectName,
     createdAt: summary.createdAt,
     updatedAt: summary.updatedAt,
+    archivedAt: summary.archivedAt,
     status: display,
     unread: isSessionUnreadOf({
       display,
@@ -185,21 +174,21 @@ export const partitionSessions = ({
   )
   const nameOf = new Map(ordered.map((project) => [project.id, project.name]))
   const placed = placedOf({ sessions, nameOf })
-  const entriesOfBucket: Record<EBucket, Map<string, ISessionEntry[]>> = {
-    [EBucket.Active]: new Map(),
-    [EBucket.Inactive]: new Map(),
-    [EBucket.Archived]: new Map(),
+  const entriesOfBucket: Record<EPeerBucket, Map<string, ISessionEntry[]>> = {
+    [EPeerBucket.Active]: new Map(),
+    [EPeerBucket.Inactive]: new Map(),
+    [EPeerBucket.Archived]: new Map(),
   }
   for (const [key, project] of placed) {
     for (const node of nestPeers([...project.sessions].sort(byCreated))) {
-      const entries = entriesOfBucket[bucketOf({ summary: node, now })]
+      const entries = entriesOfBucket[peerBucketOf({ row: node, now })]
       entries.set(key, [...(entries.get(key) ?? []), entryOf({ node, projectName: project.name })])
     }
   }
   const createdAtOf = new Map(ordered.map((project) => [project.id, project.createdAt]))
   const stampsOf = (key: string): (string | null | undefined)[] =>
     (placed.get(key)?.sessions ?? []).flatMap((summary) => [summary.updatedAt, summary.archivedAt])
-  const groupsOf = (bucket: EBucket): IProjectGroup[] => [
+  const groupsOf = (bucket: EPeerBucket): IProjectGroup[] => [
     ...ordered.map((project) => ({
       key: project.id,
       name: project.name,
@@ -220,8 +209,8 @@ export const partitionSessions = ({
   }
   const nonEmpty = (group: IProjectGroup) => group.sessions.length > 0
   return {
-    groups: groupsOf(EBucket.Active).filter((group) => nonEmpty(group) || isRecentGroup(group)),
-    inactive: groupsOf(EBucket.Inactive).filter(nonEmpty),
-    archived: groupsOf(EBucket.Archived).filter(nonEmpty),
+    groups: groupsOf(EPeerBucket.Active).filter((group) => nonEmpty(group) || isRecentGroup(group)),
+    inactive: groupsOf(EPeerBucket.Inactive).filter(nonEmpty),
+    archived: groupsOf(EPeerBucket.Archived).filter(nonEmpty),
   }
 }

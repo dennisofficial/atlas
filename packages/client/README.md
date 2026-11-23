@@ -1,7 +1,6 @@
 # @dltech/atlas-client
 
-The headless client library that web, the TUI and the mobile app share. It follows a session live,
-keeps the log, derives the transcript, and holds the rewind, image upload and device login.
+The headless client library that web, the TUI and the mobile app share.
 
 ## Owns
 
@@ -49,8 +48,9 @@ keeps the log, derives the transcript, and holds the rewind, image upload and de
   subscription to the session list.
 - `StreamTransport`, `StreamScheduler`, `systemStreamScheduler`, `browserNetworkSignal`: the ports
   that a surface supplies.
-- `nestPeers(rows)` nests each teammate under its spawner. `isRecentProject(args)`,
-  `lastActivityAt(args)` and `INACTIVE_AFTER_MS` decide which projects stay in the sidebar.
+- `nestPeers(rows)` nests each teammate under its spawner. `peerBucketOf({ row, now })` and
+  `EPeerBucket` give a row's bucket; `splitTeammates(rows)` gives its active and done teammates.
+  `isRecentProject(args)`, `lastActivityAt(args)` and `INACTIVE_AFTER_MS` keep the fresh projects.
 
 ### Keep the log and the view
 
