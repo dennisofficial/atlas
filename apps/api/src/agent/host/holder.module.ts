@@ -75,8 +75,8 @@ const holderProvider: Provider = {
     log: LogPort,
     watch: HostWatchService,
     macLink: MacLink,
+    dispatcher: JobsProjectDispatcher,
     traceFor: (distinctId: string) => TracePort,
-    jobs: JobsProjectDispatcher,
   ): SessionHolder =>
     composeAgentHost({
       env,
@@ -90,9 +90,10 @@ const holderProvider: Provider = {
       presence,
       control,
       macLink,
+      dispatcher,
       log,
       traceFor,
-      notify: notifyDispatchOf({ dispatcher: jobs }),
+      notify: notifyDispatchOf({ dispatcher }),
       onHostIdChanged: () => watch.recompute(),
       ...(media.signer === undefined ? {} : { media: media.signer }),
       ...(content instanceof UnavailableChangeContentStore ? {} : { changes: { content } }),
@@ -113,8 +114,8 @@ const holderProvider: Provider = {
     LOG,
     HOST_WATCH,
     MAC_LINK,
-    TRACE_FOR,
     JobsProjectDispatcher,
+    TRACE_FOR,
   ],
 }
 
