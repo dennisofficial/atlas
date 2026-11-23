@@ -47,7 +47,7 @@ const fakeFiles = (entries: readonly string[], stat?: FileSystemPort['stat']): F
   stat:
     stat ??
     (async () => {
-      throw new Error('ENOENT')
+      throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' })
     }),
   readLink: async () => null,
   readFile: async () => {

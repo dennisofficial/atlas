@@ -12,6 +12,7 @@ import { ECallFailure, type CallOp, type CallResult, type DaemonEvent, type OpNa
 import type { CallSink } from './call-output'
 import { ECallJournalState, type CallJournal, type CallStore } from './call-store'
 import type { RegisteredOp } from './group'
+import { journalFailureMessage } from './journal-failure'
 import { KeyLock } from './key-lock'
 import { LiveCall, answerFor, discardJournal, readJournal } from './live-call'
 import { type LedgerOutcome, refused, staleEpoch, unknownKey } from './outcomes'
@@ -231,13 +232,14 @@ export class CallLedger {
       onFault: this.args.onFault,
     })
     this.calls.set(args.key, call)
-    if (!(await call.journalRunning())) {
-      const message = 'the call journal could not be written'
-      this.settle({
-        key: args.key,
-        call,
-        result: call.failure(ECallFailure.PersistFailed, message),
-      })
+    const journalFailure = await call.journalRunning()
+    if (journalFailure !== undefined) {
+      const what = 'the call journal could not be written'
+      const result = call.failure(
+        ECallFailure.PersistFailed,
+        journalFailureMessage({ error: journalFailure.error, what }),
+      )
+      this.settle({ key: args.key, call, result })
       return { ok: true }
     }
     if (this.protocol.epoch > args.epoch) {

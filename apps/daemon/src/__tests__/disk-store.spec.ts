@@ -15,7 +15,7 @@ import { join } from 'node:path'
 import { ECallStatus, EExecOutcome } from '@dltech/atlas-protocol'
 import { type CallJournal, ECallJournalState } from '@dltech/atlas-protocol/engine'
 
-import { DiskCallStore } from '../disk-store'
+import { DISK_RESERVE_FILE, DiskCallStore, writeWithReserve } from '../disk-store'
 
 const doneJournal = (outputBytes: number): CallJournal => ({
   format: 1,
@@ -140,6 +140,53 @@ describe('DiskCallStore', () => {
       await store.prune()
 
       expect(keysOf(home)).toEqual(['newest'])
+    })
+  })
+})
+
+const diskFull = (): Error =>
+  Object.assign(new Error('ENOSPC: no space left on device'), { code: 'ENOSPC' })
+
+const failingOnce = (failure: Error) => {
+  let calls = 0
+  return {
+    calls: () => calls,
+    write: async (): Promise<void> => {
+      calls += 1
+      if (calls === 1) throw failure
+    },
+  }
+}
+
+describe('writeWithReserve', () => {
+  it('frees the disk reserve on a full disk and writes again', async () => {
+    await withHome(async (home) => {
+      writeFileSync(join(home, DISK_RESERVE_FILE), 'reserve')
+      const write = failingOnce(diskFull())
+
+      await writeWithReserve({ home, write: write.write })
+
+      expect(write.calls()).toBe(2)
+      expect(existsSync(join(home, DISK_RESERVE_FILE))).toBe(false)
+    })
+  })
+
+  it('reports a full disk once the reserve is already spent', async () => {
+    await withHome(async (home) => {
+      const write = failingOnce(diskFull())
+
+      await expect(writeWithReserve({ home, write: write.write })).rejects.toThrow('ENOSPC')
+      expect(write.calls()).toBe(1)
+    })
+  })
+
+  it('keeps the reserve for a failure that is not a full disk', async () => {
+    await withHome(async (home) => {
+      writeFileSync(join(home, DISK_RESERVE_FILE), 'reserve')
+      const write = failingOnce(Object.assign(new Error('EIO'), { code: 'EIO' }))
+
+      await expect(writeWithReserve({ home, write: write.write })).rejects.toThrow('EIO')
+      expect(existsSync(join(home, DISK_RESERVE_FILE))).toBe(true)
     })
   })
 })

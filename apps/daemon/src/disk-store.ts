@@ -21,6 +21,11 @@ type CallEntry = { dir: string; name: string; mtimeMs: number; bytes: number }
 const isMissing = (error: unknown): boolean =>
   error instanceof Error && 'code' in error && error.code === 'ENOENT'
 
+const isDiskFull = (error: unknown): boolean =>
+  error instanceof Error && 'code' in error && error.code === 'ENOSPC'
+
+export const DISK_RESERVE_FILE = 'disk-reserve'
+
 const writeSynced = async (args: { path: string; content: string }): Promise<void> => {
   let handle: FileHandle | undefined
   try {
@@ -77,6 +82,21 @@ const entryOf = async (args: { dir: string; name: string }): Promise<CallEntry |
   return own === undefined ? undefined : { ...args, mtimeMs: own.mtimeMs, bytes: 0 }
 }
 
+export const writeWithReserve = async (args: {
+  home: string
+  write: () => Promise<void>
+}): Promise<void> => {
+  try {
+    await args.write()
+  } catch (error) {
+    if (!isDiskFull(error)) throw error
+    const reserve = join(args.home, DISK_RESERVE_FILE)
+    if ((await statOrUndefined(reserve)) === undefined) throw error
+    await rm(reserve, { force: true })
+    await args.write()
+  }
+}
+
 const removeDir = (dir: string): Promise<void> => rm(dir, { recursive: true, force: true })
 
 export class DiskCallStore implements CallStore {
@@ -126,6 +146,10 @@ export class DiskCallStore implements CallStore {
   }
 
   async writeState(args: { key: string; journal: CallJournal }): Promise<void> {
+    await writeWithReserve({ home: this.home, write: () => this.writeStateOnce(args) })
+  }
+
+  private async writeStateOnce(args: { key: string; journal: CallJournal }): Promise<void> {
     const dir = this.dirOf(args.key)
     await mkdir(dir, { recursive: true })
     const staging = join(dir, 'state.json.tmp')
@@ -135,7 +159,10 @@ export class DiskCallStore implements CallStore {
   }
 
   async appendOutput(args: { key: string; bytes: Uint8Array }): Promise<void> {
-    await appendFile(join(this.dirOf(args.key), 'output.bin'), args.bytes)
+    await writeWithReserve({
+      home: this.home,
+      write: () => appendFile(join(this.dirOf(args.key), 'output.bin'), args.bytes),
+    })
   }
 
   async readOutput(args: { key: string; offset: number }): Promise<Uint8Array> {
