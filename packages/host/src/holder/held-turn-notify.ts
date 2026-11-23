@@ -48,6 +48,9 @@ const statusOf = (args: { deps: HeldSessionDeps; record: TurnLog }): ESessionSta
   }).state
 }
 
+const turnEndedAtOf = (args: { record: TurnLog; ending: TurnEnding | null }): string | undefined =>
+  args.ending === null ? undefined : args.record.eventCache().eventsAfter(0).at(-1)?.at
+
 export const notifyTurnOf = (args: {
   deps: HeldSessionDeps
   record: TurnLog
@@ -66,12 +69,14 @@ export const notifyTurnOf = (args: {
     pending: args.ending === null ? [] : args.facts.pending,
     operatorTurn: args.facts.operatorTurn,
   })
+  const endedAt = turnEndedAtOf({ record: args.record, ending: args.ending })
   void notify({
     sessionId: args.deps.sessionId,
     threadId: args.record.threadId,
     seq: args.record.eventCache().currentHead().seq,
     moment,
     decision,
+    ...(endedAt === undefined ? {} : { endedAt }),
   }).catch((error: unknown) => {
     args.deps.log?.warn({
       source: 'holder.turn',

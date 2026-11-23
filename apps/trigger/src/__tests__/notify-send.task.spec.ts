@@ -1,6 +1,7 @@
 import { describe, expect, it, mock } from 'bun:test'
-import { ENotifyMoment } from '@dltech/atlas-core'
+import { ENotifyMoment, EPendingWork } from '@dltech/atlas-core'
 import { ENotifyDeviceKind } from '@dltech/atlas-notifications'
+import { ProductAnalytics } from '@dltech/atlas-observability'
 import { triggerSdkFake } from './trigger-sdk.fake'
 import {
   apnsDeviceOf,
@@ -271,5 +272,169 @@ describe('runNotifyTest', () => {
       title: 'Atlas',
       body: 'Test notification',
     })
+  })
+})
+
+class ThrowingAnalytics extends ProductAnalytics {
+  capture(): void {
+    throw new Error('posthog is down')
+  }
+
+  async flush(): Promise<void> {}
+}
+
+describe('notify analytics', () => {
+  it('captures the moment once per run with the decision the host took', async () => {
+    const { graph, record } = notifyGraphOf()
+
+    await runNotifySend({
+      graph,
+      payload: {
+        ...PAYLOAD,
+        holdMs: 3_600_000,
+        pending: [EPendingWork.Shell],
+        operatorTurn: true,
+        endedAt: '2026-11-23T14:00:00.000Z',
+      },
+    })
+
+    const moments = record.captured.filter((entry) => entry.event === 'notification_moment')
+    expect(moments).toHaveLength(1)
+    expect(moments[0]).toEqual({
+      userId: 'usr-1',
+      event: 'notification_moment',
+      properties: {
+        moment: ENotifyMoment.TurnFinished,
+        session_id: 'session-1',
+        seq: 7,
+        verdict: 'hold',
+        hold_ms: 3_600_000,
+        pending_kinds: [EPendingWork.Shell],
+        operator_turn: true,
+        ended_at: '2026-11-23T14:00:00.000Z',
+      },
+    })
+  })
+
+  it('captures the moment of a turn that was not held as send', async () => {
+    const { graph, record } = notifyGraphOf()
+
+    await runNotifySend({ graph, payload: PAYLOAD })
+
+    expect(record.captured[0]?.properties).toMatchObject({
+      verdict: 'send',
+      hold_ms: 0,
+      pending_kinds: [],
+      operator_turn: true,
+    })
+    expect(record.captured[0]?.properties).not.toHaveProperty('ended_at')
+  })
+
+  it('captures the reason a moment was read already', async () => {
+    const { graph, record } = notifyGraphOf({ session: sessionOf({ readSeq: 7 }) })
+
+    await runNotifySend({ graph, payload: PAYLOAD })
+
+    const skipped = record.captured.filter((entry) => entry.event === 'notification_skipped')
+    expect(skipped).toHaveLength(1)
+    expect(skipped[0]?.properties).toEqual({
+      moment: ENotifyMoment.TurnFinished,
+      session_id: 'session-1',
+      seq: 7,
+      reason: 'already-read',
+      held: false,
+      nested: false,
+    })
+  })
+
+  it('captures a nested agent turn that no operator started as skipped', async () => {
+    const { graph, record } = notifyGraphOf({
+      session: sessionOf({ nested: true, spawnedBySessionId: 'session-0' }),
+    })
+
+    await runNotifySend({ graph, payload: { ...PAYLOAD, operatorTurn: false } })
+
+    expect(record.captured.at(-1)?.properties).toMatchObject({
+      reason: 'nested-agent-turn',
+      nested: true,
+    })
+  })
+
+  it('captures a held moment that a newer turn superseded as skipped and held', async () => {
+    const { graph, record } = notifyGraphOf({ superseded: true })
+
+    await runNotifySend({ graph, payload: { ...PAYLOAD, holdMs: 3_600_000 } })
+
+    expect(record.captured.at(-1)?.event).toBe('notification_skipped')
+    expect(record.captured.at(-1)?.properties).toMatchObject({ reason: 'superseded', held: true })
+  })
+
+  it('captures one sent event per device with the kind, the sound and the latency', async () => {
+    const { graph, record } = notifyGraphOf({
+      devices: [deviceOf(), expoDeviceOf({ id: 'device-2' })],
+    })
+
+    await runNotifySend({
+      graph,
+      payload: { ...PAYLOAD, endedAt: '2026-11-23T14:00:00.000Z' },
+    })
+
+    const sent = record.captured.filter((entry) => entry.event === 'notification_sent')
+    expect(sent).toHaveLength(2)
+    expect(sent.map((entry) => entry.properties)).toEqual([
+      {
+        moment: ENotifyMoment.TurnFinished,
+        session_id: 'session-1',
+        seq: 7,
+        device_kind: ENotifyDeviceKind.WebPush,
+        accepted: true,
+        gone: false,
+        sound: true,
+        held_ms: 0,
+        latency_ms: 120_000,
+      },
+      {
+        moment: ENotifyMoment.TurnFinished,
+        session_id: 'session-1',
+        seq: 7,
+        device_kind: ENotifyDeviceKind.Expo,
+        accepted: true,
+        gone: false,
+        sound: true,
+        held_ms: 0,
+        latency_ms: 120_000,
+      },
+    ])
+  })
+
+  it('captures a silent push as sound false', async () => {
+    const { graph, record } = notifyGraphOf({ sound: false })
+
+    await runNotifySend({ graph, payload: PAYLOAD })
+
+    expect(record.captured.at(-1)?.properties).toMatchObject({ sound: false })
+  })
+
+  it('captures the in-app plan that the server decided', async () => {
+    const { graph, record } = notifyGraphOf({
+      presence: [presenceOf({ sessionId: 'session-2', foreground: true })],
+    })
+
+    expect(await runNotifySend({ graph, payload: PAYLOAD })).toEqual({ sent: 0, gone: 0 })
+    const inApp = record.captured.filter((entry) => entry.event === 'notification_in_app')
+    expect(inApp).toHaveLength(1)
+    expect(inApp[0]?.properties).toEqual({
+      moment: ENotifyMoment.TurnFinished,
+      session_id: 'session-1',
+      seq: 7,
+      source: 'server',
+    })
+  })
+
+  it('still delivers when analytics throws', async () => {
+    const { graph, record } = notifyGraphOf({ analytics: new ThrowingAnalytics() })
+
+    expect(await runNotifySend({ graph, payload: PAYLOAD })).toEqual({ sent: 1, gone: 0 })
+    expect(record.delivered).toHaveLength(1)
   })
 })
