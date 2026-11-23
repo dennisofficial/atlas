@@ -17,6 +17,7 @@ import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { BackgroundWork } from '../../../_core/ports/background-work'
 import { NoSessionTitler } from '../../../_core/ports/session-titler'
 import { FakeMediaRegistry } from './media-registry.fake'
+import { NoJobsDispatcher } from './jobs-dispatcher.fake'
 import { SessionsService } from './sessions.service'
 import { ProjectAccess } from './project-access'
 
@@ -47,6 +48,7 @@ describe('SessionsService blob reads', () => {
       composeCommands([]),
       { resizeHandler: () => async () => undefined },
       { sleep: async () => ({ state: 'sleeping' }), parkArchived: async () => undefined },
+      new NoJobsDispatcher(),
     )
     return { plane, service }
   }
