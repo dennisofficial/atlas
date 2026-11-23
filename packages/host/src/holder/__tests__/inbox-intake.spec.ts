@@ -13,6 +13,7 @@ import {
 import type { ControlPlane } from '@dltech/atlas-control'
 import {
   type InputMessage,
+  EContextSlot,
   EInputConsumed,
   EMessageOrigin,
   ESubscriptionActor,
@@ -25,6 +26,8 @@ import {
   type InboxEntry,
 } from '@dltech/atlas-core'
 import { z } from 'zod'
+
+import type { PodSlash } from '@dltech/atlas-plugin-sdk'
 
 import type { CommandHandlers, ControlHandlers } from '../command-intake'
 import { InboxIntake } from '../inbox-intake'
@@ -55,6 +58,7 @@ type RigOptions = {
   registry?: CommandRegistry
   handlers?: CommandHandlers
   controlHandlers?: ControlHandlers
+  slash?: PodSlash
   renames?: { sessionId: string; title: string }[]
   now?: number
   source?: (args: { afterId: number; limit: number }) => Promise<InboxEntry[]>
@@ -102,6 +106,7 @@ const rigOf = (entries: readonly InboxEntry[], options: RigOptions = {}) => {
     ...(options.commands === true ? { commands: composeCommands([]) } : {}),
     ...(options.handlers === undefined ? {} : { handlers: options.handlers }),
     ...(options.controlHandlers === undefined ? {} : { controlHandlers: options.controlHandlers }),
+    ...(options.slash === undefined ? {} : { slash: options.slash }),
     now: () => options.now ?? NOW,
     log: {
       warn: (line: { message: string }) => warnings.push(line.message),
@@ -769,6 +774,109 @@ describe('InboxIntake typed text commands', () => {
         },
       ],
     ])
+    expect(rig.appended.some((draft) => draft.type === 'user-said')).toBe(false)
+  })
+})
+
+const skillSlash = (args: {
+  names?: () => Promise<readonly string[]>
+  load?: PodSlash['load']
+}): PodSlash => ({
+  names: args.names ?? (async () => ['review']),
+  load:
+    args.load ??
+    (async ({ name, argumentText }) => ({
+      ok: true,
+      drafts: [
+        {
+          type: 'context-loaded',
+          slot: EContextSlot.Skill,
+          key: name,
+          content: `review body for ${argumentText}`,
+        },
+      ],
+    })),
+})
+
+const contextLoaded = (name: string, content: string): AppendBody =>
+  ({ type: 'context-loaded', slot: EContextSlot.Skill, key: name, content }) as AppendBody
+
+describe('InboxIntake typed skill text', () => {
+  it('posts the typed line, loads the skill, then says the line', async () => {
+    const rig = rigOf([entry(1, { text: '/review src/app.ts' })], {
+      registry: composeCommands([]),
+      slash: skillSlash({}),
+    })
+    const drain = await rig.intake.prepare()
+    expect(drain).toEqual({ drafts: [], wakesTurn: true })
+    expect(rig.appends).toEqual([
+      [
+        posted(1, { text: '/review src/app.ts' }),
+        contextLoaded('review', 'review body for src/app.ts'),
+        said(1, { text: '/review src/app.ts' }),
+      ],
+    ])
+  })
+
+  it('loads a skill for a line that the log already posted', async () => {
+    const rig = rigOf([], {
+      source: async () => [],
+      registry: composeCommands([]),
+      slash: skillSlash({}),
+    })
+    rig.appended.push(posted(4, { text: '/review src/app.ts' }))
+    await rig.intake.prepare()
+    expect(rig.appends).toEqual([
+      [
+        contextLoaded('review', 'review body for src/app.ts'),
+        said(4, { text: '/review src/app.ts' }),
+      ],
+    ])
+  })
+
+  it('sends the line as a plain message when the names cannot be read', async () => {
+    const rig = rigOf([entry(1, { text: '/review src/app.ts' })], {
+      registry: composeCommands([]),
+      slash: skillSlash({
+        names: async () => {
+          throw new Error('catalogue exploded')
+        },
+      }),
+    })
+    await rig.intake.prepare()
+    expect(rig.appends).toEqual([
+      [posted(1, { text: '/review src/app.ts' }), said(1, { text: '/review src/app.ts' })],
+    ])
+    expect(rig.warnings).toEqual(['reading the skill names failed, so the text stays a message'])
+  })
+
+  it('refuses the line when the skill cannot be loaded, and says nothing', async () => {
+    const rig = rigOf([entry(1, { text: '/review src/app.ts' })], {
+      registry: composeCommands([]),
+      slash: skillSlash({
+        load: async () => ({ ok: false, reason: 'the review skill has no body' }),
+      }),
+    })
+    await rig.intake.prepare()
+    expect(rig.appends).toEqual([
+      [posted(1, { text: '/review src/app.ts' })],
+      [{ type: 'input-refused', inboxId: 1, reason: 'the review skill has no body' }],
+    ])
+    expect(rig.appended.some((draft) => draft.type === 'user-said')).toBe(false)
+  })
+
+  it('lets a command name beat a skill name', async () => {
+    const renames: { sessionId: string; title: string }[] = []
+    const registry = composeCommands([renameCommand, modelCommand])
+    const rig = rigOf([entry(1, { text: '/rename bench' })], {
+      registry,
+      controlHandlers: new Map([['rename', renameHandler]]),
+      slash: skillSlash({ names: async () => ['rename'] }),
+      renames,
+    })
+    await rig.intake.prepare()
+    expect(renames).toEqual([{ sessionId: 'session-1', title: 'bench' }])
+    expect(rig.appended.some((draft) => draft.type === 'context-loaded')).toBe(false)
     expect(rig.appended.some((draft) => draft.type === 'user-said')).toBe(false)
   })
 })

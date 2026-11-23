@@ -17,6 +17,7 @@ import {
   type PluginPodContext,
   type PodCrew,
   type PodResources,
+  type PodSlash,
 } from '@dltech/atlas-plugin-sdk'
 
 import { worktreesOf } from './checkouts'
@@ -269,7 +270,7 @@ export const pluginHooksOf = (args: {
   })
 }
 
-export type PluginPod = { tools: ToolRegistry; hooks: HookChain }
+export type PluginPod = { tools: ToolRegistry; hooks: HookChain; slash?: PodSlash | undefined }
 
 export const pluginPodOf = (args: {
   deps: HeldSessionDeps
@@ -287,6 +288,7 @@ export const pluginPodOf = (args: {
   }
   const ctx = pluginPodContextOf(args)
   const tools = pluginToolsOf({ runtime: args.runtime, ctx })
+  const slash = plugins.pod.slash(ctx)
   const sync = resourceSyncOf({
     runtime: args.runtime,
     ctx,
@@ -300,5 +302,5 @@ export const pluginPodOf = (args: {
     ...(sync === undefined ? {} : { sync }),
   })
   ctx.onDaemonEvent((frame) => plugins.pod.onDaemonEvent(frame))
-  return { tools, hooks }
+  return { tools, hooks, ...(slash === undefined ? {} : { slash }) }
 }

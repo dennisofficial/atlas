@@ -4,7 +4,7 @@ import type { PromptFragment, ToolDefinition } from '@dltech/atlas-core'
 import type { DaemonEventFrame } from '@dltech/atlas-protocol'
 
 import type { PodResource } from './resources'
-import type { PluginPodContext, PodSlot } from './slots'
+import type { PluginPodContext, PodSlash, PodSlot } from './slots'
 
 export type ComposedPod = {
   childDeny: readonly string[]
@@ -13,6 +13,7 @@ export type ComposedPod = {
   prompts: readonly PromptFragment[]
   commands: ReadonlyMap<string, CommandHandler<unknown>>
   resources: readonly PodResource<unknown>[]
+  slash(ctx: PluginPodContext): PodSlash | undefined
   onDaemonEvent(frame: DaemonEventFrame): void
 }
 
@@ -67,6 +68,9 @@ export const composePod = (pods: readonly PodSlot[]): ComposedPod => {
       what: 'the prompt fragment',
     }),
   )
+  const slashes = pods.flatMap((pod) => (pod.slash === undefined ? [] : [pod.slash]))
+  if (slashes.length > 1) throw new Error('two plugins register a slash source')
+  const slash = slashes[0]
   const commands = mergeMaps({ maps: pods.map((pod) => pod.commands), what: 'the pod command' })
   const childDeny = Object.freeze([...new Set(pods.flatMap((pod) => pod.childDeny ?? []))])
   const resources = Object.freeze(
@@ -88,6 +92,7 @@ export const composePod = (pods: readonly PodSlot[]): ComposedPod => {
         what: 'the tool',
       }),
     hooks: (ctx) => mergeHooks(pods.map((pod) => pod.hooks?.(ctx) ?? {})),
+    slash: (ctx) => slash?.(ctx),
     onDaemonEvent: (frame) => {
       for (const pod of pods) pod.onDaemonEvent?.(frame)
     },
