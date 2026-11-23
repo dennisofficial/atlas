@@ -1,4 +1,5 @@
 import {
+  DURABLE_TYPES,
   isSurviving,
   needsRebuild,
   rebuildEditSensitive,
@@ -103,7 +104,20 @@ export const rebuildFromLog = async (args: {
     visible: true,
     eventSchema: args.eventSchema,
   })
-  const rebuilt = rebuildEditSensitive({ state: args.state, visibleTail: tail.events })
+  const foldable = await readEventsIn({
+    tx: args.tx,
+    row: args.row,
+    afterSeq: Math.max(0, args.row.headSeq - VIEW_TAIL_LIMIT),
+    limit: VIEW_TAIL_LIMIT,
+    visible: true,
+    hiddenTypes: DURABLE_TYPES,
+    eventSchema: args.eventSchema,
+  })
+  const rebuilt = rebuildEditSensitive({
+    state: args.state,
+    visibleTail: tail.events,
+    foldableTail: foldable.events,
+  })
   const views = args.pluginViews ?? []
   if (!args.rewound || views.length === 0) return rebuilt
   const surviving = await survivingEvents({

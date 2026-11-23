@@ -5,34 +5,36 @@ import { until } from '../../stream/__tests__/until'
 import { busOf, operationsOf, relayOf, sample, watch } from './pod-metrics-relay.fixtures'
 
 describe('PodMetricsRelay holder', () => {
-  it('asks for a holder before it relays, and keeps asking while the watcher renews', async () => {
-    const { ops, hold, waitForHolder, events } = operationsOf({ held: true, backlog: [] })
+  it('relays only on the instance that serves the pod, and keeps serving while the watcher renews', async () => {
+    const { ops, hold, servesLocally, events } = operationsOf({ held: true, backlog: [] })
     const { bus, frames } = busOf()
     relayOf({ ops, bus })
     await watch(bus, { watcherId: 'w1', ttlMs: 30 })
     await until(() => frames.length === 1, 'the backlog')
     expect(hold).toHaveBeenCalledWith({ sessionId: 's1', ttlMs: 30 })
-    expect(waitForHolder).toHaveBeenCalledTimes(1)
+    expect(servesLocally).toHaveBeenCalledTimes(1)
     expect(events).toHaveBeenCalledTimes(1)
     expect(hold.mock.invocationCallOrder[0]).toBeLessThan(
-      waitForHolder.mock.invocationCallOrder[0] ?? 0,
+      servesLocally.mock.invocationCallOrder[0] ?? 0,
     )
     await watch(bus, { watcherId: 'w1', ttlMs: 30 })
     expect(hold).toHaveBeenCalledTimes(2)
   })
 
-  it('relays on a later request when the first one cannot find a holder yet', async () => {
-    const { ops, holders, waitForHolder } = operationsOf({
+  it('stays silent on an instance that does not serve the pod, then relays when it does', async () => {
+    const { ops, holders, servesLocally } = operationsOf({
       held: true,
       holder: false,
       backlog: [sample(1_000)],
     })
     const { bus, frames } = busOf()
-    relayOf({ ops, bus })
+    const warn = vi.fn()
+    relayOf({ ops, bus, log: { warn } as unknown as LogPort })
     await watch(bus, { watcherId: 'w1', ttlMs: 500 })
-    await until(() => waitForHolder.mock.calls.length === 1, 'the holder wait')
+    await until(() => servesLocally.mock.calls.length === 1, 'the reach')
     await new Promise<void>((resolve) => setTimeout(resolve, 20))
     expect(frames).toEqual([])
+    expect(warn).not.toHaveBeenCalled()
     holders.value = true
     await watch(bus, { watcherId: 'w1', ttlMs: 500 })
     await until(() => frames.length === 1, 'the backlog')

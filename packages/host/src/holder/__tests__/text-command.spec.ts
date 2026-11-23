@@ -94,7 +94,7 @@ const handlers = new Map([[summarise.inboxKind, hostHandler]])
 const controlHandlers: ControlHandlers = new Map([['rename', controlHandler]])
 
 const planOf = (text: string, skills: readonly string[] = []) =>
-  planTextInput({ text, commands: registry, handlers, controlHandlers, skills })
+  planTextInput({ text, commands: registry, handlers, controlHandlers, skills: async () => skills })
 
 describe('planTextInput', () => {
   it('plans a control command with the typed line it consumed', async () => {

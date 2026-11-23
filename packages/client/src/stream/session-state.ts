@@ -25,6 +25,9 @@ export const isSessionWorking = (status: Status): boolean =>
 export const isSessionFailed = (status: Status): boolean =>
   status !== undefined && FAILED.has(status.state)
 
+export const startFailureOf = (status: Status): { reason: string | undefined } | undefined =>
+  status?.state === ESessionStatus.StartFailed ? { reason: status.reason } : undefined
+
 const CONNECTION_LINE: Record<ESessionConnection, string | null> = {
   [ESessionConnection.Live]: null,
   [ESessionConnection.CatchingUp]: 'Catching up…',

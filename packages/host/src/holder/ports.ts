@@ -90,6 +90,7 @@ export type SessionRuntime = {
   model: ModelPort
   classifier: ClassifierPort
   classifierStatus: ClassifierStatus
+  rotation: { autoRotateAtPercent: number }
   modelChoice: ModelChoice
   choiceFor(request: RoleModelRequest): RoleModelChoice
   modelLabelOf(ref: ModelRef): string

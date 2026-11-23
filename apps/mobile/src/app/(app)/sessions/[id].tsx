@@ -11,6 +11,8 @@ import {
 import { space } from '@dltech/atlas-ui/tokens'
 import { router, Stack, useLocalSearchParams } from 'expo-router'
 import { useCallback } from 'react'
+import { BackButton } from '../../../navigation/back-button'
+import { AppHeader } from '../../../navigation/app-header'
 import { ActivityIndicator, StyleSheet, View } from 'react-native'
 
 import { EffortSelect, FastToggle } from '../../../composer/model-controls'
@@ -21,6 +23,9 @@ import { CommandListSheet } from '../../../thread/composer/command-list-sheet'
 import { Composer } from '../../../thread/composer/composer'
 import { ContextReading } from '../../../thread/composer/context-reading'
 import { StaleCard } from '../../../thread/composer/stale-card'
+import { QueuedDock } from '../../../thread/components/queued-dock'
+import { SessionTitle } from '../../../thread/components/session-title'
+import { StartFailedCard } from '../../../thread/components/start-failed-card'
 import { SessionSkeleton } from '../../../thread/components/session-skeleton'
 import { Transcript } from '../../../thread/components/transcript'
 import { useV2SessionScreen } from '../../../thread/v2/use-v2-session-screen'
@@ -28,7 +33,7 @@ import { useV2SessionScreen } from '../../../thread/v2/use-v2-session-screen'
 export default function SessionScreen() {
   const theme = useTheme()
   const { id, title } = useLocalSearchParams<{ id: string; title?: string }>()
-  const session = useV2SessionScreen(id)
+  const session = useV2SessionScreen({ sessionId: id, fallbackTitle: title })
   const model = session.commands.model
 
   const handleOpenAgent = useCallback(
@@ -58,7 +63,18 @@ export default function SessionScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: theme.background }]}>
-      <Stack.Screen options={{ title: session.failedToLoad ? '' : (title ?? '') }} />
+      <Stack.Screen
+        options={{
+          title: session.header.title,
+          header: () => (
+            <AppHeader
+              title={<SessionTitle header={session.header} />}
+              left={<BackButton />}
+              surface={theme.background}
+            />
+          ),
+        }}
+      />
       {session.loaded || session.failedToLoad ? null : <SessionSkeleton />}
       {session.failedToLoad ? (
         <View style={styles.center}>
@@ -78,7 +94,7 @@ export default function SessionScreen() {
             agentLinks={session.agentLinks}
             onOpenAgent={handleOpenAgent}
           />
-          {session.failure === null ? null : (
+          {session.failure === null || session.startFailure !== undefined ? null : (
             <View style={styles.failure}>
               <Text size={ETextRole.Xs} tone={ETextTone.Destructive} style={styles.failureText}>
                 {session.failure}
@@ -87,7 +103,7 @@ export default function SessionScreen() {
                 label="Retry"
                 size={EButtonSize.Sm}
                 variant={EButtonVariant.Outline}
-                onPress={session.retry}
+                onPress={() => void session.retry()}
               />
             </View>
           )}
@@ -105,8 +121,20 @@ export default function SessionScreen() {
                 <Text size={ETextRole.Xs} tone={ETextTone.Muted} style={styles.state}>
                   {session.stateLine}
                 </Text>
+                {session.canReconnect ? (
+                  <Button
+                    label="Reconnect"
+                    size={EButtonSize.Sm}
+                    variant={EButtonVariant.Ghost}
+                    onPress={session.reconnect}
+                  />
+                ) : null}
               </View>
             )}
+            {session.startFailure === undefined ? null : (
+              <StartFailedCard reason={session.startFailure.reason} onRetry={session.retry} />
+            )}
+            <QueuedDock dock={session.queued} />
             <Composer
               working={session.working}
               onSend={session.send}

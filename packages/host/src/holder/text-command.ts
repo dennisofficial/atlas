@@ -6,6 +6,7 @@ import {
   type CommandHandler,
   type CommandRegistry,
   type ControlCommandHandler,
+  type Invocation,
 } from '@dltech/atlas-commands'
 import type { ControlPlane } from '@dltech/atlas-control'
 import type { ConsumedCommand } from '@dltech/atlas-core'
@@ -42,6 +43,8 @@ export const clientOnlyReason = (name: string): string =>
   `/${name} opens in the app. Pick it from the / menu.`
 
 export const noRunnerReason = (name: string): string => `This session cannot run /${name} yet.`
+
+export type SkillNames = () => Promise<readonly string[]>
 
 export const slashNamesOf = async (args: {
   slash?: PodSlash | undefined
@@ -90,17 +93,46 @@ const commandPlan = (args: {
   return { kind: ETextPlan.Command, command, run: { pod }, args: args.invocationArgs, consumed }
 }
 
+export const lazySkillNamesOf = (args: {
+  slash?: PodSlash | undefined
+  log?: LogPort | undefined
+}): SkillNames => {
+  let names: Promise<readonly string[]> | undefined
+  return () => {
+    names ??= slashNamesOf(args)
+    return names
+  }
+}
+
+const invocationOf = async (input: {
+  text: string
+  commands: CommandRegistry
+  skills: SkillNames
+}): Promise<Invocation> => {
+  const withoutSkills = parseInvocation({ text: input.text, commands: input.commands, skills: [] })
+  if (withoutSkills.kind !== EInvocation.Message || !input.text.startsWith('/'))
+    return withoutSkills
+  return parseInvocation({
+    text: input.text,
+    commands: input.commands,
+    skills: await input.skills(),
+  })
+}
+
 export const planTextInput = async (input: {
   text: string
   commands: CommandRegistry
   handlers: CommandHandlers
   controlHandlers: ControlHandlers
   slash?: PodSlash | undefined
-  skills?: readonly string[] | undefined
+  skills?: SkillNames | undefined
   log?: LogPort | undefined
 }): Promise<TextPlan> => {
-  const skills = input.skills ?? (await slashNamesOf({ slash: input.slash, log: input.log }))
-  const invocation = parseInvocation({ text: input.text, commands: input.commands, skills })
+  const invocation = await invocationOf({
+    text: input.text,
+    commands: input.commands,
+    skills: input.skills ?? lazySkillNamesOf({ slash: input.slash, log: input.log }),
+  })
   if (invocation.kind === EInvocation.Message) return { kind: ETextPlan.Message }
   if (invocation.kind === EInvocation.Skill) {
     return {

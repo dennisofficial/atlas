@@ -25,6 +25,7 @@ import { HeldEnding } from './held-ending'
 import { HeldObservation } from './held-observation'
 import { HeldActions } from './held-actions'
 import { HeldDrain } from './held-drain'
+import { HeldRotation } from './rotation'
 
 export type { HeldSessionDeps }
 
@@ -38,6 +39,7 @@ export class HeldSession {
   private readonly seed: ContextSeedGate
   private readonly actions: HeldActions
   private readonly drain: HeldDrain
+  private readonly rotation: HeldRotation
   private draining = false
   private runtime: SessionRuntime | undefined
   private record: SessionRecord | undefined
@@ -62,8 +64,16 @@ export class HeldSession {
       runtime: () => this.runtime,
       record: () => this.record,
     })
-    this.turns.onTurnEnd = () => {
+    this.rotation = new HeldRotation({
+      record: () => this.record,
+      runtime: () => this.runtime,
+      ids: deps.ids,
+      runningChildren: () => this.crew?.runningCount() ?? 0,
+      ...(deps.log === undefined ? {} : { log: deps.log }),
+    })
+    this.turns.onTurnEnd = async () => {
       this.observation?.turnEnded()
+      await this.rotation.maybeAutoRotate()
       this.reconciler?.request()
     }
     this.prepare = new HeldPrepare({
@@ -196,6 +206,7 @@ export class HeldSession {
       onLeaseLost: (error) => this.ending.lose(lostOutcome(error)),
       onRuntime: (opened) => {
         this.runtime = opened
+        deps.onRuntimeReady?.()
       },
     })
     this.record = record
@@ -223,6 +234,7 @@ export class HeldSession {
         crew: crew.port(),
         crewRunning: () => crew.runningCount(),
         isDraining: () => this.draining,
+        childrenRunning: () => this.crew?.runningCount() ?? 0,
       })
     this.observation = new HeldObservation({
       deps,

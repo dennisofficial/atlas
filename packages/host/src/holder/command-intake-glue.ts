@@ -12,7 +12,7 @@ import type { LogPort } from '@dltech/atlas-observability'
 import { isCommandKind, type CommandIntake } from './command-intake'
 import type { SessionRecord } from './record/record-adapter'
 import type { AppendDrafts } from './staged-log'
-import { ETextPlan } from './text-command'
+import { ETextPlan, type SkillNames } from './text-command'
 
 export const UNKNOWN_COMMAND_MAX_AGE_MS = 60 * 60 * 1000
 
@@ -33,7 +33,7 @@ export type CommandEntryArgs = CommandGlue & { entry: InboxEntry }
 
 export type LoggedCommandsArgs = CommandGlue & {
   events: readonly V2Event[]
-  skills?: readonly string[] | undefined
+  skills?: SkillNames | undefined
   readEntry: (inboxId: number) => Promise<InboxEntry | undefined>
 }
 

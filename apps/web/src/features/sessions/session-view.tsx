@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
-import { ESessionStatus } from '@dltech/atlas-core'
 import { liveBackgroundOf } from '@dltech/atlas-client/crew'
 import { mergedDraftOf, postInputOf } from '@dltech/atlas-client/session'
-import { ESessionConnection } from '@dltech/atlas-client/stream'
+import { ESessionConnection, startFailureOf } from '@dltech/atlas-client/stream'
+import { turnStartedAtOf } from '@dltech/atlas-client/transcript'
 
 import { useV2Sessions } from '@/features/shell/use-v2-sessions'
 import { messageOf } from '@/features/threads/data/use-send'
@@ -15,7 +15,6 @@ import { useComposerAttachments } from '@/features/threads/data/use-composer-att
 import { ModelPickerControls } from '@/features/threads/model-picker'
 import { ThreadComposer } from '@/features/threads/thread-composer'
 import { ThreadTranscript } from '@/features/threads/thread-transcript'
-import { turnStartedAtOf } from '@/features/threads/data/turn-start'
 import { SummariseDialog } from '@/features/threads/transcript/summarise-dialog'
 import { RewindDialog } from '@/features/threads/transcript/rewind-dialog'
 import { track } from '@/lib/analytics/analytics'
@@ -110,7 +109,8 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   const files = useComposerAttachments()
   const attachments = useSessionAttachments({ files })
   const working = isSessionWorking(snapshot.status)
-  const turnStartedAt = useMemo(() => turnStartedAtOf(snapshot.events), [snapshot.events])
+  const startFailure = startFailureOf(snapshot.status)
+  const turnStartedAt = useMemo(() => turnStartedAtOf(snapshot.foldable), [snapshot.foldable])
   const reveal = useSessionReveal(snapshot)
   const view = useMemo(
     () =>
@@ -129,22 +129,22 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   const boot = useMemo(
     () =>
       sessionBootViewOf({
-        events: snapshot.events,
+        events: snapshot.foldable,
         status: snapshot.status,
         setupOutput: snapshot.setupOutput,
         catchingUp: snapshot.connection === ESessionConnection.CatchingUp,
       }),
-    [snapshot.events, snapshot.status, snapshot.setupOutput, snapshot.connection],
+    [snapshot.foldable, snapshot.status, snapshot.setupOutput, snapshot.connection],
   )
   const operatorRequest = useMemo(() => pendingOperatorRequestOf(view.items), [view.items])
   const model = useMemo(() => sessionViewModelOf(snapshot.view), [snapshot.view])
   const background = useMemo(
     () =>
       liveBackgroundOf({
-        events: snapshot.events,
+        events: snapshot.foldable,
         live: snapshot.connection === ESessionConnection.Live,
       }),
-    [snapshot.events, snapshot.connection],
+    [snapshot.foldable, snapshot.connection],
   )
   const { panel, pane, openAgent, sheetOpenChange } = useSessionAgentWiring({
     sessionId,
@@ -208,7 +208,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     })
 
   const summarise = useSessionSummarise({ sessionId, events: snapshot.events })
-  const skillEntries = useSessionSkills({ events: snapshot.events })
+  const skillEntries = useSessionSkills({ events: snapshot.foldable })
   const commandEntries = useSessionCommands()
   const [commandListOpen, setCommandListOpen] = useState(false)
   const composerEntries = useMemo(
@@ -331,7 +331,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
                   onLoadOlder={loadOlder}
                 />
               </div>
-              <div className="mx-auto flex w-full max-w-4xl shrink-0 flex-col gap-2 px-4 pb-4">
+              <div className="mx-auto flex w-full max-w-4xl shrink-0 flex-col gap-2 px-4 pb-[max(1rem,var(--safe-area-bottom))]">
                 <OperatorRequestDock sessionId={sessionId} request={operatorRequest} />
                 <RepairStrip strip={repair.strip} />
                 {snapshot.skipped > 0 ? (
@@ -344,9 +344,9 @@ export function SessionView({ sessionId }: { sessionId: string }) {
                   snapshot={snapshot}
                   onReconnect={() => sessionStream().reconnect()}
                 />
-                {snapshot.status?.state === ESessionStatus.StartFailed ? (
-                  <StartFailedCard reason={snapshot.status.reason} onRetry={handleRetry} />
-                ) : null}
+                {startFailure === undefined ? null : (
+                  <StartFailedCard reason={startFailure.reason} onRetry={handleRetry} />
+                )}
                 <RefusalRows refusals={refusals} onDismiss={dismissRefusals} />
                 <RepairSignInDialog {...repair.dialogs.signIn} />
                 <RepairKeyDialog {...repair.dialogs.key} />

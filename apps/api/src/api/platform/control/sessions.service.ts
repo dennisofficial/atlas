@@ -81,6 +81,7 @@ import { PodSizingService, type PodSizing } from './pod-sizing.service'
 import { pageSessions, type PageBucket } from '../sessions/session-pages'
 import { bucketPageSessions } from './session-bucket-page'
 import { COMMAND_REGISTRY, postCommand } from './command-registry'
+import { refuseArchivedCommand, requireLiveSession } from './session-archived'
 import { SubscriptionTargetError, resolvedSubscriptionTargetOf } from './subscription-target'
 import { modelSet, modelSetArgs, modelSetHandlers } from './model-set'
 import { MediaRegistry } from './media-registry'
@@ -273,7 +274,7 @@ export class SessionsService {
     uploads?: readonly SaidUpload[] | undefined
     attachments?: readonly Attachment[] | undefined
   }) {
-    const session = await this.requireOwnedSession(args)
+    const session = requireLiveSession(await this.requireOwnedSession(args))
     const message = await this.messageOf({ userId: args.userId, draft: args })
     const { inboxId } = await this.plane.post({
       sessionId: args.sessionId,
@@ -546,7 +547,7 @@ export class SessionsService {
     sessionId: string
     agentId?: string | undefined
   }): Promise<SessionRetryOutput> {
-    const session = await this.requireOwnedSession(args)
+    const session = requireLiveSession(await this.requireOwnedSession(args))
     const agentId = await this.agentOf({ session, agentId: args.agentId })
     return this.plane.post({
       sessionId: args.sessionId,
@@ -576,7 +577,7 @@ export class SessionsService {
   }
 
   async wake(args: { userId: string; sessionId: string }): Promise<SessionWakeOutput> {
-    await this.requireOwnedSession(args)
+    requireLiveSession(await this.requireOwnedSession(args))
     const { lease, live } = await this.plane.currentLease({ sessionId: args.sessionId })
     if (lease.holderHostId !== null && live) return { state: 'elsewhere' }
     await this.plane.revoke({ sessionId: args.sessionId, wantsHolder: true })
@@ -597,13 +598,14 @@ export class SessionsService {
   }
 
   async holdPod(args: { userId: string; sessionId: string }): Promise<SessionHoldPodOutput> {
-    await this.requireOwnedSession(args)
+    requireLiveSession(await this.requireOwnedSession(args))
     if (this.ops === null) return { held: false }
     return { held: this.ops.hold({ sessionId: args.sessionId }) }
   }
 
   async command(args: { userId: string } & SessionCommandInput): Promise<SessionCommandOutput> {
     const session = await this.requireOwnedSession(args)
+    refuseArchivedCommand({ session, name: args.name })
     const output = await postCommand({
       plane: this.plane,
       registry: this.commands,

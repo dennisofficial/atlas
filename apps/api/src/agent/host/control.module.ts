@@ -2,7 +2,7 @@ import { Module, type Provider } from '@nestjs/common'
 import { ControlPlane } from '@dltech/atlas-control'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import type { Db } from '@dltech/atlas-db'
-import type { HostBus } from '@dltech/atlas-host'
+import type { HostBus, PodCallBus } from '@dltech/atlas-host'
 import type { LogPort, ProductAnalytics } from '@dltech/atlas-observability'
 import { eventSchemaOf } from '@dltech/atlas-plugin-sdk'
 
@@ -12,6 +12,7 @@ import { PRODUCT_ANALYTICS } from '../analytics/tokens'
 import { createHostBus } from '../bus/host-bus'
 import { startPgWakeListener, type PgWakeListener } from '../bus/pg-wake-listener'
 import { createRedisLiveFrames, type RedisLiveFrames } from '../bus/redis-live-frames'
+import { createRedisPodCallBus } from '../bus/redis-pod-call-bus'
 import { databaseUrlWithTls } from '../config/database-url'
 import type { AgentHostEnv } from '../config/env'
 import { composedPlugins, registeredPlugins } from '../registered-plugins'
@@ -24,6 +25,7 @@ import {
   HOST_BUS,
   LIVE_FRAMES,
   LOG,
+  POD_CALL_BUS,
   WAKE_LISTENER,
 } from './tokens'
 
@@ -43,6 +45,13 @@ const liveFramesProvider: Provider = {
   provide: LIVE_FRAMES,
   useFactory: (env: AgentHostEnv, log: LogPort): RedisLiveFrames =>
     createRedisLiveFrames({ url: env.redisUrl, log }),
+  inject: [AGENT_HOST_ENV, LOG],
+}
+
+const podCallBusProvider: Provider = {
+  provide: POD_CALL_BUS,
+  useFactory: (env: AgentHostEnv, log: LogPort): PodCallBus =>
+    createRedisPodCallBus({ url: env.redisUrl, log }),
   inject: [AGENT_HOST_ENV, LOG],
 }
 
@@ -76,10 +85,11 @@ const followStackProvider: Provider = {
   providers: [
     controlPlaneProvider,
     liveFramesProvider,
+    podCallBusProvider,
     wakeListenerProvider,
     hostBusProvider,
     followStackProvider,
   ],
-  exports: [CONTROL_PLANE, LIVE_FRAMES, WAKE_LISTENER, HOST_BUS, FOLLOW_STACK],
+  exports: [CONTROL_PLANE, LIVE_FRAMES, WAKE_LISTENER, HOST_BUS, FOLLOW_STACK, POD_CALL_BUS],
 })
 export class ControlModule {}

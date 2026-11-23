@@ -53,6 +53,7 @@ const snapshotOf = () => ({
   pending: { pending: [] },
   view: initialSessionViewState,
   failureMessage: initialFailureMessage,
+  durable: [],
   commandLog: [],
   throughSeq: 1,
 })

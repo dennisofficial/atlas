@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'bun:test'
 import { ServiceUnavailableException } from '@nestjs/common'
-import type { EventFrame, RemoteCloseReason } from '@dltech/atlas-host'
+import type { EventFrame, PodFollowClose } from '@dltech/atlas-host'
 import {
   TERMINAL_STREAM_BUFFER_BYTES,
   type TerminalReadOutput,
@@ -50,24 +50,29 @@ const terminalsOf = () => ({
 const operationsOf = (held: boolean) => {
   const state: {
     listener: ((frame: EventFrame) => void) | undefined
-    close: ((reason: RemoteCloseReason) => void) | undefined
+    close: ((reason: PodFollowClose) => void) | undefined
     dispose: ReturnType<typeof vi.fn>
   } = { listener: undefined, close: undefined, dispose: vi.fn() }
+  const follow = vi.fn(
+    async (args: {
+      sessionId: string
+      listener: (frame: EventFrame) => void
+      onClose?: ((reason: PodFollowClose) => void) | undefined
+    }) => {
+      if (!held) return null
+      state.listener = args.listener
+      state.close = args.onClose
+      return state.dispose
+    },
+  )
   const ops = {
     invoke: vi.fn(),
-    waitForHolder: vi.fn(async () => held),
-    events: vi.fn(
-      (args: {
-        listener: (frame: EventFrame) => void
-        onClose?: (reason: RemoteCloseReason) => void
-      }) => {
-        state.listener = args.listener
-        state.close = args.onClose
-        return held ? state.dispose : null
-      },
-    ),
+    follow,
+    events: vi.fn(() => null),
+    hold: vi.fn(() => true),
+    servesLocally: vi.fn(async () => held),
   }
-  return { ops: ops as unknown as PodOps, state }
+  return { ops: ops as unknown as PodOps, state, follow }
 }
 
 const drainOf = () => {
@@ -116,12 +121,12 @@ const attach = (service: TerminalStreamService, signal?: AbortSignal) =>
 describe('TerminalStreamService', () => {
   it('asks for a holder and refuses the stream when none arrives', async () => {
     const terminals = terminalsOf()
-    const { ops, state } = operationsOf(false)
+    const { ops, state, follow } = operationsOf(false)
     const run = collect(attach(serviceOf({ terminals, ops })))
     const failure = await run.done.catch((error: unknown) => error)
     expect(run.frames).toEqual([{ type: 'ready', sessionId: 's1' }])
     expect(failure).toBeInstanceOf(ServiceUnavailableException)
-    expect(ops.waitForHolder).toHaveBeenCalledWith({ sessionId: 's1' })
+    expect(follow).toHaveBeenCalledWith(expect.objectContaining({ sessionId: 's1' }))
     expect(state.listener).toBeUndefined()
     expect(terminals.read).not.toHaveBeenCalled()
   })

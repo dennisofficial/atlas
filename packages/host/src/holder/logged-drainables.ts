@@ -2,19 +2,20 @@ import type { V2Event } from '@dltech/atlas-core'
 
 import { ESkillDrafts, type CommandIntake } from './command-intake'
 import { loggedMessagesOf, type AppendDrafts, type Drainable } from './staged-log'
-import { ETextPlan } from './text-command'
+import { ETextPlan, type SkillNames } from './text-command'
 
 export const consumedInboxIdsOf = (events: readonly V2Event[]): ReadonlySet<number> =>
   new Set(events.flatMap((event) => (event.type === 'input-consumed' ? [event.inboxId] : [])))
 
-export const skillsForPassOf = async (
-  intake: CommandIntake | undefined,
-): Promise<readonly string[]> => (intake === undefined ? [] : await intake.skillsForPass())
+const NO_SKILL_NAMES: SkillNames = async () => []
+
+export const skillsForPassOf = (intake: CommandIntake | undefined): SkillNames =>
+  intake === undefined ? NO_SKILL_NAMES : intake.skillsForPass()
 
 export const loggedDrainablesOf = async (args: {
   events: readonly V2Event[]
   staged: ReadonlySet<number>
-  skills: readonly string[]
+  skills: SkillNames
   intake: CommandIntake | undefined
   appendDrafts: AppendDrafts
 }): Promise<Drainable[]> => {

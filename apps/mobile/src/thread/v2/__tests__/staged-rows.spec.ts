@@ -5,7 +5,7 @@ import { ESessionConnection, type SessionSnapshot } from '@dltech/atlas-client/s
 
 import { EMessageAuthor, ERowKind } from '../../rows'
 import { v2EventSchema } from '../registered-plugins'
-import { stagedQueueRowsOf, stagedRowsOf } from '../rows'
+import { stagedRowsOf } from '../rows'
 
 const envelope = (seq: number) => ({
   id: `evt_${seq}`,
@@ -20,6 +20,7 @@ const envelope = (seq: number) => ({
 
 const snapshotOf = (args: { events?: readonly unknown[]; working?: boolean }): SessionSnapshot => ({
   events: (args.events ?? []).map((event) => v2EventSchema.parse(event)),
+  foldable: (args.events ?? []).map((event) => v2EventSchema.parse(event)),
   pending: { pending: [] },
   cursor: undefined,
   status:
@@ -65,21 +66,5 @@ describe('stagedRowsOf', () => {
       now: 0,
     })
     expect(rows).toEqual([])
-  })
-})
-
-describe('stagedQueueRowsOf', () => {
-  it('exposes the queue placement while a turn is open', () => {
-    const rows = stagedQueueRowsOf({
-      snapshot: snapshotOf({ working: true }),
-      staged: STAGED,
-      now: 0,
-    })
-    expect(rows.map((row) => row.id)).toEqual(['client-a'])
-    expect(rows[0]?.kind === ERowKind.Message ? rows[0].staged : undefined).toBe(true)
-  })
-
-  it('is empty when the agent is idle and the row belongs to the transcript', () => {
-    expect(stagedQueueRowsOf({ snapshot: snapshotOf({}), staged: STAGED, now: 0 })).toEqual([])
   })
 })

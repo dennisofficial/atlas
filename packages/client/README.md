@@ -1,7 +1,6 @@
 # @dltech/atlas-client
 
-The headless client library that web, the TUI and the mobile app share. It follows a session live,
-keeps the log, derives the transcript, and holds the rewind, image upload and device login.
+The headless client library that web, the TUI and the mobile app share.
 
 ## Owns
 
@@ -49,8 +48,9 @@ keeps the log, derives the transcript, and holds the rewind, image upload and de
   subscription to the session list.
 - `StreamTransport`, `StreamScheduler`, `systemStreamScheduler`, `browserNetworkSignal`: the ports
   that a surface supplies.
-- `nestPeers(rows)` nests each teammate under its spawner. `isRecentProject(args)`,
-  `lastActivityAt(args)` and `INACTIVE_AFTER_MS` decide which projects stay in the sidebar.
+- `nestPeers(rows)` nests each teammate under its spawner. `peerBucketOf({ row, now })` and
+  `EPeerBucket` give a row's bucket; `splitTeammates(rows)` gives its active and done teammates.
+  `isRecentProject(args)`, `lastActivityAt(args)` and `INACTIVE_AFTER_MS` keep the fresh projects.
 
 ### Keep the log and the view
 
@@ -61,7 +61,7 @@ keeps the log, derives the transcript, and holds the rewind, image upload and de
 - `applyOverlayMessage`, `closeOverlay`, `closeOverlayForEvents`, `EMPTY_OVERLAY_STATE`: the live
   step overlay.
 - `derivedViewOf`, `deriveViewOf`, `deriveStatusOf`, `frameFactsOf`: the view of a followed session.
-  `sessionDisplayOf` and `isSessionUnreadOf` map the status and the unread mark of a row.
+  `sessionDisplayOf`, `isSessionUnreadOf`, `startFailureOf`: the status, unread mark, start failure.
 
 ### Read the pod channel
 
@@ -75,12 +75,11 @@ keeps the log, derives the transcript, and holds the rewind, image upload and de
 - `deriveTranscript(args)`, `assembleTranscript(args)`, `durableEntries(args)`, `EEntryKind`: the
   transcript rows and the durable rows of a thread.
 - `turnsBySeq(args)`, `settledAtOf(entries)`, `turnEndedEntry(turn)`: the turn rows and the settled
-  time.
+  time. `turnStartedAtOf(events)`: the start of the main thread's open turn.
 - `ECallState`, `ToolCall`, `ToolRun`, `attachmentsOf`, `qualityNoticeOf`, `qualityNoticeLine`,
   `EQualityNoticeTone`: the tool runs and a call's quality indicator. `agentsOf(args)`,
   `agentOf(args)` and `agentLabelOf(agent)` give a sub-agent's type, intent and state.
-- `thinkingVisibilityOf(value)`, `foldThoughts(args)`, `toolsAboveThoughts(entries)`: the thinking
-  folds.
+- `thinkingVisibilityOf`, `foldThoughts`, `toolsAboveThoughts`: the thinking folds.
 - `revealedText({ key, text, gate })`, `runAttentionOf(args)`, `plural(many, one, rest?)`,
   `formatElapsed(ms)`: the revealed text and the helpers that a surface also uses.
 
@@ -113,6 +112,7 @@ keeps the log, derives the transcript, and holds the rewind, image upload and de
   make the draft and the post input. `MediaUploadApi`, `PutImage`, `UploadHandle`: the ports.
 - `sessionCreateInputOf(args)`, `initialProjectIdOf(args)`: a new session's create input and project.
 - `composerSendStateOf(args)`, `contextPercentOf(args)`: send or stop, and context use.
+- `queuedMessagesOf`, `queuedNoticesOf`, `stagedQueuedMessagesOf`: the queue above the composer.
 
 ### Sign in to Atlas Cloud
 

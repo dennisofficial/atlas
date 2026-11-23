@@ -690,6 +690,7 @@
         "@dltech/atlas-commands": "workspace:*",
         "@dltech/atlas-control": "workspace:*",
         "@dltech/atlas-core": "workspace:*",
+        "@dltech/atlas-native-commands": "workspace:*",
         "@dltech/atlas-observability": "workspace:*",
         "@dltech/atlas-plugin-operator": "workspace:*",
         "@dltech/atlas-plugin-sdk": "workspace:*",
@@ -699,7 +700,6 @@
       },
       "devDependencies": {
         "@dltech/atlas-daemon": "workspace:*",
-        "@dltech/atlas-native-commands": "workspace:*",
         "@dltech/atlas-plugin-services": "workspace:*",
         "@dltech/atlas-plugin-shells": "workspace:*",
         "@types/bun": "latest",

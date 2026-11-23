@@ -10,6 +10,7 @@ import {
   chainEvents,
   EAgentStart,
   EAgentStatus,
+  EInputConsumed,
   ESetupPhase,
   initialLoopState,
   toRunId,
@@ -21,7 +22,7 @@ import {
 import type { ControlPlane } from '@dltech/atlas-control'
 import { z } from 'zod'
 
-import { drainNeedsHolder } from '../held-needs-holder'
+import { drainNeedsHolder, outcomeCommandPending } from '../held-needs-holder'
 import type { HeldSessionDeps } from '../held-session-deps'
 import type { SessionRecord } from '../record/record-adapter'
 
@@ -125,6 +126,40 @@ describe('drainNeedsHolder with commands', () => {
       entry({ inboxId: 2, kind: 'message' }),
     ]
     expect(await needsHolder({ entries, knowsPing: true })).toBe(true)
+  })
+})
+
+describe('outcomeCommandPending, which a drain hands to the next holder', () => {
+  const consumedRotate = (): V2Body[] => [
+    {
+      type: 'input-posted',
+      inboxId: 9,
+      kind: 'command:rotate',
+      postedAt: '2026-11-12T03:00:00.000Z',
+    },
+    { type: 'input-consumed', inboxId: 9, consumed: EInputConsumed.Command },
+  ]
+
+  const pending = (params: { bodies: readonly V2Body[]; kind: string }): Promise<boolean> =>
+    outcomeCommandPending({ events: eventsOf(params.bodies), kindOf: async () => params.kind })
+
+  it('is pending while a consumed command owes its outcome', async () => {
+    expect(await pending({ bodies: consumedRotate(), kind: 'command:rotate' })).toBe(true)
+  })
+
+  it('is pending when only the inbox names the consumed command', async () => {
+    const bodies = consumedRotate().filter((body) => body.type !== 'input-posted')
+    expect(await pending({ bodies, kind: 'command:rotate' })).toBe(true)
+  })
+
+  it('is not pending for a consumed command that owes no outcome', async () => {
+    const bodies = consumedRotate().filter((body) => body.type !== 'input-posted')
+    expect(await pending({ bodies, kind: 'command:subscribe' })).toBe(false)
+  })
+
+  it('is not pending once the outcome landed', async () => {
+    const bodies = [...consumedRotate(), { type: 'rotated' as const, handoff: 'brief' }]
+    expect(await pending({ bodies, kind: 'command:rotate' })).toBe(false)
   })
 })
 

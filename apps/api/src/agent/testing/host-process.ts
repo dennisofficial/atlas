@@ -25,6 +25,7 @@ import { ScriptedModel, type ScriptedModelStep } from '@dltech/atlas-agent/testi
 import { createHostBus } from '../bus/host-bus'
 import { startPgWakeListener } from '../bus/pg-wake-listener'
 import { createRedisLiveFrames } from '../bus/redis-live-frames'
+import { createRedisPodCallBus } from '../bus/redis-pod-call-bus'
 import type { ConfigSource } from '../config/agent-host-config'
 import { fakeModelSourceOf } from './model-source'
 import { recordingModelOf } from './model-requests'
@@ -122,6 +123,7 @@ const testSource = (): ConfigSource => ({
       models: fakeModelSourceOf(model),
       classifier: { on: false, reason: 'no classifier model is set' },
       quality: { enabled: false, policies: {} },
+      rotation: { autoRotateAtPercent: 85 },
       sandbox: {
         configured: true,
         provider: ESandboxProvider.Vercel,
@@ -186,6 +188,7 @@ const main = async (): Promise<void> => {
   const plane = faultedPlane({ plane: realPlane, fault, log })
   const liveFrames = createRedisLiveFrames({ url: requireEnv('REDIS_URL'), log })
   tapToolOutput(liveFrames)
+  const podCalls = createRedisPodCallBus({ url: requireEnv('REDIS_URL'), log })
   const wakes = startPgWakeListener({ url: requireEnv('DATABASE_DIRECT_URL'), log })
   const bus = createHostBus({ wakes, liveFrames })
   const timers = { now: () => Date.now(), ...systemTimers }
@@ -254,6 +257,7 @@ const main = async (): Promise<void> => {
       [resize.spec.name, podResizeHandlerOf({ plane, dispatcher: noPodResizeDispatcher })],
     ]),
     log,
+    podCallBus: podCalls,
     onHostIdChanged: () => watch?.recompute(),
   })
   held = holder
@@ -279,6 +283,7 @@ const main = async (): Promise<void> => {
     await pgPresence.close()
     await wakes.close()
     await liveFrames.close()
+    await podCalls.close()
     await pool.end()
     process.exit(0)
   }

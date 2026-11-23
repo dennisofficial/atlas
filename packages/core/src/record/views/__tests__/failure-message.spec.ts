@@ -76,7 +76,11 @@ describe('failure message in the session view', () => {
     const list = events([prepared, posted(1), started(1), posted(2)])
     const state = list.reduce(stepSessionView, initialSessionViewState)
     expect(messageAfterFailureOf(state.failure)).toBe(true)
-    const rebuilt = rebuildEditSensitive({ state, visibleTail: list.slice(0, 3) })
+    const rebuilt = rebuildEditSensitive({
+      state,
+      visibleTail: list.slice(0, 3),
+      foldableTail: list.slice(0, 3),
+    })
     expect(rebuilt.failure).toEqual(failureMessageOf(list.slice(0, 3)))
     expect(messageAfterFailureOf(rebuilt.failure)).toBe(false)
   })

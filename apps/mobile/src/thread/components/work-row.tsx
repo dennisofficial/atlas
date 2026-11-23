@@ -1,7 +1,6 @@
 import { EEntryKind } from '@dltech/atlas-client/transcript'
 import { space } from '@dltech/atlas-ui/tokens'
 import { Reasoning, Step, Trace, useTheme } from '@dltech/atlas-ui-native'
-import { CircleCheck } from 'lucide-react-native'
 import { ActivityIndicator, StyleSheet, View } from 'react-native'
 
 import type { WorkItem, WorkRow } from '../rows'
@@ -45,11 +44,7 @@ export const WorkRowView = ({
     <Trace>
       <Step
         icon={
-          row.running ? (
-            <ActivityIndicator size="small" color={theme.mutedForeground} />
-          ) : (
-            <CircleCheck size={16} color={theme.mutedForeground} />
-          )
+          row.running ? <ActivityIndicator size="small" color={theme.mutedForeground} /> : undefined
         }
         title={labelOf(row)}
         description={stepsLabelOf(row.stepCount)}
