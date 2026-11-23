@@ -4,7 +4,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act } from 'react'
 import type { Root } from 'react-dom/client'
 
-import type { NotifyDeviceView } from '@dltech/atlas-wire'
+import type { NotifyDeviceView } from '@dltech/atlas-wire/web'
+
+import { notifyApiFake } from '../../../sessions/data/__tests__/notify-api.fake'
 
 const setNotifyDeviceEnabled = mock(async () => undefined)
 const devices: NotifyDeviceView[] = [
@@ -25,6 +27,7 @@ const devices: NotifyDeviceView[] = [
 ]
 
 mock.module('../../../sessions/data/notify-api', () => ({
+  ...notifyApiFake,
   listNotifyDevices: async () => ({ devices }),
   setNotifyDeviceEnabled,
 }))
