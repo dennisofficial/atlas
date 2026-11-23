@@ -1,5 +1,6 @@
 import { mock } from 'bun:test'
 import * as realNavigation from 'next/navigation'
+import * as realSonner from 'sonner'
 import { act } from 'react'
 import type { Root } from 'react-dom/client'
 
@@ -7,7 +8,10 @@ import { chainEvents, toRunId, toThreadId, type V2Body, type V2Event } from '@dl
 
 import { TestQueryProvider, createTestQueryClient } from '@/lib/__tests__/query-test-provider'
 
+import * as realAccountsApi from '@/features/settings/data/personal/accounts-api'
+
 import type { CredentialRepairControl } from '../data/use-credential-repair'
+import * as realSessionsApi from '../data/sessions-api'
 
 export const MAIN = toThreadId('thread-1')
 export const CHILD = toThreadId('agent-1')
@@ -49,6 +53,7 @@ export const counters = { switched: 0, opened: 0 }
 export const state = { replaceFails: false }
 
 mock.module('@/features/settings/data/personal/accounts-api', () => ({
+  ...realAccountsApi,
   fetchAccounts: async () => accounts,
   replaceApiKey: async (args: { accountId: string; apiKey: string }) => {
     if (state.replaceFails) throw new Error('the key was refused')
@@ -63,7 +68,9 @@ mock.module('@/features/settings/data/personal/accounts-api', () => ({
 }))
 
 mock.module('@/features/sessions/data/sessions-api', () => ({
+  ...realSessionsApi,
   sessionsApi: {
+    ...realSessionsApi.sessionsApi,
     retry: async (input: unknown) => {
       retried.push(input)
       return { inboxId: retried.length }
@@ -72,7 +79,14 @@ mock.module('@/features/sessions/data/sessions-api', () => ({
 }))
 
 mock.module('sonner', () => ({
-  toast: { error: (message: string) => errors.push(message) },
+  ...realSonner,
+  toast: Object.assign(
+    (...args: Parameters<typeof realSonner.toast>) => realSonner.toast(...args),
+    {
+      ...realSonner.toast,
+      error: (message: string) => errors.push(message),
+    },
+  ),
 }))
 
 mock.module('next/navigation', () => ({
