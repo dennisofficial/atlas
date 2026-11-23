@@ -128,6 +128,36 @@ describe('the model picker', () => {
     }
   })
 
+  test('the composer takes text again after a pick', async () => {
+    const mounted = await mount()
+
+    try {
+      await openSession(mounted)
+      await mounted.setup.mockInput.typeText('before')
+      await frameShowing({ setup: mounted.setup, text: 'before', within: WITHIN })
+
+      mounted.setup.mockInput.pressKey('p', { ctrl: true })
+      await frameShowing({ setup: mounted.setup, text: 'MODEL', within: WITHIN })
+      mounted.setup.mockInput.pressEnter()
+      await waitFor({
+        setup: mounted.setup,
+        holds: () => (mounted.client()?.calls.runCommand.length ?? 0) === 1,
+        describe: 'the model-set call',
+      })
+      await frameWhen({
+        setup: mounted.setup,
+        holds: (frame) => !frame.includes('MODEL'),
+        describe: 'the picker to close',
+        within: WITHIN,
+      })
+
+      await mounted.setup.mockInput.typeText('after the pick')
+      await frameShowing({ setup: mounted.setup, text: 'after the pick', within: WITHIN })
+    } finally {
+      await teardown(mounted.setup)
+    }
+  }, 20_000)
+
   test('tab carries fast mode on the pick', async () => {
     const mounted = await mount()
 

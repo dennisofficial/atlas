@@ -255,6 +255,7 @@ export function AppNext(props: AppNextProps): React.ReactNode {
           onKeys={(handler) => {
             chatKeys.current = handler
           }}
+          choosingModel={choice.state !== null}
         />
         {switcher}
       </box>
