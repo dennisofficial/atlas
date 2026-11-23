@@ -45,6 +45,8 @@ only what it can rebuild or drop.
 - `SessionRuntime.classifier` and `SessionRuntime.classifierStatus`: the core `ClassifierPort` of a
   held session and its `ClassifierStatus`, wired into `ctx.classifier` for a plugin. The host
   carries no classifier HTTP client; the runtime factory builds one.
+- `SessionRuntime.quality`: the optional `QualityStagePort` the runtime factory builds, so a held
+  session and every child it spawns review their writes through one stage.
 
 ### Call the daemon
 
@@ -85,6 +87,14 @@ only what it can rebuild or drop.
 - `SandboxUnavailableError`, `SANDBOX_OFFLINE_GUIDANCE`, `ReadyTimeoutError`, `FencedError`,
   `OpMismatchError`, `ProtocolViolationError`: the failures of a lost, fenced or broken sandbox.
 - `isReadOnlyOp(op)`: whether an op reads only, so a retry is safe.
+
+### Review a write
+
+- `qualityStageOf({review, clock, logPort, budgetMs})`: the `QualityStagePort` the tool dispatcher
+  calls. It bounds one review, validates the drafts and never replaces a committed write's result.
+- `QUALITY_REVIEW_BUDGET_MS`: the 1000 ms budget one review gets.
+- `DaemonWorkspaceIdentity`: the `WorkspaceIdentityPort` over the daemon process port. It reads the
+  repository layout, the origin and the branch with `git`, bounded at 750 ms and uncached.
 
 ### Test a host
 
