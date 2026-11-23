@@ -32,7 +32,8 @@ The package also installs a binary: `bun-test-incremental <plan|force|clear|run>
 
 - `EMode`: `Run`, `Force`, `Plan` and `Clear`.
 - `modeFromEnv(value)`: the mode of a `BUN_TEST_INCREMENTAL` value, or `undefined` when unset.
-- `loadConfig({ env, cwd })`: the resolved configuration, or `undefined` when the preload is inert.
+- `loadConfig({ env, cwd })`: the resolved `IncrementalConfig`, or `undefined` when the preload
+  is inert.
 - `PRELOAD_PATH`: the absolute path of the preload, for a wrapper script.
 
 ### Run from the command line
@@ -48,7 +49,7 @@ Add the preload to a package `bunfig.toml`. This is the line in `apps/web/bunfig
 
 ```toml
 [test]
-preload = ["../../bun-test.setup.ts", "../../packages/bun-test-incremental/src/preload.ts"]
+preload = ["../../bun-test.setup.ts", "../../packages/bun-test-incremental/src/preload.ts", "./test-dom-setup.ts"]
 ```
 
 Then set the mode in the environment.
@@ -59,13 +60,15 @@ BUN_TEST_INCREMENTAL=1 bun test
 
 ## Rules
 
-- Set `BUN_TEST_INCREMENTAL` to `1` or `true` for an incremental run. The value is
-  case-insensitive. An empty or whitespace-only value disables the preload, and so do `0` and
-  `false`. Any other value throws.
+- Set `BUN_TEST_INCREMENTAL` to `1` or `true` for an incremental run. `force`, `plan` and
+  `clear` select the other modes. The value is case-insensitive. An empty or whitespace-only value
+  disables the preload, and so do `0` and `false`. Any other value throws.
 - A run with a name filter (`-t`, `--test-name-pattern`, `--only`) is partial. A partial run records
   no result.
 - Put an input that sits outside the import graph, such as a fixture schema, in
   `BUN_TEST_INCREMENTAL_GLOBAL_INPUTS`. A change to it changes the global key and reruns everything.
+- Put an environment variable name that a spec reads in `BUN_TEST_INCREMENTAL_ENV`, as a
+  comma-separated list, to add it to the global key.
 - Keep `BUN_TEST_INCREMENTAL` out of a nested `bun test` that a spec spawns as the thing under test.
 
 ## See also

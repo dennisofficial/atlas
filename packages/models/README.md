@@ -41,7 +41,8 @@ package.
   indexes them.
 - `cardsForProvider(providerId)`: returns the cards of one provider.
 - `withoutDatedDuplicates(cards)`: removes an older dated snapshot when the aliased card is present.
-- `GENERATED_MANIFEST`: the manifest of the last generation, with its sources, count and hash.
+- `GENERATED_MANIFEST`: the manifest of the last generation, with its source, its provider and
+  model counts, and its hash.
 - `toModelCard(row)`: converts one generated row into a `ModelCard`, or returns `undefined`.
 
 ### Merge live cards
@@ -79,8 +80,6 @@ package.
   of the same resolution. The account steps come from `@dltech/atlas-credentials`.
 
 ## Usage
-
-From `packages/models/src/__tests__/session-model.spec.ts`:
 
 ```ts
 import { defaultMainModelOf, sessionModelOf, type SessionModelInputs } from '@dltech/atlas-models'

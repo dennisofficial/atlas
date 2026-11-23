@@ -25,7 +25,7 @@ The headless client library that web, the TUI and the mobile app share.
 | ----------------------------------------------- | --------------------------------------------------------------------------------- |
 | `@dltech/atlas-client/stream`                   | The stream connection, the session follower, the log, the window and the overlay. |
 | `@dltech/atlas-client/channel`                  | The pod delta channel, the frame codecs and the tool requests.                    |
-| `@dltech/atlas-client/chat`                     | The chat transport, the step signals and the step messages.                       |
+| `@dltech/atlas-client/chat`                     | The chat transport, the step chunks and the step messages.                        |
 | `@dltech/atlas-client/crew`                     | The crew readout, the sub-agent state and the background work.                    |
 | `@dltech/atlas-client/session`                  | The session create input, the rewind, the image upload and the message input.     |
 | `@dltech/atlas-client/account`                  | The Atlas Cloud device-code login.                                                |
@@ -43,9 +43,8 @@ The headless client library that web, the TUI and the mobile app share.
 - `createStreamConnection({ transport, scheduler, networkSignal?, eventSchema?, knownEventTypes?, views? })`:
   the `StreamConnection`. `follow({ sessionId, threadId?, log? })` follows one thread, the main one
   by default; `followSessions()` gives the live list.
-- `createSessionFollower(args)`: one session's follower, with its connection state and snapshot.
-  `HYDRATE_TIMEOUT_MS` bounds the first load. `createSessionsFeed({ follow, write })` is a retained
-  subscription to the session list.
+- `createSessionFollower(args)`: a session's follower, its connection state and snapshot.
+  `HYDRATE_TIMEOUT_MS` bounds the first load. `createSessionsFeed({ follow, write })` holds the list.
 - `StreamTransport`, `StreamScheduler`, `systemStreamScheduler`, `browserNetworkSignal`: the ports
   that a surface supplies.
 - `nestPeers(rows)` nests each teammate under its spawner. `peerBucketOf({ row, now })` and
@@ -73,12 +72,13 @@ The headless client library that web, the TUI and the mobile app share.
 ### Build the transcript
 
 - `deriveTranscript(args)`, `assembleTranscript(args)`, `durableEntries(args)`, `EEntryKind`: the
-  transcript rows and the durable rows of a thread.
+  transcript rows and the durable rows of a thread. `summariesAtTarget(events)`: the events with
+  each compaction summary at its target.
 - `turnsBySeq(args)`, `settledAtOf(entries)`, `turnEndedEntry(turn)`: the turn rows and the settled
   time. `turnStartedAtOf(events)`: the start of the main thread's open turn.
-- `ECallState`, `ToolCall`, `ToolRun`, `attachmentsOf`, `qualityNoticeOf`, `qualityNoticeLine`,
-  `EQualityNoticeTone`: the tool runs and a call's quality indicator. `agentsOf(args)`,
-  `agentOf(args)` and `agentLabelOf(agent)` give a sub-agent's type, intent and state.
+- `ECallState`, `ECallKind`, `callKindOf(name)`, `ToolCall`, `ToolRun`, `attachmentsOf`,
+  `qualityNoticeOf`, `qualityNoticeLine`, `EQualityNoticeTone`: the tool runs and a call's quality
+  line. `agentsOf(args)`, `agentOf(args)`, `agentLabelOf(agent)`: a sub-agent's type, intent, state.
 - `thinkingVisibilityOf`, `foldThoughts`, `toolsAboveThoughts`: the thinking folds.
 - `revealedText({ key, text, gate })`, `runAttentionOf(args)`, `plural(many, one, rest?)`,
   `formatElapsed(ms)`: the revealed text and the helpers that a surface also uses.
@@ -142,7 +142,7 @@ connection.connect()
   `createRemoteDeltaChannel` opens the websocket to the pod, through the socket factory.
 - Pass the events through the protocol schema of the surface, which the log and the connection take
   as an `eventSchema`. Keep the derivation pure: a transcript or a view is a function of its inputs.
-- Send a message through the channel. `transport.sendMessages` throws.
+- Send a message through the channel. `SignalChatTransport.transport.sendMessages` throws.
 
 ## See also
 

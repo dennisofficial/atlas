@@ -60,6 +60,7 @@ a thread's event log.
 
 - `pricedView({ at, value, compute? })`: the priced `SessionViewOutput` of a control session value.
 - `sessionSummaryOf({ digest, now })`: returns the `SessionSummary` of a session digest.
+- `readSessionStatus({ plane, sessionId, threadId })`: returns the status of a session view.
 - `idleReleaseGuardOf({ entries, failure, wantsHolder })`: returns an `IdleReleaseGuard` with the
   inbox head and the reasons.
 
@@ -106,7 +107,8 @@ a thread's event log.
 - `PostgresControlStore`, `controlTxOf(tx)`: the Postgres adapter, and its transaction wrapper.
 - `InMemoryControlStore`: the in-memory adapter for a spec.
 - `describeControlPlaneConformance(params)`, `describeControlPlaneSessions`,
-  `describeControlPlaneClaims`, `describeControlPlanePeers`: the shared spec suites.
+  `describeControlPlaneClaims`, `describeControlPlanePeers`, `describeControlPlaneSessionBuckets`:
+  the shared spec suites.
 - `FakeChangeContentStore`: a change content store that keeps the blobs in memory.
 
 ## Usage
@@ -118,7 +120,7 @@ import { ControlPlane } from '@dltech/atlas-control'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import { db } from '@dltech/atlas-db'
 
-export const graphOf = () => {
+export const buildRoutineGraph = () => {
   const store = new PostgresControlStore(db)
   return { store, plane: new ControlPlane({ store }) }
 }

@@ -18,17 +18,17 @@ frontmatter. The model sees the model-invocable skills in its system prompt and 
 
 - The cloud skill store. The `CloudSkillSource` and `CloudSkillWriter` ports reach it, and the API
   binds them.
-- A skill typed as `/name` at the start of a message. This plugin registers no command.
+- The parsing of a typed `/name` line. The host parses it and asks the pod's `slash` source. This plugin registers no command.
 - The classifier. `ctx.classifier` reaches it, and the API binds it from the Classifier settings.
 
 ## Entry points
 
-| Import                                  | Use it for                                                                                  |
-| --------------------------------------- | ------------------------------------------------------------------------------------------- |
-| `@dltech/atlas-plugin-skills/core`      | `skillsCoreSlots`, the frontmatter and spec parsers, the validator, precedence, listing.    |
-| `@dltech/atlas-plugin-skills/pod`       | `skillsPodOf`: the two tools, the `skills` resource, the listing hook and the slash source. |
-| `@dltech/atlas-plugin-skills/catalogue` | The built-in skill catalogue and its lookups. No Node import, so a client can bundle it.    |
-| `@dltech/atlas-plugin-skills/client`    | `skillsClient`, `latestSkillsOf` and `repoSkillsOf`.                                        |
+| Import                                  | Use it for                                                                                    |
+| --------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `@dltech/atlas-plugin-skills/core`      | `skillsCoreSlots`, the frontmatter and spec parsers, the validator, precedence, listing.      |
+| `@dltech/atlas-plugin-skills/pod`       | `skillsPodOf`: the two tools, the `skills` resource, the two step hooks and the slash source. |
+| `@dltech/atlas-plugin-skills/catalogue` | The built-in skill catalogue and its lookups. No Node import, so a client can bundle it.      |
+| `@dltech/atlas-plugin-skills/client`    | `skillsClient`, `latestSkillsOf` and `repoSkillsOf`.                                          |
 
 ## Capabilities
 
@@ -55,7 +55,7 @@ frontmatter. The model sees the model-invocable skills in its system prompt and 
 
 The source of the five built-in skills is `plugins/skills/skills`, in this package. `bun run
 generate` compiles it into `src/pod/builtin.generated.ts` and `src/catalogue/catalogue.generated.ts`.
-- `BUILT_IN_SKILLS`: the name, the `SKILL.md` text and the resource files of each built-in skill, for the pod.
+- `BUILT_IN_SKILLS`: the `SKILL.md` text and resource files of each built-in skill. The pod tier uses it; the package does not export it.
 - `BUILT_IN_SKILL_CATALOGUE`: the name, the description, the entry digest and the digested resource files of each built-in skill. The API serves it.
 - `builtInSkills`, `builtInSkillEntry`, `builtInSkillNames`, `isBuiltInSkillName`: lookups over that catalogue.
 - `BUILT_IN_SKILL_SPECS`: the user-invocable built-in skills, parsed from `SKILL.md` by `skillSpecOf`.

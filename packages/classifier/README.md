@@ -31,9 +31,11 @@ the classifier from it, and a plugin reaches it through the pod context.
 
 ### Decide whether a classifier can run
 
-- `classifierAvailabilityOf({ stored, credentialOf })`: the four states — `NoModel`,
-  `UnknownModel`, `NotConnected` or `PlanHasNoKey` when off, and the model with its credential when
-  on. The credential's `apiKey` is optional: the host fills it, the browser does not.
+- `classifierAvailabilityOf({ stored, credentialOf })`: returns a `ClassifierAvailability`. The
+  four off states are `NoModel`, `UnknownModel`, `NotConnected` and `PlanHasNoKey`. The on state
+  holds the model and its credential. The credential's `apiKey` is optional: the host fills it,
+  the browser does not.
+- `ClassifierCredential`: an `api-key` account with an optional key, or a `plan` account.
 - `suggestedModelOf({ credentialOf })`: the first `DECISION_MODELS` row an api-key account can
   serve, for the page's prefill. Nothing is written.
 - `EClassifierOffReason`: the reason text of each off state.
@@ -51,8 +53,8 @@ the classifier from it, and a plugin reaches it through the pod context.
 
 ### The model table
 
-- `DECISION_MODELS`: ref, label, transport, endpoint, request model and the `EAuthProvider` whose
-  account holds the key.
+- `DECISION_MODELS`: the `DecisionModel` rows. A row holds the ref, the label, the transport, the
+  endpoint, the request model and the `EAuthProvider` whose account holds the key.
 - `decisionModelOf(stored)`: the table row a `classifier.model` value names, or `undefined`.
 - `refKeyOf(model)`: the stored form, such as `gateway/typesafe-ai/jev`.
 - `EClassifierTransport`: `jev` or `openai-decisions`.
@@ -76,10 +78,18 @@ import {
   classifierConfigFrom,
   classifierOf,
 } from '@dltech/atlas-classifier'
+import { classifierCredentialOf } from '@dltech/atlas-credentials'
+import { readOf } from '@dltech/atlas-models'
 
 const availability = classifierAvailabilityOf({
   stored: readOf(settings)(ESettingId.ClassifierModel),
-  credentialOf: (provider) => providerCredentialOf({ provider, parsed, activeAccounts, unseal }),
+  credentialOf: (provider) =>
+    classifierCredentialOf({
+      provider,
+      parsed,
+      activeAccounts,
+      unseal: (sealed) => cipher.decrypt(sealed),
+    }),
 })
 const classifier = classifierOf(classifierConfigFrom(availability))
 ```

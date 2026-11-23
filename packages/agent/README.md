@@ -10,6 +10,7 @@ A main agent, a sub-agent and a teammate all run this loop. It knows nothing of 
 - Tool dispatch, the tool registry, and the quality stage between a call and its result.
 - The hook chain: the order of hooks and the budget of each phase.
 - Intake: how a pending input becomes part of the next step.
+- The trace of a turn: the root span, and one span for each collaborator that the loop calls.
 - Turn spend, and the model failures that a turn records.
 
 ## Does not own
@@ -32,9 +33,18 @@ A main agent, a sub-agent and a teammate all run this loop. It knows nothing of 
 
 - `LoopTurnRunner`: the runner. Construct it with `TurnDeps`.
 - `TurnRunner`: the abstract port with `say`, `runTurn` and `resume`.
-- `TurnDeps`: the record, the model, the ids, the assembly, the tools and the hooks.
+- `TurnDeps`: the record, the model, the ids, the assembly, the tools, the hooks and the tracer.
 - `TurnOutcome`, `ETurnStatus`: how a turn ends: `completed`, `paused`, `idle`, `interrupted`,
   `failed`, `waiting-for-model`, `parked` or `relocation-paused`.
+
+### Trace a turn
+
+- `tracedTurnDeps(deps)`: wraps the model, the record, the retry, the intake and the loop watch of
+  a `TurnDeps`, so each call is a span. It returns the deps unchanged when `deps.trace` is absent.
+- `traceTurn({ trace, model, record, threadId, entry, firstToken, run })`: runs one turn as the
+  root `turn` span. `entry` is `ETurnEntry.Start` or `ETurnEntry.Resume`.
+- `TurnDeps.trace`, `TurnDeps.firstToken`: the tracer, and the clock that stamps `firstTokenMs` on
+  the turn span.
 
 ### Order the hooks
 
@@ -100,7 +110,7 @@ const outcome = await runner.say({ threadId, text: 'What changed?' })
 
 - Provide `record`, `modelContext`, `model`, `ids`, `assembly`, `launchDirectory` and
   `normalizeFailure`. `TurnDeps` requires them.
-- Do not read the clock, the filesystem or the network here. Add a port to `TurnDeps` instead.
+- Do not read the filesystem or the network here. Add a port to `TurnDeps` instead.
 - Do not write to the log directly. Every draft goes through `AgentRecordPort`.
 
 ## See also

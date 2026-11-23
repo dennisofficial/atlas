@@ -45,8 +45,11 @@ The package ships TypeScript source with no build step.
 
 - `semantic`, `EColorScheme`: the light and dark color maps.
 - `SemanticTheme`, `SemanticToken`: the theme type and a token name.
-- `primitives`, `font`, `radiusBase`, `radiusScale`, `radius`, `space`, `spacingUnit`.
+- `primitives`, `font`, `radiusBase`, `radiusScale`, `radius`, `radiusPx`, `space`, `spacingUnit`.
 - `ETextRole`, `typeScale`, `EFontFamily`, `EFontWeight`, `fontFaceNames`, `REM_PX`.
+- `readingClasses`, `readingType`, `readingRole`, `READING_LEADING`, `READING_HEADING_LEADING`,
+  `READING_MEASURE_REM`: the measure, the leading and the sizes that a transcript and the web
+  screens share.
 - `buildThemeCss()`: the stylesheet text for the tokens.
 
 ### Mark a brand

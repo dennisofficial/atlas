@@ -6,8 +6,8 @@ The native session commands: `rewind`, `summarise`, `rename`, `resize`, `cancel-
 ## Owns
 
 - The eight command specs, their zod arguments, their argument hints and the text form of `rewind`,
-  `summarise`, `rename` and `resize`.
-- The holder handlers for `rewind` and `summarise`, which run in the agent host.
+  `summarise`, `rename`, `resize` and `rotate`.
+- The holder handlers for `rewind`, `summarise` and `rotate`, which run in the agent host.
 - The control handler for `rename`, which sets the session title.
 - The disk limit of a resize.
 
@@ -51,6 +51,16 @@ The native session commands: `rewind`, `summarise`, `rename`, `resize`, `cancel-
   message; `/summarise <seq>` targets a named boundary. Any other argument refuses with
   `REFUSAL_SUMMARISE_ARGS`. `summariseArgs` leaves `throughSeq` optional for the default.
 
+### Rotate the context
+
+- `rotate`: the spec. It takes optional `instructions`, and its text form trims them.
+- `rotateNow({model, visibleEvents, append, instructions, auto, log})`: ask the model for a handoff
+  brief, then append one `rotated` event. The automatic rotation after a turn calls it too.
+- `REFUSAL_ROTATE_CHILDREN`: the refusal while a sub-agent runs.
+- `REFUSAL_ROTATE_NOTHING`, `REFUSAL_ROTATE_NO_MODEL`, `REFUSAL_ROTATE_UNCHANGED`,
+  `REFUSAL_ROTATE_EMPTY`, `REFUSAL_ROTATE_FAILED`: the refusal sentences of the handler.
+- `ROTATE_TIMEOUT_MS`: the 120-second limit on the model call.
+
 ### Refusals
 
 - `REFUSAL_RENAME_NEEDS_NAME`: what `/rename` answers with no name.
@@ -77,8 +87,8 @@ const builtinEntries = nativeCommands.map((command) =>
   `command.spec.name`. The two maps never mix.
 - `resize` and `cancel-resize` are in `nativeCommands` but have no handler here. The control plane
   supplies one per session.
-- `rewind` and `summarise` change the event log of the session. They run in the host, and they
-  refuse a sequence number that names no message.
+- `rewind`, `summarise` and `rotate` change the event log of the session. They run in the host.
+  `rewind` and `summarise` refuse a sequence number that names no message.
 
 ## See also
 

@@ -28,11 +28,11 @@ Redis and sends the pushes.
 
 ## Entry points
 
-| Import                               | Use it for                                                  |
-| ------------------------------------ | ----------------------------------------------------------- |
-| `@dltech/atlas-notifications`        | The device model and the transport interface.               |
-| `@dltech/atlas-notifications/client` | The in-app notice and the presence loop.                    |
-| `@dltech/atlas-notifications/server` | The presence store, the Web Push, Expo and APNs transports. |
+| Import                               | Use it for                                                      |
+| ------------------------------------ | --------------------------------------------------------------- |
+| `@dltech/atlas-notifications`        | The device model, the payload keys and the transport interface. |
+| `@dltech/atlas-notifications/client` | The in-app notice and the presence loop.                        |
+| `@dltech/atlas-notifications/server` | The presence store, the Web Push, Expo and APNs transports.     |
 
 ## Capabilities
 
@@ -44,6 +44,11 @@ Redis and sends the pushes.
 
 - `NotifyDevice`: an `id`, a `kind`, a `token` and a `secret`. The secret holds the Web Push
   subscription keys. It is `null` for Expo and APNs devices.
+
+### Name the payload keys
+
+- `NOTIFY_DATA_SESSION_KEY` (`sessionId`), `NOTIFY_DATA_SEQ_KEY` (`seq`) and
+  `NOTIFY_DATA_CLEAR_SESSION_KEY` (`clearSessionId`): the keys of the Expo and APNs payloads.
 
 ### Implement a transport
 
@@ -88,7 +93,7 @@ Redis and sends the pushes.
 - `clear` posts `{ contentAvailable: true, data: { clearSessionId } }` with no title and no body.
 - A ticket with `details.error === 'DeviceNotRegistered'` reports the device `gone`. A refused or
   unreachable request reports every device unsent.
-- `EXPO_PUSH_URL`, `EXPO_PUSH_BATCH_SIZE` and the three `NOTIFY_DATA_*` keys: the endpoint, the batch size and the payload keys.
+- `EXPO_PUSH_URL` and `EXPO_PUSH_BATCH_SIZE`: the endpoint and the batch size.
 
 ### Send Mac push
 

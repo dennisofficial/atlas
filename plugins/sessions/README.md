@@ -9,7 +9,8 @@ The tools a pod uses to reach other sessions, and the plan view. The API compose
   `list_teammates`.
 - The `plan` view, which folds the plan tasks the model keeps for its turn.
 - `nestPeers`, which builds the tree of teammates under each spawner.
-- The `sessions.peers` prompt fragment, which adds the spawner line for a nested session.
+- The `sessions.peers` prompt fragment, which adds the spawner line to a session that another
+  session started.
 
 ## Does not own
 
@@ -52,6 +53,9 @@ The tools a pod uses to reach other sessions, and the plan view. The API compose
 | `list_teammates` | List the nested teammates of this session, newest first.                                                   |
 
 Every line of a list names whether the session is working, idle, failed or archived.
+
+Both spawn tools take an optional `title`, the name of the new session. They take an optional
+`brief`, its first message. A session with no brief waits for a message.
 
 Both spawn tools take `files`: paths relative to `$ATLAS_CONTEXT_DIR`. The files are read before
 the spawn, carried on the spawn message, and written into the spawned session's own context folder
