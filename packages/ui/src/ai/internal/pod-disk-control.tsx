@@ -10,14 +10,16 @@ export function podDiskGrowOptionsOf(args: { limitGb: number }): number[] {
 }
 
 export interface PodDiskControlProps {
-  limitGb: number
+  limitGb: number | undefined
   disabled?: boolean | undefined
   onGrow?: ((diskGb: number) => void) | undefined
 }
 
 export function PodDiskSelect(props: PodDiskControlProps) {
-  const options = podDiskGrowOptionsOf({ limitGb: props.limitGb })
-  if (options.length === 0) return null
+  const limitGb = props.limitGb
+  const known = limitGb !== undefined
+  const options = limitGb === undefined ? [] : podDiskGrowOptionsOf({ limitGb })
+  if (known && options.length === 0) return null
 
   const handleValueChange = (next: unknown) => {
     const picked = options.find((size) => size === next)
@@ -30,7 +32,7 @@ export function PodDiskSelect(props: PodDiskControlProps) {
       items={options.map((size) => ({ value: size, label: `${size} GB` }))}
       value={null}
       onValueChange={handleValueChange}
-      disabled={props.disabled === true}
+      disabled={props.disabled === true || !known}
     >
       <SelectTrigger size="sm" aria-label="Increase disk" className="text-xs">
         <SelectValue>Increase disk</SelectValue>

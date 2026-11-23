@@ -98,8 +98,10 @@ const sectionOf = (overrides: Partial<React.ComponentProps<typeof PodPaneSection
 )
 
 describe('podSectionViewOf', () => {
-  it('renders nothing without pushed pod state', () => {
-    expect(podSectionViewOf({ pod: undefined, live: true })).toBeNull()
+  it('keeps the section with the default shape before the pod state is pushed', () => {
+    const view = podSectionViewOf({ pod: undefined, live: false })
+    expect(view.state).toBe(EPodState.Parked)
+    expect(view.shape).toEqual({ vcpus: 2, memoryGb: 4 })
   })
 
   it('reads the shape, the sizes and the resize phase off the pushed pod', () => {
@@ -221,10 +223,12 @@ describe('PodPaneSection', () => {
     expect(html).toContain('CPU and RAM over the last 15 minutes')
   })
 
-  it('keeps the idle placeholder without a series', () => {
+  it('shows an empty chart state instead of a blank chart without a series', () => {
     const running = renderToStaticMarkup(sectionOf({ series: [] }))
     expect(running).toContain('CPU')
-    expect(running).not.toContain('No live usage')
+    expect(running).toContain('Disk')
+    expect(running).toContain('No live usage yet')
+    expect(running).not.toContain('over the last 15 minutes')
     const asleep = renderToStaticMarkup(sectionOf({ series: [], state: EPodState.Parked }))
     expect(asleep).toContain('No live usage — pod asleep')
   })

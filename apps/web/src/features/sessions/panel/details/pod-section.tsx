@@ -76,16 +76,16 @@ export const podSectionViewOf = (args: {
   live: boolean
   sandbox?: SessionStatusOutput['sandbox']
   sandboxProvider?: SessionStatusOutput['sandboxProvider']
-}): PodSectionView | null => {
+}): PodSectionView => {
   const { pod, live, sandbox, sandboxProvider } = args
-  const status = podChipStatusOf({ pod, live, sandbox })
-  if (status === null) return null
+  const status = podChipStatusOf({ pod: pod ?? { phase: 'steady' }, live, sandbox })
+  const state = status?.state ?? (live ? EPodState.Running : EPodState.Parked)
   const offered = pod?.sizing?.offered ?? [DEFAULT_POD_SHAPE]
   const shape = podShapeOfView(pod) ?? pod?.desiredShape ?? offered[0] ?? DEFAULT_POD_SHAPE
   const pendingShape =
     pod?.phase === 'steady' || pod?.desiredShape === undefined ? undefined : pod.desiredShape
   return {
-    state: status.state,
+    state,
     shape,
     shapes: offered,
     unavailable: pod?.sizing?.unavailable ?? [],
@@ -163,8 +163,8 @@ export function SessionPodSection() {
     sandbox: status?.sandbox,
     sandboxProvider: status?.sandboxProvider,
   })
-  const power = usePodPower({ sessionId, declared: declaredPodStateOf(section?.state) })
-  const running = section?.state === EPodState.Running
+  const power = usePodPower({ sessionId, declared: declaredPodStateOf(section.state) })
+  const running = section.state === EPodState.Running
   const metrics = usePodMetrics({ sessionId, enabled: running })
   const busy = podBusyOfView({ view, status })
   const { confirmation, handleResize } = useShapeResizeConfirmation({
@@ -182,7 +182,6 @@ export function SessionPodSection() {
   const disk = useDiskResizeConfirmation({
     busy,
     onResize: async (request) => {
-      if (section === null) return
       await resizePod({
         api: sessionsApi,
         sessionId,
@@ -193,7 +192,6 @@ export function SessionPodSection() {
       })
     },
   })
-  if (section === null) return null
   return (
     <>
       <PodPaneSection

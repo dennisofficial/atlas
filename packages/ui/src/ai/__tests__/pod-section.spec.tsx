@@ -151,11 +151,29 @@ describe('pod section chart', () => {
 })
 
 describe('pod disk row', () => {
-  it('stays away when the sample reports no disk', () => {
+  it('keeps the disk row with an empty value when the sample reports no disk', () => {
     const html = htmlOf()
-    expect(html).not.toContain('Disk')
+    expect(html).toMatch(/Disk<\/span><span[^>]*>—<\/span>/)
     expect(html).not.toContain('aria-label="Increase disk"')
     expect(html).toContain('CPU and RAM over the last 15 minutes')
+  })
+
+  it('keeps the disk row and its limit while the pod sleeps', () => {
+    const asleep = htmlOf({ state: EPodState.Parked, series: POD_SERIES_WITH_DISK })
+    expect(asleep).toContain('— / 20 GB')
+  })
+
+  it('keeps the grow control, disabled, until the disk size is known', () => {
+    const html = htmlOf({ diskGrow: true })
+    expect(html).toMatch(/<button[^>]*aria-label="Increase disk"[^>]*disabled/)
+  })
+
+  it('keeps every row and an empty chart before the first sample arrives', () => {
+    const html = htmlOf({ series: [] })
+    expect(html).toContain('CPU')
+    expect(html).toContain('RAM')
+    expect(html).toContain('Disk')
+    expect(html).toContain('No samples')
   })
 
   it('reads used of limit in GB off the sample and adds disk to the chart', () => {
@@ -172,7 +190,7 @@ describe('pod disk row', () => {
   })
 
   it('keeps the disk out of the tip of a pod that reports none', () => {
-    expect(htmlOf({ defaultActiveIndex: 4 })).not.toContain('Disk')
+    expect(htmlOf({ defaultActiveIndex: 4 })).not.toMatch(/Disk \d/)
   })
 
   it('keeps the grow control off a pod whose provider cannot grow its disk', () => {
