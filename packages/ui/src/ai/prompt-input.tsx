@@ -25,6 +25,10 @@ import { useIsMobile } from '#hooks/use-mobile'
 import { cn } from '#lib/utils'
 import { handleLiteralHyphen } from './internal/literal-hyphen'
 import { useCoarsePointer } from './internal/use-coarse-pointer'
+import {
+  COMPOSER_HEIGHT_CLASS,
+  useComposerHeightStyle,
+} from './internal/use-visual-viewport-height'
 
 import {
   EPromptAttachmentStatus,
@@ -127,6 +131,7 @@ export function PromptInput({
 }: PromptInputProps) {
   const isMobile = useIsMobile()
   const coarsePointer = useCoarsePointer()
+  const composerHeightStyle = useComposerHeightStyle()
   const [draft, setDraft] = useState(defaultValue)
   const formRef = useRef<HTMLFormElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -238,7 +243,12 @@ export function PromptInput({
           autoCorrect={isMobile ? 'on' : 'off'}
           readOnly={sending}
           aria-busy={sending}
-          className={cn('max-md:min-h-10', sending && 'text-muted-foreground')}
+          style={composerHeightStyle}
+          className={cn(
+            'max-md:min-h-10',
+            COMPOSER_HEIGHT_CLASS,
+            sending && 'text-muted-foreground',
+          )}
           aria-label="Message"
         />
         <InputGroupAddon align="block-end" className="flex-wrap gap-1">
