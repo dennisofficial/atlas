@@ -41,6 +41,8 @@ const digest = (patch: Partial<ControlSessionDigest> = {}): ControlSessionDigest
   routineId: null,
   lastEventAt: null,
   lastAssistantSeq: 0,
+  headSeq: 0,
+  lastTurn: null,
   readSeq: null,
   firstMessageText: 'Make the sidebar push session titles instead of polling them',
   firstMessageAt: POSTED,

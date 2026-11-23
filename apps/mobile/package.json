@@ -22,6 +22,7 @@
     "@dltech/atlas-api-router": "workspace:*",
     "@dltech/atlas-client": "workspace:*",
     "@dltech/atlas-core": "workspace:*",
+    "@dltech/atlas-notifications": "workspace:*",
     "@dltech/atlas-plugin-github": "workspace:*",
     "@dltech/atlas-plugin-sdk": "workspace:*",
     "@dltech/atlas-plugin-services": "workspace:*",

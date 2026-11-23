@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
-import type { V2Body } from '@dltech/atlas-core'
+import { ETurnCause, ETurnEndedBy, ETurnOutcome, type V2Body } from '@dltech/atlas-core'
 
 import { ControlPlane } from '../../control-plane'
 import type { ControlStorePort, ControlTx } from '../../port'
@@ -545,6 +545,42 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
       const [digest] = await plane.listSessionDigests({ userId: USER, limit: 10 })
       expect(digest?.lastAssistantSeq).toBe(appended.head.seq)
       expect(digest?.readSeq).toBeNull()
+    })
+
+    it('digests the head seq and the last turn ending of the main thread', async () => {
+      await seedSession({ sessionId: 's-a', offsetMs: 0 })
+      const granted = await plane.grant({ sessionId: 's-a', hostId: HOLDER_HOST })
+      const head = await plane.head({ threadId: 't-s-a' })
+      const [beforeAppend] = await plane.listSessionDigests({ userId: USER, limit: 10 })
+      expect(beforeAppend?.lastTurn).toBeNull()
+
+      const appended = await plane.append({
+        threadId: 't-s-a',
+        epoch: granted.epoch,
+        events: mint({
+          bodies: [
+            { type: 'turn-started', turnId: 'turn-1', cause: ETurnCause.Input },
+            {
+              type: 'turn-ended',
+              turnId: 'turn-1',
+              outcome: ETurnOutcome.Completed,
+              by: ETurnEndedBy.Agent,
+            },
+          ],
+          epoch: granted.epoch,
+          from: head,
+          threadId: 't-s-a',
+        }),
+      })
+      if (!appended.ok) throw new Error(JSON.stringify(appended.refusal))
+
+      const [digest] = await plane.listSessionDigests({ userId: USER, limit: 10 })
+      expect(digest?.headSeq).toBe(appended.head.seq)
+      expect(digest?.lastTurn).toEqual({
+        seq: appended.head.seq,
+        outcome: ETurnOutcome.Completed,
+        by: ETurnEndedBy.Agent,
+      })
     })
 
     it('marks a session read monotonically and digests the cursor', async () => {

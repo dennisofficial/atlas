@@ -1,4 +1,6 @@
-import type { SessionDigestRow, SessionListParams } from '../../port'
+import { turnEndedSchema } from '@dltech/atlas-core'
+
+import type { SessionDigestRow, SessionListParams, SessionTurnEnding } from '../../port'
 import { sessionRowOf, type State } from './memory-state'
 
 const FIRST_MESSAGE_CHARS = 400
@@ -34,6 +36,19 @@ const lastAssistantSeqOf = (params: { state: State; threadId: string }): number 
     0,
   )
 
+const headSeqOf = (params: { state: State; threadId: string }): number =>
+  (params.state.events.get(params.threadId) ?? []).at(-1)?.seq ?? 0
+
+const lastTurnOf = (params: { state: State; threadId: string }): SessionTurnEnding | null => {
+  const last = (params.state.events.get(params.threadId) ?? [])
+    .filter((event) => event.type === 'turn-ended')
+    .at(-1)
+  if (last === undefined) return null
+  const parsed = turnEndedSchema.safeParse(JSON.parse(last.canonical))
+  if (!parsed.success) return null
+  return { seq: last.seq, outcome: parsed.data.outcome, by: parsed.data.by }
+}
+
 export const sessionDigestsIn = (
   params: { state: State } & SessionListParams,
 ): SessionDigestRow[] =>
@@ -54,5 +69,7 @@ export const sessionDigestsIn = (
       readSeq: row.readSeq,
       lastEventAt: params.state.events.get(row.mainThreadId)?.at(-1)?.at ?? null,
       lastAssistantSeq: lastAssistantSeqOf({ state: params.state, threadId: row.mainThreadId }),
+      headSeq: headSeqOf({ state: params.state, threadId: row.mainThreadId }),
+      lastTurn: lastTurnOf({ state: params.state, threadId: row.mainThreadId }),
       ...firstMessageOf({ state: params.state, sessionId: row.sessionId }),
     }))

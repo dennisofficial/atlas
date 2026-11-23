@@ -475,19 +475,25 @@ The third server transport, and the only one that reaches a quit app on a comput
 
 ### 4.8 In Atlas, in another session: the in-app transport
 
-A client renders the notice itself. It already holds the events of every session it follows, so it
-runs `notifyMomentOf` and `inAppNoticeOf` on the frames it receives and needs no server call.
+A client renders the notice itself, from the sessions list it already follows, and needs no server
+call. A list row carries `lastTurn` (the newest `turn-ended` on the main thread, with its `seq`,
+`outcome` and `by`) and `headSeq` (the newest event seq on the main thread), so the client makes a
+moment for a session it does not have open: `lastTurn.seq` grew → `notifyMomentOf({ending: lastTurn,
+status})`; the status newly entered a waiting state → `notifyMomentOf({ending: null, status})` with
+`headSeq` as the seq. `inAppNoticeOf` then decides, as in §4.3. `packages/notifications/src/client/
+{in-app,clear}.ts` holds this pure part for both surfaces.
 - **Web and Mac.** A toast (`sonner` is already in the dependency list, e.g.
   `apps/web/src/features/sessions/session-view.tsx:4`), a clickable row that opens the session, and
   the existing unread dot (`apps/web/src/features/shell/v2-status.ts:57-61`). The toast is the only
   signal inside the app on the Mac: the Mac's OS banner comes from APNs (§4.7), so the Mac raises no
-  second one. A desktop browser, which has no APNs, also raises a page-level
-  `new Notification(title, {tag: sessionId})` while the window is visible but not focused, and keeps
-  the object per tag so it can `close()` it.
+  second one. A desktop browser raises no page-level `Notification` of its own: presence counts an
+  unfocused window as away (§4.2), so Web Push (§4.5) sends the OS notification with the same
+  `tag: sessionId`, and a page-level copy would duplicate it. The page listens to `focus`, `blur` and
+  `visibilitychange` only to decide whether a notice is due.
 - **iOS.** The app already receives the frames, and its push arrives through the same handler. With
   `AppState === 'active'` the handler shows no banner, so the app draws an in-app banner instead.
 - **Clear.** When the session opens, or when `readSeq` reaches the notice's `seq`, the client drops
-  the toast and closes its tagged notification.
+  the toast, and closes its tagged OS notification on the surfaces that raise one.
 
 ### 4.9 Show and clear, per surface: what is guaranteed and what is best effort
 
@@ -662,8 +668,7 @@ Each slice is one PR that merges alone, in this order.
   nothing; no presence with two devices sends two messages with the same `collapseId`; a dead token
   is pruned; the clear sends to every enabled device and skips an Apple endpoint.
 - **Web** (`apps/web`): the toast appears for a session that is not on screen and not for the open
-  one; the page notification is created with `tag: sessionId` and closed when `readSeq` reaches its
-  seq; the device list shows a disabled device.
+  one; the toast goes when `readSeq` reaches its seq; the device list shows a disabled device.
 - **Mobile** (`apps/mobile`): registration sends `kind` and `clientId`; a clear payload dismisses
   exactly that session's notifications; the foreground handler still suppresses banners.
 - **Mac** (`apps/mac`): the token from `pushNotifications` reaches `registerDevice` once, with kind
