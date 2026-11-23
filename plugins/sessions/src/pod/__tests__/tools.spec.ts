@@ -74,7 +74,7 @@ const rig = (
   sessions: PodSessions,
   messages: PodMessages = EMPTY_MESSAGES,
   files: Readonly<Record<string, string>> | undefined = undefined,
-  daemon: { links?: Readonly<Record<string, string>>; notUtf8?: readonly string[] } = {},
+  daemon: { notUtf8?: readonly string[] } = {},
 ) => {
   const ctx: PluginPodContext = {
     sessionId: 's1',
@@ -113,9 +113,6 @@ const rig = (
     env: async () => ({ ATLAS_CONTEXT_DIR: CONTEXT_DIRECTORY }),
     call: async (op) => {
       const path = 'path' in op ? op.path : ''
-      if (op.op === 'readLink') {
-        return { status: ECallStatus.Ok, op: 'readLink', value: daemon.links?.[path] ?? null }
-      }
       const text = files?.[path]
       if (text !== undefined && op.op === 'stat') {
         return {
@@ -408,37 +405,20 @@ describe('spawn_teammate', () => {
     expect(sessions.calls).toEqual([])
   })
 
-  it('refuses a file behind a linked folder, and spawns nothing', async () => {
+  it('attaches a file behind a linked folder by the content it reads', async () => {
     const sessions = fakeSessions()
-    const { ctx } = rig(
-      sessions.port,
-      EMPTY_MESSAGES,
-      { [`${CONTEXT_DIRECTORY}/linked/secret.md`]: 'outside the context folder' },
-      { links: { [`${CONTEXT_DIRECTORY}/linked`]: '/etc' } },
-    )
+    const { ctx } = rig(sessions.port, EMPTY_MESSAGES, {
+      [`${CONTEXT_DIRECTORY}/specs/auth.md`]: 'the linked spec',
+    })
     const outcome = await invoke({
       ctx,
       name: 'spawn_teammate',
-      input: { files: ['linked/secret.md'] },
+      input: { files: ['specs/auth.md'] },
     })
-    expect(outcome.ok).toBe(false)
-    expect(textOf(outcome)).toContain('linked/secret.md')
-    expect(textOf(outcome)).toContain('link')
-    expect(sessions.calls).toEqual([])
-  })
-
-  it('refuses a file that is itself a link, and spawns nothing', async () => {
-    const sessions = fakeSessions()
-    const { ctx } = rig(
-      sessions.port,
-      EMPTY_MESSAGES,
-      { [`${CONTEXT_DIRECTORY}/plan.md`]: 'outside the context folder' },
-      { links: { [`${CONTEXT_DIRECTORY}/plan.md`]: '/etc/passwd' } },
-    )
-    const outcome = await invoke({ ctx, name: 'spawn_teammate', input: { files: ['plan.md'] } })
-    expect(outcome.ok).toBe(false)
-    expect(textOf(outcome)).toContain('link')
-    expect(sessions.calls).toEqual([])
+    expect(outcome.ok).toBe(true)
+    expect(sessions.calls[0]?.args).toMatchObject({
+      files: [{ path: 'specs/auth.md', text: 'the linked spec' }],
+    })
   })
 
   it('refuses a file that is not UTF-8 text, and spawns nothing', async () => {
