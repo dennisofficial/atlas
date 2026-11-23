@@ -71,6 +71,17 @@ describe('expoTransport.deliver', () => {
     ])
   })
 
+  it('omits the sound of a notification that must not make one', async () => {
+    const recorder = recorderOf()
+
+    await expoTransport({ fetch: recorder.fetch }).deliver({
+      devices: [deviceOf()],
+      notification: { ...NOTIFICATION, silent: true },
+    })
+
+    expect(recorder.calls[0]?.messages[0]).not.toHaveProperty('sound')
+  })
+
   it('names the routine in the data of a routine notice', async () => {
     const recorder = recorderOf()
 

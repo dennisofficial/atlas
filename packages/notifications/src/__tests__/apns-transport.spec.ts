@@ -102,6 +102,19 @@ describe('apnsTransport.deliver', () => {
     })
   })
 
+  it('omits the sound of a notification that must not make one', async () => {
+    const recorded = recorderOf()
+
+    await transportOf({ recorded }).deliver({
+      devices: [deviceOf()],
+      notification: { ...NOTIFICATION, silent: true },
+    })
+
+    const body = JSON.parse(recorded.sent[0]?.body ?? '{}') as { aps: Record<string, unknown> }
+    expect(body.aps).not.toHaveProperty('sound')
+    expect(body.aps['thread-id']).toBe('session-1')
+  })
+
   it('signs its provider token with the key id and the team as the issuer', async () => {
     const recorded = recorderOf()
 

@@ -1,4 +1,5 @@
 import { httpStatusOf, type ApiClient } from '@dltech/atlas-api-router'
+import type { CommandEntry } from '@dltech/atlas-commands'
 import type {
   FilesReadInput,
   FilesReadOutput,
@@ -10,6 +11,10 @@ import type {
   MediaConfirmOutput,
   MediaPresignInput,
   MediaPresignOutput,
+  SessionCommandInput,
+  SessionCommandOutput,
+  SessionCreateInput,
+  SessionCreateOutput,
   SessionPostInput,
   SessionPostOutput,
   SessionRetryInput,
@@ -22,6 +27,7 @@ import type {
   SessionWithdrawOutput,
 } from '@dltech/atlas-protocol'
 
+import type { ProjectChoice } from '../ui/project-prompt-model'
 import type { AuthRefusal } from './session-client'
 
 export type OperatorAnswerBody = Parameters<ApiClient['operatorRequests']['answer']['mutate']>[0]
@@ -30,6 +36,11 @@ export type UploadPresignBody = Parameters<ApiClient['composerUploads']['presign
 export type UploadPresignReply = Awaited<
   ReturnType<ApiClient['composerUploads']['presign']['mutate']>
 >
+export type ProjectSaveBody = Parameters<ApiClient['projects']['create']['mutate']>[0]
+export type ModelsReply = Awaited<ReturnType<ApiClient['models']['list']['query']>>
+export type SkillCatalogueReply = Awaited<ReturnType<ApiClient['skillCatalogue']['list']['query']>>
+export type ModelsEntry = ModelsReply['providers'][number]['models'][number]
+export type ModelsProvider = ModelsReply['providers'][number]
 
 export type SessionApi = {
   post(input: SessionPostInput): Promise<SessionPostOutput>
@@ -48,6 +59,13 @@ export type SessionApi = {
   treeFiles(input: FilesTreeInput): Promise<FilesTreeOutput>
   searchFiles(input: FilesSearchInput): Promise<FilesSearchOutput>
   readFile(input: FilesReadInput): Promise<FilesReadOutput>
+  createSession(input: SessionCreateInput): Promise<SessionCreateOutput>
+  listProjects(): Promise<readonly ProjectChoice[]>
+  createProject(input: ProjectSaveBody): Promise<ProjectChoice>
+  listModels(): Promise<ModelsReply>
+  runCommand(input: SessionCommandInput): Promise<SessionCommandOutput>
+  commands(): Promise<readonly CommandEntry[]>
+  skills(): Promise<SkillCatalogueReply['skills']>
 }
 
 const authStatusOf = (failure: unknown): AuthRefusal | null => {
@@ -97,5 +115,34 @@ export const sessionApiOf = (args: {
     treeFiles: (input) => guarded(() => args.api.files.tree.query(input)),
     searchFiles: (input) => guarded(() => args.api.files.search.query(input)),
     readFile: (input) => guarded(() => args.api.files.read.query(input)),
+    createSession: (input) => guarded(() => args.api.sessions.create.mutate(input)),
+    listProjects: async () => {
+      const reply = await guarded(() => args.api.projects.list.query())
+      return reply.map((project) => ({
+        id: project.id,
+        name: project.name,
+        repo: project.repo,
+        updatedAt: project.updatedAt,
+      }))
+    },
+    createProject: async (input) => {
+      const project = await guarded(() => args.api.projects.create.mutate(input))
+      return {
+        id: project.id,
+        name: project.name,
+        repo: project.repo,
+        updatedAt: project.updatedAt,
+      }
+    },
+    listModels: () => guarded(() => args.api.models.list.query()),
+    runCommand: (input) => guarded(() => args.api.sessions.command.mutate(input)),
+    commands: async () => {
+      const reply = await guarded(() => args.api.sessions.commands.query({}))
+      return reply.commands
+    },
+    skills: async () => {
+      const reply = await guarded(() => args.api.skillCatalogue.list.query({}))
+      return reply.skills
+    },
   }
 }

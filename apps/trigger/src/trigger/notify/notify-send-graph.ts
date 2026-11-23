@@ -1,5 +1,5 @@
 import Redis from 'ioredis'
-import { db } from '@dltech/atlas-db'
+import { and, db } from '@dltech/atlas-db'
 import {
   ENotifyDeviceKind,
   type AtlasNotification,
@@ -17,10 +17,19 @@ import {
 } from '@dltech/atlas-notifications/server'
 import { decodeSettingValue, type NotifyPresence, type SettingScalar } from '@dltech/atlas-core'
 
-export type NotifySessionRow = { userId: string; title: string | null; readSeq: number | null }
+export type NotifySessionRow = {
+  userId: string
+  title: string | null
+  readSeq: number | null
+  nested: boolean
+  spawnedBySessionId: string | null
+  mainThreadId: string
+}
 
 export type NotifyGraph = {
   session: { read(args: { sessionId: string }): Promise<NotifySessionRow | null> }
+  turns: { startedAfter(args: { threadId: string; seq: number }): Promise<boolean> }
+  sound: { claim(args: { userId: string }): Promise<boolean> }
   devices: {
     listEnabled(args: { userId: string }): Promise<NotifyDevice[]>
     touch(args: { deviceId: string; now: string }): Promise<void>
@@ -81,10 +90,36 @@ export const buildNotifyGraph = (
   return {
     session: {
       read: async (args) => {
-        const row = await db.orm.v2.V2Session.select('userId', 'title', 'readSeq').first({
-          id: args.sessionId,
-        })
+        const row = await db.orm.v2.V2Session.select(
+          'userId',
+          'title',
+          'readSeq',
+          'nested',
+          'spawnedBySessionId',
+          'mainThreadId',
+        ).first({ id: args.sessionId })
         return row === null ? null : row
+      },
+    },
+    turns: {
+      startedAfter: async (args) => {
+        const rows = await db.orm.v2.V2Event.where((event) =>
+          and(
+            event.threadId.eq(args.threadId),
+            event.type.eq('turn-started'),
+            event.seq.gt(args.seq),
+          ),
+        )
+          .limit(1)
+          .all()
+        return rows.length > 0
+      },
+    },
+    sound: {
+      claim: async (args) => {
+        if (redis === null) return true
+        const claimed = await redis.set(`notify:sound:${args.userId}`, '1', 'PX', 60_000, 'NX')
+        return claimed === 'OK'
       },
     },
     devices: {

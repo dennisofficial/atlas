@@ -20,6 +20,15 @@ export const NOTIFY_SEND_MAX_DURATION_SECONDS = 30
 
 export const NOTIFY_SEND_MAX_ATTEMPTS = 3
 
+const supersededOf = async (args: {
+  graph: NotifyGraph
+  payload: NotifySendPayload
+  mainThreadId: string
+}): Promise<boolean> =>
+  args.payload.holdMs === undefined || args.payload.holdMs === 0
+    ? false
+    : await args.graph.turns.startedAfter({ threadId: args.mainThreadId, seq: args.payload.seq })
+
 export const runNotifySend = async (args: {
   graph: NotifyGraph
   payload: NotifySendPayload
@@ -29,6 +38,7 @@ export const runNotifySend = async (args: {
   if (session === null) return NO_NOTIFY_OUTPUT
 
   const now = graph.now()
+  const superseded = await supersededOf({ graph, payload, mainThreadId: session.mainThreadId })
   const presence = await graph.presence.read({ userId: session.userId, now })
   const devices = await graph.devices.listEnabled({ userId: session.userId })
   const settings = notifySettingsOf({
@@ -45,9 +55,9 @@ export const runNotifySend = async (args: {
       devices: devices.length,
       quiet: settings.quiet({ now }),
       enabled: settings.enabled(payload.moment),
-      superseded: false,
-      nested: false,
-      operatorTurn: true,
+      superseded,
+      nested: session.nested && session.spawnedBySessionId !== null,
+      operatorTurn: payload.operatorTurn ?? true,
       recentPush: false,
       now,
     },
@@ -55,7 +65,12 @@ export const runNotifySend = async (args: {
   const notification = pushNotificationOf(plan)
   if (notification === null) return NO_NOTIFY_OUTPUT
 
-  const results = await deliverToKinds({ graph, devices, notification })
+  const sound = await graph.sound.claim({ userId: session.userId })
+  const results = await deliverToKinds({
+    graph,
+    devices,
+    notification: sound ? notification : { ...notification, silent: true },
+  })
   await settleDevices({ graph, results, now })
   return countsOf(results)
 }

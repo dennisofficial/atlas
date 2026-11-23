@@ -58,15 +58,19 @@ describe('screenOnAuthLost', () => {
 
 describe('screenOnPick and screenOnBack', () => {
   test('an untitled row opens without a title', () => {
-    expect(screenOnPick({ row: ROW })).toEqual({
+    expect(screenOnPick({ row: ROW, model: null })).toEqual({
       screen: EScreen.Transcript,
       sessionId: 'session-1',
       title: 'Fix the flaky test',
+      model: null,
     })
-    expect(screenOnPick({ row: { ...ROW, titled: false, label: 'session-1' } })).toEqual({
+    expect(
+      screenOnPick({ row: { ...ROW, titled: false, label: 'session-1' }, model: null }),
+    ).toEqual({
       screen: EScreen.Transcript,
       sessionId: 'session-1',
       title: null,
+      model: null,
     })
   })
 

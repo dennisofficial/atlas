@@ -37,6 +37,7 @@ export function ChatScreenHost(props: {
   now: () => number
   onBack: () => void
   onKeys: (handler: (key: KeyEvent) => boolean) => void
+  choosingModel: boolean
 }): React.ReactNode {
   const transcript = useSessionTranscript({
     client: props.client,
@@ -230,6 +231,7 @@ export function ChatScreenHost(props: {
       cwd="/"
       now={props.now()}
       sends={send.sends}
+      choosingModel={props.choosingModel}
       working={transcript.working}
       onReconnect={wake.handleWake}
     />

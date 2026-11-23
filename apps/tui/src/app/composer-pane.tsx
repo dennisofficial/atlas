@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 
 import { Composer, composerRows, composerTone, type HighlightSpan } from '../ui/components/composer'
 import { FileMenu } from '../ui/components/file-menu'
@@ -19,6 +19,12 @@ export function ComposerPane(props: {
   onCursorMoved: () => void
 }): React.ReactNode {
   const tone = composerTone({ working: props.working, interrupting: props.interrupting })
+  const { editor } = props.draft
+
+  useEffect(() => {
+    if (!props.focused) return
+    editor.current?.focus()
+  }, [editor, props.focused])
 
   return (
     <box flexDirection="column" flexShrink={0} width={props.width}>

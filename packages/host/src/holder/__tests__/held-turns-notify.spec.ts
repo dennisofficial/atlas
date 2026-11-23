@@ -5,7 +5,17 @@ import {
   type LoopTurnRunner,
   type TurnOutcome,
 } from '@dltech/atlas-agent'
-import { ENotifyMoment, toCallId, toEventId, toRunId, type V2Event } from '@dltech/atlas-core'
+import {
+  ENotifyMoment,
+  ENotifyVerdict,
+  EPendingWork,
+  ETurnEndedBy,
+  ETurnOutcome,
+  toCallId,
+  toEventId,
+  toRunId,
+  type V2Event,
+} from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 
 import { HeldTurns } from '../held-turns'
@@ -20,6 +30,19 @@ const runnerOf = (outcome: TurnOutcome): LoopTurnRunner =>
     runTurn: () => Promise.resolve(outcome),
     resume: () => Promise.resolve(outcome),
   }) as unknown as LoopTurnRunner
+
+const openShellEvents = (): V2Event[] =>
+  [
+    {
+      type: 'background-shell-started',
+      shellId: 'shell-1',
+      command: 'bun test',
+      id: toEventId('event-shell'),
+      seq: 1,
+      at: AT,
+      threadId: THREAD,
+    },
+  ] as V2Event[]
 
 const parkedEvents = (): V2Event[] =>
   [
@@ -68,8 +91,41 @@ describe('notify on a turn boundary', () => {
     await drive({ turns, log, outcome: { status: ETurnStatus.Completed, runId: RUN } })
 
     expect(sent).toEqual([
-      { sessionId: SESSION, threadId: THREAD, seq: 9, moment: ENotifyMoment.TurnFinished },
+      {
+        sessionId: SESSION,
+        threadId: THREAD,
+        seq: 9,
+        moment: ENotifyMoment.TurnFinished,
+        decision: {
+          moment: ENotifyMoment.TurnFinished,
+          verdict: ENotifyVerdict.Send,
+          holdMs: 0,
+          pending: [],
+          operatorTurn: false,
+        },
+      },
     ])
+  })
+
+  it('holds the finished moment while a shell is open, and records the facts on the turn', async () => {
+    const { sent, log, turns } = setup({ events: openShellEvents(), headSeq: 12 })
+
+    await drive({ turns, log, outcome: { status: ETurnStatus.Completed, runId: RUN } })
+
+    expect(sent[0]?.decision).toEqual({
+      moment: ENotifyMoment.TurnFinished,
+      verdict: ENotifyVerdict.Hold,
+      holdMs: 3_600_000,
+      pending: [EPendingWork.Shell],
+      operatorTurn: false,
+    })
+    expect(log.appended.at(-1)).toEqual({
+      type: 'turn-ended',
+      turnId: 'turn-event-1',
+      outcome: ETurnOutcome.Completed,
+      by: ETurnEndedBy.Agent,
+      notify: { pending: [EPendingWork.Shell], operatorTurn: false },
+    })
   })
 
   it('dispatches a failed moment when the turn failed', async () => {
@@ -82,7 +138,19 @@ describe('notify on a turn boundary', () => {
     })
 
     expect(sent).toEqual([
-      { sessionId: SESSION, threadId: THREAD, seq: 9, moment: ENotifyMoment.TurnFailed },
+      {
+        sessionId: SESSION,
+        threadId: THREAD,
+        seq: 9,
+        moment: ENotifyMoment.TurnFailed,
+        decision: {
+          moment: ENotifyMoment.TurnFailed,
+          verdict: ENotifyVerdict.Send,
+          holdMs: 0,
+          pending: [],
+          operatorTurn: false,
+        },
+      },
     ])
   })
 
@@ -96,7 +164,19 @@ describe('notify on a turn boundary', () => {
     })
 
     expect(sent).toEqual([
-      { sessionId: SESSION, threadId: THREAD, seq: 12, moment: ENotifyMoment.WaitingForYou },
+      {
+        sessionId: SESSION,
+        threadId: THREAD,
+        seq: 12,
+        moment: ENotifyMoment.WaitingForYou,
+        decision: {
+          moment: ENotifyMoment.WaitingForYou,
+          verdict: ENotifyVerdict.Send,
+          holdMs: 0,
+          pending: [],
+          operatorTurn: false,
+        },
+      },
     ])
   })
 

@@ -16,7 +16,7 @@ import {
   type ProjectRequest,
 } from '../../ui/project-prompt-model'
 import type { AtlasApp } from '../compose'
-import type { ProjectPromptControl } from '../use-project-prompt'
+import type { ProjectPromptControl } from '../../ui/hooks/use-project-prompt'
 
 export type ProjectResolution = { projectId: string | null } | 'cancelled'
 

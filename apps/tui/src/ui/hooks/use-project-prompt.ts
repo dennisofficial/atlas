@@ -2,8 +2,8 @@ import type { KeyEvent, PasteEvent } from '@opentui/core'
 import { usePaste } from '@opentui/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { isPrintable } from '../ui/keys/printable'
-import { pastedText } from '../ui/pasted-text'
+import { isPrintable } from '../keys/printable'
+import { pastedText } from '../pasted-text'
 import {
   appended,
   createAnswer,
@@ -23,7 +23,7 @@ import {
   type ProjectAnswer,
   type ProjectPromptState,
   type ProjectRequest,
-} from '../ui/project-prompt-model'
+} from '../project-prompt-model'
 
 export type ProjectPromptControl = {
   state: ProjectPromptState | null

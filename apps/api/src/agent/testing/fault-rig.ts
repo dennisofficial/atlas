@@ -50,6 +50,7 @@ export type HostKnobs = {
   plugins?: boolean
   modelRequestsFile?: string
   contextMirrorDir?: string
+  notifyLog?: boolean
 }
 
 /**
