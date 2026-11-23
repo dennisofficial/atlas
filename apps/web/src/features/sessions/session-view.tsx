@@ -64,6 +64,7 @@ import { SessionPaneProvider } from './panel/pane-value'
 import { SessionPaneLayout } from './panel/session-pane-layout'
 import { useSessionPaneWiring } from './panel/use-session-pane-wiring'
 import { SessionContext } from './session-context'
+import { SessionUsage } from './session-usage'
 import { SessionHeader } from './session-header'
 import { StartFailedCard } from './start-failed-card'
 
@@ -362,6 +363,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
                     />
                   )}
                   <SessionContext context={model.context} spend={model.spend} />
+                  <SessionUsage model={listed?.model} working={working} />
                 </ThreadComposer>
               </div>
             </SessionPaneLayout>

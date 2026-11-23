@@ -19,6 +19,14 @@ describe('formatCountdown', () => {
     expect(formatCountdown({ resetsAt: inMinutes(41), now: NOW })).toBe('41m')
   })
 
+  it('counts in days once the wait passes a day', () => {
+    expect(formatCountdown({ resetsAt: inMinutes(51 * 60), now: NOW })).toBe('2d3h')
+  })
+
+  it('drops the hours when the wait is a whole number of days', () => {
+    expect(formatCountdown({ resetsAt: inMinutes(48 * 60), now: NOW })).toBe('2d')
+  })
+
   it('says now rather than counting backwards once the reset has passed', () => {
     expect(formatCountdown({ resetsAt: inMinutes(-5), now: NOW })).toBe('now')
   })
