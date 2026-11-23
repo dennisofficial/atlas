@@ -235,20 +235,22 @@ flowchart LR
   reuses `src/ui` and `src/store` and ports the hooks that only hold UI state (drawers, composer,
   menus, keys). It writes new data hooks over the snapshot. Boot picks the root: the new one when
   `ATLAS_TUI_NEXT=1`, until slice 9 makes it the only one and deletes the flag.
-- **One store seam.** `ConversationStoreArgs.channel: DeltaChannel` (`store/conversation-store-types.ts:41`)
-  becomes `feed: TranscriptFeed`:
+- **One store seam.** The store reads one stream of `ChannelSignal`s for live steps
+  (`store/conversation-store.ts:138-181`) and takes durable events through `setEvents`/`resetLog`.
+  Both stay. Only the signal source changes: `ConversationStoreArgs.channel: DeltaChannel`
+  (`store/conversation-store-types.ts:41`) becomes `signals: SignalFeed`:
 
   ```ts
-  export type TranscriptFeed = {
-    subscribe(listener: (update: TranscriptUpdate) => void): Unsubscribe
-  }
-  export type TranscriptUpdate =
-    | { kind: ETranscriptUpdate.Events; events: readonly Event[] }
-    | { kind: ETranscriptUpdate.Steps; steps: readonly InFlightStep[]; working: boolean }
+  export type SignalFeed = { subscribe(listener: (signal: ChannelSignal) => void): Unsubscribe }
   ```
 
-  The v1 adapter wraps `DeltaChannel`. The v2 adapter maps each snapshot through `transcriptEventsOf`
-  and `overlayStepOf`. `Unsubscribe` moves from the harness import to a local type.
+  The v1 adapter is `channel.subscribe({threadId, listener})`. The v2 adapter turns each snapshot's
+  overlay into the same signals with a pure `overlaySignalsOf({previous, next})` in
+  `packages/client/src/stream/overlay-signals.ts` (`step-started`, `chunk` text and reasoning deltas,
+  `step-ended`, `turn-working` from `isSessionWorking(status)`), so paced reveal, the step tracker and
+  the turn clock work unchanged. Durable events go to `setEvents` through `transcriptEventsOf`.
+  `ChannelSignal`, `StepSignal`, `EStepEnd`, `TurnSpend` and `Unsubscribe` are imported from
+  `@dltech/atlas-client` instead of the harness re-exports.
 - **One connection, one client.** `src/app/session-client.ts` holds the `ApiClient`, the
   `StreamConnection` (`memorySessionLog()`, `systemStreamScheduler`, the TUI's plugin list) and the
   typed calls the hooks use. Hooks never call `createApiClient` themselves. Specs replace it with a
@@ -278,13 +280,14 @@ touches and `bun run typecheck`.
    `requestRewind` from `session-rewind.ts:36-113`, into `packages/client/src/session/` (new subpath
    `@dltech/atlas-client/session`). Move `device-login.ts` to `@dltech/atlas-client/account`. Web and
    harness import them. No behaviour change. Their specs move with them.
-2. **Store seam.** Replace `channel` with `feed: TranscriptFeed` (§6) in `store/conversation-store.ts:178-199`
-   and its args. Add `src/composition/delta-feed.ts`, the v1 adapter. All store and app specs stay
-   green with no change to what they assert.
+2. **Store seam.** Replace `channel` with `signals: SignalFeed` (§6) in
+   `store/conversation-store.ts:178-181` and its args. Add `src/composition/channel-signal-feed.ts`, the
+   v1 adapter. Move the store's type imports that `@dltech/atlas-client` already owns off the harness.
+   All store and app specs stay green with no change to what they assert.
 3. **Account and list (flag).** `src/app/account/` (file store, device login screen, 401 gate,
    sign-out), `src/app/session-client.ts`, `registered-plugins.ts`, boot selection in `main.tsx`.
    The first screen after sign-in is the resume picker over `followSessions()`. Opening a row shows
-   the live transcript, read-only. Adds the `eventsource` dependency.
+   the live transcript, read-only, through `overlaySignalsOf` (new, in `packages/client`, with specs). Adds the `eventsource` dependency.
 4. **Chat (flag).** Send, steer, the pending queue and take back, stop, retry, run attention,
    attachments, `@` mentions, drafts, operator input, connection states, `/wake`.
 5. **New session, model and commands (flag).** Project prompt over `projects.*`, `sessions.create`,
@@ -310,8 +313,9 @@ touches and `bun run typecheck`.
 
 - **Pure logic in packages.** Lifted helpers keep their specs in `packages/client`. Device login is
   tested with an injected `fetch` covering pending, slow down, denied, expired and success.
-- **Store.** The feed adapters are tested with plain data: v2 events in, the same `TranscriptModel`
-  out as the v1 path gives for the same conversation (one fixture shared by both adapters).
+- **Store.** `overlaySignalsOf` is tested with plain overlay states. The store is tested with v2
+  events and overlays in: the same `TranscriptModel` out as the v1 path gives for the same
+  conversation (one fixture shared by both adapters).
 - **App flows.** A `fake-session-client.ts` over `createFakeTransport` replaces `fake-app.ts` for the
   new root. Every v1 app spec that names a kept flow (`app-send`, `app-rewind`, `app-switcher`,
   `app-settings`, resume, operator input, crew walk) gets a twin over the fake client and asserts the
