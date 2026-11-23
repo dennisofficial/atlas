@@ -75,6 +75,17 @@ const readFailureLogOf = (log: LogPort | undefined): ((error: unknown) => void) 
           ...logFieldsOf({ error }),
         })
 
+const readTimeoutLogOf = (
+  log: LogPort | undefined,
+): ((args: { timeoutMs: number }) => void) | undefined =>
+  log === undefined
+    ? undefined
+    : ({ timeoutMs }) =>
+        log.warn({
+          source: 'runtime.model-refresh',
+          message: `kept the current model after the config read passed ${timeoutMs} ms`,
+        })
+
 export const liveSessionModelsOf = (
   args: PortDeps & {
     initial: ModelSource
@@ -88,12 +99,14 @@ export const liveSessionModelsOf = (
     return latest
   }
   const onReadFailure = readFailureLogOf(args.log)
+  const onReadTimeout = readTimeoutLogOf(args.log)
   const liveFor = (pick: (source: ModelSource) => ResolvedRoleModel): ModelPort =>
     new LiveModelPort({
       initial: pick(latest),
       read: async () => pick(await refreshed()),
       build: (resolved) => modelPortOf({ ...args, resolved }),
       ...(onReadFailure === undefined ? {} : { onReadFailure }),
+      ...(onReadTimeout === undefined ? {} : { onReadTimeout }),
       ...(args.trace === undefined ? {} : { trace: args.trace }),
     })
   return {
