@@ -10,16 +10,14 @@ keeps the log, derives the transcript, and holds the rewind, image upload and de
 - The session window, the overlay of live steps, and the derived session views.
 - The pod channel: the delta channel over a websocket, its frame codecs and its request timeouts.
 - The transcript model: the rows of a turn, the tool runs and the thinking folds.
-- The crew readout: the state and the labels of a sub-agent, and the background work.
+- The crew readout and the sidebar partition: sub-agent state, background work, teammate nesting.
 - The session rewind, the composer image upload, the message input and the Atlas Cloud device login.
 - The chat step types for the AI SDK.
 
 ## Does not own
 
-- The frame and payload schemas, and the channel protocol. `@dltech/atlas-wire` and
-  `@dltech/atlas-protocol` own them.
-- The records, and the transport to the API. `@dltech/atlas-control` and `@dltech/atlas-api-router`
-  own them.
+- Frame and payload schemas, the channel protocol: `@dltech/atlas-wire`, `@dltech/atlas-protocol`.
+- Records and the API transport: `@dltech/atlas-control`, `@dltech/atlas-api-router`.
 - The visual components, their styles, and the held composer state that a surface draws.
 
 ## Entry points
@@ -51,6 +49,8 @@ keeps the log, derives the transcript, and holds the rewind, image upload and de
   subscription to the session list.
 - `StreamTransport`, `StreamScheduler`, `systemStreamScheduler`, `browserNetworkSignal`: the ports
   that a surface supplies.
+- `nestPeers(rows)` nests each teammate under its spawner. `isRecentProject(args)`,
+  `lastActivityAt(args)` and `INACTIVE_AFTER_MS` decide which projects stay in the sidebar.
 
 ### Keep the log and the view
 
@@ -68,8 +68,7 @@ keeps the log, derives the transcript, and holds the rewind, image upload and de
 - `createRemoteDeltaChannel(args)`: the delta channel to the serve in a pod. `webSocketFactory`,
   `sessionSocketUrlOf`, `ChannelSocket`: the socket adapter. `encodeFrame`, `decodeClientFrame`,
   `EServeFrame`, `EClientFrame`: the client side of the frame codec.
-- `turn-outcome`, `signal`, `session-tools`, `subscription-tools`, `rewind-tools`, `in-flight`: the
-  request and reply helpers.
+- `turn-outcome`, `signal`, `session-tools`, `subscription-tools`, `rewind-tools`, `in-flight`.
 
 ### Build the transcript
 
@@ -113,6 +112,7 @@ keeps the log, derives the transcript, and holds the rewind, image upload and de
   supported type and the presign-put-confirm sequence; `messageInputOf(args)` and `postInputOf(args)`
   make the draft and the post input. `MediaUploadApi`, `PutImage`, `UploadHandle`: the ports.
 - `sessionCreateInputOf(args)`, `initialProjectIdOf(args)`: a new session's create input and project.
+- `composerSendStateOf(args)`, `contextPercentOf(args)`: send or stop, and context use.
 
 ### Sign in to Atlas Cloud
 

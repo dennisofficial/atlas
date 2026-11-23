@@ -201,6 +201,10 @@ export class HookedToolDispatcher extends ToolDispatcher {
         markerFailureDraft({ callId: call.callId, name: call.name, failure: markerFailure }),
       ]
     }
+    const captureFileChanges =
+      this.quality.captureEnabled({ threadId: call.threadId }) ||
+      (await this.hooks.capturesFileChanges({ call: allowed, signal }))
+
     const result = await spanWith(this.trace, {
       name: ESpan.ToolInvoke,
       run: () =>
@@ -215,7 +219,7 @@ export class HookedToolDispatcher extends ToolDispatcher {
           activeWorktree,
           threadId: call.threadId,
           onOutput,
-          captureFileChanges: this.quality.captureEnabled({ threadId: call.threadId }),
+          captureFileChanges,
         }),
     })
 

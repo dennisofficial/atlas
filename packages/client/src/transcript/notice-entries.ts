@@ -140,13 +140,16 @@ export function noticeEntriesOf(event: Event): TranscriptEntry[] | null {
   if (event.type === 'agent-restarted') return []
 
   if (event.type === 'rotated') {
-    const auto = event.auto === undefined ? '' : ` at ${event.auto.percent}% of the window`
+    const text =
+      event.auto === undefined
+        ? 'context rotated here'
+        : `rotated automatically at ${event.auto.percent}% of the window`
     return [
       {
         kind: EEntryKind.Rotated,
         author: EAuthor.Model,
         key: event.id,
-        text: `context rotated here${auto}`,
+        text,
         handoff: event.handoff,
         ...(event.instructions === undefined ? {} : { instructions: event.instructions }),
       },

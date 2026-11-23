@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 import { singleProviderRegistry } from '../../testing/sandbox-registry'
-import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs'
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -18,8 +18,10 @@ const scratch: string[] = []
 const daemonJournalsHolding = (needle: string): string[] =>
   readdirSync(tmpdir())
     .filter((entry) => entry.startsWith('atlas-api-agent-local-'))
-    .flatMap((entry) =>
-      readdirSync(join(tmpdir(), entry), { recursive: true, withFileTypes: true })
+    .map((entry) => join(tmpdir(), entry, 'daemon'))
+    .filter((daemonHome) => existsSync(daemonHome))
+    .flatMap((daemonHome) =>
+      readdirSync(daemonHome, { recursive: true, withFileTypes: true })
         .filter((file) => file.isFile() && file.name === 'state.json')
         .map((file) => join(file.parentPath, file.name)),
     )

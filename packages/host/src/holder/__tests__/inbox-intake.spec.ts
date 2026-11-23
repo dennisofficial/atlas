@@ -81,6 +81,7 @@ const rigOf = (entries: readonly InboxEntry[], options: RigOptions = {}) => {
     },
     eventCache: () => ({
       eventsAfter: () => eventsOf(appended as unknown as EventDraft[]),
+      loopEventsAfter: () => eventsOf(appended as unknown as EventDraft[]),
     }),
     loopState: async () => initialLoopState(),
   } as unknown as SessionRecord

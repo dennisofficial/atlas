@@ -13,6 +13,8 @@ import {
   ThumbsUpIcon,
 } from 'lucide-react'
 
+import { cn } from 'cn'
+
 import { Bubble, BubbleContent } from '#components/bubble'
 import { Button } from '#components/button'
 import { Marker, MarkerContent, MarkerIcon } from '#components/marker'
@@ -24,6 +26,7 @@ import {
   SummariseAction,
   type SummariseActions,
 } from './internal/summarise-action'
+import { readingClasses } from '../tokens'
 import { MessageAttachments, type MessageAttachment } from './message-images'
 
 export type { MessageAttachment, MessageImage } from './message-images'
@@ -144,7 +147,7 @@ export function UserMessage({
         <MessageAttachments attachments={attachments} />
         {children === undefined || children === null ? null : (
           <Bubble align="end" variant="muted">
-            <BubbleContent>{children}</BubbleContent>
+            <BubbleContent className={readingClasses.body}>{children}</BubbleContent>
           </Bubble>
         )}
         {timestamp || hasActions ? (
@@ -194,7 +197,7 @@ export function AgentMessage({
       <MessageContent>
         <SpeakerName author={author} />
         {caption === undefined ? (
-          <div className="text-sm leading-relaxed text-pretty">
+          <div className={cn(readingClasses.body, 'text-pretty')}>
             {children}
             {streaming && caret ? (
               <span

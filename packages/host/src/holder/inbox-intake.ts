@@ -1,6 +1,7 @@
 import {
   INBOX_KIND_STOP,
   pendingInputsOf,
+  unheldDraftOf,
   type EventDraft,
   type InboxEntry,
   type ModelPort,
@@ -33,7 +34,12 @@ import { EIntakeScope, intakeThreadOf, skipsInChildScope } from './intake-scope'
 import { fetchInboxEntries, INBOX_INTAKE_MAX_PAGES, logPendingInputIdsOf } from './held-inbox'
 import { drainEntries } from './intake-entries'
 import { consumedInboxIdsOf, loggedDrainablesOf, skillsForPassOf } from './logged-drainables'
-import { drainLoggedNotices, stagedMessageOf } from './notice-drain'
+import {
+  drainLoggedNotices,
+  releaseNothingDraft,
+  stagedMessageOf,
+  type DraftRelease,
+} from './notice-drain'
 import type { OperatorAnswerIntake } from './operator-answer'
 import type { SessionRecord } from './record/record-adapter'
 import { recoverUnfinishedCommands } from './recover-unfinished-commands'
@@ -65,6 +71,7 @@ export type InboxIntakeArgs = {
   model?: ModelPort | undefined
   childrenRunning?: (() => number) | undefined
   operatorAnswers?: OperatorAnswerIntake | undefined
+  crewRunning?: (() => number) | undefined
   log?: LogPort | undefined
   now?: (() => number) | undefined
 }
@@ -172,6 +179,7 @@ export class InboxIntake implements AgentIntake {
     const resolved = await this.withdrawsOf(entries)
     const before = this.events()
     const skills = await skillsForPassOf(this.commandIntake)
+    const release = this.releaseOf()
     const superseded =
       this.args.scope === EIntakeScope.Main
         ? supersededRewindIdsOf({ entries, events: before })
@@ -184,6 +192,7 @@ export class InboxIntake implements AgentIntake {
       glue: this.commandGlue(),
       appendDrafts: this.append,
       skills,
+      release,
       operatorAnswers: this.args.operatorAnswers,
     })
     const events = this.events()
@@ -191,6 +200,7 @@ export class InboxIntake implements AgentIntake {
       events,
       staged: new Set(entries.map((entry) => entry.inboxId)),
       appendDrafts: this.append,
+      release,
     })
     const logged = await loggedDrainablesOf({
       events,
@@ -231,6 +241,12 @@ export class InboxIntake implements AgentIntake {
       record: this.args.record,
       log: this.args.log,
     })
+  }
+
+  private releaseOf(): DraftRelease {
+    const running = this.args.crewRunning
+    if (this.args.scope !== EIntakeScope.Main || running === undefined) return releaseNothingDraft
+    return (input) => (running() === 0 ? unheldDraftOf(input) : input)
   }
 
   private commandGlue(): CommandGlue {

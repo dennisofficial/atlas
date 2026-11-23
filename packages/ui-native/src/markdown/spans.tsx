@@ -117,7 +117,7 @@ export const Inline = ({
     size={style.size}
     tone={style.tone}
     weight={style.weight}
-    leading={RELAXED_LEADING}
+    leading={style.leading ?? RELAXED_LEADING}
     selectable={selectable}
     style={style.uppercase === true ? styles.uppercase : undefined}
   >

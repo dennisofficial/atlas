@@ -20,6 +20,26 @@ describe('notifyMomentOf', () => {
     )
   })
 
+  it('reports a turn that stopped on a credential as waiting for you', () => {
+    expect(
+      notifyMomentOf({
+        ending: { outcome: ETurnOutcome.Failed, by: ETurnEndedBy.Agent },
+        status: ESessionStatus.WaitingForCredentials,
+      }),
+    ).toBe(ENotifyMoment.WaitingForYou)
+  })
+
+  it('keeps a failed turn failed when the session does not wait for a credential', () => {
+    for (const status of [ESessionStatus.Failed, ESessionStatus.Idle]) {
+      expect(
+        notifyMomentOf({
+          ending: { outcome: ETurnOutcome.Failed, by: ETurnEndedBy.Agent },
+          status,
+        }),
+      ).toBe(ENotifyMoment.TurnFailed)
+    }
+  })
+
   it('reports a turn the host interrupted as failed', () => {
     expect(momentOfEnding({ outcome: ETurnOutcome.Interrupted, by: ETurnEndedBy.Host })).toBe(
       ENotifyMoment.TurnFailed,

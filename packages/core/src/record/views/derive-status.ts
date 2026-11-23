@@ -1,3 +1,4 @@
+import { REPAIRABLE_FAILURE_KINDS } from '../../repair/repair-episode'
 import type { OpenTurn } from '../turns'
 import { hasBackground } from './background-facts'
 import type { StatusFacts } from './status-facts'
@@ -108,6 +109,9 @@ export function deriveStatus(args: {
   if (queuedSince !== null) return queued
 
   const failed = facts.unfinishedFailure
+  if (failed !== null && REPAIRABLE_FAILURE_KINDS.has(failed.kind)) {
+    return { state: ESessionStatus.WaitingForCredentials, reason: failed.kind, since: failed.at }
+  }
   if (failed !== null) {
     return { state: ESessionStatus.Failed, reason: failed.message, since: failed.at }
   }

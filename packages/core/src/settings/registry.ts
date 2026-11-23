@@ -20,6 +20,7 @@ import {
 } from './decisions-presets'
 import { EFFORT_OPTIONS_WITH_INHERIT, INHERIT_EFFORT } from './effort-rows'
 import { ESettingsLayer } from './layers'
+import { EImageModelWire } from './cloud/setting-enums'
 import { compactionRoleRows, quickRoleRows, subagentFastRow } from './model-role-rows'
 import { choiceValueOf, type SettingsResolution } from './resolve'
 import { ESettingKind, type SettingOption } from './value'
@@ -68,6 +69,7 @@ export enum ESettingId {
   NoticeSeconds = 'notifications.seconds',
   WebSearchBackend = 'web.searchBackend',
   WebSearchKey = 'web.searchKey',
+  ImageModel = 'images.model',
   ModelId = 'model.id',
   ModelEffort = 'model.effort',
   ModelFast = 'model.fast',
@@ -546,6 +548,47 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     kind: ESettingKind.Secret,
     fallback: '',
     masked: true,
+  },
+  {
+    id: ESettingId.ImageModel,
+    page: ESettingPage.General,
+    group: 'Images',
+    label: 'Image model',
+    description:
+      'The model image_generate uses when the agent names none. Only models that support Zero Data Retention are listed, because the gateway refuses the rest. Nano Banana 2 is fast and cheap, Nano Banana Pro draws the most detail, MAI Image 2.7 answers at full source resolution, and Grok Imagine 2.0 has a different look. Any model can still be named in a single call, and the agent does that to compare them.',
+    environmentVariable: 'ATLAS_IMAGE_MODEL',
+    kind: ESettingKind.Choice,
+    fallback: EImageModelWire.Gemini31FlashImage,
+    options: [
+      {
+        value: EImageModelWire.Gemini31FlashImage,
+        label: 'Nano Banana 2',
+        detail: 'fast',
+        note: 'Google\u2019s fast image model, and the fallback: a picture in about ten seconds at a modest resolution, cheap enough to run a few times while comparing prompts.',
+      },
+      {
+        value: EImageModelWire.Gemini3ProImage,
+        label: 'Nano Banana Pro',
+        detail: 'detailed',
+        note: 'The same family with more of the prompt followed and more detail in the result. Slower, and each picture costs several times what the fast model does.',
+      },
+      {
+        value: EImageModelWire.MaiImage27,
+        label: 'MAI Image 2.7',
+        note: 'Microsoft\u2019s image model, which answers at the full resolution of the source image, so an edit keeps the size of the picture it started from.',
+      },
+      {
+        value: EImageModelWire.MaiImage27Flash,
+        label: 'MAI Image 2.7 Flash',
+        detail: 'fast',
+        note: 'The faster MAI model. Cheaper per picture and quicker to answer, with less fidelity to small details in the source.',
+      },
+      {
+        value: EImageModelWire.GrokImagineImage20,
+        label: 'Grok Imagine 2.0',
+        note: 'A different stylistic family, useful when the Google and Microsoft models keep giving the same look.',
+      },
+    ],
   },
   {
     id: ESettingId.Accent,

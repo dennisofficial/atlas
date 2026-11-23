@@ -19,10 +19,12 @@ import {
   type OnChunk,
   type OnThreadOpen,
   type ProviderPrompt,
+  type ToolCall,
 } from '@dltech/atlas-core'
 import { ESpan, spanWith, type TracePort } from '@dltech/atlas-observability'
 
 import { withinBudget, type OnHookMishap } from './budget'
+import { capturesFileChangesOf } from './capture'
 
 export enum EHookPhase {
   BeforeTurn = 'before-turn',
@@ -41,6 +43,12 @@ export type RegisteredHook<TPhase> = {
   awaited?: true | undefined
 }
 
+export type AfterToolHook = RegisteredHook<AfterTool> & {
+  capturesFileChanges?:
+    | ((args: { call: ToolCall; signal: AbortSignal }) => Promise<boolean>)
+    | undefined
+}
+
 /**
  * Anything the chain itself can depend on must hold it as a thunk: the chain resolves hooks, which
  * resolve tools, which resolve the shell registry, and reading it eagerly would close that circle.
@@ -54,7 +62,7 @@ export type HookChainArgs = {
   beforeStep?: readonly RegisteredHook<BeforeStep>[] | undefined
   beforeRequest?: readonly RegisteredHook<BeforeRequest>[] | undefined
   beforeTool?: readonly RegisteredHook<BeforeTool>[] | undefined
-  afterTool?: readonly RegisteredHook<AfterTool>[] | undefined
+  afterTool?: readonly AfterToolHook[] | undefined
   afterShell?: readonly RegisteredHook<AfterShell>[] | undefined
   onChunk?: readonly RegisteredHook<OnChunk>[] | undefined
   afterTurn?: readonly RegisteredHook<AfterTurn>[] | undefined
@@ -143,7 +151,7 @@ const stagesOf = <THook extends { order: HookOrder }>(
 
 export class HookChain {
   readonly beforeTool: readonly RegisteredHook<BeforeTool>[]
-  readonly afterTool: readonly RegisteredHook<AfterTool>[]
+  readonly afterTool: readonly AfterToolHook[]
 
   private readonly beforeTurnHooks: readonly RegisteredHook<BeforeTurn>[]
   private readonly beforeStepHooks: readonly RegisteredHook<BeforeStep>[]
@@ -165,6 +173,16 @@ export class HookChain {
     this.onChunkHooks = orderHooks(args.onChunk ?? [])
     this.afterTurnHooks = orderHooks(args.afterTurn ?? [])
     this.onThreadOpenHooks = orderHooks(args.onThreadOpen ?? [])
+  }
+
+  capturesFileChanges(args: { call: ToolCall; signal: AbortSignal }): Promise<boolean> {
+    return capturesFileChangesOf({
+      hooks: this.afterTool,
+      call: args.call,
+      signal: args.signal,
+      budgetMs: this.bounds.budgetMs,
+      onMishap: this.bounds.onMishap,
+    })
   }
 
   async beforeTurn(args: {

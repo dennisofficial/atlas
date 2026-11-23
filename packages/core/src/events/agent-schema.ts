@@ -16,6 +16,7 @@ export const agentEventSchemas = [
     agentType: z.string().min(1),
     intent: z.string(),
     mode: z.enum(EAgentStart),
+    group: z.string().optional(),
     worktree: z
       .object({
         path: z.string(),
@@ -39,6 +40,7 @@ export const agentEventSchemas = [
     turns: z.number().int().nonnegative(),
     toolCalls: z.number().int().nonnegative(),
     relayed: z.boolean().optional(),
+    held: z.boolean().optional(),
     leftServices: z.array(z.string()).optional(),
     notice: noticeStampSchema.optional(),
   }),

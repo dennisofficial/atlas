@@ -25,6 +25,7 @@ export type PodCrew = {
     agentType: string
     intent: string
     prompt: string
+    group?: string | undefined
     worktree?: WorktreeEntryInfo | undefined
   }): Promise<SubagentSnapshot>
   say(args: { agentId: string; text: string }): Promise<SubagentSaid | undefined>

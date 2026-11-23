@@ -1,5 +1,5 @@
 import { ENotifyDeviceKind } from '@dltech/atlas-core'
-import type { RegisterNotifyDeviceInput } from '@dltech/atlas-wire'
+import type { RegisterNotifyDeviceInput } from '@dltech/atlas-wire/web'
 
 import { SERVICE_WORKER_PATH } from './service-worker-source'
 

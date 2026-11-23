@@ -3,6 +3,7 @@ import {
   EKilledBy,
   finishedTurnOf,
   type AgentLost,
+  type CrewRoomMember,
   INBOX_KIND_EVENT,
   inboxEventPayloadOf,
   type EventBody,
@@ -32,6 +33,7 @@ import {
 import { DRAIN_IN_FLIGHT_CAP_MS } from '../drain-cap'
 import { childRunnerOf } from './child-runner'
 import { ChildTranscript } from './child-transcript'
+import { GroupRunState } from './group-run-state'
 import { driveLifecycle, settledWithin, type DriveArgs } from './child-turns'
 import { lastSeqOf } from './child-reports'
 import {
@@ -64,6 +66,9 @@ export class ChildRun {
   private endedAt: string | undefined
   private killedBy: EKilledBy | undefined
   private failure: string | undefined
+  private readonly group: GroupRunState
+  private awaitingAdoptSettle = false
+  private readonly posts: (post: () => Promise<void>) => Promise<void>
 
   private constructor(
     private readonly args: ChildRunArgs,
@@ -73,6 +78,8 @@ export class ChildRun {
   ) {
     this.agentId = agentId
     this.startedAt = startedAt
+    this.group = new GroupRunState(args.groupHold ?? ((draft) => draft))
+    this.posts = args.postHold ?? ((post) => post())
     this.transcript = new ChildTranscript({
       deps: args.deps,
       runtime: args.runtime,
@@ -82,6 +89,7 @@ export class ChildRun {
       agentId,
       agentType: args.agentType,
       intent: args.intent,
+      group: args.group,
       lastSeq: () => lastSeqOf(this.record.eventCache().eventsAfter(0)),
     })
   }
@@ -126,12 +134,18 @@ export class ChildRun {
     if (!adopted.ok) return adopted
     run.record = adopted.record
     run.inbox = childInboxOf({ deps: args.deps, record: adopted.record, threadId: run.agentId })
-    if (args.settled === undefined) await run.endSettledTurn()
-    else {
+    run.awaitingAdoptSettle = args.settled === undefined
+    if (args.settled !== undefined) {
       run.ending = args.settled.status
       run.endedAt = args.settled.endedAt
     }
     return { ok: true, run }
+  }
+
+  async finishAdopted(): Promise<void> {
+    if (!this.awaitingAdoptSettle) return
+    this.awaitingAdoptSettle = false
+    await this.endSettledTurn()
   }
 
   get done(): Promise<void> {
@@ -202,6 +216,15 @@ export class ChildRun {
     return this.pump !== undefined
   }
 
+  member(): CrewRoomMember {
+    return {
+      agentId: this.agentId,
+      agentType: this.args.agentType,
+      group: this.args.group,
+      running: this.group.runningForGroup,
+    }
+  }
+
   snapshot(): SubagentSnapshot {
     return snapshotOf({
       agentId: this.agentId,
@@ -236,6 +259,7 @@ export class ChildRun {
   }
 
   private begin(args: DriveArgs): void {
+    this.group.started()
     this.pump = this.drive(args).catch((error: unknown) => {
       this.args.deps.log?.error({
         source: 'holder.crew',
@@ -291,6 +315,7 @@ export class ChildRun {
   }
 
   private resetDrive(): void {
+    this.group.started()
     this.stopping = false
     this.ending = undefined
     this.endedAt = undefined
@@ -330,11 +355,12 @@ export class ChildRun {
     this.endedAt = new Date(this.args.deps.timers.now()).toISOString()
     this.failure = args.failure
     this.killedBy = args.killedBy
-    await this.transcript.ended({ progress, ...args, runFailure })
+    const draft = this.group.ended(this.transcript.endingDraft({ progress, ...args, runFailure }))
+    await this.posts(() => this.transcript.ended({ draft }))
   }
 
   private async report(args: { text: string }): Promise<SubagentSnapshot> {
-    await this.transcript.reported(args)
+    await this.posts(() => this.transcript.reported({ text: args.text }))
     return this.snapshot()
   }
 }

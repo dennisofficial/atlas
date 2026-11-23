@@ -3,7 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { EEffort, EModelRole, refKey } from '@dltech/atlas-core'
 
 import { FALLBACK_MODEL, MAIN_MODEL, optionsFixture, STALE_MODEL } from './model-options-fixture'
-import { choiceOf, resolveRoles, staleOwnerOf } from '../model-roles'
+import { choiceOf, PAGE_ROLES, resolveRoles, staleOwnerOf } from '../model-roles'
 import { modelsDraftFrom } from '../models-settings'
 
 const saved = () => modelsDraftFrom(new Map())
@@ -20,6 +20,15 @@ describe('resolveRoles', () => {
     expect(subagents.fast).toBe(true)
     expect(subagents.follows).toBe(EModelRole.Main)
     expect(subagents.stale).toBe(false)
+  })
+
+  it('offers the researcher a model of its own that follows subagents', () => {
+    const draft = { ...saved(), subagents: { model: MAIN_MODEL, effort: 'medium', fast: false } }
+    const choices = resolveRoles({ draft, models: optionsFixture() })
+    const researcher = choiceOf({ choices, role: { agentType: 'researcher' } })
+    expect(PAGE_ROLES).toContainEqual({ agentType: 'researcher' })
+    expect(refKey(researcher.ref)).toBe(MAIN_MODEL)
+    expect(researcher.follows).toBe(EModelRole.Subagents)
   })
 
   it('lets an agent type follow subagents unless it has its own model', () => {

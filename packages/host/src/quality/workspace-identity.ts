@@ -26,7 +26,7 @@ type WorktreeEntry = { path: string; bare: boolean }
 
 type WorkspaceIdentity = Awaited<ReturnType<WorkspaceIdentityPort['identify']>>
 
-type RepositoryLayout = { relativePath: string; localRemote: string | null }
+type RepositoryLayout = { relativePath: string; shallow: boolean }
 
 const unidentified = (): WorkspaceIdentity => ({ remote: null, worktreePath: null })
 
@@ -108,7 +108,7 @@ function resolveMainRoot(args: {
   return anchorLinkedWorktree(args.toplevel)
 }
 
-function layoutOf(sections: ProbeSections): RepositoryLayout | null {
+function layoutOf(sections: ProbeSections): RepositoryLayout {
   const paths = requiredSection({ sections, name: EProbeSection.Paths })
   if (paths.exitCode !== 0) {
     throw new Error(`workspace is not a readable git work tree (git exit ${paths.exitCode})`)
@@ -128,16 +128,19 @@ function layoutOf(sections: ProbeSections): RepositoryLayout | null {
     worktrees: parseWorktrees(listed.stdout),
   })
 
-  const roots = requiredSection({ sections, name: EProbeSection.Roots })
-  if (roots.exitCode !== 0) return null
-  const [rootCommit] = linesOf(roots.stdout).sort()
-  if (rootCommit === undefined) return null
-
   const relativePath = relative(mainRoot, toplevel)
   return {
     relativePath: relativePath === '' ? MAIN_WORKTREE_PATH : relativePath,
-    localRemote: shallow === 'true' ? null : `local:${rootCommit}`,
+    shallow: shallow === 'true',
   }
+}
+
+function localRemoteOf(args: { sections: ProbeSections; layout: RepositoryLayout }): string | null {
+  if (args.layout.shallow) return null
+  const roots = requiredSection({ sections: args.sections, name: EProbeSection.Roots })
+  if (roots.exitCode !== 0) return null
+  const [rootCommit] = linesOf(roots.stdout).sort()
+  return rootCommit === undefined ? null : `local:${rootCommit}`
 }
 
 function originOf(sections: ProbeSections): string | null {
@@ -188,10 +191,9 @@ export class DaemonWorkspaceIdentity extends WorkspaceIdentityPort {
       scope: cached === undefined ? EProbeScope.Layout : EProbeScope.Refs,
     })
     const layout = cached ?? layoutOf(sections)
-    if (layout === null) return unidentified()
     this.remember({ key, layout })
 
-    const remote = originOf(sections) ?? layout.localRemote
+    const remote = originOf(sections) ?? localRemoteOf({ sections, layout })
     if (remote === null) return unidentified()
     return { remote, worktreePath: `${branchOf(sections)}:${layout.relativePath}` }
   }

@@ -28,10 +28,10 @@ const PROBE_SCRIPT = [
   `  section ${EProbeSection.Paths} rev-parse --show-toplevel --path-format=absolute --git-common-dir --is-shallow-repository`,
   `  section ${EProbeSection.Worktrees} worktree list --porcelain -z`,
   `  section ${EProbeSection.WorktreeConfig} config --get core.worktree`,
-  `  section ${EProbeSection.Roots} rev-list --max-parents=0 HEAD`,
   'fi',
   `section ${EProbeSection.Origin} config --get remote.origin.url`,
   `section ${EProbeSection.Branch} symbolic-ref --short -q HEAD`,
+  `git config --get remote.origin.url >/dev/null 2>&1 || section ${EProbeSection.Roots} rev-list --max-parents=0 HEAD`,
 ].join('\n')
 
 export const probeCommand = (scope: EProbeScope): readonly string[] => [

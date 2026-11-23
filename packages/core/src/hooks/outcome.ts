@@ -2,6 +2,7 @@ import type { EventDraft } from '../events/body'
 
 export type HookOutcome = {
   additionalContext?: string | undefined
+  contextKey?: string | undefined
   drafts?: readonly EventDraft[] | undefined
 }
 
@@ -20,7 +21,12 @@ export function hookOutcomeDrafts({
   if (context === undefined || context.trim() === '') return carried
 
   return [
-    { type: 'context-loaded', slot: hookName, key: HOOK_CONTEXT_KEY, content: context },
+    {
+      type: 'context-loaded',
+      slot: hookName,
+      key: outcome.contextKey ?? HOOK_CONTEXT_KEY,
+      content: context,
+    },
     ...carried,
   ]
 }

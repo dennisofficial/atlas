@@ -1,6 +1,8 @@
 const MAX_MESSAGE_CHARS = 500
 const SECRET_SHAPES = new RegExp(
   [
+    String.raw`\b(?:sk-ant|sk-proj|gsk|xai|sk|pk|rk|key)[-_][A-Za-z0-9_*•-]*[*•][A-Za-z0-9_*•-]*`,
+    String.raw`\b(?:sk-ant|sk-proj|gsk|xai|sk|pk|rk|key)[-_][A-Za-z0-9_-]*\.{3,}[A-Za-z0-9]*`,
     String.raw`\b(?:sk|pk|rk|key)-[A-Za-z0-9_-]{6,}`,
     String.raw`Bearer\s+[A-Za-z0-9._~+/=-]+`,
     'AIza[0-9A-Za-z_-]{20,}',

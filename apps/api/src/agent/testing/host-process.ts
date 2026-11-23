@@ -27,6 +27,8 @@ import { startPgWakeListener } from '../bus/pg-wake-listener'
 import { createRedisLiveFrames } from '../bus/redis-live-frames'
 import type { ConfigSource } from '../config/agent-host-config'
 import { fakeModelSourceOf } from './model-source'
+import { recordingModelOf } from './model-requests'
+import { routedModelOf, scriptRoutesOf } from './script-routing'
 import { createSessionRuntimeFactory } from '../runtime/session-runtime-factory'
 import { FixedEndpointSandboxProvider } from './fixed-endpoint-sandbox-provider'
 import { faultedPlane, faultSandbox, hostFaultOf } from './host-faults'
@@ -86,6 +88,12 @@ const withFirstChunkMarker = (model: ModelPort): ModelPort => {
   const path = process.env.FIRST_CHUNK_FILE
   if (path === undefined || path === '') return model
   return new FirstChunkMarker(model, path)
+}
+
+const recordModelOf = (args: { model: ModelPort; host: string; sessionId: string }): ModelPort => {
+  const path = process.env.MODEL_REQUESTS_FILE
+  if (path === undefined || path === '') return args.model
+  return recordingModelOf({ inner: args.model, path, host: args.host, sessionId: args.sessionId })
 }
 
 const tapToolOutput = (liveFrames: ReturnType<typeof createRedisLiveFrames>): void => {
@@ -221,9 +229,14 @@ const main = async (): Promise<void> => {
         const generation = (generations.get(sessionId) ?? 0) + 1
         generations.set(sessionId, generation)
         const script = scripts[`${sessionId}@${generation}`] ?? scripts[sessionId] ?? []
-        return withFirstChunkMarker(
-          new ScriptedModel(scriptedStepsOf(script), undefined, existsSync),
-        )
+        const plain = (): ModelPort =>
+          new ScriptedModel(scriptedStepsOf(script), undefined, existsSync)
+        const routes = scriptRoutesOf({ sessionId, host: holderLabel, scripts })
+        const model =
+          routes.length === 0
+            ? plain()
+            : routedModelOf({ routes, fallback: plain, fileExists: existsSync })
+        return withFirstChunkMarker(recordModelOf({ model, host: holderLabel, sessionId }))
       },
       launchDirectory: workspace,
       sandboxHome: process.env.SANDBOX_HOME,

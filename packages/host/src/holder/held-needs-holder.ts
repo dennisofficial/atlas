@@ -14,8 +14,10 @@ import {
 
 import {
   actionableEntries,
+  isNoticeEntry,
   isStop,
   logPendingInputIdsOf,
+  logPendingNoticeIdsOf,
   readFullInbox,
   stopSettledPromptOf,
   understandsCommand,
@@ -55,6 +57,7 @@ export const drainNeedsHolder = async (args: {
     const state = cache?.loopState() ?? initialLoopState()
     const repairHeld =
       cache !== undefined && repairHoldsResume({ mainThreadId: cache.threadId(), events })
+    const noticeIds = new Set(repairHeld ? logPendingNoticeIdsOf(events) : [])
     return drainWantsHolder({
       turn: args.turnRunning ? 'running' : 'idle',
       childrenRunning:
@@ -65,8 +68,13 @@ export const drainNeedsHolder = async (args: {
         })) > 0,
       resumable: isResumableOf(state) && !stopSettledPromptOf(events) && !repairHeld,
       messagePending:
-        actionableEntries({ entries, failure: workspace.failure }).length > 0 ||
-        waitingInputIdsOf({ ids: logIds, failure: workspace.failure }).length > 0,
+        actionableEntries({ entries, failure: workspace.failure }).some(
+          (entry) => !(repairHeld && isNoticeEntry(entry)),
+        ) ||
+        waitingInputIdsOf({
+          ids: logIds.filter((id) => !noticeIds.has(id)),
+          failure: workspace.failure,
+        }).length > 0,
       workspace: workspace.state,
       retryPending: workspace.retryPending,
     })

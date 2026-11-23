@@ -64,6 +64,48 @@ describe('ImageGenerateTool', () => {
     ])
   })
 
+  it('uses the image model the operator chose when the call names none', async () => {
+    const rig = rigOf({ imageModel: 'microsoft/mai-image-2.7' })
+    const tool = toolOf({ rig, deps: { generate: generatedOf(pngOf({ width: 4, height: 4 })) } })
+
+    const outcome = liveOutcomeOf(await invoke(tool, { prompt: 'a lighthouse' }))
+    const written = [...rig.files.keys()]
+
+    expect(outcome.output).toMatchObject({ model: 'microsoft/mai-image-2.7' })
+    expect(outcome.modelText).toContain('with microsoft/mai-image-2.7')
+    expect(written[0]).toContain('microsoft_mai-image-2.7')
+  })
+
+  it('lets a model named in the call win over the chosen one', async () => {
+    const seen: string[] = []
+    const generate = async (args: { model: string }): Promise<GenerateOutcome> => {
+      seen.push(args.model)
+      return { ok: true, bytes: pngOf({ width: 4, height: 4 }), mediaType: 'image/png' }
+    }
+    const tool = toolOf({
+      rig: rigOf({ imageModel: 'microsoft/mai-image-2.7' }),
+      deps: { generate },
+    })
+
+    const outcome = liveOutcomeOf(
+      await invoke(tool, { prompt: 'a lighthouse', model: 'spacexai/grok-imagine-image-2.0' }),
+    )
+
+    expect(seen).toEqual(['spacexai/grok-imagine-image-2.0'])
+    expect(outcome.output).toMatchObject({ model: 'spacexai/grok-imagine-image-2.0' })
+  })
+
+  it('falls back to the default model when no image model is stored', async () => {
+    const tool = toolOf({
+      rig: rigOf(),
+      deps: { generate: generatedOf(pngOf({ width: 4, height: 4 })) },
+    })
+
+    const outcome = liveOutcomeOf(await invoke(tool, { prompt: 'a lighthouse' }))
+
+    expect(outcome.output).toMatchObject({ model: 'google/gemini-3.1-flash-image' })
+  })
+
   it('edits the pictures it is given, with the media types read from their bytes', async () => {
     const files = new Map<string, Uint8Array>([
       ['/atlas/home/uploads/one.png', pngOf({ width: 8, height: 8 })],
