@@ -167,11 +167,7 @@ export const pluginPodContextOf = (args: {
       status: () => runtime.classifierStatus,
       classify: (args) => runtime.classifier.classify(args),
     },
-    analytics: analyticsOf({
-      analytics: runtime.analytics,
-      sessionId: deps.sessionId,
-      threadId,
-    }),
+    analytics: analyticsOf({ analytics: runtime.analytics, sessionId: deps.sessionId, threadId }),
     sessions: podSessionsOf({
       plane: deps.plane,
       sessionId: deps.sessionId,
