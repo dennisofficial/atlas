@@ -3,6 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { handlePreviewRequest } from '../worker'
 
 const PREVIEW = '3000-abcdefghij.byatlas.dev'
+const PROVIDER = 'https://accounts.google.com/o/oauth2/v2/auth'
 const CALLBACK = 'https://callback.byatlas.dev'
 const PREVIEW_COOKIE = `atlas-preview=${PREVIEW}; Domain=byatlas.dev; Path=/; Secure; HttpOnly; SameSite=None`
 const CONSUMED_COOKIE =
@@ -42,10 +43,19 @@ describe('preview cookie', () => {
     expect(result.headers.getSetCookie()).toContain(PREVIEW_COOKIE)
   })
 
-  it('keeps it out of framed pages and non-HTML responses', async () => {
+  it('marks a framed navigation with a partitioned cookie', async () => {
+    const { result } = await run({
+      url: `https://${PREVIEW}/api/auth/signin/google`,
+      init: { headers: { 'sec-fetch-dest': 'iframe', 'sec-fetch-site': 'cross-site' } },
+      response: () => new Response(null, { status: 302, headers: { location: PROVIDER } }),
+    })
+    expect(result.headers.getSetCookie()).toContain(`${PREVIEW_COOKIE}; Partitioned`)
+  })
+
+  it('keeps it out of framed subresources and non-HTML responses', async () => {
     const framed = await run({
-      url: `https://${PREVIEW}/`,
-      init: { headers: { 'sec-fetch-dest': 'iframe' } },
+      url: `https://${PREVIEW}/api/session`,
+      init: { headers: { 'sec-fetch-dest': 'empty' } },
       response: html,
     })
     const json = await run({
@@ -54,6 +64,15 @@ describe('preview cookie', () => {
     })
     expect(framed.result.headers.getSetCookie()).toEqual([])
     expect(json.result.headers.getSetCookie()).toEqual([])
+  })
+
+  it('marks a framed page only when it is a document', async () => {
+    const { result } = await run({
+      url: `https://${PREVIEW}/app`,
+      init: { headers: { 'sec-fetch-dest': 'iframe' } },
+      response: html,
+    })
+    expect(result.headers.getSetCookie()).toEqual([`${PREVIEW_COOKIE}; Partitioned`])
   })
 
   it('leaves the app cookies untouched beside it', async () => {
@@ -70,6 +89,30 @@ describe('preview cookie', () => {
 })
 
 describe('callback host', () => {
+  it('follows the configured domain for its own host, cookie and gate', async () => {
+    const domain = 'preview.example.dev'
+    const preview = '3000-abcdefghij.preview.example.dev'
+    const marked = await handlePreviewRequest({
+      request: new Request(`https://${preview}/login`, {
+        headers: { 'sec-fetch-dest': 'document' },
+      }),
+      upstream: async () => html(),
+      domain,
+    })
+    const callback = await handlePreviewRequest({
+      request: new Request(`https://callback.${domain}/cb?code=c`, {
+        headers: { cookie: `atlas-preview=${preview}` },
+      }),
+      upstream: async () => new Response('upstream'),
+      domain,
+    })
+    expect(marked.headers.getSetCookie()).toEqual([
+      `atlas-preview=${preview}; Domain=${domain}; Path=/; Secure; HttpOnly; SameSite=None`,
+    ])
+    expect(callback.status).toBe(307)
+    expect(callback.headers.get('location')).toBe(`https://${preview}/cb?code=c`)
+  })
+
   it('sends the callback to the marked preview with path and query intact', async () => {
     const { result, seen } = await run({
       url: `${CALLBACK}/api/auth/callback/google?code=c&state=s%2F1`,

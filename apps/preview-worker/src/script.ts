@@ -1,15 +1,25 @@
-import { ATLAS_WEB_ORIGIN_PATTERNS } from './origins'
+import { atlasWebOriginPatternsOf, DEFAULT_PREVIEW_DOMAIN } from './origins'
 
 export const LOCATION_KIND = 'atlas-preview:location'
 export const LOADING_KIND = 'atlas-preview:loading'
 export const COMMAND_KIND = 'atlas-preview:command'
 
-const ORIGIN_SOURCES = JSON.stringify(ATLAS_WEB_ORIGIN_PATTERNS.map((pattern) => pattern.source))
+const sources = new Map<string, string>()
 
-export const SCRIPT_SOURCE = `(function () {
+export function scriptSourceOf(domain: string): string {
+  const held = sources.get(domain)
+  if (held !== undefined) return held
+  const source = buildSource(domain)
+  sources.set(domain, source)
+  return source
+}
+
+function buildSource(domain: string): string {
+  const origins = JSON.stringify(atlasWebOriginPatternsOf(domain).map((pattern) => pattern.source))
+  return `(function () {
   var w = window;
   if (w.parent === w) return;
-  var patterns = ${ORIGIN_SOURCES}.map(function (source) { return new RegExp(source); });
+  var patterns = ${origins}.map(function (source) { return new RegExp(source); });
   var last = '';
   function report() {
     var url = w.location.href;
@@ -48,17 +58,30 @@ export const SCRIPT_SOURCE = `(function () {
     else if (data.command === 'reload') w.location.reload();
   });
 })();`
-
-export const SCRIPT_TAG = `<script>${SCRIPT_SOURCE}</script>`
-
-let hashPromise: Promise<string> | null = null
-
-export function scriptHash(): Promise<string> {
-  hashPromise ??= computeHash()
-  return hashPromise
 }
 
-async function computeHash(): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(SCRIPT_SOURCE))
+export const SCRIPT_SOURCE = scriptSourceOf(DEFAULT_PREVIEW_DOMAIN)
+
+export const scriptTagOf = (domain: string): string => `<script>${scriptSourceOf(domain)}</script>`
+
+export const SCRIPT_TAG = scriptTagOf(DEFAULT_PREVIEW_DOMAIN)
+
+const hashes = new Map<string, Promise<string>>()
+
+export function scriptHashOf(domain: string): Promise<string> {
+  const held = hashes.get(domain)
+  if (held !== undefined) return held
+  const computed = computeHash(domain)
+  hashes.set(domain, computed)
+  return computed
+}
+
+export const scriptHash = (): Promise<string> => scriptHashOf(DEFAULT_PREVIEW_DOMAIN)
+
+async function computeHash(domain: string): Promise<string> {
+  const digest = await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(scriptSourceOf(domain)),
+  )
   return `'sha256-${Buffer.from(digest).toString('base64')}'`
 }
