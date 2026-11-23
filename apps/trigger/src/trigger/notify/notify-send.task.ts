@@ -1,4 +1,4 @@
-import { ENotifyMode, notifyPlanOf, notifySettingsOf } from '@dltech/atlas-core'
+import { notifyPlanOf, notifySettingsOf, pushNotificationOf } from '@dltech/atlas-core'
 import {
   NO_NOTIFY_OUTPUT,
   NOTIFY_SEND_TASK_ID,
@@ -45,12 +45,17 @@ export const runNotifySend = async (args: {
       devices: devices.length,
       quiet: settings.quiet({ now }),
       enabled: settings.enabled(payload.moment),
+      superseded: false,
+      nested: false,
+      operatorTurn: true,
+      recentPush: false,
       now,
     },
   })
-  if (plan === null || plan.mode !== ENotifyMode.Push) return NO_NOTIFY_OUTPUT
+  const notification = pushNotificationOf(plan)
+  if (notification === null) return NO_NOTIFY_OUTPUT
 
-  const results = await deliverToKinds({ graph, devices, notification: plan.notification })
+  const results = await deliverToKinds({ graph, devices, notification })
   await settleDevices({ graph, results, now })
   return countsOf(results)
 }

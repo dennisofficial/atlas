@@ -12,7 +12,7 @@ const NO_BOOT = ''
 export const shellKey = (shell: { shellId: string; bootId?: string | undefined }): string =>
   `${shell.bootId ?? NO_BOOT}${shell.shellId}`
 
-const shellLifecycleKind: LifecycleKind<StartedShell, EndedShell> = {
+export const shellLifecycleKind: LifecycleKind<StartedShell, EndedShell> = {
   isStart: (event): event is StartedShell => event.type === 'background-shell-started',
   isEnd: (event): event is EndedShell => event.type === 'background-shell-ended',
   keyOf: (event) => event.shellId,
