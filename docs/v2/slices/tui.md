@@ -1,28 +1,24 @@
 # Spec: the TUI as a v2 client
 
-Status: **proposed, 2026-11-23**. Not approved. Anchors are at `0d7082dc8`; check one again before you
+Status: **approved, 2026-11-23**. Anchors are at `0d7082dc8`; check one again before you
 rely on it. Evidence for the census: the four research notes that this spec summarises (TUI census,
 v2 client map, sign-in, install and build), kept in the session that wrote it.
 
-## Questions for Dennis
+## Decisions (Dennis, 2026-11-23)
 
-1. **Pane actions that v2 has no route for.** The TUI can do five things that v2 cannot do yet:
-   message, stop or resume a sub-agent; kill a background shell; stop, restart or read the log of a
-   service; fork from a message (a verb in the rewind drawer); and open the context-file viewer.
-   **Recommendation:** add each one as a shared v2 command or route in slice 8, so the TUI keeps it
-   and web gets it too. The other option is to ship those panes read-only. That changes flows you
-   already use.
-2. **What `atlas` is after v1.** **Recommendation:** one binary, `atlas`, which is the TUI and
-   nothing else. It keeps self-update, `--version`, `--continue`, `--resume`, `--model` and `--cwd`.
-   It drops `atlas classify` (it runs the v1 harness classifier in-process) and `atlas push` (it
-   publishes local `~/.atlas` skills, `ATLAS.md` and `mcp.json`, which v2 manages on the account).
-   `install.sh` keeps its `serve` flavor and the `atlas-serve-*` assets until the v1 removal deletes
-   `apps/serve`, because v1 sandboxes download that asset at boot.
-3. **Where TUI preferences live.** Local `settings.json` is cut. Accent, logo, sidebar width,
-   thinking blocks, smooth streaming and the other appearance settings need a home. **Recommendation:**
-   store them as personal settings on the account (`settings.set`, the `CloudSetting` table), so they
-   follow you to every machine. Cache the last copy in the account file, so the first frame is still
-   in your palette. The other option is a small local preferences file per machine.
+1. **Pane actions.** The five actions that v2 has no route for become shared v2 commands or routes
+   in slice 8, so web gets them too: message, stop or resume a sub-agent; kill a background shell;
+   stop, restart or read the log of a service; fork from a message (a verb in the rewind drawer); and
+   the context-file viewer.
+2. **`atlas` is the TUI only.** It keeps self-update, `--version`, `--continue`, `--resume`,
+   `--model` and `--cwd`. `atlas classify` (the v1 harness classifier in-process) and `atlas push`
+   (it publishes local `~/.atlas` skills, `ATLAS.md` and `mcp.json`, which v2 manages on the account)
+   are dropped. `install.sh` keeps its `serve` flavor and the `atlas-serve-*` assets until the v1
+   removal deletes `apps/serve`, because v1 sandboxes download that asset at boot.
+3. **Preferences live on the account.** Accent, logo, sidebar width, thinking blocks, smooth
+   streaming and the other appearance settings are personal settings (`settings.set`, the
+   `CloudSetting` table). The last copy is cached in `account.json`, so the first frame is in the
+   operator's palette.
 
 ## Goal
 
@@ -46,6 +42,7 @@ It keeps its look, its keys and its flows. Only its transport and its data sourc
   depend on the cloud, so a local control plane can serve this client later.
 - User and project plugins. The plugin loader is not ported.
 - Local provider sign-in (Claude or Codex OAuth on this machine). Providers live on the account.
+- A headless mode (`atlas` without the UI, for scripts). A possible future item; not built here.
 - Approval prompts. The TUI has none today (approvals arrive decided,
   `apps/tui/src/store/log-accumulator.ts:87-89`), and v2 has no approval route.
 
@@ -116,7 +113,7 @@ It keeps its look, its keys and its flows. Only its transport and its data sourc
 | Retry, run attention                                 | `use-turn-driver.ts:92`, `use-run-attention.ts:23-80`                                                | re-send, `ERunRemedy`                                                  | `sessions.retry`. "Switch account" becomes `accounts.setActive`                                                                                                                                                                                                 |
 | Rewind drawer (`/rewind`, up, enter, enter)          | `use-rewind.ts:29-99`, `ui/rewind-model.ts`, `ui/components/rewind.tsx`                              | `EClientRequest.Rewind`                                                | The drawer stays. "Rewind to here" posts `sessions.command({name:'rewind', args:{toSeq}})`. The rewound text goes back into the composer with `rewoundMessageOf` + `mergedDraftOf` (lifted from `apps/web/src/features/sessions/data/session-rewind.ts:36-113`) |
 | Summarise up to here (drawer verb)                   | `ui/rewind-model.ts:99-110`                                                                          | `SummariseHistory`                                                     | `sessions.command({name:'summarise', args:{throughSeq}})`                                                                                                                                                                                                       |
-| Fork from here (drawer verb)                         | `ui/rewind-model.ts:108,196-223`                                                                     | `forkThread`                                                           | **No v2 route.** Slice 8 (question 1)                                                                                                                                                                                                                           |
+| Fork from here (drawer verb)                         | `ui/rewind-model.ts:108,196-223`                                                                     | `forkThread`                                                           | **No v2 route.** Slice 8 (decision 1)                                                                                                                                                                                                                           |
 | Model and effort picker (`ctrl+p`, `/model`)         | `use-switcher.ts:60-140`, `ui/components/switcher.tsx`                                               | `ModelCatalogue`, `SetThreadModel`                                     | `models.list`, then `sessions.command({name:'model-set', args})`, as in `apps/web/src/features/sessions/data/use-session-model-choice.ts:13,36-37`. A new session takes the model in `sessions.create`                                                          |
 | Rename (`/rename`), resize                           | `commands/registry.ts`                                                                               | `RenameThread`                                                         | `sessions.command` `rename`, `resize`                                                                                                                                                                                                                           |
 | Operator input prompt                                | `use-operator-input.ts:53-146`, `ui/components/operator-input.tsx`                                   | `ProvideOperatorInput`                                                 | Entries from the operator plugin client slot. Answer with `operatorRequests.answer`, cancel with `{cancel:true}`                                                                                                                                                |
@@ -145,7 +142,7 @@ It keeps its look, its keys and its flows. Only its transport and its data sourc
 
 | Feature                 | Today                                                                              | v2                                                                                                                                                                                                           |
 | ----------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `/settings` drawer      | `SettingsService` over `~/.atlas/settings.json`, `<cwd>/.atlas/settings.json`, env | Personal settings on the account: `settings.list/set/remove` (question 3). Secrets: `secrets.*`. GitHub: `github.*`. Signing key: `sshSigningKey.*`. Cloud row: shows the email and signs out                |
+| `/settings` drawer      | `SettingsService` over `~/.atlas/settings.json`, `<cwd>/.atlas/settings.json`, env | Personal settings on the account: `settings.list/set/remove` (decision 3). Secrets: `secrets.*`. GitHub: `github.*`. Signing key: `sshSigningKey.*`. Cloud row: shows the email and signs out                |
 | `/auth` accounts drawer | local vault, local Claude/Codex OAuth                                              | `accounts.list/create/setActive` and `providerSignIn.begin/poll/complete` (paste-code and device-code flows), as `apps/web/src/features/settings/data/personal/accounts-api.ts` does. Same drawer, same keys |
 | Onboarding              | local settings + accounts                                                          | Signed out: the sign-in screen. Signed in with no provider account: the same onboarding screen, which opens `/auth`                                                                                          |
 | `/skills`               | `app.skillRegistry`                                                                | A panel over `skillCatalogue.list`. Skills also show in the slash menu, as on web                                                                                                                            |
@@ -202,7 +199,7 @@ slice. Web, Mac and mobile hide them with `because: 'panel'`.
 | Local provider OAuth and vault                                          | `use-accounts.ts` OAuth paths, `use-browser-login.ts`                                                                                                   | Providers live on the account                                       |
 | v1 cloud attach                                                         | `composition/cloud/*`, every `Remote*` adapter use                                                                                                      | Replaced by the stream connection                                   |
 | Exit guard                                                              | `use-exit-guard.ts`, `ui/components/exit-guard.tsx`                                                                                                     | Quitting detaches. The pod keeps running                            |
-| `atlas classify`, `atlas push`                                          | `composition/classify*.ts`, `push*.ts`, `src/push/*`                                                                                                    | Question 2                                                          |
+| `atlas classify`, `atlas push`                                          | `composition/classify*.ts`, `push*.ts`, `src/push/*`                                                                                                    | Decision 2                                                          |
 | Scratch                                                                 | `scratch1.txt`, `scratch2.json`, `scratch3.md`, `prototype/`, `scripts/bench-*`, `probe-*`, `proto-*`                                                   | No runtime role                                                     |
 
 ## 5. Install and build after v1
@@ -299,9 +296,9 @@ touches and `bun run typecheck`.
 7. **Account settings (flag).** `/settings` over personal settings with the cached preferences,
    `/auth` over `accounts.*` and `providerSignIn.*`, onboarding, `/skills` and `/mcp` panels and the
    three new client commands in `packages/commands`.
-8. **Pane actions (shared).** For each gap in question 1: a v2 command or route with its control or
+8. **Pane actions (shared).** For each gap in decision 1: a v2 command or route with its control or
    pod handler, its plugin README, a web presentation where web has the pane, and the TUI key it
-   replaces. If Dennis picks read-only, this slice is empty.
+   replaces.
 9. **Flip and delete.** Make `src/app` the only root, delete the flag, `src/composition`, the v1
    adapter, `src/plugins`, `src/push`, `classify*`, the scratch files and the cut list in §4. Remove
    `@dltech/atlas-harness`, `tsyringe` and `reflect-metadata` from `package.json`, the plugin and
