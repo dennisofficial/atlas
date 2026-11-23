@@ -28,8 +28,7 @@ describe('read_memory', () => {
 
     expect(reading.gather).toBe(EGather.Recall)
     expect(reading.klass).toBe(EToolClass.Gathered)
-    expect(reading.line).toBe('bun-deflate')
-    expect(reading.alone).toBe('Recalled bun-deflate')
+    expect(reading.line).toBe('Recalled bun-deflate')
   })
 
   it('counts into the sentence as a memory', () => {
@@ -39,6 +38,14 @@ describe('read_memory', () => {
     }))
 
     expect(sentenceOf(reads)).toBe('Recalled 2 memories')
+  })
+
+  it('keeps its verb in every row of a run', () => {
+    const recalled = memoryOf({ name: 'read_memory' })
+    const remembered = memoryOf({ name: 'write_memory' })
+
+    expect(recalled.line).toBe('Recalled bun-deflate')
+    expect(remembered.line).toBe('Remembered bun-deflate')
   })
 })
 
@@ -78,7 +85,7 @@ describe('the memory tool with an action', () => {
     })
 
     expect(reading.gather).toBe(EGather.Recall)
-    expect(reading.line).toBe('bun-deflate')
+    expect(reading.line).toBe('Recalled bun-deflate')
     expect(reading.note).toBe('3 l')
   })
 
