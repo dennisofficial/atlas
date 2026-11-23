@@ -43,6 +43,7 @@ export type CommandIntakeArgs = {
   sessionId: string
   model?: ModelPort | undefined
   visibleEvents(): readonly Event[]
+  logEvents(): readonly V2Event[]
   childrenRunning?: (() => number) | undefined
   loggedEvents(): readonly V2Event[]
   append(drafts: readonly (EventDraft | RecordBody | PluginEventBody)[]): Promise<void>
@@ -239,6 +240,7 @@ export class CommandIntake {
       inboxId,
       model: this.args.model,
       visibleEvents: this.args.visibleEvents,
+      logEvents: this.args.logEvents,
       runningChildren: () => this.args.childrenRunning?.() ?? 0,
       append: this.args.append,
       log: (message) =>

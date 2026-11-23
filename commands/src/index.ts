@@ -5,6 +5,8 @@ import { help } from './help/spec'
 import { model } from './model/spec'
 import { renameHandler, type RenamePlane } from './rename/control'
 import { resize, RESIZE_MAX_DISK_GB, resizeArgs } from './resize/spec'
+import { resume } from './resume/spec'
+import { resumeHandler } from './resume/pod'
 import { rotate } from './rotate/spec'
 import { rotateHandler } from './rotate/pod'
 import { rename } from './rename/spec'
@@ -18,6 +20,7 @@ export const nativeCommands: readonly Command[] = [
   rename,
   summarise,
   rotate,
+  resume,
   resize,
   cancelResize,
   model,
@@ -28,6 +31,7 @@ export const nativeCommandHandlers: ReadonlyMap<string, CommandHandler<unknown>>
   [rewind.inboxKind, rewindHandler],
   [summarise.inboxKind, summariseHandler],
   [rotate.inboxKind, rotateHandler],
+  [resume.inboxKind, resumeHandler],
 ])
 
 export const nativeControlHandlers: ReadonlyMap<
@@ -55,6 +59,8 @@ export {
   rewindTargetOf,
 } from './rewind/spec'
 export { REFUSAL_ROTATE_CHILDREN, rotate, rotateArgs } from './rotate/spec'
+export { REFUSAL_RESUME_TEXT, resume, resumeArgs } from './resume/spec'
+export { REFUSAL_RESUME_AGENT, resumeMarkedDraft, resumeNow } from './resume/pod'
 export { REFUSAL_SUMMARISE_ARGS, summariseArgs } from './summarise/spec'
 export {
   REFUSAL_EMPTY_SUMMARY,

@@ -13,6 +13,7 @@ const run = async (toSeq: number) => {
     inboxId: 7,
     visibleEvents: () =>
       eventsFrom([said('first'), replied('one'), said('second'), replied('two')]),
+    logEvents: () => [],
     runningChildren: () => 0,
     append: async (drafts) => {
       appended.push(...drafts)

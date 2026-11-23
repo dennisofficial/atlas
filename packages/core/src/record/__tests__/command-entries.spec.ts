@@ -41,6 +41,7 @@ describe('COMMAND_OUTCOME_EVENT_TYPES', () => {
     expect([...COMMAND_OUTCOME_EVENT_TYPES].sort()).toEqual([
       'history-rewound',
       'history-summarised',
+      'resume-marked',
       'rotated',
     ])
   })

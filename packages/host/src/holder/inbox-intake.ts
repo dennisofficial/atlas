@@ -95,6 +95,7 @@ export class InboxIntake implements AgentIntake {
             sessionId: args.sessionId,
             model: args.model,
             visibleEvents: () => args.record.eventCache().visibleLoopEvents(),
+            logEvents: () => this.events(),
             ...(args.childrenRunning === undefined
               ? {}
               : { childrenRunning: args.childrenRunning }),

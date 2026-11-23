@@ -14,6 +14,7 @@ export const COMMAND_OUTCOMES: Readonly<Record<string, readonly string[]>> = {
   rewind: ['history-rewound'],
   summarise: ['history-summarised'],
   rotate: ['rotated'],
+  resume: ['resume-marked'],
 }
 
 export const COMMAND_OUTCOME_EVENT_TYPES: ReadonlySet<string> = new Set(
@@ -78,6 +79,7 @@ const COMMAND_LOG_TYPES: ReadonlySet<string> = new Set([
   'history-rewound',
   'history-summarised',
   'rotated',
+  'resume-marked',
 ])
 
 export const isCommandLogEvent = (event: V2Event): boolean => COMMAND_LOG_TYPES.has(event.type)

@@ -42,6 +42,7 @@ const run = async ({
     inboxId: 7,
     model,
     visibleEvents,
+    logEvents: () => [],
     append: async (drafts) => {
       appended.push(...drafts)
     },
