@@ -16,6 +16,7 @@ const sessionOf = (over: Partial<PodResizeSession> = {}): PodResizeSession => ({
   podDesiredVcpus: 4,
   podDesiredMemoryGb: 16,
   podDesiredDiskGb: null,
+  archivedAt: null,
   ...over,
 })
 
@@ -73,6 +74,18 @@ describe('runPodResize', () => {
     })
     expect(resizes).toEqual([{ sandboxSessionId: 'session-a', shape: { vcpus: 4, memoryGb: 16 } }])
     expect(rewakes).toEqual([{ sessionId: 'session-a' }])
+  })
+
+  it('resizes an archived session pod without waking it again', async () => {
+    const { deps, resizes, rewakes } = depsOf({
+      session: async () => sessionOf({ archivedAt: '2026-11-23T01:43:02.832Z' }),
+    })
+
+    expect(await runPodResize({ payload, deps })).toEqual({
+      outcome: EPodResizeOutcome.Applied,
+    })
+    expect(resizes).toHaveLength(1)
+    expect(rewakes).toEqual([])
   })
 
   it('resizes the disk the pod asked for beside the shape', async () => {

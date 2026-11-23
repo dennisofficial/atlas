@@ -16,6 +16,7 @@ export type PodResizeSession = Pick<
   | 'podDesiredVcpus'
   | 'podDesiredMemoryGb'
   | 'podDesiredDiskGb'
+  | 'archivedAt'
 >
 
 export type PodResizeDeps = {
@@ -98,7 +99,7 @@ export const runPodResize = async (args: {
       generation: payload.generation,
     })
   }
-  // the restart stopped the pod: nothing else would wake it
+  if (session.archivedAt !== null) return { outcome: EPodResizeOutcome.Applied }
   await deps.rewake({ sessionId: sandboxSessionId })
   return { outcome: EPodResizeOutcome.Applied }
 }
