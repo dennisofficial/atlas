@@ -41,6 +41,9 @@ only what it can rebuild or drop.
   parked, so it can reach the operator.
 - `PodCalls`: invoke an op on a held session, or listen to its frames.
 - `podControlOf(...)`: the control-plane client that a plugin's `PodControl` reaches.
+- `SessionRuntime.classifier` and `SessionRuntime.classifierStatus`: the core `ClassifierPort` of a
+  held session and its `ClassifierStatus`, wired into `ctx.classifier` for a plugin. The host
+  carries no classifier HTTP client; the runtime factory builds one.
 
 ### Call the daemon
 

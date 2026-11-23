@@ -1,15 +1,17 @@
 import { useMemo } from 'react'
 
-import type { CommandSpec, V2Event } from '@dltech/atlas-core'
+import type { CommandEntry } from '@dltech/atlas-commands'
+import type { V2Event } from '@dltech/atlas-core'
 
 import { useCatalogueSkills } from '@/features/threads/commands/use-catalogue-skills'
 
-import { skillMenuSpecs } from './session-skills'
+import { skillEntryOfSpec, skillMenuEntries } from './session-skills'
 
-export function useSessionSkills(args: { events: readonly V2Event[] }): readonly CommandSpec[] {
+export function useSessionSkills(args: { events: readonly V2Event[] }): readonly CommandEntry[] {
   const catalogue = useCatalogueSkills()
+  const entries = useMemo(() => catalogue.skills.map(skillEntryOfSpec), [catalogue.skills])
   return useMemo(
-    () => skillMenuSpecs({ catalogue: catalogue.skills, events: args.events }),
-    [catalogue.skills, args.events],
+    () => skillMenuEntries({ catalogue: entries, events: args.events }),
+    [entries, args.events],
   )
 }

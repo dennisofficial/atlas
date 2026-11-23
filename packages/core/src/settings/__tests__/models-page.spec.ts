@@ -52,6 +52,7 @@ describe('the models settings page', () => {
       ESettingId.DecisionsUrl,
       ESettingId.DecisionsModel,
       ESettingId.DecisionsToken,
+      ESettingId.ClassifierModel,
     ])
   })
 

@@ -172,6 +172,8 @@ apps/mobile/example
 !/packages/core/package.json
 /packages/credentials/*
 !/packages/credentials/package.json
+/packages/classifier/*
+!/packages/classifier/package.json
 /packages/models/*
 !/packages/models/package.json
 /packages/bun-test-shims/*

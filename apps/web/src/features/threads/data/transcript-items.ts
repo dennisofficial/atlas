@@ -18,6 +18,7 @@ import {
   repairsForMessage,
   type Attachment,
   type CallId,
+  type ConsumedCommand,
   type DiagramRepairsByMessage,
   type Event,
 } from '@dltech/atlas-core'
@@ -54,6 +55,7 @@ export type TranscriptItem = Timed &
         id: string
         text: string
         attachments?: readonly Attachment[]
+        command?: ConsumedCommand | undefined
       }
     | {
         kind: ETranscriptKind.Agent
@@ -115,6 +117,7 @@ function userItemOf(entry: OperatorSaidEntry): TranscriptItem | null {
     id: entry.key,
     text: entry.text,
     ...(entry.attachments.length === 0 ? {} : { attachments: entry.attachments }),
+    ...(entry.command === undefined ? {} : { command: entry.command }),
   }
 }
 
