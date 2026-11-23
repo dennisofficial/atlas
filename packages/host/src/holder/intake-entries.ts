@@ -15,7 +15,7 @@ import { EIntakeScope, skipsInChildScope } from './intake-scope'
 import { drainEventEntry, stagedMessageOf, type DraftRelease } from './notice-drain'
 import type { OperatorAnswerIntake } from './operator-answer'
 import type { AppendDrafts, StagedDrainable } from './staged-log'
-import { ETextPlan } from './text-command'
+import { ETextPlan, type SkillNames } from './text-command'
 
 export type EntryDrain = { drainable: StagedDrainable[]; wakesTurn: boolean }
 
@@ -26,7 +26,7 @@ export const drainEntries = async (args: {
   superseded: ReadonlySet<number>
   glue: CommandGlue
   appendDrafts: AppendDrafts
-  skills?: readonly string[] | undefined
+  skills?: SkillNames | undefined
   release: DraftRelease
   operatorAnswers?: OperatorAnswerIntake | undefined
 }): Promise<EntryDrain> => {

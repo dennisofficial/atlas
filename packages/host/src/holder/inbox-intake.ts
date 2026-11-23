@@ -144,7 +144,7 @@ export class InboxIntake implements AgentIntake {
     return await this.serial(async () => {
       const glue = this.commandGlue()
       const events = this.events()
-      const skills = await skillsForPassOf(intake)
+      const skills = skillsForPassOf(intake)
       const superseded = supersededRewindIdsOf({ entries, events })
       const consumed = consumedInboxIdsOf(events)
       let ran = false
@@ -178,7 +178,7 @@ export class InboxIntake implements AgentIntake {
     const entries = await this.fetch()
     const resolved = await this.withdrawsOf(entries)
     const before = this.events()
-    const skills = await skillsForPassOf(this.commandIntake)
+    const skills = skillsForPassOf(this.commandIntake)
     const release = this.releaseOf()
     const superseded =
       this.args.scope === EIntakeScope.Main
