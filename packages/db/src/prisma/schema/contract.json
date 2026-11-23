@@ -18949,6 +18949,15 @@
                 },
                 {
                   "columns": [
+                    "spawnedBySessionId",
+                    "nested"
+                  ],
+                  "name": "V2Session_spawnedBySessionId_nested_idx_c61c238d",
+                  "prefix": "V2Session_spawnedBySessionId_nested_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
                     "userId",
                     "createdAt"
                   ],
@@ -19552,7 +19561,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "5f6ba3b9a87739af644f00c807db2de56d9da1d4d40cb7abcee4b41cc847463d"
+    "storageHash": "c91251b96f41b44ec86962b7178768299cbda52cddd9ab9e30e48129525459d7"
   },
   "execution": {
     "executionHash": "ab28df152a1a27a9a0756638f29813a6c6f20a2d2b25c449f0f8e363cc1d9af0",

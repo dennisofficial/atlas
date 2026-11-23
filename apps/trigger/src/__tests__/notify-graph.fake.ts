@@ -1,4 +1,4 @@
-import type { NotifyPresence } from '@dltech/atlas-core'
+import type { NotifyPresence, SettingScalar } from '@dltech/atlas-core'
 import {
   ENotifyDeviceKind,
   type NotifyDevice,
@@ -7,7 +7,7 @@ import {
 import type { NotifyGraph, NotifySessionRow } from '../trigger/notify/notify-send-graph'
 
 export type NotifyGraphRecord = {
-  delivered: { devices: readonly NotifyDevice[]; at: string }[]
+  delivered: { kind: ENotifyDeviceKind; devices: readonly NotifyDevice[]; at: string }[]
   removed: string[]
   touched: { deviceId: string; now: string }[]
 }
@@ -19,6 +19,24 @@ export const deviceOf = (overrides: Partial<NotifyDevice> = {}): NotifyDevice =>
   secret: JSON.stringify({ p256dh: 'key-1', auth: 'auth-1' }),
   ...overrides,
 })
+
+export const expoDeviceOf = (overrides: Partial<NotifyDevice> = {}): NotifyDevice =>
+  deviceOf({
+    id: 'expo-1',
+    kind: ENotifyDeviceKind.Expo,
+    token: 'ExponentPushToken[t]',
+    secret: null,
+    ...overrides,
+  })
+
+export const apnsDeviceOf = (overrides: Partial<NotifyDevice> = {}): NotifyDevice =>
+  deviceOf({
+    id: 'mac-1',
+    kind: ENotifyDeviceKind.ApnsMac,
+    token: 'b'.repeat(64),
+    secret: null,
+    ...overrides,
+  })
 
 export const presenceOf = (overrides: Partial<NotifyPresence> = {}): NotifyPresence => ({
   surface: 'desktop' as NotifyPresence['surface'],
@@ -35,10 +53,19 @@ export const sessionOf = (overrides: Partial<NotifySessionRow> = {}): NotifySess
   ...overrides,
 })
 
+const resultsOf = (args: {
+  targets: readonly NotifyDevice[]
+  results: readonly NotifyResult[] | undefined
+}): readonly NotifyResult[] =>
+  args.results === undefined
+    ? args.targets.map((device) => ({ deviceId: device.id, sent: true }))
+    : args.results.filter((result) => args.targets.some((device) => device.id === result.deviceId))
+
 export const notifyGraphOf = (args: {
   session?: NotifySessionRow | null
   presence?: readonly NotifyPresence[]
   devices?: readonly NotifyDevice[]
+  settings?: ReadonlyMap<string, SettingScalar>
   results?: readonly NotifyResult[]
   now?: string
   record?: NotifyGraphRecord
@@ -46,7 +73,16 @@ export const notifyGraphOf = (args: {
   const record = args.record ?? { delivered: [], removed: [], touched: [] }
   const now = args.now ?? '2026-11-23T14:02:00.000Z'
   const devices = args.devices ?? [deviceOf()]
-  const asks: { userId: string; kind: ENotifyDeviceKind }[] = []
+
+  const transportOf = (kind: ENotifyDeviceKind) => ({
+    kind,
+    deliver: async ({ devices: targets }: { devices: readonly NotifyDevice[] }) => {
+      record.delivered.push({ kind, devices: targets, at: now })
+      return resultsOf({ targets, results: args.results })
+    },
+    clear: async ({ devices: targets }: { devices: readonly NotifyDevice[] }) =>
+      targets.map((device) => ({ deviceId: device.id, sent: true })),
+  })
 
   return {
     record,
@@ -55,10 +91,7 @@ export const notifyGraphOf = (args: {
         read: async () => (args.session === undefined ? sessionOf() : args.session),
       },
       devices: {
-        listEnabled: async (ask) => {
-          asks.push(ask)
-          return [...devices]
-        },
+        listEnabled: async () => [...devices],
         touch: async (touch) => {
           record.touched.push(touch)
         },
@@ -67,14 +100,11 @@ export const notifyGraphOf = (args: {
         },
       },
       presence: { read: async () => [...(args.presence ?? [])] },
-      transport: {
-        kind: ENotifyDeviceKind.WebPush,
-        deliver: async ({ devices: targets }) => {
-          record.delivered.push({ devices: targets, at: now })
-          return args.results ?? targets.map((device) => ({ deviceId: device.id, sent: true }))
-        },
-        clear: async ({ devices: targets }) =>
-          targets.map((device) => ({ deviceId: device.id, sent: true })),
+      settings: { read: async () => new Map(args.settings ?? []) },
+      transports: {
+        [ENotifyDeviceKind.WebPush]: transportOf(ENotifyDeviceKind.WebPush),
+        [ENotifyDeviceKind.Expo]: transportOf(ENotifyDeviceKind.Expo),
+        [ENotifyDeviceKind.ApnsMac]: transportOf(ENotifyDeviceKind.ApnsMac),
       },
       now: () => now,
       dispose: async () => undefined,

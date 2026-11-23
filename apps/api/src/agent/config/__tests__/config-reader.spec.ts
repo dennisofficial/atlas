@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { EEffort } from '@dltech/atlas-core'
+import { EEffort, ESettingId, singleResponsibilityPolicy } from '@dltech/atlas-core'
 import { ECredentialSource, ESandboxProvider } from '@dltech/atlas-protocol'
 import { ControlPlane } from '@dltech/atlas-control'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
@@ -76,6 +76,24 @@ describe('ConfigReader', () => {
       fast: false,
       accountId: 'acct-1',
       credential: { kind: 'api-key', apiKey: 'sk-test' },
+    })
+  })
+
+  it('reads the quality switches from the stored settings', async () => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await seedApiKeyAccount(db)
+    await seedSetting({ db, scope: 'user', key: ESettingId.QualityEnabled, value: true })
+    await seedSetting({
+      db,
+      scope: 'user',
+      key: singleResponsibilityPolicy.settingKey,
+      value: false,
+    })
+    const config = await readerOver(db).read({ sessionId: 's-1' })
+    expect(config.quality).toEqual({
+      enabled: true,
+      policies: { [singleResponsibilityPolicy.settingKey]: false },
     })
   })
 

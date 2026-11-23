@@ -4,6 +4,7 @@ export const RIG_SECRET = 'fault-rig-secret'
 
 export const hostEnv = (args: {
   home: string
+  sandboxHome: string
   databaseUrl: string
   directUrl: string
   presenceUrl: string
@@ -21,6 +22,7 @@ export const hostEnv = (args: {
   const { knobs } = args
   return {
     ATLAS_HOME: args.home,
+    SANDBOX_HOME: args.sandboxHome,
     DATABASE_URL: args.databaseUrl,
     DATABASE_DIRECT_URL: args.directUrl,
     PRESENCE_DATABASE_URL: args.presenceUrl,

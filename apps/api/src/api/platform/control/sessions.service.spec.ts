@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'bun:test'
 import { BadRequestException, NotFoundException } from '@nestjs/common'
-import { ESubscriptionActor, chainEvents, toRunId, toThreadId } from '@dltech/atlas-core'
+import {
+  chainEvents,
+  ESubscriptionActor,
+  ETurnCause,
+  ETurnEndedBy,
+  ETurnOutcome,
+  toRunId,
+  toThreadId,
+} from '@dltech/atlas-core'
 import { ECredentialSource, ESandboxProvider, EWithdrawRefusal } from '@dltech/atlas-protocol'
 import {
   appendBodies,
@@ -427,5 +435,78 @@ describe('SessionsService sandbox provider', () => {
       }),
     ).rejects.toBeInstanceOf(NotFoundException)
     expect(await plane.readThread({ threadId: other.mainThreadId })).toBeDefined()
+  })
+})
+
+describe('SessionsService markRead', () => {
+  const endedTurn = async () => {
+    const fixture = setup()
+    const created = await fixture.service.create({ userId: 'user-a', projectId: 'proj-a' })
+    const granted = await fixture.plane.grant({ sessionId: created.sessionId, hostId: 9001 })
+    await appendBodies({
+      plane: fixture.plane,
+      threadId: created.mainThreadId,
+      epoch: granted.epoch,
+      bodies: [
+        { type: 'turn-started', turnId: 'turn-1', cause: ETurnCause.Input },
+        {
+          type: 'turn-ended',
+          turnId: 'turn-1',
+          outcome: ETurnOutcome.Completed,
+          by: ETurnEndedBy.Agent,
+        },
+      ],
+    })
+    return { ...fixture, created, epoch: granted.epoch }
+  }
+
+  it('dispatches one clear when the read advance passes a turn end', async () => {
+    const { service, dispatcher, created } = await endedTurn()
+
+    const { readSeq } = await service.markRead({
+      userId: 'user-a',
+      sessionId: created.sessionId,
+      seq: 2,
+    })
+
+    expect(readSeq).toBe(2)
+    expect(dispatcher.dispatches).toHaveLength(1)
+    expect(dispatcher.dispatches[0]?.payload).toEqual({
+      userId: 'user-a',
+      sessionId: created.sessionId,
+    })
+    expect(dispatcher.dispatches[0]?.idempotencyKey).toBe(`notify-clear:${created.sessionId}:2`)
+  })
+
+  it('dispatches nothing when the advance stops short of the moment', async () => {
+    const { service, dispatcher, created } = await endedTurn()
+
+    await service.markRead({ userId: 'user-a', sessionId: created.sessionId, seq: 1 })
+
+    expect(dispatcher.dispatches).toEqual([])
+  })
+
+  it('dispatches nothing when the moment is already read', async () => {
+    const { service, dispatcher, created, plane, epoch } = await endedTurn()
+    await service.markRead({ userId: 'user-a', sessionId: created.sessionId, seq: 2 })
+    await appendBodies({
+      plane,
+      threadId: created.mainThreadId,
+      epoch,
+      bodies: [{ type: 'turn-started', turnId: 'turn-2', cause: ETurnCause.Input }],
+    })
+
+    await service.markRead({ userId: 'user-a', sessionId: created.sessionId, seq: 3 })
+
+    expect(dispatcher.dispatches).toHaveLength(1)
+  })
+
+  it('keeps markRead green when the clear dispatch fails', async () => {
+    const { service, dispatcher, created } = await endedTurn()
+    dispatcher.failure = new Error('trigger is down')
+
+    await expect(
+      service.markRead({ userId: 'user-a', sessionId: created.sessionId, seq: 2 }),
+    ).resolves.toEqual({ readSeq: 2 })
   })
 })

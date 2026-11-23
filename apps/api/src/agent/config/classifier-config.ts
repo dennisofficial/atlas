@@ -25,7 +25,7 @@ const toClassifierCredential = (
       : { kind: 'plan', accountId: credential.accountId }
 
 export function classifierConfigOf(args: {
-  cipher: SecretCipher
+  cipher: Pick<SecretCipher, 'decrypt'>
   accounts: readonly AccountRow[]
   activeAccounts: readonly ActiveAccountRow[]
   settings: ReadonlyMap<string, string>

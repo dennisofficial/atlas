@@ -4,7 +4,6 @@ import { EAgentStatus } from '../status'
 import type { EventDraft } from '../../events/body'
 import { toThreadId } from '../../events/ids'
 import { isTurnTaking } from '../kind'
-import { EReportKind } from '../report'
 
 const ending = (over: Partial<Extract<EventDraft, { type: 'agent-ended' }>> = {}): EventDraft => ({
   type: 'agent-ended',
@@ -18,13 +17,12 @@ const ending = (over: Partial<Extract<EventDraft, { type: 'agent-ended' }>> = {}
   ...over,
 })
 
-const report = (kind?: EReportKind): EventDraft => ({
+const report = (): EventDraft => ({
   type: 'agent-reported',
   agentId: toThreadId('thread-child-1'),
   agentType: 'teammate',
   intent: 'build the admin app',
   prose: 'update',
-  kind,
 })
 
 describe('which agent events hand the turn to the parent', () => {
@@ -37,17 +35,7 @@ describe('which agent events hand the turn to the parent', () => {
     expect(isTurnTaking(ending())).toBe(true)
   })
 
-  it('does not for a progress report', () => {
-    expect(isTurnTaking(report(EReportKind.Progress))).toBe(false)
-  })
-
-  it('does for done, blocked and needs-decision reports', () => {
-    for (const kind of [EReportKind.Done, EReportKind.Blocked, EReportKind.NeedsDecision]) {
-      expect(isTurnTaking(report(kind))).toBe(true)
-    }
-  })
-
-  it('does for a legacy report with no kind', () => {
+  it('does for every report, which is always a wake', () => {
     expect(isTurnTaking(report())).toBe(true)
   })
 })

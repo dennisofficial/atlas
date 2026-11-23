@@ -1,5 +1,4 @@
 import {
-  type EReportKind,
   type ESubscriptionActor,
   type ESubscriptionEnd,
   type InboxEntry,
@@ -9,6 +8,7 @@ import {
   type LogHead,
   type PluginViewFold,
   type RevokeResult,
+  type SpawnFile,
   type V2Event,
   type V2EventType,
   type ThreadId,
@@ -21,13 +21,7 @@ import { appendIn } from './append-ops'
 import { readBlobIn } from './blob-ops'
 import { UnknownThreadError } from './errors'
 import { postIn, withdrawIn } from './inbox-ops'
-import {
-  messagePeerIn,
-  messageTeammateIn,
-  reportToSpawnerIn,
-  sessionsOfIn,
-  spawnPeerIn,
-} from './peer-sessions'
+import { messagePeerIn, reportToSpawnerIn, sessionsOfIn, spawnPeerIn } from './peer-sessions'
 import { LeaseOps } from './lease-ops'
 import {
   ControlStorePort,
@@ -48,6 +42,8 @@ import {
   type ListRoutinesParams,
   type RoutineRow,
   type RoutineRunRow,
+  type SessionBucketCountParams,
+  type SessionBucketCounts,
   type SessionListParams,
   type SessionModelRow,
   type ControlTerminalRow,
@@ -78,6 +74,7 @@ import {
   markReadIn,
   recordPodAppliedIn,
   recordPodDesiredIn,
+  recordPodDiskIn,
   recordPodFailedIn,
   recordPodWaitingIn,
   renameIn,
@@ -215,6 +212,10 @@ export class ControlPlane {
     return this.store.transact((tx) => recordPodAppliedIn({ tx, ...params }))
   }
 
+  async recordPodDisk(params: { sessionId: string; diskGb: number }): Promise<boolean> {
+    return this.store.transact((tx) => recordPodDiskIn({ tx, ...params }))
+  }
+
   async recordPodFailed(params: {
     sessionId: string
     generation: number
@@ -241,7 +242,8 @@ export class ControlPlane {
     title?: string | undefined
     brief?: string | undefined
     nested?: boolean | undefined
-  }): Promise<{ inboxId: number | null }> {
+    files?: readonly SpawnFile[] | undefined
+  }): Promise<{ inboxId: number | null } | { refused: string }> {
     return this.store.transact(async (tx) => {
       const spawner = await tx.readSession({
         sessionId: params.spawnerSessionId,
@@ -270,21 +272,8 @@ export class ControlPlane {
     })
   }
 
-  async messageTeammate(params: {
-    fromSessionId: string
-    toSessionId: string
-    text: string
-  }): Promise<{ inboxId: number } | { refused: string }> {
-    return this.store.transact(async (tx) => {
-      const from = await tx.readSession({ sessionId: params.fromSessionId })
-      if (from === undefined) throw new Error(`unknown session ${params.fromSessionId}`)
-      return messageTeammateIn({ tx, from, ...params, at: await this.nowIn(tx) })
-    })
-  }
-
   async reportToSpawner(params: {
     sessionId: string
-    kind: EReportKind
     text: string
   }): Promise<{ inboxId: number } | { refused: string }> {
     return this.store.transact(async (tx) => {
@@ -336,7 +325,7 @@ export class ControlPlane {
   }
 
   async setSessionArchived(params: { sessionId: string; archivedAt: string | null }) {
-    await this.store.transact((tx) => archiveIn({ tx, ...params }))
+    await this.store.transact(async (tx) => archiveIn({ tx, ...params, at: await this.nowIn(tx) }))
   }
 
   async markSessionRead(params: { sessionId: string; seq: number }): Promise<number> {
@@ -388,6 +377,10 @@ export class ControlPlane {
         timings,
       })
     })
+  }
+
+  async countSessionBuckets(params: SessionBucketCountParams): Promise<SessionBucketCounts> {
+    return this.store.transact((tx) => tx.countSessionBuckets(params))
   }
 
   async readSessionView(params: { sessionId: string; threadId: string }): Promise<SessionViewRead> {

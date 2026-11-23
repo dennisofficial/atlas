@@ -8,8 +8,8 @@ author reads this package first. Every plugin in `plugins/*` builds its slots wi
 - The plugin shape: seven slots, `definePlugin`, and the composer `composePlugins`.
 - The pod tier: the pod context, the pod slot, the capabilities a tool reaches, and pod resources.
 - The control tier and the client tier slot types.
-- The plugin-facing capability types: crew, classifier, sessions, worktrees, routines, subscriptions
-  and MCP control, each with an `EMPTY_*` default. Memory and web search have no empty default.
+- The plugin-facing capability types: crew, messages, classifier, sessions, worktrees, routines,
+  subscriptions and MCP control, each with an `EMPTY_*` default (none for memory and web search).
 
 ## Does not own
 
@@ -19,10 +19,10 @@ author reads this package first. Every plugin in `plugins/*` builds its slots wi
 
 ## Entry points
 
-| Import                             | Use it for                                          |
-| ---------------------------------- | --------------------------------------------------- |
-| `@dltech/atlas-plugin-sdk`         | The slots, `definePlugin`, `composePlugins`, types. |
-| `@dltech/atlas-plugin-sdk/testing` | A fixture plugin that exercises every slot.         |
+| Import                             | Use it for                                             |
+| ---------------------------------- | ------------------------------------------------------ |
+| `@dltech/atlas-plugin-sdk`         | The slots, `definePlugin`, `composePlugins` and types. |
+| `@dltech/atlas-plugin-sdk/testing` | A fixture plugin that exercises every slot.            |
 
 ## The slot contract
 
@@ -63,8 +63,7 @@ export const probeObservedSchema = z.object({
 ### The pod slot
 
 A `PodSlot` declares:
-- `tools(ctx)`: the `ToolDefinition` values. Each has a `name` the model sees.
-- `hooks(ctx)`: the hooks of each phase, in the form `HookChainArgs`.
+- `tools(ctx)` and `hooks(ctx)`: the `ToolDefinition` values and the `HookChainArgs` of each phase.
 - `prompts`: the `PromptFragment` values the plugin adds to the system prompt.
 - `commands`: a map from inbox kind to `CommandHandler`, for commands the pod runs.
 - `resources`: the `PodResource` values the plugin loads, such as a skill directory.
@@ -75,9 +74,8 @@ A `PodSlot` declares:
 `ctx` is a `PluginPodContext`. It gives `sessionId`, `workspaceDirectory`, `append(drafts)`,
 `notify(event, {key})`, `events()`, `call(op)`, `live(frame)`, `onDaemonEvent(listener)`, `log`,
 and the capabilities `control`, `crew`, `classifier`, `sessions`, `worktrees` and `resources`.
-`ctx.control` is a `PodControl`: `exposePort({port})`, `settingsVersions()`, and the `memory`,
-`webSearch`, `mcp`, `routines` and `subscriptions` capabilities. `ctx.classifier` is a `PodClassifier`:
-`status()` answers a core `ClassifierStatus` and `classify(...)` a core `ClassifierOutcome`.
+`ctx.control` is a `PodControl`: `exposePort({port})`, `settingsVersions()`, `memory`, `webSearch`,
+`mcp`, `routines`, `subscriptions`. `ctx.classifier.status()` / `classify(...)` answer core types.
 
 ### The control and client slots
 

@@ -2,8 +2,8 @@
 
 The device model and the transport port that every notification path uses. The trigger task and
 the clients call one interface, and each transport knows only its own protocol. The `/client`
-subpath finds the moment in a sessions list, turns it into an in-app notice, and reports
-presence. The `/server` subpath stores presence in Redis.
+subpath reads a list and a Mac push, and reports presence. The `/server` subpath stores presence in
+Redis and sends the pushes.
 
 ## Owns
 
@@ -14,6 +14,9 @@ presence. The `/server` subpath stores presence in Redis.
 - The presence store that the API writes and the trigger task reads.
 - The client presence loop that web, Mac and iOS run.
 - The Web Push transport, which signs a message with VAPID and posts it to a subscription.
+- The Expo transport, which posts alerts and headless clears to the Expo push service.
+- The APNs transport, which signs a provider token and posts an alert or a background push to Apple.
+- The Mac push reader: what a received push means, and which groups to remove.
 
 ## Does not own
 
@@ -21,16 +24,15 @@ presence. The `/server` subpath stores presence in Redis.
 - The notification shape. `@dltech/atlas-core` owns `AtlasNotification`.
 - When to stay silent. `@dltech/atlas-core` owns `inAppNoticeOf` and `notifyMomentOf`.
 - The persistent device rows. `packages/db` owns them.
-- The Expo and APNs transports. Later slices add them.
 - The send tasks. `apps/trigger` owns them.
 
 ## Entry points
 
-| Import                               | Use it for                                     |
-| ------------------------------------ | ---------------------------------------------- |
-| `@dltech/atlas-notifications`        | The device model and the transport interface.  |
-| `@dltech/atlas-notifications/client` | The in-app notice and the presence loop.       |
-| `@dltech/atlas-notifications/server` | The presence store and the Web Push transport. |
+| Import                               | Use it for                                                  |
+| ------------------------------------ | ----------------------------------------------------------- |
+| `@dltech/atlas-notifications`        | The device model and the transport interface.               |
+| `@dltech/atlas-notifications/client` | The in-app notice and the presence loop.                    |
+| `@dltech/atlas-notifications/server` | The presence store, the Web Push, Expo and APNs transports. |
 
 ## Capabilities
 
@@ -47,7 +49,7 @@ presence. The `/server` subpath stores presence in Redis.
 
 - `NotificationTransport`: one interface with a `kind`, `deliver` and `clear`.
 - `NotifyResult`: the `deviceId`, the flag `sent`, and the optional flag `gone`. A transport sets
-  `gone` to true when the device token is dead, so the caller can remove the device row.
+  `gone` when the token is dead, so the caller can remove the row.
 
 ### Find the moment in a sessions list
 
@@ -55,12 +57,12 @@ presence. The `/server` subpath stores presence in Redis.
   marker, the head seq and the last turn ending.
 - `inAppRowOf`: reads a session summary into a row.
 - `inAppMomentsOf`: gives the rows that changed since the previous list. It says nothing for the
-  first list. A row gives a moment when its last turn ending is newer, or when its status newly
-  waits for the operator. A new row gives nothing.
-- `inAppNoticesOf`: gives the notices to show. It calls `inAppNoticeOf` for each moment, so a row
-  that is on screen, a window that is not focused, a disabled moment and a read row stay silent.
-- `staleNoticeIdsOf`: gives the session ids whose notice must go. A notice goes when its session
-  opens, or when the read marker reaches its seq.
+  first list or a new row. A row gives a moment when its last turn ending is newer, or when its
+  status newly waits for the operator.
+- `inAppNoticesOf`: gives the notices to show, through `inAppNoticeOf`, so an on-screen row, a
+  disabled moment and a read row stay silent.
+- `staleNoticeIdsOf`: gives the session ids whose notice must go: its session opened, or the read
+  marker reached its seq.
 
 ### Store presence
 
@@ -71,8 +73,7 @@ presence. The `/server` subpath stores presence in Redis.
 
 ### Send Web Push
 
-- `webPushTransport({ vapid, send })`: the `web-push` kind. `vapid` is `publicKey`, `privateKey`
-  and `subject`. Give `send` a fake in a spec.
+- `webPushTransport({ vapid, send })`: the `web-push` kind. `vapid` is `publicKey`, `privateKey` and `subject`; give `send` a fake in a spec.
 - `deliver` posts `{ type: 'notification', notification }` with a one-day TTL and a topic of the
   session id, so a second moment replaces the first.
 - `clear` posts `{ type: 'clear', sessionId }`, and skips an Apple push host, which needs a visible
@@ -80,11 +81,33 @@ presence. The `/server` subpath stores presence in Redis.
 - A `404` or a `410` reports the device `gone`, as does a secret with no subscription keys.
 - `webPushTopicOf(sessionId)` and `WEB_PUSH_TTL_S`: the topic and the lifetime.
 
+### Send Expo push
+
+- `expoTransport({ accessToken, fetch })`: the `expo` kind. `accessToken` is optional; `fetch` takes a fake in a spec.
+- `deliver` posts an alert with the title, the body, `sound: 'default'`, the `collapseId` and `threadId` of the session, and `data: { sessionId, seq }`, at most 100 messages per request.
+- `clear` posts `{ contentAvailable: true, data: { clearSessionId } }` with no title and no body.
+- A ticket with `details.error === 'DeviceNotRegistered'` reports the device `gone`. A refused or
+  unreachable request reports every device unsent.
+- `EXPO_PUSH_URL`, `EXPO_PUSH_BATCH_SIZE` and the three `NOTIFY_DATA_*` keys: the endpoint, the batch size and the payload keys.
+
+### Send Mac push
+
+- `apnsTransport({ keyP8, keyId, teamId, topic, send, clock })`: the `apns-mac` kind. `send` takes a fake in a spec.
+- `deliver` posts an alert to `api.push.apple.com/3/device/<token>` with `apns-topic`, `apns-push-type: alert` and the session as `apns-collapse-id`, so a second moment replaces the first.
+- `clear` posts `apns-push-type: background` with priority 5 and no alert.
+- The provider token is an ES256 JWT of `{ iss: teamId, iat }` with `{ alg, kid }`, cached for 50 minutes.
+- A `410`, `Unregistered` or `BadDeviceToken` reports the device `gone`.
+- `APNS_ORIGIN`, `APNS_TOKEN_TTL_MS` and `apnsCollapseIdOf(sessionId)`: the host, the token lifetime and the collapse id, cut to 64 bytes.
+
+### Read a Mac push
+
+- `macPushOf(userInfo)`: a clear, a notification with its `seq`, or nothing for a payload it does not know.
+- `groupsToRemove({ history, sessionId | readSessionIds })`: the distinct group ids that a notification history holds for those sessions.
+- `EMacPush`: `Clear` and `Notification`.
+
 ### Report presence from a client
 
-- `startPresenceReports`: reports on start, on every change of the session or the foreground
-  flag, and again every 30 s while foreground. Returns a function that stops it.
-- The caller gives `read`, `report`, `subscribe` and a `clock`. The package touches no DOM.
+- `startPresenceReports({ read, report, subscribe, clock })`: reports on start, on every change and every 30 s while foreground. Returns a stop function. The package touches no DOM.
 
 ## Usage
 
@@ -94,37 +117,11 @@ presence. The `/server` subpath stores presence in Redis.
 import { inAppRowOf, inAppNoticesOf, staleNoticeIdsOf } from '@dltech/atlas-notifications/client'
 
 const rows = summaries.map(inAppRowOf)
-const notices = inAppNoticesOf({
-  previous,
-  next: rows,
-  openSessionId: null,
-  focused: true,
-  enabled: () => true,
-  now,
-})
+const notices = inAppNoticesOf({ previous, next: rows, openSessionId, focused, enabled, now })
 const stale = staleNoticeIdsOf({
   notices,
-  rows: new Map(rows.map((row) => [row.sessionId, row])),
-  openSessionId: null,
-})
-```
-
-### Report presence
-
-```ts
-import { startPresenceReports } from '@dltech/atlas-notifications/client'
-
-const stop = startPresenceReports({
-  read: () => ({ sessionId: 'session-1', foreground: true }),
-  report: (state) => console.log(state),
-  subscribe: (onChange) => {
-    window.addEventListener('focus', onChange)
-    return () => window.removeEventListener('focus', onChange)
-  },
-  clock: {
-    setInterval: (fn, ms) => window.setInterval(fn, ms),
-    clearInterval: (id) => window.clearInterval(id),
-  },
+  rows: new Map(rows.map((r) => [r.sessionId, r])),
+  openSessionId,
 })
 ```
 
@@ -136,7 +133,7 @@ const stop = startPresenceReports({
 - Keep `previous` from the last list. The first list gives no notice.
 - Give each surface the same rows. The web app and the phone read the sessions list.
 - Import `/server` only on a server. It needs Redis. Import `/client` in a browser or an app.
-- Send an away report when the client leaves. Do not wait for the expiry.
+- An APNs token is the device token; the transport signs its own provider token.
 
 ## See also
 

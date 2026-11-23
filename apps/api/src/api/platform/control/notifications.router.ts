@@ -23,7 +23,10 @@ import { EnvService } from '../../../_core/config/env/env.service'
 import { JobsProjectDispatcher } from '../../../_core/ports/job-dispatcher'
 import { SessionMiddleware, type SessionTrpcCtx } from '../../../_module/session/session.middleware'
 import { NotifyDevicesService } from './notify-devices.service'
-import { notifyTestIdempotencyKey, notifyTestTaskContract } from './notify-send.contract'
+import {
+  notifyTestIdempotencyKey,
+  notifyTestTaskContract,
+} from '../../../_lib/trigger/notify-send.contract'
 import { PresenceRegistry } from './presence-registry'
 
 const NO_INPUT = z.strictObject({})

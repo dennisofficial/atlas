@@ -16,6 +16,7 @@ export enum EProviderId {
   OpenRouter = 'openrouter',
   Inference = 'inference',
   Gateway = 'gateway',
+  Typesafe = 'typesafe',
 }
 
 export type ApiKeyEntry = { id: string; label: string; added: string }
@@ -23,7 +24,7 @@ export type ApiKeyEntry = { id: string; label: string; added: string }
 export type ApiKeyProvider = {
   id: EProviderId
   name: string
-  brand: EBrand
+  brand?: EBrand
   description: string
 }
 
@@ -58,6 +59,11 @@ export const API_KEY_PROVIDERS: ApiKeyProvider[] = [
     brand: EBrand.Vercel,
     description: 'Every major model behind one key, billed through Vercel',
   },
+  {
+    id: EProviderId.Typesafe,
+    name: 'TypeSafe AI',
+    description: 'Jev, the decision model behind the classifier. Not a chat model.',
+  },
 ]
 
 export const KEY_PREFIXES: Record<EProviderId, string> = {
@@ -66,4 +72,5 @@ export const KEY_PREFIXES: Record<EProviderId, string> = {
   [EProviderId.OpenRouter]: 'sk-or-',
   [EProviderId.Inference]: 'sk-inference-',
   [EProviderId.Gateway]: '',
+  [EProviderId.Typesafe]: '',
 }

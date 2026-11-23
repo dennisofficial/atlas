@@ -5,10 +5,12 @@ import {
   DaemonAgentFileSystemPort,
   DaemonFileSystemPort,
   DaemonProcessPort,
+  contextFilesPlacerOf,
   type HostTimers,
   type SessionRuntimeFactory,
 } from '@dltech/atlas-host'
 import { logFieldsOf, type LogPort, type TracePort } from '@dltech/atlas-observability'
+import { ESandboxProvider } from '@dltech/atlas-protocol'
 
 import type { MediaSigner } from '../media/media-signer'
 import { attachmentUrlBinding } from '../media/media-urls'
@@ -49,6 +51,7 @@ import { fastRefusalHandler, type FastRefusalSessions } from './fast-refusal'
 import { sessionModelsOf, type SessionModels } from './model-port'
 import { modelLabelOf } from '../config/model-labels'
 import { workspaceRepoMap } from './workspace-repo-map'
+import { qualityStageFor } from './quality-stage'
 
 export { SandboxNotConfiguredError }
 
@@ -62,6 +65,7 @@ export type SessionRuntimeFactoryArgs = {
   timers: HostTimers
   modelFor?: ((args: { sessionId: string }) => ModelPort) | undefined
   launchDirectory?: string | undefined
+  sandboxHome?: string | undefined
   setupDeadlineMs?: number | undefined
   log?: LogPort | undefined
   traceFor?: ((distinctId: string) => TracePort) | undefined
@@ -83,6 +87,7 @@ export type SessionRuntimeFactoryArgs = {
           memoryGb: number
           generation: number
         }): Promise<boolean>
+        recordPodDisk(args: { sessionId: string; diskGb: number }): Promise<boolean>
         readSession(args: { sessionId: string }): Promise<
           | {
               podDesiredVcpus: number | null
@@ -119,7 +124,7 @@ export const createSessionRuntimeFactory = (
       credentials: config.sandbox.credentials,
     }
     const sandboxName = sandboxNameOf(sandboxSessionId)
-    const paths = sessionPathsOf({ sessionId, threadId })
+    const paths = sessionPathsOf({ sessionId, threadId, home: args.sandboxHome })
     const podSize = config.podSize
     const desiredVcpus = podSize?.desiredVcpus ?? config.sandbox.vcpus
     const desiredDiskGb = config.sandbox.diskGb
@@ -153,6 +158,24 @@ export const createSessionRuntimeFactory = (
         })
       }
     }
+    const recordDisk = async (endpoint: DaemonEndpoint): Promise<void> => {
+      if (args.podSizing === undefined) return
+      const diskGb =
+        endpoint.diskGb ??
+        (config.sandbox.provider === ESandboxProvider.Agent37 ? desiredDiskGb : undefined)
+      if (diskGb === undefined) return
+      try {
+        const pod = await args.podSizing.readSession({ sessionId: sandboxSessionId })
+        if (pod === undefined || pod === null || pod.podDesiredDiskGb !== null) return
+        await args.podSizing.recordPodDisk({ sessionId: sandboxSessionId, diskGb })
+      } catch (error) {
+        args.log?.warn({
+          source: 'runtime.wake',
+          message: `recording the pod disk for ${sessionId} failed`,
+          ...logFieldsOf({ error }),
+        })
+      }
+    }
     const recordRun = async (endpoint: DaemonEndpoint): Promise<void> => {
       const vcpus = endpoint.vcpus ?? desiredVcpus
       if (vcpus === undefined) return
@@ -166,6 +189,7 @@ export const createSessionRuntimeFactory = (
       })
     }
     const onWake = async (endpoint: DaemonEndpoint): Promise<void> => {
+      await recordDisk(endpoint)
       await recordApplied(endpoint)
       await recordRun(endpoint)
     }
@@ -294,6 +318,15 @@ export const createSessionRuntimeFactory = (
     }
 
     const classifier = classifierOf(config.classifier)
+    const classifierStatus = classifierStatusOf(config.classifier)
+    const quality = qualityStageFor({
+      quality: config.quality,
+      classifier,
+      classifierStatus,
+      processes,
+      clock: () => args.timers.now(),
+      log: args.log,
+    })
 
     const keepAlive = startKeepAlive({
       sandbox: provider,
@@ -315,7 +348,8 @@ export const createSessionRuntimeFactory = (
         : { panelHolds: () => args.panelHolds?.(sessionId) ?? 0 }),
       model: models.main,
       classifier,
-      classifierStatus: classifierStatusOf(config.classifier),
+      classifierStatus,
+      ...(quality === undefined ? {} : { quality }),
       get modelChoice() {
         return models.modelChoice()
       },
@@ -338,7 +372,7 @@ export const createSessionRuntimeFactory = (
       }),
       uploads: new SandboxSaidUploads({
         userId: config.userId,
-        home: SANDBOX_HOME_PATH,
+        home: args.sandboxHome ?? SANDBOX_HOME_PATH,
         files,
         blobs: args.media === undefined ? null : signerUploadBlobs(args.media),
       }),
@@ -354,6 +388,7 @@ export const createSessionRuntimeFactory = (
       plugins: args.plugins,
       runningShells: () => countRunningShells({ calls }),
       env: sessionShellEnv,
+      placeContextFiles: contextFilesPlacerOf({ directory: paths.contextDir, port: files }),
       prepare: prepareController.prepare,
       subscribePrepareOutput: (listener) => steps.subscribeOutput(listener),
       // the setup script may start, or finish, before a replacement host subscribes: replay it

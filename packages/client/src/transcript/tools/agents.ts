@@ -7,6 +7,7 @@ import { count, detailOf, inputOf, outputOf, plural, records, str } from './read
 const AGENT_LINE: Record<string, (named: string) => string> = {
   agent_spawn: (named) => `Spawned ${named}`,
   agent_say: (named) => `Messaged ${named}`,
+  send_message: (named) => `Messaged ${named}`,
   agent_resume: (named) => `Resumed ${named}`,
   agent_stop: (named) => `Stopped ${named}`,
 }
@@ -42,6 +43,7 @@ const stopNote = (call: ToolCall): string => {
 const AGENT_NOTE: Record<string, (call: ToolCall) => string> = {
   agent_spawn: () => 'running',
   agent_say: (call) => (outputOf(call).queued === true ? 'queued' : 'running'),
+  send_message: (call) => (outputOf(call).queued === true ? 'queued' : 'running'),
   agent_resume: () => 'running',
   agent_stop: stopNote,
 }
@@ -54,7 +56,14 @@ const agentNameOf = (args: { call: ToolCall; cwd: string }): string => {
     return agentDisplayName({ agentType: str(output.agentType) ?? 'agent', intent })
   }
 
-  return str(output.agentType) ?? str(input.agentType) ?? str(input.agentId) ?? 'a sub-agent'
+  return (
+    str(output.agentType) ??
+    str(input.agentType) ??
+    str(output.to) ??
+    str(input.to) ??
+    str(input.agentId) ??
+    'a sub-agent'
+  )
 }
 
 type Tally = { listed: number; running: number; blocked: number; ended: number }

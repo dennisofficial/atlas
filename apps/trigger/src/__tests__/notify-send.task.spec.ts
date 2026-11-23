@@ -1,7 +1,14 @@
 import { describe, expect, it, mock } from 'bun:test'
 import { ENotifyMoment } from '@dltech/atlas-core'
+import { ENotifyDeviceKind } from '@dltech/atlas-notifications'
 import { triggerSdkFake } from './trigger-sdk.fake'
-import { deviceOf, notifyGraphOf, presenceOf } from './notify-graph.fake'
+import {
+  apnsDeviceOf,
+  deviceOf,
+  expoDeviceOf,
+  notifyGraphOf,
+  presenceOf,
+} from './notify-graph.fake'
 
 mock.module('@trigger.dev/sdk', () => triggerSdkFake)
 
@@ -57,6 +64,30 @@ describe('runNotifySend', () => {
     expect(record.delivered).toEqual([])
   })
 
+  it('sends nothing when the user turned this moment off', async () => {
+    const { graph, record } = notifyGraphOf({
+      settings: new Map([['web.notifications.event.finished.push', false]]),
+    })
+
+    expect(await runNotifySend({ graph, payload: PAYLOAD })).toEqual({ sent: 0, gone: 0 })
+    expect(record.delivered).toEqual([])
+  })
+
+  it('sends nothing inside the quiet hours of the stored zone', async () => {
+    const { graph, record } = notifyGraphOf({
+      now: '2026-11-23T23:30:00.000Z',
+      settings: new Map<string, string | boolean>([
+        ['web.notifications.quietHours', true],
+        ['web.notifications.quietFrom', '22:00'],
+        ['web.notifications.quietTo', '07:00'],
+        ['web.notifications.timezone', 'Europe/Berlin'],
+      ]),
+    })
+
+    expect(await runNotifySend({ graph, payload: PAYLOAD })).toEqual({ sent: 0, gone: 0 })
+    expect(record.delivered).toEqual([])
+  })
+
   it('sends one notification to every device when no client is in front', async () => {
     const { graph, record } = notifyGraphOf({
       devices: [deviceOf(), deviceOf({ id: 'device-2', token: 'https://push.example/endpoint-2' })],
@@ -75,6 +106,34 @@ describe('runNotifySend', () => {
     ])
   })
 
+  it('sends one notification per kind to a web device and an expo device', async () => {
+    const { graph, record } = notifyGraphOf({
+      devices: [deviceOf(), expoDeviceOf({ id: 'device-2', token: 'ExponentPushToken[token-2]' })],
+    })
+
+    expect(await runNotifySend({ graph, payload: PAYLOAD })).toEqual({ sent: 2, gone: 0 })
+    expect(record.delivered.map((delivery) => delivery.kind)).toEqual([
+      ENotifyDeviceKind.WebPush,
+      ENotifyDeviceKind.Expo,
+    ])
+    expect(record.delivered.map((delivery) => delivery.devices.map((device) => device.id))).toEqual(
+      [['device-1'], ['device-2']],
+    )
+  })
+
+  it('sends the mac device through the apns transport of its own kind', async () => {
+    const { graph, record } = notifyGraphOf({
+      devices: [expoDeviceOf({ id: 'device-2' }), apnsDeviceOf()],
+    })
+
+    expect(await runNotifySend({ graph, payload: PAYLOAD })).toEqual({ sent: 2, gone: 0 })
+    expect(record.delivered.map((delivery) => delivery.kind)).toEqual([
+      ENotifyDeviceKind.Expo,
+      ENotifyDeviceKind.ApnsMac,
+    ])
+    expect(record.delivered[1]?.devices.map((device) => device.id)).toEqual(['mac-1'])
+  })
+
   it('prunes the device a transport reports gone', async () => {
     const { graph, record } = notifyGraphOf({
       devices: [deviceOf(), deviceOf({ id: 'device-2', token: 'https://push.example/dead' })],
@@ -91,6 +150,37 @@ describe('runNotifySend', () => {
 })
 
 describe('runNotifyTest', () => {
+  it('sends a test notification to a web device and an expo device', async () => {
+    const { graph, record } = notifyGraphOf({
+      devices: [deviceOf(), expoDeviceOf({ id: 'device-2' })],
+    })
+
+    expect(await runNotifyTest({ graph, payload: { userId: 'usr-1' } })).toEqual({
+      sent: 2,
+      gone: 0,
+    })
+    expect(record.delivered.map((delivery) => delivery.kind)).toEqual([
+      ENotifyDeviceKind.WebPush,
+      ENotifyDeviceKind.Expo,
+    ])
+  })
+
+  it('prunes an expo device whose token Expo no longer knows', async () => {
+    const { graph, record } = notifyGraphOf({
+      devices: [deviceOf(), expoDeviceOf({ id: 'device-2' })],
+      results: [
+        { deviceId: 'device-1', sent: true },
+        { deviceId: 'device-2', sent: false, gone: true },
+      ],
+    })
+
+    expect(await runNotifyTest({ graph, payload: { userId: 'usr-1' } })).toEqual({
+      sent: 1,
+      gone: 1,
+    })
+    expect(record.removed).toEqual(['device-2'])
+  })
+
   it('sends a test notification to every enabled device of the user', async () => {
     const { graph, record } = notifyGraphOf({
       devices: [deviceOf(), deviceOf({ id: 'device-2', token: 'https://push.example/endpoint-2' })],

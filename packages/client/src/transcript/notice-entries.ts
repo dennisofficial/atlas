@@ -5,7 +5,7 @@ import {
   type Event,
 } from '@dltech/atlas-core'
 
-import { agentEndedLine, agentEndingFailed, agentReportedKindLine } from './agent-ended-line'
+import { agentEndedLine, agentEndingFailed, agentReportedLine } from './agent-ended-line'
 import { prEventFailed, prEventLine } from './pr-event-line'
 import { serviceEndedLine, serviceEndingFailed } from './service-ended-line'
 import { shellAwaitingInputLine, shellEndedLine, shellEndingFailed } from './shell-ended-line'
@@ -103,10 +103,9 @@ export function noticeEntriesOf(event: Event): TranscriptEntry[] | null {
         kind: EEntryKind.AgentReported,
         author: EAuthor.Model,
         key: event.id,
-        text: agentReportedKindLine(event),
+        text: agentReportedLine(event),
         agentId: event.agentId,
         report: event.prose,
-        reportKind: event.kind,
       },
     ]
   }

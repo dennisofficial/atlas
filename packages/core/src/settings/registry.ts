@@ -322,7 +322,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     group: 'Skills',
     label: 'Suggest a skill per turn',
     description:
-      'Before each turn, the decision model from the Decisions group on the models page ranks every skill against your message, re-reads the top three in full, and names at most one to the agent as a hint it is free to ignore — or says that nothing fits, which is what talks the roster out of loads that never should have happened. The roster itself never changes, so prompt caching over it still holds. Without a decision endpoint configured, no ranking happens and turns cost nothing extra.',
+      'Before each turn, the classifier from the Classifier settings page reads the last three messages and replies of the thread, asks one yes/no question per likely skill, and names at most one to the agent with its score, as a hint it is free to ignore. It stays quiet when nothing scores high enough or two skills are too close. Off whenever the classifier is off: no request is made and turns cost nothing extra.',
     environmentVariable: 'ATLAS_SKILL_SUGGEST',
     kind: ESettingKind.Toggle,
     fallback: true,
@@ -943,19 +943,9 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     group: 'code-quality',
     label: 'Code quality review',
     description:
-      'After a successful file write, a decision model reviews the changed scope against the enabled code-quality policies and may leave the agent a one-time nudge. Advisory only: it never blocks or reverts a write, and a review that is skipped, late or inconclusive says nothing.',
+      'Runs whenever a classifier is set on the Classifier settings page, and is off without one. After a successful file write, the classifier reviews the changed scope against the enabled code-quality policies and may leave the agent a one-time nudge. Advisory only: it never blocks or reverts a write, and a review that is skipped, late or inconclusive says nothing.',
     kind: ESettingKind.Toggle,
-    fallback: false,
-  },
-  {
-    id: ESettingId.QualityRecordExamples,
-    page: ESettingPage.CodeQuality,
-    group: 'code-quality',
-    label: 'Record code-quality examples',
-    description:
-      'Save the source of each reviewed change, before and after, as a local example file under the conversation\u2019s data directory. Nothing is uploaded or committed, and recording never changes whether a write or a review succeeds.',
-    kind: ESettingKind.Toggle,
-    fallback: false,
+    fallback: true,
   },
 ]
 

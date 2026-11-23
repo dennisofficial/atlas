@@ -1,5 +1,5 @@
 import { createSessionsFeed } from '@dltech/atlas-client/stream'
-import type { AtlasNotification } from '@dltech/atlas-core'
+import { type AtlasNotification, notifyEventSettingKey } from '@dltech/atlas-core'
 import {
   type InAppRow,
   inAppNoticesOf,
@@ -9,8 +9,11 @@ import {
 import type { StreamSessionRow } from '@dltech/atlas-protocol'
 import { router, usePathname } from 'expo-router'
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
+import { z } from 'zod'
 
 import { useAuth } from '../auth/auth-provider'
+import { useSettings } from '../settings/settings-provider'
+import { dismissPresentedRead } from '../push/notification-handler'
 import { sessionStream } from '../thread/v2/session-stream'
 import { InAppBanner } from './in-app-banner'
 import { openSessionOf } from './open-session-of'
@@ -20,6 +23,7 @@ export const BANNER_MS = 5000
 
 export const InAppNoticesProvider = ({ children }: { children: ReactNode }) => {
   const { api } = useAuth()
+  const settings = useSettings()
   const [live, setLive] = useState<readonly StreamSessionRow[] | undefined>(undefined)
   const [notice, setNotice] = useState<AtlasNotification | null>(null)
   const [shown, setShown] = useState<readonly AtlasNotification[]>([])
@@ -38,6 +42,18 @@ export const InAppNoticesProvider = ({ children }: { children: ReactNode }) => {
 
   const rows = useMemo(() => (live ?? []).map(inAppRowOf), [live])
   const rowMap = useMemo(() => new Map(rows.map((row) => [row.sessionId, row])), [rows])
+  const readSeqs = useMemo(() => {
+    const entries: [string, number][] = []
+    for (const row of rows) {
+      if (row.readSeq !== null) entries.push([row.sessionId, row.readSeq])
+    }
+    return new Map(entries)
+  }, [rows])
+
+  useEffect(() => {
+    if (!focused) return
+    void dismissPresentedRead(readSeqs).catch(() => undefined)
+  }, [focused, readSeqs])
 
   useEffect(() => {
     const notices = inAppNoticesOf({
@@ -45,14 +61,15 @@ export const InAppNoticesProvider = ({ children }: { children: ReactNode }) => {
       next: rows,
       openSessionId,
       focused,
-      enabled: () => true,
+      enabled: (moment) =>
+        settings.read({ key: notifyEventSettingKey(moment), schema: z.boolean() }),
       now: new Date().toISOString(),
     })
     previous.current = rowMap
     if (notices.length === 0) return
     setShown((current) => [...current, ...notices])
     setNotice(notices.at(-1) ?? null)
-  }, [rows, rowMap, openSessionId, focused])
+  }, [rows, rowMap, openSessionId, focused, settings])
 
   useEffect(() => {
     const stale = staleNoticeIdsOf({ notices: shown, rows: rowMap, openSessionId })

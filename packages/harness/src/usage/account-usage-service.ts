@@ -11,10 +11,6 @@ export const USAGE_POLL_FLOOR_MS = 20_000
 
 export const USAGE_POLL_LIVE_MS = 60_000
 
-export interface UsageClient {
-  read(args: { accountId?: AccountId | undefined }): Promise<AccountUsage | null>
-}
-
 export type AccountUsageService = {
   snapshot: () => AccountUsage
   snapshotFor: (args: { accountId: AccountId }) => AccountUsage

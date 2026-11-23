@@ -3,6 +3,7 @@ import { TRPCError } from '@trpc/server'
 import { ControlPlane, type WorktreeChangesRead } from '@dltech/atlas-control'
 import {
   ECallStatus,
+  EFilesRoot,
   ELiveOpFailure,
   FILES_SEARCH_LIMIT,
   LIVE_OP_MAX_BYTES,
@@ -13,6 +14,7 @@ import {
   type FilesTreeOutput,
 } from '@dltech/atlas-protocol'
 import { POD_OPS, type PodOps } from '../../../agent'
+import { contextDirOf } from '../../../agent/runtime/session-paths'
 import { changedPathsIn, checkoutIn, latestPerWorktree, resolveInside } from './files-checkout'
 import { PodParkedError } from './pod-parked.error'
 import { SessionsService } from './sessions.service'
@@ -87,26 +89,39 @@ export class FilesService {
     return checkoutIn({ checkouts, checkoutId: args.checkoutId })
   }
 
+  private async scopeOf(args: {
+    sessionId: string
+    checkoutId: string | undefined
+    root: EFilesRoot | undefined
+  }): Promise<{ base: string | undefined; changed: ReadonlySet<string> }> {
+    if (args.root === EFilesRoot.Context)
+      return { base: contextDirOf(args.sessionId), changed: new Set<string>() }
+    const { checkout, changed } = await this.changes({
+      sessionId: args.sessionId,
+      checkoutId: args.checkoutId,
+    })
+    return { base: checkout?.worktreePath, changed }
+  }
+
   async tree(args: {
     userId: string
     sessionId: string
     directory: string
     checkoutId?: string | undefined
+    root?: EFilesRoot | undefined
   }): Promise<FilesTreeOutput> {
     await this.sessions.requireOwnedSession({ userId: args.userId, sessionId: args.sessionId })
-    const { checkout, changed } = await this.changes({
+    const { base, changed } = await this.scopeOf({
       sessionId: args.sessionId,
       checkoutId: args.checkoutId,
+      root: args.root,
     })
     const relative = args.directory === '' ? '.' : args.directory
     const result = await this.invoke({
       sessionId: args.sessionId,
       op: {
         op: 'readDirectory',
-        path:
-          checkout === undefined
-            ? relative
-            : resolveInside({ root: checkout.worktreePath, path: args.directory }),
+        path: base === undefined ? relative : resolveInside({ root: base, path: args.directory }),
       },
     })
     if (result.status === ECallStatus.Failed)
@@ -174,16 +189,15 @@ export class FilesService {
     sessionId: string
     path: string
     checkoutId?: string | undefined
+    root?: EFilesRoot | undefined
   }): Promise<FilesReadOutput> {
     await this.sessions.requireOwnedSession({ userId: args.userId, sessionId: args.sessionId })
-    const checkout = await this.checkoutOf({
+    const { base } = await this.scopeOf({
       sessionId: args.sessionId,
       checkoutId: args.checkoutId,
+      root: args.root,
     })
-    const target =
-      checkout === undefined
-        ? args.path
-        : resolveInside({ root: checkout.worktreePath, path: args.path })
+    const target = base === undefined ? args.path : resolveInside({ root: base, path: args.path })
     const stat = await this.invoke({
       sessionId: args.sessionId,
       op: { op: 'stat', path: target },

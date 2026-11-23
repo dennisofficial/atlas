@@ -21,6 +21,7 @@ import { AccountLeaseRouter } from '../src/api/platform/accounts/account-lease.r
 import { AccountsRouter } from '../src/api/platform/accounts/accounts.router'
 import { createMixedApp } from '../src/api/platform/accounts/accounts.router.fixture'
 import { AccountsService } from '../src/api/platform/accounts/accounts.service'
+import { ProviderKeyCheckService } from '../src/api/platform/accounts/provider-key-check.service'
 import { SessionMiddleware } from '../src/_module/session/session.middleware'
 import { SessionOrSandboxMiddleware } from '../src/api/platform/sessions/session-or-sandbox.middleware'
 
@@ -131,6 +132,7 @@ describe('account lease and pod-reachable settings and secrets', () => {
     app = await createMixedApp({
       providers: [
         AccountsRouter,
+        { provide: ProviderKeyCheckService, useValue: { check: async () => undefined } },
         AccountLeaseRouter,
         SettingsRouter,
         SecretsRouter,

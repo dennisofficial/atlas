@@ -12,33 +12,28 @@ describe('the code quality settings', () => {
     expect(SETTING_PAGES).toContainEqual({ id: ESettingPage.CodeQuality, label: 'quality' })
   })
 
-  it('registers the master and example toggles with stable ids', () => {
+  it('keeps the master toggle id', () => {
     expect(String(ESettingId.QualityEnabled)).toBe('quality.enabled')
-    expect(String(ESettingId.QualityRecordExamples)).toBe('quality.recordExamples')
   })
 
-  it('registers both as toggles that default off on the quality page', () => {
-    for (const id of [ESettingId.QualityEnabled, ESettingId.QualityRecordExamples]) {
-      const definition = definitionOf(id)
-      expect(definition?.page).toBe(ESettingPage.CodeQuality)
-      expect(definition?.kind).toBe(ESettingKind.Toggle)
-      expect(definition && 'fallback' in definition && definition.fallback).toBe(false)
-      expect(definition?.group).toBe('code-quality')
-    }
+  it('registers the master switch as a toggle that defaults on', () => {
+    const definition = definitionOf(ESettingId.QualityEnabled)
+    expect(definition?.page).toBe(ESettingPage.CodeQuality)
+    expect(definition?.kind).toBe(ESettingKind.Toggle)
+    expect(definition && 'fallback' in definition && definition.fallback).toBe(true)
+    expect(definition?.group).toBe('code-quality')
   })
 
-  it('labels the rows as specified', () => {
-    expect(definitionOf(ESettingId.QualityEnabled)?.label).toBe('Code quality review')
-    expect(definitionOf(ESettingId.QualityRecordExamples)?.label).toBe(
-      'Record code-quality examples',
-    )
+  it('says it runs only with a classifier set', () => {
+    const definition = definitionOf(ESettingId.QualityEnabled)
+    expect(definition?.label).toBe('Code quality review')
+    expect(definition?.description).toContain('whenever a classifier is set')
+    expect(definition?.description).toContain('off without one')
   })
 
-  it('carries exactly those two rows on the page', () => {
+  it('no longer offers example recording', () => {
     const rows = definitionsOfPage({ definitions: ATLAS_SETTINGS, page: ESettingPage.CodeQuality })
-    expect(rows.map((row) => row.id)).toEqual([
-      ESettingId.QualityEnabled,
-      ESettingId.QualityRecordExamples,
-    ])
+    expect(rows.map((row) => row.id)).toEqual([ESettingId.QualityEnabled])
+    expect(ATLAS_SETTINGS.some((row) => row.id === ESettingId.QualityRecordExamples)).toBe(false)
   })
 })

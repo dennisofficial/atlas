@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import {
   EWorkspaceStep,
   workspaceStepsOf,
+  type SpawnFile,
   type V2Event,
   type WorkspaceStepStatus,
 } from '@dltech/atlas-core'
@@ -87,6 +88,7 @@ export type HandoffScenario = {
   name: string
   /** the operator message the session starts with */
   prompt?: string
+  files?: readonly SpawnFile[] | undefined
   /** whether the workspace is already prepared when the session starts (default true) */
   prepared?: boolean
   /** what the pod runs as the setup script; the work under test when the scenario is a setup */
@@ -183,6 +185,7 @@ export const describeHandoff = (scenario: HandoffScenario): void => {
         sessionId,
         text: scenario.prompt ?? 'do the work',
         prepared: scenario.prepared !== false,
+        ...(scenario.files === undefined ? {} : { files: scenario.files }),
       })
       const daemon = await args.rig.spawnDaemonFor({ sessionId })
       return contextFor({

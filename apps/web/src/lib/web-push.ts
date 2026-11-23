@@ -81,6 +81,13 @@ export const enableWebPush = async (args: {
   }
 }
 
+export const closeSessionNotifications = async (sessionId: string): Promise<void> => {
+  if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return
+  const registration = await navigator.serviceWorker.getRegistration(SERVICE_WORKER_PATH)
+  const shown = await registration?.getNotifications({ tag: sessionId })
+  await Promise.all((shown ?? []).map((notification) => notification.close()))
+}
+
 export const currentSubscriptionEndpoint = async (): Promise<string | null> => {
   if (!webPushSupported()) return null
   const registration = await navigator.serviceWorker.getRegistration(SERVICE_WORKER_PATH)

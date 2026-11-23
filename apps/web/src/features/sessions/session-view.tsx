@@ -16,6 +16,7 @@ import { ThreadComposer } from '@/features/threads/thread-composer'
 import { ThreadTranscript } from '@/features/threads/thread-transcript'
 import { turnStartedAtOf } from '@/features/threads/data/turn-start'
 import { SummariseDialog } from '@/features/threads/transcript/summarise-dialog'
+import { RewindDialog } from '@/features/threads/transcript/rewind-dialog'
 import { track } from '@/lib/analytics/analytics'
 import { sessionOpenedProps } from '@/lib/analytics/perf'
 
@@ -148,10 +149,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     mainThreadId: listed?.mainThreadId,
     model,
     snapshot,
-    openTab: pane.openTab,
-    podSizeRequest: pane.podSizeRequest,
-    requestPodSize: pane.requestPodSize,
-    consumePodSizeRequest: pane.consumePodSizeRequest,
+    pane,
   })
   const stagedRun = useStagedMessages({
     sessionId,
@@ -327,6 +325,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
                 ) : null}
                 <RefusalRows refusals={refusals} onDismiss={dismissRefusals} />
                 <SummariseDialog {...summarise.dialog} />
+                <RewindDialog {...rewind.dialog} />
                 <CommandListDialog
                   open={commandListOpen}
                   onOpenChange={setCommandListOpen}

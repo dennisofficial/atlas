@@ -2,7 +2,7 @@
 
 > **Approved by Dennis 2026-11-23.** Mac push ships with the release pipeline change (option A). The agent sets up Apple signing itself: the App ID push capability, the APNs key and the provisioning profile, through the App Store Connect API key stored in EAS (read with EXPO_TOKEN), with clear names.
 
-Status: **draft 4, 2026-11-23**. The operator's words are in §1, and his answers of 2026-11-23
+Status: **built 2026-11-23** (roadmap entry lists the PRs). The operator's words are in §1, and his answers of 2026-11-23
 are binding (`decisions.md`). v2 has no notification of any kind today, so this is new design,
 not a port. The v1 code is evidence of what went wrong, never a base. Anchors are `path:line` at
 `ee5fdfde`; re-check one before you rely on it. Style follows `docs/v2/slices/operator-input.md`.
@@ -103,10 +103,20 @@ adds no second executable. What it costs:
   `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_TOPIC`.
 - The operator allows notifications for Atlas once, on the first launch.
 
+**What the account holds (2026-11-23).** Team `9H7HK25CVR`. App ID `io.byatlas.mac`, the bundle id
+the app already signs with (`apps/mac/electron-builder.yml:1`), with the Push Notifications
+capability. Provisioning profile **"Atlas Mac Developer ID"** (`656Y3DRRJ9`), a Mac App Direct
+(Developer ID) profile whose `aps-environment` is `production`, base64 in the GitHub secret
+`MAC_PROVISIONING_PROFILE_B64`. APNs auth key **`XS4K72SNYH`**, the team key EAS already holds, so
+one `.p8` signs the Mac's pushes and the phone's. The trigger task reads four secrets from
+`apps/trigger/.env.production.enc`: `APNS_KEY_P8`, `APNS_KEY_ID` (`XS4K72SNYH`), `APNS_TEAM_ID`
+(`9H7HK25CVR`) and `APNS_TOPIC` (`io.byatlas.mac`). A Developer ID build receives production device
+tokens, so the sender talks to `api.push.apple.com` only.
+
 **Its limits, named.** macOS draws the banner, so Atlas cannot withdraw one that was delivered while
-the app was quit; the group leaves at the next launch. An alert push has no silent form: the clear is
-a second `content-available` push, which only a running app reads. Delivery to a sleeping Mac waits
-for the wake, as it does for the phone (§4.9).
+the app was quit; it leaves Notification Center when the operator dismisses it. An alert push has no
+silent form: the clear is a second `content-available` push, which only a running app reads.
+Delivery to a sleeping Mac waits for the wake, as it does for the phone (§4.9).
 
 ## 3. What exists today
 
@@ -458,12 +468,15 @@ The second transport, and the only one that reaches a closed app on the phone to
 ### 4.7 Mac native: APNs, shown by the system and cleared by the app
 
 The third server transport, and the only one that reaches a quit app on a computer.
-- **Registration.** At `app.whenReady()` (`apps/mac/main.js:274-279`) the main process calls
-  `pushNotifications.registerForAPNSNotifications()` and hands the token to the desktop host, which
-  already holds the bearer token and its own device id (`apps/mac/src/host/index.ts:65-80`). The host
-  calls `notifications.registerDevice({kind: 'apns-mac', token, clientId: deviceId, label: 'Mac'})`
-  through `createApiClient`, as it does for its other calls
-  (`apps/mac/src/host/auth/auth-service.ts:1,62`).
+- **Registration.** At `app.whenReady()` the packaged main process calls
+  `pushNotifications.registerForAPNSNotifications()`. The token travels to the desktop host over a
+  guarded local route, `POST /desktop/apns/token` (`apps/mac/src/host/apns-routes.ts`), not through
+  the host's environment: the host can start before the token resolves, and a web-payload swap
+  restarts it, so the main process re-posts the token after every host start (`apps/mac/apns.js`).
+  The host holds the bearer token and its own device id (`apps/mac/src/host/index.ts`), registers
+  once per sign-in, and calls
+  `notifications.registerDevice({kind: 'apns-mac', token, clientId: deviceId, label: 'Mac'})`
+  through `createApiClient` with that bearer.
 - **Send.** The `apns` transport POSTs an alert to `api.push.apple.com/3/device/<token>` with
   `apns-topic: io.byatlas.mac`, `apns-push-type: alert` and `apns-collapse-id: sessionId`, so a second
   moment for one session replaces the first. Title and body are the copy of §4.3; `{sessionId, seq}`
@@ -472,10 +485,14 @@ The third server transport, and the only one that reaches a quit app on a comput
 - **While it runs.** The system draws the alert, so the app draws nothing for it. Presence already
   stopped the send when an Atlas window was in front (§4.3), so the Mac is never interrupted at the
   keyboard.
-- **Clear.** A `content-available` push with `{sessionId}` makes the running app call
-  `Notification.removeGroup(sessionId)`; `groupId` maps to macOS's `threadIdentifier`
-  (<https://www.electronjs.org/docs/latest/api/notification>). A quit app removes its groups at the
-  next launch, from `Notification.getHistory()` filtered by `groupId`.
+- **Clear.** A `content-available` push with `{clearSessionId}` reaches the running app as
+  `received-apns-notification`. The main process posts `userInfo` with the `groupId`s of
+  `Notification.getHistory()` to `POST /desktop/apns/push`, which answers the groups to remove
+  (`macPushOf` and `groupsToRemove` in `packages/notifications/src/client/mac-native.ts`), and the
+  main process calls `Notification.removeGroup(groupId)` for each. `groupId` maps to macOS's
+  `threadIdentifier` (<https://www.electronjs.org/docs/latest/api/notification>). A quit app's main
+  process holds no session data, so it removes nothing at the next launch: the banner leaves when
+  the operator dismisses it, and the in-app state is right from `readSeq` alone (§4.9).
 
 ### 4.8 In Atlas, in another session: the in-app transport
 
@@ -501,12 +518,12 @@ status})`; the status newly entered a waiting state → `notifyMomentOf({ending:
 
 ### 4.9 Show and clear, per surface: what is guaranteed and what is best effort
 
-| Surface                       | Notify when not in front                        | Clear on open, same device                | Clear from another device                         |
-| ----------------------------- | ----------------------------------------------- | ----------------------------------------- | ------------------------------------------------- |
-| Home Screen web app / browser | Web Push → OS notification                      | `getNotifications({tag}).close()` on open | Clear push, then `close()` (§4.10)                |
-| iOS app (Expo)                | APNs notification                               | dismissal on foreground                   | headless push, then dismiss                       |
-| Mac app (Electron)            | APNs → OS notification, running, hidden or quit | `removeGroup(sessionId)` on open          | clear push, then `removeGroup` at the next launch |
-| Any open client               | in-app only                                     | toast and tag dropped at once             | on the next focus, from `readSeq`                 |
+| Surface                       | Notify when not in front                        | Clear on open, same device                | Clear from another device                    |
+| ----------------------------- | ----------------------------------------------- | ----------------------------------------- | -------------------------------------------- |
+| Home Screen web app / browser | Web Push → OS notification                      | `getNotifications({tag}).close()` on open | Clear push, then `close()` (§4.10)           |
+| iOS app (Expo)                | APNs notification                               | dismissal on foreground                   | headless push, then dismiss                  |
+| Mac app (Electron)            | APNs → OS notification, running, hidden or quit | `removeGroup(sessionId)` on open          | clear push, then `removeGroup` while it runs |
+| Any open client               | in-app only                                     | toast and tag dropped at once             | on the next focus, from `readSeq`            |
 
 **Web Push cannot send a silent clear on Apple platforms.** WebKit requires a visible notification
 for every push: "WebKit requires you as the developer to always show a notification; no silent push
@@ -538,9 +555,16 @@ on it: the dot is the durable signal.
 One path, expressed once: "the session is read" → every enabled device of the user gets `clear`.
 - **Trigger.** `markSessionRead` (`packages/control/src/session-ops.ts:88`, reached from
   `sessions.router.ts:160-164`) advances `readSeq`; the API then dispatches `notify-clear`
-  `{userId, sessionId}` with idempotency key `notify-clear:<sessionId>:<readSeq>`. No ledger and no
-  `lastNotifiedSeq`: a clear that finds nothing is a few HTTP calls, and one user has a handful of
-  devices. That deletes v1's push-ledger idea instead of porting it.
+  `{userId, sessionId}` with idempotency key `notify-clear:<sessionId>:<momentSeq>`. No ledger and
+  no `lastNotifiedSeq`: a clear that finds nothing is a few HTTP calls, and one user has a handful
+  of devices. That deletes v1's push-ledger idea instead of porting it.
+- **Cost.** The web marks read as events stream in while a session is open
+  (`apps/web/src/features/sessions/data/use-session-mark-read.ts`, debounced to one call a second),
+  so a clear per `markRead` would run a trigger job every second. Dispatch only when the advance
+  passes a seq that could have notified: the session's last `turn-ended` seq, or the head seq while
+  the status waits for the operator or credentials. The API reads the session's digest before it
+  marks, and dispatch happens when `previousReadSeq < momentSeq <= readSeq` (`previousReadSeq` of
+  `null` counts as -1). It is fire and forget, logged when it fails, and never fails `markRead`.
 - **Task.** `apps/trigger/src/trigger/notify/notify-clear.task.ts` reads the devices, calls each
   transport's `clear`, prunes anything that reports `gone`. Web Push subscriptions hosted by Apple
   are skipped (§4.9). An `apns-mac` device gets `content-available`, which the app reads only while
@@ -584,7 +608,9 @@ It gets three real parts and loses the rest:
   two selects (`apps/web/src/features/settings/parts/interface-quiet-hours.tsx`), plus a time-zone
   field stored in `web.notifications.timezone` and defaulted to
   `Intl.DateTimeFormat().resolvedOptions().timeZone` on first load. Quiet hours need a zone; with no
-  zone they do nothing, which is honest and cheap.
+  zone they do nothing, which is honest and cheap. The field is the Routines combobox
+  (`apps/web/src/features/routines/routine-timezone-field.tsx`), and the page writes the detected
+  zone to the key once while it is empty, so the task and the page agree.
 
 **Storage decision.** Settings stay in the settings registry: `UserSetting` rows per user, validated
 by one zod entry per key in core, served by `settings.router.ts:21-36`, which is exactly what the
@@ -679,13 +705,14 @@ Each slice is one PR that merges alone, in this order.
 - **Mac** (`apps/mac`): the token from `pushNotifications` reaches `registerDevice` once, with kind
   `apns-mac` and the host's device id; a clear removes one group and no other. The receive path is a
   pure function in `packages/notifications/src/client/mac-native.ts` with its spec, so the Electron
-  caller stays thin.
+  caller stays thin; `apps/mac/__tests__/apns.spec.js` covers the bridge and
+  `apps/mac/src/host/__tests__/apns-routes.spec.ts` the two routes.
 - **Live check.** On the Mac, the iPhone and the Home Screen web app: start a v2 session, look at it
   on the Mac, let the turn end — nothing anywhere. Look at another session on the Mac, let a turn
   end — a toast on the Mac, nothing on the phone, nothing on the web app. Blur every window (do not
   close them), let a turn end — the phone, the web app and the Mac each show one notification. Quit
-  the Mac app, let another turn end — the Mac still shows one, and the app removes the group when it
-  next launches. Start another turn — still one per device, replaced. Open the session on the phone —
+  the Mac app, let another turn end — the Mac still shows one. Start another turn — still one per
+  device, replaced. Open the session on the phone —
   it goes from the phone, the web app and the Mac; the dot is gone everywhere. Repeat on the settings
   page with quiet hours on, and with one device disabled.
 

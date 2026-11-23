@@ -34,6 +34,8 @@ import {
   type TrackingTarget,
   type WrittenSubscriptionRow,
   type SessionDigestRow,
+  type SessionBucketCountParams,
+  type SessionBucketCounts,
   type SessionListParams,
   type PrHead,
   type PrRef,
@@ -70,10 +72,12 @@ import { announceIn, notifyWakeIn } from './postgres-notify'
 import { hostPresentIn, hostsPresentIn } from './postgres-presence'
 import { resolveSessionModelIn } from './postgres-session-model'
 import { sessionDigestsIn } from './postgres-digests'
+import { sessionBucketCountsIn } from './postgres-session-buckets'
 import { podPeersPlacedIn } from './postgres-peers'
 import {
   clearTitleFromIn,
   createSessionIn,
+  readNestedChildrenIn,
   readSessionIn,
   setSandboxInstanceIdIn,
   setSandboxStatusIn,
@@ -82,6 +86,7 @@ import {
   setSessionReadSeqIn,
   setSessionPodAppliedIn,
   setSessionPodDesiredIn,
+  setSessionPodDiskIn,
   setSessionPodFailedIn,
   setSessionPodWaitingIn,
   setSessionTitleIfUntitledIn,
@@ -214,6 +219,14 @@ export class PostgresTx implements ControlTx {
     })
   }
 
+  async setSessionPodDisk(params: Parameters<ControlTx['setSessionPodDisk']>[0]) {
+    return setSessionPodDiskIn({
+      tx: this.tx,
+      sessionId: params.sessionId,
+      diskGb: params.diskGb,
+    })
+  }
+
   async setSessionPodFailed(params: Parameters<ControlTx['setSessionPodFailed']>[0]) {
     return setSessionPodFailedIn({
       tx: this.tx,
@@ -230,6 +243,10 @@ export class PostgresTx implements ControlTx {
       generation: params.generation,
       since: params.since,
     })
+  }
+
+  async readNestedChildren(params: { sessionId: string }): Promise<ControlSessionRow[]> {
+    return readNestedChildrenIn({ tx: this.tx, sessionId: params.sessionId })
   }
 
   async setSessionArchived(params: { sessionId: string; archivedAt: string | null }) {
@@ -266,6 +283,10 @@ export class PostgresTx implements ControlTx {
 
   async listSessionDigests(params: SessionListParams): Promise<SessionDigestRow[]> {
     return sessionDigestsIn({ tx: this.tx, ...params })
+  }
+
+  async countSessionBuckets(params: SessionBucketCountParams): Promise<SessionBucketCounts> {
+    return sessionBucketCountsIn({ tx: this.tx, ...params })
   }
 
   async podPeersPlaced(params: {

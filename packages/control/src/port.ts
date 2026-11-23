@@ -15,9 +15,13 @@ import type {
 import type {
   ControlSessionRow,
   PrChecks,
+  SessionBucketCountParams,
+  SessionBucketCounts,
+  SessionBucketFilter,
   SessionDigestRow,
   SessionListParams,
   SessionModelRow,
+  SessionPageCursor,
 } from './session-rows'
 import type {
   ControlTerminalRow,
@@ -40,9 +44,13 @@ export type {
   ControlSessionDigest,
   ControlSessionRow,
   PrChecks,
+  SessionBucketCountParams,
+  SessionBucketCounts,
+  SessionBucketFilter,
   SessionDigestRow,
   SessionListParams,
   SessionModelRow,
+  SessionPageCursor,
   SessionTurnEnding,
 } from './session-rows'
 
@@ -312,6 +320,7 @@ export interface ControlTx {
     at: string
   }): Promise<boolean>
   readSession(params: { sessionId: string }): Promise<ControlSessionRow | undefined>
+  readNestedChildren(params: { sessionId: string }): Promise<ControlSessionRow[]>
   lockSession(sessionId: string): Promise<ControlSessionRow | undefined>
   setSessionPodDesired(params: {
     sessionId: string
@@ -326,6 +335,7 @@ export interface ControlTx {
     memoryGb: number
     generation: number
   }): Promise<boolean>
+  setSessionPodDisk(params: { sessionId: string; diskGb: number }): Promise<boolean>
   setSessionPodFailed(params: {
     sessionId: string
     generation: number
@@ -351,6 +361,7 @@ export interface ControlTx {
     limit: number
   }): Promise<ControlSessionRow[]>
   listSessionDigests(params: SessionListParams): Promise<SessionDigestRow[]>
+  countSessionBuckets(params: SessionBucketCountParams): Promise<SessionBucketCounts>
   podPeersPlaced(params: { podSessionId: string; excludeSessionId: string }): Promise<number>
   createThread(params: {
     threadId: string

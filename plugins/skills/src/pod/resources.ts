@@ -18,6 +18,7 @@ export const SKILLS_RESOURCE = 'skills'
 export type SkillsPodOptions = {
   cloud(ctx: PluginPodContext): CloudSkillSource
   writes?(ctx: PluginPodContext): CloudSkillWriter | undefined
+  suggests?(ctx: PluginPodContext): Promise<boolean>
 }
 
 export const skillsResource = (options: SkillsPodOptions): PodResource<SnapshottedCatalogue> => ({

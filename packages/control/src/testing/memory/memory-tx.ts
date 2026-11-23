@@ -25,6 +25,8 @@ import {
   type ThreadRow,
   type ControlSessionRow,
   type SessionDigestRow,
+  type SessionBucketCountParams,
+  type SessionBucketCounts,
   type InsertRoutineRunParams,
   type RoutineRow,
   type SessionListParams,
@@ -73,18 +75,20 @@ import { insertEventsIn, readEventsIn } from './memory-events'
 import { claimNeedingIn } from './memory-claim-next'
 import { leasesHeldByIn, writeLeaseIn } from './memory-leases'
 import { createThreadIn, readThreadIn, writeThreadHeadIn } from './memory-threads'
-import { sessionDigestsIn } from './memory-digests'
+import { sessionBucketCountsIn, sessionDigestsIn } from './memory-digests'
 import { podPeersPlacedIn } from './memory-peers'
 import {
   clearTitleFromIn,
   createSessionIn,
   listSessionsIn,
+  readNestedChildrenIn,
   readSessionIn,
   setSandboxInstanceIdIn,
   setSandboxStatusIn,
   setSessionArchivedIn,
   setSessionPodAppliedIn,
   setSessionPodDesiredIn,
+  setSessionPodDiskIn,
   setSessionPodFailedIn,
   setSessionPodWaitingIn,
   setSessionReadSeqIn,
@@ -146,6 +150,10 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
     return readSessionIn({ state: this.state, ...params })
   }
 
+  async readNestedChildren(params: { sessionId: string }): Promise<ControlSessionRow[]> {
+    return readNestedChildrenIn({ state: this.state, ...params })
+  }
+
   async podPeersPlaced(params: {
     podSessionId: string
     excludeSessionId: string
@@ -159,6 +167,10 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
 
   async setSessionPodApplied(params: Parameters<ControlTx['setSessionPodApplied']>[0]) {
     return setSessionPodAppliedIn({ state: this.state, ...params })
+  }
+
+  async setSessionPodDisk(params: Parameters<ControlTx['setSessionPodDisk']>[0]) {
+    return setSessionPodDiskIn({ state: this.state, ...params })
   }
 
   async setSessionPodFailed(params: Parameters<ControlTx['setSessionPodFailed']>[0]) {
@@ -203,6 +215,10 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
 
   async listSessionDigests(params: SessionListParams): Promise<SessionDigestRow[]> {
     return sessionDigestsIn({ state: this.state, ...params })
+  }
+
+  async countSessionBuckets(params: SessionBucketCountParams): Promise<SessionBucketCounts> {
+    return sessionBucketCountsIn({ state: this.state, ...params })
   }
 
   async createThread(params: {

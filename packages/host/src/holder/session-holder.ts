@@ -14,6 +14,7 @@ import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 import type { HostBus, HostTimers, PodPeers, SessionRuntimeFactory } from './ports'
 import type { PodControlClient } from './pod-control'
 import { ClaimLoop } from './claim-loop'
+import type { NotifyDispatch } from './notify-dispatch'
 import { HolderDemand } from './holder-demand'
 import { PodCalls } from './pod-calls'
 import type { CommandHandlers, ControlHandlers } from './command-intake'
@@ -42,6 +43,7 @@ export class SessionHolder {
   private readonly mcp: ((sessionId: string) => PodMcpControl) | undefined
   private readonly operator: SessionHolderArgs['operator']
   private readonly changes: { content: ChangeContentStore } | undefined
+  private readonly notify: NotifyDispatch | undefined
   private readonly log: LogPort | undefined
 
   private readonly held = new Map<string, HeldSession>()
@@ -91,6 +93,7 @@ export class SessionHolder {
     this.mcp = args.mcp
     this.operator = args.operator
     this.changes = args.changes
+    this.notify = args.notify
     this.log = args.log
     this.settler = new LeaseSettler({
       plane: args.plane,
@@ -287,6 +290,7 @@ export class SessionHolder {
       control: this.control,
       mcp: this.mcp,
       changes: this.changes,
+      notify: this.notify,
       ...(this.operator === undefined
         ? {}
         : {

@@ -6,10 +6,15 @@ import {
   type NotifySendOutput,
   type NotifyTestPayload,
 } from '@dltech/atlas-jobs/notify'
-import { ENotifyDeviceKind } from '@dltech/atlas-notifications'
 import { schemaTask } from '@trigger.dev/sdk'
 import '../init'
-import { countsOf, settleDevices, withNotifyGraph, type NotifyGraph } from './notify-send-graph'
+import {
+  countsOf,
+  deliverToKinds,
+  settleDevices,
+  withNotifyGraph,
+  type NotifyGraph,
+} from './notify-send-graph'
 
 export const NOTIFY_TEST_SESSION_ID = 'notify-test'
 
@@ -35,14 +40,12 @@ export const runNotifyTest = async (args: {
   payload: NotifyTestPayload
 }): Promise<NotifySendOutput> => {
   const { graph, payload } = args
-  const devices = await graph.devices.listEnabled({
-    userId: payload.userId,
-    kind: ENotifyDeviceKind.WebPush,
-  })
+  const devices = await graph.devices.listEnabled({ userId: payload.userId })
   if (devices.length === 0) return NO_NOTIFY_OUTPUT
 
   const now = graph.now()
-  const results = await graph.transport.deliver({
+  const results = await deliverToKinds({
+    graph,
     devices,
     notification: testNotificationOf(now),
   })

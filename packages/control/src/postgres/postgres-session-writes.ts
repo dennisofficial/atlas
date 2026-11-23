@@ -68,6 +68,17 @@ export const readSessionIn = async (params: {
   return row === null ? undefined : toSessionRow(row)
 }
 
+export const readNestedChildrenIn = async (params: {
+  tx: Tx
+  sessionId: string
+}): Promise<ControlSessionRow[]> => {
+  const rows = await params.tx.orm.v2.V2Session.where({
+    spawnedBySessionId: params.sessionId,
+    nested: true,
+  }).all()
+  return rows.map(toSessionRow)
+}
+
 export const softDeleteArchivedSessionsIn = async (params: {
   tx: Tx
   cutoff: Date
@@ -251,6 +262,17 @@ export const setSessionPodAppliedIn = async (params: {
     podResizeError: null,
     podWaitingSince: null,
   })
+  return changed === 1
+}
+
+export const setSessionPodDiskIn = async (params: {
+  tx: Tx
+  sessionId: string
+  diskGb: number
+}): Promise<boolean> => {
+  const changed = await params.tx.orm.v2.V2Session.where({
+    id: params.sessionId,
+  }).updateAndCount({ podDesiredDiskGb: params.diskGb })
   return changed === 1
 }
 

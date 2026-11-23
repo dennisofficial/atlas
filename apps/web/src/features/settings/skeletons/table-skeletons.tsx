@@ -59,45 +59,6 @@ export function EnvSecretsSkeleton() {
   )
 }
 
-export function NotifyMatrixSkeleton() {
-  return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead className="text-xs font-normal text-muted-foreground">Event</TableHead>
-          {['In-app', 'Push', 'Email'].map((label) => (
-            <TableHead
-              key={label}
-              className="w-20 text-center text-xs font-normal text-muted-foreground"
-            >
-              {label}
-            </TableHead>
-          ))}
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {['a', 'b', 'c', 'd', 'e', 'f'].map((key) => (
-          <TableRow key={key}>
-            <TableCell>
-              <div className="flex flex-col gap-0.5">
-                <Line width="w-40" />
-                <Skeleton className="my-px h-3.5 w-56" />
-              </div>
-            </TableCell>
-            {[0, 1, 2].map((column) => (
-              <TableCell key={column}>
-                <div className="flex justify-center">
-                  <Skeleton className="size-4 rounded-[4px]" />
-                </div>
-              </TableCell>
-            ))}
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
-  )
-}
-
 export function SandboxTableSkeleton({ rows = 2 }: { rows?: number }) {
   return (
     <Table variant="framed" className="min-w-xl">

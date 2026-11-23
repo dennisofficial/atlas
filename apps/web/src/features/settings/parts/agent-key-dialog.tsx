@@ -15,6 +15,8 @@ import {
 import { Input } from '@dltech/atlas-ui/components/input'
 import { Label } from '@dltech/atlas-ui/components/label'
 
+const NOT_ACCEPTED = 'This key was not accepted. Check it and try again.'
+
 export function KeyDialog({
   providerName,
   placeholder,
@@ -26,18 +28,30 @@ export function KeyDialog({
   placeholder: string
   triggerLabel: string
   primary?: boolean
-  onSave: (key: string) => void
+  onSave: (key: string) => Promise<string | null>
 }) {
   const [open, setOpen] = useState(false)
   const [value, setValue] = useState('')
+  const [checking, setChecking] = useState(false)
+  const [failure, setFailure] = useState<string | null>(null)
   const trimmed = value.trim()
 
   const handleOpenChange = (next: boolean) => {
     setOpen(next)
-    if (!next) setValue('')
+    if (!next) {
+      setValue('')
+      setFailure(null)
+    }
   }
-  const handleSave = () => {
-    onSave(trimmed)
+  const handleSave = async () => {
+    setChecking(true)
+    setFailure(null)
+    const failureText = await onSave(trimmed)
+    setChecking(false)
+    if (failureText !== null) {
+      setFailure(failureText)
+      return
+    }
     handleOpenChange(false)
   }
 
@@ -64,15 +78,25 @@ export function KeyDialog({
             placeholder={placeholder}
             className="font-mono"
             value={value}
+            aria-invalid={failure !== null}
             onChange={(event) => setValue(event.target.value)}
           />
+          {failure !== null ? (
+            <p role="alert" className="text-xs text-destructive">
+              {failure.length > 0 ? failure : NOT_ACCEPTED}
+            </p>
+          ) : null}
         </div>
         <DialogFooter>
           <Button variant="ghost" size="sm" onClick={() => handleOpenChange(false)}>
             Cancel
           </Button>
-          <Button size="sm" disabled={trimmed.length === 0} onClick={handleSave}>
-            Save
+          <Button
+            size="sm"
+            disabled={trimmed.length === 0 || checking}
+            onClick={() => void handleSave()}
+          >
+            {checking ? 'Checking…' : 'Save'}
           </Button>
         </DialogFooter>
       </DialogContent>

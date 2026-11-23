@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 
-import { fetchSessionPage } from '@/features/sessions/data/sessions-api'
+import { fetchSessionPage, fetchV2BucketPage } from '@/features/sessions/data/sessions-api'
 
 import {
   createSessionPager,
@@ -24,7 +24,13 @@ export function useSessionPager(bucket: PageBucket): SessionPagerView {
   const [snapshot, setSnapshot] = useState<SessionPageSnapshot>(EMPTY_SESSION_PAGE)
   const [term, setTerm] = useState('')
   const pager = useMemo(
-    () => createSessionPager({ bucket, load: fetchSessionPage, emit: setSnapshot }),
+    () =>
+      createSessionPager({
+        bucket,
+        loadV1: fetchSessionPage,
+        loadV2: fetchV2BucketPage,
+        emit: setSnapshot,
+      }),
     [bucket],
   )
 

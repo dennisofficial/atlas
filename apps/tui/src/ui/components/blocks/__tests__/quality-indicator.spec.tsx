@@ -1,7 +1,7 @@
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'bun:test'
-import React from 'react'
 
+import { qualityNoticeOf } from '@dltech/atlas-client/transcript'
 import {
   EQualityFindingState,
   EQualityImpact,
@@ -18,7 +18,6 @@ import {
 
 import { ECallState, type ToolCall, type ToolRun } from '../../../../store'
 import { grammarsReady, teardown } from '../../../markdown/__tests__/harness'
-import { qualityNoticeOf } from '../quality-indicator'
 import { ToolRunBlock } from '../tool-run-block'
 
 await grammarsReady()

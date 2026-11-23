@@ -142,6 +142,7 @@ export const setupSessionsService = (
     composeCommands([TEST_COMMAND, modelSet, resize]),
     podSizing,
     podPower,
+    dispatcher as unknown as JobsProjectDispatcher,
     over.ops ?? null,
     over.analytics ?? null,
   )
