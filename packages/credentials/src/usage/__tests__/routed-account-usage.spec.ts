@@ -17,9 +17,8 @@ import {
   type StoredAccount,
 } from '@dltech/atlas-core'
 
-import { oauthCredential } from '../../credentials/testing'
 import { AnthropicUsageClient } from '../anthropic-usage-client'
-import type { UsageClient } from '../account-usage-service'
+import type { UsageClient } from '../usage-client'
 import { RoutedAccountUsage } from '../routed-account-usage'
 
 const ANTHROPIC_OAUTH = toAccountId('anthropic-oauth')
@@ -159,7 +158,12 @@ describe('RoutedAccountUsage', () => {
     class RecordingCredentials extends CredentialPort {
       async read(request?: CredentialRequest): Promise<Credential> {
         requests.push(request ?? {})
-        return oauthCredential({ accessToken: 'anthropic-token', accountId: ANTHROPIC_OAUTH })
+        return {
+          kind: EAuthKind.Oauth,
+          accountId: ANTHROPIC_OAUTH,
+          accessToken: 'anthropic-token',
+          expiresAt: '2099-01-01T00:00:00.000Z',
+        }
       }
       async discard(): Promise<void> {}
     }
@@ -169,6 +173,7 @@ describe('RoutedAccountUsage', () => {
       clients: {
         [EAuthProvider.Anthropic]: new AnthropicUsageClient({
           credentials: new RecordingCredentials(),
+          clientVersion: '2.1.330',
           fetch: (async () => {
             fetched += 1
             return new Response(JSON.stringify({ five_hour: { utilization: 99, resets_at: null } }))

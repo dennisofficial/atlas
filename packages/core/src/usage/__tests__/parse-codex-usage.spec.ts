@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'bun:test'
-import { EUsageWindow } from '@dltech/atlas-core'
+import { EUsageWindow } from '../window'
 
 import { parseCodexUsage } from '../parse-codex-usage'
+
+const parse = (body: unknown) => parseCodexUsage({ body, nowMs: 0 })
 
 const RESET_AT = 1_788_000_000
 
@@ -14,7 +16,7 @@ const payload = (rateLimit: unknown): unknown => ({
 
 describe('parseCodexUsage', () => {
   it('reads the primary window as five-hour and the secondary as seven-day', () => {
-    const usage = parseCodexUsage(
+    const usage = parse(
       payload({
         allowed: true,
         limit_reached: false,
@@ -44,7 +46,7 @@ describe('parseCodexUsage', () => {
   })
 
   it('leaves the seven-day slot empty when the secondary window is missing', () => {
-    const usage = parseCodexUsage(
+    const usage = parse(
       payload({ allowed: true, primary_window: { used_percent: 10, reset_at: RESET_AT } }),
     )
 
@@ -53,7 +55,7 @@ describe('parseCodexUsage', () => {
   })
 
   it('clamps and rounds utilization into 0..100', () => {
-    const usage = parseCodexUsage(
+    const usage = parse(
       payload({
         primary_window: { used_percent: -5 },
         secondary_window: { used_percent: 140.4 },
@@ -66,21 +68,21 @@ describe('parseCodexUsage', () => {
 
   it('derives the reset from reset_after_seconds when reset_at is absent', () => {
     const now = 1_700_000_000_000
-    const usage = parseCodexUsage(
-      payload({ primary_window: { used_percent: 50, reset_after_seconds: 120 } }),
-      () => now,
-    )
+    const usage = parseCodexUsage({
+      body: payload({ primary_window: { used_percent: 50, reset_after_seconds: 120 } }),
+      nowMs: now,
+    })
 
     expect(usage[EUsageWindow.FiveHour]?.resetsAt).toBe(new Date(now + 120_000).toISOString())
   })
 
   it('reports no reset when neither reset field is present', () => {
-    const usage = parseCodexUsage(payload({ primary_window: { used_percent: 50 } }))
+    const usage = parse(payload({ primary_window: { used_percent: 50 } }))
     expect(usage[EUsageWindow.FiveHour]).toEqual({ utilization: 50, resetsAt: null })
   })
 
   it('drops a window whose used_percent is not a number', () => {
-    const usage = parseCodexUsage(
+    const usage = parse(
       payload({
         primary_window: { used_percent: '34' },
         secondary_window: { used_percent: Number.NaN },
@@ -104,7 +106,7 @@ describe('parseCodexUsage', () => {
 
   for (const [label, body] of bodiesWithoutRateLimit) {
     it(`returns empty windows for a body that is ${label}`, () => {
-      const usage = parseCodexUsage(body)
+      const usage = parse(body)
       expect(usage[EUsageWindow.FiveHour]).toBeNull()
       expect(usage[EUsageWindow.SevenDay]).toBeNull()
     })

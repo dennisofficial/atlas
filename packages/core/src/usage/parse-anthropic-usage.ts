@@ -1,12 +1,7 @@
-import { EUsageWindow, worstWindow, type AccountUsage, type UsageWindow } from '@dltech/atlas-core'
+import { EUsageWindow, worstWindow, type AccountUsage, type UsageWindow } from './window'
 
 type RawWindow = { utilization?: unknown; resets_at?: unknown }
 
-/**
- * `/api/oauth/usage` states utilisation as 0..100 already. The SDK's rate-limit frames state it as
- * 0..1, so the heuristic that normalises those must not be applied here — it would read a genuine
- * 1% as a full window.
- */
 function readWindow(raw: unknown): UsageWindow | null {
   if (raw === null || typeof raw !== 'object') return null
 
