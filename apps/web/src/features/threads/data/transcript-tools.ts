@@ -9,6 +9,7 @@ import {
   type ToolCall,
 } from '@dltech/atlas-client/transcript'
 import type { MessageImage } from '@dltech/atlas-ui/ai/message'
+import type { CodeQualityReviewedBody } from '@dltech/atlas-core'
 import { EToolKind, EToolState } from '@dltech/atlas-ui/ai/tool'
 
 import { editBodyOf, type EditBody } from './transcript-edit-body'
@@ -39,6 +40,7 @@ export type ToolCallItem = {
   output?: string
   errorText?: string
   elapsed?: string
+  qualityReviews?: readonly CodeQualityReviewedBody[]
 }
 
 const KIND_OF_TOOL: Record<string, EToolKind> = {
@@ -131,5 +133,8 @@ export function toolCallItemOf(call: ToolCall): ToolCallItem {
     ...(elapsed === undefined ? {} : { elapsed }),
     ...(call.at === null ? {} : { at: call.at }),
     ...(call.settledAt === null ? {} : { settledAt: call.settledAt }),
+    ...(call.qualityReviews === undefined || call.qualityReviews.length === 0
+      ? {}
+      : { qualityReviews: call.qualityReviews }),
   }
 }

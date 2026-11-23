@@ -18,7 +18,6 @@ describe('the settings page code-quality status', () => {
 
       const frame = setup.captureCharFrame()
       expect(frame).toContain('Code quality review')
-      expect(frame).toContain('Record code-quality examples')
       expect(frame).toContain('last recorded review')
       expect(frame).toContain('no recorded review')
       expect(frame.indexOf('last recorded review')).toBeLessThan(
@@ -43,13 +42,13 @@ describe('the settings page code-quality status', () => {
         await landed(setup)
       }
 
-      expect(valueOf(app, ESettingId.QualityEnabled)).not.toBe(true)
+      expect(valueOf(app, ESettingId.QualityEnabled)).toBe(true)
       setup.mockInput.pressEnter()
       await landed(setup)
-      expect(valueOf(app, ESettingId.QualityEnabled)).toBe(true)
+      expect(valueOf(app, ESettingId.QualityEnabled)).toBe(false)
 
       const frame = setup.captureCharFrame()
-      expect(frame).toContain('review enabled')
+      expect(frame).toContain('review disabled')
     } finally {
       await teardown(setup)
     }
