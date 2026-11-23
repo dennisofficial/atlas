@@ -26,6 +26,10 @@ const promptOf = (blocks: readonly SystemBlock[]): CompiledPrompt => ({
   skipped: [],
 })
 
+const fragmentsOf = (text: string): { id: string; chars: number }[] => [
+  { id: 'fixture-0', chars: text.length },
+]
+
 const systemOf = (prompt: CompiledPrompt, earlier: readonly SystemBlock[] = []) =>
   systemPrompt({ prompt: () => prompt, launchDirectory: LAUNCH })(
     { system: earlier, messages: [] },
@@ -35,7 +39,7 @@ const systemOf = (prompt: CompiledPrompt, earlier: readonly SystemBlock[] = []) 
 describe('what reaches the provider, pinned byte for byte', () => {
   it('is the compiled text with every newline and blank line exactly as compiled', () => {
     expect(systemOf(promptOf([{ text: DOCTRINE }]))).toEqual([
-      { text: DOCTRINE, source: 'system-prompt' },
+      { text: DOCTRINE, source: 'system-prompt', parts: fragmentsOf(DOCTRINE) },
     ])
   })
 
@@ -45,10 +49,11 @@ describe('what reaches the provider, pinned byte for byte', () => {
     expect(systemOf(promptOf([{ text: ragged }]))[0]?.text).toBe(ragged)
   })
 
-  it('carries a block holding the compiled text and its source, and nothing else', () => {
+  it('carries a block holding the compiled text, its source and the measured fragment sizes', () => {
     expect(Object.keys(systemOf(promptOf([{ text: DOCTRINE }]))[0] ?? {})).toEqual([
       'text',
       'source',
+      'parts',
     ])
   })
 
@@ -58,7 +63,9 @@ describe('what reaches the provider, pinned byte for byte', () => {
       providerOptions: { anthropic: { cacheControl: { type: 'ephemeral' } } },
     }
 
-    expect(systemOf(promptOf([marked]))).toEqual([{ ...marked, source: 'system-prompt' }])
+    expect(systemOf(promptOf([marked]))).toEqual([
+      { ...marked, source: 'system-prompt', parts: fragmentsOf(DOCTRINE) },
+    ])
   })
 })
 
@@ -68,6 +75,12 @@ describe('how many blocks the rule emits', () => {
       { text: 'first', source: 'system-prompt' },
       { text: 'second', source: 'system-prompt' },
     ])
+  })
+
+  it('leaves the fragment sizes off several blocks it cannot attribute', () => {
+    const prompt = promptOf([{ text: 'first' }, { text: 'second' }])
+
+    expect(systemOf(prompt).map((block) => block.parts)).toEqual([undefined, undefined])
   })
 
   it('emits none when the compile produced none', () => {
@@ -89,7 +102,7 @@ describe('what the rule does to the assembly it was handed', () => {
   it('appends after the blocks already there and leaves them untouched', () => {
     expect(systemOf(promptOf([{ text: DOCTRINE }]), [{ text: 'earlier' }])).toEqual([
       { text: 'earlier' },
-      { text: DOCTRINE, source: 'system-prompt' },
+      { text: DOCTRINE, source: 'system-prompt', parts: fragmentsOf(DOCTRINE) },
     ])
   })
 

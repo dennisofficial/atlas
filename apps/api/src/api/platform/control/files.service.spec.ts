@@ -1,8 +1,20 @@
 import { describe, expect, it } from 'bun:test'
-import { ECallStatus, ELiveOpFailure, type CallOp } from '@dltech/atlas-protocol'
+import {
+  ECallFailure,
+  ECallStatus,
+  ELiveOpFailure,
+  type CallOp,
+  type CallResult,
+} from '@dltech/atlas-protocol'
 
-import { PodParkedError } from './pod-parked.error'
+import { PodNotReadyError } from './pod-errors'
 import { asUser, listing, opsOf, setupFiles } from './files.service.fixture'
+
+const failureOf = (code: ECallFailure): CallResult => ({
+  status: ECallStatus.Failed,
+  op: 'readDirectory',
+  error: { code, message: `${code} from the pod` },
+})
 
 describe('FilesService', () => {
   it('maps readDirectory and joins the changed dot', async () => {
@@ -32,7 +44,7 @@ describe('FilesService', () => {
     expect(waits).toEqual([true])
   })
 
-  it('throws the parked failure when the pod is asleep', async () => {
+  it('throws the not-ready failure when the pod is asleep', async () => {
     const { files, sessions } = setupFiles({
       invoke: async () => ({ state: 'unavailable', reason: ELiveOpFailure.Asleep }),
       follow: async () => null,
@@ -41,9 +53,44 @@ describe('FilesService', () => {
       servesLocally: async () => true,
     })
     const sessionId = await asUser(sessions)
+    const failure = files.tree({ userId: 'user-a', sessionId, directory: '' })
+    await expect(failure).rejects.toMatchObject({
+      code: 'PRECONDITION_FAILED',
+      message: 'pod is asleep',
+    })
+    await expect(failure).rejects.toBeInstanceOf(PodNotReadyError)
+  })
+
+  it('reports an op the control plane refuses to run as an internal fault', async () => {
+    const { files, sessions } = setupFiles({
+      invoke: async () => ({ state: 'unavailable', reason: ELiveOpFailure.Absent }),
+      follow: async () => null,
+      events: () => null,
+      hold: () => true,
+      servesLocally: async () => true,
+    })
+    const sessionId = await asUser(sessions)
+    await expect(files.tree({ userId: 'user-a', sessionId, directory: '' })).rejects.toMatchObject({
+      code: 'INTERNAL_SERVER_ERROR',
+    })
+  })
+
+  it('treats a worktree that is not on disk yet as not ready', async () => {
+    const { files, sessions } = setupFiles(opsOf([failureOf(ECallFailure.NotFound)]))
+    const sessionId = await asUser(sessions)
     await expect(files.tree({ userId: 'user-a', sessionId, directory: '' })).rejects.toBeInstanceOf(
-      PodParkedError,
+      PodNotReadyError,
     )
+  })
+
+  it('attributes any other pod failure with its bounded failure code', async () => {
+    const { files, sessions } = setupFiles(opsOf([failureOf(ECallFailure.PermissionDenied)]))
+    const sessionId = await asUser(sessions)
+    await expect(files.tree({ userId: 'user-a', sessionId, directory: '' })).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+      message: 'permission-denied from the pod',
+      cause: { response: { podFailure: ECallFailure.PermissionDenied } },
+    })
   })
 
   it('refuses a directory and an oversized file without reading them', async () => {

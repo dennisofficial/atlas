@@ -6,6 +6,7 @@ import {
   formatElapsed,
   imageOf,
   inputOf,
+  isMemoryTool,
   str,
   targetOf,
   type ToolCall,
@@ -22,6 +23,7 @@ export const FAILED_FALLBACK = 'The run failed.'
 export enum EToolFamily {
   Agent = 'agent',
   Plan = 'plan',
+  Memory = 'memory',
   Other = 'other',
 }
 
@@ -62,7 +64,7 @@ const FAMILY_OF_CALL: Partial<Record<ECallKind, EToolFamily>> = {
 const toolKindOf = (name: string): EToolKind | undefined => TOOL_KIND_OF_CALL[callKindOf(name)]
 
 const familyOf = (name: string): EToolFamily =>
-  FAMILY_OF_CALL[callKindOf(name)] ?? EToolFamily.Other
+  isMemoryTool(name) ? EToolFamily.Memory : (FAMILY_OF_CALL[callKindOf(name)] ?? EToolFamily.Other)
 
 const TITLED_STATES: readonly EToolState[] = [EToolState.Done, EToolState.Error, EToolState.Denied]
 

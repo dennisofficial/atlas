@@ -107,32 +107,6 @@ describe('the session list', () => {
     }
   })
 
-  test('enter on a row stays on the list until opening is built', async () => {
-    const mounted = await mount()
-
-    try {
-      mounted.client()?.pushRows([
-        rowOf({
-          sessionId: 'session-new',
-          title: 'newer work',
-          updatedAt: '2026-11-20T00:00:00.000Z',
-        }),
-      ])
-      await frameShowing({ setup: mounted.setup, text: 'newer work', within: WITHIN })
-
-      mounted.setup.mockInput.pressEnter()
-
-      const frame = await frameShowing({
-        setup: mounted.setup,
-        text: 'opening a conversation arrives next week',
-        within: WITHIN,
-      })
-      expect(frame).toContain('newer work')
-    } finally {
-      await teardown(mounted.setup)
-    }
-  })
-
   test('a 401 deletes the account and returns to sign-in', async () => {
     const mounted = await mount()
 

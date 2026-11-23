@@ -6,6 +6,7 @@ import {
   TerminalDemand,
   type HostPresence,
   type NotifyDispatch,
+  type ParkArchivedPod,
   type PodCallBus,
   type PodControlClient,
   type TurnEndedHook,
@@ -74,6 +75,7 @@ export type ComposeAgentHostArgs = {
   macLink: MacLink
   dispatcher: JobsProjectDispatcher
   notify?: NotifyDispatch | undefined
+  parkArchived?: ParkArchivedPod | undefined
   turnEnded?: TurnEndedHook | undefined
   podCallBus?: PodCallBus | undefined
   onHostIdChanged?: (() => void) | undefined
@@ -129,6 +131,7 @@ export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
     ...(args.changes === undefined ? {} : { changes: args.changes }),
     ...(args.contextMirror === undefined ? {} : { contextMirror: args.contextMirror }),
     ...(args.notify === undefined ? {} : { notify: args.notify }),
+    ...(args.parkArchived === undefined ? {} : { parkArchived: args.parkArchived }),
     ...(args.turnEnded === undefined ? {} : { turnEnded: args.turnEnded }),
     terminalDemand,
     panelDemand,

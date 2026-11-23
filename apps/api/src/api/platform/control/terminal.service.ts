@@ -6,7 +6,6 @@ import { ControlPlane, type ControlTerminalRow } from '@dltech/atlas-control'
 import {
   ECallFailure,
   ECallStatus,
-  ELiveOpFailure,
   MAX_TERMINALS,
   type CallOp,
   type CallResult,
@@ -17,7 +16,7 @@ import {
   type TerminalRow,
 } from '@dltech/atlas-protocol'
 import { POD_OPS, type PodOps } from '../../../agent'
-import { PodParkedError } from './pod-parked.error'
+import { PodNotReadyError, reachablePodOutcome } from './pod-errors'
 import { SessionsService } from './sessions.service'
 
 type OkResult = Extract<CallResult, { status: ECallStatus.Ok }>
@@ -54,19 +53,14 @@ export class TerminalService {
 
   private async invoke(args: { sessionId: string; op: CallOp }): Promise<CallResult> {
     if (this.ops === null) throw new ServiceUnavailableException('pod access is not running')
-    const outcome = await this.ops.invoke({ ...args, waitForHolder: true })
-    if (outcome.state === 'unavailable') {
-      if (outcome.reason === ELiveOpFailure.Asleep) throw new PodParkedError()
-      throw new TRPCError({ code: 'BAD_REQUEST', message: 'this pod op is not allowed' })
-    }
-    return outcome.result
+    return reachablePodOutcome(await this.ops.invoke({ ...args, waitForHolder: true })).result
   }
 
   private async invokeOrDone(args: { sessionId: string; op: CallOp }): Promise<CallResult | null> {
     try {
       return await this.invoke(args)
     } catch (error) {
-      if (error instanceof PodParkedError) return null
+      if (error instanceof PodNotReadyError) return null
       throw error
     }
   }

@@ -1,3 +1,4 @@
+import type { ContextPart } from '../assembly/context-breakdown'
 import type { Attachment } from '../attachments/attachment'
 import type { DiagramRepairedBody } from '../diagrams/diagram-body'
 import type { EExecutionLocation } from '../execution/location'
@@ -27,6 +28,7 @@ export type StepReading = ModelUsage & {
   providerId?: string | undefined
   modelId?: string | undefined
   costUsd?: number | undefined
+  breakdown?: readonly ContextPart[] | undefined
 }
 
 export enum ECompactionAnchor {
@@ -189,6 +191,7 @@ export type EventBody =
       processes: number
       memory: OomMemory
     }
+  | { type: 'session-archived'; bySessionId: string; byTitle?: string | undefined }
   | {
       type: 'sandbox-setup-reported'
       text: string

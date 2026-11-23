@@ -4,9 +4,11 @@ import type { MiddlewareOptions, MiddlewareResponse, TRPCMiddleware } from 'nest
 import {
   captureApiRequest,
   worthReporting,
+  type ApiErrorClass,
   type AuthenticatedRequest,
 } from '../../api/api-latency.interceptor'
 import { isApiTrpcCtx } from './api-trpc-context'
+import { detailsOf } from './trpc-error-mapping'
 
 const STATUS_BY_CODE: Readonly<Record<string, number>> = {
   PARSE_ERROR: 400,
@@ -40,6 +42,32 @@ const statusOf = (error: unknown): number => {
   return code === undefined ? 500 : (STATUS_BY_CODE[code] ?? 500)
 }
 
+const causeOf = (error: unknown): unknown =>
+  typeof error === 'object' && error !== null ? Reflect.get(error, 'cause') : undefined
+
+const markerOf = (details: Record<string, unknown> | undefined): string | undefined => {
+  const code = details?.code
+  return typeof code === 'string' ? code : undefined
+}
+
+const podFailureOf = (details: Record<string, unknown> | undefined): string | undefined => {
+  const failure = details?.podFailure
+  return typeof failure === 'string' ? failure : undefined
+}
+
+const errorClassOf = (error: unknown): ApiErrorClass | undefined => {
+  const code = codeOf(error)
+  if (code === undefined) return undefined
+  const details = detailsOf(causeOf(error))
+  const marker = markerOf(details)
+  const podFailure = podFailureOf(details)
+  return {
+    code,
+    ...(marker === undefined ? {} : { marker }),
+    ...(podFailure === undefined ? {} : { podFailure }),
+  }
+}
+
 /**
  * The tRPC equivalent of `ApiLatencyInterceptor`: nestjs-trpc mounts each procedure as express
  * middleware, so the Nest interceptor never sees a tRPC call.
@@ -60,16 +88,19 @@ export class ApiLatencyMiddleware implements TRPCMiddleware {
     const startedAt = now()
     let status = 200
     let failed = false
+    let classified: ApiErrorClass | undefined
     try {
       const result = await next()
       if (!result.ok) {
         status = statusOf(result.error)
         failed = true
+        classified = errorClassOf(result.error)
       }
       return result
     } catch (error) {
       status = statusOf(error)
       failed = true
+      classified = errorClassOf(error)
       throw error
     } finally {
       const durationMs = Math.round(now() - startedAt)
@@ -78,7 +109,13 @@ export class ApiLatencyMiddleware implements TRPCMiddleware {
         void captureApiRequest({
           analytics: this.args.analytics,
           request,
-          sample: { path, durationMs, status, failed },
+          sample: {
+            path,
+            durationMs,
+            status,
+            failed,
+            ...(classified === undefined ? {} : { error: classified }),
+          },
           ...(this.args.userIdOf === undefined ? {} : { userIdOf: this.args.userIdOf }),
         })
       }

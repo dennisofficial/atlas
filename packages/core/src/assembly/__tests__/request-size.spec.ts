@@ -68,6 +68,29 @@ describe('requestSizeOf', () => {
     expect(sizes['system.instructions']).toBe(5)
   })
 
+  it('sizes each prompt fragment named on a system block, inside its block total', () => {
+    const sizes = requestSizeOf({
+      assembled: assembledWith({
+        system: [
+          {
+            text: 'abcdef',
+            source: 'system-prompt',
+            parts: [
+              { id: 'identity.atlas', chars: 2 },
+              { id: 'skills.listing', chars: 4 },
+            ],
+          },
+        ],
+      }),
+      tools: [],
+    })
+
+    expect(sizes['system.prompt.identity.atlas']).toBe(2)
+    expect(sizes['system.prompt.skills.listing']).toBe(4)
+    expect(sizes['system.system-prompt']).toBe(6)
+    expect(sizes.total).toBe(6)
+  })
+
   it('splits tool declarations into builtin and one bucket per MCP server, with counts', () => {
     const sizes = requestSizeOf({
       assembled: assembledWith({ system: [] }),
@@ -149,6 +172,7 @@ describe('requestSizeOf', () => {
     const call = JSON.stringify({ path: 'a' }).length
 
     expect(sizes.messages).toBe('hello'.length + 'why'.length + 'done'.length + call + 8)
+    expect(sizes['messages.tool-results']).toBe(8)
   })
 
   it('attributes a user text part carrying a system-context envelope to that source', () => {

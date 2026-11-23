@@ -39,12 +39,12 @@ const result = (id: string, text: string): Extract<V2Body, { type: 'tool-result'
 describe('the v2 context meter', () => {
   it('has no reading before any call reported one', () => {
     const meter = contextMeterOf(logOf([{ type: 'user-said', text: 'x'.repeat(400) }]))
-    expect(meter).toEqual({ used: null, window: null, measuredThroughSeq: null })
+    expect(meter).toEqual({ used: null, window: null, measuredThroughSeq: null, breakdown: null })
   })
 
   it('reads input plus output of the last call against the window it ran in', () => {
     const meter = contextMeterOf(logOf([{ type: 'user-said', text: 'hi' }, said(40_000, 2_000)]))
-    expect(meter).toEqual({ used: 42_000, window: WINDOW, measuredThroughSeq: 2 })
+    expect(meter).toEqual({ used: 42_000, window: WINDOW, measuredThroughSeq: 2, breakdown: null })
   })
 
   it('holds the reading rather than guessing what landed after it', () => {
@@ -83,7 +83,7 @@ describe('the v2 context meter', () => {
         },
       ]),
     )
-    expect(meter).toEqual({ used: null, window: WINDOW, measuredThroughSeq: null })
+    expect(meter).toEqual({ used: null, window: WINDOW, measuredThroughSeq: null, breakdown: null })
   })
 
   it('measures again once a call reports after the summary', () => {
@@ -100,6 +100,46 @@ describe('the v2 context meter', () => {
         said(5_000),
       ]),
     )
-    expect(meter).toEqual({ used: 5_100, window: WINDOW, measuredThroughSeq: 3 })
+    expect(meter).toEqual({ used: 5_100, window: WINDOW, measuredThroughSeq: 3, breakdown: null })
+  })
+
+  it('carries the estimated breakdown the reading reported', () => {
+    const breakdown = [
+      { label: 'Tools', tokens: 10 },
+      { label: 'Conversation', tokens: 90 },
+    ]
+    const meter = contextMeterOf(
+      logOf([
+        {
+          type: 'assistant-said',
+          parts: [{ type: 'text', text: 'ok' }],
+          usage: { inputTokens: 100, outputTokens: 0, contextWindow: WINDOW, breakdown },
+        },
+      ]),
+    )
+
+    expect(meter.breakdown).toEqual(breakdown)
+  })
+
+  it('voids the breakdown with the reading a summary made stale', () => {
+    const breakdown = [{ label: 'Tools', tokens: 90_000 }]
+    const meter = contextMeterOf(
+      logOf([
+        {
+          type: 'assistant-said',
+          parts: [{ type: 'text', text: 'ok' }],
+          usage: { inputTokens: 90_000, outputTokens: 100, contextWindow: WINDOW, breakdown },
+        },
+        {
+          type: 'history-summarised',
+          fromSeq: 1,
+          throughSeq: 1,
+          anchor: ECompactionAnchor.Prefix,
+          summary: 'short',
+        },
+      ]),
+    )
+
+    expect(meter.breakdown).toBeNull()
   })
 })

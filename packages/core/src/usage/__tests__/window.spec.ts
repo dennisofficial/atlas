@@ -1,8 +1,26 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EUsageWindow, NO_USAGE, worstWindow } from '../window'
+import { EUsageWindow, NO_USAGE, shownWindowsOf, worstWindow } from '../window'
 
 const window = (utilization: number) => ({ utilization, resetsAt: null })
+
+describe('shownWindowsOf', () => {
+  it('shows both windows when the plan reports both', () => {
+    expect(
+      shownWindowsOf({ [EUsageWindow.FiveHour]: window(10), [EUsageWindow.SevenDay]: window(20) }),
+    ).toEqual([EUsageWindow.FiveHour, EUsageWindow.SevenDay])
+  })
+
+  it('hides the 5-hour window of a plan that has only a weekly limit', () => {
+    expect(
+      shownWindowsOf({ [EUsageWindow.FiveHour]: null, [EUsageWindow.SevenDay]: window(24) }),
+    ).toEqual([EUsageWindow.SevenDay])
+  })
+
+  it('keeps both windows before any reading arrives', () => {
+    expect(shownWindowsOf(NO_USAGE)).toEqual([EUsageWindow.FiveHour, EUsageWindow.SevenDay])
+  })
+})
 
 describe('worstWindow', () => {
   it('keeps the window closest to stopping the work', () => {

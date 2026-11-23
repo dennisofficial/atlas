@@ -58,7 +58,7 @@ The headless client library that web, the TUI and the mobile app share.
 - `SessionWindow`, `applyPage`, `applyPageOutcome`, `RENDER_LIMIT`, `OLDER_PAGE`: the paged window
   of a long thread.
 - `applyOverlayMessage`, `closeOverlay`, `closeOverlayForEvents`, `EMPTY_OVERLAY_STATE`: the live
-  step overlay.
+  step overlay. `overlaySignalsOf` and `overlayRewrote` give its step signals, append or rewrite.
 - `derivedViewOf`, `deriveViewOf`, `deriveStatusOf`, `frameFactsOf`: the view of a followed session.
   `sessionDisplayOf`, `isSessionUnreadOf`, `startFailureOf`: the status, unread mark, start failure.
 
@@ -79,7 +79,7 @@ The headless client library that web, the TUI and the mobile app share.
 - `ECallState`, `ECallKind`, `callKindOf(name)`, `ToolCall`, `ToolRun`, `attachmentsOf`,
   `qualityNoticeOf`, `qualityNoticeLine`, `EQualityNoticeTone`: the tool runs and a call's quality
   line. `agentsOf(args)`, `agentOf(args)`, `agentLabelOf(agent)`: a sub-agent's type, intent, state.
-- `thinkingVisibilityOf`, `foldThoughts`, `toolsAboveThoughts`: the thinking folds.
+- `noticeEntriesOf(event)`: one event's notice rows. `thinkingVisibilityOf`, `foldThoughts`, `toolsAboveThoughts`: the folds.
 - `revealedText({ key, text, gate })`, `runAttentionOf(args)`, `plural(many, one, rest?)`,
   `formatElapsed(ms)`: the revealed text and the helpers that a surface also uses.
 
@@ -112,7 +112,7 @@ The headless client library that web, the TUI and the mobile app share.
   make the draft and the post input. `MediaUploadApi`, `PutImage`, `UploadHandle`: the ports.
 - `sessionCreateInputOf(args)`, `initialProjectIdOf(args)`: a new session's create input and project.
 - `composerSendStateOf(args)`, `contextPercentOf(args)`: send or stop, and context use.
-- `queuedMessagesOf`, `queuedNoticesOf`, `stagedQueuedMessagesOf`: the queue above the composer.
+- `queuedMessagesOf`, `queuedNoticesOf`, `stagedQueuedMessagesOf`, `optimisticPlacementOf(args)`: the queued rows.
 
 ### Sign in to Atlas Cloud
 

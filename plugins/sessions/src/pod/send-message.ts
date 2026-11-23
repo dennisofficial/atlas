@@ -24,10 +24,15 @@ const description = [
   'It cannot reach the operator: answer the operator in your turn.',
 ].join(' ')
 
-const modelTextOf = (sent: Extract<MessageSent, { delivered: true }>): string =>
+type Delivered = Extract<MessageSent, { delivered: true }>
+
+const recipientOf = (sent: Delivered): string =>
+  sent.name === undefined ? sent.to : `${sent.name} (${sent.to})`
+
+const modelTextOf = (sent: Delivered): string =>
   sent.queued
-    ? `Sent to ${sent.to}. It is busy, so it reads the message after its current step.`
-    : `Sent to ${sent.to}.`
+    ? `Sent to ${recipientOf(sent)}. It is busy, so it reads the message after its current step.`
+    : `Sent to ${recipientOf(sent)}.`
 
 export class SendMessageTool extends SchemaTool<typeof inputSchema> {
   readonly name = 'send_message'
@@ -46,7 +51,11 @@ export class SendMessageTool extends SchemaTool<typeof inputSchema> {
       if ('refused' in sent) return { ok: false, reason: sent.refused }
       return {
         ok: true,
-        output: { to: sent.to, queued: sent.queued },
+        output: {
+          to: sent.to,
+          ...(sent.name === undefined ? {} : { name: sent.name }),
+          queued: sent.queued,
+        },
         modelText: modelTextOf(sent),
       }
     } catch (error) {

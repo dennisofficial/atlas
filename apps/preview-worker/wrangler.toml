@@ -8,3 +8,6 @@ routes = [
   { pattern = "*.byatlas.dev/*", zone_name = "byatlas.dev" },
   { pattern = "callback.byatlas.dev", custom_domain = true },
 ]
+
+[vars]
+PREVIEW_DOMAIN = "byatlas.dev"

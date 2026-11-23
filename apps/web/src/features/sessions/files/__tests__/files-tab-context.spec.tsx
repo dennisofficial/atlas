@@ -86,7 +86,10 @@ const sourceOf = (args: {
 const statusOf = (sandbox: 'running' | 'sleeping') =>
   ({
     state: 'idle',
-    lease: { epoch: 1, holderHostId: null, live: false },
+    lease:
+      sandbox === 'running'
+        ? { epoch: 1, holderHostId: 7, live: true }
+        : { epoch: 1, holderHostId: null, live: false },
     sandbox: { status: sandbox, at: '2026-01-01T00:00:00.000Z' },
   }) as never
 

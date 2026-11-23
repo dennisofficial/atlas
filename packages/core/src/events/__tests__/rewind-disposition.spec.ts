@@ -18,6 +18,7 @@ describe('rewindDisposition', () => {
       'pod-ran-out-of-memory',
       'pr-event',
       'run-event',
+      'session-archived',
     ])
   })
 

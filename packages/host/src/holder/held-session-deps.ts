@@ -6,6 +6,7 @@ import type { PodMcpControl } from '@dltech/atlas-plugin-sdk'
 
 import type { CommandHandlers, ControlHandlers } from './command-intake'
 import type { NotifyDispatch } from './notify-dispatch'
+import type { ParkArchivedPod } from './park-archived'
 import type { PodControlClient } from './pod-control'
 import type { TurnEndedHook } from './turn-ended-hook'
 import type { HostBus, HostTimers, PodPeers, SessionRuntimeFactory } from './ports'
@@ -35,6 +36,7 @@ export type HeldSessionDeps = {
     | { content: ContextContentStore; contextDir: (sessionId: string) => string }
     | undefined
   notify?: NotifyDispatch | undefined
+  parkArchived?: ParkArchivedPod | undefined
   turnEnded?: TurnEndedHook | undefined
   onRuntimeReady?: (() => void) | undefined
   log?: LogPort | undefined

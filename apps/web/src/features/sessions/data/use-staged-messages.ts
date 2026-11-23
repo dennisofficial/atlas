@@ -1,13 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react'
 import { toast } from 'sonner'
 
-import type { Attachment } from '@dltech/atlas-core'
-import {
-  EStagedOutcome,
-  stagedOutcomesOf,
-  stagedPlacementOf,
-  type SessionSnapshot,
-} from '@dltech/atlas-client/stream'
+import type { Attachment, PendingInputsState } from '@dltech/atlas-core'
+import { EStagedOutcome, stagedOutcomesOf, type SessionSnapshot } from '@dltech/atlas-client/stream'
 
 import { mergeWithdrawnIntoDraft, type StagedMessage } from './queued-messages'
 import { settleMessages, stageMessage, stagedOf, subscribeStaged } from './staged-store'
@@ -17,11 +12,11 @@ export type StagedDraft = StagedMessage & { attachments: readonly Attachment[] }
 export function useStagedMessages(args: {
   sessionId: string
   events: SessionSnapshot['events']
-  working: boolean
+  pending: PendingInputsState
   draft: string
   onDraftChange: (draft: string) => void
 }) {
-  const { sessionId, events, working, draft, onDraftChange } = args
+  const { sessionId, events, pending, draft, onDraftChange } = args
   const subscribe = useCallback(
     (listener: () => void) => subscribeStaged({ sessionId, listener }),
     [sessionId],
@@ -43,12 +38,22 @@ export function useStagedMessages(args: {
     () => stagedOutcomesOf({ events, clientIds: staged.map((entry) => entry.clientId) }),
     [events, staged],
   )
+  const unread = useMemo(
+    () =>
+      new Set(
+        pending.pending.flatMap((input) =>
+          input.message?.clientId === undefined ? [] : [input.message.clientId],
+        ),
+      ),
+    [pending],
+  )
 
   useEffect(() => {
     if (staged.length === 0) return
     const settled = staged.flatMap((entry) => {
       const outcome = outcomes.get(entry.clientId)
       if (outcome === undefined || outcome.outcome === EStagedOutcome.Pending) return []
+      if (outcome.outcome === EStagedOutcome.Posted && unread.has(entry.clientId)) return []
       return [{ entry, outcome }]
     })
     if (settled.length === 0) return
@@ -67,12 +72,7 @@ export function useStagedMessages(args: {
       sessionId,
       clientIds: new Set(settled.map(({ entry }) => entry.clientId)),
     })
-  }, [outcomes, sessionId, staged])
+  }, [outcomes, unread, sessionId, staged])
 
-  const placement = useMemo(
-    () => stagedPlacementOf({ staged, events, working }),
-    [staged, events, working],
-  )
-
-  return { staged, queue: placement.queue, transcript: placement.transcript, stage }
+  return { staged, stage }
 }

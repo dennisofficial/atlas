@@ -1,3 +1,4 @@
+import { agentDisplayName } from '@dltech/atlas-core'
 import type { ControlPlane } from '@dltech/atlas-control'
 import type { HeldSessionDeps } from './held-session-deps'
 import {
@@ -42,13 +43,25 @@ const peerOf = async (params: {
 }): Promise<MessageSent> => {
   const { source, to, text } = params
   const said = await source.crew.say({ agentId: to, text })
-  if (said !== undefined) return { delivered: true, to, queued: said.queued }
+  if (said !== undefined) {
+    const name = agentDisplayName({
+      agentType: said.snapshot.agentType,
+      intent: said.snapshot.intent,
+    })
+    return { delivered: true, to, name, queued: said.queued }
+  }
   const sent = await source.plane.messagePeer({
     fromSessionId: source.sessionId,
     toSessionId: to,
     text,
   })
-  return 'refused' in sent ? refusing(sent.refused) : { delivered: true, to, queued: false }
+  if ('refused' in sent) return refusing(sent.refused)
+  return {
+    delivered: true,
+    to,
+    ...(sent.title === null ? {} : { name: sent.title }),
+    queued: false,
+  }
 }
 
 export const podMessagesOf = (source: PodMessagesSource): PodMessages => ({

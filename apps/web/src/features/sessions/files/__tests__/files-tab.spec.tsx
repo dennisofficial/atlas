@@ -107,7 +107,11 @@ const withOpen = (value: SessionPaneValue, path: string): SessionPaneValue => ({
   openRequest: { kind: EPaneOpen.File, path, id: 1 },
 })
 
-function Wrapped(props: { value: SessionPaneValue; pick?: { checkoutId: string } | undefined }) {
+function Wrapped(props: {
+  value: SessionPaneValue
+  pick?: { checkoutId: string } | undefined
+  readyDeadlineMs?: number | undefined
+}) {
   const [value, setValue] = useState(props.value)
   const consumeOpenRequest = (id: number) =>
     setValue((held) => (held.openRequest?.id === id ? { ...held, openRequest: undefined } : held))
@@ -120,15 +124,15 @@ function Wrapped(props: { value: SessionPaneValue; pick?: { checkoutId: string }
           currentWorktreePath="/work/co-1"
         >
           {props.pick === undefined ? null : <Picker checkoutId={props.pick.checkoutId} />}
-          <FilesTab sourceOf={sourceOf} />
+          <FilesTab sourceOf={sourceOf} readyDeadlineMs={props.readyDeadlineMs} />
         </CheckoutChoiceProvider>
       </SessionPaneProvider>
     </TestQueryProvider>
   )
 }
 
-const wrap = (value: SessionPaneValue, pick?: { checkoutId: string }) => (
-  <Wrapped value={value} pick={pick} />
+const wrap = (value: SessionPaneValue, pick?: { checkoutId: string }, readyDeadlineMs?: number) => (
+  <Wrapped value={value} pick={pick} readyDeadlineMs={readyDeadlineMs} />
 )
 
 function Picker(props: { checkoutId: string }) {
@@ -153,11 +157,12 @@ const settle = async (): Promise<void> => {
 async function mount(
   value: SessionPaneValue,
   pick?: { checkoutId: string },
+  readyDeadlineMs?: number,
 ): Promise<HTMLDivElement> {
   const host = document.createElement('div')
   const root = createRoot(host)
   roots.add(root)
-  await act(async () => root.render(wrap(value, pick)))
+  await act(async () => root.render(wrap(value, pick, readyDeadlineMs)))
   await settle()
   return host
 }
@@ -196,9 +201,19 @@ describe('FilesTab', () => {
     expect(browsed).toHaveLength(0)
   })
 
-  it('renders the tree while the pod runs without a holder', async () => {
+  it('shows a waking state, and browses nothing, while the pod runs without a holder', async () => {
     const host = await mount(attachedValue())
     expect(host.innerHTML).not.toContain('Disconnected')
+    expect(host.textContent).toContain('Waking the pod…')
+    expect(browsed).toEqual([])
+  })
+
+  it('stops waking and offers a retry when no host picks the pod up in time', async () => {
+    const host = await mount(attachedValue(), undefined, 5)
+    expect(host.textContent).toContain('Pod not ready')
+    expect(host.textContent).toContain('Try again')
+    expect(host.textContent).not.toContain('Waking the pod…')
+    expect(browsed).toEqual([])
   })
 
   it('renders the live tree once the pod is awake', async () => {

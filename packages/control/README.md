@@ -39,6 +39,8 @@ a thread's event log.
 
 - `createSession`, `createSessionWithMessage`, `setSessionModel`, `renameSession`,
   `titleUntitledSession`, `setSessionArchived`, `markSessionRead`.
+- `archiveSpawned({ fromSessionId, sessionId })`: archive a settled session the caller spawned and
+  record `session-archived` in its inbox. Returns a `SpawnedArchive`.
 - `listSessions`, `listSessionDigests`, `countSessionBuckets`, `readSession`, `sessionsOf`,
   `readSessionBusy`. A digest listing can filter on archived, a title search and a keyset cursor.
 - `spawnPeer`, `messagePeer`, `reportToSpawner`, `podPeersPlaced`.
@@ -81,13 +83,11 @@ a thread's event log.
 
 - `upsertChanges`, `readChanges`, `readChangeFile`, `changesUpdatedAt`, `changeBlobsPresent`,
   `changeBlobsUnreferenced`, `deleteChangeBlobs`.
-- `changeHashOf(content)`, `changeBlobKey(hash)`, `ChangeContentStore`.
-- `runChangesGc({ store, content, graceMs? })`: removes the change blobs that no row uses.
+- `changeHashOf(content)`, `changeBlobKey(hash)`, `ChangeContentStore`, `ContextContentStore`.
+- `runChangesGc` and `runContextFilesGc({ store, content, graceMs? })`: remove blobs no row uses.
   `CHANGES_GC_GRACE_MS` and `CHANGES_GC_ROW_LIMIT` set the default.
-- `upsertContextFiles`, `removeContextFiles`, `listContextFiles`, `contextFileOf`,
-  `contextDigestsReferenced`, `ContextContentStore`, `runContextFilesGc`: the mirrored context files.
-- `publishContextFile`, `removeContextBytesIfUnreferenced`: publish or collect the bytes of one
-  digest under a Postgres advisory lock on it, so a collection cannot delete freshly published bytes.
+- Context mirror: `upsertContextFiles`, `removeContextFiles`, `listContextFiles`, `contextFileOf`,
+  `contextDigestsReferenced`, `publishContextFile`, `removeContextBytesIfUnreferenced` (locked).
 
 ### Record a sandbox run
 
@@ -109,7 +109,7 @@ a thread's event log.
 - `InMemoryControlStore`: the in-memory adapter for a spec.
 - `describeControlPlaneConformance(params)`, `describeControlPlaneSessions`,
   `describeControlPlaneClaims`, `describeControlPlanePeers`, `describeControlPlaneSessionBuckets`,
-  `describeControlPlaneContextFiles`: the shared spec suites.
+  `describeControlPlaneContextFiles`.
 - `FakeChangeContentStore`, `FakeContextContentStore`: the change and context stores, in memory.
 
 ## Usage

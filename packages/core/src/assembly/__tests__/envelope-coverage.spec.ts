@@ -98,6 +98,7 @@ const SAMPLES: { readonly [K in EventType]: SampleOf<K> } = {
   },
   nudge: { type: 'nudge', text: 'keep going', lifetimeSteps: 3 },
   'sandbox-setup-reported': { type: 'sandbox-setup-reported', text: 'installed', failed: false },
+  'session-archived': { type: 'session-archived', bySessionId: 'ses_2', byTitle: 'the parser' },
   'pod-ran-out-of-memory': {
     type: 'pod-ran-out-of-memory',
     incidentId: 'oom-1',

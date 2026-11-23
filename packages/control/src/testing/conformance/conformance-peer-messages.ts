@@ -115,7 +115,7 @@ export function describeControlPlanePeerMessages(params: ConformanceParams): voi
         toSessionId: 'peer-1',
         text: 'm0',
       })
-      expect(sent).toEqual({ inboxId: 1 })
+      expect(sent).toEqual({ inboxId: 1, title: 'Peer session' })
       const inbox = await plane.readInbox({
         sessionId: 'peer-1',
         afterId: 0,
@@ -141,7 +141,7 @@ export function describeControlPlanePeerMessages(params: ConformanceParams): voi
         toSessionId: 'stranger',
         text: 'hello',
       })
-      expect(sent).toEqual({ inboxId: 1 })
+      expect(sent).toEqual({ inboxId: 1, title: null })
       const inbox = await plane.readInbox({
         sessionId: 'stranger',
         afterId: 0,

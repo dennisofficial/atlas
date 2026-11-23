@@ -6,6 +6,7 @@ import {
   formatCountdown,
   formatUtilization,
   meterBand,
+  shownWindowsOf,
 } from '@dltech/atlas-core'
 import type { UsageReportDto, UsageWindowDto } from '@dltech/atlas-protocol'
 
@@ -68,18 +69,15 @@ export function UsageMeters({ report, now }: { report: UsageReportDto; now: numb
   const age = ageOf({ fetchedAt: report.fetchedAt, now })
   return (
     <fieldset aria-label="Plan usage" className="flex flex-col gap-1.5 pt-1">
-      <WindowMeter
-        label={WINDOW_LABEL[EUsageWindow.FiveHour]}
-        window={report.fiveHour}
-        windowKind={EUsageWindow.FiveHour}
-        now={now}
-      />
-      <WindowMeter
-        label={WINDOW_LABEL[EUsageWindow.SevenDay]}
-        window={report.sevenDay}
-        windowKind={EUsageWindow.SevenDay}
-        now={now}
-      />
+      {shownWindowsOf(report).map((key) => (
+        <WindowMeter
+          key={key}
+          label={WINDOW_LABEL[key]}
+          window={report[key]}
+          windowKind={key}
+          now={now}
+        />
+      ))}
       {age === null ? null : <span className="text-xs text-muted-foreground">{age}</span>}
     </fieldset>
   )

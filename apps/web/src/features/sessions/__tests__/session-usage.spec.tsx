@@ -7,6 +7,7 @@ import type { Root } from 'react-dom/client'
 import type { SessionModelChoice, UsageReportDto, UsageReportInput } from '@dltech/atlas-protocol'
 
 const calls: UsageReportInput[] = []
+let reported: UsageReportDto | null = null
 
 const METERED: UsageReportDto = {
   accountId: 'acc_1',
@@ -20,7 +21,7 @@ const METERED: UsageReportDto = {
 mock.module('@/features/settings/data/personal/usage-api', () => ({
   fetchUsageReport: async (input: UsageReportInput): Promise<UsageReportDto> => {
     calls.push(input)
-    return METERED
+    return reported ?? METERED
   },
   usageQueryKey: (input: UsageReportInput): string =>
     'accountId' in input ? `usage-account-${input.accountId}` : `usage-provider-${input.provider}`,
@@ -50,6 +51,7 @@ afterEach(async () => {
   container?.remove()
   container = null
   calls.length = 0
+  reported = null
 })
 
 async function render(node: ReactNode): Promise<HTMLDivElement> {
@@ -89,5 +91,14 @@ describe('SessionUsage', () => {
 
     const trigger = element.querySelector('[aria-label^="Plan usage"]')
     expect(trigger?.textContent).toBe('5h 68% · 7d 41%')
+  })
+
+  it('hides the 5-hour window of a plan that has only a weekly limit', async () => {
+    reported = { ...METERED, fiveHour: null }
+    const element = await render(<SessionUsage model={CLAUDE} working={false} />)
+
+    const trigger = element.querySelector('[aria-label^="Plan usage"]')
+    expect(trigger?.textContent).toBe('7d 41%')
+    expect(trigger?.getAttribute('aria-label')).toBe('Plan usage: 7-day 41%')
   })
 })

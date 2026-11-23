@@ -5,12 +5,8 @@ import {
   type PendingInput,
   type PendingInputsState,
 } from '@dltech/atlas-core'
-import {
-  queuedMessagesOf,
-  stagedQueuedMessagesOf,
-  type QueuedMessage,
-} from '@dltech/atlas-client/session'
-import type { StagedInput } from '@dltech/atlas-client/stream'
+import { queuedMessagesOf, type QueuedMessage } from '@dltech/atlas-client/session'
+import type { EOutgoingPlacement, StagedInput } from '@dltech/atlas-client/stream'
 import {
   EQueuedAttachmentKind,
   type QueuedAttachment,
@@ -27,6 +23,8 @@ const storedHashOf = (attachment: Attachment): string | undefined =>
 export type StagedMessage = StagedInput & {
   text: string
   attachments: readonly Attachment[]
+  placement: EOutgoingPlacement
+  at: string
 }
 
 export const pendingOf = (pending: PendingInputsState): readonly PendingInput[] =>
@@ -67,7 +65,7 @@ const attachmentsOf = (args: {
     }
   })
 
-const entryOf = (args: {
+export const queuedEntryOf = (args: {
   message: QueuedMessage
   urls: ReadonlyMap<string, string>
 }): QueuedMessageEntry => ({
@@ -80,14 +78,8 @@ export const visibleQueuedOf = (args: {
   pending: PendingInputsState
   urls?: ReadonlyMap<string, string> | undefined
 }): QueuedMessageEntry[] =>
-  queuedMessagesOf(args.pending).map((message) => entryOf({ message, urls: args.urls ?? NO_URLS }))
-
-export const stagedQueuedOf = (args: {
-  staged: readonly StagedMessage[]
-  urls?: ReadonlyMap<string, string> | undefined
-}): QueuedMessageEntry[] =>
-  stagedQueuedMessagesOf(args.staged).map((message) =>
-    entryOf({ message, urls: args.urls ?? NO_URLS }),
+  queuedMessagesOf(args.pending).map((message) =>
+    queuedEntryOf({ message, urls: args.urls ?? NO_URLS }),
   )
 
 export const mergeWithdrawnIntoDraft = (args: { withdrawn: string; draft: string }): string =>

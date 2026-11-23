@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'bun:test'
 import { ProductAnalytics } from '@dltech/atlas-observability'
+import { ECallFailure, ECallStatus } from '@dltech/atlas-protocol'
 import type { MiddlewareOptions } from 'nestjs-trpc'
 
 import type { AuthenticatedRequest } from '../../api/api-latency.interceptor'
+import { PodNotReadyError, podFailureError } from '../../api/platform/control/pod-errors'
 import { ApiLatencyMiddleware } from './api-latency.middleware'
 
 type Captured = { userId: string; event: string; properties: Record<string, unknown> }
@@ -108,6 +110,7 @@ describe('ApiLatencyMiddleware', () => {
       duration_ms: 5,
       status: 404,
       failed: true,
+      error_code: 'NOT_FOUND',
     })
   })
 
@@ -127,6 +130,61 @@ describe('ApiLatencyMiddleware', () => {
     await flushMicrotasks()
 
     expect(analytics.captured[0]?.properties).toMatchObject({ status: 429, failed: true })
+  })
+
+  it('classifies a not-ready pod failure by its tRPC code and marker', async () => {
+    const times = { at: 0 }
+    const { analytics, middleware } = setup(times)
+
+    const pending = middleware.use(
+      optionsOf({
+        path: 'files.tree',
+        next: async () => ({ ok: false, error: new PodNotReadyError() }),
+      }),
+    )
+    times.at = 4
+    await pending
+    await flushMicrotasks()
+
+    expect(analytics.captured[0]?.properties).toEqual({
+      path: 'files.tree',
+      duration_ms: 4,
+      status: 412,
+      failed: true,
+      error_code: 'PRECONDITION_FAILED',
+      error_marker: 'pod-not-ready',
+    })
+  })
+
+  it('attributes a pod failure by its bounded code and never by text', async () => {
+    const times = { at: 0 }
+    const { analytics, middleware } = setup(times)
+
+    const pending = middleware.use(
+      optionsOf({
+        path: 'files.tree',
+        next: async () => ({
+          ok: false,
+          error: podFailureError({
+            status: ECallStatus.Failed,
+            op: 'readDirectory',
+            error: { code: ECallFailure.PermissionDenied, message: '/work/secret EACCES' },
+          }),
+        }),
+      }),
+    )
+    times.at = 4
+    await pending
+    await flushMicrotasks()
+
+    expect(analytics.captured[0]?.properties).toEqual({
+      path: 'files.tree',
+      duration_ms: 4,
+      status: 400,
+      failed: true,
+      error_code: 'BAD_REQUEST',
+      pod_failure: 'permission-denied',
+    })
   })
 
   it('never measures a subscription', async () => {

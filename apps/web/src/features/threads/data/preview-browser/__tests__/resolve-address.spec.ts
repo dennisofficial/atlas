@@ -117,7 +117,7 @@ describe('resolveAddress', () => {
   })
 
   it('sends a provider callback to the preview the sign-in started in', () => {
-    expect(resolve(CALLBACK)).toBe(
+    expect(resolve(CALLBACK, { currentUrl: WEB.url })).toBe(
       'https://3000-abcdefghij.byatlas.dev/quickbooks/callback?code=c&state=abc',
     )
     expect(
@@ -125,6 +125,11 @@ describe('resolveAddress', () => {
         currentUrl: 'https://6006-abcdefghij.byatlas.dev/?path=/story/button',
       }),
     ).toBe('https://6006-abcdefghij.byatlas.dev/quickbooks/callback?error=access_denied')
+  })
+
+  it('leaves a callback alone when the tab is on no preview', () => {
+    expect(resolve(CALLBACK)).toBeNull()
+    expect(resolve(CALLBACK, { currentUrl: 'https://example.com/' })).toBeNull()
   })
 
   it('leaves the callback handoff for the Mac app and a portless session alone', () => {

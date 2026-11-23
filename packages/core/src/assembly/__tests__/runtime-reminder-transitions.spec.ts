@@ -14,7 +14,7 @@ const CACHING_PROVIDER = { id: 'anthropic', modelId: 'fixture-model' }
 
 const compiled: CompiledPrompt = {
   blocks: [{ text: DOCTRINE }],
-  parts: [{ id: 'fixture.doctrine', text: DOCTRINE, chars: DOCTRINE.length }],
+  parts: [],
   skipped: [],
 }
 

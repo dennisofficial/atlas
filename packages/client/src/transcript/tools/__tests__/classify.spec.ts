@@ -401,6 +401,30 @@ describe('what a sub-agent call reads as', () => {
     expect(resumed.line).toBe('Resumed thr_child')
   })
 
+  it('names the receiver of send_message instead of quoting its id', () => {
+    const named = reading(
+      aCall({
+        name: 'send_message',
+        input: { to: 'afe6915b-23f4-48ae-ae48-f871ff10c97a', text: 'go on' },
+        output: {
+          to: 'afe6915b-23f4-48ae-ae48-f871ff10c97a',
+          name: 'Lexer rewrite',
+          queued: false,
+        },
+      }),
+    )
+    const unnamed = reading(
+      aCall({
+        name: 'send_message',
+        input: { to: 'parent', text: 'done' },
+        output: { to: 'parent', queued: false },
+      }),
+    )
+
+    expect(named.line).toBe('Messaged Lexer rewrite')
+    expect(unnamed.line).toBe('Messaged parent')
+  })
+
   it('says a message to a busy child is waiting rather than running', () => {
     const queued = reading(
       aCall({
@@ -439,6 +463,29 @@ describe('what a sub-agent call reads as', () => {
 
     expect(signalled.note).toBe('stopping')
     expect(overAlready.note).toBe('already done')
+  })
+
+  it('names the session an archive was aimed at, and says when it was already archived', () => {
+    const archived = reading(
+      aCall({
+        name: 'archive_session',
+        input: { sessionId: 'p1' },
+        output: { sessionId: 'p1', already: false },
+      }),
+    )
+    const already = reading(
+      aCall({
+        name: 'archive_session',
+        input: { sessionId: 'p1' },
+        output: { sessionId: 'p1', already: true },
+      }),
+    )
+
+    expect(archived.line).toBe('Archived p1')
+    expect(archived.note).toBe('done')
+    expect(archived.klass).toBe(EToolClass.External)
+    expect(already.line).toBe('Archived p1')
+    expect(already.note).toBe('already archived')
   })
 
   it('counts what a listing found still running, not what it found at all', () => {

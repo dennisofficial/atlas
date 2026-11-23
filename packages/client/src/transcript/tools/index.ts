@@ -1,5 +1,6 @@
 export { callKindOf, ECallKind } from './call-kind'
 export { classify } from './classify'
+export { isMemoryTool } from './memory'
 export { humanBytes, imageOf, imageSummary, type ReadImage } from './images'
 export {
   CLAUSES,

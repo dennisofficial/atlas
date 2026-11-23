@@ -16,6 +16,13 @@ export const NO_USAGE: AccountUsage = {
   [EUsageWindow.SevenDay]: null,
 }
 
+const PLAN_WINDOWS: readonly EUsageWindow[] = [EUsageWindow.FiveHour, EUsageWindow.SevenDay]
+
+export function shownWindowsOf(usage: AccountUsage): readonly EUsageWindow[] {
+  const reported = PLAN_WINDOWS.filter((key) => usage[key] !== null)
+  return reported.length === 0 ? PLAN_WINDOWS : reported
+}
+
 export function worstWindow(windows: readonly (UsageWindow | null)[]): UsageWindow | null {
   return windows.reduce<UsageWindow | null>(
     (worst, window) =>

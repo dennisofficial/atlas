@@ -38,6 +38,7 @@ export const heldSessionDepsOf = (args: HeldDepsArgs): HeldSessionDeps => {
     contextMirror: holder.contextMirror,
     notify: holder.notify,
     turnEnded: holder.turnEnded,
+    parkArchived: holder.parkArchived,
     onRuntimeReady: () => args.onRuntimeReady(args.lease.sessionId),
     ...(holder.operator === undefined
       ? {}

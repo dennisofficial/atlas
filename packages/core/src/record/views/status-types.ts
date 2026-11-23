@@ -19,3 +19,12 @@ export type SessionStatus = {
   reason?: string | undefined
   since?: string | undefined
 }
+
+const SETTLED_STATES: ReadonlySet<ESessionStatus> = new Set([
+  ESessionStatus.Idle,
+  ESessionStatus.SetupFailed,
+  ESessionStatus.StartFailed,
+  ESessionStatus.Failed,
+])
+
+export const isSettledStatus = (state: ESessionStatus): boolean => SETTLED_STATES.has(state)
