@@ -7,6 +7,8 @@ import {
   EWorkspaceStepState,
   EPodRebootHold,
   podRebootSafeOf,
+  ETurnCause,
+  toCallId,
   toRunId,
   toThreadId,
   type V2Body,
@@ -15,7 +17,7 @@ import {
 import { ControlPlane } from '@dltech/atlas-control'
 import { InMemoryControlStore } from '@dltech/atlas-control/testing'
 
-import { readPodBusy, readPodRebootFacts } from '../pod-busy'
+import { readPodBusy, readPodRebootFacts, readPodResizeBusy } from '../pod-busy'
 
 const NOW = '2026-11-03T12:00:00.000Z'
 
@@ -114,5 +116,43 @@ describe('pod busy facts of a session running its setup script', () => {
     expect(await readPodBusy({ plane, session })).toEqual({ busy: false, running: [] })
     const facts = await readPodRebootFacts({ plane, session })
     expect(facts?.setupRunning).toBe(false)
+  })
+})
+
+describe('pod busy facts a resize reads', () => {
+  const turnBodies: readonly V2Body[] = [
+    { type: 'workspace-prepared' },
+    { type: 'user-said', text: 'hi' },
+    { type: 'turn-started', turnId: 'turn-1', cause: ETurnCause.Input },
+  ]
+
+  const seeded = async (bodies: readonly V2Body[]) => {
+    const { plane } = setup()
+    await plane.createSession({
+      sessionId: 's-1',
+      userId: 'user-a',
+      projectId: 'proj-a',
+      mainThreadId: 't-1',
+    })
+    await appendIn({ plane, sessionId: 's-1', threadId: 't-1', bodies })
+    return { plane, session: { sessionId: 's-1', mainThreadId: 't-1' } }
+  }
+
+  it('lets a resize run under a turn that runs no tool', async () => {
+    const { plane, session } = await seeded(turnBodies)
+    expect((await readPodBusy({ plane, session })).running).toEqual(['Agent turn'])
+    expect(await readPodResizeBusy({ plane, session })).toEqual({ busy: false, running: [] })
+  })
+
+  it('holds a resize while a tool call runs on the pod', async () => {
+    const { plane, session } = await seeded([
+      ...turnBodies,
+      { type: 'tool-called', callId: toCallId('call-1'), name: 'bash', input: {}, ordinal: 0 },
+      { type: 'tool-dispatched', callId: toCallId('call-1'), name: 'bash' },
+    ])
+    expect(await readPodResizeBusy({ plane, session })).toEqual({
+      busy: true,
+      running: ['Tool call'],
+    })
   })
 })

@@ -1,28 +1,43 @@
 import type { ControlPlane, ControlSessionRow } from '@dltech/atlas-control'
-import { podBusyFactsOf, podBusyOf, type PodBusy, type PodRebootFacts } from '@dltech/atlas-core'
+import {
+  podBusyFactsOf,
+  podBusyOf,
+  podResizeBusyOf,
+  type PodBusy,
+  type PodRebootFacts,
+} from '@dltech/atlas-core'
+import { crewRosterOf } from '@dltech/atlas-plugin-crew/client'
 import { shellRosterOf } from '@dltech/atlas-plugin-shells/client'
 import { servicesOfView } from '@dltech/atlas-plugin-services/client'
 
 const runningServicesOf = (views: Readonly<Record<string, unknown>>): number =>
   servicesOfView(views).filter((row) => row.status === 'running').length
 
-export const readPodBusy = async (args: {
-  plane: ControlPlane
-  session: Pick<ControlSessionRow, 'sessionId' | 'mainThreadId'>
-}): Promise<PodBusy> => {
+type BusySession = Pick<ControlSessionRow, 'sessionId' | 'mainThreadId'>
+
+const readPodBusyFacts = async (args: { plane: ControlPlane; session: BusySession }) => {
   const busy = await args.plane.readSessionBusy({
     sessionId: args.session.sessionId,
     threadId: args.session.mainThreadId,
   })
-  return podBusyOf(
-    podBusyFactsOf({
-      state: busy.status.state,
-      setupRunning: busy.setupRunning,
-      shellsRunning: shellRosterOf(busy.pluginViews).running,
-      servicesRunning: runningServicesOf(busy.pluginViews),
-    }),
-  )
+  return podBusyFactsOf({
+    state: busy.status.state,
+    setupRunning: busy.setupRunning,
+    shellsRunning: shellRosterOf(busy.pluginViews).running,
+    servicesRunning: runningServicesOf(busy.pluginViews),
+    agentsRunning: crewRosterOf(busy.pluginViews).running,
+  })
 }
+
+export const readPodBusy = async (args: {
+  plane: ControlPlane
+  session: BusySession
+}): Promise<PodBusy> => podBusyOf(await readPodBusyFacts(args))
+
+export const readPodResizeBusy = async (args: {
+  plane: ControlPlane
+  session: BusySession
+}): Promise<PodBusy> => podResizeBusyOf(await readPodBusyFacts(args))
 
 export const readPodRebootFacts = async (args: {
   plane: ControlPlane
