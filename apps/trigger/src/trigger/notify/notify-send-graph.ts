@@ -16,6 +16,8 @@ import {
   type PresenceHash,
 } from '@dltech/atlas-notifications/server'
 import { decodeSettingValue, type NotifyPresence, type SettingScalar } from '@dltech/atlas-core'
+import type { ProductAnalytics } from '@dltech/atlas-observability'
+import { serverObservability } from '@dltech/atlas-observability/node'
 
 export type NotifySessionRow = {
   userId: string
@@ -37,6 +39,7 @@ export type NotifyGraph = {
   }
   presence: { read(args: { userId: string; now: string }): Promise<NotifyPresence[]> }
   settings: { read(args: { userId: string }): Promise<ReadonlyMap<string, SettingScalar>> }
+  analytics: ProductAnalytics
   transports: Partial<Record<ENotifyDeviceKind, NotificationTransport>>
   now(): string
   dispose(): Promise<void>
@@ -78,10 +81,22 @@ export const transportsOf = (
 const redisOf = (url: string | undefined): Redis | null =>
   url === undefined || url === '' ? null : new Redis(url)
 
+const versionOf = (env: Record<string, string | undefined>): string =>
+  absent(env['ATLAS_APP_VERSION']) ?? 'trigger'
+
+const flushQuietly = async (analytics: ProductAnalytics): Promise<void> => {
+  try {
+    await analytics.flush()
+  } catch {
+    return
+  }
+}
+
 export const buildNotifyGraph = (
   env: Record<string, string | undefined> = process.env,
 ): NotifyGraph => {
   const redis = redisOf(env['REDIS_URL'])
+  const { analytics } = serverObservability({ version: versionOf(env), env })
   const presenceOf = (hash: PresenceHash) => ({
     read: async (args: { userId: string; now: string }): Promise<NotifyPresence[]> =>
       readPresence({ redis: hash, userId: args.userId, now: args.now }),
@@ -150,10 +165,12 @@ export const buildNotifyGraph = (
         return new Map(rows.map((row) => [row.key, decodeSettingValue(row.value)]))
       },
     },
+    analytics,
     transports: transportsOf(env),
     now: () => new Date().toISOString(),
     dispose: async () => {
       if (redis !== null) await redis.quit()
+      await flushQuietly(analytics)
     },
   }
 }

@@ -1,4 +1,4 @@
-import { notifyPlanOf, notifySettingsOf, pushNotificationOf } from '@dltech/atlas-core'
+import { ENotifyMode, notifyPlanOf, notifySettingsOf, pushNotificationOf } from '@dltech/atlas-core'
 import {
   NO_NOTIFY_OUTPUT,
   NOTIFY_SEND_TASK_ID,
@@ -8,6 +8,12 @@ import {
 } from '@dltech/atlas-jobs/notify'
 import { schemaTask } from '@trigger.dev/sdk'
 import '../init'
+import {
+  captureNotificationInApp,
+  captureNotificationMoment,
+  captureNotificationSent,
+  captureNotificationSkipped,
+} from './notify-metrics'
 import {
   countsOf,
   deliverToKinds,
@@ -37,6 +43,8 @@ export const runNotifySend = async (args: {
   const session = await graph.session.read({ sessionId: payload.sessionId })
   if (session === null) return NO_NOTIFY_OUTPUT
 
+  captureNotificationMoment({ analytics: graph.analytics, userId: session.userId, payload })
+
   const now = graph.now()
   const superseded = await supersededOf({ graph, payload, mainThreadId: session.mainThreadId })
   const presence = await graph.presence.read({ userId: session.userId, now })
@@ -44,6 +52,7 @@ export const runNotifySend = async (args: {
   const settings = notifySettingsOf({
     values: await graph.settings.read({ userId: session.userId }),
   })
+  const nested = session.nested && session.spawnedBySessionId !== null
   const plan = notifyPlanOf({
     facts: {
       moment: payload.moment,
@@ -56,12 +65,24 @@ export const runNotifySend = async (args: {
       quiet: settings.quiet({ now }),
       enabled: settings.enabled(payload.moment),
       superseded,
-      nested: session.nested && session.spawnedBySessionId !== null,
+      nested,
       operatorTurn: payload.operatorTurn ?? true,
       recentPush: false,
       now,
     },
   })
+  if (plan.mode === ENotifyMode.Silent) {
+    captureNotificationSkipped({
+      analytics: graph.analytics,
+      userId: session.userId,
+      payload,
+      reason: plan.reason,
+      nested,
+    })
+    return NO_NOTIFY_OUTPUT
+  }
+  if (plan.mode === ENotifyMode.InApp)
+    captureNotificationInApp({ analytics: graph.analytics, userId: session.userId, payload })
   const notification = pushNotificationOf(plan)
   if (notification === null) return NO_NOTIFY_OUTPUT
 
@@ -72,6 +93,15 @@ export const runNotifySend = async (args: {
     notification: sound ? notification : { ...notification, silent: true },
   })
   await settleDevices({ graph, results, now })
+  captureNotificationSent({
+    analytics: graph.analytics,
+    userId: session.userId,
+    payload,
+    devices,
+    results,
+    sound,
+    now,
+  })
   return countsOf(results)
 }
 

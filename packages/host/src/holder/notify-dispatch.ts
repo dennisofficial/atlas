@@ -6,6 +6,7 @@ export type NotifyDispatchArgs = {
   seq: number
   moment: ENotifyMoment
   decision: NotifyDecision
+  endedAt?: string
 }
 
 export type NotifyDispatch = (args: NotifyDispatchArgs) => Promise<void>

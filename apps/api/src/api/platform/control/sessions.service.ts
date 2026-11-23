@@ -383,11 +383,32 @@ export class SessionsService {
       waiting: notify.waiting,
     })
     if (momentSeq !== null) {
+      this.captureNotificationCleared({
+        userId: args.userId,
+        sessionId: args.sessionId,
+        momentSeq,
+      })
       this.background.keepAlive(
         this.dispatchClear({ userId: args.userId, sessionId: args.sessionId, momentSeq }),
       )
     }
     return { readSeq }
+  }
+
+  private captureNotificationCleared(args: {
+    userId: string
+    sessionId: string
+    momentSeq: number
+  }): void {
+    try {
+      this.analytics?.capture({
+        userId: args.userId,
+        event: 'notification_cleared',
+        properties: { session_id: args.sessionId, moment_seq: args.momentSeq },
+      })
+    } catch {
+      // Metrics must never fault a read.
+    }
   }
 
   private async notifyStateOf(args: { userId: string; sessionId: string }): Promise<{
