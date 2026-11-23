@@ -364,6 +364,19 @@ describe('tool titles', () => {
     })
   })
 
+  it('gives the memory tool a family of its own', () => {
+    expect(toolItem('memory', { action: 'read', name: 'bun-deflate' })).toMatchObject({
+      title: 'Recalled bun-deflate',
+      family: EToolFamily.Memory,
+    })
+  })
+
+  it('gives the legacy memory tools the same family', () => {
+    for (const name of ['read_memory', 'write_memory', 'edit_memory', 'delete_memory']) {
+      expect(toolItem(name, { name: 'bun-deflate' }).family).toBe(EToolFamily.Memory)
+    }
+  })
+
   it('names the MCP server a tool belongs to, not the roster key', () => {
     expect(toolItem('mcp__paper__get_guide', {})).toMatchObject({
       title: 'Paper Get guide',

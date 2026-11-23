@@ -1,4 +1,5 @@
 export * from './connection-machine'
+export * from './optimistic-placement'
 export * from './outgoing-messages'
 export * from './overlay-store'
 export * from './overlay-signals'

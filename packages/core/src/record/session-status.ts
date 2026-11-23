@@ -3,7 +3,7 @@ import { deriveStatus } from './views/derive-status'
 import { initialStatusFacts, stepStatusFacts } from './views/status-facts'
 import type { SessionStatus } from './views/status-types'
 
-export { ESessionStatus, type SessionStatus } from './views/status-types'
+export { ESessionStatus, isSettledStatus, type SessionStatus } from './views/status-types'
 
 export function sessionStatusOf(params: {
   events: readonly V2Event[]

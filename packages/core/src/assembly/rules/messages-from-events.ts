@@ -25,6 +25,7 @@ import { podOomBlock } from './pod-oom-block'
 import { prEventBlock } from './pr-event-block'
 import { runEventBlock } from './run-event-block'
 import { sandboxSetupBlock } from './sandbox-setup-block'
+import { sessionArchivedBlock } from './session-archived-block'
 import { serviceEndedBlock } from './service-ended-block'
 import { subscriptionBlock, type SubscriptionLabels } from './subscription-block'
 import { attachedFilesBlock } from './attached-files-block'
@@ -386,6 +387,17 @@ function walkEvents({
 
       groups.push({
         message: { role: 'user', content: [{ type: 'text', text }] },
+        origin: originOf(event),
+      })
+      continue
+    }
+
+    if (event.type === 'session-archived') {
+      groups.push({
+        message: {
+          role: 'user',
+          content: [{ type: 'text', text: sessionArchivedBlock(event) }],
+        },
         origin: originOf(event),
       })
       continue

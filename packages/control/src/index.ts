@@ -124,3 +124,5 @@ export type { SubscriptionEndingRow, UnsubscribeArgs } from './subscription-endi
 export type { SubscriptionLeaseInput } from './subscription-rows'
 export { postQuietEndingsOf, quietEndingRecordsOf } from './quiet-endings'
 export type { QuietEndingRecord } from './quiet-endings'
+export { archiveSpawnedOf } from './spawned-archive'
+export type { SpawnedArchive } from './spawned-archive'

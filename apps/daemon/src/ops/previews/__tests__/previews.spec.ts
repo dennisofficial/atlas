@@ -21,11 +21,35 @@ import type { CallContext, DaemonGroup, RegisteredOp } from '@dltech/atlas-proto
 
 import { previewsGroup } from '..'
 
-const SCRIPT = [
+const PRELUDE = [
   '#!/bin/sh',
   'printf "%s\\n" "$@" > "$ARGV_PATH"',
   'printf "%s" "$TUNNEL_TOKEN" > "$TOKEN_PATH"',
-  'sleep 60',
+]
+
+const READY_SCRIPT = [
+  ...PRELUDE,
+  'printf "%s\\n" "INF Registered tunnel connection connIndex=0 event=0 protocol=quic"',
+  'exec sleep 60',
+].join('\n')
+
+const EXITING_SCRIPT = [
+  ...PRELUDE,
+  'printf "%s\\n" "mise ERROR No version is set for shim: cloudflared" >&2',
+  'exit 3',
+].join('\n')
+
+const SILENT_SCRIPT = [...PRELUDE, 'echo $$ > "$PID_PATH"', 'exec sleep 60'].join('\n')
+
+const NOISY_SCRIPT = [
+  '#!/bin/sh',
+  'i=0',
+  'while [ "$i" -lt 200 ]; do',
+  '  printf "%s\\n" "noise noise noise noise noise noise" >&2',
+  '  i=$((i + 1))',
+  'done',
+  'printf "%s\\n" "mise ERROR No version is set for shim: cloudflared" >&2',
+  'exit 1',
 ].join('\n')
 
 const CTX: CallContext = {
@@ -58,27 +82,62 @@ const alive = (pid: number): boolean => {
   }
 }
 
+const diedWithin = async (args: { pid: number; ms: number }): Promise<boolean> => {
+  for (let waited = 0; waited < args.ms; waited += 50) {
+    if (!alive(args.pid)) return true
+    await Bun.sleep(50)
+  }
+  return !alive(args.pid)
+}
+
+const failureOf = async (work: Promise<unknown>): Promise<CallFailureError> => {
+  const caught = await work.catch((error: unknown) => error)
+  if (!(caught instanceof CallFailureError)) {
+    throw new Error(`expected a CallFailureError, got ${String(caught)}`)
+  }
+  return caught
+}
+
 describe('previews ops', () => {
   let dir: string
   let argvPath: string
   let tokenPath: string
+  let pidPath: string
   let group: DaemonGroup
 
-  const groupWith = (path: string): DaemonGroup =>
-    previewsGroup({ env: { PATH: path, ARGV_PATH: argvPath, TOKEN_PATH: tokenPath }, home: dir })({
-      publish: () => undefined,
-    })
+  const binaryOf = (args: { dir: string; script: string }): string => {
+    mkdirSync(args.dir, { recursive: true })
+    const path = join(args.dir, 'cloudflared')
+    writeFileSync(path, args.script)
+    chmodSync(path, 0o755)
+    return path
+  }
+
+  const groupOf = (
+    options: {
+      cloudflaredPath?: string | undefined
+      envPath?: string | undefined
+      previewReadyTimeoutMs?: number | undefined
+    } = {},
+  ): DaemonGroup => {
+    const envPath = options.envPath ?? `${join(dir, 'bin')}:${process.env.PATH ?? '/usr/bin:/bin'}`
+    return previewsGroup({
+      env: { PATH: envPath, ARGV_PATH: argvPath, TOKEN_PATH: tokenPath, PID_PATH: pidPath },
+      home: dir,
+      cloudflaredPath: options.cloudflaredPath ?? join(dir, 'bin', 'cloudflared'),
+      ...(options.previewReadyTimeoutMs === undefined
+        ? {}
+        : { previewReadyTimeoutMs: options.previewReadyTimeoutMs }),
+    })({ publish: () => undefined })
+  }
 
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), 'atlas-previews-'))
     argvPath = join(dir, 'argv.txt')
     tokenPath = join(dir, 'token.txt')
-    const bin = join(dir, 'bin')
-    mkdirSync(bin)
-    const script = join(bin, 'cloudflared')
-    writeFileSync(script, SCRIPT)
-    chmodSync(script, 0o755)
-    group = groupWith(`${bin}:${process.env.PATH ?? '/usr/bin:/bin'}`)
+    pidPath = join(dir, 'pid.txt')
+    binaryOf({ dir: join(dir, 'bin'), script: READY_SCRIPT })
+    group = groupOf()
   })
 
   afterEach(async () => {
@@ -138,12 +197,63 @@ describe('previews ops', () => {
   it('fails with a message naming cloudflared when the binary is missing', async () => {
     const empty = join(dir, 'empty')
     mkdirSync(empty)
-    const error = await runOp(groupWith(empty), {
-      op: 'previews.expose',
-      port: 3000,
-      tunnelToken: 'x',
-    }).catch((caught: unknown) => caught)
-    expect(error instanceof CallFailureError).toBe(true)
-    expect(error instanceof Error ? error.message : '').toContain('cloudflared')
+    group = groupOf({ cloudflaredPath: join(empty, 'cloudflared') })
+    const error = await failureOf(
+      runOp(group, { op: 'previews.expose', port: 3000, tunnelToken: 'x' }),
+    )
+    expect(error.message).toContain('cloudflared')
+    expect(error.message).toContain('cannot be published')
+  })
+
+  it('fails with the exit code and the output when cloudflared dies first', async () => {
+    group = groupOf({
+      cloudflaredPath: binaryOf({ dir: join(dir, 'broken'), script: EXITING_SCRIPT }),
+      envPath: join(dir, 'broken'),
+    })
+    const error = await failureOf(
+      runOp(group, { op: 'previews.expose', port: 3000, tunnelToken: 'x' }),
+    )
+    expect(error.message).toContain('code 3')
+    expect(error.message).toContain('No version is set for shim: cloudflared')
+    expect((await runOp(group, { op: 'previews.list' })) as PreviewInfo[]).toEqual([])
+  })
+
+  it('reports only a bounded tail of a noisy failure', async () => {
+    group = groupOf({
+      cloudflaredPath: binaryOf({ dir: join(dir, 'noisy'), script: NOISY_SCRIPT }),
+    })
+    const error = await failureOf(
+      runOp(group, { op: 'previews.expose', port: 3000, tunnelToken: 'x' }),
+    )
+    expect(error.message).toContain('No version is set for shim')
+    expect(error.message.length).toBeLessThan(3_000)
+  })
+
+  it('fails and kills cloudflared when no tunnel registers in time', async () => {
+    group = groupOf({
+      cloudflaredPath: binaryOf({ dir: join(dir, 'silent'), script: SILENT_SCRIPT }),
+      previewReadyTimeoutMs: 200,
+    })
+    const error = await failureOf(
+      runOp(group, { op: 'previews.expose', port: 3000, tunnelToken: 'x' }),
+    )
+    expect(error.message).toContain('did not register a tunnel connection')
+    expect((await runOp(group, { op: 'previews.list' })) as PreviewInfo[]).toEqual([])
+    const pid = Number.parseInt(await waitForFile(pidPath), 10)
+    expect(await diedWithin({ pid, ms: 5_000 })).toBe(true)
+  })
+
+  it('never resolves cloudflared through PATH', async () => {
+    const shimMarker = join(dir, 'shim-ran.txt')
+    const shimDir = join(dir, 'shims')
+    binaryOf({
+      dir: shimDir,
+      script: ['#!/bin/sh', `printf ran > "${shimMarker}"`, 'exit 0'].join('\n'),
+    })
+    group = groupOf({ envPath: `${shimDir}:${process.env.PATH ?? '/usr/bin:/bin'}` })
+    const info = await exposed(3000, 'one')
+    expect(info.port).toBe(3000)
+    expect(existsSync(shimMarker)).toBe(false)
+    expect(await waitForFile(argvPath)).toContain('http://127.0.0.1:3000')
   })
 })

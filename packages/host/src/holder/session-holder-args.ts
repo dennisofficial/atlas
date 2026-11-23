@@ -5,6 +5,7 @@ import type { ChangeContentStore, ControlPlane } from '@dltech/atlas-control'
 import type { LogPort } from '@dltech/atlas-observability'
 
 import type { HostBus, HostPresence, HostTimers, PodPeers, SessionRuntimeFactory } from './ports'
+import type { ParkArchivedPod } from './park-archived'
 import type { PodControlClient } from './pod-control'
 import type { CommandHandlers, ControlHandlers } from './command-intake'
 import type { NotifyDispatch } from './notify-dispatch'
@@ -39,6 +40,7 @@ export type SessionHolderArgs = {
     | undefined
   changes?: { content: ChangeContentStore } | undefined
   notify?: NotifyDispatch | undefined
+  parkArchived?: ParkArchivedPod | undefined
   turnEnded?: TurnEndedHook | undefined
   log?: LogPort | undefined
   onHostIdChanged?: (() => void) | undefined

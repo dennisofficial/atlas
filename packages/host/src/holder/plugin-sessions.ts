@@ -4,6 +4,7 @@ import type { ControlPlane } from '@dltech/atlas-control'
 import { refKey, toThreadId, type ThreadId } from '@dltech/atlas-core'
 import type { PodSessions } from '@dltech/atlas-plugin-sdk'
 
+import type { ParkArchivedPod } from './park-archived'
 import type { RoleModelChoice } from './ports'
 
 export const podSessionsOf = (args: {
@@ -11,6 +12,7 @@ export const podSessionsOf = (args: {
   sessionId: string
   model: () => RoleModelChoice
   onFallback?: ((args: { agentId: ThreadId; model: RoleModelChoice }) => Promise<void>) | undefined
+  parkArchived?: ParkArchivedPod | undefined
 }): PodSessions => ({
   spawn: async ({ title, brief, nested, files }) => {
     const model = args.model()
@@ -33,6 +35,12 @@ export const podSessionsOf = (args: {
       await args.onFallback?.({ agentId: toThreadId(mainThreadId), model })
     }
     return { sessionId, mainThreadId }
+  },
+  archive: async ({ sessionId }) => {
+    const archived = await args.plane.archiveSpawned({ fromSessionId: args.sessionId, sessionId })
+    if ('refused' in archived) return { refused: archived.refused }
+    if (!archived.already) await args.parkArchived?.({ sessionId })
+    return { archived: true, already: archived.already }
   },
   list: async () => {
     const roster = await args.plane.sessionsOf({ sessionId: args.sessionId })

@@ -105,7 +105,7 @@ describe('a session that registers the shells plugin', () => {
 
     const view = await rig.plane.readSessionView({ sessionId: SESSION, threadId: THREAD_ID })
     expect(view.value.pluginViews.shells).toMatchObject([
-      { shellId, status: 'killed', awaitingInput: false, name: '"ticker" (`echo tick; sleep 30`)' },
+      { shellId, status: 'killed', awaitingInput: false, name: 'ticker' },
     ])
   })
 })

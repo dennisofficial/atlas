@@ -47,6 +47,7 @@ export type OperatorSaidEntry = {
   files: readonly string[]
   attachments: readonly Attachment[]
   command?: ConsumedCommand | undefined
+  clientId?: string | undefined
 }
 
 export type ModelSaidEntry = {

@@ -13,6 +13,7 @@ export const INBOX_EVENT_TYPES: ReadonlySet<string> = new Set([
   'background-shell-ended',
   'service-ended',
   'sandbox-setup-reported',
+  'session-archived',
   'model-fell-back',
   'nudge',
   'subscription-created',

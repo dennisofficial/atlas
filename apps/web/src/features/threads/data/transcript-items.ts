@@ -57,6 +57,7 @@ export type TranscriptItem = Timed &
         text: string
         attachments?: readonly Attachment[]
         command?: ConsumedCommand | undefined
+        clientId?: string | undefined
       }
     | {
         kind: ETranscriptKind.Agent
@@ -128,6 +129,7 @@ function userItemOf(entry: OperatorSaidEntry): TranscriptItem | null {
     text: entry.text,
     ...(entry.attachments.length === 0 ? {} : { attachments: entry.attachments }),
     ...(entry.command === undefined ? {} : { command: entry.command }),
+    ...(entry.clientId === undefined ? {} : { clientId: entry.clientId }),
   }
 }
 
