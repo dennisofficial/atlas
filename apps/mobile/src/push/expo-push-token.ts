@@ -1,7 +1,6 @@
 import Constants from 'expo-constants'
 import * as Device from 'expo-device'
 import * as Notifications from 'expo-notifications'
-import { EPushPlatform } from '@dltech/atlas-wire/web'
 import { Platform } from 'react-native'
 
 export enum EPushSkipReason {
@@ -12,7 +11,7 @@ export enum EPushSkipReason {
 }
 
 export type TPushTokenResult =
-  | { status: 'ok'; token: string; platform: EPushPlatform }
+  | { status: 'ok'; token: string }
   | { status: 'skipped'; reason: EPushSkipReason }
 
 export const resolveProjectId = (): string | undefined =>
@@ -35,5 +34,5 @@ export const getExpoPushToken = async (): Promise<TPushTokenResult> => {
     return { status: 'skipped', reason: EPushSkipReason.PermissionDenied }
   }
   const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId })
-  return { status: 'ok', token, platform: EPushPlatform.Ios }
+  return { status: 'ok', token }
 }
