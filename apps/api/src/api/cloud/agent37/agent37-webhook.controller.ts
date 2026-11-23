@@ -64,7 +64,7 @@ export class Agent37WebhookController {
     const event = agent37StatusEventOf(this.parse(rawBody))
     if (event === null) return { received: true }
     const applied = await this.statuses.applyStatus(event)
-    if (!applied) this.logger.log(`ignored stale or unknown agent37 instance ${event.instanceId}`)
+    this.logger.log(`agent37 ${event.instanceId} ${event.status} at=${event.at} applied=${applied}`)
     return { received: true }
   }
 
