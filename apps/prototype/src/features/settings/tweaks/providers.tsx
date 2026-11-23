@@ -1,31 +1,32 @@
 'use client'
 
 import {
-  CHATGPT_SUBSCRIPTION,
-  CHATGPT_SUBSCRIPTION_NEAR_LIMIT,
-  CLAUDE_SUBSCRIPTION,
-  CLAUDE_SUBSCRIPTION_NEAR_LIMIT,
-} from '@dltech/atlas-ui/fixtures/settings-agent'
-
+  CURRENT_PROVIDERS,
+  EMPTY_PROVIDERS,
+  NEAR_LIMIT_PROVIDERS,
+  type ProviderState,
+  SEVERAL_KEYS_PROVIDERS,
+} from '../fixtures/settings-providers'
 import { type Control, usePrototype } from '../../../proto/use-prototype'
 import { ProvidersPage } from '../pages/providers'
 
-const USAGE = ['normal', 'near-limit']
+const SCENARIOS: Record<string, ProviderState> = {
+  'my accounts today': CURRENT_PROVIDERS,
+  'several keys': SEVERAL_KEYS_PROVIDERS,
+  'near limit': NEAR_LIMIT_PROVIDERS,
+  'first run': EMPTY_PROVIDERS,
+}
 
 const CONTROLS = {
-  chatgpt: { type: 'boolean', label: 'ChatGPT connected', default: false },
-  usage: { type: 'select', label: 'Usage', options: USAGE, default: 'normal' },
+  scenario: {
+    type: 'select',
+    label: 'Scenario',
+    options: Object.keys(SCENARIOS),
+    default: 'my accounts today',
+  },
 } satisfies Record<string, Control>
 
 export function ProvidersTweaked() {
-  const { chatgpt, usage } = usePrototype(CONTROLS)
-  const nearLimit = usage === 'near-limit'
-  return (
-    <ProvidersPage
-      key={`${chatgpt}-${usage}`}
-      claude={nearLimit ? CLAUDE_SUBSCRIPTION_NEAR_LIMIT : CLAUDE_SUBSCRIPTION}
-      chatgpt={nearLimit ? CHATGPT_SUBSCRIPTION_NEAR_LIMIT : CHATGPT_SUBSCRIPTION}
-      chatgptConnectedInitially={chatgpt}
-    />
-  )
+  const { scenario } = usePrototype(CONTROLS)
+  return <ProvidersPage key={scenario} initial={SCENARIOS[scenario] ?? CURRENT_PROVIDERS} />
 }

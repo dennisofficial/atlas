@@ -37,6 +37,7 @@ services:
   prototype:
     command: bun run dev -H 0.0.0.0
     cwd: apps/prototype
+    port: 3100
     health: /
     setup:
       - bun install

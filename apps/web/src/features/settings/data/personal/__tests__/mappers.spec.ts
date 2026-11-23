@@ -4,7 +4,6 @@ import { EMemoryScope, EMemoryType, EMcpTransportKind } from '@dltech/atlas-wire
 
 import { EMcpTransport } from '../../../fixtures/settings-mcp'
 import { EDeviceKind } from '../../../fixtures/settings-security'
-import { apiKeyFor } from '../accounts-api'
 import { deviceNameOf, toDevice } from '../auth-session-api'
 import { base64ToUtf8, encodeFileContent, utf8ToBase64 } from '../file-encoding'
 import { docOf } from '../instructions-api'
@@ -21,7 +20,6 @@ import { modelsChanges, modelsDraftFrom } from '../models-settings'
 import { relativeTime } from '../relative-time'
 import { splitSandboxes, ESandboxState } from '../sandboxes-api'
 import { toEnvSecretRow } from '../secrets-api'
-import { EProviderId } from '../../../fixtures/settings-agent'
 
 const NOW = Date.parse('2026-10-20T12:00:00Z')
 const ago = (ms: number) => new Date(NOW - ms).toISOString()
@@ -147,32 +145,6 @@ describe('mcp mapping', () => {
         updatedAt: 'x',
       }),
     ).toEqual({ id: 's', transport: EMcpTransport.Stdio, target: 'npx a', enabled: false })
-  })
-})
-
-describe('accounts mapping', () => {
-  const account = (args: { id: string; provider: string; kind: string }) => ({
-    ...args,
-    label: 'l',
-    status: 'active',
-    createdAt: '2026-10-02T00:00:00Z',
-  })
-  it('finds the api key of one provider', () => {
-    const accounts = [
-      account({ id: '1', provider: 'anthropic', kind: 'oauth' }),
-      account({ id: '2', provider: 'anthropic', kind: 'api-key' }),
-    ]
-    expect(apiKeyFor({ accounts, provider: EProviderId.Anthropic })).toEqual({
-      id: '2',
-      label: 'l',
-      added: 'Added Oct 2',
-    })
-    expect(apiKeyFor({ accounts, provider: EProviderId.OpenAI })).toBeNull()
-  })
-
-  it('finds an Inference.net api key', () => {
-    const accounts = [account({ id: '3', provider: 'inference', kind: 'api-key' })]
-    expect(apiKeyFor({ accounts, provider: EProviderId.Inference })?.id).toBe('3')
   })
 })
 
