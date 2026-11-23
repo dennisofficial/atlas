@@ -2,6 +2,7 @@ import {
   INBOX_KIND_RECORD,
   inboxEventOf,
   isTurnTaking,
+  type EventDraft,
   type InboxEntry,
   type InputMessage,
   type V2Event,
@@ -18,9 +19,14 @@ import {
 
 export type StagedMessage = { entry: InboxEntry; message: InputMessage }
 
+export type DraftRelease = (input: EventDraft) => EventDraft
+
+export const releaseNothingDraft: DraftRelease = (input) => input
+
 export const drainEventEntry = async (params: {
   entry: InboxEntry
   appendDrafts: AppendDrafts
+  release: DraftRelease
 }): Promise<boolean> => {
   const read = inboxEventOf(params.entry.payload)
   if (!read.ok) {
@@ -29,13 +35,15 @@ export const drainEventEntry = async (params: {
     ])
     return false
   }
-  await params.appendDrafts([read.event, { type: 'input-consumed', inboxId: params.entry.inboxId }])
-  return params.entry.kind !== INBOX_KIND_RECORD && isTurnTaking(read.event)
+  const draft = params.release(read.event)
+  await params.appendDrafts([draft, { type: 'input-consumed', inboxId: params.entry.inboxId }])
+  return params.entry.kind !== INBOX_KIND_RECORD && isTurnTaking(draft)
 }
 
 export const drainRecordEntry = async (params: {
   entry: InboxEntry
   appendDrafts: AppendDrafts
+  release: DraftRelease
 }): Promise<void> => {
   await drainEventEntry(params)
 }
@@ -44,11 +52,13 @@ export const drainLoggedNotices = async (params: {
   events: readonly V2Event[]
   staged: ReadonlySet<number>
   appendDrafts: AppendDrafts
+  release: DraftRelease
 }): Promise<boolean> => {
   let wakesTurn = false
   for (const notice of loggedNoticesOf({ events: params.events, staged: params.staged })) {
-    await params.appendDrafts([notice.event, { type: 'input-consumed', inboxId: notice.inboxId }])
-    if (!notice.record && isTurnTaking(notice.event)) wakesTurn = true
+    const draft = params.release(notice.event)
+    await params.appendDrafts([draft, { type: 'input-consumed', inboxId: notice.inboxId }])
+    if (!notice.record && isTurnTaking(draft)) wakesTurn = true
   }
   return wakesTurn
 }

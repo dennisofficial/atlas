@@ -139,6 +139,7 @@ export * from './workspace/atlas-home'
 export * from './workspace/setup-notice'
 
 export * from './agents/kind'
+export * from './agents/ending-hold'
 export * from './agents/restart'
 export * from './agents/start'
 export * from './agents/status'

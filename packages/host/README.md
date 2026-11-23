@@ -48,6 +48,9 @@ only what it can rebuild or drop.
   carries no classifier HTTP client; the runtime factory builds one.
 - `SessionRuntime.quality`: the optional `QualityStagePort` the runtime factory builds, so a held
   session and every child it spawns review their writes through one stage.
+- The holder holds a clean sub-agent ending while a sibling from the same spawn step still runs.
+  Then it wakes the parent once the last member ends. The parent reads one notice for each ending.
+  A compacted log cannot lose the group.
 
 ### Call the daemon
 

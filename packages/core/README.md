@@ -94,6 +94,12 @@ assembly, settings, ports, and the record folds. It imports `zod` and nothing el
 - `Lease`, `startVerdict({...})`, `claimGrant({...})`, `revoke({...})`: the lease rules.
 - `consume({entry, seq})`, `takeBack(entry)`, `InboxEntry`: the inbox rules.
 - `decideHeldAction({...})`, `HeldOutcome`, `EExecutionLocation`: the host's next action.
+- `endingHeld({input, crew})`: whether a clean sub-agent ending waits for a sibling spawned in the
+  same assistant step. `crew` is the live list of `CrewRoomMember` values: `agentId`, `agentType`,
+  `group` and `running`. `heldDraftOf({...})` stamps `held: true` on that ending, and
+  `unheldDraftOf(draft)` strips the stamp when no child runs.
+- `agent-spawned` carries the optional `group` that names its spawn step. A held `agent-ended` row
+  carries `held: true`, and `isTurnTaking` is false for it.
 - `credentialRepairOf({mainThreadId, events})`, `repairActionsOf({...})`, `ERepairAction`: the
   credential repair a session shows, and what it offers.
 

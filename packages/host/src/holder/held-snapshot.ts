@@ -17,6 +17,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { forMainThread } from './child-retry'
+import { heldEndingIdsOf } from './held-endings'
 import { idleReleaseDue } from './held-idle'
 import { countRunningShells } from './held-shells'
 import {
@@ -93,9 +94,17 @@ export const readHeldAction = async (args: {
     ],
   })
   const actionable = actionableEntries({ entries: resolvable, failure: workspace.failure })
+  const heldEndings = heldEndingIdsOf({
+    entries: actionable.filter((entry) => !isStop(entry)),
+    recordEvents: events,
+    childrenRunning: args.childrenRunning,
+  })
   const messagePending =
-    actionable.some((entry) => !isStop(entry)) ||
-    waitingInputIdsOf({ ids: logIds, failure: workspace.failure }).length > 0
+    actionable.some((entry) => !isStop(entry) && !heldEndings.has(entry.inboxId)) ||
+    waitingInputIdsOf({
+      ids: logIds.filter((id) => !heldEndings.has(id)),
+      failure: workspace.failure,
+    }).length > 0
   const quiet = idleReleaseDue({
     turnRunning: args.turnRunning,
     runtime: args.runtime,

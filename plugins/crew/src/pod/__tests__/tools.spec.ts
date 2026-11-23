@@ -5,7 +5,7 @@ import { EMPTY_CREW, type PluginPodContext } from '@dltech/atlas-plugin-sdk'
 
 import { CREW_AGENT_TYPES, crewAgentTypeOf } from '../../core'
 import { crewPod } from '..'
-import { snapshotOf, fakeCrew, rig } from './crew-tools-rig'
+import { snapshotOf, eventLog, fakeCrew, rig, withEvents } from './crew-tools-rig'
 
 const invoke = async (args: { ctx: PluginPodContext; name: string; input: unknown }) => {
   const tool = crewPod.tools?.(args.ctx).find((candidate) => candidate.name === args.name)
@@ -69,6 +69,58 @@ describe('agent_spawn', () => {
       agentType: 'general-purpose',
       intent: 'trace the port',
     })
+  })
+
+  it('says a group of spawns wakes the thread once, when the last one ends', async () => {
+    const crew = fakeCrew()
+    const { ctx } = rig(crew.port)
+    const log = eventLog()
+    const grouped = withEvents({
+      ctx,
+      events: [
+        log.said(),
+        log.called({ name: 'agent_spawn', ordinal: 0 }),
+        log.called({ name: 'read', ordinal: 1 }),
+        log.called({ name: 'agent_spawn', ordinal: 2 }),
+      ],
+    })
+    const outcome = await invoke({
+      ctx: grouped,
+      name: 'agent_spawn',
+      input: {
+        agentType: 'general-purpose',
+        intent: 'trace the port',
+        brief: 'Find where crew.ts is read.',
+      },
+    })
+    expect(textOf(outcome)).toBe(
+      'Started a sub-agent.\na1  general-purpose  trace the port\nThis sub-agent is one of 2 that you spawned in this response. You get all 2 endings together when the last one ends. A failure reaches you at once.',
+    )
+  })
+
+  it('spawns with the call id of the step as the group', async () => {
+    const crew = fakeCrew()
+    const { ctx } = rig(crew.port)
+    const log = eventLog()
+    const grouped = withEvents({
+      ctx,
+      events: [
+        log.said(),
+        log.called({ name: 'agent_spawn', ordinal: 0 }),
+        log.called({ name: 'agent_spawn', ordinal: 1 }),
+      ],
+    })
+    await invoke({
+      ctx: grouped,
+      name: 'agent_spawn',
+      input: {
+        agentType: 'general-purpose',
+        intent: 'trace the port',
+        brief: 'Find where crew.ts is read.',
+      },
+    })
+
+    expect(crew.calls[0]?.args).toMatchObject({ group: 'call-2' })
   })
 
   it('refuses an unknown agent type and lists the known ones', async () => {
