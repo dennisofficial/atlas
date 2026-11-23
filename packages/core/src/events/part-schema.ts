@@ -17,6 +17,7 @@ export const stepUsageSchema = z.object({
   providerId: z.string().min(1).optional(),
   modelId: z.string().min(1).optional(),
   costUsd: z.number().min(0).optional(),
+  breakdown: z.array(z.object({ label: z.string(), tokens: z.number().int().min(0) })).optional(),
 })
 
 export const assistantPartSchema = z.discriminatedUnion('type', [

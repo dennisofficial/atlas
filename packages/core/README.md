@@ -51,7 +51,7 @@ assembly, settings, ports, and the record folds. It imports `zod` and nothing el
 - `defineRule({name, apply})`, `defineAnnotator({name, apply})`: name one step of the pipeline.
 - `defaultPipeline({...})`, `defaultRules(...)`, `defaultAnnotators()`: the pipeline Atlas uses.
 - `ERuleFailurePolicy`, `EAssemblyStage`, `AssemblyTrace`: how the pipeline reports a failed rule.
-- `Assembled`, `ProviderPrompt`, `Chunk`: the request a provider gets and the answer it streams back.
+- `Assembled`, `ProviderPrompt`, `Chunk`: the request a provider gets and the answer it streams back. `requestSizeOf({assembled, tools})` measures it in characters, and `contextBreakdownOf({sizes, inputTokens, outputTokens})` splits the reported tokens by that measure.
 
 ### Declare a tool
 
@@ -87,7 +87,7 @@ assembly, settings, ports, and the record folds. It imports `zod` and nothing el
 - `EModelRole`, `ModelCard`, `EEffort`: the model a role resolves to.
 - `Account`, `accountOf`, `chooseAccount`, `refreshDecision`, `EAccountStatus`: the account a turn uses.
 - `formatUtilization(value)`: a usage figure for the operator.
-- `formatCountdown({ resetsAt, now })`: how long a usage window has left, in minutes, hours or days.
+- `formatCountdown({ resetsAt, now })`: how long a usage window has left. `shownWindowsOf(usage)`: the plan windows to show; a weekly-only plan hides the 5-hour window.
 - `UsageReport`: a reading and the time it was fetched, so a surface can show its age.
 - `parseAnthropicUsage(body)`, `parseCodexUsage({ body, nowMs })`: the 5-hour and 7-day windows of a provider's plan usage body. A window the body does not state is `null`.
 - `maskTypedSecret(value)`, `maskStoredSecret(value)`: a secret with its core hidden.

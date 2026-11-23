@@ -20,6 +20,15 @@ describe('accountMeterSpans', () => {
     ).toBe('5h ▰▰▱▱▱ 34%  wk ▰▰▰▰▱ 61%')
   })
 
+  it('hides the 5-hour gauge of a plan that has only a weekly limit', () => {
+    expect(
+      textOf({
+        [EUsageWindow.FiveHour]: null,
+        [EUsageWindow.SevenDay]: { utilization: 24, resetsAt: null },
+      }),
+    ).toBe('wk ▰▰▱▱▱ 24%')
+  })
+
   it('leaves the gauge empty and says so when it has never polled', () => {
     expect(textOf(NO_USAGE)).toBe('5h ▱▱▱▱▱ —  wk ▱▱▱▱▱ —')
   })

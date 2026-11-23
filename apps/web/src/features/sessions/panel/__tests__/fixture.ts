@@ -189,7 +189,7 @@ export const populatedPaneValue = (): SessionPaneValue =>
         crewRowFixture({ agentId: 'agent-2', agentType: 'explore', intent: 'map the seam' }),
       ],
       previews: [previewFixture],
-      context: { used: 1_200, limit: 200_000 },
+      context: { used: 1_200, limit: 200_000, breakdown: [] },
       spend: spendFixture,
     }),
     checkouts: checkoutsFixture({

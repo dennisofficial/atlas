@@ -4,6 +4,7 @@ import {
   formatUtilization,
   meterBand,
   meterFill,
+  shownWindowsOf,
   type AccountUsage,
 } from '@dltech/atlas-core'
 
@@ -29,7 +30,7 @@ export function accountMeterSpans(args: {
   warn: Record<EUsageWindow, number>
   now: number
 }): Span[] {
-  return [EUsageWindow.FiveHour, EUsageWindow.SevenDay].flatMap((key, index) => {
+  return shownWindowsOf(args.usage).flatMap((key, index) => {
     const window = args.usage[key]
     const utilization = window?.utilization ?? null
     const band = meterBand({ utilization, warnAt: args.warn[key] })

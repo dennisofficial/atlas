@@ -4,6 +4,7 @@ import {
   formatCountdown,
   formatUtilization,
   meterBand,
+  shownWindowsOf,
   type AccountUsage,
   type UsageWindow,
 } from '@dltech/atlas-core'
@@ -47,9 +48,12 @@ export function usageMeters(args: {
   warn: Record<EUsageWindow, number>
   now: number
 }): readonly FooterMeter[] {
-  return SHOWN[args.show].map((key) => {
-    const window = args.usage[key]
-    const band = meterBand({ utilization: window?.utilization ?? null, warnAt: args.warn[key] })
-    return { label: LABEL[key], band, text: textOf({ window, band, now: args.now }) }
-  })
+  const reported = shownWindowsOf(args.usage)
+  return SHOWN[args.show]
+    .filter((key) => reported.includes(key))
+    .map((key) => {
+      const window = args.usage[key]
+      const band = meterBand({ utilization: window?.utilization ?? null, warnAt: args.warn[key] })
+      return { label: LABEL[key], band, text: textOf({ window, band, now: args.now }) }
+    })
 }
