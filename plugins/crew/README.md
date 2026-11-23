@@ -57,6 +57,12 @@ harness wakes you one time, when the last member ends. Then you get every ending
 together, one notice for each sub-agent. A failure, or a stop the operator asked for, wakes you
 at once, and the group stays open. A teammate never joins a group.
 
+Do not report or fix the early wake when a sibling registers late. The loop dispatches the tool
+calls of a step only after the response is complete, and it runs the `agent_spawn` calls of one
+step in parallel. A member that ends before a sibling is in the `CrewRoom` wakes you early. For
+this, the member must finish a full model turn while the sibling creates its thread or worktree.
+The result is one extra wake, and no ending is lost. The operator accepted this on 2026-11-23.
+
 ### Move the session into a worktree
 
 - `WORKTREE_TOOLS`: the tool names `enter_worktree`, `exit_worktree` and `worktree_list`.
