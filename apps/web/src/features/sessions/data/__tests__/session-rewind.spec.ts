@@ -1,10 +1,18 @@
 import { describe, expect, it } from 'bun:test'
-import { chainEvents, toRunId, toThreadId, type V2Body } from '@dltech/atlas-core'
+import {
+  chainEvents,
+  EAgentStart,
+  EShellStatus,
+  toRunId,
+  toThreadId,
+  type V2Body,
+} from '@dltech/atlas-core'
 
 import {
   mergedDraftOf,
   requestRewind,
   restorePlanOf,
+  rewindKillsOf,
   rewindLanded,
   rewindRefused,
   rewoundMessageOf,
@@ -151,6 +159,45 @@ describe('session rewind', () => {
       expect(plan.images).toEqual([
         { path: 'pic.png', mediaType: 'image/png', data: 'BBB', width: 4, height: 5 },
       ])
+    })
+  })
+
+  describe('rewindKillsOf', () => {
+    it('names the sub-agents and shells the rewind stops, running or already done', () => {
+      const events = eventsOf([
+        said('a'),
+        {
+          type: 'agent-spawned',
+          agentId: toThreadId('child-1'),
+          agentType: 'explore',
+          intent: 'find callers',
+          mode: EAgentStart.Fresh,
+        },
+        { type: 'background-shell-started', shellId: 'shell-1', command: 'bun  test' },
+        {
+          type: 'background-shell-ended',
+          shellId: 'shell-1',
+          command: 'bun  test',
+          status: EShellStatus.Exited,
+          output: '',
+          droppedCharacters: 0,
+          remainingCharacters: 0,
+        },
+      ])
+      expect(rewindKillsOf({ events, toSeq: 1 })).toEqual([
+        { kind: 'agent', label: 'explore "find callers"', running: true },
+        { kind: 'shell', label: 'bun test', running: false },
+      ])
+    })
+
+    it('leaves out what started before the picked message', () => {
+      const events = eventsOf([
+        { type: 'background-shell-started', shellId: 'shell-1', command: 'bun test' },
+        said('a'),
+      ])
+      const picked = events[1]
+      if (picked === undefined) throw new Error('missing')
+      expect(rewindKillsOf({ events, toSeq: picked.seq })).toEqual([])
     })
   })
 
