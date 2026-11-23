@@ -14,6 +14,7 @@ const entry = (id: string, projectName = 'atlas'): ISessionEntry => ({
   status: ESessionDisplay.Idle,
   unread: false,
   work: { kind: EWorkKind.Branch, branch: null },
+  children: [],
 })
 
 const partition: ISessionPartition = {
@@ -55,6 +56,49 @@ describe('sectionsOf', () => {
   it('collapsing a project hides its sessions but keeps its count', () => {
     const sections = sectionsOf({ partition, query: '', toggled: new Set(['atlas']) })
     expect(sections[0]).toMatchObject({ title: 'atlas', expanded: false, count: 2, data: [] })
+  })
+
+  it('lists a teammate indented under the session that spawned it', () => {
+    const nested: ISessionPartition = {
+      groups: [
+        {
+          key: 'atlas',
+          name: 'atlas',
+          projectId: 'atlas',
+          sessions: [{ ...entry('main'), children: [entry('mate')] }],
+        },
+      ],
+      inactive: [],
+      archived: [],
+    }
+    const [section] = sectionsOf({ partition: nested, query: '', toggled: new Set() })
+    expect(section?.count).toBe(2)
+    expect(
+      section?.data.map((item) =>
+        item.kind === EItemKind.Session ? [item.entry.id, item.depth] : null,
+      ),
+    ).toEqual([
+      ['main', 0],
+      ['mate', 1],
+    ])
+  })
+
+  it('keeps the parent of a teammate that matches the search', () => {
+    const nested: ISessionPartition = {
+      groups: [
+        {
+          key: 'atlas',
+          name: 'atlas',
+          projectId: 'atlas',
+          sessions: [{ ...entry('main'), children: [entry('mate')] }],
+        },
+      ],
+      inactive: [],
+      archived: [],
+    }
+    const sections = sectionsOf({ partition: nested, query: 'session mate', toggled: new Set() })
+    expect(sessionIds(sections[0]?.data ?? [])).toEqual(['main', 'mate'])
+    expect(sections[0]?.count).toBe(2)
   })
 
   it('filters by title or project name and opens folded sections while searching', () => {

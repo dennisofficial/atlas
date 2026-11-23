@@ -70,6 +70,7 @@ export default function SessionsScreen() {
     <SectionList
       style={{ backgroundColor: theme.sidebar }}
       contentContainerStyle={styles.list}
+      contentInsetAdjustmentBehavior="automatic"
       keyboardDismissMode="on-drag"
       sections={sections}
       keyExtractor={(item) => item.key}
@@ -95,6 +96,7 @@ export default function SessionsScreen() {
           <SessionRow
             entry={item.entry}
             now={now}
+            depth={item.depth}
             onPress={() => router.push(sessionRouteOf(item.entry))}
           />
         )
@@ -114,7 +116,6 @@ const styles = StyleSheet.create({
   list: {
     gap: space(0.5),
     padding: space(2),
-    paddingTop: space(3),
     paddingBottom: space(8),
   },
   empty: {

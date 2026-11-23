@@ -123,6 +123,30 @@ describe('agent_spawn', () => {
     expect(crew.calls[0]?.args).toMatchObject({ group: 'call-2' })
   })
 
+  it('spawns a researcher with its report-only research contract', async () => {
+    const crew = fakeCrew()
+    const { ctx } = rig(crew.port)
+    const outcome = await invoke({
+      ctx,
+      name: 'agent_spawn',
+      input: { agentType: 'researcher', intent: 'read the docs', brief: 'How does X work?' },
+    })
+    expect(outcome.ok).toBe(true)
+    const contract = crewAgentTypeOf('researcher')?.contract ?? ''
+    expect(contract).toContain('Use primary sources')
+    expect(contract).toContain('Use your tools only to observe')
+    expect(crew.calls).toEqual([
+      {
+        method: 'spawn',
+        args: {
+          agentType: 'researcher',
+          intent: 'read the docs',
+          prompt: `${contract}\n\nHow does X work?`,
+        },
+      },
+    ])
+  })
+
   it('refuses an unknown agent type and lists the known ones', async () => {
     const crew = fakeCrew()
     const { ctx } = rig(crew.port)

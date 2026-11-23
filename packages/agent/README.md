@@ -42,6 +42,10 @@ A main agent, a sub-agent and a teammate all run this loop. It knows nothing of 
 - `HookChainArgs`: the hooks of each phase: `beforeTurn`, `beforeStep`, `beforeRequest`,
   `beforeTool`, `afterTool`, `afterShell`, `onChunk`, `afterTurn`, `onThreadOpen`.
 - `EHookPhase`, `RegisteredHook`, `Bounds`: the phase names, one registered hook, and the limits.
+- `AfterToolHook`: a registered `afterTool` hook with an optional async `capturesFileChanges({call,
+  signal})` predicate. `HookChain.capturesFileChanges({call, signal})` answers whether any hook
+  wants the tool to capture the file's before and after, under the same budget as the hooks; a
+  predicate that throws or overruns counts as no.
 
 ### Dispatch a tool call
 

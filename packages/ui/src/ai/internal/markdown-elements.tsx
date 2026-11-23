@@ -13,6 +13,7 @@ import {
   MarkdownOrderedList,
   MarkdownUnorderedList,
 } from './markdown-blocks'
+import { readingClasses } from '../../tokens'
 import { MarkdownCode } from './markdown-code'
 
 const INCOMPLETE_LINK = 'streamdown:incomplete-link'
@@ -27,12 +28,12 @@ export const MarkdownLinkClickContext = createContext<MarkdownLinkClick | undefi
 type HeadingTag = 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6'
 
 const HEADING_CLASSES: Record<HeadingTag, string> = {
-  h1: 'mt-6 mb-2 text-lg font-semibold text-balance',
-  h2: 'mt-5 mb-2 text-base font-semibold text-balance text-primary',
-  h3: 'mt-4 mb-1.5 text-sm font-semibold text-balance',
-  h4: 'mt-4 mb-1.5 text-sm font-medium text-balance',
-  h5: 'mt-3 mb-1 text-sm font-medium text-muted-foreground',
-  h6: 'mt-3 mb-1 text-xs font-medium text-muted-foreground uppercase',
+  h1: cn(readingClasses.h1, 'mt-6 mb-2 font-semibold text-balance'),
+  h2: cn(readingClasses.h2, 'mt-5 mb-2 font-semibold text-balance text-primary'),
+  h3: cn(readingClasses.h3, 'mt-4 mb-1.5 font-semibold text-balance'),
+  h4: cn(readingClasses.h4, 'mt-4 mb-1.5 font-medium text-balance'),
+  h5: cn(readingClasses.h5, 'mt-3 mb-1 font-medium text-muted-foreground'),
+  h6: cn(readingClasses.h6, 'mt-3 mb-1 font-medium text-muted-foreground uppercase'),
 }
 
 function heading(Tag: HeadingTag) {

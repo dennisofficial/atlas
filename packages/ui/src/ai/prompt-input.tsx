@@ -23,23 +23,20 @@ import {
 import { Spinner } from '#components/spinner'
 import { useIsMobile } from '#hooks/use-mobile'
 import { cn } from '#lib/utils'
+import { readingClasses } from '../tokens'
 import { handleLiteralHyphen } from './internal/literal-hyphen'
 import { useCoarsePointer } from './internal/use-coarse-pointer'
 import {
   COMPOSER_HEIGHT_CLASS,
   useComposerHeightStyle,
 } from './internal/use-visual-viewport-height'
-
 import {
   EPromptAttachmentStatus,
   type PromptAttachment,
   PromptAttachmentChip,
 } from './prompt-attachment-chip'
 
-export {
-  EPromptAttachmentStatus,
-  type PromptAttachment,
-} from './prompt-attachment-chip'
+export { EPromptAttachmentStatus, type PromptAttachment } from './prompt-attachment-chip'
 
 export interface PromptInputProps {
   value?: string
@@ -246,6 +243,7 @@ export function PromptInput({
           style={composerHeightStyle}
           className={cn(
             'max-md:min-h-10',
+            readingClasses.composer,
             COMPOSER_HEIGHT_CLASS,
             sending && 'text-muted-foreground',
           )}

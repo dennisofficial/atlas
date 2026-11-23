@@ -1,6 +1,7 @@
 import { clientActionOfEntries, EClientAction, type CommandEntry } from '@dltech/atlas-commands'
+import { composerSendStateOf } from '@dltech/atlas-client/session'
 import type { Attachment } from '@dltech/atlas-core'
-import { radius, space } from '@dltech/atlas-ui/tokens'
+import { radius, readingType, space } from '@dltech/atlas-ui/tokens'
 import {
   Button,
   EButtonSize,
@@ -15,12 +16,12 @@ import {
 } from '@dltech/atlas-ui-native'
 import { ArrowUp, Plus, Square } from 'lucide-react-native'
 import { type ReactNode, useEffect, useState } from 'react'
-import { StyleSheet, View } from 'react-native'
+import { ScrollView, StyleSheet, View } from 'react-native'
 
 import { mergeIntoDraft } from '../v2/staged-send'
 import { AttachmentChips } from './attachment-chips'
 import { AttachMenu } from './attach-menu'
-import { REMOVE_FAILED_FILES, sendableOf } from './attachment-plan'
+import { hasFailed, isUploading, readyAttachments, REMOVE_FAILED_FILES } from './attachment-plan'
 import { SlashMenu } from './slash-menu'
 import { completedDraftOf, menuCandidatesOf, menuQueryOf, pickActionOf } from './slash-menu-model'
 import type { ComposerAttachments } from './use-attachments'
@@ -61,7 +62,15 @@ export const Composer = ({
   const [failed, setFailed] = useState(false)
   const [choosing, setChoosing] = useState(false)
 
-  const canSend = sendableOf({ text: draft, held: attachments?.held ?? [] }) && !sending
+  const held = attachments?.held ?? []
+  const sendState = composerSendStateOf({
+    text: draft,
+    attached: readyAttachments(held).length > 0,
+    working,
+    sending,
+  })
+  const canSend = sendable && sendState.canSend && !isUploading(held) && !hasFailed(held)
+  const showsStop = sendState.showsStop && onStop !== undefined
   const candidates = menuCandidatesOf({ draft, entries })
 
   useEffect(() => {
@@ -164,8 +173,18 @@ export const Composer = ({
               onPress={() => setChoosing((open) => !open)}
             />
           )}
-          {children === undefined ? null : <View style={styles.slot}>{children}</View>}
-          {working && onStop !== undefined ? (
+          {children === undefined ? null : (
+            <ScrollView
+              horizontal
+              keyboardShouldPersistTaps="handled"
+              showsHorizontalScrollIndicator={false}
+              style={styles.slot}
+              contentContainerStyle={styles.slotContent}
+            >
+              {children}
+            </ScrollView>
+          )}
+          {showsStop ? (
             <Button
               label="Stop"
               icon={Square}
@@ -205,8 +224,8 @@ const styles = StyleSheet.create({
   },
   input: {
     fontFamily: 'Geist_400Regular',
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: readingType.body.fontSize,
+    lineHeight: readingType.body.lineHeight,
     maxHeight: 160,
     minHeight: 40,
     paddingHorizontal: 0,
@@ -222,11 +241,13 @@ const styles = StyleSheet.create({
     paddingTop: space(1),
   },
   slot: {
-    alignItems: 'center',
     flex: 1,
-    flexDirection: 'row',
-    gap: space(1),
     minWidth: 0,
+  },
+  slotContent: {
+    alignItems: 'center',
+    gap: space(1),
+    paddingRight: space(1),
   },
   notice: {
     paddingBottom: space(1),
