@@ -15,6 +15,7 @@ import {
 import { ECallStatus, type CallOp, type CallResult } from '@dltech/atlas-protocol'
 import {
   EMPTY_CREW,
+  EMPTY_ANALYTICS,
   EMPTY_CLASSIFIER,
   EMPTY_SESSIONS,
   EMPTY_WORKTREES,
@@ -60,6 +61,7 @@ const rig = (answers: Record<string, ReturnType<typeof exec>>) => {
     crew: EMPTY_CREW,
     messages: EMPTY_MESSAGES,
     classifier: EMPTY_CLASSIFIER,
+    analytics: EMPTY_ANALYTICS,
     sessions: EMPTY_SESSIONS,
     worktrees: EMPTY_WORKTREES,
     notify: async () => undefined,

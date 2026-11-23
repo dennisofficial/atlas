@@ -9,11 +9,20 @@ export enum EClassifierFault {
   Aborted = 'aborted',
 }
 
+export type ClassifierUsage = { inputTokens: number }
+
 export type ClassifierOutcome =
-  | { ok: true; answers: Readonly<Record<string, DecisionAnswer>>; model: string }
+  | {
+      ok: true
+      answers: Readonly<Record<string, DecisionAnswer>>
+      model: string
+      usage?: ClassifierUsage | undefined
+    }
   | { ok: false; fault: EClassifierFault; detail: string }
 
-export type ClassifierStatus = { on: true; model: string } | { on: false; reason: string }
+export type ClassifierStatus =
+  | { on: true; model: string; provider: string }
+  | { on: false; reason: string }
 
 export abstract class ClassifierPort {
   abstract classify(args: {

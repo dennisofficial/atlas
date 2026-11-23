@@ -5,6 +5,8 @@ The advisory code-quality review. After a successful file write or edit, the plu
 ## Owns
 
 - The `quality-review` afterTool hook: it asks the tool to capture the changed text, bounds the review at 1000 ms and returns the records and the finding.
+- The `quality-finding-ignored` afterTurn hook: it reports, from the log alone, each finding the model was nudged about and left active.
+- The product events `quality review completed`, `quality finding resolved` and `quality finding ignored`.
 - The review engine: scope preparation, policy selection, request planning and the size bounds.
 - The budget: one deadline for a review, with a settlement grace for a cooperative classifier.
 - The review records (`code-quality-reviewed`), the finding fold and the finding text.
@@ -36,10 +38,11 @@ The pod entry exports the first group only. The review modules below are the par
 - `qualityPodOf({ settings, budgetMs, clock })`: makes the pod slot with the `quality-review` afterTool hook. `settings(ctx)` resolves `{ enabled, policies }` for the session.
 - `QUALITY_REVIEW_BUDGET_MS`: the 1000 ms budget one review gets.
 - `qualityReviewHook({ ctx, options })`: the hook itself, for a caller that composes the pod differently.
+- `qualityIgnoredHook({ ctx })`: the afterTurn hook that reports the findings a turn left active.
 
 ### Review a write
 
-- `CodeQualityReview`: the engine. `review(args)` returns `{ records, context }`. `context` is the finding text, or `undefined` when the review missed the deadline or found nothing to tell the model.
+- `CodeQualityReview`: the engine. `review(args)` returns `{ records, context, timings, language, inputTokens }`. `context` is the finding text, or `undefined` when the review missed the deadline or found nothing to tell the model. `timings` splits the scope build and the classifier calls; `inputTokens` is the classifier usage the provider reported.
 - `CodeQualityReviewDeps`: the classifier, its requested model, the source adapter, the registry, the settings accessor, the clock and the deadline in milliseconds.
 - `qualitySwitches({ values })`: the `enabled` switch and the boolean policy flags of a setting map.
 - `QUALITY_POLICIES`, `qualityRegistry`: the default registry, which holds the single-responsibility policy.
@@ -67,9 +70,16 @@ The pod entry exports the first group only. The review modules below are the par
 
 ### Pod tier (`qualityPodOf`)
 
-| Kind | Name             | What it adds                                                                          |
-| ---- | ---------------- | ------------------------------------------------------------------------------------- |
-| Hook | `quality-review` | afterTool, observe stage, nudge 20. Captures the changed text, then records a review. |
+| Kind | Name                      | What it adds                                                                          |
+| ---- | ------------------------- | ------------------------------------------------------------------------------------- |
+| Hook | `quality-review`          | afterTool, observe stage, nudge 20. Captures the changed text, then records a review. |
+| Hook | `quality-finding-ignored` | afterTurn, observe stage, nudge 20. Reports the findings the turn left active.        |
+
+The hooks send product events through `ctx.analytics` with ids, enums, numbers and booleans only:
+`status`, `skip_reason`, `policy_ids`, `policies` (`policy_id`, `outcome`, `max_confidence`), `files`,
+`notified`, `classifier_model`, `classifier_provider`, `scope_build_ms`, `classifier_ms`, `total_ms`,
+`input_tokens`, `language`, `first_review_in_session`, and for a finding `policy_id`,
+`steps_after_nudge` and `turns_after_nudge`. The host adds `session_id` and `thread_id`.
 
 The hook asks for captured text only for a write or destructive call, while the classifier is on and the `quality.enabled` setting is true. When it asks for nothing, the tool captures nothing.
 

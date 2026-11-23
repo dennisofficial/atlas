@@ -10,7 +10,12 @@ import {
 } from '@dltech/atlas-core'
 
 import { createQualityBudget, settleReview } from '../review/deadline'
-import { NO_REVIEW_RESULT, type QualityReviewResult } from '../review/engine'
+import {
+  NO_REVIEW_METRICS,
+  NO_REVIEW_RESULT,
+  type QualityReviewMetrics,
+  type QualityReviewResult,
+} from '../review/engine'
 import type { ReviewArgs } from '../review/review-context'
 
 export type ReviewLog = (message: string) => void
@@ -35,8 +40,14 @@ export function outcomeOf(args: {
   }
   const { context } = args.value
   if (context !== undefined && context.trim() === '') return undefined
-  return { records, context }
+  return { ...metricsOf(args.value), records, context }
 }
+
+const metricsOf = (value: QualityReviewResult): QualityReviewMetrics => ({
+  timings: value.timings,
+  language: value.language,
+  inputTokens: value.inputTokens,
+})
 
 function bookkeeping(args: {
   call: ToolCall
@@ -128,8 +139,10 @@ export async function reviewWithinBudget(args: {
     if (raced.afterDeadline) {
       const late =
         valid?.records.filter((record) => record.status !== EQualityReviewStatus.Completed) ?? []
-      if (late.length > 0) return { records: late, context: undefined }
+      const metrics = metricsOf(raced.value)
+      if (late.length > 0) return { ...metrics, records: late, context: undefined }
       return {
+        ...metrics,
         records: [deadlineBookkeeping({ ...bookkeepingFacts, budgetMs: args.budgetMs })],
         context: undefined,
       }
@@ -139,6 +152,7 @@ export async function reviewWithinBudget(args: {
       `the quality review of the ${call.name} call returned records that failed validation`,
     )
     return {
+      ...NO_REVIEW_METRICS,
       records: [
         bookkeeping({
           ...bookkeepingFacts,
@@ -152,6 +166,7 @@ export async function reviewWithinBudget(args: {
 
   if (raced.kind === 'deadline') {
     return {
+      ...NO_REVIEW_METRICS,
       records: [deadlineBookkeeping({ ...bookkeepingFacts, budgetMs: args.budgetMs })],
       context: undefined,
     }
@@ -159,6 +174,7 @@ export async function reviewWithinBudget(args: {
 
   if (raced.kind === 'aborted') {
     return {
+      ...NO_REVIEW_METRICS,
       records: [
         bookkeeping({
           ...bookkeepingFacts,
@@ -173,6 +189,7 @@ export async function reviewWithinBudget(args: {
 
   args.log?.(`the quality review of the ${call.name} call threw: ${messageOf(raced.error)}`)
   return {
+    ...NO_REVIEW_METRICS,
     records: [
       bookkeeping({
         ...bookkeepingFacts,

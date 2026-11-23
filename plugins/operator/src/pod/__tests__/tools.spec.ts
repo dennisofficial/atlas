@@ -3,6 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { isParkedOutcome, toThreadId } from '@dltech/atlas-core'
 import {
   EMPTY_CREW,
+  EMPTY_ANALYTICS,
   EMPTY_CLASSIFIER,
   EMPTY_MCP_CONTROL,
   EMPTY_ROUTINES,
@@ -49,6 +50,7 @@ const ctx: PluginPodContext = {
   crew: EMPTY_CREW,
   messages: EMPTY_MESSAGES,
   classifier: EMPTY_CLASSIFIER,
+  analytics: EMPTY_ANALYTICS,
   sessions: EMPTY_SESSIONS,
   worktrees: EMPTY_WORKTREES,
   notify: async () => undefined,

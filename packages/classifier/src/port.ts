@@ -47,7 +47,9 @@ export function classifierOf(config: ClassifierConfig, deps?: ClassifierDeps): C
 }
 
 export const classifierStatusOf = (config: ClassifierConfig): ClassifierStatus =>
-  config.on ? { on: true, model: config.model } : { on: false, reason: config.reason }
+  config.on
+    ? { on: true, model: config.model, provider: config.transport }
+    : { on: false, reason: config.reason }
 
 export function classifierConfigFrom(availability: ClassifierAvailability): ClassifierConfig {
   if (!availability.on) return { on: false, reason: availability.reason }

@@ -1,5 +1,6 @@
 import { EAgentStatus } from '@dltech/atlas-core'
 import {
+  EMPTY_ANALYTICS,
   EMPTY_CLASSIFIER,
   EMPTY_MCP_CONTROL,
   EMPTY_MESSAGES,
@@ -60,6 +61,7 @@ export const rig = (crew: PodCrew) => {
     crew,
     messages: EMPTY_MESSAGES,
     classifier: EMPTY_CLASSIFIER,
+    analytics: EMPTY_ANALYTICS,
     resources: EMPTY_POD_RESOURCES,
     sessions: EMPTY_SESSIONS,
     worktrees: EMPTY_WORKTREES,

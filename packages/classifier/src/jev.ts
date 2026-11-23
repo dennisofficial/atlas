@@ -3,6 +3,7 @@ import {
   EClassifierFault,
   type ClassifierOutcome,
   type ClassifierQuestion,
+  type ClassifierUsage,
 } from '@dltech/atlas-core'
 
 import { jevAnswersOf, jevRequestOf } from './translate'
@@ -19,6 +20,19 @@ export type JevClassifierArgs = {
 
 const messageOf = (fault: unknown): string =>
   fault instanceof Error ? fault.message : String(fault)
+
+const inputTokensOf = (body: unknown): number | null => {
+  if (typeof body !== 'object' || body === null) return null
+  const usage = (body as { usage?: unknown }).usage
+  if (typeof usage !== 'object' || usage === null) return null
+  const tokens = (usage as { input_tokens?: unknown }).input_tokens
+  return typeof tokens === 'number' && Number.isFinite(tokens) ? tokens : null
+}
+
+const usageOf = (body: unknown): ClassifierUsage | undefined => {
+  const inputTokens = inputTokensOf(body)
+  return inputTokens === null ? undefined : { inputTokens }
+}
 
 export const classifierBaseUrl = (url: string): string =>
   url.replace(/\/+$/, '').replace(/\/v1\/systemone$/i, '')
@@ -82,7 +96,13 @@ export class JevClassifier extends ClassifierPort {
       if (!translated.ok) {
         return { ok: false, fault: translated.fault, detail: translated.detail }
       }
-      return { ok: true, answers: translated.answers, model: this.args.model }
+      const usage = usageOf(body)
+      return {
+        ok: true,
+        answers: translated.answers,
+        model: this.args.model,
+        ...(usage === undefined ? {} : { usage }),
+      }
     } catch (fault) {
       if (controller.signal.aborted) {
         return { ok: false, fault: EClassifierFault.Aborted, detail: messageOf(fault) }

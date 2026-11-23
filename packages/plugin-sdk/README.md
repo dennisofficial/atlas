@@ -6,10 +6,10 @@ author reads this package first. Every plugin in `plugins/*` builds its slots wi
 ## Owns
 
 - The plugin shape: seven slots, `definePlugin`, and the composer `composePlugins`.
-- The pod tier: the pod context, the pod slot, the capabilities a tool reaches, and pod resources.
-- The control tier and the client tier slot types.
-- The plugin-facing capability types: crew, messages, classifier, sessions, worktrees, routines,
-  subscriptions and MCP control, each with an `EMPTY_*` default (none for memory and web search).
+- The pod tier: the pod context, the pod slot, the capabilities a tool reaches and pod resources.
+- The control and client tier slot types.
+- The plugin-facing capability types: crew, messages, classifier, analytics, sessions, worktrees,
+  routines, subscriptions and MCP control, each with an `EMPTY_*` default.
 
 ## Does not own
 
@@ -39,8 +39,8 @@ A plugin is a `definePlugin({...})` value with a `name` and all seven slots. A m
 | `client`    | `ClientSlot`                | Client hooks that say which events a view cares about.  |
 | `transport` | `'none'` or `'stream'`      | Whether the plugin needs a live stream to a surface.    |
 
-A plugin usually splits its slots into tier files: `src/core`, `src/pod`, `src/control`,
-`src/client`. Each tier is an export subpath, so a client bundle does not import pod code.
+A plugin usually splits its slots into tier files (`src/core`, `src/pod`, `src/control`,
+`src/client`), each an export subpath, so a client bundle does not import pod code.
 
 ### The events slot
 
@@ -73,25 +73,26 @@ A `PodSlot` declares:
 - `slash(ctx)`: the `PodSlash` source (`names()`, `load({name, argumentText})`); at most one plugin.
 - `childDeny`: tool names a sub-agent may not call.
 - `onDaemonEvent(frame)`: handle an event the daemon pushes.
-
-`ctx` is a `PluginPodContext`. It gives `sessionId`, `workspaceDirectory`, `append(drafts)`,
-`notify(event, {key})`, `events()`, `call(op)`, `live(frame)`, `onDaemonEvent(listener)`, `log`,
-and the capabilities `control`, `crew`, `classifier`, `sessions`, `worktrees` and `resources`.
-`ctx.control` is a `PodControl`: `exposePort({port})`, `settingsVersions()`, `memory`, `webSearch`,
-`gateway` (`apiKey()`, `imageModel()`), `mcp`, `routines`, `subscriptions`. `ctx.classifier.status()` / `classify(...)` answer core types.
+  `ctx` is a `PluginPodContext`: `sessionId`, `workspaceDirectory`, `append(drafts)`,
+  `notify(event, {key})`, `events()`, `call(op)`, `live(frame)`, `onDaemonEvent(listener)`, `log`, and
+  the capabilities `control`, `crew`, `classifier`, `analytics`, `sessions`, `worktrees`, `resources`.
+  `ctx.control` is a `PodControl`: `exposePort({port})`, `settingsVersions()`, `memory`, `webSearch`,
+  `gateway` (`apiKey()`, `imageModel()`), `mcp`, `routines`, `subscriptions`. `ctx.classifier.status()`
+  and `classify(...)` answer core types. `ctx.analytics.capture({event, properties})` sends a product
+  event for the session's user; the host adds `session_id` and `thread_id`.
 
 ### The control and client slots
 
 `ControlSlot` holds `hooks` and `commands` (a map of control command handlers). An append hook runs
-inside the append transaction. It receives a stamped `V2Event` and returns `Promise<void>`, so it
-adds a transactional side effect. It cannot rewrite the event.
+inside the append transaction: it receives a stamped `V2Event`, adds a side effect, and cannot
+rewrite the event.
 
-`ClientSlot` holds `hooks` with a `name` and an `appliesTo(event)` predicate, and optional `entryFolds`.
+`ClientSlot` holds `hooks` (`name`, `appliesTo(event)`) and optional `entryFolds`.
 
 ### Load a resource
 
-A `PodResource<T>` needs a `name`, a `schema` and `load({ctx, directory, signal})`. It has five
-optional members: `watch(directory)` names the paths to watch, `announce(value, ctx)` returns the
+A `PodResource<T>` needs a `name`, a `schema` and `load({ctx, directory, signal})`. Five members are
+optional: `watch(directory)` names the paths to watch, `announce(value, ctx)` returns the
 events to append, `stale(value)` tells whether the value is out of date, `background` starts the
 load without blocking the step, and `cloud` names the settings it follows. A plugin reads a cloud setting
 through a resource: set `cloud: [ECloudSetting.McpServers]`, `ECloudSetting.Skills` or
@@ -110,8 +111,8 @@ through a resource: set `cloud: [ECloudSetting.McpServers]`, `ECloudSetting.Skil
   `PluginEventBodies` types the body of each event.
 - `crossLatch({ctx, name, level, mayFire})`: fire a level-triggered latch once, and record it.
 - `MacOfflineError`, `PodMcpProxyTransport`, `PodMcpProxyChannel`: the proxy to the Mac app.
-- `EMPTY_*` (for example `EMPTY_POD`, `EMPTY_CONTROL`, `EMPTY_CLASSIFIER`): the default of each
-  slot, which a tier spreads when it contributes nothing.
+- `EMPTY_*` (`EMPTY_POD`, `EMPTY_CONTROL`, `EMPTY_CLASSIFIER`, `EMPTY_ANALYTICS`): the default of
+  each slot, which a tier spreads when it contributes nothing.
 
 ## Usage
 
@@ -135,8 +136,7 @@ const shells = definePlugin({
 ## Rules
 
 - Declare all seven slots. Spread an `EMPTY_*` value instead of leaving one out.
-- Give each tool, prompt fragment, resource and command a name that no other plugin uses. The
-  composer throws on a duplicate.
+- Give each tool, prompt fragment, resource and command a unique name; the composer throws on two.
 - Import the pod tier in pod code only. It opens the session's sandbox and reads its files.
 - Register a new plugin in every registry that composes it:
   - `apps/api/src/agent/registered-plugins.ts` (runtime).

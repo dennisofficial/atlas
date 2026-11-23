@@ -17,6 +17,7 @@ import type {
 import type { AppendHook, ControlPlane } from '@dltech/atlas-control'
 import type { CallOp, CallResult, DaemonEventFrame, LiveFrame } from '@dltech/atlas-protocol'
 
+import type { PodAnalytics } from './analytics'
 import type { PodCrew } from './crew'
 import { MacOfflineError, type PodMcpProxyChannel, type PodMcpProxyTransport } from './mcp-proxy'
 import type { PodMemory } from './memory'
@@ -137,6 +138,7 @@ export type PluginPodContext = {
   crew: PodCrew
   messages: PodMessages
   classifier: PodClassifier
+  analytics: PodAnalytics
   sessions: PodSessions
   worktrees: PodWorktrees
   resources: PodResources

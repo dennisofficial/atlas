@@ -46,7 +46,13 @@ describe('classifier configuration', () => {
 
   it('reviews nothing and asks nothing when the quality switch is off', async () => {
     const rig = createRig({ settings: {} })
-    expect(await rig.review()).toEqual({ records: [], context: undefined })
+    expect(await rig.review()).toMatchObject({
+      records: [],
+      context: undefined,
+      timings: { scopeBuildMs: 0, classifierMs: 0, totalMs: 0 },
+      language: null,
+      inputTokens: null,
+    })
     expect(rig.classifyCalls).toHaveLength(0)
   })
 })

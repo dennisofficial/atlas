@@ -23,13 +23,19 @@ export type ScopeJob = {
 }
 
 export type UnitResult =
-  | { kind: 'assessed'; assessments: readonly QualityAssessment[]; resolvedModel: string }
+  | {
+      kind: 'assessed'
+      assessments: readonly QualityAssessment[]
+      resolvedModel: string
+      inputTokens: number | null
+    }
   | {
       kind: 'failed'
       status: EQualityReviewStatus
       reason?: EQualitySkipReason | undefined
       detail: string
       resolvedModel?: string | undefined
+      inputTokens: number | null
     }
 
 const describeError = (error: unknown): string =>
@@ -40,7 +46,8 @@ const failed = (facts: {
   reason?: EQualitySkipReason | undefined
   detail: string
   resolvedModel?: string | undefined
-}): UnitResult => ({ kind: 'failed', ...facts })
+  inputTokens?: number | null
+}): UnitResult => ({ kind: 'failed', ...facts, inputTokens: facts.inputTokens ?? null })
 
 const abortedFailure = ({ signal }: { signal: AbortSignal }): UnitResult | undefined => {
   if (!signal.aborted) return undefined
@@ -132,6 +139,7 @@ export async function executeUnit({
       reason: EQualitySkipReason.UncalibratedModel,
       detail: `requested ${requestedModel} but the classifier resolved ${outcome.model}`,
       resolvedModel: outcome.model,
+      inputTokens: outcome.usage?.inputTokens ?? null,
     })
   }
 
@@ -142,7 +150,12 @@ export async function executeUnit({
       policies: unit.policies,
       answers: outcome.answers,
     })
-    return { kind: 'assessed', assessments, resolvedModel: outcome.model }
+    return {
+      kind: 'assessed',
+      assessments,
+      resolvedModel: outcome.model,
+      inputTokens: outcome.usage?.inputTokens ?? null,
+    }
   } catch (error) {
     return failed({
       status: EQualityReviewStatus.OperationalError,
@@ -184,7 +197,9 @@ export async function reviewScopeJob({
       executeUnit({ classifier, requestedModel, scope: job.scope, unit, signal }),
     ),
   )
-  const rejected = job.plan.rejected.map((entry): UnitResult => ({ kind: 'failed', ...entry }))
+  const rejected = job.plan.rejected.map(
+    (entry): UnitResult => ({ kind: 'failed', ...entry, inputTokens: null }),
+  )
   return [...executed, ...rejected]
 }
 

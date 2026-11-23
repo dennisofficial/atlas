@@ -9,7 +9,12 @@ import {
   type HostTimers,
   type SessionRuntimeFactory,
 } from '@dltech/atlas-host'
-import { logFieldsOf, type LogPort, type TracePort } from '@dltech/atlas-observability'
+import {
+  logFieldsOf,
+  type LogPort,
+  type ProductAnalytics,
+  type TracePort,
+} from '@dltech/atlas-observability'
 import { ESandboxProvider } from '@dltech/atlas-protocol'
 
 import type { MediaSigner } from '../media/media-signer'
@@ -51,6 +56,7 @@ import { pathEnvironmentOf, sessionPathsOf, shellEnvironmentOf } from './session
 import { fastRefusalHandler, type FastRefusalSessions } from './fast-refusal'
 import { sessionModelsOf, type SessionModels } from './model-port'
 import { modelLabelOf } from '../config/model-labels'
+import { podAnalyticsOf } from './pod-analytics'
 import { workspaceRepoMap } from './workspace-repo-map'
 
 export { SandboxNotConfiguredError }
@@ -69,6 +75,7 @@ export type SessionRuntimeFactoryArgs = {
   setupDeadlineMs?: number | undefined
   log?: LogPort | undefined
   traceFor?: ((distinctId: string) => TracePort) | undefined
+  analytics?: ProductAnalytics | undefined
   pingMs?: number | undefined
   media?: MediaSigner | undefined
   githubFetch?: typeof fetch | undefined
@@ -299,6 +306,10 @@ export const createSessionRuntimeFactory = (
           })
 
     const trace = args.traceFor?.(config.userId)
+    const analytics = podAnalyticsOf({
+      analytics: args.analytics,
+      userId: config.userId,
+    })
     let models: SessionModels
     try {
       models = sessionModelsOf({
@@ -342,6 +353,7 @@ export const createSessionRuntimeFactory = (
       model: models.main,
       classifier,
       classifierStatus,
+      ...(analytics === undefined ? {} : { analytics }),
       get modelChoice() {
         return models.modelChoice()
       },

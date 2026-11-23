@@ -9,6 +9,7 @@ import {
 } from '@dltech/atlas-core'
 import {
   EMPTY_CREW,
+  EMPTY_ANALYTICS,
   EMPTY_CLASSIFIER,
   EMPTY_SESSIONS,
   EMPTY_WORKTREES,
@@ -95,6 +96,7 @@ export const rig = (options: { control?: PodControl; env?: Record<string, string
     crew: EMPTY_CREW,
     messages: EMPTY_MESSAGES,
     classifier: EMPTY_CLASSIFIER,
+    analytics: EMPTY_ANALYTICS,
     sessions: EMPTY_SESSIONS,
     worktrees: EMPTY_WORKTREES,
     sessionId: 's1',

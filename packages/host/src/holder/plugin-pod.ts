@@ -13,8 +13,10 @@ import {
   type V2Event,
 } from '@dltech/atlas-core'
 import {
+  EMPTY_ANALYTICS,
   mergeHooks,
   type PluginPodContext,
+  type PodAnalytics,
   type PodCrew,
   type PodResources,
   type PodSlash,
@@ -133,6 +135,21 @@ const postNoticeToSession = async (args: {
   })
 }
 
+export const analyticsOf = (args: {
+  analytics: PodAnalytics | undefined
+  sessionId: string
+  threadId: ThreadId
+}): PodAnalytics => {
+  const analytics = args.analytics ?? EMPTY_ANALYTICS
+  return {
+    capture: ({ event, properties }) =>
+      analytics.capture({
+        event,
+        properties: { ...properties, session_id: args.sessionId, thread_id: args.threadId },
+      }),
+  }
+}
+
 export const resolvedEventsOf = (record: SessionRecord): readonly V2Event[] => {
   const cache = record.eventCache()
   return cache.eventsAfter(0).map((event) => cache.resolvedEvent(event))
@@ -166,6 +183,11 @@ export const pluginPodContextOf = (args: {
       status: () => runtime.classifierStatus,
       classify: (args) => runtime.classifier.classify(args),
     },
+    analytics: analyticsOf({
+      analytics: runtime.analytics,
+      sessionId: deps.sessionId,
+      threadId,
+    }),
     sessions: podSessionsOf({
       plane: deps.plane,
       sessionId: deps.sessionId,

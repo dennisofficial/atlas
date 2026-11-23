@@ -20,7 +20,7 @@ import type {
   ToolRegistry,
 } from '@dltech/atlas-agent'
 import type { TracePort } from '@dltech/atlas-observability'
-import type { ComposedPlugins } from '@dltech/atlas-plugin-sdk'
+import type { ComposedPlugins, PodAnalytics } from '@dltech/atlas-plugin-sdk'
 import type { LiveFrame } from '@dltech/atlas-protocol'
 
 import type { RemoteCalls } from '../calls/remote-calls'
@@ -89,6 +89,7 @@ export type SessionRuntime = {
   model: ModelPort
   classifier: ClassifierPort
   classifierStatus: ClassifierStatus
+  analytics?: PodAnalytics | undefined
   modelChoice: ModelChoice
   choiceFor(request: RoleModelRequest): RoleModelChoice
   modelLabelOf(ref: ModelRef): string

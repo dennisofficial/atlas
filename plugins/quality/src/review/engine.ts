@@ -1,6 +1,7 @@
 import {
   EQualitySkipReason,
   foldQualityFindings,
+  type EQualityLanguage,
   type CapturedFileChange,
   type ClassifierPort,
   type CodeQualityReviewedBody,
@@ -35,15 +36,44 @@ export type CodeQualityReviewDeps = {
   deadlineMs: number
 }
 
-export type QualityReviewResult = {
+export type QualityReviewTimings = {
+  scopeBuildMs: number
+  classifierMs: number
+  totalMs: number
+}
+
+export type QualityReviewMetrics = {
+  timings: QualityReviewTimings
+  language: EQualityLanguage | null
+  inputTokens: number | null
+}
+
+export type QualityReviewResult = QualityReviewMetrics & {
   records: readonly CodeQualityReviewedBody[]
   context: string | undefined
 }
 
-export const NO_REVIEW_RESULT: QualityReviewResult = { records: [], context: undefined }
+export const NO_REVIEW_METRICS: QualityReviewMetrics = {
+  timings: { scopeBuildMs: 0, classifierMs: 0, totalMs: 0 },
+  language: null,
+  inputTokens: null,
+}
+
+export const NO_REVIEW_RESULT: QualityReviewResult = {
+  ...NO_REVIEW_METRICS,
+  records: [],
+  context: undefined,
+}
+
+type ScopeRun = { item: ReviewItem; classifierMs: number; inputTokens: number | null }
 
 const describeError = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
+
+const sumTokens = ({ tokens }: { tokens: readonly (number | null)[] }): number | null => {
+  const known = tokens.filter((token): token is number => token !== null)
+  return known.length === 0 ? null : known.reduce((sum, token) => sum + token, 0)
+}
 
 export class CodeQualityReview {
   constructor(private readonly deps: CodeQualityReviewDeps) {}
@@ -80,24 +110,40 @@ export class CodeQualityReview {
 
     const items = args.captureFaults.map((fault) => this.faultItem({ ctx, fault }))
     const jobs: ScopeJob[] = []
+    const scopeStarted = this.deps.clock()
     for (const change of args.changes) {
       const reviewed = this.reviewChange({ ctx, change })
       items.push(...reviewed.items)
       jobs.push(...reviewed.jobs)
     }
-    items.push(...(await Promise.all(jobs.map((job) => this.runJob({ ctx, job })))))
-    return this.finish({ items, signal: args.signal })
+    const scopeBuildMs = this.deps.clock() - scopeStarted
+
+    const classifiers = await Promise.all(jobs.map((job) => this.runJob({ ctx, job })))
+    for (const classifier of classifiers) items.push(classifier.item)
+    const metrics: QualityReviewMetrics = {
+      timings: {
+        scopeBuildMs,
+        classifierMs: classifiers.reduce((max, { classifierMs }) => Math.max(max, classifierMs), 0),
+        totalMs: this.deps.clock() - started,
+      },
+      language: jobs[0]?.scope.language ?? null,
+      inputTokens: sumTokens({ tokens: classifiers.map(({ inputTokens }) => inputTokens) }),
+    }
+    return this.finish({ items, signal: args.signal, metrics })
   }
 
   private finish({
     items,
     signal,
+    metrics,
   }: {
     items: readonly ReviewItem[]
     signal: AbortSignal
+    metrics: QualityReviewMetrics
   }): QualityReviewResult {
     const validated = items.map((item) => validateItem({ item }))
     return {
+      ...metrics,
       records: validated.map(({ record }) => record),
       context:
         deadlineErrorOf(signal) === undefined ? renderFinding({ items: validated }) : undefined,
@@ -148,8 +194,9 @@ export class CodeQualityReview {
     })
   }
 
-  private async runJob({ ctx, job }: { ctx: ReviewContext; job: ScopeJob }): Promise<ReviewItem> {
+  private async runJob({ ctx, job }: { ctx: ReviewContext; job: ScopeJob }): Promise<ScopeRun> {
     const previous: readonly QualityFinding[] = ctx.ledger.get(job.scope.id) ?? []
+    const classifierStarted = this.deps.clock()
     try {
       const reviewed = await reviewScopeJob({
         classifier: this.deps.classifier,
@@ -163,22 +210,30 @@ export class CodeQualityReview {
       )
       const results =
         deadline !== undefined && timedOut ? [deadlineFailure({ error: deadline })] : reviewed
-      return recordScope({
-        callId: ctx.call.callId,
-        job,
-        results,
-        previous,
-        durationMs: this.deps.clock() - ctx.started,
-        requestedModel: this.deps.requestedModel,
-      }).item
+      return {
+        item: recordScope({
+          callId: ctx.call.callId,
+          job,
+          results,
+          previous,
+          durationMs: this.deps.clock() - ctx.started,
+          requestedModel: this.deps.requestedModel,
+        }).item,
+        classifierMs: this.deps.clock() - classifierStarted,
+        inputTokens: sumTokens({ tokens: results.flatMap((result) => result.inputTokens) }),
+      }
     } catch (error) {
-      return this.skip({
-        ctx,
-        path: job.path,
-        scope: job.scope,
-        reason: EQualitySkipReason.DecisionUnavailable,
-        detail: describeError(error),
-      })
+      return {
+        item: this.skip({
+          ctx,
+          path: job.path,
+          scope: job.scope,
+          reason: EQualitySkipReason.DecisionUnavailable,
+          detail: describeError(error),
+        }),
+        classifierMs: this.deps.clock() - classifierStarted,
+        inputTokens: null,
+      }
     }
   }
 }

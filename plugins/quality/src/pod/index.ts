@@ -1,8 +1,18 @@
 import { EMPTY_POD, type PluginPodContext, type PodSlot } from '@dltech/atlas-plugin-sdk'
 
-import { QUALITY_REVIEW_BUDGET_MS, qualityReviewHook, type QualitySettings } from './hook'
+import {
+  QUALITY_REVIEW_BUDGET_MS,
+  qualityIgnoredHook,
+  qualityReviewHook,
+  type QualitySettings,
+} from './hook'
 
-export { QUALITY_REVIEW_BUDGET_MS, qualityReviewHook, type QualitySettings } from './hook'
+export {
+  QUALITY_REVIEW_BUDGET_MS,
+  qualityIgnoredHook,
+  qualityReviewHook,
+  type QualitySettings,
+} from './hook'
 
 export type QualityPodOptions = {
   settings: (ctx: PluginPodContext) => Promise<QualitySettings>
@@ -23,5 +33,6 @@ export const qualityPodOf = (options: QualityPodOptions): PodSlot => ({
         },
       }),
     ],
+    afterTurn: [qualityIgnoredHook({ ctx })],
   }),
 })

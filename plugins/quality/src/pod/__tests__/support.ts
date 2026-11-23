@@ -19,7 +19,7 @@ import {
   type V2Event,
 } from '@dltech/atlas-core'
 import {
-  EMPTY_CLASSIFIER,
+  EMPTY_ANALYTICS,
   EMPTY_CREW,
   EMPTY_MCP_CONTROL,
   EMPTY_MESSAGES,
@@ -30,6 +30,8 @@ import {
   EMPTY_WORKTREES,
   UNVERSIONED_SETTINGS,
   type PluginPodContext,
+  type PodAnalytics,
+  type PodAnalyticsValue,
   type PodClassifier,
 } from '@dltech/atlas-plugin-sdk'
 
@@ -109,6 +111,7 @@ export type RigOptions = {
   settings?: { enabled: boolean; policies: Readonly<Record<string, boolean>> } | undefined
   budgetMs?: number | undefined
   events?: readonly Event[] | undefined
+  analytics?: PodAnalytics | undefined
 }
 
 export const monotonicClock = (): (() => number) => {
@@ -124,7 +127,7 @@ export function createRig(options: RigOptions = {}) {
   const classifier: PodClassifier = {
     status: () =>
       (options.classifierOn ?? true)
-        ? { on: true, model: JEV_QUALITY_MODEL }
+        ? { on: true, model: JEV_QUALITY_MODEL, provider: 'jev' }
         : { on: false, reason: 'no classifier' },
     classify: async (args) => {
       classifyCalls.push({ questions: args.questions })
@@ -152,7 +155,7 @@ export function createRig(options: RigOptions = {}) {
       },
       mcp: EMPTY_MCP_CONTROL,
       webSearch: { config: async () => ({ backend: undefined, key: undefined }) },
-      gateway: { apiKey: async () => undefined },
+      gateway: { apiKey: async () => undefined, imageModel: async () => undefined },
       routines: EMPTY_ROUTINES,
       subscriptions: EMPTY_SUBSCRIPTIONS,
     },
@@ -160,6 +163,7 @@ export function createRig(options: RigOptions = {}) {
     crew: EMPTY_CREW,
     messages: EMPTY_MESSAGES,
     classifier,
+    analytics: options.analytics ?? EMPTY_ANALYTICS,
     sessions: EMPTY_SESSIONS,
     worktrees: EMPTY_WORKTREES,
     append: async () => undefined,
@@ -182,6 +186,8 @@ export function createRig(options: RigOptions = {}) {
   const hooks = qualityPodOf(podOptions).hooks?.(ctx)
   const hook = hooks?.afterTool?.[0]
   if (hook === undefined) throw new Error('the quality pod registered no afterTool hook')
+  const ignored = hooks?.afterTurn?.[0]
+  if (ignored === undefined) throw new Error('the quality pod registered no afterTurn hook')
 
   const captures = async (call: ToolCall = writeCall()): Promise<boolean> => {
     const predicate = hook.capturesFileChanges
@@ -204,7 +210,17 @@ export function createRig(options: RigOptions = {}) {
       signal: args.signal ?? new AbortController().signal,
     })
 
-  return { ctx, hook, logs, classifyCalls, settings, podOptions, captures, run }
+  return { ctx, hook, ignored, logs, classifyCalls, settings, podOptions, captures, run }
+}
+
+export type Captured = {
+  event: string
+  properties: Readonly<Record<string, PodAnalyticsValue>>
+}
+
+export const analyticsRecorder = (): { captured: Captured[]; analytics: PodAnalytics } => {
+  const captured: Captured[] = []
+  return { captured, analytics: { capture: (args) => captured.push(args) } }
 }
 
 export type Rig = ReturnType<typeof createRig>

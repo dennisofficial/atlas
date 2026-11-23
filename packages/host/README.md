@@ -46,6 +46,8 @@ only what it can rebuild or drop.
 - `SessionRuntime.classifier` and `SessionRuntime.classifierStatus`: the core `ClassifierPort` of a
   held session and its `ClassifierStatus`, wired into `ctx.classifier` for a plugin. The host
   carries no classifier HTTP client; the runtime factory builds one.
+- `SessionRuntime.analytics`: the `PodAnalytics` a plugin reaches as `ctx.analytics`. The host adds
+  `session_id` and `thread_id` to every capture; the runtime factory binds the user id.
 
 ### Call the daemon
 

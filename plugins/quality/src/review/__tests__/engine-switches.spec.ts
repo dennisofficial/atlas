@@ -7,7 +7,13 @@ import { FILE, PROJECT, contextOf, createRig, policyNamed, recordsOf, scopeNamed
 describe('switches off', () => {
   it('reviews nothing and touches no collaborator', async () => {
     const rig = createRig({ settings: {} })
-    expect(await rig.review()).toEqual({ records: [], context: undefined })
+    expect(await rig.review()).toMatchObject({
+      records: [],
+      context: undefined,
+      timings: { scopeBuildMs: 0, classifierMs: 0, totalMs: 0 },
+      language: null,
+      inputTokens: null,
+    })
     expect(rig.sourceCalls).toHaveLength(0)
     expect(rig.classifyCalls).toHaveLength(0)
   })
