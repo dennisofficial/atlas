@@ -31,6 +31,7 @@ import {
   type SubscriptionLease,
   type SubscriptionLeaseKey,
   type SubscriptionRow,
+  type ReleasePullRequestTrackingParams,
   type TrackingTarget,
   type WrittenSubscriptionRow,
   type SessionDigestRow,
@@ -138,7 +139,7 @@ import {
   updateSubscriptionRowIn,
   upsertSubscriptionLeaseIn,
 } from './postgres-subscriptions'
-import { upsertTrackingTargetIn } from './postgres-tracking-targets'
+import { releasePullRequestTrackingIn, upsertTrackingTargetIn } from './postgres-tracking-targets'
 import { toLease, toThreadRow } from './postgres-rows'
 import { insertEventsIn, listSessionsIn, readEventsIn, writeThreadHeadIn } from './postgres-threads'
 import {
@@ -577,7 +578,7 @@ export class PostgresTx implements ControlTx {
     target: SubscriptionRow['target']
     label: string
     events: readonly string[]
-    expiresAt: string
+    expiresAt: string | null
     deadline: string | null
   }): Promise<boolean> {
     return updateSubscriptionRowIn({ tx: this.tx, ...params })
@@ -596,6 +597,10 @@ export class PostgresTx implements ControlTx {
 
   async upsertTrackingTarget(params: TrackingTarget): Promise<void> {
     await upsertTrackingTargetIn({ tx: this.tx, ...params })
+  }
+
+  async releasePullRequestTracking(params: ReleasePullRequestTrackingParams): Promise<void> {
+    await releasePullRequestTrackingIn({ tx: this.tx, ...params })
   }
 
   async hostPresent(hostId: number): Promise<boolean> {

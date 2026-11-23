@@ -278,7 +278,8 @@ _Updated at the end of every slice. Last update: 2026-11-23._
 - **Slice 7 PR 2, `plugins/github` subscriptions** (`dennis/github-plugin`): first registered plugin.
   Subscribe/unsubscribe/list, the CI-watch hook and the `subscriptions` view are live; the CP derives
   the `GithubSubscription` lease from the journal event through a new control append hook, which
-  lives until the subscription's own expiry (24 h default, no heartbeat). A PR event posts one inbox
+  lives until the subscription completes, is unsubscribed or its session is archived, unless it
+  names its own expiry (no default, no heartbeat). A PR event posts one inbox
   message to each subscribed v2 session, deduped by the delivery row. Live-checked on production
   2026-11-08: one notice and a woken turn on a CI change, silence after unsubscribe (spec §8.1).
 - **Slice 7 PR 1, the plugin contract** (`dennis/plugin-contract`): plugin views ride the session view
