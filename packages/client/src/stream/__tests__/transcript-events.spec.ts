@@ -222,7 +222,15 @@ describe('transcriptEventsOf', () => {
       inboxId: 1,
       command: { name: 'rename', argumentText: 'bench', text: '/rename bench' },
     })
-    expect(durableEntries({ events: mapped })).toEqual([])
+
+    const entries = durableEntries({ events: mapped })
+
+    expect(entries).toHaveLength(1)
+    expect(entries[0]).toMatchObject({
+      kind: EEntryKind.OperatorSaid,
+      text: '/rename bench',
+      command: { name: 'rename', argumentText: 'bench', text: '/rename bench' },
+    })
   })
 
   it('passes a plain object input and output through untouched', () => {

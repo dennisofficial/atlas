@@ -1,4 +1,10 @@
-import type { Attachment, EOomScope, EReportKind, ETldrStatus } from '@dltech/atlas-core'
+import type {
+  Attachment,
+  ConsumedCommand,
+  EOomScope,
+  EReportKind,
+  ETldrStatus,
+} from '@dltech/atlas-core'
 
 import { runLabel } from './tools'
 import { settled, type ToolRun } from './tool-runs'
@@ -46,6 +52,7 @@ export type OperatorSaidEntry = {
   skills: readonly string[]
   files: readonly string[]
   attachments: readonly Attachment[]
+  command?: ConsumedCommand | undefined
 }
 
 export type ModelSaidEntry = {

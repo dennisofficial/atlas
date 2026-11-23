@@ -1,5 +1,6 @@
 import {
   attachmentsOf as attachmentsOfSaid,
+  consumedCommandSchema,
   currentContextEvents,
   EKilledBy,
   EMessageOrigin,
@@ -8,6 +9,7 @@ import {
   latestTldrPerAnchor,
   modelFallbackCopy,
   saidBy,
+  type ConsumedCommand,
   type Event,
 } from '@dltech/atlas-core'
 
@@ -26,6 +28,14 @@ import type { TurnSpend } from './turn-spend'
 
 const agentSenderOf = (event: Event & { type: 'user-said' }): string =>
   laneNameOf({ origin: saidBy(event), sender: event.sender?.session }).phrase
+
+/** The transcript carries the record events a surface kept for a command, which the core event union cannot name. */
+const carriedCommandOf = (event: Event): ConsumedCommand | null => {
+  const carried: { type: string; command?: unknown } = event
+  if (carried.type !== 'input-consumed') return null
+  const parsed = consumedCommandSchema.safeParse(carried.command)
+  return parsed.success ? parsed.data : null
+}
 
 export function durableEntries(args: {
   events: readonly Event[]
@@ -128,6 +138,24 @@ export function durableEntries(args: {
           skills: (attached.get(event.id) ?? NOTHING_ATTACHED).skills,
           files: (attached.get(event.id) ?? NOTHING_ATTACHED).files,
           attachments: attachmentsOfSaid(event),
+        },
+      ]
+    }
+
+    const command = carriedCommandOf(event)
+    if (command !== null) {
+      return [
+        {
+          kind: EEntryKind.OperatorSaid,
+          author: EAuthor.Operator,
+          key: event.id,
+          text: command.text,
+          said: [command.text],
+          steer: false,
+          skills: [],
+          files: [],
+          attachments: [],
+          command,
         },
       ]
     }

@@ -269,7 +269,7 @@ export function ThreadView({ threadId }: { threadId: string }) {
                   working={working}
                   onStop={handleStop}
                   {...images.composerProps}
-                  commandSpecs={commands.specs}
+                  entries={commands.entries}
                   placeholder={composerPlaceholderOf({
                     summarising: summarise.summarising,
                     starting,

@@ -1,9 +1,16 @@
 import { describe, expect, it } from 'bun:test'
 
-import { ECommandGroup, ECommandKind, type CommandSpec, type V2Event } from '@dltech/atlas-core'
+import {
+  ECommandEntryKind,
+  ECommandGroup,
+  ECommandSource,
+  skillEntryOf,
+  type CommandEntry,
+} from '@dltech/atlas-commands'
+import type { V2Event } from '@dltech/atlas-core'
 import { ESkillOrigin } from '@dltech/atlas-plugin-skills/core'
 
-import { repoSkillSpecsOf, skillMenuSpecs } from '../session-skills'
+import { repoSkillEntriesOf, skillMenuEntries } from '../session-skills'
 
 type Row = { name: string; description: string; argumentHint: string | null; origin: ESkillOrigin }
 
@@ -25,36 +32,38 @@ const changed = (skills: readonly Row[], n: number): V2Event =>
     id: `e${n}`,
   }) as unknown as V2Event
 
-const catalogueSpec = (overrides: Partial<CommandSpec> = {}): CommandSpec => ({
-  name: 'builtin-skill',
-  kind: ECommandKind.Skill,
-  summary: 'a skill the cloud catalogue lists',
-  group: ECommandGroup.Workspace,
+const catalogueEntry = (overrides: Partial<CommandEntry> = {}): CommandEntry => ({
+  ...skillEntryOf({
+    name: 'builtin-skill',
+    description: 'a skill the cloud catalogue lists',
+    argumentHint: null,
+  }),
   ...overrides,
 })
 
-const namesOf = (specs: readonly CommandSpec[]): readonly string[] =>
-  specs.map((spec) => spec.name).sort()
+const namesOf = (entries: readonly CommandEntry[]): readonly string[] =>
+  entries.map((entry) => entry.name).sort()
 
-const menuOf = (args: { events: readonly V2Event[]; catalogue?: readonly CommandSpec[] }) =>
-  skillMenuSpecs({ catalogue: args.catalogue ?? [catalogueSpec()], events: args.events })
+const menuOf = (args: { events: readonly V2Event[]; catalogue?: readonly CommandEntry[] }) =>
+  skillMenuEntries({ catalogue: args.catalogue ?? [catalogueEntry()], events: args.events })
 
-describe('repoSkillSpecsOf', () => {
-  it('maps a pushed repo skill into a workspace skill spec', () => {
-    expect(repoSkillSpecsOf([changed([repoRow()], 1)])).toEqual([
+describe('repoSkillEntriesOf', () => {
+  it('maps a pushed repo skill into a workspace skill row', () => {
+    expect(repoSkillEntriesOf([changed([repoRow()], 1)])).toEqual([
       {
         name: 'release-notes',
-        kind: ECommandKind.Skill,
         summary: 'write the release notes',
         group: ECommandGroup.Workspace,
         argumentHint: '[version]',
+        kind: ECommandEntryKind.Skill,
+        source: ECommandSource.Skill,
       },
     ])
   })
 
   it('has no argument hint when the skill declares none', () => {
-    const [spec] = repoSkillSpecsOf([changed([repoRow({ argumentHint: null })], 1)])
-    expect(spec?.argumentHint).toBeUndefined()
+    const [entry] = repoSkillEntriesOf([changed([repoRow({ argumentHint: null })], 1)])
+    expect(entry?.argumentHint).toBeUndefined()
   })
 
   it('leaves out the built-in and user rows the pod also reports', () => {
@@ -68,7 +77,7 @@ describe('repoSkillSpecsOf', () => {
         1,
       ),
     ]
-    expect(namesOf(repoSkillSpecsOf(events))).toEqual(['release-notes'])
+    expect(namesOf(repoSkillEntriesOf(events))).toEqual(['release-notes'])
   })
 })
 
@@ -95,9 +104,9 @@ describe('the / menu of a v2 session', () => {
   })
 
   it('lets a repo skill shadow a catalogue skill of the same name', () => {
-    const catalogue = [catalogueSpec({ name: 'release-notes', summary: 'the cloud copy' })]
-    const specs = menuOf({ events: [changed([repoRow()], 1)], catalogue })
-    expect(namesOf(specs)).toEqual(['release-notes'])
-    expect(specs[0]?.summary).toBe('write the release notes')
+    const catalogue = [catalogueEntry({ name: 'release-notes', summary: 'the cloud copy' })]
+    const entries = menuOf({ events: [changed([repoRow()], 1)], catalogue })
+    expect(namesOf(entries)).toEqual(['release-notes'])
+    expect(entries[0]?.summary).toBe('write the release notes')
   })
 })
