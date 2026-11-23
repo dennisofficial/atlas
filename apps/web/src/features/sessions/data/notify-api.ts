@@ -4,7 +4,7 @@ import type {
   RegisterNotifyDeviceInput,
   ReportNotifyPresenceInput,
   SetNotifyDeviceEnabledInput,
-} from '@dltech/atlas-wire'
+} from '@dltech/atlas-wire/web'
 
 import { apiBaseUrl } from '@/lib/api-base-url'
 import { api, cloudCall } from '@/lib/api-client'
