@@ -13,6 +13,7 @@ import {
   nativeCommandHandlers,
   nativeCommands,
   nativeControlHandlers,
+  resize,
 } from '@dltech/atlas-native-commands'
 import { cloudConfigStore } from './config/cloud-config-store'
 import { envSecretsReader } from './config/env-secrets'
@@ -34,6 +35,8 @@ import type { SandboxProviderRegistry } from '@dltech/atlas-pods/sandbox/provide
 import { systemTimers, type HostBus, type HostTimers } from '@dltech/atlas-host'
 import { SessionNotFoundError } from './config/config-reader'
 import { CredentialsUnavailableError } from './config/agent-host-credential-port'
+import type { JobsProjectDispatcher } from '../_core/ports/job-dispatcher'
+import { podResizeHandlerOf } from '../_lib/pod-resize/pod-resize-handler'
 import { sessionDirOf } from './runtime/session-paths'
 import { startFailureReason } from './start-failure-reason'
 import {
@@ -63,6 +66,7 @@ export type ComposeAgentHostArgs = {
   presence: HostPresence
   control: PodControlClient
   macLink: MacLink
+  dispatcher: JobsProjectDispatcher
   notify?: NotifyDispatch | undefined
   turnEnded?: TurnEndedHook | undefined
   onHostIdChanged?: (() => void) | undefined
@@ -104,7 +108,10 @@ export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
     reasonOfStartError: startFailureReason,
     commands: composeCommands([...nativeCommands, ...composedPlugins.commands]),
     commandHandlers: new Map([...nativeCommandHandlers, ...composedPlugins.pod.commands]),
-    controlHandlers: nativeControlHandlers,
+    controlHandlers: new Map([
+      ...nativeControlHandlers,
+      [resize.spec.name, podResizeHandlerOf({ plane: args.plane, dispatcher: args.dispatcher })],
+    ]),
     control: args.control,
     mcp: (sessionId) => mcpControl.of(sessionId),
     operator: {
