@@ -1,6 +1,9 @@
 # Spec: two more Jev quality rules — silent failure and open/closed
 
-Status: **draft**, 2026-11-23. Owner: the quality plugin (`plugins/quality`, after the plugin move
+> **Approved by Dennis 2026-11-23.** Unawaited promises are out of scope, with no linter rule
+> either. A rule that passes the §5.3 ship bar ships on by default.
+
+Status: **approved**, 2026-11-23. Owner: the quality plugin (`plugins/quality`, after the plugin move
 lands). Anchors read at `729f35521`. Builds on `jev-quality.md` (the review) and `classifier.md`
 (the port).
 
@@ -15,7 +18,7 @@ packages or its conventions.
   is hidden from the caller) and **open/closed** (an edit extends behaviour by growing a conditional
   on a type tag, where a new type, handler or table entry should do it).
 - Each policy has its own switch, `quality.policies.silentFailure` and `quality.policies.openClosed`.
-  Each is on by default only if its eval precision meets the bar in §5.
+  A policy ships only when its eval passes the bar in §5.3, and a shipped policy is on by default.
 - Same contract as single responsibility: advisory, one note for one step, a finding notifies once
   per episode, a write never fails because of a review.
 - No new event, frame or surface. The TUI and web indicators already name the policy title.
@@ -47,16 +50,16 @@ type information. Every policy that selects a scope shares one classifier reques
 | Shape                                                                           | Needs                               | Owner                                                               |
 | ------------------------------------------------------------------------------- | ----------------------------------- | ------------------------------------------------------------------- |
 | empty `catch`                                                                   | syntax only                         | Biome `suspicious/noEmptyBlockStatements` (recommended, on as warn) |
-| a promise nobody awaits or handles                                              | the callee's return type            | Biome `nursery/noFloatingPromises` (types domain), **not** Jev      |
+| a promise nobody awaits or handles                                              | the callee's return type            | nobody: out of scope (§9)                                           |
 | log-only `catch` that continues as if it succeeded                              | the scope                           | Jev                                                                 |
 | `catch` or `.catch` that returns a normal-looking value (`[]`, `null`, default) | the scope, the function's contract  | Jev                                                                 |
 | fallback (`??`, `\|\|`) that hides a failed operation                           | the scope                           | Jev                                                                 |
 | a returned failure object or `allSettled` result that is ignored                | the scope; the callee's shape helps | Jev, partly                                                         |
 
 A classifier cannot tell `save(x);` from `log(x);` without the callee's type, so it cannot judge an
-unawaited promise reliably. Biome 2.6.2 has `nursery/noFloatingPromises` with type inference; this
-repository does not enable it (94 hits today across `packages`, `apps` and `plugins`, measured
-2026-11-23). That shape belongs to the linter. Jev judges only what needs judgment: whether a
+unawaited promise reliably. Giving it types would make every request bigger, and the review runs on
+every file write. Dennis decided (2026-11-23) to drop the shape: no Jev question and no Biome
+`nursery/noFloatingPromises`. Jev judges only what the scope and the diff show: whether a
 handled-looking failure is really handled, and whether a fallback is an expected absence or a hidden
 fault.
 
@@ -72,10 +75,10 @@ equal at 0.7. That does not pay for about 2 KB more per request, so the state st
 
 ### 3.3 Answer
 
-| Rule           | Can Jev judge it?                                                                                                                                             | Context                                         |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
-| Silent failure | **Partly.** Yes for swallowing catches, hiding fallbacks and ignored failure values. No for unawaited promises, which need types: that part is a linter rule. | the scope and the diff, as today                |
-| Open/closed    | **Yes**, judged on the edit.                                                                                                                                  | the scope and the diff, as today; no whole file |
+| Rule           | Can Jev judge it?                                                                                                                               | Context                                         |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| Silent failure | **Partly.** Yes for swallowing catches, hiding fallbacks and ignored failure values. No for unawaited promises, which need types: out of scope. | the scope and the diff, as today                |
+| Open/closed    | **Yes**, judged on the edit.                                                                                                                    | the scope and the diff, as today; no whole file |
 
 ---
 
@@ -116,7 +119,7 @@ Each policy copies the single-responsibility design
   handle. An expected absence by contract (`tryParse`, `findX`, a narrow catch of one expected
   error). Best-effort side work (close a handle, delete a temporary file, write a cache, emit
   telemetry). A top-level boundary that reports the error and turns it into a visible outcome. Test
-  code. Unawaited promises (owned by a linter).
+  code. Unawaited promises (out of scope, §9).
 - **Gate.** A diff line contains `catch`, `.then(`, `finally`, `??`, `||`, `allSettled`,
   `return null|undefined|[]|{}|false`, `ok:`, `.ok`, `error` or `err`.
 - **Impact.** Introduced: the edit added a hidden failure that BEFORE did not have (a new scope:
@@ -244,12 +247,13 @@ into the plugin, not before it.
 
 ---
 
-## 7. Questions for Dennis
+## 7. Decisions (Dennis, 2026-11-23)
 
-1. **Unawaited promises.** Jev cannot see them. Do we turn on Biome `nursery/noFloatingPromises`
-   in this repository (94 hits today, one PR to fix them), or leave that shape unowned?
-2. **Default.** A rule that passes the §5.3 bar ships on by default. Is that right, or should both
-   start off until you have seen them in your own sessions?
+1. **Unawaited promises: dropped.** Jev cannot judge them without types, and the review must stay
+   fast and cheap because it runs on every file write. No Biome `nursery/noFloatingPromises` either.
+2. **Default: on.** A rule that passes the §5.3 bar ships on by default.
+3. **Request size.** No rule adds context to a request beyond what §6 measured: the scope, the
+   diff, the imports and the evidence. A rule that needs more does not ship.
 
 ---
 
@@ -272,7 +276,7 @@ minted `AuthSession` row is deleted.
 
 ## 9. Out of scope
 
-- Unawaited promises in Jev (§3.1).
+- Unawaited or floating promises, in Jev and in the linter (§3.1, §7).
+- Any request context beyond §6: types, callers, the whole file.
 - Languages other than TypeScript and JavaScript.
-- Type information, callers or the whole file in the request.
 - New events, frames or surfaces.
