@@ -2,6 +2,7 @@ import { systemNotice } from '../../context/envelope'
 import { EMergeQueueMove, EPrEventKind, EPrVerdict } from '../../events/body'
 import type { DraftOfType } from '../../events/envelope'
 import { stripHtmlComments } from '../../github/comment-text'
+import { clipText } from '../../text/clip-text'
 import {
   reviewCommentHunk,
   reviewCommentLocation,
@@ -13,9 +14,6 @@ const BODY_CLIP = 4000
 
 type PrEvent = DraftOfType<'pr-event'>
 
-const clip = (text: string, limit: number): string =>
-  text.length <= limit ? text : `${text.slice(0, limit - 1)}…`
-
 const fromAuthor = ({ noun, event }: { noun: string; event: PrEvent }): string => {
   const said = event.authorLogin === undefined ? noun : `${noun} from ${event.authorLogin}`
   return event.edited === true ? `${said} edited` : said
@@ -23,7 +21,7 @@ const fromAuthor = ({ noun, event }: { noun: string; event: PrEvent }): string =
 
 const withBody = ({ lead, event }: { lead: string; event: PrEvent }): string => {
   const body = stripHtmlComments(event.body ?? '').trim()
-  const said = body === '' ? `${lead}.` : `${lead} — ${clip(body, BODY_CLIP)}.`
+  const said = body === '' ? `${lead}.` : `${lead} — ${clipText({ text: body, limit: BODY_CLIP })}.`
   return `${said} ${event.url}`
 }
 

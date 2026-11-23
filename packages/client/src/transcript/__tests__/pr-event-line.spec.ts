@@ -111,6 +111,18 @@ describe('a review comment line', () => {
     )
   })
 
+  it('clips a long first line to 119 characters and an ellipsis', () => {
+    expect(prEventLine(comment({ kind: EPrEventKind.Comment, body: 'y'.repeat(200) }))).toBe(
+      `PR #794: octocat commented — ${'y'.repeat(119)}…`,
+    )
+  })
+
+  it('keeps a first line of exactly 120 characters whole', () => {
+    expect(prEventLine(comment({ kind: EPrEventKind.Comment, body: 'y'.repeat(120) }))).toBe(
+      `PR #794: octocat commented — ${'y'.repeat(120)}`,
+    )
+  })
+
   it('skips a leading html comment', () => {
     expect(
       prEventLine(
