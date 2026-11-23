@@ -133,6 +133,7 @@ export function ChatScreenHost(props: {
     api: props.client.api,
     sessionId: props.sessionId,
     events: transcript.events,
+    rawEvents: transcript.rawEvents,
     live: transcript.liveSteps,
     working: transcript.working,
     connected: connection.cloudConnected,

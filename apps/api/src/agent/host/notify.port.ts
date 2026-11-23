@@ -16,6 +16,7 @@ export const notifyDispatchOf =
       holdMs: decision.holdMs,
       pending: [...decision.pending],
       operatorTurn: decision.operatorTurn,
+      ...(send.endedAt === undefined ? {} : { endedAt: send.endedAt }),
     }
     await args.dispatcher.dispatch({
       task: notifySendTaskContract,

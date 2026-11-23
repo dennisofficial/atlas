@@ -4,6 +4,7 @@ import {
   overlayStepOf,
   type RevealGate,
 } from '@dltech/atlas-client/transcript'
+import { resumePointOf } from '@dltech/atlas-core'
 
 import {
   durableTranscriptOf,
@@ -26,6 +27,7 @@ export const sessionTranscriptOf = (
     }),
     live: overlayStepOf(snapshot.overlay),
     thinking: EThinkingVisibility.Keep,
+    resume: resumePointOf({ events: snapshot.events }),
     ...(snapshot.reveal === undefined ? {} : { reveal: snapshot.reveal }),
     ...(snapshot.sessionNameOf === undefined ? {} : { sessionNameOf: snapshot.sessionNameOf }),
   })

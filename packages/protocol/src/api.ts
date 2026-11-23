@@ -7,6 +7,7 @@ import {
   MAX_MESSAGE_UPLOADS,
   parseRef,
   saidUploadSchema,
+  turnNotifySchema,
 } from '@dltech/atlas-core'
 import { z } from 'zod'
 
@@ -217,6 +218,8 @@ export const sessionTurnEndingSchema = z.strictObject({
   seq: z.number().int().min(0),
   outcome: z.enum(ETurnOutcome),
   by: z.enum(ETurnEndedBy),
+  at: z.string().min(1).optional(),
+  notify: turnNotifySchema.optional(),
 })
 
 export const sessionSummarySchema = z.strictObject({

@@ -65,6 +65,16 @@ export function useChatKeys(args: {
           run: attention.handleRetry,
         }),
       )
+    } else if (attention.handleResume !== null) {
+      list.push(
+        global({
+          chord: 'ctrl+r',
+          hint: 'resume',
+          describe: 'pick the stopped turn up where it left off',
+          group: EKeyGroup.Turn,
+          run: attention.handleResume,
+        }),
+      )
     }
     if (wake.state !== EPodWake.Asleep) {
       list.push(
@@ -82,7 +92,7 @@ export function useChatKeys(args: {
       )
     }
     return list
-  }, [attention.handleRetry, composer, connection.cloudConnected, wake])
+  }, [attention.handleResume, attention.handleRetry, composer, connection.cloudConnected, wake])
 
   const bindings = useMemo(
     () => [

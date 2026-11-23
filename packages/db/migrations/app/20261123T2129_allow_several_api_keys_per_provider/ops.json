@@ -1,0 +1,41 @@
+[
+  {
+    "id": "dropIndex.AgentAccount.AgentAccount_api_key_per_provider_cc097a1d",
+    "label": "Drop index \"AgentAccount_api_key_per_provider_cc097a1d\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "AgentAccount_api_key_per_provider_cc097a1d",
+        "table": "AgentAccount"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"AgentAccount_api_key_per_provider_cc097a1d\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"AgentAccount_api_key_per_provider_cc097a1d\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop index \"AgentAccount_api_key_per_provider_cc097a1d\"",
+        "sql": "DROP INDEX \"public\".\"AgentAccount_api_key_per_provider_cc097a1d\"",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"AgentAccount_api_key_per_provider_cc097a1d\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"AgentAccount_api_key_per_provider_cc097a1d\""
+        ]
+      }
+    ]
+  }
+]
