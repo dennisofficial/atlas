@@ -15,15 +15,18 @@ export const installNotificationHandler = (): void => {
   })
 }
 
-const threadIdOfNotification = (request: Notifications.NotificationRequest): string | undefined => {
-  const value = request.content.data?.threadId
+const fieldOf = (
+  request: Notifications.NotificationRequest,
+  field: 'threadId' | 'sessionId',
+): string | undefined => {
+  const value = request.content.data?.[field]
   return typeof value === 'string' && value.length > 0 ? value : undefined
 }
 
 export const dismissPresentedForThread = async (threadId: string): Promise<void> => {
   const presented = await Notifications.getPresentedNotificationsAsync()
   const matching = presented.filter(
-    (notification) => threadIdOfNotification(notification.request) === threadId,
+    (notification) => fieldOf(notification.request, 'threadId') === threadId,
   )
   await Promise.all(
     matching.map((notification) =>
@@ -33,14 +36,14 @@ export const dismissPresentedForThread = async (threadId: string): Promise<void>
 }
 
 export const subscribeToNotificationResponses = ({
-  onThreadId,
+  onSessionId,
 }: {
-  onThreadId: (threadId: string) => void
+  onSessionId: (sessionId: string) => void
 }): Notifications.EventSubscription =>
   Notifications.addNotificationResponseReceivedListener((response) => {
     const data: unknown = response.notification.request.content.data
-    if (typeof data === 'object' && data !== null && 'threadId' in data) {
-      const threadId = data.threadId
-      if (typeof threadId === 'string' && threadId.length > 0) onThreadId(threadId)
+    if (typeof data === 'object' && data !== null && 'sessionId' in data) {
+      const sessionId = data.sessionId
+      if (typeof sessionId === 'string' && sessionId.length > 0) onSessionId(sessionId)
     }
   })

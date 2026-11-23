@@ -1,37 +1,14 @@
-import {
-  AtlasMark,
-  Button,
-  EButtonSize,
-  EButtonVariant,
-  EFontWeight,
-  ETextRole,
-  Text,
-  useTheme,
-} from '@dltech/atlas-ui-native'
+import { Button, EButtonSize, EButtonVariant, useTheme } from '@dltech/atlas-ui-native'
 import { router, Stack, usePathname } from 'expo-router'
-import { ChevronLeft, Menu, Plus } from 'lucide-react-native'
-import { StyleSheet, View } from 'react-native'
+import { ChevronLeft, Plus } from 'lucide-react-native'
+import { Platform } from 'react-native'
 
 import { useAuth } from '../../auth/auth-provider'
-import { DrawerContent } from '../../drawer/drawer-content'
-import { DrawerProvider, useDrawer } from '../../drawer/drawer-provider'
+import { AccountButton } from '../../navigation/account-button'
 import { AppHeader } from '../../navigation/app-header'
 import { InAppNoticesProvider } from '../../notifications/in-app-notices-provider'
 import { sessionIdOfPathname } from '../../thread/v2/presence-state'
 import { usePresenceReport } from '../../thread/v2/use-presence-report'
-
-const MenuButton = () => {
-  const drawer = useDrawer()
-  return (
-    <Button
-      label="Open menu"
-      icon={Menu}
-      variant={EButtonVariant.Ghost}
-      size={EButtonSize.IconLg}
-      onPress={drawer.open}
-    />
-  )
-}
 
 const BackButton = () => (
   <Button
@@ -43,56 +20,46 @@ const BackButton = () => (
   />
 )
 
-const Wordmark = () => {
+const NewSessionButton = () => (
+  <Button
+    label="New session"
+    icon={Plus}
+    variant={EButtonVariant.Ghost}
+    size={EButtonSize.IconLg}
+    onPress={() => router.push('/new')}
+  />
+)
+
+const AppStackHeader = ({ options }: { options: { title?: string } }) => {
   const theme = useTheme()
-  return (
-    <View style={styles.wordmark}>
-      <AtlasMark size={20} color={theme.foreground} />
-      <Text size={ETextRole.Sm} weight={EFontWeight.Medium}>
-        Atlas
-      </Text>
-    </View>
-  )
+  return <AppHeader title={options.title ?? ''} left={<BackButton />} surface={theme.background} />
 }
+
+const renderAppStackHeader = ({ options }: { options: { title?: string } }) => (
+  <AppStackHeader options={options} />
+)
 
 const AppStack = () => {
   const theme = useTheme()
   return (
-    <Stack
-      screenOptions={{
-        contentStyle: { backgroundColor: theme.background },
-        header: ({ options }) => (
-          <AppHeader title={options.title ?? ''} left={<BackButton />} surface={theme.background} />
-        ),
-      }}
-    >
+    <Stack screenOptions={{ contentStyle: { backgroundColor: theme.background } }}>
       <Stack.Screen
         name="index"
         options={{
+          title: 'Threads',
+          headerLargeTitle: Platform.OS === 'ios',
+          headerLeft: () => <AccountButton />,
+          headerRight: () => <NewSessionButton />,
           contentStyle: { backgroundColor: theme.sidebar },
-          header: () => (
-            <AppHeader
-              title={<Wordmark />}
-              left={<MenuButton />}
-              right={
-                <Button
-                  label="New session"
-                  icon={Plus}
-                  variant={EButtonVariant.Ghost}
-                  size={EButtonSize.IconLg}
-                  onPress={() => router.push('/new')}
-                />
-              }
-              surface={theme.sidebar}
-            />
-          ),
         }}
       />
-      <Stack.Screen name="new" options={{ title: 'New session' }} />
-      <Stack.Screen name="thread/[id]" options={{ title: '' }} />
-      <Stack.Screen name="sessions/[id]" options={{ title: '' }} />
-      <Stack.Screen name="agents/[agentId]" options={{ title: 'Sub-agent' }} />
-      <Stack.Screen name="settings" options={{ title: 'Settings' }} />
+      <Stack.Screen name="new" options={{ title: 'New session', header: renderAppStackHeader }} />
+      <Stack.Screen name="sessions/[id]" options={{ title: '', header: renderAppStackHeader }} />
+      <Stack.Screen
+        name="agents/[agentId]"
+        options={{ title: 'Sub-agent', header: renderAppStackHeader }}
+      />
+      <Stack.Screen name="settings" options={{ title: 'Settings', header: renderAppStackHeader }} />
     </Stack>
   )
 }
@@ -102,19 +69,8 @@ export default function AppLayout() {
   const { api } = useAuth()
   usePresenceReport({ api, sessionId: sessionIdOfPathname(pathname) })
   return (
-    <DrawerProvider drawer={<DrawerContent />} swipeEnabled={pathname === '/'}>
-      <InAppNoticesProvider>
-        <AppStack />
-      </InAppNoticesProvider>
-    </DrawerProvider>
+    <InAppNoticesProvider>
+      <AppStack />
+    </InAppNoticesProvider>
   )
 }
-
-const styles = StyleSheet.create({
-  wordmark: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 8,
-    paddingHorizontal: 4,
-  },
-})
