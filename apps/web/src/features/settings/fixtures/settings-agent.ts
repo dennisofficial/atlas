@@ -7,6 +7,7 @@ export enum EBuiltInAgentType {
   Explore = 'explore',
   GeneralPurpose = 'general-purpose',
   Preview = 'preview',
+  Researcher = 'researcher',
   Reviewer = 'reviewer',
 }
 
