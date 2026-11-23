@@ -99,6 +99,7 @@ export * from './media/sign-window'
 export * from './media/media-path'
 
 export * from './assembly/assembled'
+export * from './assembly/context-breakdown'
 export * from './assembly/request-size'
 export * from './assembly/request-hash'
 export * from './assembly/provider-prompt'

@@ -80,8 +80,6 @@ the capabilities `control`, `crew`, `messages`, `classifier`, `sessions`, `workt
 `ctx.crew` is a `PodCrew`. Its `spawn` takes `group`; the parent wakes once, after every sub-agent of
 that group ends. `ctx.control` is a `PodControl`: `exposePort({port})`, `settingsVersions()`,
 `memory`, `webSearch`, `gateway` (`apiKey()`, `imageModel()`), `mcp`, `routines`, `subscriptions`.
-`ctx.sessions` is a `PodSessions`: `spawn`, `list`, `teammates` and `archive({sessionId})`, which
-refuses a session the caller did not spawn.
 
 ### The control and client slots
 

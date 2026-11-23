@@ -39,9 +39,8 @@ a thread's event log.
 
 - `createSession`, `createSessionWithMessage`, `setSessionModel`, `renameSession`,
   `titleUntitledSession`, `setSessionArchived`, `markSessionRead`.
-- `archiveSpawned({ fromSessionId, sessionId })`: a session archives a session it spawned, refused
-  unless it spawned it, the target belongs to the same user and the target is settled. Returns a
-  `SpawnedArchive`, and records a `session-archived` event in the target's inbox.
+- `archiveSpawned({ fromSessionId, sessionId })`: archive a settled session the caller spawned and
+  record `session-archived` in its inbox. Returns a `SpawnedArchive`.
 - `listSessions`, `listSessionDigests`, `countSessionBuckets`, `readSession`, `sessionsOf`,
   `readSessionBusy`. A digest listing can keep only archived sessions, takes a title or
   first-message search, and a creation-time keyset cursor.

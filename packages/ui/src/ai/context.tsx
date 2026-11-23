@@ -16,6 +16,7 @@ export interface ContextProps {
   breakdown?: ContextBreakdownRow[]
   trigger?: ReactNode
   className?: string
+  children?: ReactNode
 }
 
 interface UsageInput {
@@ -29,6 +30,50 @@ export function contextPercent({ used, limit }: UsageInput): number | null {
 }
 
 const NOT_MEASURED = '—'
+const WARN_PERCENT = 70
+const DANGER_PERCENT = 90
+const RING_RADIUS = 6
+const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS
+
+export function contextToneOf(percent: number | null): string {
+  if (percent === null) return 'text-muted-foreground'
+  if (percent >= DANGER_PERCENT) return 'text-destructive'
+  if (percent >= WARN_PERCENT) return 'text-warning'
+  return 'text-foreground'
+}
+
+export function ContextRing({ percent }: { percent: number | null }) {
+  const filled = ((percent ?? 0) / 100) * RING_CIRCUMFERENCE
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      aria-hidden
+      data-slot="context-ring"
+      className={cn('size-4 shrink-0 -rotate-90', contextToneOf(percent))}
+    >
+      <circle
+        cx="8"
+        cy="8"
+        r={RING_RADIUS}
+        fill="none"
+        strokeWidth="2"
+        className="stroke-muted-foreground/25"
+      />
+      {percent === null || percent === 0 ? null : (
+        <circle
+          cx="8"
+          cy="8"
+          r={RING_RADIUS}
+          fill="none"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeDasharray={`${filled} ${RING_CIRCUMFERENCE}`}
+          className="stroke-current"
+        />
+      )}
+    </svg>
+  )
+}
 
 export function formatTokens(tokens: number): string {
   if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toFixed(1)}M`
@@ -36,7 +81,44 @@ export function formatTokens(tokens: number): string {
   return String(tokens)
 }
 
-export function Context({ used, limit, breakdown = [], trigger, className }: ContextProps) {
+export function breakdownPercentOf({ tokens, limit }: { tokens: number; limit: number }): number {
+  if (limit <= 0) return 0
+  return Math.round((tokens / limit) * 100)
+}
+
+export function ContextBreakdown({
+  rows,
+  limit,
+}: {
+  rows: readonly ContextBreakdownRow[]
+  limit: number
+}) {
+  if (rows.length === 0) return null
+  return (
+    <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+      <span>Estimated</span>
+      <ul className="flex flex-col gap-1">
+        {rows.map((row) => (
+          <li key={row.label} className="flex items-center justify-between gap-3">
+            <span className="truncate">{row.label}</span>
+            <span className="shrink-0 tabular-nums">
+              {`${formatTokens(row.tokens)} · ${breakdownPercentOf({ tokens: row.tokens, limit })}%`}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+export function Context({
+  used,
+  limit,
+  breakdown = [],
+  trigger,
+  className,
+  children,
+}: ContextProps) {
   const percent = contextPercent({ used, limit })
   const reading = percent === null ? NOT_MEASURED : `${percent}%`
 
@@ -56,7 +138,12 @@ export function Context({ used, limit, breakdown = [], trigger, className }: Con
           />
         }
       >
-        {trigger ?? reading}
+        {trigger ?? (
+          <>
+            <ContextRing percent={percent} />
+            {reading}
+          </>
+        )}
       </HoverCardTrigger>
       <HoverCardContent className="flex w-64 flex-col gap-3">
         <div className="flex items-center justify-between gap-3 text-sm">
@@ -66,16 +153,8 @@ export function Context({ used, limit, breakdown = [], trigger, className }: Con
           </span>
         </div>
         {percent === null ? null : <Progress value={percent} aria-label="Context used" />}
-        {breakdown.length > 0 ? (
-          <ul className="flex flex-col gap-1 text-xs text-muted-foreground">
-            {breakdown.map((row) => (
-              <li key={row.label} className="flex justify-between gap-3">
-                <span>{row.label}</span>
-                <span className="tabular-nums">{formatTokens(row.tokens)}</span>
-              </li>
-            ))}
-          </ul>
-        ) : null}
+        <ContextBreakdown rows={breakdown} limit={limit} />
+        {children}
       </HoverCardContent>
     </HoverCard>
   )

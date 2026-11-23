@@ -28,7 +28,12 @@ describe('the context meter across a rotation', () => {
     const events = logOf([said(120_000), rotated])
     const state = events.reduce(stepMeter, initialMeterState)
 
-    expect(meterOf(state)).toEqual({ used: null, window: WINDOW, measuredThroughSeq: null })
+    expect(meterOf(state)).toEqual({
+      used: null,
+      window: WINDOW,
+      measuredThroughSeq: null,
+      breakdown: null,
+    })
   })
 
   it('agrees when rebuilt from the visible tail', () => {
@@ -46,6 +51,21 @@ describe('the context meter across a rotation', () => {
       used: 31_000,
       window: WINDOW,
       measuredThroughSeq: 3,
+      breakdown: null,
     })
+  })
+
+  it('keeps the breakdown a reading carried, and agrees when rebuilt', () => {
+    const breakdown = [{ label: 'Tools', tokens: 120 }]
+    const withBreakdown: V2Body = {
+      type: 'assistant-said',
+      parts: [{ type: 'text', text: 'ok' }],
+      usage: { inputTokens: 120, outputTokens: 0, contextWindow: WINDOW, breakdown },
+    }
+    const events = logOf([withBreakdown])
+    const state = events.reduce(stepMeter, initialMeterState)
+
+    expect(meterOf(state)?.breakdown).toEqual(breakdown)
+    expect(rebuildMeter({ state: recovered, visibleTail: events })).toEqual(state)
   })
 })

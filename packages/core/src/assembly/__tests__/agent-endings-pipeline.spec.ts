@@ -20,7 +20,7 @@ const SECOND_CHILD = toThreadId('thread-child-2')
 
 const compiled = (text: string): CompiledPrompt => ({
   blocks: [{ text }],
-  parts: [{ id: 'fixture.doctrine', text, chars: text.length }],
+  parts: [],
   skipped: [],
 })
 
