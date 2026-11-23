@@ -4,11 +4,9 @@ export const PUSH_MESSAGE_NOTIFICATION = 'notification'
 
 export const PUSH_MESSAGE_CLEAR = 'clear'
 
-export const OPEN_SESSION_MESSAGE = 'open-session'
-
-export const SESSION_QUERY_PARAM = 'session'
-
 export const ROUTINE_PATH = '/routines/'
+
+export const SESSION_PATH = '/sessions/'
 
 export const serviceWorkerSource = `self.addEventListener('install', () => self.skipWaiting())
 
@@ -27,19 +25,7 @@ const closeTagged = async (sessionId) => {
   for (const notification of shown) notification.close()
 }
 
-const openSession = async (sessionId) => {
-  const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
-  const existing = windows[0]
-  if (existing === undefined) {
-    await self.clients.openWindow('/?${SESSION_QUERY_PARAM}=' + encodeURIComponent(sessionId))
-    return
-  }
-  existing.postMessage({ type: '${OPEN_SESSION_MESSAGE}', sessionId })
-  await existing.focus()
-}
-
-const openRoutine = async (routineId) => {
-  const url = '${ROUTINE_PATH}' + encodeURIComponent(routineId)
+const open = async (url) => {
   const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
   const existing = windows[0]
   if (existing === undefined) {
@@ -49,6 +35,10 @@ const openRoutine = async (routineId) => {
   await existing.focus()
   await existing.navigate(url).catch(() => self.clients.openWindow(url))
 }
+
+const openSession = (sessionId) => open('${SESSION_PATH}' + encodeURIComponent(sessionId))
+
+const openRoutine = (routineId) => open('${ROUTINE_PATH}' + encodeURIComponent(routineId))
 
 self.addEventListener('push', (event) => {
   const message = notificationOf(event)

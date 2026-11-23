@@ -16,8 +16,10 @@ import { destinationOfUrl, type TDestination } from '../navigation/destination'
 import { installBackgroundNotifications } from '../push/background-notifications'
 import {
   installNotificationHandler,
+  lastNotificationTap,
   subscribeToNotificationResponses,
 } from '../push/notification-handler'
+import { claimSessionTap, type TNotificationTap } from '../push/session-tap'
 import { SettingsProvider } from '../settings/settings-provider'
 import { SplashOverlay } from '../splash/splash-overlay'
 import { fontAssets } from '../theme/fonts'
@@ -46,9 +48,15 @@ const RootStack = ({ fontsReady }: { fontsReady: boolean }) => {
   const settled = state !== EAuthState.Loading
 
   useEffect(() => {
-    const subscription = subscribeToNotificationResponses({
-      onSessionId: (id) => setIncoming({ pathname: '/sessions/[id]', params: { id } }),
-    })
+    const handled = new Set<string>()
+    const route = (tap: TNotificationTap) => {
+      const sessionId = claimSessionTap({ handled, tap })
+      if (sessionId === undefined) return
+      setIncoming((current) => current ?? { pathname: '/sessions/[id]', params: { id: sessionId } })
+    }
+    const subscription = subscribeToNotificationResponses({ onTap: route })
+    const launch = lastNotificationTap()
+    if (launch !== undefined) route(launch)
     return () => subscription.remove()
   }, [])
 

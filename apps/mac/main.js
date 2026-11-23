@@ -7,7 +7,7 @@ import { Notification, pushNotifications } from 'electron'
 // rather than destructured by the ESM loader.
 import electronUpdater from 'electron-updater'
 
-import { createApnsBridge } from './apns.js'
+import { createApnsBridge, sessionIdOfLaunchInfo, urlForSession } from './apns.js'
 import { contextMenuTemplate } from './context-menu.js'
 import { hostEnvironment, resolveBun, resolveHostScript, webRootAt } from './host-paths.js'
 import { externalUrlOf, sameOrigin } from './links.js'
@@ -147,7 +147,7 @@ function attachContextMenu({ win, contents }) {
   })
 }
 
-async function createWindow() {
+async function createWindow({ sessionId } = {}) {
   const win = new BrowserWindow({
     width: WINDOW_WIDTH,
     height: WINDOW_HEIGHT,
@@ -268,13 +268,13 @@ async function createWindow() {
     const installedHash = await payloads.updater.installedRoot()
     try {
       host = startSession(webRootFor({ home, bundledRoot, installedHash }))
-      await win.loadURL(await host.url)
+      await win.loadURL(urlForSession(await host.url, sessionId))
     } catch (error) {
       if (installedHash === undefined) throw error
       console.error('[web-payload] the installed interface failed; using the bundled one', error)
       await payloads.updater.fail({ hash: installedHash })
       host = startSession(bundledRoot)
-      await win.loadURL(await host.url)
+      await win.loadURL(urlForSession(await host.url, sessionId))
     }
     payloads.start()
     binary.start()
@@ -285,9 +285,15 @@ async function createWindow() {
   return win
 }
 
+let launchSessionId
+
+app.on('ready', (_event, launchInfo) => {
+  launchSessionId = sessionIdOfLaunchInfo(launchInfo)
+})
+
 app.whenReady().then(async () => {
   if (app.isPackaged) void apns.start()
-  await createWindow()
+  await createWindow({ sessionId: launchSessionId })
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) void createWindow()
   })
