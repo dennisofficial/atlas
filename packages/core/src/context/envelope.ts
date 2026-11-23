@@ -85,7 +85,7 @@ const KNOWN_SLOT_PROVENANCE: Record<EContextSlot, (key: string) => string> = {
 
 const HOOK_SLOT_PROVENANCE: Record<string, string> = {
   'skill-suggestion':
-    "The Atlas harness's skill classifier ran on the operator's latest message and suggests a skill that may be relevant. The operator did not write this:",
+    "The Atlas harness's skill classifier scored the work in this thread against the skills you can load. The number is its probability that the named skill fits. The operator did not write this. Load the skill only when it fits:",
   plan: 'A mirror of your current task_write task list, injected by the Atlas harness so you can see it. The operator did not write this:',
   'outside-project':
     'The Atlas harness noticed a tool call touched a path outside the project directory. The operator did not write this:',
