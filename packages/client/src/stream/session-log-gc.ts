@@ -9,8 +9,7 @@ export const sessionLogDeletionsOf = (args: {
   const archived = new Set(
     args.sessions.filter((session) => session.archived).map((session) => session.sessionId),
   )
-  const live = new Set(args.sessions.map((session) => session.sessionId))
-  return args.cached.filter((sessionId) => archived.has(sessionId) || !live.has(sessionId))
+  return args.cached.filter((sessionId) => archived.has(sessionId))
 }
 
 export const gcSessionLog = async (args: {

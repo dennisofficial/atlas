@@ -21,13 +21,14 @@ function writeHostPort(args: { home: string; port: number }): void {
   } catch {}
 }
 
-export function startOnStablePort<T extends { port: number }>(args: {
+export function startOnStablePort<T extends { port: number | undefined }>(args: {
   home: string
   start: (port: number) => T
 }): T {
   const remembered = readHostPort(args.home)
   const started = startOrAnyPort({ remembered, start: args.start })
-  if (started.port !== remembered) writeHostPort({ home: args.home, port: started.port })
+  if (started.port !== undefined && started.port !== remembered)
+    writeHostPort({ home: args.home, port: started.port })
   return started
 }
 
