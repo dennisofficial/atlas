@@ -2,7 +2,6 @@
 
 import { Button } from '@dltech/atlas-ui/components/button'
 import { BrandMark } from '@dltech/atlas-ui/components/brand-mark'
-import { ScaleIcon } from 'lucide-react'
 
 import { KEY_PREFIXES, type ApiKeyEntry, type ApiKeyProvider } from '../fixtures/settings-agent'
 import { Mono, SettingsRow } from '../settings-layout'
@@ -25,13 +24,7 @@ export function ApiKeyRow({
   const placeholder = prefix.length > 0 ? `${prefix}…` : 'Paste your API key'
   return (
     <SettingsRow
-      media={
-        provider.brand === undefined ? (
-          <ScaleIcon className="size-4 text-muted-foreground" aria-hidden />
-        ) : (
-          <BrandMark brand={provider.brand} />
-        )
-      }
+      media={<BrandMark brand={provider.brand} />}
       title={provider.name}
       description={
         entry ? (
