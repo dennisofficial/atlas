@@ -39,6 +39,15 @@ and OpenAI sign-in flows. The API, the control plane and the model package read 
   of the chosen account: `api-key` with the key, `plan` with the connection id, or `null`.
 - `accountCredentialOf({ row, unseal })`: the same credential for one sealed row.
 
+### Check a key
+
+- `keyFormatFault({ provider, apiKey })`: the reason a key's shape is wrong (empty, spaces,
+  too short, missing its provider prefix), or `undefined`.
+- `checkProviderKey({ provider, apiKey, fetch, timeoutMs })`: the format check, then one free
+  authenticated read against the provider. It answers `{ ok: true }` or a `KeyCheck` with
+  `EKeyCheckFault.Format`, `EKeyCheckFault.Refused` or `EKeyCheckFault.Unreachable` and the copy
+  to show. The timer defaults to 5000 ms. The caller passes the fetch function.
+
 ### Sign a provider account in
 
 The helpers of `@dltech/atlas-credentials/provider-oauth` take the fetch function and the clock, and

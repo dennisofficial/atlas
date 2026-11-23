@@ -2,10 +2,12 @@ import { createServer } from 'node:http'
 import { join } from 'node:path'
 
 import { app, BrowserWindow, clipboard, ipcMain, Menu, WebContentsView, shell } from 'electron'
+import { Notification, pushNotifications } from 'electron'
 // electron-updater ships CommonJS and builds `autoUpdater` behind a getter, so it is read here
 // rather than destructured by the ESM loader.
 import electronUpdater from 'electron-updater'
 
+import { createApnsBridge } from './apns.js'
 import { contextMenuTemplate } from './context-menu.js'
 import { hostEnvironment, resolveBun, resolveHostScript, webRootAt } from './host-paths.js'
 import { externalUrlOf, sameOrigin } from './links.js'
@@ -31,6 +33,14 @@ const WINDOW_WIDTH = 1280
 const WINDOW_HEIGHT = 820
 
 const { autoUpdater } = electronUpdater
+
+const desktopSecret = process.env.ATLAS_SECRET ?? crypto.randomUUID()
+
+const apns = createApnsBridge({
+  secret: desktopSecret,
+  notifications: Notification,
+  pushes: pushNotifications,
+})
 
 ipcMain.on(FULLSCREEN_QUERY, (event) => {
   event.returnValue = BrowserWindow.fromWebContents(event.sender)?.isFullScreen() ?? false
@@ -201,18 +211,21 @@ async function createWindow() {
   let host
   let session
 
-  const startSession = (webRoot) =>
-    startHost({
+  const startSession = (webRoot) => {
+    const started = startHost({
       script,
       bun,
       environment: hostEnvironment({
-        base: process.env,
+        base: { ...process.env, ATLAS_SECRET: desktopSecret },
         paneOrigin: session.origin,
         updateOrigin: session.origin,
         webRoot,
         appVersion: app.getVersion(),
       }),
     })
+    void started.url.then((url) => apns.attach(url)).catch(() => undefined)
+    return started
+  }
 
   // A new interface is installed in the background and waits for the person to take it: the web app
   // asks for this route and reloads itself when the window is in the background, so no update ever
@@ -230,6 +243,7 @@ async function createWindow() {
     } catch (error) {
       next.child.kill('SIGTERM')
       console.error('[web-payload] the new interface did not start; keeping this one', error)
+      void host?.url.then((url) => apns.attach(url)).catch(() => undefined)
       await payloads.updater.fail({ hash })
       return false
     }
@@ -272,6 +286,7 @@ async function createWindow() {
 }
 
 app.whenReady().then(async () => {
+  if (app.isPackaged) void apns.start()
   await createWindow()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) void createWindow()

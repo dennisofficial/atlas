@@ -9,6 +9,7 @@ import {
 } from '@dltech/atlas-notifications'
 import { notifyDeviceKindSchema } from '@dltech/atlas-wire'
 import {
+  apnsTransport,
   expoTransport,
   readPresence,
   webPushTransport,
@@ -42,13 +43,25 @@ const vapidOf = (env: Record<string, string | undefined>) => {
 const absent = (value: string | undefined): string | undefined =>
   value === undefined || value === '' ? undefined : value
 
+const apnsOf = (env: Record<string, string | undefined>) => {
+  const keyP8 = absent(env['APNS_KEY_P8'])
+  const keyId = absent(env['APNS_KEY_ID'])
+  const teamId = absent(env['APNS_TEAM_ID'])
+  const topic = absent(env['APNS_TOPIC'])
+  if (keyP8 === undefined || keyId === undefined || teamId === undefined || topic === undefined)
+    return null
+  return { keyP8: keyP8.replaceAll('\\n', '\n'), keyId, teamId, topic }
+}
+
 export const transportsOf = (
   env: Record<string, string | undefined>,
 ): Partial<Record<ENotifyDeviceKind, NotificationTransport>> => {
   const vapid = vapidOf(env)
+  const apns = apnsOf(env)
   return {
     [ENotifyDeviceKind.Expo]: expoTransport({ accessToken: absent(env['EXPO_ACCESS_TOKEN']) }),
     ...(vapid === null ? {} : { [ENotifyDeviceKind.WebPush]: webPushTransport({ vapid }) }),
+    ...(apns === null ? {} : { [ENotifyDeviceKind.ApnsMac]: apnsTransport(apns) }),
   }
 }
 

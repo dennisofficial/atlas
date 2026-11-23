@@ -1,9 +1,12 @@
+import { createApiClient } from '@dltech/atlas-api-router'
+import { ENotifyDeviceKind } from '@dltech/atlas-notifications'
 import type { MacClientFrame } from '@dltech/atlas-protocol/mac-link'
 
 import type { IDesktopAppInfo } from './app-info'
 import { resolveApiOrigin, resolveWebOrigin } from './api-origin'
 import { CALLBACK_PATH, createAuthService, type IAuthConfig } from './auth/auth-service'
 import { callbackResponse } from './auth/callback-page'
+import { createApnsRoutes } from './apns-routes'
 import { createAuthHandler } from './auth/routes'
 import { createDesktopRouter } from './desktop-routes'
 import { isAuthorized, startSession } from './guard'
@@ -63,19 +66,38 @@ export function createDesktopHost({
     port: () => server.port as number,
   })
   const bearer = () => authService.token()
+  const deviceId = createDeviceId({
+    read: () => authService.deviceId(),
+    write: (value) => authService.saveDeviceId(value),
+  })
   const link = createMacLinkClient({
     apiOrigin: origin,
     token: bearer,
-    deviceId: createDeviceId({
-      read: () => authService.deviceId(),
-      write: (value) => authService.saveDeviceId(value),
-    }),
+    deviceId,
     appVersion: () => app?.version ?? '0.0.0',
     ...(macMcp === undefined ? {} : { sink: macMcp }),
+  })
+  const apns = createApnsRoutes({
+    signedIn: () => authService.status().state === 'signed-in',
+    register: async ({ token }) => {
+      const authToken = authService.token()
+      if (authToken === undefined) return
+      await createApiClient({
+        baseUrl: origin,
+        token: authToken,
+      }).notifications.registerDevice.mutate({
+        kind: ENotifyDeviceKind.ApnsMac,
+        clientId: deviceId(),
+        token,
+        secret: null,
+        label: 'Mac',
+      })
+    },
   })
   const syncLink = (): void => {
     if (authService.status().state === 'signed-in') link.start()
     else link.stop()
+    void apns.sync()
   }
   authService.onChange(syncLink)
   syncLink()
@@ -90,6 +112,7 @@ export function createDesktopHost({
     pane,
     auth: createAuthHandler({ auth: authService }),
     pods: podsHandler,
+    apns: apns.handler,
   })
 
   const server = Bun.serve({

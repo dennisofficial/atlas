@@ -16,6 +16,7 @@ import { HttpErrorMiddleware } from '../_module/trpc/http-error.middleware'
 import { ThrottleMiddleware } from '../_module/trpc/throttle.middleware'
 import { apiErrorFormatter } from '../_module/trpc/trpc-error-formatter'
 import { AccountsModule } from './platform/accounts/accounts.module'
+import { ClassifierModule } from './platform/classifier/classifier.module'
 import { AccountRouter } from './platform/auth/account.router'
 import { CredentialAvailabilityModule } from './platform/credential-availability/credential-availability.module'
 import { AuthModule } from './platform/auth/auth.module'
@@ -85,6 +86,7 @@ import { ControlPlaneModule } from './platform/control/control-plane.module'
     AuthModule,
     DesktopAuthModule,
     AccountsModule,
+    ClassifierModule,
     CredentialAvailabilityModule,
     OauthConnectionsModule,
     ProviderSignInModule,

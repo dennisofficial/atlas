@@ -27,10 +27,12 @@ mac:
   icon: icon.icns
   hardenedRuntime: true
   entitlements: build/entitlements.mac.plist
-  entitlementsInherit: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.inherit.plist
   # The app spawns Contents/Resources/bin/bun as its desktop host. @electron/osx-sign signs every path
   # in this list, with the hardened runtime and `entitlementsInherit`, before it signs the bundle; a
-  # nested executable left unsigned makes the installed app refuse to launch.
+  # nested executable left unsigned makes the installed app refuse to launch. The inherit file leaves
+  # out `aps-environment`: a restricted entitlement on the helper and the runtime needs a profile of
+  # their own, and without one they fail to launch.
   binaries:
     - Contents/Resources/bin/bun
   notarize: true
