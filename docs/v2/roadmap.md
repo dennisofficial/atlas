@@ -22,7 +22,7 @@ Each slice is built in its own Atlas session and handed to a fresh session when 
 
 ## Current state
 
-_Updated at the end of every slice. Last update: 2026-11-17._
+_Updated at the end of every slice. Last update: 2026-11-23._
 - **Specs approved 2026-11-23: v1 parity.** Before v1 is deleted, v2 gets these features, each with its own spec:
   [slash commands](slices/slash-commands.md), [notifications](slices/notifications.md) (in-app, Web Push,
   iOS and Mac native behind one package), the [classifier role](slices/classifier.md) (new credentials and
@@ -38,6 +38,14 @@ _Updated at the end of every slice. Last update: 2026-11-17._
   is checked with one free read call before it is saved. The v1 `decisions.*` and
   `classifier.mode` rows stay until v1 is deleted. Skill suggestion and the Jev quality review call
   the port next.
+- **Built 2026-11-23: the Jev quality review** ([spec](slices/jev-quality.md), #2597 and this PR).
+  After a successful file write, the classifier answers the enabled code-quality policies' typed
+  questions about the changed scopes, and the agent gets one advisory note on its next step: nothing
+  is blocked or reverted. The engine is `@dltech/atlas-quality` on the agent host; the tool result
+  carries `code-quality-reviewed`. The master switch (`quality.enabled`) now defaults on, which
+  means on whenever a classifier is set, and example recording is dropped in v2. TUI and web draw
+  the same one-line indicator on the tool call, worded in `@dltech/atlas-client/transcript`. Live
+  check pending the classifier role's slice 3.
 - **Built 2026-11-17: Stop** ([audit](research/slice-3/recovery-audit.md) F-13). `sessions.stop` takes
   `{sessionId}`, checks the caller owns the session and posts a `stop` inbox entry — the same durable
   input a message is, so it reaches a parked pod and needs no live connection. A turn in flight is

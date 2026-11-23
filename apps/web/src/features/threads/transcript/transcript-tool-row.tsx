@@ -3,6 +3,12 @@
 import type { ReactNode } from 'react'
 import { BotIcon, ListChecksIcon, WrenchIcon } from 'lucide-react'
 
+import {
+  EQualityNoticeTone,
+  qualityNoticeLine,
+  qualityNoticeOf,
+  type QualityNotice,
+} from '@dltech/atlas-client/transcript'
 import { McpServerMark } from '@dltech/atlas-ui/ai/mcp-server-mark'
 import { EToolKind, EToolState, Tool, ToolLine } from '@dltech/atlas-ui/ai/tool'
 import { DiffViewer } from '@dltech/atlas-ui/ai/diff-viewer'
@@ -108,7 +114,20 @@ function McpTitle({ state, mcp }: { state: EToolState; mcp: { server: string; to
   )
 }
 
-export function ToolRow({
+function QualityLine({ notice }: { notice: QualityNotice }) {
+  const line = qualityNoticeLine(notice)
+  const failed = line.tone === EQualityNoticeTone.Failure
+  return (
+    <span
+      className={`flex w-fit items-center gap-1 text-sm ${failed ? 'text-destructive' : 'text-warning'}`}
+    >
+      <span aria-hidden="true">{failed ? '✗' : '⚠'}</span>
+      {line.label}
+    </span>
+  )
+}
+
+function CallRow({
   call,
   onOpenChanges,
 }: {
@@ -137,5 +156,23 @@ export function ToolRow({
       errorText={call.errorText}
       elapsed={call.elapsed}
     />
+  )
+}
+
+export function ToolRow({
+  call,
+  onOpenChanges,
+}: {
+  call: ToolCallItem
+  onOpenChanges: ((path: string) => void) | null
+}) {
+  const row = <CallRow call={call} onOpenChanges={onOpenChanges} />
+  const notice = qualityNoticeOf(call.qualityReviews)
+  if (notice === null) return row
+  return (
+    <div className="flex min-w-0 flex-col gap-2">
+      {row}
+      <QualityLine notice={notice} />
+    </div>
   )
 }
