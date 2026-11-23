@@ -54,6 +54,22 @@ describe('requestHashesOf', () => {
     )
   })
 
+  it('ignores the measured fragment sizes, keeping the cache hash on the bytes sent', () => {
+    const text = 'prompt'
+    const plain = requestHashesOf({
+      assembled: assembledWith([{ text, source: 'system-prompt' }]),
+      tools: [],
+    })
+    const measured = requestHashesOf({
+      assembled: assembledWith([
+        { text, source: 'system-prompt', parts: [{ id: 'identity.atlas', chars: text.length }] },
+      ]),
+      tools: [],
+    })
+
+    expect(measured).toEqual(plain)
+  })
+
   it('hashes the request options so a changed provider option shows', () => {
     const plain = requestHashesOf({ assembled: assembledWith([]), tools: [] })
     const keyed = requestHashesOf({

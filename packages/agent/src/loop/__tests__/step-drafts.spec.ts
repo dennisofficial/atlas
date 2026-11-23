@@ -109,6 +109,27 @@ describe('the step usage a draft carries', () => {
     const drafts = interruptedDrafts(stepOf({ toolCalls: [call] }))
     expect(drafts[0]).toMatchObject({ type: 'tool-called', usage })
   })
+
+  it('records the estimated breakdown split from the measured request sizes', () => {
+    const drafts = draftsFor({
+      ...stepOf({ parts: [{ type: 'text', text: 'hi' }] }),
+      sizes: { 'tools.builtin': 100 },
+    })
+
+    expect(drafts[0]).toMatchObject({
+      usage: {
+        breakdown: [
+          { label: 'Tools', tokens: 40_000 },
+          { label: 'Conversation', tokens: 1_200 },
+        ],
+      },
+    })
+  })
+
+  it('leaves the breakdown off when the step measured no sizes', () => {
+    const drafts = draftsFor(stepOf({ toolCalls: [call] }))
+    expect(drafts[0]).not.toHaveProperty('usage.breakdown')
+  })
 })
 
 const SONNET: ModelCost = { inputPerMillion: 3, outputPerMillion: 15 }

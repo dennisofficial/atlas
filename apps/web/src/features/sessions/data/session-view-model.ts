@@ -26,6 +26,7 @@ type RowPullRequest = NonNullable<SessionSummary['pullRequest']>
 export type SessionContextModel = {
   used: number | null
   limit: number
+  breakdown: readonly { label: string; tokens: number }[]
 }
 
 export type SessionViewModel = {
@@ -91,7 +92,7 @@ export const rowPullRequestEntryOf = (pullRequest: RowPullRequest): PullRequestE
 export const contextOfView = (view: SessionViewOutput): SessionContextModel | null => {
   const { context } = view
   if (context === null || context.window === null || context.window <= 0) return null
-  return { used: context.used, limit: context.window }
+  return { used: context.used, limit: context.window, breakdown: context.breakdown ?? [] }
 }
 
 const RUNNING_FIRST = (status: string): number => (status === 'running' ? 0 : 1)

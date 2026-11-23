@@ -77,14 +77,22 @@ describe('UsageMeters', () => {
     expect(element.textContent).toContain('resets in 2d3h')
   })
 
-  it('draws the bar only for a window the provider reports', async () => {
+  it('hides the 5-hour window of a plan that has only a weekly limit', async () => {
     const element = await render(<UsageMeters report={reportOf({ fiveHour: null })} now={NOW} />)
 
-    const readings = [...element.querySelectorAll('span')].filter((span) =>
-      span.textContent?.trim().endsWith('%'),
+    expect(element.textContent).not.toContain('5-hour')
+    expect(element.textContent).toContain('7-day')
+    expect(element.textContent).toContain('41%')
+  })
+
+  it('shows both windows unread before the first reading', async () => {
+    const element = await render(
+      <UsageMeters report={reportOf({ fiveHour: null, sevenDay: null })} now={NOW} />,
     )
+
+    expect(element.textContent).toContain('5-hour')
+    expect(element.textContent).toContain('7-day')
     expect(element.textContent).toContain('—')
-    expect(readings.map((span) => span.textContent?.trim())).toEqual(['41%'])
   })
 
   it('renders nothing for an account with no plan window', async () => {

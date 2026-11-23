@@ -11,7 +11,7 @@ const ctx = contextFor({ events: log([]) })
 
 const compiled = (...texts: readonly string[]): CompiledPrompt => ({
   blocks: texts.length === 0 ? [] : [{ text: texts.join('\n\n') }],
-  parts: texts.map((text, index) => ({ id: `fixture-${index}`, text, chars: text.length })),
+  parts: [],
   skipped: [],
 })
 
@@ -23,6 +23,41 @@ describe('systemPrompt', () => {
     const assembled = fixed(compiled('doctrine'))({ system: [], messages: [] }, ctx)
 
     expect(assembled.system).toEqual([{ text: 'doctrine', source: 'system-prompt' }])
+  })
+
+  it('names the fragments the compile measured on the block they produced', () => {
+    const prompt: CompiledPrompt = {
+      blocks: [{ text: 'abcdef' }],
+      parts: [
+        { id: 'identity.atlas', text: 'abc', chars: 3 },
+        { id: 'skills.listing', text: 'def', chars: 3 },
+      ],
+      skipped: [],
+    }
+
+    expect(fixed(prompt)({ system: [], messages: [] }, ctx).system).toEqual([
+      {
+        text: 'abcdef',
+        source: 'system-prompt',
+        parts: [
+          { id: 'identity.atlas', chars: 3 },
+          { id: 'skills.listing', chars: 3 },
+        ],
+      },
+    ])
+  })
+
+  it('leaves the fragment sizes off a compile that emitted several blocks', () => {
+    const prompt: CompiledPrompt = {
+      blocks: [{ text: 'first' }, { text: 'second' }],
+      parts: [{ id: 'identity.atlas', text: 'first', chars: 5 }],
+      skipped: [],
+    }
+
+    expect(fixed(prompt)({ system: [], messages: [] }, ctx).system).toEqual([
+      { text: 'first', source: 'system-prompt' },
+      { text: 'second', source: 'system-prompt' },
+    ])
   })
 
   it('appends after the blocks already there and leaves them untouched', () => {
