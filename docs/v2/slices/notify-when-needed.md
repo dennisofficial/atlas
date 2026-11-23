@@ -1,7 +1,7 @@
 # Slice spec: notify only when the agent needs you
 
-Status: **draft, waiting for Dennis's approval.** It changes the v2 notifications built from
-[notifications.md](notifications.md). Anchors are `path:line` at `05856454f`. Check an anchor again
+Status: **approved by Dennis 2026-11-23**, with the answers in §10. It changes the v2 notifications
+built from [notifications.md](notifications.md). One rule governs push and in-app notices. Anchors are `path:line` at `05856454f`. Check an anchor again
 before you rely on it.
 
 ## 1. Product contract
@@ -26,7 +26,7 @@ and one notification arrives.
 minutes. A PostHog dashboard shows every moment, why it was sent or not, and what happened on the
 device.
 
-**Non-goals.** A digest notification ("3 sessions finished"). In-app toasts (§9). v1 sessions.
+**Non-goals.** A digest notification ("3 sessions finished"). v1 sessions.
 
 ## 2. What exists today
 
@@ -198,12 +198,17 @@ disabled, quiet, read, on screen, in Atlas, no devices. `sound` is `!recentPush`
 
 ### 4.5 Host and dispatch
 
-- `held-turns.ts:243` `notifyTurn`: after `notifyMomentOf`, read the events once
-  (`record.eventCache().eventsAfter(0)`, as `statusOf` does at `:262`), compute `pendingWorkOf`,
-  `operatorTurnOf` and `notifyDecisionOf`, and pass the decision to `notify`.
+- The facts are recorded on the turn end, so every client reads the same answer.
+  `turnEndedSchema` (`packages/core/src/record/turns.ts:29`) gains an optional
+  `notify: { pending: EPendingWork[]; operatorTurn: boolean }`. Optional, so old rows parse.
+  `endTurn` (`held-turns.ts:200`) computes it before the append from
+  `record.eventCache().eventsAfter(0)` (as `statusOf` does at `:262`) with `pendingWorkOf` and
+  `operatorTurnOf`.
+- `held-turns.ts:243` `notifyTurn` builds `notifyDecisionOf` from the same facts and passes the
+  decision to `notify`. The parked path (`:133`) has no turn end. It stays `WaitingForYou`, `Send`.
 - `NotifyDispatchArgs` (`notify-dispatch.ts:3`) gains `decision: NotifyDecision`.
-- `notify.port.ts:7` dispatches with `delay: \`${holdMs / 1000}s\``when`holdMs > 0`. The key stays
-  `notify:<sessionId>:<seq>`.
+- `notify.port.ts:7` dispatches with `delay` = `holdMs` in seconds when `holdMs > 0`. The key
+  stays `notify:<sessionId>:<seq>`.
 - `notifySendPayloadSchema` (`packages/jobs/src/notify.ts:11`) gains optional `holdMs`, `pending`,
   `operatorTurn`, `endedAt`. Optional, so a run that an older API deploy queued still parses.
 
@@ -222,21 +227,47 @@ The wait lives in trigger.dev, not in the host. A host drain, a SIGKILL or a pod
 lose it or run it twice: the run is already queued under its idempotency key, and the task reads
 the truth from the database when it runs.
 
+### 4.7 In-app notices follow the same rule
+
+The in-app fold (`packages/notifications/src/client/in-app.ts:48` `momentOfRow`) reads the session
+row, so the row carries the facts:
+- `sessionTurnEndingSchema` (`packages/protocol/src/api.ts:216`) gains the optional `notify`
+  object and `at`. `postgres-digests.ts:63-70` reads both from the same last `turn-ended`
+  (`canonical -> 'notify'`, `e."at"`); `memory-digests.ts` does the same.
+- `InAppRow` (`in-app.ts:11`) gains `nested`, and its `lastTurn` gains `notify` and `at`.
+- New pure `inAppDueOf({ row })` in `packages/core/src/notify/in-app.ts` (beside `inAppNoticeOf`)
+  returns `{ show: false }`, `{ show: true }` or `{ dueAt }`. It uses `notifyDecisionOf` and the
+  nested rule, so push and in-app cannot disagree.
+- A held moment shows at `dueAt` only if the row still has the same `lastTurn.seq` and its status
+  is not active (`Thinking`, `RunningTool`, `Queued`, `Resuming`, `WaitingToRetry`). A wake that
+  ends a new turn changes `lastTurn`, and that turn decides. This is the in-app form of
+  "superseded".
+- The web hook (`apps/web/src/features/notifications/use-in-app-notices.ts:46`) and the iOS
+  provider (`apps/mobile/src/notifications/in-app-notices-provider.tsx:59`) keep one local timer
+  per held moment and run the fold again when it fires. The timer reads no server, so it is not
+  polling.
+
+### 4.8 Where a tap goes
+
+Every tap opens the session's main thread for the notification's `sessionId`. The transcript
+opens at its end, where the turn ended. `seq` decides read and clear, not scrolling. §11 records
+each surface and the fixes.
+
 ## 5. Metrics
 
 Server events go through `ProductAnalytics` with `distinctId = userId`. The trigger task builds
 its own `PosthogProductAnalytics` and flushes before it returns.
 
-| Event                    | Where                                      | Properties                                                                                         |
-| ------------------------ | ------------------------------------------ | -------------------------------------------------------------------------------------------------- |
-| `notification_moment`    | API, `notify.port.ts`                      | `moment`, `verdict`, `hold_ms`, `pending_kinds`, `operator_turn`, `session_id`, `seq`              |
-| `notification_skipped`   | trigger, `notify-send`                     | `moment`, `reason` (`ENotifySkip`), `held`, `nested`, `session_id`, `seq`                          |
-| `notification_in_app`    | trigger, `notify-send`                     | `moment`, `session_id`, `seq`                                                                      |
-| `notification_sent`      | trigger, one per device                    | `moment`, `device_kind`, `accepted`, `gone`, `sound`, `held_ms`, `latency_ms`, `session_id`, `seq` |
-| `notification_delivered` | device, via `notifications.track`          | `moment`, `device_kind`, `session_id`, `seq`, `after_send_ms`                                      |
-| `notification_opened`    | device, via `notifications.track`          | same                                                                                               |
-| `notification_dismissed` | device, via `notifications.track`          | same                                                                                               |
-| `notification_cleared`   | API `markRead` (`sessions.service.ts:355`) | `session_id`, `moment_seq`, `read_after_ms`                                                        |
+| Event                    | Where                                                        | Properties                                                                                         |
+| ------------------------ | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
+| `notification_moment`    | API, `notify.port.ts`                                        | `moment`, `verdict`, `hold_ms`, `pending_kinds`, `operator_turn`, `session_id`, `seq`              |
+| `notification_skipped`   | trigger, `notify-send`                                       | `moment`, `reason` (`ENotifySkip`), `held`, `nested`, `session_id`, `seq`                          |
+| `notification_in_app`    | trigger (decided), clients via `notifications.track` (shown) | `moment`, `session_id`, `seq`, `source`                                                            |
+| `notification_sent`      | trigger, one per device                                      | `moment`, `device_kind`, `accepted`, `gone`, `sound`, `held_ms`, `latency_ms`, `session_id`, `seq` |
+| `notification_delivered` | device, via `notifications.track`                            | `moment`, `device_kind`, `session_id`, `seq`, `after_send_ms`                                      |
+| `notification_opened`    | device, via `notifications.track`                            | same                                                                                               |
+| `notification_dismissed` | device, via `notifications.track`                            | same                                                                                               |
+| `notification_cleared`   | API `markRead` (`sessions.service.ts:355`)                   | `session_id`, `moment_seq`, `read_after_ms`                                                        |
 
 What a device can know:
 
@@ -285,13 +316,20 @@ Each slice is one PR that merges alone, in this order.
    server events; the `markRead` clear event.
    Files: `apps/trigger/src/trigger/notify/`, `apps/api/src/agent/host/notify.port.ts`,
    `apps/api/src/agent/host/holder.module.ts`, `apps/api/src/api/platform/control/sessions.service.ts`.
-4. **Device metrics.** `notifications.track`; push data gains `moment` and `sentAt`; service worker
+4. **In-app follows the rule.** The `notify` and `at` fields on the digest and the summary schema,
+   `inAppDueOf`, the web hook and iOS provider timers, and their specs.
+   Files: `packages/protocol/src/api.ts`, `packages/control/src/postgres/postgres-digests.ts`,
+   `packages/control/src/testing/memory/memory-digests.ts`, `packages/core/src/notify/in-app.ts`,
+   `packages/notifications/src/client/in-app.ts`, `apps/web/src/features/notifications/`,
+   `apps/mobile/src/notifications/`.
+5. **Taps go to the session.** The three fixes of §11, with specs.
+6. **Device metrics.** `notifications.track`; push data gains `moment` and `sentAt`; service worker
    `push`, `notificationclick`, `notificationclose`; the iOS response listener and dismiss
    category; the Mac receive handler.
    Files: `packages/wire/src/notify-wire.ts`, `apps/api/src/api/platform/control/notifications.router.ts`,
    `packages/notifications/src/{model,transports/*}.ts`, `apps/web/src/lib/service-worker-source.ts`,
    `apps/mobile/src/push/`, `apps/mac/apns.js`.
-5. **Dashboard, live check, docs.** The PostHog dashboard (§5), the live check (§7), the roadmap
+7. **Dashboard, live check, docs.** The PostHog dashboard (§5), the live check (§7), the roadmap
    entry, and `notifications.md` §4.1 points here.
 
 ## 7. Tests and live check
@@ -351,17 +389,30 @@ which Dennis has off today.
 
 ## 9. Out of scope
 
-- In-app toasts (`packages/notifications/src/client/in-app.ts:48`). They show only while Dennis is
-  in Atlas, and they compute from the session row on the client. Making them follow this rule needs
-  the decision on the row. A follow-up if the dashboard shows they are noisy.
 - A digest notification across sessions. The silent repeat (§4.6) is the simple form.
 - A sweep for a moment the host failed to dispatch (unchanged from notifications.md §7).
 
-## 10. Open questions for Dennis
+## 10. Answers from Dennis (2026-11-23)
 
-1. **Holds:** 10 min for a subscription, 60 min for a shell or sub-agent. Longer holds cut more
-   pushes but delay a real "finished" when the work never wakes the agent.
-2. **Teammates:** a nested teammate sends "finished" only when you started the turn. Should a
-   parent also hold while its teammates are alive? 108 of 322 remaining parent pushes had a live
-   teammate; 84 of them woke within 10 min. It needs a session-row read, not the event log.
-3. **Bursts:** only the first push in 60 s makes a sound. Enough, or do you want a digest?
+1. **Holds:** keep 60 min for a shell or sub-agent and 10 min for an active subscription.
+2. **Teammates:** a parent does not hold while its teammates are alive. A nested teammate sends
+   "finished" only for a turn the operator started.
+3. **Bursts:** later pushes inside 60 s are silent. No digest.
+4. **In-app:** the same rule governs in-app notices (§4.7).
+5. **Taps:** check where a tap goes on each surface and fix any that misses the session (§11).
+
+## 11. Where a tap goes, per surface (checked 2026-11-23)
+
+| Surface                    | Today                                                                                          | Right session | Fix (slice 5)                                                                                                                                                                                                                                                                                                                                                                |
+| -------------------------- | ---------------------------------------------------------------------------------------------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Web in-app toast "Open"    | `/sessions/<id>` (`use-in-app-notices.ts:63`, `v2-rows.ts:12`)                                 | yes           | none                                                                                                                                                                                                                                                                                                                                                                         |
+| iOS in-app banner          | `/sessions/[id]` (`in-app-notices-provider.tsx:94`)                                            | yes           | none                                                                                                                                                                                                                                                                                                                                                                         |
+| iOS push, app running      | `/sessions/[id]` (`notification-handler.ts:48`, `_layout.tsx:49`)                              | yes           | none                                                                                                                                                                                                                                                                                                                                                                         |
+| iOS push, cold launch      | relies on the listener only; no launch-response read                                           | not sure      | read `getLastNotificationResponseAsync()` once on mount in `_layout.tsx` (JS only, no native change)                                                                                                                                                                                                                                                                         |
+| Web Push, a window is open | `postMessage('open-session')` (`service-worker-source.ts:37`); no window listens               | **no**        | `existing.navigate('/sessions/<id>')`, then `focus()`, with the `openWindow` fallback, as `openRoutine` does (`:41`)                                                                                                                                                                                                                                                         |
+| Web Push, no window        | `openWindow('/?session=<id>')`; `/` redirects to `/threads` and drops it                       | **no**        | `openWindow('/sessions/<id>')`                                                                                                                                                                                                                                                                                                                                               |
+| Mac push (APNs)            | no click handler; the app comes forward at its last URL (`apps/mac/apns.js:61`, `main.js:291`) | **no**        | handle the clicked notification's `userInfo` in the main process (launch info on `ready` for a cold launch, the click event for a running app) and load `/sessions/<id>` in the window; `macPushOf` (`mac-native.ts:19`) parses it. Check the Electron version's API first; if Electron gives a running app no click event, record that here and handle the cold launch only |
+
+The slice proves each fix with a spec: the service worker source navigates to the session href;
+the iOS launch response routes once; the Mac handler loads the session URL. The live check (§7)
+taps one notification on each surface.
