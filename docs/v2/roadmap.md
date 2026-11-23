@@ -23,6 +23,16 @@ Each slice is built in its own Atlas session and handed to a fresh session when 
 ## Current state
 
 _Updated at the end of every slice. Last update: 2026-11-23._
+- **Done 2026-11-23: notifications** ([spec](slices/notifications.md)). Eight slices: #2575 (the pure
+  decision in `packages/core/src/notify` and `packages/notifications`), #2579 (presence from web, Mac and
+  iOS into Redis, 90 s TTL), #2578 (in-app toast and banner; the sessions row gains `lastTurn` and
+  `headSeq`), #2583 (`V2PushDevice`, Web Push, the service worker, `notify-send` and `notify-test`),
+  #2591 (the agent host dispatches `notify-send` when a turn ends or parks), #2589 (Expo on iOS),
+  #2595 (Mac APNs: App ID `io.byatlas.mac`, profile "Atlas Mac Developer ID", the EAS key
+  `XS4K72SNYH`), #2599 (clear on read, at most one clear per moment), #2598 (Settings →
+  Notifications). Live 2026-11-23: `notify-send` runs on every turn end; presence write and delete,
+  `webPushKey`, `listDevices` and `/sw.js` answer in production. Delivery to a device waits for the
+  operator to turn on a device, for the next signed Mac release and for an iOS build.
 - **Done 2026-11-23: skill suggestion** ([spec](slices/skill-suggestion.md), deviations in its header).
   A `beforeTurn` hook in `plugins/skills` reads the last three operator messages with the agent's
   replies from the log, shortlists at most twelve skills by word overlap and asks the classifier one
