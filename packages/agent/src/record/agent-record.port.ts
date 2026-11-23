@@ -18,6 +18,10 @@ export abstract class AgentRecordPort {
   queuedSince(): string | null {
     return null
   }
+
+  async postedInputAts(_args: { threadId: ThreadId }): Promise<ReadonlyMap<number, string>> {
+    return new Map()
+  }
 }
 
 export abstract class ModelContextPort {

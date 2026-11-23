@@ -254,7 +254,10 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     const clientId = retryClientId.current ?? crypto.randomUUID()
     setSending(true)
     try {
-      await sessionsApi.post(postInputOf({ sessionId, text, clientId, media, uploads }))
+      await sessionsApi.post({
+        ...postInputOf({ sessionId, text, clientId, media, uploads }),
+        sentAt: new Date().toISOString(),
+      })
       stagedRun.stage({
         clientId,
         text,

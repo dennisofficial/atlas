@@ -23,6 +23,7 @@ import {
   fakeToolRegistry,
   type ScriptedModelStep,
 } from '@dltech/atlas-agent/testing'
+import type { TracePort } from '@dltech/atlas-observability'
 import type { ComposedPlugins } from '@dltech/atlas-plugin-sdk'
 import { inMemoryDaemonToken, type InMemoryDaemon } from '@dltech/atlas-protocol/testing'
 
@@ -169,6 +170,7 @@ export const makeRuntimeFactory = (args: {
   plugins?: ComposedPlugins | undefined
   rotation?: { autoRotateAtPercent: number } | undefined
   placeContextFiles?: SessionRuntime['placeContextFiles'] | undefined
+  trace?: TracePort | undefined
 }): ((params: {
   sessionId: string
   threadId: ThreadId
@@ -262,6 +264,7 @@ export const makeRuntimeFactory = (args: {
       watchedCheckouts: args.watchedCheckouts ?? args.watchedRepos ?? (async () => runtime.watched),
       baseBranchOf: (repoPath) => args.baseBranches?.[repoPath] ?? null,
       ...(args.plugins === undefined ? {} : { plugins: args.plugins }),
+      ...(args.trace === undefined ? {} : { trace: args.trace }),
       runningShells: args.runningShells ?? (async () => 0),
       ...(args.terminalStreams === undefined ? {} : { terminalStreams: args.terminalStreams }),
       ...(args.panelHolds === undefined ? {} : { panelHolds: args.panelHolds }),

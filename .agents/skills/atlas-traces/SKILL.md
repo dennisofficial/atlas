@@ -56,6 +56,18 @@ What the API sends ahead of the pod is its own trace (service `atlas-agent`, fro
 
 ```
 prompt.send                 root, one per tRPC threadMessages.send
+prompt.post                 root, one per tRPC sessions.post
+```
+
+`prompt.post` covers the API's own work on a send: the session lookup, the attachment intake and the
+inbox write. `clientToApiMs` is the stretch from the client's `sentAt` stamp to the API receiving the
+post, so it is absent when the client sends no stamp and when the stamp is more than a minute off the
+server clock.
+
+The holder opens one more trace per take-over of a session (service `atlas-agent`, from packages/host):
+
+```
+holder.takeover             root, one per take-over, written when the session reaches its first step
 ```
 
 The pod is provisioned before it boots (apps/api, service `atlas-agent`). The `pod-provision`
@@ -78,7 +90,12 @@ to the first `pod.boot` span is serve starting up.
 | `threadId`, `runId` | `turn`, `tool`, record spans, `pod.boot*`, `pod.provision*`, `prompt.send` | Join keys into the session's event log |
 | `callId` | `tool` | The tool call id in the event log; the full command or input lives there, never in the span |
 | `status` | `turn` | How the turn ended (`completed`, `failed`, `interrupted`, ...) |
-| `queuedMs` | `turn` | Pod wall time at turn start minus the `at` of the operator prompt the turn answers — the server-stored prompt → turn start stretch. Absent when the turn was not started by a prompt (a notice or timer woke it) and on a resume |
+| `queuedMs` | `turn` | Pod wall time at turn start minus the post time of the operator prompt the turn answers — the server-stored prompt → turn start stretch. The post time is the `postedAt` of the inbox row, not the `at` of the `user-said` event. Carried on a resume too. Absent when the turn answers no prompt (a notice or timer woke it) |
+| `firstTokenMs` | `turn` | Turn start minus the same prompt post time, to the first streamed chunk of the turn's first `model.call`. A retry or a later call never sets it, and a first call that ends before any chunk leaves it absent |
+| `sessionId` | `prompt.post`, `holder.takeover`, `pod.*` | The session the procedure or the holder worked on |
+| `inboxId`, `hasMedia` | `prompt.post` | The inbox row the post wrote and whether the message carried an attachment |
+| `clientToApiMs` | `prompt.post` | Client `sentAt` → API receipt, dropped when negative or over a minute (clock skew) |
+| `claimMs`, `configMs`, `recordMs`, `firstStepMs`, `<lap>Ms` | `holder.takeover` | The take-over's own timings: the claim wait, building the runtime, loading the record, each lap (`branches`, `commands`, `decide`, `settle`), and the whole stretch to the first step |
 | `wake` | `turn` | `cold` for the first turn on a thread in this pod process (the thread's first turn after a serve boot), `warm` for every later turn on that thread |
 | `provider`, `model` | `turn`, `model.call` | Which model ran |
 | `first_chunk_ms` | `model.call` | Time from request to the first streamed chunk of any kind |

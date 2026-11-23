@@ -117,7 +117,12 @@ export function useV2SessionScreen(args: {
       })
       retryClientId.current = clientId
       try {
-        await api.sessions.post.mutate({ sessionId, text, clientId })
+        await api.sessions.post.mutate({
+          sessionId,
+          text,
+          clientId,
+          sentAt: new Date().toISOString(),
+        })
       } catch {
         return false
       }
