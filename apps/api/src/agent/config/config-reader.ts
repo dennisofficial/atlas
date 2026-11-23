@@ -46,6 +46,29 @@ const workspaceOf = (project: ProjectRow | null): WorkspaceConfig => {
   }
 }
 
+export const sessionModelSourceOf = async (args: {
+  db: Db
+  cipher: SecretCipher
+  sessionId: string
+}): Promise<{ userId: string; models: ModelSource }> => {
+  const session = await args.db.orm.v2.V2Session.first({ id: args.sessionId })
+  if (session === null) throw new SessionNotFoundError(args.sessionId)
+  const { userId, projectId } = session
+  const [accounts, activeAccounts, settings] = await Promise.all([
+    args.db.orm.public.AgentAccount.where({ userId }).all(),
+    args.db.orm.public.ActiveAccount.where({ userId }).all(),
+    scopedSettingsOf({ db: args.db, userId, projectId }),
+  ])
+  const models = modelSourceOf({
+    cipher: args.cipher,
+    accounts,
+    activeAccounts,
+    settings,
+    session: { ref: session.modelRef, effort: session.modelEffort, fast: session.modelFast },
+  })
+  return { userId, models }
+}
+
 export class ConfigReader implements ConfigSource {
   private readonly now: () => number
 
@@ -97,16 +120,12 @@ export class ConfigReader implements ConfigSource {
   }
 
   async models({ sessionId }: { sessionId: string }): Promise<ModelSource> {
-    const { db } = this.args
-    const session = await db.orm.v2.V2Session.first({ id: sessionId })
-    if (session === null) throw new SessionNotFoundError(sessionId)
-    const { userId, projectId } = session
-    const [accounts, activeAccounts, settings] = await Promise.all([
-      db.orm.public.AgentAccount.where({ userId }).all(),
-      db.orm.public.ActiveAccount.where({ userId }).all(),
-      this.settingsOf({ userId, projectId }),
-    ])
-    return this.modelSourceFor({ session, accounts, activeAccounts, settings })
+    const read = await sessionModelSourceOf({
+      db: this.args.db,
+      cipher: this.args.cipher,
+      sessionId,
+    })
+    return read.models
   }
 
   private modelSourceFor(args: {

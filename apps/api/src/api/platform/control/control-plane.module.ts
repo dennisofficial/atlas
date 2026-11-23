@@ -4,7 +4,14 @@ import { ControlPlane } from '@dltech/atlas-control'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import type { ProductAnalytics } from '@dltech/atlas-observability'
 import { eventSchemaOf } from '@dltech/atlas-plugin-sdk'
-import { AnalyticsModule, PRODUCT_ANALYTICS, analyticsAppendHook } from '../../../agent'
+import {
+  AnalyticsModule,
+  PRODUCT_ANALYTICS,
+  SecretCipher,
+  analyticsAppendHook,
+  diagramRepairerOf,
+} from '../../../agent'
+import { EnvService } from '../../../_core/config/env/env.service'
 import { changeContentStoreProvider } from '../../../_lib/changes/change-content.provider'
 import { backgroundWorkProvider } from '../../../_lib/background-work/background-work.providers'
 import { COMMAND_REGISTRY, nativeCommandRegistry } from './command-registry'
@@ -31,6 +38,8 @@ import { RedisModule } from '../../../_lib/redis/redis.module'
 import { NotificationsRouter } from './notifications.router'
 import { NotifyDevicesService } from './notify-devices.service'
 import { PresenceRegistry } from './presence-registry'
+import { DiagramsRouter } from './diagrams.router'
+import { DIAGRAM_REPAIRER, DiagramRepairService } from './diagram-repair.service'
 
 export const controlPlaneProvider: Provider = {
   provide: ControlPlane,
@@ -71,6 +80,17 @@ export const controlPlaneProvider: Provider = {
     PresenceRegistry,
     NotifyDevicesService,
     NotificationsRouter,
+    DiagramRepairService,
+    {
+      provide: DIAGRAM_REPAIRER,
+      useFactory: (env: EnvService) =>
+        diagramRepairerOf({
+          db,
+          cipher: new SecretCipher(env.get('SECRETS_ENCRYPTION_KEY')),
+        }),
+      inject: [EnvService],
+    },
+    DiagramsRouter,
   ],
   exports: [ControlPlane, TerminalService],
 })

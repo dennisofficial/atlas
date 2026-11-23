@@ -21,6 +21,7 @@ import { isLiveTurn } from './data/is-live-turn'
 import { ETurnKind, lastTurnEndedAt, turnsOf } from './data/transcript-turns'
 import { useNow, useNowEvery } from './data/use-now'
 import { useDiagramRepair } from './data/use-diagram-repair'
+import type { RepairDiagramAction } from './data/diagram-repair'
 import { useRoster } from './data/use-roster'
 import { useThreadPanel } from './panel/thread-panel-context'
 import { sandboxBootPropsOf } from './sandbox-boot-props'
@@ -86,6 +87,7 @@ export function ThreadTranscript({
   onRetryBoot,
   rewind,
   summarise,
+  repairDiagram: repairDiagramProp,
   boot: sessionBoot,
   staged,
   onLoadOlder,
@@ -102,6 +104,7 @@ export function ThreadTranscript({
   onRetryBoot: () => void
   rewind: TranscriptRewind | null
   summarise: TranscriptSummarise | null
+  repairDiagram?: RepairDiagramAction | null
   onOpenPodSize?: (() => void) | undefined
   boot?: BootView | null
   staged?: readonly QueuedMessageEntry[]
@@ -111,7 +114,8 @@ export function ThreadTranscript({
   const now = useNow(working || anySpawnRunning(items))
   const { channel, openChanges, openAgent } = useThreadPanel()
   const roster = useRoster(channel)
-  const repairDiagram = useDiagramRepair()
+  const channelRepairDiagram = useDiagramRepair()
+  const repairDiagram = repairDiagramProp === undefined ? channelRepairDiagram : repairDiagramProp
   const models = useMemo(() => rosterModelsOf(roster), [roster])
   const turns = useMemo(
     () => turnsOf({ items, working, turnStartedAt }),
