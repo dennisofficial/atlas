@@ -9,11 +9,11 @@ import {
   type RunId,
   type ThreadId,
   type V2Event,
-  userSaidOf,
 } from '@dltech/atlas-core'
 import type { ControlPlane } from '@dltech/atlas-control'
 import type { AgentIntake, PendingDrain } from '@dltech/atlas-agent'
 import type { CommandRegistry } from '@dltech/atlas-commands'
+import { INBOX_KIND_MESSAGE } from '@dltech/atlas-protocol'
 import type { LogPort } from '@dltech/atlas-observability'
 
 import {
@@ -22,26 +22,31 @@ import {
   turnOpenOf,
   type CommandGlue,
 } from './command-intake-glue'
-import { CommandIntake, isCommandKind, type CommandHandlers } from './command-intake'
+import {
+  CommandIntake,
+  isCommandKind,
+  type CommandHandlers,
+  type ControlHandlers,
+} from './command-intake'
 import { EIntakeScope, intakeThreadOf, skipsInChildScope } from './intake-scope'
 import { fetchInboxEntries, INBOX_INTAKE_MAX_PAGES, logPendingInputIdsOf } from './held-inbox'
 import { drainEntries } from './intake-entries'
-import { drainLoggedNotices } from './notice-drain'
+import { drainLoggedNotices, stagedMessageOf } from './notice-drain'
 import type { OperatorAnswerIntake } from './operator-answer'
 import type { SessionRecord } from './record/record-adapter'
 import { recoverUnfinishedCommands } from './recover-unfinished-commands'
 import {
+  drainDraftsOf,
   drainOrderOf,
   logStagedInputs,
   loggedMessagesOf,
-  postedAndSaidOf,
-  postedDraftsOf as postedDraftsFor,
   postedInboxIdsOf,
+  postedDraftsOf as postedDraftsFor,
   type AppendDrafts,
-  type Drainable,
 } from './staged-log'
 import { resolveWithdraws, type WithdrawLookup } from './withdraw-plan'
 import { supersededRewindIdsOf } from './rewind-dedupe'
+import { ETextPlan } from './text-command'
 
 const consumedInboxIdsOf = (events: readonly V2Event[]): ReadonlySet<number> =>
   new Set(events.flatMap((event) => (event.type === 'input-consumed' ? [event.inboxId] : [])))
@@ -57,6 +62,7 @@ export type InboxIntakeArgs = {
   scope: EIntakeScope
   commands?: CommandRegistry | undefined
   handlers?: CommandHandlers | undefined
+  controlHandlers?: ControlHandlers | undefined
   model?: ModelPort | undefined
   operatorAnswers?: OperatorAnswerIntake | undefined
   log?: LogPort | undefined
@@ -74,11 +80,14 @@ export class InboxIntake implements AgentIntake {
       args.commands === undefined
         ? undefined
         : new CommandIntake({
+            plane: args.plane,
             commands: args.commands,
             handlers: args.handlers ?? new Map(),
+            controlHandlers: args.controlHandlers ?? new Map(),
             sessionId: args.sessionId,
             model: args.model,
             visibleEvents: () => args.record.eventCache().visibleLoopEvents(),
+            loggedEvents: () => this.events(),
             append: (drafts) => this.appendDrafts(drafts),
             log: args.log,
           })
@@ -119,7 +128,8 @@ export class InboxIntake implements AgentIntake {
 
   /** Runs commands the holder already knows are safe to run outside a turn, without a model step. */
   async runCommands(entries: readonly InboxEntry[]): Promise<boolean> {
-    if (this.commandIntake === undefined) return false
+    const intake = this.commandIntake
+    if (intake === undefined) return false
     return await this.serial(async () => {
       const glue = this.commandGlue()
       const events = this.events()
@@ -127,15 +137,25 @@ export class InboxIntake implements AgentIntake {
       const consumed = consumedInboxIdsOf(events)
       let ran = false
       for (const entry of entries) {
-        if (!isCommandKind(entry.kind) || consumed.has(entry.inboxId)) continue
+        if (consumed.has(entry.inboxId)) continue
+        if (entry.kind === INBOX_KIND_MESSAGE) {
+          const staged = await stagedMessageOf({ entry, appendDrafts: this.append })
+          if (staged === undefined) continue
+          const plan = intake.planText(staged.message.text)
+          if (plan.kind === ETextPlan.Message) break
+          await intake.runText({ entry, message: staged.message, plan })
+          ran = true
+          continue
+        }
+        if (!isCommandKind(entry.kind)) continue
         if (superseded.has(entry.inboxId)) {
           await consumeQuietly({ ...glue, entry })
           ran = true
           continue
         }
-        const resolved = this.commandIntake?.resolve(entry)
+        const resolved = intake.resolve(entry)
         if (resolved === undefined) continue
-        await this.commandIntake?.run({ entry, ...resolved })
+        await intake.run({ entry, ...resolved })
         ran = true
       }
       return ran
@@ -167,11 +187,14 @@ export class InboxIntake implements AgentIntake {
     })
     const order = drainOrderOf({
       staged: drained.drainable,
-      logged: loggedMessagesOf(events),
+      logged: loggedMessagesOf({
+        events,
+        isCommandText: (text) => this.isCommandText(text),
+      }),
       posted: postedInboxIdsOf({ events }),
     })
     if (order.length > 0) await this.cancelOpenForMessage()
-    for (const item of order) await this.appendDrafts(this.drainDraftsOf(item))
+    for (const item of order) await this.appendDrafts(drainDraftsOf(item))
     await runLoggedCommands({
       ...this.commandGlue(),
       events: before,
@@ -198,10 +221,6 @@ export class InboxIntake implements AgentIntake {
     })
   }
 
-  private events(): V2Event[] {
-    return this.args.record.eventCache().eventsAfter(0)
-  }
-
   private commandGlue(): CommandGlue {
     return {
       commandIntake: this.commandIntake,
@@ -210,6 +229,15 @@ export class InboxIntake implements AgentIntake {
       now: this.args.now ?? Date.now,
       log: this.args.log,
     }
+  }
+
+  private isCommandText(text: string): boolean {
+    const plan = this.commandIntake?.planText(text)
+    return plan !== undefined && plan.kind !== ETextPlan.Message
+  }
+
+  private events(): V2Event[] {
+    return this.args.record.eventCache().eventsAfter(0)
   }
 
   private postedDraftsOf(entry: InboxEntry): RecordBody[] {
@@ -235,13 +263,6 @@ export class InboxIntake implements AgentIntake {
         pendingInputsOf(this.events()).pending.find((pending) => pending.inboxId === inboxId),
       postedDraftsOf: (entry) => this.postedDraftsOf(entry),
     }
-  }
-
-  private drainDraftsOf(item: Drainable): (EventDraft | RecordBody | PluginEventBody)[] {
-    if (item.posted || item.entry === undefined) {
-      return [userSaidOf({ inboxId: item.inboxId, message: item.message })]
-    }
-    return postedAndSaidOf({ entry: item.entry, message: item.message })
   }
 
   private async cancelOpenForMessage(): Promise<void> {

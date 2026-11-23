@@ -6,11 +6,13 @@ import {
   type ThreadId,
   type V2Event,
 } from '@dltech/atlas-core'
+import { INBOX_KIND_MESSAGE } from '@dltech/atlas-protocol'
 import type { LogPort } from '@dltech/atlas-observability'
 
 import { isCommandKind, type CommandIntake } from './command-intake'
 import type { SessionRecord } from './record/record-adapter'
 import type { AppendDrafts } from './staged-log'
+import { ETextPlan } from './text-command'
 
 export const UNKNOWN_COMMAND_MAX_AGE_MS = 60 * 60 * 1000
 
@@ -79,10 +81,20 @@ export const runCommand = async (params: CommandEntryArgs): Promise<void> => {
 }
 
 export const runLoggedCommands = async (params: LoggedCommandsArgs): Promise<void> => {
-  if (params.commandIntake === undefined) return
+  const intake = params.commandIntake
+  if (intake === undefined) return
   for (const input of pendingInputsOf(params.events).pending) {
-    if (!isCommandKind(input.kind)) continue
     if (await params.turnOpen()) return
+    if (input.kind === INBOX_KIND_MESSAGE) {
+      if (input.message === undefined) continue
+      const plan = intake.planText(input.message.text)
+      if (plan.kind === ETextPlan.Message) continue
+      const entry = await params.readEntry(input.inboxId)
+      if (entry === undefined || entry.kind !== INBOX_KIND_MESSAGE) continue
+      await intake.runText({ entry, message: input.message, plan })
+      continue
+    }
+    if (!isCommandKind(input.kind)) continue
     const entry = await params.readEntry(input.inboxId)
     if (entry === undefined || !isCommandKind(entry.kind)) continue
     await runCommand({ ...params, entry })

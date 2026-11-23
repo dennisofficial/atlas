@@ -68,5 +68,7 @@ describe.skipIf(REDIS_URL === undefined)('F43 SIGKILL after a command is consume
     })
     await sleep(2_000)
     expect(await rewoundCount(threadId)).toBe(1)
+    hostB.kill('SIGKILL')
+    await daemon.stop()
   }, 180_000)
 })

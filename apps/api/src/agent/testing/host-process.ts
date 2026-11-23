@@ -4,7 +4,11 @@ import { singleProviderRegistry } from './sandbox-registry'
 
 import { composeCommands } from '@dltech/atlas-commands'
 import { ControlPlane } from '@dltech/atlas-control'
-import { nativeCommandHandlers, nativeCommands } from '@dltech/atlas-native-commands'
+import {
+  nativeCommandHandlers,
+  nativeCommands,
+  nativeControlHandlers,
+} from '@dltech/atlas-native-commands'
 import { composedPlugins } from '../registered-plugins'
 import { ModelPort } from '@dltech/atlas-core'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
@@ -201,6 +205,7 @@ const main = async (): Promise<void> => {
     sweepMs: numberEnv('SWEEP_MS', 20_000),
     commands: composeCommands([...nativeCommands, ...composedPlugins.commands]),
     commandHandlers: new Map([...nativeCommandHandlers, ...composedPlugins.pod.commands]),
+    controlHandlers: nativeControlHandlers,
     log,
     onHostIdChanged: () => watch?.recompute(),
   })
