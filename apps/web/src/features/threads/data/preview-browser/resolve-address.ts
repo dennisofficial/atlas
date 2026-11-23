@@ -1,4 +1,4 @@
-import type { PreviewPort } from '@dltech/atlas-ui/ai/preview-browser'
+import { EPreviewStatus, type PreviewPort } from '@dltech/atlas-ui/ai/preview-browser'
 
 import { previewPortForUrl } from '../preview-ports'
 import { previewCallbackUrlOf, previewOriginFor } from './preview-callback'
@@ -17,13 +17,18 @@ type ResolveArgs = {
   allowExternal: boolean
 }
 
+const firstLivePreviewOrigin = (ports: PreviewPort[]): string | null => {
+  const port = ports.find((candidate) => candidate.status === EPreviewStatus.Live)
+  return port === undefined ? null : (parseWebUrl(port.url)?.origin ?? null)
+}
+
 function resolvePath(args: {
   path: string
   currentUrl: string
   ports: PreviewPort[]
 }): string | null {
   const { path, currentUrl, ports } = args
-  const origin = previewOriginFor({ currentUrl, ports })
+  const origin = previewOriginFor({ currentUrl, ports }) ?? firstLivePreviewOrigin(ports)
   if (origin === null) return null
   return parseWebUrl(`${origin}${path}`)?.toString() ?? null
 }
