@@ -1,3 +1,4 @@
+import type { ApnsRouteHandler } from './apns-routes'
 import { APP_INFO_PATH, type IDesktopAppInfo } from './app-info'
 import type { AuthHandler } from './auth/routes'
 import { createPaneHandler, type IPanePort } from './pane-routes'
@@ -14,6 +15,7 @@ export function createDesktopRouter({
   window,
   app,
   pane,
+  apns,
 }: {
   pods?: PodsHandler | undefined
   auth?: AuthHandler | undefined
@@ -21,6 +23,7 @@ export function createDesktopRouter({
   window?: IDesktopWindowPort | undefined
   app?: IDesktopAppInfo | undefined
   pane?: IPanePort | undefined
+  apns?: ApnsRouteHandler | undefined
 } = {}): (request: Request, pathname: string) => Response | Promise<Response> {
   const routes = new Map<string, DesktopRouteHandler>()
   routes.set('/desktop/health', () => Response.json({ ok: true }))
@@ -37,6 +40,8 @@ export function createDesktopRouter({
     if (windowed) return windowed
     const paned = await paneHandler?.(request, pathname)
     if (paned) return paned
+    const pushed = await apns?.(request, pathname)
+    if (pushed) return pushed
     const signedIn = auth === undefined ? undefined : await auth(request, pathname)
     if (signedIn) return signedIn
     const handled = pods === undefined ? undefined : await pods(request, pathname)

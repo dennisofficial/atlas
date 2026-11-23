@@ -6,6 +6,7 @@ import { describe, expect, test } from 'bun:test'
 const appRoot = join(import.meta.dir, '..')
 const config = Bun.YAML.parse(readFileSync(join(appRoot, 'electron-builder.yml'), 'utf8'))
 const entitlements = readFileSync(join(appRoot, 'build', 'entitlements.mac.plist'), 'utf8')
+const inherit = readFileSync(join(appRoot, 'build', 'entitlements.inherit.plist'), 'utf8')
 
 const REQUIRED = [
   'com.apple.security.cs.allow-jit',
@@ -27,9 +28,15 @@ describe('the release build', () => {
     expect(config.mac.hardenedRuntime).toBe(true)
   })
 
-  test('signs the bun runtime the app spawns, with the same entitlements', () => {
+  test('signs the bun runtime the app spawns, without the push entitlement', () => {
     expect(config.mac.binaries).toContain('Contents/Resources/bin/bun')
-    expect(config.mac.entitlementsInherit).toBe(config.mac.entitlements)
+    expect(config.mac.entitlementsInherit).toBe('build/entitlements.inherit.plist')
+    expect(inherit).not.toContain('aps-environment')
+  })
+
+  test('asks for push in the app itself, in production', () => {
+    expect(entitlements).toContain('<key>com.apple.developer.aps-environment</key>')
+    expect(entitlements).toContain('<string>production</string>')
   })
 
   test('notarizes', () => {
