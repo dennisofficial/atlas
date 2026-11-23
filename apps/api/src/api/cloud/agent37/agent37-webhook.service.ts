@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common'
 import { ControlPlane } from '@dltech/atlas-control'
 import { ESandboxStatus } from '@dltech/atlas-protocol'
-import { recordSandboxRunCloseForInstance } from '../../../agent'
+import { recordSandboxRunCloseForInstance, recordSandboxRunReopenForInstance } from '../../../agent'
 
 @Injectable()
 export class Agent37WebhookService {
@@ -24,6 +24,11 @@ export class Agent37WebhookService {
       (args.status === ESandboxStatus.Sleeping || args.status === ESandboxStatus.Stopped)
     )
       await recordSandboxRunCloseForInstance({
+        sandboxInstanceId: args.instanceId,
+        at: Date.parse(args.at),
+      })
+    if (applied && args.status === ESandboxStatus.Running)
+      await recordSandboxRunReopenForInstance({
         sandboxInstanceId: args.instanceId,
         at: Date.parse(args.at),
       })

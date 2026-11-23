@@ -124,6 +124,7 @@ export type { VercelCredentials } from '@dltech/atlas-pods/sandbox/constants'
 export {
   recordSandboxRunClose,
   recordSandboxRunCloseForInstance,
+  recordSandboxRunReopenForInstance,
   sandboxComputeFor,
 } from '@dltech/atlas-pods/sandbox/sandbox-runs'
 export { sandboxLiveCpuMs } from '@dltech/atlas-pods/sandbox/sandbox-live-cpu'
