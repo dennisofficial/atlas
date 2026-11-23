@@ -21,6 +21,7 @@ export const isTurnTaking = (event: EventDraft): boolean => {
     case 'background-shell-still-running':
     case 'pr-event':
     case 'run-event':
+    case 'resume-marked':
       return true
     case 'service-ended':
       return event.cause !== EShellEndCause.SandboxStopped
@@ -55,4 +56,5 @@ export const isTurnTakingType = (type: string): boolean =>
   type === 'service-ended' ||
   type === 'agent-ended' ||
   type === 'pr-event' ||
-  type === 'run-event'
+  type === 'run-event' ||
+  type === 'resume-marked'

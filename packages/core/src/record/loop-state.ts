@@ -121,6 +121,9 @@ const promptPatch = (event: Event): Patch => {
     return { lastUserSaidSeq: event.seq, cutShortSincePrompt: false, stoppedSincePrompt: false }
   }
   if (event.type === 'nudge') return { cutShortSincePrompt: false, stoppedSincePrompt: false }
+  if (event.type === 'resume-marked') {
+    return { cutShortSincePrompt: false, stoppedSincePrompt: false }
+  }
   if (event.type === 'assistant-said') {
     if (handoffAborted(event)) return {}
     return {

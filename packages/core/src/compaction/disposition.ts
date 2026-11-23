@@ -45,6 +45,7 @@ export const COMPACTION_DISPOSITION = {
   'session-archived': ECompactionDisposition.Keep,
   parked: ECompactionDisposition.Summarise,
   'tool-parked': ECompactionDisposition.Drop,
+  'resume-marked': ECompactionDisposition.Drop,
   'tool-dispatched': ECompactionDisposition.Drop,
   'approval-requested': ECompactionDisposition.Drop,
   'approval-answered': ECompactionDisposition.Drop,

@@ -11,6 +11,9 @@ import {
 export const RESUME_NUDGE =
   'You were interrupted mid-turn. Continue from exactly where you stopped: finish the thought you were in and carry on with the work. If a tool call was cut short, run it again. Do not restart, re-plan, or repeat what you already said, and do not ask what to do instead or remark on the interruption.'
 
+export const RESUME_AFTER_INTERRUPTED_TOOL =
+  'The operator chose to resume this turn after interrupting it. A tool call was cut off while it ran, so its result above says it was interrupted.'
+
 const RESUME_LIFETIME_STEPS = 1
 
 export const APPROVAL_WAITING =
