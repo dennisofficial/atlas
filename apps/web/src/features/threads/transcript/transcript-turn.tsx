@@ -11,6 +11,7 @@ import { formatElapsed, messageTimeOf } from '@dltech/atlas-client/transcript'
 import { diagramContextOf } from '@dltech/atlas-core'
 
 import { CommandMessageRow } from '@/features/sessions/command-message-row'
+import { RotationDivider } from '@/features/sessions/rotation-divider'
 
 import { spanMsOf } from '../data/clock-time'
 import type { RepairDiagramAction } from '../data/diagram-repair'
@@ -293,6 +294,10 @@ function TurnViewBody({
       return <TranscriptSignIn item={turn.item} />
     case ETurnKind.Request:
       return <TranscriptRequest item={turn.item} />
+    case ETurnKind.Rotation:
+      return (
+        <RotationDivider item={turn.item} timestamp={messageTimeOf({ at: turn.item.at, now })} />
+      )
     case ETurnKind.Agent:
       return <AgentTurnView turn={turn} now={now} models={models} actions={actions} />
   }
