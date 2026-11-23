@@ -82,7 +82,7 @@ const entryTextsOf = async (args: {
   skillIds: readonly string[]
 }): Promise<Map<string, string>> => {
   const files = await args.db.orm.public.SkillFile.where((file) => file.skillId.in(args.skillIds))
-    .where((file) => file.path.ilike(ENTRY_PATH))
+    .where((file) => file.path.eq(ENTRY_PATH))
     .select('skillId', 'content')
     .all()
   const texts = new Map<string, string>()
