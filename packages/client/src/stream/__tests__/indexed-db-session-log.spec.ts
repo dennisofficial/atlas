@@ -33,6 +33,7 @@ const snapshotAt = (throughSeq: number) => ({
   pending: EMPTY_PENDING,
   view: initialSessionViewState,
   failureMessage: initialFailureMessage,
+  durable: [],
   commandLog: [],
   throughSeq,
 })

@@ -12,6 +12,7 @@ import { sessionLog, sessionStream } from './session-stream'
 
 const NOT_FOLLOWING: SessionSnapshot = {
   events: [],
+  foldable: [],
   pending: { pending: [] },
   cursor: undefined,
   status: undefined,

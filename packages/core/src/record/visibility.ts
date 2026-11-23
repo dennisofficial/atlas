@@ -1,4 +1,5 @@
 import { KEPT_THROUGH_COMPACTION } from '../compaction/disposition'
+import { isDurable } from './durability'
 import type { V2Event, V2EventType } from './event'
 
 export type HiddenSpan = {
@@ -97,4 +98,12 @@ export function visibleSegments(params: {
 export function visibleEvents(events: readonly V2Event[]): V2Event[] {
   const state = events.reduce(stepVisibility, EMPTY_VISIBILITY)
   return events.filter((event) => isVisible(state, event))
+}
+
+export const isFoldable = (state: VisibilityState, event: Pick<V2Event, 'seq' | 'type'>): boolean =>
+  isDurable(event.type) || isVisible(state, event)
+
+export function foldableEvents(events: readonly V2Event[]): V2Event[] {
+  const state = events.reduce(stepVisibility, EMPTY_VISIBILITY)
+  return events.filter((event) => isFoldable(state, event))
 }

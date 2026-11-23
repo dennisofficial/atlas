@@ -110,7 +110,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   const files = useComposerAttachments()
   const attachments = useSessionAttachments({ files })
   const working = isSessionWorking(snapshot.status)
-  const turnStartedAt = useMemo(() => turnStartedAtOf(snapshot.events), [snapshot.events])
+  const turnStartedAt = useMemo(() => turnStartedAtOf(snapshot.foldable), [snapshot.foldable])
   const reveal = useSessionReveal(snapshot)
   const view = useMemo(
     () =>
@@ -129,22 +129,22 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   const boot = useMemo(
     () =>
       sessionBootViewOf({
-        events: snapshot.events,
+        events: snapshot.foldable,
         status: snapshot.status,
         setupOutput: snapshot.setupOutput,
         catchingUp: snapshot.connection === ESessionConnection.CatchingUp,
       }),
-    [snapshot.events, snapshot.status, snapshot.setupOutput, snapshot.connection],
+    [snapshot.foldable, snapshot.status, snapshot.setupOutput, snapshot.connection],
   )
   const operatorRequest = useMemo(() => pendingOperatorRequestOf(view.items), [view.items])
   const model = useMemo(() => sessionViewModelOf(snapshot.view), [snapshot.view])
   const background = useMemo(
     () =>
       liveBackgroundOf({
-        events: snapshot.events,
+        events: snapshot.foldable,
         live: snapshot.connection === ESessionConnection.Live,
       }),
-    [snapshot.events, snapshot.connection],
+    [snapshot.foldable, snapshot.connection],
   )
   const { panel, pane, openAgent, sheetOpenChange } = useSessionAgentWiring({
     sessionId,
@@ -208,7 +208,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     })
 
   const summarise = useSessionSummarise({ sessionId, events: snapshot.events })
-  const skillEntries = useSessionSkills({ events: snapshot.events })
+  const skillEntries = useSessionSkills({ events: snapshot.foldable })
   const commandEntries = useSessionCommands()
   const [commandListOpen, setCommandListOpen] = useState(false)
   const composerEntries = useMemo(

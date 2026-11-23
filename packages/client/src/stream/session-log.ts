@@ -8,7 +8,7 @@ import type {
 
 import type { SessionCursor } from './session-window'
 
-export const SESSION_LOG_STRUCTURE_VERSION = 4
+export const SESSION_LOG_STRUCTURE_VERSION = 5
 
 export type SessionLogSnapshot = {
   version: number
@@ -17,6 +17,7 @@ export type SessionLogSnapshot = {
   pending: PendingInputsState
   view: SessionViewState
   failureMessage: FailureMessageState
+  durable: readonly V2Event[]
   commandLog: readonly V2Event[]
   throughSeq: number
 }

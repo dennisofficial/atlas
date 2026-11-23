@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'bun:test'
-import type { V2Body, V2Event } from '@dltech/atlas-core'
+import {
+  ECompactionAnchor,
+  EWorkspaceStep,
+  EWorkspaceStepState,
+  workspaceStepsOf,
+  type V2Body,
+  type V2Event,
+} from '@dltech/atlas-core'
 import fc from 'fast-check'
 
 import {
@@ -95,6 +102,46 @@ describe('applyPage', () => {
     const after = applyPage({ window: cached, page: page(rewind) })
     expect(seqsOf(after)).toEqual([1, 2])
     expect(after.cursor?.seq).toBe(5)
+  })
+
+  it('folds a hidden setup ending from the durable log while the transcript stays visible-only', () => {
+    const setupStep = (
+      state: EWorkspaceStepState,
+    ): Extract<V2Body, { type: 'workspace-step' }> => ({
+      type: 'workspace-step',
+      step: EWorkspaceStep.Setup,
+      state,
+      command: 'bun install',
+      attempt: 1,
+    })
+    const events = mintEvents({
+      bodies: [
+        { type: 'workspace-attempt-started', attempt: 1 },
+        setupStep(EWorkspaceStepState.Started),
+        { type: 'user-said', text: 'go' },
+        setupStep(EWorkspaceStepState.Done),
+        { type: 'assistant-said', parts: [{ type: 'text', text: 'done' }] },
+        { type: 'user-said', text: 'next' },
+        {
+          type: 'history-summarised',
+          fromSeq: 3,
+          throughSeq: 5,
+          anchor: ECompactionAnchor.Prefix,
+          summary: 'earlier work',
+        },
+      ],
+    })
+    const window = applyPage({ window: EMPTY_WINDOW, page: page(events) })
+    expect(
+      window.events.some((event) => event.type === 'workspace-step' && event.state === 'done'),
+    ).toBe(false)
+    expect(
+      window.foldable.some((event) => event.type === 'workspace-step' && event.state === 'done'),
+    ).toBe(true)
+    expect(workspaceStepsOf(window.foldable)[EWorkspaceStep.Setup]?.state).toBe(
+      EWorkspaceStepState.Done,
+    )
+    expect(window.view.facts.setupRun).toBeNull()
   })
 
   it('keeps only the last 3,000 visible events', () => {
