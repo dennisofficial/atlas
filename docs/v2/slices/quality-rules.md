@@ -265,12 +265,29 @@ before.**
 | -------------- | ------- | -------- | --------- | --- | --- | --- | --- | --------- | ----------- | ------ |
 | silent failure | 50      | 27       | 8         | 6   | 0   | 2   | 19  | 1.00      | 0.61        | 0.75   |
 | open/closed    | 45      | 32       | 1         | 1   | 0   | 0   | 31  | 1.00      | 0.21        | 1.00   |
-- **No false nudge on real code** for either rule.
-- **Too few real positives to prove the bar.** Silent failure needs about 22 TP with 0 FP. A third
-  real-code round is running. For open/closed, inline variant behaviour in a growing chain is about
-  1% of real edits that match its gate. Real TypeScript dispatches through registries, tables,
-  grammars and handler methods, which are exceptions. Whether open/closed ships or is dropped waits
-  on Dennis.
+- **No false nudge on real code** for either rule in holdout v2.
+- **Too few real positives to prove the bar** in holdout v2 alone. For open/closed, inline variant
+  behaviour in a growing chain is about 1% of real edits that match its gate. Real TypeScript
+  dispatches through registries, tables, grammars and handler methods, which are exceptions.
+  Whether open/closed ships or is dropped waits on Dennis.
+
+**Holdout v3, silent failure only, frozen thresholds** (`docs/v2/research/quality-rules-holdout-v3/`):
+90 real-code drafts from 14 repositories, 60 accepted (67% agreement), 24 positive.
+
+| Set                         | TP  | FP  | FN  | TN  | Precision | Lower bound | Recall |
+| --------------------------- | --- | --- | --- | --- | --------- | ----------- | ------ |
+| holdout v3                  | 10  | 3   | 14  | 33  | 0.77      | 0.50        | 0.42   |
+| holdout v2 + v3 (real code) | 16  | 3   | 16  | 52  | 0.84      | 0.62        | 0.50   |
+- **Silent failure fails the bar on real code**: precision 0.84 and recall 0.50, against 0.95 and 0.6.
+- **The false nudges** come from documented fallbacks, which the rubric's exceptions do not name:
+  a decorative-profile read, a sign-in helper that falls back to a default, and a campaign set-up
+  that logs and goes on. Jev gives each one concern 0.81–0.88.
+- **No threshold reaches the bar.** On the same data (exploratory, not a promotion result), a
+  stricter concern threshold removes the false nudges only when recall drops under 0.4: T_c 0.85
+  gives 12 TP and 1 FP, and T_c 0.9 gives 6 TP and 0 FP.
+- **Labels are hard on real code.** Agreement was 67–72%. Most disagreements are about whether a
+  log-and-continue in a background or set-up path is a fault or best-effort work.
+
 - **Label agreement on real code** was 71–72%. Most disagreements were drafts that called a
   documented fallback a swallowed failure, or an edit that only moved a chain an extension.
 - **Size bound.** About 5% of selected real scopes go over 48 KB and are skipped, as today.
