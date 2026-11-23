@@ -91,7 +91,13 @@ const lastTurnOf = (params: { state: State; threadId: string }): SessionTurnEndi
   if (last === undefined) return null
   const parsed = turnEndedSchema.safeParse(JSON.parse(last.canonical))
   if (!parsed.success) return null
-  return { seq: last.seq, outcome: parsed.data.outcome, by: parsed.data.by }
+  return {
+    seq: last.seq,
+    outcome: parsed.data.outcome,
+    by: parsed.data.by,
+    at: last.at,
+    ...(parsed.data.notify === undefined ? {} : { notify: parsed.data.notify }),
+  }
 }
 
 const ownedSessionsOf = (params: { state: State } & SessionListParams): SessionRow[] =>
