@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 
-import { podBusyFactsOf, podBusyOf, type PodBusy } from '@dltech/atlas-core'
+import { podBusyFactsOf, podResizeBusyOf, type PodBusy } from '@dltech/atlas-core'
 import {
   EPodAction,
   PodSection,
@@ -34,12 +34,13 @@ export const podBusyOfView = (args: {
   view: SessionViewModel
   status: { state: SessionStatusOutput['state']; setupRunning?: boolean | undefined } | undefined
 }): PodBusy =>
-  podBusyOf(
+  podResizeBusyOf(
     podBusyFactsOf({
       state: args.status?.state,
       setupRunning: args.status?.setupRunning === true,
       shellsRunning: args.view.shells.running,
       servicesRunning: args.view.previews.length,
+      agentsRunning: args.view.crew.running,
     }),
   )
 
