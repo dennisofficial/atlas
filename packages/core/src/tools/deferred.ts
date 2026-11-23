@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { toolJsonSchemaOf } from './deferred-input'
 import type { ToolDeclaration } from './tool'
 
 export const TOOL_SEARCH_NAME = 'tool_search'
@@ -78,20 +79,11 @@ const matchesQuery = (args: {
   return args.words.every((word) => haystack.includes(word))
 }
 
-const jsonSchemaOf = (declaration: ToolDeclaration): unknown => {
-  if (declaration.jsonSchema !== undefined) return declaration.jsonSchema
-  try {
-    return z.toJSONSchema(declaration.inputSchema, { io: 'input' })
-  } catch {
-    return {}
-  }
-}
-
 const renderMatch = (declaration: ToolDeclaration): string =>
   [
     declaration.name,
     declaration.description,
-    JSON.stringify(jsonSchemaOf(declaration) ?? {}, null, 2),
+    JSON.stringify(toolJsonSchemaOf(declaration) ?? {}, null, 2),
   ].join('\n')
 
 const NO_DEFERRED_TOOLS = 'no deferred tools are in this session'

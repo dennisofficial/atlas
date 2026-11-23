@@ -176,6 +176,7 @@ export * from './stream/chunk'
 
 export * from './tools/call-interrupted'
 export * from './tools/deferred'
+export * from './tools/deferred-input'
 export * from './tools/parameters'
 export * from './tools/tool'
 export * from './tools/effect-order'
