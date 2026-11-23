@@ -110,9 +110,8 @@ through a resource: set `cloud: [ECloudSetting.McpServers]`, `ECloudSetting.Skil
   `PluginEventBodies` types the body of each event.
 - `crossLatch({ctx, name, level, mayFire})`: fire a level-triggered latch once, and record it.
 - `MacOfflineError`, `PodMcpProxyTransport`, `PodMcpProxyChannel`: the proxy to the Mac app.
-- `EMPTY_POD`, `EMPTY_CONTROL`, `EMPTY_CREW`, `EMPTY_CLASSIFIER`, `EMPTY_SESSIONS`, `EMPTY_WORKTREES`,
-  `EMPTY_ROUTINES`, `EMPTY_SUBSCRIPTIONS`, `EMPTY_MCP_CONTROL`, `EMPTY_POD_RESOURCES`: the defaults
-  a tier spreads when it contributes nothing.
+- `EMPTY_*` (for example `EMPTY_POD`, `EMPTY_CONTROL`, `EMPTY_CLASSIFIER`): the default of each
+  slot, which a tier spreads when it contributes nothing.
 
 ## Usage
 
