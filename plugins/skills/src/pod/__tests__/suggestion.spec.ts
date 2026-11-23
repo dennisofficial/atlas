@@ -85,6 +85,30 @@ describe('the skill suggestion hook', () => {
     ])
   })
 
+  it('suggests for a message still in the inbox and ties the draft to it', async () => {
+    const classifier = fakeClassifier({ answer: confident })
+    const daemon = fakeDaemon(TREE)
+    const ctx: PluginPodContext = { ...daemon.ctx, classifier }
+    const resource = skillsResource(OPTIONS)
+    const value = await resource.load({ ctx, directory: '/repo' })
+    await ctx.append([
+      { type: 'resource-loaded', resource: resource.name, fingerprint: 'f', value },
+    ])
+    daemon.events.push({
+      type: 'input-posted',
+      inboxId: 4,
+      kind: 'message',
+      postedAt: '',
+      message: { text: 'make a demo clip of this PR' },
+    } as unknown as V2Event)
+    const hook = skillsSuggestionHook({ ctx, options: OPTIONS })
+    const outcome = await hook.run({ threadId: toThreadId('t'), projectDirectory: '/repo' })
+    expect(outcome.drafts?.[0]).toMatchObject({
+      content: 'skill: clipper — 0.88',
+      triggeredBy: 'inbox:4',
+    })
+  })
+
   it('makes no request while the classifier is off', async () => {
     const classifier = fakeClassifier({ on: false, answer: confident })
     expect(await rig({ classifier })).toEqual({})

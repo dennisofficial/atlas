@@ -41,8 +41,9 @@ frontmatter. The model sees the model-invocable skills in its system prompt and 
 - `expandSkillBody`, `renderSkillListing`, `skillSummaryOf`.
 - `skillListRowSchema`, `skillsChangedSchema`, `ESkillOrigin`.
 - `skillSuggestionStateOf({ events })`: the last `SKILL_SUGGEST_TURNS` operator messages, each with
-  the agent's last reply, and the skills already loaded. Nothing when the latest message is answered
-  or already has a suggestion. Rewound events are not read.
+  the agent's last reply, and the skills already loaded. An operator message still waiting in the
+  inbox counts as the latest turn, and `trigger` names it as `inbox:<id>`. Nothing when the latest
+  message is answered or already has a suggestion. Rewound events are not read.
 - `skillSuggestionAskOf({ input, candidates })`: a word-overlap shortlist of at most
   `SKILL_SUGGEST_SHORTLIST` skills, the classifier state and one `noul` question per skill plus the
   `needsProcedure` gate. Nothing when no skill overlaps.

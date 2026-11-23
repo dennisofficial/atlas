@@ -42,7 +42,59 @@ const suggestion = (): V2Event =>
     content: 'skill: video — 0.90',
   })
 
+const posted = (inboxId: number, text: string, via?: EMessageOrigin): V2Event =>
+  stamped({
+    type: 'input-posted',
+    inboxId,
+    kind: 'message',
+    postedAt: '',
+    message: { text, ...(via === undefined ? {} : { via }) },
+  })
+
+const drained = (inboxId: number, text: string): V2Event =>
+  stamped({ type: 'user-said', text, inboxId })
+
+const suggestionFor = (inboxId: number): V2Event =>
+  stamped({
+    type: 'context-loaded',
+    slot: 'skill-suggestion',
+    key: 'latest',
+    content: 'skill: video — 0.90',
+    triggeredBy: `inbox:${inboxId}`,
+  })
+
 describe('skillSuggestionStateOf', () => {
+  it('reads an operator message still waiting in the inbox before the turn drains it', () => {
+    const state = skillSuggestionStateOf({ events: [posted(1, 'make a demo clip')] })
+    expect(state?.turns).toEqual([{ operator: 'make a demo clip', agent: undefined }])
+    expect(state?.trigger).toBe('inbox:1')
+  })
+
+  it('pairs a waiting message with the earlier turns and their replies', () => {
+    const state = skillSuggestionStateOf({
+      events: [posted(1, 'one'), drained(1, 'one'), reply('one reply'), posted(2, 'two')],
+    })
+    expect(state?.turns).toEqual([
+      { operator: 'one', agent: 'one reply' },
+      { operator: 'two', agent: undefined },
+    ])
+  })
+
+  it('ignores a waiting peer message', () => {
+    expect(
+      skillSuggestionStateOf({ events: [posted(1, 'ping', EMessageOrigin.PeerAgent)] }),
+    ).toBeUndefined()
+  })
+
+  it('stays quiet for a message whose suggestion came before it was drained', () => {
+    expect(
+      skillSuggestionStateOf({ events: [posted(1, 'clip'), suggestionFor(1), drained(1, 'clip')] }),
+    ).toBeUndefined()
+    expect(
+      skillSuggestionStateOf({ events: [posted(1, 'clip'), suggestionFor(1)] }),
+    ).toBeUndefined()
+  })
+
   it('is quiet with no operator message', () => {
     expect(skillSuggestionStateOf({ events: [] })).toBeUndefined()
     expect(skillSuggestionStateOf({ events: [peer('do a thing')] })).toBeUndefined()
