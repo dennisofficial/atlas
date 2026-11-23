@@ -6,7 +6,7 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "check": "node --check main.js && node --check preload.cjs && node --check host-paths.js && node --check host-process.js && node --check web-payload.js && node --check panes.js && node --check links.js && node --check context-menu.js",
+    "check": "node --check main.js && node --check apns.js && node --check preload.cjs && node --check host-paths.js && node --check host-process.js && node --check web-payload.js && node --check panes.js && node --check links.js && node --check context-menu.js",
     "bundle:payload": "bun scripts/bundle-payload.ts",
     "pack:host": "bun scripts/pack-host.ts",
     "test": "bun run bundle:payload && bun test",
@@ -17,6 +17,7 @@
     "@dltech/atlas-api-router": "workspace:*",
     "@dltech/atlas-core": "workspace:*",
     "@dltech/atlas-harness": "workspace:*",
+    "@dltech/atlas-notifications": "workspace:*",
     "@dltech/atlas-protocol": "workspace:*",
     "@dltech/atlas-wire": "workspace:*",
     "electron-updater": "^6.8.11",

@@ -29,6 +29,15 @@ export const expoDeviceOf = (overrides: Partial<NotifyDevice> = {}): NotifyDevic
     ...overrides,
   })
 
+export const apnsDeviceOf = (overrides: Partial<NotifyDevice> = {}): NotifyDevice =>
+  deviceOf({
+    id: 'mac-1',
+    kind: ENotifyDeviceKind.ApnsMac,
+    token: 'b'.repeat(64),
+    secret: null,
+    ...overrides,
+  })
+
 export const presenceOf = (overrides: Partial<NotifyPresence> = {}): NotifyPresence => ({
   surface: 'desktop' as NotifyPresence['surface'],
   sessionId: 'session-1',
@@ -93,6 +102,7 @@ export const notifyGraphOf = (args: {
       transports: {
         [ENotifyDeviceKind.WebPush]: transportOf(ENotifyDeviceKind.WebPush),
         [ENotifyDeviceKind.Expo]: transportOf(ENotifyDeviceKind.Expo),
+        [ENotifyDeviceKind.ApnsMac]: transportOf(ENotifyDeviceKind.ApnsMac),
       },
       now: () => now,
       dispose: async () => undefined,

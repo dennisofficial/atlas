@@ -2,7 +2,13 @@ import { describe, expect, it, mock } from 'bun:test'
 import { ENotifyMoment } from '@dltech/atlas-core'
 import { ENotifyDeviceKind } from '@dltech/atlas-notifications'
 import { triggerSdkFake } from './trigger-sdk.fake'
-import { deviceOf, expoDeviceOf, notifyGraphOf, presenceOf } from './notify-graph.fake'
+import {
+  apnsDeviceOf,
+  deviceOf,
+  expoDeviceOf,
+  notifyGraphOf,
+  presenceOf,
+} from './notify-graph.fake'
 
 mock.module('@trigger.dev/sdk', () => triggerSdkFake)
 
@@ -89,6 +95,19 @@ describe('runNotifySend', () => {
     expect(record.delivered.map((delivery) => delivery.devices.map((device) => device.id))).toEqual(
       [['device-1'], ['device-2']],
     )
+  })
+
+  it('sends the mac device through the apns transport of its own kind', async () => {
+    const { graph, record } = notifyGraphOf({
+      devices: [expoDeviceOf({ id: 'device-2' }), apnsDeviceOf()],
+    })
+
+    expect(await runNotifySend({ graph, payload: PAYLOAD })).toEqual({ sent: 2, gone: 0 })
+    expect(record.delivered.map((delivery) => delivery.kind)).toEqual([
+      ENotifyDeviceKind.Expo,
+      ENotifyDeviceKind.ApnsMac,
+    ])
+    expect(record.delivered[1]?.devices.map((device) => device.id)).toEqual(['mac-1'])
   })
 
   it('prunes the device a transport reports gone', async () => {
