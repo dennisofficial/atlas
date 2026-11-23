@@ -49,7 +49,6 @@ keeps the log, derives the transcript, and holds the rewind, image upload and de
 - `createSessionFollower(args)`: one session's follower, with its connection state and snapshot.
   `HYDRATE_TIMEOUT_MS` bounds the first load. `createSessionsFeed({ follow, write })` is a retained
   subscription to the session list.
-- `createSessionsFeed({ follow, write })` retains a subscription to the session list.
 - `StreamTransport`, `StreamScheduler`, `systemStreamScheduler`, `browserNetworkSignal`: the ports
   that a surface supplies.
 
@@ -126,11 +125,7 @@ From `apps/web/src/features/sessions/data/session-stream.ts`:
 
 ```ts
 const connection = createStreamConnection({
-  transport: sessionStreamTransport({
-    client: api,
-    surface: EStreamSurface.Web,
-    handleUnauthorized: signOut,
-  }),
+  transport: sessionStreamTransport({ client: api, surface: EStreamSurface.Web }),
   scheduler: systemStreamScheduler,
   eventSchema: sessionEventSchema,
   knownEventTypes: sessionEventTypes,
