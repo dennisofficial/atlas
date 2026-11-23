@@ -23,7 +23,7 @@ import {
   withoutDatedDuplicates,
 } from '@dltech/atlas-models'
 import { EModelProviderStatus, type ModelEntry, type ModelsResponse } from '@dltech/atlas-wire/web'
-import { EBrand } from '@dltech/atlas-ui/components/brand-mark'
+import { brandOfProvider } from '@dltech/atlas-ui/brand'
 import { EEffort, type ModelOption } from '@dltech/atlas-ui/ai/model-selector'
 
 export type AccountSummary = { provider: string; status: string }
@@ -42,14 +42,6 @@ const PROVIDER_NAMES: Record<string, string> = {
   [OPENROUTER_PROVIDER_ID]: OPENROUTER_LABEL,
   [INFERENCE_PROVIDER_ID]: INFERENCE_LABEL,
   [GATEWAY_PROVIDER_ID]: GATEWAY_LABEL,
-}
-
-const PROVIDER_BRANDS: Record<string, EBrand> = {
-  [ANTHROPIC_PROVIDER_ID]: EBrand.Anthropic,
-  [OPENAI_PROVIDER_ID]: EBrand.OpenAI,
-  [OPENROUTER_PROVIDER_ID]: EBrand.OpenRouter,
-  [INFERENCE_PROVIDER_ID]: EBrand.Inference,
-  [GATEWAY_PROVIDER_ID]: EBrand.Vercel,
 }
 
 const efforts = new Map<string, EEffort>(Object.values(EEffort).map((effort) => [effort, effort]))
@@ -110,7 +102,7 @@ const labelledEfforts = (
 }
 
 function optionOf({ card, note }: { card: ModelCard; note?: string }): ModelOption {
-  const brand = PROVIDER_BRANDS[card.ref.providerId]
+  const brand = brandOfProvider(card.ref.providerId)
   const rate = outputPriceLabel(card.cost)
   return {
     ...imagesOf(card.imageTier),
@@ -203,7 +195,7 @@ function optionOfEntry(args: {
   note?: string
 }): ModelOption {
   const { providerId, entry } = args
-  const brand = PROVIDER_BRANDS[providerId]
+  const brand = brandOfProvider(providerId)
   const rate = rateOfEntry(entry)
   return {
     ...imagesOf(entry.imageTier),

@@ -20,6 +20,7 @@ import { branches, linked, prStateOf, reading } from './conformance-views.fixtur
 const TURN_STARTED: V2Body = { type: 'turn-started', turnId: 'turn-1', cause: ETurnCause.Input }
 
 import { describeControlPlaneDigests } from './conformance-views.digests'
+import { describeControlPlaneDurableViews } from './conformance-views.durable'
 import { describeControlPlanePullRequestViews } from './conformance-views.pull-requests'
 import {
   appendBodies,
@@ -36,6 +37,7 @@ import {
 
 export function describeControlPlaneViews(params: ConformanceParams): void {
   describeControlPlaneDigests(params)
+  describeControlPlaneDurableViews(params)
   describeControlPlanePullRequestViews(params)
   describe(`ControlPlane session view (${params.name})`, () => {
     let harness: Harness

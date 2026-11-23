@@ -30,8 +30,8 @@ export function useV2AgentScreen(args: {
   const [now, setNow] = useState(() => Date.now())
 
   const agent = useMemo(
-    () => agentOf({ events: parent.snapshot.events, agentId }),
-    [parent.snapshot.events, agentId],
+    () => agentOf({ events: parent.snapshot.foldable, agentId }),
+    [parent.snapshot.foldable, agentId],
   )
   const working = agent?.running ?? false
   const view = useMemo(() => v2ViewOf({ snapshot: child.snapshot, now }), [child.snapshot, now])

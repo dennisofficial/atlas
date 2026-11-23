@@ -3,8 +3,10 @@ import {
   EMPTY_PENDING,
   EMPTY_VISIBILITY,
   initialFailureMessage,
+  foldableOf,
   initialSessionViewState,
   isCommandLogEvent,
+  isDurable,
   isVisible,
   needsRebuild,
   rebuildEditSensitive,
@@ -34,6 +36,8 @@ export type SessionWindow = {
   pending: PendingInputsState
   view: SessionViewState
   failureMessage: FailureMessageState
+  durable: readonly V2Event[]
+  foldable: readonly V2Event[]
   commandLog: readonly V2Event[]
   cursor: SessionCursor | undefined
 }
@@ -46,6 +50,8 @@ export const EMPTY_WINDOW: SessionWindow = {
   pending: EMPTY_PENDING,
   view: initialSessionViewState,
   failureMessage: initialFailureMessage,
+  durable: [],
+  foldable: [],
   commandLog: [],
   cursor: undefined,
 }
@@ -135,15 +141,19 @@ export const applyPageOutcome = (args: {
   const visible = [...window.events, ...events]
     .filter((event) => isVisible(visibility, event))
     .slice(-(args.renderLimit ?? RENDER_LIMIT))
+  const durable = [...window.durable, ...events.filter((event) => isDurable(event.type))]
+  const foldable = foldableOf({ visible, durable })
   return {
     window: {
       events: visible,
       visibility,
       pending,
       view: events.some(needsRebuild)
-        ? rebuildEditSensitive({ state: folded, visibleTail: visible })
+        ? rebuildEditSensitive({ state: folded, visibleTail: visible, foldableTail: foldable })
         : folded,
       failureMessage,
+      durable,
+      foldable,
       commandLog: [...window.commandLog, ...events.filter(isCommandLogEvent)],
       cursor: cursorAfter({ page, last }),
     },

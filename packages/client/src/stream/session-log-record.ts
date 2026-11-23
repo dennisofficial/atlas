@@ -48,7 +48,7 @@ const isView = (value: unknown): value is SessionViewState =>
   isFailure(value.failure) &&
   isRecord(value.pluginViews)
 
-const isCommandLog = (value: unknown): value is readonly V2Event[] =>
+const isEventList = (value: unknown): value is readonly V2Event[] =>
   Array.isArray(value) && value.every((event) => isRecord(event) && typeof event.seq === 'number')
 
 const snapshotOfValue = (value: unknown): SessionLogSnapshot | undefined => {
@@ -56,7 +56,7 @@ const snapshotOfValue = (value: unknown): SessionLogSnapshot | undefined => {
   if (value.version !== SESSION_LOG_STRUCTURE_VERSION) return undefined
   if (!isVisibility(value.visibility) || !isPending(value.pending)) return undefined
   if (!isView(value.view) || !isFailure(value.failureMessage)) return undefined
-  if (!isCommandLog(value.commandLog)) return undefined
+  if (!isEventList(value.commandLog) || !isEventList(value.durable)) return undefined
   if (typeof value.throughSeq !== 'number') return undefined
   if (value.cursor !== undefined && !isCursor(value.cursor)) return undefined
   return {
@@ -66,6 +66,7 @@ const snapshotOfValue = (value: unknown): SessionLogSnapshot | undefined => {
     pending: value.pending,
     view: value.view,
     failureMessage: value.failureMessage,
+    durable: value.durable,
     commandLog: value.commandLog,
     throughSeq: value.throughSeq,
   }
