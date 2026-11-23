@@ -8,7 +8,7 @@ import {
   type NotifyTestPayload,
 } from '@dltech/atlas-jobs/notify'
 
-import type { Task, TaskContract } from '../../../_core/ports/job-dispatcher'
+import type { Task, TaskContract } from '../../_core/ports/job-dispatcher'
 
 export * from '@dltech/atlas-jobs/notify'
 

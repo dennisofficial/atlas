@@ -17,6 +17,7 @@ import { composeAgentHost } from '../compose'
 import { MacLinkModule } from '../mac-link/mac-link.module'
 import { MAC_LINK } from '../mac-link/port'
 import type { MacLink } from '../mac-link/port'
+import { notifyDispatchOf } from './notify.port'
 import { podOpsOf, type PodOps } from './pod-ops'
 import { POD_METRICS_BUS, POD_METRICS_RELAY, POD_OPS, TERMINAL_DEMAND } from './tokens'
 import type { ConfigSource } from '../config/agent-host-config'
@@ -26,6 +27,7 @@ import type { GithubTokenReader } from '../tokens/github-token-reader'
 import type { ModelTokenService } from '../tokens/model-token-service'
 import type { SigningKeyReader } from '../tokens/signing-key-reader'
 import { UnavailableChangeContentStore } from '../../_lib/changes/change-content.provider'
+import { JobsProjectDispatcher } from '../../_core/ports/job-dispatcher'
 import { ControlModule } from './control.module'
 import { HostWatchService } from './host-watch-service'
 import type { MediaSignerSource } from './media-signer-source'
@@ -74,6 +76,7 @@ const holderProvider: Provider = {
     watch: HostWatchService,
     macLink: MacLink,
     traceFor: (distinctId: string) => TracePort,
+    jobs: JobsProjectDispatcher,
   ): SessionHolder =>
     composeAgentHost({
       env,
@@ -89,6 +92,7 @@ const holderProvider: Provider = {
       macLink,
       log,
       traceFor,
+      notify: notifyDispatchOf({ dispatcher: jobs }),
       onHostIdChanged: () => watch.recompute(),
       ...(media.signer === undefined ? {} : { media: media.signer }),
       ...(content instanceof UnavailableChangeContentStore ? {} : { changes: { content } }),
@@ -110,6 +114,7 @@ const holderProvider: Provider = {
     HOST_WATCH,
     MAC_LINK,
     TRACE_FOR,
+    JobsProjectDispatcher,
   ],
 }
 

@@ -7,6 +7,7 @@ import type { LogPort } from '@dltech/atlas-observability'
 import type { HostBus, HostPresence, HostTimers, PodPeers, SessionRuntimeFactory } from './ports'
 import type { PodControlClient } from './pod-control'
 import type { CommandHandlers, ControlHandlers } from './command-intake'
+import type { NotifyDispatch } from './notify-dispatch'
 import type { PanelDemand } from './panel-demand'
 import type { TerminalDemand } from './terminal-demand'
 import { DEFAULT_APPEND_RETRY_MS } from './record/retry-deadline'
@@ -35,6 +36,7 @@ export type SessionHolderArgs = {
       }
     | undefined
   changes?: { content: ChangeContentStore } | undefined
+  notify?: NotifyDispatch | undefined
   log?: LogPort | undefined
   onHostIdChanged?: (() => void) | undefined
   terminalDemand?: TerminalDemand | undefined

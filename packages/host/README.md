@@ -37,7 +37,8 @@ only what it can rebuild or drop.
   `demandOf()` and `discard()`.
 - `SessionHolderArgs`: presence, the control plane, the bus, the timers, the runtime factory, the
   ids, the commands and their pod and control handlers. It also takes the optional control, MCP,
-  operator and changes hooks.
+  operator, changes and notify hooks. `NotifyDispatch` tells another process that a turn ended or
+  parked, so it can reach the operator.
 - `PodCalls`: invoke an op on a held session, or listen to its frames.
 - `podControlOf(...)`: the control-plane client that a plugin's `PodControl` reaches.
 - `SessionRuntime.classifier` and `SessionRuntime.classifierStatus`: the core `ClassifierPort` of a

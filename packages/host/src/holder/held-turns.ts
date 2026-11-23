@@ -1,7 +1,15 @@
-import type { AgentOutput, LoopTurnRunner, PauseSignal } from '@dltech/atlas-agent'
+import {
+  ETurnStatus,
+  type AgentOutput,
+  type LoopTurnRunner,
+  type PauseSignal,
+} from '@dltech/atlas-agent'
 import {
   ETurnCause,
+  notifyMomentOf,
   openTurnOf,
+  sessionStatusOf,
+  type ESessionStatus,
   type Event,
   type RunId,
   type ThreadId,
@@ -27,7 +35,11 @@ export type TurnLog = {
     runId: RunId
     drafts: readonly AppendBody[]
   }): Promise<Event[]>
-  eventCache(): { eventsAfter(seq: number): V2Event[] }
+  eventCache(): {
+    eventsAfter(seq: number): V2Event[]
+    currentHead(): { seq: number }
+    queuedSince(): string | null
+  }
 }
 
 export class HeldTurns {
@@ -78,6 +90,9 @@ export class HeldTurns {
         turnId,
         ending: turnEndingOf({ outcome, aborted: this.turnAborted }),
       })
+      if (outcome.status === ETurnStatus.Parked) {
+        this.notifyTurn({ record: args.record, ending: null })
+      }
     } catch (error) {
       if (turnId !== undefined) {
         await this.endTurn({ record: args.record, turnId, ending: FAILED_BY_HOST })
@@ -153,6 +168,37 @@ export class HeldTurns {
         message: `recording the end of turn ${args.turnId} on ${this.deps.sessionId} failed`,
         ...logFieldsOf({ error }),
       })
+      return
     }
+    this.notifyTurn({ record: args.record, ending: args.ending })
+  }
+
+  private notifyTurn(args: { record: TurnLog; ending: TurnEnding | null }): void {
+    const notify = this.deps.notify
+    if (notify === undefined) return
+    const moment = notifyMomentOf({ ending: args.ending, status: this.statusOf(args.record) })
+    if (moment === null) return
+    void notify({
+      sessionId: this.deps.sessionId,
+      threadId: args.record.threadId,
+      seq: args.record.eventCache().currentHead().seq,
+      moment,
+    }).catch((error: unknown) => {
+      this.deps.log?.warn({
+        source: 'holder.turn',
+        message: `notifying about the turn on ${this.deps.sessionId} failed`,
+        ...logFieldsOf({ error }),
+      })
+    })
+  }
+
+  private statusOf(record: TurnLog): ESessionStatus {
+    const cache = record.eventCache()
+    return sessionStatusOf({
+      events: cache.eventsAfter(0),
+      live: true,
+      queuedSince: cache.queuedSince(),
+      now: new Date(this.deps.timers.now()).toISOString(),
+    }).state
   }
 }

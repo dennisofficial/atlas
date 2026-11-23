@@ -32,7 +32,11 @@ describe('HeldTurns turn end', () => {
       record: {
         threadId: toThreadId('thread-changes'),
         append: () => Promise.resolve([]),
-        eventCache: () => ({ eventsAfter: () => [] }),
+        eventCache: () => ({
+          eventsAfter: () => [],
+          currentHead: () => ({ seq: 0 }),
+          queuedSince: () => null,
+        }),
       },
       threadId: toThreadId('thread-changes'),
       pause: new PauseSignal(),
