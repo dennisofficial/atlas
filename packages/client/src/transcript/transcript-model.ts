@@ -226,8 +226,8 @@ export type RotatedEntry = {
   author: EAuthor.Model
   key: string
   text: string
-  predecessor: string
-  handoffPath: string
+  handoff: string
+  instructions?: string | undefined
 }
 
 export type OperatorInputEntry = {

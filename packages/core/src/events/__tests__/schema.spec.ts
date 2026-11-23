@@ -95,12 +95,12 @@ const bodies: EventDraft[] = [
     url: 'https://github.com/owner/repo/pull/12',
     state: 'merged',
   },
-  { type: 'rotated', predecessor: toThreadId('thread-1'), handoffPath: '/handoff.md' },
+  { type: 'rotated', handoff: 'the plan, the files and the branch' },
   {
     type: 'rotated',
-    predecessor: toThreadId('thread-1'),
-    handoffPath: '/handoff.md',
+    handoff: 'the plan, the files and the branch',
     instructions: 'keep the auth notes',
+    auto: { percent: 86 },
   },
   {
     type: 'parked',
@@ -344,9 +344,13 @@ describe('eventBodySchema', () => {
     ).toThrow()
   })
 
-  it('rejects a rotation marker with an empty handoff path', () => {
+  it('rejects a rotation marker with an empty handoff', () => {
+    expect(() => eventBodySchema.parse({ type: 'rotated', handoff: '' })).toThrow()
+  })
+
+  it('rejects a rotation marker whose auto percent is out of range', () => {
     expect(() =>
-      eventBodySchema.parse({ type: 'rotated', predecessor: 'thread-1', handoffPath: '' }),
+      eventBodySchema.parse({ type: 'rotated', handoff: 'brief', auto: { percent: 101 } }),
     ).toThrow()
   })
 

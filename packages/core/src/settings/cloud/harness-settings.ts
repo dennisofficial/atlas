@@ -174,6 +174,12 @@ export const HARNESS_SETTING_ENTRIES = [
     consumer: ESettingConsumer.Harness,
   }),
   settingEntry({
+    key: 'context.autoRotate',
+    schema: z.number().int().min(0).max(100),
+    fallback: 85,
+    consumer: ESettingConsumer.Harness,
+  }),
+  settingEntry({
     key: 'worktree.directory',
     schema: z.string().min(1),
     fallback: '.atlas/worktrees',
