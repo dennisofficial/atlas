@@ -59,7 +59,7 @@ also include the groups `changes.*`, `git.*`, `mcp.*`, `metrics.*`, `oom.*`, `pr
 - `hostFrameSchema`, `HostFrame`: what the host sends.
 - `daemonFrameSchema`, `DaemonFrame`: what the daemon sends.
 - `EDaemonErrorKind`, `ERunState`: the error kind and the run state a frame reports.
-- `DAEMON_PORT`, `DAEMON_LINK_PROTOCOL_VERSION`, `DAEMON_PROTOCOL_HEADER`: the link constants.
+- `DAEMON_PORT`, `DAEMON_LINK_PROTOCOL_VERSION`, `DAEMON_LINK_SCHEMA_HASH`, `DAEMON_PROTOCOL_HEADER`: the link constants and the fingerprint of `hostFrameSchema`.
 
 ### Read and publish live state
 
@@ -140,7 +140,8 @@ const frame: DaemonFrame = parsed.data
 - Add an op to `ops/` and register it in `callOpSchema` and `okCallResultSchema`. Never add a loose
   `unknown` payload to a frame.
 - Change a schema and bump the matching version constant (`DAEMON_LINK_PROTOCOL_VERSION`,
-  `STREAM_PROTOCOL_VERSION`) in the same change.
+  `STREAM_PROTOCOL_VERSION`) in the same change. `hostFrameSchema` also raises both daemon link
+  constants and `DAEMON_LINK_SCHEMA_HASH`; `bun scripts/check-daemon-link-skew.ts` enforces it.
 
 ## See also
 
