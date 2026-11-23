@@ -59,7 +59,7 @@ use leases and `SKIP LOCKED`, and the hook sweep holds `GithubAppSyncGate`.
 
 ## How the API starts a task
 
-The API starts `pod-sleep`, `pod-resize` and `pod-disk-grow-one` by id with this project's key,
+The API starts `pod-sleep` and `pod-resize` by id with this project's key,
 `TRIGGER_JOBS_SECRET_KEY` in the API's tier files. Its `TRIGGER_SECRET_KEY` stays the v1 project's
 key for the v1 tasks. A task here that queues another task uses the SDK's `tasks.trigger`, which
 needs no key inside a worker.

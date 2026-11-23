@@ -60,6 +60,13 @@ const fakeClient = (
     sleep: async () => undefined,
     start: async ({ id }) => ({ id, status: 'running' }),
     resize: async (body) => ({ id: body.id, status: 'running', url: '' }),
+    update: async ({ id }) => ({ id, status: 'updating' }),
+    logs: async () => ({
+      logs: '',
+      truncated: false,
+      health: { running: true, restart_count: 0, exit_code: null, oom_suspected: false },
+      fetched_at: 0,
+    }),
     exec: async () => ({ exit_code: 0, stdout: '', stderr: '', truncated: false }),
     probe: async () => ({ status: 200, body: '' }),
     signedUrl: async ({ id, port }) => `https://${id}-${port}.agent37.app/?a37_token=a37`,
@@ -262,7 +269,9 @@ describe('Agent37SandboxProvider.list', () => {
 describe('Agent37SandboxProvider.stop', () => {
   it('sleeps the remembered instance', async () => {
     const slept: string[] = []
-    const { client } = fakeClient({})
+    const { client } = fakeClient({
+      instances: [instanceOf({ id: 'inst-9', podSessionId: 'pod-1', status: 'running' })],
+    })
     const { provider } = providerOf({
       client: { ...client, sleep: async ({ id }) => void slept.push(id) },
       stored: 'inst-9',

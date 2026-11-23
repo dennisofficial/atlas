@@ -1,75 +1,22 @@
 import { retrySleep, type RetryPolicy } from '../constants'
 import { agent37MetricsClient, type Agent37MetricsClient } from './agent37-metrics'
+import {
+  type Agent37Answer,
+  type Agent37CreateArgs,
+  type Agent37ExecArgs,
+  type Agent37ExecResult,
+  type Agent37Instance,
+  type Agent37Logs,
+  type Agent37Pid,
+  type Agent37ResizeArgs,
+} from './agent37-types'
 import { agent37UsageClient, type Agent37UsageClient } from './agent37-usage'
+
+export * from './agent37-types'
 
 const API_BASE = 'https://api.agent37.com'
 const EXEC_BASE = 'https://sandbox.agent37.app'
 const QUICK_TIMEOUT_MS = 30_000
-
-export type Agent37Status =
-  | 'provisioning'
-  | 'starting'
-  | 'running'
-  | 'updating'
-  | 'sleeping'
-  | 'waking'
-  | 'stopped'
-
-export type Agent37Instance = {
-  id: string
-  status: Agent37Status
-  url: string
-  name?: string | undefined
-  metadata?: Record<string, string> | undefined
-  /** Creation time in epoch seconds. */
-  created?: number | undefined
-  resources?: Agent37Resources | undefined
-}
-
-export type Agent37Resources = { cpu: number; memory: number; disk: number }
-
-export type Agent37CreateArgs = {
-  template: string
-  type: 'vm'
-  region: 'us'
-  name: string
-  metadata: Record<string, string>
-  resources: Agent37Resources
-  mount_path: string
-  auto_sleep: boolean
-  idle_timeout_seconds: number
-  env: Record<string, string>
-}
-
-export type Agent37ResizeArgs = {
-  id: string
-  cpu?: number | undefined
-  memory?: number | undefined
-  disk?: number | undefined
-}
-
-export type Agent37ExecResult = {
-  exit_code: number
-  stdout: string
-  stderr: string
-  truncated: boolean
-}
-
-export type Agent37Pid = { pid: number }
-
-export type Agent37Answer = {
-  status: number
-  body: string
-  headers?: Record<string, string> | undefined
-}
-
-export type Agent37ExecArgs = {
-  id: string
-  command: string
-  background?: boolean
-  name?: string
-  user?: 'root'
-}
 
 export type Agent37Client = Agent37UsageClient &
   Agent37MetricsClient & {
@@ -80,6 +27,8 @@ export type Agent37Client = Agent37UsageClient &
     sleep(args: { id: string }): Promise<void>
     start(args: { id: string }): Promise<Pick<Agent37Instance, 'id' | 'status'>>
     resize(args: Agent37ResizeArgs): Promise<Agent37Instance>
+    update(args: { id: string }): Promise<Pick<Agent37Instance, 'id' | 'status'>>
+    logs(args: { id: string }): Promise<Agent37Logs>
     exec(args: Agent37ExecArgs): Promise<Agent37ExecResult | Agent37Pid>
     probe(args: {
       id: string
@@ -242,6 +191,23 @@ export const liveAgent37Client = (args: {
         },
         timeoutMs: 15 * 60_000,
       }) as Promise<Agent37Instance>,
+    // https://www.agent37.com/docs/agents-api/instances/update.md — resets the operating system
+    // layer while preserving the disk at mount_path, which repairs a pod whose os layer is full.
+    update: ({ id }) =>
+      call({
+        url: api(`/v1/instances/${id}/update`),
+        method: 'POST',
+        headers: bearer,
+        timeoutMs: 15 * 60_000,
+      }) as Promise<Pick<Agent37Instance, 'id' | 'status'>>,
+    // https://www.agent37.com/docs/agents-api/logs.md — answers in any instance state, including
+    // one whose container crash-loops, which is the only read that shows why it is wedged.
+    logs: ({ id }) =>
+      call({
+        url: api(`/v1/instances/${id}/logs`),
+        method: 'GET',
+        headers: bearer,
+      }) as Promise<Agent37Logs>,
     exec: (body) =>
       call({
         url: exec(`/v1/instances/${body.id}/exec`),

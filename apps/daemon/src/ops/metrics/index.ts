@@ -26,7 +26,6 @@ import {
   readFirstPodDisk,
   readPodCounters,
 } from './cgroup'
-import { diskPressureIntervalOf, diskPressureSamplerOf } from './disk-pressure'
 
 export const METRICS_INTERVAL_ENV = 'ATLAS_METRICS_INTERVAL_MS'
 export { METRICS_CGROUP_ROOT_ENV }
@@ -58,16 +57,6 @@ export const metricsGroup =
       explicitDiskRoot === undefined ? [SANDBOX_VOLUME_ROOT, deps.home] : [explicitDiskRoot]
     const intervalMs = intervalOf(deps.env)
     const vcpus = podVcpusOf({ root, fallback: availableParallelism() })
-    const pressure = diskPressureSamplerOf({
-      read: () => {
-        const disk = readFirstPodDisk({ roots: diskRoots })
-        if (disk === null) return null
-        return { usedBytes: disk.diskUsedBytes, limitBytes: disk.diskLimitBytes }
-      },
-      publish: (event) => groupCtx.publish(event),
-      intervalMs: diskPressureIntervalOf(deps.env),
-    })
-    pressure.start()
     const ring: PodSample[] = []
     let subscribers = 0
     let timer: ReturnType<typeof setInterval> | null = null
@@ -152,12 +141,10 @@ export const metricsGroup =
       onDisconnect: () => {
         subscribers = 0
         stopSampling()
-        pressure.forget()
       },
       stop: () => {
         subscribers = 0
         stopSampling()
-        pressure.stop()
         ring.length = 0
         return Promise.resolve()
       },

@@ -1,7 +1,8 @@
-export const POD_DISK_GROW_AT = 0.8
+export const POD_DISK_GROW_AT = 0.7
 export const POD_DISK_GROW_FACTOR = 2
-export const POD_DISK_URGENT_AT = 0.95
+export const POD_DISK_URGENT_AT = 0.9
 export const POD_DISK_URGENT_FREE_BYTES = 2 * 2 ** 30
+export const POD_DISK_URGENT_FREE_SHARE = 0.15
 
 const BYTES_PER_GB = 2 ** 30
 
@@ -17,8 +18,13 @@ export const podDiskPressureOf = (args: {
 }): EPodDiskPressure => {
   if (args.limitBytes <= 0) return EPodDiskPressure.Fine
   const usedBytes = Math.max(0, args.usedBytes)
+  const freeBytes = args.limitBytes - usedBytes
   if (usedBytes / args.limitBytes >= POD_DISK_URGENT_AT) return EPodDiskPressure.Urgent
-  if (args.limitBytes - usedBytes < POD_DISK_URGENT_FREE_BYTES) return EPodDiskPressure.Urgent
+  const urgentFreeBytes = Math.max(
+    POD_DISK_URGENT_FREE_BYTES,
+    POD_DISK_URGENT_FREE_SHARE * args.limitBytes,
+  )
+  if (freeBytes < urgentFreeBytes) return EPodDiskPressure.Urgent
   if (usedBytes / args.limitBytes >= POD_DISK_GROW_AT) return EPodDiskPressure.Grow
   return EPodDiskPressure.Fine
 }

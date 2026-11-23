@@ -17,13 +17,13 @@ import { agent37CreateBodyOf } from './agent37-create'
 import {
   agent37BundleVersionOf,
   pinnedDaemonBundleUrlOf,
-  startAgent37InstanceIfAsleep,
   waitForAgent37Daemon,
   waitForAgent37Instance,
   type Agent37DaemonBundle,
 } from './agent37-daemon'
 import { agent37EndpointOf } from './agent37-endpoint'
 import { listAgent37Instances, removeAgent37Pod, sleepAgent37Pod } from './agent37-instance-sweep'
+import { readyAgent37Instance, repairAgent37IfWedged } from './agent37-lifecycle'
 import {
   agent37InstanceNameOf,
   type Agent37Env,
@@ -144,6 +144,12 @@ export class Agent37SandboxProvider extends SandboxProvider {
         url: pinnedDaemonBundleUrlOf({ url: this.args.daemonBundleUrl, version }),
       },
       token: this.tokenOf(sandboxName),
+      repair: async () =>
+        repairAgent37IfWedged({
+          client,
+          id: args.instanceId,
+          ...(this.args.log === undefined ? {} : { log: this.args.log }),
+        }),
       ...(this.args.log === undefined ? {} : { log: this.args.log }),
     })
   }
@@ -178,7 +184,7 @@ export class Agent37SandboxProvider extends SandboxProvider {
     try {
       const resolved = await this.resolve(args)
       const client = this.clientOf(apiKeyOf(args.target.credentials))
-      await startAgent37InstanceIfAsleep({ client, id: resolved.instanceId, log: this.args.log })
+      await readyAgent37Instance({ client, id: resolved.instanceId, log: this.args.log })
       await this.ensureDaemon({ target: args.target, instanceId: resolved.instanceId })
       // The endpoint carries the instance's real shape so the runtime can record it as applied.
       const readAt = new Date().toISOString()
@@ -225,6 +231,7 @@ export class Agent37SandboxProvider extends SandboxProvider {
       client: this.clientOf(apiKeyOf(args.target.credentials)),
       instances: this.args.instances,
       podSessionId: args.target.sandboxSessionId,
+      ...(this.args.log === undefined ? {} : { log: this.args.log }),
     })
   }
 

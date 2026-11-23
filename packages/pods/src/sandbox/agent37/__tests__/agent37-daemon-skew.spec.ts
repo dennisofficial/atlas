@@ -67,6 +67,13 @@ const daemonOf = (args: {
     sleep: async () => undefined,
     start: async ({ id }) => ({ id, status: 'running' }),
     resize: async ({ id }) => ({ ...INSTANCE, id }),
+    update: async ({ id }) => ({ id, status: 'updating' }),
+    logs: async () => ({
+      logs: '',
+      truncated: false,
+      health: { running: true, restart_count: 0, exit_code: null, oom_suspected: false },
+      fetched_at: 0,
+    }),
     exec: async () => ({ exit_code: 0, stdout: '', stderr: '', truncated: false }),
     probe: async (probe) => {
       if (probe.method === 'POST' && probe.path === '/restart') {
@@ -222,6 +229,13 @@ describe('a daemon that never reports a version', () => {
       sleep: async () => undefined,
       start: async ({ id }) => ({ id, status: 'running' }),
       resize: async ({ id }) => ({ ...INSTANCE, id }),
+      update: async ({ id }) => ({ id, status: 'updating' }),
+      logs: async () => ({
+        logs: '',
+        truncated: false,
+        health: { running: true, restart_count: 0, exit_code: null, oom_suspected: false },
+        fetched_at: 0,
+      }),
       exec: async () => ({ exit_code: 0, stdout: '', stderr: '', truncated: false }),
       probe: async () => ({ status: 0, body: '' }),
       signedUrl: async () => 'https://inst-1-47300.agent37.app/?a37_token=t',

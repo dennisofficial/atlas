@@ -6,8 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./pod-sleep": "./src/pod-sleep.ts",
-    "./pod-resize": "./src/pod-resize.ts",
-    "./pod-disk-grow-one": "./src/pod-disk-grow-one.ts"
+    "./pod-resize": "./src/pod-resize.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
