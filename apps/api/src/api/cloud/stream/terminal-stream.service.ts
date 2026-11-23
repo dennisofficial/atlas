@@ -72,16 +72,14 @@ export class TerminalStreamService {
     lifetime.unref()
     try {
       yield { type: 'ready', sessionId: args.sessionId }
-      const held = await this.awaitHolder({ ops, args })
-      if (!held) throw new ServiceUnavailableException(UNHELD_SESSION)
-      if (ended) return
-      const registered = ops.events({
+      const followed = await ops.follow({
         sessionId: args.sessionId,
         listener: (frame) => this.forward({ frame, sessionId: args.sessionId, queue, next }),
         onClose: (reason) => end(this.drain.isDraining() ? 'restarted' : reason),
+        ...(args.signal === undefined ? {} : { signal: args.signal }),
       })
-      if (registered === null) throw new ServiceUnavailableException(UNHELD_SESSION)
-      dispose = registered
+      if (followed === null) throw new ServiceUnavailableException(UNHELD_SESSION)
+      dispose = followed
       if (ended) {
         const stopping = dispose
         dispose = null
@@ -106,18 +104,6 @@ export class TerminalStreamService {
     } finally {
       end()
     }
-  }
-
-  private async awaitHolder(args: {
-    ops: PodOps
-    args: TerminalStreamAttachArgs
-  }): Promise<boolean> {
-    const wait = args.ops.waitForHolder
-    if (wait === undefined) return true
-    return wait({
-      sessionId: args.args.sessionId,
-      ...(args.args.signal === undefined ? {} : { signal: args.args.signal }),
-    })
   }
 
   private async *replay(args: {

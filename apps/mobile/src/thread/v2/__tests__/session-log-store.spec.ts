@@ -49,6 +49,7 @@ const snapshotAt = (args: { throughSeq: number; cursorSeq?: number }): SessionLo
   pending: EMPTY_PENDING,
   view: initialSessionViewState,
   failureMessage: initialFailureMessage,
+  durable: [],
   commandLog: [],
   throughSeq: args.throughSeq,
 })

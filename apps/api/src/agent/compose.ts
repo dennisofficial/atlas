@@ -6,6 +6,7 @@ import {
   TerminalDemand,
   type HostPresence,
   type NotifyDispatch,
+  type PodCallBus,
   type PodControlClient,
   type TurnEndedHook,
 } from '@dltech/atlas-host'
@@ -70,6 +71,7 @@ export type ComposeAgentHostArgs = {
   dispatcher: JobsProjectDispatcher
   notify?: NotifyDispatch | undefined
   turnEnded?: TurnEndedHook | undefined
+  podCallBus?: PodCallBus | undefined
   onHostIdChanged?: (() => void) | undefined
 }
 
@@ -125,6 +127,7 @@ export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
     ...(args.turnEnded === undefined ? {} : { turnEnded: args.turnEnded }),
     terminalDemand,
     panelDemand,
+    ...(args.podCallBus === undefined ? {} : { podCallBus: args.podCallBus }),
     onHostIdChanged: args.onHostIdChanged,
     ...(args.log === undefined ? {} : { log: args.log }),
   })

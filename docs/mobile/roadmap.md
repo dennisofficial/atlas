@@ -26,7 +26,9 @@ in the same PR.
 - A spec in a sibling `__tests__/` for every new rule; `bun test` passes in each touched package.
 - Typecheck and Biome pass on touched files; no file over 300 lines; no comments.
 - Live check on the Expo web bundle (`mobile` service in `.atlas/services.yaml`) against real
-  sessions; the PR Testing section lists what was checked and the result.
+  sessions, at the viewports in `docs/mobile/devices.md`: the iPhone 18 Pro Max, and the iPhone Duo
+  closed, open portrait and open landscape when the feature has a layout. The PR Testing section
+  lists what was checked, with a screenshot of each viewport, and the result.
 - One PR with a conventional title (`feat(mobile): …` for something new). CI green, merged.
 
 ## Features

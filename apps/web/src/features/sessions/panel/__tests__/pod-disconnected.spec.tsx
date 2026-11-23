@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test'
+import { SESSION_ARCHIVED_MESSAGE } from '@dltech/atlas-protocol'
 import { renderToStaticMarkup } from 'react-dom/server'
 
 import { PodDisconnected } from '../pod-disconnected'
@@ -22,6 +23,20 @@ describe('PodDisconnected', () => {
   it('offers Try again after a timeout', () => {
     const markup = html('timeout')
     expect(markup).toContain('Pod did not wake')
+    expect(markup).toContain('Try again')
+  })
+
+  it('says why a wake was refused when the API gives a reason', () => {
+    const markup = renderToStaticMarkup(
+      <PodDisconnected
+        tab="Files"
+        state="timeout"
+        message={SESSION_ARCHIVED_MESSAGE}
+        onWake={() => undefined}
+      />,
+    )
+    expect(markup).toContain(SESSION_ARCHIVED_MESSAGE)
+    expect(markup).not.toContain('Pod did not wake')
     expect(markup).toContain('Try again')
   })
 

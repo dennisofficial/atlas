@@ -37,7 +37,7 @@ export type V2SessionScreen = V2ThreadView & {
 export function useV2SessionScreen(sessionId: string): V2SessionScreen {
   const { api } = useAuth()
   const { snapshot, loadOlder } = useV2Session({ sessionId, api })
-  const commands = useV2SessionCommands({ api, sessionId, events: snapshot.events })
+  const commands = useV2SessionCommands({ api, sessionId, events: snapshot.foldable })
   const [now, setNow] = useState(() => Date.now())
   const view = useMemo(() => v2ViewOf({ snapshot, now }), [snapshot, now])
   const [staged, setStaged] = useState<readonly StagedSend[]>([])

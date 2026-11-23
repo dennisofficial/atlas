@@ -1,18 +1,24 @@
 import { describe, expect, it } from 'bun:test'
 import {
+  ECompactionAnchor,
   EMPTY_PENDING,
   EMPTY_VISIBILITY,
+  EWorkspaceStep,
+  EWorkspaceStepState,
   initialFailureMessage,
   initialSessionViewState,
   SESSION_VIEW_VERSION,
   stepSessionView,
+  workspaceStepsOf,
   type SessionViewState,
+  type V2Body,
   type V2Event,
 } from '@dltech/atlas-core'
 
 import { memorySessionLog, SESSION_LOG_STRUCTURE_VERSION, type SessionLog } from '../session-log'
 import { restoredWindowOf } from '../session-log-restore'
-import { headOf, mintUserEvents } from './support'
+import { applyPage, EMPTY_WINDOW } from '../session-window'
+import { headOf, mintEvents, mintUserEvents } from './support'
 
 const SESSION = 'session-1'
 const RENDER_LIMIT = 100
@@ -34,6 +40,7 @@ const seedSnapshot = async (args: {
       pending: EMPTY_PENDING,
       view: args.view,
       failureMessage: initialFailureMessage,
+      durable: [],
       commandLog: [],
       throughSeq: args.events.length,
     },
@@ -90,5 +97,66 @@ describe('restoring the cached session view', () => {
     expect(
       await restoredWindowOf({ log, sessionId: SESSION, renderLimit: RENDER_LIMIT }),
     ).toBeUndefined()
+  })
+})
+
+const setupStep = (state: EWorkspaceStepState): V2Body => ({
+  type: 'workspace-step',
+  step: EWorkspaceStep.Setup,
+  state,
+  command: 'bun install',
+  attempt: 1,
+})
+
+describe('restoring the durable log', () => {
+  it('carries durable events across a save and refolds them with the visible tail', async () => {
+    const log = memorySessionLog()
+    const events = mintEvents({
+      bodies: [
+        { type: 'workspace-attempt-started', attempt: 1 },
+        setupStep(EWorkspaceStepState.Started),
+        { type: 'user-said', text: 'go' },
+        setupStep(EWorkspaceStepState.Done),
+        { type: 'assistant-said', parts: [{ type: 'text', text: 'done' }] },
+        { type: 'user-said', text: 'next' },
+        {
+          type: 'history-summarised',
+          fromSeq: 3,
+          throughSeq: 5,
+          anchor: ECompactionAnchor.Prefix,
+          summary: 'earlier work',
+        },
+      ],
+    })
+    await log.appendPage({ sessionId: SESSION, events, head: headOf(events) })
+    const window = applyPage({
+      window: EMPTY_WINDOW,
+      page: { events, head: headOf(events) },
+    })
+    await log.saveSnapshot({
+      sessionId: SESSION,
+      snapshot: {
+        version: SESSION_LOG_STRUCTURE_VERSION,
+        cursor: window.cursor,
+        visibility: window.visibility,
+        pending: window.pending,
+        view: window.view,
+        failureMessage: window.failureMessage,
+        durable: window.durable,
+        commandLog: window.commandLog,
+        throughSeq: window.cursor?.seq ?? 0,
+      },
+    })
+
+    const restored = await restoredWindowOf({ log, sessionId: SESSION, renderLimit: RENDER_LIMIT })
+
+    expect(restored?.durable.map((event) => event.seq)).toEqual([1, 2, 4])
+    expect(
+      restored?.events.some((event) => event.type === 'workspace-step' && event.state === 'done'),
+    ).toBe(false)
+    expect(workspaceStepsOf(restored?.foldable ?? [])[EWorkspaceStep.Setup]?.state).toBe(
+      EWorkspaceStepState.Done,
+    )
+    expect(restored?.view.facts.setupRun).toBeNull()
   })
 })

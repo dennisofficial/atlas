@@ -35,6 +35,7 @@ const config: AgentHostConfig = {
   model: MODEL,
   models: fakeModelSourceOf(MODEL),
   classifier: { on: false, reason: 'no classifier model is set' },
+  rotation: { autoRotateAtPercent: 85 },
   sandbox: {
     configured: true,
     provider: ESandboxProvider.Vercel,

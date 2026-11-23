@@ -88,8 +88,8 @@ function useNestedAgentIdentity(args: { agentId: string; parentAgentId: string }
   const { sessionId } = useSessionPaneValue()
   const { snapshot } = useAgentStream({ sessionId, agentId: args.parentAgentId })
   const agent = useMemo(
-    () => agentOf({ events: snapshot.events, agentId: args.agentId }),
-    [snapshot.events, args.agentId],
+    () => agentOf({ events: snapshot.foldable, agentId: args.agentId }),
+    [snapshot.foldable, args.agentId],
   )
   return {
     agentType: agent?.agentType,

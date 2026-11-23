@@ -353,6 +353,7 @@ export const createSessionRuntimeFactory = (
       model: models.main,
       classifier,
       classifierStatus,
+      rotation: config.rotation,
       ...(analytics === undefined ? {} : { analytics }),
       get modelChoice() {
         return models.modelChoice()

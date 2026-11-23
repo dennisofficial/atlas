@@ -45,7 +45,7 @@ export function ComposerFooter(props: Props) {
   } = props
   return (
     <div
-      className={`mx-auto flex w-full ${readingClasses.measure} shrink-0 flex-col gap-2 px-3 pb-3 md:px-4 md:pb-4`}
+      className={`mx-auto flex w-full ${readingClasses.measure} shrink-0 flex-col gap-2 px-3 pb-[max(0.75rem,var(--safe-area-bottom))] md:px-4 md:pb-[max(1rem,var(--safe-area-bottom))]`}
     >
       {notConfigured === null ? null : <NotConfiguredAlert error={notConfigured.error} />}
       {operator.request === null ? null : (

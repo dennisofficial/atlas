@@ -26,6 +26,7 @@ The package ships TypeScript source with no build step.
 | ---------------------------------- | ------------------------------------------------------------------ |
 | `@dltech/atlas-ui`                 | `cn` and the tokens, from one import.                              |
 | `@dltech/atlas-ui/tokens`          | Pure token values. No platform import.                             |
+| `@dltech/atlas-ui/brand`           | Pure brand data: `EBrand`, `BRAND_PATHS`, `brandOfProvider`.       |
 | `@dltech/atlas-ui/components/*`    | A vendored component, such as `components/button`.                 |
 | `@dltech/atlas-ui/ai/*`            | An AI pattern, such as `ai/message` or `ai/tool`.                  |
 | `@dltech/atlas-ui/lib/*`           | `lib/utils` (`cn`), `lib/language-of-path`, `lib/shiki-languages`. |
@@ -47,6 +48,12 @@ The package ships TypeScript source with no build step.
 - `primitives`, `font`, `radiusBase`, `radiusScale`, `radius`, `space`, `spacingUnit`.
 - `ETextRole`, `typeScale`, `EFontFamily`, `EFontWeight`, `fontFaceNames`, `REM_PX`.
 - `buildThemeCss()`: the stylesheet text for the tokens.
+
+### Mark a brand
+
+- `EBrand`, `BRAND_PATHS`, `BrandPath`: every brand mark, as a titled path for a 24x24 viewBox.
+- `brandOfProvider(providerId)`: the brand of a model provider, or `undefined` when it has none.
+  Both the web and the native surface read the mark from here.
 
 ### Compose an AI pattern
 

@@ -17,7 +17,7 @@ import { initialStatusFacts, stepStatusFacts, type StatusFacts } from './status-
 import type { PluginViewFold } from './plugin-view'
 import type { SessionStatus } from './status-types'
 
-export const SESSION_VIEW_VERSION = 12
+export const SESSION_VIEW_VERSION = 13
 
 export type SessionViewState = {
   version: number
@@ -109,9 +109,10 @@ export const needsRebuild = (event: V2Event): boolean =>
 export const rebuildEditSensitive = (args: {
   state: SessionViewState
   visibleTail: readonly V2Event[]
+  foldableTail: readonly V2Event[]
 }): SessionViewState => ({
   ...args.state,
-  facts: args.visibleTail.reduce(stepStatusFacts, initialStatusFacts),
+  facts: args.foldableTail.reduce(stepStatusFacts, initialStatusFacts),
   meter: rebuildMeter({ state: args.state.meter, visibleTail: args.visibleTail }),
   failure: failureMessageOf(args.visibleTail),
 })

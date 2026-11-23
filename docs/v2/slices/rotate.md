@@ -2,7 +2,7 @@
 
 > **Approved by Dennis 2026-11-23.** In place: one transcript, a rotation marker, the model's context starts at the rotation. Refused while a sub-agent runs. Auto-rotate is a setting (default 85 %, 0 = off). Settled by the main session: auto-rotate replaces the auto-compact row; auto-compact is deleted with v1, because the TUI becomes a v2 client, so no per-surface setting field is needed.
 
-Status: **draft 2, 2026-11-23.** Dennis's answers of 2026-11-23 are applied: one transcript, a
+Status: **built 2026-11-23** (§11 lists what was built and where it differs). Draft 2 applied Dennis's answers of 2026-11-23 are applied: one transcript, a
 rotation marker, the projection starts at the boundary, no new thread, refuse while a sub-agent
 runs, auto-rotate as a setting. Anchors are `path:line` at `0d7082dc8` (origin/main,
 2026-11-22). Re-check an anchor before you rely on it.
@@ -210,8 +210,8 @@ Why change the body instead of adding one:
 
 The event is a core event type, not a record-only body. That is deliberate: it is part of the
 thread's own history, the transcript must render it, and the model request must be cut at it.
-`COMPACTION_DISPOSITION.rotated` is already `Drop`
-(`packages/core/src/compaction/disposition.ts:100`), so a later summarise never compresses it away.
+`COMPACTION_DISPOSITION.rotated` is `Keep`, so a later summary never hides the boundary. As drafted
+it was `Drop`, which hides the event under a summary span. The live check found that (§11).
 
 ### 5.3 The projection
 
@@ -631,7 +631,11 @@ Record the results in `evidence/` with the request and response lines and one sc
 - A header control for rotate on web. The command is in the slash menu on every surface; a second
   affordance is a second path to the same call.
 
-## 10. Question for Dennis
+## 10. Question for Dennis (answered)
+
+Settled 2026-11-23: auto-rotate replaces the auto-compact row in settings. `context.autoCompact`
+is deleted with v1, because the TUI becomes a v2 client, so no per-surface setting field was added.
+The original question follows.
 
 One question. Everything else above is decided and can be changed at one seam.
 
@@ -644,3 +648,19 @@ risk of the alternative — showing both — is an operator who sets 90 there, 8
 which one acted. The mechanism question this raises: `ESettingDefinition` has `visibleWhen` for
 conditional rows but no per-surface filter, so either a small `surfaces` field is added to the
 setting definition or the web settings page filters by id. I recommend the `surfaces` field.
+
+## 11. As built
+
+| Slice     | PR    | Differences from the spec                                                                                                                                                                                                                                                                                                                                                                                                |
+| --------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1 core    | #2607 | The brief envelope opens with the "you wake with only this brief" preface. `context.autoRotate` is also in the cloud setting registry (`harness-settings.ts`). `COMMAND_OUTCOMES.rotate = ['rotated']`, so a consumed `/rotate` is replayed after a takeover.                                                                                                                                                            |
+| 2 command | #2644 | The exactly-once guard ignores `rotated` and `history-compacted` after the boundary, so a replay with no new work refuses with "This thread has nothing since the last rotation."                                                                                                                                                                                                                                        |
+| 4 divider | #2645 | The client entry carries `handoff` and `instructions`. The percent lives only in `text`. The web row is its own turn kind and takes its time from the row stamps. The web settings row `context.autoCompact` is now `context.autoRotate` (`apps/web/src/features/settings/fixtures/settings-fields.ts`).                                                                                                                 |
+| 3 host    | #2650 | A failed auto-rotation is logged (`holder.rotation`) and not appended as `input-refused`, because that body needs an `inboxId`. `HeldTurns` awaits the turn-end hook before the next input drains. The fault scenario `handoff-rotate.fault.spec.ts` found that a draining host dropped a consumed command that owed an outcome. `HeldDrain` now asks for a holder in that case, for rotate, rewind and summarise alike. |
+| fix       | #2668 | Found by the live check: `/summarise` after `/rotate` hid the `rotated` event and summarised across it. Now `rotated` is `Keep`, and `summaryTargetOf` and `summaryPointsOf` start after the latest boundary.                                                                                                                                                                                                            |
+
+Live check on production, 2026-11-23, main `2fab56ad4` and then `eb0fb54a8`:
+- Steps 1–5, 7 and 9 pass. A rotation landed at seq 57 with a correct brief. The next turn named the files and the plan with no tool call. A rotate during a sub-agent was refused with the sentence. The web divider and the brief survive a reload.
+- Step 7 used a 5 % threshold, because the window is 1,000,000 tokens. It rotated at 10 %, and the divider reads `rotated automatically at 10% of the window`.
+- Step 6 failed on `2fab56ad4`. After #2668 (`eb0fb54a8`) it passes: `history-summarised {fromSeq: 40, throughSeq: 49}` after a `rotated` at seq 37, and the divider stays visible.
+- Step 8 is covered by the fault scenario (drain, SIGKILL, pod restart, exactly once), not run live.

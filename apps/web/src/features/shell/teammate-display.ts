@@ -1,3 +1,4 @@
+import { splitTeammates } from '@dltech/atlas-client/stream'
 import { EAgentDisplay, needsAttention } from '@dltech/atlas-ui/ai/agent-status'
 import type { WireThread } from '@dltech/atlas-wire/web'
 
@@ -16,9 +17,6 @@ export function hasAttentionTeammate(teammates: readonly WireThread[]): boolean 
   return teammates.some((teammate) => needsAttention(teammateDisplay(teammate)))
 }
 
-const isArchived = (teammate: WireThread): boolean =>
-  teammate.archivedAt !== null && teammate.archivedAt !== undefined
-
 export interface TeammateGroups {
   active: WireThread[]
   done: WireThread[]
@@ -26,10 +24,8 @@ export interface TeammateGroups {
 
 export function groupTeammates(teammates: readonly WireThread[]): TeammateGroups {
   const rank = (teammate: WireThread): number => (needsAttention(teammateDisplay(teammate)) ? 0 : 1)
-  return {
-    active: teammates.filter((teammate) => !isArchived(teammate)).sort((a, b) => rank(a) - rank(b)),
-    done: teammates.filter(isArchived),
-  }
+  const { active, done } = splitTeammates(teammates)
+  return { active: active.sort((a, b) => rank(a) - rank(b)), done }
 }
 
 export function teammateCountLabel(count: number): string {

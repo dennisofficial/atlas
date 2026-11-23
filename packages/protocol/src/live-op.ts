@@ -31,3 +31,4 @@ export const LIVE_OP_MAX_BYTES = 1_048_576
 export const LIVE_OP_TIMEOUT_MS = 15_000
 export const FILES_SEARCH_LIMIT = 200
 export const POD_PARKED_MESSAGE = 'pod is asleep'
+export const SESSION_ARCHIVED_MESSAGE = 'session is archived — unarchive it to continue'

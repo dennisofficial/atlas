@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { toRunId, toThreadId } from '../../events/ids'
+import { ERunFailureKind } from '../../events/run-failure'
 import { chainEvents } from '../chain-events'
 import type { V2Body } from '../event'
 import { ESessionStatus } from '../session-status'
@@ -102,6 +103,45 @@ describe('the turn boundary decides whether a turn is open', () => {
       live: true,
     })
     expect(result.state).toBe(ESessionStatus.Thinking)
+  })
+})
+
+describe('a failure that a credential repair can fix asks the operator', () => {
+  const failedEnd = turnEnded({ outcome: ETurnOutcome.Failed, by: ETurnEndedBy.Host })
+
+  it('reports an auth failure as waiting for credentials', () => {
+    const events = [turnStarted(), userSaid(), runFailed({ kind: ERunFailureKind.Auth }), failedEnd]
+    expect(statusOf({ events, live: true })).toEqual({
+      state: ESessionStatus.WaitingForCredentials,
+      reason: ERunFailureKind.Auth,
+      since: NOW,
+    })
+  })
+
+  it('keeps a failure no repair can fix as failed', () => {
+    const events = [
+      turnStarted(),
+      userSaid(),
+      runFailed({ kind: ERunFailureKind.Network }),
+      failedEnd,
+    ]
+    expect(statusOf({ events, live: true })).toEqual({
+      state: ESessionStatus.Failed,
+      reason: 'connection reset',
+      since: NOW,
+    })
+  })
+
+  it('leaves the waiting state once a new turn carries a message', () => {
+    const events = [
+      turnStarted({ turnId: 'a' }),
+      userSaid(),
+      runFailed({ kind: ERunFailureKind.Auth }),
+      failedEnd,
+      turnStarted({ turnId: 'b' }),
+      userSaid(),
+    ]
+    expect(statusOf({ events, live: true }).state).toBe(ESessionStatus.Thinking)
   })
 })
 

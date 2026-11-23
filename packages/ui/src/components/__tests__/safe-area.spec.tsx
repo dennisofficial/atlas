@@ -35,9 +35,9 @@ const classesOf = ({ html, slot }: { html: string; slot: string }): string[] => 
 }
 
 describe('safe-area insets', () => {
-  it('defines the top and side insets once, falling back to zero', async () => {
+  it('defines the safe-area insets once, falling back to zero', async () => {
     const css = await Bun.file(new URL('../../styles/base.css', import.meta.url)).text()
-    for (const side of ['top', 'right', 'left']) {
+    for (const side of ['top', 'right', 'left', 'bottom']) {
       expect(css).toContain(`--safe-area-${side}: env(safe-area-inset-${side}, 0px);`)
     }
   })
@@ -61,7 +61,7 @@ describe('safe-area insets', () => {
     expect(classesOf({ html, slot: 'sidebar-inner' })).toContain('pt-(--safe-area-top)')
   })
 
-  it('opens a side sheet below the status bar', async () => {
+  it('opens a side sheet below the status bar and above the home indicator', async () => {
     await mount(
       <Sheet open>
         <SheetContent side="right">
@@ -76,6 +76,24 @@ describe('safe-area insets', () => {
         'data-[side=right]:top-(--safe-area-top)',
         'data-[side=right]:right-(--safe-area-right)',
         'data-[side=right]:bottom-0',
+        'data-[side=right]:pb-[max(1rem,var(--safe-area-bottom))]',
+      ]),
+    )
+  })
+
+  it('lifts a bottom sheet body off the home indicator', async () => {
+    await mount(
+      <Sheet open>
+        <SheetContent side="bottom">
+          <SheetTitle>Actions</SheetTitle>
+        </SheetContent>
+      </Sheet>,
+    )
+    const sheet = document.body.querySelector('[data-slot="sheet-content"]')
+    expect([...(sheet?.classList ?? [])]).toEqual(
+      expect.arrayContaining([
+        'data-[side=bottom]:bottom-0',
+        'data-[side=bottom]:pb-[max(1rem,var(--safe-area-bottom))]',
       ]),
     )
   })

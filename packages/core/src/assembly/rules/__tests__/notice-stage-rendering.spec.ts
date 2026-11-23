@@ -88,10 +88,10 @@ describe('assembling a notice row', () => {
   })
 })
 
-describe('waves of agent endings around an arrival', () => {
+describe('agent endings around an arrival', () => {
   const ending = (agent: string): EventDraft => agentEnded({ intent: agent })
 
-  it('keeps one wave together across an arrival between two endings', () => {
+  it('renders one block per ending across an arrival between two endings', () => {
     const texts = textsOf([
       spawned,
       ending('first'),
@@ -101,12 +101,13 @@ describe('waves of agent endings around an arrival', () => {
 
     const blocks = texts.filter((text) => text.includes('kind="agents-ended"'))
 
-    expect(blocks).toHaveLength(1)
-    expect(blocks[0]).toContain('2 agents you spawned ended')
-    expect(blocks[0]).not.toContain('hidden')
+    expect(blocks).toHaveLength(2)
+    expect(blocks[0]).toContain('first')
+    expect(blocks[1]).toContain('second')
+    expect(blocks.join('\n')).not.toContain('hidden')
   })
 
-  it('shows a delivered ending as one wave of one', () => {
+  it('shows a delivered ending as one block', () => {
     const blocks = textsOf([
       spawned,
       arrived(agentEnded(), 'n-1'),

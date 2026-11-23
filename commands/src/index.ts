@@ -33,7 +33,7 @@ export const nativeControlHandlers: ReadonlyMap<
   ControlCommandHandler<RenamePlane, unknown>
 > = new Map([[rename.spec.name, renameHandler]])
 
-export { help, model, RESIZE_MAX_DISK_GB, resize, resizeArgs }
+export { help, model, rename, RESIZE_MAX_DISK_GB, resize, resizeArgs }
 export type { ResizeArgs } from './resize/spec'
 export { REFUSAL_RENAME_NEEDS_NAME } from './rename/spec'
 export { REFUSAL_RESIZE_USAGE } from './resize/spec'

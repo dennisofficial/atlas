@@ -89,6 +89,7 @@ export type SessionRuntime = {
   model: ModelPort
   classifier: ClassifierPort
   classifierStatus: ClassifierStatus
+  rotation: { autoRotateAtPercent: number }
   analytics?: PodAnalytics | undefined
   modelChoice: ModelChoice
   choiceFor(request: RoleModelRequest): RoleModelChoice

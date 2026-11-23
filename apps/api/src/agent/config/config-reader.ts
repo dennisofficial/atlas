@@ -6,6 +6,7 @@ import { z } from 'zod'
 
 import type { AgentHostConfig, ConfigSource, WorkspaceConfig } from './agent-host-config'
 import { classifierConfigOf } from './classifier-config'
+import { rotationConfigOf } from './rotation-config'
 import {
   modelSourceOf,
   type ActiveAccountRow,
@@ -107,6 +108,7 @@ export class ConfigReader implements ConfigSource {
         activeAccounts,
         settings,
       }),
+      rotation: rotationConfigOf({ settings }),
       workspace: workspaceOf(project),
       sandbox,
       podSize: {

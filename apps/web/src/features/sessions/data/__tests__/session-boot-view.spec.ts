@@ -113,6 +113,7 @@ describe('sessionBootViewOf', () => {
     ])
     expect(view?.state).toBe(EBootStepState.Error)
     expect(view?.error).toBe('clone failed')
+    expect(view?.title).toBeUndefined()
   })
 
   it('keeps a failed clone red while the session carries on, and leaves setup pending', () => {
@@ -154,6 +155,27 @@ describe('sessionBootViewOf', () => {
       command: 'bun install',
       output: 'boom',
     })
+    expect(view?.title).toBe('Setup script failed')
+  })
+
+  it('titles a setup stopped with the session as a setup failure, not a failed start', () => {
+    const view = sessionBootViewOf({
+      events: eventsOf([
+        step(EWorkspaceStep.Sandbox, EWorkspaceStepState.Done),
+        step(EWorkspaceStep.Daemon, EWorkspaceStepState.Done),
+        step(EWorkspaceStep.Clone, EWorkspaceStepState.Done),
+        step(EWorkspaceStep.Setup, EWorkspaceStepState.Started, { command: 'bun install' }),
+        { type: 'workspace-prepared' },
+        step(EWorkspaceStep.Setup, EWorkspaceStepState.Failed, {
+          reason: 'setup was stopped with the session',
+          command: 'bun install',
+        }),
+      ]),
+      status: statusOf(ESessionStatus.Idle),
+    })
+    expect(view?.state).toBe(EBootStepState.Error)
+    expect(view?.title).toBe('Setup script failed')
+    expect(view?.error).toBe('setup was stopped with the session')
   })
 
   it('shows an interrupted setup as restarting rather than failed', () => {

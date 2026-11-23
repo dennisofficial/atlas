@@ -3,6 +3,7 @@ import { ChangeContentStore, type ControlPlane } from '@dltech/atlas-control'
 import type {
   HostBus,
   HostPresence,
+  PodCallBus,
   PodControlClient,
   SessionHolder,
   TerminalDemand,
@@ -45,6 +46,7 @@ import {
   LOG,
   MEDIA_SIGNER,
   MODEL_TOKENS,
+  POD_CALL_BUS,
   POD_CONTROL,
   PRESENCE,
   SANDBOX,
@@ -81,6 +83,7 @@ const holderProvider: Provider = {
     traceFor: (distinctId: string) => TracePort,
     analytics: ProductAnalytics,
     usage: UsageService,
+    podCallBus: PodCallBus,
   ): SessionHolder =>
     composeAgentHost({
       env,
@@ -98,6 +101,7 @@ const holderProvider: Provider = {
       log,
       traceFor,
       analytics,
+      podCallBus,
       notify: notifyDispatchOf({ dispatcher }),
       turnEnded: (args) => usage.refreshAfterTurn({ sessionId: args.sessionId }),
       onHostIdChanged: () => watch.recompute(),
@@ -124,6 +128,7 @@ const holderProvider: Provider = {
     TRACE_FOR,
     PRODUCT_ANALYTICS,
     USAGE,
+    POD_CALL_BUS,
   ],
 }
 
