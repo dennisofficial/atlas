@@ -74,8 +74,10 @@ const press = async (value: SessionPaneValue, label: string) => {
 }
 
 describe('SessionSubscriptionsSection', () => {
-  it('hides the section when the session follows nothing', () => {
-    expect(render(valueOf([]))).not.toContain('aria-label="Subscriptions"')
+  it('shows an empty line when the session follows nothing', () => {
+    const html = render(valueOf([]))
+    expect(html).toContain('aria-label="Subscriptions"')
+    expect(html).toContain('No subscriptions')
   })
 
   it('renders one row with the plugin title and the meta line', () => {
@@ -140,10 +142,11 @@ describe('SessionSubscriptionsSection', () => {
     expect(container.querySelector(rowSelector)).toBeNull()
   })
 
-  it('drops the section with the last row it removed', async () => {
+  it('empties the section with the last row it removed', async () => {
     await mount({ value: valueOf([subscriptionRowFixture()]), run: async () => undefined })
     await click(`Remove ${TAKEN}`)
-    expect(container.querySelector('[aria-label="Subscriptions"]')).toBeNull()
+    expect(container.querySelector(rowSelector)).toBeNull()
+    expect(container.textContent).toContain('No subscriptions')
   })
 
   it('puts the row back and says why when the command fails', async () => {
