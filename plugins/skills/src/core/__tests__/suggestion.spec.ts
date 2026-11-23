@@ -2,7 +2,6 @@ import { describe, expect, it } from 'bun:test'
 
 import type { SkillListingEntry } from '../listing'
 import {
-  SKILL_SUGGEST_GATE_KEY,
   SKILL_SUGGEST_SHORTLIST,
   skillSuggestionAskOf,
   skillSuggestionBlockOf,
@@ -28,10 +27,10 @@ const input = {
 }
 
 describe('skillSuggestionAskOf', () => {
-  it('asks the gate and one yes/no per shortlisted skill', () => {
+  it('asks one yes/no per shortlisted skill and nothing else', () => {
     const ask = skillSuggestionAskOf({ input, candidates: [UI, VIDEO, COMMIT] })
     expect(ask?.names).toEqual(['video'])
-    expect(Object.keys(ask?.questions ?? {})).toEqual([SKILL_SUGGEST_GATE_KEY, 'fits:video'])
+    expect(Object.keys(ask?.questions ?? {})).toEqual(['fits:video'])
     expect(Object.values(ask?.questions ?? {}).every((question) => question.type === 'noul')).toBe(
       true,
     )
@@ -65,30 +64,20 @@ describe('skillSuggestionAskOf', () => {
   })
 })
 
-const answers = (gate: number, fits: Record<string, number>) => ({
-  [SKILL_SUGGEST_GATE_KEY]: { noul: gate },
-  ...Object.fromEntries(Object.entries(fits).map(([name, noul]) => [`fits:${name}`, { noul }])),
-})
+const answers = (fits: Record<string, number>) =>
+  Object.fromEntries(Object.entries(fits).map(([name, noul]) => [`fits:${name}`, { noul }]))
 
 describe('skillSuggestionOf', () => {
   const names = ['video', 'commit']
 
-  it('is quiet below the gate', () => {
-    expect(
-      skillSuggestionOf({ answers: answers(0.6, { video: 0.95, commit: 0.1 }), names }),
-    ).toBeUndefined()
-  })
-
   it('is quiet when the winner is below the fits threshold', () => {
     expect(
-      skillSuggestionOf({ answers: answers(0.9, { video: 0.74, commit: 0.1 }), names }),
+      skillSuggestionOf({ answers: answers({ video: 0.74, commit: 0.1 }), names }),
     ).toBeUndefined()
   })
 
   it('names a clear winner', () => {
-    expect(
-      skillSuggestionOf({ answers: answers(0.9, { video: 0.76, commit: 0.6 }), names }),
-    ).toEqual({
+    expect(skillSuggestionOf({ answers: answers({ video: 0.76, commit: 0.6 }), names })).toEqual({
       name: 'video',
       probability: 0.76,
     })
@@ -96,23 +85,20 @@ describe('skillSuggestionOf', () => {
 
   it('is quiet when the runner-up is within the margin', () => {
     expect(
-      skillSuggestionOf({ answers: answers(0.9, { video: 0.8, commit: 0.7 }), names }),
+      skillSuggestionOf({ answers: answers({ video: 0.8, commit: 0.7 }), names }),
     ).toBeUndefined()
   })
 
   it('is quiet on a missing answer', () => {
-    expect(skillSuggestionOf({ answers: answers(0.9, { video: 0.95 }), names })).toBeUndefined()
-    expect(
-      skillSuggestionOf({ answers: { 'fits:video': { noul: 0.9 } }, names: ['video'] }),
-    ).toBeUndefined()
+    expect(skillSuggestionOf({ answers: answers({ video: 0.95 }), names })).toBeUndefined()
   })
 
   it('is quiet on a probability outside [0, 1]', () => {
     expect(
-      skillSuggestionOf({ answers: answers(0.9, { video: 1.2, commit: 0.1 }), names }),
+      skillSuggestionOf({ answers: answers({ video: 1.2, commit: 0.1 }), names }),
     ).toBeUndefined()
     expect(
-      skillSuggestionOf({ answers: answers(-0.1, { video: 0.9, commit: 0.1 }), names }),
+      skillSuggestionOf({ answers: answers({ video: 0.9, commit: -0.1 }), names }),
     ).toBeUndefined()
   })
 })

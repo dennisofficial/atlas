@@ -7,15 +7,10 @@ export const SKILL_SUGGEST_SHORTLIST = 12
 export const SKILL_SUGGEST_CANDIDATE_CHARS = 3_000
 export const SKILL_SUGGEST_DEADLINE_MS = 1_200
 
-export const SKILL_SUGGEST_GATE_KEY = 'needsProcedure'
-export const SKILL_SUGGEST_GATE_THRESHOLD = 0.7
 export const SKILL_SUGGEST_FITS_THRESHOLD = 0.75
 export const SKILL_SUGGEST_MARGIN = 0.15
 
 const FITS_PREFIX = 'fits:'
-
-const GATE_INSTRUCTIONS =
-  'Does this work need a documented procedure or a set of commands that an agent should follow, rather than prose?'
 
 const fitsInstructionsOf = (name: string): string =>
   `Does the procedure in the skill \`${name}\` cover the work above?`
@@ -136,9 +131,7 @@ export const skillSuggestionAskOf = (args: {
     listing === '' ? '' : `Skills the agent can load:\n${listing}`,
   ]
   const names = shortlist.map((entry) => entry.name)
-  const questions: Record<string, ClassifierQuestion> = {
-    [SKILL_SUGGEST_GATE_KEY]: { type: 'noul', instructions: GATE_INSTRUCTIONS },
-  }
+  const questions: Record<string, ClassifierQuestion> = {}
   for (const name of names) {
     questions[`${FITS_PREFIX}${name}`] = { type: 'noul', instructions: fitsInstructionsOf(name) }
   }
@@ -161,8 +154,6 @@ export const skillSuggestionOf = (args: {
   answers: Readonly<Record<string, DecisionAnswer>>
   names: readonly string[]
 }): SkillSuggestion | undefined => {
-  const gate = probabilityOf(args.answers[SKILL_SUGGEST_GATE_KEY])
-  if (gate === undefined || gate < SKILL_SUGGEST_GATE_THRESHOLD) return undefined
   const scored: SkillSuggestion[] = []
   for (const name of args.names) {
     const probability = probabilityOf(args.answers[`${FITS_PREFIX}${name}`])

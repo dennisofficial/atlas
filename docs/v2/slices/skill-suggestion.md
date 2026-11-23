@@ -22,6 +22,12 @@
 >   adds pending operator messages (`pendingMessagesOf(pendingInputsOf(...))`) as the latest turn, and
 >   the draft carries `triggeredBy: inbox:<id>`, so "already suggested" holds after the drain appends
 >   the `user-said` behind it.
+> - **The `needsProcedure` gate is removed (live check 2026-11-23).** On Dennis's production
+>   classifier (`gateway/typesafe-ai/jev`), eleven real messages scored the gate at 0.25–0.76, and
+>   the correct skills scored 0.80–0.94. A 0.7 gate would have dropped 6 of 7 correct picks. The fit
+>   scores alone separate cleanly: every unrelated skill scored at most 0.33. The one close pair
+>   (ui-design 0.94, better-layout 0.82) is held back by the margin, as designed. The fit threshold
+>   (0.75) and the margin (0.15) stay. Scores and latencies are in the live-check table below §6.
 > - **A classifier fault or a thrown error is logged** (`skill suggestion skipped: …`) and the turn
 >   goes on quiet.
 
@@ -190,8 +196,9 @@ export const skillSuggestionOf = (args: {
   question could not rank 255 names. With twelve candidates, one yes/no each is the same decision
   with a probability the code can threshold and a per-question answer that cannot be confused with
   its neighbour.
-- **Winner rule**, in order: gate `< 0.7` → quiet; take the highest `fits`; below `0.75` → quiet;
-  the runner-up within `0.15` → quiet. One winner, or none.
+- **Winner rule**, in order: take the highest `fits`; below `0.75` → quiet; the runner-up within
+  `0.15` → quiet. One winner, or none. (The gate question was removed after the live check: see
+  the header.)
 
 **Why these three numbers.** Jev's `noul` is the probability of yes
 ([docs.typesafe.ai/api/system-one](https://docs.typesafe.ai/api/system-one)), so 0.75 is a claim
@@ -336,6 +343,24 @@ Depends on the classifier role (slice 2 of `spec-classifier.md`). No v1 file is 
    ten real messages before merging and move the thresholds if they are wrong.
 
 ---
+
+### Live check results (production, 2026-11-23, `gateway/typesafe-ai/jev`)
+
+| Message                                                       | Best fit                       | Runner-up            | Gate (removed) | Outcome                   | ms  |
+| ------------------------------------------------------------- | ------------------------------ | -------------------- | -------------- | ------------------------- | --- |
+| make a 30 second demo clip of this PR                         | video 0.90                     | code-comments 0.11   | 0.56           | video                     | 229 |
+| yes, but keep it vertical (video loaded)                      | atlas 0.16                     | better-layout 0.13   | 0.62           | quiet                     | 176 |
+| what does the sandbox image build                             | opentui 0.33                   | atlas-traces 0.21    | 0.52           | quiet                     | 151 |
+| review this branch                                            | code-review 0.80               | security-dep-pr 0.18 | 0.54           | code-review               | 121 |
+| resolve the merge conflicts on this branch                    | resolving-merge-conflicts 0.89 | code-review 0.06     | 0.67           | resolving-merge-conflicts | 135 |
+| write a commit for what I changed                             | commit 0.81                    | code-comments 0.19   | 0.54           | commit                    | 146 |
+| set up services.yaml so the web app starts with a preview url | atlas 0.92                     | ui-design 0.07       | 0.76           | atlas                     | 182 |
+| the settings page spacing looks off on mobile, fix the layout | ui-design 0.94                 | better-layout 0.82   | 0.30           | quiet (margin)            | 124 |
+| why is the agent loop slow today, check the traces            | atlas-traces 0.86              | atlas 0.16           | 0.48           | atlas-traces              | 161 |
+| add a stripe checkout for the pro plan                        | stripe-best-practices 0.92     | atlas-traces 0.04    | 0.61           | stripe-best-practices     | 223 |
+| thanks, that looks good                                       | atlas-traces 0.27              | better-layout 0.23   | 0.25           | quiet                     | 174 |
+
+Every classifier call took 121–229 ms, well under the 1 200 ms deadline.
 
 ## 7. Out of scope
 
