@@ -15,6 +15,7 @@ export type ScriptedModelStep =
       calls?: readonly { callId: string; name: string; input: unknown }[]
       streamMs?: number
       gateFile?: string
+      finishReason?: EFinishReason
     }
   | { throws: unknown }
 
@@ -86,7 +87,8 @@ export class ScriptedModel implements ModelPort {
     const result: ModelStepResult = {
       parts: finalText === undefined ? [] : [{ type: 'text', text: finalText }],
       toolCalls: calls.map((call) => ({ ...call, callId: toCallId(call.callId) })),
-      finishReason: calls.length > 0 ? EFinishReason.ToolCalls : EFinishReason.Stop,
+      finishReason:
+        scripted.finishReason ?? (calls.length > 0 ? EFinishReason.ToolCalls : EFinishReason.Stop),
     }
     return result
   }

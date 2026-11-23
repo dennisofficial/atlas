@@ -3,14 +3,17 @@
 import { useRouter } from 'next/navigation'
 import { useCallback, useMemo } from 'react'
 
-import type { V2Event } from '@dltech/atlas-core'
+import { ERunRemedy, type V2Event } from '@dltech/atlas-core'
 
 import { PROVIDERS_HREF } from '@/features/settings/settings-nav'
+import { attentionKeyOf } from '@/features/threads/data/run-attention-pending'
 import { useAccountLabel } from '@/features/threads/data/use-account-label'
+import { usePendingRemedy } from '@/features/threads/data/use-pending-remedy'
 import type { RepairCardProps } from '@/features/threads/transcript/repair-card'
 import type { RunFailureCardProps } from '@/features/threads/transcript/run-failure-card'
 
 import { sessionFailureCardOf, sessionAttentionOf } from './session-run-attention'
+import type { ModelSwitchRetry } from './use-model-switch-retry'
 import { retrySessionNow } from './use-retry-session'
 
 export type SessionRepair = {
@@ -26,17 +29,30 @@ export function useSessionRunFailure(args: {
   working: boolean
   openAgent: (agentId: string) => void
   onSwitchModel: () => void
+  retryAfterModel: ModelSwitchRetry
   repair: SessionRepair
 }): { card: RunFailureCardProps | null; repairCard: RepairCardProps | null; failedLabel: null } {
-  const { sessionId, events, working, openAgent, onSwitchModel, repair } = args
+  const { sessionId, events, working, openAgent, onSwitchModel, retryAfterModel, repair } = args
   const router = useRouter()
   const accountLabelOf = useAccountLabel()
 
   const attention = useMemo(() => sessionAttentionOf({ events, working }), [events, working])
 
-  const handleRetry = useCallback(() => {
-    void retrySessionNow(sessionId)
-  }, [sessionId])
+  const attentionKey =
+    attention === null
+      ? null
+      : attentionKeyOf({ failureSeq: attention.failureSeq, runId: attention.runId })
+  const { pending, begin, clear } = usePendingRemedy({ key: attentionKey, working })
+
+  const handleRetry = useCallback(async () => {
+    if (!begin(ERunRemedy.Retry)) return
+    if (await retrySessionNow(sessionId)) return
+    clear()
+  }, [begin, clear, sessionId])
+  const handleSwitchModel = useCallback(() => {
+    retryAfterModel.arm(() => void handleRetry())
+    onSwitchModel()
+  }, [retryAfterModel, handleRetry, onSwitchModel])
   const handleOpenProviders = useCallback(() => {
     router.push(PROVIDERS_HREF)
   }, [router])
@@ -55,14 +71,23 @@ export function useSessionRunFailure(args: {
         : sessionFailureCardOf({
             attention,
             accountLabelOf,
+            pending,
             handlers: {
               retry: handleRetry,
               fixCredential: handleFixCredential,
-              switchModel: onSwitchModel,
+              switchModel: handleSwitchModel,
               openAgent,
             },
           }),
-    [attention, accountLabelOf, handleRetry, handleFixCredential, onSwitchModel, openAgent],
+    [
+      attention,
+      accountLabelOf,
+      pending,
+      handleRetry,
+      handleFixCredential,
+      handleSwitchModel,
+      openAgent,
+    ],
   )
 
   const repairCard = useMemo<RepairCardProps | null>(() => {
