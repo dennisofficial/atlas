@@ -35,7 +35,7 @@ in the same PR.
 
 - [x] Threads home: v2-only session list, shared session states, v1 removed
 - [x] New session sheet: project, model, first message (`sessions.create`)
-- [ ] Session screen basics: streamed transcript, composer, header state, Stop, Retry, queued messages
+- [x] Session screen basics: streamed transcript, composer, header state, Stop, Retry, queued messages
 - [ ] Answer operator input: questions and approvals (`operatorRequests.answer`)
 - [ ] Attachments: photos and files in the composer (`media.presign/confirm`)
 - [ ] Notifications: presence and Expo token on the shared push port

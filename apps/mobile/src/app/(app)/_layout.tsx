@@ -1,24 +1,15 @@
 import { Button, EButtonSize, EButtonVariant, useTheme } from '@dltech/atlas-ui-native'
 import { router, Stack, usePathname } from 'expo-router'
-import { ChevronLeft, Plus } from 'lucide-react-native'
+import { Plus } from 'lucide-react-native'
 import { Platform } from 'react-native'
 
 import { useAuth } from '../../auth/auth-provider'
 import { AccountButton } from '../../navigation/account-button'
 import { AppHeader } from '../../navigation/app-header'
+import { BackButton } from '../../navigation/back-button'
 import { InAppNoticesProvider } from '../../notifications/in-app-notices-provider'
 import { sessionIdOfPathname } from '../../thread/v2/presence-state'
 import { usePresenceReport } from '../../thread/v2/use-presence-report'
-
-const BackButton = () => (
-  <Button
-    label="Back"
-    icon={ChevronLeft}
-    variant={EButtonVariant.Ghost}
-    size={EButtonSize.IconLg}
-    onPress={() => router.back()}
-  />
-)
 
 const NewSessionButton = () => (
   <Button

@@ -61,7 +61,7 @@ The headless client library that web, the TUI and the mobile app share.
 - `applyOverlayMessage`, `closeOverlay`, `closeOverlayForEvents`, `EMPTY_OVERLAY_STATE`: the live
   step overlay.
 - `derivedViewOf`, `deriveViewOf`, `deriveStatusOf`, `frameFactsOf`: the view of a followed session.
-  `sessionDisplayOf` and `isSessionUnreadOf` map the status and the unread mark of a row.
+  `sessionDisplayOf`, `isSessionUnreadOf`, `startFailureOf`: the status, unread mark, start failure.
 
 ### Read the pod channel
 
@@ -75,12 +75,11 @@ The headless client library that web, the TUI and the mobile app share.
 - `deriveTranscript(args)`, `assembleTranscript(args)`, `durableEntries(args)`, `EEntryKind`: the
   transcript rows and the durable rows of a thread.
 - `turnsBySeq(args)`, `settledAtOf(entries)`, `turnEndedEntry(turn)`: the turn rows and the settled
-  time.
+  time. `turnStartedAtOf(events)`: the start of the main thread's open turn.
 - `ECallState`, `ToolCall`, `ToolRun`, `attachmentsOf`, `qualityNoticeOf`, `qualityNoticeLine`,
   `EQualityNoticeTone`: the tool runs and a call's quality indicator. `agentsOf(args)`,
   `agentOf(args)` and `agentLabelOf(agent)` give a sub-agent's type, intent and state.
-- `thinkingVisibilityOf(value)`, `foldThoughts(args)`, `toolsAboveThoughts(entries)`: the thinking
-  folds.
+- `thinkingVisibilityOf`, `foldThoughts`, `toolsAboveThoughts`: the thinking folds.
 - `revealedText({ key, text, gate })`, `runAttentionOf(args)`, `plural(many, one, rest?)`,
   `formatElapsed(ms)`: the revealed text and the helpers that a surface also uses.
 
@@ -113,6 +112,7 @@ The headless client library that web, the TUI and the mobile app share.
   make the draft and the post input. `MediaUploadApi`, `PutImage`, `UploadHandle`: the ports.
 - `sessionCreateInputOf(args)`, `initialProjectIdOf(args)`: a new session's create input and project.
 - `composerSendStateOf(args)`, `contextPercentOf(args)`: send or stop, and context use.
+- `queuedMessagesOf`, `queuedNoticesOf`, `stagedQueuedMessagesOf`: the queue above the composer.
 
 ### Sign in to Atlas Cloud
 
