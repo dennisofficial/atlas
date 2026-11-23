@@ -56,8 +56,6 @@ helpers. The serve process in a pod, `apps/api` and every client read it.
 - `modelsResponseSchema`: the model list of the providers, with the live error.
 - `classifierTestOutputSchema`: the outcome of a classifier connection test, a pass with its model
   and duration or a fault with its detail.
-- `usageReportInputSchema`, `usageReportDtoSchema`, `usageWindowDtoSchema`: a plan account's usage
-  as the API reports it, by account id or by provider, with the age of the reading.
 - `memorySummarySchema`, `memoryEntrySchema`, `memoryListSchema`: the memory rows of a list and a
   read.
 - `memoryPutSchema`, `memoryEditSchema`, `memoryKeySchema`: the memory write and edit payloads.

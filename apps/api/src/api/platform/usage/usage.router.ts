@@ -4,7 +4,7 @@ import {
   usageReportInputSchema,
   type UsageReportDto,
   type UsageReportInput,
-} from '@dltech/atlas-wire'
+} from '@dltech/atlas-protocol'
 import { Ctx, Input, Query, Router, UseMiddlewares } from 'nestjs-trpc'
 
 import { USAGE, type UsageService } from '../../../agent'

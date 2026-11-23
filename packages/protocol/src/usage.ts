@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { EAuthProvider } from './account-routes-wire.js'
+import { EAuthProvider } from '@dltech/atlas-core'
 
 export const usageReportInputSchema = z.union([
   z.strictObject({ accountId: z.string().min(1) }),

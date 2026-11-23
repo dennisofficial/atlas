@@ -14,7 +14,7 @@ import {
   CodexUsageClient,
   type UsageClient,
 } from '@dltech/atlas-credentials/usage'
-import type { UsageReportDto, UsageWindowDto } from '@dltech/atlas-wire'
+import type { UsageReportDto, UsageWindowDto } from '@dltech/atlas-protocol'
 import type { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 import { NotFoundException } from '@nestjs/common'
 
