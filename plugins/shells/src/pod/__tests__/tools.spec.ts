@@ -4,21 +4,12 @@ import { EShellRunStatus } from '@dltech/atlas-protocol'
 
 import { shellsPod } from '..'
 import { stateFor } from '../state'
-import { invoke, rig, shellIdOf, textOf } from './support'
-
-const start = async (
-  harness: ReturnType<typeof rig>,
-  input: Record<string, unknown> = { command: 'sleep 30' },
-) => {
-  const outcome = await invoke({ ctx: harness.ctx, name: 'shell', input })
-  return { outcome, shellId: shellIdOf(outcome) }
-}
+import { invoke, rig, seedShell, textOf } from './support'
 
 describe('shell tools', () => {
-  it('declares the five tools', () => {
+  it('declares the four tools', () => {
     const { ctx } = rig()
     expect(shellsPod.tools?.(ctx).map((tool) => tool.name)).toEqual([
-      'shell',
       'shell_output',
       'shell_input',
       'shell_kill',
@@ -26,43 +17,9 @@ describe('shell tools', () => {
     ])
   })
 
-  it('shell launches in the workdir and records the start with its cwd', async () => {
-    const harness = rig()
-    const { outcome, shellId } = await start(harness, {
-      command: 'sleep 30',
-      description: 'ticker',
-      workdir: '/elsewhere',
-      input: true,
-    })
-    expect(shellId).toMatch(/^shell-[0-9a-f]{8}$/)
-    expect(harness.calls[0]).toMatchObject({
-      op: 'shells.launch',
-      shellId,
-      cwd: '/elsewhere',
-      input: true,
-    })
-    expect(harness.shells.has(shellId)).toBe(true)
-    expect(harness.log).toMatchObject([
-      {
-        type: 'background-shell-started',
-        shellId,
-        command: 'sleep 30',
-        description: 'ticker',
-        cwd: '/elsewhere',
-      },
-    ])
-    expect(textOf(outcome)).toContain('outlives this turn')
-  })
-
-  it('shell falls back to the project directory', async () => {
-    const harness = rig()
-    await start(harness)
-    expect(harness.log[0]).toMatchObject({ cwd: '/work' })
-  })
-
   it('shell_output returns the delta once and nothing the second time', async () => {
     const harness = rig()
-    const { shellId } = await start(harness)
+    const shellId = await seedShell({ harness })
     harness.print(shellId, 'tick 1\n')
     const first = await invoke({ ctx: harness.ctx, name: 'shell_output', input: { shellId } })
     expect(textOf(first)).toContain('tick 1')
@@ -73,7 +30,7 @@ describe('shell tools', () => {
 
   it('shell_output reports a prompt once as awaiting input', async () => {
     const harness = rig()
-    const { shellId } = await start(harness, { command: 'ask', input: true })
+    const shellId = await seedShell({ harness, command: 'ask', input: true })
     harness.print(shellId, 'Continue? (y/n)')
     const read = await invoke({ ctx: harness.ctx, name: 'shell_output', input: { shellId } })
     expect(textOf(read)).toContain('waiting for input')
@@ -91,7 +48,7 @@ describe('shell tools', () => {
 
   it('shell_input writes to the daemon and clears the awaiting mark', async () => {
     const harness = rig()
-    const { shellId } = await start(harness, { command: 'ask', input: true })
+    const shellId = await seedShell({ harness, command: 'ask', input: true })
     harness.print(shellId, 'Password: ')
     await invoke({ ctx: harness.ctx, name: 'shell_output', input: { shellId } })
     const sent = await invoke({
@@ -119,7 +76,7 @@ describe('shell tools', () => {
 
   it('keeps one key for one prompt a takeover replays', async () => {
     const harness = rig()
-    const { shellId } = await start(harness, { command: 'ask', input: true })
+    const shellId = await seedShell({ harness, command: 'ask', input: true })
     harness.print(shellId, 'Password: ')
     await invoke({ ctx: harness.ctx, name: 'shell_output', input: { shellId } })
 
@@ -136,7 +93,7 @@ describe('shell tools', () => {
 
   it('shell_kill renders the ending once and leaves the journal to the frame listener', async () => {
     const harness = rig()
-    const { shellId } = await start(harness)
+    const shellId = await seedShell({ harness })
     harness.print(shellId, 'tick 1\n')
     const killed = await invoke({ ctx: harness.ctx, name: 'shell_kill', input: { shellId } })
     expect(textOf(killed)).toContain(`Killed shell ${shellId}`)
@@ -148,7 +105,7 @@ describe('shell tools', () => {
 
   it('shell_list lists what the daemon knows, with the description from the journal', async () => {
     const harness = rig()
-    const { shellId } = await start(harness, { command: 'sleep 30', description: 'ticker' })
+    const shellId = await seedShell({ harness, description: 'ticker' })
     const listed = await invoke({ ctx: harness.ctx, name: 'shell_list', input: {} })
     expect(textOf(listed)).toContain(shellId)
     expect(textOf(listed)).toContain('"ticker"')

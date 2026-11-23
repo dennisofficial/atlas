@@ -5,8 +5,7 @@ import { join } from 'node:path'
 import { beforeAll, describe, expect, it } from 'bun:test'
 
 import { BashTool } from '../bash'
-import { ForegroundOnlyShells } from '../../runtime/foreground-shells'
-import { files, useTempAtlasHome } from './support'
+import { files, launcher, useTempAtlasHome } from './support'
 import { HandoverPort, type HandoverArgs } from './support-handover'
 
 useTempAtlasHome()
@@ -23,7 +22,7 @@ const run = (args: {
   signal?: AbortSignal
   idempotencyKey?: string
 }): Promise<ToolOutcome> =>
-  new BashTool(new ForegroundOnlyShells(), files, args.port).invoke({
+  new BashTool({ launcher, files, processes: args.port }).invoke({
     input: { description: 'Run the suite', ...args.input },
     signal: args.signal ?? new AbortController().signal,
     idempotencyKey: args.idempotencyKey ?? 'bash-1',

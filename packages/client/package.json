@@ -8,6 +8,8 @@
     "./channel": "./src/channel/index.ts",
     "./chat": "./src/chat/index.ts",
     "./crew": "./src/crew/index.ts",
+    "./session": "./src/session/index.ts",
+    "./account": "./src/account/index.ts",
     "./transcript": "./src/transcript/index.ts",
     "./stream-fixture": "./src/stream/__tests__/support.ts",
     "./transcript-fixture": "./src/transcript/__tests__/fixture.ts",

@@ -11,8 +11,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { BashTool } from '../bash'
-import { ForegroundOnlyShells } from '../../runtime/foreground-shells'
-import { files, useTempAtlasHome } from './support'
+import { files, launcher, useTempAtlasHome } from './support'
 
 useTempAtlasHome()
 
@@ -43,7 +42,7 @@ class OutcomePort extends ProcessPort {
 }
 
 const run = (outcome: ProcessOutcome): Promise<ToolOutcome> =>
-  new BashTool(new ForegroundOnlyShells(), files, new OutcomePort(outcome)).invoke({
+  new BashTool({ launcher, files, processes: new OutcomePort(outcome) }).invoke({
     input: { description: 'Run it', command: 'make build' },
     signal: new AbortController().signal,
     idempotencyKey: 'bash-failed-1',

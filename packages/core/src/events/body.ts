@@ -271,6 +271,9 @@ export type EventBody =
       port?: number | undefined
       url?: string | undefined
       declarationHash?: string | undefined
+      cwd?: string | undefined
+      root?: string | undefined
+      branch?: string | undefined
       command: string
       description?: string | undefined
       bootId?: string | undefined

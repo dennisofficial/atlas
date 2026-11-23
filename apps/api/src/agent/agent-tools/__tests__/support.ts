@@ -6,6 +6,7 @@ import { afterAll, beforeAll } from 'bun:test'
 
 import { ATLAS_HOME_ENV } from '@dltech/atlas-core'
 
+import { ShellLauncher, type ShellLaunchArgs, type ShellLaunchOutcome } from '../shell-launcher'
 import { LocalFileSystemPort } from './support-filesystem'
 import { LocalProcessPort } from './support-process'
 
@@ -25,3 +26,18 @@ export const useTempAtlasHome = (): void => {
     rmSync(home, { recursive: true, force: true })
   })
 }
+
+export class TestShellLauncher extends ShellLauncher {
+  readonly launched: ShellLaunchArgs[] = []
+
+  constructor(private readonly answer: ShellLaunchOutcome = { ok: true, pid: 4_242 }) {
+    super()
+  }
+
+  async launch(args: ShellLaunchArgs): Promise<ShellLaunchOutcome> {
+    this.launched.push(args)
+    return this.answer
+  }
+}
+
+export const launcher = new TestShellLauncher()

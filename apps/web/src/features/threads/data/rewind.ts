@@ -5,6 +5,7 @@ import {
   type Event,
   type RewindCut,
 } from '@dltech/atlas-core'
+import type { RewindKillRow } from '@dltech/atlas-client/session'
 import {
   EAgentStatus,
   EPodState,
@@ -13,12 +14,6 @@ import {
   type RewindCutWire,
   type RosterWire,
 } from '@dltech/atlas-wire/web'
-
-export type RewindKillRow = {
-  kind: 'agent' | 'shell' | 'service'
-  label: string
-  running: boolean
-}
 
 export type RewindPlanView =
   | {

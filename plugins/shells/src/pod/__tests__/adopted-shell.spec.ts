@@ -76,6 +76,22 @@ describe('a bash call the daemon moved to the background', () => {
     ])
   })
 
+  it('marks a shell started with input as one shell_input can answer', async () => {
+    const harness = rig()
+
+    await run({ harness, result: backgrounded({ input: true }) })
+
+    expect(stateFor(harness.ctx).inputs.has(SHELL_ID)).toBe(true)
+  })
+
+  it('leaves a shell without input unmarked', async () => {
+    const harness = rig()
+
+    await run({ harness, result: backgrounded() })
+
+    expect(stateFor(harness.ctx).inputs.has(SHELL_ID)).toBe(false)
+  })
+
   it('falls back to the project directory for a command with no workdir', async () => {
     const harness = rig()
 

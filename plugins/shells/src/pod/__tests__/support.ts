@@ -27,6 +27,7 @@ import {
 } from '@dltech/atlas-protocol'
 
 import { shellsPod } from '..'
+import { stateFor } from '../state'
 
 type FakeShell = { info: ShellInfo; buffer: Buffer }
 
@@ -170,6 +171,37 @@ export const rig = () => {
     notices,
     failing,
   }
+}
+
+export const seedShell = async (args: {
+  harness: ReturnType<typeof rig>
+  command?: string
+  description?: string
+  cwd?: string
+  input?: boolean
+}): Promise<string> => {
+  const shellId = `shell-${crypto.randomUUID().slice(0, 8)}`
+  const command = args.command ?? 'sleep 30'
+  const cwd = args.cwd ?? '/work'
+  await args.harness.ctx.call({
+    op: 'shells.launch',
+    shellId,
+    command,
+    cwd,
+    input: args.input === true,
+  })
+  await args.harness.ctx.append([
+    {
+      type: 'background-shell-started',
+      shellId,
+      command,
+      ...(args.description === undefined ? {} : { description: args.description }),
+      cwd,
+    },
+  ])
+  const state = stateFor(args.harness.ctx)
+  if (args.input === true) state.inputs.add(shellId)
+  return shellId
 }
 
 export const invoke = async (args: {

@@ -43,7 +43,7 @@ const fakeClassifier = (args: {
   return fake
 }
 
-const SCORES: Record<string, number> = { needsProcedure: 0.9, 'fits:clipper': 0.88 }
+const SCORES: Record<string, number> = { 'fits:clipper': 0.88 }
 
 const confident: Answer = async (questions) => ({
   ok: true,

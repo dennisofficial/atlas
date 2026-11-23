@@ -5,10 +5,10 @@ import { EShellRunStatus } from '@dltech/atlas-protocol'
 
 import { reconcileShells } from '../reconcile'
 import { stateFor } from '../state'
-import { invoke, rig, shellIdOf } from './support'
+import { rig, seedShell } from './support'
 
 const started = async (harness: ReturnType<typeof rig>, command = 'sleep 30') => {
-  const shellId = shellIdOf(await invoke({ ctx: harness.ctx, name: 'shell', input: { command } }))
+  const shellId = await seedShell({ harness, command })
   return shellId
 }
 

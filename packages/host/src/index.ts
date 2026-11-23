@@ -61,6 +61,7 @@ export { TerminalDemand } from './holder/terminal-demand'
 export { PANEL_HOLD_TTL_MS, PanelDemand } from './holder/panel-demand'
 export type { SessionHolderArgs } from './holder/session-holder-args'
 export type { NotifyDispatch, NotifyDispatchArgs } from './holder/notify-dispatch'
+export type { TurnEndedArgs, TurnEndedHook } from './holder/turn-ended-hook'
 export { podControlOf, type PodControlClient } from './holder/pod-control'
 export type {
   BootNotice,

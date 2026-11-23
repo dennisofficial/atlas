@@ -7,7 +7,7 @@ import type {
   SessionPostOutput,
 } from '@dltech/atlas-protocol'
 
-import { messageInputOf } from './session-media'
+import { messageInputOf } from '@dltech/atlas-client/session'
 
 export type SessionsApi = {
   create(input: SessionCreateInput): Promise<SessionCreateOutput>
