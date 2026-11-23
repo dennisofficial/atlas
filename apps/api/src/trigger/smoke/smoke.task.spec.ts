@@ -1,13 +1,8 @@
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { describe, expect, it, mock, vi } from 'bun:test'
+import { triggerSdkStub } from '../../../test/trigger-sdk.fake'
 
-mock.module('@trigger.dev/sdk', () => ({
-  schemaTask: <T>(definition: T): T => definition,
-  schedules: { task: <T>(definition: T): T => definition },
-  TriggerClient: class {
-    readonly tasks = { trigger: async () => ({ id: 'run_stub' }) }
-  },
-}))
+mock.module('@trigger.dev/sdk', () => triggerSdkStub)
 
 const { smokeTaskContract } = await import('./smoke.contract')
 const { runSmoke, runSmokeTask, smokeTask } = await import('./smoke.task')

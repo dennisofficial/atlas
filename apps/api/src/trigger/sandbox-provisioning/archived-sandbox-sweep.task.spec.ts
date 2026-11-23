@@ -1,14 +1,8 @@
 import { describe, expect, it, mock } from 'bun:test'
 import { EnvService } from '../../_core/config/env/env.service'
+import { triggerSdkStub } from '../../../test/trigger-sdk.fake'
 
-mock.module('@trigger.dev/sdk', () => ({
-  schemaTask: <T>(definition: T): T => definition,
-  schedules: { task: <T>(definition: T): T => definition },
-  logger: { log: () => undefined, warn: () => undefined, error: () => undefined },
-  TriggerClient: class {
-    readonly tasks = { trigger: async () => ({ id: 'run_stub' }) }
-  },
-}))
+mock.module('@trigger.dev/sdk', () => triggerSdkStub)
 
 const { archivedSandboxSweepTask } = await import('./archived-sandbox-sweep.task')
 const { buildArchivedSandboxSweepGraph } = await import('./archived-sandbox-sweep-graph')
