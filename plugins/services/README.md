@@ -10,7 +10,9 @@ its roster and its preview URLs.
 - The declared services file `.atlas/services.yaml`: its names, its hashes and its start order.
 - The `service-ready` plugin event and the `services` view.
 - The public URL of a service port, through the control plane and the `previews.expose` call.
-- The `services.lifecycle` prompt fragment.
+- The `services.lifecycle` prompt fragment, which also tells the agent to start a long-running
+  process by its declared name, to add a declaration when the project has none, and never to hold a
+  server alive from bash.
 
 ## Does not own
 
