@@ -3,13 +3,14 @@ import { z } from 'zod'
 
 import { api, cloudCall } from '@/lib/api-client'
 
-import { EProviderId, type ApiKeyEntry } from '../../fixtures/settings-agent'
-import { shortDate } from './relative-time'
+import { EProviderId } from '../../fixtures/settings-agent'
 
 export enum EAccountKind {
   Oauth = 'oauth',
   ApiKey = 'api-key',
 }
+
+export const DEFAULT_API_KEY_LABEL = 'API key'
 
 export const AUTH_PROVIDER_OF: Record<EProviderId, EAuthProvider> = {
   [EProviderId.Anthropic]: EAuthProvider.Anthropic,
@@ -28,7 +29,9 @@ const accountSchema = z.object({
   status: z.string(),
   email: z.string().optional(),
   subscription: z.string().optional(),
+  keyHint: z.string().optional(),
   createdAt: z.string(),
+  updatedAt: z.string().optional(),
 })
 
 export type Account = z.infer<typeof accountSchema>
@@ -56,29 +59,19 @@ export async function activateAccount(args: {
   )
 }
 
-export function apiKeyFor(args: {
-  accounts: readonly Account[]
-  provider: EProviderId
-}): ApiKeyEntry | null {
-  const account = args.accounts.find(
-    (candidate) => candidate.provider === args.provider && candidate.kind === EAccountKind.ApiKey,
-  )
-  if (account === undefined) return null
-  return { id: account.id, label: account.label, added: `Added ${shortDate(account.createdAt)}` }
-}
-
-export const API_KEY_LABEL = 'Key saved'
-
 export async function createApiKeyAccount(args: {
   provider: EProviderId
   apiKey: string
+  label?: string
+  makeActive?: boolean
 }): Promise<void> {
   await cloudCall(
     api.accounts.create.mutate({
       provider: AUTH_PROVIDER_OF[args.provider],
-      label: API_KEY_LABEL,
+      label: args.label ?? DEFAULT_API_KEY_LABEL,
       origin: EAccountOrigin.Login,
       secret: { kind: EAuthKind.ApiKey, apiKey: args.apiKey },
+      makeActive: args.makeActive,
     }),
   )
 }
@@ -90,6 +83,10 @@ export async function replaceApiKey(args: { accountId: string; apiKey: string })
       secret: { kind: EAuthKind.ApiKey, apiKey: args.apiKey },
     }),
   )
+}
+
+export async function renameAccount(args: { accountId: string; label: string }): Promise<void> {
+  await cloudCall(api.accounts.rename.mutate(args))
 }
 
 export async function removeAccount(accountId: string): Promise<void> {

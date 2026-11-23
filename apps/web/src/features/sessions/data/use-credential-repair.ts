@@ -253,7 +253,7 @@ export function useCredentialRepair(args: {
           await replaceApiKey({ accountId, apiKey })
           return
         }
-        await createApiKeyAccount({ provider, apiKey })
+        await createApiKeyAccount({ provider, apiKey, makeActive: true })
       })
     },
     [repair, accountKind, runMutation],

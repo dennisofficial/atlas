@@ -12,15 +12,13 @@ export type ProviderAccountsData = {
   active: Readonly<Record<string, string | null>>
 }
 
-const SUBSCRIPTION_PROVIDERS = [EProviderId.Anthropic, EProviderId.OpenAI] as const
+const PROVIDERS = Object.values(EProviderId)
 
 export async function loadProviderAccounts(): Promise<ProviderAccountsData> {
   const [accounts, active] = await Promise.all([
     fetchAccounts(),
     Promise.all(
-      SUBSCRIPTION_PROVIDERS.map(
-        async (provider) => [provider, await fetchActiveAccountId(provider)] as const,
-      ),
+      PROVIDERS.map(async (provider) => [provider, await fetchActiveAccountId(provider)] as const),
     ),
   ])
   return { accounts, active: Object.fromEntries(active) }

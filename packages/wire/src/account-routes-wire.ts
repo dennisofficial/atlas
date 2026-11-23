@@ -58,6 +58,7 @@ export const createAccountInputSchema = z.strictObject({
   email: z.string().optional(),
   subscription: z.string().optional(),
   importedFrom: z.string().optional(),
+  makeActive: z.boolean().optional(),
 })
 
 export const accountIdInputSchema = z.strictObject({ accountId: z.string().min(1) })
@@ -65,6 +66,11 @@ export const accountIdInputSchema = z.strictObject({ accountId: z.string().min(1
 export const replaceSecretInputSchema = z.strictObject({
   accountId: z.string().min(1),
   secret: secretInputSchema,
+})
+
+export const renameAccountInputSchema = z.strictObject({
+  accountId: z.string().min(1),
+  label: z.string().trim().min(1),
 })
 
 export const setStatusInputSchema = z.strictObject({
@@ -90,6 +96,7 @@ export const accountDtoSchema = z.object({
   subscription: z.string().optional(),
   importedFrom: z.string().optional(),
   secretVersion: z.number().int().optional(),
+  keyHint: z.string().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
 })
@@ -130,6 +137,7 @@ export type SecretInput = z.infer<typeof secretInputSchema>
 export type CreateAccountInput = z.infer<typeof createAccountInputSchema>
 export type AccountIdInput = z.infer<typeof accountIdInputSchema>
 export type ReplaceSecretInput = z.infer<typeof replaceSecretInputSchema>
+export type RenameAccountInput = z.infer<typeof renameAccountInputSchema>
 export type SetStatusInput = z.infer<typeof setStatusInputSchema>
 export type SetActiveInput = z.infer<typeof setActiveInputSchema>
 export type ActiveAccountInput = z.infer<typeof activeAccountInputSchema>
