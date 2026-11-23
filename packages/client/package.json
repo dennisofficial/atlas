@@ -9,6 +9,7 @@
     "./chat": "./src/chat/index.ts",
     "./crew": "./src/crew/index.ts",
     "./transcript": "./src/transcript/index.ts",
+    "./sessions": "./src/sessions/index.ts",
     "./stream-fixture": "./src/stream/__tests__/support.ts",
     "./transcript-fixture": "./src/transcript/__tests__/fixture.ts",
     "./transcript-tool-fixture": "./src/transcript/__tests__/tool-fixture.ts",

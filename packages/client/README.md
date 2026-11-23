@@ -30,6 +30,7 @@ keeps a local session log, derives the session state and the transcript, and rea
 | `@dltech/atlas-client/chat`                     | The chat transport, the step signals and the step messages.                       |
 | `@dltech/atlas-client/crew`                     | The crew readout, the sub-agent state and the background work.                    |
 | `@dltech/atlas-client/transcript`               | The transcript rows, the tool runs and the turn rows.                             |
+| `@dltech/atlas-client/sessions`                 | The create input of a new session and its starting project.                       |
 | `@dltech/atlas-client/stream-fixture`           | A fake scheduler and transport, and the event factories, for a spec.              |
 | `@dltech/atlas-client/channel-fixture`          | A fake channel socket and a channel harness, for a spec.                          |
 | `@dltech/atlas-client/transcript-fixture`       | The event drafts and the step signals of a transcript, for a spec.                |
@@ -46,6 +47,7 @@ keeps a local session log, derives the session state and the transcript, and rea
 - `createSessionFollower(args)`: the follower for one session, with its connection state and its
   snapshot. `HYDRATE_TIMEOUT_MS` bounds the first load.
 - `createSessionsFeed({ follow, write })`: a retained subscription to the session list.
+- `sessionCreateInputOf(args)`, `initialProjectIdOf(args)`: a new session's create input and project.
 - `StreamTransport`, `StreamScheduler`, `systemStreamScheduler`, `browserNetworkSignal`: the ports
   that a surface supplies.
 
@@ -53,10 +55,8 @@ keeps a local session log, derives the session state and the transcript, and rea
 
 - `memorySessionLog()`, `browserSessionLog(eventSchema)`, `createIndexedDbSessionLog(args)`:
   the `SessionLog` implementations.
-- `SessionWindow`, `applyPage`, `applyPageOutcome`, `RENDER_LIMIT`, `OLDER_PAGE`: the paged window
-  of a long thread.
-- `applyOverlayMessage`, `closeOverlay`, `closeOverlayForEvents`, `EMPTY_OVERLAY_STATE`: the live
-  step overlay.
+- `SessionWindow`, `applyPage`, `applyPageOutcome`, `RENDER_LIMIT`, `OLDER_PAGE`: the paged window.
+- `applyOverlayMessage`, `closeOverlay`, `closeOverlayForEvents`, `EMPTY_OVERLAY_STATE`: the overlay.
 - `derivedViewOf`, `deriveViewOf`, `deriveStatusOf`, `frameFactsOf`: the view of a followed session.
 - `sessionDisplayOf` and `isSessionUnreadOf`: the shared status and unread mapping of a row.
 

@@ -32,7 +32,7 @@ in the same PR.
 ## Features
 
 - [x] Threads home: v2-only session list, shared session states, v1 removed
-- [ ] New session sheet: project, model, first message (`sessions.create`)
+- [x] New session sheet: project, model, first message (`sessions.create`)
 - [ ] Session screen basics: streamed transcript, composer, header state, Stop, Retry, queued messages
 - [ ] Answer operator input: questions and approvals (`operatorRequests.answer`)
 - [ ] Attachments: photos and files in the composer (`media.presign/confirm`)
