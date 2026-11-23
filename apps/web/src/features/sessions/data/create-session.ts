@@ -1,5 +1,5 @@
 import type { Attachment, SaidUpload } from '@dltech/atlas-core'
-import { sessionCreateInputOf } from '@dltech/atlas-client/sessions'
+import { sessionCreateInputOf } from '@dltech/atlas-client/session'
 import type {
   ESandboxProvider,
   SessionCreateInput,
@@ -8,7 +8,7 @@ import type {
   SessionPostOutput,
 } from '@dltech/atlas-protocol'
 
-import { messageInputOf } from './session-media'
+import { messageInputOf } from '@dltech/atlas-client/session'
 
 export type SessionsApi = {
   create(input: SessionCreateInput): Promise<SessionCreateOutput>

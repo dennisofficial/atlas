@@ -20,6 +20,7 @@ import type { HeldTurns } from './held-turns'
 import { InboxIntake } from './inbox-intake'
 import { EIntakeScope } from './intake-scope'
 import { openChildren, type OpenChild } from './crew/open-children'
+import { modelWaitObserverOf } from './model-wait-observer'
 import { operatorAnswersOf } from './operator-answer'
 import type { PodCrew } from '@dltech/atlas-plugin-sdk'
 
@@ -238,6 +239,12 @@ export const createLoopRunner = (args: {
       record,
       threadId,
       runId: () => deps.ids.nextRunId(),
+    }),
+    waitState: modelWaitObserverOf({
+      record,
+      threadId,
+      newRunId: () => deps.ids.nextRunId(),
+      ...(deps.log === undefined ? {} : { log: deps.log }),
     }),
   })
   return { runner, intake }

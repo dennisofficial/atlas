@@ -1,6 +1,7 @@
 import {
   declarationHash,
   serviceDeclarationSchema,
+  serviceDependenciesOf,
   serviceNameSchema,
   servicesFileSchema,
   type ServiceDeclaration,
@@ -89,7 +90,7 @@ export const declaredOrder = (args: {
     }
     const declaration = services.get(name)
     if (declaration === undefined) return unknownName({ name, declared: args.declared })
-    for (const need of declaration.needs ?? []) {
+    for (const need of serviceDependenciesOf(declaration)) {
       const problem = visit(need, [...chain, name])
       if (problem !== undefined) return problem
     }

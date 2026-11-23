@@ -116,10 +116,15 @@ export const rig = (options: { control?: PodControl; env?: Record<string, string
   return { ctx, log, calls, listeners, fs, notices }
 }
 
-export const writeDeclared = (harness: { fs: MemoryFileSystem }, content: string): void => {
-  harness.fs.mkdir({ path: '/work/.atlas' })
+export const writeDeclared = (
+  harness: { fs: MemoryFileSystem },
+  content: string,
+  root = '/work',
+): void => {
+  if (!harness.fs.exists({ path: root })) harness.fs.mkdir({ path: root })
+  harness.fs.mkdir({ path: `${root}/.atlas` })
   harness.fs.writeFile({
-    path: '/work/.atlas/services.yaml',
+    path: `${root}/.atlas/services.yaml`,
     content: new TextEncoder().encode(content),
   })
 }
@@ -129,6 +134,7 @@ export const invoke = async (args: {
   name: string
   input: unknown
   projectDirectory?: string
+  branch?: string
 }) => {
   const tool = servicesPod.tools?.(args.ctx).find((candidate) => candidate.name === args.name)
   if (tool === undefined) throw new Error(`no tool ${args.name}`)
@@ -137,6 +143,16 @@ export const invoke = async (args: {
     signal: new AbortController().signal,
     idempotencyKey: 'k',
     projectDirectory: args.projectDirectory ?? '/work',
+    ...(args.branch === undefined
+      ? {}
+      : {
+          activeWorktree: {
+            path: args.projectDirectory ?? '/work',
+            branch: args.branch,
+            base: 'origin/main',
+            adopted: false,
+          },
+        }),
     threadId: toThreadId('t1'),
   })
 }

@@ -2,8 +2,9 @@
 
 > **Approved by Dennis 2026-11-23.**
 
-Status: **draft 2, 2026-11-23**, Dennis's answers of 2026-11-23 applied, including the rewind
-picker rule. Anchors are `path:line` at
+Status: **built 2026-11-23** (slices 1–6: #2577, #2580, #2587, #2586, #2585, #2590; the live-check fix #2594 runs a
+typed `/resize` in the host; this docs slice closes it). Dennis's answers of 2026-11-23 applied, including the rewind picker rule. The TUI
+work stays with slice 9 (§7). Anchors are `path:line` at
 `1af03b6e3` (main, 2026-11-22). Re-check an anchor before you rely on it.
 
 Operator (2026-11-22): "Slash commands were really weird and buggy. This needs to be a first-class

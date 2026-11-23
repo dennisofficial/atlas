@@ -16,6 +16,7 @@ import {
 } from '@dltech/atlas-harness'
 
 import { createConversationStore } from '../../store/conversation-store'
+import { channelSignalFeed } from '../channel-signal-feed'
 import type { AtlasApp } from '../compose'
 import { createThreadViewRefresh } from '../thread-view-refresh'
 import { EThreadRows } from '../use-thread-view'
@@ -95,7 +96,11 @@ const rig = async (args: { slowSpend?: boolean } = {}) => {
     ledger,
     runner: Object.create(RemoteTurnRunner.prototype) as RemoteTurnRunner,
   } as unknown as AtlasApp
-  const store = createConversationStore({ channel, threadId, events: before })
+  const store = createConversationStore({
+    signals: channelSignalFeed({ channel, threadId }),
+    threadId,
+    events: before,
+  })
   let visible: readonly Event[] = before
   const readiness = cloudReadinessOf(channel)
   const refresh = createThreadViewRefresh({

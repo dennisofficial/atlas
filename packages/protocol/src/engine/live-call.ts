@@ -4,6 +4,7 @@ import type { CallJournal, CallStore } from './call-store'
 import { CALL_JOURNAL_FORMAT, ECallJournalState, journalOp } from './call-store'
 import { CallOutput } from './call-output'
 import type { RegisteredOp } from './group'
+import { journalFailureMessage } from './journal-failure'
 import { type CallOp, type CallResult, type DaemonEvent, ECallFailure } from '../ops'
 import { failedResult, invokeOp } from './results'
 
@@ -112,7 +113,7 @@ export class LiveCall {
     return failedResult({ op: this.args.op.op, code, message })
   }
 
-  async journalRunning(): Promise<boolean> {
+  async journalRunning(): Promise<{ error: unknown } | undefined> {
     try {
       await this.args.store.writeState({
         key: this.args.key,
@@ -124,10 +125,10 @@ export class LiveCall {
           outputBytes: 0,
         },
       })
-      return true
+      return undefined
     } catch (error) {
       this.args.onFault({ key: this.args.key, error })
-      return false
+      return { error }
     }
   }
 
@@ -166,7 +167,10 @@ export class LiveCall {
       onDone(
         this.failure(
           ECallFailure.PersistFailed,
-          `the result of ${this.args.key} could not be persisted`,
+          journalFailureMessage({
+            error,
+            what: `the result of ${this.args.key} could not be persisted`,
+          }),
         ),
       )
     }

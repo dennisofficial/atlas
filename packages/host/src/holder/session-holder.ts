@@ -15,6 +15,7 @@ import type { HostBus, HostTimers, PodPeers, SessionRuntimeFactory } from './por
 import type { PodControlClient } from './pod-control'
 import { ClaimLoop } from './claim-loop'
 import type { NotifyDispatch } from './notify-dispatch'
+import type { TurnEndedHook } from './turn-ended-hook'
 import { HolderDemand } from './holder-demand'
 import { PodCalls } from './pod-calls'
 import type { CommandHandlers, ControlHandlers } from './command-intake'
@@ -44,6 +45,7 @@ export class SessionHolder {
   private readonly operator: SessionHolderArgs['operator']
   private readonly changes: { content: ChangeContentStore } | undefined
   private readonly notify: NotifyDispatch | undefined
+  private readonly turnEnded: TurnEndedHook | undefined
   private readonly log: LogPort | undefined
 
   private readonly held = new Map<string, HeldSession>()
@@ -94,6 +96,7 @@ export class SessionHolder {
     this.operator = args.operator
     this.changes = args.changes
     this.notify = args.notify
+    this.turnEnded = args.turnEnded
     this.log = args.log
     this.settler = new LeaseSettler({
       plane: args.plane,
@@ -291,6 +294,7 @@ export class SessionHolder {
       mcp: this.mcp,
       changes: this.changes,
       notify: this.notify,
+      turnEnded: this.turnEnded,
       ...(this.operator === undefined
         ? {}
         : {

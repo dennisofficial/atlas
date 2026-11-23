@@ -62,6 +62,11 @@ const description = [
   'One image comes back per call, written under this session and returned inline with its dimensions and weight. Run several calls in parallel to compare models or to get variants.',
   `The default model is ${DEFAULT_MODEL}, which is fast and cheap. Other gateway ids: microsoft/mai-image-2.7 for full source resolution, spacexai/grok-imagine-image-2.0 for a different look.`,
   'If the gateway enforces Zero Data Retention, a model without it is refused, and the refusal lists the models to use instead.',
+  'The image model sees only the prompt and the images, never this conversation, so write the prompt out in full even when the request was two words.',
+  'Before an edit, read the source image so the prompt can name what is in it.',
+  'Name the exact thing to change and where it is in the picture. State the target material, colour or finish, and point to something in the picture that already has it when one exists.',
+  'Then list the nearby things that must stay as they are, by name, plus the lighting, the shadows and the camera angle. Without this list a model repaints them too.',
+  'Write one instruction per sentence with concrete, specific words such as matte, veneer, brushed brass or soft daylight. Leave out vague words such as nicer or modern.',
 ].join(' ')
 
 export type ImageGenerateDeps = {

@@ -1,4 +1,4 @@
-import { initialProjectIdOf } from '@dltech/atlas-client/sessions'
+import { initialProjectIdOf } from '@dltech/atlas-client/session'
 import type { Attachment } from '@dltech/atlas-core'
 import { EFontWeight, ETextRole, Text, useTheme } from '@dltech/atlas-ui-native'
 import { decodeModelFavourites, encodeModelFavourites } from '@dltech/atlas-wire/web'

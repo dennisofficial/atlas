@@ -148,6 +148,36 @@ describe('useSessionDiagramRepairs', () => {
     expect(read().repairs.get(KEY)).toBe(FIXED)
   })
 
+  it('never asks to repair a chart that is itself a repair', async () => {
+    const api = fakeApi({ repair: async () => repaired() })
+    const read = await mount({ api, validate: async () => true })
+    await flush()
+
+    await act(async () => {
+      await read().repairDiagram({ messageId: 'm1', chart: BROKEN, error: 'Parse error' })
+    })
+    await flush()
+    await act(async () => {
+      await read().repairDiagram({ messageId: 'm1', chart: FIXED, error: 'Parse error' })
+    })
+
+    expect(api.repair).toHaveBeenCalledTimes(1)
+  })
+
+  it('never asks to repair a listed repair output after a reload', async () => {
+    const api = fakeApi({
+      list: async () => ({ repairs: [{ source: BROKEN, outcome: repaired() }] }),
+    })
+    const read = await mount({ api, validate: async () => true })
+    await flush()
+
+    await act(async () => {
+      await read().repairDiagram({ messageId: 'm1', chart: FIXED, error: 'Parse error' })
+    })
+
+    expect(api.repair).not.toHaveBeenCalled()
+  })
+
   it('passes the prose around the fence as context', async () => {
     const api = fakeApi({ repair: async () => repaired() })
     const read = await mount({ api, validate: async () => true })

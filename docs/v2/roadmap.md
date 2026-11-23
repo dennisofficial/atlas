@@ -23,6 +23,15 @@ Each slice is built in its own Atlas session and handed to a fresh session when 
 ## Current state
 
 _Updated at the end of every slice. Last update: 2026-11-23._
+- **Done 2026-11-23: slash commands** ([spec](slices/slash-commands.md); PRs #2577, #2580, #2585,
+  #2586, #2587, #2590, #2594 and this docs PR). The host parses every message against one command registry
+  and the pod's skill names, so a typed `/rename x` renames, `/summarise` summarises up to your last
+  message, `/review src` loads the skill into the turn, and an unknown `/name` stays a message. A
+  typed command shows as the operator's own line, marked as a command. Web, Mac and mobile share one
+  menu for commands and skills (`catalogueForSurface`); `/model` opens the model picker and `/help`
+  the command list. Web, Mac and mobile hide `/rewind` and `/summarise` (message actions do them);
+  typed, they still run, and a bare `/rewind` asks for a line. Live-checked on production. The TUI
+  picks up `SURFACE_PROFILES` and keeps its rewind drawer at slice 9.
 - **Done 2026-11-23: notifications** ([spec](slices/notifications.md)). Eight slices: #2575 (the pure
   decision in `packages/core/src/notify` and `packages/notifications`), #2579 (presence from web, Mac and
   iOS into Redis, 90 s TTL), #2578 (in-app toast and banner; the sessions row gains `lastTurn` and

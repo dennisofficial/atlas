@@ -10,6 +10,7 @@ import type { CommandHandlers, ControlHandlers } from './command-intake'
 import type { NotifyDispatch } from './notify-dispatch'
 import type { PanelDemand } from './panel-demand'
 import type { TerminalDemand } from './terminal-demand'
+import type { TurnEndedHook } from './turn-ended-hook'
 import { DEFAULT_APPEND_RETRY_MS } from './record/retry-deadline'
 
 export type SessionHolderArgs = {
@@ -37,6 +38,7 @@ export type SessionHolderArgs = {
     | undefined
   changes?: { content: ChangeContentStore } | undefined
   notify?: NotifyDispatch | undefined
+  turnEnded?: TurnEndedHook | undefined
   log?: LogPort | undefined
   onHostIdChanged?: (() => void) | undefined
   terminalDemand?: TerminalDemand | undefined

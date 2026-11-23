@@ -6,6 +6,7 @@ import { WINDOW_CAP } from '../entry-window'
 
 const { deriveTranscript, createConversationStore } = await import('../../store')
 const { createDeltaChannel } = await import('@dltech/atlas-harness')
+const { channelSignalFeed } = await import('../../composition/channel-signal-feed')
 const { fixtureThreadId } = await import('@dltech/atlas-client/transcript-fixture')
 const { clocked, said } = await import('@dltech/atlas-client/transcript-tool-fixture')
 const { Transcript } = await import('../components/transcript')
@@ -199,7 +200,7 @@ describe('a transcript past the windowing threshold', () => {
   it('keeps the tail mounted as a chunk streams in', async () => {
     const channel = createDeltaChannel()
     const store = createConversationStore({
-      channel,
+      signals: channelSignalFeed({ channel, threadId: fixtureThreadId }),
       threadId: fixtureThreadId,
       events: clocked(
         Array.from({ length: 400 }, (_, i) => ({

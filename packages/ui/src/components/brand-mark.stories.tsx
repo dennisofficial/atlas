@@ -46,6 +46,8 @@ export const Notion: Story = { args: { brand: EBrand.Notion } }
 
 export const Figma: Story = { args: { brand: EBrand.Figma } }
 
+export const Typesafe: Story = { args: { brand: EBrand.Typesafe } }
+
 export const AllBrands: Story = {
   render: () => (
     <div className="grid grid-cols-7 gap-3">

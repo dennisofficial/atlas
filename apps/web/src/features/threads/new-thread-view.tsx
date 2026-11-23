@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useCallback, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
-import { initialProjectIdOf } from '@dltech/atlas-client/sessions'
+import { initialProjectIdOf } from '@dltech/atlas-client/session'
 import type { Attachment } from '@dltech/atlas-core'
 import type { Project } from '@dltech/atlas-wire/web'
 

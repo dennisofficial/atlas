@@ -3,10 +3,6 @@ import { toast } from 'sonner'
 
 import type { Attachment, V2Event } from '@dltech/atlas-core'
 
-import type { RewindKillRow } from '@/features/threads/data/rewind'
-import { messageOf } from '@/features/threads/data/use-send'
-import { mediaUrls } from '@/features/threads/data/media-urls'
-
 import {
   requestRewind,
   rewindKillsOf,
@@ -15,8 +11,11 @@ import {
   rewoundMessageOf,
   seqByEventIdOf,
   type RewindApi,
+  type RewindKillRow,
   type RewoundMessage,
-} from './session-rewind'
+} from '@dltech/atlas-client/session'
+import { messageOf } from '@/features/threads/data/use-send'
+import { mediaUrls } from '@/features/threads/data/media-urls'
 
 type Pending = RewoundMessage & { inboxId: number | undefined }
 

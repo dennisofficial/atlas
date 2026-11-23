@@ -1,4 +1,4 @@
-import { sessionCreateInputOf } from '@dltech/atlas-client/sessions'
+import { sessionCreateInputOf } from '@dltech/atlas-client/session'
 import type { SessionCreateInput } from '@dltech/atlas-protocol'
 
 export type CreateSessionApi = {

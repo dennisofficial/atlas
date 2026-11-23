@@ -1,3 +1,5 @@
+import type { UploadHandle } from '@dltech/atlas-client/session'
+
 import { api, cloudCall } from '@/lib/api-client'
 
 import { contentTypeOf } from './composer-attachments'
@@ -13,8 +15,6 @@ export const presignUpload = (file: File) =>
 
 export const discardUpload = (pathname: string): Promise<unknown> =>
   cloudCall(api.composerUploads.discard.mutate({ pathname }))
-
-export type UploadHandle = { done: Promise<void>; abort: () => void }
 
 export function putFile(args: {
   url: string

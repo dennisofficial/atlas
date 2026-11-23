@@ -52,7 +52,14 @@ export {
   POD_OPS,
   SESSION_STREAM,
   TERMINAL_DEMAND,
+  USAGE,
 } from './host/tokens'
+export { UsageService, USAGE_FLOOR_MS, type UsageReportRequest } from './usage/usage-service'
+export type {
+  UsageAccountRow,
+  UsageAccounts,
+  UsageSessionOwner,
+} from './usage/usage-accounts'
 export { podResizerOf, type SandboxResizer } from '@dltech/atlas-pods/sandbox/sandbox-resizer'
 export { HOLDER_WAIT_MS, podOpsOf, type PodOps } from './host/pod-ops'
 export type { TerminalDemand } from '@dltech/atlas-host'

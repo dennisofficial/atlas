@@ -1,6 +1,6 @@
 import type { AgentFileSystemPort, ProcessPort, ThreadId } from '@dltech/atlas-core'
 
-import { nullUnlessInterrupted } from './interrupted'
+import { nullIfMissing } from './interrupted'
 
 const FILES_PER_GREP_BATCH = 128
 
@@ -74,9 +74,9 @@ function grepFlags(args: FallbackSearch): string[] {
 export async function runPosixGrep(args: FallbackSearch): Promise<SearchResult> {
   const target = await args.files
     .stat({ path: args.searchPath, threadId: args.threadId })
-    .catch(nullUnlessInterrupted)
+    .catch(nullIfMissing)
 
-  if (target !== null && target.isFile()) {
+  if (target?.isFile()) {
     return await spawnGrep({
       ...args,
       cmd: ['grep', '-H', ...grepFlags(args), '--', args.searchPath],

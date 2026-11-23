@@ -1,8 +1,14 @@
-import { readdir, stat } from 'node:fs/promises'
 import { basename, dirname } from 'node:path'
+
+import type { AgentFileSystemPort, FileSystemEntry, ThreadId } from '@dltech/atlas-core'
 
 const MAX_SUGGESTIONS = 8
 const MAX_ENTRY_LENGTH = 80
+
+type PathPort = {
+  files: AgentFileSystemPort
+  threadId: ThreadId
+}
 
 function nameDistance(a: string, b: string): number {
   let previous = Array.from({ length: b.length + 1 }, (_, index) => index)
@@ -23,12 +29,20 @@ function nameDistance(a: string, b: string): number {
   return previous[b.length] ?? 0
 }
 
-async function deepestExistingDirectoryOf(path: string): Promise<string | undefined> {
-  let candidate = dirname(path)
+async function isDirectory(args: PathPort & { path: string }): Promise<boolean> {
+  const stats = await args.files
+    .stat({ path: args.path, threadId: args.threadId })
+    .catch(() => null)
+  return stats?.isDirectory() === true
+}
+
+async function deepestExistingDirectoryOf(
+  args: PathPort & { path: string },
+): Promise<string | undefined> {
+  let candidate = dirname(args.path)
 
   for (;;) {
-    const stats = await stat(candidate).catch(() => null)
-    if (stats?.isDirectory()) return candidate
+    if (await isDirectory({ ...args, path: candidate })) return candidate
 
     const parent = dirname(candidate)
     if (parent === candidate) return undefined
@@ -36,15 +50,13 @@ async function deepestExistingDirectoryOf(path: string): Promise<string | undefi
   }
 }
 
-async function closestEntriesOf({
-  directory,
-  target,
-}: {
-  directory: string
-  target: string
-}): Promise<string[]> {
-  const entries = await readdir(directory, { withFileTypes: true }).catch(() => [])
-  const wanted = target.toLowerCase()
+async function closestEntriesOf(
+  args: PathPort & { directory: string; target: string },
+): Promise<string[]> {
+  const entries = await args.files
+    .readDirectory({ path: args.directory, threadId: args.threadId })
+    .catch((): readonly FileSystemEntry[] => [])
+  const wanted = args.target.toLowerCase()
 
   return entries
     .map((entry) => ({
@@ -58,20 +70,22 @@ async function closestEntriesOf({
     )
 }
 
-export async function missingPathReason(args: {
-  path: string
-  resolvedFrom?: { raw: string; projectDirectory: string } | undefined
-}): Promise<string> {
+export async function missingPathReason(
+  args: PathPort & {
+    path: string
+    resolvedFrom?: { raw: string; projectDirectory: string } | undefined
+  },
+): Promise<string> {
   const { path, resolvedFrom } = args
   const anchor =
     resolvedFrom === undefined
       ? ''
       : ` (${resolvedFrom.raw} resolved against the project directory ${resolvedFrom.projectDirectory})`
 
-  const directory = await deepestExistingDirectoryOf(path)
+  const directory = await deepestExistingDirectoryOf(args)
   if (directory === undefined) return `File does not exist: ${path}${anchor}`
 
-  const entries = await closestEntriesOf({ directory, target: basename(path) })
+  const entries = await closestEntriesOf({ ...args, directory, target: basename(path) })
   const listing =
     entries.length === 0 ? 'It is empty.' : `Its closest entries are: ${entries.join(', ')}`
 

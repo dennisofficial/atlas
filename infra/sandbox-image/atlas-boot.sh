@@ -5,6 +5,8 @@
 set -u
 
 DAEMON_HOME=/atlas/home/.atlas/daemon
+DISK_RESERVE="$DAEMON_HOME/disk-reserve"
+BUN_CACHE=/atlas/.atlas/bun-cache
 BUNDLE_URL="${ATLAS_DAEMON_BUNDLE_URL:-}"
 
 if [ -z "$BUNDLE_URL" ]; then
@@ -42,12 +44,25 @@ spill_fresh() {
 # https://www.agent37.com/docs/agents-api/instance-lifecycle.md
 if mountpoint -q /atlas; then
   spill_keep /root root
-  spill_keep /opt/bun/install bun-install
   spill_fresh /tmp tmp
   spill_fresh /var/tmp var-tmp
+  # bun hardlinks a package out of its cache only within one filesystem; an overlay mount is another
+  # device to link(2), so a cache there made every worktree install a full copy that filled /atlas.
+  if [ ! -d "$BUN_CACHE" ] && [ -d /atlas/.atlas/os/bun-install/upper/cache ]; then
+    mv /atlas/.atlas/os/bun-install/upper/cache "$BUN_CACHE"
+  fi
+  mkdir -p "$BUN_CACHE"
+  export BUN_INSTALL_CACHE_DIR="$BUN_CACHE"
 fi
 
+# The default inotify budget (about 31k watches) runs out on a few worktrees of node_modules.
+sysctl -qw fs.inotify.max_user_watches=524288 2>/dev/null || true
+
 mkdir -p "$DAEMON_HOME" /atlas/docker
+# The daemon frees this on its first ENOSPC, so a full disk still journals the calls that clean it.
+if [ ! -f "$DISK_RESERVE" ]; then
+  fallocate -l 512M "$DISK_RESERVE" 2>/dev/null || rm -f "$DISK_RESERVE"
+fi
 # Not the shim: a mise shim rewrites PATH for every process it starts, and the daemon passes its
 # env to every agent shell, which would then ignore the repository's pinned bun and node. mise
 # itself answers with the version its config selects; the glob covers an image where it cannot.
