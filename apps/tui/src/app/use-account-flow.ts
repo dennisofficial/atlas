@@ -3,6 +3,7 @@ import { useCallback, useRef, useState } from 'react'
 import {
   ACCOUNT_FILE_VERSION,
   deleteAccount,
+  withPreferences,
   writeAccount,
   type AccountFile,
 } from './account/account-file'
@@ -65,6 +66,18 @@ export function useAccountFlow(args: {
     onApproved: handleApproved,
   })
 
+  const handlePreferences = useCallback(
+    (preferences: Record<string, unknown>) => {
+      const open = held.current
+      if (open === null) return
+      const next = withPreferences({ account: open, preferences })
+      held.current = next
+      writeAccount({ path: args.accountPath, account: next })
+      setAccount(next)
+    },
+    [args.accountPath],
+  )
+
   const handleSignOut = useCallback(async () => {
     const open = held.current
     if (open !== null)
@@ -74,5 +87,5 @@ export function useAccountFlow(args: {
     onScreen({ screen: EScreen.SignIn, reason: null })
   }, [args.accountPath, args.fetchFn, onScreen])
 
-  return { account, handleAuthLost, signIn, handleSignOut }
+  return { account, setAccount, handleAuthLost, handlePreferences, signIn, handleSignOut }
 }

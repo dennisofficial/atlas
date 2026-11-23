@@ -41,12 +41,19 @@ import type { AuthRefusal, SessionClient } from '../session-client'
 import type { ProjectChoice } from '../../ui/project-prompt-model'
 import type {
   DraftPutBody,
+  GithubPollResult,
   ModelsProvider,
   ModelsReply,
   OperatorAnswerBody,
   PresenceBody,
   ProjectSaveBody,
+  SecretNameBody,
+  SecretPutBody,
   SessionApi,
+  SettingRemoveBody,
+  SigningKeyStatus,
+  SettingRow,
+  SettingWriteBody,
   SkillCatalogueReply,
   UploadPresignBody,
   UploadPresignReply,
@@ -79,6 +86,19 @@ export type FakeCalls = {
   unsubscribe: SessionUnsubscribeInput[]
   changes: SessionChangesInput[]
   reportPresence: PresenceBody[]
+  listSettings: number
+  setSetting: SettingWriteBody[]
+  removeSetting: SettingRemoveBody[]
+  secretNames: number
+  putSecret: SecretPutBody[]
+  removeSecret: SecretNameBody[]
+  signingKeyStatus: number
+  registerSigningKey: { privateKey: string }[]
+  revokeSigningKey: number
+  githubState: number
+  beginGithubConnect: number
+  pollGithubConnect: { deviceCode: string }[]
+  disconnectGithub: number
 }
 
 export type FakeSessionClient = SessionClient & {
@@ -87,6 +107,11 @@ export type FakeSessionClient = SessionClient & {
   setModels: (models: ModelsReply) => void
   setCommands: (commands: readonly CommandEntry[]) => void
   setSkills: (skills: SkillCatalogueReply['skills']) => void
+  setSettings: (rows: readonly SettingRow[]) => void
+  setSecretNames: (names: readonly string[]) => void
+  setSigningKeyRegistered: (registered: boolean) => void
+  refuseSettingWrites: (message: string | null) => void
+  refuseSettingReads: (message: string | null) => void
   pushCreated: (created: SessionCreateOutput) => void
   pushRows: (rows: readonly StreamSessionRow[]) => void
   pushEvents: (args: { sessionId: string; events: readonly V2Event[]; live: boolean }) => void
@@ -127,6 +152,18 @@ const uploadOf = (body: UploadPresignBody): SaidUpload => ({
 })
 
 const CONNECTED = 'connected' as ModelsProvider['status']
+
+const REGISTERED_KEY = {
+  state: 'registered',
+  publicKey: 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFakeKeyMaterial atlas@octo',
+  createdAt: '2026-11-20T00:00:00.000Z',
+} as SigningKeyStatus
+
+const CONNECTED_GITHUB = {
+  status: 'connected',
+  login: 'octo',
+  scopes: ['repo'],
+} as GithubPollResult
 
 const DEFAULT_MODELS: ModelsReply = {
   providers: [
@@ -209,6 +246,19 @@ export const fakeSessionClient = (args: {
     unsubscribe: [],
     changes: [],
     reportPresence: [],
+    listSettings: 0,
+    setSetting: [],
+    removeSetting: [],
+    secretNames: 0,
+    putSecret: [],
+    removeSecret: [],
+    signingKeyStatus: 0,
+    registerSigningKey: [],
+    revokeSigningKey: 0,
+    githubState: 0,
+    beginGithubConnect: 0,
+    pollGithubConnect: [],
+    disconnectGithub: 0,
   }
 
   let frames = 0
@@ -230,6 +280,11 @@ export const fakeSessionClient = (args: {
   let models: ModelsReply = DEFAULT_MODELS
   let commandEntries: readonly CommandEntry[] = []
   let skillEntries: SkillCatalogueReply['skills'] = []
+  let settingRows: readonly SettingRow[] = []
+  let secretNames: readonly string[] = []
+  let signingKeyRegistered = false
+  let settingWriteRefusal: Error | null = null
+  let settingReadRefusal: Error | null = null
   const created: SessionCreateOutput[] = []
   let projectCount = 0
   let postHeld = false
@@ -370,6 +425,73 @@ export const fakeSessionClient = (args: {
     reportPresence: async (input) => {
       calls.reportPresence.push(input)
     },
+    listSettings: async () => {
+      calls.listSettings += 1
+      if (settingReadRefusal !== null) throw settingReadRefusal
+      return settingRows
+    },
+    setSetting: async (input) => {
+      calls.setSetting.push(input)
+      if (settingWriteRefusal !== null) throw settingWriteRefusal
+      settingRows = [
+        ...settingRows.filter((row) => row.key !== input.key),
+        { key: input.key, value: input.value },
+      ]
+    },
+    removeSetting: async (input) => {
+      calls.removeSetting.push(input)
+      settingRows = settingRows.filter((row) => row.key !== input.key)
+    },
+    secretNames: async () => {
+      calls.secretNames += 1
+      return secretNames
+    },
+    putSecret: async (input) => {
+      calls.putSecret.push(input)
+    },
+    removeSecret: async (input) => {
+      calls.removeSecret.push(input)
+    },
+    signingKeyStatus: async () => {
+      calls.signingKeyStatus += 1
+      return signingKeyRegistered ? REGISTERED_KEY : ({ state: 'absent' } as SigningKeyStatus)
+    },
+    registerSigningKey: async (input) => {
+      calls.registerSigningKey.push(input)
+      signingKeyRegistered = true
+      return REGISTERED_KEY
+    },
+    revokeSigningKey: async () => {
+      calls.revokeSigningKey += 1
+      signingKeyRegistered = false
+    },
+    githubState: async () => {
+      calls.githubState += 1
+      return {
+        connected: true,
+        login: 'octo',
+        scopes: ['repo'],
+        missingScopes: [],
+        connectedAt: '2026-11-20T00:00:00.000Z',
+      }
+    },
+    beginGithubConnect: async () => {
+      calls.beginGithubConnect += 1
+      return {
+        deviceCode: 'device-1',
+        userCode: 'abcd-1234',
+        verificationUrl: 'https://github.example.test/device',
+        expiresInMs: 60_000,
+        intervalMs: 1,
+      }
+    },
+    pollGithubConnect: async (input) => {
+      calls.pollGithubConnect.push(input)
+      return CONNECTED_GITHUB
+    },
+    disconnectGithub: async () => {
+      calls.disconnectGithub += 1
+    },
   }
 
   return {
@@ -398,6 +520,21 @@ export const fakeSessionClient = (args: {
     },
     setSkills: (next) => {
       skillEntries = next
+    },
+    setSettings: (next) => {
+      settingRows = next
+    },
+    setSecretNames: (next) => {
+      secretNames = next
+    },
+    setSigningKeyRegistered: (next) => {
+      signingKeyRegistered = next
+    },
+    refuseSettingWrites: (message) => {
+      settingWriteRefusal = message === null ? null : new Error(message)
+    },
+    refuseSettingReads: (message) => {
+      settingReadRefusal = message === null ? null : new Error(message)
     },
     pushCreated: (next) => {
       created.push(next)

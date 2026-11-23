@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { CLIENT_SETTING_ENTRIES } from './client-settings'
 import type { SettingScalar } from './setting-codec'
 import {
   HARNESS_SETTING_ENTRIES,
@@ -22,6 +23,7 @@ export const CLOUD_SETTING_REGISTRY: ReadonlyMap<string, CloudSettingEntry> = ne
   ...HARNESS_SETTING_ENTRIES,
   ...USER_ONLY_SETTING_ENTRIES,
   ...WEB_ONLY_SETTING_ENTRIES,
+  ...CLIENT_SETTING_ENTRIES,
 ])
 
 export const PROJECT_SETTING_REGISTRY: ReadonlyMap<string, CloudSettingEntry> = new Map([
