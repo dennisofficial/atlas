@@ -2,7 +2,7 @@
 
 > **Approved by Dennis 2026-11-23.** Mac push ships with the release pipeline change (option A). The agent sets up Apple signing itself: the App ID push capability, the APNs key and the provisioning profile, through the App Store Connect API key stored in EAS (read with EXPO_TOKEN), with clear names.
 
-Status: **draft 4, 2026-11-23**. The operator's words are in §1, and his answers of 2026-11-23
+Status: **built 2026-11-23** (roadmap entry lists the PRs). The operator's words are in §1, and his answers of 2026-11-23
 are binding (`decisions.md`). v2 has no notification of any kind today, so this is new design,
 not a port. The v1 code is evidence of what went wrong, never a base. Anchors are `path:line` at
 `ee5fdfde`; re-check one before you rely on it. Style follows `docs/v2/slices/operator-input.md`.
