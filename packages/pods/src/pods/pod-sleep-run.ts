@@ -6,7 +6,10 @@ import {
   type PodSleepPayload,
 } from '@dltech/atlas-jobs/pod-sleep'
 
-export type PodSleepSession = Pick<ControlSessionRow, 'sessionId' | 'podSessionId' | 'mainThreadId'>
+export type PodSleepSession = Pick<
+  ControlSessionRow,
+  'sessionId' | 'podSessionId' | 'mainThreadId' | 'archivedAt'
+>
 
 export type PodSleepPower = { epoch: number; wantsHolder: boolean; live: boolean }
 
@@ -22,7 +25,8 @@ export type PodSleepDeps = {
 export const TURN_END_WAIT_MS = 1000
 export const TURN_END_ATTEMPTS = 60
 
-const wakesThePod = (power: PodSleepPower): boolean => power.wantsHolder || power.live
+const wakesThePod = (args: { power: PodSleepPower; session: PodSleepSession }): boolean =>
+  args.power.live || (args.power.wantsHolder && args.session.archivedAt === null)
 
 const superseded = (): PodSleepOutput => ({ outcome: EPodSleepOutcome.Superseded })
 
@@ -40,15 +44,17 @@ export const runPodSleep = async (args: {
   const { deps, payload } = args
   const session = await deps.session({ sessionId: payload.sessionId })
   if (session === undefined) return { outcome: EPodSleepOutcome.Absent }
-  if (wakesThePod(await deps.power({ sessionId: session.sessionId }))) return superseded()
+  const wakes = async (): Promise<boolean> =>
+    wakesThePod({ power: await deps.power({ sessionId: session.sessionId }), session })
+  if (await wakes()) return superseded()
   for (let attempt = 0; attempt < TURN_END_ATTEMPTS; attempt += 1) {
     if (!(await deps.busy({ session }))) break
     await deps.wait({ ms: TURN_END_WAIT_MS })
-    if (wakesThePod(await deps.power({ sessionId: session.sessionId }))) return superseded()
+    if (await wakes()) return superseded()
   }
   if (await deps.busy({ session })) return superseded()
   await deps.release({ sessionId: session.sessionId, epoch: payload.epoch })
-  if (wakesThePod(await deps.power({ sessionId: session.sessionId }))) return superseded()
+  if (await wakes()) return superseded()
   await deps.sleep({ sandboxSessionId: session.podSessionId ?? session.sessionId })
   return { outcome: EPodSleepOutcome.Slept }
 }
