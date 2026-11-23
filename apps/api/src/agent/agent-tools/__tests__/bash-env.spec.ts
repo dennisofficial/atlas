@@ -7,8 +7,7 @@ import { join } from 'node:path'
 import { toThreadId, type ProcessPort, type SpawnCommand } from '@dltech/atlas-core'
 
 import { BashTool } from '../bash'
-import { ForegroundOnlyShells } from '../../runtime/foreground-shells'
-import { files, processes, useTempAtlasHome } from './support'
+import { files, launcher, processes, useTempAtlasHome } from './support'
 
 useTempAtlasHome()
 
@@ -41,7 +40,7 @@ const spawnedEnvOf = async (shellEnv?: () => Promise<Record<string, string>>) =>
     },
     which: (args) => processes.which(args),
   } as ProcessPort
-  const tool = new BashTool(new ForegroundOnlyShells(), files, recording, shellEnv)
+  const tool = new BashTool({ launcher, files, processes: recording, shellEnv })
   await tool.invoke({
     input: { description: 'Print a word', command: 'echo hi' },
     signal: new AbortController().signal,

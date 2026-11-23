@@ -11,7 +11,7 @@ import {
   resize,
 } from '@dltech/atlas-native-commands'
 import { composedPlugins } from '../registered-plugins'
-import { ModelPort } from '@dltech/atlas-core'
+import { ERunFailureKind, ModelPort } from '@dltech/atlas-core'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import { createDb, createPool } from '@dltech/atlas-db'
 import { RandomIds } from '../runtime/random-ids'
@@ -19,6 +19,7 @@ import { SessionHolder, systemTimers } from '@dltech/atlas-host'
 import { createPgHostPresence } from '../presence/pg-host-presence'
 import { startHostWatch, type HostWatch } from '../presence/pg-host-watch'
 import { LogPort, logFieldsOf } from '@dltech/atlas-observability'
+import { TurnFault } from '@dltech/atlas-agent'
 import { ScriptedModel, type ScriptedModelStep } from '@dltech/atlas-agent/testing'
 
 import { createHostBus } from '../bus/host-bus'
@@ -140,6 +141,24 @@ const testTokens = () => ({
   },
 })
 
+const authFaultOf = (thrown: unknown): TurnFault | undefined => {
+  if (typeof thrown !== 'object' || thrown === null) return undefined
+  const fault = (thrown as { fault?: unknown }).fault
+  if (fault !== 'auth') return undefined
+  const message = (thrown as { message?: unknown }).message
+  return new TurnFault({
+    kind: ERunFailureKind.Auth,
+    message: typeof message === 'string' ? message : 'the provider refused the credential',
+  })
+}
+
+const scriptedStepsOf = (steps: readonly ScriptedModelStep[]): ScriptedModelStep[] =>
+  steps.map((step) => {
+    if (!('throws' in step)) return step
+    const fault = authFaultOf(step.throws)
+    return fault === undefined ? step : { throws: fault }
+  })
+
 const main = async (): Promise<void> => {
   const holderLabel = requireEnv('HOLDER_ID')
   const daemonSecret = requireEnv('DAEMON_SECRET')
@@ -201,7 +220,9 @@ const main = async (): Promise<void> => {
         const generation = (generations.get(sessionId) ?? 0) + 1
         generations.set(sessionId, generation)
         const script = scripts[`${sessionId}@${generation}`] ?? scripts[sessionId] ?? []
-        return withFirstChunkMarker(new ScriptedModel(script, undefined, existsSync))
+        return withFirstChunkMarker(
+          new ScriptedModel(scriptedStepsOf(script), undefined, existsSync),
+        )
       },
       launchDirectory: workspace,
       sandboxHome: process.env.SANDBOX_HOME,

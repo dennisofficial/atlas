@@ -69,6 +69,7 @@ const entry = (params: { inboxId: number; kind: string }): InboxEntry => ({
 const preparedRecord = (events: readonly V2Event[]): SessionRecord =>
   ({
     eventCache: () => ({
+      threadId: () => THREAD,
       bookkeeping: () => ({ workspace: () => ({ prepared: true, failure: undefined }) }),
       loopState: () => initialLoopState(),
       eventsAfter: () => [...events],

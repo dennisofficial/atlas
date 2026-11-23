@@ -77,6 +77,7 @@ export type TranscriptItem = Timed &
     | { kind: ETranscriptKind.Tools; id: string; calls: ToolCallItem[] }
     | SignInItem
     | RequestItem
+    | RotationItem
     | NoticeItem
   )
 
@@ -88,6 +89,14 @@ export type SignInItem = {
   url: string
   result?: 'connected' | 'failed' | undefined
   reason?: string | undefined
+}
+
+export type RotationItem = {
+  kind: ETranscriptKind.Rotation
+  id: string
+  text: string
+  handoff: string
+  instructions?: string | undefined
 }
 
 export type RequestItem = {
@@ -178,6 +187,14 @@ function textItemOf(args: {
         ...(entry.path === undefined ? {} : { path: entry.path }),
         ...(entry.bytes === undefined ? {} : { bytes: entry.bytes }),
         ...(entry.reason === undefined ? {} : { reason: entry.reason }),
+      }
+    case EEntryKind.Rotated:
+      return {
+        kind: ETranscriptKind.Rotation,
+        id: entry.key,
+        text: entry.text,
+        handoff: entry.handoff,
+        ...(entry.instructions === undefined ? {} : { instructions: entry.instructions }),
       }
     case EEntryKind.ModelThought:
       return entry.text.trim().length === 0

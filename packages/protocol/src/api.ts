@@ -340,6 +340,7 @@ export const sessionStatusOutputSchema = z.strictObject({
 
 export const sessionRetryInputSchema = z.strictObject({
   sessionId: z.string().min(1),
+  agentId: z.string().min(1).optional(),
 })
 
 export const sessionStopInputSchema = z.strictObject({

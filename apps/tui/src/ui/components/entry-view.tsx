@@ -320,13 +320,7 @@ function DerivedEntryView(props: {
       )
 
     case EEntryKind.Rotated:
-      return (
-        <RotatedDivider
-          width={props.width}
-          predecessor={entry.predecessor}
-          handoffPath={entry.handoffPath}
-        />
-      )
+      return <RotatedDivider width={props.width} text={entry.text} handoff={entry.handoff} />
 
     default: {
       const unrendered: never = entry

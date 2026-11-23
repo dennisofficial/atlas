@@ -3,29 +3,19 @@ import { describe, expect, it } from 'bun:test'
 import { toThreadId } from '@dltech/atlas-core'
 import type { ProcessPort, SpawnCommand } from '@dltech/atlas-core'
 
-import { ForegroundOnlyShells } from '../../runtime/foreground-shells'
 import { BashTool } from '../bash'
-import { files, processes, useTempAtlasHome } from './support'
+import { files, launcher, processes, useTempAtlasHome } from './support'
 
 useTempAtlasHome()
 
-describe('the silent-shell timeout', () => {
-  it('names the silent-shell timeout in the description, and no check-in cadence', () => {
-    const { description } = new BashTool(new ForegroundOnlyShells(), files, processes)
+describe('what the tool tells the model about a background start', () => {
+  it('names background true as the way to start a long job without waiting', () => {
+    const { description } = new BashTool({ launcher, files, processes })
 
-    expect(description).toContain('30 minutes')
-    expect(description).not.toContain('checkInMs')
-    expect(description).not.toContain('check-in')
-  }, 30_000)
-})
-
-describe('what the tool tells the model about watching', () => {
-  it('warns that a watch on the success marker alone is silent through a crash', () => {
-    const { description } = new BashTool(new ForegroundOnlyShells(), files, processes)
-
-    expect(description).toContain(
-      'a watch that matches only success cannot tell a slow command from a failed one',
-    )
+    expect(description).toContain('`background: true`')
+    expect(description).toContain('returns its shellId at once')
+    expect(description).not.toContain('runInBackground')
+    expect(description).not.toContain('`shell` tool')
   }, 30_000)
 })
 
@@ -44,7 +34,7 @@ describe('routing the spawn by thread', () => {
       },
       which: () => null,
     }
-    const tool = new BashTool(new ForegroundOnlyShells(), files, spyProcesses)
+    const tool = new BashTool({ launcher, files, processes: spyProcesses })
 
     const outcome = await tool.invoke({
       input: { command: 'echo hi', description: 'Probe the spawn' },

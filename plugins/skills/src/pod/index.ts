@@ -40,8 +40,7 @@ export const skillsPodOf = (options: SkillsPodOptions): PodSlot => ({
   resources: [skillsResource(options)],
   tools: (ctx) => [new SkillTool(ctx, options), new SkillManageTool(ctx, options)],
   hooks: (ctx) => ({
-    beforeTurn: [skillsSuggestionHook({ ctx, options })],
-    beforeStep: [skillsListingHook({ ctx, options })],
+    beforeStep: [skillsListingHook({ ctx, options }), skillsSuggestionHook({ ctx, options })],
   }),
   slash: (ctx) => skillsSlashOf({ ctx, options }),
 })

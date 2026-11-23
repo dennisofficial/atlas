@@ -30,6 +30,15 @@ const NewSessionButton = () => (
   />
 )
 
+const CancelButton = () => (
+  <Button
+    label="Cancel"
+    variant={EButtonVariant.Ghost}
+    size={EButtonSize.Sm}
+    onPress={() => router.back()}
+  />
+)
+
 const AppStackHeader = ({ options }: { options: { title?: string } }) => {
   const theme = useTheme()
   return <AppHeader title={options.title ?? ''} left={<BackButton />} surface={theme.background} />
@@ -53,7 +62,16 @@ const AppStack = () => {
           contentStyle: { backgroundColor: theme.sidebar },
         }}
       />
-      <Stack.Screen name="new" options={{ title: 'New session', header: renderAppStackHeader }} />
+      <Stack.Screen
+        name="new"
+        options={{
+          title: 'New session',
+          presentation: 'modal',
+          headerLeft: () => <CancelButton />,
+          headerStyle: { backgroundColor: theme.background },
+          headerTintColor: theme.foreground,
+        }}
+      />
       <Stack.Screen name="sessions/[id]" options={{ title: '', header: renderAppStackHeader }} />
       <Stack.Screen
         name="agents/[agentId]"

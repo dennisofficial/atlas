@@ -6,6 +6,7 @@ import {
   EModelFallbackReason,
   type EventDraft,
   type ModelRef,
+  type RunFailure,
   type ThreadId,
 } from '@dltech/atlas-core'
 import type { WorktreeEntryInfo } from '@dltech/atlas-plugin-sdk'
@@ -105,6 +106,7 @@ export class ChildTranscript {
     progress: Progress
     status: EAgentStatus
     failure: string | undefined
+    runFailure?: RunFailure | undefined
     killedBy: EKilledBy | undefined
   }): Promise<void> {
     await postNotice(this.parent, {
@@ -119,6 +121,9 @@ export class ChildTranscript {
         toolCalls: args.progress.toolCalls,
         ...(args.killedBy === undefined ? {} : { killedBy: args.killedBy }),
         ...(args.failure === undefined ? {} : { failureCause: args.failure }),
+        ...(args.runFailure === undefined
+          ? {}
+          : { failure: args.runFailure, failureKind: args.runFailure.kind }),
       },
       key: endingKeyOf({ agentId: this.args.agentId, seq: this.args.lastSeq() }),
     })

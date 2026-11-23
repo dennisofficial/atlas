@@ -24,8 +24,9 @@ export type SessionModelChoiceView = {
 export function useSessionModelChoice(args: {
   sessionId: string
   current: SessionModelChoice | null | undefined
+  onSelected?: (() => void) | undefined
 }): SessionModelChoiceView {
-  const { sessionId, current } = args
+  const { sessionId, current, onSelected } = args
   const picker = useModelPicker({ currentIds: current?.ref === undefined ? [] : [current.ref] })
   const [chosen, setChosen] = useState<ModelSelection | null>(null)
   const [open, setOpen] = useState(false)
@@ -35,12 +36,13 @@ export function useSessionModelChoice(args: {
       setChosen(selection)
       sessionsApi
         .command({ sessionId, name: MODEL_SET_COMMAND, args: createFieldsOf(selection) })
+        .then(() => onSelected?.())
         .catch((failure: unknown) => {
           setChosen(null)
           toast.error(messageOf(failure))
         })
     },
-    [sessionId],
+    [sessionId, onSelected],
   )
 
   return {

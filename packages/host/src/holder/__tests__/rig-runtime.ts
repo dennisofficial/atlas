@@ -17,7 +17,7 @@ import {
   type ToolOutcome,
 } from '@dltech/atlas-core'
 import { z } from 'zod'
-import type { SaidUploadsPort } from '@dltech/atlas-agent'
+import type { NormalizeFailure, SaidUploadsPort } from '@dltech/atlas-agent'
 import {
   ScriptedModel,
   fakeToolRegistry,
@@ -71,7 +71,11 @@ class BashTool extends ToolDefinition {
   readonly name = 'bash'
   readonly description = 'run a shell command in the sandbox'
   readonly effect = EToolEffect.Write
-  readonly inputSchema = z.object({ command: z.string() })
+  readonly inputSchema = z.object({
+    command: z.string(),
+    description: z.string().optional(),
+    background: z.boolean().optional(),
+  })
 
   constructor(
     private readonly calls: RemoteCalls,
@@ -88,9 +92,12 @@ class BashTool extends ToolDefinition {
         reason: workspace.state === 'failed' ? workspace.message : 'interrupted',
       }
     }
+    const parsed = this.inputSchema.safeParse(args.input)
+    const input = parsed.success ? parsed.data : { command: 'true' }
+    if (input.background === true) return this.launchBackground({ args, input })
     const result = await this.calls.invoke({
       key: args.idempotencyKey,
-      op: { op: 'exec', argv: ['/bin/sh', '-c', bashCommandOf(args.input)] },
+      op: { op: 'exec', argv: ['/bin/sh', '-c', input.command] },
       signal: args.signal,
       dispatchedBootId: scopeDispatchedBootId(),
     })
@@ -107,13 +114,34 @@ class BashTool extends ToolDefinition {
       modelText: value.stdout ?? '',
     }
   }
-}
 
-const bashCommandOf = (input: unknown): string => {
-  if (typeof input === 'object' && input !== null && 'command' in input) {
-    return String((input as { command: unknown }).command)
+  private async launchBackground({
+    args,
+    input,
+  }: {
+    args: ToolInvocation
+    input: { command: string; description?: string | undefined }
+  }): Promise<ToolOutcome> {
+    const shellId = `shell-${crypto.randomUUID().slice(0, 8)}`
+    const result = await this.calls.invoke({
+      key: args.idempotencyKey,
+      op: { op: 'shells.launch', shellId, command: input.command, cwd: '/w' },
+      signal: args.signal,
+      dispatchedBootId: scopeDispatchedBootId(),
+    })
+    if (result.status !== 'ok') return { ok: false, reason: result.error.message }
+    return {
+      ok: true,
+      output: {
+        command: input.command,
+        description: input.description,
+        shellId,
+        backgrounded: true,
+        pid: 1,
+      },
+      modelText: `Started in the background as shell ${shellId}.`,
+    }
   }
-  return 'true'
 }
 
 export const makeRuntimeFactory = (args: {
@@ -130,6 +158,7 @@ export const makeRuntimeFactory = (args: {
   subscribePrepareOutput?: ((listener: (text: string) => void) => void) | undefined
   subscribeSetup?: ((listener: (lifecycle: SetupLifecycle) => void) => void) | undefined
   model?: (() => ModelPort) | undefined
+  normalizeFailure?: NormalizeFailure | undefined
   hostTools?: readonly ToolDefinition[] | undefined
   baseBranches?: Readonly<Record<string, string>> | undefined
   uploads?: SaidUploadsPort | undefined
@@ -197,12 +226,14 @@ export const makeRuntimeFactory = (args: {
         prompt: () => EMPTY_PROMPT,
         launchDirectory: '/w',
       }),
-      normalizeFailure: ({ message }) => ({
-        kind: EProviderFailureKind.Network,
-        scope: EProviderFailureScope.Route,
-        retry: EProviderRetry.Transient,
-        message,
-      }),
+      normalizeFailure:
+        args.normalizeFailure ??
+        (({ message }) => ({
+          kind: EProviderFailureKind.Network,
+          scope: EProviderFailureScope.Route,
+          retry: EProviderRetry.Transient,
+          message,
+        })),
       ...(args.uploads === undefined ? {} : { uploads: args.uploads }),
       placeContextFiles:
         args.placeContextFiles ??

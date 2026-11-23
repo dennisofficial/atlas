@@ -296,6 +296,8 @@ carry an access token, a refresh token, an API key, a code, or the sealed secret
 
 ## 5. Slices
 
+> **Revised 2026-11-23 while building.** §10 supersedes this table: it adds the sub-agent proxy (approval note 2) and moves the wait observer to `packages/host`. Slice 1 is PR #2612.
+
 Four PRs. Slice 1 is pure and unblocks the rest. Slices 2 and 3 are disjoint by file. Slice 4 is the
 small end-to-end proof.
 
@@ -381,6 +383,7 @@ With a Claude plan connection in a v2 session:
 
 ## 8. Questions for Dennis
 
+> **Answered 2026-11-23** by the approval note at the top: (1) yes, global; (2) yes, but in the main transcript, proxied from the child, and the child retries; (3) no, offer `Check again`.
 1. **Is a global account switch acceptable for `Use <account>`?** Recommended: **yes**. Accounts are
    chosen per provider (`setActive`), so a session-scoped account pin is a new setting on the
    session. The card says "New sessions will use it too." Cost: one extra sentence, and an
@@ -405,3 +408,167 @@ With a Claude plan connection in a v2 session:
   operator's action on a stopped session, not a tool the model calls.
 - Provider deep links to a top-up page beyond the copy sentence.
 - Rewinding or restarting the turn. The repair continues the same turn from its log.
+
+---
+
+## 10. Build slices (revised 2026-11-23)
+
+### Decisions taken while building
+
+- Child credential failure is proxied: child `agent-ended` gains optional `failure: RunFailure`; the fold reads it from the main thread. Reason: web main transcript only sees main-thread events (session-view.tsx:68-118); child run-failed lives in the child thread.
+- Child model-waiting is written on the parent thread (affectedThreadIds=[childId]). Reason: same visibility; projectWaiting already merges affectedThreadIds.
+- Child retry = existing `retry` inbox kind (main-thread only) with payload `{agentId}`; host restarts the child via crew, never starts a main turn. Reason: no new inbox kind; retry stays MAIN_THREAD_ONLY (packages/control/src/inbox-ops.ts:15-22).
+- Observer lives in packages/host (held-runner.ts / child-runner.ts build the LoopTurnRunner), not apps/api/src/agent/runtime as the spec says. Spec deviation; update spec.
+- SwapModel is not offered for a child repair: the session model picker does not change a child's model.
+- Four+ PRs per spec §5 (parent asked for PR URLs, plural).
+- ReplaceKey is not offered for a Quota failure: a new key does not lift a plan or credit limit (deviation from spec §3 table).
+
+### Order
+
+Slice 1 (core fold, `agent-ended.failure`, `retry.agentId`) merges first. Slices 2, 3 and 4 touch disjoint files and may merge in any order; slice 4 owns integration. The child card appears once 2 and 4 are in; the child resume once 3 is in.
+
+### Slice 2 — host: record a model wait, and carry a sub-agent's credential failure to the main thread
+
+PR title: `feat(host): record a model wait and proxy a sub-agent credential failure`.
+
+#### Goal
+
+1. The loop's optional `waitState` observer (`packages/agent/src/loop/turn-deps.ts:53`, type `ModelWaitObserver` at `packages/agent/src/loop/loop-ports.ts:5-9`) is supplied by both v2 runners, so an admission block appends `model-waiting` and the next admitted step appends `model-wait-cleared`.
+2. A sub-agent's wait is written on the PARENT (main) thread, so the main transcript sees it.
+3. A failed sub-agent's `agent-ended` notice carries the structured `failure: RunFailure` (field added in slice 1, `packages/core/src/events/agent-body.ts`).
+
+Spec deviation (logged): the spec put the observer in `apps/api/src/agent/runtime`; the runners are built in `packages/host`, so it lives there.
+
+#### Context
+
+- Producer calls: `packages/agent/src/loop/waiting-outcome.ts:8-23` (`observe` on a blocked step, waiting built by `waitingOfBlock`, `packages/agent/src/model/waiting-of-block.ts:12-33`, `affectedThreadIds: [threadId]`); `packages/agent/src/loop/tracked-turn.ts:260` (`admitted` after every admitted step — it is hot: must be cheap and must append nothing when no wait is open).
+- `blocked(threadId)` is read at `packages/agent/src/intake/intake-wake-scheduler.ts:232,254` (check what it gates).
+- Main runner: `createLoopRunner` in `packages/host/src/holder/held-runner.ts:160-241` (`new LoopTurnRunner({...})` at ~:208). `record: SessionRecord`, `threadId`, `deps.ids.nextRunId()`, `deps.log` in scope.
+- Child runner: `childRunnerOf` in `packages/host/src/holder/crew/child-runner.ts:28-113`; has `record` (child), `parentRecord`, `agentId`; parent thread id is in `ChildRunArgs.parentThreadId` (`crew/child-record.ts:22`, passed at `crew/child-run.ts:78`) — thread it into `childRunnerOf` args.
+- Record API: `SessionRecord.append({threadId, runId, drafts})` (port `packages/agent/src/record/agent-record.port.ts:3-11`), `eventCache()` (`packages/host/src/holder/record/record-adapter.ts:101`). Open waits: `projectWaiting(events)` from `@dltech/atlas-core` (`packages/core/src/model-recovery/waiting-projector.ts:47`), group key `waitEpisodeGroupKey`.
+- Child ending: `ChildRun.settle(outcome)` `packages/host/src/holder/crew/child-run.ts:305-312` → `end()` :325-336 → `ChildTranscript.ended` `crew/child-transcript.ts:100-121`. `failureOf(outcome)` `crew/child-progress.ts:63-64`. A failed `TurnOutcome` carries `failure?: RunFailure` (`packages/agent/src/loop/turn-outcome.ts:22-28`; filled at `packages/agent/src/loop/run-turn.ts:225-235`).
+- Never log or append a secret: the waiting record holds ids, provider, model, reason only.
+
+#### Changes
+
+1. New `packages/host/src/holder/model-wait-observer.ts`:
+
+   ```ts
+   export const modelWaitObserverOf = (args: {
+     record: SessionRecord          // the record that owns the thread the card is drawn on
+     threadId: ThreadId             // the thread the events are appended to (main thread id; for a child, the PARENT thread id)
+     newRunId: () => RunId
+     log?: LogPort | undefined
+   }): ModelWaitObserver
+   ```
+
+   - `observe({threadId: waitingThread, waiting})`: read open waits from `record.eventCache()` events of `args.threadId` (use the cache method that returns the thread's visible events; check `RecordCache`); if an open wait with the same `waitEpisodeGroupKey` and generation ≥ already lists `waitingThread`, append nothing; else append `{type:'model-waiting', waiting}`.
+   - `admitted({threadId: waitingThread})`: for each open wait whose `affectedThreadIds` includes `waitingThread`, append `{type:'model-wait-cleared', episode, cause}`. No open wait → no append, no await of IO beyond the in-memory cache.
+   - `blocked({threadId})`: true when an open credential wait lists that thread (from the cache, synchronous).
+   - Every append is wrapped: a thrown append is logged (`log?.error({source:'holder.model-wait', ...})`) and swallowed; the turn keeps its outcome.
+   - No in-memory state: answers come from the record (hosts are stateless; see decisions).
+2. `held-runner.ts`: pass `waitState: modelWaitObserverOf({record, threadId, newRunId: () => deps.ids.nextRunId(), log: deps.log})` to `new LoopTurnRunner`.
+3. `child-runner.ts`: pass `waitState: modelWaitObserverOf({record: args.parentRecord, threadId: args.parentThreadId, ...})`. Add `parentThreadId` to the args and to the call site in `child-run.ts`.
+4. Child failure on the ending: in `child-progress.ts` add `runFailureOf(outcome): RunFailure | undefined` (the failed outcome's `failure`). `ChildRun.settle` passes it to `end`, `end` to `ChildTranscript.ended({..., runFailure})`, which adds `failure: runFailure` and `failureKind: runFailure.kind` to the `agent-ended` draft when defined. Keep `failureCause` as is. Keep `child-run.ts` ≤ 342 lines (it is already over 300; do not grow it by more than a few lines — move a helper out if needed).
+
+#### Tests (packages/host, `__tests__/` beside the code; copy the rig style of `crew-child-notice.spec.ts` / `holder-rig.ts`)
+
+- `model-wait-observer.spec.ts` (unit, fake/real record from the rig): a blocked step appends exactly one `model-waiting`; a second observe of the same episode appends nothing; the first `admitted` appends one `model-wait-cleared`, a second appends nothing; `blocked` is true between them; a throwing append is logged and does not throw; a child wait lands on the parent thread with `affectedThreadIds: [childId]`.
+- a crew spec: a child whose model step fails with an auth `RunFailure` posts `agent-ended` on the parent with `failure.kind === 'auth'` and the accountId; then `credentialRepairOf({mainThreadId, events})` on the parent events returns `main: false` with that agent.
+- Assert no token-shaped string (e.g. `sk-`, `Bearer`) appears in any appended event JSON.
+
+#### Validation
+
+```
+cd packages/host && bun test src/holder
+cd packages/host && bunx tsc --noEmit -p .
+cd packages/agent && bun test src/loop && bunx tsc --noEmit -p .
+bunx biome check --write <touched files>
+```
+Commit `feat(host): record a model wait and proxy a sub-agent credential failure`. Do not push.
+
+### Slice 3 — api + host: retry a sub-agent, and prove the resume keeps one turn
+
+PR title: `feat(api): retry a sub-agent after a credential repair`.
+
+#### Goal
+
+After a repair, the web posts `retry`. Today `retry` is session-scoped and resumes only the main thread. Add an optional `agentId`: a retry with `agentId` restarts that sub-agent's failed turn from its log (no message, no rerun of completed calls) and does NOT start a main-thread turn. Plus the proofs: retry-resume spec and a describeHandoff fault scenario.
+
+#### Context
+
+- Protocol: `packages/protocol/src/api.ts:341-343` `sessionRetryInputSchema = z.strictObject({ sessionId })`. Add `agentId: z.string().min(1).optional()`. Generated router `packages/api-router/src/generated/server.ts:670` uses the schema (regenerate if it is generated in the build graph; do not commit generated output that is gitignored — check `git status`).
+- Router `apps/api/src/api/platform/control/sessions.router.ts:211-217`; service `apps/api/src/api/platform/control/sessions.service.ts:481-484` posts `{kind: INBOX_KIND_RETRY, payload: '{}'}`. Validate the agent belongs to the session with the pattern of `threadOf` at `sessions.service.ts:414-424` (NotFound otherwise). Payload becomes `JSON.stringify({agentId})` when given.
+- Retry is main-thread-only (`packages/control/src/inbox-ops.ts:15-22`): keep posting it with no threadId.
+- Host consumption: `packages/host/src/holder/intake-entries.ts:45-47` consumes retry quietly. The wake comes from the entry counting as pending in `held-snapshot.ts:88-91` (`messagePending`) → `decideHeldAction` (`packages/core/src/execution/held-session-decision.ts:39`) → StartTurn with `resume = isResumableOf(...)`.
+- Child restart without a message: `ChildRun.continueTurn()` `packages/host/src/holder/crew/child-run.ts:153-157` (restarts a settled child when its loop state is resumable). `CrewRoom` `packages/host/src/holder/crew/crew-room.ts` has `runOrUndefined(agentId)` :130-134 which reopens a settled child.
+- Fault suite: `describeHandoff` in `apps/api/src/agent/testing/handoff-suite.ts` (find it: `grep -rn "export const describeHandoff" apps/api/src`), examples `apps/api/src/agent/__tests__/faults/handoff-wake.fault.spec.ts`, `handoff-turn-boundaries.fault.spec.ts`. Read how scripts make a model step fail (grep the fault rig for `fail`/`error`/`status` in scripts).
+
+#### Changes
+
+1. Protocol field is ALREADY added on the base commit (06f2062d9, `packages/protocol/src/api.ts:341-344`). Do the service/router pass-through.
+2. Host: a retry entry whose payload parses to `{agentId}` is handled by the crew: `CrewRoom.retry({agentId})` → `runOrUndefined` → `continueTurn()`; consumed quietly; it must not make the main thread start a turn (adjust `held-snapshot.ts` / `held-inbox.ts` so a child retry entry is not `messagePending` for the main thread, and is consumed/dispatched on the next tick — find the cleanest place, e.g. where operator answers are handled before the decision). A payload with no agentId behaves exactly as today. An unknown agentId is consumed quietly and logged.
+3. Keep every touched file ≤300 lines (child-run.ts is already 342 — do not grow it).
+
+#### Tests
+
+- `packages/host/src/holder/__tests__/retry-resume.spec.ts`: after a main `run-failed` of kind auth, one `retry` entry wakes the turn; a `tool-result` appended before the failure is not re-dispatched; a retry with nothing to settle appends no `user-said`.
+- same file or `crew-child-retry.spec.ts`: a child that failed with auth; `retry {agentId}` restarts that child (agent-restarted on parent, child steps again), appends no `user-said` anywhere, and starts no main-thread `turn-started`.
+- api: service spec for `retry` with an agentId of another session → NotFound; with own agentId → payload carries it.
+- Fault: `apps/api/src/agent/__tests__/faults/handoff-credential-retry.fault.spec.ts` with `describeHandoff`: the model's first step fails with an auth error after a bash call ran; the host drains / is SIGKILLed / the pod restarts (the suite runs the variants); then post `retry`; the turn completes exactly once and the bash call ran exactly once. If the rig cannot script a model failure, add the smallest script hook to the rig and say so.
+
+#### Validation
+
+```
+cd packages/protocol && bun test && bunx tsc --noEmit -p .
+cd packages/host && bun test src/holder && bunx tsc --noEmit -p .
+cd apps/api && bun test src/api/platform/control src/agent/__tests__/faults/handoff-credential-retry.fault.spec.ts && bunx tsc --noEmit -p .
+bunx biome check --write <touched files>
+```
+Commit `feat(api): retry a sub-agent after a credential repair`. Do not push.
+
+### Slice 4 — web: repair a dead credential from the session (integration owner)
+
+PR title: `feat(web): repair a dead credential from the session`.
+
+#### Goal
+
+The main transcript shows one repair card built from `credentialRepairOf` (slice 1, `packages/core/src/repair/repair-episode.ts`), for the main thread and for proxied sub-agents. The operator repairs in place (sign-in dialog, key field, use another account, switch model, check again). Every successful repair ends with exactly one retry: `api.retry({sessionId})` when `repair.main`, plus one `api.retry({sessionId, agentId})` per `repair.agents` entry. A failed repair posts no retry. The sub-agent panel never shows the repair (`apps/web/src/features/sessions/agents/session-agent-panel.tsx:152-160` already passes `failureCard={null}` — keep it).
+
+#### Context (anchors read at 06f2062d9)
+
+- Fold API: `credentialRepairOf({mainThreadId, events})`, `repairActionsOf({repair, accountKind, otherAccountsOfProvider})`, `ERepairAction`, `ERepairSource`, `CredentialRepair {source, providerId, modelId, accountId, kind, reason, resetAt, since, seq, main, agents}` from `@dltech/atlas-core`.
+- Session view: `apps/web/src/features/sessions/session-view.tsx` — events `snapshot.events`; `mainThreadId` at :148 (`listed?.mainThreadId`); model picker `choice = useSessionModelChoice(...)` :211-214, `choice.setOpen(true)`; `useSessionRunFailure(...)` :222-228; `<ThreadTranscript failureCard={failure.card} .../>` :296-310; `<OperatorRequestDock .../>` :314 (mount the composer strip next to it).
+- Failure card today: `apps/web/src/features/sessions/data/use-session-run-failure.ts:14-45` — `handleFixCredential = () => router.push(PROVIDERS_HREF)` at :31. `sessionFailureCardOf` `apps/web/src/features/sessions/data/session-run-attention.ts:78-110`. Remedy labels/handlers `apps/web/src/features/threads/data/run-attention-actions.ts:7-45` (FixCredential label 'Update key').
+- Client attention fold (do not change semantics, read only): `packages/client/src/transcript/run-attention.ts:55-157` — a failed sub-agent `agent-ended` already yields an `AgentFailed` card with `OpenAgent`.
+- Card component: `apps/web/src/features/threads/transcript/run-failure-card.tsx:8-50` (`RunFailureCardProps {title, detail, meta?, actions?, onDismiss?}`); rendered at `apps/web/src/features/threads/thread-transcript.tsx:80,95,159-161`.
+- Strip: `packages/ui/src/ai/run-attention-strip.tsx:5-40` (`RunAttentionStrip {title, detail, meta?, actions, onDismiss?, busyReason?}`).
+- Accounts: `apps/web/src/features/settings/data/personal/accounts-api.ts` — `fetchAccounts()` :36, `Account {id, provider, kind, label, status, email?, ...}` :23-33, `activateAccount({provider: EProviderId, accountId})` :46-56, `createApiKeyAccount({provider, apiKey})` :71-82, `replaceApiKey({accountId, apiKey})` :84-91, `AUTH_PROVIDER_OF` :14-21, `EAccountKind` :9-12. `useAccountLabel` `apps/web/src/features/threads/data/use-account-label.ts:8-15` (query key 'failure-accounts' via `useCloudQuery`).
+- Sign-in: `useProviderSignIn({provider: EOauthProvider, onChanged})` `apps/web/src/features/settings/data/personal/use-provider-sign-in.ts:53+` returning `{flow, start, cancel, submitCode}`; find the existing settings dialog that renders this flow (grep `useProviderSignIn` in `apps/web/src/features/settings`) and reuse its presentational pieces rather than copying.
+- Retry: `apps/web/src/features/sessions/data/retry-session.ts:1-19` (`RetryApi.retry(input: SessionRetryInput)`), `sessions-api.ts:51`, `use-retry-session.ts` (`retrySessionNow`). `SessionRetryInput` now has optional `agentId`.
+- Provider id mapping: `failure.providerId` strings (e.g. 'anthropic', 'openai') vs `EProviderId` in `apps/web/src/features/settings/fixtures/settings-agent.ts`; reuse `providerLabelOf` used in session-run-attention.ts.
+
+#### Changes
+
+1. `apps/web/src/features/sessions/data/use-credential-repair.ts` (new): `useCredentialRepair({sessionId, mainThreadId, events, onSwitchModel})` → `{repair, actions: RepairActionView[], primary, dialog state}`. Folds with `useMemo`, reads accounts with the same `useCloudQuery` key as useAccountLabel so they share a cache; `accountKind` = the repair account's kind (null if unknown); `otherAccountsOfProvider` = accounts of the same provider, not the repair account, status not 'expired'. Pure helpers (label/copy, retry plan `retryTargetsOf(repair) → SessionRetryInput[]`) go in a sibling `credential-repair-view.ts` so they are unit-testable without React.
+2. Action labels: ReSignIn 'Re-sign in'; ReplaceKey 'Replace key'; SwapAccount one action per other account: `Use <label>` with detail line "New sessions will use it too."; SwapModel 'Switch model' (opens `choice.setOpen(true)`); CheckAgain 'Check again' (retry only).
+3. `apps/web/src/features/threads/transcript/repair-card.tsx`: renders through `RunFailureCard` (same presentational component). Title e.g. "Atlas could not call <model>" / for agents-only "A sub-agent could not call <model>"; detail "<Provider> · <account label> · <reason copy>" (+ "Resets at <time>" when resetAt) and, when `agents.length>0`, "Waiting: <agentType> — <intent>" list. Never render any secret.
+4. Where shown: when a repair exists, the transcript's failure slot shows the repair card instead of the generic card for that failure (for `source: failure` main stops, and for proxied agents replacing the AgentFailed/OpenAgent card of the same agent), and for `source: waiting` it is drawn as the extra last row. Simplest: in `use-session-run-failure.ts`, when `credentialRepairOf` is non-null, return the repair card props; otherwise today's behaviour. `FixCredential` remedy maps to the repair handler (opens the primary repair action), not `router.push`; keep `PROVIDERS_HREF` only when there is no account at all (accountKind null and no other accounts) as a secondary link.
+5. Dialogs inside `apps/web/src/features/sessions/`: `repair-sign-in-dialog.tsx` (useProviderSignIn; on success → retry plan) and `repair-key-dialog.tsx` (one `type="password"` field; `replaceApiKey` when accountId is known and it is api-key, else `createApiKeyAccount`; on success → retry plan; clear the field value after submit). Use `@dltech/atlas-ui` Dialog components.
+6. Composer strip: `RunAttentionStrip` with the account label and the primary action only, mounted beside `OperatorRequestDock` (session-view.tsx:314). Not shown when repair is null.
+7. Keep every file ≤300 lines (session-view.tsx is large — add at most a couple of lines; put wiring in the hook).
+8. Update the spec doc: copy `docs/v2/slices/credential-repair.md` from `origin/dennis/v2-parity-specs-2` into this branch ONLY IF #2602 has merged by then (check `gh pr view 2602 --json state`); otherwise write the changes into `$ATLAS_CONTEXT_DIR/spec-updates.md` for the integrator. Changes to record: sub-agent proxy design (agent-ended.failure, child waits on parent thread, retry {agentId}), observer lives in packages/host, ReplaceKey not offered on Quota, SwapModel only when main is stopped, §8 answers per the approval note.
+
+#### Tests (bun test in apps/web; `__tests__/` siblings; look at `apps/web/src/features/sessions/data/__tests__/session-run-attention.spec.tsx` for the render/test setup)
+
+- `credential-repair-view.spec.ts`: labels and copy; actions match `repairActionsOf`; retry targets: main only → [{sessionId}]; agents only → one per agent with agentId; both → main + agents; copy contains no `sk-`/`Bearer`.
+- `credential-repair.spec.tsx`: card shows account label, provider, model; waiting source draws a row with no failure event; Re-sign in opens the dialog and does not navigate; Replace key submits one masked value to `replaceSecret` (mock the accounts-api module) and then retry once; Use <account> calls setActive once and shows "New sessions will use it too."; a failing mutation posts no retry; strip shows primary action and nothing when repair is cleared (events then include `turn-started`); the sequence mutation → retry → `turn-started` clears the card with no new `user-said`.
+- Update `session-run-attention.spec.tsx`: FixCredential calls the repair handler, not router.push.
+
+#### Validation
+
+```
+cd apps/web && bun test src/features/sessions src/features/threads && bunx tsc --noEmit -p .
+bunx biome check --write <touched files>
+```
+Commit `feat(web): repair a dead credential from the session`. Do not push.

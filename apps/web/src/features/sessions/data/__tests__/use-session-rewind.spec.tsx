@@ -5,7 +5,7 @@ import { act } from 'react'
 import { chainEvents, toRunId, toThreadId, type V2Body, type V2Event } from '@dltech/atlas-core'
 import type { SessionCommandInput, SessionCommandOutput } from '@dltech/atlas-protocol'
 
-import type { RewindApi } from '../session-rewind'
+import type { RewindApi } from '@dltech/atlas-client/session'
 import { useSessionRewind } from '../use-session-rewind'
 
 beforeAll(() => {

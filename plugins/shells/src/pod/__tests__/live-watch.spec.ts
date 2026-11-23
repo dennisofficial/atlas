@@ -4,13 +4,17 @@ import { EShellRunStatus } from '@dltech/atlas-protocol'
 
 import { LIVE_READ_LIMIT } from '../live-watch'
 import { shellsPod } from '..'
-import { invoke, rig, shellIdOf, textOf } from './support'
+import { invoke, rig, seedShell, textOf } from './support'
 
 const listening = async (input: Record<string, unknown> = { command: 'ticker' }) => {
   const harness = rig()
   shellsPod.hooks?.(harness.ctx)
-  const outcome = await invoke({ ctx: harness.ctx, name: 'shell', input })
-  return { harness, shellId: shellIdOf(outcome) }
+  const shellId = await seedShell({
+    harness,
+    command: String(input.command),
+    input: input.input === true,
+  })
+  return { harness, shellId }
 }
 
 const settle = async (): Promise<void> => {

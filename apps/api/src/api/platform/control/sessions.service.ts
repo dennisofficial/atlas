@@ -541,9 +541,33 @@ export class SessionsService {
     })
   }
 
-  async retry(args: { userId: string; sessionId: string }): Promise<SessionRetryOutput> {
-    await this.requireOwnedSession(args)
-    return this.plane.post({ sessionId: args.sessionId, kind: INBOX_KIND_RETRY, payload: '{}' })
+  async retry(args: {
+    userId: string
+    sessionId: string
+    agentId?: string | undefined
+  }): Promise<SessionRetryOutput> {
+    const session = await this.requireOwnedSession(args)
+    const agentId = await this.agentOf({ session, agentId: args.agentId })
+    return this.plane.post({
+      sessionId: args.sessionId,
+      kind: INBOX_KIND_RETRY,
+      payload: agentId === undefined ? '{}' : JSON.stringify({ agentId }),
+    })
+  }
+
+  private async agentOf(args: {
+    session: ControlSessionRow
+    agentId: string | undefined
+  }): Promise<string | undefined> {
+    if (args.agentId === undefined) return undefined
+    const thread =
+      args.agentId === args.session.mainThreadId
+        ? undefined
+        : await this.plane.readThread({ threadId: args.agentId })
+    if (thread === undefined || thread.sessionId !== args.session.sessionId) {
+      throw new NotFoundException('agent not found')
+    }
+    return args.agentId
   }
 
   async stop(args: { userId: string; sessionId: string }): Promise<SessionStopOutput> {

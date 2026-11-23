@@ -2,8 +2,9 @@
 
 > **Approved by Dennis 2026-11-23.**
 
-Status: **draft 2, 2026-11-23**, Dennis's answers of 2026-11-23 applied, including the rewind
-picker rule. Anchors are `path:line` at
+Status: **built 2026-11-23** (slices 1–6: #2577, #2580, #2587, #2586, #2585, #2590; the live-check fix #2594 runs a
+typed `/resize` in the host; this docs slice closes it). Dennis's answers of 2026-11-23 applied, including the rewind picker rule. The TUI
+work stays with slice 9 (§7). Anchors are `path:line` at
 `1af03b6e3` (main, 2026-11-22). Re-check an anchor before you rely on it.
 
 Operator (2026-11-22): "Slash commands were really weird and buggy. This needs to be a first-class
@@ -368,6 +369,7 @@ Native (`commands/src`), all declared once and served to every surface:
 | ----------- | -------- | -------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
 | `rewind`    | host     | `/rewind <seq>`; no argument opens the surface's picker, and is refused where the surface has none | `commands/src/rewind/spec.ts`, `pod.ts`        |
 | `summarise` | host     | `/summarise [seq]`; no argument = up to your last message; no picker                               | `commands/src/summarise/spec.ts`, `pod.ts`     |
+| `rotate`    | host     | `/rotate [instructions]`; writes a handoff brief and starts the next request from it; no picker    | `commands/src/rotate/spec.ts`, `pod.ts`        |
 | `rename`    | control  | `/rename <name>`                                                                                   | `commands/src/rename/spec.ts`, `control.ts`    |
 | `resize`    | control  | `/resize <vcpus> <memoryGb> [diskGb] [--idle]`                                                     | `commands/src/resize/spec.ts` (API-only today) |
 | `model`     | client   | `/model` — opens the model picker, no argument                                                     | new, `commands/src/model/spec.ts`              |
@@ -416,7 +418,6 @@ them, and the client already receives them (`plugins/skills/src/client/index.ts:
 router is committed (slice 6 §10), so this PR commits it.
 
 **Dropped, with the reason:**
-- `/rotate` — the loop watchdog and the rotation engine are gone (operator, 2026-11-18).
 - `/compact` — v2's summary model is "everything before a message"; it has no whole-history form
   (`packages/core/src/record/summary-target.ts`).
 - `/settings`, `/auth` — the account menu already does it, on every surface.

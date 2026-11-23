@@ -4,6 +4,7 @@ import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 import { ensureDeclared } from './declared-ensure'
 import { readDeclared } from './declared-file'
 import { launchService } from './launch'
+import type { DeclaredPlace } from './place'
 import type { ServiceInput } from './schema'
 import type { ServicePodState } from './state'
 
@@ -12,13 +13,14 @@ export const startService = async (args: {
   state: ServicePodState
   input: ServiceInput
   projectDirectory: string
+  place: DeclaredPlace
   signal?: AbortSignal | undefined
 }): Promise<ToolOutcome> => {
   const { ctx, state, input } = args
   if (input.name !== undefined) {
     const declared = await readDeclared({
       ctx,
-      projectDirectory: args.projectDirectory,
+      projectDirectory: args.place.root,
       signal: args.signal,
     })
     if (!declared.ok) return declared
@@ -27,7 +29,7 @@ export const startService = async (args: {
       state,
       declared: declared.value,
       name: input.name,
-      projectDirectory: args.projectDirectory,
+      place: args.place,
       readyTimeoutMs: input.readyTimeoutMs,
       expose: input.exposePort,
       signal: args.signal,

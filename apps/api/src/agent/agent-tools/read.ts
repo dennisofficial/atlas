@@ -9,14 +9,13 @@ import {
   nativeFileMediaType,
   SchemaTool,
   type DeclaredPathField,
-  type ThreadId,
   type ToolOutcome,
   type ToolRun,
   type WholeFileClaim,
 } from '@dltech/atlas-core'
 import { z } from 'zod'
 
-import { nullUnlessInterrupted } from './interrupted'
+import { nullIfMissing } from './interrupted'
 import { filePathSchema, resolveToolPath } from './file-text'
 import { missingPathReason } from './missing-path'
 import { readFile } from './read-file'
@@ -197,12 +196,14 @@ export class ReadTool extends SchemaTool<typeof inputSchema> {
     if (!resolved.ok) return { ok: false, reason: resolved.reason }
     const path = resolved.path
     const { offset, limit } = input
-    const stats = await this.files.stat({ path, threadId }).catch(nullUnlessInterrupted)
+    const stats = await this.files.stat({ path, threadId }).catch(nullIfMissing)
     if (stats === null) {
       return {
         ok: false,
         reason: await missingPathReason({
           path,
+          files: this.files,
+          threadId,
           ...(resolved.anchored ? { resolvedFrom: { raw: rawPath, projectDirectory } } : {}),
         }),
       }

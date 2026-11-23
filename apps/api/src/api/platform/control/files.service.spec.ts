@@ -15,6 +15,21 @@ describe('FilesService', () => {
     expect(output.entries.every((entry) => entry.changed === false)).toBe(true)
   })
 
+  it('waits for a holder before it calls the pod', async () => {
+    const waits: (boolean | undefined)[] = []
+    const { files, sessions } = setupFiles({
+      invoke: async (args) => {
+        waits.push(args.waitForHolder)
+        return { state: 'ok', result: listing(['a.ts']) }
+      },
+      events: () => null,
+      hold: () => true,
+    })
+    const sessionId = await asUser(sessions)
+    await files.tree({ userId: 'user-a', sessionId, directory: '' })
+    expect(waits).toEqual([true])
+  })
+
   it('throws the parked failure when the pod is asleep', async () => {
     const { files, sessions } = setupFiles({
       invoke: async () => ({ state: 'unavailable', reason: ELiveOpFailure.Asleep }),

@@ -20,6 +20,22 @@ describe('retrySession', () => {
     expect(notices).toEqual([])
   })
 
+  it('retries one sub-agent when it is named', async () => {
+    const calls: unknown[] = []
+    await retrySession({
+      api: {
+        retry: (input) => {
+          calls.push(input)
+          return Promise.resolve({ inboxId: 2 })
+        },
+      },
+      sessionId: 's1',
+      agentId: 'a1',
+      notify: () => undefined,
+    })
+    expect(calls).toEqual([{ sessionId: 's1', agentId: 'a1' }])
+  })
+
   it('reports a failed retry instead of throwing', async () => {
     const notices: string[] = []
     await retrySession({

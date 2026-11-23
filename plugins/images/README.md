@@ -16,6 +16,8 @@ thread. The API composes it as the `images` plugin.
 
 - The gateway API key. `ctx.control.gateway.apiKey()` supplies the key of the session owner's
   Atlas "Vercel AI Gateway" account.
+- The chosen image model. `ctx.control.gateway.imageModel()` answers the operator's Settings
+  choice, and the tool falls back to `google/gemini-3.1-flash-image`.
 - How a client draws an image part. Web and TUI own their renderers.
 
 ## Entry points
@@ -47,14 +49,18 @@ thread. The API composes it as the `images` plugin.
 
 ### The tool the model sees
 
-| Tool             | What it does                                                                                                                      |
-| ---------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `image_generate` | `prompt`, optional `images` (up to 8 absolute sandbox paths to edit), optional `model` (default `google/gemini-3.1-flash-image`). |
+| Tool             | What it does                                                                                                                                                                          |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `image_generate` | `prompt`, optional `images` (up to 8 absolute sandbox paths to edit), optional `model` (falls back to the operator's chosen image model, `google/gemini-3.1-flash-image` by default). |
 
 The tool writes one file to `<session>/generated-images/` and returns the path, the media type,
 the byte length, the width and the height. A picture past the inline limit comes back as text with
 the reason. When the gateway refuses a model for Zero Data Retention, the reason lists the models
 that support it.
+
+The tool description also tells the model how to write the prompt. The image model never sees the
+conversation, so the prompt names what to change, the target finish, and the nearby things that
+must stay as they are, one instruction per sentence.
 
 ## Usage
 

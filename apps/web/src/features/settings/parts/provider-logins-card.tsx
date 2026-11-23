@@ -11,6 +11,7 @@ import {
 } from '../data/personal/use-provider-sign-in'
 import { SettingsRow } from '../settings-layout'
 import { ProviderSignInPanel } from './provider-sign-in-panel'
+import { UsageMeterRow } from './usage-meter-row'
 
 export type ProviderCard = {
   name: string
@@ -68,7 +69,9 @@ function LoginRow({
           </>
         )
       }
-    />
+    >
+      <UsageMeterRow accountId={login.id} />
+    </SettingsRow>
   )
 }
 

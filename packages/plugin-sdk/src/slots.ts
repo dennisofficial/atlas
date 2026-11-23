@@ -65,7 +65,10 @@ export type WebSearchConfig = { backend: string | undefined; key: string | undef
 
 export type PodWebSearch = { config(): Promise<WebSearchConfig> }
 
-export type PodGateway = { apiKey(): Promise<string | undefined> }
+export type PodGateway = {
+  apiKey(): Promise<string | undefined>
+  imageModel(): Promise<string | undefined>
+}
 
 export type McpServerSource = 'cloud' | 'repo'
 
@@ -102,7 +105,10 @@ export type PodControl = {
   subscriptions: PodSubscriptions
 }
 
-export const EMPTY_GATEWAY: PodGateway = Object.freeze({ apiKey: async () => undefined })
+export const EMPTY_GATEWAY: PodGateway = Object.freeze({
+  apiKey: async () => undefined,
+  imageModel: async () => undefined,
+})
 
 export type PodClassifierStatus = ClassifierStatus
 

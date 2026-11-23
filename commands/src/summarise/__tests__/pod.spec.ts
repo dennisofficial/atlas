@@ -37,6 +37,7 @@ const run = async ({
     inboxId: 7,
     model,
     visibleEvents,
+    runningChildren: () => 0,
     append: async (drafts) => {
       appended.push(...drafts)
     },
@@ -143,6 +144,7 @@ describe('summariseHandler', () => {
       sessionId: 's1',
       inboxId: 7,
       visibleEvents: conversation,
+      runningChildren: () => 0,
       append: async () => undefined,
       log: () => undefined,
     })

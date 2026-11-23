@@ -78,7 +78,7 @@ A `PodSlot` declares:
 `notify(event, {key})`, `events()`, `call(op)`, `live(frame)`, `onDaemonEvent(listener)`, `log`,
 and the capabilities `control`, `crew`, `classifier`, `sessions`, `worktrees` and `resources`.
 `ctx.control` is a `PodControl`: `exposePort({port})`, `settingsVersions()`, `memory`, `webSearch`,
-`gateway`, `mcp`, `routines`, `subscriptions`. `ctx.classifier.status()` / `classify(...)` answer core types.
+`gateway` (`apiKey()`, `imageModel()`), `mcp`, `routines`, `subscriptions`. `ctx.classifier.status()` / `classify(...)` answer core types.
 
 ### The control and client slots
 

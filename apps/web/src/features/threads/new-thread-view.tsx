@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useCallback, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
+import { initialProjectIdOf } from '@dltech/atlas-client/session'
 import type { Attachment } from '@dltech/atlas-core'
 import type { Project } from '@dltech/atlas-wire/web'
 
@@ -47,7 +48,6 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
   const invalidateCloud = useInvalidateCloud()
   const preselected = useSearchParams().get('project')
   const [selected, setSelected] = useState<string | null | undefined>(undefined)
-  const preselectedId = projects.some((project) => project.id === preselected) ? preselected : null
   const [draft, setDraft] = useState('')
   const [chosen, setChosen] = useState<ModelSelection | null>(null)
   const picker = useModelPicker()
@@ -81,7 +81,8 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
     projectId: string | null
     sendId: string
   } | null>(null)
-  const projectId = selected === undefined ? (preselectedId ?? projects[0]?.id ?? null) : selected
+  const projectId =
+    selected === undefined ? initialProjectIdOf({ projects, preselected }) : selected
   const local =
     desktop.present && desktop.docker && runner === ERunnerChoice.ThisMac && projectId !== null
   const onThisMac = desktop.present && runner === ERunnerChoice.ThisMac
