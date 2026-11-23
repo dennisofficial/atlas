@@ -8,6 +8,7 @@ import {
   parsedAccountsOf,
   providerCredentialOf,
   reachableOf,
+  type ActiveAccountRowLike,
   type SealedAccountRowLike,
 } from '../accounts'
 
@@ -113,7 +114,10 @@ describe('classifierCredentialOf', () => {
     authority: { url: 'https://api', connectionId: 'conn' },
   })
 
-  const credentialFor = (rows: SealedAccountRowLike[], activeAccounts = []) =>
+  const credentialFor = (
+    rows: SealedAccountRowLike[],
+    activeAccounts: readonly ActiveAccountRowLike[] = [],
+  ) =>
     classifierCredentialOf({
       provider: EAuthProvider.OpenAI,
       parsed: parsedAccountsOf(rows),
