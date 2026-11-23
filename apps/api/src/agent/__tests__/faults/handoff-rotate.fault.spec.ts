@@ -64,4 +64,12 @@ describeHandoff({
   async runs(ctx) {
     return (await rotatedOf(ctx)).length
   },
+
+  async interrupted(ctx) {
+    await waitUntil({
+      what: 'the rotation to land after the pod restart',
+      check: async () => (await rotatedOf(ctx)).length >= 1,
+    })
+    expect(await rotatedOf(ctx)).toHaveLength(1)
+  },
 })
