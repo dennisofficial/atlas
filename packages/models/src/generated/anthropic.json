@@ -370,60 +370,6 @@
   {
     "ref": {
       "providerId": "anthropic",
-      "modelId": "claude-sonnet-4-5"
-    },
-    "label": "Claude Sonnet 4.5 (latest)",
-    "api": "anthropic-messages",
-    "contextWindow": 200000,
-    "imageTier": "standard",
-    "inputModalities": [
-      "text",
-      "image",
-      "pdf"
-    ],
-    "maxOutputTokens": 64000,
-    "cost": {
-      "inputPerMillion": 3,
-      "outputPerMillion": 15,
-      "cacheReadPerMillion": 0.3,
-      "cacheWritePerMillion": 3.75
-    },
-    "effort": {
-      "low": 1024,
-      "medium": 2048,
-      "high": 16384
-    }
-  },
-  {
-    "ref": {
-      "providerId": "anthropic",
-      "modelId": "claude-sonnet-4-5-20250929"
-    },
-    "label": "Claude Sonnet 4.5",
-    "api": "anthropic-messages",
-    "contextWindow": 200000,
-    "imageTier": "standard",
-    "inputModalities": [
-      "text",
-      "image",
-      "pdf"
-    ],
-    "maxOutputTokens": 64000,
-    "cost": {
-      "inputPerMillion": 3,
-      "outputPerMillion": 15,
-      "cacheReadPerMillion": 0.3,
-      "cacheWritePerMillion": 3.75
-    },
-    "effort": {
-      "low": 1024,
-      "medium": 2048,
-      "high": 16384
-    }
-  },
-  {
-    "ref": {
-      "providerId": "anthropic",
       "modelId": "claude-sonnet-4-6"
     },
     "label": "Claude Sonnet 4.6",
