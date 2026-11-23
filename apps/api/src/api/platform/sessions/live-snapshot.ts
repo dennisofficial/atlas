@@ -17,19 +17,15 @@ export type LiveSnapshot = {
   counts: SessionBucketCounts
 }
 
-export async function liveSnapshot(args: {
-  userId: string
-  now?: number | undefined
-}): Promise<LiveSnapshot> {
+export async function liveSnapshot(args: { userId: string }): Promise<LiveSnapshot> {
   const sessions = await db.orm.public.Session.where({ userId: args.userId })
     .where((session) => session.mainThreadId.isNotNull())
     .where((session) => session.deletedAt.isNull())
     .orderBy((session) => session.updatedAt.desc())
     .all()
-  const buckets = bucketSessions({ sessions, now: args.now ?? Date.now() })
+  const buckets = bucketSessions(sessions)
   const kept = [
     ...buckets[ESessionBucket.Active],
-    ...buckets[ESessionBucket.Inactive].slice(0, SIDEBAR_BUCKET_LIMIT),
     ...buckets[ESessionBucket.Archived].slice(0, SIDEBAR_BUCKET_LIMIT),
   ].sort((left, right) => right.updatedAt.getTime() - left.updatedAt.getTime())
   const rows = await liveRowsOf({ userId: args.userId, sessions: kept })

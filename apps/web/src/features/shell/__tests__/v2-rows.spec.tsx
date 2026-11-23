@@ -146,14 +146,13 @@ describe('withV2Sessions', () => {
     expect(rows[0]?.teammates.map((peer) => peer.id)).toEqual(['loose-peer'])
   })
 
-  it('orders v2 sessions with v1 threads and buckets them by recency', () => {
+  it('keeps an old v2 session in its project group', () => {
     const merged = withV2Sessions({
       entries: entries(),
       sessions: [summary({ updatedAt: agoIso(100), createdAt: agoIso(101) })],
     })
     const partition = partitionThreads({ entries: merged, now: NOW })
-    expect(partition.groups[0]?.sessions.map((s) => s.id)).toEqual(['ses_v1-old'])
-    expect(partition.inactive[0]?.sessions.map((s) => s.id)).toEqual(['v2-a'])
+    expect(partition.groups[0]?.sessions.map((s) => s.id)).toEqual(['v2-a', 'ses_v1-old'])
   })
 })
 

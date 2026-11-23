@@ -40,8 +40,8 @@ a thread's event log.
 - `createSession`, `createSessionWithMessage`, `setSessionModel`, `renameSession`,
   `titleUntitledSession`, `setSessionArchived`, `markSessionRead`.
 - `listSessions`, `listSessionDigests`, `countSessionBuckets`, `readSession`, `sessionsOf`,
-  `readSessionView`, `readSessionBusy`. A digest listing takes a bucket filter (archived, or
-  inactive below an idle cutoff), a title or first-message search, and a creation-time keyset cursor.
+  `readSessionBusy`. A digest listing can keep only archived sessions, takes a title or
+  first-message search, and a creation-time keyset cursor.
 - `spawnPeer`, `messagePeer`, `reportToSpawner`, `podPeersPlaced`.
 - `setSandboxInstanceId`, `setSandboxStatus`, `recordPodDesired`, `recordPodApplied`,
   `recordPodDisk`, `recordPodFailed`, `recordPodWaiting`. `cancelPodWait` reverts a resize that

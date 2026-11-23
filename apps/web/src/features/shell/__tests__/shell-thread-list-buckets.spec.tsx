@@ -49,7 +49,7 @@ const v2ArchivedEntries = (count: number) => [
 ]
 
 async function renderList(props: {
-  counts?: { active: number; inactive: number; archived: number }
+  counts?: { active: number; archived: number }
   entries?: ReturnType<typeof archivedEntries>
 }) {
   const { createRoot } = await import('react-dom/client')
@@ -78,20 +78,12 @@ async function renderList(props: {
   }
 }
 
-describe('capped sidebar buckets', () => {
-  it('offers the stream count when the bucket holds more rows than it shows', async () => {
-    const list = await renderList({ counts: { active: 2, inactive: 0, archived: 488 } })
+describe('sidebar buckets', () => {
+  it('counts the whole archived bucket in the header from the stream count', async () => {
+    const list = await renderList({ counts: { active: 2, archived: 488 } })
     try {
-      expect(list.host.textContent).toContain('Show all 488 →')
-    } finally {
-      await list.close()
-    }
-  })
-
-  it('shows no show-all row when the rows are the whole bucket', async () => {
-    const list = await renderList({ counts: { active: 0, inactive: 0, archived: 20 } })
-    try {
-      expect(list.host.textContent).not.toContain('Show all')
+      const header = list.host.querySelector('button[aria-expanded]')
+      expect(header?.textContent).toBe('Archived488')
     } finally {
       await list.close()
     }
@@ -99,13 +91,12 @@ describe('capped sidebar buckets', () => {
 
   it('adds the v2 sessions the v1 stream does not count', async () => {
     const list = await renderList({
-      counts: { active: 0, inactive: 0, archived: 0 },
+      counts: { active: 0, archived: 0 },
       entries: v2ArchivedEntries(3),
     })
     try {
       const header = list.host.querySelector('button[aria-expanded]')
       expect(header?.textContent).toBe('Archived3')
-      expect(list.host.textContent).not.toContain('Show all')
     } finally {
       await list.close()
     }
@@ -114,8 +105,8 @@ describe('capped sidebar buckets', () => {
   it('falls back to the rows it holds when the stream carries no counts', async () => {
     const list = await renderList({})
     try {
-      expect(list.host.textContent).toContain('Archived')
-      expect(list.host.textContent).not.toContain('Show all')
+      const header = list.host.querySelector('button[aria-expanded]')
+      expect(header?.textContent).toBe('Archived20')
     } finally {
       await list.close()
     }

@@ -36,8 +36,6 @@ import {
   EWithdrawRefusal,
   INBOX_KIND_MESSAGE,
   type SessionArchiveOutput,
-  type SessionBucketPageInput,
-  type SessionBucketPageOutput,
   type SessionBlobOutput,
   type SessionCommandInput,
   type SessionCommandOutput,
@@ -58,7 +56,6 @@ import {
   type SessionSleepPodOutput,
   type SessionWithdrawOutput,
 } from '@dltech/atlas-protocol'
-import type { SessionPageOutput } from '@dltech/atlas-wire'
 import { notifyClearIdempotencyKey } from '@dltech/atlas-jobs/notify'
 import { BackgroundWork } from '../../../_core/ports/background-work'
 import { JobsProjectDispatcher } from '../../../_core/ports/job-dispatcher'
@@ -75,8 +72,6 @@ import {
 } from '../../../agent'
 import { PodPowerService, type PodPower } from './pod-power.service'
 import { PodSizingService, type PodSizing } from './pod-sizing.service'
-import { pageSessions, type PageBucket } from '../sessions/session-pages'
-import { bucketPageSessions } from './session-bucket-page'
 import { COMMAND_REGISTRY, postCommand } from './command-registry'
 import { refuseArchivedCommand, requireLiveSession } from './session-archived'
 import { SubscriptionTargetError, resolvedSubscriptionTargetOf } from './subscription-target'
@@ -252,22 +247,6 @@ export class SessionsService {
     return {
       sessions: sessions.map((digest) => sessionSummaryOf({ digest, now })),
     }
-  }
-
-  async page(args: {
-    userId: string
-    bucket: PageBucket
-    cursor?: string | undefined
-    limit?: number | undefined
-    search?: string | undefined
-  }): Promise<SessionPageOutput> {
-    return pageSessions(args)
-  }
-
-  async bucketPage(
-    args: { userId: string } & SessionBucketPageInput,
-  ): Promise<SessionBucketPageOutput> {
-    return bucketPageSessions({ plane: this.plane, ...args })
   }
 
   async post(args: PostArgs) {
