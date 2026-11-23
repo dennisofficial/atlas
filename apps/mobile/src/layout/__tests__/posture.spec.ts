@@ -5,6 +5,7 @@ import {
   EControlsPlacement,
   EThreadsLayout,
   postureOf,
+  RAIL_BOTTOM_GAP,
   RAIL_MIN_INSET,
 } from '../posture'
 
@@ -22,6 +23,7 @@ describe('postureOf', () => {
       controls: EControlsPlacement.Rail,
       threads: EThreadsLayout.Stacked,
       railWidth: 80,
+      railBottom: RAIL_BOTTOM_GAP,
       clearance: { right: 80, bottom: 0 },
     })
   })
@@ -33,6 +35,7 @@ describe('postureOf', () => {
       controls: EControlsPlacement.BottomBar,
       threads: EThreadsLayout.Overlay,
       railWidth: 0,
+      railBottom: 20 + RAIL_BOTTOM_GAP,
       clearance: { right: 0, bottom: 20 + BOTTOM_BAR_CLEARANCE },
     })
   })
@@ -55,8 +58,16 @@ describe('postureOf', () => {
       controls: EControlsPlacement.Rail,
       threads: EThreadsLayout.Panel,
       railWidth: 80,
+      railBottom: RAIL_BOTTOM_GAP,
       clearance: { right: 80, bottom: 0 },
     })
+  })
+
+  it('anchors the rail above the bottom inset so a taller system column never covers it', () => {
+    expect(
+      postureOf({ width: 470, height: 690, insets: insets({ top: 240, right: 80, bottom: 21 }) })
+        .railBottom,
+    ).toBe(21 + RAIL_BOTTOM_GAP)
   })
 
   it('measures wideness without the side insets', () => {

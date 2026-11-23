@@ -2,7 +2,7 @@ import { space } from '@dltech/atlas-ui/tokens'
 import { usePathname } from 'expo-router'
 import { StyleSheet, View } from 'react-native'
 
-import { RAIL_MIN_INSET, RAIL_TOP_CLEARANCE } from '../layout/posture'
+import { RAIL_MIN_INSET } from '../layout/posture'
 import { usePosture } from '../layout/use-posture'
 import { AccountButton } from './account-button'
 import { GlassSurface } from './glass-surface'
@@ -19,7 +19,10 @@ export const ControlRail = () => {
   const active = activeTabOf(usePathname())
   const width = railCapsuleWidth(posture.railWidth)
   return (
-    <View style={[styles.root, { width: posture.railWidth }]} pointerEvents="box-none">
+    <View
+      style={[styles.root, { width: posture.railWidth, bottom: posture.railBottom }]}
+      pointerEvents="box-none"
+    >
       <GlassSurface style={[styles.capsule, { width, borderRadius: width / 2 }]}>
         <View style={styles.account}>
           <AccountButton />
@@ -39,7 +42,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     position: 'absolute',
     right: 0,
-    top: RAIL_TOP_CLEARANCE,
   },
   capsule: {
     alignItems: 'center',
