@@ -42,6 +42,7 @@ const config: AgentHostConfig = {
     accountId: 'acct-1',
     credential: { kind: 'api-key', apiKey: 'sk-test' },
   }),
+  classifier: { on: false, reason: 'no classifier model is set' },
   sandbox: {
     configured: true,
     provider: ESandboxProvider.Vercel,

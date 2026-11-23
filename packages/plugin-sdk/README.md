@@ -8,8 +8,8 @@ author reads this package first. Every plugin in `plugins/*` builds its slots wi
 - The plugin shape: seven slots, `definePlugin`, and the composer `composePlugins`.
 - The pod tier: the pod context, the pod slot, the capabilities a tool reaches, and pod resources.
 - The control tier and the client tier slot types.
-- The plugin-facing capability types: crew, sessions, worktrees, routines, subscriptions and MCP
-  control, each with an `EMPTY_*` default. Memory and web search have no empty default.
+- The plugin-facing capability types: crew, classifier, sessions, worktrees, routines, subscriptions
+  and MCP control, each with an `EMPTY_*` default. Memory and web search have no empty default.
 
 ## Does not own
 
@@ -73,10 +73,11 @@ A `PodSlot` declares:
 - `onDaemonEvent(frame)`: handle an event the daemon pushes.
 
 `ctx` is a `PluginPodContext`. It gives `sessionId`, `workspaceDirectory`, `append(drafts)`,
-`notify(event, {key})`, `events()`, `call(op)`, `live(frame)`, `onDaemonEvent(listener)`,
-`log(message)`, and the capabilities `control`, `crew`, `sessions`, `worktrees` and `resources`.
+`notify(event, {key})`, `events()`, `call(op)`, `live(frame)`, `onDaemonEvent(listener)`, `log`,
+and the capabilities `control`, `crew`, `classifier`, `sessions`, `worktrees` and `resources`.
 `ctx.control` is a `PodControl`: `exposePort({port})`, `settingsVersions()`, and the `memory`,
-`webSearch`, `mcp`, `routines` and `subscriptions` capabilities.
+`webSearch`, `mcp`, `routines` and `subscriptions` capabilities. `ctx.classifier` is a `PodClassifier`:
+`status()` answers a core `ClassifierStatus` and `classify(...)` a core `ClassifierOutcome`.
 
 ### The control and client slots
 
@@ -109,7 +110,7 @@ through a resource: set `cloud: [ECloudSetting.McpServers]`, `ECloudSetting.Skil
   `PluginEventBodies` types the body of each event.
 - `crossLatch({ctx, name, level, mayFire})`: fire a level-triggered latch once, and record it.
 - `MacOfflineError`, `PodMcpProxyTransport`, `PodMcpProxyChannel`: the proxy to the Mac app.
-- `EMPTY_POD`, `EMPTY_CONTROL`, `EMPTY_CREW`, `EMPTY_SESSIONS`, `EMPTY_WORKTREES`,
+- `EMPTY_POD`, `EMPTY_CONTROL`, `EMPTY_CREW`, `EMPTY_CLASSIFIER`, `EMPTY_SESSIONS`, `EMPTY_WORKTREES`,
   `EMPTY_ROUTINES`, `EMPTY_SUBSCRIPTIONS`, `EMPTY_MCP_CONTROL`, `EMPTY_POD_RESOURCES`: the defaults
   a tier spreads when it contributes nothing.
 

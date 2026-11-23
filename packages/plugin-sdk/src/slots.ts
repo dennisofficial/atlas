@@ -1,7 +1,11 @@
 import type { HookChainArgs } from '@dltech/atlas-agent'
 import type { TranscriptEntryFold } from '@dltech/atlas-client/transcript'
 import type { CommandHandler, ControlCommandHandler } from '@dltech/atlas-commands'
+import { EClassifierFault } from '@dltech/atlas-core'
 import type {
+  ClassifierOutcome,
+  ClassifierQuestion,
+  ClassifierStatus,
   EventBody,
   EventDraft,
   PluginEventBody,
@@ -91,11 +95,32 @@ export type PodControl = {
   subscriptions: PodSubscriptions
 }
 
+export type PodClassifierStatus = ClassifierStatus
+
+export type PodClassifier = {
+  status(): PodClassifierStatus
+  classify(args: {
+    state: string
+    questions: Record<string, ClassifierQuestion>
+    signal: AbortSignal
+  }): Promise<ClassifierOutcome>
+}
+
+export const EMPTY_CLASSIFIER: PodClassifier = Object.freeze({
+  status: (): PodClassifierStatus => ({ on: false, reason: 'no classifier' }),
+  classify: async (): Promise<ClassifierOutcome> => ({
+    ok: false,
+    fault: EClassifierFault.Unavailable,
+    detail: 'this pod has no classifier',
+  }),
+})
+
 export type PluginPodContext = {
   sessionId: string
   workspaceDirectory?: string | null | undefined
   control: PodControl
   crew: PodCrew
+  classifier: PodClassifier
   sessions: PodSessions
   worktrees: PodWorktrees
   resources: PodResources

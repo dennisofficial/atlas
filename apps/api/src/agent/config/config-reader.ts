@@ -5,6 +5,7 @@ import type { Db } from '@dltech/atlas-db'
 import { z } from 'zod'
 
 import type { AgentHostConfig, ConfigSource, WorkspaceConfig } from './agent-host-config'
+import { classifierConfigOf } from './classifier-config'
 import {
   modelSourceOf,
   type ActiveAccountRow,
@@ -77,6 +78,12 @@ export class ConfigReader implements ConfigSource {
       projectId,
       model: models.main.config,
       models,
+      classifier: classifierConfigOf({
+        cipher: this.args.cipher,
+        accounts,
+        activeAccounts,
+        settings,
+      }),
       workspace: workspaceOf(project),
       sandbox,
       podSize: {
