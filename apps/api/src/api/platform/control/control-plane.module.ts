@@ -45,6 +45,8 @@ import { NotifyDevicesService } from './notify-devices.service'
 import { PresenceRegistry } from './presence-registry'
 import { DiagramsRouter } from './diagrams.router'
 import { DIAGRAM_REPAIRER, DiagramRepairService } from './diagram-repair.service'
+import { SessionDraftsRouter } from './session-drafts.router'
+import { SessionDraftsService } from './session-drafts.service'
 
 export const controlPlaneProvider: Provider = {
   provide: ControlPlane,
@@ -101,6 +103,8 @@ export const controlPlaneProvider: Provider = {
       inject: [EnvService],
     },
     DiagramsRouter,
+    SessionDraftsService,
+    SessionDraftsRouter,
   ],
   exports: [ControlPlane, TerminalService, ContextContentStore],
 })

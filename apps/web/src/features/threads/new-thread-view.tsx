@@ -12,6 +12,8 @@ import { createLocalThread, newLocalThreadId } from '@/features/desktop/create-l
 import { ERunnerChoice, RunnerToggle } from '@/features/desktop/runner-toggle'
 import { useDesktop } from '@/features/desktop/use-desktop'
 import { createSessionWithMessage } from '@/features/sessions/data/create-session'
+import { useDraftAttachments } from '@/features/sessions/data/use-draft-attachments'
+import { useSessionDraft } from '@/features/sessions/data/use-session-draft'
 import { sessionStream } from '@/features/sessions/data/session-stream'
 import { sessionsApi } from '@/features/sessions/data/sessions-api'
 import { useSessionAttachments } from '@/features/sessions/data/use-session-attachments'
@@ -33,9 +35,7 @@ import { PROJECTS_KEY, SHELL_THREADS_KEY } from '@/lib/cloud-keys'
 import { useInvalidateCloud } from '@/lib/use-invalidate-cloud'
 
 import { createThread, fetchProjects } from './data/threads-api'
-import { NEW_THREAD_DRAFT_SCOPE } from './data/composer-drafts-api'
 import { useComposerAttachments } from './data/use-composer-attachments'
-import { useComposerDraft } from './data/use-composer-draft'
 import { useModelPicker } from './data/use-model-picker'
 import { isRetryOf, messageOf } from './data/use-send'
 import { ModelPickerControls } from './model-picker'
@@ -61,13 +61,17 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
     })
   const images = useComposerAttachments()
   const session = useSessionAttachments({ files: images })
-  const drafts = useComposerDraft({
-    scope: NEW_THREAD_DRAFT_SCOPE,
+  const draftAttachments = useDraftAttachments({ media: session.media, uploads: images.uploads })
+  const drafts = useSessionDraft({
+    sessionId: null,
     text: draft,
-    uploads: images.uploads,
+    attachments: draftAttachments,
     onRestore: (stored) => {
       setDraft(stored.text)
-      images.restore({ uploads: stored.uploads, images: [] })
+      session.restore({
+        attachments: stored.attachments,
+        previewOf: () => Promise.reject(new Error('no media preview before a session exists')),
+      })
     },
   })
   const [creating, setCreating] = useState(false)

@@ -236,6 +236,10 @@
       "model": "V2ChangeBlob",
       "namespace": "v2"
     },
+    "V2ComposerDraft": {
+      "model": "V2ComposerDraft",
+      "namespace": "v2"
+    },
     "V2ContextFile": {
       "model": "V2ContextFile",
       "namespace": "v2"
@@ -9056,6 +9060,97 @@
               "table": "V2ChangeBlob"
             }
           },
+          "V2ComposerDraft": {
+            "fields": {
+              "attachments": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "scopeKey": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "sessionId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "text": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "userId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "session": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "sessionId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "V2Session",
+                  "namespace": "v2"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "attachments": {
+                  "column": "attachments"
+                },
+                "scopeKey": {
+                  "column": "scopeKey"
+                },
+                "sessionId": {
+                  "column": "sessionId"
+                },
+                "text": {
+                  "column": "text"
+                },
+                "updatedAt": {
+                  "column": "updatedAt"
+                },
+                "userId": {
+                  "column": "userId"
+                }
+              },
+              "namespaceId": "v2",
+              "table": "V2ComposerDraft"
+            }
+          },
           "V2ContextFile": {
             "fields": {
               "digest": {
@@ -10508,6 +10603,21 @@
                 },
                 "to": {
                   "model": "V2SessionBranch",
+                  "namespace": "v2"
+                }
+              },
+              "composerDrafts": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "sessionId"
+                  ]
+                },
+                "to": {
+                  "model": "V2ComposerDraft",
                   "namespace": "v2"
                 }
               },
@@ -18252,6 +18362,83 @@
               },
               "uniques": []
             },
+            "V2ComposerDraft": {
+              "columns": {
+                "attachments": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "scopeKey": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "sessionId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "text": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "updatedAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "userId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "index": {
+                    "name": "V2ComposerDraft_sessionId_idx_29f415d4"
+                  },
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "sessionId"
+                    ],
+                    "namespaceId": "v2",
+                    "tableName": "V2ComposerDraft"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "v2",
+                    "tableName": "V2Session"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "sessionId"
+                  ],
+                  "name": "V2ComposerDraft_sessionId_idx_29f415d4",
+                  "prefix": "V2ComposerDraft_sessionId_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "userId",
+                  "scopeKey"
+                ]
+              },
+              "uniques": []
+            },
             "V2ContextFile": {
               "columns": {
                 "digest": {
@@ -20012,7 +20199,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "17fdd443010a9232bdff773e7dd760e7c05cba76ae897be0dcaba4f49b8006ec"
+    "storageHash": "5d41567370b5e736a31c85389975b7b06ea26645fe953dd7873182b15715a0ee"
   },
   "execution": {
     "executionHash": "ab28df152a1a27a9a0756638f29813a6c6f20a2d2b25c449f0f8e363cc1d9af0",

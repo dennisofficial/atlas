@@ -47,6 +47,7 @@ namespace v2 {
     terminals       V2Terminal[]
     sandboxRuns     V2SandboxRun[]
     diagramRepairs  V2DiagramRepair[]
+    composerDrafts  V2ComposerDraft[]
 
     @@index([mainThreadId])
     @@index([userId, createdAt])

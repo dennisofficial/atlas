@@ -140,6 +140,7 @@ export default function SessionScreen() {
               onSend={session.send}
               onStop={session.stop}
               restored={session.restored}
+              draftSessionId={id}
               refusal={session.notice}
               entries={session.commands.entries}
               clientActions={session.commands.clientActions}
