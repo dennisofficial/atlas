@@ -5,7 +5,7 @@ export {
   unmeasuredWindowWarning,
   type CatalogueProvider,
 } from '@dltech/atlas-models'
-export { EDevicePoll } from '@dltech/atlas-models/provider-oauth'
+export { EDevicePoll } from '@dltech/atlas-credentials/provider-oauth'
 
 export {
   SessionActivityPort,

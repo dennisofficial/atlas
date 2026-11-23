@@ -40,6 +40,7 @@
     "@dltech/atlas-commands": "workspace:*",
     "@dltech/atlas-control": "workspace:*",
     "@dltech/atlas-core": "workspace:*",
+    "@dltech/atlas-credentials": "workspace:*",
     "@dltech/atlas-db": "workspace:*",
     "@dltech/atlas-github": "workspace:*",
     "@dltech/atlas-host": "workspace:*",

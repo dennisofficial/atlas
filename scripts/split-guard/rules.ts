@@ -62,6 +62,11 @@ export const SPLIT_RULES: readonly SplitRule[] = [
     ],
   },
   {
+    name: 'the provider key path never depends on a model catalogue or a classifier',
+    roots: ['packages/credentials'],
+    forbidden: ['@dltech/atlas-models', '@dltech/atlas-classifier'],
+  },
+  {
     name: 'a plugin must not import another plugin',
     roots: ['plugins'],
     forbidden: [],

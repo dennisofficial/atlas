@@ -1,7 +1,4 @@
 import {
-  accountSecretSchema,
-  EAuthKind,
-  EAuthProvider,
   EEffort,
   EModelRole,
   EStalePolicy,
@@ -13,24 +10,23 @@ import {
   type ResolvedModelChoice,
 } from '@dltech/atlas-core'
 import {
-  capabilitiesOver,
+  accountCredentialOf,
+  authProviderOf,
   chosenFor,
-  fallbackRefOf,
   parsedAccountsOf,
-  readOf,
   reachableOf,
-  SHIPPED_DEFAULT_REF,
-  type AccountRowLike,
   type ActiveAccountRowLike,
   type ParsedAccount,
-} from '@dltech/atlas-models'
+  type SealedAccountRowLike,
+} from '@dltech/atlas-credentials'
+import { capabilitiesOver, fallbackRefOf, readOf, SHIPPED_DEFAULT_REF } from '@dltech/atlas-models'
 
 import type { ModelConfig } from './agent-host-config'
 import type { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 
 export type ActiveAccountRow = ActiveAccountRowLike
 
-export type AccountRow = AccountRowLike & { sealedSecret: string }
+export type AccountRow = SealedAccountRowLike
 
 export type SessionModelRow = { ref: string; effort: string; fast: boolean }
 
@@ -52,9 +48,6 @@ export type ModelSourceArgs = {
 
 const DEFAULT_EFFORT = EEffort.Medium
 
-const providerOf = (value: string): EAuthProvider | undefined =>
-  Object.values(EAuthProvider).find((provider) => provider === value)
-
 const effortOf = (value: unknown): EEffort | undefined =>
   Object.values(EEffort).find((effort) => effort === value)
 
@@ -66,7 +59,7 @@ const configuredWith = (args: {
 }): ModelConfig => {
   const { ref } = args.choice
   if (args.parsed.length === 0) return { configured: false, gap: 'no model account' }
-  const provider = providerOf(ref.providerId)
+  const provider = authProviderOf(ref.providerId)
   const chosen =
     provider === undefined
       ? undefined
@@ -74,10 +67,13 @@ const configuredWith = (args: {
   if (chosen === undefined) {
     return { configured: false, gap: `no ${ref.providerId} account`, unavailable: ref }
   }
-  const secret = accountSecretSchema.safeParse(
-    JSON.parse(args.cipher.decrypt(chosen.row.sealedSecret)),
-  )
-  if (!secret.success) return { configured: false, gap: `account ${chosen.row.id} has no secret` }
+  const credential = accountCredentialOf({
+    row: chosen.row,
+    unseal: (sealed) => args.cipher.decrypt(sealed),
+  })
+  if (credential === undefined) {
+    return { configured: false, gap: `account ${chosen.row.id} has no secret` }
+  }
   const base = {
     configured: true,
     ref,
@@ -85,14 +81,13 @@ const configuredWith = (args: {
     fast: args.choice.fast,
     accountId: chosen.row.id,
   } as const
-  if (secret.data.kind === EAuthKind.ApiKey) {
-    return { ...base, credential: { kind: 'api-key', apiKey: secret.data.apiKey } }
+  if (credential.kind === 'api-key') {
+    return { ...base, credential: { kind: 'api-key', apiKey: credential.apiKey } }
   }
-  const connectionId = secret.data.authority?.connectionId
-  if (connectionId === undefined) {
+  if (credential.connectionId === undefined) {
     return { configured: false, gap: 'oauth account has no cloud connection' }
   }
-  return { ...base, credential: { kind: 'oauth', connectionId } }
+  return { ...base, credential: { kind: 'oauth', connectionId: credential.connectionId } }
 }
 
 export type ModelAccountsArgs = Omit<ModelSourceArgs, 'session'>

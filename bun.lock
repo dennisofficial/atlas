@@ -29,6 +29,7 @@
         "@dltech/atlas-commands": "workspace:*",
         "@dltech/atlas-control": "workspace:*",
         "@dltech/atlas-core": "workspace:*",
+        "@dltech/atlas-credentials": "workspace:*",
         "@dltech/atlas-db": "workspace:*",
         "@dltech/atlas-github": "workspace:*",
         "@dltech/atlas-host": "workspace:*",
@@ -534,6 +535,7 @@
         "@aws-sdk/s3-request-presigner": "^3.1167.0",
         "@dltech/atlas-commands": "workspace:*",
         "@dltech/atlas-core": "workspace:*",
+        "@dltech/atlas-credentials": "workspace:*",
         "@dltech/atlas-db": "workspace:*",
         "@dltech/atlas-models": "workspace:*",
         "@dltech/atlas-protocol": "workspace:*",
@@ -556,6 +558,17 @@
       "devDependencies": {
         "@types/bun": "latest",
         "fast-check": "^4.0.0",
+      },
+    },
+    "packages/credentials": {
+      "name": "@dltech/atlas-credentials",
+      "version": "0.1.0",
+      "dependencies": {
+        "@dltech/atlas-core": "workspace:*",
+        "zod": "^4.4.3",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
       },
     },
     "packages/db": {
@@ -604,6 +617,7 @@
         "@dltech/atlas-artifacts": "workspace:*",
         "@dltech/atlas-client": "workspace:*",
         "@dltech/atlas-core": "workspace:*",
+        "@dltech/atlas-credentials": "workspace:*",
         "@dltech/atlas-models": "workspace:*",
         "@dltech/atlas-observability": "workspace:*",
         "@dltech/atlas-sandbox": "workspace:*",
@@ -690,6 +704,7 @@
       "version": "0.1.0",
       "dependencies": {
         "@dltech/atlas-core": "workspace:*",
+        "@dltech/atlas-credentials": "workspace:*",
         "zod": "^4.4.3",
       },
       "devDependencies": {
@@ -1527,6 +1542,8 @@
     "@dltech/atlas-control": ["@dltech/atlas-control@workspace:packages/control"],
 
     "@dltech/atlas-core": ["@dltech/atlas-core@workspace:packages/core"],
+
+    "@dltech/atlas-credentials": ["@dltech/atlas-credentials@workspace:packages/credentials"],
 
     "@dltech/atlas-daemon": ["@dltech/atlas-daemon@workspace:apps/daemon"],
 
@@ -5630,6 +5647,8 @@
 
     "@dltech/atlas-core/@types/bun": ["@types/bun@1.4.5", "", { "dependencies": { "bun-types": "1.4.5" } }, "sha512-DpgwNI9z0L1S0gtb45QLCWgwCUcMLnsHYMJHQvpNj7erGiCGBvpggltAIeARrtobNMKMuy0UP7i56tKKgwFs/Q=="],
 
+    "@dltech/atlas-credentials/@types/bun": ["@types/bun@1.4.5", "", { "dependencies": { "bun-types": "1.4.5" } }, "sha512-DpgwNI9z0L1S0gtb45QLCWgwCUcMLnsHYMJHQvpNj7erGiCGBvpggltAIeARrtobNMKMuy0UP7i56tKKgwFs/Q=="],
+
     "@dltech/atlas-daemon/@types/bun": ["@types/bun@1.4.5", "", { "dependencies": { "bun-types": "1.4.5" } }, "sha512-DpgwNI9z0L1S0gtb45QLCWgwCUcMLnsHYMJHQvpNj7erGiCGBvpggltAIeARrtobNMKMuy0UP7i56tKKgwFs/Q=="],
 
     "@dltech/atlas-db/@types/bun": ["@types/bun@1.4.5", "", { "dependencies": { "bun-types": "1.4.5" } }, "sha512-DpgwNI9z0L1S0gtb45QLCWgwCUcMLnsHYMJHQvpNj7erGiCGBvpggltAIeARrtobNMKMuy0UP7i56tKKgwFs/Q=="],
@@ -6591,6 +6610,8 @@
     "@dltech/atlas-control/@types/bun/bun-types": ["bun-types@1.4.5", "", { "dependencies": { "@types/node": "*", "undici-types": "*" } }, "sha512-ECHn+9dhL3wv0G6u0+7dQvrnaimXiRDxxerYBmhTaLyJEEuvTPWk2Fye3XIf5Y++JIIiHKfQw4Z7V5D8KuiXbg=="],
 
     "@dltech/atlas-core/@types/bun/bun-types": ["bun-types@1.4.5", "", { "dependencies": { "@types/node": "*", "undici-types": "*" } }, "sha512-ECHn+9dhL3wv0G6u0+7dQvrnaimXiRDxxerYBmhTaLyJEEuvTPWk2Fye3XIf5Y++JIIiHKfQw4Z7V5D8KuiXbg=="],
+
+    "@dltech/atlas-credentials/@types/bun/bun-types": ["bun-types@1.4.5", "", { "dependencies": { "@types/node": "*", "undici-types": "*" } }, "sha512-ECHn+9dhL3wv0G6u0+7dQvrnaimXiRDxxerYBmhTaLyJEEuvTPWk2Fye3XIf5Y++JIIiHKfQw4Z7V5D8KuiXbg=="],
 
     "@dltech/atlas-daemon/@types/bun/bun-types": ["bun-types@1.4.5", "", { "dependencies": { "@types/node": "*", "undici-types": "*" } }, "sha512-ECHn+9dhL3wv0G6u0+7dQvrnaimXiRDxxerYBmhTaLyJEEuvTPWk2Fye3XIf5Y++JIIiHKfQw4Z7V5D8KuiXbg=="],
 
