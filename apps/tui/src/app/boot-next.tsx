@@ -2,8 +2,6 @@ import { createCliRenderer } from '@opentui/core'
 import { createRoot } from '@opentui/react'
 import { homedir } from 'node:os'
 
-import { createUrlOpener } from '@dltech/atlas-harness'
-
 import { clientVersionHeader } from '../build/info'
 import { CrashBoundary } from '../composition/crash-boundary'
 import { trackTerminalFocus } from '../composition/terminal-focus'
@@ -11,6 +9,7 @@ import { readTerminalSize, settleTerminalSize } from '../composition/terminal-si
 import { kittyImageTransportOf } from '../composition/terminal-image-transport'
 import { accountPathOf, apiUrlOf, readAccount } from './account/account-file'
 import { AppNext } from './app-next'
+import { createUrlOpener } from './open-url'
 
 const TARGET_FPS = 120
 
