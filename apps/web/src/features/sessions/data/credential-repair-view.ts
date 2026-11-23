@@ -120,8 +120,18 @@ export function retryTargetsOf(args: {
   return [...main, ...agents]
 }
 
-const reasonCopyOf = (repair: CredentialRepair): string =>
-  REASON_COPY[repair.reason ?? repair.kind] ?? 'The provider call failed'
+const REFUSED_KEY_COPY = 'The key was refused'
+
+const reasonCopyOf = (args: {
+  repair: CredentialRepair
+  accountKind: EAuthKind | null
+}): string => {
+  const key = args.repair.reason ?? args.repair.kind
+  if (args.accountKind === EAuthKind.ApiKey && key === ERunFailureKind.Auth) {
+    return REFUSED_KEY_COPY
+  }
+  return REASON_COPY[key] ?? 'The provider call failed'
+}
 
 const modelLabelOf = (modelId: string | null): string => modelId ?? 'the model'
 
@@ -149,9 +159,11 @@ export function repairCardViewOf(args: {
   repair: CredentialRepair
   providerLabel: string | undefined
   accountLabel: string | undefined
+  accountKind?: EAuthKind | null | undefined
   actions?: readonly RepairActionSpec[] | undefined
 }): RepairCardView {
-  const parts = [args.providerLabel, args.accountLabel, reasonCopyOf(args.repair)]
+  const reason = reasonCopyOf({ repair: args.repair, accountKind: args.accountKind ?? null })
+  const parts = [args.providerLabel, args.accountLabel, reason]
   const resets = resetsAtOf(args.repair.resetAt)
   if (resets !== undefined) parts.push(resets)
   return {

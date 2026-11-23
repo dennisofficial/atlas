@@ -214,10 +214,11 @@ export function useCredentialRepair(args: {
       repair,
       providerLabel: providerLabelOf(repair.providerId ?? undefined),
       accountLabel: account?.label,
+      accountKind,
       actions: specs,
     })
     return { title: view.title, detail: view.detail, notes: view.notes, actions }
-  }, [repair, account, specs, actions])
+  }, [repair, account, accountKind, specs, actions])
 
   const primary = actions[0]
   const primaryDetail = specs[0]?.detail
@@ -227,13 +228,14 @@ export function useCredentialRepair(args: {
       repair,
       providerLabel: providerLabelOf(repair.providerId ?? undefined),
       accountLabel: account?.label,
+      accountKind,
     })
     return {
       title: view.title,
       detail: primaryDetail ?? view.detail,
       actions: [primary],
     }
-  }, [repair, primary, primaryDetail, account])
+  }, [repair, primary, primaryDetail, account, accountKind])
 
   const handleSignInRepaired = useCallback(() => {
     setDialog(null)
