@@ -86,14 +86,11 @@ only what it can rebuild or drop.
 
 ### Route a pod call to its holder
 
-- `SessionHolder.podRouter()`: a `PodRouter`. `reach` decides local, remote or unreachable;
-  `invoke` serves a call here or forwards it to the host that holds the session; `follow` streams
-  the frames of a held session to this host.
-- `SessionHolderArgs.podCallBus`: the bus the router and the responder share. Without it a host
-  answers only what it holds itself.
-- `PodRouter`, `PodReach`, `EPodReach`, `PodFollowClose`: the router and its decision.
-- `PodCallResponder`, `POD_RESPONDER_READY_WAIT_MS`: serves the calls another host addresses to
-  this one, and holds the terminal demand of a remote stream.
+- `SessionHolder.podRouter()`: a `PodRouter` (`PodReach`, `EPodReach`, `PodFollowClose`). `reach`
+  decides local, remote or unreachable; `invoke` serves here or forwards to the holder; `follow`
+  streams a held session's frames here.
+- `SessionHolderArgs.podCallBus`: the bus the router and the `PodCallResponder` share; the
+  responder (`POD_RESPONDER_READY_WAIT_MS`) serves calls another host addresses to this one.
 
 ### Drain and fail
 
