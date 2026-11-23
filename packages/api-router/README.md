@@ -37,9 +37,9 @@ reaches the API through this package. No client imports `apps/api`.
 
 ### Follow a session
 
-- `sessionStreamTransport({ client, surface, handleUnauthorized })`: returns a
-  `SessionStreamTransport`. `follow({ sessionId, afterSeq?, afterHash? }, handlers)` resumes from a
-  sequence and hash. `list(handlers)` follows the session list.
+- `sessionStreamTransport({ client, surface?, handleUnauthorized? })`: returns a
+  `SessionStreamTransport`. `follow({ sessionId, threadId?, afterSeq?, afterHash? }, handlers)`
+  resumes from a sequence and hash. `list(handlers)` follows the session list.
 - `SessionStreamHandlers`: `handleFrame`, `handleFailure` and `handleEnd`.
 - `SessionStreamSubscription`: `close()`.
 - The transport parses every frame with `streamServerMessageSchema` before it calls the handler.

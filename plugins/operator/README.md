@@ -37,7 +37,7 @@ Asks the operator for a value that only they have. The `operator_input` tool wri
 ### Read the outcome
 
 - `EOperatorRequestOutcome`: `delivered`, `cancelled`, `abandoned`, `expired` or `failed`.
-- `deliveredTextOf(args)` and `refusalTextOf(reason)`: the model text for a delivered value and for a refusal.
+- `deliveredTextOf(args)`, `refusalTextOf(reason)` and `parkedTextOf()`: the model text for a delivered value, for a refusal and for a parked call.
 - `operatorAnswerPayloadSchema`: the payload that comes back, either `{ callId, sealedValue }` or `{ callId, cancel: true }`.
 
 ## Plugin contributions

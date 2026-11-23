@@ -72,25 +72,32 @@ await trace.span({ name: ESpan.Turn, root: true, run: () => turn() })
 
 ## Usage
 
-From `apps/tui/src/composition/boot.tsx`:
+From `apps/tui/src/composition/open-session.ts`:
 
 ```ts
 import { logFieldsOf } from '@dltech/atlas-observability'
 
-try {
-  await boot()
-} catch (error) {
-  log.error({ source: 'boot', message: 'boot failed', ...logFieldsOf({ error }) })
-}
+void sweepOrphanedSandboxes({ cwd: config.cwd }).catch((error: unknown) => {
+  durableOpLog()?.warn({
+    source: 'tui.open-session',
+    message: 'sandbox sweep failed',
+    ...logFieldsOf({ error }),
+    data: { cwd: config.cwd },
+  })
+})
 ```
 
-From `apps/tui/src/composition/cloud/mirror-upload-start.ts`:
+From `apps/serve/src/fatal-log.ts`:
 
 ```ts
 import type { LogPort } from '@dltech/atlas-observability'
 
-export function startMirrorUpload(args: { log: LogPort | null }): void {
-  args.log?.info({ source: 'mirror-upload', message: 'started' })
+export function logServeFatal(args: {
+  log: LogPort | null
+  error: unknown
+  env: Record<string, string | undefined>
+}): void {
+  args.log?.error(serveFatalEntry({ error: args.error, env: args.env }))
 }
 ```
 

@@ -40,6 +40,8 @@ and OpenAI sign-in flows. The API, the control plane and the model package read 
 - `authProviderOf(value)`: the `EAuthProvider` of a string, or `undefined`.
 - `providerCredentialOf({ provider, parsed, activeAccounts, unseal })`: the `ProviderCredential`
   of the chosen account: `api-key` with the key, `plan` with the connection id, or `null`.
+- `classifierCredentialOf({ provider, parsed, activeAccounts, unseal })`: the same credential, from
+  an api-key account first and the chosen account second.
 - `accountCredentialOf({ row, unseal })`: the same credential for one sealed row.
 
 ### Check a key
@@ -84,6 +86,7 @@ present and the fetch function. A reader answers `null` for any failure: a meter
 ## Usage
 
 ```ts
+import { EAuthProvider } from '@dltech/atlas-core'
 import { parsedAccountsOf, providerCredentialOf } from '@dltech/atlas-credentials'
 
 const credential = providerCredentialOf({
