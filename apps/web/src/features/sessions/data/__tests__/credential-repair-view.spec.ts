@@ -194,6 +194,30 @@ describe('repairCardViewOf', () => {
     expect(view.notes).toEqual([])
   })
 
+  it('says the key was refused for an api-key account', () => {
+    const repair = repairOf([{ type: 'run-failed', failure }])
+    const view = repairCardViewOf({
+      repair,
+      providerLabel: 'OpenAI',
+      accountLabel: 'livecheck-bad-key',
+      accountKind: EAuthKind.ApiKey,
+    })
+
+    expect(view.detail).toBe('OpenAI · livecheck-bad-key · The key was refused')
+  })
+
+  it('keeps the sign-in copy for an oauth account', () => {
+    const repair = repairOf([{ type: 'run-failed', failure }])
+    const view = repairCardViewOf({
+      repair,
+      providerLabel: 'Anthropic',
+      accountLabel: 'dennis@example.com',
+      accountKind: EAuthKind.Oauth,
+    })
+
+    expect(view.detail).toBe('Anthropic · dennis@example.com · The sign-in is no longer accepted')
+  })
+
   it('names the sub-agent that is waiting', () => {
     const repair = repairOf([
       {

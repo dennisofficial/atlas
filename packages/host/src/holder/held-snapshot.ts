@@ -22,8 +22,10 @@ import { idleReleaseDue } from './held-idle'
 import { countRunningShells } from './held-shells'
 import {
   actionableEntries,
+  isNoticeEntry,
   isStop,
   logPendingInputIdsOf,
+  logPendingNoticeIdsOf,
   readFullInbox,
   stopSettledPromptOf,
   understandsCommand,
@@ -99,10 +101,15 @@ export const readHeldAction = async (args: {
     recordEvents: events,
     childrenRunning: args.childrenRunning,
   })
+  const repairHeld = repairHoldsResume({ mainThreadId: args.threadId, events })
+  const noticeIds = new Set(repairHeld ? logPendingNoticeIdsOf(events) : [])
   const messagePending =
-    actionable.some((entry) => !isStop(entry) && !heldEndings.has(entry.inboxId)) ||
+    actionable.some(
+      (entry) =>
+        !isStop(entry) && !heldEndings.has(entry.inboxId) && !(repairHeld && isNoticeEntry(entry)),
+    ) ||
     waitingInputIdsOf({
-      ids: logIds.filter((id) => !heldEndings.has(id)),
+      ids: logIds.filter((id) => !noticeIds.has(id) && !heldEndings.has(id)),
       failure: workspace.failure,
     }).length > 0
   const quiet = idleReleaseDue({
@@ -120,7 +127,6 @@ export const readHeldAction = async (args: {
       : 0
   const plan = resumePlanOf(loopStateOf({ events: resumeEvents }))
   const retryPending = actionable.some((entry) => entry.kind === INBOX_KIND_RETRY)
-  const repairHeld = repairHoldsResume({ mainThreadId: args.threadId, events })
   const resumable =
     !stopSettledPromptOf(events) &&
     (repairHeld ? retryPending && plan.kind === EResume.Continue : isResumablePlan(plan))
