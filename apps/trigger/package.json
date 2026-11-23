@@ -14,6 +14,7 @@
     "@dltech/atlas-control": "workspace:*",
     "@dltech/atlas-core": "workspace:*",
     "@dltech/atlas-db": "workspace:*",
+    "@dltech/atlas-github": "workspace:*",
     "@dltech/atlas-jobs": "workspace:*",
     "@dltech/atlas-media": "workspace:*",
     "@dltech/atlas-pods": "workspace:*",

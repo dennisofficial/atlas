@@ -354,7 +354,11 @@ one exact version. Bump all three at once.
   from the validated `process.env`. The fan-out gets a `RedisPrFrameBus` when the tier carries
   `REDIS_URL`, else a `LocalPrFrameBus`. A worker only publishes, since it never calls `openStream`.
   Test a task by calling its run function directly with a stubbed graph or db
-  (`github-sweep.tasks.spec.ts`, `smoke.task.spec.ts`).
+  (`pod-provision-graph.spec.ts`, `smoke.task.spec.ts`).
+- **The GitHub sweeps run in apps/trigger.** `github-hook-sweep`, `github-poll-sweep` and
+  `github-webhook-reconcile` read `@dltech/atlas-github` from the v2 project. This project keeps one
+  task, `github-v1-wake-sweep`, over the trimmed graph: it refreshes `liveUntil` from v1 thread
+  activity, retries failed v1 wakes, and drains the v1-only outbox kinds.
 - **Local dev.** `bun run dev` runs the API and `trigger dev --profile atlas` together under one
   `env:inject`. When either exits, both stop. Dispatched runs execute only while that worker is up.
   `bun run dev:no-trigger` is the API alone, for work that dispatches nothing.

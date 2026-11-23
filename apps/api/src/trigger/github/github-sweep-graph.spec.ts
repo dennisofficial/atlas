@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'bun:test'
 import { EnvService } from '../../_core/config/env/env.service'
-import { GithubHookLifecycleService } from '@dltech/atlas-github'
 import { GithubPollSweeperService } from '@dltech/atlas-github'
 import { GithubPrFanoutService } from '@dltech/atlas-github'
 import { GithubSandboxWakeService } from '../../api/cloud/github/github-sandbox-wake.service'
@@ -21,7 +20,8 @@ describe('buildGithubSweepGraph', () => {
     const graph = buildGithubSweepGraph({ env: envWith({}) })
 
     expect(graph.pollSweeper).toBeInstanceOf(GithubPollSweeperService)
-    expect(graph.hookLifecycle).toBeInstanceOf(GithubHookLifecycleService)
+    expect(graph.wake.retryFailedWakes).toBeFunction()
+    expect(graph.outbox.drainLegacy).toBeFunction()
     await graph.dispose()
   })
 

@@ -67,11 +67,17 @@ track a repository or a pull request. `apps/api` drives it through thin Nest ada
   hook.
 - `GithubSubscriptionsService` subscribes a thread, catches up a branch, and links a sandbox.
 - `GithubPrStreamRouter` serves the PR stream, the ack path and the replay of missed events.
+- `buildGithubSweeps` builds the poll, hook and webhook-reconcile sweeps over a config, a cipher and
+  a redis port. Omit `legacy`/`activityOf` and the sweeps run without v1; `dispose` tears the
+  fan-out down.
 
 ### Ports
 
 - `GithubConfig`: the App id, private key, client id and base URL.
 - `GithubSecretCipher`, `GithubRedis`, `GithubDrain`: small structural ports.
+- `githubRedisOf({ url })`: a `GithubRedis` over one lazy ioredis connection, with `close()` for a
+  worker that builds its graph per run. `@dltech/atlas-pods`' `SecretCipher` is a
+  `GithubSecretCipher` already.
 - `GithubLegacyEffects` and the `activityOf` callback: the v1 seams. Omit them and the package runs
   without v1.
 - `GithubHttpError`: a failure with a status, which the caller maps to its own HTTP error.
