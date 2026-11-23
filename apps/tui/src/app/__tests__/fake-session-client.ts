@@ -1,4 +1,5 @@
 import type { SaidUpload, V2Event } from '@dltech/atlas-core'
+import { STREAM_PROTOCOL_MIN_VERSION } from '@dltech/atlas-protocol'
 import type {
   FilesSearchInput,
   FilesTreeInput,
@@ -61,6 +62,8 @@ export type FakeSessionClient = SessionClient & {
     key: StreamStepKey
     blocks: readonly OverlayBlock[]
   }) => void
+  open: () => void
+  dropConnection: () => void
   holdPost: (hold: boolean) => void
   releasePost: () => void
   queueTrees: (trees: readonly FilesTreeOutput[]) => void
@@ -237,6 +240,22 @@ export const fakeSessionClient = (args: {
           afterSeq: 0,
           blocks: input.blocks.map((block) => ({ ...block })),
         })
+      }
+    },
+    open: () => {
+      for (const subscription of fake.follows) {
+        if (subscription.closed) continue
+        subscription.handlers.handleFrame({
+          type: 'ready',
+          v: STREAM_PROTOCOL_MIN_VERSION,
+          connectionId: nextId(),
+        })
+      }
+    },
+    dropConnection: () => {
+      for (const subscription of fake.follows) {
+        if (subscription.closed) continue
+        subscription.handlers.handleFailure(undefined)
       }
     },
     holdPost: (hold) => {

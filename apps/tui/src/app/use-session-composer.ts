@@ -90,6 +90,15 @@ export function useSessionComposer(args: {
   })
 
   const [spans, setSpans] = useState<readonly HighlightSpan[]>(NO_SPANS)
+  const preparing = useRef<string | null>(null)
+
+  const imagePaths = useCallback((): readonly string[] => {
+    const editor = draft.editor.current
+    if (editor === null) return []
+    return liveTokens(editor).flatMap((token) =>
+      token.slot.kind === 'image' && token.slot.image !== null ? [token.slot.image.path] : [],
+    )
+  }, [draft.editor])
 
   const handleTextChanged = useCallback(
     (text: string) => {
@@ -111,7 +120,9 @@ export function useSessionComposer(args: {
         ? NO_SPANS
         : liveTokens(editor).map((token) => ({ start: token.start, end: token.end })),
     )
-  }, [draft.editor, draft.value])
+    if (preparing.current !== null) return
+    attachments.retain(imagePaths())
+  }, [attachments, draft.editor, draft.value, imagePaths])
 
   const cursorBefore = useRef<number | null>(null)
 
@@ -133,17 +144,16 @@ export function useSessionComposer(args: {
     editor.cursorOffset = boundary
   }, [draft.editor])
 
-  const attached = useRef(new Set<string>())
-
   const handleAttachImage = useCallback(() => {
     tokens.handleImage()
     void tokens.settle().then(() => {
       const editor: TextareaRenderable | null = draft.editor.current
       if (editor === null) return
+      const known = new Set(attachments.held.map((entry) => entry.path))
       const fresh = liveTokens(editor).flatMap((token) => {
         if (token.slot.kind !== 'image' || token.slot.image === null) return []
-        if (attached.current.has(token.slot.image.path)) return []
-        attached.current.add(token.slot.image.path)
+        if (known.has(token.slot.image.path)) return []
+        known.add(token.slot.image.path)
         return [token.slot.image]
       })
       if (fresh.length > 0) attachments.attachImages(fresh)
@@ -159,7 +169,6 @@ export function useSessionComposer(args: {
     },
   })
 
-  const preparing = useRef<string | null>(null)
   const consume = useRef({ attachments, send })
   consume.current = { attachments, send }
 
@@ -185,7 +194,6 @@ export function useSessionComposer(args: {
       }
 
       draft.clear()
-      attached.current.clear()
       consume.current.attachments.sent()
 
       if (sessionId === null) {

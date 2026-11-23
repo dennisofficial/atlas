@@ -3,7 +3,6 @@ import {
   EClientRequest,
   operatorInputReplySchema,
   type ChannelSignal,
-  type OperatorInputRequest,
   type RemoteDeltaChannel,
   type RemoteTurnRunner,
 } from '@dltech/atlas-harness'
@@ -15,6 +14,7 @@ import {
 } from '@opentui/core'
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 
+import type { OperatorInputReady, OperatorInputState } from '../ui/operator-input-state'
 import {
   operatorEditorText,
   operatorTextAfterEdit,
@@ -23,16 +23,11 @@ import {
 import { chordMatches } from '../ui/keys'
 import type { AtlasApp } from './compose'
 
-export type OperatorInputReady = {
-  kind: 'awaiting'
-  request: OperatorInputRequest
-  typed: string
-  failure: string | null
-}
-
-export type OperatorInputState =
-  | OperatorInputReady
-  | { kind: 'delivering'; request: OperatorInputRequest; typed: string }
+export type {
+  OperatorInputReady,
+  OperatorInputRequestView,
+  OperatorInputState,
+} from '../ui/operator-input-state'
 
 export type OperatorInputControl = {
   state: OperatorInputState | null

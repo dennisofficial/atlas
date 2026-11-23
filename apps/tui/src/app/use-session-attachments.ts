@@ -16,6 +16,7 @@ import { putBytes, putImageOf } from './upload-put'
 
 export type HeldAttachment = {
   id: string
+  path: string
   name: string
   mediaType: string
   byteLength: number
@@ -37,6 +38,7 @@ export type SessionAttachments = {
   held: readonly HeldAttachment[]
   attachImages: (images: readonly ClipboardImage[]) => void
   remove: (id: string) => void
+  retain: (paths: readonly string[]) => void
   clear: () => void
   sent: () => void
   checkSendable: () => boolean
@@ -123,6 +125,7 @@ export function useSessionAttachments(args: {
     (image: ClipboardImage) => {
       const entry: HeldAttachment = {
         id: crypto.randomUUID(),
+        path: image.path,
         name: basename(image.path),
         mediaType: image.mediaType,
         byteLength: image.byteLength,
@@ -168,6 +171,20 @@ export function useSessionAttachments(args: {
     [args.api, update],
   )
 
+  const retain = useCallback(
+    (paths: readonly string[]) => {
+      const keep = new Set(paths)
+      const dropped = heldRef.current.filter((entry) => !keep.has(entry.path))
+      if (dropped.length === 0) return
+      update((current) => current.filter((entry) => keep.has(entry.path)))
+      for (const entry of dropped) {
+        if (entry.status !== 'ready' || entry.upload === undefined) continue
+        void args.api.discardUpload(entry.upload.pathname).catch(() => undefined)
+      }
+    },
+    [args.api, update],
+  )
+
   const clear = useCallback(() => {
     for (const entry of heldRef.current) {
       if (entry.upload === undefined) continue
@@ -205,6 +222,7 @@ export function useSessionAttachments(args: {
     held,
     attachImages,
     remove,
+    retain,
     clear,
     sent,
     checkSendable,

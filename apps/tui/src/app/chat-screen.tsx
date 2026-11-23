@@ -1,32 +1,53 @@
 import React, { useMemo } from 'react'
 
-import { ESessionConnection } from '@dltech/atlas-client/stream'
-
 import { NoticeStack } from '../ui/components/notice-stack'
-import { Spans } from '../ui/components/spans'
+import { OperatorInputOverlay } from '../ui/components/operator-input'
+import { Spans, type Span } from '../ui/components/spans'
 import { Transcript } from '../ui/components/transcript'
 import { createKeyRegistry, KeyRegistryContext } from '../ui/keys'
 import type { PendingRow } from '../store'
 import { theme } from '../ui/theme'
+import type { ConnectionView } from './connection-view'
+import type { OperatorInputControl } from './use-operator-input'
 import type { SessionComposer } from './use-session-composer'
 import type { SessionTranscript } from './use-session-transcript'
+import { modelWithAttentionFailure, type RunAttentionControl } from './use-run-attention'
+import { EPodWake, type PodWake } from './use-session-wake'
 import { ComposerPane } from './composer-pane'
 
 const BACK_HINT = '   esc back'
+
+const noop = (): void => undefined
+
+const controlHints = (args: { working: boolean; wake: PodWake }): readonly Span[] => [
+  ...(args.working ? [{ text: '   esc stop', fg: theme.hint }] : []),
+  ...(args.wake.state === EPodWake.Asleep ? [] : [{ text: '   r wake', fg: theme.hint }]),
+]
 
 export function ChatScreen(props: {
   transcript: SessionTranscript
   composer: SessionComposer
   pending: readonly PendingRow[]
+  operator: OperatorInputControl
+  attention: RunAttentionControl
+  connection: ConnectionView
+  wake: PodWake
   width: number
   height: number
   cwd: string
   now: number
   sends: number
   working: boolean
+  onReconnect: () => void
 }): React.ReactNode {
-  const { composer, transcript } = props
+  const { composer, transcript, attention, operator, connection, wake } = props
   const registry = useMemo(() => createKeyRegistry(), [])
+  const hints = controlHints({ working: props.working, wake })
+  const model = modelWithAttentionFailure({
+    model: transcript.model,
+    attention: attention.attention,
+    working: props.working,
+  })
 
   return (
     <KeyRegistryContext.Provider value={registry}>
@@ -37,12 +58,13 @@ export function ChatScreen(props: {
               spans={[
                 { text: transcript.name ?? transcript.sessionId, fg: theme.body },
                 { text: BACK_HINT, fg: theme.hint },
+                ...hints,
               ]}
             />
           </text>
         </box>
         <Transcript
-          model={transcript.model}
+          model={model}
           width={props.width}
           now={props.now}
           cwd={props.cwd}
@@ -50,8 +72,30 @@ export function ChatScreen(props: {
           sends={props.sends}
           pending={props.pending}
           onNearTop={() => void transcript.loadOlder()}
-          cloudConnected={transcript.connection === ESessionConnection.Live}
+          cloudConnected={connection.cloudConnected}
+          reconnecting={connection.reconnecting}
+          disconnected={connection.disconnected}
+          waking={connection.waking}
+          stale={connection.stale}
+          onReconnect={props.onReconnect}
+          attention={attention.attention}
+          {...(attention.handleRetry === null ? {} : { onRetry: attention.handleRetry })}
+          {...(attention.handleDismiss === null
+            ? {}
+            : { onDismissFailure: attention.handleDismiss })}
+          {...(attention.handleResume === null ? {} : { onResume: attention.handleResume })}
         />
+        {operator.state === null ? null : (
+          <OperatorInputOverlay
+            width={props.width}
+            state={operator.state}
+            editor={operator.editor}
+            onChange={operator.handleChange}
+            onPaste={operator.handlePaste}
+            onSubmit={operator.handleSubmit}
+            onOpenUrl={noop}
+          />
+        )}
         <ComposerPane
           draft={composer.draft}
           fileMenu={composer.fileMenu}
@@ -60,7 +104,7 @@ export function ChatScreen(props: {
           height={props.height}
           working={props.working}
           interrupting={false}
-          focused
+          focused={operator.state === null}
           onCursorMoved={composer.handleCursorMoved}
         />
         <NoticeStack width={props.width} />
