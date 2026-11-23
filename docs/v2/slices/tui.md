@@ -6,12 +6,12 @@ v2 client map, sign-in, install and build), kept in the session that wrote it.
 
 ## Questions for Dennis
 
-1. **Pane actions that v2 has no route for.** The TUI can do six things that v2 cannot do yet: message,
-   stop or resume a sub-agent; kill a background shell; stop, restart or read the log of a service;
-   fork from a message (a verb in the rewind drawer); open the context-file viewer; and run `/rotate`.
+1. **Pane actions that v2 has no route for.** The TUI can do five things that v2 cannot do yet:
+   message, stop or resume a sub-agent; kill a background shell; stop, restart or read the log of a
+   service; fork from a message (a verb in the rewind drawer); and open the context-file viewer.
    **Recommendation:** add each one as a shared v2 command or route in slice 8, so the TUI keeps it
-   and web gets it too. Drop `/rotate`, because v2 replaces it with `summarise`. The other option is
-   to ship those panes read-only. That changes flows you already use.
+   and web gets it too. The other option is to ship those panes read-only. That changes flows you
+   already use.
 2. **What `atlas` is after v1.** **Recommendation:** one binary, `atlas`, which is the TUI and
    nothing else. It keeps self-update, `--version`, `--continue`, `--resume`, `--model` and `--cwd`.
    It drops `atlas classify` (it runs the v1 harness classifier in-process) and `atlas push` (it
@@ -157,15 +157,15 @@ button is on web: `/new`, `/resume`, `/settings`, `/auth`, `/exit`, `/restart`. 
 and `/shells` join the shared table as client commands, as `slash-commands.md` §4.2 planned for this
 slice. Web, Mac and mobile hide them with `because: 'panel'`.
 
-| v1 command                                                   | v2                                                                                  |
-| ------------------------------------------------------------ | ----------------------------------------------------------------------------------- |
-| `/help`, `/model`, `/rewind`, `/rename`                      | catalogue commands (`help`, `model`, `rewind`, `rename`)                            |
-| `/new`, `/resume`, `/settings`, `/auth`, `/exit`, `/restart` | TUI-local entries                                                                   |
-| `/skills`, `/mcp`, `/shells`                                 | new client commands                                                                 |
-| `/wake`                                                      | TUI-local entry → `sessions.wakePod`                                                |
-| `/compact`                                                   | cut: the drawer's "summarise up to here" verb, as the `tui` profile already decided |
-| `/rotate`                                                    | cut (question 1)                                                                    |
-| `/cd`, `/container`                                          | cut: local placement (§4)                                                           |
+| v1 command                                                   | v2                                                                                     |
+| ------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
+| `/help`, `/model`, `/rewind`, `/rename`                      | catalogue commands (`help`, `model`, `rewind`, `rename`)                               |
+| `/new`, `/resume`, `/settings`, `/auth`, `/exit`, `/restart` | TUI-local entries                                                                      |
+| `/skills`, `/mcp`, `/shells`                                 | new client commands                                                                    |
+| `/wake`                                                      | TUI-local entry → `sessions.wakePod`                                                   |
+| `/compact`                                                   | cut: the drawer's "summarise up to here" verb, as the `tui` profile already decided    |
+| `/rotate`                                                    | catalogue host command `rotate` ([rotate.md](rotate.md)), sent with `sessions.command` |
+| `/cd`, `/container`                                          | cut: local placement (§4)                                                              |
 
 ## 3. Sign-in and the token
 
