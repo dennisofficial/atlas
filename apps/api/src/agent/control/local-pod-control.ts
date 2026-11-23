@@ -24,7 +24,7 @@ import {
   putMemory,
   removeMemory,
 } from '@dltech/atlas-memory'
-import type { PreviewTunnels } from '@dltech/atlas-previews'
+import type { PreviewReconciler, PreviewTunnels } from '@dltech/atlas-previews'
 import type { MemoryScope } from '@dltech/atlas-plugin-sdk'
 
 import type { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
@@ -90,6 +90,8 @@ const routineScopeOf = (owner: ThreadOwner): { userId: string; projectId: string
 export const localPodControlOf = (args: {
   db: Db
   previews: PreviewTunnels
+  reconciler: PreviewReconciler
+  podOf: (args: { threadId: string }) => Promise<string>
   cipher: SecretCipher
   plane: ControlPlane
 }): PodControlClient => {
@@ -122,7 +124,16 @@ export const localPodControlOf = (args: {
     settingsVersions: async ({ threadId }) => await settingsVersionsOf({ db: args.db, threadId }),
     exposePort: async ({ threadId, port }) => {
       const owner = await ownerOf(threadId)
-      return await args.previews.expose({ threadId, userId: owner.userId, port })
+      const podSessionId = await args.podOf({ threadId })
+      const exposed = await args.previews.expose({
+        podSessionId,
+        threadId,
+        userId: owner.userId,
+        port,
+      })
+      const outcome = await args.reconciler.run({ podSessionId })
+      if (outcome.kind === 'failed') throw new Error(outcome.reason)
+      return exposed
     },
     routines: {
       list: async ({ threadId }) => {
