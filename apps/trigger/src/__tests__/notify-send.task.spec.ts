@@ -64,6 +64,30 @@ describe('runNotifySend', () => {
     expect(record.delivered).toEqual([])
   })
 
+  it('sends nothing when the user turned this moment off', async () => {
+    const { graph, record } = notifyGraphOf({
+      settings: new Map([['web.notifications.event.finished.push', false]]),
+    })
+
+    expect(await runNotifySend({ graph, payload: PAYLOAD })).toEqual({ sent: 0, gone: 0 })
+    expect(record.delivered).toEqual([])
+  })
+
+  it('sends nothing inside the quiet hours of the stored zone', async () => {
+    const { graph, record } = notifyGraphOf({
+      now: '2026-11-23T23:30:00.000Z',
+      settings: new Map<string, string | boolean>([
+        ['web.notifications.quietHours', true],
+        ['web.notifications.quietFrom', '22:00'],
+        ['web.notifications.quietTo', '07:00'],
+        ['web.notifications.timezone', 'Europe/Berlin'],
+      ]),
+    })
+
+    expect(await runNotifySend({ graph, payload: PAYLOAD })).toEqual({ sent: 0, gone: 0 })
+    expect(record.delivered).toEqual([])
+  })
+
   it('sends one notification to every device when no client is in front', async () => {
     const { graph, record } = notifyGraphOf({
       devices: [deviceOf(), deviceOf({ id: 'device-2', token: 'https://push.example/endpoint-2' })],

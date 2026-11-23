@@ -15,7 +15,7 @@ import {
   webPushTransport,
   type PresenceHash,
 } from '@dltech/atlas-notifications/server'
-import type { NotifyPresence } from '@dltech/atlas-core'
+import { decodeSettingValue, type NotifyPresence, type SettingScalar } from '@dltech/atlas-core'
 
 export type NotifySessionRow = { userId: string; title: string | null; readSeq: number | null }
 
@@ -27,6 +27,7 @@ export type NotifyGraph = {
     remove(args: { deviceId: string }): Promise<void>
   }
   presence: { read(args: { userId: string; now: string }): Promise<NotifyPresence[]> }
+  settings: { read(args: { userId: string }): Promise<ReadonlyMap<string, SettingScalar>> }
   transports: Partial<Record<ENotifyDeviceKind, NotificationTransport>>
   now(): string
   dispose(): Promise<void>
@@ -108,6 +109,12 @@ export const buildNotifyGraph = (
       },
     },
     presence: redis === null ? { read: async () => [] } : presenceOf(redis),
+    settings: {
+      read: async (args) => {
+        const rows = await db.orm.public.UserSetting.where({ userId: args.userId }).all()
+        return new Map(rows.map((row) => [row.key, decodeSettingValue(row.value)]))
+      },
+    },
     transports: transportsOf(env),
     now: () => new Date().toISOString(),
     dispose: async () => {
