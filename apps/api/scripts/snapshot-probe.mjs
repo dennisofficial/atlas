@@ -11,12 +11,12 @@ const PATHS = [
 const TIMEOUT = 240_000
 
 const creds = {
-  token: process.env.VERCEL_TOKEN,
-  teamId: process.env.VERCEL_TEAM_ID,
-  projectId: process.env.VERCEL_PROJECT_ID,
+  token: process.env.PLATFORM_VERCEL_TOKEN,
+  teamId: process.env.PLATFORM_VERCEL_TEAM_ID,
+  projectId: process.env.PLATFORM_VERCEL_PROJECT_ID,
 }
 if (!creds.token || !creds.teamId || !creds.projectId) {
-  console.error('PROBE-FAIL missing VERCEL_TOKEN/TEAM_ID/PROJECT_ID env')
+  console.error('PROBE-FAIL missing PLATFORM_VERCEL_TOKEN/TEAM_ID/PROJECT_ID env')
   process.exit(1)
 }
 
