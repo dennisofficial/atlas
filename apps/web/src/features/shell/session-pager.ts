@@ -112,11 +112,15 @@ export function createSessionPager(args: {
     args.emit(snapshot)
   }
 
-  const loadV1Page = async (
-    mine: number,
-    term: string,
-    cursor: string | undefined,
-  ): Promise<void> => {
+  const loadV1Page = async ({
+    mine,
+    term,
+    cursor,
+  }: {
+    mine: number
+    term: string
+    cursor: string | undefined
+  }): Promise<void> => {
     try {
       const result = await args.loadV1({
         bucket: args.bucket,
@@ -138,11 +142,15 @@ export function createSessionPager(args: {
     }
   }
 
-  const loadV2Page = async (
-    mine: number,
-    term: string,
-    cursor: string | undefined,
-  ): Promise<void> => {
+  const loadV2Page = async ({
+    mine,
+    term,
+    cursor,
+  }: {
+    mine: number
+    term: string
+    cursor: string | undefined
+  }): Promise<void> => {
     try {
       const result = await args.loadV2({
         bucket: v2BucketOf(args.bucket),
@@ -171,7 +179,10 @@ export function createSessionPager(args: {
     v2 = EMPTY_SOURCE
     inflight = 2
     publish()
-    await Promise.all([loadV1Page(mine, term, undefined), loadV2Page(mine, term, undefined)])
+    await Promise.all([
+      loadV1Page({ mine, term, cursor: undefined }),
+      loadV2Page({ mine, term, cursor: undefined }),
+    ])
     if (mine !== generation) return
     inflight = 0
     publish()
@@ -185,8 +196,8 @@ export function createSessionPager(args: {
     inflight += (v1Cursor === null ? 0 : 1) + (v2Cursor === null ? 0 : 1)
     publish()
     await Promise.all([
-      v1Cursor === null ? Promise.resolve() : loadV1Page(mine, term, v1Cursor),
-      v2Cursor === null ? Promise.resolve() : loadV2Page(mine, term, v2Cursor),
+      v1Cursor === null ? Promise.resolve() : loadV1Page({ mine, term, cursor: v1Cursor }),
+      v2Cursor === null ? Promise.resolve() : loadV2Page({ mine, term, cursor: v2Cursor }),
     ])
     if (mine !== generation) return
     inflight = 0

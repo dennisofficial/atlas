@@ -1,5 +1,5 @@
 import type { ControlPlane } from '@dltech/atlas-control'
-import { sessionSummaryOf } from '@dltech/atlas-control'
+import { MAX_SESSION_LIST_LIMIT, sessionSummaryOf } from '@dltech/atlas-control'
 import {
   ESessionPageBucket,
   SESSION_INACTIVE_AFTER_MS,
@@ -9,7 +9,7 @@ import {
 import { BadRequestException } from '@nestjs/common'
 
 export const BUCKET_PAGE_DEFAULT_LIMIT = 20
-export const BUCKET_PAGE_MAX_LIMIT = 100
+export const BUCKET_PAGE_MAX_LIMIT = MAX_SESSION_LIST_LIMIT - 1
 
 const CURSOR_SEPARATOR = '|'
 
