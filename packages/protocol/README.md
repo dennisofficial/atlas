@@ -64,6 +64,11 @@ groups `changes.*`, `git.*`, `mcp.*`, `metrics.*`, `previews.*`, `services.*`, `
   `filesReadInputSchema` also take an optional `root`: `EFilesRoot.Context` resolves the path inside
   the session's context folder instead of any checkout.
 
+### Read a service's log
+
+- `servicesLogInputSchema`, `servicesLogOutputSchema`: the session and service, and the last 64 KiB
+  of that service's log as `text`, with `truncated` set when earlier output was dropped.
+
 ### Speak the session API
 
 - `sessionListInputSchema`, `sessionSummarySchema`, `sessionListOutputSchema`: the session list.

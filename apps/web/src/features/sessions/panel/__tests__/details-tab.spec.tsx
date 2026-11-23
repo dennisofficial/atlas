@@ -4,13 +4,20 @@ import { renderToStaticMarkup } from 'react-dom/server'
 
 import { createTestQueryClient, TestQueryProvider } from '@/lib/__tests__/query-test-provider'
 
+import { contextDirectoryKey } from '../../data/context-files'
 import { SessionDetailsTab } from '../details-tab'
 import { SessionPaneProvider, type SessionPaneValue } from '../pane-value'
-import { paneValueFixture, populatedPaneValue, previewFixture } from './fixture'
+import { paneValueFixture, populatedPaneValue, serviceRowFixture } from './fixture'
+
+const client = (value: SessionPaneValue) => {
+  const created = createTestQueryClient()
+  created.setQueryData(contextDirectoryKey({ sessionId: value.sessionId, directory: '' }), [])
+  return created
+}
 
 const render = (value: SessionPaneValue): string =>
   renderToStaticMarkup(
-    <TestQueryProvider client={createTestQueryClient()}>
+    <TestQueryProvider client={client(value)}>
       <SessionPaneProvider value={value}>
         <SessionDetailsTab />
       </SessionPaneProvider>
@@ -19,13 +26,15 @@ const render = (value: SessionPaneValue): string =>
 
 const rowsIn = (html: string): number => html.match(/data-pane-row/g)?.length ?? 0
 
-const previewsOf = (count: number) =>
-  Array.from({ length: count }, (_, index) => ({
-    ...previewFixture,
-    serviceId: `svc-${index + 1}`,
-    label: `web-${index + 1}`,
-    port: 4300 + index + 1,
-  }))
+const serviceRowsOf = (count: number) =>
+  Array.from({ length: count }, (_, index) =>
+    serviceRowFixture({
+      serviceId: `svc-${index + 1}`,
+      name: `web-${index + 1}`,
+      port: 4300 + index + 1,
+      url: `https://${4301 + index}-abc.byatlas.dev`,
+    }),
+  )
 
 describe('SessionDetailsTab', () => {
   it('reads every section from the streamed view', () => {
@@ -42,7 +51,7 @@ describe('SessionDetailsTab', () => {
     expect(html).toContain('aria-label="Sub-agents"')
     expect(html).toContain('work the branch')
     expect(html).toContain('map the seam')
-    expect(html).toContain('aria-label="Shells"')
+    expect(html).toContain('aria-label="Background"')
     expect(html).toContain('tick 1')
   })
 
@@ -86,8 +95,22 @@ describe('SessionDetailsTab', () => {
     expect(render(paneValueFixture())).not.toContain('data-session-spend')
   })
 
-  it('has no todo section without a plan', () => {
-    expect(render(populatedPaneValue())).not.toContain('aria-label="Todo"')
+  it('shows every section heading with an empty line when nothing streamed', () => {
+    const html = render(paneValueFixture())
+    expect(html).toContain('aria-label="Todo"')
+    expect(html).toContain('No plan yet')
+    expect(html).toContain('aria-label="Pull requests"')
+    expect(html).toContain('No pull requests yet')
+    expect(html).toContain('aria-label="Context"')
+    expect(html).toContain('No context files yet')
+    expect(html).toContain('aria-label="Subscriptions"')
+    expect(html).toContain('No subscriptions')
+    expect(html).toContain('aria-label="Services"')
+    expect(html).toContain('No services running')
+    expect(html).toContain('aria-label="Sub-agents"')
+    expect(html).toContain('No sub-agents yet')
+    expect(html).toContain('aria-label="Background"')
+    expect(html).toContain('Nothing running in the background')
   })
 
   it('drops the checkout lines and the GitHub section', () => {
@@ -105,8 +128,8 @@ describe('SessionDetailsTab', () => {
     expect(html).toContain('Add the session pane')
   })
 
-  it('has no subscriptions section when the session follows nothing', () => {
-    expect(render(paneValueFixture())).not.toContain('aria-label="Subscriptions"')
+  it('says nothing is followed when the session follows nothing', () => {
+    expect(render(paneValueFixture())).toContain('No subscriptions')
   })
 
   it('leaves an empty slot for the todo section above the lists', () => {
@@ -121,15 +144,11 @@ describe('SessionDetailsTab', () => {
     expect(html).toContain('data-session-summary')
     expect(html).toContain('data-session-todo-slot')
     expect(html).not.toContain('role="switch"')
-    expect(html).not.toContain('aria-label="Pull requests"')
-    expect(html).not.toContain('aria-label="Services"')
-    expect(html).not.toContain('aria-label="Shells"')
-    expect(html).not.toContain('aria-label="Sub-agents"')
   })
 
   it('shows three rows and a Show all control when a list is longer', () => {
     const html = render(
-      paneValueFixture({ view: { ...paneValueFixture().view, previews: previewsOf(5) } }),
+      paneValueFixture({ view: { ...paneValueFixture().view, serviceRows: serviceRowsOf(5) } }),
     )
     expect(rowsIn(html)).toBe(3)
     expect(html).toContain('Show all (5)')
@@ -139,7 +158,7 @@ describe('SessionDetailsTab', () => {
 
   it('omits the Show all control at exactly three rows', () => {
     const html = render(
-      paneValueFixture({ view: { ...paneValueFixture().view, previews: previewsOf(3) } }),
+      paneValueFixture({ view: { ...paneValueFixture().view, serviceRows: serviceRowsOf(3) } }),
     )
     expect(rowsIn(html)).toBe(3)
     expect(html).not.toContain('Show all')

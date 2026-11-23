@@ -5,9 +5,15 @@ import {
   type CrewRoster,
   type CrewRow,
 } from '@dltech/atlas-plugin-crew/client'
-import { previewsOfView, type PreviewItem } from '@dltech/atlas-plugin-services/client'
+import {
+  previewsOfView,
+  servicesOfView,
+  type PreviewItem,
+} from '@dltech/atlas-plugin-services/client'
+import type { ServiceRow } from '@dltech/atlas-plugin-services/core'
 import { planOfView } from '@dltech/atlas-plugin-sessions/client'
-import { shellRosterOf, type ShellRoster } from '@dltech/atlas-plugin-shells/client'
+import { shellRosterOf, shellsOfView, type ShellRoster } from '@dltech/atlas-plugin-shells/client'
+import type { ShellRow } from '@dltech/atlas-plugin-shells/core'
 import type { SessionSummary, SessionViewOutput } from '@dltech/atlas-protocol'
 
 import type { PullRequestEntry } from '@/features/threads/data/pull-request-entries'
@@ -27,6 +33,8 @@ export type SessionViewModel = {
   entries: PullRequestEntry[]
   subscriptionRows: readonly SubscriptionRow[]
   shells: ShellRoster
+  shellRows: readonly ShellRow[]
+  serviceRows: readonly ServiceRow[]
   crew: CrewRoster
   crewRows: readonly CrewRow[]
   previews: readonly PreviewItem[]
@@ -86,6 +94,23 @@ export const contextOfView = (view: SessionViewOutput): SessionContextModel | nu
   return { used: context.used, limit: context.window }
 }
 
+const RUNNING_FIRST = (status: string): number => (status === 'running' ? 0 : 1)
+
+const newestFirst = (left: { changedAt: string }, right: { changedAt: string }): number =>
+  right.changedAt.localeCompare(left.changedAt)
+
+export const orderedShellRows = (rows: readonly ShellRow[]): readonly ShellRow[] =>
+  [...rows].sort(
+    (left, right) =>
+      RUNNING_FIRST(left.status) - RUNNING_FIRST(right.status) || newestFirst(left, right),
+  )
+
+export const orderedServiceRows = (rows: readonly ServiceRow[]): readonly ServiceRow[] =>
+  [...rows].sort(
+    (left, right) =>
+      RUNNING_FIRST(left.status) - RUNNING_FIRST(right.status) || newestFirst(left, right),
+  )
+
 export const shellTailTextOf = (
   shells: Readonly<Record<string, { text: string }>>,
 ): Record<string, string> =>
@@ -98,6 +123,8 @@ export const sessionViewModelOf = (view: SessionViewOutput | undefined): Session
       entries: [],
       subscriptionRows: [],
       shells: { running: 0, awaitingInput: false, labels: [], rows: [] },
+      shellRows: [],
+      serviceRows: [],
       crew: { running: 0, total: 0 },
       crewRows: [],
       previews: [],
@@ -118,6 +145,8 @@ export const sessionViewModelOf = (view: SessionViewOutput | undefined): Session
       pullRequests: entries,
     }),
     shells: shellRosterOf(view.pluginViews),
+    shellRows: orderedShellRows(shellsOfView(view.pluginViews)),
+    serviceRows: orderedServiceRows(servicesOfView(view.pluginViews)),
     crew: crewRosterOf(view.pluginViews),
     crewRows: crewOfView(view.pluginViews),
     previews: previewsOfView(view.pluginViews),

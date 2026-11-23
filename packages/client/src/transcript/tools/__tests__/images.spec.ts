@@ -128,6 +128,32 @@ describe('the bytes and the refusal a read carries', () => {
   })
 })
 
+describe('a generated picture', () => {
+  const generated = aCall({
+    name: 'image_generate',
+    input: { prompt: 'a lighthouse at dusk' },
+    output: {
+      path: `${CWD}/generated-images/lighthouse.png`,
+      mediaType: 'image/png',
+      byteLength: 412 * 1024,
+      width: 1306,
+      height: 816,
+      inlined: true,
+      model: 'google/gemini-3.1-flash-image',
+    },
+    modelText: `${CWD}/generated-images/lighthouse.png — image/png, 1306×816, 412 KB.`,
+  })
+
+  it('gets the picture renderer with its own verb', () => {
+    const classified = classify({ call: generated, cwd: CWD })
+
+    expect(classified.detail).toBe(EDetail.Image)
+    expect(classified.line).toBe('generated-images/lighthouse.png')
+    expect(classified.alone).toBe('Generated generated-images/lighthouse.png')
+    expect(classified.note).toBe('1306×816')
+  })
+})
+
 describe('a read that came back as text', () => {
   const textRead = aCall({
     name: 'read',

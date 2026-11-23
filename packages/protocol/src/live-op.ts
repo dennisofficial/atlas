@@ -24,6 +24,7 @@ export const CP_POD_OPS = [
   'terminal.read',
   'metrics.subscribe',
   'metrics.unsubscribe',
+  'services.log',
 ] as const
 
 export const LIVE_OP_MAX_BYTES = 1_048_576

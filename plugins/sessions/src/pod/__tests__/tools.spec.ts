@@ -94,6 +94,7 @@ const rig = (
       webSearch: {
         config: async () => ({ backend: undefined, key: undefined }),
       },
+      gateway: { apiKey: async () => undefined },
       routines: EMPTY_ROUTINES,
       subscriptions: EMPTY_SUBSCRIPTIONS,
       memory: {

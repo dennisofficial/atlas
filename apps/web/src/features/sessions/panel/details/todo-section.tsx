@@ -6,7 +6,7 @@ import { CheckIcon, ChevronDownIcon, CircleDashedIcon, CircleIcon } from 'lucide
 import type { ReactNode } from 'react'
 import { useState } from 'react'
 
-import { Row } from './rows'
+import { EmptyLine, Row, SectionHead } from './rows'
 
 const GLYPH: Record<EPlanStatus, ReactNode> = {
   [EPlanStatus.Completed]: (
@@ -37,7 +37,13 @@ const GLYPH: Record<EPlanStatus, ReactNode> = {
 
 export function SessionTodoSection(props: { tasks: readonly PlanTask[] }) {
   const [open, setOpen] = useState(false)
-  if (props.tasks.length === 0) return null
+  if (props.tasks.length === 0)
+    return (
+      <section data-session-todo aria-label="Todo" className="flex flex-col">
+        <SectionHead title="Todo" />
+        <EmptyLine>No plan yet</EmptyLine>
+      </section>
+    )
 
   const done = props.tasks.filter((task) => task.status === EPlanStatus.Completed).length
   const current = props.tasks.find((task) => task.status === EPlanStatus.InProgress)
