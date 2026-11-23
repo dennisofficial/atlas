@@ -7,6 +7,7 @@ import { describeHandoff, waitUntil, type HandoffContext } from '../../testing/h
 import type { HostProcess, ReadEvent } from '../../testing/fault-rig'
 
 const BG_CALL_ID = 'bg1'
+const HOLD_CALL_ID = 'hold1'
 
 const NOTIFY_FILE = 'notify.jsonl'
 
@@ -60,6 +61,7 @@ describeHandoff({
     const started = ctx.path('started')
     const runs = ctx.path('runs')
     const gate = ctx.gate('gate')
+    const hold = ctx.gate('hold')
     ctx.path(NOTIFY_FILE)
     const command = `touch ${started}; echo run >> ${runs}; cat ${gate}; echo done`
     const hostA = await ctx.rig.spawnHost({
@@ -79,6 +81,16 @@ describeHandoff({
             ],
           },
           { text: 'host a finished while the shell runs' },
+          {
+            calls: [
+              {
+                callId: HOLD_CALL_ID,
+                name: 'bash',
+                input: { description: 'hold the woken turn', command: `cat ${hold}` },
+              },
+            ],
+          },
+          { text: 'the woken turn finished on host a' },
         ],
       },
     })
@@ -88,6 +100,15 @@ describeHandoff({
       what: 'the turn to end with its held push',
       check: async () => heldRowsOf(ctx).length === 1,
     })
+    const beats = ctx.rig.panelBeats({ sessionId: ctx.sessionId, ttlMs: 60_000, everyMs: 250 })
+    await ctx.rig.waitHeldBy({ sessionId: ctx.sessionId, label: 'host-a', timeoutMs: 30_000 })
+    await ctx.release('gate')
+    await waitUntil({
+      what: 'the shell end to wake a turn that blocks on the hold',
+      check: async () =>
+        (await rowsOf({ ctx, type: 'tool-dispatched', callId: HOLD_CALL_ID })).length === 1,
+    })
+    await beats.stop()
     return hostA
   },
 
@@ -97,13 +118,14 @@ describeHandoff({
     expect(held[0]?.holdMs).toBeGreaterThan(0)
     expect(held[0]?.pending).toEqual([EPendingWork.Shell])
     expect(held[0]?.moment).toBe(ENotifyMoment.TurnFinished)
-    expect(held[0]?.operatorTurn).toBe(false)
+    expect(held[0]?.operatorTurn).toBe(true)
     expect(await startedRows(ctx)).toHaveLength(1)
-    expect(await endedRows(ctx)).toHaveLength(0)
+    expect(await endedRows(ctx)).toHaveLength(1)
+    expect(await rowsOf({ ctx, type: 'tool-dispatched', callId: HOLD_CALL_ID })).toHaveLength(1)
   },
 
   async release(ctx) {
-    await ctx.release('gate')
+    await ctx.release('hold')
   },
 
   async settled(ctx) {
@@ -119,6 +141,7 @@ describeHandoff({
     expect(sent[0]?.pending).toEqual([])
     expect(sent[0]?.seq).toBeGreaterThan(held[0]?.seq ?? 0)
     expect(await endedRows(ctx)).toHaveLength(1)
+    expect(await startedRows(ctx)).toHaveLength(1)
   },
 
   async runs(ctx) {
