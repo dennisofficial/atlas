@@ -88,6 +88,7 @@ import {
   setSessionPodDesiredIn,
   setSessionPodDiskIn,
   setSessionPodFailedIn,
+  setSessionPodWaitCancelledIn,
   setSessionPodWaitingIn,
   setSessionTitleIfUntitledIn,
   setSessionTitleIn,
@@ -242,6 +243,16 @@ export class PostgresTx implements ControlTx {
       sessionId: params.sessionId,
       generation: params.generation,
       since: params.since,
+    })
+  }
+
+  async setSessionPodWaitCancelled(params: Parameters<ControlTx['setSessionPodWaitCancelled']>[0]) {
+    return setSessionPodWaitCancelledIn({
+      tx: this.tx,
+      sessionId: params.sessionId,
+      generation: params.generation,
+      vcpus: params.vcpus,
+      memoryGb: params.memoryGb,
     })
   }
 

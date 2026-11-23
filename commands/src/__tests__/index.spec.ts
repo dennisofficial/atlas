@@ -3,12 +3,13 @@ import { composeCommands, EClientAction, ECommandRunsIn } from '@dltech/atlas-co
 
 import { help, model, nativeCommandHandlers, nativeCommands, nativeControlHandlers } from '..'
 
-const CONTROL_HANDLERS_IN_API = new Set(['resize'])
+const CONTROL_HANDLERS_IN_API = new Set(['resize', 'cancel-resize'])
 
 describe('native commands', () => {
   it('compose into a registry without a duplicate', () => {
     const registry = composeCommands(nativeCommands)
     expect([...registry.byName.keys()].sort()).toEqual([
+      'cancel-resize',
       'help',
       'model',
       'rename',

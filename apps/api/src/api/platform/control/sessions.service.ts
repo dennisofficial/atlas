@@ -8,7 +8,7 @@ import {
   Optional,
 } from '@nestjs/common'
 import type { CommandRegistry } from '@dltech/atlas-commands'
-import { resize } from '@dltech/atlas-native-commands'
+import { cancelResize, resize } from '@dltech/atlas-native-commands'
 import {
   ControlPlane,
   emptyDigestTimings,
@@ -601,6 +601,7 @@ export class SessionsService {
       controlHandlers: new Map([
         ...modelSetHandlers({ plane: this.plane, session }),
         [resize.spec.name, this.podSizing.resizeHandler()],
+        [cancelResize.spec.name, this.podSizing.cancelHandler()],
       ]),
       ...args,
     })

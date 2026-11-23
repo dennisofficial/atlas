@@ -46,7 +46,10 @@ describe('SessionsService blob reads', () => {
       new FakeMediaRegistry(),
       new FakeMediaStore(),
       composeCommands([]),
-      { resizeHandler: () => async () => undefined },
+      {
+        resizeHandler: () => async () => undefined,
+        cancelHandler: () => async () => undefined,
+      },
       { sleep: async () => ({ state: 'sleeping' }), parkArchived: async () => undefined },
       new NoJobsDispatcher(),
     )

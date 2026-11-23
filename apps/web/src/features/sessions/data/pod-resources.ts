@@ -23,3 +23,10 @@ export const resizePod = async (args: {
     },
   })
 }
+
+export const cancelPodResize = async (args: {
+  api: PodResizeApi
+  sessionId: string
+}): Promise<void> => {
+  await args.api.command({ sessionId: args.sessionId, name: 'cancel-resize', args: {} })
+}

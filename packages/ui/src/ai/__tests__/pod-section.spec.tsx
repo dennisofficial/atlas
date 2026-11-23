@@ -1,5 +1,5 @@
 import { GlobalRegistrator } from '@happy-dom/global-registrator'
-import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
+import { afterAll, beforeAll, describe, expect, it, mock } from 'bun:test'
 import { act } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 
@@ -62,6 +62,12 @@ function growButtonOf(html: string): string {
   const button = html.match(/<button[^>]*aria-label="Increase disk"[^>]*>/)?.[0]
   if (button === undefined) throw new Error('the grow control did not render')
   return button
+}
+
+function sizeTriggerOf(html: string): string {
+  const trigger = html.match(/<button[^>]*aria-label="Pod size"[^>]*>/)?.[0]
+  if (trigger === undefined) throw new Error('the size control did not render')
+  return trigger
 }
 
 describe('pod section header', () => {
@@ -310,6 +316,96 @@ describe('pod size control', () => {
     expect(htmlOf({ state: EPodState.Starting })).toContain('disabled')
     expect(htmlOf({ pendingShape: { vcpus: 8, memoryGb: 64 } })).toContain('disabled')
     expect(htmlOf({ state: EPodState.Stopped })).toContain('disabled')
+  })
+})
+
+describe('pod resize waiting', () => {
+  beforeAll(() => {
+    GlobalRegistrator.register()
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
+  })
+
+  afterAll(async () => {
+    await GlobalRegistrator.unregister()
+  })
+
+  const WAITING: Partial<PodSectionProps> = {
+    pendingShape: { vcpus: 8, memoryGb: 64 },
+    resizeWaiting: true,
+  }
+
+  const mount = async (props: Partial<PodSectionProps> = {}) => {
+    const { createRoot } = await import('react-dom/client')
+    const container = document.createElement('div')
+    document.body.append(container)
+    const root = createRoot(container)
+    await act(async () => root.render(<PodSection {...BASE} {...WAITING} {...props} />))
+    return { container, unmount: () => act(async () => root.unmount()) }
+  }
+
+  const buttonNamed = (container: HTMLElement, name: string) =>
+    [...container.querySelectorAll('button')].find((button) => button.textContent?.includes(name))
+
+  const click = (button: Element | null | undefined) =>
+    act(async () => {
+      button?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+    })
+
+  it('reads the wait instead of a resize in flight in the header', () => {
+    const html = htmlOf(WAITING)
+    expect(html).toContain('Waiting for idle…')
+    expect(html).not.toContain('Resizing…')
+    expect(html).toContain('aria-label="Waiting to resize pod"')
+  })
+
+  it('names the size it will move to and keeps the size control locked', () => {
+    const html = htmlOf(WAITING)
+    expect(html).toContain('Resizes to 8 vCPU · 64 GB when the pod is idle.')
+    expect(sizeTriggerOf(html)).toContain('disabled')
+  })
+
+  it('sends the resize at once and the cancel when pressed', async () => {
+    const onResizeNow = mock(() => Promise.resolve())
+    const onCancelResize = mock(() => Promise.resolve())
+    const view = await mount({ onResizeNow, onCancelResize })
+    await click(buttonNamed(view.container, 'Resize now'))
+    expect(onResizeNow).toHaveBeenCalledTimes(1)
+    await click(buttonNamed(view.container, 'Cancel'))
+    expect(onCancelResize).toHaveBeenCalledTimes(1)
+    await view.unmount()
+  })
+
+  it('disables both actions and spins the pressed one while it runs', async () => {
+    let settle: () => void = () => undefined
+    const onResizeNow = mock(
+      () =>
+        new Promise<void>((resolve) => {
+          settle = resolve
+        }),
+    )
+    const view = await mount({ onResizeNow, onCancelResize: mock(() => Promise.resolve()) })
+    await click(buttonNamed(view.container, 'Resize now'))
+    const resizeNow = buttonNamed(view.container, 'Resize now')
+    const cancel = buttonNamed(view.container, 'Cancel')
+    expect(resizeNow?.disabled).toBe(true)
+    expect(cancel?.disabled).toBe(true)
+    expect(resizeNow?.querySelector('[data-slot="spinner"]')).not.toBeNull()
+    expect(cancel?.querySelector('[data-slot="spinner"]')).toBeNull()
+    await act(async () => settle())
+    expect(buttonNamed(view.container, 'Resize now')?.disabled).toBe(false)
+    await view.unmount()
+  })
+
+  it('shows why the server refused the resize', async () => {
+    const onResizeNow = mock(() =>
+      Promise.reject(new Error('No resize is waiting for the pod to go idle')),
+    )
+    const view = await mount({ onResizeNow, onCancelResize: mock(() => Promise.resolve()) })
+    await click(buttonNamed(view.container, 'Resize now'))
+    expect(view.container.querySelector('.text-destructive')?.textContent).toContain(
+      'No resize is waiting for the pod to go idle',
+    )
+    await view.unmount()
   })
 })
 
