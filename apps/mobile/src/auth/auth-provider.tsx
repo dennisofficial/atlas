@@ -20,6 +20,7 @@ import { fetchSession, revokeSession, signInWithPassword } from './session'
 import { EHandoffResult, runHandoffSignIn } from './sign-in-flow'
 import { createPendingRevokeStorage, createTokenStore } from './token-store'
 import { clearSettingsCache } from '../settings/settings-storage'
+import { installClientId } from '../storage/install-client-id'
 import { clearSessionLog } from '../thread/v2/session-cache'
 import { XhrEventSource } from '../thread/v2/xhr-event-source'
 
@@ -60,7 +61,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const store = useMemo(() => createTokenStore(), [])
   const [snapshot, dispatch] = useReducer(authReducer, initialAuthSnapshot)
   const [appleSignInAvailable, setAppleSignInAvailable] = useState(false)
-  const pushTokenRef = useRef<string | undefined>(undefined)
+  const pushDeviceRef = useRef<string | undefined>(undefined)
   const pendingRevokes = useMemo(() => createPendingRevokeStorage(), [])
 
   useEffect(() => {
@@ -117,9 +118,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (snapshot.state !== EAuthState.SignedIn || api === undefined) return
     let cancelled = false
     const register = async () => {
-      const result = await registerPushDevice({ pushApi: createPushApi({ client: api }) })
+      const clientId = await installClientId()
+      const result = await registerPushDevice({
+        pushApi: createPushApi({ client: api }),
+        clientId,
+      })
       if (result.status === 'registered') {
-        pushTokenRef.current = result.token
+        pushDeviceRef.current = result.deviceId
       } else if (!cancelled) {
         console.warn(`[push] registration skipped: ${result.reason}`)
       }
@@ -198,16 +203,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signOut = async () => {
     const bearer = snapshot.token
-    const pushToken = pushTokenRef.current
-    pushTokenRef.current = undefined
+    const pushDeviceId = pushDeviceRef.current
+    pushDeviceRef.current = undefined
     dispatch({ type: EAuthEvent.SignOut })
     await store.clear()
     await Promise.all([clearSessionLog(), clearSettingsCache()])
     if (bearer === undefined) return
-    if (pushToken !== undefined) {
+    if (pushDeviceId !== undefined) {
       const client = createApiClient({ baseUrl: apiOrigin, token: bearer })
       await createPushApi({ client })
-        .unregister({ token: pushToken })
+        .unregister({ deviceId: pushDeviceId })
         .catch(() => undefined)
     }
     await revokeOrPersist({ storage: pendingRevokes, revoke: revokeBearer, token: bearer })

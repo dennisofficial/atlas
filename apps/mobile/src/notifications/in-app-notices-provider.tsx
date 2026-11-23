@@ -11,6 +11,7 @@ import { router, usePathname } from 'expo-router'
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 
 import { useAuth } from '../auth/auth-provider'
+import { dismissPresentedRead } from '../push/notification-handler'
 import { sessionStream } from '../thread/v2/session-stream'
 import { InAppBanner } from './in-app-banner'
 import { openSessionOf } from './open-session-of'
@@ -38,6 +39,18 @@ export const InAppNoticesProvider = ({ children }: { children: ReactNode }) => {
 
   const rows = useMemo(() => (live ?? []).map(inAppRowOf), [live])
   const rowMap = useMemo(() => new Map(rows.map((row) => [row.sessionId, row])), [rows])
+  const readSeqs = useMemo(() => {
+    const entries: [string, number][] = []
+    for (const row of rows) {
+      if (row.readSeq !== null) entries.push([row.sessionId, row.readSeq])
+    }
+    return new Map(entries)
+  }, [rows])
+
+  useEffect(() => {
+    if (!focused) return
+    void dismissPresentedRead(readSeqs).catch(() => undefined)
+  }, [focused, readSeqs])
 
   useEffect(() => {
     const notices = inAppNoticesOf({

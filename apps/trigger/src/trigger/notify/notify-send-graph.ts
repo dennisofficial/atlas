@@ -1,40 +1,55 @@
 import Redis from 'ioredis'
 import { db } from '@dltech/atlas-db'
-import { ENotifyDeviceKind } from '@dltech/atlas-notifications'
+import {
+  ENotifyDeviceKind,
+  type AtlasNotification,
+  type NotificationTransport,
+  type NotifyDevice,
+  type NotifyResult,
+} from '@dltech/atlas-notifications'
 import { notifyDeviceKindSchema } from '@dltech/atlas-wire'
 import {
+  expoTransport,
   readPresence,
   webPushTransport,
   type PresenceHash,
 } from '@dltech/atlas-notifications/server'
 import type { NotifyPresence } from '@dltech/atlas-core'
-import type { NotificationTransport, NotifyDevice, NotifyResult } from '@dltech/atlas-notifications'
 
 export type NotifySessionRow = { userId: string; title: string | null; readSeq: number | null }
 
 export type NotifyGraph = {
   session: { read(args: { sessionId: string }): Promise<NotifySessionRow | null> }
   devices: {
-    listEnabled(args: { userId: string; kind: ENotifyDeviceKind }): Promise<NotifyDevice[]>
+    listEnabled(args: { userId: string }): Promise<NotifyDevice[]>
     touch(args: { deviceId: string; now: string }): Promise<void>
     remove(args: { deviceId: string }): Promise<void>
   }
   presence: { read(args: { userId: string; now: string }): Promise<NotifyPresence[]> }
-  transport: NotificationTransport
+  transports: Partial<Record<ENotifyDeviceKind, NotificationTransport>>
   now(): string
   dispose(): Promise<void>
 }
 
 const vapidOf = (env: Record<string, string | undefined>) => {
-  const publicKey = env['WEB_PUSH_PUBLIC_KEY']
-  const privateKey = env['WEB_PUSH_PRIVATE_KEY']
-  const subject = env['WEB_PUSH_SUBJECT']
-  if (publicKey === undefined || privateKey === undefined || subject === undefined) {
-    throw new Error(
-      'WEB_PUSH_PUBLIC_KEY, WEB_PUSH_PRIVATE_KEY and WEB_PUSH_SUBJECT must be set in the worker tier; notifications cannot be signed without them',
-    )
-  }
+  const publicKey = absent(env['WEB_PUSH_PUBLIC_KEY'])
+  const privateKey = absent(env['WEB_PUSH_PRIVATE_KEY'])
+  const subject = absent(env['WEB_PUSH_SUBJECT'])
+  if (publicKey === undefined || privateKey === undefined || subject === undefined) return null
   return { publicKey, privateKey, subject }
+}
+
+const absent = (value: string | undefined): string | undefined =>
+  value === undefined || value === '' ? undefined : value
+
+export const transportsOf = (
+  env: Record<string, string | undefined>,
+): Partial<Record<ENotifyDeviceKind, NotificationTransport>> => {
+  const vapid = vapidOf(env)
+  return {
+    [ENotifyDeviceKind.Expo]: expoTransport({ accessToken: absent(env['EXPO_ACCESS_TOKEN']) }),
+    ...(vapid === null ? {} : { [ENotifyDeviceKind.WebPush]: webPushTransport({ vapid }) }),
+  }
 }
 
 const redisOf = (url: string | undefined): Redis | null =>
@@ -60,10 +75,7 @@ export const buildNotifyGraph = (
     },
     devices: {
       listEnabled: async (args) => {
-        const rows = await db.orm.v2.V2PushDevice.where({
-          userId: args.userId,
-          kind: args.kind,
-        }).all()
+        const rows = await db.orm.v2.V2PushDevice.where({ userId: args.userId }).all()
         return rows
           .filter((row) => row.disabledAt === null)
           .map((row) => ({
@@ -83,7 +95,7 @@ export const buildNotifyGraph = (
       },
     },
     presence: redis === null ? { read: async () => [] } : presenceOf(redis),
-    transport: webPushTransport({ vapid: vapidOf(env) }),
+    transports: transportsOf(env),
     now: () => new Date().toISOString(),
     dispose: async () => {
       if (redis !== null) await redis.quit()
@@ -98,6 +110,23 @@ export const withNotifyGraph = async <T>(work: (graph: NotifyGraph) => Promise<T
   } finally {
     await graph.dispose()
   }
+}
+
+export const deliverToKinds = async (args: {
+  graph: NotifyGraph
+  devices: readonly NotifyDevice[]
+  notification: AtlasNotification
+}): Promise<readonly NotifyResult[]> => {
+  const kinds = [...new Set(args.devices.map((device) => device.kind))]
+  const delivered = await Promise.all(
+    kinds.map((kind) => {
+      const transport = args.graph.transports[kind]
+      const ofKind = args.devices.filter((device) => device.kind === kind)
+      if (transport === undefined || ofKind.length === 0) return Promise.resolve([])
+      return transport.deliver({ devices: ofKind, notification: args.notification })
+    }),
+  )
+  return delivered.flat()
 }
 
 export const settleDevices = async (args: {

@@ -10,3 +10,9 @@ export type NotifyDevice = {
   token: string
   secret: string | null
 }
+
+export const NOTIFY_DATA_SESSION_KEY = 'sessionId'
+
+export const NOTIFY_DATA_SEQ_KEY = 'seq'
+
+export const NOTIFY_DATA_CLEAR_SESSION_KEY = 'clearSessionId'

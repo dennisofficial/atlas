@@ -6,10 +6,15 @@ import {
   type NotifySendOutput,
   type NotifySendPayload,
 } from '@dltech/atlas-jobs/notify'
-import { ENotifyDeviceKind } from '@dltech/atlas-notifications'
 import { schemaTask } from '@trigger.dev/sdk'
 import '../init'
-import { countsOf, settleDevices, withNotifyGraph, type NotifyGraph } from './notify-send-graph'
+import {
+  countsOf,
+  deliverToKinds,
+  settleDevices,
+  withNotifyGraph,
+  type NotifyGraph,
+} from './notify-send-graph'
 
 export const NOTIFY_SEND_MAX_DURATION_SECONDS = 30
 
@@ -25,10 +30,7 @@ export const runNotifySend = async (args: {
 
   const now = graph.now()
   const presence = await graph.presence.read({ userId: session.userId, now })
-  const devices = await graph.devices.listEnabled({
-    userId: session.userId,
-    kind: ENotifyDeviceKind.WebPush,
-  })
+  const devices = await graph.devices.listEnabled({ userId: session.userId })
   const plan = notifyPlanOf({
     facts: {
       moment: payload.moment,
@@ -45,7 +47,7 @@ export const runNotifySend = async (args: {
   })
   if (plan === null || plan.mode !== ENotifyMode.Push) return NO_NOTIFY_OUTPUT
 
-  const results = await graph.transport.deliver({ devices, notification: plan.notification })
+  const results = await deliverToKinds({ graph, devices, notification: plan.notification })
   await settleDevices({ graph, results, now })
   return countsOf(results)
 }

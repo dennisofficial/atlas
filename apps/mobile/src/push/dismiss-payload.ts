@@ -1,21 +1,26 @@
-import { DISMISS_THREAD_DATA_KEY } from '@dltech/atlas-wire/web'
+import { NOTIFY_DATA_CLEAR_SESSION_KEY } from '@dltech/atlas-notifications'
+import { z } from 'zod'
+
+const clearSchema = z.object({ [NOTIFY_DATA_CLEAR_SESSION_KEY]: z.string().min(1) })
 
 const recordOf = (value: unknown): Record<string, unknown> | undefined =>
-  typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : undefined
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? Object.fromEntries(Object.entries(value))
+    : undefined
 
-const threadIdIn = (value: unknown): string | undefined => {
-  const threadId = recordOf(value)?.[DISMISS_THREAD_DATA_KEY]
-  return typeof threadId === 'string' && threadId.length > 0 ? threadId : undefined
+const clearedSessionIn = (value: unknown): string | undefined => {
+  const parsed = clearSchema.safeParse(value)
+  return parsed.success ? parsed.data[NOTIFY_DATA_CLEAR_SESSION_KEY] : undefined
 }
 
-export const dismissThreadIdOf = (payload: unknown): string | undefined => {
+export const clearSessionIdOf = (payload: unknown): string | undefined => {
   const data = recordOf(payload)
-  const direct = threadIdIn(data)
+  const direct = clearedSessionIn(data)
   if (direct !== undefined) return direct
-  const raw = data?.dataString
+  const raw = data?.['dataString']
   if (typeof raw !== 'string') return undefined
   try {
-    return threadIdIn(JSON.parse(raw))
+    return clearedSessionIn(JSON.parse(raw))
   } catch {
     return undefined
   }
