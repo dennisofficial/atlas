@@ -111,6 +111,7 @@ export const rig = (routines: PodRoutines = fakeRoutines().port) => {
     control: {
       mcp: EMPTY_MCP_CONTROL,
       webSearch: { config: async () => ({ backend: undefined, key: undefined }) },
+      gateway: { apiKey: async () => undefined },
       settingsVersions: async () => UNVERSIONED_SETTINGS,
       exposePort: async () => {
         throw new Error('this rig exposes no port')

@@ -38,6 +38,10 @@ import { shellsClient } from '@dltech/atlas-plugin-shells/client'
 import { shellsControl } from '@dltech/atlas-plugin-shells/control'
 import { shellsCoreSlots } from '@dltech/atlas-plugin-shells/core'
 import { shellsPod } from '@dltech/atlas-plugin-shells/pod'
+import { imagesClient } from '@dltech/atlas-plugin-images/client'
+import { imagesControl } from '@dltech/atlas-plugin-images/control'
+import { imagesCoreSlots } from '@dltech/atlas-plugin-images/core'
+import { imagesPod } from '@dltech/atlas-plugin-images/pod'
 import { sessionsControl } from '@dltech/atlas-plugin-sessions/control'
 import { sessionsCoreSlots } from '@dltech/atlas-plugin-sessions/core'
 import { sessionsPod } from '@dltech/atlas-plugin-sessions/pod'
@@ -155,6 +159,14 @@ export const registeredPlugins: readonly Plugin[] = [
     pod: webPod,
     control: webControl,
     client: webClient,
+    transport: 'none',
+  }),
+  definePlugin({
+    name: 'images',
+    ...imagesCoreSlots,
+    pod: imagesPod,
+    control: imagesControl,
+    client: imagesClient,
     transport: 'none',
   }),
 ]
