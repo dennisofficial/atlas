@@ -76,6 +76,9 @@ describe('a message from one sub-agent to a sibling', () => {
       stop: async () => {
         throw new Error('this rig stops nothing')
       },
+      resume: async () => {
+        throw new Error('this rig resumes nothing')
+      },
       list: () => [],
       report: async () => {
         throw new Error('a sibling reply is not a report')

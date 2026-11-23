@@ -8,6 +8,7 @@ import {
 import type { ControlPlane } from '@dltech/atlas-control'
 import {
   EInputConsumed,
+  type EResumeOutcome,
   type Event,
   type EventDraft,
   type InboxEntry,
@@ -44,6 +45,8 @@ export type CommandIntakeArgs = {
   model?: ModelPort | undefined
   visibleEvents(): readonly Event[]
   logEvents(): readonly V2Event[]
+  crew?: { resume(args: { agentId: string }): Promise<EResumeOutcome> } | undefined
+  mainThreadId?: string | undefined
   childrenRunning?: (() => number) | undefined
   loggedEvents(): readonly V2Event[]
   append(drafts: readonly (EventDraft | RecordBody | PluginEventBody)[]): Promise<void>
@@ -242,6 +245,8 @@ export class CommandIntake {
       visibleEvents: this.args.visibleEvents,
       logEvents: this.args.logEvents,
       runningChildren: () => this.args.childrenRunning?.() ?? 0,
+      ...(this.args.crew === undefined ? {} : { crew: this.args.crew }),
+      ...(this.args.mainThreadId === undefined ? {} : { mainThreadId: this.args.mainThreadId }),
       append: this.args.append,
       log: (message) =>
         this.args.log?.info({

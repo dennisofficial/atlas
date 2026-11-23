@@ -129,7 +129,8 @@ export const stopSettledPromptOf = (events: readonly V2Event[]): boolean => {
   let lastPrompt = -1
   let lastStop = -1
   for (const event of events) {
-    if (event.type === 'user-said' || event.type === 'nudge') lastPrompt = event.seq
+    if (event.type === 'user-said' || event.type === 'nudge' || event.type === 'resume-marked')
+      lastPrompt = event.seq
     else if (event.type === 'input-consumed' && event.consumed === EInputConsumed.Stop) {
       lastStop = event.seq
     }

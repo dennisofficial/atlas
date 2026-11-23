@@ -50,6 +50,9 @@ const crewOf = (args: {
   stop: async () => {
     throw new Error('this rig stops nothing')
   },
+  resume: async () => {
+    throw new Error('this rig resumes nothing')
+  },
   list: () => [],
   report: async ({ text }) => {
     args.reported.push(text)

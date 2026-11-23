@@ -4,31 +4,17 @@ import {
   EResumePoint,
   RESUME_REFUSAL_NOTHING,
   RESUME_REFUSAL_RUNNING,
+  resumeMarkedDraft,
   resumePointOf,
   type EventDraft,
-  type ResumeDiscard,
   type ResumePoint,
 } from '@dltech/atlas-core'
 
 import { REFUSAL_RESUME_TEXT, resumeArgs } from './spec'
 
+export { resumeMarkedDraft, type ResumablePoint } from '@dltech/atlas-core'
+
 export const REFUSAL_RESUME_AGENT = 'No sub-agent with that id in this session.'
-
-export type ResumablePoint = Exclude<ResumePoint, { kind: EResumePoint.NotResumable }>
-
-const discardsOf = (point: ResumablePoint): readonly ResumeDiscard[] =>
-  point.kind === EResumePoint.Clean && point.discard !== null ? [point.discard] : []
-
-export const resumeMarkedDraft = (params: {
-  point: ResumablePoint
-  inboxId?: number | undefined
-}): EventDraft => ({
-  type: 'resume-marked',
-  point: params.point.kind,
-  discards: discardsOf(params.point),
-  callIds: params.point.kind === EResumePoint.ToolInterrupted ? [...params.point.callIds] : [],
-  ...(params.inboxId === undefined ? {} : { inboxId: params.inboxId }),
-})
 
 export async function resumeNow(args: {
   point: ResumePoint

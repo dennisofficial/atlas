@@ -1,6 +1,7 @@
 import {
   EAgentLostCause,
   EKilledBy,
+  EResumeOutcome,
   heldDraftOf,
   lostAgentEnding,
   type AgentLost,
@@ -105,6 +106,12 @@ export class CrewRoom {
       : await run.say({ text: args.text, ...(args.from === undefined ? {} : { from: args.from }) })
   }
 
+  async resume(args: { agentId: string }): Promise<EResumeOutcome> {
+    const run = await this.runOrUndefined(args.agentId)
+    if (run === undefined) return EResumeOutcome.UnknownAgent
+    return await run.resume()
+  }
+
   async retry(args: { agentId: string }): Promise<boolean> {
     const run = await this.runOrUndefined(args.agentId)
     if (run === undefined) return false
@@ -147,6 +154,7 @@ export class CrewRoom {
       spawn: (args) => this.spawn(args),
       say: (args) => this.say(args),
       stop: async (args) => this.stop(args),
+      resume: (args) => this.resume(args),
       list: () => this.list(),
       report: async () => {
         throw new Error(
