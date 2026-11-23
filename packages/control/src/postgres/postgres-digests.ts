@@ -1,23 +1,26 @@
 import { ETurnEndedBy, ETurnOutcome } from '@dltech/atlas-core'
 import type { Tx } from '@dltech/atlas-db'
+import { z } from 'zod'
 
 import type { SessionDigestRow, SessionListParams, SessionTurnEnding } from '../port'
 import { iso } from './postgres-rows'
 
 export const FIRST_MESSAGE_CHARS = 400
 
+const TURN_OUTCOME = z.enum(ETurnOutcome)
+
+const TURN_ENDED_BY = z.enum(ETurnEndedBy)
+
 const turnEndingOf = (row: {
   lastTurnSeq: number | null
   lastTurnOutcome: string | null
   lastTurnBy: string | null
 }): SessionTurnEnding | null => {
-  if (row.lastTurnSeq === null || row.lastTurnOutcome === null || row.lastTurnBy === null)
-    return null
-  return {
-    seq: row.lastTurnSeq,
-    outcome: row.lastTurnOutcome as ETurnOutcome,
-    by: row.lastTurnBy as ETurnEndedBy,
-  }
+  if (row.lastTurnSeq === null) return null
+  const outcome = TURN_OUTCOME.safeParse(row.lastTurnOutcome)
+  const by = TURN_ENDED_BY.safeParse(row.lastTurnBy)
+  if (!outcome.success || !by.success) return null
+  return { seq: row.lastTurnSeq, outcome: outcome.data, by: by.data }
 }
 
 export const sessionDigestsIn = async (
