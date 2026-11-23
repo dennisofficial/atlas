@@ -15,6 +15,7 @@ import {
 import {
   mergeHooks,
   type ComposedPod,
+  type DaemonReady,
   type PluginPodContext,
   type PodCrew,
   type PodResources,
@@ -251,12 +252,21 @@ export const resourceSyncOf = (args: {
 
 export const watchDaemonReady = (args: {
   onReady: SessionRuntime['remoteCalls']['onReady']
+  bootId: () => string | undefined
   pod: Pick<ComposedPod, 'onDaemonReady'>
   ctx: PluginPodContext
   signal: AbortSignal
 }): void => {
-  const offReady = args.onReady((hello) => args.pod.onDaemonReady({ ctx: args.ctx, hello }))
+  let announced: string | undefined
+  const announce = (hello: DaemonReady): void => {
+    if (hello.bootId === announced) return
+    announced = hello.bootId
+    args.pod.onDaemonReady({ ctx: args.ctx, hello })
+  }
+  const offReady = args.onReady(announce)
   args.signal.addEventListener('abort', offReady, { once: true })
+  const booted = args.bootId()
+  if (booted !== undefined) announce({ bootId: booted, restart: false })
 }
 
 export const hostHooksOf = (args: {
@@ -308,6 +318,7 @@ export const pluginPodOf = (args: {
   const ctx = pluginPodContextOf(args)
   watchDaemonReady({
     onReady: (listener) => args.runtime.remoteCalls.onReady(listener),
+    bootId: () => args.runtime.remoteCalls.bootId(),
     pod: plugins.pod,
     ctx,
     signal: args.signal,

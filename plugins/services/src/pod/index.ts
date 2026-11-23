@@ -20,8 +20,7 @@ export const servicesPod: PodSlot = {
     void reconcileServices({ ctx, state })
     return {}
   },
-  onDaemonReady: ({ ctx, hello }) => {
-    if (!hello.restart) return
+  onDaemonReady: ({ ctx }) => {
     void resumeDeclaredServices({ ctx, state: stateFor(ctx) })
   },
   prompts: [new ServicesFragment()],

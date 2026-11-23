@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -6,7 +6,9 @@ import { EShellEndCause } from '@dltech/atlas-core'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 
+import { waitUntil } from '../../testing/handoff-suite'
 import { startRig, type FaultRig, type ReadEvent } from '../../testing/fault-rig'
+import { postMessage } from './settle-fault-support'
 
 const REDIS_URL = process.env.ATLAS_TEST_REDIS_URL
 
@@ -15,7 +17,7 @@ const RUN = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)
 const DECLARED = [
   'services:',
   '  web:',
-  '    command: echo run >> runs; sleep 300',
+  `    command: echo run >> runs; bun -e 'Bun.serve({port:Number(process.env.PORT),fetch:()=>new Response("ok")})'`,
   '    port: 4180',
   '',
 ].join('\n')
@@ -55,6 +57,7 @@ describe.skipIf(REDIS_URL === undefined)('a daemon restart brings declared servi
       label: 'host-a',
       daemonUrl: daemon.url,
       workspace,
+      knobs: { plugins: true },
       scripts: {
         [sessionId]: [
           {
@@ -62,12 +65,17 @@ describe.skipIf(REDIS_URL === undefined)('a daemon restart brings declared servi
               {
                 callId: 'c1',
                 name: 'service',
-                input: { description: 'start the declared web service', name: 'web' },
+                input: {
+                  action: 'start',
+                  description: 'start the declared web service',
+                  name: 'web',
+                },
               },
             ],
           },
           { text: 'host a started the service' },
         ],
+        [`${sessionId}@2`]: [{ text: 'host a is back after the daemon restart' }],
       },
     })
     await rig.claim({ sessionId, label: 'host-a', timeoutMs: 30_000 })
@@ -78,7 +86,16 @@ describe.skipIf(REDIS_URL === undefined)('a daemon restart brings declared servi
       timeoutMs: 60_000,
     })
 
+    await waitUntil({
+      what: 'host-a to release the idle session',
+      timeoutMs: 60_000,
+      check: async () => !(await rig.plane.currentLease({ sessionId })).live,
+    })
+
+    const beats = rig.panelBeats({ sessionId, ttlMs: 60_000, everyMs: 250 })
     await daemon.restart({ keepHome: true })
+    await postMessage({ rig, sessionId, text: 'are the services back?' })
+    await rig.wake(sessionId)
 
     const after = await rig
       .waitForSeq({
@@ -93,8 +110,14 @@ describe.skipIf(REDIS_URL === undefined)('a daemon restart brings declared servi
           `${error instanceof Error ? error.message : String(error)}\nhostA logs:\n${hostA.logs().join('\n')}`,
         )
       })
+      .finally(() => beats.stop())
 
-    expect(startedWithName(after, 'web')).toHaveLength(2)
+    const starts = startedWithName(after, 'web')
+    expect(starts).toHaveLength(2)
     expect(endedWithCause(after, EShellEndCause.SandboxStopped)).toHaveLength(1)
+    const hashes = starts.map((row) => (row.event as { declarationHash?: string }).declarationHash)
+    expect(hashes[0]).toBeDefined()
+    expect(hashes[1]).toBe(hashes[0])
+    expect(readFileSync(join(workspace, 'runs'), 'utf8').trim().split('\n')).toHaveLength(2)
   }, 240_000)
 })

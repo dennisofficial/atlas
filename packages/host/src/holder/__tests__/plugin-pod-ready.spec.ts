@@ -9,7 +9,7 @@ const CTX = {} as PluginPodContext
 
 type Heard = { ctx: PluginPodContext; hello: RemoteHello }
 
-const rig = () => {
+const rig = (bootId: () => string | undefined = () => undefined) => {
   const listeners = new Set<(hello: RemoteHello) => void>()
   const heard: Heard[] = []
   const pod = composePod([
@@ -25,6 +25,7 @@ const rig = () => {
       listeners.add(listener)
       return () => void listeners.delete(listener)
     },
+    bootId,
     pod,
     ctx: CTX,
     signal: abort.signal,
@@ -51,6 +52,27 @@ describe('watching the daemon link for a ready pod', () => {
     expect(heard.map((one) => one.hello)).toEqual([
       { bootId: 'boot-1', restart: false },
       { bootId: 'boot-1', restart: false },
+    ])
+  })
+
+  it('tells a pod that subscribes after the link is already up', () => {
+    const { heard } = rig(() => 'boot-1')
+    expect(heard.map((one) => one.hello)).toEqual([
+      { bootId: 'boot-1', restart: false },
+      { bootId: 'boot-1', restart: false },
+    ])
+  })
+
+  it('announces one daemon boot once, however often the link flaps', () => {
+    const { heard, say } = rig()
+    say({ bootId: 'boot-1', restart: false })
+    say({ bootId: 'boot-1', restart: false })
+    say({ bootId: 'boot-2', restart: true })
+    expect(heard.map((one) => one.hello)).toEqual([
+      { bootId: 'boot-1', restart: false },
+      { bootId: 'boot-1', restart: false },
+      { bootId: 'boot-2', restart: true },
+      { bootId: 'boot-2', restart: true },
     ])
   })
 

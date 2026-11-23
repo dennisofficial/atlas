@@ -4,10 +4,17 @@ import { EKilledBy, EShellEndCause, EServiceStatus } from '@dltech/atlas-core'
 import type { PodControl } from '@dltech/atlas-plugin-sdk'
 import { ECallStatus } from '@dltech/atlas-protocol'
 
+import { servicesPod } from '..'
 import { declaredServicesOf } from '../../core'
 import { resumeDeclaredServices } from '../resume'
 import { stateFor } from '../state'
 import { controlOf, rig, startsOf, writeDeclared } from './support'
+
+const waitUntil = async (check: () => boolean): Promise<void> => {
+  for (let attempt = 0; attempt < 200 && !check(); attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 10))
+  }
+}
 
 const DECLARED = ['services:', '  web:', '    command: listen', '    port: 3000'].join('\n')
 const URL = 'https://3000-abc.byatlas.dev'
@@ -121,5 +128,27 @@ describe('resuming declared services after a daemon restart', () => {
 
     expect(harness.notices).toHaveLength(1)
     expect(startsOf(harness.calls)).toEqual([])
+  })
+
+  it('resumes on a reattach that reports no restart, because the daemon lists nothing', async () => {
+    const harness = rig({ control: control() })
+    writeDeclared(harness, DECLARED)
+    const serviceId = await declaredStarted({ harness, content: DECLARED })
+    servicesPod.onDaemonReady?.({
+      ctx: harness.ctx,
+      hello: { bootId: 'b2', restart: false },
+    })
+    await waitUntil(() => harness.notices.length === 1)
+
+    expect(harness.notices).toMatchObject([
+      {
+        event: {
+          type: 'service-ended',
+          serviceId,
+          cause: EShellEndCause.SandboxStopped,
+        },
+      },
+    ])
+    expect(startsOf(harness.calls)).toMatchObject([{ command: 'listen', cwd: '/work', port: 3000 }])
   })
 })
