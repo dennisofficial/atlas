@@ -54,6 +54,30 @@ describe('parseCodexUsage', () => {
     expect(usage[EUsageWindow.SevenDay]).toBeNull()
   })
 
+  it('files a lone weekly primary window under seven-day, as a Pro plan reports it', () => {
+    const usage = parse(
+      payload({
+        primary_window: { used_percent: 10, limit_window_seconds: 604_800, reset_at: RESET_AT },
+        secondary_window: null,
+      }),
+    )
+
+    expect(usage[EUsageWindow.FiveHour]).toBeNull()
+    expect(usage[EUsageWindow.SevenDay]?.utilization).toBe(10)
+  })
+
+  it('files each window by its length when the order is swapped', () => {
+    const usage = parse(
+      payload({
+        primary_window: { used_percent: 61, limit_window_seconds: 604_800 },
+        secondary_window: { used_percent: 34, limit_window_seconds: 18_000 },
+      }),
+    )
+
+    expect(usage[EUsageWindow.FiveHour]?.utilization).toBe(34)
+    expect(usage[EUsageWindow.SevenDay]?.utilization).toBe(61)
+  })
+
   it('clamps and rounds utilization into 0..100', () => {
     const usage = parse(
       payload({

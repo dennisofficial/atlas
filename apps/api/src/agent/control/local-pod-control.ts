@@ -28,6 +28,7 @@ import type { PreviewTunnels } from '@dltech/atlas-previews'
 import type { MemoryScope } from '@dltech/atlas-plugin-sdk'
 
 import type { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
+import { gatewayKeyOf } from './gateway-key'
 import { settingsVersionsOf } from './settings-versions'
 import { webSearchConfigOf } from './web-search-config'
 
@@ -222,6 +223,21 @@ export const localPodControlOf = (args: {
           cipher: args.cipher,
           userId: owner.userId,
           projectId: owner.projectId,
+        })
+      },
+    },
+    gateway: {
+      apiKey: async ({ threadId }) => {
+        const owner = await ownerOf(threadId)
+        return await gatewayKeyOf({
+          rows: {
+            accounts: async (userId) =>
+              await args.db.orm.public.AgentAccount.where({ userId }).all(),
+            active: async (userId) =>
+              await args.db.orm.public.ActiveAccount.where({ userId }).all(),
+          },
+          cipher: args.cipher,
+          userId: owner.userId,
         })
       },
     },

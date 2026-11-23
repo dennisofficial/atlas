@@ -160,6 +160,8 @@ describe('sessionViewModelOf', () => {
       entries: [],
       subscriptionRows: [],
       shells: { running: 0, awaitingInput: false, labels: [], rows: [] },
+      shellRows: [],
+      serviceRows: [],
       crew: { running: 0, total: 0 },
       crewRows: [],
       previews: [],

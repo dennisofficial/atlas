@@ -1,10 +1,13 @@
-import { EUsageWindow, type AccountUsage, type UsageWindow } from './window'
+import { EUsageWindow, worstWindow, type AccountUsage, type UsageWindow } from './window'
 
 type RawWindow = {
   used_percent?: unknown
   reset_at?: unknown
   reset_after_seconds?: unknown
+  limit_window_seconds?: unknown
 }
+
+const DAY_SECONDS = 86_400
 
 const isFiniteNumber = (value: unknown): value is number =>
   typeof value === 'number' && Number.isFinite(value)
@@ -45,8 +48,24 @@ export function parseCodexUsage(args: { body: unknown; nowMs: number }): Account
   }
 
   const root = rateLimit as Record<string, unknown>
+  const slotted = [
+    { raw: root.primary_window, fallback: EUsageWindow.FiveHour },
+    { raw: root.secondary_window, fallback: EUsageWindow.SevenDay },
+  ].map((entry) => ({
+    slot: slotOf({ raw: entry.raw, fallback: entry.fallback }),
+    window: readWindow({ raw: entry.raw, nowMs }),
+  }))
+  const windowsIn = (slot: EUsageWindow) =>
+    slotted.filter((entry) => entry.slot === slot).map((entry) => entry.window)
   return {
-    [EUsageWindow.FiveHour]: readWindow({ raw: root.primary_window, nowMs }),
-    [EUsageWindow.SevenDay]: readWindow({ raw: root.secondary_window, nowMs }),
+    [EUsageWindow.FiveHour]: worstWindow(windowsIn(EUsageWindow.FiveHour)),
+    [EUsageWindow.SevenDay]: worstWindow(windowsIn(EUsageWindow.SevenDay)),
   }
+}
+
+function slotOf(args: { raw: unknown; fallback: EUsageWindow }): EUsageWindow {
+  if (args.raw === null || typeof args.raw !== 'object') return args.fallback
+  const length = (args.raw as RawWindow).limit_window_seconds
+  if (!isFiniteNumber(length)) return args.fallback
+  return length < DAY_SECONDS ? EUsageWindow.FiveHour : EUsageWindow.SevenDay
 }

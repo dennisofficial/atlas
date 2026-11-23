@@ -10,7 +10,7 @@ import { ToggleRow } from '@/features/threads/panel/details/table-parts'
 
 import { useSessionPaneValue } from '../pane-value'
 import { PullRequestBell } from './pull-request-bell'
-import { SectionHead } from './rows'
+import { EmptyLine, SectionHead } from './rows'
 
 const VISIBLE_ROWS = 3
 const COLUMNS = 4
@@ -18,7 +18,13 @@ const COLUMNS = 4
 export function SessionGithubSection() {
   const { view } = useSessionPaneValue()
   const [expanded, setExpanded] = useState(false)
-  if (view.entries.length === 0) return null
+  if (view.entries.length === 0)
+    return (
+      <section data-session-pull-requests aria-label="Pull requests" className="flex flex-col">
+        <SectionHead title="Pull requests" />
+        <EmptyLine>No pull requests yet</EmptyLine>
+      </section>
+    )
   const visible = expanded ? view.entries : view.entries.slice(0, VISIBLE_ROWS)
   const handleToggle = () => setExpanded((held) => !held)
 

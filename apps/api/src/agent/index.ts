@@ -122,3 +122,6 @@ export {
 export { sandboxLiveCpuMs } from '@dltech/atlas-pods/sandbox/sandbox-live-cpu'
 export { sessionNamerOf, type SessionNamer } from './naming/session-namer'
 export { diagramRepairerOf, type DiagramRepairer } from './diagrams/diagram-repairer'
+export { classifierConfigOf } from './config/classifier-config'
+export { scopedSettingsOf } from './config/scoped-settings'
+export { contextDirOf } from './runtime/session-paths'

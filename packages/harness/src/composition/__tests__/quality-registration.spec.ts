@@ -43,17 +43,20 @@ describe('bindQuality in the shared root', () => {
     )
   })
 
-  it('stays off by default: no decision call, no review record, the write still lands', async () => {
+  it('reviews by default: capture is on and the write still lands', async () => {
     const threadId = await rig.newThread()
     const port = rig.container.resolve(registeredPortToken(QualityReviewPort))
-    expect(port.captureEnabled()).toBe(false)
+    expect(port.captureEnabled()).toBe(true)
 
-    const drafts = await rig.dispatchWrite({ threadId, relative: 'off.ts', content: WIDGET_SOURCE })
+    const drafts = await rig.dispatchWrite({
+      threadId,
+      relative: 'default.ts',
+      content: WIDGET_SOURCE,
+    })
 
-    expect(typesOf(drafts)).toEqual(['tool-result'])
-    expect(rig.decisions.calls).toHaveLength(0)
-    expect(await rig.onDisk('off.ts')).toBe(WIDGET_SOURCE)
-    expect(await rig.exampleFiles(threadId)).toEqual([])
+    expect(typesOf(drafts)).toEqual(['tool-result', 'nudge'])
+    expect(rig.decisions.calls[0]?.questionKeys).toContain(SRP_CONCERN_KEY)
+    expect(await rig.onDisk('default.ts')).toBe(WIDGET_SOURCE)
   })
 
   it('reviews through the real SRP policy and source adapter once the master setting is on', async () => {

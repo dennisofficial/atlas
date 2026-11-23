@@ -8,6 +8,7 @@ import {
   nativeCommandHandlers,
   nativeCommands,
   nativeControlHandlers,
+  resize,
 } from '@dltech/atlas-native-commands'
 import { composedPlugins } from '../registered-plugins'
 import { ModelPort } from '@dltech/atlas-core'
@@ -28,6 +29,8 @@ import { fakeModelSourceOf } from './model-source'
 import { createSessionRuntimeFactory } from '../runtime/session-runtime-factory'
 import { FixedEndpointSandboxProvider } from './fixed-endpoint-sandbox-provider'
 import { faultedPlane, faultSandbox, hostFaultOf } from './host-faults'
+import type { JobsProjectDispatcher } from '../../_core/ports/job-dispatcher'
+import { podResizeHandlerOf } from '../../_lib/pod-resize/pod-resize-handler'
 
 const requireEnv = (name: string): string => {
   const value = process.env[name]
@@ -127,6 +130,10 @@ const testSource = (): ConfigSource => ({
   models: async () => fakeModelSourceOf({ configured: false, gap: 'scripted model in test' }),
 })
 
+const noPodResizeDispatcher: JobsProjectDispatcher = {
+  dispatch: async () => ({ runId: 'test-host-process' }),
+}
+
 const testTokens = () => ({
   issue: async (): Promise<never> => {
     throw new Error('unused')
@@ -208,7 +215,10 @@ const main = async (): Promise<void> => {
     sweepMs: numberEnv('SWEEP_MS', 20_000),
     commands: composeCommands([...nativeCommands, ...composedPlugins.commands]),
     commandHandlers: new Map([...nativeCommandHandlers, ...composedPlugins.pod.commands]),
-    controlHandlers: nativeControlHandlers,
+    controlHandlers: new Map([
+      ...nativeControlHandlers,
+      [resize.spec.name, podResizeHandlerOf({ plane, dispatcher: noPodResizeDispatcher })],
+    ]),
     log,
     onHostIdChanged: () => watch?.recompute(),
   })

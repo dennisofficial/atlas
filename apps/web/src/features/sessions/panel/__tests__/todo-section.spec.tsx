@@ -44,8 +44,10 @@ afterEach(async () => {
 const toggleOf = (): HTMLElement => container.querySelector('button') as HTMLElement
 
 describe('SessionTodoSection', () => {
-  it('renders nothing without a plan', () => {
-    expect(renderToStaticMarkup(<SessionTodoSection tasks={[]} />)).toBe('')
+  it('shows an empty line without a plan', () => {
+    const html = renderToStaticMarkup(<SessionTodoSection tasks={[]} />)
+    expect(html).toContain('aria-label="Todo"')
+    expect(html).toContain('No plan yet')
   })
 
   it('collapses to the count and the task in progress', () => {

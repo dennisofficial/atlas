@@ -5,7 +5,7 @@ import {
   type PodResizePayload,
 } from '@dltech/atlas-jobs/pod-resize'
 
-import type { Task, TaskContract } from '../../../_core/ports/job-dispatcher'
+import type { Task, TaskContract } from '../../_core/ports/job-dispatcher'
 
 export * from '@dltech/atlas-jobs/pod-resize'
 
