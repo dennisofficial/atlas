@@ -8,6 +8,7 @@ const AGENT_LINE: Record<string, (named: string) => string> = {
   agent_spawn: (named) => `Spawned ${named}`,
   agent_say: (named) => `Messaged ${named}`,
   send_message: (named) => `Messaged ${named}`,
+  archive_session: (named) => `Archived ${named}`,
   agent_resume: (named) => `Resumed ${named}`,
   agent_stop: (named) => `Stopped ${named}`,
 }
@@ -44,6 +45,7 @@ const AGENT_NOTE: Record<string, (call: ToolCall) => string> = {
   agent_spawn: () => 'running',
   agent_say: (call) => (outputOf(call).queued === true ? 'queued' : 'running'),
   send_message: (call) => (outputOf(call).queued === true ? 'queued' : 'running'),
+  archive_session: (call) => (outputOf(call).already === true ? 'already archived' : 'done'),
   agent_resume: () => 'running',
   agent_stop: stopNote,
 }
@@ -62,6 +64,8 @@ const agentNameOf = (args: { call: ToolCall; cwd: string }): string => {
     str(output.to) ??
     str(input.to) ??
     str(input.agentId) ??
+    str(output.sessionId) ??
+    str(input.sessionId) ??
     'a sub-agent'
   )
 }

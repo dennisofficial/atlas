@@ -6,7 +6,10 @@ import type { SessionSleepPodOutput } from '@dltech/atlas-protocol'
 import { JobsProjectDispatcher } from '../../../_core/ports/job-dispatcher'
 import { readPodBusy } from '@dltech/atlas-pods'
 import { PodTurnRunningError } from './pod-power.error'
-import { podSleepIdempotencyKey, podSleepTaskContract } from './pod-sleep.contract'
+import {
+  podSleepIdempotencyKey,
+  podSleepTaskContract,
+} from '../../../_lib/trigger/pod-sleep.contract'
 
 export type PodPower = {
   sleep(args: { session: ControlSessionRow; force: boolean }): Promise<SessionSleepPodOutput>

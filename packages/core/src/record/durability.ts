@@ -22,6 +22,7 @@ export const EVENT_DURABILITY = {
   'subscription-created': true,
   'subscription-changed': true,
   'subscription-ended': true,
+  'session-archived': true,
   'workspace-prepare-failed': true,
   'background-shell-still-running': false,
   'background-shell-matched': false,

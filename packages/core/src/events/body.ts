@@ -191,6 +191,7 @@ export type EventBody =
       processes: number
       memory: OomMemory
     }
+  | { type: 'session-archived'; bySessionId: string; byTitle?: string | undefined }
   | {
       type: 'sandbox-setup-reported'
       text: string

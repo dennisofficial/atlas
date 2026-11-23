@@ -166,6 +166,11 @@ const coreEventBodySchema = z.discriminatedUnion('type', [
     memory: oomMemorySchema,
   }),
   z.object({
+    type: z.literal('session-archived'),
+    bySessionId: z.string().min(1),
+    byTitle: z.string().optional(),
+  }),
+  z.object({
     type: z.literal('sandbox-setup-reported'),
     text: z.string(),
     failed: z.boolean(),

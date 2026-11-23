@@ -91,6 +91,7 @@ type KeptLineType =
   | 'worktree-entered'
   | 'worktree-exited'
   | 'directory-changed'
+  | 'session-archived'
 
 type KeptLineArgs<TType extends KeptLineType> = { event: EventOfType<TType>; limit: number }
 
@@ -102,6 +103,8 @@ const KEPT_LINES: { [TType in KeptLineType]: (args: KeptLineArgs<TType>) => stri
   'worktree-entered': ({ event }) => `Atlas entered worktree ${event.path} (${event.branch})`,
   'worktree-exited': ({ event }) => `Atlas left worktree ${event.path} (${event.action})`,
   'directory-changed': ({ event }) => `Atlas moved the project directory to ${event.path}`,
+  'session-archived': ({ event }) =>
+    `The session ${event.byTitle ?? event.bySessionId} that spawned this one archived it`,
 }
 
 type LineType = SummarisedType | KeptLineType

@@ -44,6 +44,7 @@ describe('the agent host plugin composition', () => {
 
     expect(deferred).toEqual([
       'agent_list',
+      'archive_session',
       'list_sessions',
       'list_teammates',
       'operator_mcp_sign_in',
