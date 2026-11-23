@@ -45,7 +45,7 @@ describe('the shells view', () => {
     expect(rows).toEqual([
       {
         shellId: 'shell-a',
-        name: '`sleep 30`',
+        name: 'sleep 30',
         command: 'sleep 30',
         cwd: '/work',
         status: EShellStatus.Killed,
@@ -56,9 +56,11 @@ describe('the shells view', () => {
     ])
   })
 
-  it('names the row after its description when there is one', () => {
-    const [row] = shellsOfEvents([started(1, { description: 'ticker' })])
-    expect(row?.name).toBe('"ticker" (`sleep 30`)')
+  it('names the row by its description alone, and by the bare command without one', () => {
+    const [named] = shellsOfEvents([started(1, { description: 'ticker' })])
+    const [bare] = shellsOfEvents([started(1, { command: 'sleep\n  30', description: ' ' })])
+    expect(named?.name).toBe('ticker')
+    expect(bare?.name).toBe('sleep 30')
   })
 
   it('raises awaiting input and clears it on the ending', () => {
