@@ -1,8 +1,11 @@
 import {
   EAgentLostCause,
   EKilledBy,
+  heldDraftOf,
   lostAgentEnding,
   type AgentLost,
+  type CrewRoomMember,
+  type EventDraft,
   type ThreadId,
 } from '@dltech/atlas-core'
 import type {
@@ -17,12 +20,16 @@ import type { CrewSender } from './child-message'
 import { endingKeyOf, postNotice, threadLastSeq } from './child-reports'
 import { settledChildOf, type OpenChild } from './open-children'
 
-export type CrewRoomArgs = Omit<ChildRunArgs, 'agentType' | 'intent' | 'saySibling'>
+export type CrewRoomArgs = Omit<
+  ChildRunArgs,
+  'agentType' | 'intent' | 'group' | 'groupHold' | 'saySibling'
+>
 
 class UnknownChild extends Error {}
 
 export class CrewRoom {
   private readonly runs = new Map<ThreadId, ChildRun>()
+  private posts: Promise<void> = Promise.resolve()
 
   constructor(private readonly args: CrewRoomArgs) {}
 
@@ -30,12 +37,16 @@ export class CrewRoom {
     agentType: string
     intent: string
     prompt: string
+    group?: string | undefined
     worktree?: WorktreeEntryInfo | undefined
   }): Promise<SubagentSnapshot> {
     const run = await ChildRun.open({
       ...this.childArgs(),
       agentType: args.agentType,
       intent: args.intent,
+      groupHold: (draft) => this.holdOf(draft),
+      postHold: (post) => this.postInOrder(post),
+      ...(args.group === undefined ? {} : { group: args.group }),
       ...(args.worktree === undefined ? {} : { worktree: args.worktree }),
     })
     this.runs.set(run.agentId, run)
@@ -44,25 +55,43 @@ export class CrewRoom {
   }
 
   async adoptAll(children: readonly OpenChild[]): Promise<void> {
-    for (const child of children) await this.adopt(child)
+    const adopted: ChildRun[] = []
+    for (const child of children) {
+      const run = await this.openAdopted(child)
+      if (run !== undefined) adopted.push(run)
+    }
+    for (const run of adopted) await this.startAdopted(run)
   }
 
   async adopt(child: OpenChild): Promise<void> {
+    const run = await this.openAdopted(child)
+    if (run !== undefined) await this.startAdopted(run)
+  }
+
+  private async openAdopted(child: OpenChild): Promise<ChildRun | undefined> {
     const adopted = await ChildRun.adopt({
       ...this.childArgs(),
       agentType: child.agentType,
       intent: child.intent,
       agentId: child.agentId,
       spawnedAt: child.spawnedAt,
+      groupHold: (draft) => this.holdOf(draft),
+      postHold: (post) => this.postInOrder(post),
+      ...(child.group === undefined ? {} : { group: child.group }),
       ...(child.worktree === undefined ? {} : { worktree: child.worktree }),
       ...(child.settled === undefined ? {} : { settled: child.settled }),
     })
     if (!adopted.ok) {
       await this.lose({ child, lost: adopted.lost })
-      return
+      return undefined
     }
     this.runs.set(adopted.run.agentId, adopted.run)
-    await adopted.run.continueTurn()
+    return adopted.run
+  }
+
+  private async startAdopted(run: ChildRun): Promise<void> {
+    await run.finishAdopted()
+    await run.continueTurn()
   }
 
   async say(args: {
@@ -89,6 +118,20 @@ export class CrewRoom {
 
   list(): readonly SubagentSnapshot[] {
     return [...this.runs.values()].map((run) => run.snapshot())
+  }
+
+  members(): readonly CrewRoomMember[] {
+    return [...this.runs.values()].map((run) => run.member())
+  }
+
+  private holdOf(draft: EventDraft): EventDraft {
+    return heldDraftOf({ input: draft, crew: this.members() })
+  }
+
+  private postInOrder(post: () => Promise<void>): Promise<void> {
+    const queued = this.posts.then(post)
+    this.posts = queued.catch(() => undefined)
+    return queued
   }
 
   runningCount(): number {
@@ -164,6 +207,9 @@ export class CrewRoom {
       intent: settled.intent,
       agentId,
       spawnedAt: settled.spawnedAt,
+      groupHold: (draft) => this.holdOf(draft),
+      postHold: (post) => this.postInOrder(post),
+      ...(settled.group === undefined ? {} : { group: settled.group }),
       settled: { status: settled.status, endedAt: settled.endedAt },
       ...(settled.worktree === undefined ? {} : { worktree: settled.worktree }),
     })

@@ -150,25 +150,29 @@ const wave = ({
   )
 
 describe('six delegates finishing at once, the shape of a real fan-out', () => {
-  it('collapses the wave into one block instead of six', () => {
-    expect(blocksOf(assembleWith({ drafts: wave({ size: 6 }) }))).toHaveLength(1)
+  it('gives each ending its own block, in ending order', () => {
+    const blocks = blocksOf(assembleWith({ drafts: wave({ size: 6 }) }))
+
+    expect(blocks).toHaveLength(6)
+    for (const [index, block] of blocks.entries()) {
+      expect(block).toContain(`slice ${index + 1}`)
+      expect(block).toContain('1 agent you spawned ended')
+    }
   })
 
   it('hands over all six reports character for character, nothing elided', () => {
     const drafts = wave({ size: 6 })
-    const block = blocksOf(assembleWith({ drafts }))[0] ?? ''
-
-    expect(block).toContain('6 agents you spawned ended')
+    const text = blocksOf(assembleWith({ drafts })).join('\n')
 
     for (const draft of drafts) {
       if (draft.type !== 'agent-ended') continue
-      expect(block).toContain(draft.prose)
+      expect(text).toContain(draft.prose)
     }
   })
 
   it('never shrinks a report because its siblings ended at the same moment', () => {
     const alone = blocksOf(assembleWith({ drafts: wave({ size: 1 }) }))[0] ?? ''
-    const together = blocksOf(assembleWith({ drafts: wave({ size: 6 }) }))[0] ?? ''
+    const together = blocksOf(assembleWith({ drafts: wave({ size: 6 }) })).join('\n')
 
     expect(together.length).toBeGreaterThan(6 * ORDINARY_REPORT)
     expect(together.length).toBeGreaterThan(5 * alone.length)
@@ -189,9 +193,9 @@ describe('six delegates finishing at once, the shape of a real fan-out', () => {
   })
 
   it('leaves twenty ordinary reports intact too, and lets compaction handle the size', () => {
-    const block = blocksOf(assembleWith({ drafts: wave({ size: 20 }) }))[0] ?? ''
+    const text = blocksOf(assembleWith({ drafts: wave({ size: 20 }) })).join('\n')
 
-    expect(block.length).toBeGreaterThan(20 * ORDINARY_REPORT)
+    expect(text.length).toBeGreaterThan(20 * ORDINARY_REPORT)
   })
 })
 
@@ -216,20 +220,22 @@ describe('two waves separated by the parent working', () => {
     expect(texts[2]).toContain('second wave')
   })
 
-  it('counts each wave on its own', () => {
+  it('keeps one block per ending across the reply that separated them', () => {
     const blocks = blocksOf(
       assembleWith({
         drafts: [
-          ended({ agentId: toThreadId('thread-child-1') }),
-          ended({ agentId: toThreadId('thread-child-2') }),
+          ended({ agentId: toThreadId('thread-child-1'), prose: 'first' }),
+          ended({ agentId: toThreadId('thread-child-2'), prose: 'second' }),
           { type: 'user-said', text: 'carry on' },
-          ended({ agentId: toThreadId('thread-child-3') }),
+          ended({ agentId: toThreadId('thread-child-3'), prose: 'third' }),
         ],
       }),
     )
 
-    expect(blocks[0]).toContain('2 agents you spawned ended')
-    expect(blocks[1]).toContain('1 agent you spawned ended')
+    expect(blocks).toHaveLength(3)
+    expect(blocks[0]).toContain('first')
+    expect(blocks[1]).toContain('second')
+    expect(blocks[2]).toContain('third')
   })
 })
 
@@ -288,12 +294,12 @@ describe('a teammate ending stays in the record even when it woke nobody', () =>
     expect(block).toContain('build the admin app')
   })
 
-  it('joins a sub-agent ending in the same wave', () => {
-    const block = blocksOf(assembleWith({ drafts: [teammateEnded(), ended()] }))[0] ?? ''
+  it('renders in its own block, after the ending that landed before it', () => {
+    const blocks = blocksOf(assembleWith({ drafts: [teammateEnded(), ended()] }))
 
-    expect(block).toContain('2 agents you spawned ended')
-    expect(block).toContain('build the admin app')
-    expect(block).toContain('The registry has 14 settings; two are unread.')
+    expect(blocks).toHaveLength(2)
+    expect(blocks[0]).toContain('build the admin app')
+    expect(blocks[1]).toContain('The registry has 14 settings; two are unread.')
   })
 })
 
@@ -386,15 +392,16 @@ describe('a bookkeeping ending, and the retry line on endings that went wrong', 
     ).toEqual([])
   })
 
-  it('does not hide a real ending in the same wave', () => {
-    const block =
-      blocksOf(
-        assembleWith({
-          drafts: [ended({ relayed: false }), ended({ prose: 'REAL' })],
-        }),
-      )[0] ?? ''
-    expect(block).toContain('1 agent you spawned ended')
-    expect(block).toContain('REAL')
+  it('does not hide a real ending that lands with it', () => {
+    const blocks = blocksOf(
+      assembleWith({
+        drafts: [ended({ relayed: false }), ended({ prose: 'REAL' })],
+      }),
+    )
+
+    expect(blocks).toHaveLength(1)
+    expect(blocks[0]).toContain('1 agent you spawned ended')
+    expect(blocks[0]).toContain('REAL')
   })
 
   it.each([EAgentStatus.Failed, EAgentStatus.Stopped])(

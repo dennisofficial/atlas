@@ -34,6 +34,7 @@ const AT = '2026-01-01T00:00:00.000Z'
 
 const spawned = (args: {
   agentId: ThreadId
+  group?: string | undefined
   worktree?: { path: string; branch: string } | undefined
 }): V2Body => ({
   agentId: args.agentId,
@@ -41,6 +42,7 @@ const spawned = (args: {
   agentType: 'builder',
   intent: 'build it',
   mode: EAgentStart.Fresh,
+  ...(args.group === undefined ? {} : { group: args.group }),
   ...(args.worktree === undefined ? {} : { worktree: args.worktree }),
 })
 
@@ -134,6 +136,7 @@ describe('adopting the children a takeover finds open', () => {
         agentId: FIRST,
         agentType: 'builder',
         intent: 'build it',
+        group: undefined,
         spawnedAt: AT,
         worktree: { path: '/work/tree', branch: 'dennis/tree' },
       },
@@ -141,10 +144,20 @@ describe('adopting the children a takeover finds open', () => {
         agentId: SECOND,
         agentType: 'builder',
         intent: 'build it',
+        group: undefined,
         spawnedAt: AT,
         worktree: undefined,
       },
     ])
+  })
+
+  it('keeps the group the spawn row recorded, so an adopted child rejoins it', async () => {
+    const children = await childrenOf([
+      spawned({ agentId: FIRST, group: 'call-1' }),
+      spawned({ agentId: SECOND, group: 'call-1' }),
+    ])
+
+    expect(children.map((child) => child.group)).toEqual(['call-1', 'call-1'])
   })
 
   it('leaves a child that already ended out', async () => {

@@ -221,6 +221,7 @@ export class HeldSession {
         signal: this.lifetimeAbort.signal,
         epoch: lease.epoch,
         crew: crew.port(),
+        crewRunning: () => crew.runningCount(),
         isDraining: () => this.draining,
       })
     this.observation = new HeldObservation({

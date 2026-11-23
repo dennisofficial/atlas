@@ -77,7 +77,7 @@ A `PodSlot` declares:
 `ctx` is a `PluginPodContext`. It gives `sessionId`, `workspaceDirectory`, `append(drafts)`,
 `notify(event, {key})`, `events()`, `call(op)`, `live(frame)`, `onDaemonEvent(listener)`, `log`,
 and the capabilities `control`, `crew`, `classifier`, `sessions`, `worktrees` and `resources`.
-`ctx.control` is a `PodControl`: `exposePort({port})`, `settingsVersions()`, `memory`, `webSearch`,
+`ctx.crew` is a `PodCrew`. Its `spawn` takes `group`, the key of the spawn step. `ctx.control` is a `PodControl`: `exposePort({port})`, `settingsVersions()`, `memory`, `webSearch`,
 `gateway` (`apiKey()`, `imageModel()`), `mcp`, `routines`, `subscriptions`. `ctx.classifier.status()` / `classify(...)` answer core types.
 
 ### The control and client slots

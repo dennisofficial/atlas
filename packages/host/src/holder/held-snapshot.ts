@@ -17,6 +17,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { forMainThread } from './child-retry'
+import { heldEndingIdsOf } from './held-endings'
 import { idleReleaseDue } from './held-idle'
 import { countRunningShells } from './held-shells'
 import {
@@ -95,12 +96,20 @@ export const readHeldAction = async (args: {
     ],
   })
   const actionable = actionableEntries({ entries: resolvable, failure: workspace.failure })
+  const heldEndings = heldEndingIdsOf({
+    entries: actionable.filter((entry) => !isStop(entry)),
+    recordEvents: events,
+    childrenRunning: args.childrenRunning,
+  })
   const repairHeld = repairHoldsResume({ mainThreadId: args.threadId, events })
   const noticeIds = new Set(repairHeld ? logPendingNoticeIdsOf(events) : [])
   const messagePending =
-    actionable.some((entry) => !isStop(entry) && !(repairHeld && isNoticeEntry(entry))) ||
+    actionable.some(
+      (entry) =>
+        !isStop(entry) && !heldEndings.has(entry.inboxId) && !(repairHeld && isNoticeEntry(entry)),
+    ) ||
     waitingInputIdsOf({
-      ids: logIds.filter((id) => !noticeIds.has(id)),
+      ids: logIds.filter((id) => !noticeIds.has(id) && !heldEndings.has(id)),
       failure: workspace.failure,
     }).length > 0
   const quiet = idleReleaseDue({

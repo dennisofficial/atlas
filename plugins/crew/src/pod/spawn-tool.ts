@@ -18,6 +18,7 @@ import {
 import { crewRefusal } from './outcome'
 import { discoverRepoAgentTypes, type RepoAgentTypes } from './repo-agent-types'
 import { repoAgentTypesOf } from './resource'
+import { spawnsInStepOf, spawnStepKeyOf } from './spawn-group'
 import { planTarget, provenanceIn } from './worktree-plan'
 
 const inputSchema = z.strictObject({
@@ -38,6 +39,11 @@ const description = [
   'A name creates a new branch and a worktree cut from the fetched origin default branch.',
   'A path adopts a worktree that git already lists instead.',
 ].join(' ')
+
+const soloEnding = 'It runs in the background. It hands you its answer the moment it stops.'
+
+const groupedEnding = (count: number): string =>
+  `This sub-agent is one of ${count} that you spawned in this response. You get all ${count} endings together when the last one ends. A failure reaches you at once.`
 
 const repoAgentTypesFor = async (args: {
   ctx: PluginPodContext
@@ -137,11 +143,16 @@ export class AgentSpawnTool extends SchemaTool<typeof inputSchema> {
           })
     if (target !== undefined && !target.ok) return { ok: false, reason: target.reason }
 
+    const events = this.ctx.events()
+    const groupSize = spawnsInStepOf(events)
+    const group = spawnStepKeyOf(events)
+
     try {
       const snapshot = await this.ctx.crew.spawn({
         agentType: input.agentType,
         intent: input.intent,
         prompt: planned.prompt,
+        ...(group === undefined ? {} : { group }),
         ...(target === undefined ? {} : { worktree: target.entry }),
       })
       return {
@@ -158,7 +169,7 @@ export class AgentSpawnTool extends SchemaTool<typeof inputSchema> {
           ...(target === undefined
             ? []
             : [`It works in ${target.entry.path} on branch ${target.entry.branch}.`]),
-          'It runs in the background. It hands you its answer the moment it stops.',
+          groupSize >= 2 ? groupedEnding(groupSize) : soloEnding,
         ].join('\n'),
       }
     } catch (error) {

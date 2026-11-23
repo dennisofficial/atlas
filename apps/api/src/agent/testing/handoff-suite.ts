@@ -11,6 +11,7 @@ import {
 } from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
+import type { ScriptedModelStep } from '@dltech/atlas-agent/testing'
 
 import { makeFifo, releaseFifo, waitForFile } from '../__tests__/faults/fault-support'
 import {
@@ -95,6 +96,7 @@ export type HandoffScenario = {
   setupScript?: string
   /** host knobs both hosts get, so the handover runs the same configuration */
   knobs?: HostKnobs
+  takeOverScripts?(args: { sessionId: string }): Record<string, ScriptedModelStep[]>
   /** begins the work on host A, and waits until it is really in flight */
   start(ctx: HandoffContext): Promise<HostProcess>
   /** wakes a session that waits for the operator and wants no holder until then */
@@ -205,7 +207,9 @@ export const describeHandoff = (scenario: HandoffScenario): void => {
         label: 'host-b',
         daemonUrl: ctx.daemon.url,
         workspace: ctx.workspace,
-        scripts: { [ctx.sessionId]: [{ text: 'host b finished' }] },
+        scripts: scenario.takeOverScripts?.({ sessionId: ctx.sessionId }) ?? {
+          [ctx.sessionId]: [{ text: 'host b finished' }],
+        },
         ...(scenario.setupScript === undefined ? {} : { setupScript: scenario.setupScript }),
         ...(scenario.knobs === undefined ? {} : { knobs: scenario.knobs }),
       })
