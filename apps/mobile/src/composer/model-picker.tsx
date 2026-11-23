@@ -136,6 +136,52 @@ const SheetBody = ({
   )
 }
 
+export const ModelSheet = ({
+  open,
+  onClose,
+  models,
+  selection,
+  pinned,
+  personalId,
+  onPinnedChange,
+  onSelect,
+}: Props & { open: boolean; onClose: () => void }) => {
+  const theme = useTheme()
+  return (
+    <Modal transparent animationType="fade" visible={open} onRequestClose={onClose}>
+      <View
+        style={[styles.overlay, { backgroundColor: withAlpha({ color: '#000000', alpha: 0.35 }) }]}
+      >
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Close the model menu"
+          onPress={onClose}
+          style={StyleSheet.absoluteFill}
+        />
+        <View
+          style={[
+            styles.sheet,
+            {
+              backgroundColor: theme.popover,
+              borderColor: withAlpha({ color: theme.foreground, alpha: 0.1 }),
+            },
+          ]}
+        >
+          <SheetBody
+            models={models}
+            selection={selection}
+            pinned={pinned}
+            personalId={personalId}
+            onPinnedChange={onPinnedChange}
+            onSelect={onSelect}
+            onClose={onClose}
+          />
+        </View>
+      </View>
+    </Modal>
+  )
+}
+
 export const ModelSelect = ({
   models,
   selection,
@@ -164,40 +210,16 @@ export const ModelSelect = ({
         </Text>
         <Icon icon={ChevronDown} color={theme.mutedForeground} size={16} />
       </Pressable>
-      <Modal transparent animationType="fade" visible={open} onRequestClose={() => setOpen(false)}>
-        <View
-          style={[
-            styles.overlay,
-            { backgroundColor: withAlpha({ color: '#000000', alpha: 0.35 }) },
-          ]}
-        >
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Close the model menu"
-            onPress={() => setOpen(false)}
-            style={StyleSheet.absoluteFill}
-          />
-          <View
-            style={[
-              styles.sheet,
-              {
-                backgroundColor: theme.popover,
-                borderColor: withAlpha({ color: theme.foreground, alpha: 0.1 }),
-              },
-            ]}
-          >
-            <SheetBody
-              models={models}
-              selection={selection}
-              pinned={pinned}
-              personalId={personalId}
-              onPinnedChange={onPinnedChange}
-              onSelect={onSelect}
-              onClose={() => setOpen(false)}
-            />
-          </View>
-        </View>
-      </Modal>
+      <ModelSheet
+        open={open}
+        onClose={() => setOpen(false)}
+        models={models}
+        selection={selection}
+        pinned={pinned}
+        personalId={personalId}
+        onPinnedChange={onPinnedChange}
+        onSelect={onSelect}
+      />
     </>
   )
 }

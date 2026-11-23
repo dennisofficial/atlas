@@ -1,17 +1,21 @@
 import {
   Bubble,
+  EFontFamily,
   EFontWeight,
   ETextRole,
   ETextTone,
+  Icon,
   Markdown,
   MessageFooter,
   Text,
+  useTheme,
 } from '@dltech/atlas-ui-native'
 import { messageTimeOf } from '@dltech/atlas-client/transcript'
 import { space } from '@dltech/atlas-ui/tokens'
+import { Terminal } from 'lucide-react-native'
 import { StyleSheet, View } from 'react-native'
 
-import { EMessageAuthor, type MessageRow } from '../rows'
+import { EMessageAuthor, type CommandRow, type MessageRow } from '../rows'
 import { MessageAttachments } from './message-attachments'
 
 const SentAt = ({ at, align }: { at: string | undefined; align?: 'start' | 'end' }) => {
@@ -31,6 +35,37 @@ const SentAt = ({ at, align }: { at: string | undefined; align?: 'start' | 'end'
   )
 }
 
+const splitOf = (text: string): { name: string; argument: string } => {
+  const at = text.indexOf(' ')
+  return at === -1
+    ? { name: text, argument: '' }
+    : { name: text.slice(0, at), argument: text.slice(at) }
+}
+
+const CommandMessage = ({ command, at }: { command: CommandRow; at: string | undefined }) => {
+  const theme = useTheme()
+  const { name, argument } = splitOf(command.text)
+  return (
+    <View style={styles.you}>
+      <View style={styles.command}>
+        <Icon icon={Terminal} color={theme.mutedForeground} size={14} />
+        <Text size={ETextRole.Sm} style={styles.commandText}>
+          <Text
+            size={ETextRole.Sm}
+            family={EFontFamily.Mono}
+            weight={EFontWeight.Medium}
+            tone={ETextTone.Primary}
+          >
+            {name}
+          </Text>
+          {argument}
+        </Text>
+      </View>
+      <SentAt at={at} align="end" />
+    </View>
+  )
+}
+
 export const MessageRowView = ({
   row,
   threadId,
@@ -46,6 +81,8 @@ export const MessageRowView = ({
       </View>
     )
   }
+
+  if (row.command !== undefined) return <CommandMessage command={row.command} at={row.at} />
 
   if (row.staged === true) {
     return (
@@ -83,6 +120,14 @@ const styles = StyleSheet.create({
   you: {
     alignItems: 'flex-end',
     gap: space(2),
+  },
+  command: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: space(1.5),
+  },
+  commandText: {
+    flexShrink: 1,
   },
   timestamp: {
     fontVariant: ['tabular-nums'],

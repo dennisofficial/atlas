@@ -21,6 +21,8 @@ export enum EMessageAuthor {
   Atlas = 'atlas',
 }
 
+export type CommandRow = { text: string; name: string }
+
 export type MessageRow = {
   kind: ERowKind.Message
   id: string
@@ -31,6 +33,7 @@ export type MessageRow = {
   steer: boolean
   staged?: boolean
   attachments: readonly Attachment[]
+  command?: CommandRow | undefined
 }
 export type ThoughtItem = {
   kind: EEntryKind.ModelThought
@@ -182,6 +185,9 @@ export function rowsOf(args: {
           streaming: false,
           steer: entry.steer,
           attachments: entry.attachments,
+          ...(entry.command === undefined
+            ? {}
+            : { command: { text: entry.command.text, name: entry.command.name } }),
         })
         continue
       case EEntryKind.ModelSaid:

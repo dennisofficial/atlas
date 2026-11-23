@@ -63,8 +63,7 @@ export const probeObservedSchema = z.object({
 ### The pod slot
 
 A `PodSlot` declares:
-- `tools(ctx)`: the `ToolDefinition` values. Each has a `name` the model sees.
-- `hooks(ctx)`: the hooks of each phase, in the form `HookChainArgs`.
+- `tools(ctx)` and `hooks(ctx)`: the `ToolDefinition` values and the `HookChainArgs` of each phase.
 - `prompts`: the `PromptFragment` values the plugin adds to the system prompt.
 - `commands`: a map from inbox kind to `CommandHandler`, for commands the pod runs.
 - `resources`: the `PodResource` values the plugin loads, such as a skill directory.
