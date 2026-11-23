@@ -1,5 +1,5 @@
 import { ESettingId } from '@dltech/atlas-core'
-import { createDb, createPool, type Db } from '@dltech/atlas-db'
+import type { Db } from '@dltech/atlas-db'
 import { readOf } from '@dltech/atlas-models'
 import {
   BUILT_IN_SKILL_NAMES,
@@ -9,16 +9,11 @@ import {
   type CloudSkillWriter,
 } from '@dltech/atlas-plugin-skills/pod'
 
-import { databaseUrlWithTls } from './database-url'
-import { readAgentHostEnv } from './env'
 import { scopedSettingsOf } from './scoped-settings'
-import { skillFrontmattersOf, skillTextOf, type SkillOwner } from './skill-body'
+import { sessionDataOf, type SessionOwner } from './session-data'
+import { skillFrontmattersOf, skillTextOf } from './skill-body'
 import { skillIndexOf } from './skill-index'
 import { skillWriterOf } from './skill-writes'
-
-const QUERY_TIMEOUT_MS = 10_000
-
-const OWNER_CACHE_LIMIT = 500
 
 const NO_OWNER = 'this session has no owner to write skills for'
 
@@ -30,15 +25,9 @@ export type SkillCloudPort = {
   suggests(sessionId: string): Promise<boolean>
 }
 
-const ownerOf = async (args: { db: Db; sessionId: string }): Promise<SkillOwner | null> => {
-  const session = await args.db.orm.v2.V2Session.first({ id: args.sessionId })
-  if (session === null || session === undefined) return null
-  return { userId: session.userId, projectId: session.projectId }
-}
-
 const sourceOf = (args: {
   db: () => Db
-  owner: () => Promise<SkillOwner | null>
+  owner: () => Promise<SessionOwner | null>
 }): CloudSkillSource => {
   let entries: readonly CloudSkillEntry[] = []
   return {
@@ -83,7 +72,7 @@ const sourceOf = (args: {
 
 const suggestsOf = async (args: {
   db: () => Db
-  owner: () => Promise<SkillOwner | null>
+  owner: () => Promise<SessionOwner | null>
 }): Promise<boolean> => {
   const owner = await args.owner()
   if (owner === null) return false
@@ -93,7 +82,7 @@ const suggestsOf = async (args: {
 
 const writerOf = (args: {
   db: () => Db
-  owner: () => Promise<SkillOwner | null>
+  owner: () => Promise<SessionOwner | null>
 }): CloudSkillWriter => ({
   write: async (request) => {
     const owner = await args.owner()
@@ -116,39 +105,11 @@ const writerOf = (args: {
 })
 
 export const skillCloudPort = (args: { db?: Db | undefined } = {}): SkillCloudPort => {
-  let kept: Db | undefined = args.db
-  const owners = new Map<string, Promise<SkillOwner | null>>()
-
-  const database = (): Db => {
-    if (kept !== undefined) return kept
-    const env = readAgentHostEnv()
-    kept = createDb(
-      createPool(databaseUrlWithTls(env.databaseUrl), { queryTimeoutMs: QUERY_TIMEOUT_MS }),
-    )
-    return kept
-  }
-
-  const ownerFor = async (sessionId: string): Promise<SkillOwner | null> => {
-    const cached = owners.get(sessionId)
-    if (cached !== undefined) return await cached
-    const read = ownerOf({ db: database(), sessionId })
-    owners.set(sessionId, read)
-    if (owners.size > OWNER_CACHE_LIMIT) {
-      const oldest = owners.keys().next()
-      if (!oldest.done && oldest.value !== sessionId) owners.delete(oldest.value)
-    }
-    try {
-      return await read
-    } catch (failure) {
-      owners.delete(sessionId)
-      throw failure
-    }
-  }
-
+  const data = sessionDataOf(args)
   return {
-    source: (sessionId) => sourceOf({ db: database, owner: () => ownerFor(sessionId) }),
-    writer: (sessionId) => writerOf({ db: database, owner: () => ownerFor(sessionId) }),
+    source: (sessionId) => sourceOf({ db: data.db, owner: () => data.owner(sessionId) }),
+    writer: (sessionId) => writerOf({ db: data.db, owner: () => data.owner(sessionId) }),
     suggests: async (sessionId) =>
-      await suggestsOf({ db: database, owner: () => ownerFor(sessionId) }),
+      await suggestsOf({ db: data.db, owner: () => data.owner(sessionId) }),
   }
 }

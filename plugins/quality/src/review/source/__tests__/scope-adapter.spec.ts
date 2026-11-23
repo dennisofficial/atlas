@@ -9,7 +9,7 @@ import { NAMESPACE, PROJECT, byKind, prepare } from './adapter-fixtures'
 
 let scratch = ''
 beforeEach(async () => {
-  scratch = await mkdtemp(join(tmpdir(), 'atlas-quality-adapter-'))
+  scratch = await mkdtemp(join(tmpdir(), 'atlas-plugin-quality-adapter-'))
 })
 afterEach(async () => {
   await rm(scratch, { recursive: true, force: true })

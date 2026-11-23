@@ -107,7 +107,7 @@ function entryLine({ path, entry }: { path: string; entry: NotifiableEntry }): s
   }
 }
 
-export function renderNudge({ items }: { items: readonly ReviewItem[] }): string | undefined {
+export function renderFinding({ items }: { items: readonly ReviewItem[] }): string | undefined {
   const byPolicy = new Map<string, { title: string; lines: string[] }>()
   const paths = new Set<string>()
   for (const { record, notifiable } of items) {

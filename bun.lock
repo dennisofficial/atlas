@@ -48,6 +48,7 @@
         "@dltech/atlas-plugin-mcp": "workspace:*",
         "@dltech/atlas-plugin-memory": "workspace:*",
         "@dltech/atlas-plugin-operator": "workspace:*",
+        "@dltech/atlas-plugin-quality": "workspace:*",
         "@dltech/atlas-plugin-routines": "workspace:*",
         "@dltech/atlas-plugin-sdk": "workspace:*",
         "@dltech/atlas-plugin-services": "workspace:*",
@@ -58,7 +59,6 @@
         "@dltech/atlas-pods": "workspace:*",
         "@dltech/atlas-previews": "workspace:*",
         "@dltech/atlas-protocol": "workspace:*",
-        "@dltech/atlas-quality": "workspace:*",
         "@dltech/atlas-schedule": "workspace:*",
         "@dltech/atlas-wire": "workspace:*",
         "@dotenvx/dotenvx": "^1.71.0",
@@ -678,7 +678,6 @@
         "@dltech/atlas-plugin-operator": "workspace:*",
         "@dltech/atlas-plugin-sdk": "workspace:*",
         "@dltech/atlas-protocol": "workspace:*",
-        "@dltech/atlas-quality": "workspace:*",
         "zod": "^4.4.3",
       },
       "devDependencies": {
@@ -819,17 +818,6 @@
         "@dltech/atlas-commands": "workspace:*",
         "@dltech/atlas-core": "workspace:*",
         "zod": "^4.4.3",
-      },
-      "devDependencies": {
-        "@types/bun": "latest",
-      },
-    },
-    "packages/quality": {
-      "name": "@dltech/atlas-quality",
-      "version": "0.1.0",
-      "dependencies": {
-        "@dltech/atlas-core": "workspace:*",
-        "typescript": "6.0.3",
       },
       "devDependencies": {
         "@types/bun": "latest",
@@ -1057,6 +1045,20 @@
       },
       "devDependencies": {
         "@types/bun": "latest",
+      },
+    },
+    "plugins/quality": {
+      "name": "@dltech/atlas-plugin-quality",
+      "version": "0.1.0",
+      "dependencies": {
+        "@dltech/atlas-agent": "workspace:*",
+        "@dltech/atlas-core": "workspace:*",
+        "@dltech/atlas-plugin-sdk": "workspace:*",
+        "typescript": "6.0.3",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+        "zod": "^4.4.3",
       },
     },
     "plugins/routines": {
@@ -1658,6 +1660,8 @@
 
     "@dltech/atlas-plugin-operator": ["@dltech/atlas-plugin-operator@workspace:plugins/operator"],
 
+    "@dltech/atlas-plugin-quality": ["@dltech/atlas-plugin-quality@workspace:plugins/quality"],
+
     "@dltech/atlas-plugin-routines": ["@dltech/atlas-plugin-routines@workspace:plugins/routines"],
 
     "@dltech/atlas-plugin-sdk": ["@dltech/atlas-plugin-sdk@workspace:packages/plugin-sdk"],
@@ -1681,8 +1685,6 @@
     "@dltech/atlas-protocol": ["@dltech/atlas-protocol@workspace:packages/protocol"],
 
     "@dltech/atlas-prototype": ["@dltech/atlas-prototype@workspace:apps/prototype"],
-
-    "@dltech/atlas-quality": ["@dltech/atlas-quality@workspace:packages/quality"],
 
     "@dltech/atlas-sandbox": ["@dltech/atlas-sandbox@workspace:packages/sandbox"],
 
@@ -5790,6 +5792,8 @@
 
     "@dltech/atlas-plugin-operator/@types/bun": ["@types/bun@1.4.5", "", { "dependencies": { "bun-types": "1.4.5" } }, "sha512-DpgwNI9z0L1S0gtb45QLCWgwCUcMLnsHYMJHQvpNj7erGiCGBvpggltAIeARrtobNMKMuy0UP7i56tKKgwFs/Q=="],
 
+    "@dltech/atlas-plugin-quality/@types/bun": ["@types/bun@1.4.5", "", { "dependencies": { "bun-types": "1.4.5" } }, "sha512-DpgwNI9z0L1S0gtb45QLCWgwCUcMLnsHYMJHQvpNj7erGiCGBvpggltAIeARrtobNMKMuy0UP7i56tKKgwFs/Q=="],
+
     "@dltech/atlas-plugin-routines/@types/bun": ["@types/bun@1.4.5", "", { "dependencies": { "bun-types": "1.4.5" } }, "sha512-DpgwNI9z0L1S0gtb45QLCWgwCUcMLnsHYMJHQvpNj7erGiCGBvpggltAIeARrtobNMKMuy0UP7i56tKKgwFs/Q=="],
 
     "@dltech/atlas-plugin-sdk/@types/bun": ["@types/bun@1.4.5", "", { "dependencies": { "bun-types": "1.4.5" } }, "sha512-DpgwNI9z0L1S0gtb45QLCWgwCUcMLnsHYMJHQvpNj7erGiCGBvpggltAIeARrtobNMKMuy0UP7i56tKKgwFs/Q=="],
@@ -5809,8 +5813,6 @@
     "@dltech/atlas-previews/@types/bun": ["@types/bun@1.4.5", "", { "dependencies": { "bun-types": "1.4.5" } }, "sha512-DpgwNI9z0L1S0gtb45QLCWgwCUcMLnsHYMJHQvpNj7erGiCGBvpggltAIeARrtobNMKMuy0UP7i56tKKgwFs/Q=="],
 
     "@dltech/atlas-protocol/@types/bun": ["@types/bun@1.4.5", "", { "dependencies": { "bun-types": "1.4.5" } }, "sha512-DpgwNI9z0L1S0gtb45QLCWgwCUcMLnsHYMJHQvpNj7erGiCGBvpggltAIeARrtobNMKMuy0UP7i56tKKgwFs/Q=="],
-
-    "@dltech/atlas-quality/@types/bun": ["@types/bun@1.4.5", "", { "dependencies": { "bun-types": "1.4.5" } }, "sha512-DpgwNI9z0L1S0gtb45QLCWgwCUcMLnsHYMJHQvpNj7erGiCGBvpggltAIeARrtobNMKMuy0UP7i56tKKgwFs/Q=="],
 
     "@dltech/atlas-sandbox/@types/bun": ["@types/bun@1.4.5", "", { "dependencies": { "bun-types": "1.4.5" } }, "sha512-DpgwNI9z0L1S0gtb45QLCWgwCUcMLnsHYMJHQvpNj7erGiCGBvpggltAIeARrtobNMKMuy0UP7i56tKKgwFs/Q=="],
 
@@ -6770,6 +6772,8 @@
 
     "@dltech/atlas-plugin-operator/@types/bun/bun-types": ["bun-types@1.4.5", "", { "dependencies": { "@types/node": "*", "undici-types": "*" } }, "sha512-ECHn+9dhL3wv0G6u0+7dQvrnaimXiRDxxerYBmhTaLyJEEuvTPWk2Fye3XIf5Y++JIIiHKfQw4Z7V5D8KuiXbg=="],
 
+    "@dltech/atlas-plugin-quality/@types/bun/bun-types": ["bun-types@1.4.5", "", { "dependencies": { "@types/node": "*", "undici-types": "*" } }, "sha512-ECHn+9dhL3wv0G6u0+7dQvrnaimXiRDxxerYBmhTaLyJEEuvTPWk2Fye3XIf5Y++JIIiHKfQw4Z7V5D8KuiXbg=="],
+
     "@dltech/atlas-plugin-routines/@types/bun/bun-types": ["bun-types@1.4.5", "", { "dependencies": { "@types/node": "*", "undici-types": "*" } }, "sha512-ECHn+9dhL3wv0G6u0+7dQvrnaimXiRDxxerYBmhTaLyJEEuvTPWk2Fye3XIf5Y++JIIiHKfQw4Z7V5D8KuiXbg=="],
 
     "@dltech/atlas-plugin-sdk/@types/bun/bun-types": ["bun-types@1.4.5", "", { "dependencies": { "@types/node": "*", "undici-types": "*" } }, "sha512-ECHn+9dhL3wv0G6u0+7dQvrnaimXiRDxxerYBmhTaLyJEEuvTPWk2Fye3XIf5Y++JIIiHKfQw4Z7V5D8KuiXbg=="],
@@ -6789,8 +6793,6 @@
     "@dltech/atlas-previews/@types/bun/bun-types": ["bun-types@1.4.5", "", { "dependencies": { "@types/node": "*", "undici-types": "*" } }, "sha512-ECHn+9dhL3wv0G6u0+7dQvrnaimXiRDxxerYBmhTaLyJEEuvTPWk2Fye3XIf5Y++JIIiHKfQw4Z7V5D8KuiXbg=="],
 
     "@dltech/atlas-protocol/@types/bun/bun-types": ["bun-types@1.4.5", "", { "dependencies": { "@types/node": "*", "undici-types": "*" } }, "sha512-ECHn+9dhL3wv0G6u0+7dQvrnaimXiRDxxerYBmhTaLyJEEuvTPWk2Fye3XIf5Y++JIIiHKfQw4Z7V5D8KuiXbg=="],
-
-    "@dltech/atlas-quality/@types/bun/bun-types": ["bun-types@1.4.5", "", { "dependencies": { "@types/node": "*", "undici-types": "*" } }, "sha512-ECHn+9dhL3wv0G6u0+7dQvrnaimXiRDxxerYBmhTaLyJEEuvTPWk2Fye3XIf5Y++JIIiHKfQw4Z7V5D8KuiXbg=="],
 
     "@dltech/atlas-sandbox/@types/bun/bun-types": ["bun-types@1.4.5", "", { "dependencies": { "@types/node": "*", "undici-types": "*" } }, "sha512-ECHn+9dhL3wv0G6u0+7dQvrnaimXiRDxxerYBmhTaLyJEEuvTPWk2Fye3XIf5Y++JIIiHKfQw4Z7V5D8KuiXbg=="],
 

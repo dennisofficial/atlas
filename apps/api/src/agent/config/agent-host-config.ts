@@ -3,7 +3,6 @@ import type { ClassifierConfig } from '@dltech/atlas-classifier'
 import type { SandboxConfig } from '@dltech/atlas-pods/config/sandbox-config'
 
 import type { ModelSource } from './model-config'
-import type { QualityConfig } from './quality-config'
 
 export type ModelCredential =
   | { kind: 'oauth'; connectionId: string }
@@ -45,7 +44,6 @@ export type AgentHostConfig = {
   model: ModelConfig
   models: ModelSource
   classifier: ClassifierConfig
-  quality: QualityConfig
   workspace: WorkspaceConfig
   sandbox: SandboxConfig
   podSize?: { desiredVcpus: number | undefined; generation: number } | undefined

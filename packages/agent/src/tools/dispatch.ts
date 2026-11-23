@@ -29,7 +29,6 @@ import {
 } from './dispatch-drafts'
 import { observeAfterTool } from './dispatch-observe'
 import { invokeTool } from './invoke-tool'
-import { NO_QUALITY_STAGE, type QualityStagePort } from './quality-stage'
 import type { ToolRegistry } from './registry'
 import { parkedDraftOf, resultDraft } from './tool-result-draft'
 import {
@@ -76,7 +75,6 @@ export class HookedToolDispatcher extends ToolDispatcher {
   private readonly workspace: WorkspacePort | undefined
   private readonly onMishap: OnHookMishap | undefined
   private readonly logPort: LogPort | undefined
-  private readonly quality: QualityStagePort
   private readonly trace: TracePort | undefined
 
   constructor(args: {
@@ -85,7 +83,6 @@ export class HookedToolDispatcher extends ToolDispatcher {
     workspace?: WorkspacePort | undefined
     onMishap?: OnHookMishap | undefined
     logPort?: LogPort | undefined
-    quality?: QualityStagePort | undefined
     trace?: TracePort | undefined
   }) {
     super()
@@ -94,7 +91,6 @@ export class HookedToolDispatcher extends ToolDispatcher {
     this.workspace = args.workspace
     this.onMishap = args.onMishap ?? args.hooks.bounds.onMishap
     this.logPort = args.logPort
-    this.quality = args.quality ?? NO_QUALITY_STAGE
     this.trace = args.trace
   }
 
@@ -201,9 +197,7 @@ export class HookedToolDispatcher extends ToolDispatcher {
         markerFailureDraft({ callId: call.callId, name: call.name, failure: markerFailure }),
       ]
     }
-    const captureFileChanges =
-      this.quality.captureEnabled({ threadId: call.threadId }) ||
-      (await this.hooks.capturesFileChanges({ call: allowed, signal }))
+    const captureFileChanges = await this.hooks.capturesFileChanges({ call: allowed, signal })
 
     const result = await spanWith(this.trace, {
       name: ESpan.ToolInvoke,
@@ -227,18 +221,6 @@ export class HookedToolDispatcher extends ToolDispatcher {
       return [...drafts, parkedDraftOf({ call, result })]
     }
 
-    const qualityOutcome = await spanWith(this.trace, {
-      name: ESpan.ToolQuality,
-      run: () =>
-        this.quality.review({
-          call: allowed,
-          runId: call.runId,
-          result,
-          events,
-          projectDirectory,
-          signal,
-        }),
-    })
     const afterTool = await spanWith(this.trace, {
       name: ESpan.ToolAfterHooks,
       run: () =>
@@ -258,10 +240,8 @@ export class HookedToolDispatcher extends ToolDispatcher {
         call: { ...allowed, callId: call.callId, name: call.name },
         result,
         interrupted: signal.aborted,
-        qualityReviews: qualityOutcome.reviews,
       }),
       ...afterTool,
-      ...(qualityOutcome.nudge === undefined ? [] : [qualityOutcome.nudge]),
     ]
   }
 }

@@ -26,9 +26,10 @@ const resolveRelative = (args: { from: string; specifier: string }): string | un
 
 export function subpathViolations(args: {
   entry: string
+  root?: string | undefined
   allowedPackages: readonly string[]
 }): SubpathViolation[] {
-  const root = dirname(args.entry)
+  const root = args.root ?? dirname(args.entry)
   const outside = `imports outside ${basename(root)}`
   const seen = new Set<string>()
   const violations: SubpathViolation[] = []

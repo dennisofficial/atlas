@@ -6,7 +6,6 @@ import { z } from 'zod'
 
 import type { AgentHostConfig, ConfigSource, WorkspaceConfig } from './agent-host-config'
 import { classifierConfigOf } from './classifier-config'
-import { qualityConfigOf } from './quality-config'
 import {
   modelSourceOf,
   type ActiveAccountRow,
@@ -108,7 +107,6 @@ export class ConfigReader implements ConfigSource {
         activeAccounts,
         settings,
       }),
-      quality: qualityConfigOf({ settings }),
       workspace: workspaceOf(project),
       sandbox,
       podSize: {

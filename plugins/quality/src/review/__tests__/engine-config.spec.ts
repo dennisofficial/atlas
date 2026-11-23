@@ -2,10 +2,10 @@ import { describe, expect, it } from 'bun:test'
 
 import { EClassifierFault, EQualityReviewStatus, EQualitySkipReason } from '@dltech/atlas-core'
 
-import { INTRODUCE, answersFor, calibrated, createRig, nudgesOf, recordsOf } from './fixtures'
+import { INTRODUCE, answersFor, calibrated, contextOf, createRig, recordsOf } from './fixtures'
 
 describe('classifier configuration', () => {
-  it('answers an uncalibrated model with an inconclusive record and no nudge', async () => {
+  it('answers an uncalibrated model with an inconclusive record and no finding', async () => {
     const rig = createRig({
       classify: async () =>
         calibrated({
@@ -13,8 +13,8 @@ describe('classifier configuration', () => {
           model: 'someone-else',
         }),
     })
-    const drafts = await rig.review()
-    const [record] = recordsOf(drafts)
+    const result = await rig.review()
+    const [record] = recordsOf(result)
     expect(record).toMatchObject({
       status: EQualityReviewStatus.Inconclusive,
       reason: EQualitySkipReason.UncalibratedModel,
@@ -23,7 +23,7 @@ describe('classifier configuration', () => {
       assessments: [],
       findings: [],
     })
-    expect(nudgesOf(drafts)).toHaveLength(0)
+    expect(contextOf(result)).toBeUndefined()
   })
 
   it('records a rejected classifier as an operational error with the fault in the detail', async () => {
@@ -34,20 +34,19 @@ describe('classifier configuration', () => {
         detail: 'HTTP 429',
       }),
     })
-    const drafts = await rig.review()
-    const [record] = recordsOf(drafts)
+    const result = await rig.review()
+    const [record] = recordsOf(result)
     expect(record).toMatchObject({
       status: EQualityReviewStatus.OperationalError,
       reason: EQualitySkipReason.DecisionUnavailable,
       detail: 'rejected: HTTP 429',
     })
-    expect(nudgesOf(drafts)).toHaveLength(0)
+    expect(contextOf(result)).toBeUndefined()
   })
 
-  it('captures nothing and asks nothing when the quality switch is off', async () => {
+  it('reviews nothing and asks nothing when the quality switch is off', async () => {
     const rig = createRig({ settings: {} })
-    expect(rig.engine.captureEnabled()).toBe(false)
-    expect(await rig.review()).toEqual([])
+    expect(await rig.review()).toEqual({ records: [], context: undefined })
     expect(rig.classifyCalls).toHaveLength(0)
   })
 })

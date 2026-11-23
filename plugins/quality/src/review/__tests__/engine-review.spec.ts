@@ -17,7 +17,7 @@ import {
   answersFor,
   calibrated,
   createRig,
-  nudgesOf,
+  contextOf,
   policyNamed,
   recordsOf,
   scopeNamed,
@@ -47,7 +47,7 @@ function verdictRig() {
       }),
     ])
     const drafts = await rig.review({ events: stampHistory({ batches: history }) })
-    return { drafts, record: recordsOf(drafts)[0], nudges: nudgesOf(drafts) }
+    return { result: drafts, record: recordsOf(drafts)[0], context: contextOf(drafts) }
   }
   return { rig, step }
 }
@@ -55,11 +55,11 @@ function verdictRig() {
 describe('happy path', () => {
   it('records the finding snapshot and issues one finite consolidated nudge naming the scope and validated evidence', async () => {
     const rig = createRig()
-    const drafts = await rig.review()
-    const [record] = recordsOf(drafts)
-    const [nudge] = nudgesOf(drafts)
+    const result = await rig.review()
+    const [record] = recordsOf(result)
+    const context = contextOf(result)
 
-    expect(drafts).toHaveLength(2)
+    expect(recordsOf(result)).toHaveLength(1)
     expect(record?.status).toBe(EQualityReviewStatus.Completed)
     expect(record?.path).toBe('src/a.ts')
     expect(record?.requestedModel).toBe(MODEL)
@@ -71,22 +71,21 @@ describe('happy path', () => {
       notified: true,
     })
     expect(record?.durationMs).toBeGreaterThan(0)
-    expect(nudge?.lifetimeSteps).toBe(1)
-    expect(nudge?.text).toContain('Widget')
-    expect(nudge?.text).toContain('run method')
-    expect(nudge?.text).not.toContain('not-a-real-evidence-id')
-    expect(nudge?.text).toContain('written successfully')
-    expect(nudge?.text).toContain('leaving it unchanged is fine')
+    expect(context).toContain('Widget')
+    expect(context).toContain('run method')
+    expect(context).not.toContain('not-a-real-evidence-id')
+    expect(context).toContain('written successfully')
+    expect(context).toContain('leaving it unchanged is fine')
     expect(rig.classifyCalls).toHaveLength(1)
   })
 
   it('replaces a record that fails schema validation and never nudges from it', async () => {
     const rig = createRig({ policies: [policyNamed({ invalidConcern: true })] })
-    const drafts = await rig.review()
-    const [record] = recordsOf(drafts)
+    const result = await rig.review()
+    const [record] = recordsOf(result)
     expect(record?.status).toBe(EQualityReviewStatus.OperationalError)
     expect(record?.assessments).toEqual([])
-    expect(nudgesOf(drafts)).toHaveLength(0)
+    expect(contextOf(result)).toBeUndefined()
   })
 })
 
@@ -94,32 +93,35 @@ describe('transition-driven ledger from supplied events', () => {
   it('stays silent on repeat introductions (notify once) and when improving', async () => {
     const { step } = verdictRig()
     const first = await step({ verdict: INTRODUCE, history: [] })
-    const repeat = await step({ verdict: INTRODUCE, history: [first.drafts] })
-    const improved = await step({ verdict: IMPROVE, history: [first.drafts] })
+    const repeat = await step({ verdict: INTRODUCE, history: [recordsOf(first.result)] })
+    const improved = await step({ verdict: IMPROVE, history: [recordsOf(first.result)] })
 
-    expect(first.nudges).toHaveLength(1)
-    expect(repeat.nudges).toHaveLength(0)
+    expect(first.context).toBeDefined()
+    expect(repeat.context).toBeUndefined()
     expect(repeat.record?.findings[0]).toMatchObject({
       episode: 1,
       state: EQualityFindingState.Active,
     })
-    expect(improved.nudges).toHaveLength(0)
-    expect(improved.drafts).toHaveLength(1)
+    expect(improved.context).toBeUndefined()
+    expect(recordsOf(improved.result)).toHaveLength(1)
   })
 
   it('resolves on a Resolve transition and starts a new episode with a nudge on reintroduction', async () => {
     const { step } = verdictRig()
     const first = await step({ verdict: INTRODUCE, history: [] })
-    const resolved = await step({ verdict: RESOLVE, history: [first.drafts] })
-    const again = await step({ verdict: INTRODUCE, history: [first.drafts, resolved.drafts] })
+    const resolved = await step({ verdict: RESOLVE, history: [recordsOf(first.result)] })
+    const again = await step({
+      verdict: INTRODUCE,
+      history: [recordsOf(first.result), recordsOf(resolved.result)],
+    })
 
     expect(resolved.record?.findings[0]?.state).toBe(EQualityFindingState.Resolved)
-    expect(resolved.nudges).toHaveLength(0)
+    expect(resolved.context).toBeUndefined()
     expect(again.record?.findings[0]).toMatchObject({
       episode: 2,
       state: EQualityFindingState.Active,
     })
-    expect(again.nudges).toHaveLength(1)
+    expect(again.context).toBeDefined()
   })
 
   it('retires findings on scope deletion without a model call', async () => {
@@ -127,20 +129,22 @@ describe('transition-driven ledger from supplied events', () => {
     const first = await step({ verdict: INTRODUCE, history: [] })
     const callsBefore = rig.classifyCalls.length
     rig.setScopes([scopeNamed({ after: null, afterHash: null })])
-    const drafts = await rig.review({ events: stampHistory({ batches: [first.drafts] }) })
+    const drafts = await rig.review({
+      events: stampHistory({ batches: [recordsOf(first.result)] }),
+    })
     const [record] = recordsOf(drafts)
 
     expect(rig.classifyCalls).toHaveLength(callsBefore)
     expect(record?.findings[0]?.state).toBe(EQualityFindingState.Resolved)
-    expect(nudgesOf(drafts)).toHaveLength(0)
+    expect(contextOf(drafts)).toBeUndefined()
   })
 
   it('never carries state across calls: the same events fed to a fresh call reproduce the nudge decision', async () => {
     const { rig, step } = verdictRig()
     const first = await step({ verdict: INTRODUCE, history: [] })
     const lost = await rig.review({ events: [] })
-    expect(first.nudges).toHaveLength(1)
-    expect(nudgesOf(lost)).toHaveLength(1)
+    expect(first.context).toBeDefined()
+    expect(contextOf(lost)).toBeDefined()
   })
 })
 
@@ -160,7 +164,7 @@ describe('model identity and faults', () => {
       findings: [],
       assessments: [],
     })
-    expect(nudgesOf(drafts)).toHaveLength(0)
+    expect(contextOf(drafts)).toBeUndefined()
   })
 
   it('records DecisionUnavailable for ok:false', async () => {
@@ -195,18 +199,18 @@ describe('model identity and faults', () => {
       findings: [],
     })
     expect(byScope.get('scope-1')?.status).toBe(EQualityReviewStatus.Completed)
-    const [nudge] = nudgesOf(drafts)
-    expect(nudge?.text).toContain('Widget')
-    expect(nudge?.text).not.toContain('Broken')
+    const context = contextOf(drafts)
+    expect(context).toContain('Widget')
+    expect(context).not.toContain('Broken')
   })
 })
 
 describe('deadline and cancellation', () => {
   it('records ReviewDeadline when the classifier never resolves', async () => {
     const rig = createRig({ deadlineMs: 20, classify: () => new Promise(() => {}) })
-    const drafts = await rig.review()
-    expect(drafts).toHaveLength(1)
-    expect(recordsOf(drafts)[0]).toMatchObject({
+    const result = await rig.review()
+    expect(recordsOf(result)).toHaveLength(1)
+    expect(recordsOf(result)[0]).toMatchObject({
       status: EQualityReviewStatus.OperationalError,
       reason: EQualitySkipReason.ReviewDeadline,
     })
@@ -225,15 +229,15 @@ describe('deadline and cancellation', () => {
       },
     })
     const first = await rig.review()
-    expect(first).toHaveLength(1)
+    expect(recordsOf(first)).toHaveLength(1)
     expect(recordsOf(first)[0]?.reason).toBe(EQualitySkipReason.ReviewDeadline)
 
     await new Promise((resolve) => setTimeout(resolve, 80))
-    expect(first).toHaveLength(1)
+    expect(recordsOf(first)).toHaveLength(1)
 
-    const second = await rig.review({ events: stampHistory({ batches: [first] }) })
+    const second = await rig.review({ events: stampHistory({ batches: [recordsOf(first)] }) })
     expect(recordsOf(second)[0]?.findings[0]).toMatchObject({ episode: 1, notified: true })
-    expect(nudgesOf(second)).toHaveLength(1)
+    expect(contextOf(second)).toBeDefined()
   })
 
   it('records TurnInterrupted and no nudge when the caller aborts mid-review', async () => {
@@ -246,7 +250,7 @@ describe('deadline and cancellation', () => {
       status: EQualityReviewStatus.Skipped,
       reason: EQualitySkipReason.TurnInterrupted,
     })
-    expect(nudgesOf(drafts)).toHaveLength(0)
+    expect(contextOf(drafts)).toBeUndefined()
   })
 })
 
@@ -257,11 +261,11 @@ describe('repeat reviews', () => {
     const second = await rig.review()
     expect(rig.classifyCalls).toHaveLength(2)
     expect(recordsOf(second)[0]?.assessments).toEqual(recordsOf(first)[0]?.assessments)
-    expect(nudgesOf(first)).toHaveLength(1)
-    expect(nudgesOf(second)).toHaveLength(1)
+    expect(contextOf(first)).toBeDefined()
+    expect(contextOf(second)).toBeDefined()
 
-    const third = await rig.review({ events: stampHistory({ batches: [first] }) })
-    expect(nudgesOf(third)).toHaveLength(0)
+    const third = await rig.review({ events: stampHistory({ batches: [recordsOf(first)] }) })
+    expect(contextOf(third)).toBeUndefined()
   })
 
   it('does not reuse an outcome from a faulted call', async () => {

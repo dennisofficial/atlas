@@ -2,34 +2,38 @@ import { describe, expect, it } from 'bun:test'
 
 import { EQualityReviewStatus, EQualitySkipReason } from '@dltech/atlas-core'
 
-import { FILE, createRig, nudgesOf, policyNamed, recordsOf, scopeNamed } from './fixtures'
+import { FILE, PROJECT, contextOf, createRig, policyNamed, recordsOf, scopeNamed } from './fixtures'
 
 describe('switches off', () => {
   it('reviews nothing and touches no collaborator', async () => {
     const rig = createRig({ settings: {} })
-    expect(rig.engine.captureEnabled()).toBe(false)
-    expect(await rig.review()).toEqual([])
+    expect(await rig.review()).toEqual({ records: [], context: undefined })
     expect(rig.sourceCalls).toHaveLength(0)
-    expect(rig.identityCalls).toHaveLength(0)
     expect(rig.classifyCalls).toHaveLength(0)
   })
+})
 
-  it('reports capture enabled for the enabled switch alone', () => {
-    expect(createRig({ settings: { 'quality.enabled': true } }).engine.captureEnabled()).toBe(true)
+describe('workspace namespace', () => {
+  it('stamps every record with the project directory the hook passed', async () => {
+    const rig = createRig()
+    const records = recordsOf(await rig.review())
+    expect(records.length).toBeGreaterThan(0)
+    for (const record of records) expect(record.workspaceNamespace).toBe(PROJECT)
+    expect(rig.sourceCalls.every((args) => args.workspaceNamespace === PROJECT)).toBe(true)
   })
 })
 
 describe('coverage records', () => {
   it('turns capture faults into skipped records with the fault reason and no scope', async () => {
     const rig = createRig()
-    const drafts = await rig.review({
+    const result = await rig.review({
       changes: [],
       captureFaults: [
         { path: FILE, reason: EQualitySkipReason.SourceUnavailable, detail: 'unreadable' },
       ],
     })
-    const [record] = recordsOf(drafts)
-    expect(drafts).toHaveLength(1)
+    const [record] = recordsOf(result)
+    expect(recordsOf(result)).toHaveLength(1)
     expect(record).toMatchObject({
       status: EQualityReviewStatus.Skipped,
       reason: EQualitySkipReason.SourceUnavailable,
@@ -47,22 +51,22 @@ describe('coverage records', () => {
         { path: 'src/a.ts', reason: EQualitySkipReason.InvalidSyntax, detail: 'parse error' },
       ],
     })
-    const drafts = await rig.review()
-    const [record] = recordsOf(drafts)
+    const result = await rig.review()
+    const [record] = recordsOf(result)
     expect(record).toMatchObject({
       status: EQualityReviewStatus.Skipped,
       reason: EQualitySkipReason.InvalidSyntax,
       findings: [],
     })
-    expect(nudgesOf(drafts)).toHaveLength(0)
+    expect(contextOf(result)).toBeUndefined()
   })
 
   it('rejects an outside-workspace path without calling the source adapter', async () => {
     const rig = createRig()
-    const drafts = await rig.review({
+    const result = await rig.review({
       changes: [{ path: '/etc/passwd', before: null, after: 'x' }],
     })
-    expect(recordsOf(drafts)[0]).toMatchObject({
+    expect(recordsOf(result)[0]).toMatchObject({
       status: EQualityReviewStatus.Skipped,
       reason: EQualitySkipReason.OutsideWorkspace,
     })
@@ -74,57 +78,17 @@ describe('coverage records', () => {
     })
     expect(recordsOf(parent)[0]?.reason).toBe(EQualitySkipReason.OutsideWorkspace)
   })
-
-  it('records WorkspaceUnidentified once per change when identity throws, never inventing one', async () => {
-    const rig = createRig({
-      identify: async () => {
-        throw new Error('git probe failed')
-      },
-    })
-    const drafts = await rig.review({
-      changes: [
-        { path: FILE, before: null, after: 'x' },
-        { path: '/repo/src/b.ts', before: null, after: 'y' },
-      ],
-    })
-    const records = recordsOf(drafts)
-    expect(records).toHaveLength(2)
-    for (const record of records) {
-      expect(record).toMatchObject({
-        status: EQualityReviewStatus.OperationalError,
-        reason: EQualitySkipReason.WorkspaceUnidentified,
-      })
-    }
-    expect(rig.identityCalls).toHaveLength(1)
-    expect(rig.sourceCalls).toHaveLength(0)
-    expect(nudgesOf(drafts)).toHaveLength(0)
-  })
-
-  it('asks for the namespace once per review, passing the thread and project', async () => {
-    const rig = createRig()
-    await rig.review({
-      changes: [
-        { path: FILE, before: null, after: 'x' },
-        { path: '/repo/src/b.ts', before: null, after: 'y' },
-      ],
-    })
-    expect(rig.identityCalls).toHaveLength(1)
-    expect(rig.identityCalls[0]).toMatchObject({ projectDirectory: '/repo' })
-    expect(
-      rig.sourceCalls.every((args) => args.workspaceNamespace === 'git@host:org/repo.git#.'),
-    ).toBe(true)
-  })
 })
 
 describe('regressions from review', () => {
   it('retires deleted scopes without a model call', async () => {
     const rig = createRig({ scopes: [scopeNamed({ after: null, afterHash: null })] })
-    const drafts = await rig.review()
-    const [record] = recordsOf(drafts)
+    const result = await rig.review()
+    const [record] = recordsOf(result)
     expect(record?.status).toBe(EQualityReviewStatus.Completed)
     expect(record?.detail).toBe('scope deleted')
     expect(rig.classifyCalls).toHaveLength(0)
-    expect(nudgesOf(drafts)).toHaveLength(0)
+    expect(contextOf(result)).toBeUndefined()
   })
 
   it('keeps a well-behaved policy selection when another policy duplicates a scope', async () => {
@@ -134,8 +98,7 @@ describe('regressions from review', () => {
         policyNamed({ id: 'greedy', select: (ids) => [...ids, ...ids] }),
       ],
     })
-    const drafts = await rig.review()
-    const records = recordsOf(drafts)
+    const records = recordsOf(await rig.review())
     expect(
       records.some((record) => record.reason === EQualitySkipReason.ScopeIdentityUncertain),
     ).toBe(true)
@@ -149,22 +112,8 @@ describe('regressions from review', () => {
       throw new Error('policy bug')
     }
     const rig = createRig({ policies: [bad, policyNamed({ id: 'srp' })] })
-    const drafts = await rig.review()
-    const records = recordsOf(drafts)
+    const records = recordsOf(await rig.review())
     expect(records.some((record) => record.detail?.includes('selectScopes threw'))).toBe(true)
     expect(records.some((record) => record.status === EQualityReviewStatus.Completed)).toBe(true)
-  })
-
-  it('records a ReviewDeadline operational error when the identity probe exceeds the budget', async () => {
-    const rig = createRig({
-      deadlineMs: 20,
-      identify: () => new Promise(() => {}),
-    })
-    const drafts = await rig.review()
-    const [record] = recordsOf(drafts)
-    expect(record).toMatchObject({
-      status: EQualityReviewStatus.OperationalError,
-      reason: EQualitySkipReason.ReviewDeadline,
-    })
   })
 })

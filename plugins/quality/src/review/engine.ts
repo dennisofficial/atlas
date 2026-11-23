@@ -1,15 +1,12 @@
 import {
-  EQualityReviewStatus,
   EQualitySkipReason,
-  QualityReviewPort,
   foldQualityFindings,
   type CapturedFileChange,
   type ClassifierPort,
-  type EventDraft,
+  type CodeQualityReviewedBody,
   type QualityCoverageDiagnostic,
   type QualityFinding,
   type QualityRegistry,
-  type WorkspaceIdentityPort,
 } from '@dltech/atlas-core'
 
 import { reviewChange } from './change-review'
@@ -23,11 +20,10 @@ import type {
   ReviewContext,
   SkipArgs,
 } from './review-context'
-import { buildRecord, renderNudge, validateItem, type ReviewItem } from './review-records'
+import { renderFinding, validateItem, type ReviewItem } from './review-records'
 import { normalizeWorkspacePath, type QualitySourceAdapter } from './review-scopes'
 import { deadlineFailure, recordScope, reviewScopeJob, type ScopeJob } from './scope-review'
 import { qualitySwitches } from './settings'
-import { resolveWorkspaceNamespace } from './workspace-namespace'
 
 export type CodeQualityReviewDeps = {
   classifier: ClassifierPort
@@ -35,26 +31,24 @@ export type CodeQualityReviewDeps = {
   source: QualitySourceAdapter
   registry: QualityRegistry
   settings: () => Readonly<Record<string, unknown>>
-  workspaceIdentity: WorkspaceIdentityPort
   clock: () => number
   deadlineMs: number
 }
 
-const UNIDENTIFIED_NAMESPACE = 'unidentified'
+export type QualityReviewResult = {
+  records: readonly CodeQualityReviewedBody[]
+  context: string | undefined
+}
+
+export const NO_REVIEW_RESULT: QualityReviewResult = { records: [], context: undefined }
 
 const describeError = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
 
-export class CodeQualityReview extends QualityReviewPort {
-  constructor(private readonly deps: CodeQualityReviewDeps) {
-    super()
-  }
+export class CodeQualityReview {
+  constructor(private readonly deps: CodeQualityReviewDeps) {}
 
-  captureEnabled(): boolean {
-    return qualitySwitches({ values: this.deps.settings() }).enabled
-  }
-
-  async review(args: ReviewArgs): Promise<readonly EventDraft[]> {
+  async review(args: ReviewArgs): Promise<QualityReviewResult> {
     if (args.deadlineAt !== undefined) return this.reviewUnderSignal(args)
     const budget = createQualityBudget({
       signal: args.signal,
@@ -68,26 +62,16 @@ export class CodeQualityReview extends QualityReviewPort {
     }
   }
 
-  private async reviewUnderSignal(args: ReviewArgs): Promise<readonly EventDraft[]> {
+  private async reviewUnderSignal(args: ReviewArgs): Promise<QualityReviewResult> {
     const switches = qualitySwitches({ values: this.deps.settings() })
-    if (!switches.enabled) return []
-    if (args.changes.length === 0 && args.captureFaults.length === 0) return []
+    if (!switches.enabled) return NO_REVIEW_RESULT
+    if (args.changes.length === 0 && args.captureFaults.length === 0) return NO_REVIEW_RESULT
 
     const started = this.deps.clock()
-    const namespace = await resolveWorkspaceNamespace({
-      identity: this.deps.workspaceIdentity,
-      projectDirectory: args.projectDirectory,
-      threadId: args.call.threadId,
-      signal: args.signal,
-    })
-    if (typeof namespace !== 'string') {
-      return this.finish({ items: this.bail({ args, started, ...namespace }), signal: args.signal })
-    }
-
     const records = args.events.flatMap((event) => qualityReviewsOf(event))
     const ctx: ReviewContext = {
       ...args,
-      namespace,
+      namespace: args.projectDirectory,
       started,
       records,
       ledger: foldQualityFindings({ records }),
@@ -111,47 +95,13 @@ export class CodeQualityReview extends QualityReviewPort {
   }: {
     items: readonly ReviewItem[]
     signal: AbortSignal
-  }): readonly EventDraft[] {
-    const lateNudge = deadlineErrorOf(signal) !== undefined
+  }): QualityReviewResult {
     const validated = items.map((item) => validateItem({ item }))
-    const drafts: EventDraft[] = validated.map(({ record }) => record)
-    const text = renderNudge({ items: validated })
-    if (text !== undefined && !lateNudge) drafts.push({ type: 'nudge', text, lifetimeSteps: 1 })
-    return drafts
-  }
-
-  private bail({
-    args,
-    started,
-    status,
-    reason,
-    detail,
-  }: {
-    args: ReviewArgs
-    started: number
-    status: EQualityReviewStatus
-    reason: EQualitySkipReason
-    detail: string
-  }): ReviewItem[] {
-    const paths = [
-      ...args.changes.map((change) => change.path),
-      ...args.captureFaults.map((fault) => fault.path),
-    ].map(
-      (path) => normalizeWorkspacePath({ projectDirectory: args.projectDirectory, path }) ?? path,
-    )
-    const durationMs = this.deps.clock() - started
-    return paths.map((path) => ({
-      record: buildRecord({
-        callId: args.call.callId,
-        workspaceNamespace: UNIDENTIFIED_NAMESPACE,
-        path,
-        status,
-        reason,
-        detail,
-        durationMs,
-      }),
-      notifiable: [],
-    }))
+    return {
+      records: validated.map(({ record }) => record),
+      context:
+        deadlineErrorOf(signal) === undefined ? renderFinding({ items: validated }) : undefined,
+    }
   }
 
   private base({ ctx }: { ctx: ReviewContext }): CoverageBase {

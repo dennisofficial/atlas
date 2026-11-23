@@ -7,7 +7,7 @@ import {
   answersFor,
   calibrated,
   createRig,
-  nudgesOf,
+  contextOf,
   policyNamed,
   recordsOf,
   scopeNamed,
@@ -54,7 +54,7 @@ describe('scope selection', () => {
     expect(rig.classifyCalls).toHaveLength(2)
     const sizes = rig.classifyCalls.map((args) => Object.keys(args.questions).length).sort()
     expect(sizes).toEqual([2, 4])
-    expect(nudgesOf(drafts)).toHaveLength(1)
+    expect(contextOf(drafts)).toBeDefined()
   })
 
   it('skips disabled policies by their setting key', async () => {
@@ -108,7 +108,7 @@ describe('size bounds', () => {
       status: EQualityReviewStatus.Skipped,
       reason: EQualitySkipReason.OversizedRequest,
     })
-    expect(nudgesOf(drafts)).toHaveLength(0)
+    expect(contextOf(drafts)).toBeUndefined()
   })
 
   it('counts UTF-8 bytes, not characters', async () => {

@@ -52,7 +52,6 @@ import { fastRefusalHandler, type FastRefusalSessions } from './fast-refusal'
 import { sessionModelsOf, type SessionModels } from './model-port'
 import { modelLabelOf } from '../config/model-labels'
 import { workspaceRepoMap } from './workspace-repo-map'
-import { qualityStageFor } from './quality-stage'
 
 export { SandboxNotConfiguredError }
 
@@ -321,14 +320,6 @@ export const createSessionRuntimeFactory = (
 
     const classifier = classifierOf(config.classifier)
     const classifierStatus = classifierStatusOf(config.classifier)
-    const quality = qualityStageFor({
-      quality: config.quality,
-      classifier,
-      classifierStatus,
-      processes,
-      clock: () => args.timers.now(),
-      log: args.log,
-    })
 
     const keepAlive = startKeepAlive({
       sandbox: provider,
@@ -351,7 +342,6 @@ export const createSessionRuntimeFactory = (
       model: models.main,
       classifier,
       classifierStatus,
-      ...(quality === undefined ? {} : { quality }),
       get modelChoice() {
         return models.modelChoice()
       },

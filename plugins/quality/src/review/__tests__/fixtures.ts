@@ -24,10 +24,9 @@ import {
   type QualityPolicy,
   type QualityScope,
   type ToolCall,
-  type WorkspaceIdentityPort,
 } from '@dltech/atlas-core'
 
-import { CodeQualityReview } from '../engine'
+import { CodeQualityReview, type QualityReviewResult } from '../engine'
 import type { QualitySourceAdapter } from '../review-scopes'
 
 export const THREAD = toThreadId('thread-1')
@@ -178,7 +177,6 @@ export type RigOptions = {
   scopes?: readonly QualityScope[]
   skipped?: ReturnType<QualitySourceAdapter['prepareQualityScopes']>['skipped']
   classify?: (args: ClassifyArgs) => Promise<ClassifierOutcome>
-  identify?: WorkspaceIdentityPort['identify']
   deadlineMs?: number
 }
 
@@ -188,7 +186,6 @@ export function createRig(options: RigOptions = {}) {
   const state = { scopes: options.scopes ?? [scopeNamed()] }
   const classifyCalls: ClassifyArgs[] = []
   const sourceCalls: Parameters<QualitySourceAdapter['prepareQualityScopes']>[0][] = []
-  const identityCalls: Parameters<WorkspaceIdentityPort['identify']>[0][] = []
   const classify =
     options.classify ??
     (async ({ questions }) => {
@@ -222,14 +219,6 @@ export function createRig(options: RigOptions = {}) {
     },
     registry: createQualityRegistry({ policies }),
     settings: () => values,
-    workspaceIdentity: {
-      identify: (args) => {
-        identityCalls.push(args)
-        return (
-          options.identify ?? (async () => ({ remote: 'git@host:org/repo.git', worktreePath: '.' }))
-        )(args)
-      },
-    },
     clock: monotonicClock(),
     deadlineMs: options.deadlineMs ?? 1000,
   })
@@ -237,7 +226,6 @@ export function createRig(options: RigOptions = {}) {
   const review = (overrides: Partial<Parameters<CodeQualityReview['review']>[0]> = {}) =>
     engine.review({
       call,
-      runId: RUN,
       changes: [change],
       captureFaults: [],
       events: [],
@@ -251,7 +239,6 @@ export function createRig(options: RigOptions = {}) {
     values,
     classifyCalls,
     sourceCalls,
-    identityCalls,
     review,
     setScopes: (scopes: readonly QualityScope[]) => {
       state.scopes = scopes
@@ -281,11 +268,10 @@ export function stampHistory({
   return stampDrafts({ drafts, envelopes })
 }
 
-export const recordsOf = (drafts: readonly EventDraft[]): CodeQualityReviewedBody[] =>
-  drafts.filter((draft): draft is CodeQualityReviewedBody => draft.type === 'code-quality-reviewed')
+export const recordsOf = (result: QualityReviewResult): readonly CodeQualityReviewedBody[] =>
+  result.records
 
-export const nudgesOf = (drafts: readonly EventDraft[]): Extract<EventDraft, { type: 'nudge' }>[] =>
-  drafts.filter((draft): draft is Extract<EventDraft, { type: 'nudge' }> => draft.type === 'nudge')
+export const contextOf = (result: QualityReviewResult): string | undefined => result.context
 
 export const reasonOf = (
   record: CodeQualityReviewedBody | undefined,

@@ -8,7 +8,6 @@ import type {
   QualityFinding,
   QualityPolicy,
   QualityScope,
-  RunId,
   ToolCall,
 } from '@dltech/atlas-core'
 
@@ -17,7 +16,6 @@ import type { ScopeJob } from './scope-review'
 
 export type ReviewArgs = {
   call: ToolCall
-  runId: RunId
   changes: readonly CapturedFileChange[]
   captureFaults: readonly QualityCoverageDiagnostic[]
   events: readonly Event[]

@@ -15,7 +15,6 @@ import type {
 } from '@dltech/atlas-core'
 import type {
   NormalizeFailure,
-  QualityStagePort,
   SaidUploadsPort,
   ToolEffectResolver,
   ToolRegistry,
@@ -96,7 +95,6 @@ export type SessionRuntime = {
   modelOf(choice: ModelChoice): ModelPort
   tools: ToolRegistry
   daemonTools: ReadonlySet<string>
-  quality?: QualityStagePort | undefined
   effectOf: ToolEffectResolver
   assembly: AssemblyPipeline
   uploads?: SaidUploadsPort | undefined
