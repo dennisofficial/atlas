@@ -14,6 +14,8 @@ import {
 } from '@dltech/atlas-core'
 import {
   mergeHooks,
+  type ComposedPod,
+  type DaemonReady,
   type PluginPodContext,
   type PodCrew,
   type PodResources,
@@ -248,6 +250,25 @@ export const resourceSyncOf = (args: {
   return sync
 }
 
+export const watchDaemonReady = (args: {
+  onReady: SessionRuntime['remoteCalls']['onReady']
+  bootId: () => string | undefined
+  pod: Pick<ComposedPod, 'onDaemonReady'>
+  ctx: PluginPodContext
+  signal: AbortSignal
+}): void => {
+  let announced: string | undefined
+  const announce = (hello: DaemonReady): void => {
+    if (hello.bootId === announced) return
+    announced = hello.bootId
+    args.pod.onDaemonReady({ ctx: args.ctx, hello })
+  }
+  const offReady = args.onReady(announce)
+  args.signal.addEventListener('abort', offReady, { once: true })
+  const booted = args.bootId()
+  if (booted !== undefined) announce({ bootId: booted, restart: false })
+}
+
 export const hostHooksOf = (args: {
   declarations: () => readonly ToolDeclaration[]
 }): HookChainArgs => ({
@@ -295,6 +316,13 @@ export const pluginPodOf = (args: {
     return { tools, hooks }
   }
   const ctx = pluginPodContextOf(args)
+  watchDaemonReady({
+    onReady: (listener) => args.runtime.remoteCalls.onReady(listener),
+    bootId: () => args.runtime.remoteCalls.bootId(),
+    pod: plugins.pod,
+    ctx,
+    signal: args.signal,
+  })
   const tools = pluginToolsOf({ runtime: args.runtime, ctx })
   const slash = plugins.pod.slash(ctx)
   const sync = resourceSyncOf({

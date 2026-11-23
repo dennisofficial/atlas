@@ -72,7 +72,7 @@ A `PodSlot` declares:
 - `resources`: the `PodResource` values the plugin loads, such as a skill directory.
 - `slash(ctx)`: the `PodSlash` source (`names()`, `load({name, argumentText})`); at most one plugin.
 - `childDeny`: tool names a sub-agent may not call.
-- `onDaemonEvent(frame)`: handle an event the daemon pushes.
+- `onDaemonEvent(frame)` handles a daemon event; `onDaemonReady({ctx, hello})` runs once per boot.
 
 `ctx` is a `PluginPodContext`. It gives `sessionId`, `workspaceDirectory`, `env()`, `append(drafts)`,
 `notify(event, {key})`, `events()`, `call(op)`, `live(frame)`, `onDaemonEvent(listener)`, `log`, and

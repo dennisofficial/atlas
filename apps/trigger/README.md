@@ -40,7 +40,9 @@ only what these tasks need: `DATABASE_URL`, the change storage keys (`ARTIFACT_S
 token (`BLOB_READ_WRITE_TOKEN`), and the pod keys that `readPodsEnv` from `@dltech/atlas-pods`
 reads (`DAEMON_SECRET`, `SECRETS_ENCRYPTION_KEY`, `ATLAS_API_ORIGIN`, `PLATFORM_VERCEL_*`,
 `AGENT37_*`), and the GitHub keys the sweeps read (`GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`,
-`GITHUB_APP_SLUG`, `GITHUB_CLIENT_ID`, `BETTER_AUTH_URL`, `REDIS_URL`). A task that reads a new variable adds it here in the same PR. The private key lives in `apps/trigger/.env.keys`,
+`GITHUB_APP_SLUG`, `GITHUB_CLIENT_ID`, `BETTER_AUTH_URL`, `REDIS_URL`), and the preview keys the
+reconciler reads (`CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_ZONE_ID`, and
+optionally `PREVIEW_DOMAIN`). A task that reads a new variable adds it here in the same PR. The private key lives in `apps/trigger/.env.keys`,
 which is gitignored; deploy targets hold only that key, as `DOTENV_PRIVATE_KEY_PRODUCTION_ENC`.
 `trigger-tier-extension.ts` ships the tier file into the worker bundle as `envs/` and points
 `DOTENVX_ENVS_DIR` at it; `src/trigger/init.ts` decrypts it into `process.env` before a task runs.
@@ -56,6 +58,16 @@ thread activity, retries failed v1 wakes and drains the v1-only outbox kinds. Bo
 the same merge to main and trigger.dev syncs declarative schedules on deploy, so the three schedules
 stop in v1 in the same deploy that starts them here. A short overlap is safe: outbox and inbox claims
 use leases and `SKIP LOCKED`, and the hook sweep holds `GithubAppSyncGate`.
+
+## The preview tunnels
+
+`preview-reconcile` runs every five minutes. It drives one pass over the pods whose `PreviewTunnel`
+row is `Pending`, is `Deleting`, or was never synced — making Cloudflare match the rows and deleting
+the tunnels of pods that hold no live session — and then sweeps the `atlas-` tunnels and preview
+hostnames that no row owns, older than 30 minutes. The agent host runs the same pass right after it
+writes a row, so this task is the backstop, the sweep, and the executor of a teardown that no host
+holds. `PREVIEW_SWEEP_DRY_RUN=1` makes the sweep log its plan without deleting, which is the first
+pass to run against the existing leaked tunnels.
 
 ## How the API starts a task
 

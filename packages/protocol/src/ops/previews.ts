@@ -2,42 +2,35 @@ import { z } from 'zod'
 
 import { okResultSchema } from './result'
 
-const portSchema = z.number().int().min(1).max(65535)
-
-export const previewsExposeOpSchema = z
+export const previewsEnsureOpSchema = z
   .object({
-    op: z.literal('previews.expose'),
-    port: portSchema,
-    tunnelToken: z.string().min(1),
+    op: z.literal('previews.ensure'),
+    tunnelToken: z.string().min(1).optional(),
   })
   .strict()
 
-export const previewsStopOpSchema = z
-  .object({ op: z.literal('previews.stop'), port: portSchema })
+export const previewsStatusOpSchema = z.object({ op: z.literal('previews.status') }).strict()
+
+export const previewTunnelStateSchema = z.enum(['stopped', 'starting', 'up', 'failed'])
+
+export const previewTunnelStatusSchema = z
+  .object({
+    state: previewTunnelStateSchema,
+    pid: z.number().int().min(1).optional(),
+    restarts: z.number().int().min(0),
+    lastError: z.string().optional(),
+    tail: z.string(),
+  })
   .strict()
 
-export const previewsListOpSchema = z.object({ op: z.literal('previews.list') }).strict()
-
-export const previewInfoSchema = z
-  .object({ port: portSchema, pid: z.number().int().min(1) })
-  .strict()
-
-export const previewStopResultSchema = z.object({ stopped: z.boolean() }).strict()
-
-export const previewsOpSchemas = [
-  previewsExposeOpSchema,
-  previewsStopOpSchema,
-  previewsListOpSchema,
-] as const
+export const previewsOpSchemas = [previewsEnsureOpSchema, previewsStatusOpSchema] as const
 
 export const previewsResultSchemas = [
-  okResultSchema({ op: 'previews.expose', value: previewInfoSchema }),
-  okResultSchema({ op: 'previews.stop', value: previewStopResultSchema }),
-  okResultSchema({ op: 'previews.list', value: z.array(previewInfoSchema) }),
+  okResultSchema({ op: 'previews.ensure', value: previewTunnelStatusSchema }),
+  okResultSchema({ op: 'previews.status', value: previewTunnelStatusSchema }),
 ] as const
 
-export type PreviewsExposeOp = z.infer<typeof previewsExposeOpSchema>
-export type PreviewsStopOp = z.infer<typeof previewsStopOpSchema>
-export type PreviewsListOp = z.infer<typeof previewsListOpSchema>
-export type PreviewInfo = z.infer<typeof previewInfoSchema>
-export type PreviewStopResult = z.infer<typeof previewStopResultSchema>
+export type PreviewsEnsureOp = z.infer<typeof previewsEnsureOpSchema>
+export type PreviewsStatusOp = z.infer<typeof previewsStatusOpSchema>
+export type PreviewTunnelState = z.infer<typeof previewTunnelStateSchema>
+export type PreviewTunnelStatus = z.infer<typeof previewTunnelStatusSchema>

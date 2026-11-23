@@ -7,9 +7,11 @@ import {
 import {
   CallFailureError,
   ECallFailure,
+  EServiceReapOutcome,
   EServiceRunStatus,
   type ServiceInfo,
   type ServicesLogResult,
+  type ServicesReapOp,
   type ServicesStartOp,
 } from '../../ops'
 import type { MemoryFileSystem } from '../memory-files'
@@ -177,6 +179,17 @@ export const fakeServicesGroup =
       return { ...service.info }
     }
 
+    const reap = (op: ServicesReapOp): { outcome: EServiceReapOutcome } => {
+      const service = [...services.values()].find(
+        (one) => one.info.pid === op.pid && isRunning(one),
+      )
+      if (service === undefined) return { outcome: EServiceReapOutcome.Absent }
+      if (service.info.command !== op.command) return { outcome: EServiceReapOutcome.Mismatch }
+      service.info.signal = 'SIGTERM'
+      finishService({ service, status: EServiceRunStatus.Stopped })
+      return { outcome: EServiceReapOutcome.Reaped }
+    }
+
     return {
       name: 'services',
       ops: [
@@ -186,6 +199,7 @@ export const fakeServicesGroup =
           op: 'services.list',
           run: () => Promise.resolve([...services.values()].map((s) => ({ ...s.info }))),
         }),
+        defineOp({ op: 'services.reap', run: ({ op }) => Promise.resolve(reap(op)) }),
         defineOp({
           op: 'services.log',
           run: ({ op }) => {

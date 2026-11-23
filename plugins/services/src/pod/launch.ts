@@ -74,6 +74,7 @@ export const launchTracked = async (
         serviceId,
         command: args.command,
         description: args.description,
+        pid: launched.value.pid,
         ...(args.name === undefined ? {} : { name: args.name }),
         ...(args.declarationHash === undefined ? {} : { declarationHash: args.declarationHash }),
         cwd: args.cwd,

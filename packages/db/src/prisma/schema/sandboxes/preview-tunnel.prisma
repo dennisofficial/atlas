@@ -2,15 +2,20 @@
 model PreviewTunnel {
   id                String               @id @onCreate(cuid(2))
   userId            String
-  threadId          String
-  tunnelId          String
-  sealedTunnelToken String
+  podSessionId      String
+  createdByThreadId String
+  tunnelId          String               @default("")
+  sealedTunnelToken String               @default("")
   label             String
+  state             String               @default("Pending")
+  syncedAt          TimestamptzJsDate(3)?
+  lastError         String?
   createdAt         TimestamptzJsDate(3) @default(now())
   updatedAt         TimestamptzJsDate(3) @onCreate(now()) @onUpdate(now())
   user              User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   routes            PreviewRoute[]
 
-  @@unique([threadId], map: "PreviewTunnel_threadId_key")
+  @@unique([podSessionId], map: "PreviewTunnel_podSessionId_key")
   @@index([userId], map: "PreviewTunnel_userId_idx")
+  @@index([state], map: "PreviewTunnel_state_idx")
 }

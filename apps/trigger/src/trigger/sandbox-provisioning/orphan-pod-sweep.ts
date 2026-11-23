@@ -27,6 +27,7 @@ export type OrphanPodSweepDeps = {
   pods: () => Promise<V2Pods>
   v2Scopes: () => Promise<readonly V2PodSweepScope[]>
   softDeleteArchived: (args: { cutoff: Date; at: Date }) => Promise<number>
+  markPreviewDeleting: (args: { podSessionId: string }) => Promise<void>
 }
 
 export type OrphanPodSweepRun = {
@@ -66,6 +67,11 @@ export async function runOrphanPodSweep(args: {
         pods,
         fence: retirementFenceOf(args.now),
         onRetired: async ({ podSessionId }) => {
+          await args.deps
+            .markPreviewDeleting({ podSessionId })
+            .catch((failure: unknown) =>
+              fail(`preview tunnel of ${podSessionId}: ${String(failure)}`),
+            )
           const sessionIds = pods.sessionIdsByPod.get(podSessionId) ?? []
           if (sessionIds.length === 0) return
           await db.orm.v2.V2Session.where((session) => session.id.in(sessionIds))

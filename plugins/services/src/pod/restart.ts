@@ -5,7 +5,6 @@ import { declaredNames, runningDeclaredOf, servicesOfEvents, type ServiceRow } f
 import { stopService } from './daemon'
 import { ensureDeclared, setupKeyOf } from './declared-ensure'
 import { readDeclared } from './declared-file'
-import { stopPreview } from './expose'
 import { launchService } from './launch'
 import type { DeclaredPlace } from './place'
 import type { ServiceInput } from './schema'
@@ -26,7 +25,6 @@ const stopForRestart = async (args: {
     args.state.restarting.delete(serviceId)
     return { ok: false, reason: stopped.reason }
   }
-  await stopPreview({ ctx: args.ctx, port: args.row.port })
   return undefined
 }
 

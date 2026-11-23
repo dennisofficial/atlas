@@ -6,25 +6,22 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import {
-  CallFailureError,
-  type CallOp,
-  type PreviewInfo,
-  type PreviewStopResult,
-} from '@dltech/atlas-protocol'
+import { CallFailureError, type CallOp, type PreviewTunnelStatus } from '@dltech/atlas-protocol'
 import type { CallContext, DaemonGroup, RegisteredOp } from '@dltech/atlas-protocol/engine'
 
 import { previewsGroup } from '..'
 
 const PRELUDE = [
   '#!/bin/sh',
-  'printf "%s\\n" "$@" > "$ARGV_PATH"',
+  'printf "%s\\n" "$$" >> "$START_PATH"',
   'printf "%s" "$TUNNEL_TOKEN" > "$TOKEN_PATH"',
+  'printf "%s\\n" "$@" > "$ARGV_PATH"',
 ]
 
 const READY_SCRIPT = [
@@ -33,13 +30,29 @@ const READY_SCRIPT = [
   'exec sleep 60',
 ].join('\n')
 
-const EXITING_SCRIPT = [
+const GROUP_SCRIPT = [
   ...PRELUDE,
+  'sleep 300 &',
+  'printf "%s\\n" "$!" >> "$START_PATH"',
+  'printf "%s\\n" "INF Registered tunnel connection connIndex=0"',
+  'exec sleep 60',
+].join('\n')
+
+const CRASHING_SCRIPT = [
+  '#!/bin/sh',
+  'printf "%s\\n" "$(date +%s%N)" >> "$START_PATH"',
+  'printf "%s\\n" "INF Registered tunnel connection connIndex=0"',
+  'sleep 0.2',
+  'exit 7',
+].join('\n')
+
+const EXITING_SCRIPT = [
+  '#!/bin/sh',
   'printf "%s\\n" "mise ERROR No version is set for shim: cloudflared" >&2',
   'exit 3',
 ].join('\n')
 
-const SILENT_SCRIPT = [...PRELUDE, 'echo $$ > "$PID_PATH"', 'exec sleep 60'].join('\n')
+const SILENT_SCRIPT = ['#!/bin/sh', 'echo $$ > "$PID_PATH"', 'exec sleep 60'].join('\n')
 
 const NOISY_SCRIPT = [
   '#!/bin/sh',
@@ -73,6 +86,21 @@ const waitForFile = async (path: string): Promise<string> => {
   throw new Error(`${path} was never written`)
 }
 
+const linesUntil = async (args: { path: string; count: number; ms: number }): Promise<number[]> => {
+  let lines: number[] = []
+  for (let waited = 0; waited < args.ms; waited += 50) {
+    if (existsSync(args.path)) {
+      lines = readFileSync(args.path, 'utf8')
+        .split('\n')
+        .filter((line) => line !== '')
+        .map((line) => Number.parseInt(line, 10))
+      if (lines.length >= args.count) return lines
+    }
+    await Bun.sleep(50)
+  }
+  return lines
+}
+
 const alive = (pid: number): boolean => {
   try {
     process.kill(pid, 0)
@@ -98,10 +126,12 @@ const failureOf = async (work: Promise<unknown>): Promise<CallFailureError> => {
   return caught
 }
 
-describe('previews ops', () => {
+describe('the pod tunnel', () => {
   let dir: string
-  let argvPath: string
+  let startPath: string
   let tokenPath: string
+  let tokenFile: string
+  let argvPath: string
   let pidPath: string
   let group: DaemonGroup
 
@@ -116,26 +146,54 @@ describe('previews ops', () => {
   const groupOf = (
     options: {
       cloudflaredPath?: string | undefined
-      envPath?: string | undefined
       previewReadyTimeoutMs?: number | undefined
     } = {},
-  ): DaemonGroup => {
-    const envPath = options.envPath ?? `${join(dir, 'bin')}:${process.env.PATH ?? '/usr/bin:/bin'}`
-    return previewsGroup({
-      env: { PATH: envPath, ARGV_PATH: argvPath, TOKEN_PATH: tokenPath, PID_PATH: pidPath },
+  ): DaemonGroup =>
+    previewsGroup({
+      env: {
+        PATH: process.env.PATH ?? '/usr/bin:/bin',
+        START_PATH: startPath,
+        TOKEN_PATH: tokenPath,
+        PID_PATH: pidPath,
+        ARGV_PATH: argvPath,
+      },
       home: dir,
       cloudflaredPath: options.cloudflaredPath ?? join(dir, 'bin', 'cloudflared'),
       ...(options.previewReadyTimeoutMs === undefined
         ? {}
         : { previewReadyTimeoutMs: options.previewReadyTimeoutMs }),
     })({ publish: () => undefined })
+
+  const ensure = async (tunnelToken?: string): Promise<PreviewTunnelStatus> =>
+    (await runOp(
+      group,
+      tunnelToken === undefined
+        ? { op: 'previews.ensure' }
+        : { op: 'previews.ensure', tunnelToken },
+    )) as PreviewTunnelStatus
+
+  const status = async (): Promise<PreviewTunnelStatus> =>
+    (await runOp(group, { op: 'previews.status' })) as PreviewTunnelStatus
+
+  const statusUntil = async (args: {
+    state: PreviewTunnelStatus['state']
+    ms: number
+  }): Promise<PreviewTunnelStatus> => {
+    for (let waited = 0; waited < args.ms; waited += 50) {
+      const now = await status()
+      if (now.state === args.state) return now
+      await Bun.sleep(50)
+    }
+    throw new Error(`the tunnel never reached ${args.state}`)
   }
 
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), 'atlas-previews-'))
-    argvPath = join(dir, 'argv.txt')
+    startPath = join(dir, 'starts.txt')
     tokenPath = join(dir, 'token.txt')
+    argvPath = join(dir, 'argv.txt')
     pidPath = join(dir, 'pid.txt')
+    tokenFile = join(dir, 'previews.json')
     binaryOf({ dir: join(dir, 'bin'), script: READY_SCRIPT })
     group = groupOf()
   })
@@ -145,102 +203,138 @@ describe('previews ops', () => {
     rmSync(dir, { recursive: true, force: true })
   })
 
-  const exposed = async (port: number, tunnelToken: string): Promise<PreviewInfo> =>
-    (await runOp(group, { op: 'previews.expose', port, tunnelToken })) as PreviewInfo
-
-  it('starts cloudflared with the token only in its environment', async () => {
-    const info = await exposed(3000, 'secret-token')
-    expect(info.port).toBe(3000)
-    expect(info.pid).toBeGreaterThan(0)
-    expect(JSON.stringify(info)).not.toContain('secret-token')
+  it('runs one cloudflared for the pod with the token only in its environment', async () => {
+    const first = await ensure('secret-token')
+    const second = await ensure('secret-token')
+    expect(first.state).toBe('up')
+    expect(second).toEqual(first)
+    expect(first.pid).toBeGreaterThan(0)
+    expect(JSON.stringify(first)).not.toContain('secret-token')
     const argv = await waitForFile(argvPath)
     expect(argv.split('\n').filter((line) => line !== '')).toEqual([
       'tunnel',
       '--no-autoupdate',
       'run',
-      '--url',
-      'http://127.0.0.1:3000',
     ])
-    expect(argv).not.toContain('secret-token')
     expect(await waitForFile(tokenPath)).toBe('secret-token')
+    await linesUntil({ path: startPath, count: 1, ms: 2_000 })
+    await Bun.sleep(100)
+    expect(
+      readFileSync(startPath, 'utf8')
+        .split('\n')
+        .filter((line) => line !== ''),
+    ).toHaveLength(1)
   })
 
-  it('replaces a running preview for the same port', async () => {
-    const first = await exposed(3000, 'one')
-    const second = await exposed(3000, 'two')
-    expect(second.pid).not.toBe(first.pid)
-    expect(alive(first.pid)).toBe(false)
-    const listed = (await runOp(group, { op: 'previews.list' })) as PreviewInfo[]
-    expect(listed).toEqual([{ port: 3000, pid: second.pid }])
+  it('writes the tunnel token to the pod once, readable by its owner only', async () => {
+    const first = await ensure('secret-token')
+    expect(statSync(tokenFile).mode & 0o777).toBe(0o600)
+    const stored = JSON.parse(readFileSync(tokenFile, 'utf8')) as Record<string, unknown>
+    expect(stored.tunnelToken).toBe('secret-token')
+    expect(stored.updatedAt).toBeString()
+    await ensure('secret-token')
+    expect(JSON.parse(readFileSync(tokenFile, 'utf8'))).toEqual(stored)
+    expect((await status()).pid).toBe(first.pid as number)
   })
 
-  it('lists every port it runs', async () => {
-    const web = await exposed(3000, 'one')
-    const api = await exposed(4000, 'two')
-    const listed = (await runOp(group, { op: 'previews.list' })) as PreviewInfo[]
-    expect(listed).toEqual([
-      { port: 3000, pid: web.pid },
-      { port: 4000, pid: api.pid },
-    ])
+  it('brings the tunnel back from the token file with no host and no ensure', async () => {
+    await ensure('secret-token')
+    await group.stop?.()
+    group = groupOf()
+    const up = await statusUntil({ state: 'up', ms: 5_000 })
+    expect(up.restarts).toBe(0)
+    expect(up.pid).toBeGreaterThan(0)
+    expect((await waitForFile(tokenPath)).slice(0, 'secret-token'.length)).toBe('secret-token')
   })
 
-  it('stops the process group of a port', async () => {
-    const info = await exposed(3000, 'one')
-    const stopped = (await runOp(group, { op: 'previews.stop', port: 3000 })) as PreviewStopResult
-    expect(stopped).toEqual({ stopped: true })
-    expect(alive(info.pid)).toBe(false)
-    const again = (await runOp(group, { op: 'previews.stop', port: 3000 })) as PreviewStopResult
-    expect(again).toEqual({ stopped: false })
-    expect((await runOp(group, { op: 'previews.list' })) as PreviewInfo[]).toEqual([])
+  it('restarts cloudflared after a crash, with a growing delay, and counts restarts', async () => {
+    group = groupOf({
+      cloudflaredPath: binaryOf({ dir: join(dir, 'crash'), script: CRASHING_SCRIPT }),
+    })
+    await ensure('secret-token')
+    let restarts = 0
+    for (let turn = 0; turn < 200 && restarts < 2; turn += 1) {
+      restarts = (await status()).restarts
+      if (restarts < 2) await Bun.sleep(50)
+    }
+    expect(restarts).toBeGreaterThanOrEqual(2)
+    const starts = await linesUntil({ path: startPath, count: 3, ms: 10_000 })
+    expect(starts.length).toBeGreaterThanOrEqual(3)
+    const first = (starts[1] ?? 0) - (starts[0] ?? 0)
+    const second = (starts[2] ?? 0) - (starts[1] ?? 0)
+    expect(first).toBeGreaterThan(900_000_000)
+    expect(second).toBeGreaterThan(first + 500_000_000)
   })
 
-  it('fails with a message naming cloudflared when the binary is missing', async () => {
-    const empty = join(dir, 'empty')
-    mkdirSync(empty)
-    group = groupOf({ cloudflaredPath: join(empty, 'cloudflared') })
-    const error = await failureOf(
-      runOp(group, { op: 'previews.expose', port: 3000, tunnelToken: 'x' }),
-    )
-    expect(error.message).toContain('cloudflared')
-    expect(error.message).toContain('cannot be published')
+  it('fails with the documented message when no token was ever published', async () => {
+    const error = await failureOf(ensure())
+    expect(error.message).toBe('no tunnel token has been published to this pod yet')
+    expect(existsSync(tokenFile)).toBe(false)
+    expect((await status()).state).toBe('stopped')
   })
 
   it('fails with the exit code and the output when cloudflared dies first', async () => {
     group = groupOf({
       cloudflaredPath: binaryOf({ dir: join(dir, 'broken'), script: EXITING_SCRIPT }),
-      envPath: join(dir, 'broken'),
     })
-    const error = await failureOf(
-      runOp(group, { op: 'previews.expose', port: 3000, tunnelToken: 'x' }),
-    )
+    const error = await failureOf(ensure('x'))
     expect(error.message).toContain('code 3')
     expect(error.message).toContain('No version is set for shim: cloudflared')
-    expect((await runOp(group, { op: 'previews.list' })) as PreviewInfo[]).toEqual([])
+    const now = await status()
+    expect(now.state).toBe('failed')
+    expect(now.lastError).toContain('code 3')
+    expect(now.restarts).toBe(0)
   })
 
   it('reports only a bounded tail of a noisy failure', async () => {
     group = groupOf({
       cloudflaredPath: binaryOf({ dir: join(dir, 'noisy'), script: NOISY_SCRIPT }),
     })
-    const error = await failureOf(
-      runOp(group, { op: 'previews.expose', port: 3000, tunnelToken: 'x' }),
-    )
+    const error = await failureOf(ensure('x'))
     expect(error.message).toContain('No version is set for shim')
     expect(error.message.length).toBeLessThan(3_000)
+    expect((await status()).tail.length).toBeLessThan(2_500)
   })
 
-  it('fails and kills cloudflared when no tunnel registers in time', async () => {
+  it('fails and kills cloudflared when the tunnel never registers', async () => {
     group = groupOf({
       cloudflaredPath: binaryOf({ dir: join(dir, 'silent'), script: SILENT_SCRIPT }),
       previewReadyTimeoutMs: 200,
     })
-    const error = await failureOf(
-      runOp(group, { op: 'previews.expose', port: 3000, tunnelToken: 'x' }),
-    )
+    const error = await failureOf(ensure('x'))
     expect(error.message).toContain('did not register a tunnel connection')
-    expect((await runOp(group, { op: 'previews.list' })) as PreviewInfo[]).toEqual([])
+    expect((await status()).state).toBe('failed')
     const pid = Number.parseInt(await waitForFile(pidPath), 10)
     expect(await diedWithin({ pid, ms: 5_000 })).toBe(true)
+  })
+
+  it('stops the process group of the tunnel', async () => {
+    group = groupOf({
+      cloudflaredPath: binaryOf({ dir: join(dir, 'group'), script: GROUP_SCRIPT }),
+    })
+    const info = await ensure('secret-token')
+    expect(info.state).toBe('up')
+    const pids = await linesUntil({ path: startPath, count: 2, ms: 5_000 })
+    expect(pids).toHaveLength(2)
+    await group.stop?.()
+    expect((await status()).state).toBe('stopped')
+    for (const pid of pids) expect(await diedWithin({ pid, ms: 5_000 })).toBe(true)
+  })
+
+  it('cancels a pending restart when the daemon stops', async () => {
+    group = groupOf({
+      cloudflaredPath: binaryOf({ dir: join(dir, 'crash'), script: CRASHING_SCRIPT }),
+    })
+    await ensure('secret-token')
+    await statusUntil({ state: 'failed', ms: 5_000 })
+    await group.stop?.()
+    const starts = await linesUntil({ path: startPath, count: 1, ms: 5_000 })
+    await Bun.sleep(1_400)
+    expect(
+      readFileSync(startPath, 'utf8')
+        .split('\n')
+        .filter((line) => line !== ''),
+    ).toHaveLength(starts.length)
   })
 
   it('never resolves cloudflared through PATH', async () => {
@@ -250,10 +344,9 @@ describe('previews ops', () => {
       dir: shimDir,
       script: ['#!/bin/sh', `printf ran > "${shimMarker}"`, 'exit 0'].join('\n'),
     })
-    group = groupOf({ envPath: `${shimDir}:${process.env.PATH ?? '/usr/bin:/bin'}` })
-    const info = await exposed(3000, 'one')
-    expect(info.port).toBe(3000)
+    group = groupOf()
+    await ensure('secret-token')
     expect(existsSync(shimMarker)).toBe(false)
-    expect(await waitForFile(argvPath)).toContain('http://127.0.0.1:3000')
+    expect(await waitForFile(argvPath)).toContain('--no-autoupdate')
   })
 })

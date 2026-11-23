@@ -23,9 +23,9 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'5d41567370b5e736a31c85389975b7b06ea26645fe953dd7873182b15715a0ee'>;
+  StorageHashBase<'ec07878e1d08550f2bcb55b07c24a180003a9c896bb28f73b2bd9b67cd202325'>;
 export type ExecutionHash =
-  ExecutionHashBase<'ab28df152a1a27a9a0756638f29813a6c6f20a2d2b25c449f0f8e363cc1d9af0'>;
+  ExecutionHashBase<'fd19c5954d71f00e27e0c02be3f06b71374f3b34bfb9f582b985590708b7518f'>;
 export type ProfileHash =
   ProfileHashBase<'3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2'>;
 
@@ -808,15 +808,20 @@ export namespace Models {
     id: FieldOutputTypes['public']['PreviewRoute']['id'];
     port: FieldOutputTypes['public']['PreviewRoute']['port'];
     previewTunnelId: FieldOutputTypes['public']['PreviewRoute']['previewTunnelId'];
+    updatedAt: FieldOutputTypes['public']['PreviewRoute']['updatedAt'];
     tunnel: public_PreviewTunnel;
     readonly [RelationKeys]?: 'tunnel';
   };
   export type public_PreviewTunnel = {
     createdAt: FieldOutputTypes['public']['PreviewTunnel']['createdAt'];
+    createdByThreadId: FieldOutputTypes['public']['PreviewTunnel']['createdByThreadId'];
     id: FieldOutputTypes['public']['PreviewTunnel']['id'];
     label: FieldOutputTypes['public']['PreviewTunnel']['label'];
+    lastError: FieldOutputTypes['public']['PreviewTunnel']['lastError'];
+    podSessionId: FieldOutputTypes['public']['PreviewTunnel']['podSessionId'];
     sealedTunnelToken: FieldOutputTypes['public']['PreviewTunnel']['sealedTunnelToken'];
-    threadId: FieldOutputTypes['public']['PreviewTunnel']['threadId'];
+    state: FieldOutputTypes['public']['PreviewTunnel']['state'];
+    syncedAt: FieldOutputTypes['public']['PreviewTunnel']['syncedAt'];
     tunnelId: FieldOutputTypes['public']['PreviewTunnel']['tunnelId'];
     updatedAt: FieldOutputTypes['public']['PreviewTunnel']['updatedAt'];
     userId: FieldOutputTypes['public']['PreviewTunnel']['userId'];
@@ -5108,7 +5113,7 @@ type ContractBase = Omit<
                 readonly dnsRecordId: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
+                  readonly nullable: true;
                   readonly many: false;
                 };
                 readonly hostname: {
@@ -5133,6 +5138,13 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly updatedAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
               };
@@ -5176,6 +5188,12 @@ type ContractBase = Omit<
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
+                readonly createdByThreadId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
                 readonly id: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
@@ -5188,22 +5206,53 @@ type ContractBase = Omit<
                   readonly nullable: false;
                   readonly many: false;
                 };
-                readonly sealedTunnelToken: {
+                readonly lastError: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly podSessionId: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: false;
                   readonly many: false;
                 };
-                readonly threadId: {
+                readonly sealedTunnelToken: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/text@1', ''>;
+                  };
+                  readonly many: false;
+                };
+                readonly state: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/text@1', 'Pending'>;
+                  };
+                  readonly many: false;
+                };
+                readonly syncedAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
                 readonly tunnelId: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/text@1', ''>;
+                  };
                   readonly many: false;
                 };
                 readonly updatedAt: {
@@ -5223,11 +5272,16 @@ type ContractBase = Omit<
               primaryKey: { readonly columns: readonly ['id'] };
               uniques: readonly [
                 {
-                  readonly columns: readonly ['threadId'];
-                  readonly name: 'PreviewTunnel_threadId_key';
+                  readonly columns: readonly ['podSessionId'];
+                  readonly name: 'PreviewTunnel_podSessionId_key';
                 },
               ];
               indexes: readonly [
+                {
+                  readonly name: 'PreviewTunnel_state_idx';
+                  readonly columns: readonly ['state'];
+                  readonly unique: false;
+                },
                 {
                   readonly name: 'PreviewTunnel_userId_idx';
                   readonly columns: readonly ['userId'];
@@ -12107,7 +12161,7 @@ type ContractBase = Omit<
                 };
               };
               readonly dnsRecordId: {
-                readonly nullable: false;
+                readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
               readonly hostname: {
@@ -12125,6 +12179,14 @@ type ContractBase = Omit<
               readonly previewTunnelId: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly updatedAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
               };
             };
             readonly relations: {
@@ -12151,6 +12213,7 @@ type ContractBase = Omit<
                 readonly id: { readonly column: 'id' };
                 readonly port: { readonly column: 'port' };
                 readonly previewTunnelId: { readonly column: 'previewTunnelId' };
+                readonly updatedAt: { readonly column: 'updatedAt' };
               };
             };
           };
@@ -12164,6 +12227,10 @@ type ContractBase = Omit<
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
+              readonly createdByThreadId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
               readonly id: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -12172,13 +12239,29 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
+              readonly lastError: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly podSessionId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
               readonly sealedTunnelToken: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
-              readonly threadId: {
+              readonly state: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly syncedAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
               };
               readonly tunnelId: {
                 readonly nullable: false;
@@ -12224,10 +12307,14 @@ type ContractBase = Omit<
               readonly namespaceId: 'public';
               readonly fields: {
                 readonly createdAt: { readonly column: 'createdAt' };
+                readonly createdByThreadId: { readonly column: 'createdByThreadId' };
                 readonly id: { readonly column: 'id' };
                 readonly label: { readonly column: 'label' };
+                readonly lastError: { readonly column: 'lastError' };
+                readonly podSessionId: { readonly column: 'podSessionId' };
                 readonly sealedTunnelToken: { readonly column: 'sealedTunnelToken' };
-                readonly threadId: { readonly column: 'threadId' };
+                readonly state: { readonly column: 'state' };
+                readonly syncedAt: { readonly column: 'syncedAt' };
                 readonly tunnelId: { readonly column: 'tunnelId' };
                 readonly updatedAt: { readonly column: 'updatedAt' };
                 readonly userId: { readonly column: 'userId' };
@@ -16415,6 +16502,15 @@ type ContractBase = Omit<
           readonly ref: {
             readonly entry: 'PreviewRoute';
             readonly field: 'id';
+            readonly namespace: 'public';
+          };
+        },
+        {
+          readonly onCreate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
+          readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
+          readonly ref: {
+            readonly entry: 'PreviewRoute';
+            readonly field: 'updatedAt';
             readonly namespace: 'public';
           };
         },

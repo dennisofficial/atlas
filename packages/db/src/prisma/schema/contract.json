@@ -5194,7 +5194,7 @@
                 }
               },
               "dnsRecordId": {
-                "nullable": false,
+                "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
@@ -5226,6 +5226,16 @@
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
                 }
               }
             },
@@ -5266,6 +5276,9 @@
                 },
                 "previewTunnelId": {
                   "column": "previewTunnelId"
+                },
+                "updatedAt": {
+                  "column": "updatedAt"
                 }
               },
               "namespaceId": "public",
@@ -5284,6 +5297,13 @@
                   }
                 }
               },
+              "createdByThreadId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "id": {
                 "nullable": false,
                 "type": {
@@ -5298,6 +5318,20 @@
                   "kind": "scalar"
                 }
               },
+              "lastError": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "podSessionId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "sealedTunnelToken": {
                 "nullable": false,
                 "type": {
@@ -5305,11 +5339,21 @@
                   "kind": "scalar"
                 }
               },
-              "threadId": {
+              "state": {
                 "nullable": false,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
+                }
+              },
+              "syncedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
                 }
               },
               "tunnelId": {
@@ -5375,17 +5419,29 @@
                 "createdAt": {
                   "column": "createdAt"
                 },
+                "createdByThreadId": {
+                  "column": "createdByThreadId"
+                },
                 "id": {
                   "column": "id"
                 },
                 "label": {
                   "column": "label"
                 },
+                "lastError": {
+                  "column": "lastError"
+                },
+                "podSessionId": {
+                  "column": "podSessionId"
+                },
                 "sealedTunnelToken": {
                   "column": "sealedTunnelToken"
                 },
-                "threadId": {
-                  "column": "threadId"
+                "state": {
+                  "column": "state"
+                },
+                "syncedAt": {
+                  "column": "syncedAt"
                 },
                 "tunnelId": {
                   "column": "tunnelId"
@@ -15737,7 +15793,7 @@
                 "dnsRecordId": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
-                  "nullable": false
+                  "nullable": true
                 },
                 "hostname": {
                   "codecId": "pg/text@1",
@@ -15758,6 +15814,14 @@
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
                   "nullable": false
+                },
+                "updatedAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
                 }
               },
               "foreignKeys": [
@@ -15822,6 +15886,11 @@
                     "precision": 3
                   }
                 },
+                "createdByThreadId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
                 "id": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
@@ -15832,19 +15901,49 @@
                   "dataType": "pg/text",
                   "nullable": false
                 },
-                "sealedTunnelToken": {
+                "lastError": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "podSessionId": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
                   "nullable": false
                 },
-                "threadId": {
+                "sealedTunnelToken": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
+                  "default": {
+                    "kind": "literal",
+                    "value": ""
+                  },
                   "nullable": false
+                },
+                "state": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "default": {
+                    "kind": "literal",
+                    "value": "Pending"
+                  },
+                  "nullable": false
+                },
+                "syncedAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true,
+                  "typeParams": {
+                    "precision": 3
+                  }
                 },
                 "tunnelId": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
+                  "default": {
+                    "kind": "literal",
+                    "value": ""
+                  },
                   "nullable": false
                 },
                 "updatedAt": {
@@ -15887,6 +15986,13 @@
               "indexes": [
                 {
                   "columns": [
+                    "state"
+                  ],
+                  "name": "PreviewTunnel_state_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
                     "userId"
                   ],
                   "name": "PreviewTunnel_userId_idx",
@@ -15901,9 +16007,9 @@
               "uniques": [
                 {
                   "columns": [
-                    "threadId"
+                    "podSessionId"
                   ],
-                  "name": "PreviewTunnel_threadId_key"
+                  "name": "PreviewTunnel_podSessionId_key"
                 }
               ]
             },
@@ -20199,10 +20305,10 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "5d41567370b5e736a31c85389975b7b06ea26645fe953dd7873182b15715a0ee"
+    "storageHash": "ec07878e1d08550f2bcb55b07c24a180003a9c896bb28f73b2bd9b67cd202325"
   },
   "execution": {
-    "executionHash": "ab28df152a1a27a9a0756638f29813a6c6f20a2d2b25c449f0f8e363cc1d9af0",
+    "executionHash": "fd19c5954d71f00e27e0c02be3f06b71374f3b34bfb9f582b985590708b7518f",
     "mutations": {
       "defaults": [
         {
@@ -20530,6 +20636,21 @@
           "ref": {
             "entry": "PreviewRoute",
             "field": "id",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "onUpdate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "PreviewRoute",
+            "field": "updatedAt",
             "namespace": "public"
           }
         },

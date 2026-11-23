@@ -4,7 +4,7 @@ import type { PromptFragment, ToolDefinition } from '@dltech/atlas-core'
 import type { DaemonEventFrame } from '@dltech/atlas-protocol'
 
 import type { PodResource } from './resources'
-import type { PluginPodContext, PodSlash, PodSlot } from './slots'
+import type { DaemonReady, PluginPodContext, PodSlash, PodSlot } from './slots'
 
 export type ComposedPod = {
   childDeny: readonly string[]
@@ -15,6 +15,7 @@ export type ComposedPod = {
   resources: readonly PodResource<unknown>[]
   slash(ctx: PluginPodContext): PodSlash | undefined
   onDaemonEvent(frame: DaemonEventFrame): void
+  onDaemonReady(args: { ctx: PluginPodContext; hello: DaemonReady }): void
 }
 
 const concat = <T>(lists: readonly (readonly T[] | undefined)[]): T[] =>
@@ -95,6 +96,9 @@ export const composePod = (pods: readonly PodSlot[]): ComposedPod => {
     slash: (ctx) => slash?.(ctx),
     onDaemonEvent: (frame) => {
       for (const pod of pods) pod.onDaemonEvent?.(frame)
+    },
+    onDaemonReady: (ready) => {
+      for (const pod of pods) pod.onDaemonReady?.(ready)
     },
   })
 }

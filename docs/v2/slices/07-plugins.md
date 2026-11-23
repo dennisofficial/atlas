@@ -663,10 +663,11 @@ the URL. The host publishes; the sandbox only runs the tunnel.
 - **Host**: `ctx.control.exposePort({ port })` (#2053) posts to `hostSelf.exposePort` with
   `AGENT_HOST_TOKEN`, authenticated by `HostTokenMiddleware` (constant-time compare) and answered by
   `PreviewTunnelService.expose` — the only code that talks to Cloudflare.
-- **Sandbox**: the daemon's new `previews.expose` / `previews.stop` / `previews.list`
-  (`apps/daemon/src/ops/previews/index.ts`) run `cloudflared tunnel --no-autoupdate run --url
-  http://127.0.0.1:<port>` in its own process group, one per port. The binary is already in the image
-  (`infra/sandbox-image/Dockerfile:150-153`).
+- **Sandbox**: the daemon's `previews.ensure` / `previews.status`
+  (`apps/daemon/src/ops/previews/index.ts`, `tunnel-supervisor.ts`) run one supervised
+  `cloudflared tunnel --no-autoupdate run` per pod from a token kept in `previews.json`, so a daemon
+  restart brings the tunnel back. Ingress is remote config written by the control plane's preview
+  reconciler; a port needs no pod process. The binary is the image's `/usr/local/bin/cloudflared`.
 - **Journal**: `service-started` carries an optional `url`, the `services` view row shows it, and the
   tool text says plainly when a service is sandbox-only.
 - A failed exposure never blocks the start: the reason is reported in the tool text.

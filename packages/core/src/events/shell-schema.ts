@@ -82,6 +82,7 @@ export const shellEventSchemas = [
     type: z.literal('service-started'),
     serviceId: z.string().min(1),
     name: z.string().min(1).optional(),
+    pid: z.number().int().positive().optional(),
     port: z.number().int().optional(),
     url: z.string().min(1).optional(),
     declarationHash: z.string().min(1).optional(),

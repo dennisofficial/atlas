@@ -29,8 +29,12 @@ const forward = async (exposePort?: PodControl['exposePort']) => {
     ...harness.ctx,
     control: exposePort === undefined ? control : { ...control, exposePort },
     call: async (op: CallOp): Promise<CallResult> =>
-      op.op === 'previews.expose'
-        ? { status: ECallStatus.Ok, op: 'previews.expose', value: { port: op.port, pid: 7 } }
+      op.op === 'previews.ensure'
+        ? {
+            status: ECallStatus.Ok,
+            op: 'previews.ensure',
+            value: { state: 'up', pid: 7, restarts: 0, tail: '' },
+          }
         : harness.ctx.call(op),
     log: (message: string) => void logged.push(message),
   }

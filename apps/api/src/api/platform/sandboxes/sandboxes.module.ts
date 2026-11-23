@@ -3,6 +3,7 @@ import { NotificationsModule } from '../notifications/notifications.module'
 import { ThreadSignalsModule } from '../sessions/thread-signals.module'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { CloudflareTunnelClient } from '@dltech/atlas-previews'
+import { PreviewTeardownService } from './preview-teardown.service'
 import { PreviewTunnelService } from './preview-tunnel.service'
 import { SandboxCheckpointRouter } from './sandbox-checkpoint.router'
 import { SandboxSelfRouter } from './sandbox-self.router'
@@ -23,6 +24,7 @@ import { VercelSandboxClient } from './vercel-sandbox.client'
     SandboxCheckpointRouter,
     VercelSandboxClient,
     PreviewTunnelService,
+    PreviewTeardownService,
     {
       provide: CloudflareTunnelClient,
       useFactory: (env: EnvService) =>
@@ -34,6 +36,12 @@ import { VercelSandboxClient } from './vercel-sandbox.client'
       inject: [EnvService],
     },
   ],
-  exports: [SandboxesService, SandboxEndpointService, VercelSandboxClient, PreviewTunnelService],
+  exports: [
+    SandboxesService,
+    SandboxEndpointService,
+    VercelSandboxClient,
+    PreviewTunnelService,
+    PreviewTeardownService,
+  ],
 })
 export class SandboxesModule {}

@@ -11,6 +11,12 @@ export enum EServiceRunStatus {
   OomKilled = 'oom-killed',
 }
 
+export enum EServiceReapOutcome {
+  Reaped = 'reaped',
+  Absent = 'absent',
+  Mismatch = 'mismatch',
+}
+
 const serviceIdSchema = z
   .string()
   .regex(/^[A-Za-z0-9_.:-]+$/)
@@ -36,6 +42,14 @@ export const servicesStopOpSchema = z
   .strict()
 
 export const servicesListOpSchema = z.object({ op: z.literal('services.list') }).strict()
+
+export const servicesReapOpSchema = z
+  .object({
+    op: z.literal('services.reap'),
+    pid: z.number().int().min(1),
+    command: z.string().min(1),
+  })
+  .strict()
 
 export const servicesLogOpSchema = z
   .object({
@@ -69,11 +83,14 @@ export const servicesLogResultSchema = z
   })
   .strict()
 
+export const servicesReapResultSchema = z.object({ outcome: z.enum(EServiceReapOutcome) }).strict()
+
 export const servicesOpSchemas = [
   servicesStartOpSchema,
   servicesStopOpSchema,
   servicesListOpSchema,
   servicesLogOpSchema,
+  servicesReapOpSchema,
 ] as const
 
 export const servicesResultSchemas = [
@@ -81,6 +98,7 @@ export const servicesResultSchemas = [
   okResultSchema({ op: 'services.stop', value: serviceInfoSchema }),
   okResultSchema({ op: 'services.list', value: z.array(serviceInfoSchema) }),
   okResultSchema({ op: 'services.log', value: servicesLogResultSchema }),
+  okResultSchema({ op: 'services.reap', value: servicesReapResultSchema }),
 ] as const
 
 export const servicesReadyEventSchema = z
@@ -101,7 +119,9 @@ export type ServicesStartOp = z.infer<typeof servicesStartOpSchema>
 export type ServicesStopOp = z.infer<typeof servicesStopOpSchema>
 export type ServicesListOp = z.infer<typeof servicesListOpSchema>
 export type ServicesLogOp = z.infer<typeof servicesLogOpSchema>
+export type ServicesReapOp = z.infer<typeof servicesReapOpSchema>
 export type ServiceInfo = z.infer<typeof serviceInfoSchema>
 export type ServicesLogResult = z.infer<typeof servicesLogResultSchema>
+export type ServicesReapResult = z.infer<typeof servicesReapResultSchema>
 export type ServicesReadyEvent = z.infer<typeof servicesReadyEventSchema>
 export type ServicesEndedEvent = z.infer<typeof servicesEndedEventSchema>

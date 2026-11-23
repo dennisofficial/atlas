@@ -19,6 +19,7 @@ import { SessionsService } from './sessions.service'
 import { PodPowerService } from './pod-power.service'
 import { PodSizingService } from './pod-sizing.service'
 import { JobsProjectDispatcher, type JobDispatch } from '../../../_core/ports/job-dispatcher'
+import type { PreviewTeardownService } from '../sandboxes/preview-teardown.service'
 import { ProjectAccess } from './project-access'
 import { modelSet } from './model-set'
 
@@ -105,6 +106,19 @@ export const logWithdrawn = async (args: {
   })
 }
 
+export class RecordingPreviewTeardown {
+  readonly marked: { podSessionId: string }[] = []
+  readonly cleared: { podSessionId: string }[] = []
+
+  async markDeleting(args: { podSessionId: string }): Promise<void> {
+    this.marked.push(args)
+  }
+
+  async clearDeleting(args: { podSessionId: string }): Promise<void> {
+    this.cleared.push(args)
+  }
+}
+
 export class FakePodResizeDispatcher {
   readonly dispatches: { payload: unknown; idempotencyKey: string }[] = []
   failure: unknown = undefined
@@ -122,6 +136,7 @@ export const setupSessionsService = (
     ops?: PodOps | null
     analytics?: ProductAnalytics | null
     traceFor?: ((distinctId: string) => TracePort) | null
+    previews?: RecordingPreviewTeardown | null
   } = {},
 ) => {
   const store = new InMemoryControlStore({ clock: () => NOW })
@@ -147,6 +162,7 @@ export const setupSessionsService = (
     over.ops ?? null,
     over.analytics ?? null,
     over.traceFor ?? null,
+    (over.previews ?? null) as unknown as PreviewTeardownService | null,
   )
   return {
     plane,
