@@ -23,6 +23,12 @@ Each slice is built in its own Atlas session and handed to a fresh session when 
 ## Current state
 
 _Updated at the end of every slice. Last update: 2026-11-17._
+- **Specs approved 2026-11-23: v1 parity.** Before v1 is deleted, v2 gets these features, each with its own spec:
+  [slash commands](slices/slash-commands.md), [notifications](slices/notifications.md) (in-app, Web Push,
+  iOS and Mac native behind one package), the [classifier role](slices/classifier.md) (new credentials and
+  classifier packages, a Classifier settings page), [skill suggestion](slices/skill-suggestion.md) and
+  [Jev quality review](slices/jev-quality.md). Shared code that lived in v1 places moved to v2 homes on
+  2026-11-22/23 (#2556, #2557, #2560, #2562, #2567, #2569). Mobile parity runs in its own session.
 - **Built 2026-11-17: Stop** ([audit](research/slice-3/recovery-audit.md) F-13). `sessions.stop` takes
   `{sessionId}`, checks the caller owns the session and posts a `stop` inbox entry — the same durable
   input a message is, so it reaches a parked pod and needs no live connection. A turn in flight is
