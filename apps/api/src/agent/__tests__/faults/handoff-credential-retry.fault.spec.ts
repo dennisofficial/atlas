@@ -58,16 +58,20 @@ describeHandoff({
     return hostA
   },
 
+  async wake(ctx) {
+    const { lease } = await ctx.rig.plane.currentLease({ sessionId: ctx.sessionId })
+    expect(lease.wantsHolder).toBe(false)
+    expect(await saidOf(ctx)).toHaveLength(0)
+    expect(await turnStartsOf(ctx)).toHaveLength(1)
+    await ctx.rig.plane.post({ sessionId: ctx.sessionId, kind: 'retry', payload: '{}' })
+  },
+
   async inFlight(ctx) {
     expect(await authFailuresOf(ctx)).toHaveLength(1)
     expect(await dispatchedOf(ctx)).toHaveLength(1)
-    expect(await saidOf(ctx)).toHaveLength(0)
-    expect(await turnStartsOf(ctx)).toHaveLength(1)
   },
 
-  async release(ctx) {
-    await ctx.rig.plane.post({ sessionId: ctx.sessionId, kind: 'retry', payload: '{}' })
-  },
+  async release() {},
 
   async settled(ctx) {
     await waitUntil({
@@ -83,7 +87,6 @@ describeHandoff({
   },
 
   async interrupted(ctx) {
-    await ctx.rig.plane.post({ sessionId: ctx.sessionId, kind: 'retry', payload: '{}' })
     await waitUntil({
       what: 'the retried turn to answer once the pod is back',
       check: async () => (await saidOf(ctx)).length === 1,
