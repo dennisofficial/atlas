@@ -1,6 +1,6 @@
 const OPENING = /^ {0,3}(`{3,}|~{3,})[ \t]*([^`\s]*)[^`]*$/
 
-type Fence = { marker: string; bodyStart: number; bodyEnd: number }
+export type MermaidFence = { marker: string; bodyStart: number; bodyEnd: number }
 type OpenFence = { marker: string; bodyStart: number; mermaid: boolean }
 
 export const diagramKey = (source: string): string => source.trim()
@@ -10,8 +10,8 @@ const closes = (line: string, marker: string): boolean => {
   return trimmed.length >= marker.length && trimmed === marker[0]?.repeat(trimmed.length)
 }
 
-function mermaidFences(text: string): readonly Fence[] {
-  const fences: Fence[] = []
+export function mermaidFences(text: string): readonly MermaidFence[] {
+  const fences: MermaidFence[] = []
   let open: OpenFence | undefined
   let offset = 0
   for (const line of text.split('\n')) {

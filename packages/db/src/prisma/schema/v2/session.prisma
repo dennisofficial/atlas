@@ -45,6 +45,7 @@ namespace v2 {
     worktreeChanges V2WorktreeChanges[]
     terminals       V2Terminal[]
     sandboxRuns     V2SandboxRun[]
+    diagramRepairs  V2DiagramRepair[]
 
     @@index([mainThreadId])
     @@index([userId, createdAt])

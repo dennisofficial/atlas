@@ -1,0 +1,135 @@
+[
+  {
+    "id": "table.V2DiagramRepair",
+    "label": "Create table \"V2DiagramRepair\"",
+    "summary": "Creates table \"V2DiagramRepair\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "table",
+        "name": "V2DiagramRepair"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"V2DiagramRepair\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"v2\".\"V2DiagramRepair\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"V2DiagramRepair\"",
+        "sql": "CREATE TABLE \"v2\".\"V2DiagramRepair\" (\n  \"createdAt\" timestamptz(3) DEFAULT (now()) NOT NULL,\n  \"modelRef\" text NOT NULL,\n  \"reason\" text,\n  \"repaired\" text,\n  \"sessionId\" text NOT NULL,\n  \"source\" text NOT NULL,\n  \"sourceHash\" text NOT NULL,\n  PRIMARY KEY (\"sessionId\", \"sourceHash\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"V2DiagramRepair\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"v2\".\"V2DiagramRepair\"",
+          "r",
+          "p"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.V2DiagramRepair.V2DiagramRepair_sessionId_idx_29f415d4",
+    "label": "Create index \"V2DiagramRepair_sessionId_idx_29f415d4\" on \"V2DiagramRepair\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "index",
+        "name": "V2DiagramRepair_sessionId_idx_29f415d4",
+        "table": "V2DiagramRepair"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"V2DiagramRepair_sessionId_idx_29f415d4\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"v2\".\"V2DiagramRepair_sessionId_idx_29f415d4\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"V2DiagramRepair_sessionId_idx_29f415d4\"",
+        "sql": "CREATE INDEX \"V2DiagramRepair_sessionId_idx_29f415d4\" ON \"v2\".\"V2DiagramRepair\" (\"sessionId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"V2DiagramRepair_sessionId_idx_29f415d4\" exists on \"V2DiagramRepair\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"v2\".\"V2DiagramRepair_sessionId_idx_29f415d4\"",
+          "i",
+          "I",
+          "\"v2\".\"V2DiagramRepair\"",
+          "btree",
+          "[\"sessionId\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.V2DiagramRepair.V2DiagramRepair_sessionId_fkey",
+    "label": "Add foreign key \"V2DiagramRepair_sessionId_fkey\" on \"V2DiagramRepair\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "foreignKey",
+        "name": "V2DiagramRepair_sessionId_fkey",
+        "table": "V2DiagramRepair"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"V2DiagramRepair_sessionId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "V2DiagramRepair_sessionId_fkey",
+          "v2",
+          "\"v2\".\"V2DiagramRepair\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"V2DiagramRepair_sessionId_fkey\"",
+        "sql": "ALTER TABLE \"v2\".\"V2DiagramRepair\"\nADD CONSTRAINT \"V2DiagramRepair_sessionId_fkey\"\nFOREIGN KEY (\"sessionId\")\nREFERENCES \"v2\".\"V2Session\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"V2DiagramRepair_sessionId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "V2DiagramRepair_sessionId_fkey",
+          "v2",
+          "\"v2\".\"V2DiagramRepair\"",
+          "f",
+          "[\"sessionId\"]",
+          "\"v2\".\"V2Session\"",
+          "[\"id\"]",
+          "c",
+          "c"
+        ]
+      }
+    ]
+  }
+]

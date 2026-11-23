@@ -236,6 +236,10 @@
       "model": "V2ChangeBlob",
       "namespace": "v2"
     },
+    "V2DiagramRepair": {
+      "model": "V2DiagramRepair",
+      "namespace": "v2"
+    },
     "V2Event": {
       "model": "V2Event",
       "namespace": "v2"
@@ -9048,6 +9052,107 @@
               "table": "V2ChangeBlob"
             }
           },
+          "V2DiagramRepair": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "modelRef": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "reason": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "repaired": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "sessionId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "source": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "sourceHash": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "session": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "sessionId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "V2Session",
+                  "namespace": "v2"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "modelRef": {
+                  "column": "modelRef"
+                },
+                "reason": {
+                  "column": "reason"
+                },
+                "repaired": {
+                  "column": "repaired"
+                },
+                "sessionId": {
+                  "column": "sessionId"
+                },
+                "source": {
+                  "column": "source"
+                },
+                "sourceHash": {
+                  "column": "sourceHash"
+                }
+              },
+              "namespaceId": "v2",
+              "table": "V2DiagramRepair"
+            }
+          },
           "V2Event": {
             "fields": {
               "at": {
@@ -10278,6 +10383,21 @@
                 },
                 "to": {
                   "model": "V2SessionBranch",
+                  "namespace": "v2"
+                }
+              },
+              "diagramRepairs": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "sessionId"
+                  ]
+                },
+                "to": {
+                  "model": "V2DiagramRepair",
                   "namespace": "v2"
                 }
               },
@@ -17992,6 +18112,92 @@
               },
               "uniques": []
             },
+            "V2DiagramRepair": {
+              "columns": {
+                "createdAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "modelRef": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "reason": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "repaired": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "sessionId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "source": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "sourceHash": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "index": {
+                    "name": "V2DiagramRepair_sessionId_idx_29f415d4"
+                  },
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "sessionId"
+                    ],
+                    "namespaceId": "v2",
+                    "tableName": "V2DiagramRepair"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "v2",
+                    "tableName": "V2Session"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "sessionId"
+                  ],
+                  "name": "V2DiagramRepair_sessionId_idx_29f415d4",
+                  "prefix": "V2DiagramRepair_sessionId_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "sessionId",
+                  "sourceHash"
+                ]
+              },
+              "uniques": []
+            },
             "V2Event": {
               "columns": {
                 "at": {
@@ -19552,7 +19758,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "5f6ba3b9a87739af644f00c807db2de56d9da1d4d40cb7abcee4b41cc847463d"
+    "storageHash": "f27c2c777ba8a78dc52b2ee934d8bf7ef5b1c6474776a4f95e00210b8418c4f9"
   },
   "execution": {
     "executionHash": "ab28df152a1a27a9a0756638f29813a6c6f20a2d2b25c449f0f8e363cc1d9af0",
