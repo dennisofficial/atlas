@@ -56,7 +56,8 @@ The worker registers the tasks. This package only names them and validates their
 ### Name a notify task
 
 - `NOTIFY_SEND_TASK_ID`: `notify-send`, a payload of a `sessionId`, a `threadId`, a `seq` and a
-  moment.
+  moment, with the optional `holdMs`, `pending`, `operatorTurn` and `endedAt` a held moment
+  carries.
 - `NOTIFY_TEST_TASK_ID`: `notify-test`, a payload of one `userId`.
 - `NOTIFY_CLEAR_TASK_ID`: `notify-clear`, a payload of a `userId` and a `sessionId`.
 - `NotifySendOutput`: the `sent` and `gone` counts of a send.

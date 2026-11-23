@@ -38,6 +38,10 @@ describe('the service worker source', () => {
     expect(serviceWorkerSource).toContain('routineId: notification.routineId,')
   })
 
+  it('shows a notification silently when the push says so', () => {
+    expect(serviceWorkerSource).toContain('silent: notification.silent === true')
+  })
+
   it('opens the routine page, not a session, when the notice names a routine', () => {
     expect(serviceWorkerSource).toContain("if (typeof data.routineId === 'string')")
     expect(serviceWorkerSource).toContain('openRoutine(data.routineId)')
