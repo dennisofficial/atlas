@@ -1,4 +1,5 @@
 import { EAgentRestart, type ThreadId } from '@dltech/atlas-core'
+import type { HostTimers } from '../ports'
 import {
   ETurnStatus,
   type LoopTurnRunner,
@@ -34,6 +35,19 @@ const firstTurn = async (
 
 const resumesAfter = (outcome: TurnOutcome): boolean =>
   outcome.status === ETurnStatus.Completed || outcome.status === ETurnStatus.Idle
+
+export const settledWithin = (args: {
+  timers: HostTimers
+  ms: number
+  done: Promise<void>
+}): Promise<boolean> =>
+  new Promise<boolean>((resolve) => {
+    const timer = args.timers.setTimeout(() => resolve(false), args.ms)
+    void args.done.then(() => {
+      args.timers.clearTimeout(timer)
+      resolve(true)
+    })
+  })
 
 export const driveLifecycle = async (
   args: TurnArgs & {
