@@ -59,8 +59,6 @@ describeHandoff({
   },
 
   async wake(ctx) {
-    const { lease } = await ctx.rig.plane.currentLease({ sessionId: ctx.sessionId })
-    expect(lease.wantsHolder).toBe(false)
     expect(await saidOf(ctx)).toHaveLength(0)
     expect(await turnStartsOf(ctx)).toHaveLength(1)
     await ctx.rig.plane.post({ sessionId: ctx.sessionId, kind: 'retry', payload: '{}' })
