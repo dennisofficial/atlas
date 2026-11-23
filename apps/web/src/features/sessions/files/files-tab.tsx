@@ -31,6 +31,8 @@ import { podReady, podAttached } from '../data/pod-attachment'
 import { EPaneOpen, checkoutPathOf, contextPathOf } from '../panel/pane-open'
 import { useSessionPaneValue } from '../panel/pane-value'
 import { PodDisconnected } from '../panel/pod-disconnected'
+import { PodNotReady } from '../panel/pod-not-ready'
+import { useReadyDeadline } from '../data/use-ready-deadline'
 import { ContextFileView } from './context-file-view'
 import { recallSelectedFile, rememberSelectedFile } from './files-memory'
 
@@ -173,6 +175,7 @@ export function FilesTab(
       checkoutId?: string | undefined
       root?: EFilesRoot | undefined
     }) => FileSource
+    readyDeadlineMs?: number
   } = {},
 ) {
   const { sessionId, status, openRequest, consumeOpenRequest } = useSessionPaneValue()
@@ -198,6 +201,14 @@ export function FilesTab(
     live: ready,
     wake: () => requestWake(sessionId).then(() => undefined),
   })
+  const { stalled: readyStalled, restart: restartReady } = useReadyDeadline({
+    waiting: attached && !ready,
+    deadlineMs: props.readyDeadlineMs,
+  })
+  const handleRetryReady = useCallback(() => {
+    restartReady()
+    wakePod()
+  }, [restartReady, wakePod])
   useEffect(() => {
     if (openRequest === undefined) return
     if (openRequest.kind === EPaneOpen.Changes) return
@@ -226,6 +237,7 @@ export function FilesTab(
 
   if (!attached)
     return <PodDisconnected tab="Files" state={state} message={wakeMessage} onWake={wakePod} />
+  if (!ready && readyStalled) return <PodNotReady tab="Files" onRetry={handleRetryReady} />
   if (!ready) return <Loading waking />
   if (contextPath !== undefined) {
     return (
