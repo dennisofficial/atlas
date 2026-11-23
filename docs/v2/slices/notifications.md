@@ -590,13 +590,13 @@ Each slice is one PR that merges alone, in this order.
    re-export beside the record exports. No caller, so zero risk, and it reviews as pure logic.
    Files: `packages/core/src/notify/**`, `packages/notifications/**`.
 2. **Presence.** `packages/wire/src/notify-wire.ts` (report input), the mutation in the v2 router,
-   `apps/api/src/agent/stream/presence-registry.ts` and its Redis client, the web hook
+   `apps/api/src/api/platform/control/presence-registry.ts` and its Redis client, the web hook
    `apps/web/src/features/sessions/data/use-presence-report.ts`, the iOS hook in
    `apps/mobile/src/thread/v2/`, the shared loop from `packages/notifications/src/client/presence.ts`.
    No user-visible change, so it can merge before anything reads presence.
    Files: `packages/wire/src/notify-wire.ts`, `apps/api/src/api/platform/control/`,
-   `apps/api/src/agent/stream/presence-registry.ts`, `apps/web/src/features/sessions/data/`,
-   `apps/mobile/src/thread/v2/`, `packages/notifications/src/client/presence.ts`.
+   `apps/web/src/features/sessions/data/`, `apps/mobile/src/thread/v2/`,
+   `packages/notifications/src/client/presence.ts`.
 3. **In Atlas.** The toast and the page notification, click to open, and clearing from `readSeq`, on
    web and in the iOS app. Needs only the stream, so it delivers value on its own.
    Files: `packages/notifications/src/client/{in-app,clear}.ts`,
@@ -654,8 +654,9 @@ Each slice is one PR that merges alone, in this order.
   and stops when the app goes inactive.
 - **Service worker** (`apps/web/src/lib/__tests__/service-worker-source.spec.ts`): the generated
   source reads the same payload keys as the model, shows with `tag: sessionId`, and closes by tag.
-- **API** (`apps/api/src/agent/stream/__tests__/`): a report writes the field with its surface, an
-  away report deletes it, and an expired field never counts. (`apps/api/src/agent/host/__tests__`):
+- **API** (`apps/api/src/api/platform/control/presence-registry.spec.ts` and
+  `notifications.router.spec.ts`): a report writes the field with its surface, an away report
+  deletes it, and an expired field never counts. (`apps/api/src/agent/host/__tests__`):
   a turn that ends dispatches one job with the moment and the appended seq; a parked turn dispatches
   `waiting-for-you`; an operator stop dispatches nothing; a dispatcher failure leaves the turn green.
 - **Trigger** (fake graph, like `routine-graph.fake.ts`): presence in front of another session sends
