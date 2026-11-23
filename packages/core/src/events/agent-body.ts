@@ -4,7 +4,7 @@ import type { EAgentStatus } from '../agents/status'
 import type { EKilledBy } from '../shells/status'
 import type { ThreadId } from './ids'
 import type { NoticeStamp } from './notice-stage'
-import type { ERunFailureKind } from './run-failure'
+import type { ERunFailureKind, RunFailure } from './run-failure'
 
 export type AgentEventBody =
   | {
@@ -27,6 +27,7 @@ export type AgentEventBody =
       prose: string
       failureCause?: string | undefined
       failureKind?: ERunFailureKind | undefined
+      failure?: RunFailure | undefined
       turns: number
       toolCalls: number
       /** False for a bookkeeping ending that never wakes the parent or reaches the model; older logs also wrote it for a child that still held live work. */
