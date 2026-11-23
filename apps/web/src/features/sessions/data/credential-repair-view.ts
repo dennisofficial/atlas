@@ -140,10 +140,16 @@ const resetsAtOf = (resetAt: string | null): string | undefined => {
 const noteOf = (agent: RunFailureAgent): string =>
   `Waiting: ${agent.agentType === '' ? 'sub-agent' : agent.agentType} — ${agent.intent}`
 
+const actionDetailsOf = (actions: readonly RepairActionSpec[]): readonly string[] => {
+  const details = actions.flatMap((action) => (action.detail === undefined ? [] : [action.detail]))
+  return [...new Set(details)]
+}
+
 export function repairCardViewOf(args: {
   repair: CredentialRepair
   providerLabel: string | undefined
   accountLabel: string | undefined
+  actions?: readonly RepairActionSpec[] | undefined
 }): RepairCardView {
   const parts = [args.providerLabel, args.accountLabel, reasonCopyOf(args.repair)]
   const resets = resetsAtOf(args.repair.resetAt)
@@ -151,6 +157,6 @@ export function repairCardViewOf(args: {
   return {
     title: repairTitleOf(args.repair),
     detail: parts.filter((part): part is string => part !== undefined && part !== '').join(' · '),
-    notes: args.repair.agents.map(noteOf),
+    notes: [...args.repair.agents.map(noteOf), ...actionDetailsOf(args.actions ?? [])],
   }
 }

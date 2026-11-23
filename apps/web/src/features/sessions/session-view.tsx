@@ -215,9 +215,11 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     () => composerEntriesOf({ commands: commandEntries, skills: skillEntries }),
     [commandEntries, skillEntries],
   )
+  const repairSelected = useRef<(() => void) | null>(null)
   const choice = useSessionModelChoice({
     sessionId,
     current: sessionModelOf(listed),
+    onSelected: () => repairSelected.current?.(),
   })
   const composerActions = useMemo(
     () =>
@@ -233,6 +235,9 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     events: snapshot.events,
     onSwitchModel: () => choice.setOpen(true),
   })
+  useEffect(() => {
+    repairSelected.current = repair.handleModelSelected
+  }, [repair.handleModelSelected])
   const failure = useSessionRunFailure({
     sessionId,
     events: snapshot.events,

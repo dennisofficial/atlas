@@ -73,6 +73,7 @@ function PasteCodeForm({
       </p>
       <div className="flex flex-wrap items-center gap-2">
         <Input
+          type="password"
           className="max-w-sm min-w-48 flex-1 font-mono"
           aria-label={`${name} authorization code`}
           placeholder="Paste the code"

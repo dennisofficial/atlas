@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
 import {
@@ -47,12 +47,22 @@ export enum ERepairDialog {
   Key = 'key',
 }
 
+const RETRY_ACTION: RunAttentionAction = {
+  id: 'retry',
+  label: 'Retry',
+  primary: false,
+  disabled: false,
+  onSelect: () => undefined,
+}
+
 export type CredentialRepairControl = {
   repair: CredentialRepair | null
   card: RepairCardProps | null
   strip: RunAttentionStripProps | null
   canRepair: boolean
+  accountKnown: boolean
   openPrimary: () => void
+  handleModelSelected: () => void
   dialogs: {
     signIn: {
       open: boolean
@@ -79,6 +89,7 @@ export function useCredentialRepair(args: {
   const { sessionId, mainThreadId, events, onSwitchModel } = args
   const [dialog, setDialog] = useState<ERepairDialog | null>(null)
   const [failing, setFailing] = useState(false)
+  const switchPending = useRef(false)
   const accounts = useCloudQuery({ key: 'failure-accounts', load: fetchAccounts })
   const { reload } = accounts
   const list = accounts.state === EQueryState.Ready ? accounts.data : undefined
@@ -165,6 +176,7 @@ export function useCredentialRepair(args: {
           return
         }
         case ERepairAction.SwapModel:
+          switchPending.current = true
           onSwitchModel()
           return
         case ERepairAction.CheckAgain:
@@ -175,17 +187,26 @@ export function useCredentialRepair(args: {
     [repair, runMutation, onSwitchModel, retryAfterRepair],
   )
 
-  const actions = useMemo<RunAttentionAction[]>(
-    () =>
-      specs.map((spec, index) => ({
-        id: spec.id,
-        label: spec.label,
-        primary: index === 0,
-        disabled: failing,
-        onSelect: () => selectAction(spec),
-      })),
-    [specs, failing, selectAction],
-  )
+  const handleRetry = useCallback(() => {
+    void retryAfterRepair()
+  }, [retryAfterRepair])
+
+  const handleModelSelected = useCallback(() => {
+    if (!switchPending.current) return
+    switchPending.current = false
+    void retryAfterRepair()
+  }, [retryAfterRepair])
+
+  const actions = useMemo<RunAttentionAction[]>(() => {
+    const offered = specs.map((spec, index) => ({
+      id: spec.id,
+      label: spec.label,
+      primary: index === 0,
+      disabled: failing,
+      onSelect: () => selectAction(spec),
+    }))
+    return [...offered, { ...RETRY_ACTION, disabled: failing, onSelect: handleRetry }]
+  }, [specs, failing, selectAction, handleRetry])
 
   const card = useMemo<RepairCardProps | null>(() => {
     if (repair === null) return null
@@ -193,9 +214,10 @@ export function useCredentialRepair(args: {
       repair,
       providerLabel: providerLabelOf(repair.providerId ?? undefined),
       accountLabel: account?.label,
+      actions: specs,
     })
     return { title: view.title, detail: view.detail, notes: view.notes, actions }
-  }, [repair, account, actions])
+  }, [repair, account, specs, actions])
 
   const primary = actions[0]
   const primaryDetail = specs[0]?.detail
@@ -250,7 +272,9 @@ export function useCredentialRepair(args: {
     card,
     strip,
     canRepair: specs.length > 0,
+    accountKnown: accountKind !== null,
     openPrimary: handleOpenPrimary,
+    handleModelSelected,
     dialogs: {
       signIn: {
         open: dialog === ERepairDialog.SignIn,

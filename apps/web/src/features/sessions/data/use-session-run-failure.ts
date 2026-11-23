@@ -16,6 +16,7 @@ import { retrySessionNow } from './use-retry-session'
 export type SessionRepair = {
   card: RepairCardProps | null
   canRepair: boolean
+  accountKnown: boolean
   openPrimary: () => void
 }
 
@@ -36,6 +37,9 @@ export function useSessionRunFailure(args: {
   const handleRetry = useCallback(() => {
     void retrySessionNow(sessionId)
   }, [sessionId])
+  const handleOpenProviders = useCallback(() => {
+    router.push(PROVIDERS_HREF)
+  }, [router])
   const handleFixCredential = useCallback(() => {
     if (repair.canRepair) {
       repair.openPrimary()
@@ -61,5 +65,27 @@ export function useSessionRunFailure(args: {
     [attention, accountLabelOf, handleRetry, handleFixCredential, onSwitchModel, openAgent],
   )
 
-  return { card: repair.card === null ? card : null, repairCard: repair.card, failedLabel: null }
+  const repairCard = useMemo<RepairCardProps | null>(() => {
+    if (repair.card === null) return null
+    if (repair.canRepair || repair.accountKnown) return repair.card
+    return {
+      ...repair.card,
+      actions: [
+        ...repair.card.actions,
+        {
+          id: 'providers',
+          label: 'Update key',
+          primary: false,
+          disabled: false,
+          onSelect: handleOpenProviders,
+        },
+      ],
+    }
+  }, [repair.card, repair.canRepair, repair.accountKnown, handleOpenProviders])
+
+  return {
+    card: repairCard === null ? card : null,
+    repairCard,
+    failedLabel: null,
+  }
 }
