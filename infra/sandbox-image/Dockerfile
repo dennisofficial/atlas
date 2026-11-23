@@ -209,7 +209,7 @@ RUN mkdir -p /etc/mise \
       'not_found_system_fallback = false' \
       'not_found_auto_install = false' \
       'trusted_config_paths = ["/"]' \
-      'shims.exclude = ["npm", "npx", "corepack"]' \
+      'shims.exclude = ["npm", "npx", "corepack", "cloudflared"]' \
       > /etc/mise/config.toml \
   && mise install node@lts node@22 python@3 bun@latest \
   && chmod -R a+rwX /opt/mise
@@ -236,7 +236,8 @@ RUN rm -f /usr/local/bin/npm /usr/local/bin/npx \
   && HOME=/tmp/foreign-home mise settings get not_found_system_fallback | grep -qx false \
   && HOME=/tmp/foreign-home mise settings get not_found_auto_install | grep -qx false \
   && HOME=/tmp/foreign-home mise settings get trusted_config_paths | grep -qx '\["/"\]' \
-  && HOME=/tmp/foreign-home mise settings get shims.exclude | grep -q npm
+  && HOME=/tmp/foreign-home mise settings get shims.exclude | grep -q npm \
+  && HOME=/tmp/foreign-home mise settings get shims.exclude | grep -q cloudflared
 
 # Tools that spawn bun by path rather than PATH look for $BUN_INSTALL/bin/bun, then
 # ~/.bun/bin/bun (trigger.dev's execPathForRuntime in @trigger.dev/core v3/build/runtime.js).
