@@ -1,5 +1,6 @@
 import {
   EOperatorInputOutcome,
+  modelFallbackCopy,
   prEventContent,
   runEventContent,
   type Event,
@@ -133,6 +134,31 @@ export function noticeEntriesOf(event: Event): TranscriptEntry[] | null {
         key: event.id,
         text: `${event.workflow} #${event.workflowRunId} ${event.conclusion}`,
         content: runEventContent(event),
+      },
+    ]
+  }
+
+  if (event.type === 'model-fell-back') {
+    const copy = modelFallbackCopy(event)
+    return [
+      {
+        kind: EEntryKind.ModelFellBack,
+        author: EAuthor.Model,
+        key: event.id,
+        text: copy.title,
+        content: copy.detail,
+      },
+    ]
+  }
+
+  if (event.type === 'sandbox-setup-reported') {
+    return [
+      {
+        kind: EEntryKind.SandboxNotice,
+        author: EAuthor.Model,
+        key: event.id,
+        text: event.text,
+        failed: event.failed,
       },
     ]
   }

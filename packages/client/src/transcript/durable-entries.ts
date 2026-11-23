@@ -7,7 +7,6 @@ import {
   isNoticeArrival,
   laneNameOf,
   latestTldrPerAnchor,
-  modelFallbackCopy,
   saidBy,
   type ConsumedCommand,
   type Event,
@@ -139,6 +138,7 @@ export function durableEntries(args: {
           skills: (attached.get(event.id) ?? NOTHING_ATTACHED).skills,
           files: (attached.get(event.id) ?? NOTHING_ATTACHED).files,
           attachments: attachmentsOfSaid(event),
+          ...(event.clientId === undefined ? {} : { clientId: event.clientId }),
         },
       ]
     }
@@ -176,31 +176,6 @@ export function durableEntries(args: {
           key: event.id,
           text: 'nudge',
           content: event.text,
-        },
-      ]
-    }
-
-    if (event.type === 'model-fell-back') {
-      const copy = modelFallbackCopy(event)
-      return [
-        {
-          kind: EEntryKind.ModelFellBack,
-          author: EAuthor.Model,
-          key: event.id,
-          text: copy.title,
-          content: copy.detail,
-        },
-      ]
-    }
-
-    if (event.type === 'sandbox-setup-reported') {
-      return [
-        {
-          kind: EEntryKind.SandboxNotice,
-          author: EAuthor.Model,
-          key: event.id,
-          text: event.text,
-          failed: event.failed,
         },
       ]
     }
