@@ -53,7 +53,7 @@ const typeInto = async (element: HTMLInputElement, value: string): Promise<void>
 const buttonNamed = (name: string): Element | undefined =>
   [...document.querySelectorAll('button')].find((button) => button.textContent?.trim() === name)
 
-const dialogFor = (onSave: (key: string) => Promise<boolean>) => (
+const dialogFor = (onSave: (key: string) => Promise<string | null>) => (
   <KeyDialog
     providerName="Anthropic"
     placeholder="sk-ant-…"
@@ -71,18 +71,28 @@ async function openAndSave(): Promise<void> {
 }
 
 describe('KeyDialog', () => {
-  it('keeps the dialog open with the error shown when the save fails', async () => {
-    const onSave = mock(async () => false)
+  it('keeps the dialog open with the provider sentence shown when the save fails', async () => {
+    const onSave = mock(async () => 'Anthropic refused this key (401).')
     await render(dialogFor(onSave))
     await openAndSave()
 
     expect(onSave).toHaveBeenCalledWith('sk-ant-abcdefghijklmnopqrst')
-    expect(document.querySelector('[role="alert"]')?.textContent).toContain('not accepted')
+    expect(document.querySelector('[role="alert"]')?.textContent).toContain(
+      'Anthropic refused this key (401).',
+    )
     expect(document.querySelector('#key-Anthropic')).not.toBeNull()
   })
 
+  it('falls back to the generic sentence when the failure carries no message', async () => {
+    const onSave = mock(async () => '')
+    await render(dialogFor(onSave))
+    await openAndSave()
+
+    expect(document.querySelector('[role="alert"]')?.textContent).toContain('not accepted')
+  })
+
   it('closes the dialog when the key is saved', async () => {
-    const onSave = mock(async () => true)
+    const onSave = mock(async () => null)
     await render(dialogFor(onSave))
     await openAndSave()
 

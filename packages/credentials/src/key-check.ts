@@ -30,6 +30,7 @@ const PROBES: Record<EAuthProvider, Probe> = {
   [EAuthProvider.OpenAI]: { url: 'https://api.openai.com/v1/models', headers: bearer },
   [EAuthProvider.OpenRouter]: { url: 'https://openrouter.ai/api/v1/key', headers: bearer },
   [EAuthProvider.Inference]: { url: 'https://api.inference.net/v1/models', headers: bearer },
+  [EAuthProvider.Typesafe]: { url: 'https://api.typesafe.ai/v1/models', headers: bearer },
   [EAuthProvider.Gateway]: { url: 'https://ai-gateway.vercel.sh/v1/credits', headers: bearer },
 }
 

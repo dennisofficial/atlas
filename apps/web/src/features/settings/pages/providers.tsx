@@ -1,24 +1,27 @@
 'use client'
 
 import { useCallback } from 'react'
+import { toast } from 'sonner'
 
 import { EOauthProvider } from '@dltech/atlas-wire/web'
 import { EBrand } from '@dltech/atlas-ui/components/brand-mark'
 
 import { MODEL_PICKER_KEY } from '@/lib/cloud-keys'
-import { useCloudQuery } from '@/lib/use-cloud-query'
 import { useInvalidateCloud } from '@/lib/use-invalidate-cloud'
 
 import {
   activateAccount,
   apiKeyFor,
   createApiKeyAccount,
-  fetchAccounts,
-  fetchActiveAccountId,
   removeAccount,
   replaceApiKey,
   type Account,
 } from '../data/personal/accounts-api'
+import { errorMessageOf } from '../data/personal/error-message'
+import {
+  useProviderAccounts,
+  type ProviderAccountsData,
+} from '../data/personal/provider-accounts-query'
 import { loginsOf } from '../data/personal/provider-logins'
 import { QueryPage } from '../data/personal/query-boundary'
 import { useProviderSignIn } from '../data/personal/use-provider-sign-in'
@@ -31,8 +34,6 @@ import { SettingsCard, SettingsPage, SettingsSection } from '../settings-layout'
 
 const TITLE = 'Providers'
 const DESCRIPTION = 'Where Atlas gets model access. A subscription is used first, then an API key.'
-
-const ACCOUNTS_KEY = 'provider-logins'
 
 const SUBSCRIPTIONS = [
   {
@@ -53,26 +54,8 @@ const SUBSCRIPTIONS = [
 
 type Subscription = (typeof SUBSCRIPTIONS)[number]
 
-type ProvidersData = {
-  accounts: readonly Account[]
-  active: Readonly<Record<string, string | null>>
-}
-
-async function loadProviders(): Promise<ProvidersData> {
-  const [accounts, active] = await Promise.all([
-    fetchAccounts(),
-    Promise.all(
-      SUBSCRIPTIONS.map(
-        async (subscription) =>
-          [subscription.provider, await fetchActiveAccountId(subscription.provider)] as const,
-      ),
-    ),
-  ])
-  return { accounts, active: Object.fromEntries(active) }
-}
-
 export function ProvidersPage() {
-  const query = useCloudQuery({ key: ACCOUNTS_KEY, load: loadProviders })
+  const query = useProviderAccounts()
   return (
     <QueryPage
       query={query}
@@ -89,7 +72,7 @@ function ProvidersContent({
   data,
   reload: reloadQuery,
 }: {
-  data: ProvidersData
+  data: ProviderAccountsData
   reload: () => void
 }) {
   const invalidateCloud = useInvalidateCloud()
@@ -100,25 +83,31 @@ function ProvidersContent({
   const { saving, run } = useSaveAction()
 
   const handleKeySave = useCallback(
-    (args: { provider: EProviderId; apiKey: string; existingId: string | null }) =>
-      run({
-        work: async () => {
-          if (args.existingId === null) {
-            await createApiKeyAccount({
-              provider: args.provider,
-              apiKey: args.apiKey,
-            })
-          } else {
-            await replaceApiKey({
-              accountId: args.existingId,
-              apiKey: args.apiKey,
-            })
-          }
-          reload()
-        },
-        success: 'API key saved',
-      }),
-    [run, reload],
+    async (args: {
+      provider: EProviderId
+      apiKey: string
+      existingId: string | null
+    }): Promise<string | null> => {
+      try {
+        if (args.existingId === null) {
+          await createApiKeyAccount({
+            provider: args.provider,
+            apiKey: args.apiKey,
+          })
+        } else {
+          await replaceApiKey({
+            accountId: args.existingId,
+            apiKey: args.apiKey,
+          })
+        }
+      } catch (error) {
+        return errorMessageOf(error)
+      }
+      toast.success('API key saved')
+      reload()
+      return null
+    },
+    [reload],
   )
   const handleSwitch = useCallback(
     (args: { provider: EProviderId; accountId: string }) =>

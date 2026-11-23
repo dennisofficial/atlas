@@ -3,8 +3,8 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'bun:test'
 import { act, type ReactNode } from 'react'
 import type { Root } from 'react-dom/client'
 
-import { EDecisionsProvider, ESearchBackend } from '../../fixtures/settings-decisions'
-import { DecisionsKeyRow, SearchKeyRow } from '../agent-key-row'
+import { ESearchBackend } from '../../fixtures/settings-search'
+import { SearchKeyRow } from '../agent-key-row'
 
 type Saved = { name: string; value: string; noun: string }
 
@@ -76,79 +76,6 @@ const recorder = () => {
   return { saved, onSave }
 }
 
-describe('DecisionsKeyRow', () => {
-  it('writes the key under the selected provider', async () => {
-    const { saved, onSave } = recorder()
-    const element = await render(
-      <DecisionsKeyRow
-        provider={EDecisionsProvider.Vercel}
-        savedNames={new Set()}
-        onSave={onSave}
-      />,
-    )
-    await typeKey({ element, value: SECRET })
-    await clickSave(element)
-    expect(saved).toEqual([{ name: 'decisions.token.vercel', value: SECRET, noun: 'key' }])
-  })
-
-  it('reads and writes the new provider’s key after switching', async () => {
-    const { saved, onSave } = recorder()
-    const savedNames = new Set(['decisions.token.typesafe'])
-    const typesafe = await render(
-      <DecisionsKeyRow
-        provider={EDecisionsProvider.Typesafe}
-        savedNames={savedNames}
-        onSave={onSave}
-      />,
-    )
-    expect(typesafe.textContent).toContain('Key saved')
-
-    const openai = await render(
-      <DecisionsKeyRow
-        provider={EDecisionsProvider.OpenAi}
-        savedNames={savedNames}
-        onSave={onSave}
-      />,
-    )
-    expect(openai.textContent).toContain('No key saved')
-    await typeKey({ element: openai, value: SECRET })
-    await clickSave(openai)
-    expect(saved).toEqual([{ name: 'decisions.token.openai', value: SECRET, noun: 'key' }])
-  })
-
-  it('never renders the key back after saving', async () => {
-    const { onSave } = recorder()
-    const element = await render(
-      <DecisionsKeyRow
-        provider={EDecisionsProvider.Typesafe}
-        savedNames={new Set()}
-        onSave={onSave}
-      />,
-    )
-    await typeKey({ element, value: SECRET })
-    expect(inputIn(element).type).toBe('password')
-    await clickSave(element)
-    expect(inputIn(element).value).toBe('')
-    expect(element.innerHTML).not.toContain(SECRET)
-  })
-})
-
-describe('trimming', () => {
-  it('saves a pasted key without surrounding whitespace', async () => {
-    const { saved, onSave } = recorder()
-    const element = await render(
-      <DecisionsKeyRow
-        provider={EDecisionsProvider.Typesafe}
-        savedNames={new Set()}
-        onSave={onSave}
-      />,
-    )
-    await typeKey({ element, value: `  ${SECRET}\n` })
-    await clickSave(element)
-    expect(saved).toEqual([{ name: 'decisions.token.typesafe', value: SECRET, noun: 'key' }])
-  })
-})
-
 describe('SearchKeyRow', () => {
   it('saves a SearXNG instance as a URL', async () => {
     const { saved, onSave } = recorder()
@@ -184,5 +111,15 @@ describe('SearchKeyRow', () => {
     await typeKey({ element, value: SECRET })
     await clickSave(element)
     expect(saved).toEqual([{ name: 'search.tavily', value: SECRET, noun: 'key' }])
+  })
+
+  it('saves a pasted key without surrounding whitespace', async () => {
+    const { saved, onSave } = recorder()
+    const element = await render(
+      <SearchKeyRow backend={ESearchBackend.Exa} savedNames={new Set()} onSave={onSave} />,
+    )
+    await typeKey({ element, value: `  ${SECRET}\n` })
+    await clickSave(element)
+    expect(saved).toEqual([{ name: 'search.exa', value: SECRET, noun: 'key' }])
   })
 })

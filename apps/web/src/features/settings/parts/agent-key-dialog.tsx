@@ -28,28 +28,28 @@ export function KeyDialog({
   placeholder: string
   triggerLabel: string
   primary?: boolean
-  onSave: (key: string) => Promise<boolean>
+  onSave: (key: string) => Promise<string | null>
 }) {
   const [open, setOpen] = useState(false)
   const [value, setValue] = useState('')
   const [checking, setChecking] = useState(false)
-  const [failed, setFailed] = useState(false)
+  const [failure, setFailure] = useState<string | null>(null)
   const trimmed = value.trim()
 
   const handleOpenChange = (next: boolean) => {
     setOpen(next)
     if (!next) {
       setValue('')
-      setFailed(false)
+      setFailure(null)
     }
   }
   const handleSave = async () => {
     setChecking(true)
-    setFailed(false)
-    const saved = await onSave(trimmed)
+    setFailure(null)
+    const failureText = await onSave(trimmed)
     setChecking(false)
-    if (!saved) {
-      setFailed(true)
+    if (failureText !== null) {
+      setFailure(failureText)
       return
     }
     handleOpenChange(false)
@@ -78,12 +78,12 @@ export function KeyDialog({
             placeholder={placeholder}
             className="font-mono"
             value={value}
-            aria-invalid={failed}
+            aria-invalid={failure !== null}
             onChange={(event) => setValue(event.target.value)}
           />
-          {failed ? (
+          {failure !== null ? (
             <p role="alert" className="text-xs text-destructive">
-              {NOT_ACCEPTED}
+              {failure.length > 0 ? failure : NOT_ACCEPTED}
             </p>
           ) : null}
         </div>

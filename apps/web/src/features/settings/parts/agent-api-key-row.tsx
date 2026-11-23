@@ -1,11 +1,12 @@
 'use client'
 
 import { Button } from '@dltech/atlas-ui/components/button'
+import { BrandMark } from '@dltech/atlas-ui/components/brand-mark'
+import { ScaleIcon } from 'lucide-react'
 
 import { KEY_PREFIXES, type ApiKeyEntry, type ApiKeyProvider } from '../fixtures/settings-agent'
 import { Mono, SettingsRow } from '../settings-layout'
 import { KeyDialog } from './agent-key-dialog'
-import { BrandMark } from '@dltech/atlas-ui/components/brand-mark'
 
 export function ApiKeyRow({
   provider,
@@ -17,14 +18,20 @@ export function ApiKeyRow({
   provider: ApiKeyProvider
   entry: ApiKeyEntry | null
   busy?: boolean
-  onSave: (key: string) => Promise<boolean>
+  onSave: (key: string) => Promise<string | null>
   onRemove: () => void
 }) {
   const prefix = KEY_PREFIXES[provider.id]
   const placeholder = prefix.length > 0 ? `${prefix}…` : 'Paste your API key'
   return (
     <SettingsRow
-      media={<BrandMark brand={provider.brand} />}
+      media={
+        provider.brand === undefined ? (
+          <ScaleIcon className="size-4 text-muted-foreground" aria-hidden />
+        ) : (
+          <BrandMark brand={provider.brand} />
+        )
+      }
       title={provider.name}
       description={
         entry ? (

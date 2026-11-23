@@ -7,7 +7,7 @@ export abstract class ProviderKeyHttp {
 
 @Injectable()
 export class GlobalProviderKeyHttp implements ProviderKeyHttp {
-  readonly fetch: typeof fetch = (input, init) => globalThis.fetch(input, init)
+  readonly fetch: typeof fetch = globalThis.fetch
 }
 
 @Injectable()

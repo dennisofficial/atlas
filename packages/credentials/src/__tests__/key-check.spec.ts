@@ -82,6 +82,11 @@ describe('checkProviderKey probes', () => {
       header: 'authorization',
       value: '',
     },
+    [EAuthProvider.Typesafe]: {
+      url: 'https://api.typesafe.ai/v1/models',
+      header: 'authorization',
+      value: '',
+    },
     [EAuthProvider.Gateway]: {
       url: 'https://ai-gateway.vercel.sh/v1/credits',
       header: 'authorization',
