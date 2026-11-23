@@ -10,6 +10,7 @@ import {
   type RevealGate,
   type ToolCall,
   type TranscriptEntry,
+  summariesAtTarget,
   type TranscriptEntryFold,
 } from '@dltech/atlas-client/transcript'
 import {
@@ -280,7 +281,7 @@ export const durableTranscriptOf = (args: {
   pluginEntries?: readonly TranscriptEntryFold[] | undefined
 }): DurableTranscript => ({
   entries: durableEntries({ events: args.events, pluginEntries: args.pluginEntries }),
-  stamps: new Map(args.events.map((event) => [event.id as string, event.at])),
+  stamps: new Map(summariesAtTarget(args.events).map((event) => [event.id as string, event.at])),
   spawns: spawnItemsOf(args.events),
   reports: [...reportItemsOf(args.events).values()],
   fast: fastEventsOf(args.events),

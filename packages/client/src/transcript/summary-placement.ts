@@ -12,6 +12,13 @@ const targetOf = (args: {
   return Math.min(target, args.ownIndex)
 }
 
+const stampedAtTarget = (args: {
+  event: SummaryEvent
+  before: Event | undefined
+  moved: boolean
+}): SummaryEvent =>
+  args.moved && args.before !== undefined ? { ...args.event, at: args.before.at } : args.event
+
 export function summariesAtTarget(events: readonly Event[]): Event[] {
   const summaries = new Map<number, SummaryEvent[]>()
   const others: Event[] = []
@@ -22,7 +29,9 @@ export function summariesAtTarget(events: readonly Event[]): Event[] {
     }
     const target = targetOf({ event, others, ownIndex: others.length })
     const placed = summaries.get(target) ?? []
-    placed.push(event)
+    placed.push(
+      stampedAtTarget({ event, before: others[target - 1], moved: target < others.length }),
+    )
     summaries.set(target, placed)
   }
 
