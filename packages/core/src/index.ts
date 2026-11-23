@@ -358,6 +358,7 @@ export * from './settings/cloud/harness-settings'
 export * from './settings/cloud/web-only-settings'
 export * from './settings/cloud/pinned-models'
 export * from './settings/cloud/settings-registry'
+export * from './settings/cloud/client-settings'
 
 export * from './version/semver'
 export * from './version/clean-release-body'

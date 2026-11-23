@@ -4,19 +4,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import type { SessionModelChoice, StreamSessionRow } from '@dltech/atlas-protocol'
 
-import { NoticeStack } from '../ui/components/notice-stack'
-import { Threads } from '../ui/components/threads'
 import { isSettlingLogin } from '../ui/settings-login-model'
-import type { SwitcherChoice } from '../ui/switcher-model'
 import type { AccountFile } from './account/account-file'
-import {
-  DEFAULT_LAUNCH,
-  EMPTY_SESSION_LIST,
-  isEnter,
-  modelOfRef,
-  modelPickOf,
-  problemOf,
-} from './app-next-support'
+import { DEFAULT_LAUNCH, EMPTY_SESSION_LIST, isEnter, problemOf } from './app-next-support'
 import {
   EScreen,
   screenOfAccount,
@@ -25,19 +15,21 @@ import {
   screenOnNew,
   type ScreenState,
 } from './app-screen'
-import { AwaitingAccessScreen } from './awaiting-access-screen'
+import { AccessScreen } from './access-screen'
 import { ChatScreenHost } from './chat-screen-host'
 import type { LaunchFlags } from './launch-flags'
 import { ModelSwitcher } from './model-switcher'
 import type { GitRemote } from './new-session'
 import { NewSessionHost } from './new-session-host'
 import { createSessionClient, type AuthRefusal, type SessionClient } from './session-client'
-import { SignInScreen } from './sign-in-screen'
+import { SessionsScreen } from './sessions-screen'
+import { SettingsScreen } from './settings-screen'
 import { useAccountFlow } from './use-account-flow'
-import { useModelChoice } from './use-model-choice'
+import { initialModelOf, useAppModelPick } from './use-app-model-pick'
 import { useSessionNav } from './use-session-nav'
 import { useSessionList } from './use-session-list'
 import { useSessionModels } from './use-session-models'
+import { useSettingsPanel, type SettingsPanel } from './use-settings-panel'
 import { useAppSessionWatch } from './use-app-session-watch'
 
 export type SessionClientArgs = {
@@ -74,7 +66,7 @@ export function AppNext(props: AppNextProps): React.ReactNode {
   const launch = props.launch ?? DEFAULT_LAUNCH
   const cwd = props.cwd ?? process.cwd()
 
-  const { account, handleAuthLost, signIn, handleSignOut } = useAccountFlow({
+  const { account, handleAuthLost, handlePreferences, signIn, handleSignOut } = useAccountFlow({
     accountPath: props.accountPath,
     apiUrl: props.apiUrl,
     initialAccount: props.initialAccount,
@@ -84,19 +76,21 @@ export function AppNext(props: AppNextProps): React.ReactNode {
   })
 
   const makeClient = useMemo(() => props.createClient ?? createSessionClient, [props.createClient])
+  const apiUrl = account?.apiUrl ?? null
+  const token = account?.token ?? null
 
   const client = useMemo(
     () =>
-      account === null
+      apiUrl === null || token === null
         ? null
         : makeClient({
-            apiUrl: account.apiUrl,
-            token: account.token,
+            apiUrl,
+            token,
             clientVersion: props.clientVersion,
             ...(props.fetchFn === undefined ? {} : { fetchFn: props.fetchFn }),
             onAuthLost: handleAuthLost,
           }),
-    [account, handleAuthLost, makeClient, props.clientVersion, props.fetchFn],
+    [apiUrl, token, handleAuthLost, makeClient, props.clientVersion, props.fetchFn],
   )
 
   useEffect(() => () => client?.close(), [client])
@@ -110,32 +104,30 @@ export function AppNext(props: AppNextProps): React.ReactNode {
   )
   const lookupModel = useRef<(sessionId: string) => SessionModelChoice | null>(() => null)
 
-  const initialModel = launch.model === null ? null : modelOfRef(launch.model)
-
+  const initialModel = initialModelOf(launch.model)
   const models = useSessionModels({ api: client?.api ?? null, onProblem: problemOf })
+  const panelWrite = useRef<SettingsPanel['write'] | null>(null)
 
-  const canPickModel = screen.screen === EScreen.Transcript || screen.screen === EScreen.NewSession
-  const currentModel: SessionModelChoice | null = canPickModel ? screen.model : initialModel
-
-  const handleModelPick = useCallback(
-    (picked: SwitcherChoice) => {
-      const next = modelPickOf({
-        screen,
-        picked,
-        api: clientHeld.current?.api ?? null,
-        onProblem: problemOf,
-      })
-      if (next !== null) setScreen(next)
-    },
-    [screen],
-  )
-
-  const choice = useModelChoice({
-    catalogue: models.providers,
-    reachable: models.reachable,
-    active: currentModel,
-    onPick: handleModelPick,
+  const pick = useAppModelPick({
+    models,
+    screen,
+    initialModel,
+    api: () => clientHeld.current?.api ?? null,
+    onScreen: setScreen,
+    writeSetting: (written) => void panelWrite.current?.(written),
   })
+
+  const panel = useSettingsPanel({
+    api: client?.api ?? null,
+    preferences: account?.preferences ?? {},
+    email: account?.email ?? null,
+    openUrl: props.openUrl,
+    onPreferences: handlePreferences,
+    onSignOut: () => void handleSignOut(),
+    onProblem: problemOf,
+    onChooseModel: pick.chooseSetting,
+  })
+  panelWrite.current = panel.write
 
   const rowOfRef = useRef<(sessionId: string) => StreamSessionRow | undefined>(() => undefined)
 
@@ -167,8 +159,16 @@ export function AppNext(props: AppNextProps): React.ReactNode {
         return
       }
 
-      if (key.ctrl && key.name === 'p' && canPickModel) {
-        choice.handleOpen()
+      if (pick.choice.handleKey(key)) return
+      if (panel.drawer.handleKey(key)) return
+
+      if (key.ctrl && key.name === 'o') {
+        panel.drawer.open()
+        return
+      }
+
+      if (key.ctrl && key.name === 'p' && pick.canPickModel) {
+        pick.choice.handleOpen()
         return
       }
 
@@ -177,8 +177,6 @@ export function AppNext(props: AppNextProps): React.ReactNode {
           setScreen(screenOnNew({ model: initialModel }))
         return
       }
-
-      if (choice.handleKey(key)) return
 
       switch (screen.screen) {
         case EScreen.SignIn:
@@ -200,39 +198,41 @@ export function AppNext(props: AppNextProps): React.ReactNode {
           return
       }
     },
-    [canPickModel, choice, handleSignOut, initialModel, list, props, screen, signIn],
+    [handleSignOut, initialModel, list, panel, pick, props, screen, signIn],
   )
 
   useKeyboard(handleKey)
 
-  if (screen.screen === EScreen.SignIn) {
+  if (screen.screen === EScreen.SignIn || screen.screen === EScreen.AwaitingAccess) {
     return (
-      <SignInScreen
+      <AccessScreen
+        screen={screen}
         width={width}
-        state={signIn.state}
-        reason={screen.reason}
-        onSignIn={signIn.begin}
-        onOpenUrl={props.openUrl}
-      />
-    )
-  }
-
-  if (screen.screen === EScreen.AwaitingAccess) {
-    return (
-      <AwaitingAccessScreen
-        width={width}
-        email={screen.email}
+        signIn={signIn}
+        openUrl={props.openUrl}
         onSignOut={() => void handleSignOut()}
       />
     )
   }
 
-  const switcher = <ModelSwitcher choice={choice} width={width} />
+  const switcher = <ModelSwitcher choice={pick.choice} width={width} />
+
+  const withOverlay = (body: React.ReactNode): React.ReactNode => (
+    <box flexDirection="column" flexGrow={1} width={width}>
+      {body}
+      <SettingsScreen
+        drawer={panel.drawer}
+        width={width}
+        sidebarWidth={panel.sidebarWidth}
+        cwd={cwd}
+      />
+    </box>
+  )
 
   if (screen.screen === EScreen.Transcript) {
     if (client === null) return null
-    return (
-      <box flexDirection="column" flexGrow={1} width={width}>
+    return withOverlay(
+      <>
         <ChatScreenHost
           client={client}
           sessionId={screen.sessionId}
@@ -242,13 +242,13 @@ export function AppNext(props: AppNextProps): React.ReactNode {
           now={now}
           cwd={cwd}
           onBack={nav.handleBack}
-          onNew={() => setScreen(screenOnNew({ model: currentModel }))}
-          onModel={choice.handleOpen}
+          onNew={() => setScreen(screenOnNew({ model: pick.currentModel }))}
+          onModel={pick.choice.handleOpen}
           onQuit={props.onQuit}
           onKeys={(handler) => {
             chatKeys.current = handler
           }}
-          choosingModel={choice.state !== null}
+          choosingModel={pick.choice.state !== null}
           clientVersion={props.clientVersion}
           teammates={list.rows}
           row={list.rowOf(screen.sessionId)}
@@ -256,21 +256,21 @@ export function AppNext(props: AppNextProps): React.ReactNode {
           onOpenSession={nav.handleOpenSession}
         />
         {switcher}
-      </box>
+      </>,
     )
   }
 
   if (screen.screen === EScreen.NewSession) {
     if (client === null) return null
-    return (
-      <box flexDirection="column" flexGrow={1} width={width}>
+    return withOverlay(
+      <>
         <NewSessionHost
           client={client}
           cwd={cwd}
           model={screen.model}
           width={width}
           height={height}
-          choosingModel={choice.state !== null}
+          choosingModel={pick.choice.state !== null}
           {...(props.git === undefined ? {} : { git: props.git })}
           onBack={() => setScreen(screenOnBack())}
           onCreated={(created) => setScreen(screenOnCreated(created))}
@@ -279,21 +279,9 @@ export function AppNext(props: AppNextProps): React.ReactNode {
           }}
         />
         {switcher}
-      </box>
+      </>,
     )
   }
 
-  return (
-    <box flexDirection="column" flexGrow={1} width={width}>
-      <box flexGrow={1} />
-      <Threads
-        width={width}
-        state={list.state}
-        onPick={list.handlePick}
-        onDismiss={props.onQuit}
-        onQueryChange={list.handleQuery}
-      />
-      <NoticeStack width={width} />
-    </box>
-  )
+  return withOverlay(<SessionsScreen width={width} list={list} onDismiss={props.onQuit} />)
 }

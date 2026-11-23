@@ -85,3 +85,8 @@ export const writeAccount = (args: { path: string; account: AccountFile }): void
 export const deleteAccount = (args: { path: string }): void => {
   rmSync(args.path, { force: true })
 }
+
+export const withPreferences = (args: {
+  account: AccountFile
+  preferences: Record<string, unknown>
+}): AccountFile => ({ ...args.account, preferences: args.preferences })

@@ -25,7 +25,8 @@ import { useSessionChrome } from './use-session-chrome'
 import { useSessionPanes } from './use-session-panes'
 import { useSessionTranscript } from './use-session-transcript'
 import { useSessionWake } from './use-session-wake'
-import { MIN_TRANSCRIPT_WIDTH, SIDEBAR_WIDTH } from '../ui/theme'
+import { MIN_TRANSCRIPT_WIDTH } from '../ui/theme'
+import { sidebarWidth } from '../ui/sidebar-width-store'
 import { problemOf } from './app-next-support'
 
 export function ChatScreenHost(props: {
@@ -57,7 +58,7 @@ export function ChatScreenHost(props: {
 
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const contentWidth = sidebarOpen
-    ? Math.max(MIN_TRANSCRIPT_WIDTH, props.width - SIDEBAR_WIDTH)
+    ? Math.max(MIN_TRANSCRIPT_WIDTH, props.width - sidebarWidth())
     : props.width
   const restoreText = useRef<(args: { text: string; reason: string | undefined }) => void>(
     () => undefined,
@@ -220,8 +221,6 @@ export function ChatScreenHost(props: {
     [staged.refused, staged.staged, transcript.pending, transcript.working],
   )
 
-  const { onBack } = props
-
   const handleKey = useChatKeys({
     composer,
     handleTakeBack: takeBack.handleTakeBack,
@@ -235,7 +234,7 @@ export function ChatScreenHost(props: {
     footerStrip: chrome.footerStrip,
     working: transcript.working,
     onToggleSidebar: () => setSidebarOpen((open) => !open),
-    onBack,
+    onBack: props.onBack,
     onStop: send.handleStop,
   })
 
@@ -256,7 +255,7 @@ export function ChatScreenHost(props: {
         cwd={props.cwd}
         now={props.now}
         backLabel={panes.crew.backLabel}
-        onBack={onBack}
+        onBack={props.onBack}
       />
     )
   }

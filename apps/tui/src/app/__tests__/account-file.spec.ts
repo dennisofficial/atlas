@@ -13,6 +13,7 @@ import {
   deleteAccount,
   parseAccount,
   readAccount,
+  withPreferences,
   writeAccount,
   type AccountFile,
 } from '../account/account-file'
@@ -69,6 +70,24 @@ describe('account file', () => {
     expect(
       parseAccount(JSON.stringify({ ...ACCOUNT, email: null, preferences: undefined })),
     ).toEqual({ ...ACCOUNT, email: null, preferences: {} })
+  })
+})
+
+describe('withPreferences', () => {
+  test('replaces the preferences and keeps the token, email and api url', () => {
+    const next = withPreferences({
+      account: ACCOUNT,
+      preferences: { 'appearance.accent': 'moss' },
+    })
+
+    expect(next).toEqual({
+      version: ACCOUNT_FILE_VERSION,
+      apiUrl: ACCOUNT.apiUrl,
+      email: ACCOUNT.email,
+      token: ACCOUNT.token,
+      preferences: { 'appearance.accent': 'moss' },
+    })
+    expect(ACCOUNT.preferences).toEqual({ accent: 'amber' })
   })
 })
 
