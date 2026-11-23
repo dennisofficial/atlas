@@ -10,6 +10,11 @@ export type SessionFiles = MentionListing & {
   search: (args: { query: string; limit: number }) => Promise<readonly string[]>
 }
 
+export const NO_SESSION_FILES: SessionFiles = {
+  list: async () => [],
+  search: async () => [],
+}
+
 export const sessionFilesOf = (args: { api: SessionApi; sessionId: string }): SessionFiles => ({
   list: async (directory) => {
     const reply = await args.api.treeFiles({ sessionId: args.sessionId, directory })

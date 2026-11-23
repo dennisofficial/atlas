@@ -39,7 +39,7 @@ import type { QualityHealthStatusProps } from './use-workspace-quality-health'
 import type { SettingsControl } from './use-settings'
 import type { ShellsControl } from './use-shells'
 import { type SwitcherControl } from './use-switcher'
-import type { ProjectPromptControl } from './use-project-prompt'
+import type { ProjectPromptControl } from '../ui/hooks/use-project-prompt'
 import type { ThreadsControl } from './use-threads'
 import type { WhatsNewControl } from './use-whats-new'
 

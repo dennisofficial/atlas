@@ -1,4 +1,13 @@
-import { GIT_BRANCH_PATTERN, MAX_PROJECT_NAME_LENGTH, type Project } from '@dltech/atlas-wire'
+export const GIT_BRANCH_PATTERN = /^(?!-)[A-Za-z0-9._/-]+$/
+
+export const MAX_PROJECT_NAME_LENGTH = 100
+
+export type ProjectChoice = {
+  id: string
+  name: string
+  repo: string | null
+  updatedAt: string
+}
 
 export const NO_WORKSPACE_LABEL = 'No workspace'
 
@@ -19,7 +28,7 @@ export enum EProjectAnswer {
 }
 
 export type ProjectRequest =
-  | { mode: EProjectPrompt.Pick; projects: readonly Project[] }
+  | { mode: EProjectPrompt.Pick; projects: readonly ProjectChoice[] }
   | { mode: EProjectPrompt.Create; repo: string; name: string; baseBranch: string }
 
 export type ProjectAnswer =
@@ -57,10 +66,10 @@ export const NAME_TOO_LONG = `keep the name to ${MAX_PROJECT_NAME_LENGTH} charac
 
 export const BRANCH_INVALID = 'that is not a valid branch name'
 
-const newestFirst = (a: Project, b: Project): number =>
+const newestFirst = (a: ProjectChoice, b: ProjectChoice): number =>
   a.updatedAt < b.updatedAt ? 1 : a.updatedAt > b.updatedAt ? -1 : 0
 
-export function projectRows(projects: readonly Project[]): readonly ProjectRow[] {
+export function projectRows(projects: readonly ProjectChoice[]): readonly ProjectRow[] {
   const rows = [...projects].sort(newestFirst).map(
     (project): ProjectRow => ({
       projectId: project.id,

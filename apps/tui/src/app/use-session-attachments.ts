@@ -214,17 +214,32 @@ export function useSessionAttachments(args: {
   const uploads = useMemo(() => held.flatMap((entry) => entry.upload ?? []), [held])
   const uploading = useMemo(() => held.some((entry) => entry.status === 'uploading'), [held])
 
-  return {
-    media,
-    uploads,
-    payload,
-    uploading,
-    held,
-    attachImages,
-    remove,
-    retain,
-    clear,
-    sent,
-    checkSendable,
-  }
+  return useMemo(
+    () => ({
+      media,
+      uploads,
+      payload,
+      uploading,
+      held,
+      attachImages,
+      remove,
+      retain,
+      clear,
+      sent,
+      checkSendable,
+    }),
+    [
+      attachImages,
+      checkSendable,
+      clear,
+      held,
+      media,
+      payload,
+      remove,
+      retain,
+      sent,
+      uploads,
+      uploading,
+    ],
+  )
 }

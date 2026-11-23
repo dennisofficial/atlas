@@ -341,6 +341,7 @@
       "dependencies": {
         "@dltech/atlas-api-router": "workspace:*",
         "@dltech/atlas-client": "workspace:*",
+        "@dltech/atlas-commands": "workspace:*",
         "@dltech/atlas-core": "workspace:*",
         "@dltech/atlas-harness": "workspace:*",
         "@dltech/atlas-models": "workspace:*",

@@ -1,3 +1,5 @@
+import type { SessionModelChoice } from '@dltech/atlas-protocol'
+
 import type { ThreadRow } from '../ui/threads-model'
 import type { AccountFile } from './account/account-file'
 import type { AuthRefusal } from './session-client'
@@ -7,13 +9,20 @@ export enum EScreen {
   AwaitingAccess = 'awaiting-access',
   Sessions = 'sessions',
   Transcript = 'transcript',
+  NewSession = 'new-session',
 }
 
 export type ScreenState =
   | { screen: EScreen.SignIn; reason: string | null }
   | { screen: EScreen.AwaitingAccess; email: string | null }
   | { screen: EScreen.Sessions }
-  | { screen: EScreen.Transcript; sessionId: string; title: string | null }
+  | {
+      screen: EScreen.Transcript
+      sessionId: string
+      title: string | null
+      model: SessionModelChoice | null
+    }
+  | { screen: EScreen.NewSession; model: SessionModelChoice | null }
 
 const EXPIRED = 'your sign-in expired.'
 
@@ -28,10 +37,29 @@ export const screenOnAuthLost = (args: {
     ? { screen: EScreen.AwaitingAccess, email: args.email }
     : { screen: EScreen.SignIn, reason: EXPIRED }
 
-export const screenOnPick = (args: { row: ThreadRow }): ScreenState => ({
+export const screenOnNew = (args: { model: SessionModelChoice | null }): ScreenState => ({
+  screen: EScreen.NewSession,
+  model: args.model,
+})
+
+export const screenOnPick = (args: {
+  row: ThreadRow
+  model: SessionModelChoice | null
+}): ScreenState => ({
   screen: EScreen.Transcript,
   sessionId: args.row.threadId,
   title: args.row.titled ? args.row.label : null,
+  model: args.model,
+})
+
+export const screenOnCreated = (args: {
+  sessionId: string
+  model: SessionModelChoice | null
+}): ScreenState => ({
+  screen: EScreen.Transcript,
+  sessionId: args.sessionId,
+  title: null,
+  model: args.model,
 })
 
 export const screenOnBack = (): ScreenState => ({ screen: EScreen.Sessions })

@@ -39,6 +39,7 @@ export function ChatScreen(props: {
   sends: number
   working: boolean
   onReconnect: () => void
+  choosingModel: boolean
 }): React.ReactNode {
   const { composer, transcript, attention, operator, connection, wake } = props
   const registry = useMemo(() => createKeyRegistry(), [])
@@ -104,7 +105,7 @@ export function ChatScreen(props: {
           height={props.height}
           working={props.working}
           interrupting={false}
-          focused={operator.state === null}
+          focused={operator.state === null && !props.choosingModel}
           onCursorMoved={composer.handleCursorMoved}
         />
         <NoticeStack width={props.width} />
