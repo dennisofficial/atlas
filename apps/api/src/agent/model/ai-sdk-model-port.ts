@@ -9,6 +9,7 @@ import {
   ModelPort,
   type Assembled,
   type ChunkFilter,
+  type EAuthKind,
   type ModelCard,
   type ModelStepResult,
   type ModelTraits,
@@ -178,6 +179,7 @@ export type AiSdkModelPortArgs = {
   card?: ModelCardSource | undefined
   mediaSource?: MediaSource | undefined
   log?: LogPort | undefined
+  auth?: EAuthKind | undefined
 }
 
 export class AiSdkModelPort extends ModelPort {
@@ -186,6 +188,7 @@ export class AiSdkModelPort extends ModelPort {
   private readonly card: ModelCardSource | undefined
   private readonly mediaSource: MediaSource | undefined
   private readonly log: LogPort | undefined
+  private readonly auth: EAuthKind | undefined
   private readonly missingMedia = new Set<string>()
 
   constructor(args: AiSdkModelPortArgs) {
@@ -195,6 +198,7 @@ export class AiSdkModelPort extends ModelPort {
     this.card = args.card
     this.mediaSource = args.mediaSource
     this.log = args.log
+    this.auth = args.auth
   }
 
   get identity(): ProviderIdentity {
@@ -209,6 +213,7 @@ export class AiSdkModelPort extends ModelPort {
       ...(card?.image === undefined ? {} : { image: card.image }),
       ...(card === undefined ? {} : { contextWindow: card.contextWindow }),
       ...(card?.cost === undefined ? {} : { cost: card.cost }),
+      ...(this.auth === undefined ? {} : { auth: this.auth }),
     }
   }
 

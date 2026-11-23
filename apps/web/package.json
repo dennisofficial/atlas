@@ -33,7 +33,7 @@
     "@dltech/atlas-ui": "workspace:*",
     "@dltech/atlas-wire": "workspace:*",
     "@tanstack/react-query": "^5.105.0",
-    "ai": "^7.0.152",
+    "ai": "^7.0.180",
     "lucide-react": "^1.59.0",
     "next": "16.3.5",
     "posthog-js": "^1.453.0",

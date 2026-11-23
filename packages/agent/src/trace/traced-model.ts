@@ -86,6 +86,7 @@ export class TracedModel extends ModelPort {
       fields: {
         provider: id,
         model: modelId,
+        auth: this.inner.traits?.().auth,
         sizes: requestSizeOf({ assembled: args.assembled, tools: args.tools }),
         hashes: requestHashesOf({ assembled: args.assembled, tools: args.tools }),
       },

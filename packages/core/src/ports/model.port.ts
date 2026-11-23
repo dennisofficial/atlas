@@ -20,11 +20,14 @@ export type ModelStepResult = {
   ranFast?: true
 }
 
+import type { EAuthKind } from '../credentials/account'
+
 export type ModelTraits = {
   imageTier?: EImageTier | undefined
   image?: ImageCapabilities | undefined
   contextWindow?: number | undefined
   cost?: ModelCost | undefined
+  auth?: EAuthKind | undefined
 }
 
 export const CONTEXT_WINDOW_UNMEASURED = 0

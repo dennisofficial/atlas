@@ -37,7 +37,12 @@ export class FakeCredentials implements CredentialPort {
 export const sse = (events: readonly unknown[]): string =>
   events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join('')
 
-export type FakeReply = { status?: number; body: string; contentType?: string }
+export type FakeReply = {
+  status?: number
+  body: string
+  contentType?: string
+  headers?: Record<string, string>
+}
 
 export function fakeFetch(replies: readonly FakeReply[]) {
   const requests: CapturedRequest[] = []
@@ -56,7 +61,10 @@ export function fakeFetch(replies: readonly FakeReply[]) {
     if (reply === undefined) throw new Error('no reply queued')
     return new Response(reply.body, {
       status: reply.status ?? 200,
-      headers: { 'content-type': reply.contentType ?? 'text/event-stream' },
+      headers: {
+        'content-type': reply.contentType ?? 'text/event-stream',
+        ...reply.headers,
+      },
     })
   }
   return { requests, fetch: handler as typeof fetch }
