@@ -60,7 +60,9 @@ groups `changes.*`, `git.*`, `mcp.*`, `metrics.*`, `previews.*`, `services.*`, `
 
 - `filesTreeInputSchema`, `filesSearchInputSchema`, `filesReadInputSchema`: browse, search and read.
   Each takes an optional `checkoutId`; when it is set, the directory or path resolves inside that
-  checkout's worktree instead of the session's launch directory.
+  checkout's worktree instead of the session's launch directory. `filesTreeInputSchema` and
+  `filesReadInputSchema` also take an optional `root`: `EFilesRoot.Context` resolves the path inside
+  the session's context folder instead of any checkout.
 
 ### Speak the session API
 

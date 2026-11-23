@@ -148,10 +148,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     mainThreadId: listed?.mainThreadId,
     model,
     snapshot,
-    openTab: pane.openTab,
-    podSizeRequest: pane.podSizeRequest,
-    requestPodSize: pane.requestPodSize,
-    consumePodSizeRequest: pane.consumePodSizeRequest,
+    pane,
   })
   const stagedRun = useStagedMessages({
     sessionId,

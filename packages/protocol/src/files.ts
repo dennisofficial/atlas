@@ -1,5 +1,10 @@
 import { z } from 'zod'
 
+export enum EFilesRoot {
+  Checkout = 'checkout',
+  Context = 'context',
+}
+
 export const fileContentSchema = z.discriminatedUnion('type', [
   z.strictObject({
     type: z.literal('text'),
@@ -16,6 +21,7 @@ export const filesTreeInputSchema = z.strictObject({
   sessionId: z.string().min(1),
   directory: z.string(),
   checkoutId: z.string().min(1).optional(),
+  root: z.enum(EFilesRoot).optional(),
 })
 export const filesTreeEntrySchema = z.strictObject({
   name: z.string(),
@@ -45,6 +51,7 @@ export const filesReadInputSchema = z.strictObject({
   sessionId: z.string().min(1),
   path: z.string().min(1),
   checkoutId: z.string().min(1).optional(),
+  root: z.enum(EFilesRoot).optional(),
 })
 export type FilesReadInput = z.infer<typeof filesReadInputSchema>
 export const filesReadOutputSchema = z.strictObject({ file: fileContentSchema })

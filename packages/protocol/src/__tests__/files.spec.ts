@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import {
+  EFilesRoot,
   filesReadInputSchema,
   filesReadOutputSchema,
   filesSearchOutputSchema,
@@ -42,6 +43,22 @@ describe('files schemas', () => {
   it('rejects unknown keys on search', () => {
     expect(
       filesSearchOutputSchema.safeParse({ paths: [], truncated: false, source: 'cache' }).success,
+    ).toBe(false)
+  })
+
+  it('accepts the context root on tree and read', () => {
+    expect(
+      filesTreeInputSchema.parse({ sessionId: 'ses', directory: '', root: EFilesRoot.Context }),
+    ).toEqual({ sessionId: 'ses', directory: '', root: EFilesRoot.Context })
+    expect(
+      filesReadInputSchema.parse({ sessionId: 'ses', path: 'plan.md', root: EFilesRoot.Context }),
+    ).toEqual({ sessionId: 'ses', path: 'plan.md', root: EFilesRoot.Context })
+  })
+
+  it('rejects an unknown root', () => {
+    expect(
+      filesReadInputSchema.safeParse({ sessionId: 'ses', path: 'plan.md', root: 'worktree' })
+        .success,
     ).toBe(false)
   })
 })

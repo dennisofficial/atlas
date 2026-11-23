@@ -1,7 +1,7 @@
 import { registerDom, unregisterDom } from '@/lib/__tests__/happy-dom-globals'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, mock } from 'bun:test'
 import { createApiClient } from '@dltech/atlas-api-router'
-import { EChangeFileStatus, type SessionChangesOutput } from '@dltech/atlas-protocol'
+import { EChangeFileStatus, EFilesRoot, type SessionChangesOutput } from '@dltech/atlas-protocol'
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { renderToStaticMarkup } from 'react-dom/server'
@@ -39,14 +39,24 @@ mock.module('@/features/sessions/changes/changes-api', () => ({
 const { CheckoutChoiceProvider, useCheckoutChoice } = await import(
   '../../checkouts/checkout-choice-context'
 )
+const { EPaneOpen } = await import('../../panel/pane-open')
 const { FilesTab } = await import('../files-tab')
 
 const browsed: string[] = []
-const sources: { sessionId: string; checkoutId?: string | undefined }[] = []
+const reads: string[] = []
+const sources: {
+  sessionId: string
+  checkoutId?: string | undefined
+  root?: EFilesRoot | undefined
+}[] = []
 
 const names = new Map<string, string>()
 
-const sourceOf = (args: { sessionId: string; checkoutId?: string | undefined }): FileSource => {
+const sourceOf = (args: {
+  sessionId: string
+  checkoutId?: string | undefined
+  root?: EFilesRoot | undefined
+}): FileSource => {
   sources.push(args)
   return {
     browse: (input) => {
@@ -55,7 +65,10 @@ const sourceOf = (args: { sessionId: string; checkoutId?: string | undefined }):
       return Promise.resolve([{ name, isDirectory: false }])
     },
     search: () => Promise.resolve({ paths: [], truncated: false }),
-    read: () => Promise.resolve({ type: 'refused', path: 'a.ts', reason: 'nope' }),
+    read: (input) => {
+      reads.push(input.path)
+      return Promise.resolve({ type: 'refused', path: input.path, reason: 'nope' })
+    },
   }
 }
 
@@ -98,6 +111,12 @@ const attachedValue = (): SessionPaneValue =>
       sandbox: { status: 'running', at: '2026-01-01T00:00:00.000Z' },
     },
   } as never)
+
+const withOpen = (
+  value: SessionPaneValue,
+  path: string,
+  kind: EPaneOpen = EPaneOpen.File,
+): SessionPaneValue => ({ ...value, openRequest: { kind, path, id: 1 } })
 
 const wrap = (value: SessionPaneValue, pick?: { checkoutId: string }) => (
   <SessionPaneProvider value={value}>
@@ -156,6 +175,7 @@ afterAll(async () => {
 
 beforeEach(() => {
   browsed.length = 0
+  reads.length = 0
   sources.length = 0
   names.clear()
   changes.answer = { checkouts: [checkout()] }
@@ -255,5 +275,35 @@ describe('FilesTab', () => {
     expect(host.textContent).toContain('Files appear once the workspace repository is ready.')
     expect(sources).toHaveLength(0)
     expect(browsed).toHaveLength(0)
+  })
+
+  it('opens a file request in the checkout that holds it', async () => {
+    changes.answer = {
+      checkouts: [checkout({ checkoutId: 'co-1' }), checkout({ checkoutId: 'co-2' })],
+    }
+    await mount(withOpen(valueOf(true), '/work/co-2/src/app.ts'))
+    expect(sources).toContainEqual({ sessionId: 'ses-1', checkoutId: 'co-2' })
+    expect(reads).toContain('src/app.ts')
+  })
+
+  it('opens a context path given relative to the context folder', async () => {
+    const host = await mount(withOpen(valueOf(true), 'sections/01.md', EPaneOpen.Context))
+    expect(host.textContent).toContain('Context · sections/01.md')
+    expect(reads).toContain('sections/01.md')
+  })
+
+  it('shows a context file from the context root and goes back to the tree', async () => {
+    const host = await mount(
+      withOpen(valueOf(true), '$ATLAS_CONTEXT_DIR/plan.md', EPaneOpen.Context),
+    )
+    expect(host.textContent).toContain('Context · plan.md')
+    expect(sources).toContainEqual({ sessionId: 'ses-1', root: EFilesRoot.Context })
+    expect(reads).toContain('plan.md')
+    const back = host.querySelector('[data-context-file] button')
+    if (!(back instanceof HTMLElement)) throw new Error('back button missing')
+    await act(async () => back.click())
+    await settle()
+    expect(host.textContent).not.toContain('Context ·')
+    expect(host.textContent).toContain('src')
   })
 })

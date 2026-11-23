@@ -47,8 +47,27 @@ export function useSessionAgentWiring(args: {
   )
 
   const panel = useMemo(
-    () => panelValueOf({ sessionId, working, agentId, parentAgentId, openAgent, clearAgent }),
-    [sessionId, working, agentId, parentAgentId, openAgent, clearAgent],
+    () =>
+      panelValueOf({
+        sessionId,
+        working,
+        agentId,
+        parentAgentId,
+        openAgent,
+        clearAgent,
+        openTab: pane.openTab,
+        requestOpen: pane.requestOpen,
+      }),
+    [
+      sessionId,
+      working,
+      agentId,
+      parentAgentId,
+      openAgent,
+      clearAgent,
+      pane.openTab,
+      pane.requestOpen,
+    ],
   )
   return { pane, panel, openAgent, sheetOpenChange }
 }
