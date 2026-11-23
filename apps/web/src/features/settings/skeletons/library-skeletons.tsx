@@ -1,7 +1,7 @@
 import { Skeleton } from '@dltech/atlas-ui/components/skeleton'
 
 import { SettingsCard, SettingsSection } from '../settings-layout'
-import { ERowControl, Line, RowCardSkeleton, SettingsRowSkeleton } from './primitives'
+import { ERowControl, Line, SettingsRowSkeleton } from './primitives'
 import { EnvSecretsSkeleton, SandboxTableSkeleton } from './table-skeletons'
 
 export function MemorySearchSkeleton() {
@@ -67,26 +67,25 @@ export function MemorySheetSkeleton() {
 export function ProvidersSkeleton() {
   return (
     <>
-      <SettingsSection
-        title="Subscriptions"
-        description="Sign in with a plan you already pay for. Takes precedence over API keys."
-      >
-        <RowCardSkeleton controls={[ERowControl.Button, ERowControl.Button]} media badge />
+      <SettingsSection title="Connected">
+        <div className="flex flex-col gap-4">
+          {[0, 1].map((key) => (
+            <SettingsCard key={key}>
+              <SettingsRowSkeleton control={ERowControl.Button} media lines={1} titleWidth="w-28" />
+              <SettingsRowSkeleton badge lines={2} titleWidth="w-48" />
+              <SettingsRowSkeleton lines={2} titleWidth="w-40" />
+            </SettingsCard>
+          ))}
+        </div>
       </SettingsSection>
       <SettingsSection
-        title="API keys"
-        description="Used when no subscription covers the model. Billed by the provider."
+        title="Add a provider"
+        description="Sign in with a plan you already pay for, or add an API key billed by the provider."
       >
-        <RowCardSkeleton
-          controls={[
-            ERowControl.Buttons,
-            ERowControl.Buttons,
-            ERowControl.Buttons,
-            ERowControl.Buttons,
-            ERowControl.Button,
-          ]}
-          media
-        />
+        <SettingsCard>
+          <SettingsRowSkeleton control={ERowControl.Button} media lines={1} titleWidth="w-28" />
+          <SettingsRowSkeleton control={ERowControl.Button} media lines={1} titleWidth="w-32" />
+        </SettingsCard>
       </SettingsSection>
     </>
   )

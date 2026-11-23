@@ -216,29 +216,122 @@ describe('AccountsService', () => {
     expect(await accounts()).toHaveLength(0)
   })
 
-  it('add keeps one api-key account per provider: the second key replaces the first and is active', async () => {
+  it('add inserts a second api-key row and keeps the first one active', async () => {
     const first = await service.add({ userId: USER_A, draft: apiKeyDraft('sk-old') })
-    await service.setStatus({ userId: USER_A, accountId: first.id, status: EAccountStatus.Expired })
     const second = await service.add({ userId: USER_A, draft: apiKeyDraft('sk-new') })
 
-    expect(second.id).toBe(first.id)
-    expect(second.status).toBe(EAccountStatus.Active)
-    expect(await accounts()).toHaveLength(1)
-    const stored = await service.read({ userId: USER_A, accountId: first.id })
-    expect(stored.secret).toEqual({ kind: EAuthKind.ApiKey, apiKey: 'sk-new' })
+    expect(second.id).not.toBe(first.id)
+    expect(await accounts()).toHaveLength(2)
+    expect((await service.read({ userId: USER_A, accountId: first.id })).secret).toEqual({
+      kind: EAuthKind.ApiKey,
+      apiKey: 'sk-old',
+    })
+    expect((await service.read({ userId: USER_A, accountId: second.id })).secret).toEqual({
+      kind: EAuthKind.ApiKey,
+      apiKey: 'sk-new',
+    })
     expect(await service.activeFor({ userId: USER_A, provider: 'inference' })).toEqual({
       accountId: first.id,
     })
   })
 
-  it('add replaces the secret under concurrent api-key adds', async () => {
+  it('add moves the active pointer when makeActive is true', async () => {
+    await service.add({ userId: USER_A, draft: apiKeyDraft('sk-old') })
+    const second = await service.add({
+      userId: USER_A,
+      draft: { ...apiKeyDraft('sk-new'), makeActive: true },
+    })
+
+    expect(await service.activeFor({ userId: USER_A, provider: 'inference' })).toEqual({
+      accountId: second.id,
+    })
+  })
+
+  it('add makes the first account of a provider active and leaves another provider alone', async () => {
+    const inference = await service.add({ userId: USER_A, draft: apiKeyDraft('sk-inf') })
+    const openai = await service.add({
+      userId: USER_A,
+      draft: { ...apiKeyDraft('sk-oai'), provider: EAuthProvider.OpenAI },
+    })
+
+    expect(await service.activeFor({ userId: USER_A, provider: 'inference' })).toEqual({
+      accountId: inference.id,
+    })
+    expect(await service.activeFor({ userId: USER_A, provider: 'openai' })).toEqual({
+      accountId: openai.id,
+    })
+  })
+
+  it('add inserts three rows under concurrent api-key adds', async () => {
     await Promise.all(
       ['sk-1', 'sk-2', 'sk-3'].map((key) =>
         service.add({ userId: USER_A, draft: apiKeyDraft(key) }),
       ),
     )
 
-    expect(await accounts()).toHaveLength(1)
+    expect(await accounts()).toHaveLength(3)
+    expect(await actives()).toHaveLength(1)
+  })
+
+  it('list returns the key hint of an api key and none for oauth', async () => {
+    await service.add({ userId: USER_A, draft: apiKeyDraft('sk-secret-abcd') })
+    await service.add({ userId: USER_A, draft: draftOf(oauthSecret('at-1')) })
+
+    const listed = await service.list({ userId: USER_A })
+
+    expect(listed.find((account) => account.kind === EAuthKind.ApiKey)?.keyHint).toBe('abcd')
+    expect(listed.find((account) => account.kind === EAuthKind.Oauth)?.keyHint).toBeUndefined()
+  })
+
+  it('remove of the active account re-points at the remaining account', async () => {
+    const first = await service.add({ userId: USER_A, draft: apiKeyDraft('sk-1') })
+    const second = await service.add({ userId: USER_A, draft: apiKeyDraft('sk-2') })
+
+    await service.remove({ userId: USER_A, accountId: first.id })
+
+    expect(await service.activeFor({ userId: USER_A, provider: 'inference' })).toEqual({
+      accountId: second.id,
+    })
+  })
+
+  it('remove of a non-active account leaves the pointer', async () => {
+    const first = await service.add({ userId: USER_A, draft: apiKeyDraft('sk-1') })
+    const second = await service.add({ userId: USER_A, draft: apiKeyDraft('sk-2') })
+
+    await service.remove({ userId: USER_A, accountId: second.id })
+
+    expect(await service.activeFor({ userId: USER_A, provider: 'inference' })).toEqual({
+      accountId: first.id,
+    })
+  })
+
+  it('remove of the last account clears the pointer', async () => {
+    const account = await service.add({ userId: USER_A, draft: apiKeyDraft('sk-1') })
+
+    await service.remove({ userId: USER_A, accountId: account.id })
+
+    expect(await service.activeFor({ userId: USER_A, provider: 'inference' })).toEqual({
+      accountId: null,
+    })
+  })
+
+  it('rename changes the label and leaves the secret alone', async () => {
+    const account = await service.add({ userId: USER_A, draft: apiKeyDraft('sk-1') })
+
+    await service.rename({ userId: USER_A, accountId: account.id, label: 'Personal key' })
+
+    const stored = await service.read({ userId: USER_A, accountId: account.id })
+    expect(stored.label).toBe('Personal key')
+    expect(stored.secret).toEqual({ kind: EAuthKind.ApiKey, apiKey: 'sk-1' })
+  })
+
+  it('rename refuses an account of another user', async () => {
+    const account = await service.add({ userId: USER_A, draft: apiKeyDraft('sk-1') })
+
+    await expect(
+      service.rename({ userId: USER_B, accountId: account.id, label: 'Stolen' }),
+    ).rejects.toBeInstanceOf(NotFoundException)
+    expect((await service.list({ userId: USER_A }))[0]?.label).toBe('Inference.net api key')
   })
 
   it('add keeps api-key accounts of different users and providers apart', async () => {
