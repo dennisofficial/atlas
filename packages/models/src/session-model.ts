@@ -1,8 +1,5 @@
 import {
-  accountSchema,
   capabilitiesFromCatalog,
-  chooseAccount,
-  EAccountChoice,
   EAuthProvider,
   EEffort,
   EModelRole,
@@ -10,13 +7,19 @@ import {
   effortRungOf,
   parseRef,
   resolveModelChoice,
-  toAccountId,
-  type Account,
   type CapabilitiesOf,
   type ModelCapabilities,
   type ModelChoice,
   type ModelRef,
 } from '@dltech/atlas-core'
+import {
+  chosenFor,
+  parsedAccountsOf,
+  reachableOf,
+  type AccountRowLike,
+  type ActiveAccountRowLike,
+  type ParsedAccount,
+} from '@dltech/atlas-credentials'
 
 import { cardsForProvider, generatedCatalogue } from './generated-catalogue'
 
@@ -33,22 +36,6 @@ const FALLBACK_PROVIDERS = [
   EAuthProvider.Gateway,
   EAuthProvider.Inference,
 ]
-
-export type ActiveAccountRowLike = { provider: string; accountId: string }
-
-export type AccountRowLike = {
-  id: string
-  provider: string
-  kind: string
-  origin: string
-  label: string
-  status: string
-  email: string | null
-  subscription: string | null
-  importedFrom: string | null
-  createdAt: Date
-  updatedAt: Date
-}
 
 export type SessionModelInputs = {
   settings: ReadonlyMap<string, string>
@@ -86,60 +73,6 @@ export const settingsWithProjectOverUser = (args: {
   user: ReadonlyMap<string, string>
   project: ReadonlyMap<string, string>
 }): ReadonlyMap<string, string> => new Map([...args.user, ...args.project])
-
-const accountOf = (row: AccountRowLike): Account | undefined => {
-  const parsed = accountSchema.safeParse({
-    id: row.id,
-    provider: row.provider,
-    kind: row.kind,
-    origin: row.origin,
-    label: row.label,
-    status: row.status,
-    ...(row.email === null ? {} : { email: row.email }),
-    ...(row.subscription === null ? {} : { subscription: row.subscription }),
-    ...(row.importedFrom === null ? {} : { importedFrom: row.importedFrom }),
-    createdAt: row.createdAt.toISOString(),
-    updatedAt: row.updatedAt.toISOString(),
-  })
-  return parsed.success ? parsed.data : undefined
-}
-
-export type ParsedAccount<Row extends AccountRowLike> = { account: Account; row: Row }
-
-export const parsedAccountsOf = <Row extends AccountRowLike>(
-  rows: readonly Row[],
-): readonly ParsedAccount<Row>[] =>
-  rows.flatMap((row) => {
-    const account = accountOf(row)
-    return account === undefined ? [] : [{ account, row }]
-  })
-
-const isProvider = (value: string): value is EAuthProvider =>
-  Object.values(EAuthProvider).some((provider) => provider === value)
-
-export const chosenFor = <Row extends AccountRowLike>(args: {
-  provider: EAuthProvider
-  parsed: readonly ParsedAccount<Row>[]
-  activeAccounts: readonly ActiveAccountRowLike[]
-}): ParsedAccount<Row> | undefined => {
-  const active = args.activeAccounts.find((entry) => entry.provider === args.provider)
-  const preferred = active?.accountId
-  const choice = chooseAccount({
-    accounts: args.parsed.map((entry) => entry.account),
-    provider: args.provider,
-    ...(preferred === undefined ? {} : { preferred: toAccountId(preferred) }),
-  })
-  if (choice.type !== EAccountChoice.Chosen) return undefined
-  return args.parsed.find((entry) => entry.account.id === choice.account.id)
-}
-
-export const reachableOf =
-  (args: {
-    parsed: readonly ParsedAccount<AccountRowLike>[]
-    activeAccounts: readonly ActiveAccountRowLike[]
-  }): ((providerId: string) => boolean) =>
-  (providerId) =>
-    isProvider(providerId) && chosenFor({ provider: providerId, ...args }) !== undefined
 
 export const fallbackRefOf = (args: {
   parsed: readonly ParsedAccount<AccountRowLike>[]

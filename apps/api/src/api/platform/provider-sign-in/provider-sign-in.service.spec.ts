@@ -1,7 +1,7 @@
 import { BadRequestException } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import { seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
-import type { ProviderFetch } from '@dltech/atlas-models/provider-oauth'
+import type { ProviderFetch } from '@dltech/atlas-credentials/provider-oauth'
 import {
   EAuthKind,
   EOauthProvider,
