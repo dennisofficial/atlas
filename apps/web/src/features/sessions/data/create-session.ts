@@ -1,4 +1,5 @@
 import type { Attachment, SaidUpload } from '@dltech/atlas-core'
+import { sessionCreateInputOf } from '@dltech/atlas-client/session'
 import type {
   ESandboxProvider,
   SessionCreateInput,
@@ -25,19 +26,19 @@ export async function createSessionWithMessage(args: {
   fast?: boolean | undefined
   provider?: ESandboxProvider | undefined
 }): Promise<string> {
-  const { sessionId } = await args.api.create({
-    ...(args.projectId === null || args.projectId === undefined
-      ? {}
-      : { projectId: args.projectId }),
-    ...(args.model === undefined ? {} : { model: args.model }),
-    ...(args.effort === undefined ? {} : { effort: args.effort }),
-    ...(args.fast === undefined ? {} : { fast: args.fast }),
-    ...(args.provider === undefined ? {} : { provider: args.provider }),
-    firstMessage: messageInputOf({
-      text: args.text,
-      media: args.media,
-      uploads: args.uploads,
+  const { sessionId } = await args.api.create(
+    sessionCreateInputOf({
+      projectId: args.projectId,
+      model: args.model,
+      effort: args.effort,
+      fast: args.fast,
+      provider: args.provider,
+      firstMessage: messageInputOf({
+        text: args.text,
+        media: args.media,
+        uploads: args.uploads,
+      }),
     }),
-  })
+  )
   return sessionId
 }

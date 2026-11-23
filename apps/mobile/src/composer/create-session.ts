@@ -1,13 +1,10 @@
+import { sessionCreateInputOf } from '@dltech/atlas-client/session'
+import type { SessionCreateInput } from '@dltech/atlas-protocol'
+
 export type CreateSessionApi = {
   sessions: {
     create: {
-      mutate(input: {
-        projectId?: string | null
-        model?: string
-        effort?: string
-        fast?: boolean
-        firstMessage?: { text: string }
-      }): Promise<{ sessionId: string }>
+      mutate(input: SessionCreateInput): Promise<{ sessionId: string }>
     }
   }
 }
@@ -20,12 +17,14 @@ export const createSession = async (args: {
   effort?: string | undefined
   fast?: boolean | undefined
 }): Promise<string> => {
-  const { sessionId } = await args.api.sessions.create.mutate({
-    ...(args.projectId === null ? {} : { projectId: args.projectId }),
-    ...(args.model === undefined ? {} : { model: args.model }),
-    ...(args.effort === undefined ? {} : { effort: args.effort }),
-    ...(args.fast === undefined ? {} : { fast: args.fast }),
-    firstMessage: { text: args.text },
-  })
+  const { sessionId } = await args.api.sessions.create.mutate(
+    sessionCreateInputOf({
+      projectId: args.projectId,
+      model: args.model,
+      effort: args.effort,
+      fast: args.fast,
+      firstMessage: { text: args.text },
+    }),
+  )
   return sessionId
 }

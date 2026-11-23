@@ -1,3 +1,4 @@
+import { initialProjectIdOf } from '@dltech/atlas-client/session'
 import type { Attachment } from '@dltech/atlas-core'
 import { EFontWeight, ETextRole, Text, useTheme } from '@dltech/atlas-ui-native'
 import { decodeModelFavourites, encodeModelFavourites } from '@dltech/atlas-wire/web'
@@ -43,11 +44,7 @@ export default function NewSessionScreen() {
     if (api === undefined) return
     void api.projects.list.query().then((list) => {
       setProjects(list.map(({ id, name }) => ({ id, name })))
-      setProjectId((current) =>
-        current !== null && list.some((entry) => entry.id === current)
-          ? current
-          : (list[0]?.id ?? null),
-      )
+      setProjectId((current) => initialProjectIdOf({ projects: list, preselected: current }))
     })
   }, [api])
 
@@ -82,7 +79,8 @@ export default function NewSessionScreen() {
         effort: selection?.effort,
         fast: selection?.fast,
       })
-      router.replace({ pathname: '/sessions/[id]', params: { id } })
+      router.dismiss()
+      router.push({ pathname: '/sessions/[id]', params: { id } })
       return true
     } catch {
       return false
