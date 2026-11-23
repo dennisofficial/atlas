@@ -34,6 +34,8 @@ export const openSession = async (args?: {
   rows?: readonly StreamSessionRow[]
   width?: number
   height?: number
+  configure?: (client: FakeSessionClient) => void
+  onOpenUrl?: (url: string) => void
 }): Promise<Mounted> => {
   const home = mkdtempSync(join(tmpdir(), 'atlas-app-next-panes-'))
   const accountPath = join(home, 'account.json')
@@ -51,7 +53,7 @@ export const openSession = async (args?: {
       initialAccount={ACCOUNT}
       apiUrl={API_URL}
       clientVersion="test"
-      openUrl={() => undefined}
+      openUrl={args?.onOpenUrl ?? (() => undefined)}
       createClient={createClient}
       onQuit={() => undefined}
     />,
@@ -60,6 +62,8 @@ export const openSession = async (args?: {
 
   await frameShowing({ setup, text: 'listing…', within: WITHIN })
   const mounted: Mounted = { client: () => held, setup }
+  const client = mounted.client()
+  if (client !== null && args?.configure !== undefined) args.configure(client)
   const rows = args?.rows ?? [sessionRowFixture({ title: 'the open session' })]
   mounted.client()?.pushRows(rows)
   await frameShowing({ setup, text: rows[0]?.title ?? SESSION_ID, within: WITHIN })

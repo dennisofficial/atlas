@@ -7,6 +7,8 @@ import type {
   FilesTreeOutput,
   MediaConfirmInput,
   MediaPresignInput,
+  SessionChangesInput,
+  SessionChangesOutput,
   SessionCommandInput,
   SessionCreateInput,
   SessionCreateOutput,
@@ -14,6 +16,9 @@ import type {
   SessionRetryInput,
   SessionStatusOutput,
   SessionStopInput,
+  SessionSubscribeInput,
+  SessionSubscribeOutput,
+  SessionUnsubscribeInput,
   SessionViewOutput,
   SessionWakeInput,
   SessionWithdrawInput,
@@ -39,6 +44,7 @@ import type {
   ModelsProvider,
   ModelsReply,
   OperatorAnswerBody,
+  PresenceBody,
   ProjectSaveBody,
   SessionApi,
   SkillCatalogueReply,
@@ -69,6 +75,10 @@ export type FakeCalls = {
   listModels: number
   commands: number
   skills: number
+  subscribe: SessionSubscribeInput[]
+  unsubscribe: SessionUnsubscribeInput[]
+  changes: SessionChangesInput[]
+  reportPresence: PresenceBody[]
 }
 
 export type FakeSessionClient = SessionClient & {
@@ -88,6 +98,8 @@ export type FakeSessionClient = SessionClient & {
     offset: number
     text: string
   }) => void
+  pushChanges: (reply: SessionChangesOutput) => void
+  refuseChanges: (status: number) => void
   pushReset: (args: { sessionId: string; tailFrom?: number }) => void
   pushOverlay: (args: {
     sessionId: string
@@ -193,6 +205,10 @@ export const fakeSessionClient = (args: {
     listModels: 0,
     commands: 0,
     skills: 0,
+    subscribe: [],
+    unsubscribe: [],
+    changes: [],
+    reportPresence: [],
   }
 
   let frames = 0
@@ -208,6 +224,8 @@ export const fakeSessionClient = (args: {
   }
 
   const trees: FilesTreeOutput[] = []
+  const changesReplies: SessionChangesOutput[] = []
+  let changesRefusal: number | null = null
   let projects: readonly ProjectChoice[] = []
   let models: ModelsReply = DEFAULT_MODELS
   let commandEntries: readonly CommandEntry[] = []
@@ -320,6 +338,38 @@ export const fakeSessionClient = (args: {
       calls.skills += 1
       return skillEntries
     },
+    subscribe: async (input): Promise<SessionSubscribeOutput> => {
+      calls.subscribe.push(input)
+      return {
+        subscription: {
+          id: 'sub-1',
+          threadId: input.sessionId,
+          provider: input.provider,
+          target: input.target,
+          label: '',
+          events: input.events ?? [],
+          createdBy: 'operator',
+          createdAt: '2026-11-20T00:00:00.000Z',
+          expiresAt: input.expiresAt ?? null,
+        },
+        existed: false,
+        updated: true,
+      }
+    },
+    unsubscribe: async (input) => {
+      calls.unsubscribe.push(input)
+      return { ended: true }
+    },
+    changes: async (input) => {
+      calls.changes.push(input)
+      if (changesRefusal !== null) {
+        throw Object.assign(new Error('changes unavailable'), { status: changesRefusal })
+      }
+      return changesReplies.shift() ?? { checkouts: [] }
+    },
+    reportPresence: async (input) => {
+      calls.reportPresence.push(input)
+    },
   }
 
   return {
@@ -330,6 +380,12 @@ export const fakeSessionClient = (args: {
     close: () => connection.close(),
     queueTrees: (next) => {
       trees.push(...next)
+    },
+    pushChanges: (reply) => {
+      changesReplies.push(reply)
+    },
+    refuseChanges: (status) => {
+      changesRefusal = status
     },
     setProjects: (next) => {
       projects = next

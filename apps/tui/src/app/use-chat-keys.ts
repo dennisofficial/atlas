@@ -12,6 +12,7 @@ import type { RunAttentionControl } from './use-run-attention'
 import type { SessionComposer } from './use-session-composer'
 import type { SessionPanesControl } from './use-session-panes'
 import { EPodWake, type PodWake } from './use-session-wake'
+import type { FooterStripControl } from './use-footer-strip'
 
 const global = (binding: Omit<KeyBinding, 'layer'>): KeyBinding => ({
   ...binding,
@@ -28,6 +29,7 @@ export function useChatKeys(args: {
   menu: CommandMenu
   rewind: RewindControl
   panes: SessionPanesControl
+  footerStrip: FooterStripControl
   working: boolean
   onToggleSidebar: () => void
   onBack: () => void
@@ -129,8 +131,14 @@ export function useChatKeys(args: {
         return true
       }
 
+      if (args.footerStrip.isOpen()) {
+        args.footerStrip.handleKey(key)
+        return true
+      }
+
       if (operator.state !== null) return operator.handleKey(key)
       if (menu.handleKey(key)) return true
+      if (args.footerStrip.handleEnter()) return true
       if (composer.handleKey(key)) return true
       if (rewind.handleKey(key)) return true
       return chatPressHandled({ press: key, bindings, match: chordMatches })

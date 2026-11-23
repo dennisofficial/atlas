@@ -1,6 +1,8 @@
 import React, { useMemo } from 'react'
 
 import { NoticeStack } from '../ui/components/notice-stack'
+import { Footer } from '../ui/components/footer'
+import { HeaderBar } from '../ui/components/header-bar'
 import { OperatorInputOverlay } from '../ui/components/operator-input'
 import { Rewind } from '../ui/components/rewind'
 import { Services } from '../ui/components/services'
@@ -22,6 +24,9 @@ import type { ServicesDrawer } from './use-services-drawer'
 import type { SessionComposer } from './use-session-composer'
 import type { SessionTranscript } from './use-session-transcript'
 import type { ShellsDrawer } from './use-shells-drawer'
+import type { DiffStat } from './header-model'
+import type { FooterStripControl } from './use-footer-strip'
+import type { FooterContext, FooterLayout } from '../ui/footer-layout'
 import { modelWithAttentionFailure, type RunAttentionControl } from './use-run-attention'
 import { EPodWake, type PodWake } from './use-session-wake'
 import { ComposerPane } from './composer-pane'
@@ -66,6 +71,10 @@ export function ChatScreen(props: {
   services: ServicesDrawer
   onSelectSubagent: (agentId: string) => void
   onOpenTeammate: (sessionId: string) => void
+  header: { repo: string; diff: DiffStat | null }
+  footer: FooterLayout
+  footerContext: FooterContext
+  footerStrip: FooterStripControl
 }): React.ReactNode {
   const { composer, transcript, attention, operator, connection, wake } = props
   const { menu, rewind, shells, services } = props
@@ -94,6 +103,12 @@ export function ChatScreen(props: {
   return (
     <KeyRegistryContext.Provider value={registry}>
       <box flexDirection="column" flexGrow={1} width={props.width}>
+        <HeaderBar
+          width={props.width}
+          projectDirectory={props.header.repo}
+          repoRoot={props.header.repo}
+          diff={props.header.diff}
+        />
         <box flexDirection="row" flexGrow={1} flexShrink={1} flexBasis={0} width={props.width}>
           <box
             flexDirection="column"
@@ -170,6 +185,14 @@ export function ChatScreen(props: {
               onCursorMoved={composer.handleCursorMoved}
             />
             <NoticeStack width={contentWidth} />
+            <Footer
+              width={contentWidth}
+              model={props.footer.instruments.model ?? ''}
+              layout={props.footer}
+              context={props.footerContext}
+              strip={props.footerStrip.state}
+              onActivateItem={props.footerStrip.handleActivate}
+            />
           </box>
           {props.sidebar === null ? null : (
             <Sidebar
