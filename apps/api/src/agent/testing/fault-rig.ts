@@ -10,6 +10,7 @@ import { FaultProxy } from '@dltech/atlas-host/testing'
 import { PANEL_HOLD_CHANNEL } from '@dltech/atlas-protocol'
 import { Redis } from 'ioredis'
 
+import { controlEventSchema } from '../registered-plugins'
 import type { EHostFault } from './host-faults'
 import { seedSession, type NewSessionArgs } from './rig-seed'
 import { startDaemon, type RigDaemon } from './rig-daemon'
@@ -116,7 +117,7 @@ export const startRig = async (args: {
   })
   const pool: Pool = createPool(args.databaseUrl)
   const store = new PostgresControlStore(createDb(pool))
-  const plane = new ControlPlane({ store })
+  const plane = new ControlPlane({ store, eventSchema: controlEventSchema })
   const sandboxHome = mkdtempSync(join(tmpdir(), 'atlas-fault-rig-sandbox-home-'))
   const closers: (() => Promise<void>)[] = [
     async () => rmSync(sandboxHome, { recursive: true, force: true }),

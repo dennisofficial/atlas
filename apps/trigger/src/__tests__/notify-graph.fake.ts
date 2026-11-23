@@ -4,7 +4,30 @@ import {
   type NotifyDevice,
   type NotifyResult,
 } from '@dltech/atlas-notifications'
+import { ProductAnalytics } from '@dltech/atlas-observability'
 import type { NotifyGraph, NotifySessionRow } from '../trigger/notify/notify-send-graph'
+
+export type CapturedEvent = {
+  userId: string
+  event: string
+  properties: Record<string, unknown>
+}
+
+export class RecordingAnalytics extends ProductAnalytics {
+  constructor(readonly captured: CapturedEvent[] = []) {
+    super()
+  }
+
+  capture(args: { userId: string; event: string; properties?: Record<string, unknown> }): void {
+    this.captured.push({
+      userId: args.userId,
+      event: args.event,
+      properties: args.properties ?? {},
+    })
+  }
+
+  async flush(): Promise<void> {}
+}
 
 export type NotifyGraphRecord = {
   delivered: {
@@ -17,6 +40,7 @@ export type NotifyGraphRecord = {
   touched: { deviceId: string; now: string }[]
   soundClaims: string[]
   supersededChecks: { threadId: string; seq: number }[]
+  captured: CapturedEvent[]
 }
 
 export const deviceOf = (overrides: Partial<NotifyDevice> = {}): NotifyDevice => ({
@@ -82,6 +106,7 @@ export const notifyGraphOf = (
     superseded?: boolean
     sound?: boolean
     record?: NotifyGraphRecord
+    analytics?: ProductAnalytics
   } = {},
 ): { graph: NotifyGraph; record: NotifyGraphRecord } => {
   const record = args.record ?? {
@@ -90,7 +115,9 @@ export const notifyGraphOf = (
     touched: [],
     soundClaims: [],
     supersededChecks: [],
+    captured: [],
   }
+  const analytics = args.analytics ?? new RecordingAnalytics(record.captured)
   const now = args.now ?? '2026-11-23T14:02:00.000Z'
   const devices = args.devices ?? [deviceOf()]
 
@@ -139,6 +166,7 @@ export const notifyGraphOf = (
       },
       presence: { read: async () => [...(args.presence ?? [])] },
       settings: { read: async () => new Map(args.settings ?? []) },
+      analytics,
       transports: {
         [ENotifyDeviceKind.WebPush]: transportOf(ENotifyDeviceKind.WebPush),
         [ENotifyDeviceKind.Expo]: transportOf(ENotifyDeviceKind.Expo),

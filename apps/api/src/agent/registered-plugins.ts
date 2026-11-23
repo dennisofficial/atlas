@@ -1,4 +1,10 @@
-import { composePlugins, definePlugin, EMPTY_CONTROL, type Plugin } from '@dltech/atlas-plugin-sdk'
+import {
+  composePlugins,
+  definePlugin,
+  EMPTY_CONTROL,
+  eventSchemaOf,
+  type Plugin,
+} from '@dltech/atlas-plugin-sdk'
 import { githubControl } from '@dltech/atlas-plugin-github/control'
 import { githubCoreSlots } from '@dltech/atlas-plugin-github/core'
 import { githubPod } from '@dltech/atlas-plugin-github/pod'
@@ -172,3 +178,5 @@ export const registeredPlugins: readonly Plugin[] = [
 ]
 
 export const composedPlugins = composePlugins(registeredPlugins)
+
+export const controlEventSchema = eventSchemaOf(registeredPlugins)

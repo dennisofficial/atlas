@@ -3,7 +3,7 @@ import { existsSync, renameSync } from 'node:fs'
 import { EBuildKind, buildInfo } from '../build/info'
 import { readStagedVersionMarker } from '../build/self-update'
 import { nextBinaryPathFor } from '../build/self-update-asset'
-import { execInPlace } from './respawn-exec'
+import { execInPlace } from '../app/respawn-exec'
 import { releaseStaged } from './update-check'
 
 export function shouldPromoteStaged(args: {

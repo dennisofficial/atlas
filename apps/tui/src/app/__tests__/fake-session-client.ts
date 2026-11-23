@@ -1,5 +1,5 @@
 import type { SaidUpload, V2Event } from '@dltech/atlas-core'
-import { STREAM_PROTOCOL_MIN_VERSION } from '@dltech/atlas-protocol'
+import { EStreamResetReason, STREAM_PROTOCOL_MIN_VERSION } from '@dltech/atlas-protocol'
 import type { CommandEntry } from '@dltech/atlas-commands'
 import type {
   FilesSearchInput,
@@ -78,6 +78,7 @@ export type FakeSessionClient = SessionClient & {
   pushCreated: (created: SessionCreateOutput) => void
   pushRows: (rows: readonly StreamSessionRow[]) => void
   pushEvents: (args: { sessionId: string; events: readonly V2Event[]; live: boolean }) => void
+  pushReset: (args: { sessionId: string; tailFrom?: number }) => void
   pushOverlay: (args: {
     sessionId: string
     key: StreamStepKey
@@ -352,6 +353,18 @@ export const fakeSessionClient = (args: {
         subscription.handlers.handleFrame(
           eventsMessage({ id: input.sessionId, events: input.events, live: input.live }),
         )
+      }
+    },
+    pushReset: (input) => {
+      for (const subscription of fake.follows) {
+        if (subscription.closed) continue
+        if (subscription.input?.sessionId !== input.sessionId) continue
+        subscription.handlers.handleFrame({
+          type: 'reset',
+          id: nextId(),
+          reason: EStreamResetReason.Ahead,
+          tailFrom: input.tailFrom ?? 0,
+        })
       }
     },
     pushOverlay: (input) => {

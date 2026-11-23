@@ -4,8 +4,6 @@ import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import type { Db } from '@dltech/atlas-db'
 import type { HostBus, PodCallBus } from '@dltech/atlas-host'
 import type { LogPort, ProductAnalytics } from '@dltech/atlas-observability'
-import { eventSchemaOf } from '@dltech/atlas-plugin-sdk'
-
 import { analyticsAppendHook } from '../analytics/append-hook'
 import { PRODUCT_ANALYTICS } from '../analytics/tokens'
 
@@ -15,7 +13,7 @@ import { createRedisLiveFrames, type RedisLiveFrames } from '../bus/redis-live-f
 import { createRedisPodCallBus } from '../bus/redis-pod-call-bus'
 import { databaseUrlWithTls } from '../config/database-url'
 import type { AgentHostEnv } from '../config/env'
-import { composedPlugins, registeredPlugins } from '../registered-plugins'
+import { composedPlugins, controlEventSchema } from '../registered-plugins'
 import { FollowStack } from './follow-stack'
 import {
   AGENT_HOST_ENV,
@@ -34,7 +32,7 @@ const controlPlaneProvider: Provider = {
   useFactory: (db: Db, analytics: ProductAnalytics): ControlPlane =>
     new ControlPlane({
       store: new PostgresControlStore(db),
-      eventSchema: eventSchemaOf(registeredPlugins),
+      eventSchema: controlEventSchema,
       pluginViews: composedPlugins.views,
       appendHooks: [...composedPlugins.control.hooks, analyticsAppendHook(analytics)],
     }),

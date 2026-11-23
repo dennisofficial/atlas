@@ -49,6 +49,7 @@ export function useSessionComposer(args: {
         uploads: readonly SaidUpload[]
       }) => void)
     | undefined
+  onSlashCommand?: ((text: string) => boolean) | undefined
 }): SessionComposer {
   const { api, sessionId, attachments, send, onProblem } = args
   const draft = useDraft()
@@ -176,6 +177,15 @@ export function useSessionComposer(args: {
     const attempt = draft.editor.current?.plainText ?? draft.value
     if (preparing.current === attempt) return
     preparing.current = attempt
+
+    if (args.onSlashCommand !== undefined && attempt.trim().startsWith('/')) {
+      const handled = args.onSlashCommand(attempt.trim())
+      if (handled) {
+        preparing.current = null
+        draft.clear()
+        return
+      }
+    }
 
     void (async () => {
       await tokens.settle()

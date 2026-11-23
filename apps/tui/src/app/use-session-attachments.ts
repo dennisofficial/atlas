@@ -8,7 +8,7 @@ import {
   type Attachment,
   type SaidUpload,
 } from '@dltech/atlas-core'
-import { storeImage, supportedMediaTypeOf } from '@dltech/atlas-client/session'
+import { storeImage, supportedMediaTypeOf, restorePlanOf } from '@dltech/atlas-client/session'
 
 import type { ClipboardImage } from '../ui/clipboard-image'
 import type { SessionApi } from './session-api'
@@ -23,6 +23,7 @@ export type HeldAttachment = {
   status: 'uploading' | 'ready' | 'failed'
   media?: { hash: string } | undefined
   upload?: SaidUpload | undefined
+  restored?: boolean | undefined
 }
 
 export type AttachmentPayload = {
@@ -37,6 +38,7 @@ export type SessionAttachments = {
   uploading: boolean
   held: readonly HeldAttachment[]
   attachImages: (images: readonly ClipboardImage[]) => void
+  restore: (attachments: readonly Attachment[]) => void
   remove: (id: string) => void
   retain: (paths: readonly string[]) => void
   clear: () => void
@@ -61,6 +63,39 @@ const attachmentsOfHeld = (held: readonly HeldAttachment[]): readonly Attachment
       } satisfies Attachment,
     ]
   })
+
+export const restoredAttachmentsOf = (
+  attachments: readonly Attachment[],
+): readonly HeldAttachment[] => {
+  const plan = restorePlanOf(attachments)
+
+  return [
+    ...plan.media.map(
+      (entry): HeldAttachment => ({
+        id: `media:${entry.hash}`,
+        path: `media:${entry.hash}`,
+        name: entry.name,
+        mediaType: entry.mediaType,
+        byteLength: entry.size,
+        status: 'ready',
+        media: { hash: entry.hash },
+        restored: true,
+      }),
+    ),
+    ...plan.uploads.map(
+      (upload): HeldAttachment => ({
+        id: `upload:${upload.uploadId}`,
+        path: upload.pathname,
+        name: upload.name,
+        mediaType: upload.mediaType,
+        byteLength: upload.size,
+        status: 'ready',
+        upload,
+        restored: true,
+      }),
+    ),
+  ]
+}
 
 export function useSessionAttachments(args: {
   api: SessionApi
@@ -160,6 +195,18 @@ export function useSessionAttachments(args: {
     [attachOne],
   )
 
+  const restore = useCallback(
+    (attachments: readonly Attachment[]) => {
+      const incoming = restoredAttachmentsOf(attachments)
+      if (incoming.length === 0) return
+      update((current) => {
+        const known = new Set(current.map((entry) => entry.id))
+        return [...current, ...incoming.filter((entry) => !known.has(entry.id))]
+      })
+    },
+    [update],
+  )
+
   const remove = useCallback(
     (id: string) => {
       const entry = heldRef.current.find((candidate) => candidate.id === id)
@@ -174,9 +221,13 @@ export function useSessionAttachments(args: {
   const retain = useCallback(
     (paths: readonly string[]) => {
       const keep = new Set(paths)
-      const dropped = heldRef.current.filter((entry) => !keep.has(entry.path))
+      const dropped = heldRef.current.filter(
+        (entry) => entry.restored !== true && !keep.has(entry.path),
+      )
       if (dropped.length === 0) return
-      update((current) => current.filter((entry) => keep.has(entry.path)))
+      update((current) =>
+        current.filter((entry) => entry.restored === true || keep.has(entry.path)),
+      )
       for (const entry of dropped) {
         if (entry.status !== 'ready' || entry.upload === undefined) continue
         void args.api.discardUpload(entry.upload.pathname).catch(() => undefined)
@@ -222,6 +273,7 @@ export function useSessionAttachments(args: {
       uploading,
       held,
       attachImages,
+      restore,
       remove,
       retain,
       clear,
@@ -237,6 +289,7 @@ export function useSessionAttachments(args: {
       payload,
       remove,
       retain,
+      restore,
       sent,
       uploads,
       uploading,

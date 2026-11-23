@@ -10,7 +10,7 @@ import {
   nativeControlHandlers,
   resize,
 } from '@dltech/atlas-native-commands'
-import { composedPlugins } from '../registered-plugins'
+import { composedPlugins, controlEventSchema } from '../registered-plugins'
 import { ERunFailureKind, ModelPort } from '@dltech/atlas-core'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import { createDb, createPool } from '@dltech/atlas-db'
@@ -219,7 +219,10 @@ const main = async (): Promise<void> => {
   const pool = createPool(requireEnv('DATABASE_URL'), {
     queryTimeoutMs: numberEnv('DB_QUERY_TIMEOUT_MS', 10_000),
   })
-  const realPlane = new ControlPlane({ store: new PostgresControlStore(createDb(pool)) })
+  const realPlane = new ControlPlane({
+    store: new PostgresControlStore(createDb(pool)),
+    eventSchema: controlEventSchema,
+  })
   const log = new JsonLog()
   const fault = hostFaultOf(process.env.FAULT)
   const plane = faultedPlane({ plane: realPlane, fault, log })

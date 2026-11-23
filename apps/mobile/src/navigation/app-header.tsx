@@ -20,7 +20,12 @@ export const AppHeader = ({
     <View
       style={[
         styles.root,
-        { paddingTop: insets.top, backgroundColor: surface, borderBottomColor: theme.border },
+        {
+          paddingTop: insets.top,
+          paddingRight: insets.right,
+          backgroundColor: surface,
+          borderBottomColor: theme.border,
+        },
       ]}
     >
       <View style={styles.bar}>

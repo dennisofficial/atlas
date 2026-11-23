@@ -11,20 +11,24 @@ export const SessionRow = ({
   entry,
   now,
   depth = 0,
+  selected = false,
   onPress,
 }: {
   entry: ISessionEntry
   now: number
   depth?: number
+  selected?: boolean
   onPress: () => void
 }) => {
   const theme = useTheme()
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityState={{ selected }}
       onPress={onPress}
       style={({ pressed }) => [
         styles.row,
+        selected ? { backgroundColor: theme.sidebarAccent } : null,
         depth > 0 ? { paddingLeft: space(2) + depth * space(4) } : null,
         pressed ? { backgroundColor: theme.sidebarAccent } : null,
       ]}

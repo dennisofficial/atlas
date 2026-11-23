@@ -125,6 +125,24 @@ describe('notify dispatch port', () => {
     })
   })
 
+  it('copies the turn end time the host recorded into the payload', async () => {
+    const dispatcher = new RecordingDispatcher()
+    const notify = notifyDispatchOf({ dispatcher })
+
+    await notify({
+      sessionId: 'session-2',
+      threadId: toThreadId('thread-2'),
+      seq: 3,
+      moment: ENotifyMoment.TurnFinished,
+      decision: decisionOf(),
+      endedAt: '2026-11-23T14:00:00.000Z',
+    })
+
+    expect(dispatcher.dispatches[0]?.payload).toMatchObject({
+      endedAt: '2026-11-23T14:00:00.000Z',
+    })
+  })
+
   it('rejects when the dispatcher refuses the job', async () => {
     const dispatcher = new RecordingDispatcher()
     dispatcher.failure = new Error('trigger refused')
