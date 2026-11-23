@@ -11,12 +11,11 @@ import type { SwitcherChoice } from '../ui/switcher-model'
 import type { ThreadRow } from '../ui/threads-model'
 import type { AccountFile } from './account/account-file'
 import {
-  choiceToSessionChoice,
   DEFAULT_LAUNCH,
   EMPTY_SESSION_LIST,
   isEnter,
-  messageOf,
   modelOfRef,
+  modelPickOf,
   problemOf,
 } from './app-next-support'
 import {
@@ -31,7 +30,6 @@ import {
 import { AwaitingAccessScreen } from './awaiting-access-screen'
 import { ChatScreenHost } from './chat-screen-host'
 import type { LaunchFlags } from './launch-flags'
-import { applyModelSet } from './model-set'
 import { ModelSwitcher } from './model-switcher'
 import type { GitRemote } from './new-session'
 import { NewSessionHost } from './new-session-host'
@@ -131,21 +129,13 @@ export function AppNext(props: AppNextProps): React.ReactNode {
 
   const handleModelPick = useCallback(
     (picked: SwitcherChoice) => {
-      const tapped = clientHeld.current
-      if (screen.screen === EScreen.Transcript) {
-        if (tapped === null) return
-        void applyModelSet({
-          api: tapped.api,
-          sessionId: screen.sessionId,
-          choice: picked,
-        }).catch((failure: unknown) => {
-          problemOf(`could not switch the model — ${messageOf(failure)}`)
-        })
-        return
-      }
-
-      const next = choiceToSessionChoice(picked)
-      if (next !== null) setScreen(screenOnNew({ model: next }))
+      const next = modelPickOf({
+        screen,
+        picked,
+        api: clientHeld.current?.api ?? null,
+        onProblem: problemOf,
+      })
+      if (next !== null) setScreen(next)
     },
     [screen],
   )
@@ -251,7 +241,11 @@ export function AppNext(props: AppNextProps): React.ReactNode {
           width={width}
           height={height}
           now={now}
+          cwd={cwd}
           onBack={() => setScreen(screenOnBack())}
+          onNew={() => setScreen(screenOnNew({ model: currentModel }))}
+          onModel={choice.handleOpen}
+          onQuit={props.onQuit}
           onKeys={(handler) => {
             chatKeys.current = handler
           }}

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { EBuildKind } from '../../build/info'
-import { performRespawn, respawnArgv, wiresSelfRestart, type RespawnPorts } from '../respawn'
+import { performRespawn, respawnArgv, wiresSelfRestart, type RespawnPorts } from '../../app/respawn'
 
 describe('wiresSelfRestart', () => {
   it('wires its own restart for a compiled release binary', () => {

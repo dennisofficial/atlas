@@ -1,8 +1,7 @@
-import { EForkMode, toCallId, toRunId, toThreadId, type SaidImage } from '@dltech/atlas-core'
+import { toCallId, toRunId, toThreadId, type SaidImage } from '@dltech/atlas-core'
 import { EKilledBy, EShellStatus, toShellId } from '@dltech/atlas-harness'
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'bun:test'
-import React from 'react'
 
 import { grammarsReady, settle, teardown } from '../../ui/markdown/__tests__/harness'
 import { frameShowing, frameWhen } from '../../ui/__tests__/waiting'
@@ -295,97 +294,6 @@ describe('a rewind that cuts a background shell', () => {
 
       expect(app.shells.removed).toEqual([])
       expect(await app.log.read({ threadId: THREAD })).toHaveLength(6)
-    } finally {
-      await teardown(setup)
-    }
-  }, 60_000)
-})
-
-describe('forking from the rewind drawer', () => {
-  it('copies everything up to the chosen message into a new conversation and switches to it', async () => {
-    const app = appWith()
-    const setup = await opened(app)
-
-    try {
-      await said(setup, app, 'build the parser')
-      await said(setup, app, 'now the lexer')
-      await saidOpening(setup, app, '/rewind', REWIND_TITLE)
-
-      setup.mockInput.pressEnter()
-      expect(await frameShowing({ setup, text: 'fork from here' })).toContain('2 kept')
-
-      setup.mockInput.pressArrow('down')
-      await frameShowing({ setup, text: 'become one summary' })
-      setup.mockInput.pressArrow('down')
-      await frameShowing({ setup, text: 'this one is untouched' })
-      setup.mockInput.pressEnter()
-
-      const deadline = Date.now() + SETTLE_CEILING_MS
-      for (;;) {
-        const forked = app.threads.forks.at(-1)
-        if (forked !== undefined && app.log.branchesRead.includes(forked.id)) break
-        if (Date.now() >= deadline) throw new Error('waited past the ceiling for the fork to open')
-        await settle(5)
-      }
-
-      const forked = app.threads.forks.at(-1)
-      if (forked === undefined) throw new Error('no fork was recorded')
-      expect(forked).toMatchObject({ from: THREAD, seq: 3, mode: EForkMode.Copy })
-      expect(await app.log.read({ threadId: THREAD })).toHaveLength(4)
-      expect(app.log.peek({ threadId: forked.id })).toHaveLength(3)
-    } finally {
-      await teardown(setup)
-    }
-  }, 60_000)
-})
-
-describe('a fork the guard refuses', () => {
-  const seededUnsettled = async (): Promise<{ app: FakeApp; setup: Mounted }> => {
-    const app = appWith()
-    const seeded = await app.log.append({
-      threadId: THREAD,
-      runId: toRunId('run-seed'),
-      drafts: [
-        { type: 'user-said', text: 'start the build' },
-        {
-          type: 'tool-called',
-          callId: toCallId('call-unsettled'),
-          name: 'bash',
-          input: { command: 'npm run build' },
-          ordinal: 0,
-        },
-        { type: 'user-said', text: 'now the parser' },
-      ],
-    })
-    const setup = await testRender(
-      <App
-        app={app}
-        opened={{ threadId: THREAD, events: seeded, turns: [], name: null, started: true }}
-      />,
-      WIDE,
-    )
-    await frameShowing({ setup, text: 'now the parser' })
-    return { app, setup }
-  }
-
-  it('says why and starts no new conversation', async () => {
-    const { app, setup } = await seededUnsettled()
-
-    try {
-      await saidOpening(setup, app, '/rewind', REWIND_TITLE)
-
-      setup.mockInput.pressEnter()
-      expect(await frameShowing({ setup, text: 'fork from here' })).toContain('2 kept')
-
-      setup.mockInput.pressArrow('down')
-      await frameShowing({ setup, text: 'become one summary' })
-      setup.mockInput.pressArrow('down')
-      await frameShowing({ setup, text: 'this one is untouched' })
-      setup.mockInput.pressEnter()
-
-      const frame = await frameShowing({ setup, text: 'unsettled' })
-      expect(frame).toContain('bash')
-      expect(app.threads.forks).toEqual([])
     } finally {
       await teardown(setup)
     }

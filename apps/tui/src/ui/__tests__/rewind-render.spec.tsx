@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'bun:test'
-import React from 'react'
 
 import { HEADING, Rewind } from '../components/rewind'
 import { cellsOf } from '../hint-layout'
@@ -23,8 +22,9 @@ const WIDTH = 48
 
 const NARROW = 30
 
-const said = (args: { seq: number; text: string }): RewindPoint => ({
+const said = (args: { seq: number; text: string; eventId?: string }): RewindPoint => ({
   kind: ERewindPointKind.Said,
+  eventId: args.eventId ?? `event-${args.seq}`,
   images: [],
   ...args,
 })
