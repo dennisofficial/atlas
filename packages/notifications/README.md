@@ -125,17 +125,6 @@ const stale = staleNoticeIdsOf({
 })
 ```
 
-### Report presence
-
-```ts
-startPresenceReports({
-  read: () => ({ sessionId: 'session-1', foreground: true }),
-  report: (state) => console.log(state),
-  subscribe: (onChange) => window.addEventListener('focus', onChange),
-  clock: { setInterval, clearInterval },
-})
-```
-
 ## Rules
 
 - Give each device to the transport of its own kind. The transport does not filter the list.
