@@ -10,6 +10,7 @@ import {
 import type { RunAttentionAction } from '@dltech/atlas-ui/ai/run-attention-strip'
 
 import { runAttentionActionsOf } from '@/features/threads/data/run-attention-actions'
+import type { PendingRemedy } from '@/features/threads/data/run-attention-pending'
 import type { RunFailureCardProps } from '@/features/threads/transcript/run-failure-card'
 
 type RunFailedEvent = Extract<V2Event, { type: 'run-failed' }>
@@ -79,6 +80,7 @@ const withSwitchModel = (args: {
 export function sessionFailureCardOf(args: {
   attention: RunAttention
   accountLabelOf: (accountId: string) => string | undefined
+  pending?: PendingRemedy | null
   handlers: {
     retry: () => void
     fixCredential: () => void
@@ -99,6 +101,7 @@ export function sessionFailureCardOf(args: {
     actions: runAttentionActionsOf({
       attention,
       agentId: failure?.agent?.agentId,
+      pending: args.pending ?? null,
       handlers: { ...handlers, resume: handlers.retry, compact: () => undefined },
     }),
     switchModel: handlers.switchModel,

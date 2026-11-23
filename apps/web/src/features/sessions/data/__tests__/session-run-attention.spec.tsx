@@ -151,4 +151,29 @@ describe('sessionFailureCardOf', () => {
     expect(markup).toContain('dennislysenko@hotmail.com')
     expect(markup).toContain('Switch model')
   })
+
+  it('shows the retry as pending while it is in flight', () => {
+    const handlers = handlersOf()
+    const attention = sessionAttentionOf({
+      events: eventsOf([{ type: 'run-failed', failure: extraUsage }]),
+      working: false,
+    })
+    if (attention === null) throw new Error('expected attention')
+    const card = sessionFailureCardOf({
+      attention,
+      accountLabelOf,
+      pending: ERunRemedy.Retry,
+      handlers,
+    })
+    const retry = card.actions?.find((action) => action.label === 'Retry')
+
+    expect(retry?.pending).toBe(true)
+    expect(retry?.pendingLabel).toBe('Retrying…')
+    expect(retry?.disabled).toBe(true)
+    expect(renderToStaticMarkup(<RunFailureCard {...card} />)).toContain('Retrying…')
+
+    retry?.onSelect()
+
+    expect(handlers.retry).not.toHaveBeenCalled()
+  })
 })

@@ -2,6 +2,7 @@ import {
   awaitsReplyOf,
   EInputConsumed,
   pendingInputsOf,
+  type EventDraft,
   type InboxEntry,
   type ThreadId,
   type V2Event,
@@ -29,7 +30,10 @@ export type CommandGlue = {
   log?: LogPort | undefined
 }
 
-export type CommandEntryArgs = CommandGlue & { entry: InboxEntry }
+export type CommandEntryArgs = CommandGlue & {
+  entry: InboxEntry
+  drafts?: readonly EventDraft[] | undefined
+}
 
 export type LoggedCommandsArgs = CommandGlue & {
   events: readonly V2Event[]
@@ -44,6 +48,7 @@ export const turnOpenOf = async (params: {
 
 export const consumeQuietly = async (params: CommandEntryArgs): Promise<void> => {
   await params.appendDrafts([
+    ...(params.drafts ?? []),
     {
       type: 'input-consumed',
       inboxId: params.entry.inboxId,

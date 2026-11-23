@@ -3,7 +3,7 @@ import { toast } from 'sonner'
 import { retrySession } from './retry-session'
 import { sessionsApi } from './sessions-api'
 
-export const retrySessionNow = (sessionId: string): Promise<void> =>
+export const retrySessionNow = (sessionId: string): Promise<boolean> =>
   retrySession({
     api: sessionsApi,
     sessionId,
