@@ -3,11 +3,13 @@ import {
   ESubscriptionEnd,
   effortRungOf,
   parseRef,
+  revoke,
   type ModelChoice,
 } from '@dltech/atlas-core'
 import type { SessionModelAsk } from '@dltech/atlas-models'
 import { DEFAULT_SANDBOX_PROVIDER, ECredentialSource } from '@dltech/atlas-protocol'
 
+import { LeaseConflictError } from './errors'
 import { EMPTY_VISIBILITY_TEXT } from './stored-event'
 import { endSubscriptionsIn } from './subscription-endings'
 import type { ControlSessionRow, ControlTx, SessionModelRow } from './port'
@@ -133,6 +135,16 @@ const endSubscriptionsOfSessionsIn = async (params: {
   })
 }
 
+const releaseHolderIn = async (params: { tx: ControlTx; sessionId: string }): Promise<void> => {
+  const lease = await params.tx.lockLease(params.sessionId)
+  if (lease === undefined || (lease.holderHostId === null && !lease.wantsHolder)) return
+  const written = await params.tx.writeLease({
+    lease: revoke({ lease, wantsHolder: false }),
+    expectedEpoch: lease.epoch,
+  })
+  if (!written) throw new LeaseConflictError(params.sessionId)
+}
+
 export const archiveIn = async (params: {
   tx: ControlTx
   sessionId: string
@@ -146,6 +158,7 @@ export const archiveIn = async (params: {
   if (!(await tx.setSessionArchived({ sessionId, archivedAt: stamp }))) {
     throw new Error(`unknown session ${sessionId}`)
   }
+  if (stamp !== null) await releaseHolderIn({ tx, sessionId })
   await tx.announce({ sessionId })
   if (stamp === null) return
   const descendants = await archiveNestedDescendantsIn({ tx, sessionId, archivedAt: stamp })

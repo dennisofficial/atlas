@@ -62,14 +62,15 @@ describe('runPodSleep', () => {
     expect(slept).toEqual(['pod-1'])
   })
 
-  it('leaves an archived pod that a host still holds', async () => {
+  it('sleeps an archived pod without waiting for a turn the archive took off its holder', async () => {
     const { output, slept } = await runOf({
       session: { ...SESSION, archivedAt: '2026-11-23T01:43:02.832Z' },
-      power: [{ epoch: 3, wantsHolder: true, live: true }],
+      power: [{ epoch: 3, wantsHolder: false, live: false }],
+      busy: [true],
     })
 
-    expect(output).toEqual({ outcome: EPodSleepOutcome.Superseded })
-    expect(slept).toEqual([])
+    expect(output).toEqual({ outcome: EPodSleepOutcome.Slept })
+    expect(slept).toEqual(['pod-1'])
   })
 
   it('sleeps the session itself when it never rolled to another pod', async () => {

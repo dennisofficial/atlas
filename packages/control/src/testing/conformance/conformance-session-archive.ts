@@ -115,6 +115,49 @@ export function describeControlPlaneSessionArchive(params: ConformanceParams): v
       expect(await announced('flat')).toBe(0)
     })
 
+    it('takes the lease away from a holder so it lets go of the pod', async () => {
+      await seedSession({ sessionId: SESSION, offsetMs: 0 })
+      const held = await plane.grant({ sessionId: SESSION, hostId: HOLDER_HOST })
+
+      await plane.setSessionArchived({
+        sessionId: SESSION,
+        archivedAt: after({ iso: T0, offsetMs: 5000 }),
+      })
+
+      const current = await plane.currentLease({ sessionId: SESSION })
+      expect(current.lease.holderHostId).toBeNull()
+      expect(current.lease.wantsHolder).toBe(false)
+      expect(current.lease.epoch).toBeGreaterThan(held.epoch)
+      expect(current.live).toBe(false)
+      const head = await plane.head({ threadId: `t-${SESSION}` })
+      const fenced = await plane.append({
+        threadId: `t-${SESSION}`,
+        epoch: held.epoch,
+        events: mint({
+          bodies: [{ type: 'workspace-prepared' }],
+          epoch: held.epoch,
+          from: head,
+          threadId: `t-${SESSION}`,
+        }),
+      })
+      expect(fenced.ok).toBe(false)
+    })
+
+    it('leaves the lease of a session no host holds alone', async () => {
+      await seedSession({ sessionId: SESSION, offsetMs: 0 })
+      const before = await plane.currentLease({ sessionId: SESSION })
+
+      await plane.setSessionArchived({
+        sessionId: SESSION,
+        archivedAt: after({ iso: T0, offsetMs: 5000 }),
+      })
+      await plane.setSessionArchived({ sessionId: SESSION, archivedAt: null })
+
+      expect((await plane.currentLease({ sessionId: SESSION })).lease.epoch).toBe(
+        before.lease.epoch,
+      )
+    })
+
     it('unarchives only the session it is given', async () => {
       await seedSession({ sessionId: SESSION, offsetMs: 0 })
       await plane.spawnPeer({
