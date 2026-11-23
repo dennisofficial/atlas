@@ -9,7 +9,7 @@ import {
   OauthResponseError,
   type OauthLogin,
   type ProviderFetch,
-} from '@dltech/atlas-models/provider-oauth'
+} from '@dltech/atlas-credentials/provider-oauth'
 import {
   authorizeBrowserUrl,
   browserPkce,

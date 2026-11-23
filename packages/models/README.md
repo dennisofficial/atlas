@@ -13,11 +13,11 @@ package.
   cards.
 - The listing that a surface shows: the provider labels, the composed catalogue, the Codex
   catalogue and the default model.
-- The Anthropic and OpenAI sign-in: PKCE, the device login, the token exchange and the token
-  refresh.
 
 ## Does not own
 
+- The account row parsing, the chosen account of a provider and the provider sign-in.
+  `@dltech/atlas-credentials` owns them.
 - The `ModelCard`, `ModelChoice` and `ModelRef` types, the account types and `resolveModelChoice`.
   `@dltech/atlas-core` owns them.
 - The provider clients and the model calls. `@dltech/atlas-agent` owns them.
@@ -27,10 +27,9 @@ package.
 
 ## Entry points
 
-| Import                                | Use it for                                                                     |
-| ------------------------------------- | ------------------------------------------------------------------------------ |
-| `@dltech/atlas-models`                | The catalogue, the card helpers, the listing and the session model resolution. |
-| `@dltech/atlas-models/provider-oauth` | The Anthropic and OpenAI sign-in helpers.                                      |
+| Import                 | Use it for                                                                     |
+| ---------------------- | ------------------------------------------------------------------------------ |
+| `@dltech/atlas-models` | The catalogue, the card helpers, the listing and the session model resolution. |
 
 ## Capabilities
 
@@ -69,25 +68,6 @@ package.
 - `CLAUDE_PLAN_LABEL`, `CODEX_PLAN_LABEL`, `OPENROUTER_LABEL`, `INFERENCE_LABEL`, `GATEWAY_LABEL`
   and the `*_PROVIDER_ID` constants: the provider names and ids. The ids match `EAuthProvider`.
 
-### Sign a provider account in
-
-The helpers of `@dltech/atlas-models/provider-oauth` take the fetch function and the clock, and
-they return the tokens. They do not write the credential store.
-- `anthropicPkce()`: returns a `Pkce` for the Anthropic login.
-- `anthropicManualAuthorizeUrl(pkce)` and `anthropicLoopbackAuthorizeUrl({ pkce, redirectUri })`:
-  return the authorize URL of the pasted-code flow and of the loopback flow.
-- `anthropicExchangeCode`, `anthropicExchangePasted` and `anthropicRefresh`: exchange the code and
-  refresh the token.
-- `openaiBrowserAuthorizeUrl`, `openaiExchangeCode` and `openaiRefresh`: the same steps for the
-  OpenAI login.
-- `openaiStartDevice({ fetch })` and `openaiPollDevice(...)`: the device login. The poll answers an
-  `EDevicePoll`.
-- `decodeJwtClaims(jwt)`: returns the `JwtClaims` of a token, or `undefined`.
-- `ANTHROPIC_OAUTH` and `OPENAI_OAUTH`: the client id, the scopes and the endpoints of each
-  provider.
-- `OauthHttpError`, `OauthResponseError` and `DeviceCodeDisabledError`: the errors of the flow.
-  `isHardAuthFailure(error)` tells if the login must be discarded.
-
 ### Resolve the session model
 
 - `defaultMainModelOf(inputs)`: returns the main `ModelChoice` of a session from its settings and
@@ -95,8 +75,8 @@ they return the tokens. They do not write the credential store.
 - `sessionModelOf({ settings, accounts, activeAccounts, ask, current? })`: resolves an explicit
   request against the same settings. The `ask` is `{ ref?: string, effort?, fast? }`, where `ref`
   is a stored `provider/model` string.
-- `readOf`, `settingsWithProjectOverUser`, `parsedAccountsOf`, `chosenFor`, `reachableOf`,
-  `fallbackRefOf`, `capabilitiesOver`: the smaller steps of the same resolution.
+- `readOf`, `settingsWithProjectOverUser`, `fallbackRefOf`, `capabilitiesOver`: the smaller steps
+  of the same resolution. The account steps come from `@dltech/atlas-credentials`.
 
 ## Usage
 

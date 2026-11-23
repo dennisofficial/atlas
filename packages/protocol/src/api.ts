@@ -1,6 +1,8 @@
 import {
   attachmentSchema,
   EAttachmentStore,
+  ETurnEndedBy,
+  ETurnOutcome,
   EMessageOrigin,
   ESessionStatus,
   MAX_MESSAGE_UPLOADS,
@@ -8,6 +10,8 @@ import {
   saidUploadSchema,
 } from '@dltech/atlas-core'
 import { z } from 'zod'
+
+import { commandEntrySchema } from '@dltech/atlas-commands'
 
 import { changeFileStatusSchema, changeSideSchema } from './changes-state'
 import { METRICS_RING_SIZE, podSampleSchema } from './ops/metrics'
@@ -210,6 +214,12 @@ export const sessionSandboxStatusSchema = z.strictObject({
 
 export type SessionSandboxStatus = z.infer<typeof sessionSandboxStatusSchema>
 
+export const sessionTurnEndingSchema = z.strictObject({
+  seq: z.number().int().min(0),
+  outcome: z.enum(ETurnOutcome),
+  by: z.enum(ETurnEndedBy),
+})
+
 export const sessionSummarySchema = z.strictObject({
   sessionId: z.string().min(1),
   projectId: z.string().min(1).nullable(),
@@ -220,6 +230,8 @@ export const sessionSummarySchema = z.strictObject({
   updatedAt: z.string().min(1),
   archivedAt: z.string().nullable(),
   lastAssistantSeq: z.number().int().min(0).optional(),
+  lastTurn: sessionTurnEndingSchema.nullable().optional(),
+  headSeq: z.number().int().min(0).optional(),
   readSeq: z.number().int().min(0).nullable().optional(),
   spawnedBy: z.string().min(1).nullable().optional(),
   nested: z.boolean().optional(),
@@ -421,6 +433,12 @@ export const sessionStopOutputSchema = z.strictObject({ inboxId: z.number().int(
 export const sessionCommandOutputSchema = z.strictObject({
   inboxId: z.number().int().min(1).optional(),
 })
+
+export const sessionCommandsOutputSchema = z.strictObject({
+  commands: z.array(commandEntrySchema),
+})
+
+export type SessionCommandsOutput = z.infer<typeof sessionCommandsOutputSchema>
 
 const tokenSpendShape = {
   inputTokens: z.number().int().min(0),

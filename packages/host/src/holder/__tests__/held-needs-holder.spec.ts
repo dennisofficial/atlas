@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'bun:test'
 
-import { composeCommands, defineCommand } from '@dltech/atlas-commands'
+import {
+  composeCommands,
+  defineCommand,
+  ECommandGroup,
+  ECommandRunsIn,
+} from '@dltech/atlas-commands'
 import {
   chainEvents,
   EAgentStart,
   EAgentStatus,
-  ECommandGroup,
-  ECommandTiming,
   ESetupPhase,
   initialLoopState,
   toRunId,
@@ -48,8 +51,7 @@ const ping = defineCommand({
     summary: 'records a fact',
     group: ECommandGroup.Session,
     args: z.strictObject({}),
-    timing: ECommandTiming.Settled,
-    handledIn: 'holder',
+    runsIn: ECommandRunsIn.Host,
   },
 })
 

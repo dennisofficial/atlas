@@ -16,6 +16,7 @@ import { useAuth } from '../../auth/auth-provider'
 import { DrawerContent } from '../../drawer/drawer-content'
 import { DrawerProvider, useDrawer } from '../../drawer/drawer-provider'
 import { AppHeader } from '../../navigation/app-header'
+import { InAppNoticesProvider } from '../../notifications/in-app-notices-provider'
 import { sessionIdOfPathname } from '../../thread/v2/presence-state'
 import { usePresenceReport } from '../../thread/v2/use-presence-report'
 
@@ -102,7 +103,9 @@ export default function AppLayout() {
   usePresenceReport({ api, sessionId: sessionIdOfPathname(pathname) })
   return (
     <DrawerProvider drawer={<DrawerContent />} swipeEnabled={pathname === '/'}>
-      <AppStack />
+      <InAppNoticesProvider>
+        <AppStack />
+      </InAppNoticesProvider>
     </DrawerProvider>
   )
 }

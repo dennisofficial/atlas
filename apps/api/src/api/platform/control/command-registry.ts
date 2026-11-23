@@ -2,10 +2,14 @@ import { BadRequestException } from '@nestjs/common'
 import {
   commandOf,
   composeCommands,
+  entryOf,
+  ECommandRunsIn,
+  ECommandSource,
+  type CommandEntry,
   type CommandRegistry,
   type ControlCommandHandler,
 } from '@dltech/atlas-commands'
-import { nativeCommands, nativeControlHandlers, resize } from '@dltech/atlas-native-commands'
+import { nativeCommands, nativeControlHandlers } from '@dltech/atlas-native-commands'
 import type { ControlPlane } from '@dltech/atlas-control'
 import type { SessionCommandOutput } from '@dltech/atlas-protocol'
 import { composedPlugins } from '@dltech/atlas-pods'
@@ -14,7 +18,12 @@ import { modelSet } from './model-set'
 export const COMMAND_REGISTRY = Symbol('COMMAND_REGISTRY')
 
 export const nativeCommandRegistry = (): CommandRegistry =>
-  composeCommands([...nativeCommands, modelSet, resize, ...composedPlugins.commands])
+  composeCommands([...nativeCommands, modelSet, ...composedPlugins.commands])
+
+export const commandCatalogue = (): readonly CommandEntry[] => [
+  ...nativeCommands.map((command) => entryOf({ command, source: ECommandSource.Builtin })),
+  ...composedPlugins.commands.map((command) => entryOf({ command, source: ECommandSource.Plugin })),
+]
 
 export const controlCommandHandlers = (): ReadonlyMap<
   string,
@@ -35,7 +44,10 @@ export async function postCommand(params: {
   if (!parsed.success) {
     throw new BadRequestException(`invalid arguments for "${params.name}": ${parsed.error.message}`)
   }
-  if (command.spec.handledIn === 'control') {
+  if (command.spec.runsIn === ECommandRunsIn.Client) {
+    throw new BadRequestException(`"${command.spec.name}" runs in the client`)
+  }
+  if (command.spec.runsIn === ECommandRunsIn.Control) {
     const handlers = params.controlHandlers ?? nativeControlHandlers
     const handler = handlers.get(command.spec.name)
     if (handler === undefined) throw new Error(`no control handler for "${command.spec.name}"`)

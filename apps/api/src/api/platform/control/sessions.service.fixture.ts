@@ -1,13 +1,11 @@
-import { composeCommands, defineCommand } from '@dltech/atlas-commands'
-import { resize } from '@dltech/atlas-native-commands'
 import {
-  chainEvents,
+  composeCommands,
+  defineCommand,
   ECommandGroup,
-  ECommandTiming,
-  toRunId,
-  toThreadId,
-  type V2Body,
-} from '@dltech/atlas-core'
+  ECommandRunsIn,
+} from '@dltech/atlas-commands'
+import { resize } from '@dltech/atlas-native-commands'
+import { chainEvents, toRunId, toThreadId, type V2Body } from '@dltech/atlas-core'
 import { z } from 'zod'
 import { FakeMediaStore } from '@dltech/atlas-media/testing'
 import type { ProductAnalytics } from '@dltech/atlas-observability'
@@ -32,8 +30,7 @@ export const TEST_COMMAND = defineCommand({
     summary: 'a command only the specs know',
     group: ECommandGroup.Session,
     args: RENAME_ARGS,
-    timing: ECommandTiming.Settled,
-    handledIn: 'holder',
+    runsIn: ECommandRunsIn.Host,
   },
 })
 

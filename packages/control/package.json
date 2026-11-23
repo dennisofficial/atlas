@@ -18,6 +18,7 @@
     "@aws-sdk/s3-request-presigner": "^3.1167.0",
     "@dltech/atlas-commands": "workspace:*",
     "@dltech/atlas-core": "workspace:*",
+    "@dltech/atlas-credentials": "workspace:*",
     "@dltech/atlas-db": "workspace:*",
     "@dltech/atlas-models": "workspace:*",
     "@dltech/atlas-protocol": "workspace:*",

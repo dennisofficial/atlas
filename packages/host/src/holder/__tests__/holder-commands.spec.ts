@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'bun:test'
 
-import { composeCommands, defineCommand, type CommandHandler } from '@dltech/atlas-commands'
-import { ECommandGroup, ECommandTiming, EInputConsumed, type V2Event } from '@dltech/atlas-core'
+import {
+  composeCommands,
+  defineCommand,
+  ECommandGroup,
+  ECommandRunsIn,
+  type CommandHandler,
+} from '@dltech/atlas-commands'
+import { EInputConsumed, type V2Event } from '@dltech/atlas-core'
 import { z } from 'zod'
 
 import { flushUntil, makeRig, seedSession, SESSION, THREAD_ID } from './holder-rig'
@@ -12,8 +18,7 @@ const ping = defineCommand({
     summary: 'records a fact',
     group: ECommandGroup.Session,
     args: z.strictObject({ word: z.string() }),
-    timing: ECommandTiming.Settled,
-    handledIn: 'holder',
+    runsIn: ECommandRunsIn.Host,
   },
 })
 
