@@ -78,7 +78,7 @@ export class NotificationsRouter {
         },
       })
     } catch {
-      // Metrics must never fail a tap or a notification.
+      return
     }
   }
 
