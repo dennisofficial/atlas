@@ -78,6 +78,7 @@ import {
   setSessionModelIn,
   titleUntitledIn,
 } from './session-ops'
+import { archiveSpawnedOf, type SpawnedArchive } from './spawned-archive'
 import { EMPTY_VISIBILITY_TEXT } from './stored-event'
 import { endSubscriptionsIn, unsubscribeIn } from './subscription-endings'
 import { listSubscriptionsIn, subscribeIn, type SubscribeResult } from './subscription-ops'
@@ -319,6 +320,18 @@ export class ControlPlane {
 
   async setSessionArchived(params: { sessionId: string; archivedAt: string | null }) {
     await this.store.transact(async (tx) => archiveIn({ tx, ...params, at: await this.nowIn(tx) }))
+  }
+
+  async archiveSpawned(params: {
+    fromSessionId: string
+    sessionId: string
+  }): Promise<SpawnedArchive> {
+    return archiveSpawnedOf({
+      store: this.store,
+      leases: this.leases,
+      nowIn: (tx) => this.nowIn(tx),
+      ...params,
+    })
   }
 
   async markSessionRead(params: { sessionId: string; seq: number }): Promise<number> {

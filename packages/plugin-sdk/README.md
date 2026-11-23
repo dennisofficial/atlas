@@ -76,6 +76,8 @@ A `PodSlot` declares:
 and the capabilities `control`, `crew`, `classifier`, `sessions`, `worktrees` and `resources`.
 `ctx.control` is a `PodControl`: `exposePort({port})`, `settingsVersions()`, `memory`, `webSearch`,
 `mcp`, `routines`, `subscriptions`. `ctx.classifier.status()` / `classify(...)` answer core types.
+`ctx.sessions` is a `PodSessions`: `spawn`, `list`, `teammates` and `archive({sessionId})`, which
+refuses a session the caller did not spawn.
 
 ### The control and client slots
 

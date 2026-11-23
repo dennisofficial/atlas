@@ -18,7 +18,8 @@ export class PeerSessionsFragment extends PromptFragment {
       'of the operator’s by its id, and "parent" reaches whoever started you. `list_sessions` lists',
       'every session with the current one marked. `list_teammates` lists only this session’s nested',
       'teammates. Every line names whether the session is working, idle, failed or archived.',
-      'Archiving and stopping belong to the operator.',
+      '`archive_session` archives a session this one spawned, such as a teammate, once its work is',
+      'done. The operator can unarchive it. Stopping belongs to the operator.',
       ...this.creatorLine(ctx),
     ].join('\n')
   }

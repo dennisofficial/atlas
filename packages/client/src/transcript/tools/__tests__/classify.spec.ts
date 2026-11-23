@@ -441,6 +441,29 @@ describe('what a sub-agent call reads as', () => {
     expect(overAlready.note).toBe('already done')
   })
 
+  it('names the session an archive was aimed at, and says when it was already archived', () => {
+    const archived = reading(
+      aCall({
+        name: 'archive_session',
+        input: { sessionId: 'p1' },
+        output: { sessionId: 'p1', already: false },
+      }),
+    )
+    const already = reading(
+      aCall({
+        name: 'archive_session',
+        input: { sessionId: 'p1' },
+        output: { sessionId: 'p1', already: true },
+      }),
+    )
+
+    expect(archived.line).toBe('Archived p1')
+    expect(archived.note).toBe('done')
+    expect(archived.klass).toBe(EToolClass.External)
+    expect(already.line).toBe('Archived p1')
+    expect(already.note).toBe('already archived')
+  })
+
   it('counts what a listing found still running, not what it found at all', () => {
     const listed = reading(
       aCall({

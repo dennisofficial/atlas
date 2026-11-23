@@ -28,7 +28,7 @@ import type { PodSubscriptions } from './subscriptions'
 import type { PodWorktrees } from './worktrees'
 
 export type { PodCrew, SubagentSaid, SubagentSnapshot, SubagentWorktree } from './crew'
-export type { PodSessions, SessionBrief, SpawnedSession } from './sessions'
+export type { PodSessions, SessionArchive, SessionBrief, SpawnedSession } from './sessions'
 export type { SpawnFile } from '@dltech/atlas-core'
 export { EMPTY_SESSIONS } from './sessions'
 export { EMPTY_MESSAGES, PARENT_ADDRESS } from './messages'

@@ -171,6 +171,7 @@ export const pluginPodContextOf = (args: {
       sessionId: deps.sessionId,
       model: teammateModelOf(runtime),
       ...teammateFallbackOf({ runtime, append }),
+      parkArchived: deps.parkArchived,
     }),
     worktrees: worktreesOf({
       calls: runtime.remoteCalls,

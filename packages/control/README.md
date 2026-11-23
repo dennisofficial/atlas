@@ -39,6 +39,9 @@ a thread's event log.
 
 - `createSession`, `createSessionWithMessage`, `setSessionModel`, `renameSession`,
   `titleUntitledSession`, `setSessionArchived`, `markSessionRead`.
+- `archiveSpawned({ fromSessionId, sessionId })`: a session archives a session it spawned, refused
+  unless it spawned it, the target belongs to the same user and the target is settled. Returns a
+  `SpawnedArchive`, and records a `session-archived` event in the target's inbox.
 - `listSessions`, `listSessionDigests`, `readSession`, `sessionsOf`, `readSessionView`,
   `readSessionBusy`.
 - `spawnPeer`, `messagePeer`, `reportToSpawner`, `podPeersPlaced`.

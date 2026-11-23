@@ -6,6 +6,7 @@ import {
   TerminalDemand,
   type HostPresence,
   type NotifyDispatch,
+  type ParkArchivedPod,
   type PodControlClient,
 } from '@dltech/atlas-host'
 import {
@@ -63,6 +64,7 @@ export type ComposeAgentHostArgs = {
   control: PodControlClient
   macLink: MacLink
   notify?: NotifyDispatch | undefined
+  parkArchived?: ParkArchivedPod | undefined
   onHostIdChanged?: (() => void) | undefined
 }
 
@@ -111,6 +113,7 @@ export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
     },
     ...(args.changes === undefined ? {} : { changes: args.changes }),
     ...(args.notify === undefined ? {} : { notify: args.notify }),
+    ...(args.parkArchived === undefined ? {} : { parkArchived: args.parkArchived }),
     terminalDemand,
     panelDemand,
     onHostIdChanged: args.onHostIdChanged,

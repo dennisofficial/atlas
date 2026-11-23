@@ -15,6 +15,7 @@ import {
   describeControlPlaneRoutines,
   describeControlPlaneSessionArchive,
   describeControlPlaneSessions,
+  describeControlPlaneSpawnedArchive,
   describeControlPlaneSessionTitles,
   describeControlPlaneViews,
   describeControlPlaneWakes,
@@ -42,6 +43,7 @@ const conformanceParams = {
 describeControlPlaneConformance(conformanceParams)
 describeControlPlaneSessions(conformanceParams)
 describeControlPlaneSessionArchive(conformanceParams)
+describeControlPlaneSpawnedArchive(conformanceParams)
 describeControlPlanePeers(conformanceParams)
 describeControlPlanePeerMessages(conformanceParams)
 describeControlPlaneSessionTitles(conformanceParams)
