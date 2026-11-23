@@ -66,7 +66,7 @@ export async function createArchiveRouterFixture() {
   const deleteDnsRecord = spyOn(cloudflare, 'deleteDnsRecord').mockResolvedValue(undefined)
   const deleteTunnel = spyOn(cloudflare, 'deleteTunnel').mockResolvedValue(undefined)
   const previews = new PreviewTunnelService(env, cipher, cloudflare)
-  const sandboxes = new SandboxesService(vercel, cipher, signals)
+  const sandboxes = new SandboxesService(vercel, cipher, signals, env)
   const dispatcher = new ArchiveCleanupQueue({
     park: (args) => sandboxes.park(args),
     teardownPreviews: (args) => previews.teardown(args),

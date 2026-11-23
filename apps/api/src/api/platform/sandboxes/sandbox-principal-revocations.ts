@@ -10,17 +10,25 @@ import { startPrincipalWatch, type PrincipalWatch } from './sandbox-principal-wa
 export class PrincipalRevocations {
   private watch: PrincipalWatch | undefined
 
-  constructor(
-    private readonly cache: SandboxPrincipalCache,
-    private readonly log: (line: string, error?: unknown) => void,
-  ) {}
+  private readonly cache: SandboxPrincipalCache
+  private readonly log: (line: string, error?: unknown) => void
+  private readonly databaseUrl: string | undefined
+
+  constructor(args: {
+    cache: SandboxPrincipalCache
+    log: (line: string, error?: unknown) => void
+    databaseUrl: string | undefined
+  }) {
+    this.cache = args.cache
+    this.log = args.log
+    this.databaseUrl = args.databaseUrl
+  }
 
   start(): void {
     if (this.watch !== undefined) return
-    const url = process.env.DATABASE_URL
-    if (url === undefined) return
+    if (this.databaseUrl === undefined) return
     this.watch = startPrincipalWatch({
-      url,
+      url: this.databaseUrl,
       onRevoked: (payload) => this.forget(payload),
       onConnected: () => this.cache.clear(),
       log: this.log,

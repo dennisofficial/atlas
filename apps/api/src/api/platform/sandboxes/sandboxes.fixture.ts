@@ -28,6 +28,13 @@ export const cipher = new SecretCipherService({
   get: (key: string) => (key === 'SECRETS_ENCRYPTION_KEY' ? '0'.repeat(64) : undefined),
 } as unknown as EnvService)
 
+const envNamingDatabase = (url: string | undefined): EnvService =>
+  ({ get: (key: string) => (key === 'DATABASE_URL' ? url : undefined) }) as unknown as EnvService
+
+export const databaseEnv = (): EnvService => envNamingDatabase(process.env.DATABASE_URL)
+
+export const envWithoutDatabase = (): EnvService => envNamingDatabase(undefined)
+
 const stubClient = () => ({
   inspect: vi.fn(
     async (): Promise<{ state: ESandboxState; url?: string }> => ({
@@ -51,6 +58,7 @@ export async function prepareSandboxes(): Promise<{
     client as unknown as VercelSandboxClient,
     cipher,
     inertSignals(),
+    databaseEnv(),
   )
   return { client, service }
 }

@@ -17,7 +17,7 @@ export function buildThreadArchiveCleanupDeps(args: { env: EnvService }): Thread
     new ScopedSandboxCredentialsService(buildScopedConfig({ cipher, env })),
   )
   const { signals } = buildWorkerThreadSignals({ env })
-  const sandboxes = new SandboxesService(vercel, cipher, signals)
+  const sandboxes = new SandboxesService(vercel, cipher, signals, env)
   const previews = new PreviewTunnelService(
     env,
     cipher,
