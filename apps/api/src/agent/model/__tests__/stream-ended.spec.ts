@@ -81,12 +81,14 @@ describe('a model stream that ends without a finish part', () => {
     const controller = new AbortController()
     controller.abort()
 
-    await runModelStream({
+    const result = await runModelStream({
       model: modelStreaming(TEXT),
       prompt,
       tools: [],
       signal: controller.signal,
     })
+
+    expect(result).toEqual({ parts: [], toolCalls: [], finishReason: 'other' })
   })
 
   it('reads the openai-compatible truncation report as the same typed error', async () => {
