@@ -22,8 +22,9 @@ import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
 import {
   ETextPlan,
+  lazySkillNamesOf,
   planTextInput,
-  slashNamesOf,
+  type SkillNames,
   type CommandHandlers,
   type ControlHandlers,
   type TextPlan,
@@ -77,7 +78,7 @@ const reasonOf = (error: unknown): string =>
 export class CommandIntake {
   constructor(private readonly args: CommandIntakeArgs) {}
 
-  planText(text: string, skills?: readonly string[] | undefined): Promise<TextPlan> {
+  planText(text: string, skills?: SkillNames | undefined): Promise<TextPlan> {
     return planTextInput({
       text,
       commands: this.args.commands,
@@ -89,8 +90,8 @@ export class CommandIntake {
     })
   }
 
-  async skillsForPass(): Promise<readonly string[]> {
-    return await slashNamesOf({ slash: this.args.slash, log: this.args.log })
+  skillsForPass(): SkillNames {
+    return lazySkillNamesOf({ slash: this.args.slash, log: this.args.log })
   }
 
   async draftsOfSkill(plan: SkillPlan): Promise<SkillDrafts> {
