@@ -21,6 +21,7 @@ export type PodDiskGrowDeps = {
   facts(args: { podSessionId: string }): Promise<PodRebootFacts | undefined>
   closeRun(args: { podSessionId: string }): Promise<void>
   grow(args: { instanceId: string; diskGb: number }): Promise<void>
+  recordDisk(args: { sessionId: string; diskGb: number }): Promise<void>
   notice(args: { sessionId: string; diskGb: number }): Promise<void>
   log(line: string): void
 }
@@ -71,6 +72,20 @@ const noticeGrew = async (args: {
   }
 }
 
+const recordGrew = async (args: {
+  deps: PodDiskGrowDeps
+  sessionId: string
+  diskGb: number
+}): Promise<void> => {
+  try {
+    await args.deps.recordDisk({ sessionId: args.sessionId, diskGb: args.diskGb })
+  } catch (failure) {
+    args.deps.log(
+      `pod-disk-grow: recording the ${args.diskGb} GB disk of ${args.sessionId} failed: ${failureText(failure)}`,
+    )
+  }
+}
+
 export const growPodDisk = async (args: {
   deps: PodDiskGrowDeps
   pod: PodDisk
@@ -102,6 +117,7 @@ export const growPodDisk = async (args: {
   }
   await deps.closeRun({ podSessionId: pod.podSessionId })
   await deps.grow({ instanceId: pod.instanceId, diskGb })
+  await recordGrew({ deps, sessionId: pod.podSessionId, diskGb })
   await noticeGrew({ deps, sessionId: pod.podSessionId, diskGb })
   return { outcome: EPodDiskGrowOutcome.Grown, diskGb }
 }

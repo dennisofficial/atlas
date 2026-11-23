@@ -67,6 +67,7 @@ export type PodSectionView = {
   shapes: readonly PodShape[]
   unavailable: readonly UnavailablePodShape[]
   agent37: boolean
+  diskGb?: number
   pendingShape?: PodShape
   resizeError?: string
 }
@@ -90,6 +91,7 @@ export const podSectionViewOf = (args: {
     shapes: offered,
     unavailable: pod?.sizing?.unavailable ?? [],
     agent37: sandboxProvider === ESandboxProvider.Agent37,
+    ...(pod?.diskGb === undefined ? {} : { diskGb: pod.diskGb }),
     ...(pendingShape === undefined ? {} : { pendingShape }),
     ...(pod?.error === undefined ? {} : { resizeError: pod.error }),
   }
@@ -124,6 +126,7 @@ const sectionOf = (props: PodPaneSectionProps): PodSectionProps => {
     oomKills: latest?.oomKills,
     oomEvents: latest?.oomEvents,
     commandRamLimitGb: latest?.commandRamLimitGb,
+    diskLimitGb: props.diskGb,
     sizeMenuOpen: props.sizeMenuOpen,
     onSizeMenuOpenChange: props.onSizeMenuOpenChange,
     stopping: props.power.state.phase === 'sleeping',

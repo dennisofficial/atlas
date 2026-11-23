@@ -145,6 +145,16 @@ describe('podSectionViewOf', () => {
     ).toBe(false)
   })
 
+  it('carries the disk limit off the pushed pod, for a section with no live sample', () => {
+    const pod = {
+      phase: 'steady' as const,
+      diskGb: 40,
+      sizing: { cap: 8, offered: [], unavailable: [] },
+    }
+    expect(podSectionViewOf({ pod, live: true })?.diskGb).toBe(40)
+    expect(podSectionViewOf({ pod: undefined, live: false })?.diskGb).toBeUndefined()
+  })
+
   it('takes the state the sandbox declares over the lease', () => {
     const view = podSectionViewOf({
       pod: { phase: 'steady', sizing: { cap: 8, offered: [], unavailable: [] } },

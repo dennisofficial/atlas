@@ -43,7 +43,7 @@ a thread's event log.
   `readSessionBusy`.
 - `spawnPeer`, `messagePeer`, `messageTeammate`, `reportToSpawner`, `podPeersPlaced`.
 - `setSandboxInstanceId`, `setSandboxStatus`, `recordPodDesired`, `recordPodApplied`,
-  `recordPodFailed`, `recordPodWaiting`.
+  `recordPodDisk`, `recordPodFailed`, `recordPodWaiting`.
 
 ### Append to the thread record
 

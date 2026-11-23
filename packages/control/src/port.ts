@@ -326,6 +326,7 @@ export interface ControlTx {
     memoryGb: number
     generation: number
   }): Promise<boolean>
+  setSessionPodDisk(params: { sessionId: string; diskGb: number }): Promise<boolean>
   setSessionPodFailed(params: {
     sessionId: string
     generation: number

@@ -40,6 +40,7 @@ export interface PodSectionProps {
   oomKills?: number | undefined
   oomEvents?: number | undefined
   commandRamLimitGb?: number | undefined
+  diskLimitGb?: number | undefined
   stopping?: boolean | undefined
   confirmAction?: EPodAction | undefined
   defaultActiveIndex?: number | undefined
@@ -115,12 +116,14 @@ function PodUsageIdle({ state, unavailable }: { state: EPodState; unavailable: b
 
 function diskValueOf({
   disk,
+  limitGb,
   running,
 }: {
   disk: { usedGb: number; limitGb: number } | undefined
+  limitGb: number | undefined
   running: boolean
 }): string {
-  if (disk === undefined) return '—'
+  if (disk === undefined) return limitGb === undefined ? '—' : `— / ${gigabytes(limitGb)} GB`
   if (!running) return `— / ${gigabytes(disk.limitGb)} GB`
   return formatRam(disk)
 }
@@ -158,7 +161,8 @@ export function PodSection(props: PodSectionProps) {
   }
 
   const ramValue = running ? view.ramLabel : `— / ${view.ramLimitGb} GB`
-  const diskValue = diskValueOf({ disk, running })
+  const diskLimitGb = disk?.limitGb ?? props.diskLimitGb
+  const diskValue = diskValueOf({ disk, limitGb: diskLimitGb, running })
   const sampling = running && props.usageUnavailable !== true && props.series.length > 0
   const diskGrow = props.diskGrow === true
 
@@ -204,7 +208,7 @@ export function PodSection(props: PodSectionProps) {
         {diskGrow ? (
           <div className="col-start-3 row-start-3 flex justify-end">
             <PodDiskSelect
-              limitGb={disk?.limitGb}
+              limitGb={diskLimitGb}
               disabled={sizeProps.disabled}
               onGrow={props.onGrowDisk}
             />

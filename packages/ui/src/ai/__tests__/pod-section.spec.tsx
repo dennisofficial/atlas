@@ -58,6 +58,12 @@ function diskTipOf(index: number): string {
   return formatRam({ usedGb: sample.diskUsedGb, limitGb: sample.diskLimitGb })
 }
 
+function growButtonOf(html: string): string {
+  const button = html.match(/<button[^>]*aria-label="Increase disk"[^>]*>/)?.[0]
+  if (button === undefined) throw new Error('the grow control did not render')
+  return button
+}
+
 describe('pod section header', () => {
   it('labels the single power button with what pressing it does', () => {
     expect(htmlOf()).toContain('aria-label="Stop pod"')
@@ -164,8 +170,7 @@ describe('pod disk row', () => {
   })
 
   it('keeps the grow control, disabled, until the disk size is known', () => {
-    const html = htmlOf({ diskGrow: true })
-    expect(html).toMatch(/<button[^>]*aria-label="Increase disk"[^>]*disabled/)
+    expect(growButtonOf(htmlOf({ diskGrow: true }))).toContain('disabled=""')
   })
 
   it('keeps every row and an empty chart before the first sample arrives', () => {
@@ -197,6 +202,27 @@ describe('pod disk row', () => {
     const html = htmlOf({ series: POD_SERIES_WITH_DISK })
     expect(html).toContain('Disk')
     expect(html).not.toContain('aria-label="Increase disk"')
+  })
+
+  it('reads the disk limit off the sample, over the limit the status pushes', () => {
+    const html = htmlOf({ series: POD_SERIES_WITH_DISK, diskLimitGb: 40 })
+    expect(html).toContain('/ 20 GB')
+    expect(html).not.toContain('/ 40 GB')
+  })
+
+  it('keeps the pushed disk limit before the first sample arrives', () => {
+    const html = htmlOf({ series: [], diskLimitGb: 40 })
+    expect(html).toContain('— / 40 GB')
+  })
+
+  it('keeps the pushed disk limit while the pod sleeps', () => {
+    const asleep = htmlOf({ state: EPodState.Parked, series: [], diskLimitGb: 40 })
+    expect(asleep).toContain('— / 40 GB')
+  })
+
+  it('enables the grow control from the pushed limit, before any sample arrives', () => {
+    const grow = growButtonOf(htmlOf({ series: [], diskLimitGb: 40, diskGrow: true }))
+    expect(grow).not.toContain('disabled=""')
   })
 
   it('offers only the sizes above the current limit', () => {

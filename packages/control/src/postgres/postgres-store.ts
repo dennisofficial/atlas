@@ -82,6 +82,7 @@ import {
   setSessionReadSeqIn,
   setSessionPodAppliedIn,
   setSessionPodDesiredIn,
+  setSessionPodDiskIn,
   setSessionPodFailedIn,
   setSessionPodWaitingIn,
   setSessionTitleIfUntitledIn,
@@ -211,6 +212,14 @@ export class PostgresTx implements ControlTx {
       vcpus: params.vcpus,
       memoryGb: params.memoryGb,
       generation: params.generation,
+    })
+  }
+
+  async setSessionPodDisk(params: Parameters<ControlTx['setSessionPodDisk']>[0]) {
+    return setSessionPodDiskIn({
+      tx: this.tx,
+      sessionId: params.sessionId,
+      diskGb: params.diskGb,
     })
   }
 

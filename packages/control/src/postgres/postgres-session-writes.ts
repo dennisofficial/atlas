@@ -254,6 +254,17 @@ export const setSessionPodAppliedIn = async (params: {
   return changed === 1
 }
 
+export const setSessionPodDiskIn = async (params: {
+  tx: Tx
+  sessionId: string
+  diskGb: number
+}): Promise<boolean> => {
+  const changed = await params.tx.orm.v2.V2Session.where({
+    id: params.sessionId,
+  }).updateAndCount({ podDesiredDiskGb: params.diskGb })
+  return changed === 1
+}
+
 export const setSessionPodFailedIn = async (params: {
   tx: Tx
   sessionId: string

@@ -8,6 +8,7 @@ import {
   type SessionRuntimeFactory,
 } from '@dltech/atlas-host'
 import { logFieldsOf, type LogPort, type TracePort } from '@dltech/atlas-observability'
+import { ESandboxProvider } from '@dltech/atlas-protocol'
 
 import type { MediaSigner } from '../media/media-signer'
 import { attachmentUrlBinding } from '../media/media-urls'
@@ -82,6 +83,7 @@ export type SessionRuntimeFactoryArgs = {
           memoryGb: number
           generation: number
         }): Promise<boolean>
+        recordPodDisk(args: { sessionId: string; diskGb: number }): Promise<boolean>
         readSession(args: { sessionId: string }): Promise<
           | {
               podDesiredVcpus: number | null
@@ -152,6 +154,24 @@ export const createSessionRuntimeFactory = (
         })
       }
     }
+    const recordDisk = async (endpoint: DaemonEndpoint): Promise<void> => {
+      if (args.podSizing === undefined) return
+      const diskGb =
+        endpoint.diskGb ??
+        (config.sandbox.provider === ESandboxProvider.Agent37 ? desiredDiskGb : undefined)
+      if (diskGb === undefined) return
+      try {
+        const pod = await args.podSizing.readSession({ sessionId: sandboxSessionId })
+        if (pod === undefined || pod === null || pod.podDesiredDiskGb !== null) return
+        await args.podSizing.recordPodDisk({ sessionId: sandboxSessionId, diskGb })
+      } catch (error) {
+        args.log?.warn({
+          source: 'runtime.wake',
+          message: `recording the pod disk for ${sessionId} failed`,
+          ...logFieldsOf({ error }),
+        })
+      }
+    }
     const recordRun = async (endpoint: DaemonEndpoint): Promise<void> => {
       const vcpus = endpoint.vcpus ?? desiredVcpus
       if (vcpus === undefined) return
@@ -165,6 +185,7 @@ export const createSessionRuntimeFactory = (
       })
     }
     const onWake = async (endpoint: DaemonEndpoint): Promise<void> => {
+      await recordDisk(endpoint)
       await recordApplied(endpoint)
       await recordRun(endpoint)
     }

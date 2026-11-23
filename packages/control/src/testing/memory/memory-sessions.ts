@@ -76,6 +76,17 @@ export const setSessionPodAppliedIn = (params: {
   return true
 }
 
+export const setSessionPodDiskIn = (params: {
+  state: State
+  sessionId: string
+  diskGb: number
+}): boolean => {
+  const row = params.state.sessions.get(params.sessionId)
+  if (row === undefined) return false
+  row.podDesiredDiskGb = params.diskGb
+  return true
+}
+
 export const setSessionPodFailedIn = (params: {
   state: State
   sessionId: string
