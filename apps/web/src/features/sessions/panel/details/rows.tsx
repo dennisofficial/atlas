@@ -19,6 +19,10 @@ export function SectionHead({ title, count }: { title: string; count?: number })
   )
 }
 
+export function EmptyLine({ children }: { children: ReactNode }) {
+  return <p className="text-[11px] leading-4 text-muted-foreground">{children}</p>
+}
+
 export function Row(props: {
   leading: ReactNode
   title: ReactNode
@@ -28,44 +32,53 @@ export function Row(props: {
   onSelect?: (() => void) | undefined
 }) {
   const layout = 'grid grid-cols-[1rem_minmax(0,1fr)_auto] items-start gap-x-2.5 py-1'
-  const body = (
-    <>
-      <span className="flex h-4 items-center justify-center text-muted-foreground">
-        {props.leading}
-      </span>
-      <span className="flex min-w-0 flex-col">
-        <span className="truncate text-[13px] leading-4">{props.title}</span>
-        {props.meta === undefined ? null : (
-          <span className="truncate text-[11px] leading-4 text-muted-foreground">{props.meta}</span>
-        )}
-      </span>
-      {props.trailing === undefined ? null : (
-        <span className="flex shrink-0 items-center gap-2 pt-0.5 text-[11px] leading-4 text-muted-foreground tabular-nums">
-          {props.trailing}
-        </span>
-      )}
-    </>
+  const leading = (
+    <span className="flex h-4 items-center justify-center text-muted-foreground">
+      {props.leading}
+    </span>
   )
+  const title = (
+    <span className="flex min-w-0 flex-col">
+      <span className="truncate text-[13px] leading-4">{props.title}</span>
+      {props.meta === undefined ? null : (
+        <span className="truncate text-[11px] leading-4 text-muted-foreground">{props.meta}</span>
+      )}
+    </span>
+  )
+  const trailing =
+    props.trailing === undefined ? null : (
+      <span className="flex shrink-0 items-center gap-2 pt-0.5 text-[11px] leading-4 text-muted-foreground tabular-nums">
+        {props.trailing}
+      </span>
+    )
   if (props.onSelect === undefined) {
     return (
       <div data-pane-row className={layout}>
-        {body}
+        {leading}
+        {title}
+        {trailing}
       </div>
     )
   }
   return (
-    <button
-      type="button"
+    <div
       data-pane-row
-      aria-label={props.label}
-      onClick={props.onSelect}
       className={cn(
         layout,
-        '-mx-1.5 w-[calc(100%+0.75rem)] rounded-md px-1.5 text-left outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/50',
+        'group -mx-1.5 w-[calc(100%+0.75rem)] rounded-md px-1.5 hover:bg-muted',
       )}
     >
-      {body}
-    </button>
+      <button
+        type="button"
+        aria-label={props.label}
+        onClick={props.onSelect}
+        className="col-span-2 grid grid-cols-[1rem_minmax(0,1fr)] items-start gap-x-2.5 rounded-sm text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+      >
+        {leading}
+        {title}
+      </button>
+      {trailing}
+    </div>
   )
 }
 

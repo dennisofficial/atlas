@@ -5,6 +5,7 @@ import {
   type PodSectionProps,
 } from '@dltech/atlas-ui/ai/pod-section'
 import { EPodState } from '@dltech/atlas-ui/ai/pod-status-chip'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cn } from '@dltech/atlas-ui/lib/utils'
 import { useEffect, useState } from 'react'
 
@@ -22,8 +23,10 @@ import { SessionGithubSection } from './github-section'
 import { SessionDetailsHeader } from './header-section'
 import { SectionHead } from './rows'
 import { SessionServicesSection } from './services-section'
-import { SessionShellsSection } from './shells-section'
+import { SessionBackgroundSection } from './background-section'
 import { SessionTodoSection } from './todo-section'
+
+const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
 
 const meta = {
   title: 'Sessions/Details pane with pod',
@@ -100,22 +103,24 @@ function DetailsPane({
         narrow === true ? 'w-[24.375rem]' : 'w-[25rem]',
       )}
     >
-      <SessionPaneProvider value={value}>
-        <div className="@container flex min-h-0 flex-1 flex-col gap-4 overflow-auto px-4 py-3">
-          <SessionDetailsHeader />
-          <section aria-label="Pod" className="flex flex-col">
-            <SectionHead title="Pod" />
-            <PodSection {...pod} series={series} />
-          </section>
-          <div data-session-todo-slot className="contents">
-            <SessionTodoSection tasks={value.view.plan} />
+      <QueryClientProvider client={queryClient}>
+        <SessionPaneProvider value={value}>
+          <div className="@container flex min-h-0 flex-1 flex-col gap-4 overflow-auto px-4 py-3">
+            <SessionDetailsHeader />
+            <section aria-label="Pod" className="flex flex-col">
+              <SectionHead title="Pod" />
+              <PodSection {...pod} series={series} />
+            </section>
+            <div data-session-todo-slot className="contents">
+              <SessionTodoSection tasks={value.view.plan} />
+            </div>
+            <SessionGithubSection />
+            <SessionServicesSection />
+            <SessionCrewSection />
+            <SessionBackgroundSection />
           </div>
-          <SessionGithubSection />
-          <SessionServicesSection />
-          <SessionCrewSection />
-          <SessionShellsSection />
-        </div>
-      </SessionPaneProvider>
+        </SessionPaneProvider>
+      </QueryClientProvider>
     </div>
   )
 }

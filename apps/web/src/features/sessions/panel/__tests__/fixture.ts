@@ -1,5 +1,7 @@
 import {
   EAgentStatus,
+  EServiceStatus,
+  EShellStatus,
   ESessionStatus,
   ESubscriptionActor,
   ESubscriptionTone,
@@ -8,6 +10,8 @@ import {
 } from '@dltech/atlas-core'
 import type { CrewRow } from '@dltech/atlas-plugin-crew/client'
 import type { PreviewItem } from '@dltech/atlas-plugin-services/client'
+import type { ServiceRow } from '@dltech/atlas-plugin-services/core'
+import type { ShellRow } from '@dltech/atlas-plugin-shells/core'
 import type {
   SessionStatusOutput,
   SessionSubscription,
@@ -88,6 +92,29 @@ export const previewFixture: PreviewItem = {
   url: 'https://4321-abc.byatlas.dev',
 }
 
+export const serviceRowFixture = (overrides: Partial<ServiceRow> = {}): ServiceRow => ({
+  serviceId: 'svc-web',
+  name: 'web',
+  command: 'bun run dev',
+  port: 4321,
+  url: 'https://4321-abc.byatlas.dev',
+  status: EServiceStatus.Running,
+  ready: true,
+  changedAt: '2026-11-18T10:00:00.000Z',
+  ...overrides,
+})
+
+export const shellRowFixture = (overrides: Partial<ShellRow> = {}): ShellRow => ({
+  shellId: 'sh1',
+  name: 'dev server',
+  command: 'bun run dev',
+  status: EShellStatus.Running,
+  characters: 6,
+  awaitingInput: false,
+  changedAt: '2026-11-18T10:00:00.000Z',
+  ...overrides,
+})
+
 export const crewRowFixture = (overrides: Partial<CrewRow> = {}): CrewRow => ({
   agentId: 'agent-1',
   agentType: 'general-purpose',
@@ -104,6 +131,8 @@ export const viewModelFixture = (overrides: Partial<SessionViewModel> = {}): Ses
   entries: [],
   subscriptionRows: [],
   shells: { running: 0, awaitingInput: false, labels: [], rows: [] },
+  shellRows: [],
+  serviceRows: [],
   crew: { running: 0, total: 0 },
   crewRows: [],
   previews: [],
@@ -152,6 +181,8 @@ export const populatedPaneValue = (): SessionPaneValue =>
         labels: ['dev server'],
         rows: [{ shellId: 'sh1', name: 'dev server' }],
       },
+      shellRows: [shellRowFixture()],
+      serviceRows: [serviceRowFixture()],
       crew: { running: 1, total: 2 },
       crewRows: [
         crewRowFixture(),
