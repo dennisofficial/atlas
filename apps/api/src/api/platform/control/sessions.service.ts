@@ -19,7 +19,9 @@ import {
 } from '@dltech/atlas-control'
 import type { ControlSessionRow } from '@dltech/atlas-control'
 import {
+  clearMomentSeqOf,
   EMessageOrigin,
+  ESessionStatus,
   ESubscriptionActor,
   ESubscriptionEnd,
   INBOX_KIND_RETRY,
@@ -61,7 +63,10 @@ import {
   type SessionWithdrawOutput,
 } from '@dltech/atlas-protocol'
 import type { SessionPageOutput } from '@dltech/atlas-wire'
+import { notifyClearIdempotencyKey } from '@dltech/atlas-jobs/notify'
 import { BackgroundWork } from '../../../_core/ports/background-work'
+import { JobsProjectDispatcher } from '../../../_core/ports/job-dispatcher'
+import { notifyClearTaskContract } from '../../../_lib/trigger/notify-clear.contract'
 import { SessionTitler } from '../../../_core/ports/session-titler'
 import {
   POD_OPS,
@@ -110,6 +115,7 @@ export class SessionsService {
     @Inject(COMMAND_REGISTRY) private readonly commands: CommandRegistry,
     @Inject(PodSizingService) private readonly podSizing: PodSizing,
     @Inject(PodPowerService) private readonly podPower: PodPower,
+    @Inject(JobsProjectDispatcher) private readonly dispatcher: JobsProjectDispatcher,
     @Optional() @Inject(POD_OPS) private readonly ops: PodOps | null = null,
     @Optional()
     @Inject(PRODUCT_ANALYTICS)
@@ -383,8 +389,65 @@ export class SessionsService {
     seq: number
   }): Promise<SessionMarkReadOutput> {
     await this.requireOwnedSession(args)
+    const notify = await this.notifyStateOf(args)
     const readSeq = await this.plane.markSessionRead({ sessionId: args.sessionId, seq: args.seq })
+    const momentSeq = clearMomentSeqOf({
+      previousReadSeq: notify.readSeq,
+      readSeq,
+      lastTurnSeq: notify.lastTurnSeq,
+      headSeq: notify.headSeq,
+      waiting: notify.waiting,
+    })
+    if (momentSeq !== null) {
+      this.background.keepAlive(
+        this.dispatchClear({ userId: args.userId, sessionId: args.sessionId, momentSeq }),
+      )
+    }
     return { readSeq }
+  }
+
+  private async notifyStateOf(args: { userId: string; sessionId: string }): Promise<{
+    readSeq: number | null
+    lastTurnSeq: number | null
+    headSeq: number
+    waiting: boolean
+  }> {
+    const [digest] = await this.plane.listSessionDigests({
+      userId: args.userId,
+      sessionId: args.sessionId,
+      limit: 1,
+      withView: true,
+    })
+    if (digest === undefined) {
+      return { readSeq: null, lastTurnSeq: null, headSeq: 0, waiting: false }
+    }
+    const status = digest.view?.status.state
+    return {
+      readSeq: digest.readSeq,
+      lastTurnSeq: digest.lastTurn?.seq ?? null,
+      headSeq: digest.headSeq,
+      waiting:
+        status === ESessionStatus.WaitingForOperator ||
+        status === ESessionStatus.WaitingForCredentials,
+    }
+  }
+
+  private async dispatchClear(args: {
+    userId: string
+    sessionId: string
+    momentSeq: number
+  }): Promise<void> {
+    try {
+      await this.dispatcher.dispatch({
+        task: notifyClearTaskContract,
+        payload: { userId: args.userId, sessionId: args.sessionId },
+        idempotencyKey: notifyClearIdempotencyKey(args),
+      })
+    } catch (failure) {
+      this.logger.warn(
+        `clearing the notifications of session ${args.sessionId} failed: ${String(failure)}`,
+      )
+    }
   }
 
   async events(args: {

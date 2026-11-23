@@ -555,9 +555,16 @@ on it: the dot is the durable signal.
 One path, expressed once: "the session is read" → every enabled device of the user gets `clear`.
 - **Trigger.** `markSessionRead` (`packages/control/src/session-ops.ts:88`, reached from
   `sessions.router.ts:160-164`) advances `readSeq`; the API then dispatches `notify-clear`
-  `{userId, sessionId}` with idempotency key `notify-clear:<sessionId>:<readSeq>`. No ledger and no
-  `lastNotifiedSeq`: a clear that finds nothing is a few HTTP calls, and one user has a handful of
-  devices. That deletes v1's push-ledger idea instead of porting it.
+  `{userId, sessionId}` with idempotency key `notify-clear:<sessionId>:<momentSeq>`. No ledger and
+  no `lastNotifiedSeq`: a clear that finds nothing is a few HTTP calls, and one user has a handful
+  of devices. That deletes v1's push-ledger idea instead of porting it.
+- **Cost.** The web marks read as events stream in while a session is open
+  (`apps/web/src/features/sessions/data/use-session-mark-read.ts`, debounced to one call a second),
+  so a clear per `markRead` would run a trigger job every second. Dispatch only when the advance
+  passes a seq that could have notified: the session's last `turn-ended` seq, or the head seq while
+  the status waits for the operator or credentials. The API reads the session's digest before it
+  marks, and dispatch happens when `previousReadSeq < momentSeq <= readSeq` (`previousReadSeq` of
+  `null` counts as -1). It is fire and forget, logged when it fails, and never fails `markRead`.
 - **Task.** `apps/trigger/src/trigger/notify/notify-clear.task.ts` reads the devices, calls each
   transport's `clear`, prunes anything that reports `gone`. Web Push subscriptions hosted by Apple
   are skipped (§4.9). An `apns-mac` device gets `content-available`, which the app reads only while

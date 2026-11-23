@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'bun:test'
 
-import { applicationServerKeyOf, deviceLabelOf, registerDeviceInputOf } from '../web-push'
+import {
+  applicationServerKeyOf,
+  closeSessionNotifications,
+  deviceLabelOf,
+  registerDeviceInputOf,
+} from '../web-push'
 
 const subscriptionOf = (keys: Record<string, string> | undefined) => ({
   endpoint: 'https://push.example/endpoint-1',
@@ -65,5 +70,53 @@ describe('deviceLabelOf', () => {
       'Safari',
     )
     expect(deviceLabelOf({ standalone: false, userAgent: 'something else' })).toBe('Browser')
+  })
+})
+
+describe('closeSessionNotifications', () => {
+  it('closes every shown notification tagged with the session', async () => {
+    const closed: string[] = []
+    Object.defineProperty(globalThis.navigator, 'serviceWorker', {
+      configurable: true,
+      value: {
+        getRegistration: async () => ({
+          getNotifications: async ({ tag }: { tag: string }) => [
+            {
+              close: async () => {
+                closed.push(tag)
+              },
+            },
+            {
+              close: async () => {
+                closed.push(tag)
+              },
+            },
+          ],
+        }),
+      },
+    })
+
+    await closeSessionNotifications('session-1')
+
+    expect(closed).toEqual(['session-1', 'session-1'])
+  })
+
+  it('does nothing when no service worker is installed', async () => {
+    Object.defineProperty(globalThis.navigator, 'serviceWorker', {
+      configurable: true,
+      value: { getRegistration: async () => undefined },
+    })
+
+    await closeSessionNotifications('session-1')
+
+    expect('serviceWorker' in navigator).toBe(true)
+  })
+
+  it('does nothing in a browser without a service worker', async () => {
+    delete (globalThis.navigator as { serviceWorker?: unknown }).serviceWorker
+
+    await closeSessionNotifications('session-1')
+
+    expect('serviceWorker' in navigator).toBe(false)
   })
 })
