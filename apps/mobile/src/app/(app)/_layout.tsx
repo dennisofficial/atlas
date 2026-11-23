@@ -15,6 +15,7 @@ import { StyleSheet, View } from 'react-native'
 import { DrawerContent } from '../../drawer/drawer-content'
 import { DrawerProvider, useDrawer } from '../../drawer/drawer-provider'
 import { AppHeader } from '../../navigation/app-header'
+import { InAppNoticesProvider } from '../../notifications/in-app-notices-provider'
 
 const MenuButton = () => {
   const drawer = useDrawer()
@@ -97,7 +98,9 @@ export default function AppLayout() {
   const pathname = usePathname()
   return (
     <DrawerProvider drawer={<DrawerContent />} swipeEnabled={pathname === '/'}>
-      <AppStack />
+      <InAppNoticesProvider>
+        <AppStack />
+      </InAppNoticesProvider>
     </DrawerProvider>
   )
 }
