@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { EKilledBy, EShellEndCause, EServiceStatus } from '@dltech/atlas-core'
 import type { PodControl } from '@dltech/atlas-plugin-sdk'
-import { ECallStatus } from '@dltech/atlas-protocol'
+import { ECallStatus, EServiceReapOutcome } from '@dltech/atlas-protocol'
 
 import { servicesPod } from '..'
 import { declaredServicesOf } from '../../core'
@@ -39,6 +39,7 @@ const declaredStarted = async (args: {
   harness: ReturnType<typeof rig>
   content: string
   serviceId?: string
+  pid?: number
 }) => {
   const serviceId = args.serviceId ?? 'svc-old'
   await args.harness.ctx.append([
@@ -48,6 +49,7 @@ const declaredStarted = async (args: {
       command: 'listen',
       description: 'web',
       name: 'web',
+      ...(args.pid === undefined ? {} : { pid: args.pid }),
       declarationHash: hashOf(args.content, 'web'),
       cwd: '/work',
       root: '/work',
@@ -150,5 +152,40 @@ describe('resuming declared services after a daemon restart', () => {
       },
     ])
     expect(startsOf(harness.calls)).toMatchObject([{ command: 'listen', cwd: '/work', port: 3000 }])
+  })
+
+  it('stops the recorded orphan, then starts the service again on the same port', async () => {
+    const harness = rig({ control: control(), reap: EServiceReapOutcome.Reaped })
+    writeDeclared(harness, DECLARED)
+    await declaredStarted({ harness, content: DECLARED, pid: 4_001 })
+    harness.forgetDaemonRecords()
+    await resume(harness)
+
+    const reaped = harness.calls.flatMap((call) => (call.op === 'services.reap' ? [call] : []))
+    expect(reaped).toEqual([{ op: 'services.reap', pid: 4_001, command: 'listen' }])
+    const reapIndex = harness.calls.findIndex((call) => call.op === 'services.reap')
+    const startIndex = harness.calls.findIndex((call) => call.op === 'services.start')
+    expect(reapIndex).toBeLessThan(startIndex)
+    expect(startsOf(harness.calls).at(-1)).toMatchObject({
+      command: 'listen',
+      cwd: '/work',
+      port: 3000,
+    })
+    const started = harness.log.filter((event) => event.type === 'service-started')
+    expect(started).toHaveLength(2)
+    expect(started.at(-1)).toMatchObject({ name: 'web', port: 3000, url: URL })
+  })
+
+  it('leaves a pid that another command now holds alone', async () => {
+    const harness = rig({ control: control(), reap: EServiceReapOutcome.Mismatch })
+    writeDeclared(harness, DECLARED)
+    await declaredStarted({ harness, content: DECLARED, pid: 4_001 })
+    harness.forgetDaemonRecords()
+    await resume(harness)
+
+    const reaped = harness.calls.flatMap((call) => (call.op === 'services.reap' ? [call] : []))
+    expect(reaped).toEqual([{ op: 'services.reap', pid: 4_001, command: 'listen' }])
+    expect(harness.calls.filter((call) => call.op === 'services.stop')).toEqual([])
+    expect(startsOf(harness.calls).at(-1)).toMatchObject({ command: 'listen', port: 3000 })
   })
 })

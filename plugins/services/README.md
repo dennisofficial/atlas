@@ -91,9 +91,11 @@ definePlugin({
 - `${services.<name>.url|port|publicUrl}` in `env` resolves against the services of the same checkout, and starts them first.
 - `stop`, `restart` and the stale mark of a `name` act on the service of the current checkout. A list row names the worktree branch.
 - `start` takes a `name` or a `command`, never both.
-- When the daemon restarts, each declared service that was running is ended in the transcript with
-  cause `SandboxStopped` and started again in declaration order, with the same port and URL. An
-  ad-hoc `command` service stays ended: its env and its setup exist only in the call that started it.
+- When the daemon restarts, or a host reattaches after one, each declared service that was running
+  is stopped in the sandbox, ended in the transcript with cause `SandboxStopped` and started again in
+  declaration order, on the same port and behind the same URL. A pid the record cannot prove was
+  that service, or a port another process now holds, falls back to a fresh port. An ad-hoc `command`
+  service stays ended: its env and its setup exist only in the call that started it.
 - `restart` takes a `serviceId` or a `name`, exactly one.
 - Import the pod tier in a pod only. It spawns processes on the host of the session.
 

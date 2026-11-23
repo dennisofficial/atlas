@@ -5,6 +5,7 @@ import {
   type OkCallResult,
   type ServiceInfo,
   type ServicesLogResult,
+  type ServicesReapResult,
 } from '@dltech/atlas-protocol'
 
 export type DaemonCall<T> = { ok: true; value: T } | { ok: false; reason: string }
@@ -84,6 +85,22 @@ export const listServices = async (args: {
   })
   if (!answer.ok) return answer
   if (answer.value.op !== 'services.list') return { ok: false, reason: WRONG_ANSWER }
+  return { ok: true, value: answer.value.value }
+}
+
+export const reapService = async (args: {
+  ctx: Ctx
+  pid: number
+  command: string
+  signal?: AbortSignal | undefined
+}): Promise<DaemonCall<ServicesReapResult>> => {
+  const answer = await run({
+    ctx: args.ctx,
+    signal: args.signal,
+    op: { op: 'services.reap', pid: args.pid, command: args.command },
+  })
+  if (!answer.ok) return answer
+  if (answer.value.op !== 'services.reap') return { ok: false, reason: WRONG_ANSWER }
   return { ok: true, value: answer.value.value }
 }
 

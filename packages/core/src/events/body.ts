@@ -271,6 +271,7 @@ export type EventBody =
       type: 'service-started'
       serviceId: string
       name?: string | undefined
+      pid?: number | undefined
       port?: number | undefined
       url?: string | undefined
       declarationHash?: string | undefined
