@@ -9,11 +9,9 @@ import type {
 } from '../../api/cloud/sandbox-provisioning/orphan-sandbox-sweep'
 import { runOrphanSweep, type OrphanSweepDeps } from './orphan-sweep-scopes'
 import { storesOf } from './orphan-sandbox-sweep.task'
+import { triggerSdkStub } from '../../../test/trigger-sdk.fake'
 
-mock.module('@trigger.dev/sdk', () => ({
-  logger: { log: () => undefined, warn: () => undefined, error: () => undefined },
-  schedules: { task: (definition: unknown) => definition },
-}))
+mock.module('@trigger.dev/sdk', () => triggerSdkStub)
 
 const REQUIRED_ENV: Record<string, string> = {
   DATABASE_URL: 'postgres://x',

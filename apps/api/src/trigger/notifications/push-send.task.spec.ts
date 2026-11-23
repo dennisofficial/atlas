@@ -1,12 +1,7 @@
 import { describe, expect, it, mock } from 'bun:test'
+import { triggerSdkStub } from '../../../test/trigger-sdk.fake'
 
-mock.module('@trigger.dev/sdk', () => ({
-  schemaTask: <T>(definition: T): T => definition,
-  wait: { for: async () => undefined },
-  TriggerClient: class {
-    readonly tasks = { trigger: async () => ({ id: 'run_stub' }) }
-  },
-}))
+mock.module('@trigger.dev/sdk', () => triggerSdkStub)
 
 const { pushSendTaskContract } = await import('../../api/platform/notifications/push-send.contract')
 const { pushSendTask } = await import('./push-send.task')

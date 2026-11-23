@@ -7,18 +7,12 @@ import { RedisService } from '../../_lib/redis/redis.service'
 import { GithubAppInstallationsService } from '@dltech/atlas-github'
 import { githubConfigOf } from '../../api/cloud/github/github.providers'
 import { GithubAppClient } from '@dltech/atlas-github'
-import { GithubInstallationTokens } from '@dltech/atlas-github'
-import { GithubAppSyncGate } from '@dltech/atlas-github'
-import { GithubAppSyncService } from '@dltech/atlas-github'
-import { GithubHookSweepService } from '@dltech/atlas-github'
 import { GithubDeviceClient } from '@dltech/atlas-github'
 import { GithubHeadReads } from '@dltech/atlas-github'
+import { GithubPrFanoutService } from '@dltech/atlas-github'
+import { GithubInstallationTokens } from '@dltech/atlas-github'
 import { GithubHookLifecycleService } from '@dltech/atlas-github'
 import { GithubPollSweeperService } from '@dltech/atlas-github'
-import { GithubDeliveryService } from '@dltech/atlas-github'
-import { GithubPrDiscussionDeliveryService } from '@dltech/atlas-github'
-import { GithubWebhookInboxService } from '@dltech/atlas-github'
-import { GithubPrFanoutService } from '@dltech/atlas-github'
 import { buildPrApplyWiring } from '@dltech/atlas-github'
 import { GithubFillTokens } from '@dltech/atlas-github'
 import type { GithubPrOutboxDispatcher } from '@dltech/atlas-github'
@@ -42,10 +36,6 @@ setGithubLogSink((context) => new Logger(context))
 
 export type GithubSweepGraph = {
   pollSweeper: GithubPollSweeperService
-  hookLifecycle: GithubHookLifecycleService
-  hookSweep: GithubHookSweepService
-  webhookInbox: GithubWebhookInboxService
-  deliveries: GithubDeliveryService
   wake: GithubSandboxWakeService
   store: GithubPrStore
   outbox: GithubPrOutboxDispatcher
@@ -91,11 +81,7 @@ export function buildGithubSweepGraph(args: { env: EnvService }): GithubSweepGra
   const appClient = new GithubAppClient(config)
   const appTokens = new GithubInstallationTokens(appClient, installations)
   const fillTokens = new GithubFillTokens({ github, appTokens })
-  const {
-    store,
-    dispatcher: outbox,
-    mailbox,
-  } = buildPrApplyWiring({
+  const { store, dispatcher: outbox } = buildPrApplyWiring({
     fanout,
     legacy: {
       threadChanged: (changed) => workerSignals.signals.threadChanged(changed),
@@ -113,15 +99,6 @@ export function buildGithubSweepGraph(args: { env: EnvService }): GithubSweepGra
     installations,
     coordinator,
   )
-  const syncGate = new GithubAppSyncGate(redis)
-  const hookSweep = new GithubHookSweepService(
-    new GithubAppSyncService(appClient, installations, syncGate),
-    hookLifecycle,
-    installations,
-    github,
-    reads,
-    syncGate,
-  )
 
   return {
     wake,
@@ -135,20 +112,6 @@ export function buildGithubSweepGraph(args: { env: EnvService }): GithubSweepGra
       new GithubHeadReads(),
       store,
       threadActivityAt,
-    ),
-    hookLifecycle,
-    hookSweep,
-    webhookInbox: new GithubWebhookInboxService(),
-    deliveries: new GithubDeliveryService(
-      github,
-      reads,
-      fanout,
-      cipher,
-      mailbox,
-      new GithubPrDiscussionDeliveryService(mailbox),
-      coordinator,
-      store,
-      appTokens,
     ),
     dispose: async () => {
       await wake.settle()

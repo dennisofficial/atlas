@@ -2,13 +2,13 @@ import { beforeEach, describe, expect, expectTypeOf, it, mock, vi } from 'bun:te
 import { z } from 'zod'
 import type { Task, TaskContract } from '../../_core/ports/job-dispatcher'
 import { JobDispatchError } from '../../_core/ports/job-dispatcher'
+import { triggerSdkStub } from '../../../test/trigger-sdk.fake'
 
 const trigger = vi.fn()
 const constructed: unknown[] = []
 
 mock.module('@trigger.dev/sdk', () => ({
-  schemaTask: <T>(definition: T): T => definition,
-  schedules: { task: <T>(definition: T): T => definition },
+  ...triggerSdkStub,
   TriggerClient: class {
     readonly tasks = { trigger }
     constructor(config: unknown) {

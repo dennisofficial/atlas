@@ -39,11 +39,23 @@ deployments.
 only what these tasks need: `DATABASE_URL`, the change storage keys (`ARTIFACT_S3_*`), the Blob
 token (`BLOB_READ_WRITE_TOKEN`), and the pod keys that `readPodsEnv` from `@dltech/atlas-pods`
 reads (`DAEMON_SECRET`, `SECRETS_ENCRYPTION_KEY`, `ATLAS_API_ORIGIN`, `PLATFORM_VERCEL_*`,
-`AGENT37_*`). A task that reads a new variable adds it here in the same PR. The private key lives in `apps/trigger/.env.keys`,
+`AGENT37_*`), and the GitHub keys the sweeps read (`GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`,
+`GITHUB_APP_SLUG`, `GITHUB_CLIENT_ID`, `BETTER_AUTH_URL`, `REDIS_URL`). A task that reads a new variable adds it here in the same PR. The private key lives in `apps/trigger/.env.keys`,
 which is gitignored; deploy targets hold only that key, as `DOTENV_PRIVATE_KEY_PRODUCTION_ENC`.
 `trigger-tier-extension.ts` ships the tier file into the worker bundle as `envs/` and points
 `DOTENVX_ENVS_DIR` at it; `src/trigger/init.ts` decrypts it into `process.env` before a task runs.
 Never add the API's tier file here.
+
+## The GitHub sweeps
+
+`github-hook-sweep`, `github-poll-sweep` and `github-webhook-reconcile` moved here from v1's project
+on 23 Nov 2026: they build every service by hand over `@dltech/atlas-github`
+(`src/trigger/github/github-sweep-graph.ts`) and leave v1 out, so the outbox drains only the kinds
+this app can run. The v1 project keeps `github-v1-wake-sweep`, which refreshes v1 `liveUntil` from
+thread activity, retries failed v1 wakes and drains the v1-only outbox kinds. Both projects deploy on
+the same merge to main and trigger.dev syncs declarative schedules on deploy, so the three schedules
+stop in v1 in the same deploy that starts them here. A short overlap is safe: outbox and inbox claims
+use leases and `SKIP LOCKED`, and the hook sweep holds `GithubAppSyncGate`.
 
 ## How the API starts a task
 
