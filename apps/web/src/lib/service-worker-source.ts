@@ -8,6 +8,8 @@ export const OPEN_SESSION_MESSAGE = 'open-session'
 
 export const SESSION_QUERY_PARAM = 'session'
 
+export const ROUTINE_PATH = '/routines/'
+
 export const serviceWorkerSource = `self.addEventListener('install', () => self.skipWaiting())
 
 self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()))
@@ -36,6 +38,18 @@ const openSession = async (sessionId) => {
   await existing.focus()
 }
 
+const openRoutine = async (routineId) => {
+  const url = '${ROUTINE_PATH}' + encodeURIComponent(routineId)
+  const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+  const existing = windows[0]
+  if (existing === undefined) {
+    await self.clients.openWindow(url)
+    return
+  }
+  await existing.focus()
+  await existing.navigate(url).catch(() => self.clients.openWindow(url))
+}
+
 self.addEventListener('push', (event) => {
   const message = notificationOf(event)
   if (message === null) return
@@ -46,7 +60,11 @@ self.addEventListener('push', (event) => {
         body: notification.body,
         tag: notification.sessionId,
         renotify: false,
-        data: { sessionId: notification.sessionId, seq: notification.seq },
+        data: {
+          sessionId: notification.sessionId,
+          seq: notification.seq,
+          routineId: notification.routineId,
+        },
       }),
     )
     return
@@ -55,8 +73,12 @@ self.addEventListener('push', (event) => {
 })
 
 self.addEventListener('notificationclick', (event) => {
-  const sessionId = event.notification.data.sessionId
+  const data = event.notification.data
   event.notification.close()
-  event.waitUntil(openSession(sessionId))
+  if (typeof data.routineId === 'string') {
+    event.waitUntil(openRoutine(data.routineId))
+    return
+  }
+  event.waitUntil(openSession(data.sessionId))
 })
 `

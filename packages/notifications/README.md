@@ -49,6 +49,8 @@ Redis and sends the pushes.
 
 - `NOTIFY_DATA_SESSION_KEY` (`sessionId`), `NOTIFY_DATA_SEQ_KEY` (`seq`) and
   `NOTIFY_DATA_CLEAR_SESSION_KEY` (`clearSessionId`): the keys of the Expo and APNs payloads.
+- `NOTIFY_DATA_ROUTINE_KEY` (`routineId`) and `routineDataOf(notification)`: a routine notice names
+  its routine. A client opens the routine for it, never the `sessionId`.
 
 ### Implement a transport
 

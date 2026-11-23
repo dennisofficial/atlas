@@ -24,6 +24,7 @@ describe('routineFailureNotificationOf', () => {
       title: 'Monday L10 Meeting Prep',
       body: 'Scheduled run did not start. failed: stored event t:20 is invalid',
       at: '2026-11-23T12:01:29.000Z',
+      routineId: 'rtn-1',
     })
     expect(atlasNotificationSchema.safeParse(notification).success).toBe(true)
   })

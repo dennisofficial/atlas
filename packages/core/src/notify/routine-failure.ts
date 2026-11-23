@@ -28,5 +28,6 @@ export const routineFailureNotificationOf = (
     title: title === '' ? FALLBACK_TITLE : title,
     body: `Scheduled run did not start. ${facts.reason}`.slice(0, BODY_LIMIT),
     at: facts.now,
+    routineId: facts.routineId,
   }
 }

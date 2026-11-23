@@ -104,6 +104,12 @@ assembly, settings, ports, and the record folds. It imports `zod` and nothing el
   `held: true`, and `isTurnTaking` is false for it. `isTeammateType(type)` names a teammate.
 - `credentialRepairOf({mainThreadId, events})`, `repairActionsOf({...})`, `ERepairAction`: the credential repair a session shows.
 
+### Notify about a routine
+
+- `routineFailureNotificationOf({routineId, routineName, reason, enabled, quiet, now})`: the push
+  for a scheduled run that did not start, or `null` when the owner's settings keep it silent. Its
+  `routineId` names the target; its `sessionId` (`routine-<id>`) only groups the notice.
+
 ### Compact the log
 
 - `compactionDisposition`, `ECompactionDisposition`, `compactionTarget`, `compactionWatermark`: what a compaction keeps, summarises and drops, and the range it covers.
