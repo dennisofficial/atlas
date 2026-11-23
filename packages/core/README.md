@@ -91,6 +91,8 @@ assembly, settings, ports, and the record folds. It imports `zod` and nothing el
 - `Lease`, `startVerdict({...})`, `claimGrant({...})`, `revoke({...})`: the lease rules.
 - `consume({entry, seq})`, `takeBack(entry)`, `InboxEntry`: the inbox rules.
 - `decideHeldAction({...})`, `HeldOutcome`, `EExecutionLocation`: the host's next action.
+- `credentialRepairOf({mainThreadId, events})`, `repairActionsOf({...})`, `ERepairAction`: the
+  credential repair a session shows, and what it offers.
 
 ### Name a file a spawn attaches
 

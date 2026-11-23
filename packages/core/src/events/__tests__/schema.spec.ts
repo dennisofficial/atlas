@@ -18,6 +18,7 @@ import {
 } from '../body'
 import type { EventEnvelope } from '../envelope'
 import { toThreadId, toCallId, toEventId, toRunId } from '../ids'
+import { ERunFailureKind } from '../run-failure'
 import { eventBodySchema, eventEnvelopeSchema } from '../schema'
 
 const bodies: EventDraft[] = [
@@ -147,6 +148,31 @@ const bodies: EventDraft[] = [
     intent: 'audit the settings registry',
     status: EAgentStatus.Failed,
     failureCause: 'provider inference.net returned 402: credit exhausted',
+    prose: '',
+    turns: 2,
+    toolCalls: 3,
+  },
+  {
+    type: 'agent-ended',
+    agentId: toThreadId('thread-child-1'),
+    agentType: 'explore',
+    intent: 'audit the settings registry',
+    status: EAgentStatus.Failed,
+    failureCause: 'provider anthropic returned 401',
+    failure: {
+      kind: ERunFailureKind.Auth,
+      message: 'provider anthropic returned 401',
+      statusCode: 401,
+      providerId: 'anthropic',
+      modelId: 'claude-sonnet',
+      accountId: 'acc-1',
+      resetAt: '2026-11-20T01:00:00.000Z',
+      agent: {
+        agentId: 'thread-child-1',
+        agentType: 'explore',
+        intent: 'audit the settings registry',
+      },
+    },
     prose: '',
     turns: 2,
     toolCalls: 3,
