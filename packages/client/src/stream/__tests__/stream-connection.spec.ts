@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import type { PluginViewFold } from '@dltech/atlas-core'
-import { STREAM_STALL_MS } from '@dltech/atlas-protocol'
+import { EStreamErrorCode, STREAM_STALL_MS } from '@dltech/atlas-protocol'
 
 import { EStreamConnectionState } from '../connection-machine'
 import { createStreamConnection, type StreamConnectionArgs } from '../stream-connection'
@@ -211,6 +211,71 @@ describe('the stream connection', () => {
     clock.advance(1_000)
     await settle()
     expect(lists).toHaveLength(2)
+  })
+
+  it('resubscribes a list the server ends with an error frame', async () => {
+    const { connection, clock, lists } = setup()
+    const list = connection.followSessions()
+    await settle()
+    lists[0]?.handlers.handleFrame({ type: 'snapshot', id: 'l1', rows })
+    lists[0]?.handlers.handleFrame({ type: 'error', id: 'l1', code: EStreamErrorCode.Internal })
+    expect(lists[0]?.closed).toBe(true)
+    expect(connection.state()).toBe(EStreamConnectionState.Connecting)
+    expect(lists).toHaveLength(1)
+
+    clock.advance(BACKOFF_MS)
+    await settle()
+    expect(lists).toHaveLength(2)
+
+    const fresh = [{ sessionId: 's9', title: 'nine' }] as never
+    lists[1]?.handlers.handleFrame({ type: 'snapshot', id: 'l2', rows: fresh })
+    expect(list.getSnapshot()).toEqual(fresh)
+
+    lists[1]?.handlers.handleFrame({ type: 'error', id: 'l2', code: EStreamErrorCode.Internal })
+    clock.advance(BACKOFF_MS)
+    await settle()
+    expect(lists).toHaveLength(3)
+  })
+
+  it('keeps the socket open when a list error frame is followed by the stream ending', async () => {
+    const { connection, clock, lists } = setup()
+    connection.followSessions()
+    await settle()
+    lists[0]?.handlers.handleFrame({ type: 'error', id: 'l1', code: EStreamErrorCode.Internal })
+    lists[0]?.handlers.handleEnd()
+    lists[0]?.handlers.handleFailure(500)
+    expect(connection.state()).toBe(EStreamConnectionState.Connecting)
+    expect(clock.pendingCount()).toBe(1)
+
+    clock.advance(BACKOFF_MS)
+    await settle()
+    expect(lists).toHaveLength(2)
+  })
+
+  it('backs off between repeated list error frames', async () => {
+    const { connection, clock, lists } = setup()
+    connection.followSessions()
+    await settle()
+    const failList = (index: number): void => {
+      lists[index]?.handlers.handleFrame({
+        type: 'error',
+        id: 'l1',
+        code: EStreamErrorCode.Internal,
+      })
+    }
+    failList(0)
+    clock.advance(BACKOFF_MS)
+    await settle()
+    expect(lists).toHaveLength(2)
+
+    failList(1)
+    clock.advance(BACKOFF_MS)
+    await settle()
+    expect(lists).toHaveLength(2)
+
+    clock.advance(BACKOFF_MS)
+    await settle()
+    expect(lists).toHaveLength(3)
   })
 
   it('keeps retrying through repeated failures', async () => {

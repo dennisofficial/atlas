@@ -245,13 +245,17 @@ describe('status from the pending fold', () => {
     })
   })
 
-  it('reports queued over a running turn and gives the turn its status back once drained', () => {
+  it('reports the running turn, not queued, while a message waits', () => {
     const running: V2Body[] = [
       turnStarted,
       { type: 'tool-dispatched', callId: toCallId('call-1'), name: 'bash' },
     ]
     const queued = log([...running, posted({ inboxId: 1, postedAt: EARLIER })])
-    expect(status({ events: queued })).toEqual({ state: ESessionStatus.Queued, since: EARLIER })
+    expect(status({ events: queued })).toEqual({
+      state: ESessionStatus.RunningTool,
+      reason: 'bash',
+      since: NOW,
+    })
     expect(
       status({ events: log([...running, posted({ inboxId: 1 }), said({ inboxId: 1 })]) }),
     ).toEqual({ state: ESessionStatus.Thinking, since: NOW })
