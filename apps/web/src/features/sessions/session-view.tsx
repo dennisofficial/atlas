@@ -21,6 +21,7 @@ import { track } from '@/lib/analytics/analytics'
 import { sessionOpenedProps } from '@/lib/analytics/perf'
 
 import { attachmentsOf } from '@dltech/atlas-core'
+import { readingClasses } from '@dltech/atlas-ui/tokens'
 
 import { useSessionAgentWiring } from './data/use-session-agent-wiring'
 import { sessionsApi } from './data/sessions-api'
@@ -334,7 +335,9 @@ export function SessionView({ sessionId }: { sessionId: string }) {
                   onLoadOlder={loadOlder}
                 />
               </div>
-              <div className="mx-auto flex w-full max-w-4xl shrink-0 flex-col gap-2 px-4 pb-[max(1rem,var(--safe-area-bottom))]">
+              <div
+                className={`mx-auto flex w-full ${readingClasses.measure} shrink-0 flex-col gap-2 px-4 pb-[max(1rem,var(--safe-area-bottom))]`}
+              >
                 <OperatorRequestDock sessionId={sessionId} request={operatorRequest} />
                 <RepairStrip strip={repair.strip} />
                 {snapshot.skipped > 0 ? (
