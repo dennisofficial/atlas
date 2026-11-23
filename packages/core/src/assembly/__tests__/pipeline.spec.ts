@@ -40,6 +40,7 @@ describe('defaultRules', () => {
     expect(trace.map((step) => step.name)).toEqual([
       'systemPrompt',
       'messagesFromEvents',
+      'rotatedHandoff',
       'agentEndingsBlock',
       'noticeOrder',
       'compactedHistory',
@@ -120,6 +121,7 @@ describe('defaultPipeline', () => {
     expect(trace.map((step) => step.name)).toEqual([
       'systemPrompt',
       'messagesFromEvents',
+      'rotatedHandoff',
       'agentEndingsBlock',
       'noticeOrder',
       'compactedHistory',

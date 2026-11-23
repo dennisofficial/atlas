@@ -11,7 +11,7 @@ import type { EKilledBy, EShellEndCause } from '../shells/status'
 import type { EFinishReason, ModelUsage } from '../stream/chunk'
 import type { ETldrStatus } from '../tldr/status'
 import type { ESetupPhase } from '../workspace/setup-notice'
-import type { CallId, ThreadId } from './ids'
+import type { CallId } from './ids'
 import type { NoticeStamp } from './notice-stage'
 import type { RunFailure } from './run-failure'
 import type { AgentEventBody } from './agent-body'
@@ -229,9 +229,9 @@ export type EventBody =
     }
   | {
       type: 'rotated'
-      predecessor: ThreadId
-      handoffPath: string
+      handoff: string
       instructions?: string | undefined
+      auto?: { percent: number } | undefined
     }
   | {
       type: 'parked'
