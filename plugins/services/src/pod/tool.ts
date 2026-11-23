@@ -17,6 +17,7 @@ import { EServiceAction, type ServiceInput, serviceInputSchema } from './schema'
 import { startService } from './start'
 import type { ServicePodState } from './state'
 import { stopServiceAction } from './stop'
+import { placeOf } from './tool-place'
 
 export class ServiceTool extends SchemaTool<typeof serviceInputSchema> {
   readonly name = 'service'
@@ -45,15 +46,18 @@ export class ServiceTool extends SchemaTool<typeof serviceInputSchema> {
     input,
     signal,
     projectDirectory,
+    activeWorktree,
   }: ToolRun<typeof serviceInputSchema>): Promise<ToolOutcome> {
+    const place = placeOf({ projectDirectory, activeWorktree })
+    const common = { ctx: this.ctx, state: this.state, input, signal }
     if (input.action === EServiceAction.Start) {
-      return startService({ ctx: this.ctx, state: this.state, input, projectDirectory, signal })
+      return startService({ ...common, projectDirectory, place })
     }
     if (input.action === EServiceAction.Stop) {
-      return stopServiceAction({ ctx: this.ctx, state: this.state, input, signal })
+      return stopServiceAction({ ...common, place })
     }
     if (input.action === EServiceAction.Restart) {
-      return restartService({ ctx: this.ctx, state: this.state, input, projectDirectory, signal })
+      return restartService({ ...common, place })
     }
     return listServiceRows({ ctx: this.ctx, input, projectDirectory, signal })
   }

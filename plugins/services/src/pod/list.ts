@@ -1,7 +1,7 @@
 import { EServiceStatus, type ToolOutcome } from '@dltech/atlas-core'
 import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 
-import { servicesOfEvents } from '../core'
+import { serviceLabelOf, servicesOfEvents } from '../core'
 import { listServices } from './daemon'
 import { readDeclared } from './declared-file'
 import { renderListLine } from './render'
@@ -18,21 +18,24 @@ export const listServiceRows = async (args: {
   const listed = await listServices({ ctx, signal: args.signal })
   if (!listed.ok) return { ok: false, reason: listed.reason }
   const roster = servicesOfEvents(ctx.events())
-  const declared = await readDeclared({
-    ctx,
-    projectDirectory: args.projectDirectory,
-    signal: args.signal,
-  })
-  const hashes = declared.ok ? declared.value.hashes : new Map<string, string>()
+  const roots = new Set(roster.flatMap((row) => (row.root === undefined ? [] : [row.root])))
+  roots.add(args.projectDirectory)
+  const hashesByRoot = new Map<string, ReadonlyMap<string, string>>()
+  for (const root of roots) {
+    const declared = await readDeclared({ ctx, projectDirectory: root, signal: args.signal })
+    if (declared.ok) hashesByRoot.set(root, declared.value.hashes)
+  }
   const rows = listed.value
     .map((info) => {
       const kept = roster.find((row) => row.serviceId === info.serviceId)
       const running = outcomeOf({ info, stoppedByModel: false }).status === EServiceStatus.Running
-      const hash = kept?.name === undefined ? undefined : hashes.get(kept.name)
+      const hashes = hashesByRoot.get(kept?.root ?? args.projectDirectory)
+      const hash = kept?.name === undefined ? undefined : hashes?.get(kept.name)
       return {
         serviceId: info.serviceId,
         command: info.command,
-        description: kept?.name,
+        description: kept === undefined ? undefined : serviceLabelOf(kept),
+        ...(kept?.root === undefined ? {} : { root: kept.root }),
         status: info.status,
         exitCode: info.exitCode,
         port: info.port,
