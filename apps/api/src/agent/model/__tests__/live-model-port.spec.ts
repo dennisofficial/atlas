@@ -173,6 +173,40 @@ describe('LiveModelPort', () => {
     expect(failures[0]).toBeInstanceOf(Error)
   })
 
+  it('keeps the current port and reports a read that passes the timeout', async () => {
+    const builds: string[] = []
+    const timeouts: number[] = []
+    const port = new LiveModelPort({
+      initial: resolvedOf(configured({ accountId: 'acct-1' })),
+      read: () => new Promise<ResolvedRoleModel>(() => undefined),
+      build: (next) => innerFor({ config: next.config, answer: labelOf(next.config), builds }),
+      onReadTimeout: ({ timeoutMs }) => timeouts.push(timeoutMs),
+      readTimeoutMs: 20,
+    })
+    const started = Date.now()
+    expect(textOf(await port.step(stepArgs))).toBe('acct-1')
+    expect(Date.now() - started).toBeLessThan(500)
+    expect(builds).toEqual(['acct-1'])
+    expect(timeouts).toEqual([20])
+  })
+
+  it('applies a switch read inside the timeout', async () => {
+    const builds: string[] = []
+    const timeouts: number[] = []
+    const port = new LiveModelPort({
+      initial: resolvedOf(configured({ accountId: 'acct-1' })),
+      read: async () => {
+        await new Promise((resolve) => setTimeout(resolve, 5))
+        return resolvedOf(configured({ accountId: 'acct-2' }))
+      },
+      build: (next) => innerFor({ config: next.config, answer: labelOf(next.config), builds }),
+      onReadTimeout: ({ timeoutMs }) => timeouts.push(timeoutMs),
+      readTimeoutMs: 200,
+    })
+    expect(textOf(await port.step(stepArgs))).toBe('acct-2')
+    expect(timeouts).toEqual([])
+  })
+
   it('reports a failed read even without a failure handler', async () => {
     const port = new LiveModelPort({
       initial: resolvedOf(configured()),
