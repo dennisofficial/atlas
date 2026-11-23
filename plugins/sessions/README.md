@@ -88,7 +88,7 @@ definePlugin({
 - A pod with no sessions port refuses `spawn_session` and `spawn_teammate`. `send_message`
   returns a refusal when it reaches no agent or session.
 - A spawn carries at most 32 files, 256 KB each and 1 MB in all. `files` names files under the
-  caller's `$ATLAS_CONTEXT_DIR` only: an absolute path, a `..` segment or `.git` is refused.
+  caller's `$ATLAS_CONTEXT_DIR`, by relative name; a symlink is followed and its content is sent.
 - Use `spawn_teammate` for a workstream this session owns. Use `spawn_session` only for work that
   belongs to the operator.
 - `send_message` is never deferred. It refuses an id that names no agent or session of the

@@ -7,7 +7,7 @@ import { useNowEvery } from '@/features/threads/data/use-now'
 import { useOptionalThreadPanel } from '@/features/threads/panel/thread-panel-context'
 
 import { useSessionPaneValue } from '../pane-value'
-import { Dot, FoldedRows, Row, SectionHead } from './rows'
+import { Dot, EmptyLine, FoldedRows, Row, SectionHead } from './rows'
 
 const CREW_TONE: Record<EAgentStatus, string> = {
   [EAgentStatus.Running]: 'bg-success',
@@ -25,7 +25,13 @@ export function SessionCrewSection() {
   const { view } = useSessionPaneValue()
   const openAgent = useOptionalThreadPanel()?.openAgent
   const now = useNowEvery({ enabled: view.crewRows.length > 0, tickMs: TICK_MS })
-  if (view.crew.total === 0) return null
+  if (view.crew.total === 0)
+    return (
+      <section data-session-crew aria-label="Sub-agents" className="flex flex-col">
+        <SectionHead title="Sub-agents" />
+        <EmptyLine>No sub-agents yet</EmptyLine>
+      </section>
+    )
   return (
     <section data-session-crew aria-label="Sub-agents" className="flex flex-col">
       <SectionHead title="Sub-agents" count={view.crew.total} />

@@ -17,27 +17,6 @@ const contextDirectoryOf = async (ctx: PluginPodContext): Promise<string> => {
   return directory
 }
 
-const linkAt = async (args: { ctx: PluginPodContext; path: string }): Promise<string | null> => {
-  const result = await args.ctx.call({ op: 'readLink', path: args.path })
-  if (result.status !== ECallStatus.Ok || result.op !== 'readLink') return null
-  return result.value
-}
-
-const linkRefusalOf = async (args: {
-  ctx: PluginPodContext
-  directory: string
-  relativePath: string
-}): Promise<string | null> => {
-  let current = args.directory.replace(/\/+$/, '')
-  for (const segment of args.relativePath.split('/')) {
-    current = `${current}/${segment}`
-    if ((await linkAt({ ctx: args.ctx, path: current })) !== null) {
-      return `${args.relativePath} goes through ${current}, which is a link, so Atlas does not read outside the context folder`
-    }
-  }
-  return null
-}
-
 const textRefusalOf = (file: { relativePath: string; text: string | null }): string | null => {
   if (file.text === null) return `${file.relativePath} is not UTF-8 text; attach a text file`
   if (file.text.includes('\u0000')) {
@@ -56,12 +35,6 @@ const fileOf = async (args: {
     relativePath: args.relativePath,
   })
   if (!resolved.ok) throw new Error(resolved.reason)
-  const link = await linkRefusalOf({
-    ctx: args.ctx,
-    directory: args.directory,
-    relativePath: args.relativePath,
-  })
-  if (link !== null) throw new Error(link)
   const stat = await args.ctx.call({ op: 'stat', path: resolved.path })
   if (stat.status !== ECallStatus.Ok) {
     throw new Error(`could not read ${args.relativePath}: ${stat.error.message}`)

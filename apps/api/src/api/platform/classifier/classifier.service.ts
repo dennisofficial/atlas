@@ -4,8 +4,7 @@ import { db } from '@dltech/atlas-db'
 import { Inject, Injectable } from '@nestjs/common'
 
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import { classifierConfigOf } from '../../../agent/config/classifier-config'
-import { scopedSettingsOf } from '../../../agent/config/scoped-settings'
+import { classifierConfigOf, scopedSettingsOf } from '../../../agent'
 
 export const CLASSIFIER_FETCH = Symbol('CLASSIFIER_FETCH')
 

@@ -13,7 +13,7 @@ import { messageOf } from '@/features/threads/data/use-send'
 import { sessionsApi } from '../../data/sessions-api'
 import type { SubscriptionRow } from '../../data/subscription-rows'
 import { useSessionPaneValue } from '../pane-value'
-import { Row, SectionHead } from './rows'
+import { EmptyLine, Row, SectionHead } from './rows'
 import {
   iconNameOf,
   SUBSCRIPTION_TONE_CLASS,
@@ -92,7 +92,13 @@ export function SessionSubscriptionsSection({ run = runThroughApi }: { run?: Uns
   }, [removing, rows])
 
   const shown = rows.filter((row) => !removing.has(row.id))
-  if (shown.length === 0) return null
+  if (shown.length === 0)
+    return (
+      <section data-session-subscriptions aria-label="Subscriptions" className="flex flex-col">
+        <SectionHead title="Subscriptions" />
+        <EmptyLine>No subscriptions</EmptyLine>
+      </section>
+    )
   const visible = expanded ? shown : shown.slice(0, VISIBLE_ROWS)
   const handleToggle = () => setExpanded((held) => !held)
   const restore = (subscriptionId: string) =>

@@ -13,8 +13,7 @@ import {
   type FilesSearchOutput,
   type FilesTreeOutput,
 } from '@dltech/atlas-protocol'
-import { POD_OPS, type PodOps } from '../../../agent'
-import { contextDirOf } from '../../../agent/runtime/session-paths'
+import { contextDirOf, POD_OPS, type PodOps } from '../../../agent'
 import { changedPathsIn, checkoutIn, latestPerWorktree, resolveInside } from './files-checkout'
 import { PodParkedError } from './pod-parked.error'
 import { SessionsService } from './sessions.service'

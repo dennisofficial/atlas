@@ -26,6 +26,8 @@ import { RoutinesRouter } from './routines.router'
 import { RoutinesService } from './routines.service'
 import { FilesRouter } from './files.router'
 import { FilesService } from './files.service'
+import { ServicesRouter } from './services.router'
+import { ServicesService } from './services.service'
 import { SessionsRouter } from './sessions.router'
 import { TerminalRouter } from './terminal.router'
 import { TerminalService } from './terminal.service'
@@ -70,6 +72,8 @@ export const controlPlaneProvider: Provider = {
     SessionsRouter,
     FilesService,
     FilesRouter,
+    ServicesService,
+    ServicesRouter,
     ChangesService,
     MediaService,
     MediaRouter,

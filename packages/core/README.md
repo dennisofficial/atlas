@@ -91,13 +91,14 @@ assembly, settings, ports, and the record folds. It imports `zod` and nothing el
 - `Lease`, `startVerdict({...})`, `claimGrant({...})`, `revoke({...})`: the lease rules.
 - `consume({entry, seq})`, `takeBack(entry)`, `InboxEntry`: the inbox rules.
 - `decideHeldAction({...})`, `HeldOutcome`, `EExecutionLocation`: the host's next action.
+- `credentialRepairOf({mainThreadId, events})`, `repairActionsOf({...})`, `ERepairAction`: the
+  credential repair a session shows, and what it offers.
 
 ### Name a file a spawn attaches
 
 - `SpawnFile`: one file a spawn hands to the child, `{path, text}`.
 - `contextFilePathOf({directory, relativePath})`: resolve a name under the context folder, or the
-  reason to refuse it (absolute, `~`, `$`, `\`, `.`, `..`, empty segment, `.git`, over 200
-  characters).
+  reason to refuse it (absolute, `.`, `..`, empty segment, over 200 characters).
 - `spawnFilesRefusalOf(files)`: the reason a payload is unusable, or `null`. Text only: a NUL byte
   is refused.
 - `SPAWN_FILES_MAX_COUNT` (32), `SPAWN_FILE_MAX_BYTES` (256 KB), `SPAWN_FILES_MAX_BYTES` (1 MB),
