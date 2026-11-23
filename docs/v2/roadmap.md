@@ -36,9 +36,11 @@ _Updated at the end of every slice. Last update: 2026-11-23._
 - **Done 2026-11-23: skill suggestion** ([spec](slices/skill-suggestion.md), deviations in its header).
   A `beforeTurn` hook in `plugins/skills` reads the last three operator messages with the agent's
   replies from the log, shortlists at most twelve skills by word overlap and asks the classifier one
-  yes/no per skill plus a gate (0.7 gate, 0.75 fit, 0.15 margin). A winner is one
-  `skill: <name> — <score>` block. Off when the classifier is off or `skills.suggest` is false.
-  Live check waits for the Classifier settings page (classifier slice 3).
+  yes/no per skill (0.75 fit, 0.15 margin). A winner is one `skill: <name> — <score>` block. Off
+  when the classifier is off or `skills.suggest` is false. Live check on production 2026-11-23
+  (#2611 fixed a hook that ran before the inbox drained; the gate question was dropped because it
+  rejected correct picks): 7 of 11 real messages got the right skill, 4 stayed quiet, calls took
+  121–229 ms. Scores are in the spec.
 - **Specs approved 2026-11-23: v1 parity.** Before v1 is deleted, v2 gets these features, each with its own spec:
   [slash commands](slices/slash-commands.md), [notifications](slices/notifications.md) (in-app, Web Push,
   iOS and Mac native behind one package), the [classifier role](slices/classifier.md) (new credentials and
