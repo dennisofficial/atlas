@@ -53,14 +53,14 @@ const EXTENSIONS: Readonly<Record<SupportedImageMediaType, string>> = {
 const inputSchema = z.strictObject({
   prompt: z.string().min(1),
   images: z.array(z.string().min(1)).max(MAX_IMAGES).optional(),
-  model: z.string().min(1).default(DEFAULT_MODEL),
+  model: z.string().min(1).optional(),
 })
 
 const description = [
   'Generate one image from a prompt, or edit the images it is given, through the Vercel AI Gateway.',
   'images are sandbox paths of pictures to edit, such as /atlas/home/uploads/photo.png; leave them out to draw from the prompt alone.',
   'One image comes back per call, written under this session and returned inline with its dimensions and weight. Run several calls in parallel to compare models or to get variants.',
-  `The default model is ${DEFAULT_MODEL}, which is fast and cheap. Other gateway ids: microsoft/mai-image-2.7 for full source resolution, spacexai/grok-imagine-image-2.0 for a different look.`,
+  `Leave model out to use the operator's chosen image model, ${DEFAULT_MODEL} unless they changed it in Settings. Other ZDR models: microsoft/mai-image-2.7 for full source resolution, spacexai/grok-imagine-image-2.0 for a different look.`,
   'If the gateway enforces Zero Data Retention, a model without it is refused, and the refusal lists the models to use instead.',
   'The image model sees only the prompt and the images, never this conversation, so write the prompt out in full even when the request was two words.',
   'Before an edit, read the source image so the prompt can name what is in it.',
@@ -147,6 +147,8 @@ export class ImageGenerateTool extends SchemaTool<typeof inputSchema> {
     const apiKey = await this.ctx.control.gateway.apiKey()
     if (apiKey === undefined) return { ok: false, reason: NO_ACCOUNT }
 
+    const model = input.model ?? (await this.ctx.control.gateway.imageModel()) ?? DEFAULT_MODEL
+
     const sessionDir = (await this.ctx.env?.())?.[ATLAS_SESSION_DIR_ENV]
     if (sessionDir === undefined || sessionDir === '') {
       return { ok: false, reason: 'this session has no directory to write a generated image into' }
@@ -157,7 +159,7 @@ export class ImageGenerateTool extends SchemaTool<typeof inputSchema> {
 
     const generated = await this.generate({
       apiKey,
-      model: input.model,
+      model,
       prompt: input.prompt,
       images: sources.images,
       signal,
@@ -170,7 +172,7 @@ export class ImageGenerateTool extends SchemaTool<typeof inputSchema> {
       const models = await this.zdrModels(signal)
       return {
         ok: false,
-        reason: `${input.model} cannot run under this gateway's Zero Data Retention policy. Call image_generate again with a model that supports ZDR: ${models.join(', ')}. Gateway said: ${generated.reason}`,
+        reason: `${model} cannot run under this gateway's Zero Data Retention policy. Call image_generate again with a model that supports ZDR: ${models.join(', ')}. Gateway said: ${generated.reason}`,
       }
     }
 
@@ -178,19 +180,19 @@ export class ImageGenerateTool extends SchemaTool<typeof inputSchema> {
     if (mediaType === null) {
       return {
         ok: false,
-        reason: `${input.model} answered with ${generated.mediaType}, which image_generate cannot show`,
+        reason: `${model} answered with ${generated.mediaType}, which image_generate cannot show`,
       }
     }
 
     const directory = join(sessionDir, GENERATED_DIRECTORY)
-    const path = join(directory, fileNameOf({ model: input.model, mediaType, at: this.now() }))
+    const path = join(directory, fileNameOf({ model, mediaType, at: this.now() }))
     const refused = await this.save({ directory, path, bytes: generated.bytes, signal })
     if (refused !== undefined) return { ok: false, reason: refused }
 
     const byteLength = generated.bytes.byteLength
     const size = imageSize({ bytes: generated.bytes, mediaType })
     const plan = planInlineDelivery({ byteLength, width: size?.width, height: size?.height })
-    const summary = `Generated ${path} with ${input.model} — ${mediaType}, ${dimensions(size)}, ${humanBytes(byteLength)}.`
+    const summary = `Generated ${path} with ${model} — ${mediaType}, ${dimensions(size)}, ${humanBytes(byteLength)}.`
     const output = {
       path,
       mediaType,
@@ -198,7 +200,7 @@ export class ImageGenerateTool extends SchemaTool<typeof inputSchema> {
       width: size?.width,
       height: size?.height,
       inlined: plan.delivery !== EImageDelivery.PathOnly,
-      model: input.model,
+      model,
     }
 
     if (plan.delivery === EImageDelivery.PathOnly) {

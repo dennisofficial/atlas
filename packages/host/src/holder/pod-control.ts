@@ -36,6 +36,7 @@ export type PodControlClient = {
   }
   gateway: {
     apiKey(args: Called): Promise<string | undefined>
+    imageModel(args: Called): Promise<string | undefined>
   }
   settingsVersions(args: Called): Promise<Readonly<Record<ECloudSetting, string>>>
   memory: {
@@ -161,6 +162,10 @@ export const podControlOf = (args: {
     apiKey: async () => {
       if (args.client === undefined) throw unreachable()
       return await args.client.gateway.apiKey({ threadId: args.threadId })
+    },
+    imageModel: async () => {
+      if (args.client === undefined) throw unreachable()
+      return await args.client.gateway.imageModel({ threadId: args.threadId })
     },
   },
   memory: {
