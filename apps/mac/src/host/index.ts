@@ -17,6 +17,7 @@ import { isProxyPath, proxyToApp, proxyToApi } from './proxy'
 import type { IPodHostConfig } from './pods/config'
 import { defaultDesktopHome } from './pods/config'
 import { createPodsHandler } from './pods/routes'
+import { startOnStablePort } from './stable-port'
 import type { IDesktopUpdatesPort } from './update-routes'
 import type { IDesktopWindowPort } from './window-routes'
 
@@ -35,6 +36,7 @@ export interface ICreateDesktopHostOptions {
   pane?: IPanePort | undefined
   macMcp?: (emit: (frame: MacClientFrame) => void) => MacFrameSink
   port?: number
+  stablePortHome?: string
 }
 
 export interface IDesktopHost {
@@ -47,6 +49,7 @@ export function createDesktopHost({
   appOrigin,
   apiOrigin,
   port,
+  stablePortHome,
   secret,
   pods,
   auth,
@@ -115,39 +118,44 @@ export function createDesktopHost({
     apns: apns.handler,
   })
 
-  const server = Bun.serve({
-    hostname: '127.0.0.1',
-    port: port ?? 0,
-    idleTimeout: 0,
-    async fetch(request) {
-      const url = new URL(request.url)
-      const { pathname } = url
-      if (pathname === CALLBACK_PATH && request.method === 'GET') {
-        if (request.headers.get('host') !== `127.0.0.1:${server.port}`) {
-          return new Response('Forbidden', { status: 403 })
+  const serveOn = (bindPort: number) =>
+    Bun.serve({
+      hostname: '127.0.0.1',
+      port: bindPort,
+      idleTimeout: 0,
+      async fetch(request) {
+        const url = new URL(request.url)
+        const { pathname } = url
+        if (pathname === CALLBACK_PATH && request.method === 'GET') {
+          if (request.headers.get('host') !== `127.0.0.1:${server.port}`) {
+            return new Response('Forbidden', { status: 403 })
+          }
+          return callbackResponse(await authService.callback(url))
         }
-        return callbackResponse(await authService.callback(url))
-      }
-      if (pathname === '/desktop/session') return startSession({ url, secret })
-      if (pathname === '/desktop' || pathname.startsWith('/desktop/')) {
-        if (!isAuthorized({ request, secret, port: server.port as number })) {
-          return new Response('Forbidden', { status: 403 })
+        if (pathname === '/desktop/session') return startSession({ url, secret })
+        if (pathname === '/desktop' || pathname.startsWith('/desktop/')) {
+          if (!isAuthorized({ request, secret, port: server.port as number })) {
+            return new Response('Forbidden', { status: 403 })
+          }
+          return desktopRouter(request, pathname)
         }
-        return desktopRouter(request, pathname)
-      }
-      if (isProxyPath(pathname))
-        return proxyToApi({
-          request,
-          apiOrigin: origin,
-          bearer,
-          onSignIn: authService.adopt,
-        })
-      if (request.method === 'GET' && request.headers.get('sec-fetch-dest') === 'document') {
-        previewViews?.clear()
-      }
-      return proxyToApp({ request, appOrigin: appOriginOf() })
-    },
-  })
+        if (isProxyPath(pathname))
+          return proxyToApi({
+            request,
+            apiOrigin: origin,
+            bearer,
+            onSignIn: authService.adopt,
+          })
+        if (request.method === 'GET' && request.headers.get('sec-fetch-dest') === 'document') {
+          previewViews?.clear()
+        }
+        return proxyToApp({ request, appOrigin: appOriginOf() })
+      },
+    })
+  const server =
+    stablePortHome === undefined
+      ? serveOn(port ?? 0)
+      : startOnStablePort({ home: stablePortHome, start: serveOn })
 
   const boundPort = server.port as number
   return {

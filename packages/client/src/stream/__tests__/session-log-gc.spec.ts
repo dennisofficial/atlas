@@ -5,16 +5,25 @@ import { memorySessionLog } from '../session-log'
 import { gcSessionLog, sessionLogDeletionsOf } from '../session-log-gc'
 
 describe('session log garbage collection', () => {
-  it('deletes archived sessions and sessions missing from the live list', () => {
+  it('deletes archived sessions only', () => {
     expect(
       sessionLogDeletionsOf({
-        cached: ['live', 'archived', 'gone'],
+        cached: ['live', 'archived'],
         sessions: [
           { sessionId: 'live', archived: false },
           { sessionId: 'archived', archived: true },
         ],
       }),
-    ).toEqual(['archived', 'gone'])
+    ).toEqual(['archived'])
+  })
+
+  it('keeps sessions that fall outside the limited session list', () => {
+    expect(
+      sessionLogDeletionsOf({
+        cached: ['newest', 'older-than-the-list-limit'],
+        sessions: [{ sessionId: 'newest', archived: false }],
+      }),
+    ).toEqual([])
   })
 
   it('keeps every cached session that is still live', () => {

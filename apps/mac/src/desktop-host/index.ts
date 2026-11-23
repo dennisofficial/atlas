@@ -32,6 +32,7 @@ const login = createLoginShellPath({ spawn: Bun.spawn })
 let runner: MacMcpRunner | undefined
 const host = createDesktopHost({
   appOrigin: nextServer.origin,
+  stablePortHome: defaultDesktopHome(),
   secret,
   app: { version: process.env.ATLAS_VERSION ?? '0.0.0', channel: 'stable', chromium: false },
   auth: { home: defaultDesktopHome(), openExternal: () => true },

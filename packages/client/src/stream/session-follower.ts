@@ -10,17 +10,14 @@ import {
   retryDeadlineMsOf,
   type FrameFacts,
 } from './derived-session-view'
-import {
-  ESessionConnection,
-  type FollowedState,
-  snapshotOf,
-  type SessionSnapshot,
-} from './follower-state'
-import { acceptsView, settlesSetup, viewSettlesCatchUp } from './follower-views'
+import { hydrateFollower } from './follower-hydrate'
+import { createFollowerRender } from './follower-render'
+import { ESessionConnection, type FollowedState, type SessionSnapshot } from './follower-state'
+import { acceptsView, adoptRewindable, settlesSetup, viewSettlesCatchUp } from './follower-views'
+import { createFollowerLogWriter } from './follower-writer'
 import { applyOverlayMessage, closeOverlayForEvents, EMPTY_OVERLAY_STATE } from './overlay-store'
-import { olderVisibleOf, restoredWindowOf } from './session-log-restore'
+import { olderVisibleOf } from './session-log-restore'
 import type { SessionLog } from './session-log'
-import { createSessionLogWriter } from './session-log-writer'
 import { applyShellOutput, withoutEndedShells } from './shell-tails'
 import {
   applyPageOutcome,
@@ -29,16 +26,13 @@ import {
   RENDER_LIMIT,
   resetWindow,
   type SessionCursor,
-  type SessionWindow,
 } from './session-window'
 import { defaultKnownEventTypes } from './known-event-types'
 import type { StreamScheduler } from './stream-ports'
 
-const SAVE_INTERVAL_MS = 1_000
+export { HYDRATE_TIMEOUT_MS } from './follower-hydrate'
 
 const SETUP_OUTPUT_TAIL_CHARS = 16_000
-
-export const HYDRATE_TIMEOUT_MS = 2_000
 
 export { ESessionConnection, type SessionSnapshot }
 
@@ -67,26 +61,6 @@ export type SessionFollowerArgs = {
 
 type Inner = FollowedState
 
-const adoptRewindable = (args: {
-  window: SessionWindow
-  views: readonly PluginViewFold[]
-  pluginViews: Readonly<Record<string, unknown>>
-}): SessionWindow => {
-  const owned = args.views.filter(
-    (view) => view.rewindable === true && Object.hasOwn(args.pluginViews, view.name),
-  )
-  const changed = owned.some(
-    (view) => args.window.view.pluginViews[view.name] !== args.pluginViews[view.name],
-  )
-  if (!changed) return args.window
-  const pluginViews = { ...args.window.view.pluginViews }
-  for (const view of owned) {
-    if (Object.hasOwn(args.pluginViews, view.name))
-      pluginViews[view.name] = args.pluginViews[view.name]
-  }
-  return { ...args.window, view: { ...args.window.view, pluginViews } }
-}
-
 export const createSessionFollower = (args: SessionFollowerArgs): SessionFollower => {
   const { sessionId, log, scheduler } = args
   const knownEventTypes = args.knownEventTypes ?? defaultKnownEventTypes
@@ -106,22 +80,32 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
     writerAhead: false,
     fromCache: false,
   }
-  let snapshot = snapshotOf(inner)
-  const listeners = new Set<() => void>()
-  let lastSavedAt: number | undefined
-  let saveTimer: unknown
+  const render = createFollowerRender({ scheduler, innerOf: () => inner })
+  const writer = createFollowerLogWriter({
+    log,
+    sessionId,
+    scheduler,
+    windowOf: () => inner.window,
+  })
   let olderInFlight: Promise<number> | undefined
   let retryTimer: unknown
-  const writer = createSessionLogWriter({ log, sessionId })
 
-  const commit = (next: Inner): void => {
+  const apply = (next: Inner): void => {
     inner = {
       ...next,
       derived: derivedViewOf({ window: next.window, frame: next.frame, now: scheduler.now() }),
     }
-    snapshot = snapshotOf(inner)
     scheduleRetryWake()
-    for (const listener of [...listeners]) listener()
+  }
+
+  const commit = (next: Inner): void => {
+    apply(next)
+    render.flush()
+  }
+
+  const deferCommit = (next: Inner): void => {
+    apply(next)
+    render.defer()
   }
 
   const scheduleRetryWake = (): void => {
@@ -136,22 +120,6 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
       retryTimer = undefined
       commit({ ...inner })
     }, due - now)
-  }
-
-  const save = (): void => {
-    saveTimer = undefined
-    lastSavedAt = scheduler.now()
-    writer.save(inner.window)
-  }
-
-  const saveThrottled = (): void => {
-    if (saveTimer !== undefined) return
-    const wait = lastSavedAt === undefined ? 0 : lastSavedAt + SAVE_INTERVAL_MS - scheduler.now()
-    if (wait <= 0) {
-      save()
-      return
-    }
-    saveTimer = scheduler.setTimeout(save, wait)
   }
 
   const handleEvents = (message: Extract<StreamServerMessage, { type: 'events' }>): void => {
@@ -169,7 +137,7 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
         `session ${sessionId}: skipped ${skipped} event(s) this client cannot read: ${issue ?? 'unreadable event'}`,
       )
     }
-    commit({
+    const next: Inner = {
       ...inner,
       window,
       overlay,
@@ -179,8 +147,10 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
       error: undefined,
       skipped: inner.skipped + skipped,
       fromCache: false,
-    })
-    saveThrottled()
+    }
+    if (message.live || inner.live) commit(next)
+    else deferCommit(next)
+    writer.saveThrottled()
   }
 
   const handleShellOutput = (
@@ -286,30 +256,21 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
     return run
   }
 
-  const hydrated = new Promise<void>((resolve) => {
-    let settled = false
-    const settle = (): boolean => {
-      if (settled) return false
-      settled = true
-      scheduler.clearTimeout(timer)
-      resolve()
-      return true
-    }
-    const timer = scheduler.setTimeout(settle, HYDRATE_TIMEOUT_MS)
-    restoredWindowOf({ log, sessionId, renderLimit, views: args.views })
-      .then((window) => {
-        if (!settle() || window === undefined || inner.window.cursor !== undefined) return
-        commit({ ...inner, window, fromCache: window.cursor !== undefined })
-      })
-      .catch(() => void settle())
+  const hydrated = hydrateFollower({
+    log,
+    sessionId,
+    renderLimit,
+    views: args.views,
+    scheduler,
+    restore: (window) => {
+      if (inner.window.cursor !== undefined) return
+      commit({ ...inner, window, fromCache: window.cursor !== undefined })
+    },
   })
 
   return {
-    getSnapshot: () => snapshot,
-    subscribe: (listener) => {
-      listeners.add(listener)
-      return () => void listeners.delete(listener)
-    },
+    getSnapshot: render.getSnapshot,
+    subscribe: render.subscribe,
     handleMessage,
     setConnection: (phase) => {
       if (phase === inner.phase) return
