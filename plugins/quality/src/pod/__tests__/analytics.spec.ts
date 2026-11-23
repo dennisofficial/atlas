@@ -167,7 +167,7 @@ describe('ignoredFindingProperties', () => {
     const events = eventsOf([turnStarted, notified(), said])
 
     expect(ignoredFindingProperties({ events, threadId: THREAD })).toEqual([
-      { policy_id: 'single-responsibility', steps_after_nudge: 1 },
+      { policy_id: 'single-responsibility', steps_after_nudge: 1, turns_after_nudge: 0 },
     ])
   })
 
@@ -325,7 +325,11 @@ describe('the ignored event through the after-turn hook', () => {
       },
       {
         event: 'quality finding ignored',
-        properties: { policy_id: 'single-responsibility', steps_after_nudge: 1 },
+        properties: {
+          policy_id: 'single-responsibility',
+          steps_after_nudge: 1,
+          turns_after_nudge: 0,
+        },
       },
     ])
   })

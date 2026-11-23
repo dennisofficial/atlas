@@ -13,6 +13,7 @@ import {
   qualityRecordsOf,
   stepsAfter,
   threadEventsOf,
+  turnsAfter,
 } from './timeline'
 
 const activeFindingsOf = (args: {
@@ -53,6 +54,7 @@ export const ignoredFindingProperties = (args: {
     properties.push({
       policy_id: finding.policyId,
       steps_after_nudge: stepsAfter({ events: thread, index }),
+      turns_after_nudge: turnsAfter({ events: thread, index }),
     })
   }
   return properties
