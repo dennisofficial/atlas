@@ -10,7 +10,7 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@ai-sdk/react": "^4.0.156",
+    "@ai-sdk/react": "^4.0.185",
     "@dltech/atlas-api-router": "workspace:*",
     "@dltech/atlas-classifier": "workspace:*",
     "@dltech/atlas-client": "workspace:*",
