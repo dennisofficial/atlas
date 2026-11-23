@@ -129,6 +129,13 @@ const ALLOWED: AllowedOverride[] = [
     reason:
       'the update card stacks its error line above the restart button and the card content has no stack gap of its own (#1671)',
   },
+  {
+    file: 'features/sessions/rotation-divider.tsx',
+    component: 'Collapsible',
+    token: 'gap-2',
+    reason:
+      'the collapsible root carries no layout of its own, so the rotation divider spaces its rule row above the handoff brief (#2645)',
+  },
   ...['Avatar', 'AvatarImage', 'AvatarFallback'].map((component) => ({
     file: 'features/projects/project-avatar.tsx',
     component,
