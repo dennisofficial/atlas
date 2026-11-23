@@ -23,6 +23,16 @@ Each slice is built in its own Atlas session and handed to a fresh session when 
 ## Current state
 
 _Updated at the end of every slice. Last update: 2026-11-23._
+- **Done 2026-11-23: /rotate** ([spec](slices/rotate.md); PRs #2607, #2644, #2645, #2650, #2668 and this
+  docs PR). `/rotate [instructions]` is a host command on every surface. One model call writes a handoff
+  brief, and the holder appends one `rotated` event to the same thread. The transcript keeps every row and
+  shows a divider with the brief. The model request starts at the latest rotation (`projectedEvents` in
+  `SessionRecord.read`). The context meter resets. A rotate is refused while a sub-agent runs. Auto-rotate
+  is `context.autoRotate` (default 85 %, 0 = off): the holder checks it when a turn ends and calls the same
+  `rotateNow`. It replaces the auto-compact row in web settings. A consumed rotate survives drain,
+  SIGKILL and a pod restart exactly once. Live-checked on production: every step passes. `/summarise`
+  after a rotation was fixed in #2668 and re-checked live: the summary starts after the boundary, and
+  the divider stays. A kill mid-rotation is proven by the fault scenario.
 - **Done 2026-11-23: slash commands** ([spec](slices/slash-commands.md); PRs #2577, #2580, #2585,
   #2586, #2587, #2590, #2594 and this docs PR). The host parses every message against one command registry
   and the pod's skill names, so a typed `/rename x` renames, `/summarise` summarises up to your last
