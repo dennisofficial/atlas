@@ -4,7 +4,7 @@ import type { ArchivedSandboxSweepDeps } from '../../api/cloud/sandbox-provision
 import { ScopedSandboxCredentialsService } from '../../api/cloud/sandbox-credentials/scoped-sandbox-credentials.service'
 import { buildScopedConfig } from '../../api/cloud/scoped-config/scoped-config.factory'
 import { VercelSandboxClient } from '../../api/platform/sandboxes/vercel-sandbox.client'
-import { workerEnvService } from '../github/github-sweep-graph'
+import { validatedEnvService } from '../../_core/config/env/validated-env'
 import { triggerLog } from '../trigger-logger'
 import { buildWorkerThreadSignals, type WorkerThreadSignals } from '../thread-signals-graph'
 
@@ -33,4 +33,4 @@ export function buildArchivedSandboxSweepGraph(args: {
 }
 
 export const workerArchivedSandboxSweepGraph = (): ArchivedSandboxSweepGraph =>
-  buildArchivedSandboxSweepGraph({ env: workerEnvService() })
+  buildArchivedSandboxSweepGraph({ env: validatedEnvService() })
