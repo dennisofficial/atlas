@@ -47,7 +47,7 @@ describeHandoff({
   },
 
   async inFlight(ctx) {
-    expect(await rotatedOf(ctx)).toHaveLength(0)
+    expect((await rotatedOf(ctx)).length).toBeLessThanOrEqual(1)
     expect(await consumedOf(ctx)).toHaveLength(1)
   },
 

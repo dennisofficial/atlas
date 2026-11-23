@@ -10,6 +10,7 @@ import {
   chainEvents,
   EAgentStart,
   EAgentStatus,
+  EInputConsumed,
   ESetupPhase,
   initialLoopState,
   toRunId,
@@ -21,7 +22,7 @@ import {
 import type { ControlPlane } from '@dltech/atlas-control'
 import { z } from 'zod'
 
-import { drainNeedsHolder } from '../held-needs-holder'
+import { drainNeedsHolder, outcomeCommandPending } from '../held-needs-holder'
 import type { HeldSessionDeps } from '../held-session-deps'
 import type { SessionRecord } from '../record/record-adapter'
 
@@ -124,6 +125,27 @@ describe('drainNeedsHolder with commands', () => {
       entry({ inboxId: 2, kind: 'message' }),
     ]
     expect(await needsHolder({ entries, knowsPing: true })).toBe(true)
+  })
+})
+
+describe('outcomeCommandPending, which a drain hands to the next holder', () => {
+  const consumedRotate = (): V2Body[] => [
+    {
+      type: 'input-posted',
+      inboxId: 9,
+      kind: 'command:rotate',
+      postedAt: '2026-11-12T03:00:00.000Z',
+    },
+    { type: 'input-consumed', inboxId: 9, consumed: EInputConsumed.Command },
+  ]
+
+  it('is pending while a consumed command owes its outcome', () => {
+    expect(outcomeCommandPending(eventsOf(consumedRotate()))).toBe(true)
+  })
+
+  it('is not pending once the outcome landed', () => {
+    const events = eventsOf([...consumedRotate(), { type: 'rotated', handoff: 'brief' }])
+    expect(outcomeCommandPending(events)).toBe(false)
   })
 })
 

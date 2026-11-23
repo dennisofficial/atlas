@@ -5,7 +5,11 @@ import {
   isResumableOf,
   repairHoldsResume,
   setupInFlightOf,
+  COMMAND_OUTCOMES,
+  runningCommandEntriesOf,
+  visibleEvents,
   workspaceStateFrom,
+  type V2Event,
 } from '@dltech/atlas-core'
 
 import {
@@ -20,6 +24,11 @@ import {
 import { childrenAtWorkOf, spawnedChildrenOf } from './crew/open-children'
 import type { HeldSessionDeps } from './held-session-deps'
 import type { SessionRecord } from './record/record-adapter'
+
+export const outcomeCommandPending = (events: readonly V2Event[]): boolean =>
+  runningCommandEntriesOf(visibleEvents(events)).some(
+    (entry) => COMMAND_OUTCOMES[entry.name] !== undefined,
+  )
 
 export const drainNeedsHolder = async (args: {
   deps: HeldSessionDeps
