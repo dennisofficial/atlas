@@ -28,6 +28,7 @@ const ctxWith = (config: WebSearchConfig): PluginPodContext => {
       memory: {} as never,
       mcp: EMPTY_MCP_CONTROL,
       webSearch: { config: async () => config },
+      gateway: { apiKey: async () => undefined },
       routines: EMPTY_ROUTINES,
       subscriptions: EMPTY_SUBSCRIPTIONS,
     },

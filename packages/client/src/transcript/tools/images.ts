@@ -75,7 +75,11 @@ export function imageSummary(args: { call: ToolCall; cwd: string }): string | nu
   return parts.filter((part): part is string => part !== null).join(SEPARATOR)
 }
 
-export function imageRead(args: { call: ToolCall; cwd: string }): Classification | null {
+export function imageRead(args: {
+  call: ToolCall
+  cwd: string
+  verb?: string | undefined
+}): Classification | null {
   const image = imageOf(args.call)
   if (image === null) return null
 
@@ -87,7 +91,7 @@ export function imageRead(args: { call: ToolCall; cwd: string }): Classification
     klass: EToolClass.Gathered,
     gather: EGather.Read,
     line: path,
-    alone: `Read ${path}`,
+    alone: `${args.verb ?? 'Read'} ${path}`,
     failed: false,
     note: measure,
     metric: null,

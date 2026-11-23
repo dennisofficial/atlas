@@ -13,7 +13,7 @@ const FORBIDDEN_TARGETS: Record<Layer, readonly Layer[]> = {
 }
 
 const ALLOWED_EXTERNAL =
-  /^(?:@dltech\/(?:atlas-(?:wire|db|core|control|protocol|schedule|media|memory|models|previews|commands|native-commands|artifacts|plugin-sdk|plugin-github|plugin-mcp|plugin-operator|plugin-services|plugin-shells|plugin-crew|plugin-sessions|agent|host|observability|plugin-memory|plugin-skills|plugin-web|plugin-routines|plugin-instructions|daemon|pods|jobs)|bun-test-shims)(?:\/|$))/
+  /^(?:@dltech\/(?:atlas-(?:wire|db|core|control|protocol|schedule|media|memory|models|previews|commands|native-commands|artifacts|plugin-sdk|plugin-github|plugin-mcp|plugin-operator|plugin-services|plugin-shells|plugin-crew|plugin-sessions|agent|host|observability|plugin-memory|plugin-skills|plugin-web|plugin-routines|plugin-instructions|plugin-images|daemon|pods|jobs|github|credentials|classifier|notifications|quality)|bun-test-shims)(?:\/|$))/
 
 const API_ROOT = import.meta.dirname
 const SRC_ROOT = path.dirname(API_ROOT)
