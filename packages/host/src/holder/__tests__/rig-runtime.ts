@@ -218,7 +218,6 @@ export const makeRuntimeFactory = (args: {
               writeFile: async ({ path, content }) => {
                 await writes.writeFile({ path, content })
               },
-              readLink: async ({ path }) => await writes.readLink({ path }),
             },
           })
           placedContextFiles.push([...files])
