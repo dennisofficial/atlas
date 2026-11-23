@@ -2,9 +2,7 @@ export {
   AgentHostCredentialPort,
   CredentialsUnavailableError,
 } from './config/agent-host-credential-port'
-export { classifierConfigOf } from './config/classifier-config'
 export { ConfigReader, SessionNotFoundError } from './config/config-reader'
-export { scopedSettingsOf } from './config/scoped-settings'
 export { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 export type { AgentHostConfig, ConfigSource } from './config/agent-host-config'
 export { AgentHostEnvError, readAgentHostEnv, type AgentHostEnv } from './config/env'
@@ -131,4 +129,6 @@ export {
 export { sandboxLiveCpuMs } from '@dltech/atlas-pods/sandbox/sandbox-live-cpu'
 export { sessionNamerOf, type SessionNamer } from './naming/session-namer'
 export { diagramRepairerOf, type DiagramRepairer } from './diagrams/diagram-repairer'
+export { classifierConfigOf } from './config/classifier-config'
+export { scopedSettingsOf } from './config/scoped-settings'
 export { contextDirOf } from './runtime/session-paths'
