@@ -23,9 +23,14 @@ const WAITING_STATUSES: readonly ESessionStatus[] = [
 const momentOfEnding = (args: {
   outcome: ETurnOutcome
   by: ETurnEndedBy
+  status: ESessionStatus
 }): ENotifyMoment | null => {
   if (args.outcome === ETurnOutcome.Completed) return ENotifyMoment.TurnFinished
-  if (args.outcome === ETurnOutcome.Failed) return ENotifyMoment.TurnFailed
+  if (args.outcome === ETurnOutcome.Failed) {
+    return args.status === ESessionStatus.WaitingForCredentials
+      ? ENotifyMoment.WaitingForYou
+      : ENotifyMoment.TurnFailed
+  }
   if (args.outcome === ETurnOutcome.Interrupted && args.by === ETurnEndedBy.Host) {
     return ENotifyMoment.TurnFailed
   }
@@ -36,7 +41,7 @@ export const notifyMomentOf = (args: {
   ending: { outcome: ETurnOutcome; by: ETurnEndedBy } | null
   status: ESessionStatus
 }): ENotifyMoment | null => {
-  if (args.ending !== null) return momentOfEnding(args.ending)
+  if (args.ending !== null) return momentOfEnding({ ...args.ending, status: args.status })
   return WAITING_STATUSES.includes(args.status) ? ENotifyMoment.WaitingForYou : null
 }
 
