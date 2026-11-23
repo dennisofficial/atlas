@@ -1,25 +1,18 @@
 import { Button, EButtonSize, EButtonVariant, useTheme } from '@dltech/atlas-ui-native'
 import { router, Stack, usePathname } from 'expo-router'
-import { Plus } from 'lucide-react-native'
-import { Platform } from 'react-native'
+import { Platform, StyleSheet, View } from 'react-native'
 
 import { useAuth } from '../../auth/auth-provider'
+import { EControlsPlacement } from '../../layout/posture'
+import { PostureProvider, usePosture } from '../../layout/use-posture'
 import { AccountButton } from '../../navigation/account-button'
+import { AppControls } from '../../navigation/app-controls'
 import { AppHeader } from '../../navigation/app-header'
 import { BackButton } from '../../navigation/back-button'
+import { NewSessionButton } from '../../navigation/new-session-button'
 import { InAppNoticesProvider } from '../../notifications/in-app-notices-provider'
 import { sessionIdOfPathname } from '../../thread/v2/presence-state'
 import { usePresenceReport } from '../../thread/v2/use-presence-report'
-
-const NewSessionButton = () => (
-  <Button
-    label="New session"
-    icon={Plus}
-    variant={EButtonVariant.Ghost}
-    size={EButtonSize.IconLg}
-    onPress={() => router.push('/new')}
-  />
-)
 
 const CancelButton = () => (
   <Button
@@ -41,16 +34,54 @@ const renderAppStackHeader = ({ options }: { options: { title?: string } }) => (
 
 const AppStack = () => {
   const theme = useTheme()
+  const rail = usePosture().controls === EControlsPlacement.Rail
+  const headerLeft = rail ? undefined : () => <AccountButton />
+  const headerRight = () => <NewSessionButton />
+  const tabContentStyle = { backgroundColor: theme.sidebar }
   return (
     <Stack screenOptions={{ contentStyle: { backgroundColor: theme.background } }}>
       <Stack.Screen
         name="index"
         options={{
           title: 'Threads',
+          animation: 'none',
           headerLargeTitle: Platform.OS === 'ios',
-          headerLeft: () => <AccountButton />,
-          headerRight: () => <NewSessionButton />,
-          contentStyle: { backgroundColor: theme.sidebar },
+          headerLeft,
+          headerRight,
+          contentStyle: tabContentStyle,
+        }}
+      />
+      <Stack.Screen
+        name="routines"
+        options={{
+          title: 'Routines',
+          animation: 'none',
+          headerLargeTitle: Platform.OS === 'ios',
+          headerLeft,
+          headerRight,
+          contentStyle: tabContentStyle,
+        }}
+      />
+      <Stack.Screen
+        name="projects"
+        options={{
+          title: 'Projects',
+          animation: 'none',
+          headerLargeTitle: Platform.OS === 'ios',
+          headerLeft,
+          headerRight,
+          contentStyle: tabContentStyle,
+        }}
+      />
+      <Stack.Screen
+        name="artifacts"
+        options={{
+          title: 'Artifacts',
+          animation: 'none',
+          headerLargeTitle: Platform.OS === 'ios',
+          headerLeft,
+          headerRight,
+          contentStyle: tabContentStyle,
         }}
       />
       <Stack.Screen
@@ -78,8 +109,19 @@ export default function AppLayout() {
   const { api } = useAuth()
   usePresenceReport({ api, sessionId: sessionIdOfPathname(pathname) })
   return (
-    <InAppNoticesProvider>
-      <AppStack />
-    </InAppNoticesProvider>
+    <PostureProvider>
+      <InAppNoticesProvider>
+        <View style={styles.root}>
+          <AppStack />
+          <AppControls />
+        </View>
+      </InAppNoticesProvider>
+    </PostureProvider>
   )
 }
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+})
