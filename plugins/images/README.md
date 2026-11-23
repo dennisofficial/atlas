@@ -56,6 +56,10 @@ the byte length, the width and the height. A picture past the inline limit comes
 the reason. When the gateway refuses a model for Zero Data Retention, the reason lists the models
 that support it.
 
+The tool description also tells the model how to write the prompt. The image model never sees the
+conversation, so the prompt names what to change, the target finish, and the nearby things that
+must stay as they are, one instruction per sentence.
+
 ## Usage
 
 ```ts

@@ -7,6 +7,15 @@ import { ImageGenerateTool } from '../image-generate-tool'
 import { SESSION_DIR, generatedOf, gifOf, invoke, liveOutcomeOf, pngOf, rigOf, toolOf } from './rig'
 
 describe('ImageGenerateTool', () => {
+  it('tells the model how to write a full image prompt', () => {
+    const { description } = toolOf({ rig: rigOf() })
+
+    expect(description).toContain('never this conversation')
+    expect(description).toContain('read the source image')
+    expect(description).toContain('must stay as they are')
+    expect(description).toContain('one instruction per sentence')
+  })
+
   it('refuses without a gateway account and names /auth', async () => {
     const tool = toolOf({ rig: rigOf({ apiKey: undefined }) })
     const outcome = await invoke(tool, { prompt: 'a lighthouse' })
