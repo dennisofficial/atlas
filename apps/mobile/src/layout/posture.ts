@@ -1,6 +1,6 @@
 export const RAIL_MIN_INSET = 44
 export const WIDE_MIN_WIDTH = 600
-export const RAIL_TOP_CLEARANCE = 160
+export const RAIL_BOTTOM_GAP = 12
 export const BOTTOM_BAR_CLEARANCE = 96
 
 export enum EControlsPlacement {
@@ -20,6 +20,7 @@ export type TPosture = {
   controls: EControlsPlacement
   threads: EThreadsLayout
   railWidth: number
+  railBottom: number
   clearance: { right: number; bottom: number }
 }
 
@@ -47,6 +48,7 @@ export const postureOf = ({
     controls,
     threads: threadsOf({ contentWidth: width - insets.left - insets.right, height }),
     railWidth: controls === EControlsPlacement.Rail ? insets.right : 0,
+    railBottom: insets.bottom + RAIL_BOTTOM_GAP,
     clearance: {
       right: insets.right,
       bottom:
