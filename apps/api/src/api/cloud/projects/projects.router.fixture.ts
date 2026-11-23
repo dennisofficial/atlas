@@ -1,8 +1,8 @@
 import type { INestApplication, Provider } from '@nestjs/common'
-import { GithubRepoReads } from '../github/github-repo-reads'
-import { localCoordinator } from '../github/github-request-coordinator.fixture'
-import { GithubRequestCoordinator } from '../github/github-request-coordinator'
-import { GithubService } from '../github/github.service'
+import { GithubRepoReads } from '@dltech/atlas-github'
+import { localCoordinator } from '@dltech/atlas-github/testing'
+import { GithubRequestCoordinator } from '@dltech/atlas-github'
+import { GithubService } from '@dltech/atlas-github'
 import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
 import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import {
@@ -18,8 +18,6 @@ import { ProjectSettingsService } from './project-settings.service'
 import { ProjectWorkspaceRouter } from './project-workspace.router'
 import { ProjectsRouter } from './projects.router'
 import { ProjectsService } from './projects.service'
-import { VercelPlanService } from '../user-vercel/vercel-credential-plan'
-import { unknownPlanService } from '../user-vercel/vercel-testkit'
 
 export const PROJECT_BODY = {
   name: 'atlas',
@@ -35,7 +33,6 @@ export const projectProviders = (
   ProjectsService,
   { provide: ThreadSignalsService, useValue: inertSignals() },
   ProjectResourcesService,
-  { provide: VercelPlanService, useValue: unknownPlanService() },
   ProjectFileMountsService,
   GithubRepoReads,
   { provide: GithubRequestCoordinator, useValue: coordinator },

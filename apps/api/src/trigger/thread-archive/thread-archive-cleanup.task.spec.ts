@@ -1,12 +1,7 @@
 import { describe, expect, it, mock } from 'bun:test'
+import { triggerSdkStub } from '../../../test/trigger-sdk.fake'
 
-mock.module('@trigger.dev/sdk', () => ({
-  schemaTask: <T>(definition: T): T => definition,
-  schedules: { task: <T>(definition: T): T => definition },
-  TriggerClient: class {
-    readonly tasks = { trigger: async () => ({ id: 'run_stub' }) }
-  },
-}))
+mock.module('@trigger.dev/sdk', () => triggerSdkStub)
 
 const { threadArchiveCleanupTask } = await import('./thread-archive-cleanup.task')
 

@@ -1,7 +1,7 @@
 import { authorityOf, type AccountSecret } from '@dltech/atlas-core'
 
 import { CredentialError, ECredentialFailure } from '../model/credential-error'
-import type { SecretCipher } from '../config/secret-cipher'
+import type { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 import { refreshAnthropicGrant, type TokenFetch } from './anthropic-token-endpoint'
 import { refreshOpenAiGrant } from './openai-token-endpoint'
 import type { OauthConnectionStore } from './oauth-connection-store'

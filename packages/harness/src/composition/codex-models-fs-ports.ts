@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
-import type { CodexModelsPorts } from '../models'
+import type { CodexModelsPorts } from '@dltech/atlas-models'
 import { atlasDirectory } from '../store/paths'
 
 const CACHE_FILE_NAME = 'codex-models-cache.json'

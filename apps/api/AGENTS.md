@@ -37,13 +37,14 @@ because the two rows point at each other. `threads.live` streams the sidebar as 
 through `managedBySessionId`. `threads.list` returns session main threads only. better-auth's table is
 `AuthSession`.
 
-A thread's owner is fixed at creation (`Thread.userId`). `ScopedConfigService.vercelCredentials`
-resolves the owner's `UserVercelCredential` (`userVercel.*`) with token, team and project id.
-**A sandbox keeps the Vercel project it was created in** (`CloudSandbox.vercelProjectId`, written by
-both boot paths on a fresh create and read by `platform/sandboxes/pod-project.ts`). Every later
-resume, renewal, stop, resize and delete targets that project. Moving the credential to another
-project therefore moves only the sandboxes created after it. Old sandboxes keep working until they
-are destroyed. The snapshot sweeper covers every project still in use.
+A thread's owner is fixed at creation (`Thread.userId`). Sandboxes run only on the platform
+account: `ScopedConfigService.vercelCredentials` reads `PLATFORM_VERCEL_TOKEN`,
+`PLATFORM_VERCEL_TEAM_ID` and `PLATFORM_VERCEL_PROJECT_ID`, and answers 503 when one is missing.
+Users never bring their own sandbox credential. **A sandbox keeps the Vercel project it was created
+in** (`CloudSandbox.vercelProjectId`, written by both boot paths on a fresh create and read by
+`platform/sandboxes/pod-project.ts`). Every later resume, renewal, stop, resize and delete targets
+that project. Moving the platform credential to another project therefore moves only the sandboxes
+created after it. Old sandboxes keep working until they are destroyed.
 **Sandbox storage ends six hours after a session is archived.**
 Archive parks the pod. `archived-sandbox-sweep` deletes the pod of a session archived past
 `ARCHIVED_SANDBOX_GRACE_MS` (6 h), and `orphan-sandbox-sweep` soft-deletes the v2 session rows at the
@@ -71,11 +72,11 @@ thread discovery, backup sync and PR/CI webhooks.
 operator's accounts. When the operator holds an active OpenAI OAuth connection, the API replaces the static OpenAI list
 with the live Codex list (`CodexModelsCatalogue`). The catalogue is cached per user in memory for 300 s and
 revalidated with `If-None-Match`. A Codex failure returns the static list plus `liveError`. The code lives in
-harness behind the subpath `@dltech/atlas-harness/models`. The API may import only the harness subpaths `models`,
-`titling`, `skill-specs` and `mcp-oauth`. The `mcp-oauth` subpath provides the OAuth protocol helpers behind
-`src/api/cloud/mcp-oauth`. It imports nothing else of harness.
-`src/api/harness-boundary.spec.ts` and `architecture.spec.ts` enforce that rule. Harness's own subpath guard spec
-keeps `node:*`, Bun and the provider SDKs out of everything reachable from it.
+`@dltech/atlas-models`, and the provider sign-in helpers live in `@dltech/atlas-credentials/provider-oauth`. Session titles
+come from `src/agent/naming`, which calls the quick model through the same provider stack as the agent host. The API
+imports nothing of harness. `src/api/cloud/mcp-oauth` uses the agent's MCP OAuth helpers (`src/agent/mcp-oauth`)
+through `src/agent/index.ts`, and the skills API reads built-ins and the catalogue from `@dltech/atlas-plugin-skills`.
+`src/api/harness-boundary.spec.ts` and `architecture.spec.ts` enforce that rule.
 
 ## One app: `src/api` and `src/agent`
 
@@ -353,7 +354,11 @@ one exact version. Bump all three at once.
   from the validated `process.env`. The fan-out gets a `RedisPrFrameBus` when the tier carries
   `REDIS_URL`, else a `LocalPrFrameBus`. A worker only publishes, since it never calls `openStream`.
   Test a task by calling its run function directly with a stubbed graph or db
-  (`github-sweep.tasks.spec.ts`, `smoke.task.spec.ts`).
+  (`pod-provision-graph.spec.ts`, `smoke.task.spec.ts`).
+- **The GitHub sweeps run in apps/trigger.** `github-hook-sweep`, `github-poll-sweep` and
+  `github-webhook-reconcile` read `@dltech/atlas-github` from the v2 project. This project keeps one
+  task, `github-v1-wake-sweep`, over the trimmed graph: it refreshes `liveUntil` from v1 thread
+  activity, retries failed v1 wakes, and drains the v1-only outbox kinds.
 - **Local dev.** `bun run dev` runs the API and `trigger dev --profile atlas` together under one
   `env:inject`. When either exits, both stop. Dispatched runs execute only while that worker is up.
   `bun run dev:no-trigger` is the API alone, for work that dispatches nothing.

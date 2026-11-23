@@ -6,9 +6,9 @@ import { describe, expect, it } from 'bun:test'
 import { seedRepoHook } from '../../../../test/github-seed'
 import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { GithubHookController } from './github-hook.controller'
-import { GithubWebhookInboxService } from './github-webhook-inbox.service'
-import type { GithubDeliveryService } from './github-delivery.service'
-import type { GithubPrWebhookRequest } from './github-webhook.types'
+import { GithubWebhookInboxService } from '@dltech/atlas-github'
+import type { GithubDeliveryService } from '@dltech/atlas-github'
+import type { GithubPrWebhookRequest } from './github-webhook-request'
 
 const SECRET = 'whsec_per_repo_secret'
 

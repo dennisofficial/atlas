@@ -3,14 +3,14 @@ import { describe, expect, it } from 'bun:test'
 import {
   composeCommands,
   defineCommand,
+  ECommandGroup,
+  ECommandRunsIn,
   type CommandHandler,
   type CommandRegistry,
 } from '@dltech/atlas-commands'
 import type { ControlPlane } from '@dltech/atlas-control'
 import {
   type InputMessage,
-  ECommandGroup,
-  ECommandTiming,
   EInputConsumed,
   EMessageOrigin,
   ESubscriptionActor,
@@ -269,8 +269,7 @@ const ping = defineCommand({
     summary: 'records a fact',
     group: ECommandGroup.Session,
     args: z.strictObject({ word: z.string() }),
-    timing: ECommandTiming.Settled,
-    handledIn: 'holder',
+    runsIn: ECommandRunsIn.Host,
   },
 })
 

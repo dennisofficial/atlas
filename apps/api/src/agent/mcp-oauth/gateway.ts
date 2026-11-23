@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto'
 
 import type { Db } from '@dltech/atlas-db'
 
-import type { SecretCipher } from '../config/secret-cipher'
+import type { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 import { oauthClientFor } from './client'
 import { discoverOauthEndpoints } from './discovery'
 import { OAuthError } from './errors'

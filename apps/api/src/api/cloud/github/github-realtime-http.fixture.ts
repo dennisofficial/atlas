@@ -1,26 +1,28 @@
-import { storeFixture } from './github-pr-store.fixture'
+import { storeFixture } from '@dltech/atlas-github/testing'
 import { spyOn } from 'bun:test'
 import type { RedisService } from '../../../_lib/redis/redis.service'
-import type { EnvService } from '../../../_core/config/env/env.service'
 import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { DrainStateService } from '../../platform/health/drain-state.service'
 import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
-import { inertMergeabilityRefresh, inertReconcile } from './github-pr-store.fixture'
+import { inertMergeabilityRefresh, inertReconcile } from '@dltech/atlas-github/testing'
 import type { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
-import type { GithubAppInstallationsService } from './github-app-installations.service'
-import { GithubDeliveryService } from './github-delivery.service'
-import { GithubHookLifecycleService } from './github-hook-lifecycle.service'
-import { GithubRequestCoordinator } from './github-request-coordinator'
-import { GithubHeadReads } from './github-head-reads'
-import { GithubPollSweeperService } from './github-poll-sweeper.service'
-import { GithubPrDiscussionDeliveryService } from './github-pr-discussion-delivery.service'
-import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
-import { GithubPrFanoutService } from './github-pr-fanout.service'
-import { GithubPrOutboxDispatcher } from './github-pr-outbox'
-import { RedisPrFrameBus } from './github-pr-fanout.transport'
+import type { GithubAppInstallationsService } from '@dltech/atlas-github'
+import { GithubConfig } from '@dltech/atlas-github'
+import { GithubDeliveryService } from '@dltech/atlas-github'
+import { GithubHookLifecycleService } from '@dltech/atlas-github'
+import { GithubRequestCoordinator } from '@dltech/atlas-github'
+import { GithubHeadReads } from '@dltech/atlas-github'
+import { GithubPollSweeperService } from '@dltech/atlas-github'
+import { GithubPrDiscussionDeliveryService } from '@dltech/atlas-github'
+import { GithubPrEventMailboxService } from '@dltech/atlas-github'
+import { GithubPrFanoutService } from '@dltech/atlas-github'
+import { GithubPrOutboxDispatcher } from '@dltech/atlas-github'
+import { RedisPrFrameBus } from '@dltech/atlas-github'
 import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
-import { GithubUserReads } from './github-user-reads'
-import type { GithubService } from './github.service'
+import { GithubUserReads } from '@dltech/atlas-github'
+import type { GithubService } from '@dltech/atlas-github'
+import { legacyOf } from '@dltech/atlas-github/testing'
+import { threadActivityAt } from './github-thread-activity'
 
 export function mockGithubHttp() {
   const original = globalThis.fetch
@@ -154,7 +156,7 @@ export function realGithubGraph(args: {
     encrypt: (plain: string) => plain,
     decrypt: (plain: string) => plain,
   } as unknown as SecretCipherService
-  const env = { get: () => 'https://api.byatlas.io' } as unknown as EnvService
+  const config = new GithubConfig({ publicApiUrl: 'https://api.byatlas.io' })
   const installations = {
     coversRepo: async () => args.appBacked ?? true,
   } as unknown as GithubAppInstallationsService
@@ -162,7 +164,7 @@ export function realGithubGraph(args: {
     github,
     reads,
     cipher,
-    env,
+    config,
     installations,
     coordinator,
   )
@@ -175,8 +177,7 @@ export function realGithubGraph(args: {
     fanout,
     new GithubPrOutboxDispatcher({
       fanout,
-      signals,
-      wake,
+      legacy: legacyOf({ signals: signals, wake: wake }),
       reconcile: inertReconcile(),
       mergeability: inertMergeabilityRefresh(),
     }),
@@ -189,7 +190,6 @@ export function realGithubGraph(args: {
     cipher,
     mailbox,
     discussion,
-    signals,
     coordinator,
     storeFixture({ fanout, wake }),
   )
@@ -200,6 +200,7 @@ export function realGithubGraph(args: {
     coordinator,
     new GithubHeadReads(),
     storeFixture({ fanout, wake }),
+    threadActivityAt,
   )
   return {
     github,

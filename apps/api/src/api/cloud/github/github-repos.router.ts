@@ -10,12 +10,12 @@ import { HttpStatus, NotFoundException } from '@nestjs/common'
 import { UserFacingException } from '../../../_core/http/user-facing-exception'
 import { Ctx, Input, Query, Router, UseMiddlewares } from 'nestjs-trpc'
 import { SessionMiddleware, type SessionTrpcCtx } from '../../../_module/session/session.middleware'
-import { EGithubCallSource } from './github-call-log'
-import { GithubRepoReads } from './github-repo-reads'
-import { isGithubBudgetParked, withGithubRequestBudget } from './github-request-budget'
-import { GithubRequestCoordinator } from './github-request-coordinator'
-import { GithubUserReadFailed } from './github-user-reads'
-import { GithubService } from './github.service'
+import { EGithubCallSource } from '@dltech/atlas-github'
+import { GithubRepoReads } from '@dltech/atlas-github'
+import { isGithubBudgetParked, withGithubRequestBudget } from '@dltech/atlas-github'
+import { GithubRequestCoordinator } from '@dltech/atlas-github'
+import { GithubUserReadFailed } from '@dltech/atlas-github'
+import { GithubService } from '@dltech/atlas-github'
 
 @Router({ alias: 'githubRepos' })
 @UseMiddlewares(SessionMiddleware)

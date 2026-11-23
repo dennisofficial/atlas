@@ -2,11 +2,13 @@ import { DaemonProcessPort } from '../calls/ports/process'
 import type { BranchObserver } from './branch-observer'
 import { type ChangesCheckout, ChangesSnapshotter, ESnapshotTrigger } from './changes/snapshotter'
 import { runGit } from './checkouts/git'
-import type { DiskPressureObserver } from './disk-pressure-observer'
+import type { OomObserver } from './oom-observer'
 import { logDriveFault } from './held-runner'
 import type { HeldSessionDeps } from './held-session-deps'
 import type { SessionRuntime } from './ports'
 import type { SessionRecord } from './record/record-adapter'
+
+export const OBSERVATION_STOP_DEADLINE_MS = 10_000
 
 const createChangesSnapshotter = (args: {
   deps: HeldSessionDeps
@@ -49,7 +51,7 @@ export class HeldObservation {
   private readonly deps: HeldSessionDeps
   private readonly runtime: SessionRuntime
   private readonly branches: BranchObserver
-  private readonly diskPressure: DiskPressureObserver | undefined
+  private readonly oom: OomObserver | undefined
   private readonly changes: ChangesSnapshotter | undefined
   private unsubscribeCheckouts: (() => void) | undefined
 
@@ -58,12 +60,12 @@ export class HeldObservation {
     runtime: SessionRuntime
     record: SessionRecord
     branches: BranchObserver
-    diskPressure?: DiskPressureObserver | undefined
+    oom?: OomObserver | undefined
   }) {
     this.deps = args.deps
     this.runtime = args.runtime
     this.branches = args.branches
-    this.diskPressure = args.diskPressure
+    this.oom = args.oom
     this.changes = createChangesSnapshotter(args)
   }
 
@@ -86,16 +88,36 @@ export class HeldObservation {
 
   drain(): void {
     this.branches.stop()
-    this.diskPressure?.stop()
+    this.oom?.stop()
     this.releaseCheckouts()
     void this.changes?.stop()
   }
 
   async stop(): Promise<void> {
     this.branches.stop()
-    this.diskPressure?.stop()
+    this.oom?.stop()
     this.releaseCheckouts()
-    await this.changes?.stop().catch((error: unknown) => this.faulted(error))
+    const changes = this.changes
+    if (changes === undefined) return
+    await this.withinStopDeadline(changes.stop().catch((error: unknown) => this.faulted(error)))
+  }
+
+  private withinStopDeadline(stopping: Promise<void>): Promise<void> {
+    const { timers, log, sessionId } = this.deps
+    return new Promise<void>((resolve) => {
+      const timer = timers.setTimeout(() => {
+        log?.warn({
+          source: 'holder.observation',
+          message: `stopping the change snapshots of ${sessionId} passed ${OBSERVATION_STOP_DEADLINE_MS}ms; the lease is settled without them`,
+          data: { sessionId },
+        })
+        resolve()
+      }, OBSERVATION_STOP_DEADLINE_MS)
+      void stopping.then(() => {
+        timers.clearTimeout(timer)
+        resolve()
+      })
+    })
   }
 
   async observeBeforeRelease(): Promise<void> {

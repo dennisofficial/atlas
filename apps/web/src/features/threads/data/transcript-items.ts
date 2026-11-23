@@ -30,7 +30,7 @@ import {
   type ReportItem,
   type SpawnItem,
 } from './transcript-agents'
-import { ENoticeTone, ETranscriptKind } from './transcript-kind'
+import { ENoticeAction, ENoticeTone, ETranscriptKind } from './transcript-kind'
 import {
   noticeItemOf,
   prNoticeItemOf,
@@ -39,7 +39,7 @@ import {
 } from './transcript-notices'
 import { toolCallItemOf, type ToolCallItem } from './transcript-tools'
 
-export { ENoticeTone, ETranscriptKind }
+export { ENoticeAction, ENoticeTone, ETranscriptKind }
 export type { NoticeContext, NoticeItem }
 export { EToolFamily, type ToolCallItem } from './transcript-tools'
 export { EEditBody, type EditBody } from './transcript-edit-body'

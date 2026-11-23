@@ -1,4 +1,6 @@
-import { describe, expect, it } from 'bun:test'
+import { GlobalRegistrator } from '@happy-dom/global-registrator'
+import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
+import { act } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 
 import { ENoticeTone, HarnessNotice } from '../harness-notice'
@@ -56,5 +58,48 @@ describe('HarnessNotice', () => {
 
     expect(html).toContain('2 prompts')
     expect(html).toContain('data-slot="trace-collapsible-trigger"')
+  })
+})
+
+describe('HarnessNotice action', () => {
+  beforeAll(() => {
+    GlobalRegistrator.register()
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
+  })
+
+  afterAll(async () => {
+    await GlobalRegistrator.unregister()
+  })
+
+  it('renders the action button and calls it when pressed', async () => {
+    const { createRoot } = await import('react-dom/client')
+    const container = document.createElement('div')
+    document.body.append(container)
+    let presses = 0
+    const root = createRoot(container)
+    await act(async () =>
+      root.render(
+        <HarnessNotice
+          title="ran out of memory"
+          tone={ENoticeTone.Failed}
+          action={{ label: 'Change pod size', onClick: () => (presses += 1) }}
+        />,
+      ),
+    )
+    const button = [...container.querySelectorAll('button')].find(
+      (candidate) => candidate.textContent === 'Change pod size',
+    )
+    expect(button).toBeDefined()
+    await act(async () => button?.dispatchEvent(new MouseEvent('click', { bubbles: true })))
+    expect(presses).toBe(1)
+    await act(async () => root.unmount())
+    container.remove()
+  })
+
+  it('draws no button without an action', () => {
+    const html = renderToStaticMarkup(
+      <HarnessNotice title="ran out of memory" tone={ENoticeTone.Failed} />,
+    )
+    expect(html).not.toContain('Change pod size')
   })
 })

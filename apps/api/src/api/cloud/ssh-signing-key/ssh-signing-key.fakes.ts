@@ -1,4 +1,4 @@
-import type { FetchFn, GithubHttpResponse } from '../github/github-device-client'
+import type { FetchFn, GithubHttpResponse } from '@dltech/atlas-github'
 
 export interface GithubCall {
   method: string

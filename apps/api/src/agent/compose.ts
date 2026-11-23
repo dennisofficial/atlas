@@ -6,7 +6,6 @@ import {
   TerminalDemand,
   type HostPresence,
   type PodControlClient,
-  type PodDiskPressurePort,
 } from '@dltech/atlas-host'
 import { nativeCommandHandlers, nativeCommands } from '@dltech/atlas-native-commands'
 import { cloudConfigStore } from './config/cloud-config-store'
@@ -14,7 +13,7 @@ import { envSecretsReader } from './config/env-secrets'
 import { projectFilesSourceOf } from './config/project-files'
 import { mcpControlPort } from './config/mcp-control'
 import type { MacLink } from './mac-link/port'
-import { SecretCipher } from './config/secret-cipher'
+import { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 import { composedPlugins } from './registered-plugins'
 import type { ChangeContentStore, ControlPlane } from '@dltech/atlas-control'
 import type { LogPort, TracePort } from '@dltech/atlas-observability'
@@ -25,7 +24,7 @@ import type { SigningKeyReader } from './tokens/signing-key-reader'
 import type { ConfigSource } from './config/agent-host-config'
 import type { AgentHostEnv } from './config/env'
 import type { MediaSigner } from './media/media-signer'
-import type { SandboxProviderRegistry } from './sandbox/provider-registry'
+import type { SandboxProviderRegistry } from '@dltech/atlas-pods/sandbox/provider-registry'
 import { systemTimers, type HostBus, type HostTimers } from '@dltech/atlas-host'
 import { SessionNotFoundError } from './config/config-reader'
 import { CredentialsUnavailableError } from './config/agent-host-credential-port'
@@ -57,7 +56,6 @@ export type ComposeAgentHostArgs = {
   changes?: { content: ChangeContentStore } | undefined
   presence: HostPresence
   control: PodControlClient
-  diskPressure?: PodDiskPressurePort | undefined
   macLink: MacLink
   onHostIdChanged?: (() => void) | undefined
 }
@@ -99,7 +97,6 @@ export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
     commands: composeCommands([...nativeCommands, ...composedPlugins.commands]),
     commandHandlers: new Map([...nativeCommandHandlers, ...composedPlugins.pod.commands]),
     control: args.control,
-    ...(args.diskPressure === undefined ? {} : { diskPressure: args.diskPressure }),
     mcp: (sessionId) => mcpControl.of(sessionId),
     operator: {
       sessionDir: sessionDirOf,

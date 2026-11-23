@@ -1,6 +1,13 @@
 export const HARNESS_PACKAGE_NAME = '@dltech/atlas-harness'
 
 export {
+  unanswerableRef,
+  unmeasuredWindowWarning,
+  type CatalogueProvider,
+} from '@dltech/atlas-models'
+export { EDevicePoll } from '@dltech/atlas-credentials/provider-oauth'
+
+export {
   SessionActivityPort,
   UnavailableSessionActivity,
   RuntimeSessionActivity,
@@ -24,7 +31,6 @@ export * from './files'
 export * from './loop'
 export * from './model'
 export { runFailureOf, safeFailureMessage } from './model/run-failure'
-export * from './models'
 export * from './operator-input'
 export * from './pending'
 export * from './intake'
@@ -80,6 +86,7 @@ export { LocalProcessPort } from './execution/local-process'
 export { applyServePriority, type ServePriorityReport } from './execution/serve-priority'
 export {
   prepareWorkloadCgroups,
+  SERVE_MEMORY_RESERVE,
   sweepIdleWorkloadBoxes,
   type WorkloadCgroupsReport,
 } from './execution/workload-cgroups'
@@ -108,10 +115,8 @@ export * from './cloud/remote-event-log'
 export * from './cloud/remote-thread-store'
 export * from './cloud/remote-turn-ledger'
 export * from './cloud/sandbox-client'
-export * from './cloud/vercel-driver'
-export * from './cloud/vercel-credentials'
+export * from './cloud/sandbox-size'
 export * from './cloud/born-placement'
-export * from './cloud/vercel-credential-store'
 export * from './cloud/project-match'
 export * from './cloud/sandbox-names'
 export * from './cloud/channel-wire'

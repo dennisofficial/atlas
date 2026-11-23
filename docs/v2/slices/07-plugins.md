@@ -665,7 +665,7 @@ the URL. The host publishes; the sandbox only runs the tunnel.
 - **Sandbox**: the daemon's new `previews.expose` / `previews.stop` / `previews.list`
   (`apps/daemon/src/ops/previews/index.ts`) run `cloudflared tunnel --no-autoupdate run --url
   http://127.0.0.1:<port>` in its own process group, one per port. The binary is already in the image
-  (`apps/serve/sandbox-image/Dockerfile:150-153`).
+  (`infra/sandbox-image/Dockerfile:150-153`).
 - **Journal**: `service-started` carries an optional `url`, the `services` view row shows it, and the
   tool text says plainly when a service is sandbox-only.
 - A failed exposure never blocks the start: the reason is reported in the tool text.

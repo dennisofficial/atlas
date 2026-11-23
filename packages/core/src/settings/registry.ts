@@ -84,9 +84,6 @@ export enum ESettingId {
   ContainerCpus = 'container.cpus',
   ContainerMemory = 'container.memory',
   ContainerIdleMinutes = 'container.idleMinutes',
-  VercelToken = 'sandbox.vercelToken',
-  VercelTeamId = 'sandbox.vercelTeamId',
-  VercelProjectId = 'sandbox.vercelProjectId',
   SandboxImage = 'sandbox.image',
   SandboxVcpus = 'sandbox.vcpus',
   SandboxDiskGb = 'sandbox.diskGb',
@@ -850,18 +847,6 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     maximum: 240,
     step: 5,
     unit: ' min',
-  },
-  {
-    id: ESettingId.VercelToken,
-    storage: ESettingStorage.Local,
-    page: ESettingPage.Cloud,
-    group: 'Cloud sandboxes',
-    label: 'Vercel token',
-    description:
-      'The Vercel access token a cloud session runs on — the sandbox is created on your own Vercel account, never on one Atlas operates, so /container cloud costs and quotas are yours. Create one under your Vercel account settings. Atlas never reads it from the environment and never writes it to a settings file: it is sealed in the secrets file beside the account vault, and only the last four characters are ever shown again.',
-    kind: ESettingKind.Secret,
-    fallback: '',
-    masked: true,
   },
   {
     id: ESettingId.GrillingCeremony,

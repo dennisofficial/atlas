@@ -8,7 +8,7 @@ import { AnalyticsModule, PRODUCT_ANALYTICS, analyticsAppendHook } from '../../.
 import { changeContentStoreProvider } from '../../../_lib/changes/change-content.provider'
 import { backgroundWorkProvider } from '../../../_lib/background-work/background-work.providers'
 import { COMMAND_REGISTRY, nativeCommandRegistry } from './command-registry'
-import { composedPlugins, registeredPlugins } from './registered-plugins'
+import { composedPlugins, registeredPlugins } from '@dltech/atlas-pods'
 import { DbMediaRegistry, MediaRegistry } from './media-registry'
 import { mediaStoreProvider } from './media-store.provider'
 import { ChangesService } from './changes.service'
@@ -27,6 +27,9 @@ import { PodMetricsService } from './pod-metrics.service'
 import { PodPowerService } from './pod-power.service'
 import { PodSizingService } from './pod-sizing.service'
 import { SandboxesModule } from '../sandboxes/sandboxes.module'
+import { RedisModule } from '../../../_lib/redis/redis.module'
+import { NotificationsRouter } from './notifications.router'
+import { PresenceRegistry } from './presence-registry'
 
 export const controlPlaneProvider: Provider = {
   provide: ControlPlane,
@@ -41,7 +44,7 @@ export const controlPlaneProvider: Provider = {
 }
 
 @Module({
-  imports: [AnalyticsModule, SandboxesModule],
+  imports: [AnalyticsModule, SandboxesModule, RedisModule],
   providers: [
     controlPlaneProvider,
     { provide: ProjectAccess, useClass: DbProjectAccess },
@@ -64,6 +67,8 @@ export const controlPlaneProvider: Provider = {
     RoutinesRouter,
     TerminalService,
     TerminalRouter,
+    PresenceRegistry,
+    NotificationsRouter,
   ],
   exports: [ControlPlane, TerminalService],
 })

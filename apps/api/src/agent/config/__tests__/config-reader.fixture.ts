@@ -4,7 +4,7 @@ import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 
 import { ESandboxProvider } from '@dltech/atlas-protocol'
 
-import { SecretCipher } from '../secret-cipher'
+import { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 
 export const KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
 export const cipher = new SecretCipher(KEY)
@@ -28,17 +28,6 @@ export const seedOwner = async (db: Db): Promise<void> => {
     projectId: 'proj-1',
     mainThreadId: 't-1',
     sandboxProvider: ESandboxProvider.Vercel,
-  })
-}
-
-export const seedVercel = async (db: Db, over: Record<string, unknown> = {}): Promise<void> => {
-  await db.orm.public.UserVercelCredential.create({
-    userId: 'user-1',
-    kind: 'token',
-    sealedToken: sealed('vercel-token'),
-    teamId: 'team-1',
-    vercelProjectId: 'vproj-1',
-    ...over,
   })
 }
 

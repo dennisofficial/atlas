@@ -1,4 +1,4 @@
-import type { SessionStatus } from '@dltech/atlas-core'
+import type { SessionStatus, ETurnEndedBy, ETurnOutcome } from '@dltech/atlas-core'
 import type { SessionSandboxStatus } from '@dltech/atlas-protocol'
 
 export type ControlSessionRow = {
@@ -42,9 +42,17 @@ export type SessionListParams = {
   limit: number
 }
 
+export type SessionTurnEnding = {
+  seq: number
+  outcome: ETurnOutcome
+  by: ETurnEndedBy
+}
+
 export type SessionDigestRow = ControlSessionRow & {
   lastEventAt: string | null
   lastAssistantSeq: number
+  lastTurn: SessionTurnEnding | null
+  headSeq: number
   readSeq: number | null
   firstMessageText: string | null
   firstMessageAt: string | null

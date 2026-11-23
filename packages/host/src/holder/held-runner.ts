@@ -11,7 +11,7 @@ import { logFieldsOf } from '@dltech/atlas-observability'
 
 import { ScopedToolDispatcher } from '../calls/call-scope'
 import { BranchObserver } from './branch-observer'
-import { DiskPressureObserver } from './disk-pressure-observer'
+import { oomObserverOf, type OomObserver } from './oom-observer'
 import { hookedToolsOf } from './hooked-tools'
 import { pluginPodOf } from './plugin-pod'
 import type { HeldSessionDeps } from './held-session-deps'
@@ -236,18 +236,6 @@ export const createLoopRunner = (args: {
   return { runner, intake }
 }
 
-export const createDiskPressureObserver = (args: {
-  deps: HeldSessionDeps
-  runtime: SessionRuntime
-}): DiskPressureObserver =>
-  new DiskPressureObserver({
-    remoteCalls: args.runtime.remoteCalls,
-    sessionId: args.deps.sessionId,
-    podSessionId: args.deps.podSessionId,
-    port: args.deps.diskPressure,
-    ...(args.deps.log === undefined ? {} : { log: args.deps.log }),
-  })
-
 export const wireHeldLoop = (args: {
   deps: HeldSessionDeps
   runtime: SessionRuntime
@@ -261,7 +249,7 @@ export const wireHeldLoop = (args: {
 }): {
   runner: LoopTurnRunner
   branches: BranchObserver
-  diskPressure: DiskPressureObserver
+  oom: OomObserver
   branchesStarted: Promise<void>
   recoverCommands(): Promise<void>
   runCommands(entries: readonly InboxEntry[]): Promise<boolean>
@@ -269,14 +257,20 @@ export const wireHeldLoop = (args: {
 } => {
   const { runner, intake } = createLoopRunner(args)
   const branches = createBranchObserver(args)
-  const diskPressure = createDiskPressureObserver({ deps: args.deps, runtime: args.runtime })
-  diskPressure.start()
+  const oom = oomObserverOf({
+    deps: args.deps,
+    runtime: args.runtime,
+    record: args.record,
+    threadId: args.threadId,
+    signal: args.signal,
+  })
+  oom.start()
   const prepared = () => args.record.eventCache().bookkeeping().workspace().prepared
   const branchesStarted = branches.start()
   return {
     runner,
     branches,
-    diskPressure,
+    oom,
     branchesStarted,
     recoverCommands: () => intake.recoverUnfinished(),
     runCommands: (entries) => intake.runCommands(entries),

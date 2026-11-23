@@ -260,6 +260,13 @@ function DerivedEntryView(props: {
         </box>
       )
 
+    case EEntryKind.PodOom:
+      return (
+        <box flexDirection="row" marginBottom={1} flexShrink={0}>
+          <text fg={theme.warn}>{entry.text}</text>
+        </box>
+      )
+
     case EEntryKind.SignIn:
       return (
         <box flexDirection="row" marginBottom={1} flexShrink={0}>

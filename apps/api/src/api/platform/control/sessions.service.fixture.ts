@@ -1,13 +1,11 @@
-import { composeCommands, defineCommand } from '@dltech/atlas-commands'
-import { resize } from '@dltech/atlas-native-commands'
 import {
-  chainEvents,
+  composeCommands,
+  defineCommand,
   ECommandGroup,
-  ECommandTiming,
-  toRunId,
-  toThreadId,
-  type V2Body,
-} from '@dltech/atlas-core'
+  ECommandRunsIn,
+} from '@dltech/atlas-commands'
+import { resize } from '@dltech/atlas-native-commands'
+import { chainEvents, toRunId, toThreadId, type V2Body } from '@dltech/atlas-core'
 import { z } from 'zod'
 import { FakeMediaStore } from '@dltech/atlas-media/testing'
 import type { ProductAnalytics } from '@dltech/atlas-observability'
@@ -20,7 +18,7 @@ import { FakeMediaRegistry } from './media-registry.fake'
 import { SessionsService } from './sessions.service'
 import { PodPowerService } from './pod-power.service'
 import { PodSizingService } from './pod-sizing.service'
-import { JobDispatcher, type JobDispatch } from '../../../_core/ports/job-dispatcher'
+import { JobsProjectDispatcher, type JobDispatch } from '../../../_core/ports/job-dispatcher'
 import { ProjectAccess } from './project-access'
 import { modelSet } from './model-set'
 
@@ -32,8 +30,7 @@ export const TEST_COMMAND = defineCommand({
     summary: 'a command only the specs know',
     group: ECommandGroup.Session,
     args: RENAME_ARGS,
-    timing: ECommandTiming.Settled,
-    handledIn: 'holder',
+    runsIn: ECommandRunsIn.Host,
   },
 })
 
@@ -133,8 +130,8 @@ export const setupSessionsService = (
   const mediaStore = new FakeMediaStore()
   const projects = new RecordingProjectAccess()
   const dispatcher = over.dispatcher ?? new FakePodResizeDispatcher()
-  const podSizing = new PodSizingService(plane, dispatcher as unknown as JobDispatcher)
-  const podPower = new PodPowerService(plane, dispatcher as unknown as JobDispatcher)
+  const podSizing = new PodSizingService(plane, dispatcher as unknown as JobsProjectDispatcher)
+  const podPower = new PodPowerService(plane, dispatcher as unknown as JobsProjectDispatcher)
   const service = new SessionsService(
     plane,
     projects,

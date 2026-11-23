@@ -60,12 +60,6 @@ export * from './web/harness-secrets-wire.js'
 export * from './published-bundle-wire.js'
 export * from './artifacts.js'
 export * from './user-files-wire.js'
-export {
-  userVercelCredentialSchema,
-  userVercelCredentialUpsertSchema,
-  type UserVercelCredential,
-  type UserVercelCredentialUpsert,
-} from './web/scoped-config-wire.js'
 export * from './sandbox-errors.js'
 export * from './sandbox-mount.js'
 export * from './sandbox-retry.js'
@@ -89,3 +83,5 @@ export * from './desktop-auth-wire.js'
 export * from './push-devices-wire.js'
 export * from './presence-wire.js'
 export * from './session-stream-wire.js'
+
+export * from './notify-wire.js'

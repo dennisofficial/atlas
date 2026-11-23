@@ -17,7 +17,7 @@ import {
   SessionOrSandboxMiddleware,
   type SessionOrSandboxTrpcCtx,
 } from '../../platform/sessions/session-or-sandbox.middleware'
-import { GithubSubscriptionsService } from './github-subscriptions.service'
+import { GithubSubscriptionsService } from '@dltech/atlas-github'
 
 const threadLinkOf = (ctx: SessionOrSandboxTrpcCtx): { threadId?: string } => {
   const threadId = ctx.sandbox?.threadId ?? ctx.pod?.threadId

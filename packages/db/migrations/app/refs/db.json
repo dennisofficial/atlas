@@ -1,4 +1,6 @@
 {
-  "hash": "c65cc71bb642367ce7f2f5765896c927ba800be7fa4456999a195196d9738d8e",
-  "invariants": []
+  "hash": "7f1e84f71623998fdd5fe3e32afb6b5c4bf03a67249c07cd8c3e48dc1d936ee0",
+  "invariants": [
+    "v2-event-append-only"
+  ]
 }

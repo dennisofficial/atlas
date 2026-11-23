@@ -6,7 +6,13 @@ import { join } from 'node:path'
 
 import { DAEMON_OOM_SCORE_ADJ, applyDaemonProtection } from '../daemon-protection'
 import { SANDBOX_WORKLOADS_ENV } from '../markers'
-import { WORK_PIDS_MAX, pidsMaxFor, prepareWorkloadCgroups } from '../workload-cgroups'
+import {
+  DAEMON_MEMORY_RESERVE,
+  SERVE_MEMORY_RESERVE,
+  WORK_PIDS_MAX,
+  pidsMaxFor,
+  prepareWorkloadCgroups,
+} from '../workload-cgroups'
 import { WORKLOAD_OOM_SCORE_ADJ, workloadPolicy } from '../workload-priority'
 
 const SANDBOX_ENV = { [SANDBOX_WORKLOADS_ENV]: '1' }
@@ -55,6 +61,22 @@ describe('applyDaemonProtection', () => {
     expect(process.env.ATLAS_WORKLOAD_CGROUP).toBe(join(root, 'atlas-work'))
   })
 
+  it('gives commands the whole pod and guarantees the daemon group its memory', () => {
+    const report = applyDaemonProtection({
+      env: {},
+      platform: 'linux',
+      root,
+      meminfo: MEMINFO,
+      writeOomScoreAdj: () => undefined,
+    })
+    const commandsMax = 4 * 1024 ** 3
+    expect(report.enabled && report.cgroups.enabled && report.cgroups.ok).toBe(true)
+    expect(readFileSync(join(root, 'atlas-work', 'memory.max'), 'utf8')).toBe(String(commandsMax))
+    expect(readFileSync(join(root, 'atlas-serve', 'memory.min'), 'utf8')).toBe(
+      String(DAEMON_MEMORY_RESERVE.protectedBytes),
+    )
+  })
+
   it('reports a refused oom write and a missing cgroup root instead of throwing', () => {
     const report = applyDaemonProtection({
       env: {},
@@ -75,6 +97,7 @@ describe('applyDaemonProtection', () => {
       platform: 'linux',
       root,
       meminfo: MEMINFO,
+      reserve: SERVE_MEMORY_RESERVE,
     })
     expect(report.enabled && report.ok && report.limits.pidsMax).toBe(WORK_PIDS_MAX)
   })

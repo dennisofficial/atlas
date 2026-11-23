@@ -1,10 +1,10 @@
 import { API_PROVISIONED_ENV, SANDBOX_HOME_PATH } from '@dltech/atlas-wire'
-import { EVercelCredentialGap } from '@dltech/atlas-wire/web'
+import { ServiceUnavailableException } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { describe, expect, it, vi } from 'bun:test'
-import { VercelNotConfiguredError } from '../scoped-config/scoped-config.errors'
 import { EPodProvisionOutcome } from './pod-provision.contract'
+import { NOT_CONFIGURED_MESSAGE } from '../scoped-config/scoped-config.service'
 import { PROVISION_TIMEOUT_MESSAGE, failPodProvision, runPodProvision } from './pod-provision-run'
 import {
   CREDENTIALS,
@@ -86,9 +86,7 @@ describe('runPodProvision', () => {
       injectVercelCredentials: false,
       environment: { [API_PROVISIONED_ENV]: '1' },
     })
-    expect(scoped.vercelCredentials).toHaveBeenCalledWith({
-      thread: expect.objectContaining({ userId: 'usr-1' }),
-    })
+    expect(scoped.vercelCredentials).toHaveBeenCalled()
 
     const { sandbox, writeFiles } = fakeSandbox()
     await args?.prepare?.(sandbox)
@@ -155,7 +153,7 @@ describe('runPodProvision', () => {
   it('records an error step itself when the failure came before the boot reported one', async () => {
     await seedThread()
     await seedSandboxRow()
-    const failure = new VercelNotConfiguredError(EVercelCredentialGap.UserCredential)
+    const failure = new ServiceUnavailableException(NOT_CONFIGURED_MESSAGE)
     const scoped = fakeScoped({ vercelCredentials: vi.fn(async () => Promise.reject(failure)) })
     const { boot, calls } = fakeBoot()
 

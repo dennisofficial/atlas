@@ -10,10 +10,11 @@ import {
   createMiddlewareApp,
   UNTHROTTLED_RATE_LIMIT,
 } from '../../../_module/trpc/trpc-middleware.fixture'
-import { GithubDeviceClient } from './github-device-client'
-import type { FetchFn } from './github-device-client'
+import { GithubConfig } from '@dltech/atlas-github'
+import { GithubDeviceClient } from '@dltech/atlas-github'
+import type { FetchFn } from '@dltech/atlas-github'
 import { GithubRouter } from './github.router'
-import { GithubService } from './github.service'
+import { GithubService } from '@dltech/atlas-github'
 
 const pendingFetch: FetchFn = async () => ({
   ok: true,
@@ -36,7 +37,16 @@ describe('GithubRouter poll validation', () => {
       providers: [
         GithubRouter,
         SessionMiddleware,
-        GithubService,
+        {
+          provide: GithubService,
+          inject: [SecretCipherService, GithubConfig, GithubDeviceClient],
+          useFactory: (
+            cipher: SecretCipherService,
+            config: GithubConfig,
+            client: GithubDeviceClient,
+          ) => new GithubService(cipher, config, client),
+        },
+        { provide: GithubConfig, useValue: new GithubConfig({ clientId: 'gh-client-id' }) },
         {
           provide: GithubDeviceClient,
           useValue: new GithubDeviceClient({ fetchFn: pendingFetch }),

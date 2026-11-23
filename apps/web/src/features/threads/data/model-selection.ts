@@ -1,4 +1,4 @@
-import { defaultModelId } from '@dltech/atlas-harness/models'
+import { defaultModelId } from '@dltech/atlas-models'
 import { EEffort, EFFORT_LADDER, type ModelOption } from '@dltech/atlas-ui/ai/model-selector'
 
 export type ModelSelection = { id: string; effort: EEffort; fast: boolean }

@@ -2,4 +2,4 @@ export {
   isHardAuthFailure,
   OauthHttpError,
   OauthResponseError,
-} from '../../provider-oauth'
+} from '@dltech/atlas-credentials/provider-oauth'

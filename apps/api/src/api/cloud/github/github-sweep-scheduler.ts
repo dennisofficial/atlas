@@ -1,10 +1,10 @@
 import { Injectable, type DynamicModule, type Provider } from '@nestjs/common'
 import { Interval, ScheduleModule } from '@nestjs/schedule'
-import { GithubHookSweepService } from './github-hook-sweep.service'
-import { GithubPollSweeperService } from './github-poll-sweeper.service'
-import { GithubPrOutboxDispatcher } from './github-pr-outbox'
-import { GithubWebhookInboxService } from './github-webhook-inbox.service'
-import { GithubDeliveryService } from './github-delivery.service'
+import { GithubHookSweepService } from '@dltech/atlas-github'
+import { GithubPollSweeperService } from '@dltech/atlas-github'
+import { GithubPrOutboxDispatcher } from '@dltech/atlas-github'
+import { GithubWebhookInboxService } from '@dltech/atlas-github'
+import { GithubDeliveryService } from '@dltech/atlas-github'
 
 export const POLL_SWEEP_INTERVAL_MS = 30_000
 export const HOOK_SWEEP_INTERVAL_MS = 60_000

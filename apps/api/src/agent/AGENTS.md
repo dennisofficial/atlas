@@ -55,9 +55,16 @@ command exits, so `atlas-boot.sh` has to stay PID 1. The template's entrypoint m
 a command that returns, or the instance dies and takes every exec with it.
 Every Agent37 instance mounts its disk at `/atlas` through `mount_path`, which hides whatever the
 image ships in that folder. The image must therefore keep nothing it needs under `/atlas`.
-A pod starts at `AGENT37_DISK_GB` and the `pod-disk-grow` schedule grows it to 1.5 times its size
-when it is 80% full and no turn is running, up to Agent37's 100 GB ceiling. A grow reboots the vm
-and keeps `/atlas`, and the pod is woken again afterwards.
+Writes outside `/atlas` share a 10 GB OS layer that Agent37 neither measures nor grows, so
+`atlas-boot.sh` overlays `/root`, `/opt/bun/install`, `/tmp` and `/var/tmp` onto `/atlas`, and the
+daemon home is `/atlas/home/.atlas/daemon`.
+A pod starts at `AGENT37_DISK_GB`. The `pod-disk-grow` schedule runs every minute on Agent37's
+`disk_bytes` metric. It doubles the disk at 70% full when no turn is running, and at once when the
+disk is urgent (90% full, or less than 15% and 2 GB free), up to Agent37's 100 GB ceiling. A grow
+reboots the vm and keeps `/atlas`, and the pod is woken again afterwards.
+A container that crash-loops (logs `health.running` false, `restart_count` 3 or more) while its
+instance reads `running` is repaired with Agent37's `update`, which resets the OS layer. Sleep and
+wake both check for this, and both wait out a transition such as `updating` after a resize.
 
 Missing required vars exit 78 with the names on stderr.
 
@@ -69,7 +76,7 @@ Missing required vars exit 78 with the names on stderr.
 `/mcp-oauth/callback` is the redirect a provider opens. Keep the path and the origin.
 `GET /agent/daemon/bundle` serves the daemon bundle the host holds at `ATLAS_DAEMON_BUNDLE`. It
 authenticates the sandbox with its `DAEMON_TOKEN` and `X-Atlas-Sandbox` header. The Agent37
-image's boot loop fetches it on every wake (`apps/serve/sandbox-image/atlas-boot.sh`).
+image's boot loop fetches it on every wake (`infra/sandbox-image/atlas-boot.sh`).
 
 Locally, `bun run dev` in `apps/api` runs it with the api and needs docker Postgres and `test-redis`.
 The agent refuses to start without `REDIS_URL`. Tests run from `apps/api` too: `bun test src/agent`.

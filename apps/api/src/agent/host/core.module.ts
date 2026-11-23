@@ -4,7 +4,7 @@ import type { LogPort } from '@dltech/atlas-observability'
 
 import { databaseUrlWithTls } from '../config/database-url'
 import type { AgentHostEnv } from '../config/env'
-import { SecretCipher } from '../config/secret-cipher'
+import { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 import { JsonLog } from './json-log'
 import { AGENT_HOST_ENV, CIPHER, DB, LOG, POOL } from './tokens'
 

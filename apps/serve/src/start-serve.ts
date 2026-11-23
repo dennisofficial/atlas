@@ -3,6 +3,7 @@ import {
   applyServePriority,
   atlasDirectory,
   prepareWorkloadCgroups,
+  SERVE_MEMORY_RESERVE,
   sweepIdleWorkloadBoxes,
 } from '@dltech/atlas-harness'
 
@@ -24,7 +25,7 @@ export async function startServe(args: ServeArgs = {}): Promise<ServeHandle> {
   const notice = new LoggingNoticePort({ log })
   const priority = applyServePriority({ env })
   if (priority.enabled) log({ event: EServeEvent.PriorityApplied, ...priority })
-  const cgroups = prepareWorkloadCgroups({ env })
+  const cgroups = prepareWorkloadCgroups({ env, reserve: SERVE_MEMORY_RESERVE })
   if (cgroups.enabled) log({ event: EServeEvent.WorkloadCgroups, ...cgroups })
   const boxSweeper =
     cgroups.enabled && cgroups.ok

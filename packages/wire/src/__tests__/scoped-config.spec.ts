@@ -10,8 +10,6 @@ import {
   resolvedSandboxConfigSchema,
   validateProjectSetting,
   encodeSettingValue,
-  userVercelCredentialSchema,
-  userVercelCredentialUpsertSchema,
   type ScopedMcpServer,
   type ScopeLayer,
 } from '../web'
@@ -84,7 +82,7 @@ describe('resolveScopedConfig', () => {
       user: layer({ settings: { 'sandbox.vercelTeamId': 't', 'model.id': 'a/b' } }),
       project: layer({
         settings: { 'sandbox.vercelProjectId': 'prj' },
-        secrets: [{ name: 'sandbox.vercelToken', value: 'tok' }],
+        secrets: [{ name: 'sandbox.vercelStoredToken', value: 'tok' }],
       }),
     })
     const pod = podFacingConfig(resolved)
@@ -120,7 +118,7 @@ describe('harness secrets in the resolved config', () => {
         defaults: EMPTY_SCOPE_LAYER,
         user: layer({
           harnessSecrets: [
-            { name: 'sandbox.vercelToken', value: 'tok' },
+            { name: 'sandbox.vercelStoredToken', value: 'tok' },
             { name: 'search.jina', value: 'j' },
           ],
         }),
@@ -136,7 +134,7 @@ describe('project setting registry', () => {
     expect(PROJECT_SETTING_REGISTRY.has('sandbox.vercelProjectId')).toBe(false)
     expect(PROJECT_SETTING_REGISTRY.has('model.id')).toBe(true)
     expect(PROJECT_SETTING_REGISTRY.has('sandbox.vercelTeamId')).toBe(false)
-    expect(PROJECT_SETTING_REGISTRY.has('sandbox.vercelToken')).toBe(false)
+    expect(PROJECT_SETTING_REGISTRY.has('sandbox.vercelStoredToken')).toBe(false)
     expect(
       validateProjectSetting({
         key: 'sandbox.vercelProjectId',
@@ -144,32 +142,5 @@ describe('project setting registry', () => {
       }).ok,
     ).toBe(false)
     expect(validateProjectSetting({ key: 'nope', stored: 'x' }).ok).toBe(false)
-  })
-})
-
-describe('vercel credential', () => {
-  it('reads without a token and takes an optional write-only token beside team and project', () => {
-    expect(
-      userVercelCredentialSchema.safeParse({
-        configured: false,
-        kind: 'token',
-        teamId: null,
-        vercelProjectId: null,
-        plan: 'unknown',
-        planCheckedAt: null,
-        needsReconnect: false,
-        vercelUserId: null,
-        oauthConfigured: false,
-        updatedAt: null,
-      }).success,
-    ).toBe(true)
-    const owned = { teamId: 'team_1', vercelProjectId: 'prj_1' }
-    expect(userVercelCredentialUpsertSchema.safeParse(owned).success).toBe(true)
-    expect(userVercelCredentialUpsertSchema.safeParse({ ...owned, token: 'v' }).success).toBe(true)
-    expect(userVercelCredentialUpsertSchema.safeParse({ ...owned, token: '' }).success).toBe(false)
-    expect(
-      userVercelCredentialUpsertSchema.safeParse({ token: 'v', teamId: 'team_1' }).success,
-    ).toBe(false)
-    expect(userVercelCredentialUpsertSchema.safeParse({ token: 'v' }).success).toBe(false)
   })
 })

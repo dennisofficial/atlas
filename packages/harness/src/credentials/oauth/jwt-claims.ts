@@ -1,1 +1,1 @@
-export { decodeJwtClaims, type JwtClaims } from '../../provider-oauth'
+export { decodeJwtClaims, type JwtClaims } from '@dltech/atlas-credentials/provider-oauth'

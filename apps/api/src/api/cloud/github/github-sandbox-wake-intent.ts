@@ -3,24 +3,17 @@ import { db, type Tx } from '@dltech/atlas-db'
 import { appendStoredWithin, nextRunId } from '../../platform/sessions/append'
 import type { ThreadSignalPublisher } from '../../platform/sessions/thread-signals.service'
 import { threadSubscriptions } from '../../platform/sessions/thread-subscriptions'
-import type { EPrEventKind, GithubPrEventPayload } from './github-realtime.types'
+import type {
+  GithubWakeEventNotice,
+  GithubWakePrEvent,
+  GithubWakePrNotice,
+} from '@dltech/atlas-github'
 
-export type WakePrEvent = {
-  userId: string
-  repoFullName: string
-  prNumber: number
-  kind: EPrEventKind
-  payload: GithubPrEventPayload
-  eventId?: string
-}
+export type WakePrEvent = GithubWakePrEvent
 
-export type WakePrNotice = Pick<WakePrEvent, 'userId' | 'repoFullName' | 'prNumber'> & {
-  kind?: 'pull-request'
-}
+export type WakePrNotice = GithubWakePrNotice
 
-export type WakeEventNotice =
-  | WakePrNotice
-  | { kind: 'workflow-run'; userId: string; repoFullName: string }
+export type WakeEventNotice = GithubWakeEventNotice
 
 const GITHUB_PREFIX = 'github.com/'
 const WAKE_LOCK_NAMESPACE = 'gh-wake:'

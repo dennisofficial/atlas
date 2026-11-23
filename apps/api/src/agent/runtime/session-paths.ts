@@ -2,7 +2,7 @@ import { join } from 'node:path'
 
 import { ATLAS_HOME_ENV, type ThreadId } from '@dltech/atlas-core'
 
-import { SANDBOX_HOME_PATH } from '../sandbox/constants'
+import { SANDBOX_HOME_PATH } from '@dltech/atlas-pods/sandbox/constants'
 
 export const SESSIONS_DIRECTORY_NAME = 'sessions'
 export const THREADS_DIRECTORY_NAME = 'threads'

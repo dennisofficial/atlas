@@ -1,6 +1,7 @@
-import { type FSWatcher, existsSync, watch } from 'node:fs'
+import { type FSWatcher, existsSync } from 'node:fs'
 import { readdir, stat } from 'node:fs/promises'
 import { dirname, join, sep } from 'node:path'
+import { guardedWatch } from '../watch/tree'
 
 const MAX_DEPTH = 4
 const DEBOUNCE_MS = 400
@@ -104,14 +105,20 @@ export class RepoDiscovery {
 
   private armOne(dir: string): void {
     if (this.watchers.has(dir)) return
-    try {
-      this.watchers.set(
-        dir,
-        watch(dir, { persistent: true, recursive: false }, () => this.schedule()),
-      )
-    } catch {
+    const watcher = guardedWatch({
+      path: dir,
+      recursive: false,
+      onEvent: () => this.schedule(),
+      onError: () => {
+        this.watchers.delete(dir)
+        this.schedule()
+      },
+    })
+    if (watcher === null) {
       this.armAncestor()
+      return
     }
+    this.watchers.set(dir, watcher)
   }
 
   private armAncestor(): void {

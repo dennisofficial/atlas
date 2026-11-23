@@ -1,10 +1,10 @@
-import type { DeviceLogin, DevicePoll } from '../../provider-oauth'
+import type { DeviceLogin, DevicePoll } from '@dltech/atlas-credentials/provider-oauth'
 
 export {
   EDevicePoll,
   type DeviceLogin,
   type DevicePoll,
-} from '../../provider-oauth'
+} from '@dltech/atlas-credentials/provider-oauth'
 
 export interface DeviceLoginClient {
   startDeviceLogin(): Promise<DeviceLogin>

@@ -1,5 +1,5 @@
 import type { INestApplication } from '@nestjs/common'
-import { EGithubCallSource } from './github-call-log'
+import { EGithubCallSource } from '@dltech/atlas-github'
 import request from 'supertest'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'bun:test'
 import { SESSION_VERIFIER } from '../../../_core/ports/session-verifier'
@@ -9,12 +9,12 @@ import {
   createMiddlewareApp,
   UNTHROTTLED_RATE_LIMIT,
 } from '../../../_module/trpc/trpc-middleware.fixture'
-import { GithubRepoReads } from './github-repo-reads'
-import { takeGithubRequestSlot } from './github-request-budget'
-import { GithubRequestCoordinator } from './github-request-coordinator'
-import { GithubUserReadFailed } from './github-user-reads'
+import { GithubRepoReads } from '@dltech/atlas-github'
+import { takeGithubRequestSlot } from '@dltech/atlas-github'
+import { GithubRequestCoordinator } from '@dltech/atlas-github'
+import { GithubUserReadFailed } from '@dltech/atlas-github'
 import { GithubReposRouter } from './github-repos.router'
-import { GithubService } from './github.service'
+import { GithubService } from '@dltech/atlas-github'
 
 const SESSIONS: Record<string, string> = { 'session-a': 'user-a', 'session-b': 'user-b' }
 const GITHUB_TOKENS: Record<string, string> = { 'user-a': 'gho_user-a' }

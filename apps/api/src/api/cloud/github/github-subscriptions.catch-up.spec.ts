@@ -1,16 +1,17 @@
-import { observationReadOf } from './github-pr-read.fixture'
-import { storeFixture } from './github-pr-store.fixture'
+import { observationReadOf } from '@dltech/atlas-github/testing'
+import { storeFixture } from '@dltech/atlas-github/testing'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import { localCoordinator } from './github-request-coordinator.fixture'
+import { localCoordinator } from '@dltech/atlas-github/testing'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test'
 import { ensureUsers, prStateRows, subscriptionRows } from '../../../../test/github-seed'
-import type { GithubAppInstallNoticeService } from './github-app-install-notice.service'
-import type { GithubHookLifecycleService } from './github-hook-lifecycle.service'
-import type { GithubUserReads } from './github-user-reads'
-import { GithubSubscriptionsService } from './github-subscriptions.service'
-import type { GithubService } from './github.service'
-import type { PullRequestCacheFields } from './github-pull-request-mapping'
+import type { GithubAppInstallNoticeService } from '@dltech/atlas-github'
+import type { GithubHookLifecycleService } from '@dltech/atlas-github'
+import type { GithubUserReads } from '@dltech/atlas-github'
+import { GithubSubscriptionsService } from '@dltech/atlas-github'
+import type { GithubService } from '@dltech/atlas-github'
+import type { PullRequestCacheFields } from '@dltech/atlas-github'
 import { stubGlobal, unstubAllGlobals } from '@dltech/bun-test-shims'
+import { threadActivityAt } from './github-thread-activity'
 
 const REST_FIELDS: PullRequestCacheFields = {
   title: 'add the thing',
@@ -59,6 +60,7 @@ function serviceWith(args: {
     localCoordinator(github),
     { coversRepo: async () => false } as never,
     storeFixture(),
+    threadActivityAt,
   )
 }
 

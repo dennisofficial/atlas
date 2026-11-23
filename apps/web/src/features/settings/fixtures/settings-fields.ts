@@ -61,7 +61,7 @@ export const SANDBOX_FIELDS: SettingField[] = [
     key: 'sandbox.image',
     title: 'Sandbox image',
     description:
-      'The image a cloud sandbox boots. Point this at your own build when your Vercel team cannot pull the published one.',
+      'The image a cloud sandbox boots. Point this at your own build when the sandbox cannot pull the published one.',
     fallback: 'atlas-sandbox:latest',
   },
 ]

@@ -161,6 +161,6 @@ describe('birthInCloud', () => {
     const result = await birthInCloud(birthArgs({ bridge: failing, runner: ERunner.Vercel }))
 
     expect(result).toMatchObject({ ok: false, fault: EBirthFault.NotConfigured })
-    expect(result.ok ? '' : result.detail).toContain('Add your Vercel credentials')
+    expect(result.ok ? '' : result.detail).toContain('platform sandbox credential')
   })
 })

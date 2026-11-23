@@ -2,7 +2,7 @@ import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it, vi } from 'bun:test'
 import { db } from '@dltech/atlas-db'
 import { prEventRows } from '../../../../test/github-seed'
-import { seedHeadChecks } from './github-pr-checks.fixture'
+import { seedHeadChecks } from '@dltech/atlas-github/testing'
 import {
   preparePollSweeper,
   REST_FIELDS,

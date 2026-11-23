@@ -3,23 +3,24 @@ import { expect, vi } from 'bun:test'
 import { ControlPlane } from '@dltech/atlas-control'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import { chainEvents, toRunId, toThreadId } from '@dltech/atlas-core'
-import { localCoordinator } from './github-request-coordinator.fixture'
+import { localCoordinator } from '@dltech/atlas-github/testing'
 import {
   ensureUsers,
   seedPrState as seedPrStateRow,
   seedSubscription as seedSubscriptionRow,
 } from '../../../../test/github-seed'
 import { DrainStateService } from '../../platform/health/drain-state.service'
-import { GithubHeadReads } from './github-head-reads'
-import { observationReadOf } from './github-pr-read.fixture'
-import { storeFixture } from './github-pr-store.fixture'
-import { GithubPollSweeperService } from './github-poll-sweeper.service'
-import type { GithubHookLifecycleService } from './github-hook-lifecycle.service'
-import { GithubPrFanoutService } from './github-pr-fanout.service'
-import type { PullRequestCacheFields } from './github-pull-request-mapping'
-import type { GithubUserReads } from './github-user-reads'
-import type { RestPullRequest } from './github-pull-request-mapping'
-import type { GithubService } from './github.service'
+import { GithubHeadReads } from '@dltech/atlas-github'
+import { observationReadOf } from '@dltech/atlas-github/testing'
+import { storeFixture } from '@dltech/atlas-github/testing'
+import { GithubPollSweeperService } from '@dltech/atlas-github'
+import type { GithubHookLifecycleService } from '@dltech/atlas-github'
+import { GithubPrFanoutService } from '@dltech/atlas-github'
+import type { PullRequestCacheFields } from '@dltech/atlas-github'
+import type { GithubUserReads } from '@dltech/atlas-github'
+import type { RestPullRequest } from '@dltech/atlas-github'
+import type { GithubService } from '@dltech/atlas-github'
+import { threadActivityAt } from './github-thread-activity'
 
 export const REST_FIELDS: PullRequestCacheFields = {
   title: 'add the thing',
@@ -66,6 +67,7 @@ export function serviceWith(args: {
       localCoordinator(github),
       args.headReads ?? (new GithubHeadReads() as unknown as GithubHeadReads),
       storeFixture({ fanout }),
+      threadActivityAt,
     ),
     fanout,
   }

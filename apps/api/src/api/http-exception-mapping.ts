@@ -1,6 +1,16 @@
-import { HttpException, HttpStatus, type Logger } from '@nestjs/common'
+import {
+  BadGatewayException,
+  BadRequestException,
+  ForbiddenException,
+  HttpException,
+  HttpStatus,
+  type Logger,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common'
 import { databaseErrorCode, isNoRows, isUniqueViolation } from '@dltech/atlas-db'
-import { GithubUserReadFailed } from './cloud/github/github-user-reads'
+import { EGithubHttpStatus, GithubHttpError } from '@dltech/atlas-github'
+import { GithubUserReadFailed } from '@dltech/atlas-github'
 
 const UPSTREAM_TIMEOUT_MESSAGE = 'upstream request timed out'
 const TIMEOUT_ERROR_NAMES: readonly string[] = ['TimeoutError', 'AbortError']
@@ -53,6 +63,17 @@ const databaseFailure = (exception: unknown): HttpException | undefined => {
   return undefined
 }
 
+const githubHttpFailure = (exception: GithubHttpError): HttpException => {
+  const message = exception.message
+  if (exception.status === EGithubHttpStatus.BadRequest) return new BadRequestException(message)
+  if (exception.status === EGithubHttpStatus.Forbidden) return new ForbiddenException(message)
+  if (exception.status === EGithubHttpStatus.NotFound) return new NotFoundException(message)
+  if (exception.status === EGithubHttpStatus.BadGateway) return new BadGatewayException(message)
+  if (exception.status === EGithubHttpStatus.ServiceUnavailable)
+    return new ServiceUnavailableException(message)
+  return new HttpException(message, exception.status)
+}
+
 export function mapToHttpException({
   exception,
   log,
@@ -61,6 +82,8 @@ export function mapToHttpException({
   log: Pick<Logger, 'warn' | 'error'>
 }): HttpException | ClientHttpError {
   if (exception instanceof HttpException) return exception
+
+  if (exception instanceof GithubHttpError) return githubHttpFailure(exception)
 
   const database = databaseFailure(exception)
   if (database !== undefined) {

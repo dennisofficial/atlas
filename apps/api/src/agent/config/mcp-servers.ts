@@ -12,7 +12,7 @@ import { z } from 'zod'
 import { sameServerUrl } from '../mcp-oauth/seal'
 import { databaseUrlWithTls } from './database-url'
 import { readAgentHostEnv } from './env'
-import { SecretCipher } from './secret-cipher'
+import { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 
 const QUERY_TIMEOUT_MS = 10_000
 

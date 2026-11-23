@@ -19,7 +19,7 @@ export enum EStuckRecoveryOutcome {
 }
 
 export type StuckRecoveryDeps = {
-  pod: Pick<PodLaunchService, 'credentialsOf' | 'claim' | 'dispatchClaimed'>
+  pod: Pick<PodLaunchService, 'notConfiguredOf' | 'claim' | 'dispatchClaimed'>
   cipher: Pick<SecretCipherService, 'decrypt'>
   fetch: typeof fetch
   log: (line: string) => void
@@ -76,8 +76,7 @@ async function recover(args: {
   const { target, deps } = args
   const thread = await db.orm.public.Thread.where({ id: target.threadId }).all().first()
   if (thread === null) return EStuckRecoveryOutcome.Skipped
-  const gap = await deps.pod.credentialsOf({ userId: thread.userId })
-  if (gap !== null) return EStuckRecoveryOutcome.Skipped
+  if ((await deps.pod.notConfiguredOf()) !== null) return EStuckRecoveryOutcome.Skipped
   const claim = await deps.pod.claim({ thread, existing: target.sandbox })
   if (claim === null) return EStuckRecoveryOutcome.Skipped
   const dispatched = await deps.pod.dispatchClaimed({ thread, claim })

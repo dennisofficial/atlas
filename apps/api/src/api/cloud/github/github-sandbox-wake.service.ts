@@ -18,8 +18,8 @@ import {
   type FailedWakeTarget,
 } from './github-sandbox-wake-linked'
 import { LocalPodWakes } from './github-local-pod-wake'
-import { GithubPrFanoutService } from './github-pr-fanout.service'
-import { PARK_WAKE_WINDOW_MS } from './github-delivery-routing'
+import { GithubPrFanoutService } from '@dltech/atlas-github'
+import { PARK_WAKE_WINDOW_MS } from '@dltech/atlas-github'
 import { podSessionOf, sessionOfThread } from '../../platform/sessions/session-of-thread'
 import { WAKE_DEBOUNCE, WAKE_DEBOUNCE_MS } from './github-sandbox-wake-debounce'
 import { sessionHoldsSubscription } from './github-sandbox-wake-subscribers'

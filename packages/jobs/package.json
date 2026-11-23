@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./pod-sleep": "./src/pod-sleep.ts",
+    "./pod-resize": "./src/pod-resize.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
@@ -14,6 +16,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@dltech/atlas-native-commands": "workspace:*",
     "@types/bun": "latest"
   }
 }

@@ -7,15 +7,9 @@ import { seedSessionUsers } from '../../../test/web-settings.fake-db'
 import { createPersonalApp, trpcMutate } from '../personal-resources.router.fixture'
 import { SettingsRouter } from '../settings/settings.router'
 import { SettingsService } from '../settings/settings.service'
-import { VercelPlanService } from '../user-vercel/vercel-credential-plan'
-import { unknownPlanService } from '../user-vercel/vercel-testkit'
 import { podVcpusOf } from './pod-size'
 
-const PROVIDERS: Provider[] = [
-  SettingsRouter,
-  SettingsService,
-  { provide: VercelPlanService, useValue: unknownPlanService() },
-]
+const PROVIDERS: Provider[] = [SettingsRouter, SettingsService]
 
 describe('podVcpusOf reads what the web personal settings save', () => {
   useTestDatabase()

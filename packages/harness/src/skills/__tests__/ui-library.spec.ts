@@ -4,7 +4,7 @@ import { dirname, join, resolve } from 'node:path'
 import { describe, expect, it } from 'bun:test'
 import { z } from 'zod'
 
-const ROOT = resolve(import.meta.dirname, '../../../skills/ui-design')
+const ROOT = resolve(import.meta.dirname, '../../../../../plugins/skills/skills/ui-design')
 const REFERENCES = join(ROOT, 'references')
 const ASSETS = join(ROOT, 'assets')
 const SOURCE_COUNTS = { book: 218, palette: 152, gallery: 86, font: 69 }

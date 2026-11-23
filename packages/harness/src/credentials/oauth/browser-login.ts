@@ -2,7 +2,10 @@ import { createHash, randomBytes } from 'node:crypto'
 
 import type { Account, EAuthProvider } from '@dltech/atlas-core'
 
-import { openaiBrowserAuthorizeUrl, type OauthLogin } from '../../provider-oauth'
+import {
+  openaiBrowserAuthorizeUrl,
+  type OauthLogin,
+} from '@dltech/atlas-credentials/provider-oauth'
 
 export type BrowserLoginSession = {
   url: string

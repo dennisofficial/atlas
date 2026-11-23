@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { readProjectFiles, type ProjectFileRows, type SealedFileMountRow } from '../project-files'
-import { SecretCipher } from '../secret-cipher'
+import { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 
 const KEY = 'a'.repeat(64)
 

@@ -2,7 +2,7 @@ import type { LanguageModel } from 'ai'
 
 import type { ProviderIdentity } from '@dltech/atlas-core'
 
-import { GATEWAY_PROVIDER_ID } from '../models/provider-ids'
+import { GATEWAY_PROVIDER_ID } from '@dltech/atlas-models'
 
 export function providerIdentityOf(model: LanguageModel): ProviderIdentity {
   if (typeof model === 'string') return { id: GATEWAY_PROVIDER_ID, modelId: model }

@@ -8,7 +8,7 @@ import {
   seedSubscription,
   serviceWith,
 } from './github-poll-sweeper.fixture'
-import { GithubUserReadFailed } from './github-user-reads'
+import { GithubUserReadFailed } from '@dltech/atlas-github'
 
 describe('GithubPollSweeperService hook-backed re-anchor restraint', () => {
   useTestDatabase()

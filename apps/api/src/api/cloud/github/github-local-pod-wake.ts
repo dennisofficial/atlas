@@ -1,5 +1,5 @@
 import { db } from '@dltech/atlas-db'
-import type { GithubPrFanoutService } from './github-pr-fanout.service'
+import type { GithubPrFanoutService } from '@dltech/atlas-github'
 
 export const LOCAL_WAKE_BURST_MS = 30_000
 

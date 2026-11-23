@@ -27,7 +27,7 @@ import {
 import type { PreviewTunnels } from '@dltech/atlas-previews'
 import type { MemoryScope } from '@dltech/atlas-plugin-sdk'
 
-import type { SecretCipher } from '../config/secret-cipher'
+import type { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 import { settingsVersionsOf } from './settings-versions'
 import { webSearchConfigOf } from './web-search-config'
 

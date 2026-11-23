@@ -18,6 +18,9 @@ export type SessionPaneValue = {
   threadWorktreePath: string | undefined
   status: SessionStatusOutput | undefined
   shellTails: Readonly<Record<string, string>>
+  podSizeRequest: number
+  requestPodSize: () => void
+  consumePodSizeRequest: () => void
   openTab: (tab: ESessionPaneTab) => void
   openBrowser: (url: string) => void
 }

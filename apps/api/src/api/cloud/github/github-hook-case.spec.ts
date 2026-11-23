@@ -5,10 +5,10 @@ import { describe, expect, it } from 'bun:test'
 import { createRealRedisService } from '../../../../test/real-redis.fixture'
 import { seedRepoHook, seedSubscription } from '../../../../test/github-seed'
 import { GithubHookController } from './github-hook.controller'
-import { GithubWebhookInboxService } from './github-webhook-inbox.service'
-import { PULL_REQUEST_PAYLOAD } from './github-delivery.fixture'
+import { GithubWebhookInboxService } from '@dltech/atlas-github'
+import { PULL_REQUEST_PAYLOAD } from '@dltech/atlas-github/testing'
 import { mockGithubHttp, realGithubGraph } from './github-realtime-http.fixture'
-import type { GithubPrWebhookRequest } from './github-webhook.types'
+import type { GithubPrWebhookRequest } from './github-webhook-request'
 
 describe('legacy mixed-case hook identity', () => {
   useTestDatabase()

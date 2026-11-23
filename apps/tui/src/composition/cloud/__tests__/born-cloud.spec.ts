@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 
-import { ERunner, ESettingId } from '@dltech/atlas-core'
+import { ERunner } from '@dltech/atlas-core'
 import type { ThreadId } from '@dltech/atlas-core'
 
 import { currentNotices, dismissNotice } from '../../../ui/notice-store'
@@ -15,16 +15,10 @@ import { bornPlacementChip } from '../born-placement-chip'
 
 afterEach(() => dismissNotice())
 
-const appOn = (args: { signedIn: boolean; vercel: boolean }): FakeApp =>
+const appOn = (args: { signedIn: boolean }): FakeApp =>
   fakeApp({
     model: scriptedModelPort({ script: { thinking: '', reply: 'ok' } }),
     ...(args.signedIn ? {} : { cloud: fakeSignedOutCloud() }),
-    ...(args.vercel ? { secrets: { [ESettingId.VercelToken]: 'vercel-token' } } : {}),
-    settings: {
-      values: args.vercel
-        ? { [ESettingId.VercelTeamId]: 'team_1', [ESettingId.VercelProjectId]: 'prj_1' }
-        : {},
-    },
   })
 
 const rig = (args: { app: FakeApp; choice?: ERunner; preflight?: string | null }) => {
@@ -51,7 +45,7 @@ const noticeKeys = (): string[] => currentNotices().map((notice) => notice.key)
 
 describe('where a thread is born on its first send', () => {
   it('births on the remembered runner when no choice is passed', async () => {
-    const app = appOn({ signedIn: true, vercel: true })
+    const app = appOn({ signedIn: true })
     rememberPlacement({ app, runner: ERunner.Vercel })
     const { calls, run, threadId } = rig({ app })
 
@@ -63,7 +57,7 @@ describe('where a thread is born on its first send', () => {
 
   for (const choice of [undefined, ERunner.Local, ERunner.Vercel]) {
     it(`refuses every birth while signed out (${choice ?? 'default'}) and opens the cloud sign-in`, async () => {
-      const app = appOn({ signedIn: false, vercel: true })
+      const app = appOn({ signedIn: false })
       const { calls, run, threadId } = rig({ app, ...(choice === undefined ? {} : { choice }) })
 
       await run
@@ -78,7 +72,7 @@ describe('where a thread is born on its first send', () => {
   }
 
   it('births into a local pod by default', async () => {
-    const app = appOn({ signedIn: true, vercel: false })
+    const app = appOn({ signedIn: true })
     const { calls, run, threadId } = rig({ app })
 
     await run
@@ -92,8 +86,8 @@ describe('where a thread is born on its first send', () => {
     })
   })
 
-  it('births on Vercel when that is chosen and configured', async () => {
-    const app = appOn({ signedIn: true, vercel: true })
+  it('births on Vercel when that is chosen', async () => {
+    const app = appOn({ signedIn: true })
     const { calls, run, threadId } = rig({ app, choice: ERunner.Vercel })
 
     await run
@@ -102,19 +96,8 @@ describe('where a thread is born on its first send', () => {
     expect(bornPlacementChip(app).snapshot()?.runner).toBe(ERunner.Vercel)
   })
 
-  it('shows the not-configured notice and births nothing when Vercel has no credential', async () => {
-    const app = appOn({ signedIn: true, vercel: false })
-    const { calls, run } = rig({ app, choice: ERunner.Vercel })
-
-    await run
-
-    expect(calls.births).toEqual([])
-    expect(noticeKeys()).toEqual(['born-cloud-preflight'])
-    expect(currentNotices()[0]?.text).toContain('not set up')
-  })
-
   it('names Docker Desktop and births nothing when the pod preflight refuses', async () => {
-    const app = appOn({ signedIn: true, vercel: false })
+    const app = appOn({ signedIn: true })
     const refusal =
       "Docker isn't answering at /x (nope) — start Docker Desktop, or point ATLAS_DOCKER_SOCKET at a running engine"
     const { calls, run } = rig({ app, preflight: refusal })

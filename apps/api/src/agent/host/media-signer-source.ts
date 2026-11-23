@@ -2,7 +2,7 @@ import type { Db } from '@dltech/atlas-db'
 import { VercelMediaStore } from '@dltech/atlas-media'
 
 import type { AgentHostEnv } from '../config/env'
-import type { SecretCipher } from '../config/secret-cipher'
+import type { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 import { MediaSigner } from '../media/media-signer'
 import { PgMediaSigningWindows } from '../media/pg-media-signing-windows'
 

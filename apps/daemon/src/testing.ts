@@ -71,7 +71,7 @@ export const daemonTestToken = (): string => daemonToken({ secret: SECRET, sandb
 
 export const daemonTestEnv = (
   home: string,
-  options?: { realCgroups?: boolean | undefined },
+  options?: { realCgroups?: boolean | undefined; workloads?: boolean | undefined },
 ): Record<string, string | undefined> => ({
   PATH: process.env.PATH,
   HOME: home,
@@ -79,6 +79,7 @@ export const daemonTestEnv = (
   ATLAS_SANDBOX_NAME: SANDBOX,
   ATLAS_DAEMON_HOME: join(home, 'daemon'),
   ...(options?.realCgroups === true ? {} : { ATLAS_DAEMON_CGROUP_ROOT: fakeCgroupRoot(home) }),
+  ...(options?.workloads === true ? { ATLAS_SANDBOX_WORKLOADS: '1' } : {}),
   ATLAS_RG_PATH: rgPath,
   ATLAS_DAEMON_PORT: '0',
 })
@@ -119,11 +120,12 @@ export const realDaemonTarget = (args: {
   name: string
   entry: string
   realCgroups?: boolean | undefined
+  workloads?: boolean | undefined
 }): DaemonConformanceTarget => ({
   name: args.name,
   start: async (): Promise<DaemonHandle> => {
     const home = mkdtempSync(join(tmpdir(), 'atlas-daemon-test-'))
-    const env = daemonTestEnv(home, { realCgroups: args.realCgroups })
+    const env = daemonTestEnv(home, { realCgroups: args.realCgroups, workloads: args.workloads })
     const sessions = new Set<DaemonSession>()
     let running = await spawnDaemon({ entry: args.entry, env })
     const kill = async (): Promise<void> => {

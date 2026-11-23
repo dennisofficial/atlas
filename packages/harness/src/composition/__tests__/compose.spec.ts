@@ -259,11 +259,11 @@ describe('composeHarness', () => {
       expect(await app.accounts.list()).toEqual([])
       app.secrets.write({ name: 'search.tavily', value: 'tvly-fake' })
       expect(app.secrets.read('search.tavily')).toBe('tvly-fake')
-      expect(app.settings.set({ id: ESettingId.VercelTeamId, value: 'team_local' })).toEqual({
+      expect(app.settings.set({ id: ESettingId.SandboxImage, value: 'my/image:1' })).toEqual({
         ok: true,
       })
-      expect(app.settings.snapshot().resolution.settings.get(ESettingId.VercelTeamId)?.value).toBe(
-        'team_local',
+      expect(app.settings.snapshot().resolution.settings.get(ESettingId.SandboxImage)?.value).toBe(
+        'my/image:1',
       )
 
       await expect(app.close()).resolves.toBeUndefined()

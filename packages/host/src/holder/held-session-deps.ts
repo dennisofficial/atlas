@@ -6,13 +6,7 @@ import type { PodMcpControl } from '@dltech/atlas-plugin-sdk'
 
 import type { CommandHandlers } from './command-intake'
 import type { PodControlClient } from './pod-control'
-import type {
-  HostBus,
-  HostTimers,
-  PodDiskPressurePort,
-  PodPeers,
-  SessionRuntimeFactory,
-} from './ports'
+import type { HostBus, HostTimers, PodPeers, SessionRuntimeFactory } from './ports'
 
 export type StartVerdict = { permanent: boolean; giveUp: boolean }
 
@@ -20,7 +14,6 @@ export type HeldSessionDeps = {
   sessionId: string
   podSessionId: string
   podPeers?: PodPeers | undefined
-  diskPressure?: PodDiskPressurePort | undefined
   plane: ControlPlane
   bus: HostBus
   timers: HostTimers

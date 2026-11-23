@@ -2,14 +2,15 @@ import { EGithubPrStatesFrame, type GithubPrStatesFrame } from '@dltech/atlas-wi
 import type { Logger } from '@nestjs/common'
 import type { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import type { ThreadChangedSignal } from '../../platform/sessions/thread-signal.bus'
-import type { PrKeyWatch } from './github-pr-fanout.watchers'
-import type { GithubPrFanoutService } from './github-pr-fanout.service'
-import { ELinkedPrAccess, type LinkedPrAccess } from './github-linked-pr-access'
-import { cachedPrStates, type LinkedPr, linkedPrs } from './github-linked-prs'
-import { normalizedRepo, prIdentity } from './github-pr-identity'
-import type { PrFrameSink } from './github-pr-stream.frames'
-import type { GithubPrStateDto } from './github-realtime.types'
-import type { GithubSubscriptionsService } from './github-subscriptions.service'
+import type { PrKeyWatch } from '@dltech/atlas-github'
+import type { GithubPrFanoutService } from '@dltech/atlas-github'
+import { ELinkedPrAccess, type LinkedPrAccess } from '@dltech/atlas-github'
+import { cachedPrStates, type LinkedPr } from '@dltech/atlas-github'
+import { linkedPrs } from './github-linked-prs-of-user'
+import { normalizedRepo, prIdentity } from '@dltech/atlas-github'
+import type { PrFrameSink } from '@dltech/atlas-github'
+import type { GithubPrStateDto } from '@dltech/atlas-github'
+import type { GithubSubscriptionsService } from '@dltech/atlas-github'
 
 export const PR_STATES_HEARTBEAT_MS = 30_000
 export const LINKED_PR_PENDING_RETRY_MS = 60_000

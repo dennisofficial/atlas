@@ -1,5 +1,5 @@
 import type { Project, ProjectRepoTracking } from '@dltech/atlas-wire'
-import { readRepoTracking, type RepoTracking } from '../github/github-repo-coverage'
+import { readRepoTracking, type RepoTracking } from '@dltech/atlas-github'
 
 export async function withRepoTracking(args: { project: Project }): Promise<Project> {
   return {

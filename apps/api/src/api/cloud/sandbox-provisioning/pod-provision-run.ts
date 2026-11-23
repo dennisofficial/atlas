@@ -28,7 +28,7 @@ import { clonePrefetcherOf } from './pod-clone-prefetch'
 import { workspaceSpecWriter } from './sandbox-provisioning-bootstrap'
 import { rollbackIfDestroyed } from './pod-provision-rollback'
 import { restartForResize, type ResizeRestartTiming } from './pod-resize-restart'
-import { recordSandboxRunClose } from '../../../agent/sandbox/sandbox-runs'
+import { recordSandboxRunClose } from '@dltech/atlas-pods/sandbox/sandbox-runs'
 import { stopSessionForRollover } from './pod-rollover-stop'
 import { claimHeld, markFailed, markRunning } from './sandbox-provisioning-rows'
 
@@ -126,8 +126,8 @@ async function provisionClaimed(args: {
       cipher: deps.cipher,
       log: deps.log,
     })
-    const owner = await deps.scoped.vercelCredentials({ thread })
-    const credentials = { ...owner, projectId: row.vercelProjectId ?? owner.projectId }
+    const platform = await deps.scoped.vercelCredentials()
+    const credentials = { ...platform, projectId: row.vercelProjectId ?? platform.projectId }
     const vcpus = await podVcpusOf({ sessionId: session.id, userId: thread.userId })
     const resizing = row.pendingVcpus !== null
     if (payload.stopSessionId !== undefined) {

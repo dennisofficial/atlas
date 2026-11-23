@@ -13,15 +13,15 @@ import {
 } from 'bun:test'
 import { createRealRedisService } from '../../../../test/real-redis.fixture'
 import { seedPrState, seedSubscription } from '../../../../test/github-seed'
-import { seedHeadChecks } from './github-pr-checks.fixture'
+import { seedHeadChecks } from '@dltech/atlas-github/testing'
 import type { RedisService } from '../../../_lib/redis/redis.service'
-import { PULL_REQUEST_PAYLOAD } from './github-delivery.fixture'
+import { PULL_REQUEST_PAYLOAD } from '@dltech/atlas-github/testing'
 import { mockGithubHttp, realGithubGraph } from './github-realtime-http.fixture'
-import { GITHUB_REFRESH_HTTP_BUDGET_PER_MINUTE } from './github-request-coordinator.types'
-import { withGithubRequestBudget } from './github-request-budget'
-import { RepoAccessChecker } from './github-repo-access'
-import { EGithubCallSource } from './github-call-log'
-import { githubFetch } from './github-fetch'
+import { GITHUB_REFRESH_HTTP_BUDGET_PER_MINUTE } from '@dltech/atlas-github'
+import { withGithubRequestBudget } from '@dltech/atlas-github'
+import { RepoAccessChecker } from '@dltech/atlas-github'
+import { EGithubCallSource } from '@dltech/atlas-github'
+import { githubFetch } from '@dltech/atlas-github'
 
 describe('shared real HTTP budget for API fills, authorization and worker queue', () => {
   useTestDatabase()

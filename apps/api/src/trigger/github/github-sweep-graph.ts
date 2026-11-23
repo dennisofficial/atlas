@@ -4,46 +4,38 @@ import { envConfigValidation } from '../../_core/config/env/validation'
 import { ProcessBackgroundWork } from '../../_lib/background-work/background-work.providers'
 import { SecretCipherService } from '../../_lib/crypto/secret-cipher.service'
 import { RedisService } from '../../_lib/redis/redis.service'
-import { GithubAppInstallationsService } from '../../api/cloud/github/github-app-installations.service'
-import { GithubAppClient } from '../../api/cloud/github/github-app-client'
-import { GithubInstallationTokens } from '../../api/cloud/github/github-installation-tokens'
-import { GithubAppSyncGate } from '../../api/cloud/github/github-app-sync-gate'
-import { GithubAppSyncService } from '../../api/cloud/github/github-app-sync.service'
-import { GithubHookSweepService } from '../../api/cloud/github/github-hook-sweep.service'
-import { GithubDeviceClient } from '../../api/cloud/github/github-device-client'
-import { GithubHeadReads } from '../../api/cloud/github/github-head-reads'
-import { GithubHookLifecycleService } from '../../api/cloud/github/github-hook-lifecycle.service'
-import { GithubPollSweeperService } from '../../api/cloud/github/github-poll-sweeper.service'
-import { GithubDeliveryService } from '../../api/cloud/github/github-delivery.service'
-import { GithubPrDiscussionDeliveryService } from '../../api/cloud/github/github-pr-discussion-delivery.service'
-import { GithubWebhookInboxService } from '../../api/cloud/github/github-webhook-inbox.service'
-import { GithubPrFanoutService } from '../../api/cloud/github/github-pr-fanout.service'
-import { buildPrApplyWiring } from '../../api/cloud/github/github-pr-apply-wiring'
-import { GithubFillTokens } from '../../api/cloud/github/github-fill-token'
-import type { GithubPrOutboxDispatcher } from '../../api/cloud/github/github-pr-outbox'
-import type { GithubPrStore } from '../../api/cloud/github/github-pr-store'
-import {
-  LocalPrFrameBus,
-  RedisPrFrameBus,
-  type PrFrameBus,
-} from '../../api/cloud/github/github-pr-fanout.transport'
+import { GithubAppInstallationsService } from '@dltech/atlas-github'
+import { githubConfigOf } from '../../api/cloud/github/github.providers'
+import { GithubAppClient } from '@dltech/atlas-github'
+import { GithubDeviceClient } from '@dltech/atlas-github'
+import { GithubHeadReads } from '@dltech/atlas-github'
+import { GithubPrFanoutService } from '@dltech/atlas-github'
+import { GithubInstallationTokens } from '@dltech/atlas-github'
+import { GithubHookLifecycleService } from '@dltech/atlas-github'
+import { GithubPollSweeperService } from '@dltech/atlas-github'
+import { buildPrApplyWiring } from '@dltech/atlas-github'
+import { GithubFillTokens } from '@dltech/atlas-github'
+import type { GithubPrOutboxDispatcher } from '@dltech/atlas-github'
+import type { GithubPrStore } from '@dltech/atlas-github'
+import { LocalPrFrameBus, RedisPrFrameBus, type PrFrameBus } from '@dltech/atlas-github'
 import { sandboxWakeBootProvider } from '../../api/cloud/github/github-sandbox-wake-boot'
 import { WAKE_DEBOUNCE_MS } from '../../api/cloud/github/github-sandbox-wake-debounce'
 import { GithubSandboxWakeService } from '../../api/cloud/github/github-sandbox-wake.service'
-import { GithubUserReads } from '../../api/cloud/github/github-user-reads'
-import { GithubService } from '../../api/cloud/github/github.service'
-import { GithubRequestCoordinator } from '../../api/cloud/github/github-request-coordinator'
+import { threadActivityAt } from '../../api/cloud/github/github-thread-activity'
+import { GithubUserReads } from '@dltech/atlas-github'
+import { GithubService } from '@dltech/atlas-github'
+import { GithubRequestCoordinator } from '@dltech/atlas-github'
 import { ScopedSandboxCredentialsService } from '../../api/cloud/sandbox-credentials/scoped-sandbox-credentials.service'
 import { buildScopedConfig } from '../../api/cloud/scoped-config/scoped-config.factory'
 import { DrainStateService } from '../../api/platform/health/drain-state.service'
 import { buildWorkerThreadSignals } from '../thread-signals-graph'
+import { Logger } from '@nestjs/common'
+import { setGithubLogSink } from '@dltech/atlas-github'
+
+setGithubLogSink((context) => new Logger(context))
 
 export type GithubSweepGraph = {
   pollSweeper: GithubPollSweeperService
-  hookLifecycle: GithubHookLifecycleService
-  hookSweep: GithubHookSweepService
-  webhookInbox: GithubWebhookInboxService
-  deliveries: GithubDeliveryService
   wake: GithubSandboxWakeService
   store: GithubPrStore
   outbox: GithubPrOutboxDispatcher
@@ -69,7 +61,8 @@ export function buildGithubSweepGraph(args: { env: EnvService }): GithubSweepGra
     )
   }
   const bus: PrFrameBus = redis.isConfigured() ? new RedisPrFrameBus(redis) : new LocalPrFrameBus()
-  const github = new GithubService(cipher, env, new GithubDeviceClient({}))
+  const config = githubConfigOf(env)
+  const github = new GithubService(cipher, config, new GithubDeviceClient({}))
   const reads = new GithubUserReads()
   const coordinator = new GithubRequestCoordinator(redis, github)
   const fanout = new GithubPrFanoutService(new DrainStateService(), bus)
@@ -77,7 +70,7 @@ export function buildGithubSweepGraph(args: { env: EnvService }): GithubSweepGra
   const wake = new GithubSandboxWakeService(
     env,
     cipher,
-    new ScopedSandboxCredentialsService(buildScopedConfig({ cipher, env }), env),
+    new ScopedSandboxCredentialsService(buildScopedConfig({ cipher, env })),
     sandboxWakeBootProvider.useFactory(),
     new ProcessBackgroundWork(),
     WAKE_DEBOUNCE_MS,
@@ -85,17 +78,15 @@ export function buildGithubSweepGraph(args: { env: EnvService }): GithubSweepGra
     fanout,
   )
   const installations = new GithubAppInstallationsService()
-  const appClient = new GithubAppClient(env)
+  const appClient = new GithubAppClient(config)
   const appTokens = new GithubInstallationTokens(appClient, installations)
   const fillTokens = new GithubFillTokens({ github, appTokens })
-  const {
-    store,
-    dispatcher: outbox,
-    mailbox,
-  } = buildPrApplyWiring({
+  const { store, dispatcher: outbox } = buildPrApplyWiring({
     fanout,
-    signals: workerSignals.signals,
-    wake,
+    legacy: {
+      threadChanged: (changed) => workerSignals.signals.threadChanged(changed),
+      notifyEvent: (notice, event) => wake.notifyEvent(notice, event),
+    },
     reads,
     budget: coordinator,
     fillTokenOf: (args) => fillTokens.find(args),
@@ -104,18 +95,9 @@ export function buildGithubSweepGraph(args: { env: EnvService }): GithubSweepGra
     github,
     reads,
     cipher,
-    env,
+    config,
     installations,
     coordinator,
-  )
-  const syncGate = new GithubAppSyncGate(redis)
-  const hookSweep = new GithubHookSweepService(
-    new GithubAppSyncService(appClient, installations, syncGate),
-    hookLifecycle,
-    installations,
-    github,
-    reads,
-    syncGate,
   )
 
   return {
@@ -129,21 +111,7 @@ export function buildGithubSweepGraph(args: { env: EnvService }): GithubSweepGra
       coordinator,
       new GithubHeadReads(),
       store,
-    ),
-    hookLifecycle,
-    hookSweep,
-    webhookInbox: new GithubWebhookInboxService(),
-    deliveries: new GithubDeliveryService(
-      github,
-      reads,
-      fanout,
-      cipher,
-      mailbox,
-      new GithubPrDiscussionDeliveryService(mailbox),
-      workerSignals.signals,
-      coordinator,
-      store,
-      appTokens,
+      threadActivityAt,
     ),
     dispose: async () => {
       await wake.settle()

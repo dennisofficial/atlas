@@ -211,26 +211,25 @@ export class HeldSession {
       onLeaseLost: (error) => this.ending.lose(lostOutcome(error)),
     })
     this.crew = crew
-    const {
-      runner,
-      branches,
-      diskPressure,
-      branchesStarted,
-      recoverCommands,
-      runCommands,
-      logStaged,
-    } = wireHeldLoop({
+    const { runner, branches, oom, branchesStarted, recoverCommands, runCommands, logStaged } =
+      wireHeldLoop({
+        deps,
+        runtime,
+        record,
+        turns: this.turns,
+        threadId,
+        signal: this.lifetimeAbort.signal,
+        epoch: lease.epoch,
+        crew: crew.port(),
+        isDraining: () => this.draining,
+      })
+    this.observation = new HeldObservation({
       deps,
       runtime,
       record,
-      turns: this.turns,
-      threadId,
-      signal: this.lifetimeAbort.signal,
-      epoch: lease.epoch,
-      crew: crew.port(),
-      isDraining: () => this.draining,
+      branches,
+      oom,
     })
-    this.observation = new HeldObservation({ deps, runtime, record, branches, diskPressure })
     this.observation.start()
     this.actions.attach({ logStaged, runCommands })
     await takeOver.lapped({

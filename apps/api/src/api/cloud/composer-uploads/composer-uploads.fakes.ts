@@ -34,12 +34,4 @@ export class FakeComposerUploadBlobStore extends ComposerUploadBlobStore {
       this.uploaded.delete(pathname)
     }
   }
-
-  async listOlderThan(args: { prefix: string; before: Date }): Promise<string[]> {
-    return [...this.uploaded]
-      .filter(
-        ([pathname, meta]) => pathname.startsWith(args.prefix) && meta.uploadedAt < args.before,
-      )
-      .map(([pathname]) => pathname)
-  }
 }

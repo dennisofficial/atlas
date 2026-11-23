@@ -5,7 +5,7 @@ import type { INestApplication } from '@nestjs/common'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test'
 import { dataOf, trpcMutation, trpcQuery } from '../session-trpc-test-app'
 import { seedSessionUsers } from '../../../test/web-settings.fake-db'
-import type { GithubRequestCoordinator } from '../github/github-request-coordinator'
+import type { GithubRequestCoordinator } from '@dltech/atlas-github'
 import { buildProjectsApp, createProjectAs } from './projects.router.fixture'
 
 const CONTENTS = 'TOKEN=super-secret\n'

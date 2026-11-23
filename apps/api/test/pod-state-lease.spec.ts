@@ -15,8 +15,6 @@ import { SecretsRouter } from '../src/api/cloud/secrets/secrets.router'
 import { SecretsService } from '../src/api/cloud/secrets/secrets.service'
 import { SettingsRouter } from '../src/api/cloud/settings/settings.router'
 import { SettingsService } from '../src/api/cloud/settings/settings.service'
-import { VercelPlanService } from '../src/api/cloud/user-vercel/vercel-credential-plan'
-import { unknownPlanService } from '../src/api/cloud/user-vercel/vercel-testkit'
 import { SandboxesService } from '../src/api/platform/sandboxes/sandboxes.service'
 import { ETokenPrincipalKind } from '../src/api/platform/sandboxes/token-principal'
 import { AccountLeaseRouter } from '../src/api/platform/accounts/account-lease.router'
@@ -144,7 +142,6 @@ describe('account lease and pod-reachable settings and secrets', () => {
         SessionMiddleware,
         SessionOrSandboxMiddleware,
         { provide: SecretCipherService, useValue: cipher },
-        { provide: VercelPlanService, useValue: unknownPlanService() },
         {
           provide: SESSION_VERIFIER,
           useValue: {

@@ -14,7 +14,7 @@ import {
   serviceWith,
   useWakeFixture,
 } from '../../../../test/github-sandbox-wake-fixture'
-import { EPrEventKind } from './github-realtime.types'
+import { EPrEventKind } from '@dltech/atlas-github'
 import type { WakePrEvent } from './github-sandbox-wake-intent'
 
 const VERDICT: WakePrEvent = {

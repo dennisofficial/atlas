@@ -12,7 +12,7 @@ afterEach(() => dismissNotice())
 
 describe('the placement chip in the composer footer', () => {
   it('starts on the remembered runner', async () => {
-    const app = bornThreadApp({ vercel: true })
+    const app = bornThreadApp({})
     app.settings.set({ id: ESettingId.LastBornPlacement, value: ERunner.Vercel })
     const mounted = await mountUnborn({ app })
 

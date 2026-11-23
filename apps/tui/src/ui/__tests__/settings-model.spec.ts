@@ -78,14 +78,11 @@ describe('settingsModel', () => {
     expect(general?.rows).toHaveLength(29)
   })
 
-  it('gathers the core cloud rows on the cloud page', () => {
+  it('leaves the cloud page to the definitions the harness adds', () => {
     const cloud = modelWith().pages.find((page) => page.page.id === ESettingPage.Cloud)
 
     expect(cloud?.page.id).toBe(ESettingPage.Cloud)
-    expect(cloud?.groups.map((group) => [group.label, group.rows.length])).toEqual([
-      ['Cloud sandboxes', 1],
-    ])
-    expect(cloud?.rows.map((row) => row.definition.id)).toEqual([ESettingId.VercelToken])
+    expect(cloud?.rows).toEqual([])
   })
 
   it('gathers the model rows on the models page, default pair first', () => {

@@ -1,13 +1,15 @@
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it } from 'bun:test'
+import type { GithubPrStateDto } from '@dltech/atlas-github'
 import {
+  PULL_REQUEST_PAYLOAD,
+  prepareDelivery,
   prEventRows,
-  seedCloudSandbox,
   seedSubscription as seedSubscriptionRow,
-} from '../../../../test/github-seed'
-import { prepareDelivery, PULL_REQUEST_PAYLOAD, serviceWith } from './github-delivery.fixture'
-import type { GithubPrStateDto } from './github-realtime.types'
+  serviceWith,
+} from '@dltech/atlas-github/testing'
+import { seedCloudSandbox } from '../../../../test/github-seed'
 
 describe('GithubDeliveryService parked-subscription survival', () => {
   useTestDatabase()

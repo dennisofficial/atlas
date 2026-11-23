@@ -23,7 +23,7 @@ import {
 } from '../pr-reducer'
 
 const payloadDir = fileURLToPath(
-  new URL('../../../../../apps/api/src/api/cloud/github/__fixtures__/payloads/', import.meta.url),
+  new URL('../../../../github/src/__fixtures__/payloads/', import.meta.url),
 )
 
 const CLOSED_HEAD = '4b26d3e559172662b7567b8fc9c8992be2062691'

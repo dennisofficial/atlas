@@ -14,7 +14,7 @@ import {
   type ModelCard,
 } from '@dltech/atlas-core'
 
-import { GATEWAY_LABEL, GATEWAY_PROVIDER_ID } from '../models/provider-ids'
+import { GATEWAY_LABEL, GATEWAY_PROVIDER_ID } from '@dltech/atlas-models'
 import { ProviderAdapter } from './adapter'
 import { failingAs } from './failure-account'
 import { gatewayReasoning } from './gateway-effort'

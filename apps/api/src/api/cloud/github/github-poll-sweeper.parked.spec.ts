@@ -1,5 +1,5 @@
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import { EGithubCallSource } from './github-call-log'
+import { EGithubCallSource } from '@dltech/atlas-github'
 import { beforeEach, describe, expect, it, vi } from 'bun:test'
 import { repoHookRows, seedCloudSandbox, seedRepoHook } from '../../../../test/github-seed'
 import {

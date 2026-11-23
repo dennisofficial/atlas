@@ -5,7 +5,7 @@ import { singleProviderRegistry } from '../../testing/sandbox-registry'
 import { describe, expect, it, spyOn } from 'bun:test'
 import { EToolEffect, toThreadId } from '@dltech/atlas-core'
 import { ScriptedModel } from '@dltech/atlas-agent/testing'
-import { NO_REPO_WORKSPACE_PATH } from '../../sandbox/constants'
+import { NO_REPO_WORKSPACE_PATH } from '@dltech/atlas-pods/sandbox/constants'
 import {
   RemoteCalls,
   SandboxUnavailableError,
@@ -14,7 +14,7 @@ import {
 } from '@dltech/atlas-host'
 
 import type { AgentHostConfig, ConfigSource } from '../../config/agent-host-config'
-import { SandboxProviderUnavailableError } from '../../sandbox/provider-registry'
+import { SandboxProviderUnavailableError } from '@dltech/atlas-pods/sandbox/provider-registry'
 import {
   SandboxProvider,
   type DaemonEndpoint,
@@ -22,7 +22,7 @@ import {
   type PodResizeOutcome,
   type SandboxCredentials,
   type SandboxListing,
-} from '../../sandbox/sandbox-provider'
+} from '@dltech/atlas-pods/sandbox/sandbox-provider'
 import { createSessionRuntimeFactory, SandboxNotConfiguredError } from '../session-runtime-factory'
 import { fakeModelSourceOf } from '../../testing/model-source'
 

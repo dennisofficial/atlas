@@ -1,9 +1,9 @@
 import { ESandboxProvisionState } from '@dltech/atlas-wire'
-import { EVercelCredentialGap } from '@dltech/atlas-wire/web'
+import { ServiceUnavailableException } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { describe, expect, it, vi } from 'bun:test'
-import { VercelNotConfiguredError } from '../scoped-config/scoped-config.errors'
+import { NOT_CONFIGURED_MESSAGE } from '../scoped-config/scoped-config.service'
 import { podProvisionIdempotencyKey } from './pod-provision.contract'
 import {
   bootSteps,
@@ -73,21 +73,19 @@ describe('SandboxProvisioningService (retry)', () => {
 
   it('reports a credential gap as a Provision error step and claims nothing', async () => {
     await seedThread()
-    const failure = new VercelNotConfiguredError(EVercelCredentialGap.UserCredential)
+    const failure = new ServiceUnavailableException(NOT_CONFIGURED_MESSAGE)
     const scoped = fakeScoped({ vercelCredentials: vi.fn(async () => Promise.reject(failure)) })
     const { service, dispatch } = provisioningWith({ scoped })
 
     expect(await service.provision(ARGS)).toEqual({
       state: ESandboxProvisionState.NotConfigured,
       error: failure.message,
-      gap: EVercelCredentialGap.UserCredential,
     })
     expect(await bootSteps()).toMatchObject([
       {
         step: 'provision',
         state: 'error',
         error: failure.message,
-        gap: EVercelCredentialGap.UserCredential,
       },
     ])
     expect(await sandboxRows()).toHaveLength(0)
@@ -101,7 +99,7 @@ describe('SandboxProvisioningService (retry)', () => {
 
     expect(await service.provision(ARGS)).toEqual({ state: ESandboxProvisionState.Booting })
 
-    expect(scoped.vercelCredentials).toHaveBeenCalledWith({ thread: { userId: 'usr-1' } })
+    expect(scoped.vercelCredentials).toHaveBeenCalled()
     expect(dispatch).toHaveBeenCalledTimes(1)
     expect((await sessionRow())?.executionLocation).toBe('cloud')
   })

@@ -16,7 +16,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { CredentialError, ECredentialFailure } from '../credentials/credential-error'
-import { CODEX_PLAN_LABEL } from '../models/provider-ids'
+import { CODEX_PLAN_LABEL } from '@dltech/atlas-models'
 import { isConfirmedAuthRefusal } from './auth-repair'
 import { failingAs, withFailureAccount } from './failure-account'
 import { withStreamProvenance } from './stream-provenance'

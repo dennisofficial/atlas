@@ -5,26 +5,26 @@ import { beforeEach, describe, expect, it, vi } from 'bun:test'
 import { ETargetOutcome } from '@dltech/atlas-core'
 import { createRealRedisService } from '../../../../test/real-redis.fixture'
 import { ensureUsers } from '../../../../test/github-seed'
-import type { QueueDeps, TargetAttempt } from './github-refresh-queue'
-import { EGithubCallSource } from './github-call-log'
-import { EGithubHttpCategory } from './github-request-coordinator.types'
-import { githubCallIdentity } from './github-fetch'
-import { GithubRequestCoordinator } from './github-request-coordinator'
-import type { GithubService } from './github.service'
+import type { QueueDeps, TargetAttempt } from '@dltech/atlas-github'
+import { EGithubCallSource } from '@dltech/atlas-github'
+import { EGithubHttpCategory } from '@dltech/atlas-github'
+import { githubCallIdentity } from '@dltech/atlas-github'
+import { GithubRequestCoordinator } from '@dltech/atlas-github'
+import type { GithubService } from '@dltech/atlas-github'
 import {
   GithubHttpBudgetUnavailable,
   credentialFingerprint,
   takeGithubRequestSlot,
   withGithubRequestBudget,
-} from './github-request-budget'
+} from '@dltech/atlas-github'
 import {
   LOOKUP_SHARE,
   NUMBERED_LOOKUP_CALLS,
   queueDeps,
-  seedSubscription,
+  seedPolledSubscription,
   seedTarget,
   sweep,
-} from './github-refresh-queue.fixture'
+} from '@dltech/atlas-github/testing'
 
 describe('refreshGithubQueue lookup share of the refresh window', () => {
   useTestDatabase()
@@ -114,7 +114,7 @@ describe('refreshGithubQueue lookup share of the refresh window', () => {
       const lookUp = numberedLookUp(token)
       const refresh = numberedRefresh(token, 42)
       for (let index = 0; index < 48; index += 1) {
-        await seedSubscription(index)
+        await seedPolledSubscription(index)
         await seedTarget(index)
       }
       await seedTarget(48, {

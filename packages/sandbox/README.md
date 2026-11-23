@@ -30,8 +30,8 @@ a higher out-of-memory score. `apps/daemon`, `apps/serve` and `packages/harness`
 ### Protect the serve process
 
 - `applyDaemonProtection({ env, platform?, root?, meminfo?, writeOomScoreAdj? })`: prepares the
-  cgroups, sets the marker in `env`, and writes the serve `oom_score_adj`. It returns a report, or
-  `{ enabled: false }` off Linux.
+  cgroups with `DAEMON_MEMORY_RESERVE`, sets the marker in `env`, and writes the daemon
+  `oom_score_adj`. It returns a report, or `{ enabled: false }` off Linux.
 - `applyServePriority({ env, platform?, deps? })`: lowers `oom_score_adj` and `nice` on the serve
   process and on every thread. It returns `{ enabled: false }` outside a pod that mirrors its
   thread state. The function reports a refusal. It does not throw.
@@ -39,10 +39,18 @@ a higher out-of-memory score. `apps/daemon`, `apps/serve` and `packages/harness`
 
 ### Prepare the cgroup layout
 
-- `prepareWorkloadCgroups({ env, platform?, root?, meminfo? })`: creates `atlas-serve` and
-  `atlas-work`, sizes the memory limit, and sets the weights. It returns a report with `ok`, the
-  work group and the limits, or the step that failed.
-- `memoryMaxFor({ meminfo })`, `pidsMaxFor(env)`: the limits of the work group.
+- `prepareWorkloadCgroups({ env, platform?, root?, meminfo?, reserve })`: creates `atlas-serve`
+  and `atlas-work`, sizes the memory limit from `reserve`, and sets the weights. When
+  `reserve.protectedBytes` is above 0, it writes that value to `atlas-serve/memory.min`. It returns
+  a report with `ok`, the work group and the limits, or the step that failed.
+- `memoryMaxFor({ meminfo, reserve })`, `pidsMaxFor(env)`: the limits of the work group. The work
+  group gets the total memory minus `max(reserve.minBytes, total * reserve.fraction)`.
+- `MemoryReserve`: `{ minBytes, fraction, protectedBytes }`, chosen by the caller.
+- `SERVE_MEMORY_RESERVE`: the v1 serve reserve, `max(1.5 GiB, 25%)`, with no `memory.min`.
+- `DAEMON_MEMORY_RESERVE`: the v2 daemon reserve. Commands may use the whole pod, so
+  `atlas-work/memory.max` is the pod total. The daemon group gets 384 MiB of `memory.min`, and its
+  `oom_score_adj` of -900 against +800 for commands makes the kernel kill a command first.
+- `SERVE_GROUP`, `WORK_GROUP`: the cgroup names, `atlas-serve` and `atlas-work`.
 - `sweepIdleWorkloadBoxes({ root?, now?, minAgeMs? })`: removes the boxes that are older than
   `minAgeMs`.
 - `killWorkloadBox({ pid, env? })`: kills the box of one command.

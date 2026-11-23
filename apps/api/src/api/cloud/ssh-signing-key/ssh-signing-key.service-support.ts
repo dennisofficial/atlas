@@ -1,9 +1,10 @@
 import { db, sharedPool } from '@dltech/atlas-db'
 import { seedUser } from '@dltech/atlas-db/testing'
 import { EnvService } from '../../../_core/config/env/env.service'
+import { GithubConfig } from '@dltech/atlas-github'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import { GithubDeviceClient } from '../github/github-device-client'
-import { GithubService } from '../github/github.service'
+import { GithubDeviceClient } from '@dltech/atlas-github'
+import { GithubService } from '@dltech/atlas-github'
 import { GithubSigningKeysClient } from './github-signing-keys.client'
 import { createFakeGithub } from './ssh-signing-key.fakes'
 import { generateKey } from './ssh-key.fixtures'
@@ -80,7 +81,7 @@ export async function resetWorld(): Promise<SshSigningKeyService> {
   await connect({ scopes: SIGNING_SCOPES })
   return new SshSigningKeyService(
     cipher,
-    new GithubService(cipher, new EnvService({}), new GithubDeviceClient({})),
+    new GithubService(cipher, new GithubConfig({}), new GithubDeviceClient({})),
     new GithubSigningKeysClient({ fetchFn: github.fetchFn }),
   )
 }

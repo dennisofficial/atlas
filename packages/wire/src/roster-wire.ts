@@ -14,6 +14,7 @@ export enum EKilledBy {
   IdlePark = 'idle-park',
   Unrecorded = 'unrecorded',
   Fault = 'fault',
+  OutOfMemory = 'out-of-memory',
 }
 
 export enum EShellStatus {

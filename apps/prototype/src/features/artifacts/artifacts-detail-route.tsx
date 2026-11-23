@@ -5,12 +5,12 @@ import { useParams } from 'next/navigation'
 import { PROTO_ARTIFACTS } from './artifacts-fixtures'
 
 export function ArtifactsDetailRoute() {
-  const params = useParams<{ slug: string }>()
-  const artifact = PROTO_ARTIFACTS.find((candidate) => candidate.slug === params.slug)
+  const params = useParams<{ subdomain: string }>()
+  const artifact = PROTO_ARTIFACTS.find((candidate) => candidate.slug === params.subdomain)
   if (artifact === undefined) {
     return (
       <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-        No artifact with slug {params.slug}
+        No artifact at {params.subdomain}
       </div>
     )
   }

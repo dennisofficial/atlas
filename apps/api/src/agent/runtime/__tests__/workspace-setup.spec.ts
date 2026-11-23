@@ -29,7 +29,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { CollectingLog } from '../../__tests__/e2e-support'
-import { sandboxNameOf } from '../../sandbox/vercel-names'
+import { sandboxNameOf } from '@dltech/atlas-pods/sandbox/vercel-names'
 import { LocalSandboxProvider } from '../../testing/local-sandbox-provider'
 import {
   ensureWorkspace,

@@ -2,9 +2,10 @@ import { createHash } from 'node:crypto'
 
 import { daemonToken, daemonTokenMatches } from '@dltech/atlas-protocol/engine'
 
-export const DAEMON_BUNDLE_ROUTE = 'agent/daemon/bundle'
-
-export const DAEMON_VERSION_HEADER = 'x-atlas-daemon-version'
+export {
+  DAEMON_BUNDLE_ROUTE,
+  DAEMON_VERSION_HEADER,
+} from '@dltech/atlas-pods/http/daemon-bundle-route'
 
 export type DaemonBundleAnswer =
   | { kind: 'forbidden' }

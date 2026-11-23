@@ -46,18 +46,20 @@ const signalGroup = (args: { pid: number; signal: NodeJS.Signals }): void => {
   }
 }
 
-export const boxOomKilled = (args: {
+export const boxOomKillCount = (args: {
   pid: number
   env: Record<string, string | undefined>
-}): boolean => {
+}): number => {
   const workGroup = args.env[WORKLOAD_CGROUP_ENV]
-  if (workGroup === undefined || workGroup === '') return false
+  if (workGroup === undefined || workGroup === '') return 0
   try {
     const events = readFileSync(join(workGroup, `w-${args.pid}`, 'memory.events'), 'utf8')
     const match = /^oom_kill\s+(\d+)$/m.exec(events)
-    return match?.[1] !== undefined && Number(match[1]) > 0
+    if (match?.[1] === undefined) return 0
+    const kills = Number(match[1])
+    return Number.isInteger(kills) && kills > 0 ? kills : 0
   } catch {
-    return false
+    return 0
   }
 }
 
@@ -181,10 +183,11 @@ export class ManagedProcess {
       new Promise<boolean>((resolve) => setTimeout(() => resolve(false), PIPE_DRAIN_MS)),
     ])
     if (!drained) for (const cancel of this.readers) cancel()
+    const oomKills = boxOomKillCount({ pid: this.child.pid, env: this.env })
     return {
       exitCode: this.child.exitCode,
       signal: this.child.signalCode === null ? null : String(this.child.signalCode),
-      oom: boxOomKilled({ pid: this.child.pid, env: this.env }),
+      oom: oomKills > 0,
     }
   }
 

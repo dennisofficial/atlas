@@ -1,6 +1,6 @@
 import type { Db } from '@dltech/atlas-db'
 
-import type { SecretCipher } from '../config/secret-cipher'
+import type { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 
 export type SigningKey = {
   publicKey: string
