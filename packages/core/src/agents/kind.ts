@@ -2,7 +2,6 @@ import type { EventDraft } from '../events/body'
 import { isNoticeArrival } from '../events/notice-stage'
 import { EShellEndCause } from '../shells/status'
 import { ESetupPhase } from '../workspace/setup-notice'
-import { reportWakesParent } from './report'
 
 export const TEAMMATE_AGENT_TYPE = 'teammate'
 
@@ -26,7 +25,7 @@ export const isTurnTaking = (event: EventDraft): boolean => {
     case 'service-ended':
       return event.cause !== EShellEndCause.SandboxStopped
     case 'agent-reported':
-      return reportWakesParent(event.kind)
+      return true
     case 'agent-ended':
       return event.relayed !== false
     case 'background-shell-ended':

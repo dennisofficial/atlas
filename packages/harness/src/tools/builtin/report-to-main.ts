@@ -1,7 +1,6 @@
 import { z } from 'zod'
 
 import {
-  EReportKind,
   EToolEffect,
   SchemaTool,
   TAKES_NO_PATHS,
@@ -12,7 +11,6 @@ import {
 import { type AgentRegistrySource } from './agent-tokens'
 
 const inputSchema = z.strictObject({
-  kind: z.enum(EReportKind),
   text: z.string().min(1),
 })
 
@@ -22,7 +20,7 @@ const description = [
   'Only teammates report this way, and it is how the main agent hears from you. The operator you answer to directly, in your own conversation \u2014 never through a report.',
   'Ending your turn never tells the main agent anything: a finished turn is bookkeeping, and going quiet between reports is how you are meant to run. Only a failure or a stop reaches it by itself.',
   'So when the work touches the main agent, report deliberately: your work overlaps, you are done with something it asked for, or you found something that changes what it should do.',
-  'Every report carries a kind. done, blocked and needs-decision wake the main agent: the work is finished, you cannot proceed, or you need a decision you want the main agent to weigh in on. progress is recorded and shown to the developer but does not wake the main agent \u2014 it lands with the next real wake, so use it for status, never for something that needs action.',
+  'Every report wakes the main agent.',
   'Lead with the outcome and carry the whole of it \u2014 none of your steps are in its history, so what you write here is all it gets.',
   'It reaches the main agent whether or not it is mid-turn, so write it for a peer catching up cold.',
 ].join(' ')
@@ -42,11 +40,7 @@ export class ReportToMainTool extends SchemaTool<typeof inputSchema> {
     input,
     threadId,
   }: ToolRun<typeof inputSchema>): Promise<ToolOutcome> {
-    const outcome = await this.agents().reportToParent({
-      threadId,
-      text: input.text,
-      kind: input.kind,
-    })
+    const outcome = await this.agents().reportToParent({ threadId, text: input.text })
     if (!outcome.ok) return outcome
 
     return {

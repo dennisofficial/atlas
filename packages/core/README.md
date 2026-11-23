@@ -90,6 +90,19 @@ assembly, settings, ports, and the record folds. It imports `zod` and nothing el
 - `consume({entry, seq})`, `takeBack(entry)`, `InboxEntry`: the inbox rules.
 - `decideHeldAction({...})`, `HeldOutcome`, `EExecutionLocation`: the host's next action.
 
+### Name a file a spawn attaches
+
+- `SpawnFile`: one file a spawn hands to the child, `{path, text}`.
+- `contextFilePathOf({directory, relativePath})`: resolve a name under the context folder, or the
+  reason to refuse it (absolute, `~`, `$`, `\`, `.`, `..`, empty segment, `.git`, over 200
+  characters).
+- `spawnFilesRefusalOf(files)`: the reason a payload is unusable, or `null`. Text only: a NUL byte
+  is refused.
+- `SPAWN_FILES_MAX_COUNT` (32), `SPAWN_FILE_MAX_BYTES` (256 KB), `SPAWN_FILES_MAX_BYTES` (1 MB),
+  `ATLAS_CONTEXT_DIR_ENV`: the limits and the variable that names the folder.
+- `attachedFilesLineOf(files)`, `spawnBriefOf({brief, files})`: the line that names the attached
+  paths in the child's first message.
+
 ## Usage
 
 ```ts

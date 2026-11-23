@@ -42,7 +42,7 @@ a thread's event log.
 - `listSessions`, `listSessionDigests`, `countSessionBuckets`, `readSession`, `sessionsOf`,
   `readSessionView`, `readSessionBusy`. A digest listing takes a bucket filter (archived, or
   inactive below an idle cutoff), a title or first-message search, and a creation-time keyset cursor.
-- `spawnPeer`, `messagePeer`, `messageTeammate`, `reportToSpawner`, `podPeersPlaced`.
+- `spawnPeer`, `messagePeer`, `reportToSpawner`, `podPeersPlaced`.
 - `setSandboxInstanceId`, `setSandboxStatus`, `recordPodDesired`, `recordPodApplied`,
   `recordPodFailed`, `recordPodWaiting`.
 

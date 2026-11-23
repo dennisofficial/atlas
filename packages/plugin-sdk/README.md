@@ -8,8 +8,8 @@ author reads this package first. Every plugin in `plugins/*` builds its slots wi
 - The plugin shape: seven slots, `definePlugin`, and the composer `composePlugins`.
 - The pod tier: the pod context, the pod slot, the capabilities a tool reaches, and pod resources.
 - The control tier and the client tier slot types.
-- The plugin-facing capability types: crew, classifier, sessions, worktrees, routines, subscriptions
-  and MCP control, each with an `EMPTY_*` default. Memory and web search have no empty default.
+- The plugin-facing capability types: crew, messages, classifier, sessions, worktrees, routines,
+  subscriptions and MCP control, each with an `EMPTY_*` default (none for memory and web search).
 
 ## Does not own
 
@@ -19,10 +19,10 @@ author reads this package first. Every plugin in `plugins/*` builds its slots wi
 
 ## Entry points
 
-| Import                             | Use it for                                          |
-| ---------------------------------- | --------------------------------------------------- |
-| `@dltech/atlas-plugin-sdk`         | The slots, `definePlugin`, `composePlugins`, types. |
-| `@dltech/atlas-plugin-sdk/testing` | A fixture plugin that exercises every slot.         |
+| Import                             | Use it for                                             |
+| ---------------------------------- | ------------------------------------------------------ |
+| `@dltech/atlas-plugin-sdk`         | The slots, `definePlugin`, `composePlugins` and types. |
+| `@dltech/atlas-plugin-sdk/testing` | A fixture plugin that exercises every slot.            |
 
 ## The slot contract
 

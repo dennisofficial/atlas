@@ -9,6 +9,7 @@ import type {
   ModelRef,
   ModelRole,
   PromptSpawner,
+  SpawnFile,
   ThreadId,
   WorkspaceStepReport,
 } from '@dltech/atlas-core'
@@ -97,6 +98,9 @@ export type SessionRuntime = {
   effectOf: ToolEffectResolver
   assembly: AssemblyPipeline
   uploads?: SaidUploadsPort | undefined
+  placeContextFiles?: (args: {
+    files: readonly SpawnFile[]
+  }) => Promise<{ written: number; refused: readonly string[] }>
   mediaUrls?: MediaUrlResolver | undefined
   normalizeFailure: NormalizeFailure
   launchDirectory: string

@@ -1,4 +1,4 @@
-import { EAgentStatus, EReportKind, reachesModel, type Event } from '@dltech/atlas-core'
+import { EAgentStatus, reachesModel, type Event } from '@dltech/atlas-core'
 
 const answerKey = (event: { agentId: string; prose: string }): string =>
   `${event.agentId}\u0000${event.prose.trim()}`
@@ -10,9 +10,7 @@ const answerKey = (event: { agentId: string; prose: string }): string =>
 export function redundantEndingIds(events: readonly Event[]): ReadonlySet<string> {
   const reported = new Set(
     events.flatMap((event) =>
-      event.type === 'agent-reported' && event.kind !== EReportKind.Progress && reachesModel(event)
-        ? [answerKey(event)]
-        : [],
+      event.type === 'agent-reported' && reachesModel(event) ? [answerKey(event)] : [],
     ),
   )
 

@@ -351,8 +351,8 @@ and the worktree tools `enter-worktree.ts:52`, `exit-worktree.ts:88`, `worktree-
   `worktree-entered`/`worktree-exited` stay a foundation event (they are not crew-specific and
   `packages/agent/src/loop/settle-pending.ts:5` already folds `activeWorktree`).
 - **View:** `crew` (roster, standing, last report).
-- **Commands/tools:** `agent_spawn{agentType, intent, brief, worktree?}`, `agent_say`, `agent_stop`,
-  `agent_list`, `report_to_main`. `agent_spawn`'s `worktree` is 0020 decision 1: a new branch name
+- **Commands/tools:** `agent_spawn{agentType, intent, brief, worktree?}`, `send_message`, `agent_stop`,
+  `agent_list`. `agent_spawn`'s `worktree` is 0020 decision 1: a new branch name
   or an existing worktree path the pod creates or adopts before the child's first turn.
 - **Pod:** the child runner and supervisor, the deny list (`subscribe`, `operator_input` and the
   memory tools denied; the worktree tools allowed, 0020 decision 2), the run-under-one-lease
@@ -370,7 +370,7 @@ denied inside the child; the parent removes the worktree.
 
 ### 5.6 `plugins/sessions` — peer sessions
 
-There is no v1 code to copy: `spawn_session`, `message_session` and `list_sessions` do not exist in
+There is no v1 code to copy: `spawn_session`, `send_message` and `list_sessions` do not exist in
 v1 (only ADR 0020 and [03-teammates.md](03-teammates.md) describe them). The teammate workflow
 survives as the peer-session preset (03-teammates, "The decision").
 
@@ -381,9 +381,9 @@ survives as the peer-session preset (03-teammates, "The decision").
 - **Views:** `spawnedBy` (the sidebar nesting and the Done grouping). Slice 4's view does not carry
   it; this plugin adds the fold, and web's sidebar reads it
   (`apps/web/src/features/shell/v2-rows.ts:19`).
-- **Commands** (control-handled, like `rename`): `spawn_session{title?, brief?}`,
-  `message_session{sessionId, text}`, `report_to_spawner{kind, text}`, `list_sessions`. The tools of
-  the same names post them; `report_to_spawner` resolves the spawner from the session row.
+- **Commands** (control-handled, like `rename`): `spawn_session{title?, brief?}`, `list_sessions`.
+  `send_message{to, text}` is the pod tool over the same control lookups; `to: "parent"` resolves
+  the spawner from the session row rather than an id from the model.
 - **Pod:** the three tools; the sender ACL is enforced by the control handler, not the pod.
 - **Control:** creating the session and its main thread (`createSessionWithMainThread`), the
   `spawned-by` link, the spawner lookup behind a report, and the inbox message that wakes an idle
@@ -402,21 +402,21 @@ Done.
   beyond the provenance link — because a session created by another session is a session, not a
   second kind of session sharing a sandbox. `spawnedBySessionId` is provenance that enters the
   sidebar nesting and the child's prompt; it grants or restricts nothing. A spawned session that
-  spawns another gets an ordinary session too, and `report_to_spawner{kind, text}` posts to the
+  spawns another gets an ordinary session too, and `send_message{to: "parent", text}` posts to the
   creator's inbox as a message from the reporting session, waking it for done, blocked and
   needs-decision and not for progress. See [sessions-link.md](sessions-link.md).
 - **The sidebar nests by `spawned-by` alone.** v1 nests teammates with no family label
   (`apps/web/src/features/shell/live-list.ts:139-150`); v2 reuses the shape, and the existing
   `TeammateList` gives the Done group for archived children. The nesting is a display convenience
   over the provenance link; it is not what makes a session a teammate.
-- **Tools, not commands, are the session's command surface.** `spawn_session`, `message_session`
+- **Tools, not commands, are the session's command surface.** `spawn_session`, `send_message`
   and `list_sessions` are pod tools over a host port (`PluginPodContext.sessions`, implemented in
   `packages/host` over `HeldSessionDeps.plane`, ADR 0027) rather than control-handled commands: the
   API's command route returns no result, so a control `spawn_session` could not tell the model the
   new session id, and nothing else would call it, so the plugin contributes no control command.
   The same-user check lives in `packages/control` (`peer-sessions.ts`), so every path uses it.
 - **`list_sessions` lists the operator's sessions**, newest first, with the current one marked —
-  the same rows the sidebar shows. `message_session` accepts any session of the same user; messages
+  the same rows the sidebar shows. `send_message` accepts any session of the same user; messages
   are unlimited (the 20-message budget the feature first shipped was removed on 2026-11-09 at the
   operator's direction).
 - **A pod parks by its sandbox deadline, not by a release stop.** The idle release stops a sandbox

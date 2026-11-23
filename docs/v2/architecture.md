@@ -559,7 +559,7 @@ record plus world state (0021), deleting an archived sandbox loses nothing the s
 
 **A1. Archived is a state the CP enforces.** While the latest archive event is `session-archived`,
 the command handlers accept only `unarchive` and reads. Every other command — say, retry, resize,
-model change, subscribe, a peer's `message_session`, PR/CI deliveries — is refused with a typed
+model change, subscribe, a peer's `send_message`, PR/CI deliveries — is refused with a typed
 `Archived` rejection. Sending does not unarchive; unarchive is an explicit operator command.
 
 **A2. The reconciler never places an archived session.** §13's rule becomes "unconsumed inbox

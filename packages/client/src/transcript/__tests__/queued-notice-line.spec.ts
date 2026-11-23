@@ -5,7 +5,6 @@ import {
   EMergeQueueMove,
   EPrEventKind,
   EPrVerdict,
-  EReportKind,
   EServiceStatus,
   EShellStatus,
   toThreadId,
@@ -22,28 +21,20 @@ const bodyOf = (draft: EventDraft): EventBody => {
   return event
 }
 
-const agentReported = (kind: EReportKind): EventBody =>
+const agentReported = (): EventBody =>
   bodyOf({
     type: 'agent-reported',
     agentId: toThreadId('thread-a'),
     agentType: 'builder',
     intent: 'fix the flaky spec',
     prose: 'halfway there',
-    kind,
   })
 
-describe('a queued agent report', () => {
-  it('says what the sub-agent reported', () => {
-    expect(queuedNoticeLineOf(agentReported(EReportKind.Done))).toEqual({
-      text: 'Sub-agent fix the flaky reported done',
+describe('a queued agent message', () => {
+  it('says that the sub-agent reported, with no tint', () => {
+    expect(queuedNoticeLineOf(agentReported())).toEqual({
+      text: 'Sub-agent fix the flaky reported',
       failed: false,
-    })
-  })
-
-  it('tints a report that needs a decision', () => {
-    expect(queuedNoticeLineOf(agentReported(EReportKind.NeedsDecision))).toEqual({
-      text: 'Sub-agent fix the flaky needs a decision',
-      failed: true,
     })
   })
 })

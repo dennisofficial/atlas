@@ -1,4 +1,10 @@
-import { chainEvents, EMessageOrigin, toRunId, toThreadId } from '@dltech/atlas-core'
+import {
+  chainEvents,
+  EMessageOrigin,
+  toRunId,
+  toThreadId,
+  type SpawnFile,
+} from '@dltech/atlas-core'
 import {
   ControlPlane,
   ControlStorePort,
@@ -99,12 +105,19 @@ const seedPrepared = async (args: {
   await plane.revoke({ sessionId: args.sessionId, wantsHolder: false })
 }
 
-export const seedSession = async (args: {
+export type SeedSessionArgs = {
   store: ControlStorePort
   sessionId: string
   text: string
   prepared: boolean
-}): Promise<string> => {
+  files?: readonly SpawnFile[] | undefined
+}
+
+export type NewSessionArgs = Omit<SeedSessionArgs, 'store' | 'prepared'> & {
+  prepared?: boolean
+}
+
+export const seedSession = async (args: SeedSessionArgs): Promise<string> => {
   const mainThreadId = `thread-${args.sessionId}`
   await args.store.transact(async (tx) => {
     const plane = new ControlPlane({ store: new JoinedStore(args.store, tx) })
@@ -120,7 +133,11 @@ export const seedSession = async (args: {
     await plane.post({
       sessionId: args.sessionId,
       kind: INBOX_KIND_MESSAGE,
-      payload: JSON.stringify({ text: args.text, via: EMessageOrigin.Operator }),
+      payload: JSON.stringify({
+        text: args.text,
+        via: EMessageOrigin.Operator,
+        ...(args.files === undefined ? {} : { files: args.files }),
+      }),
     })
   })
   return mainThreadId

@@ -1,6 +1,5 @@
 import { z } from 'zod'
 
-import { EReportKind } from '../agents/report'
 import { EAgentRestart } from '../agents/restart'
 import { EAgentStart } from '../agents/start'
 import { EAgentStatus } from '../agents/status'
@@ -55,7 +54,6 @@ export const agentEventSchemas = [
     agentType: z.string().min(1),
     intent: z.string(),
     prose: z.string(),
-    kind: z.enum(EReportKind).optional(),
     senderSessionId: z.string().min(1).optional(),
     notice: noticeStampSchema.optional(),
   }),

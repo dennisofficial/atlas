@@ -2,7 +2,6 @@ import {
   agentDisplayName,
   agentEnding,
   EAgentStatus,
-  EReportKind,
   isTeammateType,
   type AgentEnding,
 } from '@dltech/atlas-core'
@@ -30,22 +29,3 @@ export const agentReportedLine = (report: { agentType: string; intent: string })
 
 export const agentEndingFailed = (ending: { status: EAgentStatus }): boolean =>
   NEEDS_ATTENTION[ending.status]
-
-const REPORT_VERB: Record<EReportKind, string> = {
-  [EReportKind.Done]: 'reported done',
-  [EReportKind.Blocked]: 'reported it is blocked',
-  [EReportKind.NeedsDecision]: 'needs a decision',
-  [EReportKind.Progress]: 'reported progress',
-}
-
-export const agentReportedKindLine = (report: {
-  agentType: string
-  intent: string
-  kind?: EReportKind | undefined
-}): string =>
-  report.kind === undefined
-    ? agentReportedLine(report)
-    : `${isTeammateType(report.agentType) ? 'Teammate' : 'Sub-agent'} ${agentDisplayName(report)} ${REPORT_VERB[report.kind]}`
-
-export const agentReportNeedsAttention = (kind: EReportKind | undefined): boolean =>
-  kind === EReportKind.Blocked || kind === EReportKind.NeedsDecision

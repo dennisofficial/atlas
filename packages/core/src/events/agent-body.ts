@@ -1,4 +1,3 @@
-import type { EReportKind } from '../agents/report'
 import type { EAgentRestart } from '../agents/restart'
 import type { EAgentStart } from '../agents/start'
 import type { EAgentStatus } from '../agents/status'
@@ -48,8 +47,6 @@ export type AgentEventBody =
       agentType: string
       intent: string
       prose: string
-      kind?: EReportKind | undefined
-      /** The reporting session, for a v2 teammate: the id message_teammate accepts, where agentId is its thread. */
       senderSessionId?: string | undefined
       notice?: NoticeStamp | undefined
     }

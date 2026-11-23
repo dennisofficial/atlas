@@ -4,7 +4,7 @@ Gives a thread its sub-agents and its git worktrees. The main thread starts a su
 
 ## Owns
 
-- The five crew tools: `agent_spawn`, `agent_say`, `agent_stop`, `agent_list` and `report_to_main`.
+- The three crew tools: `agent_spawn`, `agent_stop` and `agent_list`.
 - The three worktree tools: `enter_worktree`, `exit_worktree` and `worktree_list`.
 - The four built-in agent types `general-purpose`, `explore`, `builder` and `reviewer`, each with its prompt contract.
 - The agent types that a repository defines in `.agents/agents/*.md`. Each file needs a `description` and a prompt body.
@@ -56,21 +56,19 @@ and `teammate` are reserved. The file needs a `description` and a nonempty promp
 
 ### Pod tier (`crewPod`)
 
-| Kind       | Name                                   | What it adds                                                                             |
-| ---------- | -------------------------------------- | ---------------------------------------------------------------------------------------- |
-| Tool       | `agent_spawn`                          | Starts a sub-agent with `agentType`, `intent`, `brief` and an optional `worktree`.       |
-| Tool       | `agent_say`                            | Sends another message to a sub-agent that this thread started.                           |
-| Tool       | `agent_stop`                           | Ends a sub-agent after the step it takes.                                                |
-| Tool       | `agent_list`                           | Lists the sub-agents of this thread with their status, turns and tool calls.             |
-| Tool       | `report_to_main`                       | Lets a sub-agent report `done`, `blocked`, `needs-decision` or `progress` to its parent. |
-| Tool       | `enter_worktree`                       | Creates a worktree by `name`, or adopts an existing one by `path`.                       |
-| Tool       | `exit_worktree`                        | Leaves the worktree with `keep` or `remove`.                                             |
-| Tool       | `worktree_list`                        | Lists the worktrees of the repository with their branch.                                 |
-| Resource   | `crew-agent-types`                     | Reads `.agents/agents` and reports the types and the refusals.                           |
-| Hook       | `crew-repo-agent-listing` (beforeStep) | Adds the repository agent types to the system prompt.                                    |
-| Hook       | `crew-worktree-track` (afterTool)      | Writes `worktree-entered` and `worktree-exited` from the tool output.                    |
-| Prompt     | `crew.subagents`                       | Describes the crew tools and the agent types to the model.                               |
-| Child deny | four names                             | A sub-agent cannot call `agent_spawn`, `agent_say`, `agent_stop` or `agent_list`.        |
+| Kind       | Name                                   | What it adds                                                                       |
+| ---------- | -------------------------------------- | ---------------------------------------------------------------------------------- |
+| Tool       | `agent_spawn`                          | Starts a sub-agent with `agentType`, `intent`, `brief` and an optional `worktree`. |
+| Tool       | `agent_stop`                           | Ends a sub-agent after the step it takes.                                          |
+| Tool       | `agent_list`                           | Lists the sub-agents of this thread with their status, turns and tool calls.       |
+| Tool       | `enter_worktree`                       | Creates a worktree by `name`, or adopts an existing one by `path`.                 |
+| Tool       | `exit_worktree`                        | Leaves the worktree with `keep` or `remove`.                                       |
+| Tool       | `worktree_list`                        | Lists the worktrees of the repository with their branch.                           |
+| Resource   | `crew-agent-types`                     | Reads `.agents/agents` and reports the types and the refusals.                     |
+| Hook       | `crew-repo-agent-listing` (beforeStep) | Adds the repository agent types to the system prompt.                              |
+| Hook       | `crew-worktree-track` (afterTool)      | Writes `worktree-entered` and `worktree-exited` from the tool output.              |
+| Prompt     | `crew.subagents`                       | Describes the crew tools and the agent types to the model.                         |
+| Child deny | three names                            | A sub-agent cannot call `agent_spawn`, `agent_stop` or `agent_list`.               |
 
 ### Core tier (`crewCoreSlots`)
 
@@ -113,7 +111,8 @@ export const crew = definePlugin({
 
 - Register the plugin with `definePlugin`. The function throws `MissingPluginSlotError` when a slot is absent.
 - Import `@dltech/atlas-plugin-crew/pod` in the pod only. The tools read the filesystem and the ports.
-- A sub-agent cannot start or steer other sub-agents. It calls `report_to_main` and stops.
+- A sub-agent cannot start or steer other sub-agents. It reaches them and its parent with
+  `send_message`, which the `sessions` plugin declares.
 - A worktree name creates a branch and a worktree under `.atlas/worktrees`. A path adopts a worktree that git already lists.
 
 ## See also

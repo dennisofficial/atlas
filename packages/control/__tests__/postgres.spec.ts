@@ -17,11 +17,13 @@ import {
   describeControlPlaneClaimNext,
   describeControlPlaneClaims,
   describeControlPlaneConformance,
+  describeControlPlanePeerMessages,
   describeControlPlanePeers,
   describeControlPlanePresence,
   describeControlPlaneReads,
   describeControlPlaneRoutines,
   describeControlPlaneSessionBuckets,
+  describeControlPlaneSessionArchive,
   describeControlPlaneSessions,
   describeControlPlaneSessionTitles,
   describeControlPlaneViews,
@@ -86,6 +88,10 @@ const conformanceParams = {
   reset: async () => {
     wakeCounts.clear()
     changeLog.clear()
+    await testDb().pool.query(
+      `INSERT INTO "public"."User" ("id", "name", "email", "active", "createdAt", "updatedAt")
+       VALUES ('user-1', 'user-1', 'user-1@test.local', true, now(), now())`,
+    )
   },
   wakes: async (sessionId: string) => {
     await settle()
@@ -127,7 +133,9 @@ const conformanceParams = {
 describeControlPlaneConformance(conformanceParams)
 describeControlPlaneSessions(conformanceParams)
 describeControlPlaneSessionBuckets(conformanceParams)
+describeControlPlaneSessionArchive(conformanceParams)
 describeControlPlanePeers(conformanceParams)
+describeControlPlanePeerMessages(conformanceParams)
 describeControlPlaneSessionTitles(conformanceParams)
 describeControlPlaneReads(conformanceParams)
 describeControlPlaneClaims(conformanceParams)

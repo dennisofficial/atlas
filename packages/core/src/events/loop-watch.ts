@@ -71,8 +71,7 @@ const lineOf = (event: Event): string | undefined => {
     return `sub-agent "${clip(event.intent, 120)}" (${event.agentType}) ${event.status}: ${clip(event.prose, 160)}`
   }
   if (event.type === 'agent-reported') {
-    const kind = event.kind === undefined ? '' : ` (${event.kind})`
-    return `agent "${clip(event.intent, 120)}" reported${kind}: ${clip(event.prose, 160)}`
+    return `agent "${clip(event.intent, 120)}" reported: ${clip(event.prose, 160)}`
   }
   if (event.type === 'background-shell-ended') {
     const exit = event.exitCode === undefined ? '' : `, exit ${event.exitCode}`
