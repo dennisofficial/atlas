@@ -3,7 +3,7 @@ import { $ } from 'bun'
 import {
   daemonLinkFactsOf,
   daemonLinkSkewViolations,
-} from '../packages/protocol/src/daemon-link-skew'
+} from '../packages/protocol/src/engine/daemon-link-skew'
 
 const DAEMON_PORT_PATH = 'packages/protocol/src/daemon-port.ts'
 

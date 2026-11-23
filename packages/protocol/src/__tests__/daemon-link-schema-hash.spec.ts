@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { hostFrameSchemaHash } from '../daemon-link-skew'
+import { hostFrameSchemaHash } from '../engine/daemon-link-skew'
 import { DAEMON_LINK_SCHEMA_HASH } from '../daemon-port'
 
 const MATCHES = 'DAEMON_LINK_SCHEMA_HASH matches hostFrameSchema'

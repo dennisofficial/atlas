@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 
 import { z } from 'zod'
 
-import { hostFrameSchema } from './frames'
+import { hostFrameSchema } from '../frames'
 
 export type DaemonLinkFacts = {
   version: number
