@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'bun:test'
 import type { ControlPlane, ControlTerminalRow } from '@dltech/atlas-control'
 import type { PodCallOutcome } from '@dltech/atlas-host'
 import {
+  ECallFailure,
   ECallStatus,
   ELiveOpFailure,
   MAX_TERMINALS,
@@ -201,7 +202,7 @@ describe('TerminalService', () => {
       result: {
         status: ECallStatus.Failed,
         op: 'terminal.read',
-        error: { message: 'no terminal t1' },
+        error: { code: ECallFailure.NotFound, message: 'no terminal t1' },
       } as CallResult,
     }))
     const out = await serviceOf(plane, ops).read({
@@ -230,7 +231,7 @@ describe('TerminalService', () => {
       result: {
         status: ECallStatus.Failed,
         op: 'terminal.write',
-        error: { message: 'no terminal t1' },
+        error: { code: ECallFailure.NotFound, message: 'no terminal t1' },
       } as CallResult,
     }))
     await expect(
@@ -250,7 +251,7 @@ describe('TerminalService', () => {
       result: {
         status: ECallStatus.Failed,
         op: 'terminal.write',
-        error: { message: 'terminal t1 is closed' },
+        error: { code: ECallFailure.InvalidInput, message: 'terminal t1 is closed' },
       } as CallResult,
     }))
     await expect(

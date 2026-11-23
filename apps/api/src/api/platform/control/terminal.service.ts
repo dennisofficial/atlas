@@ -4,6 +4,7 @@ import { Inject, Injectable, Optional, ServiceUnavailableException } from '@nest
 import { TRPCError } from '@trpc/server'
 import { ControlPlane, type ControlTerminalRow } from '@dltech/atlas-control'
 import {
+  ECallFailure,
   ECallStatus,
   ELiveOpFailure,
   MAX_TERMINALS,
@@ -22,8 +23,10 @@ import { SessionsService } from './sessions.service'
 type OkResult = Extract<CallResult, { status: ECallStatus.Ok }>
 type OpenResult = Extract<OkResult, { op: 'terminal.open' }>
 type ReadResult = Extract<OkResult, { op: 'terminal.read' }>
+type FailedResult = Extract<CallResult, { status: ECallStatus.Failed }>
 
-const UNKNOWN_TERMINAL = 'no terminal '
+const isLostTerminal = (result: FailedResult): boolean =>
+  result.error.code === ECallFailure.NotFound
 
 const rowOf = (row: ControlTerminalRow): TerminalRow => ({
   terminalId: row.terminalId,
@@ -219,7 +222,7 @@ export class TerminalService {
       op: { op: 'terminal.read', terminalId: args.terminalId, offset: args.offset },
     })
     if (result.status === ECallStatus.Failed) {
-      if (!result.error.message.startsWith(UNKNOWN_TERMINAL))
+      if (!isLostTerminal(result))
         throw new TRPCError({ code: 'BAD_REQUEST', message: result.error.message })
       await this.endLost(args)
       return { offset: 0, data: '', totalBytes: 0, exited: { exitCode: null, signal: null } }
@@ -234,7 +237,7 @@ export class TerminalService {
   }): Promise<TerminalMutationOutput> {
     if (args.result === null) return { state: 'parked' }
     if (args.result.status !== ECallStatus.Failed) return { state: 'done' }
-    if (args.result.error.message.startsWith(UNKNOWN_TERMINAL)) await this.endLost(args)
+    if (isLostTerminal(args.result)) await this.endLost(args)
     throw new TRPCError({ code: 'BAD_REQUEST', message: args.result.error.message })
   }
 
