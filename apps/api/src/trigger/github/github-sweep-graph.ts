@@ -1,6 +1,6 @@
 import { triggerLog } from '../trigger-logger'
 import { EnvService } from '../../_core/config/env/env.service'
-import { envConfigValidation } from '../../_core/config/env/validation'
+import { validatedEnvService } from '../../_core/config/env/validated-env'
 import { ProcessBackgroundWork } from '../../_lib/background-work/background-work.providers'
 import { SecretCipherService } from '../../_lib/crypto/secret-cipher.service'
 import { RedisService } from '../../_lib/redis/redis.service'
@@ -40,15 +40,6 @@ export type GithubSweepGraph = {
   store: GithubPrStore
   outbox: GithubPrOutboxDispatcher
   dispose: () => Promise<void>
-}
-
-export function workerEnvService(): EnvService {
-  const { value, error } = envConfigValidation.validate(process.env, {
-    allowUnknown: true,
-    abortEarly: false,
-  })
-  if (error) throw new Error(`invalid environment:\n${error.message}`)
-  return new EnvService(value)
 }
 
 export function buildGithubSweepGraph(args: { env: EnvService }): GithubSweepGraph {
@@ -125,7 +116,7 @@ export function buildGithubSweepGraph(args: { env: EnvService }): GithubSweepGra
 export async function withGithubSweepGraph<T>(args: {
   run: (graph: GithubSweepGraph) => Promise<T>
 }): Promise<T> {
-  const graph = buildGithubSweepGraph({ env: workerEnvService() })
+  const graph = buildGithubSweepGraph({ env: validatedEnvService() })
   try {
     return await args.run(graph)
   } finally {

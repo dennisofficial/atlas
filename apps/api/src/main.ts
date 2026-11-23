@@ -1,15 +1,15 @@
 import { hydrateEnvFromTierFile } from './api/hydrate-env'
 import { assertHostBoot } from './api/host-boot'
-import { validateEnvironment } from './api/validate-environment'
+import { validatedEnvService } from './_core/config/env/validated-env'
 import { mountMacLink } from './agent/mac-link/mount'
 import { createApp } from './create-app'
 
 hydrateEnvFromTierFile()
-validateEnvironment()
+const env = validatedEnvService()
 
 await assertHostBoot()
 
 const app = await createApp()
 mountMacLink(app)
 
-await app.listen(Number(process.env.PORT ?? 3400))
+await app.listen(env.get('PORT'))
