@@ -258,6 +258,19 @@ export const recordPodWaitingIn = async (params: {
   return changed
 }
 
+export const recordPodDiskIn = async (params: {
+  tx: ControlTx
+  sessionId: string
+  diskGb: number
+}): Promise<boolean> => {
+  const changed = await params.tx.setSessionPodDisk({
+    sessionId: params.sessionId,
+    diskGb: params.diskGb,
+  })
+  if (changed) await params.tx.announce({ sessionId: params.sessionId })
+  return changed
+}
+
 export const recordPodFailedIn = async (params: {
   tx: ControlTx
   sessionId: string

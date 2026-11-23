@@ -44,7 +44,7 @@ a thread's event log.
   inactive below an idle cutoff), a title or first-message search, and a creation-time keyset cursor.
 - `spawnPeer`, `messagePeer`, `reportToSpawner`, `podPeersPlaced`.
 - `setSandboxInstanceId`, `setSandboxStatus`, `recordPodDesired`, `recordPodApplied`,
-  `recordPodFailed`, `recordPodWaiting`.
+  `recordPodDisk`, `recordPodFailed`, `recordPodWaiting`.
 
 ### Append to the thread record
 

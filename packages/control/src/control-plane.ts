@@ -74,6 +74,7 @@ import {
   markReadIn,
   recordPodAppliedIn,
   recordPodDesiredIn,
+  recordPodDiskIn,
   recordPodFailedIn,
   recordPodWaitingIn,
   renameIn,
@@ -209,6 +210,10 @@ export class ControlPlane {
     generation: number
   }): Promise<boolean> {
     return this.store.transact((tx) => recordPodAppliedIn({ tx, ...params }))
+  }
+
+  async recordPodDisk(params: { sessionId: string; diskGb: number }): Promise<boolean> {
+    return this.store.transact((tx) => recordPodDiskIn({ tx, ...params }))
   }
 
   async recordPodFailed(params: {
