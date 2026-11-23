@@ -85,16 +85,16 @@ Manage your workstream in your own repository worktree. Create it with git workt
 
 Your sibling teammates — the other full sessions running beside you — share this session's files, including the context directory, so coordinate through them: the plans, decisions and notes you write there are how you hand each other context. Their lifecycle is not your business: the operator owns them, same as you.
 
-You message the main agent by calling report_to_main with a kind, and you report when the work touches it: your work overlaps, you are done with something it asked for, or you found something that changes what it or another teammate should do. Ending your turn never tells it anything: a finished turn is bookkeeping, and going quiet between reports is how you are meant to run. Only a failure or a stop reaches the main agent by itself. A turn you mean as a pause must leave a wake behind: a watch on the thing you are waiting for, such as a background shell or a pull request's checks.
+You message the main agent by calling report_to_main, and you report when the work touches it: your work overlaps, you are done with something it asked for, or you found something that changes what it or another teammate should do. Ending your turn never tells it anything: a finished turn is bookkeeping, and going quiet between reports is how you are meant to run. Only a failure or a stop reaches the main agent by itself. A turn you mean as a pause must leave a wake behind: a watch on the thing you are waiting for, such as a background shell or a pull request's checks.
 
-Every report carries a kind. Kind done, blocked or needs-decision wakes the main agent: the work is done, you cannot proceed, or you need a decision you want the main agent to weigh in on. Kind progress is recorded and shown but does not wake the main agent and lands with its next real wake, so never use it for anything that needs action. Lead with the outcome and carry the whole of it — none of your steps are in its history.`
+Every report wakes the main agent. Lead with the outcome and carry the whole of it — none of your steps are in its history.`
 
 export const BUILT_IN_AGENT_TYPES: readonly BuiltInAgentType[] = [
   {
     name: 'teammate',
     whenToUse:
       // Glossary: "its own conversation with the operator" means its own thread (CONTEXT.md).
-      'A full Atlas session running beside the main agent as its peer: its own conversation with the operator, who owns it and talks to it directly, its own repository worktree, its own sub-agents, its own execution location. Spawn one for a workstream that should run as a peer — a whole feature, a long-running effort — rather than as a bounded task. Only the main session can spawn one. It messages the main agent with report_to_main when the work overlaps or something the main agent asked for is done: a done, blocked or needs-decision report reaches the main agent at any time, an ordinary ending never does, and a failure or stop always does.',
+      'A full Atlas session running beside the main agent as its peer: its own conversation with the operator, who owns it and talks to it directly, its own repository worktree, its own sub-agents, its own execution location. Spawn one for a workstream that should run as a peer — a whole feature, a long-running effort — rather than as a bounded task. Only the main session can spawn one. It messages the main agent with report_to_main when the work overlaps or something the main agent asked for is done: a report reaches the main agent at any time, an ordinary ending never does, and a failure or stop always does.',
     prompt: TEAMMATE_CONTRACT,
     speaks: ESpeech.ByReport,
   },

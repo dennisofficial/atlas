@@ -2,7 +2,7 @@
 
 > **Approved by Dennis 2026-11-23.** On when the classifier is available; example recording dropped; web shows the indicator line. Built after the classifier role's slice 2.
 
-Status: **draft for Dennis**, 2026-11-23. Owner: new `packages/quality` plus `packages/host`.
+Status: **approved**, 2026-11-23; built in PR 1 and PR 2 (§5). Owner: new `packages/quality` plus `packages/host`.
 Anchors read at `ee5fdfdef` (repo `/atlas/workspaces/atlas`). "Jev" is the product name for this
 review; the model that answers is whichever classifier the operator chose (Jev direct, Jev through
 a gateway, or OpenAI Decisions).
@@ -260,6 +260,7 @@ Moved without behaviour change, imports re-pointed, specs moved with them:
 ```ts
 export type CodeQualityReviewDeps = {
   classifier: ClassifierPort
+  requestedModel: string
   source: QualitySourceAdapter
   registry: QualityRegistry
   settings: () => Readonly<Record<string, unknown>>
@@ -279,24 +280,13 @@ export type CodeQualityReviewDeps = {
   (`engine.ts:370-396`) and the `evidencePath` plumbing go with it.
 - `captureEnabled()` becomes `enabled` alone (it was `enabled || recordExamples`).
 
-`packages/quality/src/index.ts` exports the engine, plus a narrow contract so the host does not
-depend on the class:
+- `requestedModel` is the model of `SessionRuntime.classifierStatus` (`{ on: true; model }`). An answer
+  whose `model` differs is recorded `Inconclusive` / `UncalibratedModel`, as v1 did against its
+  `jev-latest` constant.
 
-```ts
-export type ReviewEngine = {
-  captureEnabled(): boolean
-  review(args: {
-    call: ToolCall
-    runId: RunId
-    changes: readonly CapturedFileChange[]
-    captureFaults: readonly QualityCoverageDiagnostic[]
-    events: readonly Event[]
-    projectDirectory: string
-    signal: AbortSignal
-    deadlineAt?: number | undefined
-  }): Promise<readonly EventDraft[]>
-}
-```
+`CodeQualityReview` extends core's `QualityReviewPort` (`packages/core/src/ports/quality-review.port.ts`),
+which is already the narrow contract the host needs, so the host depends on that abstract class and
+not on the engine. No separate `ReviewEngine` type is added.
 
 ### 4.4 Durable state, or dropped with the reason
 
@@ -307,7 +297,7 @@ export type ReviewEngine = {
 | finding ledger                                                                                         | folded from records (`core/src/quality/ledger.ts:142-153`)                        | **derived, unchanged:** folded from the thread's events on each review. In v2 the dispatcher receives `record.composedEvents({ threadId })` (`packages/agent/src/loop/settle-pending.ts:92`), so the ledger spans the whole thread, not just the run.                                                                |
 | coverage records                                                                                       | events                                                                            | **durable, unchanged.**                                                                                                                                                                                                                                                                                              |
 | example files (`packages/harness/src/quality/example-sink.ts:10-116`)                                  | `threadDataDirectory` in the harness store                                        | **dropped** with the setting (question 2): no v2 reader exists, and writing source copies into a sandbox to be read by nobody is cost without a consumer.                                                                                                                                                            |
-| git layout cache (`packages/harness/src/quality/git-workspace-identity.ts:238-241`, `Map`, 64 entries) | process memory                                                                    | **dropped.** The probe is three `git` reads per reviewed write, bounded at 750 ms (`:11`); the cache is exactly the cross-turn memory v2 forbids.                                                                                                                                                                    |
+| git layout cache (`packages/harness/src/quality/git-workspace-identity.ts:238-241`, `Map`, 64 entries) | process memory                                                                    | **dropped.** The probe is five `git` reads per reviewed write (six when `core.worktree` is read), all inside one 750 ms bound (`:11`); the cache is exactly the cross-turn memory v2 forbids.                                                                                                                        |
 
 The workspace namespace string keeps v1's shape — `<normalised remote>#<branch>:<worktree
 relative path>` (`git-workspace-identity.ts:262-272`, `workspace-namespace.ts:62-64`) — so finding
@@ -336,14 +326,18 @@ const outcome = await classifier.classify({
 (`packages/core/src/ports/workspace-identity.port.ts:3-8`), ported from
 `git-workspace-identity.ts:233-282` with the `layouts` map removed. It probes with the existing
 daemon process port (`packages/host/src/calls/ports/process.ts:69`, built at
-`apps/api/src/agent/runtime/session-runtime-factory.ts:188`): `git worktree list --porcelain`,
-`git remote get-url origin`, `git symbolic-ref --short -q HEAD`, each inside the 750 ms probe.
+`apps/api/src/agent/runtime/session-runtime-factory.ts:188`) with v1's reads unchanged:
+`git rev-parse --show-toplevel --git-common-dir --is-shallow-repository`,
+`git worktree list --porcelain -z`, `git rev-list --max-parents=0 HEAD`,
+`git config --get remote.origin.url` and `git symbolic-ref --short -q HEAD` (plus
+`git config --get core.worktree` for some layouts), all inside one 750 ms probe.
 
 **`quality-stage.ts`** — the adapter the dispatcher sees:
 
 ```ts
 export const qualityStageOf = (args: {
-  engine: ReviewEngine
+  review: QualityReviewPort
+  clock: () => number
   logPort?: LogPort | undefined
   budgetMs?: number | undefined
 }): QualityStagePort
@@ -385,31 +379,33 @@ sandbox loads these when it starts" (`apps/web/src/features/settings/pages/quali
 costs no per-write database read. The alternative, reading rows inside `captureEnabled()` and again
 in `review()`, would put two database queries in front of every write.
 
-`session-runtime-factory.ts` then assembles the stage beside `daemonToolsOf` (`:249`) and returns it
-on the runtime:
+`session-runtime-factory.ts` is already over 300 lines, so the assembly lives in
+`apps/api/src/agent/runtime/quality-stage.ts` (`qualityStageFor`), and the factory calls it with
+the daemon process port and returns the result on the runtime:
 
 ```ts
-const quality =
-  config.classifier.on &&
-  (config.quality.enabled ||
-    config.quality.policies['quality.policies.singleResponsibility'] === true)
-    ? qualityStageOf({
-        engine: new CodeQualityReview({
-          classifier: runtime.classifier,
-          source: { prepareQualityScopes },
-          registry: qualityRegistry,
-          settings: () => ({
-            ...config.quality.policies,
-            [ESettingId.QualityEnabled]: config.quality.enabled,
-          }),
-          workspaceIdentity: new DaemonWorkspaceIdentity({ process: processes }),
-          clock: () => deps.timers.now(),
-          deadlineMs: QUALITY_REVIEW_BUDGET_MS,
-        }),
-        ...(args.log === undefined ? {} : { logPort: args.log }),
-      })
-    : undefined
+if (!args.classifierStatus.on || !args.quality.enabled) return undefined
+return qualityStageOf({
+  review: new CodeQualityReview({
+    classifier: args.classifier,
+    requestedModel: args.classifierStatus.model,
+    source: { prepareQualityScopes },
+    registry: qualityRegistry,
+    settings: () => ({
+      ...args.quality.policies,
+      [ESettingId.QualityEnabled]: args.quality.enabled,
+    }),
+    workspaceIdentity: new DaemonWorkspaceIdentity({ process: args.processes }),
+    clock: args.clock,
+    deadlineMs: QUALITY_REVIEW_BUDGET_MS,
+  }),
+  clock: args.clock,
+  ...(args.log === undefined ? {} : { logPort: args.log }),
+})
 ```
+
+The gate is the master switch alone: a policy switch without the master switch builds no stage,
+because the engine would answer `captureEnabled() === false` for every write anyway.
 
 With the classifier off there is no stage at all: no capture, no call, no record. That is the v2
 shape of "off", and the reason is shown once, on the settings page (classifier spec §7.1), instead
@@ -468,8 +464,8 @@ data: `deadline.spec.ts`, `engine-review.spec.ts`, `engine-requests.spec.ts`,
 `engine-switches.spec.ts`, `support-modules.spec.ts`, `source/scope-adapter.spec.ts`,
 `source/typescript-parser.spec.ts`, `source/capture-text.spec.ts`. Drop `example-sink.spec.ts` and
 the git-identity layout/routing specs that assert the removed cache. Add:
-- `engine-config.spec.ts`: the classifier reports `{ on: false }` → `captureEnabled()` is false and
-  no review happens; a classifier answer whose `model` is not the configured one → `UncalibratedModel`;
+- `engine-config.spec.ts`: `quality.enabled` false → `captureEnabled()` is false and no classify
+  call happens; a classifier answer whose `model` is not the configured one → `UncalibratedModel`;
   a classifier that answers `{ ok: false, fault: 'rejected' }` → OperationalError and no nudge.
 - one spec asserting the question bytes stay under the 24 KB / 48 KB bounds for a 200-line function.
 
@@ -485,8 +481,9 @@ reviews land on `tool-result.qualityReviews`, the nudge follows the after-tool d
 `captureEnabled()` false sends no `captureFileChanges` to the tool.
 
 **Config (`apps/api/src/agent/config/__tests__/`).** The quality switches are read from the setting
-rows, project over user; with `classifier.model` empty the runtime carries `NO_CLASSIFIER` and no
-quality stage; with it set and the provider key present, the stage exists.
+rows, project over user. `apps/api/src/agent/runtime/__tests__/quality-stage.spec.ts`: a classifier
+status of `{ on: false }` → no stage; on with the master switch off → no stage; on with it on → a
+stage whose `captureEnabled()` is true.
 
 **Commands.** `bun test` in `packages/quality`, `packages/host`, `packages/agent`, `apps/api`;
 `turbo run typecheck`; `bunx biome check --write` on the touched files.

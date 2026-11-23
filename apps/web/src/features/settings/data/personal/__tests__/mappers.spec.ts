@@ -221,13 +221,27 @@ describe('interface settings', () => {
     })
   })
 
-  it('reads and diffs the notification matrix', () => {
-    const saved = notificationsFrom(new Map([['web.notifications.event.finished.email', true]]))
-    expect(saved.matrix.finished?.email).toBe(true)
-    expect(saved.channels).toEqual({ push: true, email: true })
+  it('reads and diffs the three notification moments', () => {
+    const saved = notificationsFrom(
+      new Map([
+        ['web.notifications.event.finished.push', false],
+        ['web.notifications.timezone', 'Europe/Berlin'],
+      ]),
+    )
+    expect(saved.events).toEqual({ finished: false, errored: true, approval: true })
+    expect(saved.timezone).toBe('Europe/Berlin')
     const draft = { ...saved, quietFrom: '23:00' }
     expect(notificationChanges({ saved, draft })).toEqual({
       'web.notifications.quietFrom': '23:00',
+    })
+  })
+
+  it('writes a moment to its push key and keeps the zone', () => {
+    const saved = notificationsFrom(new Map())
+    const draft = { ...saved, events: { ...saved.events, approval: false }, timezone: 'UTC' }
+    expect(notificationChanges({ saved, draft })).toEqual({
+      'web.notifications.event.approval.push': false,
+      'web.notifications.timezone': 'UTC',
     })
   })
 })

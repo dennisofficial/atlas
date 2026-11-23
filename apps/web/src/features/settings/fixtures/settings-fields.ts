@@ -26,7 +26,7 @@ export const CONTEXT_FIELDS: SettingField[] = [
     key: 'skills.suggest',
     title: 'Suggest a skill per turn',
     description:
-      'Before each turn, the decision model ranks every skill against your message and names at most one to the agent as a hint it can ignore.',
+      'Before each turn, the classifier scores the likely skills against the thread and names at most one to the agent as a hint it can ignore. Off when the classifier is off.',
     fallback: true,
   }),
   {

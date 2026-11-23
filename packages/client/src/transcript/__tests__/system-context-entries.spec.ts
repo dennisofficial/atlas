@@ -43,11 +43,7 @@ describe('system context entries', () => {
       contextLoaded({
         slot: 'skill-suggestion',
         key: 'additional-context',
-        content:
-          '<skill_relevance>\n' +
-          "The skill classifier picked 'aws-deployment' as relevant to the user's latest request. " +
-          'Load it with the skill tool when it genuinely applies; if it does not, ignore this entirely.\n' +
-          '</skill_relevance>',
+        content: 'skill: aws-deployment — 0.87',
       }),
     ])
 

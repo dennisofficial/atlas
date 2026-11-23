@@ -12,11 +12,11 @@ export const podSessionsOf = (args: {
   model: () => RoleModelChoice
   onFallback?: ((args: { agentId: ThreadId; model: RoleModelChoice }) => Promise<void>) | undefined
 }): PodSessions => ({
-  spawn: async ({ title, brief, nested }) => {
+  spawn: async ({ title, brief, nested, files }) => {
     const model = args.model()
     const sessionId = randomUUID()
     const mainThreadId = randomUUID()
-    await args.plane.spawnPeer({
+    const spawned = await args.plane.spawnPeer({
       spawnerSessionId: args.sessionId,
       sessionId,
       mainThreadId,
@@ -26,35 +26,13 @@ export const podSessionsOf = (args: {
       title,
       brief,
       nested,
+      ...(files === undefined ? {} : { files }),
     })
+    if ('refused' in spawned) throw new Error(spawned.refused)
     if (model.unavailable !== undefined) {
       await args.onFallback?.({ agentId: toThreadId(mainThreadId), model })
     }
     return { sessionId, mainThreadId }
-  },
-  message: async ({ sessionId, text }) => {
-    const sent = await args.plane.messagePeer({
-      fromSessionId: args.sessionId,
-      toSessionId: sessionId,
-      text,
-    })
-    return 'refused' in sent ? { refused: sent.refused } : { queued: true }
-  },
-  messageTeammate: async ({ sessionId, text }) => {
-    const sent = await args.plane.messageTeammate({
-      fromSessionId: args.sessionId,
-      toSessionId: sessionId,
-      text,
-    })
-    return 'refused' in sent ? { refused: sent.refused } : { queued: true }
-  },
-  report: async ({ kind, text }) => {
-    const sent = await args.plane.reportToSpawner({
-      sessionId: args.sessionId,
-      kind,
-      text,
-    })
-    return 'refused' in sent ? { refused: sent.refused } : { queued: true }
   },
   list: async () => {
     const roster = await args.plane.sessionsOf({ sessionId: args.sessionId })

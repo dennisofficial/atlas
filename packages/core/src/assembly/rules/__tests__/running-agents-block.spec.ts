@@ -82,7 +82,7 @@ describe('telling the model what it still has out', () => {
     const tail = textsOf(assembleWith({ events: SPOKEN, agents: [anAgent()] })).at(-1) ?? ''
 
     expect(tail).toContain('say what you are waiting for and end your turn')
-    expect(tail).toContain('agent_say({ agentId, text })')
+    expect(tail).toContain('A message you send it steers one.')
   })
 
   it('carries the same words while nothing about the agents changes, so a re-read reads as stale', () => {

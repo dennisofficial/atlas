@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'5f6ba3b9a87739af644f00c807db2de56d9da1d4d40cb7abcee4b41cc847463d'>;
+  StorageHashBase<'c91251b96f41b44ec86962b7178768299cbda52cddd9ab9e30e48129525459d7'>;
 export type ExecutionHash =
   ExecutionHashBase<'ab28df152a1a27a9a0756638f29813a6c6f20a2d2b25c449f0f8e363cc1d9af0'>;
 export type ProfileHash =
@@ -8144,6 +8144,12 @@ type ContractBase = Omit<
                   readonly name: 'V2Session_sandboxInstanceId_idx_c3850fdd';
                   readonly prefix: 'V2Session_sandboxInstanceId_idx';
                   readonly columns: readonly ['sandboxInstanceId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'V2Session_spawnedBySessionId_nested_idx_c61c238d';
+                  readonly prefix: 'V2Session_spawnedBySessionId_nested_idx';
+                  readonly columns: readonly ['spawnedBySessionId', 'nested'];
                   readonly unique: false;
                 },
                 {

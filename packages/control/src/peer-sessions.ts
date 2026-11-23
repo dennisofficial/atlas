@@ -2,10 +2,11 @@ import {
   EMessageOrigin,
   INBOX_KIND_EVENT,
   inboxEventPayloadOf,
-  reportWakesParent,
+  spawnBriefOf,
+  spawnFilesRefusalOf,
   TEAMMATE_AGENT_TYPE,
   toThreadId,
-  type EReportKind,
+  type SpawnFile,
 } from '@dltech/atlas-core'
 import type { SessionModelAsk } from '@dltech/atlas-models'
 import { INBOX_KIND_MESSAGE } from '@dltech/atlas-protocol'
@@ -16,6 +17,11 @@ import { createSessionIn } from './session-ops'
 
 export type PeerRefusal = { refused: string }
 
+const archivedRefusalOf = (session: ControlSessionRow): string | undefined =>
+  session.archivedAt === null
+    ? undefined
+    : `session ${session.sessionId} is archived, so it cannot act on a message. The operator can unarchive it.`
+
 export const spawnPeerIn = async (params: {
   tx: ControlTx
   spawner: ControlSessionRow
@@ -25,9 +31,13 @@ export const spawnPeerIn = async (params: {
   title?: string | undefined
   brief?: string | undefined
   nested?: boolean | undefined
+  files?: readonly SpawnFile[] | undefined
   at: string
-}): Promise<{ inboxId: number | null }> => {
+}): Promise<{ inboxId: number | null } | PeerRefusal> => {
   const { tx, spawner } = params
+  const files = params.files ?? []
+  const refusal = spawnFilesRefusalOf(files)
+  if (refusal !== null) return { refused: refusal }
   await createSessionIn({
     tx,
     sessionId: params.sessionId,
@@ -40,51 +50,26 @@ export const spawnPeerIn = async (params: {
     nested: params.nested,
     at: params.at,
   })
-  if (params.brief === undefined || params.brief.trim() === '') return { inboxId: null }
+  const text = spawnBriefOf({ brief: params.brief, files })
+  if (text === '') return { inboxId: null }
   const posted = await postIn({
     tx,
     sessionId: params.sessionId,
     kind: INBOX_KIND_MESSAGE,
-    payload: JSON.stringify({ text: params.brief, via: EMessageOrigin.PeerAgent }),
+    payload: JSON.stringify({
+      text,
+      via: EMessageOrigin.PeerAgent,
+      ...(files.length === 0 ? {} : { files }),
+    }),
     at: params.at,
     senderSessionId: spawner.sessionId,
   })
   return { inboxId: posted.inboxId }
 }
 
-export const messageTeammateIn = async (params: {
-  tx: ControlTx
-  from: ControlSessionRow
-  toSessionId: string
-  text: string
-  at: string
-}): Promise<{ inboxId: number } | PeerRefusal> => {
-  const { tx, from } = params
-  const to = await tx.lockSession(params.toSessionId)
-  if (to === undefined || to.userId !== from.userId) {
-    return {
-      refused: `there is no session ${params.toSessionId} in this project`,
-    }
-  }
-  if (to.spawnedBySessionId !== from.sessionId || !to.nested) {
-    return {
-      refused: `session ${params.toSessionId} is not one of this session’s nested teammates`,
-    }
-  }
-  return postIn({
-    tx,
-    sessionId: to.sessionId,
-    kind: INBOX_KIND_MESSAGE,
-    payload: JSON.stringify({ text: params.text, via: EMessageOrigin.PeerAgent }),
-    at: params.at,
-    senderSessionId: from.sessionId,
-  })
-}
-
 export const reportToSpawnerIn = async (params: {
   tx: ControlTx
   session: ControlSessionRow
-  kind: EReportKind
   text: string
   at: string
 }): Promise<{ inboxId: number } | PeerRefusal> => {
@@ -100,6 +85,8 @@ export const reportToSpawnerIn = async (params: {
       refused: `the session ${spawnerId} that created this one no longer exists`,
     }
   }
+  const archived = archivedRefusalOf(spawner)
+  if (archived !== undefined) return { refused: archived }
   return postIn({
     tx: params.tx,
     sessionId: spawner.sessionId,
@@ -111,13 +98,11 @@ export const reportToSpawnerIn = async (params: {
         agentType: TEAMMATE_AGENT_TYPE,
         intent: params.session.title ?? `session ${params.session.sessionId}`,
         prose: params.text,
-        kind: params.kind,
         senderSessionId: params.session.sessionId,
       },
     }),
     at: params.at,
     senderSessionId: params.session.sessionId,
-    wake: reportWakesParent(params.kind),
   })
 }
 
@@ -135,6 +120,8 @@ export const messagePeerIn = async (params: {
       refused: `there is no session ${params.toSessionId} in this project`,
     }
   }
+  const archived = archivedRefusalOf(to)
+  if (archived !== undefined) return { refused: archived }
   return postIn({
     tx,
     sessionId: to.sessionId,

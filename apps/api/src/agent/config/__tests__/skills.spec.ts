@@ -4,7 +4,7 @@ import { toThreadId, type Assembled, type V2Event } from '@dltech/atlas-core'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import type { Db } from '@dltech/atlas-db'
 import { SKILL_LISTING_HEADING, skillsPodOf } from '@dltech/atlas-plugin-skills/pod'
-import { seedOwner, seedSkill } from './config-reader.fixture'
+import { seedOwner, seedSetting, seedSkill } from './config-reader.fixture'
 import { podContextOf } from '../../testing/pod-context'
 import { skillCloudPort } from '../skills'
 
@@ -152,6 +152,20 @@ describe('the cloud skill port', () => {
     expect(await port.writer('s-missing').remove({ scope: 'user', name: 'alpha' })).toMatchObject({
       ok: false,
     })
+  })
+
+  it('reads the per-turn suggestion setting, on by default, with the project over the user', async () => {
+    const { db } = testDb()
+    await seedOwner(db)
+    const port = skillCloudPort({ db })
+    expect(await port.suggests('s-1')).toBe(true)
+    expect(await port.suggests('s-missing')).toBe(false)
+
+    await seedSetting({ db, scope: 'user', key: 'skills.suggest', value: false })
+    expect(await skillCloudPort({ db }).suggests('s-1')).toBe(false)
+
+    await seedSetting({ db, scope: 'project', key: 'skills.suggest', value: true })
+    expect(await skillCloudPort({ db }).suggests('s-1')).toBe(true)
   })
 })
 

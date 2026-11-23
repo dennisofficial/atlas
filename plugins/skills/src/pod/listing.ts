@@ -3,7 +3,7 @@ import type { SkillCatalogue } from './catalogue'
 
 export const SKILL_LISTING_HEADING = 'Skills available to load:'
 
-const entriesOf = (catalogue: SkillCatalogue): readonly SkillListingEntry[] =>
+export const listingEntriesOf = (catalogue: SkillCatalogue): readonly SkillListingEntry[] =>
   catalogue.skills
     .filter((skill) => skill.modelInvocable)
     .map((skill) => ({
@@ -17,7 +17,7 @@ export const skillListingOf = (args: {
   budgetChars: number
 }): string => {
   const rendered = renderSkillListing({
-    entries: entriesOf(args.catalogue),
+    entries: listingEntriesOf(args.catalogue),
     budgetChars: args.budgetChars,
   }).trim()
   return rendered === '' ? '' : `${SKILL_LISTING_HEADING}\n${rendered}`

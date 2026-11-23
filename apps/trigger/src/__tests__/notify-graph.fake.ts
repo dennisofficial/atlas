@@ -1,4 +1,4 @@
-import type { NotifyPresence } from '@dltech/atlas-core'
+import type { NotifyPresence, SettingScalar } from '@dltech/atlas-core'
 import {
   ENotifyDeviceKind,
   type NotifyDevice,
@@ -65,6 +65,7 @@ export const notifyGraphOf = (args: {
   session?: NotifySessionRow | null
   presence?: readonly NotifyPresence[]
   devices?: readonly NotifyDevice[]
+  settings?: ReadonlyMap<string, SettingScalar>
   results?: readonly NotifyResult[]
   now?: string
   record?: NotifyGraphRecord
@@ -99,6 +100,7 @@ export const notifyGraphOf = (args: {
         },
       },
       presence: { read: async () => [...(args.presence ?? [])] },
+      settings: { read: async () => new Map(args.settings ?? []) },
       transports: {
         [ENotifyDeviceKind.WebPush]: transportOf(ENotifyDeviceKind.WebPush),
         [ENotifyDeviceKind.Expo]: transportOf(ENotifyDeviceKind.Expo),

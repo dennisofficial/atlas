@@ -1,4 +1,4 @@
-import { ENotifyMode, notifyPlanOf } from '@dltech/atlas-core'
+import { ENotifyMode, notifyPlanOf, notifySettingsOf } from '@dltech/atlas-core'
 import {
   NO_NOTIFY_OUTPUT,
   NOTIFY_SEND_TASK_ID,
@@ -31,6 +31,9 @@ export const runNotifySend = async (args: {
   const now = graph.now()
   const presence = await graph.presence.read({ userId: session.userId, now })
   const devices = await graph.devices.listEnabled({ userId: session.userId })
+  const settings = notifySettingsOf({
+    values: await graph.settings.read({ userId: session.userId }),
+  })
   const plan = notifyPlanOf({
     facts: {
       moment: payload.moment,
@@ -40,8 +43,8 @@ export const runNotifySend = async (args: {
       readSeq: session.readSeq,
       presence,
       devices: devices.length,
-      quiet: false,
-      enabled: true,
+      quiet: settings.quiet({ now }),
+      enabled: settings.enabled(payload.moment),
       now,
     },
   })
