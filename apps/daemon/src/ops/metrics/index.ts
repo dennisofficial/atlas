@@ -59,7 +59,6 @@ export const metricsGroup =
     const vcpus = podVcpusOf({ root, fallback: availableParallelism() })
     const ring: PodSample[] = []
     let subscribers = 0
-    let timer: ReturnType<typeof setInterval> | null = null
     let prev: PodCgroupCounters | null = null
     let lastAt = 0
 
@@ -93,22 +92,13 @@ export const metricsGroup =
       lastAt = at
       ring.push(measured)
       if (ring.length > METRICS_RING_SIZE) ring.shift()
-      groupCtx.publish({ type: 'metrics.sample', sample: measured })
+      if (subscribers > 0) groupCtx.publish({ type: 'metrics.sample', sample: measured })
     }
 
-    const startSampling = (): void => {
-      if (timer !== null) return
-      prev = countersNow()
-      lastAt = Date.now()
-      timer = setInterval(sample, intervalMs)
-      timer.unref()
-    }
-
-    const stopSampling = (): void => {
-      if (timer !== null) clearInterval(timer)
-      timer = null
-      prev = null
-    }
+    prev = countersNow()
+    lastAt = Date.now()
+    const timer = setInterval(sample, intervalMs)
+    timer.unref()
 
     return {
       name: 'metrics',
@@ -123,7 +113,6 @@ export const metricsGroup =
               })
             }
             subscribers += 1
-            startSampling()
             return Promise.resolve({
               samples: recentOf({ ring, now: Date.now(), intervalMs }),
             })
@@ -133,18 +122,16 @@ export const metricsGroup =
           op: 'metrics.unsubscribe',
           run: () => {
             subscribers = Math.max(0, subscribers - 1)
-            if (subscribers === 0) stopSampling()
             return Promise.resolve(null)
           },
         }),
       ],
       onDisconnect: () => {
         subscribers = 0
-        stopSampling()
       },
       stop: () => {
         subscribers = 0
-        stopSampling()
+        clearInterval(timer)
         ring.length = 0
         return Promise.resolve()
       },
