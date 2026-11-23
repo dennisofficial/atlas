@@ -1,5 +1,7 @@
 import type { StreamServerMessage, StreamSessionRow } from '@dltech/atlas-protocol'
 
+import type { ListRetry } from './list-retry'
+
 export type FollowedSessionList = {
   getSnapshot(): readonly StreamSessionRow[] | undefined
   subscribe(listener: () => void): () => void
@@ -15,6 +17,25 @@ export type SessionsList = {
   handleMessage(message: SessionsListMessage): void
   view: Omit<FollowedSessionList, 'close'>
 }
+
+export type SessionsListFrameArgs = {
+  list: SessionsList
+  retry: ListRetry
+  stop(): void
+}
+
+export const sessionsListFrameHandler =
+  (args: SessionsListFrameArgs) =>
+  (frame: StreamServerMessage): void => {
+    if (frame.type === 'error') {
+      args.stop()
+      args.retry.failed()
+      return
+    }
+    if (frame.type === 'snapshot') args.retry.settled()
+    if (frame.type !== 'snapshot' && frame.type !== 'upsert' && frame.type !== 'remove') return
+    args.list.handleMessage(frame)
+  }
 
 export const foldSessionsMessage = (args: {
   rows: readonly StreamSessionRow[] | undefined

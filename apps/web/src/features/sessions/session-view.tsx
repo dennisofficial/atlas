@@ -111,7 +111,10 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   const attachments = useSessionAttachments({ files })
   const working = isSessionWorking(snapshot.status)
   const startFailure = startFailureOf(snapshot.status)
-  const turnStartedAt = useMemo(() => turnStartedAtOf(snapshot.foldable), [snapshot.foldable])
+  const turnStartedAt = useMemo(
+    () => turnStartedAtOf({ events: snapshot.foldable, status: snapshot.status }),
+    [snapshot.foldable, snapshot.status],
+  )
   const reveal = useSessionReveal(snapshot)
   const view = useMemo(
     () =>

@@ -241,16 +241,21 @@ describe('sessions subscription', () => {
     expect(rig.frames('upsert')).toEqual([])
   })
 
-  it('answers internal and stops when a recompute fails', async () => {
+  it('keeps the subscription open when a recompute fails and delivers the next change', async () => {
     await listen()
     rig.digestFailure = new Error('db down')
     await rig.plane.titleUntitledSession({ sessionId: SESSION, title: 'Boom' })
-    await until(() => rig.frames('error').length === 1, 'error frame')
-    expect(rig.frames('error')[0]).toEqual({
-      type: 'error',
-      id: 'list',
-      code: EStreamErrorCode.Internal,
+    await until(() => rig.digestReads >= 2, 'failed recompute')
+    expect(rig.frames('error')).toEqual([])
+    rig.digestFailure = undefined
+    await rig.plane.post({
+      sessionId: SESSION,
+      kind: 'message',
+      payload: asMessage('after the failure'),
     })
+    await until(() => rig.frames('upsert').length === 1, 'upsert after the failure')
+    expect(rig.frames('upsert')[0]?.row.title).toBe('Boom')
+    expect(rig.frames('error')).toEqual([])
   })
 
   it('answers bad-frame to a duplicate id and counts toward the subscription limit', async () => {

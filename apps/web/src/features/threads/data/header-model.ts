@@ -9,7 +9,6 @@ import type { PullRequestEntry } from './pull-request-entries'
 export enum EHeaderState {
   Failed = 'failed',
   NeedsYou = 'needs-you',
-  Queued = 'queued',
   Running = 'running',
   Idle = 'idle',
 }
@@ -19,7 +18,6 @@ export type ChecksTally = { running: number; passed: number; failed: number; exp
 export const STATE_LABEL: Record<EHeaderState, string> = {
   [EHeaderState.Failed]: 'Failed',
   [EHeaderState.NeedsYou]: 'Needs you',
-  [EHeaderState.Queued]: 'Queued',
   [EHeaderState.Running]: 'Running',
   [EHeaderState.Idle]: 'Idle',
 }
