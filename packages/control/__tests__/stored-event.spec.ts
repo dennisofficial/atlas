@@ -30,6 +30,18 @@ describe('stored events', () => {
     expect(decodeStoredEvent({ ...stored, hash: staleHash })).toEqual(event!)
   })
 
+  it('names the event type and the first validation issue when a row does not parse', () => {
+    const stored = toStoredEvent({ event: event!, hash: chainHash(event!) })
+    const pluginRow = {
+      ...stored,
+      type: 'mcp-server-changed',
+      canonical: stored.canonical.replace('"type":"user-said"', '"type":"mcp-server-changed"'),
+    }
+    expect(() => decodeStoredEvent(pluginRow)).toThrow(
+      /^stored event thread-1:1 is invalid \(type mcp-server-changed; type: Invalid discriminator/,
+    )
+  })
+
   it('still refuses a row that disagrees with its columns', () => {
     const stored = toStoredEvent({ event: event!, hash: chainHash(event!) })
     expect(() => decodeStoredEvent({ ...stored, seq: 2 })).toThrow(/disagrees with its row/)

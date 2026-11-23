@@ -1,6 +1,7 @@
-import { ControlPlane, type ControlStorePort, type ControlTx } from '@dltech/atlas-control'
+import type { ControlPlane, ControlStorePort, ControlTx } from '@dltech/atlas-control'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import { db } from '@dltech/atlas-db'
+import { composedControlPlaneOver } from '@dltech/atlas-pods'
 
 export type RoutineTxPort = Pick<ControlTx, 'readRoutine' | 'advanceRoutine' | 'insertRoutineRun'>
 
@@ -13,8 +14,9 @@ export type RoutinePlanePort = Pick<ControlPlane, 'runRoutine'>
 
 export type RoutineGraph = { store: RoutineStorePort; plane: RoutinePlanePort }
 
-export const buildRoutineGraph = (): RoutineGraph => {
-  const store = new PostgresControlStore(db)
+export const routineGraphOver = (store: ControlStorePort): RoutineGraph => ({
+  store,
+  plane: composedControlPlaneOver({ store }),
+})
 
-  return { store, plane: new ControlPlane({ store }) }
-}
+export const buildRoutineGraph = (): RoutineGraph => routineGraphOver(new PostgresControlStore(db))

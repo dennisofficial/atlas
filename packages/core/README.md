@@ -100,8 +100,8 @@ assembly, settings, ports, and the record folds. It imports `zod` and nothing el
 - `endingHeld({input, crew})`: whether a clean sub-agent ending waits for a sibling spawned in the same
   assistant step. `crew` holds `CrewRoomMember` values: `agentId`, `agentType`, `group` and `running`.
   `heldDraftOf({...})` stamps `held: true` on that ending, and `unheldDraftOf(draft)` strips it.
-- `agent-spawned` carries the optional `group` that names its spawn step. A held `agent-ended` row carries
-  `held: true`, and `isTurnTaking` is false for it. `isTeammateType(type)` names a teammate.
+- `agent-spawned` carries the optional `group` that names its spawn step. A held `agent-ended` row carries `held: true`, and `isTurnTaking` is false for it. `isTeammateType(type)` names a teammate.
+- `routineFailureNotificationOf({routineId, routineName, reason, enabled, quiet, now})`: the push for a scheduled run that did not start, or `null` when settings keep it silent. Its `routineId` is the tap target.
 - `credentialRepairOf({mainThreadId, events})`, `repairActionsOf({...})`, `ERepairAction`: the credential repair a session shows.
 
 ### Compact the log

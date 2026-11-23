@@ -71,6 +71,21 @@ describe('expoTransport.deliver', () => {
     ])
   })
 
+  it('names the routine in the data of a routine notice', async () => {
+    const recorder = recorderOf()
+
+    await expoTransport({ fetch: recorder.fetch }).deliver({
+      devices: [deviceOf()],
+      notification: { ...NOTIFICATION, routineId: 'rtn-1' },
+    })
+
+    expect(recorder.calls[0]?.messages[0]?.['data']).toEqual({
+      sessionId: 'session-1',
+      seq: 7,
+      routineId: 'rtn-1',
+    })
+  })
+
   it('sends the access token as a bearer credential only when there is one', async () => {
     const withToken = recorderOf()
     const without = recorderOf()

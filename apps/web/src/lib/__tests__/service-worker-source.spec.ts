@@ -4,6 +4,7 @@ import {
   OPEN_SESSION_MESSAGE,
   PUSH_MESSAGE_CLEAR,
   PUSH_MESSAGE_NOTIFICATION,
+  ROUTINE_PATH,
   SERVICE_WORKER_PATH,
   SESSION_QUERY_PARAM,
   serviceWorkerSource,
@@ -32,9 +33,15 @@ describe('the service worker source', () => {
     expect(serviceWorkerSource).toContain('self.registration.showNotification(notification.title')
     expect(serviceWorkerSource).toContain('tag: notification.sessionId')
     expect(serviceWorkerSource).toContain('renotify: false')
-    expect(serviceWorkerSource).toContain(
-      'data: { sessionId: notification.sessionId, seq: notification.seq }',
-    )
+    expect(serviceWorkerSource).toContain('sessionId: notification.sessionId,')
+    expect(serviceWorkerSource).toContain('seq: notification.seq,')
+    expect(serviceWorkerSource).toContain('routineId: notification.routineId,')
+  })
+
+  it('opens the routine page, not a session, when the notice names a routine', () => {
+    expect(serviceWorkerSource).toContain("if (typeof data.routineId === 'string')")
+    expect(serviceWorkerSource).toContain('openRoutine(data.routineId)')
+    expect(serviceWorkerSource).toContain(`'${ROUTINE_PATH}' + encodeURIComponent(routineId)`)
   })
 
   it('closes the notifications of a session by tag', () => {
