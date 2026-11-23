@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { FolderTreeIcon, SearchIcon } from 'lucide-react'
 
 import { FileSearchResults } from '@dltech/atlas-ui/ai/file-search-results'
@@ -11,6 +11,7 @@ import {
   InputGroupInput,
 } from '@dltech/atlas-ui/components/input-group'
 
+import { EFilesRoot } from '@dltech/atlas-protocol'
 import { api, cloudCall } from '@/lib/api-client'
 import { nodesOf } from '@/features/threads/data/file-tree-nodes'
 import { pathWithin } from '@/features/threads/data/file-tree-source'
@@ -26,8 +27,10 @@ import { CheckoutSelect } from '../checkouts/checkout-select'
 import { usePodHold } from '../data/use-pod-hold'
 import { usePodWake } from '../data/use-pod-wake'
 import { podAttached } from '../data/pod-attachment'
+import { EPaneOpen, checkoutPathOf, contextPathOf } from '../panel/pane-open'
 import { useSessionPaneValue } from '../panel/pane-value'
 import { PodDisconnected } from '../panel/pod-disconnected'
+import { ContextFileView } from './context-file-view'
 import { recallSelectedFile, rememberSelectedFile } from './files-memory'
 
 const requestWake = (sessionId: string) => cloudCall(api.sessions.wake.mutate({ sessionId }))
@@ -52,10 +55,25 @@ function Loading() {
   )
 }
 
-function FilesBody(props: { sessionId: string; source: FileSource; podAwake: boolean }) {
+function FilesBody(props: {
+  sessionId: string
+  source: FileSource
+  podAwake: boolean
+  openPath: string | undefined
+  onOpened: () => void
+}) {
   const { source } = props
-  const [selected, setSelectedState] = useState(() => recallSelectedFile(props.sessionId))
+  const [selected, setSelectedState] = useState(
+    () => props.openPath ?? recallSelectedFile(props.sessionId),
+  )
   const [query, setQuery] = useState('')
+  const { openPath, onOpened } = props
+  useEffect(() => {
+    if (openPath === undefined) return
+    setSelectedState(openPath)
+    rememberSelectedFile({ sessionId: props.sessionId, path: openPath })
+    onOpened()
+  }, [openPath, onOpened, props.sessionId])
   const {
     view: tree,
     open,
@@ -146,11 +164,18 @@ function FilesBody(props: { sessionId: string; source: FileSource; podAwake: boo
 
 export function FilesTab(
   props: {
-    sourceOf?: (args: { sessionId: string; checkoutId?: string | undefined }) => FileSource
+    sourceOf?: (args: {
+      sessionId: string
+      checkoutId?: string | undefined
+      root?: EFilesRoot | undefined
+    }) => FileSource
   } = {},
 ) {
-  const { sessionId, status } = useSessionPaneValue()
-  const { changes, selectedId } = useCheckoutChoice()
+  const { sessionId, status, openRequest, consumeOpenRequest } = useSessionPaneValue()
+  const { changes, options, selectedId, select } = useCheckoutChoice()
+  const [openPath, setOpenPath] = useState<string | undefined>(undefined)
+  const [contextPath, setContextPath] = useState<string | undefined>(undefined)
+  const handledOpen = useRef(0)
   const sourceOf = props.sourceOf ?? v2FileSource
   const source = useMemo(
     () => (selectedId === undefined ? null : sourceOf({ sessionId, checkoutId: selectedId })),
@@ -163,7 +188,44 @@ export function FilesTab(
     live: attached,
     wake: () => requestWake(sessionId).then(() => undefined),
   })
+  useEffect(() => {
+    if (openRequest === undefined) return
+    if (openRequest.kind === EPaneOpen.Changes) return
+    if (handledOpen.current === openRequest.id) return
+    const context = contextPathOf({ path: openRequest.path, sessionId })
+    if (openRequest.kind === EPaneOpen.Context) {
+      handledOpen.current = openRequest.id
+      consumeOpenRequest(openRequest.id)
+      setContextPath(context ?? openRequest.path)
+      return
+    }
+    if (changes.status !== 'ready') return
+    const target = checkoutPathOf({ path: openRequest.path, options, selectedId })
+    handledOpen.current = openRequest.id
+    consumeOpenRequest(openRequest.id)
+    if (target === undefined) {
+      if (context !== undefined) setContextPath(context)
+      return
+    }
+    setContextPath(undefined)
+    select(target.checkoutId)
+    setOpenPath(target.path)
+  }, [openRequest, changes.status, options, selectedId, select, consumeOpenRequest, sessionId])
+  const handleOpened = useCallback(() => setOpenPath(undefined), [])
+  const handleBack = useCallback(() => setContextPath(undefined), [])
+
   if (!attached) return <PodDisconnected tab="Files" state={state} onWake={wakePod} />
+  if (contextPath !== undefined) {
+    return (
+      <ContextFileView
+        sessionId={sessionId}
+        path={contextPath}
+        podAwake={attached}
+        onBack={handleBack}
+        sourceOf={sourceOf}
+      />
+    )
+  }
   if (changes.status === 'loading') return <Loading />
   if (changes.status === 'failed') {
     return (
@@ -185,7 +247,16 @@ export function FilesTab(
       </div>
     )
   }
-  return <FilesBody key={selectedId} sessionId={sessionId} source={source} podAwake={attached} />
+  return (
+    <FilesBody
+      key={selectedId}
+      sessionId={sessionId}
+      source={source}
+      podAwake={attached}
+      openPath={openPath}
+      onOpened={handleOpened}
+    />
+  )
 }
 
 export const FILES_TAB_ICON = <FolderTreeIcon />

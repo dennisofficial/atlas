@@ -203,6 +203,8 @@ function settledCall(args: { call: ToolCall; cwd: string }): Classification {
       stdout: str(output.stdout) ?? '',
       exitCode,
       ok: call.state === ECallState.Ok && (exitCode ?? 0) === 0,
+      backgrounded: output.backgrounded === true,
+      shellId: str(output.shellId),
     })
   }
 

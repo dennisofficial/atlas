@@ -34,6 +34,7 @@ import { sessionRefusalsOf } from './data/session-refusals'
 import { sessionBootViewOf } from './data/session-boot-view'
 import { sessionModelOf } from './data/session-model'
 import { sessionTranscriptOf } from './data/session-transcript'
+import { useDiagramRepairedTranscript } from './data/use-session-diagram-transcript'
 import { useSessionMarkRead } from './data/use-session-mark-read'
 import { useSessionModelChoice } from './data/use-session-model-choice'
 import { useSessionRunFailure } from './data/use-session-run-failure'
@@ -117,6 +118,10 @@ export function SessionView({ sessionId }: { sessionId: string }) {
       }),
     [snapshot.events, snapshot.overlay, reveal, sessionNameOf],
   )
+  const { items: transcriptItems, repairDiagram } = useDiagramRepairedTranscript({
+    sessionId,
+    items: view.items,
+  })
   const boot = useMemo(
     () =>
       sessionBootViewOf({
@@ -149,10 +154,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     mainThreadId: listed?.mainThreadId,
     model,
     snapshot,
-    openTab: pane.openTab,
-    podSizeRequest: pane.podSizeRequest,
-    requestPodSize: pane.requestPodSize,
-    consumePodSizeRequest: pane.consumePodSizeRequest,
+    pane,
   })
   const stagedRun = useStagedMessages({
     sessionId,
@@ -295,7 +297,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
             >
               <div className="min-h-0 flex-1">
                 <ThreadTranscript
-                  items={view.items}
+                  items={transcriptItems}
                   failureCard={failure.card}
                   failedLabel={failure.failedLabel}
                   pod={null}
@@ -306,6 +308,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
                   onOpenPodSize={handleOpenPodSize}
                   rewind={rewind}
                   summarise={summarise.transcript}
+                  repairDiagram={repairDiagram}
                   boot={boot}
                   staged={queuedDock.transcriptEntries}
                   onLoadOlder={loadOlder}

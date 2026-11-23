@@ -149,11 +149,11 @@ describe('BashTool', () => {
     expect(outputOf(outcome).truncated).toBe(true)
   }, 30_000)
 
-  it('says the command may want a background shell when it runs out of time', async () => {
+  it('points a command it could not keep running to the shell tool when it runs out of time', async () => {
     const outcome = await invoke({ command: 'sleep 30', timeoutMs: 400 })
 
     if (!outcome.ok) throw new Error(outcome.reason)
-    expect(outcome.modelText).toContain('runInBackground')
+    expect(outcome.modelText).toContain('`shell` tool')
   }, 15_000)
 
   it('abandons a command, and says who stopped it, once the turn is interrupted', async () => {

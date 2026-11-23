@@ -29,6 +29,7 @@ The package ships TypeScript source with no build step.
 | `@dltech/atlas-ui/components/*`    | A vendored component, such as `components/button`.                 |
 | `@dltech/atlas-ui/ai/*`            | An AI pattern, such as `ai/message` or `ai/tool`.                  |
 | `@dltech/atlas-ui/lib/*`           | `lib/utils` (`cn`), `lib/language-of-path`, `lib/shiki-languages`. |
+|                                    | `lib/mermaid-parse` checks a diagram source.                       |
 | `@dltech/atlas-ui/lib/highlighter` | The lazy shiki highlighter.                                        |
 | `@dltech/atlas-ui/hooks/*`         | `hooks/use-highlighted-code`, `hooks/use-mobile`.                  |
 | `@dltech/atlas-ui/fixtures/*`      | Development data, such as `fixtures/settings-agent`.               |
@@ -52,6 +53,11 @@ The package ships TypeScript source with no build step.
 - `ai/message`, `ai/message-response`, `ai/tool`, `ai/reasoning`, `ai/chain-of-thought`.
 - `ai/prompt-input`, `ai/confirmation`, `ai/diff-viewer`, `ai/code-viewer`, `ai/file-tree`.
 - `ai/chat`, `ai/plan`, `ai/agents-panel`, `ai/terminal`, `ai/preview-browser`.
+
+### Check a diagram
+
+- `lib/mermaid-parse`: `parsesAsMermaid(source)` loads mermaid on demand and reports whether the
+  source parses. A repaired diagram is checked with it before it replaces the broken one.
 
 ### Highlight code
 

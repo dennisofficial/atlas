@@ -4,8 +4,6 @@ import {
   EContentAccess,
   EPathForm,
   EPathPresence,
-  CallInterruptedError,
-  EProcessOutcome,
   EToolEffect,
   FileSystemPort,
   ProcessPort,
@@ -21,21 +19,13 @@ import {
   type ToolRun,
 } from '@dltech/atlas-core'
 
-import {
-  messageOf,
-  readShell,
-  render,
-  startShell,
-  terminatorFor,
-  type ShellOutput,
-} from './shell-process'
 import { ShellRegistryPort } from './shell-port'
+import { runForeground } from './bash-foreground'
 import {
   ATLAS_CONTEXT_DIR_ENV,
   ATLAS_SESSION_DIR_ENV,
   ATLAS_THREAD_DIR_ENV,
 } from '../runtime/session-paths'
-import { MAXIMUM_OUTPUT_CHARACTERS, mergeStreams, renderModelText } from './bash-output'
 import {
   bashDescription,
   ceilingClause,
@@ -200,82 +190,17 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
     }
 
     const env = this.shellEnv === undefined ? {} : await this.shellEnv()
-    const started = startShell({
+    return runForeground({
       command,
+      description: input.description,
       cwd,
+      timeoutMs: timeout,
+      maximumTimeoutMs: MAXIMUM_TIMEOUT_MS,
       processes: this.processes,
-      env: () => env,
+      env,
       threadId,
+      signal,
+      onOutput,
     })
-    if (!started.ok) return started
-
-    const { shell } = started
-    const terminate = terminatorFor(shell)
-    let deadlineFired = false
-    const deadline = setTimeout(() => {
-      deadlineFired = true
-      terminate()
-    }, timeout)
-    signal.addEventListener('abort', terminate, { once: true })
-
-    let read: ShellOutput
-    try {
-      read = await readShell({
-        shell,
-        limit: MAXIMUM_OUTPUT_CHARACTERS,
-        ...(onOutput === undefined ? {} : { onOutput }),
-      })
-    } catch (error) {
-      if (error instanceof CallInterruptedError) throw error
-      return { ok: false, reason: `the command could not be read back: ${messageOf(error)}` }
-    } finally {
-      clearTimeout(deadline)
-      signal.removeEventListener('abort', terminate)
-    }
-
-    const oomKilled = read.outcome.kind === EProcessOutcome.OomKilled
-    const memory = read.outcome.kind === EProcessOutcome.OomKilled ? read.outcome.memory : undefined
-    const timedOut = deadlineFired && !oomKilled
-
-    if (signal.aborted && !deadlineFired && !oomKilled) {
-      return {
-        ok: false,
-        reason: 'the operator interrupted the turn while the command was running',
-      }
-    }
-
-    if (read.outcome.kind === EProcessOutcome.Failed) {
-      return {
-        ok: false,
-        reason: `the command could not be run to completion (${read.outcome.code}): ${read.outcome.message}`,
-      }
-    }
-
-    const exitCode = read.outcome.kind === EProcessOutcome.Exited ? read.outcome.code : 137
-    const merged = mergeStreams({ stdout: read.stdout, stderr: read.stderr })
-
-    return {
-      ok: true,
-      output: {
-        command,
-        description: input.description,
-        exitCode,
-        stdout: render(read.stdout),
-        stderr: render(read.stderr),
-        truncated: merged.truncated,
-        timedOut,
-        ...(oomKilled ? { oomKilled: true } : {}),
-      },
-      modelText: renderModelText({
-        command,
-        merged: merged.text,
-        exitCode,
-        timedOut,
-        oomKilled,
-        memory,
-        timeoutMs: timeout,
-        maximumTimeoutMs: MAXIMUM_TIMEOUT_MS,
-      }),
-    }
   }
 }

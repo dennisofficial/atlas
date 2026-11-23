@@ -1,4 +1,8 @@
 import type {
+  DiagramRepairInput,
+  DiagramRepairListInput,
+  DiagramRepairListOutput,
+  DiagramRepairOutput,
   SessionBucketPageInput,
   SessionSubscribeInput,
   SessionSubscribeOutput,
@@ -37,6 +41,16 @@ export const fetchV2BucketPage = (input: SessionBucketPageInput) =>
 export type SubscriptionsApi = {
   subscribe(input: SessionSubscribeInput): Promise<SessionSubscribeOutput>
   unsubscribe(input: SessionUnsubscribeInput): Promise<SessionUnsubscribeOutput>
+}
+
+export type DiagramsApi = {
+  repair(input: DiagramRepairInput): Promise<DiagramRepairOutput>
+  list(input: DiagramRepairListInput): Promise<DiagramRepairListOutput>
+}
+
+export const diagramsApi: DiagramsApi = {
+  repair: (input) => cloudCall(api.diagrams.repair.mutate(input)),
+  list: (input) => cloudCall(api.diagrams.list.query(input)),
 }
 
 export const sessionsApi: SessionsApi &

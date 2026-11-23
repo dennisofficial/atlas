@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it, mock } from 'bun:test'
 import { act } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 
-import { DiagramError } from '../diagram-error'
+import { DiagramError, type DiagramRepairArgs } from '../diagram-error'
 import { summarizeDiagramError } from '../internal/diagram-error-summary'
 
 const CHART = 'flowchart LR\n  A[Start --> B{Check'
@@ -44,18 +44,14 @@ describe('DiagramError markup', () => {
     expect(html).toContain('Show source')
   })
 
-  it('has no fix button without onRepair', () => {
-    const html = renderToStaticMarkup(<DiagramError chart={CHART} error={ERROR} />)
-
-    expect(html).not.toContain('Fix diagram')
-  })
-
-  it('has a fix button with onRepair', () => {
-    const html = renderToStaticMarkup(
+  it('offers no manual repair button', () => {
+    const plain = renderToStaticMarkup(<DiagramError chart={CHART} error={ERROR} />)
+    const repairing = renderToStaticMarkup(
       <DiagramError chart={CHART} error={ERROR} onRepair={() => Promise.resolve()} />,
     )
 
-    expect(html).toContain('Fix diagram')
+    expect(plain).not.toContain('Fix diagram')
+    expect(repairing).not.toContain('Fix diagram')
   })
 })
 
@@ -69,6 +65,8 @@ describe('DiagramError repair', () => {
     await GlobalRegistrator.unregister()
   })
 
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 0))
+
   const mount = async (element: React.ReactElement) => {
     const { createRoot } = await import('react-dom/client')
     const container = document.createElement('div')
@@ -77,6 +75,9 @@ describe('DiagramError repair', () => {
     await act(async () => root.render(element))
     return {
       container,
+      render: async (next: React.ReactElement) => {
+        await act(async () => root.render(next))
+      },
       unmount: async () => {
         await act(async () => root.unmount())
         container.remove()
@@ -84,47 +85,59 @@ describe('DiagramError repair', () => {
     }
   }
 
-  const fixButton = (container: Element) =>
-    [...container.querySelectorAll('button')].find((button) =>
-      /Fix|Fixing/.test(button.textContent ?? ''),
-    )
-
-  const click = (element: Element | undefined) =>
-    act(async () => {
-      element?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
-    })
-
-  it('calls onRepair with the chart and the full error', async () => {
-    const onRepair = mock(() => Promise.resolve())
+  it('asks for the repair on its own, with the chart and the full error', async () => {
+    const onRepair = mock(async (_args: DiagramRepairArgs) => {})
     const view = await mount(<DiagramError chart={CHART} error={ERROR} onRepair={onRepair} />)
 
-    await click(fixButton(view.container))
-
-    expect(onRepair).toHaveBeenCalledWith({ chart: CHART, error: ERROR })
+    expect(onRepair).toHaveBeenCalledTimes(1)
+    expect(onRepair.mock.calls[0]?.[0]).toEqual({ chart: CHART, error: ERROR })
     await view.unmount()
   })
 
-  it('shows the failure inline and lets the button be clicked again', async () => {
-    const onRepair = mock(() => Promise.reject(new Error('model unavailable')))
-    const view = await mount(<DiagramError chart={CHART} error={ERROR} onRepair={onRepair} />)
+  it('asks once per chart, even when the handler changes identity', async () => {
+    const first = mock(() => Promise.resolve())
+    const second = mock(() => Promise.resolve())
+    const view = await mount(<DiagramError chart={CHART} error={ERROR} onRepair={first} />)
 
-    await click(fixButton(view.container))
+    await view.render(<DiagramError chart={CHART} error={ERROR} onRepair={second} />)
+    await settle()
 
-    expect(view.container.textContent).toContain('model unavailable')
-    expect(fixButton(view.container)?.disabled).toBe(false)
+    expect(first).toHaveBeenCalledTimes(1)
+    expect(second).not.toHaveBeenCalled()
     await view.unmount()
   })
 
-  it('disables the button while the repair is pending', async () => {
+  it('needs no repair call without a handler', async () => {
+    const view = await mount(<DiagramError chart={CHART} error={ERROR} />)
+
+    expect(view.container.textContent).toContain('Parse error on line 2:')
+    await view.unmount()
+  })
+
+  it('shows the pending state instead of the error body while the repair runs', async () => {
     let finish: () => void = () => {}
     const onRepair = mock(() => new Promise<void>((resolve) => (finish = resolve)))
     const view = await mount(<DiagramError chart={CHART} error={ERROR} onRepair={onRepair} />)
 
-    await click(fixButton(view.container))
+    expect(view.container.textContent).toContain('Fixing diagram…')
+    expect(view.container.textContent).not.toContain('Parse error on line 2:')
 
-    expect(fixButton(view.container)?.disabled).toBe(true)
-    expect(view.container.textContent).toContain('Fixing…')
     await act(async () => finish())
+    await settle()
+
+    expect(view.container.textContent).not.toContain('Fixing diagram…')
+    await view.unmount()
+  })
+
+  it('shows the reason under the original error when the repair fails', async () => {
+    const onRepair = mock(() => Promise.reject(new Error('model unavailable')))
+    const view = await mount(<DiagramError chart={CHART} error={ERROR} onRepair={onRepair} />)
+
+    await settle()
+
+    expect(view.container.textContent).toContain('Parse error on line 2:')
+    expect(view.container.textContent).toContain('model unavailable')
+    expect(view.container.textContent).not.toContain('Fixing diagram…')
     await view.unmount()
   })
 })

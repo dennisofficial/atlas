@@ -130,3 +130,4 @@ export {
 } from '@dltech/atlas-pods/sandbox/sandbox-runs'
 export { sandboxLiveCpuMs } from '@dltech/atlas-pods/sandbox/sandbox-live-cpu'
 export { sessionNamerOf, type SessionNamer } from './naming/session-namer'
+export { diagramRepairerOf, type DiagramRepairer } from './diagrams/diagram-repairer'

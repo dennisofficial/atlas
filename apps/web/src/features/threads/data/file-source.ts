@@ -1,4 +1,5 @@
 import type { FileContent } from '@dltech/atlas-protocol'
+import type { EFilesRoot } from '@dltech/atlas-protocol'
 import type { SearchWorkspaceFilesReply } from '@dltech/atlas-wire/web'
 
 import { api, cloudCall } from '@/lib/api-client'
@@ -26,9 +27,12 @@ export const channelFileSource = (channel: FileChannel): FileSource => ({
 const checkoutScope = (checkoutId: string | undefined) =>
   checkoutId === undefined ? {} : { checkoutId }
 
+const rootScope = (root: EFilesRoot | undefined) => (root === undefined ? {} : { root })
+
 export const v2FileSource = (args: {
   sessionId: string
   checkoutId?: string | undefined
+  root?: EFilesRoot | undefined
 }): FileSource => ({
   browse: async (input) =>
     (
@@ -36,6 +40,7 @@ export const v2FileSource = (args: {
         api.files.tree.query({
           sessionId: args.sessionId,
           ...checkoutScope(args.checkoutId),
+          ...rootScope(args.root),
           directory: input.directory,
         }),
       )
@@ -54,6 +59,7 @@ export const v2FileSource = (args: {
         api.files.read.query({
           sessionId: args.sessionId,
           ...checkoutScope(args.checkoutId),
+          ...rootScope(args.root),
           path: input.path,
         }),
       )

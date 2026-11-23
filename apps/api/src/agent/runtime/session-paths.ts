@@ -33,6 +33,10 @@ export function sessionDirOf(sessionId: string, home: string = SANDBOX_HOME_PATH
   return join(home, SESSIONS_DIRECTORY_NAME, sessionId)
 }
 
+export function contextDirOf(sessionId: string, home: string = SANDBOX_HOME_PATH): string {
+  return join(sessionDirOf(sessionId, home), CONTEXT_DIRECTORY_NAME)
+}
+
 export function sessionPathsOf(args: {
   sessionId: string
   threadId: ThreadId
