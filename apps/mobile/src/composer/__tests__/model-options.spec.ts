@@ -1,3 +1,4 @@
+import { EBrand } from '@dltech/atlas-ui/brand'
 import { EModelProviderStatus, type ModelsResponse } from '@dltech/atlas-wire/web'
 import { describe, expect, it } from 'bun:test'
 
@@ -74,6 +75,13 @@ describe('modelOptionsOf', () => {
     expect(opus?.monogram).toBe('A')
     expect(opus?.context).toBe('200k')
     expect(gpt?.context).toBe('1M')
+  })
+
+  it('brands a known provider and keeps the monogram as the fallback', () => {
+    const [opus, gpt] = modelOptionsOf(response)
+    expect(opus?.brand).toBe(EBrand.Anthropic)
+    expect(gpt?.brand).toBe(EBrand.OpenAI)
+    expect(opus?.monogram).toBe('A')
   })
 
   it('carries the output rate when the provider publishes one', () => {

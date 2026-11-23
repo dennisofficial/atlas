@@ -7,7 +7,7 @@ palette and one type scale. `apps/mobile` is the only consumer.
 ## Owns
 
 - The native components: `Alert`, `Avatar`, `Bubble`, `Button`, `Card`, `HarnessNotice`, `Icon`,
-  `Input`, `Markdown`, `Reasoning`, `Separator`, `Text`, `Trace` and `AtlasMark`.
+  `Input`, `Markdown`, `Reasoning`, `Separator`, `Text`, `Trace`, `AtlasMark` and `BrandMark`.
 - The native theme hooks: `useTheme`, `useScheme`, `useIsDark`.
 - The native type enums `ETextRole`, `ETextTone`, `EFontFamily`, `EFontWeight`.
 - A small markdown renderer with no web view.
@@ -34,6 +34,8 @@ palette and one type scale. `apps/mobile` is the only consumer.
 - `HarnessNotice` with `EHarnessNoticeTone`: a notice from the harness.
 - `Separator`, `Rule`: a line between two items.
 - `AtlasMark`: the Atlas mark.
+- `BrandMark`: the mark of a brand from `@dltech/atlas-ui/brand`. It takes the brand, a `size` in
+  pixels and the `color` for a mark that draws in the current colour.
 
 ### Draw text
 

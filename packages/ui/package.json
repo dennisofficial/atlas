@@ -10,11 +10,13 @@
     "#components/*": "./src/components/*.tsx",
     "#lib/*": "./src/lib/*.ts",
     "#hooks/*": "./src/hooks/*.ts",
-    "#lib/highlighter": "./src/lib/highlighter.tsx"
+    "#lib/highlighter": "./src/lib/highlighter.tsx",
+    "#brand": "./src/brand/index.ts"
   },
   "exports": {
     ".": "./src/index.ts",
     "./tokens": "./src/tokens/index.ts",
+    "./brand": "./src/brand/index.ts",
     "./components/*": "./src/components/*.tsx",
     "./ai/*": "./src/ai/*.tsx",
     "./lib/highlighter": "./src/lib/highlighter.tsx",

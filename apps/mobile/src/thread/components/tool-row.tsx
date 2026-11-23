@@ -1,7 +1,8 @@
 import {
+  callKindOf,
   classify,
+  ECallKind,
   ECallState,
-  EToolClass,
   formatElapsed,
   type ToolCall,
 } from '@dltech/atlas-client/transcript'
@@ -16,7 +17,17 @@ import {
   Trace,
   useTheme,
 } from '@dltech/atlas-ui-native'
-import { FilePen, FileText, ListChecks, Terminal, Wrench } from 'lucide-react-native'
+import {
+  Bot,
+  FilePen,
+  FileText,
+  Globe,
+  ListChecks,
+  Search,
+  Sparkles,
+  Terminal,
+  Wrench,
+} from 'lucide-react-native'
 import { ActivityIndicator, ScrollView, StyleSheet } from 'react-native'
 
 import { McpServerMark } from './mcp-server-mark'
@@ -28,12 +39,16 @@ const OUTPUT_MAX_HEIGHT = 240
 const isOpen = (call: ToolCall): boolean =>
   call.state === ECallState.Pending || call.state === ECallState.AwaitingApproval
 
-const ICON_OF_CLASS: Record<EToolClass, typeof FileText> = {
-  [EToolClass.Gathered]: FileText,
-  [EToolClass.Change]: FilePen,
-  [EToolClass.Command]: Terminal,
-  [EToolClass.External]: Wrench,
-  [EToolClass.Plan]: ListChecks,
+const ICON_OF_KIND: Record<ECallKind, typeof FileText> = {
+  [ECallKind.Shell]: Terminal,
+  [ECallKind.Read]: FileText,
+  [ECallKind.Search]: Search,
+  [ECallKind.Edit]: FilePen,
+  [ECallKind.Web]: Globe,
+  [ECallKind.Skill]: Sparkles,
+  [ECallKind.Agent]: Bot,
+  [ECallKind.Plan]: ListChecks,
+  [ECallKind.Other]: Wrench,
 }
 
 const elapsedOf = (call: ToolCall): string => {
@@ -64,10 +79,10 @@ export const ToolRowView = ({
   onOpenAgent?: ((agentId: string) => void) | undefined
 }) => {
   const theme = useTheme()
-  const { klass, line, note, failed, mcp } = classify({ call, cwd: '' })
+  const { line, note, failed, mcp } = classify({ call, cwd: '' })
   const output = call.liveOutput ?? call.modelText
   const hasOutput = output.length > 0
-  const Glyph = ICON_OF_CLASS[klass]
+  const Glyph = ICON_OF_KIND[callKindOf(call.name)]
   const elapsed = elapsedOf(call)
   const description = elapsed.length > 0 ? elapsed : note
   const status = failed ? ETraceStatus.Error : isOpen(call) ? ETraceStatus.Running : undefined
