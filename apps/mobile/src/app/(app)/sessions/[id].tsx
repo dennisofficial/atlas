@@ -13,7 +13,6 @@ import { router, Stack, useLocalSearchParams } from 'expo-router'
 import { useCallback } from 'react'
 import { ActivityIndicator, StyleSheet, View } from 'react-native'
 
-import { useAuth } from '../../../auth/auth-provider'
 import { EffortSelect, FastToggle } from '../../../composer/model-controls'
 import { ModelSheet } from '../../../composer/model-picker'
 import { ModelTrigger } from '../../../composer/model-trigger'
@@ -28,7 +27,6 @@ import { useV2SessionScreen } from '../../../thread/v2/use-v2-session-screen'
 
 export default function SessionScreen() {
   const theme = useTheme()
-  const { api } = useAuth()
   const { id, title } = useLocalSearchParams<{ id: string; title?: string }>()
   const session = useV2SessionScreen(id)
   const model = session.commands.model
