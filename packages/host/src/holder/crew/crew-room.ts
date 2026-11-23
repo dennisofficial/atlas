@@ -68,6 +68,13 @@ export class CrewRoom {
       : await run.say({ text: args.text, ...(args.from === undefined ? {} : { from: args.from }) })
   }
 
+  async retry(args: { agentId: string }): Promise<boolean> {
+    const run = await this.runOrUndefined(args.agentId)
+    if (run === undefined) return false
+    await run.continueTurn()
+    return true
+  }
+
   stop(args: { agentId: string }): SubagentSnapshot {
     return this.find(args.agentId).stop(EKilledBy.Model)
   }

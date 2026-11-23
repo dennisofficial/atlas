@@ -11,6 +11,7 @@ import {
   type PrepareFailure,
 } from '@dltech/atlas-core'
 
+import { forMainThread } from './child-retry'
 import { idleReleaseDue } from './held-idle'
 import { countRunningShells } from './held-shells'
 import {
@@ -74,7 +75,7 @@ export const readHeldAction = async (args: {
   const events = cache?.eventsAfter(0) ?? []
   const resumeEvents = cache?.loopEventsAfter(args.resumeAfterSeq) ?? []
   const entries = await readFullInbox(deps)
-  const resolvable = entries.filter((entry) => understandsCommand(deps, entry))
+  const resolvable = forMainThread(entries.filter((entry) => understandsCommand(deps, entry)))
   const logIds = logPendingInputIdsOf(events)
   const preparedBefore = preparedBeforeOf(events)
   const workspace = workspaceStateFrom({

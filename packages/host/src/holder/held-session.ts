@@ -231,7 +231,11 @@ export class HeldSession {
       oom,
     })
     this.observation.start()
-    this.actions.attach({ logStaged, runCommands })
+    this.actions.attach({
+      logStaged,
+      runCommands,
+      retryChild: (agentId) => crew.retry({ agentId }),
+    })
     await takeOver.lapped({
       lap: ETakeoverLap.Settle,
       work: () => settleAndCheckResume({ deps, runtime, record, threadId, crew }),

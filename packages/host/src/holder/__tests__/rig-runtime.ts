@@ -17,7 +17,7 @@ import {
   type ToolOutcome,
 } from '@dltech/atlas-core'
 import { z } from 'zod'
-import type { SaidUploadsPort } from '@dltech/atlas-agent'
+import type { NormalizeFailure, SaidUploadsPort } from '@dltech/atlas-agent'
 import {
   ScriptedModel,
   fakeToolRegistry,
@@ -130,6 +130,7 @@ export const makeRuntimeFactory = (args: {
   subscribePrepareOutput?: ((listener: (text: string) => void) => void) | undefined
   subscribeSetup?: ((listener: (lifecycle: SetupLifecycle) => void) => void) | undefined
   model?: (() => ModelPort) | undefined
+  normalizeFailure?: NormalizeFailure | undefined
   hostTools?: readonly ToolDefinition[] | undefined
   baseBranches?: Readonly<Record<string, string>> | undefined
   uploads?: SaidUploadsPort | undefined
@@ -197,12 +198,14 @@ export const makeRuntimeFactory = (args: {
         prompt: () => EMPTY_PROMPT,
         launchDirectory: '/w',
       }),
-      normalizeFailure: ({ message }) => ({
-        kind: EProviderFailureKind.Network,
-        scope: EProviderFailureScope.Route,
-        retry: EProviderRetry.Transient,
-        message,
-      }),
+      normalizeFailure:
+        args.normalizeFailure ??
+        (({ message }) => ({
+          kind: EProviderFailureKind.Network,
+          scope: EProviderFailureScope.Route,
+          retry: EProviderRetry.Transient,
+          message,
+        })),
       ...(args.uploads === undefined ? {} : { uploads: args.uploads }),
       placeContextFiles:
         args.placeContextFiles ??

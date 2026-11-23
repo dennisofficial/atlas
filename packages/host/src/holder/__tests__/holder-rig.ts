@@ -7,7 +7,7 @@ import {
   createMemoryHostPresence,
   type MemoryHostPresence,
 } from '../../testing/memory-host-presence'
-import type { SaidUploadsPort } from '@dltech/atlas-agent'
+import type { NormalizeFailure, SaidUploadsPort } from '@dltech/atlas-agent'
 import type { ComposedPlugins } from '@dltech/atlas-plugin-sdk'
 import { SequentialIds, type ScriptedModelStep } from '@dltech/atlas-agent/testing'
 import { createInMemoryDaemon, type InMemoryDaemon } from '@dltech/atlas-protocol/testing'
@@ -66,6 +66,7 @@ export const makeRig = async (args: {
   changes?: { content: ChangeContentStore } | undefined
   runningShells?: (() => Promise<number>) | undefined
   model?: (() => ModelPort) | undefined
+  normalizeFailure?: NormalizeFailure | undefined
   hostTools?: readonly ToolDefinition[] | undefined
   terminalStreams?: (() => number) | undefined
   baseBranches?: Readonly<Record<string, string>> | undefined
@@ -129,6 +130,7 @@ export const makeRig = async (args: {
     terminalStreams: args.terminalStreams,
     panelHolds: () => held?.demandOf().panel.countOf(SESSION) ?? 0,
     model: args.model,
+    normalizeFailure: args.normalizeFailure,
     hostTools: args.hostTools,
     baseBranches: args.baseBranches,
     uploads: args.uploads,
