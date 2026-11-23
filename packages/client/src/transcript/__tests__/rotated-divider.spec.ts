@@ -34,6 +34,6 @@ describe('the rotated divider as a logged event', () => {
     const entries = deriveTranscript({ events, signals: [] }).entries
     const divider = entries.find((entry) => entry.kind === EEntryKind.Rotated)
 
-    expect(divider?.text).toBe('context rotated here at 86% of the window')
+    expect(divider?.text).toBe('rotated automatically at 86% of the window')
   })
 })
