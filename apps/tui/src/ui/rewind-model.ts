@@ -17,7 +17,6 @@ export const NO_UNDO = 'no undo'
 export enum ERewindVerb {
   ToHere = 'to-here',
   SummariseUpTo = 'summarise-up-to',
-  Fork = 'fork',
 }
 
 export enum ERewindPointKind {
@@ -26,7 +25,13 @@ export enum ERewindPointKind {
 }
 
 export type RewindPoint =
-  | { kind: ERewindPointKind.Said; seq: number; text: string; images: readonly SaidImage[] }
+  | {
+      kind: ERewindPointKind.Said
+      seq: number
+      eventId: string
+      text: string
+      images: readonly SaidImage[]
+    }
   | { kind: ERewindPointKind.Compacted; seq: number; text: string; replaced: number }
 
 export type RewindState = {
@@ -58,6 +63,7 @@ const pointOf = (event: Event): RewindPoint[] => {
       {
         kind: ERewindPointKind.Said,
         seq: event.seq,
+        eventId: event.id,
         text: event.text,
         images: inlineImagesOf(attachmentsOf(event)),
       },
@@ -93,9 +99,6 @@ const saidAfter = (args: { points: readonly RewindPoint[]; index: number }): num
 const saidBefore = (args: { points: readonly RewindPoint[]; index: number }): number =>
   saidIn({ points: args.points, from: 0, to: args.index })
 
-const saidThrough = (args: { points: readonly RewindPoint[]; index: number }): number =>
-  saidIn({ points: args.points, from: 0, to: args.index + 1 })
-
 export function verbsFor(args: { state: RewindState }): readonly ERewindVerb[] {
   const { points, index } = args.state
   const point = selectedPoint(args.state)
@@ -105,7 +108,6 @@ export function verbsFor(args: { state: RewindState }): readonly ERewindVerb[] {
   return [
     ERewindVerb.ToHere,
     ...(saidBefore({ points, index }) > 0 ? [ERewindVerb.SummariseUpTo] : []),
-    ERewindVerb.Fork,
   ]
 }
 
@@ -189,15 +191,9 @@ export function pointConsequence(args: { state: RewindState; index: number }): s
 export const VERB_LABEL: Readonly<Record<ERewindVerb, string>> = {
   [ERewindVerb.ToHere]: 'rewind to here',
   [ERewindVerb.SummariseUpTo]: 'summarise up to here',
-  [ERewindVerb.Fork]: 'fork from here',
 }
 
 export function verbTally(args: { state: RewindState; verb: ERewindVerb }): string {
-  if (args.verb === ERewindVerb.Fork) {
-    const { points, index } = args.state
-    return `${saidThrough({ points, index })} kept`
-  }
-
   const count = messagesAffected(args)
   if (args.verb === ERewindVerb.SummariseUpTo) return `${count} before`
 
@@ -220,9 +216,6 @@ function rewindConsequence(args: { state: RewindState; count: number }): string 
 }
 
 export function verbConsequence(args: { state: RewindState; verb: ERewindVerb }): string {
-  if (args.verb === ERewindVerb.Fork)
-    return 'a new conversation continues from here with everything up to it copied · this one is untouched'
-
   const count = messagesAffected(args)
 
   if (args.verb === ERewindVerb.SummariseUpTo)

@@ -1,12 +1,10 @@
 import { useCallback, useEffect, useRef } from 'react'
 
-import { ECompactionAnchor, EForkMode } from '@dltech/atlas-core'
-import { forkConversation } from '@dltech/atlas-harness'
+import { ECompactionAnchor } from '@dltech/atlas-core'
 
 import type { useDraft } from '../ui/hooks/use-draft'
 import type { useDraftTokens } from '../ui/hooks/use-draft-tokens'
 import { restoredImages } from '../ui/draft-images'
-import { ENoticeTone, notify } from '../ui/notice-store'
 import { ERewindPointKind, ERewindVerb, type RewindChoice } from '../ui/rewind-model'
 import type { useContainerMove } from './use-container-move'
 import type { Conversation } from './use-conversation'
@@ -96,31 +94,6 @@ export function useWorkspaceNavigation(args: {
 
   const handleRewindChoice = useCallback(
     ({ point, verb }: RewindChoice) => {
-      if (verb === ERewindVerb.Fork) {
-        void forkConversation({
-          log: props.app.log,
-          threads: props.app.threads,
-          threadId: conversation.threadId,
-          seq: point.seq,
-          mode: EForkMode.Copy,
-        })
-          .then((forked) => {
-            if (!forked.ok) {
-              notify({ key: 'fork-refused', text: forked.reason, tone: ENoticeTone.Warn })
-              return
-            }
-            handleOpenThread(forked.thread.id)
-          })
-          .catch((error: unknown) => {
-            notify({
-              key: 'fork-refused',
-              text: error instanceof Error ? error.message : String(error),
-              tone: ENoticeTone.Warn,
-            })
-          })
-        return
-      }
-
       if (verb === ERewindVerb.ToHere) {
         conversation.handleRewindTo(point.seq - 1)
         if (point.kind === ERewindPointKind.Said) {
@@ -134,7 +107,7 @@ export function useWorkspaceNavigation(args: {
 
       conversation.handleCompactAround({ anchor: ECompactionAnchor.Prefix, seq: point.seq - 1 })
     },
-    [conversation, tokens, handleOpenThread, props.app.log, props.app.threads],
+    [conversation, tokens],
   )
 
   const rewind = useRewind({ events: conversation.readEvents, onPick: handleRewindChoice })

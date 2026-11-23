@@ -1,6 +1,8 @@
 import type { KeyEvent } from '@opentui/core'
 import React, { useCallback, useEffect, useMemo, useRef } from 'react'
 
+import type { EClientAction } from '@dltech/atlas-commands'
+
 import { chordMatches, EKeyGroup, EKeyLayer, type KeyBinding } from '../ui/keys'
 import { ENoticeTone, notify } from '../ui/notice-store'
 import { chatBindings, chatPressHandled } from './chat-bindings'
@@ -14,7 +16,10 @@ import { useOperatorInput } from './use-operator-input'
 import { usePendingTakeBack } from './use-pending-take-back'
 import { useRunAttention } from './use-run-attention'
 import { useSessionAttachments } from './use-session-attachments'
+import { useCommandMenu } from './use-command-menu'
+import { useRewind } from './use-rewind'
 import { useSessionComposer } from './use-session-composer'
+import { useTuiCommands } from './use-tui-commands'
 import { useSessionSend } from './use-session-send'
 import { useSessionTranscript } from './use-session-transcript'
 import { EPodWake, useSessionWake } from './use-session-wake'
@@ -35,7 +40,11 @@ export function ChatScreenHost(props: {
   width: number
   height: number
   now: () => number
+  cwd: string
   onBack: () => void
+  onNew: () => void
+  onModel: () => void
+  onQuit: () => void
   onKeys: (handler: (key: KeyEvent) => boolean) => void
   choosingModel: boolean
 }): React.ReactNode {
@@ -76,6 +85,7 @@ export function ChatScreenHost(props: {
     attachments,
     send,
     onProblem: problemOf,
+    onSlashCommand: (text) => menu.handleSubmit(text),
   })
 
   restoreText.current = (args: { text: string; reason: string | undefined }) => {
@@ -125,6 +135,52 @@ export function ChatScreenHost(props: {
     sessionId: props.sessionId,
     live: connection.cloudConnected,
   })
+
+  const runName = useRef<(name: string) => void>(() => undefined)
+  const runAction = useRef<(action: EClientAction) => void>(() => undefined)
+
+  const rewind = useRewind({
+    api: props.client.api,
+    sessionId: props.sessionId,
+    rawEvents: transcript.rawEvents,
+    draft: composer.draft,
+    attachments,
+    onProblem: problemOf,
+  })
+
+  const menu = useCommandMenu({
+    api: props.client.api,
+    draft: composer.draft,
+    onAction: (action) => runAction.current(action),
+    onLocal: (name) => runName.current(name),
+    onRun: (text) => {
+      composer.draft.setValue(text)
+      composer.handleSubmit()
+    },
+    onProblem: problemOf,
+  })
+
+  const commands = useTuiCommands({
+    sessionId: props.sessionId,
+    cwd: props.cwd,
+    onNew: props.onNew,
+    onSessions: props.onBack,
+    onQuit: props.onQuit,
+    onModel: props.onModel,
+    onHelp: menu.handleOpen,
+    onRewind: rewind.handleOpen,
+    onWake: wake.handleWake,
+    onProblem: problemOf,
+  })
+  runName.current = commands.run
+  runAction.current = commands.action
+
+  const readMenu = useRef(menu.handleText)
+  readMenu.current = menu.handleText
+
+  useEffect(() => {
+    readMenu.current(composer.draft.value)
+  }, [composer.draft.value, menu.entries])
 
   const pending = useMemo(
     () =>
@@ -206,10 +262,12 @@ export function ChatScreenHost(props: {
   const handleKey = useCallback(
     (key: KeyEvent): boolean => {
       if (operator.state !== null) return operator.handleKey(key)
+      if (menu.handleKey(key)) return true
       if (composer.handleKey(key)) return true
+      if (rewind.handleKey(key)) return true
       return chatPressHandled({ press: key, bindings, match: chordMatches })
     },
-    [bindings, composer, operator],
+    [bindings, composer, menu, operator, rewind],
   )
 
   const onKeys = props.onKeys
@@ -228,12 +286,15 @@ export function ChatScreenHost(props: {
       wake={wake}
       width={props.width}
       height={props.height}
-      cwd="/"
+      cwd={props.cwd}
       now={props.now()}
       sends={send.sends}
       choosingModel={props.choosingModel}
       working={transcript.working}
       onReconnect={wake.handleWake}
+      menu={menu}
+      rewind={rewind}
+      onMenuSelect={menu.handleSelectRow}
     />
   )
 }

@@ -2,13 +2,17 @@ import React, { useMemo } from 'react'
 
 import { NoticeStack } from '../ui/components/notice-stack'
 import { OperatorInputOverlay } from '../ui/components/operator-input'
+import { Rewind } from '../ui/components/rewind'
 import { Spans, type Span } from '../ui/components/spans'
 import { Transcript } from '../ui/components/transcript'
 import { createKeyRegistry, KeyRegistryContext } from '../ui/keys'
 import type { PendingRow } from '../store'
 import { theme } from '../ui/theme'
 import type { ConnectionView } from './connection-view'
+import { SlashMenu } from './slash-menu-view'
+import type { CommandMenu } from './use-command-menu'
 import type { OperatorInputControl } from './use-operator-input'
+import type { RewindControl } from './use-rewind'
 import type { SessionComposer } from './use-session-composer'
 import type { SessionTranscript } from './use-session-transcript'
 import { modelWithAttentionFailure, type RunAttentionControl } from './use-run-attention'
@@ -40,8 +44,12 @@ export function ChatScreen(props: {
   working: boolean
   onReconnect: () => void
   choosingModel: boolean
+  menu: CommandMenu
+  rewind: RewindControl
+  onMenuSelect: (index: number) => void
 }): React.ReactNode {
   const { composer, transcript, attention, operator, connection, wake } = props
+  const { menu, rewind } = props
   const registry = useMemo(() => createKeyRegistry(), [])
   const hints = controlHints({ working: props.working, wake })
   const model = modelWithAttentionFailure({
@@ -97,6 +105,18 @@ export function ChatScreen(props: {
             onOpenUrl={noop}
           />
         )}
+        {rewind.state === null ? null : (
+          <Rewind
+            width={props.width}
+            state={rewind.state}
+            overlay
+            onPick={rewind.handlePick}
+            onDismiss={rewind.handleDismiss}
+          />
+        )}
+        {menu.state === null ? null : (
+          <SlashMenu width={props.width} state={menu.state} onSelect={props.onMenuSelect} />
+        )}
         <ComposerPane
           draft={composer.draft}
           fileMenu={composer.fileMenu}
@@ -105,7 +125,7 @@ export function ChatScreen(props: {
           height={props.height}
           working={props.working}
           interrupting={false}
-          focused={operator.state === null && !props.choosingModel}
+          focused={operator.state === null && !props.choosingModel && rewind.state === null}
           onCursorMoved={composer.handleCursorMoved}
         />
         <NoticeStack width={props.width} />

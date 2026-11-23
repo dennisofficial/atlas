@@ -6,7 +6,10 @@ import type { SessionModelChoice } from '@dltech/atlas-protocol'
 
 import { ENoticeTone, notify } from '../ui/notice-store'
 import type { SwitcherChoice } from '../ui/switcher-model'
+import { EScreen, screenOnNew, type ScreenState } from './app-screen'
 import { EOpenMode, type LaunchFlags } from './launch-flags'
+import { applyModelSet } from './model-set'
+import type { SessionApi } from './session-api'
 
 export const EMPTY_SESSION_LIST: FollowedSessionList = {
   getSnapshot: () => [],
@@ -35,3 +38,25 @@ export const modelOfRef = (ref: string): SessionModelChoice => ({
 
 export const choiceToSessionChoice = (choice: SwitcherChoice): SessionModelChoice | null =>
   choice.ref === null ? null : { ref: refKey(choice.ref), effort: choice.effort, fast: choice.fast }
+
+export const modelPickOf = (args: {
+  screen: ScreenState
+  picked: SwitcherChoice
+  api: SessionApi | null
+  onProblem: (reason: string) => void
+}): ScreenState | null => {
+  if (args.screen.screen === EScreen.Transcript) {
+    if (args.api === null) return null
+    void applyModelSet({
+      api: args.api,
+      sessionId: args.screen.sessionId,
+      choice: args.picked,
+    }).catch((failure: unknown) => {
+      args.onProblem(`could not switch the model — ${messageOf(failure)}`)
+    })
+    return null
+  }
+
+  const next = choiceToSessionChoice(args.picked)
+  return next === null ? null : screenOnNew({ model: next })
+}
