@@ -40,12 +40,12 @@ its roster view.
 
 ### The tools the model sees
 
-| Tool           | What it does                                                                                                                               |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `shell_output` | Read what the shell printed since the last read. Each call consumes what it returns.                                                       |
-| `shell_input`  | Write `text` to the stdin of a shell that `bash` started with `background: true` and `input: true`. Set `end` to close the stdin for good. |
-| `shell_kill`   | Signal the whole process group. Return the next unread chunk, at most 32,768 bytes by default, with the count of characters that remain.   |
-| `shell_list`   | List the shells this session started, with id, command, state and printed size. `runningOnly` leaves out ended shells.                     |
+| Tool           | What it does                                                                                                                             |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `shell_output` | Read what the shell printed since the last read. Each call consumes what it returns.                                                     |
+| `shell_input`  | Write `text` to the stdin of a shell that `bash` started with `input: true`. Set `end` to close the stdin for good.                      |
+| `shell_kill`   | Signal the whole process group. Return the next unread chunk, at most 32,768 bytes by default, with the count of characters that remain. |
+| `shell_list`   | List the shells this session started, with id, command, state and printed size. `runningOnly` leaves out ended shells.                   |
 
 ### The slots
 

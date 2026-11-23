@@ -85,8 +85,14 @@ export function renderStartedText(args: {
   shellId: string
   timeoutMs: number | undefined
   input: boolean
+  movedForInput: boolean
 }): string {
   return [
+    ...(args.movedForInput
+      ? [
+          'input needs a background shell, so this command started in the background instead of waiting.',
+        ]
+      : []),
     `Started in the background as shell ${args.shellId}, and it outlives this turn and an interrupt.`,
     'Its ending arrives on its own with its output, even after this turn ends.',
     'So do not wait on it: no sleeping, no polling, no idle loop - a tick only spins the turn. Take other work, or end the turn and be woken.',

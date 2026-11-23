@@ -12,6 +12,7 @@ export async function startBackgroundShell(args: {
   env: Record<string, string>
   timeoutMs?: number | undefined
   input: boolean
+  movedForInput: boolean
   signal: AbortSignal
 }): Promise<ToolOutcome> {
   const shellId = newShellId()
@@ -37,6 +38,11 @@ export async function startBackgroundShell(args: {
       ...(args.timeoutMs === undefined ? {} : { timeoutMs: args.timeoutMs }),
       ...(args.input ? { input: true } : {}),
     },
-    modelText: renderStartedText({ shellId, timeoutMs: args.timeoutMs, input: args.input }),
+    modelText: renderStartedText({
+      shellId,
+      timeoutMs: args.timeoutMs,
+      input: args.input,
+      movedForInput: args.movedForInput,
+    }),
   }
 }

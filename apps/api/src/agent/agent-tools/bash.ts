@@ -90,14 +90,6 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
     const { command, timeoutMs } = input
     const cwd = input.workdir ?? projectDirectory
 
-    if (input.input === true && input.background !== true) {
-      return {
-        ok: false,
-        reason:
-          'input opens a stdin only for a shell started with background: true. A foreground command keeps stdin closed, so a command that reads stdin cannot hang the call. Start the command again with background: true and input: true, then answer it with shell_input',
-      }
-    }
-
     if (input.workdir !== undefined) {
       const directory = await this.deps.files.stat({ path: input.workdir }).catch(() => undefined)
       if (directory === undefined) {
@@ -115,7 +107,8 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
       return { ok: false, reason: truncatedWatchRefusal() }
     }
 
-    if (input.background === true) {
+    const wantsInput = input.input === true
+    if (input.background === true || wantsInput) {
       return startBackgroundShell({
         launcher: this.deps.launcher,
         command,
@@ -123,7 +116,8 @@ export class BashTool extends SchemaTool<typeof inputSchema> {
         cwd,
         env: await this.shellEnvOf(),
         timeoutMs,
-        input: input.input === true,
+        input: wantsInput,
+        movedForInput: wantsInput && input.background !== true,
         signal,
       })
     }

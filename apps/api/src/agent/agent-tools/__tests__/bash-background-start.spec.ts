@@ -185,7 +185,7 @@ describe('bash started with background true', () => {
     expect(outcome.ok && outcome.modelText).toContain('shell_input')
   }, 30_000)
 
-  it('refuses input for a foreground command, whose stdin stays closed', async () => {
+  it('moves a call with input but no background to the background at once and says so', async () => {
     const launcher = new TestShellLauncher()
     const spawned: SpawnCommand[] = []
 
@@ -195,10 +195,21 @@ describe('bash started with background true', () => {
       input: { command: 'gh auth login', input: true },
     })
 
-    expect(outcome.ok).toBe(false)
-    expect(!outcome.ok && outcome.reason).toContain('background: true')
-    expect(launcher.launched).toEqual([])
+    expect(outputOf(outcome)).toMatchObject({ backgrounded: true, input: true })
+    expect(launcher.launched[0]?.input).toBe(true)
     expect(spawned).toEqual([])
+    expect(outcome.ok && outcome.modelText).toContain(
+      'input needs a background shell, so this command started in the background',
+    )
+  }, 30_000)
+
+  it('says nothing about moving a call that asked for background itself', async () => {
+    const outcome = await run({
+      launcher: new TestShellLauncher(),
+      input: { command: 'gh auth login', background: true, input: true },
+    })
+
+    expect(outcome.ok && outcome.modelText).not.toContain('input needs a background shell')
   }, 30_000)
 
   it('rejects the fields the schema no longer takes', async () => {
