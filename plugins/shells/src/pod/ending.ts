@@ -13,15 +13,16 @@ export const recordShellEnding = async (args: {
   const { ctx, state, frame } = args
   if (frame.event.type !== 'shells.ended') return
   const { shellId, info } = frame.event
+  if (!hasStarted({ events: ctx.events(), shellId })) {
+    state.unclaimed.set(shellId, frame)
+    return
+  }
   if (state.endings.has(shellId)) return
   state.endings.add(shellId)
   try {
     if (hasEnded({ events: ctx.events(), shellId })) {
       state.cursors.reset(shellId)
       return
-    }
-    if (!hasStarted({ events: ctx.events(), shellId })) {
-      await ctx.append([{ type: 'background-shell-started', shellId, command: info.command }])
     }
     const read = await readDelta({ ctx, cursors: state.cursors, shellId })
     const delta = read.ok
