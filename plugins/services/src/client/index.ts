@@ -3,7 +3,7 @@ import type { ClientSlot } from '@dltech/atlas-plugin-sdk'
 
 import { EServiceStatus } from '@dltech/atlas-core'
 
-import { SERVICES_VIEW, servicesViewSchema, type ServiceRow } from '../core'
+import { SERVICES_VIEW, serviceLabelOf, servicesViewSchema, type ServiceRow } from '../core'
 
 export { servicesCoreSlots } from '../core'
 
@@ -33,7 +33,7 @@ export type PreviewItem = {
 const MAX_LABEL = 28
 
 const labelOf = (row: ServiceRow): string => {
-  const text = (row.name ?? row.command).trim()
+  const text = serviceLabelOf(row)
   return text.length > MAX_LABEL ? `${text.slice(0, MAX_LABEL - 1)}…` : text
 }
 
