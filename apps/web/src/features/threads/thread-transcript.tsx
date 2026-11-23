@@ -26,6 +26,7 @@ import { useRoster } from './data/use-roster'
 import { useThreadPanel } from './panel/thread-panel-context'
 import { sandboxBootPropsOf } from './sandbox-boot-props'
 import { BackgroundWaitLine } from './transcript/background-wait-line'
+import { RepairCard, type RepairCardProps } from './transcript/repair-card'
 import { RunFailureCard, type RunFailureCardProps } from './transcript/run-failure-card'
 import { StagedTurn } from './transcript/staged-turn'
 import {
@@ -79,6 +80,7 @@ function BootEntryItem({ entry, onRetry }: { entry: BootEntry; onRetry: () => vo
 export function ThreadTranscript({
   items,
   failureCard,
+  repairCard,
   failedLabel,
   pod,
   working,
@@ -95,6 +97,7 @@ export function ThreadTranscript({
 }: {
   items: readonly TranscriptRow[]
   failureCard: RunFailureCardProps | null
+  repairCard?: RepairCardProps | null
   failedLabel: string | null
   pod: PodStatus | null
   working: boolean
@@ -160,6 +163,11 @@ export function ThreadTranscript({
         </ChatItem>,
         ...bootAfter(index),
       ])}
+      {repairCard === undefined || repairCard === null ? null : (
+        <ChatItem id="turn-failure">
+          <RepairCard {...repairCard} />
+        </ChatItem>
+      )}
       {failureCard !== null ? (
         <ChatItem id="turn-failure">
           <RunFailureCard {...failureCard} />

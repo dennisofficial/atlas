@@ -38,6 +38,8 @@ const extraUsage: RunFailure = {
 
 const quota: RunFailure = { ...extraUsage, kind: ERunFailureKind.Quota, message: 'no credits' }
 
+const auth: RunFailure = { ...extraUsage, kind: ERunFailureKind.Auth, message: 'invalid key' }
+
 const accountLabelOf = (accountId: string): string | undefined =>
   accountId === 'acc_personal' ? 'dennislysenko@hotmail.com' : undefined
 
@@ -125,6 +127,22 @@ describe('sessionFailureCardOf', () => {
     expect(switchModel).toBeDefined()
     switchModel?.onSelect()
     expect(handlers.switchModel).toHaveBeenCalledTimes(1)
+  })
+
+  it('hands the credential repair to the repair handler', () => {
+    const handlers = handlersOf()
+    const attention = sessionAttentionOf({
+      events: eventsOf([{ type: 'run-failed', failure: auth }]),
+      working: false,
+    })
+    if (attention === null) throw new Error('expected attention')
+    const card = sessionFailureCardOf({ attention, accountLabelOf, handlers })
+    const fix = card.actions?.find((action) => action.label === 'Update key')
+
+    fix?.onSelect()
+
+    expect(handlers.fixCredential).toHaveBeenCalledTimes(1)
+    expect(handlers.retry).not.toHaveBeenCalled()
   })
 
   it('renders the message, account and action instead of a bare failure line', () => {
