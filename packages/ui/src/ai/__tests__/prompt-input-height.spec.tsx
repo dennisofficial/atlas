@@ -3,8 +3,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 import { act } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 
-import { composerMaxHeight } from '../internal/use-visual-viewport-height'
 import { PromptInput } from '../prompt-input'
+
+const FULL_SCREEN_CAP = 'max-h-[max(6rem,calc(100lvh/3))]'
 
 beforeAll(() => {
   GlobalRegistrator.register()
@@ -26,39 +27,29 @@ const mountField = async () => {
   return { area, unmount: () => act(async () => root.unmount()) }
 }
 
-const setViewportHeight = (height: number) => {
+const openKeyboard = (height: number) => {
   const viewport = new EventTarget()
   Object.defineProperty(viewport, 'height', { value: height, configurable: true })
   Object.defineProperty(window, 'visualViewport', { value: viewport, configurable: true })
-  return viewport
+  viewport.dispatchEvent(new Event('resize'))
+  window.dispatchEvent(new Event('resize'))
 }
 
 describe('composer height cap', () => {
-  it('caps the field at a third of the visible viewport', () => {
-    expect(composerMaxHeight(932)).toBe(310)
-    expect(composerMaxHeight(480)).toBe(160)
-  })
-
-  it('never caps below six rem', () => {
-    expect(composerMaxHeight(200)).toBe(96)
-  })
-
-  it('scrolls inside the field with a static cap during server rendering', () => {
+  it('caps the field at a third of the full screen height, never below six rem', () => {
     const field = renderToStaticMarkup(<PromptInput />).match(/<textarea[^>]*>/)?.[0] ?? ''
 
     expect(field).toContain('overflow-y-auto')
-    expect(field).toContain('max-h-[max(6rem,33svh)]')
+    expect(field).toContain(FULL_SCREEN_CAP)
   })
 
-  it('follows the visual viewport when the keyboard opens', async () => {
-    const viewport = setViewportHeight(932)
+  it('keeps the same cap when the keyboard shrinks the visible viewport', async () => {
     const { area, unmount } = await mountField()
-    expect(area.style.maxHeight).toBe('310px')
 
-    setViewportHeight(480)
-    await act(async () => viewport.dispatchEvent(new Event('resize')))
+    await act(async () => openKeyboard(480))
 
-    expect(area.style.maxHeight).toBe('160px')
+    expect(area.className).toContain(FULL_SCREEN_CAP)
+    expect(area.style.maxHeight).toBe('')
     await unmount()
   })
 })
