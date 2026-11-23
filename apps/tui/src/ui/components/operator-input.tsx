@@ -1,7 +1,7 @@
 import type { PasteEvent, TextareaRenderable } from '@opentui/core'
 import React, { type RefObject } from 'react'
 
-import type { OperatorInputState } from '../../composition/use-operator-input'
+import type { OperatorInputState } from '../operator-input-state'
 import { fitHints, hintSpans, type Hint } from '../hint-layout'
 import { COMPOSER_NEWLINE_BINDINGS } from '../composer-input-bindings'
 import { useClickRegion, type ClickRegion } from '../hooks/use-click-region'
@@ -17,12 +17,12 @@ export function operatorInputHints(state: OperatorInputState): readonly Hint[] {
   if (state.kind === 'delivering')
     return [
       { key: '…', label: 'delivering' },
-      { key: 'esc', label: 'interrupt the turn' },
+      { key: 'esc', label: 'cancel the request' },
     ]
   return [
     { key: '⏎', label: 'send — the model never sees it' },
     { key: 'shift+⏎', label: 'newline' },
-    { key: 'esc', label: 'interrupt the turn' },
+    { key: 'esc', label: 'cancel the request' },
   ]
 }
 

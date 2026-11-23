@@ -208,4 +208,27 @@ describe('useSessionAttachments', () => {
       await mounted.done()
     }
   }, 20_000)
+
+  test('deleting the picture from the draft drops the held attachment', async () => {
+    const stuck = globalThis.fetch
+    globalThis.fetch = (async () => new Response(null, { status: 200 })) as unknown as typeof fetch
+
+    const mounted = await mount()
+    const image = imageOf({ name: 'b.png', byteLength: 32 })
+    try {
+      await mounted.act(() => attachments().attachImages([image]))
+      await settling(mounted.act)
+      expect(attachments().held).toHaveLength(1)
+
+      await mounted.act(() => attachments().retain([image.path]))
+      expect(attachments().held).toHaveLength(1)
+
+      await mounted.act(() => attachments().retain([]))
+      expect(attachments().held).toEqual([])
+      expect(attachments().payload()).toEqual({ media: [], uploads: [] })
+    } finally {
+      globalThis.fetch = stuck
+      await mounted.done()
+    }
+  }, 20_000)
 })
