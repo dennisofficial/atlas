@@ -1,16 +1,13 @@
 import type { KeyEvent } from '@opentui/core'
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 
 import type { EClientAction } from '@dltech/atlas-commands'
 import type { StreamSessionRow } from '@dltech/atlas-protocol'
 
-import { chordMatches, EKeyGroup, EKeyLayer, type KeyBinding } from '../ui/keys'
 import { ENoticeTone, notify } from '../ui/notice-store'
 import { AgentTranscriptScreen } from './agent-transcript'
-import { chatBindings, chatPressHandled } from './chat-bindings'
 import { ChatScreen } from './chat-screen'
 import { connectionViewOf } from './connection-view'
-import { dispatchPaneKey } from './pane-keys'
 import { pendingOperatorRequestOf } from './operator-request'
 import { pendingRowsOf } from './pending-rows'
 import type { SessionClient } from './session-client'
@@ -27,16 +24,11 @@ import { useSessionSend } from './use-session-send'
 import { useChatKeys } from './use-chat-keys'
 import { useSessionPanes } from './use-session-panes'
 import { useSessionTranscript } from './use-session-transcript'
-import { EPodWake, useSessionWake } from './use-session-wake'
+import { useSessionWake } from './use-session-wake'
 
 const problemOf = (reason: string): void => {
   notify({ text: reason, tone: ENoticeTone.Warn })
 }
-
-const global = (binding: Omit<KeyBinding, 'layer'>): KeyBinding => ({
-  ...binding,
-  layer: EKeyLayer.Global,
-})
 
 export function ChatScreenHost(props: {
   client: SessionClient
