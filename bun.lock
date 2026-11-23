@@ -763,6 +763,7 @@
       "name": "@dltech/atlas-protocol",
       "version": "0.1.0",
       "dependencies": {
+        "@dltech/atlas-commands": "workspace:*",
         "@dltech/atlas-core": "workspace:*",
         "zod": "^4.4.3",
       },

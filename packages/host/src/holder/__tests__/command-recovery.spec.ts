@@ -3,13 +3,13 @@ import { describe, expect, it } from 'bun:test'
 import {
   composeCommands,
   defineCommand,
+  ECommandGroup,
+  ECommandRunsIn,
   type Command,
   type CommandHandler,
 } from '@dltech/atlas-commands'
 import {
   chainEvents,
-  ECommandGroup,
-  ECommandTiming,
   ECompactionAnchor,
   EInputConsumed,
   toRunId,
@@ -30,8 +30,7 @@ const factCommand = (name: string): Command =>
       summary: 'records a fact',
       group: ECommandGroup.Context,
       args: z.strictObject({ word: z.string() }),
-      timing: ECommandTiming.Settled,
-      handledIn: 'holder',
+      runsIn: ECommandRunsIn.Host,
     },
   })
 

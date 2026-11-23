@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'bun:test'
-import { ECommandTiming } from '@dltech/atlas-core'
+import { ECommandRunsIn } from '@dltech/atlas-commands'
 
-import { resize, resizeArgs } from '../spec'
+import { REFUSAL_RESIZE_USAGE, resize, resizeArgs } from '../spec'
 
 describe('resize spec', () => {
-  it('is handled in the control plane at once and has no inbox entry', () => {
+  it('runs in the control plane and has no inbox entry', () => {
     expect(resize.spec.name).toBe('resize')
-    expect(resize.spec.handledIn).toBe('control')
-    expect(resize.spec.timing).toBe(ECommandTiming.Immediate)
+    expect(resize.spec.runsIn).toBe(ECommandRunsIn.Control)
+    expect(resize.spec.argumentHint).toBe('<vcpus> <memoryGb> [diskGb] [--idle]')
   })
 
   it('takes a shape rather than a bare vCPU count', () => {
@@ -57,4 +57,35 @@ describe('resize spec', () => {
   ])('refuses %p', (args) => {
     expect(resizeArgs.safeParse(args).success).toBe(false)
   })
+})
+
+describe('resize fromText', () => {
+  it('reads the shape from the argument text', () => {
+    expect(resize.spec.fromText?.('4 16')).toEqual({ ok: true, args: { vcpus: 4, memoryGb: 16 } })
+    expect(resize.spec.fromText?.('8 32 40')).toEqual({
+      ok: true,
+      args: { vcpus: 8, memoryGb: 32, diskGb: 40 },
+    })
+  })
+
+  it('reads the wait-until-idle flag in any position after the shape', () => {
+    expect(resize.spec.fromText?.('4 16 --idle')).toEqual({
+      ok: true,
+      args: { vcpus: 4, memoryGb: 16, whenIdle: true },
+    })
+    expect(resize.spec.fromText?.('4 16 40 --idle')).toEqual({
+      ok: true,
+      args: { vcpus: 4, memoryGb: 16, diskGb: 40, whenIdle: true },
+    })
+  })
+
+  it.each(['', '4', 'four 16', '4 16 extra', '4 16 40 60', '4 16 --idle --idle', '3 16'])(
+    'refuses %p with the usage sentence',
+    (argumentText) => {
+      expect(resize.spec.fromText?.(argumentText)).toEqual({
+        ok: false,
+        reason: REFUSAL_RESIZE_USAGE,
+      })
+    },
+  )
 })
