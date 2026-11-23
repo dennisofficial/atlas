@@ -26,7 +26,13 @@ export { help, model, RESIZE_MAX_DISK_GB, resize, resizeArgs }
 export type { ResizeArgs } from './resize/spec'
 export { REFUSAL_RENAME_NEEDS_NAME } from './rename/spec'
 export { REFUSAL_RESIZE_USAGE } from './resize/spec'
-export { REFUSAL_NOT_A_MESSAGE, REFUSAL_NOTHING_TO_REWIND, rewindTargetOf } from './rewind/spec'
+export {
+  REFUSAL_NOT_A_MESSAGE,
+  REFUSAL_NOTHING_TO_REWIND,
+  REFUSAL_REWIND_NEEDS_LINE,
+  rewindTargetOf,
+} from './rewind/spec'
+export { REFUSAL_SUMMARISE_ARGS, summariseArgs } from './summarise/spec'
 export {
   REFUSAL_EMPTY_SUMMARY,
   REFUSAL_NO_MODEL,
