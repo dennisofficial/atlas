@@ -26,6 +26,12 @@ a generic 502.
   keeps the message and relaunches it on the current serve instead of answering 502.
 - **CI enforces it.** `scripts/check-wire-skew.ts`, run by the root `lint` script against the PR base, fails a change whose minimum drops the protocol
   the base spoke, a bump of more than one, or a removed frame/request without a bump.
+- **The daemon link has no capability exchange.** The host sends every frame, and a daemon already
+  in a pod parses them with the schema it was built against. So a change to `hostFrameSchema`
+  raises `DAEMON_LINK_PROTOCOL_MIN_VERSION` alongside `DAEMON_LINK_PROTOCOL_VERSION`, and the host
+  restarts the older daemon on wake (`daemonSkewOf` in
+  `packages/pods/src/sandbox/agent37/agent37-daemon.ts`). `scripts/check-daemon-link-skew.ts`
+  compares `DAEMON_LINK_SCHEMA_HASH` with the PR base to force that bump.
 
 ## Why
 
