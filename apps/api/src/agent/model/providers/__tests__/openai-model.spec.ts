@@ -136,4 +136,63 @@ describe('openai provider model', () => {
     })
     await expect(model.doStream(CALL_OPTIONS)).rejects.toBeInstanceOf(CredentialError)
   })
+
+  it('asks the api key path for the extended cache lifetime on a gpt-6 model', async () => {
+    const http = fakeFetch([{ body: STREAM }])
+    const model = createProviderModel({
+      ref: { providerId: 'openai', modelId: 'gpt-6.1-sol' },
+      credentials: new FakeCredentials([apiKey('sk-1')]),
+      effort: () => EEffort.Medium,
+      fetch: http.fetch,
+    })
+
+    await drain((await model.doStream(CALL_OPTIONS)).stream)
+
+    const [request] = http.requests
+    expect(request?.body).toMatchObject({ prompt_cache_options: { ttl: '12h' } })
+    expect(request?.body).not.toMatchObject({ prompt_cache_retention: '24h' })
+  })
+
+  it('replays the codex turn state captured from the first response on the same cache key', async () => {
+    const http = fakeFetch([
+      { body: STREAM, headers: { 'x-codex-turn-state': 'ts-1' } },
+      { body: STREAM },
+    ])
+    const model = createProviderModel({
+      ref: REF,
+      credentials: new FakeCredentials([oauth('chatgpt-acct')]),
+      effort: () => EEffort.Medium,
+      fetch: http.fetch,
+    })
+
+    const pinned = { ...CALL_OPTIONS, providerOptions: { openai: { promptCacheKey: 'thread-1' } } }
+    await drain((await model.doStream(pinned)).stream)
+    await drain((await model.doStream(pinned)).stream)
+
+    expect(http.requests[0]?.body).toMatchObject({ prompt_cache_key: 'thread-1' })
+    expect(http.requests[0]?.headers['x-codex-turn-state']).toBeUndefined()
+    expect(http.requests[1]?.headers['x-codex-turn-state']).toBe('ts-1')
+  })
+
+  it('never sends a codex turn state on the api key path', async () => {
+    const http = fakeFetch([
+      { body: STREAM, headers: { 'x-codex-turn-state': 'ts-1' } },
+      { body: STREAM },
+    ])
+    const model = createProviderModel({
+      ref: REF,
+      credentials: new FakeCredentials([apiKey('sk-1')]),
+      effort: () => EEffort.Medium,
+      fetch: http.fetch,
+    })
+
+    const pinned = { ...CALL_OPTIONS, providerOptions: { openai: { promptCacheKey: 'thread-1' } } }
+    await drain((await model.doStream(pinned)).stream)
+    await drain((await model.doStream(pinned)).stream)
+
+    expect(http.requests.map((request) => request.headers['x-codex-turn-state'])).toEqual([
+      undefined,
+      undefined,
+    ])
+  })
 })

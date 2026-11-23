@@ -1,4 +1,5 @@
 import type { CallId, RunId, ThreadId } from '@dltech/atlas-core'
+import type { EAuthKind } from '@dltech/atlas-core'
 
 export enum ESpan {
   Turn = 'turn',
@@ -73,6 +74,7 @@ export type SpanFields = {
   readonly callId?: CallId | undefined
   readonly provider?: string | undefined
   readonly model?: string | undefined
+  readonly auth?: EAuthKind | undefined
   readonly tool?: string | undefined
   readonly hook?: string | undefined
   readonly resource?: string | undefined
