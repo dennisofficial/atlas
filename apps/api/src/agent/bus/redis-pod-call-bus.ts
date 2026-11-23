@@ -67,10 +67,10 @@ export const createRedisPodCallBus = (args: {
     )
   }
 
-  const whenPublisherReady = (): Promise<unknown> =>
+  const whenPublisherReady = (): Promise<void> =>
     publisher.status === 'ready'
       ? Promise.resolve()
-      : new Promise((resolve) => publisher.once('ready', () => resolve()))
+      : new Promise<void>((resolve) => publisher.once('ready', () => resolve()))
 
   const handleRequest = (raw: string): void => {
     const parsed = podCallRequestSchema.safeParse(JSON.parse(raw))
