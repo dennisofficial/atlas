@@ -24,6 +24,10 @@ export enum EPodCallKind {
   Release = 'release',
 }
 
+export enum EPodCallFailure {
+  Fenced = 'fenced',
+}
+
 const addressShape = {
   requestId: z.string().min(1),
   replyTo: z.string().min(1),
@@ -60,7 +64,11 @@ export const podCallReplyOutcomeSchema = z.discriminatedUnion('state', [
     state: z.literal('unavailable'),
     reason: z.enum([ELiveOpFailure.Asleep, ELiveOpFailure.Absent]),
   }),
-  z.strictObject({ state: z.literal('failed'), message: z.string() }),
+  z.strictObject({
+    state: z.literal('failed'),
+    message: z.string(),
+    reason: z.literal(EPodCallFailure.Fenced).optional(),
+  }),
 ])
 
 export type PodCallReplyOutcome = z.infer<typeof podCallReplyOutcomeSchema>

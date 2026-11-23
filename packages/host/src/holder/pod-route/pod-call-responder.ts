@@ -1,5 +1,6 @@
 import {
   ELiveOpFailure,
+  EPodCallFailure,
   EPodCallKind,
   LIVE_OP_TIMEOUT_MS,
   type PodCallReplyOutcome,
@@ -8,6 +9,7 @@ import {
 } from '@dltech/atlas-protocol'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
+import { FencedError } from '../../calls/errors'
 import type { HolderDemand } from '../holder-demand'
 import type { PodCalls } from '../pod-calls'
 import type { PodCallBus } from '../pod-call-port'
@@ -130,6 +132,7 @@ export class PodCallResponder {
       await this.reply(request, { state: 'unavailable', reason: ELiveOpFailure.Asleep })
       return
     }
+    this.args.demand.panel.hold({ sessionId: request.sessionId })
     try {
       const outcome = await this.args.calls.invoke({
         sessionId: request.sessionId,
@@ -142,7 +145,7 @@ export class PodCallResponder {
           : { state: 'unavailable', reason: outcome.reason },
       )
     } catch (error) {
-      await this.reply(request, { state: 'failed', message: messageOf(error) })
+      await this.reply(request, failureOf(error))
     }
   }
 
@@ -151,6 +154,7 @@ export class PodCallResponder {
       await this.reply(request, { state: 'unavailable', reason: ELiveOpFailure.Asleep })
       return
     }
+    this.args.demand.panel.hold({ sessionId: request.sessionId })
     const release = this.args.demand.terminal.hold(request.sessionId)
     let ttl: unknown
     let offEvents: (() => void) | null = null
@@ -232,3 +236,8 @@ export class PodCallResponder {
 
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
+
+const failureOf = (error: unknown): PodCallReplyOutcome =>
+  error instanceof FencedError
+    ? { state: 'failed', message: error.message, reason: EPodCallFailure.Fenced }
+    : { state: 'failed', message: messageOf(error) }
