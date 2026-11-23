@@ -168,6 +168,15 @@ const overallOf = (steps: readonly BootStepView[]): EBootStepState => {
   return EBootStepState.Pending
 }
 
+const SETUP_FAILED_TITLE = 'Setup script failed'
+
+const onlySetupFailed = (steps: readonly BootStepView[]): boolean =>
+  steps.every((step) =>
+    step.id === EBootStep.Setup
+      ? step.state === EBootStepState.Error
+      : step.state === EBootStepState.Done,
+  )
+
 const atMsOf = (step: WorkspaceStepStatus | undefined): number | undefined => {
   const parsed = Date.parse(step?.at ?? '')
   return Number.isNaN(parsed) ? undefined : parsed
@@ -203,6 +212,7 @@ export const sessionBootViewOf = (args: {
   return {
     steps,
     state,
+    ...(onlySetupFailed(steps) ? { title: SETUP_FAILED_TITLE } : {}),
     ...(error === undefined ? {} : { error }),
     ...(state === EBootStepState.Done && first !== undefined && last !== undefined
       ? { elapsedMs: Math.max(0, last - first) }
