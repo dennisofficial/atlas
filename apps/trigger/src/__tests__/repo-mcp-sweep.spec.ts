@@ -1,10 +1,9 @@
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { describe, expect, it, mock } from 'bun:test'
+import { triggerSdkFake } from './trigger-sdk.fake'
 
-mock.module('@trigger.dev/sdk', () => ({
-  schedules: { task: <T>(definition: T): T => definition },
-}))
+mock.module('@trigger.dev/sdk', () => triggerSdkFake)
 
 const { REPO_MCP_SERVER_MAX_IDLE_MS, sweepRepoMcpServers } = await import(
   '../trigger/mcp-servers/repo-mcp-sweep'
