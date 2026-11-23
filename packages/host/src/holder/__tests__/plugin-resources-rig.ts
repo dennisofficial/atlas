@@ -5,11 +5,13 @@ import type { TracePort } from '@dltech/atlas-observability'
 import {
   ECloudSetting,
   EMPTY_CREW,
+  EMPTY_CLASSIFIER,
   EMPTY_POD_RESOURCES,
   EMPTY_SESSIONS,
   EMPTY_WORKTREES,
   type PluginPodContext,
   type PodResource,
+  EMPTY_MESSAGES,
 } from '@dltech/atlas-plugin-sdk'
 import { podControlStub } from '@dltech/atlas-plugin-sdk/testing'
 import { ECallFailure, ECallStatus, type CallOp, type CallResult } from '@dltech/atlas-protocol'
@@ -119,6 +121,8 @@ export const rig = (args: {
     sessionId: 'session-1',
     control: { ...podControlStub, settingsVersions: () => daemon.readVersions() },
     crew: EMPTY_CREW,
+    messages: EMPTY_MESSAGES,
+    classifier: EMPTY_CLASSIFIER,
     sessions: EMPTY_SESSIONS,
     worktrees: EMPTY_WORKTREES,
     resources: EMPTY_POD_RESOURCES,

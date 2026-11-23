@@ -30,6 +30,10 @@ export const PERSONAL_PAGE_STATUS = {
     detail: 'Saved to your account and delivered to every sandbox when it starts.',
   },
   [ESettingsPage.Providers]: { status: EPageStatus.Live },
+  [ESettingsPage.Classifier]: {
+    status: EPageStatus.Live,
+    detail: 'Saved to your account and read by every new session.',
+  },
   [ESettingsPage.Secrets]: {
     status: EPageStatus.Live,
     detail: 'Delivered to your sandboxes as harness secrets.',

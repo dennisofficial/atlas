@@ -4,7 +4,11 @@ import { singleProviderRegistry } from './sandbox-registry'
 
 import { composeCommands } from '@dltech/atlas-commands'
 import { ControlPlane } from '@dltech/atlas-control'
-import { nativeCommandHandlers, nativeCommands } from '@dltech/atlas-native-commands'
+import {
+  nativeCommandHandlers,
+  nativeCommands,
+  nativeControlHandlers,
+} from '@dltech/atlas-native-commands'
 import { composedPlugins } from '../registered-plugins'
 import { ModelPort } from '@dltech/atlas-core'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
@@ -104,6 +108,8 @@ const testSource = (): ConfigSource => ({
       projectId: 'proj-1',
       model,
       models: fakeModelSourceOf(model),
+      classifier: { on: false, reason: 'no classifier model is set' },
+      quality: { enabled: false, policies: {} },
       sandbox: {
         configured: true,
         provider: ESandboxProvider.Vercel,
@@ -191,6 +197,7 @@ const main = async (): Promise<void> => {
         return withFirstChunkMarker(new ScriptedModel(script, undefined, existsSync))
       },
       launchDirectory: workspace,
+      sandboxHome: process.env.SANDBOX_HOME,
       panelHolds: (sessionId) => held?.demandOf().panel.countOf(sessionId) ?? 0,
       plugins: process.env.FAULT_PLUGINS === '1' ? composedPlugins : undefined,
       log,
@@ -201,6 +208,7 @@ const main = async (): Promise<void> => {
     sweepMs: numberEnv('SWEEP_MS', 20_000),
     commands: composeCommands([...nativeCommands, ...composedPlugins.commands]),
     commandHandlers: new Map([...nativeCommandHandlers, ...composedPlugins.pod.commands]),
+    controlHandlers: nativeControlHandlers,
     log,
     onHostIdChanged: () => watch?.recompute(),
   })

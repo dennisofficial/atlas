@@ -11,7 +11,7 @@ import { PANEL_HOLD_CHANNEL } from '@dltech/atlas-protocol'
 import { Redis } from 'ioredis'
 
 import type { EHostFault } from './host-faults'
-import { seedSession } from './rig-seed'
+import { seedSession, type NewSessionArgs } from './rig-seed'
 import { startDaemon, type RigDaemon } from './rig-daemon'
 import { collectLines } from './rig-process'
 import { hostEnv, RIG_SECRET } from './rig-host-env'
@@ -70,8 +70,9 @@ const replaysAfterTakeOverOf = (host: HostProcess | undefined): number =>
 
 export type FaultRig = {
   plane: ControlPlane
+  sandboxHome: string
   dbProxy: FaultProxy
-  newSession(args: { sessionId: string; text: string; prepared?: boolean }): Promise<string>
+  newSession(args: NewSessionArgs): Promise<string>
   wake(sessionId: string): Promise<void>
   claim(args: { sessionId: string; label: string; timeoutMs?: number }): Promise<void>
   waitHeldBy(args: { sessionId: string; label: string; timeoutMs?: number }): Promise<void>
@@ -113,7 +114,10 @@ export const startRig = async (args: {
   const pool: Pool = createPool(args.databaseUrl)
   const store = new PostgresControlStore(createDb(pool))
   const plane = new ControlPlane({ store })
-  const closers: (() => Promise<void>)[] = []
+  const sandboxHome = mkdtempSync(join(tmpdir(), 'atlas-fault-rig-sandbox-home-'))
+  const closers: (() => Promise<void>)[] = [
+    async () => rmSync(sandboxHome, { recursive: true, force: true }),
+  ]
   const hostsByLabel = new Map<string, HostProcess>()
   const labelOf = async (hostId: number | null): Promise<string | undefined> => {
     if (hostId === null) return undefined
@@ -152,11 +156,12 @@ export const startRig = async (args: {
 
   return {
     plane,
+    sandboxHome,
     dbProxy,
     labelOf,
 
-    newSession({ sessionId, text, prepared }) {
-      return seedSession({ store, sessionId, text, prepared: prepared !== false })
+    newSession({ sessionId, text, prepared, files }) {
+      return seedSession({ store, sessionId, text, prepared: prepared !== false, files })
     },
 
     async wake(sessionId) {
@@ -258,6 +263,7 @@ export const startRig = async (args: {
           ...process.env,
           ...hostEnv({
             home: join(dir, 'atlas-home'),
+            sandboxHome,
             databaseUrl: databaseUrl(),
             directUrl: args.databaseUrl,
             presenceUrl:

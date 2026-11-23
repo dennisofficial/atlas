@@ -2,20 +2,37 @@
 
 import { useEffect } from 'react'
 
-import type { CommandSpec } from '@dltech/atlas-core'
+import type { CommandEntry } from '@dltech/atlas-commands'
 
 export const COMMAND_MENU_ID = 'command-menu'
 const groupIdOf = (group: string): string => `${COMMAND_MENU_ID}-group-${group}`
 export const optionIdOf = (index: number): string => `${COMMAND_MENU_ID}-option-${index}`
+
+export function CommandEntryLabel({ entry }: { entry: CommandEntry }) {
+  return (
+    <>
+      <span className="shrink-0 font-medium">/{entry.name}</span>
+      {entry.argumentHint === undefined ? null : (
+        <span className="shrink-0 text-muted-foreground">{entry.argumentHint}</span>
+      )}
+      <span
+        title={entry.summary}
+        className="min-w-0 flex-1 truncate text-right text-xs text-muted-foreground"
+      >
+        {entry.summary}
+      </span>
+    </>
+  )
+}
 
 export function CommandMenu({
   candidates,
   active,
   onSelect,
 }: {
-  candidates: readonly CommandSpec[]
+  candidates: readonly CommandEntry[]
   active: number
-  onSelect: (spec: CommandSpec) => void
+  onSelect: (entry: CommandEntry) => void
 }) {
   useEffect(() => {
     const node = document.getElementById(optionIdOf(active))
@@ -23,11 +40,11 @@ export function CommandMenu({
   }, [active])
 
   const groups = candidates.reduce<
-    { group: string; items: { spec: CommandSpec; index: number }[] }[]
-  >((found, spec, index) => {
+    { group: string; items: { entry: CommandEntry; index: number }[] }[]
+  >((found, entry, index) => {
     const last = found[found.length - 1]
-    if (last !== undefined && last.group === spec.group) last.items.push({ spec, index })
-    else found.push({ group: spec.group, items: [{ spec, index }] })
+    if (last !== undefined && last.group === entry.group) last.items.push({ entry, index })
+    else found.push({ group: entry.group, items: [{ entry, index }] })
     return found
   }, [])
 
@@ -51,29 +68,20 @@ export function CommandMenu({
           >
             {group}
           </div>
-          {items.map(({ spec, index }) => (
+          {items.map(({ entry, index }) => (
             <div
-              key={`${spec.kind}:${spec.name}`}
+              key={`${entry.kind}:${entry.name}`}
               id={optionIdOf(index)}
               role="option"
               tabIndex={-1}
               aria-selected={index === active}
               onMouseDown={(event) => {
                 event.preventDefault()
-                onSelect(spec)
+                onSelect(entry)
               }}
               className="flex cursor-pointer items-baseline gap-2 rounded-lg px-2 py-1.5 text-sm aria-selected:bg-accent aria-selected:text-accent-foreground"
             >
-              <span className="shrink-0 font-medium">/{spec.name}</span>
-              {spec.argumentHint === undefined ? null : (
-                <span className="shrink-0 text-muted-foreground">{spec.argumentHint}</span>
-              )}
-              <span
-                title={spec.summary}
-                className="min-w-0 flex-1 truncate text-right text-xs text-muted-foreground"
-              >
-                {spec.summary}
-              </span>
+              <CommandEntryLabel entry={entry} />
             </div>
           ))}
         </fieldset>

@@ -5,8 +5,8 @@ The tools a pod uses to reach other sessions, and the plan view. The API compose
 
 ## Owns
 
-- Seven tools: `spawn_session`, `spawn_teammate`, `message_session`, `message_teammate`,
-  `report_to_spawner`, `list_sessions` and `list_teammates`.
+- Five tools: `send_message`, `spawn_session`, `spawn_teammate`, `list_sessions` and
+  `list_teammates`.
 - The `plan` view, which folds the plan tasks the model keeps for its turn.
 - `nestPeers`, which builds the tree of teammates under each spawner.
 - The `sessions.peers` prompt fragment, which adds the spawner line for a nested session.
@@ -22,7 +22,7 @@ The tools a pod uses to reach other sessions, and the plan view. The API compose
 | Import                                  | Use it for                                                                  |
 | --------------------------------------- | --------------------------------------------------------------------------- |
 | `@dltech/atlas-plugin-sessions/core`    | `sessionsCoreSlots` with the `plan` view, `PLAN_VIEW` and `planViewSchema`. |
-| `@dltech/atlas-plugin-sessions/pod`     | `sessionsPod`: the seven tools and the `sessions.peers` prompt fragment.    |
+| `@dltech/atlas-plugin-sessions/pod`     | `sessionsPod`: the five tools and the `sessions.peers` prompt fragment.     |
 | `@dltech/atlas-plugin-sessions/control` | `sessionsControl`, an empty control slot.                                   |
 | `@dltech/atlas-plugin-sessions/client`  | `nestPeers` and `planOfView`.                                               |
 
@@ -43,21 +43,24 @@ The tools a pod uses to reach other sessions, and the plan view. The API compose
 
 ### The tools the model sees
 
-| Tool                | What it does                                                                                               |
-| ------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `spawn_session`     | Create an independent session at the top level, like the new-session button. `brief` is its first message. |
-| `spawn_teammate`    | Create a teammate nested under this session. It reports back with `report_to_spawner`.                     |
-| `message_session`   | Send a message to any session of the operator's.                                                           |
-| `message_teammate`  | Send a message to one teammate of this session.                                                            |
-| `report_to_spawner` | Report to the session that spawned this one. `done`, `blocked` and `needs-decision` wake it.               |
-| `list_sessions`     | List the sessions of the operator, with the current one marked.                                            |
-| `list_teammates`    | List the nested teammates of this session, newest first.                                                   |
+| Tool             | What it does                                                                                               |
+| ---------------- | ---------------------------------------------------------------------------------------------------------- |
+| `send_message`   | Send `{to, text}` to any agent or session of the operator's, or to `parent` for whoever started you.       |
+| `spawn_session`  | Create an independent session at the top level, like the new-session button. `brief` is its first message. |
+| `spawn_teammate` | Create a teammate nested under this session. It reaches you with `send_message` to `parent`.               |
+| `list_sessions`  | List the sessions of the operator, with the current one marked.                                            |
+| `list_teammates` | List the nested teammates of this session, newest first.                                                   |
 
 Every line of a list names whether the session is working, idle, failed or archived.
 
+Both spawn tools take `files`: paths relative to `$ATLAS_CONTEXT_DIR`. The files are read before
+the spawn, carried on the spawn message, and written into the spawned session's own context folder
+before its first turn. An unsafe, missing or oversized file refuses the whole spawn, so no session
+is created.
+
 ### The slots
 
-`sessionsPod` gives the seven tools and the `sessions.peers` prompt fragment.
+`sessionsPod` gives the five tools and the `sessions.peers` prompt fragment.
 
 `sessionsCoreSlots` gives the `plan` view and no events or commands. The client tier gives
 functions, not a slot object; the API passes `client: { hooks: [] }`.
@@ -82,10 +85,14 @@ definePlugin({
 
 ## Rules
 
-- A pod with no sessions port refuses `spawn_session` and `spawn_teammate`. The message and
-  report tools return a refusal.
+- A pod with no sessions port refuses `spawn_session` and `spawn_teammate`. `send_message`
+  returns a refusal when it reaches no agent or session.
+- A spawn carries at most 32 files, 256 KB each and 1 MB in all. `files` names files under the
+  caller's `$ATLAS_CONTEXT_DIR` only: an absolute path, a `..` segment or `.git` is refused.
 - Use `spawn_teammate` for a workstream this session owns. Use `spawn_session` only for work that
   belongs to the operator.
+- `send_message` is never deferred. It refuses an id that names no agent or session of the
+  operator's, and the refusal names the tools that list ids.
 - Pass `{ hooks: [] }` as the client slot. This package exports no client slot object.
 
 ## See also

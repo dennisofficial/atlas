@@ -1,5 +1,5 @@
 import {
-  ESettingKind,
+  isChatModelSetting,
   parseRef,
   textValueOf,
   type SettingDefinition,
@@ -28,7 +28,7 @@ export function unreachableModelSettings(args: {
   const problems: ModelSettingProblem[] = []
 
   for (const definition of args.definitions) {
-    if (definition.kind !== ESettingKind.Model) continue
+    if (!isChatModelSetting(definition)) continue
 
     const reference = textValueOf({ resolution: args.resolution, id: definition.id })
     if (reference.length === 0) continue

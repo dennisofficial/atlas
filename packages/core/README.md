@@ -56,6 +56,8 @@ assembly, settings, ports, and the record folds. It imports `zod` and nothing el
 - `SchemaTool`: a `ToolDefinition` that parses its input against its schema.
 - `EToolEffect`: `Read`, `Write`, `Destructive`.
 - `ToolOutcome`, `ToolInvocation`, `ToolDeclaration`: the result, the call, and what the model sees.
+- `typedDeferredInputOf({declaration, input})`: restore the JSON types of a deferred tool's
+  arguments from its schema. `toolJsonSchemaOf(declaration)`: the JSON schema of a declaration.
 
 ### Write a prompt fragment and order a hook
 
@@ -72,7 +74,8 @@ assembly, settings, ports, and the record folds. It imports `zod` and nothing el
 
 ### Bind a port
 
-- `EventLogPort`, `ModelPort`, `ProcessPort`, `FileSystemPort`, `ClockPort`: the contracts.
+- `EventLogPort`, `ModelPort`, `ProcessPort`, `FileSystemPort`, `ClockPort`, `ClassifierPort`: the
+  contracts.
 - `PortRegistryEntries`, `RegisteredPort`, `PortBindings`: the registry that a composition must fill.
 
 ### Describe a model, its spend, and a secret
@@ -86,6 +89,19 @@ assembly, settings, ports, and the record folds. It imports `zod` and nothing el
 - `Lease`, `startVerdict({...})`, `claimGrant({...})`, `revoke({...})`: the lease rules.
 - `consume({entry, seq})`, `takeBack(entry)`, `InboxEntry`: the inbox rules.
 - `decideHeldAction({...})`, `HeldOutcome`, `EExecutionLocation`: the host's next action.
+
+### Name a file a spawn attaches
+
+- `SpawnFile`: one file a spawn hands to the child, `{path, text}`.
+- `contextFilePathOf({directory, relativePath})`: resolve a name under the context folder, or the
+  reason to refuse it (absolute, `~`, `$`, `\`, `.`, `..`, empty segment, `.git`, over 200
+  characters).
+- `spawnFilesRefusalOf(files)`: the reason a payload is unusable, or `null`. Text only: a NUL byte
+  is refused.
+- `SPAWN_FILES_MAX_COUNT` (32), `SPAWN_FILE_MAX_BYTES` (256 KB), `SPAWN_FILES_MAX_BYTES` (1 MB),
+  `ATLAS_CONTEXT_DIR_ENV`: the limits and the variable that names the folder.
+- `attachedFilesLineOf(files)`, `spawnBriefOf({brief, files})`: the line that names the attached
+  paths in the child's first message.
 
 ## Usage
 

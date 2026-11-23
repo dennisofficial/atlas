@@ -7,10 +7,11 @@ import type {
 } from '@dltech/atlas-plugin-sdk'
 
 import { ChildRun, type ChildRunArgs } from './child-run'
+import type { CrewSender } from './child-message'
 import { endingKeyOf, postNotice, threadLastSeq } from './child-reports'
 import { settledChildOf, type OpenChild } from './open-children'
 
-export type CrewRoomArgs = Omit<ChildRunArgs, 'agentType' | 'intent'>
+export type CrewRoomArgs = Omit<ChildRunArgs, 'agentType' | 'intent' | 'saySibling'>
 
 export class CrewRoom {
   private readonly runs = new Map<ThreadId, ChildRun>()
@@ -24,13 +25,13 @@ export class CrewRoom {
     worktree?: WorktreeEntryInfo | undefined
   }): Promise<SubagentSnapshot> {
     const run = await ChildRun.open({
-      ...this.args,
+      ...this.childArgs(),
       agentType: args.agentType,
       intent: args.intent,
       ...(args.worktree === undefined ? {} : { worktree: args.worktree }),
     })
     this.runs.set(run.agentId, run)
-    await run.say(args.prompt)
+    await run.say({ text: args.prompt })
     return run.snapshot()
   }
 
@@ -40,7 +41,7 @@ export class CrewRoom {
 
   async adopt(child: OpenChild): Promise<void> {
     const adopted = await ChildRun.adopt({
-      ...this.args,
+      ...this.childArgs(),
       agentType: child.agentType,
       intent: child.intent,
       agentId: child.agentId,
@@ -56,8 +57,15 @@ export class CrewRoom {
     await adopted.run.continueTurn()
   }
 
-  async say(args: { agentId: string; text: string }): Promise<SubagentSaid> {
-    return (await this.runOf(args.agentId)).say(args.text)
+  async say(args: {
+    agentId: string
+    text: string
+    from?: CrewSender | undefined
+  }): Promise<SubagentSaid | undefined> {
+    const run = await this.runOrUndefined(args.agentId)
+    return run === undefined
+      ? undefined
+      : await run.say({ text: args.text, ...(args.from === undefined ? {} : { from: args.from }) })
   }
 
   stop(args: { agentId: string }): SubagentSnapshot {
@@ -115,10 +123,14 @@ export class CrewRoom {
     for (const run of this.runs.values()) run.dispose()
   }
 
-  private async runOf(agentId: string): Promise<ChildRun> {
+  private childArgs(): Omit<ChildRunArgs, 'agentType' | 'intent'> {
+    return { ...this.args, saySibling: (said) => this.say(said) }
+  }
+
+  private async runOrUndefined(agentId: string): Promise<ChildRun | undefined> {
     const live = this.runs.get(agentId as ThreadId)
     if (live !== undefined) return live
-    return this.reopen(agentId as ThreadId)
+    return await this.reopen(agentId as ThreadId).catch(() => undefined)
   }
 
   private async reopen(agentId: ThreadId): Promise<ChildRun> {
@@ -131,7 +143,7 @@ export class CrewRoom {
       settled === undefined
         ? undefined
         : await ChildRun.adopt({
-            ...this.args,
+            ...this.childArgs(),
             agentType: settled.agentType,
             intent: settled.intent,
             agentId,

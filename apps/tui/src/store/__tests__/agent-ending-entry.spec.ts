@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EAgentStatus, EReportKind, toThreadId, type Event } from '@dltech/atlas-core'
+import { EAgentStatus, toThreadId, type Event } from '@dltech/atlas-core'
 
 import {
   durableEntries,
@@ -54,7 +54,7 @@ describe('agent endings in the transcript', () => {
   })
 
   it('show a teammate report alongside its silent bookkeeping ending', () => {
-    const events = log([bookkeeping(), report({ kind: EReportKind.Done })])
+    const events = log([bookkeeping(), report()])
 
     expect(ended(events)).toHaveLength(0)
     expect(reported(events)).toHaveLength(1)
@@ -92,26 +92,14 @@ describe('agent endings in the transcript', () => {
   })
 })
 
-describe('typed reports in the transcript', () => {
-  it('reads a legacy report as before', () => {
-    expect(reported(log([report()]))[0]?.text).toBe('Teammate Web thread provisioning reported')
+describe('reports in the transcript', () => {
+  it('reads a report as one row, with no kind', () => {
+    const [row] = reported(log([report()]))
+
+    expect(row?.text).toBe('Teammate Web thread provisioning reported')
   })
 
-  it('reads a progress report as progress', () => {
-    const [row] = reported(log([report({ kind: EReportKind.Progress })]))
-
-    expect(row?.text).toBe('Teammate Web thread provisioning reported progress')
-    expect(row?.reportKind).toBe(EReportKind.Progress)
-  })
-
-  it('says when a teammate is blocked or needs a decision', () => {
-    expect(reported(log([report({ kind: EReportKind.Blocked })]))[0]?.text).toContain('blocked')
-    expect(reported(log([report({ kind: EReportKind.NeedsDecision })]))[0]?.text).toContain(
-      'needs a decision',
-    )
-  })
-
-  it('reads a done report as done', () => {
-    expect(reported(log([report({ kind: EReportKind.Done })]))[0]?.text).toContain('reported done')
+  it('keeps the prose of the report expandable', () => {
+    expect(isExpandable(reported(log([report()]))[0] as AgentReportedEntry)).toBe(true)
   })
 })

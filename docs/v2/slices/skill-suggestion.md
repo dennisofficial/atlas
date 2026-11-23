@@ -2,6 +2,23 @@
 
 > **Approved by Dennis 2026-11-23.** The reason line shows the score. Built after the classifier role's slice 2.
 
+> **Built 2026-11-23.** Where the code differs from the text below:
+> - **The per-turn toggle reaches the pod through `SkillsPodOptions.suggests(ctx)`.** The API binds it
+>   as `skillCloudPort().suggests(sessionId)`, which reads `skills.suggest` (project over user, on by
+>   default). The hook checks it after `classifier.status()`, so an off classifier costs no DB read.
+>   Files beyond §5: `plugins/skills/src/pod/resources.ts`, `apps/api/src/agent/config/skills.ts`,
+>   `apps/api/src/agent/registered-plugins.ts`, `apps/web/src/features/settings/fixtures/settings-fields.ts`.
+> - **`loaded` also reads `context-loaded` in the `skill` slot**, so a skill the operator loaded with
+>   `/name` is not suggested again.
+> - **Rewind is read through `visibleEvents`**, not only through `context-loaded` being `Discard`:
+>   the operator message and its reply are hidden too, so the rewound message is re-read.
+> - **The provenance sentence is static**, because `provenanceOf` sees only slot and key: "The Atlas
+>   harness's skill classifier scored the work in this thread against the skills you can load. The
+>   number is its probability that the named skill fits. The operator did not write this. Load the
+>   skill only when it fits:". The score lives in the block line.
+> - **A classifier fault or a thrown error is logged** (`skill suggestion skipped: …`) and the turn
+>   goes on quiet.
+
 Status: **draft for Dennis**, 2026-11-23. Owner: `plugins/skills`. One PR, after the classifier role
 (`classifier.md`) lands. Anchors read at `ee5fdfdef` (repo `/atlas/workspaces/atlas`).
 

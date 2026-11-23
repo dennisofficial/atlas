@@ -1,5 +1,7 @@
 import type {
   AssemblyPipeline,
+  ClassifierPort,
+  ClassifierStatus,
   ESetupPhase,
   MediaUrlResolver,
   ModelChoice,
@@ -7,11 +9,13 @@ import type {
   ModelRef,
   ModelRole,
   PromptSpawner,
+  SpawnFile,
   ThreadId,
   WorkspaceStepReport,
 } from '@dltech/atlas-core'
 import type {
   NormalizeFailure,
+  QualityStagePort,
   SaidUploadsPort,
   ToolEffectResolver,
   ToolRegistry,
@@ -84,15 +88,21 @@ export type SessionRuntime = {
   workspaceGate?: WorkspaceGate | undefined
   trace?: TracePort | undefined
   model: ModelPort
+  classifier: ClassifierPort
+  classifierStatus: ClassifierStatus
   modelChoice: ModelChoice
   choiceFor(request: RoleModelRequest): RoleModelChoice
   modelLabelOf(ref: ModelRef): string
   modelOf(choice: ModelChoice): ModelPort
   tools: ToolRegistry
   daemonTools: ReadonlySet<string>
+  quality?: QualityStagePort | undefined
   effectOf: ToolEffectResolver
   assembly: AssemblyPipeline
   uploads?: SaidUploadsPort | undefined
+  placeContextFiles?: (args: {
+    files: readonly SpawnFile[]
+  }) => Promise<{ written: number; refused: readonly string[] }>
   mediaUrls?: MediaUrlResolver | undefined
   normalizeFailure: NormalizeFailure
   launchDirectory: string

@@ -8,6 +8,7 @@ import { agentLinksOf, type AgentLinks } from './agent-links'
 import { stagedQueueRowsOf, stagedRowsOf, v2ViewOf, type V2ThreadView } from './rows'
 import { clientIdOfSend, settlementOf, type StagedSend } from './staged-send'
 import { useV2Session } from './use-v2-session'
+import { useV2SessionCommands, type V2SessionCommands } from './use-v2-session-commands'
 
 const TICK_MS = 1_000
 
@@ -21,6 +22,7 @@ export type V2SessionScreen = V2ThreadView & {
   stale: boolean
   agentLinks: AgentLinks
   stagedRows: ThreadRow[]
+  commands: V2SessionCommands
   restored: { token: number; text: string } | undefined
   notice: string | undefined
   loadOlder: () => Promise<number>
@@ -32,6 +34,7 @@ export type V2SessionScreen = V2ThreadView & {
 export function useV2SessionScreen(sessionId: string): V2SessionScreen {
   const { api } = useAuth()
   const { snapshot, loadOlder } = useV2Session({ sessionId, api })
+  const commands = useV2SessionCommands({ api, sessionId, events: snapshot.events })
   const [now, setNow] = useState(() => Date.now())
   const view = useMemo(() => v2ViewOf({ snapshot, now }), [snapshot, now])
   const [staged, setStaged] = useState<readonly StagedSend[]>([])
@@ -127,6 +130,7 @@ export function useV2SessionScreen(sessionId: string): V2SessionScreen {
     failedToLoad: snapshot.error !== undefined,
     stale: snapshot.skipped > 0,
     stagedRows,
+    commands,
     restored,
     notice,
     loadOlder,

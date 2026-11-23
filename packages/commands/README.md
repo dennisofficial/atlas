@@ -59,6 +59,9 @@ message. Native commands and plugin commands both use it.
 
 - `parseInvocation({text, commands, skills})`: an `Invocation` whose `kind` is `EInvocation.Message`, `.Command`, `.Skill` or `.Refused`.
 - `clientActionOf({text, commands})`: the `EClientAction` a typed client command opens, or `null`.
+- `clientActionOfEntries({text, entries})`: the same question against a surface's catalogue rows, for
+  a client that holds `CommandEntry[]` and no registry. A name followed by argument text returns
+  `null`, so the host refuses that line rather than the client swallowing it.
 
 ### Handle a command
 

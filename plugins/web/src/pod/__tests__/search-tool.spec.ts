@@ -4,7 +4,9 @@ import { EWebSearchBackend, toThreadId } from '@dltech/atlas-core'
 import {
   type PluginPodContext,
   type WebSearchConfig,
+  EMPTY_CLASSIFIER,
   EMPTY_MCP_CONTROL,
+  EMPTY_MESSAGES,
   EMPTY_ROUTINES,
   EMPTY_POD_RESOURCES,
   EMPTY_SUBSCRIPTIONS,
@@ -31,6 +33,8 @@ const ctxWith = (config: WebSearchConfig): PluginPodContext => {
     },
     resources: EMPTY_POD_RESOURCES,
     crew: {} as never,
+    messages: EMPTY_MESSAGES,
+    classifier: EMPTY_CLASSIFIER,
     sessions: {} as never,
     worktrees: {} as never,
     notify: unsupported,

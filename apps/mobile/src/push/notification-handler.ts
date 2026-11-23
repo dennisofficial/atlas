@@ -1,6 +1,8 @@
 import * as Notifications from 'expo-notifications'
 import { AppState } from 'react-native'
 
+import { presentedNotificationOf, readDismissalIdsOf, sessionIdOfData } from './notification-data'
+
 export const installNotificationHandler = (): void => {
   Notifications.setNotificationHandler({
     handleNotification: async () => {
@@ -15,32 +17,40 @@ export const installNotificationHandler = (): void => {
   })
 }
 
-const threadIdOfNotification = (request: Notifications.NotificationRequest): string | undefined => {
-  const value = request.content.data?.threadId
-  return typeof value === 'string' && value.length > 0 ? value : undefined
+const dismissAll = async (identifiers: readonly string[]): Promise<void> => {
+  await Promise.all(
+    identifiers.map((identifier) => Notifications.dismissNotificationAsync(identifier)),
+  )
 }
 
-export const dismissPresentedForThread = async (threadId: string): Promise<void> => {
+export const dismissPresentedForSession = async (sessionId: string): Promise<void> => {
   const presented = await Notifications.getPresentedNotificationsAsync()
   const matching = presented.filter(
-    (notification) => threadIdOfNotification(notification.request) === threadId,
+    (notification) => sessionIdOfData(notification.request.content.data) === sessionId,
   )
-  await Promise.all(
-    matching.map((notification) =>
-      Notifications.dismissNotificationAsync(notification.request.identifier),
-    ),
-  )
+  await dismissAll(matching.map((notification) => notification.request.identifier))
+}
+
+export const dismissPresentedRead = async (
+  readSeqs: ReadonlyMap<string, number>,
+): Promise<void> => {
+  const presented = await Notifications.getPresentedNotificationsAsync()
+  const entries = presented.flatMap((notification) => {
+    const entry = presentedNotificationOf({
+      identifier: notification.request.identifier,
+      data: notification.request.content.data,
+    })
+    return entry === null ? [] : [entry]
+  })
+  await dismissAll(readDismissalIdsOf({ presented: entries, readSeqs }))
 }
 
 export const subscribeToNotificationResponses = ({
-  onThreadId,
+  onSessionId,
 }: {
-  onThreadId: (threadId: string) => void
+  onSessionId: (sessionId: string) => void
 }): Notifications.EventSubscription =>
   Notifications.addNotificationResponseReceivedListener((response) => {
-    const data: unknown = response.notification.request.content.data
-    if (typeof data === 'object' && data !== null && 'threadId' in data) {
-      const threadId = data.threadId
-      if (typeof threadId === 'string' && threadId.length > 0) onThreadId(threadId)
-    }
+    const sessionId = sessionIdOfData(response.notification.request.content.data)
+    if (sessionId !== undefined) onSessionId(sessionId)
   })

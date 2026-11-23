@@ -2,12 +2,14 @@ import { describe, expect, it } from 'bun:test'
 
 import { toThreadId } from '@dltech/atlas-core'
 import {
+  EMPTY_CLASSIFIER,
   EMPTY_MCP_CONTROL,
   EMPTY_POD_RESOURCES,
   EMPTY_ROUTINES,
   EMPTY_SUBSCRIPTIONS,
   type PluginPodContext,
   UNVERSIONED_SETTINGS,
+  EMPTY_MESSAGES,
 } from '@dltech/atlas-plugin-sdk'
 import {
   ECallFailure,
@@ -48,6 +50,8 @@ const ctxOf = (args: {
     },
     resources: EMPTY_POD_RESOURCES,
     crew: {} as never,
+    messages: EMPTY_MESSAGES,
+    classifier: EMPTY_CLASSIFIER,
     sessions: {} as never,
     worktrees: {} as never,
     notify: unsupported,

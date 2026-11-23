@@ -3,8 +3,10 @@ import {
   agentTypeModelGroup,
   DEFAULT_LAYER_ORIGIN,
   definitionsOfPage,
+  isChatModelSetting,
   isSettingVisible,
   EDefinitionOrigin,
+  ESettingKind,
   ESettingPage,
   ESettingsLayer,
   SETTING_PAGES,
@@ -131,6 +133,7 @@ const resolvedOf = (args: {
 }): readonly SettingsRow[] => {
   const rows: SettingsRow[] = []
   for (const definition of args.definitions) {
+    if (definition.kind === ESettingKind.Model && !isChatModelSetting(definition)) continue
     const held = args.resolution.settings.get(definition.id)
     if (held === undefined) continue
     if (!isSettingVisible({ definition, resolution: args.resolution })) continue

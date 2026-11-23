@@ -198,6 +198,8 @@ export const createLoopRunner = (args: {
     scope: EIntakeScope.Main,
     commands: deps.commands,
     handlers: deps.commandHandlers,
+    controlHandlers: deps.controlHandlers,
+    ...(pod.slash === undefined ? {} : { slash: pod.slash }),
     model: runtime.model,
     ...(operator === undefined ? {} : { operatorAnswers: operator }),
     now: () => deps.timers.now(),
@@ -215,7 +217,12 @@ export const createLoopRunner = (args: {
     ...(runtime.mediaUrls === undefined ? {} : { mediaUrls: runtime.mediaUrls }),
     tools: () => modelFacingDeclarationsOf(pod.tools.declarations()),
     dispatch: new ScopedToolDispatcher(
-      hookedToolsOf({ registry: pod.tools, hooks: pod.hooks, trace: runtime.trace }),
+      hookedToolsOf({
+        registry: pod.tools,
+        hooks: pod.hooks,
+        quality: runtime.quality,
+        trace: runtime.trace,
+      }),
     ),
     intake,
     output: args.turns.liveOutput({

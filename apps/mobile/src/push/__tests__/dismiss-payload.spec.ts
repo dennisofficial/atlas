@@ -1,21 +1,24 @@
 import { describe, expect, it } from 'bun:test'
-import { dismissThreadIdOf } from '../dismiss-payload'
 
-describe('dismissThreadIdOf', () => {
-  it('reads the thread a headless push names', () => {
-    const data = { dataString: JSON.stringify({ dismissThreadId: 'thr-1' }) }
+import { clearSessionIdOf } from '../dismiss-payload'
 
-    expect(dismissThreadIdOf(data)).toBe('thr-1')
+describe('clearSessionIdOf', () => {
+  it('reads the session a headless clear names', () => {
+    const data = { dataString: JSON.stringify({ clearSessionId: 'session-1' }) }
+
+    expect(clearSessionIdOf(data)).toBe('session-1')
   })
 
-  it('reads the thread from a plain data object', () => {
-    expect(dismissThreadIdOf({ dismissThreadId: 'thr-2' })).toBe('thr-2')
+  it('reads the session from a plain data object', () => {
+    expect(clearSessionIdOf({ clearSessionId: 'session-2' })).toBe('session-2')
   })
 
-  it('ignores a payload that dismisses nothing', () => {
-    expect(dismissThreadIdOf({ dataString: JSON.stringify({ threadId: 'thr-1' }) })).toBeUndefined()
-    expect(dismissThreadIdOf({ dataString: 'not json' })).toBeUndefined()
-    expect(dismissThreadIdOf(undefined)).toBeUndefined()
-    expect(dismissThreadIdOf({ dismissThreadId: '' })).toBeUndefined()
+  it('ignores a payload that clears nothing', () => {
+    expect(
+      clearSessionIdOf({ dataString: JSON.stringify({ sessionId: 'session-1' }) }),
+    ).toBeUndefined()
+    expect(clearSessionIdOf({ dataString: 'not json' })).toBeUndefined()
+    expect(clearSessionIdOf(undefined)).toBeUndefined()
+    expect(clearSessionIdOf({ clearSessionId: '' })).toBeUndefined()
   })
 })

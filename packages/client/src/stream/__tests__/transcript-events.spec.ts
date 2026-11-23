@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { ECompactionAnchor, toCallId, type V2Body } from '@dltech/atlas-core'
+import { ECompactionAnchor, EInputConsumed, toCallId, type V2Body } from '@dltech/atlas-core'
 
 import { runLabel } from '../../transcript/tools'
 import { durableEntries } from '../../transcript/durable-entries'
@@ -199,6 +199,38 @@ describe('transcriptEventsOf', () => {
     expect(
       transcriptEventsOf(events, new Set(['probe-observed'])).map((event) => `${event.type}`),
     ).toEqual(['user-said', 'probe-observed'])
+  })
+
+  it('carries a command-bearing input-consumed and drops the plain one', () => {
+    const events = mintEvents({
+      bodies: [
+        {
+          type: 'input-consumed',
+          inboxId: 1,
+          consumed: EInputConsumed.Command,
+          command: { name: 'rename', argumentText: 'bench', text: '/rename bench' },
+        },
+        { type: 'input-consumed', inboxId: 2 },
+      ],
+    })
+
+    const mapped = transcriptEventsOf(events)
+
+    expect(mapped).toHaveLength(1)
+    expect(mapped[0]).toMatchObject({
+      type: 'input-consumed',
+      inboxId: 1,
+      command: { name: 'rename', argumentText: 'bench', text: '/rename bench' },
+    })
+
+    const entries = durableEntries({ events: mapped })
+
+    expect(entries).toHaveLength(1)
+    expect(entries[0]).toMatchObject({
+      kind: EEntryKind.OperatorSaid,
+      text: '/rename bench',
+      command: { name: 'rename', argumentText: 'bench', text: '/rename bench' },
+    })
   })
 
   it('passes a plain object input and output through untouched', () => {

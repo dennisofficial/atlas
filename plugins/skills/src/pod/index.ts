@@ -3,6 +3,8 @@ import { EMPTY_POD, type PodSlot } from '@dltech/atlas-plugin-sdk'
 import { skillsListingHook } from './hooks'
 import { skillsResource, type SkillsPodOptions } from './resources'
 import { SkillTool } from './skill-tool'
+import { skillsSuggestionHook } from './suggestion-hook'
+import { skillsSlashOf } from './slash'
 import { SkillManageTool } from './write-tool'
 
 export type {
@@ -37,5 +39,9 @@ export const skillsPodOf = (options: SkillsPodOptions): PodSlot => ({
   ...EMPTY_POD,
   resources: [skillsResource(options)],
   tools: (ctx) => [new SkillTool(ctx, options), new SkillManageTool(ctx, options)],
-  hooks: (ctx) => ({ beforeStep: [skillsListingHook({ ctx, options })] }),
+  hooks: (ctx) => ({
+    beforeTurn: [skillsSuggestionHook({ ctx, options })],
+    beforeStep: [skillsListingHook({ ctx, options })],
+  }),
+  slash: (ctx) => skillsSlashOf({ ctx, options }),
 })

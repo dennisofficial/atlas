@@ -40,6 +40,8 @@ const configured = (over: Partial<AgentHostConfig> = {}): AgentHostConfig => ({
   projectId: 'proj-1',
   model: CONFIGURED_MODEL,
   models: fakeModelSourceOf(CONFIGURED_MODEL),
+  classifier: { on: false, reason: 'no classifier model is set' },
+  quality: { enabled: false, policies: {} },
   sandbox: {
     configured: true,
     provider: ESandboxProvider.Vercel,

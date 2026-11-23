@@ -8,8 +8,8 @@ author reads this package first. Every plugin in `plugins/*` builds its slots wi
 - The plugin shape: seven slots, `definePlugin`, and the composer `composePlugins`.
 - The pod tier: the pod context, the pod slot, the capabilities a tool reaches, and pod resources.
 - The control tier and the client tier slot types.
-- The plugin-facing capability types: crew, sessions, worktrees, routines, subscriptions and MCP
-  control, each with an `EMPTY_*` default. Memory and web search have no empty default.
+- The plugin-facing capability types: crew, messages, classifier, sessions, worktrees, routines,
+  subscriptions and MCP control, each with an `EMPTY_*` default (none for memory and web search).
 
 ## Does not own
 
@@ -19,10 +19,10 @@ author reads this package first. Every plugin in `plugins/*` builds its slots wi
 
 ## Entry points
 
-| Import                             | Use it for                                          |
-| ---------------------------------- | --------------------------------------------------- |
-| `@dltech/atlas-plugin-sdk`         | The slots, `definePlugin`, `composePlugins`, types. |
-| `@dltech/atlas-plugin-sdk/testing` | A fixture plugin that exercises every slot.         |
+| Import                             | Use it for                                             |
+| ---------------------------------- | ------------------------------------------------------ |
+| `@dltech/atlas-plugin-sdk`         | The slots, `definePlugin`, `composePlugins` and types. |
+| `@dltech/atlas-plugin-sdk/testing` | A fixture plugin that exercises every slot.            |
 
 ## The slot contract
 
@@ -63,19 +63,19 @@ export const probeObservedSchema = z.object({
 ### The pod slot
 
 A `PodSlot` declares:
-- `tools(ctx)`: the `ToolDefinition` values. Each has a `name` the model sees.
-- `hooks(ctx)`: the hooks of each phase, in the form `HookChainArgs`.
+- `tools(ctx)` and `hooks(ctx)`: the `ToolDefinition` values and the `HookChainArgs` of each phase.
 - `prompts`: the `PromptFragment` values the plugin adds to the system prompt.
 - `commands`: a map from inbox kind to `CommandHandler`, for commands the pod runs.
 - `resources`: the `PodResource` values the plugin loads, such as a skill directory.
+- `slash(ctx)`: the `PodSlash` source (`names()`, `load({name, argumentText})`); at most one plugin.
 - `childDeny`: tool names a sub-agent may not call.
 - `onDaemonEvent(frame)`: handle an event the daemon pushes.
 
 `ctx` is a `PluginPodContext`. It gives `sessionId`, `workspaceDirectory`, `append(drafts)`,
-`notify(event, {key})`, `events()`, `call(op)`, `live(frame)`, `onDaemonEvent(listener)`,
-`log(message)`, and the capabilities `control`, `crew`, `sessions`, `worktrees` and `resources`.
-`ctx.control` is a `PodControl`: `exposePort({port})`, `settingsVersions()`, and the `memory`,
-`webSearch`, `mcp`, `routines` and `subscriptions` capabilities.
+`notify(event, {key})`, `events()`, `call(op)`, `live(frame)`, `onDaemonEvent(listener)`, `log`,
+and the capabilities `control`, `crew`, `classifier`, `sessions`, `worktrees` and `resources`.
+`ctx.control` is a `PodControl`: `exposePort({port})`, `settingsVersions()`, `memory`, `webSearch`,
+`mcp`, `routines`, `subscriptions`. `ctx.classifier.status()` / `classify(...)` answer core types.
 
 ### The control and client slots
 
@@ -83,8 +83,7 @@ A `PodSlot` declares:
 inside the append transaction. It receives a stamped `V2Event` and returns `Promise<void>`, so it
 adds a transactional side effect. It cannot rewrite the event.
 
-`ClientSlot` holds `hooks` with a `name` and an `appliesTo(event)` predicate, and optional
-`entryFolds`.
+`ClientSlot` holds `hooks` with a `name` and an `appliesTo(event)` predicate, and optional `entryFolds`.
 
 ### Load a resource
 
@@ -108,9 +107,8 @@ through a resource: set `cloud: [ECloudSetting.McpServers]`, `ECloudSetting.Skil
   `PluginEventBodies` types the body of each event.
 - `crossLatch({ctx, name, level, mayFire})`: fire a level-triggered latch once, and record it.
 - `MacOfflineError`, `PodMcpProxyTransport`, `PodMcpProxyChannel`: the proxy to the Mac app.
-- `EMPTY_POD`, `EMPTY_CONTROL`, `EMPTY_CREW`, `EMPTY_SESSIONS`, `EMPTY_WORKTREES`,
-  `EMPTY_ROUTINES`, `EMPTY_SUBSCRIPTIONS`, `EMPTY_MCP_CONTROL`, `EMPTY_POD_RESOURCES`: the defaults
-  a tier spreads when it contributes nothing.
+- `EMPTY_*` (for example `EMPTY_POD`, `EMPTY_CONTROL`, `EMPTY_CLASSIFIER`): the default of each
+  slot, which a tier spreads when it contributes nothing.
 
 ## Usage
 

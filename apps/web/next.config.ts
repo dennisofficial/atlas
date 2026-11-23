@@ -40,6 +40,7 @@ const sharedConfig: NextConfig = {
   },
   transpilePackages: [
     '@dltech/atlas-api-router',
+    '@dltech/atlas-classifier',
     '@dltech/atlas-client',
     '@dltech/atlas-core',
     '@dltech/atlas-credentials',

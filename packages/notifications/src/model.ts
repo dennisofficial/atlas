@@ -1,12 +1,8 @@
-import type { AtlasNotification } from '@dltech/atlas-core'
+import type { AtlasNotification, ENotifyDeviceKind } from '@dltech/atlas-core'
 
 export type { AtlasNotification }
 
-export enum ENotifyDeviceKind {
-  WebPush = 'web-push',
-  Expo = 'expo',
-  ApnsMac = 'apns-mac',
-}
+export { ENotifyDeviceKind } from '@dltech/atlas-core'
 
 export type NotifyDevice = {
   id: string
@@ -14,3 +10,9 @@ export type NotifyDevice = {
   token: string
   secret: string | null
 }
+
+export const NOTIFY_DATA_SESSION_KEY = 'sessionId'
+
+export const NOTIFY_DATA_SEQ_KEY = 'seq'
+
+export const NOTIFY_DATA_CLEAR_SESSION_KEY = 'clearSessionId'

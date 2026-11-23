@@ -14,14 +14,19 @@ import { createInMemoryDaemon, type InMemoryDaemon } from '@dltech/atlas-protoco
 
 import type { LogPort } from '@dltech/atlas-observability'
 
-import type { CommandHandlers } from '../command-intake'
+import type { CommandHandlers, ControlHandlers } from '../command-intake'
 import type { PodControlClient } from '../pod-control'
-import type { PrepareResult, PrepareStepReporter } from '../ports'
+import type { PrepareResult, PrepareStepReporter, SessionRuntime } from '../ports'
 import { SessionHolder } from '../session-holder'
 import { FakeBus, FakeClock, flushUntil, SANDBOX, SECRET, SESSION, THREAD } from './rig-fakes'
-import { makeRuntimeFactory, type RigRuntime, type ScriptRef } from './rig-runtime'
+import {
+  CONTEXT_DIRECTORY,
+  makeRuntimeFactory,
+  type RigRuntime,
+  type ScriptRef,
+} from './rig-runtime'
 
-export { FakeBus, FakeClock, flushUntil, SANDBOX, SECRET, SESSION, THREAD }
+export { CONTEXT_DIRECTORY, FakeBus, FakeClock, flushUntil, SANDBOX, SECRET, SESSION, THREAD }
 export type { RigRuntime, ScriptRef }
 
 export const THREAD_ID = toThreadId(THREAD)
@@ -77,10 +82,12 @@ export const makeRig = async (args: {
   isPermanentStartError?: ((error: unknown) => boolean) | undefined
   commands?: CommandRegistry | undefined
   commandHandlers?: CommandHandlers | undefined
+  controlHandlers?: ControlHandlers | undefined
   control?: PodControlClient | undefined
   log?: LogPort | undefined
   onHostIdChanged?: (() => void) | undefined
   plugins?: ComposedPlugins | undefined
+  placeContextFiles?: SessionRuntime['placeContextFiles'] | undefined
 }): Promise<HolderRig> => {
   const clock = args.clock ?? new FakeClock()
   const store =
@@ -133,6 +140,7 @@ export const makeRig = async (args: {
     beforeRuntime: args.beforeRuntime,
     stopGate: args.stopGate,
     plugins: args.plugins,
+    placeContextFiles: args.placeContextFiles,
   })
 
   const holder = new SessionHolder({
@@ -150,6 +158,7 @@ export const makeRig = async (args: {
       : { isPermanentStartError: args.isPermanentStartError }),
     commands: args.commands,
     commandHandlers: args.commandHandlers,
+    controlHandlers: args.controlHandlers,
     control: args.control,
     changes: args.changes,
     ...(args.log === undefined ? {} : { log: args.log }),

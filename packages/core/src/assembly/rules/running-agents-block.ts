@@ -18,7 +18,7 @@ const SUB_AGENT_LINE =
 const TEAMMATE_LINE =
   'A teammate reports only when it sends an explicit report, and is silent between reports.'
 const WAITING_LINE =
-  'Work that does not depend on them can continue meanwhile. If you are only waiting, say what you are waiting for and end your turn. agent_say({ agentId, text }) steers one. agent_stop({ agentId }) ends one early.'
+  'Work that does not depend on them can continue meanwhile. If you are only waiting, say what you are waiting for and end your turn. A message you send it steers one. agent_stop({ agentId }) ends one early.'
 
 const guidanceFor = (agents: readonly RunningAgent[]): string =>
   [

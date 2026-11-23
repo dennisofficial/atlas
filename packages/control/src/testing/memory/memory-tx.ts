@@ -79,6 +79,7 @@ import {
   clearTitleFromIn,
   createSessionIn,
   listSessionsIn,
+  readNestedChildrenIn,
   readSessionIn,
   setSandboxInstanceIdIn,
   setSandboxStatusIn,
@@ -145,6 +146,10 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
 
   async readSession(params: { sessionId: string }): Promise<ControlSessionRow | undefined> {
     return readSessionIn({ state: this.state, ...params })
+  }
+
+  async readNestedChildren(params: { sessionId: string }): Promise<ControlSessionRow[]> {
+    return readNestedChildrenIn({ state: this.state, ...params })
   }
 
   async podPeersPlaced(params: {

@@ -74,6 +74,7 @@ import { podPeersPlacedIn } from './postgres-peers'
 import {
   clearTitleFromIn,
   createSessionIn,
+  readNestedChildrenIn,
   readSessionIn,
   setSandboxInstanceIdIn,
   setSandboxStatusIn,
@@ -239,6 +240,10 @@ export class PostgresTx implements ControlTx {
       generation: params.generation,
       since: params.since,
     })
+  }
+
+  async readNestedChildren(params: { sessionId: string }): Promise<ControlSessionRow[]> {
+    return readNestedChildrenIn({ tx: this.tx, sessionId: params.sessionId })
   }
 
   async setSessionArchived(params: { sessionId: string; archivedAt: string | null }) {

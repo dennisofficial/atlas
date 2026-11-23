@@ -1,8 +1,15 @@
-import { effortRungOf, parseRef, type ModelChoice } from '@dltech/atlas-core'
+import {
+  ESubscriptionActor,
+  ESubscriptionEnd,
+  effortRungOf,
+  parseRef,
+  type ModelChoice,
+} from '@dltech/atlas-core'
 import type { SessionModelAsk } from '@dltech/atlas-models'
 import { DEFAULT_SANDBOX_PROVIDER, ECredentialSource } from '@dltech/atlas-protocol'
 
 import { EMPTY_VISIBILITY_TEXT } from './stored-event'
+import { endSubscriptionsIn } from './subscription-endings'
 import type { ControlSessionRow, ControlTx, SessionModelRow } from './port'
 
 export const createSessionIn = async (params: {
@@ -73,16 +80,76 @@ export const setSessionModelIn = async (params: {
   return model
 }
 
+const archiveNestedDescendantsIn = async (params: {
+  tx: ControlTx
+  sessionId: string
+  archivedAt: string
+}): Promise<string[]> => {
+  const visited = new Set<string>([params.sessionId])
+  const archived: string[] = []
+  let level: string[] = [params.sessionId]
+  while (level.length > 0) {
+    const next: string[] = []
+    for (const parentId of level) {
+      for (const child of await params.tx.readNestedChildren({ sessionId: parentId })) {
+        if (visited.has(child.sessionId)) continue
+        visited.add(child.sessionId)
+        next.push(child.sessionId)
+        if (child.archivedAt !== null) continue
+        await params.tx.setSessionArchived({
+          sessionId: child.sessionId,
+          archivedAt: params.archivedAt,
+        })
+        await params.tx.announce({ sessionId: child.sessionId })
+        archived.push(child.sessionId)
+      }
+    }
+    level = next
+  }
+  return archived
+}
+
+const endSubscriptionsOfSessionsIn = async (params: {
+  tx: ControlTx
+  sessionIds: readonly string[]
+  at: string
+}): Promise<number> => {
+  const subscriptionIdByThread = new Map<string, string>()
+  for (const sessionId of params.sessionIds) {
+    for (const row of await params.tx.readSessionSubscriptionRows(sessionId)) {
+      subscriptionIdByThread.set(row.subscriptionId, row.threadId)
+    }
+  }
+  const rows = [...subscriptionIdByThread].map(([subscriptionId, threadId]) => ({
+    subscriptionId,
+    threadId,
+  }))
+  return endSubscriptionsIn({
+    tx: params.tx,
+    rows,
+    by: ESubscriptionActor.Operator,
+    reason: ESubscriptionEnd.Archived,
+    at: params.at,
+  })
+}
+
 export const archiveIn = async (params: {
   tx: ControlTx
   sessionId: string
   archivedAt: string | null
+  at: string
 }): Promise<void> => {
-  const { tx, ...change } = params
-  if (!(await tx.setSessionArchived(change))) {
-    throw new Error(`unknown session ${params.sessionId}`)
+  const { tx, sessionId, archivedAt } = params
+  const before = await tx.lockSession(sessionId)
+  if (before === undefined) throw new Error(`unknown session ${sessionId}`)
+  const stamp = archivedAt === null ? null : (before.archivedAt ?? archivedAt)
+  if (!(await tx.setSessionArchived({ sessionId, archivedAt: stamp }))) {
+    throw new Error(`unknown session ${sessionId}`)
   }
-  await tx.announce({ sessionId: params.sessionId })
+  await tx.announce({ sessionId })
+  if (stamp === null) return
+  const descendants = await archiveNestedDescendantsIn({ tx, sessionId, archivedAt: stamp })
+  await endSubscriptionsOfSessionsIn({ tx, sessionIds: [sessionId, ...descendants], at: params.at })
 }
 
 export const markReadIn = async (params: {

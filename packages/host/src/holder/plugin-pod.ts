@@ -17,6 +17,7 @@ import {
   type PluginPodContext,
   type PodCrew,
   type PodResources,
+  type PodSlash,
 } from '@dltech/atlas-plugin-sdk'
 
 import { worktreesOf } from './checkouts'
@@ -30,6 +31,7 @@ import { podControlOf } from './pod-control'
 import { pluginResourcesClosedHook, pluginResourcesHook, reloadResource } from './plugin-resources'
 import { ResourceSync } from './plugin-resource-sync'
 import { podSessionsOf } from './plugin-sessions'
+import { heldMessagesOf } from './pod-messages'
 import { modelFellBackDraft } from './crew/model-fell-back'
 import type { RoleModelChoice, SessionRuntime } from './ports'
 import type { SessionRecord } from './record/record-adapter'
@@ -143,6 +145,7 @@ export const pluginPodContextOf = (args: {
   threadId: ThreadId
   signal: AbortSignal
   crew: PodCrew
+  selfAgentId?: string | undefined
   notify?: ((event: EventBody, options: { key: string }) => Promise<void>) | undefined
 }): PluginPodContext => {
   const { deps, runtime, record, threadId } = args
@@ -158,6 +161,11 @@ export const pluginPodContextOf = (args: {
       ...(deps.mcp === undefined ? {} : { mcp: deps.mcp(deps.sessionId) }),
     }),
     crew: args.crew,
+    messages: heldMessagesOf({ deps, crew: args.crew, selfAgentId: args.selfAgentId }),
+    classifier: {
+      status: () => runtime.classifierStatus,
+      classify: (args) => runtime.classifier.classify(args),
+    },
     sessions: podSessionsOf({
       plane: deps.plane,
       sessionId: deps.sessionId,
@@ -269,7 +277,7 @@ export const pluginHooksOf = (args: {
   })
 }
 
-export type PluginPod = { tools: ToolRegistry; hooks: HookChain }
+export type PluginPod = { tools: ToolRegistry; hooks: HookChain; slash?: PodSlash | undefined }
 
 export const pluginPodOf = (args: {
   deps: HeldSessionDeps
@@ -287,6 +295,7 @@ export const pluginPodOf = (args: {
   }
   const ctx = pluginPodContextOf(args)
   const tools = pluginToolsOf({ runtime: args.runtime, ctx })
+  const slash = plugins.pod.slash(ctx)
   const sync = resourceSyncOf({
     runtime: args.runtime,
     ctx,
@@ -300,5 +309,5 @@ export const pluginPodOf = (args: {
     ...(sync === undefined ? {} : { sync }),
   })
   ctx.onDaemonEvent((frame) => plugins.pod.onDaemonEvent(frame))
-  return { tools, hooks }
+  return { tools, hooks, ...(slash === undefined ? {} : { slash }) }
 }

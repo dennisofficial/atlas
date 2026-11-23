@@ -6,13 +6,8 @@ import { Button } from '@dltech/atlas-ui/components/button'
 import { Input } from '@dltech/atlas-ui/components/input'
 import { cn } from '@dltech/atlas-ui/lib/utils'
 
-import {
-  decisionsKeyTarget,
-  EKeyNoun,
-  searchKeyTarget,
-  type KeyTarget,
-} from '../data/personal/agent-keys'
-import type { EDecisionsProvider, ESearchBackend } from '../fixtures/settings-decisions'
+import { EKeyNoun, searchKeyTarget, type KeyTarget } from '../data/personal/agent-keys'
+import type { ESearchBackend } from '../fixtures/settings-search'
 import { SettingsRow } from '../settings-layout'
 
 export type KeyEntry = { name: string; value: string; noun: EKeyNoun }
@@ -90,14 +85,6 @@ function KeyRow({ target, savedNames, onSave }: KeyRowProps & { target: KeyTarge
       }
     />
   )
-}
-
-export function DecisionsKeyRow({
-  provider,
-  ...props
-}: KeyRowProps & { provider: EDecisionsProvider }) {
-  const target = decisionsKeyTarget(provider)
-  return <KeyRow key={target.name} target={target} {...props} />
 }
 
 export function SearchKeyRow({ backend, ...props }: KeyRowProps & { backend: ESearchBackend }) {

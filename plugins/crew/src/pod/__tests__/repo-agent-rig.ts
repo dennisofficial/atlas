@@ -6,6 +6,7 @@ import {
   type PodCrew,
   type SubagentSnapshot,
   EMPTY_CREW,
+  EMPTY_CLASSIFIER,
   EMPTY_MCP_CONTROL,
   EMPTY_ROUTINES,
   EMPTY_SESSIONS,
@@ -13,6 +14,7 @@ import {
   EMPTY_WORKTREES,
   EMPTY_POD_RESOURCES,
   UNVERSIONED_SETTINGS,
+  EMPTY_MESSAGES,
 } from '@dltech/atlas-plugin-sdk'
 import {
   ECallStatus,
@@ -125,6 +127,8 @@ export const rig = (args: { nodes?: Record<string, FakeNode>; crew?: PodCrew } =
     sessionId: 's1',
     resources: EMPTY_POD_RESOURCES,
     crew: args.crew ?? fakeCrew().port,
+    messages: EMPTY_MESSAGES,
+    classifier: EMPTY_CLASSIFIER,
     sessions: EMPTY_SESSIONS,
     worktrees: EMPTY_WORKTREES,
     control: {

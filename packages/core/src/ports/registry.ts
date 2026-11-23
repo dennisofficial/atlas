@@ -1,5 +1,6 @@
 import type { AccountStorePort } from './account-store.port'
 import type { AgentFileSystemPort } from './agent-filesystem.port'
+import type { ClassifierPort } from './classifier.port'
 import type { ClockPort } from './clock.port'
 import type { CredentialAvailabilityPort } from './credential-availability.port'
 import type { CredentialPort } from './credential.port'
@@ -68,6 +69,7 @@ export interface PortRegistryEntries {
   }
   readonly QualityReviewPort: PortRegistryEntry<QualityReviewPort> & { readonly transport: 'none' }
   readonly DecisionPort: PortRegistryEntry<DecisionPort> & { readonly transport: 'none' }
+  readonly ClassifierPort: PortRegistryEntry<ClassifierPort> & { readonly transport: 'none' }
   readonly JudgePort: PortRegistryEntry<JudgePort> & { readonly transport: 'none' }
   readonly NoticePort: PortRegistryEntry<NoticePort> & { readonly transport: 'none' }
   readonly ExecutionLocationSinkPort: PortRegistryEntry<ExecutionLocationSinkPort> & {

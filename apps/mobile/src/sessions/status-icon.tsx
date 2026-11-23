@@ -1,3 +1,4 @@
+import { ESessionDisplay } from '@dltech/atlas-client/stream'
 import { Icon, useTheme, withAlpha } from '@dltech/atlas-ui-native'
 import {
   Circle,
@@ -18,8 +19,6 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated'
 
-import { ESessionStatus } from './session-status'
-
 const Spinning = ({ children }: { children: React.ReactNode }) => {
   const turn = useSharedValue(0)
   useEffect(() => {
@@ -30,17 +29,28 @@ const Spinning = ({ children }: { children: React.ReactNode }) => {
   return <Animated.View style={style}>{children}</Animated.View>
 }
 
-export const StatusIcon = ({ status, unread }: { status: ESessionStatus; unread: boolean }) => {
+export const StatusIcon = ({
+  status,
+  unread,
+}: {
+  status: ESessionDisplay | undefined
+  unread: boolean
+}) => {
   const theme = useTheme()
   const glyph = (icon: LucideIcon, color: string) => <Icon icon={icon} color={color} size={16} />
   const body = (() => {
-    if (status === ESessionStatus.Running)
+    if (status === undefined) return null
+    if (status === ESessionDisplay.Working) {
       return <Spinning>{glyph(LoaderCircle, theme.primary)}</Spinning>
-    if (status === ESessionStatus.Starting)
+    }
+    if (status === ESessionDisplay.Starting) {
       return <Spinning>{glyph(CircleDashed, theme.mutedForeground)}</Spinning>
-    if (status === ESessionStatus.Awaiting) return glyph(CircleAlert, theme.warning)
-    if (status === ESessionStatus.Failed) return glyph(CircleX, theme.destructive)
-    if (status === ESessionStatus.Parked) {
+    }
+    if (status === ESessionDisplay.WaitingForYou) return glyph(CircleAlert, theme.warning)
+    if (status === ESessionDisplay.Failed || status === ESessionDisplay.StartFailed) {
+      return glyph(CircleX, theme.destructive)
+    }
+    if (status === ESessionDisplay.Parked) {
       return glyph(CircleDashed, withAlpha({ color: theme.mutedForeground, alpha: 0.6 }))
     }
     return glyph(Circle, theme.foreground)

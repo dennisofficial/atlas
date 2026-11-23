@@ -290,7 +290,15 @@ export const planTextInput = async (input: {
 ```
 
 `skills` for the parser comes from `slash.names()` (§4.5). A command with no handler in the map is
-`refused` ("this host cannot run `/name` yet") rather than sent as a message.
+`refused` ("This session cannot run /name yet.") rather than sent as a message. A `client` command
+typed as text is refused with "/name opens in the app. Pick it from the / menu."
+
+**Control commands in the host** (correction, slice 2). A `control` command such as `rename` has no
+pod handler, so the host also takes `controlHandlers` (by name) and runs them with its own
+`ControlPlane`: `nativeControlHandlers` is passed in `apps/api/src/agent/compose.ts`. `resize` and
+`model-set` need API-only services, so a typed `/resize` is refused with the sentence above. While a
+typed command waits behind a turn, the status rows show it as a queued message with the typed text,
+not as a command row (those rows key off `command:` inbox kinds).
 
 **The branch.** `drainEntries` handles `INBOX_KIND_MESSAGE` at
 `packages/host/src/holder/intake-entries.ts:52-56` by staging the message. It calls the planner
@@ -469,7 +477,7 @@ with every entry of this surface's catalogue.
   depend on `@dltech/atlas-core` (`apps/web/package.json:16`, `apps/mobile/package.json:24`).
 - No v1 type crosses into v2: `CommandGroup` is declared in `packages/commands`, and v1's
   `ECommandGroup` (`packages/core/src/commands/spec.ts:6-10`) is mapped in v1's adapter only.
-- The host imports no plugin. `apps/agent-host/src/compose.ts` passes `composedPlugins.pod.slash`
+- The host imports no plugin. `apps/api/src/agent/compose.ts` (the agent host's composition) passes `composedPlugins.pod.slash`
   into `InboxIntakeArgs` beside `commands` and `handlers`
   (`packages/host/src/holder/inbox-intake.ts:51-64`).
 
@@ -488,8 +496,8 @@ removed. No behaviour change on any surface.
 
 **2. `feat(commands): run a typed command in the host`** (needs 1)
 Files: `packages/host/src/holder/{text-command.ts,intake-entries.ts,command-intake.ts,inbox-intake.ts}`,
-`packages/core/src/record/event.ts`, `packages/client/src/stream/transcript-events.ts`,
-`apps/agent-host/src/compose.ts`.
+`packages/core/src/record/{event.ts,command-entries.ts}`, `packages/client/src/stream/transcript-events.ts`,
+`apps/api/src/agent/compose.ts`.
 The planner, the message branch, `input-consumed.command.text`, the refusal, the transcript case
 kept for command-bearing rows. Typed `/rename bench` works through `sessions.post` with no client
 change — this is the proof that a stale client cannot misroute.
@@ -504,7 +512,7 @@ message row, the composer prop change with v1's adapter.
 
 **4. `feat(skills): type a skill name to load it`** (needs 2)
 Files: `packages/plugin-sdk/src/{slots.ts,compose-pod.ts}`,
-`plugins/skills/src/pod/{slash.ts,index.ts}` + specs, `apps/agent-host/src/compose.ts`.
+`plugins/skills/src/pod/{slash.ts,index.ts}` + specs, `apps/api/src/agent/compose.ts`.
 The `slash` slot, the skills implementation, `context-loaded` then `user-said`.
 
 **5. `feat(commands): rewind needs a line, summarise takes your last`** (needs 2; independent of 3 and 4)

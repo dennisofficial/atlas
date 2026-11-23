@@ -1,0 +1,17 @@
+// use prisma-8
+namespace v2 {
+  model V2PushDevice {
+    id         String                @id
+    userId     String
+    kind       String
+    token      String                @unique
+    secret     String?
+    clientId   String
+    label      String
+    disabledAt TimestamptzJsDate(3)?
+    lastSeenAt TimestamptzJsDate(3)
+    createdAt  TimestamptzJsDate(3)
+
+    @@index([userId])
+  }
+}

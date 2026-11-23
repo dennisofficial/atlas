@@ -1,6 +1,5 @@
 import {
   EKilledBy,
-  type EReportKind,
   type EExecutionLocation,
   type EventLogPort,
   type IdPort,
@@ -116,11 +115,7 @@ export class AgentSupervisor extends AgentRegistryPort {
     return this.noticeWake.wake({ agentId })
   }
 
-  reportToParent(args: {
-    threadId: ThreadId
-    text: string
-    kind?: EReportKind | undefined
-  }): Promise<AgentOutcome> {
+  reportToParent(args: { threadId: ThreadId; text: string }): Promise<AgentOutcome> {
     return reportToParent({
       ...args,
       log: this.log,

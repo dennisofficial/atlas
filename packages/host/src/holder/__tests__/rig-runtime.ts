@@ -1,5 +1,6 @@
 import {
   defaultPipeline,
+  EClassifierFault,
   EEffort,
   EMPTY_PROMPT,
   EProviderFailureKind,
@@ -8,7 +9,9 @@ import {
   EToolEffect,
   refKey,
   ToolDefinition,
+  type ClassifierPort,
   type ModelPort,
+  type SpawnFile,
   type ThreadId,
   type ToolInvocation,
   type ToolOutcome,
@@ -33,7 +36,18 @@ import type {
   SessionRuntime,
   SetupLifecycle,
 } from '../ports'
+import { DaemonFileSystemPort } from '../../calls/ports/filesystem'
+import { placeContextFiles } from '../place-context-files'
 import { SANDBOX, SECRET, type FakeClock } from './rig-fakes'
+
+export const CONTEXT_DIRECTORY = '/atlas/home/sessions/s-1/context'
+const OFF_CLASSIFIER: ClassifierPort = {
+  classify: async () => ({
+    ok: false,
+    fault: EClassifierFault.Unavailable,
+    detail: 'the rig has no classifier',
+  }),
+}
 
 export const RIG_MODEL_CHOICE = {
   ref: { providerId: 'anthropic', modelId: 'claude-sonnet-4-5' },
@@ -47,6 +61,7 @@ export type RigRuntime = SessionRuntime & {
   stopped: boolean
   released: boolean
   ackedScopes: string[]
+  placedContextFiles: readonly (readonly SpawnFile[])[]
   watched: string[]
 }
 
@@ -123,6 +138,7 @@ export const makeRuntimeFactory = (args: {
   beforeRuntime?: (() => Promise<void>) | undefined
   stopGate?: Promise<void> | undefined
   plugins?: ComposedPlugins | undefined
+  placeContextFiles?: SessionRuntime['placeContextFiles'] | undefined
 }): ((params: {
   sessionId: string
   threadId: ThreadId
@@ -158,9 +174,13 @@ export const makeRuntimeFactory = (args: {
       return running
     }
     const modelOfCalls: RoleModelChoice[] = []
+    const placedContextFiles: SpawnFile[][] = []
     const runtime: RigRuntime = {
+      placedContextFiles,
       remoteCalls: calls,
       model,
+      classifier: OFF_CLASSIFIER,
+      classifierStatus: { on: false, reason: 'the rig has no classifier' },
       modelChoice: RIG_MODEL_CHOICE,
       modelOfCalls,
       modelOf: (choice) => {
@@ -184,6 +204,26 @@ export const makeRuntimeFactory = (args: {
         message,
       }),
       ...(args.uploads === undefined ? {} : { uploads: args.uploads }),
+      placeContextFiles:
+        args.placeContextFiles ??
+        (async ({ files }) => {
+          const writes = new DaemonFileSystemPort({ calls })
+          const placed = await placeContextFiles({
+            files,
+            directory: CONTEXT_DIRECTORY,
+            writes: {
+              mkdir: async ({ path }) => {
+                await writes.mkdir({ path })
+              },
+              writeFile: async ({ path, content }) => {
+                await writes.writeFile({ path, content })
+              },
+              readLink: async ({ path }) => await writes.readLink({ path }),
+            },
+          })
+          placedContextFiles.push([...files])
+          return placed
+        }),
       launchDirectory: '/w',
       watched: [],
       watchedRepos: args.watchedRepos ?? (async () => runtime.watched),

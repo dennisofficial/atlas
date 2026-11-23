@@ -73,7 +73,7 @@ describe('handing a finished delegate to the parent that spawned it', () => {
 
     expect(block).toContain('<no content>')
     expect(block).toMatch(/ended with no text/)
-    expect(block).toMatch(/agent_say to try again/)
+    expect(block).toMatch(/Send it a message to try again/)
     expect(block).toMatch(/compensate/)
     expect(block).toContain('finished after 4 turns and 11 tool calls')
   })
@@ -242,16 +242,16 @@ describe('a delegate ending that lands while a tool call is still open', () => {
     },
     {
       type: 'tool-called',
-      callId: toCallId('agent_say_1'),
-      name: 'agent_say',
+      callId: toCallId('send_message_1'),
+      name: 'send_message',
       input: { agentId: 'thread-child-1', text: 'are you stuck?' },
       ordinal: 0,
     },
     ended(),
     {
       type: 'tool-result',
-      callId: toCallId('agent_say_1'),
-      name: 'agent_say',
+      callId: toCallId('send_message_1'),
+      name: 'send_message',
       modelText: 'running again',
     },
   ]
@@ -398,16 +398,16 @@ describe('a bookkeeping ending, and the retry line on endings that went wrong', 
   })
 
   it.each([EAgentStatus.Failed, EAgentStatus.Stopped])(
-    'tells the parent to agent_say to a %s agent to retry',
+    'tells the parent to send a message to a %s agent to retry',
     (status) => {
       const block = blocksOf(assembleWith({ drafts: [ended({ status })] }))[0] ?? ''
-      expect(block).toContain('Send agent_say to retry it')
+      expect(block).toContain('Send it a message to retry it')
     },
   )
 
   it('does not suggest a retry for a finished agent', () => {
     const block = blocksOf(assembleWith({ drafts: [ended()] }))[0] ?? ''
-    expect(block).not.toContain('Send agent_say to retry it')
+    expect(block).not.toContain('Send it a message to retry it')
   })
 
   it('tells the parent to spawn fresh, not retry, when the thread fails prompt assembly', () => {
@@ -423,7 +423,7 @@ describe('a bookkeeping ending, and the retry line on endings that went wrong', 
           ],
         }),
       )[0] ?? ''
-    expect(block).not.toContain('Send agent_say to retry it')
+    expect(block).not.toContain('Send it a message to retry it')
     expect(block).toContain('Spawn a fresh sub-agent')
     expect(block).toContain('prompt assembly fails on every step')
   })
@@ -441,7 +441,7 @@ describe('a bookkeeping ending, and the retry line on endings that went wrong', 
           ],
         }),
       )[0] ?? ''
-    expect(block).toContain('Send agent_say to retry it')
+    expect(block).toContain('Send it a message to retry it')
   })
 
   it('says why the host could not continue a lost agent, not that a respawn fails again', () => {
@@ -461,7 +461,7 @@ describe('a bookkeeping ending, and the retry line on endings that went wrong', 
     expect(block).toContain('failed')
     expect(block).toContain('could not reopen its record')
     expect(block).toContain('Its host could not continue it')
-    expect(block).toContain('agent_say')
+    expect(block).toContain('a message resumes its work')
     expect(block).not.toContain('Respawning the same sub-agent the same way usually fails')
   })
 })

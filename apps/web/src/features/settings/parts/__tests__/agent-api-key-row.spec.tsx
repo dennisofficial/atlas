@@ -45,6 +45,27 @@ const providerOf = (id: EProviderId) => {
 const buttonLabels = (element: HTMLElement): string[] =>
   [...element.querySelectorAll('button')].map((button) => button.textContent ?? '')
 
+describe('the TypeSafe AI API key row', () => {
+  it('is listed among the API-key providers', () => {
+    expect(API_KEY_PROVIDERS.map((provider) => provider.id)).toContain(EProviderId.Typesafe)
+  })
+
+  it('renders a neutral icon because there is no TypeSafe logo', async () => {
+    const element = await render(
+      <ApiKeyRow
+        provider={providerOf(EProviderId.Typesafe)}
+        entry={null}
+        onSave={async () => null}
+        onRemove={() => {}}
+      />,
+    )
+
+    expect(element.textContent).toContain('TypeSafe AI')
+    expect(element.querySelector('svg')).not.toBeNull()
+    expect(buttonLabels(element)).toContain('Add key')
+  })
+})
+
 describe('the Inference.net API key row', () => {
   it('is listed among the API-key providers', () => {
     expect(API_KEY_PROVIDERS.map((provider) => provider.id)).toContain(EProviderId.Inference)
@@ -55,7 +76,7 @@ describe('the Inference.net API key row', () => {
       <ApiKeyRow
         provider={providerOf(EProviderId.Inference)}
         entry={null}
-        onSave={() => {}}
+        onSave={async () => null}
         onRemove={() => {}}
       />,
     )
@@ -69,7 +90,7 @@ describe('the Inference.net API key row', () => {
       <ApiKeyRow
         provider={providerOf(EProviderId.Inference)}
         entry={{ id: 'acc_1', label: 'Key saved', added: 'Added Oct 30' }}
-        onSave={() => {}}
+        onSave={async () => null}
         onRemove={() => {}}
       />,
     )

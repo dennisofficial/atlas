@@ -1,11 +1,6 @@
 import type { EventBody } from '@dltech/atlas-core'
 
-import {
-  agentEndedLine,
-  agentEndingFailed,
-  agentReportedKindLine,
-  agentReportNeedsAttention,
-} from './agent-ended-line'
+import { agentEndedLine, agentEndingFailed, agentReportedLine } from './agent-ended-line'
 import { prEventFailed, prEventLine } from './pr-event-line'
 import { serviceEndedLine, serviceEndingFailed } from './service-ended-line'
 import { shellEndedLine, shellEndingFailed } from './shell-ended-line'
@@ -14,10 +9,7 @@ export type QueuedNoticeLine = { text: string; failed: boolean }
 
 export function queuedNoticeLineOf(event: EventBody): QueuedNoticeLine | undefined {
   if (event.type === 'agent-reported') {
-    return {
-      text: agentReportedKindLine(event),
-      failed: agentReportNeedsAttention(event.kind),
-    }
+    return { text: agentReportedLine(event), failed: false }
   }
 
   if (event.type === 'agent-ended') {

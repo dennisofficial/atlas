@@ -12,7 +12,9 @@ import { router, Stack, useLocalSearchParams } from 'expo-router'
 import { useCallback } from 'react'
 import { ActivityIndicator, StyleSheet, View } from 'react-native'
 
+import { ModelSheet } from '../../../composer/model-picker'
 import { KeyboardDock } from '../../../layout/keyboard-dock'
+import { CommandListSheet } from '../../../thread/composer/command-list-sheet'
 import { Composer } from '../../../thread/composer/composer'
 import { StaleCard } from '../../../thread/composer/stale-card'
 import { SessionSkeleton } from '../../../thread/components/session-skeleton'
@@ -88,7 +90,15 @@ export default function SessionScreen() {
               onStop={session.stop}
               restored={session.restored}
               refusal={session.notice}
+              entries={session.commands.entries}
+              clientActions={session.commands.clientActions}
             />
+            <CommandListSheet
+              open={session.commands.commandList.open}
+              onClose={session.commands.commandList.onClose}
+              entries={session.commands.entries}
+            />
+            <ModelSheet {...session.commands.model} />
           </KeyboardDock>
         </>
       ) : null}

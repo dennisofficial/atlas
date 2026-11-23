@@ -1,19 +1,25 @@
 'use client'
 
 import { Switch } from '@dltech/atlas-ui/components/switch'
+import { useEffect, useRef } from 'react'
 
+import { RoutineTimezoneField } from '@/features/routines/routine-timezone-field'
 import type { SettingValues } from '@/lib/cloud-settings'
-import { useSessionUser } from '../session/use-session-identity'
 
 import { notificationChanges, notificationsFrom } from '../data/personal/interface-settings'
 import { QueryPage } from '../data/personal/query-boundary'
-import { NotificationsSkeleton } from '../skeletons/agent-skeletons'
 import { usePersonalSettings, useSettingsDraft } from '../data/personal/use-settings-draft'
-import { type ChannelState, type ENotifyChannel } from '../fixtures/settings-interface'
-import { NotifyMatrixTable } from '../parts/interface-notify-matrix'
-import { QuietHourSelect } from '../parts/interface-quiet-hours'
 import {
-  Mono,
+  type NotificationSettings,
+  type NotifyEventToggles,
+  type NotifyMomentId,
+} from '../fixtures/settings-interface'
+import { QuietHourSelect } from '../parts/interface-quiet-hours'
+import { NotifyDevicesCard } from '../parts/notify-devices-card'
+import { NotifyEventToggles as NotifyEventToggleRows } from '../parts/notify-event-toggles'
+import { ThisDeviceNotifications } from '../parts/this-device-notifications'
+import { NotificationsSkeleton } from '../skeletons/agent-skeletons'
+import {
   SaveFooter,
   SettingsCard,
   SettingsPage,
@@ -23,6 +29,12 @@ import {
 
 const TITLE = 'Notifications'
 const DESCRIPTION = 'Decide where Atlas gets your attention.'
+const TIMEZONE_KEY = 'web.notifications.timezone'
+
+const deviceTimezoneOf = (): string => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+
+const withDeviceZone = (settings: NotificationSettings): NotificationSettings =>
+  settings.timezone === '' ? { ...settings, timezone: deviceTimezoneOf() } : settings
 
 export function NotificationsPage() {
   const settings = usePersonalSettings()
@@ -47,69 +59,43 @@ function NotificationsEditor({
 }) {
   const { draft, saving, handleSave } = useSettingsDraft({
     values,
-    fromValues: notificationsFrom,
+    fromValues: (current) => withDeviceZone(notificationsFrom(current)),
     toChanges: notificationChanges,
     save,
   })
   const { value, setValue } = draft
-  const { user } = useSessionUser()
+  const defaulted = useRef(false)
+  const storedZone = values.get(TIMEZONE_KEY)
 
-  const handleChannelChange = (params: { channel: keyof ChannelState; enabled: boolean }) => {
-    setValue({
-      ...value,
-      channels: { ...value.channels, [params.channel]: params.enabled },
-    })
-  }
+  useEffect(() => {
+    if (defaulted.current) return
+    defaulted.current = true
+    if (storedZone === undefined || storedZone === '') {
+      void save({ [TIMEZONE_KEY]: deviceTimezoneOf() })
+    }
+  }, [storedZone, save])
 
-  const handleMatrixToggle = (params: {
-    eventId: string
-    channel: ENotifyChannel
-    checked: boolean
-  }) => {
-    const row = value.matrix[params.eventId]
-    if (!row) return
-    setValue({
-      ...value,
-      matrix: {
-        ...value.matrix,
-        [params.eventId]: { ...row, [params.channel]: params.checked },
-      },
-    })
+  const handleEventToggle = (params: { moment: NotifyMomentId; enabled: boolean }) => {
+    const events: NotifyEventToggles = { ...value.events, [params.moment]: params.enabled }
+    setValue({ ...value, events })
   }
 
   return (
     <SettingsPage title={TITLE} description={DESCRIPTION}>
-      <SettingsSection title="Channels" description="Where notifications can be delivered.">
+      <ThisDeviceNotifications />
+      <SettingsSection
+        title="Notify me when"
+        description="Each switch holds or sends this moment on every device."
+      >
         <SettingsCard>
-          <SettingsRow
-            title="Browser push"
-            description="Desktop alerts while Atlas is open in a background tab."
-            control={
-              <Switch
-                checked={value.channels.push}
-                onCheckedChange={(enabled) => handleChannelChange({ channel: 'push', enabled })}
-                aria-label="Browser push"
-              />
-            }
-          />
-          <SettingsRow
-            title="Email"
-            description={
-              <>
-                Sent to <Mono>{user?.email ?? 'your account email'}</Mono>.
-              </>
-            }
-            control={
-              <Switch
-                checked={value.channels.email}
-                onCheckedChange={(enabled) => handleChannelChange({ channel: 'email', enabled })}
-                aria-label="Email"
-              />
-            }
-          />
+          <NotifyEventToggleRows value={value.events} onToggle={handleEventToggle} />
         </SettingsCard>
       </SettingsSection>
-      <SettingsSection title="Notify me when" description="Pick a delivery channel for each event.">
+      <NotifyDevicesCard />
+      <SettingsSection
+        title="Quiet hours"
+        description="Nothing leaves Atlas during this window, read in the time zone below."
+      >
         <SettingsCard
           footer={
             <SaveFooter
@@ -119,10 +105,9 @@ function NotificationsEditor({
             />
           }
         >
-          <NotifyMatrixTable matrix={value.matrix} onToggle={handleMatrixToggle} />
           <SettingsRow
             title="Quiet hours"
-            description="Hold push and email notifications during this window."
+            description="Hold every notification during this window."
             control={
               <>
                 <Switch
@@ -144,6 +129,17 @@ function NotificationsEditor({
                   onChange={(quietTo) => setValue({ ...value, quietTo })}
                 />
               </>
+            }
+          />
+          <SettingsRow
+            title="Time zone"
+            description="Quiet hours are read in this zone, so daylight saving time is honoured."
+            control={
+              <RoutineTimezoneField
+                id="notifications-timezone"
+                value={value.timezone}
+                onChange={(timezone) => setValue({ ...value, timezone })}
+              />
             }
           />
         </SettingsCard>

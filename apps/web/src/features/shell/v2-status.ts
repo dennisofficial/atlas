@@ -1,5 +1,6 @@
-import { ESessionStatus } from '@dltech/atlas-core'
-import { ESandboxStatus, type ESandboxProvider } from '@dltech/atlas-protocol'
+import { ESessionDisplay, isSessionUnreadOf, sessionDisplayOf } from '@dltech/atlas-client/stream'
+import type { ESessionStatus } from '@dltech/atlas-core'
+import type { ESandboxProvider, ESandboxStatus } from '@dltech/atlas-protocol'
 
 import type { PullRequestEntry } from '@/features/threads/data/pull-request-entries'
 
@@ -16,46 +17,30 @@ export type V2RowView = {
   readSeq: number | null
 }
 
-const ICON: Record<ESessionStatus, EThreadStatus> = {
-  [ESessionStatus.Failed]: EThreadStatus.Failed,
-  [ESessionStatus.SetupFailed]: EThreadStatus.Failed,
-  [ESessionStatus.StartFailed]: EThreadStatus.Failed,
-  [ESessionStatus.WaitingForCredentials]: EThreadStatus.Awaiting,
-  [ESessionStatus.WaitingForOperator]: EThreadStatus.Awaiting,
-  [ESessionStatus.Preparing]: EThreadStatus.Starting,
-  [ESessionStatus.Queued]: EThreadStatus.Idle,
-  [ESessionStatus.Thinking]: EThreadStatus.Running,
-  [ESessionStatus.RunningTool]: EThreadStatus.Running,
-  [ESessionStatus.WaitingToRetry]: EThreadStatus.Running,
-  [ESessionStatus.Resuming]: EThreadStatus.Running,
-  [ESessionStatus.WaitingForBackground]: EThreadStatus.Running,
-  [ESessionStatus.Idle]: EThreadStatus.Idle,
+const ICON: Record<ESessionDisplay, EThreadStatus> = {
+  [ESessionDisplay.Starting]: EThreadStatus.Starting,
+  [ESessionDisplay.StartFailed]: EThreadStatus.Failed,
+  [ESessionDisplay.Working]: EThreadStatus.Running,
+  [ESessionDisplay.WaitingForYou]: EThreadStatus.Awaiting,
+  [ESessionDisplay.Idle]: EThreadStatus.Idle,
+  [ESessionDisplay.Parked]: EThreadStatus.Parked,
+  [ESessionDisplay.Failed]: EThreadStatus.Failed,
 }
 
-const POD_ICON: Partial<Record<ESandboxStatus, EThreadStatus>> = {
-  [ESandboxStatus.Provisioning]: EThreadStatus.Starting,
-  [ESandboxStatus.Starting]: EThreadStatus.Starting,
-  [ESandboxStatus.Restarting]: EThreadStatus.Starting,
-  [ESandboxStatus.Updating]: EThreadStatus.Starting,
-  [ESandboxStatus.Waking]: EThreadStatus.Starting,
-  [ESandboxStatus.Sleeping]: EThreadStatus.Parked,
-  [ESandboxStatus.Stopping]: EThreadStatus.Parked,
-  [ESandboxStatus.Stopped]: EThreadStatus.Parked,
-  [ESandboxStatus.Deleting]: EThreadStatus.Parked,
-  [ESandboxStatus.Deleted]: EThreadStatus.Parked,
-  [ESandboxStatus.Failed]: EThreadStatus.Failed,
-}
+const displayOf = (view: V2RowView): ESessionDisplay | undefined =>
+  sessionDisplayOf({ state: view.status, sandboxStatus: view.sandboxStatus })
 
 export const v2StatusIconOf = (view: V2RowView | undefined): EThreadStatus | undefined => {
-  if (view === undefined || view.status === undefined) return undefined
-  const icon = ICON[view.status]
-  if (icon !== EThreadStatus.Idle || view.sandboxStatus === undefined) return icon
-  return POD_ICON[view.sandboxStatus] ?? icon
+  if (view === undefined) return undefined
+  const display = displayOf(view)
+  return display === undefined ? undefined : ICON[display]
 }
 
 export const v2IsUnread = (args: { view: V2RowView; active: boolean }): boolean => {
   if (args.active) return false
-  if (args.view.lastAssistantSeq <= 0) return false
-  if (v2StatusIconOf(args.view) === EThreadStatus.Running) return false
-  return args.view.lastAssistantSeq > (args.view.readSeq ?? -1)
+  return isSessionUnreadOf({
+    display: displayOf(args.view),
+    lastAssistantSeq: args.view.lastAssistantSeq,
+    readSeq: args.view.readSeq,
+  })
 }

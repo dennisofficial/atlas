@@ -45,10 +45,14 @@ import { useStagedMessages } from './data/use-staged-messages'
 import { useSessionAttachments } from './data/use-session-attachments'
 import { useSessionReveal } from './data/use-session-reveal'
 import { useSessionSkills } from './data/use-session-skills'
+import { useSessionCommands } from './data/use-session-commands'
+import { composerEntriesOf } from './data/session-commands'
+import { composerActionsOf } from './data/session-composer-actions'
 import { useSessionSummarise } from './data/use-session-summarise'
 import { pendingOperatorRequestOf } from './data/use-operator-request'
 import { useSessionStream } from './data/use-session-stream'
 import { CommandRows } from './command-rows'
+import { CommandListDialog } from './command-list-dialog'
 import { ConnectionLine } from './connection-line'
 import { QueuedDock } from './queued-dock'
 import { RefusalRows } from './refusal-rows'
@@ -197,11 +201,25 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     })
 
   const summarise = useSessionSummarise({ sessionId, events: snapshot.events })
-  const skillSpecs = useSessionSkills({ events: snapshot.events })
+  const skillEntries = useSessionSkills({ events: snapshot.events })
+  const commandEntries = useSessionCommands()
+  const [commandListOpen, setCommandListOpen] = useState(false)
+  const composerEntries = useMemo(
+    () => composerEntriesOf({ commands: commandEntries, skills: skillEntries }),
+    [commandEntries, skillEntries],
+  )
   const choice = useSessionModelChoice({
     sessionId,
     current: sessionModelOf(listed),
   })
+  const composerActions = useMemo(
+    () =>
+      composerActionsOf({
+        openModelPicker: () => choice.setOpen(true),
+        openCommandList: () => setCommandListOpen(true),
+      }),
+    [choice.setOpen],
+  )
   const failure = useSessionRunFailure({
     sessionId,
     events: snapshot.events,
@@ -309,13 +327,19 @@ export function SessionView({ sessionId }: { sessionId: string }) {
                 ) : null}
                 <RefusalRows refusals={refusals} onDismiss={dismissRefusals} />
                 <SummariseDialog {...summarise.dialog} />
+                <CommandListDialog
+                  open={commandListOpen}
+                  onOpenChange={setCommandListOpen}
+                  entries={composerEntries}
+                />
                 <CommandRows rows={snapshot.status?.commands} />
                 <QueuedDock dock={queuedDock} />
                 <ThreadComposer
                   value={draft}
                   onValueChange={setDraft}
                   onSubmit={(text) => void handleSubmit(text)}
-                  commandSpecs={skillSpecs}
+                  entries={composerEntries}
+                  clientActions={composerActions}
                   sending={sending || attachments.uploading}
                   {...attachments.composerProps}
                   sendsAttachmentsAlone

@@ -2,13 +2,14 @@
 
 import type { KeyboardEvent, ReactNode } from 'react'
 
-import type { CommandSpec } from '@dltech/atlas-core'
+import { clientActionOfEntries, EClientAction, type CommandEntry } from '@dltech/atlas-commands'
+
 import { PromptInput, type PromptInputProps } from '@dltech/atlas-ui/ai/prompt-input'
 
 import { CommandMenu, COMMAND_MENU_ID, optionIdOf } from './commands/command-menu'
 import { useCommandMenu } from './commands/use-command-menu'
 
-const NO_SPECS: readonly CommandSpec[] = []
+const NO_ENTRIES: readonly CommandEntry[] = []
 
 export function ThreadComposer({
   value,
@@ -19,7 +20,8 @@ export function ThreadComposer({
   working,
   onStop,
   placeholder,
-  commandSpecs = NO_SPECS,
+  entries = NO_ENTRIES,
+  clientActions,
   children,
   ...attach
 }: Pick<
@@ -34,14 +36,26 @@ export function ThreadComposer({
   working?: boolean | undefined
   onStop?: (() => void) | undefined
   placeholder?: string | undefined
-  commandSpecs?: readonly CommandSpec[] | undefined
+  entries?: readonly CommandEntry[] | undefined
+  clientActions?: Record<EClientAction, () => void> | undefined
   children?: ReactNode
 }) {
   const menu = useCommandMenu({
     text: value,
-    specs: commandSpecs,
+    entries,
     onComplete: onValueChange,
   })
+  const handleSubmit = (text: string) => {
+    if (clientActions !== undefined) {
+      const action = clientActionOfEntries({ text, entries })
+      if (action !== null) {
+        clientActions[action]()
+        onValueChange('')
+        return
+      }
+    }
+    onSubmit(text)
+  }
   const handleKeyDown = (event: KeyboardEvent<HTMLFieldSetElement>) => {
     if (event.key !== 'Escape' || event.nativeEvent.isComposing || event.defaultPrevented) return
     event.preventDefault()
@@ -59,7 +73,7 @@ export function ThreadComposer({
       <PromptInput
         value={value}
         onValueChange={onValueChange}
-        onSubmit={onSubmit}
+        onSubmit={handleSubmit}
         sending={sending}
         busy={working}
         queueWhileBusy

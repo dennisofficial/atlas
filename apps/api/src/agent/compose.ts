@@ -5,9 +5,14 @@ import {
   SessionHolder,
   TerminalDemand,
   type HostPresence,
+  type NotifyDispatch,
   type PodControlClient,
 } from '@dltech/atlas-host'
-import { nativeCommandHandlers, nativeCommands } from '@dltech/atlas-native-commands'
+import {
+  nativeCommandHandlers,
+  nativeCommands,
+  nativeControlHandlers,
+} from '@dltech/atlas-native-commands'
 import { cloudConfigStore } from './config/cloud-config-store'
 import { envSecretsReader } from './config/env-secrets'
 import { projectFilesSourceOf } from './config/project-files'
@@ -57,6 +62,7 @@ export type ComposeAgentHostArgs = {
   presence: HostPresence
   control: PodControlClient
   macLink: MacLink
+  notify?: NotifyDispatch | undefined
   onHostIdChanged?: (() => void) | undefined
 }
 
@@ -96,6 +102,7 @@ export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
     reasonOfStartError: startFailureReason,
     commands: composeCommands([...nativeCommands, ...composedPlugins.commands]),
     commandHandlers: new Map([...nativeCommandHandlers, ...composedPlugins.pod.commands]),
+    controlHandlers: nativeControlHandlers,
     control: args.control,
     mcp: (sessionId) => mcpControl.of(sessionId),
     operator: {
@@ -103,6 +110,7 @@ export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
       openValue: (sealed) => cipher.decrypt(sealed),
     },
     ...(args.changes === undefined ? {} : { changes: args.changes }),
+    ...(args.notify === undefined ? {} : { notify: args.notify }),
     terminalDemand,
     panelDemand,
     onHostIdChanged: args.onHostIdChanged,

@@ -3,7 +3,6 @@ import { describe, expect, it } from 'bun:test'
 import {
   EAgentLostCause,
   EAgentStatus,
-  EReportKind,
   EShellStatus,
   EToolEffect,
   ToolDefinition,
@@ -243,8 +242,8 @@ describe('a report from an adopted sub-agent', () => {
     const rig = await makeRig({})
     await seedSession(rig)
 
-    await transcriptOn({ rig, seq: 4 }).reported({ kind: EReportKind.Blocked, text: 'first' })
-    await transcriptOn({ rig, seq: 9 }).reported({ kind: EReportKind.Blocked, text: 'second' })
+    await transcriptOn({ rig, seq: 4 }).reported({ text: 'first' })
+    await transcriptOn({ rig, seq: 9 }).reported({ text: 'second' })
 
     expect(await noticeRows(rig, 'agent-reported')).toEqual([
       `agent-reported:${CHILD_THREAD}:4`,

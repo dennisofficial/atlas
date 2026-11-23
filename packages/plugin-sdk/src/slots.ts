@@ -1,7 +1,11 @@
 import type { HookChainArgs } from '@dltech/atlas-agent'
 import type { TranscriptEntryFold } from '@dltech/atlas-client/transcript'
 import type { CommandHandler, ControlCommandHandler } from '@dltech/atlas-commands'
+import { EClassifierFault } from '@dltech/atlas-core'
 import type {
+  ClassifierOutcome,
+  ClassifierQuestion,
+  ClassifierStatus,
   EventBody,
   EventDraft,
   PluginEventBody,
@@ -16,6 +20,7 @@ import type { CallOp, CallResult, DaemonEventFrame, LiveFrame } from '@dltech/at
 import type { PodCrew } from './crew'
 import { MacOfflineError, type PodMcpProxyChannel, type PodMcpProxyTransport } from './mcp-proxy'
 import type { PodMemory } from './memory'
+import type { PodMessages } from './messages'
 import type { ECloudSetting, PodResource, PodResources } from './resources'
 import type { PodRoutines } from './routines'
 import type { PodSessions } from './sessions'
@@ -23,8 +28,11 @@ import type { PodSubscriptions } from './subscriptions'
 import type { PodWorktrees } from './worktrees'
 
 export type { PodCrew, SubagentSaid, SubagentSnapshot, SubagentWorktree } from './crew'
-export type { PodSessions, SessionBrief, SessionMessage, SpawnedSession } from './sessions'
+export type { PodSessions, SessionBrief, SpawnedSession } from './sessions'
+export type { SpawnFile } from '@dltech/atlas-core'
 export { EMPTY_SESSIONS } from './sessions'
+export { EMPTY_MESSAGES, PARENT_ADDRESS } from './messages'
+export type { MessageSent, PodMessages } from './messages'
 export { EMPTY_WORKTREES } from './worktrees'
 export type {
   PodWorktrees,
@@ -91,11 +99,33 @@ export type PodControl = {
   subscriptions: PodSubscriptions
 }
 
+export type PodClassifierStatus = ClassifierStatus
+
+export type PodClassifier = {
+  status(): PodClassifierStatus
+  classify(args: {
+    state: string
+    questions: Record<string, ClassifierQuestion>
+    signal: AbortSignal
+  }): Promise<ClassifierOutcome>
+}
+
+export const EMPTY_CLASSIFIER: PodClassifier = Object.freeze({
+  status: (): PodClassifierStatus => ({ on: false, reason: 'no classifier' }),
+  classify: async (): Promise<ClassifierOutcome> => ({
+    ok: false,
+    fault: EClassifierFault.Unavailable,
+    detail: 'this pod has no classifier',
+  }),
+})
+
 export type PluginPodContext = {
   sessionId: string
   workspaceDirectory?: string | null | undefined
   control: PodControl
   crew: PodCrew
+  messages: PodMessages
+  classifier: PodClassifier
   sessions: PodSessions
   worktrees: PodWorktrees
   resources: PodResources
@@ -113,6 +143,15 @@ export type PluginPodContext = {
   env?(): Promise<Record<string, string>>
 }
 
+export type SlashLoadResult =
+  | { ok: true; drafts: readonly EventDraft[] }
+  | { ok: false; reason: string }
+
+export type PodSlash = {
+  names(): Promise<readonly string[]>
+  load(input: { name: string; argumentText: string }): Promise<SlashLoadResult>
+}
+
 export type PodSlot = {
   childDeny?: readonly string[] | undefined
   tools?(ctx: PluginPodContext): readonly ToolDefinition[]
@@ -120,6 +159,7 @@ export type PodSlot = {
   prompts: readonly PromptFragment[]
   commands: ReadonlyMap<string, CommandHandler<unknown>>
   resources?: readonly PodResource<unknown>[] | undefined
+  slash?: ((ctx: PluginPodContext) => PodSlash) | undefined
   onDaemonEvent?(frame: DaemonEventFrame): void
 }
 

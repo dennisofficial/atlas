@@ -59,6 +59,7 @@ export enum ESettingId {
   ComposerEdge = 'appearance.composerEdge',
   Logo = 'appearance.logo',
   ClassifierMode = 'classifier.mode',
+  ClassifierModel = 'classifier.model',
   DecisionsProvider = 'decisions.provider',
   DecisionsUrl = 'decisions.url',
   DecisionsModel = 'decisions.model',
@@ -321,7 +322,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     group: 'Skills',
     label: 'Suggest a skill per turn',
     description:
-      'Before each turn, the decision model from the Decisions group on the models page ranks every skill against your message, re-reads the top three in full, and names at most one to the agent as a hint it is free to ignore — or says that nothing fits, which is what talks the roster out of loads that never should have happened. The roster itself never changes, so prompt caching over it still holds. Without a decision endpoint configured, no ranking happens and turns cost nothing extra.',
+      'Before each turn, the classifier from the Classifier settings page reads the last three messages and replies of the thread, asks one yes/no question per likely skill, and names at most one to the agent with its score, as a hint it is free to ignore. It stays quiet when nothing scores high enough or two skills are too close. Off whenever the classifier is off: no request is made and turns cost nothing extra.',
     environmentVariable: 'ATLAS_SKILL_SUGGEST',
     kind: ESettingKind.Toggle,
     fallback: true,
@@ -756,6 +757,18 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     masked: true,
   },
   {
+    id: ESettingId.ClassifierModel,
+    page: ESettingPage.Models,
+    group: 'Classifier',
+    label: 'Classifier',
+    description:
+      'The decision model behind skill suggestion and the Jev code review. Never a chat model. Empty means off.',
+    environmentVariable: 'ATLAS_CLASSIFIER_MODEL',
+    kind: ESettingKind.Model,
+    fallback: '',
+    unsetLabel: 'off',
+  },
+  {
     id: ESettingId.ModelFavourites,
     page: ESettingPage.Hidden,
     group: 'Model',
@@ -945,3 +958,8 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     fallback: false,
   },
 ]
+
+const NON_CHAT_MODEL_SETTING_IDS: ReadonlySet<string> = new Set([ESettingId.ClassifierModel])
+
+export const isChatModelSetting = (definition: SettingDefinition): boolean =>
+  definition.kind === ESettingKind.Model && !NON_CHAT_MODEL_SETTING_IDS.has(definition.id)

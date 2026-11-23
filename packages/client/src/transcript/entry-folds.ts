@@ -8,7 +8,9 @@ export function inOneBreath(entries: readonly TranscriptEntry[]): TranscriptEntr
     if (
       entry.kind !== EEntryKind.OperatorSaid ||
       open?.kind !== EEntryKind.OperatorSaid ||
-      open.steer !== entry.steer
+      open.steer !== entry.steer ||
+      open.command !== undefined ||
+      entry.command !== undefined
     ) {
       folded.push(entry)
       continue

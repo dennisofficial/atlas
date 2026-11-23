@@ -9,6 +9,14 @@ export const readSessionIn = (params: {
   return row === undefined ? undefined : sessionRowOf(row)
 }
 
+export const readNestedChildrenIn = (params: {
+  state: State
+  sessionId: string
+}): ControlSessionRow[] =>
+  [...params.state.sessions.values()]
+    .filter((row) => row.spawnedBySessionId === params.sessionId && row.nested)
+    .map(sessionRowOf)
+
 export const setSandboxInstanceIdIn = (params: {
   state: State
   sessionId: string

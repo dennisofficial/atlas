@@ -1,7 +1,7 @@
 import { EAccountStatus } from '@dltech/atlas-wire'
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import type { INestApplication } from '@nestjs/common'
+import { BadRequestException, type INestApplication } from '@nestjs/common'
 import request from 'supertest'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test'
 import { seedUsers } from '../../../../test/session-seed'
@@ -12,6 +12,7 @@ import { SessionMiddleware } from '../../../_module/session/session.middleware'
 import { as, createMiddlewareApp } from '../../../_module/trpc/trpc-middleware.fixture'
 import { AccountsRouter } from './accounts.router'
 import { AccountsService } from './accounts.service'
+import { ProviderKeyCheckService } from './provider-key-check.service'
 
 const HEX_KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
 const USERS: Record<string, string> = { 'token-a': 'user-a', 'token-b': 'user-b' }
@@ -25,6 +26,14 @@ const draft = {
 describe('AccountsRouter', () => {
   useTestDatabase()
   let app: INestApplication
+  const checks: { provider: string; apiKey: string }[] = []
+  let refusal: string | null = null
+  const fakeKeyCheck = {
+    async check(args: { provider: string; apiKey: string }): Promise<void> {
+      checks.push(args)
+      if (refusal !== null) throw new BadRequestException(refusal)
+    },
+  }
   const url = (procedure: string) => `/v1/trpc/accounts.${procedure}`
   const query = (procedure: string, token: string | undefined, input?: unknown) => {
     const call = request(app.getHttpServer()).get(url(procedure))
@@ -45,6 +54,7 @@ describe('AccountsRouter', () => {
       providers: [
         AccountsRouter,
         AccountsService,
+        { provide: ProviderKeyCheckService, useValue: fakeKeyCheck },
         SessionMiddleware,
         {
           provide: SESSION_VERIFIER,
@@ -69,6 +79,8 @@ describe('AccountsRouter', () => {
   })
 
   beforeEach(async () => {
+    checks.length = 0
+    refusal = null
     await seedUsers('user-a', 'user-b')
   })
 
@@ -196,5 +208,54 @@ describe('AccountsRouter', () => {
 
     expect(removed.status).toBe(200)
     expect((await query('list', 'token-a')).body.result.data).toEqual([])
+  })
+
+  it('does not save a key the provider refuses', async () => {
+    refusal = 'Anthropic refused this key (401).'
+
+    const response = await mutate('create', 'token-a', draft)
+
+    expect(response.status).toBe(400)
+    expect(response.body.error.message).toBe('Anthropic refused this key (401).')
+    expect(await db.orm.public.AgentAccount.all()).toHaveLength(0)
+    expect(checks).toEqual([{ provider: 'anthropic', apiKey: 'sk-ant-test' }])
+  })
+
+  it('saves a key the provider accepts', async () => {
+    const response = await mutate('create', 'token-a', draft)
+
+    expect(response.status).toBe(200)
+    expect(checks).toEqual([{ provider: 'anthropic', apiKey: 'sk-ant-test' }])
+    expect(await db.orm.public.AgentAccount.all()).toHaveLength(1)
+  })
+
+  it('does not check an oauth account', async () => {
+    const response = await mutate('create', 'token-a', {
+      ...draft,
+      secret: {
+        kind: 'oauth',
+        tokens: { accessToken: 'a', refreshToken: '', expiresAt: '2026-12-01T00:00:00.000Z' },
+      },
+    })
+
+    expect(response.status).toBe(200)
+    expect(checks).toEqual([])
+  })
+
+  it('does not replace a secret with a key the provider refuses', async () => {
+    const id = await createdBy('token-a')
+    refusal = 'Anthropic refused this key (403).'
+
+    const replaced = await mutate('replaceSecret', 'token-a', {
+      accountId: id,
+      secret: { kind: 'api-key', apiKey: 'sk-ant-refused' },
+    })
+
+    expect(replaced.status).toBe(400)
+    expect(replaced.body.error.message).toBe('Anthropic refused this key (403).')
+    expect((await query('get', 'token-a', { accountId: id })).body.result.data.secret).toEqual({
+      kind: 'api-key',
+      apiKey: 'sk-ant-test',
+    })
   })
 })

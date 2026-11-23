@@ -2,8 +2,9 @@ import { useCallback, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 
-import { surfaceCommands, type CommandSpec } from '@dltech/atlas-core'
+import { surfaceCommands } from '@dltech/atlas-core'
 import { EConnectionView, type RemoteDeltaChannel } from '@dltech/atlas-client/channel'
+import type { CommandEntry } from '@dltech/atlas-commands'
 
 import { requestOpenSearch } from '../../shell/search-events'
 import { ERightTab } from '../panel/right-tab'
@@ -11,6 +12,7 @@ import type { RightPanelState } from '../panel/use-right-panel'
 import { dispatchSubmission, EDispatch } from './dispatch'
 import { webCommandHandlers } from './web-command-handlers'
 import { useCommandList } from './use-command-list'
+import { menuEntryOfSpec } from './v1-entries'
 
 export function useThreadCommands(args: {
   threadId: string
@@ -56,8 +58,8 @@ export function useThreadCommands(args: {
     [channel, threadId, openModelPicker, openDetails, wake, router, list.reload],
   )
   const commands = useMemo(() => surfaceCommands({ handlers }), [handlers])
-  const specs = useMemo<readonly CommandSpec[]>(
-    () => [...commands, ...list.skills],
+  const entries = useMemo<readonly CommandEntry[]>(
+    () => [...commands, ...list.skills].map(menuEntryOfSpec),
     [commands, list.skills],
   )
 
@@ -75,5 +77,5 @@ export function useThreadCommands(args: {
     return true
   }
 
-  return { specs, handleCommand, modelOpen, setModelOpen }
+  return { entries, handleCommand, modelOpen, setModelOpen }
 }

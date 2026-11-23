@@ -1,6 +1,8 @@
 import { EAgentStatus } from '@dltech/atlas-core'
 import {
+  EMPTY_CLASSIFIER,
   EMPTY_MCP_CONTROL,
+  EMPTY_MESSAGES,
   EMPTY_POD_RESOURCES,
   EMPTY_ROUTINES,
   EMPTY_SESSIONS,
@@ -56,6 +58,8 @@ export const rig = (crew: PodCrew) => {
   const ctx: PluginPodContext = {
     sessionId: 's1',
     crew,
+    messages: EMPTY_MESSAGES,
+    classifier: EMPTY_CLASSIFIER,
     resources: EMPTY_POD_RESOURCES,
     sessions: EMPTY_SESSIONS,
     worktrees: EMPTY_WORKTREES,

@@ -7,12 +7,14 @@ import {
   type WorktreeListing,
   type WorktreeState,
   EMPTY_CREW,
+  EMPTY_CLASSIFIER,
   EMPTY_MCP_CONTROL,
   EMPTY_ROUTINES,
   EMPTY_SESSIONS,
   EMPTY_SUBSCRIPTIONS,
   EMPTY_POD_RESOURCES,
   UNVERSIONED_SETTINGS,
+  EMPTY_MESSAGES,
 } from '@dltech/atlas-plugin-sdk'
 
 import { crewPod } from '..'
@@ -139,6 +141,8 @@ export const rig = (
     sessionId: 's1',
     resources: EMPTY_POD_RESOURCES,
     crew: args.crew ?? fakeCrew().port,
+    messages: EMPTY_MESSAGES,
+    classifier: EMPTY_CLASSIFIER,
     sessions: EMPTY_SESSIONS,
     worktrees: args.worktrees ?? fakeWorktrees().port,
     control: {

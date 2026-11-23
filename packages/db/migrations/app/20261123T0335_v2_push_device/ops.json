@@ -1,0 +1,131 @@
+[
+  {
+    "id": "table.V2PushDevice",
+    "label": "Create table \"V2PushDevice\"",
+    "summary": "Creates table \"V2PushDevice\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "table",
+        "name": "V2PushDevice"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"V2PushDevice\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"v2\".\"V2PushDevice\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"V2PushDevice\"",
+        "sql": "CREATE TABLE \"v2\".\"V2PushDevice\" (\n  \"clientId\" text NOT NULL,\n  \"createdAt\" timestamptz(3) NOT NULL,\n  \"disabledAt\" timestamptz(3),\n  \"id\" text NOT NULL,\n  \"kind\" text NOT NULL,\n  \"label\" text NOT NULL,\n  \"lastSeenAt\" timestamptz(3) NOT NULL,\n  \"secret\" text,\n  \"token\" text NOT NULL,\n  \"userId\" text NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"V2PushDevice\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"v2\".\"V2PushDevice\"",
+          "r",
+          "p"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.V2PushDevice.V2PushDevice_token_key",
+    "label": "Add unique constraint on \"V2PushDevice\" (token)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "unique",
+        "name": "V2PushDevice_token_key",
+        "table": "V2PushDevice"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"V2PushDevice_token_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "V2PushDevice_token_key",
+          "v2",
+          "\"v2\".\"V2PushDevice\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"V2PushDevice_token_key\"",
+        "sql": "ALTER TABLE \"v2\".\"V2PushDevice\" ADD CONSTRAINT \"V2PushDevice_token_key\" UNIQUE (\"token\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"V2PushDevice_token_key\" exists on (token)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "V2PushDevice_token_key",
+          "v2",
+          "\"v2\".\"V2PushDevice\"",
+          "u",
+          "[\"token\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.V2PushDevice.V2PushDevice_userId_idx_a489d58a",
+    "label": "Create index \"V2PushDevice_userId_idx_a489d58a\" on \"V2PushDevice\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "index",
+        "name": "V2PushDevice_userId_idx_a489d58a",
+        "table": "V2PushDevice"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"V2PushDevice_userId_idx_a489d58a\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"v2\".\"V2PushDevice_userId_idx_a489d58a\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"V2PushDevice_userId_idx_a489d58a\"",
+        "sql": "CREATE INDEX \"V2PushDevice_userId_idx_a489d58a\" ON \"v2\".\"V2PushDevice\" (\"userId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"V2PushDevice_userId_idx_a489d58a\" exists on \"V2PushDevice\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"v2\".\"V2PushDevice_userId_idx_a489d58a\"",
+          "i",
+          "I",
+          "\"v2\".\"V2PushDevice\"",
+          "btree",
+          "[\"userId\"]"
+        ]
+      }
+    ]
+  }
+]

@@ -2,12 +2,14 @@ import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 
-import { surfaceCommands, type CommandSpec } from '@dltech/atlas-core'
+import type { CommandEntry } from '@dltech/atlas-commands'
+import { surfaceCommands } from '@dltech/atlas-core'
 
 import { requestOpenSearch } from '../../shell/search-events'
 import { dispatchSubmission, EDispatch } from './dispatch'
 import { newThreadCommandHandlers } from './new-thread-command-handlers'
 import { useCatalogueSkills } from './use-catalogue-skills'
+import { menuEntryOfSpec } from './v1-entries'
 
 export function useNewThreadCommands(args: { clearDraft: () => void }) {
   const [modelOpen, setModelOpen] = useState(false)
@@ -28,8 +30,8 @@ export function useNewThreadCommands(args: { clearDraft: () => void }) {
     [router, clearDraft, reload],
   )
   const commands = useMemo(() => surfaceCommands({ handlers }), [handlers])
-  const specs = useMemo<readonly CommandSpec[]>(
-    () => [...commands, ...catalogue.skills],
+  const entries = useMemo<readonly CommandEntry[]>(
+    () => [...commands, ...catalogue.skills].map(menuEntryOfSpec),
     [commands, catalogue.skills],
   )
 
@@ -47,5 +49,5 @@ export function useNewThreadCommands(args: { clearDraft: () => void }) {
     return true
   }
 
-  return { specs, handleCommand, modelOpen, setModelOpen }
+  return { entries, handleCommand, modelOpen, setModelOpen }
 }
