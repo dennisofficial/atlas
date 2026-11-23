@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'bun:test'
 import { createDeltaChannel, type ThreadPublisher, type DeltaChannel } from '@dltech/atlas-harness'
 
 import { createConversationStore, type ConversationStore } from '../conversation-store'
+import { channelSignalFeed } from '../../composition/channel-signal-feed'
 import { EEntryKind } from '@dltech/atlas-client/transcript'
 import { fixtureThreadId, log } from '@dltech/atlas-client/transcript-fixture'
 
@@ -26,7 +27,11 @@ describe('the paced reveal', () => {
 
   beforeEach(() => {
     channel = createDeltaChannel()
-    store = createConversationStore({ channel, threadId: fixtureThreadId, paceReveal: true })
+    store = createConversationStore({
+      signals: channelSignalFeed({ channel, threadId: fixtureThreadId }),
+      threadId: fixtureThreadId,
+      paceReveal: true,
+    })
     publisher = channel.publisherFor({ threadId: fixtureThreadId })
   })
 

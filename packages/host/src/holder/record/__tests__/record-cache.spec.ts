@@ -157,6 +157,27 @@ describe('RecordCache', () => {
     expect(cache.visibleLoopEvents().length).toBe(total - covered - 10 + 1)
   }, 60_000)
 
+  it('reads the visible events without the ones a rewind hid', async () => {
+    const { plane, epoch } = await openThread()
+    await appendTo({ plane, epoch, bodies: [said('first'), answered('one')] })
+    const cache = await RecordCache.load({ plane, threadId: THREAD })
+
+    const rewound = await appendTo({
+      plane,
+      epoch,
+      bodies: [{ type: 'history-rewound', toSeq: 1 }],
+    })
+    cache.extend({ events: rewound.events, head: rewound.head })
+
+    expect(cache.eventsAfter(0).map((event) => event.type)).toEqual([
+      'user-said',
+      'assistant-said',
+      'history-rewound',
+    ])
+    expect(cache.visibleEvents().map((event) => event.type)).toEqual(['user-said'])
+    expect(cache.visibleEvents()).toBe(cache.visibleEvents())
+  })
+
   it('does not reload for a rewind that leaves every summary in place', async () => {
     const { plane, epoch } = await openThread()
     await appendTo({

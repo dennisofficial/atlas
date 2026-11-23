@@ -60,7 +60,7 @@ export class FilesService {
     op: Parameters<PodOps['invoke']>[0]['op']
   }): Promise<CallResult> {
     if (this.ops === null) throw new ServiceUnavailableException('pod access is not running')
-    const outcome = await this.ops.invoke(args)
+    const outcome = await this.ops.invoke({ ...args, waitForHolder: true })
     if (outcome.state === 'unavailable') {
       if (outcome.reason === ELiveOpFailure.Asleep) throw new PodParkedError()
       throw new TRPCError({ code: 'BAD_REQUEST', message: 'this pod op is not allowed' })

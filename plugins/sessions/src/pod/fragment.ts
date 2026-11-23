@@ -14,7 +14,7 @@ export class PeerSessionsFragment extends PromptFragment {
       'shape of a fan-out. Either spawn tool takes `files`: paths under $ATLAS_CONTEXT_DIR, which are',
       'copied into the spawned session’s own context folder before its first turn. A spawned session',
       'can commit on its own worktree branch, push it and open',
-      'a pull request with `gh`. It reports the URL back. `send_message` reaches any agent or session',
+      'a pull request with `gh`. It reports back only when its brief asks. `send_message` reaches any agent or session',
       'of the operator’s by its id, and "parent" reaches whoever started you. `list_sessions` lists',
       'every session with the current one marked. `list_teammates` lists only this session’s nested',
       'teammates. Every line names whether the session is working, idle, failed or archived.',
@@ -29,9 +29,11 @@ export class PeerSessionsFragment extends PromptFragment {
     const title = spawner.title === null ? '' : ` (${spawner.title})`
     return [
       '',
-      `The session ${spawner.sessionId}${title} created this one. Message it with \`send_message\` to`,
-      '"parent" when the work touches it. Carry the whole outcome, none of your steps: none of them',
-      'are in its history.',
+      `The session ${spawner.sessionId}${title} created this one. It is the origin of this session,`,
+      'not its owner. Report the outcome to the operator in your own thread. Message it with',
+      '`send_message` to "parent" only when the brief asks for a reply or you need something from it.',
+      'Then carry the whole outcome, none of your steps: none of them are in its history. Never',
+      'message it after it is archived.',
     ]
   }
 }

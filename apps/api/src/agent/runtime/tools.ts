@@ -25,7 +25,7 @@ import { MultiEditTool } from '../agent-tools/multi-edit'
 import { ReadTool } from '../agent-tools/read'
 import { SerializedWrites } from '../agent-tools/write-guard'
 import { WriteTool } from '../agent-tools/write'
-import { ForegroundOnlyShells } from './foreground-shells'
+import type { ShellLauncher } from '../agent-tools/shell-launcher'
 import type { PathEnvironment } from './session-paths'
 
 export class SetupGatedTool extends ToolDefinition {
@@ -75,6 +75,7 @@ export const daemonToolsOf = (args: {
   agentFiles: DaemonAgentFileSystemPort
   pathEnv: PathEnvironment
   gate: WorkspaceGate
+  launcher: ShellLauncher
   shellEnv?: (() => Promise<Record<string, string>>) | undefined
 }): ToolDefinition[] => {
   const guard = new SerializedWrites()
@@ -85,7 +86,12 @@ export const daemonToolsOf = (args: {
     new MultiEditTool(guard, args.agentFiles, args.pathEnv),
     new GrepTool(args.processes, args.agentFiles, args.pathEnv),
     new GlobTool(args.agentFiles, args.pathEnv),
-    new BashTool(new ForegroundOnlyShells(), args.files, args.processes, args.shellEnv),
+    new BashTool({
+      launcher: args.launcher,
+      files: args.files,
+      processes: args.processes,
+      shellEnv: args.shellEnv,
+    }),
   ]
   return tools.map((tool) => new SetupGatedTool(tool, args.gate))
 }

@@ -41,6 +41,7 @@ describe('COMMAND_OUTCOME_EVENT_TYPES', () => {
     expect([...COMMAND_OUTCOME_EVENT_TYPES].sort()).toEqual([
       'history-rewound',
       'history-summarised',
+      'rotated',
     ])
   })
 })
@@ -49,6 +50,18 @@ describe('unfinishedCommandIdsOf', () => {
   it('counts a consumed command that produces an outcome', () => {
     const events = logOf([posted({ inboxId: 1, name: 'summarise' }), consumed(1)])
     expect(unfinishedCommandIdsOf(events)).toEqual([1])
+  })
+
+  it('finishes a consumed rotate once the boundary lands without an inboxId', () => {
+    const unfinished = logOf([posted({ inboxId: 1, name: 'rotate' }), consumed(1)])
+    expect(unfinishedCommandIdsOf(unfinished)).toEqual([1])
+
+    const finished = logOf([
+      posted({ inboxId: 1, name: 'rotate' }),
+      consumed(1),
+      { type: 'rotated', handoff: 'the brief' },
+    ])
+    expect(unfinishedCommandIdsOf(finished)).toEqual([])
   })
 
   it('does not count a consumed command that produces no outcome', () => {

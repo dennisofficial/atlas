@@ -53,6 +53,7 @@ import { SecretsModule } from './cloud/secrets/secrets.module'
 import { HarnessSecretsModule } from './cloud/harness-secrets/harness-secrets.module'
 import { SettingsModule } from './cloud/settings/settings.module'
 import { SessionsModule } from './platform/sessions/sessions.module'
+import { UsageModule } from './platform/usage/usage.module'
 import { SshSigningKeyModule } from './cloud/ssh-signing-key/ssh-signing-key.module'
 import { SkillCatalogueModule } from './cloud/skill-catalogue/skill-catalogue.module'
 import { SkillsModule } from './cloud/skills/skills.module'
@@ -87,6 +88,7 @@ import { ControlPlaneModule } from './platform/control/control-plane.module'
     DesktopAuthModule,
     AccountsModule,
     ClassifierModule,
+    UsageModule,
     CredentialAvailabilityModule,
     OauthConnectionsModule,
     ProviderSignInModule,

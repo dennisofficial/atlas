@@ -9,10 +9,14 @@ import {
 import type { SessionCommandInput, SessionCommandOutput } from '@dltech/atlas-protocol'
 import type { SaidImageWire } from '@dltech/atlas-wire/web'
 
-import type { RewindKillRow } from '@/features/threads/data/rewind'
-
 export type RewindApi = {
   command(input: SessionCommandInput): Promise<SessionCommandOutput>
+}
+
+export type RewindKillRow = {
+  kind: 'agent' | 'shell' | 'service'
+  label: string
+  running: boolean
 }
 
 export type RewoundMessage = {
@@ -96,17 +100,12 @@ export const rewindKillsOf = (args: {
   }))
 }
 
-/**
- * The client window drops hidden events, the history-rewound marker included, so the rewind shows
- * up only as the picked message leaving the window.
- */
 export const rewindLanded = (args: { events: readonly V2Event[]; eventId: string }): boolean =>
   !args.events.some((event) => event.id === args.eventId)
 
 export const rewindRefused = (args: { events: readonly V2Event[]; inboxId: number }): boolean =>
   args.events.some((event) => event.type === 'input-refused' && event.inboxId === args.inboxId)
 
-/** A rewind never throws away what the operator already typed: the rewound message leads it. */
 export const mergedDraftOf = (args: { rewound: string; current: string }): string => {
   if (args.current.trim() === '') return args.rewound
   if (args.rewound.trim() === '') return args.current

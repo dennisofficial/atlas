@@ -18,7 +18,6 @@ import {
   rewoundMessageOf,
   seqByEventIdOf,
 } from '../session-rewind'
-import { restoredMediaOf } from '../session-media'
 
 const eventsOf = (bodies: readonly V2Body[]) =>
   chainEvents({
@@ -198,20 +197,6 @@ describe('session rewind', () => {
       const picked = events[1]
       if (picked === undefined) throw new Error('missing')
       expect(rewindKillsOf({ events, toSeq: picked.seq })).toEqual([])
-    })
-  })
-
-  it('restores stored media as ready to send', () => {
-    expect(
-      restoredMediaOf({
-        id: 'x',
-        item: { hash: 'h', name: 'shot.png', mediaType: 'image/png', size: 3, inline: 'AAA' },
-      }),
-    ).toMatchObject({
-      id: 'x',
-      status: 'ready',
-      hash: 'h',
-      previewUrl: 'data:image/png;base64,AAA',
     })
   })
 })

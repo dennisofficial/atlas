@@ -4,6 +4,7 @@ import { createDeltaChannel } from '@dltech/atlas-harness'
 import { fixtureThreadId } from '@dltech/atlas-client/transcript-fixture'
 
 import { createConversationStore } from '../conversation-store'
+import { channelSignalFeed } from '../../composition/channel-signal-feed'
 import { EEntryKind } from '@dltech/atlas-client/transcript'
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
@@ -19,7 +20,7 @@ describe('the paced reveal under a fast stream', () => {
   it('never passes the reveal horizon, however fast deltas arrive', async () => {
     const channel = createDeltaChannel()
     const store = createConversationStore({
-      channel,
+      signals: channelSignalFeed({ channel, threadId: fixtureThreadId }),
       threadId: fixtureThreadId,
       paceReveal: true,
     })

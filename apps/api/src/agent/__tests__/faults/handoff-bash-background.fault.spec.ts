@@ -124,3 +124,107 @@ describeHandoff({
     expect(await dispatchesOf(ctx)).toHaveLength(1)
   },
 })
+
+const BG_CALL_ID = 'bg1'
+const BG_HOLD_CALL_ID = 'bg2'
+
+describeHandoff({
+  name: 'a bash call started with background true',
+  prompt: 'start a long command in the background',
+  knobs: { plugins: true },
+
+  async start(ctx): Promise<HostProcess> {
+    const started = ctx.path('bg-started')
+    const runs = ctx.path('bg-runs')
+    const gate = ctx.gate('bg-gate')
+    const hold = ctx.gate('bg-hold')
+    const command = `touch ${started}; echo run >> ${runs}; cat ${gate}; echo done`
+    const hostA = await ctx.rig.spawnHost({
+      label: 'host-a',
+      daemonUrl: ctx.daemon.url,
+      workspace: ctx.workspace,
+      knobs: { plugins: true },
+      scripts: {
+        [ctx.sessionId]: [
+          {
+            calls: [
+              {
+                callId: BG_CALL_ID,
+                name: 'bash',
+                input: {
+                  description: 'start the long command',
+                  command,
+                  background: true,
+                },
+              },
+            ],
+          },
+          {
+            calls: [
+              {
+                callId: BG_HOLD_CALL_ID,
+                name: 'bash',
+                input: { description: 'hold the turn', command: `cat ${hold}` },
+              },
+            ],
+          },
+          { text: 'host a finished' },
+        ],
+      },
+    })
+    await ctx.rig.claim({ sessionId: ctx.sessionId, label: 'host-a', timeoutMs: 30_000 })
+    await waitUntil({
+      what: 'the background bash call to be dispatched',
+      check: async () =>
+        (await rowsOf({ ctx, type: 'tool-dispatched', callId: BG_CALL_ID })).length === 1,
+    })
+    await ctx.waitFor('bg-started', 30_000)
+    await waitUntil({
+      what: 'the background bash call to return its shell id',
+      check: async () =>
+        (await rowsOf({ ctx, type: 'tool-result', callId: BG_CALL_ID })).length === 1,
+    })
+    await waitUntil({
+      what: 'the turn to still hold the session open',
+      check: async () =>
+        (await rowsOf({ ctx, type: 'tool-dispatched', callId: BG_HOLD_CALL_ID })).length === 1,
+    })
+    return hostA
+  },
+
+  async inFlight(ctx) {
+    const results = await rowsOf({ ctx, type: 'tool-result', callId: BG_CALL_ID })
+    expect(results).toHaveLength(1)
+    expect(backgroundedOf(results[0])).toBe(true)
+    expect(await startedRows(ctx)).toHaveLength(1)
+    expect(await endedRows(ctx)).toHaveLength(0)
+  },
+
+  async release(ctx) {
+    await ctx.release('bg-gate')
+    await ctx.release('bg-hold')
+  },
+
+  async settled(ctx) {
+    await waitUntil({
+      what: 'the background shell to report its ending',
+      check: async () => (await endedRows(ctx)).length === 1,
+    })
+    expect(await rowsOf({ ctx, type: 'tool-result', callId: BG_CALL_ID })).toHaveLength(1)
+    expect(await startedRows(ctx)).toHaveLength(1)
+    expect(await endedRows(ctx)).toHaveLength(1)
+    expect(await rowsOf({ ctx, type: 'tool-dispatched', callId: BG_CALL_ID })).toHaveLength(1)
+  },
+
+  async runs(ctx) {
+    return ctx.runCount('bg-runs')
+  },
+
+  async interrupted(ctx) {
+    const results = await rowsOf({ ctx, type: 'tool-result', callId: BG_CALL_ID })
+    expect(results).toHaveLength(1)
+    expect(backgroundedOf(results[0])).toBe(true)
+    expect(await startedRows(ctx)).toHaveLength(1)
+    expect(await rowsOf({ ctx, type: 'tool-dispatched', callId: BG_CALL_ID })).toHaveLength(1)
+  },
+})

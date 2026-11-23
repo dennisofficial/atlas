@@ -26,7 +26,8 @@ import {
   type HeldAttachment,
 } from './composer-attachments'
 import { isImageFile } from './composer-images'
-import { discardUpload, presignUpload, putFile, type UploadHandle } from './composer-uploads-api'
+import type { UploadHandle } from '@dltech/atlas-client/session'
+import { discardUpload, presignUpload, putFile } from './composer-uploads-api'
 import { encodeImage } from './image-encode'
 
 export function useComposerAttachments() {

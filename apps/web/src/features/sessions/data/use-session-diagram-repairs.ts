@@ -17,6 +17,16 @@ export const REPAIRED_DIAGRAM_DOES_NOT_PARSE = 'the repaired diagram still does 
 const NO_REPAIRS: ReadonlyMap<string, string> = new Map()
 const NO_VERDICTS: ReadonlyMap<string, boolean> = new Map()
 
+const isRepairOutput = (args: {
+  entries: DiagramRepairListOutput['repairs'] | undefined
+  key: string
+}): boolean =>
+  (args.entries ?? []).some(
+    (entry) =>
+      entry.outcome.kind === EDiagramRepair.Repaired &&
+      diagramKey(entry.outcome.repaired) === args.key,
+  )
+
 export type DiagramValidator = (source: string) => Promise<boolean>
 
 export type SessionDiagramRepairs = {
@@ -90,10 +100,10 @@ export function useSessionDiagramRepairs({
       const key = diagramKey(chart)
       const settled = attempts.current.get(key)
       if (settled !== undefined) return settled
+      const known = queryClient.getQueryData<DiagramRepairListOutput>(queryKey)?.repairs
+      if (isRepairOutput({ entries: known, key })) return
       const attempt = (async () => {
-        const listed = queryClient
-          .getQueryData<DiagramRepairListOutput>(queryKey)
-          ?.repairs.find((entry) => diagramKey(entry.source) === key)
+        const listed = known?.find((entry) => diagramKey(entry.source) === key)
         const outcome =
           listed?.outcome ??
           (await api.repair({

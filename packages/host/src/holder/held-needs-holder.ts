@@ -3,6 +3,7 @@ import {
   drainWantsHolder,
   initialLoopState,
   isResumableOf,
+  repairHoldsResume,
   setupInFlightOf,
   workspaceStateFrom,
 } from '@dltech/atlas-core'
@@ -43,6 +44,8 @@ export const drainNeedsHolder = async (args: {
     })
     const children = spawnedChildrenOf(cache?.visibleLoopEvents() ?? [])
     const state = cache?.loopState() ?? initialLoopState()
+    const repairHeld =
+      cache !== undefined && repairHoldsResume({ mainThreadId: cache.threadId(), events })
     return drainWantsHolder({
       turn: args.turnRunning ? 'running' : 'idle',
       childrenRunning:
@@ -51,7 +54,7 @@ export const drainNeedsHolder = async (args: {
           sessionId: args.deps.sessionId,
           children,
         })) > 0,
-      resumable: isResumableOf(state) && !stopSettledPromptOf(events),
+      resumable: isResumableOf(state) && !stopSettledPromptOf(events) && !repairHeld,
       messagePending:
         actionableEntries({ entries, failure: workspace.failure }).length > 0 ||
         waitingInputIdsOf({ ids: logIds, failure: workspace.failure }).length > 0,

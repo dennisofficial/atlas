@@ -11,23 +11,16 @@ import {
   SchemaTool,
   type DeclaredPathField,
   type RevealedLines,
-  type ThreadId,
   type ToolOutcome,
   type ToolRun,
 } from '@dltech/atlas-core'
 
-import { nullUnlessInterrupted } from './interrupted'
+import { nullIfMissing } from './interrupted'
 import { filePathSchema, resolveToolPath } from './file-text'
 import type { PathEnvironment } from '../runtime/session-paths'
 import { runPosixGrep } from './grep-fallback'
 import { runSearcher } from './grep-run'
-import {
-  messageOf,
-  ripgrepBinaryOf,
-  ripgrepSearcher,
-  type Searcher,
-  type SearchArguments,
-} from './grep-search'
+import { messageOf, ripgrepBinaryOf, ripgrepSearcher } from './grep-search'
 import { missingPathReason } from './missing-path'
 
 const DEFAULT_HEAD_LIMIT = 250
@@ -179,14 +172,14 @@ export class GrepTool extends SchemaTool<typeof inputSchema> {
     const searchPath = resolved.path
 
     if (rawPath !== undefined) {
-      const target = await this.files
-        .stat({ path: searchPath, threadId })
-        .catch(nullUnlessInterrupted)
+      const target = await this.files.stat({ path: searchPath, threadId }).catch(nullIfMissing)
       if (target === null) {
         return {
           ok: false,
           reason: await missingPathReason({
             path: searchPath,
+            files: this.files,
+            threadId,
             ...(resolved.anchored ? { resolvedFrom: { raw: rawPath, projectDirectory } } : {}),
           }),
         }

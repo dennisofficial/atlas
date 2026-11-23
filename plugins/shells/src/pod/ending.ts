@@ -16,7 +16,6 @@ export const recordShellEnding = async (args: {
   if (state.endings.has(shellId)) return
   state.endings.add(shellId)
   try {
-    await state.starting.get(shellId)
     if (hasEnded({ events: ctx.events(), shellId })) {
       state.cursors.reset(shellId)
       return

@@ -1,5 +1,6 @@
 import type { Event, ThreadId } from '@dltech/atlas-core'
-import type { DeltaChannel, TurnSpend, Unsubscribe } from '@dltech/atlas-harness'
+import type { ChannelSignal, Unsubscribe } from '@dltech/atlas-client/channel'
+import type { TurnSpend } from '@dltech/atlas-harness'
 import type {
   EThinkingVisibility,
   InFlightStep,
@@ -37,8 +38,10 @@ export type ConversationStore = {
   dispose(): void
 }
 
+export type SignalFeed = { subscribe(listener: (signal: ChannelSignal) => void): Unsubscribe }
+
 export type ConversationStoreArgs = {
-  channel: DeltaChannel
+  signals: SignalFeed
   threadId: ThreadId
   events?: readonly Event[]
   turns?: readonly TurnSpend[]

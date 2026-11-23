@@ -4,7 +4,13 @@ import { join } from 'node:path'
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { files, processes } from './support'
 
-import { toThreadId, type ToolOutcome } from '@dltech/atlas-core'
+import {
+  toThreadId,
+  type AgentFileSystemPort,
+  type FileStat,
+  type FileSystemEntry,
+  type ToolOutcome,
+} from '@dltech/atlas-core'
 
 import { GrepTool, type GrepInput } from '../grep'
 import { ReadTool } from '../read'
@@ -94,5 +100,91 @@ describe('a missing path tells the model what is actually there', () => {
     const outcome = await search({ pattern: 'needle', path: join(root, 'top.ts') })
 
     expect(outcome.ok).toBe(true)
+  })
+})
+
+const JOURNAL_FAILED =
+  'the call journal could not be written: the sandbox disk is full (ENOSPC). Free space or wait for the disk to grow.'
+
+const failingFiles = (): AgentFileSystemPort =>
+  Object.assign(Object.create(files), {
+    stat: () => Promise.reject(new Error(JOURNAL_FAILED)),
+  })
+
+const VIRTUAL_ROOT = '/virtual/atlas'
+
+const virtualFiles = (): AgentFileSystemPort =>
+  Object.assign(Object.create(files), {
+    stat: ({ path }: { path: string }) =>
+      path === VIRTUAL_ROOT
+        ? Promise.resolve(directoryStat)
+        : Promise.reject(
+            Object.assign(new Error(`ENOENT: no such file or directory '${path}'`), {
+              code: 'ENOENT',
+            }),
+          ),
+    readDirectory: ({ path }: { path: string }) =>
+      Promise.resolve(path === VIRTUAL_ROOT ? virtualEntries : []),
+  })
+
+const directoryStat: FileStat = {
+  size: 0,
+  mode: 0o755,
+  mtimeMs: 0,
+  isFile: () => false,
+  isDirectory: () => true,
+}
+
+const virtualEntries: readonly FileSystemEntry[] = [
+  { name: 'sandbox-only.ts', isFile: () => true, isDirectory: () => false },
+  { name: 'sandbox-only-dir', isFile: () => false, isDirectory: () => true },
+]
+
+describe('a sandbox call that failed is not reported as a missing file', () => {
+  it('tells the model the sandbox could not answer instead of that the file does not exist', async () => {
+    const read = new ReadTool({ files: failingFiles() }).invoke({
+      input: { path: join(root, 'composition', 'app.tsx') },
+      signal: new AbortController().signal,
+      idempotencyKey: 'failing-stat-read',
+      projectDirectory: root,
+      threadId: toThreadId('thread-1'),
+    })
+
+    const error = await read.catch((caught: unknown) => caught)
+
+    expect(error).toBeInstanceOf(Error)
+    expect((error as Error).message).toContain('the sandbox disk is full')
+    expect((error as Error).message).not.toContain('File does not exist')
+  })
+
+  it('fails a grep the same way', async () => {
+    const grep = new GrepTool(processes, failingFiles()).invoke({
+      input: { pattern: 'needle', path: join(root, 'top.ts') },
+      signal: new AbortController().signal,
+      idempotencyKey: 'failing-stat-grep',
+      projectDirectory: root,
+      threadId: toThreadId('thread-1'),
+    })
+
+    const error = await grep.catch((caught: unknown) => caught)
+
+    expect((error as Error).message).toContain('the sandbox disk is full')
+    expect((error as Error).message).not.toContain('File does not exist')
+  })
+
+  it('lists the entries the sandbox reports, not the ones on this machine', async () => {
+    const reason = reasonOf(
+      await new ReadTool({ files: virtualFiles() }).invoke({
+        input: { path: `${VIRTUAL_ROOT}/sandbox-only.tsx` },
+        signal: new AbortController().signal,
+        idempotencyKey: 'virtual-listing-read',
+        projectDirectory: root,
+        threadId: toThreadId('thread-1'),
+      }),
+    )
+
+    expect(reason).toContain('sandbox-only.ts')
+    expect(reason).toContain('sandbox-only-dir/')
+    expect(reason).not.toContain('composition')
   })
 })

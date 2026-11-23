@@ -213,7 +213,11 @@ export class SessionsRouter {
     @Input() input: SessionRetryInput,
     @Ctx() ctx: SessionTrpcCtx,
   ): Promise<SessionRetryOutput> {
-    return this.sessions.retry({ userId: ctx.auth.userId, sessionId: input.sessionId })
+    return this.sessions.retry({
+      userId: ctx.auth.userId,
+      sessionId: input.sessionId,
+      agentId: input.agentId,
+    })
   }
 
   @Mutation({ input: sessionStopInputSchema, output: sessionStopOutputSchema })

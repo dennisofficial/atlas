@@ -20,7 +20,7 @@ const inputSchema = z.strictObject({
 export class ShellInputTool extends SchemaTool<typeof inputSchema> {
   readonly name = 'shell_input'
   readonly description =
-    'Send text to the stdin of a background shell without interrupting it. Include a newline when you answer a line-oriented prompt. The shell must have been started with input set to true. Set end to close stdin after the text, which is permanent for that shell. This is a pipe, not a terminal, so a full-screen terminal program and a terminal-only password prompt are not supported.'
+    'Send text to the stdin of a background shell without interrupting it. Include a newline when you answer a line-oriented prompt. The shell must have been started by bash with input set to true. Set end to close stdin after the text, which is permanent for that shell. This is a pipe, not a terminal, so a full-screen terminal program and a terminal-only password prompt are not supported.'
   readonly effect = EToolEffect.Destructive
   readonly inputSchema = inputSchema
   override readonly pathFields = TAKES_NO_PATHS

@@ -7,6 +7,7 @@ import type { PodMcpControl } from '@dltech/atlas-plugin-sdk'
 import type { CommandHandlers, ControlHandlers } from './command-intake'
 import type { NotifyDispatch } from './notify-dispatch'
 import type { PodControlClient } from './pod-control'
+import type { TurnEndedHook } from './turn-ended-hook'
 import type { HostBus, HostTimers, PodPeers, SessionRuntimeFactory } from './ports'
 
 export type StartVerdict = { permanent: boolean; giveUp: boolean }
@@ -31,5 +32,6 @@ export type HeldSessionDeps = {
   operator?: { sessionDir: string; openValue: (sealed: string) => string } | undefined
   changes?: { content: ChangeContentStore } | undefined
   notify?: NotifyDispatch | undefined
+  turnEnded?: TurnEndedHook | undefined
   log?: LogPort | undefined
 }

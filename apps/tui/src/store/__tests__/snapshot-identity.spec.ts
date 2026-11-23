@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'bun:test'
 import { createDeltaChannel, type DeltaChannel } from '@dltech/atlas-harness'
 
 import { createConversationStore, type ConversationStore } from '../conversation-store'
+import { channelSignalFeed } from '../../composition/channel-signal-feed'
 import { IDLE_TURN } from '../../ui/turn-clock'
 import { fixtureThreadId, log } from '@dltech/atlas-client/transcript-fixture'
 
@@ -23,7 +24,11 @@ describe('snapshot identity', () => {
 
   beforeEach(() => {
     channel = createDeltaChannel()
-    store = createConversationStore({ channel, threadId: fixtureThreadId, events: conversation })
+    store = createConversationStore({
+      signals: channelSignalFeed({ channel, threadId: fixtureThreadId }),
+      threadId: fixtureThreadId,
+      events: conversation,
+    })
   })
 
   it('keeps every entry when the same log is set again', () => {

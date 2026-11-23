@@ -16,6 +16,8 @@ export type LaunchArgs = {
   cwd: string
   name?: string | undefined
   declarationHash?: string | undefined
+  root?: string | undefined
+  branch?: string | undefined
   env?: Record<string, string> | undefined
   port?: number | undefined
   healthPath?: string | undefined
@@ -58,7 +60,6 @@ export const launchTracked = async (
       signal: args.signal,
     })
     if (!launched.ok) return { ok: false, reason: launched.reason }
-    state.cwds.set(serviceId, args.cwd)
     const exposure =
       args.port === undefined || args.expose === false
         ? undefined
@@ -75,6 +76,9 @@ export const launchTracked = async (
         description: args.description,
         ...(args.name === undefined ? {} : { name: args.name }),
         ...(args.declarationHash === undefined ? {} : { declarationHash: args.declarationHash }),
+        cwd: args.cwd,
+        ...(args.root === undefined ? {} : { root: args.root }),
+        ...(args.branch === undefined ? {} : { branch: args.branch }),
         ...(args.port === undefined ? {} : { port: args.port }),
         ...(url === undefined ? {} : { url }),
       },

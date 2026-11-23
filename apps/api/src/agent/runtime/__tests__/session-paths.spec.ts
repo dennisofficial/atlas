@@ -10,8 +10,7 @@ import { BashTool } from '../../agent-tools/bash'
 import { bashDescription } from '../../agent-tools/bash-prose'
 import { expandPathEnvironment, pathEnvironmentNote } from '../../agent-tools/file-text'
 import { ReadTool } from '../../agent-tools/read'
-import { files, processes } from '../../agent-tools/__tests__/support'
-import { ForegroundOnlyShells } from '../foreground-shells'
+import { files, launcher, processes } from '../../agent-tools/__tests__/support'
 import {
   ATLAS_CONTEXT_DIR_ENV,
   ATLAS_SESSION_DIR_ENV,
@@ -41,7 +40,7 @@ const spawnedEnvOf = async (args: {
     },
     which: (command) => processes.which(command),
   } as ProcessPort
-  const tool = new BashTool(new ForegroundOnlyShells(), files, recording, async () => env)
+  const tool = new BashTool({ launcher, files, processes: recording, shellEnv: async () => env })
   await tool.invoke({
     input: { description: 'Print a word', command: 'echo hi' },
     signal: new AbortController().signal,

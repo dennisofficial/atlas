@@ -85,6 +85,9 @@ assembly, settings, ports, and the record folds. It imports `zod` and nothing el
 
 - `EModelRole`, `ModelCard`, `EEffort`: the model a role resolves to.
 - `formatUtilization(value)`: a usage figure for the operator.
+- `formatCountdown({ resetsAt, now })`: how long a usage window has left, in minutes, hours or
+  days.
+- `UsageReport`: a reading and the time it was fetched, so a surface can show its age.
 - `parseAnthropicUsage(body)`, `parseCodexUsage({ body, nowMs })`: the 5-hour and 7-day windows of
   a provider's plan usage body. A window the body does not state is `null`.
 - `maskTypedSecret(value)`, `maskStoredSecret(value)`: a secret with its core hidden.
@@ -94,6 +97,8 @@ assembly, settings, ports, and the record folds. It imports `zod` and nothing el
 - `Lease`, `startVerdict({...})`, `claimGrant({...})`, `revoke({...})`: the lease rules.
 - `consume({entry, seq})`, `takeBack(entry)`, `InboxEntry`: the inbox rules.
 - `decideHeldAction({...})`, `HeldOutcome`, `EExecutionLocation`: the host's next action.
+- `credentialRepairOf({mainThreadId, events})`, `repairActionsOf({...})`, `ERepairAction`: the
+  credential repair a session shows, and what it offers.
 
 ### Name a file a spawn attaches
 

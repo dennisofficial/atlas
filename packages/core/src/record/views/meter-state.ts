@@ -35,6 +35,9 @@ const entryOf = (event: V2Event): MeterEntry => {
 }
 
 const withEntry = (state: MeterState, entry: MeterEntry): MeterState => {
+  if (entry.type === 'rotated') {
+    return { window: state.window, used: null, readingSeq: null, summaryAfterReading: false }
+  }
   if (entry.measured !== null) {
     return {
       window: state.window,
@@ -48,7 +51,9 @@ const withEntry = (state: MeterState, entry: MeterEntry): MeterState => {
 }
 
 const isEdit = (event: V2Event): boolean =>
-  event.type === 'history-rewound' || event.type === 'history-summarised'
+  event.type === 'history-rewound' ||
+  event.type === 'history-summarised' ||
+  event.type === 'rotated'
 
 export const stepMeter = (state: MeterState, event: V2Event): MeterState => {
   const window = stepReadingOf(event)?.contextWindow ?? state.window

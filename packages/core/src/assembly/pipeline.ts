@@ -11,6 +11,7 @@ import { corruptImagesDropped, imagesInContext } from './rules/images'
 import { messagesFromEvents } from './rules/messages-from-events'
 import { noticeOrder } from './rules/notice-order'
 import { opensOnUserTurn } from './rules/opens-on-user-turn'
+import { rotatedHandoff } from './rules/rotated-handoff'
 import { runningAgentsBlock, type RunningAgentsSource } from './rules/running-agents-block'
 import { runningServicesBlock, type RunningServicesSource } from './rules/running-services-block'
 import { runningShellsBlock, type RunningShellsSource } from './rules/running-shells-block'
@@ -40,6 +41,7 @@ export function defaultRules({
   return [
     systemPrompt({ prompt, launchDirectory }),
     messagesFromEvents(),
+    rotatedHandoff(),
     agentEndingsBlock(),
     noticeOrder(),
     compactedHistory(),

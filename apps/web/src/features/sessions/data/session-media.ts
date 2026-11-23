@@ -1,24 +1,9 @@
-import {
-  attachmentsOf,
-  SUPPORTED_IMAGE_MEDIA_TYPES,
-  type Attachment,
-  type SaidUpload,
-  type SupportedImageMediaType,
-} from '@dltech/atlas-core'
-import type {
-  MediaConfirmInput,
-  MediaConfirmOutput,
-  MediaPresignInput,
-  MediaPresignOutput,
-  SessionMessageDraft,
-  SessionPostInput,
-  SessionPostMedia,
-} from '@dltech/atlas-protocol'
+import type { Attachment } from '@dltech/atlas-core'
+import type { SessionPostMedia } from '@dltech/atlas-protocol'
 import { EPromptAttachmentStatus, type PromptAttachment } from '@dltech/atlas-ui/ai/prompt-input'
 
 import { EAttachmentStatus, planAttach } from '@/features/threads/data/composer-attachments'
 import { isImageFile } from '@/features/threads/data/composer-images'
-import type { UploadHandle } from '@/features/threads/data/composer-uploads-api'
 
 export const TOAST_IMAGES_ONLY = 'Only images can be attached here'
 
@@ -31,54 +16,6 @@ export type HeldMedia = {
   hash?: string | undefined
   mediaType?: string | undefined
   size?: number | undefined
-}
-
-export type MediaUploadApi = {
-  presign(input: MediaPresignInput): Promise<MediaPresignOutput>
-  confirm(input: MediaConfirmInput): Promise<MediaConfirmOutput>
-}
-
-export type PutImage = (args: {
-  url: string
-  file: File
-  onProgress: (fraction: number) => void
-}) => UploadHandle
-
-export function supportedMediaTypeOf(mediaType: string): SupportedImageMediaType {
-  const found = SUPPORTED_IMAGE_MEDIA_TYPES.find((supported) => supported === mediaType)
-  if (found === undefined) throw new Error(`${mediaType} cannot be attached`)
-  return found
-}
-
-export async function sha256Hex(bytes: Uint8Array): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', bytes.slice())
-  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
-}
-
-export async function storeImage(args: {
-  bytes: Uint8Array
-  mediaType: SupportedImageMediaType
-  api: MediaUploadApi
-  put: PutImage
-  onProgress: (fraction: number) => void
-  onHandle: (handle: UploadHandle) => void
-}): Promise<string> {
-  const hash = await sha256Hex(args.bytes)
-  const presigned = await args.api.presign({
-    hash,
-    size: args.bytes.byteLength,
-    mediaType: args.mediaType,
-  })
-  if (presigned.exists) return hash
-  const handle = args.put({
-    url: presigned.uploadUrl,
-    file: new File([args.bytes.slice()], hash, { type: args.mediaType }),
-    onProgress: args.onProgress,
-  })
-  args.onHandle(handle)
-  await handle.done
-  await args.api.confirm({ hash })
-  return hash
 }
 
 export function planImageAttach(args: { files: readonly File[]; held: number }): {
@@ -205,28 +142,6 @@ export function readyMediaOf(held: readonly HeldMedia[]): SessionPostMedia[] {
     return [{ hash: entry.hash, source: entry.name.slice(0, 200) }]
   })
 }
-
-export const messageInputOf = (args: {
-  text: string
-  clientId?: string | undefined
-  media: readonly Attachment[]
-  uploads: readonly SaidUpload[]
-}): SessionMessageDraft => {
-  const attachments = [...args.media, ...attachmentsOf({ uploads: args.uploads })]
-  return {
-    text: args.text,
-    ...(args.clientId === undefined ? {} : { clientId: args.clientId }),
-    ...(attachments.length === 0 ? {} : { attachments }),
-  }
-}
-
-export const postInputOf = (args: {
-  sessionId: string
-  text: string
-  clientId?: string | undefined
-  media: readonly Attachment[]
-  uploads: readonly SaidUpload[]
-}): SessionPostInput => ({ sessionId: args.sessionId, ...messageInputOf(args) })
 
 const CHIP_STATUS: Record<EAttachmentStatus, EPromptAttachmentStatus> = {
   [EAttachmentStatus.Uploading]: EPromptAttachmentStatus.Uploading,

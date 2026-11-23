@@ -1,4 +1,4 @@
-import type { ChannelSignal } from '@dltech/atlas-harness'
+import type { ChannelSignal } from '@dltech/atlas-client/channel'
 
 type InertType =
   | 'events-appended'
