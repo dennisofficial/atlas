@@ -190,6 +190,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     items: transcriptItems,
     draft: composer.draft,
     onDraftChange: composer.setDraft,
+    onRestoreAttachments: composer.attachments.restore,
   })
 
   const handleRetry = () => retrySessionNow(sessionId)
