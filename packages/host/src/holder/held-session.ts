@@ -240,6 +240,7 @@ export class HeldSession {
       deps,
       runtime,
       record,
+      threadId,
       branches,
       oom,
     })

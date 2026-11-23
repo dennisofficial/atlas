@@ -106,7 +106,8 @@ export function deriveStatus(args: {
       : workspaceStatusOf({ facts, messageAfterFailure: args.messageAfterFailure })
   if (workspace !== undefined) return workspace
 
-  if (queuedSince !== null) return queued
+  const open = openTurnStatus({ facts, live: args.live, nowMs: Date.parse(args.now) })
+  if (queuedSince !== null) return open ?? queued
 
   const failed = facts.unfinishedFailure
   if (failed !== null && REPAIRABLE_FAILURE_KINDS.has(failed.kind)) {
@@ -116,7 +117,6 @@ export function deriveStatus(args: {
     return { state: ESessionStatus.Failed, reason: failed.message, since: failed.at }
   }
 
-  const open = openTurnStatus({ facts, live: args.live, nowMs: Date.parse(args.now) })
   if (open !== undefined) return open
   if (hasBackground(facts.background)) {
     const state = args.live ? ESessionStatus.WaitingForBackground : ESessionStatus.Resuming

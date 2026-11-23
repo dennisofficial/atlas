@@ -1,6 +1,8 @@
 import type { InboxEntry, Lease, ThreadId } from '@dltech/atlas-core'
 import type { SessionChange } from '@dltech/atlas-protocol'
 
+import type { ContextFileRow, ContextFileWrite } from '../../context-files'
+
 import {
   type AdvanceRoutineParams,
   type AppendCommit,
@@ -73,6 +75,13 @@ import {
   readChangesIn,
   upsertChangesIn,
 } from './memory-changes'
+import {
+  contextDigestsReferencedIn,
+  contextFileIn,
+  listContextFilesIn,
+  removeContextFilesIn,
+  upsertContextFilesIn,
+} from './memory-context-files'
 import { commitAppendIn, openAppendIn } from './memory-append'
 import { insertEventsIn, readEventsIn } from './memory-events'
 import { claimNeedingIn } from './memory-claim-next'
@@ -343,6 +352,35 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
 
   async deleteChangeBlobs(params: { hashes: readonly string[] }): Promise<void> {
     deleteChangeBlobRowsIn({ state: this.state, ...params })
+  }
+
+  async upsertContextFiles(params: {
+    sessionId: string
+    files: readonly ContextFileWrite[]
+  }): Promise<void> {
+    upsertContextFilesIn({ state: this.state, at: Date.parse(this.clock()), ...params })
+  }
+
+  async removeContextFiles(params: { sessionId: string; paths: readonly string[] }): Promise<void> {
+    removeContextFilesIn({ state: this.state, ...params })
+  }
+
+  async listContextFiles(params: { sessionId: string }): Promise<readonly ContextFileRow[]> {
+    return listContextFilesIn({ state: this.state, ...params })
+  }
+
+  async contextFileOf(params: { sessionId: string; path: string }): Promise<ContextFileRow | null> {
+    return contextFileIn({ state: this.state, ...params })
+  }
+
+  async contextDigestsReferenced(params: {
+    digests: readonly string[]
+  }): Promise<ReadonlySet<string>> {
+    return contextDigestsReferencedIn({ state: this.state, ...params })
+  }
+
+  lockContextDigest(_params: { digest: string }): Promise<void> {
+    return Promise.resolve()
   }
 
   async readEvents(params: ReadEventsParams): Promise<StoredEvent[]> {

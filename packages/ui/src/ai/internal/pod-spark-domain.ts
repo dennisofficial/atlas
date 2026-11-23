@@ -53,6 +53,10 @@ export function podSparkDomainOf(values: readonly number[]): [number, number] {
   ]
 }
 
+export function podSparkMarksPoints(samples: readonly unknown[]): boolean {
+  return samples.length === 1
+}
+
 export function podSparkWindowOf({
   samples,
 }: {

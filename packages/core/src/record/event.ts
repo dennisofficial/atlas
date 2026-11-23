@@ -6,6 +6,7 @@ import type { EventId, RunId, ThreadId } from '../events/ids'
 import { createEventBodySchema, type EventBodySchemaArgs } from '../events/create-schema'
 import type { PluginEventBody } from '../events/plugin-registry'
 import { branchesObservedSchema, type BranchesObserved } from './branches'
+import { contextChangedSchema, type ContextChanged } from './context-changed'
 import {
   inputPostedSchema,
   inputRefusedSchema,
@@ -86,6 +87,7 @@ export type RecordBody =
   | { type: 'fact-recorded'; key: string; kind: string; value?: unknown }
   | RetryScheduled
   | ResourceLoaded
+  | ContextChanged
   | BranchesObserved
   | WorkspacePrepared
   | WorkspacePrepareFailed
@@ -165,6 +167,7 @@ const recordBodySchema: z.ZodType<RecordBody> = z.discriminatedUnion('type', [
   }),
   retryScheduledSchema,
   resourceLoadedSchema,
+  contextChangedSchema,
   branchesObservedSchema,
   workspacePreparedSchema,
   workspacePrepareFailedSchema,
@@ -186,6 +189,7 @@ const RECORD_TYPE_TABLE = {
   'fact-recorded': true,
   'retry-scheduled': true,
   'resource-loaded': true,
+  'context-changed': true,
   'branches-observed': true,
   'workspace-prepared': true,
   'workspace-prepare-failed': true,

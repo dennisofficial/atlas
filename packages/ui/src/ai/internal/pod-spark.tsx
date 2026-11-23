@@ -7,6 +7,7 @@ import { Area, AreaChart, XAxis, YAxis } from 'recharts'
 import {
   podSparkDiskOf,
   podSparkDomainOf,
+  podSparkMarksPoints,
   podSparkNearest,
   podSparkTimeAt,
   podSparkTipOf,
@@ -33,6 +34,7 @@ export function PodUsageSpark({ data, limitGb, defaultActiveIndex }: PodUsageSpa
   const dragging = useRef(false)
   const withDisk = data.some((entry) => entry.disk !== undefined)
   const [from, to] = podSparkWindowOf({ samples: data })
+  const marksPoints = podSparkMarksPoints(data)
   const [low, high] = podSparkDomainOf(podSparkValuesOf(data))
   const point = active === null ? null : (data[active] ?? null)
 
@@ -128,7 +130,7 @@ export function PodUsageSpark({ data, limitGb, defaultActiveIndex }: PodUsageSpa
                 strokeWidth={1.25}
                 fill="var(--color-disk)"
                 fillOpacity={0.06}
-                dot={false}
+                dot={marksPoints}
                 isAnimationActive={false}
               />
             ) : null}
@@ -139,7 +141,7 @@ export function PodUsageSpark({ data, limitGb, defaultActiveIndex }: PodUsageSpa
               strokeWidth={1.25}
               fill="var(--color-ram)"
               fillOpacity={0.08}
-              dot={false}
+              dot={marksPoints}
               isAnimationActive={false}
             />
             <Area
@@ -149,7 +151,7 @@ export function PodUsageSpark({ data, limitGb, defaultActiveIndex }: PodUsageSpa
               strokeWidth={1.25}
               fill="var(--color-cpu)"
               fillOpacity={0.12}
-              dot={false}
+              dot={marksPoints}
               isAnimationActive={false}
             />
           </AreaChart>

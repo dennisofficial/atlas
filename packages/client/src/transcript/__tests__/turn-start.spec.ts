@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { v2EventSchema, type V2Event } from '@dltech/atlas-core'
+import { ESessionStatus, v2EventSchema, type V2Event } from '@dltech/atlas-core'
 
 import { turnStartedAtOf } from '../turn-start'
 
@@ -43,7 +43,7 @@ describe('turnStartedAtOf', () => {
       started({ seq: 3, turnId: 't2', at: '2026-11-22T19:14:00.000Z' }),
     ]
 
-    expect(turnStartedAtOf(events)).toBe('2026-11-22T19:14:00.000Z')
+    expect(turnStartedAtOf({ events })).toBe('2026-11-22T19:14:00.000Z')
   })
 
   it('says nothing once every turn has ended', () => {
@@ -52,7 +52,7 @@ describe('turnStartedAtOf', () => {
       ended({ seq: 2, turnId: 't1', at: '2026-11-22T14:21:00.000Z' }),
     ]
 
-    expect(turnStartedAtOf(events)).toBeUndefined()
+    expect(turnStartedAtOf({ events })).toBeUndefined()
   })
 
   it('ignores a sub-agent turn that outlasts the main one', () => {
@@ -62,10 +62,39 @@ describe('turnStartedAtOf', () => {
       started({ seq: 3, turnId: 'sub', at: '2026-11-22T19:16:00.000Z', depth: 1 }),
     ]
 
-    expect(turnStartedAtOf(events)).toBeUndefined()
+    expect(turnStartedAtOf({ events })).toBeUndefined()
   })
 
   it('says nothing before any turn has started', () => {
-    expect(turnStartedAtOf([])).toBeUndefined()
+    expect(turnStartedAtOf({ events: [] })).toBeUndefined()
+  })
+})
+
+describe('turnStartedAtOf with a queued message', () => {
+  const postedAt = '2026-11-22T19:14:00.000Z'
+
+  it('starts the clock at the posted time while no turn is open', () => {
+    const events = [
+      started({ seq: 1, turnId: 't1', at: '2026-11-22T14:20:00.000Z' }),
+      ended({ seq: 2, turnId: 't1', at: '2026-11-22T14:21:00.000Z' }),
+    ]
+
+    expect(
+      turnStartedAtOf({ events, status: { state: ESessionStatus.Queued, since: postedAt } }),
+    ).toBe(postedAt)
+  })
+
+  it('keeps the open turn ahead of the queued message', () => {
+    const events = [started({ seq: 1, turnId: 't1', at: '2026-11-22T19:10:00.000Z' })]
+
+    expect(
+      turnStartedAtOf({ events, status: { state: ESessionStatus.Queued, since: postedAt } }),
+    ).toBe('2026-11-22T19:10:00.000Z')
+  })
+
+  it('says nothing for a queued status with no posted time', () => {
+    expect(
+      turnStartedAtOf({ events: [], status: { state: ESessionStatus.Queued } }),
+    ).toBeUndefined()
   })
 })

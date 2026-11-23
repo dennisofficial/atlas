@@ -1,7 +1,10 @@
+import type { ThreadId } from '@dltech/atlas-core'
+
 import { DaemonProcessPort } from '../calls/ports/process'
 import type { BranchObserver } from './branch-observer'
 import { type ChangesCheckout, ChangesSnapshotter, ESnapshotTrigger } from './changes/snapshotter'
 import { runGit } from './checkouts/git'
+import { ContextMirror } from './context/context-mirror'
 import type { OomObserver } from './oom-observer'
 import { logDriveFault } from './held-runner'
 import type { HeldSessionDeps } from './held-session-deps'
@@ -47,18 +50,47 @@ const createChangesSnapshotter = (args: {
   })
 }
 
+const createContextMirror = (args: {
+  deps: HeldSessionDeps
+  runtime: SessionRuntime
+  record: SessionRecord
+  threadId: ThreadId
+}): ContextMirror | undefined => {
+  const { deps } = args
+  const context = deps.contextMirror
+  if (context === undefined) return undefined
+  return new ContextMirror({
+    sessionId: deps.sessionId,
+    root: context.contextDir(deps.sessionId),
+    plane: deps.plane,
+    content: context.content,
+    remoteCalls: args.runtime.remoteCalls,
+    announce: async (paths) => {
+      await args.record.append({
+        threadId: args.threadId,
+        runId: deps.ids.nextRunId(),
+        drafts: [{ type: 'context-changed', paths: [...paths] }],
+      })
+    },
+    ...(deps.log === undefined ? {} : { log: deps.log }),
+    now: () => deps.timers.now(),
+  })
+}
+
 export class HeldObservation {
   private readonly deps: HeldSessionDeps
   private readonly runtime: SessionRuntime
   private readonly branches: BranchObserver
   private readonly oom: OomObserver | undefined
   private readonly changes: ChangesSnapshotter | undefined
+  private readonly context: ContextMirror | undefined
   private unsubscribeCheckouts: (() => void) | undefined
 
   constructor(args: {
     deps: HeldSessionDeps
     runtime: SessionRuntime
     record: SessionRecord
+    threadId: ThreadId
     branches: BranchObserver
     oom?: OomObserver | undefined
   }) {
@@ -67,6 +99,7 @@ export class HeldObservation {
     this.branches = args.branches
     this.oom = args.oom
     this.changes = createChangesSnapshotter(args)
+    this.context = createContextMirror(args)
   }
 
   get observer(): BranchObserver {
@@ -76,10 +109,12 @@ export class HeldObservation {
   start(): void {
     this.unsubscribeCheckouts = this.runtime.onCheckout?.(() => this.changes?.rearm())
     this.changes?.start()
+    this.context?.start()
   }
 
   turnEnded(): void {
     void this.changes?.snapshotNow(ESnapshotTrigger.TurnEnd)
+    void this.context?.rescanNow()
   }
 
   refreshBranches(): void {
@@ -91,15 +126,24 @@ export class HeldObservation {
     this.oom?.stop()
     this.releaseCheckouts()
     void this.changes?.stop()
+    void this.context?.stop()
   }
 
   async stop(): Promise<void> {
     this.branches.stop()
     this.oom?.stop()
     this.releaseCheckouts()
-    const changes = this.changes
-    if (changes === undefined) return
-    await this.withinStopDeadline(changes.stop().catch((error: unknown) => this.faulted(error)))
+    await this.withinStopDeadline(this.stopping())
+  }
+
+  private stopping(): Promise<void> {
+    const stopping = [this.changes?.stop(), this.context?.stop()].filter(
+      (stopping): stopping is Promise<void> => stopping !== undefined,
+    )
+    if (stopping.length === 0) return Promise.resolve()
+    return Promise.all(
+      stopping.map((work) => work.catch((error: unknown) => this.faulted(error))),
+    ).then(() => undefined)
   }
 
   private withinStopDeadline(stopping: Promise<void>): Promise<void> {
@@ -108,7 +152,7 @@ export class HeldObservation {
       const timer = timers.setTimeout(() => {
         log?.warn({
           source: 'holder.observation',
-          message: `stopping the change snapshots of ${sessionId} passed ${OBSERVATION_STOP_DEADLINE_MS}ms; the lease is settled without them`,
+          message: `stopping the observations of ${sessionId} passed ${OBSERVATION_STOP_DEADLINE_MS}ms; the lease is settled without them`,
           data: { sessionId },
         })
         resolve()
@@ -122,6 +166,8 @@ export class HeldObservation {
 
   async observeBeforeRelease(): Promise<void> {
     this.changes?.quiesce()
+    await this.context?.rescanNow().catch((error: unknown) => this.faulted(error))
+    this.context?.quiesce()
     await this.branches.refresh().catch((error: unknown) => this.faulted(error))
   }
 

@@ -43,6 +43,7 @@ namespace v2 {
     branches        V2SessionBranch[]
     pullRequests    V2SessionPullRequest[]
     worktreeChanges V2WorktreeChanges[]
+    contextFiles    V2ContextFile[]
     terminals       V2Terminal[]
     sandboxRuns     V2SandboxRun[]
     diagramRepairs  V2DiagramRepair[]

@@ -150,7 +150,25 @@ describe('the daemon metrics op', () => {
     }
   })
 
-  it('keeps one sampler for every subscriber and stops when the last one leaves', async () => {
+  it('samples with nobody watching and answers the first subscriber with that history', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'atlas-metrics-'))
+    await writeCgroup(root, cgroupOf())
+    const watch = rig(root)
+    try {
+      await writeCgroup(root, cgroupOf({ usageUsec: 2_000_000 }))
+      await new Promise((resolve) => setTimeout(resolve, INTERVAL_MS * 5))
+      expect(watch.samples()).toHaveLength(0)
+      const backlog = (await watch.call({ op: 'metrics.subscribe' })) as {
+        samples: readonly { at: number }[]
+      }
+      expect(backlog.samples.length).toBeGreaterThan(1)
+    } finally {
+      await watch.stop()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('keeps one sampler for every subscriber and stops publishing when the last one leaves', async () => {
     const root = await mkdtemp(join(tmpdir(), 'atlas-metrics-'))
     await writeCgroup(root, cgroupOf())
     const watch = rig(root)
@@ -204,7 +222,7 @@ describe('the daemon metrics op', () => {
     }
   })
 
-  it('stops sampling when the pod connection goes away', async () => {
+  it('stops publishing when the pod connection goes away', async () => {
     const root = await mkdtemp(join(tmpdir(), 'atlas-metrics-'))
     await writeCgroup(root, cgroupOf())
     const watch = rig(root)
