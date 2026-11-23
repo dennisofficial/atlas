@@ -184,6 +184,7 @@ export const podControlStub: PodControl = {
   exposePort: noControlPlane,
   mcp: EMPTY_MCP_CONTROL,
   webSearch: { config: noControlPlane },
+  gateway: { apiKey: async () => undefined },
   routines: EMPTY_ROUTINES,
   subscriptions: EMPTY_SUBSCRIPTIONS,
   memory: {

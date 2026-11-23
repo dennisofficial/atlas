@@ -295,8 +295,11 @@ typed as text is refused with "/name opens in the app. Pick it from the / menu."
 
 **Control commands in the host** (correction, slice 2). A `control` command such as `rename` has no
 pod handler, so the host also takes `controlHandlers` (by name) and runs them with its own
-`ControlPlane`: `nativeControlHandlers` is passed in `apps/api/src/agent/compose.ts`. `resize` and
-`model-set` need API-only services, so a typed `/resize` is refused with the sentence above. While a
+`ControlPlane`: `nativeControlHandlers` is passed in `apps/api/src/agent/compose.ts`. `resize` runs in
+the host too: the host is given the same handler the API runs, `podResizeHandlerOf` in
+`apps/api/src/_lib/pod-resize/pod-resize-handler.ts`, wired beside `nativeControlHandlers`, so a
+typed `/resize 2 4` works on every surface. Only `model-set` stays API-only, and a typed `/model-set`
+is refused with the sentence above. While a
 typed command waits behind a turn, the status rows show it as a queued message with the typed text,
 not as a command row (those rows key off `command:` inbox kinds).
 
@@ -400,7 +403,7 @@ The shared `rewind` command therefore requires a target, and a surface with no p
 once per change, on every surface.
 
 `resize` joins `nativeCommands` (`commands/src/index.ts:11`) so it is declared in one list; its
-control handler stays in the API.
+control handler is shared by the API and the host (`apps/api/src/_lib/pod-resize/pod-resize-handler.ts`).
 
 **Served once.** `apps/api/src/api/platform/control/command-registry.ts:16-17` already composes the
 one registry (`nativeCommands` + `model-set` + `resize` + `composedPlugins.commands`). Add

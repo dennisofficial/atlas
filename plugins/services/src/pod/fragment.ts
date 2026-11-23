@@ -15,6 +15,13 @@ export class ServicesFragment extends PromptFragment {
       'until you restart it. A service with a port is published at a public URL that the tool returns.',
       'Give the operator that URL, because it is what they open. A service without a port is reachable',
       'only inside the sandbox.',
+      '',
+      'Start every dev server, watcher or other long-running process by name from',
+      '`.atlas/services.yaml`, with `service` action `start` and `name`. If the project has no',
+      'declaration that fits, add one to `.atlas/services.yaml` - command, working directory, port,',
+      'setup, needs, env - and start it by name instead of running it ad hoc. Use `service` with a',
+      '`command` only for a one-off. Never keep a server alive with bash `&`, `nohup`,',
+      '`runInBackground` or a raised bash `timeoutMs`.',
     ].join('\n')
   }
 }

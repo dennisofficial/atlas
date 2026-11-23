@@ -43,6 +43,7 @@
         "@dltech/atlas-observability": "workspace:*",
         "@dltech/atlas-plugin-crew": "workspace:*",
         "@dltech/atlas-plugin-github": "workspace:*",
+        "@dltech/atlas-plugin-images": "workspace:*",
         "@dltech/atlas-plugin-instructions": "workspace:*",
         "@dltech/atlas-plugin-mcp": "workspace:*",
         "@dltech/atlas-plugin-memory": "workspace:*",
@@ -884,6 +885,7 @@
         "input-otp": "^1.5.0",
         "katex": "^0.16.47",
         "lucide-react": "^1.45.0",
+        "mermaid": "^11.16.1",
         "next-themes": "^0.4.6",
         "react-day-picker": "^10.0.2",
         "react-resizable-panels": "^4.14.6",
@@ -980,6 +982,21 @@
         "@dltech/atlas-db": "workspace:*",
         "@dltech/atlas-plugin-sdk": "workspace:*",
         "@dltech/atlas-protocol": "workspace:*",
+        "zod": "^4.4.3",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
+    },
+    "plugins/images": {
+      "name": "@dltech/atlas-plugin-images",
+      "version": "0.1.0",
+      "dependencies": {
+        "@ai-sdk/gateway": "4.0.125",
+        "@dltech/atlas-core": "workspace:*",
+        "@dltech/atlas-plugin-sdk": "workspace:*",
+        "@dltech/atlas-protocol": "workspace:*",
+        "ai": "^7.0.152",
         "zod": "^4.4.3",
       },
       "devDependencies": {
@@ -1630,6 +1647,8 @@
     "@dltech/atlas-plugin-crew": ["@dltech/atlas-plugin-crew@workspace:plugins/crew"],
 
     "@dltech/atlas-plugin-github": ["@dltech/atlas-plugin-github@workspace:plugins/github"],
+
+    "@dltech/atlas-plugin-images": ["@dltech/atlas-plugin-images@workspace:plugins/images"],
 
     "@dltech/atlas-plugin-instructions": ["@dltech/atlas-plugin-instructions@workspace:plugins/instructions"],
 
@@ -5761,6 +5780,8 @@
 
     "@dltech/atlas-plugin-github/@types/bun": ["@types/bun@1.4.5", "", { "dependencies": { "bun-types": "1.4.5" } }, "sha512-DpgwNI9z0L1S0gtb45QLCWgwCUcMLnsHYMJHQvpNj7erGiCGBvpggltAIeARrtobNMKMuy0UP7i56tKKgwFs/Q=="],
 
+    "@dltech/atlas-plugin-images/@types/bun": ["@types/bun@1.4.5", "", { "dependencies": { "bun-types": "1.4.5" } }, "sha512-DpgwNI9z0L1S0gtb45QLCWgwCUcMLnsHYMJHQvpNj7erGiCGBvpggltAIeARrtobNMKMuy0UP7i56tKKgwFs/Q=="],
+
     "@dltech/atlas-plugin-instructions/@types/bun": ["@types/bun@1.4.5", "", { "dependencies": { "bun-types": "1.4.5" } }, "sha512-DpgwNI9z0L1S0gtb45QLCWgwCUcMLnsHYMJHQvpNj7erGiCGBvpggltAIeARrtobNMKMuy0UP7i56tKKgwFs/Q=="],
 
     "@dltech/atlas-plugin-mcp/@types/bun": ["@types/bun@1.4.5", "", { "dependencies": { "bun-types": "1.4.5" } }, "sha512-DpgwNI9z0L1S0gtb45QLCWgwCUcMLnsHYMJHQvpNj7erGiCGBvpggltAIeARrtobNMKMuy0UP7i56tKKgwFs/Q=="],
@@ -6738,6 +6759,8 @@
     "@dltech/atlas-plugin-crew/@types/bun/bun-types": ["bun-types@1.4.5", "", { "dependencies": { "@types/node": "*", "undici-types": "*" } }, "sha512-ECHn+9dhL3wv0G6u0+7dQvrnaimXiRDxxerYBmhTaLyJEEuvTPWk2Fye3XIf5Y++JIIiHKfQw4Z7V5D8KuiXbg=="],
 
     "@dltech/atlas-plugin-github/@types/bun/bun-types": ["bun-types@1.4.5", "", { "dependencies": { "@types/node": "*", "undici-types": "*" } }, "sha512-ECHn+9dhL3wv0G6u0+7dQvrnaimXiRDxxerYBmhTaLyJEEuvTPWk2Fye3XIf5Y++JIIiHKfQw4Z7V5D8KuiXbg=="],
+
+    "@dltech/atlas-plugin-images/@types/bun/bun-types": ["bun-types@1.4.5", "", { "dependencies": { "@types/node": "*", "undici-types": "*" } }, "sha512-ECHn+9dhL3wv0G6u0+7dQvrnaimXiRDxxerYBmhTaLyJEEuvTPWk2Fye3XIf5Y++JIIiHKfQw4Z7V5D8KuiXbg=="],
 
     "@dltech/atlas-plugin-instructions/@types/bun/bun-types": ["bun-types@1.4.5", "", { "dependencies": { "@types/node": "*", "undici-types": "*" } }, "sha512-ECHn+9dhL3wv0G6u0+7dQvrnaimXiRDxxerYBmhTaLyJEEuvTPWk2Fye3XIf5Y++JIIiHKfQw4Z7V5D8KuiXbg=="],
 
