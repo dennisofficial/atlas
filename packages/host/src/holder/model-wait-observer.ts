@@ -35,6 +35,18 @@ const clearedDraftOf = (wait: WaitingForModel): AppendBody => ({
   cause: wait.cause,
 })
 
+const stillWaitingDraftsOf = ({
+  wait,
+  admitted,
+}: {
+  wait: WaitingForModel
+  admitted: ThreadId
+}): readonly AppendBody[] => {
+  const affectedThreadIds = wait.affectedThreadIds.filter((threadId) => threadId !== admitted)
+  if (affectedThreadIds.length === 0) return []
+  return [{ type: 'model-waiting', waiting: { ...wait, affectedThreadIds } }]
+}
+
 export const modelWaitObserverOf = (args: {
   record: SessionRecord
   threadId: ThreadId
@@ -42,7 +54,7 @@ export const modelWaitObserverOf = (args: {
   log?: LogPort | undefined
 }): ModelWaitObserver => {
   const openWaits = (): readonly WaitingForModel[] =>
-    projectWaiting(args.record.eventCache().eventsAfter(0).filter(isWaitingEvent))
+    projectWaiting(args.record.eventCache().visibleEvents().filter(isWaitingEvent))
 
   const appendSafely = async (drafts: readonly AppendBody[]): Promise<void> => {
     try {
@@ -71,7 +83,12 @@ export const modelWaitObserverOf = (args: {
     admitted: async ({ threadId: waitingThread }) => {
       const cleared = waitsOn({ waits: openWaits(), threadId: waitingThread })
       if (cleared.length === 0) return
-      await appendSafely(cleared.map(clearedDraftOf))
+      await appendSafely(
+        cleared.flatMap((wait) => [
+          clearedDraftOf(wait),
+          ...stillWaitingDraftsOf({ wait, admitted: waitingThread }),
+        ]),
+      )
     },
     blocked: ({ threadId }) => waitsOn({ waits: openWaits(), threadId }).length > 0,
   }

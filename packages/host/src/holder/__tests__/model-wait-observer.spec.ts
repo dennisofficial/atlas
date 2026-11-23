@@ -1,23 +1,32 @@
 import { describe, expect, it } from 'bun:test'
 
+import { ControlPlane } from '@dltech/atlas-control'
+import { InMemoryControlStore } from '@dltech/atlas-control/testing'
 import {
+  chainEvents,
+  credentialRepairOf,
   EModelWaitCause,
   EWaitEpisodeKind,
   toAccountId,
   toThreadId,
   type RunId,
   type ThreadId,
+  type V2Body,
   type V2Event,
   type WaitingForModel,
 } from '@dltech/atlas-core'
 import type { LogEntry, LogPort } from '@dltech/atlas-observability'
 
 import { modelWaitObserverOf } from '../model-wait-observer'
+import { toRecordBody } from '../record/append-drafts'
 import type { AppendBody, SessionRecord } from '../record/record-adapter'
+import { RecordCache } from '../record/record-cache'
 import { THREAD_ID } from './holder-rig'
 
 const CHILD = toThreadId('thread-child-wait')
 const RUN = 'run-wait' as RunId
+const SESSION = 'session-wait'
+const AT = '2026-11-06T12:00:00.000Z'
 
 const WAITING: WaitingForModel = {
   episode: {
@@ -61,7 +70,7 @@ const fakeRecordOf = (): FakeRecord => {
       return []
     },
     eventCache: () => ({
-      eventsAfter: () =>
+      visibleEvents: () =>
         appended.flatMap((entry) =>
           entry.drafts
             .filter(isWaitingDraft)
@@ -74,6 +83,53 @@ const fakeRecordOf = (): FakeRecord => {
 
 const observerOn = (record: SessionRecord) =>
   modelWaitObserverOf({ record, threadId: THREAD_ID, newRunId: () => RUN })
+
+const recordOn = async (
+  bodies: readonly V2Body[],
+): Promise<{
+  record: SessionRecord
+  events: () => Promise<readonly V2Event[]>
+}> => {
+  const plane = new ControlPlane({ store: new InMemoryControlStore({ clock: () => AT }) })
+  await plane.createSession({
+    sessionId: SESSION,
+    userId: 'user-1',
+    projectId: 'project-1',
+    mainThreadId: THREAD_ID,
+  })
+  const { epoch } = await plane.grant({ sessionId: SESSION, hostId: 1 })
+  const cache = await RecordCache.load({ plane, threadId: THREAD_ID })
+  const write = async (next: readonly V2Body[]): Promise<void> => {
+    const from = await plane.head({ threadId: THREAD_ID })
+    const events = chainEvents({
+      threadId: THREAD_ID,
+      runId: RUN,
+      epoch,
+      at: AT,
+      bodies: next,
+      from,
+    })
+    const outcome = await plane.append({ threadId: THREAD_ID, epoch, events })
+    if (!outcome.ok) throw new Error(`append refused: ${JSON.stringify(outcome.refusal)}`)
+    cache.extend({ events, head: outcome.head })
+  }
+  await write(bodies)
+  const record = {
+    append: async (args: { threadId: ThreadId; drafts: readonly AppendBody[] }) =>
+      write(args.drafts.map(toRecordBody)),
+    eventCache: () => cache,
+  } as unknown as SessionRecord
+  const events = async (): Promise<readonly V2Event[]> => {
+    const page = await plane.readEvents({
+      threadId: THREAD_ID,
+      afterSeq: 0,
+      limit: 1000,
+      visible: true,
+    })
+    return page.events
+  }
+  return { record, events }
+}
 
 const drafted = (appended: readonly Appended[]): readonly AppendBody[] =>
   appended.flatMap((entry) => entry.drafts)
@@ -120,6 +176,43 @@ describe('modelWaitObserverOf', () => {
 
     expect(drafted(appended).filter((draft) => draft.type === 'model-wait-cleared')).toHaveLength(1)
     expect(observer.blocked({ threadId: CHILD })).toBe(false)
+  })
+
+  it('keeps the other threads of a shared wait waiting', async () => {
+    const shared: WaitingForModel = { ...WAITING, affectedThreadIds: [THREAD_ID, CHILD] }
+    const { record, events } = await recordOn([{ type: 'model-waiting', waiting: shared }])
+    const observer = observerOn(record)
+
+    await observer.admitted({ threadId: THREAD_ID })
+
+    expect(observer.blocked({ threadId: THREAD_ID })).toBe(false)
+    expect(observer.blocked({ threadId: CHILD })).toBe(true)
+
+    const repair = credentialRepairOf({ mainThreadId: THREAD_ID, events: await events() })
+    expect(repair?.main).toBe(false)
+    expect(repair?.agents.map((agent) => agent.agentId)).toEqual([CHILD])
+
+    await observer.admitted({ threadId: CHILD })
+
+    expect(observer.blocked({ threadId: CHILD })).toBe(false)
+    expect(credentialRepairOf({ mainThreadId: THREAD_ID, events: await events() })).toBeNull()
+  })
+
+  it('ignores a wait a rewind hid and observes the wait again', async () => {
+    const { record, events } = await recordOn([
+      { type: 'user-said', text: 'hello' },
+      { type: 'model-waiting', waiting: WAITING },
+      { type: 'history-rewound', toSeq: 1 },
+    ])
+    const observer = observerOn(record)
+
+    expect(observer.blocked({ threadId: THREAD_ID })).toBe(false)
+
+    await observer.observe({ threadId: THREAD_ID, waiting: WAITING })
+
+    const recorded = await events()
+    expect(recorded.filter((event) => event.type === 'model-waiting')).toHaveLength(1)
+    expect(observer.blocked({ threadId: THREAD_ID })).toBe(true)
   })
 
   it('records ids, provider, model and reason, and no secret', async () => {
