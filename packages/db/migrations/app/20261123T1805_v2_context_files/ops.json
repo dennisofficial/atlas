@@ -1,0 +1,223 @@
+[
+  {
+    "id": "table.V2ContextFile",
+    "label": "Create table \"V2ContextFile\"",
+    "summary": "Creates table \"V2ContextFile\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "table",
+        "name": "V2ContextFile"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"V2ContextFile\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"v2\".\"V2ContextFile\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"V2ContextFile\"",
+        "sql": "CREATE TABLE \"v2\".\"V2ContextFile\" (\n  \"digest\" text,\n  \"id\" text NOT NULL,\n  \"kind\" text NOT NULL,\n  \"mime\" text NOT NULL,\n  \"mtimeMs\" float8 NOT NULL,\n  \"path\" text NOT NULL,\n  \"sessionId\" text NOT NULL,\n  \"size\" int4 NOT NULL,\n  \"updatedAt\" timestamptz(3) NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"V2ContextFile\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"v2\".\"V2ContextFile\"",
+          "r",
+          "p"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.V2ContextFile.V2ContextFile_sessionId_path_key",
+    "label": "Add unique constraint on \"V2ContextFile\" (sessionId, path)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "unique",
+        "name": "V2ContextFile_sessionId_path_key",
+        "table": "V2ContextFile"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"V2ContextFile_sessionId_path_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "V2ContextFile_sessionId_path_key",
+          "v2",
+          "\"v2\".\"V2ContextFile\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"V2ContextFile_sessionId_path_key\"",
+        "sql": "ALTER TABLE \"v2\".\"V2ContextFile\" ADD CONSTRAINT \"V2ContextFile_sessionId_path_key\" UNIQUE (\"sessionId\", \"path\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"V2ContextFile_sessionId_path_key\" exists on (sessionId, path)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "V2ContextFile_sessionId_path_key",
+          "v2",
+          "\"v2\".\"V2ContextFile\"",
+          "u",
+          "[\"sessionId\",\"path\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.V2ContextFile.V2ContextFile_digest_idx_5bd527a1",
+    "label": "Create index \"V2ContextFile_digest_idx_5bd527a1\" on \"V2ContextFile\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "index",
+        "name": "V2ContextFile_digest_idx_5bd527a1",
+        "table": "V2ContextFile"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"V2ContextFile_digest_idx_5bd527a1\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"v2\".\"V2ContextFile_digest_idx_5bd527a1\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"V2ContextFile_digest_idx_5bd527a1\"",
+        "sql": "CREATE INDEX \"V2ContextFile_digest_idx_5bd527a1\" ON \"v2\".\"V2ContextFile\" (\"digest\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"V2ContextFile_digest_idx_5bd527a1\" exists on \"V2ContextFile\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"v2\".\"V2ContextFile_digest_idx_5bd527a1\"",
+          "i",
+          "I",
+          "\"v2\".\"V2ContextFile\"",
+          "btree",
+          "[\"digest\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.V2ContextFile.V2ContextFile_sessionId_idx_29f415d4",
+    "label": "Create index \"V2ContextFile_sessionId_idx_29f415d4\" on \"V2ContextFile\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "index",
+        "name": "V2ContextFile_sessionId_idx_29f415d4",
+        "table": "V2ContextFile"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"V2ContextFile_sessionId_idx_29f415d4\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"v2\".\"V2ContextFile_sessionId_idx_29f415d4\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"V2ContextFile_sessionId_idx_29f415d4\"",
+        "sql": "CREATE INDEX \"V2ContextFile_sessionId_idx_29f415d4\" ON \"v2\".\"V2ContextFile\" (\"sessionId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"V2ContextFile_sessionId_idx_29f415d4\" exists on \"V2ContextFile\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"v2\".\"V2ContextFile_sessionId_idx_29f415d4\"",
+          "i",
+          "I",
+          "\"v2\".\"V2ContextFile\"",
+          "btree",
+          "[\"sessionId\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.V2ContextFile.V2ContextFile_sessionId_fkey",
+    "label": "Add foreign key \"V2ContextFile_sessionId_fkey\" on \"V2ContextFile\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "foreignKey",
+        "name": "V2ContextFile_sessionId_fkey",
+        "table": "V2ContextFile"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"V2ContextFile_sessionId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "V2ContextFile_sessionId_fkey",
+          "v2",
+          "\"v2\".\"V2ContextFile\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"V2ContextFile_sessionId_fkey\"",
+        "sql": "ALTER TABLE \"v2\".\"V2ContextFile\"\nADD CONSTRAINT \"V2ContextFile_sessionId_fkey\"\nFOREIGN KEY (\"sessionId\")\nREFERENCES \"v2\".\"V2Session\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"V2ContextFile_sessionId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "V2ContextFile_sessionId_fkey",
+          "v2",
+          "\"v2\".\"V2ContextFile\"",
+          "f",
+          "[\"sessionId\"]",
+          "\"v2\".\"V2Session\"",
+          "[\"id\"]",
+          "c",
+          "a"
+        ]
+      }
+    ]
+  }
+]

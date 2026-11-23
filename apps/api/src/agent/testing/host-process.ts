@@ -31,6 +31,8 @@ import { fakeModelSourceOf } from './model-source'
 import { recordingModelOf } from './model-requests'
 import { routedModelOf, scriptRoutesOf } from './script-routing'
 import { createSessionRuntimeFactory } from '../runtime/session-runtime-factory'
+import { contextDirOf } from '../runtime/session-paths'
+import { DiskContextContentStore } from './disk-context-content-store'
 import { FixedEndpointSandboxProvider } from './fixed-endpoint-sandbox-provider'
 import { faultedPlane, faultSandbox, hostFaultOf } from './host-faults'
 import type { JobsProjectDispatcher } from '../../_core/ports/job-dispatcher'
@@ -143,6 +145,17 @@ const testSource = (): ConfigSource => ({
 
 const noPodResizeDispatcher: JobsProjectDispatcher = {
   dispatch: async () => ({ runId: 'test-host-process' }),
+}
+
+const contextMirrorOf = () => {
+  const root = process.env.CONTEXT_MIRROR_DIR
+  if (root === undefined || root === '') return {}
+  return {
+    contextMirror: {
+      content: new DiskContextContentStore({ root }),
+      contextDir: (sessionId: string) => contextDirOf(sessionId, process.env.SANDBOX_HOME),
+    },
+  }
 }
 
 const testTokens = () => ({
@@ -258,6 +271,7 @@ const main = async (): Promise<void> => {
     ]),
     log,
     podCallBus: podCalls,
+    ...contextMirrorOf(),
     onHostIdChanged: () => watch?.recompute(),
   })
   held = holder
