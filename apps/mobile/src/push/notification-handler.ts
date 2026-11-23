@@ -2,6 +2,7 @@ import * as Notifications from 'expo-notifications'
 import { AppState } from 'react-native'
 
 import { presentedNotificationOf, readDismissalIdsOf, sessionIdOfData } from './notification-data'
+import type { TNotificationTap } from './session-tap'
 
 export const installNotificationHandler = (): void => {
   Notifications.setNotificationHandler({
@@ -46,11 +47,26 @@ export const dismissPresentedRead = async (
 }
 
 export const subscribeToNotificationResponses = ({
-  onSessionId,
+  onTap,
 }: {
-  onSessionId: (sessionId: string) => void
+  onTap: (tap: TNotificationTap) => void
 }): Notifications.EventSubscription =>
   Notifications.addNotificationResponseReceivedListener((response) => {
-    const sessionId = sessionIdOfData(response.notification.request.content.data)
-    if (sessionId !== undefined) onSessionId(sessionId)
+    onTap({
+      identifier: response.notification.request.identifier,
+      data: response.notification.request.content.data,
+    })
   })
+
+export const lastNotificationTap = (): TNotificationTap | undefined => {
+  try {
+    const response = Notifications.getLastNotificationResponse()
+    if (response === null) return undefined
+    return {
+      identifier: response.notification.request.identifier,
+      data: response.notification.request.content.data,
+    }
+  } catch {
+    return undefined
+  }
+}

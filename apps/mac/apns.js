@@ -2,7 +2,25 @@ export const APNS_TOKEN_PATH = '/desktop/apns/token'
 
 export const APNS_PUSH_PATH = '/desktop/apns/push'
 
+export const SESSION_PATH = '/sessions/'
+
 const POST_TIMEOUT_MS = 2_000
+
+const recordOf = (value) =>
+  typeof value === 'object' && value !== null && !Array.isArray(value) ? value : undefined
+
+export const sessionIdOfLaunchInfo = (launchInfo) => {
+  const info = recordOf(launchInfo)
+  if (info === undefined) return undefined
+  const userInfo = recordOf(info.userInfo) ?? info
+  if (typeof userInfo.clearSessionId === 'string') return undefined
+  const { sessionId, seq } = userInfo
+  if (typeof sessionId !== 'string' || sessionId.length === 0) return undefined
+  return Number.isInteger(seq) ? sessionId : undefined
+}
+
+export const urlForSession = (origin, sessionId) =>
+  sessionId === undefined ? origin : `${origin}${SESSION_PATH}${encodeURIComponent(sessionId)}`
 
 export function createApnsBridge({
   secret,

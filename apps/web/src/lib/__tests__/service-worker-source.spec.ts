@@ -1,12 +1,11 @@
 import { describe, expect, it } from 'bun:test'
 
 import {
-  OPEN_SESSION_MESSAGE,
   PUSH_MESSAGE_CLEAR,
   PUSH_MESSAGE_NOTIFICATION,
   ROUTINE_PATH,
   SERVICE_WORKER_PATH,
-  SESSION_QUERY_PARAM,
+  SESSION_PATH,
   serviceWorkerSource,
 } from '../service-worker-source'
 
@@ -49,11 +48,22 @@ describe('the service worker source', () => {
     expect(serviceWorkerSource).toContain('notification.close()')
   })
 
-  it('opens the session in an existing window before a new one', () => {
+  it('opens the session page a tap names', () => {
+    expect(serviceWorkerSource).toContain('openSession(data.sessionId)')
+    expect(serviceWorkerSource).toContain(`open('${SESSION_PATH}' + encodeURIComponent(sessionId))`)
+  })
+
+  it('routes a tap into an existing window before opening a new one', () => {
+    expect(serviceWorkerSource).toContain('existing.focus()')
     expect(serviceWorkerSource).toContain(
-      `existing.postMessage({ type: '${OPEN_SESSION_MESSAGE}', sessionId })`,
+      'await existing.navigate(url).catch(() => self.clients.openWindow(url))',
     )
-    expect(serviceWorkerSource).toContain(`'/?${SESSION_QUERY_PARAM}='`)
-    expect(serviceWorkerSource).toContain('self.clients.openWindow')
+    expect(serviceWorkerSource).toContain(
+      'const existing = windows[0]\n  if (existing === undefined) {\n    await self.clients.openWindow(url)',
+    )
+  })
+
+  it('navigates a window it cannot post to instead of messaging it', () => {
+    expect(serviceWorkerSource).not.toContain('postMessage')
   })
 })
