@@ -149,7 +149,7 @@ async function coverTarget(args: {
     userId: args.target.userId,
     repoFullName: args.target.repoFullName,
   })
-  if (result === undefined) return
+  if (result === undefined || result === 'app-backed') return
   await db.orm.public.GithubRepoHook.where((hook) =>
     hook.repoFullName.ilike(repoPattern(args.target.repoFullName)),
   ).updateAndCount({ idleSince: null })
