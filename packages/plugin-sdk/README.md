@@ -73,9 +73,7 @@ A `PodSlot` declares:
 - `slash(ctx)`: the `PodSlash` source (`names()`, `load({name, argumentText})`); at most one plugin.
 - `childDeny`: tool names a sub-agent may not call.
 - `onDaemonEvent(frame)`: handle an event the daemon pushes.
-- `onDaemonReady({ctx, hello})`: handle the link coming up, where `hello` is `{bootId, restart}`.
-  `restart` is true once the daemon behind the link changed, which is the moment to resume pod state
-  that lived in its memory. It fires on the first hello too.
+- `onDaemonReady({ctx, hello})`: once per daemon boot (`hello` is `{bootId, restart}`); resume state.
 
 `ctx` is a `PluginPodContext`. It gives `sessionId`, `workspaceDirectory`, `env()`, `append(drafts)`,
 `notify(event, {key})`, `events()`, `call(op)`, `live(frame)`, `onDaemonEvent(listener)`, `log`, and
