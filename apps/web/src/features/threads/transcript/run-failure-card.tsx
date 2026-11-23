@@ -9,6 +9,7 @@ export interface RunFailureCardProps {
   title: string
   detail: string
   meta?: string | undefined
+  notes?: readonly string[] | undefined
   actions?: readonly RunAttentionAction[] | undefined
   onDismiss?: (() => void) | undefined
 }
@@ -24,7 +25,14 @@ const ActionButton = ({ action }: { action: RunAttentionAction }) => (
   </Button>
 )
 
-export function RunFailureCard({ title, detail, meta, actions, onDismiss }: RunFailureCardProps) {
+export function RunFailureCard({
+  title,
+  detail,
+  meta,
+  notes,
+  actions,
+  onDismiss,
+}: RunFailureCardProps) {
   return (
     <section
       aria-label="Run failure"
@@ -37,6 +45,11 @@ export function RunFailureCard({ title, detail, meta, actions, onDismiss }: RunF
         {meta === undefined ? null : (
           <span className="font-mono text-xs text-muted-foreground">{meta}</span>
         )}
+        {(notes ?? []).map((note) => (
+          <span key={note} className="text-xs text-muted-foreground">
+            {note}
+          </span>
+        ))}
         {actions === undefined || actions.length === 0 ? null : (
           <div className="flex flex-wrap items-center gap-1.5 pt-1">
             {actions.map((action) => (

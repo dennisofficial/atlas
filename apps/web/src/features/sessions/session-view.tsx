@@ -38,9 +38,13 @@ import { useDiagramRepairedTranscript } from './data/use-session-diagram-transcr
 import { useSessionMarkRead } from './data/use-session-mark-read'
 import { useSessionModelChoice } from './data/use-session-model-choice'
 import { useSessionRunFailure } from './data/use-session-run-failure'
+import { useCredentialRepair } from './data/use-credential-repair'
 import { sessionViewModelOf } from './data/session-view-model'
 import { retrySessionNow } from './data/use-retry-session'
 import { OperatorRequestDock } from './operator-request-dock'
+import { RepairKeyDialog } from './repair-key-dialog'
+import { RepairSignInDialog } from './repair-sign-in-dialog'
+import { RepairStrip } from './repair-strip'
 import { SessionUpdateCard } from './session-update-card'
 import { useQueuedDock } from './data/use-queued-dock'
 import { useStagedMessages } from './data/use-staged-messages'
@@ -223,12 +227,19 @@ export function SessionView({ sessionId }: { sessionId: string }) {
       }),
     [choice.setOpen],
   )
+  const repair = useCredentialRepair({
+    sessionId,
+    mainThreadId: listed?.mainThreadId,
+    events: snapshot.events,
+    onSwitchModel: () => choice.setOpen(true),
+  })
   const failure = useSessionRunFailure({
     sessionId,
     events: snapshot.events,
     working,
     openAgent,
     onSwitchModel: () => choice.setOpen(true),
+    repair,
   })
 
   const handleSubmit = async (text: string) => {
@@ -299,6 +310,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
                 <ThreadTranscript
                   items={transcriptItems}
                   failureCard={failure.card}
+                  repairCard={failure.repairCard}
                   failedLabel={failure.failedLabel}
                   pod={null}
                   working={working}
@@ -316,6 +328,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
               </div>
               <div className="mx-auto flex w-full max-w-4xl shrink-0 flex-col gap-2 px-4 pb-4">
                 <OperatorRequestDock sessionId={sessionId} request={operatorRequest} />
+                <RepairStrip strip={repair.strip} />
                 {snapshot.skipped > 0 ? (
                   <SessionUpdateCard
                     skipped={snapshot.skipped}
@@ -330,6 +343,8 @@ export function SessionView({ sessionId }: { sessionId: string }) {
                   <StartFailedCard reason={snapshot.status.reason} onRetry={handleRetry} />
                 ) : null}
                 <RefusalRows refusals={refusals} onDismiss={dismissRefusals} />
+                <RepairSignInDialog {...repair.dialogs.signIn} />
+                <RepairKeyDialog {...repair.dialogs.key} />
                 <SummariseDialog {...summarise.dialog} />
                 <RewindDialog {...rewind.dialog} />
                 <CommandListDialog
