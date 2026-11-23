@@ -21,6 +21,9 @@ const authFailuresOf = async (ctx: HandoffContext) =>
 const saidOf = async (ctx: HandoffContext) =>
   (await ctx.events()).filter((row) => row.type === 'assistant-said')
 
+const turnStartsOf = async (ctx: HandoffContext) =>
+  (await ctx.record()).filter((row) => row.type === 'turn-started')
+
 describeHandoff({
   name: 'a credential failure the operator retries',
   prompt: 'run it',
@@ -59,6 +62,7 @@ describeHandoff({
     expect(await authFailuresOf(ctx)).toHaveLength(1)
     expect(await dispatchedOf(ctx)).toHaveLength(1)
     expect(await saidOf(ctx)).toHaveLength(0)
+    expect(await turnStartsOf(ctx)).toHaveLength(1)
   },
 
   async release(ctx) {

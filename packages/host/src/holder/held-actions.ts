@@ -65,6 +65,7 @@ export class HeldActions {
       work: () =>
         readHeldAction({
           deps,
+          threadId: args.threadId,
           draining: this.args.draining(),
           turnRunning,
           resumeAfterSeq: this.resumeAfterSeq,

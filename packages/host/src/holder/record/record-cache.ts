@@ -163,6 +163,10 @@ export class RecordCache {
     return this.loopEvents
   }
 
+  threadId(): ThreadId {
+    return this.args.threadId
+  }
+
   loopState(): LoopState {
     return this.state
   }

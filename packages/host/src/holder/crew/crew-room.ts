@@ -1,4 +1,10 @@
-import { EKilledBy, lostAgentEnding, type AgentLost, type ThreadId } from '@dltech/atlas-core'
+import {
+  EAgentLostCause,
+  EKilledBy,
+  lostAgentEnding,
+  type AgentLost,
+  type ThreadId,
+} from '@dltech/atlas-core'
 import type {
   PodCrew,
   SubagentSaid,
@@ -12,6 +18,8 @@ import { endingKeyOf, postNotice, threadLastSeq } from './child-reports'
 import { settledChildOf, type OpenChild } from './open-children'
 
 export type CrewRoomArgs = Omit<ChildRunArgs, 'agentType' | 'intent' | 'saySibling'>
+
+class UnknownChild extends Error {}
 
 export class CrewRoom {
   private readonly runs = new Map<ThreadId, ChildRun>()
@@ -71,7 +79,7 @@ export class CrewRoom {
   async retry(args: { agentId: string }): Promise<boolean> {
     const run = await this.runOrUndefined(args.agentId)
     if (run === undefined) return false
-    await run.continueTurn()
+    await run.continueTurn({ retry: true })
     return true
   }
 
@@ -137,7 +145,10 @@ export class CrewRoom {
   private async runOrUndefined(agentId: string): Promise<ChildRun | undefined> {
     const live = this.runs.get(agentId as ThreadId)
     if (live !== undefined) return live
-    return await this.reopen(agentId as ThreadId).catch(() => undefined)
+    return await this.reopen(agentId as ThreadId).catch((error: unknown) => {
+      if (error instanceof UnknownChild) return undefined
+      throw error
+    })
   }
 
   private async reopen(agentId: ThreadId): Promise<ChildRun> {
@@ -146,21 +157,24 @@ export class CrewRoom {
       threadId: this.args.parentThreadId,
       agentId,
     })
-    const adopted =
-      settled === undefined
-        ? undefined
-        : await ChildRun.adopt({
-            ...this.childArgs(),
-            agentType: settled.agentType,
-            intent: settled.intent,
-            agentId,
-            spawnedAt: settled.spawnedAt,
-            settled: { status: settled.status, endedAt: settled.endedAt },
-            ...(settled.worktree === undefined ? {} : { worktree: settled.worktree }),
-          })
-    if (adopted?.ok !== true) throw new Error(`no sub-agent ${agentId} in this session`)
-    this.runs.set(adopted.run.agentId, adopted.run)
-    return adopted.run
+    if (settled === undefined) throw new UnknownChild(`no sub-agent ${agentId} in this session`)
+    const adopted = await ChildRun.adopt({
+      ...this.childArgs(),
+      agentType: settled.agentType,
+      intent: settled.intent,
+      agentId,
+      spawnedAt: settled.spawnedAt,
+      settled: { status: settled.status, endedAt: settled.endedAt },
+      ...(settled.worktree === undefined ? {} : { worktree: settled.worktree }),
+    })
+    if (adopted.ok) {
+      this.runs.set(adopted.run.agentId, adopted.run)
+      return adopted.run
+    }
+    if (adopted.lost.cause === EAgentLostCause.RecordUnreadable) {
+      throw new Error(`the log of sub-agent ${agentId} could not be read: ${adopted.lost.detail}`)
+    }
+    throw new UnknownChild(`no sub-agent ${agentId} in this session`)
   }
 
   private async lose(args: { child: OpenChild; lost: AgentLost }): Promise<void> {

@@ -20,6 +20,13 @@ const authFailure = ({ message }: { message: string }) => ({
   message,
 })
 
+const brokenFailure = ({ message }: { message: string }) => ({
+  kind: EProviderFailureKind.InvalidRequest,
+  scope: EProviderFailureScope.Request,
+  retry: EProviderRetry.Never,
+  message,
+})
+
 const eventsOf = async (rig: HolderRig): Promise<V2Event[]> =>
   (await rig.plane.readEvents({ threadId: THREAD_ID, afterSeq: 0, limit: 400, visible: false }))
     .events
@@ -51,7 +58,11 @@ describe('a retry after a turn failed on a credential', () => {
       true,
     )
     await rig.flush()
+    rig.clock.advance(60_000)
+    await rig.flush()
     const before = await eventsOf(rig)
+    expect(before.filter((event) => event.type === 'assistant-said')).toEqual([])
+    expect(before.filter((event) => event.type === 'turn-started')).toHaveLength(1)
 
     await retryOf(rig, '{}')
     expect(
@@ -73,6 +84,36 @@ describe('a retry after a turn failed on a credential', () => {
     expect(after.filter((event) => event.type === 'assistant-said')).toMatchObject([
       { parts: [{ type: 'text', text: 'after the retry' }] },
     ])
+  })
+
+  it('keeps the ordinary resume a failure that has no repair', async () => {
+    const model = new ScriptedModel([
+      { calls: [{ callId: CALL_ID, name: 'bash', input: { command: 'echo run >> runs' } }] },
+      { throws: new Error('the request was malformed') },
+      { text: 'resumed without a retry' },
+    ])
+    const rig = await makeRig({ model: () => model, normalizeFailure: brokenFailure })
+    await seedSession(rig)
+    await rig.post('do the work')
+    await rig.holder.start()
+    await rig.wake()
+    expect(
+      await flushUntil({
+        check: async () => (await eventsOf(rig)).some((event) => event.type === 'assistant-said'),
+        clock: rig.clock,
+        advanceMs: 60_000,
+        attempts: 200,
+      }),
+    ).toBe(true)
+
+    const events = await eventsOf(rig)
+    expect(events.filter((event) => event.type === 'assistant-said')).toMatchObject([
+      { parts: [{ type: 'text', text: 'resumed without a retry' }] },
+    ])
+    expect(
+      events.filter((event) => event.type === 'tool-dispatched' && event.callId === CALL_ID),
+    ).toHaveLength(1)
+    expect(events.filter((event) => event.type === 'input-consumed')).toEqual([])
   })
 
   it('never turns the retry into a user message', async () => {

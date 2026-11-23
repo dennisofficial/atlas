@@ -11,7 +11,7 @@ import {
   type ToolOutcome,
   type V2Event,
 } from '@dltech/atlas-core'
-import { ScriptedModel } from '@dltech/atlas-agent/testing'
+import { ScriptedModel, type ScriptedModelStep } from '@dltech/atlas-agent/testing'
 import {
   composePlugins,
   definePlugin,
@@ -20,11 +20,22 @@ import {
 } from '@dltech/atlas-plugin-sdk'
 import { z } from 'zod'
 
+import { DRAIN_IN_FLIGHT_CAP_MS } from '../drain-cap'
 import { flushUntil, makeRig, seedSession, SESSION, THREAD_ID, type HolderRig } from './holder-rig'
 
 const CHILD_BRIEF = 'CHILD-RETRY-BRIEF take the first pass'
+const CHILD_ANSWER = 'child after the retry'
 const SPAWN_PROBE = 'retry_spawn_probe'
 const CALL_ID = 'c1'
+const PARENT_STEPS: readonly ScriptedModelStep[] = [
+  { calls: [{ callId: 'p1', name: SPAWN_PROBE, input: {} }] },
+  { text: 'parent done' },
+  { text: 'parent idle' },
+]
+const FAILING_CHILD: readonly ScriptedModelStep[] = [
+  { calls: [{ callId: CALL_ID, name: 'bash', input: { command: 'echo run >> runs' } }] },
+  { throws: new Error('the key was revoked') },
+]
 
 const authFailure = ({ message }: { message: string }) => ({
   kind: EProviderFailureKind.Auth,
@@ -209,5 +220,132 @@ describe('a retry that names a sub-agent', () => {
     expect(parentAfter.filter((event) => event.type === 'user-said')).toHaveLength(
       parentBefore.filter((event) => event.type === 'user-said').length,
     )
+  })
+})
+
+const modelOf = (childSteps: readonly ScriptedModelStep[]): ModelPort => {
+  const parent = new ScriptedModel([...PARENT_STEPS])
+  const child = new ScriptedModel([...childSteps])
+  return {
+    identity: parent.identity,
+    step: async (step) =>
+      JSON.stringify(step.assembled).includes(CHILD_BRIEF)
+        ? await child.step(step)
+        : await parent.step(step),
+  }
+}
+
+const rigWithChild = async (args: {
+  childSteps: readonly ScriptedModelStep[]
+  shared?: HolderRig | undefined
+}): Promise<HolderRig> => {
+  const state: SpawnState = { agentId: undefined }
+  const shared = args.shared
+  const model = modelOf(args.childSteps)
+  return await makeRig({
+    plugins: composePlugins([spawnPlugin(state)]),
+    model: () => model,
+    normalizeFailure: authFailure,
+    ...(shared === undefined
+      ? {}
+      : {
+          plane: shared.plane,
+          store: shared.store,
+          bus: shared.bus,
+          clock: shared.clock,
+          daemon: shared.daemon,
+        }),
+  })
+}
+
+const spawnFailingChild = async (rig: HolderRig): Promise<string> => {
+  await rig.holder.start()
+  await rig.post('spawn one')
+  await rig.wake()
+  expect(
+    await flushUntil({
+      check: async () =>
+        (await eventsIn(rig, THREAD_ID)).some((event) => event.type === 'agent-spawned'),
+      clock: rig.clock,
+      advanceMs: 60_000,
+      attempts: 200,
+    }),
+  ).toBe(true)
+  const agentId = agentIdIn(await eventsIn(rig, THREAD_ID))
+  expect(
+    await flushUntil({
+      check: async () => await childFailed(rig, agentId),
+      clock: rig.clock,
+      advanceMs: 60_000,
+      attempts: 200,
+    }),
+  ).toBe(true)
+  expect(
+    await flushUntil({
+      check: async () => await endingQueued(rig),
+      clock: rig.clock,
+      advanceMs: 60_000,
+      attempts: 200,
+    }),
+  ).toBe(true)
+  await rig.wake()
+  expect(
+    await flushUntil({
+      check: async () =>
+        (await eventsIn(rig, THREAD_ID)).some(
+          (event) => event.type === 'agent-ended' && event.agentId === agentId,
+        ),
+      clock: rig.clock,
+      advanceMs: 60_000,
+      attempts: 200,
+    }),
+  ).toBe(true)
+  await rig.flush()
+  return agentId
+}
+
+const handOff = async (rig: HolderRig): Promise<void> => {
+  const draining = rig.holder.drain()
+  await rig.flush()
+  rig.clock.advance(DRAIN_IN_FLIGHT_CAP_MS)
+  await draining
+}
+
+const restartedIn = async (rig: HolderRig, agentId: string): Promise<V2Event[]> =>
+  (await eventsIn(rig, THREAD_ID)).filter(
+    (event) => event.type === 'agent-restarted' && event.agentId === agentId,
+  )
+
+describe('a sub-agent that failed on a credential', () => {
+  it('is not restarted by a takeover, only by a retry that names it', async () => {
+    const a = await rigWithChild({ childSteps: FAILING_CHILD })
+    await seedSession(a)
+    const agentId = await spawnFailingChild(a)
+    await a.flush()
+    await handOff(a)
+
+    const b = await rigWithChild({ childSteps: [{ text: CHILD_ANSWER }], shared: a })
+    await b.holder.start()
+    await a.bus.wake(SESSION)
+    await b.wake()
+    await b.flush()
+    b.clock.advance(60_000)
+    await b.flush()
+
+    expect(await restartedIn(b, agentId)).toEqual([])
+    expect(saidIn(await eventsIn(b, agentId))).toEqual([])
+
+    await b.plane.post({ sessionId: SESSION, kind: 'retry', payload: JSON.stringify({ agentId }) })
+    await b.wake()
+    expect(
+      await flushUntil({
+        check: async () => saidIn(await eventsIn(b, agentId)).length === 1,
+        clock: b.clock,
+        advanceMs: 60_000,
+        attempts: 200,
+      }),
+    ).toBe(true)
+    expect(await restartedIn(b, agentId)).toMatchObject([{ via: 'message' }])
+    expect(saidIn(await eventsIn(b, agentId))).toEqual([CHILD_ANSWER])
   })
 })

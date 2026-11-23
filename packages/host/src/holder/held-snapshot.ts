@@ -1,14 +1,19 @@
 import {
   EHeldAction,
+  EResume,
+  INBOX_KIND_RETRY,
   NO_WORKSPACE_RECORD,
   decideHeldAction,
-  isResumableOf,
+  isResumablePlan,
   loopStateOf,
   preparedBeforeOf,
+  repairHoldsResume,
+  resumePlanOf,
   setupInFlightOf,
   workspaceStateFrom,
   type InboxEntry,
   type PrepareFailure,
+  type ThreadId,
 } from '@dltech/atlas-core'
 
 import { forMainThread } from './child-retry'
@@ -53,6 +58,7 @@ const resumeSetupIn = (args: {
 
 export const readHeldAction = async (args: {
   deps: HeldSessionDeps
+  threadId: ThreadId
   draining: boolean
   turnRunning: boolean
   resumeAfterSeq: number
@@ -103,8 +109,12 @@ export const readHeldAction = async (args: {
     quiet && args.runtime !== undefined
       ? await countRunningShells({ deps, runtime: args.runtime })
       : 0
+  const plan = resumePlanOf(loopStateOf({ events: resumeEvents }))
+  const retryPending = actionable.some((entry) => entry.kind === INBOX_KIND_RETRY)
+  const repairHeld = repairHoldsResume({ mainThreadId: args.threadId, events })
   const resumable =
-    isResumableOf(loopStateOf({ events: resumeEvents })) && !stopSettledPromptOf(events)
+    !stopSettledPromptOf(events) &&
+    (repairHeld ? retryPending && plan.kind === EResume.Continue : isResumablePlan(plan))
   const action = resumeSetupIn({
     decided: decideHeldAction({
       draining: args.draining,
