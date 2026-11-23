@@ -25,6 +25,15 @@ describe('hookOutcomeDrafts', () => {
     expect(second[0]).toMatchObject({ slot: 'gitState', key: HOOK_CONTEXT_KEY })
   })
 
+  it('keys the context by the key the hook named, so a later one does not supersede it', () => {
+    expect(
+      hookOutcomeDrafts({
+        hookName: 'review',
+        outcome: { additionalContext: 'finding', contextKey: 'call-1' },
+      }),
+    ).toEqual([{ type: 'context-loaded', slot: 'review', key: 'call-1', content: 'finding' }])
+  })
+
   it('keeps two hooks in separate slots even when they say the same thing', () => {
     const one = hookOutcomeDrafts({ hookName: 'gitState', outcome: { additionalContext: 'same' } })
     const other = hookOutcomeDrafts({

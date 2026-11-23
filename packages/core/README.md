@@ -64,6 +64,9 @@ assembly, settings, ports, and the record folds. It imports `zod` and nothing el
 - `PromptFragment`: abstract class with `id`, `applies(ctx)`, `text(ctx)`.
 - `PromptContext`: the data a fragment reads.
 - `EHookPhase`, `EStage`, `orderHooks(hooks)`: the nine phases and the order inside a stage.
+- `HookOutcome`, `hookOutcomeDrafts({hookName, outcome})`, `HOOK_CONTEXT_KEY`: what a hook hands
+  back. `additionalContext` becomes a `context-loaded` event keyed by `contextKey` when the hook
+  names one, so each finding stays current; `drafts` ride along untouched.
 - `resolveBeforeTool({...})`, `EBeforeToolDecision`: the decision a tool hook returns.
 
 ### Resolve a setting

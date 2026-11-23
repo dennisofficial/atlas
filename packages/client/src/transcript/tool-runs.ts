@@ -5,6 +5,7 @@ import {
   type EventOfType,
 } from '@dltech/atlas-core'
 
+import { qualityReviewsByCall } from './quality-reviews-by-call'
 import {
   attachmentsOf,
   brokenBy,
@@ -167,6 +168,7 @@ function callOf(args: {
   settle: Settle | undefined
   awaiting: string | undefined
   attachments: readonly ContextAttachment[]
+  recordedReviews: readonly CodeQualityReviewedBody[]
 }): ToolCall {
   const { seed, settle, awaiting } = args
   const unsettled = awaiting === undefined ? ECallState.Pending : ECallState.AwaitingApproval
@@ -183,15 +185,24 @@ function callOf(args: {
     at: seed.at,
     settledAt: settle?.at ?? null,
     attachments: args.attachments,
-    qualityReviews: settle?.qualityReviews ?? [],
+    qualityReviews: reviewsOf({ settle, recorded: args.recordedReviews }),
   }
 }
+
+const reviewsOf = (args: {
+  settle: Settle | undefined
+  recorded: readonly CodeQualityReviewedBody[]
+}): readonly CodeQualityReviewedBody[] =>
+  args.settle?.state === ECallState.Denied
+    ? []
+    : [...(args.settle?.qualityReviews ?? []), ...args.recorded]
 
 function runOf(args: {
   seeds: readonly CallSeed[]
   settles: ReadonlyMap<CallId, Settle>
   awaiting: ReadonlyMap<CallId, string>
   attachments: ReadonlyMap<CallId, readonly ContextAttachment[]>
+  reviews: ReadonlyMap<CallId, readonly CodeQualityReviewedBody[]>
 }): ToolRun {
   const first = args.seeds[0]
   if (first === undefined) throw new Error('a tool run needs at least one call')
@@ -205,6 +216,7 @@ function runOf(args: {
         settle: args.settles.get(seed.callId),
         awaiting: args.awaiting.get(seed.callId),
         attachments: args.attachments.get(seed.callId) ?? NOTHING_ATTACHED,
+        recordedReviews: args.reviews.get(seed.callId) ?? NO_REVIEWS,
       }),
     ),
   }
@@ -214,6 +226,7 @@ export function toolRuns(events: readonly Event[]): ToolRun[] {
   const settles = settlesOf(events)
   const awaiting = awaitingApprovalIn(events)
   const attachments = attachmentsOf(events)
+  const reviews = qualityReviewsByCall(events)
   const runs: CallSeed[][] = []
   let open = false
 
@@ -229,7 +242,7 @@ export function toolRuns(events: readonly Event[]): ToolRun[] {
     open = true
   }
 
-  return runs.map((seeds) => runOf({ seeds, settles, awaiting, attachments }))
+  return runs.map((seeds) => runOf({ seeds, settles, awaiting, attachments, reviews }))
 }
 
 const NO_SETTLES: ReadonlyMap<CallId, Settle> = new Map()
@@ -237,6 +250,10 @@ const NO_SETTLES: ReadonlyMap<CallId, Settle> = new Map()
 const NONE_AWAITING: ReadonlyMap<CallId, string> = new Map()
 
 const NO_ATTACHMENTS: ReadonlyMap<CallId, readonly ContextAttachment[]> = new Map()
+
+const NO_REVIEWS: readonly CodeQualityReviewedBody[] = Object.freeze([])
+
+const NO_RECORDED_REVIEWS: ReadonlyMap<CallId, readonly CodeQualityReviewedBody[]> = new Map()
 
 export function liveToolRuns(calls: readonly LiveToolCall[]): LiveToolRun[] {
   const runs: { precededByBlocks: number; seeds: CallSeed[] }[] = []
@@ -255,6 +272,7 @@ export function liveToolRuns(calls: readonly LiveToolCall[]): LiveToolRun[] {
       settles: NO_SETTLES,
       awaiting: NONE_AWAITING,
       attachments: NO_ATTACHMENTS,
+      reviews: NO_RECORDED_REVIEWS,
     }),
     precededByBlocks: run.precededByBlocks,
   }))
