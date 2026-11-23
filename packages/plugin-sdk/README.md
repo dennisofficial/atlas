@@ -5,11 +5,11 @@ author reads this package first. Every plugin in `plugins/*` builds its slots wi
 
 ## Owns
 
-- The plugin shape: seven slots, `definePlugin`, and the composer `composePlugins`.
-- The pod tier: the pod context, the pod slot, the capabilities a tool reaches and pod resources.
-- The control and client tier slot types.
-- The plugin-facing capability types: crew, messages, classifier, analytics, sessions, worktrees,
-  routines, subscriptions and MCP control, each with an `EMPTY_*` default.
+- The plugin shape: seven slots, `definePlugin` and the composer `composePlugins`.
+- The pod tier: the pod context, the pod slot, its capabilities and pod resources; the control and
+  client tier slot types.
+- The capability types: crew, messages, classifier, analytics, sessions, worktrees, routines,
+  subscriptions and MCP control, each with an `EMPTY_*` default.
 
 ## Does not own
 
@@ -73,13 +73,14 @@ A `PodSlot` declares:
 - `slash(ctx)`: the `PodSlash` source (`names()`, `load({name, argumentText})`); at most one plugin.
 - `childDeny`: tool names a sub-agent may not call.
 - `onDaemonEvent(frame)`: handle an event the daemon pushes.
-  `ctx` is a `PluginPodContext`: `sessionId`, `workspaceDirectory`, `append(drafts)`,
-  `notify(event, {key})`, `events()`, `call(op)`, `live(frame)`, `onDaemonEvent(listener)`, `log`, and
-  the capabilities `control`, `crew`, `classifier`, `analytics`, `sessions`, `worktrees`, `resources`.
-  `ctx.control` is a `PodControl`: `exposePort({port})`, `settingsVersions()`, `memory`, `webSearch`,
-  `gateway` (`apiKey()`, `imageModel()`), `mcp`, `routines`, `subscriptions`. `ctx.classifier.status()`
-  and `classify(...)` answer core types. `ctx.analytics.capture({event, properties})` sends a product
-  event for the session's user; the host adds `session_id` and `thread_id`.
+
+`ctx` is a `PluginPodContext`: `sessionId`, `workspaceDirectory`, `append(drafts)`,
+`notify(event, {key})`, `events()`, `call(op)`, `live(frame)`, `onDaemonEvent(listener)`, `log`, and
+the capabilities `control`, `crew`, `classifier`, `analytics`, `sessions`, `worktrees`, `resources`.
+`ctx.control` is a `PodControl`: `exposePort({port})`, `settingsVersions()`, `memory`, `webSearch`,
+`gateway` (`apiKey()`, `imageModel()`), `mcp`, `routines`, `subscriptions`. `ctx.classifier.status()`
+and `classify(...)` answer core types. `ctx.analytics.capture({event, properties})` sends a product
+event for the session's user; the host adds `session_id` and `thread_id`.
 
 ### The control and client slots
 
@@ -92,27 +93,26 @@ rewrite the event.
 ### Load a resource
 
 A `PodResource<T>` needs a `name`, a `schema` and `load({ctx, directory, signal})`. Five members are
-optional: `watch(directory)` names the paths to watch, `announce(value, ctx)` returns the
-events to append, `stale(value)` tells whether the value is out of date, `background` starts the
-load without blocking the step, and `cloud` names the settings it follows. A plugin reads a cloud setting
+optional: `watch(directory)` names the paths to watch, `announce(value, ctx)` returns the events to
+append, `stale(value)` tells whether the value is out of date, `background` starts the load without
+blocking the step, and `cloud` names the settings it follows. Read a cloud setting
 through a resource: set `cloud: [ECloudSetting.McpServers]`, `ECloudSetting.Skills` or
-`ECloudSetting.PersonalInstructions`, and compare `ctx.control.settingsVersions()` with
-`UNVERSIONED_SETTINGS`. Read the stored value with `readResource({ctx, resource})`. Reload one with
+`ECloudSetting.PersonalInstructions`, compare `ctx.control.settingsVersions()` with
+`UNVERSIONED_SETTINGS`, and read it with `readResource({ctx, resource})`. Reload one with
 `ctx.resources.reload(name)`.
 
 ## Capabilities
 
 - `definePlugin({name, ...slots})`: validate the slots and freeze the plugin.
-- `composePlugins(plugins)`: merge most slots. Two plugins may not register the same tool, prompt
-  fragment, resource or command name. It merges only the client hooks, so collect `entryFolds`
-  from each plugin yourself, as `apps/web/src/features/sessions/registered-plugins.ts` does.
+- `composePlugins(plugins)`: merge most slots; two plugins may not register the same tool, prompt
+  fragment, resource or command name. Collect `entryFolds` from each plugin yourself, as
+  `apps/web/src/features/sessions/registered-plugins.ts` does.
 - `composePod(pods)`: the merged pod slot that the agent host builds once.
 - `eventSchemaOf(plugins)`, `eventTypesOf(plugins)`: the decoder and the type list for a session.
   `PluginEventBodies` types the body of each event.
 - `crossLatch({ctx, name, level, mayFire})`: fire a level-triggered latch once, and record it.
 - `MacOfflineError`, `PodMcpProxyTransport`, `PodMcpProxyChannel`: the proxy to the Mac app.
-- `EMPTY_*` (`EMPTY_POD`, `EMPTY_CONTROL`, `EMPTY_CLASSIFIER`, `EMPTY_ANALYTICS`): the default of
-  each slot, which a tier spreads when it contributes nothing.
+- `EMPTY_*` (`EMPTY_POD`, `EMPTY_CONTROL`, `EMPTY_CLASSIFIER`, `EMPTY_ANALYTICS`): a slot's default.
 
 ## Usage
 
