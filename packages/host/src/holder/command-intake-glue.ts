@@ -33,6 +33,7 @@ export type CommandEntryArgs = CommandGlue & { entry: InboxEntry }
 
 export type LoggedCommandsArgs = CommandGlue & {
   events: readonly V2Event[]
+  skills?: readonly string[] | undefined
   readEntry: (inboxId: number) => Promise<InboxEntry | undefined>
 }
 
@@ -87,8 +88,8 @@ export const runLoggedCommands = async (params: LoggedCommandsArgs): Promise<voi
     if (await params.turnOpen()) return
     if (input.kind === INBOX_KIND_MESSAGE) {
       if (input.message === undefined) continue
-      const plan = intake.planText(input.message.text)
-      if (plan.kind === ETextPlan.Message) continue
+      const plan = await intake.planText(input.message.text, params.skills)
+      if (plan.kind === ETextPlan.Message || plan.kind === ETextPlan.Skill) continue
       const entry = await params.readEntry(input.inboxId)
       if (entry === undefined || entry.kind !== INBOX_KIND_MESSAGE) continue
       await intake.runText({ entry, message: input.message, plan })

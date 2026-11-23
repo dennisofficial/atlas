@@ -9,14 +9,14 @@ import { INBOX_KIND_MESSAGE } from '@dltech/atlas-protocol'
 import { INBOX_KIND_OPERATOR_ANSWER } from '@dltech/atlas-plugin-operator/core'
 
 import { consumeQuietly, consumeUnknown, runCommand, type CommandGlue } from './command-intake-glue'
-import { isCommandKind } from './command-intake'
+import { ESkillDrafts, isCommandKind } from './command-intake'
 import { EIntakeScope, skipsInChildScope } from './intake-scope'
-import { drainEventEntry, stagedMessageOf, type StagedMessage } from './notice-drain'
+import { drainEventEntry, stagedMessageOf } from './notice-drain'
 import type { OperatorAnswerIntake } from './operator-answer'
-import type { AppendDrafts } from './staged-log'
+import type { AppendDrafts, StagedDrainable } from './staged-log'
 import { ETextPlan } from './text-command'
 
-export type EntryDrain = { drainable: StagedMessage[]; wakesTurn: boolean }
+export type EntryDrain = { drainable: StagedDrainable[]; wakesTurn: boolean }
 
 export const drainEntries = async (args: {
   entries: readonly InboxEntry[]
@@ -25,9 +25,10 @@ export const drainEntries = async (args: {
   superseded: ReadonlySet<number>
   glue: CommandGlue
   appendDrafts: AppendDrafts
+  skills?: readonly string[] | undefined
   operatorAnswers?: OperatorAnswerIntake | undefined
 }): Promise<EntryDrain> => {
-  const drainable: StagedMessage[] = []
+  const drainable: StagedDrainable[] = []
   let wakesTurn = false
   for (const entry of args.entries) {
     if (args.scope === EIntakeScope.Child && skipsInChildScope(entry)) continue
@@ -54,8 +55,25 @@ export const drainEntries = async (args: {
       const staged = await stagedMessageOf({ entry, appendDrafts: args.appendDrafts })
       if (staged === undefined) continue
       const intake = args.glue.commandIntake
-      const plan = intake?.planText(staged.message.text)
-      if (intake === undefined || plan === undefined || plan.kind === ETextPlan.Message) {
+      if (intake === undefined) {
+        drainable.push(staged)
+        continue
+      }
+      const plan = await intake.planText(staged.message.text, args.skills)
+      if (plan.kind === ETextPlan.Message) {
+        drainable.push(staged)
+        continue
+      }
+      if (plan.kind === ETextPlan.Skill) {
+        const result = await intake.draftsOfSkill(plan)
+        if (result.kind === ESkillDrafts.Loaded) {
+          drainable.push({ ...staged, context: result.drafts })
+          continue
+        }
+        if (result.kind === ESkillDrafts.Refused) {
+          await intake.refuseText({ entry, message: staged.message, reason: result.reason })
+          continue
+        }
         drainable.push(staged)
         continue
       }

@@ -20,12 +20,12 @@ frontmatter. The model sees the model-invocable skills in its system prompt and 
 
 ## Entry points
 
-| Import                                  | Use it for                                                                               |
-| --------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `@dltech/atlas-plugin-skills/core`      | `skillsCoreSlots`, the frontmatter and spec parsers, the validator, precedence, listing. |
-| `@dltech/atlas-plugin-skills/pod`       | `skillsPodOf`: the two tools, the `skills` resource and the listing hook.                |
-| `@dltech/atlas-plugin-skills/catalogue` | The built-in skill catalogue and its lookups. No Node import, so a client can bundle it. |
-| `@dltech/atlas-plugin-skills/client`    | `skillsClient`, `latestSkillsOf` and `repoSkillsOf`.                                     |
+| Import                                  | Use it for                                                                                  |
+| --------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `@dltech/atlas-plugin-skills/core`      | `skillsCoreSlots`, the frontmatter and spec parsers, the validator, precedence, listing.    |
+| `@dltech/atlas-plugin-skills/pod`       | `skillsPodOf`: the two tools, the `skills` resource, the listing hook and the slash source. |
+| `@dltech/atlas-plugin-skills/catalogue` | The built-in skill catalogue and its lookups. No Node import, so a client can bundle it.    |
+| `@dltech/atlas-plugin-skills/client`    | `skillsClient`, `latestSkillsOf` and `repoSkillsOf`.                                        |
 
 ## Capabilities
 
@@ -70,9 +70,14 @@ package.
 
 ### The pod slot
 
-`skillsPodOf({ cloud, writes })` gives the two tools, the `skills` resource and the
-`skills-listing` hook. The resource watches `<project>/.agents/skills` and the cloud `Skills`
-setting, and it announces `skills-changed` with the whole catalogue.
+`skillsPodOf({ cloud, writes })` gives the two tools, the `skills` resource, the
+`skills-listing` hook and the pod's `slash` source. The resource watches `<project>/.agents/skills`
+and the cloud `Skills` setting, and it announces `skills-changed` with the whole catalogue.
+
+`slash(ctx).names()` is every user-invocable skill of the catalogue, including one that sets
+`disable-model-invocation`, because the operator may still type it. `slash(ctx).load({name,
+argumentText})` returns one `context-loaded` draft for the skill slot, with `$ARGUMENTS` and `$1`
+expanded, and refuses an unknown or unreadable skill with the `skill` tool's own sentence.
 
 `skills-listing` runs before each step. It appends the model-invocable skills to the system prompt
 within `SKILL_LISTING_BUDGET_CHARS`. A skill that sets `disable-model-invocation` stays out.

@@ -17,11 +17,13 @@ import {
   type RecordBody,
   type V2Event,
 } from '@dltech/atlas-core'
-import type { LogPort } from '@dltech/atlas-observability'
+import type { PodSlash } from '@dltech/atlas-plugin-sdk'
+import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
 import {
   ETextPlan,
   planTextInput,
+  slashNamesOf,
   type CommandHandlers,
   type ControlHandlers,
   type TextPlan,
@@ -36,6 +38,7 @@ export type CommandIntakeArgs = {
   commands: CommandRegistry
   handlers: CommandHandlers
   controlHandlers: ControlHandlers
+  slash?: PodSlash | undefined
   sessionId: string
   model?: ModelPort | undefined
   visibleEvents(): readonly Event[]
@@ -46,6 +49,18 @@ export type CommandIntakeArgs = {
 
 type Resolved = { command: Command; handler: CommandHandler<unknown> }
 type CommandPlan = Extract<TextPlan, { kind: ETextPlan.Command }>
+type SkillPlan = Extract<TextPlan, { kind: ETextPlan.Skill }>
+
+export enum ESkillDrafts {
+  Loaded = 'loaded',
+  Refused = 'refused',
+  Unavailable = 'unavailable',
+}
+
+export type SkillDrafts =
+  | { kind: ESkillDrafts.Loaded; drafts: readonly EventDraft[] }
+  | { kind: ESkillDrafts.Refused; reason: string }
+  | { kind: ESkillDrafts.Unavailable }
 
 const payloadOf = (payload: string): unknown => {
   try {
@@ -61,13 +76,38 @@ const reasonOf = (error: unknown): string =>
 export class CommandIntake {
   constructor(private readonly args: CommandIntakeArgs) {}
 
-  planText(text: string): TextPlan {
+  planText(text: string, skills?: readonly string[] | undefined): Promise<TextPlan> {
     return planTextInput({
       text,
       commands: this.args.commands,
       handlers: this.args.handlers,
       controlHandlers: this.args.controlHandlers,
+      slash: this.args.slash,
+      ...(skills === undefined ? {} : { skills }),
+      log: this.args.log,
     })
+  }
+
+  async skillsForPass(): Promise<readonly string[]> {
+    return await slashNamesOf({ slash: this.args.slash, log: this.args.log })
+  }
+
+  async draftsOfSkill(plan: SkillPlan): Promise<SkillDrafts> {
+    const slash = this.args.slash
+    if (slash === undefined) return { kind: ESkillDrafts.Unavailable }
+    try {
+      const loaded = await slash.load({ name: plan.name, argumentText: plan.argumentText })
+      return loaded.ok
+        ? { kind: ESkillDrafts.Loaded, drafts: loaded.drafts }
+        : { kind: ESkillDrafts.Refused, reason: loaded.reason }
+    } catch (error) {
+      this.args.log?.warn({
+        source: 'holder.command',
+        message: `loading the ${plan.name} skill failed, so the text stays a message`,
+        ...logFieldsOf({ error }),
+      })
+      return { kind: ESkillDrafts.Unavailable }
+    }
   }
 
   resolve(entry: InboxEntry): Resolved | undefined {
@@ -109,6 +149,15 @@ export class CommandIntake {
       },
     ])
     await this.invokePlan({ entry: params.entry, plan: params.plan })
+  }
+
+  async refuseText(params: {
+    entry: InboxEntry
+    message: InputMessage
+    reason: string
+  }): Promise<void> {
+    await this.stageText({ entry: params.entry, message: params.message })
+    await this.refuse({ inboxId: params.entry.inboxId, reason: params.reason })
   }
 
   async stageText(params: { entry: InboxEntry; message: InputMessage }): Promise<void> {

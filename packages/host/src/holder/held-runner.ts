@@ -199,6 +199,7 @@ export const createLoopRunner = (args: {
     commands: deps.commands,
     handlers: deps.commandHandlers,
     controlHandlers: deps.controlHandlers,
+    ...(pod.slash === undefined ? {} : { slash: pod.slash }),
     model: runtime.model,
     ...(operator === undefined ? {} : { operatorAnswers: operator }),
     now: () => deps.timers.now(),

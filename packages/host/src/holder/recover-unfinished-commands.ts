@@ -17,6 +17,7 @@ export const recoverUnfinishedCommands = async (params: {
 }): Promise<void> => {
   const { intake, plane, sessionId, log } = params
   const visible = visibleEvents(params.record.eventCache().eventsAfter(0))
+  const skills = await intake.skillsForPass()
   for (const inboxId of unfinishedCommandIdsOf(visible)) {
     try {
       const entry = await plane.readInboxEntry({ sessionId, inboxId })
@@ -33,7 +34,7 @@ export const recoverUnfinishedCommands = async (params: {
       if (entry.kind !== INBOX_KIND_MESSAGE) continue
       const text = salvagedOf(entry.payload).message?.text
       if (text === undefined) continue
-      const plan = intake.planText(text)
+      const plan = await intake.planText(text, skills)
       if (plan.kind !== ETextPlan.Command || !('pod' in plan.run)) continue
       if (!producesOutcome(plan.consumed.name)) continue
       log?.info({
