@@ -5,8 +5,9 @@
 > nudge saying the operator chose to resume. A stop followed by a typed message is a normal prompt
 > and ends resumability. `/resume` takes no free text. Fork is dropped and appears nowhere here.
 
-Status: **approved, 2026-11-23** (Dennis). Anchors are `path:line` at `251b18d54` (origin/main, 2026-11-23). Re-check an
-anchor before relying on it.
+Status: **built, 2026-11-23**, live check outstanding (Dennis approved it the same day). Anchors are
+`path:line` at `251b18d54` (origin/main, 2026-11-23). Re-check an anchor before relying on it. §11.1
+records how it was built and every place the code left this spec.
 
 Prior art: [slash-commands.md](slash-commands.md) is the command contract this file spends, and
 [rotate.md](rotate.md) is the most recent host command and the shape this file copies. Decision on
@@ -556,10 +557,40 @@ Files: `apps/web/src/features/threads/transcript/{stopped-line.tsx,transcript-tu
 `apps/tui/src/app/{use-run-attention.ts,session-api.ts}` and the transcript row.
 Proof: `bun test` in `apps/web`; TUI typecheck and its twin test over the fake client.
 
-**Slice 5 — docs.** This file's as-built table, `docs/v2/roadmap.md` Current state,
+**Slice 5 — docs.** This file's as-built list (§11.1), `docs/v2/roadmap.md` Current state,
 `docs/v2/slices/tui.md:128` (the row now names the route) and `:160` (`/resume` becomes `/sessions`).
 
 Integration owner: this thread, for slices 1–4.
+
+### 11.1 As built
+
+Live check outstanding. Slices 2 and 3 landed together in #2730, because the command must not land
+without the host that runs its marker: a `/resume` that appends a marker nothing acts on would be a
+dead end.
+- **Slice 1, `core` (#2728).** `resume-marked` is an `EventBody`
+  (`packages/core/src/events/body.ts:275`), not a `RecordBody` as §6.1 wrote: a body the loop folds
+  is how the marker reaches the loop. `resumeMarkedDraft` lives in core beside `resumePointOf`, so
+  the crew and the command write the same marker and neither owns the shape
+  (`commands/src/resume/pod.ts:14` re-exports it). A `ToolInterrupted` resume keeps the operator-stop
+  notice, because its marker carries no discard range: only a `Clean` marker discards, and the stop
+  notice sits with the row it would have hidden
+  (`packages/core/src/assembly/rules/messages-from-events.ts:283`).
+- **Slices 2 and 3, `commands/resume` and `host` (#2730).** `CommandContext` gained a third field,
+  `logEvents()` (`packages/commands/src/pod.ts:17`): `visibleEvents()` is the loop's view and drops
+  `turn-started` and `turn-ended`, which is exactly what `resumePointOf` needs to read, so the handler
+  takes the raw thread. The fault scenario kills the host after the resume command is consumed and
+  before the marker, not mid-turn
+  (`apps/api/src/agent/__tests__/faults/handoff-resume.fault.spec.ts`): `EHostFault.CommandOutcomeHangs`
+  holds the command open, which is the window where a second marker could be appended. A mid-turn kill
+  proves nothing extra, because the marker is already durable by then.
+- **Slice 4, the surfaces (#2737).** The TUI binds `ctrl+r resume` globally, on the working line and
+  the stop block alike (`apps/tui/src/app/chat-screen-host.tsx:213`), rather than only on the stopped
+  row: the stop row can scroll away and the working line is where the operator's eyes are. Web shows
+  no second timestamp on the `Stopped` line
+  (`apps/web/src/features/threads/transcript/stopped-line.tsx`), because the reply above it already
+  carries the time. Mobile is excluded until it has a stopped line of its own.
+- **Slice 5, docs (this PR).** This section, the roadmap row, and the TUI spec: the picker moved to
+  `/sessions` (§7.1) and fork is gone from `tui.md`.
 
 ## 12. Test plan
 
