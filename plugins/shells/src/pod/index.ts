@@ -1,5 +1,6 @@
 import { EMPTY_POD, type PodSlot } from '@dltech/atlas-plugin-sdk'
 
+import { adoptedShellHook } from './adopted-shell'
 import { recordShellEnding } from './ending'
 import { BackgroundShellsFragment } from './fragment'
 import { ShellInputTool } from './input-tool'
@@ -41,7 +42,7 @@ export const shellsPod: PodSlot = {
       if (frame.event.type === 'shells.ended') state.live.forget(frame.event.shellId)
     })
     void reconcileShells({ ctx, state })
-    return {}
+    return { afterTool: [adoptedShellHook({ ctx, state })] }
   },
   prompts: [new BackgroundShellsFragment()],
   commands: new Map(),

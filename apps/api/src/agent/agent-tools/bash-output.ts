@@ -65,6 +65,21 @@ export function mergeStreams(args: { stdout: Tail; stderr: Tail }): {
   return { text, truncated: streams.some((stream) => stream.truncated) }
 }
 
+export function renderBackgroundedText(args: {
+  command: string
+  shellId: string
+  merged: string
+  timeoutMs: number
+}): string {
+  const sections: string[] = []
+  if (args.merged.length > 0)
+    sections.push(untrustedEnvelope({ source: 'bash', body: args.merged }))
+  sections.push(
+    `\`${args.command}\` is still running after ${args.timeoutMs / 1000} s, so it continues as background shell ${args.shellId} instead of being killed. Its ending is delivered to you with the output from here on. Use shell_output({ shellId: "${args.shellId}" }) for unread output. Use shell_input to send input. Use shell_kill to stop it. Do not wait on it: take other work, or end the turn and be woken.`,
+  )
+  return sections.join('\n\n')
+}
+
 export function renderModelText(args: {
   command: string
   merged: string
@@ -80,7 +95,7 @@ export function renderModelText(args: {
     sections.push(untrustedEnvelope({ source: 'bash', body: args.merged }))
   if (args.timedOut) {
     sections.push(
-      `The command was killed after exceeding its ${args.timeoutMs} ms timeout. If it needs longer than ${args.maximumTimeoutMs} ms, start it again with runInBackground. Its ending is delivered to you whenever it lands.`,
+      `The command was killed after exceeding its ${args.timeoutMs} ms timeout. This sandbox could not keep it running in the background. If it needs longer than ${args.maximumTimeoutMs} ms, start it with the \`shell\` tool. Its ending is delivered to you whenever it lands.`,
     )
   }
   if (args.oomKilled) {

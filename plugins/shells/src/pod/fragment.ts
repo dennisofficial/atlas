@@ -5,7 +5,8 @@ export class BackgroundShellsFragment extends PromptFragment {
 
   text(): string {
     return [
-      'The `bash` tool runs a command in the foreground and waits for it. The `shell` tool starts a',
+      'The `bash` tool runs a command and waits for it. A command still running when the wait ends',
+      'continues as a background shell, and `bash` returns its shell id. The `shell` tool starts a',
       'command as a background shell that outlives the turn: use it for dev servers, watchers and',
       'anything that will not finish on its own. A background shell\u2019s ending arrives automatically,',
       'even after your turn ends. Never poll, sleep or loop to wait for one. `shell_output` reads',

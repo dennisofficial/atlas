@@ -74,6 +74,28 @@ describe('recordShellEnding', () => {
     })
   })
 
+  it('records the start of a shell whose ending raced the hook that writes it', async () => {
+    const harness = rig()
+    const shellId = await started(harness)
+    harness.log.length = 0
+    harness.print(shellId, 'done\n')
+    harness.finish(shellId, EShellRunStatus.Exited, 0)
+
+    await ending(harness, shellId)
+
+    expect(harness.log).toMatchObject([
+      { type: 'background-shell-started', shellId, command: 'sleep 30' },
+    ])
+    expect(harness.notices.at(-1)?.event).toMatchObject({
+      type: 'background-shell-ended',
+      shellId,
+      command: 'sleep 30',
+      status: EShellStatus.Exited,
+      exitCode: 0,
+      output: 'done\n',
+    })
+  })
+
   it('records a frame delivered twice only once', async () => {
     const harness = rig()
     const shellId = await started(harness)

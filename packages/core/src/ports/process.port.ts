@@ -13,6 +13,7 @@ export enum EProcessOutcome {
   Failed = 'failed',
   OomKilled = 'oom-killed',
   Interrupted = 'interrupted',
+  Backgrounded = 'backgrounded',
 }
 
 export type ProcessOutcome =
@@ -20,6 +21,7 @@ export type ProcessOutcome =
   | { readonly kind: EProcessOutcome.Failed; readonly code: string; readonly message: string }
   | { readonly kind: EProcessOutcome.OomKilled; readonly memory?: OomMemory | undefined }
   | { readonly kind: EProcessOutcome.Interrupted }
+  | { readonly kind: EProcessOutcome.Backgrounded; readonly shellId: string }
 
 export type ProcessHandle = {
   readonly stdout: ReadableStream<Uint8Array>
@@ -27,6 +29,7 @@ export type ProcessHandle = {
   readonly exited: Promise<number>
   readonly outcome?: Promise<ProcessOutcome>
   terminate(): void
+  moveToBackground?(args: { shellId: string }): Promise<boolean>
 }
 
 export const outcomeOf = (handle: ProcessHandle): Promise<ProcessOutcome> =>
