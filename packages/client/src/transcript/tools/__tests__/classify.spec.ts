@@ -401,6 +401,30 @@ describe('what a sub-agent call reads as', () => {
     expect(resumed.line).toBe('Resumed thr_child')
   })
 
+  it('names the receiver of send_message instead of quoting its id', () => {
+    const named = reading(
+      aCall({
+        name: 'send_message',
+        input: { to: 'afe6915b-23f4-48ae-ae48-f871ff10c97a', text: 'go on' },
+        output: {
+          to: 'afe6915b-23f4-48ae-ae48-f871ff10c97a',
+          name: 'Lexer rewrite',
+          queued: false,
+        },
+      }),
+    )
+    const unnamed = reading(
+      aCall({
+        name: 'send_message',
+        input: { to: 'parent', text: 'done' },
+        output: { to: 'parent', queued: false },
+      }),
+    )
+
+    expect(named.line).toBe('Messaged Lexer rewrite')
+    expect(unnamed.line).toBe('Messaged parent')
+  })
+
   it('says a message to a busy child is waiting rather than running', () => {
     const queued = reading(
       aCall({

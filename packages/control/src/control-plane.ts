@@ -270,7 +270,7 @@ export class ControlPlane {
     fromSessionId: string
     toSessionId: string
     text: string
-  }): Promise<{ inboxId: number } | { refused: string }> {
+  }): Promise<{ inboxId: number; title: string | null } | { refused: string }> {
     return this.store.transact(async (tx) => {
       const from = await tx.readSession({ sessionId: params.fromSessionId })
       if (from === undefined) throw new Error(`unknown session ${params.fromSessionId}`)

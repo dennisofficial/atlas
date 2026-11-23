@@ -112,7 +112,7 @@ export const messagePeerIn = async (params: {
   toSessionId: string
   text: string
   at: string
-}): Promise<{ inboxId: number } | PeerRefusal> => {
+}): Promise<{ inboxId: number; title: string | null } | PeerRefusal> => {
   const { tx, from } = params
   const to = await tx.lockSession(params.toSessionId)
   if (to === undefined || to.userId !== from.userId) {
@@ -122,7 +122,7 @@ export const messagePeerIn = async (params: {
   }
   const archived = archivedRefusalOf(to)
   if (archived !== undefined) return { refused: archived }
-  return postIn({
+  const posted = await postIn({
     tx,
     sessionId: to.sessionId,
     kind: INBOX_KIND_MESSAGE,
@@ -130,6 +130,7 @@ export const messagePeerIn = async (params: {
     at: params.at,
     senderSessionId: from.sessionId,
   })
+  return { inboxId: posted.inboxId, title: to.title }
 }
 
 export const sessionsOfIn = async (params: {

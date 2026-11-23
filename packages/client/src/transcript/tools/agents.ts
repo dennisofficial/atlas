@@ -61,6 +61,7 @@ const agentNameOf = (args: { call: ToolCall; cwd: string }): string => {
   return (
     str(output.agentType) ??
     str(input.agentType) ??
+    str(output.name) ??
     str(output.to) ??
     str(input.to) ??
     str(input.agentId) ??
