@@ -26,12 +26,11 @@ presence. The `/server` subpath stores presence in Redis.
 
 ## Entry points
 
-| Import                               | Use it for                                    |
-| ------------------------------------ | --------------------------------------------- |
-| `@dltech/atlas-notifications`        | The device model and the transport interface. |
-| `@dltech/atlas-notifications/client` | The in-app notice for a sessions list.        |
-| `@dltech/atlas-notifications/client` | The client presence loop. No Node module.     |
-| `@dltech/atlas-notifications/server` | The Redis presence store.                     |
+| Import                               | Use it for                                     |
+| ------------------------------------ | ---------------------------------------------- |
+| `@dltech/atlas-notifications`        | The device model and the transport interface.  |
+| `@dltech/atlas-notifications/client` | The in-app notice and the presence loop.       |
+| `@dltech/atlas-notifications/server` | The presence store and the Web Push transport. |
 
 ## Capabilities
 
@@ -62,6 +61,7 @@ presence. The `/server` subpath stores presence in Redis.
   that is on screen, a window that is not focused, a disabled moment and a read row stay silent.
 - `staleNoticeIdsOf`: gives the session ids whose notice must go. A notice goes when its session
   opens, or when the read marker reaches its seq.
+
 ### Store presence
 
 - `presenceKeyOf`: the Redis hash key of one user, `atlas:v2:presence:<userId>`.
@@ -87,24 +87,6 @@ presence. The `/server` subpath stores presence in Redis.
 - The caller gives `read`, `report`, `subscribe` and a `clock`. The package touches no DOM.
 
 ## Usage
-
-```ts
-import {
-  ENotifyDeviceKind,
-  type NotificationTransport,
-  type NotifyDevice,
-} from '@dltech/atlas-notifications'
-
-const transport: NotificationTransport = {
-  kind: ENotifyDeviceKind.Expo,
-  deliver: async (args) => args.devices.map((device) => ({ deviceId: device.id, sent: true })),
-  clear: async (args) => args.devices.map((device) => ({ deviceId: device.id, sent: true })),
-}
-
-const devices: readonly NotifyDevice[] = [
-  { id: 'device-1', kind: ENotifyDeviceKind.Expo, token: 'ExponentPushToken[abc]', secret: null },
-]
-```
 
 ### Show a notice
 
