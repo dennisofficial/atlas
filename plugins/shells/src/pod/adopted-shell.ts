@@ -11,6 +11,7 @@ const backgroundedOutputSchema = z.object({
   shellId: z.string().min(1),
   command: z.string().min(1),
   description: z.string().optional(),
+  input: z.literal(true).optional(),
 })
 
 const workdirSchema = z.object({ workdir: z.string().min(1).optional() })
@@ -33,6 +34,7 @@ export const adoptedShellHook = (args: {
     if (!parsed.success) return {}
     const adopted = parsed.data
     args.state.live.note(adopted.shellId)
+    if (adopted.input === true) args.state.inputs.add(adopted.shellId)
     if (hasStarted({ events: args.ctx.events(), shellId: adopted.shellId })) return {}
     return {
       drafts: [

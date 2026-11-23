@@ -5,16 +5,10 @@ import { EShellRunStatus } from '@dltech/atlas-protocol'
 
 import { recordShellEnding } from '../ending'
 import { stateFor } from '../state'
-import { invoke, rig, shellIdOf } from './support'
+import { rig, seedShell } from './support'
 
-const started = async (harness: ReturnType<typeof rig>) =>
-  shellIdOf(
-    await invoke({
-      ctx: harness.ctx,
-      name: 'shell',
-      input: { command: 'sleep 30', description: 'ticker' },
-    }),
-  )
+const started = (harness: ReturnType<typeof rig>) =>
+  seedShell({ harness, command: 'sleep 30', description: 'ticker' })
 
 const ending = async (harness: ReturnType<typeof rig>, shellId: string) =>
   recordShellEnding({

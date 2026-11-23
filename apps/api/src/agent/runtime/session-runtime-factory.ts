@@ -43,6 +43,7 @@ import { watchWorkspaceRepos } from './git-watch'
 import { TaskWriteTool } from '../agent-tools/task-write'
 import { configToolsOf } from './config-tools'
 import { daemonToolsOf } from './tools'
+import { DaemonShellLauncher } from './daemon-shell-launcher'
 import { ShellEnvCell } from './shell-env'
 import { envSecretsRefresher } from './env-secrets-refresh'
 import { githubTokenRefresher } from './github-token-refresh'
@@ -277,6 +278,7 @@ export const createSessionRuntimeFactory = (
       agentFiles,
       pathEnv: pathEnvironmentOf(paths),
       gate: prepareController.workspaceGate,
+      launcher: new DaemonShellLauncher({ calls }),
       shellEnv: sessionShellEnv,
     })
     const tools = [

@@ -8,8 +8,7 @@ import { z } from 'zod'
 import type { ToolOutcome } from '@dltech/atlas-core'
 
 import { BashTool } from '../bash'
-import { ForegroundOnlyShells } from '../../runtime/foreground-shells'
-import { files, processes, useTempAtlasHome } from './support'
+import { files, launcher, processes, useTempAtlasHome } from './support'
 
 useTempAtlasHome()
 
@@ -20,7 +19,7 @@ beforeAll(async () => {
 })
 
 const submit = (input: unknown): Promise<ToolOutcome> =>
-  new BashTool(new ForegroundOnlyShells(), files, processes).invoke({
+  new BashTool({ launcher, files, processes }).invoke({
     input,
     signal: new AbortController().signal,
     idempotencyKey: 'bash-1',
@@ -58,7 +57,7 @@ describe('BashTool', () => {
   }, 30_000)
 
   it('publishes the name first and required, so a model writes one before its command', () => {
-    const { inputSchema } = new BashTool(new ForegroundOnlyShells(), files, processes)
+    const { inputSchema } = new BashTool({ launcher, files, processes })
     const declared = z.toJSONSchema(inputSchema)
 
     expect(Object.keys(declared.properties ?? {})[0]).toBe('description')
@@ -149,16 +148,16 @@ describe('BashTool', () => {
     expect(outputOf(outcome).truncated).toBe(true)
   }, 30_000)
 
-  it('points a command it could not keep running to the shell tool when it runs out of time', async () => {
+  it('points a command it could not keep running to a background start when it runs out of time', async () => {
     const outcome = await invoke({ command: 'sleep 30', timeoutMs: 400 })
 
     if (!outcome.ok) throw new Error(outcome.reason)
-    expect(outcome.modelText).toContain('`shell` tool')
+    expect(outcome.modelText).toContain('`background: true`')
   }, 15_000)
 
   it('abandons a command, and says who stopped it, once the turn is interrupted', async () => {
     const controller = new AbortController()
-    const outcome = new BashTool(new ForegroundOnlyShells(), files, processes).invoke({
+    const outcome = new BashTool({ launcher, files, processes }).invoke({
       input: { command: 'sleep 30', description: 'Idle for a while' },
       signal: controller.signal,
       idempotencyKey: 'bash-2',
@@ -232,7 +231,7 @@ describe('refusing to idle', () => {
     expect(outcome.ok).toBe(false)
     const reason = !outcome.ok ? outcome.reason : ''
     expect(reason).toContain('this loop has no end')
-    expect(reason).toContain('runInBackground')
+    expect(reason).toContain('`background: true`')
     expect(reason).toContain('gh run watch --exit-status')
     expect(reason).not.toContain('end the turn and be woken')
   }, 30_000)
@@ -246,7 +245,7 @@ describe('refusing to idle', () => {
     expect(outcome.ok).toBe(false)
     const reason = !outcome.ok ? outcome.reason : ''
     expect(reason).toContain('600 seconds asleep across 60 iterations')
-    expect(reason).toContain('runInBackground')
+    expect(reason).toContain('`background: true`')
     expect(reason).toContain('gh pr checks --watch')
   }, 30_000)
 
@@ -264,7 +263,7 @@ describe('refusing to idle', () => {
     const reason = !outcome.ok ? outcome.reason : ''
     expect(reason).toContain('does nothing')
     expect(reason).toContain('It waits by ending')
-    expect(reason).toContain('runInBackground')
+    expect(reason).toContain('`background: true`')
   }, 30_000)
 
   it('refuses the other no-op spellings too', async () => {
@@ -273,34 +272,9 @@ describe('refusing to idle', () => {
   }, 30_000)
 
   it('says in the description that do-nothing ticks are refused', () => {
-    const { description } = new BashTool(new ForegroundOnlyShells(), files, processes)
+    const { description } = new BashTool({ launcher, files, processes })
 
     expect(description).toContain('do-nothing ticks')
-    expect(description).toContain('refused')
-  }, 30_000)
-})
-
-describe('refusing to hold the turn open on a watch', () => {
-  it('refuses a foreground gh run watch and points it at runInBackground', async () => {
-    const outcome = await invoke({ command: 'gh run watch 123 --exit-status' })
-
-    expect(outcome.ok).toBe(false)
-    const reason = !outcome.ok ? outcome.reason : ''
-    expect(reason).toContain('only ends when what it watches ends')
-    expect(reason).toContain('runInBackground')
-    expect(reason).toContain('gh run view')
-  }, 30_000)
-
-  it('refuses the other foreground watches too', async () => {
-    expect((await invoke({ command: 'gh pr checks 272 --watch' })).ok).toBe(false)
-    expect((await invoke({ command: 'tail -f /tmp/serve.log' })).ok).toBe(false)
-    expect((await invoke({ command: 'kubectl wait --for=condition=ready pod/api' })).ok).toBe(false)
-  }, 30_000)
-
-  it('says in the description that foreground watches are refused', () => {
-    const { description } = new BashTool(new ForegroundOnlyShells(), files, processes)
-
-    expect(description).toContain('foreground watches')
     expect(description).toContain('refused')
   }, 30_000)
 })
@@ -310,14 +284,5 @@ describe('refusing a truncated CI watch', () => {
     const outcome = await invoke({ command: 'echo check-one; echo check-two | tail -1' })
 
     expect(outcome.ok).toBe(true)
-  }, 30_000)
-})
-
-describe('watching a background shell', () => {
-  it('refuses a watch on a foreground command, and says what it needs', async () => {
-    const outcome = await invoke({ command: 'echo hi', watch: 'ERROR' })
-
-    expect(outcome.ok).toBe(false)
-    expect(!outcome.ok && outcome.reason).toContain('runInBackground')
   }, 30_000)
 })

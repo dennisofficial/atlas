@@ -9,7 +9,6 @@ export type ShellPodState = {
   awaiting: Set<string>
   endings: Set<string>
   inputs: Set<string>
-  starting: Map<string, Promise<void>>
 }
 
 const states = new WeakMap<PluginPodContext, ShellPodState>()
@@ -23,7 +22,6 @@ export const stateFor = (ctx: PluginPodContext): ShellPodState => {
     awaiting: new Set(),
     endings: new Set(),
     inputs: new Set(),
-    starting: new Map(),
   }
   states.set(ctx, state)
   return state

@@ -61,8 +61,12 @@ describe('a session that registers the shells plugin', () => {
         calls: [
           {
             callId: 'c1',
-            name: 'shell',
-            input: { command: 'echo tick; sleep 30', description: 'ticker' },
+            name: 'bash',
+            input: {
+              command: 'echo tick; sleep 30',
+              description: 'ticker',
+              background: true,
+            },
           },
         ],
       },
