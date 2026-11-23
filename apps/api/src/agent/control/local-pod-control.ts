@@ -29,8 +29,10 @@ import type { MemoryScope } from '@dltech/atlas-plugin-sdk'
 
 import type { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 import { gatewayKeyOf } from './gateway-key'
+import { imageModelOf } from './image-model-setting'
 import { settingsVersionsOf } from './settings-versions'
 import { webSearchConfigOf } from './web-search-config'
+import { scopedSettingsOf } from '../config/scoped-settings'
 
 const NOT_IN_A_PROJECT = 'this session has no Atlas Cloud project, and routines belong to a project'
 
@@ -239,6 +241,15 @@ export const localPodControlOf = (args: {
           cipher: args.cipher,
           userId: owner.userId,
         })
+      },
+      imageModel: async ({ threadId }) => {
+        const owner = await ownerOf(threadId)
+        const settings = await scopedSettingsOf({
+          db: args.db,
+          userId: owner.userId,
+          projectId: owner.projectId,
+        })
+        return imageModelOf(settings)
       },
     },
     memory: {

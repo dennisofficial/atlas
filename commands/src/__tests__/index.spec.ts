@@ -14,6 +14,7 @@ describe('native commands', () => {
       'rename',
       'resize',
       'rewind',
+      'rotate',
       'summarise',
     ])
   })
@@ -35,6 +36,12 @@ describe('native commands', () => {
         expect(hasControlHandler).toBe(false)
       }
     }
+  })
+
+  it('registers rotate as a host command with an inbox entry', () => {
+    const registry = composeCommands(nativeCommands)
+    expect(registry.byName.get('rotate')?.spec.runsIn).toBe(ECommandRunsIn.Host)
+    expect(registry.byInboxKind.has('command:rotate')).toBe(true)
   })
 
   it('registers rename as a control command with no inbox entry', () => {

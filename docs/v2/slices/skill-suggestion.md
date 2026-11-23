@@ -28,6 +28,13 @@
 >   scores alone separate cleanly: every unrelated skill scored at most 0.33. The one close pair
 >   (ui-design 0.94, better-layout 0.82) is held back by the margin, as designed. The fit threshold
 >   (0.75) and the margin (0.15) stay. Scores and latencies are in the live-check table below §6.
+> - **The hook is a `beforeStep` hook, not `beforeTurn` (live check 2026-11-23).** With the gate gone,
+>   production still showed no suggestion. The trace showed `skills-suggestion` ran at 06:17:34.291,
+>   and the operator message was recorded (`input-posted` and `user-said`) at 06:17:34.323: at
+>   `beforeTurn` the message is still a row in the durable inbox, not an event in the log, so the
+>   hook has nothing to read. It now runs before each step, after the drain. On the turn's first step
+>   it appends the `context-loaded` event itself and adds the same block to that step's messages,
+>   with the appended event as its origin. Later steps find the reply and stay quiet.
 > - **A classifier fault or a thrown error is logged** (`skill suggestion skipped: …`) and the turn
 >   goes on quiet.
 

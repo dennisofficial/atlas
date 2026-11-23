@@ -19,6 +19,7 @@ import { VList, type VListHandle } from 'virtua'
 import { Button } from '#components/button'
 import { cn } from '#lib/utils'
 
+import { readingClasses } from '../tokens'
 import { useLoadOlder } from './chat-load-older'
 import {
   EChatFollow,
@@ -226,7 +227,7 @@ export function ChatItem({ id, children }: ChatItemProps) {
     <div
       data-slot="chat-item"
       data-chat-item-id={id}
-      className="mx-auto w-full max-w-4xl min-w-0 px-4 py-3"
+      className={cn(readingClasses.measure, 'mx-auto w-full min-w-0 px-4 py-3')}
     >
       {children}
     </div>

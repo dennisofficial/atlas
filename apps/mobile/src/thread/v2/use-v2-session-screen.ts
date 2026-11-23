@@ -6,6 +6,7 @@ import { useAuth } from '../../auth/auth-provider'
 import { dismissPresentedForSession } from '../../push/notification-handler'
 import type { ThreadRow } from '../rows'
 import { agentLinksOf, type AgentLinks } from './agent-links'
+import type { ContextMeter } from '../composer/context-reading'
 import { stagedQueueRowsOf, stagedRowsOf, v2ViewOf, type V2ThreadView } from './rows'
 import { clientIdOfSend, settlementOf, type StagedSend } from './staged-send'
 import { useV2Session } from './use-v2-session'
@@ -21,6 +22,7 @@ export type V2SessionScreen = V2ThreadView & {
   catchingUp: boolean
   failedToLoad: boolean
   stale: boolean
+  context: ContextMeter | null
   agentLinks: AgentLinks
   stagedRows: ThreadRow[]
   commands: V2SessionCommands
@@ -134,6 +136,7 @@ export function useV2SessionScreen(sessionId: string): V2SessionScreen {
     catchingUp: snapshot.fromCache && snapshot.connection !== ESessionConnection.Live,
     failedToLoad: snapshot.error !== undefined,
     stale: snapshot.skipped > 0,
+    context: snapshot.view?.context ?? null,
     stagedRows,
     commands,
     restored,

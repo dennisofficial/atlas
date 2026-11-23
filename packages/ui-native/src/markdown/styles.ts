@@ -1,4 +1,10 @@
-import { radius, space } from '@dltech/atlas-ui/tokens'
+import {
+  READING_HEADING_LEADING,
+  READING_LEADING,
+  radius,
+  readingRole,
+  space,
+} from '@dltech/atlas-ui/tokens'
 import { StyleSheet } from 'react-native'
 
 import { EFontWeight, ETextRole, ETextTone } from '../text-style'
@@ -8,12 +14,14 @@ export interface IInlineStyle {
   weight: EFontWeight
   tone: ETextTone
   uppercase?: boolean
+  leading?: number
 }
 
 export const BODY: IInlineStyle = {
-  size: ETextRole.Sm,
+  size: readingRole.body,
   weight: EFontWeight.Regular,
   tone: ETextTone.Foreground,
+  leading: READING_LEADING,
 }
 
 export const LIST_INDENT = space(5)
@@ -30,12 +38,42 @@ export const FALLBACK_HEADING = {
 }
 
 export const HEADINGS = [
-  { size: ETextRole.Lg, weight: EFontWeight.Semibold, tone: ETextTone.Foreground },
-  { size: ETextRole.Base, weight: EFontWeight.Semibold, tone: ETextTone.Primary },
-  { size: ETextRole.Sm, weight: EFontWeight.Semibold, tone: ETextTone.Foreground },
-  { size: ETextRole.Sm, weight: EFontWeight.Medium, tone: ETextTone.Foreground },
-  { size: ETextRole.Sm, weight: EFontWeight.Medium, tone: ETextTone.Muted },
-  { size: ETextRole.Xs, weight: EFontWeight.Medium, tone: ETextTone.Muted },
+  {
+    size: readingRole.h1,
+    weight: EFontWeight.Semibold,
+    tone: ETextTone.Foreground,
+    leading: READING_HEADING_LEADING,
+  },
+  {
+    size: readingRole.h2,
+    weight: EFontWeight.Semibold,
+    tone: ETextTone.Primary,
+    leading: READING_HEADING_LEADING,
+  },
+  {
+    size: readingRole.h3,
+    weight: EFontWeight.Semibold,
+    tone: ETextTone.Foreground,
+    leading: READING_HEADING_LEADING,
+  },
+  {
+    size: readingRole.h4,
+    weight: EFontWeight.Medium,
+    tone: ETextTone.Foreground,
+    leading: READING_HEADING_LEADING,
+  },
+  {
+    size: readingRole.h5,
+    weight: EFontWeight.Medium,
+    tone: ETextTone.Muted,
+    leading: READING_HEADING_LEADING,
+  },
+  {
+    size: readingRole.h6,
+    weight: EFontWeight.Medium,
+    tone: ETextTone.Muted,
+    leading: READING_HEADING_LEADING,
+  },
 ] as const
 
 export const styles = StyleSheet.create({

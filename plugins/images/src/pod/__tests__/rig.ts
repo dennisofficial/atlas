@@ -52,11 +52,16 @@ export type Rig = {
 }
 
 export const rigOf = (
-  args: { apiKey?: string | undefined; files?: Map<string, Uint8Array> } = {},
+  args: {
+    apiKey?: string | undefined
+    imageModel?: string | undefined
+    files?: Map<string, Uint8Array>
+  } = {},
 ): Rig => {
   const files = args.files ?? new Map<string, Uint8Array>()
   const made: string[] = []
   const apiKey = 'apiKey' in args ? args.apiKey : 'vck_test'
+  const imageModel = args.imageModel
 
   const call = async (op: CallOp): Promise<CallResult> => {
     if (op.op === 'readBytes') {
@@ -100,7 +105,7 @@ export const rigOf = (
       memory: {} as never,
       mcp: EMPTY_MCP_CONTROL,
       webSearch: { config: async () => ({ backend: undefined, key: undefined }) },
-      gateway: { apiKey: async () => apiKey },
+      gateway: { apiKey: async () => apiKey, imageModel: async () => imageModel },
       routines: EMPTY_ROUTINES,
       subscriptions: EMPTY_SUBSCRIPTIONS,
     },

@@ -8,6 +8,7 @@ export enum ETranscriptKind {
   Notice = 'notice',
   SignIn = 'sign-in',
   Request = 'request',
+  Rotation = 'rotation',
 }
 
 export enum ENoticeTone {

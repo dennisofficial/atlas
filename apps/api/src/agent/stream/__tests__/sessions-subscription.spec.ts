@@ -64,6 +64,8 @@ describe('sessions subscription', () => {
       updatedAt: AT,
       archivedAt: null,
       lastAssistantSeq: 0,
+      lastTurn: null,
+      headSeq: 0,
       readSeq: null,
       spawnedBy: null,
       routineId: null,
@@ -90,6 +92,8 @@ describe('sessions subscription', () => {
       updatedAt: AT,
       archivedAt: null,
       lastAssistantSeq: 0,
+      lastTurn: null,
+      headSeq: 0,
       readSeq: null,
       sandboxProvider: ESandboxProvider.Agent37,
     })
