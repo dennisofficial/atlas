@@ -13,6 +13,7 @@ presence. The `/server` subpath stores presence in Redis.
 - The in-app notice: which sessions list row changed, and which notice to show or drop.
 - The presence store that the API writes and the trigger task reads.
 - The client presence loop that web, Mac and iOS run.
+- The Web Push transport, which signs a message with VAPID and posts it to a subscription.
 
 ## Does not own
 
@@ -20,7 +21,8 @@ presence. The `/server` subpath stores presence in Redis.
 - The notification shape. `@dltech/atlas-core` owns `AtlasNotification`.
 - When to stay silent. `@dltech/atlas-core` owns `inAppNoticeOf` and `notifyMomentOf`.
 - The persistent device rows. `packages/db` owns them.
-- The transport implementations and the send tasks. Later slices add them.
+- The Expo and APNs transports. Later slices add them.
+- The send tasks. `apps/trigger` owns them.
 
 ## Entry points
 
@@ -67,6 +69,17 @@ presence. The `/server` subpath stores presence in Redis.
 - `writePresence`: writes the field of one client. An away report deletes the field.
 - `readPresence`: returns the fresh records only. A record older than 90 s never counts.
 
+### Send Web Push
+
+- `webPushTransport({ vapid, send })`: the `web-push` kind. `vapid` is `publicKey`, `privateKey`
+  and `subject`. Give `send` a fake in a spec.
+- `deliver` posts `{ type: 'notification', notification }` with a one-day TTL and a topic of the
+  session id, so a second moment replaces the first.
+- `clear` posts `{ type: 'clear', sessionId }`, and skips an Apple push host, which needs a visible
+  notification for every push.
+- A `404` or a `410` reports the device `gone`, as does a secret with no subscription keys.
+- `webPushTopicOf(sessionId)` and `WEB_PUSH_TTL_S`: the topic and the lifetime.
+
 ### Report presence from a client
 
 - `startPresenceReports`: reports on start, on every change of the session or the foreground
@@ -105,7 +118,7 @@ const notices = inAppNoticesOf({
   openSessionId: null,
   focused: true,
   enabled: () => true,
-  now: new Date().toISOString(),
+  now,
 })
 const stale = staleNoticeIdsOf({
   notices,
@@ -127,8 +140,8 @@ const stop = startPresenceReports({
     return () => window.removeEventListener('focus', onChange)
   },
   clock: {
-    setInterval: (handler, ms) => window.setInterval(handler, ms),
-    clearInterval: (handle) => window.clearInterval(handle),
+    setInterval: (fn, ms) => window.setInterval(fn, ms),
+    clearInterval: (id) => window.clearInterval(id),
   },
 })
 ```

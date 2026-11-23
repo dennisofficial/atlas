@@ -2,6 +2,12 @@ import { z } from 'zod'
 
 import { ENotifyMoment } from './moment'
 
+export enum ENotifyDeviceKind {
+  WebPush = 'web-push',
+  Expo = 'expo',
+  ApnsMac = 'apns-mac',
+}
+
 export type AtlasNotification = {
   sessionId: string
   seq: number

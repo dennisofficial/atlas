@@ -1,12 +1,8 @@
-import type { AtlasNotification } from '@dltech/atlas-core'
+import type { AtlasNotification, ENotifyDeviceKind } from '@dltech/atlas-core'
 
 export type { AtlasNotification }
 
-export enum ENotifyDeviceKind {
-  WebPush = 'web-push',
-  Expo = 'expo',
-  ApnsMac = 'apns-mac',
-}
+export { ENotifyDeviceKind } from '@dltech/atlas-core'
 
 export type NotifyDevice = {
   id: string

@@ -29,6 +29,7 @@ import { PodSizingService } from './pod-sizing.service'
 import { SandboxesModule } from '../sandboxes/sandboxes.module'
 import { RedisModule } from '../../../_lib/redis/redis.module'
 import { NotificationsRouter } from './notifications.router'
+import { NotifyDevicesService } from './notify-devices.service'
 import { PresenceRegistry } from './presence-registry'
 
 export const controlPlaneProvider: Provider = {
@@ -68,6 +69,7 @@ export const controlPlaneProvider: Provider = {
     TerminalService,
     TerminalRouter,
     PresenceRegistry,
+    NotifyDevicesService,
     NotificationsRouter,
   ],
   exports: [ControlPlane, TerminalService],
