@@ -12,7 +12,6 @@ export enum ESpan {
   LoopWatch = 'loop.watch',
   RecordAppend = 'record.append',
   RecordRead = 'record.read',
-  RecordLoad = 'record.load',
   Tool = 'tool',
   ToolHooks = 'tool.hooks',
   ToolInvoke = 'tool.invoke',
@@ -61,6 +60,7 @@ export enum ESpanOutcome {
   Ok = 'ok',
   Error = 'error',
   Denied = 'denied',
+  Handoff = 'handoff',
 }
 
 /** Names, ids and counts only: nothing a user or a model wrote can be attached to a span. */
