@@ -59,7 +59,7 @@ keeps the log, derives the transcript, and holds the rewind, image upload and de
 - `SessionWindow`, `applyPage`, `applyPageOutcome`, `RENDER_LIMIT`, `OLDER_PAGE`: the paged window
   of a long thread.
 - `applyOverlayMessage`, `closeOverlay`, `closeOverlayForEvents`, `EMPTY_OVERLAY_STATE`: the live
-  step overlay.
+  step overlay. `overlaySignalsOf` and `overlayRewrote` give its step signals, append or rewrite.
 - `derivedViewOf`, `deriveViewOf`, `deriveStatusOf`, `frameFactsOf`: the view of a followed session.
   `sessionDisplayOf` and `isSessionUnreadOf` map the status and the unread mark of a row.
 
