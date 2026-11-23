@@ -14,7 +14,7 @@ import { callIdOf, isDoneResult } from './fault-support'
 const CALL_ID = 'c1'
 const PLAN = { path: 'plan.md', text: 'the plan the spawner attached' }
 const CONTEXT = (ctx: HandoffContext): string =>
-  `/atlas/home/sessions/${ctx.sessionId}/context/${PLAN.path}`
+  `${ctx.rig.sandboxHome}/sessions/${ctx.sessionId}/context/${PLAN.path}`
 
 const dispatchesOf = async (ctx: HandoffContext) =>
   (await ctx.events()).filter((row) => row.type === 'tool-dispatched' && callIdOf(row) === CALL_ID)
@@ -113,7 +113,8 @@ describe.skipIf(REDIS_URL === undefined)(
       mkdirSync(workspace, { recursive: true })
       const runs = join(workspace, 'runs')
       const sessionId = `handoff-lost-disk-${RUN}`
-      const sessionDir = `/atlas/home/sessions/${sessionId}`
+      const rig = await startRig({ databaseUrl: testDb().url, redisUrl: REDIS_URL ?? '' })
+      const sessionDir = `${rig.sandboxHome}/sessions/${sessionId}`
       const contextDirectory = `${sessionDir}/context`
       const contextFile = `${contextDirectory}/${PLAN.path}`
       const blockFirstPlacementWithPlainFileAsContextFolder = (): void => {
@@ -122,7 +123,6 @@ describe.skipIf(REDIS_URL === undefined)(
       }
       blockFirstPlacementWithPlainFileAsContextFolder()
 
-      const rig = await startRig({ databaseUrl: testDb().url, redisUrl: REDIS_URL ?? '' })
       const threadId = await rig.newSession({
         sessionId,
         text: 'read the plan',
