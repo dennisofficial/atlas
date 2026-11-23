@@ -6,7 +6,6 @@ import {
   INBOX_KIND_EVENT,
   inboxEventPayloadOf,
   type EventBody,
-  isResumableOf,
   type RunFailure,
   type ThreadId,
 } from '@dltech/atlas-core'
@@ -19,6 +18,7 @@ import type { LeaseLostError, SessionRecord } from '../record/record-adapter'
 import { childInboxOf, type ChildInbox } from './child-inbox'
 import { inboxInputOf, type CrewSender } from './child-message'
 import { childPortOf } from './child-port'
+import { childResumeAllowed } from './child-repair'
 import { childChoiceOf } from './child-model'
 import {
   failureOf,
@@ -153,14 +153,12 @@ export class ChildRun {
     if (this.pump === undefined) this.begin({ resume: true })
   }
 
-  async continueTurn(): Promise<void> {
+  async continueTurn(args: { retry?: boolean } = {}): Promise<void> {
+    const { agentId, record } = this
+    const resume = childResumeAllowed({ agentId, record, retry: args.retry === true })
     if (this.pump !== undefined) return
-    if (!this.resumable() && !(await this.inbox.intake.hasQueued())) return
+    if (!resume && !(await this.inbox.intake.hasQueued())) return
     this.begin(this.ending === undefined ? { resume: true } : { restart: true })
-  }
-
-  resumable(): boolean {
-    return isResumableOf(this.record.eventCache().loopState())
   }
 
   stop(by: EKilledBy): SubagentSnapshot {

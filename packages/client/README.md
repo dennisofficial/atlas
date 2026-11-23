@@ -30,7 +30,7 @@ keeps the log, derives the transcript, and holds the rewind, image upload and de
 | `@dltech/atlas-client/channel`                  | The pod delta channel, the frame codecs and the tool requests.                    |
 | `@dltech/atlas-client/chat`                     | The chat transport, the step signals and the step messages.                       |
 | `@dltech/atlas-client/crew`                     | The crew readout, the sub-agent state and the background work.                    |
-| `@dltech/atlas-client/session`                  | The session rewind, the composer image upload and the message input.              |
+| `@dltech/atlas-client/session`                  | The session create input, the rewind, the image upload and the message input.     |
 | `@dltech/atlas-client/account`                  | The Atlas Cloud device-code login.                                                |
 | `@dltech/atlas-client/transcript`               | The transcript rows, the tool runs and the turn rows.                             |
 | `@dltech/atlas-client/stream-fixture`           | A fake scheduler and transport, and the event factories, for a spec.              |
@@ -107,11 +107,12 @@ keeps the log, derives the transcript, and holds the rewind, image upload and de
   stores, and the queued command. `RewindApi`, `RewoundMessage`, `RestorePlan`, `RestoredMedia`,
   `RewindKillRow`: the types.
 
-### Upload a composer image
+### Start a session and upload a composer image
 
 - `sha256Hex(bytes)`, `supportedMediaTypeOf(mediaType)` and `storeImage(args)` give the hash, the
   supported type and the presign-put-confirm sequence; `messageInputOf(args)` and `postInputOf(args)`
   make the draft and the post input. `MediaUploadApi`, `PutImage`, `UploadHandle`: the ports.
+- `sessionCreateInputOf(args)`, `initialProjectIdOf(args)`: a new session's create input and project.
 
 ### Sign in to Atlas Cloud
 

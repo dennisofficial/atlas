@@ -31,11 +31,11 @@ export const CONTEXT_FIELDS: SettingField[] = [
   }),
   {
     kind: ESettingFieldKind.Range,
-    key: 'context.autoCompact',
-    title: 'Compact automatically at',
+    key: 'context.autoRotate',
+    title: 'Rotate the context automatically at',
     description:
-      'How full the context window may get before Atlas summarises older turns. Checked when a turn ends. Zero compacts only on /compact.',
-    fallback: 90,
+      'How full the context window may get before Atlas rotates the thread by itself: one model call writes a handoff brief, a marker goes into the transcript, and the next turn starts from the brief. Checked when a turn ends, so a turn is never interrupted. Zero rotates only when you ask with /rotate.',
+    fallback: 85,
     min: 0,
     max: 100,
     step: 5,

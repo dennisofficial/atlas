@@ -10,7 +10,7 @@ frontmatter. The model sees the model-invocable skills in its system prompt and 
 - The skills catalogue: repo skills under `.agents/skills`, cloud skills from the `Skills` setting
   and the built-in skills compiled into this package.
 - The listing of model-invocable skills in the system prompt, before each step.
-- The skill suggestion before each turn: at most one skill named to the model, scored by the
+- The skill suggestion on a turn's first step: at most one skill named to the model, scored by the
   classifier role.
 - The `skills-changed` event, and the pure code that parses, validates, orders and renders skills.
 
@@ -92,11 +92,13 @@ and the cloud `Skills` setting, and it announces `skills-changed` with the whole
 argumentText})` returns one `context-loaded` draft for the skill slot, with `$ARGUMENTS` and `$1`
 expanded, and refuses an unknown or unreadable skill with the `skill` tool's own sentence.
 
-`skills-suggestion` runs before each turn. It reads only the event log and the catalogue snapshot.
-When the classifier is on, `suggests(ctx)` is not false and the latest operator message has no
-reply and no suggestion yet, it makes one classifier call with a `SKILL_SUGGEST_DEADLINE_MS`
-deadline. A winner becomes one `context-loaded` draft in the `skill-suggestion` slot, key `latest`,
-so a later suggestion supersedes it. Any fault is logged and the turn goes on with no suggestion.
+`skills-suggestion` runs before each step, after the turn has drained the inbox. It reads only the
+event log and the catalogue snapshot. When the classifier is on, `suggests(ctx)` is not false and
+the latest operator message has no reply and no suggestion yet, it makes one classifier call with a
+`SKILL_SUGGEST_DEADLINE_MS` deadline. A winner is appended as one `context-loaded` event in the
+`skill-suggestion` slot, key `latest`, and the same block is added to this step's messages, so the
+model sees it on the first step. Later steps of the turn find the reply and stay quiet. Any fault is
+logged and the step goes on with no suggestion.
 
 `skills-listing` runs before each step. It appends the model-invocable skills to the system prompt
 within `SKILL_LISTING_BUDGET_CHARS`. A skill that sets `disable-model-invocation` stays out.

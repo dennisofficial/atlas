@@ -1,5 +1,5 @@
 import type { ThreadId } from '@dltech/atlas-core'
-import type { Unsubscribe } from '@dltech/atlas-harness'
+import type { Unsubscribe } from '@dltech/atlas-client/channel'
 import { pendingTldrOf, subscribeTldrFeed, type PendingTldr } from '../ui/tldr-feed-store'
 
 export function watchPendingTldr(args: {

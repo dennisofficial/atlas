@@ -369,6 +369,7 @@ Native (`commands/src`), all declared once and served to every surface:
 | ----------- | -------- | -------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
 | `rewind`    | host     | `/rewind <seq>`; no argument opens the surface's picker, and is refused where the surface has none | `commands/src/rewind/spec.ts`, `pod.ts`        |
 | `summarise` | host     | `/summarise [seq]`; no argument = up to your last message; no picker                               | `commands/src/summarise/spec.ts`, `pod.ts`     |
+| `rotate`    | host     | `/rotate [instructions]`; writes a handoff brief and starts the next request from it; no picker    | `commands/src/rotate/spec.ts`, `pod.ts`        |
 | `rename`    | control  | `/rename <name>`                                                                                   | `commands/src/rename/spec.ts`, `control.ts`    |
 | `resize`    | control  | `/resize <vcpus> <memoryGb> [diskGb] [--idle]`                                                     | `commands/src/resize/spec.ts` (API-only today) |
 | `model`     | client   | `/model` — opens the model picker, no argument                                                     | new, `commands/src/model/spec.ts`              |
@@ -417,7 +418,6 @@ them, and the client already receives them (`plugins/skills/src/client/index.ts:
 router is committed (slice 6 §10), so this PR commits it.
 
 **Dropped, with the reason:**
-- `/rotate` — the loop watchdog and the rotation engine are gone (operator, 2026-11-18).
 - `/compact` — v2's summary model is "everything before a message"; it has no whole-history form
   (`packages/core/src/record/summary-target.ts`).
 - `/settings`, `/auth` — the account menu already does it, on every surface.

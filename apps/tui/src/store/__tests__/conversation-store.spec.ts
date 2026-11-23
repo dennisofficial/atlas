@@ -9,6 +9,7 @@ import {
 } from '@dltech/atlas-harness'
 
 import { createConversationStore, type ConversationStore } from '../conversation-store'
+import { channelSignalFeed } from '../../composition/channel-signal-feed'
 import { EEntryKind } from '@dltech/atlas-client/transcript'
 import { fixtureThreadId, log } from '@dltech/atlas-client/transcript-fixture'
 
@@ -30,7 +31,10 @@ describe('the conversation store', () => {
 
   beforeEach(() => {
     channel = createDeltaChannel()
-    store = createConversationStore({ channel, threadId: fixtureThreadId })
+    store = createConversationStore({
+      signals: channelSignalFeed({ channel, threadId: fixtureThreadId }),
+      threadId: fixtureThreadId,
+    })
   })
 
   it('opens on a usable empty transcript for a thread with nothing in it', () => {
@@ -171,7 +175,10 @@ describe('a clean turn boundary while the next step is still waiting on the mode
 
   beforeEach(() => {
     channel = createDeltaChannel()
-    store = createConversationStore({ channel, threadId: fixtureThreadId })
+    store = createConversationStore({
+      signals: channelSignalFeed({ channel, threadId: fixtureThreadId }),
+      threadId: fixtureThreadId,
+    })
   })
 
   const settleAStep = () => {
@@ -242,7 +249,10 @@ describe('a failure the store is holding on screen', () => {
 
   beforeEach(() => {
     channel = createDeltaChannel()
-    store = createConversationStore({ channel, threadId: fixtureThreadId })
+    store = createConversationStore({
+      signals: channelSignalFeed({ channel, threadId: fixtureThreadId }),
+      threadId: fixtureThreadId,
+    })
   })
 
   const failAStep = () => {
@@ -287,7 +297,7 @@ describe('the store lets the composition root fold the same log', () => {
   it('projects the log it was opened on, before any turn runs', () => {
     const seen: number[] = []
     createConversationStore({
-      channel: createDeltaChannel(),
+      signals: channelSignalFeed({ channel: createDeltaChannel(), threadId: fixtureThreadId }),
       threadId: fixtureThreadId,
       events: log([{ type: 'user-said', text: 'resumed' }]),
       projectEvents: ({ events }) => void seen.push(events.length),
@@ -299,7 +309,7 @@ describe('the store lets the composition root fold the same log', () => {
   it('projects again whenever the log changes', () => {
     const seen: number[] = []
     const opened = createConversationStore({
-      channel: createDeltaChannel(),
+      signals: channelSignalFeed({ channel: createDeltaChannel(), threadId: fixtureThreadId }),
       threadId: fixtureThreadId,
       projectEvents: ({ events }) => void seen.push(events.length),
     })
@@ -319,7 +329,7 @@ describe('the store lets the composition root fold the same log', () => {
     const projected: (readonly Event[])[] = []
     const events = log([{ type: 'user-said', text: 'one' }])
     const opened = createConversationStore({
-      channel: createDeltaChannel(),
+      signals: channelSignalFeed({ channel: createDeltaChannel(), threadId: fixtureThreadId }),
       threadId: fixtureThreadId,
       projectEvents: ({ events: folded }) => void projected.push(folded),
     })
@@ -352,7 +362,10 @@ describe('a refresh that re-read the same log', () => {
 
   beforeEach(() => {
     channel = createDeltaChannel()
-    store = createConversationStore({ channel, threadId: fixtureThreadId })
+    store = createConversationStore({
+      signals: channelSignalFeed({ channel, threadId: fixtureThreadId }),
+      threadId: fixtureThreadId,
+    })
   })
 
   it('wakes nobody when the read returns the same rows in a fresh array', () => {

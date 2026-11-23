@@ -18,6 +18,7 @@ export enum ETurnKind {
   Notice = 'notice',
   SignIn = 'sign-in',
   Request = 'request',
+  Rotation = 'rotation',
 }
 
 export enum ESegmentKind {
@@ -91,7 +92,20 @@ export type RequestTurn = {
   item: ItemOf<ETranscriptKind.Request>
 }
 
-export type Turn = UserTurn | ReportTurn | NoticeTurn | SignInTurn | RequestTurn | AgentTurn
+export type RotationTurn = {
+  kind: ETurnKind.Rotation
+  id: string
+  item: ItemOf<ETranscriptKind.Rotation>
+}
+
+export type Turn =
+  | UserTurn
+  | ReportTurn
+  | NoticeTurn
+  | SignInTurn
+  | RequestTurn
+  | RotationTurn
+  | AgentTurn
 
 export const WORKING_TURN_ID = 'working'
 const TURN_START = 'start'
@@ -107,6 +121,7 @@ type Run = Exclude<
   | ItemOf<ETranscriptKind.Notice>
   | ItemOf<ETranscriptKind.SignIn>
   | ItemOf<ETranscriptKind.Request>
+  | ItemOf<ETranscriptKind.Rotation>
   | ReportItem
 >
 
@@ -315,6 +330,12 @@ export function turnsOf(args: {
       after = item
       continue
     }
+    if (item.kind === ETranscriptKind.Rotation) {
+      closeRun(false)
+      turns.push({ kind: ETurnKind.Rotation, id: item.id, item })
+      after = item
+      continue
+    }
     if (item.kind === ETranscriptKind.Report) {
       closeRun(false)
       turns.push({ kind: ETurnKind.Report, id: item.id, item })
@@ -326,7 +347,10 @@ export function turnsOf(args: {
 
   const lastKind = turns.at(-1)?.kind
   const awaitingReply =
-    lastKind === ETurnKind.User || lastKind === ETurnKind.Report || lastKind === ETurnKind.Notice
+    lastKind === ETurnKind.User ||
+    lastKind === ETurnKind.Report ||
+    lastKind === ETurnKind.Notice ||
+    lastKind === ETurnKind.Rotation
   closeRun(args.working && (run.length > 0 || awaitingReply))
   return turns
 }

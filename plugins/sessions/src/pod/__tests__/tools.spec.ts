@@ -212,7 +212,15 @@ describe('the sessions pod', () => {
       spawner: { sessionId: 's0', title: 'the parser' },
     })
     expect(text).toContain('s0 (the parser) created this one')
-    expect(text).toContain('send_message')
+    expect(text).toContain('not its owner')
+    expect(text).toContain('Report the outcome to the operator in your own thread')
+    expect(text).toContain('only when the brief asks for a reply')
+  })
+
+  it('does not make every spawned session report back', () => {
+    const text = sessionsPod.prompts[0]?.text(promptCtx) ?? ''
+    expect(text).not.toContain('It reports the URL back')
+    expect(text).toContain('reports back only when its brief asks')
   })
 
   it('says nothing about a creator when this session has no spawner', () => {

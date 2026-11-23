@@ -6,6 +6,7 @@ export type CommandContext<Args> = {
   inboxId: number
   model?: ModelPort | undefined
   visibleEvents(): readonly Event[]
+  runningChildren(): number
   append(drafts: readonly (EventDraft | RecordBody | PluginEventBody)[]): Promise<void>
   log: (message: string) => void
 }
