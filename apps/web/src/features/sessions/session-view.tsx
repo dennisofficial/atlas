@@ -9,6 +9,7 @@ import { ESessionConnection, startFailureOf } from '@dltech/atlas-client/stream'
 import { turnStartedAtOf } from '@dltech/atlas-client/transcript'
 
 import { useV2Sessions } from '@/features/shell/use-v2-sessions'
+import { messageOf } from '@/features/threads/data/use-send'
 import { ThreadPanelProvider } from '@/features/threads/panel/thread-panel-context'
 import { mediaUrls } from '@/features/threads/data/media-urls'
 import { ModelPickerControls } from '@/features/threads/model-picker'
@@ -51,7 +52,7 @@ import { useDraftAttachments } from './data/use-draft-attachments'
 import { useSessionReveal } from './data/use-session-reveal'
 import { useSessionSkills } from './data/use-session-skills'
 import { useSessionCommands } from './data/use-session-commands'
-import { composerEntriesOf } from './data/session-commands'
+import { composerEntriesOf, requestResume, resumePendingOf } from './data/session-commands'
 import { composerActionsOf } from './data/session-composer-actions'
 import { useSessionSummarise } from './data/use-session-summarise'
 import { pendingOperatorRequestOf } from './data/use-operator-request'
@@ -228,6 +229,17 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     })
 
   const summarise = useSessionSummarise({ sessionId, events: snapshot.events })
+  const resume = useMemo(
+    () => ({
+      pending: resumePendingOf(snapshot.status?.commands),
+      onResume: () => {
+        requestResume({ api: sessionsApi, sessionId }).catch((failure: unknown) => {
+          toast.error(messageOf(failure))
+        })
+      },
+    }),
+    [sessionId, snapshot.status?.commands],
+  )
   const skillEntries = useSessionSkills({ events: snapshot.foldable })
   const commandEntries = useSessionCommands()
   const [commandListOpen, setCommandListOpen] = useState(false)
@@ -321,6 +333,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
                   onOpenPodSize={handleOpenPodSize}
                   rewind={rewind}
                   summarise={summarise.transcript}
+                  resume={resume}
                   repairDiagram={repairDiagram}
                   boot={boot}
                   queued={queuedTranscript.queued}

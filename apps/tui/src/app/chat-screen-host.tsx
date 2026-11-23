@@ -114,6 +114,7 @@ export function ChatScreenHost(props: {
     api: props.client.api,
     sessionId: props.sessionId,
     events: transcript.events,
+    rawEvents: transcript.rawEvents,
     live: transcript.liveSteps,
     working: transcript.working,
     connected: connection.cloudConnected,
@@ -170,6 +171,16 @@ export function ChatScreenHost(props: {
           run: attention.handleRetry,
         }),
       )
+    } else if (attention.handleResume !== null) {
+      list.push(
+        global({
+          chord: 'ctrl+r',
+          hint: 'resume',
+          describe: 'pick the stopped turn up where it left off',
+          group: EKeyGroup.Turn,
+          run: attention.handleResume,
+        }),
+      )
     }
     if (wake.state !== EPodWake.Asleep) {
       list.push(
@@ -187,7 +198,7 @@ export function ChatScreenHost(props: {
       )
     }
     return list
-  }, [attention.handleRetry, composer, connection.cloudConnected, wake])
+  }, [attention.handleRetry, attention.handleResume, composer, connection.cloudConnected, wake])
 
   const bindings = useMemo(
     () => [
