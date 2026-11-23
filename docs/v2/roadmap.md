@@ -29,6 +29,15 @@ _Updated at the end of every slice. Last update: 2026-11-17._
   classifier packages, a Classifier settings page), [skill suggestion](slices/skill-suggestion.md) and
   [Jev quality review](slices/jev-quality.md). Shared code that lived in v1 places moved to v2 homes on
   2026-11-22/23 (#2556, #2557, #2560, #2562, #2567, #2569). Mobile parity runs in its own session.
+- **Built 2026-11-23: the classifier role** ([spec](slices/classifier.md), #2576, #2582, this PR). Provider
+  accounts live in `@dltech/atlas-credentials`. `@dltech/atlas-classifier` owns the decision model table
+  (Jev direct, Jev through Vercel AI Gateway, OpenAI Decisions), the transports and the availability
+  rule. The host gives every session `SessionRuntime.classifier`, and pod plugins `ctx.classifier`;
+  the key stays on the agent host. Settings → Classifier picks the model (`classifier.model`, empty
+  is off), adds a key inline, and runs `classifier.test`. Every provider key, TypeSafe AI included,
+  is checked with one free read call before it is saved. The v1 `decisions.*` and
+  `classifier.mode` rows stay until v1 is deleted. Skill suggestion and the Jev quality review call
+  the port next.
 - **Built 2026-11-17: Stop** ([audit](research/slice-3/recovery-audit.md) F-13). `sessions.stop` takes
   `{sessionId}`, checks the caller owns the session and posts a `stop` inbox entry — the same durable
   input a message is, so it reaches a parked pod and needs no live connection. A turn in flight is
