@@ -169,6 +169,7 @@ export const createLoopRunner = (args: {
   crew: PodCrew
   crewRunning(): number
   isDraining(): boolean
+  childrenRunning(): number
 }): { runner: LoopTurnRunner; intake: InboxIntake } => {
   const { deps, runtime, record, threadId } = args
   const operator =
@@ -203,6 +204,7 @@ export const createLoopRunner = (args: {
     controlHandlers: deps.controlHandlers,
     ...(pod.slash === undefined ? {} : { slash: pod.slash }),
     model: runtime.model,
+    childrenRunning: args.childrenRunning,
     ...(operator === undefined ? {} : { operatorAnswers: operator }),
     crewRunning: () => args.crewRunning(),
     now: () => deps.timers.now(),
@@ -263,6 +265,7 @@ export const wireHeldLoop = (args: {
   crew: PodCrew
   crewRunning(): number
   isDraining(): boolean
+  childrenRunning(): number
 }): {
   runner: LoopTurnRunner
   branches: BranchObserver

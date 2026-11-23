@@ -69,6 +69,7 @@ export type InboxIntakeArgs = {
   controlHandlers?: ControlHandlers | undefined
   slash?: PodSlash | undefined
   model?: ModelPort | undefined
+  childrenRunning?: (() => number) | undefined
   operatorAnswers?: OperatorAnswerIntake | undefined
   crewRunning?: (() => number) | undefined
   log?: LogPort | undefined
@@ -94,6 +95,9 @@ export class InboxIntake implements AgentIntake {
             sessionId: args.sessionId,
             model: args.model,
             visibleEvents: () => args.record.eventCache().visibleLoopEvents(),
+            ...(args.childrenRunning === undefined
+              ? {}
+              : { childrenRunning: args.childrenRunning }),
             loggedEvents: () => this.events(),
             append: (drafts) => this.appendDrafts(drafts),
             log: args.log,

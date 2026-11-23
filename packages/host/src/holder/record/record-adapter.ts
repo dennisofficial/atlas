@@ -1,5 +1,6 @@
 import {
   chainEvents,
+  projectedEvents,
   toLoopEvent,
   type Event,
   type LoopState,
@@ -120,7 +121,7 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
   }
 
   async read(_args: { threadId: ThreadId }): Promise<{ events: readonly Event[] }> {
-    return { events: this.cache.visibleLoopEvents() }
+    return { events: projectedEvents(this.cache.visibleLoopEvents()) }
   }
 
   append(args: {

@@ -88,6 +88,7 @@ export const makeRig = async (args: {
   log?: LogPort | undefined
   onHostIdChanged?: (() => void) | undefined
   plugins?: ComposedPlugins | undefined
+  rotation?: { autoRotateAtPercent: number } | undefined
   placeContextFiles?: SessionRuntime['placeContextFiles'] | undefined
 }): Promise<HolderRig> => {
   const clock = args.clock ?? new FakeClock()
@@ -142,6 +143,7 @@ export const makeRig = async (args: {
     beforeRuntime: args.beforeRuntime,
     stopGate: args.stopGate,
     plugins: args.plugins,
+    rotation: args.rotation,
     placeContextFiles: args.placeContextFiles,
   })
 

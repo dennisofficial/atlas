@@ -47,7 +47,7 @@ export class HeldTurns {
   private turnAborted = ETurnAborted.Other
   private readonly idleWaiters: (() => void)[] = []
   turnRunning = false
-  onTurnEnd: (() => void) | undefined
+  onTurnEnd: (() => void | Promise<void>) | undefined
 
   constructor(private readonly deps: HeldSessionDeps) {}
 
@@ -99,11 +99,23 @@ export class HeldTurns {
       }
       throw error
     } finally {
+      await this.settleTurnEnd()
       this.turnRunning = false
       this.turnAbort = undefined
       const idle = this.idleWaiters.splice(0)
       for (const resolve of idle) resolve()
-      this.onTurnEnd?.()
+    }
+  }
+
+  private async settleTurnEnd(): Promise<void> {
+    try {
+      await this.onTurnEnd?.()
+    } catch (error) {
+      this.deps.log?.warn({
+        source: 'holder.turn',
+        message: `the work after the turn on ${this.deps.sessionId} failed`,
+        ...logFieldsOf({ error }),
+      })
     }
   }
 
