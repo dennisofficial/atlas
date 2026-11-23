@@ -1,4 +1,4 @@
-import { EDecisionsProvider, ESearchBackend } from '../../fixtures/settings-decisions'
+import { ESearchBackend } from '../../fixtures/settings-search'
 
 export enum EKeyNoun {
   Key = 'key',
@@ -13,7 +13,6 @@ export type KeyTarget = {
   masked: boolean
 }
 
-const DECISIONS_TOKEN_PREFIX = 'decisions.token.'
 const SEARCH_SECRET_PREFIX = 'search.'
 
 const SEARCH_BACKEND_LABELS: Record<ESearchBackend, string> = {
@@ -44,17 +43,6 @@ const SEARCH_KEY_SHAPES: Partial<Record<ESearchBackend, Omit<KeyTarget, 'name' |
     noun: EKeyNoun.Url,
     masked: false,
   },
-}
-
-export function decisionsKeyTarget(provider: EDecisionsProvider): KeyTarget {
-  return {
-    name: `${DECISIONS_TOKEN_PREFIX}${provider}`,
-    label: 'Decision key',
-    description:
-      'The bearer key the selected provider expects. Each provider keeps its own key, saved encrypted and never shown again.',
-    noun: EKeyNoun.Key,
-    masked: true,
-  }
 }
 
 export function searchKeyTarget(backend: ESearchBackend): KeyTarget | null {

@@ -9,6 +9,7 @@ import { SessionMiddleware } from '../src/_module/session/session.middleware'
 import { as, createMiddlewareApp } from '../src/_module/trpc/trpc-middleware.fixture'
 import { AccountsRouter } from '../src/api/platform/accounts/accounts.router'
 import { AccountsService } from '../src/api/platform/accounts/accounts.service'
+import { ProviderKeyCheckService } from '../src/api/platform/accounts/provider-key-check.service'
 import { seedUsers } from './session-seed'
 
 const validBody = {
@@ -32,6 +33,7 @@ describe('AccountsRouter validation (in-process)', () => {
       rateLimit: 100_000,
       providers: [
         AccountsRouter,
+        { provide: ProviderKeyCheckService, useValue: { check: async () => undefined } },
         AccountsService,
         SessionMiddleware,
         {

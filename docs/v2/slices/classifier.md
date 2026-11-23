@@ -518,10 +518,18 @@ The registry cannot hold `DECISION_MODELS` without importing the classifier pack
 the registry defines the row as a stored model ref and the table is the authority on what the value
 may be, enforced by `UnknownModel`.
 
-Deleted in the same PR that adds the page: `DecisionsProvider`, `DecisionsUrl`, `DecisionsModel`,
-`DecisionsToken` (`registry.ts:61-65`, `:690-760`), `classifier.mode` (`:412-441`), the Agent page
-Decisions card (`apps/web/src/features/settings/pages/agent.tsx:113-171`), its data layer
-(`data/personal/agent-settings.ts:11-17`) and `fixtures/settings-decisions.ts`.
+Removed in the PR that adds the page: the Agent page Decisions and Nudges cards
+(`apps/web/src/features/settings/pages/agent.tsx`), the decisions fields of
+`data/personal/agent-settings.ts`, `DecisionsKeyRow` and its target in
+`parts/agent-key-row.tsx` and `data/personal/agent-keys.ts`, and every decision item of
+`fixtures/settings-decisions.ts`, which becomes `fixtures/settings-search.ts` with the search
+backend alone.
+
+The core rows `decisions.provider`, `decisions.url`, `decisions.model`, `decisions.token` and
+`classifier.mode` (`packages/core/src/settings/registry.ts:61-65`, `:412-441`, `:690-760`) stay,
+because v1 still reads them: `packages/harness/src/composition/policy-bindings.ts:74-79`,
+`packages/harness/src/settings/migrate-decisions.ts` and
+`apps/tui/src/ui/secret-target.ts:25`. They go when v1 is deleted.
 
 ### 6.3 How the host resolves it
 

@@ -8,6 +8,7 @@ import { SessionMiddleware } from '../src/_module/session/session.middleware'
 import { HarnessSecretsRouter } from '../src/api/cloud/harness-secrets/harness-secrets.router'
 import { HarnessSecretsService } from '../src/api/cloud/harness-secrets/harness-secrets.service'
 import { AccountsService } from '../src/api/platform/accounts/accounts.service'
+import { ProviderKeyCheckService } from '../src/api/platform/accounts/provider-key-check.service'
 import { SandboxesService } from '../src/api/platform/sandboxes/sandboxes.service'
 import { SessionOrSandboxMiddleware } from '../src/api/platform/sessions/session-or-sandbox.middleware'
 
@@ -47,6 +48,7 @@ describe('sandbox token scoping (in-process, real guard)', () => {
     app = await createMixedApp({
       providers: [
         AccountsRouter,
+        { provide: ProviderKeyCheckService, useValue: { check: async () => undefined } },
         HarnessSecretsRouter,
         { provide: HarnessSecretsService, useValue: secretsStub },
         { provide: AccountsService, useValue: accountsStub },

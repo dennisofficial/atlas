@@ -54,6 +54,8 @@ helpers. The serve process in a pod, `apps/api` and every client read it.
 
 - `threadMessageRequestSchema`, `threadMessageReplySchema`: the send of a message to a thread.
 - `modelsResponseSchema`: the model list of the providers, with the live error.
+- `classifierTestOutputSchema`: the outcome of a classifier connection test, a pass with its model
+  and duration or a fault with its detail.
 - `memorySummarySchema`, `memoryEntrySchema`, `memoryListSchema`: the memory rows of a list and a
   read.
 - `memoryPutSchema`, `memoryEditSchema`, `memoryKeySchema`: the memory write and edit payloads.

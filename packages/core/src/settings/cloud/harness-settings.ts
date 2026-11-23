@@ -40,6 +40,12 @@ export const HARNESS_SETTING_ENTRIES = [
     consumer: ESettingConsumer.Harness,
   }),
   settingEntry({
+    key: 'classifier.model',
+    schema: modelRefSettingSchema,
+    fallback: '',
+    consumer: ESettingConsumer.Harness,
+  }),
+  settingEntry({
     key: 'model.effort',
     schema: effortSchema,
     fallback: EEffortLevel.Medium,

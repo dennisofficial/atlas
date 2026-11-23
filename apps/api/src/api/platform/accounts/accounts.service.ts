@@ -213,6 +213,10 @@ export class AccountsService {
     await db.execute(statement)
   }
 
+  async providerOf(args: { userId: string; accountId: string }): Promise<string> {
+    return (await this.ownedRow(args)).provider
+  }
+
   async replaceSecret(args: {
     userId: string
     accountId: string
