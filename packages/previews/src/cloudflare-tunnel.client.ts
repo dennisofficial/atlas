@@ -1,101 +1,41 @@
-import { CloudflareRecordExistsError, PreviewUpstreamError } from './errors'
+import {
+  CloudflareRequest,
+  type CloudflareConfig,
+  type CloudflareFetchFn,
+  type CloudflareHttpRequest,
+  type CloudflareHttpResponse,
+  requireString,
+  resultsOf,
+  stringOf,
+  totalPagesOf,
+} from './cloudflare-request'
+import { PreviewUpstreamError } from './errors'
 
-const API_BASE = 'https://api.cloudflare.com/client/v4'
-const REQUEST_TIMEOUT_MS = 30_000
 const CATCH_ALL_SERVICE = 'http_status:404'
+const DNS_PAGE_SIZE = 100
 
-export type CloudflareConfig = { apiToken: string; accountId: string; zoneId: string }
-
-export interface CloudflareHttpRequest {
-  method: 'GET' | 'POST' | 'PUT' | 'DELETE'
-  headers: Record<string, string>
-  body?: string
-  signal?: AbortSignal
-}
-
-export interface CloudflareHttpResponse {
-  ok: boolean
-  status: number
-  text(): Promise<string>
-}
-
-export type CloudflareFetchFn = (
-  url: string,
-  request: CloudflareHttpRequest,
-) => Promise<CloudflareHttpResponse>
+export type { CloudflareConfig, CloudflareFetchFn, CloudflareHttpRequest, CloudflareHttpResponse }
 
 export type DnsRecord = { id: string; content: string }
 
+export type DnsRecordSummary = { id: string; name: string; content: string; createdAt?: string }
+
+export type TunnelSummary = { id: string; name: string; createdAt?: string }
+
 export type IngressRule = { hostname: string; port: number }
 
-const defaultCloudflareFetch: CloudflareFetchFn = (url, request) => fetch(url, request)
-
-function parseJson(text: string): Record<string, unknown> {
-  try {
-    const parsed: unknown = JSON.parse(text)
-    return typeof parsed === 'object' && parsed !== null
-      ? Object.fromEntries(Object.entries(parsed))
-      : {}
-  } catch {
-    return {}
-  }
-}
-
-const RECORD_EXISTS_CODES = [81053, 81057]
-
-function isRecordExists(body: Record<string, unknown>): boolean {
-  const errors = body.errors
-  if (!Array.isArray(errors)) return false
-  return errors.some((error: unknown) => {
-    if (typeof error !== 'object' || error === null) return false
-    const code = 'code' in error ? error.code : undefined
-    const message = 'message' in error ? error.message : undefined
-    return (
-      (typeof code === 'number' && RECORD_EXISTS_CODES.includes(code)) ||
-      (typeof message === 'string' && message.toLowerCase().includes('already exist'))
-    )
-  })
-}
-
-function errorMessages(body: Record<string, unknown>): string[] {
-  const errors = body.errors
-  if (!Array.isArray(errors)) return []
-  return errors.flatMap((error: unknown) => {
-    if (typeof error !== 'object' || error === null || !('message' in error)) return []
-    return typeof error.message === 'string' ? [error.message] : []
-  })
-}
-
-function resultOf(body: Record<string, unknown>): Record<string, unknown> {
-  const { result } = body
-  return typeof result === 'object' && result !== null && !Array.isArray(result)
-    ? Object.fromEntries(Object.entries(result))
-    : {}
-}
-
-function requireString(args: { result: Record<string, unknown>; key: string; operation: string }) {
-  const value = args.result[args.key]
-  if (typeof value !== 'string' || value.length === 0) {
-    throw new PreviewUpstreamError(
-      `cloudflare ${args.operation} returned an unexpected response (missing ${args.key})`,
-    )
-  }
-  return value
-}
-
 export class CloudflareTunnelClient {
-  private readonly fetchFn: CloudflareFetchFn
+  private readonly http: CloudflareRequest
+  private readonly config: CloudflareConfig
 
-  constructor(
-    private readonly config: CloudflareConfig,
-    args: { fetchFn?: CloudflareFetchFn } = {},
-  ) {
-    this.fetchFn = args.fetchFn ?? defaultCloudflareFetch
+  constructor(config: CloudflareConfig, args: { fetchFn?: CloudflareFetchFn } = {}) {
+    this.config = config
+    this.http = new CloudflareRequest(config, args)
   }
 
   async createTunnel(args: { name: string }): Promise<{ id: string; token: string }> {
     const operation = 'create tunnel'
-    const result = await this.send({
+    const result = await this.http.send({
       operation,
       method: 'POST',
       path: `/accounts/${this.config.accountId}/cfd_tunnel`,
@@ -116,7 +56,7 @@ export class CloudflareTunnelClient {
       })),
       { service: CATCH_ALL_SERVICE },
     ]
-    await this.send({
+    await this.http.send({
       operation: 'update tunnel ingress',
       method: 'PUT',
       path: `/accounts/${this.config.accountId}/cfd_tunnel/${args.tunnelId}/configurations`,
@@ -126,7 +66,7 @@ export class CloudflareTunnelClient {
 
   async createCname(args: { hostname: string; tunnelId: string }): Promise<{ id: string }> {
     const operation = 'create dns record'
-    const result = await this.send({
+    const result = await this.http.send({
       operation,
       method: 'POST',
       path: `/zones/${this.config.zoneId}/dns_records`,
@@ -141,22 +81,21 @@ export class CloudflareTunnelClient {
   }
 
   async findDnsRecord(args: { hostname: string }): Promise<DnsRecord | undefined> {
-    const body = await this.request({
+    const body = await this.http.request({
       operation: 'find dns record',
       method: 'GET',
       path: `/zones/${this.config.zoneId}/dns_records?name=${encodeURIComponent(args.hostname)}`,
     })
-    const records = Array.isArray(body.result) ? body.result : []
-    for (const record of records) {
-      if (typeof record !== 'object' || record === null) continue
-      const { id, content } = Object.fromEntries(Object.entries(record))
-      if (typeof id === 'string' && typeof content === 'string') return { id, content }
+    for (const record of resultsOf(body)) {
+      const id = stringOf(record, 'id')
+      const content = stringOf(record, 'content')
+      if (id !== undefined && content !== undefined) return { id, content }
     }
     return undefined
   }
 
   async repointCname(args: { recordId: string; hostname: string; tunnelId: string }) {
-    await this.send({
+    await this.http.send({
       operation: 'update dns record',
       method: 'PUT',
       path: `/zones/${this.config.zoneId}/dns_records/${args.recordId}`,
@@ -170,7 +109,7 @@ export class CloudflareTunnelClient {
   }
 
   async deleteDnsRecord(args: { recordId: string }): Promise<void> {
-    await this.send({
+    await this.http.send({
       operation: 'delete dns record',
       method: 'DELETE',
       path: `/zones/${this.config.zoneId}/dns_records/${args.recordId}`,
@@ -180,13 +119,13 @@ export class CloudflareTunnelClient {
 
   async deleteTunnel(args: { tunnelId: string }): Promise<void> {
     const tunnelPath = `/accounts/${this.config.accountId}/cfd_tunnel/${args.tunnelId}`
-    await this.send({
+    await this.http.send({
       operation: 'clean up tunnel connections',
       method: 'DELETE',
       path: `${tunnelPath}/connections`,
       tolerateMissing: true,
     })
-    await this.send({
+    await this.http.send({
       operation: 'delete tunnel',
       method: 'DELETE',
       path: tunnelPath,
@@ -194,39 +133,97 @@ export class CloudflareTunnelClient {
     })
   }
 
-  private async send(args: Parameters<CloudflareTunnelClient['request']>[0]) {
-    return resultOf(await this.request(args))
+  async findTunnelByName(args: { name: string }): Promise<{ id: string } | undefined> {
+    const body = await this.http.request({
+      operation: 'find tunnel',
+      method: 'GET',
+      path: this.tunnelListPath({ page: 1, name: args.name }),
+    })
+    for (const tunnel of resultsOf(body)) {
+      if (stringOf(tunnel, 'name') !== args.name) continue
+      const id = stringOf(tunnel, 'id')
+      if (id !== undefined) return { id }
+    }
+    return undefined
   }
 
-  private async request(args: {
-    operation: string
-    method: CloudflareHttpRequest['method']
-    path: string
-    payload?: unknown
-    tolerateMissing?: boolean
-  }): Promise<Record<string, unknown>> {
-    const response = await this.fetchFn(`${API_BASE}${args.path}`, {
-      method: args.method,
-      headers: {
-        Authorization: `Bearer ${this.config.apiToken}`,
-        'Content-Type': 'application/json',
-      },
-      ...(args.payload === undefined ? {} : { body: JSON.stringify(args.payload) }),
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  async getTunnel(args: { tunnelId: string }): Promise<{ id: string } | undefined> {
+    const result = await this.http.send({
+      operation: 'read tunnel',
+      method: 'GET',
+      path: `/accounts/${this.config.accountId}/cfd_tunnel/${args.tunnelId}`,
+      tolerateMissing: true,
     })
-    if (args.tolerateMissing === true && response.status === 404) return {}
-    const body = parseJson(await response.text())
-    if (response.ok && body.success !== false) return body
-    if (isRecordExists(body)) {
-      throw new CloudflareRecordExistsError(
-        `cloudflare ${args.operation} failed: record already exists`,
-      )
-    }
-    const messages = errorMessages(body)
+    const id = stringOf(result, 'id')
+    return id === undefined ? undefined : { id }
+  }
+
+  async tunnelToken(args: { tunnelId: string }): Promise<string> {
+    const operation = 'read tunnel token'
+    const body = await this.http.request({
+      operation,
+      method: 'GET',
+      path: `/accounts/${this.config.accountId}/cfd_tunnel/${args.tunnelId}/token`,
+    })
+    if (typeof body.result === 'string' && body.result.length > 0) return body.result
     throw new PreviewUpstreamError(
-      messages.length > 0
-        ? `cloudflare ${args.operation} failed: ${messages.join('; ')}`
-        : `cloudflare ${args.operation} failed with status ${response.status}`,
+      `cloudflare ${operation} returned an unexpected response (missing token)`,
     )
   }
+
+  async ensureTunnel(args: { name: string }): Promise<{ id: string; token: string }> {
+    const found = await this.findTunnelByName({ name: args.name })
+    if (found === undefined) return await this.createTunnel({ name: args.name })
+    return { id: found.id, token: await this.tunnelToken({ tunnelId: found.id }) }
+  }
+
+  async listTunnels(args: { namePrefix: string; page?: number }): Promise<TunnelSummary[]> {
+    const tunnels: TunnelSummary[] = []
+    for (let page = args.page ?? 1; ; page += 1) {
+      const body = await this.http.request({
+        operation: 'list tunnels',
+        method: 'GET',
+        path: this.tunnelListPath({ page, name: args.namePrefix }),
+      })
+      const results = resultsOf(body)
+      for (const tunnel of results) {
+        const id = stringOf(tunnel, 'id')
+        const name = stringOf(tunnel, 'name')
+        if (id === undefined || name === undefined || !name.startsWith(args.namePrefix)) continue
+        tunnels.push({ id, name, ...createdAtOf(tunnel) })
+      }
+      if (results.length === 0 || page >= totalPagesOf(body)) return tunnels
+    }
+  }
+
+  async listDnsRecords(args: { nameSuffix: string }): Promise<DnsRecordSummary[]> {
+    const records: DnsRecordSummary[] = []
+    for (let page = 1; ; page += 1) {
+      const body = await this.http.request({
+        operation: 'list dns records',
+        method: 'GET',
+        path: `/zones/${this.config.zoneId}/dns_records?per_page=${DNS_PAGE_SIZE}&page=${page}`,
+      })
+      const results = resultsOf(body)
+      for (const record of results) {
+        const id = stringOf(record, 'id')
+        const name = stringOf(record, 'name')
+        const content = stringOf(record, 'content')
+        if (id === undefined || name === undefined || content === undefined) continue
+        if (!name.endsWith(args.nameSuffix)) continue
+        records.push({ id, name, content, ...createdAtOf(record) })
+      }
+      if (results.length < DNS_PAGE_SIZE || page >= totalPagesOf(body)) return records
+    }
+  }
+
+  private tunnelListPath(args: { page: number; name: string }): string {
+    const name = encodeURIComponent(args.name)
+    return `/accounts/${this.config.accountId}/cfd_tunnel?name=${name}&is_deleted=false&page=${args.page}`
+  }
+}
+
+function createdAtOf(record: Record<string, unknown>): { createdAt?: string } {
+  const createdAt = stringOf(record, 'created_at')
+  return createdAt === undefined ? {} : { createdAt }
 }

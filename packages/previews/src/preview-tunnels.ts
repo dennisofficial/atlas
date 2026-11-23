@@ -1,167 +1,180 @@
-import { randomBytes } from 'node:crypto'
-import { type Db, type Row, type Tx } from '@dltech/atlas-db'
-import { CloudflareRecordExistsError } from './errors'
+import { type Db, type Row } from '@dltech/atlas-db'
 import { type CloudflareTunnelClient } from './cloudflare-tunnel.client'
+import { EPreviewTunnelState } from './preview-state'
+import {
+  type PreviewSecretCipher,
+  lockPreviews,
+  messageOf,
+  newPreviewLabel,
+  tunnelNameOf,
+} from './preview-rows'
+import {
+  type PreviewReconcileDeps,
+  type PreviewReconcileOutcome,
+  reconcilePreviewTunnel,
+} from './preview-reconciler'
 
-const LABEL_LENGTH = 10
-const TUNNEL_SUFFIX_LENGTH = 6
-
-function newLabel(): string {
-  let label = ''
-  while (label.length < LABEL_LENGTH) label += randomBytes(8).readBigUInt64BE().toString(36)
-  return label.slice(0, LABEL_LENGTH)
-}
-
-function newTunnelSuffix(): string {
-  return randomBytes(8)
-    .readBigUInt64BE()
-    .toString(36)
-    .padStart(TUNNEL_SUFFIX_LENGTH, '0')
-    .slice(-TUNNEL_SUFFIX_LENGTH)
-}
-
-async function lockPreviews(args: { tx: Tx; threadId: string }): Promise<void> {
-  const statement = args.tx.raw
-    .sql`SELECT pg_advisory_xact_lock(hashtext(${`preview:${args.threadId}`}))`
-    .affectedCount()
-    .build()
-  await args.tx.query(statement)
-}
-
-export type PreviewSecretCipher = { encrypt(plain: string): string; decrypt(blob: string): string }
+export type { PreviewSecretCipher } from './preview-rows'
+export { lockPreviews, newPreviewLabel, tunnelNameOf } from './preview-rows'
 
 export class PreviewTunnels {
   private readonly db: Db
   private readonly cipher: PreviewSecretCipher
   private readonly domain: string
   private readonly cloudflare: CloudflareTunnelClient
+  private readonly livePeersOf: (podSessionId: string) => Promise<number>
+  private readonly tunnelCalls = new Map<string, Promise<{ id: string; token: string }>>()
 
   constructor(args: {
     db: Db
     cipher: PreviewSecretCipher
     domain: string
     cloudflare: CloudflareTunnelClient
+    livePeersOf?: (podSessionId: string) => Promise<number>
   }) {
     this.db = args.db
     this.cipher = args.cipher
     this.domain = args.domain
     this.cloudflare = args.cloudflare
+    this.livePeersOf = args.livePeersOf ?? (async () => 0)
   }
 
   async expose(args: {
+    podSessionId: string
     threadId: string
     userId: string
     port: number
   }): Promise<{ url: string; tunnelToken: string }> {
-    const tunnel = await this.ensureTunnel(args)
-    const hostname = await this.ensureRoute({ tunnel, port: args.port })
-    return {
-      url: `https://${hostname}`,
-      tunnelToken: this.cipher.decrypt(tunnel.sealedTunnelToken),
-    }
+    const tunnel = await this.ensureTunnelRow(args)
+    const tunnelToken = await this.sealTunnel({ podSessionId: args.podSessionId, tunnel })
+    const hostname = await this.reserveRoute({
+      podSessionId: args.podSessionId,
+      previewTunnelId: tunnel.id,
+      port: args.port,
+    })
+    return { url: `https://${hostname}`, tunnelToken }
   }
 
-  async teardown(args: { threadId: string }): Promise<void> {
-    await this.db.transaction(async (tx) => {
-      await lockPreviews({ tx, threadId: args.threadId })
-      const tunnel = await tx.orm.public.PreviewTunnel.where({
-        threadId: args.threadId,
-      }).first()
-      if (tunnel === null) return
-      const routes = await tx.orm.public.PreviewRoute.where({
-        previewTunnelId: tunnel.id,
-      }).all()
-      for (const route of routes) {
-        await this.cloudflare.deleteDnsRecord({ recordId: route.dnsRecordId })
-      }
-      await this.cloudflare.deleteTunnel({ tunnelId: tunnel.tunnelId })
-      await tx.orm.public.PreviewTunnel.where({
-        id: tunnel.id,
-      }).deleteAndCount()
+  async markDeleting(args: { podSessionId: string }): Promise<void> {
+    await this.db.orm.public.PreviewTunnel.where({
+      podSessionId: args.podSessionId,
+    }).updateAndCount({ state: EPreviewTunnelState.Deleting })
+  }
+
+  async clearDeleting(args: { podSessionId: string }): Promise<void> {
+    await this.db.orm.public.PreviewTunnel.where({
+      podSessionId: args.podSessionId,
+    }).updateAndCount({ state: EPreviewTunnelState.Ready })
+  }
+
+  async teardown(args: { podSessionId: string }): Promise<PreviewReconcileOutcome> {
+    await this.markDeleting({ podSessionId: args.podSessionId })
+    return await reconcilePreviewTunnel(this.reconcileDeps(), {
+      podSessionId: args.podSessionId,
     })
   }
 
-  private ensureTunnel(args: { threadId: string; userId: string }): Promise<Row<'PreviewTunnel'>> {
+  private reconcileDeps(): PreviewReconcileDeps {
+    return {
+      db: this.db,
+      cloudflare: this.cloudflare,
+      cipher: this.cipher,
+      domain: this.domain,
+      livePeersOf: this.livePeersOf,
+    }
+  }
+
+  private ensureTunnelRow(args: {
+    podSessionId: string
+    threadId: string
+    userId: string
+  }): Promise<Row<'PreviewTunnel'>> {
     return this.db.transaction(async (tx) => {
-      await lockPreviews({ tx, threadId: args.threadId })
+      await lockPreviews({ tx, podSessionId: args.podSessionId })
       const existing = await tx.orm.public.PreviewTunnel.where({
-        threadId: args.threadId,
+        podSessionId: args.podSessionId,
       }).first()
-      if (existing !== null) return existing
-      const created = await this.cloudflare.createTunnel({
-        name: `atlas-${args.threadId}-${newTunnelSuffix()}`,
-      })
-      try {
+      if (existing === null) {
         return await tx.orm.public.PreviewTunnel.create({
           userId: args.userId,
-          threadId: args.threadId,
-          tunnelId: created.id,
-          sealedTunnelToken: this.cipher.encrypt(created.token),
-          label: newLabel(),
+          podSessionId: args.podSessionId,
+          createdByThreadId: args.threadId,
+          label: newPreviewLabel(),
+          state: EPreviewTunnelState.Pending,
         })
-      } catch (failure) {
-        await this.cloudflare.deleteTunnel({ tunnelId: created.id })
-        throw failure
       }
+      if (existing.state !== EPreviewTunnelState.Deleting) return existing
+      await tx.orm.public.PreviewTunnel.where({ id: existing.id }).updateAndCount({
+        state: EPreviewTunnelState.Pending,
+      })
+      return { ...existing, state: EPreviewTunnelState.Pending }
     })
   }
 
-  private ensureRoute(args: { tunnel: Row<'PreviewTunnel'>; port: number }): Promise<string> {
-    const { tunnel, port } = args
+  private async sealTunnel(args: {
+    podSessionId: string
+    tunnel: Row<'PreviewTunnel'>
+  }): Promise<string> {
+    if (
+      args.tunnel.state === EPreviewTunnelState.Ready &&
+      args.tunnel.tunnelId !== '' &&
+      args.tunnel.sealedTunnelToken !== ''
+    ) {
+      return this.cipher.decrypt(args.tunnel.sealedTunnelToken)
+    }
+    try {
+      const tunnel = await this.cloudflareTunnel(args.podSessionId)
+      await this.db.orm.public.PreviewTunnel.where({ id: args.tunnel.id }).updateAndCount({
+        tunnelId: tunnel.id,
+        sealedTunnelToken: this.cipher.encrypt(tunnel.token),
+        state: EPreviewTunnelState.Ready,
+        lastError: null,
+      })
+      return tunnel.token
+    } catch (failure) {
+      await this.db.orm.public.PreviewTunnel.where({ id: args.tunnel.id }).updateAndCount({
+        lastError: messageOf(failure),
+      })
+      throw failure
+    }
+  }
+
+  private cloudflareTunnel(podSessionId: string): Promise<{ id: string; token: string }> {
+    const running = this.tunnelCalls.get(podSessionId)
+    if (running !== undefined) return running
+    const call = this.cloudflare.ensureTunnel({ name: tunnelNameOf(podSessionId) })
+    this.tunnelCalls.set(podSessionId, call)
+    void call.then(
+      () => this.tunnelCalls.delete(podSessionId),
+      () => this.tunnelCalls.delete(podSessionId),
+    )
+    return call
+  }
+
+  private reserveRoute(args: {
+    podSessionId: string
+    previewTunnelId: string
+    port: number
+  }): Promise<string> {
     return this.db.transaction(async (tx) => {
-      await lockPreviews({ tx, threadId: tunnel.threadId })
+      await lockPreviews({ tx, podSessionId: args.podSessionId })
       const existing = await tx.orm.public.PreviewRoute.where({
-        previewTunnelId: tunnel.id,
-        port,
+        previewTunnelId: args.previewTunnelId,
+        port: args.port,
       }).first()
       if (existing !== null) return existing.hostname
-      const hostname = `${port}-${tunnel.label}.${this.domain}`
-      const record = await this.claimCname({
+      const tunnel = await tx.orm.public.PreviewTunnel.where({
+        id: args.previewTunnelId,
+      }).first()
+      if (tunnel === null) throw new Error(`preview tunnel ${args.previewTunnelId} disappeared`)
+      const hostname = `${args.port}-${tunnel.label}.${this.domain}`
+      await tx.orm.public.PreviewRoute.create({
+        previewTunnelId: tunnel.id,
+        port: args.port,
         hostname,
-        tunnelId: tunnel.tunnelId,
       })
-      try {
-        await tx.orm.public.PreviewRoute.create({
-          previewTunnelId: tunnel.id,
-          port,
-          hostname,
-          dnsRecordId: record.id,
-        })
-        const routes = await tx.orm.public.PreviewRoute.where({
-          previewTunnelId: tunnel.id,
-        }).all()
-        await this.cloudflare.putIngress({
-          tunnelId: tunnel.tunnelId,
-          rules: routes.map((route) => ({
-            hostname: route.hostname,
-            port: route.port,
-          })),
-        })
-      } catch (failure) {
-        await this.cloudflare.deleteDnsRecord({ recordId: record.id })
-        throw failure
-      }
+      await tx.orm.public.PreviewTunnel.where({ id: tunnel.id }).updateAndCount({ syncedAt: null })
       return hostname
     })
-  }
-
-  private async claimCname(args: { hostname: string; tunnelId: string }): Promise<{ id: string }> {
-    try {
-      return await this.cloudflare.createCname(args)
-    } catch (failure) {
-      if (!(failure instanceof CloudflareRecordExistsError)) throw failure
-      const existing = await this.cloudflare.findDnsRecord({
-        hostname: args.hostname,
-      })
-      if (existing === undefined) throw failure
-      if (existing.content !== `${args.tunnelId}.cfargotunnel.com`) {
-        await this.cloudflare.repointCname({
-          recordId: existing.id,
-          hostname: args.hostname,
-          tunnelId: args.tunnelId,
-        })
-      }
-      return { id: existing.id }
-    }
   }
 }
