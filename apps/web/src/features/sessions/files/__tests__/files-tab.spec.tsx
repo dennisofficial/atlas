@@ -196,9 +196,11 @@ describe('FilesTab', () => {
     expect(browsed).toHaveLength(0)
   })
 
-  it('renders the tree while the pod runs without a holder', async () => {
+  it('shows a waking state, and browses nothing, while the pod runs without a holder', async () => {
     const host = await mount(attachedValue())
     expect(host.innerHTML).not.toContain('Disconnected')
+    expect(host.textContent).toContain('Waking the pod…')
+    expect(browsed).toEqual([])
   })
 
   it('renders the live tree once the pod is awake', async () => {

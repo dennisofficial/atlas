@@ -17,3 +17,9 @@ export const isPodParked = (status: SessionStatusOutput | undefined): boolean =>
 
 export const podAttached = (status: SessionStatusOutput | undefined): boolean =>
   !isPodParked(status)
+
+export const podReady = (status: SessionStatusOutput | undefined): boolean => {
+  if (!podAttached(status) || status === undefined) return false
+  const { holderHostId, live } = status.lease
+  return holderHostId !== null && live
+}

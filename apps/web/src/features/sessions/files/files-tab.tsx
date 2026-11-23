@@ -19,6 +19,7 @@ import { v2FileSource, type FileSource } from '@/features/threads/data/file-sour
 import { EFileSearchStatus, useFileSearch } from '@/features/threads/data/use-file-search'
 import { EFileTreeStatus, useFileTree } from '@/features/threads/data/use-file-tree'
 import { useWorkspaceFile } from '@/features/threads/data/use-workspace-file'
+import { usePodReadySource } from '@/features/threads/data/use-pod-ready-source'
 import { FileBody } from '@/features/threads/context-viewer/file-viewer'
 import { lineMarksOf } from '@/features/threads/data/line-marks'
 import { TabPlaceholder } from '@/features/threads/panel/tab-placeholder'
@@ -26,7 +27,7 @@ import { useCheckoutChoice } from '../checkouts/checkout-choice-context'
 import { CheckoutSelect } from '../checkouts/checkout-select'
 import { usePodHold } from '../data/use-pod-hold'
 import { usePodWake } from '../data/use-pod-wake'
-import { podAttached } from '../data/pod-attachment'
+import { podReady, podAttached } from '../data/pod-attachment'
 import { EPaneOpen, checkoutPathOf, contextPathOf } from '../panel/pane-open'
 import { useSessionPaneValue } from '../panel/pane-value'
 import { PodDisconnected } from '../panel/pod-disconnected'
@@ -45,11 +46,11 @@ function Notice(args: { title: string; description: string }) {
   )
 }
 
-function Loading() {
+function Loading(args: { waking: boolean }) {
   return (
     <div className="flex h-full p-4">
       <p role="status" className="text-sm text-muted-foreground">
-        Loading files…
+        {args.waking ? 'Waking the pod…' : 'Loading files…'}
       </p>
     </div>
   )
@@ -59,6 +60,7 @@ function FilesBody(props: {
   sessionId: string
   source: FileSource
   podAwake: boolean
+  waking: boolean
   openPath: string | undefined
   onOpened: () => void
 }) {
@@ -134,6 +136,8 @@ function FilesBody(props: {
         {query.trim() === '' ? (
           tree.status === EFileTreeStatus.Failed ? (
             <Notice title="Files unavailable" description={tree.message} />
+          ) : props.waking && nodes.length === 0 ? (
+            <Loading waking />
           ) : (
             <FileTree
               nodes={nodes}
@@ -182,6 +186,8 @@ export function FilesTab(
     [sourceOf, sessionId, selectedId],
   )
   const attached = podAttached(status)
+  const ready = podReady(status)
+  const { source: readySource, waking } = usePodReadySource({ source })
   usePodHold({ sessionId, active: attached })
   const {
     state,
@@ -189,7 +195,7 @@ export function FilesTab(
     wakePod,
   } = usePodWake({
     sessionId,
-    live: attached,
+    live: ready,
     wake: () => requestWake(sessionId).then(() => undefined),
   })
   useEffect(() => {
@@ -220,18 +226,19 @@ export function FilesTab(
 
   if (!attached)
     return <PodDisconnected tab="Files" state={state} message={wakeMessage} onWake={wakePod} />
+  if (!ready) return <Loading waking />
   if (contextPath !== undefined) {
     return (
       <ContextFileView
         sessionId={sessionId}
         path={contextPath}
-        podAwake={attached}
+        podAwake={ready}
         onBack={handleBack}
         sourceOf={sourceOf}
       />
     )
   }
-  if (changes.status === 'loading') return <Loading />
+  if (changes.status === 'loading') return <Loading waking={false} />
   if (changes.status === 'failed') {
     return (
       <div data-files-tab={changes.unavailable ? 'unavailable' : 'failed'}>
@@ -242,7 +249,7 @@ export function FilesTab(
       </div>
     )
   }
-  if (source === null || selectedId === undefined) {
+  if (readySource === null || selectedId === undefined) {
     return (
       <div data-files-tab="empty">
         <Notice
@@ -256,8 +263,9 @@ export function FilesTab(
     <FilesBody
       key={selectedId}
       sessionId={sessionId}
-      source={source}
-      podAwake={attached}
+      source={readySource}
+      podAwake={ready}
+      waking={waking}
       openPath={openPath}
       onOpened={handleOpened}
     />

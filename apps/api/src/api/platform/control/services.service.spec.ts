@@ -7,7 +7,7 @@ import {
   type CallResult,
 } from '@dltech/atlas-protocol'
 
-import { PodParkedError } from './pod-parked.error'
+import { PodNotReadyError } from './pod-errors'
 import { asUser, opsOf } from './files.service.fixture'
 import { setupSessionsService } from './sessions.service.fixture'
 import { ServicesService } from './services.service'
@@ -94,7 +94,7 @@ describe('ServicesService', () => {
 
     await expect(
       services.log({ userId: 'user-a', sessionId, serviceId: 'web' }),
-    ).rejects.toBeInstanceOf(PodParkedError)
+    ).rejects.toBeInstanceOf(PodNotReadyError)
   })
 
   it('reports an unknown service as a bad request', async () => {
