@@ -27,8 +27,8 @@ const redactedEnv = (env: Record<string, string>): Record<string, string> =>
 
 export const journalOp = (op: CallOp): CallOp => {
   switch (op.op) {
-    case 'previews.expose':
-      return { ...op, tunnelToken: REDACTED }
+    case 'previews.ensure':
+      return op.tunnelToken === undefined ? op : { ...op, tunnelToken: REDACTED }
     case 'writeFile':
       return { ...op, content: REDACTED }
     case 'exec':

@@ -7,6 +7,7 @@ export type DaemonOpsDeps = {
   home: string
   cloudflaredPath?: string | undefined
   previewReadyTimeoutMs?: number | undefined
+  previewsFile?: string | undefined
 }
 
 export const ripgrepOf = (deps: DaemonOpsDeps): string => deps.env[RG_PATH_ENV] ?? 'rg'

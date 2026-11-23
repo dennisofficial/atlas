@@ -14,6 +14,7 @@ import {
 } from '@dltech/atlas-core'
 import {
   mergeHooks,
+  type ComposedPod,
   type PluginPodContext,
   type PodCrew,
   type PodResources,
@@ -248,6 +249,16 @@ export const resourceSyncOf = (args: {
   return sync
 }
 
+export const watchDaemonReady = (args: {
+  onReady: SessionRuntime['remoteCalls']['onReady']
+  pod: Pick<ComposedPod, 'onDaemonReady'>
+  ctx: PluginPodContext
+  signal: AbortSignal
+}): void => {
+  const offReady = args.onReady((hello) => args.pod.onDaemonReady({ ctx: args.ctx, hello }))
+  args.signal.addEventListener('abort', offReady, { once: true })
+}
+
 export const hostHooksOf = (args: {
   declarations: () => readonly ToolDeclaration[]
 }): HookChainArgs => ({
@@ -295,6 +306,12 @@ export const pluginPodOf = (args: {
     return { tools, hooks }
   }
   const ctx = pluginPodContextOf(args)
+  watchDaemonReady({
+    onReady: (listener) => args.runtime.remoteCalls.onReady(listener),
+    pod: plugins.pod,
+    ctx,
+    signal: args.signal,
+  })
   const tools = pluginToolsOf({ runtime: args.runtime, ctx })
   const slash = plugins.pod.slash(ctx)
   const sync = resourceSyncOf({
