@@ -18,18 +18,6 @@ export const qualityRecordsOf = (args: {
 }): readonly QualityRecordEntry[] =>
   args.events.flatMap((event, index) => recordsInEvent(event).map((record) => ({ record, index })))
 
-export const notifiedIdsOf = (args: {
-  records: readonly CodeQualityReviewedBody[]
-}): ReadonlySet<string> => {
-  const ids = new Set<string>()
-  for (const record of args.records) {
-    for (const finding of record.findings) {
-      if (finding.notified) ids.add(finding.id)
-    }
-  }
-  return ids
-}
-
 export const notifyIndexOf = (args: {
   events: readonly V2Event[]
   findingId: string
