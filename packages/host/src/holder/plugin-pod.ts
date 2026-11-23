@@ -158,6 +158,10 @@ export const pluginPodContextOf = (args: {
       ...(deps.mcp === undefined ? {} : { mcp: deps.mcp(deps.sessionId) }),
     }),
     crew: args.crew,
+    classifier: {
+      status: () => runtime.classifierStatus,
+      classify: (args) => runtime.classifier.classify(args),
+    },
     sessions: podSessionsOf({
       plane: deps.plane,
       sessionId: deps.sessionId,

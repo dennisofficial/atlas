@@ -103,6 +103,20 @@ export const accountCredentialOf = (args: {
   }
 }
 
+const apiKeyAccountsOf = <Row extends AccountRowLike>(
+  parsed: readonly ParsedAccount<Row>[],
+): readonly ParsedAccount<Row>[] =>
+  parsed.filter((entry) => entry.account.kind === EAuthKind.ApiKey)
+
+export const classifierCredentialOf = <Row extends SealedAccountRowLike>(args: {
+  provider: EAuthProvider
+  parsed: readonly ParsedAccount<Row>[]
+  activeAccounts: readonly ActiveAccountRowLike[]
+  unseal: (sealedSecret: string) => string
+}): ProviderCredential | null =>
+  providerCredentialOf({ ...args, parsed: apiKeyAccountsOf(args.parsed) }) ??
+  providerCredentialOf(args)
+
 export const providerCredentialOf = <Row extends SealedAccountRowLike>(args: {
   provider: EAuthProvider
   parsed: readonly ParsedAccount<Row>[]

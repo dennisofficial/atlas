@@ -7,6 +7,7 @@ import {
   type WorktreeListing,
   type WorktreeState,
   EMPTY_CREW,
+  EMPTY_CLASSIFIER,
   EMPTY_MCP_CONTROL,
   EMPTY_ROUTINES,
   EMPTY_SESSIONS,
@@ -139,6 +140,7 @@ export const rig = (
     sessionId: 's1',
     resources: EMPTY_POD_RESOURCES,
     crew: args.crew ?? fakeCrew().port,
+    classifier: EMPTY_CLASSIFIER,
     sessions: EMPTY_SESSIONS,
     worktrees: args.worktrees ?? fakeWorktrees().port,
     control: {

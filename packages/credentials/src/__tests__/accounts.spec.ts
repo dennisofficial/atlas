@@ -4,6 +4,7 @@ import { EAuthKind, EAuthProvider } from '@dltech/atlas-core'
 
 import {
   chosenFor,
+  classifierCredentialOf,
   parsedAccountsOf,
   providerCredentialOf,
   reachableOf,
@@ -101,6 +102,43 @@ describe('providerCredentialOf', () => {
   })
 
   it('returns null with no account', () => {
+    expect(credentialFor([])).toBeNull()
+  })
+})
+
+describe('classifierCredentialOf', () => {
+  const planSecret = JSON.stringify({
+    kind: EAuthKind.Oauth,
+    tokens: { accessToken: 'a', refreshToken: '', expiresAt: '2026-12-01T00:00:00Z' },
+    authority: { url: 'https://api', connectionId: 'conn' },
+  })
+
+  const credentialFor = (rows: SealedAccountRowLike[], activeAccounts = []) =>
+    classifierCredentialOf({
+      provider: EAuthProvider.OpenAI,
+      parsed: parsedAccountsOf(rows),
+      activeAccounts,
+      unseal,
+    })
+
+  it('takes the api-key account even when an active plan account exists', () => {
+    const rows = [
+      rowOf({ id: 'plan', kind: EAuthKind.Oauth, sealedSecret: planSecret }),
+      rowOf({ id: 'key' }),
+    ]
+    expect(credentialFor(rows, [{ provider: EAuthProvider.OpenAI, accountId: 'plan' }])).toEqual({
+      kind: 'api-key',
+      accountId: 'key',
+      apiKey: 'key-key',
+    })
+  })
+
+  it('reports a plan when the provider has no api-key account', () => {
+    const rows = [rowOf({ id: 'plan', kind: EAuthKind.Oauth, sealedSecret: planSecret })]
+    expect(credentialFor(rows)).toMatchObject({ kind: 'plan', accountId: 'plan' })
+  })
+
+  it('answers null when the provider has no account', () => {
     expect(credentialFor([])).toBeNull()
   })
 })

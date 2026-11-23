@@ -64,6 +64,7 @@ const sourceWithRepo = (remoteUrl: string): ConfigSource => ({
       projectId: 'proj-1',
       model,
       models: fakeModelSourceOf(model),
+      classifier: { on: false, reason: 'no classifier model is set' },
       sandbox: {
         configured: true,
         provider: ESandboxProvider.Vercel,

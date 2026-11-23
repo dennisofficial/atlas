@@ -33,6 +33,7 @@ const config: AgentHostConfig = {
   projectId: 'proj-1',
   model: MODEL,
   models: fakeModelSourceOf(MODEL),
+  classifier: { on: false, reason: 'no classifier model is set' },
   sandbox: {
     configured: true,
     provider: ESandboxProvider.Vercel,

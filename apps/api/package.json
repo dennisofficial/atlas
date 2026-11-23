@@ -36,6 +36,7 @@
     "@aws-sdk/client-s3": "^3.1167.0",
     "@aws-sdk/s3-request-presigner": "^3.1167.0",
     "@dltech/atlas-agent": "workspace:*",
+    "@dltech/atlas-classifier": "workspace:*",
     "@dltech/atlas-artifacts": "workspace:*",
     "@dltech/atlas-commands": "workspace:*",
     "@dltech/atlas-control": "workspace:*",
