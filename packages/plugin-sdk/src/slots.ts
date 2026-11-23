@@ -118,6 +118,15 @@ export type PluginPodContext = {
   env?(): Promise<Record<string, string>>
 }
 
+export type SlashLoadResult =
+  | { ok: true; drafts: readonly EventDraft[] }
+  | { ok: false; reason: string }
+
+export type PodSlash = {
+  names(): Promise<readonly string[]>
+  load(input: { name: string; argumentText: string }): Promise<SlashLoadResult>
+}
+
 export type PodSlot = {
   childDeny?: readonly string[] | undefined
   tools?(ctx: PluginPodContext): readonly ToolDefinition[]
@@ -125,6 +134,7 @@ export type PodSlot = {
   prompts: readonly PromptFragment[]
   commands: ReadonlyMap<string, CommandHandler<unknown>>
   resources?: readonly PodResource<unknown>[] | undefined
+  slash?: ((ctx: PluginPodContext) => PodSlash) | undefined
   onDaemonEvent?(frame: DaemonEventFrame): void
 }
 

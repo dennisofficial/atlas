@@ -105,3 +105,45 @@ describe('runningCommandEntriesOf', () => {
     expect(runningCommandEntriesOf(events)).toEqual([])
   })
 })
+
+describe('a typed command consumed on a message entry', () => {
+  const typedPosted = (inboxId: number, text: string): V2Body => ({
+    type: 'input-posted',
+    inboxId,
+    kind: 'message',
+    postedAt: NOW,
+    message: { text },
+  })
+
+  const typedConsumed = (args: {
+    inboxId: number
+    name: string
+    argumentText: string
+    text: string
+  }): V2Body => ({
+    type: 'input-consumed',
+    inboxId: args.inboxId,
+    consumed: EInputConsumed.Command,
+    command: { name: args.name, argumentText: args.argumentText, text: args.text },
+  })
+
+  it('names the unfinished command from the consumed command', () => {
+    const events = logOf([
+      typedPosted(1, '/summarise hi'),
+      typedConsumed({ inboxId: 1, name: 'summarise', argumentText: 'hi', text: '/summarise hi' }),
+    ])
+    expect(unfinishedCommandIdsOf(events)).toEqual([1])
+    expect(runningCommandEntriesOf(events)).toEqual([
+      { inboxId: 1, name: 'summarise', postedAt: NOW },
+    ])
+  })
+
+  it('does not count a typed command that owes no outcome', () => {
+    const events = logOf([
+      typedPosted(2, '/rename bench'),
+      typedConsumed({ inboxId: 2, name: 'rename', argumentText: 'bench', text: '/rename bench' }),
+    ])
+    expect(unfinishedCommandIdsOf(events)).toEqual([])
+    expect(runningCommandEntriesOf(events)).toEqual([])
+  })
+})

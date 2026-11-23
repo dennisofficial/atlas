@@ -31,6 +31,7 @@ const factCommand = (name: string): Command =>
       group: ECommandGroup.Context,
       args: z.strictObject({ word: z.string() }),
       runsIn: ECommandRunsIn.Host,
+      fromText: (argumentText) => ({ ok: true, args: { word: argumentText } }),
     },
   })
 
@@ -118,6 +119,55 @@ const takeOver = async (rig: Rig): Promise<void> => {
   await rig.flush()
 }
 
+const deadTypedLeft = async (args: {
+  rig: Rig
+  command: Command
+  text: string
+  argumentText: string
+}): Promise<void> => {
+  const { rig } = args
+  await seedSession(rig)
+  const posted = await rig.plane.post({
+    sessionId: SESSION,
+    kind: 'message',
+    payload: JSON.stringify({ text: args.text, via: 'operator' }),
+  })
+  const { epoch } = await rig.plane.grant({ sessionId: SESSION, hostId: 9001 })
+  const outcome = await rig.plane.append({
+    threadId: THREAD_ID,
+    epoch,
+    events: chainEvents({
+      threadId: toThreadId(THREAD_ID),
+      runId: toRunId('dead-run'),
+      epoch,
+      at: new Date(0).toISOString(),
+      bodies: [
+        { type: 'workspace-prepared' },
+        {
+          type: 'input-posted',
+          inboxId: posted.inboxId,
+          kind: 'message',
+          postedAt: new Date(0).toISOString(),
+          message: { text: args.text },
+        },
+        {
+          type: 'input-consumed',
+          inboxId: posted.inboxId,
+          consumed: EInputConsumed.Command,
+          command: {
+            name: args.command.spec.name,
+            argumentText: args.argumentText,
+            text: args.text,
+          },
+        },
+      ],
+      from: await rig.plane.head({ threadId: THREAD_ID }),
+    }),
+  })
+  if (!outcome.ok) throw new Error(JSON.stringify(outcome.refusal))
+  await rig.plane.revoke({ sessionId: SESSION, wantsHolder: true })
+}
+
 describe('SessionHolder command recovery', () => {
   it('replays a consumed command that owes an outcome, once, without a second input-consumed', async () => {
     const rig = await rigWith(summarise)
@@ -177,6 +227,32 @@ describe('SessionHolder command recovery', () => {
     await flushUntil({ check: async () => (await typesOf(rig)).includes('workspace-prepared') })
     await rig.flush()
     expect(await typesOf(rig)).toEqual(['workspace-attempt-started', 'workspace-prepared'])
+  })
+
+  it('replays a typed command that owes an outcome, once, without a second input-consumed', async () => {
+    const rig = await rigWith(summarise)
+    await deadTypedLeft({ rig, command: summarise, text: '/summarise hi', argumentText: 'hi' })
+    await takeOver(rig)
+    const replayed = await flushUntil({
+      check: async () => (await typesOf(rig)).includes('fact-recorded'),
+    })
+    expect(replayed).toBe(true)
+    await rig.wake()
+    await rig.flush()
+    const types = await typesOf(rig)
+    expect(types.filter((type) => type === 'fact-recorded')).toHaveLength(1)
+    expect(types.filter((type) => type === 'input-consumed')).toHaveLength(1)
+    expect(types).not.toContain('user-said')
+  })
+
+  it('does not replay a typed command that owes no outcome', async () => {
+    const rename = factCommand('rename')
+    const rig = await rigWith(rename)
+    await deadTypedLeft({ rig, command: rename, text: '/rename bench', argumentText: 'bench' })
+    await takeOver(rig)
+    await rig.wake()
+    await rig.flush()
+    expect(await typesOf(rig)).not.toContain('fact-recorded')
   })
 
   it('logs and keeps the session alive when the replay throws', async () => {

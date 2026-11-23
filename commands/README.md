@@ -5,7 +5,8 @@ adds them to the command registry of every session.
 
 ## Owns
 
-- The six command specs, their zod arguments and the text form of `rename` and `resize`.
+- The six command specs, their zod arguments, their argument hints and the text form of `rewind`,
+  `summarise`, `rename` and `resize`.
 - The holder handlers for `rewind` and `summarise`, which run in the agent host.
 - The control handler for `rename`, which sets the session title.
 - The disk limit of a resize.
@@ -41,12 +42,18 @@ adds them to the command registry of every session.
 - `rewindTargetOf({ events, toSeq })`: the draft to edit again, or the reason to refuse. Only a
   `user-said` event can be a target, and not the last event.
 - `REFUSAL_NOT_A_MESSAGE`, `REFUSAL_NOTHING_TO_REWIND`: the refusal texts.
+- `rewind.spec.fromText`: `/rewind <seq>` reads the message sequence. An absent or non-numeric
+  argument refuses with `REFUSAL_REWIND_NEEDS_LINE`, the sentence that points at the picker.
+- `summarise.spec.fromText`: `/summarise` with no argument targets everything before the last
+  message; `/summarise <seq>` targets a named boundary. Any other argument refuses with
+  `REFUSAL_SUMMARISE_ARGS`. `summariseArgs` leaves `throughSeq` optional for the default.
 
 ### Refusals
 
 - `REFUSAL_RENAME_NEEDS_NAME`: what `/rename` answers with no name.
 - `REFUSAL_RESIZE_USAGE`: what `/resize` answers with arguments it cannot read.
 - `REFUSAL_NO_MODEL`, `REFUSAL_EMPTY_SUMMARY`, `REFUSAL_SUMMARY_FAILED`: the summarise sentences.
+- `REFUSAL_SUMMARISE_ARGS`: what `/summarise` answers with an argument that names no message.
 
 ## Usage
 

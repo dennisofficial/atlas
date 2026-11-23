@@ -50,6 +50,14 @@ export enum EInputConsumed {
   Command = 'command',
 }
 
+export type ConsumedCommand = { name: string; argumentText: string; text: string }
+
+export const consumedCommandSchema: z.ZodType<ConsumedCommand> = z.strictObject({
+  name: z.string().min(1),
+  argumentText: z.string(),
+  text: z.string(),
+})
+
 export type RecordBody =
   | {
       type: 'history-rewound'
@@ -65,7 +73,12 @@ export type RecordBody =
       summary: string
       inboxId?: number | undefined
     }
-  | { type: 'input-consumed'; inboxId: number; consumed?: EInputConsumed | undefined }
+  | {
+      type: 'input-consumed'
+      inboxId: number
+      consumed?: EInputConsumed | undefined
+      command?: ConsumedCommand | undefined
+    }
   | InputPosted
   | InputWithdrawn
   | InputRefused
@@ -135,6 +148,7 @@ const recordBodySchema: z.ZodType<RecordBody> = z.discriminatedUnion('type', [
     type: z.literal('input-consumed'),
     inboxId: z.number().int().min(1),
     consumed: z.enum(EInputConsumed).optional(),
+    command: consumedCommandSchema.optional(),
   }),
   inputPostedSchema,
   inputWithdrawnSchema,

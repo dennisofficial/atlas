@@ -1,0 +1,51 @@
+import type { V2Event } from '@dltech/atlas-core'
+
+import { ESkillDrafts, type CommandIntake } from './command-intake'
+import { loggedMessagesOf, type AppendDrafts, type Drainable } from './staged-log'
+import { ETextPlan } from './text-command'
+
+export const consumedInboxIdsOf = (events: readonly V2Event[]): ReadonlySet<number> =>
+  new Set(events.flatMap((event) => (event.type === 'input-consumed' ? [event.inboxId] : [])))
+
+export const skillsForPassOf = async (
+  intake: CommandIntake | undefined,
+): Promise<readonly string[]> => (intake === undefined ? [] : await intake.skillsForPass())
+
+export const loggedDrainablesOf = async (args: {
+  events: readonly V2Event[]
+  staged: ReadonlySet<number>
+  skills: readonly string[]
+  intake: CommandIntake | undefined
+  appendDrafts: AppendDrafts
+}): Promise<Drainable[]> => {
+  const drainable: Drainable[] = []
+  for (const item of loggedMessagesOf({ events: args.events })) {
+    if (args.staged.has(item.inboxId)) continue
+    if (args.intake === undefined) {
+      drainable.push({ inboxId: item.inboxId, message: item.message, posted: true })
+      continue
+    }
+    const plan = await args.intake.planText(item.message.text, args.skills)
+    if (plan.kind === ETextPlan.Command) continue
+    if (plan.kind === ETextPlan.Skill) {
+      const result = await args.intake.draftsOfSkill(plan)
+      if (result.kind === ESkillDrafts.Loaded) {
+        drainable.push({
+          inboxId: item.inboxId,
+          message: item.message,
+          posted: true,
+          context: result.drafts,
+        })
+        continue
+      }
+      if (result.kind === ESkillDrafts.Refused) {
+        await args.appendDrafts([
+          { type: 'input-refused', inboxId: item.inboxId, reason: result.reason },
+        ])
+        continue
+      }
+    }
+    drainable.push({ inboxId: item.inboxId, message: item.message, posted: true })
+  }
+  return drainable
+}

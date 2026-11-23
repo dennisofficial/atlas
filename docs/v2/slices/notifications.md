@@ -422,11 +422,15 @@ two `fetch` callers, built by hand beside `routine-graph.ts`
   load: iOS rejects a request that is not in response to a user action
   (<https://webkit.org/blog/13878/web-push-for-web-apps-on-ios-and-ipados/>).
 - **Secrets.** A VAPID key pair in the encrypted tiers: `WEB_PUSH_PUBLIC_KEY`,
-  `WEB_PUSH_PRIVATE_KEY`, `WEB_PUSH_SUBJECT` for the sender in `apps/trigger/.env.production.enc`,
-  and the public key exposed to the page through the `env` block of `apps/web/next.config.ts:34-39`
-  with the value in `apps/web/.env.production.enc`. Encrypt with `bunx dotenvx`, per `AGENTS.md`.
-- **Dependency.** `web-push` (with its types) declared in `apps/trigger/package.json`. The isolated
-  linker means an undeclared dependency will not resolve.
+  `WEB_PUSH_PRIVATE_KEY` and `WEB_PUSH_SUBJECT` for the sender in
+  `apps/trigger/.env.production.enc`, and `WEB_PUSH_PUBLIC_KEY` in the API tiers. The page reads
+  the public key from the `notifications.webPushKey` query, which answers `{ publicKey }` or null
+  when the tier carries none: the web build has no tier env file, so the key cannot ride in the
+  `env` block of `apps/web/next.config.ts:34-39`. Encrypt with `bunx dotenvx`, per `AGENTS.md`.
+- **Dependency.** `web-push` (with its types) declared in `packages/notifications/package.json`,
+  because the transport that imports it lives there. The isolated linker means an undeclared
+  dependency will not resolve. `apps/trigger` declares `@dltech/atlas-notifications` and
+  `ioredis`.
 
 ### 4.6 Expo on iOS
 

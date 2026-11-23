@@ -6,13 +6,15 @@
   "exports": {
     ".": "./src/index.ts",
     "./pod-sleep": "./src/pod-sleep.ts",
-    "./pod-resize": "./src/pod-resize.ts"
+    "./pod-resize": "./src/pod-resize.ts",
+    "./notify": "./src/notify.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "bun test"
   },
   "dependencies": {
+    "@dltech/atlas-core": "workspace:*",
     "zod": "^4.4.3"
   },
   "devDependencies": {

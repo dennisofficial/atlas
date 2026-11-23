@@ -14,7 +14,7 @@ import { createInMemoryDaemon, type InMemoryDaemon } from '@dltech/atlas-protoco
 
 import type { LogPort } from '@dltech/atlas-observability'
 
-import type { CommandHandlers } from '../command-intake'
+import type { CommandHandlers, ControlHandlers } from '../command-intake'
 import type { PodControlClient } from '../pod-control'
 import type { PrepareResult, PrepareStepReporter, SessionRuntime } from '../ports'
 import { SessionHolder } from '../session-holder'
@@ -82,6 +82,7 @@ export const makeRig = async (args: {
   isPermanentStartError?: ((error: unknown) => boolean) | undefined
   commands?: CommandRegistry | undefined
   commandHandlers?: CommandHandlers | undefined
+  controlHandlers?: ControlHandlers | undefined
   control?: PodControlClient | undefined
   log?: LogPort | undefined
   onHostIdChanged?: (() => void) | undefined
@@ -157,6 +158,7 @@ export const makeRig = async (args: {
       : { isPermanentStartError: args.isPermanentStartError }),
     commands: args.commands,
     commandHandlers: args.commandHandlers,
+    controlHandlers: args.controlHandlers,
     control: args.control,
     changes: args.changes,
     ...(args.log === undefined ? {} : { log: args.log }),

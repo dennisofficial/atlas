@@ -13,6 +13,7 @@ presence. The `/server` subpath stores presence in Redis.
 - The in-app notice: which sessions list row changed, and which notice to show or drop.
 - The presence store that the API writes and the trigger task reads.
 - The client presence loop that web, Mac and iOS run.
+- The Web Push transport, which signs a message with VAPID and posts it to a subscription.
 
 ## Does not own
 
@@ -20,16 +21,16 @@ presence. The `/server` subpath stores presence in Redis.
 - The notification shape. `@dltech/atlas-core` owns `AtlasNotification`.
 - When to stay silent. `@dltech/atlas-core` owns `inAppNoticeOf` and `notifyMomentOf`.
 - The persistent device rows. `packages/db` owns them.
-- The transport implementations and the send tasks. Later slices add them.
+- The Expo and APNs transports. Later slices add them.
+- The send tasks. `apps/trigger` owns them.
 
 ## Entry points
 
-| Import                               | Use it for                                    |
-| ------------------------------------ | --------------------------------------------- |
-| `@dltech/atlas-notifications`        | The device model and the transport interface. |
-| `@dltech/atlas-notifications/client` | The in-app notice for a sessions list.        |
-| `@dltech/atlas-notifications/client` | The client presence loop. No Node module.     |
-| `@dltech/atlas-notifications/server` | The Redis presence store.                     |
+| Import                               | Use it for                                     |
+| ------------------------------------ | ---------------------------------------------- |
+| `@dltech/atlas-notifications`        | The device model and the transport interface.  |
+| `@dltech/atlas-notifications/client` | The in-app notice and the presence loop.       |
+| `@dltech/atlas-notifications/server` | The presence store and the Web Push transport. |
 
 ## Capabilities
 
@@ -60,12 +61,24 @@ presence. The `/server` subpath stores presence in Redis.
   that is on screen, a window that is not focused, a disabled moment and a read row stay silent.
 - `staleNoticeIdsOf`: gives the session ids whose notice must go. A notice goes when its session
   opens, or when the read marker reaches its seq.
+
 ### Store presence
 
 - `presenceKeyOf`: the Redis hash key of one user, `atlas:v2:presence:<userId>`.
 - `PresenceHash`: the Redis commands the store uses. Pass an ioredis client or a fake.
 - `writePresence`: writes the field of one client. An away report deletes the field.
 - `readPresence`: returns the fresh records only. A record older than 90 s never counts.
+
+### Send Web Push
+
+- `webPushTransport({ vapid, send })`: the `web-push` kind. `vapid` is `publicKey`, `privateKey`
+  and `subject`. Give `send` a fake in a spec.
+- `deliver` posts `{ type: 'notification', notification }` with a one-day TTL and a topic of the
+  session id, so a second moment replaces the first.
+- `clear` posts `{ type: 'clear', sessionId }`, and skips an Apple push host, which needs a visible
+  notification for every push.
+- A `404` or a `410` reports the device `gone`, as does a secret with no subscription keys.
+- `webPushTopicOf(sessionId)` and `WEB_PUSH_TTL_S`: the topic and the lifetime.
 
 ### Report presence from a client
 
@@ -74,24 +87,6 @@ presence. The `/server` subpath stores presence in Redis.
 - The caller gives `read`, `report`, `subscribe` and a `clock`. The package touches no DOM.
 
 ## Usage
-
-```ts
-import {
-  ENotifyDeviceKind,
-  type NotificationTransport,
-  type NotifyDevice,
-} from '@dltech/atlas-notifications'
-
-const transport: NotificationTransport = {
-  kind: ENotifyDeviceKind.Expo,
-  deliver: async (args) => args.devices.map((device) => ({ deviceId: device.id, sent: true })),
-  clear: async (args) => args.devices.map((device) => ({ deviceId: device.id, sent: true })),
-}
-
-const devices: readonly NotifyDevice[] = [
-  { id: 'device-1', kind: ENotifyDeviceKind.Expo, token: 'ExponentPushToken[abc]', secret: null },
-]
-```
 
 ### Show a notice
 
@@ -105,7 +100,7 @@ const notices = inAppNoticesOf({
   openSessionId: null,
   focused: true,
   enabled: () => true,
-  now: new Date().toISOString(),
+  now,
 })
 const stale = staleNoticeIdsOf({
   notices,
@@ -127,8 +122,8 @@ const stop = startPresenceReports({
     return () => window.removeEventListener('focus', onChange)
   },
   clock: {
-    setInterval: (handler, ms) => window.setInterval(handler, ms),
-    clearInterval: (handle) => window.clearInterval(handle),
+    setInterval: (fn, ms) => window.setInterval(fn, ms),
+    clearInterval: (id) => window.clearInterval(id),
   },
 })
 ```

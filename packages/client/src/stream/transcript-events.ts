@@ -42,7 +42,9 @@ const transcriptEventOf = (event: V2Event, pluginTypes: ReadonlySet<string>): Ev
   const type: string = event.type
   switch (event.type) {
     case 'history-rewound':
+      return null
     case 'input-consumed':
+      return event.command === undefined ? null : carriedOf(event)
     case 'input-refused':
     case 'fact-recorded':
     case 'retry-scheduled':

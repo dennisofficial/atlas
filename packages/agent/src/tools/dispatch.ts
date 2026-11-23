@@ -1,9 +1,11 @@
 import {
   EBeforeToolDecision,
+  isDeferredDeclaration,
   isParkedOutcome,
   modelFacingDeclarationsOf,
   parametersOf,
   resolveBeforeTool,
+  typedDeferredInputOf,
   type ActiveWorktree,
   type CallId,
   type Event,
@@ -135,7 +137,10 @@ export class HookedToolDispatcher extends ToolDispatcher {
       return [unknownToolDraft({ call, available })]
     }
 
-    const parsed = definition.inputSchema.safeParse(call.input)
+    const input = isDeferredDeclaration(declaration)
+      ? typedDeferredInputOf({ declaration, input: call.input })
+      : call.input
+    const parsed = definition.inputSchema.safeParse(input)
     if (!parsed.success) {
       return [
         invalidInputDraft({

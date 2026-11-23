@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'7f1e84f71623998fdd5fe3e32afb6b5c4bf03a67249c07cd8c3e48dc1d936ee0'>;
+  StorageHashBase<'c91251b96f41b44ec86962b7178768299cbda52cddd9ab9e30e48129525459d7'>;
 export type ExecutionHash =
   ExecutionHashBase<'ab28df152a1a27a9a0756638f29813a6c6f20a2d2b25c449f0f8e363cc1d9af0'>;
 export type ProfileHash =
@@ -1280,6 +1280,19 @@ export namespace Models {
     session: v2_V2Session;
     readonly [RelationKeys]?: 'session';
   };
+  export type v2_V2PushDevice = {
+    clientId: FieldOutputTypes['v2']['V2PushDevice']['clientId'];
+    createdAt: FieldOutputTypes['v2']['V2PushDevice']['createdAt'];
+    disabledAt: FieldOutputTypes['v2']['V2PushDevice']['disabledAt'];
+    id: FieldOutputTypes['v2']['V2PushDevice']['id'];
+    kind: FieldOutputTypes['v2']['V2PushDevice']['kind'];
+    label: FieldOutputTypes['v2']['V2PushDevice']['label'];
+    lastSeenAt: FieldOutputTypes['v2']['V2PushDevice']['lastSeenAt'];
+    secret: FieldOutputTypes['v2']['V2PushDevice']['secret'];
+    token: FieldOutputTypes['v2']['V2PushDevice']['token'];
+    userId: FieldOutputTypes['v2']['V2PushDevice']['userId'];
+    readonly [RelationKeys]?: never;
+  };
   export type v2_V2Routine = {
     createdAt: FieldOutputTypes['v2']['V2Routine']['createdAt'];
     cron: FieldOutputTypes['v2']['V2Routine']['cron'];
@@ -1530,6 +1543,7 @@ export declare const models: {
     V2Host: Models.v2_V2Host;
     V2InboxEntry: Models.v2_V2InboxEntry;
     V2Lease: Models.v2_V2Lease;
+    V2PushDevice: Models.v2_V2PushDevice;
     V2Routine: Models.v2_V2Routine;
     V2RoutineRun: Models.v2_V2RoutineRun;
     V2SandboxRun: Models.v2_V2SandboxRun;
@@ -7490,6 +7504,84 @@ type ContractBase = Omit<
                 },
               ];
             };
+            readonly V2PushDevice: {
+              columns: {
+                readonly clientId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly createdAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly disabledAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly id: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly kind: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly label: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly lastSeenAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly secret: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly token: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly userId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+              };
+              primaryKey: { readonly columns: readonly ['id'] };
+              uniques: readonly [{ readonly columns: readonly ['token'] }];
+              indexes: readonly [
+                {
+                  readonly name: 'V2PushDevice_userId_idx_a489d58a';
+                  readonly prefix: 'V2PushDevice_userId_idx';
+                  readonly columns: readonly ['userId'];
+                  readonly unique: false;
+                },
+              ];
+              foreignKeys: readonly [];
+            };
             readonly V2Routine: {
               columns: {
                 readonly createdAt: {
@@ -8760,6 +8852,10 @@ type ContractBase = Omit<
       readonly model: 'V2InboxEntry';
     };
     readonly V2Lease: { readonly namespace: 'v2' & NamespaceId; readonly model: 'V2Lease' };
+    readonly V2PushDevice: {
+      readonly namespace: 'v2' & NamespaceId;
+      readonly model: 'V2PushDevice';
+    };
     readonly V2Routine: { readonly namespace: 'v2' & NamespaceId; readonly model: 'V2Routine' };
     readonly V2RoutineRun: {
       readonly namespace: 'v2' & NamespaceId;
@@ -14474,6 +14570,79 @@ type ContractBase = Omit<
                 readonly retryAfter: { readonly column: 'retryAfter' };
                 readonly sessionId: { readonly column: 'sessionId' };
                 readonly wantsHolder: { readonly column: 'wantsHolder' };
+              };
+            };
+          };
+          readonly V2PushDevice: {
+            readonly fields: {
+              readonly clientId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly disabledAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly kind: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly label: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly lastSeenAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly secret: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly token: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly userId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+            };
+            readonly relations: Record<string, never>;
+            readonly storage: {
+              readonly table: 'V2PushDevice';
+              readonly namespaceId: 'v2';
+              readonly fields: {
+                readonly clientId: { readonly column: 'clientId' };
+                readonly createdAt: { readonly column: 'createdAt' };
+                readonly disabledAt: { readonly column: 'disabledAt' };
+                readonly id: { readonly column: 'id' };
+                readonly kind: { readonly column: 'kind' };
+                readonly label: { readonly column: 'label' };
+                readonly lastSeenAt: { readonly column: 'lastSeenAt' };
+                readonly secret: { readonly column: 'secret' };
+                readonly token: { readonly column: 'token' };
+                readonly userId: { readonly column: 'userId' };
               };
             };
           };

@@ -151,34 +151,46 @@ export type Drainable = {
   inboxId: number
   message: InputMessage
   posted: boolean
+  context?: readonly EventDraft[] | undefined
+}
+
+export type StagedDrainable = {
+  entry: InboxEntry
+  message: InputMessage
+  context?: readonly EventDraft[] | undefined
 }
 
 export type LoggedMessage = { inboxId: number; message: InputMessage }
 
+export const drainDraftsOf = (item: Drainable): (EventDraft | RecordBody | PluginEventBody)[] => {
+  const said = userSaidOf({ inboxId: item.inboxId, message: item.message })
+  const context = item.context ?? []
+  if (item.posted || item.entry === undefined) return [...context, said]
+  return [postedDraftOf({ entry: item.entry, message: item.message }), ...context, said]
+}
+
 export const drainOrderOf = (params: {
-  staged: readonly { entry: InboxEntry; message: InputMessage }[]
-  logged: readonly LoggedMessage[]
+  staged: readonly StagedDrainable[]
+  logged: readonly Drainable[]
   posted: ReadonlySet<number>
 }): Drainable[] => {
   const known = new Set(params.staged.map((item) => item.entry.inboxId))
-  const logged = params.logged.flatMap((item) =>
-    known.has(item.inboxId) ? [] : [{ ...item, posted: true }],
-  )
+  const logged = params.logged.flatMap((item) => (known.has(item.inboxId) ? [] : [item]))
   const staged = params.staged.map((item) => ({
     entry: item.entry,
     inboxId: item.entry.inboxId,
     message: item.message,
     posted: params.posted.has(item.entry.inboxId),
+    ...(item.context === undefined ? {} : { context: item.context }),
   }))
   return [...staged, ...logged].sort((left, right) => left.inboxId - right.inboxId)
 }
 
-export const loggedMessagesOf = (events: readonly V2Event[]): LoggedMessage[] =>
-  pendingInputsOf(events).pending.flatMap((pending) =>
-    pending.kind !== INBOX_KIND_MESSAGE || pending.message === undefined
-      ? []
-      : [{ inboxId: pending.inboxId, message: pending.message }],
-  )
+export const loggedMessagesOf = (params: { events: readonly V2Event[] }): LoggedMessage[] =>
+  pendingInputsOf(params.events).pending.flatMap((pending) => {
+    if (pending.kind !== INBOX_KIND_MESSAGE || pending.message === undefined) return []
+    return [{ inboxId: pending.inboxId, message: pending.message }]
+  })
 
 export const loggedNoticesOf = (params: {
   events: readonly V2Event[]

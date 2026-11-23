@@ -7,7 +7,11 @@ import {
   type HostPresence,
   type PodControlClient,
 } from '@dltech/atlas-host'
-import { nativeCommandHandlers, nativeCommands } from '@dltech/atlas-native-commands'
+import {
+  nativeCommandHandlers,
+  nativeCommands,
+  nativeControlHandlers,
+} from '@dltech/atlas-native-commands'
 import { cloudConfigStore } from './config/cloud-config-store'
 import { envSecretsReader } from './config/env-secrets'
 import { projectFilesSourceOf } from './config/project-files'
@@ -96,6 +100,7 @@ export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
     reasonOfStartError: startFailureReason,
     commands: composeCommands([...nativeCommands, ...composedPlugins.commands]),
     commandHandlers: new Map([...nativeCommandHandlers, ...composedPlugins.pod.commands]),
+    controlHandlers: nativeControlHandlers,
     control: args.control,
     mcp: (sessionId) => mcpControl.of(sessionId),
     operator: {

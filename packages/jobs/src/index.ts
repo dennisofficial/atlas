@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 export * from './pod-sleep'
 export * from './pod-resize'
+export * from './notify'
 
 export const HEARTBEAT_TASK_ID = 'heartbeat'
 
