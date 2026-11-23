@@ -42,7 +42,9 @@ export {
   SKILL_SUGGESTION_KEY,
   SKILL_SUGGESTION_SLOT,
   skillSuggestionStateOf,
+  skillSuggestionTriggerOf,
   type SkillSuggestionInput,
+  type SkillSuggestionState,
   type SkillSuggestionTurn,
 } from './suggestion-context'
 export {

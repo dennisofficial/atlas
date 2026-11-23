@@ -16,6 +16,12 @@
 >   harness's skill classifier scored the work in this thread against the skills you can load. The
 >   number is its probability that the named skill fits. The operator did not write this. Load the
 >   skill only when it fits:". The score lives in the block line.
+> - **The hook reads the operator message while it still waits in the inbox.** `beforeTurn` runs
+>   before the turn drains the inbox, so on the first live run the latest message was an
+>   `input-posted`, not yet a `user-said`, and the hook stayed quiet. `skillSuggestionStateOf` now
+>   adds pending operator messages (`pendingMessagesOf(pendingInputsOf(...))`) as the latest turn, and
+>   the draft carries `triggeredBy: inbox:<id>`, so "already suggested" holds after the drain appends
+>   the `user-said` behind it.
 > - **A classifier fault or a thrown error is logged** (`skill suggestion skipped: …`) and the turn
 >   goes on quiet.
 

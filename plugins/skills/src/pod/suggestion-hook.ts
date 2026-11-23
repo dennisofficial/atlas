@@ -52,6 +52,7 @@ const suggestionOf = async (args: {
         slot: SKILL_SUGGESTION_SLOT,
         key: SKILL_SUGGESTION_KEY,
         content: skillSuggestionBlockOf(suggestion),
+        ...(input.trigger === undefined ? {} : { triggeredBy: input.trigger }),
       },
     ],
   }
