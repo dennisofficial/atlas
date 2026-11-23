@@ -1,6 +1,7 @@
 import type { Tx } from '@dltech/atlas-db'
 import { jsonValueSchema, type JsonValue } from '@dltech/atlas-core'
 
+import { expiresAtOf, expiryInstantOf } from './no-expiry'
 import {
   subscriptionSubjectKey,
   type SubscriptionKey,
@@ -97,7 +98,7 @@ const rowToRow = (row: SubscriptionRecord): SubscriptionRow => ({
   label: row.label,
   createdBy: row.createdBy,
   events: [...row.events],
-  expiresAt: row.expiresAt.toISOString(),
+  expiresAt: expiresAtOf(row.expiresAt),
   deadline: row.deadline?.toISOString() ?? null,
   createdAt: row.createdAt.toISOString(),
 })
@@ -193,8 +194,8 @@ export const insertSubscriptionRowIn = async (params: {
       label: row.label,
       createdBy: row.createdBy,
       events: [...row.events],
-      expiresAt: new Date(row.expiresAt),
-      liveUntil: new Date(row.expiresAt),
+      expiresAt: expiryInstantOf(row.expiresAt),
+      liveUntil: expiryInstantOf(row.expiresAt),
       deadline: timeOf(row.deadline),
       createdAt: new Date(row.createdAt),
       ...runWatermark,
@@ -212,7 +213,7 @@ export const updateSubscriptionRowIn = async (params: {
   target: JsonValue
   label: string
   events: readonly string[]
-  expiresAt: string
+  expiresAt: string | null
   deadline: string | null
 }): Promise<boolean> => {
   const updated = await params.tx.orm.public.GithubSubscription.where({
@@ -222,8 +223,8 @@ export const updateSubscriptionRowIn = async (params: {
     target: params.target,
     label: params.label,
     events: [...params.events],
-    expiresAt: new Date(params.expiresAt),
-    liveUntil: new Date(params.expiresAt),
+    expiresAt: expiryInstantOf(params.expiresAt),
+    liveUntil: expiryInstantOf(params.expiresAt),
     deadline: timeOf(params.deadline),
   })
   return updated > 0

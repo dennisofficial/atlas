@@ -6,7 +6,8 @@ its roster view.
 
 ## Owns
 
-- The `shell` tool family: `shell`, `shell_output`, `shell_input`, `shell_kill` and `shell_list`.
+- The shell tools: `shell_output`, `shell_input`, `shell_kill` and `shell_list`. `bash` with
+  `background: true` starts the shell, and this plugin records it.
 - The record of each shell: its status, its printed size and its read cursor.
 - The `shells` view, which folds the `background-shell-*` events into one row for each shell.
 - The `shells.background` prompt fragment.
@@ -18,12 +19,12 @@ its roster view.
 
 ## Entry points
 
-| Import                                | Use it for                                                        |
-| ------------------------------------- | ----------------------------------------------------------------- |
-| `@dltech/atlas-plugin-shells/core`    | `shellsCoreSlots`, the `shells` view fold and its schemas.        |
-| `@dltech/atlas-plugin-shells/pod`     | `shellsPod`: five tools, the daemon hook and the prompt fragment. |
-| `@dltech/atlas-plugin-shells/control` | `shellsControl`, an empty control slot.                           |
-| `@dltech/atlas-plugin-shells/client`  | `shellsClient`, `shellsOfView` and `shellRosterOf`.               |
+| Import                                | Use it for                                                  |
+| ------------------------------------- | ----------------------------------------------------------- |
+| `@dltech/atlas-plugin-shells/core`    | `shellsCoreSlots`, the `shells` view fold and its schemas.  |
+| `@dltech/atlas-plugin-shells/pod`     | `shellsPod`: four tools, the hooks and the prompt fragment. |
+| `@dltech/atlas-plugin-shells/control` | `shellsControl`, an empty control slot.                     |
+| `@dltech/atlas-plugin-shells/client`  | `shellsClient`, `shellsOfView` and `shellRosterOf`.         |
 
 ## Capabilities
 
@@ -33,7 +34,7 @@ its roster view.
 - `foldShells(state, event)`: add or update one row. The status is `running`, `exited`, `killed` or `overflowed`.
 - `shellsOfEvents(events)` and `shellsOfView(views)`: the rows of a log or of a view record.
 - `shellRosterOf(views)`: the running shells, their count and whether one waits for input.
-- `looksLikePrompt(text)`: true when the printed text ends in a prompt.
+- `looksLikePrompt(text)` (pod tier): true when the printed text ends in a prompt.
 
 ## Plugin contributions
 
@@ -41,16 +42,21 @@ its roster view.
 
 | Tool           | What it does                                                                                                                             |
 | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `shell`        | Start `command` as a background shell and return the new `shellId` at once. Optional `description`, `workdir`, `timeoutMs`, `input`.     |
 | `shell_output` | Read what the shell printed since the last read. Each call consumes what it returns.                                                     |
-| `shell_input`  | Write `text` to the stdin of a shell started with `input: true`. Set `end` to close the stdin for good.                                  |
+| `shell_input`  | Write `text` to the stdin of a shell that `bash` started with `input: true`. Set `end` to close the stdin for good.                      |
 | `shell_kill`   | Signal the whole process group. Return the next unread chunk, at most 32,768 bytes by default, with the count of characters that remain. |
 | `shell_list`   | List the shells this session started, with id, command, state and printed size. `runningOnly` leaves out ended shells.                   |
 
 ### The slots
 
-`shellsPod` gives the five tools, one daemon-event hook and the `shells.background` prompt
-fragment. The hook records a shell ending and marks a shell that waits for input.
+`shellsPod` gives the four tools, the after-tool hook, the daemon listener and the
+`shells.background` prompt fragment.
+- `shells-adopted-bash` (afterTool): drafts `background-shell-started` when a `bash` call returns
+  a backgrounded shell, and records that the shell has a stdin.
+- The daemon listener: records a shell ending, and publishes the shell output as it arrives.
+
+`shell_output` marks a shell that waits for input and sends the `background-shell-awaiting-input`
+notice.
 
 `shellsCoreSlots` gives the `shells` view and no events or commands. `shellsClient` gives one
 hook, `shells-roster`, which applies to the `background-shell-*` events.

@@ -2,8 +2,9 @@
 
 > **Approved by Dennis 2026-11-23.**
 
-Status: **draft 2, 2026-11-23**, Dennis's answers of 2026-11-23 applied, including the rewind
-picker rule. Anchors are `path:line` at
+Status: **built 2026-11-23** (slices 1–6: #2577, #2580, #2587, #2586, #2585, #2590; the live-check fix #2594 runs a
+typed `/resize` in the host; this docs slice closes it). Dennis's answers of 2026-11-23 applied, including the rewind picker rule. The TUI
+work stays with slice 9 (§7). Anchors are `path:line` at
 `1af03b6e3` (main, 2026-11-22). Re-check an anchor before you rely on it.
 
 Operator (2026-11-22): "Slash commands were really weird and buggy. This needs to be a first-class
@@ -295,8 +296,11 @@ typed as text is refused with "/name opens in the app. Pick it from the / menu."
 
 **Control commands in the host** (correction, slice 2). A `control` command such as `rename` has no
 pod handler, so the host also takes `controlHandlers` (by name) and runs them with its own
-`ControlPlane`: `nativeControlHandlers` is passed in `apps/api/src/agent/compose.ts`. `resize` and
-`model-set` need API-only services, so a typed `/resize` is refused with the sentence above. While a
+`ControlPlane`: `nativeControlHandlers` is passed in `apps/api/src/agent/compose.ts`. `resize` runs in
+the host too: the host is given the same handler the API runs, `podResizeHandlerOf` in
+`apps/api/src/_lib/pod-resize/pod-resize-handler.ts`, wired beside `nativeControlHandlers`, so a
+typed `/resize 2 4` works on every surface. Only `model-set` stays API-only, and a typed `/model-set`
+is refused with the sentence above. While a
 typed command waits behind a turn, the status rows show it as a queued message with the typed text,
 not as a command row (those rows key off `command:` inbox kinds).
 
@@ -365,6 +369,7 @@ Native (`commands/src`), all declared once and served to every surface:
 | ----------- | -------- | -------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
 | `rewind`    | host     | `/rewind <seq>`; no argument opens the surface's picker, and is refused where the surface has none | `commands/src/rewind/spec.ts`, `pod.ts`        |
 | `summarise` | host     | `/summarise [seq]`; no argument = up to your last message; no picker                               | `commands/src/summarise/spec.ts`, `pod.ts`     |
+| `rotate`    | host     | `/rotate [instructions]`; writes a handoff brief and starts the next request from it; no picker    | `commands/src/rotate/spec.ts`, `pod.ts`        |
 | `rename`    | control  | `/rename <name>`                                                                                   | `commands/src/rename/spec.ts`, `control.ts`    |
 | `resize`    | control  | `/resize <vcpus> <memoryGb> [diskGb] [--idle]`                                                     | `commands/src/resize/spec.ts` (API-only today) |
 | `model`     | client   | `/model` — opens the model picker, no argument                                                     | new, `commands/src/model/spec.ts`              |
@@ -400,7 +405,7 @@ The shared `rewind` command therefore requires a target, and a surface with no p
 once per change, on every surface.
 
 `resize` joins `nativeCommands` (`commands/src/index.ts:11`) so it is declared in one list; its
-control handler stays in the API.
+control handler is shared by the API and the host (`apps/api/src/_lib/pod-resize/pod-resize-handler.ts`).
 
 **Served once.** `apps/api/src/api/platform/control/command-registry.ts:16-17` already composes the
 one registry (`nativeCommands` + `model-set` + `resize` + `composedPlugins.commands`). Add
@@ -413,7 +418,6 @@ them, and the client already receives them (`plugins/skills/src/client/index.ts:
 router is committed (slice 6 §10), so this PR commits it.
 
 **Dropped, with the reason:**
-- `/rotate` — the loop watchdog and the rotation engine are gone (operator, 2026-11-18).
 - `/compact` — v2's summary model is "everything before a message"; it has no whole-history form
   (`packages/core/src/record/summary-target.ts`).
 - `/settings`, `/auth` — the account menu already does it, on every surface.

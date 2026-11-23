@@ -7,13 +7,13 @@
 
 import React, { useMemo } from 'react'
 
-import { diffStatOf, type Read } from '@dltech/atlas-client/transcript'
+import { diffStatOf, qualityNoticeOf, type Read } from '@dltech/atlas-client/transcript'
 import { useClickRegion } from '../../hooks/use-click-region'
 import { tailOfPath } from '../../paths'
 import { markPaint, type EMark } from '../../tool-marks'
 import { MINUS_SIGN } from '../diff/diff-style'
 import { MergedDiff } from '../diff/merged-diff'
-import { QualityIndicator, qualityNoticeOf } from './quality-indicator'
+import { QualityIndicator } from './quality-indicator'
 import { Attachments } from './tool-run-attachments'
 import { GAP } from './tool-run-rows'
 

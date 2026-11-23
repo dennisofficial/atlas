@@ -31,9 +31,12 @@ import {
   type SubscriptionLease,
   type SubscriptionLeaseKey,
   type SubscriptionRow,
+  type ReleasePullRequestTrackingParams,
   type TrackingTarget,
   type WrittenSubscriptionRow,
   type SessionDigestRow,
+  type SessionBucketCountParams,
+  type SessionBucketCounts,
   type SessionListParams,
   type PrHead,
   type PrRef,
@@ -70,6 +73,7 @@ import { announceIn, notifyWakeIn } from './postgres-notify'
 import { hostPresentIn, hostsPresentIn } from './postgres-presence'
 import { resolveSessionModelIn } from './postgres-session-model'
 import { sessionDigestsIn } from './postgres-digests'
+import { sessionBucketCountsIn } from './postgres-session-buckets'
 import { podPeersPlacedIn } from './postgres-peers'
 import {
   clearTitleFromIn,
@@ -83,7 +87,9 @@ import {
   setSessionReadSeqIn,
   setSessionPodAppliedIn,
   setSessionPodDesiredIn,
+  setSessionPodDiskIn,
   setSessionPodFailedIn,
+  setSessionPodWaitCancelledIn,
   setSessionPodWaitingIn,
   setSessionTitleIfUntitledIn,
   setSessionTitleIn,
@@ -133,7 +139,7 @@ import {
   updateSubscriptionRowIn,
   upsertSubscriptionLeaseIn,
 } from './postgres-subscriptions'
-import { upsertTrackingTargetIn } from './postgres-tracking-targets'
+import { releasePullRequestTrackingIn, upsertTrackingTargetIn } from './postgres-tracking-targets'
 import { toLease, toThreadRow } from './postgres-rows'
 import { insertEventsIn, listSessionsIn, readEventsIn, writeThreadHeadIn } from './postgres-threads'
 import {
@@ -215,6 +221,14 @@ export class PostgresTx implements ControlTx {
     })
   }
 
+  async setSessionPodDisk(params: Parameters<ControlTx['setSessionPodDisk']>[0]) {
+    return setSessionPodDiskIn({
+      tx: this.tx,
+      sessionId: params.sessionId,
+      diskGb: params.diskGb,
+    })
+  }
+
   async setSessionPodFailed(params: Parameters<ControlTx['setSessionPodFailed']>[0]) {
     return setSessionPodFailedIn({
       tx: this.tx,
@@ -230,6 +244,16 @@ export class PostgresTx implements ControlTx {
       sessionId: params.sessionId,
       generation: params.generation,
       since: params.since,
+    })
+  }
+
+  async setSessionPodWaitCancelled(params: Parameters<ControlTx['setSessionPodWaitCancelled']>[0]) {
+    return setSessionPodWaitCancelledIn({
+      tx: this.tx,
+      sessionId: params.sessionId,
+      generation: params.generation,
+      vcpus: params.vcpus,
+      memoryGb: params.memoryGb,
     })
   }
 
@@ -271,6 +295,10 @@ export class PostgresTx implements ControlTx {
 
   async listSessionDigests(params: SessionListParams): Promise<SessionDigestRow[]> {
     return sessionDigestsIn({ tx: this.tx, ...params })
+  }
+
+  async countSessionBuckets(params: SessionBucketCountParams): Promise<SessionBucketCounts> {
+    return sessionBucketCountsIn({ tx: this.tx, ...params })
   }
 
   async podPeersPlaced(params: {
@@ -550,7 +578,7 @@ export class PostgresTx implements ControlTx {
     target: SubscriptionRow['target']
     label: string
     events: readonly string[]
-    expiresAt: string
+    expiresAt: string | null
     deadline: string | null
   }): Promise<boolean> {
     return updateSubscriptionRowIn({ tx: this.tx, ...params })
@@ -569,6 +597,10 @@ export class PostgresTx implements ControlTx {
 
   async upsertTrackingTarget(params: TrackingTarget): Promise<void> {
     await upsertTrackingTargetIn({ tx: this.tx, ...params })
+  }
+
+  async releasePullRequestTracking(params: ReleasePullRequestTrackingParams): Promise<void> {
+    await releasePullRequestTrackingIn({ tx: this.tx, ...params })
   }
 
   async hostPresent(hostId: number): Promise<boolean> {

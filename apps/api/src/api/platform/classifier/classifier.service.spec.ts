@@ -1,15 +1,16 @@
-import { EClassifierFault, ESettingId } from '@dltech/atlas-core'
+import { EClassifierFault, encodeSettingValue, ESettingId } from '@dltech/atlas-core'
 import { db } from '@dltech/atlas-db'
 import { seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it } from 'bun:test'
 
 import { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
-import { sealed } from '../../../agent/config/__tests__/config-reader.fixture'
-import { setting } from '../../../agent/config/__tests__/model-config.fixture'
+import { SecretCipher } from '../../../agent'
 import { ClassifierService } from './classifier.service'
 
 const HEX_KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
+const cipher = new SecretCipher(HEX_KEY)
+const sealed = (value: unknown): string => cipher.encrypt(JSON.stringify(value))
 const USER = 'user-classifier'
 const GATEWAY_MODEL = 'gateway/typesafe-ai/jev'
 
@@ -45,7 +46,7 @@ const seedClassifierModel = async (): Promise<void> => {
     id: 'set_classifier',
     userId: USER,
     key: ESettingId.ClassifierModel,
-    value: setting(GATEWAY_MODEL),
+    value: encodeSettingValue(GATEWAY_MODEL),
   })
 }
 

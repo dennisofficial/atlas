@@ -8,6 +8,8 @@
     "./channel": "./src/channel/index.ts",
     "./chat": "./src/chat/index.ts",
     "./crew": "./src/crew/index.ts",
+    "./session": "./src/session/index.ts",
+    "./account": "./src/account/index.ts",
     "./transcript": "./src/transcript/index.ts",
     "./stream-fixture": "./src/stream/__tests__/support.ts",
     "./transcript-fixture": "./src/transcript/__tests__/fixture.ts",
@@ -23,7 +25,7 @@
     "@dltech/atlas-core": "workspace:*",
     "@dltech/atlas-protocol": "workspace:*",
     "@dltech/atlas-wire": "workspace:*",
-    "ai": "^7.0.152",
+    "ai": "^7.0.180",
     "zod": "^4.4.3"
   },
   "devDependencies": {

@@ -2,7 +2,7 @@ import { crashedCallsOf } from '@dltech/atlas-core'
 
 import { DRAIN_IN_FLIGHT_CAP_MS } from './drain-cap'
 import type { HeldEnding } from './held-ending'
-import { drainNeedsHolder } from './held-needs-holder'
+import { drainNeedsHolder, outcomeCommandPending } from './held-needs-holder'
 import type { HeldSessionDeps } from './held-session-deps'
 import type { HeldTurns } from './held-turns'
 import type { SessionRuntime } from './ports'
@@ -25,12 +25,20 @@ export class HeldDrain {
     const children = this.args.childrenPause()
     await this.settleInFlight()
     await children
+    const record = this.args.record()
+    const { plane, sessionId } = this.args.deps
+    const commandUnfinished = await outcomeCommandPending({
+      events: record?.eventCache().eventsAfter(0) ?? [],
+      kindOf: async (inboxId) => (await plane.readInboxEntry({ sessionId, inboxId }))?.kind,
+    })
     await this.args.ending.handBack({
-      needsHolder: await drainNeedsHolder({
-        deps: this.args.deps,
-        record: this.args.record(),
-        turnRunning: this.args.turns.turnRunning,
-      }),
+      needsHolder:
+        commandUnfinished ||
+        (await drainNeedsHolder({
+          deps: this.args.deps,
+          record,
+          turnRunning: this.args.turns.turnRunning,
+        })),
     })
   }
 

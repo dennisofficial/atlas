@@ -105,31 +105,6 @@ export function agentEndingsText({ endings }: { endings: readonly Ending[] }): s
 const carriesEnding = (event: Event): event is Ending =>
   event.type === 'agent-ended' && event.relayed !== false && !isNoticeArrival(event)
 
-function waves({ events }: { events: readonly Event[] }): readonly (readonly Ending[])[] {
-  const grouped: Ending[][] = []
-  let open: Ending[] | undefined
-
-  for (const event of events) {
-    if (event.type === 'agent-ended' && (event.relayed === false || isNoticeArrival(event)))
-      continue
-
-    if (!carriesEnding(event)) {
-      open = undefined
-      continue
-    }
-
-    if (open === undefined) {
-      open = [event]
-      grouped.push(open)
-      continue
-    }
-
-    open.push(event)
-  }
-
-  return grouped
-}
-
 function answersOpenCall(
   merged: readonly AssembledMessage[],
   next: AssembledMessage | undefined,
@@ -174,29 +149,22 @@ function mergeBySeq({
   return [...merged, ...messages.slice(index)]
 }
 
-function blockFor({ endings }: { endings: readonly Ending[] }): readonly AssembledMessage[] {
-  const anchor = endings[endings.length - 1]
-  if (anchor === undefined) return []
-
-  return [
-    {
-      message: {
-        role: 'user' as const,
-        content: [{ type: 'text' as const, text: agentEndingsText({ endings }) }],
-      },
-      origin: { eventId: anchor.id, seq: anchor.seq },
+function blockOf(event: Ending): AssembledMessage {
+  return {
+    message: {
+      role: 'user' as const,
+      content: [{ type: 'text' as const, text: agentEndingsText({ endings: [event] }) }],
     },
-  ]
+    origin: { eventId: event.id, seq: event.seq },
+  }
 }
 
 export function agentEndingsBlock(): Rule {
   return defineRule({
     name: 'agentEndingsBlock',
     apply: (input, ctx) => {
-      const grouped = waves({ events: ctx.events })
-      if (grouped.length === 0) return input
-
-      const blocks = grouped.flatMap((endings) => blockFor({ endings }))
+      const blocks = ctx.events.filter(carriesEnding).map((event) => blockOf(event))
+      if (blocks.length === 0) return input
 
       return { system: input.system, messages: mergeBySeq({ messages: input.messages, blocks }) }
     },

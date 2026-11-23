@@ -16,6 +16,7 @@ const v2Directories = [
   ...[
     'crew',
     'github',
+    'images',
     'mcp',
     'memory',
     'operator',

@@ -6,7 +6,8 @@ The worker registers the tasks. This package only names them and validates their
 ## Owns
 
 - The task ids: `HEARTBEAT_TASK_ID`, `ROUTINE_SWEEP_TASK_ID`, `ROUTINE_RUN_TASK_ID`,
-  `POD_SLEEP_TASK_ID`, `POD_RESIZE_TASK_ID`, `NOTIFY_SEND_TASK_ID` and `NOTIFY_TEST_TASK_ID`.
+  `POD_SLEEP_TASK_ID`, `POD_RESIZE_TASK_ID`, `NOTIFY_SEND_TASK_ID`, `NOTIFY_TEST_TASK_ID` and
+  `NOTIFY_CLEAR_TASK_ID`.
 - The pod payload schemas, their outcome enums and their idempotency keys.
 - The payload schemas and their types for each task.
 - The heartbeat output schema and type.
@@ -19,12 +20,12 @@ The worker registers the tasks. This package only names them and validates their
 
 ## Entry points
 
-| Import                          | Use it for                                             |
-| ------------------------------- | ------------------------------------------------------ |
-| `@dltech/atlas-jobs`            | Every task id, schema and key.                         |
-| `@dltech/atlas-jobs/pod-sleep`  | The pod-sleep id, payload schema, outcome and key.     |
-| `@dltech/atlas-jobs/pod-resize` | The pod-resize id, payload schema, outcome and key.    |
-| `@dltech/atlas-jobs/notify`     | The notify-send and notify-test ids, schemas and keys. |
+| Import                          | Use it for                                                           |
+| ------------------------------- | -------------------------------------------------------------------- |
+| `@dltech/atlas-jobs`            | Every task id, schema and key.                                       |
+| `@dltech/atlas-jobs/pod-sleep`  | The pod-sleep id, payload schema, outcome and key.                   |
+| `@dltech/atlas-jobs/pod-resize` | The pod-resize id, payload schema, outcome and key.                  |
+| `@dltech/atlas-jobs/notify`     | The notify-send, notify-test and notify-clear ids, schemas and keys. |
 
 ## Capabilities
 
@@ -47,12 +48,17 @@ The worker registers the tasks. This package only names them and validates their
 - `POD_RESIZE_TASK_ID`: `pod-resize`, a payload of a session, a generation and the pod shape.
 - `POD_RESIZE_MAX_DISK_GB`: the 100 GB ceiling a resize payload enforces, the same ceiling
   `RESIZE_MAX_DISK_GB` names in `@dltech/atlas-native-commands`.
+- `podSleepPayloadSchema`, `PodSleepPayload`, `EPodSleepOutcome`: the sleep payload and its
+  outcome.
+- `podResizePayloadSchema`, `PodResizePayload`, `EPodResizeOutcome`: the resize payload and its
+  outcome.
 
 ### Name a notify task
 
 - `NOTIFY_SEND_TASK_ID`: `notify-send`, a payload of a `sessionId`, a `threadId`, a `seq` and a
   moment.
 - `NOTIFY_TEST_TASK_ID`: `notify-test`, a payload of one `userId`.
+- `NOTIFY_CLEAR_TASK_ID`: `notify-clear`, a payload of a `userId` and a `sessionId`.
 - `NotifySendOutput`: the `sent` and `gone` counts of a send.
 - `NO_NOTIFY_OUTPUT`: the zero counts a send answers when it sends nothing.
 
@@ -63,7 +69,11 @@ The worker registers the tasks. This package only names them and validates their
 - `notifySendIdempotencyKey(payload)`: gives `notify:<sessionId>:<seq>`, so one moment reaches the
   devices once.
 - `notifyTestIdempotencyKey({ payload, now })`: gives `notify-test:<userId>:<minute>`, so repeated
-  presses inside one minute send one test.
+  presses inside one minute send one test. `NOTIFY_TEST_WINDOW_MS` is that one-minute window.
+- `podSleepIdempotencyKey(payload)`: gives `pod-sleep:<sessionId>:<epoch>`.
+- `podResizeIdempotencyKey(payload)`: gives `pod-resize:<sessionId>:<generation>:<waits>`.
+- `notifyClearIdempotencyKey({ sessionId, momentSeq })`: gives `notify-clear:<sessionId>:<momentSeq>`,
+  so one moment clears the devices once.
 
 ## Usage
 
@@ -94,7 +104,8 @@ export const heartbeatTask = schedules.task({
 
 ## Rules
 
-- Keep the schemas strict. An unknown payload key is a failure, not a silent drop.
+- Send only the keys that a payload schema names. `heartbeatPayloadSchema`,
+  `routineSweepPayloadSchema` and `routineRunPayloadSchema` are strict, so an unknown key fails.
 - Use `routineRunIdempotencyKey` as the idempotency key of a routine run. Do not build the key at
   the caller.
 

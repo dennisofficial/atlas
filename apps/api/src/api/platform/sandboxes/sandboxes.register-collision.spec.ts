@@ -6,6 +6,7 @@ import { seedUsers } from '../../../../test/session-seed'
 import type { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { hashSessionToken } from './sandbox-tokens'
+import { databaseEnv } from './sandboxes.fixture'
 import { SandboxesService } from './sandboxes.service'
 import type { VercelSandboxClient } from './vercel-sandbox.client'
 import { inertSignals } from '../sessions/thread-signals.fixture'
@@ -23,7 +24,12 @@ describe('registering a client token that a pod lease already holds', () => {
 
   beforeEach(async () => {
     await seedUsers('user-a', 'user-b')
-    service = new SandboxesService({} as unknown as VercelSandboxClient, cipher, inertSignals())
+    service = new SandboxesService(
+      {} as unknown as VercelSandboxClient,
+      cipher,
+      inertSignals(),
+      databaseEnv(),
+    )
     await db.orm.public.LocalPodLease.create({
       id: 'lease_1',
       userId: 'user-b',

@@ -43,60 +43,54 @@ afterEach(async () => {
 
 const toggleOf = (): HTMLElement => container.querySelector('button') as HTMLElement
 
+const longPlan = Array.from({ length: 8 }, (_, index) =>
+  task({
+    ordinal: index + 1,
+    text: `task ${index + 1}`,
+    status: index < 6 ? EPlanStatus.Completed : EPlanStatus.Pending,
+  }),
+)
+
 describe('SessionTodoSection', () => {
-  it('renders nothing without a plan', () => {
-    expect(renderToStaticMarkup(<SessionTodoSection tasks={[]} />)).toBe('')
+  it('shows an empty line without a plan', () => {
+    const html = renderToStaticMarkup(<SessionTodoSection tasks={[]} />)
+    expect(html).toContain('aria-label="Todo"')
+    expect(html).toContain('No plan yet')
   })
 
-  it('collapses to the count and the task in progress', () => {
-    const html = renderToStaticMarkup(<SessionTodoSection tasks={tasks} />)
-    expect(html).toContain('1 / 3 tasks')
-    expect(html).toContain('Building the details variants')
-    expect(html).not.toContain('data-pane-row')
-    expect(html).toContain('aria-expanded="false"')
-  })
-
-  it('says every task is done when nothing is in progress', () => {
-    const html = renderToStaticMarkup(
-      <SessionTodoSection tasks={[task({ ordinal: 1, text: 'Read the brief' })]} />,
-    )
-    expect(html).toContain('All tasks done')
-  })
-
-  it('expands to one row per task with its status glyph', async () => {
+  it('always shows one row per task with its status glyph', () => {
     act(() => root.render(<SessionTodoSection tasks={tasks} />))
-    await act(async () => toggleOf().click())
 
-    expect(toggleOf().getAttribute('aria-expanded')).toBe('true')
+    expect(container.textContent).toContain('1 / 3 tasks')
+    expect(container.querySelector('button')).toBeNull()
     expect(container.querySelectorAll('[data-pane-row]').length).toBe(3)
+    expect(container.textContent).toContain('Building the details variants')
     expect(container.querySelector('[aria-label="Done"]')).not.toBeNull()
     expect(container.querySelector('[aria-label="In progress"]')).not.toBeNull()
     expect(container.querySelector('[aria-label="Pending"]')).not.toBeNull()
     expect(container.textContent).toContain('Run typecheck and biome')
   })
 
-  it('shows every task when expanded, including the completed tail', async () => {
-    const plan = Array.from({ length: 8 }, (_, index) =>
-      task({
-        ordinal: index + 1,
-        text: `task ${index + 1}`,
-        status: index < 4 ? EPlanStatus.Completed : EPlanStatus.Pending,
-      }),
-    )
-    act(() => root.render(<SessionTodoSection tasks={plan} />))
-    await act(async () => toggleOf().click())
+  it('folds the earlier done tasks but keeps the last two and every open task', () => {
+    act(() => root.render(<SessionTodoSection tasks={longPlan} />))
 
-    expect(container.querySelectorAll('[data-pane-row]').length).toBe(8)
-    expect(container.textContent).toContain('task 1')
+    expect(toggleOf().textContent).toBe('4 earlier done')
+    expect(toggleOf().getAttribute('aria-expanded')).toBe('false')
+    expect(container.querySelectorAll('[data-pane-row]').length).toBe(4)
+    expect(container.textContent).not.toContain('task 4')
+    expect(container.textContent).toContain('task 5')
     expect(container.textContent).toContain('task 8')
   })
 
-  it('collapses again on a second click', async () => {
-    act(() => root.render(<SessionTodoSection tasks={tasks} />))
-    await act(async () => toggleOf().click())
+  it('shows every task when the fold opens and folds again on a second click', async () => {
+    act(() => root.render(<SessionTodoSection tasks={longPlan} />))
     await act(async () => toggleOf().click())
 
-    expect(toggleOf().getAttribute('aria-expanded')).toBe('false')
-    expect(container.querySelectorAll('[data-pane-row]').length).toBe(0)
+    expect(toggleOf().textContent).toBe('Show fewer')
+    expect(container.querySelectorAll('[data-pane-row]').length).toBe(8)
+    expect(container.textContent).toContain('task 1')
+
+    await act(async () => toggleOf().click())
+    expect(container.querySelectorAll('[data-pane-row]').length).toBe(4)
   })
 })

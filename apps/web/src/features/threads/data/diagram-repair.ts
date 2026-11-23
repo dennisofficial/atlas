@@ -11,6 +11,7 @@ export type RepairDiagramAction = (args: {
   messageId: string
   chart: string
   error: string
+  context?: string
 }) => Promise<void>
 
 export async function requestDiagramRepair(args: {

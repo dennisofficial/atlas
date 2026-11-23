@@ -10,6 +10,8 @@ and OpenAI sign-in flows. The API, the control plane and the model package read 
 - The provider credential of a chosen account: an API key or a plan connection.
 - The Anthropic and OpenAI sign-in: PKCE, the device login, the token exchange and the token
   refresh.
+- The plan usage readers: the Claude and Codex usage endpoints, and the routing of an account to
+  its reader.
 
 ## Does not own
 
@@ -24,6 +26,7 @@ and OpenAI sign-in flows. The API, the control plane and the model package read 
 | ------------------------------------------ | ---------------------------------------------- |
 | `@dltech/atlas-credentials`                | Account row parsing, selection and credential. |
 | `@dltech/atlas-credentials/provider-oauth` | The Anthropic and OpenAI sign-in helpers.      |
+| `@dltech/atlas-credentials/usage`          | The plan usage readers of an account.          |
 
 ## Capabilities
 
@@ -37,6 +40,8 @@ and OpenAI sign-in flows. The API, the control plane and the model package read 
 - `authProviderOf(value)`: the `EAuthProvider` of a string, or `undefined`.
 - `providerCredentialOf({ provider, parsed, activeAccounts, unseal })`: the `ProviderCredential`
   of the chosen account: `api-key` with the key, `plan` with the connection id, or `null`.
+- `classifierCredentialOf({ provider, parsed, activeAccounts, unseal })`: the same credential, from
+  an api-key account first and the chosen account second.
 - `accountCredentialOf({ row, unseal })`: the same credential for one sealed row.
 
 ### Check a key
@@ -66,9 +71,22 @@ they return the tokens. They do not write the credential store.
   provider.
 - `OauthHttpError`, `OauthResponseError` and `DeviceCodeDisabledError`: the errors of the flow.
   `isHardAuthFailure(error)` tells if the login must be discarded.
+### Read plan usage
+
+The readers of `@dltech/atlas-credentials/usage` take a `CredentialPort`, the client version to
+present and the fetch function. A reader answers `null` for any failure: a meter is decoration.
+- `AnthropicUsageClient({ credentials, clientVersion, fetch? })`: reads `ANTHROPIC_USAGE_URL`, the
+  undocumented endpoint that Claude Code reads. `clientVersion` is the Claude Code version.
+- `CodexUsageClient({ credentials, clientVersion, fetch?, now? })`: reads `CODEX_USAGE_URL`, the
+  endpoint that codex-rs reads. `clientVersion` is the Codex CLI version.
+- `RoutedAccountUsage({ accounts, clients })`: the `AccountUsagePort` that routes an account to
+  the reader of its provider. An api-key account, or a provider with no reader, is `UNMETERED`.
+- `UsageClient`: the contract of one reader.
+
 ## Usage
 
 ```ts
+import { EAuthProvider } from '@dltech/atlas-core'
 import { parsedAccountsOf, providerCredentialOf } from '@dltech/atlas-credentials'
 
 const credential = providerCredentialOf({

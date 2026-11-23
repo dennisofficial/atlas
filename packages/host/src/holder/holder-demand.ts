@@ -1,7 +1,7 @@
 import type { ControlPlane } from '@dltech/atlas-control'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
-import { HeldWaits } from './held-waits'
+import { HeldWaits, type HeldWait } from './held-waits'
 import { PANEL_HOLD_TTL_MS, PanelDemand } from './panel-demand'
 import type { HostBus, HostTimers } from './ports'
 import { TerminalDemand } from './terminal-demand'
@@ -79,6 +79,14 @@ export class HolderDemand {
 
   notifyHeld(sessionId: string): void {
     this.waits.notify(sessionId)
+  }
+
+  waitForLocal(args: {
+    sessionId: string
+    timeoutMs: number
+    signal?: AbortSignal | undefined
+  }): HeldWait {
+    return this.waits.wait(args)
   }
 
   requestHolder(sessionId: string): Promise<boolean> {

@@ -1,22 +1,32 @@
 import {
   EHeldAction,
+  EResume,
+  INBOX_KIND_RETRY,
   NO_WORKSPACE_RECORD,
   decideHeldAction,
-  isResumableOf,
+  isResumablePlan,
   loopStateOf,
   preparedBeforeOf,
+  repairHoldsResume,
+  resumePlanOf,
   setupInFlightOf,
   workspaceStateFrom,
   type InboxEntry,
   type PrepareFailure,
+  type ThreadId,
 } from '@dltech/atlas-core'
 
+import { forMainThread } from './child-retry'
+import { heldEndingIdsOf } from './held-endings'
 import { idleReleaseDue } from './held-idle'
 import { countRunningShells } from './held-shells'
 import {
   actionableEntries,
+  isNoticeEntry,
   isStop,
   logPendingInputIdsOf,
+  logPendingNoticeIdsOf,
+  queuedPromptAtOf,
   readFullInbox,
   stopSettledPromptOf,
   understandsCommand,
@@ -52,6 +62,7 @@ const resumeSetupIn = (args: {
 
 export const readHeldAction = async (args: {
   deps: HeldSessionDeps
+  threadId: ThreadId
   draining: boolean
   turnRunning: boolean
   resumeAfterSeq: number
@@ -68,13 +79,14 @@ export const readHeldAction = async (args: {
   shellsRunning: boolean
   failure: PrepareFailure | undefined
   preparedBefore: boolean
+  queuedAt: string | undefined
 }> => {
   const { deps } = args
   const cache = args.record?.eventCache()
   const events = cache?.eventsAfter(0) ?? []
   const resumeEvents = cache?.loopEventsAfter(args.resumeAfterSeq) ?? []
   const entries = await readFullInbox(deps)
-  const resolvable = entries.filter((entry) => understandsCommand(deps, entry))
+  const resolvable = forMainThread(entries.filter((entry) => understandsCommand(deps, entry)))
   const logIds = logPendingInputIdsOf(events)
   const preparedBefore = preparedBeforeOf(events)
   const workspace = workspaceStateFrom({
@@ -86,9 +98,22 @@ export const readHeldAction = async (args: {
     ],
   })
   const actionable = actionableEntries({ entries: resolvable, failure: workspace.failure })
+  const heldEndings = heldEndingIdsOf({
+    entries: actionable.filter((entry) => !isStop(entry)),
+    recordEvents: events,
+    childrenRunning: args.childrenRunning,
+  })
+  const repairHeld = repairHoldsResume({ mainThreadId: args.threadId, events })
+  const noticeIds = new Set(repairHeld ? logPendingNoticeIdsOf(events) : [])
   const messagePending =
-    actionable.some((entry) => !isStop(entry)) ||
-    waitingInputIdsOf({ ids: logIds, failure: workspace.failure }).length > 0
+    actionable.some(
+      (entry) =>
+        !isStop(entry) && !heldEndings.has(entry.inboxId) && !(repairHeld && isNoticeEntry(entry)),
+    ) ||
+    waitingInputIdsOf({
+      ids: logIds.filter((id) => !noticeIds.has(id) && !heldEndings.has(id)),
+      failure: workspace.failure,
+    }).length > 0
   const quiet = idleReleaseDue({
     turnRunning: args.turnRunning,
     runtime: args.runtime,
@@ -102,8 +127,11 @@ export const readHeldAction = async (args: {
     quiet && args.runtime !== undefined
       ? await countRunningShells({ deps, runtime: args.runtime })
       : 0
+  const plan = resumePlanOf(loopStateOf({ events: resumeEvents }))
+  const retryPending = actionable.some((entry) => entry.kind === INBOX_KIND_RETRY)
   const resumable =
-    isResumableOf(loopStateOf({ events: resumeEvents })) && !stopSettledPromptOf(events)
+    !stopSettledPromptOf(events) &&
+    (repairHeld ? retryPending && plan.kind === EResume.Continue : isResumablePlan(plan))
   const action = resumeSetupIn({
     decided: decideHeldAction({
       draining: args.draining,
@@ -128,5 +156,6 @@ export const readHeldAction = async (args: {
     shellsRunning: runningShells > 0,
     failure: workspace.failure,
     preparedBefore,
+    queuedAt: queuedPromptAtOf({ entries, events, threadId: args.threadId }),
   }
 }

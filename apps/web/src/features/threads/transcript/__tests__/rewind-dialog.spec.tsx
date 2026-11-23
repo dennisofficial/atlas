@@ -3,7 +3,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'bun:test'
 import { act } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 
-import type { RewindKillRow } from '../../data/rewind'
+import type { RewindKillRow } from '@dltech/atlas-client/session'
 import { RewindDialogActions, RewindKillList } from '../rewind-dialog'
 
 beforeAll(() => {

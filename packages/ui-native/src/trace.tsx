@@ -122,7 +122,7 @@ export const Step = ({
       <Pressable
         accessibilityRole="button"
         accessibilityState={{ expanded }}
-        hitSlop={{ top: space(2.5), bottom: space(2.5) }}
+        hitSlop={{ top: space(3), bottom: space(3) }}
         onPress={handlePress}
       >
         {line}
@@ -149,7 +149,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: space(2),
     maxWidth: '100%',
-    minHeight: 24,
   },
   icon: {
     alignItems: 'center',

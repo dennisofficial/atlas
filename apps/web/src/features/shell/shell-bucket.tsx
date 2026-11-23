@@ -18,11 +18,10 @@ export interface BucketProps {
   hint?: string
   entries: readonly ProjectThreads[]
   total?: number | undefined
-  onShowAll?: (() => void) | undefined
   activeThreadId: string | null
 }
 
-export function Bucket({ label, hint, entries, total, onShowAll, activeThreadId }: BucketProps) {
+export function Bucket({ label, hint, entries, total, activeThreadId }: BucketProps) {
   const [open, setOpen] = useState(
     () => activeThreadId !== null && hasThread({ entries, threadId: activeThreadId }),
   )
@@ -43,15 +42,6 @@ export function Bucket({ label, hint, entries, total, onShowAll, activeThreadId 
         <span className="h-px min-w-3 flex-1 bg-sidebar-border" />
         <span className="font-mono text-xs tabular-nums">{count}</span>
       </button>
-      {onShowAll !== undefined && count > shown && (
-        <button
-          type="button"
-          onClick={onShowAll}
-          className="flex h-7 w-full items-center rounded-md px-2 pl-7.5 text-xs text-muted-foreground outline-hidden hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-        >
-          Show all {count} →
-        </button>
-      )}
       {open &&
         entries.map(({ project, sessions }) => (
           <div key={projectKeyOf(project)} className="flex flex-col gap-0.5">

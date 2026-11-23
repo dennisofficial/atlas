@@ -1,6 +1,6 @@
 import {
   EShellStatus,
-  shellLabel,
+  fallbackShellName,
   type Event,
   type PluginViewFold,
   type V2Event,
@@ -28,6 +28,11 @@ export type ShellsViewState = readonly ShellRow[]
 type Carried = Pick<ShellRow, 'shellId' | 'name' | 'command' | 'characters'> &
   Partial<Pick<ShellRow, 'cwd'>>
 
+const rowNameOf = (shell: { command: string; description?: string | undefined }): string => {
+  const named = shell.description?.trim() ?? ''
+  return named === '' ? fallbackShellName(shell.command) : named
+}
+
 const upsert = (state: ShellsViewState, row: ShellRow): ShellsViewState =>
   state.some((kept) => kept.shellId === row.shellId)
     ? state.map((kept) => (kept.shellId === row.shellId ? row : kept))
@@ -41,7 +46,7 @@ const carriedOf = (args: {
   if (existing !== undefined) return existing
   return {
     shellId: args.event.shellId,
-    name: shellLabel(args.event),
+    name: rowNameOf(args.event),
     command: args.event.command,
     characters: 0,
   }
@@ -51,7 +56,7 @@ export const foldShells = (state: ShellsViewState, event: Event | V2Event): Shel
   if (event.type === 'background-shell-started') {
     return upsert(state, {
       shellId: event.shellId,
-      name: shellLabel(event),
+      name: rowNameOf(event),
       command: event.command,
       ...(event.cwd === undefined ? {} : { cwd: event.cwd }),
       status: EShellStatus.Running,

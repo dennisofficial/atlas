@@ -26,9 +26,11 @@ The package ships TypeScript source with no build step.
 | ---------------------------------- | ------------------------------------------------------------------ |
 | `@dltech/atlas-ui`                 | `cn` and the tokens, from one import.                              |
 | `@dltech/atlas-ui/tokens`          | Pure token values. No platform import.                             |
+| `@dltech/atlas-ui/brand`           | Pure brand data: `EBrand`, `BRAND_PATHS`, `brandOfProvider`.       |
 | `@dltech/atlas-ui/components/*`    | A vendored component, such as `components/button`.                 |
 | `@dltech/atlas-ui/ai/*`            | An AI pattern, such as `ai/message` or `ai/tool`.                  |
 | `@dltech/atlas-ui/lib/*`           | `lib/utils` (`cn`), `lib/language-of-path`, `lib/shiki-languages`. |
+|                                    | `lib/mermaid-parse` checks a diagram source.                       |
 | `@dltech/atlas-ui/lib/highlighter` | The lazy shiki highlighter.                                        |
 | `@dltech/atlas-ui/hooks/*`         | `hooks/use-highlighted-code`, `hooks/use-mobile`.                  |
 | `@dltech/atlas-ui/fixtures/*`      | Development data, such as `fixtures/settings-agent`.               |
@@ -43,15 +45,29 @@ The package ships TypeScript source with no build step.
 
 - `semantic`, `EColorScheme`: the light and dark color maps.
 - `SemanticTheme`, `SemanticToken`: the theme type and a token name.
-- `primitives`, `font`, `radiusBase`, `radiusScale`, `radius`, `space`, `spacingUnit`.
+- `primitives`, `font`, `radiusBase`, `radiusScale`, `radius`, `radiusPx`, `space`, `spacingUnit`.
 - `ETextRole`, `typeScale`, `EFontFamily`, `EFontWeight`, `fontFaceNames`, `REM_PX`.
+- `readingClasses`, `readingType`, `readingRole`, `READING_LEADING`, `READING_HEADING_LEADING`,
+  `READING_MEASURE_REM`: the measure, the leading and the sizes that a transcript and the web
+  screens share.
 - `buildThemeCss()`: the stylesheet text for the tokens.
+
+### Mark a brand
+
+- `EBrand`, `BRAND_PATHS`, `BrandPath`: every brand mark, as a titled path for a 24x24 viewBox.
+- `brandOfProvider(providerId)`: the brand of a model provider, or `undefined` when it has none.
+  Both the web and the native surface read the mark from here.
 
 ### Compose an AI pattern
 
 - `ai/message`, `ai/message-response`, `ai/tool`, `ai/reasoning`, `ai/chain-of-thought`.
 - `ai/prompt-input`, `ai/confirmation`, `ai/diff-viewer`, `ai/code-viewer`, `ai/file-tree`.
 - `ai/chat`, `ai/plan`, `ai/agents-panel`, `ai/terminal`, `ai/preview-browser`.
+
+### Check a diagram
+
+- `lib/mermaid-parse`: `parsesAsMermaid(source)` loads mermaid on demand and reports whether the
+  source parses. A repaired diagram is checked with it before it replaces the broken one.
 
 ### Highlight code
 

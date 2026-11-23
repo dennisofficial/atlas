@@ -668,9 +668,24 @@ describe('the terminal a settled command opens onto', () => {
     expect(committed.detail).toBe(EDetail.Terminal)
   })
 
-  it('keeps a test run on its tally, which reads better than its output', () => {
-    const tests = reading(aShell({ command: 'bun test', stdout: '\n 41 pass\n 0 fail\n' }))
+  it('names the shell a command became instead of reporting an exit it never had', () => {
+    const moved = reading(
+      aCall({
+        name: 'bash',
+        input: { command: 'bun test', description: 'Run the suite' },
+        output: {
+          command: 'bun test',
+          description: 'Run the suite',
+          backgrounded: true,
+          shellId: 'shell-1a2b3c4d',
+          stdout: 'compiling\n',
+        },
+      }),
+    )
 
-    expect(tests.detail).toBe(EDetail.Tests)
+    expect(moved.line).toBe('Run the suite')
+    expect(moved.note).toBe('shell-1a2b3c4d')
+    expect(moved.failed).toBe(false)
+    expect(moved.detail).toBe(EDetail.Terminal)
   })
 })

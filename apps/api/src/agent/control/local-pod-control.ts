@@ -28,8 +28,11 @@ import type { PreviewTunnels } from '@dltech/atlas-previews'
 import type { MemoryScope } from '@dltech/atlas-plugin-sdk'
 
 import type { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
+import { gatewayKeyOf } from './gateway-key'
+import { imageModelOf } from './image-model-setting'
 import { settingsVersionsOf } from './settings-versions'
 import { webSearchConfigOf } from './web-search-config'
+import { scopedSettingsOf } from '../config/scoped-settings'
 
 const NOT_IN_A_PROJECT = 'this session has no Atlas Cloud project, and routines belong to a project'
 
@@ -223,6 +226,30 @@ export const localPodControlOf = (args: {
           userId: owner.userId,
           projectId: owner.projectId,
         })
+      },
+    },
+    gateway: {
+      apiKey: async ({ threadId }) => {
+        const owner = await ownerOf(threadId)
+        return await gatewayKeyOf({
+          rows: {
+            accounts: async (userId) =>
+              await args.db.orm.public.AgentAccount.where({ userId }).all(),
+            active: async (userId) =>
+              await args.db.orm.public.ActiveAccount.where({ userId }).all(),
+          },
+          cipher: args.cipher,
+          userId: owner.userId,
+        })
+      },
+      imageModel: async ({ threadId }) => {
+        const owner = await ownerOf(threadId)
+        const settings = await scopedSettingsOf({
+          db: args.db,
+          userId: owner.userId,
+          projectId: owner.projectId,
+        })
+        return imageModelOf(settings)
       },
     },
     memory: {

@@ -17,7 +17,7 @@ export const recoverUnfinishedCommands = async (params: {
 }): Promise<void> => {
   const { intake, plane, sessionId, log } = params
   const visible = visibleEvents(params.record.eventCache().eventsAfter(0))
-  const skills = await intake.skillsForPass()
+  const skills = intake.skillsForPass()
   for (const inboxId of unfinishedCommandIdsOf(visible)) {
     try {
       const entry = await plane.readInboxEntry({ sessionId, inboxId })

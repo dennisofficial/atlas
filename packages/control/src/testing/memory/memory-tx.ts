@@ -17,6 +17,7 @@ import {
   type SubscriptionKey,
   type SubscriptionLease,
   type SubscriptionLeaseKey,
+  type ReleasePullRequestTrackingParams,
   type SubscriptionRow,
   type WrittenSubscriptionRow,
   type TrackingTarget,
@@ -25,6 +26,8 @@ import {
   type ThreadRow,
   type ControlSessionRow,
   type SessionDigestRow,
+  type SessionBucketCountParams,
+  type SessionBucketCounts,
   type InsertRoutineRunParams,
   type RoutineRow,
   type SessionListParams,
@@ -55,8 +58,10 @@ import {
   deleteSubscriptionRowIn,
   findSubscriptionIn,
   insertSubscriptionRowIn,
+  laterLiveUntilOf,
   readSessionSubscriptionRowsIn,
   readSubscriptionIn,
+  releasePullRequestTrackingIn,
   updateSubscriptionRowIn,
 } from './memory-subscriptions'
 import { blobHashesPresent, insertBlobRows, readBlobRow } from './memory-blobs'
@@ -73,7 +78,7 @@ import { insertEventsIn, readEventsIn } from './memory-events'
 import { claimNeedingIn } from './memory-claim-next'
 import { leasesHeldByIn, writeLeaseIn } from './memory-leases'
 import { createThreadIn, readThreadIn, writeThreadHeadIn } from './memory-threads'
-import { sessionDigestsIn } from './memory-digests'
+import { sessionBucketCountsIn, sessionDigestsIn } from './memory-digests'
 import { podPeersPlacedIn } from './memory-peers'
 import {
   clearTitleFromIn,
@@ -86,7 +91,9 @@ import {
   setSessionArchivedIn,
   setSessionPodAppliedIn,
   setSessionPodDesiredIn,
+  setSessionPodDiskIn,
   setSessionPodFailedIn,
+  setSessionPodWaitCancelledIn,
   setSessionPodWaitingIn,
   setSessionReadSeqIn,
   setSessionTitleIfUntitledIn,
@@ -166,12 +173,20 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
     return setSessionPodAppliedIn({ state: this.state, ...params })
   }
 
+  async setSessionPodDisk(params: Parameters<ControlTx['setSessionPodDisk']>[0]) {
+    return setSessionPodDiskIn({ state: this.state, ...params })
+  }
+
   async setSessionPodFailed(params: Parameters<ControlTx['setSessionPodFailed']>[0]) {
     return setSessionPodFailedIn({ state: this.state, ...params })
   }
 
   async setSessionPodWaiting(params: Parameters<ControlTx['setSessionPodWaiting']>[0]) {
     return setSessionPodWaitingIn({ state: this.state, ...params })
+  }
+
+  async setSessionPodWaitCancelled(params: Parameters<ControlTx['setSessionPodWaitCancelled']>[0]) {
+    return setSessionPodWaitCancelledIn({ state: this.state, ...params })
   }
 
   async setSessionArchived(params: { sessionId: string; archivedAt: string | null }) {
@@ -208,6 +223,10 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
 
   async listSessionDigests(params: SessionListParams): Promise<SessionDigestRow[]> {
     return sessionDigestsIn({ state: this.state, ...params })
+  }
+
+  async countSessionBuckets(params: SessionBucketCountParams): Promise<SessionBucketCounts> {
+    return sessionBucketCountsIn({ state: this.state, ...params })
   }
 
   async createThread(params: {
@@ -451,7 +470,7 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
     target: SubscriptionRow['target']
     label: string
     events: readonly string[]
-    expiresAt: string
+    expiresAt: string | null
     deadline: string | null
   }): Promise<boolean> {
     return updateSubscriptionRowIn({ state: this.state, ...params })
@@ -472,10 +491,14 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
     const key = trackingTargetKey(params)
     const held = this.state.trackingTargets.get(key)
     const liveUntil =
-      held !== undefined && Date.parse(held.liveUntil) > Date.parse(params.liveUntil)
-        ? held.liveUntil
-        : params.liveUntil
+      held === undefined
+        ? params.liveUntil
+        : laterLiveUntilOf(held.liveUntil ?? null, params.liveUntil)
     this.state.trackingTargets.set(key, { ...params, liveUntil })
+  }
+
+  async releasePullRequestTracking(params: ReleasePullRequestTrackingParams): Promise<void> {
+    releasePullRequestTrackingIn({ state: this.state, ...params })
   }
 
   async hostPresent(hostId: number): Promise<boolean> {

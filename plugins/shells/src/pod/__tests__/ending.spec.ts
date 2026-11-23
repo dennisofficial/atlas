@@ -5,16 +5,10 @@ import { EShellRunStatus } from '@dltech/atlas-protocol'
 
 import { recordShellEnding } from '../ending'
 import { stateFor } from '../state'
-import { invoke, rig, shellIdOf } from './support'
+import { rig, seedShell } from './support'
 
-const started = async (harness: ReturnType<typeof rig>) =>
-  shellIdOf(
-    await invoke({
-      ctx: harness.ctx,
-      name: 'shell',
-      input: { command: 'sleep 30', description: 'ticker' },
-    }),
-  )
+const started = (harness: ReturnType<typeof rig>) =>
+  seedShell({ harness, command: 'sleep 30', description: 'ticker' })
 
 const ending = async (harness: ReturnType<typeof rig>, shellId: string) =>
   recordShellEnding({
@@ -72,6 +66,19 @@ describe('recordShellEnding', () => {
       exitCode: 137,
       memory,
     })
+  })
+
+  it('leaves the ending of a shell this thread never started to the thread that owns it', async () => {
+    const harness = rig()
+    const shellId = await started(harness)
+    harness.log.length = 0
+    harness.finish(shellId, EShellRunStatus.Exited, 0)
+
+    await ending(harness, shellId)
+
+    expect(harness.log).toHaveLength(0)
+    expect(harness.notices).toHaveLength(0)
+    expect(stateFor(harness.ctx).unclaimed.has(shellId)).toBe(true)
   })
 
   it('records a frame delivered twice only once', async () => {

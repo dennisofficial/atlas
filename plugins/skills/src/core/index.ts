@@ -35,6 +35,31 @@ export {
   type SkillWarning,
 } from './spec'
 export { validateSkill } from './validate'
+export {
+  SKILL_SUGGEST_AGENT_CHARS,
+  SKILL_SUGGEST_OPERATOR_CHARS,
+  SKILL_SUGGEST_TURNS,
+  SKILL_SUGGESTION_KEY,
+  SKILL_SUGGESTION_SLOT,
+  skillSuggestionStateOf,
+  skillSuggestionTriggerOf,
+  type SkillSuggestionInput,
+  type SkillSuggestionState,
+  type SkillSuggestionTurn,
+} from './suggestion-context'
+export {
+  SKILL_SUGGEST_CANDIDATE_CHARS,
+  SKILL_SUGGEST_DEADLINE_MS,
+  SKILL_SUGGEST_FITS_THRESHOLD,
+  SKILL_SUGGEST_MARGIN,
+  SKILL_SUGGEST_SHORTLIST,
+  skillShortlistOf,
+  skillSuggestionAskOf,
+  skillSuggestionBlockOf,
+  skillSuggestionOf,
+  type SkillSuggestion,
+  type SkillSuggestionAsk,
+} from './suggestion'
 
 import { skillsChangedSchema } from './skill-events'
 

@@ -153,6 +153,27 @@ export const setSandboxStatusIn = async (params: {
   return true
 }
 
+export const setSessionPodWaitCancelledIn = async (params: {
+  tx: Tx
+  sessionId: string
+  generation: number
+  vcpus: number | null
+  memoryGb: number | null
+}): Promise<boolean> => {
+  const changed = await params.tx.orm.v2.V2Session.where({
+    id: params.sessionId,
+  }).updateAndCount({
+    podDesiredVcpus: params.vcpus,
+    podDesiredMemoryGb: params.memoryGb,
+    podDesiredDiskGb: null,
+    podSizeGeneration: params.generation,
+    podAppliedGeneration: params.generation,
+    podResizeError: null,
+    podWaitingSince: null,
+  })
+  return changed === 1
+}
+
 export const setSessionArchivedIn = async (params: {
   tx: Tx
   sessionId: string
@@ -262,6 +283,17 @@ export const setSessionPodAppliedIn = async (params: {
     podResizeError: null,
     podWaitingSince: null,
   })
+  return changed === 1
+}
+
+export const setSessionPodDiskIn = async (params: {
+  tx: Tx
+  sessionId: string
+  diskGb: number
+}): Promise<boolean> => {
+  const changed = await params.tx.orm.v2.V2Session.where({
+    id: params.sessionId,
+  }).updateAndCount({ podDesiredDiskGb: params.diskGb })
   return changed === 1
 }
 

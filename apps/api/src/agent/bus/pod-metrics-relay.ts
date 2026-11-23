@@ -15,6 +15,8 @@ import type { PodMetricsBus } from './pod-metrics-bus'
 
 const UNREADABLE = 'pod metrics are not readable'
 
+const UNHELD = 'no host holds this session yet'
+
 type Backlog = { samples: PodSample[] } | { reason: string }
 
 const backlogOf = (outcome: PodCallOutcome): Backlog => {
@@ -44,7 +46,7 @@ type RelayState = {
 const ringOf = (relay: RelayState): PodSample[] => [...relay.ring]
 
 export type PodMetricsRelayArgs = {
-  ops: Pick<PodOps, 'events' | 'invoke'>
+  ops: Pick<PodOps, 'events' | 'hold' | 'invoke' | 'servesLocally'>
   bus: Pick<PodMetricsBus, 'onWatch' | 'publish'>
   log?: LogPort | undefined
 }
@@ -78,26 +80,45 @@ export class PodMetricsRelay implements OnModuleInit, OnModuleDestroy {
     }
     const relay: RelayState = {
       sessionId: request.sessionId,
-      watchers: new Set([request.watcherId]),
+      watchers: new Set<string>(),
       ring: [],
       dispose: () => undefined,
       timer: undefined,
       ready: false,
     }
+    this.relays.set(relay.sessionId, relay)
+    this.renew({ relay, request })
+    void this.open(relay)
+  }
+
+  private async open(relay: RelayState): Promise<void> {
+    const serves = await this.args.ops.servesLocally({ sessionId: relay.sessionId })
+    if (this.relays.get(relay.sessionId) !== relay) return
+    if (!serves) {
+      this.stop({ relay, release: false })
+      return
+    }
     const dispose = this.args.ops.events({
-      sessionId: request.sessionId,
+      sessionId: relay.sessionId,
       listener: (frame) => this.receiveSample({ relay, frame }),
       onClose: () => this.stop({ relay, release: false }),
     })
-    if (dispose === null) return
+    if (dispose === null) {
+      this.args.log?.warn({
+        source: 'bus.pod-metrics',
+        message: `relaying pod metrics for ${relay.sessionId} failed`,
+        data: { reason: UNHELD },
+      })
+      this.stop({ relay, release: false })
+      return
+    }
     relay.dispose = dispose
-    this.relays.set(relay.sessionId, relay)
-    this.renew({ relay, request })
-    void this.seed(relay)
+    await this.seed(relay)
   }
 
   private renew(args: { relay: RelayState; request: PodMetricsWatch }): void {
     const { relay, request } = args
+    this.args.ops.hold({ sessionId: relay.sessionId, ttlMs: request.ttlMs })
     const added = !relay.watchers.has(request.watcherId)
     relay.watchers.add(request.watcherId)
     clearTimeout(relay.timer)

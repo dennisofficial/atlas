@@ -8,9 +8,10 @@ import {
   nativeCommandHandlers,
   nativeCommands,
   nativeControlHandlers,
+  resize,
 } from '@dltech/atlas-native-commands'
 import { composedPlugins } from '../registered-plugins'
-import { ModelPort } from '@dltech/atlas-core'
+import { ERunFailureKind, ModelPort } from '@dltech/atlas-core'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import { createDb, createPool } from '@dltech/atlas-db'
 import { RandomIds } from '../runtime/random-ids'
@@ -18,16 +19,22 @@ import { SessionHolder, systemTimers } from '@dltech/atlas-host'
 import { createPgHostPresence } from '../presence/pg-host-presence'
 import { startHostWatch, type HostWatch } from '../presence/pg-host-watch'
 import { LogPort, logFieldsOf } from '@dltech/atlas-observability'
+import { TurnFault } from '@dltech/atlas-agent'
 import { ScriptedModel, type ScriptedModelStep } from '@dltech/atlas-agent/testing'
 
 import { createHostBus } from '../bus/host-bus'
 import { startPgWakeListener } from '../bus/pg-wake-listener'
 import { createRedisLiveFrames } from '../bus/redis-live-frames'
+import { createRedisPodCallBus } from '../bus/redis-pod-call-bus'
 import type { ConfigSource } from '../config/agent-host-config'
 import { fakeModelSourceOf } from './model-source'
+import { recordingModelOf } from './model-requests'
+import { routedModelOf, scriptRoutesOf } from './script-routing'
 import { createSessionRuntimeFactory } from '../runtime/session-runtime-factory'
 import { FixedEndpointSandboxProvider } from './fixed-endpoint-sandbox-provider'
 import { faultedPlane, faultSandbox, hostFaultOf } from './host-faults'
+import type { JobsProjectDispatcher } from '../../_core/ports/job-dispatcher'
+import { podResizeHandlerOf } from '../../_lib/pod-resize/pod-resize-handler'
 
 const requireEnv = (name: string): string => {
   const value = process.env[name]
@@ -84,6 +91,12 @@ const withFirstChunkMarker = (model: ModelPort): ModelPort => {
   return new FirstChunkMarker(model, path)
 }
 
+const recordModelOf = (args: { model: ModelPort; host: string; sessionId: string }): ModelPort => {
+  const path = process.env.MODEL_REQUESTS_FILE
+  if (path === undefined || path === '') return args.model
+  return recordingModelOf({ inner: args.model, path, host: args.host, sessionId: args.sessionId })
+}
+
 const tapToolOutput = (liveFrames: ReturnType<typeof createRedisLiveFrames>): void => {
   const path = process.env.TOOL_OUTPUT_FILE
   if (path === undefined || path === '') return
@@ -109,6 +122,8 @@ const testSource = (): ConfigSource => ({
       model,
       models: fakeModelSourceOf(model),
       classifier: { on: false, reason: 'no classifier model is set' },
+      quality: { enabled: false, policies: {} },
+      rotation: { autoRotateAtPercent: 85 },
       sandbox: {
         configured: true,
         provider: ESandboxProvider.Vercel,
@@ -126,11 +141,33 @@ const testSource = (): ConfigSource => ({
   models: async () => fakeModelSourceOf({ configured: false, gap: 'scripted model in test' }),
 })
 
+const noPodResizeDispatcher: JobsProjectDispatcher = {
+  dispatch: async () => ({ runId: 'test-host-process' }),
+}
+
 const testTokens = () => ({
   issue: async (): Promise<never> => {
     throw new Error('unused')
   },
 })
+
+const authFaultOf = (thrown: unknown): TurnFault | undefined => {
+  if (typeof thrown !== 'object' || thrown === null) return undefined
+  const fault = (thrown as { fault?: unknown }).fault
+  if (fault !== 'auth') return undefined
+  const message = (thrown as { message?: unknown }).message
+  return new TurnFault({
+    kind: ERunFailureKind.Auth,
+    message: typeof message === 'string' ? message : 'the provider refused the credential',
+  })
+}
+
+const scriptedStepsOf = (steps: readonly ScriptedModelStep[]): ScriptedModelStep[] =>
+  steps.map((step) => {
+    if (!('throws' in step)) return step
+    const fault = authFaultOf(step.throws)
+    return fault === undefined ? step : { throws: fault }
+  })
 
 const main = async (): Promise<void> => {
   const holderLabel = requireEnv('HOLDER_ID')
@@ -151,6 +188,7 @@ const main = async (): Promise<void> => {
   const plane = faultedPlane({ plane: realPlane, fault, log })
   const liveFrames = createRedisLiveFrames({ url: requireEnv('REDIS_URL'), log })
   tapToolOutput(liveFrames)
+  const podCalls = createRedisPodCallBus({ url: requireEnv('REDIS_URL'), log })
   const wakes = startPgWakeListener({ url: requireEnv('DATABASE_DIRECT_URL'), log })
   const bus = createHostBus({ wakes, liveFrames })
   const timers = { now: () => Date.now(), ...systemTimers }
@@ -193,7 +231,14 @@ const main = async (): Promise<void> => {
         const generation = (generations.get(sessionId) ?? 0) + 1
         generations.set(sessionId, generation)
         const script = scripts[`${sessionId}@${generation}`] ?? scripts[sessionId] ?? []
-        return withFirstChunkMarker(new ScriptedModel(script, undefined, existsSync))
+        const plain = (): ModelPort =>
+          new ScriptedModel(scriptedStepsOf(script), undefined, existsSync)
+        const routes = scriptRoutesOf({ sessionId, host: holderLabel, scripts })
+        const model =
+          routes.length === 0
+            ? plain()
+            : routedModelOf({ routes, fallback: plain, fileExists: existsSync })
+        return withFirstChunkMarker(recordModelOf({ model, host: holderLabel, sessionId }))
       },
       launchDirectory: workspace,
       sandboxHome: process.env.SANDBOX_HOME,
@@ -207,8 +252,12 @@ const main = async (): Promise<void> => {
     sweepMs: numberEnv('SWEEP_MS', 20_000),
     commands: composeCommands([...nativeCommands, ...composedPlugins.commands]),
     commandHandlers: new Map([...nativeCommandHandlers, ...composedPlugins.pod.commands]),
-    controlHandlers: nativeControlHandlers,
+    controlHandlers: new Map([
+      ...nativeControlHandlers,
+      [resize.spec.name, podResizeHandlerOf({ plane, dispatcher: noPodResizeDispatcher })],
+    ]),
     log,
+    podCallBus: podCalls,
     onHostIdChanged: () => watch?.recompute(),
   })
   held = holder
@@ -234,6 +283,7 @@ const main = async (): Promise<void> => {
     await pgPresence.close()
     await wakes.close()
     await liveFrames.close()
+    await podCalls.close()
     await pool.end()
     process.exit(0)
   }

@@ -37,7 +37,7 @@ Asks the operator for a value that only they have. The `operator_input` tool wri
 ### Read the outcome
 
 - `EOperatorRequestOutcome`: `delivered`, `cancelled`, `abandoned`, `expired` or `failed`.
-- `deliveredTextOf(args)` and `refusalTextOf(reason)`: the model text for a delivered value and for a refusal.
+- `deliveredTextOf(args)`, `refusalTextOf(reason)` and `parkedTextOf()`: the model text for a delivered value, for a refusal and for a parked call.
 - `operatorAnswerPayloadSchema`: the payload that comes back, either `{ callId, sealedValue }` or `{ callId, cancel: true }`.
 
 ## Plugin contributions
@@ -93,7 +93,7 @@ definePlugin({
 
 - The value never enters the transcript. `operator_input` returns the path of a file; read the value from that file and pass it to the command.
 - The file is mode 0600. Do not copy the value into a command line, a message or a file of your own.
-- Start the CLI with the `shell` tool and `input` set to true before `operator_shell_input`. A shell that is gone makes the call fail.
+- Start the CLI with `bash` and `input` set to true before `operator_shell_input`. `input` runs it in the background. A shell that is gone makes the call fail.
 - The call parks with no deadline. The turn resumes when the operator answers, cancels, or the session stops.
 - Import `@dltech/atlas-plugin-operator/pod` in the pod only.
 

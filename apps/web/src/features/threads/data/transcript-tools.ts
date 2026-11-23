@@ -1,5 +1,7 @@
 import {
+  callKindOf,
   classify,
+  ECallKind,
   ECallState,
   formatElapsed,
   imageOf,
@@ -9,6 +11,7 @@ import {
   type ToolCall,
 } from '@dltech/atlas-client/transcript'
 import type { MessageImage } from '@dltech/atlas-ui/ai/message'
+import type { CodeQualityReviewedBody } from '@dltech/atlas-core'
 import { EToolKind, EToolState } from '@dltech/atlas-ui/ai/tool'
 
 import { editBodyOf, type EditBody } from './transcript-edit-body'
@@ -39,32 +42,29 @@ export type ToolCallItem = {
   output?: string
   errorText?: string
   elapsed?: string
+  qualityReviews?: readonly CodeQualityReviewedBody[]
 }
 
-const KIND_OF_TOOL: Record<string, EToolKind> = {
-  read: EToolKind.Read,
-  read_image: EToolKind.Read,
-  grep: EToolKind.Search,
-  glob: EToolKind.Search,
-  edit: EToolKind.Edit,
-  multi_edit: EToolKind.Edit,
-  write: EToolKind.Edit,
-  web_fetch: EToolKind.Web,
-  web_search: EToolKind.Web,
-  skill: EToolKind.Skill,
-  bash: EToolKind.Shell,
+const TOOL_KIND_OF_CALL: Partial<Record<ECallKind, EToolKind>> = {
+  [ECallKind.Shell]: EToolKind.Shell,
+  [ECallKind.Read]: EToolKind.Read,
+  [ECallKind.Search]: EToolKind.Search,
+  [ECallKind.Edit]: EToolKind.Edit,
+  [ECallKind.Web]: EToolKind.Web,
+  [ECallKind.Skill]: EToolKind.Skill,
 }
+
+const FAMILY_OF_CALL: Partial<Record<ECallKind, EToolFamily>> = {
+  [ECallKind.Agent]: EToolFamily.Agent,
+  [ECallKind.Plan]: EToolFamily.Plan,
+}
+
+const toolKindOf = (name: string): EToolKind | undefined => TOOL_KIND_OF_CALL[callKindOf(name)]
+
+const familyOf = (name: string): EToolFamily =>
+  FAMILY_OF_CALL[callKindOf(name)] ?? EToolFamily.Other
 
 const TITLED_STATES: readonly EToolState[] = [EToolState.Done, EToolState.Error, EToolState.Denied]
-
-const AGENT_TOOL_PREFIX = 'agent_'
-const PLAN_TOOL = 'task_write'
-
-function familyOf(name: string): EToolFamily {
-  if (name.startsWith(AGENT_TOOL_PREFIX)) return EToolFamily.Agent
-  if (name === PLAN_TOOL) return EToolFamily.Plan
-  return EToolFamily.Other
-}
 
 const STATE_OF_CALL: Record<ECallState, EToolState> = {
   [ECallState.Pending]: EToolState.Running,
@@ -86,7 +86,7 @@ function elapsedOf(call: ToolCall): string | undefined {
 }
 
 export function editPathOf(call: ToolCall): string | undefined {
-  if (KIND_OF_TOOL[call.name] !== EToolKind.Edit) return undefined
+  if (toolKindOf(call.name) !== EToolKind.Edit) return undefined
   const input = inputOf(call)
   return str(input.path) ?? str(input.file_path) ?? str(input.filePath)
 }
@@ -107,7 +107,7 @@ export function toolCallItemOf(call: ToolCall): ToolCallItem {
   const state = STATE_OF_CALL[call.state]
   const note = call.note === null ? undefined : clipped(call.note)
   const elapsed = elapsedOf(call)
-  const kind = KIND_OF_TOOL[call.name]
+  const kind = toolKindOf(call.name)
   const classified = classify({ call, cwd: '' })
   const path = editPathOf(call)
   const change = kind === EToolKind.Edit ? editBodyOf({ call, state }) : undefined
@@ -131,5 +131,8 @@ export function toolCallItemOf(call: ToolCall): ToolCallItem {
     ...(elapsed === undefined ? {} : { elapsed }),
     ...(call.at === null ? {} : { at: call.at }),
     ...(call.settledAt === null ? {} : { settledAt: call.settledAt }),
+    ...(call.qualityReviews === undefined || call.qualityReviews.length === 0
+      ? {}
+      : { qualityReviews: call.qualityReviews }),
   }
 }

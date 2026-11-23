@@ -11,7 +11,7 @@ import {
 } from '@dltech/atlas-ui/components/alert-dialog'
 import { Badge } from '@dltech/atlas-ui/components/badge'
 
-import type { RewindKillRow } from '../data/rewind'
+import type { RewindKillRow } from '@dltech/atlas-client/session'
 
 export const REWIND_DIALOG_DESCRIPTION =
   'Rewinding stops everything started after this message. Files are left as they are.'

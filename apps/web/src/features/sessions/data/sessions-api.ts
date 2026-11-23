@@ -1,16 +1,19 @@
 import type {
+  DiagramRepairInput,
+  DiagramRepairListInput,
+  DiagramRepairListOutput,
+  DiagramRepairOutput,
   SessionSubscribeInput,
   SessionSubscribeOutput,
   SessionUnsubscribeInput,
   SessionUnsubscribeOutput,
 } from '@dltech/atlas-protocol'
-import type { SessionPageInput } from '@dltech/atlas-wire/web'
 
 import { api, cloudCall } from '@/lib/api-client'
 
 import type { SessionsApi } from './create-session'
 import type { RetryApi } from './retry-session'
-import type { RewindApi } from './session-rewind'
+import type { RewindApi } from '@dltech/atlas-client/session'
 import type { StopApi } from './stop-session'
 import type { WithdrawApi } from './withdraw-queued'
 
@@ -27,12 +30,19 @@ export const markV2SessionRead = async (args: { sessionId: string; seq: number }
   return { readSeq }
 }
 
-export const fetchSessionPage = (input: SessionPageInput) =>
-  cloudCall(api.sessions.page.query(input))
-
 export type SubscriptionsApi = {
   subscribe(input: SessionSubscribeInput): Promise<SessionSubscribeOutput>
   unsubscribe(input: SessionUnsubscribeInput): Promise<SessionUnsubscribeOutput>
+}
+
+export type DiagramsApi = {
+  repair(input: DiagramRepairInput): Promise<DiagramRepairOutput>
+  list(input: DiagramRepairListInput): Promise<DiagramRepairListOutput>
+}
+
+export const diagramsApi: DiagramsApi = {
+  repair: (input) => cloudCall(api.diagrams.repair.mutate(input)),
+  list: (input) => cloudCall(api.diagrams.list.query(input)),
 }
 
 export const sessionsApi: SessionsApi &

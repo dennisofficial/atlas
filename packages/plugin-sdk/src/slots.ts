@@ -65,6 +65,11 @@ export type WebSearchConfig = { backend: string | undefined; key: string | undef
 
 export type PodWebSearch = { config(): Promise<WebSearchConfig> }
 
+export type PodGateway = {
+  apiKey(): Promise<string | undefined>
+  imageModel(): Promise<string | undefined>
+}
+
 export type McpServerSource = 'cloud' | 'repo'
 
 export type McpSignInBegin =
@@ -94,10 +99,16 @@ export type PodControl = {
   settingsVersions(): Promise<Readonly<Record<ECloudSetting, string>>>
   memory: PodMemory
   webSearch: PodWebSearch
+  gateway: PodGateway
   mcp: PodMcpControl
   routines: PodRoutines
   subscriptions: PodSubscriptions
 }
+
+export const EMPTY_GATEWAY: PodGateway = Object.freeze({
+  apiKey: async () => undefined,
+  imageModel: async () => undefined,
+})
 
 export type PodClassifierStatus = ClassifierStatus
 

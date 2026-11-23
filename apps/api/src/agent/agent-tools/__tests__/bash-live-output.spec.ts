@@ -6,8 +6,7 @@ import { beforeAll, describe, expect, it } from 'bun:test'
 import { toThreadId, type ToolOutputChunk, type ToolOutcome } from '@dltech/atlas-core'
 
 import { BashTool } from '../bash'
-import { ForegroundOnlyShells } from '../../runtime/foreground-shells'
-import { files, processes, useTempAtlasHome } from './support'
+import { files, launcher, processes, useTempAtlasHome } from './support'
 
 useTempAtlasHome()
 
@@ -21,7 +20,7 @@ const invoke = (args: {
   command: string
   onOutput?: ((chunk: ToolOutputChunk) => void) | undefined
 }): Promise<ToolOutcome> =>
-  new BashTool(new ForegroundOnlyShells(), files, processes).invoke({
+  new BashTool({ launcher, files, processes }).invoke({
     input: { command: args.command, description: 'Exercise the shell' },
     signal: new AbortController().signal,
     idempotencyKey: 'bash-live-1',

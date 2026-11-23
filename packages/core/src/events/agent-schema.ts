@@ -6,7 +6,7 @@ import { EAgentStatus } from '../agents/status'
 import { EKilledBy } from '../shells/status'
 import { EModelFallbackReason } from './agent-body'
 import { threadIdSchema } from './ids'
-import { ERunFailureKind } from './run-failure'
+import { ERunFailureKind, runFailureSchema } from './run-failure'
 import { noticeStampSchema } from './notice-stamp-schema'
 
 export const agentEventSchemas = [
@@ -16,6 +16,7 @@ export const agentEventSchemas = [
     agentType: z.string().min(1),
     intent: z.string(),
     mode: z.enum(EAgentStart),
+    group: z.string().optional(),
     worktree: z
       .object({
         path: z.string(),
@@ -34,10 +35,12 @@ export const agentEventSchemas = [
     killedBy: z.enum(EKilledBy).optional(),
     failureCause: z.string().optional(),
     failureKind: z.enum(ERunFailureKind).catch(ERunFailureKind.Other).optional(),
+    failure: runFailureSchema.optional(),
     prose: z.string(),
     turns: z.number().int().nonnegative(),
     toolCalls: z.number().int().nonnegative(),
     relayed: z.boolean().optional(),
+    held: z.boolean().optional(),
     leftServices: z.array(z.string()).optional(),
     notice: noticeStampSchema.optional(),
   }),

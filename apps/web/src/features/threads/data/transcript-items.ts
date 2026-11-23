@@ -10,6 +10,7 @@ import {
   type RevealGate,
   type ToolCall,
   type TranscriptEntry,
+  summariesAtTarget,
   type TranscriptEntryFold,
 } from '@dltech/atlas-client/transcript'
 import {
@@ -77,6 +78,7 @@ export type TranscriptItem = Timed &
     | { kind: ETranscriptKind.Tools; id: string; calls: ToolCallItem[] }
     | SignInItem
     | RequestItem
+    | RotationItem
     | NoticeItem
   )
 
@@ -88,6 +90,14 @@ export type SignInItem = {
   url: string
   result?: 'connected' | 'failed' | undefined
   reason?: string | undefined
+}
+
+export type RotationItem = {
+  kind: ETranscriptKind.Rotation
+  id: string
+  text: string
+  handoff: string
+  instructions?: string | undefined
 }
 
 export type RequestItem = {
@@ -179,6 +189,14 @@ function textItemOf(args: {
         ...(entry.bytes === undefined ? {} : { bytes: entry.bytes }),
         ...(entry.reason === undefined ? {} : { reason: entry.reason }),
       }
+    case EEntryKind.Rotated:
+      return {
+        kind: ETranscriptKind.Rotation,
+        id: entry.key,
+        text: entry.text,
+        handoff: entry.handoff,
+        ...(entry.instructions === undefined ? {} : { instructions: entry.instructions }),
+      }
     case EEntryKind.ModelThought:
       return entry.text.trim().length === 0
         ? null
@@ -263,7 +281,7 @@ export const durableTranscriptOf = (args: {
   pluginEntries?: readonly TranscriptEntryFold[] | undefined
 }): DurableTranscript => ({
   entries: durableEntries({ events: args.events, pluginEntries: args.pluginEntries }),
-  stamps: new Map(args.events.map((event) => [event.id as string, event.at])),
+  stamps: new Map(summariesAtTarget(args.events).map((event) => [event.id as string, event.at])),
   spawns: spawnItemsOf(args.events),
   reports: [...reportItemsOf(args.events).values()],
   fast: fastEventsOf(args.events),

@@ -9,9 +9,11 @@ import {
   decisionsUrlSchema,
   EClassifierModeWire,
   EDecisionsProviderWire,
+  DEFAULT_IMAGE_MODEL_WIRE,
   EEffortLevel,
   effortOrInheritSchema,
   effortSchema,
+  EImageModelWire,
   EPlacementChooserShape,
   EVerdictTiming,
   EWebSearchBackendWire,
@@ -147,6 +149,12 @@ export const HARNESS_SETTING_ENTRIES = [
     fallback: EWebSearchBackendWire.Bing,
     consumer: ESettingConsumer.Harness,
   }),
+  settingEntry({
+    key: 'images.model',
+    schema: z.enum(EImageModelWire),
+    fallback: DEFAULT_IMAGE_MODEL_WIRE,
+    consumer: ESettingConsumer.Harness,
+  }),
   ...['context.projectInstructions', 'context.userInstructions', 'context.reload'].map((key) =>
     settingEntry({
       key,
@@ -171,6 +179,12 @@ export const HARNESS_SETTING_ENTRIES = [
     key: 'context.autoCompact',
     schema: z.number().int().min(0).max(100),
     fallback: 90,
+    consumer: ESettingConsumer.Harness,
+  }),
+  settingEntry({
+    key: 'context.autoRotate',
+    schema: z.number().int().min(0).max(100),
+    fallback: 85,
     consumer: ESettingConsumer.Harness,
   }),
   settingEntry({

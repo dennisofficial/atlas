@@ -130,3 +130,47 @@ describe('summaryPointsOf', () => {
     ])
   })
 })
+
+describe('summarising after a rotation', () => {
+  const rotated: V2Body = { type: 'rotated', handoff: 'the brief' }
+  const events = visibleOf([said('a'), replied('b'), rotated, said('c'), replied('d'), said('e')])
+
+  it('starts the range after the boundary', () => {
+    expect(summaryTargetOf({ events, throughSeq: 5 })).toEqual({
+      ok: true,
+      fromSeq: 4,
+      throughSeq: 5,
+    })
+  })
+
+  it('refuses a range that ends before the boundary', () => {
+    expect(summaryTargetOf({ events, throughSeq: 2 })).toEqual({
+      ok: false,
+      reason: SUMMARY_REFUSAL_CANNOT,
+    })
+  })
+
+  it('offers only messages after the boundary as summary points', () => {
+    expect([...summaryPointsOf(events).values()]).toEqual([{ throughSeq: 5, messages: 1 }])
+  })
+
+  it('keeps the boundary visible when a summary covers it', () => {
+    const summarised: V2Body = {
+      type: 'history-summarised',
+      fromSeq: 1,
+      throughSeq: 5,
+      anchor: ECompactionAnchor.Prefix,
+      summary: 's',
+    }
+    const after = visibleOf([
+      said('a'),
+      replied('b'),
+      rotated,
+      said('c'),
+      replied('d'),
+      summarised,
+      said('e'),
+    ])
+    expect(after.some((event) => event.type === 'rotated')).toBe(true)
+  })
+})

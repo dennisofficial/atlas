@@ -3,6 +3,7 @@ export {
   describeControlPlaneClaims,
   describeControlPlaneConformance,
   describeControlPlanePeers,
+  describeControlPlaneSessionBuckets,
   describeControlPlaneSessions,
 } from './conformance'
 export type { ConformanceParams } from './conformance'

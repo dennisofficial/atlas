@@ -1,7 +1,10 @@
 import {
   actionableInboxIds,
   EInputConsumed,
+  INBOX_KIND_EVENT,
+  INBOX_KIND_RECORD,
   INBOX_KIND_STOP,
+  isMessageInputKind,
   pendingInputsOf,
   pendingMessagesOf,
   pendingNoticesOf,
@@ -80,6 +83,12 @@ export const logPendingInputIdsOf = (events: readonly V2Event[]): number[] => {
   return [...pendingMessagesOf(pending), ...pendingNoticesOf(pending)].map((entry) => entry.inboxId)
 }
 
+export const logPendingNoticeIdsOf = (events: readonly V2Event[]): number[] =>
+  pendingNoticesOf(pendingInputsOf(events)).map((entry) => entry.inboxId)
+
+export const isNoticeEntry = (entry: InboxEntry): boolean =>
+  entry.kind === INBOX_KIND_EVENT || entry.kind === INBOX_KIND_RECORD
+
 export const waitingInputIdsOf = (args: {
   ids: readonly number[]
   failure: PrepareFailure | undefined
@@ -94,6 +103,27 @@ export const actionableEntries = (args: {
 }
 
 export const isStop = (entry: InboxEntry): boolean => entry.kind === INBOX_KIND_STOP
+
+const onThread = (args: { entry: InboxEntry; threadId: ThreadId }): boolean =>
+  args.entry.threadId === null || args.entry.threadId === args.threadId
+
+export const queuedPromptAtOf = (args: {
+  entries: readonly InboxEntry[]
+  events: readonly V2Event[]
+  threadId: ThreadId
+}): string | undefined => {
+  const posted = new Map<number, string>()
+  for (const entry of args.entries) {
+    if (!isMessageInputKind(entry.kind)) continue
+    if (!onThread({ entry, threadId: args.threadId })) continue
+    posted.set(entry.inboxId, entry.postedAt)
+  }
+  for (const input of pendingMessagesOf(pendingInputsOf(args.events))) {
+    posted.set(input.inboxId, input.at)
+  }
+  const oldest = [...posted.entries()].sort(([left], [right]) => left - right)[0]
+  return oldest?.[1]
+}
 
 export const stopSettledPromptOf = (events: readonly V2Event[]): boolean => {
   let lastPrompt = -1

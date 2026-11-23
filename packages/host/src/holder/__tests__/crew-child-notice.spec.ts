@@ -227,6 +227,7 @@ const transcriptOn = (args: { rig: HolderRig; seq: number }): ChildTranscript =>
     agentId: CHILD_THREAD,
     agentType: 'general-purpose',
     intent: 'notice',
+    group: undefined,
     lastSeq: () => args.seq,
   })
 

@@ -6,6 +6,14 @@ export { semantic, EColorScheme } from './semantic'
 export type { SemanticTheme, SemanticToken } from './semantic'
 export { buildThemeCss } from './css'
 export {
+  READING_HEADING_LEADING,
+  READING_LEADING,
+  READING_MEASURE_REM,
+  readingClasses,
+  readingRole,
+  readingType,
+} from './reading'
+export {
   EFontFamily,
   type FontFaceName,
   EFontWeight,

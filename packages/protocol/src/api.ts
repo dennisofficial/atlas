@@ -59,7 +59,11 @@ export const messageDraftSchema = z
   .refine(withinAttachmentLimit, `a message carries at most ${MAX_MESSAGE_UPLOADS} attachments`)
 
 export const sessionPostInputSchema = z
-  .strictObject({ sessionId: z.string().min(1), ...messageDraftFields })
+  .strictObject({
+    sessionId: z.string().min(1),
+    ...messageDraftFields,
+    sentAt: z.string().min(1).optional(),
+  })
   .refine(hasMessageContent, 'a message needs text or an attachment')
   .refine(withinAttachmentLimit, `a message carries at most ${MAX_MESSAGE_UPLOADS} attachments`)
 
@@ -330,6 +334,7 @@ export const sessionStatusOutputSchema = z.strictObject({
       desiredShape: podShapeSchema.optional(),
       desiredVcpus: z.number().int().min(1).optional(),
       actualVcpus: z.number().int().min(1).optional(),
+      diskGb: z.number().int().min(1).optional(),
       phase: z.enum(['steady', 'resizing', 'waiting', 'failed']),
       error: z.string().optional(),
       sizing: podSizingOutputSchema.optional(),
@@ -339,6 +344,7 @@ export const sessionStatusOutputSchema = z.strictObject({
 
 export const sessionRetryInputSchema = z.strictObject({
   sessionId: z.string().min(1),
+  agentId: z.string().min(1).optional(),
 })
 
 export const sessionStopInputSchema = z.strictObject({

@@ -10,7 +10,7 @@ import { InProcessThreadSignalBus } from './thread-signal.bus'
 import { attachLiveStream } from './thread-live-stream'
 import { ThreadSignalsService } from './thread-signals.service'
 
-const EMPTY_COUNTS = { active: 0, inactive: 0, archived: 0 }
+const EMPTY_COUNTS = { active: 0, archived: 0 }
 
 class DelayedBus extends InProcessThreadSignalBus {
   readonly acknowledgment = Promise.withResolvers<void>()

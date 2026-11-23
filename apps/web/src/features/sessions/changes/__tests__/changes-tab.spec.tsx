@@ -32,6 +32,7 @@ mock.module('@/features/sessions/changes/changes-api', () => ({
 
 const { CheckoutChoiceProvider } = await import('../../checkouts/checkout-choice-context')
 const { ChangesTab } = await import('../changes-tab')
+const { EPaneOpen } = await import('../../panel/pane-open')
 
 const realFetch = globalThis.fetch
 
@@ -104,12 +105,12 @@ const settle = async (): Promise<void> => {
   }
 }
 
-async function mount(): Promise<HTMLDivElement> {
+async function mount(value: SessionPaneValue = paneValueFixture()): Promise<HTMLDivElement> {
   const { createRoot } = await import('react-dom/client')
   const container = document.createElement('div')
   const root = createRoot(container)
   roots.add(root)
-  await act(async () => root.render(wrap()))
+  await act(async () => root.render(wrap(value)))
   await settle()
   return container
 }
@@ -206,5 +207,49 @@ describe('ChangesTab', () => {
     const text = (await mount()).textContent ?? ''
     expect(contentCalls.length).toBeGreaterThan(0)
     expect(text).toContain('unchanged lines')
+  })
+
+  it('selects and expands the checkout that holds a requested change', async () => {
+    changes.answer = {
+      checkouts: [
+        checkout({ checkoutId: 'co-1', files: [file()] }),
+        checkout({
+          checkoutId: 'co-2',
+          worktreePath: '/work/wt',
+          files: [file({ path: 'src/b.ts' })],
+        }),
+      ],
+    }
+    const container = await mount({
+      ...paneValueFixture(),
+      openRequest: { kind: EPaneOpen.Changes, path: '/work/wt/src/b.ts', id: 1 },
+    })
+    const section = container.querySelector('[data-changes-checkout]')
+    expect(section?.getAttribute('data-changes-checkout')).toBe('co-2')
+    const row = container.querySelector('[data-changed-path="src/b.ts"]')
+    expect(row?.getAttribute('aria-expanded')).toBe('true')
+    expect(container.querySelector('[data-diff-body="src/b.ts"]')).not.toBeNull()
+  })
+
+  it('falls through to the file view when no checkout has the change', async () => {
+    changes.answer = { checkouts: [checkout({ files: [file()] })] }
+    const requests: { kind: EPaneOpen; path: string }[] = []
+    await mount({
+      ...paneValueFixture(),
+      openRequest: { kind: EPaneOpen.Changes, path: '/work/app/README.md', id: 2 },
+      requestOpen: (request) => requests.push(request),
+    })
+    expect(requests).toEqual([{ kind: EPaneOpen.File, path: '/work/app/README.md' }])
+  })
+
+  it('sends a context path with no diff to the context view', async () => {
+    changes.answer = { checkouts: [checkout({ files: [file()] })] }
+    const requests: { kind: EPaneOpen; path: string }[] = []
+    await mount({
+      ...paneValueFixture(),
+      openRequest: { kind: EPaneOpen.Changes, path: '$ATLAS_CONTEXT_DIR/plan.md', id: 3 },
+      requestOpen: (request) => requests.push(request),
+    })
+    expect(requests).toEqual([{ kind: EPaneOpen.Context, path: '$ATLAS_CONTEXT_DIR/plan.md' }])
   })
 })

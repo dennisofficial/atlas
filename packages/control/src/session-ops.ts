@@ -258,6 +258,34 @@ export const recordPodWaitingIn = async (params: {
   return changed
 }
 
+export const cancelPodWaitIn = async (params: {
+  tx: ControlTx
+  sessionId: string
+}): Promise<boolean> => {
+  const { tx, sessionId } = params
+  const session = await tx.lockSession(sessionId)
+  if (session === undefined) throw new Error(`unknown session ${sessionId}`)
+  if (session.podWaitingSince === null) return false
+  const generation = session.podSizeGeneration + 1
+  const { podActualVcpus: vcpus, podActualMemoryGb: memoryGb } = session
+  await tx.setSessionPodWaitCancelled({ sessionId, generation, vcpus, memoryGb })
+  await tx.announce({ sessionId })
+  return true
+}
+
+export const recordPodDiskIn = async (params: {
+  tx: ControlTx
+  sessionId: string
+  diskGb: number
+}): Promise<boolean> => {
+  const changed = await params.tx.setSessionPodDisk({
+    sessionId: params.sessionId,
+    diskGb: params.diskGb,
+  })
+  if (changed) await params.tx.announce({ sessionId: params.sessionId })
+  return changed
+}
+
 export const recordPodFailedIn = async (params: {
   tx: ControlTx
   sessionId: string

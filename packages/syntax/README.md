@@ -41,7 +41,8 @@ draws the rows itself.
 
 ### Describe a language
 
-- `LanguageSpec`: `filetype`, `aliases`, `rules` and `words`.
+- `LanguageSpec`: `filetype`, `aliases`, `rules`, `words`, `caseInsensitive`, `identifier`,
+  `number`, `call` and `operators`.
 - `ELexRule`: `line`, `span`, `quoted` and `pattern`.
 - `LexRule`, `LineRule`, `SpanRule`, `QuotedRule`, `PatternRule`: the rule shapes.
 - `LexHighlight`: `[start, end, group]`, as a character offset pair.

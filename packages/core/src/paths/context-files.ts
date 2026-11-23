@@ -32,30 +32,12 @@ export function contextFilePathOf(args: {
       reason: `${relativePath} is absolute; name it relative to $ATLAS_CONTEXT_DIR`,
     }
   }
-  if (relativePath.startsWith('~')) {
-    return {
-      ok: false,
-      reason: `${relativePath} starts with ~; name it relative to $ATLAS_CONTEXT_DIR`,
-    }
-  }
-  if (relativePath.includes('$')) {
-    return {
-      ok: false,
-      reason: `${relativePath} names a variable; name it relative to $ATLAS_CONTEXT_DIR`,
-    }
-  }
-  if (relativePath.includes('\\')) {
-    return { ok: false, reason: `${relativePath} uses a backslash; use / to separate folders` }
-  }
   const segments = relativePath.split('/')
   if (segments.some((segment) => segment === '' || segment === '.' || segment === '..')) {
     return {
       ok: false,
       reason: `${relativePath} has an empty, . or .. folder; name a file inside $ATLAS_CONTEXT_DIR`,
     }
-  }
-  if (segments[0] === '.git') {
-    return { ok: false, reason: 'Atlas does not attach anything from .git' }
   }
   return { ok: true, path: `${args.directory.replace(/\/+$/, '')}/${relativePath}` }
 }

@@ -2,7 +2,15 @@ import { describe, expect, it } from 'bun:test'
 
 import { ESubscriptionActor, ESubscriptionEnd } from '@dltech/atlas-core'
 
-import { OTHER_SESSION, SESSION, recordsOf, setup, subscribe } from './subscription-fixtures'
+import {
+  CHILD,
+  NOW,
+  OTHER_SESSION,
+  SESSION,
+  recordsOf,
+  setup,
+  subscribe,
+} from './subscription-fixtures'
 
 describe('unsubscribing', () => {
   it('deletes the row and records the ending', async () => {
@@ -39,6 +47,45 @@ describe('unsubscribing', () => {
       }),
     ).toEqual({ ended: false })
     expect(await recordsOf({ plane })).toEqual([])
+  })
+
+  it('releases the pull request tracking target of the last subscriber', async () => {
+    const { store, plane } = await setup()
+    const subscribed = await subscribe({ plane })
+
+    await plane.unsubscribe({
+      sessionId: SESSION,
+      subscriptionId: subscribed.subscription.id,
+      by: ESubscriptionActor.Operator,
+      reason: ESubscriptionEnd.Unsubscribed,
+    })
+
+    expect(store.trackingTargets()).toMatchObject([
+      { kind: 'pull-request', repoFullName: 'acme/atlas', prNumber: 7, liveUntil: NOW },
+    ])
+  })
+
+  it('keeps the tracking target live while another thread subscribes to the pull request', async () => {
+    const { store, plane } = await setup()
+    await plane.createThread({ threadId: CHILD, sessionId: SESSION })
+    const main = await subscribe({ plane })
+    const child = await subscribe({ plane, threadId: CHILD })
+
+    await plane.unsubscribe({
+      sessionId: SESSION,
+      subscriptionId: main.subscription.id,
+      by: ESubscriptionActor.Operator,
+      reason: ESubscriptionEnd.Unsubscribed,
+    })
+    expect(store.trackingTargets()).toMatchObject([{ prNumber: 7, liveUntil: null }])
+
+    await plane.unsubscribe({
+      sessionId: SESSION,
+      subscriptionId: child.subscription.id,
+      by: ESubscriptionActor.Operator,
+      reason: ESubscriptionEnd.Unsubscribed,
+    })
+    expect(store.trackingTargets()).toMatchObject([{ prNumber: 7, liveUntil: NOW }])
   })
 
   it('refuses an id of another session', async () => {

@@ -25,10 +25,10 @@ helpers. The serve process in a pod, `apps/api` and every client read it.
 
 ## Entry points
 
-| Import                   | Use it for                                                                            |
-| ------------------------ | ------------------------------------------------------------------------------------- |
-| `@dltech/atlas-wire`     | The full contract: frames, payload schemas, capabilities, pod paths, sandbox helpers. |
-| `@dltech/atlas-wire/web` | The browser-safe subset: project, thread, settings, model, GitHub and event schemas.  |
+| Import                   | Use it for                                                                                         |
+| ------------------------ | -------------------------------------------------------------------------------------------------- |
+| `@dltech/atlas-wire`     | The full contract: frames, payload schemas, capabilities, pod paths, sandbox helpers.              |
+| `@dltech/atlas-wire/web` | The browser-safe subset: project, thread, settings, model, GitHub, notification and event schemas. |
 
 ## Capabilities
 
@@ -77,18 +77,24 @@ helpers. The serve process in a pod, `apps/api` and every client read it.
 From `apps/serve/src/frame-egress.ts`:
 
 ```ts
-import { encodeFrame } from '@dltech/atlas-wire'
-import { downgradeServeFrame } from '@dltech/atlas-wire'
+import { downgradeServeFrame, encodeFrame } from '@dltech/atlas-wire'
 
-const message = encodeFrame(downgradeServeFrame({ frame, capabilities }))
+export const encodeForPeer = (args: { frame: ServeFrame; capabilities: CapabilitySet }): string =>
+  encodeFrame(downgradeServeFrame(args))
 ```
 
-From `apps/mobile/src/sessions/load-sessions.ts`:
+From `apps/web/src/features/shell/thread-pull-requests.ts`:
 
 ```ts
-import type { WireThread } from '@dltech/atlas-wire/web'
+import type { PrStateWire, WireThread } from '@dltech/atlas-wire/web'
 
-export type LoadedSessions = { threads: readonly WireThread[] }
+export function threadPullRequestsOf(args: {
+  thread: WireThread
+  teammates: readonly WireThread[]
+  collapsed: boolean
+  states: readonly PrStateWire[]
+  family?: readonly WireThread[]
+}): PullRequestEntry[]
 ```
 
 ## Rules

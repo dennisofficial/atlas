@@ -10,7 +10,9 @@ import type { PodControlClient } from './pod-control'
 import type { CommandHandlers, ControlHandlers } from './command-intake'
 import type { NotifyDispatch } from './notify-dispatch'
 import type { PanelDemand } from './panel-demand'
+import type { PodCallBus } from './pod-call-port'
 import type { TerminalDemand } from './terminal-demand'
+import type { TurnEndedHook } from './turn-ended-hook'
 import { DEFAULT_APPEND_RETRY_MS } from './record/retry-deadline'
 
 export type SessionHolderArgs = {
@@ -39,10 +41,12 @@ export type SessionHolderArgs = {
   changes?: { content: ChangeContentStore } | undefined
   notify?: NotifyDispatch | undefined
   parkArchived?: ParkArchivedPod | undefined
+  turnEnded?: TurnEndedHook | undefined
   log?: LogPort | undefined
   onHostIdChanged?: (() => void) | undefined
   terminalDemand?: TerminalDemand | undefined
   panelDemand?: PanelDemand | undefined
+  podCallBus?: PodCallBus | undefined
 }
 
 export const SESSION_HOLDER_DEFAULTS = {

@@ -38,6 +38,8 @@ export {
   type WorkspaceGateOutcome,
 } from './calls/workspace-gate'
 export { DaemonAgentFileSystemPort } from './calls/ports/agent-filesystem'
+export { DaemonWorkspaceIdentity } from './quality/workspace-identity'
+export { QUALITY_REVIEW_BUDGET_MS, qualityStageOf } from './quality/quality-stage'
 export { DaemonFileSystemPort } from './calls/ports/filesystem'
 export {
   DaemonProcessPort,
@@ -49,6 +51,14 @@ export {
   LEASE_HAND_BACK_MARGIN_MS,
 } from './holder/drain-cap'
 export { PodCalls, type PodCallOutcome } from './holder/pod-calls'
+export type { PodCallBus } from './holder/pod-call-port'
+export { PodRouter, type PodRouterArgs } from './holder/pod-route/pod-router'
+export {
+  POD_RESPONDER_READY_WAIT_MS,
+  PodCallResponder,
+  type PodCallResponderArgs,
+} from './holder/pod-route/pod-call-responder'
+export { EPodReach, type PodFollowClose, type PodReach } from './holder/pod-route/pod-reach'
 export {
   contextFilesPlacerOf,
   placeContextFiles,
@@ -60,6 +70,7 @@ export { PANEL_HOLD_TTL_MS, PanelDemand } from './holder/panel-demand'
 export type { SessionHolderArgs } from './holder/session-holder-args'
 export type { NotifyDispatch, NotifyDispatchArgs } from './holder/notify-dispatch'
 export type { ParkArchivedPod } from './holder/park-archived'
+export type { TurnEndedArgs, TurnEndedHook } from './holder/turn-ended-hook'
 export { podControlOf, type PodControlClient } from './holder/pod-control'
 export type {
   BootNotice,

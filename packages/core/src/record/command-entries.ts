@@ -13,6 +13,7 @@ export const commandEntriesOf = (state: PendingInputsState): readonly CommandEnt
 export const COMMAND_OUTCOMES: Readonly<Record<string, readonly string[]>> = {
   rewind: ['history-rewound'],
   summarise: ['history-summarised'],
+  rotate: ['rotated'],
 }
 
 export const COMMAND_OUTCOME_EVENT_TYPES: ReadonlySet<string> = new Set(
@@ -76,6 +77,7 @@ const COMMAND_LOG_TYPES: ReadonlySet<string> = new Set([
   'input-refused',
   'history-rewound',
   'history-summarised',
+  'rotated',
 ])
 
 export const isCommandLogEvent = (event: V2Event): boolean => COMMAND_LOG_TYPES.has(event.type)

@@ -144,6 +144,13 @@ export const TooltipOpenWithDisk: Story = {
 
 export const Resizing: Story = { args: { pendingShape: { vcpus: 8, memoryGb: 64 } } }
 
+export const WaitingForIdle: Story = {
+  args: {
+    pendingShape: { vcpus: 8, memoryGb: 64 },
+    resizeWaiting: true,
+  },
+}
+
 export const ResizeFailed: Story = {
   args: {
     pendingShape: { vcpus: 8, memoryGb: 64 },

@@ -14,7 +14,6 @@ import {
   type ToolRun,
 } from '@dltech/atlas-core'
 
-import { nullUnlessInterrupted } from './interrupted'
 import { filePathSchema, resolveToolPath } from './file-text'
 import type { PathEnvironment } from '../runtime/session-paths'
 
@@ -44,7 +43,7 @@ async function modifiedAt(args: {
 }): Promise<number> {
   const stats = await args.files
     .stat({ path: args.path, threadId: args.threadId })
-    .catch(nullUnlessInterrupted)
+    .catch(() => null)
   return stats?.mtimeMs ?? 0
 }
 

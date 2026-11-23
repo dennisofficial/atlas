@@ -10,12 +10,15 @@ const catalogueFor = async (args: {
   ctx: PluginPodContext
   options: SkillsPodOptions
   directory?: string | undefined
-}): Promise<SkillCatalogue | null> =>
-  await catalogueOf({
+}): Promise<SkillCatalogue | null> => {
+  const recorded = await catalogueOf({ ctx: args.ctx, options: args.options })
+  if (recorded !== null) return recorded
+  return await catalogueOf({
     ctx: args.ctx,
     options: args.options,
     directory: args.directory ?? args.ctx.workspaceDirectory ?? undefined,
   })
+}
 
 const namesOf = async (args: {
   ctx: PluginPodContext

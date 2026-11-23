@@ -131,6 +131,9 @@ const runOn = (args: {
 const failureCode = (result: CallResult): ECallFailure | undefined =>
   result.status === ECallStatus.Failed ? result.error.code : undefined
 
+const failureMessageOf = (result: CallResult): string =>
+  result.status === ECallStatus.Failed ? result.error.message : ''
+
 describe('CallLedger under a slow or failing store', () => {
   it('never starts a run whose epoch was superseded while its journal was written', async () => {
     const store = new ControlledStore()
@@ -309,5 +312,34 @@ describe('CallLedger under a slow or failing store', () => {
     await runOn({ ledger, epoch: 1, rec })
     expect(failureCode(await rec.firstResult())).toBe(ECallFailure.PersistFailed)
     expect(rec.results.every((result) => result.status === ECallStatus.Failed)).toBe(true)
+  })
+
+  it('names the full disk when the running journal cannot be written', async () => {
+    const store = new ControlledStore()
+    store.beforeWrite = async (journal) => {
+      if (journal.state === ECallJournalState.Running) throw errno('ENOSPC')
+    }
+    const { ledger, started } = ledgerOn(store)
+    ledger.hello({ epoch: 1 })
+    const rec = recorder()
+    await runOn({ ledger, epoch: 1, rec })
+    const result = await rec.firstResult()
+    expect(failureCode(result)).toBe(ECallFailure.PersistFailed)
+    expect(failureMessageOf(result)).toContain('disk is full')
+    expect(started).toEqual([])
+  })
+
+  it('names the full disk when the done journal cannot be written', async () => {
+    const store = new ControlledStore()
+    store.beforeWrite = async (journal) => {
+      if (journal.state === ECallJournalState.Done) throw errno('ENOSPC')
+    }
+    const { ledger } = ledgerOn(store)
+    ledger.hello({ epoch: 1 })
+    const rec = recorder()
+    await runOn({ ledger, epoch: 1, rec })
+    const result = await rec.firstResult()
+    expect(failureCode(result)).toBe(ECallFailure.PersistFailed)
+    expect(failureMessageOf(result)).toContain('disk is full')
   })
 })

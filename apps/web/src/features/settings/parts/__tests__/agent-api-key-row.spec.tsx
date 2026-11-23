@@ -50,7 +50,7 @@ describe('the TypeSafe AI API key row', () => {
     expect(API_KEY_PROVIDERS.map((provider) => provider.id)).toContain(EProviderId.Typesafe)
   })
 
-  it('renders a neutral icon because there is no TypeSafe logo', async () => {
+  it('renders the TypeSafe brand mark like every other provider', async () => {
     const element = await render(
       <ApiKeyRow
         provider={providerOf(EProviderId.Typesafe)}
@@ -61,7 +61,9 @@ describe('the TypeSafe AI API key row', () => {
     )
 
     expect(element.textContent).toContain('TypeSafe AI')
-    expect(element.querySelector('svg')).not.toBeNull()
+    expect(element.querySelector('[data-size="default"] svg title')?.textContent).toBe(
+      'TypeSafe AI',
+    )
     expect(buttonLabels(element)).toContain('Add key')
   })
 })

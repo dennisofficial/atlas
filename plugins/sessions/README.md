@@ -9,7 +9,8 @@ The tools a pod uses to reach other sessions, and the plan view. The API compose
   `list_sessions` and `list_teammates`.
 - The `plan` view, which folds the plan tasks the model keeps for its turn.
 - `nestPeers`, which builds the tree of teammates under each spawner.
-- The `sessions.peers` prompt fragment, which adds the spawner line for a nested session.
+- The `sessions.peers` prompt fragment, which adds the spawner line to a session that another
+  session started.
 
 ## Does not own
 
@@ -54,6 +55,9 @@ The tools a pod uses to reach other sessions, and the plan view. The API compose
 
 Every line of a list names whether the session is working, idle, failed or archived.
 
+Both spawn tools take an optional `title`, the name of the new session. They take an optional
+`brief`, its first message. A session with no brief waits for a message.
+
 Both spawn tools take `files`: paths relative to `$ATLAS_CONTEXT_DIR`. The files are read before
 the spawn, carried on the spawn message, and written into the spawned session's own context folder
 before its first turn. An unsafe, missing or oversized file refuses the whole spawn, so no session
@@ -89,7 +93,7 @@ definePlugin({
 - A pod with no sessions port refuses `spawn_session` and `spawn_teammate`. `send_message`
   returns a refusal when it reaches no agent or session.
 - A spawn carries at most 32 files, 256 KB each and 1 MB in all. `files` names files under the
-  caller's `$ATLAS_CONTEXT_DIR` only: an absolute path, a `..` segment or `.git` is refused.
+  caller's `$ATLAS_CONTEXT_DIR`, by relative name; a symlink is followed and its content is sent.
 - Use `spawn_teammate` for a workstream this session owns. Use `spawn_session` only for work that
   belongs to the operator.
 - `send_message` is never deferred. It refuses an id that names no agent or session of the

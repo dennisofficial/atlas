@@ -72,8 +72,8 @@ agree through it.
 - `selectionPolicyOf(spec)`: the policy of a spec, with `hardExcluded`, `forceIncluded` and
   `forceExcluded`.
 - `selectedByPolicy(args)`: true when the policy keeps a path.
-- `isHardExcluded(args)`: true for `.git`, `node_modules`, a `.env*` file and a path escape.
-  `.env.example` is the one exception.
+- `isHardExcluded(args)`: true for `.git`, `node_modules`, `.venv`, `__pycache__`, a `.env*`
+  file and a path escape. `.env.example` is the one exception.
 - `HARD_EXCLUDED`: the excluded names.
 
 ### Name an artifact

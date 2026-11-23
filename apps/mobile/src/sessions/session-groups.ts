@@ -1,13 +1,17 @@
 import {
   type ESessionDisplay,
+  EPeerBucket,
+  isRecentProject,
   isSessionUnreadOf,
+  nestPeers,
+  type PeerTreeNode,
+  peerBucketOf,
   sessionDisplayOf,
 } from '@dltech/atlas-client/stream'
 import type { SessionListOutput } from '@dltech/atlas-protocol'
 
 export type V2SessionSummary = SessionListOutput['sessions'][number]
 
-export const INACTIVE_AFTER_MS = 72 * 60 * 60 * 1000
 export const NO_PROJECT_KEY = '__no-project__'
 export const NO_PROJECT_NAME = 'No project'
 
@@ -39,9 +43,11 @@ export interface ISessionEntry {
   projectName: string
   createdAt: string
   updatedAt: string
+  archivedAt: string | null
   status: ESessionDisplay | undefined
   unread: boolean
   work: SessionWork
+  children: ISessionEntry[]
 }
 
 export interface IProjectGroup {
@@ -53,17 +59,13 @@ export interface IProjectGroup {
 
 export interface ISessionPartition {
   groups: IProjectGroup[]
-  inactive: IProjectGroup[]
   archived: IProjectGroup[]
 }
 
-enum EBucket {
-  Active = 'active',
-  Inactive = 'inactive',
-  Archived = 'archived',
+interface IPlacedProject {
+  name: string
+  sessions: V2SessionSummary[]
 }
-
-const isSet = (stamp: string | null | undefined): boolean => stamp !== null && stamp !== undefined
 
 const timeOf = (stamp: string): number => {
   const parsed = Date.parse(stamp)
@@ -81,25 +83,21 @@ const placementOf = ({
   return name === undefined ? undefined : { key: projectId ?? NO_PROJECT_KEY, name }
 }
 
-const isRootSession = ({
-  summary,
-  byId,
+const placedOf = ({
+  sessions,
+  nameOf,
 }: {
-  summary: V2SessionSummary
-  byId: ReadonlyMap<string, V2SessionSummary>
-}): boolean => {
-  if (summary.nested === false) return true
-  const spawnerId = summary.spawnedBy ?? null
-  if (spawnerId === null || spawnerId === summary.sessionId) return true
-  const spawner = byId.get(spawnerId)
-  return spawner === undefined || isSet(spawner.archivedAt)
-}
-
-const bucketOf = ({ summary, now }: { summary: V2SessionSummary; now: number }): EBucket => {
-  if (isSet(summary.archivedAt)) return EBucket.Archived
-  const updatedAt = Date.parse(summary.updatedAt)
-  if (Number.isNaN(updatedAt)) return EBucket.Active
-  return now - updatedAt > INACTIVE_AFTER_MS ? EBucket.Inactive : EBucket.Active
+  sessions: readonly V2SessionSummary[]
+  nameOf: ReadonlyMap<string, string>
+}): Map<string, IPlacedProject> => {
+  const placed = new Map<string, IPlacedProject>()
+  for (const summary of sessions) {
+    const placement = placementOf({ projectId: summary.projectId, nameOf })
+    if (placement === undefined) continue
+    const current = placed.get(placement.key) ?? { name: placement.name, sessions: [] }
+    placed.set(placement.key, { ...current, sessions: [...current.sessions, summary] })
+  }
+  return placed
 }
 
 const pullRequestStateOf = (state: string | undefined): EPullRequestState => {
@@ -123,12 +121,13 @@ const workOf = (summary: V2SessionSummary): SessionWork => {
 }
 
 const entryOf = ({
-  summary,
+  node,
   projectName,
 }: {
-  summary: V2SessionSummary
+  node: PeerTreeNode<V2SessionSummary>
   projectName: string
 }): ISessionEntry => {
+  const { children, ...summary } = node
   const display = sessionDisplayOf({
     state: summary.status?.state,
     sandboxStatus: summary.sandbox?.status,
@@ -139,6 +138,7 @@ const entryOf = ({
     projectName,
     createdAt: summary.createdAt,
     updatedAt: summary.updatedAt,
+    archivedAt: summary.archivedAt,
     status: display,
     unread: isSessionUnreadOf({
       display,
@@ -146,8 +146,12 @@ const entryOf = ({
       readSeq: summary.readSeq ?? null,
     }),
     work: workOf(summary),
+    children: children.map((child) => entryOf({ node: child, projectName })),
   }
 }
+
+const byCreated = (left: V2SessionSummary, right: V2SessionSummary): number =>
+  timeOf(left.createdAt) - timeOf(right.createdAt)
 
 export const sortSessions = (sessions: readonly ISessionEntry[]): ISessionEntry[] =>
   [...sessions].sort((left, right) => timeOf(left.createdAt) - timeOf(right.createdAt))
@@ -165,40 +169,42 @@ export const partitionSessions = ({
     (left, right) => timeOf(left.createdAt) - timeOf(right.createdAt),
   )
   const nameOf = new Map(ordered.map((project) => [project.id, project.name]))
-  const byId = new Map(sessions.map((summary) => [summary.sessionId, summary]))
-  const buckets: Record<EBucket, Map<string, ISessionEntry[]>> = {
-    [EBucket.Active]: new Map(),
-    [EBucket.Inactive]: new Map(),
-    [EBucket.Archived]: new Map(),
+  const placed = placedOf({ sessions, nameOf })
+  const entriesOfBucket: Record<EPeerBucket, Map<string, ISessionEntry[]>> = {
+    [EPeerBucket.Active]: new Map(),
+    [EPeerBucket.Archived]: new Map(),
   }
-  for (const summary of sessions) {
-    if (!isRootSession({ summary, byId })) continue
-    const placement = placementOf({ projectId: summary.projectId, nameOf })
-    if (placement === undefined) continue
-    const bucket = buckets[bucketOf({ summary, now })]
-    bucket.set(placement.key, [
-      ...(bucket.get(placement.key) ?? []),
-      entryOf({ summary, projectName: placement.name }),
-    ])
+  for (const [key, project] of placed) {
+    for (const node of nestPeers([...project.sessions].sort(byCreated))) {
+      const entries = entriesOfBucket[peerBucketOf({ row: node })]
+      entries.set(key, [...(entries.get(key) ?? []), entryOf({ node, projectName: project.name })])
+    }
   }
-  const groupsOf = (bucket: EBucket): IProjectGroup[] => [
+  const createdAtOf = new Map(ordered.map((project) => [project.id, project.createdAt]))
+  const stampsOf = (key: string): (string | null | undefined)[] =>
+    (placed.get(key)?.sessions ?? []).flatMap((summary) => [summary.updatedAt, summary.archivedAt])
+  const groupsOf = (bucket: EPeerBucket): IProjectGroup[] => [
     ...ordered.map((project) => ({
       key: project.id,
       name: project.name,
       projectId: project.id,
-      sessions: sortSessions(buckets[bucket].get(project.id) ?? []),
+      sessions: sortSessions(entriesOfBucket[bucket].get(project.id) ?? []),
     })),
     {
       key: NO_PROJECT_KEY,
       name: NO_PROJECT_NAME,
       projectId: null,
-      sessions: sortSessions(buckets[bucket].get(NO_PROJECT_KEY) ?? []),
+      sessions: sortSessions(entriesOfBucket[bucket].get(NO_PROJECT_KEY) ?? []),
     },
   ]
+  const isRecentGroup = (group: IProjectGroup): boolean => {
+    const createdAt = group.projectId === null ? undefined : createdAtOf.get(group.projectId)
+    if (createdAt === undefined) return false
+    return isRecentProject({ createdAt, stamps: stampsOf(group.key), now })
+  }
   const nonEmpty = (group: IProjectGroup) => group.sessions.length > 0
   return {
-    groups: groupsOf(EBucket.Active).filter((group) => group.projectId !== null || nonEmpty(group)),
-    inactive: groupsOf(EBucket.Inactive).filter(nonEmpty),
-    archived: groupsOf(EBucket.Archived).filter(nonEmpty),
+    groups: groupsOf(EPeerBucket.Active).filter((group) => nonEmpty(group) || isRecentGroup(group)),
+    archived: groupsOf(EPeerBucket.Archived).filter(nonEmpty),
   }
 }

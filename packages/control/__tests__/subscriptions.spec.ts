@@ -5,6 +5,7 @@ import { ESubscriptionActor } from '@dltech/atlas-core'
 import {
   CHILD,
   MAIN,
+  NOW,
   REPO,
   SESSION,
   TTL_LATER,
@@ -29,7 +30,7 @@ describe('subscribing', () => {
       label: 'acme/atlas#7',
       events: [],
       createdBy: ESubscriptionActor.Agent,
-      expiresAt: TTL_LATER,
+      expiresAt: null,
     })
     expect(await plane.listSubscriptions({ sessionId: SESSION })).toEqual([result.subscription])
     expect(await recordsOf({ plane })).toEqual([
@@ -40,9 +41,79 @@ describe('subscribing', () => {
         target: { repo: REPO, number: 7 },
         label: 'acme/atlas#7',
         createdBy: ESubscriptionActor.Agent,
-        expiresAt: TTL_LATER,
       },
     ])
+  })
+
+  it('keeps an expiry it was given and records it', async () => {
+    const { plane } = await setup()
+    const result = await subscribe({ plane, expiresAt: TTL_LATER })
+
+    expect(result.subscription.expiresAt).toBe(TTL_LATER)
+    expect(await recordsOf({ plane })).toMatchObject([{ expiresAt: TTL_LATER }])
+  })
+
+  it('drops a held heartbeat expiry when a repeat names none', async () => {
+    const { store, plane } = await setup()
+    const written = await store.transact((tx) =>
+      tx.insertSubscriptionRow({
+        userId: 'user-a',
+        repoFullName: 'acme/atlas',
+        branch: '#7',
+        threadId: MAIN,
+        sessionId: SESSION,
+        provider: 'github.pull-request',
+        kind: 'pull-request',
+        prNumber: 7,
+        target: { repo: REPO, number: 7 },
+        label: 'acme/atlas#7',
+        createdBy: ESubscriptionActor.Agent,
+        events: [],
+        expiresAt: TTL_LATER,
+        deadline: null,
+        createdAt: NOW,
+      }),
+    )
+
+    const again = await subscribe({ plane })
+
+    expect([again.existed, again.updated]).toEqual([true, true])
+    expect(again.subscription.id).toBe(written.row.subscriptionId)
+    expect(again.subscription.expiresAt).toBeNull()
+    expect(
+      (await store.transact((tx) => tx.readSubscription(written.row.subscriptionId)))?.expiresAt,
+    ).toBeNull()
+  })
+
+  it('keeps an explicit deadline a repeat names none for', async () => {
+    const { store, plane } = await setup()
+    const written = await store.transact((tx) =>
+      tx.insertSubscriptionRow({
+        userId: 'user-a',
+        repoFullName: 'acme/atlas',
+        branch: '#7',
+        threadId: MAIN,
+        sessionId: SESSION,
+        provider: 'github.pull-request',
+        kind: 'pull-request',
+        prNumber: 7,
+        target: { repo: REPO, number: 7 },
+        label: 'acme/atlas#7',
+        createdBy: ESubscriptionActor.Agent,
+        events: [],
+        expiresAt: TTL_LATER,
+        deadline: TTL_LATER,
+        createdAt: NOW,
+      }),
+    )
+
+    const again = await subscribe({ plane })
+
+    expect([again.existed, again.updated]).toEqual([true, false])
+    expect(again.subscription.expiresAt).toBe(TTL_LATER)
+    expect(
+      (await store.transact((tx) => tx.readSubscription(written.row.subscriptionId)))?.deadline,
+    ).toBe(TTL_LATER)
   })
 
   it('writes no second record for the same target and events', async () => {
@@ -115,7 +186,7 @@ describe('subscribing', () => {
         kind: 'pull-request',
         repoFullName: 'acme/atlas',
         prNumber: 7,
-        liveUntil: TTL_LATER,
+        liveUntil: null,
       },
     ])
     expect(

@@ -1,4 +1,5 @@
 import type { EventDraft } from '../../events/body'
+import { clipText } from '../../text/clip-text'
 import type { ToolCall } from '../../tools/tool'
 import { EBeforeToolDecision, type BeforeToolOutcome } from '../before-tool'
 import { grantOffersOf } from './grant'
@@ -27,8 +28,7 @@ export type JudgedDraft = Extract<EventDraft, { type: 'classifier-judged' }>
 
 const REASON_LIMIT = 400
 
-const clipped = (text: string): string =>
-  text.length <= REASON_LIMIT ? text : `${text.slice(0, REASON_LIMIT - 1)}…`
+const clipped = (text: string): string => clipText({ text, limit: REASON_LIMIT })
 
 const detailsOf = ({ standing }: { standing: readonly RiskSignal[] }): string =>
   standing.map((signal) => signal.detail).join('; ')

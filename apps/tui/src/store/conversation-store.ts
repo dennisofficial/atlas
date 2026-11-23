@@ -1,5 +1,6 @@
 import type { Event } from '@dltech/atlas-core'
-import type { ChannelSignal, TurnSpend, Unsubscribe } from '@dltech/atlas-harness'
+import type { ChannelSignal, Unsubscribe } from '@dltech/atlas-client/channel'
+import type { TurnSpend } from '@dltech/atlas-harness'
 import {
   assembleTranscript,
   persistedFailureOf,
@@ -175,10 +176,7 @@ export function createConversationStore(args: ConversationStoreArgs): Conversati
     repaintNow()
   }
 
-  let unsubscribeFromChannel: Unsubscribe | undefined = args.channel.subscribe({
-    threadId: args.threadId,
-    listener: handleSignal,
-  })
+  let unsubscribeFromSignals: Unsubscribe | undefined = args.signals.subscribe(handleSignal)
 
   const unsubscribeFromFeed = watchPendingTldr({
     threadId: args.threadId,
@@ -280,8 +278,8 @@ export function createConversationStore(args: ConversationStoreArgs): Conversati
 
     dispose() {
       timers.dispose()
-      unsubscribeFromChannel?.()
-      unsubscribeFromChannel = undefined
+      unsubscribeFromSignals?.()
+      unsubscribeFromSignals = undefined
       unsubscribeFromFeed()
       unsubscribeFromSandbox?.()
       listeners.clear()

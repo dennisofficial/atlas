@@ -19,6 +19,7 @@ import {
   EDetail,
   EToolClass,
   measureOfSentence,
+  qualityNoticeOf,
   segmentsOf,
   sentenceOf,
   type Read,
@@ -32,7 +33,7 @@ import { markPaint, SHIPPED_MARK, type EMark } from '../../tool-marks'
 import { SpinnerGlyph } from '../shimmer-line'
 import { ElapsedNote, elapsedCellsOf } from './tool-elapsed'
 import { Attachments } from './tool-run-attachments'
-import { QualityIndicator, qualityNoticeOf, qualityNoticeText } from './quality-indicator'
+import { QualityIndicator, qualityNoticeText } from './quality-indicator'
 import { moreKey, sentenceKey } from './tool-run-expansion'
 import { MergedBlock } from './tool-run-merged'
 import { GAP, Row, RunDetail, STREAM_TAIL, Streaming } from './tool-run-rows'

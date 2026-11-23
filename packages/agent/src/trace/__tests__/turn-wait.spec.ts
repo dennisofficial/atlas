@@ -1,94 +1,136 @@
 import { describe, expect, it } from 'bun:test'
 
 import type { Event, ThreadId } from '@dltech/atlas-core'
-import { ETurnEntry, EWake } from '@dltech/atlas-observability'
+import { EWake } from '@dltech/atlas-observability'
 
 import type { AgentRecordPort } from '../../record/agent-record.port'
-import { createWakeTracker, promptQueuedMsOf, queuedMsSince, turnWaitOf } from '../turn-wait'
+import { createWakeTracker, promptAtOf, promptQueuedMsOf, turnWaitOf } from '../turn-wait'
 
-const event = (args: { type: string; at: string }) =>
+const THREAD = 'thr-1' as ThreadId
+
+const event = (args: { type: string; at: string; inboxId?: number | undefined }) =>
   ({
     id: 'evt-1',
     seq: 1,
-    threadId: 'thr-1' as ThreadId,
+    threadId: THREAD,
     runId: 'run-1',
     depth: 0,
     ...args,
   }) as unknown as Event
 
-const record = (events: readonly Event[]): AgentRecordPort =>
+const record = (
+  events: readonly Event[],
+  over: { posted?: ReadonlyMap<number, string>; queued?: string | null } = {},
+): AgentRecordPort =>
   ({
     ownEvents: async () => [...events],
+    postedInputAts: async () => over.posted ?? new Map(),
+    queuedSince: () => over.queued ?? null,
   }) as unknown as AgentRecordPort
 
 describe('promptQueuedMsOf', () => {
-  it('measures from the prompt the turn answers', () => {
-    const events = [
-      event({ type: 'user-said', at: '2026-11-20T10:00:00.000Z' }),
-      event({ type: 'user-said', at: '2026-11-20T10:00:30.000Z' }),
-    ]
-    expect(promptQueuedMsOf({ events, now: Date.parse('2026-11-20T10:00:32.500Z') })).toBe(2500)
+  it('measures from the prompt post time', () => {
+    expect(
+      promptQueuedMsOf({
+        now: Date.parse('2026-11-20T10:00:32.500Z'),
+        promptAt: Date.parse('2026-11-20T10:00:30.000Z'),
+      }),
+    ).toBe(2500)
   })
 
-  it('is absent when the prompt was already answered', () => {
-    const events = [
-      event({ type: 'user-said', at: '2026-11-20T10:00:00.000Z' }),
-      event({ type: 'assistant-said', at: '2026-11-20T10:00:05.000Z' }),
-    ]
-    expect(
-      promptQueuedMsOf({ events, now: Date.parse('2026-11-20T10:01:00.000Z') }),
-    ).toBeUndefined()
-  })
-
-  it('is absent when a notice woke the turn', () => {
-    const events = [event({ type: 'assistant-said', at: '2026-11-20T10:00:05.000Z' })]
-    expect(
-      promptQueuedMsOf({ events, now: Date.parse('2026-11-20T10:01:00.000Z') }),
-    ).toBeUndefined()
+  it('is absent when the turn answers no prompt', () => {
+    expect(promptQueuedMsOf({ now: 1, promptAt: undefined })).toBeUndefined()
   })
 
   it('is zero rather than negative on a clock that stepped back', () => {
-    const events = [event({ type: 'user-said', at: '2026-11-20T10:00:05.000Z' })]
-    expect(promptQueuedMsOf({ events, now: Date.parse('2026-11-20T10:00:00.000Z') })).toBe(0)
+    expect(
+      promptQueuedMsOf({
+        now: Date.parse('2026-11-20T10:00:00.000Z'),
+        promptAt: Date.parse('2026-11-20T10:00:05.000Z'),
+      }),
+    ).toBe(0)
   })
 })
 
-describe('queuedMsSince', () => {
-  it('measures from the post of an input the drain has not reached yet', () => {
+describe('promptAtOf', () => {
+  it('times an inbox-backed prompt from its post time, not from when it reached the log', async () => {
     expect(
-      queuedMsSince({
-        since: '2026-11-20T10:00:00.000Z',
-        now: Date.parse('2026-11-20T10:00:07.393Z'),
+      await promptAtOf({
+        record: record([], { posted: new Map([[7, '2026-11-20T10:00:00.000Z']]) }),
+        events: [event({ type: 'user-said', at: '2026-11-20T10:00:05.000Z', inboxId: 7 })],
+        threadId: THREAD,
       }),
-    ).toBe(7393)
+    ).toBe(Date.parse('2026-11-20T10:00:00.000Z'))
   })
 
-  it('is absent when nothing is queued', () => {
-    expect(queuedMsSince({ since: null, now: 1 })).toBeUndefined()
+  it('times a prompt that never came through the inbox from its own stamp', async () => {
+    expect(
+      await promptAtOf({
+        record: record([]),
+        events: [event({ type: 'user-said', at: '2026-11-20T10:00:05.000Z' })],
+        threadId: THREAD,
+      }),
+    ).toBe(Date.parse('2026-11-20T10:00:05.000Z'))
+  })
+
+  it('times the prompt the log holds over a queue that arrived behind it', async () => {
+    expect(
+      await promptAtOf({
+        record: record([], {
+          posted: new Map([[7, '2026-11-20T10:00:04.000Z']]),
+          queued: '2026-11-20T10:00:30.000Z',
+        }),
+        events: [event({ type: 'user-said', at: '2026-11-20T10:00:05.000Z', inboxId: 7 })],
+        threadId: THREAD,
+      }),
+    ).toBe(Date.parse('2026-11-20T10:00:04.000Z'))
+  })
+
+  it('falls back to the post time of a prompt the inbox holds and the log does not', async () => {
+    expect(
+      await promptAtOf({
+        record: record([], { queued: '2026-11-20T10:00:02.000Z' }),
+        events: [event({ type: 'assistant-said', at: '2026-11-20T10:00:00.000Z' })],
+        threadId: THREAD,
+      }),
+    ).toBe(Date.parse('2026-11-20T10:00:02.000Z'))
+  })
+
+  it('is absent when the turn answers neither a said prompt nor a queued one', async () => {
+    expect(
+      await promptAtOf({
+        record: record([]),
+        events: [event({ type: 'assistant-said', at: '2026-11-20T10:00:00.000Z' })],
+        threadId: THREAD,
+      }),
+    ).toBeUndefined()
   })
 })
 
 describe('turnWaitOf', () => {
   it('reports warm on a thread whose earlier turn ran through another record instance', async () => {
-    const threadId = 'thr-wake-across-records' as ThreadId
     const events = [event({ type: 'user-said', at: '2026-11-20T10:00:00.000Z' })]
 
     expect(
       await turnWaitOf({
         record: record(events),
-        threadId,
-        entry: ETurnEntry.Start,
+        threadId: THREAD,
         now: Date.parse('2026-11-20T10:00:01.000Z'),
       }),
-    ).toEqual({ wake: EWake.Cold, queuedMs: 1000 })
+    ).toEqual({
+      fields: { wake: EWake.Cold, queuedMs: 1000 },
+      promptAt: Date.parse('2026-11-20T10:00:00.000Z'),
+    })
     expect(
       await turnWaitOf({
         record: record(events),
-        threadId,
-        entry: ETurnEntry.Start,
+        threadId: THREAD,
         now: Date.parse('2026-11-20T10:00:02.000Z'),
       }),
-    ).toEqual({ wake: EWake.Warm, queuedMs: 2000 })
+    ).toEqual({
+      fields: { wake: EWake.Warm, queuedMs: 2000 },
+      promptAt: Date.parse('2026-11-20T10:00:00.000Z'),
+    })
   })
 
   it('reports cold for the first turn of every thread', async () => {
@@ -97,41 +139,40 @@ describe('turnWaitOf', () => {
       turnWaitOf({
         record: record([]),
         threadId: threadId as ThreadId,
-        entry: ETurnEntry.Start,
         now,
         wakes,
       })
 
-    expect(await turnOf('thr-a', 0)).toEqual({ wake: EWake.Cold })
-    expect(await turnOf('thr-b', 0)).toEqual({ wake: EWake.Cold })
-    expect(await turnOf('thr-a', 0)).toEqual({ wake: EWake.Warm })
+    expect((await turnOf('thr-a', 0)).fields).toEqual({ wake: EWake.Cold })
+    expect((await turnOf('thr-b', 0)).fields).toEqual({ wake: EWake.Cold })
+    expect((await turnOf('thr-a', 0)).fields).toEqual({ wake: EWake.Warm })
   })
 
   it('carries the queued input post time even when no user-said marks the turn yet', async () => {
-    const queued = {
-      ownEvents: async () => [],
-      queuedSince: () => '2026-11-20T10:00:00.000Z',
-    } as unknown as AgentRecordPort
-
     expect(
       await turnWaitOf({
-        record: queued,
+        record: record([], { queued: '2026-11-20T10:00:00.000Z' }),
         threadId: 'thr-queued' as ThreadId,
-        entry: ETurnEntry.Start,
         now: Date.parse('2026-11-20T10:00:19.000Z'),
         wakes: createWakeTracker(),
       }),
-    ).toEqual({ wake: EWake.Cold, queuedMs: 19000 })
+    ).toEqual({
+      fields: { wake: EWake.Cold, queuedMs: 19000 },
+      promptAt: Date.parse('2026-11-20T10:00:00.000Z'),
+    })
   })
 
-  it('carries nothing on a resume', async () => {
+  it('carries the wake and the queue on a resume too', async () => {
     expect(
       await turnWaitOf({
-        record: record([]),
-        threadId: 'thr-1' as ThreadId,
-        entry: ETurnEntry.Resume,
-        now: 0,
+        record: record([event({ type: 'user-said', at: '2026-11-20T10:00:00.000Z' })]),
+        threadId: 'thr-resume' as ThreadId,
+        now: Date.parse('2026-11-20T10:00:04.000Z'),
+        wakes: createWakeTracker(),
       }),
-    ).toEqual({})
+    ).toEqual({
+      fields: { wake: EWake.Cold, queuedMs: 4000 },
+      promptAt: Date.parse('2026-11-20T10:00:00.000Z'),
+    })
   })
 })

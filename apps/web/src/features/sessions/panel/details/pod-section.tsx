@@ -22,7 +22,7 @@ import {
 
 import { podChipStatusOf } from '../../data/pod-chip-status'
 import type { PodMetricsSample } from '../../data/pod-metrics-series'
-import { resizePod } from '../../data/pod-resources'
+import { cancelPodResize, resizePod } from '../../data/pod-resources'
 import { sessionsApi } from '../../data/sessions-api'
 import { usePodMetrics } from '../../data/use-pod-metrics'
 import { usePodPower, type PodDeclaredState, type PodPower } from '../../data/use-pod-power'
@@ -67,7 +67,9 @@ export type PodSectionView = {
   shapes: readonly PodShape[]
   unavailable: readonly UnavailablePodShape[]
   agent37: boolean
+  diskGb?: number
   pendingShape?: PodShape
+  resizeWaiting?: true
   resizeError?: string
 }
 
@@ -76,21 +78,23 @@ export const podSectionViewOf = (args: {
   live: boolean
   sandbox?: SessionStatusOutput['sandbox']
   sandboxProvider?: SessionStatusOutput['sandboxProvider']
-}): PodSectionView | null => {
+}): PodSectionView => {
   const { pod, live, sandbox, sandboxProvider } = args
-  const status = podChipStatusOf({ pod, live, sandbox })
-  if (status === null) return null
+  const status = podChipStatusOf({ pod: pod ?? { phase: 'steady' }, live, sandbox })
+  const state = status?.state ?? (live ? EPodState.Running : EPodState.Parked)
   const offered = pod?.sizing?.offered ?? [DEFAULT_POD_SHAPE]
   const shape = podShapeOfView(pod) ?? pod?.desiredShape ?? offered[0] ?? DEFAULT_POD_SHAPE
   const pendingShape =
     pod?.phase === 'steady' || pod?.desiredShape === undefined ? undefined : pod.desiredShape
   return {
-    state: status.state,
+    state,
     shape,
     shapes: offered,
     unavailable: pod?.sizing?.unavailable ?? [],
     agent37: sandboxProvider === ESandboxProvider.Agent37,
+    ...(pod?.diskGb === undefined ? {} : { diskGb: pod.diskGb }),
     ...(pendingShape === undefined ? {} : { pendingShape }),
+    ...(pod?.phase === 'waiting' ? { resizeWaiting: true as const } : {}),
     ...(pod?.error === undefined ? {} : { resizeError: pod.error }),
   }
 }
@@ -106,6 +110,8 @@ export type PodPaneSectionProps = PodSectionView & {
   onConfirm: () => void
   onCancel: () => void
   onResize: (shape: PodShape) => void
+  onResizeNow: () => Promise<void>
+  onCancelResize: () => Promise<void>
   onGrowDisk: (diskGb: number) => void
 }
 
@@ -117,6 +123,7 @@ const sectionOf = (props: PodPaneSectionProps): PodSectionProps => {
     shapes: props.shapes,
     unavailable: props.unavailable,
     pendingShape: props.pendingShape,
+    resizeWaiting: props.resizeWaiting === true,
     resizeError: props.resizeError,
     series: props.series,
     usageUnavailable: props.usageUnavailable,
@@ -124,6 +131,7 @@ const sectionOf = (props: PodPaneSectionProps): PodSectionProps => {
     oomKills: latest?.oomKills,
     oomEvents: latest?.oomEvents,
     commandRamLimitGb: latest?.commandRamLimitGb,
+    diskLimitGb: props.diskGb,
     sizeMenuOpen: props.sizeMenuOpen,
     onSizeMenuOpenChange: props.onSizeMenuOpenChange,
     stopping: props.power.state.phase === 'sleeping',
@@ -131,6 +139,8 @@ const sectionOf = (props: PodPaneSectionProps): PodSectionProps => {
     onStart: props.onStart,
     onStop: props.onStop,
     onResize: props.onResize,
+    onResizeNow: props.onResizeNow,
+    onCancelResize: props.onCancelResize,
     diskGrow: props.agent37,
     onGrowDisk: props.onGrowDisk,
     onConfirm: props.onConfirm,
@@ -163,8 +173,8 @@ export function SessionPodSection() {
     sandbox: status?.sandbox,
     sandboxProvider: status?.sandboxProvider,
   })
-  const power = usePodPower({ sessionId, declared: declaredPodStateOf(section?.state) })
-  const running = section?.state === EPodState.Running
+  const power = usePodPower({ sessionId, declared: declaredPodStateOf(section.state) })
+  const running = section.state === EPodState.Running
   const metrics = usePodMetrics({ sessionId, enabled: running })
   const busy = podBusyOfView({ view, status })
   const { confirmation, handleResize } = useShapeResizeConfirmation({
@@ -182,7 +192,6 @@ export function SessionPodSection() {
   const disk = useDiskResizeConfirmation({
     busy,
     onResize: async (request) => {
-      if (section === null) return
       await resizePod({
         api: sessionsApi,
         sessionId,
@@ -193,7 +202,20 @@ export function SessionPodSection() {
       })
     },
   })
-  if (section === null) return null
+  const handleResizeNow = async () => {
+    const shape = section.pendingShape
+    if (shape === undefined) return
+    await resizePod({
+      api: sessionsApi,
+      sessionId,
+      vcpus: shape.vcpus,
+      memoryGb: shape.memoryGb,
+      whenIdle: false,
+    })
+  }
+  const handleCancelResize = async () => {
+    await cancelPodResize({ api: sessionsApi, sessionId })
+  }
   return (
     <>
       <PodPaneSection
@@ -208,6 +230,8 @@ export function SessionPodSection() {
         onConfirm={power.forceSleep}
         onCancel={power.cancel}
         onResize={handleResize}
+        onResizeNow={handleResizeNow}
+        onCancelResize={handleCancelResize}
         onGrowDisk={disk.handleGrow}
       />
       <ResizeBusyDialog confirmation={confirmation} body={POD_RESTART_BODY} />

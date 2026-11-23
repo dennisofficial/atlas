@@ -7,6 +7,12 @@ describe('sessionIdOfData', () => {
     expect(sessionIdOfData({ sessionId: 'session-1', seq: 7 })).toBe('session-1')
   })
 
+  it('opens no session for a routine notice', () => {
+    expect(
+      sessionIdOfData({ sessionId: 'routine-rtn-1', seq: 0, routineId: 'rtn-1' }),
+    ).toBeUndefined()
+  })
+
   it('ignores data that names no session', () => {
     expect(sessionIdOfData({ seq: 7 })).toBeUndefined()
     expect(sessionIdOfData({ sessionId: '' })).toBeUndefined()

@@ -34,13 +34,25 @@ export type ControlSessionRow = {
   routineId: string | null
 }
 
+export type SessionPageCursor = { createdAt: string; sessionId: string }
+
 export type SessionListParams = {
   userId: string
   projectId?: string | undefined
   sessionId?: string | undefined
   spawnedBySessionId?: string | undefined
   limit: number
+  archivedOnly?: boolean | undefined
+  search?: string | undefined
+  after?: SessionPageCursor | undefined
 }
+
+export type SessionBucketCountParams = {
+  userId: string
+  search?: string | undefined
+}
+
+export type SessionBucketCounts = { archived: number }
 
 export type SessionTurnEnding = {
   seq: number

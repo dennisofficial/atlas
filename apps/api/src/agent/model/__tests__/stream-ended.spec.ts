@@ -4,7 +4,7 @@ import { MockLanguageModelV4 } from 'ai/test'
 import { InvalidResponseDataError } from 'ai'
 import type { LanguageModelV4StreamPart } from '@ai-sdk/provider'
 
-import { EProviderFailureKind, type ProviderPrompt } from '@dltech/atlas-core'
+import { EFinishReason, EProviderFailureKind, type ProviderPrompt } from '@dltech/atlas-core'
 
 import { runModelStream } from '../ai-sdk-model-port'
 import { StreamEndedWithoutFinish } from '../stream-ended-without-finish'
@@ -81,12 +81,14 @@ describe('a model stream that ends without a finish part', () => {
     const controller = new AbortController()
     controller.abort()
 
-    await runModelStream({
+    const result = await runModelStream({
       model: modelStreaming(TEXT),
       prompt,
       tools: [],
       signal: controller.signal,
     })
+
+    expect(result).toEqual({ parts: [], toolCalls: [], finishReason: EFinishReason.Other })
   })
 
   it('reads the openai-compatible truncation report as the same typed error', async () => {

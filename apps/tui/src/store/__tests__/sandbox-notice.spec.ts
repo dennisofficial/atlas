@@ -3,6 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { createDeltaChannel, ESandboxState } from '@dltech/atlas-harness'
 
 import { createConversationStore } from '../conversation-store'
+import { channelSignalFeed } from '../../composition/channel-signal-feed'
 import { deriveTranscript, EEntryKind } from '@dltech/atlas-client/transcript'
 import type { SidebarContainer } from '../sidebar-model'
 import { transcriptSandboxOf } from '../transcript-sandbox'
@@ -74,7 +75,7 @@ describe('the transient sandbox line in the transcript', () => {
     let held: SidebarContainer = STARTING
     const listeners = new Set<() => void>()
     const store = createConversationStore({
-      channel,
+      signals: channelSignalFeed({ channel, threadId: fixtureThreadId }),
       threadId: fixtureThreadId,
       sandbox: {
         current: () => held,

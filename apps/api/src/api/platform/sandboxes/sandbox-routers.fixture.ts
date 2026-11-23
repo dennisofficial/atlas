@@ -8,7 +8,7 @@ import {
   createMiddlewareApp,
   UNTHROTTLED_RATE_LIMIT,
 } from '../../../_module/trpc/trpc-middleware.fixture'
-import { cipher } from './sandboxes.fixture'
+import { cipher, databaseEnv } from './sandboxes.fixture'
 import { SandboxCheckpointRouter } from './sandbox-checkpoint.router'
 import { SandboxTokenMiddleware } from './sandbox-token.middleware'
 import { SandboxesRouter } from './sandboxes.router'
@@ -44,7 +44,7 @@ const verifier = {
 export const inertVercel = {} as unknown as VercelSandboxClient
 
 export const sandboxRoutersService = (): SandboxesService =>
-  new SandboxesService(inertVercel, cipher, inertSignals())
+  new SandboxesService(inertVercel, cipher, inertSignals(), databaseEnv())
 
 export function createSandboxRoutersApp(
   service: SandboxesService = sandboxRoutersService(),

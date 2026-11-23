@@ -13,7 +13,7 @@ import {
 } from '@dltech/atlas-core'
 import { z } from 'zod'
 
-import { nullUnlessInterrupted } from './interrupted'
+import { nullIfMissing } from './interrupted'
 import { writeFileAtomically } from './atomic-write'
 import { FileWriteGuardPort, SerializedWrites } from './write-guard'
 import {
@@ -74,7 +74,7 @@ export class WriteTool extends SchemaTool<typeof inputSchema> {
       threadId,
       path,
       write: async (): Promise<ToolOutcome> => {
-        const stats = await this.files.stat({ path, threadId }).catch(nullUnlessInterrupted)
+        const stats = await this.files.stat({ path, threadId }).catch(nullIfMissing)
         if (stats !== null && !stats.isFile()) {
           return { ok: false, reason: `${path} already exists and is not a regular file.` }
         }
@@ -91,7 +91,7 @@ export class WriteTool extends SchemaTool<typeof inputSchema> {
           } else {
             const existing = await this.files
               .readTextForEdit({ path, threadId })
-              .catch(nullUnlessInterrupted)
+              .catch(nullIfMissing)
             if (existing === null) {
               captureFault = captureUnavailableFault({
                 path,

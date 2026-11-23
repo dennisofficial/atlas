@@ -42,6 +42,8 @@ import {
   type ListRoutinesParams,
   type RoutineRow,
   type RoutineRunRow,
+  type SessionBucketCountParams,
+  type SessionBucketCounts,
   type SessionListParams,
   type SessionModelRow,
   type ControlTerminalRow,
@@ -68,10 +70,12 @@ import {
 import { AppendAbort, type AppendOutcome } from './refusal'
 import {
   archiveIn,
+  cancelPodWaitIn,
   createSessionIn,
   markReadIn,
   recordPodAppliedIn,
   recordPodDesiredIn,
+  recordPodDiskIn,
   recordPodFailedIn,
   recordPodWaitingIn,
   renameIn,
@@ -210,6 +214,10 @@ export class ControlPlane {
     return this.store.transact((tx) => recordPodAppliedIn({ tx, ...params }))
   }
 
+  async recordPodDisk(params: { sessionId: string; diskGb: number }): Promise<boolean> {
+    return this.store.transact((tx) => recordPodDiskIn({ tx, ...params }))
+  }
+
   async recordPodFailed(params: {
     sessionId: string
     generation: number
@@ -224,6 +232,10 @@ export class ControlPlane {
     since: string
   }): Promise<boolean> {
     return this.store.transact((tx) => recordPodWaitingIn({ tx, ...params }))
+  }
+
+  async cancelPodWait(params: { sessionId: string }): Promise<boolean> {
+    return this.store.transact((tx) => cancelPodWaitIn({ tx, ...params }))
   }
 
   async spawnPeer(params: {
@@ -383,6 +395,10 @@ export class ControlPlane {
         timings,
       })
     })
+  }
+
+  async countSessionBuckets(params: SessionBucketCountParams): Promise<SessionBucketCounts> {
+    return this.store.transact((tx) => tx.countSessionBuckets(params))
   }
 
   async readSessionView(params: { sessionId: string; threadId: string }): Promise<SessionViewRead> {

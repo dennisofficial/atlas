@@ -134,6 +134,7 @@ export const rig = (args: { nodes?: Record<string, FakeNode>; crew?: PodCrew } =
     control: {
       mcp: EMPTY_MCP_CONTROL,
       webSearch: { config: async () => ({ backend: undefined, key: undefined }) },
+      gateway: { apiKey: async () => undefined, imageModel: async () => undefined },
       routines: EMPTY_ROUTINES,
       subscriptions: EMPTY_SUBSCRIPTIONS,
       settingsVersions: async () => UNVERSIONED_SETTINGS,

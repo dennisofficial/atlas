@@ -3,10 +3,11 @@ import {
   EKilledBy,
   finishedTurnOf,
   type AgentLost,
+  type CrewRoomMember,
   INBOX_KIND_EVENT,
   inboxEventPayloadOf,
   type EventBody,
-  isResumableOf,
+  type RunFailure,
   type ThreadId,
 } from '@dltech/atlas-core'
 import { PauseSignal, type LoopTurnRunner, type TurnOutcome } from '@dltech/atlas-agent'
@@ -18,10 +19,13 @@ import type { LeaseLostError, SessionRecord } from '../record/record-adapter'
 import { childInboxOf, type ChildInbox } from './child-inbox'
 import { inboxInputOf, type CrewSender } from './child-message'
 import { childPortOf } from './child-port'
+import { childResumeAllowed } from './child-repair'
 import { childChoiceOf } from './child-model'
 import {
   failureOf,
   progressOf,
+  recordedFailureOf,
+  runFailureOf,
   snapshotOf,
   statusOf,
   activeWorktreeSnapshotOf,
@@ -29,7 +33,8 @@ import {
 import { DRAIN_IN_FLIGHT_CAP_MS } from '../drain-cap'
 import { childRunnerOf } from './child-runner'
 import { ChildTranscript } from './child-transcript'
-import { driveLifecycle, type DriveArgs } from './child-turns'
+import { GroupRunState } from './group-run-state'
+import { driveLifecycle, settledWithin, type DriveArgs } from './child-turns'
 import { lastSeqOf } from './child-reports'
 import {
   adoptRecordOf,
@@ -61,6 +66,9 @@ export class ChildRun {
   private endedAt: string | undefined
   private killedBy: EKilledBy | undefined
   private failure: string | undefined
+  private readonly group: GroupRunState
+  private awaitingAdoptSettle = false
+  private readonly posts: (post: () => Promise<void>) => Promise<void>
 
   private constructor(
     private readonly args: ChildRunArgs,
@@ -70,6 +78,8 @@ export class ChildRun {
   ) {
     this.agentId = agentId
     this.startedAt = startedAt
+    this.group = new GroupRunState(args.groupHold ?? ((draft) => draft))
+    this.posts = args.postHold ?? ((post) => post())
     this.transcript = new ChildTranscript({
       deps: args.deps,
       runtime: args.runtime,
@@ -79,6 +89,7 @@ export class ChildRun {
       agentId,
       agentType: args.agentType,
       intent: args.intent,
+      group: args.group,
       lastSeq: () => lastSeqOf(this.record.eventCache().eventsAfter(0)),
     })
   }
@@ -123,12 +134,18 @@ export class ChildRun {
     if (!adopted.ok) return adopted
     run.record = adopted.record
     run.inbox = childInboxOf({ deps: args.deps, record: adopted.record, threadId: run.agentId })
-    if (args.settled === undefined) await run.endSettledTurn()
-    else {
+    run.awaitingAdoptSettle = args.settled === undefined
+    if (args.settled !== undefined) {
       run.ending = args.settled.status
       run.endedAt = args.settled.endedAt
     }
     return { ok: true, run }
+  }
+
+  async finishAdopted(): Promise<void> {
+    if (!this.awaitingAdoptSettle) return
+    this.awaitingAdoptSettle = false
+    await this.endSettledTurn()
   }
 
   get done(): Promise<void> {
@@ -150,14 +167,12 @@ export class ChildRun {
     if (this.pump === undefined) this.begin({ resume: true })
   }
 
-  async continueTurn(): Promise<void> {
+  async continueTurn(args: { retry?: boolean } = {}): Promise<void> {
+    const { agentId, record } = this
+    const resume = childResumeAllowed({ agentId, record, retry: args.retry === true })
     if (this.pump !== undefined) return
-    if (!this.resumable() && !(await this.inbox.intake.hasQueued())) return
+    if (!resume && !(await this.inbox.intake.hasQueued())) return
     this.begin(this.ending === undefined ? { resume: true } : { restart: true })
-  }
-
-  resumable(): boolean {
-    return isResumableOf(this.record.eventCache().loopState())
   }
 
   stop(by: EKilledBy): SubagentSnapshot {
@@ -180,23 +195,17 @@ export class ChildRun {
   }
 
   private async settleOrAbort(): Promise<void> {
-    if (await this.settledWithin(DRAIN_IN_FLIGHT_CAP_MS)) return
+    const settled = await settledWithin({
+      timers: this.args.deps.timers,
+      ms: DRAIN_IN_FLIGHT_CAP_MS,
+      done: this.done,
+    })
+    if (settled) return
     this.args.deps.log?.warn({
       source: 'holder.drain',
       message: `sub-agent ${this.agentId} ran in flight for ${DRAIN_IN_FLIGHT_CAP_MS}ms, past the drain cap; aborting it for the hand-off`,
     })
     this.abort?.abort('handoff')
-  }
-
-  private settledWithin(ms: number): Promise<boolean> {
-    const timers = this.args.deps.timers
-    return new Promise<boolean>((resolve) => {
-      const timer = timers.setTimeout(() => resolve(false), ms)
-      void this.done.then(() => {
-        timers.clearTimeout(timer)
-        resolve(true)
-      })
-    })
   }
 
   dispose(): void {
@@ -205,6 +214,15 @@ export class ChildRun {
 
   isRunning(): boolean {
     return this.pump !== undefined
+  }
+
+  member(): CrewRoomMember {
+    return {
+      agentId: this.agentId,
+      agentType: this.args.agentType,
+      group: this.args.group,
+      running: this.group.runningForGroup,
+    }
   }
 
   snapshot(): SubagentSnapshot {
@@ -241,6 +259,7 @@ export class ChildRun {
   }
 
   private begin(args: DriveArgs): void {
+    this.group.started()
     this.pump = this.drive(args).catch((error: unknown) => {
       this.args.deps.log?.error({
         source: 'holder.crew',
@@ -260,6 +279,7 @@ export class ChildRun {
         deps: this.args.deps,
         runtime: this.args.runtime,
         record: this.record,
+        parentThreadId: this.args.parentThreadId,
         agentId: this.agentId,
         epoch: this.args.epoch,
         model: this.model,
@@ -295,6 +315,7 @@ export class ChildRun {
   }
 
   private resetDrive(): void {
+    this.group.started()
     this.stopping = false
     this.ending = undefined
     this.endedAt = undefined
@@ -308,7 +329,7 @@ export class ChildRun {
     const failure = failureOf(outcome)
     const killedBy =
       status === EAgentStatus.Stopped ? (this.killedBy ?? EKilledBy.Model) : undefined
-    await this.end({ status, failure, killedBy })
+    await this.end({ status, failure, runFailure: runFailureOf(outcome), killedBy })
   }
 
   private async settleFailure(error: unknown): Promise<void> {
@@ -325,18 +346,21 @@ export class ChildRun {
   private async end(args: {
     status: EAgentStatus
     failure: string | undefined
+    runFailure?: RunFailure | undefined
     killedBy: EKilledBy | undefined
   }): Promise<void> {
     const progress = progressOf(this.record.eventCache().eventsAfter(0))
+    const runFailure = args.runFailure ?? recordedFailureOf(this.record.eventCache().eventsAfter(0))
     this.ending = args.status
     this.endedAt = new Date(this.args.deps.timers.now()).toISOString()
     this.failure = args.failure
     this.killedBy = args.killedBy
-    await this.transcript.ended({ progress, ...args })
+    const draft = this.group.ended(this.transcript.endingDraft({ progress, ...args, runFailure }))
+    await this.posts(() => this.transcript.ended({ draft }))
   }
 
   private async report(args: { text: string }): Promise<SubagentSnapshot> {
-    await this.transcript.reported(args)
+    await this.posts(() => this.transcript.reported({ text: args.text }))
     return this.snapshot()
   }
 }

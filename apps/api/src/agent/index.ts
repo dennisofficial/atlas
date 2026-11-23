@@ -52,9 +52,16 @@ export {
   POD_OPS,
   SESSION_STREAM,
   TERMINAL_DEMAND,
+  USAGE,
 } from './host/tokens'
+export { UsageService, USAGE_FLOOR_MS, type UsageReportRequest } from './usage/usage-service'
+export type {
+  UsageAccountRow,
+  UsageAccounts,
+  UsageSessionOwner,
+} from './usage/usage-accounts'
 export { podResizerOf, type SandboxResizer } from '@dltech/atlas-pods/sandbox/sandbox-resizer'
-export { HOLDER_WAIT_MS, podOpsOf, type PodOps } from './host/pod-ops'
+export { podOpsOf, type PodOps } from './host/pod-ops'
 export type { TerminalDemand } from '@dltech/atlas-host'
 export {
   OperatorAnswerService,
@@ -94,10 +101,10 @@ export {
   exchangeAuthorizationCode,
   refreshAuthorization,
 } from './mcp-oauth/token'
-export { ForegroundOnlyShells } from './runtime/foreground-shells'
 export { createHostBus } from './bus/host-bus'
 export { startPgWakeListener, type PgWakeListener } from './bus/pg-wake-listener'
 export { createPodMetricsBus, type PodMetricsBus } from './bus/pod-metrics-bus'
+export { createRedisPodCallBus } from './bus/redis-pod-call-bus'
 export { PodMetricsRelay } from './bus/pod-metrics-relay'
 export { createRedisLiveFrames, type RedisLiveFrames } from './bus/redis-live-frames'
 export {
@@ -121,3 +128,7 @@ export {
 } from '@dltech/atlas-pods/sandbox/sandbox-runs'
 export { sandboxLiveCpuMs } from '@dltech/atlas-pods/sandbox/sandbox-live-cpu'
 export { sessionNamerOf, type SessionNamer } from './naming/session-namer'
+export { diagramRepairerOf, type DiagramRepairer } from './diagrams/diagram-repairer'
+export { classifierConfigOf } from './config/classifier-config'
+export { scopedSettingsOf } from './config/scoped-settings'
+export { contextDirOf } from './runtime/session-paths'

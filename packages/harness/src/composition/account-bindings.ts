@@ -1,4 +1,10 @@
 import {
+  AnthropicUsageClient,
+  CodexUsageClient,
+  RoutedAccountUsage,
+} from '@dltech/atlas-credentials/usage'
+import { CODEX_VERSION } from '@dltech/atlas-models'
+import {
   AccountStorePort,
   ClockPort,
   CredentialPort,
@@ -24,10 +30,8 @@ import { AccountsService } from '../credentials/accounts-service'
 import { CloudManagedCredentialPort } from '../credentials/cloud-managed-credential-port'
 import { syncEnvironmentAccounts } from '../credentials/environment-accounts'
 import { builtinOauthClients } from '../credentials/oauth/refresh-client'
-import { AnthropicUsageClient } from '../usage/anthropic-usage-client'
-import { CodexUsageClient } from '../usage/codex-usage-client'
+import { CLAUDE_CODE_VERSION } from '../providers/anthropic-subscription-attribution'
 import { createAccountUsageService, type AccountUsageService } from '../usage/account-usage-service'
-import { RoutedAccountUsage } from '../usage/routed-account-usage'
 
 export async function bindAccounts(args: {
   container: DependencyContainer
@@ -100,8 +104,11 @@ export async function bindAccounts(args: {
     usage: new RoutedAccountUsage({
       accounts: accountStore,
       clients: {
-        [EAuthProvider.Anthropic]: new AnthropicUsageClient({ credentials }),
-        [EAuthProvider.OpenAI]: new CodexUsageClient({ credentials }),
+        [EAuthProvider.Anthropic]: new AnthropicUsageClient({
+          credentials,
+          clientVersion: CLAUDE_CODE_VERSION,
+        }),
+        [EAuthProvider.OpenAI]: new CodexUsageClient({ credentials, clientVersion: CODEX_VERSION }),
       },
     }),
   })

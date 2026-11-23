@@ -131,6 +131,7 @@ const recordingClient = (): PodControlClient & { calls: { threadId: string; port
     subscriptions: subscriptionsStub,
     settingsVersions: versionsStub,
     webSearch: { config: async () => ({ backend: 'bing', key: undefined }) },
+    gateway: { apiKey: async () => undefined, imageModel: async () => undefined },
   }
 }
 
@@ -158,6 +159,7 @@ describe('podControlOf', () => {
         subscriptions: subscriptionsStub,
         settingsVersions: versionsStub,
         webSearch: { config: async () => ({ backend: 'bing', key: undefined }) },
+        gateway: { apiKey: async () => undefined, imageModel: async () => undefined },
         exposePort: async () => {
           throw new Error('the control plane said no')
         },
@@ -204,6 +206,7 @@ describe('a plugin tool reaching ctx.control', () => {
         subscriptions: subscriptionsStub,
         settingsVersions: versionsStub,
         webSearch: { config: async () => ({ backend: 'bing', key: undefined }) },
+        gateway: { apiKey: async () => undefined, imageModel: async () => undefined },
         exposePort: async () => {
           throw new Error('the control plane rejected the call (500): boom')
         },
@@ -239,6 +242,7 @@ describe('podControlOf subscriptions', () => {
       routines: routinesStub,
       settingsVersions: versionsStub,
       webSearch: { config: async () => ({ backend: 'bing', key: undefined }) },
+      gateway: { apiKey: async () => undefined, imageModel: async () => undefined },
       exposePort: async () => ({ url: 'u', tunnelToken: 't' }),
       subscriptions: {
         list: async (args) => {
@@ -295,6 +299,7 @@ describe('podControlOf wiring', () => {
       subscriptions: subscriptionsStub,
       settingsVersions: versionsStub,
       webSearch: { config: async () => ({ backend: 'bing', key: undefined }) },
+      gateway: { apiKey: async () => undefined, imageModel: async () => undefined },
       exposePort: vi.fn(async () => ({ url: 'u', tunnelToken: 't' })),
     }
     const control = podControlOf({ client, threadId: toThreadId('thr_holder') })

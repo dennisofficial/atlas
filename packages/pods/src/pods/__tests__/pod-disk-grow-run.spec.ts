@@ -1,75 +1,9 @@
 import { describe, expect, it } from 'bun:test'
 
-import { ESessionStatus, type PodRebootFacts } from '@dltech/atlas-core'
+import { ESessionStatus } from '@dltech/atlas-core'
 
-import {
-  EPodDiskGrowOutcome,
-  growPodDisk,
-  runPodDiskGrow,
-  type PodDisk,
-  type PodDiskSweepDeps,
-} from '../pod-disk-grow-run'
-
-const GB = 2 ** 30
-
-const podOf = (args: { podSessionId: string; usedGb?: number; limitGb?: number }): PodDisk => ({
-  podSessionId: args.podSessionId,
-  instanceId: `inst-${args.podSessionId}`,
-  usedBytes: args.usedGb === undefined ? undefined : args.usedGb * GB,
-  limitBytes: args.limitGb === undefined ? undefined : args.limitGb * GB,
-})
-
-type FakeArgs = {
-  pods: readonly PodDisk[]
-  facts?: (podSessionId: string) => Promise<PodRebootFacts | undefined>
-  grow?: (args: { instanceId: string; diskGb: number }) => Promise<void>
-  notice?: (args: { sessionId: string; diskGb: number }) => Promise<void>
-}
-
-const factsOf = (over: {
-  state?: ESessionStatus
-  setupRunning?: boolean
-  shellsRunning?: number
-  servicesRunning?: number
-  backgroundAgents?: number
-  terminalsHeld?: number
-  peersPlaced?: number
-}): PodRebootFacts => ({
-  state: over.state,
-  setupRunning: over.setupRunning ?? false,
-  shellsRunning: over.shellsRunning ?? 0,
-  servicesRunning: over.servicesRunning ?? 0,
-  backgroundAgents: over.backgroundAgents ?? 0,
-  terminalsHeld: over.terminalsHeld ?? 0,
-  peersPlaced: over.peersPlaced ?? 0,
-})
-
-const fakeDeps = (args: FakeArgs) => {
-  const calls: string[] = []
-  const lines: string[] = []
-  const deps: PodDiskSweepDeps = {
-    pods: async () => args.pods,
-    facts: async ({ podSessionId }) => {
-      calls.push(`facts:${podSessionId}`)
-      return await (args.facts ?? (async () => factsOf({ state: ESessionStatus.Idle })))(
-        podSessionId,
-      )
-    },
-    closeRun: async ({ podSessionId }) => {
-      calls.push(`closeRun:${podSessionId}`)
-    },
-    grow: async (growArgs) => {
-      calls.push(`grow:${growArgs.instanceId}:${growArgs.diskGb}`)
-      await (args.grow ?? (async () => undefined))(growArgs)
-    },
-    notice: async (noticeArgs) => {
-      calls.push(`notice:${noticeArgs.sessionId}:${noticeArgs.diskGb}`)
-      await (args.notice ?? (async () => undefined))(noticeArgs)
-    },
-    log: (line) => lines.push(line),
-  }
-  return { deps, calls, lines }
-}
+import { type PodDiskSweepDeps, runPodDiskGrow } from '../pod-disk-grow-run'
+import { factsOf, fakeDeps, podOf } from './pod-disk-grow-run.fixtures'
 
 describe('runPodDiskGrow', () => {
   it('leaves a pod whose disk is under the threshold alone, without reading its session', async () => {
@@ -126,6 +60,7 @@ describe('runPodDiskGrow', () => {
       'facts:pod-1',
       'closeRun:pod-1',
       'grow:inst-pod-1:40',
+      'recordDisk:pod-1:40',
       'notice:pod-1:40',
     ])
     expect(lines.join('\n')).toContain('grew inst-pod-1 for pod-1 to 40 GB')
@@ -147,7 +82,12 @@ describe('runPodDiskGrow', () => {
       grown: 1,
       waiting: 0,
     })
-    expect(calls).toEqual(['closeRun:pod-1', 'grow:inst-pod-1:40', 'notice:pod-1:40'])
+    expect(calls).toEqual([
+      'closeRun:pod-1',
+      'grow:inst-pod-1:40',
+      'recordDisk:pod-1:40',
+      'notice:pod-1:40',
+    ])
   })
 
   it('closes the open run with the sandbox stopped before it grows, and never revokes', async () => {
@@ -161,13 +101,16 @@ describe('runPodDiskGrow', () => {
       grow: async () => {
         order.push('grow')
       },
+      recordDisk: async () => {
+        order.push('recordDisk')
+      },
       notice: async () => {
         order.push('notice')
       },
       log: () => undefined,
     }
     await runPodDiskGrow({ deps, maxGb: 100 })
-    expect(order).toEqual(['closeRun', 'grow', 'notice'])
+    expect(order).toEqual(['closeRun', 'grow', 'recordDisk', 'notice'])
   })
 
   it('skips a pod whose Agent37 metrics are still empty, and says so', async () => {
@@ -220,6 +163,22 @@ describe('runPodDiskGrow', () => {
     expect(lines.join('\n')).toContain('inbox is down')
   })
 
+  it('counts the grow as done when recording the disk fails, and logs it', async () => {
+    const { deps, lines } = fakeDeps({
+      pods: [podOf({ podSessionId: 'pod-1', usedGb: 17, limitGb: 20 })],
+      facts: async () => factsOf({ state: ESessionStatus.Idle }),
+      recordDisk: async () => {
+        throw new Error('the row is locked')
+      },
+    })
+    expect(await runPodDiskGrow({ deps, maxGb: 100 })).toEqual({
+      checked: 1,
+      grown: 1,
+      waiting: 0,
+    })
+    expect(lines.join('\n')).toContain('the row is locked')
+  })
+
   it('skips a pod whose session the control plane no longer has', async () => {
     const { deps, calls } = fakeDeps({
       pods: [podOf({ podSessionId: 'pod-1', usedGb: 17, limitGb: 20 })],
@@ -261,21 +220,5 @@ describe('runPodDiskGrow', () => {
       waiting: 0,
     })
     expect(lines.join('\n')).toContain('a host move is in flight')
-  })
-})
-
-describe('growPodDisk', () => {
-  it('reports the decision a single pod earns on its own', async () => {
-    const { deps } = fakeDeps({
-      pods: [],
-      facts: async () => factsOf({ state: ESessionStatus.WaitingToRetry }),
-    })
-    expect(
-      await growPodDisk({
-        deps,
-        pod: podOf({ podSessionId: 'pod-1', usedGb: 17, limitGb: 20 }),
-        maxGb: 100,
-      }),
-    ).toEqual({ outcome: EPodDiskGrowOutcome.Grown, diskGb: 40 })
   })
 })

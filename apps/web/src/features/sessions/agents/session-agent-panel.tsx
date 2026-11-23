@@ -20,6 +20,7 @@ import { ThreadTranscript } from '@/features/threads/thread-transcript'
 import { crewStatusLabelOf } from '../data/crew-status-label'
 import { sessionStateLineOf } from '../data/session-state'
 import { sessionTranscriptOf } from '../data/session-transcript'
+import { useDiagramRepairedTranscript } from '../data/use-session-diagram-transcript'
 import { useSessionPaneValue } from '../panel/pane-value'
 import { EAgentPanelState, agentPanelStateOf } from './agent-panel-state'
 import { useAgentStream } from './use-agent-stream'
@@ -87,8 +88,8 @@ function useNestedAgentIdentity(args: { agentId: string; parentAgentId: string }
   const { sessionId } = useSessionPaneValue()
   const { snapshot } = useAgentStream({ sessionId, agentId: args.parentAgentId })
   const agent = useMemo(
-    () => agentOf({ events: snapshot.events, agentId: args.agentId }),
-    [snapshot.events, args.agentId],
+    () => agentOf({ events: snapshot.foldable, agentId: args.agentId }),
+    [snapshot.foldable, args.agentId],
   )
   return {
     agentType: agent?.agentType,
@@ -113,6 +114,10 @@ function AgentPanelBody({
   const panel = useThreadPanel()
   const { snapshot, loadOlder } = useAgentStream({ sessionId, agentId })
   const transcript = sessionTranscriptOf({ events: snapshot.events, overlay: snapshot.overlay })
+  const { items: transcriptItems, repairDiagram } = useDiagramRepairedTranscript({
+    sessionId,
+    items: transcript.items,
+  })
   const state = agentPanelStateOf(snapshot)
   const nestedPanel = useMemo<ThreadPanelValue>(
     () => ({
@@ -150,7 +155,7 @@ function AgentPanelBody({
         ) : state === EAgentPanelState.Ready ? (
           <ThreadPanelProvider value={nestedPanel}>
             <ThreadTranscript
-              items={transcript.items}
+              items={transcriptItems}
               failureCard={null}
               failedLabel={null}
               pod={null}
@@ -159,6 +164,7 @@ function AgentPanelBody({
               onRetryBoot={() => undefined}
               rewind={null}
               summarise={null}
+              repairDiagram={repairDiagram}
               onLoadOlder={loadOlder}
             />
           </ThreadPanelProvider>

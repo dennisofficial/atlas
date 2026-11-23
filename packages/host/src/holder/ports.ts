@@ -15,6 +15,7 @@ import type {
 } from '@dltech/atlas-core'
 import type {
   NormalizeFailure,
+  QualityStagePort,
   SaidUploadsPort,
   ToolEffectResolver,
   ToolRegistry,
@@ -89,12 +90,14 @@ export type SessionRuntime = {
   model: ModelPort
   classifier: ClassifierPort
   classifierStatus: ClassifierStatus
+  rotation: { autoRotateAtPercent: number }
   modelChoice: ModelChoice
   choiceFor(request: RoleModelRequest): RoleModelChoice
   modelLabelOf(ref: ModelRef): string
   modelOf(choice: ModelChoice): ModelPort
   tools: ToolRegistry
   daemonTools: ReadonlySet<string>
+  quality?: QualityStagePort | undefined
   effectOf: ToolEffectResolver
   assembly: AssemblyPipeline
   uploads?: SaidUploadsPort | undefined

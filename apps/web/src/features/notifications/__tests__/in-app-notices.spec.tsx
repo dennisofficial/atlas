@@ -3,6 +3,7 @@ import { ETurnEndedBy, ETurnOutcome, ESessionStatus } from '@dltech/atlas-core'
 import type { SessionSummary } from '@dltech/atlas-protocol'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act } from 'react'
+import * as realNavigation from 'next/navigation'
 import * as realSonner from 'sonner'
 
 import { registerDom, unregisterDom } from '@/lib/__tests__/happy-dom-globals'
@@ -34,6 +35,7 @@ mock.module('sonner', () => ({
 let pathname = '/'
 
 mock.module('next/navigation', () => ({
+  ...realNavigation,
   usePathname: () => pathname,
   useRouter: () => ({ push: () => undefined }),
 }))
@@ -98,6 +100,7 @@ beforeAll(() => {
 
 afterAll(async () => {
   mock.module('sonner', () => realSonnerExports)
+  mock.module('next/navigation', () => realNavigation)
   await unregisterDom()
 })
 

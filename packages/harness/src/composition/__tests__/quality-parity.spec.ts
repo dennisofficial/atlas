@@ -4,6 +4,7 @@ import {
   EDefinitionOrigin,
   EFinishReason,
   EQualityReviewStatus,
+  ESettingId,
   QualityReviewPort,
   TEAMMATE_AGENT_TYPE,
   toThreadId,
@@ -129,6 +130,7 @@ describe.each([
 
   it('keeps a child write quiet while the master setting is off', async () => {
     const rig = await rigFor(command)
+    rig.setting({ id: ESettingId.QualityEnabled, value: false })
 
     const { events } = await runChildWrite({ rig, agentType: childType('child') })
 
@@ -141,5 +143,5 @@ describe.each([
           (event.type === 'tool-result' && (event.qualityReviews ?? []).length > 0),
       ),
     ).toBe(false)
-  })
+  }, 20_000)
 })

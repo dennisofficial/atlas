@@ -43,6 +43,11 @@ function gatheredByName(args: { call: ToolCall; cwd: string }): Classification |
   const found = targetOf(args)
   const target = found ?? call.name
 
+  if (call.name === 'image_generate') {
+    const generated = imageRead({ ...args, verb: 'Generated' })
+    if (generated !== null) return generated
+  }
+
   if (call.name === 'read') {
     const picture = imageRead(args)
     if (picture !== null) return picture
@@ -203,6 +208,8 @@ function settledCall(args: { call: ToolCall; cwd: string }): Classification {
       stdout: str(output.stdout) ?? '',
       exitCode,
       ok: call.state === ECallState.Ok && (exitCode ?? 0) === 0,
+      backgrounded: output.backgrounded === true,
+      shellId: str(output.shellId),
     })
   }
 

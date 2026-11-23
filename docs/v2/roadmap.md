@@ -22,13 +22,58 @@ Each slice is built in its own Atlas session and handed to a fresh session when 
 
 ## Current state
 
-_Updated at the end of every slice. Last update: 2026-11-17._
+_Updated at the end of every slice. Last update: 2026-11-23._
+- **Done 2026-11-23: /rotate** ([spec](slices/rotate.md); PRs #2607, #2644, #2645, #2650, #2668 and this
+  docs PR). `/rotate [instructions]` is a host command on every surface. One model call writes a handoff
+  brief, and the holder appends one `rotated` event to the same thread. The transcript keeps every row and
+  shows a divider with the brief. The model request starts at the latest rotation (`projectedEvents` in
+  `SessionRecord.read`). The context meter resets. A rotate is refused while a sub-agent runs. Auto-rotate
+  is `context.autoRotate` (default 85 %, 0 = off): the holder checks it when a turn ends and calls the same
+  `rotateNow`. It replaces the auto-compact row in web settings. A consumed rotate survives drain,
+  SIGKILL and a pod restart exactly once. Live-checked on production: every step passes. `/summarise`
+  after a rotation was fixed in #2668 and re-checked live: the summary starts after the boundary, and
+  the divider stays. A kill mid-rotation is proven by the fault scenario.
+- **Done 2026-11-23: slash commands** ([spec](slices/slash-commands.md); PRs #2577, #2580, #2585,
+  #2586, #2587, #2590, #2594 and this docs PR). The host parses every message against one command registry
+  and the pod's skill names, so a typed `/rename x` renames, `/summarise` summarises up to your last
+  message, `/review src` loads the skill into the turn, and an unknown `/name` stays a message. A
+  typed command shows as the operator's own line, marked as a command. Web, Mac and mobile share one
+  menu for commands and skills (`catalogueForSurface`); `/model` opens the model picker and `/help`
+  the command list. Web, Mac and mobile hide `/rewind` and `/summarise` (message actions do them);
+  typed, they still run, and a bare `/rewind` asks for a line. Live-checked on production. The TUI
+  picks up `SURFACE_PROFILES` and keeps its rewind drawer at slice 9.
+- **Done 2026-11-23: notifications** ([spec](slices/notifications.md)). Eight slices: #2575 (the pure
+  decision in `packages/core/src/notify` and `packages/notifications`), #2579 (presence from web, Mac and
+  iOS into Redis, 90 s TTL), #2578 (in-app toast and banner; the sessions row gains `lastTurn` and
+  `headSeq`), #2583 (`V2PushDevice`, Web Push, the service worker, `notify-send` and `notify-test`),
+  #2591 (the agent host dispatches `notify-send` when a turn ends or parks), #2589 (Expo on iOS),
+  #2595 (Mac APNs: App ID `io.byatlas.mac`, profile "Atlas Mac Developer ID", the EAS key
+  `XS4K72SNYH`), #2599 (clear on read, at most one clear per moment), #2598 (Settings →
+  Notifications). Live 2026-11-23: `notify-send` runs on every turn end; presence write and delete,
+  `webPushKey`, `listDevices` and `/sw.js` answer in production. Delivery to a device waits for the
+  operator to turn on a device, for the next signed Mac release and for an iOS build.
+- **Done 2026-11-23: skill suggestion** ([spec](slices/skill-suggestion.md), deviations in its header).
+  A `beforeTurn` hook in `plugins/skills` reads the last three operator messages with the agent's
+  replies from the log, shortlists at most twelve skills by word overlap and asks the classifier one
+  yes/no per skill (0.75 fit, 0.15 margin). A winner is one `skill: <name> — <score>` block. Off
+  when the classifier is off or `skills.suggest` is false. Live check on production 2026-11-23
+  (#2611 fixed a hook that ran before the inbox drained; the gate question was dropped because it
+  rejected correct picks): 7 of 11 real messages got the right skill, 4 stayed quiet, calls took
+  121–229 ms. Scores are in the spec.
 - **Specs approved 2026-11-23: v1 parity.** Before v1 is deleted, v2 gets these features, each with its own spec:
   [slash commands](slices/slash-commands.md), [notifications](slices/notifications.md) (in-app, Web Push,
   iOS and Mac native behind one package), the [classifier role](slices/classifier.md) (new credentials and
   classifier packages, a Classifier settings page), [skill suggestion](slices/skill-suggestion.md) and
   [Jev quality review](slices/jev-quality.md). Shared code that lived in v1 places moved to v2 homes on
   2026-11-22/23 (#2556, #2557, #2560, #2562, #2567, #2569). Mobile parity runs in its own session.
+- **Built 2026-11-23: plan usage meters** ([spec](slices/usage-meters.md), #2606, #2618, #2619, #2637).
+  The Claude and Codex usage readers live in `@dltech/atlas-credentials/usage`, the parsers in core.
+  The API reads a plan account's usage with its own token (`usage.report`, a 20 s cache per
+  account, single flight), and refreshes the session's account when a turn ends. Settings →
+  Providers shows the 5-hour and 7-day share used for each plan account, and the session composer
+  shows one line for the provider's active account. Colour only, no warnings, no client timer.
+  Live check: Claude and ChatGPT plans answered; a ChatGPT Pro plan and Dennis's Claude plan report
+  only a weekly window today, so their 5-hour meter reads `—`.
 - **Built 2026-11-23: the classifier role** ([spec](slices/classifier.md), #2576, #2582, this PR). Provider
   accounts live in `@dltech/atlas-credentials`. `@dltech/atlas-classifier` owns the decision model table
   (Jev direct, Jev through Vercel AI Gateway, OpenAI Decisions), the transports and the availability
@@ -38,6 +83,14 @@ _Updated at the end of every slice. Last update: 2026-11-17._
   is checked with one free read call before it is saved. The v1 `decisions.*` and
   `classifier.mode` rows stay until v1 is deleted. Skill suggestion and the Jev quality review call
   the port next.
+- **Built 2026-11-23: the Jev quality review** ([spec](slices/jev-quality.md), #2597 and this PR).
+  After a successful file write, the classifier answers the enabled code-quality policies' typed
+  questions about the changed scopes, and the agent gets one advisory note on its next step: nothing
+  is blocked or reverted. The engine is `@dltech/atlas-quality` on the agent host; the tool result
+  carries `code-quality-reviewed`. The master switch (`quality.enabled`) now defaults on, which
+  means on whenever a classifier is set, and example recording is dropped in v2. TUI and web draw
+  the same one-line indicator on the tool call, worded in `@dltech/atlas-client/transcript`. Live
+  check passed on production 2026-11-23; a cold first review can miss the 1 s budget.
 - **Built 2026-11-17: Stop** ([audit](research/slice-3/recovery-audit.md) F-13). `sessions.stop` takes
   `{sessionId}`, checks the caller owns the session and posts a `stop` inbox entry — the same durable
   input a message is, so it reaches a parked pod and needs no live connection. A turn in flight is
@@ -225,7 +278,8 @@ _Updated at the end of every slice. Last update: 2026-11-17._
 - **Slice 7 PR 2, `plugins/github` subscriptions** (`dennis/github-plugin`): first registered plugin.
   Subscribe/unsubscribe/list, the CI-watch hook and the `subscriptions` view are live; the CP derives
   the `GithubSubscription` lease from the journal event through a new control append hook, which
-  lives until the subscription's own expiry (24 h default, no heartbeat). A PR event posts one inbox
+  lives until the subscription completes, is unsubscribed or its session is archived, unless it
+  names its own expiry (no default, no heartbeat). A PR event posts one inbox
   message to each subscribed v2 session, deduped by the delivery row. Live-checked on production
   2026-11-08: one notice and a woken turn on a CI change, silence after unsubscribe (spec §8.1).
 - **Slice 7 PR 1, the plugin contract** (`dennis/plugin-contract`): plugin views ride the session view
@@ -426,7 +480,7 @@ _Updated at the end of every slice. Last update: 2026-11-17._
 | 7d  | MCP sign-in from the transcript ([spec](slices/07d-mcp-sign-in.md)) | A session that finds an MCP server needing a sign-in hands back a link that finishes it, for a cloud row and for a server only the repo names; the host owns the flow (discovery, registration, PKCE, callback, sealed grant), and a grant that expires is refreshed without the operator.                                                                                                                                                                                        | A live session starts a sign-in from a tool result, the operator approves, and the next turn's roster shows the server connected with its tools; a repo-only entry does the same; no token reaches the transcript, the events or the sandbox.                                                                                                                                                                                                                                                                                                                                                                                    | Done                          |
 | —   | Routines ([spec](slices/08-routines.md))                            | A routine is a saved prompt plus a cron schedule: at each occurrence a trigger.dev sweep starts a fresh session that runs the prompt unattended, and web lists the routines with their next and last run                                                                                                                                                                                                                                                                          | A routine set two minutes out spawns a session with no client open and it settles; a second occurrence during a live run records `skipped-busy`; a disabled or deleted routine starts nothing new and leaves past sessions intact; one occurrence dispatched twice produces exactly one session                                                                                                                                                                                                                                                                                                                                  | Done                          |
 | 8   | Hardening and daily use                                             | Use v2 for the maintainer's own cloud work and close the gaps, including the unread dot (a per-session read marker, deferred from slice 4)                                                                                                                                                                                                                                                                                                                                        | A defined period of daily work on v2 with no manual repair of a session                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | Not started                   |
-| 9   | Local                                                               | A docker pod against a control plane; then `atlasd` (D2) over SQLite; then the TUI on v2                                                                                                                                                                                                                                                                                                                                                                                          | A local session runs on v2 from Mac and the TUI, offline, in exactly one control plane                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | Not started                   |
+| 9   | Local                                                               | A docker pod against a control plane; then `atlasd` (D2) over SQLite; then the TUI on v2 ([spec](slices/tui.md))                                                                                                                                                                                                                                                                                                                                                                  | A local session runs on v2 from Mac and the TUI, offline, in exactly one control plane                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | Not started                   |
 | 10  | v1 retirement                                                       | Remove v1 once v2 has proven itself                                                                                                                                                                                                                                                                                                                                                                                                                                               | The maintainer decides; cutover moves everything to v2                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | Not started                   |
 
 Notes:

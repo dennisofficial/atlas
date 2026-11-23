@@ -43,9 +43,11 @@ track a repository or a pull request. `apps/api` drives it through thin Nest ada
 
 ### Webhooks and delivery
 
-- `verifyGithubSignature` and `GithubEventFilter` decide whether a delivery is authentic and
+- `verifyGithubSignature` and `wantsPrEvent` decide whether a delivery is authentic and
   interesting.
 - `GithubDeliveryService` turns a webhook payload into store writes and queued outbox rows.
+- `GithubWebhookInboxService` stores every authentic delivery, keyed by the delivery id, before
+  any processing, and retries the ones that never processed.
 - `GithubPrOutboxDispatcher` claims rows, runs them, parks a failure for a retry, and dead-letters
   one that keeps failing. Pass `legacy` to run the v1 `wake` and `thread-signal` kinds; without it
   those rows stay unclaimed.
@@ -56,8 +58,9 @@ track a repository or a pull request. `apps/api` drives it through thin Nest ada
 
 - `GithubPrStore` writes a folded pull-request row and appends its event.
 - `GithubPrReconcile`, `GithubPrMergeabilityRefresh` and `applyObservedPull` decide what the row
-  says next, and `github-pr-row-fold` folds an observation into it.
-- `GithubCommitChecks` and `failedChecksOfRows` read and tally check runs and statuses.
+  says next, and `foldStateOfRow` folds a stored row into the fold state.
+- `readCommitChecks` and `commitChecksTally` read and tally check runs and statuses, and
+  `failedChecksOfRows` gives the failed ones.
 
 ### Tracking, polling and subscriptions
 
@@ -66,14 +69,22 @@ track a repository or a pull request. `apps/api` drives it through thin Nest ada
 - `GithubHookLifecycleService` and `GithubHookRetirement` create, repair and retire a repository
   hook.
 - `GithubSubscriptionsService` subscribes a thread, catches up a branch, and links a sandbox.
-- `GithubPrStreamRouter` serves the PR stream, the ack path and the replay of missed events.
+- `prStreamFrames` turns a fan-out attachment into the frames of a PR stream, and
+  `GithubPrEventMailboxService` gives its `replayUndelivered`, `replayForThread` and `acknowledge`
+  steps.
 - `buildGithubSweeps` builds the poll, hook and webhook-reconcile sweeps over a config, a cipher and
   a redis port. Omit `legacy`/`activityOf` and the sweeps run without v1; `dispose` tears the
   fan-out down.
 
+### Connect a user account and read repositories
+
+- `GithubService` runs the OAuth device flow, stores the encrypted user token and reads the
+  connection.
+- `GithubRepoReads` lists repositories, branches and trees, and reads a file.
+
 ### Ports
 
-- `GithubConfig`: the App id, private key, client id and base URL.
+- `GithubConfig`: the App id, the private key, the App slug, the client id and the public API URL.
 - `GithubSecretCipher`, `GithubRedis`, `GithubDrain`: small structural ports.
 - `githubRedisOf({ url })`: a `GithubRedis` over one lazy ioredis connection, with `close()` for a
   worker that builds its graph per run. `@dltech/atlas-pods`' `SecretCipher` is a
@@ -92,7 +103,11 @@ track a repository or a pull request. `apps/api` drives it through thin Nest ada
 ```ts
 import { GithubAppClient, GithubConfig, setGithubLogSink } from '@dltech/atlas-github'
 
-setGithubLogSink((context) => ({ log: (line) => logger.log(`${context}: ${line}`) }))
+setGithubLogSink((context) => ({
+  log: (line) => console.log(`${context}: ${line}`),
+  warn: (line) => console.warn(`${context}: ${line}`),
+  error: (line) => console.error(`${context}: ${line}`),
+}))
 const config = new GithubConfig({ appId, appPrivateKey, clientId })
 const client = new GithubAppClient(config)
 ```

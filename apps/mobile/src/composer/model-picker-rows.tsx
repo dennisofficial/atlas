@@ -1,4 +1,6 @@
+import type { EBrand } from '@dltech/atlas-ui/brand'
 import {
+  BrandMark,
   EFontFamily,
   ETextRole,
   ETextTone,
@@ -13,13 +15,31 @@ import { Pressable, StyleSheet, Switch, View } from 'react-native'
 
 import { effortLabelOf, type IModelOption, type IModelSelection } from './model-options'
 
-export const ProviderMark = ({ monogram }: { monogram: string }) => {
+const MARK_SIZE = 20
+const BRAND_SIZE = 14
+
+export const ProviderMark = ({
+  monogram,
+  brand,
+}: {
+  monogram: string
+  brand?: EBrand | undefined
+}) => {
   const theme = useTheme()
   return (
-    <View style={[styles.mark, { backgroundColor: theme.muted }]}>
-      <Text size={ETextRole.Xs} family={EFontFamily.Mono} tone={ETextTone.Muted}>
-        {monogram}
-      </Text>
+    <View
+      style={[
+        styles.mark,
+        brand === undefined ? { backgroundColor: theme.muted } : styles.brandMark,
+      ]}
+    >
+      {brand === undefined ? (
+        <Text size={ETextRole.Xs} family={EFontFamily.Mono} tone={ETextTone.Muted}>
+          {monogram}
+        </Text>
+      ) : (
+        <BrandMark brand={brand} size={BRAND_SIZE} color={theme.foreground} />
+      )}
     </View>
   )
 }
@@ -46,7 +66,7 @@ export const ModelRow = ({
       onPress={onPress}
       style={({ pressed }) => [styles.row, pressed ? { backgroundColor: theme.accent } : null]}
     >
-      <ProviderMark monogram={model.monogram} />
+      <ProviderMark monogram={model.monogram} brand={model.brand} />
       <Text size={ETextRole.Sm} numberOfLines={1} style={styles.rowLabel}>
         {model.label}
       </Text>
@@ -171,9 +191,12 @@ const styles = StyleSheet.create({
   mark: {
     alignItems: 'center',
     borderRadius: radius(0.4),
-    height: 20,
+    height: MARK_SIZE,
     justifyContent: 'center',
-    width: 20,
+    width: MARK_SIZE,
+  },
+  brandMark: {
+    borderRadius: 0,
   },
   row: {
     alignItems: 'center',

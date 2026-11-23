@@ -6,6 +6,7 @@ import {
   type OomMemory,
 } from '@dltech/atlas-core'
 
+import { ceilingClause } from './bash-prose'
 import { countLineBreaks, render, type Tail } from './shell-process'
 
 export const MAXIMUM_OUTPUT_CHARACTERS = 30_000
@@ -65,6 +66,44 @@ export function mergeStreams(args: { stdout: Tail; stderr: Tail }): {
   return { text, truncated: streams.some((stream) => stream.truncated) }
 }
 
+export function renderBackgroundedText(args: {
+  command: string
+  shellId: string
+  merged: string
+  timeoutMs: number
+}): string {
+  const sections: string[] = []
+  if (args.merged.length > 0)
+    sections.push(untrustedEnvelope({ source: 'bash', body: args.merged }))
+  sections.push(
+    `\`${args.command}\` is still running after ${args.timeoutMs / 1000} s, so it continues as background shell ${args.shellId} instead of being killed. Its ending is delivered to you with the output from here on. Use shell_output({ shellId: "${args.shellId}" }) for unread output. Use shell_kill to stop it. Do not wait on it: take other work, or end the turn and be woken.`,
+  )
+  return sections.join('\n\n')
+}
+
+export function renderStartedText(args: {
+  shellId: string
+  timeoutMs: number | undefined
+  input: boolean
+  movedForInput: boolean
+}): string {
+  return [
+    ...(args.movedForInput
+      ? [
+          'input needs a background shell, so this command started in the background instead of waiting.',
+        ]
+      : []),
+    `Started in the background as shell ${args.shellId}, and it outlives this turn and an interrupt.`,
+    'Its ending arrives on its own with its output, even after this turn ends.',
+    'So do not wait on it: no sleeping, no polling, no idle loop - a tick only spins the turn. Take other work, or end the turn and be woken.',
+    ...ceilingClause({ timeoutMs: args.timeoutMs }),
+    `Use shell_output({ shellId: "${args.shellId}" }) for unread output. Use shell_kill to stop it.`,
+    ...(args.input
+      ? ['Its stdin is open: shell_input answers a prompt, with a trailing newline.']
+      : []),
+  ].join(' ')
+}
+
 export function renderModelText(args: {
   command: string
   merged: string
@@ -80,7 +119,7 @@ export function renderModelText(args: {
     sections.push(untrustedEnvelope({ source: 'bash', body: args.merged }))
   if (args.timedOut) {
     sections.push(
-      `The command was killed after exceeding its ${args.timeoutMs} ms timeout. If it needs longer than ${args.maximumTimeoutMs} ms, start it again with runInBackground. Its ending is delivered to you whenever it lands.`,
+      `The command was killed after exceeding its ${args.timeoutMs} ms timeout. This sandbox could not keep it running in the background. If it needs longer than ${args.maximumTimeoutMs} ms, start it with \`background: true\`. Its ending is delivered to you whenever it lands.`,
     )
   }
   if (args.oomKilled) {

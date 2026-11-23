@@ -6,6 +6,7 @@ import {
   identifyUser,
   initAnalytics,
   isAnalyticsEnabled,
+  isBenignException,
   resetAnalytics,
   resetAnalyticsForTests,
   superPropsOf,
@@ -132,5 +133,30 @@ describe('superPropsOf', () => {
       surface: 'web',
       interface_version: '',
     })
+  })
+})
+
+describe('isBenignException', () => {
+  const exception = (...values: string[]) => ({
+    event: '$exception',
+    properties: { $exception_list: values.map((value) => ({ type: 'Error', value })) },
+  })
+
+  it('drops the ResizeObserver loop notice that browsers raise harmlessly', () => {
+    expect(
+      isBenignException(exception('ResizeObserver loop completed with undelivered notifications.')),
+    ).toBe(true)
+  })
+
+  it('keeps a real exception, and one that carries a real error beside the notice', () => {
+    expect(isBenignException(exception('route parameter "subdomain" is missing'))).toBe(false)
+    expect(
+      isBenignException(exception('ResizeObserver loop limit exceeded', 'Cannot read x of null')),
+    ).toBe(false)
+  })
+
+  it('keeps events that are not exceptions and exceptions with no message', () => {
+    expect(isBenignException({ event: 'app_loaded', properties: {} })).toBe(false)
+    expect(isBenignException({ event: '$exception', properties: {} })).toBe(false)
   })
 })

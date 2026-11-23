@@ -17,11 +17,12 @@ describe('systemContext', () => {
     const out = systemContext({
       slot: 'skill-suggestion',
       key: 'additional-context',
-      content: '<skill_relevance>aws-deployment</skill_relevance>',
+      content: 'skill: aws-deployment — 0.87',
     })
     expect(out).toStartWith(`<${ENVELOPE_CONTEXT_TAG} source="skill-suggestion">`)
     expect(out).toEndWith(`</${ENVELOPE_CONTEXT_TAG}>`)
     expect(out).toContain('skill classifier')
+    expect(out).toContain('probability that the named skill fits')
     expect(out).toContain('The operator did not write this')
   })
 

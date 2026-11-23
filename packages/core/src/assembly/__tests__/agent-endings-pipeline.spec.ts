@@ -140,7 +140,7 @@ describe('a bare tool call answering a delegate report', () => {
 })
 
 describe('a wave of delegates that ended together', () => {
-  it('is collapsed into one block naming both, not one block each', () => {
+  it('gives each ending its own block, in the order they ended', () => {
     const { assembled } = assembledFrom([
       ...CONVERSATION,
       spawned(SECOND_CHILD),
@@ -148,12 +148,11 @@ describe('a wave of delegates that ended together', () => {
       ended({ agentId: SECOND_CHILD, prose: 'the loop calls it twice per step.' }),
     ])
 
-    expect(endingBlocksOf(assembled)).toHaveLength(1)
-
-    const block = endingBlocksOf(assembled)[0] ?? ''
-    expect(block).toContain('2 agents you spawned ended.')
-    expect(block).toContain('assemble has four callers, all in the loop.')
-    expect(block).toContain('the loop calls it twice per step.')
+    const blocks = endingBlocksOf(assembled)
+    expect(blocks).toHaveLength(2)
+    expect(blocks[0]).toContain('1 agent you spawned ended.')
+    expect(blocks[0]).toContain('assemble has four callers, all in the loop.')
+    expect(blocks[1]).toContain('the loop calls it twice per step.')
   })
 
   it('gives each report its own budget rather than splitting one between them', () => {
@@ -167,14 +166,14 @@ describe('a wave of delegates that ended together', () => {
       ended({ agentId: SECOND_CHILD, prose: second }),
     ])
 
-    const block = endingBlocksOf(assembled)[0] ?? ''
-    expect(block).not.toContain('characters of this report were dropped')
-    expect(block).toContain(first)
-    expect(block).toContain(second)
-    expect(block.length).toBeGreaterThan(first.length + second.length)
+    const blocks = endingBlocksOf(assembled).join('\n')
+    expect(blocks).not.toContain('characters of this report were dropped')
+    expect(blocks).toContain(first)
+    expect(blocks).toContain(second)
+    expect(blocks.length).toBeGreaterThan(first.length + second.length)
   })
 
-  it('keeps two separate waves separate, since each was a moment the parent was woken', () => {
+  it('renders the second wave after the reply that separated the two', () => {
     const { assembled } = assembledFrom([
       ...CONVERSATION,
       ended(),

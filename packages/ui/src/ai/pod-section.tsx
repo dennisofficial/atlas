@@ -13,6 +13,7 @@ import {
   commandMemorySuffix,
   diskPercentOf,
   formatRam,
+  gigabytes,
   podDiskOf,
   podMetricViewOf,
   ramPercentOf,
@@ -34,11 +35,13 @@ export interface PodSectionProps {
   series: readonly PodMetricsSample[]
   usageUnavailable?: boolean | undefined
   pendingShape?: PodShape | undefined
+  resizeWaiting?: boolean | undefined
   resizeError?: string | undefined
   throttled?: boolean | undefined
   oomKills?: number | undefined
   oomEvents?: number | undefined
   commandRamLimitGb?: number | undefined
+  diskLimitGb?: number | undefined
   stopping?: boolean | undefined
   confirmAction?: EPodAction | undefined
   defaultActiveIndex?: number | undefined
@@ -47,6 +50,8 @@ export interface PodSectionProps {
   onStart?: (() => void) | undefined
   onStop?: (() => void) | undefined
   onResize?: ((shape: PodShape) => void) | undefined
+  onResizeNow?: (() => Promise<void>) | undefined
+  onCancelResize?: (() => Promise<void>) | undefined
   diskGrow?: boolean | undefined
   onGrowDisk?: ((diskGb: number) => void) | undefined
   onConfirm?: (() => void) | undefined
@@ -99,13 +104,31 @@ function PodUsageIdle({ state, unavailable }: { state: EPodState; unavailable: b
   return (
     <div
       role="img"
-      aria-label={`No live usage — pod ${IDLE_TEXT[state].toLowerCase()}`}
+      aria-label={
+        state === EPodState.Running
+          ? 'No live usage yet'
+          : `No live usage — pod ${IDLE_TEXT[state].toLowerCase()}`
+      }
       className="flex h-10 w-28 items-center justify-center gap-1 rounded-md border border-dashed border-border text-[11px] text-muted-foreground"
     >
       <MoonIcon aria-hidden className="size-3" />
       {IDLE_TEXT[state]}
     </div>
   )
+}
+
+function diskValueOf({
+  disk,
+  limitGb,
+  running,
+}: {
+  disk: { usedGb: number; limitGb: number } | undefined
+  limitGb: number | undefined
+  running: boolean
+}): string {
+  if (disk === undefined) return limitGb === undefined ? '—' : `— / ${gigabytes(limitGb)} GB`
+  if (!running) return `— / ${gigabytes(disk.limitGb)} GB`
+  return formatRam(disk)
 }
 
 export function PodSection(props: PodSectionProps) {
@@ -131,6 +154,7 @@ export function PodSection(props: PodSectionProps) {
     shapes: props.shapes,
     unavailable: props.unavailable,
     pendingShape: props.pendingShape,
+    resizeWaiting: props.resizeWaiting === true,
     resizeError: props.resizeError,
     disabled:
       !canResize(props.state) || props.stopping === true || props.pendingShape !== undefined,
@@ -138,9 +162,15 @@ export function PodSection(props: PodSectionProps) {
     open: props.sizeMenuOpen,
     onOpenChange: props.onSizeMenuOpenChange,
     onResize: props.onResize,
+    onResizeNow: props.onResizeNow,
+    onCancelResize: props.onCancelResize,
   }
 
   const ramValue = running ? view.ramLabel : `— / ${view.ramLimitGb} GB`
+  const diskLimitGb = disk?.limitGb ?? props.diskLimitGb
+  const diskValue = diskValueOf({ disk, limitGb: diskLimitGb, running })
+  const sampling = running && props.usageUnavailable !== true && props.series.length > 0
+  const diskGrow = props.diskGrow === true
 
   return (
     <div className="flex flex-col gap-2">
@@ -148,6 +178,7 @@ export function PodSection(props: PodSectionProps) {
         state={props.state}
         stopping={props.stopping === true}
         resizing={props.pendingShape !== undefined && props.resizeError === undefined}
+        waiting={props.resizeWaiting === true}
         sizeControl={<PodSizeSelect {...sizeProps} />}
         onStart={props.onStart}
         onStop={props.onStop}
@@ -165,20 +196,13 @@ export function PodSection(props: PodSectionProps) {
           swatch="bg-muted-foreground"
           row="row-start-2"
         />
-        {disk === undefined ? null : (
-          <PodSeriesRow
-            label="Disk"
-            value={formatRam({ usedGb: disk.usedGb, limitGb: disk.limitGb })}
-            swatch="bg-chart-2"
-            row="row-start-3"
-          />
-        )}
+        <PodSeriesRow label="Disk" value={diskValue} swatch="bg-chart-2" row="row-start-3" />
         <div
           className={`col-start-3 row-start-1 flex items-center self-stretch ${
-            disk !== undefined && props.diskGrow !== true ? 'row-span-3' : 'row-span-2'
+            diskGrow ? 'row-span-2' : 'row-span-3'
           }`}
         >
-          {running && props.usageUnavailable !== true ? (
+          {sampling ? (
             <PodUsageSpark
               data={data}
               limitGb={view.ramLimitGb}
@@ -188,15 +212,15 @@ export function PodSection(props: PodSectionProps) {
             <PodUsageIdle state={props.state} unavailable={props.usageUnavailable === true} />
           )}
         </div>
-        {disk === undefined || props.diskGrow !== true ? null : (
+        {diskGrow ? (
           <div className="col-start-3 row-start-3 flex justify-end">
             <PodDiskSelect
-              limitGb={disk.limitGb}
+              limitGb={diskLimitGb}
               disabled={sizeProps.disabled}
               onGrow={props.onGrowDisk}
             />
           </div>
-        )}
+        ) : null}
       </div>
       <div className="flex flex-col gap-2 pl-[1.625rem]">
         <MetricSignals

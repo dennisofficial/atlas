@@ -3,6 +3,7 @@ import { ChangeContentStore, type ControlPlane } from '@dltech/atlas-control'
 import type {
   HostBus,
   HostPresence,
+  PodCallBus,
   PodControlClient,
   SessionHolder,
   TerminalDemand,
@@ -33,6 +34,8 @@ import { ControlModule } from './control.module'
 import { HostWatchService } from './host-watch-service'
 import type { MediaSignerSource } from './media-signer-source'
 import { RuntimeModule } from './runtime.module'
+import { USAGE } from './tokens'
+import type { UsageService } from '../usage/usage-service'
 import {
   AGENT_HOST_ENV,
   CONFIG_SOURCE,
@@ -44,6 +47,7 @@ import {
   LOG,
   MEDIA_SIGNER,
   MODEL_TOKENS,
+  POD_CALL_BUS,
   POD_CONTROL,
   PRESENCE,
   SANDBOX,
@@ -76,8 +80,10 @@ const holderProvider: Provider = {
     log: LogPort,
     watch: HostWatchService,
     macLink: MacLink,
+    dispatcher: JobsProjectDispatcher,
     traceFor: (distinctId: string) => TracePort,
-    jobs: JobsProjectDispatcher,
+    usage: UsageService,
+    podCallBus: PodCallBus,
   ): SessionHolder =>
     composeAgentHost({
       env,
@@ -91,10 +97,13 @@ const holderProvider: Provider = {
       presence,
       control,
       macLink,
+      dispatcher,
       log,
       traceFor,
-      notify: notifyDispatchOf({ dispatcher: jobs }),
-      parkArchived: parkArchivedDispatchOf({ plane, dispatcher: jobs, log }),
+      podCallBus,
+      notify: notifyDispatchOf({ dispatcher }),
+      parkArchived: parkArchivedDispatchOf({ plane, dispatcher, log }),
+      turnEnded: (args) => usage.refreshAfterTurn({ sessionId: args.sessionId }),
       onHostIdChanged: () => watch.recompute(),
       ...(media.signer === undefined ? {} : { media: media.signer }),
       ...(content instanceof UnavailableChangeContentStore ? {} : { changes: { content } }),
@@ -115,8 +124,10 @@ const holderProvider: Provider = {
     LOG,
     HOST_WATCH,
     MAC_LINK,
-    TRACE_FOR,
     JobsProjectDispatcher,
+    TRACE_FOR,
+    USAGE,
+    POD_CALL_BUS,
   ],
 }
 

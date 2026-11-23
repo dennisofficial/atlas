@@ -8,7 +8,7 @@ import {
   Optional,
 } from '@nestjs/common'
 import type { CommandRegistry } from '@dltech/atlas-commands'
-import { resize } from '@dltech/atlas-native-commands'
+import { cancelResize, resize } from '@dltech/atlas-native-commands'
 import {
   ControlPlane,
   emptyDigestTimings,
@@ -19,23 +19,22 @@ import {
 } from '@dltech/atlas-control'
 import type { ControlSessionRow } from '@dltech/atlas-control'
 import {
-  EMessageOrigin,
+  clearMomentSeqOf,
+  ESessionStatus,
   ESubscriptionActor,
   ESubscriptionEnd,
   INBOX_KIND_RETRY,
   INBOX_KIND_STOP,
   type Attachment,
-  type SaidUpload,
 } from '@dltech/atlas-core'
 import { MediaStore } from '@dltech/atlas-media'
-import type { ProductAnalytics } from '@dltech/atlas-observability'
+import type { ProductAnalytics, TracePort } from '@dltech/atlas-observability'
 import {
   DEFAULT_SANDBOX_PROVIDER,
   ECredentialSource,
   ESandboxProvider,
   EWithdrawRefusal,
   INBOX_KIND_MESSAGE,
-  inboxMessageSchema,
   type SessionArchiveOutput,
   type SessionBlobOutput,
   type SessionCommandInput,
@@ -46,7 +45,6 @@ import {
   type SessionListOutput,
   type SessionMarkReadOutput,
   type SessionMessageDraft,
-  type SessionPostMedia,
   type SessionRetryOutput,
   type SessionStatusOutput,
   type SessionStopOutput,
@@ -58,12 +56,15 @@ import {
   type SessionSleepPodOutput,
   type SessionWithdrawOutput,
 } from '@dltech/atlas-protocol'
-import type { SessionPageOutput } from '@dltech/atlas-wire'
+import { notifyClearIdempotencyKey } from '@dltech/atlas-jobs/notify'
 import { BackgroundWork } from '../../../_core/ports/background-work'
+import { JobsProjectDispatcher } from '../../../_core/ports/job-dispatcher'
+import { notifyClearTaskContract } from '../../../_lib/trigger/notify-clear.contract'
 import { SessionTitler } from '../../../_core/ports/session-titler'
 import {
   POD_OPS,
   PRODUCT_ANALYTICS,
+  TRACE_FOR,
   digestTimingProperties,
   sandboxComputeFor,
   sandboxLiveCpuMs,
@@ -71,8 +72,8 @@ import {
 } from '../../../agent'
 import { PodPowerService, type PodPower } from './pod-power.service'
 import { PodSizingService, type PodSizing } from './pod-sizing.service'
-import { pageSessions, type PageBucket } from '../sessions/session-pages'
 import { COMMAND_REGISTRY, postCommand } from './command-registry'
+import { refuseArchivedCommand, requireLiveSession } from './session-archived'
 import { SubscriptionTargetError, resolvedSubscriptionTargetOf } from './subscription-target'
 import { modelSet, modelSetArgs, modelSetHandlers } from './model-set'
 import { MediaRegistry } from './media-registry'
@@ -83,14 +84,13 @@ import {
   EVENTS_DEFAULT_MAX_BYTES,
   toPageEvent,
 } from './session-events-page'
-import { postedAttachmentsOf } from './post-attachments'
+import { postMessageOf, type MessageDraftInput } from './post-message'
+import { withPromptPostSpan, type PromptPostSpan } from './prompt-post-span'
 
-type MessageDraftInput = {
-  text: string
-  clientId?: string | undefined
-  media?: readonly SessionPostMedia[] | undefined
-  uploads?: readonly SaidUpload[] | undefined
-  attachments?: readonly Attachment[] | undefined
+type PostArgs = MessageDraftInput & {
+  userId: string
+  sessionId: string
+  sentAt?: string | undefined
 }
 
 @Injectable()
@@ -107,10 +107,14 @@ export class SessionsService {
     @Inject(COMMAND_REGISTRY) private readonly commands: CommandRegistry,
     @Inject(PodSizingService) private readonly podSizing: PodSizing,
     @Inject(PodPowerService) private readonly podPower: PodPower,
+    @Inject(JobsProjectDispatcher) private readonly dispatcher: JobsProjectDispatcher,
     @Optional() @Inject(POD_OPS) private readonly ops: PodOps | null = null,
     @Optional()
     @Inject(PRODUCT_ANALYTICS)
     private readonly analytics: ProductAnalytics | null = null,
+    @Optional()
+    @Inject(TRACE_FOR)
+    private readonly traceFor: ((distinctId: string) => TracePort) | null = null,
   ) {}
 
   async accessibleProjectId(args: { userId: string; projectId: string }): Promise<string> {
@@ -153,7 +157,12 @@ export class SessionsService {
       this.captureSessionCreated({ sessionId, args, provider: sandboxProvider })
       return { sessionId, mainThreadId }
     }
-    const message = await this.messageOf({ userId: args.userId, draft: args.firstMessage })
+    const message = await postMessageOf({
+      registry: this.media,
+      store: this.store,
+      userId: args.userId,
+      draft: args.firstMessage,
+    })
     const { inboxId, modelRef } = await this.plane.createSessionWithMessage({
       ...session,
       message: { kind: INBOX_KIND_MESSAGE, payload: message.payload },
@@ -240,67 +249,42 @@ export class SessionsService {
     }
   }
 
-  async page(args: {
-    userId: string
-    bucket: PageBucket
-    cursor?: string | undefined
-    limit?: number | undefined
-    search?: string | undefined
-  }): Promise<SessionPageOutput> {
-    return pageSessions(args)
+  async post(args: PostArgs) {
+    return await withPromptPostSpan({
+      trace: this.traceFor?.(args.userId),
+      sessionId: args.sessionId,
+      sentAt: args.sentAt,
+      serverNow: Date.now(),
+      run: (post) => this.posted({ input: args, post }),
+    })
   }
 
-  async post(args: {
-    userId: string
-    sessionId: string
-    text: string
-    media?: readonly SessionPostMedia[] | undefined
-    uploads?: readonly SaidUpload[] | undefined
-    attachments?: readonly Attachment[] | undefined
-  }) {
-    const session = await this.requireOwnedSession(args)
-    const message = await this.messageOf({ userId: args.userId, draft: args })
+  private async posted(args: { input: PostArgs; post: PromptPostSpan }) {
+    const { input, post } = args
+    const session = requireLiveSession(await this.requireOwnedSession(input))
+    const message = await postMessageOf({
+      registry: this.media,
+      store: this.store,
+      userId: input.userId,
+      draft: input,
+    })
     const { inboxId } = await this.plane.post({
-      sessionId: args.sessionId,
+      sessionId: input.sessionId,
       kind: INBOX_KIND_MESSAGE,
       payload: message.payload,
     })
+    post.delivered({ inboxId, hasMedia: message.attachments.length > 0 })
     this.nameIfUntitled({
-      userId: args.userId,
-      sessionId: args.sessionId,
+      userId: input.userId,
+      sessionId: input.sessionId,
       projectId: session.projectId,
       title: session.title,
-      text: args.text,
+      text: input.text,
       attachments: message.attachments,
       inboxId,
       modelRef: session.modelRef,
     })
     return { inboxId }
-  }
-
-  private async messageOf(args: {
-    userId: string
-    draft: MessageDraftInput
-  }): Promise<{ payload: string; attachments: readonly Attachment[] }> {
-    const attachments = await postedAttachmentsOf({
-      registry: this.media,
-      store: this.store,
-      userId: args.userId,
-      media: args.draft.media,
-      uploads: args.draft.uploads,
-      attachments: args.draft.attachments,
-    })
-    return {
-      payload: JSON.stringify(
-        inboxMessageSchema.parse({
-          text: args.draft.text,
-          via: EMessageOrigin.Operator,
-          ...(args.draft.clientId === undefined ? {} : { clientId: args.draft.clientId }),
-          ...(attachments.length === 0 ? {} : { attachments }),
-        }),
-      ),
-      attachments,
-    }
   }
 
   private nameIfUntitled(args: {
@@ -374,8 +358,65 @@ export class SessionsService {
     seq: number
   }): Promise<SessionMarkReadOutput> {
     await this.requireOwnedSession(args)
+    const notify = await this.notifyStateOf(args)
     const readSeq = await this.plane.markSessionRead({ sessionId: args.sessionId, seq: args.seq })
+    const momentSeq = clearMomentSeqOf({
+      previousReadSeq: notify.readSeq,
+      readSeq,
+      lastTurnSeq: notify.lastTurnSeq,
+      headSeq: notify.headSeq,
+      waiting: notify.waiting,
+    })
+    if (momentSeq !== null) {
+      this.background.keepAlive(
+        this.dispatchClear({ userId: args.userId, sessionId: args.sessionId, momentSeq }),
+      )
+    }
     return { readSeq }
+  }
+
+  private async notifyStateOf(args: { userId: string; sessionId: string }): Promise<{
+    readSeq: number | null
+    lastTurnSeq: number | null
+    headSeq: number
+    waiting: boolean
+  }> {
+    const [digest] = await this.plane.listSessionDigests({
+      userId: args.userId,
+      sessionId: args.sessionId,
+      limit: 1,
+      withView: true,
+    })
+    if (digest === undefined) {
+      return { readSeq: null, lastTurnSeq: null, headSeq: 0, waiting: false }
+    }
+    const status = digest.view?.status.state
+    return {
+      readSeq: digest.readSeq,
+      lastTurnSeq: digest.lastTurn?.seq ?? null,
+      headSeq: digest.headSeq,
+      waiting:
+        status === ESessionStatus.WaitingForOperator ||
+        status === ESessionStatus.WaitingForCredentials,
+    }
+  }
+
+  private async dispatchClear(args: {
+    userId: string
+    sessionId: string
+    momentSeq: number
+  }): Promise<void> {
+    try {
+      await this.dispatcher.dispatch({
+        task: notifyClearTaskContract,
+        payload: { userId: args.userId, sessionId: args.sessionId },
+        idempotencyKey: notifyClearIdempotencyKey(args),
+      })
+    } catch (failure) {
+      this.logger.warn(
+        `clearing the notifications of session ${args.sessionId} failed: ${String(failure)}`,
+      )
+    }
   }
 
   async events(args: {
@@ -469,9 +510,33 @@ export class SessionsService {
     })
   }
 
-  async retry(args: { userId: string; sessionId: string }): Promise<SessionRetryOutput> {
-    await this.requireOwnedSession(args)
-    return this.plane.post({ sessionId: args.sessionId, kind: INBOX_KIND_RETRY, payload: '{}' })
+  async retry(args: {
+    userId: string
+    sessionId: string
+    agentId?: string | undefined
+  }): Promise<SessionRetryOutput> {
+    const session = requireLiveSession(await this.requireOwnedSession(args))
+    const agentId = await this.agentOf({ session, agentId: args.agentId })
+    return this.plane.post({
+      sessionId: args.sessionId,
+      kind: INBOX_KIND_RETRY,
+      payload: agentId === undefined ? '{}' : JSON.stringify({ agentId }),
+    })
+  }
+
+  private async agentOf(args: {
+    session: ControlSessionRow
+    agentId: string | undefined
+  }): Promise<string | undefined> {
+    if (args.agentId === undefined) return undefined
+    const thread =
+      args.agentId === args.session.mainThreadId
+        ? undefined
+        : await this.plane.readThread({ threadId: args.agentId })
+    if (thread === undefined || thread.sessionId !== args.session.sessionId) {
+      throw new NotFoundException('agent not found')
+    }
+    return args.agentId
   }
 
   async stop(args: { userId: string; sessionId: string }): Promise<SessionStopOutput> {
@@ -480,7 +545,7 @@ export class SessionsService {
   }
 
   async wake(args: { userId: string; sessionId: string }): Promise<SessionWakeOutput> {
-    await this.requireOwnedSession(args)
+    requireLiveSession(await this.requireOwnedSession(args))
     const { lease, live } = await this.plane.currentLease({ sessionId: args.sessionId })
     if (lease.holderHostId !== null && live) return { state: 'elsewhere' }
     await this.plane.revoke({ sessionId: args.sessionId, wantsHolder: true })
@@ -501,19 +566,21 @@ export class SessionsService {
   }
 
   async holdPod(args: { userId: string; sessionId: string }): Promise<SessionHoldPodOutput> {
-    await this.requireOwnedSession(args)
+    requireLiveSession(await this.requireOwnedSession(args))
     if (this.ops === null) return { held: false }
     return { held: this.ops.hold({ sessionId: args.sessionId }) }
   }
 
   async command(args: { userId: string } & SessionCommandInput): Promise<SessionCommandOutput> {
     const session = await this.requireOwnedSession(args)
+    refuseArchivedCommand({ session, name: args.name })
     const output = await postCommand({
       plane: this.plane,
       registry: this.commands,
       controlHandlers: new Map([
         ...modelSetHandlers({ plane: this.plane, session }),
-        [resize.spec.name, this.podSizing.resizeHandler({ userId: args.userId, session })],
+        [resize.spec.name, this.podSizing.resizeHandler()],
+        [cancelResize.spec.name, this.podSizing.cancelHandler()],
       ]),
       ...args,
     })

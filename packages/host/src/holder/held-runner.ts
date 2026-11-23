@@ -6,7 +6,7 @@ import {
   type InboxEntry,
   type ThreadId,
 } from '@dltech/atlas-core'
-import { LoopTurnRunner, type PauseSignal, settleCrashedCalls } from '@dltech/atlas-agent'
+import { LoopTurnRunner, settleCrashedCalls } from '@dltech/atlas-agent'
 import { logFieldsOf } from '@dltech/atlas-observability'
 
 import { ScopedToolDispatcher } from '../calls/call-scope'
@@ -20,6 +20,7 @@ import type { HeldTurns } from './held-turns'
 import { InboxIntake } from './inbox-intake'
 import { EIntakeScope } from './intake-scope'
 import { openChildren, type OpenChild } from './crew/open-children'
+import { modelWaitObserverOf } from './model-wait-observer'
 import { operatorAnswersOf } from './operator-answer'
 import type { PodCrew } from '@dltech/atlas-plugin-sdk'
 
@@ -44,38 +45,6 @@ export const logReconcileFault = (args: { deps: HeldSessionDeps; error: unknown 
     message: `reconciling ${args.deps.sessionId} failed`,
     ...logFieldsOf({ error: args.error }),
   })
-}
-
-export const startHeldTurn = (args: {
-  deps: HeldSessionDeps
-  turns: HeldTurns
-  record: SessionRecord
-  pause: PauseSignal
-  runner: LoopTurnRunner
-  threadId: ThreadId
-  resume: boolean
-  refreshBranches(): void
-  onFault(): void
-  onSettled(): void
-}): void => {
-  void args.turns
-    .drive({
-      runner: args.runner,
-      record: args.record,
-      threadId: args.threadId,
-      pause: args.pause,
-      resume: args.resume,
-    })
-    .then(() => {
-      args.refreshBranches()
-    })
-    .catch((error) => {
-      logDriveFault({ deps: args.deps, error })
-      args.onFault()
-    })
-    .finally(() => {
-      args.onSettled()
-    })
 }
 
 const IDLE_COMMAND_ACTIONS: readonly EHeldAction[] = [
@@ -166,7 +135,9 @@ export const createLoopRunner = (args: {
   epoch: number
   signal: AbortSignal
   crew: PodCrew
+  crewRunning(): number
   isDraining(): boolean
+  childrenRunning(): number
 }): { runner: LoopTurnRunner; intake: InboxIntake } => {
   const { deps, runtime, record, threadId } = args
   const operator =
@@ -201,7 +172,9 @@ export const createLoopRunner = (args: {
     controlHandlers: deps.controlHandlers,
     ...(pod.slash === undefined ? {} : { slash: pod.slash }),
     model: runtime.model,
+    childrenRunning: args.childrenRunning,
     ...(operator === undefined ? {} : { operatorAnswers: operator }),
+    crewRunning: () => args.crewRunning(),
     now: () => deps.timers.now(),
     ...(deps.log === undefined ? {} : { log: deps.log }),
   })
@@ -217,7 +190,12 @@ export const createLoopRunner = (args: {
     ...(runtime.mediaUrls === undefined ? {} : { mediaUrls: runtime.mediaUrls }),
     tools: () => modelFacingDeclarationsOf(pod.tools.declarations()),
     dispatch: new ScopedToolDispatcher(
-      hookedToolsOf({ registry: pod.tools, hooks: pod.hooks, trace: runtime.trace }),
+      hookedToolsOf({
+        registry: pod.tools,
+        hooks: pod.hooks,
+        quality: runtime.quality,
+        trace: runtime.trace,
+      }),
     ),
     intake,
     output: args.turns.liveOutput({
@@ -234,6 +212,12 @@ export const createLoopRunner = (args: {
       threadId,
       runId: () => deps.ids.nextRunId(),
     }),
+    waitState: modelWaitObserverOf({
+      record,
+      threadId,
+      newRunId: () => deps.ids.nextRunId(),
+      ...(deps.log === undefined ? {} : { log: deps.log }),
+    }),
   })
   return { runner, intake }
 }
@@ -247,7 +231,9 @@ export const wireHeldLoop = (args: {
   signal: AbortSignal
   epoch: number
   crew: PodCrew
+  crewRunning(): number
   isDraining(): boolean
+  childrenRunning(): number
 }): {
   runner: LoopTurnRunner
   branches: BranchObserver

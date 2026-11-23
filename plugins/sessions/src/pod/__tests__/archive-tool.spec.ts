@@ -58,6 +58,7 @@ const ctxOf = (sessions: PodSessions): PluginPodContext => ({
     },
     routines: EMPTY_ROUTINES,
     subscriptions: EMPTY_SUBSCRIPTIONS,
+    gateway: { apiKey: async () => undefined, imageModel: async () => undefined },
     memory: {
       list: async () => ({ project: null, memories: [] }),
       read: async () => null,

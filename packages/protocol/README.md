@@ -7,17 +7,17 @@ share. Every frame and every call is a `zod` schema here, and the daemon engine 
 
 - The daemon link frames: host frames, daemon frames, call keys, epochs and error kinds.
 - The call operations the host sends to the daemon, and their results and events.
-- The session API schemas: list, create, post, events, blob, withdraw, archive, status.
-- The live frames, the bus channel names, and the stream protocol constants.
+- The session API schemas: list, create, post, events, blob, withdraw, archive and status.
+- The live frames, the pod call frames, the bus channel names, and the stream protocol constants.
 - The daemon engine: the call journal, the ledger, fencing and the op groups.
-- The terminal, files, media, health, subscription and changes schemas.
+- The terminal, files, media, health, subscription, changes and diagram repair schemas.
 - The Mac app link frames and JSON-RPC messages.
 
 ## Does not own
 
 - The socket that carries a frame: `@dltech/atlas-host` connects, and `apps/daemon` serves.
 - The logic of an op: `apps/daemon` runs a shell, a service or a git call.
-- The HTTP routes: `apps/api` and `@dltech/atlas-control`.
+- The HTTP routes: `apps/api` owns them.
 - The session state machine: `@dltech/atlas-core`.
 
 ## Entry points
@@ -37,10 +37,22 @@ share. Every frame and every call is a `zod` schema here, and the daemon engine 
 - `callResultSchema`, `CallResult`, `okCallResultSchema`, `failedCallResultSchema`: the answer.
 - `daemonEventSchema`, `DaemonEvent`: an event that arrives during a call, such as shell output.
 
-The ops are `exec`, `stat`, `readFile`, `readBytes`, `readTextForEdit`, `readLink`, `readDirectory`,
-`writeFile`, `fetchToFile`, `remove`, `mkdir`, `rename`, `glob` and `grep`. They also include the
-groups `changes.*`, `git.*`, `mcp.*`, `metrics.*`, `previews.*`, `services.*`, `shells.*`,
-`terminal.*` and `watch.*`.
+The ops are `exec`, `exec.background`, `stat`, `readFile`, `readBytes`, `readTextForEdit`, `readLink`,
+`readDirectory`, `writeFile`, `fetchToFile`, `remove`, `mkdir`, `rename`, `glob` and `grep`. They
+also include the groups `changes.*`, `git.*`, `mcp.*`, `metrics.*`, `oom.*`, `previews.*`,
+`services.*`, `shells.*`, `terminal.*` and `watch.*`.
+
+### Call a pod from the API
+
+- `podCallRequestSchema`, `PodCallRequest`, `EPodCallKind`: the request that the API sends to the
+  host that holds the session. The kinds are `invoke`, `follow`, `renew` and `release`.
+- `podCallReplySchema`, `PodCallReply`, `EPodCallFailure`: the answer. A `failed` answer with
+  `EPodCallFailure.Fenced` means the host that answered lost the session, so the caller routes the
+  request again.
+- `podStreamFrameSchema`, `PodStreamFrame`: an event, or a close with its reason, on a followed
+  stream. `podReadySchema`, `PodReady`: the message that the host publishes when it holds the pod.
+- `ELiveOpFailure`, `liveOpFailureSchema`, `CP_POD_OPS`: why the API cannot reach the op, and the
+  ops that the API calls on a pod. Any other op answers `unavailable`.
 
 ### Carry a frame over the link
 
@@ -59,13 +71,22 @@ groups `changes.*`, `git.*`, `mcp.*`, `metrics.*`, `previews.*`, `services.*`, `
 
 - `filesTreeInputSchema`, `filesSearchInputSchema`, `filesReadInputSchema`: browse, search and read.
   Each takes an optional `checkoutId`; when it is set, the directory or path resolves inside that
-  checkout's worktree instead of the session's launch directory.
+  checkout's worktree instead of the session's launch directory. `filesTreeInputSchema` and
+  `filesReadInputSchema` also take an optional `root`: `EFilesRoot.Context` resolves the path inside
+  the session's context folder instead of any checkout.
+
+### Read a service's log
+
+- `servicesLogInputSchema`, `servicesLogOutputSchema`: the session and service, and the last 64 KiB
+  of that service's log as `text`, with `truncated` set when earlier output was dropped.
 
 ### Speak the session API
 
 - `sessionListInputSchema`, `sessionSummarySchema`, `sessionListOutputSchema`: the session list.
 - `sessionCreateInputSchema`, `sessionPostInputSchema`, `sessionEventsOutputSchema`: create, post, read.
 - `sessionSubscriptionSchema`, `sessionSubscribeInputSchema`, `sessionUnsubscribeInputSchema`.
+- `usageReportInputSchema`, `usageReportDtoSchema`, `usageWindowDtoSchema`: a plan account's usage
+  as the API reports it, by account id or by provider, with the age of the reading.
 
 ### Carry a message payload
 
@@ -74,6 +95,13 @@ groups `changes.*`, `git.*`, `mcp.*`, `metrics.*`, `previews.*`, `services.*`, `
 - `inboxFileSchema`, `InboxFile`: one context file a spawn attaches for the child, `{path, text}`.
   A message carries at most 32. These files belong to the child's context folder; they are not
   model attachments.
+
+### Repair a diagram
+
+- `diagramRepairInputSchema`, `diagramRepairOutputSchema`: repair a Mermaid diagram in place, and
+  return its new source.
+- `diagramRepairListInputSchema`, `diagramRepairListOutputSchema`: list the repairs that a session
+  holds.
 
 ### Speak the stream protocol
 

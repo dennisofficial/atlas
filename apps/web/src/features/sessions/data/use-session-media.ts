@@ -2,6 +2,14 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
 import { decodeBase64 } from '@dltech/atlas-core'
+import {
+  storeImage,
+  supportedMediaTypeOf,
+  type MediaUploadApi,
+  type PutImage,
+  type RestoredMedia,
+  type UploadHandle,
+} from '@dltech/atlas-client/session'
 
 import {
   TOAST_REMOVE_FAILED,
@@ -9,7 +17,7 @@ import {
   toastOverLimit,
   toastUploadFailed,
 } from '@/features/threads/data/composer-attachments'
-import { putFile, type UploadHandle } from '@/features/threads/data/composer-uploads-api'
+import { putFile } from '@/features/threads/data/composer-uploads-api'
 import { encodeImage } from '@/features/threads/data/image-encode'
 import { api, cloudCall } from '@/lib/api-client'
 
@@ -21,22 +29,25 @@ import {
   readyAttachmentsOf,
   restoredMediaOf,
   startedMedia,
-  storeImage,
-  supportedMediaTypeOf,
   TOAST_IMAGES_ONLY,
   withMediaEncoded,
   withMediaFailed,
   withMediaProgress,
   withMediaReady,
   type HeldMedia,
-  type MediaUploadApi,
 } from './session-media'
-import type { RestoredMedia } from './session-rewind'
 
 const mediaApi: MediaUploadApi = {
   presign: (input) => cloudCall(api.media.presign.mutate(input)),
   confirm: (input) => cloudCall(api.media.confirm.mutate(input)),
 }
+
+const putImage: PutImage = (args) =>
+  putFile({
+    url: args.url,
+    file: new File([args.bytes.slice()], args.mediaType, { type: args.mediaType }),
+    onProgress: args.onProgress,
+  })
 
 export function useSessionMedia({
   onUnreadable,
@@ -109,7 +120,7 @@ export function useSessionMedia({
           bytes: decodeBase64(image.data),
           mediaType: supportedMediaTypeOf(image.mediaType),
           api: mediaApi,
-          put: putFile,
+          put: putImage,
           onProgress: (progress) =>
             update((current) => withMediaProgress({ held: current, id, progress })),
           onHandle: (handle) => handles.current.set(id, handle),

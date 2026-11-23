@@ -21,6 +21,7 @@ const envelope = (seq: number) => ({
 
 const snapshotOf = (raw: readonly unknown[]): SessionSnapshot => ({
   events: raw.map((event) => v2EventSchema.parse(event)),
+  foldable: raw.map((event) => v2EventSchema.parse(event)),
   pending: { pending: [] },
   cursor: undefined,
   status: undefined,

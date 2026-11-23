@@ -21,10 +21,12 @@ import { isLiveTurn } from './data/is-live-turn'
 import { ETurnKind, lastTurnEndedAt, turnsOf } from './data/transcript-turns'
 import { useNow, useNowEvery } from './data/use-now'
 import { useDiagramRepair } from './data/use-diagram-repair'
+import type { RepairDiagramAction } from './data/diagram-repair'
 import { useRoster } from './data/use-roster'
 import { useThreadPanel } from './panel/thread-panel-context'
 import { sandboxBootPropsOf } from './sandbox-boot-props'
 import { BackgroundWaitLine } from './transcript/background-wait-line'
+import { RepairCard, type RepairCardProps } from './transcript/repair-card'
 import { RunFailureCard, type RunFailureCardProps } from './transcript/run-failure-card'
 import { StagedTurn } from './transcript/staged-turn'
 import {
@@ -78,6 +80,7 @@ function BootEntryItem({ entry, onRetry }: { entry: BootEntry; onRetry: () => vo
 export function ThreadTranscript({
   items,
   failureCard,
+  repairCard,
   failedLabel,
   pod,
   working,
@@ -86,6 +89,7 @@ export function ThreadTranscript({
   onRetryBoot,
   rewind,
   summarise,
+  repairDiagram: repairDiagramProp,
   boot: sessionBoot,
   staged,
   onLoadOlder,
@@ -93,6 +97,7 @@ export function ThreadTranscript({
 }: {
   items: readonly TranscriptRow[]
   failureCard: RunFailureCardProps | null
+  repairCard?: RepairCardProps | null
   failedLabel: string | null
   pod: PodStatus | null
   working: boolean
@@ -102,6 +107,7 @@ export function ThreadTranscript({
   onRetryBoot: () => void
   rewind: TranscriptRewind | null
   summarise: TranscriptSummarise | null
+  repairDiagram?: RepairDiagramAction | null
   onOpenPodSize?: (() => void) | undefined
   boot?: BootView | null
   staged?: readonly QueuedMessageEntry[]
@@ -111,7 +117,8 @@ export function ThreadTranscript({
   const now = useNow(working || anySpawnRunning(items))
   const { channel, openChanges, openAgent } = useThreadPanel()
   const roster = useRoster(channel)
-  const repairDiagram = useDiagramRepair()
+  const channelRepairDiagram = useDiagramRepair()
+  const repairDiagram = repairDiagramProp === undefined ? channelRepairDiagram : repairDiagramProp
   const models = useMemo(() => rosterModelsOf(roster), [roster])
   const turns = useMemo(
     () => turnsOf({ items, working, turnStartedAt }),
@@ -156,6 +163,11 @@ export function ThreadTranscript({
         </ChatItem>,
         ...bootAfter(index),
       ])}
+      {repairCard === undefined || repairCard === null ? null : (
+        <ChatItem id="turn-failure">
+          <RepairCard {...repairCard} />
+        </ChatItem>
+      )}
       {failureCard !== null ? (
         <ChatItem id="turn-failure">
           <RunFailureCard {...failureCard} />

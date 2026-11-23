@@ -116,7 +116,7 @@ const SAMPLES: { readonly [K in EventType]: SampleOf<K> } = {
     to: EExecutionLocation.Cloud,
     cause: ELocationChangeCause.SandboxExpired,
   },
-  rotated: { type: 'rotated', predecessor: toThreadId('thread-old'), handoffPath: '/w/HANDOFF.md' },
+  rotated: { type: 'rotated', handoff: 'the plan, the files and the branch' },
   parked: {
     type: 'parked',
     reason: 'idle',

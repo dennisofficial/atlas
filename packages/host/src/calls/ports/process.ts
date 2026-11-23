@@ -26,10 +26,14 @@ export const DEFAULT_SANDBOX_COMMANDS: Readonly<Record<string, string>> = {
 
 const OOM_KILLED_EXIT_CODE = 137
 const CANCELLED_EXIT_CODE = 130
+const BACKGROUNDED_EXIT_CODE = 75
 
 const exitedOutcomeOf = (result: ExecResult): ProcessOutcome => {
   if (result.outcome === EExecOutcome.OomKilled) {
     return { kind: EProcessOutcome.OomKilled, memory: result.memory }
+  }
+  if (result.outcome === EExecOutcome.Backgrounded && result.shellId !== undefined) {
+    return { kind: EProcessOutcome.Backgrounded, shellId: result.shellId }
   }
   if (result.exitCode !== null) return { kind: EProcessOutcome.Exited, code: result.exitCode }
   if (result.outcome === EExecOutcome.Cancelled) {
@@ -54,6 +58,7 @@ const failedOutcomeOf = (failure: { code: string; message: string }): ProcessOut
 const exitCodeOf = (outcome: ProcessOutcome): number => {
   if (outcome.kind === EProcessOutcome.Exited) return outcome.code
   if (outcome.kind === EProcessOutcome.OomKilled) return OOM_KILLED_EXIT_CODE
+  if (outcome.kind === EProcessOutcome.Backgrounded) return BACKGROUNDED_EXIT_CODE
   if (outcome.kind === EProcessOutcome.Interrupted) {
     throw new CallInterruptedError('the command was interrupted before it finished')
   }
@@ -119,7 +124,20 @@ export class DaemonProcessPort extends ProcessPort {
       exited,
       outcome,
       terminate: () => controller.abort(),
+      moveToBackground: ({ shellId }) => this.adopt({ key, shellId }),
     }
+  }
+
+  private async adopt(args: { key: string; shellId: string }): Promise<boolean> {
+    const result = await this.args.calls
+      .invoke({
+        key: nextKey(),
+        op: { op: 'exec.background', execKey: args.key, shellId: args.shellId },
+      })
+      .catch(() => undefined)
+    if (result === undefined || result.status !== ECallStatus.Ok) return false
+    if (result.op !== 'exec.background') return false
+    return result.value.adopted
   }
 
   override which(_args: { command: string; threadId?: ThreadId | undefined }): string | null {

@@ -1,13 +1,11 @@
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'bun:test'
-import React from 'react'
 
+import { qualityNoticeOf } from '@dltech/atlas-client/transcript'
 import {
   EQualityFindingState,
   EQualityImpact,
-  EQualityLanguage,
   EQualityReviewStatus,
-  EQualityScopeKind,
   EQualitySkipReason,
   EQualityTransition,
   toCallId,
@@ -18,7 +16,6 @@ import {
 
 import { ECallState, type ToolCall, type ToolRun } from '../../../../store'
 import { grammarsReady, teardown } from '../../../markdown/__tests__/harness'
-import { qualityNoticeOf } from '../quality-indicator'
 import { ToolRunBlock } from '../tool-run-block'
 
 await grammarsReady()
@@ -96,65 +93,6 @@ const render = async (toolCall: ToolCall) => {
   await setup.flush()
   return setup
 }
-
-describe('qualityNoticeOf', () => {
-  it('stays silent for a completed review with nothing to flag', () => {
-    expect(qualityNoticeOf([review()])).toBeNull()
-    expect(qualityNoticeOf([])).toBeNull()
-    expect(qualityNoticeOf(undefined)).toBeNull()
-  })
-
-  it('stays silent for expected skips', () => {
-    const skipped = review({
-      status: EQualityReviewStatus.Skipped,
-      reason: EQualitySkipReason.OutsideWorkspace,
-    })
-    expect(qualityNoticeOf([skipped])).toBeNull()
-  })
-
-  it('names the single policy behind one newly notified finding', () => {
-    const notice = qualityNoticeOf([review({ assessments: [assessment()], findings: [finding()] })])
-
-    expect(notice?.findings).toBe(1)
-    expect(notice?.policyIds).toEqual(['single-responsibility'])
-  })
-
-  it('counts several findings rather than listing them', () => {
-    const notice = qualityNoticeOf([
-      review({ assessments: [assessment()], findings: [finding()] }),
-      review({
-        scope: {
-          id: 'scope-2',
-          workspaceNamespace: 'local:workspace',
-          path: 'src/widget.ts',
-          language: EQualityLanguage.TypeScript,
-          kind: EQualityScopeKind.Class,
-          name: 'Controller',
-          adapterVersion: '1',
-          structuralHash: 's2',
-          parentScopeId: null,
-          lineRange: null,
-        },
-        assessments: [assessment({ scopeId: 'scope-2' })],
-        findings: [finding({ id: 'single-responsibility:scope-2:1', scopeId: 'scope-2' })],
-      }),
-    ])
-
-    expect(notice?.findings).toBe(2)
-  })
-
-  it('reports an operational failure when nothing was flagged', () => {
-    const notice = qualityNoticeOf([
-      review({
-        status: EQualityReviewStatus.OperationalError,
-        reason: EQualitySkipReason.ReviewDeadline,
-      }),
-    ])
-
-    expect(notice?.findings).toBe(0)
-    expect(notice?.failure).toBe('timed out')
-  })
-})
 
 describe('a tool row with a quality review attached', () => {
   it('shows the policy name beside a write that introduced a concern', async () => {

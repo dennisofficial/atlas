@@ -60,6 +60,7 @@ const transcriptOf = (
     agentId: CHILD,
     agentType: ROLE,
     intent: 'probe',
+    group: undefined,
     lastSeq: () => seq,
   })
   return { transcript, appends }
@@ -118,10 +119,12 @@ describe('ChildTranscript', () => {
     const { transcript } = transcriptOf(MAIN, posted, 12)
     await transcript.reported({ text: 'stuck' })
     await transcript.ended({
-      progress: { turns: 1, toolCalls: 0, prose: '', lastTool: undefined },
-      status: EAgentStatus.Finished,
-      failure: undefined,
-      killedBy: undefined,
+      draft: transcript.endingDraft({
+        progress: { turns: 1, toolCalls: 0, prose: '', lastTool: undefined },
+        status: EAgentStatus.Finished,
+        failure: undefined,
+        killedBy: undefined,
+      }),
     })
     expect(posted).toHaveLength(2)
     expect(posted[0]).toContain('"agent-reported"')

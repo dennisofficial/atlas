@@ -90,7 +90,7 @@ export const tracked = async (params: {
   tx: ControlTx
   session: ControlSessionRow
   lease: SubscriptionLeaseInput
-  expiresAt: string
+  expiresAt: string | null
 }): Promise<void> => {
   if (params.lease.subject.kind !== 'pull-request') return
   await params.tx.upsertTrackingTarget({

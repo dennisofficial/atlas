@@ -1,9 +1,8 @@
-import { ChevronRight } from 'lucide-react'
 import { useState } from 'react'
 
 import { SidebarGroup, SidebarMenu } from '@dltech/atlas-ui/components/sidebar'
 
-import { BUCKETS, PROJECTS, threadsOf, type AppProject, type AppThread } from './fixtures/app'
+import { PROJECTS, threadsOf, type AppProject, type AppThread } from './fixtures/app'
 import { Bucket, type BucketEntry } from './shell-bucket'
 import { ProjectGroup } from './shell-project-group'
 import { ThreadRow } from './shell-thread-row'
@@ -19,21 +18,6 @@ export interface ThreadListProps {
 }
 
 const NO_PROJECT: AppProject = { id: 'no-project', owner: '', name: 'No project' }
-
-function BucketRow({ label, hint, count }: { label: string; hint?: string; count: number }) {
-  return (
-    <button
-      type="button"
-      className="flex h-7 w-full items-center gap-1.5 rounded-md px-2 text-sm text-muted-foreground outline-hidden hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-    >
-      <ChevronRight className="size-4 shrink-0" />
-      <span className="shrink-0">{label}</span>
-      {hint && <span className="shrink-0 text-xs opacity-70">{hint}</span>}
-      <span className="h-px min-w-3 flex-1 bg-sidebar-border" />
-      <span className="font-mono text-xs tabular-nums">{count}</span>
-    </button>
-  )
-}
 
 function threadsFor({
   projectId,
@@ -121,7 +105,6 @@ export function ThreadList({
           />
         ))}
         <div className="flex flex-col gap-0.5">
-          <BucketRow label="Inactive" hint="Last 72h" count={BUCKETS.inactive} />
           {archivedEntries.length > 0 && (
             <Bucket
               label="Archived"

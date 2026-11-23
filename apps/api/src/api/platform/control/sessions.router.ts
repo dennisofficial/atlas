@@ -99,12 +99,6 @@ import {
   type SessionWithdrawInput,
   type SessionWithdrawOutput,
 } from '@dltech/atlas-protocol'
-import {
-  sessionPageInputSchema,
-  sessionPageOutputSchema,
-  type SessionPageInput,
-  type SessionPageOutput,
-} from '@dltech/atlas-wire'
 import { SessionMiddleware, type SessionTrpcCtx } from '../../../_module/session/session.middleware'
 import { ChangesService } from './changes.service'
 import { commandCatalogue } from './command-registry'
@@ -168,11 +162,6 @@ export class SessionsRouter {
     return this.sessions.markRead({ userId: ctx.auth.userId, ...input })
   }
 
-  @Query({ input: sessionPageInputSchema, output: sessionPageOutputSchema })
-  page(@Input() input: SessionPageInput, @Ctx() ctx: SessionTrpcCtx): Promise<SessionPageOutput> {
-    return this.sessions.page({ userId: ctx.auth.userId, ...input })
-  }
-
   @Query({ input: sessionEventsInputSchema, output: sessionEventsOutputSchema })
   events(
     @Input() input: SessionEventsInput,
@@ -201,7 +190,11 @@ export class SessionsRouter {
     @Input() input: SessionRetryInput,
     @Ctx() ctx: SessionTrpcCtx,
   ): Promise<SessionRetryOutput> {
-    return this.sessions.retry({ userId: ctx.auth.userId, sessionId: input.sessionId })
+    return this.sessions.retry({
+      userId: ctx.auth.userId,
+      sessionId: input.sessionId,
+      agentId: input.agentId,
+    })
   }
 
   @Mutation({ input: sessionStopInputSchema, output: sessionStopOutputSchema })

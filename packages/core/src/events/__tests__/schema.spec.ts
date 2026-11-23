@@ -18,6 +18,7 @@ import {
 } from '../body'
 import type { EventEnvelope } from '../envelope'
 import { toThreadId, toCallId, toEventId, toRunId } from '../ids'
+import { ERunFailureKind } from '../run-failure'
 import { eventBodySchema, eventEnvelopeSchema } from '../schema'
 
 const bodies: EventDraft[] = [
@@ -95,12 +96,12 @@ const bodies: EventDraft[] = [
     url: 'https://github.com/owner/repo/pull/12',
     state: 'merged',
   },
-  { type: 'rotated', predecessor: toThreadId('thread-1'), handoffPath: '/handoff.md' },
+  { type: 'rotated', handoff: 'the plan, the files and the branch' },
   {
     type: 'rotated',
-    predecessor: toThreadId('thread-1'),
-    handoffPath: '/handoff.md',
+    handoff: 'the plan, the files and the branch',
     instructions: 'keep the auth notes',
+    auto: { percent: 86 },
   },
   {
     type: 'parked',
@@ -147,6 +148,31 @@ const bodies: EventDraft[] = [
     intent: 'audit the settings registry',
     status: EAgentStatus.Failed,
     failureCause: 'provider inference.net returned 402: credit exhausted',
+    prose: '',
+    turns: 2,
+    toolCalls: 3,
+  },
+  {
+    type: 'agent-ended',
+    agentId: toThreadId('thread-child-1'),
+    agentType: 'explore',
+    intent: 'audit the settings registry',
+    status: EAgentStatus.Failed,
+    failureCause: 'provider anthropic returned 401',
+    failure: {
+      kind: ERunFailureKind.Auth,
+      message: 'provider anthropic returned 401',
+      statusCode: 401,
+      providerId: 'anthropic',
+      modelId: 'claude-sonnet',
+      accountId: 'acc-1',
+      resetAt: '2026-11-20T01:00:00.000Z',
+      agent: {
+        agentId: 'thread-child-1',
+        agentType: 'explore',
+        intent: 'audit the settings registry',
+      },
+    },
     prose: '',
     turns: 2,
     toolCalls: 3,
@@ -344,9 +370,13 @@ describe('eventBodySchema', () => {
     ).toThrow()
   })
 
-  it('rejects a rotation marker with an empty handoff path', () => {
+  it('rejects a rotation marker with an empty handoff', () => {
+    expect(() => eventBodySchema.parse({ type: 'rotated', handoff: '' })).toThrow()
+  })
+
+  it('rejects a rotation marker whose auto percent is out of range', () => {
     expect(() =>
-      eventBodySchema.parse({ type: 'rotated', predecessor: 'thread-1', handoffPath: '' }),
+      eventBodySchema.parse({ type: 'rotated', handoff: 'brief', auto: { percent: 101 } }),
     ).toThrow()
   })
 

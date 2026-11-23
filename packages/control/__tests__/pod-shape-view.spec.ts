@@ -45,6 +45,16 @@ describe('the actual pod shape in the session view', () => {
     })
   })
 
+  it('reports the disk a pod row records, and none while no row records one', () => {
+    expect(podStatusOf(rowOf({}))?.diskGb).toBeUndefined()
+    expect(podStatusOf(rowOf({ podDesiredDiskGb: 40 }))?.diskGb).toBe(40)
+  })
+
+  it('reports a recorded disk whatever the provider', () => {
+    expect(podStatusOf(rowOf({ sandboxProvider: 'vercel' }))?.diskGb).toBeUndefined()
+    expect(podStatusOf(rowOf({ sandboxProvider: 'vercel', podDesiredDiskGb: 40 }))?.diskGb).toBe(40)
+  })
+
   it('keeps the cpu of a pod recorded before its memory was stored, without inventing a memory', () => {
     const pod = podStatusOf(rowOf({ podActualVcpus: 4 }))
 

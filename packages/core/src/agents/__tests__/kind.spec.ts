@@ -35,6 +35,10 @@ describe('which agent events hand the turn to the parent', () => {
     expect(isTurnTaking(ending())).toBe(true)
   })
 
+  it('does not for an ending the holder held for its spawn group', () => {
+    expect(isTurnTaking(ending({ held: true }))).toBe(false)
+  })
+
   it('does for every report, which is always a wake', () => {
     expect(isTurnTaking(report())).toBe(true)
   })

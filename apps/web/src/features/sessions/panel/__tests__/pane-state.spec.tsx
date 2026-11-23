@@ -6,6 +6,7 @@ import type { Root } from 'react-dom/client'
 import { RIGHT_PANEL_COLLAPSED_KEY } from '@/features/threads/panel/right-panel-collapsed'
 
 import { SESSION_PANE_KEY } from '../pane-memory'
+import { EPaneOpen } from '../pane-open'
 import { type SessionPaneState, useSessionPane } from '../pane-state'
 import { ESessionPaneTab } from '../pane-tab'
 
@@ -119,5 +120,33 @@ describe('useSessionPane', () => {
     expect(state().podSizeRequest).toBe(2)
     await act(async () => state().consumePodSizeRequest())
     expect(state().podSizeRequest).toBe(0)
+  })
+
+  it('records an open request with a fresh id on the tab its kind names', async () => {
+    const state = await mount()
+    await act(async () => state().requestOpen({ kind: EPaneOpen.Changes, path: 'src/app.ts' }))
+    expect(state().openRequest).toEqual({ kind: EPaneOpen.Changes, path: 'src/app.ts', id: 1 })
+    expect(state().tab).toBe(ESessionPaneTab.Changes)
+    expect(state().sheetOpen).toBe(true)
+
+    await act(async () =>
+      state().requestOpen({ kind: EPaneOpen.Context, path: '$ATLAS_CONTEXT_DIR/plan.md' }),
+    )
+    expect(state().openRequest).toEqual({
+      kind: EPaneOpen.Context,
+      path: '$ATLAS_CONTEXT_DIR/plan.md',
+      id: 2,
+    })
+    expect(state().tab).toBe(ESessionPaneTab.Files)
+  })
+
+  it('clears only the open request it consumed', async () => {
+    const state = await mount()
+    await act(async () => state().requestOpen({ kind: EPaneOpen.File, path: 'src/app.ts' }))
+    await act(async () => state().requestOpen({ kind: EPaneOpen.File, path: 'src/other.ts' }))
+    await act(async () => state().consumeOpenRequest(1))
+    expect(state().openRequest?.id).toBe(2)
+    await act(async () => state().consumeOpenRequest(2))
+    expect(state().openRequest).toBeUndefined()
   })
 })

@@ -2,14 +2,16 @@ import { EHeldAction, EHeldOutcome, type InboxEntry, type ThreadId } from '@dlte
 import { OPERATOR_STOP_REASON, type LoopTurnRunner, type PauseSignal } from '@dltech/atlas-agent'
 import { logFieldsOf } from '@dltech/atlas-observability'
 
+import { retryChildrenIn } from './child-retry'
 import type { ContextSeedGate } from './context-seed'
 import type { HeldEnding } from './held-ending'
 import type { HeldObservation } from './held-observation'
 import type { HeldPrepare } from './held-prepare'
-import { ranQueuedCommand, startHeldTurn } from './held-runner'
+import { ranQueuedCommand } from './held-runner'
 import type { HeldSessionDeps } from './held-session-deps'
 import { readHeldAction } from './held-snapshot'
 import type { HeldTurns } from './held-turns'
+import { startHeldTurn } from './held-turns'
 import { ETakeoverLap } from './held-takeover'
 import { consumeStops } from './held-wait'
 import { settleOperatorOnStop } from './operator-stop'
@@ -24,6 +26,7 @@ export class HeldActions {
   private resumeAfterSeq = 0
   private staged: (() => Promise<void>) | undefined
   private commands: ((entries: readonly InboxEntry[]) => Promise<boolean>) | undefined
+  private retryChild: ((agentId: string) => Promise<boolean>) | undefined
 
   constructor(
     private readonly args: {
@@ -46,9 +49,11 @@ export class HeldActions {
   attach(args: {
     logStaged: () => Promise<void>
     runCommands: (entries: readonly InboxEntry[]) => Promise<boolean>
+    retryChild: (agentId: string) => Promise<boolean>
   }): void {
     this.staged = args.logStaged
     this.commands = args.runCommands
+    this.retryChild = args.retryChild
   }
 
   async step(args: { runner: LoopTurnRunner; threadId: ThreadId; lap: Lapped }): Promise<void> {
@@ -56,23 +61,29 @@ export class HeldActions {
     if (ending.outcome !== undefined) return
     const turnRunning = turns.turnRunning
     if (this.args.draining()) return turnRunning ? undefined : ending.finish(EHeldOutcome.Drained)
-    const { entries, action, resumable, inboxHead, failure, preparedBefore } = await args.lap({
-      lap: ETakeoverLap.Decide,
-      work: () =>
-        readHeldAction({
-          deps,
-          draining: this.args.draining(),
-          turnRunning,
-          resumeAfterSeq: this.resumeAfterSeq,
-          runtime: this.args.runtime(),
-          record: this.args.record(),
-          preparing: this.args.prepare.running,
-          setupRunning: this.args.prepare.hasSetupRunning,
-          childrenRunning: this.args.childrenRunning(),
-        }),
-    })
+    const { entries, action, resumable, inboxHead, failure, preparedBefore, queuedAt } =
+      await args.lap({
+        lap: ETakeoverLap.Decide,
+        work: () =>
+          readHeldAction({
+            deps,
+            threadId: args.threadId,
+            draining: this.args.draining(),
+            turnRunning,
+            resumeAfterSeq: this.resumeAfterSeq,
+            runtime: this.args.runtime(),
+            record: this.args.record(),
+            preparing: this.args.prepare.running,
+            setupRunning: this.args.prepare.hasSetupRunning,
+            childrenRunning: this.args.childrenRunning(),
+          }),
+      })
     if (action === EHeldAction.AbortTurn) return turns.abort(OPERATOR_STOP_REASON)
     if (action !== EHeldAction.StartTurn) await this.staged?.()
+    if (!turnRunning && (await this.retryChildren({ entries, threadId: args.threadId }))) {
+      this.args.request()
+      return
+    }
     if (await ranQueuedCommand({ action, entries, turnRunning, runCommands: this.commands })) {
       this.args.request()
       return
@@ -93,6 +104,7 @@ export class HeldActions {
           resumable,
           preparedBefore,
           inboxHead,
+          queuedAt,
         })
         return
       }
@@ -104,6 +116,23 @@ export class HeldActions {
         return
       }
     }
+  }
+
+  private async retryChildren(args: {
+    entries: readonly InboxEntry[]
+    threadId: ThreadId
+  }): Promise<boolean> {
+    const record = this.args.record()
+    const retry = this.retryChild
+    if (record === undefined || retry === undefined) return false
+    return await retryChildrenIn({
+      entries: args.entries,
+      record,
+      threadId: args.threadId,
+      runId: () => this.args.deps.ids.nextRunId(),
+      retry,
+      ...(this.args.deps.log === undefined ? {} : { log: this.args.deps.log }),
+    })
   }
 
   private async consumeStop(args: { entries: readonly InboxEntry[] }): Promise<void> {
@@ -133,6 +162,7 @@ export class HeldActions {
     resumable: boolean
     preparedBefore: boolean
     inboxHead: number
+    queuedAt: string | undefined
   }): Promise<void> {
     const { deps, ending, turns } = this.args
     if (this.args.draining() || ending.outcome !== undefined) return
@@ -160,6 +190,7 @@ export class HeldActions {
       runner: args.runner,
       threadId: args.threadId,
       resume: args.resumable,
+      queuedAt: args.queuedAt,
       refreshBranches: () => {
         if (this.args.draining() || ending.outcome !== undefined) return
         this.args.observation()?.refreshBranches()

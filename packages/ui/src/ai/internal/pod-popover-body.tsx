@@ -31,6 +31,13 @@ function SizeNote({ status, canChange, failed, failureDetail }: SizeNoteProps) {
   }
   const pending = status.pendingVcpus
   if (pending !== undefined) {
+    if (status.phase === 'waiting') {
+      return (
+        <p className="text-xs text-muted-foreground">
+          Waiting for idle to resize to {sizeLabel(pending)}
+        </p>
+      )
+    }
     const lead =
       status.state === EPodState.Parked
         ? 'Starts with'

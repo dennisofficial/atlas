@@ -68,15 +68,6 @@ export const renderKill = (args: { shellId: string; delta: ShellDelta }): string
   return sections.join('\n\n')
 }
 
-export const renderStarted = (args: { shellId: string }): string =>
-  [
-    `Started in the background as shell ${args.shellId}, and it outlives this turn.`,
-    'Stopping a turn stops the turn, not the shell, so nothing here needed nohup, setsid or a detached subprocess.',
-    'Its ending will arrive on its own with its output, even after this turn ends.',
-    'So do not wait on it: no sleeping, no polling, no idle loop - a tick only spins the turn. Take up other work, or end the turn and be woken.',
-    `Use shell_output({ shellId: "${args.shellId}" }) for unread output, shell_input to answer a prompt, and shell_kill to stop it.`,
-  ].join(' ')
-
 export const renderListLine = (args: {
   shellId: string
   command: string

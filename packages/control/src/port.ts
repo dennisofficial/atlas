@@ -15,6 +15,8 @@ import type {
 import type {
   ControlSessionRow,
   PrChecks,
+  SessionBucketCountParams,
+  SessionBucketCounts,
   SessionDigestRow,
   SessionListParams,
   SessionModelRow,
@@ -40,9 +42,12 @@ export type {
   ControlSessionDigest,
   ControlSessionRow,
   PrChecks,
+  SessionBucketCountParams,
+  SessionBucketCounts,
   SessionDigestRow,
   SessionListParams,
   SessionModelRow,
+  SessionPageCursor,
   SessionTurnEnding,
 } from './session-rows'
 
@@ -134,7 +139,7 @@ export type TrackingTarget = {
   repoFullName: string
   branch: string
   prNumber: number | null
-  liveUntil: string
+  liveUntil: string | null
 }
 
 export type SubscriptionSubject =
@@ -171,7 +176,7 @@ export type SubscriptionDraft = SubscriptionKey & {
   label: string
   createdBy: string
   events: readonly string[]
-  expiresAt: string
+  expiresAt: string | null
   deadline: string | null
   createdAt: string
 }
@@ -179,6 +184,13 @@ export type SubscriptionDraft = SubscriptionKey & {
 export type SubscriptionRow = SubscriptionDraft & { subscriptionId: string }
 
 export type WrittenSubscriptionRow = { row: SubscriptionRow; inserted: boolean }
+
+export type ReleasePullRequestTrackingParams = {
+  userId: string
+  repoFullName: string
+  prNumber: number
+  at: string
+}
 
 export type ThreadRow = {
   threadId: string
@@ -327,6 +339,7 @@ export interface ControlTx {
     memoryGb: number
     generation: number
   }): Promise<boolean>
+  setSessionPodDisk(params: { sessionId: string; diskGb: number }): Promise<boolean>
   setSessionPodFailed(params: {
     sessionId: string
     generation: number
@@ -336,6 +349,12 @@ export interface ControlTx {
     sessionId: string
     generation: number
     since: string | null
+  }): Promise<boolean>
+  setSessionPodWaitCancelled(params: {
+    sessionId: string
+    generation: number
+    vcpus: number | null
+    memoryGb: number | null
   }): Promise<boolean>
   setSessionArchived(params: { sessionId: string; archivedAt: string | null }): Promise<boolean>
   setSessionReadSeq(params: { sessionId: string; seq: number }): Promise<number | undefined>
@@ -352,6 +371,7 @@ export interface ControlTx {
     limit: number
   }): Promise<ControlSessionRow[]>
   listSessionDigests(params: SessionListParams): Promise<SessionDigestRow[]>
+  countSessionBuckets(params: SessionBucketCountParams): Promise<SessionBucketCounts>
   podPeersPlaced(params: { podSessionId: string; excludeSessionId: string }): Promise<number>
   createThread(params: {
     threadId: string
@@ -443,7 +463,7 @@ export interface ControlTx {
     target: JsonValue
     label: string
     events: readonly string[]
-    expiresAt: string
+    expiresAt: string | null
     deadline: string | null
   }): Promise<boolean>
   deleteSubscriptionRow(subscriptionId: string): Promise<boolean>
@@ -452,6 +472,7 @@ export interface ControlTx {
     at: string
   }): Promise<boolean>
   upsertTrackingTarget(params: TrackingTarget): Promise<void>
+  releasePullRequestTracking(params: ReleasePullRequestTrackingParams): Promise<void>
   hostPresent(hostId: number): Promise<boolean>
   hostsPresent(hostIds: readonly number[]): Promise<ReadonlySet<number>>
   lockRoutine(routineId: string): Promise<RoutineRow | undefined>

@@ -84,6 +84,17 @@ export const setSessionPodAppliedIn = (params: {
   return true
 }
 
+export const setSessionPodDiskIn = (params: {
+  state: State
+  sessionId: string
+  diskGb: number
+}): boolean => {
+  const row = params.state.sessions.get(params.sessionId)
+  if (row === undefined) return false
+  row.podDesiredDiskGb = params.diskGb
+  return true
+}
+
 export const setSessionPodFailedIn = (params: {
   state: State
   sessionId: string
@@ -106,6 +117,25 @@ export const setSessionPodWaitingIn = (params: {
   const row = params.state.sessions.get(params.sessionId)
   if (row === undefined || row.podSizeGeneration !== params.generation) return false
   row.podWaitingSince = params.since
+  return true
+}
+
+export const setSessionPodWaitCancelledIn = (params: {
+  state: State
+  sessionId: string
+  generation: number
+  vcpus: number | null
+  memoryGb: number | null
+}): boolean => {
+  const row = params.state.sessions.get(params.sessionId)
+  if (row === undefined) return false
+  row.podDesiredVcpus = params.vcpus
+  row.podDesiredMemoryGb = params.memoryGb
+  row.podDesiredDiskGb = null
+  row.podSizeGeneration = params.generation
+  row.podAppliedGeneration = params.generation
+  row.podResizeError = null
+  row.podWaitingSince = null
   return true
 }
 

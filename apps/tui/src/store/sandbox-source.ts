@@ -1,4 +1,4 @@
-import type { Unsubscribe } from '@dltech/atlas-harness'
+import type { Unsubscribe } from '@dltech/atlas-client/channel'
 
 import type { SidebarContainer } from './sidebar-model'
 

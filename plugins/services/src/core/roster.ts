@@ -12,6 +12,9 @@ export const serviceRowSchema = z.object({
   port: z.number().int().optional(),
   url: z.string().optional(),
   declarationHash: z.string().optional(),
+  cwd: z.string().optional(),
+  root: z.string().optional(),
+  branch: z.string().optional(),
   status: z.enum(EServiceStatus),
   ready: z.boolean(),
   changedAt: z.string(),
@@ -38,8 +41,17 @@ const nameOf = (event: {
   return { name: event.description }
 }
 
-const hashOf = (event: { declarationHash?: string | undefined }): { declarationHash?: string } =>
-  event.declarationHash === undefined ? {} : { declarationHash: event.declarationHash }
+const placementOf = (event: {
+  declarationHash?: string | undefined
+  cwd?: string | undefined
+  root?: string | undefined
+  branch?: string | undefined
+}): Partial<Pick<ServiceRow, 'declarationHash' | 'cwd' | 'root' | 'branch'>> => ({
+  ...(event.declarationHash === undefined ? {} : { declarationHash: event.declarationHash }),
+  ...(event.cwd === undefined ? {} : { cwd: event.cwd }),
+  ...(event.root === undefined ? {} : { root: event.root }),
+  ...(event.branch === undefined ? {} : { branch: event.branch }),
+})
 
 export const foldServices = (
   state: ServicesViewState,
@@ -52,7 +64,7 @@ export const foldServices = (
       command: event.command,
       ...(event.port === undefined ? {} : { port: event.port }),
       ...(event.url === undefined ? {} : { url: event.url }),
-      ...hashOf(event),
+      ...placementOf(event),
       status: EServiceStatus.Running,
       ready: false,
       changedAt: event.at,

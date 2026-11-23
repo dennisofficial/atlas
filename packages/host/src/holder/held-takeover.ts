@@ -1,5 +1,11 @@
 import type { ThreadId } from '@dltech/atlas-core'
-import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
+import {
+  ESpan,
+  logFieldsOf,
+  spanWith,
+  type LogPort,
+  type TracePort,
+} from '@dltech/atlas-observability'
 
 import type { HeldSessionDeps } from './held-session-deps'
 import type { SessionRuntime } from './ports'
@@ -23,8 +29,12 @@ const timed = async <T>(deps: HeldSessionDeps, work: () => Promise<T>): Promise<
   return { value, ms: deps.timers.now() - startedAt }
 }
 
+const msOf = (timings: Readonly<Record<string, number>>): Record<string, number> =>
+  Object.fromEntries(Object.entries(timings).map(([key, ms]) => [`${key}Ms`, ms]))
+
 export class TakeOver {
   private readonly startedAt: number
+  private trace: TracePort | undefined
   private epoch: number | undefined
   private cleared = false
   private configMs = 0
@@ -80,6 +90,7 @@ export class TakeOver {
         }),
       ).then((result) => {
         this.configMs = result.ms
+        this.trace = result.value.trace
         args.onRuntime(result.value)
         return result.value
       }),
@@ -114,23 +125,32 @@ export class TakeOver {
   firstStep(): void {
     if (this.logged) return
     this.logged = true
+    const timings = this.timingsOf()
+    void spanWith(this.trace, {
+      name: ESpan.Takeover,
+      root: true,
+      fields: { sessionId: this.deps.sessionId, timings },
+      run: async () => undefined,
+    })
     this.deps.log?.info({
       source: 'holder.takeover',
       message: `take-over of ${this.deps.sessionId} reached its first step`,
       data: {
         source: 'holder.takeover',
         sessionId: this.deps.sessionId,
-        claimMs: this.claimMs,
-        configMs: this.configMs,
-        recordMs: this.recordMs,
-        ...this.lapFields(),
-        firstStepMs: this.deps.timers.now() - this.startedAt,
+        ...msOf(timings),
       },
     })
   }
 
-  private lapFields(): Record<string, number> {
-    return Object.fromEntries([...this.laps].map(([lap, ms]) => [`${lap}Ms`, ms]))
+  private timingsOf(): Record<string, number> {
+    return {
+      claim: this.claimMs,
+      config: this.configMs,
+      record: this.recordMs,
+      ...Object.fromEntries(this.laps),
+      firstStep: this.deps.timers.now() - this.startedAt,
+    }
   }
 
   private logBranchesTail(branchesMs: number): void {

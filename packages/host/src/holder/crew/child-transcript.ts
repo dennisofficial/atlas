@@ -6,6 +6,7 @@ import {
   EModelFallbackReason,
   type EventDraft,
   type ModelRef,
+  type RunFailure,
   type ThreadId,
 } from '@dltech/atlas-core'
 import type { WorktreeEntryInfo } from '@dltech/atlas-plugin-sdk'
@@ -38,6 +39,7 @@ export type ChildTranscriptArgs = {
   agentId: ThreadId
   agentType: string
   intent: string
+  group: string | undefined
   lastSeq(): number
 }
 
@@ -63,6 +65,7 @@ export class ChildTranscript {
         agentType: this.args.agentType,
         intent: this.args.intent,
         mode: EAgentStart.Fresh,
+        ...(this.args.group === undefined ? {} : { group: this.args.group }),
         ...(args.worktree === undefined ? {} : { worktree: worktreeDraftOf(args.worktree) }),
       },
       ...this.unavailableDrafts(),
@@ -88,40 +91,47 @@ export class ChildTranscript {
   }
 
   async reported(args: { text: string }): Promise<void> {
-    const event: EventDraft = {
-      type: 'agent-reported',
-      agentId: this.args.agentId,
-      agentType: this.args.agentType,
-      intent: this.args.intent,
-      prose: args.text,
-    }
     await postNotice(this.parent, {
-      event,
+      event: {
+        type: 'agent-reported',
+        agentId: this.args.agentId,
+        agentType: this.args.agentType,
+        intent: this.args.intent,
+        prose: args.text,
+      },
       key: reportKeyOf({ agentId: this.args.agentId, seq: this.args.lastSeq() }),
     })
   }
 
-  async ended(args: {
+  async ended(args: { draft: EventDraft }): Promise<void> {
+    await postNotice(this.parent, {
+      event: args.draft,
+      key: endingKeyOf({ agentId: this.args.agentId, seq: this.args.lastSeq() }),
+    })
+  }
+
+  endingDraft(args: {
     progress: Progress
     status: EAgentStatus
     failure: string | undefined
+    runFailure?: RunFailure | undefined
     killedBy: EKilledBy | undefined
-  }): Promise<void> {
-    await postNotice(this.parent, {
-      event: {
-        type: 'agent-ended',
-        agentId: this.args.agentId,
-        agentType: this.args.agentType,
-        intent: this.args.intent,
-        status: args.status,
-        prose: args.progress.prose,
-        turns: args.progress.turns,
-        toolCalls: args.progress.toolCalls,
-        ...(args.killedBy === undefined ? {} : { killedBy: args.killedBy }),
-        ...(args.failure === undefined ? {} : { failureCause: args.failure }),
-      },
-      key: endingKeyOf({ agentId: this.args.agentId, seq: this.args.lastSeq() }),
-    })
+  }): EventDraft {
+    return {
+      type: 'agent-ended',
+      agentId: this.args.agentId,
+      agentType: this.args.agentType,
+      intent: this.args.intent,
+      status: args.status,
+      prose: args.progress.prose,
+      turns: args.progress.turns,
+      toolCalls: args.progress.toolCalls,
+      ...(args.killedBy === undefined ? {} : { killedBy: args.killedBy }),
+      ...(args.failure === undefined ? {} : { failureCause: args.failure }),
+      ...(args.runFailure === undefined
+        ? {}
+        : { failure: args.runFailure, failureKind: args.runFailure.kind }),
+    }
   }
 
   private unavailableDrafts(): readonly EventDraft[] {

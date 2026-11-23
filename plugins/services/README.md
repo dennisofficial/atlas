@@ -10,7 +10,9 @@ its roster and its preview URLs.
 - The declared services file `.atlas/services.yaml`: its names, its hashes and its start order.
 - The `service-ready` plugin event and the `services` view.
 - The public URL of a service port, through the control plane and the `previews.expose` call.
-- The `services.lifecycle` prompt fragment.
+- The `services.lifecycle` prompt fragment, which also tells the agent to start a long-running
+  process by its declared name, to add a declaration when the project has none, and never to hold a
+  server alive from bash.
 
 ## Does not own
 
@@ -81,6 +83,10 @@ definePlugin({
 ## Rules
 
 - Declare a service under `services:` in `.atlas/services.yaml`. Each entry needs `command` and can take `cwd`, `port`, `health`, `env`, `setup`, `needs`, `portal`, `portals` and `type`.
+- A declared service runs in the checkout the thread stands in. In a worktree, its `.atlas/services.yaml` is read, a relative `cwd` resolves inside the worktree, and its `setup` runs once for that worktree.
+- One declared name runs once per checkout. Two worktrees run the same name at once: the second gets a port of its own (derived from the name and the checkout) when the declared port is taken, so its preview URL differs too. The command must listen on `$PORT`.
+- `${services.<name>.url|port|publicUrl}` in `env` resolves against the services of the same checkout, and starts them first.
+- `stop`, `restart` and the stale mark of a `name` act on the service of the current checkout. A list row names the worktree branch.
 - `start` takes a `name` or a `command`, never both.
 - `restart` takes a `serviceId` or a `name`, exactly one.
 - Import the pod tier in a pod only. It spawns processes on the host of the session.

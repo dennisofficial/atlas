@@ -1,4 +1,4 @@
-import type { PluginViewFold, V2Event } from '@dltech/atlas-core'
+import { foldableOf, type PluginViewFold, type V2Event } from '@dltech/atlas-core'
 import type { z } from 'zod'
 import { isSetupOutputCallId, type StreamServerMessage } from '@dltech/atlas-protocol'
 
@@ -267,11 +267,13 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
       .then((visible) => {
         if (visible.length === 0) return 0
         renderLimit += visible.length
+        const events = [...visible, ...inner.window.events].slice(-renderLimit)
         commit({
           ...inner,
           window: {
             ...inner.window,
-            events: [...visible, ...inner.window.events].slice(-renderLimit),
+            events,
+            foldable: foldableOf({ visible: events, durable: inner.window.durable }),
           },
         })
         return visible.length

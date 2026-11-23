@@ -10,11 +10,13 @@
     "#components/*": "./src/components/*.tsx",
     "#lib/*": "./src/lib/*.ts",
     "#hooks/*": "./src/hooks/*.ts",
-    "#lib/highlighter": "./src/lib/highlighter.tsx"
+    "#lib/highlighter": "./src/lib/highlighter.tsx",
+    "#brand": "./src/brand/index.ts"
   },
   "exports": {
     ".": "./src/index.ts",
     "./tokens": "./src/tokens/index.ts",
+    "./brand": "./src/brand/index.ts",
     "./components/*": "./src/components/*.tsx",
     "./ai/*": "./src/ai/*.tsx",
     "./lib/highlighter": "./src/lib/highlighter.tsx",
@@ -51,6 +53,7 @@
     "input-otp": "^1.5.0",
     "katex": "^0.16.47",
     "lucide-react": "^1.45.0",
+    "mermaid": "^11.16.1",
     "next-themes": "^0.4.6",
     "react-day-picker": "^10.0.2",
     "react-resizable-panels": "^4.14.6",

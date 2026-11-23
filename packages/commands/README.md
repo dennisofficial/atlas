@@ -53,7 +53,7 @@ message. Native commands and plugin commands both use it.
 - `catalogueOf({commands, skills})`: drop a skill whose name matches a command, then sort by group
   (context, session, workspace) and by name.
 - `catalogueForSurface({entries, surface})`: drop the names the surface hides.
-- `SURFACE_PROFILES`: each surface's hidden names, with the reason, and the name it picks.
+- `SURFACE_PROFILES`: each surface's hidden names, with the reason, and the names it picks.
 
 ### Read a typed line
 

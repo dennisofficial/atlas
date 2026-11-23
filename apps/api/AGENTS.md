@@ -290,8 +290,10 @@ encrypts. The repo pre-commit hook (`lefthook.yml`, installed by the root `posti
 `sections/*.ts` Joi rule and
 interface field. Then add the key line in every tier file, commented with a recognized reason where
 a tier does not supply it. Then run `dotenvx set` to fill values in place. Typed access is
-`env.get('KEY')` via `EnvService`. Never read `process.env` in app code. The sanctioned exceptions are
-`main.ts` bootstrap and `auth.server.ts`, which construct before Nest DI exists.
+`env.get('KEY')` via `EnvService`. Never read `process.env` in app code. Code that runs before Nest DI
+exists builds one with `validatedEnvService()`. The sanctioned exceptions are `auth.server.ts`, which
+constructs before Nest DI exists, and the tier loaders `src/api/hydrate-env.ts` and
+`src/trigger/tier-env.ts`, which fill `process.env` before anything can validate it.
 
 Local boot: `bun run db:up` (docker Postgres on 5433), `bun run db:migrate`, `bun run db:seed`,
 `bun run dev`. An existing local database migrated by Prisma 7 first needs a one-off

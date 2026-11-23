@@ -15,4 +15,9 @@ export const NOTIFY_DATA_SESSION_KEY = 'sessionId'
 
 export const NOTIFY_DATA_SEQ_KEY = 'seq'
 
+export const NOTIFY_DATA_ROUTINE_KEY = 'routineId'
+
+export const routineDataOf = (notification: AtlasNotification): Record<string, string> =>
+  notification.routineId === undefined ? {} : { [NOTIFY_DATA_ROUTINE_KEY]: notification.routineId }
+
 export const NOTIFY_DATA_CLEAR_SESSION_KEY = 'clearSessionId'

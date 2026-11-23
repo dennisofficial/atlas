@@ -8,8 +8,10 @@ import { EMessageImageSize, MessageImageThumb } from '@dltech/atlas-ui/ai/messag
 import { Reasoning } from '@dltech/atlas-ui/ai/reasoning'
 import { WorkSummary } from '@dltech/atlas-ui/ai/work-summary'
 import { formatElapsed, messageTimeOf } from '@dltech/atlas-client/transcript'
+import { diagramContextOf } from '@dltech/atlas-core'
 
 import { CommandMessageRow } from '@/features/sessions/command-message-row'
+import { RotationDivider } from '@/features/sessions/rotation-divider'
 
 import { spanMsOf } from '../data/clock-time'
 import type { RepairDiagramAction } from '../data/diagram-repair'
@@ -163,12 +165,19 @@ function SegmentView({
   repairDiagram: RepairDiagramAction | null
 }) {
   const messageId = segment.kind === ESegmentKind.Message ? eventIdOf(segment.item.id) : null
+  const messageText = segment.kind === ESegmentKind.Message ? segment.item.text : ''
   const handleRepairDiagram = useCallback(
-    (args: { chart: string; error: string }) =>
-      repairDiagram === null || messageId === null
-        ? Promise.resolve()
-        : repairDiagram({ messageId, ...args }),
-    [repairDiagram, messageId],
+    (args: { chart: string; error: string }) => {
+      if (repairDiagram === null || messageId === null) return Promise.resolve()
+      const context = diagramContextOf({ text: messageText, source: args.chart })
+      return repairDiagram({
+        messageId,
+        chart: args.chart,
+        error: args.error,
+        ...(context.length === 0 ? {} : { context }),
+      })
+    },
+    [repairDiagram, messageId, messageText],
   )
   if (segment.kind === ESegmentKind.Message) {
     const { item } = segment
@@ -285,6 +294,10 @@ function TurnViewBody({
       return <TranscriptSignIn item={turn.item} />
     case ETurnKind.Request:
       return <TranscriptRequest item={turn.item} />
+    case ETurnKind.Rotation:
+      return (
+        <RotationDivider item={turn.item} timestamp={messageTimeOf({ at: turn.item.at, now })} />
+      )
     case ETurnKind.Agent:
       return <AgentTurnView turn={turn} now={now} models={models} actions={actions} />
   }

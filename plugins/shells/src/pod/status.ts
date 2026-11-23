@@ -41,6 +41,11 @@ export const startedOf = (args: {
   return undefined
 }
 
+export const hasStarted = (args: { events: readonly V2Event[]; shellId: string }): boolean =>
+  args.events.some(
+    (event) => event.type === 'background-shell-started' && event.shellId === args.shellId,
+  )
+
 export const hasEnded = (args: { events: readonly V2Event[]; shellId: string }): boolean =>
   args.events.some(
     (event) => event.type === 'background-shell-ended' && event.shellId === args.shellId,

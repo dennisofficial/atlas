@@ -18,6 +18,7 @@ import {
 } from '../plugin-pod'
 import { hookedToolsOf } from '../hooked-tools'
 import { liveOutputOf } from '../live-output'
+import { modelWaitObserverOf } from '../model-wait-observer'
 import type { RoleModelChoice, SessionRuntime } from '../ports'
 import type { SessionRecord } from '../record/record-adapter'
 import { V2OnceLedger } from '../record/v2-once-ledger'
@@ -29,6 +30,7 @@ export const childRunnerOf = (args: {
   deps: HeldSessionDeps
   runtime: SessionRuntime
   record: SessionRecord
+  parentThreadId: ThreadId
   agentId: ThreadId
   epoch: number
   model: RoleModelChoice
@@ -81,7 +83,14 @@ export const childRunnerOf = (args: {
     assembly: runtime.assembly,
     hooks,
     tools: () => modelFacingDeclarationsOf(registry.declarations()),
-    dispatch: new ScopedToolDispatcher(hookedToolsOf({ registry, hooks, trace: runtime.trace })),
+    dispatch: new ScopedToolDispatcher(
+      hookedToolsOf({
+        registry,
+        hooks,
+        quality: runtime.quality,
+        trace: runtime.trace,
+      }),
+    ),
     intake: args.intake,
     output: liveOutputOf({
       bus: deps.bus,
@@ -99,6 +108,12 @@ export const childRunnerOf = (args: {
       record,
       threadId: args.agentId,
       runId: () => deps.ids.nextRunId(),
+    }),
+    waitState: modelWaitObserverOf({
+      record: args.parentRecord,
+      threadId: args.parentThreadId,
+      newRunId: () => deps.ids.nextRunId(),
+      ...(deps.log === undefined ? {} : { log: deps.log }),
     }),
     ...(deps.log === undefined ? {} : { logPort: deps.log }),
     ...(runtime.uploads === undefined ? {} : { uploads: runtime.uploads }),

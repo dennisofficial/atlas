@@ -48,6 +48,7 @@ export type HostKnobs = {
   sweepMs?: number
   fault?: EHostFault
   plugins?: boolean
+  modelRequestsFile?: string
 }
 
 /**

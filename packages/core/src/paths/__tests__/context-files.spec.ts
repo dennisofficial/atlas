@@ -28,6 +28,15 @@ describe('contextFilePathOf', () => {
     ).toEqual({ ok: true, path: `${DIRECTORY}/sections/03-auth.md` })
   })
 
+  it('accepts any name the agent gives, as long as it stays under the folder', () => {
+    for (const relativePath of ['~notes.md', 'cost-$5.md', '.git/config', 'a\\b.md']) {
+      expect(contextFilePathOf({ directory: DIRECTORY, relativePath })).toEqual({
+        ok: true,
+        path: `${DIRECTORY}/${relativePath}`,
+      })
+    }
+  })
+
   it('tolerates a trailing slash on the directory', () => {
     expect(contextFilePathOf({ directory: `${DIRECTORY}/`, relativePath: 'plan.md' })).toEqual({
       ok: true,
@@ -47,24 +56,6 @@ describe('contextFilePathOf', () => {
     })
   })
 
-  it('refuses a path that starts at home', () => {
-    expect(contextFilePathOf({ directory: DIRECTORY, relativePath: '~/notes.md' })).toMatchObject({
-      ok: false,
-    })
-  })
-
-  it('refuses a path that names a variable', () => {
-    expect(
-      contextFilePathOf({ directory: DIRECTORY, relativePath: '$ATLAS_HOME/x.md' }),
-    ).toMatchObject({ ok: false })
-  })
-
-  it('refuses a backslash path', () => {
-    expect(
-      contextFilePathOf({ directory: DIRECTORY, relativePath: 'sections\\03-auth.md' }),
-    ).toMatchObject({ ok: false })
-  })
-
   it('refuses a path that climbs out of the folder', () => {
     for (const relativePath of ['../x.md', 'sections/../../x.md', '..', 'sections/..']) {
       expect(contextFilePathOf({ directory: DIRECTORY, relativePath })).toMatchObject({ ok: false })
@@ -75,12 +66,6 @@ describe('contextFilePathOf', () => {
     for (const relativePath of ['sections//x.md', './plan.md', 'sections/./x.md', '/plan.md']) {
       expect(contextFilePathOf({ directory: DIRECTORY, relativePath })).toMatchObject({ ok: false })
     }
-  })
-
-  it('refuses anything inside .git', () => {
-    expect(contextFilePathOf({ directory: DIRECTORY, relativePath: '.git/config' })).toMatchObject({
-      ok: false,
-    })
   })
 
   it('refuses a path longer than the schema allows', () => {

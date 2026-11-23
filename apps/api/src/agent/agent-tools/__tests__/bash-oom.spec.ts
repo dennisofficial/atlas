@@ -12,8 +12,7 @@ import {
 
 import { BashTool } from '../bash'
 import { renderModelText } from '../bash-output'
-import { ForegroundOnlyShells } from '../../runtime/foreground-shells'
-import { files, useTempAtlasHome } from './support'
+import { files, launcher, useTempAtlasHome } from './support'
 
 useTempAtlasHome()
 
@@ -65,7 +64,7 @@ const run = (args: {
   input: { description: string; command: string; timeoutMs?: number | undefined }
   signal?: AbortSignal | undefined
 }): Promise<ToolOutcome> =>
-  new BashTool(new ForegroundOnlyShells(), files, args.processes).invoke({
+  new BashTool({ launcher, files, processes: args.processes }).invoke({
     input: args.input,
     signal: args.signal ?? new AbortController().signal,
     idempotencyKey: 'bash-oom-1',

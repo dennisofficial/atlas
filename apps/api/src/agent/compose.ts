@@ -7,12 +7,16 @@ import {
   type HostPresence,
   type NotifyDispatch,
   type ParkArchivedPod,
+  type PodCallBus,
   type PodControlClient,
+  type TurnEndedHook,
 } from '@dltech/atlas-host'
 import {
   nativeCommandHandlers,
   nativeCommands,
   nativeControlHandlers,
+  cancelResize,
+  resize,
 } from '@dltech/atlas-native-commands'
 import { cloudConfigStore } from './config/cloud-config-store'
 import { envSecretsReader } from './config/env-secrets'
@@ -34,6 +38,9 @@ import type { SandboxProviderRegistry } from '@dltech/atlas-pods/sandbox/provide
 import { systemTimers, type HostBus, type HostTimers } from '@dltech/atlas-host'
 import { SessionNotFoundError } from './config/config-reader'
 import { CredentialsUnavailableError } from './config/agent-host-credential-port'
+import type { JobsProjectDispatcher } from '../_core/ports/job-dispatcher'
+import { podResizeCancelHandlerOf } from '../_lib/pod-resize/pod-resize-cancel-handler'
+import { podResizeHandlerOf } from '../_lib/pod-resize/pod-resize-handler'
 import { sessionDirOf } from './runtime/session-paths'
 import { startFailureReason } from './start-failure-reason'
 import {
@@ -63,8 +70,11 @@ export type ComposeAgentHostArgs = {
   presence: HostPresence
   control: PodControlClient
   macLink: MacLink
+  dispatcher: JobsProjectDispatcher
   notify?: NotifyDispatch | undefined
   parkArchived?: ParkArchivedPod | undefined
+  turnEnded?: TurnEndedHook | undefined
+  podCallBus?: PodCallBus | undefined
   onHostIdChanged?: (() => void) | undefined
 }
 
@@ -104,7 +114,11 @@ export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
     reasonOfStartError: startFailureReason,
     commands: composeCommands([...nativeCommands, ...composedPlugins.commands]),
     commandHandlers: new Map([...nativeCommandHandlers, ...composedPlugins.pod.commands]),
-    controlHandlers: nativeControlHandlers,
+    controlHandlers: new Map([
+      ...nativeControlHandlers,
+      [resize.spec.name, podResizeHandlerOf({ plane: args.plane, dispatcher: args.dispatcher })],
+      [cancelResize.spec.name, podResizeCancelHandlerOf({ plane: args.plane })],
+    ]),
     control: args.control,
     mcp: (sessionId) => mcpControl.of(sessionId),
     operator: {
@@ -114,8 +128,10 @@ export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
     ...(args.changes === undefined ? {} : { changes: args.changes }),
     ...(args.notify === undefined ? {} : { notify: args.notify }),
     ...(args.parkArchived === undefined ? {} : { parkArchived: args.parkArchived }),
+    ...(args.turnEnded === undefined ? {} : { turnEnded: args.turnEnded }),
     terminalDemand,
     panelDemand,
+    ...(args.podCallBus === undefined ? {} : { podCallBus: args.podCallBus }),
     onHostIdChanged: args.onHostIdChanged,
     ...(args.log === undefined ? {} : { log: args.log }),
   })

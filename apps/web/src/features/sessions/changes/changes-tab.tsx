@@ -15,6 +15,7 @@ import { DiffBody } from './diff-body'
 import { changedFilesOf } from './rows'
 import { snapshotLabel } from './snapshot-age'
 import type { CheckoutChanges } from './use-changes'
+import { useOpenRequest } from './use-open-request'
 
 export const CHANGES_SCOPE = 'branch'
 
@@ -69,10 +70,22 @@ function CheckoutSection(args: {
 }
 
 export function ChangesTab() {
-  const { sessionId, status } = useSessionPaneValue()
-  const { changes, options, selectedId } = useCheckoutChoice()
+  const { sessionId, status, openRequest, requestOpen, consumeOpenRequest } = useSessionPaneValue()
+  const { changes, options, selectedId, select } = useCheckoutChoice()
   const [layout, setLayout] = useState<ChangesLayout>('flat')
   const [expanded, setExpanded] = useState<string[]>(() => recallChanges(sessionId))
+  const scroller = useOpenRequest({
+    sessionId,
+    changes,
+    options,
+    selectedId,
+    select,
+    expanded,
+    setExpanded,
+    openRequest,
+    requestOpen,
+    consumeOpenRequest,
+  })
   useEffect(() => {
     rememberChanges({ sessionId, expanded })
   }, [sessionId, expanded])
@@ -136,7 +149,7 @@ export function ChangesTab() {
           description="The pod has snapshotted this session's checkout and it does not differ from the branch point."
         />
       ) : (
-        <div className="min-h-0 flex-1 overflow-auto">
+        <div ref={scroller} className="min-h-0 flex-1 overflow-auto">
           <CheckoutSection
             sessionId={sessionId}
             checkout={shown}

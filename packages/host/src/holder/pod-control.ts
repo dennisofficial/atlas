@@ -34,6 +34,10 @@ export type PodControlClient = {
   webSearch: {
     config(args: Called): Promise<WebSearchConfig>
   }
+  gateway: {
+    apiKey(args: Called): Promise<string | undefined>
+    imageModel(args: Called): Promise<string | undefined>
+  }
   settingsVersions(args: Called): Promise<Readonly<Record<ECloudSetting, string>>>
   memory: {
     list(args: Called): Promise<MemorySnapshot>
@@ -152,6 +156,16 @@ export const podControlOf = (args: {
     config: async () => {
       if (args.client === undefined) throw unreachable()
       return await args.client.webSearch.config({ threadId: args.threadId })
+    },
+  },
+  gateway: {
+    apiKey: async () => {
+      if (args.client === undefined) throw unreachable()
+      return await args.client.gateway.apiKey({ threadId: args.threadId })
+    },
+    imageModel: async () => {
+      if (args.client === undefined) throw unreachable()
+      return await args.client.gateway.imageModel({ threadId: args.threadId })
     },
   },
   memory: {

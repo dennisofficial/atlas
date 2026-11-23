@@ -1,5 +1,5 @@
 import type { Event } from '@dltech/atlas-core'
-import { EStepEnd, type StepId, type StepSignal } from '@dltech/atlas-harness'
+import { EStepEnd, type StepId, type StepSignal } from '@dltech/atlas-client/channel'
 
 import {
   absorbChunk,

@@ -233,9 +233,9 @@ const coreEventBodySchema = z.discriminatedUnion('type', [
   }),
   z.object({
     type: z.literal('rotated'),
-    predecessor: threadIdSchema,
-    handoffPath: z.string().min(1),
+    handoff: z.string().min(1),
     instructions: z.string().optional(),
+    auto: z.object({ percent: z.number().int().min(0).max(100) }).optional(),
   }),
   z.object({
     type: z.literal('parked'),

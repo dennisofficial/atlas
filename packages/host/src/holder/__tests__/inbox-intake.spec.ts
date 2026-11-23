@@ -11,6 +11,7 @@ import {
   type ControlCommandHandler,
 } from '@dltech/atlas-commands'
 import type { ControlPlane } from '@dltech/atlas-control'
+import { resize } from '@dltech/atlas-native-commands'
 import {
   type InputMessage,
   EContextSlot,
@@ -80,6 +81,7 @@ const rigOf = (entries: readonly InboxEntry[], options: RigOptions = {}) => {
     },
     eventCache: () => ({
       eventsAfter: () => eventsOf(appended as unknown as EventDraft[]),
+      loopEventsAfter: () => eventsOf(appended as unknown as EventDraft[]),
     }),
     loopState: async () => initialLoopState(),
   } as unknown as SessionRecord
@@ -760,6 +762,32 @@ describe('InboxIntake typed text commands', () => {
     expect(rig.appended.some((draft) => draft.type === 'user-said')).toBe(false)
   })
 
+  it('runs a typed resize in the host without saying it', async () => {
+    const resizes: unknown[] = []
+    const resizeHandler: ControlCommandHandler<ControlPlane, unknown> = async ({ args }) => {
+      resizes.push(args)
+    }
+    const rig = rigOf([entry(1, { text: '/resize 2 4' })], {
+      registry: composeCommands([resize]),
+      controlHandlers: new Map([['resize', resizeHandler]]),
+    })
+    const drain = await rig.intake.prepare()
+    expect(drain).toEqual({ drafts: [], wakesTurn: false })
+    expect(rig.appends).toEqual([
+      [posted(1, { text: '/resize 2 4' })],
+      [
+        {
+          type: 'input-consumed',
+          inboxId: 1,
+          consumed: EInputConsumed.Command,
+          command: { name: 'resize', argumentText: '2 4', text: '/resize 2 4' },
+        },
+      ],
+    ])
+    expect(resizes).toEqual([{ vcpus: 2, memoryGb: 4 }])
+    expect(rig.appended.some((draft) => draft.type === 'user-said')).toBe(false)
+  })
+
   it('refuses a typed client command with the sentence that sends it to the menu', async () => {
     const rig = rigOf([entry(1, { text: '/model' })], { registry })
     const drain = await rig.intake.prepare()
@@ -863,6 +891,39 @@ describe('InboxIntake typed skill text', () => {
       [{ type: 'input-refused', inboxId: 1, reason: 'the review skill has no body' }],
     ])
     expect(rig.appended.some((draft) => draft.type === 'user-said')).toBe(false)
+  })
+
+  it('reads no skill names for an empty inbox or a plain message', async () => {
+    let reads = 0
+    const slash = skillSlash({
+      names: async () => {
+        reads += 1
+        return ['review']
+      },
+    })
+    const empty = rigOf([], { registry: composeCommands([]), slash })
+    await empty.intake.prepare()
+    const plain = rigOf([entry(1, { text: 'review src/app.ts' })], {
+      registry: composeCommands([]),
+      slash,
+    })
+    await plain.intake.prepare()
+    expect(reads).toBe(0)
+  })
+
+  it('reads the skill names once for a pass with two typed lines', async () => {
+    let reads = 0
+    const rig = rigOf([entry(1, { text: '/review a.ts' }), entry(2, { text: '/review b.ts' })], {
+      registry: composeCommands([]),
+      slash: skillSlash({
+        names: async () => {
+          reads += 1
+          return ['review']
+        },
+      }),
+    })
+    await rig.intake.prepare()
+    expect(reads).toBe(1)
   })
 
   it('lets a command name beat a skill name', async () => {

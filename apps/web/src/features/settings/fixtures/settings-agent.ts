@@ -7,6 +7,7 @@ export enum EBuiltInAgentType {
   Explore = 'explore',
   GeneralPurpose = 'general-purpose',
   Preview = 'preview',
+  Researcher = 'researcher',
   Reviewer = 'reviewer',
 }
 
@@ -24,7 +25,7 @@ export type ApiKeyEntry = { id: string; label: string; added: string }
 export type ApiKeyProvider = {
   id: EProviderId
   name: string
-  brand?: EBrand
+  brand: EBrand
   description: string
 }
 
@@ -62,6 +63,7 @@ export const API_KEY_PROVIDERS: ApiKeyProvider[] = [
   {
     id: EProviderId.Typesafe,
     name: 'TypeSafe AI',
+    brand: EBrand.Typesafe,
     description: 'Jev, the decision model behind the classifier. Not a chat model.',
   },
 ]

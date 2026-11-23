@@ -374,8 +374,8 @@ describe('ShellTails', () => {
   const shells = {
     running: 1,
     awaitingInput: false,
-    labels: ['"ticker" (`while true; do date; sleep 1; done`)'],
-    rows: [{ shellId: 'shell-1', name: '"ticker" (`while true; do date; sleep 1; done`)' }],
+    labels: ['ticker'],
+    rows: [{ shellId: 'shell-1', name: 'ticker' }],
   }
 
   it('shows the tail streamed for a running shell', () => {

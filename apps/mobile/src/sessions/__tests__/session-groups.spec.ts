@@ -7,7 +7,6 @@ import { ESandboxStatus } from '@dltech/atlas-protocol'
 import {
   EPullRequestState,
   EWorkKind,
-  INACTIVE_AFTER_MS,
   NO_PROJECT_NAME,
   partitionSessions,
   type V2SessionSummary,
@@ -50,9 +49,28 @@ describe('partitionSessions', () => {
         summaryOf({ sessionId: 'neo', projectId: 'neo' }),
       ],
     })
-    expect(partition.groups.map((group) => group.name)).toEqual(['atlas', 'comp-neo', 'RCP'])
+    expect(partition.groups.map((group) => group.name)).toEqual(['atlas', 'comp-neo'])
     expect(partition.groups[0]?.sessions.map((session) => session.id)).toEqual(['early', 'late'])
-    expect(partition.groups[2]?.sessions).toEqual([])
+    expect(partition.groups[1]?.sessions.map((session) => session.id)).toEqual(['neo'])
+  })
+
+  it('hides a project with no activity and keeps one created inside 72h', () => {
+    const partition = partitionSessions({
+      projects: [...projects, { id: 'fresh', name: 'fresh', createdAt: hoursAgo(1) }],
+      now: NOW,
+      sessions: [],
+    })
+    expect(partition.groups.map((group) => group.name)).toEqual(['fresh'])
+    expect(partition.groups[0]?.sessions).toEqual([])
+  })
+
+  it('keeps an old project while one of its sessions moved', () => {
+    const partition = partitionSessions({
+      projects,
+      now: NOW,
+      sessions: [summaryOf({ sessionId: 'moved', projectId: 'rcp' })],
+    })
+    expect(partition.groups.map((group) => group.name)).toEqual(['RCP'])
   })
 
   it('shows a No project group only when it has sessions', () => {
@@ -107,16 +125,20 @@ describe('partitionSessions', () => {
     expect(entriesOf(partition).map((entry) => entry.id)).toEqual(['main', 'peer'])
   })
 
-  it('drops a nested teammate of a session in the list', () => {
+  it('nests a teammate under the session that spawned it', () => {
     const partition = partitionSessions({
       projects,
       now: NOW,
       sessions: [
         summaryOf({ sessionId: 'main' }),
         summaryOf({ sessionId: 'mate', spawnedBy: 'main', nested: true }),
+        summaryOf({ sessionId: 'helper', spawnedBy: 'mate', nested: true }),
       ],
     })
-    expect(entriesOf(partition).map((entry) => entry.id)).toEqual(['main'])
+    const roots = entriesOf(partition)
+    expect(roots.map((entry) => entry.id)).toEqual(['main'])
+    expect(roots[0]?.children.map((entry) => entry.id)).toEqual(['mate'])
+    expect(roots[0]?.children[0]?.children.map((entry) => entry.id)).toEqual(['helper'])
   })
 
   it('keeps a teammate whose spawner is archived or missing', () => {
@@ -133,22 +155,18 @@ describe('partitionSessions', () => {
     expect(partition.archived[0]?.sessions.map((entry) => entry.id)).toEqual(['archived-main'])
   })
 
-  it('splits stale and archived sessions into per-project buckets', () => {
-    const stale = (INACTIVE_AFTER_MS + 3_600_000) / 3_600_000
+  it('keeps an old session in its project and files archived sessions per project', () => {
     const partition = partitionSessions({
       projects,
       now: NOW,
       sessions: [
-        summaryOf({ sessionId: 'stale', updatedAt: hoursAgo(stale) }),
+        summaryOf({ sessionId: 'stale', updatedAt: hoursAgo(100) }),
         summaryOf({ sessionId: 'kept' }),
         summaryOf({ sessionId: 'gone', projectId: 'neo', archivedAt: hoursAgo(1) }),
       ],
     })
-    expect(
-      partition.inactive.map((group) => [group.name, group.sessions.map((s) => s.id)]),
-    ).toEqual([['atlas', ['stale']]])
     expect(partition.archived.map((group) => group.name)).toEqual(['comp-neo'])
-    expect(partition.groups[0]?.sessions.map((session) => session.id)).toEqual(['kept'])
+    expect(partition.groups[0]?.sessions.map((session) => session.id)).toEqual(['stale', 'kept'])
   })
 
   it('describes a session by its latest pull request, then its branch', () => {

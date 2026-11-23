@@ -3,7 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { EContextSlot } from '@dltech/atlas-core'
 
 import { skillsSlashOf } from '../slash'
-import { fakeCloud, fakeDaemon, invoke, skillDir, textOf } from './support'
+import { fakeCloud, fakeDaemon, invoke, refresh, skillDir, textOf } from './support'
 
 const repoTree = () => ({
   '/repo/.agents/skills': { kind: 'dir' as const },
@@ -36,6 +36,20 @@ describe('the skills slash source', () => {
     expect(names).toContain('alpha')
     expect(names).toContain('hidden')
     expect(names).toContain('commit')
+  })
+
+  it('lists the names from the recorded snapshot of a worktree with zero daemon calls', async () => {
+    const daemon = fakeDaemon(repoTree())
+    const cloud = fakeCloud({ entries: [] })
+    await refresh({ ctx: daemon.ctx, cloud, projectDirectory: '/repo' })
+    daemon.calls.length = 0
+    const slash = skillsSlashOf({
+      ctx: { ...daemon.ctx, workspaceDirectory: '/launch' },
+      options: { cloud: () => cloud },
+    })
+
+    expect(await slash.names()).toContain('alpha')
+    expect(daemon.calls).toEqual([])
   })
 
   it('loads a skill into one context-loaded draft with the arguments expanded', async () => {

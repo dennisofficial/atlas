@@ -11,7 +11,7 @@ import {
   THREAD_SIGNAL_CHANNEL,
 } from './thread-signal.bus'
 
-const EMPTY_COUNTS = { active: 0, inactive: 0, archived: 0 }
+const EMPTY_COUNTS = { active: 0, archived: 0 }
 
 const HEAD = { threadId: 'thr_1', frame: { type: EThreadStreamFrame.Head, head: 4 } } as const
 

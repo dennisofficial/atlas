@@ -1,5 +1,5 @@
 import { ENotifyDeviceKind } from '@dltech/atlas-core'
-import type { RegisterNotifyDeviceInput } from '@dltech/atlas-wire'
+import type { RegisterNotifyDeviceInput } from '@dltech/atlas-wire/web'
 
 import { SERVICE_WORKER_PATH } from './service-worker-source'
 
@@ -79,6 +79,13 @@ export const enableWebPush = async (args: {
       label: deviceLabelOf({ standalone: standaloneNow(), userAgent: navigator.userAgent }),
     }),
   }
+}
+
+export const closeSessionNotifications = async (sessionId: string): Promise<void> => {
+  if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return
+  const registration = await navigator.serviceWorker.getRegistration(SERVICE_WORKER_PATH)
+  const shown = await registration?.getNotifications({ tag: sessionId })
+  await Promise.all((shown ?? []).map((notification) => notification.close()))
 }
 
 export const currentSubscriptionEndpoint = async (): Promise<string | null> => {

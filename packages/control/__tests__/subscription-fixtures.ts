@@ -6,7 +6,6 @@ import {
 } from '@dltech/atlas-core'
 
 import { ControlPlane } from '../src/control-plane'
-import { DEFAULT_SUBSCRIPTION_TTL_MS } from '../src/subscription-ops'
 import { InMemoryControlStore } from '../src/testing/memory'
 
 export const NOW = '2026-11-22T12:00:00.000Z'
@@ -15,7 +14,7 @@ export const OTHER_SESSION = 'session-2'
 export const MAIN = 'thread-main'
 export const CHILD = 'thread-child'
 export const REPO = 'github.com/acme/atlas'
-export const TTL_LATER = new Date(Date.parse(NOW) + DEFAULT_SUBSCRIPTION_TTL_MS).toISOString()
+export const TTL_LATER = '2026-11-23T12:00:00.000Z'
 
 export type SubscriptionRecordBody = Extract<
   EventBody,

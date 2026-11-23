@@ -2,13 +2,12 @@
 
 ## Backlog (ranked)
 
-1. `apps/api/src/api/platform/control/terminal.service.ts:26,228` branches on the daemon's error text `no terminal ` (`apps/daemon/src/ops/terminal/pty.ts:35`, copy in `packages/protocol/src/testing/fake/terminal.ts:18`). Add a typed code to the terminal-read reply in `protocol`.
-2. `packages/plugin-sdk` type-depends upward on `agent` (`slots.ts:1`, `compose-pod.ts:1`), `client/transcript` (`slots.ts:2`), `control` (`slots.ts:12`). Move the shapes down or make slots generic.
-3. `packages/client/src/channel/*` (~15 files) and `transcript/events-from-wire.ts` import `@dltech/atlas-wire/web`. Retarget onto `protocol` or split out a v1-compat module. Large.
-4. `apps/tui` imports `@dltech/atlas-wire` in 12 production files (e.g. `cloud/dev-serve.ts:5`, `push/push-text.ts:1`). v1-only, deleted with v1 — low value.
-5. `packages/api-router/src/generated/server.ts:16` pulls ~200 wire schemas; follows the API routes, moves with v1 deletion.
-6. Test-only deep relative imports across package roots: `apps/serve/src/__tests__` → `packages/harness/src`, `apps/api` specs → `packages/api-router/src/generated/server`, `apps/tui/scripts`, `apps/mac/scripts/pack-host.ts:4`. Add `exports` subpaths.
-7. `packages/host/__tests__/remote-calls-real.spec.ts:7` imports app `@dltech/atlas-daemon/testing`.
+1. `packages/plugin-sdk` type-depends upward on `agent` (`slots.ts:1`, `compose-pod.ts:1`), `client/transcript` (`slots.ts:2`), `control` (`slots.ts:12`). Move the shapes down or make slots generic.
+2. `packages/client/src/channel/*` (~15 files) and `transcript/events-from-wire.ts` import `@dltech/atlas-wire/web`. Retarget onto `protocol` or split out a v1-compat module. Large.
+3. `apps/tui` imports `@dltech/atlas-wire` in 12 production files (e.g. `cloud/dev-serve.ts:5`, `push/push-text.ts:1`). v1-only, deleted with v1 — low value.
+4. `packages/api-router/src/generated/server.ts:16` pulls ~200 wire schemas; follows the API routes, moves with v1 deletion.
+5. Test-only deep relative imports across package roots: `apps/serve/src/__tests__` → `packages/harness/src`, `apps/api` specs → `packages/api-router/src/generated/server`, `apps/tui/scripts`, `apps/mac/scripts/pack-host.ts:4`. Add `exports` subpaths.
+6. `packages/host/__tests__/remote-calls-real.spec.ts:7` imports app `@dltech/atlas-daemon/testing`.
 
 ## Ruled out
 
@@ -16,9 +15,15 @@
 - `apps/tui` importing `core`/`client`/`observability`/`syntax`/`models`: v2 §7 lets apps compose tier packages.
 - `packages/client/src/__tests__/browser-safe.spec.ts` importing harness/wire: deliberate guard.
 - `apps/api` → `harness`, `harness` → `agent-v1`: v1-internal.
+- Terminal not-found: API matches `ECallFailure.NotFound` since 2026-11-23; daemon and fake messages are display text only.
 - Error-string matches in `packages/db/src/pool.ts:91`, harness `docker-process.ts`, `cloud-birth.ts`: external APIs.
 
 ## Log
+
+### 2026-11-23
+
+- Fixed: `apps/api/.../control/terminal.service.ts` decided "pod lost this terminal" by matching the daemon's message prefix `no terminal `. It now checks the typed `error.code === ECallFailure.NotFound`, which protocol conformance (`testing/conformance/terminal.ts:194-290`) already pins for the fake and real daemon.
+- Spec fixtures now carry codes. Mutations: code check never matches (3 specs fail), every failure counts as lost (1 fails), fake answers Internal (3 conformance specs fail).
 
 ### 2026-11-20
 

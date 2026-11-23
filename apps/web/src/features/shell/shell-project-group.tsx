@@ -1,8 +1,13 @@
-import { ChevronRight, FolderGit2, FolderX, SquarePen } from 'lucide-react'
+import { ChevronRight, FolderGit2, FolderX, Settings, SquarePen } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 import { SidebarMenu } from '@dltech/atlas-ui/components/sidebar'
 import { cn } from '@dltech/atlas-ui/lib/utils'
+
+import {
+  EProjectSettingsSection,
+  hrefOfProjectSection,
+} from '@/features/project-settings/project-settings-nav'
 
 import { ProjectHoverCard } from './project-hover-card'
 import { RowAction } from './shell-row-action'
@@ -61,6 +66,19 @@ export function ProjectGroup({ entry, open, onOpenChange, activeThreadId }: Proj
           </span>
         )}
         <div className="hidden shrink-0 items-center gap-1 group-hover/project:flex group-data-popup-open/project:flex pointer-coarse:flex">
+          {project !== null && (
+            <span className="hidden pointer-coarse:contents">
+              <RowAction
+                label="Project settings"
+                href={hrefOfProjectSection({
+                  projectId: project.id,
+                  section: EProjectSettingsSection.Overview,
+                })}
+              >
+                <Settings />
+              </RowAction>
+            </span>
+          )}
           {project !== null && (
             <RowAction
               label="New thread in project"

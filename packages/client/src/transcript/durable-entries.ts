@@ -21,6 +21,7 @@ import type { TranscriptEntryFold } from './entry-builders'
 import { noticeEntriesOf } from './notice-entries'
 import { podOomEntryOf } from './pod-oom-entry'
 import { sessionArchivedEntryOf } from './session-archived-entry'
+import { summariesAtTarget } from './summary-placement'
 import { attachmentsOf } from './tool-attachments'
 import { toolRuns, type ToolRun } from './tool-runs'
 import { EAuthor, EEntryKind, toolsRanEntry, type TranscriptEntry } from './transcript-model'
@@ -43,7 +44,7 @@ export function durableEntries(args: {
   turns?: readonly TurnSpend[] | undefined
   pluginEntries?: readonly TranscriptEntryFold[] | undefined
 }): TranscriptEntry[] {
-  const events = args.events.filter((event) => !isNoticeArrival(event))
+  const events = summariesAtTarget(args.events.filter((event) => !isNoticeArrival(event)))
   const repeated = redundantEndingIds(events)
   const opened = new Map<string, ToolRun>(toolRuns(events).map((run) => [run.openedBy, run]))
   const steers = saidWhileToolsWereOutstanding(events)

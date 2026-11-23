@@ -1,24 +1,15 @@
 import { Button, EButtonSize, EButtonVariant, useTheme } from '@dltech/atlas-ui-native'
 import { router, Stack, usePathname } from 'expo-router'
-import { ChevronLeft, Plus } from 'lucide-react-native'
+import { Plus } from 'lucide-react-native'
 import { Platform } from 'react-native'
 
 import { useAuth } from '../../auth/auth-provider'
 import { AccountButton } from '../../navigation/account-button'
 import { AppHeader } from '../../navigation/app-header'
+import { BackButton } from '../../navigation/back-button'
 import { InAppNoticesProvider } from '../../notifications/in-app-notices-provider'
 import { sessionIdOfPathname } from '../../thread/v2/presence-state'
 import { usePresenceReport } from '../../thread/v2/use-presence-report'
-
-const BackButton = () => (
-  <Button
-    label="Back"
-    icon={ChevronLeft}
-    variant={EButtonVariant.Ghost}
-    size={EButtonSize.IconLg}
-    onPress={() => router.back()}
-  />
-)
 
 const NewSessionButton = () => (
   <Button
@@ -27,6 +18,15 @@ const NewSessionButton = () => (
     variant={EButtonVariant.Ghost}
     size={EButtonSize.IconLg}
     onPress={() => router.push('/new')}
+  />
+)
+
+const CancelButton = () => (
+  <Button
+    label="Cancel"
+    variant={EButtonVariant.Ghost}
+    size={EButtonSize.Sm}
+    onPress={() => router.back()}
   />
 )
 
@@ -53,7 +53,16 @@ const AppStack = () => {
           contentStyle: { backgroundColor: theme.sidebar },
         }}
       />
-      <Stack.Screen name="new" options={{ title: 'New session', header: renderAppStackHeader }} />
+      <Stack.Screen
+        name="new"
+        options={{
+          title: 'New session',
+          presentation: 'modal',
+          headerLeft: () => <CancelButton />,
+          headerStyle: { backgroundColor: theme.background },
+          headerTintColor: theme.foreground,
+        }}
+      />
       <Stack.Screen name="sessions/[id]" options={{ title: '', header: renderAppStackHeader }} />
       <Stack.Screen
         name="agents/[agentId]"

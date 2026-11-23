@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
-import { ESessionStatus } from '@dltech/atlas-core'
 import { liveBackgroundOf } from '@dltech/atlas-client/crew'
-import { ESessionConnection } from '@dltech/atlas-client/stream'
+import { mergedDraftOf, postInputOf } from '@dltech/atlas-client/session'
+import { ESessionConnection, startFailureOf } from '@dltech/atlas-client/stream'
+import { turnStartedAtOf } from '@dltech/atlas-client/transcript'
 
 import { useV2Sessions } from '@/features/shell/use-v2-sessions'
 import { messageOf } from '@/features/threads/data/use-send'
@@ -14,31 +15,35 @@ import { useComposerAttachments } from '@/features/threads/data/use-composer-att
 import { ModelPickerControls } from '@/features/threads/model-picker'
 import { ThreadComposer } from '@/features/threads/thread-composer'
 import { ThreadTranscript } from '@/features/threads/thread-transcript'
-import { turnStartedAtOf } from '@/features/threads/data/turn-start'
 import { SummariseDialog } from '@/features/threads/transcript/summarise-dialog'
+import { RewindDialog } from '@/features/threads/transcript/rewind-dialog'
 import { track } from '@/lib/analytics/analytics'
 import { sessionOpenedProps } from '@/lib/analytics/perf'
 
 import { attachmentsOf } from '@dltech/atlas-core'
+import { readingClasses } from '@dltech/atlas-ui/tokens'
 
 import { useSessionAgentWiring } from './data/use-session-agent-wiring'
-import { postInputOf } from './data/session-media'
 import { sessionsApi } from './data/sessions-api'
 import { stopSession } from './data/stop-session'
 import { headerStateOfSession, isSessionWorking } from './data/session-state'
 import { sessionLog, sessionStream } from './data/session-stream'
-import { mergedDraftOf } from './data/session-rewind'
 import { useSessionRewind } from './data/use-session-rewind'
 import { sessionRefusalsOf } from './data/session-refusals'
 import { sessionBootViewOf } from './data/session-boot-view'
 import { sessionModelOf } from './data/session-model'
 import { sessionTranscriptOf } from './data/session-transcript'
+import { useDiagramRepairedTranscript } from './data/use-session-diagram-transcript'
 import { useSessionMarkRead } from './data/use-session-mark-read'
 import { useSessionModelChoice } from './data/use-session-model-choice'
 import { useSessionRunFailure } from './data/use-session-run-failure'
+import { useCredentialRepair } from './data/use-credential-repair'
 import { sessionViewModelOf } from './data/session-view-model'
 import { retrySessionNow } from './data/use-retry-session'
 import { OperatorRequestDock } from './operator-request-dock'
+import { RepairKeyDialog } from './repair-key-dialog'
+import { RepairSignInDialog } from './repair-sign-in-dialog'
+import { RepairStrip } from './repair-strip'
 import { SessionUpdateCard } from './session-update-card'
 import { useQueuedDock } from './data/use-queued-dock'
 import { useStagedMessages } from './data/use-staged-messages'
@@ -62,6 +67,7 @@ import { SessionPaneProvider } from './panel/pane-value'
 import { SessionPaneLayout } from './panel/session-pane-layout'
 import { useSessionPaneWiring } from './panel/use-session-pane-wiring'
 import { SessionContext } from './session-context'
+import { SessionUsage } from './session-usage'
 import { SessionHeader } from './session-header'
 import { StartFailedCard } from './start-failed-card'
 
@@ -104,7 +110,8 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   const files = useComposerAttachments()
   const attachments = useSessionAttachments({ files })
   const working = isSessionWorking(snapshot.status)
-  const turnStartedAt = useMemo(() => turnStartedAtOf(snapshot.events), [snapshot.events])
+  const startFailure = startFailureOf(snapshot.status)
+  const turnStartedAt = useMemo(() => turnStartedAtOf(snapshot.foldable), [snapshot.foldable])
   const reveal = useSessionReveal(snapshot)
   const view = useMemo(
     () =>
@@ -116,25 +123,29 @@ export function SessionView({ sessionId }: { sessionId: string }) {
       }),
     [snapshot.events, snapshot.overlay, reveal, sessionNameOf],
   )
+  const { items: transcriptItems, repairDiagram } = useDiagramRepairedTranscript({
+    sessionId,
+    items: view.items,
+  })
   const boot = useMemo(
     () =>
       sessionBootViewOf({
-        events: snapshot.events,
+        events: snapshot.foldable,
         status: snapshot.status,
         setupOutput: snapshot.setupOutput,
         catchingUp: snapshot.connection === ESessionConnection.CatchingUp,
       }),
-    [snapshot.events, snapshot.status, snapshot.setupOutput, snapshot.connection],
+    [snapshot.foldable, snapshot.status, snapshot.setupOutput, snapshot.connection],
   )
   const operatorRequest = useMemo(() => pendingOperatorRequestOf(view.items), [view.items])
   const model = useMemo(() => sessionViewModelOf(snapshot.view), [snapshot.view])
   const background = useMemo(
     () =>
       liveBackgroundOf({
-        events: snapshot.events,
+        events: snapshot.foldable,
         live: snapshot.connection === ESessionConnection.Live,
       }),
-    [snapshot.events, snapshot.connection],
+    [snapshot.foldable, snapshot.connection],
   )
   const { panel, pane, openAgent, sheetOpenChange } = useSessionAgentWiring({
     sessionId,
@@ -148,10 +159,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     mainThreadId: listed?.mainThreadId,
     model,
     snapshot,
-    openTab: pane.openTab,
-    podSizeRequest: pane.podSizeRequest,
-    requestPodSize: pane.requestPodSize,
-    consumePodSizeRequest: pane.consumePodSizeRequest,
+    pane,
   })
   const stagedRun = useStagedMessages({
     sessionId,
@@ -201,16 +209,18 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     })
 
   const summarise = useSessionSummarise({ sessionId, events: snapshot.events })
-  const skillEntries = useSessionSkills({ events: snapshot.events })
+  const skillEntries = useSessionSkills({ events: snapshot.foldable })
   const commandEntries = useSessionCommands()
   const [commandListOpen, setCommandListOpen] = useState(false)
   const composerEntries = useMemo(
     () => composerEntriesOf({ commands: commandEntries, skills: skillEntries }),
     [commandEntries, skillEntries],
   )
+  const repairSelected = useRef<(() => void) | null>(null)
   const choice = useSessionModelChoice({
     sessionId,
     current: sessionModelOf(listed),
+    onSelected: () => repairSelected.current?.(),
   })
   const composerActions = useMemo(
     () =>
@@ -220,12 +230,22 @@ export function SessionView({ sessionId }: { sessionId: string }) {
       }),
     [choice.setOpen],
   )
+  const repair = useCredentialRepair({
+    sessionId,
+    mainThreadId: listed?.mainThreadId,
+    events: snapshot.events,
+    onSwitchModel: () => choice.setOpen(true),
+  })
+  useEffect(() => {
+    repairSelected.current = repair.handleModelSelected
+  }, [repair.handleModelSelected])
   const failure = useSessionRunFailure({
     sessionId,
     events: snapshot.events,
     working,
     openAgent,
     onSwitchModel: () => choice.setOpen(true),
+    repair,
   })
 
   const handleSubmit = async (text: string) => {
@@ -235,7 +255,10 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     const clientId = retryClientId.current ?? crypto.randomUUID()
     setSending(true)
     try {
-      await sessionsApi.post(postInputOf({ sessionId, text, clientId, media, uploads }))
+      await sessionsApi.post({
+        ...postInputOf({ sessionId, text, clientId, media, uploads }),
+        sentAt: new Date().toISOString(),
+      })
       stagedRun.stage({
         clientId,
         text,
@@ -294,8 +317,9 @@ export function SessionView({ sessionId }: { sessionId: string }) {
             >
               <div className="min-h-0 flex-1">
                 <ThreadTranscript
-                  items={view.items}
+                  items={transcriptItems}
                   failureCard={failure.card}
+                  repairCard={failure.repairCard}
                   failedLabel={failure.failedLabel}
                   pod={null}
                   working={working}
@@ -305,13 +329,17 @@ export function SessionView({ sessionId }: { sessionId: string }) {
                   onOpenPodSize={handleOpenPodSize}
                   rewind={rewind}
                   summarise={summarise.transcript}
+                  repairDiagram={repairDiagram}
                   boot={boot}
                   staged={queuedDock.transcriptEntries}
                   onLoadOlder={loadOlder}
                 />
               </div>
-              <div className="mx-auto flex w-full max-w-4xl shrink-0 flex-col gap-2 px-4 pb-4">
+              <div
+                className={`mx-auto flex w-full ${readingClasses.measure} shrink-0 flex-col gap-2 px-4 pb-[max(1rem,var(--safe-area-bottom))]`}
+              >
                 <OperatorRequestDock sessionId={sessionId} request={operatorRequest} />
+                <RepairStrip strip={repair.strip} />
                 {snapshot.skipped > 0 ? (
                   <SessionUpdateCard
                     skipped={snapshot.skipped}
@@ -322,11 +350,14 @@ export function SessionView({ sessionId }: { sessionId: string }) {
                   snapshot={snapshot}
                   onReconnect={() => sessionStream().reconnect()}
                 />
-                {snapshot.status?.state === ESessionStatus.StartFailed ? (
-                  <StartFailedCard reason={snapshot.status.reason} onRetry={handleRetry} />
-                ) : null}
+                {startFailure === undefined ? null : (
+                  <StartFailedCard reason={startFailure.reason} onRetry={handleRetry} />
+                )}
                 <RefusalRows refusals={refusals} onDismiss={dismissRefusals} />
+                <RepairSignInDialog {...repair.dialogs.signIn} />
+                <RepairKeyDialog {...repair.dialogs.key} />
                 <SummariseDialog {...summarise.dialog} />
+                <RewindDialog {...rewind.dialog} />
                 <CommandListDialog
                   open={commandListOpen}
                   onOpenChange={setCommandListOpen}
@@ -357,6 +388,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
                     />
                   )}
                   <SessionContext context={model.context} spend={model.spend} />
+                  <SessionUsage model={listed?.model} working={working} />
                 </ThreadComposer>
               </div>
             </SessionPaneLayout>

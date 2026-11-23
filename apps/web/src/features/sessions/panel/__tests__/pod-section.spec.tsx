@@ -16,7 +16,7 @@ import {
   type PodShapeRequest,
 } from '@/features/pods/pod-resize-confirmation'
 
-import { resizePod } from '../../data/pod-resources'
+import { cancelPodResize, resizePod } from '../../data/pod-resources'
 import type { PodMetricsSample } from '../../data/pod-metrics-series'
 import type { PodPower } from '../../data/use-pod-power'
 import { PodPaneSection, podBusyOfView, podSectionViewOf } from '../details/pod-section'
@@ -92,14 +92,18 @@ const sectionOf = (overrides: Partial<React.ComponentProps<typeof PodPaneSection
     onConfirm={() => undefined}
     onCancel={() => undefined}
     onResize={() => undefined}
+    onResizeNow={() => Promise.resolve()}
+    onCancelResize={() => Promise.resolve()}
     onGrowDisk={() => undefined}
     {...overrides}
   />
 )
 
 describe('podSectionViewOf', () => {
-  it('renders nothing without pushed pod state', () => {
-    expect(podSectionViewOf({ pod: undefined, live: true })).toBeNull()
+  it('keeps the section with the default shape before the pod state is pushed', () => {
+    const view = podSectionViewOf({ pod: undefined, live: false })
+    expect(view.state).toBe(EPodState.Parked)
+    expect(view.shape).toEqual({ vcpus: 2, memoryGb: 4 })
   })
 
   it('reads the shape, the sizes and the resize phase off the pushed pod', () => {
@@ -143,6 +147,16 @@ describe('podSectionViewOf', () => {
     ).toBe(false)
   })
 
+  it('carries the disk limit off the pushed pod, for a section with no live sample', () => {
+    const pod = {
+      phase: 'steady' as const,
+      diskGb: 40,
+      sizing: { cap: 8, offered: [], unavailable: [] },
+    }
+    expect(podSectionViewOf({ pod, live: true })?.diskGb).toBe(40)
+    expect(podSectionViewOf({ pod: undefined, live: false })?.diskGb).toBeUndefined()
+  })
+
   it('takes the state the sandbox declares over the lease', () => {
     const view = podSectionViewOf({
       pod: { phase: 'steady', sizing: { cap: 8, offered: [], unavailable: [] } },
@@ -163,6 +177,29 @@ describe('podSectionViewOf', () => {
     })
     expect(live?.state).toBe(EPodState.Running)
     expect(parked?.state).toBe(EPodState.Parked)
+  })
+
+  it('marks the resize that waits for the pod to go idle', () => {
+    const waiting = podSectionViewOf({
+      pod: {
+        shape: { vcpus: 4, memoryGb: 16 },
+        desiredShape: { vcpus: 8, memoryGb: 64 },
+        phase: 'waiting',
+        sizing: { cap: 8, offered: [], unavailable: [] },
+      },
+      live: true,
+    })
+    expect(waiting.resizeWaiting).toBe(true)
+    expect(waiting.pendingShape).toEqual({ vcpus: 8, memoryGb: 64 })
+    const steady = podSectionViewOf({
+      pod: {
+        desiredShape: { vcpus: 8, memoryGb: 64 },
+        phase: 'steady',
+        sizing: { cap: 8, offered: [], unavailable: [] },
+      },
+      live: true,
+    })
+    expect(steady.resizeWaiting).toBeUndefined()
   })
 
   it('names a failed resize and offers a shape when the pod has not reported one', () => {
@@ -221,10 +258,12 @@ describe('PodPaneSection', () => {
     expect(html).toContain('CPU and RAM over the last 15 minutes')
   })
 
-  it('keeps the idle placeholder without a series', () => {
+  it('shows an empty chart state instead of a blank chart without a series', () => {
     const running = renderToStaticMarkup(sectionOf({ series: [] }))
     expect(running).toContain('CPU')
-    expect(running).not.toContain('No live usage')
+    expect(running).toContain('Disk')
+    expect(running).toContain('No live usage yet')
+    expect(running).not.toContain('over the last 15 minutes')
     const asleep = renderToStaticMarkup(sectionOf({ series: [], state: EPodState.Parked }))
     expect(asleep).toContain('No live usage — pod asleep')
   })
@@ -272,6 +311,26 @@ describe('PodPaneSection', () => {
     expect(html).toContain('Resizing…')
     expect(html.indexOf('Resizing…')).toBeLessThan(html.indexOf('CPU'))
     expect(html.match(/8 vCPU · 64 GB/g)).toHaveLength(1)
+  })
+
+  it('offers resize now and cancel while the resize waits for idle', async () => {
+    const onResizeNow = mock(() => Promise.resolve())
+    const onCancelResize = mock(() => Promise.resolve())
+    const unmount = await mount(
+      sectionOf({
+        pendingShape: { vcpus: 8, memoryGb: 64 },
+        resizeWaiting: true,
+        onResizeNow,
+        onCancelResize,
+      }),
+    )
+    expect(document.body.textContent).toContain('Waiting for idle…')
+    expect(document.body.textContent).toContain('Resizes to 8 vCPU · 64 GB when the pod is idle.')
+    await click(buttonNamed('Resize now'))
+    expect(onResizeNow).toHaveBeenCalledTimes(1)
+    await click(buttonNamed('Cancel'))
+    expect(onCancelResize).toHaveBeenCalledTimes(1)
+    await unmount()
   })
 
   it('asks before stopping a working pod', async () => {
@@ -470,6 +529,14 @@ describe('resizePod', () => {
       name: 'resize',
       args: { vcpus: 4, memoryGb: 16, diskGb: 30, whenIdle: false },
     })
+  })
+})
+
+describe('cancelPodResize', () => {
+  it('cancels the resize that waits for the pod to go idle', async () => {
+    const command = mock(() => Promise.resolve({}))
+    await cancelPodResize({ api: { command }, sessionId: 'ses-1' })
+    expect(command).toHaveBeenCalledWith({ sessionId: 'ses-1', name: 'cancel-resize', args: {} })
   })
 })
 
