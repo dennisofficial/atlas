@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+import { oneLine } from '../text/one-line'
+
 const FALLBACK_NAME_CHARACTERS = 80
 
 const ELLIPSIS = '…'
@@ -13,7 +15,7 @@ const isNamed = (input: Record<string, unknown>): boolean => {
 }
 
 export function fallbackShellName(command: string): string {
-  const single = command.replace(/\s+/g, ' ').trim()
+  const single = oneLine(command)
   return single.length <= FALLBACK_NAME_CHARACTERS
     ? single
     : `${single.slice(0, FALLBACK_NAME_CHARACTERS)}${ELLIPSIS}`

@@ -1,9 +1,11 @@
+import { oneLine } from '../text/one-line'
+
 const QUOTED_COMMAND_CHARACTERS = 120
 
 const ELLIPSIS = '…'
 
 export function quotedShellCommand(command: string): string {
-  const single = command.replace(/\s+/g, ' ').trim()
+  const single = oneLine(command)
   const shown =
     single.length <= QUOTED_COMMAND_CHARACTERS
       ? single

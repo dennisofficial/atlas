@@ -4,7 +4,7 @@
 
 - `formatTokens` (k/m/b): tui `ui/theme.ts` and web `threads/panel/details/details-model.ts` now use `@dltech/atlas-client/crew` (`packages/client/src/crew/readout.ts`).
 - `clipText` (`slice(0, limit - 1)…`): core `pr-event-block`, `loop-watch`, classifier `adjudicate`, `verdict`, `from-events` and client `pr-event-line` now use `@dltech/atlas-core` (`packages/core/src/text/clip-text.ts`).
-- `oneLine` (`\s+` → space, trim): tui `store/sidebar-text.ts`, `sidebar/crew.tsx`, `lost-children-model.ts`, `lost-shells-model.ts` and web `details/crew-model.ts` now use `@dltech/atlas-core` (`packages/core/src/text/one-line.ts`).
+- `oneLine` (`\s+` → space, trim): tui `store/sidebar-text.ts`, `sidebar/crew.tsx`, `lost-children-model.ts`, `lost-shells-model.ts`, `shells-model.ts`, web `details/crew-model.ts`, `data/processes-model.ts` and core `shells/label.ts`, `shells/fallback-shell-name.ts`, `agents/name.ts`, `agents/label.ts`, `naming/session-title.ts`, `classifier/verdict.ts` now use `@dltech/atlas-core` (`packages/core/src/text/one-line.ts`).
 
 ## Ruled out (intentional divergence — do not re-investigate)
 
@@ -18,7 +18,7 @@
 
 ## Backlog (ranked)
 
-1. Inline `replace(/\s+/g, ' ').trim()` that can now call core `oneLine`: core `shells/label.ts`, `shells/fallback-shell-name.ts`, `agents/name.ts`, `agents/label.ts`, `policy/classifier/verdict.ts`; web `data/processes-model.ts:49`; tui `shells-model.ts:109`. Skip v1 harness.
+1. Remaining inline `replace(/\s+/g, ' ').trim()` that can call core `oneLine`: client `session/session-rewind.ts:61`, web `threads/data/rewind.ts:50`, control `session-summary.ts:9`, tui `ui/services-model.ts:173`, `ui/components/services.tsx:67`, `packages/quality` `typescript-parser.ts:74`. Skip v1 harness. Then the "description, else folded command" shell-name fallback (core `shellLabel`, web `processNameOf`, tui `shellNameLabel`, client `shellLabelOf`, web `processLabel`): check `?? ''` vs `||` and the id fallback first.
 2. `contextLabelOf` (200k / 1M), byte-equivalent in web `threads/data/model-options.ts:67` and mobile `composer/model-options.ts:52`. Mobile `EFFORT_LADDER`/`EFFORT_LABELS` re-declare what `@dltech/atlas-ui` already exports.
 3. Relative time: mobile `lib/relative-time.ts` and web `settings/data/personal/relative-time.ts` give identical output (only the argument keys differ) → `packages/core`.
 4. `parseRepoInput`, identical in web and prototype `new-project-repos.ts`; no package is shared by both apps yet, so it needs a home decision.
@@ -48,3 +48,10 @@
 - Unified `clip` (6 identical core/client copies → core `text/clip-text.ts`, `clipText({ text, limit })`). Truth table: same output for every length; only the limits differ, and those stay at call sites.
 - Pinned with a core `clipText` spec plus boundary specs in classifier `verdict` (300), `adjudicate` (400), client `pr-event-line` (120) and `loop-watch` (300). Mutation-checked 9 ways, all restored byte for byte.
 - Added backlog item 9: the remaining copies in tui, web and `packages/github`.
+
+### 2026-11-24
+
+- Open PRs #2801, #2800, #2789, #2749 touch none of these files.
+- Backlog item 1: 8 inline `\s+` folders (6 core, 1 web, 1 tui) now call core `oneLine`. Same expression, so the truth table is identical for every input.
+- Pinned with new core `shells/label` and web `processes-model` specs. Mutation-checked `oneLine` 2 ways (spaces-only fold, no trim): every caller's spec fails at least once; restored byte for byte.
+- Found 6 more inline copies and the shell-name fallback family; added as backlog item 1.
