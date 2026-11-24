@@ -234,7 +234,9 @@ export type WorktreeChangesWrite = {
   files: readonly ChangedFileWrite[]
 }
 
-export type WorktreeChangesRead = Omit<WorktreeChangesWrite, 'files'> & {
+export type WorktreeChangesSummary = Omit<WorktreeChangesWrite, 'files'>
+
+export type WorktreeChangesRead = WorktreeChangesSummary & {
   files: readonly ChangedFileWrite[]
 }
 
@@ -406,6 +408,7 @@ export interface ControlTx {
     blobs: readonly ChangeBlobWrite[]
   }): Promise<void>
   readChanges(params: { sessionId: string }): Promise<WorktreeChangesRead[]>
+  readChangesSummary(params: { sessionId: string }): Promise<WorktreeChangesSummary[]>
   readChangeFile(params: {
     sessionId: string
     checkoutId: string

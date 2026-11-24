@@ -34,6 +34,7 @@ import {
   type RoutineRow,
   type SessionListParams,
   type WorktreeChangesRead,
+  type WorktreeChangesSummary,
   type WorktreeChangesWrite,
 } from '../../port'
 import {
@@ -73,6 +74,7 @@ import {
   deleteChangeBlobRowsIn,
   readChangeFileIn,
   readChangesIn,
+  readChangesSummaryIn,
   upsertChangesIn,
 } from './memory-changes'
 import {
@@ -325,6 +327,10 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
 
   async readChanges(params: { sessionId: string }): Promise<WorktreeChangesRead[]> {
     return readChangesIn({ state: this.state, ...params })
+  }
+
+  async readChangesSummary(params: { sessionId: string }): Promise<WorktreeChangesSummary[]> {
+    return readChangesSummaryIn({ state: this.state, ...params })
   }
 
   async readChangeFile(params: {
