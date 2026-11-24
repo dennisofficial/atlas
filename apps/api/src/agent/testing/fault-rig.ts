@@ -7,10 +7,9 @@ import { ControlPlane } from '@dltech/atlas-control'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import { createDb, createPool, type Pool } from '@dltech/atlas-db'
 import { FaultProxy } from '@dltech/atlas-host/testing'
-import { PANEL_HOLD_CHANNEL } from '@dltech/atlas-protocol'
-import { Redis } from 'ioredis'
 
 import { controlEventSchema } from '../registered-plugins'
+import { createRedisLiveFrames } from '../bus/redis-live-frames'
 import type { EHostFault } from './host-faults'
 import { seedSession, type NewSessionArgs } from './rig-seed'
 import { startDaemon, type RigDaemon } from './rig-daemon'
@@ -196,18 +195,16 @@ export const startRig = async (args: {
     },
 
     panelBeats({ sessionId, ttlMs, everyMs }) {
-      const publisher = new Redis(args.redisUrl, { lazyConnect: true, maxRetriesPerRequest: 3 })
+      const frames = createRedisLiveFrames({ url: args.redisUrl })
       const beat = (): void => {
-        void publisher
-          .publish(PANEL_HOLD_CHANNEL, JSON.stringify({ sessionId, ttlMs }))
-          .catch(() => undefined)
+        void frames.hold({ sessionId, ttlMs }).catch(() => undefined)
       }
       beat()
       const timer = setInterval(beat, everyMs)
       return {
         async stop() {
           clearInterval(timer)
-          await publisher.quit().catch(() => undefined)
+          await frames.close()
         },
       }
     },

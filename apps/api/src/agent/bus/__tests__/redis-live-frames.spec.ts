@@ -58,6 +58,20 @@ describe.skipIf(process.env.ATLAS_TEST_REDIS_URL === undefined)('redis live fram
     await expect(frames.close()).resolves.toBeUndefined()
   }, 15_000)
 
+  it('leaves a panel hold another host can read, then drops it one TTL later', async () => {
+    const sessionId = `session-hold-${Date.now()}`
+    const beats = createRedisLiveFrames({ url })
+    publishers.push(beats)
+    await beats.hold({ sessionId, ttlMs: 5_000 })
+    const reader = createRedisLiveFrames({ url })
+    publishers.push(reader)
+    expect(await reader.panelHoldMs(sessionId)).toBe(5_000)
+
+    await beats.hold({ sessionId, ttlMs: 40 })
+    await Bun.sleep(150)
+    expect(await reader.panelHoldMs(sessionId)).toBe(0)
+  }, 15_000)
+
   describe('step buffer', () => {
     const key = { runId: 'run-1', step: 0, attempt: 0 }
     const delta = (args: { from: number; text: string }): LiveFrame => ({

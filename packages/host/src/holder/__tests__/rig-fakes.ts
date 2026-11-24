@@ -57,6 +57,7 @@ export class FakeBus implements HostBus {
   readonly wakes: string[] = []
   readonly frames: { key: string; frame: LiveFrame }[] = []
   readonly holds: { sessionId: string; ttlMs: number }[] = []
+  readonly heldMs = new Map<string, number>()
   private readonly listeners = new Set<(sessionId: string) => void>()
   private readonly resyncListeners = new Set<() => void>()
   private readonly holdListeners = new Set<(hold: { sessionId: string; ttlMs: number }) => void>()
@@ -98,6 +99,10 @@ export class FakeBus implements HostBus {
   async panelHold(hold: { sessionId: string; ttlMs: number }): Promise<void> {
     this.holds.push({ ...hold })
     for (const listener of [...this.holdListeners]) listener(hold)
+  }
+
+  async panelHoldMs(sessionId: string): Promise<number> {
+    return this.heldMs.get(sessionId) ?? 0
   }
 
   deliverPanelHold(hold: { sessionId: string; ttlMs: number }): void {
