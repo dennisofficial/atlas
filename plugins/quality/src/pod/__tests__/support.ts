@@ -108,7 +108,9 @@ export const introducing = async (args: ClassifyArgs): Promise<ClassifierOutcome
 export type RigOptions = {
   classifierOn?: boolean
   classify?: ((args: ClassifyArgs) => Promise<ClassifierOutcome>) | undefined
-  settings?: { enabled: boolean; policies: Readonly<Record<string, boolean>> } | undefined
+  settings?:
+    | { enabled: boolean; policies: Readonly<Record<string, boolean>>; examples: boolean }
+    | undefined
   budgetMs?: number | undefined
   events?: readonly Event[] | undefined
   analytics?: PodAnalytics | undefined
@@ -122,7 +124,7 @@ export const monotonicClock = (): (() => number) => {
 export function createRig(options: RigOptions = {}) {
   const logs: string[] = []
   const classifyCalls: ClassifyArgs[] = []
-  const settings = options.settings ?? { enabled: true, policies: {} }
+  const settings = options.settings ?? { enabled: true, policies: {}, examples: false }
   const scripted = options.classify ?? introducing
   const classifier: PodClassifier = {
     status: () =>

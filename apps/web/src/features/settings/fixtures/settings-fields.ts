@@ -73,7 +73,7 @@ export const QUALITY_FIELDS: SettingField[] = [
     key: 'quality.enabled',
     title: 'Code quality review',
     description:
-      'Runs whenever a classifier is set on the Classifier settings page, and is off without one. After a file write, the classifier reviews the changed scope against the enabled policies and may leave the agent a one-time nudge. It never blocks or reverts a write.',
+      'Runs whenever a classifier is set on the Classifier settings page, and is off without one. After a file write, the classifier reviews the changed scope against the enabled policies and may leave the agent a one-time nudge. It never blocks or reverts a write. An account on the ATLAS_QUALITY_EXAMPLE_USERS allowlist also sends each flagged scope to PostHog, with at most 4000 characters of its code.',
     fallback: true,
   }),
 ]

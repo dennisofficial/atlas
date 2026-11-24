@@ -38,9 +38,9 @@ export function outcomeOf(args: {
     if (parsed.data.callId !== args.callId) return undefined
     records.push(parsed.data)
   }
-  const { notes } = args.value
+  const { notes, flagged } = args.value
   if (notes.some((note) => note.content.trim() === '')) return undefined
-  return { ...metricsOf(args.value), records, notes }
+  return { ...metricsOf(args.value), records, flagged, notes }
 }
 
 const metricsOf = (value: QualityReviewResult): QualityReviewMetrics => ({
@@ -140,10 +140,11 @@ export async function reviewWithinBudget(args: {
       const late =
         valid?.records.filter((record) => record.status !== EQualityReviewStatus.Completed) ?? []
       const metrics = metricsOf(raced.value)
-      if (late.length > 0) return { ...metrics, records: late, notes: [] }
+      if (late.length > 0) return { ...metrics, records: late, flagged: [], notes: [] }
       return {
         ...metrics,
         records: [deadlineBookkeeping({ ...bookkeepingFacts, budgetMs: args.budgetMs })],
+        flagged: [],
         notes: [],
       }
     }
@@ -160,6 +161,7 @@ export async function reviewWithinBudget(args: {
           detail: 'review returned malformed records and they were dropped',
         }),
       ],
+      flagged: [],
       notes: [],
     }
   }
@@ -168,6 +170,7 @@ export async function reviewWithinBudget(args: {
     return {
       ...NO_REVIEW_METRICS,
       records: [deadlineBookkeeping({ ...bookkeepingFacts, budgetMs: args.budgetMs })],
+      flagged: [],
       notes: [],
     }
   }
@@ -183,6 +186,7 @@ export async function reviewWithinBudget(args: {
           detail: 'the turn was interrupted before the review finished',
         }),
       ],
+      flagged: [],
       notes: [],
     }
   }
@@ -197,6 +201,7 @@ export async function reviewWithinBudget(args: {
         detail: `review failed: ${messageOf(raced.error)}`,
       }),
     ],
+    flagged: [],
     notes: [],
   }
 }

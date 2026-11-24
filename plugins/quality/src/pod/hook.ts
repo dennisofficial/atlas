@@ -19,6 +19,7 @@ import {
   resolvedFindingProperties,
   reviewCompletedProperties,
 } from './analytics/review-properties'
+import { QUALITY_EXAMPLE_FLAGGED, exampleFlaggedProperties } from './analytics/example-properties'
 import { ignoredFindingProperties } from './analytics/ignored-properties'
 import { noteDraftsOf, retirementDraftsOf } from './notes'
 import { reviewWithinBudget } from './review-outcome'
@@ -28,6 +29,7 @@ export const QUALITY_REVIEW_BUDGET_MS = 1000
 export type QualitySettings = {
   enabled: boolean
   policies: Readonly<Record<string, boolean>>
+  examples: boolean
 }
 
 export type QualityReviewOptions = {
@@ -109,6 +111,18 @@ export const qualityReviewHook = (args: {
         events,
       }),
     })
+    if (settings.examples) {
+      for (const example of outcome.flagged) {
+        const properties = exampleFlaggedProperties({
+          example,
+          projectDirectory,
+          classifierModel: status.model,
+        })
+        if (properties !== null) {
+          args.ctx.analytics.capture({ event: QUALITY_EXAMPLE_FLAGGED, properties })
+        }
+      }
+    }
     for (const properties of resolvedFindingProperties({
       records: outcome.records,
       events,

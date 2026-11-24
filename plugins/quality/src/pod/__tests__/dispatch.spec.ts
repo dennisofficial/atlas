@@ -87,7 +87,7 @@ describe('the quality hook through the dispatcher', () => {
   })
 
   it('asks no tool to capture when the quality setting is off', async () => {
-    const rig = createRig({ settings: { enabled: false, policies: {} } })
+    const rig = createRig({ settings: { enabled: false, policies: {}, examples: false } })
     const tool = new WriteTool()
 
     const drafts = await new HookedToolDispatcher({
