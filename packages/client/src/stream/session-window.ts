@@ -24,7 +24,11 @@ import {
 } from '@dltech/atlas-core'
 import type { z, ZodError } from 'zod'
 
-import { isQuickStopEvidenceRow } from '../session/quick-stop-restore'
+import {
+  EMPTY_QUICK_STOP_STATE,
+  stepQuickStop,
+  type QuickStopState,
+} from '../session/quick-stop-state'
 
 export const RENDER_LIMIT = 3_000
 
@@ -41,7 +45,7 @@ export type SessionWindow = {
   durable: readonly V2Event[]
   foldable: readonly V2Event[]
   commandLog: readonly V2Event[]
-  quickStopRows: readonly V2Event[]
+  quickStops: QuickStopState
   cursor: SessionCursor | undefined
   foldedThrough: number
 }
@@ -57,7 +61,7 @@ export const EMPTY_WINDOW: SessionWindow = {
   durable: [],
   foldable: [],
   commandLog: [],
-  quickStopRows: [],
+  quickStops: EMPTY_QUICK_STOP_STATE,
   cursor: undefined,
   foldedThrough: 0,
 }
@@ -162,7 +166,7 @@ export const applyPageOutcome = (args: {
       durable,
       foldable,
       commandLog: [...window.commandLog, ...events.filter(isCommandLogEvent)],
-      quickStopRows: [...window.quickStopRows, ...events.filter(isQuickStopEvidenceRow)],
+      quickStops: events.reduce(stepQuickStop, window.quickStops),
       cursor: cursorAfter({ page, last }),
       foldedThrough: window.foldedThrough,
     },

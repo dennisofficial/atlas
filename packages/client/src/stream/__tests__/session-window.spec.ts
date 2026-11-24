@@ -16,7 +16,7 @@ import {
 } from '@dltech/atlas-core'
 import fc from 'fast-check'
 
-import { quickStopRestoresToApply, quickStopsOf } from '../../session/quick-stop-restore'
+import { quickStopRestoresToApply } from '../../session/quick-stop-restore'
 import {
   applyPage,
   applyPageOutcome,
@@ -276,7 +276,7 @@ describe('a quick stop in a raw page', () => {
     expect(window.events.some((event) => event.type === 'user-said')).toBe(false)
 
     const restores = quickStopRestoresToApply({
-      quickStops: quickStopsOf(window.quickStopRows),
+      quickStops: window.quickStops.evidence,
       clientIds: ['client-a'],
       handled: new Set(),
     })
@@ -293,7 +293,7 @@ describe('a quick stop in a raw page', () => {
     const second = applyPage({ window: first, page: page(raw.slice(3)) })
 
     const restores = quickStopRestoresToApply({
-      quickStops: quickStopsOf(second.quickStopRows),
+      quickStops: second.quickStops.evidence,
       clientIds: ['client-a'],
       handled: new Set(),
     })

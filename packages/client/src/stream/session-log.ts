@@ -6,6 +6,7 @@ import type {
   VisibilityState,
 } from '@dltech/atlas-core'
 
+import type { QuickStopState } from '../session/quick-stop-state'
 import type { SessionCursor } from './session-window'
 
 export const SESSION_LOG_STRUCTURE_VERSION = 5
@@ -19,6 +20,7 @@ export type SessionLogSnapshot = {
   failureMessage: FailureMessageState
   durable: readonly V2Event[]
   commandLog: readonly V2Event[]
+  quickStops?: QuickStopState | undefined
   throughSeq: number
 }
 
