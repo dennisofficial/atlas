@@ -122,7 +122,7 @@ export function ThreadRowBody({
         ) : null
       }
       className={cn(
-        'group/thread @container relative grid min-w-0 w-full grid-cols-[minmax(0,1fr)_auto] items-start rounded-md hover:bg-sidebar-accent data-popup-open:bg-sidebar-accent',
+        'group/thread @container relative grid min-w-0 w-full grid-cols-[minmax(0,1fr)_auto] items-start rounded-md hover:bg-sidebar-accent data-popup-open:bg-sidebar-accent has-[[data-popup-open]]:bg-sidebar-accent',
         active && 'bg-sidebar-accent',
       )}
     >
