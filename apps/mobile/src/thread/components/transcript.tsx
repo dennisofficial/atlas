@@ -13,12 +13,12 @@ import {
 
 import { EMessageAuthor, ERowKind, type ThreadRow } from '../rows'
 import { useKeyboard } from '../../layout/use-keyboard'
+import { followsTailAfterUserScroll } from '../tail-follow'
 import type { AgentLinks } from '../v2/agent-links'
 import { MessageRowView } from './message-row'
 import { NoticeRowView } from './notice-row'
 import { WorkRowView } from './work-row'
 
-const NEAR_BOTTOM_PX = 80
 const NEAR_TOP_PX = 400
 
 const keyOf = (row: ThreadRow): string => row.id
@@ -63,7 +63,8 @@ export const Transcript = ({
   onOpenAgent?: ((agentId: string) => void) | undefined
 }) => {
   const listRef = useRef<FlatList<ThreadRow>>(null)
-  const isNearBottom = useRef(true)
+  const followsTail = useRef(true)
+  const settled = useRef(false)
   const loadingOlder = useRef(false)
   const keyboardInset = useKeyboard().inset
   const keyboardVisible = keyboardInset > 0
@@ -86,22 +87,34 @@ export const Transcript = ({
     [threadId, agentLinks, onOpenAgent],
   )
 
-  const scrollToEnd = () => listRef.current?.scrollToEnd({ animated: true })
+  const scrollToEnd = () => listRef.current?.scrollToEnd({ animated: settled.current })
 
   useEffect(() => {
-    if (isNearBottom.current) scrollToEnd()
+    followsTail.current = true
+    settled.current = false
+  }, [threadId])
+
+  useEffect(() => {
+    if (followsTail.current) scrollToEnd()
   }, [rows.length, tailSize])
 
   useEffect(() => {
-    if (keyboardVisible && isNearBottom.current) scrollToEnd()
+    if (keyboardVisible && followsTail.current) scrollToEnd()
   }, [keyboardVisible])
 
+  const handleScrollBeginDrag = () => {
+    settled.current = true
+    followsTail.current = false
+  }
+
+  const handleUserScrollEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    followsTail.current = followsTailAfterUserScroll(event.nativeEvent)
+  }
+
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent
-    const distance = contentSize.height - (contentOffset.y + layoutMeasurement.height)
-    isNearBottom.current = distance < NEAR_BOTTOM_PX
+    if (followsTail.current) return
     if (onLoadOlder === undefined || loadingOlder.current) return
-    if (contentOffset.y > NEAR_TOP_PX) return
+    if (event.nativeEvent.contentOffset.y > NEAR_TOP_PX) return
     loadingOlder.current = true
     void onLoadOlder().finally(() => {
       loadingOlder.current = false
@@ -109,7 +122,7 @@ export const Transcript = ({
   }
 
   const handleContentSizeChange = () => {
-    if (isNearBottom.current) scrollToEnd()
+    if (followsTail.current) scrollToEnd()
   }
 
   if (rows.length === 0 && !working) {
@@ -135,6 +148,9 @@ export const Transcript = ({
       keyboardDismissMode="on-drag"
       keyboardShouldPersistTaps="handled"
       onScroll={handleScroll}
+      onScrollBeginDrag={handleScrollBeginDrag}
+      onScrollEndDrag={handleUserScrollEnd}
+      onMomentumScrollEnd={handleUserScrollEnd}
       scrollEventThrottle={16}
       maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
       onContentSizeChange={handleContentSizeChange}
