@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import type { DraftControls } from '../ui/hooks/use-draft'
 import { messageOf } from './app-next-support'
-import { commandEntriesOf, TUI_OWNED_NAMES } from './command-entries'
+import { commandEntriesOf, panelActionOf, TUI_OWNED_NAMES } from './command-entries'
 import type { SessionApi } from './session-api'
 import {
   completedSlashText,
@@ -24,6 +24,8 @@ export type CommandMenu = {
   handleSelectRow: (index: number) => void
   handleSubmit: (text: string) => boolean
 }
+
+const takesArgument = (entry: CommandEntry): boolean => entry.argumentHint?.startsWith('<') === true
 
 export function useCommandMenu(args: {
   api: SessionApi
@@ -50,7 +52,7 @@ export function useCommandMenu(args: {
     setState(next)
   }, [])
 
-  const { api } = args
+  const { api, onAction, onLocal, onRun } = args
 
   useEffect(() => {
     let open = true
@@ -95,28 +97,35 @@ export function useCommandMenu(args: {
   }, [args.draft, put])
 
   const runEntry = useCallback(
-    (entry: CommandEntry) => {
-      if (TUI_OWNED_NAMES.includes(entry.name)) {
-        clear()
-        args.onLocal(entry.name)
+    (args: { entry: CommandEntry; completes: boolean }) => {
+      const name = args.entry.name
+      if (args.completes) {
+        complete(args.entry)
         return
       }
 
-      if (entry.opens !== undefined) {
+      if (TUI_OWNED_NAMES.includes(name)) {
         clear()
-        args.onAction(entry.opens)
+        onLocal(name)
         return
       }
 
-      if (entry.argumentHint !== undefined) {
-        complete(entry)
+      const action = args.entry.opens ?? panelActionOf(name)
+      if (action !== null) {
+        clear()
+        onAction(action)
+        return
+      }
+
+      if (takesArgument(args.entry)) {
+        complete(args.entry)
         return
       }
 
       clear()
-      args.onRun(`/${entry.name}`)
+      onRun(`/${name}`)
     },
-    [args, clear, complete],
+    [clear, complete, onAction, onLocal, onRun],
   )
 
   const handleText = useCallback(
@@ -164,7 +173,7 @@ export function useCommandMenu(args: {
       if (key.name === 'tab') {
         key.preventDefault()
         const entry = selectedSlashEntry(current)
-        if (entry !== null) complete(entry)
+        if (entry !== null) runEntry({ entry, completes: true })
         return true
       }
 
@@ -175,13 +184,13 @@ export function useCommandMenu(args: {
           put(null)
           return true
         }
-        runEntry(entry)
+        runEntry({ entry, completes: false })
         return true
       }
 
       return false
     },
-    [complete, put, runEntry],
+    [put, runEntry],
   )
 
   const handleSubmit = useCallback(
@@ -190,9 +199,10 @@ export function useCommandMenu(args: {
       if (!line.startsWith('/') || line.includes(' ')) return false
       const entry = known.current.find((candidate) => candidate.name === line.slice(1))
       if (entry === undefined) return false
-      if (!TUI_OWNED_NAMES.includes(entry.name) && entry.opens === undefined) return false
+      const action = entry.opens ?? panelActionOf(entry.name)
+      if (!TUI_OWNED_NAMES.includes(entry.name) && action === null) return false
       put(null)
-      runEntry(entry)
+      runEntry({ entry, completes: false })
       return true
     },
     [put, runEntry],
@@ -203,7 +213,7 @@ export function useCommandMenu(args: {
       const current = held.current
       const entry = current?.rows[index]
       if (entry === undefined) return
-      runEntry(entry)
+      runEntry({ entry, completes: false })
     },
     [runEntry],
   )
