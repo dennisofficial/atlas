@@ -5,11 +5,11 @@ author reads this package first. Every plugin in `plugins/*` builds its slots wi
 
 ## Owns
 
-- The plugin shape: seven slots, `definePlugin`, and the composer `composePlugins`.
-- The pod tier: the pod context, the pod slot, the capabilities a tool reaches, and pod resources.
-- The control tier and the client tier slot types.
-- The plugin-facing capability types: crew, messages, classifier, sessions, worktrees, routines,
-  subscriptions and MCP control, each with an `EMPTY_*` default (none for memory and web search).
+- The plugin shape: seven slots, `definePlugin` and the composer `composePlugins`.
+- The pod tier: the pod context, the pod slot, its capabilities and pod resources; the control and
+  client tier slot types.
+- The capability types: crew, messages, classifier, analytics, sessions, worktrees, routines,
+  subscriptions and MCP control, each with an `EMPTY_*` default.
 
 ## Does not own
 
@@ -39,8 +39,8 @@ A plugin is a `definePlugin({...})` value with a `name` and all seven slots. A m
 | `client`    | `ClientSlot`                | Client hooks that say which events a view cares about.  |
 | `transport` | `'none'` or `'stream'`      | Whether the plugin needs a live stream to a surface.    |
 
-A plugin usually splits its slots into tier files: `src/core`, `src/pod`, `src/control`,
-`src/client`. Each tier is an export subpath, so a client bundle does not import pod code.
+A plugin usually splits its slots into tier files (`src/core`, `src/pod`, `src/control`,
+`src/client`), each an export subpath, so a client bundle does not import pod code.
 
 ### The events slot
 
@@ -76,12 +76,13 @@ A `PodSlot` declares:
 
 `ctx` is a `PluginPodContext`. It gives `sessionId`, `workspaceDirectory`, `env()`, `append(drafts)`,
 `notify(event, {key})`, `events()`, `call(op)`, `live(frame)`, `onDaemonEvent(listener)`, `log`, and
-the capabilities `control`, `crew`, `messages`, `classifier`, `sessions`, `worktrees`, `resources`.
-`ctx.crew` is a `PodCrew`. Its `spawn` takes `group`; the parent wakes once, after every sub-agent of
-that group ends. `say({agentId, text})` messages one, `stop({agentId})` ends it, and `list()` returns
-the snapshots. `resume({agentId})` continues a stopped turn with an `EResumeOutcome`. `ctx.control`
-is a `PodControl`: `exposePort({port})`, `settingsVersions()`, `memory`, `webSearch`, `gateway`
-(`apiKey()`, `imageModel()`), `mcp`, `routines`, `subscriptions`.
+the capabilities `control`, `crew`, `messages`, `classifier`, `analytics`, `sessions`, `worktrees`,
+`resources`. `ctx.analytics.capture({event, properties})` sends a product event for the session's
+user; the host adds `session_id` and `thread_id`.
+`ctx.crew` is a `PodCrew`: `spawn` with a `group` wakes the parent once, after every member ends.
+`say({agentId, text})`, `stop({agentId})`, `list()` and `resume({agentId})` act on one sub-agent.
+`ctx.control` is a `PodControl`: `exposePort({port})`, `settingsVersions()`, `memory`, `webSearch`,
+`gateway` (`apiKey()`, `imageModel()`), `mcp`, `routines`, `subscriptions`.
 
 ### The control and client slots
 
@@ -103,14 +104,14 @@ and compare `ctx.control.settingsVersions()` with `UNVERSIONED_SETTINGS`. Read t
 ## Capabilities
 
 - `definePlugin({name, ...slots})`: validate the slots and freeze the plugin.
-- `composePlugins(plugins)`: merge most slots. Two plugins may not register the same tool, prompt
-  fragment, resource or command name. It merges only the client hooks, so collect `entryFolds`
-  from each plugin yourself, as `apps/web/src/features/sessions/registered-plugins.ts` does.
-- `composePod(pods)`, `composePodCommands({factories, ctx})`: the merged pod slot and commands.
+- `composePlugins(plugins)`: merge most slots; two plugins may not register the same tool, prompt
+  fragment, resource or command name. Collect `entryFolds` from each plugin yourself, as
+  `apps/web/src/features/sessions/registered-plugins.ts` does.
+- `composePod(pods)`, `composePodCommands({factories, ctx})`: the merged pod slot and pod commands.
 - `eventSchemaOf(plugins)`, `eventTypesOf(plugins)`: the decoder and the type list for a session.
 - `crossLatch({ctx, name, level, mayFire})`: fire a level-triggered latch once, and record it.
 - `MacOfflineError`, `PodMcpProxyTransport`, `PodMcpProxyChannel`: the proxy to the Mac app.
-- `EMPTY_*` (for example `EMPTY_POD`): the default of each slot a tier spreads when it adds nothing.
+- `EMPTY_*` (`EMPTY_POD`, `EMPTY_CLASSIFIER`, `EMPTY_ANALYTICS`, ...): the default a tier spreads.
 
 ## Usage
 
@@ -134,8 +135,7 @@ const shells = definePlugin({
 ## Rules
 
 - Declare all seven slots. Spread an `EMPTY_*` value instead of leaving one out.
-- Give each tool, prompt fragment, resource and command a name that no other plugin uses. The
-  composer throws on a duplicate.
+- Give each tool, prompt fragment, resource and command a unique name; the composer throws on two.
 - Import the pod tier in pod code only. It opens the session's sandbox and reads its files.
 - Register a new plugin in every registry that composes it:
   - `apps/api/src/agent/registered-plugins.ts` (runtime).

@@ -15,13 +15,12 @@ import type {
 } from '@dltech/atlas-core'
 import type {
   NormalizeFailure,
-  QualityStagePort,
   SaidUploadsPort,
   ToolEffectResolver,
   ToolRegistry,
 } from '@dltech/atlas-agent'
 import type { TracePort } from '@dltech/atlas-observability'
-import type { ComposedPlugins } from '@dltech/atlas-plugin-sdk'
+import type { ComposedPlugins, PodAnalytics } from '@dltech/atlas-plugin-sdk'
 import type { LiveFrame } from '@dltech/atlas-protocol'
 
 import type { RemoteCalls } from '../calls/remote-calls'
@@ -91,13 +90,13 @@ export type SessionRuntime = {
   classifier: ClassifierPort
   classifierStatus: ClassifierStatus
   rotation: { autoRotateAtPercent: number }
+  analytics?: PodAnalytics | undefined
   modelChoice: ModelChoice
   choiceFor(request: RoleModelRequest): RoleModelChoice
   modelLabelOf(ref: ModelRef): string
   modelOf(choice: ModelChoice): ModelPort
   tools: ToolRegistry
   daemonTools: ReadonlySet<string>
-  quality?: QualityStagePort | undefined
   effectOf: ToolEffectResolver
   assembly: AssemblyPipeline
   uploads?: SaidUploadsPort | undefined

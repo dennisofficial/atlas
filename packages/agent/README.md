@@ -7,7 +7,7 @@ A main agent, a sub-agent and a teammate all run this loop. It knows nothing of 
 
 - The turn runner: `say`, `runTurn` and `resume`, and the outcome of each.
 - The step loop: the model step, the chunk stream, the loop guard, the retry and the recovery.
-- Tool dispatch, the tool registry, and the quality stage between a call and its result.
+- Tool dispatch and the tool registry, including the capture that an after-tool hook asks for.
 - The hook chain: the order of hooks and the budget of each phase.
 - Intake: how a pending input becomes part of the next step.
 - The trace of a turn: the root span, and one span for each collaborator that the loop calls.
@@ -64,11 +64,9 @@ A main agent, a sub-agent and a teammate all run this loop. It knows nothing of 
 
 - `ToolRegistry`, `InMemoryToolRegistry`: find a tool by name and declare it to the model.
 - `filteredToolRegistry({registry, allow, deny})`: a registry that hides some tools.
-- `ToolDispatcher`: the abstract dispatcher. `HookedToolDispatcher` runs the hook phases and the
-  quality stage around each call.
+- `ToolDispatcher`: the abstract dispatcher. `HookedToolDispatcher` runs the hook phases around
+  each call, and asks the tool to capture file changes when an after-tool hook wants them.
 - `DispatchArgs`, `DispatchableCall`: what a dispatcher receives for one call.
-- `QualityStagePort`, `NO_QUALITY_STAGE`: the review stage `HookedToolDispatcher` runs after a
-  call that changed files.
 - `TurnDeps.onceLedger`: an `OnceLedger` runs one keyed decision once, so a retry does not repeat it.
 
 ### Take in an input

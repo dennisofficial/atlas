@@ -1,6 +1,5 @@
 import {
   isParkedOutcome,
-  type CodeQualityReviewedBody,
   type EventDraft,
   type ParkedToolOutcome,
   type ToolCall,
@@ -23,7 +22,6 @@ export function resultDraft(args: {
   call: ToolCall
   result: ToolOutcome
   interrupted: boolean
-  qualityReviews?: readonly CodeQualityReviewedBody[] | undefined
 }): EventDraft {
   if (isParkedOutcome(args.result)) return parkedDraftOf({ call: args.call, result: args.result })
 
@@ -35,9 +33,6 @@ export function resultDraft(args: {
       output: args.result.output,
       modelText: args.result.modelText,
       ...(args.result.modelParts === undefined ? {} : { modelParts: args.result.modelParts }),
-      ...(args.qualityReviews === undefined || args.qualityReviews.length === 0
-        ? {}
-        : { qualityReviews: args.qualityReviews }),
     }
   }
 

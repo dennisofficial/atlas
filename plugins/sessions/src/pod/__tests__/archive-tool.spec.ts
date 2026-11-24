@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { toThreadId } from '@dltech/atlas-core'
 import {
+  EMPTY_ANALYTICS,
   EMPTY_CLASSIFIER,
   EMPTY_CREW,
   EMPTY_MCP_CONTROL,
@@ -45,6 +46,7 @@ const ctxOf = (sessions: PodSessions): PluginPodContext => ({
   crew: EMPTY_CREW,
   messages: EMPTY_MESSAGES,
   classifier: EMPTY_CLASSIFIER,
+  analytics: EMPTY_ANALYTICS,
   worktrees: EMPTY_WORKTREES,
   notify: async () => undefined,
   control: {

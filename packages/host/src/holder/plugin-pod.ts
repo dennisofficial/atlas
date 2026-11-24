@@ -32,6 +32,7 @@ import { pluginCallOf } from './plugin-call'
 import { podControlOf } from './pod-control'
 import { pluginResourcesClosedHook, pluginResourcesHook, reloadResource } from './plugin-resources'
 import { ResourceSync } from './plugin-resource-sync'
+import { analyticsOf } from './pod-analytics'
 import { podSessionsOf } from './plugin-sessions'
 import { heldMessagesOf } from './pod-messages'
 import { modelFellBackDraft } from './crew/model-fell-back'
@@ -168,6 +169,7 @@ export const pluginPodContextOf = (args: {
       status: () => runtime.classifierStatus,
       classify: (args) => runtime.classifier.classify(args),
     },
+    analytics: analyticsOf({ analytics: runtime.analytics, sessionId: deps.sessionId, threadId }),
     sessions: podSessionsOf({
       plane: deps.plane,
       sessionId: deps.sessionId,

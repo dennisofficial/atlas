@@ -72,8 +72,8 @@ export const SPLIT_RULES: readonly SplitRule[] = [
     forbidden: ['@dltech/atlas-models', '@dltech/atlas-credentials', '@dltech/atlas-harness'],
   },
   {
-    name: 'the quality review never depends on v1, a host or a network client',
-    roots: ['packages/quality'],
+    name: 'the quality review never depends on v1, a host, a classifier or a network client',
+    roots: ['plugins/quality'],
     forbidden: [
       '@dltech/atlas-harness',
       '@dltech/atlas-agent-v1',

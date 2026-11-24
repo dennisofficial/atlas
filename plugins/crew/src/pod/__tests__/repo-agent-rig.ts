@@ -6,6 +6,7 @@ import {
   type PodCrew,
   type SubagentSnapshot,
   EMPTY_CREW,
+  EMPTY_ANALYTICS,
   EMPTY_CLASSIFIER,
   EMPTY_MCP_CONTROL,
   EMPTY_ROUTINES,
@@ -129,6 +130,7 @@ export const rig = (args: { nodes?: Record<string, FakeNode>; crew?: PodCrew } =
     crew: args.crew ?? fakeCrew().port,
     messages: EMPTY_MESSAGES,
     classifier: EMPTY_CLASSIFIER,
+    analytics: EMPTY_ANALYTICS,
     sessions: EMPTY_SESSIONS,
     worktrees: EMPTY_WORKTREES,
     control: {
