@@ -1,6 +1,9 @@
 name: flake-next-cache-key-proof
 
 on:
+  push:
+    branches: [dennis/flake-ci-mac-release-hash]
+    paths: ['.github/workflows/flake-next-cache-key-proof.yml']
   workflow_dispatch:
 
 permissions:
@@ -8,6 +11,10 @@ permissions:
 
 jobs:
   cache-key-from-step-output:
+    strategy:
+      fail-fast: false
+      matrix:
+        attempt: [1, 2, 3]
     runs-on: macos-latest
     timeout-minutes: 10
     steps:
@@ -19,8 +26,8 @@ jobs:
           set -euo pipefail
           lock=$(git ls-files -s -- bun.lock | shasum -a 256 | cut -d' ' -f1)
           web=$(git ls-files -s -- apps/web/src 'apps/web/*.ts' 'apps/web/*.mjs' apps/web/package.json | shasum -a 256 | cut -d' ' -f1)
-          echo "key=proof-${{ runner.os }}-${{ github.run_id }}-$lock-$web" >> "$GITHUB_OUTPUT"
-          echo "previous=proof-${{ runner.os }}-$lock-" >> "$GITHUB_OUTPUT"
+          echo "key=proof-${{ matrix.attempt }}-${{ runner.os }}-${{ github.run_id }}-$lock-$web" >> "$GITHUB_OUTPUT"
+          echo "previous=proof-${{ matrix.attempt }}-${{ runner.os }}-$lock-" >> "$GITHUB_OUTPUT"
 
       - uses: actions/cache@v6
         with:
@@ -28,7 +35,7 @@ jobs:
           key: ${{ steps.next-cache.outputs.key }}
           restore-keys: |
             ${{ steps.next-cache.outputs.previous }}
-            proof-${{ runner.os }}-
+            proof-${{ matrix.attempt }}-${{ runner.os }}-
 
       - name: fill the cached directory after the cache step, as the build does
         run: |
