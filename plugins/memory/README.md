@@ -17,25 +17,23 @@ Gives a thread named memory entries that live in Atlas Cloud, and puts the memor
 
 ## Entry points
 
-| Import                                | Use it for                                                                     |
-| ------------------------------------- | ------------------------------------------------------------------------------ |
-| `@dltech/atlas-plugin-memory/core`    | `memoryIndexOf`, `unavailableIndexOf`, `memoryPromptOf` and `memoryCoreSlots`. |
-| `@dltech/atlas-plugin-memory/pod`     | `memoryPod`: the tool, the hook, the resource and the prompt fragment.         |
-| `@dltech/atlas-plugin-memory/control` | `memoryControl`: an empty control slot.                                        |
-| `@dltech/atlas-plugin-memory/client`  | `memoryClient`: a client slot with no hook.                                    |
+| Import                                | Use it for                                                             |
+| ------------------------------------- | ---------------------------------------------------------------------- |
+| `@dltech/atlas-plugin-memory/core`    | `memoryIndexOf` and `memoryCoreSlots`.                                 |
+| `@dltech/atlas-plugin-memory/pod`     | `memoryPod`: the tool, the hook, the resource and the prompt fragment. |
+| `@dltech/atlas-plugin-memory/control` | `memoryControl`: an empty control slot.                                |
+| `@dltech/atlas-plugin-memory/client`  | `memoryClient`: a client slot with no hook.                            |
 
 ## Capabilities
 
 ### Read the index
 
 - `memoryIndexOf({ project, memories })`: the index text. It lists the global entries first, then the project entries, and writes `(none yet)` for an empty scope.
-- `unavailableIndexOf(reason)`: the line that the prompt shows when the index does not load.
-- `UNAVAILABLE_PREFIX`: the start of that line: `Memory is unavailable this session`.
 
 ### Use the tool
 
 - `MEMORY_TOOLS`: the list that holds `memory`.
-- `withMemoryIndex({ assembled, ctx })`: adds the index block to an assembled prompt.
+- `withMemoryIndex({ assembled, ctx })`: adds the index block to an assembled prompt, or adds nothing when no load of the index has been recorded yet.
 
 ## Plugin contributions
 
@@ -44,7 +42,7 @@ Gives a thread named memory entries that live in Atlas Cloud, and puts the memor
 | Kind       | Name                        | What it adds                                                                      |
 | ---------- | --------------------------- | --------------------------------------------------------------------------------- |
 | Tool       | `memory`                    | `write`, `read`, `edit` and `delete` on one entry in the global or project scope. |
-| Hook       | `memory-index` (beforeStep) | Adds the index of the available entries to the system prompt.                     |
+| Hook       | `memory-index` (beforeStep) | Adds the index to the system prompt once a load is recorded, and nothing before.  |
 | Resource   | `memory-index`              | The rendered index text for this session.                                         |
 | Prompt     | `memory.instructions`       | Describes the four kinds of memory and the rules for each.                        |
 | Child deny | `memory`                    | A sub-agent cannot call the tool.                                                 |

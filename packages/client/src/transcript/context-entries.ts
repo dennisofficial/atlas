@@ -98,6 +98,7 @@ export function contextRuns(args: {
       label: slotLabelOf(event),
       content: event.content,
       superseded: !args.current.has(event.id),
+      removed: event.content.trim().length === 0,
     }
     if (open === undefined) open = { anchor: event.id, items: [item] }
     else open.items.push(item)

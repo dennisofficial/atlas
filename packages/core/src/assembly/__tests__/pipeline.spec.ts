@@ -36,7 +36,7 @@ describe('defaultRules', () => {
     })
 
     expect(assembled.system).toEqual([{ text: DOCTRINE, source: 'system-prompt' }])
-    expect(assembled.messages.map((entry) => entry.origin.seq)).toEqual([1, 2, 3, 3])
+    expect(assembled.messages.map((entry) => entry.origin.seq)).toEqual([1, 1, 2, 3])
     expect(trace.map((step) => step.name)).toEqual([
       'systemPrompt',
       'messagesFromEvents',
@@ -136,10 +136,8 @@ describe('defaultPipeline', () => {
       'requestCacheKey:gateway',
     ])
     expect(assembled.system.at(-1)?.providerOptions).toBeDefined()
-    const durable = assembled.messages.filter((entry) => entry.volatile !== true)
-    expect(durable.at(-1)?.message.content.at(-1)?.providerOptions).toBeDefined()
-    expect(assembled.messages.at(-1)?.volatile).toBe(true)
-    expect(assembled.messages.at(-1)?.message.content.at(-1)?.providerOptions).toBeUndefined()
+    expect(assembled.messages.some((entry) => entry.volatile === true)).toBe(false)
+    expect(assembled.messages.at(-1)?.message.content.at(-1)?.providerOptions).toBeDefined()
   })
 
   it('marks nothing on the system side when the registry emitted no block', () => {
@@ -152,10 +150,8 @@ describe('defaultPipeline', () => {
     const { assembled } = assemble({ ...pipeline, ctx: anthropic(events) })
 
     expect(assembled.system).toEqual([])
-    const durable = assembled.messages.filter((entry) => entry.volatile !== true)
-    expect(durable.at(-1)?.message.content.at(-1)?.providerOptions).toBeDefined()
-    expect(assembled.messages.at(-1)?.volatile).toBe(true)
-    expect(assembled.messages.at(-1)?.message.content.at(-1)?.providerOptions).toBeUndefined()
+    expect(assembled.messages.some((entry) => entry.volatile === true)).toBe(false)
+    expect(assembled.messages.at(-1)?.message.content.at(-1)?.providerOptions).toBeDefined()
   })
 })
 

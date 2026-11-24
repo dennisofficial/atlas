@@ -107,26 +107,32 @@ function entryLine({ path, entry }: { path: string; entry: NotifiableEntry }): s
   }
 }
 
-export function renderFinding({ items }: { items: readonly ReviewItem[] }): string | undefined {
-  const byPolicy = new Map<string, { title: string; lines: string[] }>()
-  const paths = new Set<string>()
-  for (const { record, notifiable } of items) {
-    for (const entry of notifiable) {
-      paths.add(record.path)
-      const group = byPolicy.get(entry.policy.id) ?? { title: entry.policy.title, lines: [] }
-      group.lines.push(entryLine({ path: record.path, entry }))
-      byPolicy.set(entry.policy.id, group)
-    }
-  }
-  if (byPolicy.size === 0) return undefined
+export type QualityNote = { key: string; content: string }
 
+function noteOf({ path, entries }: { path: string; entries: readonly NotifiableEntry[] }): string {
+  const byPolicy = new Map<string, { title: string; lines: string[] }>()
+  for (const entry of entries) {
+    const group = byPolicy.get(entry.policy.id) ?? { title: entry.policy.title, lines: [] }
+    group.lines.push(entryLine({ path, entry }))
+    byPolicy.set(entry.policy.id, group)
+  }
   const sections = [...byPolicy.values()].map(
     (group) => `${group.title}\n${group.lines.join('\n')}`,
   )
-  const written = `${[...paths].join(', ')} ${paths.size === 1 ? 'was' : 'were'} written successfully`
   return [
-    `Code quality note: ${written}. This advisory review is not a failure and nothing was reverted.`,
+    `Code quality note: ${path} was written successfully. This advisory review is not a failure and nothing was reverted.`,
     ...sections,
     'If the current structure is justified, leaving it unchanged is fine.',
   ].join('\n\n')
+}
+
+export function renderNotes({ items }: { items: readonly ReviewItem[] }): readonly QualityNote[] {
+  const byPath = new Map<string, NotifiableEntry[]>()
+  for (const { record, notifiable } of items) {
+    if (notifiable.length === 0) continue
+    byPath.set(record.path, [...(byPath.get(record.path) ?? []), ...notifiable])
+  }
+  return [...byPath.keys()]
+    .sort((left, right) => (left < right ? -1 : left > right ? 1 : 0))
+    .map((path) => ({ key: path, content: noteOf({ path, entries: byPath.get(path) ?? [] }) }))
 }

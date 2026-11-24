@@ -58,6 +58,15 @@ const textsOf = (assembled: ReturnType<typeof assembledFrom>['assembled']): read
     entry.message.content.flatMap((part) => (part.type === 'text' ? [part.text] : [])),
   )
 
+const isWorkspaceNote = (text: string): boolean =>
+  text.startsWith('<system') && text.includes('workspace')
+
+const withoutNote = (assembled: ReturnType<typeof assembledFrom>['assembled']): readonly string[] =>
+  textsOf(assembled).filter((text) => !isWorkspaceNote(text))
+
+const noteOf = (assembled: ReturnType<typeof assembledFrom>['assembled']): string =>
+  textsOf(assembled).find(isWorkspaceNote) ?? ''
+
 const endingBlocksOf = (
   assembled: ReturnType<typeof assembledFrom>['assembled'],
 ): readonly string[] =>
@@ -79,17 +88,17 @@ describe('the report of a delegate the parent was woken by', () => {
     expect(endingBlocksOf(assembled)[0]).toContain(FIRST_CHILD)
   })
 
-  it('lands in the conversational position the ending arrived at, ahead of the directory reminder', () => {
+  it('lands in the conversational position the ending arrived at, after every turn before it', () => {
     const { assembled } = assembledFrom([...CONVERSATION, ended()])
 
     expect(assembled.messages.map((entry) => entry.message.role)).toEqual([
       'user',
+      'user',
       'assistant',
       'user',
-      'user',
     ])
-    expect(textsOf(assembled)[2]).toStartWith('<system-notice kind="agents-ended"')
-    expect(textsOf(assembled).at(-1)).toContain('Project directory: /w.')
+    expect(withoutNote(assembled)[2]).toStartWith('<system-notice kind="agents-ended"')
+    expect(noteOf(assembled)).toContain('Project directory: /w.')
   })
 
   it('says nothing at all for a thread that spawned nobody, so a child inherits no cost', () => {
@@ -99,8 +108,10 @@ describe('the report of a delegate the parent was woken by', () => {
     ])
 
     expect(endingBlocksOf(assembled)).toEqual([])
-    expect(assembled.messages).toHaveLength(2)
-    expect(textsOf(assembled)).toEqual([operatorSaidAs('count the call sites of assemble'), 'four'])
+    expect(withoutNote(assembled)).toEqual([
+      operatorSaidAs('count the call sites of assemble'),
+      'four',
+    ])
   })
 })
 
@@ -123,13 +134,13 @@ describe('a bare tool call answering a delegate report', () => {
 
     expect(assembled.messages.map((entry) => entry.message.role)).toEqual([
       'user',
+      'user',
       'assistant',
       'user',
       'assistant',
       'tool',
-      'user',
     ])
-    expect(textsOf(assembled)[2]).toStartWith('<system-notice kind="agents-ended"')
+    expect(withoutNote(assembled)[2]).toStartWith('<system-notice kind="agents-ended"')
   })
 
   it('assembles without an exchange fault, so the prompt is one Atlas may send', () => {
@@ -203,12 +214,12 @@ describe('an ending the conversation has since compacted', () => {
     ])
 
     expect(endingBlocksOf(assembled)).toEqual([])
-    expect(textsOf(assembled)[0]).toContain('The delegate reported on the assemble callers.')
+    expect(withoutNote(assembled)[0]).toContain('The delegate reported on the assemble callers.')
   })
 })
 
-describe('the block at the tail of the prompt', () => {
-  it('keeps the worktree note out of the system prompt, as a reminder after what just happened', () => {
+describe('where the workspace note sits once a delegate has reported', () => {
+  it('keeps the worktree note out of the system prompt, following the change that made it true', () => {
     const events = log([
       ...CONVERSATION,
       ended(),
@@ -224,11 +235,11 @@ describe('the block at the tail of the prompt', () => {
     })
 
     expect(endingBlocksOf(assembled)).toHaveLength(1)
-    expect(textsOf(assembled).at(-1)).toContain('Project directory: /w/tree')
+    expect(noteOf(assembled)).toContain('Project directory: /w/tree')
     expect(assembled.system).toEqual([{ text: DOCTRINE, source: 'system-prompt' }])
   })
 
-  it('takes the cache breakpoint as the newest durable block, ahead of the workspace reminder', () => {
+  it('takes the cache breakpoint on the last durable block, since nothing is appended every request', () => {
     const events = log([...CONVERSATION, ended()])
 
     const { assembled } = assemble({
@@ -239,9 +250,7 @@ describe('the block at the tail of the prompt', () => {
       },
     })
 
-    const durable = assembled.messages.filter((entry) => entry.volatile !== true)
-    expect(durable.at(-1)?.message.content.at(-1)?.providerOptions).toBeDefined()
-    expect(assembled.messages.at(-1)?.volatile).toBe(true)
-    expect(assembled.messages.at(-1)?.message.content.at(-1)?.providerOptions).toBeUndefined()
+    expect(assembled.messages.some((entry) => entry.volatile === true)).toBe(false)
+    expect(assembled.messages.at(-1)?.message.content.at(-1)?.providerOptions).toBeDefined()
   })
 })

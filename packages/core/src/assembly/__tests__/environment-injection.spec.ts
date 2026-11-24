@@ -101,7 +101,7 @@ describe('environment injection at the default pipeline', () => {
     expect(textsOfEntry(mentions[0]!.message)).toContain('Project directory')
   })
 
-  it('moves only the project-directory tail as the log grows across repeated assemblies', () => {
+  it('moves only the project-directory note as the log grows across repeated assemblies', () => {
     const lengths = [3, 4, 5, 6, 7]
     const runs = lengths.map((length) =>
       assembleThrough(length)
@@ -117,7 +117,7 @@ describe('environment injection at the default pipeline', () => {
     }
   })
 
-  it('ends on the project-directory reminder anchored to the last logged event', () => {
+  it('lands the project-directory note on the newest workspace change, ahead of nothing it would re-send', () => {
     const { events, assembled } = assembleThrough(HISTORY.length)
     const last = assembled.messages.at(-1)
     const before = assembled.messages.at(-2)

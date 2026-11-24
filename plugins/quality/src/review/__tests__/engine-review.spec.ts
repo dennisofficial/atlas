@@ -10,6 +10,7 @@ import {
 } from '@dltech/atlas-core'
 
 import {
+  FILE,
   IMPROVE,
   INTRODUCE,
   MODEL,
@@ -77,6 +78,27 @@ describe('happy path', () => {
     expect(context).toContain('written successfully')
     expect(context).toContain('leaving it unchanged is fine')
     expect(rig.classifyCalls).toHaveLength(1)
+  })
+
+  it('keys one note per reviewed file, so a later review of that file replaces it', async () => {
+    const rig = createRig({
+      scopesOfChange: (change) =>
+        change.path.endsWith('b.ts')
+          ? [scopeNamed({ id: 'scope-b', path: '/repo/src/b.ts', name: 'Gadget' })]
+          : [scopeNamed()],
+    })
+    const reviewed = await rig.review({
+      changes: [
+        { path: '/repo/src/b.ts', before: 'old', after: 'new' },
+        { path: FILE, before: 'old', after: 'new' },
+      ],
+    })
+
+    expect(reviewed.notes.map((note) => note.key)).toEqual(['src/a.ts', 'src/b.ts'])
+    expect(reviewed.notes[0]?.content).toContain('src/a.ts was written successfully')
+    expect(reviewed.notes[0]?.content).not.toContain('src/b.ts')
+    expect(reviewed.notes[1]?.content).toContain('src/b.ts was written successfully')
+    expect(reviewed.notes[1]?.content).toContain('Gadget')
   })
 
   it('replaces a record that fails schema validation and never nudges from it', async () => {

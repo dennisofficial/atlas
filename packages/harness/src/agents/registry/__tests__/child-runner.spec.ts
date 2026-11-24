@@ -175,8 +175,17 @@ describe('a child taking its first step', () => {
           ),
       ),
     ).toBe(true)
-    const runtime = prompt.at(-1)
-    expect(runtime?.role === 'user' ? runtime.content : []).toEqual([
+    const workspace = prompt.filter(
+      (message) =>
+        message.role === 'user' &&
+        Array.isArray(message.content) &&
+        message.content.some(
+          (part) => part.type === 'text' && part.text.includes('source="workspace"'),
+        ),
+    )
+    expect(workspace).toHaveLength(1)
+    const note = workspace[0]
+    expect(note?.role === 'user' ? note.content : []).toEqual([
       expect.objectContaining({
         type: 'text',
         text: expect.stringContaining('Project directory: /w.'),

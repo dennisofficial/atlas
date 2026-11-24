@@ -288,12 +288,12 @@ describe('interrupting a streaming reply', () => {
     expect(prompt.map((message) => message.role)).toEqual([
       'system',
       'user',
-      'assistant',
       'user',
+      'assistant',
       'user',
     ])
 
-    const replayed = prompt[2]
+    const replayed = prompt.find((message) => message.role === 'assistant')
     if (replayed?.role !== 'assistant') throw new Error('the prompt replayed no assistant turn')
     expect(replayed.content).toEqual([{ type: 'text', text: HEAD }])
   })
