@@ -1,4 +1,4 @@
-import { ATLAS_SETTINGS, ESettingId, ESettingsLayer } from '@dltech/atlas-core'
+import { ESettingId, ESettingsLayer } from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 import { settingsDetailVisible } from '../components/settings'
 import { cellsOf } from '../hint-layout'
@@ -6,7 +6,6 @@ import { OPTION_SEPARATOR, RANGE_HINT, TEXT_HINT, TOGGLE_HINT } from '../setting
 import { CHOSEN, COMPOSER_DRAFT, DIFF_PATH, UNCHOSEN } from '../components/settings/previews'
 import { glyph, SIDEBAR_WIDTH } from '../theme'
 import {
-  CUSTOM_DECISIONS,
   WIDE,
   NARROW,
   ORIGIN,
@@ -17,6 +16,8 @@ import {
   SIDEBAR_ROW,
   DENSITY_ROW,
   COMPOSER_ROW,
+  TEXT_DEFINITIONS,
+  TEXT_ROW_STATE,
   BAND_EDGE,
   BAND_TOP_LEFT,
   BAND_TOP_RIGHT,
@@ -39,22 +40,22 @@ describe('the settings page', () => {
 
     expect(rowWith(rows, 'TRANSCRIPT')).not.toBe('')
     expect(rowWith(rows, 'LAYOUT')).not.toBe('')
-    expect(rowWith(rows, 'Smooth streaming')).toContain('on')
+    expect(rowWith(rows, 'Tallest image')).toContain('30 rows')
     expect(rowWith(rows, 'Sidebar width')).toContain('42 cols')
   })
 
   it('says what each kind of row responds to', async () => {
     const rows = await rowsOf(page({}), WIDE)
 
-    expect(rowWith(rows, 'Smooth streaming')).toContain(TOGGLE_HINT)
+    expect(rowWith(rows, 'Suggest a skill per turn')).toContain(TOGGLE_HINT)
     expect(rowWith(rows, 'Sidebar width')).toContain(RANGE_HINT)
     expect(rowWith(rows, 'Accent')).toBe('')
 
-    const textOnly = ATLAS_SETTINGS.filter(
-      (row) => row.id === ESettingId.DecisionsUrl || row.id === ESettingId.DecisionsProvider,
+    const textRows = await rowsOf(
+      page({ definitions: TEXT_DEFINITIONS, state: TEXT_ROW_STATE }),
+      WIDE,
     )
-    const textRows = await rowsOf(page({ definitions: textOnly, layers: CUSTOM_DECISIONS }), WIDE)
-    expect(rowWith(textRows, 'Decision endpoint')).toContain(TEXT_HINT)
+    expect(rowWith(textRows, 'Demo text')).toContain(TEXT_HINT)
   })
 
   it('lists the options a choice offers', async () => {
@@ -80,18 +81,18 @@ describe('the settings page', () => {
           {
             layer: ESettingsLayer.Environment,
             origin: 'environment',
-            values: { [ESettingId.SmoothStreaming]: 'off' },
-            origins: { [ESettingId.SmoothStreaming]: 'ATLAS_SMOOTH_STREAMING' },
+            values: { [ESettingId.ImageRows]: 30 },
+            origins: { [ESettingId.ImageRows]: 'ATLAS_IMAGE_ROWS' },
           },
         ],
       }),
       WIDE,
     )
 
-    expect(rowWith(rows, 'SMOOTH STREAMING')).not.toBe('')
-    expect(rowWith(rows, 'Reveal assistant text')).not.toBe('')
+    expect(rowWith(rows, 'TALLEST IMAGE')).not.toBe('')
+    expect(rowWith(rows, 'How many rows a picture')).not.toBe('')
     expect(rowWith(rows, 'SET BY')).not.toBe('')
-    expect(rowWith(rows, 'environment · ATLAS_SMOOTH_STREAMING')).not.toBe('')
+    expect(rowWith(rows, 'environment · ATLAS_IMAGE_ROWS')).not.toBe('')
   })
 
   it('says where edits land, and says instead what went wrong', async () => {
@@ -112,7 +113,7 @@ describe('the settings page', () => {
     const rows = await rowsOf(page({ width: NARROW }), NARROW)
 
     expect(settingsDetailVisible({ width: NARROW, sidebarWidth: SIDEBAR_WIDTH })).toBe(false)
-    expect(rowWith(rows, 'Smooth streaming')).not.toBe('')
+    expect(rowWith(rows, 'Tallest image')).not.toBe('')
     expect(rowWith(rows, 'SET BY')).toBe('')
   })
 
@@ -128,7 +129,7 @@ describe('the settings page', () => {
     const rows = await rowsOf(page({ sidebarWidth: 70 }), WIDE)
 
     expect(settingsDetailVisible({ width: WIDE, sidebarWidth: 70 })).toBe(false)
-    expect(rowWith(rows, 'Smooth streaming')).not.toBe('')
+    expect(rowWith(rows, 'Tallest image')).not.toBe('')
     expect(rowWith(rows, 'SET BY')).toBe('')
   })
 

@@ -13,12 +13,16 @@ describe('setting storage', () => {
     for (const definition of appearance) expect(definition.storage).toBe(ESettingStorage.Local)
   })
 
-  it('keeps pods, placement state and chooser shape local', () => {
+  it('keeps the look settings the new TUI reads local', () => {
     expect(localIds()).toEqual(
       expect.arrayContaining([
-        ESettingId.ExperimentalPods,
-        ESettingId.LastBornPlacement,
-        ESettingId.PlacementChooserShape,
+        ESettingId.SidebarWidth,
+        ESettingId.ImageRows,
+        ESettingId.FenceWrap,
+        ESettingId.Accent,
+        ESettingId.BlockPadding,
+        ESettingId.ComposerEdge,
+        ESettingId.Logo,
       ]),
     )
   })

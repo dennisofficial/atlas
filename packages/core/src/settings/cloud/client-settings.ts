@@ -7,18 +7,9 @@ import type { SettingScalar } from './setting-codec'
 import { ESettingConsumer, settingEntry, type CloudSettingEntry } from './setting-entry'
 
 export const CLIENT_SETTING_IDS: readonly ESettingId[] = [
-  ESettingId.SmoothStreaming,
-  ESettingId.ThinkingBlocks,
   ESettingId.ImageRows,
   ESettingId.FenceWrap,
-  ESettingId.TldrFooter,
-  ESettingId.TldrStatus,
   ESettingId.SidebarWidth,
-  ESettingId.SidebarFoldBelow,
-  ESettingId.FooterMeters,
-  ESettingId.WarnFiveHour,
-  ESettingId.WarnWeekly,
-  ESettingId.NoticeSeconds,
   ESettingId.Accent,
   ESettingId.BlockPadding,
   ESettingId.ComposerEdge,

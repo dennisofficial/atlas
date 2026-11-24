@@ -103,13 +103,13 @@ describe('account lease and pod-reachable settings and secrets', () => {
     ])
     const stamp = new Date('2026-10-03T00:00:00.000Z')
     for (const [userId, value] of [
-      ['user-a', 'image-a'],
-      ['user-b', 'image-b'],
+      ['user-a', 'disk-a'],
+      ['user-b', 'disk-b'],
     ] as const) {
       await db.orm.public.UserSetting.create({
         id: `set_${userId}`,
         userId,
-        key: 'sandbox.image',
+        key: 'sandbox.diskGb',
         value,
         createdAt: stamp,
         updatedAt: stamp,
@@ -241,7 +241,7 @@ describe('account lease and pod-reachable settings and secrets', () => {
     expect(settings.headers['cache-control']).toBe('no-store')
     expect(secrets.headers['cache-control']).toBe('no-store')
     expect(settings.body.result.data.settings).toEqual([
-      { key: 'sandbox.image', value: 'image-a', updatedAt: '2026-10-03T00:00:00.000Z' },
+      { key: 'sandbox.diskGb', value: 'disk-a', updatedAt: '2026-10-03T00:00:00.000Z' },
     ])
     expect(secrets.body.result.data.secrets).toEqual([
       { name: 'search.tavily', value: 'vercel-a', updatedAt: '2026-10-03T00:00:00.000Z' },
@@ -261,13 +261,13 @@ describe('account lease and pod-reachable settings and secrets', () => {
     await http()
       .post('/v1/trpc/settings.set')
       .set(pod)
-      .send({ key: 'sandbox.image', value: 'x' })
+      .send({ key: 'sandbox.diskGb', value: 'x' })
       .expect(403)
     await http().post('/v1/trpc/secrets.remove').set(pod).send({ name: 'NAME' }).expect(403)
     await http()
       .post('/v1/trpc/settings.remove')
       .set(pod)
-      .send({ key: 'sandbox.image' })
+      .send({ key: 'sandbox.diskGb' })
       .expect(403)
     expect(await countWrites()).toEqual(before)
   })

@@ -14,18 +14,6 @@ export type CloudValues = ReadonlyMap<string, string>
 
 export const ACCOUNT_ORIGIN = 'your account'
 
-export const DROPPED_SETTING_IDS: ReadonlySet<string> = new Set([
-  'files.editor',
-  'execution.location',
-  'placement.lastBorn',
-  'container.cpus',
-  'container.memory',
-  'container.idleMinutes',
-  'experimental.pods',
-  'experimental.placementChooserShape',
-  'dev.autoRestart',
-])
-
 const CLIENT_SETTING_ID_SET: ReadonlySet<string> = new Set(CLIENT_SETTING_IDS)
 
 const isScalar = (value: unknown): value is SettingValue =>
@@ -52,10 +40,6 @@ export const resolutionOf = (args: {
       },
     ],
   })
-
-export const drawerDefinitionsOf = (
-  definitions: readonly SettingDefinition[],
-): readonly SettingDefinition[] => definitions.filter((entry) => !DROPPED_SETTING_IDS.has(entry.id))
 
 export const seedValuesOf = (args: {
   preferences: Record<string, unknown>

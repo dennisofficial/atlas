@@ -4,17 +4,12 @@ import { PINNED_MODELS_FALLBACK, pinnedModelsSettingSchema } from './pinned-mode
 
 import { ESettingConsumer, prefixEntry, settingEntry } from './setting-entry'
 import {
-  DEFAULT_DECISIONS_MODEL_WIRE,
-  DEFAULT_DECISIONS_PROVIDER_WIRE,
-  decisionsUrlSchema,
   EClassifierModeWire,
-  EDecisionsProviderWire,
   DEFAULT_IMAGE_MODEL_WIRE,
   EEffortLevel,
   effortOrInheritSchema,
   effortSchema,
   EImageModelWire,
-  EPlacementChooserShape,
   EVerdictTiming,
   EWebSearchBackendWire,
   modelRefSettingSchema,
@@ -24,15 +19,6 @@ import {
 } from './setting-enums'
 
 export const PR_EDIT_MUTED_AUTHORS_WIRE_FALLBACK = 'vercel, github-actions, netlify, mintlify'
-
-export const USER_ONLY_SETTING_ENTRIES = [
-  settingEntry({
-    key: 'plugins.trustedRepos',
-    schema: z.string(),
-    fallback: '',
-    consumer: ESettingConsumer.Harness,
-  }),
-]
 
 export const HARNESS_SETTING_ENTRIES = [
   settingEntry({
@@ -96,12 +82,6 @@ export const HARNESS_SETTING_ENTRIES = [
     consumer: ESettingConsumer.Harness,
   }),
   settingEntry({
-    key: 'experimental.placementChooserShape',
-    schema: z.enum(EPlacementChooserShape),
-    fallback: EPlacementChooserShape.Chip,
-    consumer: ESettingConsumer.Harness,
-  }),
-  settingEntry({
     key: 'github.prEvents.verdictTiming',
     schema: z.enum(EVerdictTiming),
     fallback: EVerdictTiming.FailFast,
@@ -117,24 +97,6 @@ export const HARNESS_SETTING_ENTRIES = [
     key: 'github.prEvents.editUrgentAuthors',
     schema: z.string(),
     fallback: '',
-    consumer: ESettingConsumer.Harness,
-  }),
-  settingEntry({
-    key: 'decisions.provider',
-    schema: z.enum(EDecisionsProviderWire),
-    fallback: DEFAULT_DECISIONS_PROVIDER_WIRE,
-    consumer: ESettingConsumer.Harness,
-  }),
-  settingEntry({
-    key: 'decisions.url',
-    schema: decisionsUrlSchema,
-    fallback: '',
-    consumer: ESettingConsumer.Harness,
-  }),
-  settingEntry({
-    key: 'decisions.model',
-    schema: z.string(),
-    fallback: DEFAULT_DECISIONS_MODEL_WIRE,
     consumer: ESettingConsumer.Harness,
   }),
   settingEntry({
@@ -155,30 +117,10 @@ export const HARNESS_SETTING_ENTRIES = [
     fallback: DEFAULT_IMAGE_MODEL_WIRE,
     consumer: ESettingConsumer.Harness,
   }),
-  ...['context.projectInstructions', 'context.userInstructions', 'context.reload'].map((key) =>
-    settingEntry({
-      key,
-      schema: z.boolean(),
-      fallback: true,
-      consumer: ESettingConsumer.Harness,
-    }),
-  ),
-  settingEntry({
-    key: 'context.filenames',
-    schema: z.enum(['both', 'claude', 'agents', 'none']),
-    fallback: 'both',
-    consumer: ESettingConsumer.Harness,
-  }),
   settingEntry({
     key: 'skills.suggest',
     schema: z.boolean(),
     fallback: true,
-    consumer: ESettingConsumer.Harness,
-  }),
-  settingEntry({
-    key: 'context.autoCompact',
-    schema: z.number().int().min(0).max(100),
-    fallback: 90,
     consumer: ESettingConsumer.Harness,
   }),
   settingEntry({
@@ -236,19 +178,11 @@ export const HARNESS_SETTING_ENTRIES = [
     consumer: ESettingConsumer.Harness,
   }),
   settingEntry({
-    key: 'sandbox.image',
-    schema: z.string(),
-    fallback: 'atlas-sandbox:latest',
+    key: 'quality.enabled',
+    schema: z.boolean(),
+    fallback: false,
     consumer: ESettingConsumer.Harness,
   }),
-  ...['quality.enabled', 'quality.recordExamples'].map((key) =>
-    settingEntry({
-      key,
-      schema: z.boolean(),
-      fallback: false,
-      consumer: ESettingConsumer.Harness,
-    }),
-  ),
 ]
 
 export const HARNESS_SETTING_PREFIXES = [

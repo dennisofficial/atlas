@@ -1,4 +1,3 @@
-import { EExecutionLocation } from '../execution/location'
 import { EFFORT_LADDER, EEffort } from '../models/effort-ladder'
 import {
   PR_EDIT_MUTED_AUTHORS_FALLBACK,
@@ -12,17 +11,10 @@ import {
   type SettingDefinition,
   type SettingPage,
 } from './definition'
-import {
-  DECISIONS_PRESETS,
-  DEFAULT_DECISIONS_MODEL,
-  DEFAULT_DECISIONS_PROVIDER,
-  EDecisionsProvider,
-} from './decisions-presets'
 import { EFFORT_OPTIONS_WITH_INHERIT, INHERIT_EFFORT } from './effort-rows'
 import { ESettingsLayer } from './layers'
 import { EImageModelWire } from './cloud/setting-enums'
 import { compactionRoleRows, quickRoleRows, subagentFastRow } from './model-role-rows'
-import { choiceValueOf, type SettingsResolution } from './resolve'
 import { ESettingKind, type SettingOption } from './value'
 
 export const SETTING_PAGES: readonly SettingPage[] = [
@@ -35,10 +27,7 @@ export const SETTING_PAGES: readonly SettingPage[] = [
 ]
 
 export enum ESettingId {
-  SmoothStreaming = 'transcript.smoothStreaming',
-  ThinkingBlocks = 'transcript.thinkingBlocks',
   SidebarWidth = 'sidebar.width',
-  SidebarFoldBelow = 'sidebar.foldBelow',
   ProjectInstructions = 'context.projectInstructions',
   UserInstructions = 'context.userInstructions',
   InstructionFilenames = 'context.filenames',
@@ -50,12 +39,8 @@ export enum ESettingId {
   ImageRows = 'transcript.imageRows',
   FenceWrap = 'transcript.fenceWrap',
   TldrFooter = 'tldr.footer',
-  TldrStatus = 'tldr.status',
   Editor = 'files.editor',
   WorktreeDirectory = 'worktree.directory',
-  FooterMeters = 'usage.meters',
-  WarnFiveHour = 'usage.warnFiveHour',
-  WarnWeekly = 'usage.warnWeekly',
   Accent = 'appearance.accent',
   BlockPadding = 'appearance.blockPadding',
   ComposerEdge = 'appearance.composerEdge',
@@ -66,7 +51,6 @@ export enum ESettingId {
   DecisionsUrl = 'decisions.url',
   DecisionsModel = 'decisions.model',
   DecisionsToken = 'decisions.token',
-  NoticeSeconds = 'notifications.seconds',
   WebSearchBackend = 'web.searchBackend',
   WebSearchKey = 'web.searchKey',
   ImageModel = 'images.model',
@@ -84,7 +68,6 @@ export enum ESettingId {
   SubagentEffort = 'agents.subagentEffort',
   SubagentFast = 'agents.subagentFast',
   ExecutionLocation = 'execution.location',
-  LastBornPlacement = 'placement.lastBorn',
   ContainerCpus = 'container.cpus',
   ContainerMemory = 'container.memory',
   ContainerIdleMinutes = 'container.idleMinutes',
@@ -92,10 +75,7 @@ export enum ESettingId {
   SandboxVcpus = 'sandbox.vcpus',
   SandboxDiskGb = 'sandbox.diskGb',
   CloudUrl = 'cloud.url',
-  AutoRestart = 'dev.autoRestart',
   GrillingCeremony = 'experimental.grillingCeremony',
-  PlacementChooserShape = 'experimental.placementChooserShape',
-  ExperimentalPods = 'experimental.pods',
   PrVerdictTiming = 'github.prEvents.verdictTiming',
   PrEditMutedAuthors = 'github.prEvents.editMutedAuthors',
   PrEditUrgentAuthors = 'github.prEvents.editUrgentAuthors',
@@ -105,8 +85,6 @@ export enum ESettingId {
 
 export const DEFAULT_WORKTREE_DIRECTORY = '.atlas/worktrees'
 
-export const DEFAULT_CONTAINER_IDLE_MINUTES = 30
-
 export const DEFAULT_EFFORT = EEffort.Medium
 
 export const EFFORT_OPTIONS: readonly SettingOption[] = EFFORT_LADDER.map((effort) => ({
@@ -114,43 +92,7 @@ export const EFFORT_OPTIONS: readonly SettingOption[] = EFFORT_LADDER.map((effor
   label: effort,
 }))
 
-const onCustomDecisions = (args: { resolution: SettingsResolution }): boolean =>
-  choiceValueOf({
-    resolution: args.resolution,
-    id: ESettingId.DecisionsProvider,
-    fallback: DEFAULT_DECISIONS_PROVIDER,
-  }) === EDecisionsProvider.Custom
-
 export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
-  {
-    id: ESettingId.SmoothStreaming,
-    storage: ESettingStorage.Local,
-    page: ESettingPage.General,
-    group: 'Transcript',
-    label: 'Smooth streaming',
-    description:
-      'Reveal assistant text at reading pace instead of the rate the model emits it. Turning this off shows every chunk the moment it lands.',
-    environmentVariable: 'ATLAS_SMOOTH_STREAMING',
-    kind: ESettingKind.Toggle,
-    fallback: true,
-  },
-  {
-    id: ESettingId.ThinkingBlocks,
-    storage: ESettingStorage.Local,
-    page: ESettingPage.General,
-    group: 'Transcript',
-    label: 'Thinking blocks',
-    description:
-      'What the transcript keeps of the reasoning behind an answer. Keep leaves a summary row behind that unfolds into the whole thought; while streaming shows the live tail and holds it until something lands under it — the answer, or the end of the turn; hide never renders reasoning at all. Adjacent thoughts always fold into one block.',
-    environmentVariable: 'ATLAS_THINKING_BLOCKS',
-    kind: ESettingKind.Choice,
-    fallback: 'keep',
-    options: [
-      { value: 'keep', label: 'keep', detail: 'shipped' },
-      { value: 'stream', label: 'while streaming' },
-      { value: 'hidden', label: 'hide' },
-    ],
-  },
   {
     id: ESettingId.ImageRows,
     storage: ESettingStorage.Local,
@@ -185,49 +127,6 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     ],
   },
   {
-    id: ESettingId.TldrFooter,
-    storage: ESettingStorage.Local,
-    page: ESettingPage.General,
-    group: 'Transcript',
-    label: 'tl;dr footer',
-    description:
-      'When a turn ends, a second, cheaper model writes a one-to-two-line summary of it — from your last message to the end — and the transcript shows it as a tl;dr divider under the answer. The summary is for you alone: the agent never reads it. Turning this off stops new footers being written; ones already on the log stay.',
-    environmentVariable: 'ATLAS_TLDR_FOOTER',
-    kind: ESettingKind.Toggle,
-    fallback: true,
-  },
-  {
-    id: ESettingId.TldrStatus,
-    storage: ESettingStorage.Local,
-    page: ESettingPage.General,
-    group: 'Transcript',
-    label: 'tl;dr status pill',
-    description:
-      'The filled pill centred on the tl;dr divider saying how the turn ended — done, needs you, or waiting. Display only: the status is still written with every footer, so turning this back on shows it on footers that were written while it was off.',
-    environmentVariable: 'ATLAS_TLDR_STATUS',
-    kind: ESettingKind.Toggle,
-    fallback: true,
-  },
-  {
-    id: ESettingId.Editor,
-    storage: ESettingStorage.Local,
-    page: ESettingPage.General,
-    group: 'Transcript',
-    label: 'Editor',
-    description:
-      'Which editor a clicked file path in the transcript opens in. Default hands the path to the operating system\u2019s own handler, as if you had double-clicked it.',
-    environmentVariable: 'ATLAS_EDITOR',
-    kind: ESettingKind.Choice,
-    fallback: 'default',
-    options: [
-      { value: 'default', label: 'default', detail: 'shipped' },
-      { value: 'cursor', label: 'cursor' },
-      { value: 'code', label: 'code' },
-      { value: 'zed', label: 'zed' },
-      { value: 'warp', label: 'warp' },
-    ],
-  },
-  {
     id: ESettingId.SidebarWidth,
     storage: ESettingStorage.Local,
     page: ESettingPage.General,
@@ -244,82 +143,6 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     unit: ' cols',
   },
   {
-    id: ESettingId.SidebarFoldBelow,
-    storage: ESettingStorage.Local,
-    page: ESettingPage.General,
-    group: 'Layout',
-    label: 'Fold the sidebar below',
-    description:
-      'The terminal width at which the sidebar stops docking beside the transcript and becomes an overlay you open with ctrl+b and close with escape. Above it the sidebar is always docked. Set it to match the narrowest tile you want the sidebar in. A width that leaves the transcript no room folds regardless of this.',
-    environmentVariable: 'ATLAS_SIDEBAR_FOLD_BELOW',
-    kind: ESettingKind.Range,
-    fallback: 120,
-    minimum: 60,
-    maximum: 240,
-    step: 2,
-    unit: ' cols',
-  },
-  {
-    id: ESettingId.ProjectInstructions,
-    page: ESettingPage.General,
-    group: 'Project context',
-    label: 'Project instructions',
-    description:
-      'Load the instruction files a repository carries for its agents, walking the workspace root down to the working directory so that a deeper file overrides a shallower one.',
-    environmentVariable: 'ATLAS_PROJECT_INSTRUCTIONS',
-    kind: ESettingKind.Toggle,
-    fallback: true,
-  },
-  {
-    id: ESettingId.UserInstructions,
-    page: ESettingPage.General,
-    group: 'Project context',
-    label: 'Personal instructions',
-    description:
-      'Also load ATLAS.md from your Atlas home directory, which applies to every project. It is read before the repository, so anything the repository says wins.',
-    environmentVariable: 'ATLAS_USER_INSTRUCTIONS',
-    kind: ESettingKind.Toggle,
-    fallback: true,
-  },
-  {
-    id: ESettingId.InstructionFilenames,
-    page: ESettingPage.General,
-    group: 'Project context',
-    label: 'Borrowed instruction files',
-    description:
-      'Which instruction files borrowed from another harness a repository is read for. ATLAS.md is always read and is loaded last, so it wins a disagreement with either borrowed file; AGENTS.md is the cross-vendor convention and CLAUDE.md the Claude-specific one, and when both are read CLAUDE.md is loaded second. A .local.md sibling of any of the three is read after all of them and is never checked in.',
-    environmentVariable: 'ATLAS_INSTRUCTION_FILENAMES',
-    kind: ESettingKind.Choice,
-    fallback: 'both',
-    options: [
-      { value: 'both', label: 'AGENTS.md + CLAUDE.md', detail: 'shipped' },
-      { value: 'claude', label: 'CLAUDE.md' },
-      { value: 'agents', label: 'AGENTS.md' },
-      { value: 'none', label: 'neither', detail: 'ATLAS.md only' },
-    ],
-  },
-  {
-    id: ESettingId.ReloadInstructions,
-    page: ESettingPage.General,
-    group: 'Project context',
-    label: 'Reload on change',
-    description:
-      'Re-read the instruction files at every turn, so editing one takes effect in the thread you are already in. Unchanged files cost nothing; a changed one is appended again and supersedes what the model was reading. Turning this off freezes the instructions as they were when the thread opened.',
-    environmentVariable: 'ATLAS_RELOAD_INSTRUCTIONS',
-    kind: ESettingKind.Toggle,
-    fallback: true,
-  },
-  {
-    id: ESettingId.TrustedRepos,
-    page: ESettingPage.General,
-    group: 'Plugins',
-    label: 'Trusted repositories',
-    description:
-      'Repositories whose .atlas/plugins may run, comma separated, written as host/owner/repo, for example github.com/acme/widget. A repository without a remote is trusted by its absolute path. Stored in your own settings, never in a repository, and read when a session starts.',
-    kind: ESettingKind.Text,
-    fallback: '',
-  },
-  {
     id: ESettingId.SkillSuggest,
     page: ESettingPage.General,
     group: 'Skills',
@@ -329,21 +152,6 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     environmentVariable: 'ATLAS_SKILL_SUGGEST',
     kind: ESettingKind.Toggle,
     fallback: true,
-  },
-  {
-    id: ESettingId.AutoCompact,
-    page: ESettingPage.General,
-    group: 'Context window',
-    label: 'Compact automatically at',
-    description:
-      'How full the context window may get before Atlas summarises the older turns without being asked. It checks when a turn ends, so a turn is never interrupted to do it, and it compacts mid-turn only when a step would otherwise overflow the window outright. Set to zero to compact only when you ask with /compact.',
-    environmentVariable: 'ATLAS_AUTO_COMPACT',
-    kind: ESettingKind.Range,
-    fallback: 90,
-    minimum: 0,
-    maximum: 100,
-    step: 5,
-    unit: '%',
   },
   {
     id: ESettingId.AutoRotate,
@@ -376,55 +184,6 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     ],
   },
   {
-    id: ESettingId.FooterMeters,
-    storage: ESettingStorage.Local,
-    page: ESettingPage.General,
-    group: 'Usage meters',
-    label: 'Meters in the footer',
-    description:
-      "Which meters the footer carries. The context meter reports the window the current thread occupies; the session and weekly meters report how much of the account's own rate limits have been spent, read from Anthropic rather than counted here. Narrowing this does not stop Atlas reading them, it stops the footer spelling them out.",
-    environmentVariable: 'ATLAS_FOOTER_METERS',
-    kind: ESettingKind.Choice,
-    fallback: 'all',
-    options: [
-      { value: 'all', label: 'all', detail: 'ctx · 5h · wk' },
-      { value: 'session', label: 'session', detail: 'ctx · 5h' },
-      { value: 'context', label: 'context only', detail: 'ctx' },
-    ],
-  },
-  {
-    id: ESettingId.WarnFiveHour,
-    storage: ESettingStorage.Local,
-    page: ESettingPage.General,
-    group: 'Usage meters',
-    label: 'Warn on the session window at',
-    description:
-      'How much of the five-hour window may be spent before the footer stops being ambient and starts colouring the figure. The two bands above this one are spaced across whatever headroom is left, so moving this moves all of them.',
-    environmentVariable: 'ATLAS_WARN_FIVE_HOUR',
-    kind: ESettingKind.Range,
-    fallback: 65,
-    minimum: 0,
-    maximum: 100,
-    step: 5,
-    unit: '%',
-  },
-  {
-    id: ESettingId.WarnWeekly,
-    storage: ESettingStorage.Local,
-    page: ESettingPage.General,
-    group: 'Usage meters',
-    label: 'Warn on the weekly window at',
-    description:
-      'The same threshold for the seven-day window. It earns attention later than the session window by default, because a two-thirds-spent week is simply Thursday, where a two-thirds-spent five hours is the one that walls you mid-task.',
-    environmentVariable: 'ATLAS_WARN_WEEKLY',
-    kind: ESettingKind.Range,
-    fallback: 70,
-    minimum: 0,
-    maximum: 100,
-    step: 5,
-    unit: '%',
-  },
-  {
     id: ESettingId.ClassifierMode,
     page: ESettingPage.General,
     group: 'Nudges',
@@ -454,34 +213,6 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
         note: 'The same pipeline, except that a call the judge says it cannot let pass unseen stops and asks you. Only a model that can name what would be lost is allowed to interrupt.',
       },
     ],
-  },
-  {
-    id: ESettingId.NoticeSeconds,
-    storage: ESettingStorage.Local,
-    page: ESettingPage.General,
-    group: 'Notifications',
-    label: 'Toast duration',
-    description:
-      'How long a notification floats above the composer before it fades, and the floor beneath every notice: a longer message always stands proportionally longer so there is time to read it. Warnings from boot — a plugin that refused to load, an MCP server that did not come up — stay several times longer regardless, and anything that names a condition rather than an event, like the nudge classifier being unreachable, stands until the condition clears.',
-    environmentVariable: 'ATLAS_NOTICE_SECONDS',
-    kind: ESettingKind.Range,
-    fallback: 4,
-    minimum: 2,
-    maximum: 15,
-    step: 1,
-    unit: ' s',
-  },
-  {
-    id: ESettingId.AutoRestart,
-    storage: ESettingStorage.Local,
-    page: ESettingPage.General,
-    group: 'Development',
-    label: 'Restart atlas-dev when it goes stale',
-    description:
-      'Only an atlas-dev session can go stale — one running straight from the source tree, while the tree moves under it. When it does, the session exits at the end of the next turn and the wrapper rebuilds from source and relaunches, resuming the session where it was. The restart never fires while tasks are still running, a message is queued or half-typed, or an approval is waiting — then the stale notice stands instead, and the restart waits for a clean moment. Off means the notice is all you ever get.',
-    environmentVariable: 'ATLAS_AUTO_RESTART',
-    kind: ESettingKind.Toggle,
-    fallback: true,
   },
   {
     id: ESettingId.WebSearchBackend,
@@ -744,67 +475,6 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
   },
   subagentFastRow(),
   {
-    id: ESettingId.DecisionsProvider,
-    page: ESettingPage.Models,
-    group: 'Decisions',
-    label: 'Decision provider',
-    description:
-      'Who answers typed decisions — the System-1 questions behind the tool-call classifier, skill suggestion and the code-quality review, each judged by calibrated probability instead of a generative model reading a brief. A preset pins the endpoint and model; custom lets you point at your own. Without a key for the chosen provider, the classifier judge stays the generative one and skill suggestion stays off.',
-    environmentVariable: 'ATLAS_DECISIONS_PROVIDER',
-    kind: ESettingKind.Choice,
-    fallback: DEFAULT_DECISIONS_PROVIDER,
-    options: [
-      {
-        value: EDecisionsProvider.Typesafe,
-        label: 'typesafe',
-        detail: 'Typesafe AI',
-        note: `Hosted Jev at ${DECISIONS_PRESETS[EDecisionsProvider.Typesafe].url}, speaking the Jev /v1/systemone protocol on ${DECISIONS_PRESETS[EDecisionsProvider.Typesafe].model}. Takes the key from your Jev account.`,
-      },
-      {
-        value: EDecisionsProvider.Vercel,
-        label: 'vercel',
-        detail: 'Vercel AI Gateway',
-        note: `Jev through the Vercel AI Gateway at ${DECISIONS_PRESETS[EDecisionsProvider.Vercel].url}, speaking the Jev /v1/systemone protocol on ${DECISIONS_PRESETS[EDecisionsProvider.Vercel].model}. Takes an AI Gateway key.`,
-      },
-      {
-        value: EDecisionsProvider.OpenAi,
-        label: 'openai',
-        detail: 'OpenAI Decisions API',
-        note: `OpenAI's Decisions API at ${DECISIONS_PRESETS[EDecisionsProvider.OpenAi].url} on ${DECISIONS_PRESETS[EDecisionsProvider.OpenAi].model}. Takes an OpenAI API key.`,
-      },
-      {
-        value: EDecisionsProvider.Custom,
-        label: 'custom',
-        detail: 'your own endpoint',
-        note: 'An endpoint and model you name below, speaking the Jev /v1/systemone protocol — hosted Jev, a gateway route, or a self-hosted Laya server.',
-      },
-    ],
-  },
-  {
-    id: ESettingId.DecisionsUrl,
-    page: ESettingPage.Models,
-    group: 'Decisions',
-    label: 'Decision endpoint',
-    description:
-      'Where a custom provider answers — the origin of hosted Jev (https://api.typesafe.ai), a gateway route, or a Laya server of your own, with or without the /v1/systemone route. It speaks the Jev /v1/systemone protocol. Left empty, nothing is configured and the judge stays the generative one.',
-    environmentVariable: 'ATLAS_DECISIONS_URL',
-    kind: ESettingKind.Text,
-    fallback: '',
-    visibleWhen: onCustomDecisions,
-  },
-  {
-    id: ESettingId.DecisionsModel,
-    page: ESettingPage.Models,
-    group: 'Decisions',
-    label: 'Decision model',
-    description:
-      'The model a custom endpoint is asked for. A preset pins its own model, so this row only appears for a custom provider.',
-    environmentVariable: 'ATLAS_DECISIONS_MODEL',
-    kind: ESettingKind.Text,
-    fallback: DEFAULT_DECISIONS_MODEL,
-    visibleWhen: onCustomDecisions,
-  },
-  {
     id: ESettingId.DecisionsToken,
     page: ESettingPage.Models,
     group: 'Decisions',
@@ -839,88 +509,6 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     fallback: '',
   },
   {
-    id: ESettingId.LastBornPlacement,
-    storage: ESettingStorage.Local,
-    page: ESettingPage.Hidden,
-    group: 'Execution',
-    label: 'Last chosen thread runner',
-    description:
-      'Where the operator last chose to start a new thread, a local pod or a Vercel sandbox. Written by the placement chip in the composer footer rather than set here; automatic until the chip is first flipped.',
-    kind: ESettingKind.Choice,
-    fallback: 'auto',
-    options: [
-      { value: 'auto', label: 'automatic' },
-      { value: 'local', label: 'local pod' },
-      { value: 'vercel', label: 'Vercel sandbox' },
-    ],
-  },
-  {
-    id: ESettingId.ExecutionLocation,
-    storage: ESettingStorage.Local,
-    page: ESettingPage.General,
-    group: 'Execution',
-    label: 'Where sessions run',
-    description:
-      'Where a session that has not been given a location of its own executes its tools. Every session remembers the location it was last switched to, so this is only what a new one begins with — /container writes the session, and --execution-location outranks this row for one launch.',
-    environmentVariable: 'ATLAS_EXECUTION_LOCATION',
-    kind: ESettingKind.Choice,
-    fallback: EExecutionLocation.Host,
-    options: [
-      { value: EExecutionLocation.Host, label: 'host', detail: 'shipped' },
-      { value: EExecutionLocation.Docker, label: 'docker' },
-    ],
-  },
-  {
-    id: ESettingId.ContainerCpus,
-    storage: ESettingStorage.Local,
-    page: ESettingPage.General,
-    group: 'Execution',
-    label: 'Container CPUs',
-    description:
-      'How many cores each sandboxed session may use, as a ceiling the daemon enforces rather than a reservation. Every container gets this many, so a machine running several sandboxes at once can be oversubscribed — Atlas warns when the running total outruns the machine rather than pretending the limit is a guarantee. Set to zero for no ceiling at all, and the container shares the daemon like any other workload on it.',
-    environmentVariable: 'ATLAS_CONTAINER_CPUS',
-    kind: ESettingKind.Range,
-    fallback: 4,
-    minimum: 0,
-    maximum: 32,
-    step: 1,
-    unit: ' cpus',
-    zeroLabel: 'no limit',
-  },
-  {
-    id: ESettingId.ContainerMemory,
-    storage: ESettingStorage.Local,
-    page: ESettingPage.General,
-    group: 'Execution',
-    label: 'Container memory',
-    description:
-      'How much memory each sandboxed session may use, in gigabytes, as a hard ceiling — a container that crosses it is killed by the daemon, which looks like a stack dying for no reason. Every container gets this much, and stopped containers keep their disk but hold no memory, so the number only competes with the sandboxes actually running. Set to zero for no ceiling — a runaway process can then take the whole daemon down, other sandboxes included.',
-    environmentVariable: 'ATLAS_CONTAINER_MEMORY',
-    kind: ESettingKind.Range,
-    fallback: 8,
-    minimum: 0,
-    maximum: 128,
-    step: 1,
-    unit: ' GB',
-    zeroLabel: 'no limit',
-  },
-  {
-    id: ESettingId.ContainerIdleMinutes,
-    storage: ESettingStorage.Local,
-    page: ESettingPage.General,
-    group: 'Execution',
-    label: 'Stop an idle container after',
-    description:
-      'How many minutes a sandboxed session may go without a bash call before Atlas stops its container. Stopping keeps the container\u2019s disk — the installed dependencies and build caches — so the next session brings it back in about a second, and a background shell that is still running always holds the stop off, so a dev server is never taken down by this.',
-    environmentVariable: 'ATLAS_CONTAINER_IDLE_MINUTES',
-    kind: ESettingKind.Range,
-    fallback: DEFAULT_CONTAINER_IDLE_MINUTES,
-    minimum: 5,
-    maximum: 240,
-    step: 5,
-    unit: ' min',
-  },
-  {
     id: ESettingId.GrillingCeremony,
     page: ESettingPage.Experimental,
     group: 'Planning',
@@ -930,34 +518,6 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     environmentVariable: 'ATLAS_EXPERIMENTAL_GRILLING_CEREMONY',
     kind: ESettingKind.Toggle,
     fallback: false,
-  },
-  {
-    id: ESettingId.ExperimentalPods,
-    storage: ESettingStorage.Local,
-    page: ESettingPage.Experimental,
-    group: 'Placement',
-    label: 'pods',
-    description:
-      'With this on, every new thread is born on its first send in a local Docker pod or a Vercel sandbox, behind an Atlas Cloud sign-in. Off, sessions run in-process on this machine. Read at launch, so restart Atlas after changing it.',
-    environmentVariable: 'ATLAS_EXPERIMENTAL_PODS',
-    kind: ESettingKind.Toggle,
-    fallback: false,
-  },
-  {
-    id: ESettingId.PlacementChooserShape,
-    storage: ESettingStorage.Local,
-    page: ESettingPage.Experimental,
-    group: 'Placement',
-    label: 'placement chooser shape',
-    description:
-      'A new thread is born local by default, and the chip and the hero are two presentations of the same cloud opt-in. Chip is the shipped footer chip in the composer; hero instead surfaces the placement in the welcome hero\u2019s metadata line with a hint, retiring to the footer chip on first send. Off (chip) is the shipped default while the hero shape proves itself.',
-    environmentVariable: 'ATLAS_EXPERIMENTAL_PLACEMENT_CHOOSER_SHAPE',
-    kind: ESettingKind.Choice,
-    fallback: 'chip',
-    options: [
-      { value: 'chip', label: 'chip', detail: 'shipped' },
-      { value: 'hero', label: 'hero', detail: 'placement in the welcome hero' },
-    ],
   },
   {
     id: ESettingId.PrVerdictTiming,

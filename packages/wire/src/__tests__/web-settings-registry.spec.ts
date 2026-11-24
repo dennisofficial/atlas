@@ -5,7 +5,6 @@ import {
   decodeSettingValue,
   encodeSettingValue,
   ESettingConsumer,
-  isProjectSettingKey,
   parsePinnedModels,
   validateCloudSetting,
 } from '../web'
@@ -65,8 +64,6 @@ describe('cloud setting registry', () => {
       ['model.favourites', '', true],
       ['model.favourites', 'a,b', false],
       ['model.favourites', 3, false],
-      ['experimental.placementChooserShape', 'hero', true],
-      ['experimental.placementChooserShape', 'wide', false],
       ['github.prEvents.verdictTiming', 'settled', true],
       ['github.prEvents.verdictTiming', 'later', false],
     ]
@@ -130,17 +127,5 @@ describe('cloud setting registry', () => {
     for (const entry of CLOUD_SETTING_REGISTRY.values()) {
       expect(entry.schema.safeParse(entry.fallback).success).toBe(true)
     }
-  })
-})
-
-describe('plugin trust list scope', () => {
-  it('is a cloud setting but never a project setting', () => {
-    expect(
-      validateCloudSetting({
-        key: 'plugins.trustedRepos',
-        stored: stored('github.com/a/b'),
-      }).ok,
-    ).toBe(true)
-    expect(isProjectSettingKey('plugins.trustedRepos')).toBe(false)
   })
 })

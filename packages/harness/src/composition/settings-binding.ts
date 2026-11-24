@@ -15,6 +15,7 @@ import { environmentLayer } from '../settings/environment'
 import { FileSettingsStore } from '../settings/file-store'
 import { projectSettingsFile, userSettingsFile } from '../settings/paths'
 import { createSettingsService, type SettingsService } from '../settings/service'
+import { V1_ONLY_SETTING_DEFINITIONS } from '../settings/v1-only-definitions'
 
 const PROJECT_PREFIX = '.'
 
@@ -56,6 +57,7 @@ export function loadSettings(args: {
     ...ATLAS_SETTINGS.filter(
       (definition) => !isCloudSettingId(definition.id) && definition.id !== ESettingId.ModelEffort,
     ),
+    ...V1_ONLY_SETTING_DEFINITIONS,
     ...CLOUD_SETTING_DEFINITIONS,
   ]
 

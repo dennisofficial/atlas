@@ -1529,8 +1529,9 @@ accounts and API-key credentials do not require the API.
 
 ## Pods
 
-A pod is the external runtime a session runs in, local Docker or Vercel, behind the
-`experimental.pods` setting. `docs/pods.md` describes how pods are born, boot, park and are
+A pod is the external runtime a session runs in, local Docker or Vercel. v2 has no flag: every
+new thread is born in one. The v1 `experimental.pods` row lives in
+`packages/harness/src/settings/v1-only-definitions.ts`. `docs/pods.md` describes how pods are born, boot, park and are
 secured, and what they pull from Atlas Cloud. `docs/decisions/` holds one record per durable
 decision behind them. Where the cloud-birth sections below disagree with `docs/pods.md` about what
 crosses at birth, `docs/pods.md` is current.

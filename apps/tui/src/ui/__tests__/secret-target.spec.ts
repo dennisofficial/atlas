@@ -80,26 +80,23 @@ describe('secretTargetOf', () => {
     ).toBeUndefined()
   })
 
-  it.each(['typesafe', 'vercel', 'openai', 'custom'])(
-    'seals the decisions token under the %s provider',
-    (provider) => {
-      expect(
-        secretTargetOf({
-          id: ESettingId.DecisionsToken,
-          resolution: resolveSettings({
-            definitions: ATLAS_SETTINGS,
-            layers: [
-              {
-                layer: ESettingsLayer.User,
-                origin: 'user',
-                values: { [ESettingId.DecisionsProvider]: provider },
-              },
-            ],
-          }),
-        })?.name,
-      ).toBe(`decisions.token.${provider}`)
-    },
-  )
+  it('seals the decisions token under the default provider, since the drawer carries no provider row', () => {
+    expect(
+      secretTargetOf({
+        id: ESettingId.DecisionsToken,
+        resolution: resolveSettings({
+          definitions: ATLAS_SETTINGS,
+          layers: [
+            {
+              layer: ESettingsLayer.User,
+              origin: 'user',
+              values: { [ESettingId.DecisionsProvider]: 'custom' },
+            },
+          ],
+        }),
+      })?.name,
+    ).toBe('decisions.token.typesafe')
+  })
 
   it('seals the decisions token under the default provider when none is chosen', () => {
     expect(secretTargetOf({ id: ESettingId.DecisionsToken, resolution: resolutionOn() })).toEqual({

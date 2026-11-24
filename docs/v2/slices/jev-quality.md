@@ -95,8 +95,10 @@ flowchart TD
   (classifier spec §4.3). This module consumes `ClassifierPort`.
 - **Endpoint and token.** Also owned by the classifier role: one settings value
   (`classifier.model`) and one provider account. v1's `decisions.provider`, `decisions.url`,
-  `decisions.model`, `decisions.token.<provider>` and `classifier.mode` rows are deleted with that
-  role, because no v2 code reads them (classifier spec §2.2, §6.2).
+  `decisions.model` and `classifier.mode` rows were deleted from the core registry with the
+  settings cleanup (#2837 §2) and survive only in
+  `packages/harness/src/settings/v1-only-definitions.ts`, because no v2 code reads them
+  (classifier spec §2.2, §6.2).
 - **Wiring of the port.** `bindQuality` registers the engine and the git workspace identity
   (`packages/harness/src/composition/compose-quality.ts:24-57`); the policy registry is built from
   `singleResponsibilityPolicy` (`:29`) and policy toggles are registered as settings from the policy
@@ -154,8 +156,8 @@ The note is one step of context, roughly 60–120 tokens.
   `⚠ Single responsibility` or `✗ review <fault>` (`:69-78`). The web transcript shows nothing.
 - v1 additionally had a health projection (`packages/harness/src/quality/core-logic/health.ts:48-69`) and a TUI
   quality panel (`apps/tui/src/composition/use-workspace-quality-health.ts`).
-- Settings already exist in both surfaces: `quality.enabled` and `quality.recordExamples`
-  (`packages/core/src/settings/registry.ts:941-963`) and the v2 web page
+- The setting exists in both surfaces: `quality.enabled`
+  (`packages/core/src/settings/registry.ts`) and the v2 web page
   (`apps/web/src/features/settings/pages/quality.tsx:17-27`, fixtures at
   `apps/web/src/features/settings/fixtures/settings-fields.ts:92-107`).
 

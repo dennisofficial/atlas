@@ -16,7 +16,7 @@ function assertValidKey(key: string): void {
   }
   if (!KEY_PATTERN.test(key)) {
     throw new BadRequestException(
-      'a setting key must be dot-separated segments like `sandbox.image`',
+      'a setting key must be dot-separated segments like `sandbox.vcpus`',
     )
   }
 }

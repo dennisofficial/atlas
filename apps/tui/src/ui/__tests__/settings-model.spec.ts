@@ -61,22 +61,16 @@ describe('settingsModel', () => {
     const general = modelWith().pages[0]
 
     expect(general?.groups.map((group) => [group.label, group.rows.length])).toEqual([
-      ['Transcript', 7],
-      ['Layout', 2],
-      ['Project context', 4],
-      ['Plugins', 1],
+      ['Transcript', 2],
+      ['Layout', 1],
       ['Skills', 1],
-      ['Context window', 2],
+      ['Context window', 1],
       ['Worktrees', 1],
-      ['Usage meters', 3],
       ['Nudges', 1],
-      ['Notifications', 1],
-      ['Development', 1],
       ['Web', 2],
       ['Images', 1],
-      ['Execution', 4],
     ])
-    expect(general?.rows).toHaveLength(31)
+    expect(general?.rows).toHaveLength(10)
   })
 
   it('leaves the cloud page to the definitions the harness adds', () => {
@@ -93,7 +87,7 @@ describe('settingsModel', () => {
     expect(models?.groups.map((group) => [group.label, group.rows.length])).toEqual([
       ['Model', 3],
       ['Background processes', 9],
-      ['Decisions', 2],
+      ['Decisions', 1],
     ])
     expect(models?.rows.map((row) => row.definition.id)).toEqual([
       ESettingId.ModelId,
@@ -108,7 +102,6 @@ describe('settingsModel', () => {
       ESettingId.SubagentModel,
       ESettingId.SubagentEffort,
       ESettingId.SubagentFast,
-      ESettingId.DecisionsProvider,
       ESettingId.DecisionsToken,
     ])
   })
@@ -130,7 +123,7 @@ describe('settingsModel', () => {
     expect(models?.groups.map((group) => [group.label, group.rows.length])).toEqual([
       ['Model', 6],
       ['Background processes', 9],
-      ['Decisions', 2],
+      ['Decisions', 1],
       ['Built-in sub-agents', 6],
     ])
     expect(models?.rows.map((row) => row.definition.id)).toEqual([
@@ -149,7 +142,6 @@ describe('settingsModel', () => {
       ESettingId.SubagentModel,
       ESettingId.SubagentEffort,
       ESettingId.SubagentFast,
-      ESettingId.DecisionsProvider,
       ESettingId.DecisionsToken,
       agentTypeSettingId('builder'),
       agentTypeEffortSettingId('builder'),
@@ -198,7 +190,7 @@ describe('moving around the page', () => {
     const top = openSettings()
 
     expect(moveRow({ state: top, model, delta: -1 })).toEqual({ pageIndex: 0, rowIndex: 0 })
-    expect(moveRow({ state: top, model, delta: 99 })).toEqual({ pageIndex: 0, rowIndex: 30 })
+    expect(moveRow({ state: top, model, delta: 99 })).toEqual({ pageIndex: 0, rowIndex: 9 })
   })
 
   it('wraps around the tab strip and lands on its first row', () => {
@@ -218,9 +210,7 @@ describe('moving around the page', () => {
   })
 
   it('names the row the keys would act on', () => {
-    expect(currentRow({ state: openSettings(), model })?.definition.id).toBe(
-      ESettingId.SmoothStreaming,
-    )
+    expect(currentRow({ state: openSettings(), model })?.definition.id).toBe(ESettingId.ImageRows)
     expect(currentRow({ state: { pageIndex: 1, rowIndex: 0 }, model })?.definition.id).toBe(
       ESettingId.ModelId,
     )
@@ -231,45 +221,48 @@ describe('moving around the page', () => {
 })
 
 describe('conditional rows', () => {
-  const onCustom: SettingsLayerInput = {
-    layer: ESettingsLayer.User,
-    origin: 'user',
-    values: { [ESettingId.DecisionsProvider]: 'custom' },
+  const conditional = (visible: boolean): SettingDefinition => ({
+    id: 'demo.conditional',
+    page: ESettingPage.General,
+    group: 'Demo',
+    label: 'Conditional',
+    description: 'x',
+    kind: ESettingKind.Toggle,
+    fallback: false,
+    visibleWhen: () => visible,
+  })
+
+  const modelOf = (visible: boolean): SettingsModel => {
+    const definitions = [...ATLAS_SETTINGS, conditional(visible)]
+    return settingsModel({
+      definitions,
+      resolution: resolveSettings({ definitions, layers: [] }),
+    })
   }
-  const modelsOf = (layers: readonly SettingsLayerInput[]) =>
-    modelWith(layers).pages.find((page) => page.page.id === ESettingPage.Models)
 
-  it('reveals the custom-only rows in group order when the provider is custom', () => {
-    const decisions = modelsOf([onCustom])?.groups.find((group) => group.label === 'Decisions')
+  it('shows a conditional row when its predicate says so', () => {
+    const general = modelOf(true).pages[0]
 
-    expect(decisions?.rows.map((row) => row.definition.id)).toEqual([
-      ESettingId.DecisionsProvider,
-      ESettingId.DecisionsUrl,
-      ESettingId.DecisionsModel,
-      ESettingId.DecisionsToken,
-    ])
+    expect(general?.rows.map((row) => row.definition.id)).toContain('demo.conditional')
   })
 
   it('never lets a hidden row reach the groups or the navigation list', () => {
-    const models = modelsOf([])
+    const general = modelOf(false).pages[0]
+    const flat = general?.groups.flatMap((group) => group.rows).length
 
-    expect(models?.rows.some((row) => row.definition.id === ESettingId.DecisionsUrl)).toBe(false)
-    expect(models?.groups.flatMap((group) => group.rows).length).toBe(models?.rows.length ?? -1)
+    expect(general?.rows.some((row) => row.definition.id === 'demo.conditional')).toBe(false)
+    expect(flat).toBe(general?.rows.length ?? -1)
   })
 
   it('leaves the cursor on a real row when the list shrinks under it', () => {
-    const grown = modelWith([onCustom])
-    const shrunk = modelWith([])
-    const lastOnCustom = (modelsOf([onCustom])?.rows.length ?? 0) - 1
-    const stranded = { pageIndex: 1, rowIndex: lastOnCustom }
-
+    const grown = modelOf(true)
+    const shrunk = modelOf(false)
+    const stranded = { pageIndex: 0, rowIndex: (grown.pages[0]?.rows.length ?? 1) - 1 }
     const moved = moveRow({ state: stranded, model: shrunk, delta: 0 })
 
-    expect(currentRow({ state: stranded, model: grown })?.definition.id).toBe(
-      ESettingId.DecisionsToken,
-    )
+    expect(currentRow({ state: stranded, model: grown })?.definition.id).toBe('demo.conditional')
     expect(currentRow({ state: moved, model: shrunk })?.definition.id).toBe(
-      ESettingId.DecisionsToken,
+      shrunk.pages[0]?.rows.at(-1)?.definition.id,
     )
   })
 

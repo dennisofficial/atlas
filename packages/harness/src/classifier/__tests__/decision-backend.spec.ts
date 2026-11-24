@@ -4,11 +4,14 @@ import { describe, expect, it } from 'bun:test'
 import { MemorySecretsStore } from '../../secrets/memory-store'
 import { MemorySettingsStore } from '../../settings/memory-store'
 import { createSettingsService } from '../../settings/service'
+import { V1_ONLY_SETTING_DEFINITIONS } from '../../settings/v1-only-definitions'
 import { createDecisionClient, liveDecisionsEndpoint } from '../decision-backend'
+
+const DEFINITIONS = [...ATLAS_SETTINGS, ...V1_ONLY_SETTING_DEFINITIONS]
 
 const rig = (values: Record<string, string>, secrets: Record<string, string> = {}) => {
   const settings = createSettingsService({
-    definitions: ATLAS_SETTINGS,
+    definitions: DEFINITIONS,
     user: new MemorySettingsStore({ document: { values } }),
   })
   return { settings, secrets: new MemorySecretsStore({ secrets }) }

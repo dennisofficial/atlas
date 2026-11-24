@@ -1,4 +1,8 @@
 import { ATLAS_SETTINGS, EInstructionFamily, ESettingId } from '@dltech/atlas-core'
+
+import { V1_ONLY_SETTING_DEFINITIONS } from '../../settings/v1-only-definitions'
+
+const DEFINITIONS = [...ATLAS_SETTINGS, ...V1_ONLY_SETTING_DEFINITIONS]
 import { createSettingsService, MemorySettingsStore } from '@dltech/atlas-harness'
 import { describe, expect, it } from 'bun:test'
 
@@ -9,7 +13,7 @@ const PROJECT_DIRECTORY = '/workspace'
 const planWith = (values: Record<string, boolean | string | number>) =>
   instructionPlanOf({
     settings: createSettingsService({
-      definitions: ATLAS_SETTINGS,
+      definitions: DEFINITIONS,
       user: new MemorySettingsStore({ document: { values } }),
     }),
     projectDirectory: PROJECT_DIRECTORY,

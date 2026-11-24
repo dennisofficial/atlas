@@ -30,7 +30,7 @@ are typed by the operator in Atlas, not run in `bash`; ask for relevant non-secr
 
 ## Settings
 
-Settings files are flat JSON objects keyed by dotted id, for example `{"context.reload": true}`.
+Settings files are flat JSON objects keyed by dotted id, for example `{"sidebar.width": 42}`.
 
 - Precedence: built-in default < user file < project file < the setting's declared environment
   variable. Environment overrides come from Atlas's launch environment.

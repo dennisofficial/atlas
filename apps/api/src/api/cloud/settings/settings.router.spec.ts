@@ -101,14 +101,11 @@ describe('SettingsRouter', () => {
 
   describe('pod-delivered settings', () => {
     const podDelivered = {
-      'decisions.provider': 'custom',
-      'decisions.url': 'https://jev.internal',
-      'decisions.model': 'jev-luna',
       'classifier.mode': 'nudge',
       'web.searchBackend': 'exa',
     }
 
-    it('stores and lists the five settings for the personal scope', async () => {
+    it('stores and lists the pod-delivered settings for the personal scope', async () => {
       const values = Object.fromEntries(
         Object.entries(podDelivered).map(([key, value]) => [key, encodeSettingValue(value)]),
       )
@@ -125,13 +122,6 @@ describe('SettingsRouter', () => {
       }).expect(400)
       expect(await settings()).toHaveLength(0)
     })
-
-    it('rejects a decisions endpoint that is not an absolute http(s) URL', async () => {
-      await mutate('settings.patch', 'session-a', {
-        values: { 'decisions.url': encodeSettingValue('jev.internal') },
-      }).expect(400)
-      expect(await settings()).toHaveLength(0)
-    })
   })
 
   describe('pod reach', () => {
@@ -140,13 +130,13 @@ describe('SettingsRouter', () => {
     beforeEach(async () => {
       const stamp = new Date('2026-10-03T00:00:00.000Z')
       for (const [userId, value] of [
-        ['user-a', 'image-a'],
-        ['user-b', 'image-b'],
+        ['user-a', 'disk-a'],
+        ['user-b', 'disk-b'],
       ] as const) {
         await db.orm.public.UserSetting.create({
           id: `set_${userId}`,
           userId,
-          key: 'sandbox.image',
+          key: 'sandbox.diskGb',
           value,
           createdAt: stamp,
           updatedAt: stamp,
@@ -159,7 +149,7 @@ describe('SettingsRouter', () => {
 
       expect(reply.headers['cache-control']).toBe('no-store')
       expect(reply.body.result.data.settings).toEqual([
-        { key: 'sandbox.image', value: 'image-a', updatedAt: '2026-10-03T00:00:00.000Z' },
+        { key: 'sandbox.diskGb', value: 'disk-a', updatedAt: '2026-10-03T00:00:00.000Z' },
       ])
     })
 
@@ -171,22 +161,22 @@ describe('SettingsRouter', () => {
 
     it('refuses a pod bearer on every settings write', async () => {
       const pod = 'pod-token-a'
-      await mutate('settings.set', pod, { key: 'sandbox.image', value: 'x' }).expect(403)
-      await mutate('settings.remove', pod, { key: 'sandbox.image' }).expect(403)
-      await mutate('settings.patch', pod, { values: { 'sandbox.image': 'x' } }).expect(401)
-      expect((await settings()).map((row) => row.value).sort()).toEqual(['image-a', 'image-b'])
+      await mutate('settings.set', pod, { key: 'sandbox.diskGb', value: 'x' }).expect(403)
+      await mutate('settings.remove', pod, { key: 'sandbox.diskGb' }).expect(403)
+      await mutate('settings.patch', pod, { values: { 'sandbox.diskGb': 'x' } }).expect(401)
+      expect((await settings()).map((row) => row.value).sort()).toEqual(['disk-a', 'disk-b'])
     })
 
     it('lets a sandbox set and remove its owner\u2019s personal settings', async () => {
       const setReply = await mutate('settings.set', 'sandbox-token-a', {
-        key: 'sandbox.image',
-        value: 'image-c',
+        key: 'sandbox.diskGb',
+        value: 'disk-c',
       })
       expect(setReply.status).toBe(200)
       expect(await db.orm.public.UserSetting.where({ userId: 'user-a' }).all()).toHaveLength(1)
-      expect((await settings()).map((row) => row.value).sort()).toEqual(['image-b', 'image-c'])
+      expect((await settings()).map((row) => row.value).sort()).toEqual(['disk-b', 'disk-c'])
 
-      const removed = await mutate('settings.remove', 'sandbox-token-a', { key: 'sandbox.image' })
+      const removed = await mutate('settings.remove', 'sandbox-token-a', { key: 'sandbox.diskGb' })
       expect(removed.status).toBe(200)
       expect(await db.orm.public.UserSetting.where({ userId: 'user-a' }).all()).toHaveLength(0)
       expect(await db.orm.public.UserSetting.where({ userId: 'user-b' }).all()).toHaveLength(1)
@@ -194,21 +184,21 @@ describe('SettingsRouter', () => {
 
     it('a sandbox touches only its owner\u2019s personal settings', async () => {
       await mutate('settings.set', 'sandbox-token-a', {
-        key: 'sandbox.image',
-        value: 'image-c',
+        key: 'sandbox.diskGb',
+        value: 'disk-c',
       }).expect(200)
       expect(
         (await db.orm.public.UserSetting.where({ userId: 'user-b' }).all()).map((row) => row.value),
-      ).toEqual(['image-b'])
+      ).toEqual(['disk-b'])
 
-      await mutate('settings.remove', 'sandbox-token-a', { key: 'sandbox.image' }).expect(200)
+      await mutate('settings.remove', 'sandbox-token-a', { key: 'sandbox.diskGb' }).expect(200)
       expect(await db.orm.public.UserSetting.where({ userId: 'user-b' }).all()).toHaveLength(1)
     })
 
     it('still lists and removes settings for a session', async () => {
       expect((await list('session-a').expect(200)).body.result.data.settings).toHaveLength(1)
 
-      const removed = await mutate('settings.remove', 'session-a', { key: 'sandbox.image' })
+      const removed = await mutate('settings.remove', 'session-a', { key: 'sandbox.diskGb' })
       expect(removed.status).toBe(200)
       expect(removed.body).toEqual({ result: {} })
       expect(await db.orm.public.UserSetting.where({ userId: 'user-a' }).all()).toHaveLength(0)

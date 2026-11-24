@@ -13,15 +13,6 @@ const toggle = (args: {
 })
 
 export const CONTEXT_FIELDS: SettingField[] = [
-  {
-    kind: ESettingFieldKind.Text,
-    key: 'plugins.trustedRepos',
-    title: 'Trusted repositories',
-    description:
-      'Repositories whose .atlas/plugins may run, comma separated, as host/owner/repo. Takes effect on the next session.',
-    fallback: '',
-    placeholder: 'github.com/acme/widget',
-  },
   toggle({
     key: 'skills.suggest',
     title: 'Suggest a skill per turn',
@@ -52,17 +43,6 @@ export const CONTEXT_FIELDS: SettingField[] = [
       { value: '.atlas/worktrees', label: '.atlas/worktrees' },
       { value: '.worktrees', label: '.worktrees' },
     ],
-  },
-]
-
-export const SANDBOX_FIELDS: SettingField[] = [
-  {
-    kind: ESettingFieldKind.Text,
-    key: 'sandbox.image',
-    title: 'Sandbox image',
-    description:
-      'The image a cloud sandbox boots. Point this at your own build when the sandbox cannot pull the published one.',
-    fallback: 'atlas-sandbox:latest',
   },
 ]
 
