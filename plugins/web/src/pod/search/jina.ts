@@ -50,10 +50,14 @@ const resultsOf = (payload: Record<string, unknown> | undefined): readonly WebSe
     ]
   })
 
+const SEARCH_ELSEWHERE =
+  'web_search stays down until the operator fixes it, so open a search page with the browser tool instead.'
+
 const statusFailure = (status: number): string => {
-  if (status === 401 || status === 403) return 'Jina refused the platform search key.'
+  if (status === 401 || status === 403)
+    return `Jina refused the platform search key. ${SEARCH_ELSEWHERE}`
   if (status === 402)
-    return 'Jina refused the search because the platform Jina account has no balance.'
+    return `Jina refused the search because the platform Jina account has no balance. ${SEARCH_ELSEWHERE}`
   if (status === 429) return 'Jina is rate-limiting searches; try again in a moment.'
   if (status >= 500) return `Jina search is down (status ${status}); try again shortly.`
   return `Jina search failed with status ${status}.`

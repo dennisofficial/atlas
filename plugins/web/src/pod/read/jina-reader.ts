@@ -63,7 +63,10 @@ const unavailableOf = (status: number): string => {
 const pageOf = (args: { url: string; data: Record<string, unknown> }): ReadOutcome => {
   const content = str(args.data['content'])
   if (content === undefined)
-    return { kind: 'failed', reason: `Jina read ${hostOf(args.url)} but returned no page body.` }
+    return {
+      kind: 'unavailable',
+      reason: `Jina read ${hostOf(args.url)} but returned no page body.`,
+    }
 
   const truncated = content.length > MAX_CHARACTERS
   const title = str(args.data['title'])
