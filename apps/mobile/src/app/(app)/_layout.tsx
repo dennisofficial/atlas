@@ -1,5 +1,5 @@
 import { Button, EButtonSize, EButtonVariant, useTheme } from '@dltech/atlas-ui-native'
-import { router, Stack, usePathname } from 'expo-router'
+import { router, Stack, useCanGoBack, usePathname } from 'expo-router'
 import { Platform, StyleSheet, View } from 'react-native'
 
 import { useAuth } from '../../auth/auth-provider'
@@ -26,7 +26,9 @@ const CancelButton = () => (
 
 const AppStackHeader = ({ options }: { options: { title?: string } }) => {
   const theme = useTheme()
-  return <AppHeader title={options.title ?? ''} left={<BackButton />} surface={theme.background} />
+  const canGoBack = useCanGoBack()
+  const left = canGoBack ? <BackButton /> : undefined
+  return <AppHeader title={options.title ?? ''} left={left} surface={theme.background} />
 }
 
 const renderAppStackHeader = ({ options }: { options: { title?: string } }) => (
