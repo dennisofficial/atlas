@@ -14,7 +14,14 @@ const SessionsStack = () => {
       }}
     >
       <Stack.Screen name="index" options={{ headerShown: false }} />
-      <Stack.Screen name="[id]" options={{ title: '' }} />
+      <Stack.Screen
+        name="[id]"
+        options={{
+          title: '',
+          headerStyle: { backgroundColor: theme.background },
+          headerTintColor: theme.foreground,
+        }}
+      />
     </Stack>
   )
 }
