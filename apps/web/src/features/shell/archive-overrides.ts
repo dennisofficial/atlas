@@ -1,8 +1,6 @@
 import type { WireThread } from '@dltech/atlas-wire/web'
 
-import type { SessionNode } from '@/features/threads/data/threads-api'
-
-import type { ProjectThreads } from './thread-partition'
+import type { ProjectThreads, SessionNode } from './thread-partition'
 
 export type ArchiveOverrides = ReadonlyMap<string, string | null>
 

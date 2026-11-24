@@ -15,7 +15,7 @@ import { ArrowUpRightIcon } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
-import { messageOf } from '@/features/threads/data/use-send'
+import { messageOf } from '@/features/threads/data/message-of'
 import { isPodParked } from '@/features/threads/data/file-source'
 
 import { restartService, stopService } from '../../data/service-actions'

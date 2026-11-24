@@ -4,11 +4,16 @@ import {
   lastActivityAt,
   peerBucketOf,
 } from '@dltech/atlas-client/stream'
-import type { Project, WireThread } from '@dltech/atlas-wire/web'
-
-import type { SessionNode } from '@/features/threads/data/threads-api'
+import type {
+  Project,
+  SessionBucketCounts,
+  WireSessionNode,
+  WireThread,
+} from '@dltech/atlas-wire/web'
 
 import type { V2RowView } from './v2-status'
+
+export type SessionNode = WireSessionNode
 
 export { EPeerBucket as EThreadBucket } from '@dltech/atlas-client/stream'
 
@@ -26,6 +31,11 @@ export type ShellSessionNode = SessionNode & {
 export interface ProjectThreads {
   project: Project | null
   sessions: ShellSessionNode[]
+}
+
+export interface ShellThreads {
+  entries: ProjectThreads[]
+  counts: SessionBucketCounts | null
 }
 
 export const projectKeyOf = (project: Project | null): string => project?.id ?? NO_PROJECT_KEY

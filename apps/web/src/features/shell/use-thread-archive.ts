@@ -35,11 +35,7 @@ export function useThreadArchive(args: {
   reload: () => void
   onArchived: (threadId: string) => AfterUndo | undefined
   isTeammate?: (threadId: string) => boolean
-  archive: (args: {
-    threadId: string
-    archived: boolean
-    runner?: WireThread['runner']
-  }) => Promise<unknown>
+  archive: (args: { threadId: string; archived: boolean }) => Promise<unknown>
 }) {
   const { entries, reload, onArchived, archive } = args
   const isTeammate = args.isTeammate ?? (() => false)
@@ -63,7 +59,7 @@ export function useThreadArchive(args: {
       const archivedAt = archived ? new Date().toISOString() : null
       setOverrides((current) => withOverride({ overrides: current, threadId, archivedAt }))
       try {
-        await archive({ threadId, archived, runner: thread.runner })
+        await archive({ threadId, archived })
         reload()
         return true
       } catch (failure) {

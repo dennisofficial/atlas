@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import type { SummariseReach, V2Event } from '@dltech/atlas-core'
 
 import type { TranscriptSummarise } from '@/features/threads/data/use-summarise'
-import { messageOf } from '@/features/threads/data/use-send'
+import { messageOf } from '@/features/threads/data/message-of'
 
 import { sessionsApi } from './sessions-api'
 import { requestSummarise, summariseCopyOf, summarisePointsOf } from './session-summarise'

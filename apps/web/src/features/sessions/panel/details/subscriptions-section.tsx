@@ -7,7 +7,7 @@ import { DynamicIcon } from 'lucide-react/dynamic'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
-import { messageOf } from '@/features/threads/data/use-send'
+import { messageOf } from '@/features/threads/data/message-of'
 
 import { sessionsApi } from '../../data/sessions-api'
 import type { SubscriptionRow } from '../../data/subscription-rows'

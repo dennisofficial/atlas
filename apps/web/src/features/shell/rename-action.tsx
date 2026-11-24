@@ -10,7 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@dltech/atlas-ui/compon
 import { Tooltip, TooltipContent, TooltipTrigger } from '@dltech/atlas-ui/components/tooltip'
 import { renameSession } from '@/features/sessions/data/rename-session'
 import { sessionsApi } from '@/features/sessions/data/sessions-api'
-import { messageOf } from '@/features/threads/data/use-send'
+import { messageOf } from '@/features/threads/data/message-of'
 
 export function RenameForm({
   title,

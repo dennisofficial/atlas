@@ -8,7 +8,6 @@ import { cn } from '@dltech/atlas-ui/lib/utils'
 import type { WireThread } from '@dltech/atlas-wire/web'
 import { relativeTime } from '@/features/settings/data/personal/relative-time'
 import { currentBranchOf } from '@/features/threads/data/header-model'
-import { LocalPodIcon } from '@/features/threads/thread-header'
 import { RenameAction } from './rename-action'
 import { rowNamingOf, useThreadNaming } from './active-naming'
 import { ESidebarDensity, useSidebarDensity } from './shell-density'
@@ -159,11 +158,6 @@ export function ThreadRowBody({
               className={cn('flex-1', working && 'shimmer motion-reduce:shimmer-none')}
             />
           </span>
-          {v2 ? null : (
-            <Badge variant="outline" data-engine-tag="v1" className={MARKER_CLASS}>
-              v1
-            </Badge>
-          )}
           {v2 && v2View?.sandboxProvider === ESandboxProvider.Vercel ? (
             <Badge variant="outline" data-sandbox-provider="vercel" className={MARKER_CLASS}>
               Vercel
@@ -177,11 +171,6 @@ export function ThreadRowBody({
               className="size-3.5 shrink-0 text-muted-foreground group-data-[collapsible=icon]:hidden"
             />
           )}
-          {thread.runner === 'local' ? (
-            <span className="group-data-[collapsible=icon]:hidden">
-              <LocalPodIcon />
-            </span>
-          ) : null}
         </span>
         {!compact ? (
           <span

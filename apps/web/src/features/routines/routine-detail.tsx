@@ -12,7 +12,7 @@ import { Button } from '@dltech/atlas-ui/components/button'
 import { useClock } from '@/features/shell/use-clock'
 import { useV2Sessions } from '@/features/shell/use-v2-sessions'
 import { useModelPicker } from '@/features/threads/data/use-model-picker'
-import { messageOf } from '@/features/threads/data/use-send'
+import { messageOf } from '@/features/threads/data/message-of'
 import { EQueryState } from '@/lib/use-cloud-query'
 
 import { useRoutineRuns, useRunRoutineNow, useUpdateRoutine } from './data/routines-api'

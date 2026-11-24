@@ -14,7 +14,7 @@ import {
   type RewindKillRow,
   type RewoundMessage,
 } from '@dltech/atlas-client/session'
-import { messageOf } from '@/features/threads/data/use-send'
+import { messageOf } from '@/features/threads/data/message-of'
 import { mediaUrls } from '@/features/threads/data/media-urls'
 
 type Pending = RewoundMessage & { inboxId: number | undefined }
