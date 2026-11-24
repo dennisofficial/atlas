@@ -26,7 +26,7 @@ import { closeOpenTurn } from '../orphan-turn'
 import type { AppendBody } from '../record/append-drafts'
 import type { SessionRecord } from '../record/record-adapter'
 import { STOPPED_BY_OPERATOR, ORPHAN_INTERRUPTED } from '../turn-boundary'
-import { THREAD, AT, depsOf, openTurnIn } from './turn-log-fixture'
+import { THREAD, AT, depsOf } from './turn-log-fixture'
 
 const RUN = toRunId('run-1')
 
@@ -110,7 +110,7 @@ const lastCallOf = (log: BatchLog): readonly AppendBody[] => log.calls.at(-1) ??
 
 describe('a quick stop writes one append', () => {
   it('rewinds the message with the turn it cut', async () => {
-    const log = await stoppedTurnOf([...openTurnIn('turn-quick'), ...eventsOf(thinkingOnlyTurn())])
+    const log = await stoppedTurnOf(eventsOf(thinkingOnlyTurn()))
 
     const drafts = lastCallOf(log)
     expect(drafts.map((draft) => draft.type)).toEqual(['turn-ended', 'history-rewound'])
@@ -123,7 +123,7 @@ describe('a quick stop writes one append', () => {
   })
 
   it('keeps the message when a tool ran', async () => {
-    const log = await stoppedTurnOf([...openTurnIn('turn-quick'), ...eventsOf(toolTurn())])
+    const log = await stoppedTurnOf(eventsOf(toolTurn()))
 
     expect(lastCallOf(log).map((draft) => draft.type)).toEqual(['turn-ended'])
   })
