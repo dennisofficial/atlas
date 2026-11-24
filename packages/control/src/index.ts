@@ -133,6 +133,12 @@ export { PostgresSandboxRunStore } from './postgres/postgres-sandbox-runs'
 export { listSubscriptionsIn, subscribeIn } from './subscription-ops'
 export type { SubscribeArgs, SubscribeResult } from './subscription-ops'
 export { endSubscriptionsIn, unsubscribeIn } from './subscription-endings'
+export {
+  completeSubscriptionIn,
+  subscribeToStateIn,
+  terminalNoticeClientIdOf,
+} from './subscription-completion'
+export type { SubscribeToStateResult } from './subscription-completion'
 export type { SubscriptionEndingRow, UnsubscribeArgs } from './subscription-endings'
 export type { SubscriptionLeaseInput } from './subscription-rows'
 export { postQuietEndingsOf, quietEndingRecordsOf } from './quiet-endings'

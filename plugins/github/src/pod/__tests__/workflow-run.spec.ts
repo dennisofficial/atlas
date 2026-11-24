@@ -103,29 +103,9 @@ const SHA = '9f2c1d4e5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d'
 const HEAD_SHA = 'git rev-parse HEAD'
 const HEAD_RUN = `gh run list --commit ${SHA} --limit 1 --json databaseId,name`
 
-const viewArgv = (args: { repo: string; runId: number }): string =>
-  `gh run view ${args.runId} -R ${args.repo} --json status,conclusion,name,path,headBranch,url`
-
-const runView = (run: Record<string, unknown>): string => JSON.stringify(run)
-
-const RUN_5 = viewArgv({ repo: 'o/r', runId: 5 })
-
-const finishedRun = runView({
-  status: 'completed',
-  conclusion: 'failure',
-  name: 'Release',
-  path: '.github/workflows/release.yml',
-  headBranch: 'main',
-  url: 'https://github.com/o/r/actions/runs/5',
-})
-
 describe('resolveRunTarget', () => {
-  it('takes a run in another repository once gh shows it has not finished', async () => {
-    const view = viewArgv({ repo: 'dltech/atlas', runId: 9 })
-    const { ctx, calls } = rig({
-      [view]: exec(runView({ status: 'in_progress' })),
-      [viewArgv({ repo: 'o/r', runId: 12 })]: exec(runView({ status: 'queued' })),
-    })
+  it('takes a run in another repository without reading its status', async () => {
+    const { ctx, calls } = rig({})
     expect(await resolveRunTarget({ ctx, input: 'Dltech/Atlas#9' })).toEqual({
       target: { kind: 'run', repo: 'github.com/dltech/atlas', runId: 9 },
       label: 'dltech/atlas#9',
@@ -133,34 +113,7 @@ describe('resolveRunTarget', () => {
     expect(
       await resolveRunTarget({ ctx, input: 'https://github.com/o/r/actions/runs/12/job/3' }),
     ).toMatchObject({ target: { kind: 'run', repo: 'github.com/o/r', runId: 12 } })
-    expect(calls).toEqual([view, viewArgv({ repo: 'o/r', runId: 12 })])
-  })
-
-  it('refuses a run that already finished, naming it, its result and its url', async () => {
-    const { ctx } = rig({ [RUN_5]: exec(finishedRun) })
-
-    const outcome = await resolveRunTarget({ ctx, input: 'o/r#5' })
-
-    const error = 'error' in outcome ? outcome.error : ''
-    expect(error).toContain('already finished')
-    expect(error).toContain('Release')
-    expect(error).toContain('failure')
-    expect(error).toContain('https://github.com/o/r/actions/runs/5')
-    expect(error).toContain('release.yml@main')
-  })
-
-  it('subscribes to a run gh still reports as running', async () => {
-    const { ctx } = rig({ [NAME]: exec('o/r'), [RUN_5]: exec(runView({ status: 'in_progress' })) })
-    expect(await resolveRunTarget({ ctx, input: '#5' })).toMatchObject({
-      target: { kind: 'run', repo: 'github.com/o/r', runId: 5 },
-    })
-  })
-
-  it('subscribes to a run whose status gh cannot read', async () => {
-    const { ctx } = rig({ [NAME]: exec('o/r'), [RUN_5]: exec('no such run', 1) })
-    expect(await resolveRunTarget({ ctx, input: '#5' })).toMatchObject({
-      target: { kind: 'run', repo: 'github.com/o/r', runId: 5 },
-    })
+    expect(calls).toEqual([])
   })
 
   it('takes a bare run id from the checkout repository', async () => {
@@ -188,19 +141,6 @@ describe('resolveRunTarget', () => {
     const { ctx } = rig({ [NAME]: exec('o/r'), [HEAD_SHA]: exec(SHA), [HEAD_RUN]: exec('[]') })
 
     expect(await resolveRunTarget({ ctx, input: '' })).toEqual({ error: NO_RUN_FOR_PUSH_ERROR })
-  })
-
-  it('refuses a blank target whose run of this push already finished', async () => {
-    const { ctx } = rig({
-      [NAME]: exec('o/r'),
-      [HEAD_SHA]: exec(SHA),
-      [HEAD_RUN]: exec('[{"databaseId":5,"name":"deploy"}]'),
-      [RUN_5]: exec(finishedRun),
-    })
-
-    expect(await resolveRunTarget({ ctx, input: '' })).toMatchObject({
-      error: expect.stringContaining('already finished'),
-    })
   })
 
   it('falls back to the newest run of the checkout when HEAD cannot be read', async () => {

@@ -30,6 +30,7 @@ describe('readAgentHostEnv', () => {
     expect(env.previewDomain).toBe('byatlas.dev')
     expect(env.vercelOauth).toBeNull()
     expect(env.mediaBlobToken).toBeNull()
+    expect(env.githubApp).toEqual({ appId: undefined, appPrivateKey: undefined })
     expect(env.sandboxImage).toBe('atlas-sandbox:latest')
     expect(env.daemonBundlePath.endsWith('apps/daemon/bin/daemon.js')).toBe(true)
   })

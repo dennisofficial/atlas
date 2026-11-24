@@ -18,7 +18,6 @@ import {
   type RunTarget,
 } from '../core'
 import { runGh, runGit } from './gh'
-import { finishedRunRefusal } from './run-status'
 
 type GhCtx = Pick<PluginPodContext, 'call'>
 
@@ -127,21 +126,6 @@ const headShaHeld = async (args: {
   return HEAD_SHA.test(sha) ? sha : null
 }
 
-const checkedRun = async (args: {
-  ctx: GhCtx
-  cwd?: string | undefined
-  target: RunTarget
-}): Promise<RunResolveOutcome> => {
-  if (args.target.kind !== 'run') return resolvedRun(args.target)
-  const refused = await finishedRunRefusal({
-    ctx: args.ctx,
-    cwd: args.cwd,
-    repo: args.target.repo,
-    runId: args.target.runId,
-  })
-  return refused ?? resolvedRun(args.target)
-}
-
 export const readCheckout = async (args: {
   ctx: GhCtx
   cwd?: string | undefined
@@ -204,7 +188,7 @@ const currentRun = async (args: {
   })
   const runId = listed.ok ? latestRunOf(listed.text) : null
   if (runId === null) return { error: sha === null ? NO_RUN_ERROR : NO_RUN_FOR_PUSH_ERROR }
-  return checkedRun({ ctx: args.ctx, cwd: args.cwd, target: { kind: 'run', repo, runId } })
+  return resolvedRun({ kind: 'run', repo, runId })
 }
 
 const runInCheckout = async (args: {
@@ -215,11 +199,7 @@ const runInCheckout = async (args: {
   const repo = await checkoutRepo(args)
   return repo === null
     ? { error: NO_RUN_REPOSITORY_ERROR }
-    : checkedRun({
-        ctx: args.ctx,
-        cwd: args.cwd,
-        target: { kind: 'run', repo, runId: args.runId },
-      })
+    : resolvedRun({ kind: 'run', repo, runId: args.runId })
 }
 
 const selectorInCheckout = async (args: {
@@ -245,11 +225,7 @@ export const resolveRunTarget = async (args: {
   if (parsed.kind === 'error') return { error: parsed.error }
   if (parsed.kind === 'run') {
     if (parsed.repo !== undefined) {
-      return checkedRun({
-        ctx: args.ctx,
-        cwd: args.cwd,
-        target: { kind: 'run', repo: parsed.repo, runId: parsed.runId },
-      })
+      return resolvedRun({ kind: 'run', repo: parsed.repo, runId: parsed.runId })
     }
     return args.explicitOnly === true
       ? { error: UNRECOGNIZED_RUN_ERROR }

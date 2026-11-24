@@ -2,6 +2,7 @@ import { Module, type Provider } from '@nestjs/common'
 import { ControlPlane } from '@dltech/atlas-control'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import type { Db } from '@dltech/atlas-db'
+import { githubAppTargetStatesOf } from '@dltech/atlas-github'
 import type { HostBus, PodCallBus } from '@dltech/atlas-host'
 import type { LogPort, ProductAnalytics } from '@dltech/atlas-observability'
 import { analyticsAppendHook } from '../analytics/append-hook'
@@ -29,14 +30,15 @@ import {
 
 const controlPlaneProvider: Provider = {
   provide: CONTROL_PLANE,
-  useFactory: (db: Db, analytics: ProductAnalytics): ControlPlane =>
+  useFactory: (db: Db, analytics: ProductAnalytics, env: AgentHostEnv): ControlPlane =>
     new ControlPlane({
       store: new PostgresControlStore(db),
       eventSchema: controlEventSchema,
       pluginViews: composedPlugins.views,
       appendHooks: [...composedPlugins.control.hooks, analyticsAppendHook(analytics)],
+      targetStates: githubAppTargetStatesOf(env.githubApp),
     }),
-  inject: [DB, PRODUCT_ANALYTICS],
+  inject: [DB, PRODUCT_ANALYTICS, AGENT_HOST_ENV],
 }
 
 const liveFramesProvider: Provider = {

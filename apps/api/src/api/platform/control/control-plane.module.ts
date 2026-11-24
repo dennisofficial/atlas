@@ -1,5 +1,6 @@
 import { Module, type Provider } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
+import { githubAppTargetStatesOf } from '@dltech/atlas-github'
 import { ContextContentStore, ControlPlane } from '@dltech/atlas-control'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import type { ProductAnalytics } from '@dltech/atlas-observability'
@@ -50,14 +51,18 @@ import { SessionDraftsService } from './session-drafts.service'
 
 export const controlPlaneProvider: Provider = {
   provide: ControlPlane,
-  useFactory: (analytics: ProductAnalytics): ControlPlane =>
+  useFactory: (analytics: ProductAnalytics, env: EnvService): ControlPlane =>
     new ControlPlane({
       store: new PostgresControlStore(db),
       eventSchema: eventSchemaOf(registeredPlugins),
       pluginViews: composedPlugins.views,
       appendHooks: [...composedPlugins.control.hooks, analyticsAppendHook(analytics)],
+      targetStates: githubAppTargetStatesOf({
+        appId: env.get('GITHUB_APP_ID'),
+        appPrivateKey: env.get('GITHUB_APP_PRIVATE_KEY'),
+      }),
     }),
-  inject: [PRODUCT_ANALYTICS],
+  inject: [PRODUCT_ANALYTICS, EnvService],
 }
 
 @Module({
