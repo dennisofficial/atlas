@@ -1,6 +1,7 @@
 import { EFontFamily, ETextRole, ETextTone, Text, useTheme } from '@dltech/atlas-ui-native'
 import { radius, space } from '@dltech/atlas-ui/tokens'
-import { type AccessibilityActionEvent, Pressable, StyleSheet, View } from 'react-native'
+import { type AccessibilityActionEvent, StyleSheet, View } from 'react-native'
+import { Pressable } from 'react-native-gesture-handler'
 
 import { relativeTime } from '../lib/relative-time'
 import type { ISessionEntry } from './session-groups'

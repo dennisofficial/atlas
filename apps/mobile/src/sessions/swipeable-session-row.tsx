@@ -2,7 +2,8 @@ import { ETextRole, ETextTone, Icon, Text, useTheme, withAlpha } from '@dltech/a
 import { radius, space } from '@dltech/atlas-ui/tokens'
 import { Archive, ArchiveRestore } from 'lucide-react-native'
 import { type ReactNode, useRef } from 'react'
-import { Pressable, StyleSheet, View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
+import { Pressable } from 'react-native-gesture-handler'
 import ReanimatedSwipeable, {
   type SwipeableMethods,
 } from 'react-native-gesture-handler/ReanimatedSwipeable'
@@ -58,7 +59,11 @@ const ArchiveAction = ({
   const theme = useTheme()
   const label = archived ? 'Unarchive' : 'Archive'
   return (
-    <View style={styles.action}>
+    <View
+      style={styles.action}
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+    >
       <FullSwipeCommit translation={translation} onCommit={onCommit} />
       <Pressable
         accessibilityRole="button"
