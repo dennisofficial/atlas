@@ -37,6 +37,27 @@ describe('pendingOperatorRequestOf', () => {
     expect(pendingOperatorRequestOf({ events })).toBeNull()
   })
 
+  test('two pending calls answer with the earliest one', () => {
+    const events = mintEvents({
+      bodies: [
+        {
+          type: 'tool-parked',
+          callId: toCallId('call-1'),
+          name: 'operator_input',
+          request: { kind: 'input', prompt: 'first' },
+        },
+        {
+          type: 'tool-parked',
+          callId: toCallId('call-2'),
+          name: 'operator_input',
+          request: { kind: 'input', prompt: 'second' },
+        },
+      ] as never,
+    })
+
+    expect(pendingOperatorRequestOf({ events })).toEqual({ callId: 'call-1', prompt: 'first' })
+  })
+
   test('a parked tool that is not the operator is ignored', () => {
     const events = mintEvents({
       bodies: [

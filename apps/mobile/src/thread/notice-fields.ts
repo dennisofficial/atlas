@@ -1,4 +1,5 @@
 import { EEntryKind, type TranscriptEntry } from '@dltech/atlas-client/transcript'
+import { settledRequestTitleOf } from '@dltech/atlas-plugin-operator/client'
 
 export enum ENoticeTone {
   Ok = 'ok',
@@ -54,6 +55,14 @@ export function noticeFieldsOf(entry: TranscriptEntry): {
       return { title: entry.text, body: entry.content, tone: ENoticeTone.Attention }
     case EEntryKind.PrEvent:
       return { title: entry.text, body: entry.body, tone: toneOfFailed(entry.failed) }
+    case EEntryKind.OperatorRequest:
+      return entry.state === 'pending'
+        ? null
+        : {
+            title: settledRequestTitleOf(entry.state),
+            body: entry.reason ?? entry.prompt,
+            tone: entry.state === 'failed' ? ENoticeTone.Failed : ENoticeTone.Quiet,
+          }
     case EEntryKind.PodOom:
       return { title: entry.text, body: entry.command ?? '', tone: ENoticeTone.Failed }
     default:

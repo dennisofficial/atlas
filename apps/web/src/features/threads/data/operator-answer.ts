@@ -1,4 +1,5 @@
 import { httpStatusOf } from '@dltech/atlas-api-router'
+import { answerRefusalOf } from '@dltech/atlas-plugin-operator/client'
 
 import { api } from '@/lib/api-client'
 
@@ -12,24 +13,12 @@ export type CancelOperatorRequestArgs = OperatorAnswerKey
 
 type AnswerBody = (OperatorAnswerKey & { value: string }) | (OperatorAnswerKey & { cancel: true })
 
-const UNREACHABLE = 'the agent host could not be reached'
-const NOT_SIGNED_IN = 'this session is not signed in'
-const SESSION_UNKNOWN = 'this session is unknown to the agent host'
-const REFUSED = 'the agent host refused the answer'
-
-const reasonOf = ({ status }: { status: number }): string => {
-  if (status === 401) return NOT_SIGNED_IN
-  if (status === 404) return `${SESSION_UNKNOWN} (${status})`
-  return `${REFUSED} (${status})`
-}
-
 const answerOf = async (body: AnswerBody): Promise<OperatorAnswerResult> => {
   try {
     await api.operatorRequests.answer.mutate(body)
     return { ok: true }
   } catch (failure) {
-    const status = httpStatusOf(failure)
-    return { ok: false, reason: status === undefined ? UNREACHABLE : reasonOf({ status }) }
+    return { ok: false, reason: answerRefusalOf({ status: httpStatusOf(failure) }) }
   }
 }
 

@@ -2,6 +2,7 @@
 
 import { CircleCheckIcon, CircleSlashIcon, CircleXIcon, ClockIcon } from 'lucide-react'
 
+import { settledRequestTitleOf } from '@dltech/atlas-plugin-operator/client'
 import {
   Trace,
   TraceDescription,
@@ -11,6 +12,9 @@ import {
 } from '@dltech/atlas-ui/components/trace'
 
 import type { RequestItem } from '../data/transcript-items'
+
+const titleOf = (state: RequestItem['state']): string | null =>
+  state === 'pending' ? null : settledRequestTitleOf(state)
 
 function TranscriptRequestSettled({ item }: { item: RequestItem }) {
   const failed = item.state === 'failed'
@@ -23,13 +27,7 @@ function TranscriptRequestSettled({ item }: { item: RequestItem }) {
           {item.state === 'expired' ? <ClockIcon /> : null}
           {failed ? <CircleXIcon /> : null}
         </TraceIcon>
-        <TraceTitle>
-          {item.state === 'delivered' ? 'The operator answered' : null}
-          {item.state === 'cancelled' ? 'The operator cancelled the request' : null}
-          {item.state === 'abandoned' ? 'The session stopped waiting for your answer' : null}
-          {item.state === 'expired' ? 'The request expired' : null}
-          {failed ? "Could not deliver the operator's value" : null}
-        </TraceTitle>
+        <TraceTitle>{titleOf(item.state)}</TraceTitle>
         <TraceDescription className="min-w-0 flex-1 truncate">
           {item.reason ?? item.prompt}
         </TraceDescription>

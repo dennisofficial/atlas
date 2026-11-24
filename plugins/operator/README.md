@@ -24,7 +24,7 @@ Asks the operator for a value that only they have. The `operator_input` tool wri
 | `@dltech/atlas-plugin-operator/core`    | The tool names, the request and outcome schemas, the two event schemas and the result texts. |
 | `@dltech/atlas-plugin-operator/pod`     | `operatorPod`: the two tools and the prompt fragment.                                        |
 | `@dltech/atlas-plugin-operator/control` | `operatorControl`: an empty control slot.                                                    |
-| `@dltech/atlas-plugin-operator/client`  | `operatorClient` and `operatorRequestEntries`: the client slot and the request fold.         |
+| `@dltech/atlas-plugin-operator/client`  | `operatorClient`, the request fold, the pending selector and the shared request copy.        |
 
 ## Capabilities
 
@@ -65,6 +65,12 @@ Asks the operator for a value that only they have. The `operator_input` tool wri
 | Entry fold | `operatorRequestEntries` | Draws the ask card and its outcome in the transcript. |
 
 `operatorClient` has no event hook.
+
+### Show and answer a request
+
+- `pendingOperatorRequestOf({ events })`: the earliest request still pending, or null. Every surface shows that one; each answer closes its own call.
+- `settledRequestTitleOf(state)`: the one-line title of a settled request, such as `The operator answered`.
+- `answerRefusalOf({ status })`: the sentence a surface shows when the answer was refused, from the HTTP status and never a wire code.
 
 ### Control tier (`operatorControl`)
 
