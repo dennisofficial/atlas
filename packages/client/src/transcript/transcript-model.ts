@@ -152,6 +152,7 @@ export type PodOomEntry = {
   author: EAuthor.Model
   key: string
   text: string
+  command: string | undefined
   scope: EOomScope
   processes: number
 }
