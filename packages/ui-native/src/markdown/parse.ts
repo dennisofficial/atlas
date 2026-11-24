@@ -1,5 +1,3 @@
-import { fenceBareJson } from '@dltech/atlas-ui/lib/markdown-json'
-
 import { EMdSpan, type MdSpan, parseInline } from './inline'
 
 export enum EMdBlock {
@@ -227,10 +225,11 @@ const startsBlock = ({ lines, index }: { lines: string[]; index: number }) => {
 
 const readParagraph = ({ lines, start, breaks }: IReadArgs): IRead => {
   const line = lineGetter(lines)
-  const parts = [line(start).trim()]
+  const clean = (text: string) => (breaks ? expandTabs(text).trimEnd() : text.trim())
+  const parts = [clean(line(start))]
   let index = start + 1
   while (index < lines.length && !isBlank(line(index)) && !startsBlock({ lines, index })) {
-    parts.push(line(index).trim())
+    parts.push(clean(line(index)))
     index++
   }
   const separator = breaks ? '\n' : ' '
@@ -270,7 +269,7 @@ const parseBlocks = ({
 
 export const parseMarkdown = (text: string, options?: { breaks?: boolean }): MdBlock[] =>
   parseBlocks({
-    lines: fenceBareJson(text.replace(/\r\n?/g, '\n')).split('\n'),
+    lines: text.replace(/\r\n?/g, '\n').split('\n'),
     depth: 0,
     breaks: options?.breaks === true,
   })

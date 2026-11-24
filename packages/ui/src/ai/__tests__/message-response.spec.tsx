@@ -60,16 +60,21 @@ describe('MessageResponse', () => {
     expect(html.match(/<ol/g)?.length).toBe(2)
   })
 
-  it('renders pasted json in a user message as a code block', () => {
+  it('keeps the indentation of a user message as typed', () => {
+    const source = '1. HI\n  1. Test\n\n{\n  "json": test\n}'
     const html = renderToStaticMarkup(
       <MessageResponse breaks mode="static">
-        {'see this\n{\n  "mcpServers": {\n    "url": "x"\n  }\n}\nthanks'}
+        {source}
       </MessageResponse>,
     )
 
-    expect(html).toContain('data-slot="code-block"')
-    expect(html).toContain('>json<')
-    expect(html).toContain('thanks')
+    expect(html.match(/<ol/g)?.length).toBe(2)
+    expect(html).toContain('\u00a0\u00a0&quot;json&quot;: test')
+    expect(html).not.toContain('data-slot="code-block"')
+  })
+
+  it('leaves agent replies to standard markdown indentation', () => {
+    expect(render('{\n  "json": test\n}')).not.toContain('\u00a0')
   })
 
   it('renders inline code without a code block', () => {
