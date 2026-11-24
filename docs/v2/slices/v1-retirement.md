@@ -1,6 +1,7 @@
 # Spec: v1 retirement (roadmap slice 10)
 
-Status: **draft, waiting for Dennis's approval**. Nothing is built.
+Status: **draft, revision 2**. Dennis's answers of 2026-11-24 are in (§5). Waiting for approval of
+this revision. Nothing is built.
 Anchors are `path:line` at `78e4d7a9e` (origin/main, 2026-11-24). Check an anchor again before you
 rely on it. The raw inventories behind this spec are in `docs/v2/research/v1-retirement/`.
 
@@ -8,19 +9,22 @@ rely on it. The raw inventories behind this spec are in `docs/v2/research/v1-ret
 
 After this work the repository has one architecture: client ↔ control plane (`apps/api`) ↔ pod
 (`packages/agent`, `packages/host`, `apps/daemon`, `plugins/*`). No code, table, workflow step or
-doc keeps v1 alive. A name that says `v2` is only a name (project memory
-`v2-replaces-v1-independently-no-v2-prefix`).
+doc keeps v1 alive. After the rename slices R1 to R5 (§4), no name carries a `v2` or `V2` prefix
+that exists only because v1 existed (project memory `v2-replaces-v1-independently-no-v2-prefix`).
+
+**Rule: never hard-delete historical data.** The v1 code goes. The v1 rows stay, read-only, for
+statistics and metrics later (skill use, charts). Every row a user could see is archived and
+soft-deleted (`archivedAt` and `deletedAt` set). This rule applies to every slice here.
 
 The operator sees these changes:
 - The web app and the Mac app show only v2 sessions. The engine picker and the `v1` badges go.
-- A v1 thread cannot be opened, resumed or woken. Its rows are archived in one dump, then dropped.
+- A v1 thread cannot be opened, resumed or woken. Its rows stay in the database, archived and
+  soft-deleted, in the `v1_archive` schema. No user sees them.
 - The Mac app stays a full v2 cloud client: sign-in, APNs push, notification clicks and deep links
   work as before. The unwired local-pods host goes. Local sessions stay "coming soon".
 - TUI self-update and Mac auto-update keep working with no action from the operator.
 
 Out of scope:
-- Renaming v2-prefixed names (`V2Session`, `useV2Sessions`, the `v2` Postgres schema). This is a
-  separate follow-up, because a table rename is a migration with its own risk.
 - Local sessions (roadmap slice 9, local half).
 - A general dead-export sweep of the shared packages. The routine `abstraction-police` covers it.
 
@@ -87,7 +91,7 @@ Action: **delete**, **edit** (keep the file, remove the v1 part), **move**, or *
 | `apps/api/src/api/cloud/github/github-sandbox-wake*.ts`, `github-local-pod-wake.ts`, `github-thread-activity.ts`                                                                                              | v1 PR wake: boots serve                                                                                                                                                                                                    | v1 trigger task, webhook controllers                                                   | delete (slice 3)                                                                                                                                                     |
 | `apps/api/src/api/cloud/github/github-hook.controller.ts:83-96`, `github-app-hook.controller.ts:53`                                                                                                           | webhook, one URL for v1 wake and v2 delivery                                                                                                                                                                               | GitHub                                                                                 | edit: pass only `deliveries` (slice 3)                                                                                                                               |
 | `packages/github` `GithubLegacyEffects`, legacy outbox kinds (`README.md:24,52,95-96,121-122`)                                                                                                                | v1 seams                                                                                                                                                                                                                   | the v1 wake                                                                            | delete (slice 3)                                                                                                                                                     |
-| `apps/api/src/trigger/**`, `apps/api/trigger.config.ts`, `bun run trigger:deploy`                                                                                                                             | v1 trigger.dev project `proj_yvwotwceptrneuuasamk`: `github-v1-wake-sweep`, `pod-provision`, `stuck-session-sweep`, `archived-sandbox-sweep`, `orphan-sandbox-sweep`, `thread-archive-cleanup`, `push-send`, `atlas-smoke` | trigger.dev schedules. CI does not deploy it (`apps/api/AGENTS.md:368`)                | stop the schedules in step F, delete the code in slice 3, delete the project in slice 7                                                                              |
+| `apps/api/src/trigger/**`, `apps/api/trigger.config.ts`, `bun run trigger:deploy`                                                                                                                             | v1 trigger.dev project `proj_yvwotwceptrneuuasamk`: `github-v1-wake-sweep`, `pod-provision`, `stuck-session-sweep`, `archived-sandbox-sweep`, `orphan-sandbox-sweep`, `thread-archive-cleanup`, `push-send`, `atlas-smoke` | trigger.dev schedules. CI does not deploy it (`apps/api/AGENTS.md:368`)                | stop the schedules in step F, delete the code in slice 3, keep the project disabled, never delete it                                                                 |
 | Env `ATLAS_CLOUD_URL`, `SANDBOX_IMAGE`, `ATLAS_TELEMETRY_PEPPER` (`_core/config/env/sections/sandbox.ts:4,8,14`)                                                                                              | v1 sandbox boot                                                                                                                                                                                                            | wake launch, pod provision                                                             | delete from schema and every `.env.*.enc` (slice 3)                                                                                                                  |
 | Env `PLATFORM_VERCEL_TOKEN/_TEAM_ID/_PROJECT_ID` (`sandbox.ts:9-11`), `EXPO_ACCESS_TOKEN` (`sections/expo.ts:4`)                                                                                              | v1 provisioning, v1 push                                                                                                                                                                                                   | v1 only                                                                                | delete (slice 4)                                                                                                                                                     |
 | Env `SANDBOX_TTL_MINUTES`, `SANDBOX_MAX_SESSION_MINUTES`, `SANDBOX_MAX_ACTIVE_PER_USER` (`sandbox.ts:5-7`)                                                                                                    | no reader                                                                                                                                                                                                                  | none                                                                                   | delete (slice 3)                                                                                                                                                     |
@@ -151,7 +155,8 @@ Action: **delete**, **edit** (keep the file, remove the v1 part), **move**, or *
 ## 4. Slices
 
 Each slice is one PR, leaves main green and deployable, and can be read in one sitting. Slices 1
-and 2 can run in parallel. The order after that is fixed by who reads what.
+and 2 can run in parallel. The order after that is fixed by who reads what. Slices 1 to 8 remove
+v1. Slices R1 to R5 then remove the `v2` prefix.
 
 ```mermaid
 flowchart LR
@@ -162,9 +167,14 @@ flowchart LR
   S3 --> S5["5 delete serve, harness, agent-v1"]
   S2m --> S5
   S5 --> S6["6 sandbox image"]
-  S4 --> S7["7 drop v1 tables"]
+  S4 --> S7["7 archive v1 tables"]
   S5 --> S8["8 docs"]
   S7 --> S8
+  S8 --> R1["R1 view-safe host ids"]
+  R1 --> R2["R2 move and rename tables"]
+  R2 --> R3["R3 drop compat views"]
+  R3 --> R4["R4 rename code names and paths"]
+  R4 --> R5["R5 apps/api source tree"]
 ```
 
 ### Slice 1 — The web app and the Mac renderer show only v2
@@ -245,7 +255,7 @@ commit, and the session gets the CI notice; `GET /v1/health` is 200.
 - Keep the preview wiring (`preview-tunnel.service.ts`, `preview-teardown.service.ts`) in a module
   the v2 host imports.
 - Remove every reader of `PushDevice`, including `auth-session-hooks.ts:4`. Do not touch the schema:
-  the tables drop in slice 7.
+  the tables move in slice 7.
 - Delete `PLATFORM_VERCEL_*` and `EXPO_ACCESS_TOKEN`.
 
 If the PR is too large to review in one sitting, split it at the auth seam (4a) and the router
@@ -274,9 +284,9 @@ arrive.
 
 Validation: `bun run lint`, `bun run typecheck`, `bun run test` at the root; CI `binaries`. Live
 check after the release: the new `tui-v` release has `atlas-{darwin-arm64,darwin-x64,linux-x64}`
-- `.sha256` and the carried `latest-mac.yml`, zip and dmg; `curl -fsI
-https://install.byatlas.io/releases/latest/download/latest-mac.yml` is 200; an installed TUI
-  self-updates to it.
+with their `.sha256` files and the carried `latest-mac.yml`, zip and dmg;
+`curl -fsI https://install.byatlas.io/releases/latest/download/latest-mac.yml` is 200; an installed
+TUI self-updates to it.
 
 ### Slice 6 — The sandbox image drops the serve leftovers
 
@@ -290,68 +300,213 @@ https://install.byatlas.io/releases/latest/download/latest-mac.yml` is 200; an i
 Validation: the `publish` run pushes `sha-`, `tree-` and `latest`, and pins the template to the new
 digest. Live check: a new v2 session boots on the new template, the daemon connects, and bash runs.
 
-### Slice 7 — Drop the v1 tables
+### Slice 7 — Archive the v1 tables
 
-Ship this **after slice 4 is live in production**. The `migrate` job runs before the new image
-serves (`release.yml:58-134`), so a drop in the same deploy as the reader removal breaks the old
-image. This is the pattern of `d3085586866` then `8880fc110`.
-1. Before the merge: one `pg_dump` of the ten tables, stored as decision D3 says.
-2. Migration (`packages/db/migrations/app/<ts>_drop_v1_threads/`):
-   - drop `ComposerDraft.threadId` and its FK (`threads/composer-draft.prisma:5,10`);
-   - delete `GithubSubscription` and `GithubTrackingTarget` rows whose thread id is a v1 `Thread` id
-     (a data step in SQL, not Prisma `delete` with `in`: project memory
-     `prisma8-rc19-delete-in-predicate-bug`);
-   - drop in this order: `CloudSandbox`, `SandboxBootStep`, `Session` (its `mainThreadId` FK is
-     `NO ACTION`), `Event`, `Turn`, `ThreadRead`, `ContextFile`, `Thread`, `LocalPodLease`,
-     `PushDevice`.
-   - Keep `PreviewTunnel`, `PreviewRoute`, `ComposerDraft`: v2 reads them.
-3. Delete the matching `.prisma` files and the `User` relations (`auth/user.prisma:39`).
-4. After the deploy: delete the v1 trigger.dev project.
+Nothing is dropped. The v1 tables move to a new schema `v1_archive`, keep every row, column, index
+and foreign key, and get archived and soft-deleted where a user could see them.
 
-Validation: `prisma db verify --strict` in the pre-deploy; `GET /v1/health` is 200 with no contract
-drift. Live check: database size falls by about 2.8 GB; a v2 session runs; TUI drafts still save.
+Ship this **after slices 3 and 4 are live in production**. The `migrate` job runs while the old
+image still serves (`.github/workflows/release.yml:58-134`). If the archive shipped with the reader
+removal, the old image would get `relation "public.Thread" does not exist` for some minutes.
+
+Why a separate schema and not `public` (decision D2): the rename slices need the names `Session`,
+`Thread`, `Event`, `ContextFile` and `PushDevice` in `public` for the v2 tables. An archive schema
+also makes it clear to an analyst that the data is frozen. `prisma db verify --strict` introspects
+only the schemas the contract declares, so an undeclared `v1_archive` passes verify
+(`docs/v2/research/v1-retirement/rename-plan.md` §1.2).
+1. Migration `packages/db/migrations/app/<ts>_archive_v1/`, hand-written with `rawSql` (the planner
+   cannot move a table to another schema; it would plan drop and create; rename-plan §1.5). One
+   transaction:
+   - `SET LOCAL lock_timeout = '5s'`.
+   - Soft delete: `ALTER TABLE public."Thread" ADD COLUMN "archivedAt" timestamptz(3), ADD COLUMN
+     "deletedAt" timestamptz(3)`; set both to `now()` on every `Thread` row. Set
+     `Session."archivedAt"` and `Session."deletedAt"` to `coalesce(<column>, now())`. Set
+     `CloudSandbox."retiredAt"` to `coalesce("retiredAt", now())`.
+   - `CREATE SCHEMA v1_archive`, then `ALTER TABLE public."<T>" SET SCHEMA v1_archive` for
+     `Session`, `Thread`, `Event`, `Turn`, `ThreadRead`, `ContextFile`, `SandboxBootStep`,
+     `CloudSandbox`, `LocalPodLease`, `PushDevice`. This is a catalog change: it does not copy the
+     2.8 GB. Indexes, constraints, owned sequences and foreign keys move with the table.
+   - `COMMENT ON TABLE` and `COMMENT ON COLUMN` for every archived table and column, so the
+     database documents itself.
+2. The contract deletes `packages/db/src/prisma/schema/threads/{session,thread,event,turn,thread-read,context-file,sandbox-boot-step}.prisma`,
+   `sandboxes/{cloud-sandbox,local-pod-lease}.prisma`, `user-config/push-device.prisma`, and the
+   relation fields that point at them (`auth/user.prisma:37-40` and the other v1 relations there,
+   `projects/project.prisma:21`).
+3. These tables stay in `public` because a live client reads them: `ComposerDraft` (the TUI calls
+   `composerDrafts`, `apps/tui/src/app/session-api.ts:172-181`), `PreviewTunnel`, `PreviewRoute`.
+   `ComposerDraft.threadId` keeps its foreign key into `v1_archive."Thread"`. The contract keeps the
+   relation as a plain column.
+4. `GithubSubscription`, `GithubTrackingTarget` and `GithubPrEventDelivery` rows that name a v1
+   thread id stay. Add a spec that proves the v2 GitHub sweeps skip a thread id that has no
+   `V2Thread` row.
+5. Write `docs/data/v1-archive.md`: one table per archived table, its columns, their meaning, the
+   foreign keys, and three example analytics queries (threads per day, tool calls per tool from
+   `Event`, skill loads). Link it from `packages/db/AGENTS.md`.
+6. The v1 trigger.dev project stays disabled (step F). It is not deleted.
+
+Validation: `bun test` in `packages/db` against a migrated test database; a spec that runs the
+migration on a fixture and asserts row counts and foreign keys are unchanged; `prisma db verify
+--strict`. Live check: `GET /v1/health` is 200; the row counts in `v1_archive` equal the counts in
+§7; every `Thread` and `Session` row has `deletedAt`; a v2 session runs; a TUI draft saves; Dennis
+and the App Review account (`review@byatlas.io`) sign in on iOS and see their v2 sessions.
 
 ### Slice 8 — Docs
 
-Everything in §3.5. `bun scripts/check-package-readmes.ts` passes. The roadmap marks slice 10 Done.
+Everything in §3.5, and decision D6: `docs/v2/*` moves up to `docs/` (the v1
+`docs/architecture.md` is replaced by `docs/v2/architecture.md`, the slices go to `docs/slices/`).
+One `sed` rewrites the links. `bun scripts/check-package-readmes.ts` passes. The roadmap marks
+slice 10 Done and adds the rename slices.
 
-## 5. Decisions for Dennis
+### Rename slices: remove the `v2` prefix
 
-| #   | Question                                                                                                | Recommendation                                                                                                                                                                                      |
-| --- | ------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| D1  | v1 thread history: archive only, or keep a read-only view?                                              | Archive only. A read-only view keeps the v1 routers and about 190 web files alive. v1 traffic ended on 2026-11-23.                                                                                  |
-| D2  | Drop the v1 tables now (slice 7) or keep them some weeks?                                               | Drop in slice 7, one deploy after slice 4. Nothing can read them after slice 4. It frees 2.8 GB of 5.3 GB.                                                                                          |
-| D3  | Keep a dump?                                                                                            | Yes. One `pg_dump` of the ten tables, gzip, in a private Cloudflare R2 bucket, deleted after 90 days.                                                                                               |
-| D4  | Five user ids have v1 rows; another user has v2 sessions. The drop removes all v1 rows, not only yours. | Accept. Those rows cannot be used without v1. Project memory `prod-db-touch-only-dennis-rows` is about row edits; this is a schema drop.                                                            |
-| D5  | Sandbox image: keep the release-triggered Agent37 pin, or pin when the image changes?                   | Pin in `publish`. The pin was per release because serve came per release. The daemon now comes from the API image.                                                                                  |
-| D6  | Docs: move `docs/v2/*` up to `docs/`?                                                                   | Yes, in slice 8. `docs/architecture.md` is deleted anyway, and "v2" stops meaning anything. Keep `docs/v2/slices` links working with one link rewrite.                                              |
-| D7  | Release tag: keep `tui-v<X.Y.Z>`?                                                                       | Keep. Every installed TUI scans `tui-v*` tags (`update-check.ts:49-60`), and the install worker and `mac-release` (`${TAG#tui-v}`) depend on it. A rename needs a dual-tag window for no user gain. |
-| D8  | Old clients that download `atlas-serve-*` from `latest`                                                 | Accept the 404. After slice 3 nothing boots serve: the API wake is gone, the Mac pods host is gone, and the TUI has no v1 path.                                                                     |
-| D9  | Rename v2-prefixed names (`V2Session`, `useV2Sessions`, the `v2` schema)                                | Separate follow-up after slice 8. A table rename is its own migration.                                                                                                                              |
+The facts behind this plan are in `docs/v2/research/v1-retirement/rename-plan.md`. In short:
+- The surface: 24 tables in schema `v2`; `orm.v2.` 210 times in 65 files; raw SQL that names
+  `"v2"."V2…"` in 105 lines of 41 files (54 in `packages/control/src/postgres`); about 27,000
+  `V2…` identifiers in TS and TSX; 96 file and folder names with `v2` outside the migrations and
+  the docs.
+- No public contract carries `v2`: no tRPC router or procedure, HTTP route, env var, trigger.dev
+  task id or NOTIFY channel. So installed TUI, Mac and iOS builds need no alias.
+- Old and new images run against one database during each deploy. A view in the **old** schema
+  under the **old** name keeps the old image working, and `db verify --strict` ignores it. A view
+  under a new name in a declared schema fails verify, so the move and the contract change ship in
+  one deploy.
+- Applied migration folders keep their names (`20261102T0507_v2_record_core` and so on). They are
+  history.
+
+Target names: every `v2` table moves to `public`, and its `V2` prefix goes: `V2Session` becomes
+`Session`, `V2Thread` becomes `Thread`, `V2Host` becomes `Host`, `V2PushDevice` becomes
+`PushDevice`, `V2DiagramRepair` becomes `DiagramRepair`, and so on. One exception:
+`V2ComposerDraft` becomes `SessionDraft`, because `public."ComposerDraft"` stays live for the TUI
+and the router is already called `sessionDrafts`. R2 checks the full list against `public` for
+other collisions before it writes the migration.
+
+#### Slice R1 — Make the old code safe behind a view
+
+No schema change. `apps/api/src/agent/presence/pg-host-presence.ts:81` calls
+`pg_get_serial_sequence('"v2"."V2Host"', 'id')`, which returns NULL through a view. Change the
+insert to omit `id` and use `RETURNING id`. After R1, every statement the API runs on a `v2` table
+works through a single-table view (`SELECT`, `INSERT … ON CONFLICT`, `UPDATE`, `DELETE`,
+`SELECT … FOR UPDATE`).
+
+Validation: `bun test` in `apps/api`; a spec runs the host-presence insert against a view over
+`V2Host` in the test database.
+
+#### Slice R2 — Move and rename the tables (one deploy)
+
+1. A hand-written migration, one transaction: `SET LOCAL lock_timeout = '5s'` and
+   `statement_timeout = '30s'`; for each table, `ALTER TABLE "v2"."V2X" RENAME TO "X"` then
+   `ALTER TABLE "v2"."X" SET SCHEMA public`; then `CREATE VIEW "v2"."V2X" AS SELECT * FROM
+   public."X"` for each table, so the old image and an old `apps/trigger` build keep reading and
+   writing; then recreate the append-only trigger and its function on `public."Event"`
+   (`20261119T2253_v2_event_append_only/migration.ts:21-44`).
+2. The contract: the `namespace v2 { … }` blocks in `packages/db/src/prisma/schema/v2/*.prisma`
+   become plain models with the new names. Move the files to `schema/sessions/` and the other
+   feature folders.
+3. The code, in the same PR: `db.orm.v2.V2X` becomes `db.orm.public.X`; every raw `"v2"."V2X"`
+   becomes `"public"."X"`; `packages/db/src/testing/test-database.ts:91` truncates `public` only.
+   A codemod script does this, and the PR includes it.
+
+If the migration hits the lock timeout, it fails before the deploy and changes nothing. Run it at a
+quiet hour.
+
+Validation: `bun run typecheck` and `bun run test` at the root; `prisma db verify --strict`. A spec
+on the test database runs the old statements through the views and the new statements on the
+tables. Live check during the deploy: a v2 session keeps running while the images change (the turn
+finishes, no stall); after the deploy: a new session, a sub-agent, a routine run, a PR notice, a
+Mac and an iOS push, an image upload.
+
+#### Slice R3 — Drop the compatibility views
+
+Ship after R2 is live and the `apps/trigger` deploy of the same commit is done (an hour is enough).
+A `rawSql` migration drops the 24 views in `v2`, the old trigger function, and the schema `v2` if it
+is empty. Validation: `prisma db verify --strict`; live check as in R2.
+
+#### Slice R4 — Rename the code names and paths
+
+Mechanical, no behaviour change, no schema change. One PR for each area, so each one is readable:
+R4a `packages/{control,host,agent,pods,github,protocol,client}`, R4b `apps/api` and `apps/trigger`,
+R4c `apps/web`, `apps/mobile`, `apps/tui`, `apps/mac`.
+- Type and function names: `V2SessionRow` becomes `SessionRow`, `useV2Sessions` becomes
+  `useSessions`, `isV2Session` and `v2SessionHref` lose the prefix, and so on. Where the name
+  without the prefix is taken by a deleted v1 name, the v1 name is already gone after slice 5.
+- File and folder names: for example `packages/github/src/github-v2-notice.ts`,
+  `packages/pods/src/pods/v2-pod-sweep.ts`, `packages/host/src/holder/record/v2-once-ledger.ts`,
+  `apps/web/src/features/shell/v2-rows.ts`. The full list of 96 is in rename-plan §4.
+- `.github/workflows/trigger-v2.yml` becomes `trigger.yml`. Update the branch protection check
+  name if it names the job.
+- Web `localStorage` keys (`V2_SESSIONS_*`): rename the constants, keep the stored key strings, so
+  no client loses its cache.
+- The split-guard and the boundary specs that name `v2` paths follow the rename.
+
+Validation: `bun run lint`, `bun run typecheck`, `bun run test` at the root; CI `binaries`; a
+grep that finds no `V2[A-Z]` identifier and no `v2` path outside migrations and `docs/research`.
+
+#### Slice R5 — The apps/api source tree
+
+`apps/api/src/api` was "the v1 app" and `apps/api/src/agent` the v2 runtime
+(`apps/api/AGENTS.md:156`). After slice 4, `src/api` holds the cloud and platform modules, and the
+v2 session surface sits in `src/api/platform/control`. R5 starts with a one-page inventory, then
+moves modules so the tree names features, not generations (decision D10). It updates
+`apps/api/AGENTS.md`. No behaviour change.
+
+Validation: `bun test` in `apps/api`; regenerated router with no procedure name change (a spec
+compares the procedure list before and after).
+
+## 5. Decisions
+
+Dennis answered on 2026-11-24. D10 is new in this revision.
+- **D1, v1 history: archived and soft-deleted, never hard-deleted.** The rows stay for statistics.
+  No user sees them. This is a general rule for all data (§1).
+- **D2, where the v1 tables go:** recommendation: a separate schema `v1_archive` (slice 7). Reasons:
+  the rename needs the names in `public`; verify ignores an undeclared schema; analysts see at once
+  that the data is frozen. Foreign keys and columns stay as they are, and `COMMENT ON` plus
+  `docs/data/v1-archive.md` document them.
+- **D3, dump:** not needed, because nothing is dropped.
+- **D4, users with v1 rows:** `dennislysenko@hotmail.com`, `tofik@trycomp.ai` (stopped on
+  2026-10-31), `review@byatlas.io` (App Review demo account) and two `factory+…@atlas.internal`
+  service users (the v1 factory, last used on 2026-09-25). Their v1 rows are archived like all
+  others. Their `User` rows stay. The two factory users keep their `User` rows and have nothing
+  else to use. Atlas does not delete or disable them. The App Review account keeps working, and
+  slices 7 and R2 sign in with it as a live check.
+- **D5, Agent37 template pin:** pin when the image changes (approved).
+- **D6, docs:** move `docs/v2/*` up to `docs/` in slice 8 (approved).
+- **D7, release tag:** keep `tui-v` (approved).
+- **D8, old serve downloads:** accept the 404 (approved).
+- **D9, the `v2` prefix:** removed in this work, in slices R1 to R5 (§4), with no downtime.
+- **D10, the apps/api tree (new):** recommendation: keep the name `src/agent`, because it names the
+  agent host and not a generation. Rename what names a generation (`src/api` as "the v1 app",
+  `platform/control` as the v2 surface) in R5, after a one-page inventory.
 
 ## 6. Risks
 
-| Risk                                                                                | Where                                     | Mitigation                                                                                          |
-| ----------------------------------------------------------------------------------- | ----------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| A release becomes latest without the Mac files, and the Mac feed 404s               | `ci.yml:500-530`                          | Slice 5 does not touch the carry-forward step. Live check `latest-mac.yml` after the first release. |
-| A rename of the tag, asset names or `.sha256` strands every installed TUI           | `self-update-asset.ts:3-8`                | D7. Slice 5 changes no asset name.                                                                  |
-| `SHIPPED_APP_DIRS` and the serve build steps change apart, and a release is skipped | `release-affected.ts:1`, `ci.yml:470-474` | Same PR (slice 5).                                                                                  |
-| A signed-in Mac loses its token after the update                                    | `token-store.ts`                          | Same file format, fixture spec, atomic write (slice 2).                                             |
-| Mac push or clicks break                                                            | `apps/mac/*.js`, `apns-routes.ts`         | Not edited. Live check in slices 1, 2 and 4.                                                        |
-| Cloud routers lose auth when the v1 modules go                                      | `session-or-sandbox.middleware.ts`        | The seam moves first in slice 4.                                                                    |
-| The GitHub webhook stops v2 deliveries                                              | `github-hook.controller.ts:83-96`         | Edit the call, not the controller. Live check in slice 3.                                           |
-| The drop migration breaks the image that still serves                               | `release.yml:58-134`                      | Slice 7 ships one deploy after slice 4.                                                             |
-| The v1 trigger project keeps waking sandboxes against deleted code                  | `proj_yvwotwceptrneuuasamk`               | Step F before slice 3. Delete in slice 7.                                                           |
-| Orphan Vercel sandboxes keep costing money after `CloudSandbox` is dropped          | Vercel team                               | Step F stops them by id before slice 7.                                                             |
-| A new sandbox image breaks pod boot                                                 | `infra/sandbox-image`                     | Slice 6 changes the image once and keeps `atlas-boot.sh`. Live boot check.                          |
+| Risk                                                                                           | Where                                     | Mitigation                                                                                          |
+| ---------------------------------------------------------------------------------------------- | ----------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| A release becomes latest without the Mac files, and the Mac feed 404s                          | `ci.yml:500-530`                          | Slice 5 does not touch the carry-forward step. Live check `latest-mac.yml` after the first release. |
+| A rename of the tag, asset names or `.sha256` strands every installed TUI                      | `self-update-asset.ts:3-8`                | D7. Slice 5 changes no asset name.                                                                  |
+| `SHIPPED_APP_DIRS` and the serve build steps change apart, and a release is skipped            | `release-affected.ts:1`, `ci.yml:470-474` | Same PR (slice 5).                                                                                  |
+| A signed-in Mac loses its token after the update                                               | `token-store.ts`                          | Same file format, fixture spec, atomic write (slice 2).                                             |
+| Mac push or clicks break                                                                       | `apps/mac/*.js`, `apns-routes.ts`         | Not edited. Live check in slices 1, 2, 4 and R2.                                                    |
+| Cloud routers lose auth when the v1 modules go                                                 | `session-or-sandbox.middleware.ts`        | The seam moves first in slice 4.                                                                    |
+| The GitHub webhook stops v2 deliveries                                                         | `github-hook.controller.ts:83-96`         | Edit the call, not the controller. Live check in slice 3.                                           |
+| The archive migration breaks the image that still serves                                       | `release.yml:58-134`                      | Slice 7 ships after slices 3 and 4 are live.                                                        |
+| The planner turns a schema move into drop and create, and data is lost                         | Prisma 8 rc.19                            | Slices 7 and R2 use hand-written `rawSql` moves. A fixture spec asserts row counts.                 |
+| A user delete cascades into the archive                                                        | archived FKs to `User`                    | Accepted: FKs stay as they are (D2). Atlas does not delete users.                                   |
+| R2 waits on a lock and stalls live traffic                                                     | R2 migration                              | `lock_timeout` 5 s. The migration fails before the deploy and changes nothing.                      |
+| `verify --strict` fails after R2 has changed the schema, and the deploy stops                  | `scripts/predeploy.mjs`                   | The compat views keep the old image working. Fix forward. A test-database spec runs verify first.   |
+| An old image or an old `apps/trigger` build writes through a view in a way a view cannot serve | R1, R2                                    | R1 removes the one known case. R3 waits for the trigger deploy.                                     |
+| The v1 trigger project keeps waking sandboxes against deleted code                             | `proj_yvwotwceptrneuuasamk`               | Step F disables it before slice 3.                                                                  |
+| Orphan Vercel sandboxes keep costing money                                                     | Vercel team                               | Step F stops them by id.                                                                            |
+| A new sandbox image breaks pod boot                                                            | `infra/sandbox-image`                     | Slice 6 changes the image once and keeps `atlas-boot.sh`. Live boot check.                          |
 
 ## 7. Production state (read-only, 2026-11-24)
 
 - v1 tables: 2.80 GB of 5,363 MB. `Event` has 1,086,758 rows (2,765 MB); `Thread` 3,478;
-  `Session` 990; `CloudSandbox` 455; `ContextFile` 1,988; `SandboxBootStep` 17,840.
+  `Session` 990; `CloudSandbox` 455; `ContextFile` 1,988; `SandboxBootStep` 17,840. All of it stays
+  (D1).
 - v1 activity: 25k to 75k events a day from 11-03 to 11-19, 3,898 on 11-20, none on 11-21 and
   11-22, 412 on 11-23. The newest v1 event is 2026-11-23 22:41 UTC.
 - `CloudSandbox`: 455 rows, 433 retired, 448 parked, 7 marked running but not touched since
   2026-09-25. 434 rows are Dennis's. The newest serve version is 1.331.0.
+- Five user ids have v1 rows (D4).
 - v2 is live: 608 sessions, the newest on 2026-11-24.
 - No `v2` table has a foreign key into `public`, and no id is shared between v1 and v2 rows.
