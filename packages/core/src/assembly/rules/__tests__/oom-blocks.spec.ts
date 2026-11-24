@@ -89,7 +89,7 @@ describe('an out-of-memory ending told to the model', () => {
   it('tells the model about an unowned kill on the pod', () => {
     const block = podOomBlock(oomIncident())
 
-    expect(block).toContain('A process on the pod ran out of memory')
+    expect(block).toContain('Pod ran out of memory: the kernel killed')
     expect(block).toContain(LIMIT_PHRASE)
     expect(block).toContain('Only the operator can give the pod more memory')
   })

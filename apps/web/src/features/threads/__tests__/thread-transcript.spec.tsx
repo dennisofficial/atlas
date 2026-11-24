@@ -290,7 +290,7 @@ describe('ThreadTranscript harness notices', () => {
     })
 
     expect(document.body.textContent ?? '').toContain(
-      "`bunx turbo run typecheck` ran out of memory (commands may use 2.3 GB of the pod's 4 GB)",
+      "Pod ran out of memory: the kernel killed `turbo run` (commands may use 2.3 GB of the pod's 4 GB)",
     )
     const button = [...document.body.querySelectorAll('button')].find(
       (candidate) => candidate.textContent === 'Change pod size',

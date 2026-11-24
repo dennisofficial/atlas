@@ -55,7 +55,7 @@ export function noticeFieldsOf(entry: TranscriptEntry): {
     case EEntryKind.PrEvent:
       return { title: entry.text, body: entry.body, tone: toneOfFailed(entry.failed) }
     case EEntryKind.PodOom:
-      return { title: entry.text, body: '', tone: ENoticeTone.Failed }
+      return { title: entry.text, body: entry.command ?? '', tone: ENoticeTone.Failed }
     default:
       return null
   }

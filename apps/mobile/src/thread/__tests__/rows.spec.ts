@@ -176,18 +176,24 @@ describe('rowsOf', () => {
 
   it('turns a pod out-of-memory record into a failed notice row', () => {
     const text =
-      "`bunx turbo run typecheck` ran out of memory (commands may use 2.3 GB of the pod's 4 GB)"
+      "Pod ran out of memory: the kernel killed `turbo run` (commands may use 2.3 GB of the pod's 4 GB)"
     const rows = rowsNow([
       {
         kind: EEntryKind.PodOom,
         author: EAuthor.Model,
         key: 'oom',
         text,
+        command: 'bunx turbo run typecheck',
         scope: EOomScope.Command,
         processes: 12,
       },
     ])
-    expect(rows[0]).toMatchObject({ kind: ERowKind.Notice, title: text, tone: ENoticeTone.Failed })
+    expect(rows[0]).toMatchObject({
+      kind: ERowKind.Notice,
+      title: text,
+      body: 'bunx turbo run typecheck',
+      tone: ENoticeTone.Failed,
+    })
   })
 
   it('turns a model fallback into an attention row with its reason', () => {
