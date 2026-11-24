@@ -6,6 +6,7 @@ import {
   startFailureOf,
 } from '@dltech/atlas-client/stream'
 import { turnStartedAtOf } from '@dltech/atlas-client/transcript'
+import type { Attachment } from '@dltech/atlas-core'
 import { randomUUID } from 'expo-crypto'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
@@ -46,7 +47,7 @@ export type V2SessionScreen = V2ThreadView & {
   restored: { token: number; text: string } | undefined
   notice: string | undefined
   loadOlder: () => Promise<number>
-  send: (message: { text: string }) => Promise<boolean>
+  send: (message: { text: string; attachments: Attachment[] }) => Promise<boolean>
   stop: () => void
   retry: () => Promise<void>
   reconnect: () => void
@@ -121,9 +122,10 @@ export function useV2SessionScreen(args: {
   )
 
   const send = useCallback(
-    async (message: { text: string }): Promise<boolean> => {
+    async (message: { text: string; attachments: Attachment[] }): Promise<boolean> => {
       const text = message.text.trim()
-      if (api === undefined || text.length === 0) return false
+      const attachments = message.attachments
+      if (api === undefined || (text.length === 0 && attachments.length === 0)) return false
       const clientId = clientIdOfSend({
         retry: retryClientId.current,
         mint: () => randomUUID(),
@@ -135,13 +137,14 @@ export function useV2SessionScreen(args: {
           text,
           clientId,
           sentAt: new Date().toISOString(),
+          ...(attachments.length === 0 ? {} : { attachments }),
         })
       } catch {
         return false
       }
       retryClientId.current = undefined
       setNotice(undefined)
-      setStaged((current) => [...current, { clientId, text }])
+      setStaged((current) => [...current, { clientId, text, attachments }])
       return true
     },
     [api, sessionId],

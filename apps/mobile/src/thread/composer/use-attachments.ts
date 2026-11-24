@@ -7,7 +7,9 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 
 import { useAuth } from '../../auth/auth-provider'
 import {
+  attachRouteOf,
   attachmentsOf,
+  EAttachRoute,
   EAttachmentStatus,
   hasFailed,
   isUploading,
@@ -18,6 +20,7 @@ import {
   tooLargeNotice,
   uploadFailedNotice,
   withFailed,
+  withMediaReady,
   withProgress,
   withReady,
   withoutAttachment,
@@ -25,6 +28,7 @@ import {
   type PickedFile,
 } from './attachment-plan'
 import { putBytes, sizeOfFile, type UploadHandle } from './put-bytes'
+import { storeMedia } from './store-media'
 
 export type ComposerAttachments = {
   held: readonly HeldAttachment[]
@@ -92,7 +96,7 @@ export function useAttachments(): ComposerAttachments {
     [api],
   )
 
-  const upload = useCallback(
+  const uploadFile = useCallback(
     async (args: { id: string; file: PickedFile }) => {
       if (api === undefined) {
         update((current) => withFailed({ held: current, id: args.id }))
@@ -136,6 +140,52 @@ export function useAttachments(): ComposerAttachments {
     [api, discard, holds, update],
   )
 
+  const uploadMedia = useCallback(
+    async (args: { id: string; file: PickedFile }): Promise<boolean> => {
+      if (api === undefined) return false
+      try {
+        const hash = await storeMedia({
+          api: {
+            presign: (input) => api.media.presign.mutate(input),
+            confirm: (input) => api.media.confirm.mutate(input),
+          },
+          file: args.file,
+          onProgress: (progress) =>
+            update((current) => withProgress({ held: current, id: args.id, progress })),
+          onHandle: (handle) => handles.current.set(args.id, handle),
+        })
+        if (!holds(args.id)) return true
+        update((current) => withMediaReady({ held: current, id: args.id, hash }))
+        return true
+      } catch {
+        return false
+      } finally {
+        handles.current.delete(args.id)
+      }
+    },
+    [api, holds, update],
+  )
+
+  const upload = useCallback(
+    async (args: { id: string; file: PickedFile }) => {
+      try {
+        const file =
+          args.file.size > 0 ? args.file : { ...args.file, size: await sizeOfFile(args.file.uri) }
+        if (
+          attachRouteOf(file) === EAttachRoute.Media &&
+          (await uploadMedia({ id: args.id, file }))
+        )
+          return
+        await uploadFile({ id: args.id, file })
+      } catch {
+        if (!holds(args.id)) return
+        update((current) => withFailed({ held: current, id: args.id }))
+        setNotice(uploadFailedNotice(args.file.name))
+      }
+    },
+    [holds, update, uploadFile, uploadMedia],
+  )
+
   const attach = useCallback(
     (files: PickedFile[]): void => {
       setNotice(null)
@@ -164,6 +214,8 @@ export function useAttachments(): ComposerAttachments {
       allowsMultipleSelection: true,
       selectionLimit: MAX_MESSAGE_UPLOADS,
       quality: 1,
+      preferredAssetRepresentationMode:
+        ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
     })
     if (result.canceled) return
     attach(result.assets.map(pickedPhoto))

@@ -36,7 +36,7 @@ const snapshotOf = (args: { events?: readonly unknown[]; working?: boolean }): S
   fromCache: false,
 })
 
-const STAGED = [{ clientId: 'client-a', text: 'first' }]
+const STAGED = [{ clientId: 'client-a', text: 'first', attachments: [] }]
 
 describe('stagedRowsOf', () => {
   it('puts a staged message at the end of the transcript while the agent is idle', () => {
@@ -46,6 +46,22 @@ describe('stagedRowsOf', () => {
     expect(rows[0]?.id).toBe('client-a')
     expect(rows[0]?.kind === ERowKind.Message ? rows[0].author : undefined).toBe(EMessageAuthor.You)
     expect(rows[0]?.kind === ERowKind.Message ? rows[0].staged : undefined).toBe(true)
+  })
+
+  it('shows the attachments of a staged message', () => {
+    const media = {
+      id: `media:${'a'.repeat(64)}`,
+      name: 'shot.png',
+      mediaType: 'image/png',
+      size: 4,
+      content: { store: 'media' as const, hash: 'a'.repeat(64) },
+    }
+    const rows = stagedRowsOf({
+      snapshot: snapshotOf({}),
+      staged: [{ clientId: 'client-a', text: '', attachments: [media] }],
+      now: 0,
+    })
+    expect(rows[0]?.kind === ERowKind.Message ? rows[0].attachments : []).toEqual([media])
   })
 
   it('puts a staged message in the dock, not the transcript, while a turn is open', () => {

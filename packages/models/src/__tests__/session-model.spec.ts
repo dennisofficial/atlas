@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EEffort } from '@dltech/atlas-core'
+import { EEffort, UnknownModelRefError } from '@dltech/atlas-core'
 
 import {
   defaultMainModelOf,
@@ -110,9 +110,19 @@ describe('sessionModelOf', () => {
     expect(chosen.effort).toBe(EEffort.Low)
   })
 
-  it('refuses an unparseable model ref', () => {
-    expect(() => askOf({ inputs: NO_ACCOUNTS, ask: { ref: 'not-a-ref' } })).toThrow(
-      'unknown model not-a-ref',
+  it('refuses a bare model id with the typed error and the refs that carry it', () => {
+    const refusal = () => askOf({ inputs: NO_ACCOUNTS, ask: { ref: 'claude-opus-5-5' } })
+
+    expect(refusal).toThrow(UnknownModelRefError)
+    expect(refusal).toThrow(
+      'Unknown model "claude-opus-5-5". Use the form "<provider>/<model>". Did you mean anthropic/claude-opus-5-5 or inference/claude-opus-5-5?',
     )
+  })
+
+  it('refuses a malformed model ref with the typed error and no hint', () => {
+    const refusal = () => askOf({ inputs: NO_ACCOUNTS, ask: { ref: 'anthropic/' } })
+
+    expect(refusal).toThrow(UnknownModelRefError)
+    expect(refusal).toThrow('Unknown model "anthropic/". Use the form "<provider>/<model>".')
   })
 })
