@@ -50,6 +50,7 @@ export const Transcript = ({
   rows,
   working,
   threadId,
+  sessionId,
   onLoadOlder,
   agentLinks,
   onOpenAgent,
@@ -58,6 +59,7 @@ export const Transcript = ({
   working: boolean
   now: number
   threadId: string | undefined
+  sessionId?: string | undefined
   onLoadOlder?: (() => Promise<number>) | undefined
   agentLinks?: AgentLinks | undefined
   onOpenAgent?: ((agentId: string) => void) | undefined
@@ -73,7 +75,9 @@ export const Transcript = ({
   const renderRow = useCallback<ListRenderItem<ThreadRow>>(
     ({ item }) => (
       <View style={styles.item}>
-        {item.kind === ERowKind.Message ? <MessageRowView row={item} threadId={threadId} /> : null}
+        {item.kind === ERowKind.Message ? (
+          <MessageRowView row={item} threadId={threadId} sessionId={sessionId} />
+        ) : null}
         {item.kind === ERowKind.Work ? <WorkRowView row={item} onOpenAgent={onOpenAgent} /> : null}
         {item.kind === ERowKind.Notice ? (
           <NoticeRowView
@@ -84,7 +88,7 @@ export const Transcript = ({
         ) : null}
       </View>
     ),
-    [threadId, agentLinks, onOpenAgent],
+    [threadId, sessionId, agentLinks, onOpenAgent],
   )
 
   const scrollToEnd = () => listRef.current?.scrollToEnd({ animated: settled.current })

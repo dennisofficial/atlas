@@ -5,6 +5,7 @@ import {
   type SessionSnapshot,
 } from '@dltech/atlas-client/stream'
 import { deriveTranscript, overlayStepOf } from '@dltech/atlas-client/transcript'
+import type { Attachment } from '@dltech/atlas-core'
 
 import { EMessageAuthor, ERowKind, rowsOf, type ThreadRow } from '../rows'
 import { v2EntryFolds } from './registered-plugins'
@@ -17,7 +18,11 @@ export type V2ThreadView = {
   lastUserRowId: string | null
 }
 
-const stagedRowOf = (entry: { clientId: string; text: string }): ThreadRow => ({
+const stagedRowOf = (entry: {
+  clientId: string
+  text: string
+  attachments: readonly Attachment[]
+}): ThreadRow => ({
   kind: ERowKind.Message,
   id: entry.clientId,
   author: EMessageAuthor.You,
@@ -25,13 +30,13 @@ const stagedRowOf = (entry: { clientId: string; text: string }): ThreadRow => ({
   text: entry.text,
   streaming: false,
   steer: false,
-  attachments: [],
+  attachments: [...entry.attachments],
   staged: true,
 })
 
 const stagedSplitOf = (args: {
   snapshot: SessionSnapshot
-  staged: readonly { clientId: string; text: string }[]
+  staged: readonly { clientId: string; text: string; attachments: readonly Attachment[] }[]
 }) =>
   stagedPlacementOf({
     staged: args.staged,
@@ -41,7 +46,7 @@ const stagedSplitOf = (args: {
 
 export const stagedRowsOf = (args: {
   snapshot: SessionSnapshot
-  staged: readonly { clientId: string; text: string }[]
+  staged: readonly { clientId: string; text: string; attachments: readonly Attachment[] }[]
   now: number
 }): ThreadRow[] => stagedSplitOf(args).transcript.map(stagedRowOf)
 

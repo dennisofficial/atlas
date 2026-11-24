@@ -116,6 +116,26 @@ describe('storeImage', () => {
     })
     expect(seen).toEqual([{ bytes: pngBytes().byteLength, mediaType: 'image/png' }])
   })
+
+  it('uses the hash the caller supplies instead of sha256', async () => {
+    const made = recorder({ exists: true })
+    const hashed: number[] = []
+    const hash = await storeImage({
+      bytes: pngBytes(),
+      mediaType: 'image/png',
+      api: made.api,
+      put: made.put,
+      onProgress: () => undefined,
+      onHandle: () => undefined,
+      hashOf: async (bytes) => {
+        hashed.push(bytes.byteLength)
+        return HASH_A
+      },
+    })
+    expect(hash).toBe(HASH_A)
+    expect(hashed).toEqual([pngBytes().byteLength])
+    expect(made.calls).toEqual(['presign'])
+  })
 })
 
 describe('postInputOf', () => {

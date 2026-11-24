@@ -42,6 +42,7 @@ export default function AgentScreen() {
           working={agent.working}
           now={agent.now}
           threadId={agentId}
+          sessionId={sessionId}
           onLoadOlder={agent.loadOlder}
           agentLinks={agent.agentLinks}
           onOpenAgent={handleOpenAgent}

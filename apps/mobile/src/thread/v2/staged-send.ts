@@ -1,7 +1,7 @@
-import type { V2Event } from '@dltech/atlas-core'
+import type { Attachment, V2Event } from '@dltech/atlas-core'
 import { ALREADY_SENT_REASON, EStagedOutcome, stagedOutcomesOf } from '@dltech/atlas-client/stream'
 
-export type StagedSend = { clientId: string; text: string }
+export type StagedSend = { clientId: string; text: string; attachments: readonly Attachment[] }
 
 export type StagedSettlement = {
   kept: StagedSend[]
