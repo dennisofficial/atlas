@@ -94,14 +94,14 @@ describe('pullRequestSnapshotOf', () => {
     })
   })
 
-  it('says so when the head has no checks', () => {
+  it('still expects a CI notice when the head has no checks yet, because CI may not have started', () => {
     const snapshot = pullRequestSnapshotOf({
       ...PR,
       checks: { tally: { passed: 0, failed: 0, running: 0, ignored: 0 }, failedNames: [] },
     })
     expect(snapshot.facts).toEqual(['ready for review, head a1b2c3d', 'mergeable'])
     expect(snapshot.next).toBe(
-      'No checks are reported for this head, so no CI notice comes. The next notices are a new push, a comment or review, or a merge or close.',
+      'No checks are reported for this head yet. If CI starts on it, a CI notice follows when it settles.',
     )
   })
 

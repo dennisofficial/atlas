@@ -64,7 +64,7 @@ const nextOf = (checks: PullRequestChecks | undefined): string => {
   if (checks === undefined) return `CI state is not known now. ${settled}`
   if (checks.tally.running > 0) return 'A CI notice follows when it settles.'
   if (reportedChecks(checks.tally) === 0) {
-    return `No checks are reported for this head, so no CI notice comes. ${settled}`
+    return 'No checks are reported for this head yet. If CI starts on it, a CI notice follows when it settles.'
   }
   return `No CI notice comes for this head. ${settled}`
 }
