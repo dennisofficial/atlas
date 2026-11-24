@@ -53,10 +53,10 @@ describe('the quality hook through the dispatcher', () => {
     expect(tool.invocations[0]?.captureFileChanges).toBe(true)
     expect(drafts.map((draft) => draft.type)).toEqual([
       'tool-result',
-      'context-loaded',
       'code-quality-reviewed',
+      'context-loaded',
     ])
-    expect(drafts[1]).toMatchObject({ slot: 'quality-review', key: CALL })
+    expect(drafts[2]).toMatchObject({ slot: 'quality-review', key: 'src/widget.ts' })
     expect(textOf(drafts)).toContain('Code quality note')
   })
 
@@ -87,7 +87,7 @@ describe('the quality hook through the dispatcher', () => {
   })
 
   it('asks no tool to capture when the quality setting is off', async () => {
-    const rig = createRig({ settings: { enabled: false, policies: {} } })
+    const rig = createRig({ settings: { enabled: false, policies: {}, examples: false } })
     const tool = new WriteTool()
 
     const drafts = await new HookedToolDispatcher({

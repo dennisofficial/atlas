@@ -19,6 +19,8 @@ import {
   markdownComponents,
   type MarkdownLinkClick,
 } from './internal/markdown-elements'
+import { keepLeadingSpaces } from './internal/markdown-indent'
+import { nestUnderIndentedListItems } from './internal/markdown-lists'
 import { starRuleHandler } from './internal/markdown-rules'
 import { repairTableDelimiters } from './internal/markdown-tables'
 import { mermaidOptions } from './internal/mermaid-theme'
@@ -65,7 +67,10 @@ export const MessageResponse = memo(
     ...props
   }: MessageResponseProps) {
     const merged = useMemo(() => ({ ...markdownComponents, ...components }), [components])
-    const markdown = useMemo(() => repairTableDelimiters(children ?? ''), [children])
+    const markdown = useMemo(() => {
+      const repaired = nestUnderIndentedListItems(repairTableDelimiters(children ?? ''))
+      return breaks ? keepLeadingSpaces(repaired) : repaired
+    }, [children, breaks])
     const message = useMemo(
       () =>
         repairDiagrams

@@ -11,6 +11,7 @@ import {
   pendingMessagesOf,
   pendingNoticesOf,
   queuedSinceOf,
+  queuedSinceOfInbox,
   stepPending,
 } from '../pending-inputs'
 import { initialStatusFacts, stepStatusFacts } from '../views/status-facts'
@@ -202,6 +203,27 @@ describe('queuedSinceOf', () => {
       log([posted({ inboxId: 1, postedAt: LATER }), posted({ inboxId: 2, postedAt: EARLIER })]),
     )
     expect(queuedSinceOf(state)).toBe(LATER)
+  })
+})
+
+describe('queuedSinceOfInbox', () => {
+  it('dates the queue from the oldest message the log never posted', () => {
+    expect(
+      queuedSinceOfInbox([
+        { kind: EInputKind.Message, postedAt: LATER, consumedSeq: null },
+        { kind: EInputKind.Message, postedAt: EARLIER, consumedSeq: null },
+      ]),
+    ).toBe(EARLIER)
+  })
+
+  it('ignores consumed rows, commands and notices', () => {
+    expect(
+      queuedSinceOfInbox([
+        { kind: EInputKind.Message, postedAt: EARLIER, consumedSeq: 12 },
+        { kind: commandInputKind('summarise'), postedAt: EARLIER, consumedSeq: null },
+        { kind: 'event', postedAt: EARLIER, consumedSeq: null },
+      ]),
+    ).toBeNull()
   })
 })
 

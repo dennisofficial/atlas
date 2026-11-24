@@ -80,3 +80,12 @@ export const pendingRecordsOf = (state: PendingInputsState): readonly PendingInp
 
 export const queuedSinceOf = (state: PendingInputsState): string | null =>
   pendingMessagesOf(state)[0]?.at ?? null
+
+export type QueuedInboxRow = { kind: string; postedAt: string; consumedSeq: number | null }
+
+export const queuedSinceOfInbox = (rows: readonly QueuedInboxRow[]): string | null =>
+  rows.reduce<string | null>((earliest, row) => {
+    if (row.consumedSeq !== null || !isMessageInputKind(row.kind)) return earliest
+    if (earliest === null) return row.postedAt
+    return Date.parse(row.postedAt) < Date.parse(earliest) ? row.postedAt : earliest
+  }, null)

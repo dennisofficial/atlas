@@ -105,7 +105,6 @@ export const rigOf = (
       exposePort: unsupported,
       memory: {} as never,
       mcp: EMPTY_MCP_CONTROL,
-      webSearch: { config: async () => ({ backend: undefined, key: undefined }) },
       gateway: { apiKey: async () => apiKey, imageModel: async () => imageModel },
       routines: EMPTY_ROUTINES,
       subscriptions: EMPTY_SUBSCRIPTIONS,

@@ -55,6 +55,7 @@ const ACTIVE_STATUSES: readonly ESessionStatus[] = [
   ESessionStatus.Queued,
   ESessionStatus.Thinking,
   ESessionStatus.RunningTool,
+  ESessionStatus.RunningCommand,
   ESessionStatus.WaitingToRetry,
   ESessionStatus.Resuming,
 ]

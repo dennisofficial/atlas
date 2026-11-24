@@ -1,4 +1,4 @@
-import type { InboxEntry, ThreadId } from '@dltech/atlas-core'
+import { EInputKind, type InboxEntry, type ThreadId } from '@dltech/atlas-core'
 
 import type { State } from './memory-state'
 
@@ -68,6 +68,18 @@ export const readInboxEntriesIn = (params: {
     .sort((a, b) => a.inboxId - b.inboxId)
     .slice(0, params.limit)
     .map((entry) => ({ ...entry }))
+
+export const firstUnconsumedMessagesIn = (params: {
+  state: State
+  sessionIds: readonly string[]
+}): InboxEntry[] =>
+  params.sessionIds.flatMap((sessionId) => {
+    const first = (params.state.inbox.get(sessionId) ?? [])
+      .filter((entry) => entry.consumedSeq === null)
+      .filter((entry) => entry.kind === EInputKind.Message && entry.threadId === null)
+      .sort((left, right) => left.inboxId - right.inboxId)[0]
+    return first === undefined ? [] : [{ ...first }]
+  })
 
 export const recentInboxEntriesIn = (params: {
   state: State

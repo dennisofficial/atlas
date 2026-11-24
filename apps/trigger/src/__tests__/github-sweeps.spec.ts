@@ -3,17 +3,15 @@ import { describe, expect, it, mock } from 'bun:test'
 import { triggerSdkFake } from './trigger-sdk.fake'
 
 mock.module('@trigger.dev/sdk', () => triggerSdkFake)
-mock.module('../trigger/github/github-sweep-graph', () => ({
+mock.module('../github/github-sweep-graph', () => ({
   withGithubSweeps: <T>(args: { run: (graph: unknown) => Promise<T> }): Promise<T> => args.run({}),
 }))
 
-const { githubHookSweepTask } = await import('../trigger/github/github-hook-sweep.task')
-const { githubPollSweepTask } = await import('../trigger/github/github-poll-sweep.task')
-const { githubWebhookReconcileTask } = await import(
-  '../trigger/github/github-webhook-reconcile.task'
-)
+const { githubHookSweepTask } = await import('../github/github-hook-sweep.task')
+const { githubPollSweepTask } = await import('../github/github-poll-sweep.task')
+const { githubWebhookReconcileTask } = await import('../github/github-webhook-reconcile.task')
 const { runGithubHookSweep, runGithubPollSweep, runGithubWebhookReconcile } = await import(
-  '../trigger/github/github-sweeps'
+  '../github/github-sweeps'
 )
 
 const recordingHookSweep = (calls: string[]) => ({

@@ -16,8 +16,6 @@ import { fakeMemory, rig } from './support'
 
 const assembled: Assembled = { system: [{ text: 'You are Atlas.' }], messages: [] }
 
-const UNAVAILABLE = 'Memory is unavailable this session: the memory index could not be loaded.'
-
 const rowOf = (patch: { name?: string; description?: string } = {}) => ({
   scope: 'global' as const,
   name: patch.name ?? 'dennis-prefers-bun',
@@ -139,9 +137,9 @@ describe('the memory index block', () => {
     expect(render({ ctx: freshCtx })).toBe(listed)
   })
 
-  it('says the index is unavailable until a load is recorded', async () => {
+  it('adds no block until a load is recorded, so the prompt never carries a pending failure', async () => {
     const recorded: V2Event[] = []
-    expect(render({ ctx: { events: () => recorded } })).toBe(UNAVAILABLE)
+    expect(withMemoryIndex({ assembled, ctx: { events: () => recorded } })).toEqual(assembled)
 
     const failing: PodMemory = {
       ...fakeMemory().port,
@@ -152,11 +150,13 @@ describe('the memory index block', () => {
     const failed = record({ memory: failing, recorded })
     await expect(failed).rejects.toThrow('the control plane rejected the call (500): boom')
     expect(recorded).toEqual([])
-    expect(render({ ctx: { events: () => recorded } })).toBe(UNAVAILABLE)
+    expect(withMemoryIndex({ assembled, ctx: { events: () => recorded } })).toEqual(assembled)
 
     const memory = fakeMemory()
     await memory.port.write(rowOf())
     await record({ memory: memory.port, recorded })
-    expect(render({ ctx: { events: () => recorded } })).toContain('### Global')
+    const once = withMemoryIndex({ assembled, ctx: { events: () => recorded } })
+    expect(once.system[1]?.text).toContain('### Global')
+    expect(once).toEqual(withMemoryIndex({ assembled, ctx: { events: () => recorded } }))
   })
 })

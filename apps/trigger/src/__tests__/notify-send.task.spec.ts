@@ -14,8 +14,8 @@ import {
 
 mock.module('@trigger.dev/sdk', () => triggerSdkFake)
 
-const { runNotifySend } = await import('../trigger/notify/notify-send.task')
-const { runNotifyTest, testNotificationOf } = await import('../trigger/notify/notify-test.task')
+const { runNotifySend } = await import('../notify/notify-send.task')
+const { runNotifyTest, testNotificationOf } = await import('../notify/notify-test.task')
 
 const PAYLOAD = {
   sessionId: 'session-1',

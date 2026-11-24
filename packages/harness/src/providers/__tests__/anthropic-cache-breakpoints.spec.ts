@@ -106,17 +106,15 @@ describe('the breakpoints the default annotators place', () => {
     })
   })
 
-  it('reaches the wire as cache_control on the last history block, before the step reminder', async () => {
+  it('reaches the wire as cache_control on the last durable block, since no volatile tail follows it', async () => {
     const body = await sentBody()
     const last = body.messages[body.messages.length - 1]?.content ?? []
-    const reminder = last[last.length - 1]
-    const history = last[last.length - 2]
 
-    expect(reminder?.cache_control).toBeUndefined()
-    expect(history?.cache_control).toEqual({
+    expect(last[last.length - 1]?.cache_control).toEqual({
       type: 'ephemeral',
       ttl: ECacheTtl.OneHour,
     })
+    expect(last.filter((block) => block.cache_control !== undefined)).toHaveLength(1)
   })
 
   it('stays inside the four breakpoints Anthropic accepts', async () => {

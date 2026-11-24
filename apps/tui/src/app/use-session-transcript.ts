@@ -13,6 +13,7 @@ import {
   type OverlaySignalSource,
   type SessionSnapshot,
 } from '@dltech/atlas-client/stream'
+import type { QuickStopEvidence } from '@dltech/atlas-client/session'
 import type { InFlightStep, TranscriptModel } from '@dltech/atlas-client/transcript'
 
 import { createConversationStore } from '../store/conversation-store'
@@ -37,6 +38,7 @@ export type SessionTranscript = {
   loadOlder: () => Promise<number>
   events: readonly Event[]
   rawEvents: readonly V2Event[]
+  quickStops: readonly QuickStopEvidence[]
   status: SessionStatusOutput | undefined
   pending: PendingInputsState
   working: boolean
@@ -71,6 +73,7 @@ export function useSessionTranscript(args: {
   const followed = useRef<FollowedSession | undefined>(undefined)
   const [connection, setConnection] = useState<ESessionConnection>(NOT_CONNECTED)
   const [rawEvents, setRawEvents] = useState<readonly V2Event[]>([])
+  const [quickStops, setQuickStops] = useState<readonly QuickStopEvidence[]>([])
   const [status, setStatus] = useState<SessionStatusOutput | undefined>(undefined)
   const [pending, setPending] = useState<PendingInputsState>(EMPTY_PENDING)
   const [working, setWorking] = useState(false)
@@ -108,6 +111,7 @@ export function useSessionTranscript(args: {
       store.setEvents({ events: mapped.current.events })
       setConnection(snapshot.connection)
       setRawEvents(snapshot.events)
+      setQuickStops(snapshot.quickStops)
       setStatus(snapshot.status)
       setPending(snapshot.pending)
       setWorking(isSessionWorking(snapshot.status))
@@ -144,6 +148,7 @@ export function useSessionTranscript(args: {
     loadOlder,
     events,
     rawEvents,
+    quickStops,
     status,
     pending,
     working,

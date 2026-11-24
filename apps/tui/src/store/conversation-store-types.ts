@@ -1,11 +1,7 @@
 import type { Event, ThreadId } from '@dltech/atlas-core'
 import type { ChannelSignal, Unsubscribe } from '@dltech/atlas-client/channel'
 import type { TurnSpend } from '@dltech/atlas-client/transcript'
-import type {
-  EThinkingVisibility,
-  InFlightStep,
-  TranscriptModel,
-} from '@dltech/atlas-client/transcript'
+import type { InFlightStep, TranscriptModel } from '@dltech/atlas-client/transcript'
 
 import type { TurnClock } from '../ui/turn-clock'
 import type { LogAccumulator, ToolEffects } from './log-accumulator'
@@ -32,8 +28,6 @@ export type ConversationStore = {
   stampTurn(advance: (progress: TurnProgress) => TurnProgress): void
   supersedeFailure(): void
   resetSteps(): void
-  setThinking(thinking: EThinkingVisibility): void
-  setTldrStatus(tldrStatus: boolean): void
   setName(name: string | null): void
   dispose(): void
 }
@@ -48,7 +42,6 @@ export type ConversationStoreArgs = {
   base?: LogAccumulator
   effects?: ToolEffects
   paceReveal?: boolean
-  thinking?: EThinkingVisibility
   name?: string | null
   priceOf?: ModelPriceLookup | undefined
   projectEvents?: ((args: { events: readonly Event[] }) => void) | undefined

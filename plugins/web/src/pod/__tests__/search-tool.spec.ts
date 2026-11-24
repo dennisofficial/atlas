@@ -1,54 +1,9 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EWebSearchBackend, toThreadId } from '@dltech/atlas-core'
-import {
-  type PluginPodContext,
-  type WebSearchConfig,
-  EMPTY_ANALYTICS,
-  EMPTY_CLASSIFIER,
-  EMPTY_MCP_CONTROL,
-  EMPTY_MESSAGES,
-  EMPTY_ROUTINES,
-  EMPTY_POD_RESOURCES,
-  EMPTY_SUBSCRIPTIONS,
-  UNVERSIONED_SETTINGS,
-} from '@dltech/atlas-plugin-sdk'
+import { toThreadId } from '@dltech/atlas-core'
 
-import { keylessBackend, resolveBackend } from '../search'
+import { EFreshness, type SearchPort, type SearchRequest } from '../search'
 import { WebSearchTool } from '../search-tool'
-
-const ctxWith = (config: WebSearchConfig): PluginPodContext => {
-  const unsupported = (): never => {
-    throw new Error('not part of this spec')
-  }
-  return {
-    sessionId: 'ses_42',
-    control: {
-      settingsVersions: async () => UNVERSIONED_SETTINGS,
-      exposePort: unsupported,
-      memory: {} as never,
-      mcp: EMPTY_MCP_CONTROL,
-      webSearch: { config: async () => config },
-      gateway: { apiKey: async () => undefined, imageModel: async () => undefined },
-      routines: EMPTY_ROUTINES,
-      subscriptions: EMPTY_SUBSCRIPTIONS,
-    },
-    resources: EMPTY_POD_RESOURCES,
-    crew: {} as never,
-    messages: EMPTY_MESSAGES,
-    classifier: EMPTY_CLASSIFIER,
-    analytics: EMPTY_ANALYTICS,
-    sessions: {} as never,
-    worktrees: {} as never,
-    notify: unsupported,
-    append: unsupported,
-    events: () => [],
-    call: unsupported,
-    live: () => undefined,
-    onDaemonEvent: () => () => undefined,
-    log: () => undefined,
-  }
-}
 
 const invoke = (
   tool: WebSearchTool,
@@ -63,66 +18,77 @@ const invoke = (
     threadId: toThreadId('thr_1'),
   }) as Promise<{ ok: boolean; [key: string]: unknown }>
 
-const findings = {
-  query: 'atlas agent',
-  backend: EWebSearchBackend.Bing,
-  results: [{ title: 'Atlas', url: 'https://example.com/atlas', snippet: 'a harness' }],
-}
+const portOf = (search: SearchPort['search']): SearchPort => ({ search })
 
 describe('WebSearchTool', () => {
-  it('renders the operator backend results inside one envelope', async () => {
-    const tool = new WebSearchTool(ctxWith({ backend: 'bing', key: undefined }), {
-      searcher: async () => ({ ok: true, findings }),
-    })
+  it('renders the results inside one untrusted envelope, labelled Jina', async () => {
+    const tool = new WebSearchTool(
+      portOf(async () => ({
+        ok: true,
+        results: [{ title: 'Atlas', url: 'https://example.com/atlas', snippet: 'a harness' }],
+      })),
+    )
 
     const outcome = await invoke(tool, { query: 'atlas agent' })
 
     expect(outcome.ok).toBe(true)
     expect(String(outcome.modelText)).toContain('https://example.com/atlas')
     expect(String(outcome.modelText)).toContain('untrusted')
+    expect(outcome.output).toMatchObject({ backend: 'jina', query: 'atlas agent' })
   })
 
-  it('asks the backend the setting names and passes its key', async () => {
-    const seen: { backend: string | undefined; credential: string | undefined }[] = []
-    const tool = new WebSearchTool(ctxWith({ backend: 'brave', key: 'sk-1' }), {
-      searcher: async (args) => {
-        seen.push({ backend: args.backend, credential: args.credential })
-        return { ok: true, findings }
-      },
+  it('passes the query, the count, the site, the freshness and the country to the port', async () => {
+    const seen: SearchRequest[] = []
+    const tool = new WebSearchTool(
+      portOf(async (request) => {
+        seen.push(request)
+        return { ok: true, results: [] }
+      }),
+    )
+
+    await invoke(tool, {
+      query: 'bun release',
+      count: 3,
+      site: 'zod.dev',
+      fresh: EFreshness.Week,
+      gl: 'us',
     })
+
+    const first = seen[0]
+    expect(first?.query).toBe('bun release')
+    expect(first?.count).toBe(3)
+    expect(first?.site).toBe('zod.dev')
+    expect(first?.fresh).toBe(EFreshness.Week)
+    expect(first?.gl).toBe('us')
+  })
+
+  it('defaults the count to 8', async () => {
+    const seen: number[] = []
+    const tool = new WebSearchTool(
+      portOf(async ({ count }) => {
+        seen.push(count)
+        return { ok: true, results: [] }
+      }),
+    )
 
     await invoke(tool, { query: 'atlas' })
 
-    expect(seen).toEqual([{ backend: 'brave', credential: 'sk-1' }])
+    expect(seen).toEqual([8])
   })
 
-  it('refuses a keyed backend with no key and names the setting to add', async () => {
-    const tool = new WebSearchTool(ctxWith({ backend: 'brave', key: undefined }))
+  it('returns the port refusal as the tool reason, unchanged', async () => {
+    const tool = new WebSearchTool(portOf(async () => ({ ok: false, reason: 'Jina said no.' })))
+
     const outcome = await invoke(tool, { query: 'atlas' })
 
     expect(outcome.ok).toBe(false)
-    expect(String(outcome.reason)).toContain('web.searchBackend')
-    expect(String(outcome.reason)).toContain('search.brave')
+    expect(outcome.reason).toBe('Jina said no.')
   })
 
-  it('refuses a backend name it does not know', async () => {
-    const tool = new WebSearchTool(ctxWith({ backend: 'nonesuch', key: undefined }))
-    const outcome = await invoke(tool, { query: 'atlas' })
+  it('rejects a count above 20 and a country that is not two letters', async () => {
+    const tool = new WebSearchTool(portOf(async () => ({ ok: true, results: [] })))
 
-    expect(outcome.ok).toBe(false)
-    expect(String(outcome.reason)).toContain('names no backend')
-  })
-})
-
-describe('search backends', () => {
-  it('knows which backends need a key', () => {
-    expect(keylessBackend(EWebSearchBackend.Bing)).toBe(true)
-    expect(keylessBackend(EWebSearchBackend.Brave)).toBe(false)
-  })
-
-  it('resolves a backend name and refuses one it does not know', () => {
-    expect(resolveBackend('tavily')).toBe(EWebSearchBackend.Tavily)
-    expect(resolveBackend('nonesuch')).toBeUndefined()
-    expect(resolveBackend(undefined)).toBeUndefined()
+    expect((await invoke(tool, { query: 'atlas', count: 21 })).ok).toBe(false)
+    expect((await invoke(tool, { query: 'atlas', gl: 'usa' })).ok).toBe(false)
   })
 })

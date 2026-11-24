@@ -11,11 +11,11 @@ export class PageCache {
 
   constructor(private readonly now: () => number = Date.now) {}
 
-  private static keyOf(args: { url: string; format: string }): string {
-    return `${args.format} ${args.url}`
+  private static keyOf(args: { url: string; variant: string }): string {
+    return `${args.variant} ${args.url}`
   }
 
-  read(args: { url: string; format: string }): FetchedPage | undefined {
+  read(args: { url: string; variant: string }): FetchedPage | undefined {
     const key = PageCache.keyOf(args)
     const found = this.entries.get(key)
     if (found === undefined) return undefined
@@ -30,7 +30,7 @@ export class PageCache {
     return found.page
   }
 
-  write(args: { url: string; format: string; page: FetchedPage }): void {
+  write(args: { url: string; variant: string; page: FetchedPage }): void {
     const key = PageCache.keyOf(args)
     this.entries.delete(key)
     this.entries.set(key, { page: args.page, storedAt: this.now() })

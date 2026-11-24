@@ -213,12 +213,12 @@ describe('composeHarness with cloudState on', () => {
 
     expect(await app.accounts.list()).toEqual([])
     app.secrets.write({ name: 'search.exa', value: 'local-only' })
-    expect(app.settings.set({ id: ESettingId.ThinkingBlocks, value: 'hidden' })).toEqual({
+    expect(app.settings.set({ id: ESettingId.FenceWrap, value: 'all' })).toEqual({
       ok: true,
     })
 
     expect(calls).toEqual([])
-    expect(localSettingsFile()[ESettingId.ThinkingBlocks]).toBe('hidden')
+    expect(localSettingsFile()[ESettingId.FenceWrap]).toBe('all')
   })
 })
 
@@ -246,7 +246,7 @@ describe.each([false, undefined])('composeHarness with cloudState %p', (cloudSta
     expect(await app.accounts.list()).toEqual([])
     expect(app.secrets.read('search.tavily')).toBeUndefined()
     app.secrets.write({ name: 'search.exa', value: 'local-only' })
-    expect(app.settings.set({ id: ESettingId.ThinkingBlocks, value: 'hidden' })).toEqual({
+    expect(app.settings.set({ id: ESettingId.FenceWrap, value: 'all' })).toEqual({
       ok: true,
     })
     await Bun.sleep(50)
@@ -254,7 +254,7 @@ describe.each([false, undefined])('composeHarness with cloudState %p', (cloudSta
     expect(
       calls.filter((call) => /^\/v1\/trpc\/(accounts|secrets|settings)\./.test(call.path)),
     ).toEqual([])
-    expect(localSettingsFile()[ESettingId.ThinkingBlocks]).toBe('hidden')
+    expect(localSettingsFile()[ESettingId.FenceWrap]).toBe('all')
     expect(existsSync(atlasSecretsFile())).toBe(true)
     expect(notices.posts.some((post) => post.key === 'cloud:legacy-accounts')).toBe(true)
   })

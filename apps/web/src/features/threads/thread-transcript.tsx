@@ -190,6 +190,7 @@ export function ThreadTranscript({
               <QueuedRowItem
                 row={row}
                 author={userName}
+                waitLabel={queued.waitLabel}
                 onOpenAgent={openAgent}
                 onEdit={queued.onEdit}
                 onRemove={queued.onRemove}

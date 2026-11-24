@@ -18,8 +18,9 @@ This file describes pods as they are on `main`. Why they are shaped this way is 
 
 ## Behind a flag
 
-Pods sit behind the `experimental.pods` setting, default off (`packages/core/src/settings/registry.ts`,
-env `ATLAS_EXPERIMENTAL_PODS`). `composeAtlas` reads it once at launch and exposes it as `app.pods`
+Pods sit behind the `experimental.pods` setting, default off (v1 only: the row lives in
+`packages/harness/src/settings/v1-only-definitions.ts`, env `ATLAS_EXPERIMENTAL_PODS`; v2 has no
+flag and every new thread is born in a pod). `composeAtlas` reads it once at launch and exposes it as `app.pods`
 (`apps/tui/src/composition/compose.ts`), so changing it needs a restart.
 - **Off (the default):** sessions run in-process on the host. There is no runner chip, no Atlas
   Cloud sign-in gate and no Docker preflight on send (`apps/tui/src/composition/use-thread-birth.ts`).
@@ -38,7 +39,7 @@ Memory is cloud rows in both modes ([0009](decisions/0009-memory-is-rows-behind-
 
 With the flag on, launch and `/new` land on an unplaced welcome thread. Nothing is provisioned
 yet. Its footer chip shows `pod` (local) or `☁ cloud` (Vercel). Toggling it only changes a stored
-preference, `placement.lastBorn`, which is also the default for the next thread
+preference, `placement.lastBorn` (a v1 row too), which is also the default for the next thread
 (`apps/tui/src/composition/cloud/born-cloud.ts`, `apps/tui/src/composition/cloud/use-unborn-thread.ts`).
 
 The first send runs, in order (`apps/tui/src/composition/cloud/born-cloud.ts`):
@@ -79,7 +80,7 @@ The `projectId` is stored in the thread meta, and a wake passes the same one bac
 |             | Local                                                                                                                    | Vercel                                                                                                          |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
 | Driver      | `DockerPodDriver`, Docker Engine API over the Unix socket (`packages/harness/src/cloud/local-pod/driver.ts`)             | the API, on the platform's Vercel account (`apps/api/src/api/cloud/sandbox-provisioning/pod-launch.service.ts`) |
-| Image       | `ghcr.io/dennisofficial/atlas-sandbox:latest`, pulled anonymously (`packages/harness/src/cloud/local-pod/pod-create.ts`) | the `sandbox.image` setting, default `atlas-sandbox:latest` in Vercel's registry                                |
+| Image       | `ghcr.io/dennisofficial/atlas-sandbox:latest`, pulled anonymously (`packages/harness/src/cloud/local-pod/pod-create.ts`) | the `ATLAS_SANDBOX_IMAGE` environment variable, default `atlas-sandbox:latest` in Vercel's registry             |
 | Name        | `atlas-pod-<24 hex of sha256(threadId)>` (`packages/harness/src/cloud/local-pod/pod-create.ts`)                          | `atlas-thread-<24 hex of sha256(threadId)>` (`packages/harness/src/cloud/sandbox-names.ts`)                     |
 | Ports       | serve, published on `127.0.0.1` (`packages/harness/src/cloud/local-pod/pod-create.ts`)                                   | serve, provider-routed (`packages/wire/src/sandbox-sdk.ts`)                                                     |
 | Resize      | live, `POST /containers/<id>/update`                                                                                     | applies on restart                                                                                              |
@@ -238,13 +239,10 @@ Whether a setting lives locally or in Atlas Cloud is a property of the setting, 
 `packages/core/src/settings/registry.ts`). The Local settings are terminal or host specific:
 - Appearance: `appearance.accent`, `appearance.blockPadding`, `appearance.composerEdge`,
   `appearance.logo`.
-- Display: `transcript.smoothStreaming`, `transcript.thinkingBlocks`, `transcript.imageRows`,
-  `transcript.fenceWrap`, `tldr.footer`, `tldr.status`, `sidebar.width`, `sidebar.foldBelow`,
-  `usage.meters`, `usage.warnFiveHour`, `usage.warnWeekly`, `notifications.seconds`.
-- Host: `files.editor`, `dev.autoRestart`, `execution.location`, `container.cpus`,
-  `container.memory`, `container.idleMinutes`.
-- Placement and flags: `experimental.pods`, `placement.lastBorn`,
-  `experimental.placementChooserShape`.
+- Display: `transcript.imageRows`, `transcript.fenceWrap`, `sidebar.width`.
+- v1 only, read from the v1 definitions list (`packages/harness/src/settings/v1-only-definitions.ts`):
+  `tldr.footer`, `files.editor`, `execution.location`, `container.cpus`, `container.memory`,
+  `container.idleMinutes`, `experimental.pods`, `placement.lastBorn`.
 
 Every other setting is Cloud, and the web edits the same ones the TUI does
 ([0016](decisions/0016-cloud-settings-are-the-source-of-truth.md)).

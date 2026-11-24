@@ -15,6 +15,7 @@ import {
 import { logFieldsOf } from '@dltech/atlas-observability'
 
 import { notifyTurnOf, turnNotifyFactsOf, turnNotifyRowOf } from './held-turn-notify'
+import { turnEndDraftsOf } from './turn-end-drafts'
 import { liveOutputOf } from './live-output'
 import { logDriveFault } from './held-runner'
 import type { HeldSessionDeps } from './held-session-deps'
@@ -203,20 +204,18 @@ export class HeldTurns {
     ending: TurnEnding | null
   }): Promise<void> {
     if (args.ending === null) return
-    const facts = turnNotifyFactsOf({ events: args.record.eventCache().eventsAfter(0) })
+    const events = args.record.eventCache().eventsAfter(0)
+    const facts = turnNotifyFactsOf({ events })
     try {
       await args.record.append({
         threadId: args.record.threadId,
         runId: this.deps.ids.nextRunId(),
-        drafts: [
-          {
-            type: 'turn-ended',
-            turnId: args.turnId,
-            outcome: args.ending.outcome,
-            by: args.ending.by,
-            notify: turnNotifyRowOf(facts),
-          },
-        ],
+        drafts: turnEndDraftsOf({
+          events,
+          turnId: args.turnId,
+          ending: args.ending,
+          notify: turnNotifyRowOf(facts),
+        }),
       })
     } catch (error) {
       this.deps.log?.warn({

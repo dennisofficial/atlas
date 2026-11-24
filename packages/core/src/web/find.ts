@@ -13,6 +13,10 @@ const MAX_BLOCKS = 20
 
 const GAP = '...'
 
+const LEADING_INLINE_FLAGS = /^(?:\(\?[a-zA-Z]+\))+/
+
+const withoutInlineFlags = (pattern: string): string => pattern.replace(LEADING_INLINE_FLAGS, '')
+
 /**
  * The pattern is matched a line at a time rather than against the whole page.
  *
@@ -23,7 +27,7 @@ const GAP = '...'
 export function findInPage(args: { body: string; pattern: string; context: number }): FindOutcome {
   let expression: RegExp
   try {
-    expression = new RegExp(args.pattern, 'i')
+    expression = new RegExp(withoutInlineFlags(args.pattern), 'i')
   } catch (error) {
     return {
       ok: false,

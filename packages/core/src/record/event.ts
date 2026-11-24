@@ -44,6 +44,11 @@ export type RecordEnvelope = {
   prevHash: Hash
 }
 
+export enum ERewindCause {
+  Operator = 'operator',
+  QuickStop = 'quick-stop',
+}
+
 export enum EInputConsumed {
   Message = 'message',
   Stop = 'stop',
@@ -65,6 +70,7 @@ export type RecordBody =
       toSeq: number
       draft?: string | undefined
       inboxId?: number | undefined
+      cause?: ERewindCause | undefined
     }
   | {
       type: 'history-summarised'
@@ -137,6 +143,7 @@ const recordBodySchema: z.ZodType<RecordBody> = z.discriminatedUnion('type', [
     toSeq: z.number().int().min(0),
     draft: z.string().optional(),
     inboxId: z.number().int().min(1).optional(),
+    cause: z.enum(ERewindCause).optional(),
   }),
   z.object({
     type: z.literal('history-summarised'),

@@ -54,6 +54,29 @@ describe('MessageResponse', () => {
     expect(item).not.toContain('flex')
   })
 
+  it('nests a numbered sub-list indented by two spaces', () => {
+    const html = render('1. First\n  1. Second\n  2. Second again\n2. First again')
+
+    expect(html.match(/<ol/g)?.length).toBe(2)
+  })
+
+  it('keeps the indentation of a user message as typed', () => {
+    const source = '1. HI\n  1. Test\n\n{\n  "json": test\n}'
+    const html = renderToStaticMarkup(
+      <MessageResponse breaks mode="static">
+        {source}
+      </MessageResponse>,
+    )
+
+    expect(html.match(/<ol/g)?.length).toBe(2)
+    expect(html).toContain('\u00a0\u00a0&quot;json&quot;: test')
+    expect(html).not.toContain('data-slot="code-block"')
+  })
+
+  it('leaves agent replies to standard markdown indentation', () => {
+    expect(render('{\n  "json": test\n}')).not.toContain('\u00a0')
+  })
+
   it('renders inline code without a code block', () => {
     const html = render('Use `bun test` here')
 

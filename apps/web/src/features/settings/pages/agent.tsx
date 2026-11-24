@@ -9,21 +9,18 @@ import { fieldChanges, fieldValuesFrom } from '../data/personal/setting-fields'
 import { QueryPage } from '../data/personal/query-boundary'
 import { routineSettingsChanges, routineSettingsFrom } from '../data/personal/routine-settings'
 import { AgentSkeleton } from '../skeletons/agent-skeletons'
-import { useAgentKeys } from '../data/personal/use-agent-keys'
 import { useCloudSettings } from '@/lib/cloud-settings'
 import { useSettingsDraft } from '../data/personal/use-settings-draft'
-import { SEARCH_BACKEND_ITEMS } from '../fixtures/settings-search'
 import { IMAGE_MODEL_ITEMS } from '../fixtures/settings-images'
 import { CONTEXT_FIELDS } from '../fixtures/settings-fields'
 import { SettingFieldRows } from '../parts/setting-fields'
 import { ConfigFooter } from '../parts/agent-config-footer'
 import { ChoiceSelect } from '../parts/agent-choice-select'
-import { SearchKeyRow } from '../parts/agent-key-row'
 import { SettingsCard, SettingsPage, SettingsRow, SettingsSection } from '../settings-layout'
 
 const TITLE = 'Agent'
 const DESCRIPTION =
-  'How the agent searches the web, reads context, compacts and works. Every sandbox loads these when it starts.'
+  'How the agent reads context, compacts and works. Every sandbox loads these when it starts.'
 const TIMEZONE_INPUT_ID = 'agent-routine-timezone'
 
 export function AgentPage() {
@@ -65,7 +62,6 @@ function AgentEditor({
     toChanges: routineSettingsChanges,
     save,
   })
-  const { savedNames, handleSaveKey } = useAgentKeys()
   const { value, setValue } = draft
   const routine = routineDraft.draft
   const agentDirty = draft.dirty
@@ -92,27 +88,6 @@ function AgentEditor({
 
   return (
     <SettingsPage title={TITLE} description={DESCRIPTION}>
-      <SettingsSection title="Web search" description="Which service the web_search tool asks.">
-        <SettingsCard>
-          <SettingsRow
-            title="Search backend"
-            description="Bing needs no account. The others answer better in exchange for a key of your own, and the ones that return page text save the agent a fetch per result."
-            control={
-              <ChoiceSelect
-                label="Search backend"
-                items={SEARCH_BACKEND_ITEMS}
-                value={value.searchBackend}
-                onChange={(searchBackend) => setValue({ ...value, searchBackend })}
-              />
-            }
-          />
-          <SearchKeyRow
-            backend={value.searchBackend}
-            savedNames={savedNames}
-            onSave={handleSaveKey}
-          />
-        </SettingsCard>
-      </SettingsSection>
       <SettingsSection
         title="Images"
         description="Which model the agent asks when it generates or edits a picture."

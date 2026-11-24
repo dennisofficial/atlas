@@ -6,9 +6,9 @@ import { triggerSdkFake } from './trigger-sdk.fake'
 mock.module('@trigger.dev/sdk', () => triggerSdkFake)
 
 const { REPO_MCP_SERVER_MAX_IDLE_MS, sweepRepoMcpServers } = await import(
-  '../trigger/mcp-servers/repo-mcp-sweep'
+  '../mcp-servers/repo-mcp-sweep'
 )
-const { repoMcpServerSweepTask } = await import('../trigger/mcp-servers/repo-mcp-sweep.task')
+const { repoMcpServerSweepTask } = await import('../mcp-servers/repo-mcp-sweep.task')
 
 const NOW = new Date('2026-11-03T12:00:00.000Z')
 const DAY_MS = 24 * 60 * 60 * 1000

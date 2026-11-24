@@ -32,6 +32,7 @@ export type QueuedRow =
 
 export type QueuedTranscript = {
   rows: readonly QueuedRow[]
+  waitLabel?: string | undefined
   onEdit: (inboxId: string) => void
   onRemove: (inboxId: string) => void
 }

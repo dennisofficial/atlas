@@ -704,7 +704,6 @@ export class ControlPlane {
     target: JsonValue
     label: string
     events?: readonly string[] | undefined
-    expiresAt?: string | undefined
     lease: SubscriptionLeaseInput
     by: ESubscriptionActor
   }): Promise<SubscribeToStateResult> {

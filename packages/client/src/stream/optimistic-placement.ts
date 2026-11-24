@@ -70,7 +70,13 @@ export const optimisticPlacementOf = <TStaged extends PlacedStaged>(args: {
   for (const entry of args.staged) {
     if (said.has(entry.clientId)) continue
     const outcome = outcomes.get(entry.clientId)?.outcome ?? EStagedOutcome.Pending
-    if (outcome === EStagedOutcome.Withdrawn || outcome === EStagedOutcome.Refused) continue
+    if (
+      outcome === EStagedOutcome.Withdrawn ||
+      outcome === EStagedOutcome.Refused ||
+      outcome === EStagedOutcome.Discarded
+    ) {
+      continue
+    }
     const pendingInput = pendingByClientId.get(entry.clientId)
     if (pendingInput !== undefined) {
       const behindOtherTurn =

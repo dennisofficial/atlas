@@ -12,8 +12,11 @@ import { ClassifierPolicyToken, GrillingCeremonyEnabledToken } from '../../conta
 import { MemorySecretsStore } from '../../secrets/memory-store'
 import { MemorySettingsStore } from '../../settings/memory-store'
 import { createSettingsService } from '../../settings/service'
+import { V1_ONLY_SETTING_DEFINITIONS } from '../../settings/v1-only-definitions'
 import { bindSettingsPolicy } from '../policy-bindings'
 import { alwaysAuthorised } from './fakes'
+
+const DEFINITIONS = [...ATLAS_SETTINGS, ...V1_ONLY_SETTING_DEFINITIONS]
 
 const policyOver = async (
   values: Record<string, string>,
@@ -23,7 +26,7 @@ const policyOver = async (
   await bindSettingsPolicy({
     container,
     settings: createSettingsService({
-      definitions: ATLAS_SETTINGS,
+      definitions: DEFINITIONS,
       user: new MemorySettingsStore({ document: { values } }),
     }),
     secrets: new MemorySecretsStore({ secrets }),
@@ -86,7 +89,7 @@ describe('grilling ceremony binding', () => {
     await bindSettingsPolicy({
       container,
       settings: createSettingsService({
-        definitions: ATLAS_SETTINGS,
+        definitions: DEFINITIONS,
         user: new MemorySettingsStore({ document: { values } }),
       }),
       secrets: new MemorySecretsStore(),

@@ -38,7 +38,12 @@ import type { TldrFeed } from '../../loop/tldr-turn-runner'
 import { scriptedModel } from '../../model/testing/scripted-model'
 import { createPendingQueues } from '../../pending'
 import { PromptRegistry } from '../../prompt/registry'
-import { FileSettingsStore, createSettingsService, userSettingsFile } from '../../settings'
+import {
+  FileSettingsStore,
+  V1_ONLY_SETTING_DEFINITIONS,
+  createSettingsService,
+  userSettingsFile,
+} from '../../settings'
 import { ThreadStorePort } from '../../store/thread-store'
 import { ToolRegistry } from '../../tools/registry'
 import { DEFAULT_MODEL_REF } from '../config'
@@ -97,7 +102,7 @@ function rig(
   })
 
   const settings = createSettingsService({
-    definitions: ATLAS_SETTINGS,
+    definitions: [...ATLAS_SETTINGS, ...V1_ONLY_SETTING_DEFINITIONS],
     user: new FileSettingsStore({ file: userSettingsFile(), label: 'turn-wiring spec' }),
   })
   if (args.footers === false) settings.set({ id: ESettingId.TldrFooter, value: false })

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { ECompactionAnchor } from '../../events/body'
 import { toCallId } from '../../events/ids'
 import { assemble } from '../../assembly/assemble'
+import type { AssembledMessage } from '../../assembly/assembled'
 import { contextFor } from '../../assembly/__tests__/log-fixture'
 import { exchangeFaults } from '../../assembly/exchange-shape'
 import { defaultRules } from '../../assembly/pipeline'
@@ -26,6 +27,12 @@ const promptOf = (bodies: readonly V2Body[]) =>
 const textOf = (entry: { message: { content: readonly unknown[] } } | undefined): string =>
   JSON.stringify(entry?.message.content ?? [])
 
+const isWorkspaceNote = (entry: AssembledMessage): boolean => textOf(entry).includes('workspace')
+
+const conversationOf = (prompt: {
+  messages: readonly AssembledMessage[]
+}): readonly AssembledMessage[] => prompt.messages.filter((entry) => !isWorkspaceNote(entry))
+
 const summarised = (fromSeq: number, throughSeq: number): V2Body => ({
   type: 'history-summarised',
   fromSeq,
@@ -43,9 +50,9 @@ describe('visibleLoopEvents', () => {
       summarised(1, 2),
     ])
 
-    expect(prompt.messages[0]?.message.role).toBe('user')
-    expect(textOf(prompt.messages[0])).toContain('the opening exchange')
-    expect(textOf(prompt.messages[1])).toContain('now the lexer')
+    expect(conversationOf(prompt)[0]?.message.role).toBe('user')
+    expect(textOf(conversationOf(prompt)[0])).toContain('the opening exchange')
+    expect(textOf(conversationOf(prompt)[1])).toContain('now the lexer')
     expect(exchangeFaults(prompt)).toEqual([])
   })
 
@@ -84,11 +91,11 @@ describe('visibleLoopEvents', () => {
     expect(exchangeFaults(hidCall)).toEqual([])
     expect(hidCall.messages.some((entry) => entry.message.role === 'tool')).toBe(false)
     expect(exchangeFaults(hidResult)).toEqual([])
-    expect(hidResult.messages.map((entry) => entry.message.role).slice(0, 3)).toEqual([
-      'user',
-      'assistant',
-      'tool',
-    ])
+    expect(
+      conversationOf(hidResult)
+        .map((entry) => entry.message.role)
+        .slice(0, 3),
+    ).toEqual(['user', 'assistant', 'tool'])
   })
 
   it('brings the summarised rows back when a rewind lands before the summary', () => {

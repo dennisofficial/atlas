@@ -53,6 +53,11 @@ export const runningCommandsIn = async (args: {
     const name = commandInputName(event.kind)
     if (name !== undefined) posted.set(event.inboxId, { name, postedAt: event.postedAt })
   }
+  for (const event of tail.events) {
+    if (event.type !== 'input-consumed' || event.command === undefined) continue
+    const at = posted.get(event.inboxId)?.postedAt ?? event.at
+    posted.set(event.inboxId, { name: event.command.name, postedAt: at })
+  }
   const rows: SessionCommandRow[] = []
   for (const inboxId of unfinishedCommandIdsOf(tail.events)) {
     const kept = posted.get(inboxId)

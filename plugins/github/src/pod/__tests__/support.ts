@@ -3,7 +3,6 @@ import type { PodSubscriptionLease, PodSubscriptions } from '@dltech/atlas-plugi
 import type { SessionSubscription } from '@dltech/atlas-protocol'
 
 export const NOW = '2026-11-08T10:00:00.000Z'
-export const EXPIRES = '2026-11-09T10:00:00.000Z'
 
 export const subscriptionRow = (patch: Partial<SessionSubscription> = {}): SessionSubscription => ({
   id: 'sub-1',
@@ -14,7 +13,6 @@ export const subscriptionRow = (patch: Partial<SessionSubscription> = {}): Sessi
   events: [],
   createdBy: ESubscriptionActor.Agent,
   createdAt: NOW,
-  expiresAt: EXPIRES,
   ...patch,
 })
 
@@ -42,9 +40,8 @@ export const fakeSubscriptions = (initial: readonly SessionSubscription[] = []) 
       leases.push(input.lease)
       const held = [...rows.values()].find((row) => targetKey(row) === targetKey(input))
       const events = [...(input.events ?? held?.events ?? [])]
-      const expiresAt = input.expiresAt ?? held?.expiresAt ?? EXPIRES
       if (held !== undefined) {
-        if (sameEvents(held.events, events) && held.expiresAt === expiresAt) {
+        if (sameEvents(held.events, events)) {
           return { subscription: held, existed: true, updated: false }
         }
         const updated: SessionSubscription = {
@@ -53,7 +50,6 @@ export const fakeSubscriptions = (initial: readonly SessionSubscription[] = []) 
           target: input.target,
           label: input.label,
           events,
-          expiresAt,
         }
         rows.set(updated.id, updated)
         return { subscription: updated, existed: true, updated: true }
@@ -65,7 +61,6 @@ export const fakeSubscriptions = (initial: readonly SessionSubscription[] = []) 
         target: input.target,
         label: input.label,
         events,
-        expiresAt,
       })
       rows.set(row.id, row)
       return { subscription: row, existed: false, updated: false }

@@ -3,7 +3,7 @@ import { triggerSdkFake } from './trigger-sdk.fake'
 
 mock.module('@trigger.dev/sdk', () => triggerSdkFake)
 
-const { heartbeatTask, runHeartbeat } = await import('../trigger/heartbeat.task')
+const { heartbeatTask, runHeartbeat } = await import('../heartbeat.task')
 
 const DATABASE_URL = process.env['DATABASE_URL']
 

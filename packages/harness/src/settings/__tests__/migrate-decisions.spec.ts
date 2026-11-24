@@ -5,10 +5,14 @@ import { MemorySecretsStore } from '../../secrets/memory-store'
 import { MemorySettingsStore } from '../memory-store'
 import { migrateDecisionsSettings } from '../migrate-decisions'
 import { createSettingsService } from '../service'
+import { V1_ONLY_SETTING_DEFINITIONS } from '../v1-only-definitions'
 
 const rig = (args: { values?: Record<string, string>; secrets?: Record<string, string> }) => {
   const user = new MemorySettingsStore({ document: { values: args.values ?? {} } })
-  const settings = createSettingsService({ definitions: ATLAS_SETTINGS, user })
+  const settings = createSettingsService({
+    definitions: [...ATLAS_SETTINGS, ...V1_ONLY_SETTING_DEFINITIONS],
+    user,
+  })
   const secrets = new MemorySecretsStore({ secrets: args.secrets ?? {} })
   return { user, settings, secrets, run: () => migrateDecisionsSettings({ settings, secrets }) }
 }

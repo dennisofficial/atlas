@@ -15,6 +15,7 @@ const EXPECTED: Record<ESessionStatus, ESessionDisplay> = {
   [ESessionStatus.Queued]: ESessionDisplay.Working,
   [ESessionStatus.Thinking]: ESessionDisplay.Working,
   [ESessionStatus.RunningTool]: ESessionDisplay.Working,
+  [ESessionStatus.RunningCommand]: ESessionDisplay.Working,
   [ESessionStatus.WaitingToRetry]: ESessionDisplay.Working,
   [ESessionStatus.Resuming]: ESessionDisplay.Working,
   [ESessionStatus.WaitingForBackground]: ESessionDisplay.Working,

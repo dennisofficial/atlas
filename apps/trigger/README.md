@@ -1,7 +1,7 @@
 # apps/trigger
 
 The v2 background-job app. Every v2 job, cron and sweep is a trigger.dev task defined under
-`src/trigger/`, deployed here rather than from the API. Task ids and zod payload schemas live in
+`src/`, deployed here rather than from the API. Task ids and zod payload schemas live in
 `@dltech/atlas-jobs` (`packages/jobs`), which both this app and the API import; this app never
 imports `apps/api`, and `apps/api` never imports this one. See
 [docs/decisions/0022-v2-background-jobs-in-apps-trigger.md](../../docs/decisions/0022-v2-background-jobs-in-apps-trigger.md).
@@ -45,14 +45,14 @@ reconciler reads (`CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_Z
 optionally `PREVIEW_DOMAIN`). A task that reads a new variable adds it here in the same PR. The private key lives in `apps/trigger/.env.keys`,
 which is gitignored; deploy targets hold only that key, as `DOTENV_PRIVATE_KEY_PRODUCTION_ENC`.
 `trigger-tier-extension.ts` ships the tier file into the worker bundle as `envs/` and points
-`DOTENVX_ENVS_DIR` at it; `src/trigger/init.ts` decrypts it into `process.env` before a task runs.
+`DOTENVX_ENVS_DIR` at it; `src/init.ts` decrypts it into `process.env` before a task runs.
 Never add the API's tier file here.
 
 ## The GitHub sweeps
 
 `github-hook-sweep`, `github-poll-sweep` and `github-webhook-reconcile` moved here from v1's project
 on 23 Nov 2026: they build every service by hand over `@dltech/atlas-github`
-(`src/trigger/github/github-sweep-graph.ts`) and leave v1 out, so the outbox drains only the kinds
+(`src/github/github-sweep-graph.ts`) and leave v1 out, so the outbox drains only the kinds
 this app can run. The v1 project keeps `github-v1-wake-sweep`, which refreshes v1 `liveUntil` from
 thread activity, retries failed v1 wakes and drains the v1-only outbox kinds. Both projects deploy on
 the same merge to main and trigger.dev syncs declarative schedules on deploy, so the three schedules

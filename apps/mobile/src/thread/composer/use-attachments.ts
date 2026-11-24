@@ -15,6 +15,7 @@ import {
   isUploading,
   OCTET_STREAM,
   planAttach,
+  restoredHeldOf,
   startedAttachment,
   TOO_MANY_FILES,
   tooLargeNotice,
@@ -24,11 +25,14 @@ import {
   withProgress,
   withReady,
   withoutAttachment,
+  withPreview,
   type HeldAttachment,
   type PickedFile,
 } from './attachment-plan'
+import { pastedImageOf, pickedOfPasted } from './paste-image'
 import { putBytes, sizeOfFile, type UploadHandle } from './put-bytes'
 import { storeMedia } from './store-media'
+import { writePasted } from './write-pasted'
 
 export type ComposerAttachments = {
   held: readonly HeldAttachment[]
@@ -38,7 +42,12 @@ export type ComposerAttachments = {
   notice: string | null
   pickPhotos: () => Promise<void>
   pickFiles: () => Promise<void>
+  pasteImage: (data: string) => Promise<void>
   remove: (id: string) => void
+  restore: (args: {
+    attachments: readonly Attachment[]
+    sessionId?: string | null | undefined
+  }) => void
   clear: () => void
 }
 
@@ -230,6 +239,19 @@ export function useAttachments(): ComposerAttachments {
     attach(result.assets.map(pickedDocument))
   }, [attach])
 
+  const pasteImage = useCallback(
+    async (data: string) => {
+      const image = pastedImageOf({ data, at: Date.now() })
+      if (image === null) return
+      try {
+        attach([pickedOfPasted({ image, uri: await writePasted(image) })])
+      } catch {
+        setNotice(uploadFailedNotice(image.name))
+      }
+    },
+    [attach],
+  )
+
   const remove = useCallback(
     (id: string) => {
       const entry = heldRef.current.find((candidate) => candidate.id === id)
@@ -240,6 +262,30 @@ export function useAttachments(): ComposerAttachments {
         discard(entry.upload.pathname)
     },
     [commit, discard],
+  )
+
+  const restore = useCallback(
+    (args: { attachments: readonly Attachment[]; sessionId?: string | null | undefined }) => {
+      const incoming = restoredHeldOf(args.attachments)
+      if (incoming.length === 0) return
+      update((current) => {
+        const known = new Set(current.map((entry) => entry.id))
+        return [...current, ...incoming.filter((entry) => !known.has(entry.id))]
+      })
+      const sessionId = args.sessionId
+      if (api === undefined || sessionId === undefined || sessionId === null) return
+      for (const entry of incoming) {
+        const hash = entry.hash
+        if (hash === undefined) continue
+        api.media.url
+          .query({ sessionId, hash })
+          .then((reply) =>
+            update((current) => withPreview({ held: current, id: entry.id, uri: reply.url })),
+          )
+          .catch(() => undefined)
+      }
+    },
+    [api, update],
   )
 
   const clear = useCallback(() => {
@@ -259,7 +305,9 @@ export function useAttachments(): ComposerAttachments {
     notice,
     pickPhotos,
     pickFiles,
+    pasteImage,
     remove,
+    restore,
     clear,
   }
 }

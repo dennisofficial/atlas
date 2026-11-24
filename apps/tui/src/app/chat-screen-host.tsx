@@ -5,6 +5,7 @@ import { useAgentMessage } from './use-agent-message'
 import { useKeyHandlerStack } from './use-key-handler-stack'
 import type { ChatScreenHostProps } from './chat-screen-host-props'
 import { ChatScreen } from './chat-screen'
+import { composerRestoreOf, type ComposerRestore } from './composer-restore'
 import { connectionViewOf } from './connection-view'
 import { pendingOperatorRequestOf } from './operator-request'
 import { pendingRowsOf } from './pending-rows'
@@ -12,6 +13,7 @@ import { useStagedMessages } from './staged-messages'
 import { useOperatorInput } from './use-operator-input'
 import { usePendingTakeBack } from './use-pending-take-back'
 import { useRunAttention } from './use-run-attention'
+import { useQuickStopRestore } from './use-quick-stop-restore'
 import { useSessionAttachments } from './use-session-attachments'
 import { useRewind } from './use-rewind'
 import { useSessionComposer } from './use-session-composer'
@@ -40,13 +42,12 @@ export function ChatScreenHost(props: ChatScreenHostProps): React.ReactNode {
   const contentWidth = sidebarOpen
     ? Math.max(MIN_TRANSCRIPT_WIDTH, props.width - sidebarWidth())
     : props.width
-  const restoreText = useRef<(args: { text: string; reason: string | undefined }) => void>(
-    () => undefined,
-  )
+  const restoreText = useRef<ComposerRestore>(() => undefined)
 
   const staged = useStagedMessages({
     sessionId: props.sessionId,
     events: transcript.rawEvents,
+    pending: transcript.pending,
     working: transcript.working,
     onRestore: (args) => restoreText.current(args),
   })
@@ -71,10 +72,11 @@ export function ChatScreenHost(props: ChatScreenHostProps): React.ReactNode {
     onSlashCommand: (text) => menu.handleSubmit(text),
   })
 
-  restoreText.current = (args: { text: string; reason: string | undefined }) => {
-    composer.tokens.restore({ text: args.text, images: [] })
-    if (args.reason !== undefined) problemOf(args.reason)
-  }
+  restoreText.current = composerRestoreOf({
+    tokens: composer.tokens,
+    attachments,
+    onProblem: problemOf,
+  })
 
   const chrome = useSessionChrome({
     api: props.client.api,
@@ -148,6 +150,13 @@ export function ChatScreenHost(props: ChatScreenHostProps): React.ReactNode {
     api: props.client.api,
     sessionId: props.sessionId,
     live: connection.cloudConnected,
+  })
+
+  useQuickStopRestore({
+    sessionId: props.sessionId,
+    quickStops: transcript.quickStops,
+    draft: composer.draft,
+    attachments,
   })
 
   const rewind = useRewind({

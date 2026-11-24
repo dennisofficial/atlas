@@ -62,6 +62,16 @@ describe('parseMarkdown blocks', () => {
     ])
   })
 
+  test('keeps the indentation of each line when breaks is on', () => {
+    expect(parseMarkdown('see\n{\n  "a": {\n\t"b": 1\n  }\n}', { breaks: true })).toEqual([
+      { type: EMdBlock.Paragraph, spans: [text('see\n{\n  "a": {\n    "b": 1\n  }\n}')] },
+    ])
+  })
+
+  test('drops line indentation when breaks is off', () => {
+    expect(parseMarkdown('a\n  b')).toEqual([{ type: EMdBlock.Paragraph, spans: [text('a b')] }])
+  })
+
   test('fenced code without a language omits it', () => {
     expect(parseMarkdown('```\nx\n```')).toEqual([{ type: EMdBlock.Code, value: 'x' }])
   })

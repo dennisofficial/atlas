@@ -2,8 +2,6 @@ import {
   BACKEND_TRAITS,
   backendOf,
   choiceValueOf,
-  decisionsProviderIn,
-  decisionsTokenNameOf,
   ESettingId,
   EWebSearchBackend,
   secretNameOf,
@@ -22,18 +20,6 @@ export function secretTargetOf(args: {
   id: string
   resolution: SettingsResolution
 }): SecretTarget | undefined {
-  if (args.id === ESettingId.DecisionsToken) {
-    return {
-      name: decisionsTokenNameOf({
-        provider: decisionsProviderIn({ resolution: args.resolution }),
-      }),
-      label: 'decision API key',
-      masked: true,
-      required: false,
-      takesOne: true,
-    }
-  }
-
   if (args.id !== ESettingId.WebSearchKey) return undefined
 
   const chosen = choiceValueOf({

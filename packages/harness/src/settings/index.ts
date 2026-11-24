@@ -17,6 +17,7 @@ export {
   userSettingsFile,
   userSkillsDirectory,
 } from './paths'
+export { DEFAULT_CONTAINER_IDLE_MINUTES, V1_ONLY_SETTING_DEFINITIONS } from './v1-only-definitions'
 export {
   createSettingsService,
   type SettingsService,

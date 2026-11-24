@@ -25,8 +25,6 @@ describe('the PR verdict timing setting', () => {
     const rows = definitionsOfPage({ definitions: ATLAS_SETTINGS, page: ESettingPage.Experimental })
     expect(rows.map((row) => row.id)).toEqual([
       ESettingId.GrillingCeremony,
-      ESettingId.ExperimentalPods,
-      ESettingId.PlacementChooserShape,
       ESettingId.PrVerdictTiming,
       ESettingId.PrEditMutedAuthors,
       ESettingId.PrEditUrgentAuthors,

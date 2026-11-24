@@ -1,0 +1,14 @@
+@keyframes blocking-shimmer {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(300%);
+  }
+}
+
+[data-blocking-join] [data-slot="input-group"] {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  border-top-color: transparent;
+}

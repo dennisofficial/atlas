@@ -129,8 +129,8 @@ reads accounts and active ids at `pages/providers.tsx:61-72`; Models & Effort re
    (`model-config.ts:60-95`) resolves chat roles only; `EAuthProvider` has no `typesafe`; the
    Providers page offers 5 keys (`fixtures/settings-agent.ts:30-61`).
 4. **Two config systems for one idea.** v1's `decisions.provider|url|model|token`
-   (`registry.ts:61-65`, `:690-760`) are written by the Agent page (`pages/agent.tsx:113-171`) and
-   read by no v2 process. `classifier.mode` (`:412`) has no v2 reader either. This spec deletes both.
+   (now in `packages/harness/src/settings/v1-only-definitions.ts`, for `decisions.token` only)
+   are read by no v2 process. `classifier.mode` (`:412`) has no v2 reader either. This spec deletes both.
 5. **A classifier added as a model role would follow the chat model.** `resolveModelChoice`
    (`packages/core/src/models/choice/resolve-choice.ts:120-200`) makes an empty role follow its
    parent. That is the coupling Dennis named, and the reason the classifier gets its own setting.
@@ -525,9 +525,9 @@ Removed in the PR that adds the page: the Agent page Decisions and Nudges cards
 `fixtures/settings-decisions.ts`, which becomes `fixtures/settings-search.ts` with the search
 backend alone.
 
-The core rows `decisions.provider`, `decisions.url`, `decisions.model`, `decisions.token` and
-`classifier.mode` (`packages/core/src/settings/registry.ts:61-65`, `:412-441`, `:690-760`) stay,
-because v1 still reads them: `packages/harness/src/composition/policy-bindings.ts:74-79`,
+The core row `decisions.token` stays, and the v1 rows `decisions.provider`, `decisions.url`,
+`decisions.model` and `classifier.mode` live in
+`packages/harness/src/settings/v1-only-definitions.ts`, because v1 still reads them: `packages/harness/src/composition/policy-bindings.ts:74-79`,
 `packages/harness/src/settings/migrate-decisions.ts` and
 `apps/tui/src/ui/secret-target.ts:25`. They go when v1 is deleted.
 

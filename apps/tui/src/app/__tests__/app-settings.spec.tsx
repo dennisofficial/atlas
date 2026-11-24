@@ -87,8 +87,10 @@ const open = async (args?: {
 
 const openDrawer = async (mounted: Mounted): Promise<void> => {
   mounted.setup.mockInput.pressKey('o', { ctrl: true })
-  await frameShowing({ setup: mounted.setup, text: 'Smooth streaming', within: WITHIN })
+  await frameShowing({ setup: mounted.setup, text: 'Tallest image', within: WITHIN })
 }
+
+const IMAGE_ROW = 'Tallest image'
 
 const rowWith = (frame: string, label: string): string =>
   frame.split('\n').find((line) => line.includes(label)) ?? ''
@@ -138,15 +140,16 @@ describe('the settings drawer', () => {
       await openDrawer(mounted)
       const frame = mounted.setup.captureCharFrame()
 
-      expect(frame).toContain('Smooth streaming')
+      expect(frame).toContain('Tallest image')
       expect(frame).toContain('general')
       expect(frame).not.toContain('Editor')
+      expect(frame).not.toContain('Smooth streaming')
     } finally {
       await teardown(mounted.setup)
     }
   })
 
-  test('a toggle writes the account and the row reads its new value', async () => {
+  test('a row edit writes the account and the row reads its new value', async () => {
     const mounted = await open()
 
     try {
@@ -155,33 +158,12 @@ describe('the settings drawer', () => {
       await settled(mounted, () => (mounted.client()?.calls.setSetting.length ?? 0) === 1)
 
       expect(mounted.client()?.calls.setSetting[0]).toEqual({
-        key: 'transcript.smoothStreaming',
-        value: 'atlas-setting:v1:false',
+        key: 'transcript.imageRows',
+        value: 'atlas-setting:v1:32',
       })
 
-      const frame = await rowShows(mounted, 'Smooth streaming', 'off')
-      expect(frame).toContain('Smooth streaming')
-    } finally {
-      await teardown(mounted.setup)
-    }
-  })
-
-  test('toggling a row back to its fallback removes it instead of writing it', async () => {
-    const mounted = await open()
-
-    try {
-      await openDrawer(mounted)
-      mounted.setup.mockInput.pressEnter()
-      await rowShows(mounted, 'Smooth streaming', 'off')
-
-      mounted.setup.mockInput.pressEnter()
-      await settled(mounted, () => (mounted.client()?.calls.removeSetting.length ?? 0) === 1)
-
-      expect(mounted.client()?.calls.removeSetting[0]).toEqual({
-        key: 'transcript.smoothStreaming',
-      })
-      expect(mounted.client()?.calls.setSetting).toHaveLength(1)
-      await rowShows(mounted, 'Smooth streaming', 'on')
+      const frame = await rowShows(mounted, IMAGE_ROW, '32 rows')
+      expect(frame).toContain(IMAGE_ROW)
     } finally {
       await teardown(mounted.setup)
     }
@@ -237,12 +219,12 @@ describe('the settings drawer', () => {
       mounted.setup.mockInput.pressEnter()
       const frame = await frameShowing({
         setup: mounted.setup,
-        text: 'could not save Smooth streaming',
+        text: `could not save ${IMAGE_ROW}`,
         within: WITHIN,
       })
 
       expect(frame).toContain('the account refused that')
-      expect(rowWith(frame, 'Smooth streaming')).toContain('on')
+      expect(rowWith(frame, IMAGE_ROW)).toContain('30 rows')
       expect(mounted.client()?.calls.setSetting).toHaveLength(1)
       expect(mounted.client()?.calls.removeSetting).toHaveLength(0)
     } finally {

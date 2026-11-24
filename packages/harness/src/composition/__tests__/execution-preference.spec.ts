@@ -9,19 +9,22 @@ import {
   type SettingsResolution,
 } from '@dltech/atlas-core'
 
+import { V1_ONLY_SETTING_DEFINITIONS } from '../../settings/v1-only-definitions'
 import {
   defaultExecutionLocation,
   executionPinned,
   resolveExecutionLocation,
 } from '../execution-preference'
 
+const DEFINITIONS = [...ATLAS_SETTINGS, ...V1_ONLY_SETTING_DEFINITIONS]
+
 const settledOver = (file: Record<string, unknown>): SettingsResolution =>
   resolveSettings({
-    definitions: ATLAS_SETTINGS,
+    definitions: DEFINITIONS,
     layers: [{ layer: ESettingsLayer.Project, origin: '.atlas/settings.json', values: file }],
   })
 
-const BARE = resolveSettings({ definitions: ATLAS_SETTINGS, layers: [] })
+const BARE = resolveSettings({ definitions: DEFINITIONS, layers: [] })
 
 const DOCKER_BY_DEFAULT = settledOver({ [ESettingId.ExecutionLocation]: 'docker' })
 

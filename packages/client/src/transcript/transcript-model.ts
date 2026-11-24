@@ -278,6 +278,7 @@ export type SystemContextItem = {
   label: string
   content: string
   superseded: boolean
+  removed: boolean
 }
 
 export type SystemContextEntry = {
