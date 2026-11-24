@@ -62,6 +62,7 @@ const rig = async () => {
     surface: EStreamSurface.Web,
     send: (message) => sent.push(message),
     bufferedAmount: () => 0,
+    sentBytes: () => 0,
     close: () => undefined,
   }
   const subscription = new SessionsSubscription({

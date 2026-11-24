@@ -16,6 +16,14 @@ describe('apiVersion', () => {
     ).toBe('2026.11.20')
   })
 
+  it('shortens a full commit sha in the deploy stamp', () => {
+    expect(apiVersion({ env: { ATLAS_APP_VERSION: 'a'.repeat(40) } })).toBe('aaaaaaa')
+  })
+
+  it('keeps a deploy stamp that is not a commit sha', () => {
+    expect(apiVersion({ env: { ATLAS_APP_VERSION: 'a1b2c3d' } })).toBe('a1b2c3d')
+  })
+
   it('falls back to the Render commit', () => {
     expect(apiVersion({ env: { RENDER_GIT_COMMIT: 'abcdef1234567890' } })).toBe('abcdef1')
   })

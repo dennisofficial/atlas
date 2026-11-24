@@ -76,6 +76,7 @@ jobs:
           file: apps/api/docker/Dockerfile
           push: true
           platforms: linux/amd64
+          build-args: ATLAS_APP_VERSION=${{ github.sha }}
           labels: org.opencontainers.image.source=https://github.com/${{ github.repository }}
           tags: |
             ${{ env.IMAGE }}:${{ github.sha }}

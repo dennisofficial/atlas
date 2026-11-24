@@ -40,7 +40,11 @@ export const runMatrix = async (args: {
   const rows: BenchRow[] = []
   for (const size of options.sizes) {
     const world = await createBenchWorld({ events: size, queryDelayMs: options.queryDelayMs })
-    const server = createBenchServer({ stream: world.stream, userId: BENCH_USER })
+    const server = createBenchServer({
+      stream: world.stream,
+      userId: BENCH_USER,
+      gzip: options.gzip,
+    })
     try {
       for (const profile of profilesNamed(options.profiles)) {
         for (const start of options.starts) {

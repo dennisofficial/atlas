@@ -174,6 +174,22 @@ describe('route navigation tracker', () => {
     ])
   })
 
+  it('does not report a navigation that repeats the last committed route pattern', () => {
+    const h = harness()
+    h.tracker.start({ url: '/sessions/ses_b', navigationType: 'push' })
+    h.tracker.commit('/sessions/ses_b')
+    h.advance(RSC_SETTLE_MS)
+
+    h.tracker.start({ url: '/sessions/ses_c', navigationType: 'push' })
+    h.advance(50)
+    h.tracker.commit('/sessions/ses_c')
+    h.advance(RSC_SETTLE_MS)
+
+    expect(h.events.map((e) => [e.props.route, e.props.outcome])).toEqual([
+      ['/sessions/[id]', ERouteNavigationOutcome.Committed],
+    ])
+  })
+
   it('ignores navigations to the current path and commits for other paths', () => {
     const h = harness()
     h.tracker.start({ url: `${ORIGIN}/sessions/ses_a?tab=files`, navigationType: 'replace' })

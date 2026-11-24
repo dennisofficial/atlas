@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 
-import { FollowRig, said } from './follow-rig'
+import { FOLLOW_HIGH_WATER_BYTES } from '../follow-limits'
+import { FollowRig, OWNER, said, SESSION, THREAD } from './follow-rig'
 
 const PAGE_READ = 2
 
@@ -69,5 +70,112 @@ describe('follow catch-up', () => {
       expect(Number(frame.events.at(-1)?.seq ?? 0)).toBeGreaterThanOrEqual(frame.head.seq)
     }
     expect(rig.frames('events').at(-1)?.live).toBe(true)
+  })
+})
+
+describe('session_catchup telemetry', () => {
+  let rig: FollowRig
+
+  beforeEach(() => {
+    rig = new FollowRig()
+  })
+
+  afterEach(() => {
+    rig.dispose()
+  })
+
+  const onlyCatchup = () => {
+    const captures = rig.analytics.eventsOf('session_catchup')
+    expect(captures).toHaveLength(1)
+    const capture = captures[0]
+    if (capture === undefined) throw new Error('no capture')
+    return capture
+  }
+
+  it('captures one event for a cold catch-up across many pages', async () => {
+    await rig.seed({ events: 1_200 })
+    await rig.subscribe({ session: rig.open() })
+    await rig.untilSeq(1_200)
+    await rig.settled()
+
+    const capture = onlyCatchup()
+    expect(capture.userId).toBe(OWNER)
+    expect(capture.properties).toMatchObject({
+      session_id: SESSION,
+      pages: rig.frames('events').length,
+      events: 1_200,
+      start: 'cold',
+      surface: 'web',
+      main_thread: true,
+      reached_live: true,
+      behind_events: 1_200,
+      drain_waits: 0,
+    })
+    expect(capture.properties.bytes).toBeGreaterThan(0)
+    expect(capture.properties.duration_ms).toBeGreaterThanOrEqual(0)
+  })
+
+  it('marks a resumed catch-up as warm and counts only what it sent', async () => {
+    await rig.seed({ events: 10 })
+    const all = await rig.plane.readEvents({
+      threadId: THREAD,
+      afterSeq: 0,
+      limit: 10,
+      visible: false,
+    })
+    await rig.subscribe({
+      session: rig.open(),
+      afterSeq: 5,
+      afterHash: rig.hashAt(all.events, 5),
+    })
+    await rig.untilSeq(10)
+    await rig.settled()
+
+    expect(onlyCatchup().properties).toMatchObject({
+      start: 'warm',
+      events: 5,
+      pages: 1,
+      behind_events: 5,
+      reached_live: true,
+    })
+  })
+
+  it('marks a reset start as reset', async () => {
+    await rig.seed({ events: 10 })
+    await rig.subscribe({ session: rig.open(), afterSeq: 50, afterHash: 'whatever' })
+    await rig.untilSeq(10)
+    await rig.settled()
+
+    expect(onlyCatchup().properties).toMatchObject({
+      start: 'reset',
+      events: 10,
+      behind_events: 10,
+      reached_live: true,
+    })
+  })
+
+  it('reports reached_live false when stopped before the first page', async () => {
+    await rig.seed({ events: 1_200 })
+    rig.buffered = FOLLOW_HIGH_WATER_BYTES
+    const session = rig.open()
+    await rig.subscribe({ session })
+    session.close()
+
+    expect(onlyCatchup().properties).toMatchObject({
+      start: 'cold',
+      events: 0,
+      pages: 0,
+      reached_live: false,
+      drain_waits: 1,
+    })
+  })
+
+  it('captures nothing for a subscription that never passed begin', async () => {
+    await rig.seed({ events: 10 })
+    await rig.subscribe({ session: rig.open(), sessionId: 'missing' })
+    await rig.settled()
+
+    expect(rig.frames('error')).toHaveLength(1)
+    expect(rig.analytics.eventsOf('session_catchup')).toHaveLength(0)
   })
 })
