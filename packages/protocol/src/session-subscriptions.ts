@@ -1,4 +1,4 @@
-import { jsonValueSchema } from '@dltech/atlas-core'
+import { ETargetPhase, jsonValueSchema } from '@dltech/atlas-core'
 import { z } from 'zod'
 
 export const sessionSubscriptionSchema = z.strictObject({
@@ -25,10 +25,17 @@ export const sessionSubscribeInputSchema = z.strictObject({
 
 export type SessionSubscribeInput = z.infer<typeof sessionSubscribeInputSchema>
 
+export const subscribedTargetSchema = z.strictObject({
+  phase: z.enum(ETargetPhase),
+  summary: z.string().optional(),
+  ended: z.boolean(),
+})
+
 export const sessionSubscribeOutputSchema = z.strictObject({
   subscription: sessionSubscriptionSchema,
   existed: z.boolean(),
   updated: z.boolean(),
+  target: subscribedTargetSchema.optional(),
 })
 
 export type SessionSubscribeOutput = z.infer<typeof sessionSubscribeOutputSchema>

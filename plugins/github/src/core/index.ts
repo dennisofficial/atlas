@@ -4,6 +4,7 @@ export * from './presentation'
 export * from './run-target'
 export * from './subscriptions-view'
 export * from './target'
+export * from './target-state'
 
 export const githubCoreSlots = {
   events: [] as readonly never[],

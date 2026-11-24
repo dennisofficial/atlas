@@ -9,6 +9,9 @@ import {
   type PluginViewFold,
   type RevokeResult,
   type SpawnFile,
+  type SubscriptionTargetState,
+  type SubscriptionTargetStates,
+  UNKNOWN_TARGET_STATE,
   type V2Event,
   type V2EventType,
   type ThreadId,
@@ -87,7 +90,8 @@ import {
 import { archiveSpawnedOf, type SpawnedArchive } from './spawned-archive'
 import { EMPTY_VISIBILITY_TEXT } from './stored-event'
 import { endSubscriptionsIn, unsubscribeIn } from './subscription-endings'
-import { listSubscriptionsIn, subscribeIn, type SubscribeResult } from './subscription-ops'
+import { listSubscriptionsIn } from './subscription-ops'
+import { subscribeToStateIn, type SubscribeToStateResult } from './subscription-completion'
 import type { SubscriptionLeaseInput } from './subscription-rows'
 
 export const MAX_READ_LIMIT = 1000
@@ -99,6 +103,7 @@ export type ControlPlaneParams = {
   eventSchema?: z.ZodType<V2Event> | undefined
   pluginViews?: readonly PluginViewFold[] | undefined
   appendHooks?: readonly AppendHook[] | undefined
+  targetStates?: SubscriptionTargetStates | undefined
 }
 
 export type { ReadEventsPage } from './read-events'
@@ -118,8 +123,10 @@ export class ControlPlane {
   private readonly eventSchema: z.ZodType<V2Event> | undefined
   private readonly pluginViews: readonly PluginViewFold[]
   private readonly appendHooks: readonly AppendHook[]
+  private readonly targetStates: SubscriptionTargetStates | undefined
 
   constructor(params: ControlPlaneParams) {
+    this.targetStates = params.targetStates
     this.store = params.store
     this.clock = params.clock
     this.eventSchema = params.eventSchema
@@ -671,14 +678,31 @@ export class ControlPlane {
     expiresAt?: string | undefined
     lease: SubscriptionLeaseInput
     by: ESubscriptionActor
-  }): Promise<SubscribeResult> {
+  }): Promise<SubscribeToStateResult> {
+    const state = await this.targetStateOf(params)
     return this.store.transact(async (tx) => {
       const session = await this.requireSession({ tx, sessionId: params.sessionId })
       const thread = await this.requireThread({ tx, threadId: params.threadId })
       if (thread.sessionId !== params.sessionId) {
         throw new Error(`thread ${params.threadId} belongs to another session`)
       }
-      return subscribeIn({ tx, session, ...params, at: await this.nowIn(tx) })
+      return subscribeToStateIn({ tx, session, ...params, state, at: await this.nowIn(tx) })
+    })
+  }
+
+  private async targetStateOf(params: {
+    sessionId: string
+    provider: string
+    target: JsonValue
+  }): Promise<SubscriptionTargetState> {
+    if (this.targetStates === undefined) return UNKNOWN_TARGET_STATE
+    const session = await this.store.transact((tx) =>
+      this.requireSession({ tx, sessionId: params.sessionId }),
+    )
+    return this.targetStates.read({
+      userId: session.userId,
+      provider: params.provider,
+      target: params.target,
     })
   }
 

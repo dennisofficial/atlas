@@ -26,6 +26,7 @@ export type AgentHostEnv = PodsEnv & {
   previewDomain: string
   vercelOauth: { clientId: string; clientSecret: string } | null
   mediaBlobToken: string | null
+  githubApp: { appId: string | undefined; appPrivateKey: string | undefined }
   port: number
   trustedOrigins: string[]
 }
@@ -109,6 +110,10 @@ export const readAgentHostEnv = (
     platformVercel: platformVercel.value,
     agent37: agent37OfOrThrow(env),
     mediaBlobToken: take(env, 'BLOB_READ_WRITE_TOKEN') ?? null,
+    githubApp: {
+      appId: take(env, 'GITHUB_APP_ID'),
+      appPrivateKey: take(env, 'GITHUB_APP_PRIVATE_KEY'),
+    },
     sandboxImage: sandboxImageOf(env),
     daemonBundlePath: daemonBundlePathOf(env),
     port: parsePort(take(env, 'PORT')),

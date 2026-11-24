@@ -1,4 +1,10 @@
-import type { ESubscriptionActor, ESubscriptionEnd, JsonValue, ThreadId } from '@dltech/atlas-core'
+import type {
+  ESubscriptionActor,
+  ESubscriptionEnd,
+  JsonValue,
+  SubscribedTarget,
+  ThreadId,
+} from '@dltech/atlas-core'
 import { EMPTY_MCP_CONTROL } from '@dltech/atlas-plugin-sdk'
 import type {
   ECloudSetting,
@@ -61,7 +67,12 @@ export type PodControlClient = {
         expiresAt?: string | undefined
         lease: PodSubscriptionLease
       },
-    ): Promise<{ subscription: SessionSubscription; existed: boolean; updated: boolean }>
+    ): Promise<{
+      subscription: SessionSubscription
+      existed: boolean
+      updated: boolean
+      target?: SubscribedTarget | undefined
+    }>
     unsubscribe(args: Called & { subscriptionId: string }): Promise<{ ended: boolean }>
     end(
       args: Called & {

@@ -2,6 +2,7 @@ import {
   catalogText,
   EToolEffect,
   SchemaTool,
+  subscribedTargetText,
   TAKES_NO_PATHS,
   type ToolOutcome,
   type ToolRun,
@@ -51,6 +52,7 @@ const description = [
   'action subscribe needs provider, and takes target, events and expiresInMinutes. action unsubscribe needs subscriptionId and ends one subscription. action list shows every subscription with its id, label, who created it and expiry, plus the providers you can subscribe to.',
   `The providers are ${GITHUB_PROVIDER} and ${GITHUB_RUN_PROVIDER}.`,
   'target is the source: owner/repo#123, a pull request URL or a run URL. Omit it when the provider works it out from this session, such as the pull request or the run of the current branch.',
+  'A target that already reached its end, such as a merged pull request or a finished run, delivers that final notice at once and ends the subscription.',
   'expiresInMinutes ends the subscription after that long. Without it the subscription lasts until it completes, you unsubscribe, or its session is archived.',
   `events keeps only some kinds of occurrence; omit it for every kind. Occurrences that end a subscription, such as a merge, always arrive. ${GITHUB_PROVIDER} takes ${catalogText(PULL_REQUEST_EVENTS)}. ${GITHUB_RUN_PROVIDER} takes no events filter.`,
   'Subscribing again to the same target returns the existing subscription, or updates its filter when events differ.',
@@ -121,14 +123,18 @@ export class SubscriptionTool extends SchemaTool<typeof inputSchema> {
       requestedEvents: input.events,
     })
     if (!outcome.ok) return { ok: false, reason: outcome.error }
-    const { subscription, existed, updated } = outcome
+    const { subscription, existed, updated, target } = outcome
     const expiry =
       subscription.expiresAt === null ? 'no expiry' : `expires ${subscription.expiresAt}`
     const headline = existed ? (updated ? 'Updated' : 'Already subscribed to') : 'Subscribed to'
     return {
       ok: true,
-      output: { subscriptionId: subscription.id, existed },
-      modelText: `${headline} ${subscription.label} (id ${subscription.id}, ${expiry}).`,
+      output: {
+        subscriptionId: subscription.id,
+        existed,
+        ...(target === undefined ? {} : { target }),
+      },
+      modelText: `${headline} ${subscription.label} (id ${subscription.id}, ${expiry}).${subscribedTargetText(target)}`,
     }
   }
 }
