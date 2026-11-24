@@ -1,7 +1,6 @@
 import {
   decisionsPresetOfUrl,
   decisionsProviderOf,
-  decisionsTokenNameOf,
   EDecisionsProvider,
   ESettingId,
   ESettingsLayer,
@@ -9,6 +8,7 @@ import {
   type SecretsPort,
 } from '@dltech/atlas-core'
 
+import { decisionsTokenNameOf } from './decisions-endpoint'
 import type { SettingsService } from './service'
 
 const FLAT_TOKEN_NAME: string = ESettingId.DecisionsToken

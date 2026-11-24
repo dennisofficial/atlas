@@ -3,38 +3,25 @@ import { describe, expect, it } from 'bun:test'
 import {
   CLOUD_SETTING_REGISTRY,
   EClassifierModeWire,
-  EDecisionsProviderWire,
   encodeSettingValue,
   ESettingConsumer,
   PROJECT_SETTING_REGISTRY,
   validateCloudSetting,
 } from '../web'
 
-const POD_DELIVERED_KEYS = [
-  'decisions.provider',
-  'decisions.url',
-  'decisions.model',
-  'classifier.mode',
-]
+const POD_DELIVERED_KEYS = ['classifier.mode']
 
 const CORE_CLASSIFIER_MODES = ['off', 'shadow', 'nudge']
-const CORE_DECISIONS_PROVIDERS = ['typesafe', 'vercel', 'openai', 'custom']
 
 const verdictOf = (args: { key: string; value: unknown }) =>
   validateCloudSetting({ key: args.key, stored: encodeSettingValue(args.value) })
 
 describe('pod-delivered agent settings', () => {
-  it('registers the four pod-delivered settings as harness-consumed', () => {
+  it('registers the pod-delivered settings as harness-consumed', () => {
     for (const key of POD_DELIVERED_KEYS) {
       expect(CLOUD_SETTING_REGISTRY.get(key)?.consumer).toBe(ESettingConsumer.Harness)
       expect(PROJECT_SETTING_REGISTRY.has(key)).toBe(true)
     }
-  })
-
-  it('rejects a decisions.url that is not an absolute http(s) URL', () => {
-    expect(verdictOf({ key: 'decisions.url', value: 'jev.internal' }).ok).toBe(false)
-    expect(verdictOf({ key: 'decisions.url', value: 'https://jev.internal' }).ok).toBe(true)
-    expect(verdictOf({ key: 'decisions.url', value: '' }).ok).toBe(true)
   })
 
   it('rejects an out-of-enum classifier.mode', () => {
@@ -67,6 +54,5 @@ describe('pod-delivered agent settings', () => {
   it('matches the core registry values byte-for-byte', () => {
     const sorted = (values: readonly string[]): string[] => [...values].sort()
     expect(sorted(Object.values(EClassifierModeWire))).toEqual(sorted(CORE_CLASSIFIER_MODES))
-    expect(sorted(Object.values(EDecisionsProviderWire))).toEqual(sorted(CORE_DECISIONS_PROVIDERS))
   })
 })

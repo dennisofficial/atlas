@@ -1,13 +1,19 @@
+import {
+  definitionsOfPage,
+  ESettingId,
+  ESettingKind,
+  ESettingPage,
+  ESettingsLayer,
+  rangeValueOf,
+  resolveSettings,
+  type RangeDefinition,
+} from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 
-import { definitionsOfPage, ESettingPage, type RangeDefinition } from '../definition'
-import { ESettingsLayer } from '../layers'
-import { ATLAS_SETTINGS, ESettingId } from '../registry'
-import { rangeValueOf, resolveSettings } from '../resolve'
-import { ESettingKind } from '../value'
+import { V1_ONLY_SETTING_DEFINITIONS } from '../v1-only-definitions'
 
 const definitionOf = (id: ESettingId): RangeDefinition => {
-  const found = ATLAS_SETTINGS.find((definition) => definition.id === id)
+  const found = V1_ONLY_SETTING_DEFINITIONS.find((definition) => definition.id === id)
   if (found === undefined) throw new Error(`${id} is not a registered setting`)
   if (found.kind !== ESettingKind.Range) throw new Error(`${id} is not a range`)
   return found
@@ -15,7 +21,7 @@ const definitionOf = (id: ESettingId): RangeDefinition => {
 
 const resolutionOver = (args: { file?: Record<string, unknown>; env?: Record<string, unknown> }) =>
   resolveSettings({
-    definitions: ATLAS_SETTINGS,
+    definitions: V1_ONLY_SETTING_DEFINITIONS,
     layers: [
       { layer: ESettingsLayer.User, origin: 'settings.json', values: args.file ?? {} },
       { layer: ESettingsLayer.Environment, origin: 'environment', values: args.env ?? {} },
@@ -39,12 +45,18 @@ describe('the container resource limits', () => {
   })
 
   it('sit beside the execution location on the page the settings overlay walks', () => {
-    const general = definitionsOfPage({ definitions: ATLAS_SETTINGS, page: ESettingPage.General })
+    const general = definitionsOfPage({
+      definitions: V1_ONLY_SETTING_DEFINITIONS,
+      page: ESettingPage.General,
+    })
     const execution = general.filter((definition) => definition.group === 'Execution')
 
-    expect(execution.map((definition) => definition.id)).toContain(ESettingId.ContainerCpus)
-    expect(execution.map((definition) => definition.id)).toContain(ESettingId.ContainerMemory)
-    expect(execution.map((definition) => definition.id)).toContain(ESettingId.ContainerIdleMinutes)
+    expect(execution.map((definition) => definition.id)).toEqual([
+      ESettingId.ExecutionLocation,
+      ESettingId.ContainerCpus,
+      ESettingId.ContainerMemory,
+      ESettingId.ContainerIdleMinutes,
+    ])
   })
 
   it('stops an idle container after half an hour by default', () => {

@@ -1,13 +1,19 @@
+import {
+  choiceValueOf,
+  definitionsOfPage,
+  ESettingId,
+  ESettingKind,
+  ESettingPage,
+  ESettingsLayer,
+  resolveSettings,
+  type ChoiceDefinition,
+} from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 
-import { definitionsOfPage, ESettingPage, type ChoiceDefinition } from '../definition'
-import { ESettingsLayer } from '../layers'
-import { ATLAS_SETTINGS, ESettingId } from '../registry'
-import { choiceValueOf, resolveSettings } from '../resolve'
-import { ESettingKind } from '../value'
+import { V1_ONLY_SETTING_DEFINITIONS } from '../v1-only-definitions'
 
 const definitionOf = (id: ESettingId): ChoiceDefinition => {
-  const found = ATLAS_SETTINGS.find((definition) => definition.id === id)
+  const found = V1_ONLY_SETTING_DEFINITIONS.find((definition) => definition.id === id)
   if (found === undefined) throw new Error(`${id} is not a registered setting`)
   if (found.kind !== ESettingKind.Choice) throw new Error(`${id} is not a choice`)
   return found
@@ -15,7 +21,7 @@ const definitionOf = (id: ESettingId): ChoiceDefinition => {
 
 const resolutionOver = (args: { file?: Record<string, unknown>; env?: Record<string, unknown> }) =>
   resolveSettings({
-    definitions: ATLAS_SETTINGS,
+    definitions: V1_ONLY_SETTING_DEFINITIONS,
     layers: [
       { layer: ESettingsLayer.User, origin: 'settings.json', values: args.file ?? {} },
       { layer: ESettingsLayer.Environment, origin: 'environment', values: args.env ?? {} },
@@ -42,9 +48,10 @@ describe('the transcript file editor', () => {
 
   it('sits on the General page the settings overlay walks', () => {
     expect(
-      definitionsOfPage({ definitions: ATLAS_SETTINGS, page: ESettingPage.General }).map(
-        (definition) => definition.id,
-      ),
+      definitionsOfPage({
+        definitions: V1_ONLY_SETTING_DEFINITIONS,
+        page: ESettingPage.General,
+      }).map((definition) => definition.id),
     ).toContain(ESettingId.Editor)
   })
 

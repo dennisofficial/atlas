@@ -3,7 +3,6 @@ import { describe, expect, it } from 'bun:test'
 import {
   ATLAS_SETTINGS,
   EHarnessPlacement,
-  ESettingId,
   EToolEnvironment,
   SecretsPort,
 } from '@dltech/atlas-core'
@@ -50,7 +49,7 @@ describe('bornPlacementFor', () => {
 
   it('is the host even when the last born placement was the cloud', () => {
     const placement = bornPlacementFor({
-      settings: settingsWith({ [ESettingId.LastBornPlacement]: 'cloud' }),
+      settings: settingsWith({ 'placement.lastBorn': 'cloud' }),
       secrets: new FakeSecrets(),
     })
 

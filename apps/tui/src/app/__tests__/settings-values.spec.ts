@@ -10,7 +10,6 @@ import {
   cloudValuesOf,
   decodedValuesOf,
   definitionOfSetting,
-  drawerDefinitionsOf,
   preferencesOf,
   resolutionOf,
   seedValuesOf,
@@ -52,19 +51,24 @@ describe('reading what the account holds', () => {
 })
 
 describe('the drawer rows', () => {
-  it('drops the rows that describe a machine or a v1 runtime', () => {
-    const drawn = drawerDefinitionsOf(ATLAS_SETTINGS).map((definition) => definition.id)
+  it('carries no row for a machine, a v1 runtime or a deleted key', () => {
+    const drawn = ATLAS_SETTINGS.map((definition) => definition.id)
 
-    expect(drawn).not.toContain(ESettingId.Editor)
-    expect(drawn).not.toContain(ESettingId.ExecutionLocation)
-    expect(drawn).not.toContain(ESettingId.LastBornPlacement)
-    expect(drawn).not.toContain(ESettingId.ContainerCpus)
-    expect(drawn).not.toContain(ESettingId.ContainerMemory)
-    expect(drawn).not.toContain(ESettingId.ContainerIdleMinutes)
-    expect(drawn).not.toContain(ESettingId.ExperimentalPods)
-    expect(drawn).not.toContain(ESettingId.PlacementChooserShape)
-    expect(drawn).not.toContain(ESettingId.AutoRestart)
-    expect(drawn).toContain(ESettingId.SmoothStreaming)
+    for (const key of [
+      'files.editor',
+      'execution.location',
+      'container.cpus',
+      'container.memory',
+      'container.idleMinutes',
+      'transcript.smoothStreaming',
+      'transcript.thinkingBlocks',
+      'tldr.status',
+      'usage.meters',
+      'dev.autoRestart',
+    ]) {
+      expect(drawn).not.toContain(key)
+    }
+    expect(drawn).toContain(ESettingId.SidebarWidth)
   })
 })
 
@@ -84,14 +88,14 @@ describe('the cached preferences', () => {
       preferences: {
         [ESettingId.Accent]: 'moss',
         [ESettingId.SidebarWidth]: 56,
-        [ESettingId.Editor]: 'cursor',
+        [ESettingId.ModelId]: 'anthropic/claude-opus-5',
         [ESettingId.Logo]: { nested: true },
       },
     })
 
     expect(seeded.get(ESettingId.Accent)).toBe('moss')
     expect(seeded.get(ESettingId.SidebarWidth)).toBe(56)
-    expect(seeded.has(ESettingId.Editor)).toBe(false)
+    expect(seeded.has(ESettingId.ModelId)).toBe(false)
     expect(seeded.has(ESettingId.Logo)).toBe(false)
   })
 

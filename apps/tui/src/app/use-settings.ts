@@ -24,7 +24,6 @@ import type { CloudPageControl } from './use-cloud-page'
 import { useSecretPrompt, type SecretPromptControl } from './use-secret-prompt'
 import type { SecretControl } from './use-secrets'
 import { useTextPrompt, type TextPromptControl } from './use-text-prompt'
-import { drawerDefinitionsOf } from './settings-values'
 
 export type SettingsDrawer = {
   state: SettingsState | null
@@ -63,7 +62,7 @@ export function useSettingsDrawer(args: {
   const resolution = settings.resolution
 
   const view = useMemo(
-    () => settingsModel({ definitions: drawerDefinitionsOf(ATLAS_SETTINGS), resolution }),
+    () => settingsModel({ definitions: ATLAS_SETTINGS, resolution }),
     [resolution],
   )
 

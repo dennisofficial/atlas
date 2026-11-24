@@ -15,8 +15,6 @@ import { UsageSandboxesSkeleton } from '../skeletons/library-skeletons'
 import { destroySandbox, fetchSandboxes, splitSandboxes } from '../data/personal/sandboxes-api'
 import { useSaveAction } from '../data/personal/use-save-action'
 import type { SandboxRow } from '../fixtures/settings-usage-rows'
-import { SettingFieldsEditor } from '../parts/setting-fields-editor'
-import { SANDBOX_FIELDS } from '../fixtures/settings-fields'
 import { useCloudSettings } from '@/lib/cloud-settings'
 import { SandboxDiskSection } from '../parts/sandbox-disk-section'
 import { SandboxSizeSection } from '../parts/sandbox-size-section'
@@ -61,20 +59,6 @@ function PersonalSandboxDisk() {
   )
 }
 
-function SandboxImageField() {
-  const settings = useCloudSettings()
-  if (settings.query.data === undefined) return null
-  return (
-    <SettingFieldsEditor
-      values={settings.query.data}
-      save={settings.save}
-      title="Sandbox image"
-      description="The image a new cloud sandbox boots with."
-      fields={SANDBOX_FIELDS}
-    />
-  )
-}
-
 export function UsageSandboxesView({
   running,
   paused,
@@ -100,7 +84,6 @@ export function UsageSandboxesView({
     >
       <PersonalSandboxSize />
       <PersonalSandboxDisk />
-      <SandboxImageField />
       <SettingsSection title={`Currently running (${running.length})`}>
         {running.length === 0 ? (
           <UsageSandboxEmpty />

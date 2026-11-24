@@ -10,11 +10,6 @@ export enum EEffortLevel {
   Max = 'max',
 }
 
-export enum EPlacementChooserShape {
-  Chip = 'chip',
-  Hero = 'hero',
-}
-
 export enum EVerdictTiming {
   FailFast = 'fail-fast',
   Settled = 'settled',
@@ -37,13 +32,6 @@ export enum EClassifierModeWire {
   Nudge = 'nudge',
 }
 
-export enum EDecisionsProviderWire {
-  Typesafe = 'typesafe',
-  Vercel = 'vercel',
-  OpenAi = 'openai',
-  Custom = 'custom',
-}
-
 export enum EImageModelWire {
   Gemini31FlashImage = 'google/gemini-3.1-flash-image',
   Gemini3ProImage = 'google/gemini-3-pro-image',
@@ -52,11 +40,7 @@ export enum EImageModelWire {
   GrokImagineImage20 = 'spacexai/grok-imagine-image-2.0',
 }
 
-export const DEFAULT_DECISIONS_PROVIDER_WIRE = EDecisionsProviderWire.Typesafe
-
 export const DEFAULT_IMAGE_MODEL_WIRE = EImageModelWire.Gemini31FlashImage
-
-export const DEFAULT_DECISIONS_MODEL_WIRE = 'jev-latest'
 
 export const NOTIFY_EVENT_IDS = [
   'finished',
@@ -144,12 +128,4 @@ export const modelRefSettingSchema = z
   .string()
   .refine((value) => value === '' || isModelRef(value), {
     message: 'must be empty or a provider/model reference',
-  })
-
-const ABSOLUTE_HTTP_URL = /^https?:\/\/\S+$/
-
-export const decisionsUrlSchema = z
-  .string()
-  .refine((value) => value === '' || ABSOLUTE_HTTP_URL.test(value.trim()), {
-    message: 'must be empty or an absolute http(s) URL',
   })

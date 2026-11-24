@@ -1,7 +1,8 @@
 import {
   ATLAS_SETTINGS,
   ESettingId,
-  ESettingsLayer,
+  ESettingKind,
+  ESettingPage,
   resolveSettings,
   type SecretPrompt,
   type SettingDefinition,
@@ -108,28 +109,44 @@ export const page = (args: {
 export const rowsOf = async (node: React.ReactNode, width: number): Promise<string[]> =>
   (await frameOf(node, width)).split('\n')
 
-export const CUSTOM_DECISIONS: readonly SettingsLayerInput[] = [
-  {
-    layer: ESettingsLayer.User,
-    origin: 'user',
-    values: { [ESettingId.DecisionsProvider]: 'custom' },
-  },
-]
+export const TEXT_ROW: SettingDefinition = {
+  id: 'demo.text',
+  page: ESettingPage.General,
+  group: 'Web',
+  label: 'Demo text',
+  description: 'A free-text row the drawer draws below the search key.',
+  kind: ESettingKind.Text,
+  fallback: '',
+}
+
+export const TEXT_DEFINITIONS: readonly SettingDefinition[] = [...ATLAS_SETTINGS, TEXT_ROW]
 
 export const stateOf = (
   id: ESettingId,
   layers: readonly SettingsLayerInput[] = [],
-): SettingsState => {
-  const resolution = resolveSettings({ definitions: ATLAS_SETTINGS, layers })
-  const model = settingsModel({ definitions: ATLAS_SETTINGS, resolution })
+): SettingsState => stateOfIn({ id, layers })
+
+export const stateOfIn = (args: {
+  id: string
+  definitions?: readonly SettingDefinition[]
+  layers?: readonly SettingsLayerInput[]
+}): SettingsState => {
+  const definitions = args.definitions ?? ATLAS_SETTINGS
+  const resolution = resolveSettings({ definitions, layers: args.layers ?? [] })
+  const model = settingsModel({ definitions, resolution })
 
   for (const [pageIndex, page] of model.pages.entries()) {
-    const rowIndex = page.rows.findIndex((row) => row.definition.id === id)
+    const rowIndex = page.rows.findIndex((row) => row.definition.id === args.id)
     if (rowIndex !== -1) return { pageIndex, rowIndex }
   }
 
-  throw new Error(`no row for ${id}`)
+  throw new Error(`no row for ${args.id}`)
 }
+
+export const TEXT_ROW_STATE = stateOfIn({
+  id: TEXT_ROW.id,
+  definitions: TEXT_DEFINITIONS,
+})
 
 export const ACCENT_ROW = stateOf(ESettingId.Accent)
 

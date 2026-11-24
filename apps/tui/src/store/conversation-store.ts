@@ -42,8 +42,7 @@ const NO_TURNS: readonly TurnSpend[] = Object.freeze([])
 export function createConversationStore(args: ConversationStoreArgs): ConversationStore {
   const paceReveal = args.paceReveal ?? false
   const readClock = args.readClock ?? Date.now
-  let thinking: EThinkingVisibility = args.thinking ?? SHIPPED_THINKING
-  let tldrStatus = true
+  const thinking: EThinkingVisibility = SHIPPED_THINKING
   let name: string | null = args.name ?? null
   let events: readonly Event[] = args.events ?? []
   let turns: readonly TurnSpend[] = args.turns ?? NO_TURNS
@@ -75,7 +74,6 @@ export function createConversationStore(args: ConversationStoreArgs): Conversati
     live: [],
     thinking,
     pendingTldr,
-    tldrStatus,
     sandbox: transcriptSandboxOf(sandbox),
   })
   let sidebar = sidebarNow()
@@ -104,7 +102,6 @@ export function createConversationStore(args: ConversationStoreArgs): Conversati
         reveal: gate,
         thinking,
         pendingTldr,
-        tldrStatus,
         sandbox: transcriptSandboxOf(sandbox),
         outputs: tails.map,
         working: channelWorking,
@@ -252,18 +249,6 @@ export function createConversationStore(args: ConversationStoreArgs): Conversati
     resetSteps() {
       tracker.reset()
       tails.clear()
-      republish()
-    },
-
-    setThinking(next) {
-      if (next === thinking) return
-      thinking = next
-      republish()
-    },
-
-    setTldrStatus(next) {
-      if (next === tldrStatus) return
-      tldrStatus = next
       republish()
     },
 

@@ -85,13 +85,12 @@ describe('the models page agent sections', () => {
     expect(held.groups.map((group) => group.label)).toEqual([
       'Model',
       'Background processes',
-      'Decisions',
       'Built-in sub-agents',
       'Global user-defined sub-agents',
       'Repository-defined sub-agents',
     ])
     expect(held.groups[0]?.rows.map(nameOf)).toContain('Teammates')
-    expect(held.groups[3]?.rows.map(nameOf)).toEqual([
+    expect(held.groups[2]?.rows.map(nameOf)).toEqual([
       'explore agents',
       'explore effort',
       'explore fast mode',
@@ -99,7 +98,7 @@ describe('the models page agent sections', () => {
       'explore effort',
       'explore fast mode',
     ])
-    expect(held.groups[5]?.rows.map(nameOf)).toEqual([
+    expect(held.groups[4]?.rows.map(nameOf)).toEqual([
       'auditor agents',
       'auditor effort',
       'auditor fast mode',
@@ -107,7 +106,7 @@ describe('the models page agent sections', () => {
       'reviewer effort',
       'reviewer fast mode',
     ])
-    expect(held.groups[4]?.rows.map(nameOf)).toEqual([
+    expect(held.groups[3]?.rows.map(nameOf)).toEqual([
       'reviewer agents',
       'reviewer effort',
       'reviewer fast mode',
