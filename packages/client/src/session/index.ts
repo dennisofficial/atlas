@@ -1,5 +1,6 @@
 export * from './session-media'
 export * from './session-rewind'
+export * from './quick-stop-restore'
 export * from './session-create'
 export * from './composer-send-state'
 export * from './draft-sync'

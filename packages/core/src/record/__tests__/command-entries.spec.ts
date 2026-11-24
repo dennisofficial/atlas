@@ -6,7 +6,7 @@ import {
   runningCommandEntriesOf,
   unfinishedCommandIdsOf,
 } from '../command-entries'
-import { EInputConsumed, type V2Body, type V2Event } from '../event'
+import { EInputConsumed, ERewindCause, type V2Body, type V2Event } from '../event'
 import { ECompactionAnchor } from '../../events/body'
 import { commandInputKind } from '../input-events'
 import { NOW, runId, threadId } from './support'
@@ -203,5 +203,18 @@ describe('a pane command that records one applied outcome', () => {
       applied({ inboxId: 5, name: 'shell-kill' }),
     ])
     expect(unfinishedCommandIdsOf(events)).toEqual([6])
+  })
+})
+
+describe('a quick-stop rewind', () => {
+  it('owes no command outcome and starts no pending command row', () => {
+    const events = logOf([
+      posted({ inboxId: 1, name: 'rewind' }),
+      consumed(1),
+      { type: 'history-rewound', toSeq: 0, draft: 'think it over', cause: ERewindCause.QuickStop },
+    ])
+
+    expect(unfinishedCommandIdsOf(events)).toEqual([])
+    expect(runningCommandEntriesOf(events)).toEqual([])
   })
 })

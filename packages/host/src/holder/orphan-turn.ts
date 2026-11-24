@@ -3,6 +3,7 @@ import { logFieldsOf } from '@dltech/atlas-observability'
 
 import type { HeldSessionDeps } from './held-session-deps'
 import type { SessionRecord } from './record/record-adapter'
+import { turnEndDraftsOf } from './turn-end-drafts'
 import type { TurnEnding } from './turn-boundary'
 
 export const closeOpenTurn = async (args: {
@@ -18,14 +19,11 @@ export const closeOpenTurn = async (args: {
     await record.append({
       threadId: record.threadId,
       runId: args.deps.ids.nextRunId(),
-      drafts: [
-        {
-          type: 'turn-ended',
-          turnId: open.turnId,
-          outcome: args.ending.outcome,
-          by: args.ending.by,
-        },
-      ],
+      drafts: turnEndDraftsOf({
+        events: record.eventCache().eventsAfter(0),
+        turnId: open.turnId,
+        ending: args.ending,
+      }),
     })
   } catch (error) {
     args.deps.log?.warn({
