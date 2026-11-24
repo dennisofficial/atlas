@@ -1,4 +1,4 @@
-import type { ChangeBlobRow } from '../change-content'
+import type { ChangeBlobRow, PresignGetArgs, PresignPutArgs } from '../change-content'
 import { ContextContentStore } from '../context-content'
 import type { ChangesS3Gateway } from './changes-aws-gateway'
 import type { ChangesSettings } from './changes-settings'
@@ -20,8 +20,16 @@ export class S3ContextContentStore extends ContextContentStore {
     return this.inner.read(args)
   }
 
-  presignGet(args: { hash: string; ttlMs: number }): Promise<string> {
+  presignGet(args: PresignGetArgs): Promise<string> {
     return this.inner.presignGet(args)
+  }
+
+  presignPut(args: PresignPutArgs): Promise<string> {
+    return this.inner.presignPut(args)
+  }
+
+  exists(args: { hash: string }): Promise<boolean> {
+    return this.inner.exists(args)
   }
 
   removing(hashes: readonly string[]): Promise<void> {

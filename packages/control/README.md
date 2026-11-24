@@ -83,11 +83,11 @@ a thread's event log.
 
 - `upsertChanges`, `readChanges`, `readChangeFile`, `changesUpdatedAt`, `changeBlobsPresent`,
   `changeBlobsUnreferenced`, `deleteChangeBlobs`.
-- `changeHashOf(content)`, `changeBlobKey(hash)`, `ChangeContentStore`, `ContextContentStore`.
+- `changeHashOf`, `changeBlobKey`, `ChangeContentStore`, `ContextContentStore` (`presignPut`, `exists`).
 - `runChangesGc` and `runContextFilesGc({ store, content, graceMs? })`: remove blobs no row uses.
   `CHANGES_GC_GRACE_MS` and `CHANGES_GC_ROW_LIMIT` set the default.
 - Context mirror: `upsertContextFiles`, `removeContextFiles`, `listContextFiles`, `contextFileOf`,
-  `contextDigestsReferenced`, `publishContextFile`, `removeContextBytesIfUnreferenced` (locked).
+  `contextDigestsReferenced`, `commitContextFile` (locked), `removeContextBytesIfUnreferenced`.
 
 ### Record a sandbox run
 

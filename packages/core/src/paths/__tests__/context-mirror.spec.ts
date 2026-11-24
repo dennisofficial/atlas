@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'bun:test'
 
 import {
-  CONTEXT_MIRROR_MAX_BYTES,
   contextExtensionOf,
   contextFileKindOf,
+  contextMediaKindOf,
   contextMimeOf,
   EContextFileKind,
 } from '../context-mirror'
@@ -16,9 +16,16 @@ const kindOf = (path: string, bytes: readonly number[] | Uint8Array): EContextFi
     head: bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes),
   })
 
-describe('CONTEXT_MIRROR_MAX_BYTES', () => {
-  it('caps a mirrored file at ten mebibytes', () => {
-    expect(CONTEXT_MIRROR_MAX_BYTES).toBe(10 * 1024 * 1024)
+describe('contextMediaKindOf', () => {
+  it('names the media kind an extension alone decides', () => {
+    expect(contextMediaKindOf('walkthrough.mp4')).toBe(EContextFileKind.Video)
+    expect(contextMediaKindOf('note.m4a')).toBe(EContextFileKind.Audio)
+    expect(contextMediaKindOf('shots/plan.png')).toBe(EContextFileKind.Image)
+  })
+
+  it('answers null for a kind that needs the bytes', () => {
+    expect(contextMediaKindOf('plan.md')).toBeNull()
+    expect(contextMediaKindOf('archive.zip')).toBeNull()
   })
 })
 
@@ -48,6 +55,17 @@ describe('contextMimeOf', () => {
     expect(contextMimeOf('shot.webp')).toBe('image/webp')
     expect(contextMimeOf('icon.svg')).toBe('image/svg+xml')
     expect(contextMimeOf('spec.pdf')).toBe('application/pdf')
+  })
+
+  it('maps the media extensions to their types', () => {
+    expect(contextMimeOf('walkthrough.mp4')).toBe('video/mp4')
+    expect(contextMimeOf('clip.webm')).toBe('video/webm')
+    expect(contextMimeOf('take.mov')).toBe('video/quicktime')
+    expect(contextMimeOf('take.m4v')).toBe('video/x-m4v')
+    expect(contextMimeOf('note.mp3')).toBe('audio/mpeg')
+    expect(contextMimeOf('note.wav')).toBe('audio/wav')
+    expect(contextMimeOf('note.m4a')).toBe('audio/mp4')
+    expect(contextMimeOf('note.ogg')).toBe('audio/ogg')
   })
 
   it('falls back to a byte stream for an unknown extension', () => {
@@ -81,5 +99,23 @@ describe('contextFileKindOf', () => {
 
   it('reads an empty file as text', () => {
     expect(kindOf('empty.txt', new Uint8Array())).toBe(EContextFileKind.Text)
+  })
+
+  it('calls the video extensions video whatever the bytes say', () => {
+    const bytes = [0x00, 0x00, 0x00, 0x18]
+    expect(kindOf('walkthrough.mp4', bytes)).toBe(EContextFileKind.Video)
+    expect(kindOf('clip.webm', bytes)).toBe(EContextFileKind.Video)
+    expect(kindOf('take.mov', bytes)).toBe(EContextFileKind.Video)
+    expect(kindOf('take.m4v', bytes)).toBe(EContextFileKind.Video)
+    expect(kindOf('WALKTHROUGH.MP4', encoder.encode('plain text'))).toBe(EContextFileKind.Video)
+  })
+
+  it('calls the audio extensions audio whatever the bytes say', () => {
+    const bytes = [0x49, 0x44, 0x33, 0x04]
+    expect(kindOf('note.mp3', bytes)).toBe(EContextFileKind.Audio)
+    expect(kindOf('note.wav', bytes)).toBe(EContextFileKind.Audio)
+    expect(kindOf('note.m4a', bytes)).toBe(EContextFileKind.Audio)
+    expect(kindOf('note.ogg', bytes)).toBe(EContextFileKind.Audio)
+    expect(kindOf('NOTE.MP3', encoder.encode('plain text'))).toBe(EContextFileKind.Audio)
   })
 })

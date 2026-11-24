@@ -3,11 +3,13 @@ import {
   type DeleteObjectsCommandOutput,
   GetObjectCommand,
   type GetObjectCommandOutput,
+  HeadObjectCommand,
   ListObjectsV2Command,
   type ListObjectsV2CommandOutput,
   PutObjectCommand,
   type PutObjectCommandOutput,
   S3Client,
+  S3ServiceException,
 } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 
@@ -19,6 +21,8 @@ export interface ChangesS3Gateway {
   read(command: GetObjectCommand): Promise<GetObjectCommandOutput>
   remove(command: DeleteObjectsCommand): Promise<DeleteObjectsCommandOutput>
   signGet(args: { command: GetObjectCommand; ttlMs: number }): Promise<string>
+  signPut(args: { command: PutObjectCommand; ttlMs: number }): Promise<string>
+  head(command: HeadObjectCommand): Promise<boolean>
 }
 
 const secondsOf = (ttlMs: number): number => Math.max(1, Math.floor(ttlMs / 1000))
@@ -58,5 +62,24 @@ export class ChangesAwsGateway implements ChangesS3Gateway {
 
   signGet(args: { command: GetObjectCommand; ttlMs: number }): Promise<string> {
     return getSignedUrl(this.client, args.command, { expiresIn: secondsOf(args.ttlMs) })
+  }
+
+  signPut(args: { command: PutObjectCommand; ttlMs: number }): Promise<string> {
+    return getSignedUrl(this.client, args.command, { expiresIn: secondsOf(args.ttlMs) })
+  }
+
+  async head(command: HeadObjectCommand): Promise<boolean> {
+    try {
+      await this.client.send(command)
+      return true
+    } catch (error) {
+      if (
+        error instanceof S3ServiceException &&
+        (error.$metadata.httpStatusCode === 404 || error.name === 'NotFound')
+      ) {
+        return false
+      }
+      throw error
+    }
   }
 }

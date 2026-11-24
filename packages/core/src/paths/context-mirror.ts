@@ -1,12 +1,16 @@
-export const CONTEXT_MIRROR_MAX_BYTES = 10 * 1024 * 1024
-
 export enum EContextFileKind {
   Text = 'text',
   Image = 'image',
   Binary = 'binary',
+  Video = 'video',
+  Audio = 'audio',
 }
 
 const IMAGE_EXTENSIONS: ReadonlySet<string> = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'])
+
+const VIDEO_EXTENSIONS: ReadonlySet<string> = new Set(['mp4', 'webm', 'mov', 'm4v'])
+
+const AUDIO_EXTENSIONS: ReadonlySet<string> = new Set(['mp3', 'wav', 'm4a', 'ogg'])
 
 const MIME_BY_EXTENSION: Readonly<Record<string, string>> = {
   md: 'text/markdown',
@@ -23,6 +27,14 @@ const MIME_BY_EXTENSION: Readonly<Record<string, string>> = {
   webp: 'image/webp',
   svg: 'image/svg+xml',
   pdf: 'application/pdf',
+  mp4: 'video/mp4',
+  webm: 'video/webm',
+  mov: 'video/quicktime',
+  m4v: 'video/x-m4v',
+  mp3: 'audio/mpeg',
+  wav: 'audio/wav',
+  m4a: 'audio/mp4',
+  ogg: 'audio/ogg',
 }
 
 const NO_MIME = 'application/octet-stream'
@@ -67,7 +79,21 @@ const decodesAsUtf8 = (head: Uint8Array): boolean => {
 }
 
 export const contextFileKindOf = (args: { path: string; head: Uint8Array }): EContextFileKind => {
-  if (IMAGE_EXTENSIONS.has(contextExtensionOf(args.path))) return EContextFileKind.Image
+  const extension = contextExtensionOf(args.path)
+  if (IMAGE_EXTENSIONS.has(extension)) return EContextFileKind.Image
+  if (VIDEO_EXTENSIONS.has(extension)) return EContextFileKind.Video
+  if (AUDIO_EXTENSIONS.has(extension)) return EContextFileKind.Audio
   if (args.head.includes(0)) return EContextFileKind.Binary
   return decodesAsUtf8(args.head) ? EContextFileKind.Text : EContextFileKind.Binary
+}
+
+const MEDIA_KINDS: ReadonlySet<EContextFileKind> = new Set([
+  EContextFileKind.Image,
+  EContextFileKind.Video,
+  EContextFileKind.Audio,
+])
+
+export const contextMediaKindOf = (path: string): EContextFileKind | null => {
+  const kind = contextFileKindOf({ path, head: new Uint8Array() })
+  return MEDIA_KINDS.has(kind) ? kind : null
 }

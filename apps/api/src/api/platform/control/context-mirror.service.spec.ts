@@ -79,7 +79,7 @@ describe('ContextMirrorService', () => {
     })
   })
 
-  it('reports a file too large to mirror', async () => {
+  it('reports a file the mirror has not stored yet', async () => {
     const { plane, mirror, sessionId } = await setup()
     await plane.upsertContextFiles({
       sessionId,
@@ -173,7 +173,8 @@ describe('ContextMirrorService', () => {
       path: 'shots/plan.png',
       mime: 'image/png',
       bytes: 4,
-      url: `fake://changes/${digest}?ttl=${CONTEXT_MIRROR_URL_TTL_MS}`,
+      url: `fake://changes/${digest}?ttl=${CONTEXT_MIRROR_URL_TTL_MS}&contentType=image/png`,
+      downloadUrl: `fake://changes/${digest}?ttl=${CONTEXT_MIRROR_URL_TTL_MS}&downloadName=plan.png`,
     })
   })
 
@@ -196,11 +197,46 @@ describe('ContextMirrorService', () => {
       path: 'report.pdf',
       mime: 'application/pdf',
       bytes: 4,
-      url: `fake://changes/${digest}?ttl=${CONTEXT_MIRROR_URL_TTL_MS}`,
+      url: `fake://changes/${digest}?ttl=${CONTEXT_MIRROR_URL_TTL_MS}&contentType=application/pdf`,
+      downloadUrl: `fake://changes/${digest}?ttl=${CONTEXT_MIRROR_URL_TTL_MS}&downloadName=report.pdf`,
     })
   })
 
-  it('refuses a file the mirror never stored', async () => {
+  it('signs a playable url and a download url for media', async () => {
+    const { plane, content, mirror, sessionId } = await setup()
+    const bytes = new Uint8Array([0x00, 0x00, 0x00, 0x18])
+    const cases = [
+      {
+        path: 'media/walkthrough.mp4',
+        kind: EContextFileKind.Video,
+        type: 'video' as const,
+        mime: 'video/mp4',
+      },
+      {
+        path: 'media/note.m4a',
+        kind: EContextFileKind.Audio,
+        type: 'audio' as const,
+        mime: 'audio/mp4',
+      },
+    ]
+
+    for (const item of cases) {
+      const digest = await stage({ ...item, plane, content, sessionId, bytes })
+      const output = await mirror.read({ userId: 'user-a', sessionId, path: item.path })
+      const name = item.path.slice(item.path.lastIndexOf('/') + 1)
+
+      expect(output.file).toEqual({
+        type: item.type,
+        path: item.path,
+        mime: item.mime,
+        bytes: 4,
+        url: `fake://changes/${digest}?ttl=${CONTEXT_MIRROR_URL_TTL_MS}&contentType=${item.mime}`,
+        downloadUrl: `fake://changes/${digest}?ttl=${CONTEXT_MIRROR_URL_TTL_MS}&downloadName=${name}`,
+      })
+    }
+  })
+
+  it('answers pending for a file the mirror never stored', async () => {
     const { plane, mirror, sessionId } = await setup()
     await plane.upsertContextFiles({
       sessionId,
@@ -218,11 +254,7 @@ describe('ContextMirrorService', () => {
 
     const output = await mirror.read({ userId: 'user-a', sessionId, path: 'huge.zip' })
 
-    expect(output.file).toEqual({
-      type: 'refused',
-      path: 'huge.zip',
-      reason: 'too large to mirror (12.0 MB)',
-    })
+    expect(output.file).toEqual({ type: 'pending', path: 'huge.zip' })
   })
 
   it('answers not found for a path the mirror does not index', async () => {

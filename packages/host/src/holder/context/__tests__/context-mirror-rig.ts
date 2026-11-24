@@ -12,120 +12,31 @@ import { RemoteCalls } from '../../../calls/remote-calls'
 import type { DaemonConnector } from '../../../calls/socket'
 import { FakeClock, SANDBOX, SECRET } from '../../__tests__/rig-fakes'
 import { ContextMirror } from '../context-mirror'
+import {
+  entriesOf,
+  type FakeFs,
+  fakeFs,
+  HEAD_BYTES,
+  NOW,
+  SESSION,
+  statOf,
+} from './context-mirror-fs'
 
-export const SESSION = 'session-context'
-export const ROOT = '/atlas/home/sessions/session-context/context'
-export const NOW = 1_700_000_000_000
-
-export type FakeFile = { bytes: Uint8Array; mtimeMs: number; size?: number | undefined }
-
-export type FakeFs = {
-  root: string
-  files: Map<string, FakeFile>
-  dirs: Set<string>
-  reads: string[]
-  scans: number
-  failReads: Set<string>
-  failDirs: Set<string>
-  failStats: Set<string>
-  onScan: (() => void) | undefined
-  watchRoots: string[][]
-  armed: string[]
-  stopped: string[]
-  changed: ((event: { watchId: string; paths: string[] }) => void) | undefined
-}
-
-export const bytesOf = (text: string): Uint8Array => new TextEncoder().encode(text)
-
-export const binaryOf = (...values: readonly number[]): Uint8Array => new Uint8Array(values)
-
-export const fakeFs = (): FakeFs => ({
-  root: ROOT,
-  files: new Map(),
-  dirs: new Set([ROOT]),
-  reads: [],
-  scans: 0,
-  failReads: new Set(),
-  failDirs: new Set(),
-  failStats: new Set(),
-  onScan: undefined,
-  watchRoots: [],
-  armed: [],
-  stopped: [],
-  changed: undefined,
-})
-
-const absolute = (fs: FakeFs, path: string): string => `${fs.root}/${path}`
-
-const parentOf = (path: string): string => path.slice(0, path.lastIndexOf('/'))
-const ensureDirectories = (fs: FakeFs, path: string): void => {
-  let directory = parentOf(path)
-  while (directory.startsWith(fs.root) && !fs.dirs.has(directory)) {
-    fs.dirs.add(directory)
-    directory = parentOf(directory)
-  }
-}
-
-export const putFile = (args: {
-  fs: FakeFs
-  path: string
-  bytes?: Uint8Array | undefined
-  text?: string | undefined
-  mtimeMs?: number | undefined
-  size?: number | undefined
-}): void => {
-  const path = absolute(args.fs, args.path)
-  ensureDirectories(args.fs, path)
-  args.fs.files.set(path, {
-    bytes: args.bytes ?? bytesOf(args.text ?? ''),
-    mtimeMs: args.mtimeMs ?? NOW,
-    size: args.size,
-  })
-}
-
-export const removeFile = (args: { fs: FakeFs; path: string }): void => {
-  args.fs.files.delete(absolute(args.fs, args.path))
-}
-
-export const putDirectory = (args: { fs: FakeFs; path: string }): void => {
-  args.fs.dirs.add(absolute(args.fs, args.path))
-}
-
-export const announceChanged = (args: {
-  fs: FakeFs
-  watchId: string
-  paths?: readonly string[] | undefined
-}): void => {
-  args.fs.changed?.({ watchId: args.watchId, paths: [...(args.paths ?? [])] })
-}
-
-const entriesOf = (fs: FakeFs, directory: string) => {
-  const entries: { name: string; isFile: boolean; isDirectory: boolean }[] = []
-  for (const path of fs.files.keys()) {
-    if (parentOf(path) !== directory) continue
-    entries.push({ name: path.slice(path.lastIndexOf('/') + 1), isFile: true, isDirectory: false })
-  }
-  for (const path of fs.dirs) {
-    if (path === directory || parentOf(path) !== directory) continue
-    entries.push({ name: path.slice(path.lastIndexOf('/') + 1), isFile: false, isDirectory: true })
-  }
-  return entries
-}
-
-const statOf = (fs: FakeFs, path: string) => {
-  const file = fs.files.get(path)
-  if (file !== undefined) {
-    return {
-      size: file.size ?? file.bytes.byteLength,
-      mode: 0o644,
-      mtimeMs: file.mtimeMs,
-      isFile: true,
-      isDirectory: false,
-    }
-  }
-  if (!fs.dirs.has(path)) throw new Error(`ENOENT: ${path}`)
-  return { size: 0, mode: 0o755, mtimeMs: NOW, isFile: false, isDirectory: true }
-}
+export {
+  announceChanged,
+  binaryOf,
+  bytesOf,
+  type FakeFile,
+  type FakeFs,
+  fakeFs,
+  HEAD_BYTES,
+  NOW,
+  putDirectory,
+  putFile,
+  removeFile,
+  ROOT,
+  SESSION,
+} from './context-mirror-fs'
 
 const filesGroup =
   (fs: FakeFs): DaemonGroupFactory =>
@@ -154,10 +65,41 @@ const filesGroup =
         op: 'readBytes',
         run: async ({ op }) => {
           fs.reads.push(op.path)
-          if (fs.failReads.has(op.path)) throw new Error(`EIO: ${op.path}`)
           const file = fs.files.get(op.path)
           if (file === undefined) throw new Error(`ENOENT: ${op.path}`)
           return Buffer.from(file.bytes).toString('base64')
+        },
+      }),
+      defineOp({
+        op: 'digestFile',
+        run: async ({ op }) => {
+          fs.digests.push(op.path)
+          if (fs.failDigests.has(op.path)) throw new Error(`EIO: ${op.path}`)
+          const file = fs.files.get(op.path)
+          if (file === undefined) throw new Error(`ENOENT: ${op.path}`)
+          const hasher = new Bun.CryptoHasher('sha256')
+          hasher.update(file.bytes)
+          return {
+            sha256: hasher.digest('hex'),
+            size: file.size ?? file.bytes.byteLength,
+            head: Buffer.from(file.bytes.subarray(0, HEAD_BYTES)).toString('base64'),
+          }
+        },
+      }),
+      defineOp({
+        op: 'putFile',
+        run: async ({ op }) => {
+          const file = fs.files.get(op.path)
+          if (file === undefined) throw new Error(`ENOENT: ${op.path}`)
+          const hasher = new Bun.CryptoHasher('sha256')
+          hasher.update(file.bytes)
+          const response = await fetch(op.url, {
+            method: 'PUT',
+            body: file.bytes,
+            headers: { 'content-type': 'application/octet-stream' },
+          })
+          if (!response.ok) throw new Error(`the store answered ${response.status}`)
+          return { sha256: hasher.digest('hex'), size: file.bytes.byteLength }
         },
       }),
     ],
@@ -215,9 +157,14 @@ class RecordingContextContentStore extends FakeContextContentStore {
     super({ clock: () => 1 })
   }
 
-  override put(args: { hash: string; bytes: Uint8Array }): Promise<void> {
-    this.order.push(`put:${args.hash}`)
-    return super.put(args)
+  override exists(args: { hash: string }): Promise<boolean> {
+    this.order.push(`exists:${args.hash}`)
+    return super.exists(args)
+  }
+
+  override presignPut(args: { hash: string; ttlMs: number }): Promise<string> {
+    this.order.push(`presignPut:${args.hash}`)
+    return super.presignPut(args)
   }
 }
 
@@ -251,10 +198,11 @@ export const rig = async (args: {
   const store = new InMemoryControlStore({ clock: () => new Date(0).toISOString() })
   const plane = new ControlPlane({ store })
   const order: string[] = []
-  const publish = plane.publishContextFile.bind(plane)
-  plane.publishContextFile = async (params) => {
-    await publish(params)
+  const commit = plane.commitContextFile.bind(plane)
+  plane.commitContextFile = async (params) => {
+    const committed = await commit(params)
     order.push(`upsert:${params.write.path}`)
+    return committed
   }
   const content = new RecordingContextContentStore(order)
   const calls = await connect(fs)
