@@ -77,8 +77,19 @@ export type McpSignInBegin =
   | { ok: true; url: string; expiresAt?: string | undefined }
   | { ok: false; reason: string }
 
+export enum EMcpToken {
+  Granted = 'granted',
+  SignIn = 'sign-in',
+  Unavailable = 'unavailable',
+}
+
+export type McpToken =
+  | { kind: EMcpToken.Granted; accessToken: string }
+  | { kind: EMcpToken.SignIn }
+  | { kind: EMcpToken.Unavailable; reason: string }
+
 export type PodMcpControl = {
-  token(args: { name: string; source: McpServerSource; url: string }): Promise<string | undefined>
+  token(args: { name: string; source: McpServerSource; url: string }): Promise<McpToken>
   begin(args: { name: string; source: McpServerSource; url: string }): Promise<McpSignInBegin>
   proxy(args: {
     name: string
@@ -88,7 +99,7 @@ export type PodMcpControl = {
 }
 
 export const EMPTY_MCP_CONTROL: PodMcpControl = {
-  token: async () => undefined,
+  token: async () => ({ kind: EMcpToken.SignIn }),
   begin: async () => ({ ok: false, reason: 'this session cannot start an MCP sign-in' }),
   proxy: async () => {
     throw new MacOfflineError()

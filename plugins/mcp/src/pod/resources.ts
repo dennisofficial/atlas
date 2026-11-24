@@ -82,14 +82,16 @@ const previousToolsOf = (ctx: PluginPodContext): McpToolsSnapshot | undefined =>
   return parsed.success ? parsed.data : undefined
 }
 
-const instructionsOf = (snapshot: McpToolsSnapshot | undefined): ReadonlyMap<string, string> =>
-  new Map(
-    (snapshot?.servers ?? []).flatMap((server) =>
-      server.instructions === undefined || server.instructions.length === 0
-        ? []
-        : [[server.name, server.instructions] as const],
-    ),
+const carriedOf = (args: {
+  previous: McpToolsSnapshot | undefined
+  name: string
+  configHash: string
+}): McpServerTools | undefined => {
+  const kept = (args.previous?.servers ?? []).find(
+    (server) => server.name === args.name && server.configHash === args.configHash,
   )
+  return kept === undefined ? undefined : { ...kept, retry: true }
+}
 
 export const mcpToolsResource = (args: {
   config: McpConfigPort
@@ -101,17 +103,19 @@ export const mcpToolsResource = (args: {
   watch: mcpWatchOf,
   cloud: [ECloudSetting.McpServers],
   background: true,
+  stale: (value) => value.servers.some((server) => server.retry === true),
   announce: (value, ctx): readonly (EventDraft | PluginEventBody)[] => {
     const rows = rowsOf(value)
     const previous = previousToolsOf(ctx)
     return [
       ...mcpRosterDraftsOf({ previous: rowsOf(previous), next: rows }),
-      ...mcpInstructionsDraftsOf({ events: ctx.events(), next: instructionsOf(value) }),
+      ...mcpInstructionsDraftsOf({ events: ctx.events(), servers: value.servers }),
       ...args.signIns.resolutionsOf({ sessionId: ctx.sessionId, rows, now: Date.now() }),
     ]
   },
   load: async ({ ctx, directory }) => {
     const merged = await resolveMcpServers({ ctx, config: args.config, directory })
+    const previous = previousToolsOf(ctx)
     const servers = await Promise.all(
       merged.servers.map(async (entry): Promise<McpServerTools> => {
         const opened = await connectOf({
@@ -120,15 +124,21 @@ export const mcpToolsResource = (args: {
           timeoutMs: args.connectTimeoutMs,
         })
         await releaseOf(opened)
+        const configHash = configHashOf(entry)
+        const kept = opened.retry
+          ? carriedOf({ previous, name: entry.name, configHash })
+          : undefined
+        if (kept !== undefined) return kept
         return {
           name: entry.name,
           origin: entry.origin,
           transportKind: entry.transport?.kind ?? null,
-          configHash: configHashOf(entry),
+          configHash,
           status: opened.status,
           tools: opened.tools,
           ...(opened.reason === undefined ? {} : { reason: opened.reason }),
           ...(opened.instructions === undefined ? {} : { instructions: opened.instructions }),
+          ...(opened.retry ? { retry: true } : {}),
         }
       }),
     )
