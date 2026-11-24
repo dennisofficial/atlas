@@ -18688,7 +18688,7 @@
               "foreignKeys": [
                 {
                   "index": {
-                    "name": "V2DiagramRepair_sessionId_idx_29f415d4"
+                    "primaryKey": true
                   },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
@@ -18708,21 +18708,13 @@
                   }
                 }
               ],
-              "indexes": [
-                {
-                  "columns": [
-                    "sessionId"
-                  ],
-                  "name": "V2DiagramRepair_sessionId_idx_29f415d4",
-                  "prefix": "V2DiagramRepair_sessionId_idx",
-                  "unique": false
-                }
-              ],
+              "indexes": [],
               "primaryKey": {
                 "columns": [
                   "sessionId",
                   "sourceHash"
-                ]
+                ],
+                "name": "V2DiagramRepair_pkey"
               },
               "uniques": []
             },
@@ -20295,7 +20287,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "e9f5d77490b65583d7e18d14283d066e1104174218be60d5cc672ca276a87e22"
+    "storageHash": "974071b9738acba06ec97c43b3b772d4a1d30c3e736601bb053e8bb5156698ae"
   },
   "execution": {
     "executionHash": "fd19c5954d71f00e27e0c02be3f06b71374f3b34bfb9f582b985590708b7518f",

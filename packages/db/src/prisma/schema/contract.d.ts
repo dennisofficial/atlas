@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'e9f5d77490b65583d7e18d14283d066e1104174218be60d5cc672ca276a87e22'>;
+  StorageHashBase<'974071b9738acba06ec97c43b3b772d4a1d30c3e736601bb053e8bb5156698ae'>;
 export type ExecutionHash =
   ExecutionHashBase<'fd19c5954d71f00e27e0c02be3f06b71374f3b34bfb9f582b985590708b7518f'>;
 export type ProfileHash =
@@ -7522,16 +7522,12 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
               };
-              primaryKey: { readonly columns: readonly ['sessionId', 'sourceHash'] };
+              primaryKey: {
+                readonly columns: readonly ['sessionId', 'sourceHash'];
+                readonly name: 'V2DiagramRepair_pkey';
+              };
               uniques: readonly [];
-              indexes: readonly [
-                {
-                  readonly name: 'V2DiagramRepair_sessionId_idx_29f415d4';
-                  readonly prefix: 'V2DiagramRepair_sessionId_idx';
-                  readonly columns: readonly ['sessionId'];
-                  readonly unique: false;
-                },
-              ];
+              indexes: readonly [];
               foreignKeys: readonly [
                 {
                   readonly source: {
