@@ -18,9 +18,12 @@ export type SurfaceProfile = {
   picks: readonly { name: string }[]
 }
 
-const MESSAGE_ACTIONS: readonly { name: string; because: EHiddenBecause }[] = [
+const WEB_HIDDEN: readonly { name: string; because: EHiddenBecause }[] = [
   { name: 'rewind', because: EHiddenBecause.MessageAction },
   { name: 'summarise', because: EHiddenBecause.MessageAction },
+  { name: 'skills', because: EHiddenBecause.Panel },
+  { name: 'mcp', because: EHiddenBecause.Panel },
+  { name: 'shells', because: EHiddenBecause.Panel },
 ]
 
 export const SURFACE_PROFILES: Record<ESurface, SurfaceProfile> = {
@@ -29,9 +32,9 @@ export const SURFACE_PROFILES: Record<ESurface, SurfaceProfile> = {
     hides: [{ name: 'summarise', because: EHiddenBecause.MessageAction }],
     picks: [{ name: 'rewind' }],
   },
-  [ESurface.Web]: { surface: ESurface.Web, hides: MESSAGE_ACTIONS, picks: [] },
-  [ESurface.Mac]: { surface: ESurface.Mac, hides: MESSAGE_ACTIONS, picks: [] },
-  [ESurface.Mobile]: { surface: ESurface.Mobile, hides: MESSAGE_ACTIONS, picks: [] },
+  [ESurface.Web]: { surface: ESurface.Web, hides: WEB_HIDDEN, picks: [] },
+  [ESurface.Mac]: { surface: ESurface.Mac, hides: WEB_HIDDEN, picks: [] },
+  [ESurface.Mobile]: { surface: ESurface.Mobile, hides: WEB_HIDDEN, picks: [] },
 }
 
 export const catalogueForSurface = ({

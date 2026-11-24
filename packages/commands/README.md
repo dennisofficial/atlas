@@ -9,7 +9,8 @@ message. Native commands and plugin commands both use it.
 - The command spec `CommandSpec`, and `defineCommand` that validates it.
 - The name rule: lowercase letters, digits and hyphens, with no slash.
 - The registry: `composeCommands` and `commandOf`, with the inbox kind `command:<name>`.
-- Where a command runs (`ECommandRunsIn`) and the client action it opens (`EClientAction`).
+- Where a command runs (`ECommandRunsIn`) and the client action it opens (`EClientAction`:
+  `ModelPicker`, `CommandList`, `Skills`, `Mcp`, `Shells`).
 - The catalogue row `CommandEntry`, `entryOf`, `skillEntryOf` and the one merge in `catalogueOf`.
 - The surface table `SURFACE_PROFILES` and `catalogueForSurface`.
 - The text layer: `parseInvocation` and `clientActionOf`.
@@ -53,7 +54,9 @@ message. Native commands and plugin commands both use it.
 - `catalogueOf({commands, skills})`: drop a skill whose name matches a command, then sort by group
   (context, session, workspace) and by name.
 - `catalogueForSurface({entries, surface})`: drop the names the surface hides.
-- `SURFACE_PROFILES`: each surface's hidden names, with the reason, and the names it picks.
+- `SURFACE_PROFILES`: each surface's hidden names, with the reason, and the names it picks. A name
+  is hidden `because` it is a message action, or `Panel` because only one surface draws it — web,
+  Mac and mobile hide `skills`, `mcp` and `shells`, and the TUI keeps them.
 
 ### Read a typed line
 
@@ -62,6 +65,8 @@ message. Native commands and plugin commands both use it.
 - `clientActionOfEntries({text, entries})`: the same question against a surface's catalogue rows, for
   a client that holds `CommandEntry[]` and no registry. A name followed by argument text returns
   `null`, so the host refuses that line rather than the client swallowing it.
+- `clientOnlyReason({name})`: the sentence a surface shows for a client command it cannot run —
+  `/<name> opens in the app. Pick it from the / menu.` The agent host and the surfaces share it.
 
 ### Handle a command
 

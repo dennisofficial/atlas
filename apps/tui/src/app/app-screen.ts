@@ -12,6 +12,13 @@ export enum EScreen {
   NewSession = 'new-session',
 }
 
+export enum EPanel {
+  Settings = 'settings',
+  Accounts = 'accounts',
+  Skills = 'skills',
+  Mcp = 'mcp',
+}
+
 export type ScreenState =
   | { screen: EScreen.SignIn; reason: string | null }
   | { screen: EScreen.AwaitingAccess; email: string | null }

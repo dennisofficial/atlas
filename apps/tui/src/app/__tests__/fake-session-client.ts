@@ -40,7 +40,19 @@ import { v2EventSchema, v2EventTypes, v2Views } from '../registered-plugins'
 import type { AuthRefusal, SessionClient } from '../session-client'
 import type { ProjectChoice } from '../../ui/project-prompt-model'
 import type {
+  AccountCreateInput,
+  AccountRow,
+  ActiveAccountInput,
   DraftPutBody,
+  McpOauthBeginInput,
+  McpOauthBeginResult,
+  McpOauthServer,
+  ProviderSignInBegin,
+  ProviderSignInBeginInput,
+  ProviderSignInCompleteInput,
+  ProviderSignInPoll,
+  ProviderSignInPollInput,
+  SetActiveAccountInput,
   GithubPollResult,
   ModelsProvider,
   ModelsReply,
@@ -99,6 +111,16 @@ export type FakeCalls = {
   beginGithubConnect: number
   pollGithubConnect: { deviceCode: string }[]
   disconnectGithub: number
+  accounts: number
+  activeAccount: ActiveAccountInput[]
+  createAccount: AccountCreateInput[]
+  setActiveAccount: SetActiveAccountInput[]
+  removeAccount: { accountId: string }[]
+  beginProviderSignIn: ProviderSignInBeginInput[]
+  completeProviderSignIn: ProviderSignInCompleteInput[]
+  pollProviderSignIn: ProviderSignInPollInput[]
+  mcpServers: number
+  mcpOauthBegin: McpOauthBeginInput[]
 }
 
 export type FakeSessionClient = SessionClient & {
@@ -110,6 +132,12 @@ export type FakeSessionClient = SessionClient & {
   setSettings: (rows: readonly SettingRow[]) => void
   setSecretNames: (names: readonly string[]) => void
   setSigningKeyRegistered: (registered: boolean) => void
+  setAccounts: (rows: readonly AccountRow[]) => void
+  setActiveAccountId: (args: { provider: string; accountId: string }) => void
+  setProviderSignIn: (begin: ProviderSignInBegin) => void
+  queueSignInPoll: (answers: readonly ProviderSignInPoll[]) => void
+  setMcpServers: (servers: readonly McpOauthServer[]) => void
+  setMcpOauthBegin: (answer: McpOauthBeginResult) => void
   refuseSettingWrites: (message: string | null) => void
   refuseSettingReads: (message: string | null) => void
   pushCreated: (created: SessionCreateOutput) => void
@@ -205,8 +233,25 @@ const DEFAULT_MODELS: ModelsReply = {
   ],
 }
 
+export const accountRowOf = (args: {
+  id: string
+  provider: string
+  kind?: string
+  label?: string
+}): AccountRow => ({
+  id: args.id,
+  provider: args.provider,
+  kind: args.kind ?? 'oauth',
+  origin: 'login',
+  label: args.label ?? 'Me',
+  status: 'active',
+  createdAt: '2026-11-20T00:00:00.000Z',
+  updatedAt: '2026-11-20T00:00:00.000Z',
+})
+
 export const fakeSessionClient = (args: {
   onAuthLost: (status: AuthRefusal) => void
+  accounts?: readonly AccountRow[] | undefined
 }): FakeSessionClient => {
   const fake = createFakeTransport()
   const scheduler = createFakeScheduler()
@@ -259,6 +304,16 @@ export const fakeSessionClient = (args: {
     beginGithubConnect: 0,
     pollGithubConnect: [],
     disconnectGithub: 0,
+    accounts: 0,
+    activeAccount: [],
+    createAccount: [],
+    setActiveAccount: [],
+    removeAccount: [],
+    beginProviderSignIn: [],
+    completeProviderSignIn: [],
+    pollProviderSignIn: [],
+    mcpServers: 0,
+    mcpOauthBegin: [],
   }
 
   let frames = 0
@@ -283,6 +338,25 @@ export const fakeSessionClient = (args: {
   let settingRows: readonly SettingRow[] = []
   let secretNames: readonly string[] = []
   let signingKeyRegistered = false
+  const held = args.accounts ?? [
+    accountRowOf({ id: 'account-default', provider: 'anthropic', label: 'My Anthropic' }),
+  ]
+  let accountRows: readonly AccountRow[] = held
+  let activeIds: Readonly<Record<string, string>> = Object.fromEntries(
+    held.map((row) => [row.provider, row.id]),
+  )
+  let signInBegin = {
+    flow: 'paste-code',
+    attemptId: 'attempt-1',
+    authorizeUrl: 'https://auth.example.test/anthropic',
+    expiresInMs: 600_000,
+  } as ProviderSignInBegin
+  let pollAnswers: readonly ProviderSignInPoll[] = [{ status: 'pending' } as ProviderSignInPoll]
+  let mcpServers: readonly McpOauthServer[] = []
+  let mcpBegin = {
+    outcome: 'redirect',
+    authorizationUrl: 'https://mcp.example.test/authorize',
+  } as McpOauthBeginResult
   let settingWriteRefusal: Error | null = null
   let settingReadRefusal: Error | null = null
   const created: SessionCreateOutput[] = []
@@ -492,6 +566,54 @@ export const fakeSessionClient = (args: {
     disconnectGithub: async () => {
       calls.disconnectGithub += 1
     },
+    accounts: async () => {
+      calls.accounts += 1
+      return accountRows
+    },
+    activeAccount: async (input) => {
+      calls.activeAccount.push(input)
+      return { accountId: activeIds[input.provider] ?? null }
+    },
+    createAccount: async (input) => {
+      calls.createAccount.push(input)
+      const row = accountRowOf({
+        id: `account-${calls.createAccount.length}`,
+        provider: String(input.provider),
+        kind: String(input.secret.kind),
+      })
+      accountRows = [...accountRows, row]
+      return row
+    },
+    setActiveAccount: async (input) => {
+      calls.setActiveAccount.push(input)
+      activeIds = { ...activeIds, [String(input.provider)]: input.accountId }
+    },
+    removeAccount: async (input) => {
+      calls.removeAccount.push(input)
+      accountRows = accountRows.filter((row) => row.id !== input.accountId)
+    },
+    beginProviderSignIn: async (input) => {
+      calls.beginProviderSignIn.push(input)
+      return signInBegin
+    },
+    completeProviderSignIn: async (input) => {
+      calls.completeProviderSignIn.push(input)
+      return accountRowOf({ id: 'account-complete', provider: 'anthropic' })
+    },
+    pollProviderSignIn: async (input) => {
+      calls.pollProviderSignIn.push(input)
+      const next = pollAnswers[0]
+      pollAnswers = pollAnswers.length <= 1 ? pollAnswers : pollAnswers.slice(1)
+      return next ?? ({ status: 'pending' } as ProviderSignInPoll)
+    },
+    mcpServers: async () => {
+      calls.mcpServers += 1
+      return mcpServers
+    },
+    mcpOauthBegin: async (input) => {
+      calls.mcpOauthBegin.push(input)
+      return mcpBegin
+    },
   }
 
   return {
@@ -529,6 +651,24 @@ export const fakeSessionClient = (args: {
     },
     setSigningKeyRegistered: (next) => {
       signingKeyRegistered = next
+    },
+    setAccounts: (next) => {
+      accountRows = next
+    },
+    setActiveAccountId: (next) => {
+      activeIds = { ...activeIds, [next.provider]: next.accountId }
+    },
+    setProviderSignIn: (next) => {
+      signInBegin = next
+    },
+    queueSignInPoll: (answers) => {
+      pollAnswers = answers
+    },
+    setMcpServers: (next) => {
+      mcpServers = next
+    },
+    setMcpOauthBegin: (next) => {
+      mcpBegin = next
     },
     refuseSettingWrites: (message) => {
       settingWriteRefusal = message === null ? null : new Error(message)

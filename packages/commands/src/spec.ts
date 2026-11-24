@@ -15,6 +15,9 @@ export enum ECommandRunsIn {
 export enum EClientAction {
   ModelPicker = 'model-picker',
   CommandList = 'command-list',
+  Skills = 'skills',
+  Mcp = 'mcp',
+  Shells = 'shells',
 }
 
 export type TextArgs = { ok: true; args: unknown } | { ok: false; reason: string }

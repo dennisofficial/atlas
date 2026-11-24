@@ -3,6 +3,7 @@ import {
   catalogueForSurface,
   composeCommands,
   ECommandSource,
+  EHiddenBecause,
   entryOf,
   ESurface,
   parseInvocation,
@@ -42,6 +43,29 @@ describe('surface profiles', () => {
 const entries = nativeCommands.map((command) =>
   entryOf({ command, source: ECommandSource.Builtin }),
 )
+
+const namesOn = (surface: ESurface): readonly string[] =>
+  catalogueForSurface({ entries, surface }).map((entry) => entry.name)
+
+describe('the panel commands', () => {
+  it('are hidden on web, mac and mobile because only the app draws their panel', () => {
+    for (const surface of [ESurface.Web, ESurface.Mac, ESurface.Mobile]) {
+      const names = namesOn(surface)
+      for (const name of ['skills', 'mcp', 'shells']) expect(names).not.toContain(name)
+      for (const name of ['skills', 'mcp', 'shells']) {
+        expect(SURFACE_PROFILES[surface].hides).toContainEqual({
+          name,
+          because: EHiddenBecause.Panel,
+        })
+      }
+    }
+  })
+
+  it('stay in the tui catalogue', () => {
+    const names = namesOn(ESurface.Tui)
+    for (const name of ['skills', 'mcp', 'shells']) expect(names).toContain(name)
+  })
+})
 
 describe('rotate on every surface', () => {
   it('appears in the catalogue for web, mac, mobile and tui', () => {

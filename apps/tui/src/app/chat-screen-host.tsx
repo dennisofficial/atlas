@@ -1,54 +1,32 @@
 import type { KeyEvent } from '@opentui/core'
-import React, { useEffect, useMemo, useRef, useState } from 'react'
-
-import type { EClientAction } from '@dltech/atlas-commands'
-import type { StreamSessionRow } from '@dltech/atlas-protocol'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { AgentTranscriptScreen } from './agent-transcript'
+import type { ChatScreenHostProps } from './chat-screen-host-props'
 import { ChatScreen } from './chat-screen'
 import { connectionViewOf } from './connection-view'
 import { pendingOperatorRequestOf } from './operator-request'
 import { pendingRowsOf } from './pending-rows'
-import type { SessionClient } from './session-client'
 import { useStagedMessages } from './staged-messages'
 import { useOperatorInput } from './use-operator-input'
 import { usePendingTakeBack } from './use-pending-take-back'
 import { useRunAttention } from './use-run-attention'
 import { useSessionAttachments } from './use-session-attachments'
-import { useCommandMenu } from './use-command-menu'
 import { useRewind } from './use-rewind'
 import { useSessionComposer } from './use-session-composer'
-import { useTuiCommands } from './use-tui-commands'
 import { useSessionSend } from './use-session-send'
 import { useChatKeys } from './use-chat-keys'
 import { useSessionChrome } from './use-session-chrome'
 import { useSessionPanes } from './use-session-panes'
 import { useSessionTranscript } from './use-session-transcript'
+import { useSessionCommands } from './use-session-commands'
 import { useSessionWake } from './use-session-wake'
+import { useTranscriptPanels } from './use-transcript-panels'
 import { MIN_TRANSCRIPT_WIDTH } from '../ui/theme'
 import { sidebarWidth } from '../ui/sidebar-width-store'
 import { problemOf } from './app-next-support'
 
-export function ChatScreenHost(props: {
-  client: SessionClient
-  sessionId: string
-  title: string | null
-  width: number
-  height: number
-  now: () => number
-  cwd: string
-  onBack: () => void
-  onNew: () => void
-  onModel: () => void
-  onQuit: () => void
-  onKeys: (handler: (key: KeyEvent) => boolean) => void
-  choosingModel: boolean
-  clientVersion: string
-  teammates: readonly StreamSessionRow[]
-  row: StreamSessionRow | undefined
-  openUrl: (url: string) => void
-  onOpenSession: (agentId: string) => void
-}): React.ReactNode {
+export function ChatScreenHost(props: ChatScreenHostProps): React.ReactNode {
   const transcript = useSessionTranscript({
     client: props.client,
     sessionId: props.sessionId,
@@ -163,9 +141,6 @@ export function ChatScreenHost(props: {
     live: connection.cloudConnected,
   })
 
-  const runName = useRef<(name: string) => void>(() => undefined)
-  const runAction = useRef<(action: EClientAction) => void>(() => undefined)
-
   const rewind = useRewind({
     api: props.client.api,
     sessionId: props.sessionId,
@@ -175,40 +150,35 @@ export function ChatScreenHost(props: {
     onProblem: problemOf,
   })
 
-  const menu = useCommandMenu({
+  const panels = useTranscriptPanels({
     api: props.client.api,
-    draft: composer.draft,
-    onAction: (action) => runAction.current(action),
-    onLocal: (name) => runName.current(name),
-    onRun: (text) => {
-      composer.draft.setValue(text)
-      composer.handleSubmit()
-    },
+    views: transcript.view?.pluginViews ?? {},
+    events: transcript.rawEvents,
+    openUrl: props.openUrl,
     onProblem: problemOf,
+    onComplete: (name) => composer.draft.setValue(`/${name} `),
   })
 
-  const commands = useTuiCommands({
+  const commands = useSessionCommands({
+    api: props.client.api,
+    draft: composer.draft,
+    onSubmit: composer.handleSubmit,
     sessionId: props.sessionId,
     cwd: props.cwd,
     onNew: props.onNew,
     onSessions: props.onBack,
     onQuit: props.onQuit,
     onModel: props.onModel,
-    onHelp: menu.handleOpen,
     onRewind: rewind.handleOpen,
     onWake: wake.handleWake,
     onShells: panes.shells.handleToggle,
+    onSkills: panels.skills.handleOpen,
+    onMcp: panels.mcp.handleOpen,
+    onSettings: props.onSettings,
+    onAuth: props.onAuth,
     onProblem: problemOf,
   })
-  runName.current = commands.run
-  runAction.current = commands.action
-
-  const readMenu = useRef(menu.handleText)
-  readMenu.current = menu.handleText
-
-  useEffect(() => {
-    readMenu.current(composer.draft.value)
-  }, [composer.draft.value, menu.entries])
+  const menu = commands.menu
 
   const pending = useMemo(
     () =>
@@ -238,10 +208,20 @@ export function ChatScreenHost(props: {
     onStop: send.handleStop,
   })
 
+  const chatKeys = useRef(handleKey)
+  chatKeys.current = handleKey
+  const panelKeys = useRef(panels.handleKey)
+  panelKeys.current = panels.handleKey
+  const withPanels = useCallback((key: KeyEvent): boolean => {
+    if (panelKeys.current(key)) return true
+    chatKeys.current(key)
+    return true
+  }, [])
+
   const onKeys = props.onKeys
   useEffect(() => {
-    onKeys(handleKey)
-  }, [handleKey, onKeys])
+    onKeys(withPanels)
+  }, [onKeys, withPanels])
 
   const viewing = panes.crew.viewing
   if (viewing !== null) {
@@ -261,39 +241,42 @@ export function ChatScreenHost(props: {
   }
 
   return (
-    <ChatScreen
-      transcript={transcript}
-      composer={composer}
-      pending={pending}
-      operator={operator}
-      attention={attention}
-      connection={connection}
-      wake={wake}
-      width={props.width}
-      height={props.height}
-      cwd={props.cwd}
-      now={props.now()}
-      sends={send.sends}
-      choosingModel={props.choosingModel}
-      working={transcript.working}
-      onReconnect={wake.handleWake}
-      menu={menu}
-      rewind={rewind}
-      onMenuSelect={menu.handleSelectRow}
-      sidebar={sidebarOpen ? panes.sidebar : null}
-      sidebarRoot={panes.panes.repo ?? props.cwd}
-      clientVersion={props.clientVersion}
-      paneNow={panes.paneNow}
-      shellFold={panes.shells.fold}
-      serviceFold={panes.serviceFold}
-      shells={panes.shells}
-      services={panes.services}
-      onSelectSubagent={panes.crew.handleSelect}
-      onOpenTeammate={props.onOpenSession}
-      header={chrome.header}
-      footer={chrome.footer}
-      footerContext={chrome.footerContext}
-      footerStrip={chrome.footerStrip}
-    />
+    <>
+      <ChatScreen
+        transcript={transcript}
+        composer={composer}
+        pending={pending}
+        operator={operator}
+        attention={attention}
+        connection={connection}
+        wake={wake}
+        width={props.width}
+        height={props.height}
+        cwd={props.cwd}
+        now={props.now()}
+        sends={send.sends}
+        choosingModel={props.choosingModel}
+        working={transcript.working}
+        onReconnect={wake.handleWake}
+        menu={menu}
+        rewind={rewind}
+        onMenuSelect={menu.handleSelectRow}
+        sidebar={sidebarOpen ? panes.sidebar : null}
+        sidebarRoot={panes.panes.repo ?? props.cwd}
+        clientVersion={props.clientVersion}
+        paneNow={panes.paneNow}
+        shellFold={panes.shells.fold}
+        serviceFold={panes.serviceFold}
+        shells={panes.shells}
+        services={panes.services}
+        onSelectSubagent={panes.crew.handleSelect}
+        onOpenTeammate={props.onOpenSession}
+        header={chrome.header}
+        footer={chrome.footer}
+        footerContext={chrome.footerContext}
+        footerStrip={chrome.footerStrip}
+      />
+      {panels.render(props.width)}
+    </>
   )
 }

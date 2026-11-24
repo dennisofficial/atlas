@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import type { CatalogueProvider } from '@dltech/atlas-models'
 
@@ -11,6 +11,7 @@ export type SessionModels = {
   names: Readonly<Record<string, string>>
   ready: boolean
   failed: boolean
+  reload: () => void
 }
 
 const NO_PROVIDERS: readonly CatalogueProvider[] = []
@@ -25,6 +26,7 @@ const NO_MODELS: SessionModels = {
   names: NO_NAMES,
   ready: false,
   failed: false,
+  reload: () => undefined,
 }
 
 const messageOf = (failure: unknown): string =>
@@ -36,6 +38,7 @@ export function useSessionModels(args: {
 }): SessionModels {
   const [models, setModels] = useState<ModelsReply | null>(null)
   const [failed, setFailed] = useState(false)
+  const [version, setVersion] = useState(0)
   const problem = useRef(args.onProblem)
   problem.current = args.onProblem
   const { api } = args
@@ -59,11 +62,15 @@ export function useSessionModels(args: {
     return () => {
       cancelled = true
     }
-  }, [api])
+  }, [api, version])
 
-  if (models === null) return failed ? { ...NO_MODELS, failed: true } : NO_MODELS
+  const reload = useCallback(() => setVersion((current) => current + 1), [])
+
+  if (models === null)
+    return failed ? { ...NO_MODELS, failed: true, reload } : { ...NO_MODELS, reload }
 
   return {
+    reload,
     providers: providersOf({ models }),
     reachable: reachableOf({ models }),
     names: providerNamesOf({ models }),

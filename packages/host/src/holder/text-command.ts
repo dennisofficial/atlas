@@ -1,4 +1,5 @@
 import {
+  clientOnlyReason,
   ECommandRunsIn,
   EInvocation,
   parseInvocation,
@@ -12,6 +13,8 @@ import type { ControlPlane } from '@dltech/atlas-control'
 import type { ConsumedCommand } from '@dltech/atlas-core'
 import type { PodSlash } from '@dltech/atlas-plugin-sdk'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
+
+export { clientOnlyReason }
 
 export type CommandHandlers = ReadonlyMap<string, CommandHandler<unknown>>
 export type ControlHandlers = ReadonlyMap<string, ControlCommandHandler<ControlPlane, unknown>>
@@ -38,9 +41,6 @@ export type TextPlan =
     }
   | { kind: ETextPlan.Skill; name: string; argumentText: string }
   | { kind: ETextPlan.Refused; reason: string }
-
-export const clientOnlyReason = (name: string): string =>
-  `/${name} opens in the app. Pick it from the / menu.`
 
 export const noRunnerReason = (name: string): string => `This session cannot run /${name} yet.`
 

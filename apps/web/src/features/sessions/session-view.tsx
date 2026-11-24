@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
+import { clientOnlyReason } from '@dltech/atlas-commands'
+
 import { liveBackgroundOf } from '@dltech/atlas-client/crew'
 import { mergedDraftOf } from '@dltech/atlas-client/session'
 import { ESessionConnection, startFailureOf } from '@dltech/atlas-client/stream'
@@ -262,6 +264,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
       composerActionsOf({
         openModelPicker: () => choice.setOpen(true),
         openCommandList: () => setCommandListOpen(true),
+        reportHidden: (name) => toast.info(clientOnlyReason(name)),
       }),
     [choice.setOpen],
   )

@@ -5,7 +5,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { SessionModelChoice, StreamSessionRow } from '@dltech/atlas-protocol'
 
 import { isSettlingLogin } from '../ui/settings-login-model'
-import type { AccountFile } from './account/account-file'
 import { DEFAULT_LAUNCH, EMPTY_SESSION_LIST, isEnter, problemOf } from './app-next-support'
 import {
   EScreen,
@@ -16,15 +15,14 @@ import {
   type ScreenState,
 } from './app-screen'
 import { AccessScreen } from './access-screen'
+import { OverlaysScreen } from './app-overlays'
 import { ChatScreenHost } from './chat-screen-host'
-import type { LaunchFlags } from './launch-flags'
 import { ModelSwitcher } from './model-switcher'
-import type { GitRemote } from './new-session'
 import { NewSessionHost } from './new-session-host'
-import { createSessionClient, type AuthRefusal, type SessionClient } from './session-client'
+import { createSessionClient, type SessionClient } from './session-client'
 import { SessionsScreen } from './sessions-screen'
-import { SettingsScreen } from './settings-screen'
 import { useAccountFlow } from './use-account-flow'
+import { useAppOverlays } from './use-app-overlays'
 import { initialModelOf, useAppModelPick } from './use-app-model-pick'
 import { useSessionNav } from './use-session-nav'
 import { useSessionList } from './use-session-list'
@@ -32,30 +30,9 @@ import { useSessionModels } from './use-session-models'
 import { useSettingsPanel, type SettingsPanel } from './use-settings-panel'
 import { useAppSessionWatch } from './use-app-session-watch'
 
-export type SessionClientArgs = {
-  apiUrl: string
-  token: string
-  clientVersion: string
-  fetchFn?: typeof fetch | undefined
-  onAuthLost: (status: AuthRefusal) => void
-}
+import type { AppNextProps } from './app-next-props'
 
-export type SessionClientFactory = (args: SessionClientArgs) => SessionClient
-
-export type AppNextProps = {
-  accountPath: string
-  initialAccount: AccountFile | null
-  apiUrl: string
-  clientVersion: string
-  openUrl: (url: string) => void
-  launch?: LaunchFlags | undefined
-  cwd?: string | undefined
-  git?: GitRemote | undefined
-  fetchFn?: typeof fetch | undefined
-  now?: (() => number) | undefined
-  createClient?: SessionClientFactory | undefined
-  onQuit: () => void
-}
+export type { AppNextProps, SessionClientArgs, SessionClientFactory } from './app-next-props'
 
 export function AppNext(props: AppNextProps): React.ReactNode {
   const [screen, setScreen] = useState<ScreenState>(() =>
@@ -129,6 +106,18 @@ export function AppNext(props: AppNextProps): React.ReactNode {
   })
   panelWrite.current = panel.write
 
+  const overlays = useAppOverlays({
+    api: client?.api ?? null,
+    openUrl: props.openUrl,
+    onChanged: models.reload,
+    onProblem: problemOf,
+    resolution: panel.drawer.resolution,
+    onChooseModel: pick.chooseSetting,
+    settingsOpen: panel.drawer.state !== null,
+    handleSettingsKey: panel.drawer.handleKey,
+    openSettings: panel.drawer.open,
+  })
+
   const rowOfRef = useRef<(sessionId: string) => StreamSessionRow | undefined>(() => undefined)
 
   const nav = useSessionNav({
@@ -160,12 +149,8 @@ export function AppNext(props: AppNextProps): React.ReactNode {
       }
 
       if (pick.choice.handleKey(key)) return
-      if (panel.drawer.handleKey(key)) return
 
-      if (key.ctrl && key.name === 'o') {
-        panel.drawer.open()
-        return
-      }
+      if (overlays.handleKey(key)) return
 
       if (key.ctrl && key.name === 'p' && pick.canPickModel) {
         pick.choice.handleOpen()
@@ -198,7 +183,7 @@ export function AppNext(props: AppNextProps): React.ReactNode {
           return
       }
     },
-    [handleSignOut, initialModel, list, panel, pick, props, screen, signIn],
+    [handleSignOut, initialModel, list, overlays, panel, pick, props, screen, signIn],
   )
 
   useKeyboard(handleKey)
@@ -220,11 +205,14 @@ export function AppNext(props: AppNextProps): React.ReactNode {
   const withOverlay = (body: React.ReactNode): React.ReactNode => (
     <box flexDirection="column" flexGrow={1} width={width}>
       {body}
-      <SettingsScreen
-        drawer={panel.drawer}
+      <OverlaysScreen
         width={width}
-        sidebarWidth={panel.sidebarWidth}
         cwd={cwd}
+        drawer={panel.drawer}
+        sidebarWidth={panel.sidebarWidth}
+        accounts={overlays.accounts}
+        onboarding={overlays.onboarding}
+        shown={overlays.shown}
       />
     </box>
   )
@@ -254,6 +242,8 @@ export function AppNext(props: AppNextProps): React.ReactNode {
           row={list.rowOf(screen.sessionId)}
           openUrl={props.openUrl}
           onOpenSession={nav.handleOpenSession}
+          onSettings={overlays.openSettings}
+          onAuth={overlays.openAccounts}
         />
         {switcher}
       </>,

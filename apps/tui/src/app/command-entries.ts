@@ -15,7 +15,8 @@ export const TUI_LOCAL_NAMES: readonly string[] = [
   'exit',
   'restart',
   'wake',
-  'shells',
+  'settings',
+  'auth',
 ]
 
 export const TUI_OWNED_NAMES: readonly string[] = [...TUI_LOCAL_NAMES, 'rewind']
@@ -34,7 +35,8 @@ export const tuiLocalEntries = (): readonly CommandEntry[] => [
   local({ name: 'exit', summary: 'quit — the session keeps running' }),
   local({ name: 'restart', summary: 'restart atlas on the latest build' }),
   local({ name: 'wake', summary: "wake this session's pod" }),
-  local({ name: 'shells', summary: 'read the background shells of this session' }),
+  local({ name: 'settings', summary: "your account's settings" }),
+  local({ name: 'auth', summary: 'model provider accounts' }),
 ]
 
 export const commandEntriesOf = (args: {

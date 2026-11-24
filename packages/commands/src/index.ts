@@ -1,6 +1,6 @@
 export { catalogueOf } from './catalogue'
 export type { ControlCommandHandler } from './control'
-export { clientActionOf, clientActionOfEntries } from './client'
+export { clientActionOf, clientActionOfEntries, clientOnlyReason } from './client'
 export {
   commandEntrySchema,
   ECommandEntryKind,
