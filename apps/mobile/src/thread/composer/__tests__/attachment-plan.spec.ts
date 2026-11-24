@@ -17,6 +17,7 @@ import {
   isUploading,
   planAttach,
   restoredHeldOf,
+  withPreview,
   sendableOf,
   startedAttachment,
   withFailed,
@@ -241,5 +242,28 @@ describe('describeBytes', () => {
     expect(describeBytes(2048)).toBe('2.0 KB')
     expect(describeBytes(5 * 1024 * 1024)).toBe('5.0 MB')
     expect(describeBytes(100 * 1024 * 1024)).toBe('100 MB')
+  })
+})
+
+describe('withPreview', () => {
+  it('sets the preview uri of one held attachment only', () => {
+    const held = restoredHeldOf([
+      {
+        id: 'media:a',
+        name: 'a.png',
+        mediaType: 'image/png',
+        size: 1,
+        content: { store: EAttachmentStore.Media, hash: 'a' },
+      },
+      {
+        id: 'media:b',
+        name: 'b.png',
+        mediaType: 'image/png',
+        size: 1,
+        content: { store: EAttachmentStore.Media, hash: 'b' },
+      },
+    ])
+    const next = withPreview({ held, id: 'media:a', uri: 'https://media/a' })
+    expect(next.map((entry) => entry.uri)).toEqual(['https://media/a', ''])
   })
 })

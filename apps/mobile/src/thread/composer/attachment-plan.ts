@@ -113,6 +113,13 @@ export const withReady = (args: {
       : entry,
   )
 
+export const withPreview = (args: {
+  held: readonly HeldAttachment[]
+  id: string
+  uri: string
+}): HeldAttachment[] =>
+  args.held.map((entry) => (entry.id === args.id ? { ...entry, uri: args.uri } : entry))
+
 export const withMediaReady = (args: {
   held: readonly HeldAttachment[]
   id: string
