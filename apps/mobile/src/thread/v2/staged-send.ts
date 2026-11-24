@@ -3,9 +3,11 @@ import { ALREADY_SENT_REASON, EStagedOutcome, stagedOutcomesOf } from '@dltech/a
 
 export type StagedSend = { clientId: string; text: string; attachments: readonly Attachment[] }
 
+export type StagedRestore = { text: string; attachments: readonly Attachment[] }
+
 export type StagedSettlement = {
   kept: StagedSend[]
-  restored: string[]
+  restored: StagedRestore[]
   notices: string[]
 }
 
@@ -18,7 +20,9 @@ export const mergeIntoDraft = (args: { withdrawn: string; draft: string }): stri
 export const settlementOf = (args: {
   staged: readonly StagedSend[]
   events: readonly V2Event[]
+  unread?: ReadonlySet<string> | undefined
 }): StagedSettlement => {
+  const unread = args.unread ?? new Set<string>()
   const outcomes = stagedOutcomesOf({
     events: args.events,
     clientIds: args.staged.map((entry) => entry.clientId),
@@ -30,12 +34,15 @@ export const settlementOf = (args: {
       settlement.kept.push(entry)
       continue
     }
-    if (outcome.outcome === EStagedOutcome.Posted) continue
+    if (outcome.outcome === EStagedOutcome.Posted) {
+      if (unread.has(entry.clientId)) settlement.kept.push(entry)
+      continue
+    }
     if (outcome.reason === ALREADY_SENT_REASON) {
       settlement.notices.push('Already sent')
       continue
     }
-    settlement.restored.push(entry.text)
+    settlement.restored.push({ text: entry.text, attachments: entry.attachments })
     if (outcome.reason !== undefined) settlement.notices.push(outcome.reason)
   }
   return settlement

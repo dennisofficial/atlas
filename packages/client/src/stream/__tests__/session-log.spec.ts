@@ -77,6 +77,34 @@ describe('reading a stored snapshot', () => {
     expect(logSnapshotOf(snapshotAt({ throughSeq: 2 }))).toEqual(snapshotAt({ throughSeq: 2 }))
   })
 
+  it('reads a record saved before quick stops as one without them', () => {
+    expect(logSnapshotOf(snapshotAt({ throughSeq: 2 }))?.quickStops).toBeUndefined()
+  })
+
+  it('keeps the quick stop state a record carries', () => {
+    const quickStops = {
+      clientIdByInbox: [[4, 'client-a']] as const,
+      candidates: [{ seq: 3, clientId: 'client-a', text: 'go', attachments: [] }],
+      lastTurnEndedSeq: 2,
+      evidence: [
+        {
+          rewindEventId: 'event-9',
+          messages: [{ clientId: 'client-a', text: 'go', attachments: [] }],
+        },
+      ],
+    }
+
+    expect(logSnapshotOf({ ...snapshotAt({ throughSeq: 2 }), quickStops })?.quickStops).toEqual(
+      quickStops,
+    )
+  })
+
+  it('reads a record with an unreadable quick stop state as nothing', () => {
+    expect(
+      logSnapshotOf({ ...snapshotAt({ throughSeq: 2 }), quickStops: { candidates: [{}] } }),
+    ).toBeUndefined()
+  })
+
   it('reads a record of another structure version as nothing', () => {
     expect(logSnapshotOf({ ...snapshotAt({ throughSeq: 2 }), version: 1 })).toBeUndefined()
   })

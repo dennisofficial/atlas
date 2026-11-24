@@ -5,6 +5,7 @@ import type {
   SessionViewOutput,
 } from '@dltech/atlas-protocol'
 
+import type { QuickStopEvidence } from '../session/quick-stop-restore'
 import { EStreamConnectionState } from './connection-machine'
 import type { DerivedView, FrameFacts } from './derived-session-view'
 import type { OpenOverlay, OverlayState } from './overlay-store'
@@ -21,6 +22,7 @@ export enum ESessionConnection {
 export type SessionSnapshot = {
   events: readonly V2Event[]
   foldable: readonly V2Event[]
+  quickStops: readonly QuickStopEvidence[]
   pending: PendingInputsState
   cursor: SessionCursor | undefined
   status: SessionStatusOutput | undefined
@@ -59,6 +61,7 @@ export const connectionOf = (inner: Pick<FollowedState, 'phase' | 'live'>): ESes
 export const snapshotOf = (inner: FollowedState): SessionSnapshot => ({
   events: inner.window.events,
   foldable: inner.window.foldable,
+  quickStops: inner.window.quickStops.evidence,
   pending: inner.window.pending,
   cursor: inner.window.cursor,
   status: inner.derived.status,

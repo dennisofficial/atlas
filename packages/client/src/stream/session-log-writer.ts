@@ -54,6 +54,7 @@ export const createSessionLogWriter = (args: {
         failureMessage,
         durable,
         commandLog,
+        quickStops,
         foldedThrough,
       } = window
       if (cursor === undefined || cursor.seq < foldedThrough) return
@@ -69,6 +70,7 @@ export const createSessionLogWriter = (args: {
             failureMessage,
             durable,
             commandLog,
+            quickStops,
             throughSeq: cursor.seq,
           },
         }),

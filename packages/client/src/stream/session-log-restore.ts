@@ -17,6 +17,7 @@ import {
   type V2Event,
 } from '@dltech/atlas-core'
 
+import { EMPTY_QUICK_STOP_STATE, stepQuickStop } from '../session/quick-stop-state'
 import type { SessionLog, SessionLogSnapshot } from './session-log'
 import type { SessionWindow } from './session-window'
 
@@ -92,6 +93,7 @@ export const restoredWindowOf = async (args: {
     durable,
     foldable,
     commandLog,
+    quickStops: gap.reduce(stepQuickStop, saved.quickStops ?? EMPTY_QUICK_STOP_STATE),
     cursor: saved.cursor,
     foldedThrough: 0,
   }

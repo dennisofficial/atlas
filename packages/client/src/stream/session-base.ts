@@ -2,6 +2,7 @@ import { foldableOf, SESSION_VIEW_VERSION, v2EventSchema, type V2Event } from '@
 import type { StreamServerMessage } from '@dltech/atlas-protocol'
 import type { z } from 'zod'
 
+import { EMPTY_QUICK_STOP_STATE } from '../session/quick-stop-state'
 import type { FollowedState } from './follower-state'
 import { isView, isVisibility } from './session-log-record'
 import { resetWindow, type SessionWindow } from './session-window'
@@ -35,6 +36,7 @@ export const windowOfBase = (args: {
     durable,
     foldable: foldableOf({ visible: [], durable }),
     commandLog: readableEventsOf({ raw: message.commandLog, eventSchema }),
+    quickStops: EMPTY_QUICK_STOP_STATE,
     cursor: message.cursor,
     foldedThrough: message.view.at,
   }

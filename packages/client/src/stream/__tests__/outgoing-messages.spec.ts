@@ -107,6 +107,60 @@ describe('stagedOutcomesOf', () => {
     expect(outcomes.get('client-a')?.reason).toBe('already-sent')
   })
 
+  it('settles a staged message as discarded when the stop beat it', () => {
+    const outcomes = stagedOutcomesOf({
+      events: eventsOf([
+        {
+          type: 'input-posted',
+          inboxId: 1,
+          kind: 'message',
+          postedAt: 'now',
+          message: { text: 'first', clientId: 'client-a' },
+        },
+        { type: 'input-consumed', inboxId: 1, consumed: 'discarded' },
+      ]),
+      clientIds: ['client-a'],
+    })
+
+    expect(outcomes.get('client-a')?.outcome).toBe(EStagedOutcome.Discarded)
+  })
+
+  it('keeps a message that the turn consumed posted', () => {
+    const outcomes = stagedOutcomesOf({
+      events: eventsOf([
+        {
+          type: 'input-posted',
+          inboxId: 1,
+          kind: 'message',
+          postedAt: 'now',
+          message: { text: 'first', clientId: 'client-a' },
+        },
+        { type: 'input-consumed', inboxId: 1, consumed: 'message' },
+      ]),
+      clientIds: ['client-a'],
+    })
+
+    expect(outcomes.get('client-a')?.outcome).toBe(EStagedOutcome.Posted)
+  })
+
+  it('offers a discarded copy back with no reason and no longer counts it as pending', () => {
+    const events = eventsOf([
+      {
+        type: 'input-posted',
+        inboxId: 1,
+        kind: 'message',
+        postedAt: 'now',
+        message: { text: 'first', clientId: 'client-a' },
+      },
+      { type: 'input-consumed', inboxId: 1, consumed: 'discarded' },
+    ])
+    const entry = { clientId: 'client-a', text: 'first' }
+    const staged = [entry]
+
+    expect(restorableStagedOf({ staged, events })).toEqual([{ staged: entry, reason: undefined }])
+    expect(pendingStagedOf({ staged, events })).toEqual([])
+  })
+
   it('keeps a staged message pending while only other clientIds reach the log', () => {
     const outcomes = stagedOutcomesOf({
       events: eventsOf([

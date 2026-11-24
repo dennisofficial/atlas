@@ -1,4 +1,4 @@
-import type { V2Event } from '@dltech/atlas-core'
+import { EInputConsumed, type V2Event } from '@dltech/atlas-core'
 
 export enum EOutgoingPlacement {
   Queue = 'queue',
@@ -10,6 +10,7 @@ export enum EStagedOutcome {
   Posted = 'posted',
   Refused = 'refused',
   Withdrawn = 'withdrawn',
+  Discarded = 'discarded',
 }
 
 export const ALREADY_SENT_REASON = 'already-sent'
@@ -63,6 +64,9 @@ const outcomeOf = (args: {
     case 'input-consumed': {
       const clientId = byInbox.get(event.inboxId)
       if (clientId === undefined) return undefined
+      if (event.consumed === EInputConsumed.Discarded) {
+        return { clientId, outcome: EStagedOutcome.Discarded }
+      }
       return { clientId, outcome: EStagedOutcome.Posted }
     }
     case 'input-withdrawn': {

@@ -6,6 +6,7 @@ import type {
   VisibilityState,
 } from '@dltech/atlas-core'
 
+import type { QuickStopState } from '../session/quick-stop-state'
 import { SESSION_LOG_STRUCTURE_VERSION, type SessionLogSnapshot } from './session-log'
 import type { SessionCursor } from './session-window'
 
@@ -52,6 +53,43 @@ export const isView = (value: unknown): value is SessionViewState =>
 const isEventList = (value: unknown): value is readonly V2Event[] =>
   Array.isArray(value) && value.every((event) => isRecord(event) && typeof event.seq === 'number')
 
+const isQuickStopMessage = (value: unknown): boolean =>
+  isRecord(value) &&
+  typeof value.clientId === 'string' &&
+  typeof value.text === 'string' &&
+  Array.isArray(value.attachments)
+
+const isQuickStopCandidate = (value: unknown): boolean =>
+  isRecord(value) && typeof value.seq === 'number' && isQuickStopMessage(value)
+
+const isQuickStopEvidence = (value: unknown): boolean =>
+  isRecord(value) &&
+  typeof value.rewindEventId === 'string' &&
+  Array.isArray(value.messages) &&
+  value.messages.every(isQuickStopMessage)
+
+const isQuickStopInbox = (value: unknown): boolean =>
+  Array.isArray(value) &&
+  value.length === 2 &&
+  typeof value[0] === 'number' &&
+  typeof value[1] === 'string'
+
+const readQuickStopRecord = (value: unknown): QuickStopState | undefined => {
+  if (value === undefined) return undefined
+  if (!isRecord(value)) return undefined
+  if (!Array.isArray(value.clientIdByInbox) || !value.clientIdByInbox.every(isQuickStopInbox)) {
+    return undefined
+  }
+  if (!Array.isArray(value.candidates) || !value.candidates.every(isQuickStopCandidate)) {
+    return undefined
+  }
+  if (typeof value.lastTurnEndedSeq !== 'number') return undefined
+  if (!Array.isArray(value.evidence) || !value.evidence.every(isQuickStopEvidence)) {
+    return undefined
+  }
+  return value as QuickStopState
+}
+
 const snapshotOfValue = (value: unknown): SessionLogSnapshot | undefined => {
   if (!isRecord(value)) return undefined
   if (value.version !== SESSION_LOG_STRUCTURE_VERSION) return undefined
@@ -60,6 +98,8 @@ const snapshotOfValue = (value: unknown): SessionLogSnapshot | undefined => {
   if (!isEventList(value.commandLog) || !isEventList(value.durable)) return undefined
   if (typeof value.throughSeq !== 'number') return undefined
   if (value.cursor !== undefined && !isCursor(value.cursor)) return undefined
+  const quickStops = readQuickStopRecord(value.quickStops)
+  if (value.quickStops !== undefined && quickStops === undefined) return undefined
   return {
     version: value.version,
     cursor: value.cursor,
@@ -69,6 +109,7 @@ const snapshotOfValue = (value: unknown): SessionLogSnapshot | undefined => {
     failureMessage: value.failureMessage,
     durable: value.durable,
     commandLog: value.commandLog,
+    quickStops,
     throughSeq: value.throughSeq,
   }
 }

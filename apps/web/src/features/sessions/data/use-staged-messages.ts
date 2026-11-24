@@ -15,6 +15,7 @@ export function useStagedMessages(args: {
   pending: PendingInputsState
   draft: string
   onDraftChange: (draft: string) => void
+  onRestoreAttachments: (attachments: readonly Attachment[]) => void
 }) {
   const { sessionId, events, pending, draft, onDraftChange } = args
   const subscribe = useCallback(
@@ -28,6 +29,8 @@ export function useStagedMessages(args: {
   draftRef.current = draft
   const changeRef = useRef(onDraftChange)
   changeRef.current = onDraftChange
+  const restoreAttachments = useRef(args.onRestoreAttachments)
+  restoreAttachments.current = args.onRestoreAttachments
 
   const stage = useCallback(
     (message: StagedDraft) => stageMessage({ sessionId, message }),
@@ -57,17 +60,33 @@ export function useStagedMessages(args: {
       return [{ entry, outcome }]
     })
     if (settled.length === 0) return
+    const texts: string[] = []
+    const attachments: Attachment[] = []
     for (const { entry, outcome } of settled) {
       if (handled.current.has(entry.clientId)) continue
       handled.current = new Set([...handled.current, entry.clientId])
+      if (outcome.outcome === EStagedOutcome.Discarded) {
+        texts.push(entry.text)
+        attachments.push(...entry.attachments)
+        continue
+      }
       if (outcome.outcome !== EStagedOutcome.Refused) continue
       if (outcome.reason === 'already-sent') {
         toast.error('Already sent')
         continue
       }
-      changeRef.current(mergeWithdrawnIntoDraft({ withdrawn: entry.text, draft: draftRef.current }))
+      texts.push(entry.text)
       if (outcome.reason !== undefined) toast.error(outcome.reason)
     }
+    if (texts.length > 0) {
+      changeRef.current(
+        texts.reduceRight(
+          (draftText, text) => mergeWithdrawnIntoDraft({ withdrawn: text, draft: draftText }),
+          draftRef.current,
+        ),
+      )
+    }
+    if (attachments.length > 0) restoreAttachments.current(attachments)
     settleMessages({
       sessionId,
       clientIds: new Set(settled.map(({ entry }) => entry.clientId)),
