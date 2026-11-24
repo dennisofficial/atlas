@@ -13,8 +13,16 @@ import {
   type ThreadRow,
   type ThreadsState,
 } from '../ui/threads-model'
-import { EOpenMode, resumeTargetOf, type OpenRequest } from './launch-flags'
+import { EOpenMode, EMissedEnd, resolveOpen, type OpenRequest } from './launch-flags'
 import { sessionRowsOf } from './session-rows'
+
+const missedNoticeOf = (args: { open: OpenRequest; missed: EMissedEnd }): string => {
+  if (args.missed === EMissedEnd.ResumeUnknown && args.open.mode === EOpenMode.Resume)
+    return `no session matched --resume ${args.open.handle}`
+  if (args.missed === EMissedEnd.LastArchived)
+    return 'continued to the newest session: the one you last had open is archived'
+  return 'continued to the newest session: the one you last had open is no longer listed'
+}
 
 export type SessionListControl = {
   state: ThreadsState
@@ -31,6 +39,7 @@ export function useSessionList(args: {
   onPick: (row: ThreadRow) => void
   now: () => number
   pendingOpen?: OpenRequest | null
+  lastSessionId?: string | null
   onRows?: (rows: readonly StreamSessionRow[]) => void
   onProblem?: (reason: string) => void
 }): SessionListControl {
@@ -57,17 +66,20 @@ export function useSessionList(args: {
       if (args.rows.length === 0) return
       resumed.current = true
 
-      const target = resumeTargetOf({ rows: args.rows, open: pendingOpen })
-      if (target === null) {
-        const named =
-          pendingOpen.mode === EOpenMode.Resume
-            ? `no session matched --resume ${pendingOpen.handle}`
-            : 'no session to continue'
-        onProblem?.(named)
+      const resolved = resolveOpen({
+        rows: args.rows,
+        open: pendingOpen,
+        lastSessionId: argsRef.current.lastSessionId ?? null,
+      })
+      if (resolved.missed !== null)
+        onProblem?.(missedNoticeOf({ open: pendingOpen, missed: resolved.missed }))
+
+      if (resolved.row === null) {
+        if (resolved.missed === null) onProblem?.('no session to continue')
         return
       }
 
-      const row = args.next.find((entry) => entry.threadId === target.sessionId)
+      const row = args.next.find((entry) => entry.threadId === resolved.row?.sessionId)
       if (row !== undefined) onPick(row)
     },
     [onPick],

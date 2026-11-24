@@ -3,6 +3,7 @@ import { useCallback, useRef, useState } from 'react'
 import {
   ACCOUNT_FILE_VERSION,
   deleteAccount,
+  withLastSession,
   withPreferences,
   writeAccount,
   type AccountFile,
@@ -78,6 +79,18 @@ export function useAccountFlow(args: {
     [args.accountPath],
   )
 
+  const handleRememberSession = useCallback(
+    (sessionId: string) => {
+      const open = held.current
+      if (open === null || open.lastSessionId === sessionId) return
+      const next = withLastSession({ account: open, sessionId })
+      held.current = next
+      writeAccount({ path: args.accountPath, account: next })
+      setAccount(next)
+    },
+    [args.accountPath],
+  )
+
   const handleSignOut = useCallback(async () => {
     const open = held.current
     if (open !== null)
@@ -87,5 +100,13 @@ export function useAccountFlow(args: {
     onScreen({ screen: EScreen.SignIn, reason: null })
   }, [args.accountPath, args.fetchFn, onScreen])
 
-  return { account, setAccount, handleAuthLost, handlePreferences, signIn, handleSignOut }
+  return {
+    account,
+    setAccount,
+    handleAuthLost,
+    handlePreferences,
+    handleRememberSession,
+    signIn,
+    handleSignOut,
+  }
 }
