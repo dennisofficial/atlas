@@ -1,7 +1,6 @@
 # Spec: v1 retirement (roadmap slice 10)
 
-Status: **draft, revision 2**. Dennis's answers of 2026-11-24 are in (§5). Waiting for approval of
-this revision. Nothing is built.
+Status: **approved by Dennis 2026-11-24** (revision 3: no soft-delete step, D10 approved).
 Anchors are `path:line` at `78e4d7a9e` (origin/main, 2026-11-24). Check an anchor again before you
 rely on it. The raw inventories behind this spec are in `docs/v2/research/v1-retirement/`.
 
@@ -12,14 +11,14 @@ After this work the repository has one architecture: client ↔ control plane (`
 doc keeps v1 alive. After the rename slices R1 to R5 (§4), no name carries a `v2` or `V2` prefix
 that exists only because v1 existed (project memory `v2-replaces-v1-independently-no-v2-prefix`).
 
-**Rule: never hard-delete historical data.** The v1 code goes. The v1 rows stay, read-only, for
-statistics and metrics later (skill use, charts). Every row a user could see is archived and
-soft-deleted (`archivedAt` and `deletedAt` set). This rule applies to every slice here.
+**Rule: never hard-delete historical data.** The v1 code goes. The v1 rows stay, read-only, in the
+`v1_archive` schema, for statistics and metrics later (skill use, charts). No client loads them:
+no query, no list, no hidden filter. Nothing writes to them.
 
 The operator sees these changes:
 - The web app and the Mac app show only v2 sessions. The engine picker and the `v1` badges go.
-- A v1 thread cannot be opened, resumed or woken. Its rows stay in the database, archived and
-  soft-deleted, in the `v1_archive` schema. No user sees them.
+- A v1 thread cannot be opened, resumed or woken. Its rows stay in the database, in the
+  `v1_archive` schema. No client loads them.
 - The Mac app stays a full v2 cloud client: sign-in, APNs push, notification clicks and deep links
   work as before. The unwired local-pods host goes. Local sessions stay "coming soon".
 - TUI self-update and Mac auto-update keep working with no action from the operator.
@@ -303,7 +302,7 @@ digest. Live check: a new v2 session boots on the new template, the daemon conne
 ### Slice 7 — Archive the v1 tables
 
 Nothing is dropped. The v1 tables move to a new schema `v1_archive`, keep every row, column, index
-and foreign key, and get archived and soft-deleted where a user could see them.
+and foreign key. No client loads them, so no row needs `archivedAt` or `deletedAt`.
 
 Ship this **after slices 3 and 4 are live in production**. The `migrate` job runs while the old
 image still serves (`.github/workflows/release.yml:58-134`). If the archive shipped with the reader
@@ -318,10 +317,6 @@ only the schemas the contract declares, so an undeclared `v1_archive` passes ver
    cannot move a table to another schema; it would plan drop and create; rename-plan §1.5). One
    transaction:
    - `SET LOCAL lock_timeout = '5s'`.
-   - Soft delete: `ALTER TABLE public."Thread" ADD COLUMN "archivedAt" timestamptz(3), ADD COLUMN
-     "deletedAt" timestamptz(3)`; set both to `now()` on every `Thread` row. Set
-     `Session."archivedAt"` and `Session."deletedAt"` to `coalesce(<column>, now())`. Set
-     `CloudSandbox."retiredAt"` to `coalesce("retiredAt", now())`.
    - `CREATE SCHEMA v1_archive`, then `ALTER TABLE public."<T>" SET SCHEMA v1_archive` for
      `Session`, `Thread`, `Event`, `Turn`, `ThreadRead`, `ContextFile`, `SandboxBootStep`,
      `CloudSandbox`, `LocalPodLease`, `PushDevice`. This is a catalog change: it does not copy the
@@ -347,7 +342,7 @@ only the schemas the contract declares, so an undeclared `v1_archive` passes ver
 Validation: `bun test` in `packages/db` against a migrated test database; a spec that runs the
 migration on a fixture and asserts row counts and foreign keys are unchanged; `prisma db verify
 --strict`. Live check: `GET /v1/health` is 200; the row counts in `v1_archive` equal the counts in
-§7; every `Thread` and `Session` row has `deletedAt`; a v2 session runs; a TUI draft saves; Dennis
+§7; a v2 session runs; a TUI draft saves; Dennis
 and the App Review account (`review@byatlas.io`) sign in on iOS and see their v2 sessions.
 
 ### Slice 8 — Docs
@@ -454,9 +449,10 @@ compares the procedure list before and after).
 
 ## 5. Decisions
 
-Dennis answered on 2026-11-24. D10 is new in this revision.
-- **D1, v1 history: archived and soft-deleted, never hard-deleted.** The rows stay for statistics.
-  No user sees them. This is a general rule for all data (§1).
+Dennis answered and approved on 2026-11-24.
+- **D1, v1 history: archived, never hard-deleted.** The rows stay for statistics in
+  `v1_archive`. No client loads them, so no soft-delete columns are set. This is a general rule for
+  all data (§1).
 - **D2, where the v1 tables go:** recommendation: a separate schema `v1_archive` (slice 7). Reasons:
   the rename needs the names in `public`; verify ignores an undeclared schema; analysts see at once
   that the data is frozen. Foreign keys and columns stay as they are, and `COMMENT ON` plus
@@ -473,7 +469,7 @@ Dennis answered on 2026-11-24. D10 is new in this revision.
 - **D7, release tag:** keep `tui-v` (approved).
 - **D8, old serve downloads:** accept the 404 (approved).
 - **D9, the `v2` prefix:** removed in this work, in slices R1 to R5 (§4), with no downtime.
-- **D10, the apps/api tree (new):** recommendation: keep the name `src/agent`, because it names the
+- **D10, the apps/api tree (approved):** keep the name `src/agent`, because it names the
   agent host and not a generation. Rename what names a generation (`src/api` as "the v1 app",
   `platform/control` as the v2 surface) in R5, after a one-page inventory.
 
