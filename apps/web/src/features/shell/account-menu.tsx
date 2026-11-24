@@ -1,4 +1,4 @@
-import { ChevronsUpDown, Download, LogOut, Settings } from 'lucide-react'
+import { ChevronsUpDown, Download, LogOut, Ruler, Settings } from 'lucide-react'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 
@@ -63,6 +63,10 @@ export function AccountMenu({ user, initials }: { user: SessionUser | null; init
           <DropdownMenuItem render={<Link href="/settings" />}>
             <Settings />
             Settings
+          </DropdownMenuItem>
+          <DropdownMenuItem render={<Link href="/debug/viewport" />}>
+            <Ruler />
+            Viewport check
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => void handleSignOut()}>
             <LogOut />
