@@ -98,11 +98,11 @@ export const createSessionStream = (deps: SessionStreamDeps): SessionStream => {
       version: STREAM_PROTOCOL_VERSION,
       surface: args.surface,
       send: (frame) => {
-        queue.push(frame)
+        const bytes = queue.push(frame)
         flush.afterSend()
+        return bytes
       },
       bufferedAmount: () => queue.bufferedAmount(),
-      sentBytes: () => queue.sentBytes(),
       close: () => queue.end(),
     })
     const abort = (): void => queue.end()

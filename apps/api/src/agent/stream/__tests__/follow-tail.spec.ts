@@ -146,14 +146,50 @@ describe('follow tail open', () => {
     expect(rig.tailBaseReads).toBe(0)
   })
 
-  it('replays the whole log when the head is inside the too-far-behind window', async () => {
-    await rig.seed({ events: STREAM_TOO_FAR_BEHIND_EVENTS })
+  it('opens a cold, opted-in follow at the tail when the head is one past the tail size', async () => {
+    await rig.seed({ events: STREAM_TAIL_EVENTS + 1 })
     await rig.subscribe({ session: rig.open(), tailViewVersion: SESSION_VIEW_VERSION })
-    await rig.untilSeq(STREAM_TOO_FAR_BEHIND_EVENTS)
+    await rig.untilSeq(STREAM_TAIL_EVENTS + 1)
+    await rig.settled()
+
+    const bases = rig.frames('base')
+    expect(bases).toHaveLength(1)
+    expect(bases[0]?.cursor.seq).toBe(1)
+    expect(rig.seqs()).toHaveLength(STREAM_TAIL_EVENTS)
+    expect(rig.seqs()[0]).toBe(2)
+    expect(rig.seqs().at(-1)).toBe(STREAM_TAIL_EVENTS + 1)
+    expect(rig.frames('events').at(-1)?.live).toBe(true)
+    expect(rig.tailBaseReads).toBe(1)
+  })
+
+  it('replays the whole log when a cold head is exactly the tail size', async () => {
+    await rig.seed({ events: STREAM_TAIL_EVENTS })
+    await rig.subscribe({ session: rig.open(), tailViewVersion: SESSION_VIEW_VERSION })
+    await rig.untilSeq(STREAM_TAIL_EVENTS)
     await rig.settled()
 
     expect(rig.frames('base')).toHaveLength(0)
     expect(rig.seqs()[0]).toBe(1)
+    expect(rig.seqs()).toHaveLength(STREAM_TAIL_EVENTS)
+    expect(rig.tailBaseReads).toBe(0)
+  })
+
+  it('resumes a warm cursor 1,200 behind inside the too-far-behind window', async () => {
+    await longLogOf(rig)
+    const afterSeq = HEAD - 1_200
+    await rig.subscribe({
+      session: rig.open(),
+      afterSeq,
+      afterHash: await hashAtOf({ rig, seq: afterSeq }),
+      tailViewVersion: SESSION_VIEW_VERSION,
+    })
+    await rig.untilSeq(HEAD)
+    await rig.settled()
+
+    expect(HEAD - afterSeq).toBe(1_200)
+    expect(rig.frames('reset')).toHaveLength(0)
+    expect(rig.frames('base')).toHaveLength(0)
+    expect(rig.seqs()[0]).toBe(afterSeq + 1)
     expect(rig.tailBaseReads).toBe(0)
   })
 })

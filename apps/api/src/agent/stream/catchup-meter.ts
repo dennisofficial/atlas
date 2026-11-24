@@ -11,13 +11,11 @@ export enum ECatchupStart {
 export type CatchupMeterArgs = {
   sessionId: string
   userId: string
-  surface: EStreamSurface
+  client: EStreamSurface
   mainThread: boolean
   start: ECatchupStart
   startedAt: number
-  beganBytes: number
   now: () => number
-  sentBytes: () => number
   analytics: ProductAnalytics | undefined
 }
 
@@ -25,6 +23,7 @@ export class CatchupMeter {
   private start: ECatchupStart
   private pages = 0
   private events = 0
+  private bytes = 0
   private behindEvents: number | undefined
   private drainWaits = 0
   private emitted = false
@@ -51,6 +50,10 @@ export class CatchupMeter {
     this.events += events
   }
 
+  noteBytes(bytes: number): void {
+    this.bytes += Math.max(0, bytes)
+  }
+
   noteDrainWait(): void {
     this.drainWaits += 1
   }
@@ -72,11 +75,11 @@ export class CatchupMeter {
       properties: {
         session_id: this.args.sessionId,
         duration_ms: Math.max(0, Math.round(this.args.now() - this.args.startedAt)),
-        bytes: Math.max(0, this.args.sentBytes() - this.args.beganBytes),
+        bytes: this.bytes,
         events: this.events,
         pages: this.pages,
         start: this.start,
-        surface: this.args.surface,
+        client: this.args.client,
         main_thread: this.args.mainThread,
         reached_live: reachedLive,
         behind_events: this.behindEvents ?? 0,
