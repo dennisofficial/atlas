@@ -26,6 +26,8 @@ spill_keep() {
     echo "atlas-boot: $dir stays on the os layer" >&2
     return 0
   fi
+  # An overlay root takes its mode from the upper dir, so a 0755 upper turned /tmp root-only.
+  chmod "$(stat -c %a "$dir")" "/atlas/.atlas/os/$name/upper"
   if ! mount -t overlay overlay \
     -o "lowerdir=$dir,upperdir=/atlas/.atlas/os/$name/upper,workdir=/atlas/.atlas/os/$name/work" \
     "$dir"; then
@@ -75,13 +77,25 @@ if [ ! -x "${BUN:-}" ]; then
   BUN=/opt/mise/shims/bun
   echo "atlas-boot: no concrete bun under /opt/mise/installs/bun, falling back to the shim" >&2
 fi
-# The Agent37 vm cannot create a bridge interface at all (dockerd: "Failed to create bridge docker0
-# via netlink: operation not supported") nor reach netfilter (iptables: Failed to initialize nft:
-# Protocol not supported), so its dockerd runs without a bridge; containers need --network host.
+# The Agent37 kernel ships bridge, veth and netfilter as modules that nothing loads, so dockerd fails
+# with "Failed to create bridge docker0 via netlink: operation not supported" until they are loaded.
+# A kernel without them on disk keeps the bridgeless daemon, where containers need --network host.
+load_docker_network_modules() {
+  for module in bridge veth br_netfilter nf_tables nft_chain_nat nft_compat xt_MASQUERADE \
+    xt_conntrack xt_addrtype nf_nat; do
+    modprobe "$module" || return 1
+  done
+}
+
 # /usr/bin/docker, not the shim: the shim would start a daemon of its own with the default flags.
 if ! /usr/bin/docker info >/dev/null 2>&1; then
-  nohup dockerd --data-root /atlas/docker --bridge=none --iptables=false --ip6tables=false \
-    --userland-proxy=false >>"$DAEMON_HOME/dockerd.log" 2>&1 &
+  if load_docker_network_modules >>"$DAEMON_HOME/dockerd.log" 2>&1; then
+    nohup dockerd --data-root /atlas/docker >>"$DAEMON_HOME/dockerd.log" 2>&1 &
+  else
+    echo "atlas-boot: no bridge modules for this kernel, dockerd runs without a bridge" >&2
+    nohup dockerd --data-root /atlas/docker --bridge=none --iptables=false --ip6tables=false \
+      --userland-proxy=false >>"$DAEMON_HOME/dockerd.log" 2>&1 &
+  fi
 fi
 
 # A host that restarts the daemon pins the fetch to its own bundle, so a rolling deploy of the api
