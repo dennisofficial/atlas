@@ -6,6 +6,7 @@ import type { SessionStatusOutput, SessionViewOutput } from '@dltech/atlas-proto
 import {
   ESessionConnection,
   isSessionWorking,
+  isTurnRunning,
   memorySessionLog,
   overlayRewrote,
   transcriptEventsOf,
@@ -97,7 +98,7 @@ export function useSessionTranscript(args: {
       const snapshot = handle.getSnapshot()
       const next: OverlaySignalSource = {
         overlay: snapshot.overlay,
-        working: isSessionWorking(snapshot.status),
+        working: isTurnRunning(snapshot.status),
       }
       if (overlayRewrote({ previous: previous.current, next })) store.resetSteps()
       previous.current = next

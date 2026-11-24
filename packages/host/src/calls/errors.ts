@@ -1,5 +1,6 @@
 import {
   EDaemonAnswer,
+  interruptedByRestartMessage,
   recoverCall,
   type RecoverAction,
   type RecoverAnswer,
@@ -57,9 +58,6 @@ export const resizeInterruptReason = (args: { vcpus: number; memoryGb: number })
 export const resizeInterruptedMessage = (args: { reason: string }): string =>
   `This call was interrupted because ${args.reason}. Try again now: the next call waits until the resize finishes.`
 
-const crashedCallMessage = (op: string): string =>
-  `${op} was interrupted by a process restart before its result was recorded; its effects are unknown — check before repeating it`
-
 export type DaemonAnswer = RecoverAnswer
 
 export const actionForAnswer = (args: {
@@ -115,7 +113,7 @@ export const callLostAcrossBoot = (args: {
   }).rerun
 }
 
-export const interruptedMessage = crashedCallMessage
+export const interruptedMessage = interruptedByRestartMessage
 
 export class ReadyTimeoutError extends Error {
   constructor(timeoutMs: number) {

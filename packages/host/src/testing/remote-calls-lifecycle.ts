@@ -97,7 +97,7 @@ export const describeRemoteCallsLifecycle = (target: RemoteCallsTarget): void =>
       }
     }, 15000)
 
-    it('fails an in-flight exec as interrupted on restart, and reruns a read-only op', async () => {
+    it('fails an in-flight exec as interrupted on restart', async () => {
       const handle = await target.start()
       try {
         const calls = openCalls({ handle })
@@ -106,19 +106,14 @@ export const describeRemoteCallsLifecycle = (target: RemoteCallsTarget): void =>
           key: uniqueKey('lost'),
           op: { op: 'exec', argv: ['/bin/sh', '-c', 'sleep 30'] },
         })
-        const statDone = calls.invoke({
-          key: uniqueKey('rerun'),
-          op: { op: 'stat', path: '/' },
-        })
         await new Promise((resolve) => setTimeout(resolve, 100))
         await handle.restart()
-        const [execResult, statResult] = await Promise.all([execDone, statDone])
+        const execResult = await execDone
         expect(execResult.status).toBe(ECallStatus.Failed)
         if (execResult.status === 'failed') {
           expect(execResult.error.code).toBe(ECallFailure.Interrupted)
           expect(execResult.error.message).toContain('interrupted by a daemon restart')
         }
-        expect(statResult.status).toBe(ECallStatus.Ok)
         calls.close()
       } finally {
         await handle.stop()

@@ -52,9 +52,9 @@ export const servicePortOf = async (args: {
   isFree: (port: number) => Promise<boolean>
 }): Promise<number | undefined> => {
   if (args.declared === undefined) return undefined
+  if (!args.held.has(args.declared)) return args.declared
   const free = async (port: number): Promise<boolean> =>
     !args.held.has(port) && (await args.isFree(port))
-  if (await free(args.declared)) return args.declared
   let port = deriveServicePort({ name: `${args.name}@${args.root}` })
   for (let attempt = 0; attempt < SERVICE_PORT_SPAN; attempt += 1) {
     if (await free(port)) return port

@@ -98,14 +98,15 @@ definePlugin({
 
 - Declare a service under `services:` in `.atlas/services.yaml`. Each entry needs `command` and can take `cwd`, `port`, `health`, `env`, `setup`, `needs`, `portal`, `portals` and `type`.
 - A declared service runs in the checkout the thread stands in. In a worktree, its `.atlas/services.yaml` is read, a relative `cwd` resolves inside the worktree, and its `setup` runs once for that worktree.
-- One declared name runs once per checkout. Two worktrees run the same name at once: the second gets a port of its own (derived from the name and the checkout) when the declared port is taken, so its preview URL differs too. The command must listen on `$PORT`.
+- One declared name runs once per checkout. Two worktrees run the same name at once: the second gets a port of its own (derived from the name and the checkout) when another service already runs on the declared port, so its preview URL differs too. The command must listen on `$PORT`.
+- A process outside the services that holds the declared port does not move the service. A container published on that port answers the ready check, and a real clash fails loudly with the port in use.
 - `${services.<name>.url|port|publicUrl}` in `env` resolves against the services of the same checkout, and starts them first.
 - `stop`, `restart` and the stale mark of a `name` act on the service of the current checkout. A list row names the worktree branch.
 - `start` takes a `name` or a `command`, never both.
 - When the daemon restarts, or a host reattaches after one, each declared service that was running
   is stopped in the sandbox, ended in the transcript with cause `SandboxStopped` and started again in
   declaration order, on the same port and behind the same URL. A pid the record cannot prove was
-  that service, or a port another process now holds, falls back to a fresh port. An ad-hoc `command`
+  that service is left running, and may still hold the port. An ad-hoc `command`
   service stays ended: its env and its setup exist only in the call that started it.
 - `restart` takes a `serviceId` or a `name`, exactly one.
 - Import the pod tier in a pod only. It spawns processes on the host of the session.
