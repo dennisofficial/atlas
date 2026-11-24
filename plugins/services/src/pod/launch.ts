@@ -35,14 +35,49 @@ export type LaunchedService = {
   exposeReason?: string | undefined
 }
 
+type RecordStartedArgs = {
+  ctx: PluginPodContext
+  serviceId: string
+  launch: LaunchArgs
+  started: ServiceInfo
+  url: string | undefined
+}
+
+const alreadyStarted = (args: RecordStartedArgs): boolean =>
+  args.ctx
+    .events()
+    .some((event) => event.type === 'service-started' && event.serviceId === args.serviceId)
+
+const recordStarted = async (args: RecordStartedArgs): Promise<void> => {
+  if (alreadyStarted(args)) return
+  await args.ctx.append([
+    {
+      type: 'service-started',
+      serviceId: args.serviceId,
+      command: args.launch.command,
+      description: args.launch.description,
+      pid: args.started.pid,
+      ...(args.launch.name === undefined ? {} : { name: args.launch.name }),
+      ...(args.launch.declarationHash === undefined
+        ? {}
+        : { declarationHash: args.launch.declarationHash }),
+      cwd: args.launch.cwd,
+      ...(args.launch.root === undefined ? {} : { root: args.launch.root }),
+      ...(args.launch.branch === undefined ? {} : { branch: args.launch.branch }),
+      ...(args.launch.port === undefined ? {} : { port: args.launch.port }),
+      ...(args.url === undefined ? {} : { url: args.url }),
+    },
+  ])
+}
+
 export const launchTracked = async (
   args: LaunchArgs,
 ): Promise<{ ok: true; value: LaunchedService } | { ok: false; reason: string }> => {
   const { ctx, state } = args
-  const serviceId = newServiceId()
+  const requestedId = newServiceId()
   let settled: () => void = () => undefined
   state.starting.set(
-    serviceId,
+    requestedId,
     new Promise<void>((resolve) => {
       settled = resolve
     }),
@@ -50,7 +85,7 @@ export const launchTracked = async (
   try {
     const launched = await startService({
       ctx,
-      serviceId,
+      serviceId: requestedId,
       command: args.command,
       cwd: args.cwd,
       env: await serviceEnvOf({ ctx, env: args.env }),
@@ -60,6 +95,7 @@ export const launchTracked = async (
       signal: args.signal,
     })
     if (!launched.ok) return { ok: false, reason: launched.reason }
+    const serviceId = launched.value.serviceId
     const exposure =
       args.port === undefined || args.expose === false
         ? undefined
@@ -68,22 +104,7 @@ export const launchTracked = async (
       ctx.log(`services: publishing ${serviceId} failed: ${exposure.reason}`)
     }
     const url = exposure?.ok === true ? exposure.url : undefined
-    await ctx.append([
-      {
-        type: 'service-started',
-        serviceId,
-        command: args.command,
-        description: args.description,
-        pid: launched.value.pid,
-        ...(args.name === undefined ? {} : { name: args.name }),
-        ...(args.declarationHash === undefined ? {} : { declarationHash: args.declarationHash }),
-        cwd: args.cwd,
-        ...(args.root === undefined ? {} : { root: args.root }),
-        ...(args.branch === undefined ? {} : { branch: args.branch }),
-        ...(args.port === undefined ? {} : { port: args.port }),
-        ...(url === undefined ? {} : { url }),
-      },
-    ])
+    await recordStarted({ ctx, serviceId, launch: args, started: launched.value, url })
     return {
       ok: true,
       value: {
@@ -97,7 +118,7 @@ export const launchTracked = async (
     }
   } finally {
     settled()
-    state.starting.delete(serviceId)
+    state.starting.delete(requestedId)
   }
 }
 
