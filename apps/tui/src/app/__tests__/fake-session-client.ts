@@ -260,8 +260,24 @@ export const fakeSessionClient = (args: {
 }): FakeSessionClient => {
   const fake = createFakeTransport()
   const scheduler = createFakeScheduler()
+  let lastRows: readonly StreamSessionRow[] | null = null
+  let replays = 0
+  const transport = {
+    follow: fake.transport.follow,
+    list: (handlers: Parameters<typeof fake.transport.list>[0]) => {
+      const port = fake.transport.list(handlers)
+      if (lastRows === null) return port
+      replays += 1
+      handlers.handleFrame({
+        type: 'snapshot',
+        id: `replay-${replays}`,
+        rows: lastRows.map((row) => ({ ...row })),
+      })
+      return port
+    },
+  }
   const connection: StreamConnection = createStreamConnection({
-    transport: fake.transport,
+    transport,
     scheduler: scheduler.scheduler,
     networkSignal: NO_NETWORK_SIGNAL,
     eventSchema: v2EventSchema,
@@ -708,12 +724,14 @@ export const fakeSessionClient = (args: {
       created.push(next)
     },
     pushRows: (rows) => {
+      const snapshot = rows.map((row) => ({ ...row }))
+      lastRows = snapshot
       for (const subscription of fake.lists) {
         if (subscription.closed) continue
         subscription.handlers.handleFrame({
           type: 'snapshot',
           id: nextId(),
-          rows: rows.map((row) => ({ ...row })),
+          rows: snapshot,
         })
       }
     },
