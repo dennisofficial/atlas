@@ -486,15 +486,56 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
         run: gh workflow run sandbox-image.yml -f release_tag="tui-v${VERSION}" -f release_sha="$TARGET_SHA"
 
+      # Three readers resolve releases/latest/download by name and none of them may 404: install.sh
+      # with no version fetches the tui binaries and atlas-serve, the site's download button fetches
+      # macos-arm64-Atlas.dmg, and the installed Mac app fetches latest-mac.yml. latest must not move
+      # without those Mac files. This release has no Mac build of its own, because only a change to
+      # apps/mac pays for the mac runner, so the Mac files of whichever release is latest are copied
+      # onto it first and then it is marked latest. latest-mac.yml names the zip by file name and
+      # that zip is copied beside it, so the feed keeps offering the last Mac build the installed app
+      # already runs and no spurious update appears. A latest release with no Mac files is a broken
+      # state to inherit, so this fails instead of marking latest without them: releases/latest then
+      # stays where it is and the next run copies from there.
+      - name: carry the mac files forward and mark latest
+        if: steps.version.outputs.skip != 'true' && steps.version.outputs.mac != 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          tag="tui-v${VERSION}"
+          previous=$(gh release view --json tagName -q .tagName --repo "$GITHUB_REPOSITORY")
+          assets="$RUNNER_TEMP/mac-assets"
+          mkdir -p "$assets"
+          # A pattern that matches nothing makes this fail, which is the wanted outcome: a release
+          # that will not carry latest-mac.yml, its named zip and the dmg never becomes latest.
+          if ! gh release download "$previous" --repo "$GITHUB_REPOSITORY" --dir "$assets" \
+            --pattern 'latest-mac.yml' --pattern '*-mac.zip' --pattern 'macos-arm64-Atlas.dmg'; then
+            echo "::error::$previous is the latest release and holds no Mac files; $tag stays off latest so the Mac feed and download keep working"
+            exit 1
+          fi
+          for required in latest-mac.yml macos-arm64-Atlas.dmg; do
+            [ -s "$assets/$required" ] || { echo "::error::$previous is the latest release and holds no $required; $tag stays off latest so the Mac feed and download keep working"; exit 1; }
+          done
+          # latest-mac.yml names the zip an installed app downloads; the copy is worthless without it.
+          zip=$(awk -F'"' '/^path:/{print $2}' "$assets/latest-mac.yml")
+          [ -n "$zip" ] && [ -s "$assets/$zip" ] || { echo "::error::$previous is the latest release and holds no zip named by its latest-mac.yml; $tag stays off latest so the Mac feed keeps working"; exit 1; }
+          ls -la "$assets"
+          for attempt in 1 2 3; do
+            if gh release upload "$tag" "$assets"/* --clobber --repo "$GITHUB_REPOSITORY"; then break; fi
+            if [ "$attempt" = 3 ]; then echo "::error::upload attempt $attempt failed"; exit 1; fi
+            echo "::warning::upload attempt $attempt failed; retrying"
+            sleep $((attempt * 15))
+          done
+          gh release edit "$tag" --latest --repo "$GITHUB_REPOSITORY"
+
   # Signed and notarized build, only for a release the `release` job actually cut and only when the
   # app itself changed (`release-version.ts` reports whether a change reached apps/mac or a package
   # it depends on). A merge that touches only the interface cuts the release for the binaries and
   # lets web-ota.yml carry the UI, instead of paying the mac runner for an unchanged app. The app is
-  # stamped with that release's version and its dmg is attached to the same GitHub release.
-  # The release is created with --latest=false and only marked latest here, after the upload, so
-  # releases/latest/download/macos-arm64-Atlas.dmg — the URL the site's download button and the Mac
-  # updater read — never points at a release that lacks the Mac file. The TUI updater reads the
-  # releases list, so it is unaffected.
+  # stamped with that release's version and its dmg is attached to the same GitHub release, which is
+  # then marked latest here — the only case that produces fresh Mac files. Every other release is
+  # marked latest by the `release` job, after it copies the previous Mac files onto it; see the
+  # comment above that job's step.
   mac-release:
     runs-on: macos-latest
     needs: [release]
