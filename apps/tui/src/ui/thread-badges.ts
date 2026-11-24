@@ -1,6 +1,12 @@
-import { ECloudSandboxState } from '@dltech/atlas-harness'
-
 import { theme } from './theme'
+
+export enum ECloudSandboxState {
+  Running = 'running',
+  Parked = 'parked',
+  Resuming = 'resuming',
+  Stopped = 'stopped',
+  Unknown = 'unknown',
+}
 
 export type ThreadBadge = { text: string; fg: string }
 

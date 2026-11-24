@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { ECloudSandboxState } from '@dltech/atlas-harness'
+import { ECloudSandboxState } from '../thread-badges'
 
 import { cloudSandboxBadge } from '../thread-badges'
 import { theme } from '../theme'

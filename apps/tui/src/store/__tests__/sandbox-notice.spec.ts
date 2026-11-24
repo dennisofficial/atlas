@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'bun:test'
 
-import { createDeltaChannel, ESandboxState } from '@dltech/atlas-harness'
+import { ESandboxState } from '../sidebar-model'
 
 import { createConversationStore } from '../conversation-store'
-import { channelSignalFeed } from './signal-feed-fixture'
+import { channelSignalFeed, createDeltaChannel } from './signal-feed-fixture'
 import { deriveTranscript, EEntryKind } from '@dltech/atlas-client/transcript'
 import type { SidebarContainer } from '../sidebar-model'
 import { transcriptSandboxOf } from '../transcript-sandbox'

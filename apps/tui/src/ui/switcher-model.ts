@@ -9,7 +9,7 @@ import {
   type ModelCard,
   type ModelRef,
 } from '@dltech/atlas-core'
-import type { CatalogueProvider } from '@dltech/atlas-harness'
+import type { CatalogueProvider } from '@dltech/atlas-models'
 
 export type SwitcherProvider = CatalogueProvider
 

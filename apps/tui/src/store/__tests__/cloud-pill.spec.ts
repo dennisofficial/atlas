@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'bun:test'
 
 import { EExecutionLocation, ERunner } from '@dltech/atlas-core'
-import { EConnectionView, ESandboxState } from '@dltech/atlas-harness'
+import { EConnectionView } from '@dltech/atlas-client/channel'
+import { ESandboxState } from '../sidebar-model'
 
 import { cloudPillOf, isResting } from '../cloud-state'
 import { containerPillOf, IDLE_SIDEBAR, withCloud, type SidebarContainer } from '../sidebar-model'

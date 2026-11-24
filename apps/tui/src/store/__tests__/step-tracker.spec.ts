@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EStepEnd, type StepSignal } from '@dltech/atlas-harness'
+import { EStepEnd, type StepSignal } from '@dltech/atlas-client/channel'
 
 import { liveSteps, stepsOfSignals, type InFlightStep } from '@dltech/atlas-client/transcript'
 import { createStepTracker } from '../step-tracker'

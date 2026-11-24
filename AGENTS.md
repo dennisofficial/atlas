@@ -33,7 +33,12 @@ where the compiler should enforce a dependency rule.
   surface declares an explicit empty transport slot. Ports are registered in
   `packages/core/src/ports/registry.ts` (extended by harness). `composeHarness` requires the full
   manifest, so a missing binding breaks typecheck.
-- **`tui` never reaches past `harness`.**
+- **`tui` reaches v2 only through the client packages.** `apps/tui` may import
+  `@dltech/atlas-client/*`, `@dltech/atlas-api-router`, `@dltech/atlas-protocol`,
+  `@dltech/atlas-commands`, `@dltech/atlas-core`, `@dltech/atlas-models`, `@dltech/atlas-syntax`,
+  `@dltech/atlas-observability`, `@dltech/atlas-notifications` and `@dltech/atlas-plugin-*/client|core`.
+  It never imports `@dltech/atlas-harness`, `@dltech/atlas-wire`, `tsyringe` or `reflect-metadata`;
+  `apps/tui/src/__tests__/package.spec.ts` enforces the list.
 - **`ui` is a design system with no Atlas imports**: shadcn `base-nova` (Base UI + CVA + Tailwind
   v4) plus AI Elements. Its `/tokens` subpath is pure TS and imports no platform module.
 - **Clients reach the API through `@dltech/atlas-api-router`** (the generated `AppRouter` and

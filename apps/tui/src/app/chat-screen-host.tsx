@@ -1,7 +1,8 @@
-import type { KeyEvent } from '@opentui/core'
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useMemo, useRef, useState } from 'react'
 
 import { AgentTranscriptScreen } from './agent-transcript'
+import { useAgentMessage } from './use-agent-message'
+import { useKeyHandlerStack } from './use-key-handler-stack'
 import type { ChatScreenHostProps } from './chat-screen-host-props'
 import { ChatScreen } from './chat-screen'
 import { connectionViewOf } from './connection-view'
@@ -24,8 +25,8 @@ import { useSessionWake } from './use-session-wake'
 import { useTranscriptPanels } from './use-transcript-panels'
 import { MIN_TRANSCRIPT_WIDTH } from '../ui/theme'
 import { sidebarWidth } from '../ui/sidebar-width-store'
-import { isPrintable } from '../ui/keys/printable'
-import { messageOf, problemOf } from './app-next-support'
+import { problemOf } from './app-next-support'
+import { useCommandRunner } from './use-command-runner'
 
 export function ChatScreenHost(props: ChatScreenHostProps): React.ReactNode {
   const transcript = useSessionTranscript({
@@ -89,14 +90,7 @@ export function ChatScreenHost(props: ChatScreenHostProps): React.ReactNode {
     onProblem: problemOf,
   })
 
-  const runCommand = useCallback(
-    (input: { name: string; args: Record<string, unknown> }) => {
-      props.client.api
-        .runCommand({ sessionId: props.sessionId, ...input })
-        .catch((failure: unknown) => problemOf(messageOf(failure)))
-    },
-    [props.client.api, props.sessionId],
-  )
+  const actions = useCommandRunner({ api: props.client.api, sessionId: props.sessionId })
 
   const panes = useSessionPanes({
     transcript,
@@ -105,12 +99,10 @@ export function ChatScreenHost(props: ChatScreenHostProps): React.ReactNode {
     teammates: props.teammates,
     sections: chrome.sections,
     onOpenSession: props.onOpenSession,
-    onStopAgent: (agentId) => runCommand({ name: 'agent', args: { action: 'stop', agentId } }),
-    onKillShell: (shellId) => runCommand({ name: 'shell-kill', args: { shellId } }),
-    onStopService: (serviceId) =>
-      runCommand({ name: 'service', args: { action: 'stop', serviceId } }),
-    onRestartService: (serviceId) =>
-      runCommand({ name: 'service', args: { action: 'restart', serviceId } }),
+    onStopAgent: actions.stopAgent,
+    onKillShell: actions.killShell,
+    onStopService: actions.stopService,
+    onRestartService: actions.restartService,
     onProblem: problemOf,
   })
 
@@ -226,52 +218,14 @@ export function ChatScreenHost(props: ChatScreenHostProps): React.ReactNode {
   })
 
   const viewing = panes.crew.viewing
-  const [agentMessage, setAgentMessage] = useState<string | null>(null)
+  const agent = useAgentMessage({ viewing, onSay: actions.say })
 
-  const handleAgentKey = useCallback(
-    (key: KeyEvent): boolean => {
-      if (viewing === null) return false
-      if (agentMessage === null) {
-        if (key.name !== 'm') return false
-        setAgentMessage('')
-        return true
-      }
-      if (key.name === 'escape') {
-        setAgentMessage(null)
-        return true
-      }
-      if (key.name === 'return') {
-        runCommand({ name: 'agent', args: { action: 'say', agentId: viewing, text: agentMessage } })
-        setAgentMessage(null)
-        return true
-      }
-      if (key.name === 'backspace') {
-        setAgentMessage(agentMessage.slice(0, -1))
-        return true
-      }
-      if (isPrintable(key)) setAgentMessage(agentMessage + (key.sequence ?? ''))
-      return true
-    },
-    [agentMessage, runCommand, viewing],
-  )
-
-  const chatKeys = useRef(handleKey)
-  chatKeys.current = handleKey
-  const agentKeys = useRef(handleAgentKey)
-  agentKeys.current = handleAgentKey
-  const panelKeys = useRef(panels.handleKey)
-  panelKeys.current = panels.handleKey
-  const withPanels = useCallback((key: KeyEvent): boolean => {
-    if (agentKeys.current(key)) return true
-    if (panelKeys.current(key)) return true
-    chatKeys.current(key)
-    return true
-  }, [])
-
-  const onKeys = props.onKeys
-  useEffect(() => {
-    onKeys(withPanels)
-  }, [onKeys, withPanels])
+  useKeyHandlerStack({
+    chat: handleKey,
+    agent: agent.handleKey,
+    panels: panels.handleKey,
+    onKeys: props.onKeys,
+  })
 
   if (viewing !== null) {
     return (
@@ -284,7 +238,7 @@ export function ChatScreenHost(props: ChatScreenHostProps): React.ReactNode {
         cwd={props.cwd}
         now={props.now}
         backLabel={panes.crew.backLabel}
-        message={agentMessage}
+        message={agent.message}
         onBack={props.onBack}
       />
     )
@@ -323,7 +277,7 @@ export function ChatScreenHost(props: ChatScreenHostProps): React.ReactNode {
         openUrl={props.openUrl}
         onSelectSubagent={panes.crew.handleSelect}
         onOpenTeammate={props.onOpenSession}
-        onShellKill={(shellId) => runCommand({ name: 'shell-kill', args: { shellId } })}
+        onShellKill={actions.killShell}
         header={chrome.header}
         footer={chrome.footer}
         footerContext={chrome.footerContext}

@@ -1,27 +1,13 @@
-import type { ThreadTreeSpend, TurnSpend } from './turn-ledger.port'
+import { NOTHING_SPENT, totalSpend, type SpendTotals } from '@dltech/atlas-client/transcript'
 
-export type SpendTotals = {
-  turns: number
-  steps: number
-  inputTokens: number
-  outputTokens: number
-  cacheReadTokens: number
-  cacheWriteTokens: number
-}
+import type { ThreadTreeSpend } from './turn-ledger.port'
+
+export { NOTHING_SPENT, totalSpend, type SpendTotals }
 
 export type ThreadTreeTotals = {
   own: SpendTotals
   delegated: SpendTotals
   combined: SpendTotals
-}
-
-export const NOTHING_SPENT: SpendTotals = {
-  turns: 0,
-  steps: 0,
-  inputTokens: 0,
-  outputTokens: 0,
-  cacheReadTokens: 0,
-  cacheWriteTokens: 0,
 }
 
 const plus = ({ left, right }: { left: SpendTotals; right: SpendTotals }): SpendTotals => ({
@@ -32,18 +18,6 @@ const plus = ({ left, right }: { left: SpendTotals; right: SpendTotals }): Spend
   cacheReadTokens: left.cacheReadTokens + right.cacheReadTokens,
   cacheWriteTokens: left.cacheWriteTokens + right.cacheWriteTokens,
 })
-
-const asTotals = (row: TurnSpend): SpendTotals => ({
-  turns: 1,
-  steps: row.steps,
-  inputTokens: row.inputTokens,
-  outputTokens: row.outputTokens,
-  cacheReadTokens: row.cacheReadTokens,
-  cacheWriteTokens: row.cacheWriteTokens,
-})
-
-export const totalSpend = (rows: readonly TurnSpend[]): SpendTotals =>
-  rows.reduce((running, row) => plus({ left: running, right: asTotals(row) }), NOTHING_SPENT)
 
 export function tallyThreadTreeSpend(spend: ThreadTreeSpend): ThreadTreeTotals {
   const own = totalSpend(spend.own)

@@ -1,5 +1,5 @@
 import { EDeclaredServiceState, EServiceStatus, type DeclaredServiceView } from '@dltech/atlas-core'
-import type { ServiceSnapshot } from '@dltech/atlas-harness'
+import type { ServiceRowView } from '../services-model'
 import { describe, expect, it } from 'bun:test'
 
 import {
@@ -14,18 +14,17 @@ import {
   selectService,
 } from '../services-model'
 
-const service = (over: { serviceId: string; status?: EServiceStatus }): ServiceSnapshot => ({
+const service = (over: { serviceId: string; status?: EServiceStatus }): ServiceRowView => ({
   serviceId: over.serviceId,
   command: 'bun run dev',
   description: 'bun run dev',
   status: over.status ?? EServiceStatus.Exited,
-  pid: 4242,
   logPath: '/tmp/svc.log',
   startedAt: '2026-08-27T12:00:00.000Z',
   endedAt: '2026-08-27T12:01:00.000Z',
 })
 
-const rowsOf = (services: readonly ServiceSnapshot[]) =>
+const rowsOf = (services: readonly ServiceRowView[]) =>
   buildServiceRows({ declared: null, services })
 
 const view = (over: Partial<DeclaredServiceView> & { name: string }): DeclaredServiceView => ({

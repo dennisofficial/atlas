@@ -14,7 +14,6 @@ import { createKeyRegistry, KeyRegistryContext } from '../ui/keys'
 import type { Hint } from '../ui/hint-layout'
 import { MIN_TRANSCRIPT_WIDTH, theme } from '../ui/theme'
 import { sidebarWidth } from '../ui/sidebar-width-store'
-import { shellSnapshotOf } from '../ui/shells-model'
 import type { PendingRow, SidebarModel } from '../store'
 import { isDrawerShellRunning } from './drawer-shells'
 import { ContextViewerScreen } from './context-viewer-screen'
@@ -105,14 +104,8 @@ export function ChatScreen(props: {
       ? props.width
       : Math.max(MIN_TRANSCRIPT_WIDTH, props.width - sidebarWidth())
 
-  const sidebarShells = useMemo(
-    () => shells.rows.filter(isDrawerShellRunning).map(shellSnapshotOf),
-    [shells.rows],
-  )
-  const selectedShell = useMemo(
-    () => (shells.selected === undefined ? undefined : shellSnapshotOf(shells.selected)),
-    [shells.selected],
-  )
+  const sidebarShells = useMemo(() => shells.rows.filter(isDrawerShellRunning), [shells.rows])
+  const selectedShell = useMemo(() => shells.selected, [shells.selected])
 
   return (
     <KeyRegistryContext.Provider value={registry}>

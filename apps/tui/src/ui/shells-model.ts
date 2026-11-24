@@ -1,23 +1,22 @@
-import { toThreadId } from '@dltech/atlas-core'
-import { EKilledBy, EShellStatus, toShellId, type ShellSnapshot } from '@dltech/atlas-harness'
+import { EKilledBy, EShellStatus } from '@dltech/atlas-core'
 
 import { stripAnsi } from './ansi'
 import { formatElapsed } from './theme'
 
-/**
- * The chrome reads a shell through `ShellSnapshot`, whose ids are branded. A v2 shell view carries
- * the same fields under plain strings, so one adapter brands them where the panel is fed.
- */
-export type ShellView = Omit<ShellSnapshot, 'shellId' | 'threadId'> & {
+export type ShellSnapshot = {
   shellId: string
   threadId: string
+  command: string
+  description: string
+  status: EShellStatus
+  killedBy?: EKilledBy | undefined
+  exitCode?: number | undefined
+  startedAt: string
+  lastOutputAt: string
+  endedAt?: string | undefined
+  totalCharacters: number
+  awaitingInput: boolean
 }
-
-export const shellSnapshotOf = (view: ShellView): ShellSnapshot => ({
-  ...view,
-  shellId: toShellId(view.shellId),
-  threadId: toThreadId(view.threadId),
-})
 
 export type ShellsState = { index: number }
 

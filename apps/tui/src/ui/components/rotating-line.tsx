@@ -1,8 +1,15 @@
-import { ERotationPhase } from '@dltech/atlas-harness'
 import React from 'react'
 
 import { formatElapsed } from '../theme'
 import { ShimmerLine } from './shimmer-line'
+
+export enum ERotationPhase {
+  Settling = 'settling',
+  Summarising = 'summarising',
+  Compacting = 'compacting',
+  Done = 'done',
+  Failed = 'failed',
+}
 
 export type Rotating = { startedAt: number; phase: ERotationPhase }
 

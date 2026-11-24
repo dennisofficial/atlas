@@ -1,5 +1,5 @@
 import type { Event } from '@dltech/atlas-core'
-import type { TurnSpend } from '@dltech/atlas-harness'
+import type { TurnSpend } from '@dltech/atlas-client/transcript'
 
 /**
  * The event log's decode cache (packages/harness/src/store/decode-events.ts) hands a re-read the

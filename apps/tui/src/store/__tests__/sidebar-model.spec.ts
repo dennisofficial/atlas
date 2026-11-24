@@ -7,7 +7,8 @@ import {
   toRunId,
   toThreadId,
 } from '@dltech/atlas-core'
-import { ETurnStatus, NOTHING_SPENT, type TurnSpend } from '@dltech/atlas-harness'
+import { ETurnStatus } from '@dltech/atlas-client/channel'
+import { NOTHING_SPENT, type TurnSpend } from '@dltech/atlas-client/transcript'
 import { describe, expect, it } from 'bun:test'
 
 import { IDLE_TURN } from '../../ui/turn-clock'

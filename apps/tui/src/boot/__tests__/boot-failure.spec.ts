@@ -1,4 +1,3 @@
-import { CloudError } from '@dltech/atlas-harness'
 import { describe, expect, it } from 'bun:test'
 
 import { BOOT_FAILURE_EXIT_CODE, bootFailureReport } from '../boot-failure'
@@ -6,10 +5,7 @@ import { BOOT_FAILURE_EXIT_CODE, bootFailureReport } from '../boot-failure'
 describe('what the operator sees when Atlas cannot start', () => {
   it('frames the failure instead of dumping a stack', () => {
     const report = bootFailureReport({
-      error: new CloudError({
-        status: 500,
-        message: 'The Atlas Cloud API answered 500: Internal server error.',
-      }),
+      error: new Error('The Atlas Cloud API answered 500: Internal server error.'),
       debug: false,
     })
 

@@ -1,7 +1,5 @@
 import React from 'react'
 
-import type { ShellSnapshot } from '@dltech/atlas-harness'
-
 import { type Hint } from '../hint-layout'
 import type { OutputScroll } from '../hooks/use-output-scroll'
 import { usePress, type PressHandlers } from '../hooks/use-press'
@@ -11,6 +9,7 @@ import {
   shellCommandLabel,
   shellNameLabel,
   shellReadout,
+  type ShellSnapshot,
 } from '../shells-model'
 import { glyph, theme } from '../theme'
 import {

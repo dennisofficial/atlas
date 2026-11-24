@@ -1,5 +1,6 @@
 import { EAgentStatus, EShellStatus, toThreadId, type ProviderIdentity } from '@dltech/atlas-core'
-import { toShellId, type AgentSnapshot, type ShellSnapshot } from '@dltech/atlas-harness'
+import type { ShellSnapshot } from '../../ui/shells-model'
+import type { AgentSnapshot } from '../subagent-row'
 import { describe, expect, it } from 'bun:test'
 
 import { crewTiersOf, deriveSidebar, withCrew } from '../sidebar-model'
@@ -212,7 +213,7 @@ describe('whether a child still counts as alive', () => {
 
 describe('whether a child still counts as working', () => {
   const heldShell = (over: Partial<ShellSnapshot> = {}): ShellSnapshot => ({
-    shellId: toShellId('bash_held'),
+    shellId: 'bash_held',
     threadId: CHILD,
     command: 'sleep 60',
     description: 'Wait on a file',
@@ -299,7 +300,7 @@ describe('merging the crew into a sidebar', () => {
 
 describe('what a child still has running under it', () => {
   const shell = (over: Partial<ShellSnapshot> = {}): ShellSnapshot => ({
-    shellId: toShellId('bash_1'),
+    shellId: 'bash_1',
     threadId: CHILD,
     command: 'sleep 60',
     description: 'Wait on a file',
@@ -317,8 +318,8 @@ describe('what a child still has running under it', () => {
       rosters: {
         shells: [
           shell(),
-          shell({ shellId: toShellId('bash_2'), status: EShellStatus.Exited }),
-          shell({ shellId: toShellId('bash_3'), threadId: PARENT }),
+          shell({ shellId: 'bash_2', status: EShellStatus.Exited }),
+          shell({ shellId: 'bash_3', threadId: PARENT }),
         ],
         children: [],
       },

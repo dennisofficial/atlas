@@ -1,11 +1,10 @@
 import { describe, expect, it } from 'bun:test'
 
-import { MAX_PROJECT_NAME_LENGTH } from '@dltech/atlas-wire'
-
 import {
   createAnswer,
   EProjectAnswer,
   EProjectPrompt,
+  MAX_PROJECT_NAME_LENGTH,
   NAME_REQUIRED,
   NAME_TOO_LONG,
   openProjectPrompt,

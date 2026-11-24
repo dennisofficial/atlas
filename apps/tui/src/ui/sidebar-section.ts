@@ -1,9 +1,10 @@
-import { ESidebarPlace } from '@dltech/atlas-harness'
-
 import { justifySpans } from './components/sidebar/cells'
 import type { Span } from './components/spans'
 
-export { ESidebarPlace } from '@dltech/atlas-harness'
+export enum ESidebarPlace {
+  Facts = 'facts',
+  Panels = 'panels',
+}
 
 /**
  * A split row anchors one group of spans to the left edge and another to the right, with the gap

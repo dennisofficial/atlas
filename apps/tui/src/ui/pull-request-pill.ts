@@ -1,8 +1,15 @@
 import { EChecksState, EPullRequestState } from '@dltech/atlas-core'
-import type { PullRequestBadge } from '@dltech/atlas-harness'
 
 import type { Span } from './components/spans'
 import { theme } from './theme'
+
+export type PullRequestBadge = {
+  label: string
+  url: string
+  state: EPullRequestState
+  checks: EChecksState
+  pollBacked: boolean
+}
 
 export type PullRequestChip = {
   spans: readonly Span[]

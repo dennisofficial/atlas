@@ -6,9 +6,23 @@ import {
   type DeclaredServicesView,
   type DeclaredServiceView,
 } from '@dltech/atlas-core'
-import type { ServiceSnapshot } from '@dltech/atlas-harness'
 
 import { formatElapsed } from './theme'
+
+export type ServiceRowView = {
+  serviceId: string
+  command: string
+  description: string
+  status: EServiceStatus
+  killedBy?: EKilledBy | undefined
+  exitCode?: number | undefined
+  logPath: string
+  startedAt: string
+  endedAt?: string | undefined
+  exposure?: { containerPort: number; hostPort: number; url: string } | undefined
+  name?: string | undefined
+  port?: number | undefined
+}
 
 export type ServicesState = { index: number }
 
@@ -19,7 +33,7 @@ export type ServiceRow = {
   key: string
   name: string
   declared?: DeclaredServiceView | undefined
-  snapshot?: ServiceSnapshot | undefined
+  snapshot?: ServiceRowView | undefined
 }
 
 export enum EServiceTone {
@@ -40,14 +54,14 @@ const LIVE_STATES = new Set([EDeclaredServiceState.Running, EDeclaredServiceStat
 
 const snapshotFor = (args: {
   view: DeclaredServiceView
-  services: readonly ServiceSnapshot[]
-}): ServiceSnapshot | undefined =>
+  services: readonly ServiceRowView[]
+}): ServiceRowView | undefined =>
   args.services.find((one) => one.serviceId === args.view.serviceId) ??
   args.services.findLast((one) => one.name === args.view.name)
 
 export function buildServiceRows(args: {
   declared: DeclaredServicesView | null
-  services: readonly ServiceSnapshot[]
+  services: readonly ServiceRowView[]
 }): readonly ServiceRow[] {
   const views = args.declared?.services ?? []
   const names = new Set(views.map((view) => view.name))
@@ -159,7 +173,7 @@ export function serviceNameLabel(service: { command: string; description: string
   return named === '' ? service.command.replace(/\s+/g, ' ').trim() : named
 }
 
-export function serviceStateLabel(service: ServiceSnapshot): string {
+export function serviceStateLabel(service: ServiceRowView): string {
   if (service.status === EServiceStatus.Running) return 'running'
   if (service.status === EServiceStatus.Killed) {
     if (service.killedBy === EKilledBy.User) return 'stopped by you'
@@ -176,12 +190,12 @@ const instantOf = (iso: string): number | null => {
   return Number.isNaN(at) ? null : at
 }
 
-const settledAt = (service: ServiceSnapshot): number | null => {
+const settledAt = (service: ServiceRowView): number | null => {
   if (isServiceRunning(service)) return null
   return service.endedAt === undefined ? null : instantOf(service.endedAt)
 }
 
-export function serviceElapsedMs(args: { service: ServiceSnapshot; now: number }): number | null {
+export function serviceElapsedMs(args: { service: ServiceRowView; now: number }): number | null {
   const started = instantOf(args.service.startedAt)
   if (started === null) return null
 
@@ -190,7 +204,7 @@ export function serviceElapsedMs(args: { service: ServiceSnapshot; now: number }
 
 const READOUT_SEPARATOR = ' · '
 
-export function serviceReadout(args: { service: ServiceSnapshot; now: number }): string {
+export function serviceReadout(args: { service: ServiceRowView; now: number }): string {
   const state = serviceStateLabel(args.service)
   const elapsed = serviceElapsedMs(args)
   return elapsed === null ? state : `${state}${READOUT_SEPARATOR}${formatElapsed(elapsed)}`

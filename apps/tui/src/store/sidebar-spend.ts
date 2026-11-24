@@ -1,5 +1,10 @@
-import { formatUsd, tallySpend, type ModelCost, type ModelRef } from '@dltech/atlas-core'
-import { NOTHING_SPENT, totalSpend, type SpendTotals, type TurnSpend } from '@dltech/atlas-harness'
+import { tallySpend, type ModelCost, type ModelRef } from '@dltech/atlas-core'
+import {
+  NOTHING_SPENT,
+  totalSpend,
+  type SpendTotals,
+  type TurnSpend,
+} from '@dltech/atlas-client/transcript'
 
 import { formatTokens, theme } from '../ui/theme'
 import type { LiveInput } from '../ui/turn-clock'
