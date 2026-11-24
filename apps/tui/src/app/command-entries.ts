@@ -2,6 +2,7 @@ import type { CommandEntry } from '@dltech/atlas-commands'
 import {
   catalogueForSurface,
   catalogueOf,
+  EClientAction,
   ECommandEntryKind,
   ECommandGroup,
   ECommandSource,
@@ -20,6 +21,15 @@ export const TUI_LOCAL_NAMES: readonly string[] = [
 ]
 
 export const TUI_OWNED_NAMES: readonly string[] = [...TUI_LOCAL_NAMES, 'rewind']
+
+const PANEL_ACTIONS: readonly { name: string; action: EClientAction }[] = [
+  { name: 'skills', action: EClientAction.Skills },
+  { name: 'mcp', action: EClientAction.Mcp },
+  { name: 'shells', action: EClientAction.Shells },
+]
+
+export const panelActionOf = (name: string): EClientAction | null =>
+  PANEL_ACTIONS.find((panel) => panel.name === name)?.action ?? null
 
 const local = (args: { name: string; summary: string }): CommandEntry => ({
   name: args.name,
