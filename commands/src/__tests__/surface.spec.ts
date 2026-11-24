@@ -14,13 +14,16 @@ import { nativeCommands } from '..'
 
 const registry = composeCommands(nativeCommands)
 
+const nativeHidesOf = (surface: ESurface) =>
+  SURFACE_PROFILES[surface].hides.filter((hidden) => hidden.because !== EHiddenBecause.PaneAction)
+
 describe('surface profiles', () => {
   it('names only commands that this package declares', () => {
-    for (const profile of Object.values(SURFACE_PROFILES)) {
-      for (const hidden of profile.hides) {
+    for (const surface of Object.values(ESurface)) {
+      for (const hidden of nativeHidesOf(surface)) {
         expect(registry.byName.has(hidden.name)).toBe(true)
       }
-      for (const picked of profile.picks) {
+      for (const picked of SURFACE_PROFILES[surface].picks) {
         expect(registry.byName.has(picked.name)).toBe(true)
       }
     }
@@ -28,7 +31,7 @@ describe('surface profiles', () => {
 
   it('still parses a hidden name, so hiding stays a menu decision', () => {
     for (const surface of Object.values(ESurface)) {
-      for (const hidden of SURFACE_PROFILES[surface].hides) {
+      for (const hidden of nativeHidesOf(surface)) {
         const invocation = parseInvocation({
           text: `/${hidden.name}`,
           commands: registry,
