@@ -19,7 +19,9 @@ import {
   resolvedFindingProperties,
   reviewCompletedProperties,
 } from './analytics/review-properties'
+import { QUALITY_EXAMPLE_FLAGGED, exampleFlaggedProperties } from './analytics/example-properties'
 import { ignoredFindingProperties } from './analytics/ignored-properties'
+import { noteDraftsOf, retirementDraftsOf } from './notes'
 import { reviewWithinBudget } from './review-outcome'
 
 export const QUALITY_REVIEW_BUDGET_MS = 1000
@@ -27,6 +29,7 @@ export const QUALITY_REVIEW_BUDGET_MS = 1000
 export type QualitySettings = {
   enabled: boolean
   policies: Readonly<Record<string, boolean>>
+  examples: boolean
 }
 
 export type QualityReviewOptions = {
@@ -103,11 +106,23 @@ export const qualityReviewHook = (args: {
         records: outcome.records,
         metrics: outcome,
         files: changes.length,
-        notified: outcome.context !== undefined,
+        notified: outcome.notes.length > 0,
         classifier: { model: status.model, provider: status.provider },
         events,
       }),
     })
+    if (settings.examples) {
+      for (const example of outcome.flagged) {
+        const properties = exampleFlaggedProperties({
+          example,
+          projectDirectory,
+          classifierModel: status.model,
+        })
+        if (properties !== null) {
+          args.ctx.analytics.capture({ event: QUALITY_EXAMPLE_FLAGGED, properties })
+        }
+      }
+    }
     for (const properties of resolvedFindingProperties({
       records: outcome.records,
       events,
@@ -117,10 +132,11 @@ export const qualityReviewHook = (args: {
     }
 
     return {
-      drafts: outcome.records,
-      ...(outcome.context === undefined
-        ? {}
-        : { additionalContext: outcome.context, contextKey: call.callId }),
+      drafts: [
+        ...outcome.records,
+        ...noteDraftsOf({ notes: outcome.notes }),
+        ...retirementDraftsOf({ events, records: outcome.records, notes: outcome.notes }),
+      ],
     }
   },
 })

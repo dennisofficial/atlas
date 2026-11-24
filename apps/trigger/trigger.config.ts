@@ -4,7 +4,8 @@ import { dotenvxTierExtension } from './trigger-tier-extension'
 export default defineConfig({
   project: 'proj_wcjbubibkotgsclldnyz',
   runtime: 'node-24',
-  dirs: ['./src/trigger'],
+  dirs: ['./src'],
+  ignorePatterns: ['**/__tests__/**', '**/*.spec.ts'],
   maxDuration: 300,
   build: {
     conditions: ['bun'],

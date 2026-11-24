@@ -4,9 +4,9 @@ import { triggerSdkFake } from './trigger-sdk.fake'
 
 mock.module('@trigger.dev/sdk', () => triggerSdkFake)
 
-const { previewReconcileTask } = await import('../trigger/previews/preview-reconcile.task')
+const { previewReconcileTask } = await import('../previews/preview-reconcile.task')
 const { PREVIEW_SWEEP_GRACE_MS, readPreviewSweepDryRun, runPreviewReconcile } = await import(
-  '../trigger/previews/preview-reconcile'
+  '../previews/preview-reconcile'
 )
 
 const emptyPass: PreviewPassSummary = {

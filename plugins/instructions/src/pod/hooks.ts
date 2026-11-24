@@ -49,9 +49,9 @@ export const instructionsTouch = (args: {
 }): RegisteredHook<AfterTool> => ({
   name: 'instructions-touch',
   order: ORDER,
-  run: async ({ call, result }) => {
+  run: async ({ call, result, projectDirectory }) => {
     if (!result.ok) return {}
-    const touched = touchedDirectoriesOf(call.input)
+    const touched = touchedDirectoriesOf({ input: call.input, projectDirectory })
     if (touched.length === 0) return {}
     const snapshot = snapshotOf(args)
     if (snapshot === undefined) return {}

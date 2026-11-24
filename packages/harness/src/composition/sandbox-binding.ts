@@ -2,7 +2,6 @@ import {
   AfterToolHook,
   AgentFileSystemPort,
   BeforeToolHook,
-  DEFAULT_CONTAINER_IDLE_MINUTES,
   ENoticeTone,
   EServiceStatus,
   ESettingId,
@@ -37,6 +36,7 @@ import { SessionEnvironmentProcessPort } from '../execution/session-environment'
 import { SessionRegistryToken } from '../container/tokens'
 import { ServiceRegistryPort } from '../services/service-registry'
 import type { SettingsService } from '../settings/service'
+import { DEFAULT_CONTAINER_IDLE_MINUTES } from '../settings/v1-only-definitions'
 import { ShellRegistryPort } from '../shells/shell-registry'
 
 import type { ExecutionLocationState } from './execution-location-state'

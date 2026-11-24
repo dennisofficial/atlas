@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import type { MemorySummary } from '@dltech/atlas-plugin-sdk'
 
-import { memoryIndexOf, unavailableIndexOf } from '..'
+import { memoryIndexOf } from '..'
 
 const summary = (overrides: Partial<MemorySummary> = {}): MemorySummary => ({
   scope: 'global',
@@ -66,13 +66,5 @@ describe('memoryIndexOf', () => {
     const text = memoryIndexOf({ project: null, memories })
     expect(text.indexOf('- alpha')).toBeLessThan(text.indexOf('- mid'))
     expect(text.indexOf('- mid')).toBeLessThan(text.indexOf('- zeta'))
-  })
-})
-
-describe('unavailableIndexOf', () => {
-  it('names the reason without doubling the full stop', () => {
-    expect(unavailableIndexOf('the control plane refused the call.')).toBe(
-      'Memory is unavailable this session: the control plane refused the call.',
-    )
   })
 })

@@ -81,7 +81,7 @@ the capabilities `control`, `crew`, `messages`, `classifier`, `analytics`, `sess
 user; the host adds `session_id` and `thread_id`.
 `ctx.crew` is a `PodCrew`: `spawn` with a `group` wakes the parent once, after every member ends.
 `say({agentId, text})`, `stop({agentId})`, `list()` and `resume({agentId})` act on one sub-agent.
-`ctx.control` is a `PodControl`: `exposePort({port})`, `settingsVersions()`, `memory`, `webSearch`,
+`ctx.control` is a `PodControl`: `exposePort({port})`, `settingsVersions()`, `memory`,
 `gateway` (`apiKey()`, `imageModel()`), `mcp`, `routines`, `subscriptions`.
 
 ### The control and client slots
@@ -110,7 +110,7 @@ and compare `ctx.control.settingsVersions()` with `UNVERSIONED_SETTINGS`. Read t
 - `composePod(pods)`, `composePodCommands({factories, ctx})`: the merged pod slot and pod commands.
 - `eventSchemaOf(plugins)`, `eventTypesOf(plugins)`: the decoder and the type list for a session.
 - `crossLatch({ctx, name, level, mayFire})`: fire a level-triggered latch once, and record it.
-- `MacOfflineError`, `PodMcpProxyTransport`, `PodMcpProxyChannel`: the proxy to the Mac app.
+- `MacOfflineError`, `PodMcpProxy*`, `McpToken` (`EMcpToken`): the Mac proxy and `mcp.token`.
 - `EMPTY_*` (`EMPTY_POD`, `EMPTY_CLASSIFIER`, `EMPTY_ANALYTICS`, ...): the default a tier spreads.
 
 ## Usage

@@ -1,7 +1,9 @@
 import {
   EAttachmentStore,
+  MAX_INLINE_BYTES,
   MAX_MESSAGE_UPLOADS,
   MAX_UPLOAD_BYTES,
+  SUPPORTED_IMAGE_MEDIA_TYPES,
   type Attachment,
   type SaidUpload,
 } from '@dltech/atlas-core'
@@ -18,6 +20,11 @@ export enum EAttachmentStatus {
   Uploading = 'uploading',
   Ready = 'ready',
   Failed = 'failed',
+}
+
+export enum EAttachRoute {
+  Media = 'media',
+  Upload = 'upload',
 }
 
 export type PickedFile = {
@@ -38,7 +45,15 @@ export type HeldAttachment = {
   status: EAttachmentStatus
   progress: number
   upload?: SaidUpload | undefined
+  hash?: string | undefined
 }
+
+export const attachRouteOf = (file: PickedFile): EAttachRoute =>
+  (SUPPORTED_IMAGE_MEDIA_TYPES as readonly string[]).includes(file.mediaType) &&
+  file.size > 0 &&
+  file.size <= MAX_INLINE_BYTES
+    ? EAttachRoute.Media
+    : EAttachRoute.Upload
 
 export const mediaTypeOf = (mediaType: string): string =>
   mediaType === '' ? OCTET_STREAM : mediaType
@@ -98,6 +113,17 @@ export const withReady = (args: {
       : entry,
   )
 
+export const withMediaReady = (args: {
+  held: readonly HeldAttachment[]
+  id: string
+  hash: string
+}): HeldAttachment[] =>
+  args.held.map((entry) =>
+    entry.id === args.id
+      ? { ...entry, status: EAttachmentStatus.Ready, progress: 1, hash: args.hash }
+      : entry,
+  )
+
 export const withFailed = (args: {
   held: readonly HeldAttachment[]
   id: string
@@ -121,8 +147,17 @@ export const readyAttachments = (held: readonly HeldAttachment[]): HeldAttachmen
   held.filter((entry) => entry.status === EAttachmentStatus.Ready)
 
 const attachmentOf = (entry: HeldAttachment): Attachment | null => {
+  if (entry.status !== EAttachmentStatus.Ready) return null
+  if (entry.hash !== undefined)
+    return {
+      id: `media:${entry.hash}`,
+      name: entry.name,
+      mediaType: entry.mediaType,
+      size: entry.size,
+      content: { store: EAttachmentStore.Media, hash: entry.hash },
+    }
   const upload = entry.upload
-  if (upload === undefined || entry.status !== EAttachmentStatus.Ready) return null
+  if (upload === undefined) return null
   return {
     id: upload.uploadId,
     name: upload.name,

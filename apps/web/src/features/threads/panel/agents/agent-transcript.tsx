@@ -20,6 +20,7 @@ import { useNow } from '../../data/use-now'
 import { useRoster } from '../../data/use-roster'
 import { useThreadEvents } from '../../data/use-thread-events'
 import { useThreadSignals } from '../../data/use-thread-signals'
+import { ChannelDiagramRepairProvider } from '../../data/session-diagram-repair-provider'
 import { TurnView, type TranscriptActions } from '../../transcript/transcript-turn'
 import { TabPlaceholder } from '../tab-placeholder'
 import { useThreadPanel } from '../thread-panel-context'
@@ -115,7 +116,6 @@ export function AgentTranscript(props: { agentId: string; fallback: AgentsPanelA
       openChanges: null,
       openAgent,
       openPodSize: null,
-      repairDiagram: null,
     }),
     [openAgent],
   )
@@ -131,13 +131,15 @@ export function AgentTranscript(props: { agentId: string; fallback: AgentsPanelA
   }
   if (!loaded) return <TranscriptLoading />
   return (
-    <AgentTranscriptBody
-      events={events}
-      fallback={fallback}
-      running={running}
-      now={now}
-      models={models}
-      actions={actions}
-    />
+    <ChannelDiagramRepairProvider>
+      <AgentTranscriptBody
+        events={events}
+        fallback={fallback}
+        running={running}
+        now={now}
+        models={models}
+        actions={actions}
+      />
+    </ChannelDiagramRepairProvider>
   )
 }

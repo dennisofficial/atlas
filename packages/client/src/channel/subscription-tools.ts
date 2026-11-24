@@ -52,7 +52,6 @@ export const subscribeTo = (args: {
   threadId: string
   provider: string
   input: string
-  expiresAt?: string | undefined
 }): Promise<SubscriptionReply> =>
   acted({
     channel: args.channel,
@@ -61,7 +60,6 @@ export const subscribeTo = (args: {
       threadId: args.threadId,
       provider: args.provider,
       input: args.input,
-      ...(args.expiresAt === undefined ? {} : { expiresAt: args.expiresAt }),
     },
   })
 

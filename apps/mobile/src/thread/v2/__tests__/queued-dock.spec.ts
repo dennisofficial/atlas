@@ -41,7 +41,7 @@ const pending: PendingInputsState = {
   ],
 }
 
-const STAGED = [{ clientId: 'phone-1', text: 'from the phone' }]
+const STAGED = [{ clientId: 'phone-1', text: 'from the phone', attachments: [] }]
 
 const SUMMARISE: SessionCommandRow = {
   inboxId: 9,

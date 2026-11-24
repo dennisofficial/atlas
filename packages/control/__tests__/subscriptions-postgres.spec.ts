@@ -75,7 +75,6 @@ describe('subscription rows on postgres', () => {
       target: { repo: REPO, number: 7 },
       label: 'acme/atlas#7',
       events: ['push'],
-      expiresAt: result.subscription.expiresAt ?? undefined,
       lease: { repo: REPO, subject: { kind: 'pull-request', number: 7 } },
       by: ESubscriptionActor.Agent,
     })
@@ -149,26 +148,32 @@ describe('subscription rows on postgres', () => {
   })
 
   it('keeps a row renewed between the sweep selection and its delete', async () => {
-    const { plane: control, sessionId, threadId } = await seeded()
-    const subscribe = (expiresAt: string) =>
-      control.subscribe({
-        sessionId,
+    const { plane: control, userId, sessionId, threadId } = await seeded()
+    await new PostgresControlStore(testDb().db).transact((tx) =>
+      tx.upsertSubscriptionLease({
+        userId,
         threadId,
-        provider: 'github.pull-request',
-        target: { repo: REPO, number: 7 },
-        label: 'acme/atlas#7',
+        repo: REPO,
+        subject: { kind: 'pull-request', number: 7 },
         events: [],
-        expiresAt,
-        lease: { repo: REPO, subject: { kind: 'pull-request', number: 7 } },
-        by: ESubscriptionActor.Agent,
-      })
-    const expired = await subscribe('2020-01-01T00:00:00.000Z')
-    await subscribe('2030-01-01T00:00:00.000Z')
+        expiresAt: '2020-01-01T00:00:00.000Z',
+      }),
+    )
+    const renewed = await control.subscribe({
+      sessionId,
+      threadId,
+      provider: 'github.pull-request',
+      target: { repo: REPO, number: 7 },
+      label: 'acme/atlas#7',
+      events: [],
+      lease: { repo: REPO, subject: { kind: 'pull-request', number: 7 } },
+      by: ESubscriptionActor.Agent,
+    })
 
     const ended = await new PostgresControlStore(testDb().db).transact((tx) =>
       endSubscriptionsIn({
         tx,
-        rows: [{ subscriptionId: expired.subscription.id, threadId }],
+        rows: [{ subscriptionId: renewed.subscription.id, threadId }],
         by: ESubscriptionActor.Clock,
         reason: ESubscriptionEnd.Expired,
         at: '2026-11-22T12:00:00.000Z',
@@ -192,8 +197,6 @@ describe('subscription rows on postgres', () => {
       lease: { repo: REPO, subject: { kind: 'pull-request', number: 7 } },
       by: ESubscriptionActor.Agent,
     })
-    expect(written.subscription.expiresAt).toBeNull()
-
     const ended = await new PostgresControlStore(testDb().db).transact((tx) =>
       endSubscriptionsIn({
         tx,
@@ -207,7 +210,7 @@ describe('subscription rows on postgres', () => {
 
     expect(ended).toBe(0)
     expect(await control.listSubscriptions({ sessionId })).toMatchObject([
-      { id: written.subscription.id, expiresAt: null },
+      { id: written.subscription.id },
     ])
     const row = await testDb()
       .db.orm.public.GithubSubscription.where({ id: written.subscription.id })

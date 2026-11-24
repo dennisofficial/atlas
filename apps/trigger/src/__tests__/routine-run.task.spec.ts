@@ -3,12 +3,12 @@ import { CronNeverFiresError } from '@dltech/atlas-schedule'
 import { routineRunPayloadSchema } from '@dltech/atlas-jobs'
 import { triggerSdkFake } from './trigger-sdk.fake'
 import { routineRowOf, runGraphOf, type WriteRecord } from './routine-graph.fake'
-import type { RoutineGraph } from '../trigger/routine/routine-graph'
+import type { RoutineGraph } from '../routine/routine-graph'
 
 mock.module('@trigger.dev/sdk', () => triggerSdkFake)
 
 const { recordRoutineFailure, routineRunTask, runRoutineOnce } = await import(
-  '../trigger/routine/routine-run.task'
+  '../routine/routine-run.task'
 )
 
 type CapturedRunParams = Parameters<RoutineGraph['plane']['runRoutine']>[0]

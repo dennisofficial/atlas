@@ -3,7 +3,7 @@ import { triggerRecords, triggerSdkFake } from './trigger-sdk.fake'
 
 mock.module('@trigger.dev/sdk', () => triggerSdkFake)
 
-const { requeuePodResize } = await import('../trigger/pod-resize/pod-resize-graph')
+const { requeuePodResize } = await import('../pod-resize/pod-resize-graph')
 
 describe('a pod task that requeues itself', () => {
   it('triggers pod-resize again with the next wait count, a global key and the delay', async () => {

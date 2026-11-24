@@ -8,7 +8,7 @@ import {
   SelectValue,
 } from '@dltech/atlas-ui/components/select'
 
-import type { ChoiceItem } from '../fixtures/settings-search'
+import type { ChoiceItem } from '../fixtures/settings-choice'
 
 export function ChoiceSelect<TValue extends string>({
   label,

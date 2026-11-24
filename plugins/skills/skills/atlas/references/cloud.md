@@ -28,8 +28,8 @@ Starting a cloud thread requires an Atlas Cloud sign-in.
 A sandbox gets GitHub access from Atlas Cloud, not from the local `gh` login: at boot it fetches its
 Project's repository, base branch and a clone token brokered from the GitHub connection on the cloud
 settings page. If Git access fails in a sandbox, check that connection. Released builds select a
-matching image; prefer that default. `sandbox.image` / `ATLAS_SANDBOX_IMAGE` overrides it for
-image-access debugging or an intentional runtime. Quota and billing belong to the operator.
+matching image; prefer that default. `ATLAS_SANDBOX_IMAGE` overrides it for image-access
+debugging or an intentional runtime. Quota and billing belong to the operator.
 
 Once the repository is cloned, the sandbox applies container configuration from the Project's Atlas
 Cloud settings, never from a file in the repository: the Setup script runs once per sandbox, project

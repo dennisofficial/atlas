@@ -14,8 +14,8 @@ import { CLOUD_SETTING_REGISTRY, validateCloudSetting } from '../settings-regist
 const encoded = (value: unknown): string => encodeSettingValue(value)
 
 describe('CLIENT_SETTING_IDS', () => {
-  it('names sixteen keys, each of which has a definition whose fallback the registry keeps', () => {
-    expect(CLIENT_SETTING_IDS).toHaveLength(16)
+  it('names the seven look keys the new TUI reads, each with a definition the registry keeps', () => {
+    expect(CLIENT_SETTING_IDS).toHaveLength(7)
     for (const id of CLIENT_SETTING_IDS) {
       const definition = definitionOf(id)
       expect(definition.id).toBe(id)
@@ -69,7 +69,8 @@ describe('the drawer keys are settings the API validates', () => {
   it('keeps the dropped rows out of the account registry', () => {
     expect(CLOUD_SETTING_REGISTRY.has(ESettingId.Editor)).toBe(false)
     expect(CLOUD_SETTING_REGISTRY.has(ESettingId.ContainerCpus)).toBe(false)
-    expect(CLOUD_SETTING_REGISTRY.has(ESettingId.SmoothStreaming)).toBe(true)
+    expect(CLOUD_SETTING_REGISTRY.has('transcript.smoothStreaming')).toBe(false)
+    expect(CLOUD_SETTING_REGISTRY.has('tldr.status')).toBe(false)
     expect(CLOUD_SETTING_REGISTRY.has(ESettingId.Accent)).toBe(true)
   })
 })

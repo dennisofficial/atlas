@@ -5,7 +5,7 @@ import {
   type NotifyResult,
 } from '@dltech/atlas-notifications'
 import { ProductAnalytics } from '@dltech/atlas-observability'
-import type { NotifyGraph, NotifySessionRow } from '../trigger/notify/notify-send-graph'
+import type { NotifyGraph, NotifySessionRow } from '../notify/notify-send-graph'
 
 export type CapturedEvent = {
   userId: string

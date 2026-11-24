@@ -11,8 +11,9 @@ A plugin is a TypeScript module that Atlas imports at session start from a plugi
 
 Both directories are read at session start. Changes need a new session (restart Atlas or open a fresh one); nothing is hot-reloaded.
 
-User plugins always load. Project plugins load only when the repository is trusted: its key must be listed in the
-user setting "Trusted repositories" (`plugins.trustedRepos`, a comma-separated list, case-insensitive). The key is
+User plugins always load. v2 agents do not consult a trust list: the repository's project plugins never run for them.
+In v1, project plugins load only when the repository is trusted: its key must be listed in the v1 user setting
+"Trusted repositories" (`plugins.trustedRepos`, a comma-separated list, case-insensitive). The key is
 the normalized `origin` remote, `github.com/<owner>/<repo>`, so trust follows the repo into Cloud sandboxes where the
 checkout path differs; a repo with no usable remote is keyed by its absolute path. An untrusted repo with project
 plugins shows one warning, `project plugins not loaded: <ids> — add <key> to Trusted repositories …`, and none of

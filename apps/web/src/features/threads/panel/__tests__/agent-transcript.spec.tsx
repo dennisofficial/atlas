@@ -74,7 +74,6 @@ const mount = async (args: { events: WireEvent[]; fallback: AgentsPanelAgent }) 
           summarise: null,
           openChanges: null,
           openAgent: null,
-          repairDiagram: null,
         }}
       />,
     ),

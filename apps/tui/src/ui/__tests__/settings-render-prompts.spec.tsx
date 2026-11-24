@@ -2,7 +2,8 @@ import { ESettingId, type SecretPrompt, type TextPrompt } from '@dltech/atlas-co
 import { describe, expect, it } from 'bun:test'
 import { theme } from '../theme'
 import {
-  CUSTOM_DECISIONS,
+  TEXT_DEFINITIONS,
+  TEXT_ROW_STATE,
   WIDE,
   ORIGIN,
   SECRETS_ORIGIN,
@@ -18,11 +19,11 @@ describe('the search key row', () => {
     const rows = await rowsOf(
       page({
         secretOf: (id) =>
-          id === ESettingId.ProjectInstructions ? { text: '••••1234', fg: theme.ok } : undefined,
+          id === ESettingId.WebSearchKey ? { text: '••••1234', fg: theme.ok } : undefined,
       }),
       WIDE,
     )
-    const shown = rows.find((row) => row.includes('Project instructions'))
+    const shown = rows.find((row) => row.toLowerCase().includes('search key'))
 
     expect(shown).toContain('••••1234')
     expect(shown).not.toContain(' on ')
@@ -61,27 +62,31 @@ describe('the search key row', () => {
 })
 
 describe('the text setting prompt', () => {
-  const URL_ROW = stateOf(ESettingId.DecisionsUrl, CUSTOM_DECISIONS)
-
   it('offers the field instead of the preview band once the row is being edited', async () => {
     const textPrompt: TextPrompt = {
-      id: ESettingId.DecisionsUrl,
-      label: 'Decision endpoint',
+      id: 'demo.text',
+      label: 'Demo text',
       typed: 'https://api.typesafe.ai/v1/systemone',
     }
-    const rows = await rowsOf(page({ state: URL_ROW, textPrompt, layers: CUSTOM_DECISIONS }), WIDE)
+    const rows = await rowsOf(
+      page({ definitions: TEXT_DEFINITIONS, state: TEXT_ROW_STATE, textPrompt }),
+      WIDE,
+    )
 
-    expect(rows.some((row) => row.includes('DECISION ENDPOINT'))).toBe(true)
+    expect(rows.some((row) => row.includes('DEMO TEXT'))).toBe(true)
     expect(rows.some((row) => row.includes('https://api.typesafe.ai/v1/systemone'))).toBe(true)
   })
 
   it('writes to the settings file, so it says so rather than naming a vault', async () => {
     const textPrompt: TextPrompt = {
-      id: ESettingId.DecisionsUrl,
-      label: 'Decision endpoint',
+      id: 'demo.text',
+      label: 'Demo text',
       typed: '',
     }
-    const rows = await rowsOf(page({ state: URL_ROW, textPrompt, layers: CUSTOM_DECISIONS }), WIDE)
+    const rows = await rowsOf(
+      page({ definitions: TEXT_DEFINITIONS, state: TEXT_ROW_STATE, textPrompt }),
+      WIDE,
+    )
 
     expect(rows.some((row) => row.includes(`edits write to ${ORIGIN}`))).toBe(true)
     expect(rows.some((row) => row.includes(SECRETS_ORIGIN))).toBe(false)

@@ -132,7 +132,7 @@ export type McpOauthBegin =
 
 export type McpOauthGrant =
   | { ok: true; accessToken: string; expiresAt: string | null }
-  | { ok: false; reason: string }
+  | { ok: false; reason: string; signIn?: boolean | undefined }
 
 export type McpOauthServerRef = {
   userId: string

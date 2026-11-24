@@ -1,4 +1,4 @@
-import { dirname, isAbsolute, join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 
 import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 
@@ -81,15 +81,19 @@ export const nestedDirectoriesOf = (args: {
 
 const depthOf = (path: string): number => path.split('/').filter((part) => part !== '').length
 
-export const touchedDirectoriesOf = (input: unknown): readonly string[] => {
-  if (typeof input !== 'object' || input === null) return []
-  const record = input as Record<string, unknown>
+export const touchedDirectoriesOf = (args: {
+  input: unknown
+  projectDirectory: string
+}): readonly string[] => {
+  if (typeof args.input !== 'object' || args.input === null) return []
+  const record = args.input as Record<string, unknown>
   const directories = new Set<string>()
   for (const field of PATH_FIELDS) {
     const value = record[field]
-    if (typeof value !== 'string' || !isAbsolute(value)) continue
-    directories.add(value)
-    directories.add(dirname(value))
+    if (typeof value !== 'string' || value === '') continue
+    const path = resolve(args.projectDirectory, value)
+    directories.add(path)
+    directories.add(dirname(path))
   }
   return [...directories]
 }

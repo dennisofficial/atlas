@@ -27,6 +27,7 @@ import { Composer } from '../../../thread/composer/composer'
 import { ContextReading } from '../../../thread/composer/context-reading'
 import { StaleCard } from '../../../thread/composer/stale-card'
 import { BlockingStrip } from '../../../thread/components/blocking-strip'
+import { useAttachments } from '../../../thread/composer/use-attachments'
 import { OperatorRequestDock } from '../../../thread/components/operator-request-card'
 import { QueuedDock } from '../../../thread/components/queued-dock'
 import { SessionTitle } from '../../../thread/components/session-title'
@@ -42,6 +43,7 @@ export default function SessionScreen() {
   const [overlayOpen, setOverlayOpen] = useState(false)
   const { id, title } = useLocalSearchParams<{ id: string; title?: string }>()
   const session = useV2SessionScreen({ sessionId: id, fallbackTitle: title })
+  const attachments = useAttachments()
   const model = session.commands.model
 
   const handleOpenSessions = useCallback(() => setOverlayOpen(true), [])
@@ -131,6 +133,7 @@ export default function SessionScreen() {
                 working={session.working}
                 now={session.now}
                 threadId={id}
+                sessionId={id}
                 onLoadOlder={session.loadOlder}
                 agentLinks={session.agentLinks}
                 onOpenAgent={handleOpenAgent}
@@ -183,6 +186,7 @@ export default function SessionScreen() {
                 <Composer
                   working={session.working}
                   joined={session.blocking !== undefined}
+                  attachments={attachments}
                   onSend={session.send}
                   onStop={session.stop}
                   restored={session.restored}

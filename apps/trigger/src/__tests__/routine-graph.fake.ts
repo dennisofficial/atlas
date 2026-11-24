@@ -1,5 +1,5 @@
 import type { RoutineRow } from '@dltech/atlas-control'
-import type { RoutineGraph, RoutineTxPort } from '../trigger/routine/routine-graph'
+import type { RoutineGraph, RoutineTxPort } from '../routine/routine-graph'
 
 export const routineRowOf = (overrides: Partial<RoutineRow> = {}): RoutineRow => ({
   routineId: 'rtn_1',

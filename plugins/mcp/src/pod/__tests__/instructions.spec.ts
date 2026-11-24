@@ -1,7 +1,8 @@
-import { EContextSlot, type V2Event } from '@dltech/atlas-core'
+import { EContextSlot, EDefinitionOrigin, type V2Event } from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 
 import { mcpInstructionsDraftsOf } from '../instructions'
+import { EMcpServerStatus, type McpServerTools } from '../snapshot'
 import { eventOf } from './recording'
 
 const offer = (content: string, key = 'docs') => ({
@@ -14,10 +15,27 @@ const offer = (content: string, key = 'docs') => ({
 const recorded = (...drafts: readonly object[]): readonly V2Event[] =>
   drafts.map((draft, index) => eventOf(draft, index + 1))
 
+const serverOf = (
+  name: string,
+  status: EMcpServerStatus,
+  instructions?: string,
+): McpServerTools => ({
+  name,
+  origin: EDefinitionOrigin.User,
+  transportKind: 'http',
+  configHash: 'c1',
+  status,
+  tools: [],
+  ...(instructions === undefined ? {} : { instructions }),
+})
+
 describe('mcpInstructionsDraftsOf', () => {
-  it('offers a server instructions the first time it has any', () => {
+  it('offers a server its instructions the first time it connects with any', () => {
     expect(
-      mcpInstructionsDraftsOf({ events: [], next: new Map([['docs', 'Docs first.']]) }),
+      mcpInstructionsDraftsOf({
+        events: [],
+        servers: [serverOf('docs', EMcpServerStatus.Connected, 'Docs first.')],
+      }),
     ).toEqual([offer('Docs first.')])
   })
 
@@ -25,7 +43,7 @@ describe('mcpInstructionsDraftsOf', () => {
     expect(
       mcpInstructionsDraftsOf({
         events: recorded(offer('Docs first.')),
-        next: new Map([['docs', 'Docs first.']]),
+        servers: [serverOf('docs', EMcpServerStatus.Connected, 'Docs first.')],
       }),
     ).toEqual([])
   })
@@ -34,14 +52,27 @@ describe('mcpInstructionsDraftsOf', () => {
     expect(
       mcpInstructionsDraftsOf({
         events: recorded(offer('Old.')),
-        next: new Map([['docs', 'New.']]),
+        servers: [serverOf('docs', EMcpServerStatus.Connected, 'New.')],
       }),
     ).toEqual([offer('New.')])
   })
 
-  it('tombstones a server that leaves', () => {
+  it.each([
+    ['needs-auth', EMcpServerStatus.NeedsAuth],
+    ['failed', EMcpServerStatus.Failed],
+    ['unavailable', EMcpServerStatus.Unavailable],
+  ])('keeps the offered instructions of a %s server', (_label, status) => {
     expect(
-      mcpInstructionsDraftsOf({ events: recorded(offer('Docs first.')), next: new Map() }),
+      mcpInstructionsDraftsOf({
+        events: recorded(offer('Docs first.')),
+        servers: [serverOf('docs', status)],
+      }),
+    ).toEqual([])
+  })
+
+  it('tombstones a server that leaves the config', () => {
+    expect(
+      mcpInstructionsDraftsOf({ events: recorded(offer('Docs first.')), servers: [] }),
     ).toEqual([offer('')])
   })
 
@@ -49,17 +80,23 @@ describe('mcpInstructionsDraftsOf', () => {
     expect(
       mcpInstructionsDraftsOf({
         events: recorded(offer('Docs first.'), offer('Paper first.', 'paper')),
-        next: new Map([['paper', 'Paper first.']]),
+        servers: [serverOf('paper', EMcpServerStatus.Connected, 'Paper first.')],
+      }),
+    ).toEqual([offer('')])
+  })
+
+  it('tombstones a connected server that stopped carrying instructions', () => {
+    expect(
+      mcpInstructionsDraftsOf({
+        events: recorded(offer('Docs first.')),
+        servers: [serverOf('docs', EMcpServerStatus.Connected)],
       }),
     ).toEqual([offer('')])
   })
 
   it('does not tombstone a server twice', () => {
     expect(
-      mcpInstructionsDraftsOf({
-        events: recorded(offer('Docs first.'), offer('')),
-        next: new Map(),
-      }),
+      mcpInstructionsDraftsOf({ events: recorded(offer('Docs first.'), offer('')), servers: [] }),
     ).toEqual([])
   })
 
@@ -67,7 +104,7 @@ describe('mcpInstructionsDraftsOf', () => {
     expect(
       mcpInstructionsDraftsOf({
         events: recorded(offer('Docs first.'), offer('')),
-        next: new Map([['docs', 'Docs first.']]),
+        servers: [serverOf('docs', EMcpServerStatus.Connected, 'Docs first.')],
       }),
     ).toEqual([offer('Docs first.')])
   })
@@ -76,7 +113,7 @@ describe('mcpInstructionsDraftsOf', () => {
     expect(
       mcpInstructionsDraftsOf({
         events: recorded({ ...offer('Skill.'), slot: EContextSlot.Skill }),
-        next: new Map(),
+        servers: [],
       }),
     ).toEqual([])
   })

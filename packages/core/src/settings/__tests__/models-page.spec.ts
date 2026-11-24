@@ -34,7 +34,7 @@ describe('the models settings page', () => {
     ])
   })
 
-  it('holds the default pair first, then the background roles, then the decisions group', () => {
+  it('holds the default pair first, then the background roles, then the decision key', () => {
     expect(modelsRows().map((row) => row.id)).toEqual([
       ESettingId.ModelId,
       ESettingId.ModelEffort,
@@ -48,10 +48,6 @@ describe('the models settings page', () => {
       ESettingId.SubagentModel,
       ESettingId.SubagentEffort,
       ESettingId.SubagentFast,
-      ESettingId.DecisionsProvider,
-      ESettingId.DecisionsUrl,
-      ESettingId.DecisionsModel,
-      ESettingId.DecisionsToken,
       ESettingId.ClassifierModel,
     ])
   })
@@ -72,9 +68,7 @@ describe('the models settings page', () => {
     ])
 
     expect(
-      modelsRows()
-        .filter((row) => row.group !== 'Decisions')
-        .every((row) => row.kind === ESettingKind.Model || nonModelKinds.has(row.id)),
+      modelsRows().every((row) => row.kind === ESettingKind.Model || nonModelKinds.has(row.id)),
     ).toBe(true)
   })
 

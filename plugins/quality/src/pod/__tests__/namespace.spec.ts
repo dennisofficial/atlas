@@ -2,7 +2,12 @@ import { describe, expect, it } from 'bun:test'
 
 import { EQualityFindingState, EQualityReviewStatus, EQualitySkipReason } from '@dltech/atlas-core'
 
+import type { HookOutcome } from '@dltech/atlas-core'
+
 import { changesUnder, createRig, historyOf, recordsOf, wroteWithChanges } from './support'
+
+const notesOf = (outcome: HookOutcome) =>
+  (outcome.drafts ?? []).flatMap((draft) => (draft.type === 'context-loaded' ? [draft] : []))
 
 describe('workspace namespace', () => {
   it('stamps every record with the project directory the hook was given', async () => {
@@ -16,7 +21,7 @@ describe('workspace namespace', () => {
   it('keeps a second review of the same directory on the first review ledger', async () => {
     const first = createRig()
     const firstOutcome = await first.run()
-    expect(firstOutcome.additionalContext).toBeDefined()
+    expect(notesOf(firstOutcome)).toHaveLength(1)
 
     const second = createRig({ events: historyOf(firstOutcome.drafts ?? []) })
     const secondOutcome = await second.run()
@@ -32,8 +37,7 @@ describe('workspace namespace', () => {
       state: EQualityFindingState.Active,
       notified: true,
     })
-    expect(secondOutcome.additionalContext).toBeUndefined()
-    expect(secondOutcome.contextKey).toBeUndefined()
+    expect(notesOf(secondOutcome)).toEqual([])
   })
 
   it('starts a new ledger for a different directory', async () => {
@@ -48,7 +52,7 @@ describe('workspace namespace', () => {
 
     const [record] = recordsOf(outcome.drafts ?? [])
     expect(record?.workspaceNamespace).toBe('/other')
-    expect(outcome.additionalContext).toBeDefined()
+    expect(notesOf(outcome)).toHaveLength(1)
   })
 
   it('reviews a directory that is not a git repository', async () => {

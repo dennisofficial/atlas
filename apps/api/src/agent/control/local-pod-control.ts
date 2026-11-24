@@ -31,7 +31,6 @@ import type { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 import { gatewayKeyOf } from './gateway-key'
 import { imageModelOf } from './image-model-setting'
 import { settingsVersionsOf } from './settings-versions'
-import { webSearchConfigOf } from './web-search-config'
 import { scopedSettingsOf } from '../config/scoped-settings'
 
 const NOT_IN_A_PROJECT = 'this session has no Atlas Cloud project, and routines belong to a project'
@@ -220,22 +219,6 @@ export const localPodControlOf = (args: {
           subscriptionId,
           by,
           reason,
-        })
-      },
-    },
-    webSearch: {
-      config: async ({ threadId }) => {
-        const owner = await ownerOf(threadId)
-        return await webSearchConfigOf({
-          rows: {
-            userSetting: (lookup) => args.db.orm.public.UserSetting.first(lookup),
-            projectSetting: (lookup) => args.db.orm.public.ProjectSetting.first(lookup),
-            userSecret: (lookup) => args.db.orm.public.UserSecret.first(lookup),
-            projectSecret: (lookup) => args.db.orm.public.ProjectSecret.first(lookup),
-          },
-          cipher: args.cipher,
-          userId: owner.userId,
-          projectId: owner.projectId,
         })
       },
     },

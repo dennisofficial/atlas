@@ -61,10 +61,18 @@ const underRoot = (args: { path: string; roots: Iterable<string> }): boolean => 
   return false
 }
 
+const resolvesTo = (args: { path: string; name: string }): boolean => {
+  const real = realOf(args.path)
+  if (real === null) return false
+  return realOf(join(dirname(args.path), args.name)) === real
+}
+
 const keeps = (args: { record: WatchRecord; path: string }): boolean => {
   const { record, path } = args
-  if (record.basenames === null) return true
-  if (record.basenames.has(basename(path))) return true
+  const basenames = record.basenames
+  if (basenames === null) return true
+  if (basenames.has(basename(path))) return true
+  if ([...basenames].some((name) => resolvesTo({ path, name }))) return true
   return underRoot({ path, roots: [...record.missing, ...record.roots] })
 }
 

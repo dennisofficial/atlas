@@ -41,7 +41,7 @@ device.
   `notify:<sessionId>:<seq>` (`packages/jobs/src/notify.ts:38`). `JobDispatch` already takes
   `delay` (`apps/api/src/_core/ports/job-dispatcher.ts:16`, passed on at
   `apps/api/src/_lib/trigger/trigger-job-dispatcher.ts:25`).
-- `apps/trigger/src/trigger/notify/notify-send.task.ts:25` reads the session row, presence,
+- `apps/trigger/src/notify/notify-send.task.ts:25` reads the session row, presence,
   devices and settings, and calls `notifyPlanOf` (`packages/core/src/notify/plan.ts:37`). The plan
   returns `null` for every silent case, so the reason is lost. The task returns `{sent, gone}` only.
 - Pending work is already folded in core: `stepBackground` (shells, sub-agents,
@@ -315,14 +315,14 @@ fingerprint does not change.
 Each slice is one PR that merges alone, in this order.
 1. **Pure decision.** `pending-work.ts`, `operator-turn.ts`, `decision.ts`, the `plan.ts` reasons,
    the core re-exports. Callers of `notifyPlanOf` adapt to the union (the task only).
-   Files: `packages/core/src/notify/**`, `apps/trigger/src/trigger/notify/notify-send.task.ts`.
+   Files: `packages/core/src/notify/**`, `apps/trigger/src/notify/notify-send.task.ts`.
 2. **Hold and run-time checks.** `held-turns.ts`, `notify-dispatch.ts`, `notify.port.ts`,
    `packages/jobs/src/notify.ts`, `notify-send.task.ts`, `notify-send-graph.ts` (session row
    fields, superseded read, sound key), the three transports for `sound`, and the
    `describeHandoff` scenario (§7).
 3. **Server metrics.** `@dltech/atlas-observability` in `apps/trigger/package.json`; the five
    server events; the `markRead` clear event.
-   Files: `apps/trigger/src/trigger/notify/`, `apps/api/src/agent/host/notify.port.ts`,
+   Files: `apps/trigger/src/notify/`, `apps/api/src/agent/host/notify.port.ts`,
    `apps/api/src/agent/host/holder.module.ts`, `apps/api/src/api/platform/control/sessions.service.ts`.
 4. **In-app follows the rule.** The `notify` and `at` fields on the digest and the summary schema,
    `inAppDueOf`, the web hook and iOS provider timers, and their specs.

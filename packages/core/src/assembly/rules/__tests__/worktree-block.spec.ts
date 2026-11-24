@@ -39,15 +39,23 @@ const textsOf = (assembled: ReturnType<typeof assembleWith>): string[] =>
     entry.message.content.flatMap((part) => (part.type === 'text' ? [part.text] : [])),
   )
 
+const isNote = (text: string): boolean => text.startsWith('<system') && text.includes('workspace')
+
 const noteOf = (assembled: ReturnType<typeof assembleWith>): string =>
-  textsOf(assembled).at(-1) ?? ''
+  textsOf(assembled).find(isNote) ?? ''
+
+const withoutNote = (assembled: ReturnType<typeof assembleWith>): string[] =>
+  textsOf(assembled).filter((text) => !isNote(text))
+
+const noteIndexIn = (assembled: ReturnType<typeof assembleWith>): number =>
+  textsOf(assembled).findIndex(isNote)
 
 describe('telling the model the project directory and any active worktree', () => {
   it('states the launch directory even when no worktree was ever entered', () => {
     const assembled = assembleWith(log([{ type: 'user-said', text: 'hello' }]))
 
     expect(assembled.system).toEqual([])
-    expect(textsOf(assembled)[0]).toEqual(operatorSaidAs('hello'))
+    expect(withoutNote(assembled)).toEqual([operatorSaidAs('hello')])
     expect(noteOf(assembled)).toContain('Project directory: /w.')
     expect(noteOf(assembled)).not.toContain('worktree')
   })
@@ -65,7 +73,7 @@ describe('telling the model the project directory and any active worktree', () =
     )
 
     expect(assembled.messages.at(-1)?.message.role).toBe('assistant')
-    expect(textsOf(assembled)).toEqual([operatorSaidAs('request'), 'answer'])
+    expect(withoutNote(assembled)).toEqual([operatorSaidAs('request'), 'answer'])
   })
 
   it('names the worktree, its branch, what it was branched from and the main checkout', () => {
@@ -77,7 +85,7 @@ describe('telling the model the project directory and any active worktree', () =
     expect(note).toContain('main checkout is at /w.')
   })
 
-  it('never leaves the system prompt, and rides a user-role reminder anchored to the last event', () => {
+  it('never leaves the system prompt, and rides a user-role reminder', () => {
     const assembled = assembleWith(
       log([
         { type: 'user-said', text: 'hello' },
@@ -85,17 +93,71 @@ describe('telling the model the project directory and any active worktree', () =
         { type: 'user-said', text: 'much later' },
       ]),
     )
-    const tail = assembled.messages.at(-1)
 
     expect(assembled.system).toEqual([])
-    expect(tail?.message.role).toBe('user')
-    expect(tail?.origin.seq).toBe(3)
-    expect(textsOf(assembled).slice(0, 2)).toEqual([
-      operatorSaidAs('hello'),
-      operatorSaidAs('much later'),
-    ])
-    expect(noteOf(assembled)).toStartWith('<system-context source="workspace"')
+    expect(assembled.messages[noteIndexIn(assembled)]?.message.role).toBe('user')
     expect(noteOf(assembled)).toContain(TREE)
+  })
+
+  it('sits where the workspace changed rather than at the tail, leaving the turns after it where they were', () => {
+    const assembled = assembleWith(
+      log([
+        { type: 'user-said', text: 'hello' },
+        entered,
+        { type: 'user-said', text: 'much later' },
+      ]),
+    )
+
+    expect(noteIndexIn(assembled)).toBe(1)
+    expect(textsOf(assembled).at(-1)).toEqual(operatorSaidAs('much later'))
+  })
+
+  it('is not volatile, so it joins the cached prefix instead of being rebuilt every request', () => {
+    const events = log([{ type: 'user-said', text: 'hello' }, entered])
+    const assembled = assembleWith(events)
+    const note = assembled.messages[noteIndexIn(assembled)]
+
+    expect(note?.volatile).toBeUndefined()
+    expect(note?.origin.eventId).toBe(events[1]?.id)
+  })
+
+  it('produces the identical message list for two consecutive requests', () => {
+    const drafts = [
+      { type: 'user-said' as const, text: 'hello' },
+      entered,
+      { type: 'user-said' as const, text: 'again' },
+    ]
+    const first = assembleWith(log(drafts))
+    const second = assembleWith(log(drafts))
+
+    expect(second.messages).toEqual(first.messages)
+    expect(textsOf(second).at(-1)).toEqual(operatorSaidAs('again'))
+  })
+
+  it('moves to the newest workspace event and states the branch that event names', () => {
+    const assembled = assembleWith(
+      log([
+        { type: 'user-said', text: 'hello' },
+        entered,
+        { type: 'user-said', text: 'between' },
+        {
+          type: 'worktree-entered',
+          path: '/w/.atlas/worktrees/next',
+          branch: 'dennis/next',
+          base: 'origin/main',
+        },
+        { type: 'user-said', text: 'later' },
+      ]),
+    )
+
+    expect(textsOf(assembled).map((text) => (isNote(text) ? '<note>' : text))).toEqual([
+      operatorSaidAs('hello'),
+      operatorSaidAs('between'),
+      '<note>',
+      operatorSaidAs('later'),
+    ])
+    expect(noteOf(assembled)).toContain('dennis/next')
+    expect(noteOf(assembled)).not.toContain('dennis/eng-327')
   })
 
   it('keeps the main checkout advisory and does not authorise committing or pushing', () => {

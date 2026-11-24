@@ -1,4 +1,4 @@
-import { mapLinesOutsideFences } from './markdown-fences'
+import { mapLinesOutsideFences } from '../../lib/markdown-fences'
 
 const STAR_RULE = /^ {0,3}\*[ \t]*\*[ \t]*\*[ \t*]*$/
 const UNDERSCORE_RULE = '___'

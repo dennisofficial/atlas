@@ -13,7 +13,7 @@ import {
 
 import { EMessageAuthor, ERowKind, type ThreadRow } from '../rows'
 import { useKeyboard } from '../../layout/use-keyboard'
-import { followsTailAfterUserScroll } from '../tail-follow'
+import { EScrollSignal, FOLLOWING_TAIL, tailFollowAfter, type TTailFollow } from '../tail-follow'
 import type { AgentLinks } from '../v2/agent-links'
 import { MessageRowView } from './message-row'
 import { NoticeRowView } from './notice-row'
@@ -50,6 +50,7 @@ export const Transcript = ({
   rows,
   working,
   threadId,
+  sessionId,
   onLoadOlder,
   agentLinks,
   onOpenAgent,
@@ -58,12 +59,13 @@ export const Transcript = ({
   working: boolean
   now: number
   threadId: string | undefined
+  sessionId?: string | undefined
   onLoadOlder?: (() => Promise<number>) | undefined
   agentLinks?: AgentLinks | undefined
   onOpenAgent?: ((agentId: string) => void) | undefined
 }) => {
   const listRef = useRef<FlatList<ThreadRow>>(null)
-  const followsTail = useRef(true)
+  const tail = useRef<TTailFollow>(FOLLOWING_TAIL)
   const settled = useRef(false)
   const loadingOlder = useRef(false)
   const keyboardInset = useKeyboard().inset
@@ -73,7 +75,9 @@ export const Transcript = ({
   const renderRow = useCallback<ListRenderItem<ThreadRow>>(
     ({ item }) => (
       <View style={styles.item}>
-        {item.kind === ERowKind.Message ? <MessageRowView row={item} threadId={threadId} /> : null}
+        {item.kind === ERowKind.Message ? (
+          <MessageRowView row={item} threadId={threadId} sessionId={sessionId} />
+        ) : null}
         {item.kind === ERowKind.Work ? <WorkRowView row={item} onOpenAgent={onOpenAgent} /> : null}
         {item.kind === ERowKind.Notice ? (
           <NoticeRowView
@@ -84,35 +88,31 @@ export const Transcript = ({
         ) : null}
       </View>
     ),
-    [threadId, agentLinks, onOpenAgent],
+    [threadId, sessionId, agentLinks, onOpenAgent],
   )
 
   const scrollToEnd = () => listRef.current?.scrollToEnd({ animated: settled.current })
 
   useEffect(() => {
-    followsTail.current = true
+    tail.current = FOLLOWING_TAIL
     settled.current = false
   }, [threadId])
 
   useEffect(() => {
-    if (followsTail.current) scrollToEnd()
+    if (tail.current.following) scrollToEnd()
   }, [rows.length, tailSize])
 
   useEffect(() => {
-    if (keyboardVisible && followsTail.current) scrollToEnd()
+    if (keyboardVisible && tail.current.following) scrollToEnd()
   }, [keyboardVisible])
 
-  const handleScrollBeginDrag = () => {
-    settled.current = true
-    followsTail.current = false
-  }
-
-  const handleUserScrollEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    followsTail.current = followsTailAfterUserScroll(event.nativeEvent)
+  const signalOf = (signal: EScrollSignal) => (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (signal === EScrollSignal.BeginDrag) settled.current = true
+    tail.current = tailFollowAfter({ state: tail.current, signal, metrics: event.nativeEvent })
   }
 
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    if (followsTail.current) return
+    if (tail.current.following) return
     if (onLoadOlder === undefined || loadingOlder.current) return
     if (event.nativeEvent.contentOffset.y > NEAR_TOP_PX) return
     loadingOlder.current = true
@@ -122,7 +122,11 @@ export const Transcript = ({
   }
 
   const handleContentSizeChange = () => {
-    if (followsTail.current) scrollToEnd()
+    if (tail.current.following) scrollToEnd()
+  }
+
+  const handleLayout = () => {
+    if (tail.current.following) scrollToEnd()
   }
 
   if (rows.length === 0 && !working) {
@@ -145,15 +149,17 @@ export const Transcript = ({
       keyExtractor={keyOf}
       renderItem={renderRow}
       contentContainerStyle={styles.content}
-      keyboardDismissMode="on-drag"
+      keyboardDismissMode="none"
       keyboardShouldPersistTaps="handled"
       onScroll={handleScroll}
-      onScrollBeginDrag={handleScrollBeginDrag}
-      onScrollEndDrag={handleUserScrollEnd}
-      onMomentumScrollEnd={handleUserScrollEnd}
+      onScrollBeginDrag={signalOf(EScrollSignal.BeginDrag)}
+      onScrollEndDrag={signalOf(EScrollSignal.EndDrag)}
+      onMomentumScrollBegin={signalOf(EScrollSignal.BeginMomentum)}
+      onMomentumScrollEnd={signalOf(EScrollSignal.EndMomentum)}
       scrollEventThrottle={16}
       maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
       onContentSizeChange={handleContentSizeChange}
+      onLayout={handleLayout}
       ListFooterComponent={showWorking ? WorkingFooter : undefined}
     />
   )

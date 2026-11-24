@@ -487,9 +487,9 @@ export function autoRotateAfterTurn(args: {
 - No hard stop at 100%. If the handoff keeps failing, the turn is already finished, the refusal is
   in the log, and the operator decides. A silent stop would be a new failure mode.
 
-`context.autoCompact` stays in the registry for v1 (its TUI reads it,
-`apps/tui/src/composition/settings-preferences.ts:54-58`). On v2 nothing reads it, and this slice
-does not delete it.
+`context.autoCompact` left the core registry with the v2 settings cleanup (#2837 §2): the row now
+lives for v1 alone in `packages/harness/src/settings/v1-only-definitions.ts`. Nothing on v2 reads
+it.
 
 ### 5.8 The transcript row
 
@@ -634,15 +634,15 @@ Record the results in `evidence/` with the request and response lines and one sc
 ## 10. Question for Dennis (answered)
 
 Settled 2026-11-23: auto-rotate replaces the auto-compact row in settings. `context.autoCompact`
-is deleted with v1, because the TUI becomes a v2 client, so no per-surface setting field was added.
+left the v2 surfaces with the settings cleanup (#2837 §2) and its row survives only for v1
+(`packages/harness/src/settings/v1-only-definitions.ts`); the v1 deletion removes it.
 The original question follows.
 
 One question. Everything else above is decided and can be changed at one seam.
 
 **Q1. On v2, does the auto-rotate row replace the auto-compact row in settings?**
 Recommendation: yes — show `context.autoRotate` on the v2 settings page and hide the
-`context.autoCompact` row there, while both stay in the registry because v1's TUI reads the second
-one. v2 has no compaction trigger at all (`packages/host` has no caller of `autoCompactAfterTurn`),
+`context.autoCompact` row there, while both stay registered because v1 reads the second one. v2 has no compaction trigger at all (`packages/host` has no caller of `autoCompactAfterTurn`),
 so today the row describes something the surface cannot do, which the settings rule forbids. The
 risk of the alternative — showing both — is an operator who sets 90 there, 85 here, and cannot tell
 which one acted. The mechanism question this raises: `ESettingDefinition` has `visibleWhen` for

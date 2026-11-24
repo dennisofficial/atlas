@@ -1,4 +1,9 @@
-import { MacOfflineError, type PluginPodContext } from '@dltech/atlas-plugin-sdk'
+import {
+  EMcpToken,
+  MacOfflineError,
+  type McpToken,
+  type PluginPodContext,
+} from '@dltech/atlas-plugin-sdk'
 
 import type { LoadedMcpEntry } from '../core'
 import { HttpClient } from './http'
@@ -9,6 +14,7 @@ import { StdioClient } from './stdio'
 import {
   McpTransportError,
   McpUnauthorizedError,
+  McpUnavailableError,
   messageOf,
   type McpToolInfo,
   type McpTransportClient,
@@ -45,51 +51,62 @@ export const withCeiling = async <T>(args: {
 const tokenOf = async (args: {
   ctx: PluginPodContext
   entry: LoadedMcpEntry
-}): Promise<string | undefined> => {
-  const transport = args.entry.transport
-  if (transport?.kind !== 'http') return undefined
+  url: string
+}): Promise<McpToken> => {
   try {
     return await args.ctx.control.mcp.token({
       name: args.entry.name,
       source: args.entry.source,
-      url: transport.url,
+      url: args.url,
     })
-  } catch {
-    return undefined
+  } catch (error) {
+    return { kind: EMcpToken.Unavailable, reason: messageOf(error) }
   }
 }
+
+export type McpOpened = { client: McpTransportClient | null } | { blocked: string }
 
 export const openClient = async (args: {
   ctx: PluginPodContext
   entry: LoadedMcpEntry
   onExit?: (reason: string) => void
-}): Promise<McpTransportClient | null> => {
+}): Promise<McpOpened> => {
   const { entry, ctx } = args
   const transport = entry.transport
-  if (transport === undefined) return null
+  if (transport === undefined) return { client: null }
   if (entry.proxy === true) {
-    return new ProxyClient({
-      control: ctx.control.mcp,
-      serverId: entry.name,
-      transport,
-      ...(args.onExit === undefined ? {} : { onClosed: args.onExit }),
-    })
+    return {
+      client: new ProxyClient({
+        control: ctx.control.mcp,
+        serverId: entry.name,
+        transport,
+        ...(args.onExit === undefined ? {} : { onClosed: args.onExit }),
+      }),
+    }
   }
   if (transport.kind === 'http') {
-    const token = entry.accessToken ?? (await tokenOf({ ctx, entry }))
-    return new HttpClient({
-      serverId: entry.name,
-      transport,
-      ...(token === undefined ? {} : { accessToken: token }),
-    })
+    const token: McpToken =
+      entry.accessToken === undefined
+        ? await tokenOf({ ctx, entry, url: transport.url })
+        : { kind: EMcpToken.Granted, accessToken: entry.accessToken }
+    if (token.kind === EMcpToken.Unavailable) return { blocked: token.reason }
+    return {
+      client: new HttpClient({
+        serverId: entry.name,
+        transport,
+        ...(token.kind === EMcpToken.Granted ? { accessToken: token.accessToken } : {}),
+      }),
+    }
   }
-  return new StdioClient({
-    ctx,
-    serverId: serverIdOf({ sessionId: ctx.sessionId, name: entry.name }),
-    transport,
-    specHash: specHashOf(entry),
-    ...(args.onExit === undefined ? {} : { onExit: args.onExit }),
-  })
+  return {
+    client: new StdioClient({
+      ctx,
+      serverId: serverIdOf({ sessionId: ctx.sessionId, name: entry.name }),
+      transport,
+      specHash: specHashOf(entry),
+      ...(args.onExit === undefined ? {} : { onExit: args.onExit }),
+    }),
+  }
 }
 
 export type McpOpen = {
@@ -98,6 +115,7 @@ export type McpOpen = {
   tools: readonly McpToolInfo[]
   instructions: string | undefined
   reason: string | undefined
+  retry: boolean
 }
 
 export const connectOf = async (args: {
@@ -106,11 +124,22 @@ export const connectOf = async (args: {
   timeoutMs: number
   onExit?: (reason: string) => void
 }): Promise<McpOpen> => {
-  const client = await openClient({
+  const opened = await openClient({
     ctx: args.ctx,
     entry: args.entry,
     ...(args.onExit === undefined ? {} : { onExit: args.onExit }),
   })
+  if ('blocked' in opened) {
+    return {
+      client: null,
+      status: EMcpServerStatus.Unavailable,
+      tools: [],
+      instructions: undefined,
+      reason: opened.blocked,
+      retry: true,
+    }
+  }
+  const client = opened.client
   if (client === null) {
     return {
       client,
@@ -118,6 +147,7 @@ export const connectOf = async (args: {
       tools: [],
       instructions: undefined,
       reason: 'the server has no transport',
+      retry: false,
     }
   }
   try {
@@ -132,6 +162,7 @@ export const connectOf = async (args: {
       tools: connection.tools,
       instructions: connection.instructions,
       reason: undefined,
+      retry: false,
     }
   } catch (error) {
     await client.close().catch(() => undefined)
@@ -146,6 +177,7 @@ export const connectOf = async (args: {
       tools: [],
       instructions: undefined,
       reason: reasonOf(error),
+      retry: false,
     }
   }
 }
@@ -180,6 +212,10 @@ export class McpClients {
       entry,
       timeoutMs: this.args.timeoutMs ?? CONNECT_TIMEOUT_MS,
     })
+    if (opened.retry)
+      throw new McpUnavailableError(
+        opened.reason ?? `the '${entry.name}' MCP server is unavailable for now`,
+      )
     if (opened.client === null || opened.status !== EMcpServerStatus.Connected) {
       throw new McpTransportError(
         opened.reason ?? `the '${entry.name}' MCP server is not connected`,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import { notifyGraphOf } from './notify-graph.fake'
-import { notifyRoutineFailure } from '../trigger/routine/routine-failure-notify'
+import { notifyRoutineFailure } from '../routine/routine-failure-notify'
 
 const failure = {
   routineId: 'rtn_1',

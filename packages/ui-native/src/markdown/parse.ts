@@ -225,10 +225,11 @@ const startsBlock = ({ lines, index }: { lines: string[]; index: number }) => {
 
 const readParagraph = ({ lines, start, breaks }: IReadArgs): IRead => {
   const line = lineGetter(lines)
-  const parts = [line(start).trim()]
+  const clean = (text: string) => (breaks ? expandTabs(text).trimEnd() : text.trim())
+  const parts = [clean(line(start))]
   let index = start + 1
   while (index < lines.length && !isBlank(line(index)) && !startsBlock({ lines, index })) {
-    parts.push(line(index).trim())
+    parts.push(clean(line(index)))
     index++
   }
   const separator = breaks ? '\n' : ' '

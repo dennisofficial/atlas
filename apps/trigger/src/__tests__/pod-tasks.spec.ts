@@ -3,13 +3,11 @@ import { triggerSdkFake } from './trigger-sdk.fake'
 
 mock.module('@trigger.dev/sdk', () => triggerSdkFake)
 
-const { podSleepTask } = await import('../trigger/pod-power/pod-sleep.task')
-const { podResizeTask } = await import('../trigger/pod-resize/pod-resize.task')
-const { podDiskGrowTask } = await import('../trigger/pod-disk/pod-disk-grow.task')
-const { agent37UsageReconcileTask } = await import(
-  '../trigger/sandbox-cost/agent37-usage-reconcile.task'
-)
-const { orphanPodSweepTask } = await import('../trigger/sandbox-provisioning/orphan-pod-sweep.task')
+const { podSleepTask } = await import('../pod-power/pod-sleep.task')
+const { podResizeTask } = await import('../pod-resize/pod-resize.task')
+const { podDiskGrowTask } = await import('../pod-disk/pod-disk-grow.task')
+const { agent37UsageReconcileTask } = await import('../sandbox-cost/agent37-usage-reconcile.task')
+const { orphanPodSweepTask } = await import('../sandbox-provisioning/orphan-pod-sweep.task')
 
 describe('the pod tasks this worker registers', () => {
   it('keeps the ids, crons and retries the api project ran', () => {

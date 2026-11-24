@@ -169,18 +169,21 @@ describe('prNoticeItemOf', () => {
           label: 'PR #42: bot commented — evt_1',
           content: 'body of evt_1',
           superseded: false,
+          removed: false,
         },
         {
           id: 'evt_2',
           label: 'PR #42: bot commented — evt_2',
           content: 'body of evt_2',
           superseded: false,
+          removed: false,
         },
         {
           id: 'evt_3',
           label: 'PR #42: bot commented — evt_3',
           content: 'body of evt_3',
           superseded: false,
+          removed: false,
         },
       ],
     })

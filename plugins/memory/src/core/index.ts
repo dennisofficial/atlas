@@ -1,13 +1,6 @@
 import { renderMemoryIndex, type MemoryIndexLine } from '@dltech/atlas-core'
 import type { MemoryScope, MemorySummary } from '@dltech/atlas-plugin-sdk'
 
-export const UNAVAILABLE_PREFIX = 'Memory is unavailable this session'
-
-export const memoryPromptOf = (text: string): string => `${UNAVAILABLE_PREFIX}: ${text}.`
-
-export const unavailableIndexOf = (reason: string): string =>
-  memoryPromptOf(reason.replace(/\.+$/, ''))
-
 const byName = (left: MemorySummary, right: MemorySummary): number =>
   left.name < right.name ? -1 : left.name > right.name ? 1 : 0
 
