@@ -39,7 +39,7 @@ export default function AgentScreen() {
       {agent.loaded ? (
         <Transcript
           rows={agent.rows}
-          working={agent.working}
+          working={agent.turnRunning}
           now={agent.now}
           threadId={agentId}
           sessionId={sessionId}

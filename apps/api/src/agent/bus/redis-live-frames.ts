@@ -4,6 +4,7 @@ import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 import {
   liveFrameSchema,
   PANEL_HOLD_CHANNEL,
+  panelHoldKey,
   panelHoldSchema,
   sessionLiveBufferKey,
   sessionLiveChannel,
@@ -20,6 +21,7 @@ export const LIVE_BUFFER_EXPIRE_EVERY_MS = 1_000
 export type RedisLiveFrames = {
   live(args: { key: string; frame: LiveFrame }): Promise<void>
   hold(hold: PanelHold): Promise<void>
+  panelHoldMs(sessionId: string): Promise<number>
   onHold(listener: (hold: PanelHold) => void): () => void
   trackedSessions(): number
   close(): Promise<void>
@@ -158,7 +160,10 @@ export const createRedisLiveFrames = (args: {
 
     hold(hold) {
       return publisher
+        .multi()
+        .set(panelHoldKey(hold.sessionId), String(hold.ttlMs), 'PX', hold.ttlMs)
         .publish(PANEL_HOLD_CHANNEL, JSON.stringify(hold))
+        .exec()
         .then(() => undefined)
         .catch((error: unknown) => {
           args.log?.error({
@@ -168,6 +173,12 @@ export const createRedisLiveFrames = (args: {
           })
           throw error
         })
+    },
+
+    async panelHoldMs(sessionId) {
+      const raw = await publisher.get(panelHoldKey(sessionId))
+      const ttlMs = raw === null ? 0 : Number(raw)
+      return Number.isFinite(ttlMs) && ttlMs > 0 ? ttlMs : 0
     },
 
     onHold(listener) {

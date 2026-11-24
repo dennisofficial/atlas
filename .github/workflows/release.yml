@@ -132,6 +132,35 @@ jobs:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           RENDER_SERVICE_ID: srv-dbuu4tui0phs73ercifg
 
+  # atlas-api builds apps/api/docker/Dockerfile from the repo on Render and runs the migration as its
+  # pre-deploy command, so it deploys after the migrate job and finds the schema already applied.
+  atlas-api-deploy:
+    needs: migrate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2.2.0
+
+      - name: deploy this commit on the repo-built Render service
+        run: |
+          set -euo pipefail
+          curl -fsS -X POST "https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys" \
+            -H "authorization: Bearer $RENDER_API_KEY" \
+            -H 'content-type: application/json' \
+            -d "{\"commitId\":\"$GITHUB_SHA\"}"
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: srv-dc314ot9el5s73d4igp0
+
+      - name: wait for the atlas-api deploy of this commit to go live
+        run: bun scripts/render-deploy-gate.ts
+        working-directory: apps/api
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: srv-dc314ot9el5s73d4igp0
+
   # Waits for the deploy of this commit to be live before trigger.dev tasks and the web reach it.
   render-live:
     needs: render-deploy

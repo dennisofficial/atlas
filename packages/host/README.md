@@ -88,6 +88,8 @@ only what it can rebuild or drop.
   session changed. The checkout id is `sha256(sessionId, repo, realpath(worktreePath))`, so it is
   session-scoped: one worktree path keeps two rows for two sessions.
 - `TerminalDemand`, `PanelDemand`, `PANEL_HOLD_TTL_MS`: keep a pod awake for a terminal or panel.
+  `HostBus.panelHoldMs` reads the hold that another host published, so a claim keeps a panel that
+  was already beating before this host heard a beat.
 
 ### Route a pod call to its holder
 

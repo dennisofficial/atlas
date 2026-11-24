@@ -42,7 +42,9 @@ export interface PodSectionProps {
   oomEvents?: number | undefined
   commandRamLimitGb?: number | undefined
   diskLimitGb?: number | undefined
+  starting?: boolean | undefined
   stopping?: boolean | undefined
+  message?: string | undefined
   confirmAction?: EPodAction | undefined
   defaultActiveIndex?: number | undefined
   sizeMenuOpen?: boolean | undefined
@@ -176,6 +178,7 @@ export function PodSection(props: PodSectionProps) {
     <div className="flex flex-col gap-2">
       <PodSectionHeader
         state={props.state}
+        starting={props.starting === true}
         stopping={props.stopping === true}
         resizing={props.pendingShape !== undefined && props.resizeError === undefined}
         waiting={props.resizeWaiting === true}
@@ -183,6 +186,9 @@ export function PodSection(props: PodSectionProps) {
         onStart={props.onStart}
         onStop={props.onStop}
       />
+      {props.message === undefined ? null : (
+        <p className="text-xs text-muted-foreground">{props.message}</p>
+      )}
       <div className="grid grid-cols-[1rem_minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-0.5 text-xs">
         <PodSeriesRow
           label="CPU"

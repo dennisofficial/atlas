@@ -128,7 +128,7 @@ export default function SessionScreen() {
           <>
             <Transcript
               rows={[...session.rows, ...session.stagedRows]}
-              working={session.working}
+              working={session.turnRunning}
               now={session.now}
               threadId={id}
               sessionId={id}

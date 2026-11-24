@@ -73,6 +73,14 @@ export class HolderDemand {
     return true
   }
 
+  async restorePanelHold(sessionId: string): Promise<void> {
+    const bus = this.args.bus
+    if (bus.panelHoldMs === undefined) return
+    const ttlMs = await bus.panelHoldMs(sessionId).catch(() => 0)
+    if (ttlMs <= 0) return
+    this.panel.hold({ sessionId, ttlMs })
+  }
+
   stop(): void {
     this.unsubPanelHold()
   }

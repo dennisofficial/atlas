@@ -39,6 +39,10 @@ const headersOf = (args: ReadArgs & { key: string }): Record<string, string> => 
   ...(args.page === undefined ? {} : { 'x-respond-with': 'jina-ocr', 'x-page': String(args.page) }),
 })
 
+const UNREADABLE_CONTENT = /unexpected content type|failed to interpret/i
+
+const REFUSALS_OF_READERS = new Set([401, 403, 429])
+
 const targetFailureOf = (args: { host: string; status: number }): string => {
   if (args.status === 404 || args.status === 410) {
     return `${args.host} answered ${args.status}: the page does not exist. Find the right url with web_search rather than guessing another.`
@@ -100,6 +104,9 @@ const answeredOf = async (args: { response: Response; url: string }): Promise<Re
         reason: `${hostOf(args.url)} does not exist: its domain name does not resolve.`,
       }
     }
+    if (UNREADABLE_CONTENT.test(message)) {
+      return { kind: 'unavailable', reason: `Jina cannot read the content of ${hostOf(args.url)}.` }
+    }
     return {
       kind: 'failed',
       reason:
@@ -122,7 +129,7 @@ const answeredOf = async (args: { response: Response; url: string }): Promise<Re
   const httpStatus = Number(data['httpStatus'] ?? 0)
   if (Number.isFinite(httpStatus) && httpStatus >= 400) {
     return {
-      kind: 'failed',
+      kind: REFUSALS_OF_READERS.has(httpStatus) ? 'unavailable' : 'failed',
       reason: targetFailureOf({ host: hostOf(args.url), status: httpStatus }),
     }
   }

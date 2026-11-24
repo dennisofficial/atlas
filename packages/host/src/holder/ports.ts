@@ -32,6 +32,7 @@ export type HostBus = {
   live(args: { key: string; frame: LiveFrame }): Promise<void>
   panelHold(args: { sessionId: string; ttlMs: number }): Promise<void>
   onPanelHold(listener: (hold: { sessionId: string; ttlMs: number }) => void): () => void
+  panelHoldMs?(sessionId: string): Promise<number>
 }
 
 export const fireLive = (args: { bus: HostBus; key: string; frame: LiveFrame }): void => {

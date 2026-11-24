@@ -691,14 +691,19 @@ It returns a rewind only when every rule holds. Each rule is a fact in the log:
 1. The ending is `stopped` by `operator`.
 2. The open turn's `turn-started` has `cause: input`. A resumed turn is never rewound.
 3. The prompts of the turn are the `user-said` rows after the previous `turn-ended` (or the start of
-   the thread) and before `turn-started`. There is at least one, and each is from the operator (`via`
-   absent or `operator`). A message from an agent, a routine or a notice is never rewound.
-4. After `turn-started`, the turn holds only quiet rows: `assistant-said` with no non-empty `text`
-   part, and bookkeeping (`input-consumed`, `input-posted`, `retry-scheduled`, `model-fell-back`,
-   `fact-recorded`, `context-changed`, `resource-loaded`). Any other row — a tool row, an
-   `agent-spawned`, a `user-said` drained mid-turn, a text part — means the agent did work: no rewind.
+   the thread) and before the turn's first `assistant-said`. The host drains a message after it writes
+   `turn-started`, so a prompt is usually after it; a message queued earlier is before it. There is
+   at least one prompt, and each is from the operator (`via` absent or `operator`). A message from an
+   agent, a routine or a notice is never rewound.
+4. Before the first `assistant-said`, only the prompts, the one `turn-started` and bookkeeping
+   (`input-consumed`, `input-posted`, `retry-scheduled`, `model-fell-back`, `fact-recorded`,
+   `context-changed`, `resource-loaded`) are allowed. From the first `assistant-said` on, only quiet
+   rows: `assistant-said` with no non-empty `text` part, and bookkeeping. Any other row — a tool row,
+   an `agent-spawned`, a `user-said` drained mid-turn, a text part — means the agent did work: no
+   rewind.
 
-`toSeq` is the seq before the first prompt. `draft` is the prompts' text, joined by a blank line.
+`toSeq` is the seq before the first prompt or the `turn-started`, whichever comes first, so the
+rewind hides the turn start and with it the turn end. `draft` is the prompts' text, joined by a blank line.
 
 ### 16.3 What the host writes
 

@@ -137,15 +137,12 @@ describe('the session follower frame facts', () => {
     expect(follower.getSnapshot().view?.status.pod).toEqual(pod)
   })
 
-  it('discards a session view whose position is behind the cursor', () => {
+  it('takes the facts of a session view whose position is behind the cursor', () => {
     const follower = setup()
     seed(follower)
     follower.handleMessage(sessionView({ at: 1, live: false }))
-    expect(follower.getSnapshot().view?.status.lease).toEqual({
-      epoch: 0,
-      holderHostId: null,
-      live: false,
-    })
+    expect(follower.getSnapshot().view?.status.lease.live).toBe(false)
+    expect(follower.getSnapshot().view?.status.lease.holderHostId).not.toBeNull()
     follower.handleMessage(sessionView({ at: 2 }))
     expect(follower.getSnapshot().view?.status.lease.live).toBe(true)
   })

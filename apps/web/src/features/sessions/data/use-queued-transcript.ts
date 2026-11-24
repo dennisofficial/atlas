@@ -9,15 +9,14 @@ import {
   type SessionSnapshot,
 } from '@dltech/atlas-client/stream'
 
-import type { TranscriptRow } from '@/features/threads/data/transcript-items'
+import type { SessionNameOf, TranscriptRow } from '@/features/threads/data/transcript-items'
 import { mediaUrls } from '@/features/threads/data/media-urls'
 import { messageOf } from '@/features/threads/data/use-send'
 
 import { sessionEventTypes } from '../registered-plugins'
-import { queuedMediaHashesOf, type StagedMessage } from './queued-messages'
-import { optimisticQueuedRowsOf, optimisticUserItemsOf, queuedRowsOf } from './queued-transcript'
+import type { StagedMessage } from './queued-messages'
+import { optimisticUserItemsOf, queuedRowsOf } from './queued-transcript'
 import { sessionsApi } from './sessions-api'
-import { useMediaUrls } from './use-media-urls'
 import { EWithdrawOutcome, withdrawQueued } from './withdraw-queued'
 
 export function useQueuedTranscript(args: {
@@ -26,6 +25,7 @@ export function useQueuedTranscript(args: {
   events: SessionSnapshot['events']
   staged: readonly StagedMessage[]
   items: readonly TranscriptRow[]
+  sessionNameOf?: SessionNameOf | undefined
   draft: string
   onDraftChange: (draft: string) => void
   onRestoreAttachments: (restored: {
@@ -34,26 +34,23 @@ export function useQueuedTranscript(args: {
   }) => void
 }) {
   const { sessionId, pending, events, staged, items: listed, draft } = args
-  const { onDraftChange, onRestoreAttachments } = args
+  const { onDraftChange, onRestoreAttachments, sessionNameOf } = args
   const pendingInputs = useMemo(() => pendingMessagesOf(pending), [pending])
-  const hashes = useMemo(() => queuedMediaHashesOf({ pending, staged }), [pending, staged])
-  const urls = useMediaUrls({ sessionId, hashes })
   const placement = useMemo(
     () => optimisticPlacementOf({ staged, events, pending }),
     [staged, events, pending],
   )
   const transcriptEvents = useMemo(() => transcriptEventsOf(events, sessionEventTypes), [events])
   const rows = useMemo(
-    () => [
-      ...queuedRowsOf({
+    () =>
+      queuedRowsOf({
         pending,
         events: transcriptEvents,
-        urls,
+        staged: placement.queue,
         hiddenInboxIds: placement.hiddenInboxIds,
+        ...(sessionNameOf === undefined ? {} : { sessionNameOf }),
       }),
-      ...optimisticQueuedRowsOf({ staged: placement.queue, urls }),
-    ],
-    [pending, transcriptEvents, urls, placement],
+    [pending, transcriptEvents, placement, sessionNameOf],
   )
   const items = useMemo(() => optimisticUserItemsOf(placement.transcript), [placement])
   const transcript = useMemo(() => [...listed, ...items], [listed, items])

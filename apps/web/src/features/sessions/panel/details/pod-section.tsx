@@ -136,6 +136,8 @@ const sectionOf = (props: PodPaneSectionProps): PodSectionProps => {
     sizeMenuOpen: props.sizeMenuOpen,
     onSizeMenuOpenChange: props.onSizeMenuOpenChange,
     stopping: props.power.state.phase === 'sleeping',
+    starting: props.power.state.phase === 'waking',
+    message: props.power.message,
     confirmAction: props.power.state.phase === 'confirm' ? EPodAction.Stop : undefined,
     onStart: props.onStart,
     onStop: props.onStop,

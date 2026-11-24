@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { ESessionConnection, type SessionSnapshot } from '@dltech/atlas-client/stream'
+import { ESessionStatus } from '@dltech/atlas-core'
 
 import { EMessageAuthor, ERowKind } from '../../rows'
 import { v2EventSchema } from '../registered-plugins'
@@ -60,6 +61,23 @@ const requestAnswered = {
 }
 
 describe('v2ViewOf', () => {
+  it('keeps the session busy but opens no turn while a command such as summarise runs', () => {
+    const snapshot: SessionSnapshot = {
+      ...snapshotOf([said, answered]),
+      status: {
+        state: ESessionStatus.RunningCommand,
+        reason: 'summarise',
+        since: '2026-11-08T20:00:05.000Z',
+        lease: { epoch: 1, holderHostId: 1, live: true },
+      },
+    }
+    const view = v2ViewOf({ snapshot, now: NOW })
+    expect({ working: view.working, turnRunning: view.turnRunning }).toEqual({
+      working: true,
+      turnRunning: false,
+    })
+  })
+
   it('turns a page into message rows in order', () => {
     const rows = v2ViewOf({ snapshot: snapshotOf([said, answered]), now: NOW }).rows
     expect(rows.map((row) => row.kind)).toEqual([ERowKind.Message, ERowKind.Message])

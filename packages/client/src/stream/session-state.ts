@@ -1,18 +1,14 @@
-import { ESessionStatus } from '@dltech/atlas-core'
+import { ESessionActivity, ESessionStatus, sessionActivityOf } from '@dltech/atlas-core'
 import { EStreamErrorCode } from '@dltech/atlas-protocol'
 
 import { ESessionConnection, type SessionSnapshot } from './session-follower'
 
 type Status = SessionSnapshot['status']
 
-const WORKING: ReadonlySet<ESessionStatus> = new Set([
-  ESessionStatus.Preparing,
-  ESessionStatus.Queued,
-  ESessionStatus.Thinking,
-  ESessionStatus.RunningTool,
-  ESessionStatus.RunningCommand,
-  ESessionStatus.WaitingToRetry,
-  ESessionStatus.Resuming,
+const WORKING: ReadonlySet<ESessionActivity> = new Set([
+  ESessionActivity.Setup,
+  ESessionActivity.Turn,
+  ESessionActivity.Command,
 ])
 
 const FAILED: ReadonlySet<ESessionStatus> = new Set([
@@ -22,7 +18,10 @@ const FAILED: ReadonlySet<ESessionStatus> = new Set([
 ])
 
 export const isSessionWorking = (status: Status): boolean =>
-  status !== undefined && WORKING.has(status.state)
+  status !== undefined && WORKING.has(sessionActivityOf(status.state))
+
+export const isTurnRunning = (status: Status): boolean =>
+  status !== undefined && sessionActivityOf(status.state) === ESessionActivity.Turn
 
 export const isSessionFailed = (status: Status): boolean =>
   status !== undefined && FAILED.has(status.state)

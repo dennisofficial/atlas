@@ -59,6 +59,20 @@ const hostOf = (url: string): string => {
   }
 }
 
+const NEXT_STEP: Record<number, string> = {
+  401: 'It refuses automated readers, so try the browser tool.',
+  403: 'It refuses automated readers, so try the browser tool.',
+  404: 'The page does not exist, so find the right url with web_search rather than guessing another.',
+  410: 'The page does not exist, so find the right url with web_search rather than guessing another.',
+}
+
+export const statusFailureOf = (args: { host: string; response: Response }): string => {
+  const answered =
+    `${args.host} answered ${args.response.status} ${args.response.statusText}`.trim()
+  const next = NEXT_STEP[args.response.status]
+  return next === undefined ? answered : `${answered}. ${next}`
+}
+
 const proseOf = async (args: {
   bytes: Uint8Array
   kind: EContentKind
@@ -166,7 +180,7 @@ export async function fetchPage(args: {
     if (!response.ok) {
       return {
         ok: false,
-        reason: `${hostOf(current)} answered ${response.status} ${response.statusText}`.trim(),
+        reason: statusFailureOf({ host: hostOf(current), response }),
       }
     }
 

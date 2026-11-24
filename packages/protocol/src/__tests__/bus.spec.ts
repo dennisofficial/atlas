@@ -10,6 +10,7 @@ import {
   compareFrameStamp,
   liveFrameSchema,
   type LiveFrame,
+  panelHoldKey,
   sessionChangeSchema,
   sessionLiveBufferKey,
   sessionLiveChannel,
@@ -33,6 +34,10 @@ describe('bus names', () => {
 
   it('names a per-session live channel', () => {
     expect(sessionLiveChannel('session-1')).toBe('atlas:session-live:session-1')
+  })
+
+  it('names a per-session panel hold key', () => {
+    expect(panelHoldKey('session-1')).toBe('atlas:panel-hold:session-1')
   })
 
   it('names the session change channel', () => {

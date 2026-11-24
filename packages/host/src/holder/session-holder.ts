@@ -227,6 +227,7 @@ export class SessionHolder {
     )
     this.held.set(lease.sessionId, session)
     this.retryAt.set(lease.sessionId, lease.retryAfter)
+    await this.demand.restorePanelHold(lease.sessionId)
     const finished = this.runAndSettle({
       session,
       lease,
