@@ -1,6 +1,6 @@
 # web: Jina as the platform backend for web_search and web_fetch
 
-Status: **spec, 2026-11-24.** Anchors are `path:line` at `216f9d88a`. Dennis approved the switch to
+Status: **approved by Dennis, 2026-11-24.** Anchors are `path:line` at `216f9d88a`. Dennis approved the switch to
 Jina, the no-BYOK rule and the Jina-first order on 2026-11-24.
 
 ## Goal
