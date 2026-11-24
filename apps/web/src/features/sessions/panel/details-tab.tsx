@@ -1,5 +1,8 @@
 'use client'
 
+import { useState } from 'react'
+
+import { ContextFileView } from '../files/context-file-view'
 import { useSessionPaneValue } from './pane-value'
 import { SessionBackgroundSection } from './details/background-section'
 import { SessionContextSection } from './details/context-section'
@@ -12,7 +15,18 @@ import { SessionSubscriptionsSection } from './details/subscriptions-section'
 import { SessionTodoSection } from './details/todo-section'
 
 export function SessionDetailsTab() {
-  const { view } = useSessionPaneValue()
+  const { sessionId, view } = useSessionPaneValue()
+  const [contextPath, setContextPath] = useState<string | undefined>(undefined)
+  const handleBack = () => setContextPath(undefined)
+
+  if (contextPath !== undefined) {
+    return (
+      <div data-session-details className="flex min-h-0 flex-1 flex-col">
+        <ContextFileView sessionId={sessionId} path={contextPath} onBack={handleBack} />
+      </div>
+    )
+  }
+
   return (
     <div
       data-session-details
@@ -24,7 +38,7 @@ export function SessionDetailsTab() {
         <SessionTodoSection tasks={view.plan} />
       </div>
       <SessionGithubSection />
-      <SessionContextSection />
+      <SessionContextSection onOpenFile={setContextPath} />
       <SessionSubscriptionsSection />
       <SessionServicesSection />
       <SessionCrewSection />
