@@ -18,7 +18,7 @@ export const TabHeaderTitle = ({ title }: { title: string }) => (
 const accountHeaderItemOf = (): NativeStackHeaderItem => ({
   type: 'custom',
   element: <AccountButton />,
-  hidesSharedBackground: true,
+  hidesSharedBackground: false,
 })
 
 const newSessionHeaderItemOf = (): NativeStackHeaderItem => ({
@@ -32,12 +32,14 @@ const newSessionHeaderItemOf = (): NativeStackHeaderItem => ({
 export const leadingHeaderOptionsOf = ({
   leading = [],
   title,
+  glassTitle = false,
   titleButtons,
   windowWidth,
   posture,
 }: {
   leading?: NativeStackHeaderItem[]
   title: ReactNode
+  glassTitle?: boolean
   titleButtons: number
   windowWidth: number
   posture: TPosture
@@ -46,6 +48,7 @@ export const leadingHeaderOptionsOf = ({
     <View
       style={[
         styles.title,
+        glassTitle ? styles.glassTitle : null,
         { maxWidth: leadingTitleWidthOf({ windowWidth, posture, buttons: titleButtons }) },
       ]}
     >
@@ -56,7 +59,7 @@ export const leadingHeaderOptionsOf = ({
     headerTitle: Platform.OS === 'ios' ? '' : () => titleElement,
     unstable_headerLeftItems: () => [
       ...leading,
-      { type: 'custom', element: titleElement, hidesSharedBackground: true },
+      { type: 'custom', element: titleElement, hidesSharedBackground: !glassTitle },
     ],
   }
 }
@@ -77,6 +80,7 @@ export const tabHeaderOptionsOf = ({
     ...leadingHeaderOptionsOf({
       leading: showsAccount ? [accountHeaderItemOf()] : [],
       title: <TabHeaderTitle title={title} />,
+      glassTitle: true,
       titleButtons: leading.length + 1,
       windowWidth,
       posture,
@@ -90,5 +94,8 @@ export const tabHeaderOptionsOf = ({
 const styles = StyleSheet.create({
   title: {
     flexShrink: 1,
+  },
+  glassTitle: {
+    paddingHorizontal: 12,
   },
 })
