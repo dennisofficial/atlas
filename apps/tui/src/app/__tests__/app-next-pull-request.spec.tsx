@@ -31,7 +31,6 @@ const SUBSCRIPTION = {
   events: [],
   createdBy: 'operator',
   createdAt: '2026-11-20T00:00:00.000Z',
-  expiresAt: null,
 }
 
 describe('the pull request pill and bell', () => {

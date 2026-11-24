@@ -14,11 +14,6 @@ export type SubscribeResult = {
   updated: boolean
 }
 
-const declaredExpiryOf = (expiresAt: string | undefined): string | null => {
-  const declared = expiresAt === undefined ? Number.NaN : Date.parse(expiresAt)
-  return Number.isNaN(declared) ? null : new Date(declared).toISOString()
-}
-
 const sameEvents = (left: readonly string[], right: readonly string[]): boolean => {
   const a = [...new Set(left)].sort()
   const b = [...new Set(right)].sort()
@@ -33,20 +28,9 @@ export type SubscribeArgs = {
   target: JsonValue
   label: string
   events?: readonly string[] | undefined
-  expiresAt?: string | undefined
   lease: SubscriptionLeaseInput
   by: ESubscriptionActor
   at: string
-}
-
-const exclusiveExpiryOf = (args: {
-  expiresAt: string | undefined
-  held: { deadline: string | null } | undefined
-}): { expiresAt: string | null; deadline: string | null } => {
-  const declared = declaredExpiryOf(args.expiresAt)
-  if (declared !== null) return { expiresAt: declared, deadline: declared }
-  const deadline = args.held?.deadline ?? null
-  return { expiresAt: deadline, deadline }
 }
 
 export const subscribeIn = async (args: SubscribeArgs): Promise<SubscribeResult> => {
@@ -60,10 +44,6 @@ export const subscribeIn = async (args: SubscribeArgs): Promise<SubscribeResult>
   for (let attempt = 0; attempt < WRITE_ATTEMPTS; attempt += 1) {
     const held = await args.tx.findSubscription(key)
     const events = [...new Set(args.events ?? held?.events ?? [])]
-    const { expiresAt, deadline } = exclusiveExpiryOf({
-      expiresAt: args.expiresAt,
-      held,
-    })
     if (held === undefined) {
       const draft: SubscriptionDraft = {
         sessionId: args.session.sessionId,
@@ -74,14 +54,14 @@ export const subscribeIn = async (args: SubscribeArgs): Promise<SubscribeResult>
         label: args.label,
         createdBy: args.by,
         events,
-        expiresAt,
-        deadline,
+        expiresAt: null,
+        deadline: null,
         createdAt: args.at,
         ...key,
       }
       const written = await args.tx.insertSubscriptionRow(draft)
       if (!written.inserted) continue
-      await tracked({ tx: args.tx, session: args.session, lease: args.lease, expiresAt })
+      await tracked({ tx: args.tx, session: args.session, lease: args.lease })
       await recordOf({
         tx: args.tx,
         session: args.session,
@@ -93,18 +73,13 @@ export const subscribeIn = async (args: SubscribeArgs): Promise<SubscribeResult>
           target: args.target,
           label: args.label,
           createdBy: args.by,
-          ...(expiresAt === null ? {} : { expiresAt }),
           ...(events.length === 0 ? {} : { events }),
         },
         at: args.at,
       })
       return { subscription: subscriptionOf(written.row), existed: false, updated: false }
     }
-    if (
-      sameEvents(held.events, events) &&
-      held.expiresAt === expiresAt &&
-      held.deadline === deadline
-    ) {
+    if (sameEvents(held.events, events) && held.expiresAt === null && held.deadline === null) {
       return { subscription: subscriptionOf(held), existed: true, updated: false }
     }
     const updated = await args.tx.updateSubscriptionRow({
@@ -113,8 +88,8 @@ export const subscribeIn = async (args: SubscribeArgs): Promise<SubscribeResult>
       target: args.target,
       label: args.label,
       events,
-      expiresAt,
-      deadline,
+      expiresAt: null,
+      deadline: null,
     })
     if (!updated) continue
     await recordOf({
@@ -128,7 +103,6 @@ export const subscribeIn = async (args: SubscribeArgs): Promise<SubscribeResult>
         target: args.target,
         label: args.label,
         createdBy: args.by,
-        ...(expiresAt === null ? {} : { expiresAt }),
         ...(events.length === 0 ? {} : { events }),
       },
       at: args.at,
@@ -140,8 +114,8 @@ export const subscribeIn = async (args: SubscribeArgs): Promise<SubscribeResult>
         target: args.target,
         label: args.label,
         events,
-        expiresAt,
-        deadline,
+        expiresAt: null,
+        deadline: null,
       }),
       existed: true,
       updated: true,

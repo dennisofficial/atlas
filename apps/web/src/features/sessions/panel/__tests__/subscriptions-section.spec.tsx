@@ -89,13 +89,6 @@ describe('SessionSubscriptionsSection', () => {
     expect(html).toContain(`aria-label="Remove ${TAKEN}"`)
   })
 
-  it('shows the time left on an expiring subscription', () => {
-    const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString()
-    const html = render(valueOf([subscriptionRowFixture({ expiresAt })]))
-    expect(html).toContain('Expires in 2h')
-    expect(html).toContain('Pull request · all events · Agent · Expires in 2h')
-  })
-
   it('names the actor that created the subscription', () => {
     const html = render(
       valueOf([subscriptionRowFixture({ createdBy: ESubscriptionActor.Operator })]),

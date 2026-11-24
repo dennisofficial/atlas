@@ -640,7 +640,6 @@ export class SessionsService {
       target: resolved.target,
       label: resolved.label,
       events: args.events,
-      expiresAt: args.expiresAt,
       lease: resolved.lease,
       by: ESubscriptionActor.Operator,
     })

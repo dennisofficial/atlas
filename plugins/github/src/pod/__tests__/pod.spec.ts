@@ -26,7 +26,7 @@ import {
 
 import { githubPod, CI_WATCH_DENY_REASON } from '..'
 import { PULL_REQUEST_SUBSCRIBE_REASON } from '../ci-watch-hook'
-import { EXPIRES, fakeSubscriptions } from './support'
+import { fakeSubscriptions } from './support'
 
 type Drafts = readonly (EventDraft | RecordBody | PluginEventBody)[]
 
@@ -119,7 +119,7 @@ describe('github pod tools', () => {
       { repo: 'github.com/dltech/atlas', subject: { kind: 'pull-request', number: 7 } },
     ])
     expect(outcome.ok ? outcome.modelText : '').toContain(
-      `Subscribed to dltech/atlas#7 (id sub-1, expires ${EXPIRES}).`,
+      'Subscribed to dltech/atlas#7 (id sub-1).',
     )
   })
 

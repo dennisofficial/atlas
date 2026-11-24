@@ -21,7 +21,6 @@ export const subscriptionRowSchema = z.object({
   label: z.string(),
   threadId: z.string().min(1),
   createdBy: z.enum(ESubscriptionActor),
-  expiresAt: z.string().optional(),
   events: z.array(z.string()).readonly().default([]),
   createdAt: z.string(),
   held: z.number().int().min(0).default(0),
@@ -60,7 +59,6 @@ export const foldSubscriptions = (
       label: event.label,
       threadId: event.threadId,
       createdBy: event.createdBy,
-      ...(event.expiresAt === undefined ? {} : { expiresAt: event.expiresAt }),
       events: event.events ?? [],
       createdAt: event.at,
     }
