@@ -1,22 +1,10 @@
 import { ESettingId, textValueOf, type SettingsResolution } from '@dltech/atlas-core'
 
 import { activeOf, type ProviderRow } from '../ui/accounts-model'
+import { EOnboardingRow, type OnboardingRowView } from '../ui/onboarding-model'
 
-export enum EOnboardingRow {
-  Accounts = 'accounts',
-  Default = 'default',
-  Quick = 'quick',
-  Compaction = 'compaction',
-  Subagents = 'subagents',
-  Begin = 'begin',
-}
-
-export type OnboardingRowView = {
-  key: EOnboardingRow
-  label: string
-  value: string
-  done: boolean
-}
+export { EOnboardingRow }
+export type { OnboardingRowView }
 
 const MODEL_ROWS: readonly { key: EOnboardingRow; id: ESettingId; label: string }[] = [
   { key: EOnboardingRow.Default, id: ESettingId.ModelId, label: 'Default model' },

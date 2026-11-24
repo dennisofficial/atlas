@@ -9,7 +9,7 @@ import { testRender } from '@opentui/react/test-utils'
 import { afterAll, describe, expect, it } from 'bun:test'
 import React from 'react'
 
-import { EQualityHealthReadKind } from '../../../../composition/use-quality-health'
+import { EQualityHealthReadKind } from '../../../quality-health-model'
 import { QualityHealthStatus } from '../quality-health'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true

@@ -66,6 +66,16 @@ jobs:
             exit 1
           fi
 
+      - name: generated plugin manifest and skills match the sources
+        run: |
+          bun run --cwd packages/harness plugins:generate
+          bun packages/harness/scripts/generate-skills.ts
+          if [ -n "$(git status --porcelain packages/harness/src/plugins packages/harness/src/skills)" ]; then
+            git --no-pager diff packages/harness/src/plugins packages/harness/src/skills
+            echo "::error::the harness plugin manifest or skills bundle is stale; run 'bun run --cwd packages/harness plugins:generate' and 'bun packages/harness/scripts/generate-skills.ts' and commit the output"
+            exit 1
+          fi
+
   # Compiled in its own job: a five-minute compile in `check` serialized behind lint and typecheck,
   # and put the whole PR's latency behind work most PRs cannot break. The reach gate is the same
   # dependency-closure question the release asks (`scripts/app-reach.ts`), so a web-only change
@@ -413,9 +423,10 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2.2.0
 
-      # Cross-compiles three targets from one ubuntu host, and @vscode/ripgrep ships its binaries
-      # as os/cpu-gated optional packages — without the overrides only the host's rg is installed
-      # and staging the vendored binary for the darwin targets fails.
+      # Cross-compiles three targets from one ubuntu host. @opentui/core-<platform> ships as
+      # os/cpu-gated optional packages, and scripts/build.ts resolves which of them exist to
+      # decide what stays external — without the overrides only the host's package is installed
+      # and the darwin binaries bundle a different set.
       - run: bun install --os='*' --cpu='*'
 
       - name: compute release version
@@ -431,7 +442,6 @@ jobs:
           ATLAS_BUILD_SHA: ${{ env.TARGET_SHA }}
         run: |
           set -euo pipefail
-          bun run build:prepare
           for target in bun-darwin-arm64 bun-darwin-x64 bun-linux-x64; do
             asset="atlas-${target#bun-}"
             bun scripts/build.ts --target "$target" --outfile "dist/${asset}"

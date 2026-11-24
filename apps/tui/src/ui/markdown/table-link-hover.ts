@@ -10,7 +10,7 @@ import {
 import { useLayoutEffect, type RefObject } from 'react'
 import { useRenderer } from '@opentui/react'
 
-import { linkHoverUrl, subscribeLinkHover } from '../../composition/link-click'
+import { linkHoverUrl, subscribeLinkHover } from '../link-click'
 import { linkHoverStyle } from '../link-hover-style'
 import { theme } from '../theme'
 

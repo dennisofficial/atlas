@@ -1,7 +1,7 @@
 import { TextAttributes } from '@opentui/core'
 import React, { useSyncExternalStore } from 'react'
 
-import { linkHoverUrl, subscribeLinkHover } from '../../../composition/link-click'
+import { linkHoverUrl, subscribeLinkHover } from '../../link-click'
 import { linkHoverStyle } from '../../link-hover-style'
 import { glyph, theme } from '../../theme'
 import { EInline, type InlineNode } from './inline'

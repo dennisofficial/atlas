@@ -42,22 +42,6 @@ fi
 
 cd "$tui"
 
-quietly() {
-  if ! output=$("$@" 2>&1); then
-    printf '%s\n' "$output" >&2
-    printf 'atlas-dev: %s failed; the launch would have read a stale manifest\n' "$*" >&2
-    exit 1
-  fi
-}
-
-generate() {
-  if [ "${ATLAS_DEV_SKIP_GENERATE:-}" = "" ]; then
-    quietly bun run --filter @dltech/atlas-harness plugins:generate
-    quietly bun scripts/generate-manifest.ts
-    quietly bun scripts/generate-skills.ts
-  fi
-}
-
 # /restart inside the TUI writes the conversation to resume into this file and exits 75; anything
 # else — ctrl+c included — passes straight through.
 RESTART=75
@@ -92,8 +76,6 @@ drop_development_transpiles() {
   fi
 }
 
-generate
-
 while :; do
   code=0
   drop_development_transpiles
@@ -107,7 +89,6 @@ while :; do
   : > "$restart_file"
 
   printf 'atlas-dev: rebuilding and restarting\n' >&2
-  generate
 
   if [ -n "$handle" ]; then
     set -- --resume "$handle"

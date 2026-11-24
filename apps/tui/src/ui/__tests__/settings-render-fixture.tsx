@@ -11,7 +11,7 @@ import {
 } from '@dltech/atlas-core'
 import React from 'react'
 import { Settings } from '../components/settings'
-import { EQualityHealthReadKind } from '../../composition/use-quality-health'
+import { EQualityHealthReadKind } from '../quality-health-model'
 import { ECloudAction, idleSync } from '../components/settings/cloud'
 import { type Span } from '../components/spans'
 import { grammarsReady } from '../markdown/__tests__/harness'

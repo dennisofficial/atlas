@@ -1,7 +1,9 @@
 # Spec: the TUI as a v2 client
 
-Status: **approved, 2026-11-23**. Anchors are at `0d7082dc8`; check one again before you
-rely on it. Evidence for the census: the four research notes that this spec summarises (TUI census,
+Status: **built 2026-11-24**. Slices 1–9a of §7 have merged; the live check in §9 recorded 0/10
+steps because it calls production and was not run. Anchors are at `0d7082dc8`, and slices 4–8 moved
+the files they name — `src/composition` no longer exists, the surviving boot modules live in
+`src/boot`, and the v1 app-flow specs are replaced by their twins in `src/app/__tests__`. Evidence for the census: the four research notes that this spec summarises (TUI census,
 v2 client map, sign-in, install and build), kept in the session that wrote it.
 
 ## Decisions (Dennis, 2026-11-23)

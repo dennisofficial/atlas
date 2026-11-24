@@ -8,6 +8,7 @@ import type { StreamSessionRow } from '@dltech/atlas-protocol'
 import { frameShowing } from '../../ui/__tests__/waiting'
 import { ACCOUNT_FILE_VERSION, writeAccount, type AccountFile } from '../account/account-file'
 import { AppNext, type SessionClientFactory } from '../app-next'
+import type { UpdateCheck } from '../use-update-check'
 import { fakeSessionClient, type FakeSessionClient } from './fake-session-client'
 import { sessionRowFixture } from './view-fixture'
 
@@ -27,6 +28,7 @@ const ACCOUNT: AccountFile = {
 
 export type Mounted = {
   client: () => FakeSessionClient | null
+  home: string
   setup: Awaited<ReturnType<typeof testRender>>
 }
 
@@ -36,6 +38,7 @@ export const openSession = async (args?: {
   height?: number
   configure?: (client: FakeSessionClient) => void
   onOpenUrl?: (url: string) => void
+  checkUpdate?: UpdateCheck | undefined
 }): Promise<Mounted> => {
   const home = mkdtempSync(join(tmpdir(), 'atlas-app-next-panes-'))
   const accountPath = join(home, 'account.json')
@@ -55,13 +58,14 @@ export const openSession = async (args?: {
       clientVersion="test"
       openUrl={args?.onOpenUrl ?? (() => undefined)}
       createClient={createClient}
+      {...(args?.checkUpdate === undefined ? {} : { checkUpdate: args.checkUpdate })}
       onQuit={() => undefined}
     />,
     { width: args?.width ?? 140, height: args?.height ?? 40 },
   )
 
   await frameShowing({ setup, text: 'listing…', within: WITHIN })
-  const mounted: Mounted = { client: () => held, setup }
+  const mounted: Mounted = { client: () => held, home, setup }
   const client = mounted.client()
   if (client !== null && args?.configure !== undefined) args.configure(client)
   const rows = args?.rows ?? [sessionRowFixture({ title: 'the open session' })]

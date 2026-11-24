@@ -1,7 +1,7 @@
 import { marked } from 'marked'
 import { afterEach, describe, expect, it } from 'bun:test'
 
-import { bindPathLinks, unbindPathLinks } from '../../../../composition/path-links'
+import { bindPathLinks, unbindPathLinks } from '../../../path-links'
 import { EInline, hostOf, type InlineNode, inlineNodes, inlinePlainText } from '../inline'
 import { raiseSuperscripts, subscript, superscript, superscriptNumber } from '../unicode'
 

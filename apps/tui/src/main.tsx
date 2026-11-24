@@ -1,13 +1,11 @@
-import { runSupervisorCli } from '@dltech/atlas-harness'
-
-import { bootAtlas } from './composition/boot'
-import { bootNextAtlas } from './app/boot-next'
-import { BOOT_FAILURE_EXIT_CODE, bootFailureReport } from './composition/boot-failure'
-import { durableOpLog } from './composition/durable-op-log'
-import { launchCommand } from './composition/launch-command'
-import { promoteStagedUpdate } from './composition/promote-staged'
-import { versionLabel } from './build/info'
 import { logFieldsOf } from '@dltech/atlas-observability'
+
+import { bootNextAtlas } from './app/boot-next'
+import { BOOT_FAILURE_EXIT_CODE, bootFailureReport } from './boot/boot-failure'
+import { durableOpLog } from './boot/durable-op-log'
+import { launchCommand } from './boot/launch-command'
+import { promoteStagedUpdate } from './boot/promote-staged'
+import { versionLabel } from './build/info'
 
 export const APP_PACKAGE_NAME = '@dltech/atlas'
 
@@ -22,22 +20,12 @@ const report = (error: unknown): void => {
 }
 
 const boot = (): void => {
-  const started =
-    process.env.ATLAS_TUI_NEXT === '1'
-      ? bootNextAtlas({
-          argv: process.argv.slice(2),
-          env: process.env,
-          cwd: process.cwd(),
-          command: launchCommand({ execPath: process.execPath, entry: process.argv[1] }),
-        })
-      : bootAtlas({
-          argv: process.argv.slice(2),
-          env: process.env,
-          cwd: process.cwd(),
-          command: launchCommand({ execPath: process.execPath, entry: process.argv[1] }),
-        })
-
-  started
+  bootNextAtlas({
+    argv: process.argv.slice(2),
+    env: process.env,
+    cwd: process.cwd(),
+    command: launchCommand({ execPath: process.execPath, entry: process.argv[1] }),
+  })
     .then((exitCode) => {
       if (exitCode !== 0) process.exitCode = exitCode
     })
@@ -48,10 +36,6 @@ const boot = (): void => {
 }
 
 if (import.meta.main) {
-  if (process.argv[2] === '--shell-supervise') {
-    await runSupervisorCli({ argv: process.argv.slice(3) })
-    process.exit(0)
-  }
   if (process.argv.slice(2).includes('--version')) {
     process.stdout.write(`atlas ${versionLabel()}\n`)
   } else {

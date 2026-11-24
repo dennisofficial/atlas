@@ -1,6 +1,6 @@
 import type { ThreadId } from '@dltech/atlas-core'
 
-import { durableOpLog } from '../composition/durable-op-log'
+import { durableOpLog } from '../boot/durable-op-log'
 
 export function traceSetName(args: {
   threadId: ThreadId

@@ -2,6 +2,7 @@ import type { AccountFile } from './account/account-file'
 import type { LaunchFlags } from './launch-flags'
 import type { GitRemote } from './new-session'
 import type { AuthRefusal, SessionClient } from './session-client'
+import type { UpdateCheck } from './use-update-check'
 
 export type SessionClientArgs = {
   apiUrl: string
@@ -25,5 +26,6 @@ export type AppNextProps = {
   fetchFn?: typeof fetch | undefined
   now?: (() => number) | undefined
   createClient?: SessionClientFactory | undefined
+  checkUpdate?: UpdateCheck | undefined
   onQuit: () => void
 }

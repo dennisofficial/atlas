@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 
 import { foldCrew, oneLine, type ECrewStanding } from '@dltech/atlas-core'
 
-import { pullRequestChip } from '../../../plugins/github/pull-request-pill'
+import { pullRequestChip } from '../../pull-request-pill'
 import { crewTiersOf, type SidebarTeammate } from '../../../store/sidebar-model'
 import {
   crewRowReading,

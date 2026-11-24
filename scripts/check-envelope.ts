@@ -14,7 +14,6 @@ type ReservedTag = (typeof RESERVED_TAGS)[number]
 
 const PROSE_MENTIONS = new Map<string, readonly ReservedTag[]>([
   ['apps/api/src/agent/runtime/prompt-fragments/envelope-contract.ts', RESERVED_TAGS],
-  ['apps/tui/src/composition/cloud/pr-event-forwarder.ts', ['operator-said']],
   ['packages/core/src/policy/classifier/brief.ts', ['system-untrusted']],
   ['packages/core/src/policy/classifier/critique.ts', ['system-untrusted']],
   ['packages/harness/src/prompt/fragments/envelope-contract.ts', RESERVED_TAGS],

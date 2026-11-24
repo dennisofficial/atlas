@@ -2,7 +2,7 @@ import type { Token, Tokens } from 'marked'
 
 import { pathMentions } from '@dltech/atlas-core'
 
-import { resolvePathMention } from '../../../composition/path-links'
+import { resolvePathMention } from '../../path-links'
 import { raiseSuperscripts, subscript, superscriptNumber } from './unicode'
 
 export enum EInline {

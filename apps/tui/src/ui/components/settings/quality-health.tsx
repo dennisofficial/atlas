@@ -1,10 +1,7 @@
 import { EQualityHealthStatus, type QualityHealth, type ThreadId } from '@dltech/atlas-core'
 import React, { useMemo } from 'react'
 
-import {
-  EQualityHealthReadKind,
-  type QualityHealthRead,
-} from '../../../composition/use-quality-health'
+import { EQualityHealthReadKind, type QualityHealthRead } from '../../quality-health-model'
 import { theme } from '../../theme'
 import { clipSpans, truncateCells, wrapCells } from '../sidebar/cells'
 import { Spans, type Span } from '../spans'
