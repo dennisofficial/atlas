@@ -348,6 +348,31 @@ describe('SessionsService model choice', () => {
     expect(inbox).toEqual([])
   })
 
+  it('refuses create with a bare model id', async () => {
+    const { service } = setup()
+
+    await expect(
+      service.create({ userId: 'user-a', projectId: 'proj-a', model: 'claude-opus-5-5' }),
+    ).rejects.toBeInstanceOf(BadRequestException)
+  })
+
+  it('refuses model-set with a bare model id and leaves the row alone', async () => {
+    const { plane, service } = setup()
+    const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
+
+    await expect(
+      service.command({
+        userId: 'user-a',
+        sessionId: created.sessionId,
+        name: 'model-set',
+        args: { model: 'claude-opus-5-5' },
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException)
+
+    const row = await plane.readSession({ sessionId: created.sessionId })
+    expect(row?.modelRef).toBe('anthropic/claude-haiku-4-5')
+  })
+
   it('refuses model-set arguments that name an account and leaves the row alone', async () => {
     const { plane, service } = setup()
     const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })

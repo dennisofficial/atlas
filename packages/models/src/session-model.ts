@@ -7,6 +7,7 @@ import {
   effortRungOf,
   parseRef,
   resolveModelChoice,
+  UnknownModelRefError,
   type CapabilitiesOf,
   type ModelCapabilities,
   type ModelChoice,
@@ -36,6 +37,11 @@ const FALLBACK_PROVIDERS = [
   EAuthProvider.Gateway,
   EAuthProvider.Inference,
 ]
+
+const refsOfModelId = (modelId: string): readonly ModelRef[] =>
+  [...generatedCatalogue().values()]
+    .filter((card) => card.ref.modelId === modelId)
+    .map((card) => card.ref)
 
 export type SessionModelInputs = {
   settings: ReadonlyMap<string, string>
@@ -156,7 +162,8 @@ export const sessionModelOf = (
     })
   }
   const ref = parseRef(args.ask.ref)
-  if (ref === undefined) throw new Error(`unknown model ${args.ask.ref}`)
+  if (ref === undefined)
+    throw new UnknownModelRefError({ ref: args.ask.ref, candidates: refsOfModelId(args.ask.ref) })
   return choiceOf({
     resolution,
     root: {
