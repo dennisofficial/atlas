@@ -35,6 +35,18 @@ Nothing changes layout outside a device with a non-zero inset.
 
 In a standalone Home Screen web app, open landscape on the iPhone Duo, an empty band sits below the app's bottom edge: WebKit lays out the `position: fixed; inset: 0` box (and `100svh`) shorter than the physical screen, and the remainder of the screen is not painted by the page at all ([WebKit bug 323403](https://bugs.webkit.org/show_bug.cgi?id=323403)). CSS cannot fill it — the band is outside the layout viewport, so no padding, background or fixed element reaches it. Atlas records it rather than working around it; the fix is WebKit's.
 
+Measured on the iPhone Duo (iOS 27.1) on 2026-11-24 with a temporary probe page, in CSS px:
+
+| Posture            | Screen    | `innerHeight` | `100svh` / `100dvh` / `inset: 0` | Painted    | Insets t r b l |
+| ------------------ | --------- | ------------- | -------------------------------- | ---------- | -------------- |
+| Unfolded portrait  | 669 × 951 | 869 or 951    | 869                              | 0–869      | 82 0 34 0      |
+| Unfolded landscape | 951 × 669 | 669 or 587    | 669 or 587                       | 0–867 wide | 0 0 34 0       |
+| Folded portrait    | 466 × 678 | 678           | 678                              | 0–382 wide | 0 0 34 0       |
+- The web view is the screen minus the status bar in both axes, anchored top-left. When the status bar is a right column the strip falls under it; when it is on top the strip falls at the bottom, under the composer.
+- Even when `innerHeight`, `100lvh` and `100vh` report 951, nothing paints below 869, so a taller CSS height only pushes content into the dead strip. `h-svh` is the correct shell height.
+- `window.screen` reports the folded 466 × 678 when unfolded.
+- `apple-mobile-web-app-status-bar-style: default` (tried in #2764, rolled back) changed nothing: the page still drew under the status bar with an 82 px top inset.
+
 ## Why
 
 Three symptoms on the iPhone Duo, and what each traces to.

@@ -9,7 +9,7 @@ import './globals.css'
 export const metadata: Metadata = {
   title: 'Atlas Cloud',
   description: 'Atlas Cloud',
-  appleWebApp: { statusBarStyle: 'default' },
+  appleWebApp: { statusBarStyle: 'black-translucent' },
 }
 
 export const viewport: Viewport = {
