@@ -1,5 +1,6 @@
 import {
   checkoutsOf,
+  queuedSinceOfInbox,
   sessionViewOf,
   type PluginViewFold,
   type SessionViewState,
@@ -85,6 +86,7 @@ const pullRequestViewOf = (
 const digestViewOf = (args: {
   state: SessionViewState
   live: boolean
+  queuedSince: string | null
   pullRequest: TrackedPullRequestRow | undefined
   sandbox: ControlDigestView['sandbox']
   now: string
@@ -93,7 +95,7 @@ const digestViewOf = (args: {
   const value = sessionViewOf({
     state: args.state,
     live: args.live,
-    queuedSince: null,
+    queuedSince: args.queuedSince,
     messageAfterFailure,
     now: args.now,
   })
@@ -132,6 +134,12 @@ export const withDigestViews = async (args: {
   const leases = await args.leases.currentLeasesIn({ tx, sessionIds })
   markDigestPhase(stats, 'leasesMs', startedAt)
   startedAt = performance.now()
+  const queuedSince = new Map(
+    (await tx.firstUnconsumedMessages({ sessionIds })).map((entry) => [
+      entry.sessionId,
+      queuedSinceOfInbox([entry]),
+    ]),
+  )
   const pullRequests = new Map<string, TrackedPullRequestRow[]>()
   for (const row of await tx.readTrackedPullRequests(sessionIds)) {
     const list = pullRequests.get(row.sessionId)
@@ -169,6 +177,7 @@ export const withDigestViews = async (args: {
     const view = digestViewOf({
       state,
       live: leases.get(row.sessionId)?.live ?? false,
+      queuedSince: queuedSince.get(row.sessionId) ?? null,
       pullRequest: pullRequests.get(row.sessionId)?.[0],
       sandbox: sandboxOf(row),
       now: args.now,

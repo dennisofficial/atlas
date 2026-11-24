@@ -456,6 +456,7 @@ export interface ControlTx {
     limit: number
     forThread: ThreadId | null
   }): Promise<InboxEntry[]>
+  firstUnconsumedMessages(params: { sessionIds: readonly string[] }): Promise<InboxEntry[]>
   notifyWake(sessionId: string): Promise<void>
   announce(change: SessionChange): Promise<void>
   readSessionView(sessionId: string): Promise<SessionViewRow | undefined>

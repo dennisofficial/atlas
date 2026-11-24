@@ -19,6 +19,7 @@ const EXPECTED: Record<ESessionStatus, EThreadStatus> = {
   [ESessionStatus.WaitingForBackground]: EThreadStatus.Running,
   [ESessionStatus.WaitingToRetry]: EThreadStatus.Running,
   [ESessionStatus.Resuming]: EThreadStatus.Running,
+  [ESessionStatus.RunningCommand]: EThreadStatus.Running,
   [ESessionStatus.Idle]: EThreadStatus.Idle,
 }
 

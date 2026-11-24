@@ -73,6 +73,13 @@ const openTurnStatus = (args: {
 const idleSinceOf = (facts: StatusFacts): string | undefined =>
   facts.lastTurnEnd?.at ?? facts.turn?.at
 
+const runningCommandOf = (facts: StatusFacts): SessionStatus | undefined => {
+  const open = facts.commands.openCommands
+  const command = open[open.length - 1]
+  if (command === undefined) return undefined
+  return { state: ESessionStatus.RunningCommand, reason: command.name, since: command.at }
+}
+
 export function deriveStatus(args: {
   facts: StatusFacts
   live: boolean
@@ -107,7 +114,8 @@ export function deriveStatus(args: {
   if (workspace !== undefined) return workspace
 
   const open = openTurnStatus({ facts, live: args.live, nowMs: Date.parse(args.now) })
-  if (queuedSince !== null) return open ?? queued
+  const running = open ?? runningCommandOf(facts)
+  if (queuedSince !== null) return running ?? queued
 
   const failed = facts.unfinishedFailure
   if (failed !== null && REPAIRABLE_FAILURE_KINDS.has(failed.kind)) {
@@ -117,7 +125,7 @@ export function deriveStatus(args: {
     return { state: ESessionStatus.Failed, reason: failed.message, since: failed.at }
   }
 
-  if (open !== undefined) return open
+  if (running !== undefined) return running
   if (hasBackground(facts.background)) {
     return { state: ESessionStatus.WaitingForBackground, since: idleSinceOf(facts) }
   }

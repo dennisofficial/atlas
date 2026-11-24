@@ -1,11 +1,14 @@
 import {
   commandInputName,
   pendingMessagesOf,
+  type InboxEntry,
   type PendingInput,
   type PendingInputsState,
 } from '@dltech/atlas-core'
 import {
   ECommandState,
+  INBOX_KIND_MESSAGE,
+  inboxMessageSchema,
   QUEUED_MESSAGES_LIMIT,
   type SessionCommandRow,
   type SessionQueuedMessage,
@@ -34,6 +37,46 @@ export const queuedOf = (state: PendingInputsState): SessionQueuedMessage[] =>
       ]
     })
     .slice(0, QUEUED_MESSAGES_LIMIT)
+
+const messageOfPayload = (payload: string) => {
+  try {
+    const parsed = inboxMessageSchema.safeParse(JSON.parse(payload))
+    return parsed.success ? parsed.data : undefined
+  } catch {
+    return undefined
+  }
+}
+
+export const queuedFromInboxOf = (entries: readonly InboxEntry[]): SessionQueuedMessage[] =>
+  entries.flatMap((entry) => {
+    if (entry.consumedSeq !== null || entry.kind !== INBOX_KIND_MESSAGE) return []
+    const message = messageOfPayload(entry.payload)
+    if (message === undefined) return []
+    return [
+      {
+        inboxId: entry.inboxId,
+        text: message.text,
+        postedAt: entry.postedAt,
+        ...(message.attachments === undefined || message.attachments.length === 0
+          ? {}
+          : { attachments: [...message.attachments] }),
+        ...(message.media === undefined ? {} : { media: [...message.media] }),
+        ...(message.uploads === undefined ? {} : { uploads: [...message.uploads] }),
+        ...(message.clientId === undefined ? {} : { clientId: message.clientId }),
+      },
+    ]
+  })
+
+export const queuedRowsOf = (args: {
+  pending: PendingInputsState
+  inbox: readonly InboxEntry[]
+}): SessionQueuedMessage[] => {
+  const logged = queuedOf(args.pending)
+  const unlogged = queuedFromInboxOf(args.inbox).filter(
+    (row) => !logged.some((kept) => kept.inboxId === row.inboxId),
+  )
+  return [...logged, ...unlogged].slice(0, QUEUED_MESSAGES_LIMIT)
+}
 
 export const commandsOf = (state: PendingInputsState): SessionCommandRow[] =>
   state.pending

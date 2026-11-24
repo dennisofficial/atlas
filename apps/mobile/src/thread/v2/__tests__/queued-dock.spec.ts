@@ -7,8 +7,9 @@ import {
   type PendingInputsState,
 } from '@dltech/atlas-core'
 import type { SessionSnapshot } from '@dltech/atlas-client/stream'
+import { ECommandState, type SessionCommandRow } from '@dltech/atlas-protocol'
 
-import { queuedDockOf } from '../queued-dock'
+import { QUEUED_LABEL, queuedDockOf, queuedLabelOf } from '../queued-dock'
 
 const LEASE = { epoch: 1, holderHostId: 1, live: true }
 
@@ -42,6 +43,21 @@ const pending: PendingInputsState = {
 
 const STAGED = [{ clientId: 'phone-1', text: 'from the phone' }]
 
+const SUMMARISE: SessionCommandRow = {
+  inboxId: 9,
+  name: 'summarise',
+  postedAt: '2026-11-24T10:00:00.000Z',
+  state: ECommandState.Running,
+}
+
+const blocking: SessionSnapshot['status'] = {
+  state: ESessionStatus.RunningCommand,
+  reason: 'summarise',
+  since: '2026-11-24T10:00:01.000Z',
+  lease: LEASE,
+  commands: [SUMMARISE],
+}
+
 describe('queuedDockOf', () => {
   it('lists server-queued messages first, then the ones this phone staged', () => {
     const dock = queuedDockOf({
@@ -66,5 +82,27 @@ describe('queuedDockOf', () => {
       staged: STAGED,
     })
     expect(dock.messages).toEqual([])
+  })
+
+  it('reads the blocking command off the status', () => {
+    const dock = queuedDockOf({
+      snapshot: { pending: { pending: [] }, events: [], status: blocking },
+      staged: [],
+    })
+    expect(dock.blocking?.name).toBe('summarise')
+  })
+})
+
+describe('queuedLabelOf', () => {
+  it('says what a queued message waits for while a command holds the turn', () => {
+    const dock = queuedDockOf({
+      snapshot: { pending, events: [], status: blocking },
+      staged: STAGED,
+    })
+    expect(queuedLabelOf(dock)).toBe('Waits for the summary')
+  })
+
+  it('keeps the generic label when nothing blocks', () => {
+    expect(queuedLabelOf({ blocking: undefined })).toBe(QUEUED_LABEL)
   })
 })

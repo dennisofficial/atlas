@@ -103,8 +103,7 @@ export const runningCommandEntriesOf = (events: readonly V2Event[]): readonly Co
   }
   for (const event of events) {
     if (event.type !== 'input-consumed' || event.command === undefined) continue
-    const at = postedAt.get(event.inboxId)
-    if (at === undefined) continue
+    const at = postedAt.get(event.inboxId) ?? event.at
     posted.set(event.inboxId, { inboxId: event.inboxId, name: event.command.name, postedAt: at })
   }
   return unfinishedCommandIdsOf(events).flatMap((inboxId) => {

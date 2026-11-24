@@ -1,5 +1,5 @@
 import { and, type Tx } from '@dltech/atlas-db'
-import type { InboxEntry, ThreadId } from '@dltech/atlas-core'
+import { EInputKind, type InboxEntry, type ThreadId } from '@dltech/atlas-core'
 
 import { toInbox } from './postgres-rows'
 
@@ -76,6 +76,29 @@ export const readInboxEntriesIn = async (params: {
     .limit(params.limit)
     .all()
   return rows.map(toInbox)
+}
+
+export const firstUnconsumedMessagesIn = async (params: {
+  tx: Tx
+  sessionIds: readonly string[]
+}): Promise<InboxEntry[]> => {
+  if (params.sessionIds.length === 0) return []
+  const rows = await params.tx.orm.v2.V2InboxEntry.where((entry) =>
+    and(
+      entry.sessionId.in([...params.sessionIds]),
+      entry.consumedSeq.isNull(),
+      entry.kind.eq(EInputKind.Message),
+      entry.threadId.isNull(),
+    ),
+  )
+    .orderBy((entry) => entry.inboxId.asc())
+    .all()
+  const first = new Map<string, InboxEntry>()
+  for (const row of rows) {
+    if (first.has(row.sessionId)) continue
+    first.set(row.sessionId, toInbox(row))
+  }
+  return [...first.values()]
 }
 
 export const recentInboxEntriesIn = async (params: {

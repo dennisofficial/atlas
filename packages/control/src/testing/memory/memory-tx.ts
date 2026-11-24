@@ -40,6 +40,7 @@ import {
 import {
   allocateInboxIdIn,
   deleteInboxEntryIn,
+  firstUnconsumedMessagesIn,
   insertInboxEntryIn,
   markInboxConsumedIn,
   readInboxEntriesIn,
@@ -465,6 +466,10 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
     forThread: ThreadId | null
   }) {
     return readInboxEntriesIn({ state: this.state, ...params })
+  }
+
+  async firstUnconsumedMessages(params: { sessionIds: readonly string[] }) {
+    return firstUnconsumedMessagesIn({ state: this.state, ...params })
   }
 
   async recentInboxEntries(params: {

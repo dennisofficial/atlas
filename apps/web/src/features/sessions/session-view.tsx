@@ -7,7 +7,7 @@ import { clientOnlyReason } from '@dltech/atlas-commands'
 
 import { liveBackgroundOf } from '@dltech/atlas-client/crew'
 import { mergedDraftOf } from '@dltech/atlas-client/session'
-import { ESessionConnection, startFailureOf } from '@dltech/atlas-client/stream'
+import { blockingCommandOf, ESessionConnection, startFailureOf } from '@dltech/atlas-client/stream'
 import { turnStartedAtOf } from '@dltech/atlas-client/transcript'
 import { pendingOperatorRequestOf } from '@dltech/atlas-plugin-operator/client'
 
@@ -60,7 +60,7 @@ import { composerEntriesOf, requestResume, resumePendingOf } from './data/sessio
 import { composerActionsOf } from './data/session-composer-actions'
 import { useSessionSummarise } from './data/use-session-summarise'
 import { useSessionStream } from './data/use-session-stream'
-import { CommandRows } from './command-rows'
+import { BlockingDock } from './blocking/blocking-dock'
 import { CommandListDialog } from './command-list-dialog'
 import { ConnectionLine } from './connection-line'
 import { RefusalRows } from './refusal-rows'
@@ -108,6 +108,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     return (id: string) => titles.get(id)
   }, [sessions])
   const working = isSessionWorking(snapshot.status)
+  const blocking = blockingCommandOf(snapshot.status)
   const composer = useSessionComposer({ sessionId, working })
   const draftAttachments = useDraftAttachments({
     media: composer.attachments.media,
@@ -345,7 +346,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
                   resume={resume}
                   repairDiagram={repairDiagram}
                   boot={boot}
-                  queued={queuedTranscript.queued}
+                  queued={{ ...queuedTranscript.queued, waitLabel: blocking?.copy.queued }}
                   onLoadOlder={loadOlder}
                 />
               </div>
@@ -377,38 +378,39 @@ export function SessionView({ sessionId }: { sessionId: string }) {
                   onOpenChange={setCommandListOpen}
                   entries={composerEntries}
                 />
-                <CommandRows rows={snapshot.status?.commands} />
-                <ThreadComposer
-                  value={composer.draft}
-                  onValueChange={composer.setDraft}
-                  onSubmit={(text) =>
-                    void composer.handleSubmit({
-                      text,
-                      stage: stagedRun.stage,
-                      onSent: drafts.handleSent,
-                    })
-                  }
-                  entries={composerEntries}
-                  clientActions={composerActions}
-                  sending={composer.sending}
-                  {...composer.attachments.composerProps}
-                  sendsAttachmentsAlone
-                  working={working}
-                  onStop={handleStop}
-                  placeholder="Message Atlas…"
-                >
-                  {listed === undefined ? null : (
-                    <ModelPickerControls
-                      picker={choice.picker}
-                      selection={choice.selection}
-                      onSelectionChange={choice.onSelectionChange}
-                      open={choice.open}
-                      onOpenChange={choice.onOpenChange}
-                    />
-                  )}
-                  <SessionContext context={model.context} spend={model.spend} />
-                  <SessionUsage model={listed?.model} working={working} />
-                </ThreadComposer>
+                <BlockingDock blocking={blocking} commands={snapshot.status?.commands}>
+                  <ThreadComposer
+                    value={composer.draft}
+                    onValueChange={composer.setDraft}
+                    onSubmit={(text) =>
+                      void composer.handleSubmit({
+                        text,
+                        stage: stagedRun.stage,
+                        onSent: drafts.handleSent,
+                      })
+                    }
+                    entries={composerEntries}
+                    clientActions={composerActions}
+                    sending={composer.sending}
+                    {...composer.attachments.composerProps}
+                    sendsAttachmentsAlone
+                    working={working}
+                    onStop={handleStop}
+                    placeholder="Message Atlas…"
+                  >
+                    {listed === undefined ? null : (
+                      <ModelPickerControls
+                        picker={choice.picker}
+                        selection={choice.selection}
+                        onSelectionChange={choice.onSelectionChange}
+                        open={choice.open}
+                        onOpenChange={choice.onOpenChange}
+                      />
+                    )}
+                    <SessionContext context={model.context} spend={model.spend} />
+                    <SessionUsage model={listed?.model} working={working} />
+                  </ThreadComposer>
+                </BlockingDock>
               </div>
             </SessionPaneLayout>
           </div>

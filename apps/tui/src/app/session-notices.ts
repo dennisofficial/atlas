@@ -7,6 +7,7 @@ export const RAN_STATES: ReadonlySet<ESessionStatus> = new Set([
   ESessionStatus.Queued,
   ESessionStatus.Thinking,
   ESessionStatus.RunningTool,
+  ESessionStatus.RunningCommand,
   ESessionStatus.Resuming,
   ESessionStatus.WaitingToRetry,
   ESessionStatus.WaitingForCredentials,

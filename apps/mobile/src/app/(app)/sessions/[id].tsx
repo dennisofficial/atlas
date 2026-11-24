@@ -26,6 +26,7 @@ import { CommandListSheet } from '../../../thread/composer/command-list-sheet'
 import { Composer } from '../../../thread/composer/composer'
 import { ContextReading } from '../../../thread/composer/context-reading'
 import { StaleCard } from '../../../thread/composer/stale-card'
+import { BlockingStrip } from '../../../thread/components/blocking-strip'
 import { OperatorRequestDock } from '../../../thread/components/operator-request-card'
 import { QueuedDock } from '../../../thread/components/queued-dock'
 import { SessionTitle } from '../../../thread/components/session-title'
@@ -176,8 +177,12 @@ export default function SessionScreen() {
                   <StartFailedCard reason={session.startFailure.reason} onRetry={session.retry} />
                 )}
                 <QueuedDock dock={session.queued} />
+                {session.blocking === undefined ? null : (
+                  <BlockingStrip command={session.blocking} now={session.now} />
+                )}
                 <Composer
                   working={session.working}
+                  joined={session.blocking !== undefined}
                   onSend={session.send}
                   onStop={session.stop}
                   restored={session.restored}
