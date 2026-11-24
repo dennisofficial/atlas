@@ -12,6 +12,7 @@ Connects a session to the MCP servers that the operator and the repository confi
 - The `mcp` view: one row for each server with its transport, status, tool count and layer.
 - The events `mcp-server-changed`, `mcp-server-removed`, `mcp-sign-in-started` and `mcp-sign-in-resolved`.
 - The MCP instructions in the context slot `McpInstructions`.
+- A handoff that is invisible: a token the API could not fetch keeps the last recorded row and tools, marked `retry: true`, instead of showing `needs-auth`.
 
 ## Does not own
 
