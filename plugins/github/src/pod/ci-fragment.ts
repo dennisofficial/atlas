@@ -11,6 +11,8 @@ export class CiFeedFragment extends PromptFragment {
       'directory\u2019s pull request. If a blank target finds no pull request yet, pass `#<number>` from',
       '`gh pr create`\u2019s output. Then end your turn with no tool call and let the notice wake you. A',
       'subscription delivers comments, change requests, CI failure, and merge or close at once.',
+      'The subscribe result shows the current state of the pull request and whether a notice is',
+      'still coming, so a check that already finished never leaves you waiting.',
       'Approvals, a green CI verdict and mergeability changes arrive together as one notice when CI',
       'settles. Every CI notice says whether CI is still running or has finished. The latest notice is',
       'the truth. Never wait on a run that a notice already called finished. The subscription ends',

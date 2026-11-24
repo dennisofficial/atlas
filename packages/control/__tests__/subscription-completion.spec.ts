@@ -35,6 +35,13 @@ const MERGED: SubscriptionTargetState = {
 const OPEN: SubscriptionTargetState = {
   phase: ETargetPhase.Open,
   summary: 'Pull request acme/atlas#7 is open.',
+  snapshot: {
+    facts: [
+      'ready for review, head a1b2c3d',
+      'CI finished, all checks passed (3 passed, 0 failed, 0 running)',
+    ],
+    next: 'No CI notice comes for this head.',
+  },
 }
 
 const setup = async (state: SubscriptionTargetState | undefined) => {
@@ -118,6 +125,7 @@ describe('subscribing to a target that already reached its end', () => {
     expect(result.target).toEqual({
       phase: ETargetPhase.Open,
       summary: 'Pull request acme/atlas#7 is open.',
+      snapshot: OPEN.snapshot,
       ended: false,
     })
     expect(await plane.listSubscriptions({ sessionId: SESSION })).toHaveLength(1)
