@@ -19,6 +19,7 @@ const item = (key: string, label: string, content: string) => ({
   label,
   content,
   superseded: false,
+  removed: false,
 })
 
 const group: SystemContextEntry = {
@@ -132,6 +133,16 @@ describe('a group of injected prompts', () => {
 
     expect(setup.captureCharFrame()).toContain('memory · superseded')
   })
+
+  test('marks a removal on its row instead of showing the label as a load', async () => {
+    const setup = await mount({
+      ...group,
+      items: group.items.map((each) => (each.key === 'b' ? { ...each, removed: true } : each)),
+    })
+    await clickRow(setup, 'Atlas loaded 3 prompts')
+
+    expect(setup.captureCharFrame()).toContain('memory · removed')
+  })
 })
 
 describe('a single injected prompt', () => {
@@ -149,6 +160,15 @@ describe('a single injected prompt', () => {
     await clickRow(setup, 'Atlas loaded memory')
 
     expect(setup.captureCharFrame()).toContain('ONLY BODY')
+  })
+
+  test('reads as a removal when it carries no content', async () => {
+    const setup = await mount({
+      ...single,
+      items: [{ ...item('only', 'MCP server instructions', ''), removed: true }],
+    })
+
+    expect(setup.captureCharFrame()).toContain('Atlas removed MCP server instructions')
   })
 })
 

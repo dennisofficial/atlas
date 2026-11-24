@@ -38,9 +38,9 @@ export function outcomeOf(args: {
     if (parsed.data.callId !== args.callId) return undefined
     records.push(parsed.data)
   }
-  const { context, flagged } = args.value
-  if (context !== undefined && context.trim() === '') return undefined
-  return { ...metricsOf(args.value), records, flagged, context }
+  const { notes, flagged } = args.value
+  if (notes.some((note) => note.content.trim() === '')) return undefined
+  return { ...metricsOf(args.value), records, flagged, notes }
 }
 
 const metricsOf = (value: QualityReviewResult): QualityReviewMetrics => ({
@@ -140,12 +140,12 @@ export async function reviewWithinBudget(args: {
       const late =
         valid?.records.filter((record) => record.status !== EQualityReviewStatus.Completed) ?? []
       const metrics = metricsOf(raced.value)
-      if (late.length > 0) return { ...metrics, records: late, flagged: [], context: undefined }
+      if (late.length > 0) return { ...metrics, records: late, flagged: [], notes: [] }
       return {
         ...metrics,
         records: [deadlineBookkeeping({ ...bookkeepingFacts, budgetMs: args.budgetMs })],
         flagged: [],
-        context: undefined,
+        notes: [],
       }
     }
     if (valid !== undefined) return valid
@@ -162,7 +162,7 @@ export async function reviewWithinBudget(args: {
         }),
       ],
       flagged: [],
-      context: undefined,
+      notes: [],
     }
   }
 
@@ -171,7 +171,7 @@ export async function reviewWithinBudget(args: {
       ...NO_REVIEW_METRICS,
       records: [deadlineBookkeeping({ ...bookkeepingFacts, budgetMs: args.budgetMs })],
       flagged: [],
-      context: undefined,
+      notes: [],
     }
   }
 
@@ -187,7 +187,7 @@ export async function reviewWithinBudget(args: {
         }),
       ],
       flagged: [],
-      context: undefined,
+      notes: [],
     }
   }
 
@@ -202,6 +202,6 @@ export async function reviewWithinBudget(args: {
       }),
     ],
     flagged: [],
-    context: undefined,
+    notes: [],
   }
 }

@@ -11,6 +11,7 @@ export type NoticeContext = {
   label: string
   content: string
   superseded: boolean
+  removed: boolean
   note?: string
 }
 
@@ -115,6 +116,7 @@ function fieldsOf(entry: TranscriptEntry): NoticeFields | null {
           label: item.label,
           content: item.content,
           superseded: item.superseded,
+          removed: item.removed,
         })),
       }
     default:
@@ -152,6 +154,7 @@ export function prNoticeItemOf(entries: PrEventEntry[]): NoticeItem | null {
         label: entry.text,
         content: entry.body,
         superseded: false,
+        removed: false,
         ...(entry.failed ? { note: FAILED_NOTE } : {}),
       })),
     },

@@ -144,6 +144,7 @@ export class ResourceSync {
       projectDirectory: this.args.directory(),
       trace: this.args.trace,
       shared: this.args.shared,
+      loadingOf: (resource) => this.backgroundLoads.has(resource),
       onBackground: (args) => this.trackBackground(args),
     })
       .catch((failure: unknown) => {
@@ -158,11 +159,19 @@ export class ResourceSync {
 
   private trackBackground(args: { resource: string; loading: Promise<void> }): void {
     const tracked = args.loading.finally(() => {
-      if (this.backgroundLoads.get(args.resource) === tracked) {
-        this.backgroundLoads.delete(args.resource)
-      }
+      if (this.backgroundLoads.get(args.resource) !== tracked) return
+      this.backgroundLoads.delete(args.resource)
+      this.reloadQueued(args.resource)
     })
     this.backgroundLoads.set(args.resource, tracked)
+  }
+
+  private backgroundLoadOf(name: string): Promise<void> | undefined {
+    return this.backgroundLoads.get(name)
+  }
+
+  private busyOf(name: string): boolean {
+    return this.running.has(name) || this.backgroundLoads.has(name)
   }
 
   private handleChanged(watchId: string): void {
@@ -170,12 +179,23 @@ export class ResourceSync {
     for (const resource of this.args.resources) {
       const watch = watchOf({ resource, directory })
       if (watch === undefined || watch.id !== watchId) continue
-      if (this.running.has(resource.name)) {
+      if (this.busyOf(resource.name)) {
         this.queued.add(resource.name)
         continue
       }
       void this.reload({ resource, directory, reason: ELoadReason.Changed })
     }
+  }
+
+  private reloadQueued(name: string): void {
+    if (!this.queued.delete(name)) return
+    if (this.running.has(name)) {
+      this.queued.add(name)
+      return
+    }
+    const resource = this.args.resources.find((each) => each.name === name)
+    if (resource === undefined) return
+    void this.reload({ resource, directory: this.args.directory(), reason: ELoadReason.Changed })
   }
 
   private reload(args: {
@@ -188,13 +208,7 @@ export class ResourceSync {
     if (running !== undefined) return running
     const attempt = this.reloadNow(args).finally(() => {
       this.running.delete(name)
-      if (this.queued.delete(name)) {
-        void this.reload({
-          resource: args.resource,
-          directory: args.directory,
-          reason: ELoadReason.Changed,
-        })
-      }
+      this.reloadQueued(name)
     })
     this.running.set(name, attempt)
     return attempt
@@ -207,6 +221,8 @@ export class ResourceSync {
   }): Promise<void> {
     const initial = this.initial
     if (initial !== undefined) await initial.catch(() => undefined)
+    const background = this.backgroundLoadOf(args.resource.name)
+    if (background !== undefined) await background.catch(() => undefined)
     await reloadOne({
       ctx: this.args.ctx,
       trace: this.args.trace,

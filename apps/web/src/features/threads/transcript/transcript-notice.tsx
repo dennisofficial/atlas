@@ -9,6 +9,8 @@ import {
 
 const SUPERSEDED = 'superseded'
 
+const REMOVED = 'removed'
+
 const TONE: Record<ENoticeTone, EUiTone> = {
   [ENoticeTone.Ok]: EUiTone.Ok,
   [ENoticeTone.Failed]: EUiTone.Failed,
@@ -21,6 +23,7 @@ const ACTION_LABEL: Record<ENoticeAction, string> = {
 }
 
 const noteOf = (context: NoticeContext): { note?: string } => {
+  if (context.removed) return { note: REMOVED }
   if (context.note !== undefined) return { note: context.note }
   return context.superseded ? { note: SUPERSEDED } : {}
 }

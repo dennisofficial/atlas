@@ -17,6 +17,13 @@ const ignore = (): void => undefined
 
 const SUPERSEDED = ' · superseded'
 
+const REMOVED = ' · removed'
+
+const noteOf = (item: SystemContextItem): string => {
+  if (item.removed) return REMOVED
+  return item.superseded ? SUPERSEDED : ''
+}
+
 function ClickRow(props: {
   indent: number
   text: string
@@ -48,6 +55,7 @@ function ItemRows(props: {
   inner: number
   open: boolean
   onToggle: (key: string) => void
+  note?: string
 }): React.ReactNode {
   const { item, indent } = props
 
@@ -56,7 +64,7 @@ function ItemRows(props: {
       <ClickRow
         indent={indent}
         text={props.title}
-        note={item.superseded ? SUPERSEDED : ''}
+        note={props.note ?? noteOf(item)}
         inner={props.inner}
         onPress={() => props.onToggle(injectionKey(item.key))}
       />
@@ -93,7 +101,8 @@ export function SystemContextBlock(props: {
       <box flexDirection="column" marginBottom={1} width={inner} flexShrink={0}>
         <ItemRows
           item={only}
-          title={`Atlas loaded ${only.label}`}
+          title={only.removed ? `Atlas removed ${only.label}` : `Atlas loaded ${only.label}`}
+          note={only.removed ? '' : noteOf(only)}
           indent={0}
           inner={inner}
           open={opened.has(injectionKey(only.key))}

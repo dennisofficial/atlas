@@ -23,9 +23,10 @@ import type {
   SkipArgs,
 } from './review-context'
 import {
-  renderFinding,
+  renderNotes,
   validateItem,
   type NotifiableEntry,
+  type QualityNote,
   type ReviewItem,
 } from './review-records'
 import { normalizeWorkspacePath, type QualitySourceAdapter } from './review-scopes'
@@ -62,7 +63,7 @@ export type FlaggedExample = {
 export type QualityReviewResult = QualityReviewMetrics & {
   records: readonly CodeQualityReviewedBody[]
   flagged: readonly FlaggedExample[]
-  context: string | undefined
+  notes: readonly QualityNote[]
 }
 
 export const NO_REVIEW_METRICS: QualityReviewMetrics = {
@@ -75,7 +76,7 @@ export const NO_REVIEW_RESULT: QualityReviewResult = {
   ...NO_REVIEW_METRICS,
   records: [],
   flagged: [],
-  context: undefined,
+  notes: [],
 }
 
 type ScopeRun = { item: ReviewItem; classifierMs: number; inputTokens: number | null }
@@ -161,8 +162,7 @@ export class CodeQualityReview {
       flagged: validated.flatMap(({ record, notifiable }) =>
         notifiable.map((entry): FlaggedExample => ({ record, entry })),
       ),
-      context:
-        deadlineErrorOf(signal) === undefined ? renderFinding({ items: validated }) : undefined,
+      notes: deadlineErrorOf(signal) === undefined ? renderNotes({ items: validated }) : [],
     }
   }
 

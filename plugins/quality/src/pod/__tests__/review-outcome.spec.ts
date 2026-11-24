@@ -9,6 +9,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { NO_REVIEW_METRICS, type QualityReviewResult } from '../../review/engine'
+import type { QualityNote } from '../../review/review-records'
 import type { ReviewArgs } from '../../review/review-context'
 import { outcomeOf, reviewWithinBudget, type QualityReviewRun } from '../review-outcome'
 import { CALL, PROJECT, monotonicClock, writeCall, wroteWithChanges } from './support'
@@ -30,9 +31,11 @@ const reviewed = ({
   durationMs: 1,
 })
 
+const noteOf = (content: string): QualityNote => ({ key: 'src/widget.ts', content })
+
 const resultOf = (args: {
   records: QualityReviewResult['records']
-  context: string | undefined
+  notes: QualityReviewResult['notes']
 }): QualityReviewResult => ({ ...NO_REVIEW_METRICS, ...args, flagged: [] })
 
 const reviewerThat = (
@@ -74,12 +77,14 @@ describe('reviewWithinBudget', () => {
   it('returns the records and the finding of a review that beats the budget', async () => {
     const record = reviewed()
     const { outcome, logs } = await reviewOf({
-      review: reviewerThat(async () => resultOf({ records: [record], context: 'finding A' })),
+      review: reviewerThat(async () =>
+        resultOf({ records: [record], notes: [noteOf('finding A')] }),
+      ),
     })
 
     expect(outcome).toMatchObject({
       records: [record],
-      context: 'finding A',
+      notes: [noteOf('finding A')],
       timings: { scopeBuildMs: 0, classifierMs: 0, totalMs: 0 },
       language: null,
       inputTokens: null,
@@ -97,7 +102,7 @@ describe('reviewWithinBudget', () => {
 
     expect(outcome).toMatchObject({
       records: [],
-      context: undefined,
+      notes: [],
       timings: { scopeBuildMs: 0, classifierMs: 0, totalMs: 0 },
       language: null,
       inputTokens: null,
@@ -118,13 +123,13 @@ describe('reviewWithinBudget', () => {
       reason: EQualitySkipReason.ReviewDeadline,
       detail: 'review exceeded 10ms',
     })
-    expect(outcome.context).toBeUndefined()
+    expect(outcome.notes).toEqual([])
     expect(logs).toEqual([])
   })
 
   it('drops a completed record that settles after the deadline and keeps the deadline record', async () => {
     const { outcome } = await reviewOf({
-      review: settlesOnAbort(resultOf({ records: [reviewed()], context: 'late finding' })),
+      review: settlesOnAbort(resultOf({ records: [reviewed()], notes: [noteOf('late finding')] })),
       budgetMs: 10,
     })
 
@@ -133,18 +138,18 @@ describe('reviewWithinBudget', () => {
       status: EQualityReviewStatus.OperationalError,
       reason: EQualitySkipReason.ReviewDeadline,
     })
-    expect(outcome.context).toBeUndefined()
+    expect(outcome.notes).toEqual([])
   })
 
   it('keeps the non-completed records of a review that settles after the deadline', async () => {
     const late = reviewed({ status: EQualityReviewStatus.Inconclusive })
     const { outcome } = await reviewOf({
-      review: settlesOnAbort(resultOf({ records: [late], context: 'late finding' })),
+      review: settlesOnAbort(resultOf({ records: [late], notes: [noteOf('late finding')] })),
       budgetMs: 10,
     })
 
     expect(outcome.records).toEqual([late])
-    expect(outcome.context).toBeUndefined()
+    expect(outcome.notes).toEqual([])
   })
 
   it('records an operational error and logs it when the review throws', async () => {
@@ -159,7 +164,7 @@ describe('reviewWithinBudget', () => {
       status: EQualityReviewStatus.OperationalError,
       detail: 'review failed: reviewer exploded',
     })
-    expect(outcome.context).toBeUndefined()
+    expect(outcome.notes).toEqual([])
     expect(logs).toHaveLength(1)
   })
 
@@ -177,14 +182,14 @@ describe('reviewWithinBudget', () => {
       status: EQualityReviewStatus.Skipped,
       reason: EQualitySkipReason.TurnInterrupted,
     })
-    expect(outcome.context).toBeUndefined()
+    expect(outcome.notes).toEqual([])
   })
 
   it('dropping a malformed record leaves one operational error and a log line', async () => {
     const malformed = {
       ...NO_REVIEW_METRICS,
       records: [{ type: 'code-quality-reviewed', callId: CALL }],
-      context: undefined,
+      notes: [],
     } as unknown as QualityReviewResult
 
     const { outcome, logs } = await reviewOf({
@@ -195,7 +200,7 @@ describe('reviewWithinBudget', () => {
       status: EQualityReviewStatus.OperationalError,
       detail: 'review returned malformed records and they were dropped',
     })
-    expect(outcome.context).toBeUndefined()
+    expect(outcome.notes).toEqual([])
     expect(logs).toHaveLength(1)
   })
 })
@@ -204,18 +209,21 @@ describe('outcomeOf', () => {
   it('accepts the records of the call it names', () => {
     const record = reviewed()
     expect(
-      outcomeOf({ value: resultOf({ records: [record], context: 'finding A' }), callId: CALL }),
-    ).toEqual(resultOf({ records: [record], context: 'finding A' }))
+      outcomeOf({
+        value: resultOf({ records: [record], notes: [noteOf('finding A')] }),
+        callId: CALL,
+      }),
+    ).toEqual(resultOf({ records: [record], notes: [noteOf('finding A')] }))
   })
 
   it('rejects a record of another call', () => {
-    const value = resultOf({ records: [reviewed()], context: undefined })
+    const value = resultOf({ records: [reviewed()], notes: [] })
     expect(outcomeOf({ value, callId: toCallId('another-call') })).toBeUndefined()
   })
 
   it('rejects a blank finding', () => {
     expect(
-      outcomeOf({ value: resultOf({ records: [], context: '  ' }), callId: CALL }),
+      outcomeOf({ value: resultOf({ records: [], notes: [noteOf('  ')] }), callId: CALL }),
     ).toBeUndefined()
   })
 
@@ -223,7 +231,7 @@ describe('outcomeOf', () => {
     const value = {
       ...NO_REVIEW_METRICS,
       records: [{ ...reviewed(), status: 'not-a-status' }],
-      context: undefined,
+      notes: [],
     } as unknown as QualityReviewResult
     expect(outcomeOf({ value, callId: CALL })).toBeUndefined()
   })

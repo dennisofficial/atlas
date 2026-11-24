@@ -1,4 +1,5 @@
 import { systemContext } from '../../context/envelope'
+import type { Event } from '../../events/envelope'
 import { EExecutionLocation } from '../../execution/location'
 import {
   activeWorktreeOf,
@@ -7,8 +8,8 @@ import {
   repoOf,
   type ActiveWorktree,
 } from '../../workspace/worktree'
+import type { Assembled, AssembledMessage } from '../assembled'
 import { defineRule, type Rule } from '../rule'
-import { appendedAtTail } from './tail-block'
 
 const branchLineOf = (worktree: ActiveWorktree): string => {
   if (!worktree.adopted) {
@@ -64,6 +65,15 @@ export function projectDirectoryNote(args: {
     .join(' ')
 }
 
+const movesTheWorkspace = (event: Event): boolean =>
+  event.type === 'worktree-entered' ||
+  event.type === 'worktree-exited' ||
+  event.type === 'directory-changed' ||
+  event.type === 'location-changed'
+
+const anchoredAfter = (args: { messages: Assembled['messages']; anchor: Event }): number =>
+  args.messages.findLastIndex((entry) => entry.origin.seq <= args.anchor.seq) + 1
+
 export function worktreeBlock({
   launchDirectory,
   repoRoot,
@@ -74,22 +84,30 @@ export function worktreeBlock({
   return defineRule({
     name: 'worktreeBlock',
     apply: (input, ctx) => {
-      const lastMessage = input.messages.at(-1)
-      const lastEvent = ctx.events.at(-1)
-      if (lastMessage?.message.role === 'assistant' && lastMessage.origin.eventId === lastEvent?.id)
-        return input
+      const first = ctx.events[0]
+      if (first === undefined) return input
 
       const home = homeDirectoryOf({ events: ctx.events, launchDirectory })
       const worktree = activeWorktreeOf(ctx.events)
       const mainCheckout = repoOf({ events: ctx.events, launchRepo: repoRoot ?? null }) ?? home
       const location = currentLocationOf(ctx.events)
-      const note = projectDirectoryNote({ directory: home, worktree, mainCheckout, location })
-
-      return appendedAtTail({
-        input,
-        ctx,
-        text: systemContext({ slot: 'workspace', key: 'directory', content: note }),
+      const note = systemContext({
+        slot: 'workspace',
+        key: 'directory',
+        content: projectDirectoryNote({ directory: home, worktree, mainCheckout, location }),
       })
+
+      const anchor = ctx.events.findLast(movesTheWorkspace)
+      const at = anchor === undefined ? 0 : anchoredAfter({ messages: input.messages, anchor })
+      const message: AssembledMessage = {
+        message: { role: 'user', content: [{ type: 'text', text: note }] },
+        origin: { eventId: (anchor ?? first).id, seq: (anchor ?? first).seq },
+      }
+
+      return {
+        system: input.system,
+        messages: [...input.messages.slice(0, at), message, ...input.messages.slice(at)],
+      }
     },
   })
 }
