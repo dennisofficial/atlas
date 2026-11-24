@@ -109,8 +109,22 @@ describe('pod section header', () => {
   it('spins and disables the power button while the pod comes up or a stop is in flight', () => {
     expect(htmlOf({ state: EPodState.Starting })).toContain('aria-label="Starting pod"')
     expect(htmlOf({ state: EPodState.Starting })).toContain('disabled')
+    expect(htmlOf({ starting: true })).toContain('aria-label="Starting pod"')
+    expect(htmlOf({ starting: true })).toContain('disabled')
     expect(htmlOf({ stopping: true })).toContain('aria-label="Stopping pod"')
     expect(htmlOf({ stopping: true })).toContain('disabled')
+  })
+
+  it('keeps the stop ahead of a start when both are in flight', () => {
+    expect(htmlOf({ starting: true, stopping: true })).toContain('aria-label="Stopping pod"')
+  })
+
+  it('says why the pod did not come up under the header', () => {
+    const html = htmlOf({ message: 'The pod did not report running. Try again.' })
+    expect(html).toContain(
+      '<p class="text-xs text-muted-foreground">The pod did not report running. Try again.</p>',
+    )
+    expect(htmlOf()).not.toContain('Try again.')
   })
 })
 
