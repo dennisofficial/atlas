@@ -1,18 +1,9 @@
 'use client'
 
 import { useCallback } from 'react'
-import {
-  useCloudSettings,
-  type CloudSettings,
-  type SettingChanges,
-  type SettingValues,
-} from '@/lib/cloud-settings'
+import { type SettingChanges, type SettingValues } from '@/lib/cloud-settings'
 import { useSaveAction } from './use-save-action'
 import { useDraft, type Draft } from '../../use-draft'
-
-export function usePersonalSettings(): CloudSettings {
-  return useCloudSettings()
-}
 
 export function useSettingsDraft<TValue>(args: {
   values: SettingValues

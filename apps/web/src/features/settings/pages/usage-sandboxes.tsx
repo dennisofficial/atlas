@@ -17,7 +17,7 @@ import { useSaveAction } from '../data/personal/use-save-action'
 import type { SandboxRow } from '../fixtures/settings-usage-rows'
 import { SettingFieldsEditor } from '../parts/setting-fields-editor'
 import { SANDBOX_FIELDS } from '../fixtures/settings-fields'
-import { usePersonalSettings } from '../data/personal/use-settings-draft'
+import { useCloudSettings } from '@/lib/cloud-settings'
 import { SandboxDiskSection } from '../parts/sandbox-disk-section'
 import { SandboxSizeSection } from '../parts/sandbox-size-section'
 import { UsageSandboxEmpty } from '../parts/usage-sandbox-empty'
@@ -28,7 +28,7 @@ const TITLE = 'Usage: Sandboxes'
 const DESCRIPTION = 'Cloud sandboxes your threads are running on.'
 
 function PersonalSandboxSize() {
-  const settings = usePersonalSettings()
+  const settings = useCloudSettings()
   const { data } = settings.query
   if (data === undefined) return null
   const stored = data.get('sandbox.vcpus')
@@ -45,7 +45,7 @@ function PersonalSandboxSize() {
 }
 
 function PersonalSandboxDisk() {
-  const settings = usePersonalSettings()
+  const settings = useCloudSettings()
   const { data } = settings.query
   if (data === undefined) return null
   const stored = data.get('sandbox.diskGb')
@@ -62,7 +62,7 @@ function PersonalSandboxDisk() {
 }
 
 function SandboxImageField() {
-  const settings = usePersonalSettings()
+  const settings = useCloudSettings()
   if (settings.query.data === undefined) return null
   return (
     <SettingFieldsEditor

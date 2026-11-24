@@ -5,7 +5,7 @@ import { singleResponsibilityPolicy, type QualityPolicyDescriptor } from '@dltec
 import { QueryPage } from '../data/personal/query-boundary'
 import { QualitySkeleton } from '../skeletons/agent-skeletons'
 import { ESettingFieldKind, type SettingField } from '../data/personal/setting-fields'
-import { usePersonalSettings } from '../data/personal/use-settings-draft'
+import { useCloudSettings } from '@/lib/cloud-settings'
 import { QUALITY_FIELDS } from '../fixtures/settings-fields'
 import { SettingFieldsEditor } from '../parts/setting-fields-editor'
 import { SettingsPage } from '../settings-layout'
@@ -27,7 +27,7 @@ const policyField = (policy: QualityPolicyDescriptor): SettingField => ({
 const FIELDS = [...QUALITY_FIELDS, ...POLICIES.map(policyField)]
 
 export function QualityPage() {
-  const settings = usePersonalSettings()
+  const settings = useCloudSettings()
   return (
     <QueryPage
       query={settings.query}

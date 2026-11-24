@@ -8,7 +8,8 @@ import { api, cloudCall } from '@/lib/api-client'
 
 import { QueryPage, QuerySection } from '../data/personal/query-boundary'
 import { useProviderAccounts } from '../data/personal/provider-accounts-query'
-import { useSettingsDraft, usePersonalSettings } from '../data/personal/use-settings-draft'
+import { useCloudSettings } from '@/lib/cloud-settings'
+import { useSettingsDraft } from '../data/personal/use-settings-draft'
 import {
   createApiKeyAccount,
   EAccountKind,
@@ -34,7 +35,7 @@ const DESCRIPTION =
   'One model answers the yes or no questions behind skill suggestion and the Jev code review. It is never your chat model.'
 
 export function ClassifierPage() {
-  const settings = usePersonalSettings()
+  const settings = useCloudSettings()
   const accounts = useProviderAccounts()
   return (
     <QueryPage
