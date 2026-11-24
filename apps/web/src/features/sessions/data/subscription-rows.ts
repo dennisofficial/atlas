@@ -24,7 +24,6 @@ export type SubscriptionRow = {
   id: string
   createdBy: ESubscriptionActor
   target: JsonValue
-  expiresAt?: string
   presentation: SubscriptionPresentation
 }
 
@@ -82,7 +81,6 @@ const rowOf = (args: {
     id: subscription.id,
     createdBy: actorOf(subscription.createdBy),
     target: subscription.target,
-    ...(subscription.expiresAt === null ? {} : { expiresAt: subscription.expiresAt }),
     presentation: withPullRequest({ presentation: presentationOf(subscription), entry }),
   }
 }

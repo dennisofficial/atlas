@@ -53,7 +53,6 @@ export const subscribe = async (args: {
   plane: ControlPlane
   number?: number
   events?: readonly string[]
-  expiresAt?: string | undefined
   threadId?: string
   sessionId?: string
 }) =>
@@ -64,7 +63,6 @@ export const subscribe = async (args: {
     target: { repo: REPO, number: args.number ?? 7 },
     label: `acme/atlas#${args.number ?? 7}`,
     events: args.events ?? [],
-    ...(args.expiresAt === undefined ? {} : { expiresAt: args.expiresAt }),
     lease: pullRequestLease(args.number ?? 7),
     by: ESubscriptionActor.Agent,
   })

@@ -227,7 +227,7 @@ the agent can subscribe to a PR and be told when it moves.
   finder, the subscription machinery, CI watching and the prompt text.
 - **Views:** `subscriptions` (a port of `subscriptionsOf`, `packages/core/src/subscriptions/subscription.ts:39`),
   the first real `pluginViews` entry (§2). `branches` and `pullRequests` stay core views.
-- **Commands/tools:** `subscribe` (provider, target or current-branch PR, optional expiry),
+- **Commands/tools:** `subscribe` (provider, target or current-branch PR),
   `unsubscribe`, `list_subscriptions`. In v1 these are tools
   (`packages/harness/src/tools/builtin/{subscribe,unsubscribe,subscription-list}.ts`); in v2 they
   become pod commands so the control handler can write the lease.
@@ -236,8 +236,8 @@ the agent can subscribe to a PR and be told when it moves.
   prompt fragment, and the PR refresh on turn end. The host keeps the trigger points and calls the
   registered plugin handlers; no host file names GitHub.
 - **Control:** subscribe/unsubscribe transport leases (`GithubSubscription`, living until the
-  subscription completes, is unsubscribed or its session is archived, or until an expiry it names;
-  no heartbeat in v2), the
+  subscription completes, is unsubscribed or its session is archived; the agent names no expiry, and
+  there is no heartbeat in v2), the
   GitHub request budget and repo-access proofs (Redis), PR state reads, the wake of a linked session (one inbox
   `message` per live subscription, deduped and acked by the `GithubPrEventDelivery` row),
   and the PR state join into the view (replacing `postgres-views.ts:74`'s direct dependency on the v1

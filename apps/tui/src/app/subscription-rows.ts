@@ -16,7 +16,7 @@ import {
   type SidebarSection,
   type SidebarSectionRow,
 } from '../ui/sidebar-section'
-import { formatClockTime, theme } from '../ui/theme'
+import { theme } from '../ui/theme'
 import type { PullRequestEntry } from './pull-request'
 
 type Subscription = SessionViewOutput['subscriptions'][number]
@@ -112,10 +112,6 @@ const splitOf = (subscription: Subscription): SidebarRowSplit => {
   const presentation = presentationOf(subscription)
   const actor = actorNameOf(subscription.createdBy)
   const right: Span[] = []
-  if (subscription.expiresAt !== null) {
-    const at = formatClockTime(subscription.expiresAt)
-    if (at !== '') right.push({ text: `expires ${at}`, fg: theme.meta })
-  }
   if (actor !== null)
     right.push({ text: `${right.length === 0 ? '' : ' '}${actor}`, fg: theme.accent })
 
