@@ -2,6 +2,7 @@ import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { afterEach, describe, expect, it } from 'bun:test'
 
 import { seedOwner, sealed } from '../../config/__tests__/config-reader.fixture'
+import { settingsVersionsOf } from '../../control/settings-versions'
 import { mcpOauthGatewayOf } from '../gateway'
 import {
   SERVER_URL,
@@ -38,8 +39,11 @@ const seedGrant = async (args: {
     oauthStatus: 'active',
     oauthServerUrl: SERVER_URL,
     oauthSealed: sealed(args.grant),
+    oauthUpdatedAt: SIGNED_IN_AT,
   })
 }
+
+const SIGNED_IN_AT = new Date('2026-11-01T00:00:00.000Z')
 
 const expiredGrant = () =>
   grantOf({ accessToken: 'at-old', refreshToken: 'rt-old', expiresAt: '2020-01-01T00:00:00.000Z' })
@@ -144,5 +148,38 @@ describe('refresh', () => {
     expect(calls).toEqual([])
     const row = await db.orm.public.McpServer.first({ id: 'srv-posthog' })
     expect(row?.oauthStatus).toBe('expired')
+  })
+
+  it('keeps the sign-in time and the settings version when it rotates the token', async () => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await seedGrant({ db, grant: expiredGrant() })
+    const before = await settingsVersionsOf({ db, threadId: 't-1' })
+    stubFetch((call) =>
+      call.url === TOKEN_ENDPOINT
+        ? json({ access_token: 'at-new', refresh_token: 'rt-new', expires_in: 3600 })
+        : new Response('not found', { status: 404 }),
+    )
+
+    const grant = await gatewayOver(db).refresh(ARGS)
+
+    expect(grant.ok).toBe(true)
+    const row = await db.orm.public.McpServer.first({ id: 'srv-posthog' })
+    expect(row?.oauthGeneration).toBe(1)
+    expect(row?.oauthUpdatedAt).toEqual(SIGNED_IN_AT)
+    expect(await settingsVersionsOf({ db, threadId: 't-1' })).toEqual(before)
+  })
+
+  it('keeps the settings version when the provider is unavailable', async () => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await seedGrant({ db, grant: expiredGrant() })
+    const before = await settingsVersionsOf({ db, threadId: 't-1' })
+    stubFetch(() => new Response('down', { status: 503 }))
+
+    const grant = await gatewayOver(db).refresh(ARGS)
+
+    expect(grant.ok).toBe(false)
+    expect(await settingsVersionsOf({ db, threadId: 't-1' })).toEqual(before)
   })
 })
