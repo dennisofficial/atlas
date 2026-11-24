@@ -1,6 +1,6 @@
 import { seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it } from 'bun:test'
-import { EMemoryScope } from '@dltech/atlas-wire'
+import { EMemoryScope } from '@dltech/atlas-core'
 
 import { MemoryInvalidError, MemoryNotFoundError } from '../errors'
 import { PROJECT, USER_A, USER_B, globalNote, memoryOpsOf } from './fixtures'

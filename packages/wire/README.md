@@ -60,7 +60,7 @@ helpers. The serve process in a pod, `apps/api` and every client read it.
   read.
 - `memoryPutSchema`, `memoryEditSchema`, `memoryKeySchema`: the memory write and edit payloads.
 - `MEMORY_STALE_REVISION_CODE`, `MEMORY_EDIT_NO_MATCH_CODE`, `MEMORY_EDIT_AMBIGUOUS_CODE`: the
-  memory error codes.
+  memory error codes. `@dltech/atlas-core` owns these, and wire re-exports them.
 
 ### Provision a sandbox
 

@@ -5,8 +5,15 @@ import {
   EMemoryType,
   MAX_MEMORY_BODY_CHARS,
   MAX_MEMORY_DESCRIPTION_CHARS,
+  MEMORY_EDIT_AMBIGUOUS_CODE,
+  MEMORY_EDIT_NO_MATCH_CODE,
   MEMORY_NAME_PATTERN,
   MEMORY_PROJECT_PATTERN,
+  MEMORY_STALE_REVISION_CODE,
+  memoryEntrySchema,
+  memorySummarySchema,
+  type MemoryEntry,
+  type MemorySummary,
 } from '@dltech/atlas-core'
 
 export {
@@ -14,27 +21,15 @@ export {
   EMemoryType,
   MAX_MEMORY_BODY_CHARS,
   MAX_MEMORY_DESCRIPTION_CHARS,
+  MEMORY_EDIT_AMBIGUOUS_CODE,
+  MEMORY_EDIT_NO_MATCH_CODE,
   MEMORY_NAME_PATTERN,
   MEMORY_PROJECT_PATTERN,
+  MEMORY_STALE_REVISION_CODE,
+  memoryEntrySchema,
+  memorySummarySchema,
 }
-
-export const MEMORY_STALE_REVISION_CODE = 'memory-stale-revision'
-export const MEMORY_EDIT_NO_MATCH_CODE = 'memory-edit-no-match'
-export const MEMORY_EDIT_AMBIGUOUS_CODE = 'memory-edit-ambiguous'
-
-export const memorySummarySchema = z.object({
-  scope: z.enum(EMemoryScope),
-  project: z.string().nullable(),
-  name: z.string(),
-  description: z.string(),
-  type: z.enum(EMemoryType),
-  revision: z.number().int(),
-  updatedAt: z.string(),
-})
-export type MemorySummary = z.infer<typeof memorySummarySchema>
-
-export const memoryEntrySchema = memorySummarySchema.extend({ body: z.string() })
-export type MemoryEntry = z.infer<typeof memoryEntrySchema>
+export type { MemoryEntry, MemorySummary }
 
 export const memoryListSchema = z.object({ memories: z.array(memorySummarySchema) })
 export type MemoryList = z.infer<typeof memoryListSchema>

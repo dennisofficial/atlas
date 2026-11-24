@@ -1,4 +1,4 @@
-import { MEMORY_STALE_REVISION_CODE } from '@dltech/atlas-wire'
+import { MEMORY_STALE_REVISION_CODE } from '@dltech/atlas-core'
 
 export class MemoryInvalidError extends Error {}
 

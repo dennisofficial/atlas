@@ -734,8 +734,8 @@
       "name": "@dltech/atlas-memory",
       "version": "0.1.0",
       "dependencies": {
+        "@dltech/atlas-core": "workspace:*",
         "@dltech/atlas-db": "workspace:*",
-        "@dltech/atlas-wire": "workspace:*",
       },
       "devDependencies": {
         "@types/bun": "latest",

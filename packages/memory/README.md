@@ -13,7 +13,7 @@ plugin's tools and the web settings page both call it, so a memory has one rule 
 
 ## Does not own
 
-- The wire schemas and the limits. `@dltech/atlas-wire` owns them.
+- The memory record schemas, the error codes and the limits. `@dltech/atlas-core` owns them.
 - The tools the model calls, and the prompt text. `plugins/memory` owns them.
 - The HTTP status codes. `apps/api` owns the mapping.
 
@@ -92,4 +92,4 @@ await editMemory({
 ## See also
 
 - `docs/decisions/0009-memory-is-rows-behind-tools.md` for why memories are rows.
-- `packages/wire/src/memory-wire.ts` for the schemas and the error codes.
+- `packages/core/src/memory/record.ts` for the record schemas and the error codes.
