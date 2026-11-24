@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'974071b9738acba06ec97c43b3b772d4a1d30c3e736601bb053e8bb5156698ae'>;
+  StorageHashBase<'f14deed4b0f53291f5db262e9f79d1b19487fd654b4842787af371390390c4bd'>;
 export type ExecutionHash =
   ExecutionHashBase<'fd19c5954d71f00e27e0c02be3f06b71374f3b34bfb9f582b985590708b7518f'>;
 export type ProfileHash =
@@ -4356,6 +4356,11 @@ type ContractBase = Omit<
                 {
                   readonly name: 'GithubTrackingTarget_repoFullName_branch_idx';
                   readonly columns: readonly ['repoFullName', 'branch'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'GithubTrackingTarget_repoFullName_prNumber_idx';
+                  readonly columns: readonly ['repoFullName', 'prNumber'];
                   readonly unique: false;
                 },
               ];

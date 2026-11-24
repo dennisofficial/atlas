@@ -1,0 +1,46 @@
+[
+  {
+    "id": "index.GithubTrackingTarget.GithubTrackingTarget_repoFullName_prNumber_idx",
+    "label": "Create index \"GithubTrackingTarget_repoFullName_prNumber_idx\" on \"GithubTrackingTarget\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "GithubTrackingTarget_repoFullName_prNumber_idx",
+        "table": "GithubTrackingTarget"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"GithubTrackingTarget_repoFullName_prNumber_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"GithubTrackingTarget_repoFullName_prNumber_idx\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"GithubTrackingTarget_repoFullName_prNumber_idx\"",
+        "sql": "CREATE INDEX \"GithubTrackingTarget_repoFullName_prNumber_idx\" ON \"public\".\"GithubTrackingTarget\" (\"repoFullName\", \"prNumber\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"GithubTrackingTarget_repoFullName_prNumber_idx\" exists on \"GithubTrackingTarget\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"GithubTrackingTarget_repoFullName_prNumber_idx\"",
+          "i",
+          "I",
+          "\"public\".\"GithubTrackingTarget\"",
+          "btree",
+          "[\"repoFullName\",\"prNumber\"]"
+        ]
+      }
+    ]
+  }
+]

@@ -26,4 +26,5 @@ model GithubTrackingTarget {
   @@index([nextDueAt], map: "GithubTrackingTarget_nextDueAt_idx")
   @@index([liveUntil, nextDueAt], map: "GithubTrackingTarget_liveUntil_nextDueAt_idx")
   @@index([repoFullName, branch], map: "GithubTrackingTarget_repoFullName_branch_idx")
+  @@index([repoFullName, prNumber], map: "GithubTrackingTarget_repoFullName_prNumber_idx")
 }

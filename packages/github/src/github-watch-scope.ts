@@ -29,6 +29,10 @@ export type WatchScope = {
  *
  * One statement covers all four tables (and, for a delivery that names only a sha, the pull
  * requests that sha belongs to), because this is the statement every webhook delivery pays for.
+ * Each table is one arm per delivery key, probed by a lateral `LIMIT 1` from the delivery's own
+ * pulls and heads, so every probe rides a repo index and `liveUntil` stays a filter on the few rows
+ * that key returns. Folding the arms back into one `OR` over a `liveUntil` range reads every live
+ * row on every delivery.
  */
 export async function inWatchScope(scope: WatchScope): Promise<boolean> {
   const prNumbers = [
@@ -38,12 +42,15 @@ export async function inWatchScope(scope: WatchScope): Promise<boolean> {
   const headSha = scope.headSha ?? ''
   if (prNumbers.length === 0 && heads.length === 0 && headSha === '') return true
 
+  const repoFullName = normalizedRepo(scope.repoFullName)
+  const now = new Date().toISOString()
+
   const rows = await db.query(
     db.raw.sql`WITH pulls AS (
         SELECT pull."prNumber"::int AS "prNumber" FROM jsonb_array_elements_text(${JSON.stringify(prNumbers)}::jsonb) AS pull("prNumber")
         UNION
         SELECT state."prNumber" FROM "GithubPrState" AS state
-        WHERE state."repoFullName" = ${normalizedRepo(scope.repoFullName)}
+        WHERE state."repoFullName" = ${repoFullName}
           AND state."headSha" = ${headSha}
           AND ${headSha} <> ''
       ), heads AS (
@@ -51,37 +58,45 @@ export async function inWatchScope(scope: WatchScope): Promise<boolean> {
         FROM jsonb_to_recordset(${JSON.stringify(heads.map((head) => ({ repoFullName: normalizedRepo(head.repoFullName), branch: head.branch })))}::jsonb) AS head("repoFullName" text, "branch" text)
       )
       SELECT EXISTS (
-        SELECT 1 FROM "GithubSubscription" AS watched
-        WHERE watched."liveUntil" > ${new Date().toISOString()}::timestamptz
-          AND (
-            (watched."repoFullName" = ${normalizedRepo(scope.repoFullName)}
-              AND watched."prNumber" IN (SELECT "prNumber" FROM pulls))
-            OR EXISTS (
-              SELECT 1 FROM heads
-              WHERE heads."repoFullName" = watched."repoFullName" AND heads."branch" = watched."branch"
-            )
-          )
+        SELECT 1 FROM pulls, LATERAL (
+          SELECT 1 FROM "GithubSubscription" AS watched
+          WHERE watched."repoFullName" = ${repoFullName} AND watched."prNumber" = pulls."prNumber"
+            AND watched."liveUntil" > ${now}::timestamptz
+          LIMIT 1
+        ) AS hit
         UNION ALL
-        SELECT 1 FROM "GithubTrackingTarget" AS watched
-        WHERE watched."liveUntil" > ${new Date().toISOString()}::timestamptz
-          AND (
-            (watched."repoFullName" = ${normalizedRepo(scope.repoFullName)}
-              AND watched."prNumber" IN (SELECT "prNumber" FROM pulls))
-            OR EXISTS (
-              SELECT 1 FROM heads
-              WHERE heads."repoFullName" = watched."repoFullName" AND heads."branch" = watched."branch"
-            )
-          )
+        SELECT 1 FROM heads, LATERAL (
+          SELECT 1 FROM "GithubSubscription" AS watched
+          WHERE watched."repoFullName" = heads."repoFullName" AND watched."branch" = heads."branch"
+            AND watched."liveUntil" > ${now}::timestamptz
+          LIMIT 1
+        ) AS hit
         UNION ALL
-        SELECT 1 FROM "v2"."V2SessionPullRequest" AS tracked
-        WHERE tracked."repoFullName" = ${normalizedRepo(scope.repoFullName)}
-          AND tracked."prNumber" IN (SELECT "prNumber" FROM pulls)
+        SELECT 1 FROM pulls, LATERAL (
+          SELECT 1 FROM "GithubTrackingTarget" AS watched
+          WHERE watched."repoFullName" = ${repoFullName} AND watched."prNumber" = pulls."prNumber"
+            AND watched."liveUntil" > ${now}::timestamptz
+          LIMIT 1
+        ) AS hit
         UNION ALL
-        SELECT 1 FROM "v2"."V2SessionBranch" AS tracked
-        WHERE EXISTS (
-          SELECT 1 FROM heads
-          WHERE heads."repoFullName" = tracked."headRepo" AND heads."branch" = tracked."branch"
-        )
+        SELECT 1 FROM heads, LATERAL (
+          SELECT 1 FROM "GithubTrackingTarget" AS watched
+          WHERE watched."repoFullName" = heads."repoFullName" AND watched."branch" = heads."branch"
+            AND watched."liveUntil" > ${now}::timestamptz
+          LIMIT 1
+        ) AS hit
+        UNION ALL
+        SELECT 1 FROM pulls, LATERAL (
+          SELECT 1 FROM "v2"."V2SessionPullRequest" AS tracked
+          WHERE tracked."repoFullName" = ${repoFullName} AND tracked."prNumber" = pulls."prNumber"
+          LIMIT 1
+        ) AS hit
+        UNION ALL
+        SELECT 1 FROM heads, LATERAL (
+          SELECT 1 FROM "v2"."V2SessionBranch" AS tracked
+          WHERE tracked."headRepo" = heads."repoFullName" AND tracked."branch" = heads."branch"
+          LIMIT 1
+        ) AS hit
       ) AS "watched"`
       .returnsRow({ watched: 'pg/bool@1' })
       .build(),
