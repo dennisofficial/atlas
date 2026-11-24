@@ -320,8 +320,8 @@
     ],
     "maxOutputTokens": 393216,
     "cost": {
-      "inputPerMillion": 0.3,
-      "outputPerMillion": 1
+      "inputPerMillion": 0.103,
+      "outputPerMillion": 0.6
     },
     "effort": {
       "off": "none",
@@ -345,8 +345,8 @@
     ],
     "maxOutputTokens": 393216,
     "cost": {
-      "inputPerMillion": 0.3,
-      "outputPerMillion": 1
+      "inputPerMillion": 0.08,
+      "outputPerMillion": 0.666
     },
     "effort": {
       "off": "none",
@@ -389,8 +389,8 @@
     ],
     "maxOutputTokens": 393216,
     "cost": {
-      "inputPerMillion": 0.285,
-      "outputPerMillion": 0.95
+      "inputPerMillion": 0.09785,
+      "outputPerMillion": 0.57
     },
     "effort": {
       "off": "none",
@@ -759,7 +759,7 @@
     ],
     "maxOutputTokens": 943718,
     "cost": {
-      "inputPerMillion": 0.9,
+      "inputPerMillion": 0.084,
       "outputPerMillion": 3
     },
     "effort": {
@@ -785,7 +785,7 @@
     "maxOutputTokens": 262144,
     "cost": {
       "inputPerMillion": 0.1,
-      "outputPerMillion": 0.45
+      "outputPerMillion": 0.35
     },
     "effort": {
       "low": "low",
@@ -807,7 +807,7 @@
     ],
     "maxOutputTokens": 943718,
     "cost": {
-      "inputPerMillion": 0.855,
+      "inputPerMillion": 0.0798,
       "outputPerMillion": 2.85
     },
     "effort": {
@@ -1440,7 +1440,7 @@
     ],
     "maxOutputTokens": 1048576,
     "cost": {
-      "inputPerMillion": 3,
+      "inputPerMillion": 0.245,
       "outputPerMillion": 15
     },
     "effort": {
@@ -1465,8 +1465,8 @@
     ],
     "maxOutputTokens": 1048576,
     "cost": {
-      "inputPerMillion": 4.5,
-      "outputPerMillion": 22.5
+      "inputPerMillion": 0.45,
+      "outputPerMillion": 18
     },
     "effort": {
       "off": "none",
@@ -1490,8 +1490,8 @@
     ],
     "maxOutputTokens": 1048576,
     "cost": {
-      "inputPerMillion": 2,
-      "outputPerMillion": 10
+      "inputPerMillion": 1.8,
+      "outputPerMillion": 9
     },
     "effort": {
       "off": "none",
@@ -1515,8 +1515,8 @@
     ],
     "maxOutputTokens": 1048576,
     "cost": {
-      "inputPerMillion": 3,
-      "outputPerMillion": 15
+      "inputPerMillion": 2.7,
+      "outputPerMillion": 13.5
     },
     "effort": {
       "off": "none",
@@ -1540,8 +1540,8 @@
     ],
     "maxOutputTokens": 1048576,
     "cost": {
-      "inputPerMillion": 1.6,
-      "outputPerMillion": 8
+      "inputPerMillion": 1.44,
+      "outputPerMillion": 7.2
     },
     "effort": {
       "off": "none",

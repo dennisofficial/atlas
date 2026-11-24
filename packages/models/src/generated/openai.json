@@ -2,256 +2,6 @@
   {
     "ref": {
       "providerId": "openai",
-      "modelId": "gpt-4.1"
-    },
-    "label": "GPT-4.1",
-    "api": "openai-responses",
-    "contextWindow": 1047576,
-    "imageTier": "standard",
-    "inputModalities": [
-      "text",
-      "image",
-      "pdf"
-    ],
-    "maxOutputTokens": 32768,
-    "cost": {
-      "inputPerMillion": 2,
-      "outputPerMillion": 8,
-      "cacheReadPerMillion": 0.5
-    }
-  },
-  {
-    "ref": {
-      "providerId": "openai",
-      "modelId": "gpt-4.1-mini"
-    },
-    "label": "GPT-4.1 mini",
-    "api": "openai-responses",
-    "contextWindow": 1047576,
-    "imageTier": "standard",
-    "inputModalities": [
-      "text",
-      "image",
-      "pdf"
-    ],
-    "maxOutputTokens": 32768,
-    "cost": {
-      "inputPerMillion": 0.4,
-      "outputPerMillion": 1.6,
-      "cacheReadPerMillion": 0.1
-    }
-  },
-  {
-    "ref": {
-      "providerId": "openai",
-      "modelId": "gpt-4o"
-    },
-    "label": "GPT-4o",
-    "api": "openai-responses",
-    "contextWindow": 128000,
-    "imageTier": "standard",
-    "inputModalities": [
-      "text",
-      "image",
-      "pdf"
-    ],
-    "maxOutputTokens": 16384,
-    "cost": {
-      "inputPerMillion": 2.5,
-      "outputPerMillion": 10,
-      "cacheReadPerMillion": 1.25
-    }
-  },
-  {
-    "ref": {
-      "providerId": "openai",
-      "modelId": "gpt-4o-2024-08-06"
-    },
-    "label": "GPT-4o (2024-08-06)",
-    "api": "openai-responses",
-    "contextWindow": 128000,
-    "imageTier": "standard",
-    "inputModalities": [
-      "text",
-      "image"
-    ],
-    "maxOutputTokens": 16384,
-    "cost": {
-      "inputPerMillion": 2.5,
-      "outputPerMillion": 10,
-      "cacheReadPerMillion": 1.25
-    }
-  },
-  {
-    "ref": {
-      "providerId": "openai",
-      "modelId": "gpt-4o-2024-11-20"
-    },
-    "label": "GPT-4o (2024-11-20)",
-    "api": "openai-responses",
-    "contextWindow": 128000,
-    "imageTier": "standard",
-    "inputModalities": [
-      "text",
-      "image"
-    ],
-    "maxOutputTokens": 16384,
-    "cost": {
-      "inputPerMillion": 2.5,
-      "outputPerMillion": 10,
-      "cacheReadPerMillion": 1.25
-    }
-  },
-  {
-    "ref": {
-      "providerId": "openai",
-      "modelId": "gpt-4o-mini"
-    },
-    "label": "GPT-4o mini",
-    "api": "openai-responses",
-    "contextWindow": 128000,
-    "imageTier": "standard",
-    "inputModalities": [
-      "text",
-      "image",
-      "pdf"
-    ],
-    "maxOutputTokens": 16384,
-    "cost": {
-      "inputPerMillion": 0.15,
-      "outputPerMillion": 0.6,
-      "cacheReadPerMillion": 0.075
-    }
-  },
-  {
-    "ref": {
-      "providerId": "openai",
-      "modelId": "gpt-5"
-    },
-    "label": "GPT-5",
-    "api": "openai-responses",
-    "contextWindow": 400000,
-    "imageTier": "standard",
-    "inputModalities": [
-      "text",
-      "image"
-    ],
-    "maxOutputTokens": 128000,
-    "cost": {
-      "inputPerMillion": 1.25,
-      "outputPerMillion": 10,
-      "cacheReadPerMillion": 0.125
-    },
-    "effort": {
-      "minimal": "minimal",
-      "low": "low",
-      "medium": "medium",
-      "high": "high"
-    }
-  },
-  {
-    "ref": {
-      "providerId": "openai",
-      "modelId": "gpt-5-mini"
-    },
-    "label": "GPT-5 Mini",
-    "api": "openai-responses",
-    "contextWindow": 400000,
-    "imageTier": "standard",
-    "inputModalities": [
-      "text",
-      "image"
-    ],
-    "maxOutputTokens": 128000,
-    "cost": {
-      "inputPerMillion": 0.25,
-      "outputPerMillion": 2,
-      "cacheReadPerMillion": 0.025
-    },
-    "effort": {
-      "minimal": "minimal",
-      "low": "low",
-      "medium": "medium",
-      "high": "high"
-    }
-  },
-  {
-    "ref": {
-      "providerId": "openai",
-      "modelId": "gpt-5-nano"
-    },
-    "label": "GPT-5 Nano",
-    "api": "openai-responses",
-    "contextWindow": 400000,
-    "imageTier": "standard",
-    "inputModalities": [
-      "text",
-      "image"
-    ],
-    "maxOutputTokens": 128000,
-    "cost": {
-      "inputPerMillion": 0.05,
-      "outputPerMillion": 0.4,
-      "cacheReadPerMillion": 0.005
-    },
-    "effort": {
-      "minimal": "minimal",
-      "low": "low",
-      "medium": "medium",
-      "high": "high"
-    }
-  },
-  {
-    "ref": {
-      "providerId": "openai",
-      "modelId": "gpt-5-pro"
-    },
-    "label": "GPT-5 Pro",
-    "api": "openai-responses",
-    "contextWindow": 400000,
-    "imageTier": "standard",
-    "inputModalities": [
-      "text",
-      "image"
-    ],
-    "maxOutputTokens": 272000,
-    "cost": {
-      "inputPerMillion": 15,
-      "outputPerMillion": 120
-    },
-    "effort": {
-      "high": "high"
-    }
-  },
-  {
-    "ref": {
-      "providerId": "openai",
-      "modelId": "gpt-5.1"
-    },
-    "label": "GPT-5.1",
-    "api": "openai-responses",
-    "contextWindow": 400000,
-    "imageTier": "standard",
-    "inputModalities": [
-      "text",
-      "image"
-    ],
-    "maxOutputTokens": 128000,
-    "cost": {
-      "inputPerMillion": 1.25,
-      "outputPerMillion": 10,
-      "cacheReadPerMillion": 0.125
-    },
-    "effort": {
-      "off": "none",
-      "low": "low",
-      "medium": "medium",
-      "high": "high"
-    }
-  },
-  {
-    "ref": {
-      "providerId": "openai",
       "modelId": "gpt-5.2"
     },
     "label": "GPT-5.2",
@@ -303,62 +53,6 @@
   {
     "ref": {
       "providerId": "openai",
-      "modelId": "gpt-5.3-codex"
-    },
-    "label": "GPT-5.3 Codex",
-    "api": "openai-responses",
-    "contextWindow": 400000,
-    "imageTier": "standard",
-    "inputModalities": [
-      "text",
-      "image",
-      "pdf"
-    ],
-    "maxOutputTokens": 128000,
-    "cost": {
-      "inputPerMillion": 1.75,
-      "outputPerMillion": 14,
-      "cacheReadPerMillion": 0.175
-    },
-    "effort": {
-      "off": "none",
-      "low": "low",
-      "medium": "medium",
-      "high": "high",
-      "xhigh": "xhigh"
-    }
-  },
-  {
-    "ref": {
-      "providerId": "openai",
-      "modelId": "gpt-5.3-codex-spark"
-    },
-    "label": "GPT-5.3 Codex Spark",
-    "api": "openai-responses",
-    "contextWindow": 128000,
-    "imageTier": "standard",
-    "inputModalities": [
-      "text",
-      "image",
-      "pdf"
-    ],
-    "maxOutputTokens": 32000,
-    "cost": {
-      "inputPerMillion": 1.75,
-      "outputPerMillion": 14,
-      "cacheReadPerMillion": 0.175
-    },
-    "effort": {
-      "off": "none",
-      "low": "low",
-      "medium": "medium",
-      "high": "high",
-      "xhigh": "xhigh"
-    }
-  },
-  {
-    "ref": {
-      "providerId": "openai",
       "modelId": "gpt-5.4"
     },
     "label": "GPT-5.4",
@@ -402,33 +96,6 @@
       "inputPerMillion": 0.75,
       "outputPerMillion": 4.5,
       "cacheReadPerMillion": 0.075
-    },
-    "effort": {
-      "off": "none",
-      "low": "low",
-      "medium": "medium",
-      "high": "high",
-      "xhigh": "xhigh"
-    }
-  },
-  {
-    "ref": {
-      "providerId": "openai",
-      "modelId": "gpt-5.4-nano"
-    },
-    "label": "GPT-5.4 nano",
-    "api": "openai-responses",
-    "contextWindow": 400000,
-    "imageTier": "standard",
-    "inputModalities": [
-      "text",
-      "image"
-    ],
-    "maxOutputTokens": 128000,
-    "cost": {
-      "inputPerMillion": 0.2,
-      "outputPerMillion": 1.25,
-      "cacheReadPerMillion": 0.02
     },
     "effort": {
       "off": "none",
@@ -786,6 +453,64 @@
   {
     "ref": {
       "providerId": "openai",
+      "modelId": "gpt-6.2-astra"
+    },
+    "label": "GPT-6.2 Astra",
+    "api": "openai-responses",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 8,
+      "outputPerMillion": 40,
+      "cacheReadPerMillion": 0.4,
+      "cacheWritePerMillion": 10
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "openai",
+      "modelId": "gpt-6.2-sol"
+    },
+    "label": "GPT-6.2 Sol",
+    "api": "openai-responses",
+    "contextWindow": 1050000,
+    "imageTier": "standard",
+    "inputModalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
+    "maxOutputTokens": 128000,
+    "cost": {
+      "inputPerMillion": 2,
+      "outputPerMillion": 10,
+      "cacheReadPerMillion": 0.1,
+      "cacheWritePerMillion": 2.5
+    },
+    "effort": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "xhigh": "xhigh",
+      "max": "max"
+    }
+  },
+  {
+    "ref": {
+      "providerId": "openai",
       "modelId": "gpt-daybreak-blue-latest"
     },
     "label": "Daybreak Blue",
@@ -840,84 +565,6 @@
       "high": "high",
       "xhigh": "xhigh",
       "max": "max"
-    }
-  },
-  {
-    "ref": {
-      "providerId": "openai",
-      "modelId": "gpt-realtime-2.1"
-    },
-    "label": "GPT-Realtime-2.1",
-    "api": "openai-responses",
-    "contextWindow": 128000,
-    "imageTier": "standard",
-    "inputModalities": [
-      "text",
-      "audio",
-      "image"
-    ],
-    "maxOutputTokens": 32000,
-    "cost": {
-      "inputPerMillion": 4,
-      "outputPerMillion": 24,
-      "cacheReadPerMillion": 0.4
-    },
-    "effort": {
-      "minimal": "minimal",
-      "low": "low",
-      "medium": "medium",
-      "high": "high",
-      "xhigh": "xhigh"
-    }
-  },
-  {
-    "ref": {
-      "providerId": "openai",
-      "modelId": "o3"
-    },
-    "label": "o3",
-    "api": "openai-responses",
-    "contextWindow": 200000,
-    "imageTier": "standard",
-    "inputModalities": [
-      "text",
-      "image",
-      "pdf"
-    ],
-    "maxOutputTokens": 100000,
-    "cost": {
-      "inputPerMillion": 2,
-      "outputPerMillion": 8,
-      "cacheReadPerMillion": 0.5
-    },
-    "effort": {
-      "low": "low",
-      "medium": "medium",
-      "high": "high"
-    }
-  },
-  {
-    "ref": {
-      "providerId": "openai",
-      "modelId": "o3-pro"
-    },
-    "label": "o3-pro",
-    "api": "openai-responses",
-    "contextWindow": 200000,
-    "imageTier": "standard",
-    "inputModalities": [
-      "text",
-      "image"
-    ],
-    "maxOutputTokens": 100000,
-    "cost": {
-      "inputPerMillion": 20,
-      "outputPerMillion": 80
-    },
-    "effort": {
-      "low": "low",
-      "medium": "medium",
-      "high": "high"
     }
   }
 ]
