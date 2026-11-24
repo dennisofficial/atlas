@@ -13,7 +13,8 @@ plugin's tools and the web settings page both call it, so a memory has one rule 
 
 ## Does not own
 
-- The memory record schemas, the error codes and the limits. `@dltech/atlas-core` owns them.
+- The memory record schemas, the error codes and the limits. `@dltech/atlas-core` owns them, and it
+  declares `MemorySummary` and `MemoryEntry`, which every read returns.
 - The tools the model calls, and the prompt text. `plugins/memory` owns them.
 - The HTTP status codes. `apps/api` owns the mapping.
 

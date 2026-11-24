@@ -15,6 +15,12 @@
 - `packages/pods`: `@dltech/atlas-pods/sandbox/sandbox-provider` resolves through the `./*` export.
 - `packages/db`: `.agents/skills/prisma-8/SKILL.md` is relative to `packages/db/`.
 
+- `packages/pods`: the six-hour grace both sweeps measure from `archivedAt` still holds after #2722 (archive sleeps at once).
+- `plugins/crew`: "names its group size" counts the step's `agent_spawn` calls (`src/pod/spawn-group.ts:18-22`).
+- `plugins/services`: "one for each port" is the newest row per port (`src/client/index.ts:59-69`).
+- `packages/notifications`: presence TTL 90 s (`packages/core/src/notify/presence.ts:5`).
+- `packages/memory`: "the edit path checks it" is right; only `editMemory` checks the body limit (`src/memories.ts:187`).
+
 ## Runs
 
 ### 2026-11-23
@@ -23,3 +29,10 @@
 - Corrected 30 READMEs. Most fixes: names that no longer exist (`GithubEventFilter`, `GithubPrStreamRouter`, `graphOf`), usage examples that did not compile, and omitted public exports.
 - `/rotate` added to `commands/README.md`. Pod-call routing and read holds added to `packages/host/README.md`.
 - Possible bugs: `plugins/github` `SUBSCRIPTIONS_VIEW` has no registration; `plugins/memory` description limits 200 and 300 disagree.
+
+### 2026-11-24
+
+- Window: 26 h. 31 changed READMEs. Rotation: `packages/models`, `packages/notifications`.
+- Corrected 27 READMEs. Most fixes: omitted public exports, three usage examples that did not compile (previews, quality, protocol) and one that cited a deleted file (observability).
+- Removed names that no longer exist or are not exported: `CONTEXT_MIRROR_MAX_BYTES`, `ContextMirror`, `describeControlPlaneContextFiles`, `buildRoutineGraph`.
+- Possible bugs: `plugins/github` `SUBSCRIPTIONS_VIEW` still unregistered; `operator.input` fragment reaches sub-agents that cannot call the tool; `composePodCommands` returns no commands without `ctx`.

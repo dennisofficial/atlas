@@ -22,12 +22,12 @@ thread. The API composes it as the `images` plugin.
 
 ## Entry points
 
-| Import                                | Use it for                                                    |
-| ------------------------------------- | ------------------------------------------------------------- |
-| `@dltech/atlas-plugin-images/core`    | `imagesCoreSlots`: no events, views or commands.              |
-| `@dltech/atlas-plugin-images/pod`     | `imagesPod`: the tool, and the gateway helpers `generate.ts`. |
-| `@dltech/atlas-plugin-images/control` | `imagesControl`, an empty control slot.                       |
-| `@dltech/atlas-plugin-images/client`  | `imagesClient`, an empty client slot.                         |
+| Import                                | Use it for                                                                                            |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `@dltech/atlas-plugin-images/core`    | `imagesCoreSlots`: no events, views or commands.                                                      |
+| `@dltech/atlas-plugin-images/pod`     | `imagesPod`: the tool, and the gateway helpers `generateWithGateway`, `routeOf` and `zdrImageModels`. |
+| `@dltech/atlas-plugin-images/control` | `imagesControl`, an empty control slot.                                                               |
+| `@dltech/atlas-plugin-images/client`  | `imagesClient`, an empty client slot.                                                                 |
 
 ## Capabilities
 
@@ -41,6 +41,7 @@ thread. The API composes it as the `images` plugin.
 
 ### Find the models that support Zero Data Retention
 
+- `isZeroDataRetention(reason)`: says whether a gateway reason names Zero Data Retention.
 - `zdrImageModelsIn(payload)`: the image model ids the gateway lists with `zdr` other than `none`.
 - `zdrImageModels(signal)`: reads `GATEWAY_MODELS_URL`, and answers `ZDR_FALLBACK_MODELS` when the
   lookup fails.
