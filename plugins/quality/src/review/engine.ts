@@ -1,14 +1,15 @@
 import {
   EQualitySkipReason,
-  foldQualityFindings,
   type EQualityLanguage,
   type CapturedFileChange,
   type ClassifierPort,
   type CodeQualityReviewedBody,
   type QualityCoverageDiagnostic,
   type QualityFinding,
-  type QualityRegistry,
 } from '@dltech/atlas-core'
+
+import { foldQualityFindings } from './ledger'
+import type { QualityRegistry } from './registry'
 
 import { reviewChange } from './change-review'
 import { skipItem } from './coverage-records'

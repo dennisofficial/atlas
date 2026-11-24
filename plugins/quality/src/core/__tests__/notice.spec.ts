@@ -19,7 +19,7 @@ import {
   qualityNoticeLine,
   qualityNoticeOf,
   type QualityNotice,
-} from '../quality-notice'
+} from '../notice'
 
 const review = (overrides: Partial<CodeQualityReviewedBody> = {}): CodeQualityReviewedBody => ({
   type: 'code-quality-reviewed',

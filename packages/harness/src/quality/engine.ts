@@ -2,7 +2,6 @@ import {
   EQualityReviewStatus,
   EQualitySkipReason,
   QualityReviewPort,
-  foldQualityFindings,
   type CallId,
   type CapturedFileChange,
   type CodeQualityReviewedBody,
@@ -11,7 +10,6 @@ import {
   type QualityCoverageDiagnostic,
   type QualityFinding,
   type QualityPolicy,
-  type QualityRegistry,
   type QualityScope,
   type RunId,
   type ToolCall,
@@ -19,6 +17,8 @@ import {
   type Event,
 } from '@dltech/atlas-core'
 
+import { foldQualityFindings } from './core-logic/ledger'
+import type { QualityRegistry } from './core-logic/registry'
 import { createQualityBudget, deadlineErrorOf } from './deadline'
 import { recordingFaultItem, retirementItem, skipItem } from './coverage-records'
 import { createQualityAssessmentCache, type QualityAssessmentCache } from './evaluation-cache'

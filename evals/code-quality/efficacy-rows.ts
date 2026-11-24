@@ -1,9 +1,5 @@
-import {
-  applyAssessments,
-  EQualityReviewStatus,
-  singleResponsibilityPolicy,
-  type QualityAssessment,
-} from '@dltech/atlas-core'
+import { EQualityReviewStatus, type QualityAssessment } from '@dltech/atlas-core'
+import { applyAssessments, singleResponsibilityPolicy } from '@dltech/atlas-plugin-quality/review'
 
 import { ERowStatus, type ResultRow } from '../src/results'
 import type { PlannedRow } from '../src/run-plan'

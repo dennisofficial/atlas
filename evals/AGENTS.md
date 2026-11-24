@@ -34,7 +34,7 @@ bun run --cwd evals eval:compare --baseline <run-dir> --candidate <run-dir>
 bun run --cwd evals eval:efficacy --run <run-dir> --dataset <manifest> --judgments <judgments.jsonl> --output-dir <new-report-dir>
 ```
 
-- The model defaults to the exported `JEV_QUALITY_MODEL` from `@dltech/atlas-core`. A `--model`
+- The model defaults to the exported `JEV_QUALITY_MODEL` from `@dltech/atlas-plugin-quality/review`. A `--model`
   argument with any other value marks the run not promotable.
 - Live mode additionally requires `ATLAS_EVAL_DECISIONS_URL`, and optionally
   `ATLAS_EVAL_DECISIONS_TOKEN`. Missing endpoint configuration is a config error, never an implicit

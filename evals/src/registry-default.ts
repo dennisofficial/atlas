@@ -1,4 +1,4 @@
-import { JEV_QUALITY_MODEL } from '@dltech/atlas-core'
+import { JEV_QUALITY_MODEL } from '@dltech/atlas-plugin-quality/review'
 
 import { createFeatureRegistry } from './feature-registry'
 import { ERunMode } from './results'

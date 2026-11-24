@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'bun:test'
 
-import { singleResponsibilityPolicy, type QualityScope } from '@dltech/atlas-core'
+import type { QualityScope } from '@dltech/atlas-core'
+
+import { singleResponsibilityPolicy } from '../../policies'
 
 import {
   MAX_STATE_AND_ALL_QUESTIONS_BYTES,

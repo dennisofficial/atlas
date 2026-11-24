@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'bun:test'
 
-import { activeFindings, applyAssessments, findingId, foldQualityFindings } from '../ledger'
 import {
   EQualityFindingState,
   EQualityReviewStatus,
   EQualityTransition,
   type QualityFinding,
-} from '../policy'
-import { assessmentFixture, reviewFixture, scopeFixture } from './fixtures'
+} from '@dltech/atlas-core'
+
+import { activeFindings, applyAssessments, findingId, foldQualityFindings } from '../ledger'
+import { assessmentFixture, reviewFixture, scopeFixture } from './logic-fixtures'
 
 const finding = (overrides: Partial<QualityFinding> = {}): QualityFinding => ({
   id: findingId({ policyId: 'srp', scopeId: 'scope-1', episode: 1 }),

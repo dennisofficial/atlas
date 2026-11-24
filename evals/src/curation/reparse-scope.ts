@@ -1,6 +1,6 @@
 import { EQualityScopeKind } from '@dltech/atlas-core'
 
-import { parseQualitySource } from '../../../packages/harness/src/quality/source/typescript-parser'
+import { parseQualitySource } from '@dltech/atlas-plugin-quality/review'
 import type { ExportedScope } from './exported-example'
 
 const METHOD_HOST = 'class ReparseHost {\n'

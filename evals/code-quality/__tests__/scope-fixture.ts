@@ -6,7 +6,7 @@ import {
   PROJECT_DIRECTORY,
   WORKSPACE_NAMESPACE,
 } from '../../__fixtures__/curation'
-import { prepareQualityScopes } from '../../../packages/harness/src/quality/source/scope-adapter'
+import { prepareQualityScopes } from '@dltech/atlas-plugin-quality/review'
 import { EQualityScopeKind } from '@dltech/atlas-core'
 
 export function scopeFixture(): QualityScope {

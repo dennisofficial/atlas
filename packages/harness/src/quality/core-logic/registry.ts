@@ -1,4 +1,8 @@
-import { QualityContractError, type QualityPolicy, type QualityPolicyDescriptor } from './policy'
+import {
+  QualityContractError,
+  type QualityPolicy,
+  type QualityPolicyDescriptor,
+} from '@dltech/atlas-core'
 
 export type QualityRegistry = {
   descriptors(): readonly QualityPolicyDescriptor[]

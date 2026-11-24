@@ -1,12 +1,12 @@
 import {
   EQualityReviewStatus,
   EQualitySkipReason,
-  applyAssessments,
   type CallId,
   type QualityFinding,
   type QualityScope,
 } from '@dltech/atlas-core'
 
+import { applyAssessments } from './core-logic/ledger'
 import { buildRecord, type ReviewItem } from './review-records'
 
 type CoverageBase = { callId: CallId; workspaceNamespace: string; durationMs: number }

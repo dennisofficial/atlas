@@ -4,12 +4,13 @@ import {
   EQualityImpact,
   EQualityReviewStatus,
   EQualityTransition,
-  JEV_QUALITY_MODEL,
-  prepareQualityRequest,
   type DecisionOutcome,
 } from '@dltech/atlas-core'
-
-import { singleResponsibilityPolicy } from '../../../packages/core/src/quality/policies/single-responsibility'
+import {
+  JEV_QUALITY_MODEL,
+  prepareQualityRequest,
+  singleResponsibilityPolicy,
+} from '@dltech/atlas-plugin-quality/review'
 import { createFakeTransport } from '../../__fixtures__/fake-transport'
 import { fakeSrpPolicy } from '../../__fixtures__/fake-srp-policy'
 import { ERunMode } from '../../src/results'

@@ -1,7 +1,7 @@
 import { access, readFile } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 
-import { renderScopeDiff } from '../../../packages/harness/src/quality/source/scope-diff'
+import { renderScopeDiff } from '@dltech/atlas-plugin-quality/review'
 import { writeFileAtomic, writeJsonAtomic } from '../atomic'
 import { sha256Hex } from '../hash'
 import {

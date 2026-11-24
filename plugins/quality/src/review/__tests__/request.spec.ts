@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'bun:test'
 
-import type { DecisionQuestion } from '../../ports/decision.port'
-import { JEV_MODEL } from '../../policy/classifier/jev'
 import {
   EQualityImpact,
   EQualityReviewStatus,
   EQualityTransition,
+  JEV_MODEL,
   QualityContractError,
-} from '../policy'
+  type DecisionQuestion,
+} from '@dltech/atlas-core'
 import { interpretQualityResponse, JEV_QUALITY_MODEL, prepareQualityRequest } from '../request'
-import { policyFixture, scopeFixture } from './fixtures'
+import { policyFixture, scopeFixture } from './logic-fixtures'
 
 const scope = scopeFixture()
 

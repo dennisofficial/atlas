@@ -2,10 +2,10 @@ import {
   EQualityFindingState,
   EQualityReviewStatus,
   EQualityTransition,
+  type CodeQualityReviewedBody,
   type QualityAssessment,
   type QualityFinding,
-} from './policy'
-import type { CodeQualityReviewedBody } from './schema'
+} from '@dltech/atlas-core'
 
 export type QualityFindingKey = { policyId: string; scopeId: string }
 

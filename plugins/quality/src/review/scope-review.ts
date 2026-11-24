@@ -1,8 +1,6 @@
 import {
   EQualityReviewStatus,
   EQualitySkipReason,
-  applyAssessments,
-  interpretQualityResponse,
   type CallId,
   type ClassifierPort,
   type ClassifierQuestion,
@@ -11,6 +9,9 @@ import {
   type QualityFinding,
   type QualityScope,
 } from '@dltech/atlas-core'
+
+import { applyAssessments } from './ledger'
+import { interpretQualityResponse } from './request'
 
 import { deadlineErrorOf, settleUnderBudget, type QualityDeadlineError } from './deadline'
 import { buildRecord, type NotifiableEntry, type ReviewItem } from './review-records'

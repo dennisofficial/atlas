@@ -2,11 +2,10 @@ import {
   EQualityImpact,
   EQualityLanguage,
   EQualityScopeKind,
-  JEV_QUALITY_MODEL,
-  singleResponsibilityPolicy,
   type QualityAssessment,
   type QualityScope,
 } from '@dltech/atlas-core'
+import { JEV_QUALITY_MODEL, singleResponsibilityPolicy } from '@dltech/atlas-plugin-quality/review'
 
 import { ECaseReviewState, EVAL_CASE_SCHEMA_VERSION, type EvalCase } from '../../src/case'
 import { ERowStatus, type ResultRow } from '../../src/results'

@@ -33,8 +33,8 @@ version, and runs BOTH the baseline and the candidate again.
   needs a supplied focus candidate >= 0.8. Without that candidate the finding is tracked debt, and no nudge is sent.
 - Resolution: concern <= 0.2 AND a confident resolved, improved or unchanged verdict (>= 0.8). A band between the two
   never resolves or reopens a finding.
-- The policy thresholds live in `packages/core/src/quality/policies/single-responsibility.ts`, which the section 04
-  teammate owns. Evals consume those thresholds. A grader never encodes them again.
+- The policy thresholds live in `plugins/quality/src/policies/single-responsibility/interpret.ts`, which the quality
+  plugin owns. Evals consume those thresholds through `@dltech/atlas-plugin-quality/review`. A grader never encodes them again.
 
 ## Dataset
 
