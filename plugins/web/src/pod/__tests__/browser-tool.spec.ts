@@ -124,6 +124,7 @@ describe('BrowserTool', () => {
         '--session',
         'atlas-ses_42',
         'batch',
+        '"set" "viewport" "1920" "1080"',
         '"open" "example.com"',
         '"fill" "@e2" "hello world"',
         '"read"',
@@ -132,6 +133,13 @@ describe('BrowserTool', () => {
       timeoutMs: 120_000,
     })
     expect(String(outcome.modelText)).toContain('atlas')
+  })
+
+  it('describes the default viewport and how to change it', () => {
+    const { description } = new BrowserTool(ctxOf({ result: execOk(0) }))
+
+    expect(description).toContain('1920x1080')
+    expect(description).toContain('["set", "device", name]')
   })
 
   it('reports what the binary printed and the commands it ran when a step fails', async () => {
