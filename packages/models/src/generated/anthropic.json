@@ -172,60 +172,6 @@
   {
     "ref": {
       "providerId": "anthropic",
-      "modelId": "claude-opus-4-5"
-    },
-    "label": "Claude Opus 4.5 (latest)",
-    "api": "anthropic-messages",
-    "contextWindow": 200000,
-    "imageTier": "standard",
-    "inputModalities": [
-      "text",
-      "image",
-      "pdf"
-    ],
-    "maxOutputTokens": 64000,
-    "cost": {
-      "inputPerMillion": 5,
-      "outputPerMillion": 25,
-      "cacheReadPerMillion": 0.5,
-      "cacheWritePerMillion": 6.25
-    },
-    "effort": {
-      "low": "low",
-      "medium": "medium",
-      "high": "high"
-    }
-  },
-  {
-    "ref": {
-      "providerId": "anthropic",
-      "modelId": "claude-opus-4-5-20251101"
-    },
-    "label": "Claude Opus 4.5",
-    "api": "anthropic-messages",
-    "contextWindow": 200000,
-    "imageTier": "standard",
-    "inputModalities": [
-      "text",
-      "image",
-      "pdf"
-    ],
-    "maxOutputTokens": 64000,
-    "cost": {
-      "inputPerMillion": 5,
-      "outputPerMillion": 25,
-      "cacheReadPerMillion": 0.5,
-      "cacheWritePerMillion": 6.25
-    },
-    "effort": {
-      "low": "low",
-      "medium": "medium",
-      "high": "high"
-    }
-  },
-  {
-    "ref": {
-      "providerId": "anthropic",
       "modelId": "claude-opus-4-6"
     },
     "label": "Claude Opus 4.6",
@@ -365,60 +311,6 @@
       "high": "high",
       "xhigh": "xhigh",
       "max": "max"
-    }
-  },
-  {
-    "ref": {
-      "providerId": "anthropic",
-      "modelId": "claude-sonnet-4-5"
-    },
-    "label": "Claude Sonnet 4.5 (latest)",
-    "api": "anthropic-messages",
-    "contextWindow": 200000,
-    "imageTier": "standard",
-    "inputModalities": [
-      "text",
-      "image",
-      "pdf"
-    ],
-    "maxOutputTokens": 64000,
-    "cost": {
-      "inputPerMillion": 3,
-      "outputPerMillion": 15,
-      "cacheReadPerMillion": 0.3,
-      "cacheWritePerMillion": 3.75
-    },
-    "effort": {
-      "low": 1024,
-      "medium": 2048,
-      "high": 16384
-    }
-  },
-  {
-    "ref": {
-      "providerId": "anthropic",
-      "modelId": "claude-sonnet-4-5-20250929"
-    },
-    "label": "Claude Sonnet 4.5",
-    "api": "anthropic-messages",
-    "contextWindow": 200000,
-    "imageTier": "standard",
-    "inputModalities": [
-      "text",
-      "image",
-      "pdf"
-    ],
-    "maxOutputTokens": 64000,
-    "cost": {
-      "inputPerMillion": 3,
-      "outputPerMillion": 15,
-      "cacheReadPerMillion": 0.3,
-      "cacheWritePerMillion": 3.75
-    },
-    "effort": {
-      "low": 1024,
-      "medium": 2048,
-      "high": 16384
     }
   },
   {
