@@ -36,7 +36,9 @@ message. Native commands and plugin commands both use it.
 - `defineCommand({spec})`: validates the name and the client action, freezes the spec and derives
   `inboxKind`.
 - `CommandSpec`: `name`, `summary`, `group` (`ECommandGroup`), `argumentHint`, `args` (a `zod`
-  schema), `runsIn` (`ECommandRunsIn`), `fromText` and `opens` (`EClientAction`).
+  schema), `runsIn` (`ECommandRunsIn`), `fromText`, `opens` (`EClientAction`) and `listed`, which
+  defaults to listed and set to `false` keeps the command out of every catalogue while the host
+  still resolves its name.
 - `TextArgs`: what `fromText` answers — the parsed `args`, or the refusal `reason`.
 - `Command`: the frozen `{ spec, inboxKind }` value that `defineCommand` returns.
 
@@ -53,17 +55,16 @@ message. Native commands and plugin commands both use it.
 - `skillEntryOf({name, description, argumentHint})`: one row for a skill, in the workspace group.
 - `catalogueOf({commands, skills})`: drop a skill whose name matches a command, then sort by group
   (context, session, workspace) and by name.
+- `listedCommands(commands)`: drop a command whose spec sets `listed: false`. A catalogue builds
+  from these, so a caller of the API never lists a command only an in-app action runs; the host
+  registry keeps every command, so a typed `/agent stop <id>` still runs.
 - `catalogueForSurface({entries, surface})`: drop the names the surface hides.
 - `SURFACE_PROFILES`: each surface's hidden names, with the reason, and the names it picks. A name
-  is hidden `because` it is a message action, `Panel` because only one surface draws it, or
-  `pane-action` because a pane owns it — web, Mac and mobile hide `skills`, `mcp` and `shells`, and
-  the TUI keeps them.
+  is hidden `because` it is a message action, or `Panel` because only one surface draws it — web,
+  Mac and mobile hide `skills`, `mcp` and `shells`, and the TUI keeps them.
 - `ESurface`, `EHiddenBecause`, `SurfaceProfile`: the surface names, the reason a name is hidden,
   and the shape of a profile. `ECommandSource`, `ECommandEntryKind`, `commandEntrySchema`: the
   source of a row, its kind, and the schema of a row.
-- A pane action (`agent`, `shell-kill`, `service`) is hidden from every surface's catalogue,
-  because the pane that draws the row owns the verb and nobody types it. The host still resolves
-  the name against the full registry, so a typed `/agent stop <id>` runs.
 
 ### Read a typed line
 

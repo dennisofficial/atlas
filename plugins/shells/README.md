@@ -63,7 +63,7 @@ notice.
 
 | Command       | Argument | What it does                                                          |
 | ------------- | -------- | --------------------------------------------------------------------- |
-| `/shell-kill` | `<id>`   | Stop a running shell. Runs in the host, hidden from every slash menu. |
+| `/shell-kill` | `<id>`   | Stop a running shell. Runs in the host, never in a session catalogue. |
 
 `shellKillHandlerOf(ctx)` in `src/pod/commands.ts` calls the same `killShell` the `shell_kill` tool
 calls, forgets the shell's awaiting-input mark, and returns `done` after appending one
