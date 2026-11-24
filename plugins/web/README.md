@@ -60,7 +60,8 @@ The reader is the same shape: `ReaderPort { read(args) }` with `jinaReaderOf({ k
 
 `web_fetch` reads `pattern` as a case-insensitive regular expression and matches it line by line. It
 applies after whichever reader answered. `render` renders the page in a browser and can take over a
-minute. `browser` starts on a blank page on every call and closes the browser at the end.
+minute. `browser` starts on a blank page at a 1920x1080 viewport on every call and closes the
+browser at the end. A `set viewport` or `set device` command in the script changes the viewport.
 
 ## Usage
 
