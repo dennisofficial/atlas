@@ -49,6 +49,7 @@ describe('pullRequestSnapshotOf', () => {
       pullRequestSnapshotOf({
         ...PR,
         checks: { tally: passed, failedNames: [] },
+        pendingSuites: 0,
         reviews: [{ author: 'tofik', state: 'APPROVED' }],
       }),
     ).toEqual({
@@ -70,6 +71,7 @@ describe('pullRequestSnapshotOf', () => {
         mergeable: false,
         baseBranch: 'main',
         checks: { tally: failing, failedNames: ['lint', 'test (20)'] },
+        pendingSuites: 0,
         reviews: [{ author: 'sam', state: 'CHANGES_REQUESTED' }],
       }),
     ).toEqual({
@@ -92,6 +94,38 @@ describe('pullRequestSnapshotOf', () => {
       ],
       next: 'A CI notice follows when it settles.',
     })
+  })
+
+  it('counts a queued check suite as running before any of its check runs exist', () => {
+    expect(
+      pullRequestSnapshotOf({
+        ...PR,
+        checks: { tally: { passed: 2, failed: 0, running: 0, ignored: 0 }, failedNames: [] },
+        pendingSuites: 1,
+      }),
+    ).toEqual({
+      facts: [
+        'ready for review, head a1b2c3d',
+        'CI is still running (2 passed, 0 failed, 0 running)',
+        'mergeable',
+      ],
+      next: 'A CI notice follows when it settles.',
+    })
+  })
+
+  it('does not claim CI finished when the check suites could not be read', () => {
+    const snapshot = pullRequestSnapshotOf({
+      ...PR,
+      checks: { tally: passed, failedNames: [] },
+    })
+    expect(snapshot.facts).toEqual([
+      'ready for review, head a1b2c3d',
+      'CI finished, all checks passed (3 passed, 0 failed, 0 running)',
+      'mergeable',
+    ])
+    expect(snapshot.next).toBe(
+      'CI state is not known now. The next notices are a new push, a comment or review, or a merge or close.',
+    )
   })
 
   it('still expects a CI notice when the head has no checks yet, because CI may not have started', () => {
