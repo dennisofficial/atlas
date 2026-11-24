@@ -17,6 +17,7 @@ const agentEnv: AgentHostEnv = {
   platformVercel: null,
   agent37: null,
   mediaBlobToken: null,
+  githubApp: { appId: undefined, appPrivateKey: undefined },
   sandboxImage: 'atlas-sandbox:latest',
   daemonBundlePath: 'daemon.js',
   port: 3400,
