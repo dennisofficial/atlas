@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EControlsPlacement, EThreadsLayout, type TPosture } from '../../layout/posture'
+import { EControlsPlacement, ESessionsLayout, type TPosture } from '../../layout/posture'
 import {
   EHeaderLeadingItem,
   HEADER_BUTTON_SLOT,
@@ -13,13 +13,13 @@ import {
 
 const postureWith = ({
   controls,
-  threads,
+  sessions,
 }: {
   controls: EControlsPlacement
-  threads: EThreadsLayout
+  sessions: ESessionsLayout
 }): TPosture => ({
   controls,
-  threads,
+  sessions,
   railWidth: controls === EControlsPlacement.Rail ? 80 : 0,
   railBottom: 0,
   clearance: { bottom: 0 },
@@ -31,7 +31,7 @@ describe('tabHeaderLeadingOf', () => {
       tabHeaderLeadingOf({
         posture: postureWith({
           controls: EControlsPlacement.BottomBar,
-          threads: EThreadsLayout.Stacked,
+          sessions: ESessionsLayout.Stacked,
         }),
       }),
     ).toEqual([EHeaderLeadingItem.Account])
@@ -42,7 +42,7 @@ describe('tabHeaderLeadingOf', () => {
       tabHeaderLeadingOf({
         posture: postureWith({
           controls: EControlsPlacement.Rail,
-          threads: EThreadsLayout.Panel,
+          sessions: ESessionsLayout.Panel,
         }),
       }),
     ).toEqual([])
@@ -50,15 +50,15 @@ describe('tabHeaderLeadingOf', () => {
 })
 
 describe('sessionHeaderLeadingOf', () => {
-  it('offers the threads panel only when the panel opens over the transcript', () => {
+  it('offers the sessions panel only when the panel opens over the transcript', () => {
     expect(
       sessionHeaderLeadingOf({
         posture: postureWith({
           controls: EControlsPlacement.BottomBar,
-          threads: EThreadsLayout.Overlay,
+          sessions: ESessionsLayout.Overlay,
         }),
       }),
-    ).toEqual([EHeaderLeadingItem.Threads])
+    ).toEqual([EHeaderLeadingItem.Sessions])
   })
 
   it('offers no leading button when the panel is stacked or beside the transcript', () => {
@@ -66,7 +66,7 @@ describe('sessionHeaderLeadingOf', () => {
       sessionHeaderLeadingOf({
         posture: postureWith({
           controls: EControlsPlacement.BottomBar,
-          threads: EThreadsLayout.Stacked,
+          sessions: ESessionsLayout.Stacked,
         }),
       }),
     ).toEqual([])
@@ -74,7 +74,7 @@ describe('sessionHeaderLeadingOf', () => {
       sessionHeaderLeadingOf({
         posture: postureWith({
           controls: EControlsPlacement.Rail,
-          threads: EThreadsLayout.Panel,
+          sessions: ESessionsLayout.Panel,
         }),
       }),
     ).toEqual([])
@@ -85,7 +85,7 @@ describe('leadingTitleWidthOf', () => {
   it('gives the title the bar width left after the buttons and the rail column', () => {
     const posture = postureWith({
       controls: EControlsPlacement.Rail,
-      threads: EThreadsLayout.Overlay,
+      sessions: ESessionsLayout.Overlay,
     })
     expect(leadingTitleWidthOf({ windowWidth: 470, posture, buttons: 2 })).toBe(
       470 - 80 - HEADER_BUTTON_SLOT * 2 - HEADER_EDGE_SLACK,
@@ -98,7 +98,7 @@ describe('leadingTitleWidthOf', () => {
         windowWidth: 200,
         posture: postureWith({
           controls: EControlsPlacement.BottomBar,
-          threads: EThreadsLayout.Stacked,
+          sessions: ESessionsLayout.Stacked,
         }),
         buttons: 2,
       }),

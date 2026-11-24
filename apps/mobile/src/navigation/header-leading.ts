@@ -1,8 +1,8 @@
-import { EControlsPlacement, EThreadsLayout, type TPosture } from '../layout/posture'
+import { EControlsPlacement, ESessionsLayout, type TPosture } from '../layout/posture'
 
 export enum EHeaderLeadingItem {
   Account = 'account',
-  Threads = 'threads',
+  Sessions = 'sessions',
 }
 
 export const HEADER_BUTTON_SLOT = 52
@@ -13,7 +13,7 @@ export const tabHeaderLeadingOf = ({ posture }: { posture: TPosture }): EHeaderL
   posture.controls === EControlsPlacement.BottomBar ? [EHeaderLeadingItem.Account] : []
 
 export const sessionHeaderLeadingOf = ({ posture }: { posture: TPosture }): EHeaderLeadingItem[] =>
-  posture.threads === EThreadsLayout.Overlay ? [EHeaderLeadingItem.Threads] : []
+  posture.sessions === ESessionsLayout.Overlay ? [EHeaderLeadingItem.Sessions] : []
 
 export const leadingTitleWidthOf = ({
   windowWidth,

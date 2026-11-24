@@ -59,7 +59,7 @@ const ListStatusView = ({ status, onRetry }: { status: EListStatus; onRetry: () 
 
 type TSearchBarOptions = NativeStackNavigationOptions['headerSearchBarOptions']
 
-export const ThreadsHome = ({
+export const SessionsHome = ({
   onOpen,
   activeId,
   nativeSearch = false,

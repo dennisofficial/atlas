@@ -4,7 +4,7 @@ import {
   BOTTOM_BAR_CLEARANCE,
   contentInsetsOf,
   EControlsPlacement,
-  EThreadsLayout,
+  ESessionsLayout,
   postureOf,
   RAIL_BOTTOM_GAP,
   RAIL_MIN_INSET,
@@ -22,7 +22,7 @@ describe('postureOf', () => {
   it('puts the controls in a right rail when the status bar is a right column', () => {
     expect(postureOf({ width: 470, height: 690, insets: insets({ right: 80 }) })).toEqual({
       controls: EControlsPlacement.Rail,
-      threads: EThreadsLayout.Stacked,
+      sessions: ESessionsLayout.Stacked,
       railWidth: 80,
       railBottom: RAIL_BOTTOM_GAP,
       clearance: { bottom: 0 },
@@ -34,7 +34,7 @@ describe('postureOf', () => {
       postureOf({ width: 703, height: 1000, insets: insets({ top: 54, bottom: 20 }) }),
     ).toEqual({
       controls: EControlsPlacement.BottomBar,
-      threads: EThreadsLayout.Overlay,
+      sessions: ESessionsLayout.Overlay,
       railWidth: 0,
       railBottom: 20 + RAIL_BOTTOM_GAP,
       clearance: { bottom: 20 + BOTTOM_BAR_CLEARANCE },
@@ -54,10 +54,10 @@ describe('postureOf', () => {
     ).toBe(EControlsPlacement.BottomBar)
   })
 
-  it('shows the threads as a fixed panel on a wide landscape window', () => {
+  it('shows the sessions as a fixed panel on a wide landscape window', () => {
     expect(postureOf({ width: 1000, height: 703, insets: insets({ right: 80 }) })).toEqual({
       controls: EControlsPlacement.Rail,
-      threads: EThreadsLayout.Panel,
+      sessions: ESessionsLayout.Panel,
       railWidth: 80,
       railBottom: RAIL_BOTTOM_GAP,
       clearance: { bottom: 0 },
@@ -72,8 +72,8 @@ describe('postureOf', () => {
   })
 
   it('measures wideness without the side insets', () => {
-    expect(postureOf({ width: 660, height: 900, insets: insets({ right: 80 }) }).threads).toBe(
-      EThreadsLayout.Stacked,
+    expect(postureOf({ width: 660, height: 900, insets: insets({ right: 80 }) }).sessions).toBe(
+      ESessionsLayout.Stacked,
     )
   })
 })

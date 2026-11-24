@@ -4,7 +4,7 @@ import { AppWindow, CalendarClock, FolderKanban, MessagesSquare } from 'lucide-r
 import { EAppTab } from './tabs'
 
 export const TAB_ICONS: Record<EAppTab, LucideIcon> = {
-  [EAppTab.Threads]: MessagesSquare,
+  [EAppTab.Sessions]: MessagesSquare,
   [EAppTab.Routines]: CalendarClock,
   [EAppTab.Projects]: FolderKanban,
   [EAppTab.Artifacts]: AppWindow,

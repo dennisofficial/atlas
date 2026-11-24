@@ -8,9 +8,9 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated'
 
-import { OVERLAY_ANIMATION_MS, OVERLAY_BACKDROP_ALPHA, overlayWidthOf } from './threads-overlay'
+import { OVERLAY_ANIMATION_MS, OVERLAY_BACKDROP_ALPHA, overlayWidthOf } from './sessions-overlay'
 
-export const ThreadsOverlayLayer = ({
+export const SessionsOverlayLayer = ({
   open,
   onClose,
   children,
@@ -50,7 +50,7 @@ export const ThreadsOverlayLayer = ({
       <Animated.View style={[styles.backdrop, backdropStyle]}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Close threads"
+          accessibilityLabel="Close sessions"
           onPress={onClose}
           style={styles.fill}
         />

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { OVERLAY_MIN_WIDTH, OVERLAY_WIDTH_RATIO, overlayWidthOf } from '../threads-overlay'
+import { OVERLAY_MIN_WIDTH, OVERLAY_WIDTH_RATIO, overlayWidthOf } from '../sessions-overlay'
 
 describe('overlayWidthOf', () => {
   it('takes a bit over half the window on a Duo unfolded portrait', () => {
