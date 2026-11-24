@@ -67,6 +67,7 @@ interface SendInput {
   text: string
   busy: boolean
   sending?: boolean
+  uploading?: boolean
   queueWhileBusy?: boolean
   attached?: boolean
 }
@@ -75,10 +76,11 @@ export function canSend({
   text,
   busy,
   sending = false,
+  uploading = false,
   queueWhileBusy = false,
   attached = false,
 }: SendInput): boolean {
-  if (sending) return false
+  if (sending || uploading) return false
   if (busy && !queueWhileBusy) return false
   return attached || text.trim().length > 0
 }
@@ -131,7 +133,10 @@ export function PromptInput({
   const attached =
     sendsAttachmentsAlone &&
     attachments.some((attachment) => attachment.status === EPromptAttachmentStatus.Ready)
-  const sendable = canSend({ text, busy, sending, queueWhileBusy, attached })
+  const uploading = attachments.some(
+    (attachment) => attachment.status === EPromptAttachmentStatus.Uploading,
+  )
+  const sendable = canSend({ text, busy, sending, uploading, queueWhileBusy, attached })
   const hasDraft = attached || text.trim().length > 0
   const showsStop = busy && !sending && !(queueWhileBusy && hasDraft)
 

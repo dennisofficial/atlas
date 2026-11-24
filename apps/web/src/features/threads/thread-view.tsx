@@ -265,7 +265,7 @@ export function ThreadView({ threadId }: { threadId: string }) {
                   onValueChange={setDraft}
                   onSubmit={handleSubmit}
                   onEscape={() => void handleEscape()}
-                  sending={sending || handoff.waiting || images.uploading}
+                  sending={sending || handoff.waiting}
                   working={working}
                   onStop={handleStop}
                   {...images.composerProps}

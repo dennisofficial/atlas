@@ -105,6 +105,26 @@ describe('PromptInput', () => {
     expect(sendOf(EPromptAttachmentStatus.Failed)).toContain(' disabled=""')
   })
 
+  it('keeps the field editable but blocks send while an attachment uploads', () => {
+    const html = renderToStaticMarkup(
+      <PromptInput
+        defaultValue="fix the build"
+        attachments={[{ id: '1', name: 'a.png', status: EPromptAttachmentStatus.Uploading }]}
+      />,
+    )
+    const send = html.match(/<button[^>]*aria-label="Send"[^>]*>/)?.[0] ?? ''
+    const attach = html.match(/<button[^>]*aria-label="Attach files"[^>]*>/)?.[0] ?? ''
+
+    expect(html.match(/<textarea[^>]*>/)?.[0]).not.toContain('readOnly=""')
+    expect(send).toContain(' disabled=""')
+    expect(attach).not.toContain(' disabled=""')
+  })
+
+  it('canSend never allows a send while an attachment uploads', () => {
+    expect(canSend({ text: 'go', busy: false, uploading: true })).toBe(false)
+    expect(canSend({ text: 'go', busy: false, uploading: false })).toBe(true)
+  })
+
   it('canSend never allows a send while sending', () => {
     expect(canSend({ text: 'go', busy: false, sending: true, queueWhileBusy: true })).toBe(false)
   })
