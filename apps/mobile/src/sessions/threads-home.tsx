@@ -77,9 +77,9 @@ export const ThreadsHome = ({
   const searchBarOptions = useMemo<TSearchBarOptions>(
     () => ({
       placeholder: 'Search',
-      placement: 'stacked',
+      placement: 'integratedButton',
+      allowToolbarIntegration: false,
       autoCapitalize: 'none',
-      hideWhenScrolling: true,
       onChangeText: (event) => setQuery(event.nativeEvent.text),
     }),
     [],

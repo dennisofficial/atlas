@@ -14,7 +14,8 @@ when no native one exists, and say why in the PR.
   `unstable_headerRightItems`) with SF Symbols. Then iOS 26+ gives them the glass style. Use a
   React Native button in the bar only as the non-iOS fallback.
 - **Back:** the native back button and the swipe-back gesture. Do not add a JS back button on iOS.
-- **Search:** use `headerSearchBarOptions` on a screen that has a native bar. Keep the JS
+- **Search:** use `headerSearchBarOptions` with `placement: 'integratedButton'` on a screen that
+  has a native bar, so search is a round bar button that expands into the field. Keep the JS
   `SearchField` only where there is no native bar, for example the threads panel inside a session.
 - **Root pages:** a tab root (and Settings on iPhone Duo) replaces the stack and does not push onto
   it (`src/navigation/root-navigation.ts`). A root page has `animation: 'none'` and no back button.
