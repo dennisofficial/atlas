@@ -1,5 +1,5 @@
 import type { Db, Pool } from '@dltech/atlas-db'
-import { EMemoryScope, EMemoryType } from '@dltech/atlas-wire'
+import { EMemoryScope, EMemoryType } from '@dltech/atlas-core'
 
 import {
   editMemory,

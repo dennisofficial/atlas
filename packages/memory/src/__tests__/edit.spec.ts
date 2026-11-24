@@ -5,7 +5,7 @@ import {
   MEMORY_EDIT_AMBIGUOUS_CODE,
   MEMORY_EDIT_NO_MATCH_CODE,
   MEMORY_STALE_REVISION_CODE,
-} from '@dltech/atlas-wire'
+} from '@dltech/atlas-core'
 
 import { MemoryEditRefusedError, MemoryStaleRevisionError } from '../errors'
 import { USER_A, USER_B, globalNote, memoryOpsOf, waitForBlockedWriter } from './fixtures'

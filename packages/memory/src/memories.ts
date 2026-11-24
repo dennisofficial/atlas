@@ -5,8 +5,8 @@ import {
   MEMORY_EDIT_NO_MATCH_CODE,
   memoryEntrySchema,
   memorySummarySchema,
-} from '@dltech/atlas-wire'
-import type { MemoryEntry, MemorySummary } from '@dltech/atlas-wire'
+} from '@dltech/atlas-core'
+import type { MemoryEntry, MemorySummary } from '@dltech/atlas-core'
 
 import {
   MemoryEditRefusedError,
