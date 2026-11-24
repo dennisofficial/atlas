@@ -87,7 +87,6 @@ describe('settingsModel', () => {
     expect(models?.groups.map((group) => [group.label, group.rows.length])).toEqual([
       ['Model', 3],
       ['Background processes', 9],
-      ['Decisions', 1],
     ])
     expect(models?.rows.map((row) => row.definition.id)).toEqual([
       ESettingId.ModelId,
@@ -102,7 +101,6 @@ describe('settingsModel', () => {
       ESettingId.SubagentModel,
       ESettingId.SubagentEffort,
       ESettingId.SubagentFast,
-      ESettingId.DecisionsToken,
     ])
   })
 
@@ -123,7 +121,6 @@ describe('settingsModel', () => {
     expect(models?.groups.map((group) => [group.label, group.rows.length])).toEqual([
       ['Model', 6],
       ['Background processes', 9],
-      ['Decisions', 1],
       ['Built-in sub-agents', 6],
     ])
     expect(models?.rows.map((row) => row.definition.id)).toEqual([
@@ -142,7 +139,6 @@ describe('settingsModel', () => {
       ESettingId.SubagentModel,
       ESettingId.SubagentEffort,
       ESettingId.SubagentFast,
-      ESettingId.DecisionsToken,
       agentTypeSettingId('builder'),
       agentTypeEffortSettingId('builder'),
       agentTypeFastSettingId('builder'),

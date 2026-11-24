@@ -1,15 +1,17 @@
 import {
-  decisionsEndpointOf,
-  decisionsProviderIn,
-  decisionsTokenNameOf,
   EDecisionsProtocol,
   type DecisionOutcome,
   type DecisionPort,
   type DecisionQuestion,
-  type DecisionsEndpoint,
   type SecretsPort,
 } from '@dltech/atlas-core'
 
+import {
+  decisionsEndpointOf,
+  decisionsProviderIn,
+  decisionsTokenNameOf,
+  type DecisionsEndpoint,
+} from '../settings/decisions-endpoint'
 import type { SettingsService } from '../settings/service'
 import { JevDecisionClient } from './jev-client'
 import { OpenAiDecisionClient } from './openai-decision-client'

@@ -48,7 +48,6 @@ describe('the models settings page', () => {
       ESettingId.SubagentModel,
       ESettingId.SubagentEffort,
       ESettingId.SubagentFast,
-      ESettingId.DecisionsToken,
       ESettingId.ClassifierModel,
     ])
   })
@@ -69,12 +68,7 @@ describe('the models settings page', () => {
     ])
 
     expect(
-      modelsRows().every(
-        (row) =>
-          row.kind === ESettingKind.Model ||
-          nonModelKinds.has(row.id) ||
-          row.id === ESettingId.DecisionsToken,
-      ),
+      modelsRows().every((row) => row.kind === ESettingKind.Model || nonModelKinds.has(row.id)),
     ).toBe(true)
   })
 

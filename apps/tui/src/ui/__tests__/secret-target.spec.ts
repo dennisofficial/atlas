@@ -79,32 +79,4 @@ describe('secretTargetOf', () => {
       secretTargetOf({ id: ESettingId.WebSearchBackend, resolution: resolutionOn() }),
     ).toBeUndefined()
   })
-
-  it('seals the decisions token under the default provider, since the drawer carries no provider row', () => {
-    expect(
-      secretTargetOf({
-        id: ESettingId.DecisionsToken,
-        resolution: resolveSettings({
-          definitions: ATLAS_SETTINGS,
-          layers: [
-            {
-              layer: ESettingsLayer.User,
-              origin: 'user',
-              values: { [ESettingId.DecisionsProvider]: 'custom' },
-            },
-          ],
-        }),
-      })?.name,
-    ).toBe('decisions.token.typesafe')
-  })
-
-  it('seals the decisions token under the default provider when none is chosen', () => {
-    expect(secretTargetOf({ id: ESettingId.DecisionsToken, resolution: resolutionOn() })).toEqual({
-      name: 'decisions.token.typesafe',
-      label: 'decision API key',
-      masked: true,
-      required: false,
-      takesOne: true,
-    })
-  })
 })

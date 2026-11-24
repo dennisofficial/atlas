@@ -475,17 +475,6 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
   },
   subagentFastRow(),
   {
-    id: ESettingId.DecisionsToken,
-    page: ESettingPage.Models,
-    group: 'Decisions',
-    label: 'Decision key',
-    description:
-      'The bearer key the chosen provider expects. The key follows the selected provider, and each provider\u2019s key is remembered, so switching back does not ask again. A local Laya server ignores it. Atlas never reads it from the environment and never writes it to a settings file: it is sealed in the secrets file beside the account vault, and only the last four characters are ever shown again.',
-    kind: ESettingKind.Secret,
-    fallback: '',
-    masked: true,
-  },
-  {
     id: ESettingId.ClassifierModel,
     page: ESettingPage.Models,
     group: 'Classifier',

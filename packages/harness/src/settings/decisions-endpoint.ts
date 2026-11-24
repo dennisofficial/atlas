@@ -1,13 +1,15 @@
 import {
+  choiceValueOf,
   DECISIONS_PRESETS,
   DEFAULT_DECISIONS_MODEL,
   DEFAULT_DECISIONS_PROVIDER,
   decisionsProviderOf,
   EDecisionsProtocol,
   EDecisionsProvider,
-} from './decisions-presets'
-import { choiceValueOf, textValueOf, type SettingsResolution } from './resolve'
-import { ESettingId } from './registry'
+  ESettingId,
+  textValueOf,
+  type SettingsResolution,
+} from '@dltech/atlas-core'
 
 export type DecisionsEndpoint = {
   protocol: EDecisionsProtocol

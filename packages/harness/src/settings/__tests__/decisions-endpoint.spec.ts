@@ -1,23 +1,26 @@
 import { describe, expect, it } from 'bun:test'
 
 import {
-  decisionsEndpointOf,
-  decisionsProviderIn,
-  decisionsTokenNameOf,
-} from '../decisions-endpoint'
-import {
+  ATLAS_SETTINGS,
   DECISIONS_PRESETS,
   decisionsPresetOfUrl,
   EDecisionsProtocol,
   EDecisionsProvider,
-} from '../decisions-presets'
-import { ESettingsLayer } from '../layers'
-import { ATLAS_SETTINGS, ESettingId } from '../registry'
-import { resolveSettings } from '../resolve'
+  ESettingId,
+  ESettingsLayer,
+  resolveSettings,
+} from '@dltech/atlas-core'
+
+import {
+  decisionsEndpointOf,
+  decisionsProviderIn,
+  decisionsTokenNameOf,
+} from '../decisions-endpoint'
+import { V1_ONLY_SETTING_DEFINITIONS } from '../v1-only-definitions'
 
 const resolutionOf = (values: Record<string, unknown> = {}) =>
   resolveSettings({
-    definitions: ATLAS_SETTINGS,
+    definitions: [...ATLAS_SETTINGS, ...V1_ONLY_SETTING_DEFINITIONS],
     layers: [{ layer: ESettingsLayer.User, origin: 'user', values }],
   })
 
