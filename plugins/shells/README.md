@@ -58,7 +58,16 @@ its roster view.
 `shell_output` marks a shell that waits for input and sends the `background-shell-awaiting-input`
 notice.
 
-`shellsCoreSlots` gives the `shells` view and no events or commands. `shellsClient` gives one
+`shellsCoreSlots` gives the `shells` view and one command:
+
+| Command       | Argument | What it does                                                          |
+| ------------- | -------- | --------------------------------------------------------------------- |
+| `/shell-kill` | `<id>`   | Stop a running shell. Runs in the host, hidden from every slash menu. |
+
+`shellKillHandlerOf(ctx)` in `src/pod/commands.ts` calls the same `killShell` the `shell_kill` tool
+calls, forgets the shell's awaiting-input mark, and returns `done`. A refused kill carries the
+daemon's own sentence. The handler does not read the delta the tool reads: the loop needs the
+output, the operator reads the tail from the followed snapshot. `shellsClient` gives one
 hook, `shells-roster`, which applies to the `background-shell-*` events.
 
 ## Usage

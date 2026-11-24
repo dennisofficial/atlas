@@ -116,7 +116,8 @@ export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
     isPermanentStartError,
     reasonOfStartError: startFailureReason,
     commands: composeCommands([...nativeCommands, ...composedPlugins.commands]),
-    commandHandlers: new Map([...nativeCommandHandlers, ...composedPlugins.pod.commands]),
+    commandHandlers: nativeCommandHandlers,
+    podCommands: [composedPlugins.pod.commands],
     controlHandlers: new Map([
       ...nativeControlHandlers,
       [resize.spec.name, podResizeHandlerOf({ plane: args.plane, dispatcher: args.dispatcher })],

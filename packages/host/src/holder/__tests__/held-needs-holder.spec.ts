@@ -110,9 +110,9 @@ describe('drainNeedsHolder with commands', () => {
     expect(await needsHolder({ entries, knowsPing: true })).toBe(false)
   })
 
-  it('does not want a holder for a known command kind this holder has no handler for', async () => {
+  it('wants a holder for a known command kind this holder has no handler for', async () => {
     const entries = [entry({ inboxId: 1, kind: ping.inboxKind })]
-    expect(await needsHolder({ entries, knowsPing: false })).toBe(false)
+    expect(await needsHolder({ entries, knowsPing: false })).toBe(true)
   })
 
   it('wants a holder for a command this holder resolves', async () => {

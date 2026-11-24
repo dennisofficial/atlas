@@ -121,16 +121,17 @@ const podOf = (record: ProbeRecord): PodSlot => ({
     }
   },
   prompts: [new ProbeFragment()],
-  commands: new Map([
-    [
-      probeObserve.inboxKind,
-      async ({ args, append }) => {
-        const { label } = probeArgs.parse(args)
-        await append([{ type: 'probe-observed', label }])
-        return { kind: 'done' }
-      },
-    ],
-  ]),
+  commands: () =>
+    new Map([
+      [
+        probeObserve.inboxKind,
+        async ({ args, append }) => {
+          const { label } = probeArgs.parse(args)
+          await append([{ type: 'probe-observed', label }])
+          return { kind: 'done' }
+        },
+      ],
+    ]),
   onDaemonEvent: (frame) => record.daemonFrames.push(frame),
 })
 

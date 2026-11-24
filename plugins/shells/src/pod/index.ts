@@ -1,6 +1,8 @@
 import { EMPTY_POD, type PodSlot } from '@dltech/atlas-plugin-sdk'
 
+import { shellKill } from '../core/commands'
 import { adoptedShellHook } from './adopted-shell'
+import { shellKillHandlerOf } from './commands'
 import { recordShellEnding } from './ending'
 import { BackgroundShellsFragment } from './fragment'
 import { ShellInputTool } from './input-tool'
@@ -37,5 +39,5 @@ export const shellsPod: PodSlot = {
     return { afterTool: [adoptedShellHook({ ctx, state })] }
   },
   prompts: [new BackgroundShellsFragment()],
-  commands: new Map(),
+  commands: (ctx) => new Map([[shellKill.inboxKind, shellKillHandlerOf(ctx)]]),
 }

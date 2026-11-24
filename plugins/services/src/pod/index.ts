@@ -24,5 +24,4 @@ export const servicesPod: PodSlot = {
     void resumeDeclaredServices({ ctx, state: stateFor(ctx) })
   },
   prompts: [new ServicesFragment()],
-  commands: new Map(),
 }

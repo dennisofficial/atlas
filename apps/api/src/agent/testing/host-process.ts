@@ -291,7 +291,8 @@ const main = async (): Promise<void> => {
     appendRetryMs: numberEnv('APPEND_RETRY_MS', 2_500),
     sweepMs: numberEnv('SWEEP_MS', 20_000),
     commands: composeCommands([...nativeCommands, ...composedPlugins.commands]),
-    commandHandlers: new Map([...nativeCommandHandlers, ...composedPlugins.pod.commands]),
+    commandHandlers: nativeCommandHandlers,
+    podCommands: [composedPlugins.pod.commands],
     controlHandlers: new Map([
       ...nativeControlHandlers,
       [resize.spec.name, podResizeHandlerOf({ plane, dispatcher: noPodResizeDispatcher })],

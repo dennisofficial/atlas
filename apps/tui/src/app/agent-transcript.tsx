@@ -1,6 +1,7 @@
 import { ESessionConnection } from '@dltech/atlas-client/stream'
 import React from 'react'
 
+import { NoticeStack } from '../ui/components/notice-stack'
 import { Spans } from '../ui/components/spans'
 import { Transcript } from '../ui/components/transcript'
 import { theme } from '../ui/theme'
@@ -16,6 +17,7 @@ export function AgentTranscriptScreen(props: {
   cwd: string
   now: () => number
   backLabel: string | null
+  message: string | null
   onBack: () => void
 }): React.ReactNode {
   const transcript = useSessionTranscript({
@@ -33,6 +35,7 @@ export function AgentTranscriptScreen(props: {
           <Spans
             spans={[
               { text: transcript.name ?? props.agentId, fg: theme.body },
+              { text: '   m message', fg: theme.hint },
               ...(props.backLabel === null
                 ? []
                 : [{ text: `   esc ${props.backLabel}`, fg: theme.hint }]),
@@ -40,6 +43,11 @@ export function AgentTranscriptScreen(props: {
           />
         </text>
       </box>
+      {props.message === null ? null : (
+        <box flexShrink={0} paddingLeft={2} paddingRight={2}>
+          <text fg={theme.hover}>{`message: ${props.message}`}</text>
+        </box>
+      )}
       <Transcript
         model={transcript.model}
         width={props.width}
@@ -49,6 +57,7 @@ export function AgentTranscriptScreen(props: {
         onNearTop={() => void transcript.loadOlder()}
         cloudConnected={transcript.connection === ESessionConnection.Live}
       />
+      <NoticeStack width={props.width} />
     </box>
   )
 }

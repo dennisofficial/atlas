@@ -24,7 +24,8 @@ import { useSessionWake } from './use-session-wake'
 import { useTranscriptPanels } from './use-transcript-panels'
 import { MIN_TRANSCRIPT_WIDTH } from '../ui/theme'
 import { sidebarWidth } from '../ui/sidebar-width-store'
-import { problemOf } from './app-next-support'
+import { isPrintable } from '../ui/keys/printable'
+import { messageOf, problemOf } from './app-next-support'
 
 export function ChatScreenHost(props: ChatScreenHostProps): React.ReactNode {
   const transcript = useSessionTranscript({
@@ -88,12 +89,23 @@ export function ChatScreenHost(props: ChatScreenHostProps): React.ReactNode {
     onProblem: problemOf,
   })
 
+  const runCommand = useCallback(
+    (input: { name: string; args: Record<string, unknown> }) => {
+      props.client.api
+        .runCommand({ sessionId: props.sessionId, ...input })
+        .catch((failure: unknown) => problemOf(messageOf(failure)))
+    },
+    [props.client.api, props.sessionId],
+  )
+
   const panes = useSessionPanes({
     transcript,
     sessionId: props.sessionId,
     teammates: props.teammates,
     sections: chrome.sections,
     onOpenSession: props.onOpenSession,
+    onStopAgent: (agentId) => runCommand({ name: 'agent', args: { action: 'stop', agentId } }),
+    onKillShell: (shellId) => runCommand({ name: 'shell-kill', args: { shellId } }),
     onProblem: problemOf,
   })
 
@@ -208,11 +220,44 @@ export function ChatScreenHost(props: ChatScreenHostProps): React.ReactNode {
     onStop: send.handleStop,
   })
 
+  const viewing = panes.crew.viewing
+  const [agentMessage, setAgentMessage] = useState<string | null>(null)
+
+  const handleAgentKey = useCallback(
+    (key: KeyEvent): boolean => {
+      if (viewing === null) return false
+      if (agentMessage === null) {
+        if (key.name !== 'm') return false
+        setAgentMessage('')
+        return true
+      }
+      if (key.name === 'escape') {
+        setAgentMessage(null)
+        return true
+      }
+      if (key.name === 'return') {
+        runCommand({ name: 'agent', args: { action: 'say', agentId: viewing, text: agentMessage } })
+        setAgentMessage(null)
+        return true
+      }
+      if (key.name === 'backspace') {
+        setAgentMessage(agentMessage.slice(0, -1))
+        return true
+      }
+      if (isPrintable(key)) setAgentMessage(agentMessage + (key.sequence ?? ''))
+      return true
+    },
+    [agentMessage, runCommand, viewing],
+  )
+
   const chatKeys = useRef(handleKey)
   chatKeys.current = handleKey
+  const agentKeys = useRef(handleAgentKey)
+  agentKeys.current = handleAgentKey
   const panelKeys = useRef(panels.handleKey)
   panelKeys.current = panels.handleKey
   const withPanels = useCallback((key: KeyEvent): boolean => {
+    if (agentKeys.current(key)) return true
     if (panelKeys.current(key)) return true
     chatKeys.current(key)
     return true
@@ -223,7 +268,6 @@ export function ChatScreenHost(props: ChatScreenHostProps): React.ReactNode {
     onKeys(withPanels)
   }, [onKeys, withPanels])
 
-  const viewing = panes.crew.viewing
   if (viewing !== null) {
     return (
       <AgentTranscriptScreen
@@ -235,6 +279,7 @@ export function ChatScreenHost(props: ChatScreenHostProps): React.ReactNode {
         cwd={props.cwd}
         now={props.now}
         backLabel={panes.crew.backLabel}
+        message={agentMessage}
         onBack={props.onBack}
       />
     )
@@ -271,6 +316,7 @@ export function ChatScreenHost(props: ChatScreenHostProps): React.ReactNode {
         services={panes.services}
         onSelectSubagent={panes.crew.handleSelect}
         onOpenTeammate={props.onOpenSession}
+        onShellKill={(shellId) => runCommand({ name: 'shell-kill', args: { shellId } })}
         header={chrome.header}
         footer={chrome.footer}
         footerContext={chrome.footerContext}

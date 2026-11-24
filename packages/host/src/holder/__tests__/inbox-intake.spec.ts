@@ -308,25 +308,26 @@ describe('InboxIntake logStaged', () => {
     expect(rig.appends).toEqual([[posted(1, { text: 'm1' }), postedCommand(2, 'command:ping')]])
   })
 
-  const unresolvable = [
-    { label: 'no registry', options: {} as RigOptions },
-    { label: 'a registry without the kind', options: { registry: composeCommands([ping]) } },
-    {
-      label: 'a registry without a handler',
-      options: { registry: composeCommands([ping]), handlers: new Map() },
-    },
-  ]
+  it('leaves a command it cannot resolve staged when there is no registry', async () => {
+    const rig = rigOf([entry(7, {}, 'command:ghost'), entry(8, {}, 'command:ping')])
+    await rig.intake.logStaged()
+    expect(rig.appends).toEqual([])
+  })
 
-  for (const { label, options } of unresolvable) {
-    it(`leaves a command it cannot resolve staged with ${label}`, async () => {
-      const rig = rigOf([entry(7, {}, 'command:ghost'), entry(8, {}, 'command:ping')], options)
-      await rig.intake.logStaged()
-      expect(rig.appends).toEqual([])
-      expect(
-        rig.appended.some((draft) => draft.type === 'input-posted' && draft.inboxId === 7),
-      ).toBe(false)
+  it('leaves a command it cannot resolve staged when the registry lacks the kind', async () => {
+    const rig = rigOf([entry(7, {}, 'command:ghost')], { registry: composeCommands([ping]) })
+    await rig.intake.logStaged()
+    expect(rig.appends).toEqual([])
+  })
+
+  it('logs a command whose kind this host knows but has no handler', async () => {
+    const rig = rigOf([entry(8, {}, 'command:ping')], {
+      registry: composeCommands([ping]),
+      handlers: new Map(),
     })
-  }
+    await rig.intake.logStaged()
+    expect(rig.appends).toEqual([[postedCommand(8, 'command:ping')]])
+  })
 
   it('leaves an over-age unresolvable command for the prepare that discards it', async () => {
     const old = {
@@ -384,6 +385,30 @@ describe('InboxIntake logStaged', () => {
     const drain = await rig.intake.prepare()
     expect(rig.appends).toEqual([[posted(1, { text: 'm1' })], [said(1)]])
     expect(drain.wakesTurn).toBe(true)
+  })
+})
+
+describe('InboxIntake commands this host cannot run', () => {
+  it('refuses a command whose kind this host knows but has no handler', async () => {
+    const rig = rigOf([entry(7, {}, 'command:ping')], {
+      registry: composeCommands([ping]),
+      handlers: new Map(),
+    })
+    const drain = await rig.intake.prepare()
+    expect(drain).toEqual({ drafts: [], wakesTurn: false })
+    expect(rig.appended.filter((draft) => draft.type === 'input-refused')).toEqual([
+      { type: 'input-refused', inboxId: 7, reason: '/ping cannot run on this host' },
+    ])
+  })
+
+  it('consumes the entry before it refuses it', async () => {
+    const rig = rigOf([entry(7, {}, 'command:ping')], {
+      registry: composeCommands([ping]),
+      handlers: new Map(),
+    })
+    await rig.intake.prepare()
+    const types = rig.appended.map((draft) => draft.type)
+    expect(types.indexOf('input-consumed')).toBeLessThan(types.indexOf('input-refused'))
   })
 })
 

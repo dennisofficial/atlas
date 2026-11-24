@@ -1,5 +1,7 @@
 import { EMPTY_POD, type PodSlot } from '@dltech/atlas-plugin-sdk'
 
+import { agent } from '../core/commands'
+import { agentHandlerOf } from './commands'
 import { EnterWorktreeTool } from './enter-worktree'
 import { ExitWorktreeTool } from './exit-worktree'
 import { CrewFragment } from './fragment'
@@ -34,6 +36,7 @@ export const CREW_CHILD_DENIED = ['agent_spawn', 'agent_stop', 'agent_list'] as 
 export const crewPod: PodSlot = {
   ...EMPTY_POD,
   childDeny: CREW_CHILD_DENIED,
+  commands: (ctx) => new Map([[agent.inboxKind, agentHandlerOf(ctx)]]),
   tools: (ctx) => [
     new AgentSpawnTool(ctx),
     new AgentStopTool(ctx),

@@ -8,6 +8,7 @@ import {
 } from '@dltech/atlas-core'
 import { LoopTurnRunner, settleCrashedCalls } from '@dltech/atlas-agent'
 import { logFieldsOf } from '@dltech/atlas-observability'
+import { composePodCommands } from '@dltech/atlas-plugin-sdk'
 
 import { ScopedToolDispatcher } from '../calls/call-scope'
 import { BranchObserver } from './branch-observer'
@@ -160,6 +161,7 @@ export const createLoopRunner = (args: {
     signal: args.signal,
     crew: args.crew,
   })
+  const podCommands = composePodCommands({ factories: deps.podCommands ?? [], ctx: pod.ctx })
   const intake = new InboxIntake({
     plane: deps.plane,
     sessionId: deps.sessionId,
@@ -168,7 +170,7 @@ export const createLoopRunner = (args: {
     runId: () => deps.ids.nextRunId(),
     scope: EIntakeScope.Main,
     commands: deps.commands,
-    handlers: deps.commandHandlers,
+    handlers: new Map([...(deps.commandHandlers ?? []), ...podCommands]),
     controlHandlers: deps.controlHandlers,
     ...(pod.slash === undefined ? {} : { slash: pod.slash }),
     model: runtime.model,

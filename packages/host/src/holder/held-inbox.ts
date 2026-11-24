@@ -139,6 +139,4 @@ export const stopSettledPromptOf = (events: readonly V2Event[]): boolean => {
 }
 
 export const understandsCommand = (deps: HeldSessionDeps, entry: InboxEntry): boolean =>
-  !isCommandKind(entry.kind) ||
-  (deps.commands?.byInboxKind.has(entry.kind) === true &&
-    deps.commandHandlers?.has(entry.kind) === true)
+  !isCommandKind(entry.kind) || deps.commands?.byInboxKind.has(entry.kind) === true

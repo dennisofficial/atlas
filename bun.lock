@@ -981,6 +981,7 @@
       "dependencies": {
         "@dltech/atlas-agent": "workspace:*",
         "@dltech/atlas-client": "workspace:*",
+        "@dltech/atlas-commands": "workspace:*",
         "@dltech/atlas-core": "workspace:*",
         "@dltech/atlas-plugin-sdk": "workspace:*",
         "zod": "^4.4.3",
@@ -1128,6 +1129,7 @@
       "dependencies": {
         "@dltech/atlas-agent": "workspace:*",
         "@dltech/atlas-client": "workspace:*",
+        "@dltech/atlas-commands": "workspace:*",
         "@dltech/atlas-core": "workspace:*",
         "@dltech/atlas-plugin-sdk": "workspace:*",
         "@dltech/atlas-protocol": "workspace:*",

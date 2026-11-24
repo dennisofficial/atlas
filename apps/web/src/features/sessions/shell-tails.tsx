@@ -1,11 +1,17 @@
 'use client'
 
 import { Terminal } from 'lucide-react'
+import { toast } from 'sonner'
 
 import type { ShellRoster } from '@dltech/atlas-plugin-shells/client'
 
 import { Button } from '@dltech/atlas-ui/components/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@dltech/atlas-ui/components/popover'
+
+import { messageOf } from '@/features/threads/data/use-send'
+
+import { killShell } from './data/shell-actions'
+import { sessionsApi } from './data/sessions-api'
 
 const SHELL_TAIL_LINES = 20
 
@@ -17,12 +23,34 @@ export function shellTailOf(text: string | undefined): string {
   return tail.slice(-SHELL_TAIL_CHARACTERS)
 }
 
+function ShellStop({ shellId, sessionId }: { shellId: string; sessionId: string }) {
+  const handleStop = () => {
+    killShell({ api: sessionsApi, sessionId, shellId }).catch((failure: unknown) => {
+      toast.error(messageOf(failure))
+    })
+  }
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="sm"
+      className="h-6 shrink-0 px-1.5 text-xs"
+      data-shell-kill={shellId}
+      onClick={handleStop}
+    >
+      Stop
+    </Button>
+  )
+}
+
 export function ShellTails({
   shells,
   tails,
+  sessionId,
 }: {
   shells: ShellRoster
   tails: Readonly<Record<string, string>>
+  sessionId?: string | undefined
 }) {
   return (
     <ul data-shell-tails className="flex flex-col gap-2.5">
@@ -30,8 +58,13 @@ export function ShellTails({
         const tail = shellTailOf(tails[row.shellId])
         return (
           <li key={row.shellId} className="flex min-w-0 flex-col gap-1">
-            <span className="truncate font-mono text-xs text-muted-foreground" title={row.name}>
-              {row.name}
+            <span className="flex min-w-0 items-center justify-between gap-2">
+              <span className="truncate font-mono text-xs text-muted-foreground" title={row.name}>
+                {row.name}
+              </span>
+              {sessionId === undefined ? null : (
+                <ShellStop shellId={row.shellId} sessionId={sessionId} />
+              )}
             </span>
             {tail === '' ? (
               <span className="text-xs text-muted-foreground italic">No output yet</span>
@@ -53,9 +86,11 @@ export function ShellTails({
 export function HeaderShells({
   shells,
   tails,
+  sessionId,
 }: {
   shells: ShellRoster
   tails: Readonly<Record<string, string>>
+  sessionId?: string | undefined
 }) {
   return (
     <Popover>
@@ -75,7 +110,7 @@ export function HeaderShells({
         <span className="font-mono">{shells.running}</span>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-[32rem] max-w-[calc(100vw-2rem)]">
-        <ShellTails shells={shells} tails={tails} />
+        <ShellTails shells={shells} tails={tails} sessionId={sessionId} />
       </PopoverContent>
     </Popover>
   )

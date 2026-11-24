@@ -68,7 +68,7 @@ A `PodSlot` declares:
   and then read `result.fileChanges`; it may key its `additionalContext` to the call with
   `contextKey: call.callId`, so later findings do not supersede it.
 - `prompts`: the `PromptFragment` values the plugin adds to the system prompt.
-- `commands`: a map from inbox kind to `CommandHandler`, for commands the pod runs.
+- `commands(ctx)`: a map from inbox kind to `CommandHandler`, each closing over the pod context; a duplicate kind throws.
 - `resources`: the `PodResource` values the plugin loads, such as a skill directory.
 - `slash(ctx)`: the `PodSlash` source (`names()`, `load({name, argumentText})`); at most one plugin.
 - `childDeny`: tool names a sub-agent may not call.

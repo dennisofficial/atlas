@@ -36,5 +36,4 @@ export const sessionsPod: PodSlot = {
     new ListTeammatesTool(ctx),
   ],
   prompts: [new PeerSessionsFragment()],
-  commands: new Map(),
 }

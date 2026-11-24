@@ -31,6 +31,7 @@ export const heldSessionDepsOf = (args: HeldDepsArgs): HeldSessionDeps => {
     reasonOfStartError: holder.reasonOfStartError,
     commands: holder.commands,
     commandHandlers: holder.commandHandlers,
+    podCommands: holder.podCommands,
     controlHandlers: holder.controlHandlers,
     control: holder.control,
     mcp: holder.mcp,

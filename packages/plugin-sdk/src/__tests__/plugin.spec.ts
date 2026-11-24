@@ -28,6 +28,8 @@ import {
   probeObservedSchema,
 } from '../testing'
 
+const ctx = {} as PluginPodContext
+
 const mintWire = (bodies: V2Body[]): unknown[] =>
   JSON.parse(
     JSON.stringify(
@@ -126,7 +128,7 @@ describe('composePlugins', () => {
     expect(composed.views).toHaveLength(1)
     expect(composed.commands.map((c) => c.spec.name)).toEqual(['probe-observe', 'probe-read'])
     expect(composed.pod.prompts.map((p) => p.id)).toEqual([PROBE_FRAGMENT_ID])
-    expect([...composed.pod.commands.keys()]).toEqual(['command:probe-observe'])
+    expect([...composed.pod.commands(ctx).keys()]).toEqual(['command:probe-observe'])
     expect([...composed.control.commands.keys()]).toEqual(['probe-read'])
     expect(composed.control.hooks).toHaveLength(1)
     expect(composed.client.hooks).toHaveLength(1)
@@ -143,7 +145,7 @@ describe('composePlugins', () => {
   it('composes nothing from an empty list', () => {
     const composed = composePlugins([])
     expect(composed.pod.prompts).toEqual([])
-    expect(composed.pod.commands.size).toBe(0)
+    expect(composed.pod.commands(ctx).size).toBe(0)
     expect(composed.control.commands.size).toBe(0)
   })
 
@@ -162,7 +164,6 @@ describe('composePlugins', () => {
   const podOf = (plugin: Plugin, overrides: Partial<PodSlot>): PodSlot => ({
     ...plugin.pod,
     prompts: [],
-    commands: new Map(),
     ...overrides,
   })
 
@@ -200,7 +201,8 @@ describe('composePlugins', () => {
     const b = createFixturePlugin().plugin
     const only = (name: string, plugin: Plugin) =>
       isolated({ name, pod: { ...EMPTY_POD, commands: plugin.pod.commands } })
-    expect(() => composePlugins([only('a', a), only('b', b)])).toThrow(
+    const composed = composePlugins([only('a', a), only('b', b)])
+    expect(() => composed.pod.commands(ctx)).toThrow(
       'two plugins register the pod command "command:probe-observe"',
     )
   })

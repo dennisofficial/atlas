@@ -37,7 +37,7 @@ const shellsRig = async (script: ScriptedModelStep[]) => {
     script,
     plugins: composed,
     commands: composeCommands(composed.commands),
-    commandHandlers: composed.pod.commands,
+    podCommands: [composed.pod.commands],
     model: () => model,
   })
   await seedSession(rig)

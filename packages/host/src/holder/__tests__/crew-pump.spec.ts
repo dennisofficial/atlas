@@ -107,7 +107,6 @@ const pumpProbePlugin = (state: ProbeState): Plugin =>
       childDeny: [SPAWN_PROBE],
       tools: (ctx) => [new SpawnProbe(ctx, state), new SayProbe(ctx, state), new ReportProbe(ctx)],
       prompts: [],
-      commands: new Map(),
     },
     control: { hooks: [], commands: new Map() },
     client: { hooks: [] },

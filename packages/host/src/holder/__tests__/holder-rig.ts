@@ -8,7 +8,7 @@ import {
   type MemoryHostPresence,
 } from '../../testing/memory-host-presence'
 import type { NormalizeFailure, SaidUploadsPort } from '@dltech/atlas-agent'
-import type { ComposedPlugins } from '@dltech/atlas-plugin-sdk'
+import type { ComposedPlugins, PodCommandFactory } from '@dltech/atlas-plugin-sdk'
 import { SequentialIds, type ScriptedModelStep } from '@dltech/atlas-agent/testing'
 import { createInMemoryDaemon, type InMemoryDaemon } from '@dltech/atlas-protocol/testing'
 
@@ -84,6 +84,7 @@ export const makeRig = async (args: {
   isPermanentStartError?: ((error: unknown) => boolean) | undefined
   commands?: CommandRegistry | undefined
   commandHandlers?: CommandHandlers | undefined
+  podCommands?: readonly PodCommandFactory[] | undefined
   controlHandlers?: ControlHandlers | undefined
   control?: PodControlClient | undefined
   log?: LogPort | undefined
@@ -166,6 +167,7 @@ export const makeRig = async (args: {
       : { isPermanentStartError: args.isPermanentStartError }),
     commands: args.commands,
     commandHandlers: args.commandHandlers,
+    podCommands: args.podCommands,
     controlHandlers: args.controlHandlers,
     control: args.control,
     changes: args.changes,

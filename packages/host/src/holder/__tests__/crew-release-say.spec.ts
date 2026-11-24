@@ -111,7 +111,6 @@ const releaseProbePlugin = (state: ProbeState): Plugin =>
         new MissingProbe(ctx, state),
       ],
       prompts: [],
-      commands: new Map(),
     },
     control: { hooks: [], commands: new Map() },
     client: { hooks: [] },
