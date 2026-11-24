@@ -1,4 +1,10 @@
-import { EInputKind, isCommandInputKind, type ThreadId } from '@dltech/atlas-core'
+import {
+  EInputKind,
+  INBOX_KIND_EVENT,
+  INBOX_KIND_RECORD,
+  isCommandInputKind,
+  type ThreadId,
+} from '@dltech/atlas-core'
 import { INBOX_KIND_MESSAGE, inboxMessageSchema } from '@dltech/atlas-protocol'
 
 import { wakesHolderOf } from './claim-ops'
@@ -69,6 +75,11 @@ export class MessageOriginRequiredError extends Error {
   }
 }
 
+const NOTICE_KINDS: ReadonlySet<string> = new Set([INBOX_KIND_EVENT, INBOX_KIND_RECORD])
+
+const sameKindFamily = (left: string, right: string): boolean =>
+  left === right || (NOTICE_KINDS.has(left) && NOTICE_KINDS.has(right))
+
 const alreadyPosted = async (params: {
   tx: ControlTx
   sessionId: string
@@ -84,7 +95,7 @@ const alreadyPosted = async (params: {
   })
   return recent.find(
     (entry) =>
-      entry.kind === params.kind &&
+      sameKindFamily(entry.kind, params.kind) &&
       entry.threadId === params.threadId &&
       clientIdOfPayload(entry.payload) === params.clientId,
   )?.inboxId

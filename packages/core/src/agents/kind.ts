@@ -30,7 +30,7 @@ export const isTurnTaking = (event: EventDraft): boolean => {
     case 'agent-ended':
       return event.relayed !== false && event.held !== true
     case 'background-shell-ended':
-      return event.cause !== EShellEndCause.SandboxStopped
+      return true
     case 'sandbox-setup-reported':
       return event.phase === ESetupPhase.Finished
     default:

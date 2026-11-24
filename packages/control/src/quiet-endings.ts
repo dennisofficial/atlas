@@ -3,6 +3,7 @@ import {
   EServiceStatus,
   EShellEndCause,
   EShellStatus,
+  INBOX_KIND_EVENT,
   INBOX_KIND_RECORD,
   inboxEventPayloadOf,
   lostServicesOf,
@@ -25,15 +26,21 @@ const QUIET_EVENT_TYPES = [
 
 const READ_EVENTS_PAGE = 1000
 
-export type QuietEndingRecord = { payload: string; clientId: string }
+export type QuietEndingRecord = { kind: string; payload: string; clientId: string }
 
-const recordOf = (args: { event: EventBody; clientId: string }): QuietEndingRecord => ({
+const recordOf = (args: {
+  kind: string
+  event: EventBody
+  clientId: string
+}): QuietEndingRecord => ({
+  kind: args.kind,
   payload: inboxEventPayloadOf({ event: args.event, clientId: args.clientId }),
   clientId: args.clientId,
 })
 
 const shellEndingOf = (shell: ReturnType<typeof lostShellsOf>[number]): QuietEndingRecord =>
   recordOf({
+    kind: INBOX_KIND_EVENT,
     clientId: `background-shell-ended:${shell.shellId}`,
     event: {
       type: 'background-shell-ended',
@@ -52,6 +59,7 @@ const shellEndingOf = (shell: ReturnType<typeof lostShellsOf>[number]): QuietEnd
 
 const serviceEndingOf = (service: ReturnType<typeof lostServicesOf>[number]): QuietEndingRecord =>
   recordOf({
+    kind: INBOX_KIND_RECORD,
     clientId: `service-ended:${service.started.serviceId}`,
     event: {
       type: 'service-ended',
@@ -107,10 +115,10 @@ export const postQuietEndingsOf = async (params: {
       await postIn({
         tx,
         sessionId: params.sessionId,
-        kind: INBOX_KIND_RECORD,
+        kind: record.kind,
         payload: record.payload,
         at: params.at,
-        wake: false,
+        wake: record.kind !== INBOX_KIND_RECORD,
       })
     }
     return records.length

@@ -22,7 +22,7 @@ export const countRunningShells = async (args: {
   } catch (error) {
     deps.log?.warn({
       source: 'holder.idle',
-      message: `counting running shells of ${deps.sessionId} failed, treating as none`,
+      message: `counting running shells of ${deps.sessionId} failed, holding the shells the log has open`,
       ...logFieldsOf({ error }),
     })
     return undefined
@@ -33,6 +33,8 @@ export const countRunningShells = async (args: {
 
 export const OWED_ENDING_GRACE_MS = 60_000
 
+export const UNCOUNTED_SHELL_HOLD_MS = 10 * 60_000
+
 export type ShellHold = { holding: number; owedSince: number | undefined }
 
 export const shellHoldOf = (args: {
@@ -41,10 +43,10 @@ export const shellHoldOf = (args: {
   owedSince: number | undefined
   now: number
 }): ShellHold => {
-  if (args.counted === undefined) return { holding: 0, owedSince: undefined }
-  if (args.counted > 0 || args.openInLog === 0)
-    return { holding: args.counted, owedSince: undefined }
+  const counted = args.counted ?? 0
+  if (counted > 0 || args.openInLog === 0) return { holding: counted, owedSince: undefined }
   const owedSince = args.owedSince ?? args.now
-  const holding = args.now - owedSince < OWED_ENDING_GRACE_MS ? args.openInLog : 0
+  const cap = args.counted === undefined ? UNCOUNTED_SHELL_HOLD_MS : OWED_ENDING_GRACE_MS
+  const holding = args.now - owedSince < cap ? args.openInLog : 0
   return { holding, owedSince }
 }

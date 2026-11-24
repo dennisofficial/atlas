@@ -45,8 +45,11 @@ const envelope = (body: EventDraft, seq: number): Event =>
   }) as unknown as Event
 
 describe('an ending written because the sandbox stopped', () => {
-  it('does not hand the turn to the model', () => {
-    expect(isTurnTaking(shellEnded({ cause: EShellEndCause.SandboxStopped }))).toBe(false)
+  it('hands the turn to the model for a shell, so an agent that waits on it wakes', () => {
+    expect(isTurnTaking(shellEnded({ cause: EShellEndCause.SandboxStopped }))).toBe(true)
+  })
+
+  it('does not hand the turn to the model for a service', () => {
     expect(isTurnTaking(serviceEnded({ cause: EShellEndCause.SandboxStopped }))).toBe(false)
   })
 
