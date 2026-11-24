@@ -9,6 +9,7 @@ import { AppControls } from '../../navigation/app-controls'
 import { tabHeaderOptionsOf } from '../../navigation/header-options'
 import { ESettingsPlacement, settingsPlacementOf } from '../../navigation/root-navigation'
 import { InAppNoticesProvider } from '../../notifications/in-app-notices-provider'
+import { SessionsDrawerProvider } from '../../sessions/sessions-drawer-state'
 import { sessionIdOfPathname } from '../../thread/v2/presence-state'
 import { usePresenceReport } from '../../thread/v2/use-presence-report'
 
@@ -42,7 +43,7 @@ const AppStack = () => {
   }
   return (
     <Stack screenOptions={{ contentStyle: { backgroundColor: theme.background } }}>
-      <Stack.Screen name="index" options={tabOptions('Sessions')} />
+      <Stack.Screen name="index" options={{ headerShown: false, animation: 'none' }} />
       <Stack.Screen name="routines" options={tabOptions('Routines')} />
       <Stack.Screen name="projects" options={tabOptions('Projects')} />
       <Stack.Screen name="artifacts" options={tabOptions('Artifacts')} />
@@ -56,7 +57,10 @@ const AppStack = () => {
           headerTintColor: theme.foreground,
         }}
       />
-      <Stack.Screen name="sessions/[id]" options={{ title: '', ...pushedHeaderOptions }} />
+      <Stack.Screen
+        name="sessions"
+        options={{ headerShown: false, animation: 'none', gestureEnabled: false }}
+      />
       <Stack.Screen
         name="agents/[agentId]"
         options={{ title: 'Sub-agent', ...pushedHeaderOptions }}
@@ -75,14 +79,16 @@ export default function AppLayout() {
   usePresenceReport({ api, sessionId: sessionIdOfPathname(pathname) })
   return (
     <PostureProvider>
-      <InAppNoticesProvider>
-        <View style={styles.root}>
-          <RailContentFrame>
-            <AppStack />
-          </RailContentFrame>
-          <AppControls />
-        </View>
-      </InAppNoticesProvider>
+      <SessionsDrawerProvider>
+        <InAppNoticesProvider>
+          <View style={styles.root}>
+            <RailContentFrame>
+              <AppStack />
+            </RailContentFrame>
+            <AppControls />
+          </View>
+        </InAppNoticesProvider>
+      </SessionsDrawerProvider>
     </PostureProvider>
   )
 }

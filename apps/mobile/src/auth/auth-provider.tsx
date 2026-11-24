@@ -21,6 +21,7 @@ import { EHandoffResult, runHandoffSignIn } from './sign-in-flow'
 import { createPendingRevokeStorage, createTokenStore } from './token-store'
 import { clearSettingsCache } from '../settings/settings-storage'
 import { installClientId } from '../storage/install-client-id'
+import { selectedSessionStore } from '../sessions/selected-session'
 import { clearSessionLog } from '../thread/v2/session-cache'
 import { XhrEventSource } from '../thread/v2/xhr-event-source'
 
@@ -207,6 +208,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     pushDeviceRef.current = undefined
     dispatch({ type: EAuthEvent.SignOut })
     await store.clear()
+    selectedSessionStore().select(null)
     await Promise.all([clearSessionLog(), clearSettingsCache()])
     if (bearer === undefined) return
     if (pushDeviceId !== undefined) {

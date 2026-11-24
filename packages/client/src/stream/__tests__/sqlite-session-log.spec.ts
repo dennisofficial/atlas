@@ -6,11 +6,10 @@ import {
   initialFailureMessage,
   initialSessionViewState,
 } from '@dltech/atlas-core'
-import { SESSION_LOG_STRUCTURE_VERSION, type SessionLogSnapshot } from '@dltech/atlas-client/stream'
-import { headOf, mintEvents, userSaid } from '@dltech/atlas-client/stream-fixture'
-
-import type { SqlValue, SqliteExecutor } from '../../../storage/sqlite-executor'
-import { createSqliteSessionLog } from '../session-log-store'
+import { SESSION_LOG_STRUCTURE_VERSION, type SessionLogSnapshot } from '../session-log'
+import { createSqliteSessionLog } from '../sqlite-session-log'
+import type { SqlValue, SqliteExecutor } from '../sqlite-executor'
+import { headOf, mintEvents, userSaid } from './support'
 
 const executorOf = (): SqliteExecutor => {
   const db = new Database(':memory:')

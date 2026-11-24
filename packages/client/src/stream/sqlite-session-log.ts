@@ -1,13 +1,9 @@
 import { v2EventSchema, type V2Event } from '@dltech/atlas-core'
-import {
-  logSnapshotOf,
-  SESSION_LOG_STRUCTURE_VERSION,
-  type SessionLog,
-  type SessionLogSnapshot,
-} from '@dltech/atlas-client/stream'
 import type { z } from 'zod'
 
-import type { SqliteExecutor } from '../../storage/sqlite-executor'
+import { logSnapshotOf } from './session-log-record'
+import { SESSION_LOG_STRUCTURE_VERSION, type SessionLog } from './session-log'
+import type { SqliteExecutor } from './sqlite-executor'
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS session_log_events (
@@ -179,5 +175,3 @@ export const createSqliteSessionLog = (args: {
     },
   }
 }
-
-export type { SessionLogSnapshot }

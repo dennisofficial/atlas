@@ -9,19 +9,17 @@ import {
   useTheme,
 } from '@dltech/atlas-ui-native'
 import { space } from '@dltech/atlas-ui/tokens'
-import { router, Stack, useLocalSearchParams } from 'expo-router'
+import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router'
 import { PanelLeft } from 'lucide-react-native'
-import { useCallback, useState } from 'react'
-import { ActivityIndicator, StyleSheet, useWindowDimensions, View } from 'react-native'
+import { useCallback } from 'react'
+import { ActivityIndicator, Platform, StyleSheet, useWindowDimensions, View } from 'react-native'
 import { EffortSelect, FastToggle } from '../../../composer/model-controls'
 import { ModelSheet } from '../../../composer/model-picker'
 import { ModelTrigger } from '../../../composer/model-trigger'
 import { KeyboardDock } from '../../../layout/keyboard-dock'
 import { usePosture } from '../../../layout/use-posture'
-import { BackButton } from '../../../navigation/back-button'
 import { EHeaderLeadingItem, sessionHeaderLeadingOf } from '../../../navigation/header-leading'
 import { leadingHeaderOptionsOf } from '../../../navigation/header-options'
-import { SessionsPanelLayout } from '../../../sessions/sessions-panel-layout'
 import { CommandListSheet } from '../../../thread/composer/command-list-sheet'
 import { Composer } from '../../../thread/composer/composer'
 import { ContextReading } from '../../../thread/composer/context-reading'
@@ -32,19 +30,26 @@ import { SessionTitle } from '../../../thread/components/session-title'
 import { StartFailedCard } from '../../../thread/components/start-failed-card'
 import { SessionSkeleton } from '../../../thread/components/session-skeleton'
 import { Transcript } from '../../../thread/components/transcript'
+import { selectedSessionStore } from '../../../sessions/selected-session'
+import { useSessionsDrawer } from '../../../sessions/sessions-drawer-state'
 import { useV2SessionScreen } from '../../../thread/v2/use-v2-session-screen'
 
 export default function SessionScreen() {
   const theme = useTheme()
   const posture = usePosture()
   const { width: windowWidth } = useWindowDimensions()
-  const [overlayOpen, setOverlayOpen] = useState(false)
   const { id, title } = useLocalSearchParams<{ id: string; title?: string }>()
   const session = useV2SessionScreen({ sessionId: id, fallbackTitle: title })
   const model = session.commands.model
+  const { setOpen } = useSessionsDrawer()
 
-  const handleOpenSessions = useCallback(() => setOverlayOpen(true), [])
-  const handleCloseSessions = useCallback(() => setOverlayOpen(false), [])
+  useFocusEffect(
+    useCallback(() => {
+      selectedSessionStore().select(id)
+    }, [id]),
+  )
+
+  const handleOpenSessions = useCallback(() => setOpen(true), [setOpen])
 
   const handleOpenAgent = useCallback(
     (agentId: string) => {
@@ -92,11 +97,10 @@ export default function SessionScreen() {
             windowWidth,
             posture,
           }),
-          headerBackVisible: true,
-          headerLeft: showsSessions
-            ? () => (
-                <View style={styles.headerLeft}>
-                  <BackButton />
+          headerBackVisible: false,
+          headerLeft:
+            showsSessions && Platform.OS !== 'ios'
+              ? () => (
                   <Button
                     label="Sessions"
                     icon={PanelLeft}
@@ -104,116 +108,109 @@ export default function SessionScreen() {
                     size={EButtonSize.IconLg}
                     onPress={handleOpenSessions}
                   />
-                </View>
-              )
-            : undefined,
+                )
+              : undefined,
         }}
       />
-      <SessionsPanelLayout
-        sessionId={id}
-        overlayOpen={overlayOpen}
-        onCloseOverlay={handleCloseSessions}
-      >
-        <View style={styles.content}>
-          {session.loaded || session.failedToLoad ? null : <SessionSkeleton />}
-          {session.failedToLoad ? (
-            <View style={styles.center}>
-              <Text size={ETextRole.Sm} tone={ETextTone.Destructive}>
-                This session could not be loaded.
-              </Text>
-            </View>
-          ) : null}
-          {session.loaded ? (
-            <>
-              <Transcript
-                rows={[...session.rows, ...session.stagedRows]}
-                working={session.working}
-                now={session.now}
-                threadId={id}
-                onLoadOlder={session.loadOlder}
-                agentLinks={session.agentLinks}
-                onOpenAgent={handleOpenAgent}
-              />
-              {session.failure === null || session.startFailure !== undefined ? null : (
-                <View style={styles.failure}>
-                  <Text size={ETextRole.Xs} tone={ETextTone.Destructive} style={styles.failureText}>
-                    {session.failure}
+      <View style={styles.content}>
+        {session.loaded || session.failedToLoad ? null : <SessionSkeleton />}
+        {session.failedToLoad ? (
+          <View style={styles.center}>
+            <Text size={ETextRole.Sm} tone={ETextTone.Destructive}>
+              This session could not be loaded.
+            </Text>
+          </View>
+        ) : null}
+        {session.loaded ? (
+          <>
+            <Transcript
+              rows={[...session.rows, ...session.stagedRows]}
+              working={session.working}
+              now={session.now}
+              threadId={id}
+              onLoadOlder={session.loadOlder}
+              agentLinks={session.agentLinks}
+              onOpenAgent={handleOpenAgent}
+            />
+            {session.failure === null || session.startFailure !== undefined ? null : (
+              <View style={styles.failure}>
+                <Text size={ETextRole.Xs} tone={ETextTone.Destructive} style={styles.failureText}>
+                  {session.failure}
+                </Text>
+                <Button
+                  label="Retry"
+                  size={EButtonSize.Sm}
+                  variant={EButtonVariant.Outline}
+                  onPress={() => void session.retry()}
+                />
+              </View>
+            )}
+            <KeyboardDock>
+              <OperatorRequestDock operator={session.operator} />
+              {session.stale ? (
+                <View style={styles.operator}>
+                  <StaleCard />
+                </View>
+              ) : null}
+              {session.stateLine === null ? null : (
+                <View style={styles.stateRow}>
+                  {session.catchingUp ? (
+                    <ActivityIndicator size="small" color={theme.mutedForeground} />
+                  ) : null}
+                  <Text size={ETextRole.Xs} tone={ETextTone.Muted} style={styles.state}>
+                    {session.stateLine}
                   </Text>
-                  <Button
-                    label="Retry"
-                    size={EButtonSize.Sm}
-                    variant={EButtonVariant.Outline}
-                    onPress={() => void session.retry()}
-                  />
+                  {session.canReconnect ? (
+                    <Button
+                      label="Reconnect"
+                      size={EButtonSize.Sm}
+                      variant={EButtonVariant.Ghost}
+                      onPress={session.reconnect}
+                    />
+                  ) : null}
                 </View>
               )}
-              <KeyboardDock>
-                <OperatorRequestDock operator={session.operator} />
-                {session.stale ? (
-                  <View style={styles.operator}>
-                    <StaleCard />
-                  </View>
-                ) : null}
-                {session.stateLine === null ? null : (
-                  <View style={styles.stateRow}>
-                    {session.catchingUp ? (
-                      <ActivityIndicator size="small" color={theme.mutedForeground} />
-                    ) : null}
-                    <Text size={ETextRole.Xs} tone={ETextTone.Muted} style={styles.state}>
-                      {session.stateLine}
-                    </Text>
-                    {session.canReconnect ? (
-                      <Button
-                        label="Reconnect"
-                        size={EButtonSize.Sm}
-                        variant={EButtonVariant.Ghost}
-                        onPress={session.reconnect}
-                      />
-                    ) : null}
-                  </View>
-                )}
-                {session.startFailure === undefined ? null : (
-                  <StartFailedCard reason={session.startFailure.reason} onRetry={session.retry} />
-                )}
-                <QueuedDock dock={session.queued} />
-                <Composer
-                  working={session.working}
-                  onSend={session.send}
-                  onStop={session.stop}
-                  restored={session.restored}
-                  draftSessionId={id}
-                  refusal={session.notice}
-                  entries={session.commands.entries}
-                  clientActions={session.commands.clientActions}
-                >
-                  <ModelTrigger
-                    models={model.models}
-                    selection={model.selection}
-                    onPress={handleOpenModel}
-                  />
-                  {model.selection === null ? null : (
-                    <>
-                      {model.selection.model.efforts.length === 0 ? null : (
-                        <EffortSelect selection={model.selection} onChange={handleEffort} />
-                      )}
-                      {model.selection.model.fast ? (
-                        <FastToggle selection={model.selection} onToggle={handleFast} />
-                      ) : null}
-                    </>
-                  )}
-                  <ContextReading context={session.context} />
-                </Composer>
-                <CommandListSheet
-                  open={session.commands.commandList.open}
-                  onClose={session.commands.commandList.onClose}
-                  entries={session.commands.entries}
+              {session.startFailure === undefined ? null : (
+                <StartFailedCard reason={session.startFailure.reason} onRetry={session.retry} />
+              )}
+              <QueuedDock dock={session.queued} />
+              <Composer
+                working={session.working}
+                onSend={session.send}
+                onStop={session.stop}
+                restored={session.restored}
+                draftSessionId={id}
+                refusal={session.notice}
+                entries={session.commands.entries}
+                clientActions={session.commands.clientActions}
+              >
+                <ModelTrigger
+                  models={model.models}
+                  selection={model.selection}
+                  onPress={handleOpenModel}
                 />
-                <ModelSheet {...session.commands.model} />
-              </KeyboardDock>
-            </>
-          ) : null}
-        </View>
-      </SessionsPanelLayout>
+                {model.selection === null ? null : (
+                  <>
+                    {model.selection.model.efforts.length === 0 ? null : (
+                      <EffortSelect selection={model.selection} onChange={handleEffort} />
+                    )}
+                    {model.selection.model.fast ? (
+                      <FastToggle selection={model.selection} onToggle={handleFast} />
+                    ) : null}
+                  </>
+                )}
+                <ContextReading context={session.context} />
+              </Composer>
+              <CommandListSheet
+                open={session.commands.commandList.open}
+                onClose={session.commands.commandList.onClose}
+                entries={session.commands.entries}
+              />
+              <ModelSheet {...session.commands.model} />
+            </KeyboardDock>
+          </>
+        ) : null}
+      </View>
     </View>
   )
 }
@@ -254,10 +251,5 @@ const styles = StyleSheet.create({
   },
   state: {
     flexShrink: 1,
-  },
-  headerLeft: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: space(1),
   },
 })

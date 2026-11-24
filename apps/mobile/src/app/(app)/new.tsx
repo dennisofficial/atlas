@@ -3,7 +3,7 @@ import type { Attachment } from '@dltech/atlas-core'
 import { EFontWeight, ETextRole, Text, useTheme } from '@dltech/atlas-ui-native'
 import { decodeModelFavourites, encodeModelFavourites } from '@dltech/atlas-wire/web'
 import { space } from '@dltech/atlas-ui/tokens'
-import { router, useLocalSearchParams } from 'expo-router'
+import { router, useLocalSearchParams, usePathname } from 'expo-router'
 import { useEffect, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { z } from 'zod'
@@ -17,12 +17,15 @@ import type { IProjectOption } from '../../composer/project-options'
 import { ProjectSelect } from '../../composer/project-select'
 import { useModels } from '../../composer/use-models'
 import { KeyboardDock } from '../../layout/keyboard-dock'
+import { applyNavigation } from '../../navigation/apply-navigation'
+import { sessionOpenOf } from '../../navigation/root-navigation'
 import { useSettings } from '../../settings/settings-provider'
 import { Composer } from '../../thread/composer/composer'
 
 export default function NewSessionScreen() {
   const theme = useTheme()
   const { api } = useAuth()
+  const pathname = usePathname()
   const { project } = useLocalSearchParams<{ project?: string }>()
   const [projects, setProjects] = useState<IProjectOption[]>([])
   const [projectId, setProjectId] = useState<string | null>(project ?? null)
@@ -80,7 +83,7 @@ export default function NewSessionScreen() {
         fast: selection?.fast,
       })
       router.dismiss()
-      router.push({ pathname: '/sessions/[id]', params: { id } })
+      applyNavigation(sessionOpenOf({ pathname, id }))
       return true
     } catch {
       return false

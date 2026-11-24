@@ -14,11 +14,13 @@ import {
   staleNoticeIdsOf,
 } from '@dltech/atlas-notifications/client'
 import type { StreamSessionRow } from '@dltech/atlas-protocol'
-import { router, usePathname } from 'expo-router'
+import { usePathname } from 'expo-router'
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { z } from 'zod'
 
 import { useAuth } from '../auth/auth-provider'
+import { applyNavigation } from '../navigation/apply-navigation'
+import { sessionOpenOf } from '../navigation/root-navigation'
 import { useSettings } from '../settings/settings-provider'
 import { dismissPresentedRead } from '../push/notification-handler'
 import { reportInAppShown } from '../push/notification-track'
@@ -120,7 +122,7 @@ export const InAppNoticesProvider = ({ children }: { children: ReactNode }) => {
           notice={notice}
           onOpen={() => {
             setNotice(null)
-            router.push({ pathname: '/sessions/[id]', params: { id: notice.sessionId } })
+            applyNavigation(sessionOpenOf({ pathname, id: notice.sessionId }))
           }}
           onDismiss={() => setNotice(null)}
         />

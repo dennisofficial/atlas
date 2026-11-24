@@ -8,7 +8,7 @@ export enum EControlsPlacement {
   BottomBar = 'bottom-bar',
 }
 
-export enum ESessionsLayout {
+export enum ESessionsListLayout {
   Stacked = 'stacked',
   Overlay = 'overlay',
   Panel = 'panel',
@@ -18,7 +18,7 @@ export type TInsets = { top: number; right: number; bottom: number; left: number
 
 export type TPosture = {
   controls: EControlsPlacement
-  sessions: ESessionsLayout
+  sessionsList: ESessionsListLayout
   railWidth: number
   railBottom: number
   clearance: { bottom: number }
@@ -37,9 +37,9 @@ const controlsOf = (insets: TInsets): EControlsPlacement =>
     ? EControlsPlacement.Rail
     : EControlsPlacement.BottomBar
 
-const sessionsOf = ({ contentWidth, height }: { contentWidth: number; height: number }) => {
-  if (contentWidth < WIDE_MIN_WIDTH) return ESessionsLayout.Stacked
-  return contentWidth > height ? ESessionsLayout.Panel : ESessionsLayout.Overlay
+const sessionsListOf = ({ contentWidth, height }: { contentWidth: number; height: number }) => {
+  if (contentWidth < WIDE_MIN_WIDTH) return ESessionsListLayout.Stacked
+  return contentWidth > height ? ESessionsListLayout.Panel : ESessionsListLayout.Overlay
 }
 
 export const postureOf = ({
@@ -54,7 +54,7 @@ export const postureOf = ({
   const controls = controlsOf(insets)
   return {
     controls,
-    sessions: sessionsOf({ contentWidth: width - insets.left - insets.right, height }),
+    sessionsList: sessionsListOf({ contentWidth: width - insets.left - insets.right, height }),
     railWidth: controls === EControlsPlacement.Rail ? insets.right : 0,
     railBottom: insets.bottom + RAIL_BOTTOM_GAP,
     clearance: {

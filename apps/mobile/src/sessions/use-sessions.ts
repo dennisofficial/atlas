@@ -1,10 +1,12 @@
-import { createSessionsFeed } from '@dltech/atlas-client/stream'
+import { createSessionsFeed, gcSessionLog } from '@dltech/atlas-client/stream'
 import type { StreamSessionRow } from '@dltech/atlas-protocol'
 import { useFocusEffect } from 'expo-router'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { useAuth } from '../auth/auth-provider'
+import { sessionLog } from '../thread/v2/session-cache'
 import { sessionStream } from '../thread/v2/session-stream'
+import { archiveStatesOf } from './archive-states'
 import { type LoadedSessions, loadSessions } from './load-sessions'
 import { type ISessionPartition, partitionSessions } from './session-groups'
 
@@ -56,6 +58,12 @@ export const useSessions = () => {
     await load()
     setRefreshing(false)
   }
+
+  const listed = live ?? loaded?.sessions
+  useEffect(() => {
+    if (listed === undefined) return
+    void gcSessionLog({ log: sessionLog(), sessions: archiveStatesOf(listed) })
+  }, [listed])
 
   const partition = useMemo(
     () =>

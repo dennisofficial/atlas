@@ -1,5 +1,7 @@
-import { SessionsHome } from '../../sessions/sessions-home'
+import { Redirect } from 'expo-router'
 
-export default function SessionsScreen() {
-  return <SessionsHome nativeSearch />
+import { SESSIONS_HREF } from '../../navigation/tabs'
+
+export default function AppIndexScreen() {
+  return <Redirect href={SESSIONS_HREF} />
 }

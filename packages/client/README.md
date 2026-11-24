@@ -54,7 +54,7 @@ The headless client library that web, the TUI and the mobile app share.
 ### Keep the log and the view
 
 - `memorySessionLog()`, `browserSessionLog(eventSchema)`, `createIndexedDbSessionLog(args)`: the
-  `SessionLog` implementations.
+  `SessionLog` implementations. `createSqliteSessionLog({ db })` keeps one behind a `SqliteExecutor`.
 - `SessionWindow`, `applyPage`, `applyPageOutcome`, `RENDER_LIMIT`, `OLDER_PAGE`: the paged window
   of a long thread.
 - `applyOverlayMessage`, `closeOverlay`, `closeOverlayForEvents`, `EMPTY_OVERLAY_STATE`: the live
