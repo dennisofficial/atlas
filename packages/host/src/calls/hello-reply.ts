@@ -42,6 +42,7 @@ const recover = async (args: {
     currentBootId: lane.bootId(),
     answer,
   })
+  if (action.type === 'wait') return
   if (!needsRun(action)) {
     lane.settle(call, interruptedResult(call.op.op))
     return

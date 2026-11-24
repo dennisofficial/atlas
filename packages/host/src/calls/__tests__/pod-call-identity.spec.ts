@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'bun:test'
 
 import { ToolDispatcher, type DispatchArgs, type DispatchableCall } from '@dltech/atlas-agent'
-import type { CallId, EventDraft, RunId, ThreadId } from '@dltech/atlas-core'
+import {
+  EDaemonAnswer,
+  type CallId,
+  type EventDraft,
+  type RunId,
+  type ThreadId,
+} from '@dltech/atlas-core'
 import { ECallStatus } from '@dltech/atlas-protocol'
 import { createInMemoryDaemon, inMemoryDaemonToken } from '@dltech/atlas-protocol/testing'
 
@@ -50,7 +56,7 @@ class ReadTool extends ToolDispatcher {
 }
 
 describe('a tool that opens a pod call', () => {
-  it('is known by its name, and the pod holds the call while its boot stays the same', async () => {
+  it('is known by its name, and the pod answers whether it holds the call', async () => {
     const daemon = await createInMemoryDaemon({
       version: 'test',
       sandboxName: SANDBOX,
@@ -65,7 +71,9 @@ describe('a tool that opens a pod call', () => {
 
     expect(calls.usesPodCall('service')).toBe(true)
     expect(calls.usesPodCall('enter_worktree')).toBe(false)
-    expect(await calls.holdsPodCall({ runId: 'run-1', callId: 'call-service' })).toBe(true)
+    expect(await calls.podAnswerFor({ runId: 'run-1', callId: 'call-service' })).toBe(
+      EDaemonAnswer.Done,
+    )
     calls.close()
     await daemon.stop()
 
@@ -78,9 +86,27 @@ describe('a tool that opens a pod call', () => {
     stranger.open({ epoch: 1 })
     await stranger.ready()
 
-    expect(await stranger.holdsPodCall({ runId: 'run-1', callId: 'call-service' })).toBe(false)
+    expect(await stranger.podAnswerFor({ runId: 'run-1', callId: 'call-service' })).toBe(
+      EDaemonAnswer.NeverSeen,
+    )
 
     stranger.close()
     await other.stop()
+  }, 15_000)
+
+  it('answers that it cannot tell, instead of claiming the pod never saw the call', async () => {
+    const daemon = await createInMemoryDaemon({
+      version: 'test',
+      sandboxName: SANDBOX,
+      secret: SECRET,
+    })
+    const calls = callsOf(daemon)
+    calls.open({ epoch: 1 })
+    await calls.ready()
+    calls.close()
+
+    expect(await calls.podAnswerFor({ runId: 'run-1', callId: 'call-service' })).toBe('unavailable')
+
+    await daemon.stop()
   }, 15_000)
 })

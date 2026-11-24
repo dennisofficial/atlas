@@ -1,14 +1,14 @@
-import { EDaemonAnswer } from '@dltech/atlas-core'
 import type { LogPort } from '@dltech/atlas-observability'
 import { ECallFailure } from '@dltech/atlas-protocol'
 import type { CallResult, DaemonFrame } from '@dltech/atlas-protocol'
 
 import { Answers } from './answers'
 import { openCall, type CallLane, type OpenCallArgs } from './call-open'
-import { scopeDispatchedBootId, scopeKeyOf, scopeToolName } from './call-scope'
+import { scopeDispatchedBootId, scopeToolName } from './call-scope'
 import { FencedError, ProtocolViolationError, type DaemonAnswer } from './errors'
 import { handleHello } from './hello-reply'
 import { DaemonLink } from './link'
+import { PodCalls } from './pod-hold'
 import { READY_TIMEOUT_MS, withReadyDeadline } from './ready-deadline'
 import { ReadyGate, type ReadyReply } from './ready-gate'
 import {
@@ -28,10 +28,9 @@ type StateArgs = RemoteCallsArgs & { releaseResize(): void; resizeReason(): stri
 
 export class RemoteCallsState {
   private readonly pending = new Map<string, Pending>()
-  private readonly podTools = new Set<string>()
-  private podReachable: boolean | undefined
   private readonly acks: ScopeAcks
   private readonly answers: Answers
+  private readonly pods: PodCalls
   private readonly link: DaemonLink
   private readonly lane: CallLane
   private readonly log: LogPort | undefined
@@ -67,6 +66,7 @@ export class RemoteCallsState {
       },
     })
     this.answers = new Answers({ link: this.link, epoch: () => this.epoch })
+    this.pods = new PodCalls({ answers: this.answers, ready: () => this.ready() })
     this.onReady = args.onReady
     this.acks = new ScopeAcks({
       timers: args.timers,
@@ -175,8 +175,7 @@ export class RemoteCallsState {
 
   async invoke(args: OpenCallArgs): Promise<CallResult> {
     const dispatchedBootId = args.dispatchedBootId ?? scopeDispatchedBootId()
-    const tool = scopeToolName()
-    if (tool !== undefined) this.podTools.add(tool)
+    this.pods.note(scopeToolName())
     if (this.fenced) throw new FencedError(`session ${this.args.sessionId} lost its lease`)
     this.reopenIfDown()
     if (this.closed) {
@@ -186,21 +185,11 @@ export class RemoteCallsState {
   }
 
   usesPodCall(tool: string): boolean {
-    return this.podTools.has(tool)
+    return this.pods.usesTool(tool)
   }
 
-  async holdsPodCall(args: { runId: string; callId: string }): Promise<boolean> {
-    if (this.podReachable !== false) {
-      try {
-        await this.ready()
-        this.podReachable = true
-      } catch {
-        this.podReachable = false
-      }
-    }
-    if (this.podReachable === false) return false
-    const answer = await this.answers.ask(`${scopeKeyOf(args)}.0`)
-    return answer === EDaemonAnswer.Running || answer === EDaemonAnswer.Done
+  podAnswerFor(args: { runId: string; callId: string }): Promise<DaemonAnswer> {
+    return this.pods.answerFor(args)
   }
 
   ack(args: { key: string }): Promise<void> {
@@ -300,8 +289,7 @@ export class RemoteCallsState {
       failAll: (error: Error) => this.failAll(error),
       handleHelloReply: (frame: { bootId: string; version: string }) =>
         handleHello(this.lane, frame),
-      answered: (key: string, state: DaemonAnswer | EDaemonAnswer) =>
-        this.answers.settle({ key, state }),
+      answered: (key: string, state: DaemonAnswer) => this.answers.settle({ key, state }),
       emitEvent: (frame: Extract<DaemonFrame, { kind: 'event' }>) => this.args.onEvent?.(frame),
     }
   }

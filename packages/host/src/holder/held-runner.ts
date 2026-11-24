@@ -1,6 +1,5 @@
 import {
   EHeldAction,
-  EToolEffect,
   isResumableOf,
   modelFacingDeclarationsOf,
   type InboxEntry,
@@ -15,6 +14,7 @@ import { BranchObserver } from './branch-observer'
 import { oomObserverOf, type OomObserver } from './oom-observer'
 import { hookedToolsOf } from './hooked-tools'
 import { pluginPodOf } from './plugin-pod'
+import { podHoldProbeOf } from './pod-hold-probe'
 import type { HeldSessionDeps } from './held-session-deps'
 import { LeaseLostError } from './record/record-adapter'
 import type { HeldTurns } from './held-turns'
@@ -76,12 +76,8 @@ export const settleAndCheckResume = async (args: {
     record,
     ids: deps.ids,
     threadId,
-    effectOf: (name) =>
-      runtime.daemonTools.has(name) || runtime.usesPodCall(name)
-        ? EToolEffect.Read
-        : runtime.effectOf(name),
-    heldElsewhere: (call) =>
-      runtime.remoteCalls.holdsPodCall({ runId: call.runId, callId: call.callId }),
+    effectOf: (name) => runtime.effectOf(name),
+    probe: podHoldProbeOf({ runtime, record }),
   })
   await args.crew.adoptAll(
     await openChildren({ record, plane: deps.plane, sessionId: deps.sessionId, threadId }),

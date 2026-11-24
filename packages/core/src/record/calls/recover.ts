@@ -7,6 +7,8 @@ export type CallRecordFacts = {
   readOnly: boolean
 }
 
+export type RecoverAnswer = EDaemonAnswer | 'unavailable'
+
 export type RecoverAction =
   | { type: 'ack' }
   | { type: 'record-result' }
@@ -14,6 +16,7 @@ export type RecoverAction =
   | { type: 'run' }
   | { type: 'rerun' }
   | { type: 'interrupted' }
+  | { type: 'wait' }
 
 export type RecoverVariant = {
   rerunAcrossBoot?: boolean
@@ -23,7 +26,7 @@ export type RecoverVariant = {
 
 export function recoverCall(args: {
   facts: CallRecordFacts
-  answer: EDaemonAnswer
+  answer: RecoverAnswer
   bootId: string
   variant?: RecoverVariant | undefined
 }): RecoverAction {
@@ -36,6 +39,7 @@ export function recoverCall(args: {
     return variant?.doneRuns === true ? { type: 'run' } : { type: 'record-result' }
   }
   if (answer === EDaemonAnswer.Running) return { type: 'attach' }
+  if (answer === 'unavailable') return { type: 'wait' }
 
   const sameBoot = facts.dispatchedBootId === bootId
   if (facts.dispatched && facts.dispatchedBootId !== undefined && sameBoot) return { type: 'run' }

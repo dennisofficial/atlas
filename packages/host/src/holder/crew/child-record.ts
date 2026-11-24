@@ -1,6 +1,5 @@
 import {
   EAgentLostCause,
-  EToolEffect,
   type AgentLost,
   type EAgentStatus,
   type EventDraft,
@@ -11,6 +10,7 @@ import { settleCrashedCalls } from '@dltech/atlas-agent'
 import type { SubagentSaid, WorktreeEntryInfo } from '@dltech/atlas-plugin-sdk'
 
 import type { HeldSessionDeps } from '../held-session-deps'
+import { podHoldProbeOf } from '../pod-hold-probe'
 import type { SessionRuntime } from '../ports'
 import type { LeaseLostError, SessionRecord } from '../record/record-adapter'
 import { SessionRecord as RecordAdapter } from '../record/record-adapter'
@@ -25,6 +25,7 @@ export type ChildRunArgs = {
   agentType: string
   intent: string
   group?: string | undefined
+  callId?: string | undefined
   groupHold?: ((draft: EventDraft) => EventDraft) | undefined
   postHold?: ((post: () => Promise<void>) => Promise<void>) | undefined
   worktree?: WorktreeEntryInfo | undefined
@@ -87,12 +88,8 @@ export const adoptRecordOf = async (spec: RecordArgs): Promise<AdoptRecordResult
     record: opened,
     ids: spec.args.deps.ids,
     threadId: spec.agentId,
-    effectOf: (name) =>
-      spec.args.runtime.daemonTools.has(name) || spec.args.runtime.usesPodCall(name)
-        ? EToolEffect.Read
-        : spec.args.runtime.effectOf(name),
-    heldElsewhere: (call) =>
-      spec.args.runtime.remoteCalls.holdsPodCall({ runId: call.runId, callId: call.callId }),
+    effectOf: (name) => spec.args.runtime.effectOf(name),
+    probe: podHoldProbeOf({ runtime: spec.args.runtime, record: opened }),
   })
   return { ok: true, record: opened }
 }

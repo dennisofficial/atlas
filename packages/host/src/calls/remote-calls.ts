@@ -4,6 +4,7 @@ import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 import type { CallOp, CallResult, DaemonFrame } from '@dltech/atlas-protocol'
 import { EPodResizeProbe, type PodResizeOpen } from '@dltech/atlas-core'
 
+import type { DaemonAnswer } from './errors'
 import { RemoteCallsState } from './remote-calls-state'
 import { ResizeGate } from './resize-gate'
 import type { DaemonConnector } from './socket'
@@ -126,8 +127,8 @@ export class RemoteCalls {
     return this.state.usesPodCall(tool)
   }
 
-  holdsPodCall(args: { runId: string; callId: string }): Promise<boolean> {
-    return this.state.holdsPodCall(args)
+  podAnswerFor(args: { runId: string; callId: string }): Promise<DaemonAnswer> {
+    return this.state.podAnswerFor(args)
   }
 
   handoff(): void {

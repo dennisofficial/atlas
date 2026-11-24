@@ -1,4 +1,9 @@
-import { EDaemonAnswer, recoverCall, type RecoverAction } from '@dltech/atlas-core'
+import {
+  EDaemonAnswer,
+  recoverCall,
+  type RecoverAction,
+  type RecoverAnswer,
+} from '@dltech/atlas-core'
 
 export const SANDBOX_OFFLINE_GUIDANCE =
   'The sandbox is offline, so retrying tool calls will not help: stop making sandbox tool calls, tell the operator the sandbox is down and why, and end your turn.'
@@ -55,7 +60,7 @@ export const resizeInterruptedMessage = (args: { reason: string }): string =>
 const crashedCallMessage = (op: string): string =>
   `${op} was interrupted by a process restart before its result was recorded; its effects are unknown — check before repeating it`
 
-export type DaemonAnswer = EDaemonAnswer | 'unavailable'
+export type DaemonAnswer = RecoverAnswer
 
 export const actionForAnswer = (args: {
   op: string
@@ -70,7 +75,7 @@ export const actionForAnswer = (args: {
       resultRecorded: false,
       readOnly: isReadOnlyOp(args.op),
     },
-    answer: args.answer === 'unavailable' ? EDaemonAnswer.NeverSeen : args.answer,
+    answer: args.answer,
     bootId: args.currentBootId ?? '',
     variant: { doneRuns: true },
   })

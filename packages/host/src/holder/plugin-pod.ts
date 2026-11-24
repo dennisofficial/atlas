@@ -22,6 +22,7 @@ import {
   type PodSlash,
 } from '@dltech/atlas-plugin-sdk'
 
+import { scopeCallId } from '../calls/call-scope'
 import { worktreesOf } from './checkouts'
 import { deferredListingHook } from './deferred-listing'
 import { withDiscoveryTools } from './discovery'
@@ -187,6 +188,7 @@ export const pluginPodContextOf = (args: {
         ? postNoticeToSession({ deps, event, key: options.key })
         : args.notify(event, options)),
     events: () => resolvedEventsOf(record),
+    toolCallId: () => scopeCallId(),
     call: pluginCallOf({
       invoke: (call) => runtime.remoteCalls.invoke(call),
       ...(runtime.env === undefined ? {} : { env: runtime.env }),

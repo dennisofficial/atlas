@@ -87,6 +87,10 @@ export const openCall = async (args: {
   if (request.attachOnly === true) {
     const answer = await lane.answers.ask(call.key)
     if (call.done || lane.gone()) return outcome
+    if (answer === 'unavailable') {
+      call.armed = true
+      return outcome
+    }
     if (answer !== 'running' && answer !== 'done') {
       lane.settle(call, interruptedResult(call.op.op))
       return outcome
@@ -107,6 +111,10 @@ export const openCall = async (args: {
       currentBootId: lane.bootId(),
       answer,
     })
+    if (action.type === 'wait') {
+      call.armed = true
+      return outcome
+    }
     if (!needsRun(action)) {
       lane.settle(call, interruptedResult(call.op.op))
       return outcome

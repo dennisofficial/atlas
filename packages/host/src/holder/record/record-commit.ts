@@ -57,6 +57,20 @@ export const ackRecordedDaemonResults = async (args: {
   }
 }
 
+const dispatchBootId = async (args: {
+  name: string
+  daemonTools: ReadonlySet<string>
+  remoteCalls: RemoteCalls
+}): Promise<string | undefined> => {
+  if (!args.daemonTools.has(args.name)) return args.remoteCalls.bootId()
+  await args.remoteCalls.ready()
+  const bootId = args.remoteCalls.bootId()
+  if (bootId === undefined) {
+    throw new RecordCorruptionError('the daemon link had no bootId after ready() resolved')
+  }
+  return bootId
+}
+
 export const prepareDraft = async (
   args: { cache: RecordCache; daemonTools: ReadonlySet<string>; remoteCalls: RemoteCalls },
   draft: AppendBody,
@@ -70,12 +84,8 @@ export const prepareDraft = async (
     }
     return undefined
   }
-  if (!args.daemonTools.has(draft.name)) return draft
-  await args.remoteCalls.ready()
-  const bootId = args.remoteCalls.bootId()
-  if (bootId === undefined) {
-    throw new RecordCorruptionError('the daemon link had no bootId after ready() resolved')
-  }
+  const bootId = await dispatchBootId({ ...args, name: draft.name })
+  if (bootId === undefined) return draft
   markDispatched({ bootId })
   return { ...draft, bootId }
 }

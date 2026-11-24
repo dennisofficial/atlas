@@ -1,8 +1,10 @@
 import {
   crashedCallsOf,
   EToolEffect,
+  recoverCall,
   type IdPort,
   type PendingCall,
+  type RecoverAnswer,
   type ThreadId,
 } from '@dltech/atlas-core'
 
@@ -13,7 +15,11 @@ type CrashIds = Pick<IdPort, 'nextRunId'>
 
 export type ToolEffectResolver = (name: string) => EToolEffect | undefined
 
-export type CallHeldElsewhere = (call: PendingCall) => Promise<boolean>
+export type PodHoldProbe = {
+  dispatchedBootId(callId: string): string | undefined
+  podAnswer(call: PendingCall): Promise<RecoverAnswer>
+  daemonBootId(): string | undefined
+}
 
 export function crashedCallDraft(call: PendingCall) {
   return {
@@ -27,12 +33,27 @@ export function crashedCallDraft(call: PendingCall) {
   }
 }
 
+const restartProven = async (args: {
+  call: PendingCall
+  probe: PodHoldProbe
+}): Promise<boolean> => {
+  const dispatchedBootId = args.probe.dispatchedBootId(args.call.callId)
+  if (dispatchedBootId === undefined) return false
+  const action = recoverCall({
+    facts: { dispatched: true, dispatchedBootId, resultRecorded: false, readOnly: false },
+    answer: await args.probe.podAnswer(args.call),
+    bootId: args.probe.daemonBootId() ?? '',
+    variant: { doneRuns: true },
+  })
+  return action.type === 'interrupted'
+}
+
 export async function settleCrashedCalls(args: {
   record: CrashLog
   ids: CrashIds
   threadId: ThreadId
   effectOf: ToolEffectResolver
-  heldElsewhere?: CallHeldElsewhere | undefined
+  probe?: PodHoldProbe | undefined
 }): Promise<readonly PendingCall[]> {
   const crashed = crashedCallsOf(await args.record.loopState({ threadId: args.threadId }))
   if (crashed.length === 0) return crashed
@@ -40,7 +61,7 @@ export async function settleCrashedCalls(args: {
   const unrecoverable = crashed.filter((call) => args.effectOf(call.name) !== EToolEffect.Read)
   const settled: PendingCall[] = []
   for (const call of unrecoverable) {
-    if (args.heldElsewhere !== undefined && (await args.heldElsewhere(call))) continue
+    if (args.probe !== undefined && !(await restartProven({ call, probe: args.probe }))) continue
     settled.push(call)
   }
   if (settled.length === 0) return crashed

@@ -10,6 +10,7 @@ import { interruptedMessage } from './errors'
 
 type CallScope = {
   scopeKey: string
+  callId?: string | undefined
   next: number
   tool?: string | undefined
   dispatchedBootId?: string | undefined
@@ -33,6 +34,8 @@ export const markDispatched = (args: { bootId: string }): void => {
 export const scopeDispatchedBootId = (): string | undefined => storage.getStore()?.dispatchedBootId
 
 export const scopeToolName = (): string | undefined => storage.getStore()?.tool
+
+export const scopeCallId = (): string | undefined => storage.getStore()?.callId
 
 export const runInCallScope = <T>(args: {
   scopeKey: string
@@ -66,6 +69,7 @@ export class ScopedToolDispatcher extends ToolDispatcher {
   dispatch(args: DispatchArgs): Promise<readonly EventDraft[]> {
     const scope: CallScope = {
       scopeKey: scopeKeyOf({ runId: args.call.runId, callId: args.call.callId }),
+      callId: args.call.callId,
       next: 0,
       tool: args.call.name,
     }
