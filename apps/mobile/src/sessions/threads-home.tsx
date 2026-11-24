@@ -4,7 +4,6 @@ import { router } from 'expo-router'
 import { useMemo, useState } from 'react'
 import { ActivityIndicator, RefreshControl, SectionList, StyleSheet, View } from 'react-native'
 
-import { EThreadsLayout } from '../layout/posture'
 import { usePosture } from '../layout/use-posture'
 import { DoneToggle } from './done-toggle'
 import { SearchField } from './search-field'
@@ -87,8 +86,7 @@ export const ThreadsHome = ({
       contentContainerStyle={[
         styles.list,
         {
-          paddingRight:
-            space(2) + (posture.threads === EThreadsLayout.Stacked ? posture.clearance.right : 0),
+          paddingRight: space(2),
           paddingBottom: space(8) + posture.clearance.bottom,
         },
       ]}
