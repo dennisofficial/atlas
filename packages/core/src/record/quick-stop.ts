@@ -18,7 +18,7 @@ const BOOKKEEPING_TYPES: ReadonlySet<V2EventType> = new Set<V2EventType>([
 ])
 
 const saysSomething = (parts: readonly AssistantPart[]): boolean =>
-  parts.some((part) => part.type === 'text' && part.text.trim().length > 0)
+  parts.some((part) => part.type === 'text' && part.text.length > 0)
 
 const quietRowOf = (event: V2Event): boolean => {
   if (BOOKKEEPING_TYPES.has(event.type)) return true
@@ -49,9 +49,10 @@ export function quickStopOf(input: {
   const previousEnd = visible.findLastIndex(
     (event, index) => index < startIndex && event.type === 'turn-ended',
   )
-  const prompts = visible.slice(previousEnd + 1, startIndex).filter(operatorPromptOf)
+  const prompts = visible.slice(previousEnd + 1, startIndex)
   const first = prompts[0]
   if (first === undefined) return null
+  if (!prompts.every(operatorPromptOf)) return null
   if (!visible.slice(startIndex + 1).every(quietRowOf)) return null
 
   return { toSeq: first.seq - 1, draft: prompts.map((event) => event.text).join('\n\n') }

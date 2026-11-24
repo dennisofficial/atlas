@@ -7,6 +7,17 @@ import {
   type V2Event,
 } from '@dltech/atlas-core'
 
+export type QuickStopMessage = {
+  clientId: string
+  text: string
+  attachments: readonly Attachment[]
+}
+
+export type QuickStopEvidence = {
+  rewindEventId: string
+  messages: readonly QuickStopMessage[]
+}
+
 export type QuickStopRestore = {
   rewindEventId: string
   text: string
@@ -15,9 +26,20 @@ export type QuickStopRestore = {
 
 type SaidRow = Extract<V2Event, { type: 'user-said' }>
 
-const clientIdByInbox = (events: readonly V2Event[]): ReadonlyMap<number, string> =>
+const EVIDENCE_TYPES: ReadonlySet<string> = new Set([
+  'user-said',
+  'input-posted',
+  'history-rewound',
+])
+
+export const isQuickStopEvidenceRow = (event: V2Event): boolean => EVIDENCE_TYPES.has(event.type)
+
+export const quickStopEvidenceRowsOf = (events: readonly V2Event[]): readonly V2Event[] =>
+  events.filter(isQuickStopEvidenceRow)
+
+const clientIdByInboxOf = (rows: readonly V2Event[]): ReadonlyMap<number, string> =>
   new Map(
-    events.flatMap((event) =>
+    rows.flatMap((event) =>
       event.type === 'input-posted' && event.message?.clientId !== undefined
         ? [[event.inboxId, event.message.clientId] as const]
         : [],
@@ -33,36 +55,55 @@ const uniqueAttachments = (attachments: readonly Attachment[]): readonly Attachm
   })
 }
 
+const hiddenMessageOf = (args: {
+  row: V2Event
+  rewind: Extract<V2Event, { type: 'history-rewound' }>
+  byInbox: ReadonlyMap<number, string>
+}): QuickStopMessage | undefined => {
+  const { row, rewind, byInbox } = args
+  if (row.type !== 'user-said') return undefined
+  if (row.seq <= rewind.toSeq || row.seq >= rewind.seq) return undefined
+  if (saidBy(row) !== EMessageOrigin.Operator) return undefined
+  const clientId = row.clientId ?? byInbox.get(row.inboxId ?? 0)
+  if (clientId === undefined) return undefined
+  return { clientId, text: row.text, attachments: attachmentsOf(row as SaidRow) }
+}
+
+export const quickStopsOf = (rows: readonly V2Event[]): readonly QuickStopEvidence[] => {
+  const byInbox = clientIdByInboxOf(rows)
+  return rows.flatMap((rewind) => {
+    if (rewind.type !== 'history-rewound') return []
+    if (rewind.cause !== ERewindCause.QuickStop) return []
+    const messages = rows.flatMap((row) => {
+      const message = hiddenMessageOf({ row, rewind, byInbox })
+      return message === undefined ? [] : [message]
+    })
+    if (messages.length === 0) return []
+    return [{ rewindEventId: rewind.id, messages }]
+  })
+}
+
 export const quickStopRestoresOf = (args: {
-  events: readonly V2Event[]
+  quickStops: readonly QuickStopEvidence[]
   clientIds: readonly string[]
 }): readonly QuickStopRestore[] => {
   const wanted = new Set(args.clientIds)
   if (wanted.size === 0) return []
-  const byInbox = clientIdByInbox(args.events)
-  return args.events.flatMap((event) => {
-    if (event.type !== 'history-rewound' || event.cause !== ERewindCause.QuickStop) return []
-    const hid = args.events.filter(
-      (row): row is SaidRow =>
-        row.seq > event.toSeq &&
-        row.seq < event.seq &&
-        row.type === 'user-said' &&
-        saidBy(row) === EMessageOrigin.Operator &&
-        wanted.has(row.clientId ?? byInbox.get(row.inboxId ?? 0) ?? ''),
-    )
-    if (hid.length === 0) return []
+  return args.quickStops.flatMap((evidence) => {
+    const mine = evidence.messages.filter((message) => wanted.has(message.clientId))
+    if (mine.length === 0) return []
     return [
       {
-        rewindEventId: event.id,
-        text: hid.map((row) => row.text).join('\n\n'),
-        attachments: uniqueAttachments(hid.flatMap((row) => attachmentsOf(row))),
+        rewindEventId: evidence.rewindEventId,
+        text: mine.map((message) => message.text).join('\n\n'),
+        attachments: uniqueAttachments(mine.flatMap((message) => message.attachments)),
       },
     ]
   })
 }
 
 export const quickStopRestoresToApply = (args: {
-  events: readonly V2Event[]
+  quickStops: readonly QuickStopEvidence[]
   clientIds: readonly string[]
   handled: ReadonlySet<string>
 }): readonly QuickStopRestore[] =>

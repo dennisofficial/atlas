@@ -20,7 +20,9 @@ export const mergeIntoDraft = (args: { withdrawn: string; draft: string }): stri
 export const settlementOf = (args: {
   staged: readonly StagedSend[]
   events: readonly V2Event[]
+  unread?: ReadonlySet<string> | undefined
 }): StagedSettlement => {
+  const unread = args.unread ?? new Set<string>()
   const outcomes = stagedOutcomesOf({
     events: args.events,
     clientIds: args.staged.map((entry) => entry.clientId),
@@ -32,7 +34,10 @@ export const settlementOf = (args: {
       settlement.kept.push(entry)
       continue
     }
-    if (outcome.outcome === EStagedOutcome.Posted) continue
+    if (outcome.outcome === EStagedOutcome.Posted) {
+      if (unread.has(entry.clientId)) settlement.kept.push(entry)
+      continue
+    }
     if (outcome.reason === ALREADY_SENT_REASON) {
       settlement.notices.push('Already sent')
       continue

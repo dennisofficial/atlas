@@ -3,6 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import {
   chainEvents,
   EAttachmentStore,
+  EMessageOrigin,
   ERewindCause,
   ETurnCause,
   toRunId,
@@ -11,7 +12,12 @@ import {
   type V2Body,
 } from '@dltech/atlas-core'
 
-import { quickStopRestoresOf, quickStopRestoresToApply } from '../quick-stop-restore'
+import {
+  quickStopRestoresOf,
+  quickStopRestoresToApply,
+  quickStopsOf,
+  type QuickStopEvidence,
+} from '../quick-stop-restore'
 
 const eventsOf = (bodies: readonly V2Body[]) =>
   chainEvents({
@@ -65,7 +71,10 @@ describe('quickStopRestoresOf', () => {
       quickStop(0, 'think it over'),
     ])
 
-    const restores = quickStopRestoresOf({ events, clientIds: ['client-a'] })
+    const restores = quickStopRestoresOf({
+      quickStops: quickStopsOf(events),
+      clientIds: ['client-a'],
+    })
 
     expect(restores.length).toBe(1)
     expect(restores[0]?.rewindEventId).toBe(events.at(-1)?.id)
@@ -82,7 +91,9 @@ describe('quickStopRestoresOf', () => {
       quickStop(0, 'think it over'),
     ])
 
-    expect(quickStopRestoresOf({ events, clientIds: ['client-b'] })).toEqual([])
+    expect(
+      quickStopRestoresOf({ quickStops: quickStopsOf(events), clientIds: ['client-b'] }),
+    ).toEqual([])
   })
 
   it('resolves the sender of a prompt from its input-posted row', () => {
@@ -101,7 +112,10 @@ describe('quickStopRestoresOf', () => {
       quickStop(1, 'think it over'),
     ])
 
-    const restores = quickStopRestoresOf({ events, clientIds: ['client-a'] })
+    const restores = quickStopRestoresOf({
+      quickStops: quickStopsOf(events),
+      clientIds: ['client-a'],
+    })
 
     expect(restores.map((restore) => restore.text)).toEqual(['think it over'])
   })
@@ -116,7 +130,10 @@ describe('quickStopRestoresOf', () => {
       quickStop(0, 'first\n\nsecond'),
     ])
 
-    const restores = quickStopRestoresOf({ events, clientIds: ['client-a'] })
+    const restores = quickStopRestoresOf({
+      quickStops: quickStopsOf(events),
+      clientIds: ['client-a'],
+    })
 
     expect(restores.map((restore) => restore.text)).toEqual(['first\n\nsecond'])
   })
@@ -127,7 +144,9 @@ describe('quickStopRestoresOf', () => {
       { type: 'history-rewound', toSeq: 0, draft: 'first' },
     ])
 
-    expect(quickStopRestoresOf({ events, clientIds: ['client-a'] })).toEqual([])
+    expect(
+      quickStopRestoresOf({ quickStops: quickStopsOf(events), clientIds: ['client-a'] }),
+    ).toEqual([])
   })
 
   it('returns one entry per quick stop, each once', () => {
@@ -144,7 +163,10 @@ describe('quickStopRestoresOf', () => {
       quickStop(5, 'second'),
     ])
 
-    const restores = quickStopRestoresOf({ events, clientIds: ['client-a'] })
+    const restores = quickStopRestoresOf({
+      quickStops: quickStopsOf(events),
+      clientIds: ['client-a'],
+    })
 
     expect(restores.map((restore) => restore.text)).toEqual(['first', 'second'])
   })
@@ -159,11 +181,14 @@ describe('quickStopRestoresToApply', () => {
       ended,
       quickStop(0, 'first'),
     ])
-    const [restore] = quickStopRestoresOf({ events, clientIds: ['client-a'] })
+    const [restore] = quickStopRestoresOf({
+      quickStops: quickStopsOf(events),
+      clientIds: ['client-a'],
+    })
 
     expect(
       quickStopRestoresToApply({
-        events,
+        quickStops: quickStopsOf(events),
         clientIds: ['client-a'],
         handled: new Set([restore?.rewindEventId ?? '']),
       }),
@@ -180,7 +205,51 @@ describe('quickStopRestoresToApply', () => {
     ])
 
     expect(
-      quickStopRestoresToApply({ events, clientIds: ['client-a'], handled: new Set() }),
+      quickStopRestoresToApply({
+        quickStops: quickStopsOf(events),
+        clientIds: ['client-a'],
+        handled: new Set(),
+      }),
     ).toHaveLength(1)
+  })
+})
+
+describe('quickStopsOf', () => {
+  it('keeps the hidden prompts with the client id of their input-posted row', () => {
+    const events = eventsOf([
+      {
+        type: 'input-posted',
+        inboxId: 4,
+        kind: 'message',
+        postedAt: 'now',
+        message: { text: 'think it over', clientId: 'client-a' },
+      },
+      said('think it over', { inboxId: 4 }),
+      started,
+      thought,
+      ended,
+      quickStop(1, 'think it over'),
+    ])
+
+    const evidence: readonly QuickStopEvidence[] = quickStopsOf(events)
+
+    expect(evidence).toEqual([
+      {
+        rewindEventId: events.at(-1)?.id ?? '',
+        messages: [{ clientId: 'client-a', text: 'think it over', attachments: [] }],
+      },
+    ])
+  })
+
+  it('drops a prompt that is not from the operator', () => {
+    const events = eventsOf([
+      { type: 'user-said', text: 'nightly check', via: EMessageOrigin.Routine, clientId: 'c' },
+      started,
+      thought,
+      ended,
+      quickStop(0, 'nightly check'),
+    ])
+
+    expect(quickStopsOf(events)).toEqual([])
   })
 })

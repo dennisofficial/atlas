@@ -116,6 +116,55 @@ describe('quickStopOf', () => {
     ).toBeNull()
   })
 
+  it('keeps a turn whose prompts include one that is not from the operator', () => {
+    expect(
+      stopOf([
+        said('think it over', { clientId: 'client-a' }),
+        said('nightly check', { via: EMessageOrigin.Routine }),
+        started(),
+        thought('hm'),
+      ]),
+    ).toBeNull()
+  })
+
+  it('keeps a turn that did work before it started', () => {
+    const called: V2Body = {
+      type: 'tool-called',
+      callId: toCallId('c1'),
+      name: 'bash',
+      input: {},
+      ordinal: 0,
+    }
+
+    expect(stopOf([said('run the suite'), called, started()])).toBeNull()
+  })
+
+  it('keeps a turn that started twice', () => {
+    expect(stopOf([said('go'), started(), started('turn-1'), thought('hm')])).toBeNull()
+    expect(stopOf([said('go'), started(), thought('hm')])).not.toBeNull()
+  })
+
+  it('keeps a turn whose reply text was only whitespace', () => {
+    expect(
+      stopOf([
+        said('explain it'),
+        started(),
+        { type: 'assistant-said', parts: [{ type: 'text', text: ' ' }] },
+      ]),
+    ).toBeNull()
+  })
+
+  it('keeps a turn with a resume mark in the hidden range', () => {
+    expect(
+      stopOf([
+        said('go'),
+        { type: 'resume-marked', point: EResumePoint.Clean, discards: [], callIds: [] },
+        started(),
+        thought('hm'),
+      ]),
+    ).toBeNull()
+  })
+
   it('keeps a turn with no prompt of its own', () => {
     expect(stopOf([started(), thought('hm')])).toBeNull()
   })

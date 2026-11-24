@@ -36,6 +36,7 @@ export const windowOfBase = (args: {
     durable,
     foldable: foldableOf({ visible: [], durable }),
     commandLog: readableEventsOf({ raw: message.commandLog, eventSchema }),
+    quickStopRows: [],
     cursor: message.cursor,
     foldedThrough: message.view.at,
   }

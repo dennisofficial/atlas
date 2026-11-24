@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'bun:test'
 import {
+  EAttachmentStore,
   ECompactionAnchor,
+  ERewindCause,
   ETurnCause,
   ETurnEndedBy,
   ETurnOutcome,
@@ -8,11 +10,13 @@ import {
   EWorkspaceStep,
   EWorkspaceStepState,
   workspaceStepsOf,
+  type Attachment,
   type V2Body,
   type V2Event,
 } from '@dltech/atlas-core'
 import fc from 'fast-check'
 
+import { quickStopRestoresToApply, quickStopsOf } from '../../session/quick-stop-restore'
 import {
   applyPage,
   applyPageOutcome,
@@ -232,5 +236,68 @@ describe('cache plus stream', () => {
         },
       ),
     )
+  })
+})
+
+describe('a quick stop in a raw page', () => {
+  const shot: Attachment = {
+    id: 'shot-1',
+    name: 'shot.png',
+    mediaType: 'image/png',
+    size: 12,
+    content: { store: EAttachmentStore.Inline, data: 'AAAA' },
+  }
+
+  const events = (): V2Event[] =>
+    mintEvents({
+      bodies: [
+        { type: 'user-said', text: 'think hard', clientId: 'client-a', attachments: [shot] },
+        { type: 'turn-started', turnId: 'turn-1', cause: ETurnCause.Input },
+        { type: 'assistant-said', parts: [{ type: 'reasoning', text: 'hm' }] },
+        {
+          type: 'turn-ended',
+          turnId: 'turn-1',
+          outcome: ETurnOutcome.Stopped,
+          by: ETurnEndedBy.Operator,
+        },
+        {
+          type: 'history-rewound',
+          toSeq: 0,
+          draft: 'think hard',
+          cause: ERewindCause.QuickStop,
+        },
+      ],
+    })
+
+  it('keeps the hidden prompt as evidence while the transcript hides it', () => {
+    const raw = events()
+    const window = applyPage({ window: EMPTY_WINDOW, page: page(raw) })
+
+    expect(window.events.some((event) => event.type === 'user-said')).toBe(false)
+
+    const restores = quickStopRestoresToApply({
+      quickStops: quickStopsOf(window.quickStopRows),
+      clientIds: ['client-a'],
+      handled: new Set(),
+    })
+
+    expect(restores).toHaveLength(1)
+    expect(restores[0]?.rewindEventId).toBe(raw.at(-1)?.id)
+    expect(restores[0]?.text).toBe('think hard')
+    expect(restores[0]?.attachments).toEqual([shot])
+  })
+
+  it('keeps the evidence for a rewind that arrives in a later page', () => {
+    const raw = events()
+    const first = applyPage({ window: EMPTY_WINDOW, page: page(raw.slice(0, 3)) })
+    const second = applyPage({ window: first, page: page(raw.slice(3)) })
+
+    const restores = quickStopRestoresToApply({
+      quickStops: quickStopsOf(second.quickStopRows),
+      clientIds: ['client-a'],
+      handled: new Set(),
+    })
+
+    expect(restores.map((restore) => restore.text)).toEqual(['think hard'])
   })
 })

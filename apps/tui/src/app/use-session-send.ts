@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from 'react'
 
 import type { Attachment, SaidUpload } from '@dltech/atlas-core'
-import { postInputOf } from '@dltech/atlas-client/session'
+import { messageInputOf, postInputOf } from '@dltech/atlas-client/session'
 
 import { rememberSentClientId } from './sent-client-ids'
 import type { SessionApi } from './session-api'
@@ -27,6 +27,12 @@ const attachmentIdsOf = (args: {
   ...args.media.map((attachment) => attachment.id),
   ...args.uploads.map((upload) => upload.uploadId),
 ]
+
+export const stagedAttachmentsOf = (args: {
+  media: readonly Attachment[]
+  uploads: readonly SaidUpload[]
+}): readonly Attachment[] =>
+  messageInputOf({ text: '', media: args.media, uploads: args.uploads }).attachments ?? []
 
 const sameAttempt = (args: {
   held: Attempt | null
@@ -82,7 +88,7 @@ export function useSessionSend(args: {
 
       attempt.current = { text: message.text, attachmentIds, clientId }
       rememberSentClientId(clientId)
-      staged.stage({ clientId, text: message.text, attachments: message.media })
+      staged.stage({ clientId, text: message.text, attachments: stagedAttachmentsOf(message) })
       setSending(true)
 
       try {

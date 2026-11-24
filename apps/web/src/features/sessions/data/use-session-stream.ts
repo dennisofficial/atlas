@@ -13,6 +13,7 @@ import {
 const NOT_FOLLOWING: SessionSnapshot = {
   events: [],
   foldable: [],
+  quickStops: [],
   pending: { pending: [] },
   cursor: undefined,
   status: undefined,

@@ -11,6 +11,7 @@ import {
   type V2Body,
   type V2Event,
 } from '@dltech/atlas-core'
+import { quickStopsOf } from '@dltech/atlas-client/session'
 import { EOutgoingPlacement } from '@dltech/atlas-client/stream'
 import { mintEvents } from '@dltech/atlas-client/stream-fixture'
 
@@ -64,7 +65,7 @@ const mount = async (args: { sessionId: string; events?: readonly V2Event[] }) =
     })
     useQuickStopRestore({
       sessionId: args.sessionId,
-      events,
+      quickStops: quickStopsOf(events),
       onRestore: (restored) => {
         handles.quickStops = [...handles.quickStops, restored]
       },

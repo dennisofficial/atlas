@@ -117,6 +117,23 @@ describe('settlementOf', () => {
     expect(settlement.notices).toEqual([])
   })
 
+  it('keeps the staged copy while the posted message still waits in the queue', () => {
+    const posted = eventsOf([
+      { ...envelope(1), type: 'user-said', text: 'first', clientId: 'client-a' },
+    ])
+    const unread = settlementOf({ staged: STAGED, events: posted, unread: new Set(['client-a']) })
+
+    expect(unread.kept).toEqual(STAGED)
+    expect(unread.restored).toEqual([])
+
+    const consumed = eventsOf([
+      { ...envelope(1), type: 'user-said', text: 'first', clientId: 'client-a' },
+      { ...envelope(2), type: 'input-consumed', inboxId: 1, consumed: 'message' },
+    ])
+
+    expect(settlementOf({ staged: STAGED, events: consumed, unread: new Set() }).kept).toEqual([])
+  })
+
   it('treats a losing withdraw as already sent', () => {
     const settlement = settlementOf({
       staged: STAGED,

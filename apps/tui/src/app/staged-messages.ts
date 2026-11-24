@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import type { Attachment, V2Event } from '@dltech/atlas-core'
+import type { Attachment, PendingInputsState, V2Event } from '@dltech/atlas-core'
 import {
   ALREADY_SENT_REASON,
   EStagedOutcome,
@@ -23,6 +23,7 @@ export type StagedState = {
 export function useStagedMessages(args: {
   sessionId: string
   events: readonly V2Event[]
+  pending: PendingInputsState
   working: boolean
   onRestore: (args: {
     text: string
@@ -30,7 +31,7 @@ export function useStagedMessages(args: {
     reason: string | undefined
   }) => void
 }): StagedState {
-  const { sessionId, events, working } = args
+  const { sessionId, events, pending, working } = args
   const held = useRef(new Map<string, readonly StagedMessage[]>())
   const [staged, setStaged] = useState<readonly StagedMessage[]>(() => [])
   const handled = useRef(new Set<string>())
@@ -83,6 +84,15 @@ export function useStagedMessages(args: {
     () => stagedOutcomesOf({ events, clientIds: staged.map((entry) => entry.clientId) }),
     [events, staged],
   )
+  const unread = useMemo(
+    () =>
+      new Set(
+        pending.pending.flatMap((input) =>
+          input.message?.clientId === undefined ? [] : [input.message.clientId],
+        ),
+      ),
+    [pending],
+  )
 
   useEffect(() => {
     if (staged.length === 0) return
@@ -91,6 +101,7 @@ export function useStagedMessages(args: {
       const outcome = outcomes.get(entry.clientId)
       if (outcome === undefined) return []
       if (outcome.outcome === EStagedOutcome.Pending) return []
+      if (outcome.outcome === EStagedOutcome.Posted && unread.has(entry.clientId)) return []
       return [{ entry, outcome }]
     })
     if (settled.length === 0) return
@@ -123,7 +134,7 @@ export function useStagedMessages(args: {
       setRefused((current) => [...current, ...added.map(({ entry }) => entry)])
     }
     if (done.length > 0) settle(new Set(done))
-  }, [outcomes, settle, staged])
+  }, [outcomes, settle, staged, unread])
 
   const placement = useMemo(
     () => stagedPlacementOf({ staged, events, working }),

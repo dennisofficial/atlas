@@ -1,12 +1,11 @@
 import React, { useMemo, useRef, useState } from 'react'
 
-import type { Attachment } from '@dltech/atlas-core'
-
 import { AgentTranscriptScreen } from './agent-transcript'
 import { useAgentMessage } from './use-agent-message'
 import { useKeyHandlerStack } from './use-key-handler-stack'
 import type { ChatScreenHostProps } from './chat-screen-host-props'
 import { ChatScreen } from './chat-screen'
+import { composerRestoreOf, type ComposerRestore } from './composer-restore'
 import { connectionViewOf } from './connection-view'
 import { pendingOperatorRequestOf } from './operator-request'
 import { pendingRowsOf } from './pending-rows'
@@ -43,13 +42,12 @@ export function ChatScreenHost(props: ChatScreenHostProps): React.ReactNode {
   const contentWidth = sidebarOpen
     ? Math.max(MIN_TRANSCRIPT_WIDTH, props.width - sidebarWidth())
     : props.width
-  const restoreText = useRef<
-    (args: { text: string; attachments: readonly Attachment[]; reason: string | undefined }) => void
-  >(() => undefined)
+  const restoreText = useRef<ComposerRestore>(() => undefined)
 
   const staged = useStagedMessages({
     sessionId: props.sessionId,
     events: transcript.rawEvents,
+    pending: transcript.pending,
     working: transcript.working,
     onRestore: (args) => restoreText.current(args),
   })
@@ -74,15 +72,11 @@ export function ChatScreenHost(props: ChatScreenHostProps): React.ReactNode {
     onSlashCommand: (text) => menu.handleSubmit(text),
   })
 
-  restoreText.current = (args: {
-    text: string
-    attachments: readonly Attachment[]
-    reason: string | undefined
-  }) => {
-    composer.tokens.restore({ text: args.text, images: [] })
-    attachments.restore(args.attachments)
-    if (args.reason !== undefined) problemOf(args.reason)
-  }
+  restoreText.current = composerRestoreOf({
+    tokens: composer.tokens,
+    attachments,
+    onProblem: problemOf,
+  })
 
   const chrome = useSessionChrome({
     api: props.client.api,
@@ -159,7 +153,8 @@ export function ChatScreenHost(props: ChatScreenHostProps): React.ReactNode {
   })
 
   useQuickStopRestore({
-    rawEvents: transcript.rawEvents,
+    sessionId: props.sessionId,
+    quickStops: transcript.quickStops,
     draft: composer.draft,
     attachments,
   })

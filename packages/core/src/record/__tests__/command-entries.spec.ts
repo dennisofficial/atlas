@@ -207,14 +207,32 @@ describe('a pane command that records one applied outcome', () => {
 })
 
 describe('a quick-stop rewind', () => {
-  it('owes no command outcome and starts no pending command row', () => {
+  it('leaves an unrelated pending command pending', () => {
     const events = logOf([
+      posted({ inboxId: 2, name: 'summarise' }),
+      consumed(2),
+      { type: 'history-rewound', toSeq: 0, draft: 'think it over', cause: ERewindCause.QuickStop },
+    ])
+
+    expect(unfinishedCommandIdsOf(events)).toEqual([2])
+    expect(runningCommandEntriesOf(events)).toEqual([
+      { inboxId: 2, name: 'summarise', postedAt: NOW },
+    ])
+  })
+
+  it('finishes a /rewind command only with the rewind that names its inbox', () => {
+    const pending = logOf([
       posted({ inboxId: 1, name: 'rewind' }),
       consumed(1),
       { type: 'history-rewound', toSeq: 0, draft: 'think it over', cause: ERewindCause.QuickStop },
     ])
+    expect(unfinishedCommandIdsOf(pending)).toEqual([1])
 
-    expect(unfinishedCommandIdsOf(events)).toEqual([])
-    expect(runningCommandEntriesOf(events)).toEqual([])
+    const finished = logOf([
+      posted({ inboxId: 1, name: 'rewind' }),
+      consumed(1),
+      { type: 'history-rewound', toSeq: 0, draft: 'think it over', inboxId: 1 },
+    ])
+    expect(unfinishedCommandIdsOf(finished)).toEqual([])
   })
 })

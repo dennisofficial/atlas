@@ -239,7 +239,11 @@ export function SessionView({ sessionId }: { sessionId: string }) {
       })
     },
   })
-  useQuickStopRestore({ sessionId, events: snapshot.events, onRestore: restoreQuickStop })
+  useQuickStopRestore({
+    sessionId,
+    quickStops: snapshot.quickStops,
+    onRestore: restoreQuickStop,
+  })
   const [dismissedRefusals, setDismissedRefusals] = useState<ReadonlySet<number>>(new Set())
   const refusals = useMemo(
     () =>

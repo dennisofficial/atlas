@@ -17,6 +17,7 @@ import {
   type V2Event,
 } from '@dltech/atlas-core'
 
+import { quickStopEvidenceRowsOf } from '../session/quick-stop-restore'
 import type { SessionLog, SessionLogSnapshot } from './session-log'
 import type { SessionWindow } from './session-window'
 
@@ -92,6 +93,7 @@ export const restoredWindowOf = async (args: {
     durable,
     foldable,
     commandLog,
+    quickStopRows: quickStopEvidenceRowsOf(tail),
     cursor: saved.cursor,
     foldedThrough: 0,
   }
