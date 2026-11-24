@@ -117,7 +117,7 @@ describe('release downloads', () => {
       envOf(),
     )
     expect(head.status).toBe(200)
-    expect(head.headers.get('content-length')).toBeNull()
+    expect(head.headers.get('content-length')).toBe(String(BINARY.byteLength))
     expect(await head.text()).toBe('')
   })
 

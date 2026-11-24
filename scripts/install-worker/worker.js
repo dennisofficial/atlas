@@ -77,7 +77,7 @@ const fromBucket = async ({ request, env, key, name, latest }) => {
   const object =
     method === 'head'
       ? await env.RELEASES.head(key)
-      : await env.RELEASES.get(key, { range: request.headers, onlyIf: request.headers })
+      : await env.RELEASES.get(key, { range: request.headers })
 
   if (object === null) return null
 
@@ -88,7 +88,10 @@ const fromBucket = async ({ request, env, key, name, latest }) => {
     etag: object.httpEtag,
     ...rangeHeaderOf(object),
   })
-  if (method === 'head') return new Response(null, { headers })
+  if (method === 'head') {
+    headers.set('content-length', String(object.size))
+    return new Response(null, { headers })
+  }
 
   const status = object.range === undefined ? 200 : 206
   return new Response(object.body, { status, headers })
