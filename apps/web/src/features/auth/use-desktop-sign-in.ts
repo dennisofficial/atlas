@@ -32,7 +32,8 @@ export function useDesktopSignIn({
   const start = async () => {
     setPhase(EDesktopSignInPhase.Starting)
     try {
-      await startDesktopSignIn()
+      const { authorizeUrl } = await startDesktopSignIn()
+      window.open(authorizeUrl, '_blank', 'noopener')
       setPhase(EDesktopSignInPhase.Pending)
     } catch {
       setPhase(EDesktopSignInPhase.Failed)

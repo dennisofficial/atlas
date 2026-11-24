@@ -31,13 +31,15 @@ export const clickPlanOf = ({ sessionId, pageUrl }) => {
   return url === pageUrl ? { kind: EClickPlan.Focus } : { kind: EClickPlan.Navigate, url }
 }
 
+export function revealWindow({ app, win }) {
+  app.show()
+  if (win.isMinimized()) win.restore()
+  win.show()
+  win.focus()
+}
+
 export function createSessionOpener({ app, windowNow, createWindow }) {
-  const reveal = (win) => {
-    app.show()
-    if (win.isMinimized()) win.restore()
-    win.show()
-    win.focus()
-  }
+  const reveal = (win) => revealWindow({ app, win })
 
   const navigate = (win, sessionId) => {
     const plan = clickPlanOf({ sessionId, pageUrl: win.webContents.getURL() })

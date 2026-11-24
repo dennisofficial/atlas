@@ -123,7 +123,9 @@ describe('desktop auth', () => {
     const state = url.searchParams.get('state') ?? ''
     const res = await callback(`code=abc&state=${state}`)
     expect(res.status).toBe(200)
-    expect(await res.text()).toContain('Signed in')
+    const page = await res.text()
+    expect(page).toContain('Signed in')
+    expect(page).toContain('window.location.href = "atlas://focus"')
     const sent = exchanges[0] as { code: string; codeVerifier: string; redirectUri: string }
     expect(sent.code).toBe('abc')
     expect(sent.redirectUri).toBe(`${host.url}/desktop/auth/callback`)

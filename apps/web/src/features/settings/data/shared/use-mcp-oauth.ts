@@ -56,14 +56,19 @@ export function useMcpOauth({ projectId }: { projectId?: string } = {}): McpOaut
       let redirecting = false
       void runAction({
         work: async () => {
+          const desktop = isDesktopHost(window)
           const result = await beginMcpSignIn({
             serverId,
-            surface: isDesktopHost(window) ? 'desktop' : 'web',
+            surface: desktop ? 'desktop' : 'web',
             screen:
               projectId === undefined
                 ? { kind: 'settings', scope: 'user' }
                 : { kind: 'settings', scope: 'project', id: projectId },
           })
+          if (result.ok && desktop) {
+            window.open(result.url, '_blank', 'noopener')
+            return
+          }
           if (result.ok) {
             redirecting = true
             window.location.assign(result.url)

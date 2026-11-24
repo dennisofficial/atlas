@@ -1,6 +1,18 @@
 import { describe, expect, test } from 'bun:test'
 
-import { externalUrlOf, sameOrigin } from '../links.js'
+import * as wire from '@dltech/atlas-wire/web'
+
+import {
+  ENavigation,
+  browserUrlOf,
+  externalUrlOf,
+  paneNavigationOf,
+  PREVIEW_CALLBACK_HOST,
+  PREVIEW_CALLBACK_START_PATH,
+  previewCallbackStartOf,
+  sameOrigin,
+  windowNavigationOf,
+} from '../links.js'
 
 describe('externalUrlOf', () => {
   test('hands a web address to the default browser', () => {
@@ -51,5 +63,54 @@ describe('sameOrigin', () => {
     expect(sameOrigin('about:blank', 'about:blank')).toBe(false)
     expect(sameOrigin('https://example.com/', '')).toBe(false)
     expect(sameOrigin('https://example.com/', undefined)).toBe(false)
+  })
+})
+
+describe('sign-in navigation', () => {
+  const GOOGLE =
+    'https://accounts.google.com/o/oauth2/auth?redirect_uri=https%3A%2F%2Fcallback.byatlas.dev%2Fapi%2Fauth%2Fcallback%2Fgoogle'
+
+  test('keeps the app window on its own origin', () => {
+    expect(
+      windowNavigationOf({
+        url: 'http://127.0.0.1:4100/settings',
+        pageUrl: 'http://127.0.0.1:4100/',
+      }),
+    ).toEqual({ kind: ENavigation.Stay })
+  })
+
+  test('sends a sign-in the app window starts to the default browser', () => {
+    expect(
+      windowNavigationOf({
+        url: 'https://mcp.linear.app/authorize?state=s',
+        pageUrl: 'http://127.0.0.1:4100/settings/integrations',
+      }),
+    ).toEqual({ kind: ENavigation.Browser, url: 'https://mcp.linear.app/authorize?state=s' })
+  })
+
+  test('starts a preview sign-in on the callback host so it returns to the app', () => {
+    const plan = paneNavigationOf(GOOGLE)
+    expect(plan.kind).toBe(ENavigation.Browser)
+    const start = new URL(plan.url)
+    expect(start.origin).toBe('https://callback.byatlas.dev')
+    expect(start.pathname).toBe('/__atlas/start')
+    expect(start.searchParams.get('to')).toBe(GOOGLE)
+    expect(browserUrlOf(GOOGLE)).toBe(plan.url)
+  })
+
+  test('leaves every other preview navigation in the pane', () => {
+    expect(paneNavigationOf('https://3100-abc.byatlas.dev/docs')).toEqual({
+      kind: ENavigation.Stay,
+    })
+    expect(
+      previewCallbackStartOf('http://example.com/?redirect_uri=https://callback.byatlas.dev/x'),
+    ).toBe(null)
+  })
+})
+
+describe('the callback host', () => {
+  test('matches the wire names the preview worker answers on', () => {
+    expect(PREVIEW_CALLBACK_HOST).toBe(wire.PREVIEW_CALLBACK_HOST)
+    expect(PREVIEW_CALLBACK_START_PATH).toBe(wire.PREVIEW_CALLBACK_START_PATH)
   })
 })

@@ -6,7 +6,7 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "check": "node --check main.js && node --check apns.js && node --check preload.cjs && node --check host-paths.js && node --check host-process.js && node --check web-payload.js && node --check panes.js && node --check links.js && node --check context-menu.js && node --check desktop-server.js && node --check notification-clicks.js",
+    "check": "node --check main.js && node --check apns.js && node --check preload.cjs && node --check host-paths.js && node --check host-process.js && node --check web-payload.js && node --check panes.js && node --check links.js && node --check deep-links.js && node --check context-menu.js && node --check desktop-server.js && node --check notification-clicks.js",
     "bundle:payload": "bun scripts/bundle-payload.ts",
     "pack:host": "bun scripts/pack-host.ts",
     "test": "bun run bundle:payload && bun test",

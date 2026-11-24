@@ -11,6 +11,8 @@ mock.module('next/navigation', () => ({
 }))
 
 const realFetch = globalThis.fetch
+let realOpen: typeof window.open
+let opened: unknown[][]
 let calls: string[]
 let statuses: unknown[]
 
@@ -22,6 +24,12 @@ afterAll(async () => {
   await unregisterDom()
 })
 beforeEach(() => {
+  opened = []
+  realOpen = window.open
+  window.open = ((...args: unknown[]) => {
+    opened.push(args)
+    return null
+  }) as typeof window.open
   calls = []
   statuses = []
   search = ''
@@ -41,6 +49,7 @@ beforeEach(() => {
 })
 afterEach(() => {
   globalThis.fetch = realFetch
+  window.open = realOpen
   Reflect.deleteProperty(window, 'atlasDesktop')
   document.body.innerHTML = ''
 })
@@ -104,6 +113,13 @@ describe('desktop sign-in polling', () => {
     await wait(60)
     expect(calls.filter((c) => c === 'GET /desktop/auth/status').length).toBeGreaterThanOrEqual(2)
     expect(replace).toHaveBeenCalledWith('/threads')
+  })
+
+  it('opens the authorize page in the default browser', async () => {
+    await desktopMount()
+    await click('Continue in browser')
+    expect(opened).toEqual([['https://byatlas.io/desktop/authorize?x=1', '_blank', 'noopener']])
+    await click('Cancel')
   })
 
   it('cancel returns to the button', async () => {
