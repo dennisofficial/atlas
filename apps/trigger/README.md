@@ -8,8 +8,8 @@ imports `apps/api`, and `apps/api` never imports this one. See
 
 ## Its own trigger.dev project
 
-This app deploys to the trigger.dev project **Atlas v2** (`proj_muqwamionbikynuchupc`, org
-DL Technologies LLC), configured in `trigger.config.ts`. That is a different project from v1's
+This app deploys to the trigger.dev project **Atlas v2** (`proj_wcjbubibkotgsclldnyz`, org
+Comp AI), configured in `trigger.config.ts`. That is a different project from v1's
 `proj_yvwotwceptrneuuasamk`, which `apps/api` still deploys: the two share no task ids, no schedules
 and no secrets, and retiring v1 deletes its project whole. Until v1 retires there are two
 deployments.
@@ -17,18 +17,18 @@ deployments.
 ## Operator steps
 
 1. The trigger.dev project already exists. Nothing to create.
-2. Set the deploy key. `trigger deploy` authenticates from `TRIGGER_SECRET_KEY`, a key minted for
-   **Atlas v2** in the trigger.dev dashboard (Project settings → API keys). Use its development key
-   locally and its production key in CI.
-3. Store the production key as the repo secret `TRIGGER_V2_SECRET_KEY`, the way
-   `.github/workflows/release.yml` takes v1's keys from repo secrets:
+2. Set the deploy token. `trigger deploy` authenticates from `TRIGGER_ACCESS_TOKEN`, a `tr_pat_`
+   personal token of a Comp AI org member. CI reads it from the repo secret
+   `TRIGGER_ACCESS_TOKEN_COMP_AI`:
 
    ```sh
-   gh secret set TRIGGER_V2_SECRET_KEY
+   gh secret set TRIGGER_ACCESS_TOKEN_COMP_AI
    ```
 
    `.github/workflows/trigger-v2.yml` deploys with that secret and nothing else — no project ref
    variable, because the ref is in `trigger.config.ts`.
+3. The API dispatches with the project's API key, `TRIGGER_JOBS_SECRET_KEY` in the API's tier files
+   (production key in `.env.production.enc`, development key in `.env.local.enc`).
 4. Set `DOTENV_PRIVATE_KEY_PRODUCTION_ENC` (from `apps/trigger/.env.keys`) in the Atlas v2
    project's environment variables in the dashboard. The worker needs it to decrypt the tier file
    at start; the dashboard holds only that key, never an app secret.
