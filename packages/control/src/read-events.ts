@@ -82,6 +82,18 @@ const extendPastCommit = async (params: {
   return kept
 }
 
+const narrowToTypes = (args: {
+  segments: readonly VisibleSegment[]
+  onlyTypes: readonly V2EventType[]
+}): VisibleSegment[] =>
+  args.segments.flatMap((segment) => {
+    const kept =
+      segment.onlyTypes === undefined
+        ? [...args.onlyTypes]
+        : segment.onlyTypes.filter((type) => args.onlyTypes.includes(type))
+    return kept.length === 0 ? [] : [{ ...segment, onlyTypes: kept }]
+  })
+
 const segmentsOf = (params: {
   row: ThreadRow
   fromSeq: number
@@ -106,16 +118,21 @@ export const readEventsIn = async (params: {
   limit: number
   visible: boolean
   hiddenTypes?: readonly V2EventType[] | undefined
+  onlyTypes?: readonly V2EventType[] | undefined
   maxBytes?: number | undefined
   eventSchema?: z.ZodType<V2Event> | undefined
 }): Promise<ReadEventsPage> => {
   const { tx, row } = params
-  const segments = segmentsOf({
+  const whole = segmentsOf({
     row,
     fromSeq: params.afterSeq + 1,
     visible: params.visible,
     hiddenTypes: params.hiddenTypes,
   })
+  const segments =
+    params.onlyTypes === undefined
+      ? whole
+      : narrowToTypes({ segments: whole, onlyTypes: params.onlyTypes })
   const rows: StoredEvent[] = []
   for (const segment of segments) {
     if (rows.length >= params.limit) break
@@ -133,12 +150,15 @@ export const readEventsIn = async (params: {
       ? { kept: rows, stoppedEarly: false }
       : boundRowsByBytes(rows, params.maxBytes)
   const events = bounded.kept.map((stored) => decodeStoredEvent(stored, params.eventSchema))
-  const extended = await extendPastCommit({
-    tx,
-    row,
-    events,
-    eventSchema: params.eventSchema,
-  })
+  const extended =
+    params.onlyTypes === undefined
+      ? await extendPastCommit({
+          tx,
+          row,
+          events,
+          eventSchema: params.eventSchema,
+        })
+      : events
   const last = extended[extended.length - 1]
   const more =
     last !== undefined &&
