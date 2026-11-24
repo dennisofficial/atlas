@@ -80,7 +80,6 @@ export const subscribeTo = async (args: {
   input: string
   provider?: string | undefined
   cwd?: string | undefined
-  expiresAt?: string | undefined
   explicitOnly?: boolean | undefined
   requestedEvents?: readonly string[] | undefined
 }): Promise<SubscribeOutcome> => {
@@ -104,7 +103,6 @@ export const subscribeTo = async (args: {
     target: resolved.target,
     label: resolved.label + filterLabelSuffix(filter.events),
     ...(args.requestedEvents === undefined ? {} : { events: filter.events }),
-    ...(args.expiresAt === undefined ? {} : { expiresAt: args.expiresAt }),
     lease: leaseOf(resolved.target),
   })
   return { ok: true, ...subscribed }
@@ -125,10 +123,7 @@ export const unsubscribeFrom = async (args: {
     : { ok: false, error: noSubscription(args.subscriptionId) }
 }
 
-const lineOf = (row: SessionSubscription): string => {
-  const expiry = row.expiresAt === null ? 'no expiry' : `expires ${row.expiresAt}`
-  return `${row.id}  ${row.label}  by ${row.createdBy}  ${expiry}`
-}
+const lineOf = (row: SessionSubscription): string => `${row.id}  ${row.label}  by ${row.createdBy}`
 
 const PULL_REQUEST_HINT =
   "blank for this checkout's pull request, #number, owner/repo#number or a pull request URL"

@@ -29,8 +29,10 @@ import {
   type HeldAttachment,
   type PickedFile,
 } from './attachment-plan'
+import { pastedImageOf, pickedOfPasted } from './paste-image'
 import { putBytes, sizeOfFile, type UploadHandle } from './put-bytes'
 import { storeMedia } from './store-media'
+import { writePasted } from './write-pasted'
 
 export type ComposerAttachments = {
   held: readonly HeldAttachment[]
@@ -40,6 +42,7 @@ export type ComposerAttachments = {
   notice: string | null
   pickPhotos: () => Promise<void>
   pickFiles: () => Promise<void>
+  pasteImage: (data: string) => Promise<void>
   remove: (id: string) => void
   restore: (args: {
     attachments: readonly Attachment[]
@@ -236,6 +239,19 @@ export function useAttachments(): ComposerAttachments {
     attach(result.assets.map(pickedDocument))
   }, [attach])
 
+  const pasteImage = useCallback(
+    async (data: string) => {
+      const image = pastedImageOf({ data, at: Date.now() })
+      if (image === null) return
+      try {
+        attach([pickedOfPasted({ image, uri: await writePasted(image) })])
+      } catch {
+        setNotice(uploadFailedNotice(image.name))
+      }
+    },
+    [attach],
+  )
+
   const remove = useCallback(
     (id: string) => {
       const entry = heldRef.current.find((candidate) => candidate.id === id)
@@ -289,6 +305,7 @@ export function useAttachments(): ComposerAttachments {
     notice,
     pickPhotos,
     pickFiles,
+    pasteImage,
     remove,
     restore,
     clear,

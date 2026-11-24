@@ -125,6 +125,10 @@ export const Transcript = ({
     if (tail.current.following) scrollToEnd()
   }
 
+  const handleLayout = () => {
+    if (tail.current.following) scrollToEnd()
+  }
+
   if (rows.length === 0 && !working) {
     return (
       <View style={styles.empty}>
@@ -155,6 +159,7 @@ export const Transcript = ({
       scrollEventThrottle={16}
       maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
       onContentSizeChange={handleContentSizeChange}
+      onLayout={handleLayout}
       ListFooterComponent={showWorking ? WorkingFooter : undefined}
     />
   )

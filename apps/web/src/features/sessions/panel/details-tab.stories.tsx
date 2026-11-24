@@ -33,58 +33,54 @@ export const Empty = {
   render: () => pane(paneValueFixture()),
 }
 
-const subscriptionRows = (): readonly SubscriptionRow[] => {
-  const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString()
-  return [
-    subscriptionRowFixture({
-      id: 'sub_2443',
-      target: { repo: 'github.com/owner/atlas', number: 2443 },
-      presentation: {
-        icon: 'git-pull-request',
-        tone: ESubscriptionTone.Open,
-        title: '#2443 Pluggable sandbox providers',
-        meta: ['Pull request', 'comments · CI'],
-      },
-    }),
-    subscriptionRowFixture({
-      id: 'sub_2441',
-      target: { repo: 'github.com/owner/atlas', number: 2441 },
-      presentation: {
-        icon: 'git-pull-request',
-        tone: ESubscriptionTone.Merged,
-        title: '#2441 Agent37 as default provider',
-        meta: ['Pull request', 'all events'],
-      },
-    }),
-    subscriptionRowFixture({
-      id: 'sub_deploy',
-      target: {
-        kind: 'selector',
-        repo: 'github.com/owner/atlas',
-        workflow: 'deploy.yml',
-        branch: 'main',
-      },
-      createdBy: ESubscriptionActor.Operator,
-      expiresAt,
-      presentation: {
-        icon: 'circle-play',
-        tone: ESubscriptionTone.Running,
-        title: 'deploy.yml@main',
-        meta: ['Workflow run'],
-      },
-    }),
-    subscriptionRowFixture({
-      id: 'sub_2424',
-      target: { repo: 'github.com/owner/atlas', number: 2424 },
-      presentation: {
-        icon: 'git-pull-request',
-        tone: ESubscriptionTone.Open,
-        title: '#2424 Resize outcomes',
-        meta: ['Pull request', 'state only'],
-      },
-    }),
-  ]
-}
+const subscriptionRows = (): readonly SubscriptionRow[] => [
+  subscriptionRowFixture({
+    id: 'sub_2443',
+    target: { repo: 'github.com/owner/atlas', number: 2443 },
+    presentation: {
+      icon: 'git-pull-request',
+      tone: ESubscriptionTone.Open,
+      title: '#2443 Pluggable sandbox providers',
+      meta: ['Pull request', 'comments · CI'],
+    },
+  }),
+  subscriptionRowFixture({
+    id: 'sub_2441',
+    target: { repo: 'github.com/owner/atlas', number: 2441 },
+    presentation: {
+      icon: 'git-pull-request',
+      tone: ESubscriptionTone.Merged,
+      title: '#2441 Agent37 as default provider',
+      meta: ['Pull request', 'all events'],
+    },
+  }),
+  subscriptionRowFixture({
+    id: 'sub_deploy',
+    target: {
+      kind: 'selector',
+      repo: 'github.com/owner/atlas',
+      workflow: 'deploy.yml',
+      branch: 'main',
+    },
+    createdBy: ESubscriptionActor.Operator,
+    presentation: {
+      icon: 'circle-play',
+      tone: ESubscriptionTone.Running,
+      title: 'deploy.yml@main',
+      meta: ['Workflow run'],
+    },
+  }),
+  subscriptionRowFixture({
+    id: 'sub_2424',
+    target: { repo: 'github.com/owner/atlas', number: 2424 },
+    presentation: {
+      icon: 'git-pull-request',
+      tone: ESubscriptionTone.Open,
+      title: '#2424 Resize outcomes',
+      meta: ['Pull request', 'state only'],
+    },
+  }),
+]
 
 export const Subscriptions = {
   render: () =>

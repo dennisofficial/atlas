@@ -6,6 +6,21 @@ function closesFence({ line, fence }: { line: string; fence: string }): boolean 
   return trimmed.length >= fence.length && [...trimmed].every((char) => char === marker)
 }
 
+export function fencedLines(lines: string[]): boolean[] {
+  let fence: string | null = null
+
+  return lines.map((line) => {
+    if (fence !== null) {
+      if (closesFence({ line, fence })) fence = null
+      return true
+    }
+    const opening = line.match(FENCE_OPEN)
+    if (!opening?.[1]) return false
+    fence = opening[1]
+    return true
+  })
+}
+
 export function mapLinesOutsideFences({
   markdown,
   rewrite,
@@ -13,21 +28,12 @@ export function mapLinesOutsideFences({
   markdown: string
   rewrite: (args: { line: string; previous: string | undefined }) => string
 }): string {
-  let fence: string | null = null
   const lines = markdown.split('\n')
+  const fenced = fencedLines(lines)
 
   return lines
-    .map((line, index) => {
-      if (fence !== null) {
-        if (closesFence({ line, fence })) fence = null
-        return line
-      }
-      const opening = line.match(FENCE_OPEN)
-      if (opening?.[1]) {
-        fence = opening[1]
-        return line
-      }
-      return rewrite({ line, previous: lines[index - 1] })
-    })
+    .map((line, index) =>
+      fenced[index] === true ? line : rewrite({ line, previous: lines[index - 1] }),
+    )
     .join('\n')
 }

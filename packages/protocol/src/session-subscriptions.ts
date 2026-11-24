@@ -10,7 +10,6 @@ export const sessionSubscriptionSchema = z.strictObject({
   events: z.array(z.string()),
   createdBy: z.string(),
   createdAt: z.string(),
-  expiresAt: z.string().nullable(),
 })
 
 export type SessionSubscription = z.infer<typeof sessionSubscriptionSchema>
@@ -20,7 +19,6 @@ export const sessionSubscribeInputSchema = z.strictObject({
   provider: z.string().min(1),
   target: z.string().min(1),
   events: z.array(z.string()).optional(),
-  expiresAt: z.string().optional(),
 })
 
 export type SessionSubscribeInput = z.infer<typeof sessionSubscribeInputSchema>

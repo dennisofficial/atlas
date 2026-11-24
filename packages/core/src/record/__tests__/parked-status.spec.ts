@@ -4,7 +4,7 @@ import { toCallId, toRunId, toThreadId } from '../../events/ids'
 import { chainEvents } from '../chain-events'
 import type { V2Body, V2Event } from '../event'
 import { ESessionStatus, sessionStatusOf } from '../session-status'
-import { ETurnCause } from '../turns'
+import { ETurnCause, ETurnEndedBy, ETurnOutcome } from '../turns'
 
 const NOW = '2026-11-13T12:00:00.000Z'
 const THREAD = toThreadId('t')
@@ -57,6 +57,41 @@ describe('a session waiting on a parked call', () => {
     ])
 
     expect(status.state).toBe(ESessionStatus.Thinking)
+  })
+
+  it('keeps waiting on the operator after the host closes the parked turn to release the pod', () => {
+    const status = statusOf([
+      ...ASKED,
+      { type: 'tool-parked', callId: CALL, name: 'operator_input' },
+      {
+        type: 'turn-ended',
+        turnId: 'turn-1',
+        outcome: ETurnOutcome.Interrupted,
+        by: ETurnEndedBy.Host,
+      },
+    ])
+
+    expect(status).toEqual({
+      state: ESessionStatus.WaitingForOperator,
+      reason: 'operator_input',
+      since: NOW,
+    })
+  })
+
+  it('goes idle once the answer closes a call whose turn already ended', () => {
+    const status = statusOf([
+      ...ASKED,
+      { type: 'tool-parked', callId: CALL, name: 'operator_input' },
+      {
+        type: 'turn-ended',
+        turnId: 'turn-1',
+        outcome: ETurnOutcome.Interrupted,
+        by: ETurnEndedBy.Host,
+      },
+      { type: 'tool-result', callId: CALL, name: 'operator_input', modelText: 'cancelled' },
+    ])
+
+    expect(status.state).toBe(ESessionStatus.Idle)
   })
 
   it('reports a restored session waiting on the operator rather than resuming', () => {

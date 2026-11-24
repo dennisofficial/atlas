@@ -29,7 +29,6 @@ describe('SessionsService subscribe', () => {
       target: { repo: REPO, number: 7 },
       label: 'acme/atlas#7',
       createdBy: ESubscriptionActor.Operator,
-      expiresAt: null,
     })
     const inbox = await plane.readInbox({ sessionId, afterId: 0, limit: 10 })
     expect(inbox.map((entry) => entry.kind)).toEqual([INBOX_KIND_RECORD])

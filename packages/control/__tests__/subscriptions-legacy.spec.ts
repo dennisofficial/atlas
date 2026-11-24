@@ -35,7 +35,6 @@ describe('listing rows written before the row columns existed', () => {
         events: [],
         createdBy: '',
         createdAt: NOW,
-        expiresAt: TTL_LATER,
       },
     ])
   })
