@@ -4,11 +4,11 @@ import {
   EQualityFindingState,
   EQualityReviewStatus,
   EQualitySkipReason,
-  JEV_QUALITY_MODEL,
   type DecisionOutcome,
   type EventDraft,
 } from '@dltech/atlas-core'
 
+import { JEV_QUALITY_MODEL } from '../core-logic/request'
 import {
   IMPROVE,
   INTRODUCE,

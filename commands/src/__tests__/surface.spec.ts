@@ -14,8 +14,7 @@ import { nativeCommands } from '..'
 
 const registry = composeCommands(nativeCommands)
 
-const nativeHidesOf = (surface: ESurface) =>
-  SURFACE_PROFILES[surface].hides.filter((hidden) => hidden.because !== EHiddenBecause.PaneAction)
+const nativeHidesOf = (surface: ESurface) => SURFACE_PROFILES[surface].hides
 
 describe('surface profiles', () => {
   it('names only commands that this package declares', () => {

@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 import { EQualityLanguage, EQualityScopeKind } from '@dltech/atlas-core'
 
-import { renderScopeDiff } from '../../../packages/harness/src/quality/source/scope-diff'
+import { renderScopeDiff } from '@dltech/atlas-plugin-quality/review'
 import { sha256Hex } from '../hash'
 import {
   EExportRejection,

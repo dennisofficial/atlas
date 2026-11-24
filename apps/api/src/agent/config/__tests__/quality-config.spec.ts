@@ -1,11 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
-import {
-  ATLAS_SETTINGS,
-  ESettingId,
-  ESettingKind,
-  singleResponsibilityPolicy,
-} from '@dltech/atlas-core'
+import { ATLAS_SETTINGS, ESettingId, ESettingKind } from '@dltech/atlas-core'
+import { singleResponsibilityPolicy } from '@dltech/atlas-plugin-quality/review'
 import { settingsWithProjectOverUser } from '@dltech/atlas-models'
 
 import { qualityConfigOf } from '../quality-config'

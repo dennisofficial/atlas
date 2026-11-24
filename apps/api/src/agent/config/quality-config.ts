@@ -1,9 +1,5 @@
-import {
-  ATLAS_SETTINGS,
-  ESettingId,
-  ESettingKind,
-  singleResponsibilityPolicy,
-} from '@dltech/atlas-core'
+import { ATLAS_SETTINGS, ESettingId, ESettingKind } from '@dltech/atlas-core'
+import { QUALITY_POLICY_DESCRIPTORS } from '@dltech/atlas-plugin-quality/core'
 import { readOf } from '@dltech/atlas-models'
 
 export type QualityConfig = {
@@ -22,7 +18,7 @@ const toggleFallbackOf = (id: ESettingId): boolean => {
 export function qualityConfigOf(args: { settings: ReadonlyMap<string, string> }): QualityConfig {
   const read = readOf(args.settings)
   const policies: Record<string, boolean> = {}
-  for (const policy of [singleResponsibilityPolicy]) {
+  for (const policy of QUALITY_POLICY_DESCRIPTORS) {
     const stored = read(policy.settingKey)
     if (typeof stored === 'boolean') policies[policy.settingKey] = stored
   }

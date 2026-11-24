@@ -1,6 +1,7 @@
 'use client'
 
-import { singleResponsibilityPolicy, type QualityPolicyDescriptor } from '@dltech/atlas-core'
+import type { QualityPolicyDescriptor } from '@dltech/atlas-core'
+import { QUALITY_POLICY_DESCRIPTORS } from '@dltech/atlas-plugin-quality/core'
 
 import { QueryPage } from '../data/personal/query-boundary'
 import { QualitySkeleton } from '../skeletons/agent-skeletons'
@@ -14,7 +15,7 @@ const TITLE = 'Code Quality'
 const DESCRIPTION =
   'An advisory review after each file write. Every sandbox loads these when it starts.'
 
-const POLICIES: QualityPolicyDescriptor[] = [singleResponsibilityPolicy]
+const POLICIES: readonly QualityPolicyDescriptor[] = QUALITY_POLICY_DESCRIPTORS
 
 const policyField = (policy: QualityPolicyDescriptor): SettingField => ({
   kind: ESettingFieldKind.Toggle,

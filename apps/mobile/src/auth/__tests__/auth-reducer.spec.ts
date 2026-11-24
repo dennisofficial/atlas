@@ -13,7 +13,7 @@ const signingIn: IAuthSnapshot = { state: EAuthState.SigningIn }
 const signedIn: IAuthSnapshot = {
   state: EAuthState.SignedIn,
   token: 't',
-  user: { email: 'd@x.io' },
+  user: { id: 'u1', email: 'd@x.io' },
 }
 
 describe('authReducer', () => {
@@ -29,7 +29,7 @@ describe('authReducer', () => {
     const next = authReducer(initialAuthSnapshot, {
       type: EAuthEvent.RestoreSucceeded,
       token: 't',
-      user: { email: 'd@x.io' },
+      user: { id: 'u1', email: 'd@x.io' },
     })
     expect(next).toEqual(signedIn)
   })
@@ -63,9 +63,9 @@ describe('authReducer', () => {
       authReducer(signingIn, {
         type: EAuthEvent.SignInSucceeded,
         token: 't2',
-        user: { email: 'd@x.io' },
+        user: { id: 'u1', email: 'd@x.io' },
       }),
-    ).toEqual({ state: EAuthState.SignedIn, token: 't2', user: { email: 'd@x.io' } })
+    ).toEqual({ state: EAuthState.SignedIn, token: 't2', user: { id: 'u1', email: 'd@x.io' } })
   })
 
   it('returns to signed-out on session loss and sign-out', () => {

@@ -9,6 +9,7 @@ import {
 } from '@dltech/atlas-core'
 import {
   EMPTY_CREW,
+  EMPTY_ANALYTICS,
   EMPTY_CLASSIFIER,
   EMPTY_MCP_CONTROL,
   EMPTY_ROUTINES,
@@ -103,6 +104,7 @@ export const fakeDaemon = (nodes: Record<string, FakeNode>) => {
     crew: EMPTY_CREW,
     messages: EMPTY_MESSAGES,
     classifier: EMPTY_CLASSIFIER,
+    analytics: EMPTY_ANALYTICS,
     sessions: EMPTY_SESSIONS,
     worktrees: EMPTY_WORKTREES,
     append: async (drafts) => {

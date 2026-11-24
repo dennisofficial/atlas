@@ -32,7 +32,7 @@ Asks the operator for a value that only they have. The `operator_input` tool wri
 
 - `OPERATOR_INPUT_TOOL` and `OPERATOR_SHELL_INPUT_TOOL` name the two tools. `OPERATOR_TOOL_NAMES` holds both.
 - `OperatorInputTool` and `OperatorShellInputTool`: the tool classes themselves.
-- `operatorRequestSchema`: the request that the pod records. The `input` kind holds a prompt; the `shell` kind adds a `shellId`.
+- `EOperatorRequestKind`: the `input` and `shell` kinds. `operatorRequestSchema` is the request that the pod records. The `input` kind holds a prompt; the `shell` kind adds a `shellId`.
 
 ### Read the outcome
 

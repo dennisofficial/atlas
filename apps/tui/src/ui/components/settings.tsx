@@ -19,7 +19,6 @@ import {
 } from '../settings-model'
 import { ESettingsLogin, type SettingsLoginState } from '../settings-login-model'
 import { theme } from '../theme'
-import type { QualityHealthStatusProps } from '../quality-health-model'
 import type { Appearance } from '../appearance'
 import { ECloudAction, SettingsCloud, type CloudSyncState } from './settings/cloud'
 import { type GithubAccountView } from './settings/github-connect'
@@ -35,7 +34,6 @@ import {
   SettingsLine,
   SETTINGS_PAD,
 } from './settings/rows'
-import { QualityHealthStatus } from './settings/quality-health'
 import { clipSpans } from './sidebar/cells'
 import { Spans, type Span } from './spans'
 
@@ -131,7 +129,6 @@ export function Settings(props: {
   cloudDownload: CloudSyncState
   github?: GithubAccountView | undefined
   signingKey?: SigningKeyAccountView | undefined
-  qualityHealth?: QualityHealthStatusProps | undefined
   onSignOut: () => void
   onSignIn: () => void
   onOpenSignInUrl: () => void
@@ -226,15 +223,6 @@ export function Settings(props: {
                   onOpenSignInUrl={props.onOpenSignInUrl}
                   {...(props.github === undefined ? {} : { github: props.github })}
                   {...(props.signingKey === undefined ? {} : { signingKey: props.signingKey })}
-                />
-              ) : null}
-              {onQualityPage && props.qualityHealth !== undefined ? (
-                <QualityHealthStatus
-                  read={props.qualityHealth.read}
-                  enabled={props.qualityHealth.enabled}
-                  recording={props.qualityHealth.recording}
-                  threadId={props.qualityHealth.threadId}
-                  cells={cells}
                 />
               ) : null}
               {page?.groups.map((group) => (

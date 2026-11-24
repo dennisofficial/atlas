@@ -68,7 +68,10 @@ track a repository or a pull request. `apps/api` drives it through thin Nest ada
 - `GithubPollSweeperService` seeds targets, polls them, and expires the ones nobody watches.
 - `GithubHookLifecycleService` and `GithubHookRetirement` create, repair and retire a repository
   hook.
-- `GithubSubscriptionsService` subscribes a thread, catches up a branch, and links a sandbox.
+- `GithubSubscriptionsService` subscribes a thread to a pull request or a branch, writes the
+  target's current state, and extends the live ceiling from the sandbox activity of the thread.
+- `GithubSubscriptionTargetStates` reads the current state of a subscription target, and
+  `githubAppTargetStatesOf({ appId, appPrivateKey })` builds it from the App credentials.
 - `prStreamFrames` turns a fan-out attachment into the frames of a PR stream, and
   `GithubPrEventMailboxService` gives its `replayUndelivered`, `replayForThread` and `acknowledge`
   steps.

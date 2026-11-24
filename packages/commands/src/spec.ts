@@ -31,4 +31,5 @@ export type CommandSpec = {
   runsIn: ECommandRunsIn
   fromText?: ((argumentText: string) => TextArgs) | undefined
   opens?: EClientAction | undefined
+  listed?: boolean | undefined
 }

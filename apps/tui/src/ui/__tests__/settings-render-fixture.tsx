@@ -3,7 +3,6 @@ import {
   ESettingId,
   ESettingsLayer,
   resolveSettings,
-  toThreadId,
   type SecretPrompt,
   type SettingDefinition,
   type SettingsLayerInput,
@@ -11,7 +10,6 @@ import {
 } from '@dltech/atlas-core'
 import React from 'react'
 import { Settings } from '../components/settings'
-import { EQualityHealthReadKind } from '../quality-health-model'
 import { ECloudAction, idleSync } from '../components/settings/cloud'
 import { type Span } from '../components/spans'
 import { grammarsReady } from '../markdown/__tests__/harness'
@@ -103,12 +101,6 @@ export const page = (args: {
       onDownload={() => {}}
       onSelect={() => {}}
       onDismiss={() => {}}
-      qualityHealth={{
-        read: { kind: EQualityHealthReadKind.Loading },
-        enabled: false,
-        recording: false,
-        threadId: toThreadId('settings-render-thread'),
-      }}
     />
   )
 }

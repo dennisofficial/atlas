@@ -24,7 +24,7 @@ Gives a thread its sub-agents and its git worktrees. The main thread starts a su
 | `@dltech/atlas-plugin-crew/core`    | The `crew` view fold, the row schema, the built-in agent types and the repository agent parser. |
 | `@dltech/atlas-plugin-crew/pod`     | `crewPod`: the tools, the repository agent type resource, the hooks and the prompt fragment.    |
 | `@dltech/atlas-plugin-crew/control` | `crewControl`: an empty control slot.                                                           |
-| `@dltech/atlas-plugin-crew/client`  | `crewClient`, `crewOfView` and `crewRosterOf`: the client hook and two view readers.            |
+| `@dltech/atlas-plugin-crew/client`  | `crewClient`, `crewOfView`, `crewRosterOf` and the `CrewRow` and `CrewRoster` types.            |
 
 ## Capabilities
 
@@ -95,7 +95,7 @@ The result is one extra wake, and no ending is lost. The operator accepted this 
 
 | Command  | Arguments                 | What it does                                                                     |
 | -------- | ------------------------- | -------------------------------------------------------------------------------- |
-| `/agent` | `<say\|stop> <id> [text]` | Message a sub-agent, or stop it. Runs in the host, hidden from every slash menu. |
+| `/agent` | `<say\|stop> <id> [text]` | Message a sub-agent, or stop it. Runs in the host, never in a session catalogue. |
 
 `/agent say <id> <text>` queues the text on the child and reopens a child that had ended. The
 `agentHandlerOf(ctx)` handler in `src/pod/commands.ts` calls `ctx.crew.say`, so it and the

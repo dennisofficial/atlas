@@ -38,8 +38,7 @@ frontmatter. The model sees the model-invocable skills in its system prompt and 
 - `skillSpecOf({ text, fallbackName })`: the name, the summary and the argument hint of a `SKILL.md`, or nothing for blank text or an empty name. The API uses it to describe a stored skill.
 - `validateSkill`: the names, the limits (`SKILL_NAME_MAX_LENGTH`, `SKILL_DESCRIPTION_MAX_LENGTH`) and the warnings (`ESkillWarning`).
 - `resolveSkillShadowing`: which skill wins when two layers hold the same name. A repo skill beats a cloud project skill. A cloud project skill beats a cloud user skill. A cloud user skill beats a built-in skill.
-- `expandSkillBody`, `renderSkillListing`, `skillSummaryOf`.
-- `skillListRowSchema`, `skillsChangedSchema`, `ESkillOrigin`.
+- `expandSkillBody`, `renderSkillListing`, `skillSummaryOf`, `skillListRowSchema`, `skillsChangedSchema`, `ESkillOrigin`.
 - `skillSuggestionStateOf({ events })`: the last `SKILL_SUGGEST_TURNS` operator messages, each with
   the agent's last reply, and the skills already loaded. An operator message still waiting in the
   inbox counts as the latest turn, and `trigger` names it as `inbox:<id>`. Nothing when the latest
@@ -53,8 +52,8 @@ frontmatter. The model sees the model-invocable skills in its system prompt and 
 
 ### Built-in skills
 
-The source of the five built-in skills is `plugins/skills/skills`, in this package. `bun run
-generate` compiles it into `src/pod/builtin.generated.ts` and `src/catalogue/catalogue.generated.ts`.
+The source of the five built-in skills is `plugins/skills/skills`, in this package. `bun run generate` compiles it into
+`src/pod/builtin.generated.ts`, `src/pod/builtin-files.generated/` and `src/catalogue/catalogue.generated.ts`.
 - `BUILT_IN_SKILLS`: the `SKILL.md` text and resource files of each built-in skill. The pod tier uses it; the package does not export it.
 - `BUILT_IN_SKILL_CATALOGUE`: the name, the description, the entry digest and the digested resource files of each built-in skill. The API serves it.
 - `builtInSkills`, `builtInSkillEntry`, `builtInSkillNames`, `isBuiltInSkillName`: lookups over that catalogue.
@@ -83,9 +82,10 @@ package.
 
 ### The pod slot
 
-`skillsPodOf({ cloud, writes, suggests })` gives the two tools, the `skills` resource, the
-`skills-suggestion` and `skills-listing` hooks and the pod's `slash` source. The resource watches `<project>/.agents/skills`
-and the cloud `Skills` setting, and it announces `skills-changed` with the whole catalogue.
+`skillsPodOf({ cloud, writes, suggests })` gives the two tools, the `SKILLS_RESOURCE` resource, the
+`skills-suggestion` and `skills-listing` hooks and the pod's `slash` source. `skillsResource(options)`
+builds the resource alone. It watches `<project>/.agents/skills` and the cloud `Skills` setting,
+and it announces `skills-changed` with the whole catalogue.
 
 `slash(ctx).names()` is every user-invocable skill of the catalogue, including one that sets
 `disable-model-invocation`, because the operator may still type it. `slash(ctx).load({name,

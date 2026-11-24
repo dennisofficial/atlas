@@ -48,18 +48,21 @@ The worker registers the tasks. This package only names them and validates their
 - `POD_RESIZE_TASK_ID`: `pod-resize`, a payload of a session, a generation and the pod shape.
 - `POD_RESIZE_MAX_DISK_GB`: the 100 GB ceiling a resize payload enforces, the same ceiling
   `RESIZE_MAX_DISK_GB` names in `@dltech/atlas-native-commands`.
-- `podSleepPayloadSchema`, `PodSleepPayload`, `EPodSleepOutcome`: the sleep payload and its
-  outcome.
-- `podResizePayloadSchema`, `PodResizePayload`, `EPodResizeOutcome`: the resize payload and its
-  outcome.
+- `podSleepPayloadSchema`, `PodSleepPayload`, `EPodSleepOutcome`, `PodSleepOutput`: the sleep
+  payload, its outcome and its output.
+- `podResizePayloadSchema`, `PodResizePayload`, `EPodResizeOutcome`, `PodResizeOutput`: the resize
+  payload, its outcome and its output.
 
 ### Name a notify task
 
 - `NOTIFY_SEND_TASK_ID`: `notify-send`, a payload of a `sessionId`, a `threadId`, a `seq` and a
   moment, with the optional `holdMs`, `pending`, `operatorTurn` and `endedAt` a held moment
   carries.
+- `notifySendPayloadSchema`, `NotifySendPayload`: the send payload.
 - `NOTIFY_TEST_TASK_ID`: `notify-test`, a payload of one `userId`.
+- `notifyTestPayloadSchema`, `NotifyTestPayload`: the test payload.
 - `NOTIFY_CLEAR_TASK_ID`: `notify-clear`, a payload of a `userId` and a `sessionId`.
+- `notifyClearPayloadSchema`, `NotifyClearPayload`: the clear payload.
 - `NotifySendOutput`: the `sent` and `gone` counts of a send.
 - `NO_NOTIFY_OUTPUT`: the zero counts a send answers when it sends nothing.
 

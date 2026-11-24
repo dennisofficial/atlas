@@ -47,11 +47,13 @@ every session.
 - `rewindTargetOf({ events, toSeq })`: the draft to edit again, or the reason to refuse. Only a
   `user-said` event can be a target, and not the last event.
 - `REFUSAL_NOT_A_MESSAGE`, `REFUSAL_NOTHING_TO_REWIND`: the refusal texts.
-- `rewind.spec.fromText`: `/rewind <seq>` reads the message sequence. An absent or non-numeric
-  argument refuses with `REFUSAL_REWIND_NEEDS_LINE`, the sentence that points at the picker.
-- `summarise.spec.fromText`: `/summarise` with no argument targets everything before the last
-  message; `/summarise <seq>` targets a named boundary. Any other argument refuses with
-  `REFUSAL_SUMMARISE_ARGS`. `summariseArgs` leaves `throughSeq` optional for the default.
+- The `rewind` spec in `nativeCommands` reads the message sequence from its text. An absent or
+  non-numeric argument refuses with `REFUSAL_REWIND_NEEDS_LINE`, the sentence that points at the
+  picker.
+- The `summarise` spec in `nativeCommands` reads its text too. `/summarise` with no argument targets
+  everything before the last message; `/summarise <seq>` targets a named boundary. Any other
+  argument refuses with `REFUSAL_SUMMARISE_ARGS`. `summariseArgs` leaves `throughSeq` optional for
+  the default.
 
 ### Rotate the context
 

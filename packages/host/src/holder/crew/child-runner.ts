@@ -87,7 +87,6 @@ export const childRunnerOf = (args: {
       hookedToolsOf({
         registry,
         hooks,
-        quality: runtime.quality,
         trace: runtime.trace,
       }),
     ),

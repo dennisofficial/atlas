@@ -8,9 +8,9 @@ import type {
   SessionHolder,
   TerminalDemand,
 } from '@dltech/atlas-host'
-import type { LogPort, TracePort } from '@dltech/atlas-observability'
+import type { LogPort, ProductAnalytics, TracePort } from '@dltech/atlas-observability'
 
-import { TRACE_FOR } from '../analytics/tokens'
+import { PRODUCT_ANALYTICS, TRACE_FOR } from '../analytics/tokens'
 import { createPodMetricsBus, type PodMetricsBus } from '../bus/pod-metrics-bus'
 import { PodMetricsRelay } from '../bus/pod-metrics-relay'
 import type { PgWakeListener } from '../bus/pg-wake-listener'
@@ -88,6 +88,7 @@ const holderProvider: Provider = {
     macLink: MacLink,
     dispatcher: JobsProjectDispatcher,
     traceFor: (distinctId: string) => TracePort,
+    analytics: ProductAnalytics,
     usage: UsageService,
     podCallBus: PodCallBus,
   ): SessionHolder =>
@@ -106,6 +107,7 @@ const holderProvider: Provider = {
       dispatcher,
       log,
       traceFor,
+      analytics,
       podCallBus,
       notify: notifyDispatchOf({ dispatcher }),
       parkArchived: parkArchivedDispatchOf({ plane, dispatcher, log }),
@@ -136,6 +138,7 @@ const holderProvider: Provider = {
     MAC_LINK,
     JobsProjectDispatcher,
     TRACE_FOR,
+    PRODUCT_ANALYTICS,
     USAGE,
     POD_CALL_BUS,
   ],

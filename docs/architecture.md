@@ -1094,7 +1094,10 @@ ambiguous scope identity and bounded-size skips are reported as coverage gaps, n
 Shell, MCP and external-editor writes are not attributed by this module.
 
 Registered policies own scope selection, atomic questions, interpretation and deterministic coaching.
-The first policy is single responsibility. The engine uses the shared `DecisionPort` and the same gateway-compatible `jev-latest` route as
+The first policy is single responsibility. In v2 these live in `plugins/quality`
+(`@dltech/atlas-plugin-quality`): the engine in `src/review`, the policy, its questions and their
+interpretation in `src/policies`, and the indicator notice in `src/core`. The v1 harness keeps a frozen
+copy of the same pure logic in `packages/harness/src/quality/core-logic` and does not import the plugin. The engine uses the shared `DecisionPort` and the same gateway-compatible `jev-latest` route as
 other Jev features, not a prose-generating fallback. This alias is not an immutable model version;
 eval artifacts record the requested and returned identities without claiming version-pinned efficacy. One joined review deadline/turn-abort bounds advisory
 work; reviewer faults, invalid drafts and timeouts cannot replace a committed write's successful result.

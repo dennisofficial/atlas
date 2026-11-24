@@ -1,15 +1,17 @@
 import { performance } from 'node:perf_hooks'
 
 import {
-  interpretQualityResponse,
-  prepareQualityRequest,
-  JEV_QUALITY_MODEL,
   type DecisionOutcome,
   type DecisionQuestion,
   type QualityAssessment,
   type QualityPolicy,
   type QualityScope,
 } from '@dltech/atlas-core'
+import {
+  JEV_QUALITY_MODEL,
+  interpretQualityResponse,
+  prepareQualityRequest,
+} from '@dltech/atlas-plugin-quality/review'
 
 import { TaskExecutionError } from '../src/worker'
 

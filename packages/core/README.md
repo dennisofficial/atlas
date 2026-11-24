@@ -96,7 +96,7 @@ assembly, settings, ports, and the record folds. It imports `zod` and nothing el
 
 - `Lease`, `startVerdict({...})`, `claimGrant({...})`, `revoke({...})`: the lease rules.
 - `consume({entry, seq})`, `takeBack(entry)`, `InboxEntry`: the inbox rules.
-- `decideHeldAction({...})`, `HeldOutcome`, `EExecutionLocation`: the host's next action.
+- `decideHeldAction({...})`, `HeldOutcome`, `EExecutionLocation`: the host's next action. `resumePointOf({events})`, `EResumePoint`: how a stopped turn resumes, or the reason it cannot; `resumeMarkedDraft({...})` stamps the resume.
 - `endingHeld({input, crew})`: whether a clean sub-agent ending waits for a sibling spawned in the same
   assistant step. `crew` holds `CrewRoomMember` values: `agentId`, `agentType`, `group` and `running`.
   `heldDraftOf({...})` stamps `held: true` on that ending, and `unheldDraftOf(draft)` strips it.
@@ -122,7 +122,7 @@ assembly, settings, ports, and the record folds. It imports `zod` and nothing el
 - `contextFilePathOf({directory, relativePath})`: resolve a name under the context folder, or the reason to refuse it: absolute, `.`, `..`, an empty segment, or more than 200 characters.
 - `spawnFilesRefusalOf(files)`: the reason a payload is unusable, or `null`. Text only: a NUL byte is refused.
 - `SPAWN_FILES_MAX_COUNT` (32), `SPAWN_FILE_MAX_BYTES` (256 KB), `SPAWN_FILES_MAX_BYTES` (1 MB), `ATLAS_CONTEXT_DIR_ENV`: the limits and the folder variable.
-- `attachedFilesLineOf(files)`, `spawnBriefOf({brief, files})`: the line that names the attached paths. `contextFileKindOf({path, head})`, `contextMimeOf(path)`, `EContextFileKind`, `CONTEXT_MIRROR_MAX_BYTES`: whether a mirrored context file is text, an image or bytes, its media type, and the size past which it is not mirrored, name a mirrored context file.
+- `attachedFilesLineOf(files)`, `spawnBriefOf({brief, files})`: the line that names the attached paths. `contextFileKindOf({path, head})`, `contextMediaKindOf(path)`, `contextMimeOf(path)`, `EContextFileKind`: whether a context file is text, an image, bytes, video or audio, and its media type. A mirrored file has no size limit.
 
 ## Usage
 
