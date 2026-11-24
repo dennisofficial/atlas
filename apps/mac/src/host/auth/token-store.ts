@@ -1,5 +1,5 @@
 import { join } from 'node:path'
-import { FileSecretsStore, SecretCipher } from '@dltech/atlas-harness'
+import { createSecretsStore } from './secrets-store'
 
 const TOKEN_NAME = 'desktop-cloud-token'
 const EMAIL_NAME = 'desktop-cloud-email'
@@ -15,9 +15,9 @@ export interface ITokenStore {
 }
 
 export function createTokenStore({ home }: { home: string }): ITokenStore {
-  const secrets = new FileSecretsStore({
+  const secrets = createSecretsStore({
     file: join(home, 'secrets.json'),
-    cipher: new SecretCipher(join(home, 'key')),
+    keyFile: join(home, 'key'),
   })
   const safeRead = (name: string): string | undefined => {
     try {
