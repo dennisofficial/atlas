@@ -12,7 +12,7 @@ import type { SessionPanes } from './session-view'
 import { panesOfView } from './session-view'
 import { sidebarModelOf } from './sidebar-model'
 import { useCrew, useCrewNavigation, type CrewControl } from './use-crew'
-import { useContextTree, type ContextFilesApi, type ContextTreeControl } from './use-context-tree'
+import { useContextTree, type ContextTreeControl } from './use-context-tree'
 import { useServicesDrawer, type ServicesDrawer } from './use-services-drawer'
 import { useShellsDrawer, type ShellsDrawer } from './use-shells-drawer'
 import type { SessionTranscript } from './use-session-transcript'
@@ -46,7 +46,6 @@ export type SessionPanesControl = {
 }
 
 export function useSessionPanes(args: {
-  api: ContextFilesApi
   transcript: SessionTranscript
   api: SessionApi
   sessionId: string

@@ -99,7 +99,6 @@ export function ChatScreenHost(props: ChatScreenHostProps): React.ReactNode {
   )
 
   const panes = useSessionPanes({
-    api: props.client.api,
     transcript,
     api: props.client.api,
     sessionId: props.sessionId,
