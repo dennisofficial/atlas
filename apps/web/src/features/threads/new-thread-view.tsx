@@ -186,7 +186,7 @@ function Welcome({ projects }: { projects: readonly Project[] }) {
         value={draft}
         onValueChange={setDraft}
         onSubmit={handleSubmit}
-        sending={creating || (v2 ? session.uploading : images.uploading)}
+        sending={creating}
         {...(v2 ? session.composerProps : images.composerProps)}
         sendsAttachmentsAlone={v2}
         entries={commands.entries}

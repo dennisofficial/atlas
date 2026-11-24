@@ -390,7 +390,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
                   }
                   entries={composerEntries}
                   clientActions={composerActions}
-                  sending={composer.sending || composer.attachments.uploading}
+                  sending={composer.sending}
                   {...composer.attachments.composerProps}
                   sendsAttachmentsAlone
                   working={working}
