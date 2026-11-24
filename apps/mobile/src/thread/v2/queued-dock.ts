@@ -1,24 +1,17 @@
 import {
-  queuedMessagesOf,
-  queuedNoticesOf,
-  stagedQueuedMessagesOf,
-  type QueuedMessage,
-  type QueuedNoticeEntry,
-} from '@dltech/atlas-client/session'
-import {
   blockingCommandOf,
   type BlockingCommand,
   isSessionWorking,
   stagedPlacementOf,
+  transcriptEventsOf,
   type SessionSnapshot,
 } from '@dltech/atlas-client/stream'
 
+import { queuedRowsOf, type QueuedRow } from './queued-rows'
 import type { StagedSend } from './staged-send'
 
 export type QueuedDockState = {
-  messages: QueuedMessage[]
-  notices: QueuedNoticeEntry[]
-  stagedIds: ReadonlySet<string>
+  rows: QueuedRow[]
   blocking: BlockingCommand | undefined
 }
 
@@ -30,17 +23,20 @@ export const queuedLabelOf = (dock: Pick<QueuedDockState, 'blocking'>): string =
 export const queuedDockOf = (args: {
   snapshot: Pick<SessionSnapshot, 'pending' | 'events' | 'status'>
   staged: readonly StagedSend[]
+  now: number
 }): QueuedDockState => {
   const placement = stagedPlacementOf({
     staged: args.staged,
     events: args.snapshot.events,
     working: isSessionWorking(args.snapshot.status),
   })
-  const staged = stagedQueuedMessagesOf(placement.queue)
   return {
-    messages: [...queuedMessagesOf(args.snapshot.pending), ...staged],
-    notices: queuedNoticesOf(args.snapshot.pending),
-    stagedIds: new Set(staged.map((message) => message.id)),
+    rows: queuedRowsOf({
+      pending: args.snapshot.pending,
+      events: transcriptEventsOf(args.snapshot.events),
+      staged: placement.queue,
+      now: args.now,
+    }),
     blocking: blockingCommandOf(args.snapshot.status),
   }
 }

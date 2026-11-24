@@ -6,17 +6,32 @@ import {
   ETextTone,
   Icon,
   Markdown,
+  MessageAction,
+  MessageActions,
   MessageFooter,
   Text,
   useTheme,
 } from '@dltech/atlas-ui-native'
 import { messageTimeOf } from '@dltech/atlas-client/transcript'
 import { space } from '@dltech/atlas-ui/tokens'
-import { Terminal } from 'lucide-react-native'
+import { Pencil, Terminal, Trash2 } from 'lucide-react-native'
 import { StyleSheet, View } from 'react-native'
 
-import { EMessageAuthor, type CommandRow, type MessageRow } from '../rows'
+import {
+  EMessageAuthor,
+  senderLabelOf,
+  type CommandRow,
+  type MessageRow,
+  type SessionNameOf,
+} from '../rows'
 import { MessageAttachments } from './message-attachments'
+
+export type QueuedMessageActions = {
+  label: string
+  disabled: boolean
+  onEdit?: (() => void) | undefined
+  onRemove?: (() => void) | undefined
+}
 
 const SentAt = ({ at, align }: { at: string | undefined; align?: 'start' | 'end' }) => {
   const clock = messageTimeOf({ at, now: Date.now() })
@@ -34,6 +49,25 @@ const SentAt = ({ at, align }: { at: string | undefined; align?: 'start' | 'end'
     </MessageFooter>
   )
 }
+
+const QueuedFooter = ({ actions }: { actions: QueuedMessageActions }) => (
+  <MessageFooter align="end">
+    <Text
+      size={ETextRole.Xs}
+      weight={EFontWeight.Medium}
+      tone={ETextTone.Muted}
+      style={styles.timestamp}
+    >
+      {actions.label}
+    </Text>
+    {actions.disabled ? null : (
+      <MessageActions>
+        <MessageAction icon={Pencil} label="Edit" onPress={actions.onEdit} />
+        <MessageAction icon={Trash2} label="Remove" onPress={actions.onRemove} />
+      </MessageActions>
+    )}
+  </MessageFooter>
+)
 
 const splitOf = (text: string): { name: string; argument: string } => {
   const at = text.indexOf(' ')
@@ -70,14 +104,27 @@ export const MessageRowView = ({
   row,
   threadId,
   sessionId,
+  sessionNameOf,
+  queued,
 }: {
   row: MessageRow
   threadId: string | undefined
   sessionId: string | undefined
+  sessionNameOf?: SessionNameOf | undefined
+  queued?: QueuedMessageActions | undefined
 }) => {
   if (row.author === EMessageAuthor.Atlas) {
+    const caption = senderLabelOf({
+      row,
+      ...(sessionNameOf === undefined ? {} : { sessionNameOf }),
+    })
     return (
       <View style={styles.message}>
+        {caption === undefined ? null : (
+          <Text size={ETextRole.Xs} weight={EFontWeight.Medium} tone={ETextTone.Muted}>
+            {caption}
+          </Text>
+        )}
         <Markdown value={row.text} selectable />
         <SentAt at={row.at} />
       </View>
@@ -111,7 +158,11 @@ export const MessageRowView = ({
           <Markdown value={row.text} breaks selectable />
         </Bubble>
       ) : null}
-      <SentAt at={row.at} align="end" />
+      {queued === undefined ? (
+        <SentAt at={row.at} align="end" />
+      ) : (
+        <QueuedFooter actions={queued} />
+      )}
     </View>
   )
 }

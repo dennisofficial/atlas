@@ -4,7 +4,7 @@ import type { ToolRun, TranscriptEntry } from '@dltech/atlas-client/transcript'
 import { EAuthor, EEntryKind } from '@dltech/atlas-client/transcript'
 import { EOomScope } from '@dltech/atlas-core'
 
-import { EMessageAuthor, ENoticeTone, ERowKind, rowsOf } from '../rows'
+import { EMessageAuthor, ENoticeTone, ERowKind, rowsOf, senderLabelOf } from '../rows'
 
 const commanded = (key: string, text: string, name: string): TranscriptEntry => ({
   kind: EEntryKind.OperatorSaid,
@@ -100,6 +100,25 @@ describe('rowsOf', () => {
     expect(rows.map((row) => row.kind)).toEqual([ERowKind.Message, ERowKind.Message])
     expect(rows[0]).toMatchObject({ author: EMessageAuthor.You, text: 'hello' })
     expect(rows[1]).toMatchObject({ author: EMessageAuthor.Atlas, text: 'hi there' })
+  })
+
+  it('keeps a message from another session as agent speech with its sender', () => {
+    const agent: TranscriptEntry = {
+      kind: EEntryKind.AgentSaid,
+      author: EAuthor.Model,
+      key: 'a1',
+      text: 'from the laptop',
+      sender: 'session ses_peer',
+      senderSessionId: 'ses_peer',
+    }
+    const rows = rowsNow([said('u1', 'hello'), agent])
+    expect(rows).toHaveLength(2)
+    const peer = rows[1]
+    expect(peer).toMatchObject({ kind: ERowKind.Message, author: EMessageAuthor.Atlas })
+    if (peer?.kind !== ERowKind.Message) return
+    expect(peer.text).toBe('from the laptop')
+    expect(senderLabelOf({ row: peer, sessionNameOf: () => 'Laptop' })).toBe('From Laptop')
+    expect(senderLabelOf({ row: peer })).toBe('From another session')
   })
 
   it('marks a consumed command row with the exact line the operator typed', () => {
