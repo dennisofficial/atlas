@@ -1,3 +1,5 @@
+import { fenceBareJson } from '@dltech/atlas-ui/lib/markdown-json'
+
 import { EMdSpan, type MdSpan, parseInline } from './inline'
 
 export enum EMdBlock {
@@ -268,7 +270,7 @@ const parseBlocks = ({
 
 export const parseMarkdown = (text: string, options?: { breaks?: boolean }): MdBlock[] =>
   parseBlocks({
-    lines: text.replace(/\r\n?/g, '\n').split('\n'),
+    lines: fenceBareJson(text.replace(/\r\n?/g, '\n')).split('\n'),
     depth: 0,
     breaks: options?.breaks === true,
   })

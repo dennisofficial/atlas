@@ -13,12 +13,14 @@ import { defaultRemarkPlugins, Streamdown } from 'streamdown'
 
 import { DiagramMessageScope, MermaidErrorView } from './internal/diagram-repair-context'
 import { remarkGithubAlerts } from './internal/markdown-alerts'
+import { fenceBareJson } from '../lib/markdown-json'
 import { remarkLiteralHtml } from './internal/markdown-literal-html'
 import {
   MarkdownLinkClickContext,
   markdownComponents,
   type MarkdownLinkClick,
 } from './internal/markdown-elements'
+import { nestUnderIndentedListItems } from './internal/markdown-lists'
 import { starRuleHandler } from './internal/markdown-rules'
 import { repairTableDelimiters } from './internal/markdown-tables'
 import { mermaidOptions } from './internal/mermaid-theme'
@@ -65,7 +67,10 @@ export const MessageResponse = memo(
     ...props
   }: MessageResponseProps) {
     const merged = useMemo(() => ({ ...markdownComponents, ...components }), [components])
-    const markdown = useMemo(() => repairTableDelimiters(children ?? ''), [children])
+    const markdown = useMemo(
+      () => nestUnderIndentedListItems(repairTableDelimiters(fenceBareJson(children ?? ''))),
+      [children],
+    )
     const message = useMemo(
       () =>
         repairDiagrams
