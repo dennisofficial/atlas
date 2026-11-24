@@ -61,6 +61,12 @@ const clientOf = (args: {
     start: async ({ id }) => ({ id, status: 'running' }),
     resize: async ({ id }) => ({ ...INSTANCE, id }),
     update: async ({ id }) => ({ id, status: 'updating' }),
+    edit: async ({ id, metadata }) => ({
+      id,
+      status: 'running',
+      url: `https://${id}.agent37.app`,
+      metadata,
+    }),
     logs: async () => ({
       logs: '',
       truncated: false,

@@ -65,7 +65,9 @@ first `ENOSPC`, so a full disk still journals the calls that free space.
 A pod starts at `AGENT37_DISK_GB`. The `pod-disk-grow` schedule runs every minute on Agent37's
 `disk_bytes` metric. It doubles the disk at 70% full when no turn is running, and at once when the
 disk is urgent (90% full, or less than 15% and 2 GB free), up to Agent37's 100 GB ceiling. A grow
-reboots the vm and keeps `/atlas`, and the pod is woken again afterwards.
+reboots the vm and keeps `/atlas`, and the pod is woken again afterwards. A pod already at that
+ceiling gets one inbox nudge at 85% full and another at 95%, telling the agent to free space; the
+level is kept in the instance metadata and re-arms below 80%.
 A container that crash-loops (logs `health.running` false, `restart_count` 3 or more) while its
 instance reads `running` is repaired with Agent37's `update`, which resets the OS layer. Sleep and
 wake both check for this, and both wait out a transition such as `updating` after a resize.

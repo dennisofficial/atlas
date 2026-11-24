@@ -115,6 +115,24 @@ describe('liveAgent37Client', () => {
     expect(updated.status).toBe('updating')
   })
 
+  it('edits the instance metadata on the API host without a body that touches the container', async () => {
+    const { fetchImpl, calls } = fakeFetch([
+      { status: 200, body: { ...instance, metadata: { atlasPodSessionId: 'p1' } } },
+    ])
+    const client = liveAgent37Client({ apiKey: 'sk_live_11', fetch: fetchImpl })
+    const edited = await client.edit({
+      id: 'ab12',
+      metadata: { atlasPodSessionId: 'p1', atlasDiskNudgedPercent: '85' },
+    })
+    expect(calls[0]?.url).toBe('https://api.agent37.com/v1/instances/ab12')
+    expect(calls[0]?.method).toBe('PATCH')
+    expect(calls[0]?.headers.Authorization).toBe('Bearer sk_live_11')
+    expect(calls[0]?.body).toEqual({
+      metadata: { atlasPodSessionId: 'p1', atlasDiskNudgedPercent: '85' },
+    })
+    expect(edited.metadata?.atlasPodSessionId).toBe('p1')
+  })
+
   it('reads the instance logs and health on the API host, in any instance state', async () => {
     const logs = {
       logs: 'fatal: open /etc/hostname: read-only file system\n',

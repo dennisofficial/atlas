@@ -5,7 +5,9 @@ import {
   agent37DiskOf,
   jobsControlPlaneOf,
   liveAgent37Client,
+  POD_DISK_CEILING_LIFETIME_STEPS,
   POD_DISK_GROWN_LIFETIME_STEPS,
+  podDiskCeilingNotice,
   podDiskGrownNotice,
   readPodRebootFacts,
   readPodsEnv,
@@ -20,7 +22,7 @@ import { triggerLog } from '../trigger-logger'
 
 export type PodDiskGrowGraph = { run(): Promise<PodDiskGrowSummary> }
 
-const NOTHING_TO_DO: PodDiskGrowSummary = { checked: 0, grown: 0, waiting: 0 }
+const NOTHING_TO_DO: PodDiskGrowSummary = { checked: 0, grown: 0, waiting: 0, nudged: 0 }
 
 const depsOf = (args: {
   plane: ControlPlane
@@ -55,6 +57,24 @@ const depsOf = (args: {
         }),
       })
     },
+    ceilingNotice: async (ceilingArgs) => {
+      await args.plane.post({
+        sessionId: ceilingArgs.sessionId,
+        kind: INBOX_KIND_EVENT,
+        payload: inboxEventPayloadOf({
+          event: {
+            type: 'nudge',
+            text: podDiskCeilingNotice({
+              usedBytes: ceilingArgs.usedBytes,
+              limitBytes: ceilingArgs.limitBytes,
+              percent: ceilingArgs.percent,
+            }),
+            lifetimeSteps: POD_DISK_CEILING_LIFETIME_STEPS,
+          },
+        }),
+      })
+    },
+    markNudged: (markArgs) => args.disk.markNudged(markArgs),
     log: (line) => triggerLog.log(line),
   }
   return { ...growDeps, pods: () => args.disk.runningPods() }

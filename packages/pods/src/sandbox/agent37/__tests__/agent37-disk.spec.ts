@@ -10,13 +10,21 @@ const instanceOf = (args: {
   id: string
   status?: Agent37Instance['status']
   podSessionId?: string
+  nudgedPercent?: string
 }): Agent37Instance => ({
   id: args.id,
   status: args.status ?? 'running',
   url: `https://${args.id}.agent37.app`,
-  ...(args.podSessionId === undefined
+  ...(args.podSessionId === undefined && args.nudgedPercent === undefined
     ? {}
-    : { metadata: { atlasPodSessionId: args.podSessionId } }),
+    : {
+        metadata: {
+          ...(args.podSessionId === undefined ? {} : { atlasPodSessionId: args.podSessionId }),
+          ...(args.nudgedPercent === undefined
+            ? {}
+            : { atlasDiskNudgedPercent: args.nudgedPercent }),
+        },
+      }),
 })
 
 const metricsOf = (args: { usedGb?: number; limitGb: number }): Agent37Metrics => ({
@@ -35,6 +43,7 @@ const fakeClient = (args: {
 }) => {
   const resized: Agent37ResizeArgs[] = []
   const metricsRead: string[] = []
+  const edits: Array<{ id: string; metadata: Record<string, string> }> = []
   const client: Agent37Client = {
     create: async () => instanceOf({ id: 'created' }),
     get: async ({ id }) => instanceOf({ id }),
@@ -47,6 +56,11 @@ const fakeClient = (args: {
     sleep: async () => undefined,
     start: async ({ id }) => ({ id, status: 'running' }),
     update: async ({ id }) => ({ id, status: 'running' }),
+    edit: async ({ id, metadata }) => {
+      edits.push({ id, metadata })
+      const podSessionId = metadata.atlasPodSessionId
+      return instanceOf({ id, ...(podSessionId === undefined ? {} : { podSessionId }) })
+    },
     logs: async () => ({ logs: '', truncated: false, health: null, fetched_at: 0 }),
     resize: async (body) => {
       resized.push(body)
@@ -62,7 +76,7 @@ const fakeClient = (args: {
       return await args.metrics(id)
     },
   }
-  return { client, resized, metricsRead }
+  return { client, resized, metricsRead, edits }
 }
 
 describe('agent37DiskOf', () => {
@@ -175,6 +189,42 @@ describe('agent37DiskOf', () => {
     })
     await agent37DiskOf({ client }).grow({ instanceId: 'inst-1', diskGb: 30 })
     expect(resized).toEqual([{ id: 'inst-1', disk: 30 }])
+  })
+
+  it('reports the nudge level the instance metadata holds, and ignores garbage', async () => {
+    const { client } = fakeClient({
+      pages: [
+        [
+          instanceOf({ id: 'inst-1', podSessionId: 'pod-1', nudgedPercent: '85' }),
+          instanceOf({ id: 'inst-2', podSessionId: 'pod-2', nudgedPercent: 'not-a-number' }),
+        ],
+      ],
+      metrics: async () => metricsOf({ usedGb: 90, limitGb: 100 }),
+    })
+    expect(await agent37DiskOf({ client }).runningPods()).toEqual([
+      {
+        podSessionId: 'pod-1',
+        instanceId: 'inst-1',
+        usedBytes: 90 * GB,
+        limitBytes: 100 * GB,
+        nudgedPercent: 85,
+      },
+      { podSessionId: 'pod-2', instanceId: 'inst-2', usedBytes: 90 * GB, limitBytes: 100 * GB },
+    ])
+  })
+
+  it('writes the nudge level beside the pod session, since metadata replaces the whole map', async () => {
+    const { client, edits } = fakeClient({
+      pages: [],
+      metrics: async () => metricsOf({ limitGb: 20 }),
+    })
+    const disk = agent37DiskOf({ client })
+    await disk.markNudged({ instanceId: 'inst-1', podSessionId: 'pod-1', percent: 95 })
+    await disk.markNudged({ instanceId: 'inst-2', podSessionId: 'pod-2', percent: undefined })
+    expect(edits).toEqual([
+      { id: 'inst-1', metadata: { atlasPodSessionId: 'pod-1', atlasDiskNudgedPercent: '95' } },
+      { id: 'inst-2', metadata: { atlasPodSessionId: 'pod-2' } },
+    ])
   })
 
   it('caps growth at the largest vm disk agent37 offers', () => {

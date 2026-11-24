@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { sanitizeChildEnv } from '../child-env'
+import { ATLAS_VOLUME_BUN_CACHE, sanitizeChildEnv, withVolumeBunCache } from '../child-env'
 
 describe('sanitizeChildEnv', () => {
   it('drops the mise shim vars a shim sets, so children cannot see which tool it picked', () => {
@@ -58,5 +58,41 @@ describe('sanitizeChildEnv', () => {
       PATH: '/opt/mise/shims:/usr/bin',
       MISE_DATA_DIR: '/opt/mise',
     })
+  })
+})
+
+describe('withVolumeBunCache', () => {
+  it('points bun at the cache on the /atlas volume when the pod has one', () => {
+    const env = withVolumeBunCache({ env: { HOME: '/atlas/home' }, atlasVolume: true })
+
+    expect(env).toEqual({
+      HOME: '/atlas/home',
+      BUN_INSTALL_CACHE_DIR: ATLAS_VOLUME_BUN_CACHE,
+    })
+  })
+
+  it('keeps a cache dir the environment already names', () => {
+    const env = withVolumeBunCache({
+      env: { BUN_INSTALL_CACHE_DIR: '/mnt/cache' },
+      atlasVolume: true,
+    })
+
+    expect(env.BUN_INSTALL_CACHE_DIR).toBe('/mnt/cache')
+  })
+
+  it('treats an empty cache dir as unset', () => {
+    const env = withVolumeBunCache({
+      env: { BUN_INSTALL_CACHE_DIR: '' },
+      atlasVolume: true,
+    })
+
+    expect(env.BUN_INSTALL_CACHE_DIR).toBe(ATLAS_VOLUME_BUN_CACHE)
+  })
+
+  it('leaves the env alone when the pod has no volume', () => {
+    const original = { HOME: '/root' }
+    const env = withVolumeBunCache({ env: original, atlasVolume: false })
+
+    expect(env).toBe(original)
   })
 })

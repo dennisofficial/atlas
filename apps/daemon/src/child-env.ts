@@ -1,5 +1,9 @@
 export const MISE_DATA_DIR_ENV = 'MISE_DATA_DIR'
 
+export const ATLAS_VOLUME_BUN_CACHE = '/atlas/.atlas/bun-cache'
+
+const BUN_INSTALL_CACHE_DIR_ENV = 'BUN_INSTALL_CACHE_DIR'
+
 const DEFAULT_MISE_DATA_DIR = '/opt/mise'
 
 // A mise shim sets these on the process it execs and rewrites PATH to the install it picked. The
@@ -36,4 +40,16 @@ export const sanitizeChildEnv = (
   // find the installs themselves — a child env without this data dir cannot resolve any tool
   if (typeof sanitized.PATH === 'string') sanitized[MISE_DATA_DIR_ENV] = dataDir
   return sanitized
+}
+
+export const withVolumeBunCache = (args: {
+  env: Record<string, string | undefined>
+  atlasVolume: boolean
+}): Record<string, string | undefined> => {
+  if (!args.atlasVolume) return args.env
+  const cacheDir = args.env[BUN_INSTALL_CACHE_DIR_ENV]
+  if (cacheDir !== undefined && cacheDir !== '') return args.env
+  // bun hardlinks out of its cache only within one filesystem, so a cache off the /atlas volume
+  // makes every install a full copy: https://bun.sh/docs/install/cache
+  return { ...args.env, [BUN_INSTALL_CACHE_DIR_ENV]: ATLAS_VOLUME_BUN_CACHE }
 }

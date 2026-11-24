@@ -14,6 +14,7 @@ describe('runPodDiskGrow', () => {
       checked: 1,
       grown: 0,
       waiting: 0,
+      nudged: 0,
     })
     expect(calls).toEqual([])
   })
@@ -27,6 +28,7 @@ describe('runPodDiskGrow', () => {
       checked: 1,
       grown: 0,
       waiting: 1,
+      nudged: 0,
     })
     expect(calls).toEqual(['facts:pod-1'])
     expect(lines.join('\n')).toContain('running-tool')
@@ -41,6 +43,7 @@ describe('runPodDiskGrow', () => {
       checked: 1,
       grown: 0,
       waiting: 1,
+      nudged: 0,
     })
     expect(calls).toEqual(['facts:pod-1'])
     expect(lines.join('\n')).toContain('setup')
@@ -55,6 +58,7 @@ describe('runPodDiskGrow', () => {
       checked: 1,
       grown: 1,
       waiting: 0,
+      nudged: 0,
     })
     expect(calls).toEqual([
       'facts:pod-1',
@@ -81,6 +85,7 @@ describe('runPodDiskGrow', () => {
       checked: 1,
       grown: 1,
       waiting: 0,
+      nudged: 0,
     })
     expect(calls).toEqual([
       'closeRun:pod-1',
@@ -107,6 +112,8 @@ describe('runPodDiskGrow', () => {
       notice: async () => {
         order.push('notice')
       },
+      ceilingNotice: async () => undefined,
+      markNudged: async () => undefined,
       log: () => undefined,
     }
     await runPodDiskGrow({ deps, maxGb: 100 })
@@ -121,6 +128,7 @@ describe('runPodDiskGrow', () => {
       checked: 1,
       grown: 0,
       waiting: 0,
+      nudged: 0,
     })
     expect(calls).toEqual([])
     expect(lines.join('\n')).toContain('no disk figures yet')
@@ -142,6 +150,7 @@ describe('runPodDiskGrow', () => {
       checked: 1,
       grown: 0,
       waiting: 0,
+      nudged: 0,
     })
     expect(calls).toEqual([])
     expect(lines.join('\n')).toContain('disk figures are stale')
@@ -159,6 +168,7 @@ describe('runPodDiskGrow', () => {
       checked: 1,
       grown: 1,
       waiting: 0,
+      nudged: 0,
     })
     expect(lines.join('\n')).toContain('inbox is down')
   })
@@ -175,6 +185,7 @@ describe('runPodDiskGrow', () => {
       checked: 1,
       grown: 1,
       waiting: 0,
+      nudged: 0,
     })
     expect(lines.join('\n')).toContain('the row is locked')
   })
@@ -188,20 +199,105 @@ describe('runPodDiskGrow', () => {
       checked: 1,
       grown: 0,
       waiting: 0,
+      nudged: 0,
     })
     expect(calls).toEqual(['facts:pod-1'])
   })
 
   it('leaves a pod already at the biggest disk alone', async () => {
     const { deps, calls } = fakeDeps({
-      pods: [podOf({ podSessionId: 'pod-1', usedGb: 92, limitGb: 100 })],
+      pods: [podOf({ podSessionId: 'pod-1', usedGb: 92, limitGb: 100, nudgedPercent: 95 })],
     })
     expect(await runPodDiskGrow({ deps, maxGb: 100 })).toEqual({
       checked: 1,
       grown: 0,
       waiting: 0,
+      nudged: 0,
     })
     expect(calls).toEqual([])
+  })
+
+  it('nudges a pod stuck at the ceiling once its disk passes 85 percent', async () => {
+    const { deps, calls, lines } = fakeDeps({
+      pods: [podOf({ podSessionId: 'pod-1', usedGb: 86, limitGb: 100 })],
+    })
+    expect(await runPodDiskGrow({ deps, maxGb: 100 })).toEqual({
+      checked: 1,
+      grown: 0,
+      waiting: 0,
+      nudged: 1,
+    })
+    expect(calls).toEqual(['ceilingNotice:pod-1:85', 'markNudged:inst-pod-1:85'])
+    expect(lines.join('\n')).toContain('told pod-1 its disk is at 85% of the 100 GB ceiling')
+  })
+
+  it('nudges a pod at the ceiling again at 95 percent, and not before', async () => {
+    const quiet = fakeDeps({
+      pods: [podOf({ podSessionId: 'pod-1', usedGb: 94, limitGb: 100, nudgedPercent: 85 })],
+    })
+    expect(await runPodDiskGrow({ deps: quiet.deps, maxGb: 100 })).toEqual({
+      checked: 1,
+      grown: 0,
+      waiting: 0,
+      nudged: 0,
+    })
+    expect(quiet.calls).toEqual([])
+    const loud = fakeDeps({
+      pods: [podOf({ podSessionId: 'pod-1', usedGb: 96, limitGb: 100, nudgedPercent: 85 })],
+    })
+    expect(await runPodDiskGrow({ deps: loud.deps, maxGb: 100 })).toEqual({
+      checked: 1,
+      grown: 0,
+      waiting: 0,
+      nudged: 1,
+    })
+    expect(loud.calls).toEqual(['ceilingNotice:pod-1:95', 'markNudged:inst-pod-1:95'])
+  })
+
+  it('re-arms the nudge once a ceiling pod falls back under 80 percent', async () => {
+    const { deps, calls } = fakeDeps({
+      pods: [podOf({ podSessionId: 'pod-1', usedGb: 78, limitGb: 100, nudgedPercent: 95 })],
+    })
+    expect(await runPodDiskGrow({ deps, maxGb: 100 })).toEqual({
+      checked: 1,
+      grown: 0,
+      waiting: 0,
+      nudged: 0,
+    })
+    expect(calls).toEqual(['markNudged:inst-pod-1:clear'])
+  })
+
+  it('keeps the nudge armed when telling the pod fails, so the next run retries it', async () => {
+    const { deps, calls, lines } = fakeDeps({
+      pods: [podOf({ podSessionId: 'pod-1', usedGb: 86, limitGb: 100 })],
+      ceilingNotice: async () => {
+        throw new Error('inbox is down')
+      },
+    })
+    expect(await runPodDiskGrow({ deps, maxGb: 100 })).toEqual({
+      checked: 1,
+      grown: 0,
+      waiting: 0,
+      nudged: 0,
+    })
+    expect(calls).toEqual(['ceilingNotice:pod-1:85'])
+    expect(lines.join('\n')).toContain('inbox is down')
+  })
+
+  it('counts the nudge as delivered when recording it fails, and logs it', async () => {
+    const { deps, lines } = fakeDeps({
+      pods: [podOf({ podSessionId: 'pod-1', usedGb: 86, limitGb: 100 })],
+      markNudged: async () => {
+        throw new Error('metadata is locked')
+      },
+    })
+    expect(await runPodDiskGrow({ deps, maxGb: 100 })).toEqual({
+      checked: 1,
+      grown: 0,
+      waiting: 0,
+      nudged: 1,
+    })
+    expect(lines.join('\n')).toContain('metadata is locked')
   })
 
   it('carries on to the next pod when one fails', async () => {
@@ -218,6 +314,7 @@ describe('runPodDiskGrow', () => {
       checked: 2,
       grown: 1,
       waiting: 0,
+      nudged: 0,
     })
     expect(lines.join('\n')).toContain('a host move is in flight')
   })
