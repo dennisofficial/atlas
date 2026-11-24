@@ -99,11 +99,16 @@ export class CrewRoom {
     agentId: string
     text: string
     from?: CrewSender | undefined
+    clientId?: string | undefined
   }): Promise<SubagentSaid | undefined> {
     const run = await this.runOrUndefined(args.agentId)
     return run === undefined
       ? undefined
-      : await run.say({ text: args.text, ...(args.from === undefined ? {} : { from: args.from }) })
+      : await run.say({
+          text: args.text,
+          ...(args.from === undefined ? {} : { from: args.from }),
+          ...(args.clientId === undefined ? {} : { clientId: args.clientId }),
+        })
   }
 
   async resume(args: { agentId: string }): Promise<EResumeOutcome> {

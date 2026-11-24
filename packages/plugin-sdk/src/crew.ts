@@ -28,7 +28,11 @@ export type PodCrew = {
     group?: string | undefined
     worktree?: WorktreeEntryInfo | undefined
   }): Promise<SubagentSnapshot>
-  say(args: { agentId: string; text: string }): Promise<SubagentSaid | undefined>
+  say(args: {
+    agentId: string
+    text: string
+    clientId?: string | undefined
+  }): Promise<SubagentSaid | undefined>
   stop(args: { agentId: string }): Promise<SubagentSnapshot>
   resume(args: { agentId: string }): Promise<EResumeOutcome>
   list(): readonly SubagentSnapshot[]

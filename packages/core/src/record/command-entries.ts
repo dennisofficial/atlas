@@ -15,6 +15,9 @@ export const COMMAND_OUTCOMES: Readonly<Record<string, readonly string[]>> = {
   summarise: ['history-summarised'],
   rotate: ['rotated'],
   resume: ['resume-marked'],
+  agent: ['command-applied'],
+  'shell-kill': ['command-applied'],
+  service: ['command-applied'],
 }
 
 export const COMMAND_OUTCOME_EVENT_TYPES: ReadonlySet<string> = new Set(

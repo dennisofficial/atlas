@@ -64,8 +64,14 @@ export const reportKeyOf = (args: { agentId: ThreadId; seq: number }): string =>
 export const endingKeyOf = (args: { agentId: ThreadId; seq: number }): string =>
   `agent-ended:${args.agentId}:${args.seq}`
 
-export const messagePayloadOf = (args: { text: string }): string =>
-  JSON.stringify(inboxMessageSchema.parse({ text: args.text, via: EMessageOrigin.ParentAgent }))
+export const messagePayloadOf = (args: { text: string; clientId?: string | undefined }): string =>
+  JSON.stringify(
+    inboxMessageSchema.parse({
+      text: args.text,
+      via: EMessageOrigin.ParentAgent,
+      ...(args.clientId === undefined ? {} : { clientId: args.clientId }),
+    }),
+  )
 
 export const postNotice = async (
   parent: Pick<ChildParent, 'deps'>,

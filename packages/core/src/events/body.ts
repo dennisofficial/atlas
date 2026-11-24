@@ -277,6 +277,7 @@ export type EventBody =
       callIds: readonly string[]
       inboxId?: number | undefined
     }
+  | { type: 'command-applied'; inboxId: number; name: string }
   | PolicyEventBody
   | SubscriptionEventBody
   | PrEventBody

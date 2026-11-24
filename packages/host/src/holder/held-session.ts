@@ -184,6 +184,7 @@ export class HeldSession {
       record: this.record,
       turnRunning: this.turns.turnRunning,
       kind: this.ending.outcome ?? EHeldOutcome.Faulted,
+      handedBackNeedsHolder: this.ending.needsHolderOfHandBack,
       released: this.ending.released,
       settleFence: this.settleFence,
       epoch: this.ending.epoch,

@@ -102,7 +102,9 @@ The result is one extra wake, and no ending is lost. The operator accepted this 
 `agent_stop` tool share one path. `text` is capped at 20,000 characters because the payload rides
 the durable inbox entry. Refusals: `No sub-agent with that id is in this session`, and
 `/agent say needs the text to send`. Stopping a child that had already ended is `done`, not a
-refusal. `/agent` has no `resume` action: resume is its own feature.
+refusal. `/agent` has no `resume` action: resume is its own feature. Once it has acted, the handler
+appends one `command-applied` row naming its inbox id, so a new holder knows it finished; a replay of
+`/agent say` posts the same text under the inbox id as its `clientId`, so the child gets it once.
 
 ### Client tier (`crewClient`)
 

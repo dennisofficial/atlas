@@ -46,6 +46,7 @@ export const COMPACTION_DISPOSITION = {
   parked: ECompactionDisposition.Summarise,
   'tool-parked': ECompactionDisposition.Drop,
   'resume-marked': ECompactionDisposition.Drop,
+  'command-applied': ECompactionDisposition.Drop,
   'tool-dispatched': ECompactionDisposition.Drop,
   'approval-requested': ECompactionDisposition.Drop,
   'approval-answered': ECompactionDisposition.Drop,

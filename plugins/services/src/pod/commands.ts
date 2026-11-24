@@ -2,7 +2,7 @@ import type { ToolOutcome } from '@dltech/atlas-core'
 import type { CommandHandler, CommandResult } from '@dltech/atlas-commands'
 import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 
-import { REFUSAL_SERVICE_TARGET, serviceArgs } from '../core/commands'
+import { REFUSAL_SERVICE_TARGET, service, serviceArgs } from '../core/commands'
 import { restartService } from './restart'
 import { EServiceAction } from './schema'
 import { stateFor } from './state'
@@ -34,10 +34,13 @@ const runOf = async (args: {
 
 export const serviceHandlerOf =
   (ctx: PluginPodContext): CommandHandler<unknown> =>
-  async ({ args }) => {
+  async ({ args, inboxId, append }) => {
     const parsed = serviceArgs.safeParse(args)
     if (!parsed.success) return { kind: 'refused', reason: parsed.error.message }
     const { action, serviceId } = parsed.data
     if (serviceId === undefined) return { kind: 'refused', reason: REFUSAL_SERVICE_TARGET }
-    return await runOf({ ctx, action, serviceId })
+    const result = await runOf({ ctx, action, serviceId })
+    if (result.kind === 'refused') return result
+    await append([{ type: 'command-applied', inboxId, name: service.spec.name }])
+    return result
   }

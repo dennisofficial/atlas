@@ -24,6 +24,7 @@ export class HeldEnding {
   private drive: (() => void) | undefined
   private wasReleased = false
   private handedBack = false
+  private handedBackNeedsHolder: boolean | undefined
   private epochOfLease = 0
 
   constructor(
@@ -51,6 +52,10 @@ export class HeldEnding {
 
   get epoch(): number {
     return this.epochOfLease
+  }
+
+  get needsHolderOfHandBack(): boolean | undefined {
+    return this.handedBackNeedsHolder
   }
 
   begin(epoch: number): void {
@@ -133,6 +138,7 @@ export class HeldEnding {
   async handBack(args: { needsHolder: boolean }): Promise<void> {
     if (this.handedBack) return
     this.handedBack = true
+    this.handedBackNeedsHolder = args.needsHolder
     this.args.record()?.fence()
     try {
       const revoked = await this.args.deps.plane.revoke({
