@@ -36,6 +36,7 @@ export const hostEnv = (args: {
     WORKSPACE_DIR: args.workspace,
     ...(args.setupScript === undefined ? {} : { SETUP_SCRIPT: args.setupScript }),
     APPEND_RETRY_MS: String(knobs?.appendRetryMs ?? 2_500),
+    ...(knobs?.drainCapMs === undefined ? {} : { DRAIN_CAP_MS: String(knobs.drainCapMs) }),
     PING_MS: String(knobs?.pingMs ?? 10_000),
     ...(args.daemonUrls === undefined ? {} : { DAEMON_URLS: JSON.stringify(args.daemonUrls) }),
     ...(args.daemonUrlFile === undefined ? {} : { DAEMON_URL_FILE: args.daemonUrlFile }),

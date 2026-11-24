@@ -61,6 +61,7 @@ export const makeRig = async (args: {
   plane?: ControlPlane | undefined
   store?: InMemoryControlStore | undefined
   appendRetryMs?: number | undefined
+  drainCapMs?: number | undefined
   sweepMs?: number | undefined
   watchedRepos?: (() => Promise<readonly string[]>) | undefined
   watchedCheckouts?: (() => Promise<readonly string[]>) | undefined
@@ -161,6 +162,7 @@ export const makeRig = async (args: {
     ids,
     reasonOfStartError: args.reasonOfStartError,
     ...(args.appendRetryMs === undefined ? {} : { appendRetryMs: args.appendRetryMs }),
+    ...(args.drainCapMs === undefined ? {} : { drainCapMs: args.drainCapMs }),
     sweepMs: args.sweepMs ?? 0,
     ...(args.isPermanentStartError === undefined
       ? {}

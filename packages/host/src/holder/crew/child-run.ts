@@ -34,7 +34,6 @@ import {
   statusOf,
   activeWorktreeSnapshotOf,
 } from './child-progress'
-import { DRAIN_IN_FLIGHT_CAP_MS } from '../drain-cap'
 import { childRunnerOf } from './child-runner'
 import { ChildTranscript } from './child-transcript'
 import { GroupRunState } from './group-run-state'
@@ -221,13 +220,13 @@ export class ChildRun {
   private async settleOrAbort(): Promise<void> {
     const settled = await settledWithin({
       timers: this.args.deps.timers,
-      ms: DRAIN_IN_FLIGHT_CAP_MS,
+      ms: this.args.deps.drainCapMs,
       done: this.done,
     })
     if (settled) return
     this.args.deps.log?.warn({
       source: 'holder.drain',
-      message: `sub-agent ${this.agentId} ran in flight for ${DRAIN_IN_FLIGHT_CAP_MS}ms, past the drain cap; aborting it for the hand-off`,
+      message: `sub-agent ${this.agentId} ran in flight for ${this.args.deps.drainCapMs}ms, past the drain cap; aborting it for the hand-off`,
     })
     this.abort?.abort('handoff')
   }

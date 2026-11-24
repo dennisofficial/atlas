@@ -12,6 +12,7 @@ export enum EHostFault {
   PostDuringRevoke = 'post-during-revoke',
   SpyWake = 'spy-wake',
   CommandOutcomeHangs = 'command-outcome-hangs',
+  ToolResultHangs = 'tool-result-hangs',
 }
 
 export const hostFaultOf = (raw: string | undefined): EHostFault | undefined => {
@@ -51,6 +52,21 @@ const commandOutcomeHangs = (args: { plane: ControlPlane; log: LogPort }): Appen
     )
     if (!isOutcome) return args.plane.append(params)
     announce({ log: args.log, message: 'fault: command outcome hangs' })
+    return new Promise<never>(() => {})
+  }
+}
+
+const toolResultHangs = (args: { plane: ControlPlane; log: LogPort }): Append => {
+  return async (params) => {
+    const isResult = params.events.some(
+      (event) =>
+        typeof event === 'object' &&
+        event !== null &&
+        'type' in event &&
+        event.type === 'tool-result',
+    )
+    if (!isResult) return args.plane.append(params)
+    announce({ log: args.log, message: 'fault: tool-result append hangs' })
     return new Promise<never>(() => {})
   }
 }
@@ -96,6 +112,9 @@ const overridesOf = (args: {
   if (fault === EHostFault.TurnThrowsOnce) return { ...spyWake, append: turnThrowsOnce(args) }
   if (fault === EHostFault.CommandOutcomeHangs) {
     return { ...spyWake, append: commandOutcomeHangs(args) }
+  }
+  if (fault === EHostFault.ToolResultHangs) {
+    return { ...spyWake, append: toolResultHangs(args) }
   }
   if (fault === EHostFault.RevokeThrowsTwice) return { ...spyWake, revoke: revokeThrowsTwice(args) }
   if (fault === EHostFault.PostDuringRevoke) return { ...spyWake, revoke: postDuringRevoke(args) }

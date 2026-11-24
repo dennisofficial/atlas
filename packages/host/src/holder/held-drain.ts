@@ -1,6 +1,8 @@
 import { crashedCallsOf } from '@dltech/atlas-core'
+import { logFieldsOf } from '@dltech/atlas-observability'
 
-import { DRAIN_IN_FLIGHT_CAP_MS } from './drain-cap'
+import { settledWithin } from './crew/child-turns'
+import { DRAIN_DETACH_CAP_MS } from './drain-cap'
 import type { HeldEnding } from './held-ending'
 import { drainNeedsHolder, outcomeCommandPending } from './held-needs-holder'
 import type { HeldSessionDeps } from './held-session-deps'
@@ -47,8 +49,8 @@ export class HeldDrain {
     const startedAt = this.args.deps.timers.now()
     await new Promise<void>((resolve) => {
       const timer = this.args.deps.timers.setTimeout(() => {
-        void this.abortPastCap({ startedAt }).then(() => resolve())
-      }, DRAIN_IN_FLIGHT_CAP_MS)
+        void this.abortPastCap({ startedAt }).finally(resolve)
+      }, this.args.deps.drainCapMs)
       void this.args.turns.whenIdle().then(() => {
         this.args.deps.timers.clearTimeout(timer)
         resolve()
@@ -58,8 +60,27 @@ export class HeldDrain {
 
   private async abortPastCap(args: { startedAt: number }): Promise<void> {
     this.logCap(args)
-    await this.detachInFlightCalls()
+    const detached = await settledWithin({
+      timers: this.args.deps.timers,
+      ms: DRAIN_DETACH_CAP_MS,
+      done: this.detachInFlightCalls().catch((error: unknown) => {
+        this.warn({ message: 'detaching the in-flight calls failed', error })
+      }),
+    })
+    if (!detached) {
+      this.warn({
+        message: `detaching the in-flight calls outlived ${DRAIN_DETACH_CAP_MS}ms; handing back without them`,
+      })
+    }
     this.args.turns.abort('handoff')
+  }
+
+  private warn(args: { message: string; error?: unknown }): void {
+    this.args.deps.log?.warn({
+      source: 'holder.drain',
+      message: `session ${this.args.sessionId}: ${args.message}`,
+      ...(args.error === undefined ? {} : logFieldsOf({ error: args.error })),
+    })
   }
 
   private async detachInFlightCalls(): Promise<void> {
@@ -83,7 +104,7 @@ export class HeldDrain {
     const inFlight = call === undefined ? 'an in-flight model step' : `the tool call ${call.name}`
     this.args.deps.log?.warn({
       source: 'holder.drain',
-      message: `session ${this.args.sessionId} ran ${inFlight} for ${this.args.deps.timers.now() - args.startedAt}ms, past the ${DRAIN_IN_FLIGHT_CAP_MS}ms drain cap; aborting the turn`,
+      message: `session ${this.args.sessionId} ran ${inFlight} for ${this.args.deps.timers.now() - args.startedAt}ms, past the ${this.args.deps.drainCapMs}ms drain cap; aborting the turn`,
     })
   }
 }
