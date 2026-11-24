@@ -29,6 +29,7 @@ type StateArgs = RemoteCallsArgs & { releaseResize(): void; resizeReason(): stri
 export class RemoteCallsState {
   private readonly pending = new Map<string, Pending>()
   private readonly podTools = new Set<string>()
+  private podReachable: boolean | undefined
   private readonly acks: ScopeAcks
   private readonly answers: Answers
   private readonly link: DaemonLink
@@ -189,11 +190,15 @@ export class RemoteCallsState {
   }
 
   async holdsPodCall(args: { runId: string; callId: string }): Promise<boolean> {
-    try {
-      await this.ready()
-    } catch {
-      return false
+    if (this.podReachable !== false) {
+      try {
+        await this.ready()
+        this.podReachable = true
+      } catch {
+        this.podReachable = false
+      }
     }
+    if (this.podReachable === false) return false
     const answer = await this.answers.ask(`${scopeKeyOf(args)}.0`)
     return answer === EDaemonAnswer.Running || answer === EDaemonAnswer.Done
   }
