@@ -21,6 +21,7 @@ import { ScrollView, StyleSheet, View } from 'react-native'
 import { mergeIntoDraft } from '../v2/staged-send'
 import { AttachmentChips } from './attachment-chips'
 import { AttachMenu } from './attach-menu'
+import { PasteImageButton } from './paste-image-button'
 import { hasFailed, isUploading, readyAttachments, REMOVE_FAILED_FILES } from './attachment-plan'
 import { SlashMenu } from './slash-menu'
 import { completedDraftOf, menuCandidatesOf, menuQueryOf, pickActionOf } from './slash-menu-model'
@@ -184,6 +185,9 @@ export const Composer = ({
               round
               onPress={() => setChoosing((open) => !open)}
             />
+          )}
+          {attachments === undefined ? null : (
+            <PasteImageButton onImage={(data) => void attachments.pasteImage(data)} />
           )}
           {children === undefined ? null : (
             <ScrollView
