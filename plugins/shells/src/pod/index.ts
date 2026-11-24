@@ -35,7 +35,9 @@ export const shellsPod: PodSlot = {
       if (frame.event.type === 'shells.output') void state.live.note(frame.event.shellId)
       if (frame.event.type === 'shells.ended') state.live.forget(frame.event.shellId)
     })
-    void reconcileShells({ ctx, state })
+    reconcileShells({ ctx, state }).catch((error: unknown) =>
+      ctx.log(`shells: takeover reconcile failed: ${String(error)}`),
+    )
     return { afterTool: [adoptedShellHook({ ctx, state })] }
   },
   prompts: [new BackgroundShellsFragment()],

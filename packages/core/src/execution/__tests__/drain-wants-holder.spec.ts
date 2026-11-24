@@ -6,6 +6,7 @@ import { drainWantsHolder, type DrainSnapshot } from '../held-session-decision'
 const idle: DrainSnapshot = {
   turn: 'idle',
   childrenRunning: false,
+  shellsOpen: false,
   resumable: false,
   messagePending: false,
   workspace: EWorkspaceState.Prepared,
@@ -22,6 +23,11 @@ const cases: { name: string; snapshot: DrainSnapshot; wantsHolder: boolean }[] =
   {
     name: 'a running child asks for a holder',
     snapshot: { ...idle, childrenRunning: true },
+    wantsHolder: true,
+  },
+  {
+    name: 'an open background shell asks for a holder',
+    snapshot: { ...idle, shellsOpen: true },
     wantsHolder: true,
   },
   {

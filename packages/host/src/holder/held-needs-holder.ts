@@ -3,6 +3,7 @@ import {
   drainWantsHolder,
   initialLoopState,
   isResumableOf,
+  lostShellsOf,
   repairHoldsResume,
   setupInFlightOf,
   commandInputName,
@@ -10,6 +11,7 @@ import {
   unfinishedCommandIdsOf,
   visibleEvents,
   workspaceStateFrom,
+  type Event,
   type V2Event,
 } from '@dltech/atlas-core'
 
@@ -73,6 +75,7 @@ export const drainNeedsHolder = async (args: {
           sessionId: args.deps.sessionId,
           children,
         })) > 0,
+      shellsOpen: lostShellsOf(events as readonly Event[]).length > 0,
       resumable: isResumableOf(state) && !stopSettledPromptOf(events) && !repairHeld,
       messagePending:
         actionableEntries({ entries, failure: workspace.failure }).some(

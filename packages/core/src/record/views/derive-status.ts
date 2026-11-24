@@ -119,8 +119,7 @@ export function deriveStatus(args: {
 
   if (open !== undefined) return open
   if (hasBackground(facts.background)) {
-    const state = args.live ? ESessionStatus.WaitingForBackground : ESessionStatus.Resuming
-    return { state, since: idleSinceOf(facts) }
+    return { state: ESessionStatus.WaitingForBackground, since: idleSinceOf(facts) }
   }
   return { state: ESessionStatus.Idle, since: idleSinceOf(facts) }
 }
