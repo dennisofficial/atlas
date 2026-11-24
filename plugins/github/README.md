@@ -12,6 +12,8 @@ Subscribe a thread to a GitHub pull request or workflow run, so the events reach
 - The policy hook that denies a `bash` call which watches or polls CI.
 - The control hook that records the tracking targets of a pushed branch.
 - `githubIdentityLookup`: the git author name and email for a GitHub token.
+- The one rule for how a pull request shows on a surface: its glyph, its tone, its state word,
+  its conflicts, its checks and its auto-merge marker.
 
 ## Does not own
 
@@ -44,6 +46,20 @@ Subscribe a thread to a GitHub pull request or workflow run, so the events reach
 - `pullRequestSnapshotOf(input)` and `runSnapshotOf(jobs)`: the facts a subscribe result shows
   about an open target, and the notice that comes next. `reviewDecisionOf(reviews)` reads the
   latest review of each reviewer.
+
+### Draw a pull request
+
+- `pullRequestDisplayOf(facts)`: one pull request as every surface draws it. The facts are
+  `{ state, checks, checksState, mergeable, mergeQueued, autoMerge }`, where `checks` is
+  `{ running, passed, failed, expected? }` or null. The answer holds `glyph`
+  (`open`, `draft`, `merged`, `closed`), `tone` (`open`, `draft`, `merged`, `closed`, `queued`,
+  `unknown`; `draft` and `unknown` are the muted tone), `stateWord`, `conflict`, `autoMerge` (the
+  marker shows), `settled`, and `checks` as a tally, `EChecksSummary.None` or
+  `EChecksSummary.Unknown`. Web, the Mac app and the iOS app read this one rule, so an icon, a
+  colour or a tally cannot drift between them.
+- `pullRequestChecksTallyOf(facts)`, `pullRequestHasConflicts(facts)`,
+  `pullRequestIsSettled(facts)`, `isChecksTally(checks)`: one answer each, for a caller that needs
+  only that part.
 
 ### Describe a subscription
 

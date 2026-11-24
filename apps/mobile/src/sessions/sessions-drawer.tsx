@@ -1,64 +1,26 @@
-import { EFontWeight, ETextRole, Text, useTheme } from '@dltech/atlas-ui-native'
-import { space } from '@dltech/atlas-ui/tokens'
+import { useTheme } from '@dltech/atlas-ui-native'
 import { usePathname } from 'expo-router'
 import type { ReactNode } from 'react'
-import { StyleSheet, useWindowDimensions, View } from 'react-native'
+import { StyleSheet, useWindowDimensions } from 'react-native'
 import { Drawer } from 'react-native-drawer-layout'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { EControlsPlacement } from '../layout/posture'
 import { usePosture } from '../layout/use-posture'
-import { AccountButton } from '../navigation/account-button'
 import { applyNavigation } from '../navigation/apply-navigation'
-import { NewSessionButton } from '../navigation/new-session-button'
 import { sessionOpenOf } from '../navigation/root-navigation'
 import { drawerGeometryOf, drawerSwipeEnabledOf } from './drawer-layout'
 import type { ISessionEntry } from './session-groups'
 import { useSelectedSession } from './selected-session'
+import { SessionsDrawerShell } from './sessions-drawer-shell'
 import { useSessionsDrawer } from './sessions-drawer-state'
-import { SessionsList } from './sessions-list'
 
 const DRAWER_EDGE_WIDTH = 40
-
-const SessionsDrawerContent = ({
-  paddingTop,
-  onOpenSession,
-}: {
-  paddingTop: number
-  onOpenSession: (entry: ISessionEntry) => void
-}) => {
-  const posture = usePosture()
-  const selected = useSelectedSession()
-  const showsAccount = posture.controls === EControlsPlacement.BottomBar
-  return (
-    <View style={[styles.content, { paddingTop: paddingTop + space(2) }]}>
-      <View style={styles.header}>
-        <Text
-          size={ETextRole.Lg}
-          weight={EFontWeight.Semibold}
-          numberOfLines={1}
-          style={styles.title}
-        >
-          Sessions
-        </Text>
-        <View style={styles.actions}>
-          {showsAccount ? <AccountButton /> : null}
-          <NewSessionButton />
-        </View>
-      </View>
-      <View style={styles.list}>
-        <SessionsList activeId={selected} onOpen={onOpenSession} />
-      </View>
-    </View>
-  )
-}
 
 export const SessionsDrawer = ({ children }: { children: ReactNode }) => {
   const theme = useTheme()
   const posture = usePosture()
-  const insets = useSafeAreaInsets()
   const { width } = useWindowDimensions()
   const pathname = usePathname()
+  const selected = useSelectedSession()
   const { open, setOpen } = useSessionsDrawer()
   const geometry = drawerGeometryOf({ listLayout: posture.sessionsList, width })
 
@@ -86,34 +48,10 @@ export const SessionsDrawer = ({ children }: { children: ReactNode }) => {
         width: geometry.width,
       }}
       renderDrawerContent={() => (
-        <SessionsDrawerContent paddingTop={insets.top} onOpenSession={handleOpenSession} />
+        <SessionsDrawerShell activeId={selected} onOpen={handleOpenSession} />
       )}
     >
       {children}
     </Drawer>
   )
 }
-
-const styles = StyleSheet.create({
-  actions: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: space(1),
-  },
-  content: {
-    flex: 1,
-  },
-  header: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: space(2),
-    paddingBottom: space(2),
-    paddingHorizontal: space(2),
-  },
-  list: {
-    flex: 1,
-  },
-  title: {
-    flex: 1,
-  },
-})

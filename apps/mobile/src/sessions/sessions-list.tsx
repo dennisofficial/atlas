@@ -7,7 +7,6 @@ import { ActivityIndicator, RefreshControl, SectionList, StyleSheet, View } from
 import { usePosture } from '../layout/use-posture'
 import { DoneToggle } from './done-toggle'
 import { EListStatus, listStatusOf } from './list-status'
-import { SearchField } from './search-field'
 import type { ISessionEntry } from './session-groups'
 import { SectionHeader } from './section-header'
 import { BucketProjectLabel, SessionRow } from './session-row'
@@ -55,15 +54,16 @@ const ListStatusView = ({ status, onRetry }: { status: EListStatus; onRetry: () 
 export const SessionsList = ({
   activeId,
   onOpen,
+  query,
 }: {
   activeId: string | null
   onOpen: (entry: ISessionEntry) => void
+  query: string
 }) => {
   const theme = useTheme()
   const posture = usePosture()
   const { partition, loadState, refreshing, refresh, now, setArchiveOverride } = useSessions()
   const { handleArchive, failure } = useArchiveSession({ setArchiveOverride, refresh })
-  const [query, setQuery] = useState('')
   const [toggled, setToggled] = useState<ReadonlySet<string>>(new Set())
   const sections = useMemo(
     () => sectionsOf({ partition, query, toggled }),
@@ -96,18 +96,18 @@ export const SessionsList = ({
         },
       ]}
       keyboardDismissMode="on-drag"
+      contentInsetAdjustmentBehavior="automatic"
       sections={sections}
       keyExtractor={(item) => item.key}
       stickySectionHeadersEnabled={false}
       ListHeaderComponent={
-        <View style={styles.header}>
-          <SearchField value={query} onChangeText={setQuery} />
-          {failure === null ? null : (
+        failure === null ? undefined : (
+          <View style={styles.header}>
             <Text size={ETextRole.Sm} tone={ETextTone.Destructive}>
               {failure}
             </Text>
-          )}
-        </View>
+          </View>
+        )
       }
       ListFooterComponent={<ListStatusView status={status} onRetry={() => void refresh()} />}
       refreshControl={

@@ -10,7 +10,7 @@ import {
   withAlpha,
 } from '@dltech/atlas-ui-native'
 import { radius, space } from '@dltech/atlas-ui/tokens'
-import { ChevronRight, FolderGit2, FolderX, SquarePen } from 'lucide-react-native'
+import { ChevronRight, Plus } from 'lucide-react-native'
 import { Pressable, StyleSheet, View } from 'react-native'
 
 import { ESectionKind, type ISessionSection } from './session-sections'
@@ -60,6 +60,52 @@ const BucketHeader = ({
   )
 }
 
+const ProjectHeader = ({
+  section,
+  onToggle,
+  onNewSession,
+}: {
+  section: ISessionSection
+  onToggle: () => void
+  onNewSession: (projectId: string) => void
+}) => {
+  const theme = useTheme()
+  const projectId = section.projectId
+  return (
+    <View style={styles.projectHeader}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ expanded: section.expanded }}
+        onPress={onToggle}
+        style={styles.name}
+      >
+        <Text
+          size={ETextRole.Xs}
+          weight={EFontWeight.Semibold}
+          tone={ETextTone.Muted}
+          numberOfLines={1}
+          style={styles.label}
+        >
+          {section.title}
+        </Text>
+      </Pressable>
+      {projectId === null ? null : (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`New session in ${section.title}`}
+          onPress={() => onNewSession(projectId)}
+          style={({ pressed }) => [
+            styles.add,
+            pressed ? { backgroundColor: theme.sidebarAccent } : null,
+          ]}
+        >
+          <Icon icon={Plus} color={theme.mutedForeground} size={16} />
+        </Pressable>
+      )}
+    </View>
+  )
+}
+
 export const SectionHeader = ({
   section,
   onToggle,
@@ -69,56 +115,12 @@ export const SectionHeader = ({
   onToggle: (key: string) => void
   onNewSession: (projectId: string) => void
 }) => {
-  const theme = useTheme()
   const handleToggle = () => onToggle(section.key)
   const header =
     section.kind !== ESectionKind.Project ? (
       <BucketHeader section={section} onToggle={handleToggle} />
     ) : (
-      <View style={styles.header}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ expanded: section.expanded }}
-          onPress={handleToggle}
-          style={styles.name}
-        >
-          <Icon
-            icon={section.projectId === null ? FolderX : FolderGit2}
-            color={theme.mutedForeground}
-            size={16}
-          />
-          <Text
-            size={ETextRole.Sm}
-            weight={EFontWeight.Medium}
-            numberOfLines={1}
-            style={styles.label}
-          >
-            {section.title}
-          </Text>
-        </Pressable>
-        <Rule />
-        {section.projectId !== null ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`New session in ${section.title}`}
-            hitSlop={12}
-            onPress={() => section.projectId !== null && onNewSession(section.projectId)}
-            style={styles.action}
-          >
-            <Icon icon={SquarePen} color={theme.mutedForeground} size={12} />
-          </Pressable>
-        ) : null}
-        <Count value={section.count} />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={section.expanded ? 'Collapse project' : 'Expand project'}
-          hitSlop={12}
-          onPress={handleToggle}
-          style={styles.action}
-        >
-          <Chevron open={section.expanded} color={theme.mutedForeground} size={14} />
-        </Pressable>
-      </View>
+      <ProjectHeader section={section} onToggle={handleToggle} onNewSession={onNewSession} />
     )
   return <View style={{ marginTop: section.gapBefore }}>{header}</View>
 }
@@ -133,19 +135,28 @@ const styles = StyleSheet.create({
     marginBottom: space(0.5),
     paddingHorizontal: space(2),
   },
+  projectHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    marginBottom: space(0.5),
+    paddingLeft: space(2),
+    paddingRight: space(1),
+  },
   name: {
     alignItems: 'center',
     flexDirection: 'row',
     flexShrink: 1,
-    gap: space(1.5),
+    flex: 1,
   },
   label: {
     flexShrink: 1,
+    letterSpacing: 0.4,
   },
-  action: {
+  add: {
     alignItems: 'center',
-    height: 20,
+    borderRadius: radius(0.8),
+    height: 44,
     justifyContent: 'center',
-    width: 20,
+    width: 44,
   },
 })

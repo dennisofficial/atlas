@@ -111,3 +111,25 @@ describe('sessionHeaderOf state', () => {
     expect(header.subtitle).toBe('Idle')
   })
 })
+
+describe('sessionHeaderOf pull request', () => {
+  it('carries the pull request of the session row for the title chip', () => {
+    const header = headerOf({
+      summary: summaryOf({
+        pullRequest: {
+          repo: 'dennisofficial/atlas',
+          number: 2844,
+          url: 'https://github.com/dennisofficial/atlas/pull/2844',
+          state: 'open',
+          checks: null,
+          mergeable: null,
+        },
+      }),
+    })
+    expect(header.pullRequest?.number).toBe(2844)
+  })
+
+  it('shows no chip for a session without a pull request', () => {
+    expect(headerOf({ summary: summaryOf({}) }).pullRequest).toBeNull()
+  })
+})

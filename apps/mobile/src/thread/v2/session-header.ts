@@ -6,22 +6,16 @@ import {
 import { formatElapsed } from '@dltech/atlas-client/transcript'
 import type { StreamSessionRow } from '@dltech/atlas-protocol'
 
-export const UNTITLED = 'Untitled'
+import type { SessionPullRequest } from '../../sessions/session-groups'
+import { sessionStatusLabelOf } from '../../sessions/session-status-label'
 
-const LABEL: Record<ESessionDisplay, string> = {
-  [ESessionDisplay.Starting]: 'Starting',
-  [ESessionDisplay.StartFailed]: 'Start failed',
-  [ESessionDisplay.Working]: 'Working',
-  [ESessionDisplay.WaitingForYou]: 'Waiting for you',
-  [ESessionDisplay.Idle]: 'Idle',
-  [ESessionDisplay.Parked]: 'Parked',
-  [ESessionDisplay.Failed]: 'Failed',
-}
+export const UNTITLED = 'Untitled'
 
 export type SessionHeader = {
   title: string
   display: ESessionDisplay | undefined
   subtitle: string | null
+  pullRequest: SessionPullRequest | null
 }
 
 const filled = (value: string | null | undefined): string | undefined =>
@@ -57,8 +51,16 @@ export const sessionHeaderOf = (args: {
     sandboxStatus: args.status?.sandbox?.status ?? args.summary?.sandbox?.status,
   })
   const title = titleOf(args)
-  if (display === undefined) return { title, display, subtitle: null }
+  const pullRequest = args.summary?.pullRequest ?? null
+  const label = sessionStatusLabelOf(display)
+  if (display === undefined || label === undefined) {
+    return { title, display, subtitle: null, pullRequest }
+  }
   const elapsed = display === ESessionDisplay.Working ? elapsedOf(args) : undefined
-  const label = LABEL[display]
-  return { title, display, subtitle: elapsed === undefined ? label : `${label} · ${elapsed}` }
+  return {
+    title,
+    display,
+    subtitle: elapsed === undefined ? label : `${label} · ${elapsed}`,
+    pullRequest,
+  }
 }

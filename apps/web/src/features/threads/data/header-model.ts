@@ -1,8 +1,11 @@
 import {
-  EPullRequestChecksStateWire,
-  EPullRequestStateWire,
-  type WireThread,
-} from '@dltech/atlas-wire/web'
+  pullRequestChecksTallyOf,
+  pullRequestHasConflicts,
+  pullRequestIsSettled,
+  type PullRequestChecksTally,
+  type PullRequestFacts,
+} from '@dltech/atlas-plugin-github/core'
+import type { WireThread } from '@dltech/atlas-wire/web'
 
 import type { PullRequestEntry } from './pull-request-entries'
 
@@ -13,7 +16,7 @@ export enum EHeaderState {
   Idle = 'idle',
 }
 
-export type ChecksTally = { running: number; passed: number; failed: number; expected: number }
+export type ChecksTally = PullRequestChecksTally
 
 export const STATE_LABEL: Record<EHeaderState, string> = {
   [EHeaderState.Failed]: 'Failed',
@@ -56,21 +59,26 @@ export function currentBranchOf(thread: WireThread | undefined): string | undefi
 export const isOutsideGit = (thread: WireThread | undefined): boolean =>
   thread?.checkout !== undefined && !thread.checkout.detached && !thread.checkout.branch
 
-export const entryHasConflicts = (entry: PullRequestEntry): boolean =>
-  entry.mergeable === false &&
-  (entry.state === EPullRequestStateWire.Open || entry.state === EPullRequestStateWire.Draft)
+export const pullRequestFactsOf = (entry: PullRequestEntry): PullRequestFacts => ({
+  state: entry.state,
+  checksState: entry.checksState,
+  mergeable: entry.mergeable,
+  mergeQueued: entry.mergeQueued,
+  autoMerge: entry.autoMerge,
+  checks: {
+    running: entry.checksRunning,
+    passed: entry.checksPassed,
+    failed: entry.checksFailed,
+    expected: entry.checksExpected,
+  },
+})
 
-export const entryIsSettled = (entry: PullRequestEntry): boolean => {
-  const state = entry.state?.toLowerCase()
-  return state === EPullRequestStateWire.Merged || state === EPullRequestStateWire.Closed
-}
+export const entryHasConflicts = (entry: PullRequestEntry): boolean =>
+  pullRequestHasConflicts(pullRequestFactsOf(entry))
+
+export const entryIsSettled = (entry: PullRequestEntry): boolean =>
+  pullRequestIsSettled(pullRequestFactsOf(entry))
 
 export function checksTallyOf(entry: PullRequestEntry): ChecksTally | undefined {
-  const running = entry.checksRunning ?? 0
-  const passed = entry.checksPassed ?? 0
-  const failed = entry.checksFailed ?? 0
-  const expected =
-    entry.checksExpected ?? (entry.checksState === EPullRequestChecksStateWire.Expected ? 1 : 0)
-  if (running + passed + failed + expected === 0) return undefined
-  return { running, passed, failed, expected }
+  return pullRequestChecksTallyOf(pullRequestFactsOf(entry))
 }
