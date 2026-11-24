@@ -11,6 +11,7 @@ import type { SessionPanes } from './session-view'
 import { panesOfView } from './session-view'
 import { sidebarModelOf } from './sidebar-model'
 import { useCrew, useCrewNavigation, type CrewControl } from './use-crew'
+import { useContextTree, type ContextFilesApi, type ContextTreeControl } from './use-context-tree'
 import { useServicesDrawer, type ServicesDrawer } from './use-services-drawer'
 import { useShellsDrawer, type ShellsDrawer } from './use-shells-drawer'
 import type { SessionTranscript } from './use-session-transcript'
@@ -36,6 +37,7 @@ export type SessionPanesControl = {
   crew: CrewControl
   shells: ShellsDrawer
   services: ServicesDrawer
+  context: ContextTreeControl
   sidebar: SidebarModel
   paneNow: number
   serviceFold: { hidden: number; hiddenFailed: boolean }
@@ -43,6 +45,7 @@ export type SessionPanesControl = {
 }
 
 export function useSessionPanes(args: {
+  api: ContextFilesApi
   transcript: SessionTranscript
   sessionId: string
   teammates: readonly StreamSessionRow[]
@@ -88,6 +91,12 @@ export function useSessionPanes(args: {
   const serviceFold = useMemo(() => serviceFoldOf(serviceViews), [serviceViews])
   const services = useServicesDrawer({ rows: serviceRows })
 
+  const context = useContextTree({
+    api: args.api,
+    sessionId,
+    head: transcript.events.length,
+  })
+
   const sidebar = useMemo(
     () =>
       sidebarModelOf({
@@ -113,15 +122,18 @@ export function useSessionPanes(args: {
 
   const { handleKey: handleShellsKey } = shells
   const { handleKey: handleServicesKey } = services
+  const { handleKey: handleContextKey } = context
   const shellsOpen = shells.open
   const servicesOpen = services.open
+  const contextOpen = context.viewer !== null
 
   const owners = useMemo<readonly PaneOwner[]>(
     () => [
+      { isOpen: () => contextOpen, handleKey: handleContextKey },
       { isOpen: () => shellsOpen, handleKey: handleShellsKey },
       { isOpen: () => servicesOpen, handleKey: handleServicesKey },
     ],
-    [handleServicesKey, handleShellsKey, servicesOpen, shellsOpen],
+    [contextOpen, handleContextKey, handleServicesKey, handleShellsKey, servicesOpen, shellsOpen],
   )
 
   const handleToggleShells = useCallback(() => shells.handleToggle(), [shells])
@@ -132,11 +144,23 @@ export function useSessionPanes(args: {
       crew,
       shells: { ...shells, handleToggle: handleToggleShells },
       services,
+      context,
       sidebar,
       paneNow,
       owners,
       serviceFold,
     }),
-    [crew, handleToggleShells, owners, paneNow, panes, serviceFold, services, shells, sidebar],
+    [
+      context,
+      crew,
+      handleToggleShells,
+      owners,
+      paneNow,
+      panes,
+      serviceFold,
+      services,
+      shells,
+      sidebar,
+    ],
   )
 }
