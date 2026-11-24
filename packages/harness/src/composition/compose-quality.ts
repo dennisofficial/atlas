@@ -3,8 +3,6 @@ import {
   ProcessPort,
   QualityReviewPort,
   WorkspaceIdentityPort,
-  createQualityRegistry,
-  singleResponsibilityPolicy,
 } from '@dltech/atlas-core'
 
 import {
@@ -13,6 +11,7 @@ import {
   type DependencyContainer,
 } from '../container/injection'
 import { SessionRegistryToken } from '../container/tokens'
+import { createQualityRegistry, singleResponsibilityPolicy } from '../quality/core-logic'
 import { CodeQualityReview } from '../quality/engine'
 import { QualityExampleSink } from '../quality/example-sink'
 import { GitWorkspaceIdentity } from '../quality/git-workspace-identity'

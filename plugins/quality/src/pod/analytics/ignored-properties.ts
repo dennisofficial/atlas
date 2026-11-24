@@ -1,11 +1,11 @@
 import {
   EQualityFindingState,
-  foldQualityFindings,
   type CodeQualityReviewedBody,
   type ThreadId,
   type V2Event,
 } from '@dltech/atlas-core'
 
+import { foldQualityFindings } from '../../review/ledger'
 import type { QualityReviewEventProperties } from './review-properties'
 import {
   lastIndexOfType,

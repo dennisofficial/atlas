@@ -35,12 +35,12 @@ policy's `{id, definition, exceptions}` (`packages/core/src/quality/request.ts:4
 | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `before`, `after`   | complete text of the subject declaration: the outermost changed class, else a changed named top-level function (`single-responsibility.ts:94-126`) |
 | `diff`              | unified diff of that declaration                                                                                                                   |
-| `dependencyContext` | the file's import statements (`packages/quality/src/source/scope-adapter.ts:178`)                                                                  |
+| `dependencyContext` | the file's import statements (`plugins/quality/src/review/source/scope-adapter.ts:178`)                                                            |
 | `evidence`          | member labels of a class (`scope-adapter.ts:118-143`); none for a function                                                                         |
 
 Not in the state: the rest of the file, the definitions of imported types, the callers, and any
 type information. Every policy that selects a scope shares one classifier request
-(`packages/quality/src/review-scopes.ts:177-197`), so three rules on one scope cost one call.
+(`plugins/quality/src/review/review-scopes.ts:177-197`), so three rules on one scope cost one call.
 
 ---
 
@@ -94,7 +94,7 @@ Each policy copies the single-responsibility design
   or function ancestor is not a subject (open/closed needs this to see a chain in a parent).
 - **Requests.** Single responsibility keeps its own request. The new rules share a second request
   for the scopes they select. Request units already run in parallel
-  (`packages/quality/src/scope-review.ts:182`), so latency does not grow. In one shared request
+  (`plugins/quality/src/review/scope-review.ts:182`), so latency does not grow. In one shared request
   with all three, single responsibility lost 3 of 34 resolves (§5.5).
 - **Gate.** `selectScopes` drops a scope whose diff has no line that the rule's gate matches. The
   gate reads both `+` and `-` lines, so an edit that removes a swallow or a chain can still resolve

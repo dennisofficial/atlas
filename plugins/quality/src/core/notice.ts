@@ -2,9 +2,10 @@ import {
   EQualityFindingState,
   EQualitySkipReason,
   EQualityTransition,
-  singleResponsibilityPolicy,
   type CodeQualityReviewedBody,
 } from '@dltech/atlas-core'
+
+import { QUALITY_POLICY_DESCRIPTORS } from './descriptors'
 
 export enum EQualityNoticeTone {
   Warning = 'warning',
@@ -19,9 +20,9 @@ export type QualityNotice = {
 
 export type QualityNoticeLine = { tone: EQualityNoticeTone; label: string }
 
-const POLICY_TITLES: Readonly<Record<string, string>> = {
-  [singleResponsibilityPolicy.id]: singleResponsibilityPolicy.title,
-}
+const POLICY_TITLES: Readonly<Record<string, string>> = Object.fromEntries(
+  QUALITY_POLICY_DESCRIPTORS.map(({ id, title }) => [id, title]),
+)
 
 const FAILURE_LABELS: Readonly<Partial<Record<EQualitySkipReason, string>>> = {
   [EQualitySkipReason.ReviewDeadline]: 'timed out',

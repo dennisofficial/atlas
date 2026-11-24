@@ -6,8 +6,6 @@ import {
   EQualitySkipReason,
   EQualityTransition,
   EToolEffect,
-  JEV_QUALITY_MODEL,
-  createQualityRegistry,
   stampDrafts,
   toCallId,
   toEventId,
@@ -26,6 +24,8 @@ import {
   type WorkspaceIdentityPort,
 } from '@dltech/atlas-core'
 
+import { createQualityRegistry } from '../core-logic/registry'
+import { JEV_QUALITY_MODEL } from '../core-logic/request'
 import { CodeQualityReview } from '../engine'
 import type { QualityExampleSink } from '../example-sink'
 import type { QualitySourceAdapter } from '../review-scopes'

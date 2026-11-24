@@ -1,7 +1,6 @@
 import {
   EQualityImpact,
   EToolEffect,
-  JEV_QUALITY_MODEL,
   stampDrafts,
   toCallId,
   toEventId,
@@ -39,6 +38,7 @@ import type { AfterToolHook } from '@dltech/atlas-agent'
 import type { HookOutcome } from '@dltech/atlas-core'
 
 import { qualityPodOf, type QualityPodOptions } from '..'
+import { JEV_QUALITY_MODEL } from '../../review/request'
 
 export const THREAD = toThreadId('thread-1')
 export const CALL = toCallId('call-1')

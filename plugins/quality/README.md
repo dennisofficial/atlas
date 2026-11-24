@@ -13,6 +13,13 @@ The advisory code-quality review. After a successful file write or edit, the plu
 - The coverage records: a skip, a retirement or a fault, each with its reason.
 - The TypeScript source adapter: scopes, diffs, evidence labels and stable scope identity.
 - The default policy registry: the single-responsibility policy and its settings key.
+- The single-responsibility policy itself: its descriptor, scope selection, its three questions, their
+  interpretation and its coaching text. The policy is split across `src/policies/single-responsibility`.
+- The question request and answer interpretation that every policy shares: `prepareQualityRequest`,
+  `interpretQualityResponse` and their size bounds.
+- The finding ledger: the episode table, its transitions and the fold from records.
+- The indicator notice a surface draws on a reviewed tool call: `qualityNoticeOf`, `qualityNoticeLine`
+  and `EQualityNoticeTone`.
 
 ## Does not own
 
@@ -21,13 +28,16 @@ The advisory code-quality review. After a successful file write or edit, the plu
 - The switch and the policy flags in storage. The caller passes `settings(ctx)`; `apps/api` reads the session settings.
 - The clock. The caller passes `clock`, and the default is `Date.now`.
 - Any storage. Records reach the event log through the drafts this plugin returns.
-- The indicator line in a transcript. `@dltech/atlas-client` folds the records by call id.
+- The transcript row itself. `@dltech/atlas-client` folds the records by call id onto the call;
+  this plugin only turns that fold into a label.
 
 ## Entry points
 
-| Import                             | Use it for                                                      |
-| ---------------------------------- | --------------------------------------------------------------- |
-| `@dltech/atlas-plugin-quality/pod` | `qualityPodOf(options)`, the hook, the engine and the registry. |
+| Import                                | Use it for                                                                 |
+| ------------------------------------- | -------------------------------------------------------------------------- |
+| `@dltech/atlas-plugin-quality/pod`    | `qualityPodOf(options)`, the hook, the engine and the registry.            |
+| `@dltech/atlas-plugin-quality/core`   | Pure data for surfaces: the policy descriptors and the indicator notice.   |
+| `@dltech/atlas-plugin-quality/review` | The engine, the policies, the request and the ledger, for evals and specs. |
 
 ## Capabilities
 
@@ -66,6 +76,17 @@ The pod entry exports the first group only. The review modules below are the par
 
 - `qualityReviewsOf(event)`: the review records of one event, standalone or on a tool result.
 
+### Draw the indicator (the `./core` entry)
+
+- `QUALITY_POLICY_DESCRIPTORS`: `id`, `version`, `title`, `description`, `settingKey` and
+  `defaultEnabled` for each policy, with no engine behind them.
+- `qualityNoticeOf(reviews)`, `qualityNoticeLine(notice)`, `EQualityNoticeTone`, `QualityNotice` and
+  `QualityNoticeLine`: the one-line indicator a tool row draws, and the failure wording for a review
+  that missed its budget or could not decide.
+
+The `./core` entry imports `@dltech/atlas-core` and the policy descriptors only. It has no engine and
+no TypeScript compiler.
+
 ## Plugin contributions
 
 ### Pod tier (`qualityPodOf`)
@@ -103,8 +124,14 @@ const qualityPod = qualityPodOf({
 - A sub-agent and a teammate get the same afterTool hooks as the main agent, so their writes are reviewed too. No extra wiring is necessary.
 - The hook budget is 5 s, above the 1 s review deadline, so the hook returns its own deadline record.
 - Import `@dltech/atlas-plugin-quality/pod` in the pod only. It imports `@dltech/atlas-agent`, `@dltech/atlas-core`, `@dltech/atlas-plugin-sdk`, `typescript`, `node:path` and `node:crypto`, and the guards enforce it.
+- `@dltech/atlas-plugin-quality/core` stays pure: `@dltech/atlas-core` and the policy descriptors only.
+  A surface, a settings page or the agent's config may import it; nothing else in the engine is public
+  to them.
+- Evals import the plugin through `@dltech/atlas-plugin-quality/review` only.
 
 ## See also
 
 - [`docs/v2/slices/jev-quality.md`](../../docs/v2/slices/jev-quality.md) explains the design and the state it dropped.
-- [`packages/core/src/quality`](../../packages/core/src/quality) holds the shared types and the policy logic.
+- [`packages/core/src/quality`](../../packages/core/src/quality) holds the shared types and the record schema.
+- v1's `packages/harness` keeps a frozen copy of the pure logic it reads in
+  `packages/harness/src/quality/core-logic`; it does not import this plugin.

@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'bun:test'
 
-import { QualityContractError } from '../policy'
+import { QualityContractError } from '@dltech/atlas-core'
+
 import { createQualityRegistry } from '../registry'
-import { policyFixture } from './fixtures'
+import { policyFixture } from './logic-fixtures'
 
 describe('createQualityRegistry', () => {
   it('rejects duplicate policy ids', () => {

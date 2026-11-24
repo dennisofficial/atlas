@@ -4,15 +4,15 @@ import {
   EQualityReviewStatus,
   EQualitySkipReason,
   QualityContractError,
-  prepareQualityRequest,
   type CapturedFileChange,
   type CodeQualityReviewedBody,
-  type QualityDecisionRequest,
   type QualityPolicy,
   type QualityScope,
   type QualityScopeIdentity,
   type QualityScopePreparation,
 } from '@dltech/atlas-core'
+
+import { prepareQualityRequest, type QualityDecisionRequest } from './core-logic/request'
 
 export const MAX_STATE_AND_LONGEST_QUESTION_BYTES = 24 * 1024
 export const MAX_STATE_AND_ALL_QUESTIONS_BYTES = 48 * 1024

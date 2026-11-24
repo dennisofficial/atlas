@@ -1,14 +1,15 @@
-import type { DecisionAnswer, DecisionQuestion } from '../ports/decision.port'
-import { JEV_MODEL } from '../policy/classifier/jev'
-import type { QualityScope } from './change'
 import {
   EQualityImpact,
   EQualityReviewStatus,
   EQualityTransition,
+  JEV_MODEL,
   QualityContractError,
+  type DecisionAnswer,
+  type DecisionQuestion,
   type QualityAssessment,
   type QualityPolicy,
-} from './policy'
+  type QualityScope,
+} from '@dltech/atlas-core'
 
 export const JEV_QUALITY_MODEL = JEV_MODEL
 

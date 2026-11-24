@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'bun:test'
 
-import { ESettingKind, ESettingPage, EQualityHealthStatus, type Event } from '@dltech/atlas-core'
+import { ESettingKind, ESettingPage, type Event } from '@dltech/atlas-core'
+
+import { EQualityHealthStatus } from '../core-logic/health'
 
 import { buildAssessmentCacheKey, createQualityAssessmentCache } from '../evaluation-cache'
 import { readQualityHealth } from '../health'
 import { buildRecord } from '../review-records'
 import { qualitySettingDefinitions, qualitySwitches } from '../settings'
-import { EQualityReviewStatus, prepareQualityRequest } from '@dltech/atlas-core'
+import { EQualityReviewStatus } from '@dltech/atlas-core'
+import { prepareQualityRequest } from '../core-logic/request'
 import { THREAD, call, policyNamed, scopeNamed, stampHistory } from './fixtures'
 
 describe('qualitySettingDefinitions', () => {

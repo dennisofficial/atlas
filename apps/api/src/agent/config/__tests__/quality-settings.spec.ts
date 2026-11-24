@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
-import { ESettingId, singleResponsibilityPolicy } from '@dltech/atlas-core'
+import { ESettingId } from '@dltech/atlas-core'
+import { singleResponsibilityPolicy } from '@dltech/atlas-plugin-quality/review'
 import type { Db } from '@dltech/atlas-db'
 
 import { setting } from './model-config.fixture'

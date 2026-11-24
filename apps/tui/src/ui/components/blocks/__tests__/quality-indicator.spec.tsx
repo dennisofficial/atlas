@@ -1,7 +1,7 @@
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'bun:test'
 
-import { qualityNoticeOf } from '@dltech/atlas-client/transcript'
+import { qualityNoticeOf } from '@dltech/atlas-plugin-quality/core'
 import {
   EQualityFindingState,
   EQualityImpact,

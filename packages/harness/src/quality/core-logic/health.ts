@@ -1,5 +1,9 @@
-import { EQualityFindingState, EQualityReviewStatus, type EQualitySkipReason } from './policy'
-import type { CodeQualityReviewedBody } from './schema'
+import {
+  EQualityFindingState,
+  EQualityReviewStatus,
+  type CodeQualityReviewedBody,
+  type EQualitySkipReason,
+} from '@dltech/atlas-core'
 
 export const QUALITY_HEALTH_LABEL = 'last recorded review'
 

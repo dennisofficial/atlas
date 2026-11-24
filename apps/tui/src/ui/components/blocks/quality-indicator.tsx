@@ -4,7 +4,7 @@ import {
   EQualityNoticeTone,
   qualityNoticeLine,
   type QualityNotice,
-} from '@dltech/atlas-client/transcript'
+} from '@dltech/atlas-plugin-quality/core'
 
 import { glyph, theme } from '../../theme'
 

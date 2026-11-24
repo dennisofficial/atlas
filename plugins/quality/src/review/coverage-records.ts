@@ -1,11 +1,12 @@
 import {
   EQualityReviewStatus,
   EQualitySkipReason,
-  applyAssessments,
   type CallId,
   type QualityFinding,
   type QualityScope,
 } from '@dltech/atlas-core'
+
+import { applyAssessments } from './ledger'
 
 import { buildRecord, type ReviewItem } from './review-records'
 

@@ -1,15 +1,19 @@
 import { describe, expect, it } from 'bun:test'
 
-import type { DecisionAnswer } from '../../../ports/decision.port'
-import { EQualityImpact, EQualityReviewStatus, EQualityTransition } from '../../policy'
-import { scopeFixture } from '../../__tests__/fixtures'
+import {
+  EQualityImpact,
+  EQualityReviewStatus,
+  EQualityTransition,
+  type DecisionAnswer,
+} from '@dltech/atlas-core'
+import { scopeFixture } from '../../../review/__tests__/logic-fixtures'
 import {
   CONCERN_INTRODUCE_THRESHOLD,
   CONCERN_RESOLVE_THRESHOLD,
   FOCUS_CONFIDENCE_THRESHOLD,
   IMPACT_CONFIDENCE_THRESHOLD,
   singleResponsibilityPolicy,
-} from '../single-responsibility'
+} from '..'
 
 const scope = scopeFixture({
   evidence: [

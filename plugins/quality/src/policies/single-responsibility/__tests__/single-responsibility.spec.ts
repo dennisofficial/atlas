@@ -1,10 +1,18 @@
 import { describe, expect, it } from 'bun:test'
 
-import type { DecisionAnswer } from '../../../ports/decision.port'
-import { EQualityImpact, EQualityReviewStatus, EQualityTransition } from '../../policy'
-import { interpretQualityResponse, prepareQualityRequest } from '../../request'
-import { assessmentFixture, policyFixture, scopeFixture } from '../../__tests__/fixtures'
-import { singleResponsibilityPolicy } from '../single-responsibility'
+import {
+  EQualityImpact,
+  EQualityReviewStatus,
+  EQualityTransition,
+  type DecisionAnswer,
+} from '@dltech/atlas-core'
+import { interpretQualityResponse, prepareQualityRequest } from '../../../review/request'
+import {
+  assessmentFixture,
+  policyFixture,
+  scopeFixture,
+} from '../../../review/__tests__/logic-fixtures'
+import { singleResponsibilityPolicy } from '..'
 
 const evidence = [
   { id: 'ev-render', label: 'renderInvoice()', changed: true },

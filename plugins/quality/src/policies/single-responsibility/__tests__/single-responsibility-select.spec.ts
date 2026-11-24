@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EQualityScopeKind, type QualityScope } from '../../change'
-import { scopeFixture } from '../../__tests__/fixtures'
-import { singleResponsibilityPolicy } from '../single-responsibility'
+import { EQualityScopeKind, type QualityScope } from '@dltech/atlas-core'
+import { scopeFixture } from '../../../review/__tests__/logic-fixtures'
+import { singleResponsibilityPolicy } from '..'
 
 type ScopeSpec = {
   id: string

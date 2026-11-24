@@ -8,7 +8,7 @@ import {
   qualityNoticeLine,
   qualityNoticeOf,
   type QualityNotice,
-} from '@dltech/atlas-client/transcript'
+} from '@dltech/atlas-plugin-quality/core'
 import { McpServerMark } from '@dltech/atlas-ui/ai/mcp-server-mark'
 import { EToolKind, EToolState, Tool, ToolLine } from '@dltech/atlas-ui/ai/tool'
 import { DiffViewer } from '@dltech/atlas-ui/ai/diff-viewer'

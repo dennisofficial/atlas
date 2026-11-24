@@ -7,7 +7,8 @@
 
 import React, { useMemo } from 'react'
 
-import { diffStatOf, qualityNoticeOf, type Read } from '@dltech/atlas-client/transcript'
+import { diffStatOf, type Read } from '@dltech/atlas-client/transcript'
+import { qualityNoticeOf } from '@dltech/atlas-plugin-quality/core'
 import { useClickRegion } from '../../hooks/use-click-region'
 import { tailOfPath } from '../../paths'
 import { markPaint, type EMark } from '../../tool-marks'

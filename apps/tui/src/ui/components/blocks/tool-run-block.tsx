@@ -19,12 +19,12 @@ import {
   EDetail,
   EToolClass,
   measureOfSentence,
-  qualityNoticeOf,
   segmentsOf,
   sentenceOf,
   type Read,
   type Segment,
 } from '@dltech/atlas-client/transcript'
+import { qualityNoticeOf } from '@dltech/atlas-plugin-quality/core'
 import { useClickRegion } from '../../hooks/use-click-region'
 import { useHighWater } from '../../hooks/use-high-water'
 import { tailOfPath } from '../../paths'

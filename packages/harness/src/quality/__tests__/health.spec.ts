@@ -1,13 +1,76 @@
 import { describe, expect, it } from 'bun:test'
 
 import {
+  EQualityFindingState,
+  EQualityImpact,
+  EQualityLanguage,
+  EQualityReviewStatus,
+  EQualityScopeKind,
+  EQualitySkipReason,
+  EQualityTransition,
+  toCallId,
+  type CodeQualityReviewedBody,
+  type QualityAssessment,
+  type QualityScope,
+} from '@dltech/atlas-core'
+
+import {
   EQualityHealthStatus,
-  projectQualityHealth,
   QUALITY_HEALTH_LABEL,
+  projectQualityHealth,
   type QualityHealthRecord,
-} from '../health'
-import { EQualityFindingState, EQualityReviewStatus, EQualitySkipReason } from '../policy'
-import { assessmentFixture, reviewFixture, scopeFixture } from './fixtures'
+} from '../core-logic/health'
+
+const scopeFixture = (): QualityScope => ({
+  id: 'scope-1',
+  workspaceNamespace: 'local:abc',
+  path: '/repo/src/a.ts',
+  language: EQualityLanguage.TypeScript,
+  kind: EQualityScopeKind.Class,
+  name: 'Widget',
+  adapterVersion: 'ts-1',
+  structuralHash: 'sh-1',
+  parentScopeId: null,
+  lineRange: { start: 1, end: 10 },
+  before: 'class Widget {}',
+  after: 'class Widget { run() {} }',
+  diff: '+ run() {}',
+  beforeHash: 'b1',
+  afterHash: 'a1',
+  evidence: [{ id: 'ev-1', label: 'run', changed: true }],
+  dependencyContext: ['import x'],
+  beforeLineRange: { start: 1, end: 1 },
+  afterLineRange: { start: 1, end: 10 },
+})
+
+const assessmentFixture = (overrides: Partial<QualityAssessment> = {}): QualityAssessment => ({
+  policyId: 'srp',
+  policyVersion: '1',
+  scopeId: 'scope-1',
+  status: EQualityReviewStatus.Completed,
+  impact: EQualityImpact.Introduced,
+  currentConcernProbability: 0.9,
+  transition: EQualityTransition.Introduce,
+  evidenceIds: ['ev-1'],
+  rawAnswers: {},
+  ...overrides,
+})
+
+const reviewFixture = (
+  overrides: Partial<CodeQualityReviewedBody> = {},
+): CodeQualityReviewedBody => ({
+  type: 'code-quality-reviewed',
+  callId: toCallId('call-1'),
+  workspaceNamespace: 'local:abc',
+  path: 'src/a.ts',
+  beforeHash: 'b1',
+  afterHash: 'a1',
+  status: EQualityReviewStatus.Completed,
+  assessments: [],
+  findings: [],
+  durationMs: 12,
+  ...overrides,
+})
 
 const record = (overrides: Partial<QualityHealthRecord> = {}): QualityHealthRecord => ({
   ...reviewFixture(),
