@@ -57,25 +57,49 @@ export const ackRecordedDaemonResults = async (args: {
   }
 }
 
+const LINK_HINT_MS = 2_000
+
+const waitForLink = async (args: {
+  remoteCalls: RemoteCalls
+  timeoutMs?: number | undefined
+}): Promise<void> => {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    await Promise.race([
+      args.remoteCalls
+        .ready()
+        .then(() => undefined)
+        .catch(() => undefined),
+      ...(args.timeoutMs === undefined
+        ? []
+        : [
+            new Promise<void>((resolve) => {
+              timer = setTimeout(resolve, args.timeoutMs)
+            }),
+          ]),
+    ])
+  } finally {
+    if (timer !== undefined) clearTimeout(timer)
+  }
+}
+
 const dispatchBootId = async (args: {
   name: string
   daemonTools: ReadonlySet<string>
   remoteCalls: RemoteCalls
 }): Promise<string | undefined> => {
-  if (args.remoteCalls.bootId() === undefined) await waitForLink(args.remoteCalls)
+  const podTool = args.daemonTools.has(args.name)
+  if (args.remoteCalls.bootId() === undefined) {
+    await waitForLink({
+      remoteCalls: args.remoteCalls,
+      ...(podTool ? {} : { timeoutMs: LINK_HINT_MS }),
+    })
+  }
   const bootId = args.remoteCalls.bootId()
-  if (bootId === undefined && args.daemonTools.has(args.name)) {
+  if (bootId === undefined && podTool) {
     throw new RecordCorruptionError('the daemon link had no bootId after ready() resolved')
   }
   return bootId
-}
-
-const waitForLink = async (remoteCalls: RemoteCalls): Promise<void> => {
-  try {
-    await remoteCalls.ready()
-  } catch {
-    return
-  }
 }
 
 export const prepareDraft = async (
