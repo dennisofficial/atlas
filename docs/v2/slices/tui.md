@@ -270,8 +270,8 @@ flowchart LR
   watch in the terminal.
 - **Boundary.** `apps/tui` may import `@dltech/atlas-client/*`, `@dltech/atlas-api-router`,
   `@dltech/atlas-protocol` (types and enums), `@dltech/atlas-commands`, `@dltech/atlas-core`,
-  `@dltech/atlas-models`, `@dltech/atlas-syntax`, `@dltech/atlas-observability` and
-  `@dltech/atlas-plugin-*/client|core`. `AGENTS.md` changes "`tui` never reaches past `harness`" to
+  `@dltech/atlas-models`, `@dltech/atlas-syntax`, `@dltech/atlas-observability`,
+  `@dltech/atlas-notifications` (the presence report) and `@dltech/atlas-plugin-*/client|core`. `AGENTS.md` changes "`tui` never reaches past `harness`" to
   this list in slice 9. `src/__tests__/package.spec.ts` checks it.
 
 ## 7. Slices
