@@ -22,6 +22,10 @@ extraResources:
   - from: dist/bin/bun
     to: bin/bun
 asar: true
+protocols:
+  - name: Atlas
+    schemes:
+      - atlas
 mac:
   category: public.app-category.developer-tools
   icon: icon.icns
