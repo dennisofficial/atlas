@@ -1,4 +1,4 @@
-import { mapLinesOutsideFences } from './markdown-fences'
+import { mapLinesOutsideFences } from '../../lib/markdown-fences'
 
 const DASH_LIKE = /[—–‒―−]/
 const ALL_DASH_LIKE = /[—–‒―−]/g

@@ -14,7 +14,6 @@ const subscriptionOf = (overrides: Partial<SessionSubscription> = {}): SessionSu
   events: [],
   createdBy: 'agent',
   createdAt: '2026-11-08T10:00:00.000Z',
-  expiresAt: null,
   ...overrides,
 })
 
@@ -110,13 +109,11 @@ describe('subscriptionRowsOf', () => {
     expect(row?.createdBy).toBe(ESubscriptionActor.Operator)
   })
 
-  it('carries the expiry and reads an unknown actor as the agent', () => {
-    const expiresAt = '2026-11-08T12:00:00.000Z'
+  it('reads an unknown actor as the agent', () => {
     const [row] = subscriptionRowsOf({
-      subscriptions: [subscriptionOf({ expiresAt, createdBy: 'probe' })],
+      subscriptions: [subscriptionOf({ createdBy: 'probe' })],
       pullRequests: [],
     })
-    expect(row?.expiresAt).toBe(expiresAt)
     expect(row?.createdBy).toBe(ESubscriptionActor.Agent)
   })
 })

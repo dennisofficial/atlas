@@ -23,7 +23,6 @@ const baseSchema = z.strictObject({
   action: z.enum(ESubscriptionAction),
   provider: z.string().min(1).optional(),
   target: z.string().optional(),
-  expiresInMinutes: z.number().positive().optional(),
   events: z.array(z.string().min(1)).optional(),
   subscriptionId: z.string().min(1).optional(),
 })
@@ -49,12 +48,12 @@ const inputSchema = baseSchema.superRefine((input, context) => {
 
 const description = [
   'Subscribe this session to an external event source, so its occurrences reach you as notices that wake you. Nothing notifies you about a source you have not subscribed to.',
-  'action subscribe needs provider, and takes target, events and expiresInMinutes. action unsubscribe needs subscriptionId and ends one subscription. action list shows every subscription with its id, label, who created it and expiry, plus the providers you can subscribe to.',
+  'action subscribe needs provider, and takes target and events. action unsubscribe needs subscriptionId and ends one subscription. action list shows every subscription with its id, label and who created it, plus the providers you can subscribe to.',
   `The providers are ${GITHUB_PROVIDER} and ${GITHUB_RUN_PROVIDER}.`,
   'target is the source: owner/repo#123, a pull request URL or a run URL. Omit it when the provider works it out from this session, such as the pull request or the run of the current branch.',
   'A target that already reached its end, such as a merged pull request or a finished run, delivers that final notice at once and ends the subscription.',
   'The result of action subscribe shows the current state of the target, and whether a notice is still coming.',
-  'expiresInMinutes ends the subscription after that long. Without it the subscription lasts until it completes, you unsubscribe, or its session is archived.',
+  'A subscription lasts until its target completes, you unsubscribe, or its session is archived.',
   `events keeps only some kinds of occurrence; omit it for every kind. Occurrences that end a subscription, such as a merge, always arrive. ${GITHUB_PROVIDER} takes ${catalogText(PULL_REQUEST_EVENTS)}. ${GITHUB_RUN_PROVIDER} takes no events filter.`,
   'Subscribing again to the same target returns the existing subscription, or updates its filter when events differ.',
 ].join(' ')
@@ -111,22 +110,15 @@ export class SubscriptionTool extends SchemaTool<typeof inputSchema> {
         reason: `Unknown provider "${provider}". Use ${GITHUB_PROVIDER} or ${GITHUB_RUN_PROVIDER}.`,
       }
     }
-    const expiresAt =
-      input.expiresInMinutes === undefined
-        ? undefined
-        : new Date(Date.now() + input.expiresInMinutes * 60_000).toISOString()
     const outcome = await subscribeTo({
       ctx: this.ctx,
       provider,
       input: input.target ?? '',
       cwd: projectDirectory,
-      expiresAt,
       requestedEvents: input.events,
     })
     if (!outcome.ok) return { ok: false, reason: outcome.error }
     const { subscription, existed, updated, target } = outcome
-    const expiry =
-      subscription.expiresAt === null ? 'no expiry' : `expires ${subscription.expiresAt}`
     const headline = existed ? (updated ? 'Updated' : 'Already subscribed to') : 'Subscribed to'
     return {
       ok: true,
@@ -135,7 +127,7 @@ export class SubscriptionTool extends SchemaTool<typeof inputSchema> {
         existed,
         ...(target === undefined ? {} : { target }),
       },
-      modelText: `${headline} ${subscription.label} (id ${subscription.id}, ${expiry}).${subscribedTargetText(target)}`,
+      modelText: `${headline} ${subscription.label} (id ${subscription.id}).${subscribedTargetText(target)}`,
     }
   }
 }

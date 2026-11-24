@@ -87,7 +87,6 @@ describe('AgentTranscriptBody re-renders', () => {
       summarise: null,
       openChanges: null,
       openAgent: null,
-      repairDiagram: null,
     }
     const render = (now: number) =>
       act(async () =>

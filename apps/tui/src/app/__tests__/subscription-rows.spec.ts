@@ -25,7 +25,6 @@ const subscription = (patch: Partial<SessionSubscription>): SessionSubscription 
   events: [],
   createdBy: 'operator',
   createdAt: '2026-11-20T00:00:00.000Z',
-  expiresAt: null,
   ...patch,
 })
 

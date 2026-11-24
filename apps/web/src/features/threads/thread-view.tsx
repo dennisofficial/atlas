@@ -56,6 +56,7 @@ import { ThreadViewHeader } from './thread-view-header'
 import { ThreadLayout } from './thread-layout'
 import { ThreadLoadError } from './thread-load-error'
 import { ThreadMissing } from './thread-missing'
+import { ChannelDiagramRepairProvider } from './data/session-diagram-repair-provider'
 import { ThreadTranscript } from './thread-transcript'
 
 const NOT_FOUND = 404
@@ -278,17 +279,19 @@ export function ThreadView({ threadId }: { threadId: string }) {
                 />
               }
             >
-              <ThreadTranscript
-                items={view.items}
-                failureCard={attention.card}
-                failedLabel={attention.failedLabel}
-                pod={pod}
-                working={working}
-                background={background}
-                onRetryBoot={() => void handleRetryBoot()}
-                rewind={rewind.transcript}
-                summarise={summarise.transcript}
-              />
+              <ChannelDiagramRepairProvider>
+                <ThreadTranscript
+                  items={view.items}
+                  failureCard={attention.card}
+                  failedLabel={attention.failedLabel}
+                  pod={pod}
+                  working={working}
+                  background={background}
+                  onRetryBoot={() => void handleRetryBoot()}
+                  rewind={rewind.transcript}
+                  summarise={summarise.transcript}
+                />
+              </ChannelDiagramRepairProvider>
             </ThreadMainSlot>
           </ThreadLayout>
         </div>

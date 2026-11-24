@@ -118,6 +118,10 @@ export function deriveStatus(args: {
   }
 
   if (open !== undefined) return open
+  const parked = Object.values(facts.parked)[0]
+  if (parked !== undefined) {
+    return { state: ESessionStatus.WaitingForOperator, reason: parked.name, since: parked.at }
+  }
   if (hasBackground(facts.background)) {
     return { state: ESessionStatus.WaitingForBackground, since: idleSinceOf(facts) }
   }

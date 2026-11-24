@@ -64,7 +64,6 @@ export type PodControlClient = {
         target: JsonValue
         label: string
         events?: readonly string[] | undefined
-        expiresAt?: string | undefined
         lease: PodSubscriptionLease
       },
     ): Promise<{

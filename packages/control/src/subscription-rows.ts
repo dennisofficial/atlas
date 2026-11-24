@@ -53,7 +53,6 @@ export const subscriptionOf = (row: SubscriptionRow): SessionSubscription => ({
   events: [...row.events],
   createdBy: row.createdBy,
   createdAt: row.createdAt,
-  expiresAt: row.expiresAt,
 })
 
 type SubscriptionRecordBody = Extract<
@@ -90,7 +89,6 @@ export const tracked = async (params: {
   tx: ControlTx
   session: ControlSessionRow
   lease: SubscriptionLeaseInput
-  expiresAt: string | null
 }): Promise<void> => {
   if (params.lease.subject.kind !== 'pull-request') return
   await params.tx.upsertTrackingTarget({
@@ -99,7 +97,7 @@ export const tracked = async (params: {
     repoFullName: repoFullNameOf(params.lease.repo),
     branch: '',
     prNumber: params.lease.subject.number,
-    liveUntil: params.expiresAt,
+    liveUntil: null,
   })
   await params.tx.insertSessionPullRequests([
     {
