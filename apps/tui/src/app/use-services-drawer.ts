@@ -3,7 +3,6 @@ import { useCallback, useMemo, useState } from 'react'
 
 import { useOutputScroll, type OutputScroll } from '../ui/hooks/use-output-scroll'
 import {
-  isRowRunning,
   moveServiceSelection,
   openServices,
   rowServiceId,
@@ -33,6 +32,7 @@ export function useServicesDrawer(args: {
   rows: readonly ServiceRow[]
   api: SessionApi
   sessionId: string
+  headSeq: number
   onStop: (serviceId: string) => void
   onRestart: (serviceId: string) => void
 }): ServicesDrawer {
@@ -41,13 +41,12 @@ export function useServicesDrawer(args: {
 
   const selected = state === null ? undefined : selectedService({ state, rows })
   const serviceId = selected === undefined ? undefined : rowServiceId(selected)
-  const running = selected !== undefined && isRowRunning(selected)
   const scroll = useOutputScroll({ resetKey: selected?.key })
   const serviceLog = useServiceLog({
     api: args.api,
     sessionId: args.sessionId,
     serviceId,
-    running,
+    headSeq: args.headSeq,
   })
 
   const handleOpen = useCallback(

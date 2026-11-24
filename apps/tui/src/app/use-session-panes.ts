@@ -94,6 +94,7 @@ export function useSessionPanes(args: {
     rows: serviceRows,
     api: args.api,
     sessionId,
+    headSeq: transcript.events.length,
     onStop: args.onStopService,
     onRestart: args.onRestartService,
   })

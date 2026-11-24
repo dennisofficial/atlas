@@ -3,8 +3,6 @@ import { useEffect, useState } from 'react'
 import type { SessionApi } from './session-api'
 import { unavailableOf } from './use-changes'
 
-export const SERVICE_LOG_POLL_MS = 2_000
-
 export const POD_ASLEEP = 'The pod is asleep. Wake it to read the log.'
 
 export const LOG_UNAVAILABLE = 'The log is unavailable.'
@@ -24,9 +22,9 @@ export function useServiceLog(args: {
   api: SessionApi
   sessionId: string
   serviceId: string | undefined
-  running: boolean
+  headSeq: number
 }): ServiceLogState {
-  const { api, sessionId, serviceId, running } = args
+  const { api, sessionId, serviceId, headSeq } = args
   const [state, setState] = useState<ServiceLogState>({ status: 'idle' })
 
   useEffect(() => {
@@ -48,18 +46,10 @@ export function useServiceLog(args: {
     }
 
     read()
-    if (!running) {
-      return () => {
-        live = false
-      }
-    }
-
-    const timer = setInterval(read, SERVICE_LOG_POLL_MS)
     return () => {
       live = false
-      clearInterval(timer)
     }
-  }, [api, running, serviceId, sessionId])
+  }, [api, headSeq, serviceId, sessionId])
 
   return state
 }
