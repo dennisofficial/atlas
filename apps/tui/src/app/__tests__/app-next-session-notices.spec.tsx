@@ -1,17 +1,19 @@
-import { describe, expect, test } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test'
 
 import { ESessionStatus } from '@dltech/atlas-core'
 import type { StreamSessionRow } from '@dltech/atlas-protocol'
 
 import { frameShowing, frameWhen } from '../../ui/__tests__/waiting'
 import { teardown } from '../../ui/markdown/__tests__/harness'
-import { dismissNotice } from '../../ui/notice-store'
+import { configureNotices, dismissNotice, NOTICE_MS } from '../../ui/notice-store'
 import { openSession, SESSION_ID, WITHIN } from './app-next-harness'
 import { sessionRowFixture } from './view-fixture'
 
 const OTHER = 'session-two'
 
 const THIRD = 'session-three'
+
+const NOTICE_HOLD_MS = WITHIN * 4
 
 const other = (state?: ESessionStatus): StreamSessionRow =>
   sessionRowFixture({
@@ -37,6 +39,10 @@ const open = (state?: ESessionStatus): StreamSessionRow =>
   })
 
 describe('notices for other sessions', () => {
+  beforeEach(() => configureNotices({ ttlMs: NOTICE_HOLD_MS }))
+
+  afterEach(() => configureNotices({ ttlMs: NOTICE_MS }))
+
   test('a sibling finishing is announced, the open session is not', async () => {
     const mounted = await openSession({ rows: [open(), other()] })
 
