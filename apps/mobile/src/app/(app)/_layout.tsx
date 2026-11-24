@@ -1,14 +1,12 @@
 import { Button, EButtonSize, EButtonVariant, useTheme } from '@dltech/atlas-ui-native'
 import { router, Stack, usePathname } from 'expo-router'
-import { Platform, StyleSheet, View } from 'react-native'
+import { StyleSheet, useWindowDimensions, View } from 'react-native'
 
 import { useAuth } from '../../auth/auth-provider'
-import { EControlsPlacement } from '../../layout/posture'
 import { RailContentFrame } from '../../layout/rail-content-frame'
 import { PostureProvider, usePosture } from '../../layout/use-posture'
-import { AccountButton } from '../../navigation/account-button'
 import { AppControls } from '../../navigation/app-controls'
-import { NewSessionButton } from '../../navigation/new-session-button'
+import { tabHeaderOptionsOf } from '../../navigation/header-options'
 import { InAppNoticesProvider } from '../../notifications/in-app-notices-provider'
 import { sessionIdOfPathname } from '../../thread/v2/presence-state'
 import { usePresenceReport } from '../../thread/v2/use-presence-report'
@@ -24,10 +22,14 @@ const CancelButton = () => (
 
 const AppStack = () => {
   const theme = useTheme()
-  const rail = usePosture().controls === EControlsPlacement.Rail
-  const headerLeft = rail ? undefined : () => <AccountButton />
-  const headerRight = () => <NewSessionButton />
+  const posture = usePosture()
+  const { width: windowWidth } = useWindowDimensions()
   const tabContentStyle = { backgroundColor: theme.sidebar }
+  const tabOptions = (title: string) => ({
+    ...tabHeaderOptionsOf({ title, posture, windowWidth }),
+    animation: 'none' as const,
+    contentStyle: tabContentStyle,
+  })
   const pushedHeaderOptions = {
     headerBackButtonDisplayMode: 'minimal' as const,
     headerStyle: { backgroundColor: theme.background },
@@ -35,50 +37,10 @@ const AppStack = () => {
   }
   return (
     <Stack screenOptions={{ contentStyle: { backgroundColor: theme.background } }}>
-      <Stack.Screen
-        name="index"
-        options={{
-          title: 'Threads',
-          animation: 'none',
-          headerLargeTitle: Platform.OS === 'ios',
-          headerLeft,
-          headerRight,
-          contentStyle: tabContentStyle,
-        }}
-      />
-      <Stack.Screen
-        name="routines"
-        options={{
-          title: 'Routines',
-          animation: 'none',
-          headerLargeTitle: Platform.OS === 'ios',
-          headerLeft,
-          headerRight,
-          contentStyle: tabContentStyle,
-        }}
-      />
-      <Stack.Screen
-        name="projects"
-        options={{
-          title: 'Projects',
-          animation: 'none',
-          headerLargeTitle: Platform.OS === 'ios',
-          headerLeft,
-          headerRight,
-          contentStyle: tabContentStyle,
-        }}
-      />
-      <Stack.Screen
-        name="artifacts"
-        options={{
-          title: 'Artifacts',
-          animation: 'none',
-          headerLargeTitle: Platform.OS === 'ios',
-          headerLeft,
-          headerRight,
-          contentStyle: tabContentStyle,
-        }}
-      />
+      <Stack.Screen name="index" options={tabOptions('Threads')} />
+      <Stack.Screen name="routines" options={tabOptions('Routines')} />
+      <Stack.Screen name="projects" options={tabOptions('Projects')} />
+      <Stack.Screen name="artifacts" options={tabOptions('Artifacts')} />
       <Stack.Screen
         name="new"
         options={{

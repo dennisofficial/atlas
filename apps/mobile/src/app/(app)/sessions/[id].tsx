@@ -12,18 +12,15 @@ import { space } from '@dltech/atlas-ui/tokens'
 import { router, Stack, useLocalSearchParams } from 'expo-router'
 import { PanelLeft } from 'lucide-react-native'
 import { useCallback, useState } from 'react'
-import { ActivityIndicator, Platform, StyleSheet, useWindowDimensions, View } from 'react-native'
+import { ActivityIndicator, StyleSheet, useWindowDimensions, View } from 'react-native'
 import { EffortSelect, FastToggle } from '../../../composer/model-controls'
 import { ModelSheet } from '../../../composer/model-picker'
 import { ModelTrigger } from '../../../composer/model-trigger'
 import { KeyboardDock } from '../../../layout/keyboard-dock'
 import { usePosture } from '../../../layout/use-posture'
 import { BackButton } from '../../../navigation/back-button'
-import {
-  ESessionHeaderItem,
-  leadingTitleWidthOf,
-  sessionHeaderItemsOf,
-} from '../../../navigation/session-header-items'
+import { EHeaderLeadingItem, sessionHeaderLeadingOf } from '../../../navigation/header-leading'
+import { leadingHeaderOptionsOf } from '../../../navigation/header-options'
 import { ThreadsPanelLayout } from '../../../sessions/threads-panel-layout'
 import { CommandListSheet } from '../../../thread/composer/command-list-sheet'
 import { Composer } from '../../../thread/composer/composer'
@@ -73,40 +70,28 @@ export default function SessionScreen() {
     [model],
   )
 
-  const showsThreads = sessionHeaderItemsOf({ posture }).includes(ESessionHeaderItem.Threads)
-  const leadingTitle = Platform.OS === 'ios'
-  const titleWidth = leadingTitleWidthOf({
-    windowWidth,
-    posture,
-    buttons: showsThreads ? 2 : 1,
-  })
-  const titleElement = (
-    <View style={{ maxWidth: titleWidth }}>
-      <SessionTitle header={session.header} />
-    </View>
-  )
+  const showsThreads = sessionHeaderLeadingOf({ posture }).includes(EHeaderLeadingItem.Threads)
+  const threadsHeaderItem = {
+    type: 'button' as const,
+    label: 'Threads',
+    icon: { type: 'sfSymbol' as const, name: 'sidebar.left' as const },
+    accessibilityLabel: 'Threads',
+    onPress: handleOpenThreads,
+  }
 
   return (
     <View style={[styles.screen, { backgroundColor: theme.background }]}>
       <Stack.Screen
         options={{
           title: session.header.title,
-          headerTitle: leadingTitle ? '' : () => <SessionTitle header={session.header} />,
+          ...leadingHeaderOptionsOf({
+            leading: showsThreads ? [threadsHeaderItem] : [],
+            title: <SessionTitle header={session.header} />,
+            titleButtons: showsThreads ? 2 : 1,
+            windowWidth,
+            posture,
+          }),
           headerBackVisible: true,
-          unstable_headerLeftItems: () => [
-            ...(showsThreads
-              ? [
-                  {
-                    type: 'button' as const,
-                    label: 'Threads',
-                    icon: { type: 'sfSymbol' as const, name: 'sidebar.left' as const },
-                    accessibilityLabel: 'Threads',
-                    onPress: handleOpenThreads,
-                  },
-                ]
-              : []),
-            { type: 'custom' as const, element: titleElement, hidesSharedBackground: true },
-          ],
           headerLeft: showsThreads
             ? () => (
                 <View style={styles.headerLeft}>
