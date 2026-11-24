@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'bun:test'
 
 import {
+  API_IMAGE_DOCKERFILE_PATH,
   API_IMAGE_IGNORE_PATH,
   apiImageContextProblems,
+  bunPinProblems,
   type ImageWorkspace,
 } from '../check-api-image-context'
 
@@ -13,6 +15,32 @@ const workspaces: readonly ImageWorkspace[] = [
   { dir: 'packages/sandbox', name: '@dltech/atlas-sandbox', dependencies: [] },
   { dir: 'apps/web', name: '@dltech/atlas-web', dependencies: ['@dltech/atlas-core'] },
 ]
+
+describe('bunPinProblems', () => {
+  it('accepts a base image on the pinned bun', () => {
+    expect(
+      bunPinProblems({
+        dockerfile: 'FROM oven/bun:1.4.2-debian AS base\n',
+        packageManager: 'bun@1.4.2',
+      }),
+    ).toEqual([])
+  })
+
+  it('rejects a base image that drifted from packageManager', () => {
+    expect(
+      bunPinProblems({
+        dockerfile: 'FROM oven/bun:1.4.1-debian AS base\n',
+        packageManager: 'bun@1.4.2',
+      }),
+    ).toEqual(['apps/api/docker/Dockerfile uses oven/bun:1.4.1 but package.json pins bun@1.4.2'])
+  })
+
+  it('rejects a Dockerfile with no oven/bun base', () => {
+    expect(bunPinProblems({ dockerfile: 'FROM debian\n', packageManager: 'bun@1.4.2' })).toEqual([
+      'apps/api/docker/Dockerfile has no FROM oven/bun:<version>',
+    ])
+  })
+})
 
 describe('apiImageContextProblems', () => {
   it('accepts an excluded workspace the API does not reach that keeps its manifest', () => {
@@ -39,7 +67,15 @@ describe('apiImageContextProblems', () => {
     ])
   })
 
-  it('accepts the committed dockerignore', async () => {
+  it('accepts the committed dockerignore and Dockerfile', async () => {
+    const dockerfile = await Bun.file(
+      new URL(`../../${API_IMAGE_DOCKERFILE_PATH}`, import.meta.url),
+    ).text()
+    const root: { packageManager: string } = await Bun.file(
+      new URL('../../package.json', import.meta.url),
+    ).json()
+    expect(bunPinProblems({ dockerfile, packageManager: root.packageManager })).toEqual([])
+
     const committed = await Bun.file(
       new URL(`../../${API_IMAGE_IGNORE_PATH}`, import.meta.url),
     ).text()

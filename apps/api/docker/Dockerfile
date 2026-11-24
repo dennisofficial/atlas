@@ -14,7 +14,11 @@ COPY --from=manifests /out/ ./
 RUN bun install --frozen-lockfile --filter @dltech/atlas-api --filter @dltech/atlas-daemon \
   && rm -rf /root/.bun/install/cache
 
-FROM deps AS build
+FROM base AS daemon
+WORKDIR /app
+COPY --from=manifests /out/ ./
+RUN bun install --frozen-lockfile --filter @dltech/atlas-daemon \
+  && rm -rf /root/.bun/install/cache
 COPY . .
 RUN bun run --cwd apps/daemon build
 
@@ -23,9 +27,9 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends git openssh-client procps ca-certificates \
   && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
-COPY --from=deps /app/ ./
-COPY . .
-COPY --from=build /app/apps/daemon/bin/ apps/daemon/bin/
+COPY --link --from=deps /app/ ./
+COPY --link . .
+COPY --link --from=daemon /app/apps/daemon/bin/ apps/daemon/bin/
 ENV NODE_ENV=production APP_TIER=production PORT=10000
 EXPOSE 10000
 ARG ATLAS_APP_VERSION

@@ -1,3 +1,4 @@
+export const API_IMAGE_DOCKERFILE_PATH = 'apps/api/docker/Dockerfile'
 export const API_IMAGE_IGNORE_PATH = 'apps/api/docker/Dockerfile.dockerignore'
 export const API_IMAGE_ROOTS: readonly string[] = ['@dltech/atlas-api', '@dltech/atlas-daemon']
 
@@ -53,6 +54,23 @@ export function apiImageContextProblems(args: {
   return [...missingManifests, ...neededButExcluded]
 }
 
+export function bunPinProblems(args: {
+  dockerfile: string
+  packageManager: string
+}): readonly string[] {
+  const pinned = /^bun@(.+)$/.exec(args.packageManager)?.[1]
+  if (pinned === undefined) return [`packageManager ${args.packageManager} does not pin bun`]
+  const images = [...args.dockerfile.matchAll(/^FROM\s+oven\/bun:(\S+?)(?:-\S+)?(?:\s|$)/gm)]
+  if (images.length === 0) return [`${API_IMAGE_DOCKERFILE_PATH} has no FROM oven/bun:<version>`]
+  return images
+    .map((image) => image[1])
+    .filter((version) => version !== pinned)
+    .map(
+      (version) =>
+        `${API_IMAGE_DOCKERFILE_PATH} uses oven/bun:${version} but package.json pins bun@${pinned}`,
+    )
+}
+
 async function readWorkspaces(): Promise<readonly ImageWorkspace[]> {
   const paths = [...WORKSPACE_GLOB.scanSync('.'), 'commands/package.json']
   return Promise.all(
@@ -69,10 +87,19 @@ async function readWorkspaces(): Promise<readonly ImageWorkspace[]> {
 
 async function main(): Promise<void> {
   const ignoreLines = (await Bun.file(API_IMAGE_IGNORE_PATH).text()).split('\n')
-  const problems = apiImageContextProblems({ ignoreLines, workspaces: await readWorkspaces() })
+  const rootManifest: { packageManager?: unknown } = await Bun.file('package.json').json()
+  const problems = [
+    ...apiImageContextProblems({ ignoreLines, workspaces: await readWorkspaces() }),
+    ...bunPinProblems({
+      dockerfile: await Bun.file(API_IMAGE_DOCKERFILE_PATH).text(),
+      packageManager: String(rootManifest.packageManager),
+    }),
+  ]
   for (const problem of problems) console.error(`api image context: ${problem}`)
   if (problems.length > 0) process.exit(1)
-  console.log('api image context: every workspace the API and daemon need is in the build context')
+  console.log(
+    'api image context: every workspace the API and daemon need is in the build context, on the pinned bun',
+  )
 }
 
 if (import.meta.main) await main()
