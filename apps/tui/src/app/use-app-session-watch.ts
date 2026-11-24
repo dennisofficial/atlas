@@ -10,13 +10,11 @@ import { useSessionNotices } from './use-session-notices'
 export function useAppSessionWatch(args: {
   api: SessionApi | null
   sessionId: string | null
-  rows: readonly StreamSessionRow[]
-}): void {
+}): (rows: readonly StreamSessionRow[]) => void {
   const [clientId] = useState(newClientId)
 
   usePresenceReport({ api: args.api, sessionId: args.sessionId, clientId })
-  useSessionNotices({
-    rows: args.rows,
+  return useSessionNotices({
     watching: args.sessionId,
     onNotice: (notice) => notify({ text: notice.text, tone: ENoticeTone.Done, key: notice.key }),
   })

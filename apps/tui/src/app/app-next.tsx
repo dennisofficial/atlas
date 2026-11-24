@@ -127,16 +127,18 @@ export function AppNext(props: AppNextProps): React.ReactNode {
     titleOf: (sessionId) => rowOfRef.current(sessionId)?.title ?? null,
   })
 
+  const watch = useAppSessionWatch({ api: client?.api ?? null, sessionId: watching })
+
   const list = useSessionList({
     follow,
     onPick: nav.handlePick,
     now,
     pendingOpen: launch.open,
     onProblem: problemOf,
+    onRows: watch,
   })
   lookupModel.current = list.modelOf
   rowOfRef.current = list.rowOf
-  useAppSessionWatch({ api: client?.api ?? null, sessionId: watching, rows: list.rows })
 
   const chatKeys = useRef<((key: KeyEvent) => boolean) | null>(null)
   const newKeys = useRef<((key: KeyEvent) => boolean) | null>(null)
