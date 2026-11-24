@@ -53,6 +53,7 @@ const description = [
   `The providers are ${GITHUB_PROVIDER} and ${GITHUB_RUN_PROVIDER}.`,
   'target is the source: owner/repo#123, a pull request URL or a run URL. Omit it when the provider works it out from this session, such as the pull request or the run of the current branch.',
   'A target that already reached its end, such as a merged pull request or a finished run, delivers that final notice at once and ends the subscription.',
+  'The result of action subscribe shows the current state of the target, and whether a notice is still coming.',
   'expiresInMinutes ends the subscription after that long. Without it the subscription lasts until it completes, you unsubscribe, or its session is archived.',
   `events keeps only some kinds of occurrence; omit it for every kind. Occurrences that end a subscription, such as a merge, always arrive. ${GITHUB_PROVIDER} takes ${catalogText(PULL_REQUEST_EVENTS)}. ${GITHUB_RUN_PROVIDER} takes no events filter.`,
   'Subscribing again to the same target returns the existing subscription, or updates its filter when events differ.',

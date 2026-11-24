@@ -41,6 +41,9 @@ Subscribe a thread to a GitHub pull request or workflow run, so the events reach
 - `pullRequestStateOf({ target, pull })` and `runStateOf({ target, run, failedJobs })`: read a
   target's current phase from a GitHub response, so a subscription made on an already finished
   target gets its final notice at once. `repoFullNameOf(repo)` drops the `github.com/` prefix.
+- `pullRequestSnapshotOf(input)` and `runSnapshotOf(jobs)`: the facts a subscribe result shows
+  about an open target, and the notice that comes next. `reviewDecisionOf(reviews)` reads the
+  latest review of each reviewer.
 
 ### Describe a subscription
 

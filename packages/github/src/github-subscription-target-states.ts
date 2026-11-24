@@ -1,4 +1,7 @@
 import {
+  ECheckOutcome,
+  ETargetPhase,
+  checksTally,
   type JsonValue,
   type SubscriptionTargetState,
   type SubscriptionTargetStates,
@@ -7,14 +10,20 @@ import {
 import {
   GITHUB_PROVIDER,
   GITHUB_RUN_PROVIDER,
+  type PullRequestChecks,
+  type PullRequestReview,
+  type WorkflowRunJob,
+  pullRequestSnapshotOf,
   pullRequestStateOf,
   repoFullNameOf,
+  runSnapshotOf,
   runStateOf,
   runTargetOf,
   targetOf,
 } from '@dltech/atlas-plugin-github/core'
 
 import { EGithubCallSource } from './github-call-log'
+import { readHeadChecks } from './github-head-checks-read'
 import { githubJsonGet } from './github-user-http'
 
 type PullResponse = {
@@ -22,6 +31,9 @@ type PullResponse = {
   merged_at: string | null
   draft?: boolean
   html_url: string
+  mergeable?: boolean | null
+  head?: { sha?: string | null } | null
+  base?: { ref?: string | null } | null
 }
 
 type RunResponse = {
@@ -33,7 +45,11 @@ type RunResponse = {
   head_branch: string | null
 }
 
-type JobsResponse = { jobs?: readonly { name: string; conclusion: string | null }[] }
+type JobResponse = { name: string; status: string; conclusion: string | null }
+
+type JobsResponse = { jobs?: readonly JobResponse[] }
+
+type ReviewsResponse = readonly { user?: { login?: string | null } | null; state?: string | null }[]
 
 export class GithubSubscriptionTargetStates implements SubscriptionTargetStates {
   constructor(
@@ -71,7 +87,20 @@ export class GithubSubscriptionTargetStates implements SubscriptionTargetStates 
       token,
       path: `/repos/${repoFullName}/pulls/${target.number}`,
     })
-    return pullRequestStateOf({ target, pull })
+    const state = pullRequestStateOf({ target, pull })
+    if (state.phase !== ETargetPhase.Open) return state
+    const headSha = pull.head?.sha ?? null
+    return {
+      ...state,
+      snapshot: pullRequestSnapshotOf({
+        draft: pull.draft === true,
+        headSha,
+        mergeable: pull.mergeable ?? null,
+        baseBranch: pull.base?.ref ?? null,
+        checks: await this.headChecksOf({ token, repoFullName, headSha }),
+        reviews: await this.reviewsOf({ token, repoFullName, number: target.number }),
+      }),
+    }
   }
 
   private async readRun(args: {
@@ -89,27 +118,90 @@ export class GithubSubscriptionTargetStates implements SubscriptionTargetStates 
       token,
       path: `/repos/${repoFullName}/actions/runs/${target.runId}`,
     })
-    const failedJobs =
-      run.status === 'completed' && run.conclusion === 'failure'
-        ? await this.failedJobsOf({ token, repoFullName, runId: target.runId })
-        : []
-    return runStateOf({ target, run, failedJobs })
+    const jobs =
+      run.status === 'completed' && run.conclusion !== 'failure'
+        ? []
+        : await this.jobsOf({ token, repoFullName, runId: target.runId })
+    const state = runStateOf({ target, run, failedJobs: failedJobNames(jobs) })
+    if (state.phase !== ETargetPhase.Open) return state
+    return { ...state, snapshot: runSnapshotOf(jobs) }
   }
 
-  private async failedJobsOf(args: {
+  private async headChecksOf(args: {
+    token: string
+    repoFullName: string
+    headSha: string | null
+  }): Promise<PullRequestChecks | undefined> {
+    if (args.headSha === null || args.headSha === '') return undefined
+    const [owner, repo] = args.repoFullName.split('/') as [string | undefined, string | undefined]
+    if (owner === undefined || repo === undefined) return undefined
+    try {
+      const { checks } = await readHeadChecks({
+        get: <T>(path: string) =>
+          githubJsonGet<T>({
+            source: EGithubCallSource.SubscriptionResolve,
+            token: args.token,
+            path,
+          }),
+        owner,
+        repo,
+        headSha: args.headSha,
+      })
+      return {
+        tally: checksTally(checks.map((check) => check.outcome)),
+        failedNames: checks
+          .filter((check) => check.outcome === ECheckOutcome.Failed)
+          .map((check) => check.name),
+      }
+    } catch {
+      return undefined
+    }
+  }
+
+  private async reviewsOf(args: {
+    token: string
+    repoFullName: string
+    number: number
+  }): Promise<readonly PullRequestReview[] | undefined> {
+    try {
+      const reviews = await githubJsonGet<ReviewsResponse>({
+        source: EGithubCallSource.SubscriptionResolve,
+        token: args.token,
+        path: `/repos/${args.repoFullName}/pulls/${args.number}/reviews?per_page=100`,
+      })
+      return reviews.flatMap((review) => {
+        const author = review.user?.login
+        const state = review.state
+        return author === undefined || author === null || typeof state !== 'string'
+          ? []
+          : [{ author, state }]
+      })
+    } catch {
+      return undefined
+    }
+  }
+
+  private async jobsOf(args: {
     token: string
     repoFullName: string
     runId: number
-  }): Promise<readonly string[]> {
+  }): Promise<readonly WorkflowRunJob[] | undefined> {
     try {
       const page = await githubJsonGet<JobsResponse>({
         source: EGithubCallSource.SubscriptionResolve,
         token: args.token,
         path: `/repos/${args.repoFullName}/actions/runs/${args.runId}/jobs?per_page=100`,
       })
-      return (page.jobs ?? []).filter((job) => job.conclusion === 'failure').map((job) => job.name)
+      return (page.jobs ?? []).map((job) => ({
+        name: job.name,
+        status: job.status,
+        conclusion: job.conclusion,
+      }))
     } catch {
-      return []
+      return undefined
     }
   }
 }
+
+const failedJobNames = (jobs: readonly WorkflowRunJob[] | undefined): readonly string[] =>
+  (jobs ?? []).filter((job) => job.conclusion === 'failure').map((job) => job.name)
