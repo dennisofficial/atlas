@@ -4,7 +4,7 @@ import { selectedPayload, stalePayloads } from './select'
 import { failedState, type IPayloadState } from './state'
 
 export const WEB_MANIFEST_URL =
-  'https://github.com/dennisofficial/atlas/releases/download/web-ota/web-update.json'
+  'https://install.byatlas.io/releases/download/web-ota/web-update.json'
 export const WEB_MANIFEST_URL_ENV = 'ATLAS_WEB_PAYLOAD_URL'
 export const WEB_ROOT_ENV = 'ATLAS_WEB_ROOT'
 // A merge publishes a payload, so the interface converges fastest by checking often: the manifest is

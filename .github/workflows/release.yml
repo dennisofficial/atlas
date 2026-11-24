@@ -18,6 +18,7 @@ jobs:
     outputs:
       deploy-preview-worker: ${{ steps.diff.outputs.deploy-preview-worker }}
       deploy-artifacts-worker: ${{ steps.diff.outputs.deploy-artifacts-worker }}
+      deploy-install-worker: ${{ steps.diff.outputs.deploy-install-worker }}
     steps:
       - uses: actions/checkout@v7
 
@@ -28,9 +29,11 @@ jobs:
         run: |
           worker='^(apps/preview-worker/|\.github/workflows/release\.yml$)'
           artifacts='^(apps/artifacts-host/|packages/artifacts/|\.github/workflows/release\.yml$)'
+          install='^(scripts/install-worker/|\.github/workflows/release\.yml$)'
           if [ "$EVENT" = "workflow_dispatch" ] || ! git fetch --no-tags --depth=1 origin "$BEFORE"; then
             echo "deploy-preview-worker=true" >> "$GITHUB_OUTPUT"
             echo "deploy-artifacts-worker=true" >> "$GITHUB_OUTPUT"
+            echo "deploy-install-worker=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           changed=$(git diff --name-only "$BEFORE" "$GITHUB_SHA")
@@ -43,6 +46,11 @@ jobs:
             echo "deploy-artifacts-worker=true" >> "$GITHUB_OUTPUT"
           else
             echo "deploy-artifacts-worker=false" >> "$GITHUB_OUTPUT"
+          fi
+          if echo "$changed" | grep -Eq "$install"; then
+            echo "deploy-install-worker=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "deploy-install-worker=false" >> "$GITHUB_OUTPUT"
           fi
 
   # Render pulls a prebuilt image, so it spends no build minutes: this workflow builds the image,
@@ -222,3 +230,30 @@ jobs:
 
       - name: deploy the worker in front of *.byatlas.site
         run: bun run deploy
+
+  # install.byatlas.io serves install.sh and every release download, so its deploy is its own job:
+  # a broken worker edit fails here instead of shipping beside an unrelated one.
+  deploy-install-worker:
+    needs: changes
+    if: needs.changes.outputs.deploy-install-worker == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2.2.0
+
+      - uses: actions/cache@v6
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+
+      - run: bun install --frozen-lockfile
+
+      - run: bun test ./scripts/install-worker
+
+      - name: deploy the worker in front of install.byatlas.io
+        run: >-
+          ./node_modules/.bin/dotenvx run -f scripts/install-worker/.env.production.enc --
+          bun scripts/install-worker/deploy.ts
+        env:
+          DOTENV_PRIVATE_KEY_PRODUCTION_ENC: ${{ secrets.INSTALL_WORKER_DOTENV_PRIVATE_KEY }}

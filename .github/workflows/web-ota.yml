@@ -127,6 +127,13 @@ jobs:
               gh release delete-asset web-ota "$name" --yes --repo "$GITHUB_REPOSITORY"
             done
 
+      - name: mirror the payload to install.byatlas.io
+        env:
+          DOTENV_PRIVATE_KEY_PRODUCTION_ENC: ${{ secrets.INSTALL_WORKER_DOTENV_PRIVATE_KEY }}
+        run: >-
+          ./node_modules/.bin/dotenvx run -f scripts/install-worker/.env.production.enc --
+          bun scripts/mirror-release.ts web-ota --prune
+
       - name: summarise
         run: |
           set -euo pipefail

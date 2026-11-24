@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import {
   latestRelease,
+  parseMirrorTags,
   releaseNotice,
   releaseStaged,
   RELEASE_TAG_PREFIX,
@@ -85,5 +86,22 @@ describe('releaseStaged', () => {
 
   it('is not staged when the marker cannot be read as a version', () => {
     expect(releaseStaged({ running: '0.2.0', staged: 'not-a-version' })).toBe(false)
+  })
+})
+
+describe('parseMirrorTags', () => {
+  it('reads the tag list the mirror publishes', () => {
+    expect(parseMirrorTags({ latest: 'tui-v0.3.0', tags: ['tui-v0.3.0', 'web-ota'] })).toEqual([
+      'tui-v0.3.0',
+      'web-ota',
+    ])
+  })
+
+  it('is null when the body carries no usable list, so the caller falls back to github', () => {
+    expect(parseMirrorTags({ tags: [] })).toBeNull()
+    expect(parseMirrorTags({ tags: [1, null, ''] })).toBeNull()
+    expect(parseMirrorTags({})).toBeNull()
+    expect(parseMirrorTags('tags')).toBeNull()
+    expect(parseMirrorTags(null)).toBeNull()
   })
 })

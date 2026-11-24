@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { isDesktopHost } from '@/features/desktop/desktop-attributes'
 
 export const MAC_DOWNLOAD_URL =
-  'https://github.com/dennisofficial/atlas/releases/latest/download/macos-arm64-Atlas.dmg'
+  'https://install.byatlas.io/releases/latest/download/macos-arm64-Atlas.dmg'
 
 const AGENT_SCHEMA = z.object({
   userAgent: z.string(),

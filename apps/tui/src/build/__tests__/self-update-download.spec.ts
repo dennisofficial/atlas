@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { downloadReleaseAssets } from '../self-update'
+import { downloadReleaseAssets, releaseBaseUrlsOf } from '../self-update'
 
 const BINARY = 'a fresh atlas binary'
 const SIDECAR = 'deadbeef  atlas-darwin-arm64\n'
@@ -55,5 +55,14 @@ describe('downloadReleaseAssets', () => {
 
     expect(ok).toBe(false)
     expect(await readFile(join(dir, 'atlas-darwin-arm64.sha256'), 'utf8')).toBe(SIDECAR)
+  })
+})
+
+describe('releaseBaseUrlsOf', () => {
+  it('tries the mirror before github.com, which may go private', () => {
+    expect(releaseBaseUrlsOf('dennisofficial/atlas')).toEqual([
+      'https://install.byatlas.io/releases/download',
+      'https://github.com/dennisofficial/atlas/releases/download',
+    ])
   })
 })

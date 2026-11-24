@@ -57,4 +57,4 @@ dmg:
 # carries the previous latest's dmg, zip and latest-mac.yml forward before it is marked (ci.yml).
 publish:
   provider: generic
-  url: https://github.com/dennisofficial/atlas/releases/latest/download
+  url: https://install.byatlas.io/releases/latest/download

@@ -22,6 +22,8 @@ import { ENoticeTone, notify } from '../ui/notice-store'
 
 export const RELEASE_TAG_PREFIX = 'tui-v'
 
+export const RELEASE_TAGS_URL = 'https://install.byatlas.io/releases/tags'
+
 /**
  * A stageUpdate that outlives this gives up its claim: the download is bounded at 300s, so a
  * bounded-over-that call means a hang, and a hang that keeps the staging lock would block every
@@ -79,7 +81,27 @@ const run = async (cmd: readonly string[], timeoutMs = 15_000): Promise<string |
   }
 }
 
+export function parseMirrorTags(input: unknown): readonly string[] | null {
+  if (typeof input !== 'object' || input === null) return null
+  const tags = Reflect.get(input, 'tags')
+  if (!Array.isArray(tags)) return null
+  const named = tags.filter((tag): tag is string => typeof tag === 'string' && tag.length > 0)
+  return named.length === 0 ? null : named
+}
+
+async function mirroredTags(): Promise<readonly string[] | null> {
+  try {
+    const res = await fetch(RELEASE_TAGS_URL, { signal: AbortSignal.timeout(15_000) })
+    if (!res.ok) return null
+    return parseMirrorTags(await res.json())
+  } catch {
+    return null
+  }
+}
+
 async function releaseTagsOf(repo: string): Promise<readonly string[] | null> {
+  const mirrored = await mirroredTags()
+  if (mirrored !== null && mirrored.length > 0) return mirrored
   try {
     const res = await fetch(`https://api.github.com/repos/${repo}/releases?per_page=50`, {
       headers: { Accept: 'application/vnd.github+json' },

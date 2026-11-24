@@ -16,11 +16,10 @@ const INSTALL_COMMAND_TIMEOUT_MS = 5 * 60 * 1000
 
 const RELEASE_REPOSITORY = 'dennisofficial/atlas'
 
+const RELEASE_MIRROR = 'https://install.byatlas.io'
+
 const releaseTagOf = (version: string | undefined): string =>
   version === undefined ? 'latest' : `tui-v${version.replace(/^tui-v/, '').replace(/^v/, '')}`
-
-const installScriptUrlOf = (version: string | undefined): string =>
-  `https://raw.githubusercontent.com/${RELEASE_REPOSITORY}/${releaseTagOf(version)}/install.sh`
 
 const CURL_RETRY_FLAGS = '--retry 3 --retry-connrefused --retry-delay 1 --connect-timeout 10'
 
@@ -33,14 +32,15 @@ export const serveInstallScript = (args: {
   const version = args.version ?? ''
   const asset = `atlas-serve-linux-${args.arch ?? EServeArch.X64}`
   const tag = releaseTagOf(args.version)
-  const downloadBase =
-    args.version === undefined
-      ? `https://github.com/${RELEASE_REPOSITORY}/releases/latest/download`
-      : `https://github.com/${RELEASE_REPOSITORY}/releases/download/${tag}`
+  const releasePath =
+    args.version === undefined ? 'releases/latest/download' : `releases/download/${tag}`
+  const downloadBase = `${RELEASE_MIRROR}/${releasePath}`
+  const fallbackBase = `https://github.com/${RELEASE_REPOSITORY}/${releasePath}`
   return [
     'set -eu',
     `_tmp=$(mktemp -d) && trap 'rm -rf "$_tmp"' EXIT`,
-    `{ ${curlOf(`"${downloadBase}/${asset}" -o "$_tmp/atlas-serve"`)} & _bin=$!; ${curlOf(`"${downloadBase}/${asset}.sha256" -o "$_tmp/atlas-serve.sha256"`)} & _sum=$!; wait $_bin || { kill $_sum 2>/dev/null; wait $_sum 2>/dev/null || true; echo "atlas-serve download failed" >&2; exit 1; }; wait $_sum || { echo "atlas-serve checksum download failed" >&2; exit 1; }; }`,
+    `_get() { { ${curlOf('"$1" -o "$_tmp/atlas-serve"')} & _bin=$!; ${curlOf('"$2" -o "$_tmp/atlas-serve.sha256"')} & _sum=$!; wait $_bin || { kill $_sum 2>/dev/null; wait $_sum 2>/dev/null || true; echo "atlas-serve download failed" >&2; return 1; }; wait $_sum || { echo "atlas-serve checksum download failed" >&2; return 1; }; } }`,
+    `{ _get "${downloadBase}/${asset}" "${downloadBase}/${asset}.sha256" || _get "${fallbackBase}/${asset}" "${fallbackBase}/${asset}.sha256"; }`,
     `_expected=$(awk '{print $1}' "$_tmp/atlas-serve.sha256")`,
     `_actual=$(sha256sum "$_tmp/atlas-serve" | awk '{print $1}')`,
     `[ "$_actual" = "$_expected" ] || { echo "atlas-serve sha256 mismatch: got $_actual want $_expected" >&2; exit 1; }`,

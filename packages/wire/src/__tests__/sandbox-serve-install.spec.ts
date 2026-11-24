@@ -52,6 +52,14 @@ describe('the serve install script', () => {
     expect(script).toContain('rm -f "$_stage"')
   })
 
+  it('falls back to github.com when the mirror does not answer', () => {
+    const script = serveInstallScript({ version: '1.92.2' })
+    expect(script).toContain(
+      'https://github.com/dennisofficial/atlas/releases/download/tui-v1.92.2/atlas-serve-linux-x64"',
+    )
+    expect(script).toContain('_get() {')
+  })
+
   it('still verifies the sha256 before staging', () => {
     const script = serveInstallScript({ version: '1.92.2' })
     expect(script.indexOf('sha256 mismatch')).toBeLessThan(script.indexOf('install -m 0755'))
@@ -82,7 +90,12 @@ describe('the serve install script architecture', () => {
     const script = serveInstallScript({ version: '1.92.2' })
     const flags = '--retry 3 --retry-connrefused --retry-delay 1 --connect-timeout 10'
     expect(script.split(flags)).toHaveLength(3)
-    expect(script).toContain('-o "$_tmp/atlas-serve" & _bin=$!')
+    expect(script).toContain(
+      '_get "https://install.byatlas.io/releases/download/tui-v1.92.2/atlas-serve-linux-x64" "https://install.byatlas.io/releases/download/tui-v1.92.2/atlas-serve-linux-x64.sha256"',
+    )
+    expect(script).toContain(
+      '|| _get "https://github.com/dennisofficial/atlas/releases/download/tui-v1.92.2/atlas-serve-linux-x64" "https://github.com/dennisofficial/atlas/releases/download/tui-v1.92.2/atlas-serve-linux-x64.sha256"; }',
+    )
     expect(script).toContain('wait $_bin ||')
     expect(script).toContain('wait $_sum ||')
   })
