@@ -88,14 +88,34 @@ describe('servicePortOf', () => {
     expect(again).toBe(first)
   })
 
-  it('moves off a port that a process outside the services holds', async () => {
+  it('keeps the declared port when a process outside the services already serves it', async () => {
+    const port = await servicePortOf({
+      name: 'infra',
+      root: MAIN,
+      declared: 54_329,
+      held: new Set(),
+      isFree: async (candidate) => candidate !== 54_329,
+    })
+    expect(port).toBe(54_329)
+  })
+
+  it('skips a derived port that a process outside the services holds', async () => {
+    const held = heldPortsOf({ rows: [row()], name: 'web', root: TREE })
+    const derived = await servicePortOf({
+      name: 'web',
+      root: TREE,
+      declared: 3000,
+      held,
+      isFree: alwaysFree,
+    })
     const port = await servicePortOf({
       name: 'web',
-      root: MAIN,
+      root: TREE,
       declared: 3000,
-      held: new Set(),
-      isFree: async (candidate) => candidate !== 3000,
+      held,
+      isFree: async (candidate) => candidate !== derived,
     })
+    expect(port).not.toBe(derived)
     expect(port).not.toBe(3000)
   })
 

@@ -27,7 +27,7 @@ const stopOrphan = async (args: { ctx: PluginPodContext; lost: Lost }): Promise<
   const { ctx, lost } = args
   if (lost.pid === undefined) {
     ctx.log(
-      `services: the pid of the stopped ${lost.name} in ${lost.root} was never recorded, so its port is kept only if nothing else holds it`,
+      `services: the pid of the stopped ${lost.name} in ${lost.root} was never recorded, so it may still hold its port`,
     )
     return
   }
@@ -38,7 +38,7 @@ const stopOrphan = async (args: { ctx: PluginPodContext; lost: Lost }): Promise<
   }
   if (reaped.value.outcome === EServiceReapOutcome.Mismatch) {
     ctx.log(
-      `services: pid ${lost.pid} is not the stopped ${lost.name} in ${lost.root}, so it was left alone and its port is kept only if nothing else holds it`,
+      `services: pid ${lost.pid} is not the stopped ${lost.name} in ${lost.root}, so it was left alone and may still hold the port`,
     )
     return
   }
