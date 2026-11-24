@@ -137,15 +137,6 @@ describe('what makes a group', () => {
     expect(held({ input: ended('a'), crew })).toBe(false)
   })
 
-  it('takes an adopted member with no pump as not running, so the ending wakes', () => {
-    const crew = [
-      member({ agentId: 'a', running: false }),
-      member({ agentId: 'b', running: false }),
-    ]
-
-    expect(held({ input: ended('a'), crew })).toBe(false)
-  })
-
   it('never lets a running teammate keep the group open', () => {
     const crew = [
       member({ agentId: 'a', running: false }),

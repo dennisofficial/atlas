@@ -9,7 +9,7 @@ import {
 
 import { qualityReviewsOf } from '../quality-reviews'
 import { qualitySwitches } from '../settings'
-import { THREAD, call, stampHistory } from './fixtures'
+import { call, stampHistory } from './fixtures'
 
 describe('qualitySwitches', () => {
   it('defaults every switch to false', () => {
@@ -66,6 +66,5 @@ describe('qualityReviewsOf', () => {
     if (standalone === undefined) throw new Error('fixture')
     const event = { ...standalone, type: 'nudge', text: 'x', lifetimeSteps: 1 } as Event
     expect(qualityReviewsOf(event)).toHaveLength(0)
-    expect(THREAD).toBeDefined()
   })
 })
