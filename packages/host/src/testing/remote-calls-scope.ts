@@ -26,7 +26,7 @@ export const describeRemoteCallsRecovery = (target: RemoteCallsTarget): void => 
         })
         expect(write.status).toBe(ECallStatus.Failed)
         if (write.status === 'failed') {
-          expect(write.error.message).toContain('interrupted by a process restart')
+          expect(write.error.message).toContain('interrupted by a daemon restart')
         }
         if (before !== undefined) expect(handle.runCount()).toBe(before)
 
