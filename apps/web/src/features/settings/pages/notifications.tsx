@@ -8,7 +8,8 @@ import type { SettingValues } from '@/lib/cloud-settings'
 
 import { notificationChanges, notificationsFrom } from '../data/personal/interface-settings'
 import { QueryPage } from '../data/personal/query-boundary'
-import { usePersonalSettings, useSettingsDraft } from '../data/personal/use-settings-draft'
+import { useCloudSettings } from '@/lib/cloud-settings'
+import { useSettingsDraft } from '../data/personal/use-settings-draft'
 import {
   type NotificationSettings,
   type NotifyEventToggles,
@@ -37,7 +38,7 @@ const withDeviceZone = (settings: NotificationSettings): NotificationSettings =>
   settings.timezone === '' ? { ...settings, timezone: deviceTimezoneOf() } : settings
 
 export function NotificationsPage() {
-  const settings = usePersonalSettings()
+  const settings = useCloudSettings()
   return (
     <QueryPage
       query={settings.query}

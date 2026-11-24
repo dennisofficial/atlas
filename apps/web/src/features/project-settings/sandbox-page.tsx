@@ -9,7 +9,7 @@ import { Label } from '@dltech/atlas-ui/components/label'
 import { Textarea } from '@dltech/atlas-ui/components/textarea'
 
 import { QueryGate } from '@/features/settings/data/shared/query-gate'
-import { usePersonalSettings } from '@/features/settings/data/personal/use-settings-draft'
+import { useCloudSettings } from '@/lib/cloud-settings'
 import { defaultDiskGbOf, SandboxDiskSection } from '@/features/settings/parts/sandbox-disk-section'
 import { defaultVcpusOf, SandboxSizeSection } from '@/features/settings/parts/sandbox-size-section'
 import { SandboxPageSkeleton } from './project-skeletons'
@@ -89,7 +89,7 @@ function SetupScript({
 export function SandboxPage() {
   const { projectId } = useProjectContext()
   const { query, save } = useSandbox(projectId)
-  const personal = usePersonalSettings()
+  const personal = useCloudSettings()
   const storedDiskGb = personal.query.data?.get('sandbox.diskGb')
   const storedVcpus = personal.query.data?.get('sandbox.vcpus')
   const inheritedVcpus = defaultVcpusOf(typeof storedVcpus === 'number' ? storedVcpus : undefined)
