@@ -6,6 +6,7 @@ import type { HostProcess } from '../../testing/fault-rig'
 
 const CALL_ID = 'c1'
 const PORT = 42_000 + (process.pid % 1_000)
+const SERVICE = 'a-gated-listener'
 
 const dispatchesOf = async (ctx: HandoffContext) =>
   (await ctx.events()).filter((row) => row.type === 'tool-dispatched' && callIdOf(row) === CALL_ID)
@@ -16,9 +17,26 @@ const resultsOf = async (ctx: HandoffContext) =>
 const interruptedOf = (row: { event: unknown }): boolean =>
   (row.event as { interrupted?: boolean }).interrupted === true
 
+type ResultEvent = {
+  output?: { serviceId?: string }
+  error?: { message: string }
+}
+
+const resultOf = async (ctx: HandoffContext): Promise<ResultEvent> => {
+  const [first] = await resultsOf(ctx)
+  if (first === undefined) throw new Error('the service call reported no result')
+  return first.event as ResultEvent
+}
+
+const startedIdsOf = async (ctx: HandoffContext): Promise<readonly string[]> =>
+  (await ctx.record())
+    .filter((row) => row.type === 'service-started')
+    .map((row) => (row.event as { serviceId: string }).serviceId)
+
 describeHandoff({
   name: 'a service start that outlives the turn',
   prompt: 'start the service',
+  knobs: { plugins: true },
 
   async start(ctx): Promise<HostProcess> {
     const started = ctx.path('started')
@@ -29,6 +47,7 @@ describeHandoff({
       label: 'host-a',
       daemonUrl: ctx.daemon.url,
       workspace: ctx.workspace,
+      knobs: { plugins: true },
       scripts: {
         [ctx.sessionId]: [
           {
@@ -39,8 +58,8 @@ describeHandoff({
                 input: {
                   action: 'start',
                   command,
-                  description: 'a gated listener',
-                  cwd: ctx.workspace,
+                  description: SERVICE,
+                  workdir: ctx.workspace,
                   port: PORT,
                   readyTimeoutMs: 60_000,
                 },
@@ -77,6 +96,12 @@ describeHandoff({
     const results = await resultsOf(ctx)
     expect(results.filter(interruptedOf)).toHaveLength(0)
     expect(await dispatchesOf(ctx)).toHaveLength(1)
+
+    const result = await resultOf(ctx)
+    expect(result.error).toBeUndefined()
+    const startedIds = await startedIdsOf(ctx)
+    expect(startedIds).toHaveLength(1)
+    expect(result.output?.serviceId).toBe(startedIds[0])
   },
 
   async runs(ctx) {
