@@ -107,10 +107,9 @@ The headless client library that web, the TUI and the mobile app share.
 
 ### Start a session and upload a composer image
 
-- `sha256Hex(bytes)`, `supportedMediaTypeOf(mediaType)` and `storeImage(args)` give the hash, the
-  supported type and the presign-put-confirm sequence (optional `hashOf` where `crypto.subtle` is
-  absent); `messageInputOf(args)` and `postInputOf(args)` make the draft and the post input. Ports:
-  `MediaUploadApi`, `PutImage`, `UploadHandle`.
+- `sha256Hex(bytes)`, `supportedMediaTypeOf(mediaType)`, `storeImage(args)` (optional `hashOf`
+  without `crypto.subtle`): hash, type, presign-put-confirm. `messageInputOf(args)`,
+  `postInputOf(args)`: draft and post input. Ports: `MediaUploadApi`, `PutImage`, `UploadHandle`.
 - `sessionCreateInputOf(args)`, `initialProjectIdOf(args)`: a new session's create input and project.
 - `composerSendStateOf`, `contextPercentOf`, `createDraftSync(args)`: send, context, draft write.
 - `queuedMessagesOf`, `queuedNoticesOf`, `stagedQueuedMessagesOf`, `optimisticPlacementOf(args)`: the queued rows.
