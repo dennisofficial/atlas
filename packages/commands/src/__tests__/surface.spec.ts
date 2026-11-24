@@ -15,19 +15,14 @@ const entry = (name: string, group: ECommandGroup): CommandEntry => ({
   source: ECommandSource.Builtin,
 })
 
-const PANE_ACTION_NAMES = ['agent', 'shell-kill', 'service'] as const
-
 const entries: readonly CommandEntry[] = [
   entry('rewind', ECommandGroup.Context),
   entry('summarise', ECommandGroup.Context),
   entry('rename', ECommandGroup.Session),
-  ...PANE_ACTION_NAMES.map((name) => entry(name, ECommandGroup.Session)),
 ]
 
 const namesOf = (surface: ESurface): readonly string[] =>
   catalogueForSurface({ entries, surface }).map((command) => command.name)
-
-const surfaces: readonly ESurface[] = [ESurface.Tui, ESurface.Web, ESurface.Mac, ESurface.Mobile]
 
 describe('catalogueForSurface', () => {
   it('hides summarise and picks rewind on the tui', () => {
@@ -35,9 +30,6 @@ describe('catalogueForSurface', () => {
     expect(SURFACE_PROFILES[ESurface.Tui].picks).toEqual([{ name: 'rewind' }])
     expect(SURFACE_PROFILES[ESurface.Tui].hides).toEqual([
       { name: 'summarise', because: EHiddenBecause.MessageAction },
-      { name: 'agent', because: EHiddenBecause.PaneAction },
-      { name: 'shell-kill', because: EHiddenBecause.PaneAction },
-      { name: 'service', because: EHiddenBecause.PaneAction },
     ])
   })
 
@@ -49,18 +41,7 @@ describe('catalogueForSurface', () => {
     },
   )
 
-  it.each(surfaces)('hides every pane action on %p', (surface) => {
-    for (const name of PANE_ACTION_NAMES) {
-      expect(namesOf(surface)).not.toContain(name)
-    }
-    expect(
-      SURFACE_PROFILES[surface].hides.filter(
-        (hidden) => hidden.because === EHiddenBecause.PaneAction,
-      ),
-    ).toEqual(PANE_ACTION_NAMES.map((name) => ({ name, because: EHiddenBecause.PaneAction })))
-  })
-
-  it('still runs a pane action that is typed', () => {
+  it('still resolves a typed command that no surface lists', () => {
     const agent = defineCommand({
       spec: {
         name: 'agent',
@@ -72,6 +53,7 @@ describe('catalogueForSurface', () => {
           const [action, agentId] = argumentText.trim().split(/\s+/)
           return { ok: true, args: { action, agentId } }
         },
+        listed: false,
       },
     })
     const parsed = parseInvocation({

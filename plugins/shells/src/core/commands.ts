@@ -22,6 +22,7 @@ export const shellKill = defineCommand({
     args: shellKillArgs,
     runsIn: ECommandRunsIn.Host,
     fromText: shellKillFromText,
+    listed: false,
   },
 })
 
