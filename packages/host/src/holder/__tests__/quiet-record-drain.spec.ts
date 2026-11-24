@@ -69,9 +69,9 @@ describe('draining a record entry', () => {
     expect(committed[0]).toMatchObject([{ type: 'input-refused', inboxId: 7 }])
   })
 
-  it('carries an ending that never takes the turn', () => {
+  it('carries a shell ending that takes the turn, so a waiting agent wakes', () => {
     const parsed = JSON.parse(quietEnding) as { event: Parameters<typeof isTurnTaking>[0] }
 
-    expect(isTurnTaking(parsed.event)).toBe(false)
+    expect(isTurnTaking(parsed.event)).toBe(true)
   })
 })

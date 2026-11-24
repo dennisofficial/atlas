@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { OWED_ENDING_GRACE_MS, shellHoldOf } from '../held-shells'
+import { OWED_ENDING_GRACE_MS, UNCOUNTED_SHELL_HOLD_MS, shellHoldOf } from '../held-shells'
 
 const NOW = 1_000_000
 
@@ -34,8 +34,30 @@ describe('shellHoldOf', () => {
     })
   })
 
-  it('holds nothing when the pod cannot be counted', () => {
-    expect(shellHoldOf({ counted: undefined, openInLog: 1, owedSince: NOW, now: NOW })).toEqual({
+  it('holds every shell open in the log when the pod cannot be counted', () => {
+    expect(
+      shellHoldOf({ counted: undefined, openInLog: 2, owedSince: undefined, now: NOW }),
+    ).toEqual({ holding: 2, owedSince: NOW })
+  })
+
+  it('keeps holding an uncounted pod past the owed-ending grace', () => {
+    const owedSince = NOW - OWED_ENDING_GRACE_MS
+    expect(shellHoldOf({ counted: undefined, openInLog: 1, owedSince, now: NOW })).toEqual({
+      holding: 1,
+      owedSince,
+    })
+  })
+
+  it('stops holding a pod that stayed uncounted past the cap', () => {
+    const owedSince = NOW - UNCOUNTED_SHELL_HOLD_MS
+    expect(shellHoldOf({ counted: undefined, openInLog: 1, owedSince, now: NOW })).toEqual({
+      holding: 0,
+      owedSince,
+    })
+  })
+
+  it('holds nothing when the pod cannot be counted and the log has no open shell', () => {
+    expect(shellHoldOf({ counted: undefined, openInLog: 0, owedSince: NOW, now: NOW })).toEqual({
       holding: 0,
       owedSince: undefined,
     })
