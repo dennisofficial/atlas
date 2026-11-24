@@ -146,7 +146,6 @@ export class FakeMcpStore implements McpOauthStore {
       oauthGeneration: row.oauthGeneration + 1,
       oauthRefreshAttempt: null,
       oauthRefreshStartedAt: null,
-      oauthUpdatedAt: new Date(0),
     })
     return true
   }
