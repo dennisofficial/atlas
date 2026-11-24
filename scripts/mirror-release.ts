@@ -36,17 +36,20 @@ export const droppedNames = (args: {
   uploaded: readonly string[]
 }): string[] => args.previous.filter((name) => !args.uploaded.includes(name))
 
-const run = (cmd: readonly string[], options: { allowFailure?: boolean } = {}): string => {
-  const result = Bun.spawnSync([...cmd], { stdout: 'pipe', stderr: 'pipe' })
-  const stdout = result.stdout.toString()
-  if (result.exitCode !== 0) {
-    if (options.allowFailure === true) return ''
-    throw new Error(`${cmd.join(' ')} failed (${result.exitCode}): ${result.stderr.toString()}`)
+const run = (cmd: readonly string[], options: { allowFailure?: boolean } = {}): void => {
+  const result = Bun.spawnSync([...cmd], { stdout: 'inherit', stderr: 'inherit' })
+  if (result.exitCode !== 0 && options.allowFailure !== true) {
+    throw new Error(`${cmd.join(' ')} failed (${result.exitCode})`)
   }
-  return stdout
 }
 
-const wrangler = (args: readonly string[], options: { allowFailure?: boolean } = {}): string =>
+const output = (cmd: readonly string[]): string => {
+  const result = Bun.spawnSync([...cmd], { stdout: 'pipe', stderr: 'inherit' })
+  if (result.exitCode !== 0) throw new Error(`${cmd.join(' ')} failed (${result.exitCode})`)
+  return result.stdout.toString()
+}
+
+const wrangler = (args: readonly string[], options: { allowFailure?: boolean } = {}): void =>
   run([...WRANGLER, ...args], options)
 
 const putObject = (args: { key: string; file: string }): void => {
@@ -115,7 +118,7 @@ async function verify(args: {
 }
 
 async function mirrorIndex(args: { dir: string; tag: string }): Promise<void> {
-  const tags = run([
+  const tags = output([
     'gh',
     'release',
     'list',
