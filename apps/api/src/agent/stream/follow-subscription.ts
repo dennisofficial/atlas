@@ -12,6 +12,7 @@ import {
   FOLLOW_PAGE_BYTES,
   FOLLOW_SLOW_CONSUMER_MS,
 } from './follow-limits'
+import { tailBaseOf } from './base-frame'
 import { CatchupMeter, ECatchupStart } from './catchup-meter'
 import type { FollowConnection, FollowDeps, FollowTarget, SubscriptionIndex } from './follow-types'
 import { resolveStart, type StartRequest } from './resolve-start'
@@ -176,6 +177,7 @@ export class FollowSubscription implements FollowTarget {
       plane: this.args.deps.plane,
       threadId: this.requireThread(),
       request: this.args.request,
+      isMainThread: this.isMainThread,
     })
     if (this.stopped) return false
     this.cursor = position.cursor
@@ -183,7 +185,22 @@ export class FollowSubscription implements FollowTarget {
       this.meter?.markReset()
       this.args.connection.send({ type: 'reset', id: this.id, ...position.reset })
     }
+    if (position.tail !== undefined) await this.openTail(position.tail.tailFrom)
     return true
+  }
+
+  private async openTail(tailFrom: number): Promise<void> {
+    const base = await tailBaseOf({
+      plane: this.args.deps.plane,
+      id: this.id,
+      sessionId: this.sessionId,
+      threadId: this.requireThread(),
+      tailFrom,
+    })
+    if (this.stopped || base === undefined) return
+    this.meter?.markTail()
+    this.cursor = base.cursor
+    this.args.connection.send(base.frame)
   }
 
   private async drainPages(): Promise<void> {

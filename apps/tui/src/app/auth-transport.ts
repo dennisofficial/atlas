@@ -16,8 +16,11 @@ export const authWatchingTransport = (args: {
     },
   })
 
+  const events = args.transport.events
+
   return {
     follow: (input, handlers) => args.transport.follow(input, watched(handlers)),
     list: (handlers) => args.transport.list(watched(handlers)),
+    ...(events === undefined ? {} : { events }),
   }
 }

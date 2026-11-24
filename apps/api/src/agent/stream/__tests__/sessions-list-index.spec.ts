@@ -44,6 +44,7 @@ const rig = async () => {
     head: (params) => plane.head(params),
     readEvents: (params) => plane.readEvents(params),
     readSessionView: (params) => plane.readSessionView(params),
+    readTailBase: (params) => plane.readTailBase(params),
     listSessionDigests: (params) => {
       if (failing && params.sessionId === SESSION) {
         return Promise.reject(new Error('recompute exploded'))

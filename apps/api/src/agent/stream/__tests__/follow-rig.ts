@@ -64,6 +64,7 @@ export class FollowRig {
   sentBytesTotal = 0
   reads = 0
   headReads = 0
+  tailBaseReads = 0
   onRead: (() => Promise<void>) | undefined
   readonly follow: FollowSubscriptions
   private epoch = 0
@@ -94,6 +95,10 @@ export class FollowRig {
         const read = await this.plane.readSessionView(params)
         const at = this.scriptedViewAt.shift()
         return at === undefined ? read : { ...read, at }
+      },
+      readTailBase: async (params) => {
+        this.tailBaseReads += 1
+        return this.plane.readTailBase(params)
       },
       listSessionDigests: (params) => {
         this.digestReads += 1
@@ -194,6 +199,7 @@ export class FollowRig {
     threadId?: string
     afterSeq?: number
     afterHash?: string
+    tailViewVersion?: number
   }): Promise<void> {
     const message: StreamSubscriptionMessage = {
       type: 'subscribe',
@@ -203,6 +209,7 @@ export class FollowRig {
       ...(args.threadId === undefined ? {} : { threadId: args.threadId }),
       ...(args.afterSeq === undefined ? {} : { afterSeq: args.afterSeq }),
       ...(args.afterHash === undefined ? {} : { afterHash: args.afterHash }),
+      ...(args.tailViewVersion === undefined ? {} : { tailViewVersion: args.tailViewVersion }),
     }
     await args.session.handle(message)
   }

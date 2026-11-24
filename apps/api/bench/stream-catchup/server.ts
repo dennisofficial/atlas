@@ -21,6 +21,7 @@ const followInput = z.object({
   sessionId: z.string(),
   afterSeq: z.number().optional(),
   afterHash: z.string().optional(),
+  tailViewVersion: z.number().int().optional(),
 })
 
 export type BenchRouter = ReturnType<typeof createRouter>
@@ -35,6 +36,7 @@ const createRouter = (args: { stream: SessionStream; userId: string }) => {
           sessionId: input.sessionId,
           afterSeq: input.afterSeq,
           afterHash: input.afterHash,
+          tailViewVersion: input.tailViewVersion,
           signal,
         }),
       ),

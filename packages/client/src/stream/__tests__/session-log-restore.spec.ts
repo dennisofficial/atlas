@@ -92,6 +92,20 @@ describe('restoring the cached session view', () => {
     ).toBeUndefined()
   })
 
+  it('restores no window when the cached log lacks the prefix a refold needs', async () => {
+    const log = memorySessionLog()
+    const events = mintUserEvents({ count: 3 })
+    await log.appendPage({ sessionId: SESSION, events: events.slice(1), head: headOf(events) })
+    await seedSnapshot({
+      log,
+      events,
+      view: { ...foldOf(events.slice(0, 1)), version: SESSION_VIEW_VERSION - 1 },
+    })
+    expect(
+      await restoredWindowOf({ log, sessionId: SESSION, renderLimit: RENDER_LIMIT }),
+    ).toBeUndefined()
+  })
+
   it('restores no window without a snapshot', async () => {
     const log = memorySessionLog()
     expect(

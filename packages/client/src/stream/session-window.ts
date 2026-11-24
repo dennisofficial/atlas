@@ -40,6 +40,7 @@ export type SessionWindow = {
   foldable: readonly V2Event[]
   commandLog: readonly V2Event[]
   cursor: SessionCursor | undefined
+  foldedThrough: number
 }
 
 export type EventsPage = { events: readonly unknown[]; head: SessionCursor }
@@ -54,6 +55,7 @@ export const EMPTY_WINDOW: SessionWindow = {
   foldable: [],
   commandLog: [],
   cursor: undefined,
+  foldedThrough: 0,
 }
 
 export const resetWindow = (): SessionWindow => EMPTY_WINDOW
@@ -128,16 +130,17 @@ export const applyPageOutcome = (args: {
   })
   if (last === undefined) return { window, fresh: [], skipped, issue }
   const events = fresh.map(({ event }) => event)
-  const visibility = fresh.reduce(
-    (state, { event }) => stepVisibility(state, event),
+  const unfolded = events.filter((event) => event.seq > window.foldedThrough)
+  const visibility = unfolded.reduce(
+    (state, event) => stepVisibility(state, event),
     window.visibility,
   )
-  const pending = fresh.reduce((state, { event }) => stepPending(state, event), window.pending)
-  const folded = events.reduce(
+  const pending = unfolded.reduce((state, event) => stepPending(state, event), window.pending)
+  const folded = unfolded.reduce(
     (state, event) => stepSessionViewWith({ state, views, event }),
     window.view,
   )
-  const failureMessage = events.reduce(stepFailureMessage, window.failureMessage)
+  const failureMessage = unfolded.reduce(stepFailureMessage, window.failureMessage)
   const visible = [...window.events, ...events]
     .filter((event) => isVisible(visibility, event))
     .slice(-(args.renderLimit ?? RENDER_LIMIT))
@@ -148,7 +151,7 @@ export const applyPageOutcome = (args: {
       events: visible,
       visibility,
       pending,
-      view: events.some(needsRebuild)
+      view: unfolded.some(needsRebuild)
         ? rebuildEditSensitive({ state: folded, visibleTail: visible, foldableTail: foldable })
         : folded,
       failureMessage,
@@ -156,6 +159,7 @@ export const applyPageOutcome = (args: {
       foldable,
       commandLog: [...window.commandLog, ...events.filter(isCommandLogEvent)],
       cursor: cursorAfter({ page, last }),
+      foldedThrough: window.foldedThrough,
     },
     fresh: events,
     skipped,
