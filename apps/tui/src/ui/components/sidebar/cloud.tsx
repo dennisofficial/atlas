@@ -1,7 +1,7 @@
 import React from 'react'
 
 import { ERunner } from '@dltech/atlas-core'
-import { EConnectionView } from '@dltech/atlas-harness'
+import { EConnectionView } from '@dltech/atlas-client/channel'
 
 import type { SidebarCloud } from '../../../store/cloud-state'
 import { glyph, theme } from '../../theme'

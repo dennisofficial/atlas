@@ -1,15 +1,11 @@
 import { beforeEach, describe, expect, it } from 'bun:test'
 
 import { toRunId, type Event } from '@dltech/atlas-core'
-import {
-  createDeltaChannel,
-  EStepEnd,
-  type DeltaChannel,
-  type TurnSpend,
-} from '@dltech/atlas-harness'
+import { EStepEnd, type DeltaChannel } from '@dltech/atlas-client/channel'
+import type { TurnSpend } from '@dltech/atlas-client/transcript'
 
 import { createConversationStore, type ConversationStore } from '../conversation-store'
-import { channelSignalFeed } from './signal-feed-fixture'
+import { channelSignalFeed, createDeltaChannel } from './signal-feed-fixture'
 import { EEntryKind } from '@dltech/atlas-client/transcript'
 import { fixtureThreadId, log } from '@dltech/atlas-client/transcript-fixture'
 

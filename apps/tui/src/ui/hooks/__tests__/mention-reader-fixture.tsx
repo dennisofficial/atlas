@@ -1,11 +1,19 @@
 import type { DirectoryEntry } from '@dltech/atlas-core'
-import type { MentionReader } from '@dltech/atlas-harness'
 import { KeyEvent } from '@opentui/core'
 import { createTestRenderer, type TestRendererSetup } from '@opentui/core/testing'
 import { createRoot, type Root } from '@opentui/react'
 import React, { act, useState } from 'react'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
+
+export type MentionReader = {
+  list(directory: string): Promise<readonly DirectoryEntry[]>
+  exists(path: string): Promise<boolean>
+  load(path: string): Promise<never>
+  read(path: string): Promise<never>
+  search(args: { query: string; limit: number }): Promise<never>
+  forget(): void
+}
 
 export type Deferred<T> = {
   promise: Promise<T>

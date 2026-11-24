@@ -1,7 +1,6 @@
 import { ESandboxNoticeState, type TranscriptSandbox } from '@dltech/atlas-client/transcript'
-import { ESandboxState } from '@dltech/atlas-harness'
 
-import type { SidebarContainer } from './sidebar-model'
+import { ESandboxState, type SidebarContainer } from './sidebar-model'
 
 const NOTICE_STATES: Record<ESandboxState, ESandboxNoticeState> = {
   [ESandboxState.Starting]: ESandboxNoticeState.Starting,

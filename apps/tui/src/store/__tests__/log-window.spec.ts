@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'bun:test'
 
 import { EToolEffect } from '@dltech/atlas-core'
-import { createDeltaChannel } from '@dltech/atlas-harness'
 
 import { createConversationStore } from '../conversation-store'
-import { channelSignalFeed } from './signal-feed-fixture'
+import { channelSignalFeed, createDeltaChannel } from './signal-feed-fixture'
 import { foldLogEvents } from '../log-accumulator'
 import { createLogWindow } from '../log-window'
 import { sidebarFoldFrom, sidebarFoldOf } from '../sidebar-model'

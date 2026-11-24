@@ -27,8 +27,9 @@ mock.module('../components/entry-view', () => {
 })
 
 const { EEntryKind, createConversationStore, deriveTranscript } = await import('../../store')
-const { createDeltaChannel } = await import('@dltech/atlas-harness')
-const { channelSignalFeed } = await import('../../store/__tests__/signal-feed-fixture')
+const { channelSignalFeed, createDeltaChannel } = await import(
+  '../../store/__tests__/signal-feed-fixture'
+)
 const { fixtureThreadId } = await import('@dltech/atlas-client/transcript-fixture')
 const { called, callId, clocked, result, said } = await import(
   '@dltech/atlas-client/transcript-tool-fixture'

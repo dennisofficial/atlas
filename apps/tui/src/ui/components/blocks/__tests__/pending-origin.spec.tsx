@@ -1,20 +1,14 @@
 import { describe, expect, it } from 'bun:test'
-import { EMessageOrigin, toThreadId } from '@dltech/atlas-core'
-import { createPendingQueues } from '@dltech/atlas-harness'
+import { EMessageOrigin } from '@dltech/atlas-core'
 import { testRender } from '@opentui/react/test-utils'
 
-import { pendingRows } from '../../../../store/pending-rows'
+import { EPendingKind, pendingRows } from '../../../../store/pending-rows'
 import { PendingBlock, pendingRuns } from '../pending-block'
-
-const THREAD = toThreadId('child')
 
 describe('message origin in shared pending rows', () => {
   it('does not offer editing for an instruction another agent submitted', async () => {
-    const pending = createPendingQueues()
-    const queue = pending.forThread({ threadId: THREAD })
-    queue.enqueue({ text: 'parent instruction', via: EMessageOrigin.ParentAgent })
     const rows = pendingRows({
-      entries: queue.getSnapshot(),
+      entries: [{ id: '1', text: 'parent instruction', via: EMessageOrigin.ParentAgent }],
       notices: [],
       agents: [],
       services: [],
@@ -27,25 +21,26 @@ describe('message origin in shared pending rows', () => {
       await setup.flush()
       expect(setup.captureCharFrame()).toContain('parent instruction')
       expect(setup.captureCharFrame()).not.toContain('↑ to edit')
-      expect(queue.takeBackLast()).toBeNull()
     } finally {
       setup.renderer.destroy()
     }
   })
 
   it('keeps editable operator drafts separate from immutable agent instructions', () => {
-    const pending = createPendingQueues()
-    const queue = pending.forThread({ threadId: THREAD })
-    queue.enqueue({ text: 'parent instruction', via: EMessageOrigin.ParentAgent })
-    queue.enqueue({ text: 'operator draft' })
     const rows = pendingRows({
-      entries: queue.getSnapshot(),
+      entries: [
+        { id: '1', text: 'parent instruction', via: EMessageOrigin.ParentAgent },
+        { id: '2', text: 'operator draft', via: EMessageOrigin.Operator },
+      ],
       notices: [],
       agents: [],
       services: [],
     })
+
     expect(pendingRuns(rows)).toHaveLength(2)
-    expect(queue.takeBackLast()?.text).toBe('operator draft')
-    expect(queue.takeBackLast()).toBeNull()
+    expect(rows).toEqual([
+      { kind: EPendingKind.Operator, id: '1', text: 'parent instruction', editable: false },
+      { kind: EPendingKind.Operator, id: '2', text: 'operator draft' },
+    ])
   })
 })

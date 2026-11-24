@@ -1,5 +1,5 @@
 import type { ERunner } from '@dltech/atlas-core'
-import { EConnectionView, type ConnectionView } from '@dltech/atlas-harness'
+import { EConnectionView, type ConnectionView } from '@dltech/atlas-client/channel'
 
 export type SidebarCloud = { state: EConnectionView; runner?: ERunner | undefined }
 

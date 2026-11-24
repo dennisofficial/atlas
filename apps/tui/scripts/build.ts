@@ -1,6 +1,5 @@
 import { createRequire } from 'node:module'
 
-import { writeSupervisorBundle } from '../../../packages/harness/src/shells/supervisor-bundle'
 import { probeSourceState, repoRootOf, sourceStampOf } from '../src/build/stamp'
 
 const arg = (name: string): string | undefined => {
@@ -37,8 +36,6 @@ if (version !== undefined && version !== '') {
     console.warn('not a git tree: building without a staleness stamp')
   }
 }
-
-await writeSupervisorBundle()
 
 const OPENTUI_PLATFORM_PACKAGES = [
   '@opentui/core-darwin-arm64',

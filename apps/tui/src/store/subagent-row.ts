@@ -2,24 +2,41 @@ import {
   agentDisplayName,
   EAgentStatus,
   TEAMMATE_AGENT_TYPE,
+  type EKilledBy,
   type ProviderIdentity,
   type ThreadId,
 } from '@dltech/atlas-core'
-import type {
-  AgentSnapshot,
-  ChildContext,
-  PullRequestBadge,
-  ShellSnapshot,
-} from '@dltech/atlas-harness'
-
 import {
   crewActivityOf,
   subagentStateLabel as crewStateLabel,
   type CrewActivity,
   type CrewReadout,
 } from '@dltech/atlas-client/crew'
+
 import { truncateCells } from '../ui/components/sidebar/cells'
+import type { PullRequestBadge } from '../ui/pull-request-pill'
+import type { ShellSnapshot } from '../ui/shells-model'
 import { TITLE_CELLS } from './sidebar-text'
+
+export type ChildContext = { tokens: number; window: number }
+
+export type AgentSnapshot = {
+  agentId: ThreadId
+  spawnedBy: ThreadId
+  agentType: string
+  intent: string
+  status: EAgentStatus
+  killedBy?: EKilledBy | undefined
+  failureCause?: string | undefined
+  turns: number
+  toolCalls: number
+  lastTool?: string | undefined
+  startedAt: string
+  endedAt?: string | undefined
+  waitingOn?: string | undefined
+  context?: ChildContext | undefined
+  model?: ProviderIdentity | undefined
+}
 
 export type SubagentReadout = CrewReadout
 

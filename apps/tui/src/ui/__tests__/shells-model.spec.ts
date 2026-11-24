@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'bun:test'
 
 import { toThreadId } from '@dltech/atlas-core'
-import { EKilledBy, EShellStatus, toShellId, type ShellSnapshot } from '@dltech/atlas-harness'
+import { EKilledBy, EShellStatus } from '@dltech/atlas-core'
+
+import type { ShellSnapshot } from '../shells-model'
 
 import {
   EOutputScroll,
@@ -26,13 +28,12 @@ const shell = (
   command: 'bun test',
   description: 'Run the tests',
   status: EShellStatus.Running,
-  pid: 4242,
   startedAt: '2026-08-27T12:00:00.000Z',
   lastOutputAt: '2026-08-27T12:00:00.000Z',
   totalCharacters: 0,
   awaitingInput: false,
   ...over,
-  shellId: toShellId(over.shellId),
+  shellId: over.shellId,
 })
 
 const running = (id: string) => shell({ shellId: id })
@@ -84,7 +85,7 @@ describe('reading which shell is selected', () => {
   it('clamps an index past the end, so a shell list that shrank does not read undefined', () => {
     const shells = [running('bash_1')]
 
-    expect(selectedShell({ state: { index: 7 }, shells })?.shellId).toBe(toShellId('bash_1'))
+    expect(selectedShell({ state: { index: 7 }, shells })?.shellId).toBe('bash_1')
   })
 
   it('is undefined when nothing is listed', () => {

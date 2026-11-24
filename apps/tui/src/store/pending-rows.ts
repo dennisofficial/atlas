@@ -1,11 +1,4 @@
-import { EMessageOrigin } from '@dltech/atlas-core'
-import {
-  ENotice,
-  EShellStatus,
-  type AgentSnapshot,
-  type PendingShellNotice,
-  type ServiceSnapshot,
-} from '@dltech/atlas-harness'
+import { EMessageOrigin, EShellStatus } from '@dltech/atlas-core'
 
 import {
   agentEndedLine,
@@ -18,7 +11,24 @@ import {
   shellMatchedNoticeLine,
   EEntryKind,
 } from '@dltech/atlas-client/transcript'
-import type { PendingEntry } from '@dltech/atlas-harness'
+import type { ServiceRowView } from '../ui/services-model'
+import type { ShellSnapshot } from '../ui/shells-model'
+import type { AgentSnapshot } from './subagent-row'
+
+export enum ENotice {
+  Ended = 'ended',
+  AwaitingInput = 'awaiting-input',
+  Matched = 'matched',
+}
+
+export type PendingShellNotice = { kind: ENotice; snapshot: ShellSnapshot }
+
+export type PendingEntry = {
+  id: string
+  text: string
+  kind?: 'message' | 'command' | undefined
+  via?: string | undefined
+}
 
 export enum EPendingKind {
   Operator = 'operator',
@@ -92,7 +102,7 @@ function pendingAgentRow(notice: AgentSnapshot): PendingRow {
   }
 }
 
-function pendingServiceRow(notice: ServiceSnapshot): PendingRow {
+function pendingServiceRow(notice: ServiceRowView): PendingRow {
   return {
     kind: EPendingKind.Service,
     id: `service-${notice.status}-${notice.serviceId}`,
@@ -103,7 +113,7 @@ function pendingServiceRow(notice: ServiceSnapshot): PendingRow {
   }
 }
 
-const operatorRows = (entries: readonly PendingEntry<unknown>[]): readonly PendingRow[] =>
+const operatorRows = (entries: readonly PendingEntry[]): readonly PendingRow[] =>
   entries.map((entry): PendingRow => {
     if (entry.kind === 'command') {
       return { kind: EPendingKind.Command, id: entry.id, text: entry.text }
@@ -151,11 +161,11 @@ const remoteOperatorRows = (
     )
 
 export function pendingRows(args: {
-  entries: readonly PendingEntry<unknown>[]
+  entries: readonly PendingEntry[]
   remoteEntries?: readonly RemotePendingEntry[] | undefined
   notices: readonly PendingShellNotice[]
   agents: readonly AgentSnapshot[]
-  services: readonly ServiceSnapshot[]
+  services: readonly ServiceRowView[]
   sending?: readonly { id: string; text: string; failed: boolean }[]
 }): readonly PendingRow[] {
   const { agents, services } = args

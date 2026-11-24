@@ -1,5 +1,3 @@
-import { cloudOutageMessage } from '@dltech/atlas-harness'
-
 export const BOOT_FAILURE_EXIT_CODE = 1
 
 const HEADLINE = 'Atlas could not start.'
@@ -8,12 +6,8 @@ const STACK_HINT = 'Set ATLAS_DEBUG=1 to see the stack.'
 
 const MAX_WIDTH = 92
 
-const detailOf = (error: unknown): string => {
-  const outage = cloudOutageMessage(error)
-  if (outage !== null) return outage
-  if (error instanceof Error) return error.message
-  return String(error)
-}
+const detailOf = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error)
 
 const chunked = (word: string, width: number): readonly string[] => {
   const pieces: string[] = []

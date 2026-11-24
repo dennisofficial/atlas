@@ -17,14 +17,6 @@ export {
   type InFlightStep,
   type StepBlock,
 } from '@dltech/atlas-client/transcript'
-export {
-  createPendingQueue,
-  createPendingQueues,
-  type PendingMessage,
-  type PendingQueue,
-  type PendingQueues,
-  type PendingSaid,
-} from '@dltech/atlas-harness'
 export { EPendingKind, pendingRows, type PendingRow, type RemotePendingEntry } from './pending-rows'
 export {
   shellAwaitingInputLine,

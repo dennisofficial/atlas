@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'bun:test'
 
 import { EExecutionLocation, EServiceStatus } from '@dltech/atlas-core'
-import { ESandboxState, type ServiceSnapshot } from '@dltech/atlas-harness'
+import type { ServiceRowView } from '../../ui/services-model'
+import { ESandboxState } from '../sidebar-model'
 
 import {
   containerPillOf,
@@ -26,8 +27,8 @@ const running: SidebarContainer = {
 }
 
 const service = (
-  over: Omit<Partial<ServiceSnapshot>, 'serviceId'> & { serviceId: string },
-): ServiceSnapshot => ({
+  over: Omit<Partial<ServiceRowView>, 'serviceId'> & { serviceId: string },
+): ServiceRowView => ({
   command: 'bun run dev',
   description: '',
   status: EServiceStatus.Running,

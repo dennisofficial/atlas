@@ -1,7 +1,8 @@
 # Spec: the TUI as a v2 client
 
-Status: **built 2026-11-24**. Slices 1–9a of §7 have merged; the live check in §9 recorded 0/10
-steps because it calls production and was not run. Anchors are at `0d7082dc8`, and slices 4–8 moved
+Status: **built 2026-11-24**. Slices 1–9 of §7 have merged; the live check in §9 recorded 0/10
+steps because it calls production and was not run, and it is due again now that the dependency PR
+removed the harness from the binary. Anchors are at `0d7082dc8`, and slices 4–8 moved
 the files they name — `src/composition` no longer exists, the surviving boot modules live in
 `src/boot`, and the v1 app-flow specs are replaced by their twins in `src/app/__tests__`. Evidence for the census: the four research notes that this spec summarises (TUI census,
 v2 client map, sign-in, install and build), kept in the session that wrote it.
@@ -211,10 +212,11 @@ slice. Web, Mac and mobile hide them with `because: 'panel'`.
 - `install.sh` installs one binary, `atlas`, for `darwin-arm64`, `darwin-x64` and `linux-x64`
   (`install.sh:46-57`), checks its `.sha256` and adds the PATH line. This is the same as today.
 - The release job builds the three TUI binaries (`ci.yml:425-438`) with `apps/tui/scripts/build.ts`.
-  The build loses the plugin and skills generation in `build:prepare` and the supervisor bundle
-  (`scripts/build.ts:45`). It keeps the vendored-asset hazard check: tree-sitter grammars load by
-  `{type:'file'}` import (`@dltech/atlas-syntax`). The vendored `rg` goes, because the TUI no longer
-  searches files locally.
+  The build loses the plugin and skills generation that `build:prepare` ran and the supervisor
+  bundle, because the binary starts no harness. It keeps the vendored-asset hazard check: tree-sitter
+  grammars load by `{type:'file'}` import (`@dltech/atlas-syntax`). The vendored `rg` goes, because
+  the TUI no longer searches files locally. The metafile of `src/main.tsx` names no
+  `packages/harness` input.
 - Tags stay `tui-v<semver>`, in step across `update-check.ts:25` and `install.sh:72`.
 - The `serve` flavor, `ci.yml:440-451` and `apps/serve` in `SHIPPED_APP_DIRS`
   (`packages/core/src/version/release-affected.ts:1`) are removed by the v1 removal, not here.
@@ -268,8 +270,8 @@ flowchart LR
   watch in the terminal.
 - **Boundary.** `apps/tui` may import `@dltech/atlas-client/*`, `@dltech/atlas-api-router`,
   `@dltech/atlas-protocol` (types and enums), `@dltech/atlas-commands`, `@dltech/atlas-core`,
-  `@dltech/atlas-models`, `@dltech/atlas-syntax`, `@dltech/atlas-observability` and
-  `@dltech/atlas-plugin-*/client|core`. `AGENTS.md` changes "`tui` never reaches past `harness`" to
+  `@dltech/atlas-models`, `@dltech/atlas-syntax`, `@dltech/atlas-observability`,
+  `@dltech/atlas-notifications` (the presence report) and `@dltech/atlas-plugin-*/client|core`. `AGENTS.md` changes "`tui` never reaches past `harness`" to
   this list in slice 9. `src/__tests__/package.spec.ts` checks it.
 
 ## 7. Slices

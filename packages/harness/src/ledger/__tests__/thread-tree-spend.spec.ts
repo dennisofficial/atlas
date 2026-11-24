@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { toRunId, toThreadId, type ThreadId } from '@dltech/atlas-core'
 
-import { NOTHING_SPENT, tallyThreadTreeSpend, totalSpend } from '../thread-tree-spend'
+import { NOTHING_SPENT, tallyThreadTreeSpend } from '../thread-tree-spend'
 import type { TurnSpend } from '../turn-ledger.port'
 
 let minted = 0
@@ -36,28 +36,6 @@ const rowOf = ({
 
 const parent = toThreadId('thread-parent')
 const child = toThreadId('thread-child')
-
-describe('totalling turn spend', () => {
-  it('counts nothing over no rows', () => {
-    expect(totalSpend([])).toEqual(NOTHING_SPENT)
-  })
-
-  it('counts a turn per row and sums every token tier', () => {
-    const totals = totalSpend([
-      rowOf({ threadId: parent, steps: 2, inputTokens: 100 }),
-      rowOf({ threadId: parent, steps: 3, inputTokens: 250 }),
-    ])
-
-    expect(totals).toEqual({
-      turns: 2,
-      steps: 5,
-      inputTokens: 350,
-      outputTokens: 20,
-      cacheReadTokens: 40,
-      cacheWriteTokens: 60,
-    })
-  })
-})
 
 describe('tallying a thread tree', () => {
   it('keeps the split and offers the sum of both sides', () => {

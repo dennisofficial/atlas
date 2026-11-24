@@ -7,14 +7,10 @@ import {
   EShellStatus,
   toThreadId,
 } from '@dltech/atlas-core'
-import {
-  ENotice,
-  toShellId,
-  type AgentSnapshot,
-  type PendingShellNotice,
-  type ServiceSnapshot,
-  type ShellSnapshot,
-} from '@dltech/atlas-harness'
+import type { ServiceRowView } from '../../ui/services-model'
+import type { ShellSnapshot } from '../../ui/shells-model'
+import { ENotice, type PendingShellNotice } from '../pending-rows'
+import type { AgentSnapshot } from '../subagent-row'
 
 import { EPendingKind, pendingRows, type RemotePendingEntry } from '../pending-rows'
 import { EEntryKind } from '@dltech/atlas-client/transcript'
@@ -34,13 +30,12 @@ const command = (id: string, text: string) => ({
   command: null,
 })
 
-const service = (over: Partial<ServiceSnapshot> = {}): ServiceSnapshot => ({
+const service = (over: Partial<ServiceRowView> = {}): ServiceRowView => ({
   serviceId: 'svc_1',
   command: 'bun run dev',
   description: 'web dev server',
   status: EServiceStatus.Exited,
   exitCode: 0,
-  pid: 4_242,
   logPath: '/tmp/atlas/services/svc_1.log',
   startedAt: '2026-08-27T12:00:00.000Z',
   endedAt: '2026-08-27T12:01:00.000Z',
@@ -49,7 +44,7 @@ const service = (over: Partial<ServiceSnapshot> = {}): ServiceSnapshot => ({
 
 const snapshot = (over: Partial<ShellSnapshot> = {}): ShellSnapshot =>
   ({
-    shellId: toShellId('bash_1'),
+    shellId: 'bash_1',
     command: 'bun test',
     description: 'Run full TUI suite',
     status: EShellStatus.Exited,
@@ -190,7 +185,7 @@ describe('what waits under the working indicator', () => {
   it('keys each ending by its shell, so two waiting endings stay distinct', () => {
     const rows = pendingRows({
       entries: [],
-      notices: [notice(), notice({ shellId: toShellId('bash_2'), description: 'Watch the docs' })],
+      notices: [notice(), notice({ shellId: 'bash_2', description: 'Watch the docs' })],
       agents: [],
       services: [],
     })

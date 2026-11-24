@@ -75,7 +75,7 @@ The headless client library that web, the TUI and the mobile app share.
   transcript rows and the durable rows of a thread. `summariesAtTarget(events)`: the events with
   each compaction summary at its target.
 - `turnsBySeq(args)`, `settledAtOf(entries)`, `turnEndedEntry(turn)`: the turn rows and the settled
-  time. `turnStartedAtOf(events)`: the start of the main thread's open turn.
+  time. `turnStartedAtOf(events)`: the open turn's start. `TurnSpend`, `totalSpend`, `SpendTotals` and `NOTHING_SPENT`: what a turn spent.
 - `ECallState`, `ECallKind`, `callKindOf(name)`, `ToolCall`, `ToolRun`, `attachmentsOf`,
   `qualityNoticeOf`, `qualityNoticeLine`, `EQualityNoticeTone`: the tool runs and a call's quality
   line. `agentsOf(args)`, `agentOf(args)`, `agentLabelOf(agent)`: a sub-agent's type, intent, state.

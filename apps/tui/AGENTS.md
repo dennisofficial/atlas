@@ -28,7 +28,8 @@ TUI v2 flip.
 
 `apps/tui` is a v2 cloud client. It may import `@dltech/atlas-client/*`, `@dltech/atlas-api-router`,
 `@dltech/atlas-protocol`, `@dltech/atlas-commands`, `@dltech/atlas-core`, `@dltech/atlas-models`,
-`@dltech/atlas-syntax`, `@dltech/atlas-observability` and `@dltech/atlas-plugin-*/client|core`. It
-never imports `@dltech/atlas-harness`; `packages/harness` is the v1 agent host's, and `apps/serve`
-still runs it. The flip left a few harness `type` imports in `src/ui` and `src/store`; they are
-erased at build time and are to be replaced with local shapes. A spec enforces the list.
+`@dltech/atlas-syntax`, `@dltech/atlas-observability`, `@dltech/atlas-notifications` and
+`@dltech/atlas-plugin-*/client|core`. It never imports `@dltech/atlas-harness`,
+`@dltech/atlas-wire`, `tsyringe` or `reflect-metadata`; `packages/harness` is the v1 agent host's,
+and `apps/serve` still runs it. A row type the chrome reads from a snapshot is declared beside the
+chrome, not borrowed from a v1 package. `src/__tests__/package.spec.ts` enforces the list.

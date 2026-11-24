@@ -1,5 +1,7 @@
 import { toThreadId } from '@dltech/atlas-core'
-import { EShellStatus, toShellId, type ShellSnapshot } from '@dltech/atlas-harness'
+import { EShellStatus } from '@dltech/atlas-core'
+
+import type { ShellSnapshot } from '../shells-model'
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'bun:test'
 import React from 'react'
@@ -30,13 +32,12 @@ const shell = (
   command: 'bun test --watch',
   description: 'Watch the tests',
   status: EShellStatus.Running,
-  pid: 4242,
   startedAt: STARTED_AT,
   lastOutputAt: STARTED_AT,
   totalCharacters: 0,
   awaitingInput: false,
   ...over,
-  shellId: toShellId(over.shellId),
+  shellId: over.shellId,
 })
 
 async function framed(node: React.ReactNode): Promise<string[]> {

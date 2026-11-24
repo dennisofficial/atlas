@@ -1,7 +1,12 @@
 import type { ThreadId } from '@dltech/atlas-core'
-import type { TldrFeed } from '@dltech/atlas-harness'
 
 export type PendingTldr = { anchorSeq: number; text: string }
+
+export type TldrFeed = {
+  started(args: { threadId: ThreadId; anchorSeq: number }): void
+  chunk(args: { threadId: ThreadId; text: string }): void
+  finished(args: { threadId: ThreadId }): void
+}
 
 const pending = new Map<string, PendingTldr>()
 
