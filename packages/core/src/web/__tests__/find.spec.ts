@@ -24,6 +24,20 @@ describe('findInPage', () => {
     expect(outcome.found.excerpt).toBe('line two\nthe needle is here\nline four')
   })
 
+  it('accepts a leading inline flag group, which JavaScript regular expressions reject', () => {
+    for (const pattern of ['(?i)NEEDLE is', '(?im)needle is', '(?i)(?s)needle is']) {
+      const outcome = findInPage({ body: page, pattern, context: 0 })
+      expect(outcome.ok).toBe(true)
+      if (!outcome.ok) return
+      expect(outcome.found.excerpt).toBe('the needle is here')
+    }
+  })
+
+  it('still refuses a pattern that is invalid for another reason', () => {
+    const outcome = findInPage({ body: page, pattern: '(?i)needle(', context: 0 })
+    expect(outcome.ok).toBe(false)
+  })
+
   it('separates passages that are far apart and merges ones that overlap', () => {
     const outcome = findInPage({ body: page, pattern: 'needle', context: 1 })
     expect(outcome.ok).toBe(true)
