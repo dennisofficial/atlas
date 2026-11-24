@@ -61,6 +61,21 @@ describe('createSession', () => {
     expect('projectId' in (fake.created[0] ?? {})).toBe(false)
   })
 
+  it('carries the attachments of the first message', async () => {
+    const fake = fakeApi()
+    const media = {
+      id: `media:${'a'.repeat(64)}`,
+      name: 'shot.png',
+      mediaType: 'image/png',
+      size: 4,
+      content: { store: 'media' as const, hash: 'a'.repeat(64) },
+    }
+    await createSession({ api: fake.api, projectId: 'p1', text: '', attachments: [media] })
+    expect(fake.created).toEqual([
+      { projectId: 'p1', firstMessage: { text: '', attachments: [media] } },
+    ])
+  })
+
   it('sends no model fields when the composer stays on Default', async () => {
     const fake = fakeApi()
     await createSession({

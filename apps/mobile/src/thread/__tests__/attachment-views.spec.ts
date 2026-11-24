@@ -44,15 +44,24 @@ describe('sourceOf', () => {
     })
   })
 
-  it('marks a media hash unavailable without a session id', () => {
-    expect(sourceOf(mediaAttachment)).toEqual({ kind: 'unavailable' })
+  it('asks the caller to resolve a media hash', () => {
+    expect(sourceOf(mediaAttachment)).toEqual({
+      kind: 'media',
+      key: `media:${'a'.repeat(64)}`,
+      hash: 'a'.repeat(64),
+    })
   })
 })
 
 describe('fetchableOf', () => {
-  it('keeps only upload stores', () => {
+  it('keeps the upload and media stores', () => {
     expect(fetchableOf([inlineAttachment, uploadAttachment, mediaAttachment])).toEqual([
-      { key: 'upload:composer-uploads/report.pdf', pathname: 'composer-uploads/report.pdf' },
+      {
+        kind: 'upload',
+        key: 'upload:composer-uploads/report.pdf',
+        pathname: 'composer-uploads/report.pdf',
+      },
+      { kind: 'media', key: `media:${'a'.repeat(64)}`, hash: 'a'.repeat(64) },
     ])
   })
 })
@@ -80,6 +89,15 @@ describe('viewsOf', () => {
     const [view] = viewsOf({ attachments: [uploadAttachment], sources: new Map() })
     expect(view?.uri).toBeUndefined()
     expect(view?.image).toBe(false)
+  })
+
+  it('attaches a fetched URL to a media store', () => {
+    const [view] = viewsOf({
+      attachments: [mediaAttachment],
+      sources: new Map([[`media:${'a'.repeat(64)}`, 'https://media/shot.png']]),
+    })
+    expect(view?.uri).toBe('https://media/shot.png')
+    expect(view?.image).toBe(true)
   })
 
   it('draws inline images without a fetch', () => {

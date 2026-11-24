@@ -114,9 +114,7 @@ export const Composer = ({
   }
 
   const notice = failed
-    ? draft.trim().length === 0
-      ? "Attachments couldn't go on their own. Add a caption to queue them for later."
-      : 'That message could not be sent.'
+    ? 'That message could not be sent.'
     : (refusal ??
       attachments?.notice ??
       (attachments?.failed === true ? REMOVE_FAILED_FILES : null))

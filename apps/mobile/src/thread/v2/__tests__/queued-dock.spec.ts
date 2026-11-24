@@ -40,7 +40,7 @@ const pending: PendingInputsState = {
   ],
 }
 
-const STAGED = [{ clientId: 'phone-1', text: 'from the phone' }]
+const STAGED = [{ clientId: 'phone-1', text: 'from the phone', attachments: [] }]
 
 describe('queuedDockOf', () => {
   it('lists server-queued messages first, then the ones this phone staged', () => {
