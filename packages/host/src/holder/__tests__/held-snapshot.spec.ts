@@ -66,6 +66,7 @@ const actionOf = async (args: {
     preparing: false,
     setupRunning: false,
     childrenRunning: 0,
+    shellsOwedSince: undefined,
   })
   return action
 }

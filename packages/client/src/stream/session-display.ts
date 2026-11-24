@@ -27,6 +27,11 @@ const BASE: Record<ESessionStatus, ESessionDisplay> = {
   [ESessionStatus.Idle]: ESessionDisplay.Idle,
 }
 
+const TURN_LESS: ReadonlySet<ESessionStatus> = new Set([
+  ESessionStatus.Idle,
+  ESessionStatus.WaitingForBackground,
+])
+
 const POD: Partial<Record<ESandboxStatus, ESessionDisplay>> = {
   [ESandboxStatus.Provisioning]: ESessionDisplay.Starting,
   [ESandboxStatus.Starting]: ESessionDisplay.Starting,
@@ -47,7 +52,7 @@ export const sessionDisplayOf = (args: {
 }): ESessionDisplay | undefined => {
   if (args.state === undefined) return undefined
   const display = BASE[args.state]
-  if (display !== ESessionDisplay.Idle || args.sandboxStatus === undefined) return display
+  if (!TURN_LESS.has(args.state) || args.sandboxStatus === undefined) return display
   return POD[args.sandboxStatus] ?? display
 }
 

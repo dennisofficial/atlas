@@ -24,6 +24,7 @@ export type Lapped = <T>(args: { lap: ETakeoverLap; work: () => Promise<T> }) =>
 
 export class HeldActions {
   private resumeAfterSeq = 0
+  private shellsOwedSince: number | undefined
   private staged: (() => Promise<void>) | undefined
   private commands: ((entries: readonly InboxEntry[]) => Promise<boolean>) | undefined
   private retryChild: ((agentId: string) => Promise<boolean>) | undefined
@@ -61,23 +62,25 @@ export class HeldActions {
     if (ending.outcome !== undefined) return
     const turnRunning = turns.turnRunning
     if (this.args.draining()) return turnRunning ? undefined : ending.finish(EHeldOutcome.Drained)
-    const { entries, action, resumable, inboxHead, failure, preparedBefore, queuedAt } =
-      await args.lap({
-        lap: ETakeoverLap.Decide,
-        work: () =>
-          readHeldAction({
-            deps,
-            threadId: args.threadId,
-            draining: this.args.draining(),
-            turnRunning,
-            resumeAfterSeq: this.resumeAfterSeq,
-            runtime: this.args.runtime(),
-            record: this.args.record(),
-            preparing: this.args.prepare.running,
-            setupRunning: this.args.prepare.hasSetupRunning,
-            childrenRunning: this.args.childrenRunning(),
-          }),
-      })
+    const snapshot = await args.lap({
+      lap: ETakeoverLap.Decide,
+      work: () =>
+        readHeldAction({
+          deps,
+          threadId: args.threadId,
+          draining: this.args.draining(),
+          turnRunning,
+          resumeAfterSeq: this.resumeAfterSeq,
+          runtime: this.args.runtime(),
+          record: this.args.record(),
+          preparing: this.args.prepare.running,
+          setupRunning: this.args.prepare.hasSetupRunning,
+          childrenRunning: this.args.childrenRunning(),
+          shellsOwedSince: this.shellsOwedSince,
+        }),
+    })
+    this.shellsOwedSince = snapshot.shellsOwedSince
+    const { entries, action, resumable, inboxHead, failure, preparedBefore, queuedAt } = snapshot
     if (action === EHeldAction.AbortTurn) return turns.abort(OPERATOR_STOP_REASON)
     if (action !== EHeldAction.StartTurn) await this.staged?.()
     if (!turnRunning && (await this.retryChildren({ entries, threadId: args.threadId }))) {

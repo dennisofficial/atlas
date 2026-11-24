@@ -54,6 +54,8 @@ export class ShellLive {
   private async drain(shellId: string): Promise<void> {
     try {
       while (this.dirty.delete(shellId)) await this.pump(shellId)
+    } catch (error) {
+      this.ctx.log(`shells: streaming ${shellId} stopped: ${String(error)}`)
     } finally {
       this.pumping.delete(shellId)
     }

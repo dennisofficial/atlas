@@ -79,6 +79,24 @@ describe('sessionDisplayOf with a pod state', () => {
     )
   })
 
+  it('parks background work whose pod went to sleep', () => {
+    expect(
+      displayOf({
+        state: ESessionStatus.WaitingForBackground,
+        sandboxStatus: ESandboxStatus.Sleeping,
+      }),
+    ).toBe(ESessionDisplay.Parked)
+  })
+
+  it('keeps background work working beside a running pod', () => {
+    expect(
+      displayOf({
+        state: ESessionStatus.WaitingForBackground,
+        sandboxStatus: ESandboxStatus.Running,
+      }),
+    ).toBe(ESessionDisplay.Working)
+  })
+
   it('keeps the session display when the session is not idle', () => {
     const asleep = ESandboxStatus.Sleeping
     expect(displayOf({ state: ESessionStatus.Thinking, sandboxStatus: asleep })).toBe(
