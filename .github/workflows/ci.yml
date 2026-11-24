@@ -513,6 +513,12 @@ jobs:
             echo "::error::$previous is the latest release and holds no Mac files; $tag stays off latest so the Mac feed and download keep working"
             exit 1
           fi
+          for required in latest-mac.yml macos-arm64-Atlas.dmg; do
+            [ -s "$assets/$required" ] || { echo "::error::$previous is the latest release and holds no $required; $tag stays off latest so the Mac feed and download keep working"; exit 1; }
+          done
+          # latest-mac.yml names the zip an installed app downloads; the copy is worthless without it.
+          zip=$(awk -F'"' '/^path:/{print $2}' "$assets/latest-mac.yml")
+          [ -n "$zip" ] && [ -s "$assets/$zip" ] || { echo "::error::$previous is the latest release and holds no zip named by its latest-mac.yml; $tag stays off latest so the Mac feed keeps working"; exit 1; }
           ls -la "$assets"
           for attempt in 1 2 3; do
             if gh release upload "$tag" "$assets"/* --clobber --repo "$GITHUB_REPOSITORY"; then break; fi
