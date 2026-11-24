@@ -6,6 +6,8 @@ export const APNS_OPENED_PATH = '/desktop/apns/opened'
 
 export const SESSION_PATH = '/sessions/'
 
+export const HOST_SESSION_PATH = '/desktop/session'
+
 const POST_TIMEOUT_MS = 2_000
 
 const recordOf = (value) =>
@@ -27,8 +29,14 @@ export const sessionIdOfLaunchInfo = (launchInfo) => {
   return Number.isInteger(seq) ? sessionId : undefined
 }
 
-export const urlForSession = (origin, sessionId) =>
-  sessionId === undefined ? origin : `${origin}${SESSION_PATH}${encodeURIComponent(sessionId)}`
+export const urlForSession = (pageUrl, sessionId) => {
+  if (sessionId === undefined) return pageUrl
+  const url = new URL(pageUrl)
+  const target = `${SESSION_PATH}${encodeURIComponent(sessionId)}`
+  if (url.pathname !== HOST_SESSION_PATH) return `${url.origin}${target}`
+  url.searchParams.set('next', target)
+  return url.href
+}
 
 export function createApnsBridge({
   secret,
@@ -94,7 +102,7 @@ export function createApnsBridge({
 
   return {
     attach: (url) => {
-      origin = url
+      origin = new URL(url).origin
       void sendToken()
       void sendOpened()
     },
