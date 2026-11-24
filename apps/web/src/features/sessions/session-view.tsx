@@ -35,6 +35,7 @@ import { sessionTranscriptOf } from './data/session-transcript'
 import { useDiagramRepairedTranscript } from './data/use-session-diagram-transcript'
 import { useSessionMarkRead } from './data/use-session-mark-read'
 import { useSessionModelChoice } from './data/use-session-model-choice'
+import { useModelSwitchRetry } from './data/use-model-switch-retry'
 import { useSessionRunFailure } from './data/use-session-run-failure'
 import { useCredentialRepair } from './data/use-credential-repair'
 import { sessionViewModelOf } from './data/session-view-model'
@@ -194,7 +195,9 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     onRestoreAttachments: composer.attachments.restore,
   })
 
-  const handleRetry = () => retrySessionNow(sessionId)
+  const handleRetry = async () => {
+    await retrySessionNow(sessionId)
+  }
   const handleStop = () => void stopSession({ api: sessionsApi, sessionId, notify: toast.error })
   const handleOpenPodSize = useCallback(() => {
     pane.openTab(ESessionPaneTab.Details)
@@ -247,11 +250,12 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     () => composerEntriesOf({ commands: commandEntries, skills: skillEntries }),
     [commandEntries, skillEntries],
   )
-  const repairSelected = useRef<(() => void) | null>(null)
+  const switchRetry = useModelSwitchRetry()
   const choice = useSessionModelChoice({
     sessionId,
     current: sessionModelOf(listed),
-    onSelected: () => repairSelected.current?.(),
+    onSelected: switchRetry.handleModelSelected,
+    onClosed: switchRetry.disarm,
   })
   const composerActions = useMemo(
     () =>
@@ -266,16 +270,15 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     mainThreadId: listed?.mainThreadId,
     events: snapshot.events,
     onSwitchModel: () => choice.setOpen(true),
+    retryAfterModel: switchRetry,
   })
-  useEffect(() => {
-    repairSelected.current = repair.handleModelSelected
-  }, [repair.handleModelSelected])
   const failure = useSessionRunFailure({
     sessionId,
     events: snapshot.events,
     working,
     openAgent,
     onSwitchModel: () => choice.setOpen(true),
+    retryAfterModel: switchRetry,
     repair,
   })
 

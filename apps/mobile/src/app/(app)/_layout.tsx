@@ -4,6 +4,7 @@ import { Platform, StyleSheet, View } from 'react-native'
 
 import { useAuth } from '../../auth/auth-provider'
 import { EControlsPlacement } from '../../layout/posture'
+import { RailContentFrame } from '../../layout/rail-content-frame'
 import { PostureProvider, usePosture } from '../../layout/use-posture'
 import { AccountButton } from '../../navigation/account-button'
 import { AppControls } from '../../navigation/app-controls'
@@ -112,7 +113,9 @@ export default function AppLayout() {
     <PostureProvider>
       <InAppNoticesProvider>
         <View style={styles.root}>
-          <AppStack />
+          <RailContentFrame>
+            <AppStack />
+          </RailContentFrame>
           <AppControls />
         </View>
       </InAppNoticesProvider>

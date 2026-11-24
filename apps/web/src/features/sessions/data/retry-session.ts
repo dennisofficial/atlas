@@ -11,13 +11,15 @@ export async function retrySession(args: {
   sessionId: string
   agentId?: string
   notify: (message: string) => void
-}): Promise<void> {
+}): Promise<boolean> {
   try {
     await args.api.retry({
       sessionId: args.sessionId,
       ...(args.agentId === undefined ? {} : { agentId: args.agentId }),
     })
+    return true
   } catch (failure) {
     args.notify(messageOf(failure))
+    return false
   }
 }

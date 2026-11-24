@@ -2,10 +2,12 @@ import { describe, expect, it } from 'bun:test'
 
 import { ScriptedModel } from '@dltech/atlas-agent/testing'
 import {
+  EFinishReason,
   EProviderFailureKind,
   EProviderFailureScope,
   EProviderRetry,
   ERunFailureKind,
+  RETRY_NUDGE,
   type V2Event,
 } from '@dltech/atlas-core'
 
@@ -34,6 +36,11 @@ const eventsOf = async (rig: HolderRig): Promise<V2Event[]> =>
 const authFailed = async (rig: HolderRig): Promise<boolean> =>
   (await eventsOf(rig)).some(
     (event) => event.type === 'run-failed' && event.failure.kind === ERunFailureKind.Auth,
+  )
+
+const finishFailed = async (rig: HolderRig): Promise<boolean> =>
+  (await eventsOf(rig)).some(
+    (event) => event.type === 'run-failed' && event.failure.kind === ERunFailureKind.FinishFault,
   )
 
 const retryOf = async (rig: HolderRig, payload: string) => {
@@ -84,6 +91,76 @@ describe('a retry after a turn failed on a credential', () => {
     expect(after.filter((event) => event.type === 'assistant-said')).toMatchObject([
       { parts: [{ type: 'text', text: 'after the retry' }] },
     ])
+  })
+
+  it('reopens a reply the safety filter cut short', async () => {
+    const model = new ScriptedModel([
+      { text: 'partial', finishReason: EFinishReason.ContentFilter },
+      { text: 'after the retry' },
+    ])
+    const rig = await makeRig({ model: () => model })
+    await seedSession(rig)
+    await rig.post('do the work')
+    await rig.holder.start()
+    await rig.wake()
+    expect(await flushUntil({ check: async () => await finishFailed(rig), clock: rig.clock })).toBe(
+      true,
+    )
+    await rig.flush()
+    const before = await eventsOf(rig)
+    expect(before.filter((event) => event.type === 'assistant-said')).toMatchObject([
+      { parts: [{ type: 'text', text: 'partial' }] },
+    ])
+
+    await retryOf(rig, '{}')
+    expect(
+      await flushUntil({
+        check: async () =>
+          (await eventsOf(rig)).filter((event) => event.type === 'assistant-said').length === 2,
+        clock: rig.clock,
+        advanceMs: 60_000,
+        attempts: 200,
+      }),
+    ).toBe(true)
+
+    const after = await eventsOf(rig)
+    expect(after.filter((event) => event.type === 'assistant-said')).toMatchObject([
+      { parts: [{ type: 'text', text: 'partial' }] },
+      { parts: [{ type: 'text', text: 'after the retry' }] },
+    ])
+    expect(after.filter((event) => event.type === 'nudge')).toMatchObject([{ text: RETRY_NUDGE }])
+  })
+
+  it('adds one reopening nudge when two retries arrive together', async () => {
+    const model = new ScriptedModel([
+      { text: 'partial', finishReason: EFinishReason.ContentFilter },
+      { text: 'after the retry' },
+    ])
+    const rig = await makeRig({ model: () => model })
+    await seedSession(rig)
+    await rig.post('do the work')
+    await rig.holder.start()
+    await rig.wake()
+    expect(await flushUntil({ check: async () => await finishFailed(rig), clock: rig.clock })).toBe(
+      true,
+    )
+    await rig.flush()
+
+    await rig.plane.post({ sessionId: SESSION, kind: 'retry', payload: '{}' })
+    await rig.plane.post({ sessionId: SESSION, kind: 'retry', payload: '{}' })
+    await rig.wake()
+    expect(
+      await flushUntil({
+        check: async () =>
+          (await eventsOf(rig)).filter((event) => event.type === 'assistant-said').length === 2,
+        clock: rig.clock,
+        advanceMs: 60_000,
+        attempts: 200,
+      }),
+    ).toBe(true)
+
+    const events = await eventsOf(rig)
+    expect(events.filter((event) => event.type === 'nudge')).toMatchObject([{ text: RETRY_NUDGE }])
   })
 
   it('keeps the ordinary resume a failure that has no repair', async () => {

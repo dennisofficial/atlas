@@ -11,7 +11,8 @@ import { Sidebar } from '../ui/components/sidebar'
 import { Spans, type Span } from '../ui/components/spans'
 import { Transcript } from '../ui/components/transcript'
 import { createKeyRegistry, KeyRegistryContext } from '../ui/keys'
-import { MIN_TRANSCRIPT_WIDTH, SIDEBAR_WIDTH, theme } from '../ui/theme'
+import { MIN_TRANSCRIPT_WIDTH, theme } from '../ui/theme'
+import { sidebarWidth } from '../ui/sidebar-width-store'
 import { shellSnapshotOf } from '../ui/shells-model'
 import type { PendingRow, SidebarModel } from '../store'
 import { isDrawerShellRunning } from './drawer-shells'
@@ -89,7 +90,7 @@ export function ChatScreen(props: {
   const contentWidth =
     props.sidebar === null
       ? props.width
-      : Math.max(MIN_TRANSCRIPT_WIDTH, props.width - SIDEBAR_WIDTH)
+      : Math.max(MIN_TRANSCRIPT_WIDTH, props.width - sidebarWidth())
 
   const sidebarShells = useMemo(
     () => shells.rows.filter(isDrawerShellRunning).map(shellSnapshotOf),
@@ -196,7 +197,7 @@ export function ChatScreen(props: {
           </box>
           {props.sidebar === null ? null : (
             <Sidebar
-              width={SIDEBAR_WIDTH}
+              width={sidebarWidth()}
               model={props.sidebar}
               root={props.sidebarRoot}
               worktree={null}

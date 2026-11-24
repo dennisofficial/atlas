@@ -48,6 +48,15 @@ export type ModelsReply = Awaited<ReturnType<ApiClient['models']['list']['query'
 export type SkillCatalogueReply = Awaited<ReturnType<ApiClient['skillCatalogue']['list']['query']>>
 export type ModelsEntry = ModelsReply['providers'][number]['models'][number]
 export type ModelsProvider = ModelsReply['providers'][number]
+export type SettingRow = { key: string; value: string }
+export type SettingWriteBody = Parameters<ApiClient['settings']['set']['mutate']>[0]
+export type SettingRemoveBody = Parameters<ApiClient['settings']['remove']['mutate']>[0]
+export type SecretPutBody = Parameters<ApiClient['secrets']['set']['mutate']>[0]
+export type SecretNameBody = Parameters<ApiClient['secrets']['remove']['mutate']>[0]
+export type SigningKeyStatus = Awaited<ReturnType<ApiClient['sshSigningKey']['status']['query']>>
+export type GithubState = Awaited<ReturnType<ApiClient['github']['get']['query']>>
+export type GithubDeviceCodes = Awaited<ReturnType<ApiClient['github']['beginConnect']['mutate']>>
+export type GithubPollResult = Awaited<ReturnType<ApiClient['github']['pollConnect']['mutate']>>
 
 export type SessionApi = {
   post(input: SessionPostInput): Promise<SessionPostOutput>
@@ -77,6 +86,19 @@ export type SessionApi = {
   unsubscribe(input: SessionUnsubscribeInput): Promise<SessionUnsubscribeOutput>
   changes(input: SessionChangesInput): Promise<SessionChangesOutput>
   reportPresence(input: PresenceBody): Promise<void>
+  listSettings(): Promise<readonly SettingRow[]>
+  setSetting(input: SettingWriteBody): Promise<void>
+  removeSetting(input: SettingRemoveBody): Promise<void>
+  secretNames(): Promise<readonly string[]>
+  putSecret(input: SecretPutBody): Promise<void>
+  removeSecret(input: SecretNameBody): Promise<void>
+  signingKeyStatus(): Promise<SigningKeyStatus>
+  registerSigningKey(input: { privateKey: string }): Promise<SigningKeyStatus>
+  revokeSigningKey(): Promise<void>
+  githubState(): Promise<GithubState>
+  beginGithubConnect(): Promise<GithubDeviceCodes>
+  pollGithubConnect(input: { deviceCode: string }): Promise<GithubPollResult>
+  disconnectGithub(): Promise<void>
 }
 
 const authStatusOf = (failure: unknown): AuthRefusal | null => {
@@ -164,6 +186,37 @@ export const sessionApiOf = (args: {
       } catch {
         return
       }
+    },
+    listSettings: async () => {
+      const reply = await guarded(() => args.api.settings.list.query())
+      return reply.settings
+    },
+    setSetting: async (input) => {
+      await guarded(() => args.api.settings.set.mutate(input))
+    },
+    removeSetting: async (input) => {
+      await guarded(() => args.api.settings.remove.mutate(input))
+    },
+    secretNames: async () => {
+      const reply = await guarded(() => args.api.secrets.details.query())
+      return reply.secrets.map((secret) => secret.name)
+    },
+    putSecret: async (input) => {
+      await guarded(() => args.api.secrets.set.mutate(input))
+    },
+    removeSecret: async (input) => {
+      await guarded(() => args.api.secrets.remove.mutate(input))
+    },
+    signingKeyStatus: () => guarded(() => args.api.sshSigningKey.status.query()),
+    registerSigningKey: (input) => guarded(() => args.api.sshSigningKey.register.mutate(input)),
+    revokeSigningKey: async () => {
+      await guarded(() => args.api.sshSigningKey.revoke.mutate())
+    },
+    githubState: () => guarded(() => args.api.github.get.query()),
+    beginGithubConnect: () => guarded(() => args.api.github.beginConnect.mutate()),
+    pollGithubConnect: (input) => guarded(() => args.api.github.pollConnect.mutate(input)),
+    disconnectGithub: async () => {
+      await guarded(() => args.api.github.disconnect.mutate())
     },
   }
 }

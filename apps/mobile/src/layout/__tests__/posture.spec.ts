@@ -2,9 +2,11 @@ import { describe, expect, it } from 'bun:test'
 
 import {
   BOTTOM_BAR_CLEARANCE,
+  contentInsetsOf,
   EControlsPlacement,
   EThreadsLayout,
   postureOf,
+  RAIL_BOTTOM_GAP,
   RAIL_MIN_INSET,
 } from '../posture'
 
@@ -22,7 +24,8 @@ describe('postureOf', () => {
       controls: EControlsPlacement.Rail,
       threads: EThreadsLayout.Stacked,
       railWidth: 80,
-      clearance: { right: 80, bottom: 0 },
+      railBottom: RAIL_BOTTOM_GAP,
+      clearance: { bottom: 0 },
     })
   })
 
@@ -33,7 +36,8 @@ describe('postureOf', () => {
       controls: EControlsPlacement.BottomBar,
       threads: EThreadsLayout.Overlay,
       railWidth: 0,
-      clearance: { right: 0, bottom: 20 + BOTTOM_BAR_CLEARANCE },
+      railBottom: 20 + RAIL_BOTTOM_GAP,
+      clearance: { bottom: 20 + BOTTOM_BAR_CLEARANCE },
     })
   })
 
@@ -55,13 +59,35 @@ describe('postureOf', () => {
       controls: EControlsPlacement.Rail,
       threads: EThreadsLayout.Panel,
       railWidth: 80,
-      clearance: { right: 80, bottom: 0 },
+      railBottom: RAIL_BOTTOM_GAP,
+      clearance: { bottom: 0 },
     })
+  })
+
+  it('anchors the rail above the bottom inset so a taller system column never covers it', () => {
+    expect(
+      postureOf({ width: 470, height: 690, insets: insets({ top: 240, right: 80, bottom: 21 }) })
+        .railBottom,
+    ).toBe(21 + RAIL_BOTTOM_GAP)
   })
 
   it('measures wideness without the side insets', () => {
     expect(postureOf({ width: 660, height: 900, insets: insets({ right: 80 }) }).threads).toBe(
       EThreadsLayout.Stacked,
     )
+  })
+})
+
+describe('contentInsetsOf', () => {
+  it('gives the rail column to the rail so screens inside the frame see no right inset', () => {
+    const window = insets({ top: 0, right: 80, bottom: 21 })
+    const posture = postureOf({ width: 470, height: 690, insets: window })
+    expect(contentInsetsOf({ insets: window, posture })).toEqual(insets({ bottom: 21 }))
+  })
+
+  it('keeps every inset when the controls are a bottom bar', () => {
+    const window = insets({ top: 54, left: 59, right: 59, bottom: 20 })
+    const posture = postureOf({ width: 932, height: 430, insets: window })
+    expect(contentInsetsOf({ insets: window, posture })).toEqual(window)
   })
 })

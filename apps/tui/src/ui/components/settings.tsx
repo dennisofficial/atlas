@@ -131,7 +131,7 @@ export function Settings(props: {
   cloudDownload: CloudSyncState
   github?: GithubAccountView | undefined
   signingKey?: SigningKeyAccountView | undefined
-  qualityHealth: QualityHealthStatusProps
+  qualityHealth?: QualityHealthStatusProps | undefined
   onSignOut: () => void
   onSignIn: () => void
   onOpenSignInUrl: () => void
@@ -228,7 +228,7 @@ export function Settings(props: {
                   {...(props.signingKey === undefined ? {} : { signingKey: props.signingKey })}
                 />
               ) : null}
-              {onQualityPage ? (
+              {onQualityPage && props.qualityHealth !== undefined ? (
                 <QualityHealthStatus
                   read={props.qualityHealth.read}
                   enabled={props.qualityHealth.enabled}

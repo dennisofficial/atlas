@@ -60,7 +60,9 @@ export function createApnsBridge({
   const historyGroupsOf = async () => {
     try {
       const history = await notifications.getHistory()
-      return history.flatMap((entry) => (entry.groupId ? [entry.groupId] : []))
+      const groupIds = history.flatMap((entry) => (entry.groupId ? [entry.groupId] : []))
+      for (const entry of history) entry.close()
+      return groupIds
     } catch {
       return []
     }

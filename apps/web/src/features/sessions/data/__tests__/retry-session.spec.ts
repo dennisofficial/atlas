@@ -6,7 +6,7 @@ describe('retrySession', () => {
   it('retries the session once', async () => {
     const calls: unknown[] = []
     const notices: string[] = []
-    await retrySession({
+    const retried = await retrySession({
       api: {
         retry: (input) => {
           calls.push(input)
@@ -16,6 +16,7 @@ describe('retrySession', () => {
       sessionId: 's1',
       notify: (message) => notices.push(message),
     })
+    expect(retried).toBe(true)
     expect(calls).toEqual([{ sessionId: 's1' }])
     expect(notices).toEqual([])
   })
@@ -38,11 +39,12 @@ describe('retrySession', () => {
 
   it('reports a failed retry instead of throwing', async () => {
     const notices: string[] = []
-    await retrySession({
+    const retried = await retrySession({
       api: { retry: () => Promise.reject(new Error('nope')) },
       sessionId: 's1',
       notify: (message) => notices.push(message),
     })
+    expect(retried).toBe(false)
     expect(notices).toEqual(['nope'])
   })
 })

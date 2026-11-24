@@ -192,6 +192,7 @@ export class InboxIntake implements AgentIntake {
         : new Set<number>()
     const drained = await drainEntries({
       entries,
+      events: before,
       scope: this.args.scope,
       resolved,
       superseded,

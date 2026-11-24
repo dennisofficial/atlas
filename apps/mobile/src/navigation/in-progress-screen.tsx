@@ -10,15 +10,7 @@ export const InProgressScreen = ({ tab }: { tab: EAppTab }) => {
   const theme = useTheme()
   const posture = usePosture()
   return (
-    <View
-      style={[
-        styles.root,
-        {
-          paddingRight: posture.clearance.right,
-          paddingBottom: posture.clearance.bottom,
-        },
-      ]}
-    >
+    <View style={[styles.root, { paddingBottom: posture.clearance.bottom }]}>
       <Icon icon={TAB_ICONS[tab]} color={theme.mutedForeground} size={32} />
       <Text size={ETextRole.Sm} tone={ETextTone.Muted}>
         In progress
