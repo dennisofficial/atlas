@@ -70,7 +70,7 @@ describe('settlementOf', () => {
     expect(settlement.notices).toEqual(['session is archived'])
   })
 
-  it('restores the text of a withdrawn message without a notice', () => {
+  it('drops a withdrawn message without restoring it', () => {
     const settlement = settlementOf({
       staged: STAGED,
       events: eventsOf([
@@ -86,7 +86,7 @@ describe('settlementOf', () => {
       ]),
     })
     expect(settlement.kept).toEqual([])
-    expect(settlement.restored).toEqual([{ text: 'first', attachments: [] }])
+    expect(settlement.restored).toEqual([])
     expect(settlement.notices).toEqual([])
   })
 

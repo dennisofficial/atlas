@@ -38,6 +38,7 @@ export const settlementOf = (args: {
       if (unread.has(entry.clientId)) settlement.kept.push(entry)
       continue
     }
+    if (outcome.outcome === EStagedOutcome.Withdrawn) continue
     if (outcome.reason === ALREADY_SENT_REASON) {
       settlement.notices.push('Already sent')
       continue

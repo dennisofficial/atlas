@@ -223,6 +223,7 @@ export function useV2SessionScreen(args: {
   const withdrawQueued = useWithdrawQueued({
     sessionId,
     pending: snapshot.pending,
+    events: snapshot.events,
     onRefused: setNotice,
     onRestore: restoreToComposer,
   })
