@@ -1,4 +1,6 @@
 {
   "hash": "f14deed4b0f53291f5db262e9f79d1b19487fd654b4842787af371390390c4bd",
-  "invariants": []
+  "invariants": [
+    "pg-squeeze-github-webhook-inbox"
+  ]
 }

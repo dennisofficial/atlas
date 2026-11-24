@@ -1,0 +1,24 @@
+[
+  {
+    "id": "extension.pg_squeeze",
+    "invariantId": "pg-squeeze-github-webhook-inbox",
+    "label": "Squeeze public.GithubWebhookInbox daily at 09:30 UTC",
+    "operationClass": "data",
+    "target": {
+      "id": "extension.pg_squeeze",
+      "details": {
+        "schema": "public",
+        "objectType": "dependency",
+        "name": "pg_squeeze"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "Enable pg_squeeze where the server provides it and schedule GithubWebhookInbox",
+        "sql": "DO $$\nBEGIN\n  BEGIN\n    CREATE EXTENSION IF NOT EXISTS pg_squeeze;\n  EXCEPTION\n    WHEN undefined_file OR feature_not_supported OR object_not_in_prerequisite_state THEN\n      RAISE NOTICE 'pg_squeeze not available, skipped';\n  END;\n  IF to_regclass('squeeze.tables') IS NULL THEN\n    RAISE NOTICE 'pg_squeeze not available, skipped';\n    RETURN;\n  END IF;\n  INSERT INTO squeeze.tables (tabschema, tabname, schedule)\n  SELECT 'public', 'GithubWebhookInbox', ('{30}', '{9}', NULL, NULL, NULL)::squeeze.schedule\n  WHERE NOT EXISTS (\n    SELECT 1 FROM squeeze.tables WHERE tabschema = 'public' AND tabname = 'GithubWebhookInbox'\n  );\nEND\n$$"
+      }
+    ],
+    "postcheck": []
+  }
+]
