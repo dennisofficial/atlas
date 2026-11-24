@@ -1,4 +1,4 @@
-import { EKilledBy, EShellStatus } from '@dltech/atlas-core'
+import { EKilledBy, EShellStatus, oneLine } from '@dltech/atlas-core'
 
 import { stripAnsi } from './ansi'
 import { formatElapsed } from './theme'
@@ -121,7 +121,7 @@ export function shellSidebarReadout(args: { shell: ShellSnapshot; now: number })
   return shellReadout(args)
 }
 
-export const shellCommandLabel = (command: string): string => command.replace(/\s+/g, ' ').trim()
+export const shellCommandLabel = (command: string): string => oneLine(command)
 
 /**
  * What a human scanning the panel reads. The description is the name the model gave the job and the

@@ -1,4 +1,5 @@
 import { clipText } from '../../text/clip-text'
+import { oneLine } from '../../text/one-line'
 import type { ERiskDimension } from './dimension'
 import type { RiskSignal } from './signals'
 
@@ -23,8 +24,6 @@ const VERDICT = /<verdict\s*>\s*(proceed|check)\s*<\/verdict\s*>/i
 const REASON = /<reason\s*>([\s\S]*?)<\/reason\s*>/i
 
 const REASON_LIMIT = 300
-
-const collapsed = (text: string): string => text.replace(/\s+/g, ' ').trim()
 
 const clipped = (text: string): string => clipText({ text, limit: REASON_LIMIT })
 
@@ -81,7 +80,7 @@ export function parseVerdict({
     }
   }
 
-  const reason = clipped(collapsed(spoken.match(REASON)?.[1] ?? ''))
+  const reason = clipped(oneLine(spoken.match(REASON)?.[1] ?? ''))
   if (declared === EJudgment.Proceed) {
     return { verdict: { judgment: EJudgment.Proceed, reason }, fault: undefined }
   }
