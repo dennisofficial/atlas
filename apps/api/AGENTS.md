@@ -375,8 +375,8 @@ one exact version. Bump all three at once.
   `TimestamptzJsDate` columns need no `Temporal`, which Node 24 lacks. `bun run trigger:deploy -- --dry-run` proves the build but not the runtime.
   The smoke step is what proves the runtime.
 - **Timers run only where asked.** `GithubSweepSchedulerService` owns the 30 s and 60 s
-  `@Interval`s. `ScheduleModule` is imported only when `GITHUB_SWEEPS_IN_PROCESS=1`, which the
-  `dev` script sets. `bun run dev` keeps sweeping, while the Render service and trigger.dev
+  intervals. It starts them on bootstrap only when `EnvService` reads `GITHUB_SWEEPS_IN_PROCESS=1`,
+  which the `dev` script sets. `bun run dev` keeps sweeping, while the Render service and trigger.dev
   instances never run timers. Prod sweeps are trigger.dev schedules.
 
 ## Rules that differ from the rest of the repo
