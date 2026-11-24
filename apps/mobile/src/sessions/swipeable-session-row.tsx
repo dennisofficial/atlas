@@ -106,10 +106,10 @@ export const SwipeableSessionRow = ({
   return (
     <ReanimatedSwipeable
       ref={swipeRef}
-      friction={2}
+      friction={1}
       rightThreshold={ACTION_WIDTH / 2}
       overshootRight
-      overshootFriction={8}
+      overshootFriction={1}
       onSwipeableOpen={handleOpen}
       onSwipeableClose={handleClose}
       childrenContainerStyle={[styles.row, { backgroundColor: theme.sidebar }]}
