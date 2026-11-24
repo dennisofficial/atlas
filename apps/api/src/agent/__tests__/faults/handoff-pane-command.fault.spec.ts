@@ -16,6 +16,7 @@ const SPAWNED_TEXT = 'waiting for a message'
 const CHILD_IDLE = `PANE-CHILD-${RUN} waiting`
 const CHILD_REPLY = `PANE-CHILD-${RUN} heard it`
 const NOTED = 'noted'
+const CHILD_HOLD_MS = 5_000
 
 const KNOBS: HostKnobs = { plugins: true }
 
@@ -98,6 +99,8 @@ const expectOneOutcome = async (ctx: HandoffContext): Promise<void> => {
   expect(outcomes).toHaveLength(1)
   expect(outcomes[0]).toMatchObject({ inboxId: consumed[0]?.inboxId, name: 'agent' })
   await expectOneDelivery(ctx)
+  const replies = await repliesOf(ctx)
+  if (replies !== 1) fail(`the sub-agent answered the message ${replies} times, wanted 1`)
 }
 
 describeHandoff({
@@ -135,7 +138,10 @@ describeHandoff({
           { text: NOTED },
           { text: NOTED },
         ],
-        [`${ctx.sessionId}#${BRIEF}@host-a`]: [{ text: CHILD_IDLE }, { text: NOTED }],
+        [`${ctx.sessionId}#${BRIEF}@host-a`]: [
+          { text: CHILD_IDLE, streamMs: CHILD_HOLD_MS },
+          { text: NOTED },
+        ],
       },
     })
     await ctx.rig.claim({ sessionId: ctx.sessionId, label: 'host-a', timeoutMs: 30_000 })
@@ -152,9 +158,9 @@ describeHandoff({
     await ctx.rig.wake(ctx.sessionId)
     await waitForLog({ host: hostA, text: 'fault: command outcome hangs', timeoutMs: 60_000 })
     await waitUntil({
-      what: 'the sub-agent to answer the message it received',
+      what: 'the sub-agent to receive the message while its first turn still holds',
       timeoutMs: 60_000,
-      check: async () => (await repliesOf(ctx)) === 1,
+      check: async () => (await saidEventsOf(ctx)) === 1,
     })
     await expectOneDelivery(ctx)
     expect(await outcomesOf(ctx)).toHaveLength(0)
