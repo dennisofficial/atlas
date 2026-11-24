@@ -20,7 +20,8 @@ const isSpan = (value: unknown): boolean =>
   typeof value.createdAt === 'number' &&
   typeof value.fromSeq === 'number' &&
   typeof value.throughSeq === 'number' &&
-  typeof value.keepSurvivors === 'boolean'
+  typeof value.keepSurvivors === 'boolean' &&
+  (value.keepTurns === undefined || typeof value.keepTurns === 'boolean')
 
 export const isVisibility = (value: unknown): value is VisibilityState =>
   isRecord(value) && Array.isArray(value.spans) && value.spans.every(isSpan)

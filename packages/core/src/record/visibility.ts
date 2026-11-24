@@ -7,6 +7,7 @@ export type HiddenSpan = {
   fromSeq: number
   throughSeq: number
   keepSurvivors: boolean
+  keepTurns: boolean
 }
 
 export type VisibilityState = { spans: HiddenSpan[] }
@@ -17,6 +18,8 @@ export const EMPTY_VISIBILITY: VisibilityState = { spans: [] }
 
 const SURVIVOR_TYPES: readonly V2EventType[] = KEPT_THROUGH_COMPACTION
 
+const TURN_END_TYPES: readonly V2EventType[] = ['turn-ended']
+
 export function stepVisibility(state: VisibilityState, event: V2Event): VisibilityState {
   if (event.type === 'history-rewound') {
     const kept = state.spans.filter((span) => span.createdAt <= event.toSeq)
@@ -25,6 +28,7 @@ export function stepVisibility(state: VisibilityState, event: V2Event): Visibili
       fromSeq: event.toSeq + 1,
       throughSeq: event.seq,
       keepSurvivors: false,
+      keepTurns: true,
     }
     return { spans: [...kept, span] }
   }
@@ -34,6 +38,7 @@ export function stepVisibility(state: VisibilityState, event: V2Event): Visibili
       fromSeq: event.fromSeq,
       throughSeq: event.throughSeq,
       keepSurvivors: true,
+      keepTurns: false,
     }
     return { spans: [...state.spans, span] }
   }
@@ -43,17 +48,39 @@ export function stepVisibility(state: VisibilityState, event: V2Event): Visibili
 const covers = (params: { span: HiddenSpan; seq: number }): boolean =>
   params.span.fromSeq <= params.seq && params.seq <= params.span.throughSeq
 
+const keptTypesOf = (span: HiddenSpan): readonly V2EventType[] => {
+  const survivors = span.keepSurvivors ? SURVIVOR_TYPES : []
+  const turns = span.keepTurns ? TURN_END_TYPES : []
+  return [...survivors, ...turns]
+}
+
+const keptBy = (params: { span: HiddenSpan; type: V2EventType }): boolean =>
+  (params.span.keepSurvivors && SURVIVOR_TYPES.includes(params.type)) ||
+  (params.span.keepTurns && TURN_END_TYPES.includes(params.type))
+
 export const isVisible = (state: VisibilityState, event: Pick<V2Event, 'seq' | 'type'>): boolean =>
   !state.spans.some(
-    (span) =>
-      covers({ span, seq: event.seq }) &&
-      !(span.keepSurvivors && SURVIVOR_TYPES.includes(event.type)),
+    (span) => covers({ span, seq: event.seq }) && !keptBy({ span, type: event.type }),
   )
 
 export const isSurviving = (
   state: VisibilityState,
   event: Pick<V2Event, 'seq' | 'type'>,
 ): boolean => !state.spans.some((span) => !span.keepSurvivors && covers({ span, seq: event.seq }))
+
+const intersectTypes = (lists: readonly (readonly V2EventType[])[]): V2EventType[] => {
+  const [first, ...rest] = lists
+  if (first === undefined) return []
+  return first.filter((type) => rest.every((list) => list.includes(type)))
+}
+
+const sameTypes = (
+  left: readonly V2EventType[] | undefined,
+  right: readonly V2EventType[] | undefined,
+): boolean => {
+  if (left === undefined || right === undefined) return left === right
+  return left.length === right.length && left.every((type) => right.includes(type))
+}
 
 export function visibleSegments(params: {
   state: VisibilityState
@@ -75,29 +102,57 @@ export function visibleSegments(params: {
     const start = points[index] as number
     const end = (points[index + 1] as number) - 1
     const covering = state.spans.filter((span) => covers({ span, seq: start }))
-    if (covering.some((span) => !span.keepSurvivors)) continue
-    const onlySurvivors = covering.length > 0
+    const kept = covering.map(keptTypesOf)
+    if (kept.some((types) => types.length === 0)) continue
+    const onlyTypes = kept.length === 0 ? undefined : intersectTypes(kept)
+    if (onlyTypes !== undefined && onlyTypes.length === 0) continue
     const last = segments[segments.length - 1]
     if (
       last !== undefined &&
       last.throughSeq === start - 1 &&
-      (last.onlyTypes !== undefined) === onlySurvivors
+      sameTypes(last.onlyTypes, onlyTypes)
     ) {
       last.throughSeq = end
       continue
     }
     segments.push(
-      onlySurvivors
-        ? { fromSeq: start, throughSeq: end, onlyTypes: SURVIVOR_TYPES.slice() }
-        : { fromSeq: start, throughSeq: end },
+      onlyTypes === undefined
+        ? { fromSeq: start, throughSeq: end }
+        : { fromSeq: start, throughSeq: end, onlyTypes },
     )
   }
   return segments
 }
 
+const turnStartSeqs = (events: readonly V2Event[]): ReadonlyMap<number, number> => {
+  const open = new Map<string, number>()
+  const starts = new Map<number, number>()
+  for (const event of events) {
+    if (event.type === 'turn-started') open.set(event.turnId, event.seq)
+    if (event.type === 'turn-ended') {
+      const start = open.get(event.turnId)
+      if (start !== undefined) starts.set(event.seq, start)
+    }
+  }
+  return starts
+}
+
+export function visibleWithin(params: {
+  state: VisibilityState
+  events: readonly V2Event[]
+}): V2Event[] {
+  const starts = turnStartSeqs(params.events)
+  return params.events.filter((event) => {
+    if (!isVisible(params.state, event)) return false
+    if (event.type !== 'turn-ended') return true
+    const start = starts.get(event.seq)
+    if (start === undefined) return true
+    return isVisible(params.state, { seq: start, type: 'turn-started' })
+  })
+}
+
 export function visibleEvents(events: readonly V2Event[]): V2Event[] {
-  const state = events.reduce(stepVisibility, EMPTY_VISIBILITY)
-  return events.filter((event) => isVisible(state, event))
+  return visibleWithin({ state: events.reduce(stepVisibility, EMPTY_VISIBILITY), events })
 }
 
 export const isFoldable = (state: VisibilityState, event: Pick<V2Event, 'seq' | 'type'>): boolean =>

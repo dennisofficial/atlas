@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'bun:test'
 import {
   ECompactionAnchor,
+  ETurnCause,
+  ETurnEndedBy,
+  ETurnOutcome,
+  openTurnOf,
   EWorkspaceStep,
   EWorkspaceStepState,
   workspaceStepsOf,
@@ -25,6 +29,29 @@ const page = (events: readonly V2Event[], head = headOf(events)) => ({
 })
 
 const seqsOf = (window: SessionWindow): number[] => window.events.map((event) => event.seq)
+
+describe('a rewind that landed inside a turn', () => {
+  it('keeps the end of the turn whose start it keeps', () => {
+    const events = mintEvents({
+      bodies: [
+        { type: 'user-said', text: 'm0' },
+        { type: 'turn-started', turnId: 'turn-1', cause: ETurnCause.Input },
+        { type: 'user-said', text: 'the message rewound to' },
+        {
+          type: 'turn-ended',
+          turnId: 'turn-1',
+          outcome: ETurnOutcome.Completed,
+          by: ETurnEndedBy.Agent,
+        },
+        { type: 'history-rewound', toSeq: 3 },
+      ],
+    })
+    const window = applyPage({ window: EMPTY_WINDOW, page: page(events) })
+
+    expect(seqsOf(window)).toEqual([1, 2, 3, 4])
+    expect(openTurnOf(window.events)).toBeNull()
+  })
+})
 
 describe('applyPage', () => {
   it('appends a page and moves the cursor to the page head', () => {

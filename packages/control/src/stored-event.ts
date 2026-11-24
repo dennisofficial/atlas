@@ -19,6 +19,7 @@ const visibilitySchema: z.ZodType<VisibilityState> = z.object({
       fromSeq: z.number().int(),
       throughSeq: z.number().int(),
       keepSurvivors: z.boolean(),
+      keepTurns: z.boolean().default(false),
     }),
   ),
 })
