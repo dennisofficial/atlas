@@ -88,7 +88,11 @@ export const adoptRecordOf = async (spec: RecordArgs): Promise<AdoptRecordResult
     ids: spec.args.deps.ids,
     threadId: spec.agentId,
     effectOf: (name) =>
-      spec.args.runtime.daemonTools.has(name) ? EToolEffect.Read : spec.args.runtime.effectOf(name),
+      spec.args.runtime.daemonTools.has(name) || spec.args.runtime.usesPodCall(name)
+        ? EToolEffect.Read
+        : spec.args.runtime.effectOf(name),
+    heldElsewhere: (call) =>
+      spec.args.runtime.remoteCalls.holdsPodCall({ runId: call.runId, callId: call.callId }),
   })
   return { ok: true, record: opened }
 }

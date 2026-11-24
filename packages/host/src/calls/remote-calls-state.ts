@@ -5,7 +5,7 @@ import type { CallResult, DaemonFrame } from '@dltech/atlas-protocol'
 
 import { Answers } from './answers'
 import { openCall, type CallLane, type OpenCallArgs } from './call-open'
-import { scopeDispatchedBootId } from './call-scope'
+import { scopeDispatchedBootId, scopeKeyOf, scopeToolName } from './call-scope'
 import { FencedError, ProtocolViolationError, type DaemonAnswer } from './errors'
 import { handleHello } from './hello-reply'
 import { DaemonLink } from './link'
@@ -28,6 +28,7 @@ type StateArgs = RemoteCallsArgs & { releaseResize(): void; resizeReason(): stri
 
 export class RemoteCallsState {
   private readonly pending = new Map<string, Pending>()
+  private readonly podTools = new Set<string>()
   private readonly acks: ScopeAcks
   private readonly answers: Answers
   private readonly link: DaemonLink
@@ -173,12 +174,28 @@ export class RemoteCallsState {
 
   async invoke(args: OpenCallArgs): Promise<CallResult> {
     const dispatchedBootId = args.dispatchedBootId ?? scopeDispatchedBootId()
+    const tool = scopeToolName()
+    if (tool !== undefined) this.podTools.add(tool)
     if (this.fenced) throw new FencedError(`session ${this.args.sessionId} lost its lease`)
     this.reopenIfDown()
     if (this.closed) {
       throw new FencedError(`session ${this.args.sessionId} closed its daemon link`)
     }
     return await openCall({ lane: this.lane, request: args, dispatchedBootId })
+  }
+
+  usesPodCall(tool: string): boolean {
+    return this.podTools.has(tool)
+  }
+
+  async holdsPodCall(args: { runId: string; callId: string }): Promise<boolean> {
+    try {
+      await this.ready()
+    } catch {
+      return false
+    }
+    const answer = await this.answers.ask(`${scopeKeyOf(args)}.0`)
+    return answer === EDaemonAnswer.Running || answer === EDaemonAnswer.Done
   }
 
   ack(args: { key: string }): Promise<void> {

@@ -122,6 +122,14 @@ export class RemoteCalls {
     return this.state.bootId()
   }
 
+  usesPodCall(tool: string): boolean {
+    return this.state.usesPodCall(tool)
+  }
+
+  holdsPodCall(args: { runId: string; callId: string }): Promise<boolean> {
+    return this.state.holdsPodCall(args)
+  }
+
   handoff(): void {
     this.gate.release()
     this.state.handoff()

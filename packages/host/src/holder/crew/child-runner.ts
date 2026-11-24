@@ -98,7 +98,8 @@ export const childRunnerOf = (args: {
       headSeq: () => record.eventCache().currentHead().seq,
       epoch: args.epoch,
     }),
-    detachTool: (tool) => args.isDraining() && runtime.daemonTools.has(tool),
+    detachTool: (tool) =>
+      args.isDraining() && (runtime.daemonTools.has(tool) || runtime.usesPodCall(tool)),
     launchDirectory: runtime.launchDirectory,
     normalizeFailure: runtime.normalizeFailure,
     retry: retryDepsFromTimers(deps.timers),

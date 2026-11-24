@@ -368,6 +368,7 @@ export const createSessionRuntimeFactory = (
       modelLabelOf,
       tools: registry,
       daemonTools: new Set(daemonToolList.map((tool) => tool.name)),
+      usesPodCall: (tool) => calls.usesPodCall(tool),
       effectOf: (name) => byName.get(name)?.effect,
       assembly: defaultPipeline({
         prompt: agentHostPrompt({

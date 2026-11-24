@@ -76,7 +76,12 @@ export const settleAndCheckResume = async (args: {
     record,
     ids: deps.ids,
     threadId,
-    effectOf: (name) => (runtime.daemonTools.has(name) ? EToolEffect.Read : runtime.effectOf(name)),
+    effectOf: (name) =>
+      runtime.daemonTools.has(name) || runtime.usesPodCall(name)
+        ? EToolEffect.Read
+        : runtime.effectOf(name),
+    heldElsewhere: (call) =>
+      runtime.remoteCalls.holdsPodCall({ runId: call.runId, callId: call.callId }),
   })
   await args.crew.adoptAll(
     await openChildren({ record, plane: deps.plane, sessionId: deps.sessionId, threadId }),
@@ -205,7 +210,8 @@ export const createLoopRunner = (args: {
       headSeq: () => record.eventCache().currentHead().seq,
       epoch: args.epoch,
     }),
-    detachTool: (tool) => args.isDraining() && runtime.daemonTools.has(tool),
+    detachTool: (tool) =>
+      args.isDraining() && (runtime.daemonTools.has(tool) || runtime.usesPodCall(tool)),
     launchDirectory: runtime.launchDirectory,
     normalizeFailure: runtime.normalizeFailure,
     retry: retryDepsFromTimers(deps.timers),

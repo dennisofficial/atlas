@@ -11,6 +11,7 @@ import { interruptedMessage } from './errors'
 type CallScope = {
   scopeKey: string
   next: number
+  tool?: string | undefined
   dispatchedBootId?: string | undefined
   attachOnly?: boolean | undefined
 }
@@ -30,6 +31,8 @@ export const markDispatched = (args: { bootId: string }): void => {
 }
 
 export const scopeDispatchedBootId = (): string | undefined => storage.getStore()?.dispatchedBootId
+
+export const scopeToolName = (): string | undefined => storage.getStore()?.tool
 
 export const runInCallScope = <T>(args: {
   scopeKey: string
@@ -64,6 +67,7 @@ export class ScopedToolDispatcher extends ToolDispatcher {
     const scope: CallScope = {
       scopeKey: scopeKeyOf({ runId: args.call.runId, callId: args.call.callId }),
       next: 0,
+      tool: args.call.name,
     }
     return storage.run(scope, async () => {
       try {

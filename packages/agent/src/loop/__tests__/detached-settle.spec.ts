@@ -11,6 +11,8 @@ import {
 
 import { FakeTool } from '../../testing'
 import { rigOf, THREAD } from '../../__tests__/exit-fixture'
+import { PauseSignal } from '../pause-signal'
+import { ETurnStatus } from '../turn-outcome'
 
 const CALL = toCallId('call-1')
 const RUN = toRunId('run-1')
@@ -33,6 +35,26 @@ class GatedTool extends FakeTool {
       this.release = resolve
     })
     return { ok: true, output: 'done', modelText: 'done' }
+  }
+}
+
+class InterruptedSettleTool extends FakeTool {
+  started = false
+  private release: (() => void) | undefined
+
+  releaseNow(): void {
+    this.release?.()
+  }
+
+  override async invoke(): Promise<ToolOutcome> {
+    this.started = true
+    await new Promise<void>((resolve) => {
+      this.release = resolve
+    })
+    return {
+      ok: false,
+      reason: 'service was interrupted by a process restart before its result was recorded',
+    }
   }
 }
 
@@ -106,5 +128,36 @@ describe('a call the drain detaches', () => {
 
     const state = loopStateOf({ events })
     expect(crashedCallsOf(state).map((call) => call.callId)).toEqual([CALL])
+  })
+
+  it("drops a pod call's synthetic result when the drain pauses the turn", async () => {
+    const tool = new InterruptedSettleTool('service', 'unused')
+    let draining = false
+    const rig = rigOf({
+      script: [{ calls: [{ callId: 'call-1', name: 'service', input: {} }] }, { text: 'done' }],
+      tools: [tool],
+      overrides: { detachTool: (name) => draining && name === 'service' },
+    })
+    await rig.record.append({
+      threadId: THREAD,
+      runId: RUN,
+      drafts: [{ type: 'user-said', text: 'start it' }],
+    })
+
+    const pause = new PauseSignal()
+    const abort = new AbortController()
+    const turn = rig.runner.runTurn({ threadId: THREAD, signal: abort.signal, pause })
+    await until(() => tool.started)
+    draining = true
+    pause.pause()
+    tool.releaseNow()
+    const outcome = await turn
+
+    expect(outcome.status).toBe(ETurnStatus.HandoffPaused)
+    const events = rig.record.eventsOf(THREAD)
+    expect(events.some((event) => event.type === 'tool-result')).toBe(false)
+    const state = loopStateOf({ events })
+    expect(crashedCallsOf(state).map((call) => call.callId)).toEqual([CALL])
+    expect(settleablePendingOf(state).map((call) => call.callId)).toEqual([CALL])
   })
 })

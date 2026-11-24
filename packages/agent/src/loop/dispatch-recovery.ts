@@ -13,6 +13,8 @@ type CrashIds = Pick<IdPort, 'nextRunId'>
 
 export type ToolEffectResolver = (name: string) => EToolEffect | undefined
 
+export type CallHeldElsewhere = (call: PendingCall) => Promise<boolean>
+
 export function crashedCallDraft(call: PendingCall) {
   return {
     type: 'tool-result' as const,
@@ -30,17 +32,23 @@ export async function settleCrashedCalls(args: {
   ids: CrashIds
   threadId: ThreadId
   effectOf: ToolEffectResolver
+  heldElsewhere?: CallHeldElsewhere | undefined
 }): Promise<readonly PendingCall[]> {
   const crashed = crashedCallsOf(await args.record.loopState({ threadId: args.threadId }))
   if (crashed.length === 0) return crashed
 
   const unrecoverable = crashed.filter((call) => args.effectOf(call.name) !== EToolEffect.Read)
-  if (unrecoverable.length === 0) return crashed
+  const settled: PendingCall[] = []
+  for (const call of unrecoverable) {
+    if (args.heldElsewhere !== undefined && (await args.heldElsewhere(call))) continue
+    settled.push(call)
+  }
+  if (settled.length === 0) return crashed
 
   await args.record.append({
     threadId: args.threadId,
     runId: args.ids.nextRunId(),
-    drafts: unrecoverable.map((call) => crashedCallDraft(call)),
+    drafts: settled.map((call) => crashedCallDraft(call)),
   })
   return crashed
 }

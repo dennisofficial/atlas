@@ -88,8 +88,9 @@ export class HeldDrain {
     const state = record?.eventCache().loopState()
     if (record === undefined || state === undefined) return
     const daemonTools = this.args.runtime()?.daemonTools
+    const usesPodCall = (name: string): boolean => this.args.runtime()?.usesPodCall(name) === true
     for (const call of crashedCallsOf(state)) {
-      if (daemonTools?.has(call.name) === true) continue
+      if (daemonTools?.has(call.name) === true || usesPodCall(call.name)) continue
       await record.append({
         threadId: call.threadId,
         runId: this.args.deps.ids.nextRunId(),

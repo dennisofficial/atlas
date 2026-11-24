@@ -224,6 +224,7 @@ export const makeRuntimeFactory = (args: {
       modelLabelOf: (ref) => refKey(ref),
       tools: fakeToolRegistry([new BashTool(calls, gate), ...(args.hostTools ?? [])]),
       daemonTools: new Set(['bash']),
+      usesPodCall: (tool) => tool === 'bash',
       ackedScopes,
       effectOf: () => EToolEffect.Read,
       assembly: defaultPipeline({

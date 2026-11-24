@@ -98,6 +98,7 @@ export type SessionRuntime = {
   modelOf(choice: ModelChoice): ModelPort
   tools: ToolRegistry
   daemonTools: ReadonlySet<string>
+  usesPodCall(tool: string): boolean
   effectOf: ToolEffectResolver
   assembly: AssemblyPipeline
   uploads?: SaidUploadsPort | undefined
