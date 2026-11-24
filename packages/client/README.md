@@ -61,8 +61,7 @@ The headless client library that web, the TUI and the mobile app share.
   step overlay. `overlaySignalsOf` and `overlayRewrote` give its step signals, append or rewrite.
 - `derivedViewOf`, `deriveViewOf`, `deriveStatusOf`, `frameFactsOf`: the view of a followed session.
   `sessionDisplayOf`, `isSessionUnreadOf`, `startFailureOf`: the status, unread mark, start failure.
-  `blockingCommandOf(status)` gives the running command that holds the next turn (summarise, rewind,
-  rotate, resume) with its wording; `elapsedClockOf` and `BLOCKING_SEND_NOTE` complete the strip.
+  `blockingCommandOf`, `elapsedClockOf`: the running command that holds the next turn, its clock.
 
 ### Read the pod channel
 
