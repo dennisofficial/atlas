@@ -9,6 +9,7 @@ import { liveBackgroundOf } from '@dltech/atlas-client/crew'
 import { mergedDraftOf } from '@dltech/atlas-client/session'
 import { ESessionConnection, startFailureOf } from '@dltech/atlas-client/stream'
 import { turnStartedAtOf } from '@dltech/atlas-client/transcript'
+import { pendingOperatorRequestOf } from '@dltech/atlas-plugin-operator/client'
 
 import { useV2Sessions } from '@/features/shell/use-v2-sessions'
 import { messageOf } from '@/features/threads/data/use-send'
@@ -58,7 +59,6 @@ import { useSessionCommands } from './data/use-session-commands'
 import { composerEntriesOf, requestResume, resumePendingOf } from './data/session-commands'
 import { composerActionsOf } from './data/session-composer-actions'
 import { useSessionSummarise } from './data/use-session-summarise'
-import { pendingOperatorRequestOf } from './data/use-operator-request'
 import { useSessionStream } from './data/use-session-stream'
 import { CommandRows } from './command-rows'
 import { CommandListDialog } from './command-list-dialog'
@@ -155,7 +155,10 @@ export function SessionView({ sessionId }: { sessionId: string }) {
       }),
     [snapshot.foldable, snapshot.status, snapshot.setupOutput, snapshot.connection],
   )
-  const operatorRequest = useMemo(() => pendingOperatorRequestOf(view.items), [view.items])
+  const operatorRequest = useMemo(
+    () => pendingOperatorRequestOf({ events: snapshot.events }),
+    [snapshot.events],
+  )
   const model = useMemo(() => sessionViewModelOf(snapshot.view), [snapshot.view])
   const background = useMemo(
     () =>

@@ -26,6 +26,7 @@ import { CommandListSheet } from '../../../thread/composer/command-list-sheet'
 import { Composer } from '../../../thread/composer/composer'
 import { ContextReading } from '../../../thread/composer/context-reading'
 import { StaleCard } from '../../../thread/composer/stale-card'
+import { OperatorRequestDock } from '../../../thread/components/operator-request-card'
 import { QueuedDock } from '../../../thread/components/queued-dock'
 import { SessionTitle } from '../../../thread/components/session-title'
 import { StartFailedCard } from '../../../thread/components/start-failed-card'
@@ -147,6 +148,7 @@ export default function SessionScreen() {
                 </View>
               )}
               <KeyboardDock>
+                <OperatorRequestDock operator={session.operator} />
                 {session.stale ? (
                   <View style={styles.operator}>
                     <StaleCard />

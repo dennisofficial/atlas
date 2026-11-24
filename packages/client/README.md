@@ -72,7 +72,7 @@ The headless client library that web, the TUI and the mobile app share.
 ### Build the transcript
 
 - `deriveTranscript(args)`, `assembleTranscript(args)`, `durableEntries(args)`, `EEntryKind`: the
-  transcript rows and the durable rows of a thread. `summariesAtTarget(events)`: the events with
+  transcript rows and the durable rows of a thread; `pluginEntries` adds a plugin's rows. `summariesAtTarget(events)`: the events with
   each compaction summary at its target.
 - `turnsBySeq(args)`, `settledAtOf(entries)`, `turnEndedEntry(turn)`: the turn rows and the settled
   time. `turnStartedAtOf(events)`: the open turn's start. `TurnSpend`, `totalSpend`, `SpendTotals` and `NOTHING_SPENT`: what a turn spent.

@@ -22,6 +22,7 @@ import { clientIdOfSend, settlementOf, type StagedSend } from './staged-send'
 import { useV2Session } from './use-v2-session'
 import { useSessionSummary } from './use-session-summary'
 import { useV2SessionCommands, type V2SessionCommands } from './use-v2-session-commands'
+import { useOperatorRequest, type OperatorRequestControl } from './use-operator-request'
 
 const TICK_MS = 1_000
 
@@ -41,6 +42,7 @@ export type V2SessionScreen = V2ThreadView & {
   agentLinks: AgentLinks
   stagedRows: ThreadRow[]
   commands: V2SessionCommands
+  operator: OperatorRequestControl
   restored: { token: number; text: string } | undefined
   notice: string | undefined
   loadOlder: () => Promise<number>
@@ -66,6 +68,7 @@ export function useV2SessionScreen(args: {
     events: snapshot.foldable,
     reportHidden,
   })
+  const operator = useOperatorRequest({ api, sessionId, events: snapshot.events })
   const [now, setNow] = useState(() => Date.now())
   const view = useMemo(() => v2ViewOf({ snapshot, now }), [snapshot, now])
   const [staged, setStaged] = useState<readonly StagedSend[]>([])
@@ -187,6 +190,7 @@ export function useV2SessionScreen(args: {
     context: snapshot.view?.context ?? null,
     stagedRows,
     commands,
+    operator,
     restored,
     notice,
     loadOlder,
