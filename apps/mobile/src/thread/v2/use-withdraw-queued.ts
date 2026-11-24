@@ -1,8 +1,12 @@
+import {
+  withdrawRefusalNoticeOf,
+  withdrawStepOf,
+  type WithdrawRequest,
+} from '@dltech/atlas-client/session'
 import type { Attachment, PendingInputsState, V2Event } from '@dltech/atlas-core'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { useAuth } from '../../auth/auth-provider'
-import { withdrawRefusalNoticeOf, withdrawStepOf, type WithdrawRequest } from './withdraw-queue'
 
 export type QueuedWithdrawActions = {
   edit: (inboxId: string) => void

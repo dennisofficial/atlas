@@ -65,16 +65,13 @@ export function useStagedMessages(args: {
     for (const { entry, outcome } of settled) {
       if (handled.current.has(entry.clientId)) continue
       handled.current = new Set([...handled.current, entry.clientId])
+      if (outcome.viaWithdraw === true) continue
       if (outcome.outcome === EStagedOutcome.Discarded) {
         texts.push(entry.text)
         attachments.push(...entry.attachments)
         continue
       }
       if (outcome.outcome !== EStagedOutcome.Refused) continue
-      if (outcome.reason === 'already-sent') {
-        toast.error('Already sent')
-        continue
-      }
       texts.push(entry.text)
       if (outcome.reason !== undefined) toast.error(outcome.reason)
     }

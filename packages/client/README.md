@@ -113,6 +113,9 @@ The headless client library that web, the TUI and the mobile app share.
 - `sessionCreateInputOf(args)`, `initialProjectIdOf(args)`: a new session's create input and project.
 - `composerSendStateOf`, `contextPercentOf`, `createDraftSync(args)`: send, context, draft write.
 - `queuedMessagesOf`, `queuedNoticesOf`, `stagedQueuedMessagesOf`, `optimisticPlacementOf(args)`: the queued rows.
+- `withdrawStepOf({ requests, handled, events })`, `withdrawRefusalNoticeOf(reason)`: the settlement
+  of a withdrawn queued message and the notice a refusal shows. A surface restores the text only
+  after the holder's `input-withdrawn`, and never after a refusal.
 
 ### Sign in to Atlas Cloud
 

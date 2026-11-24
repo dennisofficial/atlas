@@ -1,8 +1,12 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
 import { pendingMessagesOf, type Attachment, type PendingInputsState } from '@dltech/atlas-core'
-import { queuedMessagesOf } from '@dltech/atlas-client/session'
+import {
+  queuedMessagesOf,
+  withdrawStepOf,
+  type WithdrawRequest,
+} from '@dltech/atlas-client/session'
 import {
   optimisticPlacementOf,
   transcriptEventsOf,
@@ -14,12 +18,12 @@ import { mediaUrls } from '@/features/threads/data/media-urls'
 import { messageOf } from '@/features/threads/data/use-send'
 
 import { sessionEventTypes } from '../registered-plugins'
-import type { StagedMessage } from './queued-messages'
+import { mergeWithdrawnIntoDraft, type StagedMessage } from './queued-messages'
 import { optimisticUserItemsOf, queuedRowsOf } from './queued-transcript'
-import { sessionsApi } from './sessions-api'
-import { EWithdrawOutcome, withdrawQueued } from './withdraw-queued'
+import { EWithdrawOutcome, requestWithdraw, type WithdrawApi } from './withdraw-queued'
 
 export function useQueuedTranscript(args: {
+  api: WithdrawApi
   sessionId: string
   pending: PendingInputsState
   events: SessionSnapshot['events']
@@ -33,7 +37,7 @@ export function useQueuedTranscript(args: {
     previewOf: (hash: string) => Promise<string>
   }) => void
 }) {
-  const { sessionId, pending, events, staged, items: listed, draft } = args
+  const { api, sessionId, pending, events, staged, items: listed, draft } = args
   const { onDraftChange, onRestoreAttachments, sessionNameOf } = args
   const pendingInputs = useMemo(() => pendingMessagesOf(pending), [pending])
   const placement = useMemo(
@@ -59,30 +63,49 @@ export function useQueuedTranscript(args: {
     () => new Set(pendingInputs.map((input) => String(input.inboxId))),
     [pendingInputs],
   )
+  const [requests, setRequests] = useState<readonly WithdrawRequest[]>([])
+  const handled = useRef<ReadonlySet<number>>(new Set())
+  const draftRef = useRef(draft)
+  draftRef.current = draft
+
+  useEffect(() => {
+    if (requests.length === 0) return
+    const step = withdrawStepOf({ requests, handled: handled.current, events })
+    if (step.handled === handled.current) return
+    handled.current = step.handled
+    setRequests((current) => current.filter((entry) => !step.handled.has(entry.targetInboxId)))
+    if (step.restore !== undefined) {
+      onDraftChange(
+        mergeWithdrawnIntoDraft({ withdrawn: step.restore.text, draft: draftRef.current }),
+      )
+      if (step.restore.attachments.length > 0)
+        onRestoreAttachments({
+          attachments: step.restore.attachments,
+          previewOf: (hash) => mediaUrls.urlOf({ sessionId, hash }),
+        })
+    }
+    for (const notice of step.notices) toast(notice)
+  }, [requests, events, onDraftChange, onRestoreAttachments, sessionId])
 
   const withdraw = async (params: { id: string; restoreText: boolean }) => {
     const entry = queued.find((candidate) => candidate.id === params.id)
     if (entry === undefined) return
+    const targetInboxId = Number(entry.id)
     try {
-      const result = await withdrawQueued({
-        api: sessionsApi,
-        sessionId,
-        inboxId: Number(entry.id),
-        text: entry.text,
-        attachments: entry.attachments,
-        draft,
-        restoreText: params.restoreText,
-      })
+      const result = await requestWithdraw({ api, sessionId, inboxId: targetInboxId })
       if (result.outcome === EWithdrawOutcome.Refused) {
         toast(result.notice)
         return
       }
-      onDraftChange(result.draft)
-      if (result.attachments.length === 0) return
-      onRestoreAttachments({
-        attachments: result.attachments,
-        previewOf: (hash) => mediaUrls.urlOf({ sessionId, hash }),
-      })
+      setRequests((current) => [
+        ...current,
+        {
+          targetInboxId,
+          restoreText: params.restoreText,
+          text: entry.text,
+          attachments: entry.attachments,
+        },
+      ])
     } catch (failure) {
       toast.error(messageOf(failure))
     }

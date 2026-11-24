@@ -107,6 +107,39 @@ describe('stagedOutcomesOf', () => {
     expect(outcomes.get('client-a')?.reason).toBe('already-sent')
   })
 
+  it('marks a withdraw as the cause so one path settles it', () => {
+    const posted = {
+      type: 'input-posted',
+      inboxId: 7,
+      kind: 'message',
+      postedAt: 'now',
+      message: { text: 'first', clientId: 'client-a' },
+    }
+    const refused = stagedOutcomesOf({
+      events: eventsOf([
+        posted,
+        { type: 'input-refused', inboxId: 8, targetInboxId: 7, reason: 'already-sent' },
+      ]),
+      clientIds: ['client-a'],
+    })
+    expect(refused.get('client-a')?.viaWithdraw).toBe(true)
+
+    const withdrawn = stagedOutcomesOf({
+      events: eventsOf([posted, { type: 'input-withdrawn', inboxId: 7, requestInboxId: 8 }]),
+      clientIds: ['client-a'],
+    })
+    expect(withdrawn.get('client-a')?.viaWithdraw).toBe(true)
+
+    const refusedOnItsOwn = stagedOutcomesOf({
+      events: eventsOf([
+        posted,
+        { type: 'input-refused', inboxId: 7, reason: 'session is archived' },
+      ]),
+      clientIds: ['client-a'],
+    })
+    expect(refusedOnItsOwn.get('client-a')?.viaWithdraw).toBeUndefined()
+  })
+
   it('settles a staged message as discarded when the stop beat it', () => {
     const outcomes = stagedOutcomesOf({
       events: eventsOf([

@@ -1,6 +1,7 @@
-import { ALREADY_SENT_REASON } from '@dltech/atlas-client/stream'
 import type { Attachment, V2Event } from '@dltech/atlas-core'
 import { EWithdrawRefusal } from '@dltech/atlas-protocol'
+
+import { ALREADY_SENT_REASON } from '../stream/outgoing-messages'
 
 export const ALREADY_SENT_NOTICE = 'Already sent'
 

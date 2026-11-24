@@ -22,6 +22,7 @@ export type StagedOutcome = {
   outcome: EStagedOutcome
   reason?: string | undefined
   text?: string | undefined
+  viaWithdraw?: boolean | undefined
 }
 
 export type StagedSplit<TStaged extends StagedInput> = {
@@ -43,6 +44,7 @@ type EventOutcome = {
   outcome: EStagedOutcome
   reason?: string | undefined
   text?: string | undefined
+  viaWithdraw?: boolean | undefined
 }
 
 const outcomeOf = (args: {
@@ -72,13 +74,12 @@ const outcomeOf = (args: {
     case 'input-withdrawn': {
       const clientId = byInbox.get(event.inboxId)
       if (clientId === undefined) return undefined
-      return { clientId, outcome: EStagedOutcome.Withdrawn }
+      return { clientId, outcome: EStagedOutcome.Withdrawn, viaWithdraw: true }
     }
     case 'input-refused': {
-      const clientId =
-        event.clientId ??
-        (event.targetInboxId === undefined ? undefined : byInbox.get(event.targetInboxId)) ??
-        byInbox.get(event.inboxId)
+      const targeted =
+        event.targetInboxId === undefined ? undefined : byInbox.get(event.targetInboxId)
+      const clientId = event.clientId ?? targeted ?? byInbox.get(event.inboxId)
       if (clientId === undefined) return undefined
       const text = event.message?.text ?? event.text
       return {
@@ -86,6 +87,7 @@ const outcomeOf = (args: {
         outcome: EStagedOutcome.Refused,
         reason: event.reason,
         ...(text === undefined ? {} : { text }),
+        ...(targeted === undefined || clientId !== targeted ? {} : { viaWithdraw: true }),
       }
     }
     default:

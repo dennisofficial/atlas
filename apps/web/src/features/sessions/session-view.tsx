@@ -211,6 +211,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     onRestoreAttachments: restoreAttachments,
   })
   const queuedTranscript = useQueuedTranscript({
+    api: sessionsApi,
     sessionId,
     pending: snapshot.pending,
     events: snapshot.events,

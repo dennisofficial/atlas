@@ -1,6 +1,7 @@
 import { registerDom, unregisterDom } from '@/lib/__tests__/happy-dom-globals'
-import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
+import { afterAll, afterEach, beforeAll, describe, expect, it, mock } from 'bun:test'
 import { act } from 'react'
+import * as realSonner from 'sonner'
 
 import {
   EAttachmentStore,
@@ -15,8 +16,18 @@ import { quickStopsOf } from '@dltech/atlas-client/session'
 import { EOutgoingPlacement } from '@dltech/atlas-client/stream'
 import { mintEvents } from '@dltech/atlas-client/stream-fixture'
 
-import { useQuickStopRestore } from '../use-quick-stop-restore'
-import { useStagedMessages } from '../use-staged-messages'
+const realSonnerExports = { ...realSonner }
+const shownNotices: string[] = []
+const shownErrors: string[] = []
+
+mock.module('sonner', () => ({
+  toast: Object.assign((notice: string) => shownNotices.push(notice), {
+    error: (error: string) => shownErrors.push(error),
+  }),
+}))
+
+const { useQuickStopRestore } = await import('../use-quick-stop-restore')
+const { useStagedMessages } = await import('../use-staged-messages')
 
 beforeAll(() => {
   registerDom()
@@ -24,7 +35,13 @@ beforeAll(() => {
 })
 
 afterAll(async () => {
+  mock.module('sonner', () => realSonnerExports)
   await unregisterDom()
+})
+
+afterEach(() => {
+  shownNotices.length = 0
+  shownErrors.length = 0
 })
 
 const AT = '2026-11-23T10:00:00.000Z'
@@ -213,6 +230,60 @@ describe('useStagedMessages', () => {
     await view.render(mintEvents({ bodies: QUICK_STOP('theirs') }))
 
     expect(view.handles.quickStops).toEqual([])
+    await act(async () => view.root.unmount())
+  })
+
+  it('leaves a message another device withdrew out of the composer', async () => {
+    const view = await mount({ sessionId: 'withdrawn-1' })
+    await act(async () => view.handles.stage?.(stagedOf('w1', 'hello', [SHOT])))
+    await view.render(
+      mintEvents({
+        bodies: [POSTED_ROW('w1', 2), { type: 'input-withdrawn', inboxId: 2, requestInboxId: 5 }],
+      }),
+    )
+
+    expect(view.handles.draft).toBe('')
+    expect(view.handles.restoredAttachments).toEqual([])
+    expect(shownNotices).toEqual([])
+    expect(shownErrors).toEqual([])
+    expect(view.host.textContent).toBe('')
+    await act(async () => view.root.unmount())
+  })
+
+  it('leaves a refused withdraw to the withdraw, which owns the notice', async () => {
+    const view = await mount({ sessionId: 'withdraw-refused-1' })
+    await act(async () => view.handles.stage?.(stagedOf('r1', 'hello', [SHOT])))
+    await view.render(
+      mintEvents({
+        bodies: [
+          POSTED_ROW('r1', 2),
+          { type: 'input-refused', inboxId: 5, targetInboxId: 2, reason: 'already-sent' },
+        ],
+      }),
+    )
+
+    expect(view.handles.draft).toBe('')
+    expect(view.handles.restoredAttachments).toEqual([])
+    expect(shownNotices).toEqual([])
+    expect(shownErrors).toEqual([])
+    expect(view.host.textContent).toBe('')
+    await act(async () => view.root.unmount())
+  })
+
+  it('still puts a message the host refused on its own back in the composer', async () => {
+    const view = await mount({ sessionId: 'refused-1' })
+    await act(async () => view.handles.stage?.(stagedOf('x1', 'hello')))
+    await view.render(
+      mintEvents({
+        bodies: [
+          POSTED_ROW('x1', 2),
+          { type: 'input-refused', inboxId: 2, reason: 'session is archived' },
+        ],
+      }),
+    )
+
+    expect(view.handles.draft).toBe('hello')
+    expect(shownErrors).toEqual(['session is archived'])
     await act(async () => view.root.unmount())
   })
 })
