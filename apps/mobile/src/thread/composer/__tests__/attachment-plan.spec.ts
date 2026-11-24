@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'bun:test'
 
-import { MAX_INLINE_BYTES, MAX_MESSAGE_UPLOADS, MAX_UPLOAD_BYTES } from '@dltech/atlas-core'
+import {
+  EAttachmentStore,
+  MAX_INLINE_BYTES,
+  MAX_MESSAGE_UPLOADS,
+  MAX_UPLOAD_BYTES,
+} from '@dltech/atlas-core'
 
 import {
   attachRouteOf,
@@ -11,6 +16,8 @@ import {
   hasFailed,
   isUploading,
   planAttach,
+  restoredHeldOf,
+  withPreview,
   sendableOf,
   startedAttachment,
   withFailed,
@@ -150,6 +157,57 @@ describe('held attachment status', () => {
   })
 })
 
+describe('restoredHeldOf', () => {
+  it('makes a ready media attachment out of a restored hash', () => {
+    const [held] = restoredHeldOf([
+      {
+        id: 'media:abc',
+        name: 'shot.png',
+        mediaType: 'image/png',
+        size: 12,
+        content: { store: EAttachmentStore.Media, hash: 'abc' },
+      },
+    ])
+
+    expect(held?.status).toBe(EAttachmentStatus.Ready)
+    expect(held?.hash).toBe('abc')
+    expect(held?.id).toBe('media:abc')
+  })
+
+  it('makes a ready upload attachment out of a restored upload', () => {
+    const [held] = restoredHeldOf([
+      {
+        id: 'up-1',
+        name: 'notes.pdf',
+        mediaType: 'application/pdf',
+        size: 24,
+        content: {
+          store: EAttachmentStore.Upload,
+          uploadId: 'up-1',
+          pathname: 'u/up-1/notes.pdf',
+        },
+      },
+    ])
+
+    expect(held?.status).toBe(EAttachmentStatus.Ready)
+    expect(held?.upload?.uploadId).toBe('up-1')
+  })
+
+  it('drops an inline attachment the composer cannot hold', () => {
+    expect(
+      restoredHeldOf([
+        {
+          id: 'shot-1',
+          name: 'shot.png',
+          mediaType: 'image/png',
+          size: 12,
+          content: { store: EAttachmentStore.Inline, data: 'AAAA' },
+        },
+      ]),
+    ).toEqual([])
+  })
+})
+
 describe('sendableOf', () => {
   const ready = withReady({
     held: [startedAttachment({ id: 'one', file: picked('a.jpg') })],
@@ -184,5 +242,28 @@ describe('describeBytes', () => {
     expect(describeBytes(2048)).toBe('2.0 KB')
     expect(describeBytes(5 * 1024 * 1024)).toBe('5.0 MB')
     expect(describeBytes(100 * 1024 * 1024)).toBe('100 MB')
+  })
+})
+
+describe('withPreview', () => {
+  it('sets the preview uri of one held attachment only', () => {
+    const held = restoredHeldOf([
+      {
+        id: 'media:a',
+        name: 'a.png',
+        mediaType: 'image/png',
+        size: 1,
+        content: { store: EAttachmentStore.Media, hash: 'a' },
+      },
+      {
+        id: 'media:b',
+        name: 'b.png',
+        mediaType: 'image/png',
+        size: 1,
+        content: { store: EAttachmentStore.Media, hash: 'b' },
+      },
+    ])
+    const next = withPreview({ held, id: 'media:a', uri: 'https://media/a' })
+    expect(next.map((entry) => entry.uri)).toEqual(['https://media/a', ''])
   })
 })

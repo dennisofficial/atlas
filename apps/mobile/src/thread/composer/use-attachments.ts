@@ -15,6 +15,7 @@ import {
   isUploading,
   OCTET_STREAM,
   planAttach,
+  restoredHeldOf,
   startedAttachment,
   TOO_MANY_FILES,
   tooLargeNotice,
@@ -24,6 +25,7 @@ import {
   withProgress,
   withReady,
   withoutAttachment,
+  withPreview,
   type HeldAttachment,
   type PickedFile,
 } from './attachment-plan'
@@ -42,6 +44,10 @@ export type ComposerAttachments = {
   pickFiles: () => Promise<void>
   pasteImage: (data: string) => Promise<void>
   remove: (id: string) => void
+  restore: (args: {
+    attachments: readonly Attachment[]
+    sessionId?: string | null | undefined
+  }) => void
   clear: () => void
 }
 
@@ -258,6 +264,30 @@ export function useAttachments(): ComposerAttachments {
     [commit, discard],
   )
 
+  const restore = useCallback(
+    (args: { attachments: readonly Attachment[]; sessionId?: string | null | undefined }) => {
+      const incoming = restoredHeldOf(args.attachments)
+      if (incoming.length === 0) return
+      update((current) => {
+        const known = new Set(current.map((entry) => entry.id))
+        return [...current, ...incoming.filter((entry) => !known.has(entry.id))]
+      })
+      const sessionId = args.sessionId
+      if (api === undefined || sessionId === undefined || sessionId === null) return
+      for (const entry of incoming) {
+        const hash = entry.hash
+        if (hash === undefined) continue
+        api.media.url
+          .query({ sessionId, hash })
+          .then((reply) =>
+            update((current) => withPreview({ held: current, id: entry.id, uri: reply.url })),
+          )
+          .catch(() => undefined)
+      }
+    },
+    [api, update],
+  )
+
   const clear = useCallback(() => {
     for (const handle of handles.current.values()) handle.abort()
     handles.current.clear()
@@ -277,6 +307,7 @@ export function useAttachments(): ComposerAttachments {
     pickFiles,
     pasteImage,
     remove,
+    restore,
     clear,
   }
 }

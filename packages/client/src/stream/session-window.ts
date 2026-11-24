@@ -24,6 +24,12 @@ import {
 } from '@dltech/atlas-core'
 import type { z, ZodError } from 'zod'
 
+import {
+  EMPTY_QUICK_STOP_STATE,
+  stepQuickStop,
+  type QuickStopState,
+} from '../session/quick-stop-state'
+
 export const RENDER_LIMIT = 3_000
 
 export const OLDER_PAGE = 200
@@ -39,6 +45,7 @@ export type SessionWindow = {
   durable: readonly V2Event[]
   foldable: readonly V2Event[]
   commandLog: readonly V2Event[]
+  quickStops: QuickStopState
   cursor: SessionCursor | undefined
   foldedThrough: number
 }
@@ -54,6 +61,7 @@ export const EMPTY_WINDOW: SessionWindow = {
   durable: [],
   foldable: [],
   commandLog: [],
+  quickStops: EMPTY_QUICK_STOP_STATE,
   cursor: undefined,
   foldedThrough: 0,
 }
@@ -158,6 +166,7 @@ export const applyPageOutcome = (args: {
       durable,
       foldable,
       commandLog: [...window.commandLog, ...events.filter(isCommandLogEvent)],
+      quickStops: events.reduce(stepQuickStop, window.quickStops),
       cursor: cursorAfter({ page, last }),
       foldedThrough: window.foldedThrough,
     },

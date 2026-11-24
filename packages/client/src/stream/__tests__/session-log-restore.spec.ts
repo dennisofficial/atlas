@@ -3,6 +3,10 @@ import {
   ECompactionAnchor,
   EMPTY_PENDING,
   EMPTY_VISIBILITY,
+  ERewindCause,
+  ETurnCause,
+  ETurnEndedBy,
+  ETurnOutcome,
   EWorkspaceStep,
   EWorkspaceStepState,
   initialFailureMessage,
@@ -15,6 +19,7 @@ import {
   type V2Event,
 } from '@dltech/atlas-core'
 
+import { quickStopRestoresOf } from '../../session/quick-stop-restore'
 import { memorySessionLog, SESSION_LOG_STRUCTURE_VERSION, type SessionLog } from '../session-log'
 import { restoredWindowOf } from '../session-log-restore'
 import { applyPage, EMPTY_WINDOW } from '../session-window'
@@ -172,5 +177,87 @@ describe('restoring the durable log', () => {
       EWorkspaceStepState.Done,
     )
     expect(restored?.view.facts.setupRun).toBeNull()
+  })
+})
+
+const seedQuickStopSnapshot = async (args: { log: SessionLog; events: readonly V2Event[] }) => {
+  const window = applyPage({
+    window: EMPTY_WINDOW,
+    page: { events: args.events, head: headOf(args.events) },
+  })
+  await args.log.appendPage({
+    sessionId: SESSION,
+    events: args.events,
+    head: headOf(args.events),
+  })
+  await args.log.saveSnapshot({
+    sessionId: SESSION,
+    snapshot: {
+      version: SESSION_LOG_STRUCTURE_VERSION,
+      cursor: window.cursor,
+      visibility: window.visibility,
+      pending: window.pending,
+      view: window.view,
+      failureMessage: window.failureMessage,
+      durable: window.durable,
+      commandLog: window.commandLog,
+      quickStops: window.quickStops,
+      throughSeq: window.cursor?.seq ?? 0,
+    },
+  })
+}
+
+const quickStopBodies: readonly V2Body[] = [
+  { type: 'user-said', text: 'think hard', clientId: 'client-a' },
+  { type: 'turn-started', turnId: 'turn-1', cause: ETurnCause.Input },
+  { type: 'assistant-said', parts: [{ type: 'reasoning', text: 'hm' }] },
+  {
+    type: 'turn-ended',
+    turnId: 'turn-1',
+    outcome: ETurnOutcome.Stopped,
+    by: ETurnEndedBy.Operator,
+  },
+  { type: 'history-rewound', toSeq: 0, draft: 'think hard', cause: ERewindCause.QuickStop },
+]
+
+describe('restoring the quick stop evidence', () => {
+  it('restores a quick stop whose prompt the tail no longer holds', async () => {
+    const log = memorySessionLog()
+    const events = mintEvents({ bodies: quickStopBodies })
+    await seedQuickStopSnapshot({ log, events })
+
+    const window = await restoredWindowOf({ log, sessionId: SESSION, renderLimit: 3 })
+
+    expect(window?.events.some((event) => event.type === 'user-said')).toBe(false)
+    const restores = quickStopRestoresOf({
+      quickStops: window?.quickStops.evidence ?? [],
+      clientIds: ['client-a'],
+    })
+    expect(restores.map((restore) => restore.text)).toEqual(['think hard'])
+  })
+
+  it('keeps a prompt older than the tail open across a hydrate, then stops it', async () => {
+    const log = memorySessionLog()
+    const events = mintEvents({ bodies: quickStopBodies })
+    await seedQuickStopSnapshot({ log, events: events.slice(0, 4) })
+    await log.appendPage({ sessionId: SESSION, events: events.slice(4), head: headOf(events) })
+
+    const hydrated = await restoredWindowOf({ log, sessionId: SESSION, renderLimit: 2 })
+    if (hydrated === undefined) throw new Error('the snapshot did not restore')
+
+    expect(hydrated.quickStops.candidates.map((candidate) => candidate.text)).toEqual([
+      'think hard',
+    ])
+
+    const window = applyPage({
+      window: hydrated,
+      page: { events: events.slice(4), head: headOf(events) },
+    })
+    const restores = quickStopRestoresOf({
+      quickStops: window.quickStops.evidence,
+      clientIds: ['client-a'],
+    })
+
+    expect(restores.map((restore) => restore.text)).toEqual(['think hard'])
   })
 })

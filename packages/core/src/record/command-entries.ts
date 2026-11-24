@@ -1,4 +1,4 @@
-import { EInputConsumed, type ConsumedCommand, type V2Event } from './event'
+import { EInputConsumed, ERewindCause, type ConsumedCommand, type V2Event } from './event'
 import { commandInputName } from './input-events'
 import type { PendingInputsState } from './pending-inputs'
 
@@ -34,6 +34,7 @@ export type CommandOutcomeEvent = {
   kind?: string | undefined
   consumed?: EInputConsumed | undefined
   command?: ConsumedCommand | string | undefined
+  cause?: string | undefined
 }
 
 export const unfinishedCommandIdsOf = (
@@ -59,6 +60,7 @@ export const unfinishedCommandIdsOf = (
       if (event.inboxId !== undefined) finished.add(event.inboxId)
       continue
     }
+    if (event.type === 'history-rewound' && event.cause === ERewindCause.QuickStop) continue
     if (!COMMAND_OUTCOME_EVENT_TYPES.has(event.type)) continue
     if (event.inboxId === undefined) unnamedOutcomeSeq = event.seq
     else finished.add(event.inboxId)

@@ -15,7 +15,7 @@ import {
   withAlpha,
 } from '@dltech/atlas-ui-native'
 import { ArrowUp, Plus, Square } from 'lucide-react-native'
-import { type ReactNode, useEffect, useState } from 'react'
+import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { ScrollView, StyleSheet, View } from 'react-native'
 
 import { mergeIntoDraft } from '../v2/staged-send'
@@ -52,7 +52,7 @@ export const Composer = ({
   sendable?: boolean
   placeholder?: string
   autoFocus?: boolean
-  restored?: { token: number; text: string } | undefined
+  restored?: { token: number; text: string; attachments: readonly Attachment[] } | undefined
   draftSessionId?: string | null | undefined
   refusal?: string | undefined
   entries?: readonly CommandEntry[]
@@ -84,10 +84,17 @@ export const Composer = ({
   const showsStop = sendState.showsStop && onStop !== undefined
   const candidates = menuCandidatesOf({ draft, entries })
 
+  const attachmentsRef = useRef(attachments)
+  attachmentsRef.current = attachments
+
   useEffect(() => {
     if (restored === undefined) return
     setDraft((current) => mergeIntoDraft({ withdrawn: restored.text, draft: current }))
-  }, [restored])
+    attachmentsRef.current?.restore({
+      attachments: restored.attachments,
+      sessionId: draftSessionId,
+    })
+  }, [restored, draftSessionId])
 
   const handleSend = async () => {
     if (!canSend) return
