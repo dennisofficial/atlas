@@ -4,6 +4,7 @@ import {
   deriveStatus,
   meterOf,
   messageAfterFailureOf,
+  pendingMessagesOf,
   runningCommandEntriesOf,
   type SpendTally,
 } from '@dltech/atlas-core'
@@ -11,6 +12,7 @@ import {
   ECommandState,
   QUEUED_MESSAGES_LIMIT,
   type SessionCommandRow,
+  type SessionQueuedMessage,
   type SessionStatusOutput,
   type SessionViewOutput,
 } from '@dltech/atlas-protocol'
@@ -26,6 +28,7 @@ export type FrameFacts = {
   sandbox: SessionStatusOutput['sandbox']
   sandboxProvider: SessionStatusOutput['sandboxProvider']
   credentialSource: SessionStatusOutput['credentialSource']
+  queued: readonly SessionQueuedMessage[]
 }
 
 export const EMPTY_SPEND_TALLY: SpendTally = {
@@ -46,6 +49,7 @@ export const EMPTY_FRAME_FACTS: FrameFacts = {
   sandbox: undefined,
   sandboxProvider: undefined,
   credentialSource: undefined,
+  queued: [],
 }
 
 export const frameFactsOf = (view: SessionViewOutput): FrameFacts => ({
@@ -57,6 +61,7 @@ export const frameFactsOf = (view: SessionViewOutput): FrameFacts => ({
   sandbox: view.status.sandbox,
   sandboxProvider: view.status.sandboxProvider,
   credentialSource: view.status.credentialSource,
+  queued: view.status.queued ?? [],
 })
 
 const commandsOf = (window: SessionWindow): SessionCommandRow[] => {
@@ -71,15 +76,33 @@ const commandsOf = (window: SessionWindow): SessionCommandRow[] => {
   return [...running, ...queued].slice(0, QUEUED_MESSAGES_LIMIT)
 }
 
+const unloggedQueuedOf = (args: {
+  window: SessionWindow
+  queued: readonly SessionQueuedMessage[]
+}): SessionQueuedMessage[] => {
+  const logged = new Set(pendingMessagesOf(args.window.pending).map((entry) => entry.inboxId))
+  return args.queued.filter((row) => !logged.has(row.inboxId))
+}
+
+const queuedSinceOf = (queued: readonly SessionQueuedMessage[]): string | null =>
+  queued.reduce<string | null>(
+    (earliest, row) =>
+      earliest === null || Date.parse(row.postedAt) < Date.parse(earliest)
+        ? row.postedAt
+        : earliest,
+    null,
+  )
+
 export const deriveStatusOf = (args: {
   window: SessionWindow
   frame: FrameFacts
   now: number
 }): SessionStatusOutput => {
+  const unlogged = unloggedQueuedOf({ window: args.window, queued: args.frame.queued })
   const status = deriveStatus({
     facts: args.window.view.facts,
     live: args.frame.lease.live,
-    queuedSince: null,
+    queuedSince: queuedSinceOf(unlogged),
     pending: args.window.pending,
     messageAfterFailure: messageAfterFailureOf(args.window.failureMessage),
     now: new Date(args.now).toISOString(),
@@ -98,6 +121,7 @@ export const deriveStatusOf = (args: {
       ? {}
       : { credentialSource: args.frame.credentialSource }),
     ...(commands.length === 0 ? {} : { commands }),
+    ...(unlogged.length === 0 ? {} : { queued: unlogged }),
     ...(args.frame.pod === undefined ? {} : { pod: args.frame.pod }),
   }
 }

@@ -109,6 +109,7 @@ import { claimNeedingIn } from './postgres-claim-next'
 import {
   allocateInboxIdIn,
   deleteInboxEntryIn,
+  firstUnconsumedMessagesIn,
   insertInboxEntryIn,
   markInboxConsumedIn,
   readInboxEntriesIn,
@@ -532,6 +533,10 @@ export class PostgresTx implements ControlTx {
 
   async deleteInboxEntry(params: { sessionId: string; inboxId: number }): Promise<boolean> {
     return deleteInboxEntryIn({ tx: this.tx, ...params })
+  }
+
+  async firstUnconsumedMessages(params: { sessionIds: readonly string[] }) {
+    return firstUnconsumedMessagesIn({ tx: this.tx, ...params })
   }
 
   async recentInboxEntries(params: {

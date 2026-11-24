@@ -127,8 +127,15 @@ export class CommandIntake {
     command: Command
     handler: CommandHandler<unknown> | undefined
   }) {
-    const { inboxId } = params.entry
-    await this.args.append([{ type: 'input-consumed', inboxId, consumed: EInputConsumed.Command }])
+    const { entry } = params
+    const { inboxId } = entry
+    const posted: RecordBody[] = this.isLogged(inboxId)
+      ? []
+      : [{ type: 'input-posted', inboxId, kind: entry.kind, postedAt: entry.postedAt }]
+    await this.args.append([
+      ...posted,
+      { type: 'input-consumed', inboxId, consumed: EInputConsumed.Command },
+    ])
     if (params.handler === undefined) {
       await this.refuse({ inboxId, reason: this.missingHandlerReason(params.command) })
       return

@@ -24,6 +24,7 @@ export type PodBusy = {
 const TURN_STATES: ReadonlySet<ESessionStatus> = new Set([
   ESessionStatus.Thinking,
   ESessionStatus.RunningTool,
+  ESessionStatus.RunningCommand,
   ESessionStatus.WaitingToRetry,
   ESessionStatus.Resuming,
   ESessionStatus.WaitingForBackground,

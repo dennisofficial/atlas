@@ -14,6 +14,7 @@ const WORKING = [
   ESessionStatus.Queued,
   ESessionStatus.Thinking,
   ESessionStatus.RunningTool,
+  ESessionStatus.RunningCommand,
   ESessionStatus.WaitingToRetry,
   ESessionStatus.WaitingForCredentials,
   ESessionStatus.WaitingForOperator,

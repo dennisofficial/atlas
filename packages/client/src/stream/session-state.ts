@@ -10,6 +10,7 @@ const WORKING: ReadonlySet<ESessionStatus> = new Set([
   ESessionStatus.Queued,
   ESessionStatus.Thinking,
   ESessionStatus.RunningTool,
+  ESessionStatus.RunningCommand,
   ESessionStatus.WaitingToRetry,
   ESessionStatus.Resuming,
 ])

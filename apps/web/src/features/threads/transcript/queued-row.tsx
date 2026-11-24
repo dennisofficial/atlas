@@ -11,12 +11,14 @@ const DIM = 'opacity-45 transition-opacity hover:opacity-100 focus-within:opacit
 export function QueuedRowItem({
   row,
   author,
+  waitLabel,
   onOpenAgent,
   onEdit,
   onRemove,
 }: {
   row: QueuedRow
   author: string | undefined
+  waitLabel?: string | undefined
   onOpenAgent: ((id: string) => void) | null
   onEdit: (inboxId: string) => void
   onRemove: (inboxId: string) => void
@@ -27,7 +29,7 @@ export function QueuedRowItem({
         <PendingUserMessage
           entry={row.entry}
           author={author}
-          label="Queued"
+          label={waitLabel ?? 'Queued'}
           actionsDisabled={row.optimistic === true}
           onEdit={() => onEdit(row.entry.id)}
           onRemove={() => onRemove(row.entry.id)}

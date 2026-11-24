@@ -2,6 +2,7 @@ import {
   AGENT37_POD_SHAPES,
   AGENT37_SANDBOX_PROVIDER,
   messageAfterFailureOf,
+  queuedSinceOfInbox,
   type PodShape,
   podSizingOf,
   SANDBOX_MEMORY_GB_PER_VCPU,
@@ -9,6 +10,7 @@ import {
   setupRunningOf,
   type Lease,
   type PendingInputsState,
+  type InboxEntry,
   type PluginViewFold,
   type SessionStatus,
   type SessionViewState,
@@ -35,7 +37,7 @@ import type {
   TrackedPullRequestRow,
 } from './port'
 import { runningCommandsIn } from './command-rows'
-import { commandsOf, queuedOf } from './queued-messages'
+import { commandsOf, queuedRowsOf } from './queued-messages'
 import { ensureSessionViewIn, usableState } from './session-view-ops'
 import { listSubscriptionsIn } from './subscription-ops'
 
@@ -99,6 +101,7 @@ export const liveViewIn = async (args: {
   threadId: string
   state: SessionViewState
   now: string
+  queuedSince?: string | null | undefined
   eventSchema?: z.ZodType<V2Event> | undefined
 }): Promise<LiveView> => {
   const { tx, sessionId, state } = args
@@ -106,7 +109,7 @@ export const liveViewIn = async (args: {
   const value = sessionViewOf({
     state,
     live,
-    queuedSince: null,
+    queuedSince: args.queuedSince ?? null,
     messageAfterFailure: messageAfterFailureIn({ state }),
     now: args.now,
   })
@@ -220,6 +223,7 @@ const sandboxChoiceOf = (
 export const statusOutputOf = (args: {
   live: LiveView
   pending: PendingInputsState
+  inbox: readonly InboxEntry[]
   running: readonly SessionCommandRow[]
   session: ControlSessionRow | undefined
 }): SessionStatusOutput => {
@@ -227,7 +231,7 @@ export const statusOutputOf = (args: {
   const pod = podStatusOf(args.session)
   const sandbox = sandboxOf(args.session)
   const { status } = live.value
-  const queued = queuedOf(args.pending)
+  const queued = queuedRowsOf({ pending: args.pending, inbox: args.inbox })
   const commands = [...args.running, ...commandsOf(args.pending)]
   return {
     state: status.state,
@@ -256,7 +260,8 @@ export const readSessionViewIn = async (args: {
   if (row === undefined) throw new UnknownThreadError(threadId)
   const state = usableState(await tx.readSessionView(sessionId))
   if (state === undefined || state.at !== row.headSeq) return undefined
-  const live = await liveViewIn({ ...args, state })
+  const inbox = await tx.firstUnconsumedMessages({ sessionIds: [sessionId] })
+  const live = await liveViewIn({ ...args, state, queuedSince: queuedSinceOfInbox(inbox) })
   return {
     at: state.at,
     value: {
@@ -264,6 +269,7 @@ export const readSessionViewIn = async (args: {
       status: statusOutputOf({
         live,
         pending: state.pending,
+        inbox,
         running: await runningCommandsIn({
           tx,
           sessionId,

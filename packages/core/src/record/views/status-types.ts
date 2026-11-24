@@ -5,6 +5,7 @@ export enum ESessionStatus {
   Queued = 'queued',
   Thinking = 'thinking',
   RunningTool = 'running-tool',
+  RunningCommand = 'running-command',
   WaitingToRetry = 'waiting-to-retry',
   WaitingForCredentials = 'waiting-for-credentials',
   WaitingForOperator = 'waiting-for-operator',

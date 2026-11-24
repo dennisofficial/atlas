@@ -3,7 +3,7 @@ import { radius, space } from '@dltech/atlas-ui/tokens'
 import { Bell, Clock, Paperclip } from 'lucide-react-native'
 import { StyleSheet, View } from 'react-native'
 
-import type { QueuedDockState } from '../v2/queued-dock'
+import { queuedLabelOf, type QueuedDockState } from '../v2/queued-dock'
 
 const attachmentLineOf = (count: number): string =>
   count === 1 ? '1 attachment' : `${count} attachments`
@@ -59,7 +59,7 @@ export const QueuedDock = ({ dock }: { dock: QueuedDockState }) => {
             )}
           </View>
           <Text size={ETextRole.Xs} tone={ETextTone.Muted}>
-            Queued
+            {queuedLabelOf(dock)}
           </Text>
         </View>
       ))}

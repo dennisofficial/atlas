@@ -1,5 +1,7 @@
 import { clientOnlyReason } from '@dltech/atlas-commands'
 import {
+  blockingCommandOf,
+  type BlockingCommand,
   canReconnectOf,
   ESessionConnection,
   sessionStateLineOf,
@@ -35,6 +37,7 @@ export type V2SessionScreen = V2ThreadView & {
   canReconnect: boolean
   header: SessionHeader
   queued: QueuedDockState
+  blocking: BlockingCommand | undefined
   startFailure: { reason: string | undefined } | undefined
   loaded: boolean
   fromCache: boolean
@@ -74,6 +77,7 @@ export function useV2SessionScreen(args: {
   const operator = useOperatorRequest({ api, sessionId, events: snapshot.events })
   const [now, setNow] = useState(() => Date.now())
   const view = useMemo(() => v2ViewOf({ snapshot, now }), [snapshot, now])
+  const blocking = useMemo(() => blockingCommandOf(snapshot.status), [snapshot.status])
   const [staged, setStaged] = useState<readonly StagedSend[]>([])
   const agentLinks = useMemo(() => agentLinksOf({ events: snapshot.events }), [snapshot.events])
   const [restored, setRestored] = useState<
@@ -97,11 +101,11 @@ export function useV2SessionScreen(args: {
   }, [sessionId])
 
   useEffect(() => {
-    if (!view.working) return undefined
+    if (!view.working && blocking === undefined) return undefined
     setNow(Date.now())
     const timer = setInterval(() => setNow(Date.now()), TICK_MS)
     return () => clearInterval(timer)
-  }, [view.working])
+  }, [view.working, blocking])
 
   useEffect(() => {
     if (staged.length === 0) return
@@ -221,6 +225,7 @@ export function useV2SessionScreen(args: {
     canReconnect: canReconnectOf(snapshot),
     header,
     queued,
+    blocking,
     startFailure: startFailureOf(snapshot.status),
     loaded,
     agentLinks,
