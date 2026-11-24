@@ -173,7 +173,7 @@ frame on the socket" would need that duplex path built first. This spec does not
   transport-neutral contract file (`apps/api/src/agent/host/pod-disk-grow-one.contract.ts:29-38`)
   and a port that builds it (`apps/api/src/agent/host/pod-disk-pressure.port.ts:11-33`). The v2
   trigger project is `apps/trigger/trigger.config.ts:4-11`, and the tier env is read from
-  `apps/trigger/src/trigger/tier-env.ts:5-7`.
+  `apps/trigger/src/tier-env.ts:5-7`.
 - The Settings → Notifications page exists and is live, but it shows a 6 × 3 matrix that nothing
   reads: `apps/web/src/features/settings/pages/notifications.tsx:80-152`, events in
   `apps/web/src/features/settings/fixtures/settings-interface.ts:18-46`, keys in
@@ -409,7 +409,7 @@ core (§4.3) and the package holds no policy.
 
 **The trigger rule.** The send task stays lightweight: one control-plane client, one Redis client,
 two `fetch` callers, built by hand beside `routine-graph.ts`
-(`apps/trigger/src/trigger/routine/routine-run.task.ts:1-15`) with a fake graph for the spec
+(`apps/trigger/src/routine/routine-run.task.ts:1-15`) with a fake graph for the spec
 (`apps/trigger/src/__tests__/routine-graph.fake.ts`). No Nest boot, no Nest module.
 
 ### 4.5 Web Push, and the service worker the web app does not have
@@ -565,7 +565,7 @@ One path, expressed once: "the session is read" → every enabled device of the 
   the status waits for the operator or credentials. The API reads the session's digest before it
   marks, and dispatch happens when `previousReadSeq < momentSeq <= readSeq` (`previousReadSeq` of
   `null` counts as -1). It is fire and forget, logged when it fails, and never fails `markRead`.
-- **Task.** `apps/trigger/src/trigger/notify/notify-clear.task.ts` reads the devices, calls each
+- **Task.** `apps/trigger/src/notify/notify-clear.task.ts` reads the devices, calls each
   transport's `clear`, prunes anything that reports `gone`. Web Push subscriptions hosted by Apple
   are skipped (§4.9). An `apns-mac` device gets `content-available`, which the app reads only while
   it runs.
@@ -647,7 +647,7 @@ Each slice is one PR that merges alone, in this order.
    moments are trusted.
    Files: `packages/db/src/prisma/schema/v2/push-device.prisma` + migration,
    `packages/jobs/src/index.ts`, `apps/api/src/agent/host/{notify-send.contract,notify.port}.ts`,
-   `packages/host/src/holder/held-turns.ts`, `apps/trigger/src/trigger/notify/`,
+   `packages/host/src/holder/held-turns.ts`, `apps/trigger/src/notify/`,
    `packages/notifications/src/transports/web-push.ts`, `apps/web/src/app/sw.js/route.ts`,
    `apps/web/src/lib/{web-push,service-worker-source}.ts`, `apps/web/next.config.ts`.
 5. **Expo on iOS.** The second transport, the mobile client repoint, the foreground suppressor and
@@ -662,10 +662,10 @@ Each slice is one PR that merges alone, in this order.
    `packages/notifications/src/client/mac-native.ts`, `apps/mac/main.js`, `apps/mac/src/host/`,
    `apps/mac/build/entitlements.mac.plist`, `apps/mac/electron-builder.yml`,
    `packages/db/src/prisma/schema/v2/push-device.prisma` + migration,
-   `apps/trigger/src/trigger/notify/`.
+   `apps/trigger/src/notify/`.
 7. **Clear everywhere.** `notify-clear` from `markSessionRead`, the clear task, the Apple skip, the
    APNs clear, and the dismiss-on-foreground safety net.
-   Files: `apps/trigger/src/trigger/notify/notify-clear.task.ts`,
+   Files: `apps/trigger/src/notify/notify-clear.task.ts`,
    `apps/api/src/api/platform/control/sessions.router.ts`,
    `packages/notifications/src/transports/{web-push,expo,apns}.ts`,
    `apps/mobile/src/push/notification-handler.ts`, `packages/jobs/src/index.ts`.
@@ -673,7 +673,7 @@ Each slice is one PR that merges alone, in this order.
    `NotifyFacts` by the task.
    Files: `apps/web/src/features/settings/pages/notifications.tsx`,
    `apps/web/src/features/settings/parts/`, `apps/web/src/features/settings/data/personal/interface-settings.ts`,
-   `packages/core/src/settings/cloud/web-only-settings.ts`, `apps/trigger/src/trigger/notify/`.
+   `packages/core/src/settings/cloud/web-only-settings.ts`, `apps/trigger/src/notify/`.
 
 ## 6. Test plan and a live check
 

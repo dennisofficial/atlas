@@ -8,12 +8,12 @@ import {
   listing,
   scope,
 } from '@dltech/atlas-pods/pods/v2-pod-sweep.fixture'
-import type { OrphanPodSweepDeps } from '../trigger/sandbox-provisioning/orphan-pod-sweep'
+import type { OrphanPodSweepDeps } from '../sandbox-provisioning/orphan-pod-sweep'
 import { triggerSdkFake } from './trigger-sdk.fake'
 
 mock.module('@trigger.dev/sdk', () => triggerSdkFake)
 
-const { runOrphanPodSweep } = await import('../trigger/sandbox-provisioning/orphan-pod-sweep')
+const { runOrphanPodSweep } = await import('../sandbox-provisioning/orphan-pod-sweep')
 
 const NOW = new Date('2026-11-10T06:00:00Z')
 const hoursBefore = (hours: number): Date => new Date(NOW.getTime() - hours * 60 * 60 * 1_000)

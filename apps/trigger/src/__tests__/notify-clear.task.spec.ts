@@ -7,11 +7,11 @@ import {
 import { webPushTransport } from '@dltech/atlas-notifications/server'
 import { triggerSdkFake } from './trigger-sdk.fake'
 import { apnsDeviceOf, deviceOf, expoDeviceOf, notifyGraphOf } from './notify-graph.fake'
-import type { NotifyGraph } from '../trigger/notify/notify-send-graph'
+import type { NotifyGraph } from '../notify/notify-send-graph'
 
 mock.module('@trigger.dev/sdk', () => triggerSdkFake)
 
-const { runNotifyClear } = await import('../trigger/notify/notify-clear.task')
+const { runNotifyClear } = await import('../notify/notify-clear.task')
 
 const PAYLOAD = { userId: 'usr-1', sessionId: 'session-1' }
 
