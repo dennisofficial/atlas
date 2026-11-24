@@ -12,7 +12,7 @@ import {
   TOOL_PARKED_WAITING,
 } from '../../events/resume-plan'
 import { chainEvents } from '../chain-events'
-import type { V2Body, V2Event } from '../event'
+import { v2EventSchema, type V2Body, type V2Event } from '../event'
 import { isResumableOf, loopStateOf } from '../loop-state'
 import { visibleLoopEvents } from '../loop-events'
 import {
@@ -27,7 +27,9 @@ import {
   resumableOf,
   resumePointOf,
 } from '../resume-point'
-import { ETurnCause, ETurnEndedBy, ETurnOutcome } from '../turns'
+import { ETurnCause, ETurnEndedBy, ETurnOutcome, openTurnOf } from '../turns'
+import { visibleEvents } from '../visibility'
+import { REWIND_MID_TURN_ROWS } from './rewind-mid-turn-fixture'
 import { NOW, runId, threadId } from './support'
 
 const eventsOf = (bodies: readonly V2Body[]): V2Event[] =>
@@ -181,6 +183,62 @@ describe('resumePointOf', () => {
     ])
 
     expect(point).toEqual({ kind: EResumePoint.NotResumable, because: RESUME_REFUSAL_NOTHING })
+  })
+
+  it('resumes the stopped turn after a rewind landed inside an earlier turn', () => {
+    const events = eventsOf([
+      said('read the repo'),
+      started('turn-1'),
+      said('list the files in the repo root, then stop'),
+      replied('I read the repo root'),
+      {
+        type: 'turn-ended',
+        turnId: 'turn-1',
+        outcome: ETurnOutcome.Completed,
+        by: ETurnEndedBy.Agent,
+      },
+      started('turn-2'),
+      cutReply('half a sentence'),
+      {
+        type: 'turn-ended',
+        turnId: 'turn-2',
+        outcome: ETurnOutcome.Stopped,
+        by: ETurnEndedBy.Operator,
+      },
+      { type: 'history-rewound', toSeq: 3 },
+      started('turn-3'),
+      replied('listed it'),
+      {
+        type: 'turn-ended',
+        turnId: 'turn-3',
+        outcome: ETurnOutcome.Completed,
+        by: ETurnEndedBy.Agent,
+      },
+      started('turn-4'),
+      cutReply('the tail of a sentence'),
+      {
+        type: 'turn-ended',
+        turnId: 'turn-4',
+        outcome: ETurnOutcome.Stopped,
+        by: ETurnEndedBy.Operator,
+      },
+    ])
+
+    expect(openTurnOf(visibleEvents(events))).toBeNull()
+    expect(resumePointOf({ events })).toEqual({
+      kind: EResumePoint.Clean,
+      discard: { fromSeq: 14, throughSeq: 14 },
+    })
+  })
+
+  it('reads the same answer from the recorded session 4ca7d5a5', () => {
+    const events = REWIND_MID_TURN_ROWS.map((row) => v2EventSchema.parse(row))
+
+    expect(openTurnOf(visibleEvents(events))).toBeNull()
+    expect(resumePointOf({ events })).toEqual({
+      kind: EResumePoint.Clean,
+      discard: { fromSeq: 66, throughSeq: 66 },
+    })
   })
 
   it('row 9: a summary over the stop ends resumability', () => {

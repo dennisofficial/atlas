@@ -9,6 +9,7 @@ import {
   toCallId,
   toRunId,
   toThreadId,
+  visibleEvents,
   type V2Body,
   type V2Event,
 } from '@dltech/atlas-core'
@@ -47,6 +48,45 @@ describe('a message from another session', () => {
     })
     const row = view.items[0]
     expect(row?.kind === ETranscriptKind.Agent ? row.sender : '').toBe('From another session')
+  })
+})
+
+describe('a rewind that landed inside an earlier turn', () => {
+  it('keeps the stopped row resumable', () => {
+    const events = visibleEvents(
+      mint([
+        { type: 'user-said', text: 'read the repo' },
+        { type: 'turn-started', turnId: 'turn-1', cause: ETurnCause.Input },
+        { type: 'user-said', text: 'list the files in the repo root, then stop' },
+        {
+          type: 'turn-ended',
+          turnId: 'turn-1',
+          outcome: ETurnOutcome.Completed,
+          by: ETurnEndedBy.Agent,
+        },
+        { type: 'history-rewound', toSeq: 3 },
+        { type: 'turn-started', turnId: 'turn-2', cause: ETurnCause.Input },
+        {
+          type: 'assistant-said',
+          parts: [{ type: 'text', text: 'I listed the repo root.' }],
+          interrupted: true,
+          stopped: true,
+        },
+        {
+          type: 'turn-ended',
+          turnId: 'turn-2',
+          outcome: ETurnOutcome.Stopped,
+          by: ETurnEndedBy.Operator,
+        },
+      ]),
+    )
+    const stopped = sessionTranscriptOf({ events, overlay: undefined }).items.filter(
+      (item) => item.kind === ETranscriptKind.Agent && item.stopped === true,
+    )
+
+    expect(
+      stopped.map((item) => (item.kind === ETranscriptKind.Agent ? item.resume : null)),
+    ).toEqual([{ kind: EResumePoint.Clean, discard: { fromSeq: 7, throughSeq: 7 } }])
   })
 })
 

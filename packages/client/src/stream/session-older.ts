@@ -1,4 +1,9 @@
-import { isVisible, v2EventSchema, type V2Event, type VisibilityState } from '@dltech/atlas-core'
+import {
+  v2EventSchema,
+  visibleWithin,
+  type V2Event,
+  type VisibilityState,
+} from '@dltech/atlas-core'
 import type { z } from 'zod'
 
 import type { OlderEventsPage, StreamTransport } from './stream-ports'
@@ -45,11 +50,14 @@ const visibleBetween = (args: {
   eventSchema: z.ZodType<V2Event>
   visibility: VisibilityState
 }): V2Event[] =>
-  args.page.events.flatMap((raw) => {
-    const parsed = args.eventSchema.safeParse(raw)
-    if (!parsed.success) return []
-    if (parsed.data.seq <= args.afterSeq || parsed.data.seq >= args.beforeSeq) return []
-    return isVisible(args.visibility, parsed.data) ? [parsed.data] : []
+  visibleWithin({
+    state: args.visibility,
+    events: args.page.events.flatMap((raw) => {
+      const parsed = args.eventSchema.safeParse(raw)
+      if (!parsed.success) return []
+      if (parsed.data.seq <= args.afterSeq || parsed.data.seq >= args.beforeSeq) return []
+      return [parsed.data]
+    }),
   })
 
 export const olderOverHttp = async (args: OlderFetchArgs): Promise<readonly V2Event[]> => {

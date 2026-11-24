@@ -7,7 +7,7 @@ import {
   initialSessionViewState,
   isCommandLogEvent,
   isDurable,
-  isVisible,
+  visibleWithin,
   needsRebuild,
   rebuildEditSensitive,
   stepFailureMessage,
@@ -141,9 +141,9 @@ export const applyPageOutcome = (args: {
     window.view,
   )
   const failureMessage = unfolded.reduce(stepFailureMessage, window.failureMessage)
-  const visible = [...window.events, ...events]
-    .filter((event) => isVisible(visibility, event))
-    .slice(-(args.renderLimit ?? RENDER_LIMIT))
+  const visible = visibleWithin({ state: visibility, events: [...window.events, ...events] }).slice(
+    -(args.renderLimit ?? RENDER_LIMIT),
+  )
   const durable = [...window.durable, ...events.filter((event) => isDurable(event.type))]
   const foldable = foldableOf({ visible, durable })
   return {
