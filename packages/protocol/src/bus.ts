@@ -21,6 +21,8 @@ export const panelHoldSchema = z.strictObject({
 
 export type PanelHold = z.infer<typeof panelHoldSchema>
 
+export const panelHoldKey = (sessionId: string): string => `atlas:panel-hold:${sessionId}`
+
 export const POD_METRICS_WATCH_CHANNEL = 'atlas_pod_metrics_watch'
 
 export const podMetricsWatchSchema = z.strictObject({

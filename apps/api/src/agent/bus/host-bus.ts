@@ -11,5 +11,6 @@ export const createHostBus = (args: {
   onResync: (listener) => args.wakes.onResync(listener),
   live: (liveArgs) => args.liveFrames.live(liveArgs),
   panelHold: (hold) => args.liveFrames.hold(hold),
+  panelHoldMs: (sessionId) => args.liveFrames.panelHoldMs(sessionId),
   onPanelHold: (listener) => args.liveFrames.onHold(listener),
 })
