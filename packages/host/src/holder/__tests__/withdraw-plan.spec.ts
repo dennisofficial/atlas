@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { ESetupPhase, type InboxEntry, type PendingInput } from '@dltech/atlas-core'
+import { EMessageOrigin, ESetupPhase, type InboxEntry, type PendingInput } from '@dltech/atlas-core'
 import { INBOX_KIND_WITHDRAW } from '@dltech/atlas-control'
 
 import { withdrawPlanOf, type WithdrawLookup } from '../withdraw-plan'
@@ -112,5 +112,60 @@ describe('withdrawPlanOf', () => {
         },
       ],
     })
+  })
+
+  it('refuses to withdraw a staged message another session sent', () => {
+    const plan = withdrawPlanOf({
+      entry: withdrawEntry({ inboxId: 5, targetInboxId: 4 }),
+      lookup: lookupOf({
+        staged: [
+          {
+            ...stagedOf({ inboxId: 4, kind: 'message' }),
+            payload: JSON.stringify({ text: 'handoff', via: EMessageOrigin.PeerAgent }),
+            senderSessionId: 'session-2',
+          },
+        ],
+      }),
+    })
+    expect(plan).toEqual({
+      drafts: [
+        {
+          type: 'input-refused',
+          inboxId: 5,
+          targetInboxId: 4,
+          reason: 'only an operator message can be withdrawn',
+        },
+      ],
+    })
+  })
+
+  it('refuses to withdraw a pending message an agent sent', () => {
+    const plan = withdrawPlanOf({
+      entry: withdrawEntry({ inboxId: 5, targetInboxId: 4 }),
+      lookup: lookupOf({
+        pending: [
+          {
+            inboxId: 4,
+            seq: 3,
+            at: '2026-11-20T10:00:00.000Z',
+            kind: 'message',
+            message: {
+              text: 'handoff',
+              via: EMessageOrigin.PeerAgent,
+              sender: { session: 'session-2' },
+            },
+          },
+        ],
+      }),
+    })
+    expect(plan.withdrawn).toBeUndefined()
+    expect(plan.drafts).toEqual([
+      {
+        type: 'input-refused',
+        inboxId: 5,
+        targetInboxId: 4,
+        reason: 'only an operator message can be withdrawn',
+      },
+    ])
   })
 })
