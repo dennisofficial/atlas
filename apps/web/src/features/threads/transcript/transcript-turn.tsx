@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useCallback } from 'react'
+import { memo } from 'react'
 import { ZapIcon } from 'lucide-react'
 
 import { AgentMessage, UserMessage } from '@dltech/atlas-ui/ai/message'
@@ -8,13 +8,11 @@ import { EMessageImageSize, MessageImageThumb } from '@dltech/atlas-ui/ai/messag
 import { Reasoning } from '@dltech/atlas-ui/ai/reasoning'
 import { WorkSummary } from '@dltech/atlas-ui/ai/work-summary'
 import { formatElapsed, messageTimeOf } from '@dltech/atlas-client/transcript'
-import { diagramContextOf } from '@dltech/atlas-core'
 
 import { CommandMessageRow } from '@/features/sessions/command-message-row'
 import { RotationDivider } from '@/features/sessions/rotation-divider'
 
 import { spanMsOf } from '../data/clock-time'
-import type { RepairDiagramAction } from '../data/diagram-repair'
 import { useAttachmentViews } from '../data/use-attachment-views'
 import { useOptionalThreadPanel } from '../panel/thread-panel-context'
 import { isSameItem } from '../data/same-item'
@@ -52,7 +50,6 @@ export type TranscriptActions = {
   openChanges: ((path: string) => void) | null
   openAgent: ((id: string) => void) | null
   openPodSize: (() => void) | null
-  repairDiagram: RepairDiagramAction | null
 }
 
 const AGENT_AUTHOR = 'Atlas'
@@ -126,7 +123,6 @@ function AgentTurnView({
           segment={segment}
           now={now}
           onOpenChanges={actions.openChanges}
-          repairDiagram={actions.repairDiagram}
           resume={actions.resume}
         />
       ))}
@@ -148,7 +144,6 @@ function AgentTurnView({
           segment={answer}
           now={now}
           onOpenChanges={actions.openChanges}
-          repairDiagram={actions.repairDiagram}
           resume={actions.resume}
         />
       )}
@@ -160,30 +155,14 @@ function SegmentView({
   segment,
   now,
   onOpenChanges,
-  repairDiagram,
   resume,
 }: {
   segment: Segment
   now: number
   onOpenChanges: ((path: string) => void) | null
-  repairDiagram: RepairDiagramAction | null
   resume: TranscriptResume | null
 }) {
   const messageId = segment.kind === ESegmentKind.Message ? eventIdOf(segment.item.id) : null
-  const messageText = segment.kind === ESegmentKind.Message ? segment.item.text : ''
-  const handleRepairDiagram = useCallback(
-    (args: { chart: string; error: string }) => {
-      if (repairDiagram === null || messageId === null) return Promise.resolve()
-      const context = diagramContextOf({ text: messageText, source: args.chart })
-      return repairDiagram({
-        messageId,
-        chart: args.chart,
-        error: args.error,
-        ...(context.length === 0 ? {} : { context }),
-      })
-    },
-    [repairDiagram, messageId, messageText],
-  )
   if (segment.kind === ESegmentKind.Message) {
     const { item } = segment
     return (
@@ -198,9 +177,8 @@ function SegmentView({
         >
           <TranscriptMarkdown
             isAnimating={item.streaming}
-            onRepairDiagram={
-              repairDiagram === null || item.streaming ? undefined : handleRepairDiagram
-            }
+            repairDiagrams={!item.streaming}
+            {...(messageId === null ? {} : { messageId })}
           >
             {item.text}
           </TranscriptMarkdown>
@@ -291,7 +269,9 @@ function TurnViewBody({
           })}
         >
           {turn.item.text.trim().length === 0 ? undefined : (
-            <TranscriptMarkdown breaks>{turn.item.text}</TranscriptMarkdown>
+            <TranscriptMarkdown breaks repairDiagrams={false}>
+              {turn.item.text}
+            </TranscriptMarkdown>
           )}
         </UserMessage>
       )

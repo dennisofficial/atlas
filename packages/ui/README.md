@@ -63,6 +63,9 @@ The package ships TypeScript source with no build step.
 - `ai/message`, `ai/message-response`, `ai/tool`, `ai/reasoning`, `ai/chain-of-thought`.
 - `ai/prompt-input`, `ai/confirmation`, `ai/diff-viewer`, `ai/code-viewer`, `ai/file-tree`.
 - `ai/chat`, `ai/plan`, `ai/agents-panel`, `ai/terminal`, `ai/preview-browser`.
+- `ai/diagram-repair`: `DiagramRepairProvider` gives every `ai/message-response` below it a repair
+  handler, and each message hands over its own text, so a broken chart repairs wherever it renders.
+  `repairDiagrams={false}` opts one message out, as a streaming reply does.
 
 ### Check a diagram
 
