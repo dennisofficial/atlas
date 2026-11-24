@@ -1002,7 +1002,7 @@ export const ATLAS_SETTINGS: readonly SettingDefinition[] = [
     group: 'code-quality',
     label: 'Code quality review',
     description:
-      'Runs whenever a classifier is set on the Classifier settings page, and is off without one. After a successful file write, the classifier reviews the changed scope against the enabled code-quality policies and may leave the agent a one-time nudge. Advisory only: it never blocks or reverts a write, and a review that is skipped, late or inconclusive says nothing.',
+      'Runs whenever a classifier is set on the Classifier settings page, and is off without one. After a successful file write, the classifier reviews the changed scope against the enabled code-quality policies and may leave the agent a one-time nudge. Advisory only: it never blocks or reverts a write, and a review that is skipped, late or inconclusive says nothing. An account on the ATLAS_QUALITY_EXAMPLE_USERS allowlist also sends each flagged scope to PostHog, with at most 4000 characters of its code.',
     kind: ESettingKind.Toggle,
     fallback: true,
   },

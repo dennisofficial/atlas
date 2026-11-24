@@ -33,7 +33,7 @@ const reviewed = ({
 const resultOf = (args: {
   records: QualityReviewResult['records']
   context: string | undefined
-}): QualityReviewResult => ({ ...NO_REVIEW_METRICS, ...args })
+}): QualityReviewResult => ({ ...NO_REVIEW_METRICS, ...args, flagged: [] })
 
 const reviewerThat = (
   work: (args: ReviewArgs) => Promise<QualityReviewResult>,

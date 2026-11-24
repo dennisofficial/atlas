@@ -22,7 +22,12 @@ import type {
   ReviewContext,
   SkipArgs,
 } from './review-context'
-import { renderFinding, validateItem, type ReviewItem } from './review-records'
+import {
+  renderFinding,
+  validateItem,
+  type NotifiableEntry,
+  type ReviewItem,
+} from './review-records'
 import { normalizeWorkspacePath, type QualitySourceAdapter } from './review-scopes'
 import { deadlineFailure, recordScope, reviewScopeJob, type ScopeJob } from './scope-review'
 import { qualitySwitches } from './settings'
@@ -49,8 +54,14 @@ export type QualityReviewMetrics = {
   inputTokens: number | null
 }
 
+export type FlaggedExample = {
+  record: CodeQualityReviewedBody
+  entry: NotifiableEntry
+}
+
 export type QualityReviewResult = QualityReviewMetrics & {
   records: readonly CodeQualityReviewedBody[]
+  flagged: readonly FlaggedExample[]
   context: string | undefined
 }
 
@@ -63,6 +74,7 @@ export const NO_REVIEW_METRICS: QualityReviewMetrics = {
 export const NO_REVIEW_RESULT: QualityReviewResult = {
   ...NO_REVIEW_METRICS,
   records: [],
+  flagged: [],
   context: undefined,
 }
 
@@ -146,6 +158,9 @@ export class CodeQualityReview {
     return {
       ...metrics,
       records: validated.map(({ record }) => record),
+      flagged: validated.flatMap(({ record, notifiable }) =>
+        notifiable.map((entry): FlaggedExample => ({ record, entry })),
+      ),
       context:
         deadlineErrorOf(signal) === undefined ? renderFinding({ items: validated }) : undefined,
     }

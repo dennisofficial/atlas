@@ -29,8 +29,8 @@ const OWNER = { userId: 'user-1', projectId: 'project-1' }
 
 describe('qualitySettingsPort', () => {
   it('reports the review off when the session has no owner', async () => {
-    const port = qualitySettingsPort({ db: fakeDb({ session: null }) })
-    expect(await port.settings('s-1')).toEqual({ enabled: false, policies: {} })
+    const port = qualitySettingsPort({ db: fakeDb({ session: null }), exampleUsers: [] })
+    expect(await port.settings('s-1')).toEqual({ enabled: false, policies: {}, examples: false })
   })
 
   it('reads the master switch and the policy switches of the owner', async () => {
@@ -42,11 +42,13 @@ describe('qualitySettingsPort', () => {
           [singleResponsibilityPolicy.settingKey]: false,
         },
       }),
+      exampleUsers: [],
     })
 
     expect(await port.settings('s-1')).toEqual({
       enabled: true,
       policies: { [singleResponsibilityPolicy.settingKey]: false },
+      examples: false,
     })
   })
 
@@ -57,8 +59,23 @@ describe('qualitySettingsPort', () => {
         user: { [ESettingId.QualityEnabled]: true },
         project: { [ESettingId.QualityEnabled]: false },
       }),
+      exampleUsers: [],
     })
 
     expect((await port.settings('s-1')).enabled).toBe(false)
+  })
+
+  it('sends examples for an owner on the allowlist only', async () => {
+    const allowed = qualitySettingsPort({
+      db: fakeDb({ session: OWNER }),
+      exampleUsers: [OWNER.userId],
+    })
+    const stranger = qualitySettingsPort({
+      db: fakeDb({ session: OWNER }),
+      exampleUsers: ['someone-else'],
+    })
+
+    expect((await allowed.settings('s-1')).examples).toBe(true)
+    expect((await stranger.settings('s-1')).examples).toBe(false)
   })
 })

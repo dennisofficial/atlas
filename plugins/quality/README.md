@@ -103,6 +103,16 @@ The hooks send product events through `ctx.analytics` with ids, enums, numbers a
 `steps_after_nudge` and `turns_after_nudge`. The host adds `session_id` and `thread_id`.
 The "Jev quality" PostHog dashboard reads them: https://us.posthog.com/project/411591/dashboard/2407147.
 
+The one exception is `quality example flagged`, which carries code text. The hook sends it once for
+each finding that produces the advisory note, and only when the settings say `examples`, which the
+API turns on for a session owner on the `ATLAS_QUALITY_EXAMPLE_USERS` allowlist (comma separated,
+empty by default). Its properties are `policy_id`, `policy_version`, `status`, `impact`,
+`transition`, `concern_score`, `finding_id`, `episode`, `path` (relative to the project directory),
+`scope_name`, `scope_kind`, `language`, `line_start`, `line_end`, `excerpt`, `excerpt_truncated` and
+`classifier_model`. The excerpt is the scope's after text cut to 4000 characters, and
+`excerpt_truncated` says when it was cut. The hook sends nothing when the path is secret shaped
+(`.env`, keys, `.ssh`) or the excerpt names a secret literal.
+
 The hook asks for captured text only for a write or destructive call, while the classifier is on and the `quality.enabled` setting is true. When it asks for nothing, the tool captures nothing.
 
 The hook returns the records as drafts, and the finding as a keyed `context-loaded` under the slot `quality-review`. The key is the call id, so a finding stays in the context and no later finding replaces it.

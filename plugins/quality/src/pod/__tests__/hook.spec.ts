@@ -23,7 +23,7 @@ describe('capture predicate', () => {
   })
 
   it('asks for nothing when the quality setting is off', async () => {
-    const rig = createRig({ settings: { enabled: false, policies: {} } })
+    const rig = createRig({ settings: { enabled: false, policies: {}, examples: false } })
     expect(await rig.captures(writeCall())).toBe(false)
   })
 
