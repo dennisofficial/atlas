@@ -157,8 +157,8 @@ export class SessionsService {
       credentialSource: ECredentialSource.Platform,
     }
     if (args.firstMessage === undefined) {
-      await this.plane.createSession(session)
-      this.captureSessionCreated({ sessionId, args, provider: sandboxProvider })
+      const { modelRef } = await this.plane.createSession(session)
+      this.captureSessionCreated({ sessionId, modelRef, args, provider: sandboxProvider })
       return { sessionId, mainThreadId }
     }
     const message = await postMessageOf({
@@ -171,7 +171,7 @@ export class SessionsService {
       ...session,
       message: { kind: INBOX_KIND_MESSAGE, payload: message.payload },
     })
-    this.captureSessionCreated({ sessionId, args, provider: sandboxProvider })
+    this.captureSessionCreated({ sessionId, modelRef, args, provider: sandboxProvider })
     this.nameIfUntitled({
       userId: args.userId,
       sessionId,
@@ -187,11 +187,11 @@ export class SessionsService {
 
   private captureSessionCreated(args: {
     sessionId: string
+    modelRef: string
     provider: ESandboxProvider
     args: {
       userId: string
       projectId?: string | null | undefined
-      model?: string | undefined
       firstMessage?: SessionMessageDraft | undefined
     }
   }): void {
@@ -201,10 +201,9 @@ export class SessionsService {
       properties: {
         session_id: args.sessionId,
         project_id: args.args.projectId ?? null,
-        model: args.args.model ?? null,
+        model: args.modelRef,
         provider: args.provider,
         has_first_message: args.args.firstMessage !== undefined,
-        spawned: false,
       },
     })
   }

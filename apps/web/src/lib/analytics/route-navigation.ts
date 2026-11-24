@@ -113,6 +113,7 @@ function pathOf({ url, origin }: { url: string; origin: string }): string | unde
 
 export function createRouteNavigationTracker(ports: RouteNavigationPorts): RouteNavigationTracker {
   let pending: Pending | undefined
+  let lastCommittedPattern: string | undefined
   const settling = new Set<Settling>()
   const rscTimings: RscTiming[] = []
 
@@ -158,6 +159,7 @@ export function createRouteNavigationTracker(ports: RouteNavigationPorts): Route
     start: ({ url, navigationType }) => {
       const path = pathOf({ url, origin: ports.origin })
       if (path === undefined || path === ports.currentPathname()) return
+      if (routePatternOf(path) === lastCommittedPattern) return
       finish(ERouteNavigationOutcome.Superseded)
       pending = {
         path,
@@ -173,6 +175,7 @@ export function createRouteNavigationTracker(ports: RouteNavigationPorts): Route
     commit: (pathname) => {
       if (pending?.path !== pathname) return
       finish(ERouteNavigationOutcome.Committed)
+      lastCommittedPattern = routePatternOf(pathname)
     },
     handleRscTiming: (timing) => {
       rscTimings.push(timing)

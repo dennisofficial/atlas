@@ -70,8 +70,12 @@ type OpenSubscription = {
   subscribe: (id: string) => StreamSubscriptionMessage
 }
 
-const messageOf = (frame: OutgoingFrame): StreamServerMessage =>
-  streamServerMessageSchema.parse(frame)
+const isEventsFrame = (
+  frame: OutgoingFrame,
+): frame is Extract<StreamServerMessage, { type: 'events' }> => frame.type === 'events'
+
+export const messageOf = (frame: OutgoingFrame): StreamServerMessage =>
+  isEventsFrame(frame) ? frame : streamServerMessageSchema.parse(frame)
 
 export const createSessionStream = (deps: SessionStreamDeps): SessionStream => {
   const open = new Set<StreamFrameQueue>()
@@ -97,6 +101,7 @@ export const createSessionStream = (deps: SessionStreamDeps): SessionStream => {
         flush.afterSend()
       },
       bufferedAmount: () => queue.bufferedAmount(),
+      sentBytes: () => queue.sentBytes(),
       close: () => queue.end(),
     })
     const abort = (): void => queue.end()

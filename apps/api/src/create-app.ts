@@ -13,6 +13,7 @@ import { REQUEST_ID_HEADER, requestIdMiddleware } from './api/request-id.middlew
 import { EnvService } from './_core/config/env/env.service'
 import { decodeAtlasB64Body } from './_lib/atlas-b64-body'
 import { JSON_BODY_LIMIT } from './_lib/body-limits'
+import { sseCompression } from './_lib/http/sse-compression'
 import {
   AGENT37_WEBHOOK_BODY_LIMIT,
   GITHUB_WEBHOOK_BODY_LIMIT,
@@ -70,6 +71,7 @@ export async function createApp(
 
   app.use(requestIdMiddleware())
   app.use(helmet())
+  app.use(sseCompression())
   const trustedOrigins = trustedOriginsOf(app.get(EnvService))
   // The web app calls api.byatlas.io cross-origin with the session cookie, so credentialed CORS
   // needs a specific echoed origin: TRUSTED_ORIGINS ∪ WEB_ORIGIN, plus the agent's own list.

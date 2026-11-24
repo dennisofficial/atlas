@@ -46,9 +46,17 @@ describe('SessionsService analytics', () => {
         model: 'anthropic/claude-opus-5-5',
         provider: 'vercel',
         has_first_message: true,
-        spawned: false,
       },
     })
+    expect(analytics.captured[0]?.properties).not.toHaveProperty('spawned')
+  })
+
+  it('reports the model the session was created with when none was asked for', async () => {
+    const { analytics, service } = withAnalytics()
+
+    await service.create({ userId: 'user-a', projectId: 'proj-a' })
+
+    expect(analytics.captured[0]?.properties.model).toMatch(/^[a-z0-9-]+\/[a-z0-9.-]+$/)
   })
 
   it('reports session_archived and session_unarchived', async () => {

@@ -16,6 +16,8 @@ import {
   STREAM_PROTOCOL_VERSION,
 } from '@dltech/atlas-protocol'
 
+import { ProductAnalytics, type ProductAnalyticsProperties } from '@dltech/atlas-observability'
+
 import { createFollowSubscriptions, type FollowSubscriptions } from '../follow-port'
 import type { FollowPlane, SurfaceRecord } from '../follow-types'
 import type { LiveSource } from '../live-source'
@@ -34,6 +36,22 @@ const AT = '2026-11-02T12:00:00.000Z'
 
 export const said = (text: string): V2Body => ({ type: 'user-said', text })
 
+export type Capture = { userId: string; event: string; properties: ProductAnalyticsProperties }
+
+export class RecordingAnalytics extends ProductAnalytics {
+  readonly captures: Capture[] = []
+
+  capture(args: Capture): void {
+    this.captures.push(args)
+  }
+
+  async flush(): Promise<void> {}
+
+  eventsOf(name: string): Capture[] {
+    return this.captures.filter((capture) => capture.event === name)
+  }
+}
+
 export class FollowRig {
   readonly store = new InMemoryControlStore()
   readonly plane = new ControlPlane({ store: this.store, clock: () => AT })
@@ -41,7 +59,9 @@ export class FollowRig {
   readonly sent: OutgoingFrame[] = []
   readonly closedWith: number[] = []
   readonly surfaces: SurfaceRecord[] = []
+  readonly analytics = new RecordingAnalytics()
   buffered = 0
+  sentBytesTotal = 0
   reads = 0
   headReads = 0
   onRead: (() => Promise<void>) | undefined
@@ -85,6 +105,7 @@ export class FollowRig {
       plane,
       timers: this.timers,
       log: undefined,
+      analytics: this.analytics,
       recordSurface: (record) => this.surfaces.push(record),
       feed: {
         onChange: (listener) => this.store.onChange(listener),
@@ -156,8 +177,12 @@ export class FollowRig {
       userId,
       version,
       surface: EStreamSurface.Web,
-      send: (message) => this.sent.push(message),
+      send: (message) => {
+        this.sent.push(message)
+        this.sentBytesTotal += Buffer.byteLength(JSON.stringify(message))
+      },
       bufferedAmount: () => this.buffered,
+      sentBytes: () => this.sentBytesTotal,
       close: (code) => this.closedWith.push(code),
     })
   }
