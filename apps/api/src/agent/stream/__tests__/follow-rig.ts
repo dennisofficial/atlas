@@ -61,7 +61,6 @@ export class FollowRig {
   readonly surfaces: SurfaceRecord[] = []
   readonly analytics = new RecordingAnalytics()
   buffered = 0
-  sentBytesTotal = 0
   reads = 0
   headReads = 0
   tailBaseReads = 0
@@ -184,12 +183,15 @@ export class FollowRig {
       surface: EStreamSurface.Web,
       send: (message) => {
         this.sent.push(message)
-        this.sentBytesTotal += Buffer.byteLength(JSON.stringify(message))
+        return Buffer.byteLength(JSON.stringify(message))
       },
       bufferedAmount: () => this.buffered,
-      sentBytes: () => this.sentBytesTotal,
       close: (code) => this.closedWith.push(code),
     })
+  }
+
+  sendForeign(frame: OutgoingFrame): void {
+    this.sent.push(frame)
   }
 
   async subscribe(args: {

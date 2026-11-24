@@ -56,7 +56,7 @@ export const resolveStart = async (args: {
   const optedIn = args.isMainThread && request.tailViewVersion === SESSION_VIEW_VERSION
   const tooFarBehind = (from: number): boolean => head.seq - from > STREAM_TOO_FAR_BEHIND_EVENTS
   if (afterSeq === undefined)
-    return optedIn && tooFarBehind(0)
+    return optedIn && head.seq > STREAM_TAIL_EVENTS
       ? { cursor: 0, reset: undefined, tail: tailFromOf(head.seq) }
       : { cursor: 0, reset: undefined, tail: undefined }
   if (afterSeq > head.seq) return reset(EStreamResetReason.Ahead)

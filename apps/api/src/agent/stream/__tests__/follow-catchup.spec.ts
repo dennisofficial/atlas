@@ -105,12 +105,13 @@ describe('session_catchup telemetry', () => {
       pages: rig.frames('events').length,
       events: 1_200,
       start: 'cold',
-      surface: 'web',
+      client: 'web',
       main_thread: true,
       reached_live: true,
       behind_events: 1_200,
       drain_waits: 0,
     })
+    expect(capture.properties).not.toHaveProperty('surface')
     expect(capture.properties.bytes).toBeGreaterThan(0)
     expect(capture.properties.duration_ms).toBeGreaterThanOrEqual(0)
   })
@@ -138,6 +139,35 @@ describe('session_catchup telemetry', () => {
       behind_events: 5,
       reached_live: true,
     })
+  })
+
+  it('counts only the frames its own catch-up sent on a shared connection', async () => {
+    await rig.seed({ events: 10 })
+    const all = await rig.plane.readEvents({
+      threadId: THREAD,
+      afterSeq: 0,
+      limit: 10,
+      visible: false,
+    })
+    rig.onRead = async () => {
+      rig.sendForeign({ type: 'snapshot', id: 'list', rows: [] })
+    }
+    await rig.subscribe({
+      session: rig.open(),
+      afterSeq: 5,
+      afterHash: rig.hashAt(all.events, 5),
+    })
+    await rig.untilSeq(10)
+    await rig.settled()
+
+    const own = rig.frames('events')
+    expect(own.length).toBeGreaterThan(0)
+    expect(rig.frames('snapshot').length).toBeGreaterThan(0)
+    const expected = own.reduce(
+      (total, frame) => total + Buffer.byteLength(JSON.stringify(frame)),
+      0,
+    )
+    expect(onlyCatchup().properties.bytes).toBe(expected)
   })
 
   it('marks a reset start as reset', async () => {
