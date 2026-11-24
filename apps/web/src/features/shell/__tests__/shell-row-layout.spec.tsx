@@ -46,6 +46,17 @@ describe('sidebar row action layout', () => {
     }
   })
 
+  it('keeps the actions shown while a popup they anchor is open', async () => {
+    registerDom()
+    try {
+      const doc = documentOf(render(v1))
+      const actions = doc.querySelector('[data-row-actions]')
+      expect(actions?.className).toContain('group-has-[[data-popup-open]]/thread:flex')
+    } finally {
+      await unregisterDom()
+    }
+  })
+
   it('gives a v2 row the archive action without reserved padding', () => {
     const html = render(
       v2RowOf({
