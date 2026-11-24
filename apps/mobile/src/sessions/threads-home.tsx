@@ -13,6 +13,7 @@ import {
 
 import { usePosture } from '../layout/use-posture'
 import { DoneToggle } from './done-toggle'
+import { EListStatus, listStatusOf } from './list-status'
 import { SearchField } from './search-field'
 import type { ISessionEntry } from './session-groups'
 import { SectionHeader } from './section-header'
@@ -23,13 +24,38 @@ import { ELoadState, useSessions } from './use-sessions'
 const sessionRouteOf = (entry: ISessionEntry) =>
   ({ pathname: '/sessions/[id]', params: { id: entry.id, title: entry.title } }) as const
 
-const EmptyState = ({ searching }: { searching: boolean }) => (
-  <View style={styles.empty}>
-    <Text size={ETextRole.Sm} tone={ETextTone.Muted}>
-      {searching ? 'No matching sessions.' : 'No sessions yet. Tap + to start one.'}
-    </Text>
-  </View>
-)
+const ListStatusView = ({ status, onRetry }: { status: EListStatus; onRetry: () => void }) => {
+  const theme = useTheme()
+  if (status === EListStatus.Ready) return null
+  if (status === EListStatus.Loading) {
+    return (
+      <View style={styles.status}>
+        <ActivityIndicator color={theme.primary} />
+      </View>
+    )
+  }
+  if (status === EListStatus.Failed) {
+    return (
+      <View style={styles.status}>
+        <Text size={ETextRole.Sm} tone={ETextTone.Destructive}>
+          Sessions could not be loaded.
+        </Text>
+        <Text size={ETextRole.Sm} tone={ETextTone.Muted} onPress={onRetry}>
+          Tap to try again.
+        </Text>
+      </View>
+    )
+  }
+  return (
+    <View style={styles.status}>
+      <Text size={ETextRole.Sm} tone={ETextTone.Muted}>
+        {status === EListStatus.NoMatches
+          ? 'No matching sessions.'
+          : 'No sessions yet. Tap + to start one.'}
+      </Text>
+    </View>
+  )
+}
 
 type TSearchBarOptions = NativeStackNavigationOptions['headerSearchBarOptions']
 
@@ -79,28 +105,12 @@ export const ThreadsHome = ({
     else onOpen(entry)
   }
 
-  if (loadState === ELoadState.Loading) {
-    return (
-      <View style={[styles.center, { backgroundColor: theme.sidebar }]}>
-        <ActivityIndicator color={theme.primary} />
-      </View>
-    )
-  }
-
-  if (loadState === ELoadState.Failed) {
-    return (
-      <View style={[styles.center, { backgroundColor: theme.sidebar }]}>
-        <Text size={ETextRole.Sm} tone={ETextTone.Destructive}>
-          Sessions could not be loaded.
-        </Text>
-        <Text size={ETextRole.Sm} tone={ETextTone.Muted} onPress={() => void refresh()}>
-          Tap to try again.
-        </Text>
-      </View>
-    )
-  }
-
-  const hasSessions = sections.some((section) => section.count > 0)
+  const status = listStatusOf({
+    loading: loadState === ELoadState.Loading,
+    failed: loadState === ELoadState.Failed,
+    hasSessions: sections.some((section) => section.count > 0),
+    searching: query.trim().length > 0,
+  })
 
   return (
     <>
@@ -124,9 +134,7 @@ export const ThreadsHome = ({
         ListHeaderComponent={
           showsNativeSearch ? undefined : <SearchField value={query} onChangeText={setQuery} />
         }
-        ListFooterComponent={
-          hasSessions ? undefined : <EmptyState searching={query.trim().length > 0} />
-        }
+        ListFooterComponent={<ListStatusView status={status} onRetry={() => void refresh()} />}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -169,19 +177,13 @@ export const ThreadsHome = ({
 }
 
 const styles = StyleSheet.create({
-  center: {
-    alignItems: 'center',
-    flex: 1,
-    gap: space(2),
-    justifyContent: 'center',
-    padding: space(6),
-  },
   list: {
     gap: space(0.5),
     padding: space(2),
   },
-  empty: {
+  status: {
     alignItems: 'center',
+    gap: space(2),
     paddingTop: space(12),
   },
 })
