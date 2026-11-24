@@ -7,7 +7,6 @@ import { DynamicIcon } from 'lucide-react/dynamic'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
-import { useNowEvery } from '@/features/threads/data/use-now'
 import { messageOf } from '@/features/threads/data/use-send'
 
 import { sessionsApi } from '../../data/sessions-api'
@@ -22,7 +21,6 @@ import {
 } from './subscription-row-model'
 
 const VISIBLE_ROWS = 5
-const TICK_MS = 30_000
 
 export type UnsubscribeRun = (args: {
   sessionId: string
@@ -41,9 +39,9 @@ function SubscriptionIcon({ row }: { row: SubscriptionRow }) {
   return <DynamicIcon name={name} className={className} fallback={fallback} />
 }
 
-function SubscriptionRowItem(props: { row: SubscriptionRow; now: number; onRemove: () => void }) {
-  const { row, now } = props
-  const meta = subscriptionMetaOf({ row, now })
+function SubscriptionRowItem(props: { row: SubscriptionRow; onRemove: () => void }) {
+  const { row } = props
+  const meta = subscriptionMetaOf(row)
   const title = subscriptionTitleOf(row.presentation.title)
 
   return (
@@ -79,10 +77,6 @@ export function SessionSubscriptionsSection({ run = runThroughApi }: { run?: Uns
   const rows = view.subscriptionRows
   const [expanded, setExpanded] = useState(false)
   const [removing, setRemoving] = useState<ReadonlySet<string>>(new Set())
-  const now = useNowEvery({
-    enabled: rows.some((row) => row.expiresAt !== undefined),
-    tickMs: TICK_MS,
-  })
 
   useEffect(() => {
     const live = new Set(rows.map((row) => row.id))
@@ -119,7 +113,7 @@ export function SessionSubscriptionsSection({ run = runThroughApi }: { run?: Uns
     <section data-session-subscriptions aria-label="Subscriptions" className="flex flex-col">
       <SectionHead title="Subscriptions" count={shown.length} />
       {visible.map((row) => (
-        <SubscriptionRowItem key={row.id} row={row} now={now} onRemove={() => handleRemove(row)} />
+        <SubscriptionRowItem key={row.id} row={row} onRemove={() => handleRemove(row)} />
       ))}
       {shown.length > VISIBLE_ROWS ? (
         <button

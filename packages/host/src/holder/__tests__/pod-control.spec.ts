@@ -232,7 +232,6 @@ describe('podControlOf subscriptions', () => {
     events: [],
     createdBy: 'agent',
     createdAt: '2026-11-22T00:00:00.000Z',
-    expiresAt: '2026-11-23T00:00:00.000Z',
   }
 
   it('calls the client for the holder thread', async () => {

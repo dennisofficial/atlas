@@ -17,7 +17,30 @@ import {
 } from './subscription-fixtures'
 
 const PAST = '2026-11-22T11:00:00.000Z'
-const FUTURE = '2026-11-22T13:00:00.000Z'
+
+const seededExpiring = async (args: {
+  store: Awaited<ReturnType<typeof setup>>['store']
+  deadline: string
+}) =>
+  await args.store.transact((tx) =>
+    tx.insertSubscriptionRow({
+      userId: 'user-a',
+      repoFullName: 'acme/atlas',
+      branch: '#7',
+      threadId: MAIN,
+      sessionId: SESSION,
+      provider: 'github.pull-request',
+      kind: 'pull-request',
+      prNumber: 7,
+      target: { repo: REPO, number: 7 },
+      label: 'acme/atlas#7',
+      createdBy: ESubscriptionActor.Agent,
+      events: [],
+      expiresAt: args.deadline,
+      deadline: args.deadline,
+      createdAt: NOW,
+    }),
+  )
 
 describe('writes that race another writer', () => {
   it('inserts a fresh row when the update finds its row gone', async () => {
@@ -63,9 +86,9 @@ describe('writes that race another writer', () => {
 
   it('keeps a row renewed between its selection and the sweep', async () => {
     const { store, plane } = await setup()
-    const expired = await subscribe({ plane, expiresAt: PAST })
-    const rows = [{ subscriptionId: expired.subscription.id, threadId: MAIN }]
-    await subscribe({ plane, expiresAt: FUTURE })
+    const expired = await seededExpiring({ store, deadline: PAST })
+    const rows = [{ subscriptionId: expired.row.subscriptionId, threadId: MAIN }]
+    await subscribe({ plane })
 
     const ended = await store.transact((tx) =>
       endSubscriptionsIn({
@@ -80,17 +103,17 @@ describe('writes that race another writer', () => {
 
     expect(ended).toBe(0)
     expect(await plane.listSubscriptions({ sessionId: SESSION })).toHaveLength(1)
-    expect(await recordsOf({ plane })).toHaveLength(2)
+    expect(await recordsOf({ plane })).toHaveLength(1)
   })
 
   it('ends a row that is still expired when the sweep deletes it', async () => {
     const { store, plane } = await setup()
-    const expired = await subscribe({ plane, expiresAt: PAST })
+    const expired = await seededExpiring({ store, deadline: PAST })
 
     const ended = await store.transact((tx) =>
       endSubscriptionsIn({
         tx,
-        rows: [{ subscriptionId: expired.subscription.id, threadId: MAIN }],
+        rows: [{ subscriptionId: expired.row.subscriptionId, threadId: MAIN }],
         by: ESubscriptionActor.Clock,
         reason: ESubscriptionEnd.Expired,
         at: NOW,
@@ -101,10 +124,9 @@ describe('writes that race another writer', () => {
     expect(ended).toBe(1)
     expect(await plane.listSubscriptions({ sessionId: SESSION })).toEqual([])
     expect(await recordsOf({ plane })).toMatchObject([
-      { type: 'subscription-created' },
       {
         type: 'subscription-ended',
-        subscriptionId: expired.subscription.id,
+        subscriptionId: expired.row.subscriptionId,
         reason: ESubscriptionEnd.Expired,
         by: ESubscriptionActor.Clock,
       },

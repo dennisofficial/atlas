@@ -58,17 +58,17 @@ Subscribe a thread to a GitHub pull request or workflow run, so the events reach
 
 `subscription` takes one `action`:
 
-| Action        | Needs            | What it does                                                                |
-| ------------- | ---------------- | --------------------------------------------------------------------------- |
-| `subscribe`   | `provider`       | Subscribe the thread. Also takes `target`, `events` and `expiresInMinutes`. |
-| `unsubscribe` | `subscriptionId` | End one subscription.                                                       |
-| `list`        | nothing          | Show each subscription and the providers that a thread can subscribe to.    |
+| Action        | Needs            | What it does                                                             |
+| ------------- | ---------------- | ------------------------------------------------------------------------ |
+| `subscribe`   | `provider`       | Subscribe the thread. Also takes `target` and `events`.                  |
+| `unsubscribe` | `subscriptionId` | End one subscription.                                                    |
+| `list`        | nothing          | Show each subscription and the providers that a thread can subscribe to. |
 
 `target` is a pull request reference or a workflow run reference. Leave it out when the provider
 works the target out from the session. A blank `github.workflow-run` target names the newest run
 of the pushed commit. A target that already reached its end (a merged or closed pull request, a
 finished run) gets its final notice at once, the subscription ends, and the reply names that state. `events`
-keeps only the named filters. `expiresInMinutes` ends the subscription later.
+keeps only the named filters.
 
 ### Refuse a CI watch
 

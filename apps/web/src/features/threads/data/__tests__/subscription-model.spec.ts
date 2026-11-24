@@ -10,7 +10,6 @@ import {
 
 import {
   detailOf,
-  expiryTextOf,
   pullRequestBellOf,
   pullRequestBellsOf,
   pullRequestTargetOf,
@@ -19,8 +18,6 @@ import {
 } from '../subscription-model'
 
 import type { PullRequestEntry } from '../pull-request-entries'
-
-const NOW = Date.parse('2026-10-28T12:00:00.000Z')
 
 const row = (over: Partial<SubscriptionWire> = {}): SubscriptionWire => ({
   id: 'sub_1',
@@ -173,29 +170,10 @@ describe('pullRequestBellOf', () => {
   })
 })
 
-describe('expiryTextOf', () => {
-  const at = (ms: number) => new Date(NOW + ms).toISOString()
-
-  it('reads minutes, hours and days', () => {
-    expect(expiryTextOf({ expiresAt: at(5 * 60_000), now: NOW })).toBe('Expires in 5m')
-    expect(expiryTextOf({ expiresAt: at(3 * 3_600_000), now: NOW })).toBe('Expires in 3h')
-    expect(expiryTextOf({ expiresAt: at(48 * 3_600_000), now: NOW })).toBe('Expires in 2d')
-  })
-
-  it('says expired once past and nothing without an expiry', () => {
-    expect(expiryTextOf({ expiresAt: at(-1), now: NOW })).toBe('Expired')
-    expect(expiryTextOf({ expiresAt: undefined, now: NOW })).toBeNull()
-  })
-})
-
 describe('detailOf', () => {
-  it('joins provider, creator, held count and expiry', () => {
-    const subscription = row({
-      held: 2,
-      createdBy: ESubscriptionActorWire.Operator,
-      expiresAt: new Date(NOW + 60 * 60_000).toISOString(),
-    })
-    expect(detailOf({ subscription, now: NOW })).toBe('Pull request · You · 2 held · Expires in 1h')
+  it('joins provider, creator and held count', () => {
+    const subscription = row({ held: 2, createdBy: ESubscriptionActorWire.Operator })
+    expect(detailOf(subscription)).toBe('Pull request · You · 2 held')
   })
 })
 

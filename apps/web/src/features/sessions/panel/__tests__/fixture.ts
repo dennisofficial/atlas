@@ -66,7 +66,6 @@ export const sessionSubscriptionFixture = (
   events: [],
   createdBy: 'agent',
   createdAt: '2026-11-08T10:00:00.000Z',
-  expiresAt: null,
   ...overrides,
 })
 

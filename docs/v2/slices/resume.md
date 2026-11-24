@@ -642,7 +642,8 @@ Record the results in `evidence/` with the request and response lines and one sc
 - Resume of a turn stopped by a rewind, by a rotation or by a credential repair. Each already has its
   own path.
 - Editing the stopped step — dropping its text, its calls or its tokens — from the transcript. The
-  transcript keeps every row; only the model's context drops the cut step.
+  transcript keeps every row; only the model's context drops the cut step. One exception: a quick
+  stop (§16) hides the whole turn, because nothing in it was the agent's work.
 - A resume that changes the model, the provider or the context window.
 - Stop or resume for a teammate from another session. A teammate is a session row and stops itself.
 - Mobile, until it has a stopped line (§9.1).
@@ -655,3 +656,108 @@ turn (Dennis, 2026-11-23). From the model's view nothing paused. Explaining paus
 to the model only adds noise and causes hallucination. The `resume-marked` event is a fact in the log,
 so every later assembly skips the cut range with no extra state. The operator keeps the cut rows and
 the `Stopped` line in the transcript.
+
+## 16. Quick stop: the message goes back to the composer
+
+> **Dennis, 2026-11-24.** Send a message and stop at once. If the agent was only thinking — no tool
+> ran and no reply text showed — the turn is rewound and the message goes back into the composer,
+> text and attachments, ready to edit. This is the v1 behaviour, re-derived for v2: no v1 code is
+> left to port (`apps/tui/src/app` is the v2 TUI, and `deprecated/` has no stop restore).
+
+### 16.1 Two windows, one rule
+
+- **Window A. The stop lands before the message is drained.** The log holds
+  `input-consumed{consumed: discarded}` for the message and no `user-said`
+  (`packages/host/src/holder/held-wait.ts:10-40`). Nothing changes in the log: the client that sent
+  the message puts it back.
+- **Window B. The turn started, and the stop cut it while the model only thought.** The log holds
+  `user-said`, `turn-started{cause: input}`, maybe `assistant-said{interrupted}` with no `text` part,
+  and `turn-ended{stopped, operator}`. The host appends one `history-rewound{cause: quick-stop}` in the
+  same append as `turn-ended`.
+
+Window A is a client bug today: `stagedOutcomesOf` maps every `input-consumed` to `Posted`
+(`packages/client/src/stream/outgoing-messages.ts:60-64`), so the staged text is dropped silently.
+
+### 16.2 The decision, in core
+
+New pure function beside `resumePointOf`, in `packages/core/src/record/quick-stop.ts`:
+
+```ts
+export type QuickStop = { toSeq: number; draft: string } | null
+export function quickStopOf(input: { events: readonly V2Event[]; ending: TurnEnding }): QuickStop
+```
+
+It returns a rewind only when every rule holds. Each rule is a fact in the log:
+1. The ending is `stopped` by `operator`.
+2. The open turn's `turn-started` has `cause: input`. A resumed turn is never rewound.
+3. The prompts of the turn are the `user-said` rows after the previous `turn-ended` (or the start of
+   the thread) and before `turn-started`. There is at least one, and each is from the operator (`via`
+   absent or `operator`). A message from an agent, a routine or a notice is never rewound.
+4. After `turn-started`, the turn holds only quiet rows: `assistant-said` with no non-empty `text`
+   part, and bookkeeping (`input-consumed`, `input-posted`, `retry-scheduled`, `model-fell-back`,
+   `fact-recorded`, `context-changed`, `resource-loaded`). Any other row — a tool row, an
+   `agent-spawned`, a `user-said` drained mid-turn, a text part — means the agent did work: no rewind.
+
+`toSeq` is the seq before the first prompt. `draft` is the prompts' text, joined by a blank line.
+
+### 16.3 What the host writes
+
+`history-rewound` gains one optional field, `cause?: ERewindCause` (`operator` | `quick-stop`;
+absent is `operator`, so `/rewind` rows do not change). The host computes `quickStopOf` where it
+writes a stopped `turn-ended` (`HeldTurns.endTurn`, `packages/host/src/holder/held-turns.ts`, and
+`closeOpenTurn`, `packages/host/src/holder/orphan-turn.ts`) and appends
+`[turn-ended, history-rewound{toSeq, draft, cause: quick-stop}]` in **one** append. There is no window
+between the two rows, so a host drain, a SIGKILL or a pod restart leaves either neither row or both;
+no new `describeHandoff` scenario is needed. The existing visibility fold then does the rest
+(`packages/core/src/record/visibility.ts:24-33`): the prompts and the cut turn leave the visible log,
+and the model never reads them.
+
+### 16.4 No conflict with Resume
+
+After a quick stop the turn's `turn-started` is hidden, so its `turn-ended` is hidden too
+(`visibleWithin`, `packages/core/src/record/visibility.ts:139-152`). `resumePointOf` then reads the
+turn before it, or returns `There is no stopped turn to resume.` (rule 3 of §4). The `Stopped` line
+and the `Resume` action disappear with the turn. A restore and a resume can never both show.
+
+### 16.5 The client: only the sender restores
+
+`clientId` is minted per message by the client that sent it, and it is durable on `user-said` and
+`input-posted`. Each client keeps the set of `clientId`s it sent in this session for the life of the
+page (web `staged-store`, the TUI send hook, the mobile session screen). One pure function in
+`packages/client` decides both windows:
+- Window A: `stagedOutcomesOf` maps `input-consumed{discarded}` to a new `EStagedOutcome.Discarded`.
+  The restore path that today handles `Refused` puts the staged copy back (text and attachments), with
+  no toast.
+- Window B: `quickStopRestoresOf({ events, clientIds })` returns, for each
+  `history-rewound{cause: quick-stop}`, the hidden operator `user-said` rows whose `clientId` this
+  client sent: `{ eventId, text, attachments }`. The client merges them with `mergedDraftOf` and
+  restores attachments with `restorePlanOf` (`packages/client/src/session/session-rewind.ts`), the
+  same helpers `/rewind` uses. Each rewind event restores once (a handled set keyed by event id).
+
+Another client of the same session sees the message leave the transcript, and its composer does not
+change. After a reload the sent set is empty, so an old quick stop never restores twice.
+
+### 16.6 Surfaces
+
+- **Web**: `use-staged-messages.ts` handles `Discarded`; `session-view.tsx` feeds window B into
+  `composer.setDraft` and `composer.attachments.restore`, as the rewind restore does.
+- **TUI**: `staged-messages.ts` handles `Discarded`; window B uses `draft.setValue`,
+  `tokens.restore` and `attachments.restore`, as `use-rewind.ts:206-228` does.
+- **Mobile**: the `restored` token carries text and attachments (after #2833 adds held attachments),
+  for both windows. JS only, so it ships as an OTA update.
+
+### 16.7 Tests
+
+| Layer         | What                                                                                                                                                                                                                                                                                                                                           |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pure (`core`) | `quickStopOf`: thinking-only stop → rewind to before the prompt; a stop with streamed text, a tool row, a sub-agent, a mid-turn message, a resumed turn, a completed turn, a non-operator prompt → `null`; two queued prompts → one rewind, joined draft. After the rewind `resumePointOf` is `NotResumable` and the assembly holds no prompt. |
+| Host          | A stopped thinking-only turn appends `turn-ended` and `history-rewound{quick-stop}` in one append; a stop after a tool appends only `turn-ended`.                                                                                                                                                                                              |
+| Client        | `stagedOutcomesOf` gives `Discarded`; `quickStopRestoresOf` returns only this client's messages and each rewind once.                                                                                                                                                                                                                          |
+| Surfaces      | Web and TUI put text and attachments back for both windows; mobile for both windows.                                                                                                                                                                                                                                                           |
+
+### 16.8 Live check
+
+On production: send "think hard about the meaning of life, then answer in one word" and stop within
+two seconds. The message leaves the transcript, it is in the composer with its attachment, no `Resume`
+shows, and the log holds one `history-rewound{cause: quick-stop}`. Then send a message that runs a
+tool and stop during the tool: the message stays, `Stopped` and `Resume` show, no rewind.

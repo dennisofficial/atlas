@@ -30,7 +30,6 @@ describe('subscribing', () => {
       label: 'acme/atlas#7',
       events: [],
       createdBy: ESubscriptionActor.Agent,
-      expiresAt: null,
     })
     expect(await plane.listSubscriptions({ sessionId: SESSION })).toEqual([result.subscription])
     expect(await recordsOf({ plane })).toEqual([
@@ -45,15 +44,7 @@ describe('subscribing', () => {
     ])
   })
 
-  it('keeps an expiry it was given and records it', async () => {
-    const { plane } = await setup()
-    const result = await subscribe({ plane, expiresAt: TTL_LATER })
-
-    expect(result.subscription.expiresAt).toBe(TTL_LATER)
-    expect(await recordsOf({ plane })).toMatchObject([{ expiresAt: TTL_LATER }])
-  })
-
-  it('drops a held heartbeat expiry when a repeat names none', async () => {
+  it('clears a held expiry when a repeat arrives', async () => {
     const { store, plane } = await setup()
     const written = await store.transact((tx) =>
       tx.insertSubscriptionRow({
@@ -79,13 +70,12 @@ describe('subscribing', () => {
 
     expect([again.existed, again.updated]).toEqual([true, true])
     expect(again.subscription.id).toBe(written.row.subscriptionId)
-    expect(again.subscription.expiresAt).toBeNull()
     expect(
       (await store.transact((tx) => tx.readSubscription(written.row.subscriptionId)))?.expiresAt,
     ).toBeNull()
   })
 
-  it('keeps an explicit deadline a repeat names none for', async () => {
+  it('clears a held deadline when a repeat arrives', async () => {
     const { store, plane } = await setup()
     const written = await store.transact((tx) =>
       tx.insertSubscriptionRow({
@@ -109,11 +99,10 @@ describe('subscribing', () => {
 
     const again = await subscribe({ plane })
 
-    expect([again.existed, again.updated]).toEqual([true, false])
-    expect(again.subscription.expiresAt).toBe(TTL_LATER)
+    expect([again.existed, again.updated]).toEqual([true, true])
     expect(
       (await store.transact((tx) => tx.readSubscription(written.row.subscriptionId)))?.deadline,
-    ).toBe(TTL_LATER)
+    ).toBeNull()
   })
 
   it('writes no second record for the same target and events', async () => {
@@ -159,7 +148,7 @@ describe('subscribing', () => {
     expect(store.changesOf(SESSION)).toHaveLength(announced + 3)
   })
 
-  it('keeps the held filter and expiry when a repeat names neither', async () => {
+  it('keeps the held filter when a repeat names none', async () => {
     const { plane } = await setup()
     const first = await subscribe({ plane, events: ['check_run'] })
     const again = await plane.subscribe({

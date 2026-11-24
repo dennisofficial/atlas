@@ -134,7 +134,6 @@ describe('recordMergeQueueEntry', () => {
       lease: { repo: 'compai/app', subject: { kind: 'pull-request', number: 42 } },
       by: ESubscriptionActor.Agent,
     })
-    expect(subscribed.subscription.expiresAt).toBeNull()
     const stored = await db.orm.public.GithubSubscription.where({
       id: subscribed.subscription.id,
     }).first()

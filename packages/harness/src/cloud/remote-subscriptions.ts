@@ -116,7 +116,6 @@ export class RemoteSubscriptionRegistry extends SubscriptionRegistryPort {
       threadId: args.threadId,
       provider: args.provider,
       input: args.input,
-      expiresAt: args.expiresAt,
     })
     if (!reply.ok) return { ok: false, error: reply.error ?? NOT_RETURNED }
     if (reply.subscription === undefined) return { ok: false, error: NOT_RETURNED }
