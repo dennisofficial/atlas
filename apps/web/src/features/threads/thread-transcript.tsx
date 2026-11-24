@@ -189,8 +189,10 @@ export function ThreadTranscript({
             <ChatItem key={row.id} id={row.id}>
               <QueuedRowItem
                 row={row}
-                author={userName}
-                onOpenAgent={openAgent}
+                now={now}
+                models={models}
+                userName={userName}
+                actions={actions}
                 onEdit={queued.onEdit}
                 onRemove={queued.onRemove}
               />

@@ -6,7 +6,8 @@ import { EToolKind, EToolState } from '@dltech/atlas-ui/ai/tool'
 import { EBootStep, EBootStepState, type WireEvent } from '@dltech/atlas-wire/web'
 
 import { eventsFromWire } from '@dltech/atlas-client/transcript'
-import { EQueuedRowKind } from '@/features/sessions/data/queued-transcript'
+import type { QueuedTurn } from '@/features/sessions/data/queued-transcript'
+import { ESegmentKind, ETurnKind } from '../data/transcript-turns'
 import {
   durableTranscriptOf,
   ENoticeTone,
@@ -346,10 +347,13 @@ describe('ThreadTranscript optimistic sends', () => {
       queued: {
         rows: [
           {
-            kind: EQueuedRowKind.Message,
             id: 'client-a',
-            optimistic: true,
-            entry: { id: 'client-a', text: 'ship the dimmer', attachments: [] },
+            turn: {
+              kind: ETurnKind.User,
+              id: 'client-a',
+              item: { kind: ETranscriptKind.User, id: 'client-a', text: 'ship the dimmer' },
+            },
+            withdraw: { inboxId: 'client-a', disabled: true },
           },
         ],
         onEdit: () => undefined,
@@ -357,7 +361,7 @@ describe('ThreadTranscript optimistic sends', () => {
       },
     })
 
-    const row = document.body.querySelector('[data-queued="message"]')
+    const row = document.body.querySelector('[data-queued="user"]')
     expect(row?.textContent).toContain('Queued')
     expect(row?.textContent).toContain('ship the dimmer')
     expect(row?.querySelector('button[aria-label="Edit"]')?.hasAttribute('disabled')).toBe(true)
@@ -366,25 +370,57 @@ describe('ThreadTranscript optimistic sends', () => {
 })
 
 describe('ThreadTranscript queued rows', () => {
-  const queued = {
-    rows: [
-      {
-        kind: EQueuedRowKind.Notice as const,
+  const queuedNotice: QueuedTurn = {
+    id: 'queued-5',
+    turn: {
+      kind: ETurnKind.Notice,
+      id: 'queued-5',
+      item: {
+        kind: ETranscriptKind.Notice,
         id: 'queued-5',
-        item: {
-          kind: ETranscriptKind.Notice as const,
-          id: 'queued-5',
-          title: 'PR #2617: reviewer commented on thread-transcript.tsx',
-          body: 'This dims the whole notice row, including the link.',
-          tone: ENoticeTone.Ok,
+        title: 'PR #2617: reviewer commented on thread-transcript.tsx',
+        body: 'This dims the whole notice row, including the link.',
+        tone: ENoticeTone.Ok,
+      },
+    },
+  }
+
+  const queuedMessage: QueuedTurn = {
+    id: 'queued-3',
+    turn: {
+      kind: ETurnKind.User,
+      id: 'queued-3',
+      item: { kind: ETranscriptKind.User, id: 'queued-3', text: 'also dim the timestamp' },
+    },
+    withdraw: { inboxId: '3', disabled: false },
+  }
+
+  const queuedPeer: QueuedTurn = {
+    id: 'queued-4',
+    turn: {
+      kind: ETurnKind.Agent,
+      id: 'queued-4',
+      running: false,
+      spawns: [],
+      segments: [
+        {
+          kind: ESegmentKind.Message,
+          id: 'queued-4',
+          final: true,
+          item: {
+            kind: ETranscriptKind.Agent,
+            id: 'queued-4',
+            text: 'rebase onto main',
+            streaming: false,
+            sender: 'From Fix login',
+          },
         },
-      },
-      {
-        kind: EQueuedRowKind.Message as const,
-        id: 'queued-3',
-        entry: { id: '3', text: 'also dim the timestamp', attachments: [] },
-      },
-    ],
+      ],
+    },
+  }
+
+  const queued = {
+    rows: [queuedNotice, queuedMessage, queuedPeer],
     onEdit: () => undefined,
     onRemove: () => undefined,
   }
@@ -430,7 +466,7 @@ describe('ThreadTranscript queued rows', () => {
       },
     })
 
-    const row = document.body.querySelector('[data-queued="message"]')
+    const row = document.body.querySelector('[data-queued="user"]')
     expect(row?.textContent).toContain('Queued')
     expect(row?.textContent).toContain('also dim the timestamp')
 
@@ -438,6 +474,16 @@ describe('ThreadTranscript queued rows', () => {
     await click('Remove')
     expect(edits).toEqual(['3'])
     expect(removes).toEqual(['3'])
+  })
+
+  it('renders a queued message from another session with its caption and no Edit or Remove', async () => {
+    await mountWith({ rewind: null, queued })
+
+    const row = document.body.querySelector('[data-queued="agent"]')
+    expect(row?.textContent).toContain('From Fix login')
+    expect(row?.textContent).toContain('rebase onto main')
+    expect(row?.querySelector('button[aria-label="Edit"]')).toBeNull()
+    expect(row?.querySelector('button[aria-label="Remove"]')).toBeNull()
   })
 })
 

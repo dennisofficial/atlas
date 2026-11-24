@@ -215,6 +215,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     events: snapshot.events,
     staged: stagedRun.staged,
     items: transcriptItems,
+    sessionNameOf,
     draft: composer.draft,
     onDraftChange: composer.setDraft,
     onRestoreAttachments: composer.attachments.restore,

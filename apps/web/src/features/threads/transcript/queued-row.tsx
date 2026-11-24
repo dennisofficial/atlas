@@ -1,42 +1,47 @@
 'use client'
 
-import { EQueuedRowKind, type QueuedRow } from '@/features/sessions/data/queued-transcript'
+import type { QueuedTurn } from '@/features/sessions/data/queued-transcript'
 
-import { ReportNotice } from './transcript-agents'
-import { TranscriptNotice } from './transcript-notice'
-import { PendingUserMessage } from './pending-user-message'
+import { TurnView, type QueuedTurnActions, type TranscriptActions } from './transcript-turn'
 
 const DIM = 'opacity-45 transition-opacity hover:opacity-100 focus-within:opacity-100'
 
 export function QueuedRowItem({
   row,
-  author,
-  onOpenAgent,
+  now,
+  models,
+  userName,
+  actions,
   onEdit,
   onRemove,
 }: {
-  row: QueuedRow
-  author: string | undefined
-  onOpenAgent: ((id: string) => void) | null
+  row: QueuedTurn
+  now: number
+  models: ReadonlyMap<string, string>
+  userName: string | undefined
+  actions: TranscriptActions
   onEdit: (inboxId: string) => void
   onRemove: (inboxId: string) => void
 }) {
+  const withdraw = row.withdraw
+  const queued: QueuedTurnActions | undefined =
+    withdraw === undefined
+      ? undefined
+      : {
+          disabled: withdraw.disabled,
+          onEdit: () => onEdit(withdraw.inboxId),
+          onRemove: () => onRemove(withdraw.inboxId),
+        }
   return (
-    <section aria-label="Queued" data-queued={row.kind} className={DIM}>
-      {row.kind === EQueuedRowKind.Message ? (
-        <PendingUserMessage
-          entry={row.entry}
-          author={author}
-          label="Queued"
-          actionsDisabled={row.optimistic === true}
-          onEdit={() => onEdit(row.entry.id)}
-          onRemove={() => onRemove(row.entry.id)}
-        />
-      ) : row.kind === EQueuedRowKind.Report ? (
-        <ReportNotice item={row.item} onOpenAgent={onOpenAgent} />
-      ) : (
-        <TranscriptNotice item={row.item} />
-      )}
+    <section aria-label="Queued" data-queued={row.turn.kind} className={DIM}>
+      <TurnView
+        turn={row.turn}
+        now={now}
+        models={models}
+        userName={userName}
+        actions={actions}
+        queued={queued}
+      />
     </section>
   )
 }
