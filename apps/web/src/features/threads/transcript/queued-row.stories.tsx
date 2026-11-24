@@ -1,6 +1,7 @@
 import {
   EAgentStatus,
   EAttachmentStore,
+  EMessageOrigin,
   EPrEventKind,
   EShellStatus,
   toThreadId,
@@ -16,6 +17,7 @@ import type { NoticeItem } from '../data/transcript-notices'
 
 import { QueuedRowItem } from './queued-row'
 import { TranscriptNotice } from './transcript-notice'
+import type { TranscriptActions } from './transcript-turn'
 
 const meta = {
   title: 'Threads/Queued rows',
@@ -38,9 +40,9 @@ Received: 3
  1 fail
 Ran 31 tests across 1 file. [2.40s]`
 
-const SCREENSHOT = `data:image/svg+xml;utf8,${encodeURIComponent(
+const SCREENSHOT = btoa(
   '<svg xmlns="http://www.w3.org/2000/svg" width="360" height="200" viewBox="0 0 360 200"><rect width="360" height="200" fill="#27272a"/><rect x="12" y="12" width="336" height="24" rx="4" fill="#52525b"/><rect x="12" y="48" width="180" height="10" rx="3" fill="#71717a"/><rect x="12" y="72" width="336" height="116" rx="6" fill="#18181b"/><rect x="24" y="88" width="120" height="10" rx="3" fill="#a1a1aa"/><rect x="24" y="106" width="300" height="10" rx="3" fill="#3f3f46"/><rect x="24" y="124" width="264" height="10" rx="3" fill="#3f3f46"/><rect x="24" y="142" width="288" height="10" rx="3" fill="#3f3f46"/></svg>',
-)}`
+)
 
 const at = '2026-11-23T10:04:00.000Z'
 
@@ -50,6 +52,8 @@ const input = (args: {
   event?: EventBody
   text?: string
   attachments?: readonly Attachment[]
+  via?: EMessageOrigin
+  sender?: { session: string }
 }): PendingInputsState['pending'][number] => ({
   inboxId: args.inboxId,
   seq: args.inboxId,
@@ -63,6 +67,8 @@ const input = (args: {
           text: args.text,
           clientId: `client-${args.inboxId}`,
           ...(args.attachments === undefined ? {} : { attachments: args.attachments }),
+          ...(args.via === undefined ? {} : { via: args.via }),
+          ...(args.sender === undefined ? {} : { sender: args.sender }),
         },
       }),
 })
@@ -126,21 +132,27 @@ const pending: PendingInputsState = {
       attachments: [
         {
           id: 'shot-1',
-          name: 'queued-rows.png',
-          mediaType: 'image/png',
+          name: 'queued-rows.svg',
+          mediaType: 'image/svg+xml',
           size: 284_112,
-          content: { store: EAttachmentStore.Media, hash: 'shot-1' },
+          content: { store: EAttachmentStore.Inline, data: SCREENSHOT },
         },
       ],
+    }),
+    input({
+      inboxId: 16,
+      kind: 'message',
+      text: 'The rename is on your branch now. Rebase before you touch the notices.',
+      via: EMessageOrigin.PeerAgent,
+      sender: { session: 'ses_2' },
     }),
   ],
 }
 
-const rooms = queuedRowsOf({
-  pending,
-  events: [],
-  urls: new Map([['shot-1', SCREENSHOT]]),
-})
+const sessionNameOf = (id: string): string | undefined =>
+  id === 'ses_2' ? 'Rename sessions to threads' : undefined
+
+const rooms = queuedRowsOf({ pending, events: [], staged: [], sessionNameOf })
 
 const landedNotice: NoticeItem = {
   kind: ETranscriptKind.Notice,
@@ -152,6 +164,15 @@ const landedNotice: NoticeItem = {
 
 const noop = () => undefined
 
+const actions: TranscriptActions = {
+  rewind: null,
+  resume: null,
+  summarise: null,
+  openChanges: null,
+  openAgent: null,
+  openPodSize: null,
+}
+
 export const Queued = () => (
   <div className="flex flex-col">
     <ChatItem id="landed">
@@ -159,8 +180,36 @@ export const Queued = () => (
     </ChatItem>
     {rooms.map((row) => (
       <ChatItem key={row.id} id={row.id}>
-        <QueuedRowItem row={row} author="Dennis" onOpenAgent={null} onEdit={noop} onRemove={noop} />
+        <QueuedRowItem
+          row={row}
+          now={0}
+          models={new Map()}
+          userName="Dennis"
+          actions={actions}
+          onEdit={noop}
+          onRemove={noop}
+        />
       </ChatItem>
     ))}
+  </div>
+)
+
+export const QueuedFromAnotherSession = () => (
+  <div className="flex flex-col">
+    {rooms
+      .filter((row) => row.withdraw === undefined)
+      .map((row) => (
+        <ChatItem key={row.id} id={row.id}>
+          <QueuedRowItem
+            row={row}
+            now={0}
+            models={new Map()}
+            userName="Dennis"
+            actions={actions}
+            onEdit={noop}
+            onRemove={noop}
+          />
+        </ChatItem>
+      ))}
   </div>
 )

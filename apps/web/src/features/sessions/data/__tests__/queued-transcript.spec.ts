@@ -2,10 +2,13 @@ import { describe, expect, it } from 'bun:test'
 
 import {
   EAgentStatus,
+  EAttachmentStore,
+  EMessageOrigin,
   EPrEventKind,
   EServiceStatus,
   stampEvent,
   toThreadId,
+  type Attachment,
   type Event,
   type EventBody,
   type PendingInputsState,
@@ -14,33 +17,57 @@ import { noticeEntriesOf } from '@dltech/atlas-client/transcript'
 
 import { EOutgoingPlacement } from '@dltech/atlas-client/stream'
 
+import { ESegmentKind, ETurnKind, type Turn } from '@/features/threads/data/transcript-turns'
 import { noticeItemOf } from '@/features/threads/data/transcript-notices'
 
-import {
-  EQueuedRowKind,
-  optimisticQueuedRowsOf,
-  optimisticUserItemsOf,
-  queuedRowsOf,
-} from '../queued-transcript'
+import { optimisticUserItemsOf, queuedRowsOf } from '../queued-transcript'
 
 const AT = '2026-11-23T10:00:00.000Z'
+
+type MessageSeed = {
+  text: string
+  clientId?: string
+  via?: EMessageOrigin
+  sender?: { session: string }
+}
 
 const input = (args: {
   inboxId: number
   seq?: number
   kind: string
   event?: EventBody
-  text?: string
+  message?: MessageSeed
+  attachments?: readonly Attachment[]
 }): PendingInputsState['pending'][number] => ({
   inboxId: args.inboxId,
   seq: args.seq ?? args.inboxId,
   at: AT,
   kind: args.kind,
   ...(args.event === undefined ? {} : { event: args.event }),
-  ...(args.text === undefined
+  ...(args.message === undefined
     ? {}
-    : { message: { text: args.text, clientId: `client-${args.inboxId}` } }),
+    : {
+        message: {
+          text: args.message.text,
+          clientId: args.message.clientId ?? `client-${args.inboxId}`,
+          ...(args.message.via === undefined ? {} : { via: args.message.via }),
+          ...(args.message.sender === undefined ? {} : { sender: args.message.sender }),
+          ...(args.attachments === undefined ? {} : { attachments: args.attachments }),
+        },
+      }),
 })
+
+const message = (args: {
+  inboxId: number
+  text: string
+  attachments?: readonly Attachment[]
+}): PendingInputsState['pending'][number] =>
+  input({
+    inboxId: args.inboxId,
+    kind: 'message',
+    message: { text: args.text },
+    ...(args.attachments === undefined ? {} : { attachments: args.attachments }),
+  })
 
 const prEvent: EventBody = {
   type: 'pr-event',
@@ -88,35 +115,96 @@ const posted = (event: EventBody): Event =>
 
 const pending: PendingInputsState = {
   pending: [
-    input({ inboxId: 3, kind: 'message', text: 'also dim the timestamp' }),
+    message({ inboxId: 3, text: 'also dim the timestamp' }),
     input({ inboxId: 5, kind: 'event', event: prEvent }),
     input({ inboxId: 7, kind: 'event', event: agentEnded }),
     input({ inboxId: 9, kind: 'event', event: restartingService }),
   ],
 }
 
-const rows = queuedRowsOf({ pending, events: [], urls: new Map() })
+const rows = queuedRowsOf({ pending, events: [], staged: [] })
+
+const turnOf = (id: string): Turn | undefined => rows.find((row) => row.id === id)?.turn
+
+const textOf = (turn: Turn | undefined): string | undefined =>
+  turn?.kind === ETurnKind.User ? turn.item.text : undefined
 
 describe('queuedRowsOf', () => {
-  it('walks the pending inputs in seq order and maps each to its row kind', () => {
-    expect(rows.map((row) => [row.id, row.kind])).toEqual([
-      ['client-3', EQueuedRowKind.Message],
-      ['queued-5', EQueuedRowKind.Notice],
-      ['queued-7', EQueuedRowKind.Report],
+  it('walks the pending inputs in seq order and maps each to the turn it becomes', () => {
+    expect(rows.map((row) => [row.id, row.turn.kind])).toEqual([
+      ['client-3', ETurnKind.User],
+      ['queued-5', ETurnKind.Notice],
+      ['queued-7', ETurnKind.Report],
     ])
   })
 
-  it('keys a pending message row by its clientId and keeps the inbox id for its actions', () => {
+  it('keys the user row by its clientId and carries the text as the landed message does', () => {
+    expect(textOf(turnOf('client-3'))).toBe('also dim the timestamp')
+  })
+
+  it('offers withdraw with the inbox id for an operator message', () => {
     const queued = rows.find((row) => row.id === 'client-3')
 
-    expect(queued?.kind === EQueuedRowKind.Message ? queued.entry.id : undefined).toBe('3')
+    expect(queued?.withdraw).toEqual({ inboxId: '3', disabled: false })
+  })
+
+  it('keeps the attachments the landed message carries', () => {
+    const picture: Attachment = {
+      id: 'att-1',
+      name: 'shot.png',
+      mediaType: 'image/png',
+      size: 12,
+      content: { store: EAttachmentStore.Media, hash: 'b'.repeat(64) },
+    }
+    const [row] = queuedRowsOf({
+      pending: { pending: [message({ inboxId: 4, text: 'look', attachments: [picture] })] },
+      events: [],
+      staged: [],
+    })
+
+    expect(row?.turn.kind === ETurnKind.User ? row.turn.item.attachments : undefined).toEqual([
+      picture,
+    ])
+  })
+
+  it('renders a message from another session as the agent turn it lands as', () => {
+    const [row] = queuedRowsOf({
+      pending: {
+        pending: [
+          input({
+            inboxId: 4,
+            kind: 'message',
+            message: {
+              text: 'rebase onto main',
+              clientId: 'client-4',
+              via: EMessageOrigin.PeerAgent,
+              sender: { session: 'ses_2' },
+            },
+          }),
+        ],
+      },
+      events: [],
+      staged: [],
+      sessionNameOf: (id) => (id === 'ses_2' ? 'Fix login' : undefined),
+    })
+
+    const caption =
+      row?.turn.kind === ETurnKind.Agent
+        ? row.turn.segments.find((segment) => segment.kind === ESegmentKind.Message)
+        : undefined
+
+    expect(row?.turn.kind).toBe(ETurnKind.Agent)
+    expect(caption?.kind === ESegmentKind.Message ? caption.item.sender : undefined).toBe(
+      'From Fix login',
+    )
+    expect(row?.withdraw).toBeUndefined()
   })
 
   it('leaves out a pending message the optimistic row already shows', () => {
     const hidden = queuedRowsOf({
       pending,
       events: [],
-      urls: new Map(),
+      staged: [],
       hiddenInboxIds: new Set([3]),
     })
 
@@ -131,27 +219,17 @@ describe('queuedRowsOf', () => {
   it('titles a queued PR notice exactly as the posted one', () => {
     const [entry] = noticeEntriesOf(posted(prEvent)) ?? []
     const postedTitle = entry === undefined ? undefined : noticeItemOf(entry)?.title
-    const queued = rows.find((row) => row.id === 'queued-5')
+    const turn = turnOf('queued-5')
 
-    expect(queued?.kind === EQueuedRowKind.Notice ? queued.item.title : undefined).toBe(postedTitle)
+    expect(turn?.kind === ETurnKind.Notice ? turn.item.title : undefined).toBe(postedTitle)
   })
 
   it('carries the agent report of an ended sub-agent', () => {
-    const queued = rows.find((row) => row.id === 'queued-7')
+    const turn = turnOf('queued-7')
 
-    expect(queued?.kind === EQueuedRowKind.Report ? queued.item.report : undefined).toBe(
+    expect(turn?.kind === ETurnKind.Report ? turn.item.report : undefined).toBe(
       'The queued notice now renders through TranscriptNotice.',
     )
-  })
-
-  it('carries the queued message text and its inbox id', () => {
-    const queued = rows.find((row) => row.id === 'client-3')
-
-    expect(queued?.kind === EQueuedRowKind.Message ? queued.entry : undefined).toEqual({
-      id: '3',
-      text: 'also dim the timestamp',
-      attachments: [],
-    })
   })
 })
 
@@ -164,14 +242,13 @@ describe('optimistic rows', () => {
     at: AT,
   }
 
-  it('keys an optimistic queued row by its clientId and marks it as having no inbox id', () => {
-    const [row] = optimisticQueuedRowsOf({ staged: [staged], urls: new Map() })
+  it('renders a staged message as the user turn it will land as, with withdraw disabled', () => {
+    const [row] = queuedRowsOf({ pending: { pending: [] }, events: [], staged: [staged] })
 
     expect(row?.id).toBe('client-a')
-    expect(row?.kind === EQueuedRowKind.Message ? row.optimistic : undefined).toBe(true)
-    expect(row?.kind === EQueuedRowKind.Message ? row.entry.text : undefined).toBe(
-      'ship the dimmer',
-    )
+    expect(row?.turn.kind).toBe(ETurnKind.User)
+    expect(textOf(row?.turn)).toBe('ship the dimmer')
+    expect(row?.withdraw).toEqual({ inboxId: 'client-a', disabled: true })
   })
 
   it('builds a landed user item that carries the clientId and the send time', () => {
