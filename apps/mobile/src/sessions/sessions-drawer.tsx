@@ -12,7 +12,7 @@ import { AccountButton } from '../navigation/account-button'
 import { applyNavigation } from '../navigation/apply-navigation'
 import { NewSessionButton } from '../navigation/new-session-button'
 import { sessionOpenOf } from '../navigation/root-navigation'
-import { drawerGeometryOf } from './drawer-layout'
+import { drawerGeometryOf, drawerSwipeEnabledOf } from './drawer-layout'
 import type { ISessionEntry } from './session-groups'
 import { useSelectedSession } from './selected-session'
 import { useSessionsDrawer } from './sessions-drawer-state'
@@ -76,7 +76,7 @@ export const SessionsDrawer = ({ children }: { children: ReactNode }) => {
       onOpen={handleOpen}
       onClose={handleClose}
       drawerType={geometry.permanent ? 'permanent' : 'front'}
-      swipeEnabled={!geometry.permanent}
+      swipeEnabled={drawerSwipeEnabledOf({ geometry, open })}
       swipeEdgeWidth={DRAWER_EDGE_WIDTH}
       overlayAccessibilityLabel="Close sessions"
       drawerStyle={{

@@ -16,3 +16,11 @@ export const drawerGeometryOf = ({
     return { permanent: false, width: overlayWidthOf(width) }
   return { permanent: false, width }
 }
+
+export const drawerSwipeEnabledOf = ({
+  geometry,
+  open,
+}: {
+  geometry: TDrawerGeometry
+  open: boolean
+}): boolean => !geometry.permanent && !open

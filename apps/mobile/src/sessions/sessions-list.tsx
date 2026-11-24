@@ -12,6 +12,8 @@ import type { ISessionEntry } from './session-groups'
 import { SectionHeader } from './section-header'
 import { BucketProjectLabel, SessionRow } from './session-row'
 import { EItemKind, sectionsOf } from './session-sections'
+import { SwipeableSessionRow } from './swipeable-session-row'
+import { useArchiveSession } from './use-archive-session'
 import { ELoadState, useSessions } from './use-sessions'
 
 const handleNewSession = (projectId: string) =>
@@ -59,7 +61,8 @@ export const SessionsList = ({
 }) => {
   const theme = useTheme()
   const posture = usePosture()
-  const { partition, loadState, refreshing, refresh, now } = useSessions()
+  const { partition, loadState, refreshing, refresh, now, setArchiveOverride } = useSessions()
+  const { handleArchive, failure } = useArchiveSession({ setArchiveOverride, refresh })
   const [query, setQuery] = useState('')
   const [toggled, setToggled] = useState<ReadonlySet<string>>(new Set())
   const sections = useMemo(
@@ -96,7 +99,16 @@ export const SessionsList = ({
       sections={sections}
       keyExtractor={(item) => item.key}
       stickySectionHeadersEnabled={false}
-      ListHeaderComponent={<SearchField value={query} onChangeText={setQuery} />}
+      ListHeaderComponent={
+        <View style={styles.header}>
+          <SearchField value={query} onChangeText={setQuery} />
+          {failure === null ? null : (
+            <Text size={ETextRole.Sm} tone={ETextTone.Destructive}>
+              {failure}
+            </Text>
+          )}
+        </View>
+      }
       ListFooterComponent={<ListStatusView status={status} onRetry={() => void refresh()} />}
       refreshControl={
         <RefreshControl
@@ -120,14 +132,21 @@ export const SessionsList = ({
             />
           )
         }
+        const archived = item.entry.archivedAt !== null
+        const handleRowArchive = () =>
+          void handleArchive({ entry: item.entry, archived: !archived })
         return (
-          <SessionRow
-            entry={item.entry}
-            now={now}
-            depth={item.depth}
-            selected={item.entry.id === activeId}
-            onPress={() => onOpen(item.entry)}
-          />
+          <SwipeableSessionRow archived={archived} onArchive={handleRowArchive}>
+            <SessionRow
+              entry={item.entry}
+              now={now}
+              depth={item.depth}
+              selected={item.entry.id === activeId}
+              archived={archived}
+              onPress={() => onOpen(item.entry)}
+              onArchive={handleRowArchive}
+            />
+          </SwipeableSessionRow>
         )
       }}
     />
@@ -135,6 +154,9 @@ export const SessionsList = ({
 }
 
 const styles = StyleSheet.create({
+  header: {
+    gap: space(1),
+  },
   list: {
     gap: space(0.5),
     padding: space(2),

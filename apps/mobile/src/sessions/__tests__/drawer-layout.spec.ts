@@ -3,7 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { PANEL_WIDTH } from '../../layout/pane-layout'
 import { ESessionsListLayout } from '../../layout/posture'
 import { OVERLAY_MIN_WIDTH, OVERLAY_WIDTH_RATIO } from '../sessions-overlay'
-import { drawerGeometryOf } from '../drawer-layout'
+import { drawerGeometryOf, drawerSwipeEnabledOf } from '../drawer-layout'
 
 describe('drawerGeometryOf', () => {
   it('opens full width over the session on an iPhone', () => {
@@ -28,5 +28,25 @@ describe('drawerGeometryOf', () => {
       permanent: true,
       width: PANEL_WIDTH,
     })
+  })
+})
+
+describe('drawerSwipeEnabledOf', () => {
+  it('opens by swipe while the drawer is closed', () => {
+    expect(drawerSwipeEnabledOf({ geometry: { permanent: false, width: 430 }, open: false })).toBe(
+      true,
+    )
+  })
+
+  it('leaves a left swipe on an open drawer to the session rows', () => {
+    expect(drawerSwipeEnabledOf({ geometry: { permanent: false, width: 430 }, open: true })).toBe(
+      false,
+    )
+  })
+
+  it('never swipes a permanent panel', () => {
+    expect(
+      drawerSwipeEnabledOf({ geometry: { permanent: true, width: PANEL_WIDTH }, open: false }),
+    ).toBe(false)
   })
 })
