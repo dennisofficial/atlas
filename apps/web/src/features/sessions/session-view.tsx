@@ -8,7 +8,12 @@ import type { Attachment } from '@dltech/atlas-core'
 
 import { liveBackgroundOf } from '@dltech/atlas-client/crew'
 import { mergedDraftOf } from '@dltech/atlas-client/session'
-import { blockingCommandOf, ESessionConnection, startFailureOf } from '@dltech/atlas-client/stream'
+import {
+  blockingCommandOf,
+  ESessionConnection,
+  isTurnRunning,
+  startFailureOf,
+} from '@dltech/atlas-client/stream'
 import { turnStartedAtOf } from '@dltech/atlas-client/transcript'
 import { pendingOperatorRequestOf } from '@dltech/atlas-plugin-operator/client'
 
@@ -363,7 +368,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
                     repairCard={failure.repairCard}
                     failedLabel={failure.failedLabel}
                     pod={null}
-                    working={working}
+                    working={isTurnRunning(snapshot.status)}
                     turnStartedAt={turnStartedAt}
                     background={background}
                     onRetryBoot={() => void handleRetry()}

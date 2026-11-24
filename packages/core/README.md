@@ -112,7 +112,7 @@ assembly, settings, ports, and the record folds. It imports `zod` and nothing el
 ### Read a derived view and the plan of a thread
 
 - `deriveStatus`, `sessionViewOf`, `checkoutsOf`, `meterOf`, `failureMessageOf`: the views a surface shows.
-- `EAgentStatus`, `EShellStatus`, `EServiceStatus`, `ESessionStatus`, `ETurnOutcome`: the states that the folds report.
+- `EAgentStatus`, `EShellStatus`, `EServiceStatus`, `ESessionStatus`, `ETurnOutcome`: the states that the folds report. `sessionActivityOf(state)` and `ESessionActivity` say what a session status means (setup, a turn, a command such as summarise, a wait, or settled), and `isSettledStatus(state)` reads it.
 - `foldPlan`, `planView`, `PLAN_TOOL_NAME`, `planReminder`: the plan a thread keeps.
 - `COMMAND_CATALOGUE`, `commandLineOf`, `ECommandKind`: a slash command and its arguments.
 
