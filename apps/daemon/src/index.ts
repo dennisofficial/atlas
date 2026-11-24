@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { mkdirSync, readFileSync } from 'node:fs'
 import { writeFile } from 'node:fs/promises'
 
 import {
@@ -10,7 +11,8 @@ import {
 } from '@dltech/atlas-protocol'
 import { DaemonEngine } from '@dltech/atlas-protocol/engine'
 
-import { sanitizeChildEnv } from './child-env'
+import { isAtlasVolumeMounted } from './atlas-volume'
+import { ATLAS_VOLUME_BUN_CACHE, sanitizeChildEnv, withVolumeBunCache } from './child-env'
 import { daemonCpuReadingOf } from './cpu'
 import { DiskCallStore, daemonHomeFromEnv } from './disk-store'
 import { daemonGroups } from './ops'
@@ -39,7 +41,23 @@ delete env.DAEMON_TOKEN
 
 const home = daemonHomeFromEnv(env)
 const protection = protectDaemon(env)
-const childEnv = sanitizeChildEnv(env)
+const atlasVolumeMounted = (): boolean => {
+  try {
+    return isAtlasVolumeMounted(readFileSync('/proc/mounts', 'utf8'))
+  } catch {
+    return false
+  }
+}
+const ensureBunCacheDir = (): void => {
+  try {
+    mkdirSync(ATLAS_VOLUME_BUN_CACHE, { recursive: true })
+  } catch (error) {
+    console.error(`atlas-daemon could not create ${ATLAS_VOLUME_BUN_CACHE}: ${String(error)}`)
+  }
+}
+const atlasVolume = atlasVolumeMounted()
+if (atlasVolume) ensureBunCacheDir()
+const childEnv = withVolumeBunCache({ env: sanitizeChildEnv(env), atlasVolume })
 const bootId = randomUUID()
 const engine = new DaemonEngine({
   bootId,

@@ -41,3 +41,38 @@ export const podDiskGrowthOf = (args: {
   if (limitGb >= args.maxGb) return undefined
   return Math.min(args.maxGb, Math.ceil(limitGb * POD_DISK_GROW_FACTOR))
 }
+
+export const POD_DISK_CEILING_NUDGE_LEVELS = [85, 95] as const
+
+export const POD_DISK_CEILING_REARM_BELOW = 80
+
+export enum EPodDiskCeilingAction {
+  None = 'none',
+  Nudge = 'nudge',
+  Rearm = 'rearm',
+}
+
+export type PodDiskCeilingDecision = {
+  action: EPodDiskCeilingAction
+  percent?: number | undefined
+}
+
+export const podDiskCeilingNudgeOf = (args: {
+  usedBytes: number
+  limitBytes: number
+  nudgedPercent: number | undefined
+}): PodDiskCeilingDecision => {
+  if (args.limitBytes <= 0) return { action: EPodDiskCeilingAction.None }
+  const usedPercent = (Math.max(0, args.usedBytes) / args.limitBytes) * 100
+  let level: number | undefined
+  for (const candidate of POD_DISK_CEILING_NUDGE_LEVELS) {
+    if (usedPercent >= candidate) level = candidate
+  }
+  if (level !== undefined && level > (args.nudgedPercent ?? 0)) {
+    return { action: EPodDiskCeilingAction.Nudge, percent: level }
+  }
+  if (usedPercent < POD_DISK_CEILING_REARM_BELOW && args.nudgedPercent !== undefined) {
+    return { action: EPodDiskCeilingAction.Rearm }
+  }
+  return { action: EPodDiskCeilingAction.None }
+}

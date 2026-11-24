@@ -28,6 +28,7 @@ export type Agent37Client = Agent37UsageClient &
     start(args: { id: string }): Promise<Pick<Agent37Instance, 'id' | 'status'>>
     resize(args: Agent37ResizeArgs): Promise<Agent37Instance>
     update(args: { id: string }): Promise<Pick<Agent37Instance, 'id' | 'status'>>
+    edit(args: { id: string; metadata: Record<string, string> }): Promise<Agent37Instance>
     logs(args: { id: string }): Promise<Agent37Logs>
     exec(args: Agent37ExecArgs): Promise<Agent37ExecResult | Agent37Pid>
     probe(args: {
@@ -200,6 +201,15 @@ export const liveAgent37Client = (args: {
         headers: bearer,
         timeoutMs: 15 * 60_000,
       }) as Promise<Pick<Agent37Instance, 'id' | 'status'>>,
+    // https://www.agent37.com/docs/agents-api/instances/edit.md — metadata replaces the stored map
+    // rather than merging into it, never touches the container, and keeps the vm running.
+    edit: ({ id, metadata }) =>
+      call({
+        url: api(`/v1/instances/${id}`),
+        method: 'PATCH',
+        headers: bearer,
+        body: { metadata },
+      }) as Promise<Agent37Instance>,
     // https://www.agent37.com/docs/agents-api/logs.md — answers in any instance state, including
     // one whose container crash-loops, which is the only read that shows why it is wedged.
     logs: ({ id }) =>

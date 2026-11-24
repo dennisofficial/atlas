@@ -56,6 +56,12 @@ const clientOf = (args: { get: Agent37Client['get']; logs?: (() => Agent37Logs) 
       updates.push(id)
       return { id, status: 'updating' }
     },
+    edit: async ({ id, metadata }) => ({
+      id,
+      status: 'running',
+      url: `https://${id}.agent37.app`,
+      metadata,
+    }),
     logs: async () => (args.logs === undefined ? logsOf(HEALTHY) : args.logs()),
     exec: async () => ({ exit_code: 0, stdout: '', stderr: '', truncated: false }),
     probe: async () => ({ status: 200, body: '' }),

@@ -65,6 +65,8 @@ they read. `apps/api` and `apps/trigger` both use it. It has no framework import
 - `reconcileAgent37Usage` meters the instances the wallet billed.
 - `POD_DISK_GROWN_LIFETIME_STEPS` and `podDiskGrownNotice(diskGb)` are the inbox nudge a grown pod
   leaves for its session.
+- `POD_DISK_CEILING_LIFETIME_STEPS` and `podDiskCeilingNotice({ usedBytes, limitBytes, percent })`
+  are the inbox nudge a pod at the 100 GB ceiling leaves for its session at 85% and 95% full.
 
 ### Sweep v2 pods
 

@@ -5,6 +5,8 @@ export type Agent37Env = NonNullable<PodsEnv['agent37']>
 
 export const AGENT37_POD_SESSION_KEY = 'atlasPodSessionId'
 
+export const AGENT37_DISK_NUDGED_KEY = 'atlasDiskNudgedPercent'
+
 export const agent37InstanceNameOf = (podSessionId: string): string => `atlas-${podSessionId}`
 
 export type Agent37InstanceIds = {

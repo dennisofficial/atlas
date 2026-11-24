@@ -8,11 +8,13 @@ export const podOf = (args: {
   podSessionId: string
   usedGb?: number
   limitGb?: number
+  nudgedPercent?: number
 }): PodDisk => ({
   podSessionId: args.podSessionId,
   instanceId: `inst-${args.podSessionId}`,
   usedBytes: args.usedGb === undefined ? undefined : args.usedGb * GB,
   limitBytes: args.limitGb === undefined ? undefined : args.limitGb * GB,
+  ...(args.nudgedPercent === undefined ? {} : { nudgedPercent: args.nudgedPercent }),
 })
 
 type FakeArgs = {
@@ -21,6 +23,17 @@ type FakeArgs = {
   grow?: (args: { instanceId: string; diskGb: number }) => Promise<void>
   recordDisk?: (args: { sessionId: string; diskGb: number }) => Promise<void>
   notice?: (args: { sessionId: string; diskGb: number }) => Promise<void>
+  ceilingNotice?: (args: {
+    sessionId: string
+    usedBytes: number
+    limitBytes: number
+    percent: number
+  }) => Promise<void>
+  markNudged?: (args: {
+    instanceId: string
+    podSessionId: string
+    percent: number | undefined
+  }) => Promise<void>
 }
 
 export const factsOf = (over: {
@@ -66,6 +79,16 @@ export const fakeDeps = (args: FakeArgs) => {
     notice: async (noticeArgs) => {
       calls.push(`notice:${noticeArgs.sessionId}:${noticeArgs.diskGb}`)
       await (args.notice ?? (async () => undefined))(noticeArgs)
+    },
+    ceilingNotice: async (ceilingArgs) => {
+      calls.push(`ceilingNotice:${ceilingArgs.sessionId}:${ceilingArgs.percent}`)
+      await (args.ceilingNotice ?? (async () => undefined))(ceilingArgs)
+    },
+    markNudged: async (markArgs) => {
+      calls.push(
+        `markNudged:${markArgs.instanceId}:${markArgs.percent === undefined ? 'clear' : markArgs.percent}`,
+      )
+      await (args.markNudged ?? (async () => undefined))(markArgs)
     },
     log: (line) => lines.push(line),
   }
