@@ -6,7 +6,7 @@ import { HealthModule } from '../../platform/health/health.module'
 import { SessionsModule } from '../../platform/sessions/sessions.module'
 import { GithubAppHookController } from './github-app-hook.controller'
 import { GithubHookController } from './github-hook.controller'
-import { sweepSchedulerProviders } from './github-sweep-scheduler'
+import { GithubSweepSchedulerService } from './github-sweep-scheduler'
 import { GithubSandboxWakeService } from './github-sandbox-wake.service'
 import { wakeDebounceProvider } from './github-sandbox-wake-debounce'
 import { sandboxWakeBootProvider } from './github-sandbox-wake-boot'
@@ -54,7 +54,7 @@ import {
     githubHookLifecycleProvider,
     githubHeadReadsProvider,
     pollSweeperProvider,
-    ...sweepSchedulerProviders(),
+    GithubSweepSchedulerService,
     githubDeliveryProvider,
     githubPrDiscussionDeliveryProvider,
     prApplyWiringProvider,
