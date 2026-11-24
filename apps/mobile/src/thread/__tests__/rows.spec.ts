@@ -176,7 +176,7 @@ describe('rowsOf', () => {
 
   it('turns a pod out-of-memory record into a failed notice row', () => {
     const text =
-      "`bunx turbo run typecheck` ran out of memory (commands may use 2.3 GB of the pod's 4 GB)"
+      "Pod ran out of memory: the kernel killed `bunx turbo run typecheck` (commands may use 2.3 GB of the pod's 4 GB)"
     const rows = rowsNow([
       {
         kind: EEntryKind.PodOom,

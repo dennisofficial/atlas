@@ -45,7 +45,7 @@ const processCount = (processes: number): string =>
 export const podOomLine = (record: PodOomRecord): string => {
   const limit = `(${memoryLimitPhrase(record.memory)})`
   if (record.scope === EOomScope.Command && record.command !== undefined) {
-    return `\`${record.command}\` ran out of memory ${limit}`
+    return `Pod ran out of memory: the kernel killed \`${record.command}\` ${limit}`
   }
-  return `A process on the pod ran out of memory: the kernel killed ${processCount(record.processes)} ${limit}`
+  return `Pod ran out of memory: the kernel killed ${processCount(record.processes)} ${limit}`
 }

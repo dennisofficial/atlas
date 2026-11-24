@@ -117,7 +117,7 @@ describe('noticeItemOf', () => {
       kind: EEntryKind.PodOom,
       author: EAuthor.Model,
       key: 'evt_4',
-      text: "`bunx turbo run typecheck` ran out of memory (commands may use 2.3 GB of the pod's 4 GB)",
+      text: "Pod ran out of memory: the kernel killed `bunx turbo run typecheck` (commands may use 2.3 GB of the pod's 4 GB)",
       scope: EOomScope.Command,
       processes: 3,
     }
