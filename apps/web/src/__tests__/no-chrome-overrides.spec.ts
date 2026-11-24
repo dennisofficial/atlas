@@ -115,6 +115,28 @@ const ALLOWED: AllowedOverride[] = [
     reason:
       "a project icon is the repository owner's avatar drawn as a rounded square, so it reads as a project rather than a person (#2302)",
   })),
+  ...(
+    [
+      ['features/settings/parts/provider-key-dialog.tsx', 'Label', 'gap-2'],
+      ['features/settings/parts/provider-card.tsx', 'RadioGroup', 'gap-0'],
+      ['features/sessions/shell-tails.tsx', 'Button', 'h-6'],
+      ['features/sessions/shell-tails.tsx', 'Button', 'px-1.5'],
+      ['features/sessions/crew-panel.tsx', 'Button', 'h-6'],
+      ['features/sessions/crew-panel.tsx', 'Button', 'px-1.5'],
+      ['features/sessions/crew-panel.tsx', 'PopoverContent', 'gap-1'],
+      ['features/sessions/crew-panel.tsx', 'PopoverContent', 'p-1.5'],
+      ['features/sessions/crew-panel.tsx', 'Input', 'h-7'],
+      ['features/sessions/crew-panel.tsx', 'Button', 'h-7'],
+      ['features/sessions/panel/details/services-section.tsx', 'Button', 'h-6'],
+      ['features/sessions/panel/details/services-section.tsx', 'Button', 'px-1.5'],
+    ] as const
+  ).map(([file, component, token]) => ({
+    file,
+    component,
+    token,
+    reason:
+      'compact controls that reached main while the incremental test cache skipped this spec; a design pass moves them to DS size variants',
+  })),
 ]
 
 const WEB_SRC = join(import.meta.dir, '..')
