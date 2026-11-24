@@ -32,6 +32,8 @@ import type {
   SessionWakeOutput,
   SessionWithdrawInput,
   SessionWithdrawOutput,
+  ServicesLogInput,
+  ServicesLogOutput,
 } from '@dltech/atlas-protocol'
 
 import type { ProjectChoice } from '../ui/project-prompt-model'
@@ -107,6 +109,7 @@ export type SessionApi = {
   subscribe(input: SessionSubscribeInput): Promise<SessionSubscribeOutput>
   unsubscribe(input: SessionUnsubscribeInput): Promise<SessionUnsubscribeOutput>
   changes(input: SessionChangesInput): Promise<SessionChangesOutput>
+  logService(input: ServicesLogInput): Promise<ServicesLogOutput>
   reportPresence(input: PresenceBody): Promise<void>
   listSettings(): Promise<readonly SettingRow[]>
   setSetting(input: SettingWriteBody): Promise<void>
@@ -216,6 +219,7 @@ export const sessionApiOf = (args: {
     subscribe: (input) => guarded(() => args.api.sessions.subscribe.mutate(input)),
     unsubscribe: (input) => guarded(() => args.api.sessions.unsubscribe.mutate(input)),
     changes: (input) => guarded(() => args.api.sessions.changes.query(input)),
+    logService: (input) => guarded(() => args.api.services.log.query(input)),
     reportPresence: async (input) => {
       try {
         await guarded(() => args.api.notifications.reportPresence.mutate(input))

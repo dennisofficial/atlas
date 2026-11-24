@@ -7,11 +7,12 @@ import type { SidebarModel } from '../store/sidebar-model'
 import type { SidebarSection } from '../ui/sidebar-section'
 import { drawerServicesOf, serviceFoldOf, serviceRowsOf } from './drawer-services'
 import type { PaneOwner } from './pane-keys'
+import type { SessionApi } from './session-api'
 import type { SessionPanes } from './session-view'
 import { panesOfView } from './session-view'
 import { sidebarModelOf } from './sidebar-model'
 import { useCrew, useCrewNavigation, type CrewControl } from './use-crew'
-import { useContextTree, type ContextFilesApi, type ContextTreeControl } from './use-context-tree'
+import { useContextTree, type ContextTreeControl } from './use-context-tree'
 import { useServicesDrawer, type ServicesDrawer } from './use-services-drawer'
 import { useShellsDrawer, type ShellsDrawer } from './use-shells-drawer'
 import type { SessionTranscript } from './use-session-transcript'
@@ -45,14 +46,16 @@ export type SessionPanesControl = {
 }
 
 export function useSessionPanes(args: {
-  api: ContextFilesApi
   transcript: SessionTranscript
+  api: SessionApi
   sessionId: string
   teammates: readonly StreamSessionRow[]
   sections: readonly SidebarSection[]
   onOpenSession: (agentId: string) => void
   onStopAgent: (agentId: string) => void
   onKillShell: (shellId: string) => void
+  onStopService: (serviceId: string) => void
+  onRestartService: (serviceId: string) => void
   onProblem: (reason: string) => void
 }): SessionPanesControl {
   const { sessionId, transcript } = args
@@ -89,7 +92,14 @@ export function useSessionPanes(args: {
     [panes.previews, serviceViews],
   )
   const serviceFold = useMemo(() => serviceFoldOf(serviceViews), [serviceViews])
-  const services = useServicesDrawer({ rows: serviceRows })
+  const services = useServicesDrawer({
+    rows: serviceRows,
+    api: args.api,
+    sessionId,
+    headSeq: transcript.events.length,
+    onStop: args.onStopService,
+    onRestart: args.onRestartService,
+  })
 
   const context = useContextTree({
     api: args.api,

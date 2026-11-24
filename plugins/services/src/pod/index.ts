@@ -1,5 +1,7 @@
 import { EMPTY_POD, type PodSlot } from '@dltech/atlas-plugin-sdk'
 
+import { service } from '../core/commands'
+import { serviceHandlerOf } from './commands'
 import { ServicesFragment } from './fragment'
 import { recordServiceFrame } from './frames'
 import { reconcileServices } from './reconcile'
@@ -23,5 +25,6 @@ export const servicesPod: PodSlot = {
   onDaemonReady: ({ ctx }) => {
     void resumeDeclaredServices({ ctx, state: stateFor(ctx) })
   },
+  commands: (ctx) => new Map([[service.inboxKind, serviceHandlerOf(ctx)]]),
   prompts: [new ServicesFragment()],
 }

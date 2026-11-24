@@ -58,9 +58,9 @@ message. Native commands and plugin commands both use it.
   is hidden `because` it is a message action, `Panel` because only one surface draws it, or
   `pane-action` because a pane owns it — web, Mac and mobile hide `skills`, `mcp` and `shells`, and
   the TUI keeps them.
-- A pane action (`agent`, `shell-kill`) is hidden from every surface's catalogue, because the pane
-  that draws the row owns the verb and nobody types it. The host still resolves the name against
-  the full registry, so a typed `/agent stop <id>` runs.
+- A pane action (`agent`, `shell-kill`, `service`) is hidden from every surface's catalogue,
+  because the pane that draws the row owns the verb and nobody types it. The host still resolves
+  the name against the full registry, so a typed `/agent stop <id>` runs.
 
 ### Read a typed line
 

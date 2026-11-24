@@ -61,8 +61,18 @@ its roster and its preview URLs.
 
 ### The core and client slots
 
-`servicesCoreSlots` gives the `service-ready` event and the `services` view, and no commands.
-`servicesClient` gives one hook, `services-roster`, which applies to the `service-*` events.
+`servicesCoreSlots` gives the `service-ready` event, the `services` view and one command:
+
+| Command    | Arguments              | What it does                                                                     |
+| ---------- | ---------------------- | -------------------------------------------------------------------------------- |
+| `/service` | `<stop\|restart> <id>` | Stop or restart a service by id. Runs in the host, hidden from every slash menu. |
+
+`serviceHandlerOf(ctx)` in `src/pod/commands.ts` calls the same `stopServiceAction` and
+`restartService` the `service` tool calls, so a service stopped from a drawer and one stopped by
+the model take one code path. It takes no `start` action: a declared-but-stopped service has no
+row, so the operator has nothing to act on. It refuses a line with no service id, and a refused
+stop or restart carries the daemon's own sentence. `servicesClient` gives one hook,
+`services-roster`, which applies to the `service-*` events.
 
 ## Usage
 

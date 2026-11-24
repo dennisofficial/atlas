@@ -22,6 +22,7 @@ export type SurfaceProfile = {
 const PANE_ACTIONS: readonly { name: string; because: EHiddenBecause }[] = [
   { name: 'agent', because: EHiddenBecause.PaneAction },
   { name: 'shell-kill', because: EHiddenBecause.PaneAction },
+  { name: 'service', because: EHiddenBecause.PaneAction },
 ]
 
 const WEB_HIDDEN: readonly { name: string; because: EHiddenBecause }[] = [

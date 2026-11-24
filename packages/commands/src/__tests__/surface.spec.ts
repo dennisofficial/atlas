@@ -15,7 +15,7 @@ const entry = (name: string, group: ECommandGroup): CommandEntry => ({
   source: ECommandSource.Builtin,
 })
 
-const PANE_ACTION_NAMES = ['agent', 'shell-kill'] as const
+const PANE_ACTION_NAMES = ['agent', 'shell-kill', 'service'] as const
 
 const entries: readonly CommandEntry[] = [
   entry('rewind', ECommandGroup.Context),
@@ -37,6 +37,7 @@ describe('catalogueForSurface', () => {
       { name: 'summarise', because: EHiddenBecause.MessageAction },
       { name: 'agent', because: EHiddenBecause.PaneAction },
       { name: 'shell-kill', because: EHiddenBecause.PaneAction },
+      { name: 'service', because: EHiddenBecause.PaneAction },
     ])
   })
 

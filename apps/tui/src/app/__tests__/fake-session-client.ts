@@ -18,6 +18,8 @@ import type {
   SessionStopInput,
   SessionSubscribeInput,
   SessionSubscribeOutput,
+  ServicesLogInput,
+  ServicesLogOutput,
   SessionUnsubscribeInput,
   SessionViewOutput,
   SessionWakeInput,
@@ -97,6 +99,7 @@ export type FakeCalls = {
   subscribe: SessionSubscribeInput[]
   unsubscribe: SessionUnsubscribeInput[]
   changes: SessionChangesInput[]
+  servicesLog: ServicesLogInput[]
   reportPresence: PresenceBody[]
   listSettings: number
   setSetting: SettingWriteBody[]
@@ -138,6 +141,8 @@ export type FakeSessionClient = SessionClient & {
   queueSignInPoll: (answers: readonly ProviderSignInPoll[]) => void
   setMcpServers: (servers: readonly McpOauthServer[]) => void
   setMcpOauthBegin: (answer: McpOauthBeginResult) => void
+  pushServiceLog: (reply: ServicesLogOutput) => void
+  refuseServiceLog: (status: number) => void
   refuseSettingWrites: (message: string | null) => void
   refuseSettingReads: (message: string | null) => void
   pushCreated: (created: SessionCreateOutput) => void
@@ -290,6 +295,7 @@ export const fakeSessionClient = (args: {
     subscribe: [],
     unsubscribe: [],
     changes: [],
+    servicesLog: [],
     reportPresence: [],
     listSettings: 0,
     setSetting: [],
@@ -331,6 +337,8 @@ export const fakeSessionClient = (args: {
   const trees: FilesTreeOutput[] = []
   const changesReplies: SessionChangesOutput[] = []
   let changesRefusal: number | null = null
+  const serviceLogs: ServicesLogOutput[] = []
+  let serviceLogRefusal: number | null = null
   let projects: readonly ProjectChoice[] = []
   let models: ModelsReply = DEFAULT_MODELS
   let commandEntries: readonly CommandEntry[] = []
@@ -504,6 +512,13 @@ export const fakeSessionClient = (args: {
       }
       return changesReplies.shift() ?? { checkouts: [] }
     },
+    logService: async (input) => {
+      calls.servicesLog.push(input)
+      if (serviceLogRefusal !== null) {
+        throw Object.assign(new Error('the log is unavailable'), { status: serviceLogRefusal })
+      }
+      return serviceLogs.shift() ?? { text: '', truncated: false }
+    },
     reportPresence: async (input) => {
       calls.reportPresence.push(input)
     },
@@ -638,6 +653,12 @@ export const fakeSessionClient = (args: {
     },
     refuseChanges: (status) => {
       changesRefusal = status
+    },
+    pushServiceLog: (reply) => {
+      serviceLogs.push(reply)
+    },
+    refuseServiceLog: (status) => {
+      serviceLogRefusal = status
     },
     setProjects: (next) => {
       projects = next

@@ -9,13 +9,18 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@dltech/atlas-ui/components/sheet'
-import { useQuery } from '@tanstack/react-query'
+import { Button } from '@dltech/atlas-ui/components/button'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowUpRightIcon } from 'lucide-react'
 import { useState } from 'react'
+import { toast } from 'sonner'
 
+import { messageOf } from '@/features/threads/data/use-send'
 import { isPodParked } from '@/features/threads/data/file-source'
 
+import { restartService, stopService } from '../../data/service-actions'
 import { fetchServiceLog, serviceLogKey } from '../../data/service-log'
+import { sessionsApi } from '../../data/sessions-api'
 import { useSessionPaneValue } from '../pane-value'
 import { Dot, EmptyLine, FoldedRows, Row, SectionHead } from './rows'
 
@@ -26,6 +31,55 @@ const TONE: Record<EServiceStatus, string> = {
 }
 
 const nameOf = (row: ServiceRow): string => (row.name ?? row.command).trim()
+
+function ServiceVerbs(props: { sessionId: string; service: ServiceRow }) {
+  const client = useQueryClient()
+  const key = serviceLogKey({ sessionId: props.sessionId, serviceId: props.service.serviceId })
+  if (props.service.status !== EServiceStatus.Running) return null
+
+  const handleStop = () => {
+    stopService({
+      api: sessionsApi,
+      sessionId: props.sessionId,
+      serviceId: props.service.serviceId,
+    }).catch((failure: unknown) => toast.error(messageOf(failure)))
+  }
+
+  const handleRestart = () => {
+    restartService({
+      api: sessionsApi,
+      sessionId: props.sessionId,
+      serviceId: props.service.serviceId,
+    })
+      .then(() => client.invalidateQueries({ queryKey: key }))
+      .catch((failure: unknown) => toast.error(messageOf(failure)))
+  }
+
+  return (
+    <span className="flex shrink-0 items-center gap-0.5">
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="h-6 px-1.5 text-xs"
+        data-service-stop={props.service.serviceId}
+        onClick={handleStop}
+      >
+        Stop
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="h-6 px-1.5 text-xs"
+        data-service-restart={props.service.serviceId}
+        onClick={handleRestart}
+      >
+        Restart
+      </Button>
+    </span>
+  )
+}
 
 function ServiceLog(props: { sessionId: string; service: ServiceRow }) {
   const query = useQuery({
@@ -94,18 +148,21 @@ export function SessionServicesSection() {
                   </span>
                 }
                 trailing={
-                  preview === undefined ? null : (
-                    <button
-                      type="button"
-                      aria-label={`Open ${preview.label}`}
-                      title={preview.url}
-                      onClick={() => openBrowser(preview.url)}
-                      className="flex items-center gap-0.5 rounded-sm outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
-                    >
-                      open
-                      <ArrowUpRightIcon aria-hidden className="size-3" />
-                    </button>
-                  )
+                  <span className="flex items-center gap-1">
+                    <ServiceVerbs sessionId={sessionId} service={row} />
+                    {preview === undefined ? null : (
+                      <button
+                        type="button"
+                        aria-label={`Open ${preview.label}`}
+                        title={preview.url}
+                        onClick={() => openBrowser(preview.url)}
+                        className="flex items-center gap-0.5 rounded-sm outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
+                      >
+                        open
+                        <ArrowUpRightIcon aria-hidden className="size-3" />
+                      </button>
+                    )}
+                  </span>
                 }
                 label={`Open the ${name} log`}
                 onSelect={() => setOpened(row.serviceId)}
@@ -123,6 +180,7 @@ export function SessionServicesSection() {
                 <SheetDescription className="truncate font-mono">
                   {selected.command}
                 </SheetDescription>
+                <ServiceVerbs sessionId={sessionId} service={selected} />
               </SheetHeader>
               <ServiceLog sessionId={sessionId} service={selected} />
             </>
