@@ -38,9 +38,6 @@ if (version !== undefined && version !== '') {
   }
 }
 
-// The v2 client never starts a supervisor, but the bundle still reaches one through the harness
-// value imports in src/ui and src/store, so the embedded JS has to exist. It goes when the harness
-// dependency does.
 await writeSupervisorBundle()
 
 const OPENTUI_PLATFORM_PACKAGES = [
