@@ -6,6 +6,8 @@ const MIRROR = 'https://install.byatlas.io'
 const WRANGLER = ['bunx', 'wrangler@4.157.0']
 const INDEX_KEY = 'index.json'
 const SMALL_ASSET_BYTES = 1024 * 1024
+const VERIFY_ATTEMPTS = 3
+const VERIFY_BACKOFF_MS = 2000
 
 export type MirrorArgs = { tag: string; latest: boolean; prune: boolean }
 
@@ -85,7 +87,48 @@ const sha256Of = async (path: string): Promise<string> => {
   return hasher.digest('hex')
 }
 
-async function verify(args: {
+export type ServedAsset = { bytes: number; digest: string }
+
+const digestOf = async (body: ReadableStream<Uint8Array>): Promise<ServedAsset> => {
+  const hasher = new Bun.CryptoHasher('sha256')
+  const reader = body.getReader()
+  let bytes = 0
+  let next = await reader.read()
+  while (!next.done) {
+    hasher.update(next.value)
+    bytes += next.value.byteLength
+    next = await reader.read()
+  }
+  return { bytes, digest: hasher.digest('hex') }
+}
+
+// A release asset is up to a few hundred megabytes over one connection, and the mirror's edge drops
+// that connection now and then; the release job then failed on a download it could have repeated
+// (run 45473715225: ECONNRESET while verifying macos-arm64-Atlas.dmg). The body is hashed as it
+// streams, so a repeat costs one download and no buffer, and only the fetch is repeated.
+export const servedHash = async (args: {
+  url: string
+  attempts?: number
+  backoffMs?: number
+}): Promise<ServedAsset> => {
+  const attempts = args.attempts ?? VERIFY_ATTEMPTS
+  const backoffMs = args.backoffMs ?? VERIFY_BACKOFF_MS
+  let failure: unknown
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      const response = await fetch(args.url)
+      if (!response.ok) throw new Error(`${args.url} answered ${response.status}`)
+      if (response.body === null) throw new Error(`${args.url} answered no body`)
+      return await digestOf(response.body)
+    } catch (error) {
+      failure = error
+      if (attempt < attempts) await Bun.sleep(backoffMs * attempt)
+    }
+  }
+  throw failure
+}
+
+export async function verify(args: {
   dir: string
   names: readonly string[]
   mirror: MirrorArgs
@@ -93,20 +136,15 @@ async function verify(args: {
   for (const name of args.names) {
     const url = publicUrlOf({ tag: args.mirror.tag, name, latest: args.mirror.latest })
     const local = Bun.file(`${args.dir}/${name}`)
-    const response = await fetch(url)
-    if (!response.ok) throw new Error(`${url} answered ${response.status}`)
-    const served = new Uint8Array(await response.arrayBuffer())
-    if (served.byteLength !== local.size) {
-      throw new Error(`${url} served ${served.byteLength} bytes, expected ${local.size}`)
+    const served = await servedHash({ url })
+    if (served.bytes !== local.size) {
+      throw new Error(`${url} served ${served.bytes} bytes, expected ${local.size}`)
     }
     if (local.size <= SMALL_ASSET_BYTES) {
-      const hasher = new Bun.CryptoHasher('sha256')
-      hasher.update(served)
-      const remote = hasher.digest('hex')
       const expected = await sha256Of(`${args.dir}/${name}`)
-      if (remote !== expected) throw new Error(`${url} served the wrong bytes`)
+      if (served.digest !== expected) throw new Error(`${url} served the wrong bytes`)
     }
-    console.log(`verified ${url} (${served.byteLength} bytes)`)
+    console.log(`verified ${url} (${served.bytes} bytes)`)
   }
 }
 

@@ -3,18 +3,15 @@
 import { memo } from 'react'
 import { ZapIcon } from 'lucide-react'
 
-import { AgentMessage, UserMessage } from '@dltech/atlas-ui/ai/message'
+import { AgentMessage } from '@dltech/atlas-ui/ai/message'
 import { EMessageImageSize, MessageImageThumb } from '@dltech/atlas-ui/ai/message-images'
 import { Reasoning } from '@dltech/atlas-ui/ai/reasoning'
 import { WorkSummary } from '@dltech/atlas-ui/ai/work-summary'
 import { formatElapsed, messageTimeOf } from '@dltech/atlas-client/transcript'
 
-import { CommandMessageRow } from '@/features/sessions/command-message-row'
 import { RotationDivider } from '@/features/sessions/rotation-divider'
 
 import { spanMsOf } from '../data/clock-time'
-import { useAttachmentViews } from '../data/use-attachment-views'
-import { useOptionalThreadPanel } from '../panel/thread-panel-context'
 import { isSameItem } from '../data/same-item'
 import { isSameTurn } from '../data/same-turn'
 import { eventIdOf } from '../data/transcript-items'
@@ -35,6 +32,7 @@ import { TranscriptSignIn } from './transcript-sign-in'
 import { TranscriptMarkdown } from './transcript-markdown'
 import { ToolRow } from './transcript-tool-row'
 import { StoppedLine, workResume, workStopped, type TranscriptResume } from './stopped-line'
+import { UserTurnView, type QueuedTurnActions } from './transcript-user-turn'
 
 export type TranscriptRewind = {
   points: ReadonlySet<string>
@@ -42,6 +40,7 @@ export type TranscriptRewind = {
 }
 
 export type { TranscriptSummarise }
+export type { QueuedTurnActions }
 
 export type TranscriptActions = {
   rewind: TranscriptRewind | null
@@ -53,15 +52,6 @@ export type TranscriptActions = {
 }
 
 const AGENT_AUTHOR = 'Atlas'
-
-function summariseHandlerOf(args: {
-  summarise: TranscriptSummarise | null
-  eventId: string
-}): (() => void) | undefined {
-  const { summarise, eventId } = args
-  if (summarise === null || !summarise.points.has(eventId)) return undefined
-  return () => summarise.onSummarise(eventId)
-}
 
 function WorkItemView({
   item,
@@ -226,54 +216,26 @@ function TurnViewBody({
   models,
   userName,
   actions,
+  queued,
 }: {
   turn: Turn
   now: number
   models: ReadonlyMap<string, string>
   userName: string | undefined
   actions: TranscriptActions
+  queued?: QueuedTurnActions | undefined
 }) {
-  const { rewind } = actions
-  const panel = useOptionalThreadPanel()
-  const attachments = useAttachmentViews({
-    sessionId: panel?.threadId,
-    attachments: turn.kind === ETurnKind.User ? turn.item.attachments : undefined,
-  })
   switch (turn.kind) {
     case ETurnKind.User:
-      if (turn.item.command !== undefined)
-        return (
-          <CommandMessageRow
-            text={turn.item.command.text}
-            timestamp={messageTimeOf({ at: turn.item.at, now })}
-          />
-        )
       return (
-        <UserMessage
-          author={userName}
-          timestamp={messageTimeOf({ at: turn.item.at, now })}
-          copyText={turn.item.text}
-          attachments={attachments}
-          onRewind={
-            rewind === null || !rewind.points.has(turn.item.id)
-              ? undefined
-              : () =>
-                  rewind.onRewind({
-                    eventId: turn.item.id,
-                    text: turn.item.text,
-                  })
-          }
-          onSummariseUpTo={summariseHandlerOf({
-            summarise: actions.summarise,
-            eventId: turn.item.id,
-          })}
-        >
-          {turn.item.text.trim().length === 0 ? undefined : (
-            <TranscriptMarkdown breaks repairDiagrams={false}>
-              {turn.item.text}
-            </TranscriptMarkdown>
-          )}
-        </UserMessage>
+        <UserTurnView
+          turn={turn}
+          now={now}
+          userName={userName}
+          rewind={actions.rewind}
+          summarise={actions.summarise}
+          queued={queued}
+        />
       )
     case ETurnKind.Report:
       return <ReportNotice item={turn.item} onOpenAgent={actions.openAgent} />
@@ -299,5 +261,6 @@ export const TurnView = memo(
     previous.now === next.now &&
     previous.models === next.models &&
     previous.userName === next.userName &&
-    previous.actions === next.actions,
+    previous.actions === next.actions &&
+    previous.queued === next.queued,
 )

@@ -1,37 +1,42 @@
 import {
+  EMessageOrigin,
   ENoticeStage,
   isMessageInputKind,
+  saidBy,
   stampEvent,
   toEventId,
   toRunId,
   toThreadId,
+  userSaidOf,
   type Event,
+  type EventBody,
   type EventEnvelope,
   type PendingInput,
   type PendingInputsState,
 } from '@dltech/atlas-core'
-import { noticeEntriesOf } from '@dltech/atlas-client/transcript'
-import type { QueuedMessageEntry } from '@dltech/atlas-ui/ai/queued-messages'
 
-import { reportItemsOf, type ReportItem } from '@/features/threads/data/transcript-agents'
-import { ETranscriptKind, type TranscriptRow } from '@/features/threads/data/transcript-items'
-import { noticeItemOf, type NoticeItem } from '@/features/threads/data/transcript-notices'
+import { reportItemsOf } from '@/features/threads/data/transcript-agents'
+import {
+  durableTranscriptOf,
+  ETranscriptKind,
+  transcriptViewOf,
+  type SessionNameOf,
+  type TranscriptRow,
+} from '@/features/threads/data/transcript-items'
+import { ETurnKind, turnsOf, type Turn } from '@/features/threads/data/transcript-turns'
 
-import { queuedEntryOf, visibleQueuedOf, type StagedMessage } from './queued-messages'
+import type { StagedMessage } from './queued-messages'
 
-export enum EQueuedRowKind {
-  Notice = 'notice',
-  Report = 'report',
-  Message = 'message',
+export type QueuedWithdraw = { inboxId: string; disabled: boolean }
+
+export type QueuedTurn = {
+  id: string
+  turn: Turn
+  withdraw?: QueuedWithdraw
 }
 
-export type QueuedRow =
-  | { kind: EQueuedRowKind.Notice; id: string; item: NoticeItem }
-  | { kind: EQueuedRowKind.Report; id: string; item: ReportItem }
-  | { kind: EQueuedRowKind.Message; id: string; entry: QueuedMessageEntry; optimistic?: true }
-
 export type QueuedTranscript = {
-  rows: readonly QueuedRow[]
+  rows: readonly QueuedTurn[]
   waitLabel?: string | undefined
   onEdit: (inboxId: string) => void
   onRemove: (inboxId: string) => void
@@ -44,99 +49,130 @@ const rowIdOf = (inboxId: number): string => `queued-${inboxId}`
 const messageRowIdOf = (input: PendingInput): string =>
   input.message?.clientId ?? rowIdOf(input.inboxId)
 
-const envelopeOf = (args: { input: PendingInput; events: readonly Event[] }): EventEnvelope => {
+const envelopeOf = (args: {
+  id: string
+  seq: number
+  at: string
+  events: readonly Event[]
+}): EventEnvelope => {
   const last = args.events.at(-1)
   return {
-    id: toEventId(rowIdOf(args.input.inboxId)),
-    seq: args.input.seq,
+    id: toEventId(args.id),
+    seq: args.seq,
     threadId: last?.threadId ?? toThreadId(QUEUED_NOTICE_ID),
     runId: last?.runId ?? toRunId(QUEUED_NOTICE_ID),
     depth: last?.depth ?? 0,
-    at: args.input.at,
+    at: args.at,
   }
 }
 
-const stampedEventOf = (args: { input: PendingInput; events: readonly Event[] }): Event | null => {
-  const body = args.input.event
-  if (body === undefined) return null
-  return stampEvent({
-    draft: {
-      ...body,
-      notice: { id: rowIdOf(args.input.inboxId), stage: ENoticeStage.Delivered },
-    },
-    envelope: envelopeOf(args),
-  })
-}
-
-const noticeRowOf = (event: Event): QueuedRow | null => {
-  const entries = noticeEntriesOf(event)
-  if (entries === null) return null
-  const [entry] = entries
-  if (entry === undefined) return null
-  const item = noticeItemOf(entry)
-  return item === null ? null : { kind: EQueuedRowKind.Notice, id: event.id, item }
-}
-
-const noticeRowsOf = (args: {
-  inputs: readonly PendingInput[]
+const stampedInputOf = (args: {
+  input: PendingInput
   events: readonly Event[]
-}): ReadonlyMap<number, QueuedRow> => {
-  const stamped = args.inputs.flatMap((input) => {
-    const event = stampedEventOf({ input, events: args.events })
-    return event === null ? [] : [{ input, event }]
-  })
-  const reports = reportItemsOf([...args.events, ...stamped.map(({ event }) => event)])
-  const rows = new Map<number, QueuedRow>()
-  for (const { input, event } of stamped) {
-    const report = reports.get(event.id)
-    const row =
-      report === undefined
-        ? noticeRowOf(event)
-        : { kind: EQueuedRowKind.Report as const, id: event.id, item: report }
-    if (row !== null) rows.set(input.inboxId, row)
+}): { id: string; event: Event } | null => {
+  const { input } = args
+  if (isMessageInputKind(input.kind)) {
+    if (input.message === undefined) return null
+    const id = messageRowIdOf(input)
+    return {
+      id,
+      event: stampEvent({
+        draft: userSaidOf({ inboxId: input.inboxId, message: input.message }),
+        envelope: envelopeOf({ id, seq: input.seq, at: input.at, events: args.events }),
+      }),
+    }
   }
-  return rows
+  const body = input.event
+  if (body === undefined) return null
+  const id = rowIdOf(input.inboxId)
+  return {
+    id,
+    event: stampEvent({
+      draft: { ...body, notice: { id, stage: ENoticeStage.Delivered } },
+      envelope: envelopeOf({ id, seq: input.seq, at: input.at, events: args.events }),
+    }),
+  }
+}
+
+const stagedBodyOf = (staged: StagedMessage): EventBody => ({
+  type: 'user-said',
+  text: staged.text,
+  clientId: staged.clientId,
+  ...(staged.attachments.length === 0 ? {} : { attachments: staged.attachments }),
+})
+
+const turnOfEvent = (args: {
+  event: Event
+  events: readonly Event[]
+  sessionNameOf: SessionNameOf | undefined
+}): Turn | null => {
+  const durable = durableTranscriptOf({ events: [args.event] })
+  const report = reportItemsOf([...args.events, args.event]).get(args.event.id)
+  const view = transcriptViewOf({
+    durable: report === undefined ? durable : { ...durable, reports: [report] },
+    live: [],
+    ...(args.sessionNameOf === undefined ? {} : { sessionNameOf: args.sessionNameOf }),
+  })
+  const turns = turnsOf({ items: view.items, working: false })
+  return turns.find((turn) => turn.kind === ETurnKind.Report) ?? turns.at(0) ?? null
+}
+
+const withdrawFor = (args: { inboxId: number; event: Event }): QueuedWithdraw | undefined =>
+  args.event.type === 'user-said' && saidBy(args.event) === EMessageOrigin.Operator
+    ? { inboxId: String(args.inboxId), disabled: false }
+    : undefined
+
+const stagedRowOf = (args: {
+  staged: StagedMessage
+  events: readonly Event[]
+  sessionNameOf: SessionNameOf | undefined
+}): QueuedTurn | null => {
+  const { staged } = args
+  const event = stampEvent({
+    draft: stagedBodyOf(staged),
+    envelope: envelopeOf({
+      id: staged.clientId,
+      seq: 0,
+      at: staged.at,
+      events: args.events,
+    }),
+  })
+  const turn = turnOfEvent({ event, events: args.events, sessionNameOf: args.sessionNameOf })
+  return turn === null
+    ? null
+    : {
+        id: staged.clientId,
+        turn,
+        withdraw: { inboxId: staged.clientId, disabled: true },
+      }
 }
 
 export function queuedRowsOf(args: {
   pending: PendingInputsState
   events: readonly Event[]
-  urls: ReadonlyMap<string, string>
-  hiddenInboxIds?: ReadonlySet<number> | undefined
-}): QueuedRow[] {
-  const messages = new Map(
-    visibleQueuedOf({ pending: args.pending, urls: args.urls }).map((entry) => [entry.id, entry]),
-  )
-  const notices = noticeRowsOf({
-    inputs: args.pending.pending.filter((input) => !isMessageInputKind(input.kind)),
-    events: args.events,
-  })
-  return args.pending.pending.flatMap((input) => {
-    if (args.hiddenInboxIds?.has(input.inboxId) === true) return []
-    if (isMessageInputKind(input.kind)) {
-      const entry = messages.get(String(input.inboxId))
-      return entry === undefined
-        ? []
-        : [{ kind: EQueuedRowKind.Message as const, id: messageRowIdOf(input), entry }]
-    }
-    const notice = notices.get(input.inboxId)
-    return notice === undefined ? [] : [notice]
-  })
-}
-
-export const optimisticQueuedRowsOf = (args: {
   staged: readonly StagedMessage[]
-  urls: ReadonlyMap<string, string>
-}): QueuedRow[] =>
-  args.staged.map((staged) => ({
-    kind: EQueuedRowKind.Message as const,
-    id: staged.clientId,
-    optimistic: true as const,
-    entry: queuedEntryOf({
-      message: { id: staged.clientId, text: staged.text, attachments: staged.attachments },
-      urls: args.urls,
-    }),
-  }))
+  sessionNameOf?: SessionNameOf | undefined
+  hiddenInboxIds?: ReadonlySet<number> | undefined
+}): QueuedTurn[] {
+  const pendingRows = args.pending.pending.flatMap((input) => {
+    if (args.hiddenInboxIds?.has(input.inboxId) === true) return []
+    const stamped = stampedInputOf({ input, events: args.events })
+    if (stamped === null) return []
+    const turn = turnOfEvent({
+      event: stamped.event,
+      events: args.events,
+      sessionNameOf: args.sessionNameOf,
+    })
+    if (turn === null) return []
+    const withdraw = withdrawFor({ inboxId: input.inboxId, event: stamped.event })
+    return [{ id: stamped.id, turn, ...(withdraw === undefined ? {} : { withdraw }) }]
+  })
+  const stagedRows = args.staged.flatMap((staged) => {
+    const row = stagedRowOf({ staged, events: args.events, sessionNameOf: args.sessionNameOf })
+    return row === null ? [] : [row]
+  })
+  return [...pendingRows, ...stagedRows]
+}
 
 export const optimisticUserItemsOf = (staged: readonly StagedMessage[]): TranscriptRow[] =>
   staged.map((entry) => ({
