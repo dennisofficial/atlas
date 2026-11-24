@@ -62,13 +62,20 @@ const dispatchBootId = async (args: {
   daemonTools: ReadonlySet<string>
   remoteCalls: RemoteCalls
 }): Promise<string | undefined> => {
-  if (!args.daemonTools.has(args.name)) return args.remoteCalls.bootId()
-  await args.remoteCalls.ready()
+  if (args.remoteCalls.bootId() === undefined) await waitForLink(args.remoteCalls)
   const bootId = args.remoteCalls.bootId()
-  if (bootId === undefined) {
+  if (bootId === undefined && args.daemonTools.has(args.name)) {
     throw new RecordCorruptionError('the daemon link had no bootId after ready() resolved')
   }
   return bootId
+}
+
+const waitForLink = async (remoteCalls: RemoteCalls): Promise<void> => {
+  try {
+    await remoteCalls.ready()
+  } catch {
+    return
+  }
 }
 
 export const prepareDraft = async (
