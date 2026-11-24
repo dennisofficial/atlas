@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'826d20353e486a4f5238556f0fe87297523286ced7584b7d0aefe87f90af521b'>;
+  StorageHashBase<'974071b9738acba06ec97c43b3b772d4a1d30c3e736601bb053e8bb5156698ae'>;
 export type ExecutionHash =
   ExecutionHashBase<'fd19c5954d71f00e27e0c02be3f06b71374f3b34bfb9f582b985590708b7518f'>;
 export type ProfileHash =
@@ -4358,11 +4358,6 @@ type ContractBase = Omit<
                   readonly columns: readonly ['repoFullName', 'branch'];
                   readonly unique: false;
                 },
-                {
-                  readonly name: 'GithubTrackingTarget_repoFullName_prNumber_idx';
-                  readonly columns: readonly ['repoFullName', 'prNumber'];
-                  readonly unique: false;
-                },
               ];
               foreignKeys: readonly [
                 {
@@ -7527,16 +7522,12 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
               };
-              primaryKey: { readonly columns: readonly ['sessionId', 'sourceHash'] };
+              primaryKey: {
+                readonly columns: readonly ['sessionId', 'sourceHash'];
+                readonly name: 'V2DiagramRepair_pkey';
+              };
               uniques: readonly [];
-              indexes: readonly [
-                {
-                  readonly name: 'V2DiagramRepair_sessionId_idx_29f415d4';
-                  readonly prefix: 'V2DiagramRepair_sessionId_idx';
-                  readonly columns: readonly ['sessionId'];
-                  readonly unique: false;
-                },
-              ];
+              indexes: readonly [];
               foreignKeys: readonly [
                 {
                   readonly source: {

@@ -1,0 +1,41 @@
+[
+  {
+    "id": "dropIndex.V2DiagramRepair.V2DiagramRepair_sessionId_idx_29f415d4",
+    "label": "Drop index \"V2DiagramRepair_sessionId_idx_29f415d4\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "index",
+        "name": "V2DiagramRepair_sessionId_idx_29f415d4",
+        "table": "V2DiagramRepair"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"V2DiagramRepair_sessionId_idx_29f415d4\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"v2\".\"V2DiagramRepair_sessionId_idx_29f415d4\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop index \"V2DiagramRepair_sessionId_idx_29f415d4\"",
+        "sql": "DROP INDEX \"v2\".\"V2DiagramRepair_sessionId_idx_29f415d4\"",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"V2DiagramRepair_sessionId_idx_29f415d4\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"v2\".\"V2DiagramRepair_sessionId_idx_29f415d4\""
+        ]
+      }
+    ]
+  }
+]

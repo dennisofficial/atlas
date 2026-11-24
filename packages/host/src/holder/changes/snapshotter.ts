@@ -155,7 +155,7 @@ export class ChangesSnapshotter {
         worktreePath: repoPath,
       })
       const fingerprint = fingerprintOf(manifest.files)
-      const stored = await this.args.plane.readChanges({ sessionId: this.args.sessionId })
+      const stored = await this.args.plane.readChangesSummary({ sessionId: this.args.sessionId })
       const previous = stored.find((row) => row.checkoutId === checkoutId)
       if (previous !== undefined && previous.fingerprint === fingerprint) return
       const blobs = await this.uploadMissing(manifest)

@@ -24,7 +24,6 @@ import { Agent37WebhookModule } from './cloud/agent37/agent37-webhook.module'
 import { ArtifactsModule } from './cloud/artifacts/artifacts.module'
 import { GithubModule } from './cloud/github/github.module'
 import { GithubRealtimeModule } from './cloud/github/github-realtime.module'
-import { sweepScheduleImports } from './cloud/github/github-sweep-scheduler'
 import { HealthController } from './platform/health/health.controller'
 import { HealthModule } from './platform/health/health.module'
 import { MigrationStateService } from './platform/health/migration-state.service'
@@ -71,7 +70,6 @@ import { ControlPlaneModule } from './platform/control/control-plane.module'
       inject: [EnvService],
       useFactory: (env: EnvService) => [{ ttl: 60_000, limit: env.get('RATE_LIMIT_PER_MINUTE') }],
     }),
-    ...sweepScheduleImports(),
     CryptoModule,
     TriggerModule,
     HealthModule,

@@ -5,6 +5,7 @@ import type {
   ChangeBlobWrite,
   ChangedFileWrite,
   WorktreeChangesRead,
+  WorktreeChangesSummary,
   WorktreeChangesWrite,
 } from '../port'
 import { announceIn } from './postgres-notify'
@@ -176,20 +177,15 @@ const filesByCheckoutIn = async (
   return grouped
 }
 
-export const readChangesIn = async (params: {
+export const readChangesSummaryIn = async (params: {
   tx: Tx
   sessionId: string
-}): Promise<WorktreeChangesRead[]> => {
-  const { tx } = params
-  const checkouts = await tx.orm.v2.V2WorktreeChanges.where({
+}): Promise<WorktreeChangesSummary[]> => {
+  const checkouts = await params.tx.orm.v2.V2WorktreeChanges.where({
     sessionId: params.sessionId,
   })
     .orderBy((row) => row.updatedAt.desc())
     .all()
-  const files = await filesByCheckoutIn(
-    tx,
-    checkouts.map((checkout) => checkout.id),
-  )
   return checkouts.map((checkout) => ({
     checkoutId: checkout.id,
     sessionId: checkout.sessionId,
@@ -198,7 +194,21 @@ export const readChangesIn = async (params: {
     base: checkout.base,
     fingerprint: checkout.fingerprint,
     updatedAt: checkout.updatedAt.getTime(),
-    files: files.get(checkout.id) ?? [],
+  }))
+}
+
+export const readChangesIn = async (params: {
+  tx: Tx
+  sessionId: string
+}): Promise<WorktreeChangesRead[]> => {
+  const summaries = await readChangesSummaryIn(params)
+  const files = await filesByCheckoutIn(
+    params.tx,
+    summaries.map((summary) => summary.checkoutId),
+  )
+  return summaries.map((summary) => ({
+    ...summary,
+    files: files.get(summary.checkoutId) ?? [],
   }))
 }
 

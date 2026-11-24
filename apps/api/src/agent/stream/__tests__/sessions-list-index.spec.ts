@@ -61,9 +61,11 @@ const rig = async () => {
     userId: OWNER,
     version: STREAM_PROTOCOL_VERSION,
     surface: EStreamSurface.Web,
-    send: (message) => sent.push(message),
+    send: (message) => {
+      sent.push(message)
+      return Buffer.byteLength(JSON.stringify(message))
+    },
     bufferedAmount: () => 0,
-    sentBytes: () => 0,
     close: () => undefined,
   }
   const subscription = new SessionsSubscription({

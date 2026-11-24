@@ -8,6 +8,7 @@ import {
   THREAD,
   agentsRootOf,
   rig,
+  snapshotEventOf,
   stringResource,
   versionsAt,
   type Rig,
@@ -161,6 +162,41 @@ describe('a cloud setting changed between two turns', () => {
 
     expect(turn.daemon.versionReads()).toBe(0)
     expect(loads).toEqual(['memory-index'])
+  })
+
+  it('loads once when the initial refresh already loaded the changed setting', async () => {
+    const loads: string[] = []
+    const podReady = gateOf()
+    const skills = stringResource({
+      name: 'skills',
+      loads,
+      value: () => 'two',
+      watch: true,
+      cloud: [ECloudSetting.Skills],
+    })
+    const turn = rig({
+      resources: [skills],
+      beforeCall: async () => {
+        await podReady.promise
+      },
+    })
+    turn.events.push(
+      snapshotEventOf({
+        resource: 'skills',
+        fingerprint: `instance-0:0:v1:${DIRECTORY}`,
+        value: 'one',
+      }),
+    )
+    turn.daemon.setVersions({ ...versionsAt('v1'), [ECloudSetting.Skills]: 'v2' })
+
+    turn.sync.start()
+    const started = turnStartOf(turn)
+    podReady.open('')
+    await started
+    await turn.settled()
+
+    expect(loads).toEqual(['skills'])
+    expect(readResource({ ctx: turn.ctx, resource: skills })).toBe('two')
   })
 
   it('reuses a reload its watch already started instead of loading twice', async () => {

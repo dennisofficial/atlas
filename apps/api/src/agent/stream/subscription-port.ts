@@ -22,9 +22,8 @@ export type SubscriptionConnection = {
   userId: string
   version: number
   surface: EStreamSurface
-  send(message: OutgoingFrame): void
+  send(message: OutgoingFrame): number
   bufferedAmount(): number
-  sentBytes(): number
   close(code: number): void
 }
 

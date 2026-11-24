@@ -49,6 +49,7 @@ import {
   type SessionViewRow,
   type TrackedPullRequestRow,
   type WorktreeChangesRead,
+  type WorktreeChangesSummary,
   type WorktreeChangesWrite,
 } from '../port'
 import type { ContextFileRow, ContextFileWrite } from '../context-files'
@@ -59,6 +60,7 @@ import {
   deleteChangeBlobRowsIn,
   readChangeFileIn,
   readChangesIn,
+  readChangesSummaryIn,
   upsertChangesIn,
 } from './postgres-changes'
 import {
@@ -399,6 +401,10 @@ export class PostgresTx implements ControlTx {
 
   async readChanges(params: { sessionId: string }): Promise<WorktreeChangesRead[]> {
     return readChangesIn({ tx: this.tx, ...params })
+  }
+
+  async readChangesSummary(params: { sessionId: string }): Promise<WorktreeChangesSummary[]> {
+    return readChangesSummaryIn({ tx: this.tx, ...params })
   }
 
   async readChangeFile(params: {

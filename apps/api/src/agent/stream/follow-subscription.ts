@@ -49,7 +49,6 @@ export class FollowSubscription implements FollowTarget {
 
   async begin(): Promise<void> {
     const startedAt = this.args.deps.timers.now()
-    const beganBytes = this.args.connection.sentBytes()
     try {
       const session = await this.args.deps.plane.readSession({ sessionId: this.sessionId })
       if (this.stopped) return
@@ -81,13 +80,11 @@ export class FollowSubscription implements FollowTarget {
       this.meter = new CatchupMeter({
         sessionId: this.sessionId,
         userId: this.args.connection.userId,
-        surface: this.args.connection.surface,
+        client: this.args.connection.surface,
         mainThread: this.main,
         start: this.args.request.afterSeq === undefined ? ECatchupStart.Cold : ECatchupStart.Warm,
         startedAt,
-        beganBytes,
         now: () => this.args.deps.timers.now(),
-        sentBytes: () => this.args.connection.sentBytes(),
         analytics: this.args.deps.analytics,
       })
       this.args.deps.recordSurface?.({
@@ -183,7 +180,7 @@ export class FollowSubscription implements FollowTarget {
     this.cursor = position.cursor
     if (position.reset !== undefined) {
       this.meter?.markReset()
-      this.args.connection.send({ type: 'reset', id: this.id, ...position.reset })
+      this.sendMetered({ type: 'reset', id: this.id, ...position.reset })
     }
     if (position.tail !== undefined) await this.openTail(position.tail.tailFrom)
     return true
@@ -200,7 +197,7 @@ export class FollowSubscription implements FollowTarget {
     if (this.stopped || base === undefined) return
     this.meter?.markTail()
     this.cursor = base.cursor
-    this.args.connection.send(base.frame)
+    this.sendMetered(base.frame)
   }
 
   private async drainPages(): Promise<void> {
@@ -231,7 +228,7 @@ export class FollowSubscription implements FollowTarget {
         if (this.stopped) return
       }
       const live = page.next === undefined && (this.cursor ?? 0) >= head.seq
-      this.args.connection.send({
+      this.sendMetered({
         type: 'events',
         id: this.id,
         events: page.events,
@@ -247,6 +244,10 @@ export class FollowSubscription implements FollowTarget {
         return
       }
     }
+  }
+
+  private sendMetered(frame: StreamServerMessage): void {
+    this.meter?.noteBytes(this.args.connection.send(frame))
   }
 
   private async awaitDrained(): Promise<boolean> {

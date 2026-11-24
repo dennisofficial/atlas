@@ -8,6 +8,7 @@ export interface IGithubEnv {
   GITHUB_APP_CLIENT_ID?: string
   GITHUB_APP_PRIVATE_KEY?: string
   GITHUB_APP_WEBHOOK_SECRET?: string
+  GITHUB_SWEEPS_IN_PROCESS?: string
 }
 
 export const githubEnvSchema = {
@@ -18,4 +19,5 @@ export const githubEnvSchema = {
   GITHUB_APP_CLIENT_ID: Joi.string().optional(),
   GITHUB_APP_PRIVATE_KEY: Joi.string().optional(),
   GITHUB_APP_WEBHOOK_SECRET: Joi.string().optional(),
+  GITHUB_SWEEPS_IN_PROCESS: Joi.string().allow('').optional(),
 }
