@@ -238,8 +238,7 @@ describe('recordWorkflowRunFinished', () => {
       provider: 'github.workflow-run',
       target,
       label: 'compai/app release.yml@main',
-      events: [],
-      expiresAt: new Date(Date.now() + 48 * 60 * 60_000).toISOString(),
+      events: ['completed'],
       lease,
       by: ESubscriptionActor.Agent,
     })
