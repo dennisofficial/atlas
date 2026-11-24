@@ -6,10 +6,7 @@ import {
 } from '@dltech/atlas-agent'
 import {
   ETurnCause,
-  notifyMomentOf,
   openTurnOf,
-  sessionStatusOf,
-  type ESessionStatus,
   type Event,
   type RunId,
   type ThreadId,
@@ -17,9 +14,12 @@ import {
 } from '@dltech/atlas-core'
 import { logFieldsOf } from '@dltech/atlas-observability'
 
+import { notifyTurnOf, turnNotifyFactsOf, turnNotifyRowOf } from './held-turn-notify'
 import { liveOutputOf } from './live-output'
+import { logDriveFault } from './held-runner'
 import type { HeldSessionDeps } from './held-session-deps'
 import type { AppendBody } from './record/append-drafts'
+import type { SessionRecord } from './record/record-adapter'
 import {
   ETurnAborted,
   FAILED_BY_HOST,
@@ -40,6 +40,40 @@ export type TurnLog = {
     currentHead(): { seq: number }
     queuedSince(): string | null
   }
+}
+
+export const startHeldTurn = (args: {
+  deps: HeldSessionDeps
+  turns: HeldTurns
+  record: SessionRecord
+  pause: PauseSignal
+  runner: LoopTurnRunner
+  threadId: ThreadId
+  resume: boolean
+  queuedAt?: string | undefined
+  refreshBranches(): void
+  onFault(): void
+  onSettled(): void
+}): void => {
+  void args.turns
+    .drive({
+      runner: args.runner,
+      record: args.record,
+      threadId: args.threadId,
+      pause: args.pause,
+      resume: args.resume,
+      ...(args.queuedAt === undefined ? {} : { queuedAt: args.queuedAt }),
+    })
+    .then(() => {
+      args.refreshBranches()
+    })
+    .catch((error) => {
+      logDriveFault({ deps: args.deps, error })
+      args.onFault()
+    })
+    .finally(() => {
+      args.onSettled()
+    })
 }
 
 export class HeldTurns {
@@ -67,6 +101,7 @@ export class HeldTurns {
     threadId: ThreadId
     pause: PauseSignal
     resume: boolean
+    queuedAt?: string | undefined
   }): Promise<void> {
     this.turnAborted = ETurnAborted.Other
     this.turnAbort = new AbortController()
@@ -79,11 +114,13 @@ export class HeldTurns {
             threadId: args.threadId,
             signal: this.turnAbort.signal,
             pause: args.pause,
+            ...(args.queuedAt === undefined ? {} : { queuedAt: args.queuedAt }),
           })
         : await args.runner.runTurn({
             threadId: args.threadId,
             signal: this.turnAbort.signal,
             pause: args.pause,
+            ...(args.queuedAt === undefined ? {} : { queuedAt: args.queuedAt }),
           })
       await this.endTurn({
         record: args.record,
@@ -91,7 +128,12 @@ export class HeldTurns {
         ending: turnEndingOf({ outcome, aborted: this.turnAborted }),
       })
       if (outcome.status === ETurnStatus.Parked) {
-        this.notifyTurn({ record: args.record, ending: null })
+        notifyTurnOf({
+          deps: this.deps,
+          record: args.record,
+          ending: null,
+          facts: turnNotifyFactsOf({ events: args.record.eventCache().eventsAfter(0) }),
+        })
       }
     } catch (error) {
       if (turnId !== undefined) {
@@ -161,6 +203,7 @@ export class HeldTurns {
     ending: TurnEnding | null
   }): Promise<void> {
     if (args.ending === null) return
+    const facts = turnNotifyFactsOf({ events: args.record.eventCache().eventsAfter(0) })
     try {
       await args.record.append({
         threadId: args.record.threadId,
@@ -171,6 +214,7 @@ export class HeldTurns {
             turnId: args.turnId,
             outcome: args.ending.outcome,
             by: args.ending.by,
+            notify: turnNotifyRowOf(facts),
           },
         ],
       })
@@ -182,7 +226,7 @@ export class HeldTurns {
       })
       return
     }
-    this.notifyTurn({ record: args.record, ending: args.ending })
+    notifyTurnOf({ deps: this.deps, record: args.record, ending: args.ending, facts })
     this.reportTurnEnded({ record: args.record })
   }
 
@@ -199,34 +243,5 @@ export class HeldTurns {
         ...logFieldsOf({ error }),
       })
     })
-  }
-
-  private notifyTurn(args: { record: TurnLog; ending: TurnEnding | null }): void {
-    const notify = this.deps.notify
-    if (notify === undefined) return
-    const moment = notifyMomentOf({ ending: args.ending, status: this.statusOf(args.record) })
-    if (moment === null) return
-    void notify({
-      sessionId: this.deps.sessionId,
-      threadId: args.record.threadId,
-      seq: args.record.eventCache().currentHead().seq,
-      moment,
-    }).catch((error: unknown) => {
-      this.deps.log?.warn({
-        source: 'holder.turn',
-        message: `notifying about the turn on ${this.deps.sessionId} failed`,
-        ...logFieldsOf({ error }),
-      })
-    })
-  }
-
-  private statusOf(record: TurnLog): ESessionStatus {
-    const cache = record.eventCache()
-    return sessionStatusOf({
-      events: cache.eventsAfter(0),
-      live: true,
-      queuedSince: cache.queuedSince(),
-      now: new Date(this.deps.timers.now()).toISOString(),
-    }).state
   }
 }

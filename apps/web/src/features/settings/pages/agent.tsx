@@ -10,7 +10,8 @@ import { QueryPage } from '../data/personal/query-boundary'
 import { routineSettingsChanges, routineSettingsFrom } from '../data/personal/routine-settings'
 import { AgentSkeleton } from '../skeletons/agent-skeletons'
 import { useAgentKeys } from '../data/personal/use-agent-keys'
-import { usePersonalSettings, useSettingsDraft } from '../data/personal/use-settings-draft'
+import { useCloudSettings } from '@/lib/cloud-settings'
+import { useSettingsDraft } from '../data/personal/use-settings-draft'
 import { SEARCH_BACKEND_ITEMS } from '../fixtures/settings-search'
 import { IMAGE_MODEL_ITEMS } from '../fixtures/settings-images'
 import { CONTEXT_FIELDS } from '../fixtures/settings-fields'
@@ -26,7 +27,7 @@ const DESCRIPTION =
 const TIMEZONE_INPUT_ID = 'agent-routine-timezone'
 
 export function AgentPage() {
-  const settings = usePersonalSettings()
+  const settings = useCloudSettings()
   return (
     <QueryPage
       query={settings.query}

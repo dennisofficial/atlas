@@ -13,7 +13,7 @@ author reads this package first. Every plugin in `plugins/*` builds its slots wi
 
 ## Does not own
 
-- Which plugins load, and the call to the composer: `apps/api` and `apps/web`.
+- Which plugins load, and the call to the composer: the app registries under `apps/`.
 - The event and view engines: `@dltech/atlas-core`.
 - The command contract: `@dltech/atlas-commands`.
 
@@ -68,37 +68,37 @@ A `PodSlot` declares:
   and then read `result.fileChanges`; it may key its `additionalContext` to the call with
   `contextKey: call.callId`, so later findings do not supersede it.
 - `prompts`: the `PromptFragment` values the plugin adds to the system prompt.
-- `commands`: a map from inbox kind to `CommandHandler`, for commands the pod runs.
+- `commands(ctx)`: a map from inbox kind to `CommandHandler`, each closing over the pod context; a duplicate kind throws.
 - `resources`: the `PodResource` values the plugin loads, such as a skill directory.
 - `slash(ctx)`: the `PodSlash` source (`names()`, `load({name, argumentText})`); at most one plugin.
 - `childDeny`: tool names a sub-agent may not call.
-- `onDaemonEvent(frame)`: handle an event the daemon pushes.
+- `onDaemonEvent(frame)` handles a daemon event; `onDaemonReady({ctx, hello})` runs once per boot.
 
-`ctx` is a `PluginPodContext`: `sessionId`, `workspaceDirectory`, `append(drafts)`,
+`ctx` is a `PluginPodContext`. It gives `sessionId`, `workspaceDirectory`, `env()`, `append(drafts)`,
 `notify(event, {key})`, `events()`, `call(op)`, `live(frame)`, `onDaemonEvent(listener)`, `log`, and
-the capabilities `control`, `crew` (`spawn` takes `group`, the spawn step key), `classifier`,
-`analytics`, `sessions`, `worktrees`, `resources`. `ctx.control` is a `PodControl`: `exposePort`,
-`settingsVersions()`, `memory`, `webSearch`, `gateway` (`apiKey()`, `imageModel()`), `mcp`,
-`routines`, `subscriptions`. `ctx.classifier` answers core types. `ctx.analytics.capture({event,
-properties})` sends a product event for the session's user; the host adds `session_id`, `thread_id`.
+the capabilities `control`, `crew`, `messages`, `classifier`, `analytics`, `sessions`, `worktrees`,
+`resources`. `ctx.analytics.capture({event, properties})` sends a product event for the session's
+user; the host adds `session_id` and `thread_id`.
+`ctx.crew` is a `PodCrew`. Its `spawn` takes `group`; the parent wakes once, after every sub-agent of
+that group ends. `resume({agentId})` continues a stopped sub-agent turn with an `EResumeOutcome`. `ctx.control` is a `PodControl`: `exposePort({port})`, `settingsVersions()`,
+`memory`, `webSearch`, `gateway` (`apiKey()`, `imageModel()`), `mcp`, `routines`, `subscriptions`.
 
 ### The control and client slots
 
 `ControlSlot` holds `hooks` and `commands` (a map of control command handlers). An append hook runs
-inside the append transaction: it receives a stamped `V2Event`, adds a side effect, and cannot
-rewrite the event.
-
-`ClientSlot` holds `hooks` (`name`, `appliesTo(event)`) and optional `entryFolds`.
+inside the append transaction. It receives a stamped `V2Event` and returns `Promise<void>`, so it
+adds a transactional side effect. It cannot rewrite the event. `ClientSlot` holds `hooks` with a
+`name` and an `appliesTo(event)` predicate, and optional `entryFolds`.
 
 ### Load a resource
 
 A `PodResource<T>` needs a `name`, a `schema` and `load({ctx, directory, signal})`. Five members are
 optional: `watch(directory)` names the paths to watch, `announce(value, ctx)` returns the events to
 append, `stale(value)` tells whether the value is out of date, `background` starts the load without
-blocking the step, and `cloud` names the settings it follows. Read a cloud setting
-through a resource: set `cloud: [ECloudSetting.McpServers]`, `ECloudSetting.Skills` or
-`ECloudSetting.PersonalInstructions`, compare `ctx.control.settingsVersions()` with
-`UNVERSIONED_SETTINGS`, and read it with `readResource({ctx, resource})`. Reload one with
+blocking the step, and `cloud` names the settings it follows. A plugin reads a cloud setting through
+a resource: set `cloud: [ECloudSetting.McpServers]`, `ECloudSetting.Skills` or
+`ECloudSetting.PersonalInstructions`, and compare `ctx.control.settingsVersions()` with
+`UNVERSIONED_SETTINGS`. Read the value with `readResource({ctx, resource})`, and reload it with
 `ctx.resources.reload(name)`.
 
 ## Capabilities
@@ -109,10 +109,9 @@ through a resource: set `cloud: [ECloudSetting.McpServers]`, `ECloudSetting.Skil
   `apps/web/src/features/sessions/registered-plugins.ts` does.
 - `composePod(pods)`: the merged pod slot that the agent host builds once.
 - `eventSchemaOf(plugins)`, `eventTypesOf(plugins)`: the decoder and the type list for a session.
-  `PluginEventBodies` types the body of each event.
 - `crossLatch({ctx, name, level, mayFire})`: fire a level-triggered latch once, and record it.
 - `MacOfflineError`, `PodMcpProxyTransport`, `PodMcpProxyChannel`: the proxy to the Mac app.
-- `EMPTY_*` (`EMPTY_POD`, `EMPTY_CONTROL`, `EMPTY_CLASSIFIER`, `EMPTY_ANALYTICS`): a slot's default.
+- `EMPTY_*` (`EMPTY_POD`, `EMPTY_CLASSIFIER`, `EMPTY_ANALYTICS`, ...): the default a tier spreads.
 
 ## Usage
 
@@ -140,9 +139,10 @@ const shells = definePlugin({
 - Import the pod tier in pod code only. It opens the session's sandbox and reads its files.
 - Register a new plugin in every registry that composes it:
   - `apps/api/src/agent/registered-plugins.ts` (runtime).
-  - `apps/api/src/api/platform/control/registered-plugins.ts` (control).
+  - `packages/pods/src/control/registered-plugins.ts` (control).
   - `apps/web/src/features/sessions/registered-plugins.ts` (web).
   - `apps/mobile/src/thread/v2/registered-plugins.ts` (mobile, which builds its own schema).
+  - `apps/tui/src/app/registered-plugins.ts` (tui).
 
 ## See also
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { INACTIVE_AFTER_MS, isRecentProject, lastActivityAt } from '../project-recency'
+import { isRecentProject, lastActivityAt, RECENT_PROJECT_WINDOW_MS } from '../project-recency'
 
 const HOUR_MS = 3_600_000
 const NOW = Date.parse('2026-11-09T12:00:00.000Z')
@@ -28,14 +28,14 @@ describe('isRecentProject', () => {
   it('keeps a project inside 72h of activity and drops one past it', () => {
     expect(
       isRecentProject({
-        createdAt: new Date(NOW - INACTIVE_AFTER_MS).toISOString(),
+        createdAt: new Date(NOW - RECENT_PROJECT_WINDOW_MS).toISOString(),
         stamps: [],
         now: NOW,
       }),
     ).toBe(true)
     expect(
       isRecentProject({
-        createdAt: new Date(NOW - INACTIVE_AFTER_MS - 1).toISOString(),
+        createdAt: new Date(NOW - RECENT_PROJECT_WINDOW_MS - 1).toISOString(),
         stamps: [],
         now: NOW,
       }),

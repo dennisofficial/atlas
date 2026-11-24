@@ -78,7 +78,6 @@ const noticeProbePlugin = (state: NoticeState): Plugin =>
       childDeny: [SPAWN_PROBE],
       tools: (ctx) => [new SpawnProbe(ctx), new GrabProbe(ctx, state)],
       prompts: [],
-      commands: new Map(),
     },
     control: { hooks: [], commands: new Map() },
     client: { hooks: [] },

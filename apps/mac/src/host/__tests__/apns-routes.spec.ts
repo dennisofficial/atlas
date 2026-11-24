@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'bun:test'
 
-import { APNS_PUSH_PATH, APNS_TOKEN_PATH, createApnsRoutes } from '../apns-routes'
+import { ENotifyDeviceKind, ENotifyMoment, ENotifyTrackEvent } from '@dltech/atlas-core'
+import {
+  APNS_OPENED_PATH,
+  APNS_PUSH_PATH,
+  APNS_TOKEN_PATH,
+  createApnsRoutes,
+  type ApnsTrack,
+} from '../apns-routes'
+import type { TrackNotificationInput } from '@dltech/atlas-wire'
 
 const post = (pathname: string, body: unknown): Request =>
   new Request(`http://127.0.0.1${pathname}`, {
@@ -11,14 +19,26 @@ const post = (pathname: string, body: unknown): Request =>
 
 const routesOf = (args: { signedIn?: boolean; fail?: boolean } = {}) => {
   const registered: string[] = []
+  const tracked: TrackNotificationInput[] = []
+  const track: ApnsTrack = async (input) => {
+    tracked.push(input)
+  }
   const routes = createApnsRoutes({
     signedIn: () => args.signedIn ?? true,
+    track,
     register: async ({ token }) => {
       if (args.fail === true) throw new Error('offline')
       registered.push(token)
     },
   })
-  return { routes, registered }
+  return { routes, registered, tracked }
+}
+
+const NOTIFICATION_INFO = {
+  sessionId: 'session-1',
+  seq: 7,
+  moment: ENotifyMoment.TurnFinished,
+  sentAt: '2026-11-23T14:02:00.000Z',
 }
 
 describe('apns token route', () => {
@@ -123,5 +143,80 @@ describe('apns push route', () => {
     const { routes } = routesOf()
 
     expect(await routes.handler(post('/desktop/health', {}), '/desktop/health')).toBeUndefined()
+  })
+})
+describe('apns device reports', () => {
+  it('reports a received alert as delivered with what the push carried', async () => {
+    const { routes, tracked } = routesOf()
+
+    await routes.handler(
+      post(APNS_PUSH_PATH, { userInfo: NOTIFICATION_INFO, groupIds: [] }),
+      APNS_PUSH_PATH,
+    )
+
+    expect(tracked).toEqual([
+      {
+        event: ENotifyTrackEvent.Delivered,
+        sessionId: 'session-1',
+        seq: 7,
+        moment: ENotifyMoment.TurnFinished,
+        deviceKind: ENotifyDeviceKind.ApnsMac,
+        sentAt: '2026-11-23T14:02:00.000Z',
+      },
+    ])
+  })
+
+  it('reports a launch tap as opened', async () => {
+    const { routes, tracked } = routesOf()
+
+    const reply = await routes.handler(
+      post(APNS_OPENED_PATH, { userInfo: NOTIFICATION_INFO }),
+      APNS_OPENED_PATH,
+    )
+
+    expect(reply?.status).toBe(200)
+    expect(tracked).toEqual([
+      {
+        event: ENotifyTrackEvent.Opened,
+        sessionId: 'session-1',
+        seq: 7,
+        moment: ENotifyMoment.TurnFinished,
+        deviceKind: ENotifyDeviceKind.ApnsMac,
+        sentAt: '2026-11-23T14:02:00.000Z',
+      },
+    ])
+  })
+
+  it('reports nothing for a clear push and nothing it cannot place', async () => {
+    const { routes, tracked } = routesOf()
+
+    await routes.handler(
+      post(APNS_PUSH_PATH, { userInfo: { clearSessionId: 'session-1' }, groupIds: [] }),
+      APNS_PUSH_PATH,
+    )
+    await routes.handler(post(APNS_OPENED_PATH, { userInfo: null }), APNS_OPENED_PATH)
+    await routes.handler(
+      post(APNS_PUSH_PATH, { userInfo: { sessionId: 'session-1', seq: 7 }, groupIds: [] }),
+      APNS_PUSH_PATH,
+    )
+
+    expect(tracked).toEqual([])
+  })
+
+  it('answers the push even when the report fails', async () => {
+    const routes = createApnsRoutes({
+      signedIn: () => true,
+      register: async () => undefined,
+      track: async () => {
+        throw new Error('the API is down')
+      },
+    })
+
+    const reply = await routes.handler(
+      post(APNS_PUSH_PATH, { userInfo: NOTIFICATION_INFO, groupIds: [] }),
+      APNS_PUSH_PATH,
+    )
+
+    expect(reply?.status).toBe(200)
   })
 })

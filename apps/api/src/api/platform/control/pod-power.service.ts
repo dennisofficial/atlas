@@ -6,7 +6,10 @@ import type { SessionSleepPodOutput } from '@dltech/atlas-protocol'
 import { JobsProjectDispatcher } from '../../../_core/ports/job-dispatcher'
 import { readPodBusy } from '@dltech/atlas-pods'
 import { PodTurnRunningError } from './pod-power.error'
-import { podSleepIdempotencyKey, podSleepTaskContract } from './pod-sleep.contract'
+import {
+  podSleepIdempotencyKey,
+  podSleepTaskContract,
+} from '../../../_lib/trigger/pod-sleep.contract'
 
 export type PodPower = {
   sleep(args: { session: ControlSessionRow; force: boolean }): Promise<SessionSleepPodOutput>
@@ -39,13 +42,7 @@ export class PodPowerService implements PodPower {
     // The stop stays unread until the turn ends, and demand is what the claim loop reads: releasing
     // here would let another host claim the session and wake the pod this sleep is about to stop.
     // The job keeps the lease until the turn ends, then releases it and sleeps the pod.
-    const { lease } = await this.plane.currentLease({ sessionId: podSessionId })
-    const payload = { sessionId: podSessionId, epoch: lease.epoch }
-    await this.dispatcher.dispatch({
-      task: podSleepTaskContract,
-      payload,
-      idempotencyKey: podSleepIdempotencyKey(payload),
-    })
+    await this.dispatchSleep({ podSessionId })
     return { state: 'sleeping' }
   }
 
@@ -53,12 +50,22 @@ export class PodPowerService implements PodPower {
     const { session } = args
     if (!(await this.ownsItsPodAlone(session))) return
     try {
-      await this.sleep({ session, force: true })
+      await this.dispatchSleep({ podSessionId: session.sessionId })
     } catch (failure) {
       this.logger.warn(
         `parking the pod of archived session ${session.sessionId} failed: ${String(failure)}`,
       )
     }
+  }
+
+  private async dispatchSleep(args: { podSessionId: string }): Promise<void> {
+    const { lease } = await this.plane.currentLease({ sessionId: args.podSessionId })
+    const payload = { sessionId: args.podSessionId, epoch: lease.epoch }
+    await this.dispatcher.dispatch({
+      task: podSleepTaskContract,
+      payload,
+      idempotencyKey: podSleepIdempotencyKey(payload),
+    })
   }
 
   private async ownsItsPodAlone(session: ControlSessionRow): Promise<boolean> {

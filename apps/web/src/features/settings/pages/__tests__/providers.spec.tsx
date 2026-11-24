@@ -6,8 +6,7 @@ import type { Root } from 'react-dom/client'
 
 import type { UsageReportDto, UsageReportInput } from '@dltech/atlas-protocol'
 
-import type { Account } from '../../data/personal/accounts-api'
-import { EAccountKind } from '../../data/personal/accounts-api'
+import { EAccountKind, type Account } from '../../data/personal/accounts-api'
 import { EProviderId } from '../../fixtures/settings-agent'
 
 const accounts: Account[] = [
@@ -17,7 +16,7 @@ const accounts: Account[] = [
     kind: EAccountKind.Oauth,
     label: 'Claude',
     email: 'one@example.com',
-    subscription: 'Max 20x',
+    subscription: 'max',
     status: 'active',
     createdAt: '2026-11-01T00:00:00.000Z',
   },
@@ -27,7 +26,7 @@ const accounts: Account[] = [
     kind: EAccountKind.Oauth,
     label: 'Claude',
     email: 'two@example.com',
-    subscription: 'Pro',
+    subscription: 'pro',
     status: 'active',
     createdAt: '2026-11-02T00:00:00.000Z',
   },
@@ -35,9 +34,19 @@ const accounts: Account[] = [
     id: 'key',
     provider: EProviderId.Anthropic,
     kind: EAccountKind.ApiKey,
-    label: 'Key saved',
+    label: 'Work',
+    keyHint: '4f2a',
     status: 'active',
     createdAt: '2026-11-03T00:00:00.000Z',
+  },
+  {
+    id: 'ci',
+    provider: EProviderId.Anthropic,
+    kind: EAccountKind.ApiKey,
+    label: 'CI',
+    keyHint: '90bd',
+    status: 'active',
+    createdAt: '2026-11-04T00:00:00.000Z',
   },
 ]
 
@@ -113,22 +122,40 @@ const labelled = (element: HTMLElement, name: string): HTMLElement[] => [
   ...element.querySelectorAll<HTMLElement>(`[aria-label="${name}"]`),
 ]
 
-describe('ProvidersPage usage meters', () => {
+describe('ProvidersPage', () => {
   it('gives every plan account its own two readings', async () => {
     const element = await render(<ProvidersPage />)
 
-    expect(labelled(element, 'Plan usage')).toHaveLength(2)
     expect(element.textContent).toContain('68%')
     expect(element.textContent).toContain('12%')
   })
 
-  it('shows no meter on an api-key card', async () => {
+  it('shows no meter on a key row', async () => {
     const element = await render(<ProvidersPage />)
 
     const fiveHourLabels = [...element.querySelectorAll('span')].filter(
       (span) => span.textContent === '5-hour',
     )
-    expect(element.textContent).toContain('Key saved')
+    expect(element.textContent).toContain('Work')
     expect(fiveHourLabels).toHaveLength(2)
+  })
+
+  it('lists every account of a provider in one card', async () => {
+    const element = await render(<ProvidersPage />)
+
+    expect(labelled(element, 'Anthropic account in use')).toHaveLength(1)
+    expect(element.textContent).toContain('one@example.com')
+    expect(element.textContent).toContain('two@example.com')
+    expect(element.textContent).toContain('CI')
+    expect(element.textContent).toContain('sk-ant-…90bd')
+  })
+
+  it('lists providers with no account under Add a provider', async () => {
+    const element = await render(<ProvidersPage />)
+
+    expect(element.textContent).toContain('Add a provider')
+    expect(element.textContent).toContain('OpenRouter')
+    expect(element.textContent).toContain('Inference.net')
+    expect(element.textContent).toContain('Vercel AI Gateway')
   })
 })

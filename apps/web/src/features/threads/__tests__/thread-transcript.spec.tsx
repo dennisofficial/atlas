@@ -6,14 +6,16 @@ import { EToolKind, EToolState } from '@dltech/atlas-ui/ai/tool'
 import { EBootStep, EBootStepState, type WireEvent } from '@dltech/atlas-wire/web'
 
 import { eventsFromWire } from '@dltech/atlas-client/transcript'
+import { EQueuedRowKind } from '@/features/sessions/data/queued-transcript'
 import {
   durableTranscriptOf,
+  ENoticeTone,
   ETranscriptKind,
   transcriptViewOf,
   type TranscriptRow,
 } from '../data/transcript-items'
 import type { BootView } from '../data/boot-view'
-import { mount, mountWith, rewindButton } from './transcript-mount'
+import { items, mount, mountLive, mountWith, rewindButton } from './transcript-mount'
 import { installVirtuaViewport } from './virtua-viewport'
 
 let restoreViewport = () => {}
@@ -288,7 +290,7 @@ describe('ThreadTranscript harness notices', () => {
     })
 
     expect(document.body.textContent ?? '').toContain(
-      "`bunx turbo run typecheck` ran out of memory (commands may use 2.3 GB of the pod's 4 GB)",
+      "Pod ran out of memory: the kernel killed `turbo run` (commands may use 2.3 GB of the pod's 4 GB)",
     )
     const button = [...document.body.querySelectorAll('button')].find(
       (candidate) => candidate.textContent === 'Change pod size',
@@ -301,32 +303,141 @@ describe('ThreadTranscript harness notices', () => {
   })
 })
 
-describe('ThreadTranscript staged rows', () => {
-  const staged = [
-    {
-      id: 'client-a',
-      text: 'ship the dimmer',
-      attachments: [],
-    },
-  ]
+describe('ThreadTranscript optimistic sends', () => {
+  const optimistic: TranscriptRow = {
+    kind: ETranscriptKind.User,
+    id: 'client-a',
+    clientId: 'client-a',
+    text: 'ship the dimmer',
+    at: '2026-11-23T10:00:00.000Z',
+  }
 
-  it('renders a staged message inside the scrolling transcript at 45% opacity', async () => {
-    await mountWith({ rewind: null, staged })
+  const landed: TranscriptRow = {
+    kind: ETranscriptKind.User,
+    id: 'evt_9',
+    clientId: 'client-a',
+    text: 'ship the dimmer',
+    at: '2026-11-23T10:00:00.000Z',
+  }
 
-    const viewport = document.body.querySelector('[data-slot="chat-viewport"]')
-    const row = viewport?.querySelector('[aria-busy="true"]')
-    expect(row?.className).toContain('opacity-45')
+  it('renders an idle send as a landed user turn with no dim and no pending label', async () => {
+    await mountWith({ rewind: null, rows: [...items, optimistic] })
+
+    const row = document.body.querySelector('[data-chat-item-id="client-a"]')
     expect(row?.textContent).toContain('ship the dimmer')
+    expect(row?.querySelector('[class*="opacity-45"]')).toBeNull()
+    expect(row?.textContent).not.toContain('Sending')
+    expect(row?.textContent).not.toContain('Queued')
   })
 
-  it('keeps the staged row after the last logged turn', async () => {
-    await mountWith({ rewind: null, staged })
+  it('keeps the same chat item when the landed message replaces the optimistic one', async () => {
+    const live = await mountLive({ rewind: null, rows: [...items, optimistic] })
+    const before = document.body.querySelector('[data-chat-item-id="client-a"]')
 
-    const ids = [...document.body.querySelectorAll('[data-slot="chat-item"]')].map((item) =>
+    await live.render({ rewind: null, rows: [...items, landed] })
+
+    expect(before).not.toBeNull()
+    expect(document.body.querySelector('[data-chat-item-id="evt_9"]')).toBe(before)
+  })
+
+  it('disables Edit and Remove on a queued row that has no inbox id yet', async () => {
+    await mountWith({
+      rewind: null,
+      queued: {
+        rows: [
+          {
+            kind: EQueuedRowKind.Message,
+            id: 'client-a',
+            optimistic: true,
+            entry: { id: 'client-a', text: 'ship the dimmer', attachments: [] },
+          },
+        ],
+        onEdit: () => undefined,
+        onRemove: () => undefined,
+      },
+    })
+
+    const row = document.body.querySelector('[data-queued="message"]')
+    expect(row?.textContent).toContain('Queued')
+    expect(row?.textContent).toContain('ship the dimmer')
+    expect(row?.querySelector('button[aria-label="Edit"]')?.hasAttribute('disabled')).toBe(true)
+    expect(row?.querySelector('button[aria-label="Remove"]')?.hasAttribute('disabled')).toBe(true)
+  })
+})
+
+describe('ThreadTranscript queued rows', () => {
+  const queued = {
+    rows: [
+      {
+        kind: EQueuedRowKind.Notice as const,
+        id: 'queued-5',
+        item: {
+          kind: ETranscriptKind.Notice as const,
+          id: 'queued-5',
+          title: 'PR #2617: reviewer commented on thread-transcript.tsx',
+          body: 'This dims the whole notice row, including the link.',
+          tone: ENoticeTone.Ok,
+        },
+      },
+      {
+        kind: EQueuedRowKind.Message as const,
+        id: 'queued-3',
+        entry: { id: '3', text: 'also dim the timestamp', attachments: [] },
+      },
+    ],
+    onEdit: () => undefined,
+    onRemove: () => undefined,
+  }
+
+  const chatIds = () =>
+    [...document.body.querySelectorAll('[data-slot="chat-item"]')].map((item) =>
       item.getAttribute('data-chat-item-id'),
     )
-    const stagedIndex = ids.indexOf('client-a')
-    expect(stagedIndex).toBeGreaterThan(ids.indexOf('evt_2'))
+
+  const click = async (label: string) => {
+    const button = document.body.querySelector(`button[aria-label="${label}"]`)
+    await act(async () =>
+      button?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })),
+    )
+  }
+
+  it('renders the queued rows after the running turn', async () => {
+    await mountWith({ rewind: null, working: true, queued })
+
+    const ids = chatIds()
+    expect(ids.indexOf('queued-5')).toBeGreaterThan(ids.indexOf('turn:evt_2'))
+    expect(ids.indexOf('queued-3')).toBeGreaterThan(ids.indexOf('turn:evt_2'))
+  })
+
+  it('renders a queued PR notice with the same title a posted notice gets, dimmed', async () => {
+    await mountWith({ rewind: null, queued })
+
+    const row = document.body.querySelector('[data-queued="notice"]')
+    expect(row?.className).toContain('opacity-45')
+    expect(row?.querySelector('[data-tone="ok"]')).not.toBeNull()
+    expect(row?.textContent).toContain('PR #2617: reviewer commented on thread-transcript.tsx')
+  })
+
+  it('labels a queued message and reports its inbox id from Edit and Remove', async () => {
+    const edits: string[] = []
+    const removes: string[] = []
+    await mountWith({
+      rewind: null,
+      queued: {
+        ...queued,
+        onEdit: (id) => edits.push(id),
+        onRemove: (id) => removes.push(id),
+      },
+    })
+
+    const row = document.body.querySelector('[data-queued="message"]')
+    expect(row?.textContent).toContain('Queued')
+    expect(row?.textContent).toContain('also dim the timestamp')
+
+    await click('Edit')
+    await click('Remove')
+    expect(edits).toEqual(['3'])
+    expect(removes).toEqual(['3'])
   })
 })
 

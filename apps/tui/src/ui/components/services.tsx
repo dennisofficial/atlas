@@ -6,7 +6,6 @@ import { useClickRegion } from '../hooks/use-click-region'
 import { usePress, type PressHandlers } from '../hooks/use-press'
 import {
   isRowRunning,
-  isServiceRunning,
   rowActions,
   rowServiceId,
   rowStateLabel,
@@ -204,6 +203,12 @@ const WALKING: readonly Hint[] = [
   { key: 'esc', label: 'close' },
 ]
 
+const WALKING_READ_ONLY: readonly Hint[] = WALKING.filter(
+  (hint) => hint.key !== 's' && hint.key !== 'r' && hint.key !== 'k',
+)
+
+const hintsFor = (readOnly: boolean): readonly Hint[] => (readOnly ? WALKING_READ_ONLY : WALKING)
+
 export function Services(props: {
   width: number
   rows: readonly ServiceRow[]
@@ -213,6 +218,8 @@ export function Services(props: {
   notice?: string | null
   scroll?: OutputScroll | undefined
   overlay?: boolean
+  readOnly?: boolean
+  hints?: readonly Hint[] | undefined
   onStart: (name: string) => void
   onRestart: (serviceId: string) => void
   onStop: (serviceId: string) => void
@@ -223,13 +230,20 @@ export function Services(props: {
   const running = props.rows.filter(isRowRunning).length
   const selected = props.selected
   const reason = selected?.declared?.reason
+  const readOnly = props.readOnly === true
 
   return (
     <SideDrawer
       width={props.width}
       side={EDrawerEdge.Left}
       overlay={props.overlay === true}
-      footer={<DrawerHints hints={WALKING} cells={cells} onDismiss={props.onDismiss} />}
+      footer={
+        <DrawerHints
+          hints={props.hints ?? hintsFor(readOnly)}
+          cells={cells}
+          onDismiss={props.onDismiss}
+        />
+      }
     >
       {selected === undefined ? (
         <box flexDirection="column" flexShrink={0}>
@@ -242,7 +256,7 @@ export function Services(props: {
         <box flexDirection="column" flexGrow={1} flexShrink={1} flexBasis={0}>
           <GroupHeader label="Service log" count={`${running}/${props.rows.length}`} />
           <ServiceHeading row={selected} now={props.now} cells={cells} />
-          {props.notice === null || props.notice === undefined ? null : (
+          {readOnly || props.notice === null || props.notice === undefined ? null : (
             <DrawerLine>
               <text fg={theme.warn}>
                 <Spans spans={clipSpans({ spans: [{ text: props.notice }], cells })} />
@@ -256,16 +270,20 @@ export function Services(props: {
               </text>
             </DrawerLine>
           )}
-          <RowActions
-            row={selected}
-            onStart={props.onStart}
-            onRestart={props.onRestart}
-            onStop={props.onStop}
-          />
+          {readOnly ? null : (
+            <RowActions
+              row={selected}
+              onStart={props.onStart}
+              onRestart={props.onRestart}
+              onStop={props.onStop}
+            />
+          )}
           {selected.snapshot === undefined ? (
-            <DrawerLine>
-              <text fg={theme.meta}>Not started. Press s to start it.</text>
-            </DrawerLine>
+            readOnly ? null : (
+              <DrawerLine>
+                <text fg={theme.meta}>Not started. Press s to start it.</text>
+              </DrawerLine>
+            )
           ) : (
             <OutputSection
               log={props.log}

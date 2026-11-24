@@ -7,6 +7,7 @@ import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { DrainStateService } from '../health/drain-state.service'
 import { CloudflareTunnelClient } from '@dltech/atlas-previews'
 import { PreviewTunnelService } from '../sandboxes/preview-tunnel.service'
+import { podSessionOf } from './session-of-thread'
 import { SandboxesService } from '../sandboxes/sandboxes.service'
 import { VercelSandboxClient } from '../sandboxes/vercel-sandbox.client'
 import {
@@ -66,7 +67,7 @@ export async function createArchiveRouterFixture() {
   const deleteDnsRecord = spyOn(cloudflare, 'deleteDnsRecord').mockResolvedValue(undefined)
   const deleteTunnel = spyOn(cloudflare, 'deleteTunnel').mockResolvedValue(undefined)
   const previews = new PreviewTunnelService(env, cipher, cloudflare)
-  const sandboxes = new SandboxesService(vercel, cipher, signals)
+  const sandboxes = new SandboxesService(vercel, cipher, signals, env)
   const dispatcher = new ArchiveCleanupQueue({
     park: (args) => sandboxes.park(args),
     teardownPreviews: (args) => previews.teardown(args),
@@ -118,18 +119,21 @@ export async function seedArchiveFamily() {
 }
 
 export async function seedArchivePreview(args: { threadId: string }) {
+  const podSessionId = await podSessionOf({ reader: db, threadId: args.threadId })
   const tunnel = await db.orm.public.PreviewTunnel.create({
     userId: USER_ID,
-    threadId: args.threadId,
-    tunnelId: `tunnel-${args.threadId}`,
+    podSessionId,
+    createdByThreadId: args.threadId,
+    tunnelId: `tunnel-${podSessionId}`,
     sealedTunnelToken: 'sealed-token',
     label: `preview-${args.threadId}`,
+    state: 'Ready',
   })
   await db.orm.public.PreviewRoute.create({
     previewTunnelId: tunnel.id,
     port: 3000,
     hostname: `${args.threadId}.byatlas.dev`,
-    dnsRecordId: `dns-${args.threadId}`,
+    dnsRecordId: `dns-${podSessionId}`,
   })
   return tunnel
 }

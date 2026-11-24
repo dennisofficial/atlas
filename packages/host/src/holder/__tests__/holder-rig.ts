@@ -8,11 +8,11 @@ import {
   type MemoryHostPresence,
 } from '../../testing/memory-host-presence'
 import type { NormalizeFailure, SaidUploadsPort } from '@dltech/atlas-agent'
-import type { ComposedPlugins } from '@dltech/atlas-plugin-sdk'
+import type { ComposedPlugins, PodCommandFactory } from '@dltech/atlas-plugin-sdk'
 import { SequentialIds, type ScriptedModelStep } from '@dltech/atlas-agent/testing'
 import { createInMemoryDaemon, type InMemoryDaemon } from '@dltech/atlas-protocol/testing'
 
-import type { LogPort } from '@dltech/atlas-observability'
+import type { LogPort, TracePort } from '@dltech/atlas-observability'
 
 import type { CommandHandlers, ControlHandlers } from '../command-intake'
 import type { PodCallBus } from '../pod-call-port'
@@ -84,6 +84,7 @@ export const makeRig = async (args: {
   isPermanentStartError?: ((error: unknown) => boolean) | undefined
   commands?: CommandRegistry | undefined
   commandHandlers?: CommandHandlers | undefined
+  podCommands?: readonly PodCommandFactory[] | undefined
   controlHandlers?: ControlHandlers | undefined
   control?: PodControlClient | undefined
   log?: LogPort | undefined
@@ -92,6 +93,7 @@ export const makeRig = async (args: {
   plugins?: ComposedPlugins | undefined
   rotation?: { autoRotateAtPercent: number } | undefined
   placeContextFiles?: SessionRuntime['placeContextFiles'] | undefined
+  trace?: TracePort | undefined
 }): Promise<HolderRig> => {
   const clock = args.clock ?? new FakeClock()
   const store =
@@ -147,6 +149,7 @@ export const makeRig = async (args: {
     plugins: args.plugins,
     rotation: args.rotation,
     placeContextFiles: args.placeContextFiles,
+    trace: args.trace,
   })
 
   const holder = new SessionHolder({
@@ -164,6 +167,7 @@ export const makeRig = async (args: {
       : { isPermanentStartError: args.isPermanentStartError }),
     commands: args.commands,
     commandHandlers: args.commandHandlers,
+    podCommands: args.podCommands,
     controlHandlers: args.controlHandlers,
     control: args.control,
     changes: args.changes,

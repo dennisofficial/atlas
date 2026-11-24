@@ -1,19 +1,27 @@
 import { createSessionsFeed } from '@dltech/atlas-client/stream'
-import { type AtlasNotification, notifyEventSettingKey } from '@dltech/atlas-core'
 import {
+  type AtlasNotification,
+  type ENotifyMoment,
+  notifyEventSettingKey,
+} from '@dltech/atlas-core'
+import {
+  dueDelayMs,
+  earliestDueAt,
+  type HeldNotice,
   type InAppRow,
-  inAppNoticesOf,
   inAppRowOf,
+  inAppScanOf,
   staleNoticeIdsOf,
 } from '@dltech/atlas-notifications/client'
 import type { StreamSessionRow } from '@dltech/atlas-protocol'
 import { router, usePathname } from 'expo-router'
-import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { z } from 'zod'
 
 import { useAuth } from '../auth/auth-provider'
 import { useSettings } from '../settings/settings-provider'
 import { dismissPresentedRead } from '../push/notification-handler'
+import { reportInAppShown } from '../push/notification-track'
 import { sessionStream } from '../thread/v2/session-stream'
 import { InAppBanner } from './in-app-banner'
 import { openSessionOf } from './open-session-of'
@@ -28,6 +36,8 @@ export const InAppNoticesProvider = ({ children }: { children: ReactNode }) => {
   const [notice, setNotice] = useState<AtlasNotification | null>(null)
   const [shown, setShown] = useState<readonly AtlasNotification[]>([])
   const previous = useRef<ReadonlyMap<string, InAppRow> | null>(null)
+  const held = useRef<readonly HeldNotice[]>([])
+  const [tick, setTick] = useState(0)
   const pathname = usePathname()
   const focused = useAppFocused()
   const openSessionId = openSessionOf(pathname)
@@ -55,21 +65,37 @@ export const InAppNoticesProvider = ({ children }: { children: ReactNode }) => {
     void dismissPresentedRead(readSeqs).catch(() => undefined)
   }, [focused, readSeqs])
 
+  const enabled = useCallback(
+    (moment: ENotifyMoment) =>
+      settings.read({ key: notifyEventSettingKey(moment), schema: z.boolean() }),
+    [settings],
+  )
+
   useEffect(() => {
-    const notices = inAppNoticesOf({
+    const scan = inAppScanOf({
       previous: previous.current,
       next: rows,
+      held: held.current,
       openSessionId,
       focused,
-      enabled: (moment) =>
-        settings.read({ key: notifyEventSettingKey(moment), schema: z.boolean() }),
+      enabled,
       now: new Date().toISOString(),
     })
     previous.current = rowMap
-    if (notices.length === 0) return
-    setShown((current) => [...current, ...notices])
-    setNotice(notices.at(-1) ?? null)
-  }, [rows, rowMap, openSessionId, focused, settings])
+    held.current = scan.held
+    if (scan.notices.length > 0) {
+      for (const notice of scan.notices) void reportInAppShown({ client: api, notice })
+      setShown((current) => [...current, ...scan.notices])
+      setNotice(scan.notices.at(-1) ?? null)
+    }
+    const dueAt = earliestDueAt(scan.held)
+    if (dueAt === null) return undefined
+    const timer = setTimeout(
+      () => setTick((current) => current + 1),
+      dueDelayMs({ dueAt, nowMs: Date.now() }),
+    )
+    return () => clearTimeout(timer)
+  }, [rows, rowMap, openSessionId, focused, enabled, tick, api])
 
   useEffect(() => {
     const stale = staleNoticeIdsOf({ notices: shown, rows: rowMap, openSessionId })

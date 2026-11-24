@@ -90,9 +90,14 @@ describe('composerActionsOf', () => {
     const actions = composerActionsOf({
       openModelPicker: () => opened.push('model'),
       openCommandList: () => opened.push('list'),
+      reportHidden: (name) => opened.push(name),
     })
-    for (const action of Object.values(EClientAction)) actions[action]()
+    for (const action of [EClientAction.ModelPicker, EClientAction.CommandList]) actions[action]()
     expect(opened.sort()).toEqual(['list', 'model'])
+
+    for (const action of [EClientAction.Skills, EClientAction.Mcp, EClientAction.Shells])
+      actions[action]()
+    expect(opened).toEqual(['list', 'model', 'skills', 'mcp', 'shells'])
   })
 })
 

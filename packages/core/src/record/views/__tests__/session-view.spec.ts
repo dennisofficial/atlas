@@ -43,7 +43,7 @@ const inputs = fc.record({
 
 const expectContext = (actual: ContextMeter | null, oracle: ContextMeter): void => {
   if (actual === null) {
-    expect(oracle).toEqual({ used: null, window: null, measuredThroughSeq: null })
+    expect(oracle).toEqual({ used: null, window: null, measuredThroughSeq: null, breakdown: null })
     return
   }
   expect(actual).toEqual(oracle)

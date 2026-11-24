@@ -35,10 +35,15 @@ Subscribe a thread to a GitHub pull request or workflow run, so the events reach
 
 - `GITHUB_PROVIDER` and `GITHUB_RUN_PROVIDER`: the two provider names.
 - `parseTargetInput(raw)`: reads `#123`, `owner/repo#123`, a pull request URL, or a blank string for the pull request of the project directory.
-- `parseRunTargetInput(raw)`: reads `#<run id>`, `owner/repo#<run id>`, a run URL, `<workflow>@<branch>`, or a blank string for the newest run of this push.
-- A run that has already finished is refused with its name, conclusion and URL, because no
-  webhook arrives for it. A blank target with no run for the pushed commit is refused the same way
-  and points at `<workflow>@<branch>`.
+- `parseRunTargetInput(raw)`: reads `#<run id>`, `owner/repo#<run id>`, a run URL, `<workflow>@<branch>`, or a blank string for the newest run of this push. A bare workflow name or file, such as `deploy.yml`, selects that workflow on the branch of the checkout.
+- A blank run target with no run for the pushed commit is refused and points at
+  `<workflow>@<branch>`.
+- `pullRequestStateOf({ target, pull })` and `runStateOf({ target, run, failedJobs })`: read a
+  target's current phase from a GitHub response, so a subscription made on an already finished
+  target gets its final notice at once. `repoFullNameOf(repo)` drops the `github.com/` prefix.
+- `pullRequestSnapshotOf(input)` and `runSnapshotOf(jobs)`: the facts a subscribe result shows
+  about an open target, and the notice that comes next. `reviewDecisionOf(reviews)` reads the
+  latest review of each reviewer.
 
 ### Describe a subscription
 
@@ -59,8 +64,9 @@ Subscribe a thread to a GitHub pull request or workflow run, so the events reach
 | `list`        | nothing          | Show each subscription and the providers that a thread can subscribe to.    |
 
 `target` is a pull request reference or a workflow run reference. Leave it out when the provider
-works the target out from the session. A `github.workflow-run` target that names a run which
-already finished is refused, and a blank one names the newest run of the pushed commit. `events`
+works the target out from the session. A blank `github.workflow-run` target names the newest run
+of the pushed commit. A target that already reached its end (a merged or closed pull request, a
+finished run) gets its final notice at once, the subscription ends, and the reply names that state. `events`
 keeps only the named filters. `expiresInMinutes` ends the subscription later.
 
 ### Refuse a CI watch

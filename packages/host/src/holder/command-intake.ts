@@ -8,6 +8,7 @@ import {
 import type { ControlPlane } from '@dltech/atlas-control'
 import {
   EInputConsumed,
+  type EResumeOutcome,
   type Event,
   type EventDraft,
   type InboxEntry,
@@ -22,8 +23,9 @@ import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
 import {
   ETextPlan,
+  lazySkillNamesOf,
   planTextInput,
-  slashNamesOf,
+  type SkillNames,
   type CommandHandlers,
   type ControlHandlers,
   type TextPlan,
@@ -42,14 +44,17 @@ export type CommandIntakeArgs = {
   sessionId: string
   model?: ModelPort | undefined
   visibleEvents(): readonly Event[]
+  logEvents(): readonly V2Event[]
+  crew?: { resume(args: { agentId: string }): Promise<EResumeOutcome> } | undefined
+  mainThreadId?: string | undefined
   childrenRunning?: (() => number) | undefined
   loggedEvents(): readonly V2Event[]
   append(drafts: readonly (EventDraft | RecordBody | PluginEventBody)[]): Promise<void>
   log?: LogPort | undefined
 }
 
-type Resolved = { command: Command; handler: CommandHandler<unknown> }
-type CommandPlan = Extract<TextPlan, { kind: ETextPlan.Command }>
+type Resolved = { command: Command; handler: CommandHandler<unknown> | undefined }
+export type CommandPlan = Extract<TextPlan, { kind: ETextPlan.Command }>
 type SkillPlan = Extract<TextPlan, { kind: ETextPlan.Skill }>
 
 export enum ESkillDrafts {
@@ -77,7 +82,7 @@ const reasonOf = (error: unknown): string =>
 export class CommandIntake {
   constructor(private readonly args: CommandIntakeArgs) {}
 
-  planText(text: string, skills?: readonly string[] | undefined): Promise<TextPlan> {
+  planText(text: string, skills?: SkillNames | undefined): Promise<TextPlan> {
     return planTextInput({
       text,
       commands: this.args.commands,
@@ -89,8 +94,8 @@ export class CommandIntake {
     })
   }
 
-  async skillsForPass(): Promise<readonly string[]> {
-    return await slashNamesOf({ slash: this.args.slash, log: this.args.log })
+  skillsForPass(): SkillNames {
+    return lazySkillNamesOf({ slash: this.args.slash, log: this.args.log })
   }
 
   async draftsOfSkill(plan: SkillPlan): Promise<SkillDrafts> {
@@ -113,20 +118,27 @@ export class CommandIntake {
 
   resolve(entry: InboxEntry): Resolved | undefined {
     const command = this.args.commands.byInboxKind.get(entry.kind)
-    const handler = this.args.handlers.get(entry.kind)
-    if (command === undefined || handler === undefined) return undefined
-    return { command, handler }
+    if (command === undefined) return undefined
+    return { command, handler: this.args.handlers.get(entry.kind) }
   }
 
-  async run(params: { entry: InboxEntry; command: Command; handler: CommandHandler<unknown> }) {
+  async run(params: {
+    entry: InboxEntry
+    command: Command
+    handler: CommandHandler<unknown> | undefined
+  }) {
     const { inboxId } = params.entry
     await this.args.append([{ type: 'input-consumed', inboxId, consumed: EInputConsumed.Command }])
+    if (params.handler === undefined) {
+      await this.refuse({ inboxId, reason: this.missingHandlerReason(params.command) })
+      return
+    }
     const parsed = params.command.spec.args.safeParse(payloadOf(params.entry.payload))
     if (!parsed.success) {
       await this.refuse({ inboxId, reason: parsed.error.message })
       return
     }
-    await this.invoke({ ...params, args: parsed.data })
+    await this.invoke({ ...params, handler: params.handler, args: parsed.data })
   }
 
   async runText(params: {
@@ -188,12 +200,23 @@ export class CommandIntake {
       })
       return
     }
+    if (resolved.handler === undefined) {
+      await this.refuse({
+        inboxId: entry.inboxId,
+        reason: this.missingHandlerReason(resolved.command),
+      })
+      return
+    }
     const parsed = resolved.command.spec.args.safeParse(payloadOf(entry.payload))
     if (!parsed.success) {
       await this.refuse({ inboxId: entry.inboxId, reason: parsed.error.message })
       return
     }
-    await this.invoke({ entry, ...resolved, args: parsed.data })
+    await this.invoke({ entry, ...resolved, handler: resolved.handler, args: parsed.data })
+  }
+
+  private missingHandlerReason(command: Command): string {
+    return `/${command.spec.name} cannot run on this host`
   }
 
   private isLogged(inboxId: number): boolean {
@@ -238,7 +261,10 @@ export class CommandIntake {
       inboxId,
       model: this.args.model,
       visibleEvents: this.args.visibleEvents,
+      logEvents: this.args.logEvents,
       runningChildren: () => this.args.childrenRunning?.() ?? 0,
+      ...(this.args.crew === undefined ? {} : { crew: this.args.crew }),
+      ...(this.args.mainThreadId === undefined ? {} : { mainThreadId: this.args.mainThreadId }),
       append: this.args.append,
       log: (message) =>
         this.args.log?.info({

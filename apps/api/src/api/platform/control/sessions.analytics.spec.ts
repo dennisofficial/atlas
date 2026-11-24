@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'bun:test'
+import { ETurnCause, ETurnEndedBy, ETurnOutcome } from '@dltech/atlas-core'
 import { ProductAnalytics } from '@dltech/atlas-observability'
 
-import { setupSessionsService as setup } from './sessions.service.fixture'
+import { appendBodies, setupSessionsService as setup } from './sessions.service.fixture'
 
 type Captured = { userId: string; event: string; properties: Record<string, unknown> }
 
@@ -45,9 +46,17 @@ describe('SessionsService analytics', () => {
         model: 'anthropic/claude-opus-5-5',
         provider: 'vercel',
         has_first_message: true,
-        spawned: false,
       },
     })
+    expect(analytics.captured[0]?.properties).not.toHaveProperty('spawned')
+  })
+
+  it('reports the model the session was created with when none was asked for', async () => {
+    const { analytics, service } = withAnalytics()
+
+    await service.create({ userId: 'user-a', projectId: 'proj-a' })
+
+    expect(analytics.captured[0]?.properties.model).toMatch(/^[a-z0-9-]+\/[a-z0-9.-]+$/)
   })
 
   it('reports session_archived and session_unarchived', async () => {
@@ -84,5 +93,48 @@ describe('SessionsService analytics', () => {
         fast: true,
       },
     })
+  })
+})
+
+describe('SessionsService notification analytics', () => {
+  const endedTurn = async () => {
+    const fixture = withAnalytics()
+    const created = await fixture.service.create({ userId: 'user-a', projectId: 'proj-a' })
+    const granted = await fixture.plane.grant({ sessionId: created.sessionId, hostId: 9001 })
+    await appendBodies({
+      plane: fixture.plane,
+      threadId: created.mainThreadId,
+      epoch: granted.epoch,
+      bodies: [
+        { type: 'turn-started', turnId: 'turn-1', cause: ETurnCause.Input },
+        {
+          type: 'turn-ended',
+          turnId: 'turn-1',
+          outcome: ETurnOutcome.Completed,
+          by: ETurnEndedBy.Agent,
+        },
+      ],
+    })
+    return { ...fixture, created }
+  }
+
+  it('reports notification_cleared when a read passes a turn end', async () => {
+    const { analytics, service, created } = await endedTurn()
+
+    await service.markRead({ userId: 'user-a', sessionId: created.sessionId, seq: 2 })
+
+    expect(analytics.captured.at(-1)).toEqual({
+      userId: 'user-a',
+      event: 'notification_cleared',
+      properties: { session_id: created.sessionId, moment_seq: 2 },
+    })
+  })
+
+  it('reports no clear when the read stops short of the moment', async () => {
+    const { analytics, service, created } = await endedTurn()
+
+    await service.markRead({ userId: 'user-a', sessionId: created.sessionId, seq: 1 })
+
+    expect(analytics.captured.map((entry) => entry.event)).not.toContain('notification_cleared')
   })
 })

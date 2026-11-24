@@ -93,7 +93,6 @@ const crewProbePlugin = (spawned: Spawned): Plugin =>
       childDeny: [SPAWN_PROBE, WORKTREE_SPAWN_PROBE],
       tools: (ctx) => [new CrewSpawnProbe(ctx, spawned), new WorktreeSpawnProbe(ctx, spawned)],
       prompts: [],
-      commands: new Map(),
     },
     control: { hooks: [], commands: new Map() },
     client: { hooks: [] },

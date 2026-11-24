@@ -18,7 +18,8 @@ import type { SettingValues } from '@/lib/cloud-settings'
 import { appearanceChanges, appearanceFrom } from '../data/personal/interface-settings'
 import { QueryPage } from '../data/personal/query-boundary'
 import { AppearanceSkeleton } from '../skeletons/agent-skeletons'
-import { usePersonalSettings, useSettingsDraft } from '../data/personal/use-settings-draft'
+import { useCloudSettings } from '@/lib/cloud-settings'
+import { useSettingsDraft } from '../data/personal/use-settings-draft'
 import { CODE_FONT_SIZES, EDensity, ETheme } from '../fixtures/settings-interface'
 import { ThemeCard } from '../parts/interface-theme-card'
 import {
@@ -38,7 +39,7 @@ function isTheme(value: unknown): value is ETheme {
 }
 
 export function AppearancePage() {
-  const settings = usePersonalSettings()
+  const settings = useCloudSettings()
   return (
     <QueryPage
       query={settings.query}

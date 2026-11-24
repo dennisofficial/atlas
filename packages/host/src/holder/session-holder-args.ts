@@ -1,10 +1,11 @@
 import type { CommandRegistry } from '@dltech/atlas-commands'
-import type { PodMcpControl } from '@dltech/atlas-plugin-sdk'
+import type { PodMcpControl, PodCommandFactory } from '@dltech/atlas-plugin-sdk'
 import type { IdPort } from '@dltech/atlas-core'
-import type { ChangeContentStore, ControlPlane } from '@dltech/atlas-control'
+import type { ChangeContentStore, ContextContentStore, ControlPlane } from '@dltech/atlas-control'
 import type { LogPort } from '@dltech/atlas-observability'
 
 import type { HostBus, HostPresence, HostTimers, PodPeers, SessionRuntimeFactory } from './ports'
+import type { ParkArchivedPod } from './park-archived'
 import type { PodControlClient } from './pod-control'
 import type { CommandHandlers, ControlHandlers } from './command-intake'
 import type { NotifyDispatch } from './notify-dispatch'
@@ -28,6 +29,7 @@ export type SessionHolderArgs = {
   reasonOfStartError?: ((error: unknown) => string) | undefined
   commands?: CommandRegistry | undefined
   commandHandlers?: CommandHandlers | undefined
+  podCommands?: readonly PodCommandFactory[] | undefined
   controlHandlers?: ControlHandlers | undefined
   control?: PodControlClient | undefined
   mcp?: ((sessionId: string) => PodMcpControl) | undefined
@@ -38,7 +40,11 @@ export type SessionHolderArgs = {
       }
     | undefined
   changes?: { content: ChangeContentStore } | undefined
+  contextMirror?:
+    | { content: ContextContentStore; contextDir: (sessionId: string) => string }
+    | undefined
   notify?: NotifyDispatch | undefined
+  parkArchived?: ParkArchivedPod | undefined
   turnEnded?: TurnEndedHook | undefined
   log?: LogPort | undefined
   onHostIdChanged?: (() => void) | undefined

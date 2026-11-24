@@ -12,7 +12,7 @@ const EXPECTED: Record<ESessionStatus, ESessionDisplay> = {
   [ESessionStatus.WaitingForCredentials]: ESessionDisplay.WaitingForYou,
   [ESessionStatus.WaitingForOperator]: ESessionDisplay.WaitingForYou,
   [ESessionStatus.Preparing]: ESessionDisplay.Starting,
-  [ESessionStatus.Queued]: ESessionDisplay.Idle,
+  [ESessionStatus.Queued]: ESessionDisplay.Working,
   [ESessionStatus.Thinking]: ESessionDisplay.Working,
   [ESessionStatus.RunningTool]: ESessionDisplay.Working,
   [ESessionStatus.WaitingToRetry]: ESessionDisplay.Working,
@@ -77,6 +77,24 @@ describe('sessionDisplayOf with a pod state', () => {
     expect(displayOf({ state: ESessionStatus.Idle, sandboxStatus: ESandboxStatus.Failed })).toBe(
       ESessionDisplay.Failed,
     )
+  })
+
+  it('parks background work whose pod went to sleep', () => {
+    expect(
+      displayOf({
+        state: ESessionStatus.WaitingForBackground,
+        sandboxStatus: ESandboxStatus.Sleeping,
+      }),
+    ).toBe(ESessionDisplay.Parked)
+  })
+
+  it('keeps background work working beside a running pod', () => {
+    expect(
+      displayOf({
+        state: ESessionStatus.WaitingForBackground,
+        sandboxStatus: ESandboxStatus.Running,
+      }),
+    ).toBe(ESessionDisplay.Working)
   })
 
   it('keeps the session display when the session is not idle', () => {

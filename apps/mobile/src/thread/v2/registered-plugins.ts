@@ -1,3 +1,4 @@
+import type { TranscriptEntryFold } from '@dltech/atlas-client/transcript'
 import {
   eventSchemaOf,
   eventTypesOf,
@@ -90,6 +91,10 @@ const registeredPlugins: readonly Plugin[] = [
 
 export const registeredPluginNames: readonly string[] = registeredPlugins.map(
   (plugin) => plugin.name,
+)
+
+export const v2EntryFolds: readonly TranscriptEntryFold[] = registeredPlugins.flatMap(
+  (plugin) => plugin.client.entryFolds ?? [],
 )
 
 export const v2EventSchema = eventSchemaOf(registeredPlugins)

@@ -1,5 +1,5 @@
 import type { PluginViewFold, V2Event } from '@dltech/atlas-core'
-import { STREAM_STALL_MS, type StreamServerMessage } from '@dltech/atlas-protocol'
+import type { StreamServerMessage } from '@dltech/atlas-protocol'
 import type { z } from 'zod'
 
 import {
@@ -11,9 +11,18 @@ import {
   type ConnectionInput,
   type ConnectionState,
 } from './connection-machine'
+import { createListRetry, type ListRetry } from './list-retry'
 import { memorySessionLog } from './session-log'
 import { createSessionFollower, type SessionFollower } from './session-follower'
-import { createSessionsList, type FollowedSessionList, type SessionsList } from './sessions-list'
+import { fetchOlderOf } from './session-older'
+import {
+  createSessionsList,
+  sessionsListFrameHandler,
+  type FollowedSessionList,
+  type SessionsList,
+} from './sessions-list'
+import { createStreamHandlers } from './stream-handlers'
+import { followInputOf, followWithTailFallback } from './stream-follow'
 import {
   browserNetworkSignal,
   type FollowArgs,
@@ -52,26 +61,28 @@ type Followed = Held & {
   follower: SessionFollower
 }
 
-type Listed = Held & { list: SessionsList }
+type Listed = Held & { list: SessionsList; retry: ListRetry; stop(): void }
 
 export const createStreamConnection = (args: StreamConnectionArgs): StreamConnection => {
   const { scheduler } = args
   let machine: ConnectionState = initialConnectionState()
   let generation = 0
   let nextId = 0
+  let tailUnsupported = false
   let unsubscribeNetwork: (() => void) | undefined
   const timers = new Map<EConnectionTimer, unknown>()
   const followed = new Map<string, Followed>()
   const lists = new Set<Listed>()
 
   const stopSubscription = (holder: Followed | Listed): void => {
+    if ('retry' in holder) holder.retry.cancel()
     holder.epoch += 1
     clearWatchdog(holder)
     holder.subscription?.close()
     holder.subscription = undefined
   }
 
-  function clearWatchdog(holder: Followed | Listed): void {
+  function clearWatchdog(holder: { watchdog: unknown }): void {
     if (holder.watchdog === undefined) return
     scheduler.clearTimeout(holder.watchdog)
     holder.watchdog = undefined
@@ -88,58 +99,28 @@ export const createStreamConnection = (args: StreamConnectionArgs): StreamConnec
     for (const effect of step.effects) run(effect)
   }
 
-  const lifecycle = (entry: Followed | Listed, frame: StreamServerMessage): boolean => {
-    if (frame.type === 'ready') {
-      dispatch({ type: 'opened' })
-      return true
-    }
-    if (frame.type === 'going-away') {
-      dispatch({ type: 'going-away', reconnectAfterMs: frame.reconnectAfterMs })
-      return true
-    }
-    return false
-  }
-
-  const handlersOf = (holder: Followed | Listed, onFrame: (frame: StreamServerMessage) => void) => {
-    const epoch = holder.epoch
-    const current = (): boolean => epoch === holder.epoch
-    const watchdog = (): void => {
-      if (!current()) return
-      clearWatchdog(holder)
-      holder.watchdog = scheduler.setTimeout(() => {
-        if (!current()) return
-        holder.watchdog = undefined
-        stopSubscription(holder)
-        dispatch({ type: 'failure', status: undefined })
-      }, STREAM_STALL_MS)
-    }
-    watchdog()
-    return {
-      handleFrame: (frame: StreamServerMessage): void => {
-        if (!current()) return
-        watchdog()
-        if (!lifecycle(holder, frame)) onFrame(frame)
-      },
-      handleFailure: (status: number | undefined): void => {
-        if (current()) dispatch({ type: 'failure', status })
-      },
-      handleEnd: (): void => {
-        if (current()) dispatch({ type: 'ended' })
-      },
-    }
-  }
-
   const subscribeFollow = (entry: Followed): void => {
     stopSubscription(entry)
-    const cursor = entry.follower.cursor()
-    entry.subscription = args.transport.follow(
-      {
+    let opened = false
+    const handlers = handlersOf(entry, (frame) => entry.follower.handleMessage(frame))
+    entry.subscription = followWithTailFallback({
+      transport: args.transport,
+      input: followInputOf({
         sessionId: entry.sessionId,
-        ...(entry.threadId === undefined ? {} : { threadId: entry.threadId }),
-        ...(cursor === undefined ? {} : { afterSeq: cursor.seq, afterHash: cursor.hash }),
+        threadId: entry.threadId,
+        cursor: entry.follower.cursor(),
+      }),
+      handlers: {
+        ...handlers,
+        handleFrame: (frame) => {
+          opened = true
+          handlers.handleFrame(frame)
+        },
       },
-      handlersOf(entry, (frame) => entry.follower.handleMessage(frame)),
-    )
+      tailUnsupported,
+      sawFrame: () => opened,
+      onUnsupportedTail: () => resnap(entry, { tailUnsupported: true }),
+    })
   }
 
   const live = (): boolean =>
@@ -156,13 +137,7 @@ export const createStreamConnection = (args: StreamConnectionArgs): StreamConnec
 
   const subscribeList = (entry: Listed): void => {
     stopSubscription(entry)
-    entry.subscription = args.transport.list(
-      handlersOf(entry, (frame) => {
-        if (frame.type === 'snapshot' || frame.type === 'upsert' || frame.type === 'remove') {
-          entry.list.handleMessage(frame)
-        }
-      }),
-    )
+    entry.subscription = args.transport.list(handlersOf(entry, sessionsListFrameHandler(entry)))
   }
 
   const subscribeAll = (): void => {
@@ -212,13 +187,45 @@ export const createStreamConnection = (args: StreamConnectionArgs): StreamConnec
     )
   }
 
-  const resnap = (entry: Followed): void => {
+  const handlersOf = (holder: Followed | Listed, onFrame: (frame: StreamServerMessage) => void) =>
+    createStreamHandlers({
+      holder,
+      scheduler,
+      clearWatchdog,
+      onStall: () => {
+        stopSubscription(holder)
+        dispatch({ type: 'failure', status: undefined })
+      },
+      onFrame: (frame) => {
+        if (lifecycle(holder, frame)) return
+        onFrame(frame)
+      },
+      onFailure: (status) => dispatch({ type: 'failure', status }),
+      onEnd: () => dispatch({ type: 'ended' }),
+    })
+
+  const lifecycle = (entry: Followed | Listed, frame: StreamServerMessage): boolean => {
+    if (frame.type === 'ready') {
+      dispatch({ type: 'opened' })
+      return true
+    }
+    if (frame.type === 'going-away') {
+      dispatch({ type: 'going-away', reconnectAfterMs: frame.reconnectAfterMs })
+      return true
+    }
+    return false
+  }
+
+  const resnap = (entry: Followed, extra: { tailUnsupported?: boolean } = {}): void => {
+    if (extra.tailUnsupported === true) tailUnsupported = true
     entry.follower.markResubscribing()
     subscribeFollow(entry)
   }
 
-  const retryIfBackingOff = (): void => {
-    if (machine.phase === EStreamConnectionState.Backoff) {
+  const ensureConnected = (): void => {
+    if (machine.phase === EStreamConnectionState.Closed && machine.reason === undefined) {
+      dispatch({ type: 'connect' })
+    } else if (machine.phase === EStreamConnectionState.Backoff) {
       dispatch({ type: 'reconnect-requested' })
     }
   }
@@ -235,6 +242,8 @@ export const createStreamConnection = (args: StreamConnectionArgs): StreamConnec
         log: log ?? memorySessionLog(),
         scheduler,
         onResnap: () => resnap(entry),
+        onTailUnsupported: () => resnap(entry, { tailUnsupported: true }),
+        ...fetchOlderOf({ transport: args.transport, threadId }),
         eventSchema: args.eventSchema,
         knownEventTypes: args.knownEventTypes,
         views: args.views,
@@ -243,11 +252,7 @@ export const createStreamConnection = (args: StreamConnectionArgs): StreamConnec
       epoch: 0,
       watchdog: undefined,
     }
-    if (machine.phase === EStreamConnectionState.Closed && machine.reason === undefined) {
-      dispatch({ type: 'connect' })
-    } else {
-      retryIfBackingOff()
-    }
+    ensureConnected()
     followed.set(id, entry)
     entry.follower.setConnection(machine.phase)
     if (live()) subscribeWhenHydrated(entry)
@@ -264,15 +269,13 @@ export const createStreamConnection = (args: StreamConnectionArgs): StreamConnec
   const followSessions: StreamConnection['followSessions'] = () => {
     const entry: Listed = {
       list: createSessionsList(),
+      retry: createListRetry({ scheduler, live, resubscribe: () => subscribeList(entry) }),
+      stop: () => stopSubscription(entry),
       subscription: undefined,
       epoch: 0,
       watchdog: undefined,
     }
-    if (machine.phase === EStreamConnectionState.Closed && machine.reason === undefined) {
-      dispatch({ type: 'connect' })
-    } else {
-      retryIfBackingOff()
-    }
+    ensureConnected()
     lists.add(entry)
     if (live()) subscribeList(entry)
     return {

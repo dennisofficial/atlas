@@ -3,7 +3,21 @@ export type { ChangeFeed } from './change-feed'
 export { ControlPlane, MAX_READ_LIMIT, MAX_SESSION_LIST_LIMIT } from './control-plane'
 export type { ControlPlaneParams, ReadEventsPage } from './control-plane'
 export { changeBlobKey, ChangeContentStore, changeHashOf } from './change-content'
+export type { PresignGetArgs, PresignPutArgs } from './change-content'
 export { CHANGES_GC_GRACE_MS, CHANGES_GC_ROW_LIMIT, runChangesGc } from './changes-gc'
+export { ContextContentStore } from './context-content'
+export type { ContextFileRow, ContextFileWrite } from './context-files'
+export {
+  CONTEXT_FILES_GC_GRACE_MS,
+  CONTEXT_FILES_GC_ROW_LIMIT,
+  runContextFilesGc,
+} from './context-files-gc'
+export type {
+  ContextFilesGcContent,
+  ContextFilesGcParams,
+  ContextFilesGcStore,
+  ContextFilesGcSummary,
+} from './context-files-gc'
 export type {
   ChangesGcContent,
   ChangesGcParams,
@@ -45,7 +59,6 @@ export type {
   RoutineRunRow,
   SessionBucketCountParams,
   SessionBucketCounts,
-  SessionBucketFilter,
   SessionListParams,
   SessionPageCursor,
   StoredEvent,
@@ -64,6 +77,7 @@ export type {
   ChangeBlobWrite,
   ChangedFileWrite,
   WorktreeChangesRead,
+  WorktreeChangesSummary,
   WorktreeChangesWrite,
 } from './port'
 export {
@@ -99,6 +113,8 @@ export {
 } from './session-summary'
 export type { SessionStatusRead, StatusPlane } from './session-status'
 export { RecordCorruptError } from './refusal'
+export { TAIL_BASE_ATTEMPTS } from './tail-base'
+export type { TailBase } from './tail-base'
 export type { AppendOutcome, BlobRefusal, ControlRefusal } from './refusal'
 export type {
   ControlPullRequest,
@@ -118,14 +134,18 @@ export type {
   SandboxRunStore,
 } from './sandbox-runs'
 export { PostgresSandboxRunStore } from './postgres/postgres-sandbox-runs'
-export {
-  DEFAULT_SUBSCRIPTION_TTL_MS,
-  listSubscriptionsIn,
-  subscribeIn,
-} from './subscription-ops'
+export { listSubscriptionsIn, subscribeIn } from './subscription-ops'
 export type { SubscribeArgs, SubscribeResult } from './subscription-ops'
 export { endSubscriptionsIn, unsubscribeIn } from './subscription-endings'
+export {
+  completeSubscriptionIn,
+  subscribeToStateIn,
+  terminalNoticeClientIdOf,
+} from './subscription-completion'
+export type { SubscribeToStateResult } from './subscription-completion'
 export type { SubscriptionEndingRow, UnsubscribeArgs } from './subscription-endings'
 export type { SubscriptionLeaseInput } from './subscription-rows'
 export { postQuietEndingsOf, quietEndingRecordsOf } from './quiet-endings'
 export type { QuietEndingRecord } from './quiet-endings'
+export { archiveSpawnedOf } from './spawned-archive'
+export type { SpawnedArchive } from './spawned-archive'

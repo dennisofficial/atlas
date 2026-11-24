@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'bun:test'
 
-import { APNS_PUSH_PATH, APNS_TOKEN_PATH, createApnsBridge } from '../apns.js'
+import {
+  APNS_PUSH_PATH,
+  APNS_TOKEN_PATH,
+  SESSION_PATH,
+  createApnsBridge,
+  sessionIdOfLaunchInfo,
+  urlForSession,
+} from '../apns.js'
 
 const replyOf = (body, ok = true) => ({ ok, json: async () => body })
 
@@ -15,10 +22,18 @@ const recorderOf = ({ groups = [] } = {}) => {
   return { calls, fetchFn }
 }
 
-const notificationsOf = (history = []) => {
+const notificationsOf = (entries = []) => {
   const removed = []
+  const history = entries.map((entry) => ({
+    ...entry,
+    closed: false,
+    close() {
+      this.closed = true
+    },
+  }))
   return {
     removed,
+    history,
     notifications: {
       getHistory: async () => history,
       removeGroup: (groupId) => removed.push(groupId),
@@ -146,5 +161,86 @@ describe('createApnsBridge.received', () => {
     await bridge.received({ clearSessionId: 'session-1' })
 
     expect(removed).toEqual([])
+  })
+})
+
+describe('createApnsBridge.attach', () => {
+  it('posts to the host origin when the host reports its session URL', async () => {
+    const { calls, fetchFn } = recorderOf()
+    const { notifications } = notificationsOf()
+    const { pushes } = pushesOf()
+
+    const bridge = createApnsBridge({ secret: 's3cret', fetchFn, notifications, pushes })
+    await bridge.start()
+    bridge.attach('http://127.0.0.1:4949/desktop/session?secret=s3cret')
+    await settle()
+
+    expect(calls.map((call) => call.url)).toEqual([`http://127.0.0.1:4949${APNS_TOKEN_PATH}`])
+  })
+})
+
+describe('createApnsBridge history reads', () => {
+  it('releases the Notification Center copies it reads so they cannot take a click', async () => {
+    const { fetchFn } = recorderOf({ groups: [] })
+    const { history, notifications } = notificationsOf([{ id: 'n-1', groupId: 'session-1' }])
+    const { pushes } = pushesOf()
+
+    const bridge = createApnsBridge({ secret: 's3cret', fetchFn, notifications, pushes })
+    bridge.attach('http://127.0.0.1:4848')
+    await bridge.received({ sessionId: 'session-1', seq: 1 })
+
+    expect(history.map((entry) => entry.closed)).toEqual([true])
+  })
+})
+
+describe('sessionIdOfLaunchInfo', () => {
+  it('reads the session a notification launch response names', () => {
+    const response = {
+      actionIdentifier: 'com.apple.UNNotificationDefaultActionIdentifier',
+      identifier: 'notification-1',
+      userInfo: { aps: { alert: { body: 'Done' } }, sessionId: 'session-1', seq: 7 },
+    }
+
+    expect(sessionIdOfLaunchInfo(response)).toBe('session-1')
+  })
+
+  it('reads a raw user info record as well as a launch response', () => {
+    expect(sessionIdOfLaunchInfo({ sessionId: 'session-2', seq: 1 })).toBe('session-2')
+  })
+
+  it('opens nothing when the launch came from a clear push', () => {
+    expect(sessionIdOfLaunchInfo({ userInfo: { clearSessionId: 'session-1' } })).toBeUndefined()
+  })
+
+  it('opens nothing when the app was launched without a notification', () => {
+    expect(sessionIdOfLaunchInfo({})).toBeUndefined()
+    expect(sessionIdOfLaunchInfo(undefined)).toBeUndefined()
+    expect(sessionIdOfLaunchInfo('launch-info')).toBeUndefined()
+    expect(sessionIdOfLaunchInfo({ userInfo: { sessionId: 'session-1' } })).toBeUndefined()
+    expect(sessionIdOfLaunchInfo({ userInfo: { sessionId: '', seq: 1 } })).toBeUndefined()
+    expect(
+      sessionIdOfLaunchInfo({ userInfo: { sessionId: 'session-1', seq: 'seven' } }),
+    ).toBeUndefined()
+  })
+})
+
+describe('urlForSession', () => {
+  it('loads the session page of the window origin', () => {
+    expect(urlForSession('http://127.0.0.1:4242', 'session/1')).toBe(
+      `http://127.0.0.1:4242${SESSION_PATH}session%2F1`,
+    )
+  })
+
+  it('asks the host session URL to land on the session', () => {
+    const hostUrl = 'http://127.0.0.1:4242/desktop/session?secret=s3cret'
+    const url = new URL(urlForSession(hostUrl, 'session/1'))
+
+    expect(url.origin + url.pathname).toBe('http://127.0.0.1:4242/desktop/session')
+    expect(url.searchParams.get('secret')).toBe('s3cret')
+    expect(url.searchParams.get('next')).toBe(`${SESSION_PATH}session%2F1`)
+  })
+
+  it('loads the plain window URL when no notification launched the app', () => {
+    expect(urlForSession('http://127.0.0.1:4242', undefined)).toBe('http://127.0.0.1:4242')
   })
 })

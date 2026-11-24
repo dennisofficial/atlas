@@ -35,7 +35,8 @@ const superseded = (): PodSleepOutput => ({ outcome: EPodSleepOutcome.Superseded
  * turn it stopped has ended, because an unconsumed stop is demand: releasing the session while the
  * stop is still unread hands it to another host, which wakes the pod this job is about to sleep.
  * The lease is the fence in the other direction too: a wake sets wantsHolder and a claim holds the
- * session, and either one supersedes a sleep that has not reached the provider yet.
+ * session, and either one supersedes a sleep that has not reached the provider yet. An archived
+ * session has no holder left that could end its open turn, so its sleep never waits for one.
  */
 export const runPodSleep = async (args: {
   payload: PodSleepPayload
@@ -47,12 +48,14 @@ export const runPodSleep = async (args: {
   const wakes = async (): Promise<boolean> =>
     wakesThePod({ power: await deps.power({ sessionId: session.sessionId }), session })
   if (await wakes()) return superseded()
-  for (let attempt = 0; attempt < TURN_END_ATTEMPTS; attempt += 1) {
-    if (!(await deps.busy({ session }))) break
-    await deps.wait({ ms: TURN_END_WAIT_MS })
-    if (await wakes()) return superseded()
+  if (session.archivedAt === null) {
+    for (let attempt = 0; attempt < TURN_END_ATTEMPTS; attempt += 1) {
+      if (!(await deps.busy({ session }))) break
+      await deps.wait({ ms: TURN_END_WAIT_MS })
+      if (await wakes()) return superseded()
+    }
+    if (await deps.busy({ session })) return superseded()
   }
-  if (await deps.busy({ session })) return superseded()
   await deps.release({ sessionId: session.sessionId, epoch: payload.epoch })
   if (await wakes()) return superseded()
   await deps.sleep({ sandboxSessionId: session.podSessionId ?? session.sessionId })

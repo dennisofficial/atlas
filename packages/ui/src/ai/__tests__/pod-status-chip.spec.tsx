@@ -215,6 +215,16 @@ describe('PodStatusChip resize', () => {
     await view.unmount()
   })
 
+  it('says the resize waits for the pod to go idle', async () => {
+    const waiting = { ...RUNNING, pendingVcpus: 8, phase: 'waiting' as const }
+    const view = await mount(
+      <PodPopoverBody status={waiting} sizes={SIZES} onResize={mock(() => Promise.resolve())} />,
+    )
+    expect(view.container.textContent).toContain('Waiting for idle to resize to 8 vCPU · 16 GB')
+    expect(view.container.textContent).not.toContain('Restarting with')
+    await view.unmount()
+  })
+
   it('keeps showing an owed restart after the popover remounts, with Apply locked', async () => {
     const restarting = { ...RUNNING, state: EPodState.Resuming, pendingVcpus: 8 }
     const first = await mount(

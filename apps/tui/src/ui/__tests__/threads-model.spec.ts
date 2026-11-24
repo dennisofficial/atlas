@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { EExecutionLocation } from '@dltech/atlas-core'
-import { ECloudSandboxState } from '@dltech/atlas-harness'
+import { ECloudSandboxState } from '../thread-badges'
 
 import {
   failedToList,

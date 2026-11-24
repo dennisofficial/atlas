@@ -55,6 +55,12 @@ describe('usageMeters', () => {
     ])
   })
 
+  it('hides the 5-hour meter of a plan that has only a weekly limit', () => {
+    expect(metersOf({ usage: usage({ sevenDay: { utilization: 24 } }) })).toEqual([
+      { label: 'wk', band: EMeterBand.Normal, text: '24%' },
+    ])
+  })
+
   it('replaces the figure with the wait once a window is spent', () => {
     const meters = metersOf({
       usage: usage({ fiveHour: { utilization: 100, resetsAt: inMinutes(134) } }),

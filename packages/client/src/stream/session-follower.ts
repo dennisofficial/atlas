@@ -10,35 +10,24 @@ import {
   retryDeadlineMsOf,
   type FrameFacts,
 } from './derived-session-view'
-import {
-  ESessionConnection,
-  type FollowedState,
-  snapshotOf,
-  type SessionSnapshot,
-} from './follower-state'
-import { acceptsView, settlesSetup, viewSettlesCatchUp } from './follower-views'
+import { hydrateFollower } from './follower-hydrate'
+import { createOlderLoader } from './follower-older'
+import { createFollowerRender } from './follower-render'
+import { ESessionConnection, type FollowedState, type SessionSnapshot } from './follower-state'
+import { acceptsView, adoptRewindable, settlesSetup, viewSettlesCatchUp } from './follower-views'
+import { createFollowerLogWriter } from './follower-writer'
 import { applyOverlayMessage, closeOverlayForEvents, EMPTY_OVERLAY_STATE } from './overlay-store'
-import { olderVisibleOf, restoredWindowOf } from './session-log-restore'
+import { basedStateOf, resetStateOf } from './session-base'
 import type { SessionLog } from './session-log'
-import { createSessionLogWriter } from './session-log-writer'
 import { applyShellOutput, withoutEndedShells } from './shell-tails'
-import {
-  applyPageOutcome,
-  EMPTY_WINDOW,
-  OLDER_PAGE,
-  RENDER_LIMIT,
-  resetWindow,
-  type SessionCursor,
-  type SessionWindow,
-} from './session-window'
+import { applyPageOutcome, EMPTY_WINDOW, RENDER_LIMIT, type SessionCursor } from './session-window'
 import { defaultKnownEventTypes } from './known-event-types'
+import type { OlderFetch } from './session-older'
 import type { StreamScheduler } from './stream-ports'
 
-const SAVE_INTERVAL_MS = 1_000
+export { HYDRATE_TIMEOUT_MS } from './follower-hydrate'
 
 const SETUP_OUTPUT_TAIL_CHARS = 16_000
-
-export const HYDRATE_TIMEOUT_MS = 2_000
 
 export { ESessionConnection, type SessionSnapshot }
 
@@ -63,29 +52,11 @@ export type SessionFollowerArgs = {
   knownEventTypes?: ReadonlySet<string> | undefined
   renderLimit?: number | undefined
   views?: readonly PluginViewFold[] | undefined
+  fetchOlder?: OlderFetch | undefined
+  onTailUnsupported?: (() => void) | undefined
 }
 
 type Inner = FollowedState
-
-const adoptRewindable = (args: {
-  window: SessionWindow
-  views: readonly PluginViewFold[]
-  pluginViews: Readonly<Record<string, unknown>>
-}): SessionWindow => {
-  const owned = args.views.filter(
-    (view) => view.rewindable === true && Object.hasOwn(args.pluginViews, view.name),
-  )
-  const changed = owned.some(
-    (view) => args.window.view.pluginViews[view.name] !== args.pluginViews[view.name],
-  )
-  if (!changed) return args.window
-  const pluginViews = { ...args.window.view.pluginViews }
-  for (const view of owned) {
-    if (Object.hasOwn(args.pluginViews, view.name))
-      pluginViews[view.name] = args.pluginViews[view.name]
-  }
-  return { ...args.window, view: { ...args.window.view, pluginViews } }
-}
 
 export const createSessionFollower = (args: SessionFollowerArgs): SessionFollower => {
   const { sessionId, log, scheduler } = args
@@ -106,23 +77,32 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
     writerAhead: false,
     fromCache: false,
   }
-  let snapshot = snapshotOf(inner)
-  const listeners = new Set<() => void>()
-  let lastSavedAt: number | undefined
-  let saveTimer: unknown
-  let olderInFlight: Promise<number> | undefined
+  const render = createFollowerRender({ scheduler, innerOf: () => inner })
+  const writer = createFollowerLogWriter({
+    log,
+    sessionId,
+    scheduler,
+    windowOf: () => inner.window,
+  })
   let retryTimer: unknown
-  const writer = createSessionLogWriter({ log, sessionId })
+  let logHasEvents = false
 
-  const commit = (next: Inner): void => {
+  const apply = (next: Inner): void => {
     inner = {
       ...next,
       derived: derivedViewOf({ window: next.window, frame: next.frame, now: scheduler.now() }),
     }
-    snapshot = snapshotOf(inner)
     scheduleRetryWake()
-    for (const listener of [...listeners]) listener()
   }
+
+  const settle = (next: Inner, flush: () => void): void => {
+    apply(next)
+    flush()
+  }
+
+  const commit = (next: Inner): void => settle(next, render.flush)
+
+  const deferCommit = (next: Inner): void => settle(next, render.defer)
 
   const scheduleRetryWake = (): void => {
     if (retryTimer !== undefined) {
@@ -138,22 +118,6 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
     }, due - now)
   }
 
-  const save = (): void => {
-    saveTimer = undefined
-    lastSavedAt = scheduler.now()
-    writer.save(inner.window)
-  }
-
-  const saveThrottled = (): void => {
-    if (saveTimer !== undefined) return
-    const wait = lastSavedAt === undefined ? 0 : lastSavedAt + SAVE_INTERVAL_MS - scheduler.now()
-    if (wait <= 0) {
-      save()
-      return
-    }
-    saveTimer = scheduler.setTimeout(save, wait)
-  }
-
   const handleEvents = (message: Extract<StreamServerMessage, { type: 'events' }>): void => {
     const { window, fresh, skipped, issue } = applyPageOutcome({
       window: inner.window,
@@ -162,14 +126,17 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
       renderLimit,
       views: args.views,
     })
-    if (fresh.length > 0) writer.append({ events: fresh, head: message.head })
+    if (fresh.length > 0) {
+      logHasEvents = true
+      writer.append({ events: fresh, head: message.head })
+    }
     const overlay = closeOverlayForEvents({ state: inner.overlay, events: window.events })
     if (skipped > 0) {
       console.warn(
         `session ${sessionId}: skipped ${skipped} event(s) this client cannot read: ${issue ?? 'unreadable event'}`,
       )
     }
-    commit({
+    const next: Inner = {
       ...inner,
       window,
       overlay,
@@ -179,8 +146,10 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
       error: undefined,
       skipped: inner.skipped + skipped,
       fromCache: false,
-    })
-    saveThrottled()
+    }
+    if (message.live || inner.live) commit(next)
+    else deferCommit(next)
+    writer.saveThrottled()
   }
 
   const handleShellOutput = (
@@ -226,16 +195,22 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
   const handleReset = (): void => {
     renderLimit = baseRenderLimit
     writer.drop()
-    commit({
-      ...inner,
-      window: resetWindow(),
-      frame: EMPTY_FRAME_FACTS,
-      setupOutput: '',
-      shells: {},
-      live: false,
-      skipped: 0,
-      fromCache: false,
-    })
+    logHasEvents = false
+    commit(resetStateOf(inner))
+  }
+
+  const handleBase = (message: Extract<StreamServerMessage, { type: 'base' }>): void => {
+    const next = basedStateOf({ inner, message, eventSchema: args.eventSchema })
+    if (next === undefined) {
+      console.warn(`session ${sessionId}: unreadable tail base, replaying the log`)
+      handleReset()
+      args.onTailUnsupported?.()
+      return
+    }
+    if (logHasEvents) writer.drop()
+    logHasEvents = false
+    renderLimit = baseRenderLimit
+    commit(next)
   }
 
   const handleMessage = (message: StreamServerMessage): void => {
@@ -243,6 +218,7 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
     else if (message.type === 'view') handleView(message)
     else if (message.type === 'error') commit({ ...inner, error: message.code })
     else if (message.type === 'reset') handleReset()
+    else if (message.type === 'base') handleBase(message)
     else if (
       message.type === 'frame' &&
       message.frame.type === 'tool-output' &&
@@ -261,55 +237,41 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
     }
   }
 
-  const loadOlder = (): Promise<number> => {
-    if (olderInFlight !== undefined) return olderInFlight
-    const run = olderVisibleOf({ log, sessionId, window: inner.window, count: OLDER_PAGE })
-      .then((visible) => {
-        if (visible.length === 0) return 0
-        renderLimit += visible.length
-        const events = [...visible, ...inner.window.events].slice(-renderLimit)
-        commit({
-          ...inner,
-          window: {
-            ...inner.window,
-            events,
-            foldable: foldableOf({ visible: events, durable: inner.window.durable }),
-          },
-        })
-        return visible.length
+  const loadOlder = createOlderLoader({
+    log,
+    sessionId,
+    windowOf: () => inner.window,
+    fetchOlder: args.fetchOlder,
+    eventSchema: args.eventSchema,
+    extend: (visible) => {
+      renderLimit += visible.length
+      const events = [...visible, ...inner.window.events].slice(-renderLimit)
+      commit({
+        ...inner,
+        window: {
+          ...inner.window,
+          events,
+          foldable: foldableOf({ visible: events, durable: inner.window.durable }),
+        },
       })
-      .catch(() => 0)
-    olderInFlight = run
-    void run.finally(() => {
-      if (olderInFlight === run) olderInFlight = undefined
-    })
-    return run
-  }
+    },
+  })
 
-  const hydrated = new Promise<void>((resolve) => {
-    let settled = false
-    const settle = (): boolean => {
-      if (settled) return false
-      settled = true
-      scheduler.clearTimeout(timer)
-      resolve()
-      return true
-    }
-    const timer = scheduler.setTimeout(settle, HYDRATE_TIMEOUT_MS)
-    restoredWindowOf({ log, sessionId, renderLimit, views: args.views })
-      .then((window) => {
-        if (!settle() || window === undefined || inner.window.cursor !== undefined) return
-        commit({ ...inner, window, fromCache: window.cursor !== undefined })
-      })
-      .catch(() => void settle())
+  const hydrated = hydrateFollower({
+    log,
+    sessionId,
+    renderLimit,
+    views: args.views,
+    scheduler,
+    restore: (window) => {
+      if (inner.window.cursor !== undefined) return
+      commit({ ...inner, window, fromCache: window.cursor !== undefined })
+    },
   })
 
   return {
-    getSnapshot: () => snapshot,
-    subscribe: (listener) => {
-      listeners.add(listener)
-      return () => void listeners.delete(listener)
-    },
+    getSnapshot: render.getSnapshot,
+    subscribe: render.subscribe,
     handleMessage,
     setConnection: (phase) => {
       if (phase === inner.phase) return

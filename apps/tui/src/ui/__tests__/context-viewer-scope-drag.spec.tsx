@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from 'bun:test'
-import React, { act } from 'react'
+import { act } from 'react'
 import { testRender } from '@opentui/react/test-utils'
 
-import { installLinkClickOpen, notifyLinkHover } from '../../composition/link-click'
+import { installLinkClickOpen, notifyLinkHover } from '../link-click'
 import { ContextViewer } from '../components/context-viewer'
 import { teardown } from '../markdown/__tests__/harness'
 

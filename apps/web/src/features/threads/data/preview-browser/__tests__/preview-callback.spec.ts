@@ -32,25 +32,43 @@ const storybook: PreviewPort = {
 }
 
 describe('previewOriginFor', () => {
-  it('keeps the preview the tab is on, and falls back to the first live port', () => {
+  it('keeps the preview the tab is on and never guesses another', () => {
     expect(
       previewOriginFor({
         currentUrl: 'https://6006-abcdefghij.byatlas.dev/x',
         ports: [web, storybook],
       }),
     ).toBe('https://6006-abcdefghij.byatlas.dev')
-    expect(previewOriginFor({ currentUrl: 'https://example.com/', ports: [api, web] })).toBe(
-      'https://3000-abcdefghij.byatlas.dev',
-    )
+    expect(previewOriginFor({ currentUrl: 'https://example.com/', ports: [api, web] })).toBeNull()
     expect(previewOriginFor({ currentUrl: 'https://example.com/', ports: [api] })).toBeNull()
   })
 })
 
 describe('previewCallbackUrlOf', () => {
-  it('moves a provider callback onto the session preview, path and query intact', () => {
+  it('moves a provider callback onto the preview the tab is on, path and query intact', () => {
+    expect(previewCallbackUrlOf({ url: CALLBACK, currentUrl: web.url, ports: [web] })).toBe(
+      `https://3000-abcdefghij.byatlas.dev${PATH}`,
+    )
+    expect(
+      previewCallbackUrlOf({
+        url: CALLBACK,
+        currentUrl: `${storybook.url}/x`,
+        ports: [web, storybook],
+      }),
+    ).toBe(`https://6006-abcdefghij.byatlas.dev${PATH}`)
+  })
+
+  it('does not hand a callback to a port the tab is not on', () => {
     expect(
       previewCallbackUrlOf({ url: CALLBACK, currentUrl: 'https://example.com/', ports: [web] }),
-    ).toBe(`https://3000-abcdefghij.byatlas.dev${PATH}`)
+    ).toBeNull()
+    expect(
+      previewCallbackUrlOf({
+        url: CALLBACK,
+        currentUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
+        ports: [web],
+      }),
+    ).toBeNull()
   })
 
   it('leaves other hosts, the Mac handoff and a session without a live port alone', () => {

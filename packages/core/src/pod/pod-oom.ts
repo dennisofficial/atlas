@@ -1,3 +1,5 @@
+import { programNameOf } from './program-name'
+
 export enum EOomScope {
   Command = 'command',
   Pod = 'pod',
@@ -42,10 +44,20 @@ export type PodOomRecord = {
 const processCount = (processes: number): string =>
   processes === 1 ? '1 process' : `${processes} processes`
 
-export const podOomLine = (record: PodOomRecord): string => {
-  const limit = `(${memoryLimitPhrase(record.memory)})`
-  if (record.scope === EOomScope.Command && record.command !== undefined) {
-    return `\`${record.command}\` ran out of memory ${limit}`
-  }
-  return `A process on the pod ran out of memory: the kernel killed ${processCount(record.processes)} ${limit}`
+const killedOf = (args: { record: PodOomRecord; name: (command: string) => string }): string => {
+  const { record } = args
+  const victim =
+    record.scope === EOomScope.Command && record.command !== undefined
+      ? `\`${args.name(record.command)}\``
+      : processCount(record.processes)
+  return `Pod ran out of memory: the kernel killed ${victim} (${memoryLimitPhrase(record.memory)})`
 }
+
+export const podOomLine = (record: PodOomRecord): string =>
+  killedOf({ record, name: (command) => command })
+
+export const podOomTitle = (record: PodOomRecord): string =>
+  killedOf({ record, name: programNameOf })
+
+export const podOomCommandOf = (record: PodOomRecord): string | undefined =>
+  record.scope === EOomScope.Command ? record.command : undefined

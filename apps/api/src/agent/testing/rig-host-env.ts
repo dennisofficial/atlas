@@ -1,3 +1,5 @@
+import { join } from 'node:path'
+
 import type { HostKnobs } from './fault-rig'
 
 export const RIG_SECRET = 'fault-rig-secret'
@@ -50,5 +52,9 @@ export const hostEnv = (args: {
     ...(knobs?.modelRequestsFile === undefined
       ? {}
       : { MODEL_REQUESTS_FILE: knobs.modelRequestsFile }),
+    ...(knobs?.contextMirrorDir === undefined
+      ? {}
+      : { CONTEXT_MIRROR_DIR: knobs.contextMirrorDir }),
+    ...(knobs?.notifyLog === true ? { NOTIFY_FILE: join(args.workspace, 'notify.jsonl') } : {}),
   }
 }

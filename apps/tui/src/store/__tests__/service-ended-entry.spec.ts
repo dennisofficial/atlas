@@ -64,7 +64,7 @@ describe('a service ending in the transcript', () => {
       ]),
     )
 
-    expect(entry.text).toBe('Service svc_1 "web dev server" was stopped by the operator')
+    expect(entry.text).toBe('Service svc_1 "web dev server" was stopped by you')
     expect(entry.failed).toBe(false)
   })
 

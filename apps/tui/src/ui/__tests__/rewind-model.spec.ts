@@ -27,7 +27,6 @@ import {
   selectedPoint,
   verbConsequence,
   verbsFor,
-  verbTally,
   type RewindPoint,
   type RewindState,
 } from '../rewind-model'
@@ -79,8 +78,9 @@ const opened = (drafts: readonly EventDraft[] = EXCHANGES): RewindState => {
   return state
 }
 
-const said = (args: { seq: number; text: string }): RewindPoint => ({
+const said = (args: { seq: number; text: string; eventId?: string }): RewindPoint => ({
   kind: ERewindPointKind.Said,
+  eventId: args.eventId ?? `event-${args.seq}`,
   images: [],
   ...args,
 })
@@ -135,9 +135,9 @@ describe('what the picker offers', () => {
     ])
 
     expect(state.points).toEqual([
-      said({ seq: 1, text: 'first' }),
+      said({ seq: 1, text: 'first', eventId: 'event-1' }),
       compacted({ seq: 3, replaced: 2 }),
-      said({ seq: 4, text: 'second' }),
+      said({ seq: 4, text: 'second', eventId: 'event-4' }),
     ])
   })
 
@@ -187,17 +187,13 @@ describe('the row that changes nothing', () => {
 
 describe('which verbs a point can offer', () => {
   it('will not summarise up to the oldest point, where there is nothing before it', () => {
-    expect(verbsFor({ state: stateOf({ index: 0 }) })).toEqual([
-      ERewindVerb.ToHere,
-      ERewindVerb.Fork,
-    ])
+    expect(verbsFor({ state: stateOf({ index: 0 }) })).toEqual([ERewindVerb.ToHere])
   })
 
-  it('offers all three past the oldest point', () => {
+  it('offers both past the oldest point', () => {
     expect(verbsFor({ state: stateOf({ index: 1 }) })).toEqual([
       ERewindVerb.ToHere,
       ERewindVerb.SummariseUpTo,
-      ERewindVerb.Fork,
     ])
   })
 
@@ -210,14 +206,7 @@ describe('which verbs a point can offer', () => {
   it('counts messages, not watermarks, when deciding there is something to summarise', () => {
     expect(verbsFor({ state: stateOf({ points: WATERMARK, index: 1 }) })).toEqual([
       ERewindVerb.ToHere,
-      ERewindVerb.Fork,
     ])
-  })
-
-  it('offers a fork on anything the operator said, because a fork deletes nothing', () => {
-    for (const index of [0, 1, 2]) {
-      expect(verbsFor({ state: stateOf({ index }) })).toContain(ERewindVerb.Fork)
-    }
   })
 })
 
@@ -239,7 +228,7 @@ describe('the two stages', () => {
     const moved = moveSelection({ state: middle, delta: 1 })
     expect(moved.verb).toBe(ERewindVerb.SummariseUpTo)
     expect(moved.index).toBe(1)
-    expect(moveSelection({ state: middle, delta: 9 }).verb).toBe(ERewindVerb.Fork)
+    expect(moveSelection({ state: middle, delta: 9 }).verb).toBe(ERewindVerb.SummariseUpTo)
   })
 
   it('resolves to nothing until both halves are chosen', () => {
@@ -272,11 +261,6 @@ describe('how many messages a verb would take', () => {
 
   it('does not count a compaction watermark as a message', () => {
     expect(affected({ points: AROUND, index: 0, verb: ERewindVerb.ToHere })).toBe(1)
-  })
-
-  it('tallies a fork by what the new conversation keeps, since it discards nothing', () => {
-    expect(verbTally({ state: stateOf({ index: 1 }), verb: ERewindVerb.Fork })).toBe('2 kept')
-    expect(verbTally({ state: stateOf({ index: 0 }), verb: ERewindVerb.Fork })).toBe('1 kept')
   })
 })
 
@@ -324,12 +308,6 @@ describe('what a verb says it will do', () => {
         verb: ERewindVerb.ToHere,
       }),
     ).toBe('the compaction is undone and 1 later message and every reply are deleted')
-  })
-
-  it('promises a fork leaves this conversation untouched', () => {
-    expect(verbConsequence({ state: stateOf({ index: 1 }), verb: ERewindVerb.Fork })).toBe(
-      'a new conversation continues from here with everything up to it copied · this one is untouched',
-    )
   })
 })
 

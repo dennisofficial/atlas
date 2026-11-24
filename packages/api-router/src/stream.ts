@@ -11,7 +11,17 @@ export type SessionStreamFollowInput = {
   threadId?: string | undefined
   afterSeq?: number | undefined
   afterHash?: string | undefined
+  tailViewVersion?: number | undefined
 }
+
+export type SessionStreamOlderInput = {
+  sessionId: string
+  threadId?: string | undefined
+  afterSeq: number
+  limit: number
+}
+
+export type SessionStreamOlderPage = { events: readonly unknown[]; next?: number | undefined }
 
 export type SessionStreamHandlers = {
   handleFrame(frame: StreamServerMessage): void
@@ -27,6 +37,7 @@ export type SessionStreamTransport = {
     handlers: SessionStreamHandlers,
   ): SessionStreamSubscription
   list(handlers: SessionStreamHandlers): SessionStreamSubscription
+  events(input: SessionStreamOlderInput): Promise<SessionStreamOlderPage>
 }
 
 type ConnectionStateSignal = { state: string; error: unknown }
@@ -113,5 +124,14 @@ export const sessionStreamTransport = (args: {
         handleUnauthorized: args.handleUnauthorized,
         run: (observer) => list.subscribe(undefined, observer),
       }),
+    events: async (input) => {
+      const page = await args.client.sessions.events.query({
+        sessionId: input.sessionId,
+        afterSeq: input.afterSeq,
+        limit: input.limit,
+        ...(input.threadId === undefined ? {} : { threadId: input.threadId }),
+      })
+      return { events: page.events, ...(page.next === undefined ? {} : { next: page.next }) }
+    },
   }
 }

@@ -1,3 +1,4 @@
+import type { ContextPart } from '../assembly/context-breakdown'
 import type { Attachment } from '../attachments/attachment'
 import type { DiagramRepairedBody } from '../diagrams/diagram-body'
 import type { EExecutionLocation } from '../execution/location'
@@ -27,6 +28,7 @@ export type StepReading = ModelUsage & {
   providerId?: string | undefined
   modelId?: string | undefined
   costUsd?: number | undefined
+  breakdown?: readonly ContextPart[] | undefined
 }
 
 export enum ECompactionAnchor {
@@ -101,6 +103,14 @@ export const saidBy = (said: { via?: EMessageOrigin | undefined }): EMessageOrig
 export enum EAssistantPlaceholder {
   NoContent = 'no-content',
 }
+
+export enum EResumePoint {
+  Clean = 'clean',
+  ToolInterrupted = 'tool-interrupted',
+  NotResumable = 'not-resumable',
+}
+
+export type ResumeDiscard = { fromSeq: number; throughSeq: number }
 
 export type AssistantPart = TextPart | ReasoningPart
 
@@ -189,6 +199,7 @@ export type EventBody =
       processes: number
       memory: OomMemory
     }
+  | { type: 'session-archived'; bySessionId: string; byTitle?: string | undefined }
   | {
       type: 'sandbox-setup-reported'
       text: string
@@ -259,6 +270,14 @@ export type EventBody =
   | { type: 'checkout-observed'; path: string; branch: string | null; detached: boolean }
   | BackgroundShellEventBody
   | AgentEventBody
+  | {
+      type: 'resume-marked'
+      point: EResumePoint.Clean | EResumePoint.ToolInterrupted
+      discards: readonly ResumeDiscard[]
+      callIds: readonly string[]
+      inboxId?: number | undefined
+    }
+  | { type: 'command-applied'; inboxId: number; name: string }
   | PolicyEventBody
   | SubscriptionEventBody
   | PrEventBody
@@ -268,6 +287,7 @@ export type EventBody =
       type: 'service-started'
       serviceId: string
       name?: string | undefined
+      pid?: number | undefined
       port?: number | undefined
       url?: string | undefined
       declarationHash?: string | undefined

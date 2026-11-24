@@ -3,7 +3,9 @@ import {
   INBOX_KIND_RECORD,
   INBOX_KIND_RETRY,
   INBOX_KIND_STOP,
+  retryReopenDraftsOf,
   type InboxEntry,
+  type V2Event,
 } from '@dltech/atlas-core'
 import { INBOX_KIND_MESSAGE } from '@dltech/atlas-protocol'
 import { INBOX_KIND_OPERATOR_ANSWER } from '@dltech/atlas-plugin-operator/core'
@@ -15,23 +17,25 @@ import { EIntakeScope, skipsInChildScope } from './intake-scope'
 import { drainEventEntry, stagedMessageOf, type DraftRelease } from './notice-drain'
 import type { OperatorAnswerIntake } from './operator-answer'
 import type { AppendDrafts, StagedDrainable } from './staged-log'
-import { ETextPlan } from './text-command'
+import { ETextPlan, type SkillNames } from './text-command'
 
 export type EntryDrain = { drainable: StagedDrainable[]; wakesTurn: boolean }
 
 export const drainEntries = async (args: {
   entries: readonly InboxEntry[]
+  events: readonly V2Event[]
   scope: EIntakeScope
   resolved: ReadonlySet<number>
   superseded: ReadonlySet<number>
   glue: CommandGlue
   appendDrafts: AppendDrafts
-  skills?: readonly string[] | undefined
+  skills?: SkillNames | undefined
   release: DraftRelease
   operatorAnswers?: OperatorAnswerIntake | undefined
 }): Promise<EntryDrain> => {
   const drainable: StagedDrainable[] = []
   let wakesTurn = false
+  let reopened = false
   for (const entry of args.entries) {
     if (args.scope === EIntakeScope.Child && skipsInChildScope(entry)) continue
     if (args.resolved.has(entry.inboxId)) continue
@@ -47,7 +51,12 @@ export const drainEntries = async (args: {
     if (entry.kind === INBOX_KIND_STOP) continue
     if (entry.kind === INBOX_KIND_RETRY) {
       if (childRetryAgentIdOf(entry) !== undefined) continue
-      await consumeQuietly({ ...args.glue, entry })
+      const reopen = reopened ? [] : retryReopenDraftsOf({ events: args.events })
+      if (reopen.length > 0) {
+        reopened = true
+        wakesTurn = true
+      }
+      await consumeQuietly({ ...args.glue, entry, drafts: reopen })
       continue
     }
     if (entry.kind === INBOX_KIND_EVENT || entry.kind === INBOX_KIND_RECORD) {

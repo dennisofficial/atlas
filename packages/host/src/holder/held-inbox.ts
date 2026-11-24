@@ -4,6 +4,7 @@ import {
   INBOX_KIND_EVENT,
   INBOX_KIND_RECORD,
   INBOX_KIND_STOP,
+  isMessageInputKind,
   pendingInputsOf,
   pendingMessagesOf,
   pendingNoticesOf,
@@ -103,11 +104,33 @@ export const actionableEntries = (args: {
 
 export const isStop = (entry: InboxEntry): boolean => entry.kind === INBOX_KIND_STOP
 
+const onThread = (args: { entry: InboxEntry; threadId: ThreadId }): boolean =>
+  args.entry.threadId === null || args.entry.threadId === args.threadId
+
+export const queuedPromptAtOf = (args: {
+  entries: readonly InboxEntry[]
+  events: readonly V2Event[]
+  threadId: ThreadId
+}): string | undefined => {
+  const posted = new Map<number, string>()
+  for (const entry of args.entries) {
+    if (!isMessageInputKind(entry.kind)) continue
+    if (!onThread({ entry, threadId: args.threadId })) continue
+    posted.set(entry.inboxId, entry.postedAt)
+  }
+  for (const input of pendingMessagesOf(pendingInputsOf(args.events))) {
+    posted.set(input.inboxId, input.at)
+  }
+  const oldest = [...posted.entries()].sort(([left], [right]) => left - right)[0]
+  return oldest?.[1]
+}
+
 export const stopSettledPromptOf = (events: readonly V2Event[]): boolean => {
   let lastPrompt = -1
   let lastStop = -1
   for (const event of events) {
-    if (event.type === 'user-said' || event.type === 'nudge') lastPrompt = event.seq
+    if (event.type === 'user-said' || event.type === 'nudge' || event.type === 'resume-marked')
+      lastPrompt = event.seq
     else if (event.type === 'input-consumed' && event.consumed === EInputConsumed.Stop) {
       lastStop = event.seq
     }
@@ -116,6 +139,4 @@ export const stopSettledPromptOf = (events: readonly V2Event[]): boolean => {
 }
 
 export const understandsCommand = (deps: HeldSessionDeps, entry: InboxEntry): boolean =>
-  !isCommandKind(entry.kind) ||
-  (deps.commands?.byInboxKind.has(entry.kind) === true &&
-    deps.commandHandlers?.has(entry.kind) === true)
+  !isCommandKind(entry.kind) || deps.commands?.byInboxKind.has(entry.kind) === true

@@ -105,12 +105,12 @@ describe('background work in the session status', () => {
     expect(statusOf([turnStarted, userSaid, agentSpawned])).toBe(ESessionStatus.Thinking)
   })
 
-  it('reads as resuming while background work runs and no host holds the session', () => {
+  it('waits for background work after the turn ended, whether or not a host holds the session', () => {
     expect(statusOf([turnStarted, userSaid, agentSpawned, assistantDone, turnEnded], false)).toBe(
-      ESessionStatus.Resuming,
+      ESessionStatus.WaitingForBackground,
     )
     expect(statusOf([turnStarted, userSaid, shellStarted, assistantDone, turnEnded], false)).toBe(
-      ESessionStatus.Resuming,
+      ESessionStatus.WaitingForBackground,
     )
   })
 

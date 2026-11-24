@@ -13,6 +13,9 @@ export const childPortOf = (args: {
   stop: async () => {
     throw refusal('a sub-agent cannot stop other agents')
   },
+  resume: async () => {
+    throw refusal('a sub-agent cannot resume other agents')
+  },
   list: () => [],
   report: async ({ text }) => args.report({ text }),
 })

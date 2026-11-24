@@ -48,6 +48,10 @@ describe('the release build', () => {
     expect(config.dmg.title).toBe('Atlas ${version}')
   })
 
+  test('registers the atlas:// scheme that sign-in callbacks return on', () => {
+    expect(config.protocols).toEqual([{ name: 'Atlas', schemes: ['atlas'] }])
+  })
+
   test('grants what Chromium and the spawned runtime need', () => {
     for (const key of REQUIRED) expect(entitlements).toContain(`<key>${key}</key>`)
   })

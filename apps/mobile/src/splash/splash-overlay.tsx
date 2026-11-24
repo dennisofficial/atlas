@@ -1,3 +1,4 @@
+import { useIsDark } from '@dltech/atlas-ui-native'
 import { Image } from 'expo-image'
 import * as SplashScreen from 'expo-splash-screen'
 import { useEffect, useState } from 'react'
@@ -11,12 +12,14 @@ import Animated, {
 } from 'react-native-reanimated'
 import { scheduleOnRN } from 'react-native-worklets'
 
-const SPLASH_BACKGROUND = '#fbf7f2'
+import { splashBackgroundOf } from './splash-look'
+
 const MARK_WIDTH = 120
 const MARK_ASPECT = 1024 / 830
-const mark = require('../../assets/images/splash-icon.png')
+const mark = require('../../assets/images/splash-mark.png')
 
 export const SplashOverlay = ({ ready }: { ready: boolean }) => {
+  const dark = useIsDark()
   const [done, setDone] = useState(false)
   const progress = useSharedValue(0)
 
@@ -41,7 +44,10 @@ export const SplashOverlay = ({ ready }: { ready: boolean }) => {
 
   if (done) return null
   return (
-    <Animated.View pointerEvents="none" style={[styles.backdrop, backdropStyle]}>
+    <Animated.View
+      pointerEvents="none"
+      style={[styles.backdrop, { backgroundColor: splashBackgroundOf({ dark }) }, backdropStyle]}
+    >
       <Animated.View style={markStyle}>
         <Image source={mark} style={styles.mark} contentFit="contain" />
       </Animated.View>
@@ -53,7 +59,6 @@ const styles = StyleSheet.create({
   backdrop: {
     ...StyleSheet.absoluteFill,
     alignItems: 'center',
-    backgroundColor: SPLASH_BACKGROUND,
     justifyContent: 'center',
   },
   mark: {

@@ -34,7 +34,12 @@ export const forwardReferences = async (args: {
     })
     if (port === undefined) continue
     const exposure = await exposeService({ ctx: args.ctx, port })
-    if (!exposure.ok) continue
+    if (!exposure.ok) {
+      args.ctx.log(
+        `services: the public url of ${target} on port ${port} could not be minted: ${exposure.reason}`,
+      )
+      continue
+    }
     resolved[target] = { url: internalServiceUrl({ port }), port, publicUrl: exposure.url }
   }
   return resolved

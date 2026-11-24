@@ -11,8 +11,6 @@ const HOUR_MS = 60 * 60 * 1000
 const after = (params: { iso: string; offsetMs: number }): string =>
   new Date(Date.parse(params.iso) + params.offsetMs).toISOString()
 
-const cutoff = after({ iso: T0, offsetMs: 72 * HOUR_MS })
-
 export function describeControlPlaneSessionBuckets(params: ConformanceParams): void {
   describe(`ControlPlane session buckets (${params.name})`, () => {
     let plane: ControlPlane
@@ -83,7 +81,7 @@ export function describeControlPlaneSessionBuckets(params: ConformanceParams): v
       const first = await plane.listSessionDigests({
         userId: USER,
         limit: 2,
-        bucket: { archived: true },
+        archivedOnly: true,
       })
       expect(first.map((row) => row.sessionId)).toEqual(['s-c', 's-b'])
       const last = first.at(-1)
@@ -91,35 +89,30 @@ export function describeControlPlaneSessionBuckets(params: ConformanceParams): v
       const second = await plane.listSessionDigests({
         userId: USER,
         limit: 2,
-        bucket: { archived: true },
+        archivedOnly: true,
         after: { createdAt: last.createdAt, sessionId: last.sessionId },
       })
       expect(second.map((row) => row.sessionId)).toEqual(['s-a'])
     })
 
-    it('leaves out a live session from the inactive bucket when its last event is newer than the cutoff', async () => {
-      await seed({ sessionId: 's-stale', offsetMs: 0 })
-      const busyThread = await seed({ sessionId: 's-busy', offsetMs: 1000 })
-      await appendAt({
-        sessionId: 's-busy',
-        threadId: busyThread,
-        at: after({ iso: cutoff, offsetMs: HOUR_MS }),
-        text: 'still here',
-      })
-      const oldThread = await seed({ sessionId: 's-old', offsetMs: 2000 })
+    it('lists an old unarchived session with the live ones and keeps it out of the archived page', async () => {
+      const oldThread = await seed({ sessionId: 's-old', offsetMs: 0 })
       await appendAt({
         sessionId: 's-old',
         threadId: oldThread,
         at: after({ iso: T0, offsetMs: HOUR_MS }),
         text: 'long ago',
       })
+      await seed({ sessionId: 's-newer', offsetMs: 100 * HOUR_MS })
 
-      const inactive = await plane.listSessionDigests({
+      const live = await plane.listSessionDigests({ userId: USER, limit: 10 })
+      expect(live.map((row) => row.sessionId)).toEqual(['s-newer', 's-old'])
+      const archived = await plane.listSessionDigests({
         userId: USER,
         limit: 10,
-        bucket: { archived: false, idleBefore: cutoff },
+        archivedOnly: true,
       })
-      expect(inactive.map((row) => row.sessionId)).toEqual(['s-old', 's-stale'])
+      expect(archived).toEqual([])
     })
 
     it('searches the title and the first posted message', async () => {
@@ -142,31 +135,22 @@ export function describeControlPlaneSessionBuckets(params: ConformanceParams): v
       expect(byMessage.map((row) => row.sessionId)).toEqual(['s-spoken'])
     })
 
-    it('counts the archived and inactive buckets and scopes them by search', async () => {
+    it('counts the archived bucket and scopes the count by search', async () => {
       await seed({ sessionId: 's-archived', offsetMs: 0, title: 'keep me' })
       await plane.setSessionArchived({
         sessionId: 's-archived',
         archivedAt: after({ iso: T0, offsetMs: 1000 }),
       })
-      await seed({ sessionId: 's-stale', offsetMs: 1000, title: 'keep me too' })
-      await seed({ sessionId: 's-new', offsetMs: 2000, title: 'something else' })
-      await appendAt({
-        sessionId: 's-new',
-        threadId: 't-s-new',
-        at: after({ iso: cutoff, offsetMs: HOUR_MS }),
-        text: 'fresh',
-      })
+      await seed({ sessionId: 's-live', offsetMs: 1000, title: 'keep me too' })
+      await seed({ sessionId: 's-other', offsetMs: 2000, title: 'something else' })
 
-      expect(await plane.countSessionBuckets({ userId: USER, idleBefore: cutoff })).toEqual({
-        inactive: 1,
+      expect(await plane.countSessionBuckets({ userId: USER })).toEqual({ archived: 1 })
+      expect(await plane.countSessionBuckets({ userId: USER, search: 'keep' })).toEqual({
         archived: 1,
       })
-      expect(
-        await plane.countSessionBuckets({ userId: USER, idleBefore: cutoff, search: 'keep' }),
-      ).toEqual({ inactive: 1, archived: 1 })
-      expect(
-        await plane.countSessionBuckets({ userId: USER, idleBefore: cutoff, search: 'else' }),
-      ).toEqual({ inactive: 0, archived: 0 })
+      expect(await plane.countSessionBuckets({ userId: USER, search: 'else' })).toEqual({
+        archived: 0,
+      })
     })
   })
 }

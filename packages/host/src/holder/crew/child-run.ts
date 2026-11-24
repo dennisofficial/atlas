@@ -4,8 +4,12 @@ import {
   finishedTurnOf,
   type AgentLost,
   type CrewRoomMember,
+  EResumeOutcome,
+  EResumePoint,
   INBOX_KIND_EVENT,
   inboxEventPayloadOf,
+  resumeMarkedDraft,
+  resumePointOf,
   type EventBody,
   type RunFailure,
   type ThreadId,
@@ -152,9 +156,14 @@ export class ChildRun {
     return this.pump ?? Promise.resolve()
   }
 
-  async say(args: { text: string; from?: CrewSender | undefined }): Promise<SubagentSaid> {
+  async say(args: {
+    text: string
+    from?: CrewSender | undefined
+    clientId?: string | undefined
+  }): Promise<SubagentSaid> {
     await this.inbox.post(inboxInputOf(args))
     if (this.pump !== undefined) return { queued: true, snapshot: this.snapshot() }
+    if (!(await this.inbox.intake.hasQueued())) return { queued: false, snapshot: this.snapshot() }
     this.begin({ restart: this.ending !== undefined })
     return { queued: false, snapshot: this.snapshot() }
   }
@@ -167,12 +176,27 @@ export class ChildRun {
     if (this.pump === undefined) this.begin({ resume: true })
   }
 
-  async continueTurn(args: { retry?: boolean } = {}): Promise<void> {
+  async continueTurn(args: { retry?: boolean; resume?: boolean } = {}): Promise<void> {
     const { agentId, record } = this
     const resume = childResumeAllowed({ agentId, record, retry: args.retry === true })
     if (this.pump !== undefined) return
     if (!resume && !(await this.inbox.intake.hasQueued())) return
-    this.begin(this.ending === undefined ? { resume: true } : { restart: true })
+    this.begin(
+      args.resume === true || this.ending === undefined ? { resume: true } : { restart: true },
+    )
+  }
+
+  async resume(): Promise<EResumeOutcome> {
+    if (this.pump !== undefined) return EResumeOutcome.Running
+    const point = resumePointOf({ events: this.record.eventCache().eventsAfter(0) })
+    if (point.kind === EResumePoint.NotResumable) return EResumeOutcome.NotResumable
+    await this.record.append({
+      threadId: this.agentId,
+      runId: this.args.deps.ids.nextRunId(),
+      drafts: [resumeMarkedDraft({ point })],
+    })
+    await this.continueTurn({ resume: true })
+    return EResumeOutcome.Resumed
   }
 
   stop(by: EKilledBy): SubagentSnapshot {

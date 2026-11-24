@@ -1,7 +1,6 @@
 import {
   type ESessionDisplay,
   EPeerBucket,
-  INACTIVE_AFTER_MS,
   isRecentProject,
   isSessionUnreadOf,
   nestPeers,
@@ -12,8 +11,6 @@ import {
 import type { SessionListOutput } from '@dltech/atlas-protocol'
 
 export type V2SessionSummary = SessionListOutput['sessions'][number]
-
-export { INACTIVE_AFTER_MS }
 
 export const NO_PROJECT_KEY = '__no-project__'
 export const NO_PROJECT_NAME = 'No project'
@@ -62,7 +59,6 @@ export interface IProjectGroup {
 
 export interface ISessionPartition {
   groups: IProjectGroup[]
-  inactive: IProjectGroup[]
   archived: IProjectGroup[]
 }
 
@@ -176,12 +172,11 @@ export const partitionSessions = ({
   const placed = placedOf({ sessions, nameOf })
   const entriesOfBucket: Record<EPeerBucket, Map<string, ISessionEntry[]>> = {
     [EPeerBucket.Active]: new Map(),
-    [EPeerBucket.Inactive]: new Map(),
     [EPeerBucket.Archived]: new Map(),
   }
   for (const [key, project] of placed) {
     for (const node of nestPeers([...project.sessions].sort(byCreated))) {
-      const entries = entriesOfBucket[peerBucketOf({ row: node, now })]
+      const entries = entriesOfBucket[peerBucketOf({ row: node })]
       entries.set(key, [...(entries.get(key) ?? []), entryOf({ node, projectName: project.name })])
     }
   }
@@ -210,7 +205,6 @@ export const partitionSessions = ({
   const nonEmpty = (group: IProjectGroup) => group.sessions.length > 0
   return {
     groups: groupsOf(EPeerBucket.Active).filter((group) => nonEmpty(group) || isRecentGroup(group)),
-    inactive: groupsOf(EPeerBucket.Inactive).filter(nonEmpty),
     archived: groupsOf(EPeerBucket.Archived).filter(nonEmpty),
   }
 }

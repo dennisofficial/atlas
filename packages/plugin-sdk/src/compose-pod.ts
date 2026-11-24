@@ -4,17 +4,18 @@ import type { PromptFragment, ToolDefinition } from '@dltech/atlas-core'
 import type { DaemonEventFrame } from '@dltech/atlas-protocol'
 
 import type { PodResource } from './resources'
-import type { PluginPodContext, PodSlash, PodSlot } from './slots'
+import type { DaemonReady, PluginPodContext, PodCommandFactory, PodSlash, PodSlot } from './slots'
 
 export type ComposedPod = {
   childDeny: readonly string[]
   tools(ctx: PluginPodContext): readonly ToolDefinition[]
   hooks(ctx: PluginPodContext): HookChainArgs
   prompts: readonly PromptFragment[]
-  commands: ReadonlyMap<string, CommandHandler<unknown>>
+  commands(ctx: PluginPodContext): ReadonlyMap<string, CommandHandler<unknown>>
   resources: readonly PodResource<unknown>[]
   slash(ctx: PluginPodContext): PodSlash | undefined
   onDaemonEvent(frame: DaemonEventFrame): void
+  onDaemonReady(args: { ctx: PluginPodContext; hello: DaemonReady }): void
 }
 
 const concat = <T>(lists: readonly (readonly T[] | undefined)[]): T[] =>
@@ -71,7 +72,6 @@ export const composePod = (pods: readonly PodSlot[]): ComposedPod => {
   const slashes = pods.flatMap((pod) => (pod.slash === undefined ? [] : [pod.slash]))
   if (slashes.length > 1) throw new Error('two plugins register a slash source')
   const slash = slashes[0]
-  const commands = mergeMaps({ maps: pods.map((pod) => pod.commands), what: 'the pod command' })
   const childDeny = Object.freeze([...new Set(pods.flatMap((pod) => pod.childDeny ?? []))])
   const resources = Object.freeze(
     uniqueBy({
@@ -82,7 +82,6 @@ export const composePod = (pods: readonly PodSlot[]): ComposedPod => {
   )
   return Object.freeze({
     prompts,
-    commands,
     childDeny,
     resources,
     tools: (ctx) =>
@@ -92,9 +91,29 @@ export const composePod = (pods: readonly PodSlot[]): ComposedPod => {
         what: 'the tool',
       }),
     hooks: (ctx) => mergeHooks(pods.map((pod) => pod.hooks?.(ctx) ?? {})),
+    commands: (ctx) =>
+      mergeMaps({
+        maps: pods.map((pod) => pod.commands?.(ctx) ?? new Map()),
+        what: 'the pod command',
+      }),
     slash: (ctx) => slash?.(ctx),
     onDaemonEvent: (frame) => {
       for (const pod of pods) pod.onDaemonEvent?.(frame)
     },
+    onDaemonReady: (ready) => {
+      for (const pod of pods) pod.onDaemonReady?.(ready)
+    },
+  })
+}
+
+export const composePodCommands = (args: {
+  factories: readonly PodCommandFactory[]
+  ctx?: PluginPodContext | undefined
+}): ReadonlyMap<string, CommandHandler<unknown>> => {
+  const { ctx } = args
+  if (ctx === undefined) return new Map()
+  return mergeMaps({
+    maps: args.factories.map((factory) => factory(ctx)),
+    what: 'the pod command',
   })
 }

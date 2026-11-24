@@ -92,6 +92,12 @@ const fakeClient = (args: {
       updated.push(id)
       return { id, status: 'updating' }
     },
+    edit: async ({ id, metadata }) => ({
+      id,
+      status: 'running',
+      url: `https://${id}.agent37.app`,
+      metadata,
+    }),
     logs:
       args.logs ??
       (async () => ({

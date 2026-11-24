@@ -1,3 +1,5 @@
+import { oneLine } from '../text/one-line'
+
 export const SESSION_TITLE_INSTRUCTION = [
   "You name coding sessions from the developer's opening message or an excerpt of the session so far.",
   'Name the session as a short Title Case noun phrase of two to three words. Never start with a verb',
@@ -29,7 +31,7 @@ const withinCharacterLimit = (title: string): string => {
 }
 
 export function sanitizedTitle(generated: string): string | null {
-  const collapsed = generated.replace(/\s+/g, ' ').trim()
+  const collapsed = oneLine(generated)
   const unquoted = collapsed.replace(WRAPPING_QUOTES, '').trim()
   const unpunctuated = unquoted.replace(TRAILING_PUNCTUATION, '').trim()
   if (unpunctuated.length === 0) return null

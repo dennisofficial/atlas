@@ -4,6 +4,16 @@ import { count, inputOf, lineCount, num, outputOf, str } from './reading'
 
 const subjectOf = (call: ToolCall): string => str(inputOf(call).name) ?? 'a memory'
 
+const MEMORY_TOOLS: ReadonlySet<string> = new Set([
+  'memory',
+  'read_memory',
+  'write_memory',
+  'edit_memory',
+  'delete_memory',
+])
+
+export const isMemoryTool = (name: string): boolean => MEMORY_TOOLS.has(name)
+
 function recalled(call: ToolCall): Classification {
   const subject = subjectOf(call)
   const lines = num(outputOf(call).lines) ?? lineCount(call.modelText)
@@ -11,8 +21,7 @@ function recalled(call: ToolCall): Classification {
   return {
     klass: EToolClass.Gathered,
     gather: EGather.Recall,
-    line: subject,
-    alone: `Recalled ${subject}`,
+    line: `Recalled ${subject}`,
     failed: false,
     note: `${count(lines)} l`,
     metric: lines,

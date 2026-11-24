@@ -17,6 +17,7 @@ export type AccountFile = {
   email: string | null
   token: string
   preferences: Record<string, unknown>
+  lastSessionId?: string | null
 }
 
 const asked = (value: string | undefined): string | null =>
@@ -50,11 +51,13 @@ export const parseAccount = (raw: string): AccountFile | null => {
 
   if (!isRecord(parsed)) return null
 
-  const { version, apiUrl, email, token, preferences } = parsed
+  const { version, apiUrl, email, token, preferences, lastSessionId } = parsed
   if (version !== ACCOUNT_FILE_VERSION) return null
   if (typeof apiUrl !== 'string' || apiUrl === '') return null
   if (typeof token !== 'string' || token === '') return null
   if (email !== null && typeof email !== 'string') return null
+  if (lastSessionId !== undefined && lastSessionId !== null && typeof lastSessionId !== 'string')
+    return null
 
   return {
     version: ACCOUNT_FILE_VERSION,
@@ -62,6 +65,7 @@ export const parseAccount = (raw: string): AccountFile | null => {
     email,
     token,
     preferences: isRecord(preferences) ? preferences : {},
+    lastSessionId: asked(lastSessionId ?? undefined),
   }
 }
 
@@ -85,3 +89,13 @@ export const writeAccount = (args: { path: string; account: AccountFile }): void
 export const deleteAccount = (args: { path: string }): void => {
   rmSync(args.path, { force: true })
 }
+
+export const withPreferences = (args: {
+  account: AccountFile
+  preferences: Record<string, unknown>
+}): AccountFile => ({ ...args.account, preferences: args.preferences })
+
+export const withLastSession = (args: {
+  account: AccountFile
+  sessionId: string | null
+}): AccountFile => ({ ...args.account, lastSessionId: args.sessionId })

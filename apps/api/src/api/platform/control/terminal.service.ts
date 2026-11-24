@@ -4,8 +4,8 @@ import { Inject, Injectable, Optional, ServiceUnavailableException } from '@nest
 import { TRPCError } from '@trpc/server'
 import { ControlPlane, type ControlTerminalRow } from '@dltech/atlas-control'
 import {
+  ECallFailure,
   ECallStatus,
-  ELiveOpFailure,
   MAX_TERMINALS,
   type CallOp,
   type CallResult,
@@ -16,14 +16,16 @@ import {
   type TerminalRow,
 } from '@dltech/atlas-protocol'
 import { POD_OPS, type PodOps } from '../../../agent'
-import { PodParkedError } from './pod-parked.error'
+import { PodNotReadyError, reachablePodOutcome } from './pod-errors'
 import { SessionsService } from './sessions.service'
 
 type OkResult = Extract<CallResult, { status: ECallStatus.Ok }>
 type OpenResult = Extract<OkResult, { op: 'terminal.open' }>
 type ReadResult = Extract<OkResult, { op: 'terminal.read' }>
+type FailedResult = Extract<CallResult, { status: ECallStatus.Failed }>
 
-const UNKNOWN_TERMINAL = 'no terminal '
+const isLostTerminal = (result: FailedResult): boolean =>
+  result.error.code === ECallFailure.NotFound
 
 const rowOf = (row: ControlTerminalRow): TerminalRow => ({
   terminalId: row.terminalId,
@@ -51,19 +53,14 @@ export class TerminalService {
 
   private async invoke(args: { sessionId: string; op: CallOp }): Promise<CallResult> {
     if (this.ops === null) throw new ServiceUnavailableException('pod access is not running')
-    const outcome = await this.ops.invoke({ ...args, waitForHolder: true })
-    if (outcome.state === 'unavailable') {
-      if (outcome.reason === ELiveOpFailure.Asleep) throw new PodParkedError()
-      throw new TRPCError({ code: 'BAD_REQUEST', message: 'this pod op is not allowed' })
-    }
-    return outcome.result
+    return reachablePodOutcome(await this.ops.invoke({ ...args, waitForHolder: true })).result
   }
 
   private async invokeOrDone(args: { sessionId: string; op: CallOp }): Promise<CallResult | null> {
     try {
       return await this.invoke(args)
     } catch (error) {
-      if (error instanceof PodParkedError) return null
+      if (error instanceof PodNotReadyError) return null
       throw error
     }
   }
@@ -219,7 +216,7 @@ export class TerminalService {
       op: { op: 'terminal.read', terminalId: args.terminalId, offset: args.offset },
     })
     if (result.status === ECallStatus.Failed) {
-      if (!result.error.message.startsWith(UNKNOWN_TERMINAL))
+      if (!isLostTerminal(result))
         throw new TRPCError({ code: 'BAD_REQUEST', message: result.error.message })
       await this.endLost(args)
       return { offset: 0, data: '', totalBytes: 0, exited: { exitCode: null, signal: null } }
@@ -234,7 +231,7 @@ export class TerminalService {
   }): Promise<TerminalMutationOutput> {
     if (args.result === null) return { state: 'parked' }
     if (args.result.status !== ECallStatus.Failed) return { state: 'done' }
-    if (args.result.error.message.startsWith(UNKNOWN_TERMINAL)) await this.endLost(args)
+    if (isLostTerminal(args.result)) await this.endLost(args)
     throw new TRPCError({ code: 'BAD_REQUEST', message: args.result.error.message })
   }
 

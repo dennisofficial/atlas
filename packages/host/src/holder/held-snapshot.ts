@@ -5,6 +5,7 @@ import {
   NO_WORKSPACE_RECORD,
   decideHeldAction,
   isResumablePlan,
+  lostShellsOf,
   loopStateOf,
   preparedBeforeOf,
   repairHoldsResume,
@@ -13,19 +14,21 @@ import {
   workspaceStateFrom,
   type InboxEntry,
   type PrepareFailure,
+  type Event,
   type ThreadId,
 } from '@dltech/atlas-core'
 
 import { forMainThread } from './child-retry'
 import { heldEndingIdsOf } from './held-endings'
 import { idleReleaseDue } from './held-idle'
-import { countRunningShells } from './held-shells'
+import { countRunningShells, shellHoldOf } from './held-shells'
 import {
   actionableEntries,
   isNoticeEntry,
   isStop,
   logPendingInputIdsOf,
   logPendingNoticeIdsOf,
+  queuedPromptAtOf,
   readFullInbox,
   stopSettledPromptOf,
   understandsCommand,
@@ -70,14 +73,17 @@ export const readHeldAction = async (args: {
   preparing: boolean
   setupRunning: boolean
   childrenRunning: number
+  shellsOwedSince: number | undefined
 }): Promise<{
   entries: InboxEntry[]
   action: EHeldAction
   resumable: boolean
   inboxHead: number
   shellsRunning: boolean
+  shellsOwedSince: number | undefined
   failure: PrepareFailure | undefined
   preparedBefore: boolean
+  queuedAt: string | undefined
 }> => {
   const { deps } = args
   const cache = args.record?.eventCache()
@@ -121,10 +127,16 @@ export const readHeldAction = async (args: {
     terminalStreams: args.runtime?.terminalStreams?.() ?? 0,
     panelHolds: args.runtime?.panelHolds?.() ?? 0,
   })
-  const runningShells =
+  const hold =
     quiet && args.runtime !== undefined
-      ? await countRunningShells({ deps, runtime: args.runtime })
-      : 0
+      ? shellHoldOf({
+          counted: await countRunningShells({ deps, runtime: args.runtime }),
+          openInLog: lostShellsOf(events as readonly Event[]).length,
+          owedSince: args.shellsOwedSince,
+          now: deps.timers.now(),
+        })
+      : { holding: 0, owedSince: undefined }
+  const runningShells = hold.holding
   const plan = resumePlanOf(loopStateOf({ events: resumeEvents }))
   const retryPending = actionable.some((entry) => entry.kind === INBOX_KIND_RETRY)
   const resumable =
@@ -152,7 +164,9 @@ export const readHeldAction = async (args: {
     resumable,
     inboxHead: Math.max(0, ...entries.map((entry) => entry.inboxId)),
     shellsRunning: runningShells > 0,
+    shellsOwedSince: hold.owedSince,
     failure: workspace.failure,
     preparedBefore,
+    queuedAt: queuedPromptAtOf({ entries, events, threadId: args.threadId }),
   }
 }

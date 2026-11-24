@@ -31,12 +31,15 @@ export const heldSessionDepsOf = (args: HeldDepsArgs): HeldSessionDeps => {
     reasonOfStartError: holder.reasonOfStartError,
     commands: holder.commands,
     commandHandlers: holder.commandHandlers,
+    podCommands: holder.podCommands,
     controlHandlers: holder.controlHandlers,
     control: holder.control,
     mcp: holder.mcp,
     changes: holder.changes,
+    contextMirror: holder.contextMirror,
     notify: holder.notify,
     turnEnded: holder.turnEnded,
+    parkArchived: holder.parkArchived,
     onRuntimeReady: () => args.onRuntimeReady(args.lease.sessionId),
     ...(holder.operator === undefined
       ? {}

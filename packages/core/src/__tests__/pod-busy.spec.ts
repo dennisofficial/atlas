@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { podBusyFactsOf, podBusyOf, type PodBusyFacts } from '../pod/pod-busy'
+import { podBusyFactsOf, podBusyOf, podResizeBusyOf, type PodBusyFacts } from '../pod/pod-busy'
 import { ESessionStatus } from '../record/views/status-types'
 
 const factsOf = (over: Partial<PodBusyFacts> = {}): PodBusyFacts => ({
@@ -8,6 +8,8 @@ const factsOf = (over: Partial<PodBusyFacts> = {}): PodBusyFacts => ({
   servicesRunning: 0,
   setupRunning: false,
   turnInFlight: false,
+  toolRunning: false,
+  agentsRunning: 0,
   ...over,
 })
 
@@ -49,11 +51,42 @@ describe('podBusyOf', () => {
   })
 })
 
+describe('podResizeBusyOf', () => {
+  it('lets a resize run under a turn that is only thinking', () => {
+    expect(podResizeBusyOf(factsOf({ turnInFlight: true }))).toEqual({ busy: false, running: [] })
+  })
+
+  it('holds a resize while a tool call runs on the pod', () => {
+    expect(podResizeBusyOf(factsOf({ turnInFlight: true, toolRunning: true }))).toEqual({
+      busy: true,
+      running: ['Tool call'],
+    })
+  })
+
+  it('holds a resize while sub-agents run', () => {
+    expect(podResizeBusyOf(factsOf({ agentsRunning: 2 })).running).toEqual(['2 sub-agents'])
+  })
+
+  it('holds a resize for the same processes a sleep waits for', () => {
+    expect(
+      podResizeBusyOf(factsOf({ setupRunning: true, shellsRunning: 1, servicesRunning: 2 }))
+        .running,
+    ).toEqual(['Setup script', '1 shell', '2 services'])
+  })
+})
+
 describe('podBusyFactsOf', () => {
   it('reads the setup script from the preparing state', () => {
     expect(
       podBusyFactsOf({ state: ESessionStatus.Preparing, shellsRunning: 0, servicesRunning: 0 }),
     ).toEqual(factsOf({ setupRunning: true }))
+  })
+
+  it('reads a running tool only from the running-tool state', () => {
+    const toolRunningIn = (state: ESessionStatus) =>
+      podBusyFactsOf({ state, shellsRunning: 0, servicesRunning: 0 }).toolRunning
+    expect(toolRunningIn(ESessionStatus.RunningTool)).toBe(true)
+    expect(toolRunningIn(ESessionStatus.Thinking)).toBe(false)
   })
 
   it('reads a turn in flight from the working states', () => {

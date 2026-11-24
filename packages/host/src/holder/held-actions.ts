@@ -7,10 +7,11 @@ import type { ContextSeedGate } from './context-seed'
 import type { HeldEnding } from './held-ending'
 import type { HeldObservation } from './held-observation'
 import type { HeldPrepare } from './held-prepare'
-import { ranQueuedCommand, startHeldTurn } from './held-runner'
+import { ranQueuedCommand } from './held-runner'
 import type { HeldSessionDeps } from './held-session-deps'
 import { readHeldAction } from './held-snapshot'
 import type { HeldTurns } from './held-turns'
+import { startHeldTurn } from './held-turns'
 import { ETakeoverLap } from './held-takeover'
 import { consumeStops } from './held-wait'
 import { settleOperatorOnStop } from './operator-stop'
@@ -23,6 +24,7 @@ export type Lapped = <T>(args: { lap: ETakeoverLap; work: () => Promise<T> }) =>
 
 export class HeldActions {
   private resumeAfterSeq = 0
+  private shellsOwedSince: number | undefined
   private staged: (() => Promise<void>) | undefined
   private commands: ((entries: readonly InboxEntry[]) => Promise<boolean>) | undefined
   private retryChild: ((agentId: string) => Promise<boolean>) | undefined
@@ -60,7 +62,7 @@ export class HeldActions {
     if (ending.outcome !== undefined) return
     const turnRunning = turns.turnRunning
     if (this.args.draining()) return turnRunning ? undefined : ending.finish(EHeldOutcome.Drained)
-    const { entries, action, resumable, inboxHead, failure, preparedBefore } = await args.lap({
+    const snapshot = await args.lap({
       lap: ETakeoverLap.Decide,
       work: () =>
         readHeldAction({
@@ -74,8 +76,11 @@ export class HeldActions {
           preparing: this.args.prepare.running,
           setupRunning: this.args.prepare.hasSetupRunning,
           childrenRunning: this.args.childrenRunning(),
+          shellsOwedSince: this.shellsOwedSince,
         }),
     })
+    this.shellsOwedSince = snapshot.shellsOwedSince
+    const { entries, action, resumable, inboxHead, failure, preparedBefore, queuedAt } = snapshot
     if (action === EHeldAction.AbortTurn) return turns.abort(OPERATOR_STOP_REASON)
     if (action !== EHeldAction.StartTurn) await this.staged?.()
     if (!turnRunning && (await this.retryChildren({ entries, threadId: args.threadId }))) {
@@ -102,6 +107,7 @@ export class HeldActions {
           resumable,
           preparedBefore,
           inboxHead,
+          queuedAt,
         })
         return
       }
@@ -159,6 +165,7 @@ export class HeldActions {
     resumable: boolean
     preparedBefore: boolean
     inboxHead: number
+    queuedAt: string | undefined
   }): Promise<void> {
     const { deps, ending, turns } = this.args
     if (this.args.draining() || ending.outcome !== undefined) return
@@ -186,6 +193,7 @@ export class HeldActions {
       runner: args.runner,
       threadId: args.threadId,
       resume: args.resumable,
+      queuedAt: args.queuedAt,
       refreshBranches: () => {
         if (this.args.draining() || ending.outcome !== undefined) return
         this.args.observation()?.refreshBranches()

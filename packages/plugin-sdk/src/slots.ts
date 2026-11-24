@@ -29,7 +29,7 @@ import type { PodSubscriptions } from './subscriptions'
 import type { PodWorktrees } from './worktrees'
 
 export type { PodCrew, SubagentSaid, SubagentSnapshot, SubagentWorktree } from './crew'
-export type { PodSessions, SessionBrief, SpawnedSession } from './sessions'
+export type { PodSessions, SessionArchive, SessionBrief, SpawnedSession } from './sessions'
 export type { SpawnFile } from '@dltech/atlas-core'
 export { EMPTY_SESSIONS } from './sessions'
 export { EMPTY_MESSAGES, PARENT_ADDRESS } from './messages'
@@ -165,15 +165,22 @@ export type PodSlash = {
   load(input: { name: string; argumentText: string }): Promise<SlashLoadResult>
 }
 
+export type DaemonReady = { bootId: string; restart: boolean }
+
+export type PodCommandFactory = (
+  ctx: PluginPodContext,
+) => ReadonlyMap<string, CommandHandler<unknown>>
+
 export type PodSlot = {
   childDeny?: readonly string[] | undefined
   tools?(ctx: PluginPodContext): readonly ToolDefinition[]
   hooks?(ctx: PluginPodContext): HookChainArgs
   prompts: readonly PromptFragment[]
-  commands: ReadonlyMap<string, CommandHandler<unknown>>
+  commands?: PodCommandFactory | undefined
   resources?: readonly PodResource<unknown>[] | undefined
   slash?: ((ctx: PluginPodContext) => PodSlash) | undefined
   onDaemonEvent?(frame: DaemonEventFrame): void
+  onDaemonReady?(args: { ctx: PluginPodContext; hello: DaemonReady }): void
 }
 
 export type ControlHook = AppendHook
@@ -205,10 +212,11 @@ export const EMPTY_CREW: PodCrew = Object.freeze({
   spawn: async () => noCrew('sub-agents')(),
   say: async () => noCrew('sub-agents')(),
   stop: async () => noCrew('sub-agents')(),
+  resume: async () => noCrew('sub-agents')(),
   list: () => [],
   report: async () => noCrew('parent to report to')(),
 })
 
-export const EMPTY_POD: PodSlot = Object.freeze({ prompts: [], commands: new Map() })
+export const EMPTY_POD: PodSlot = Object.freeze({ prompts: [] })
 
 export const EMPTY_CONTROL: ControlSlot = Object.freeze({ hooks: [], commands: new Map() })

@@ -53,6 +53,19 @@ export const fetchToFileOpSchema = z
   })
   .strict()
 
+export const digestFileOpSchema = z
+  .object({ op: z.literal('digestFile'), path: z.string().min(1) })
+  .strict()
+
+export const putFileOpSchema = z
+  .object({
+    op: z.literal('putFile'),
+    path: z.string().min(1),
+    url: z.url(),
+    size: z.number().int().min(0),
+  })
+  .strict()
+
 export const readDirectoryOpSchema = z
   .object({ op: z.literal('readDirectory'), path: z.string().min(1) })
   .strict()
@@ -76,6 +89,21 @@ export const grepOpSchema = z
     maxResults: z.number().int().min(1).optional(),
   })
   .strict()
+
+export const DIGEST_HEAD_BYTES = 8192
+
+const sha256Schema = z.string().regex(/^[0-9a-f]{64}$/)
+
+export const digestFileResultSchema = z.object({
+  sha256: sha256Schema,
+  size: z.number().int().min(0),
+  head: z.base64(),
+})
+
+export const putFileResultSchema = z.object({
+  sha256: sha256Schema,
+  size: z.number().int().min(0),
+})
 
 export const statResultSchema = z.object({
   size: z.number().int().min(0),
@@ -114,6 +142,8 @@ export const filesOpSchemas = [
   mkdirOpSchema,
   renameOpSchema,
   fetchToFileOpSchema,
+  digestFileOpSchema,
+  putFileOpSchema,
   readDirectoryOpSchema,
   globOpSchema,
   grepOpSchema,
@@ -130,6 +160,8 @@ export const filesResultSchemas = [
   okResultSchema({ op: 'mkdir', value: z.null() }),
   okResultSchema({ op: 'rename', value: z.null() }),
   okResultSchema({ op: 'fetchToFile', value: z.null() }),
+  okResultSchema({ op: 'digestFile', value: digestFileResultSchema }),
+  okResultSchema({ op: 'putFile', value: putFileResultSchema }),
   okResultSchema({ op: 'readDirectory', value: z.array(directoryEntrySchema) }),
   okResultSchema({ op: 'glob', value: z.array(z.string()) }),
   okResultSchema({ op: 'grep', value: z.array(grepMatchSchema) }),
@@ -147,6 +179,10 @@ export type RemoveOp = z.infer<typeof removeOpSchema>
 export type MkdirOp = z.infer<typeof mkdirOpSchema>
 export type RenameOp = z.infer<typeof renameOpSchema>
 export type FetchToFileOp = z.infer<typeof fetchToFileOpSchema>
+export type DigestFileOp = z.infer<typeof digestFileOpSchema>
+export type PutFileOp = z.infer<typeof putFileOpSchema>
+export type DigestFileResult = z.infer<typeof digestFileResultSchema>
+export type PutFileResult = z.infer<typeof putFileResultSchema>
 export type ReadDirectoryOp = z.infer<typeof readDirectoryOpSchema>
 export type GlobOp = z.infer<typeof globOpSchema>
 export type GrepOp = z.infer<typeof grepOpSchema>

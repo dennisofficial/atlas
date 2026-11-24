@@ -1,15 +1,18 @@
 # Spec: the TUI as a v2 client
 
-Status: **approved, 2026-11-23**. Anchors are at `0d7082dc8`; check one again before you
-rely on it. Evidence for the census: the four research notes that this spec summarises (TUI census,
+Status: **built 2026-11-24**. Slices 1–9 of §7 have merged; the live check in §9 recorded 0/10
+steps because it calls production and was not run, and it is due again now that the dependency PR
+removed the harness from the binary. Anchors are at `0d7082dc8`, and slices 4–8 moved
+the files they name — `src/composition` no longer exists, the surviving boot modules live in
+`src/boot`, and the v1 app-flow specs are replaced by their twins in `src/app/__tests__`. Evidence for the census: the four research notes that this spec summarises (TUI census,
 v2 client map, sign-in, install and build), kept in the session that wrote it.
 
 ## Decisions (Dennis, 2026-11-23)
 
-1. **Pane actions.** The five actions that v2 has no route for become shared v2 commands or routes
+1. **Pane actions.** The pane actions that v2 has no route for become shared v2 commands or routes
    in slice 8, so web gets them too: message, stop or resume a sub-agent; kill a background shell;
-   stop, restart or read the log of a service; fork from a message (a verb in the rewind drawer); and
-   the context-file viewer.
+   stop, restart or read the log of a service; and the context-file viewer. Fork is dropped, of any
+   kind: v1's fork goes with v1 (Dennis, 2026-11-23).
 2. **`atlas` is the TUI only.** It keeps self-update, `--version`, `--continue`, `--resume`,
    `--model` and `--cwd`. `atlas classify` (the v1 harness classifier in-process) and `atlas push`
    (it publishes local `~/.atlas` skills, `ATLAS.md` and `mcp.json`, which v2 manages on the account)
@@ -102,7 +105,7 @@ It keeps its look, its keys and its flows. Only its transport and its data sourc
 | Feature                                              | Owner (apps/tui/src)                                                                                 | Today                                                                  | v2                                                                                                                                                                                                                                                              |
 | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Boot curtain, crash screen                           | `composition/boot-screen.tsx`, `crash-boundary.tsx:28`                                               | `EBootStep` from `open-session.ts:114-165`                             | Steps become: account, connect, open session. Crash screen unchanged                                                                                                                                                                                            |
-| Session list, `/resume`, `--continue`, `--resume`    | `composition/use-threads.ts:39-113`, `ui/components/threads.tsx:188`, `cloud/cloud-listing.ts:12-60` | `ThreadStorePort.list` → `ReadThreads`, v1 `threads.list`              | `connection.followSessions()` + `createSessionsFeed` (`stream/sessions-feed.ts:7`). A row is a `StreamSessionRow` (title, status, model, PR, sandbox, `spawnedBy`). `--continue` opens the newest row                                                           |
+| Session list, `/sessions`, `--continue`, `--resume`  | `composition/use-threads.ts:39-113`, `ui/components/threads.tsx:188`, `cloud/cloud-listing.ts:12-60` | `ThreadStorePort.list` → `ReadThreads`, v1 `threads.list`              | `connection.followSessions()` + `createSessionsFeed` (`stream/sessions-feed.ts:7`). A row is a `StreamSessionRow` (title, status, model, PR, sandbox, `spawnedBy`). `--continue` opens the newest row                                                           |
 | New session (`ctrl+n`, `/new`), project prompt       | `use-thread-birth.ts:32-193`, `use-project-prompt.ts:174`, `cloud/use-project-resolution.ts:108`     | `createWithFirstEvents`, v1 `CloudClient.listProjects/createProject`   | `projects.list/create`, then `sessions.create({projectId, model, effort, fast, provider, firstMessage})` (`packages/protocol/src/api.ts:93-101`). The cwd's git remote still picks the project                                                                  |
 | Transcript, tool blocks, diffs, streaming reveal     | `ui/components/transcript.tsx`, `blocks/*`, `diff/*`, `store/*`                                      | `DeltaChannel.subscribe` + `EventLogPort.read`                         | `follow(...)` snapshot → `transcriptEventsOf(events, pluginTypes)` → store `setEvents`. Live steps from `overlayStepOf(snapshot.overlay)`. Older pages from `loadOlder`                                                                                         |
 | Composer, `@` file mentions                          | `ui/components/composer.tsx`, `use-file-menu.ts`                                                     | `ListMentionFiles/ReadMentionFile`                                     | `files.search/tree/read` (`server.ts:536`)                                                                                                                                                                                                                      |
@@ -110,10 +113,9 @@ It keeps its look, its keys and its flows. Only its transport and its data sourc
 | Attachments (pasted images, files)                   | `ui/clipboard-image.ts`, `use-composer-paste.ts`                                                     | `SaidImage` in the send body                                           | `media.presign/confirm` + PUT for images, `composerUploads.presign` for other files, then `sessions.post({..., media, uploads})`                                                                                                                                |
 | Send, steer, queued messages                         | `use-conversation-send.ts:202-212`, `use-driven-turn.ts:181`                                         | `TurnRunner.say`, `EClientFrame.Send`, `TakeBackPending/RemovePending` | `sessions.post` with a `clientId`. Staged rows from `stagedPlacementOf`/`stagedOutcomesOf` (`stream/outgoing-messages.ts:92`). The queue is `snapshot.pending`. Take back is `sessions.withdraw({sessionId, inboxId})`                                          |
 | Stop (`esc`, `ctrl+c`)                               | `use-turn-driver.ts:224`                                                                             | `EClientFrame.Interrupt`                                               | `sessions.stop`                                                                                                                                                                                                                                                 |
-| Retry, run attention                                 | `use-turn-driver.ts:92`, `use-run-attention.ts:23-80`                                                | re-send, `ERunRemedy`                                                  | `sessions.retry`. "Switch account" becomes `accounts.setActive`                                                                                                                                                                                                 |
+| Retry, run attention                                 | `use-turn-driver.ts:92`, `use-run-attention.ts:23-80`                                                | re-send, `ERunRemedy`                                                  | `sessions.retry` for a failed run; the run-attention Resume posts the `resume` command ([resume.md](resume.md)). "Switch account" becomes `accounts.setActive`                                                                                                  |
 | Rewind drawer (`/rewind`, up, enter, enter)          | `use-rewind.ts:29-99`, `ui/rewind-model.ts`, `ui/components/rewind.tsx`                              | `EClientRequest.Rewind`                                                | The drawer stays. "Rewind to here" posts `sessions.command({name:'rewind', args:{toSeq}})`. The rewound text goes back into the composer with `rewoundMessageOf` + `mergedDraftOf` (lifted from `apps/web/src/features/sessions/data/session-rewind.ts:36-113`) |
 | Summarise up to here (drawer verb)                   | `ui/rewind-model.ts:99-110`                                                                          | `SummariseHistory`                                                     | `sessions.command({name:'summarise', args:{throughSeq}})`                                                                                                                                                                                                       |
-| Fork from here (drawer verb)                         | `ui/rewind-model.ts:108,196-223`                                                                     | `forkThread`                                                           | **No v2 route.** Slice 8 (decision 1)                                                                                                                                                                                                                           |
 | Model and effort picker (`ctrl+p`, `/model`)         | `use-switcher.ts:60-140`, `ui/components/switcher.tsx`                                               | `ModelCatalogue`, `SetThreadModel`                                     | `models.list`, then `sessions.command({name:'model-set', args})`, as in `apps/web/src/features/sessions/data/use-session-model-choice.ts:13,36-37`. A new session takes the model in `sessions.create`                                                          |
 | Rename (`/rename`), resize                           | `commands/registry.ts`                                                                               | `RenameThread`                                                         | `sessions.command` `rename`, `resize`                                                                                                                                                                                                                           |
 | Operator input prompt                                | `use-operator-input.ts:53-146`, `ui/components/operator-input.tsx`                                   | `ProvideOperatorInput`                                                 | Entries from the operator plugin client slot. Answer with `operatorRequests.answer`, cancel with `{cancel:true}`                                                                                                                                                |
@@ -125,7 +127,7 @@ It keeps its look, its keys and its flows. Only its transport and its data sourc
 | Feature                                                | Owner (apps/tui/src)                                                                                      | Today                                                         | v2                                                                                                                                                                                         |
 | ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Sub-agents, `ctrl+g` walk, child transcript            | `use-agents.ts:124-222`, `use-agent-view.ts`, `subagent-transcript.tsx`, `ui/components/sidebar/crew.tsx` | `AgentRegistryPort` → `ListRoster`, child `EventLogPort.read` | `crewOfView(snapshot.view.pluginViews)` for the rows. A child transcript is `follow({sessionId, threadId: agentId})`, as in `apps/web/src/features/sessions/agents/use-agent-stream.ts:18` |
-| Message, stop or resume a sub-agent                    | same                                                                                                      | `SayToAgent/StopAgent/ResumeAgent`                            | **No v2 route.** Slice 8                                                                                                                                                                   |
+| Message, stop or resume a sub-agent                    | same                                                                                                      | `SayToAgent/StopAgent/ResumeAgent`                            | Resume: `sessions.command({name:'resume', args:{agentId}})` ([resume.md](resume.md)). Say and stop: **no v2 route**, slice 8                                                               |
 | Teammates                                              | `teammate-sidebar.tsx`, `teammate-transcript.tsx`                                                         | roster                                                        | Session rows with `spawnedBy` set (`packages/protocol/src/api.ts:231`). A teammate opens as an ordinary session                                                                            |
 | Shells drawer (`ctrl+t`), `/shells`                    | `use-shells.ts:96-151`, `ui/components/shells.tsx`                                                        | `ShellRegistryPort` → `ReadShellOutput`                       | `shellsOfView(pluginViews)` and `snapshot.shells` tails. Kill: **no v2 route**, slice 8                                                                                                    |
 | Services drawer, previews                              | `use-services.ts`, `use-declared-services.ts`, `ui/components/services.tsx`                               | `ServiceRegistryPort`                                         | `servicesOfView`, `previewsOfView`. Stop, restart, log: **no v2 route**, slice 8                                                                                                           |
@@ -150,19 +152,22 @@ It keeps its look, its keys and its flows. Only its transport and its data sourc
 
 The slash menu becomes the session catalogue for the `tui` profile (`catalogueForSurface`) plus skills
 (`catalogueOf`). App navigation that is not a session command stays a TUI-local entry, as a sidebar
-button is on web: `/new`, `/resume`, `/settings`, `/auth`, `/exit`, `/restart`. `/skills`, `/mcp`
+button is on web: `/new`, `/sessions`, `/settings`, `/auth`, `/exit`, `/restart`. `/resume` is not
+one of them: it is the shared host command that resumes a stopped turn ([resume.md](resume.md)), and
+the session picker it used to open is `/sessions`. `/skills`, `/mcp`
 and `/shells` join the shared table as client commands, as `slash-commands.md` §4.2 planned for this
 slice. Web, Mac and mobile hide them with `because: 'panel'`.
 
-| v1 command                                                   | v2                                                                                     |
-| ------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
-| `/help`, `/model`, `/rewind`, `/rename`                      | catalogue commands (`help`, `model`, `rewind`, `rename`)                               |
-| `/new`, `/resume`, `/settings`, `/auth`, `/exit`, `/restart` | TUI-local entries                                                                      |
-| `/skills`, `/mcp`, `/shells`                                 | new client commands                                                                    |
-| `/wake`                                                      | TUI-local entry → `sessions.wakePod`                                                   |
-| `/compact`                                                   | cut: the drawer's "summarise up to here" verb, as the `tui` profile already decided    |
-| `/rotate`                                                    | catalogue host command `rotate` ([rotate.md](rotate.md)), sent with `sessions.command` |
-| `/cd`, `/container`                                          | cut: local placement (§4)                                                              |
+| v1 command                                                     | v2                                                                                     |
+| -------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `/help`, `/model`, `/rewind`, `/rename`                        | catalogue commands (`help`, `model`, `rewind`, `rename`)                               |
+| `/new`, `/sessions`, `/settings`, `/auth`, `/exit`, `/restart` | TUI-local entries                                                                      |
+| `/resume`                                                      | catalogue host command `resume` ([resume.md](resume.md)), sent with `sessions.command` |
+| `/skills`, `/mcp`, `/shells`                                   | new client commands                                                                    |
+| `/wake`                                                        | TUI-local entry → `sessions.wakePod`                                                   |
+| `/compact`                                                     | cut: the drawer's "summarise up to here" verb, as the `tui` profile already decided    |
+| `/rotate`                                                      | catalogue host command `rotate` ([rotate.md](rotate.md)), sent with `sessions.command` |
+| `/cd`, `/container`                                            | cut: local placement (§4)                                                              |
 
 ## 3. Sign-in and the token
 
@@ -207,10 +212,11 @@ slice. Web, Mac and mobile hide them with `because: 'panel'`.
 - `install.sh` installs one binary, `atlas`, for `darwin-arm64`, `darwin-x64` and `linux-x64`
   (`install.sh:46-57`), checks its `.sha256` and adds the PATH line. This is the same as today.
 - The release job builds the three TUI binaries (`ci.yml:425-438`) with `apps/tui/scripts/build.ts`.
-  The build loses the plugin and skills generation in `build:prepare` and the supervisor bundle
-  (`scripts/build.ts:45`). It keeps the vendored-asset hazard check: tree-sitter grammars load by
-  `{type:'file'}` import (`@dltech/atlas-syntax`). The vendored `rg` goes, because the TUI no longer
-  searches files locally.
+  The build loses the plugin and skills generation that `build:prepare` ran and the supervisor
+  bundle, because the binary starts no harness. It keeps the vendored-asset hazard check: tree-sitter
+  grammars load by `{type:'file'}` import (`@dltech/atlas-syntax`). The vendored `rg` goes, because
+  the TUI no longer searches files locally. The metafile of `src/main.tsx` names no
+  `packages/harness` input.
 - Tags stay `tui-v<semver>`, in step across `update-check.ts:25` and `install.sh:72`.
 - The `serve` flavor, `ci.yml:440-451` and `apps/serve` in `SHIPPED_APP_DIRS`
   (`packages/core/src/version/release-affected.ts:1`) are removed by the v1 removal, not here.
@@ -264,8 +270,8 @@ flowchart LR
   watch in the terminal.
 - **Boundary.** `apps/tui` may import `@dltech/atlas-client/*`, `@dltech/atlas-api-router`,
   `@dltech/atlas-protocol` (types and enums), `@dltech/atlas-commands`, `@dltech/atlas-core`,
-  `@dltech/atlas-models`, `@dltech/atlas-syntax`, `@dltech/atlas-observability` and
-  `@dltech/atlas-plugin-*/client|core`. `AGENTS.md` changes "`tui` never reaches past `harness`" to
+  `@dltech/atlas-models`, `@dltech/atlas-syntax`, `@dltech/atlas-observability`,
+  `@dltech/atlas-notifications` (the presence report) and `@dltech/atlas-plugin-*/client|core`. `AGENTS.md` changes "`tui` never reaches past `harness`" to
   this list in slice 9. `src/__tests__/package.spec.ts` checks it.
 
 ## 7. Slices
@@ -299,9 +305,13 @@ touches and `bun run typecheck`.
 7. **Account settings (flag).** `/settings` over personal settings with the cached preferences,
    `/auth` over `accounts.*` and `providerSignIn.*`, onboarding, `/skills` and `/mcp` panels and the
    three new client commands in `packages/commands`.
-8. **Pane actions (shared).** For each gap in decision 1: a v2 command or route with its control or
-   pod handler, its plugin README, a web presentation where web has the pane, and the TUI key it
-   replaces.
+8. **Pane actions (shared).** Four commands for the gaps decision 1 leaves: `agent say` and
+   `agent stop`, `shell kill`, and `service stop`/`service restart`, each with its control or pod
+   handler, its plugin README, a web presentation where web has the pane, and the TUI key it
+   replaces. Resume is not here: it is the `resume` host command ([resume.md](resume.md)), built with
+   the crew's `PodCrew.resume`. The service log reads the existing `services.log` route and the
+   context viewer the existing `files.tree`/`files.read` with `root: 'context'`
+   (`packages/protocol/src/files.ts:4`), so neither needs a new command. No fork.
 9. **Flip and delete.** Make `src/app` the only root, delete the flag, `src/composition`, the v1
    adapter, `src/plugins`, `src/push`, `classify*`, the scratch files and the cut list in §4. Remove
    `@dltech/atlas-harness`, `tsyringe` and `reflect-metadata` from `package.json`, the plugin and

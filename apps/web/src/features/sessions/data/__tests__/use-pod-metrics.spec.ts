@@ -32,7 +32,9 @@ mock.module('@/lib/api-client', () => ({
 }))
 
 const { registerDom, unregisterDom } = await import('@/lib/__tests__/happy-dom-globals')
-const { afterAll, afterEach, beforeAll, describe, expect, it } = await import('bun:test')
+const { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, jest } = await import(
+  'bun:test'
+)
 const { act, createElement } = await import('react')
 const { usePodMetrics } = await import('../use-pod-metrics')
 
@@ -48,7 +50,11 @@ const sample = (at: number) => ({
   oomKills: 0,
 })
 
-const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
+const advance = async (ms: number): Promise<void> => {
+  await act(async () => {
+    jest.advanceTimersByTime(ms)
+  })
+}
 
 type Sample = { t: number; cpu: number }
 
@@ -62,7 +68,12 @@ afterAll(async () => {
   await unregisterDom()
 })
 
+beforeEach(() => {
+  jest.useFakeTimers()
+})
+
 afterEach(() => {
+  jest.useRealTimers()
   opened.length = 0
   document.body.innerHTML = ''
 })
@@ -116,26 +127,47 @@ describe('usePodMetrics', () => {
     })
     expect(opened).toHaveLength(1)
     expect(opened[0]?.unsubscribe).toHaveBeenCalledTimes(1)
-    await act(async () => {
-      await sleep(RESUBSCRIBE_MS + 200)
-    })
+    await advance(RESUBSCRIBE_MS - 1)
+    expect(opened).toHaveLength(1)
+    await advance(1)
     expect(opened).toHaveLength(2)
     expect(seen.series).toHaveLength(1)
     await unmount()
     expect(opened[1]?.unsubscribe).toHaveBeenCalledTimes(1)
   })
 
-  it('stops retrying once the pod says usage is unavailable', async () => {
+  it('retries after the pod says usage is unavailable and clears it on the next sample', async () => {
     const { seen, unmount } = await mount({ sessionId: SESSION })
     await act(async () => {
       opened[0]?.handlers.onData({ type: 'unavailable', reason: 'pod metrics are not readable' })
     })
     expect(seen.unavailable).toBe(true)
     expect(opened[0]?.unsubscribe).toHaveBeenCalledTimes(1)
+    await advance(RESUBSCRIBE_MS)
+    expect(opened).toHaveLength(2)
+    expect(seen.unavailable).toBe(true)
     await act(async () => {
-      await sleep(RESUBSCRIBE_MS + 200)
+      opened[1]?.handlers.onData({ type: 'samples', samples: [sample(1_000)] })
     })
-    expect(opened).toHaveLength(1)
+    expect(seen.unavailable).toBe(false)
+    expect(seen.series).toHaveLength(1)
+    await unmount()
+  })
+
+  it('backs off longer after a second unavailable answer', async () => {
+    const { unmount } = await mount({ sessionId: SESSION })
+    await act(async () => {
+      opened[0]?.handlers.onData({ type: 'unavailable', reason: 'asleep' })
+    })
+    await advance(RESUBSCRIBE_MS)
+    expect(opened).toHaveLength(2)
+    await act(async () => {
+      opened[1]?.handlers.onData({ type: 'unavailable', reason: 'asleep' })
+    })
+    await advance(2 * RESUBSCRIBE_MS - 1)
+    expect(opened).toHaveLength(2)
+    await advance(1)
+    expect(opened).toHaveLength(3)
     await unmount()
   })
 

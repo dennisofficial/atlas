@@ -60,9 +60,13 @@ they read. `apps/api` and `apps/trigger` both use it. It has no framework import
 - `runPodSleep`, `runPodResize`, `runPodDiskGrow`, `growPodDisk` are plain
   functions over injected deps: no database, clock or network of their own.
 - `readPodBusy` and `readPodRebootFacts` read a session's busy state from a `ControlPlane`.
+- `readPodResizeBusy` reads what holds a resize: pod processes, a running tool call or sub-agents,
+  but not a turn that only thinks.
 - `reconcileAgent37Usage` meters the instances the wallet billed.
 - `POD_DISK_GROWN_LIFETIME_STEPS` and `podDiskGrownNotice(diskGb)` are the inbox nudge a grown pod
   leaves for its session.
+- `POD_DISK_CEILING_LIFETIME_STEPS` and `podDiskCeilingNotice({ usedBytes, limitBytes, percent })`
+  are the inbox nudge a pod at the 100 GB ceiling leaves for its session at 85% and 95% full.
 
 ### Sweep v2 pods
 
@@ -76,6 +80,8 @@ they read. `apps/api` and `apps/trigger` both use it. It has no framework import
 
 - `registeredPlugins` and `composedPlugins` are the one control-plane plugin list.
 - `jobsControlPlaneOf({ db })` builds a `ControlPlane` over Postgres with that list.
+- `composedControlPlaneOver({ store })` builds the same `ControlPlane` over any store. A plane
+  built without the list cannot read a stored plugin event.
 
 ## Usage
 

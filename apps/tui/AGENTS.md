@@ -9,7 +9,8 @@
 
 OpenTUI repaints every visible renderable every frame, because it has no dirty regions. The cost is
 renderable count multiplied by frame count. These rules were measured in the September 2026 perf
-round (#338, #340, #342, #343, #346) with `scripts/proto-shimmer.tsx`.
+round (#338, #340, #342, #343, #346); the probe scripts that measured it were deleted in the
+TUI v2 flip.
 - **One `<text>` with styled spans, never a `<box>` + `<text>` per cell.** A row of N elements costs
   N × (5 native handles + a Yoga node) every frame. Gutters, signs and tints are all spans.
 - **A React commit is a frame.** Never call `setState` on a timer. Subscribe to the shared ticker
@@ -22,3 +23,13 @@ round (#338, #340, #342, #343, #346) with `scripts/proto-shimmer.tsx`.
 - **`targetFps` is inert.** A frame happens only on `requestRender` (every React commit), capped by
   `maxFps` (60). For a tile that stays busy while idle, count the frames first
   (`renderer.getStats().frameCount` over a quiet window). A nonzero count means a state loop.
+
+## Boundary
+
+`apps/tui` is a v2 cloud client. It may import `@dltech/atlas-client/*`, `@dltech/atlas-api-router`,
+`@dltech/atlas-protocol`, `@dltech/atlas-commands`, `@dltech/atlas-core`, `@dltech/atlas-models`,
+`@dltech/atlas-syntax`, `@dltech/atlas-observability`, `@dltech/atlas-notifications` and
+`@dltech/atlas-plugin-*/client|core`. It never imports `@dltech/atlas-harness`,
+`@dltech/atlas-wire`, `tsyringe` or `reflect-metadata`; `packages/harness` is the v1 agent host's,
+and `apps/serve` still runs it. A row type the chrome reads from a snapshot is declared beside the
+chrome, not borrowed from a v1 package. `src/__tests__/package.spec.ts` enforces the list.

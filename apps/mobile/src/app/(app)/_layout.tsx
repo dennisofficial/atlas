@@ -1,34 +1,16 @@
 import { Button, EButtonSize, EButtonVariant, useTheme } from '@dltech/atlas-ui-native'
 import { router, Stack, usePathname } from 'expo-router'
-import { ChevronLeft, Plus } from 'lucide-react-native'
-import { Platform } from 'react-native'
+import { StyleSheet, useWindowDimensions, View } from 'react-native'
 
 import { useAuth } from '../../auth/auth-provider'
-import { AccountButton } from '../../navigation/account-button'
-import { AppHeader } from '../../navigation/app-header'
+import { RailContentFrame } from '../../layout/rail-content-frame'
+import { PostureProvider, usePosture } from '../../layout/use-posture'
+import { AppControls } from '../../navigation/app-controls'
+import { tabHeaderOptionsOf } from '../../navigation/header-options'
+import { ESettingsPlacement, settingsPlacementOf } from '../../navigation/root-navigation'
 import { InAppNoticesProvider } from '../../notifications/in-app-notices-provider'
 import { sessionIdOfPathname } from '../../thread/v2/presence-state'
 import { usePresenceReport } from '../../thread/v2/use-presence-report'
-
-const BackButton = () => (
-  <Button
-    label="Back"
-    icon={ChevronLeft}
-    variant={EButtonVariant.Ghost}
-    size={EButtonSize.IconLg}
-    onPress={() => router.back()}
-  />
-)
-
-const NewSessionButton = () => (
-  <Button
-    label="New session"
-    icon={Plus}
-    variant={EButtonVariant.Ghost}
-    size={EButtonSize.IconLg}
-    onPress={() => router.push('/new')}
-  />
-)
 
 const CancelButton = () => (
   <Button
@@ -39,29 +21,31 @@ const CancelButton = () => (
   />
 )
 
-const AppStackHeader = ({ options }: { options: { title?: string } }) => {
-  const theme = useTheme()
-  return <AppHeader title={options.title ?? ''} left={<BackButton />} surface={theme.background} />
-}
-
-const renderAppStackHeader = ({ options }: { options: { title?: string } }) => (
-  <AppStackHeader options={options} />
-)
-
 const AppStack = () => {
   const theme = useTheme()
+  const posture = usePosture()
+  const { width: windowWidth } = useWindowDimensions()
+  const tabContentStyle = { backgroundColor: theme.sidebar }
+  const tabOptions = (title: string) => ({
+    ...tabHeaderOptionsOf({ title, posture, windowWidth }),
+    animation: 'none' as const,
+    contentStyle: tabContentStyle,
+  })
+  const settingsRootOptions =
+    settingsPlacementOf({ controls: posture.controls }) === ESettingsPlacement.Root
+      ? { animation: 'none' as const, gestureEnabled: false }
+      : {}
+  const pushedHeaderOptions = {
+    headerBackButtonDisplayMode: 'minimal' as const,
+    headerStyle: { backgroundColor: theme.background },
+    headerTintColor: theme.foreground,
+  }
   return (
     <Stack screenOptions={{ contentStyle: { backgroundColor: theme.background } }}>
-      <Stack.Screen
-        name="index"
-        options={{
-          title: 'Threads',
-          headerLargeTitle: Platform.OS === 'ios',
-          headerLeft: () => <AccountButton />,
-          headerRight: () => <NewSessionButton />,
-          contentStyle: { backgroundColor: theme.sidebar },
-        }}
-      />
+      <Stack.Screen name="index" options={tabOptions('Threads')} />
+      <Stack.Screen name="routines" options={tabOptions('Routines')} />
+      <Stack.Screen name="projects" options={tabOptions('Projects')} />
+      <Stack.Screen name="artifacts" options={tabOptions('Artifacts')} />
       <Stack.Screen
         name="new"
         options={{
@@ -72,12 +56,15 @@ const AppStack = () => {
           headerTintColor: theme.foreground,
         }}
       />
-      <Stack.Screen name="sessions/[id]" options={{ title: '', header: renderAppStackHeader }} />
+      <Stack.Screen name="sessions/[id]" options={{ title: '', ...pushedHeaderOptions }} />
       <Stack.Screen
         name="agents/[agentId]"
-        options={{ title: 'Sub-agent', header: renderAppStackHeader }}
+        options={{ title: 'Sub-agent', ...pushedHeaderOptions }}
       />
-      <Stack.Screen name="settings" options={{ title: 'Settings', header: renderAppStackHeader }} />
+      <Stack.Screen
+        name="settings"
+        options={{ title: 'Settings', ...pushedHeaderOptions, ...settingsRootOptions }}
+      />
     </Stack>
   )
 }
@@ -87,8 +74,21 @@ export default function AppLayout() {
   const { api } = useAuth()
   usePresenceReport({ api, sessionId: sessionIdOfPathname(pathname) })
   return (
-    <InAppNoticesProvider>
-      <AppStack />
-    </InAppNoticesProvider>
+    <PostureProvider>
+      <InAppNoticesProvider>
+        <View style={styles.root}>
+          <RailContentFrame>
+            <AppStack />
+          </RailContentFrame>
+          <AppControls />
+        </View>
+      </InAppNoticesProvider>
+    </PostureProvider>
   )
 }
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+})

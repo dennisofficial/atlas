@@ -27,6 +27,7 @@ export class ResourceSync {
   private readonly args: ResourceSyncArgs
   private readonly running = new Map<string, Promise<void>>()
   private readonly queued = new Set<string>()
+  private readonly backgroundLoads = new Map<string, Promise<void>>()
   private readonly offs: (() => void)[] = []
   private initial: Promise<void> | undefined
   private refreshing: Promise<void> | undefined
@@ -97,26 +98,31 @@ export class ResourceSync {
       run: () => versionsOf({ ctx: this.args.ctx, needed: true }),
     })
     if (!versionsKnownOf(versions)) return
-    const directory = this.args.directory()
+    const changed = cloud.filter((resource) => this.cloudChangedOf({ resource, versions }))
     await Promise.all(
-      cloud
-        .filter((resource) => this.cloudChangedOf({ resource, versions, directory }))
-        .map((resource) => {
-          const reason = ELoadReason.Cloud
-          if (resource.background === true) {
-            void this.reload({ resource, directory, reason })
-            return undefined
-          }
-          return this.reload({ resource, directory, reason })
-        }),
+      changed.map((resource) => {
+        const reloading = this.reloadIfStillChanged({ resource, versions })
+        if (resource.background === true) return undefined
+        return reloading
+      }),
     )
   }
 
-  private cloudChangedOf(args: {
+  private async reloadIfStillChanged(args: {
     resource: PodResource<unknown>
     versions: Versions
-    directory: string
-  }): boolean {
+  }): Promise<void> {
+    await this.initial
+    await this.backgroundLoads.get(args.resource.name)
+    if (!this.cloudChangedOf(args)) return
+    await this.reload({
+      resource: args.resource,
+      directory: this.args.directory(),
+      reason: ELoadReason.Cloud,
+    })
+  }
+
+  private cloudChangedOf(args: { resource: PodResource<unknown>; versions: Versions }): boolean {
     const latest = latestResourceOf({
       events: this.args.ctx.events(),
       resource: args.resource.name,
@@ -125,7 +131,7 @@ export class ResourceSync {
     return !loadedUnderCloudOf({
       fingerprint: latest.fingerprint,
       cloud: cloudStringOf({ settings: args.resource.cloud, versions: args.versions }),
-      directory: args.directory,
+      directory: this.args.directory(),
     })
   }
 
@@ -138,6 +144,7 @@ export class ResourceSync {
       projectDirectory: this.args.directory(),
       trace: this.args.trace,
       shared: this.args.shared,
+      onBackground: (args) => this.trackBackground(args),
     })
       .catch((failure: unknown) => {
         this.args.ctx.log(`plugin resources could not refresh: ${messageOf(failure)}`)
@@ -147,6 +154,15 @@ export class ResourceSync {
       })
     this.refreshing = attempt
     return attempt
+  }
+
+  private trackBackground(args: { resource: string; loading: Promise<void> }): void {
+    const tracked = args.loading.finally(() => {
+      if (this.backgroundLoads.get(args.resource) === tracked) {
+        this.backgroundLoads.delete(args.resource)
+      }
+    })
+    this.backgroundLoads.set(args.resource, tracked)
   }
 
   private handleChanged(watchId: string): void {

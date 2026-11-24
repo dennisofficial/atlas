@@ -14,12 +14,13 @@ export class StreamFrameQueue {
   private goingAway: number | undefined
   private wake: (() => void) | undefined
 
-  push(frame: OutgoingFrame): void {
-    if (this.ended) return
+  push(frame: OutgoingFrame): number {
+    if (this.ended) return 0
     const bytes = Buffer.byteLength(JSON.stringify(frame))
     this.queued.push({ frame, bytes })
     this.bytes += bytes
     this.notify()
+    return bytes
   }
 
   drain(reconnectAfterMs: number): void {

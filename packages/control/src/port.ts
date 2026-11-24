@@ -2,6 +2,7 @@ import type { Hash, InboxEntry, JsonValue, Lease, ModelChoice, ThreadId } from '
 import type { SessionModelAsk } from '@dltech/atlas-models'
 import type { EChangeFileStatus, SessionChange } from '@dltech/atlas-protocol'
 
+import type { ContextFileRow, ContextFileWrite } from './context-files'
 import type {
   AdvanceRoutineParams,
   InsertRoutineRunParams,
@@ -17,11 +18,9 @@ import type {
   PrChecks,
   SessionBucketCountParams,
   SessionBucketCounts,
-  SessionBucketFilter,
   SessionDigestRow,
   SessionListParams,
   SessionModelRow,
-  SessionPageCursor,
 } from './session-rows'
 import type {
   ControlTerminalRow,
@@ -46,7 +45,6 @@ export type {
   PrChecks,
   SessionBucketCountParams,
   SessionBucketCounts,
-  SessionBucketFilter,
   SessionDigestRow,
   SessionListParams,
   SessionModelRow,
@@ -142,7 +140,7 @@ export type TrackingTarget = {
   repoFullName: string
   branch: string
   prNumber: number | null
-  liveUntil: string
+  liveUntil: string | null
 }
 
 export type SubscriptionSubject =
@@ -179,7 +177,7 @@ export type SubscriptionDraft = SubscriptionKey & {
   label: string
   createdBy: string
   events: readonly string[]
-  expiresAt: string
+  expiresAt: string | null
   deadline: string | null
   createdAt: string
 }
@@ -187,6 +185,13 @@ export type SubscriptionDraft = SubscriptionKey & {
 export type SubscriptionRow = SubscriptionDraft & { subscriptionId: string }
 
 export type WrittenSubscriptionRow = { row: SubscriptionRow; inserted: boolean }
+
+export type ReleasePullRequestTrackingParams = {
+  userId: string
+  repoFullName: string
+  prNumber: number
+  at: string
+}
 
 export type ThreadRow = {
   threadId: string
@@ -229,7 +234,9 @@ export type WorktreeChangesWrite = {
   files: readonly ChangedFileWrite[]
 }
 
-export type WorktreeChangesRead = Omit<WorktreeChangesWrite, 'files'> & {
+export type WorktreeChangesSummary = Omit<WorktreeChangesWrite, 'files'>
+
+export type WorktreeChangesRead = WorktreeChangesSummary & {
   files: readonly ChangedFileWrite[]
 }
 
@@ -346,6 +353,12 @@ export interface ControlTx {
     generation: number
     since: string | null
   }): Promise<boolean>
+  setSessionPodWaitCancelled(params: {
+    sessionId: string
+    generation: number
+    vcpus: number | null
+    memoryGb: number | null
+  }): Promise<boolean>
   setSessionArchived(params: { sessionId: string; archivedAt: string | null }): Promise<boolean>
   setSessionReadSeq(params: { sessionId: string; seq: number }): Promise<number | undefined>
   setSessionTitleIfUntitled(params: {
@@ -395,6 +408,7 @@ export interface ControlTx {
     blobs: readonly ChangeBlobWrite[]
   }): Promise<void>
   readChanges(params: { sessionId: string }): Promise<WorktreeChangesRead[]>
+  readChangesSummary(params: { sessionId: string }): Promise<WorktreeChangesSummary[]>
   readChangeFile(params: {
     sessionId: string
     checkoutId: string
@@ -406,6 +420,15 @@ export interface ControlTx {
     limit: number
   }): Promise<readonly ChangeBlobRow[]>
   deleteChangeBlobs(params: { hashes: readonly string[] }): Promise<void>
+  upsertContextFiles(params: {
+    sessionId: string
+    files: readonly ContextFileWrite[]
+  }): Promise<void>
+  removeContextFiles(params: { sessionId: string; paths: readonly string[] }): Promise<void>
+  listContextFiles(params: { sessionId: string }): Promise<readonly ContextFileRow[]>
+  contextFileOf(params: { sessionId: string; path: string }): Promise<ContextFileRow | null>
+  contextDigestsReferenced(params: { digests: readonly string[] }): Promise<ReadonlySet<string>>
+  lockContextDigest(params: { digest: string }): Promise<void>
   readLease(sessionId: string): Promise<Lease | undefined>
   readLeases(sessionIds: readonly string[]): Promise<Lease[]>
   leasesHeldBy(params: { hostId: number; limit: number }): Promise<Lease[]>
@@ -453,7 +476,7 @@ export interface ControlTx {
     target: JsonValue
     label: string
     events: readonly string[]
-    expiresAt: string
+    expiresAt: string | null
     deadline: string | null
   }): Promise<boolean>
   deleteSubscriptionRow(subscriptionId: string): Promise<boolean>
@@ -462,6 +485,7 @@ export interface ControlTx {
     at: string
   }): Promise<boolean>
   upsertTrackingTarget(params: TrackingTarget): Promise<void>
+  releasePullRequestTracking(params: ReleasePullRequestTrackingParams): Promise<void>
   hostPresent(hostId: number): Promise<boolean>
   hostsPresent(hostIds: readonly number[]): Promise<ReadonlySet<number>>
   lockRoutine(routineId: string): Promise<RoutineRow | undefined>

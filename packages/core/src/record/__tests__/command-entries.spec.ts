@@ -39,8 +39,10 @@ const summarised = (inboxId?: number): V2Body => ({
 describe('COMMAND_OUTCOME_EVENT_TYPES', () => {
   it('names the record events an unfinished command still owes', () => {
     expect([...COMMAND_OUTCOME_EVENT_TYPES].sort()).toEqual([
+      'command-applied',
       'history-rewound',
       'history-summarised',
+      'resume-marked',
       'rotated',
     ])
   })
@@ -158,5 +160,48 @@ describe('a typed command consumed on a message entry', () => {
     ])
     expect(unfinishedCommandIdsOf(events)).toEqual([])
     expect(runningCommandEntriesOf(events)).toEqual([])
+  })
+})
+
+describe('a pane command that records one applied outcome', () => {
+  const applied = (args: { inboxId: number; name: string }): V2Body => ({
+    type: 'command-applied',
+    inboxId: args.inboxId,
+    name: args.name,
+  })
+
+  it('counts a consumed /agent say until its applied outcome lands', () => {
+    const events = logOf([posted({ inboxId: 3, name: 'agent' }), consumed(3)])
+    expect(unfinishedCommandIdsOf(events)).toEqual([3])
+    expect(runningCommandEntriesOf(events)).toEqual([{ inboxId: 3, name: 'agent', postedAt: NOW }])
+  })
+
+  it('finishes it once the applied outcome names its inbox', () => {
+    const events = logOf([
+      posted({ inboxId: 3, name: 'agent' }),
+      consumed(3),
+      applied({ inboxId: 3, name: 'agent' }),
+    ])
+    expect(unfinishedCommandIdsOf(events)).toEqual([])
+  })
+
+  it('does not finish it with the applied outcome of another inbox', () => {
+    const events = logOf([
+      posted({ inboxId: 3, name: 'agent' }),
+      consumed(3),
+      applied({ inboxId: 4, name: 'agent' }),
+    ])
+    expect(unfinishedCommandIdsOf(events)).toEqual([3])
+  })
+
+  it('counts a consumed /shell-kill and /service the same way', () => {
+    const events = logOf([
+      posted({ inboxId: 5, name: 'shell-kill' }),
+      consumed(5),
+      posted({ inboxId: 6, name: 'service' }),
+      consumed(6),
+      applied({ inboxId: 5, name: 'shell-kill' }),
+    ])
+    expect(unfinishedCommandIdsOf(events)).toEqual([6])
   })
 })

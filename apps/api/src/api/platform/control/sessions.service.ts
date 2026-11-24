@@ -8,7 +8,7 @@ import {
   Optional,
 } from '@nestjs/common'
 import type { CommandRegistry } from '@dltech/atlas-commands'
-import { resize } from '@dltech/atlas-native-commands'
+import { cancelResize, resize } from '@dltech/atlas-native-commands'
 import {
   ControlPlane,
   emptyDigestTimings,
@@ -20,27 +20,22 @@ import {
 import type { ControlSessionRow } from '@dltech/atlas-control'
 import {
   clearMomentSeqOf,
-  EMessageOrigin,
   ESessionStatus,
   ESubscriptionActor,
   ESubscriptionEnd,
   INBOX_KIND_RETRY,
   INBOX_KIND_STOP,
   type Attachment,
-  type SaidUpload,
 } from '@dltech/atlas-core'
 import { MediaStore } from '@dltech/atlas-media'
-import type { ProductAnalytics } from '@dltech/atlas-observability'
+import type { ProductAnalytics, TracePort } from '@dltech/atlas-observability'
 import {
   DEFAULT_SANDBOX_PROVIDER,
   ECredentialSource,
   ESandboxProvider,
   EWithdrawRefusal,
   INBOX_KIND_MESSAGE,
-  inboxMessageSchema,
   type SessionArchiveOutput,
-  type SessionBucketPageInput,
-  type SessionBucketPageOutput,
   type SessionBlobOutput,
   type SessionCommandInput,
   type SessionCommandOutput,
@@ -50,7 +45,6 @@ import {
   type SessionListOutput,
   type SessionMarkReadOutput,
   type SessionMessageDraft,
-  type SessionPostMedia,
   type SessionRetryOutput,
   type SessionStatusOutput,
   type SessionStopOutput,
@@ -62,7 +56,6 @@ import {
   type SessionSleepPodOutput,
   type SessionWithdrawOutput,
 } from '@dltech/atlas-protocol'
-import type { SessionPageOutput } from '@dltech/atlas-wire'
 import { notifyClearIdempotencyKey } from '@dltech/atlas-jobs/notify'
 import { BackgroundWork } from '../../../_core/ports/background-work'
 import { JobsProjectDispatcher } from '../../../_core/ports/job-dispatcher'
@@ -71,15 +64,15 @@ import { SessionTitler } from '../../../_core/ports/session-titler'
 import {
   POD_OPS,
   PRODUCT_ANALYTICS,
+  TRACE_FOR,
   digestTimingProperties,
   sandboxComputeFor,
   sandboxLiveCpuMs,
   type PodOps,
 } from '../../../agent'
+import { PreviewTeardownService } from '../sandboxes/preview-teardown.service'
 import { PodPowerService, type PodPower } from './pod-power.service'
 import { PodSizingService, type PodSizing } from './pod-sizing.service'
-import { pageSessions, type PageBucket } from '../sessions/session-pages'
-import { bucketPageSessions } from './session-bucket-page'
 import { COMMAND_REGISTRY, postCommand } from './command-registry'
 import { refuseArchivedCommand, requireLiveSession } from './session-archived'
 import { SubscriptionTargetError, resolvedSubscriptionTargetOf } from './subscription-target'
@@ -92,14 +85,13 @@ import {
   EVENTS_DEFAULT_MAX_BYTES,
   toPageEvent,
 } from './session-events-page'
-import { postedAttachmentsOf } from './post-attachments'
+import { postMessageOf, type MessageDraftInput } from './post-message'
+import { withPromptPostSpan, type PromptPostSpan } from './prompt-post-span'
 
-type MessageDraftInput = {
-  text: string
-  clientId?: string | undefined
-  media?: readonly SessionPostMedia[] | undefined
-  uploads?: readonly SaidUpload[] | undefined
-  attachments?: readonly Attachment[] | undefined
+type PostArgs = MessageDraftInput & {
+  userId: string
+  sessionId: string
+  sentAt?: string | undefined
 }
 
 @Injectable()
@@ -121,6 +113,12 @@ export class SessionsService {
     @Optional()
     @Inject(PRODUCT_ANALYTICS)
     private readonly analytics: ProductAnalytics | null = null,
+    @Optional()
+    @Inject(TRACE_FOR)
+    private readonly traceFor: ((distinctId: string) => TracePort) | null = null,
+    @Optional()
+    @Inject(PreviewTeardownService)
+    private readonly previews: PreviewTeardownService | null = null,
   ) {}
 
   async accessibleProjectId(args: { userId: string; projectId: string }): Promise<string> {
@@ -159,16 +157,21 @@ export class SessionsService {
       credentialSource: ECredentialSource.Platform,
     }
     if (args.firstMessage === undefined) {
-      await this.plane.createSession(session)
-      this.captureSessionCreated({ sessionId, args, provider: sandboxProvider })
+      const { modelRef } = await this.plane.createSession(session)
+      this.captureSessionCreated({ sessionId, modelRef, args, provider: sandboxProvider })
       return { sessionId, mainThreadId }
     }
-    const message = await this.messageOf({ userId: args.userId, draft: args.firstMessage })
+    const message = await postMessageOf({
+      registry: this.media,
+      store: this.store,
+      userId: args.userId,
+      draft: args.firstMessage,
+    })
     const { inboxId, modelRef } = await this.plane.createSessionWithMessage({
       ...session,
       message: { kind: INBOX_KIND_MESSAGE, payload: message.payload },
     })
-    this.captureSessionCreated({ sessionId, args, provider: sandboxProvider })
+    this.captureSessionCreated({ sessionId, modelRef, args, provider: sandboxProvider })
     this.nameIfUntitled({
       userId: args.userId,
       sessionId,
@@ -184,11 +187,11 @@ export class SessionsService {
 
   private captureSessionCreated(args: {
     sessionId: string
+    modelRef: string
     provider: ESandboxProvider
     args: {
       userId: string
       projectId?: string | null | undefined
-      model?: string | undefined
       firstMessage?: SessionMessageDraft | undefined
     }
   }): void {
@@ -198,10 +201,9 @@ export class SessionsService {
       properties: {
         session_id: args.sessionId,
         project_id: args.args.projectId ?? null,
-        model: args.args.model ?? null,
+        model: args.modelRef,
         provider: args.provider,
         has_first_message: args.args.firstMessage !== undefined,
-        spawned: false,
       },
     })
   }
@@ -250,73 +252,42 @@ export class SessionsService {
     }
   }
 
-  async page(args: {
-    userId: string
-    bucket: PageBucket
-    cursor?: string | undefined
-    limit?: number | undefined
-    search?: string | undefined
-  }): Promise<SessionPageOutput> {
-    return pageSessions(args)
-  }
-
-  async bucketPage(
-    args: { userId: string } & SessionBucketPageInput,
-  ): Promise<SessionBucketPageOutput> {
-    return bucketPageSessions({ plane: this.plane, ...args })
-  }
-
-  async post(args: {
-    userId: string
-    sessionId: string
-    text: string
-    media?: readonly SessionPostMedia[] | undefined
-    uploads?: readonly SaidUpload[] | undefined
-    attachments?: readonly Attachment[] | undefined
-  }) {
-    const session = requireLiveSession(await this.requireOwnedSession(args))
-    const message = await this.messageOf({ userId: args.userId, draft: args })
-    const { inboxId } = await this.plane.post({
+  async post(args: PostArgs) {
+    return await withPromptPostSpan({
+      trace: this.traceFor?.(args.userId),
       sessionId: args.sessionId,
+      sentAt: args.sentAt,
+      serverNow: Date.now(),
+      run: (post) => this.posted({ input: args, post }),
+    })
+  }
+
+  private async posted(args: { input: PostArgs; post: PromptPostSpan }) {
+    const { input, post } = args
+    const session = requireLiveSession(await this.requireOwnedSession(input))
+    const message = await postMessageOf({
+      registry: this.media,
+      store: this.store,
+      userId: input.userId,
+      draft: input,
+    })
+    const { inboxId } = await this.plane.post({
+      sessionId: input.sessionId,
       kind: INBOX_KIND_MESSAGE,
       payload: message.payload,
     })
+    post.delivered({ inboxId, hasMedia: message.attachments.length > 0 })
     this.nameIfUntitled({
-      userId: args.userId,
-      sessionId: args.sessionId,
+      userId: input.userId,
+      sessionId: input.sessionId,
       projectId: session.projectId,
       title: session.title,
-      text: args.text,
+      text: input.text,
       attachments: message.attachments,
       inboxId,
       modelRef: session.modelRef,
     })
     return { inboxId }
-  }
-
-  private async messageOf(args: {
-    userId: string
-    draft: MessageDraftInput
-  }): Promise<{ payload: string; attachments: readonly Attachment[] }> {
-    const attachments = await postedAttachmentsOf({
-      registry: this.media,
-      store: this.store,
-      userId: args.userId,
-      media: args.draft.media,
-      uploads: args.draft.uploads,
-      attachments: args.draft.attachments,
-    })
-    return {
-      payload: JSON.stringify(
-        inboxMessageSchema.parse({
-          text: args.draft.text,
-          via: EMessageOrigin.Operator,
-          ...(args.draft.clientId === undefined ? {} : { clientId: args.draft.clientId }),
-          ...(attachments.length === 0 ? {} : { attachments }),
-        }),
-      ),
-      attachments,
-    }
   }
 
   private nameIfUntitled(args: {
@@ -376,12 +347,23 @@ export class SessionsService {
       archivedAt,
     })
     if (args.archived) await this.podPower.parkArchived({ session })
+    await this.markPreviewTunnel({ session, archived: args.archived })
     this.analytics?.capture({
       userId: args.userId,
       event: args.archived ? 'session_archived' : 'session_unarchived',
       properties: { session_id: args.sessionId },
     })
     return { archivedAt }
+  }
+
+  private async markPreviewTunnel(args: {
+    session: ControlSessionRow
+    archived: boolean
+  }): Promise<void> {
+    if (this.previews === null) return
+    const podSessionId = args.session.podSessionId ?? args.session.sessionId
+    if (args.archived) await this.previews.markDeleting({ podSessionId })
+    else await this.previews.clearDeleting({ podSessionId })
   }
 
   async markRead(args: {
@@ -400,11 +382,32 @@ export class SessionsService {
       waiting: notify.waiting,
     })
     if (momentSeq !== null) {
+      this.captureNotificationCleared({
+        userId: args.userId,
+        sessionId: args.sessionId,
+        momentSeq,
+      })
       this.background.keepAlive(
         this.dispatchClear({ userId: args.userId, sessionId: args.sessionId, momentSeq }),
       )
     }
     return { readSeq }
+  }
+
+  private captureNotificationCleared(args: {
+    userId: string
+    sessionId: string
+    momentSeq: number
+  }): void {
+    try {
+      this.analytics?.capture({
+        userId: args.userId,
+        event: 'notification_cleared',
+        properties: { session_id: args.sessionId, moment_seq: args.momentSeq },
+      })
+    } catch {
+      // Metrics must never fault a read.
+    }
   }
 
   private async notifyStateOf(args: { userId: string; sessionId: string }): Promise<{
@@ -612,6 +615,7 @@ export class SessionsService {
       controlHandlers: new Map([
         ...modelSetHandlers({ plane: this.plane, session }),
         [resize.spec.name, this.podSizing.resizeHandler()],
+        [cancelResize.spec.name, this.podSizing.cancelHandler()],
       ]),
       ...args,
     })

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'bun:test'
 import type { ControlPlane, ControlTerminalRow } from '@dltech/atlas-control'
 import type { PodCallOutcome } from '@dltech/atlas-host'
 import {
+  ECallFailure,
   ECallStatus,
   ELiveOpFailure,
   MAX_TERMINALS,
@@ -9,7 +10,7 @@ import {
   type CallResult,
 } from '@dltech/atlas-protocol'
 import type { PodOps } from '../../../agent'
-import { PodParkedError } from './pod-parked.error'
+import { PodNotReadyError } from './pod-errors'
 import { TerminalService } from './terminal.service'
 import type { SessionsService } from './sessions.service'
 
@@ -128,7 +129,7 @@ describe('TerminalService', () => {
     const ops = opsOf(() => parked)
     await expect(
       serviceOf(plane, ops).open({ userId: 'u1', sessionId: 's1', cols: 80, rows: 24 }),
-    ).rejects.toBeInstanceOf(PodParkedError)
+    ).rejects.toBeInstanceOf(PodNotReadyError)
     expect(plane.deleteTerminal).toHaveBeenCalledTimes(1)
     expect(plane.markTerminalOpen).not.toHaveBeenCalled()
   })
@@ -139,10 +140,10 @@ describe('TerminalService', () => {
     const service = serviceOf(plane, ops)
     await expect(
       service.write({ userId: 'u1', sessionId: 's1', terminalId: 't1', data: 'x' }),
-    ).rejects.toBeInstanceOf(PodParkedError)
+    ).rejects.toBeInstanceOf(PodNotReadyError)
     await expect(
       service.resize({ userId: 'u1', sessionId: 's1', terminalId: 't1', cols: 10, rows: 5 }),
-    ).rejects.toBeInstanceOf(PodParkedError)
+    ).rejects.toBeInstanceOf(PodNotReadyError)
     expect(ops.invoke.mock.calls.map((call) => call[0].op.op)).toEqual([
       'terminal.write',
       'terminal.resize',
@@ -186,12 +187,12 @@ describe('TerminalService', () => {
     expect(ops.invoke).not.toHaveBeenCalled()
   })
 
-  it('a parked read throws PodParkedError', async () => {
+  it('a parked read throws PodNotReadyError', async () => {
     const plane = planeOf()
     const ops = opsOf(() => parked)
     await expect(
       serviceOf(plane, ops).read({ userId: 'u1', sessionId: 's1', terminalId: 't1', offset: 0 }),
-    ).rejects.toBeInstanceOf(PodParkedError)
+    ).rejects.toBeInstanceOf(PodNotReadyError)
   })
 
   it('read repairs a terminal the pod no longer has', async () => {
@@ -201,7 +202,7 @@ describe('TerminalService', () => {
       result: {
         status: ECallStatus.Failed,
         op: 'terminal.read',
-        error: { message: 'no terminal t1' },
+        error: { code: ECallFailure.NotFound, message: 'no terminal t1' },
       } as CallResult,
     }))
     const out = await serviceOf(plane, ops).read({
@@ -230,7 +231,7 @@ describe('TerminalService', () => {
       result: {
         status: ECallStatus.Failed,
         op: 'terminal.write',
-        error: { message: 'no terminal t1' },
+        error: { code: ECallFailure.NotFound, message: 'no terminal t1' },
       } as CallResult,
     }))
     await expect(
@@ -250,7 +251,7 @@ describe('TerminalService', () => {
       result: {
         status: ECallStatus.Failed,
         op: 'terminal.write',
-        error: { message: 'terminal t1 is closed' },
+        error: { code: ECallFailure.InvalidInput, message: 'terminal t1 is closed' },
       } as CallResult,
     }))
     await expect(

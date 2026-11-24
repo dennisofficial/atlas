@@ -48,7 +48,7 @@ describe('a message from one sub-agent to a sibling', () => {
     const said: { agentId: string; text: string }[] = []
     const reported: string[] = []
     const plane: Pick<ControlPlane, 'messagePeer' | 'reportToSpawner'> = {
-      messagePeer: async () => ({ inboxId: 1 }),
+      messagePeer: async () => ({ inboxId: 1, title: null }),
       reportToSpawner: async () => {
         reported.push('main thread')
         return { inboxId: 1 }
@@ -76,6 +76,9 @@ describe('a message from one sub-agent to a sibling', () => {
       stop: async () => {
         throw new Error('this rig stops nothing')
       },
+      resume: async () => {
+        throw new Error('this rig resumes nothing')
+      },
       list: () => [],
       report: async () => {
         throw new Error('a sibling reply is not a report')
@@ -85,7 +88,7 @@ describe('a message from one sub-agent to a sibling', () => {
 
     const sent = await messages.send({ to: 'a1', text: 'understood' })
 
-    expect(sent).toEqual({ delivered: true, to: 'a1', queued: false })
+    expect(sent).toEqual({ delivered: true, to: 'a1', name: 'take the parser', queued: false })
     expect(said).toEqual([{ agentId: 'a1', text: 'understood' }])
     expect(reported).toEqual([])
   })

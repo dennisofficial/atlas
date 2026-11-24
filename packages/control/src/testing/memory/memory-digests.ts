@@ -41,16 +41,7 @@ const lastEventAtOf = (params: { state: State; threadId: string }): string | nul
 
 const stampOf = (iso: string | null): number => (iso === null ? Number.NaN : Date.parse(iso))
 
-const matchesBucket = (params: {
-  state: State
-  row: SessionRow
-  bucket: NonNullable<SessionListParams['bucket']>
-}): boolean => {
-  if (params.bucket.archived) return params.row.archivedAt !== null
-  if (params.row.archivedAt !== null) return false
-  const lastEventAt = lastEventAtOf({ state: params.state, threadId: params.row.mainThreadId })
-  return stampOf(lastEventAt ?? params.row.createdAt) < stampOf(params.bucket.idleBefore)
-}
+const matchesArchived = (row: SessionRow): boolean => row.archivedAt !== null
 
 const matchesSearch = (params: {
   state: State
@@ -100,7 +91,13 @@ const lastTurnOf = (params: { state: State; threadId: string }): SessionTurnEndi
   if (last === undefined) return null
   const parsed = turnEndedSchema.safeParse(JSON.parse(last.canonical))
   if (!parsed.success) return null
-  return { seq: last.seq, outcome: parsed.data.outcome, by: parsed.data.by }
+  return {
+    seq: last.seq,
+    outcome: parsed.data.outcome,
+    by: parsed.data.by,
+    at: last.at,
+    ...(parsed.data.notify === undefined ? {} : { notify: parsed.data.notify }),
+  }
 }
 
 const ownedSessionsOf = (params: { state: State } & SessionListParams): SessionRow[] =>
@@ -114,11 +111,7 @@ const ownedSessionsOf = (params: { state: State } & SessionListParams): SessionR
         params.spawnedBySessionId === undefined ||
         row.spawnedBySessionId === params.spawnedBySessionId,
     )
-    .filter(
-      (row) =>
-        params.bucket === undefined ||
-        matchesBucket({ state: params.state, row, bucket: params.bucket }),
-    )
+    .filter((row) => params.archivedOnly !== true || matchesArchived(row))
     .filter((row) => matchesSearch({ state: params.state, row, search: params.search }))
     .filter((row) => params.after === undefined || afterOf({ row, after: params.after }))
 
@@ -145,22 +138,9 @@ export const sessionBucketCountsIn = (
     .filter((row) => row.userId === params.userId)
     .filter((row) => row.deletedAt === null)
     .filter((row) => matchesSearch({ state: params.state, row, search: params.search }))
-  let inactive = 0
   let archived = 0
   for (const row of rows) {
-    if (row.archivedAt !== null) {
-      archived += 1
-      continue
-    }
-    if (
-      matchesBucket({
-        state: params.state,
-        row,
-        bucket: { archived: false, idleBefore: params.idleBefore },
-      })
-    ) {
-      inactive += 1
-    }
+    if (row.archivedAt !== null) archived += 1
   }
-  return { inactive, archived }
+  return { archived }
 }

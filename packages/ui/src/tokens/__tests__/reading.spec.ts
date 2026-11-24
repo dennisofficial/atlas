@@ -39,9 +39,9 @@ describe('reading tokens', () => {
     )
   })
 
-  test('the reading measure caps at 42rem, the width of max-w-2xl', () => {
-    expect(READING_MEASURE_REM).toBe(42)
-    expect(READING_MEASURE_REM * REM_PX).toBe(672)
+  test('the reading measure caps at 56rem, the width of max-w-4xl', () => {
+    expect(READING_MEASURE_REM).toBe(56)
+    expect(READING_MEASURE_REM * REM_PX).toBe(896)
   })
 
   test('every web class carries the same px size and leading as the native tokens', () => {
@@ -72,7 +72,7 @@ const WEB_LEADING: Record<string, number> = {
   'leading-relaxed': 1.625,
 }
 
-const WEB_MEASURE: Record<string, number> = { 'max-w-2xl': 42 }
+const WEB_MEASURE: Record<string, number> = { 'max-w-4xl': 56 }
 
 const classesOf = (value: string): string[] =>
   value.split(' ').map((name) => name.replace(/^md:/, ''))

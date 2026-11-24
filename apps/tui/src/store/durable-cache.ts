@@ -1,5 +1,5 @@
 import type { Event } from '@dltech/atlas-core'
-import type { TurnSpend } from '@dltech/atlas-harness'
+import type { TurnSpend } from '@dltech/atlas-client/transcript'
 import { durableEntries, type TranscriptEntry } from '@dltech/atlas-client/transcript'
 
 export function createDurableCache(): (args: {

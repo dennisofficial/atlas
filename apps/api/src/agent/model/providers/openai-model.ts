@@ -9,6 +9,7 @@ import type {
 import {
   EAuthKind,
   EAuthProvider,
+  secretOf,
   type Credential,
   type CredentialPort,
   type AccountId,
@@ -19,6 +20,7 @@ import { CODEX_PLAN_LABEL, OPENAI_PROVIDER_ID } from '../provider-ids'
 import { providerKey } from '../provider-key'
 import { withStreamProvenance } from '../stream-provenance'
 import { throughACredentialTheServerAccepts } from './authorized-call'
+import { createCodexTurnStateStore, withCodexTurnState } from './codex-turn-state'
 import { mergedProviderOptions } from './merge-options'
 import { openaiCacheOptions } from './openai-cache'
 import { withOpenAiCompatibleReasoning } from './openai-reasoning'
@@ -64,6 +66,8 @@ const settingsOf = (credential: Credential): OpenAIProviderSettings => {
   }
 }
 
+type ProviderFetch = NonNullable<OpenAIProviderSettings['fetch']>
+
 export function createOpenAiModel(args: {
   credentials: CredentialPort
   modelId: string
@@ -71,6 +75,24 @@ export function createOpenAiModel(args: {
   providerOptions?: (() => SharedV4ProviderOptions | undefined) | undefined
   fetch?: OpenAIProviderSettings['fetch'] | undefined
 }): LanguageModelV4 {
+  const turnStates = createCodexTurnStateStore()
+  let routedFor: string | undefined
+
+  const settingsFor = (credential: Credential): OpenAIProviderSettings => {
+    const settings = settingsOf(credential)
+    const callerFetch = args.fetch
+    if (credential.kind !== EAuthKind.Oauth)
+      return callerFetch === undefined ? settings : { ...settings, fetch: callerFetch }
+
+    return {
+      ...settings,
+      fetch: withCodexTurnState({
+        fetch: callerFetch ?? globalThis.fetch,
+        store: turnStates,
+      }) as ProviderFetch,
+    }
+  }
+
   const authorize = async (): Promise<AuthorizedModel> => {
     const credential = await args.credentials.read({
       provider: EAuthProvider.OpenAI,
@@ -78,10 +100,15 @@ export function createOpenAiModel(args: {
     })
     providerKey({ credential, label: CODEX_PLAN_LABEL })
 
+    const secret = secretOf(credential)
+    if (secret !== routedFor) {
+      turnStates.clear()
+      routedFor = secret
+    }
+
     const model = createOpenAI({
       name: OPENAI_PROVIDER_ID,
-      ...settingsOf(credential),
-      ...(args.fetch === undefined ? {} : { fetch: args.fetch }),
+      ...settingsFor(credential),
     }).responses(args.modelId)
     return { model, credential }
   }

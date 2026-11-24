@@ -3,6 +3,7 @@ import {
   filterLabelSuffix,
   resolveEventFilter,
   type Event,
+  type SubscribedTarget,
   type V2Event,
 } from '@dltech/atlas-core'
 import type { PluginPodContext, PodSubscriptionLease } from '@dltech/atlas-plugin-sdk'
@@ -31,7 +32,13 @@ const GITHUB_PROVIDERS: readonly string[] = [GITHUB_PROVIDER, GITHUB_RUN_PROVIDE
 export const isGithubProvider = (provider: string): boolean => GITHUB_PROVIDERS.includes(provider)
 
 export type SubscribeOutcome =
-  | { ok: true; subscription: SessionSubscription; existed: boolean; updated: boolean }
+  | {
+      ok: true
+      subscription: SessionSubscription
+      existed: boolean
+      updated: boolean
+      target?: SubscribedTarget | undefined
+    }
   | { ok: false; error: string }
 
 export const githubSubscriptionsOf = (events: readonly (Event | V2Event)[]): SubscriptionRow[] =>

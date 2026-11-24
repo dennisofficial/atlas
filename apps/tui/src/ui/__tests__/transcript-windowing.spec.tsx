@@ -5,8 +5,9 @@ import React, { act, useSyncExternalStore } from 'react'
 import { WINDOW_CAP } from '../entry-window'
 
 const { deriveTranscript, createConversationStore } = await import('../../store')
-const { createDeltaChannel } = await import('@dltech/atlas-harness')
-const { channelSignalFeed } = await import('../../composition/channel-signal-feed')
+const { channelSignalFeed, createDeltaChannel } = await import(
+  '../../store/__tests__/signal-feed-fixture'
+)
 const { fixtureThreadId } = await import('@dltech/atlas-client/transcript-fixture')
 const { clocked, said } = await import('@dltech/atlas-client/transcript-tool-fixture')
 const { Transcript } = await import('../components/transcript')

@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'bun:test'
 
 import { toEventId, toRunId, toThreadId } from '../../events/ids'
+import { EPendingWork } from '../../notify/pending-work'
 import type { Hash, V2Body, V2Event } from '../event'
-import { ETurnCause, ETurnEndedBy, ETurnOutcome, openTurnOf } from '../turns'
+import { ETurnCause, ETurnEndedBy, ETurnOutcome, openTurnOf, turnEndedSchema } from '../turns'
 
 const HASH = 'a'.repeat(64) as Hash
 const THREAD = toThreadId('t')
@@ -81,5 +82,33 @@ describe('openTurnOf', () => {
     const first = eventsOf([started('a'), ended('a')])
     const resumed = eventsOf([started('a', ETurnCause.Resume)], SECOND_AT)
     expect(openTurnOf([...first, ...resumed])).toEqual({ turnId: 'a', startedAt: SECOND_AT })
+  })
+})
+
+describe('turnEndedSchema', () => {
+  it('parses a row recorded before the notify facts existed', () => {
+    const parsed = turnEndedSchema.parse({
+      type: 'turn-ended',
+      turnId: 'a',
+      outcome: ETurnOutcome.Completed,
+      by: ETurnEndedBy.Agent,
+    })
+
+    expect(parsed.notify).toBeUndefined()
+  })
+
+  it('parses the pending work and the operator turn recorded on the row', () => {
+    const parsed = turnEndedSchema.parse({
+      type: 'turn-ended',
+      turnId: 'a',
+      outcome: ETurnOutcome.Completed,
+      by: ETurnEndedBy.Agent,
+      notify: { pending: [EPendingWork.Shell, EPendingWork.Subscription], operatorTurn: true },
+    })
+
+    expect(parsed.notify).toEqual({
+      pending: [EPendingWork.Shell, EPendingWork.Subscription],
+      operatorTurn: true,
+    })
   })
 })

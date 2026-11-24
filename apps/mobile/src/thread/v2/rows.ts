@@ -7,6 +7,7 @@ import {
 import { deriveTranscript, overlayStepOf } from '@dltech/atlas-client/transcript'
 
 import { EMessageAuthor, ERowKind, rowsOf, type ThreadRow } from '../rows'
+import { v2EntryFolds } from './registered-plugins'
 
 export type V2ThreadView = {
   rows: ThreadRow[]
@@ -44,18 +45,13 @@ export const stagedRowsOf = (args: {
   now: number
 }): ThreadRow[] => stagedSplitOf(args).transcript.map(stagedRowOf)
 
-export const stagedQueueRowsOf = (args: {
-  snapshot: SessionSnapshot
-  staged: readonly { clientId: string; text: string }[]
-  now: number
-}): ThreadRow[] => stagedSplitOf(args).queue.map(stagedRowOf)
-
 export const v2ViewOf = (args: { snapshot: SessionSnapshot; now: number }): V2ThreadView => {
   const working = isSessionWorking(args.snapshot.status)
   const model = deriveTranscript({
     events: transcriptEventsOf(args.snapshot.events),
     signals: [],
     steps: overlayStepOf(args.snapshot.overlay),
+    pluginEntries: v2EntryFolds,
     now: () => new Date(args.now),
   })
   const atByEntry = new Map<string, string>(

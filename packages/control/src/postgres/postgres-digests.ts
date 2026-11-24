@@ -1,4 +1,4 @@
-import { ETurnEndedBy, ETurnOutcome } from '@dltech/atlas-core'
+import { ETurnEndedBy, ETurnOutcome, turnNotifySchema, type TurnNotify } from '@dltech/atlas-core'
 import type { Tx } from '@dltech/atlas-db'
 import { z } from 'zod'
 
@@ -15,16 +15,31 @@ const TURN_OUTCOME = z.enum(ETurnOutcome)
 
 const TURN_ENDED_BY = z.enum(ETurnEndedBy)
 
+const notifyOf = (text: string | null): TurnNotify | undefined => {
+  if (text === null) return undefined
+  const parsed = turnNotifySchema.safeParse(JSON.parse(text))
+  return parsed.success ? parsed.data : undefined
+}
+
 const turnEndingOf = (row: {
   lastTurnSeq: number | null
   lastTurnOutcome: string | null
   lastTurnBy: string | null
+  lastTurnAt: Date | null
+  lastTurnNotify: string | null
 }): SessionTurnEnding | null => {
   if (row.lastTurnSeq === null) return null
   const outcome = TURN_OUTCOME.safeParse(row.lastTurnOutcome)
   const by = TURN_ENDED_BY.safeParse(row.lastTurnBy)
   if (!outcome.success || !by.success) return null
-  return { seq: row.lastTurnSeq, outcome: outcome.data, by: by.data }
+  const notify = notifyOf(row.lastTurnNotify)
+  return {
+    seq: row.lastTurnSeq,
+    outcome: outcome.data,
+    by: by.data,
+    ...(row.lastTurnAt === null ? {} : { at: iso(row.lastTurnAt) }),
+    ...(notify === undefined ? {} : { notify }),
+  }
 }
 
 export const sessionDigestsIn = async (
@@ -36,10 +51,7 @@ export const sessionDigestsIn = async (
   const sessionId = params.sessionId ?? ''
   const anySpawner = params.spawnedBySessionId === undefined
   const spawnedBySessionId = params.spawnedBySessionId ?? ''
-  const anyBucket = params.bucket === undefined
-  const archivedOnly = params.bucket?.archived === true
-  const inactiveOnly = params.bucket?.archived === false
-  const idleBefore = params.bucket?.archived === false ? params.bucket.idleBefore : EPOCH_ISO
+  const anyArchived = params.archivedOnly !== true
   const anySearch = params.search === undefined || params.search.length === 0
   const search = likePatternOf(params.search ?? '')
   const anyAfter = params.after === undefined
@@ -62,17 +74,19 @@ export const sessionDigestsIn = async (
           WHERE e."threadId" = s."mainThreadId" AND e."type" = 'assistant-said'), 0) AS "lastAssistantSeq",
         COALESCE((SELECT MAX(e."seq") FROM "v2"."V2Event" e
           WHERE e."threadId" = s."mainThreadId"), 0) AS "headSeq",
-        (SELECT e."seq" FROM "v2"."V2Event" e
-          WHERE e."threadId" = s."mainThreadId" AND e."type" = 'turn-ended'
-          ORDER BY e."seq" DESC LIMIT 1) AS "lastTurnSeq",
-        (SELECT e."canonical"::jsonb ->> 'outcome' FROM "v2"."V2Event" e
-          WHERE e."threadId" = s."mainThreadId" AND e."type" = 'turn-ended'
-          ORDER BY e."seq" DESC LIMIT 1) AS "lastTurnOutcome",
-        (SELECT e."canonical"::jsonb ->> 'by' FROM "v2"."V2Event" e
-          WHERE e."threadId" = s."mainThreadId" AND e."type" = 'turn-ended'
-          ORDER BY e."seq" DESC LIMIT 1) AS "lastTurnBy",
+        last."seq" AS "lastTurnSeq",
+        last."canonical" ->> 'outcome' AS "lastTurnOutcome",
+        last."canonical" ->> 'by' AS "lastTurnBy",
+        last."at" AS "lastTurnAt",
+        last."canonical" ->> 'notify' AS "lastTurnNotify",
         first."text" AS "firstMessageText", first."postedAt" AS "firstMessageAt"
       FROM "v2"."V2Session" s
+      LEFT JOIN LATERAL (
+        SELECT e."seq", e."at", e."canonical"::jsonb AS "canonical"
+          FROM "v2"."V2Event" e
+          WHERE e."threadId" = s."mainThreadId" AND e."type" = 'turn-ended'
+          ORDER BY e."seq" DESC LIMIT 1
+      ) last ON true
       LEFT JOIN LATERAL (
         SELECT left(i."payload"::jsonb ->> 'text', ${FIRST_MESSAGE_CHARS}) AS "text", i."postedAt"
           FROM "v2"."V2InboxEntry" i
@@ -84,12 +98,7 @@ export const sessionDigestsIn = async (
         AND (${anyProject}::boolean OR s."projectId" = ${projectId})
         AND (${anySession}::boolean OR s."id" = ${sessionId})
         AND (${anySpawner}::boolean OR s."spawnedBySessionId" = ${spawnedBySessionId})
-        AND (${anyBucket}::boolean
-          OR (${archivedOnly}::boolean AND s."archivedAt" IS NOT NULL)
-          OR (${inactiveOnly}::boolean AND s."archivedAt" IS NULL
-            AND COALESCE((SELECT e."at" FROM "v2"."V2Event" e
-              WHERE e."threadId" = s."mainThreadId" ORDER BY e."seq" DESC LIMIT 1),
-              s."createdAt") < ${idleBefore}::timestamptz))
+        AND (${anyArchived}::boolean OR s."archivedAt" IS NOT NULL)
         AND (${anySearch}::boolean OR s."title" ILIKE ${search} OR first."text" ILIKE ${search})
         AND (${anyAfter}::boolean
           OR (s."createdAt", s."id") < (${afterCreatedAt}::timestamptz, ${afterId}::text))
@@ -133,6 +142,8 @@ export const sessionDigestsIn = async (
         lastTurnSeq: { codecId: 'pg/int4@1', nullable: true },
         lastTurnOutcome: { codecId: 'pg/text@1', nullable: true },
         lastTurnBy: { codecId: 'pg/text@1', nullable: true },
+        lastTurnAt: { codecId: 'pg/timestamptz-date@1', nullable: true },
+        lastTurnNotify: { codecId: 'pg/text@1', nullable: true },
         firstMessageText: { codecId: 'pg/text@1', nullable: true },
         firstMessageAt: { codecId: 'pg/timestamptz-date@1', nullable: true },
       })

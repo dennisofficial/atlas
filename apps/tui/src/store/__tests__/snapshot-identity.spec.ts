@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it } from 'bun:test'
 
-import { createDeltaChannel, type DeltaChannel } from '@dltech/atlas-harness'
+import type { DeltaChannel } from '@dltech/atlas-client/channel'
 
 import { createConversationStore, type ConversationStore } from '../conversation-store'
-import { channelSignalFeed } from '../../composition/channel-signal-feed'
+import { channelSignalFeed, createDeltaChannel } from './signal-feed-fixture'
 import { IDLE_TURN } from '../../ui/turn-clock'
 import { fixtureThreadId, log } from '@dltech/atlas-client/transcript-fixture'
 

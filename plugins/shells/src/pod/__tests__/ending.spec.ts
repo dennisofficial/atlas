@@ -68,26 +68,17 @@ describe('recordShellEnding', () => {
     })
   })
 
-  it('records the start of a shell whose ending raced the hook that writes it', async () => {
+  it('leaves the ending of a shell this thread never started to the thread that owns it', async () => {
     const harness = rig()
     const shellId = await started(harness)
     harness.log.length = 0
-    harness.print(shellId, 'done\n')
     harness.finish(shellId, EShellRunStatus.Exited, 0)
 
     await ending(harness, shellId)
 
-    expect(harness.log).toMatchObject([
-      { type: 'background-shell-started', shellId, command: 'sleep 30' },
-    ])
-    expect(harness.notices.at(-1)?.event).toMatchObject({
-      type: 'background-shell-ended',
-      shellId,
-      command: 'sleep 30',
-      status: EShellStatus.Exited,
-      exitCode: 0,
-      output: 'done\n',
-    })
+    expect(harness.log).toHaveLength(0)
+    expect(harness.notices).toHaveLength(0)
+    expect(stateFor(harness.ctx).unclaimed.has(shellId)).toBe(true)
   })
 
   it('records a frame delivered twice only once', async () => {

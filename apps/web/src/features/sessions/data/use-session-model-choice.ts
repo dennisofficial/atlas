@@ -25,8 +25,9 @@ export function useSessionModelChoice(args: {
   sessionId: string
   current: SessionModelChoice | null | undefined
   onSelected?: (() => void) | undefined
+  onClosed?: (() => void) | undefined
 }): SessionModelChoiceView {
-  const { sessionId, current, onSelected } = args
+  const { sessionId, current, onSelected, onClosed } = args
   const picker = useModelPicker({ currentIds: current?.ref === undefined ? [] : [current.ref] })
   const [chosen, setChosen] = useState<ModelSelection | null>(null)
   const [open, setOpen] = useState(false)
@@ -45,12 +46,20 @@ export function useSessionModelChoice(args: {
     [sessionId, onSelected],
   )
 
+  const handleOpenChange = useCallback(
+    (next: boolean) => {
+      setOpen(next)
+      if (!next) onClosed?.()
+    },
+    [onClosed],
+  )
+
   return {
     picker,
     selection: chosen ?? sessionSelectionOf(current),
     onSelectionChange: handleSelectionChange,
     open,
-    onOpenChange: setOpen,
+    onOpenChange: handleOpenChange,
     setOpen,
   }
 }

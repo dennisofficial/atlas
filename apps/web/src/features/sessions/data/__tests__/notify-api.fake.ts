@@ -10,4 +10,5 @@ export const notifyApiFake = {
   sendTestNotification: mock(async () => undefined),
   listNotifyDevices: mock(async (): Promise<ListNotifyDevicesOutput> => ({ devices: [] })),
   setNotifyDeviceEnabled: mock(async () => undefined),
+  reportInAppShown: mock(async () => undefined),
 }

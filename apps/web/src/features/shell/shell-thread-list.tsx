@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { useMemo, useState } from 'react'
 
 import { SidebarGroup } from '@dltech/atlas-ui/components/sidebar'
-import { ESessionBucket, type SessionBucketCounts } from '@dltech/atlas-wire/web'
+import type { SessionBucketCounts } from '@dltech/atlas-wire/web'
 
 import type { ApiPrStatesSubscribe } from '@/features/threads/data/api-pr-states-source'
 import { useApiPrStates } from '@/features/threads/data/use-api-pr-states'
@@ -10,9 +10,7 @@ import { useApiPrStates } from '@/features/threads/data/use-api-pr-states'
 import { SidebarPrStatesProvider } from './shell-sidebar-pr-states'
 import { ThreadFamilyProvider } from './shell-thread-family'
 import { useClock } from './use-clock'
-import type { PageBucket } from './session-pager'
 import { Bucket } from './shell-bucket'
-import { BucketSheet } from './shell-bucket-sheet'
 import { ProjectGroup } from './shell-project-group'
 import {
   countThreads,
@@ -72,19 +70,12 @@ const bucketTotalOf = (args: {
 
 function ThreadListContent({ entries, counts, activeThreadId }: ThreadListProps) {
   const [collapsed, setCollapsed] = useState<string[]>([])
-  const [paging, setPaging] = useState<PageBucket | null>(null)
   const now = useClock()
   const partition = useMemo(() => partitionThreads({ entries, now }), [entries, now])
-  const totals = {
-    [ESessionBucket.Inactive]: bucketTotalOf({
-      streamCount: counts?.inactive,
-      entries: partition.inactive,
-    }),
-    [ESessionBucket.Archived]: bucketTotalOf({
-      streamCount: counts?.archived,
-      entries: partition.archived,
-    }),
-  }
+  const archivedTotal = bucketTotalOf({
+    streamCount: counts?.archived,
+    entries: partition.archived,
+  })
 
   const handleOpenChange = (projectId: string, open: boolean) => {
     setCollapsed((current) =>
@@ -100,7 +91,6 @@ function ThreadListContent({ entries, counts, activeThreadId }: ThreadListProps)
     )
   }
 
-  const hasBuckets = partition.inactive.length > 0 || partition.archived.length > 0
   return (
     <SidebarGroup>
       <div className="flex flex-col gap-3">
@@ -116,38 +106,17 @@ function ThreadListContent({ entries, counts, activeThreadId }: ThreadListProps)
             />
           )
         })}
-        {hasBuckets && (
+        {partition.archived.length > 0 && (
           <div className="flex flex-col gap-0.5">
-            {partition.inactive.length > 0 && (
-              <Bucket
-                label="Inactive"
-                hint="Last 72h"
-                entries={partition.inactive}
-                total={totals[ESessionBucket.Inactive]}
-                onShowAll={() => setPaging(ESessionBucket.Inactive)}
-                activeThreadId={activeThreadId}
-              />
-            )}
-            {partition.archived.length > 0 && (
-              <Bucket
-                label="Archived"
-                entries={partition.archived}
-                total={totals[ESessionBucket.Archived]}
-                onShowAll={() => setPaging(ESessionBucket.Archived)}
-                activeThreadId={activeThreadId}
-              />
-            )}
+            <Bucket
+              label="Archived"
+              entries={partition.archived}
+              total={archivedTotal}
+              activeThreadId={activeThreadId}
+            />
           </div>
         )}
       </div>
-      {paging !== null && (
-        <BucketSheet
-          bucket={paging}
-          onOpenChange={(open) => {
-            if (!open) setPaging(null)
-          }}
-        />
-      )}
     </SidebarGroup>
   )
 }

@@ -1,5 +1,4 @@
-import { createServer } from 'node:http'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 
 import { app, BrowserWindow, clipboard, ipcMain, Menu, WebContentsView, shell } from 'electron'
 import { Notification, pushNotifications } from 'electron'
@@ -7,13 +6,28 @@ import { Notification, pushNotifications } from 'electron'
 // rather than destructured by the ESM loader.
 import electronUpdater from 'electron-updater'
 
-import { createApnsBridge } from './apns.js'
+import { createApnsBridge, sessionIdOfLaunchInfo, userInfoOfLaunchInfo } from './apns.js'
 import { contextMenuTemplate } from './context-menu.js'
+import {
+  createDeepLinkOpener,
+  deepLinkOf,
+  landingUrlOf,
+  launchPlanOf,
+  protocolClientArgsOf,
+} from './deep-links.js'
+import { errorPage, startDesktopServer } from './desktop-server.js'
 import { hostEnvironment, resolveBun, resolveHostScript, webRootAt } from './host-paths.js'
-import { externalUrlOf, sameOrigin } from './links.js'
+import {
+  ENavigation,
+  browserUrlOf,
+  paneNavigationOf,
+  sameOrigin,
+  windowNavigationOf,
+} from './links.js'
 import { startHost } from './host-process.js'
-import { createPaneRegistry, validCommand } from './panes.js'
-import { answerUpdate, createBinaryUpdater, createDesktopUpdates } from './updates.js'
+import { createClickWatcher, createSessionOpener, revealWindow } from './notification-clicks.js'
+import { createPaneRegistry } from './panes.js'
+import { createBinaryUpdater, createDesktopUpdates } from './updates.js'
 import {
   createElectronWebUpdater,
   manifestUrlOf,
@@ -26,8 +40,6 @@ const FULLSCREEN_STATE = 'atlas-desktop:fullscreen'
 const FULLSCREEN_QUERY = 'atlas-desktop:is-fullscreen'
 const PANE_NAVIGATED = 'atlas-desktop:pane-navigated'
 const PANE_TITLED = 'atlas-desktop:pane-titled'
-const PANE_PATH = '/pane'
-const DESKTOP_PANE_PATH = '/desktop/pane'
 const PANE_PARTITION = 'persist:spike'
 const WINDOW_WIDTH = 1280
 const WINDOW_HEIGHT = 820
@@ -46,85 +58,14 @@ ipcMain.on(FULLSCREEN_QUERY, (event) => {
   event.returnValue = BrowserWindow.fromWebContents(event.sender)?.isFullScreen() ?? false
 })
 
-async function readBody(request) {
-  const chunks = []
-  for await (const chunk of request) chunks.push(chunk)
-  return Buffer.concat(chunks).toString('utf8')
-}
-
-function respond(response, status, body) {
-  const payload = JSON.stringify(body)
-  response.writeHead(status, {
-    'content-type': 'application/json',
-    'content-length': Buffer.byteLength(payload),
-  })
-  response.end(payload)
-}
-
-async function startDesktopServer({ panes, updates }) {
-  const server = createServer((request, response) => {
-    const pathname = new URL(request.url ?? '/', 'http://127.0.0.1').pathname
-    const answered = answerUpdate({ updates, request, pathname })
-    if (answered !== undefined) {
-      answered.then(
-        ({ status, body }) => {
-          if (body === null) {
-            response.writeHead(status, { 'content-length': 0 })
-            response.end()
-            return
-          }
-          respond(response, status, body)
-        },
-        (error) => respond(response, 500, { ok: false, error: String(error) }),
-      )
-      return
-    }
-    if (pathname !== PANE_PATH && pathname !== DESKTOP_PANE_PATH) {
-      respond(response, 404, { ok: false, error: 'not found' })
-      return
-    }
-    if (request.method !== 'POST') {
-      respond(response, 405, { ok: false, error: 'method not allowed' })
-      return
-    }
-    void readBody(request)
-      .then((body) => {
-        let command
-        try {
-          command = JSON.parse(body)
-        } catch {
-          respond(response, 400, { ok: false, error: 'invalid command' })
-          return
-        }
-        if (!validCommand(command)) {
-          respond(response, 400, { ok: false, error: 'invalid command' })
-          return
-        }
-        panes.apply(command)
-        respond(response, 200, { ok: true })
-      })
-      .catch((error) => respond(response, 500, { ok: false, error: String(error) }))
-  })
-  await new Promise((resolve, reject) => {
-    server.once('error', reject)
-    server.listen(0, '127.0.0.1', resolve)
-  })
-  return { server, origin: `http://127.0.0.1:${server.address().port}` }
-}
-
-function errorPage(error) {
-  const message = error instanceof Error ? error.message : String(error)
-  const html = `<!doctype html><meta charset="utf-8"><title>Atlas could not start</title>
-<body style="font: 15px -apple-system, system-ui; padding: 40px; color: #111">
-<h1 style="font-size: 20px">Atlas could not start</h1>
-<pre style="white-space: pre-wrap; color: #555">${message.replaceAll('&', '&amp;').replaceAll('<', '&lt;')}</pre>
-</body>`
-  return `data:text/html;charset=utf-8,${encodeURIComponent(html)}`
-}
-
 function openInBrowser(url) {
-  const external = externalUrlOf(url)
+  const external = browserUrlOf(url)
   if (external !== null) void shell.openExternal(external)
+}
+
+function sendToBrowser({ event, url }) {
+  event.preventDefault()
+  if (url !== null) void shell.openExternal(url)
 }
 
 function denyWindow(url) {
@@ -147,7 +88,7 @@ function attachContextMenu({ win, contents }) {
   })
 }
 
-async function createWindow() {
+async function createWindow({ sessionId, path } = {}) {
   const win = new BrowserWindow({
     width: WINDOW_WIDTH,
     height: WINDOW_HEIGHT,
@@ -164,6 +105,16 @@ async function createWindow() {
   win.on('enter-full-screen', () => win.webContents.send(FULLSCREEN_STATE, true))
   win.on('leave-full-screen', () => win.webContents.send(FULLSCREEN_STATE, false))
   win.webContents.setWindowOpenHandler(({ url }) => denyWindow(url))
+  win.webContents.on('will-navigate', (event) => {
+    const plan = windowNavigationOf({ url: event.url, pageUrl: win.webContents.getURL() })
+    if (plan.kind === ENavigation.Stay) return
+    if (deepLinkOf(event.url) !== null) {
+      event.preventDefault()
+      openDeepLink(event.url)
+      return
+    }
+    sendToBrowser({ event, url: plan.url })
+  })
   attachContextMenu({ win, contents: win.webContents })
 
   const panes = createPaneRegistry({
@@ -175,6 +126,10 @@ async function createWindow() {
         if (!sameOrigin(url, view.webContents.getURL())) return denyWindow(url)
         void view.webContents.loadURL(url)
         return { action: 'deny' }
+      })
+      view.webContents.on('will-navigate', (event) => {
+        const plan = paneNavigationOf(event.url)
+        if (plan.kind === ENavigation.Browser) sendToBrowser({ event, url: plan.url })
       })
       attachContextMenu({ win, contents: view.webContents })
       win.contentView.addChildView(view)
@@ -268,13 +223,13 @@ async function createWindow() {
     const installedHash = await payloads.updater.installedRoot()
     try {
       host = startSession(webRootFor({ home, bundledRoot, installedHash }))
-      await win.loadURL(await host.url)
+      await win.loadURL(landingUrlOf({ pageUrl: await host.url, sessionId, path }))
     } catch (error) {
       if (installedHash === undefined) throw error
       console.error('[web-payload] the installed interface failed; using the bundled one', error)
       await payloads.updater.fail({ hash: installedHash })
       host = startSession(bundledRoot)
-      await win.loadURL(await host.url)
+      await win.loadURL(landingUrlOf({ pageUrl: await host.url, sessionId, path }))
     }
     payloads.start()
     binary.start()
@@ -285,9 +240,56 @@ async function createWindow() {
   return win
 }
 
+let launchSessionId
+
+const windowNow = () => BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
+
+const openDeepLink = createDeepLinkOpener({
+  windowNow,
+  createWindow,
+  reveal: (win) => revealWindow({ app, win }),
+  log: (line) => console.error(line),
+})
+
+const launchLinks = []
+let launched = false
+
+app.on('open-url', (event, url) => {
+  event.preventDefault()
+  if (launched) openDeepLink(url)
+  else launchLinks.push(url)
+})
+
+const protocolClient = protocolClientArgsOf({
+  defaultApp: process.defaultApp === true,
+  execPath: process.execPath,
+  entry: process.argv[1] === undefined ? undefined : resolve(process.argv[1]),
+})
+if (protocolClient !== null) app.setAsDefaultProtocolClient(...protocolClient)
+
+app.on('ready', (_event, launchInfo) => {
+  launchSessionId = sessionIdOfLaunchInfo(launchInfo)
+  if (launchSessionId !== undefined) void apns.opened(userInfoOfLaunchInfo(launchInfo))
+})
+
+const openSession = createSessionOpener({ app, windowNow, createWindow })
+
+const clicks = createClickWatcher({
+  notifications: Notification,
+  onClick: openSession,
+  log: (line) => console.error(line),
+})
+
 app.whenReady().then(async () => {
-  if (app.isPackaged) void apns.start()
-  await createWindow()
+  if (app.isPackaged) {
+    void apns.start()
+    void clicks.start({ pushes: pushNotifications, app })
+  }
+  const launch = launchPlanOf(launchLinks.splice(0))
+  const created = createWindow({ sessionId: launchSessionId, path: launch.path })
+  launched = true
+  for (const link of launch.replay) openDeepLink(link)
+  await created
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) void createWindow()
   })

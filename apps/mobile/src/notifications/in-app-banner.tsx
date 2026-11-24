@@ -3,6 +3,8 @@ import { EFontWeight, ETextRole, ETextTone, Text, useTheme } from '@dltech/atlas
 import { Pressable, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
+import { bannerFrameOf } from './banner-frame'
+
 export const InAppBanner = (props: {
   notice: AtlasNotification
   onOpen: () => void
@@ -11,7 +13,7 @@ export const InAppBanner = (props: {
   const theme = useTheme()
   const insets = useSafeAreaInsets()
   return (
-    <View style={[styles.layer, { top: insets.top + 8 }]} pointerEvents="box-none">
+    <View style={[styles.layer, bannerFrameOf(insets)]} pointerEvents="box-none">
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`${props.notice.title}. ${props.notice.body}`}
@@ -43,9 +45,7 @@ export const InAppBanner = (props: {
 
 const styles = StyleSheet.create({
   layer: {
-    left: 12,
     position: 'absolute',
-    right: 12,
     zIndex: 20,
   },
   banner: {

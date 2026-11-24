@@ -165,8 +165,8 @@ const loadOf = async (args: {
   }
 }
 
-const startInBackground = (args: { ctx: Ctx; entry: Prepared; directory: string }): void => {
-  void loadedDraftsOf({
+const startInBackground = (args: { ctx: Ctx; entry: Prepared; directory: string }): Promise<void> =>
+  loadedDraftsOf({
     resource: args.entry.resource,
     ctx: args.ctx,
     directory: args.directory,
@@ -180,7 +180,6 @@ const startInBackground = (args: { ctx: Ctx; entry: Prepared; directory: string 
         `plugin resource ${args.entry.resource.name} could not load in the background: ${messageOf(failure)}`,
       )
     })
-}
 
 export const refresh = async (args: {
   ctx: Ctx
@@ -188,6 +187,7 @@ export const refresh = async (args: {
   projectDirectory: string
   trace: TracePort | undefined
   shared: (() => readonly V2Event[]) | undefined
+  onBackground?: ((background: { resource: string; loading: Promise<void> }) => void) | undefined
 }): Promise<void> => {
   const { ctx, resources, projectDirectory, trace, shared } = args
   const entries: Entry[] = resources.map((resource) => ({
@@ -279,7 +279,8 @@ export const refresh = async (args: {
 
   for (const entry of prepared) {
     if (entry.resource.background !== true) continue
-    startInBackground({ ctx, entry, directory: projectDirectory })
+    const loading = startInBackground({ ctx, entry, directory: projectDirectory })
+    args.onBackground?.({ resource: entry.resource.name, loading })
   }
 
   await Promise.all(

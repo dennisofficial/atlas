@@ -11,6 +11,7 @@ import { TestQueryProvider, createTestQueryClient } from '@/lib/__tests__/query-
 import * as realAccountsApi from '@/features/settings/data/personal/accounts-api'
 
 import type { CredentialRepairControl } from '../data/use-credential-repair'
+import { useModelSwitchRetry } from '../data/use-model-switch-retry'
 import * as realSessionsApi from '../data/sessions-api'
 
 export const MAIN = toThreadId('thread-1')
@@ -50,7 +51,7 @@ export const retried: unknown[] = []
 export const errors: string[] = []
 export const pushed: string[] = []
 export const counters = { switched: 0, opened: 0 }
-export const state = { replaceFails: false }
+export const state = { replaceFails: false, retryFails: false }
 
 mock.module('@/features/settings/data/personal/accounts-api', () => ({
   ...realAccountsApi,
@@ -72,6 +73,7 @@ mock.module('@/features/sessions/data/sessions-api', () => ({
   sessionsApi: {
     ...realSessionsApi.sessionsApi,
     retry: async (input: unknown) => {
+      if (state.retryFails) throw new Error('the sandbox did not answer')
       retried.push(input)
       return { inboxId: retried.length }
     },
@@ -113,6 +115,7 @@ export const resetProbe = (): void => {
   counters.switched = 0
   counters.opened = 0
   state.replaceFails = false
+  state.retryFails = false
   const primary = accounts[0]
   if (primary !== undefined) primary.kind = 'api-key'
 }
@@ -140,11 +143,13 @@ export async function mountRepair(args: {
   const mounted = createRoot(document.createElement('div'))
   root = mounted
   function Probe() {
+    const switchRetry = useModelSwitchRetry()
     latest = useCredentialRepair({
       sessionId: 's1',
       mainThreadId: 'thread-1',
       events: args.events,
       onSwitchModel: args.onSwitchModel,
+      retryAfterModel: switchRetry,
     })
     return <p>{latest.strip?.title ?? ''}</p>
   }

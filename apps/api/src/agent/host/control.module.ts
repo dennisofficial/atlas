@@ -2,10 +2,9 @@ import { Module, type Provider } from '@nestjs/common'
 import { ControlPlane } from '@dltech/atlas-control'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import type { Db } from '@dltech/atlas-db'
+import { githubAppTargetStatesOf } from '@dltech/atlas-github'
 import type { HostBus, PodCallBus } from '@dltech/atlas-host'
 import type { LogPort, ProductAnalytics } from '@dltech/atlas-observability'
-import { eventSchemaOf } from '@dltech/atlas-plugin-sdk'
-
 import { analyticsAppendHook } from '../analytics/append-hook'
 import { PRODUCT_ANALYTICS } from '../analytics/tokens'
 
@@ -15,7 +14,7 @@ import { createRedisLiveFrames, type RedisLiveFrames } from '../bus/redis-live-f
 import { createRedisPodCallBus } from '../bus/redis-pod-call-bus'
 import { databaseUrlWithTls } from '../config/database-url'
 import type { AgentHostEnv } from '../config/env'
-import { composedPlugins, registeredPlugins } from '../registered-plugins'
+import { composedPlugins, controlEventSchema } from '../registered-plugins'
 import { FollowStack } from './follow-stack'
 import {
   AGENT_HOST_ENV,
@@ -31,14 +30,15 @@ import {
 
 const controlPlaneProvider: Provider = {
   provide: CONTROL_PLANE,
-  useFactory: (db: Db, analytics: ProductAnalytics): ControlPlane =>
+  useFactory: (db: Db, analytics: ProductAnalytics, env: AgentHostEnv): ControlPlane =>
     new ControlPlane({
       store: new PostgresControlStore(db),
-      eventSchema: eventSchemaOf(registeredPlugins),
+      eventSchema: controlEventSchema,
       pluginViews: composedPlugins.views,
       appendHooks: [...composedPlugins.control.hooks, analyticsAppendHook(analytics)],
+      targetStates: githubAppTargetStatesOf(env.githubApp),
     }),
-  inject: [DB, PRODUCT_ANALYTICS],
+  inject: [DB, PRODUCT_ANALYTICS, AGENT_HOST_ENV],
 }
 
 const liveFramesProvider: Provider = {

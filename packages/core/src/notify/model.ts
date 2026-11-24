@@ -8,6 +8,18 @@ export enum ENotifyDeviceKind {
   ApnsMac = 'apns-mac',
 }
 
+export enum ENotifyInAppKind {
+  Web = 'in-app-web',
+  Ios = 'in-app-ios',
+}
+
+export enum ENotifyTrackEvent {
+  Delivered = 'delivered',
+  Opened = 'opened',
+  Dismissed = 'dismissed',
+  InAppShown = 'in-app-shown',
+}
+
 export type AtlasNotification = {
   sessionId: string
   seq: number
@@ -15,6 +27,8 @@ export type AtlasNotification = {
   title: string
   body: string
   at: string
+  routineId?: string | undefined
+  silent?: boolean | undefined
 }
 
 export const atlasNotificationSchema = z.object({
@@ -24,4 +38,6 @@ export const atlasNotificationSchema = z.object({
   title: z.string().min(1),
   body: z.string().min(1),
   at: z.string().min(1),
+  routineId: z.string().min(1).optional(),
+  silent: z.boolean().optional(),
 })

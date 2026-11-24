@@ -9,11 +9,27 @@ const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi
 
 export type AuthenticatedRequest = Request & { user?: { id?: unknown } | null }
 
+export type ApiErrorClass = {
+  code: string
+  marker?: string | undefined
+  podFailure?: string | undefined
+}
+
 export type ApiRequestSample = {
   path: string
   durationMs: number
   status: number
   failed: boolean
+  error?: ApiErrorClass | undefined
+}
+
+const errorPropertiesOf = (error: ApiErrorClass | undefined): Record<string, string> => {
+  if (error === undefined) return {}
+  return {
+    error_code: error.code,
+    ...(error.marker === undefined ? {} : { error_marker: error.marker }),
+    ...(error.podFailure === undefined ? {} : { pod_failure: error.podFailure }),
+  }
 }
 
 export const requestPathOf = (request: Pick<Request, 'path' | 'route'>): string => {
@@ -56,6 +72,7 @@ export const captureApiRequest = async (args: {
         duration_ms: args.sample.durationMs,
         status: args.sample.status,
         failed: args.sample.failed,
+        ...errorPropertiesOf(args.sample.error),
       },
     })
   } catch {

@@ -32,7 +32,6 @@ import { HeaderShells } from './shell-tails'
 const BADGE_VARIANT: Record<EHeaderState, 'destructive' | 'default' | 'secondary'> = {
   [EHeaderState.Failed]: 'destructive',
   [EHeaderState.NeedsYou]: 'default',
-  [EHeaderState.Queued]: 'secondary',
   [EHeaderState.Running]: 'secondary',
   [EHeaderState.Idle]: 'secondary',
 }
@@ -203,8 +202,12 @@ export function SessionHeader({
         {subscriptions.length === 0 ? null : (
           <HeaderSubscriptions count={subscriptions.length} onOpen={onOpenDetails} />
         )}
-        {shells.running === 0 ? null : <HeaderShells shells={shells} tails={shellTails} />}
-        {crew.total === 0 ? null : <HeaderCrew roster={crew} rows={crewRows} />}
+        {shells.running === 0 ? null : (
+          <HeaderShells shells={shells} tails={shellTails} sessionId={sessionId} />
+        )}
+        {crew.total === 0 ? null : (
+          <HeaderCrew roster={crew} rows={crewRows} sessionId={sessionId} />
+        )}
         {previews.length === 0 ? null : (
           <HeaderPreviews previews={previews} onOpenPreview={onOpenPreview} />
         )}

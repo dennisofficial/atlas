@@ -1,7 +1,22 @@
-import { EKilledBy, EShellStatus, type ShellSnapshot } from '@dltech/atlas-harness'
+import { EKilledBy, EShellStatus, oneLine } from '@dltech/atlas-core'
 
 import { stripAnsi } from './ansi'
 import { formatElapsed } from './theme'
+
+export type ShellSnapshot = {
+  shellId: string
+  threadId: string
+  command: string
+  description: string
+  status: EShellStatus
+  killedBy?: EKilledBy | undefined
+  exitCode?: number | undefined
+  startedAt: string
+  lastOutputAt: string
+  endedAt?: string | undefined
+  totalCharacters: number
+  awaitingInput: boolean
+}
 
 export type ShellsState = { index: number }
 
@@ -106,7 +121,7 @@ export function shellSidebarReadout(args: { shell: ShellSnapshot; now: number })
   return shellReadout(args)
 }
 
-export const shellCommandLabel = (command: string): string => command.replace(/\s+/g, ' ').trim()
+export const shellCommandLabel = (command: string): string => oneLine(command)
 
 /**
  * What a human scanning the panel reads. The description is the name the model gave the job and the

@@ -68,6 +68,7 @@ const messageSizes = (args: { message: Message; sizes: Sizes }): number => {
     chars += partChars
     const source = args.message.role === 'user' ? contextSourceOf(part) : undefined
     if (source !== undefined) add(args.sizes, `messages.context.${source}`, partChars)
+    if (part.type === 'tool-result') add(args.sizes, 'messages.tool-results', partChars)
   }
   return chars
 }
@@ -81,6 +82,7 @@ export function requestSizeOf(args: {
   let systemChars = 0
   for (const block of args.assembled.system) {
     add(sizes, `system.${block.source ?? 'other'}`, block.text.length)
+    for (const part of block.parts ?? []) add(sizes, `system.prompt.${part.id}`, part.chars)
     systemChars += block.text.length
   }
 

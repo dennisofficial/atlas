@@ -1,4 +1,5 @@
 import {
+  EResumeOutcome,
   INBOX_KIND_STOP,
   pendingInputsOf,
   unheldDraftOf,
@@ -72,6 +73,8 @@ export type InboxIntakeArgs = {
   childrenRunning?: (() => number) | undefined
   operatorAnswers?: OperatorAnswerIntake | undefined
   crewRunning?: (() => number) | undefined
+  crew?: { resume(args: { agentId: string }): Promise<EResumeOutcome> } | undefined
+  mainThreadId?: string | undefined
   log?: LogPort | undefined
   now?: (() => number) | undefined
 }
@@ -95,6 +98,9 @@ export class InboxIntake implements AgentIntake {
             sessionId: args.sessionId,
             model: args.model,
             visibleEvents: () => args.record.eventCache().visibleLoopEvents(),
+            logEvents: () => this.events(),
+            ...(args.crew === undefined ? {} : { crew: args.crew }),
+            ...(args.mainThreadId === undefined ? {} : { mainThreadId: args.mainThreadId }),
             ...(args.childrenRunning === undefined
               ? {}
               : { childrenRunning: args.childrenRunning }),
@@ -144,7 +150,7 @@ export class InboxIntake implements AgentIntake {
     return await this.serial(async () => {
       const glue = this.commandGlue()
       const events = this.events()
-      const skills = await skillsForPassOf(intake)
+      const skills = skillsForPassOf(intake)
       const superseded = supersededRewindIdsOf({ entries, events })
       const consumed = consumedInboxIdsOf(events)
       let ran = false
@@ -178,7 +184,7 @@ export class InboxIntake implements AgentIntake {
     const entries = await this.fetch()
     const resolved = await this.withdrawsOf(entries)
     const before = this.events()
-    const skills = await skillsForPassOf(this.commandIntake)
+    const skills = skillsForPassOf(this.commandIntake)
     const release = this.releaseOf()
     const superseded =
       this.args.scope === EIntakeScope.Main
@@ -186,6 +192,7 @@ export class InboxIntake implements AgentIntake {
         : new Set<number>()
     const drained = await drainEntries({
       entries,
+      events: before,
       scope: this.args.scope,
       resolved,
       superseded,

@@ -2,19 +2,14 @@ import {
   EExecutionLocation,
   EPlanStatus,
   EServiceStatus,
+  TEAMMATE_AGENT_TYPE,
   type ECrewStanding,
   type Event,
 } from '@dltech/atlas-core'
 
-import {
-  TEAMMATE_AGENT_TYPE,
-  type BoundPort,
-  type SandboxContainer,
-  type SandboxLimits,
-  type ServiceSnapshot,
-  type TurnSpend,
-} from '@dltech/atlas-harness'
+import type { TurnSpend } from '@dltech/atlas-client/transcript'
 
+import type { ServiceRowView } from '../ui/services-model'
 import { commonestDimension, type ClassifierFold } from './classifier-fold'
 import { foldLogEvents, type LogAccumulator } from './log-accumulator'
 import type { SidebarCloud } from './cloud-state'
@@ -63,9 +58,26 @@ export type SidebarModel = {
   cloud?: SidebarCloud
 }
 
-export type SidebarLimits = SandboxLimits
+export enum ESandboxState {
+  Starting = 'starting',
+  Running = 'running',
+  Stopped = 'stopped',
+  Failed = 'failed',
+}
 
-export type SidebarContainer = SandboxContainer
+export type SidebarPort = { containerPort: number; hostPort: number }
+
+export type SidebarLimits = { cpus: number; memoryGb: number }
+
+export type SidebarContainer = {
+  state: ESandboxState
+  image: string
+  label: string
+  name?: string | undefined
+  limits?: SidebarLimits | undefined
+  ports: readonly SidebarPort[]
+  reason?: string | undefined
+}
 
 export const IDLE_SIDEBAR: SidebarModel = {
   title: null,
@@ -74,7 +86,7 @@ export const IDLE_SIDEBAR: SidebarModel = {
   lastActivity: null,
 }
 
-const TASK_STATE_OF: Record<EPlanStatus, ESidebarTaskState> = {
+export const TASK_STATE_OF: Record<EPlanStatus, ESidebarTaskState> = {
   [EPlanStatus.Pending]: ESidebarTaskState.Pending,
   [EPlanStatus.InProgress]: ESidebarTaskState.Running,
   [EPlanStatus.Completed]: ESidebarTaskState.Done,
@@ -222,8 +234,8 @@ export function withSections(args: {
 }
 
 export function exposedPortsOf(args: {
-  services: readonly ServiceSnapshot[]
-}): readonly BoundPort[] {
+  services: readonly ServiceRowView[]
+}): readonly SidebarPort[] {
   return args.services
     .flatMap((service) => {
       if (service.status !== EServiceStatus.Running || service.exposure === undefined) return []
@@ -236,7 +248,7 @@ export function exposedPortsOf(args: {
 export function containerPillOf(args: {
   location: EExecutionLocation
   container: SidebarContainer
-  exposed: readonly BoundPort[]
+  exposed: readonly SidebarPort[]
 }): SidebarContainer | null {
   if (args.location !== EExecutionLocation.Docker) return null
 

@@ -9,7 +9,7 @@ import { log } from './fixture'
 const MEMORY = { commandLimitBytes: 2.3 * 1024 ** 3, podBytes: 4 * 1024 ** 3 }
 
 describe('a pod-ran-out-of-memory event', () => {
-  it('becomes a pod-oom transcript entry naming the command and the command limit', () => {
+  it('becomes a pod-oom entry titled by the program, with the full command to expand', () => {
     const events = log([
       {
         type: 'pod-ran-out-of-memory',
@@ -26,7 +26,8 @@ describe('a pod-ran-out-of-memory event', () => {
         kind: EEntryKind.PodOom,
         author: EAuthor.Model,
         key: events[0]?.id ?? '',
-        text: "`bunx turbo run typecheck` ran out of memory (commands may use 2.3 GB of the pod's 4 GB)",
+        text: "Pod ran out of memory: the kernel killed `turbo run` (commands may use 2.3 GB of the pod's 4 GB)",
+        command: 'bunx turbo run typecheck',
         scope: EOomScope.Command,
         processes: 3,
       },
@@ -48,7 +49,8 @@ describe('a pod-ran-out-of-memory event', () => {
       kind: EEntryKind.PodOom,
       author: EAuthor.Model,
       key: events[0]?.id ?? '',
-      text: "A process on the pod ran out of memory: the kernel killed 2 processes (commands may use 2.3 GB of the pod's 4 GB)",
+      text: "Pod ran out of memory: the kernel killed 2 processes (commands may use 2.3 GB of the pod's 4 GB)",
+      command: undefined,
       scope: EOomScope.Pod,
       processes: 2,
     })

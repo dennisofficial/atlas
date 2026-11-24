@@ -1,3 +1,0 @@
-Hello from scratch file 1
-This is a test file
-Line 3 has been edited!

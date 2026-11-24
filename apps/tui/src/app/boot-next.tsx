@@ -3,12 +3,13 @@ import { createRoot } from '@opentui/react'
 import { homedir } from 'node:os'
 
 import { clientVersionHeader } from '../build/info'
-import { CrashBoundary } from '../composition/crash-boundary'
-import { trackTerminalFocus } from '../composition/terminal-focus'
-import { readTerminalSize, settleTerminalSize } from '../composition/terminal-size'
-import { kittyImageTransportOf } from '../composition/terminal-image-transport'
+import { CrashBoundary } from '../boot/crash-boundary'
+import { trackTerminalFocus } from '../boot/terminal-focus'
+import { readTerminalSize, settleTerminalSize } from '../boot/terminal-size'
+import { kittyImageTransportOf } from '../boot/terminal-image-transport'
 import { accountPathOf, apiUrlOf, readAccount } from './account/account-file'
 import { AppNext } from './app-next'
+import { launchFlagsOf } from './launch-flags'
 import { createUrlOpener } from './open-url'
 
 const TARGET_FPS = 120
@@ -54,6 +55,7 @@ export async function bootNextAtlas(args: {
   const accountPath = accountPathOf({ env: args.env, home })
   const account = readAccount({ path: accountPath })
   const openUrl = createUrlOpener()
+  const launch = launchFlagsOf({ argv: args.argv })
 
   const root = createRoot(renderer)
   root.render(
@@ -64,6 +66,8 @@ export async function bootNextAtlas(args: {
         apiUrl={account?.apiUrl ?? apiUrlOf({ env: args.env })}
         clientVersion={clientVersionHeader()}
         openUrl={openUrl}
+        launch={launch}
+        cwd={args.cwd}
         onQuit={() => renderer.destroy()}
       />
     </CrashBoundary>,

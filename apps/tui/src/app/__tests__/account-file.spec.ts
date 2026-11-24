@@ -13,6 +13,8 @@ import {
   deleteAccount,
   parseAccount,
   readAccount,
+  withLastSession,
+  withPreferences,
   writeAccount,
   type AccountFile,
 } from '../account/account-file'
@@ -23,6 +25,7 @@ const ACCOUNT: AccountFile = {
   email: 'dennis@example.test',
   token: 'token-1',
   preferences: { accent: 'amber' },
+  lastSessionId: null,
 }
 
 const tempHome = (): string => mkdtempSync(join(tmpdir(), 'atlas-account-'))
@@ -69,6 +72,46 @@ describe('account file', () => {
     expect(
       parseAccount(JSON.stringify({ ...ACCOUNT, email: null, preferences: undefined })),
     ).toEqual({ ...ACCOUNT, email: null, preferences: {} })
+  })
+
+  test('parseAccount carries the last open session and defaults it to null', () => {
+    expect(parseAccount(JSON.stringify({ ...ACCOUNT, lastSessionId: 'session-b' }))).toEqual({
+      ...ACCOUNT,
+      lastSessionId: 'session-b',
+    })
+    expect(
+      parseAccount(JSON.stringify({ ...ACCOUNT, lastSessionId: undefined }))?.lastSessionId,
+    ).toBe(null)
+    expect(parseAccount(JSON.stringify({ ...ACCOUNT, lastSessionId: 7 }))).toBeNull()
+  })
+})
+
+describe('withLastSession', () => {
+  test('replaces the last open session and keeps the rest of the account', () => {
+    expect(withLastSession({ account: ACCOUNT, sessionId: 'session-b' })).toEqual({
+      ...ACCOUNT,
+      lastSessionId: 'session-b',
+    })
+    expect(ACCOUNT.lastSessionId).toBeNull()
+  })
+})
+
+describe('withPreferences', () => {
+  test('replaces the preferences and keeps the token, email and api url', () => {
+    const next = withPreferences({
+      account: ACCOUNT,
+      preferences: { 'appearance.accent': 'moss' },
+    })
+
+    expect(next).toEqual({
+      version: ACCOUNT_FILE_VERSION,
+      apiUrl: ACCOUNT.apiUrl,
+      email: ACCOUNT.email,
+      token: ACCOUNT.token,
+      preferences: { 'appearance.accent': 'moss' },
+      lastSessionId: null,
+    })
+    expect(ACCOUNT.preferences).toEqual({ accent: 'amber' })
   })
 })
 

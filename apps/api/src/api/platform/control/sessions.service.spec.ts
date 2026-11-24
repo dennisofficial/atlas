@@ -15,6 +15,7 @@ import {
   logWithdrawn,
   NOW,
   postedBody,
+  RecordingPreviewTeardown,
   setupSessionsService as setup,
 } from './sessions.service.fixture'
 
@@ -508,5 +509,49 @@ describe('SessionsService markRead', () => {
     await expect(
       service.markRead({ userId: 'user-a', sessionId: created.sessionId, seq: 2 }),
     ).resolves.toEqual({ readSeq: 2 })
+  })
+})
+
+describe('SessionsService archive marks the pod preview tunnel', () => {
+  it('marks the pod deleting on archive and clears the mark on unarchive', async () => {
+    const previews = new RecordingPreviewTeardown()
+    const { service } = setup({ previews })
+    const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
+
+    await service.archive({ userId: 'user-a', sessionId: created.sessionId, archived: true })
+
+    expect(previews.marked).toEqual([{ podSessionId: created.sessionId }])
+    expect(previews.cleared).toEqual([])
+
+    await service.archive({ userId: 'user-a', sessionId: created.sessionId, archived: false })
+
+    expect(previews.cleared).toEqual([{ podSessionId: created.sessionId }])
+    expect(previews.marked).toHaveLength(1)
+  })
+
+  it('marks the pod id a teammate shares with its lead exactly once', async () => {
+    const previews = new RecordingPreviewTeardown()
+    const { store, service } = setup({ previews })
+    const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
+    await store.transact((tx) =>
+      tx.createSession({
+        sessionId: 'peer-1',
+        userId: 'user-a',
+        projectId: 'proj-a',
+        mainThreadId: 'peer-thread-1',
+        modelRef: 'anthropic/claude',
+        modelEffort: 'medium',
+        modelFast: false,
+        sandboxProvider: 'agent37',
+        credentialSource: 'platform',
+        sandboxInstanceId: null,
+        podSessionId: created.sessionId,
+        at: NOW,
+      }),
+    )
+
+    await service.archive({ userId: 'user-a', sessionId: 'peer-1', archived: true })
+
+    expect(previews.marked).toEqual([{ podSessionId: created.sessionId }])
   })
 })

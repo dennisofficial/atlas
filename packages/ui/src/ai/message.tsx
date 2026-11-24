@@ -9,6 +9,7 @@ import {
   MessageSquareShareIcon,
   PencilIcon,
   RefreshCcwIcon,
+  Trash2Icon,
   ThumbsDownIcon,
   ThumbsUpIcon,
 } from 'lucide-react'
@@ -42,7 +43,9 @@ export interface UserMessageProps extends SummariseActions {
   timestamp?: string
   attachments?: readonly MessageAttachment[]
   copyText?: string
+  actionsDisabled?: boolean
   onEdit?: () => void
+  onRemove?: () => void
   onRewind?: () => void
 }
 
@@ -62,11 +65,20 @@ export interface AgentMessageProps {
 interface ActionButtonProps {
   label: string
   pressed?: boolean
+  disabled?: boolean
   onClick?: () => void
+  className?: string
   children: ReactNode
 }
 
-function ActionButton({ label, pressed, onClick, children }: ActionButtonProps) {
+function ActionButton({
+  label,
+  pressed,
+  disabled,
+  onClick,
+  className,
+  children,
+}: ActionButtonProps) {
   return (
     <Tooltip>
       <TooltipTrigger
@@ -76,7 +88,9 @@ function ActionButton({ label, pressed, onClick, children }: ActionButtonProps) 
             size="icon-sm"
             aria-label={label}
             aria-pressed={pressed}
+            disabled={disabled}
             onClick={onClick}
+            className={className}
           />
         }
       >
@@ -87,7 +101,7 @@ function ActionButton({ label, pressed, onClick, children }: ActionButtonProps) 
   )
 }
 
-function CopyAction({ text }: { text: string }) {
+function CopyAction({ text, disabled }: { text: string; disabled?: boolean }) {
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
@@ -104,7 +118,7 @@ function CopyAction({ text }: { text: string }) {
   }
 
   return (
-    <ActionButton label={copied ? 'Copied' : 'Copy'} onClick={handleCopy}>
+    <ActionButton label={copied ? 'Copied' : 'Copy'} disabled={disabled} onClick={handleCopy}>
       {copied ? <CheckIcon /> : <CopyIcon />}
     </ActionButton>
   )
@@ -132,13 +146,17 @@ export function UserMessage({
   timestamp,
   attachments = [],
   copyText,
+  actionsDisabled = false,
   onEdit,
+  onRemove,
   onRewind,
   onSummariseUpTo,
 }: UserMessageProps) {
   const userCopyText = copyText?.trim() ? copyText : undefined
   const summarise = { onSummariseUpTo }
-  const hasActions = Boolean(onEdit || userCopyText || onRewind || hasSummariseAction(summarise))
+  const hasActions = Boolean(
+    onEdit || onRemove || userCopyText || onRewind || hasSummariseAction(summarise),
+  )
 
   return (
     <Message align="end">
@@ -157,17 +175,33 @@ export function UserMessage({
               {hasActions ? (
                 <ActionGroup>
                   {onEdit ? (
-                    <ActionButton label="Edit" onClick={onEdit}>
+                    <ActionButton label="Edit" disabled={actionsDisabled} onClick={onEdit}>
                       <PencilIcon />
                     </ActionButton>
                   ) : null}
-                  {userCopyText ? <CopyAction text={userCopyText} /> : null}
+                  {userCopyText ? (
+                    <CopyAction text={userCopyText} disabled={actionsDisabled} />
+                  ) : null}
                   {onRewind ? (
-                    <ActionButton label="Rewind to here" onClick={onRewind}>
+                    <ActionButton
+                      label="Rewind to here"
+                      disabled={actionsDisabled}
+                      onClick={onRewind}
+                    >
                       <HistoryIcon />
                     </ActionButton>
                   ) : null}
                   <SummariseAction {...summarise} />
+                  {onRemove ? (
+                    <ActionButton
+                      label="Remove"
+                      disabled={actionsDisabled}
+                      onClick={onRemove}
+                      className="hover:text-destructive"
+                    >
+                      <Trash2Icon />
+                    </ActionButton>
+                  ) : null}
                 </ActionGroup>
               ) : null}
             </FooterRow>

@@ -6,6 +6,9 @@ import { EInvocation, parseInvocation } from './text'
 
 const firstLineOf = (text: string): string => text.split('\n')[0] ?? ''
 
+export const clientOnlyReason = (name: string): string =>
+  `/${name} opens in the app. Pick it from the / menu.`
+
 export const clientActionOf = ({
   text,
   commands,

@@ -18,6 +18,7 @@ import {
 import type { DaemonGroup } from './group'
 import { CallLedger, type LedgerOutcome } from './ledger'
 import { ExecutingCalls } from './live-call'
+import { unreadableRunOf } from './unreadable-run'
 
 type Peer = { connection: EngineConnection; epoch: number | null; live: boolean }
 
@@ -172,10 +173,15 @@ export class DaemonEngine {
     }
     const parsed = hostFrameSchema.safeParse(json)
     if (parsed.success) return parsed.data
+    const run = unreadableRunOf(json)
     this.error({
       peer: args.peer,
+      ...(run === undefined ? {} : { key: run.key }),
       errorKind: EDaemonErrorKind.InvalidFrame,
-      message: parsed.error.message,
+      message:
+        run === undefined
+          ? parsed.error.message
+          : `this daemon cannot run ${run.opName}: ${parsed.error.message}`,
     })
     return null
   }

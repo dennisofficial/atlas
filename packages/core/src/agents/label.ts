@@ -1,9 +1,11 @@
+import { oneLine } from '../text/one-line'
+
 const QUOTED_INTENT_CHARACTERS = 120
 
 const ELLIPSIS = '…'
 
 function clippedIntent(intent: string): string {
-  const single = intent.replace(/\s+/g, ' ').trim()
+  const single = oneLine(intent)
   return single.length <= QUOTED_INTENT_CHARACTERS
     ? single
     : `${single.slice(0, QUOTED_INTENT_CHARACTERS)}${ELLIPSIS}`

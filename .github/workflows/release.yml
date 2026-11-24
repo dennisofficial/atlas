@@ -16,7 +16,6 @@ jobs:
   changes:
     runs-on: ubuntu-latest
     outputs:
-      deploy-trigger: ${{ steps.diff.outputs.deploy-trigger }}
       deploy-preview-worker: ${{ steps.diff.outputs.deploy-preview-worker }}
       deploy-artifacts-worker: ${{ steps.diff.outputs.deploy-artifacts-worker }}
     steps:
@@ -27,21 +26,14 @@ jobs:
           BEFORE: ${{ github.event.before }}
           EVENT: ${{ github.event_name }}
         run: |
-          trigger='^(apps/api/|packages/wire/|packages/db/|packages/pods/|packages/jobs/|package\.json$|bun\.lock$|bunfig\.toml$|tsconfig\.base\.json$|\.github/workflows/release\.yml$)'
           worker='^(apps/preview-worker/|\.github/workflows/release\.yml$)'
           artifacts='^(apps/artifacts-host/|packages/artifacts/|\.github/workflows/release\.yml$)'
           if [ "$EVENT" = "workflow_dispatch" ] || ! git fetch --no-tags --depth=1 origin "$BEFORE"; then
-            echo "deploy-trigger=true" >> "$GITHUB_OUTPUT"
             echo "deploy-preview-worker=true" >> "$GITHUB_OUTPUT"
             echo "deploy-artifacts-worker=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           changed=$(git diff --name-only "$BEFORE" "$GITHUB_SHA")
-          if echo "$changed" | grep -Eq "$trigger"; then
-            echo "deploy-trigger=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "deploy-trigger=false" >> "$GITHUB_OUTPUT"
-          fi
           if echo "$changed" | grep -Eq "$worker"; then
             echo "deploy-preview-worker=true" >> "$GITHUB_OUTPUT"
           else
@@ -84,6 +76,7 @@ jobs:
           file: apps/api/docker/Dockerfile
           push: true
           platforms: linux/amd64
+          build-args: ATLAS_APP_VERSION=${{ github.sha }}
           labels: org.opencontainers.image.source=https://github.com/${{ github.repository }}
           tags: |
             ${{ env.IMAGE }}:${{ github.sha }}
@@ -169,46 +162,6 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_TEAM_ID: ${{ vars.VERCEL_TEAM_ID }}
           VERCEL_WEB_PROJECT: ${{ vars.VERCEL_WEB_PROJECT }}
-
-  deploy-trigger:
-    needs: [changes, render-live]
-    if: ${{ !cancelled() && !failure() && needs.changes.outputs.deploy-trigger == 'true' }}
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/api
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: oven-sh/setup-bun@v2.2.0
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version-file: .nvmrc
-
-      - uses: actions/cache@v6
-        with:
-          path: ~/.bun/install/cache
-          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-
-      - run: bun install --frozen-lockfile
-        working-directory: .
-
-      # The CLI authenticates from TRIGGER_ACCESS_TOKEN (a tr_pat_ personal token) and reads the
-      # project ref from trigger.config.ts; --profile only selects a local login.
-      - name: deploy tasks to prod
-        run: bun run trigger:deploy:ci
-        env:
-          TRIGGER_ACCESS_TOKEN: ${{ secrets.TRIGGER_ACCESS_TOKEN }}
-
-      - name: smoke the deployed worker
-        timeout-minutes: 4
-        run: |
-          key=$(./node_modules/.bin/dotenvx get TRIGGER_SECRET_KEY -f .env.production.enc)
-          echo "::add-mask::$key"
-          TRIGGER_SECRET_KEY="$key" bun run trigger:smoke
-        env:
-          DOTENV_PRIVATE_KEY_PRODUCTION_ENC: ${{ secrets.DOTENV_PRIVATE_KEY_PRODUCTION_ENC }}
 
   deploy-preview-worker:
     needs: changes

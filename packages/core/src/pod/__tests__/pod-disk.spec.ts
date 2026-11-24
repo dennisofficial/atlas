@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EPodDiskPressure, podDiskGrowthOf, podDiskPressureOf } from '../pod-disk'
+import {
+  EPodDiskCeilingAction,
+  EPodDiskPressure,
+  POD_DISK_CEILING_NUDGE_LEVELS,
+  POD_DISK_CEILING_REARM_BELOW,
+  podDiskCeilingNudgeOf,
+  podDiskGrowthOf,
+  podDiskPressureOf,
+} from '../pod-disk'
 
 const GB = 2 ** 30
 
@@ -85,5 +93,103 @@ describe('podDiskPressureOf', () => {
 
   it('is fine on a volume with no limit to read', () => {
     expect(podDiskPressureOf({ usedBytes: 5 * GB, limitBytes: 0 })).toBe(EPodDiskPressure.Fine)
+  })
+})
+
+describe('podDiskCeilingNudgeOf', () => {
+  it.each([
+    {
+      name: 'a disk with no limit',
+      usedGb: 10,
+      limitGb: 0,
+      nudged: undefined,
+      action: EPodDiskCeilingAction.None,
+    },
+    {
+      name: '84 percent',
+      usedGb: 84,
+      limitGb: 100,
+      nudged: undefined,
+      action: EPodDiskCeilingAction.None,
+    },
+    {
+      name: '85 percent',
+      usedGb: 85,
+      limitGb: 100,
+      nudged: undefined,
+      action: EPodDiskCeilingAction.Nudge,
+      percent: 85,
+    },
+    {
+      name: '85 percent already nudged',
+      usedGb: 86,
+      limitGb: 100,
+      nudged: 85,
+      action: EPodDiskCeilingAction.None,
+    },
+    {
+      name: '94 percent',
+      usedGb: 94,
+      limitGb: 100,
+      nudged: 85,
+      action: EPodDiskCeilingAction.None,
+    },
+    {
+      name: '95 percent after the 85 percent nudge',
+      usedGb: 95,
+      limitGb: 100,
+      nudged: 85,
+      action: EPodDiskCeilingAction.Nudge,
+      percent: 95,
+    },
+    {
+      name: 'a full disk already nudged twice',
+      usedGb: 100,
+      limitGb: 100,
+      nudged: 95,
+      action: EPodDiskCeilingAction.None,
+    },
+    {
+      name: '80 percent after the 85 percent nudge',
+      usedGb: 80,
+      limitGb: 100,
+      nudged: 85,
+      action: EPodDiskCeilingAction.None,
+    },
+    {
+      name: '79 percent after the 85 percent nudge',
+      usedGb: 79,
+      limitGb: 100,
+      nudged: 85,
+      action: EPodDiskCeilingAction.Rearm,
+    },
+    {
+      name: '79 percent with nothing nudged',
+      usedGb: 79,
+      limitGb: 100,
+      nudged: undefined,
+      action: EPodDiskCeilingAction.None,
+    },
+    {
+      name: '85 percent of a 20 GB volume',
+      usedGb: 17,
+      limitGb: 20,
+      nudged: undefined,
+      action: EPodDiskCeilingAction.Nudge,
+      percent: 85,
+    },
+  ])('reads $name as $action', ({ usedGb, limitGb, nudged, action, percent }) => {
+    expect(
+      podDiskCeilingNudgeOf({
+        usedBytes: usedGb * GB,
+        limitBytes: limitGb * GB,
+        nudgedPercent: nudged,
+      }),
+    ).toEqual({ action, ...(percent === undefined ? {} : { percent }) })
+  })
+
+  it('names its levels and re-arm threshold', () => {
+    expect(POD_DISK_CEILING_NUDGE_LEVELS).toEqual([85, 95])
+    expect(POD_DISK_CEILING_REARM_BELOW).toBe(80)
   })
 })

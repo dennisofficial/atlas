@@ -119,6 +119,6 @@ describe('a message posted without an origin', () => {
       via: EMessageOrigin.PeerAgent,
     })
     expect(inbox[0]?.senderSessionId).toBe(SPAWNER)
-    expect(posted).toEqual({ inboxId: 1 })
+    expect(posted).toEqual({ inboxId: 1, title: 'Lexer rewrite' })
   })
 })

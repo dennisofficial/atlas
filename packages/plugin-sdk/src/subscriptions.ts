@@ -1,4 +1,4 @@
-import type { JsonValue } from '@dltech/atlas-core'
+import type { JsonValue, SubscribedTarget } from '@dltech/atlas-core'
 import type { SessionSubscription } from '@dltech/atlas-protocol'
 
 export type PodSubscriptionLease = {
@@ -17,9 +17,12 @@ export type PodSubscribeArgs = {
 
 export type PodSubscriptions = {
   list(): Promise<readonly SessionSubscription[]>
-  subscribe(
-    args: PodSubscribeArgs,
-  ): Promise<{ subscription: SessionSubscription; existed: boolean; updated: boolean }>
+  subscribe(args: PodSubscribeArgs): Promise<{
+    subscription: SessionSubscription
+    existed: boolean
+    updated: boolean
+    target?: SubscribedTarget | undefined
+  }>
   unsubscribe(args: { subscriptionId: string }): Promise<{ ended: boolean }>
 }
 

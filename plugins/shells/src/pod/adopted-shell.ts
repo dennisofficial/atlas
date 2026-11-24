@@ -1,8 +1,9 @@
 import type { RegisteredHook } from '@dltech/atlas-agent'
-import { EStage, type AfterTool } from '@dltech/atlas-core'
+import { EStage, type AfterTool, type EventDraft } from '@dltech/atlas-core'
 import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 import { z } from 'zod'
 
+import { recordShellEnding } from './ending'
 import type { ShellPodState } from './state'
 import { hasStarted } from './status'
 
@@ -23,7 +24,7 @@ const cwdOf = (args: { input: unknown; projectDirectory: string }): string => {
 }
 
 export const adoptedShellHook = (args: {
-  ctx: Pick<PluginPodContext, 'events'>
+  ctx: PluginPodContext
   state: ShellPodState
 }): RegisteredHook<AfterTool> => ({
   name: 'shells-adopted-bash',
@@ -33,19 +34,23 @@ export const adoptedShellHook = (args: {
     const parsed = backgroundedOutputSchema.safeParse(result.output)
     if (!parsed.success) return {}
     const adopted = parsed.data
-    args.state.live.note(adopted.shellId)
     if (adopted.input === true) args.state.inputs.add(adopted.shellId)
     if (hasStarted({ events: args.ctx.events(), shellId: adopted.shellId })) return {}
-    return {
-      drafts: [
-        {
-          type: 'background-shell-started',
-          shellId: adopted.shellId,
-          command: adopted.command,
-          ...(adopted.description === undefined ? {} : { description: adopted.description }),
-          cwd: cwdOf({ input: call.input, projectDirectory }),
-        },
-      ],
+    const started: EventDraft = {
+      type: 'background-shell-started',
+      shellId: adopted.shellId,
+      command: adopted.command,
+      ...(adopted.description === undefined ? {} : { description: adopted.description }),
+      cwd: cwdOf({ input: call.input, projectDirectory }),
     }
+    const ending = args.state.unclaimed.get(adopted.shellId)
+    if (ending === undefined) {
+      args.state.live.note(adopted.shellId)
+      return { drafts: [started] }
+    }
+    args.state.unclaimed.delete(adopted.shellId)
+    await args.ctx.append([started])
+    await recordShellEnding({ ctx: args.ctx, state: args.state, frame: ending })
+    return {}
   },
 })

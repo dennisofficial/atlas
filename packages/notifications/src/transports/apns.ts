@@ -8,6 +8,8 @@ import {
   NOTIFY_DATA_CLEAR_SESSION_KEY,
   NOTIFY_DATA_SEQ_KEY,
   NOTIFY_DATA_SESSION_KEY,
+  momentDataOf,
+  routineDataOf,
   type AtlasNotification,
   type NotifyDevice,
 } from '../model'
@@ -152,10 +154,12 @@ const requestOf = (args: {
       aps: {
         alert: { title: notification.title, body: notification.body },
         'thread-id': notification.sessionId,
-        sound: 'default',
+        ...(notification.silent === true ? {} : { sound: 'default' }),
       },
       [NOTIFY_DATA_SESSION_KEY]: notification.sessionId,
       [NOTIFY_DATA_SEQ_KEY]: notification.seq,
+      ...routineDataOf(notification),
+      ...momentDataOf(notification),
     }),
   }
 }

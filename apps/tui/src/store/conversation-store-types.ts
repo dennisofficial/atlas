@@ -1,6 +1,6 @@
 import type { Event, ThreadId } from '@dltech/atlas-core'
 import type { ChannelSignal, Unsubscribe } from '@dltech/atlas-client/channel'
-import type { TurnSpend } from '@dltech/atlas-harness'
+import type { TurnSpend } from '@dltech/atlas-client/transcript'
 import type {
   EThinkingVisibility,
   InFlightStep,

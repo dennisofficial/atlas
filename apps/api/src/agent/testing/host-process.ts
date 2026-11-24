@@ -10,12 +10,12 @@ import {
   nativeControlHandlers,
   resize,
 } from '@dltech/atlas-native-commands'
-import { composedPlugins } from '../registered-plugins'
+import { composedPlugins, controlEventSchema } from '../registered-plugins'
 import { ERunFailureKind, ModelPort } from '@dltech/atlas-core'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import { createDb, createPool } from '@dltech/atlas-db'
 import { RandomIds } from '../runtime/random-ids'
-import { SessionHolder, systemTimers } from '@dltech/atlas-host'
+import { SessionHolder, systemTimers, type NotifyDispatch } from '@dltech/atlas-host'
 import { createPgHostPresence } from '../presence/pg-host-presence'
 import { startHostWatch, type HostWatch } from '../presence/pg-host-watch'
 import { LogPort, logFieldsOf } from '@dltech/atlas-observability'
@@ -31,6 +31,8 @@ import { fakeModelSourceOf } from './model-source'
 import { recordingModelOf } from './model-requests'
 import { routedModelOf, scriptRoutesOf } from './script-routing'
 import { createSessionRuntimeFactory } from '../runtime/session-runtime-factory'
+import { contextDirOf } from '../runtime/session-paths'
+import { DiskContextContentStore } from './disk-context-content-store'
 import { FixedEndpointSandboxProvider } from './fixed-endpoint-sandbox-provider'
 import { faultedPlane, faultSandbox, hostFaultOf } from './host-faults'
 import type { JobsProjectDispatcher } from '../../_core/ports/job-dispatcher'
@@ -145,6 +147,41 @@ const noPodResizeDispatcher: JobsProjectDispatcher = {
   dispatch: async () => ({ runId: 'test-host-process' }),
 }
 
+const notifyOf = () => {
+  const path = process.env.NOTIFY_FILE
+  if (path === undefined || path === '') return {}
+  return { notify: recordingNotifyOf(path) }
+}
+
+const contextMirrorOf = () => {
+  const root = process.env.CONTEXT_MIRROR_DIR
+  if (root === undefined || root === '') return {}
+  return {
+    contextMirror: {
+      content: new DiskContextContentStore({ root }),
+      contextDir: (sessionId: string) => contextDirOf(sessionId, process.env.SANDBOX_HOME),
+    },
+  }
+}
+
+const recordingNotifyOf =
+  (path: string): NotifyDispatch =>
+  async (send) => {
+    appendFileSync(
+      path,
+      `${JSON.stringify({
+        sessionId: send.sessionId,
+        threadId: send.threadId,
+        seq: send.seq,
+        moment: send.moment,
+        verdict: send.decision.verdict,
+        holdMs: send.decision.holdMs,
+        pending: send.decision.pending,
+        operatorTurn: send.decision.operatorTurn,
+      })}\n`,
+    )
+  }
+
 const testTokens = () => ({
   issue: async (): Promise<never> => {
     throw new Error('unused')
@@ -182,7 +219,10 @@ const main = async (): Promise<void> => {
   const pool = createPool(requireEnv('DATABASE_URL'), {
     queryTimeoutMs: numberEnv('DB_QUERY_TIMEOUT_MS', 10_000),
   })
-  const realPlane = new ControlPlane({ store: new PostgresControlStore(createDb(pool)) })
+  const realPlane = new ControlPlane({
+    store: new PostgresControlStore(createDb(pool)),
+    eventSchema: controlEventSchema,
+  })
   const log = new JsonLog()
   const fault = hostFaultOf(process.env.FAULT)
   const plane = faultedPlane({ plane: realPlane, fault, log })
@@ -251,13 +291,16 @@ const main = async (): Promise<void> => {
     appendRetryMs: numberEnv('APPEND_RETRY_MS', 2_500),
     sweepMs: numberEnv('SWEEP_MS', 20_000),
     commands: composeCommands([...nativeCommands, ...composedPlugins.commands]),
-    commandHandlers: new Map([...nativeCommandHandlers, ...composedPlugins.pod.commands]),
+    commandHandlers: nativeCommandHandlers,
+    podCommands: [composedPlugins.pod.commands],
     controlHandlers: new Map([
       ...nativeControlHandlers,
       [resize.spec.name, podResizeHandlerOf({ plane, dispatcher: noPodResizeDispatcher })],
     ]),
     log,
     podCallBus: podCalls,
+    ...contextMirrorOf(),
+    ...notifyOf(),
     onHostIdChanged: () => watch?.recompute(),
   })
   held = holder

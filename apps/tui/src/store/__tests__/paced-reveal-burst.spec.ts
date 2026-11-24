@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'bun:test'
 
-import { createDeltaChannel } from '@dltech/atlas-harness'
 import { fixtureThreadId } from '@dltech/atlas-client/transcript-fixture'
 
 import { createConversationStore } from '../conversation-store'
-import { channelSignalFeed } from '../../composition/channel-signal-feed'
+import { channelSignalFeed, createDeltaChannel } from './signal-feed-fixture'
 import { EEntryKind } from '@dltech/atlas-client/transcript'
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))

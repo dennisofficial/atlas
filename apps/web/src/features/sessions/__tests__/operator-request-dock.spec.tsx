@@ -2,13 +2,8 @@ import { registerDom, unregisterDom } from '@/lib/__tests__/happy-dom-globals'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'bun:test'
 import { act, type ReactElement } from 'react'
 
-import {
-  ETranscriptKind,
-  type RequestItem,
-  type TranscriptRow,
-} from '@/features/threads/data/transcript-items'
+import { ETranscriptKind, type RequestItem } from '@/features/threads/data/transcript-items'
 
-import { pendingOperatorRequestOf } from '../data/use-operator-request'
 import { OperatorRequestDock } from '../operator-request-dock'
 
 const PROMPT = 'Paste the login code from your email'
@@ -111,17 +106,6 @@ const click = (element: Element | null | undefined) =>
   })
 
 describe('the operator request dock', () => {
-  it('finds the earliest pending call among the transcript rows', () => {
-    const rows: TranscriptRow[] = [
-      itemOf({ state: 'delivered' }),
-      itemOf({ callId: 'call_2' }),
-      itemOf({ callId: 'call_3' }),
-    ]
-
-    expect(pendingOperatorRequestOf(rows)?.callId).toBe('call_2')
-    expect(pendingOperatorRequestOf([itemOf({ state: 'expired' })])).toBeNull()
-  })
-
   it('draws nothing when no request is waiting', async () => {
     await mount(<OperatorRequestDock sessionId={SESSION} request={null} />)
 

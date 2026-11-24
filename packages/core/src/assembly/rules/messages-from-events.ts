@@ -1,4 +1,11 @@
-import { agentSaid, laneNameOf, operatorSaid, replyHintOf } from '../../context/envelope'
+import {
+  agentSaid,
+  ELane,
+  envelopeOf,
+  laneNameOf,
+  operatorSaid,
+  replyHintOf,
+} from '../../context/envelope'
 import { contextBlock } from '../../context/render'
 import { currentContextEvents } from '../../context/supersede'
 import { EMessageOrigin, saidBy, type AssistantPart } from '../../events/body'
@@ -6,6 +13,8 @@ import { callIdsIn, freshCallId } from '../../events/dedupe-call-ids'
 import type { Event, EventOfType, EventRef } from '../../events/envelope'
 import { isNoticeArrival } from '../../events/notice-stage'
 import { liveNudgeIds } from '../../events/nudges'
+import { RESUME_AFTER_INTERRUPTED_TOOL } from '../../events/resume-plan'
+import { EResumePoint, type ResumeDiscard } from '../../record/resume-point'
 import { attachmentsOf, mediaFilesOf, uploadsOf } from '../../attachments'
 import type { ToolCallPart, ToolResultPart, UserContentPart } from '../../message/parts'
 import { shellEventContextsOf } from '../../shells/lifecycle'
@@ -25,6 +34,7 @@ import { podOomBlock } from './pod-oom-block'
 import { prEventBlock } from './pr-event-block'
 import { runEventBlock } from './run-event-block'
 import { sandboxSetupBlock } from './sandbox-setup-block'
+import { sessionArchivedBlock } from './session-archived-block'
 import { serviceEndedBlock } from './service-ended-block'
 import { subscriptionBlock, type SubscriptionLabels } from './subscription-block'
 import { attachedFilesBlock } from './attached-files-block'
@@ -162,6 +172,15 @@ function saidContent({
   ]
 }
 
+const resumeInterruptedBlock = (): string =>
+  envelopeOf({ lane: ELane.Notice, source: 'resume', body: RESUME_AFTER_INTERRUPTED_TOOL })
+
+const discardRangesOf = (events: readonly Event[]): readonly ResumeDiscard[] =>
+  events.flatMap((event) => (event.type === 'resume-marked' ? event.discards : []))
+
+const isDiscarded = (params: { ranges: readonly ResumeDiscard[]; seq: number }): boolean =>
+  params.ranges.some((range) => range.fromSeq <= params.seq && params.seq <= range.throughSeq)
+
 type Walk = { groups: readonly Group[]; settlements: ReadonlyMap<string, SettledCall> }
 
 function walkEvents({
@@ -183,10 +202,12 @@ function walkEvents({
   const toldByKill = endingsToldByKill(events)
   const shellContexts = shellEventContextsOf(events)
   const subscriptionLabels: SubscriptionLabels = new Map()
+  const discards = discardRangesOf(events)
   let openAssistant: Group | undefined
 
   for (const event of events) {
     if (isNoticeArrival(event)) continue
+    if (isDiscarded({ ranges: discards, seq: event.seq })) continue
 
     if (event.type === 'assistant-said') {
       if (event.aborted === 'handoff') {
@@ -254,6 +275,16 @@ function walkEvents({
 
       groups.push({
         message: { role: 'user', content: [{ type: 'text', text: nudgeBlock(event) }] },
+        origin: originOf(event),
+      })
+      continue
+    }
+
+    if (event.type === 'resume-marked') {
+      if (event.point !== EResumePoint.ToolInterrupted) continue
+
+      groups.push({
+        message: { role: 'user', content: [{ type: 'text', text: resumeInterruptedBlock() }] },
         origin: originOf(event),
       })
       continue
@@ -386,6 +417,17 @@ function walkEvents({
 
       groups.push({
         message: { role: 'user', content: [{ type: 'text', text }] },
+        origin: originOf(event),
+      })
+      continue
+    }
+
+    if (event.type === 'session-archived') {
+      groups.push({
+        message: {
+          role: 'user',
+          content: [{ type: 'text', text: sessionArchivedBlock(event) }],
+        },
         origin: originOf(event),
       })
       continue

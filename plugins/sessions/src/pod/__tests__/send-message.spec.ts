@@ -104,6 +104,20 @@ describe('send_message', () => {
     expect(textOf(outcome)).toBe('Sent to p1.')
   })
 
+  it('names the receiver beside its id when the address has a name', async () => {
+    const messages = fakeMessages({
+      delivered: true,
+      to: 'p1',
+      name: 'Lexer rewrite',
+      queued: false,
+    })
+    const { ctx } = rig(messages.port)
+    const outcome = await invoke({ ctx, input: { to: 'p1', text: 'hello' } })
+
+    expect(outcome.ok && outcome.output).toEqual({ to: 'p1', name: 'Lexer rewrite', queued: false })
+    expect(textOf(outcome)).toBe('Sent to Lexer rewrite (p1).')
+  })
+
   it('says a busy receiver reads the message after its current step', async () => {
     const messages = fakeMessages({ delivered: true, to: 'a1', queued: true })
     const { ctx } = rig(messages.port)

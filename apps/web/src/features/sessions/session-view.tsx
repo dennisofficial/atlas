@@ -3,25 +3,27 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
-import { ESessionStatus } from '@dltech/atlas-core'
+import { clientOnlyReason } from '@dltech/atlas-commands'
+
 import { liveBackgroundOf } from '@dltech/atlas-client/crew'
-import { mergedDraftOf, postInputOf } from '@dltech/atlas-client/session'
-import { ESessionConnection } from '@dltech/atlas-client/stream'
+import { mergedDraftOf } from '@dltech/atlas-client/session'
+import { ESessionConnection, startFailureOf } from '@dltech/atlas-client/stream'
+import { turnStartedAtOf } from '@dltech/atlas-client/transcript'
+import { pendingOperatorRequestOf } from '@dltech/atlas-plugin-operator/client'
 
 import { useV2Sessions } from '@/features/shell/use-v2-sessions'
 import { messageOf } from '@/features/threads/data/use-send'
 import { ThreadPanelProvider } from '@/features/threads/panel/thread-panel-context'
-import { useComposerAttachments } from '@/features/threads/data/use-composer-attachments'
+import { mediaUrls } from '@/features/threads/data/media-urls'
 import { ModelPickerControls } from '@/features/threads/model-picker'
 import { ThreadComposer } from '@/features/threads/thread-composer'
 import { ThreadTranscript } from '@/features/threads/thread-transcript'
-import { turnStartedAtOf } from '@/features/threads/data/turn-start'
 import { SummariseDialog } from '@/features/threads/transcript/summarise-dialog'
 import { RewindDialog } from '@/features/threads/transcript/rewind-dialog'
 import { track } from '@/lib/analytics/analytics'
 import { sessionOpenedProps } from '@/lib/analytics/perf'
 
-import { attachmentsOf } from '@dltech/atlas-core'
+import { readingClasses } from '@dltech/atlas-ui/tokens'
 
 import { useSessionAgentWiring } from './data/use-session-agent-wiring'
 import { sessionsApi } from './data/sessions-api'
@@ -36,6 +38,7 @@ import { sessionTranscriptOf } from './data/session-transcript'
 import { useDiagramRepairedTranscript } from './data/use-session-diagram-transcript'
 import { useSessionMarkRead } from './data/use-session-mark-read'
 import { useSessionModelChoice } from './data/use-session-model-choice'
+import { useModelSwitchRetry } from './data/use-model-switch-retry'
 import { useSessionRunFailure } from './data/use-session-run-failure'
 import { useCredentialRepair } from './data/use-credential-repair'
 import { sessionViewModelOf } from './data/session-view-model'
@@ -45,21 +48,21 @@ import { RepairKeyDialog } from './repair-key-dialog'
 import { RepairSignInDialog } from './repair-sign-in-dialog'
 import { RepairStrip } from './repair-strip'
 import { SessionUpdateCard } from './session-update-card'
-import { useQueuedDock } from './data/use-queued-dock'
+import { useQueuedTranscript } from './data/use-queued-transcript'
 import { useStagedMessages } from './data/use-staged-messages'
-import { useSessionAttachments } from './data/use-session-attachments'
+import { useSessionComposer } from './data/use-session-composer'
+import { useSessionDraft } from './data/use-session-draft'
+import { useDraftAttachments } from './data/use-draft-attachments'
 import { useSessionReveal } from './data/use-session-reveal'
 import { useSessionSkills } from './data/use-session-skills'
 import { useSessionCommands } from './data/use-session-commands'
-import { composerEntriesOf } from './data/session-commands'
+import { composerEntriesOf, requestResume, resumePendingOf } from './data/session-commands'
 import { composerActionsOf } from './data/session-composer-actions'
 import { useSessionSummarise } from './data/use-session-summarise'
-import { pendingOperatorRequestOf } from './data/use-operator-request'
 import { useSessionStream } from './data/use-session-stream'
 import { CommandRows } from './command-rows'
 import { CommandListDialog } from './command-list-dialog'
 import { ConnectionLine } from './connection-line'
-import { QueuedDock } from './queued-dock'
 import { RefusalRows } from './refusal-rows'
 import { SessionPreviewsProvider } from './panel/browser/previews-provider'
 import { ESessionPaneTab } from './panel/pane-tab'
@@ -104,13 +107,29 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     )
     return (id: string) => titles.get(id)
   }, [sessions])
-  const [draft, setDraft] = useState('')
-  const [sending, setSending] = useState(false)
-  const retryClientId = useRef<string | undefined>(undefined)
-  const files = useComposerAttachments()
-  const attachments = useSessionAttachments({ files })
   const working = isSessionWorking(snapshot.status)
-  const turnStartedAt = useMemo(() => turnStartedAtOf(snapshot.foldable), [snapshot.foldable])
+  const composer = useSessionComposer({ sessionId, working })
+  const draftAttachments = useDraftAttachments({
+    media: composer.attachments.media,
+    uploads: composer.attachments.uploads,
+  })
+  const drafts = useSessionDraft({
+    sessionId,
+    text: composer.draft,
+    attachments: draftAttachments,
+    onRestore: (stored) => {
+      composer.setDraft(stored.text)
+      composer.attachments.restore({
+        attachments: stored.attachments,
+        previewOf: (hash) => mediaUrls.urlOf({ sessionId, hash }),
+      })
+    },
+  })
+  const startFailure = startFailureOf(snapshot.status)
+  const turnStartedAt = useMemo(
+    () => turnStartedAtOf({ events: snapshot.foldable, status: snapshot.status }),
+    [snapshot.foldable, snapshot.status],
+  )
   const reveal = useSessionReveal(snapshot)
   const view = useMemo(
     () =>
@@ -136,7 +155,10 @@ export function SessionView({ sessionId }: { sessionId: string }) {
       }),
     [snapshot.foldable, snapshot.status, snapshot.setupOutput, snapshot.connection],
   )
-  const operatorRequest = useMemo(() => pendingOperatorRequestOf(view.items), [view.items])
+  const operatorRequest = useMemo(
+    () => pendingOperatorRequestOf({ events: snapshot.events }),
+    [snapshot.events],
+  )
   const model = useMemo(() => sessionViewModelOf(snapshot.view), [snapshot.view])
   const background = useMemo(
     () =>
@@ -163,20 +185,24 @@ export function SessionView({ sessionId }: { sessionId: string }) {
   const stagedRun = useStagedMessages({
     sessionId,
     events: snapshot.events,
-    working,
-    draft,
-    onDraftChange: setDraft,
+    pending: snapshot.pending,
+    draft: composer.draft,
+    onDraftChange: composer.setDraft,
   })
-  const queuedDock = useQueuedDock({
+  const queuedTranscript = useQueuedTranscript({
     sessionId,
     pending: snapshot.pending,
-    queueStaged: stagedRun.queue,
-    transcriptStaged: stagedRun.transcript,
-    draft,
-    onDraftChange: setDraft,
+    events: snapshot.events,
+    staged: stagedRun.staged,
+    items: transcriptItems,
+    draft: composer.draft,
+    onDraftChange: composer.setDraft,
+    onRestoreAttachments: composer.attachments.restore,
   })
 
-  const handleRetry = () => retrySessionNow(sessionId)
+  const handleRetry = async () => {
+    await retrySessionNow(sessionId)
+  }
   const handleStop = () => void stopSession({ api: sessionsApi, sessionId, notify: toast.error })
   const handleOpenPodSize = useCallback(() => {
     pane.openTab(ESessionPaneTab.Details)
@@ -188,8 +214,11 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     events: snapshot.events,
     api: sessionsApi,
     onRestore: (restored) => {
-      setDraft((current) => mergedDraftOf({ rewound: restored.text, current }))
-      attachments.restore({ attachments: restored.attachments, previewOf: restored.previewOf })
+      composer.setDraft((current) => mergedDraftOf({ rewound: restored.text, current }))
+      composer.attachments.restore({
+        attachments: restored.attachments,
+        previewOf: restored.previewOf,
+      })
     },
   })
   const [dismissedRefusals, setDismissedRefusals] = useState<ReadonlySet<number>>(new Set())
@@ -208,6 +237,17 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     })
 
   const summarise = useSessionSummarise({ sessionId, events: snapshot.events })
+  const resume = useMemo(
+    () => ({
+      pending: resumePendingOf(snapshot.status?.commands),
+      onResume: () => {
+        requestResume({ api: sessionsApi, sessionId }).catch((failure: unknown) => {
+          toast.error(messageOf(failure))
+        })
+      },
+    }),
+    [sessionId, snapshot.status?.commands],
+  )
   const skillEntries = useSessionSkills({ events: snapshot.foldable })
   const commandEntries = useSessionCommands()
   const [commandListOpen, setCommandListOpen] = useState(false)
@@ -215,17 +255,19 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     () => composerEntriesOf({ commands: commandEntries, skills: skillEntries }),
     [commandEntries, skillEntries],
   )
-  const repairSelected = useRef<(() => void) | null>(null)
+  const switchRetry = useModelSwitchRetry()
   const choice = useSessionModelChoice({
     sessionId,
     current: sessionModelOf(listed),
-    onSelected: () => repairSelected.current?.(),
+    onSelected: switchRetry.handleModelSelected,
+    onClosed: switchRetry.disarm,
   })
   const composerActions = useMemo(
     () =>
       composerActionsOf({
         openModelPicker: () => choice.setOpen(true),
         openCommandList: () => setCommandListOpen(true),
+        reportHidden: (name) => toast.info(clientOnlyReason(name)),
       }),
     [choice.setOpen],
   )
@@ -234,42 +276,17 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     mainThreadId: listed?.mainThreadId,
     events: snapshot.events,
     onSwitchModel: () => choice.setOpen(true),
+    retryAfterModel: switchRetry,
   })
-  useEffect(() => {
-    repairSelected.current = repair.handleModelSelected
-  }, [repair.handleModelSelected])
   const failure = useSessionRunFailure({
     sessionId,
     events: snapshot.events,
     working,
     openAgent,
     onSwitchModel: () => choice.setOpen(true),
+    retryAfterModel: switchRetry,
     repair,
   })
-
-  const handleSubmit = async (text: string) => {
-    if (!attachments.checkSendable()) return
-    const { media, uploads } = attachments
-    if (text.trim().length === 0 && media.length === 0 && uploads.length === 0) return
-    const clientId = retryClientId.current ?? crypto.randomUUID()
-    setSending(true)
-    try {
-      await sessionsApi.post(postInputOf({ sessionId, text, clientId, media, uploads }))
-      stagedRun.stage({
-        clientId,
-        text,
-        attachments: [...media, ...attachmentsOf({ uploads })],
-      })
-      retryClientId.current = undefined
-      setDraft('')
-      attachments.clear()
-    } catch (failure) {
-      retryClientId.current = clientId
-      toast.error(messageOf(failure))
-    } finally {
-      setSending(false)
-    }
-  }
 
   return (
     <SessionPaneProvider value={wiring.paneValue}>
@@ -313,7 +330,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
             >
               <div className="min-h-0 flex-1">
                 <ThreadTranscript
-                  items={transcriptItems}
+                  items={queuedTranscript.transcript}
                   failureCard={failure.card}
                   repairCard={failure.repairCard}
                   failedLabel={failure.failedLabel}
@@ -325,13 +342,16 @@ export function SessionView({ sessionId }: { sessionId: string }) {
                   onOpenPodSize={handleOpenPodSize}
                   rewind={rewind}
                   summarise={summarise.transcript}
+                  resume={resume}
                   repairDiagram={repairDiagram}
                   boot={boot}
-                  staged={queuedDock.transcriptEntries}
+                  queued={queuedTranscript.queued}
                   onLoadOlder={loadOlder}
                 />
               </div>
-              <div className="mx-auto flex w-full max-w-4xl shrink-0 flex-col gap-2 px-4 pb-[max(1rem,var(--safe-area-bottom))]">
+              <div
+                className={`mx-auto flex w-full ${readingClasses.measure} shrink-0 flex-col gap-2 px-4 pb-[max(1rem,var(--safe-area-bottom))]`}
+              >
                 <OperatorRequestDock sessionId={sessionId} request={operatorRequest} />
                 <RepairStrip strip={repair.strip} />
                 {snapshot.skipped > 0 ? (
@@ -344,9 +364,9 @@ export function SessionView({ sessionId }: { sessionId: string }) {
                   snapshot={snapshot}
                   onReconnect={() => sessionStream().reconnect()}
                 />
-                {snapshot.status?.state === ESessionStatus.StartFailed ? (
-                  <StartFailedCard reason={snapshot.status.reason} onRetry={handleRetry} />
-                ) : null}
+                {startFailure === undefined ? null : (
+                  <StartFailedCard reason={startFailure.reason} onRetry={handleRetry} />
+                )}
                 <RefusalRows refusals={refusals} onDismiss={dismissRefusals} />
                 <RepairSignInDialog {...repair.dialogs.signIn} />
                 <RepairKeyDialog {...repair.dialogs.key} />
@@ -358,15 +378,20 @@ export function SessionView({ sessionId }: { sessionId: string }) {
                   entries={composerEntries}
                 />
                 <CommandRows rows={snapshot.status?.commands} />
-                <QueuedDock dock={queuedDock} />
                 <ThreadComposer
-                  value={draft}
-                  onValueChange={setDraft}
-                  onSubmit={(text) => void handleSubmit(text)}
+                  value={composer.draft}
+                  onValueChange={composer.setDraft}
+                  onSubmit={(text) =>
+                    void composer.handleSubmit({
+                      text,
+                      stage: stagedRun.stage,
+                      onSent: drafts.handleSent,
+                    })
+                  }
                   entries={composerEntries}
                   clientActions={composerActions}
-                  sending={sending || attachments.uploading}
-                  {...attachments.composerProps}
+                  sending={composer.sending || composer.attachments.uploading}
+                  {...composer.attachments.composerProps}
                   sendsAttachmentsAlone
                   working={working}
                   onStop={handleStop}

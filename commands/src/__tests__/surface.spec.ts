@@ -3,6 +3,7 @@ import {
   catalogueForSurface,
   composeCommands,
   ECommandSource,
+  EHiddenBecause,
   entryOf,
   ESurface,
   parseInvocation,
@@ -13,13 +14,16 @@ import { nativeCommands } from '..'
 
 const registry = composeCommands(nativeCommands)
 
+const nativeHidesOf = (surface: ESurface) =>
+  SURFACE_PROFILES[surface].hides.filter((hidden) => hidden.because !== EHiddenBecause.PaneAction)
+
 describe('surface profiles', () => {
   it('names only commands that this package declares', () => {
-    for (const profile of Object.values(SURFACE_PROFILES)) {
-      for (const hidden of profile.hides) {
+    for (const surface of Object.values(ESurface)) {
+      for (const hidden of nativeHidesOf(surface)) {
         expect(registry.byName.has(hidden.name)).toBe(true)
       }
-      for (const picked of profile.picks) {
+      for (const picked of SURFACE_PROFILES[surface].picks) {
         expect(registry.byName.has(picked.name)).toBe(true)
       }
     }
@@ -27,7 +31,7 @@ describe('surface profiles', () => {
 
   it('still parses a hidden name, so hiding stays a menu decision', () => {
     for (const surface of Object.values(ESurface)) {
-      for (const hidden of SURFACE_PROFILES[surface].hides) {
+      for (const hidden of nativeHidesOf(surface)) {
         const invocation = parseInvocation({
           text: `/${hidden.name}`,
           commands: registry,
@@ -42,6 +46,29 @@ describe('surface profiles', () => {
 const entries = nativeCommands.map((command) =>
   entryOf({ command, source: ECommandSource.Builtin }),
 )
+
+const namesOn = (surface: ESurface): readonly string[] =>
+  catalogueForSurface({ entries, surface }).map((entry) => entry.name)
+
+describe('the panel commands', () => {
+  it('are hidden on web, mac and mobile because only the app draws their panel', () => {
+    for (const surface of [ESurface.Web, ESurface.Mac, ESurface.Mobile]) {
+      const names = namesOn(surface)
+      for (const name of ['skills', 'mcp', 'shells']) expect(names).not.toContain(name)
+      for (const name of ['skills', 'mcp', 'shells']) {
+        expect(SURFACE_PROFILES[surface].hides).toContainEqual({
+          name,
+          because: EHiddenBecause.Panel,
+        })
+      }
+    }
+  })
+
+  it('stay in the tui catalogue', () => {
+    const names = namesOn(ESurface.Tui)
+    for (const name of ['skills', 'mcp', 'shells']) expect(names).toContain(name)
+  })
+})
 
 describe('rotate on every surface', () => {
   it('appears in the catalogue for web, mac, mobile and tui', () => {

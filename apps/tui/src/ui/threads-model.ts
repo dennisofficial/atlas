@@ -1,5 +1,5 @@
 import type { EExecutionLocation, LinkedPullRequest } from '@dltech/atlas-core'
-import type { ECloudSandboxState } from '@dltech/atlas-harness'
+import type { ECloudSandboxState } from './thread-badges'
 
 export const UNTITLED_LABEL = 'untitled'
 

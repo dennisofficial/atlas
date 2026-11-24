@@ -1,7 +1,5 @@
 import React from 'react'
 
-import type { ShellSnapshot } from '@dltech/atlas-harness'
-
 import { type Hint } from '../hint-layout'
 import type { OutputScroll } from '../hooks/use-output-scroll'
 import { usePress, type PressHandlers } from '../hooks/use-press'
@@ -11,6 +9,7 @@ import {
   shellCommandLabel,
   shellNameLabel,
   shellReadout,
+  type ShellSnapshot,
 } from '../shells-model'
 import { glyph, theme } from '../theme'
 import {
@@ -106,6 +105,7 @@ function OutputSection(props: {
   cells: number
   press: PressHandlers
   jumpPress: PressHandlers
+  readOnly: boolean
   scroll?: OutputScroll | undefined
 }): React.ReactNode {
   const wrapCells = Math.max(0, props.cells - SCROLLBAR_COLUMN)
@@ -120,7 +120,7 @@ function OutputSection(props: {
         count={`${props.shell.totalCharacters} chars`}
         {...(scrolledBack ? { note: 'scrolled back' } : {})}
       />
-      {isShellRunning(props.shell) ? (
+      {isShellRunning(props.shell) && !props.readOnly ? (
         <DrawerLine press={props.press}>
           <text>
             <Spans
@@ -182,6 +182,10 @@ const WALKING: readonly Hint[] = [
   { key: 'esc', label: 'close' },
 ]
 
+const WALKING_READ_ONLY: readonly Hint[] = WALKING.filter((hint) => hint.key !== 'k')
+
+const hintsFor = (readOnly: boolean): readonly Hint[] => (readOnly ? WALKING_READ_ONLY : WALKING)
+
 export function Shells(props: {
   width: number
   shells: readonly ShellSnapshot[]
@@ -190,6 +194,7 @@ export function Shells(props: {
   output: string
   scroll?: OutputScroll | undefined
   overlay?: boolean
+  readOnly?: boolean
   onKill: (shellId: string) => void
   onDismiss: () => void
 }): React.ReactNode {
@@ -197,13 +202,14 @@ export function Shells(props: {
   const press = usePress()
   const running = props.shells.filter(isShellRunning).length
   const selected = props.selected
+  const readOnly = props.readOnly === true
 
   return (
     <SideDrawer
       width={props.width}
       side={EDrawerEdge.Left}
       overlay={props.overlay === true}
-      footer={<DrawerHints hints={WALKING} cells={cells} onDismiss={props.onDismiss} />}
+      footer={<DrawerHints hints={hintsFor(readOnly)} cells={cells} onDismiss={props.onDismiss} />}
     >
       {selected === undefined ? (
         <box flexDirection="column" flexShrink={0}>
@@ -220,6 +226,7 @@ export function Shells(props: {
             shell={selected}
             output={props.output}
             cells={cells}
+            readOnly={readOnly}
             press={press(() => props.onKill(selected.shellId))}
             jumpPress={press(props.scroll?.handleJumpToEnd)}
             {...(props.scroll === undefined ? {} : { scroll: props.scroll })}

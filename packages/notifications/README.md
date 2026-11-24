@@ -20,19 +20,18 @@ Redis and sends the pushes.
 
 ## Does not own
 
-- The decision to notify. `@dltech/atlas-core` owns it in `notifyPlanOf` and `inAppNoticeOf`.
-- The notification shape. `@dltech/atlas-core` owns `AtlasNotification`.
-- When to stay silent. `@dltech/atlas-core` owns `inAppNoticeOf` and `notifyMomentOf`.
+- The decision to notify or stay silent. `@dltech/atlas-core` owns `notifyPlanOf`, `inAppDueOf`
+  and `inAppNoticeOf`, and the `AtlasNotification` shape.
 - The persistent device rows. `packages/db` owns them.
 - The send tasks. `apps/trigger` owns them.
 
 ## Entry points
 
-| Import                               | Use it for                                                  |
-| ------------------------------------ | ----------------------------------------------------------- |
-| `@dltech/atlas-notifications`        | The device model and the transport interface.               |
-| `@dltech/atlas-notifications/client` | The in-app notice and the presence loop.                    |
-| `@dltech/atlas-notifications/server` | The presence store, the Web Push, Expo and APNs transports. |
+| Import                               | Use it for                                                      |
+| ------------------------------------ | --------------------------------------------------------------- |
+| `@dltech/atlas-notifications`        | The device model, the payload keys and the transport interface. |
+| `@dltech/atlas-notifications/client` | The in-app notice and the presence loop.                        |
+| `@dltech/atlas-notifications/server` | The presence store, the Web Push, Expo and APNs transports.     |
 
 ## Capabilities
 
@@ -45,6 +44,13 @@ Redis and sends the pushes.
 - `NotifyDevice`: an `id`, a `kind`, a `token` and a `secret`. The secret holds the Web Push
   subscription keys. It is `null` for Expo and APNs devices.
 
+### Name the payload keys
+
+- `NOTIFY_DATA_SESSION_KEY` (`sessionId`), `NOTIFY_DATA_SEQ_KEY` (`seq`) and
+  `NOTIFY_DATA_CLEAR_SESSION_KEY` (`clearSessionId`): the keys of the Expo and APNs payloads.
+- `NOTIFY_DATA_ROUTINE_KEY` (`routineId`) and `routineDataOf(notification)`: a routine notice names
+  its routine. A client opens the routine for it, never the `sessionId`.
+
 ### Implement a transport
 
 - `NotificationTransport`: one interface with a `kind`, `deliver` and `clear`.
@@ -54,13 +60,18 @@ Redis and sends the pushes.
 ### Find the moment in a sessions list
 
 - `InAppRow`: one row of the list. It holds the session id, the title, the status, the read
-  marker, the head seq and the last turn ending.
+  marker, the head seq, whether the row is a nested session, and the last turn ending with its
+  time and its notify facts.
 - `inAppRowOf`: reads a session summary into a row.
-- `inAppMomentsOf`: gives the rows that changed since the previous list. It says nothing for the
-  first list or a new row. A row gives a moment when its last turn ending is newer, or when its
-  status newly waits for the operator.
-- `inAppNoticesOf`: gives the notices to show, through `inAppNoticeOf`, so an on-screen row, a
-  disabled moment and a read row stay silent.
+- `HeldNotice`: a notice that waits for its turn: the session id, the turn seq and the due time.
+- `inAppScanOf`: gives the notices to show now and the held notices to keep. It says nothing for
+  the first list or a new row. A row gives a moment when its last turn ending is newer, or when
+  its status newly waits for the operator. `inAppDueOf` decides whether the moment shows, stays
+  silent or waits until a due time.
+- `dueNoticesOf`: turns the held notices that are due into moments, and drops the ones a newer
+  turn replaced, or whose session runs again.
+- `earliestDueAt`: the first due time in a held list, so a caller arms one timer.
+- `dueDelayMs`: the wait until a due time, never below zero.
 - `staleNoticeIdsOf`: gives the session ids whose notice must go: its session opened, or the read
   marker reached its seq.
 
@@ -88,7 +99,7 @@ Redis and sends the pushes.
 - `clear` posts `{ contentAvailable: true, data: { clearSessionId } }` with no title and no body.
 - A ticket with `details.error === 'DeviceNotRegistered'` reports the device `gone`. A refused or
   unreachable request reports every device unsent.
-- `EXPO_PUSH_URL`, `EXPO_PUSH_BATCH_SIZE` and the three `NOTIFY_DATA_*` keys: the endpoint, the batch size and the payload keys.
+- `EXPO_PUSH_URL` and `EXPO_PUSH_BATCH_SIZE`: the endpoint and the batch size.
 
 ### Send Mac push
 
@@ -114,15 +125,11 @@ Redis and sends the pushes.
 ### Show a notice
 
 ```ts
-import { inAppRowOf, inAppNoticesOf, staleNoticeIdsOf } from '@dltech/atlas-notifications/client'
+import { inAppRowOf, inAppScanOf, earliestDueAt } from '@dltech/atlas-notifications/client'
 
 const rows = summaries.map(inAppRowOf)
-const notices = inAppNoticesOf({ previous, next: rows, openSessionId, focused, enabled, now })
-const stale = staleNoticeIdsOf({
-  notices,
-  rows: new Map(rows.map((r) => [r.sessionId, r])),
-  openSessionId,
-})
+const scan = inAppScanOf({ previous, next: rows, held, openSessionId, focused, enabled, now })
+const nextTimerAt = earliestDueAt(scan.held)
 ```
 
 ## Rules

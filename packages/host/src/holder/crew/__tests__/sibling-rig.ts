@@ -192,7 +192,6 @@ const siblingPlugin = (state: SiblingState): Plugin =>
         new ReporterProbe(ctx, state, { name: ECHO_PROBE, text: ECHO, slot: 'echoed' }),
       ],
       prompts: [],
-      commands: new Map(),
     },
     control: { hooks: [], commands: new Map() },
     client: { hooks: [] },

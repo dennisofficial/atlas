@@ -22,6 +22,7 @@ import {
 import {
   CallFailureError,
   ECallStatus,
+  EServiceReapOutcome,
   type CallOp,
   type CallResult,
   type DaemonEventFrame,
@@ -41,20 +42,28 @@ export const controlOf = (args: { url: string; tunnelToken?: string }): PodContr
   }),
 })
 
-export const rig = (options: { control?: PodControl; env?: Record<string, string> } = {}) => {
+export const rig = (
+  options: { control?: PodControl; env?: Record<string, string>; reap?: EServiceReapOutcome } = {},
+) => {
   const log: V2Event[] = []
   const listeners = new Set<(frame: DaemonEventFrame) => void>()
   const calls: CallOp[] = []
   const fs = new MemoryFileSystem()
   fs.mkdir({ path: '/work' })
   fs.mkdir({ path: '/elsewhere' })
-  const groups = fakeDaemonGroups({ fs }).map((factory) =>
-    factory({
-      publish: (event) => {
-        for (const listener of listeners) listener({ kind: 'event', event })
-      },
-    }),
-  )
+  const buildGroups = () =>
+    fakeDaemonGroups({ fs }).map((factory) =>
+      factory({
+        publish: (event) => {
+          for (const listener of listeners) listener({ kind: 'event', event })
+        },
+      }),
+    )
+  let groups = buildGroups()
+  const forgetDaemonRecords = (): void => {
+    groups = buildGroups()
+  }
+  const reapOutcome = options.reap
 
   const append = async (drafts: readonly (EventDraft | RecordBody | PluginEventBody)[]) => {
     for (const body of drafts) {
@@ -70,6 +79,9 @@ export const rig = (options: { control?: PodControl; env?: Record<string, string
 
   const call = async (op: CallOp, options?: CallOptions): Promise<CallResult> => {
     calls.push(op)
+    if (op.op === 'services.reap' && reapOutcome !== undefined) {
+      return { status: ECallStatus.Ok, op: op.op, value: { outcome: reapOutcome } } as CallResult
+    }
     const registered = groups.flatMap((group) => group.ops).find((one) => one.op === op.op)
     if (registered === undefined) throw new Error(`no op ${op.op}`)
     try {
@@ -115,7 +127,7 @@ export const rig = (options: { control?: PodControl; env?: Record<string, string
     ...(options.env === undefined ? {} : { env: async () => options.env ?? {} }),
   }
 
-  return { ctx, log, calls, listeners, fs, notices }
+  return { ctx, log, calls, listeners, fs, notices, forgetDaemonRecords }
 }
 
 export const writeDeclared = (

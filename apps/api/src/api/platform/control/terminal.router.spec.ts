@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import type { NestExpressApplication } from '@nestjs/platform-express'
 import request from 'supertest'
 import { as } from '../../../_module/trpc/trpc-middleware.fixture'
-import { PodParkedError } from './pod-parked.error'
+import { PodNotReadyError } from './pod-errors'
 import { createTerminalApp, terminals } from './terminal.router.fixture'
 
 describe('TerminalRouter', () => {
@@ -70,7 +70,7 @@ describe('TerminalRouter', () => {
   })
 
   it('answers a parked pod with PRECONDITION_FAILED', async () => {
-    terminals.read.mockRejectedValue(new PodParkedError())
+    terminals.read.mockRejectedValue(new PodNotReadyError())
     const response = await query({
       path: 'terminal.read',
       token: 'session-a',

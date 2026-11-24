@@ -111,6 +111,7 @@ export function AgentTranscript(props: { agentId: string; fallback: AgentsPanelA
     () => ({
       rewind: null,
       summarise: null,
+      resume: null,
       openChanges: null,
       openAgent,
       openPodSize: null,

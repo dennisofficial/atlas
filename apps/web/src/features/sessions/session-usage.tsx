@@ -8,6 +8,7 @@ import {
   formatUtilization,
   meterBand,
   parseRef,
+  shownWindowsOf,
 } from '@dltech/atlas-core'
 import type { SessionModelChoice, UsageReportDto, UsageWindowDto } from '@dltech/atlas-protocol'
 import { Button } from '@dltech/atlas-ui/components/button'
@@ -75,8 +76,20 @@ function WindowLine(args: {
   )
 }
 
-const labelOf = (report: UsageReportDto): string =>
-  `Plan usage: 5-hour ${formatUtilization(report.fiveHour?.utilization ?? null)}, 7-day ${formatUtilization(report.sevenDay?.utilization ?? null)}`
+const WINDOW_SHORT: Record<EUsageWindow, string> = {
+  [EUsageWindow.FiveHour]: '5h',
+  [EUsageWindow.SevenDay]: '7d',
+}
+
+const WINDOW_LONG: Record<EUsageWindow, string> = {
+  [EUsageWindow.FiveHour]: '5-hour',
+  [EUsageWindow.SevenDay]: '7-day',
+}
+
+const labelOf = (args: { report: UsageReportDto; shown: readonly EUsageWindow[] }): string =>
+  `Plan usage: ${args.shown
+    .map((key) => `${WINDOW_LONG[key]} ${formatUtilization(args.report[key]?.utilization ?? null)}`)
+    .join(', ')}`
 
 export function SessionUsage(args: {
   model: SessionModelChoice | null | undefined
@@ -90,34 +103,40 @@ export function SessionUsage(args: {
   })
   if (report === null || report.metered === false) return null
   const now = Date.now()
+  const shown = shownWindowsOf(report)
   return (
     <HoverCard>
       <HoverCardTrigger
         delay={10}
         closeDelay={100}
         render={
-          <Button variant="ghost" size="sm" className="tabular-nums" aria-label={labelOf(report)} />
+          <Button
+            variant="ghost"
+            size="sm"
+            className="tabular-nums"
+            aria-label={labelOf({ report, shown })}
+          />
         }
       >
-        <WindowReading short="5h" window={report.fiveHour} windowKind={EUsageWindow.FiveHour} />
-        <span className="text-muted-foreground"> · </span>
-        <WindowReading short="7d" window={report.sevenDay} windowKind={EUsageWindow.SevenDay} />
+        {shown.map((key, index) => (
+          <span key={key}>
+            {index === 0 ? null : <span className="text-muted-foreground"> · </span>}
+            <WindowReading short={WINDOW_SHORT[key]} window={report[key]} windowKind={key} />
+          </span>
+        ))}
       </HoverCardTrigger>
       <HoverCardContent>
         <div className="flex w-60 flex-col gap-2 text-xs">
           <span className="text-sm font-medium">{report.label ?? 'Plan'}</span>
-          <WindowLine
-            label="5-hour"
-            window={report.fiveHour}
-            windowKind={EUsageWindow.FiveHour}
-            now={now}
-          />
-          <WindowLine
-            label="7-day"
-            window={report.sevenDay}
-            windowKind={EUsageWindow.SevenDay}
-            now={now}
-          />
+          {shown.map((key) => (
+            <WindowLine
+              key={key}
+              label={WINDOW_LONG[key]}
+              window={report[key]}
+              windowKind={key}
+              now={now}
+            />
+          ))}
         </div>
       </HoverCardContent>
     </HoverCard>

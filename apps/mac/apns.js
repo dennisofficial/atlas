@@ -2,7 +2,41 @@ export const APNS_TOKEN_PATH = '/desktop/apns/token'
 
 export const APNS_PUSH_PATH = '/desktop/apns/push'
 
+export const APNS_OPENED_PATH = '/desktop/apns/opened'
+
+export const SESSION_PATH = '/sessions/'
+
+export const HOST_SESSION_PATH = '/desktop/session'
+
 const POST_TIMEOUT_MS = 2_000
+
+const recordOf = (value) =>
+  typeof value === 'object' && value !== null && !Array.isArray(value) ? value : undefined
+
+export const userInfoOfLaunchInfo = (launchInfo) => {
+  const info = recordOf(launchInfo)
+  if (info === undefined) return launchInfo
+  return recordOf(info.userInfo) ?? info
+}
+
+export const sessionIdOfLaunchInfo = (launchInfo) => {
+  const info = recordOf(launchInfo)
+  if (info === undefined) return undefined
+  const userInfo = recordOf(info.userInfo) ?? info
+  if (typeof userInfo.clearSessionId === 'string') return undefined
+  const { sessionId, seq } = userInfo
+  if (typeof sessionId !== 'string' || sessionId.length === 0) return undefined
+  return Number.isInteger(seq) ? sessionId : undefined
+}
+
+export const urlForSession = (pageUrl, sessionId) => {
+  if (sessionId === undefined) return pageUrl
+  const url = new URL(pageUrl)
+  const target = `${SESSION_PATH}${encodeURIComponent(sessionId)}`
+  if (url.pathname !== HOST_SESSION_PATH) return `${url.origin}${target}`
+  url.searchParams.set('next', target)
+  return url.href
+}
 
 export function createApnsBridge({
   secret,
@@ -13,6 +47,7 @@ export function createApnsBridge({
 }) {
   let token
   let origin
+  let pendingOpened
 
   const post = async (pathname, body) => {
     if (origin === undefined) return undefined
@@ -33,7 +68,9 @@ export function createApnsBridge({
   const historyGroupsOf = async () => {
     try {
       const history = await notifications.getHistory()
-      return history.flatMap((entry) => (entry.groupId ? [entry.groupId] : []))
+      const groupIds = history.flatMap((entry) => (entry.groupId ? [entry.groupId] : []))
+      for (const entry of history) entry.close()
+      return groupIds
     } catch {
       return []
     }
@@ -51,12 +88,26 @@ export function createApnsBridge({
     for (const groupId of await groupsOf(userInfo)) notifications.removeGroup(groupId)
   }
 
+  const sendOpened = async () => {
+    if (pendingOpened === undefined || origin === undefined) return
+    const userInfo = pendingOpened
+    pendingOpened = undefined
+    await post(APNS_OPENED_PATH, { userInfo }).catch(() => undefined)
+  }
+
+  const opened = async (userInfo) => {
+    pendingOpened = userInfo
+    await sendOpened()
+  }
+
   return {
     attach: (url) => {
-      origin = url
+      origin = new URL(url).origin
       void sendToken()
+      void sendOpened()
     },
     received,
+    opened,
     start: async () => {
       pushes.on('received-apns-notification', (_event, userInfo) => {
         void received(userInfo)

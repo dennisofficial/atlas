@@ -1,4 +1,4 @@
-export const INACTIVE_AFTER_MS = 72 * 60 * 60 * 1000
+export const RECENT_PROJECT_WINDOW_MS = 72 * 60 * 60 * 1000
 
 const activityStampOf = (stamp: string | null | undefined): number => {
   if (stamp === null || stamp === undefined) return Number.NEGATIVE_INFINITY
@@ -26,4 +26,4 @@ export const isRecentProject = ({
   createdAt: string | null | undefined
   stamps: readonly (string | null | undefined)[]
   now: number
-}): boolean => now - lastActivityAt({ createdAt, stamps }) <= INACTIVE_AFTER_MS
+}): boolean => now - lastActivityAt({ createdAt, stamps }) <= RECENT_PROJECT_WINDOW_MS

@@ -60,7 +60,7 @@ helpers. The serve process in a pod, `apps/api` and every client read it.
   read.
 - `memoryPutSchema`, `memoryEditSchema`, `memoryKeySchema`: the memory write and edit payloads.
 - `MEMORY_STALE_REVISION_CODE`, `MEMORY_EDIT_NO_MATCH_CODE`, `MEMORY_EDIT_AMBIGUOUS_CODE`: the
-  memory error codes.
+  memory error codes. `@dltech/atlas-core` owns these, and wire re-exports them.
 
 ### Provision a sandbox
 
@@ -77,18 +77,24 @@ helpers. The serve process in a pod, `apps/api` and every client read it.
 From `apps/serve/src/frame-egress.ts`:
 
 ```ts
-import { encodeFrame } from '@dltech/atlas-wire'
-import { downgradeServeFrame } from '@dltech/atlas-wire'
+import { downgradeServeFrame, encodeFrame } from '@dltech/atlas-wire'
 
-const message = encodeFrame(downgradeServeFrame({ frame, capabilities }))
+export const encodeForPeer = (args: { frame: ServeFrame; capabilities: CapabilitySet }): string =>
+  encodeFrame(downgradeServeFrame(args))
 ```
 
-From `apps/mobile/src/sessions/load-sessions.ts`:
+From `apps/web/src/features/shell/thread-pull-requests.ts`:
 
 ```ts
-import type { WireThread } from '@dltech/atlas-wire/web'
+import type { PrStateWire, WireThread } from '@dltech/atlas-wire/web'
 
-export type LoadedSessions = { threads: readonly WireThread[] }
+export function threadPullRequestsOf(args: {
+  thread: WireThread
+  teammates: readonly WireThread[]
+  collapsed: boolean
+  states: readonly PrStateWire[]
+  family?: readonly WireThread[]
+}): PullRequestEntry[]
 ```
 
 ## Rules

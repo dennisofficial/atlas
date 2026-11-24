@@ -1,7 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { BotIcon, ListChecksIcon, WrenchIcon } from 'lucide-react'
+import { BotIcon, BrainIcon, ListChecksIcon, WrenchIcon } from 'lucide-react'
 
 import {
   EQualityNoticeTone,
@@ -22,6 +22,7 @@ import { EEditBody, EToolFamily, type EditBody, type ToolCallItem } from '../dat
 const ICON_OF_FAMILY: Record<EToolFamily, ReactNode> = {
   [EToolFamily.Agent]: <BotIcon />,
   [EToolFamily.Plan]: <ListChecksIcon />,
+  [EToolFamily.Memory]: <BrainIcon />,
   [EToolFamily.Other]: <WrenchIcon />,
 }
 

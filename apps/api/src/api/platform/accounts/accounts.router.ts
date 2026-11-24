@@ -5,6 +5,7 @@ import {
   activeAccountInputSchema,
   createAccountInputSchema,
   EAuthKind,
+  renameAccountInputSchema,
   replaceSecretInputSchema,
   setActiveInputSchema,
   setStatusInputSchema,
@@ -14,6 +15,7 @@ import {
   type ActiveAccountDto,
   type ActiveAccountInput,
   type CreateAccountInput,
+  type RenameAccountInput,
   type ReplaceSecretInput,
   type SetActiveInput,
   type SetStatusInput,
@@ -82,6 +84,15 @@ export class AccountsRouter {
       userId: ctx.auth.userId,
       accountId: input.accountId,
       secret: input.secret,
+    })
+  }
+
+  @Mutation({ input: renameAccountInputSchema, output: z.void() })
+  async rename(@Input() input: RenameAccountInput, @Ctx() ctx: SessionTrpcCtx): Promise<void> {
+    await this.accounts.rename({
+      userId: ctx.auth.userId,
+      accountId: input.accountId,
+      label: input.label,
     })
   }
 

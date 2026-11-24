@@ -58,7 +58,6 @@ const spawnPlugin = (spawned: Spawned): Plugin =>
       childDeny: [SPAWN_PROBE],
       tools: (ctx) => [new SpawnProbe(ctx, spawned)],
       prompts: [],
-      commands: new Map(),
     },
     control: { hooks: [], commands: new Map() },
     client: { hooks: [] },

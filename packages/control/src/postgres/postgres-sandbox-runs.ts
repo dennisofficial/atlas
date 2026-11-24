@@ -1,4 +1,4 @@
-import type { Db } from '@dltech/atlas-db'
+import type { Db, Tx } from '@dltech/atlas-db'
 import { ESandboxCostProvider, ESandboxCostSource, type SandboxRunRow } from '@dltech/atlas-core'
 
 import type {
@@ -56,6 +56,14 @@ const rowOf = (row: RunRow): SandboxRunRow => ({
   costSource: costSourceOf(row.costSource),
 })
 
+const lockSessionRuns = async (args: { tx: Tx; sessionId: string }): Promise<void> => {
+  const statement = args.tx.raw
+    .sql`SELECT pg_advisory_xact_lock(hashtextextended(${`sandbox-run:${args.sessionId}`}, 0))`
+    .affectedCount()
+    .build()
+  await args.tx.query(statement)
+}
+
 export class PostgresSandboxRunStore implements SandboxRunStore {
   constructor(private readonly db: Db) {}
 
@@ -77,28 +85,35 @@ export class PostgresSandboxRunStore implements SandboxRunStore {
   }
 
   async insertRun(params: OpenSandboxRunParams & { id: string }): Promise<void> {
-    const session =
-      params.userId === undefined
-        ? await this.db.orm.v2.V2Session.first({ id: params.sessionId })
-        : undefined
-    const userId = params.userId ?? session?.userId
-    if (userId === undefined) return
-    await this.runs.create({
-      id: params.id,
-      sessionId: params.sessionId,
-      userId,
-      provider: params.provider,
-      sandboxInstanceId: params.sandboxInstanceId ?? null,
-      vcpus: params.vcpus,
-      memoryGb: params.memoryGb,
-      diskGb: params.diskGb,
-      startedAt: new Date(params.at),
-      endedAt: null,
-      activeCpuMs: null,
-      cpuBaselineMs: params.cpuBaselineMs ?? null,
-      awakeMs: null,
-      costUsd: null,
-      costSource: null,
+    await this.db.transaction(async (tx) => {
+      await lockSessionRuns({ tx, sessionId: params.sessionId })
+      const open = (await tx.orm.v2.V2SandboxRun.where({ sessionId: params.sessionId }).all()).find(
+        (row) => row.endedAt === null,
+      )
+      if (open !== undefined) return
+      const session =
+        params.userId === undefined
+          ? await tx.orm.v2.V2Session.first({ id: params.sessionId })
+          : undefined
+      const userId = params.userId ?? session?.userId
+      if (userId === undefined) return
+      await tx.orm.v2.V2SandboxRun.create({
+        id: params.id,
+        sessionId: params.sessionId,
+        userId,
+        provider: params.provider,
+        sandboxInstanceId: params.sandboxInstanceId ?? null,
+        vcpus: params.vcpus,
+        memoryGb: params.memoryGb,
+        diskGb: params.diskGb,
+        startedAt: new Date(params.at),
+        endedAt: null,
+        activeCpuMs: null,
+        cpuBaselineMs: params.cpuBaselineMs ?? null,
+        awakeMs: null,
+        costUsd: null,
+        costSource: null,
+      })
     })
   }
 

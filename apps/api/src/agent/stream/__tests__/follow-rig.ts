@@ -16,6 +16,8 @@ import {
   STREAM_PROTOCOL_VERSION,
 } from '@dltech/atlas-protocol'
 
+import { ProductAnalytics, type ProductAnalyticsProperties } from '@dltech/atlas-observability'
+
 import { createFollowSubscriptions, type FollowSubscriptions } from '../follow-port'
 import type { FollowPlane, SurfaceRecord } from '../follow-types'
 import type { LiveSource } from '../live-source'
@@ -34,6 +36,22 @@ const AT = '2026-11-02T12:00:00.000Z'
 
 export const said = (text: string): V2Body => ({ type: 'user-said', text })
 
+export type Capture = { userId: string; event: string; properties: ProductAnalyticsProperties }
+
+export class RecordingAnalytics extends ProductAnalytics {
+  readonly captures: Capture[] = []
+
+  capture(args: Capture): void {
+    this.captures.push(args)
+  }
+
+  async flush(): Promise<void> {}
+
+  eventsOf(name: string): Capture[] {
+    return this.captures.filter((capture) => capture.event === name)
+  }
+}
+
 export class FollowRig {
   readonly store = new InMemoryControlStore()
   readonly plane = new ControlPlane({ store: this.store, clock: () => AT })
@@ -41,9 +59,11 @@ export class FollowRig {
   readonly sent: OutgoingFrame[] = []
   readonly closedWith: number[] = []
   readonly surfaces: SurfaceRecord[] = []
+  readonly analytics = new RecordingAnalytics()
   buffered = 0
   reads = 0
   headReads = 0
+  tailBaseReads = 0
   onRead: (() => Promise<void>) | undefined
   readonly follow: FollowSubscriptions
   private epoch = 0
@@ -75,6 +95,10 @@ export class FollowRig {
         const at = this.scriptedViewAt.shift()
         return at === undefined ? read : { ...read, at }
       },
+      readTailBase: async (params) => {
+        this.tailBaseReads += 1
+        return this.plane.readTailBase(params)
+      },
       listSessionDigests: (params) => {
         this.digestReads += 1
         if (this.digestFailure !== undefined) return Promise.reject(this.digestFailure)
@@ -85,6 +109,7 @@ export class FollowRig {
       plane,
       timers: this.timers,
       log: undefined,
+      analytics: this.analytics,
       recordSurface: (record) => this.surfaces.push(record),
       feed: {
         onChange: (listener) => this.store.onChange(listener),
@@ -156,10 +181,17 @@ export class FollowRig {
       userId,
       version,
       surface: EStreamSurface.Web,
-      send: (message) => this.sent.push(message),
+      send: (message) => {
+        this.sent.push(message)
+        return Buffer.byteLength(JSON.stringify(message))
+      },
       bufferedAmount: () => this.buffered,
       close: (code) => this.closedWith.push(code),
     })
+  }
+
+  sendForeign(frame: OutgoingFrame): void {
+    this.sent.push(frame)
   }
 
   async subscribe(args: {
@@ -169,6 +201,7 @@ export class FollowRig {
     threadId?: string
     afterSeq?: number
     afterHash?: string
+    tailViewVersion?: number
   }): Promise<void> {
     const message: StreamSubscriptionMessage = {
       type: 'subscribe',
@@ -178,6 +211,7 @@ export class FollowRig {
       ...(args.threadId === undefined ? {} : { threadId: args.threadId }),
       ...(args.afterSeq === undefined ? {} : { afterSeq: args.afterSeq }),
       ...(args.afterHash === undefined ? {} : { afterHash: args.afterHash }),
+      ...(args.tailViewVersion === undefined ? {} : { tailViewVersion: args.tailViewVersion }),
     }
     await args.session.handle(message)
   }

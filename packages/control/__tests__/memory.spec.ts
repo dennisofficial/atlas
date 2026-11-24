@@ -4,6 +4,7 @@ import { InMemoryControlStore } from '../src/testing/memory'
 import {
   describeControlPlaneBlobs,
   describeControlPlaneChanges,
+  describeControlPlaneContextFiles,
   describeControlPlaneClaimCommands,
   describeControlPlaneClaimNext,
   describeControlPlaneClaims,
@@ -16,6 +17,7 @@ import {
   describeControlPlaneSessionBuckets,
   describeControlPlaneSessionArchive,
   describeControlPlaneSessions,
+  describeControlPlaneSpawnedArchive,
   describeControlPlaneSessionTitles,
   describeControlPlaneViews,
   describeControlPlaneWakes,
@@ -44,6 +46,7 @@ describeControlPlaneConformance(conformanceParams)
 describeControlPlaneSessions(conformanceParams)
 describeControlPlaneSessionBuckets(conformanceParams)
 describeControlPlaneSessionArchive(conformanceParams)
+describeControlPlaneSpawnedArchive(conformanceParams)
 describeControlPlanePeers(conformanceParams)
 describeControlPlanePeerMessages(conformanceParams)
 describeControlPlaneSessionTitles(conformanceParams)
@@ -54,6 +57,7 @@ describeControlPlaneClaimCommands(conformanceParams)
 describeControlPlaneBlobs(conformanceParams)
 describeControlPlaneWakes(conformanceParams)
 describeControlPlaneChanges(conformanceParams)
+describeControlPlaneContextFiles(conformanceParams)
 describeControlPlaneViews(conformanceParams)
 describeControlPlaneWorktreeChanges(conformanceParams)
 

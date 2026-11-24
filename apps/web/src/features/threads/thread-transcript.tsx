@@ -6,19 +6,19 @@ import { CirclePauseIcon } from 'lucide-react'
 import { isWaiting, type BackgroundWork } from '@dltech/atlas-client/crew'
 import { SandboxBoot } from '@dltech/atlas-ui/ai/sandbox-boot'
 import { Chat, ChatItem } from '@dltech/atlas-ui/ai/chat'
-import type { QueuedMessageEntry } from '@dltech/atlas-ui/ai/queued-messages'
 import { RunFailedMarker } from '@dltech/atlas-ui/ai/run-failed-marker'
 import { Trace, TraceIcon, TraceLine, TraceTitle } from '@dltech/atlas-ui/components/trace'
 import type { PodStatus } from '@dltech/atlas-wire/web'
 
 import { useSessionUser } from '@/features/settings/session/use-session-identity'
+import type { QueuedTranscript } from '@/features/sessions/data/queued-transcript'
 
 import { bootTimelineOf, EBootEntryKind, type BootEntry } from './data/boot-timeline'
 import type { BootView } from './data/boot-view'
 import { anySpawnRunning, rosterModelsOf } from './data/transcript-agents'
 import { type TranscriptRow } from './data/transcript'
 import { isLiveTurn } from './data/is-live-turn'
-import { ETurnKind, lastTurnEndedAt, turnsOf } from './data/transcript-turns'
+import { ETurnKind, lastTurnEndedAt, turnsOf, type Turn } from './data/transcript-turns'
 import { useNow, useNowEvery } from './data/use-now'
 import { useDiagramRepair } from './data/use-diagram-repair'
 import type { RepairDiagramAction } from './data/diagram-repair'
@@ -28,16 +28,20 @@ import { sandboxBootPropsOf } from './sandbox-boot-props'
 import { BackgroundWaitLine } from './transcript/background-wait-line'
 import { RepairCard, type RepairCardProps } from './transcript/repair-card'
 import { RunFailureCard, type RunFailureCardProps } from './transcript/run-failure-card'
-import { StagedTurn } from './transcript/staged-turn'
+import { QueuedRowItem } from './transcript/queued-row'
 import {
   TurnView,
   type TranscriptRewind,
   type TranscriptSummarise,
 } from './transcript/transcript-turn'
+import type { TranscriptResume } from './transcript/stopped-line'
 
-export type { TranscriptRewind, TranscriptSummarise }
+export type { TranscriptResume, TranscriptRewind, TranscriptSummarise }
 
 const BOOT_TICK_MS = 100
+
+const chatKeyOf = (turn: Turn): string =>
+  turn.kind === ETurnKind.User && turn.item.clientId !== undefined ? turn.item.clientId : turn.id
 
 function ParkedLine() {
   return (
@@ -89,9 +93,10 @@ export function ThreadTranscript({
   onRetryBoot,
   rewind,
   summarise,
+  resume,
   repairDiagram: repairDiagramProp,
   boot: sessionBoot,
-  staged,
+  queued,
   onLoadOlder,
   onOpenPodSize,
 }: {
@@ -107,10 +112,11 @@ export function ThreadTranscript({
   onRetryBoot: () => void
   rewind: TranscriptRewind | null
   summarise: TranscriptSummarise | null
+  resume?: TranscriptResume | null
   repairDiagram?: RepairDiagramAction | null
   onOpenPodSize?: (() => void) | undefined
   boot?: BootView | null
-  staged?: readonly QueuedMessageEntry[]
+  queued?: QueuedTranscript
   onLoadOlder?: () => Promise<number>
 }) {
   const { user } = useSessionUser()
@@ -131,18 +137,20 @@ export function ThreadTranscript({
     () => ({
       rewind,
       summarise,
+      resume: resume ?? null,
       openChanges,
       openAgent,
       openPodSize: onOpenPodSize ?? null,
       repairDiagram,
     }),
-    [rewind, summarise, openChanges, openAgent, onOpenPodSize, repairDiagram],
+    [rewind, summarise, resume, openChanges, openAgent, onOpenPodSize, repairDiagram],
   )
   const bootAfter = (index: number): ReactNode[] =>
     boot
       .filter((entry) => entry.afterIndex === index)
       .map((entry) => <BootEntryItem key={entry.id} entry={entry} onRetry={onRetryBoot} />)
-  const lastUserTurnId = turns.findLast((turn) => turn.kind === ETurnKind.User)?.id ?? null
+  const lastUserTurn = turns.findLast((turn) => turn.kind === ETurnKind.User)
+  const lastUserTurnId = lastUserTurn === undefined ? null : chatKeyOf(lastUserTurn)
   return (
     <Chat jumpKey={lastUserTurnId} {...(onLoadOlder === undefined ? {} : { onLoadOlder })}>
       {sessionBoot === undefined || sessionBoot === null ? null : (
@@ -152,7 +160,7 @@ export function ThreadTranscript({
       )}
       {bootAfter(-1)}
       {turns.flatMap((turn, index) => [
-        <ChatItem key={turn.id} id={turn.id}>
+        <ChatItem key={chatKeyOf(turn)} id={turn.id}>
           <TurnView
             turn={turn}
             now={isLiveTurn(turn) ? now : 0}
@@ -182,11 +190,19 @@ export function ThreadTranscript({
           <BackgroundWaitLine work={background} settledAt={settledAt} />
         </ChatItem>
       )}
-      {(staged ?? []).map((entry) => (
-        <ChatItem key={entry.id} id={entry.id}>
-          <StagedTurn entry={entry} author={userName} />
-        </ChatItem>
-      ))}
+      {queued === undefined
+        ? null
+        : queued.rows.map((row) => (
+            <ChatItem key={row.id} id={row.id}>
+              <QueuedRowItem
+                row={row}
+                author={userName}
+                onOpenAgent={openAgent}
+                onEdit={queued.onEdit}
+                onRemove={queued.onRemove}
+              />
+            </ChatItem>
+          ))}
     </Chat>
   )
 }

@@ -1,6 +1,5 @@
 'use client'
 
-import type { RequestItem } from '@/features/threads/data/transcript-items'
 import { OperatorInputCard } from '@/features/threads/operator-input-card'
 
 import { useOperatorRequestAnswer } from './data/use-operator-request'
@@ -10,7 +9,7 @@ export function OperatorRequestDock({
   request,
 }: {
   sessionId: string
-  request: RequestItem | null
+  request: { callId: string; prompt: string } | null
 }) {
   const answer = useOperatorRequestAnswer({ sessionId, request })
   if (request === null) return null

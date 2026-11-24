@@ -35,6 +35,7 @@ export interface PodSectionProps {
   series: readonly PodMetricsSample[]
   usageUnavailable?: boolean | undefined
   pendingShape?: PodShape | undefined
+  resizeWaiting?: boolean | undefined
   resizeError?: string | undefined
   throttled?: boolean | undefined
   oomKills?: number | undefined
@@ -49,6 +50,8 @@ export interface PodSectionProps {
   onStart?: (() => void) | undefined
   onStop?: (() => void) | undefined
   onResize?: ((shape: PodShape) => void) | undefined
+  onResizeNow?: (() => Promise<void>) | undefined
+  onCancelResize?: (() => Promise<void>) | undefined
   diskGrow?: boolean | undefined
   onGrowDisk?: ((diskGb: number) => void) | undefined
   onConfirm?: (() => void) | undefined
@@ -151,6 +154,7 @@ export function PodSection(props: PodSectionProps) {
     shapes: props.shapes,
     unavailable: props.unavailable,
     pendingShape: props.pendingShape,
+    resizeWaiting: props.resizeWaiting === true,
     resizeError: props.resizeError,
     disabled:
       !canResize(props.state) || props.stopping === true || props.pendingShape !== undefined,
@@ -158,6 +162,8 @@ export function PodSection(props: PodSectionProps) {
     open: props.sizeMenuOpen,
     onOpenChange: props.onSizeMenuOpenChange,
     onResize: props.onResize,
+    onResizeNow: props.onResizeNow,
+    onCancelResize: props.onCancelResize,
   }
 
   const ramValue = running ? view.ramLabel : `— / ${view.ramLimitGb} GB`
@@ -172,6 +178,7 @@ export function PodSection(props: PodSectionProps) {
         state={props.state}
         stopping={props.stopping === true}
         resizing={props.pendingShape !== undefined && props.resizeError === undefined}
+        waiting={props.resizeWaiting === true}
         sizeControl={<PodSizeSelect {...sizeProps} />}
         onStart={props.onStart}
         onStop={props.onStop}

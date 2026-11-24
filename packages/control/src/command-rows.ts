@@ -1,4 +1,9 @@
-import { commandInputName, unfinishedCommandIdsOf, type V2Event } from '@dltech/atlas-core'
+import {
+  commandInputName,
+  unfinishedCommandIdsOf,
+  type V2Event,
+  type V2EventType,
+} from '@dltech/atlas-core'
 import {
   ECommandState,
   QUEUED_MESSAGES_LIMIT,
@@ -12,6 +17,17 @@ import { readEventsIn } from './read-events'
 import { VIEW_TAIL_LIMIT } from './session-view-ops'
 
 export { unfinishedCommandIdsOf } from '@dltech/atlas-core'
+
+export const COMMAND_TAIL_TYPES: readonly V2EventType[] = [
+  'input-posted',
+  'input-consumed',
+  'input-refused',
+  'command-applied',
+  'history-rewound',
+  'history-summarised',
+  'rotated',
+  'resume-marked',
+]
 
 export const runningCommandsIn = async (args: {
   tx: ControlTx
@@ -28,6 +44,7 @@ export const runningCommandsIn = async (args: {
     afterSeq: Math.max(0, row.headSeq - VIEW_TAIL_LIMIT),
     limit: VIEW_TAIL_LIMIT,
     visible: true,
+    onlyTypes: COMMAND_TAIL_TYPES,
     eventSchema: args.eventSchema,
   })
   const posted = new Map<number, { name: string; postedAt: string }>()

@@ -18,7 +18,7 @@ const BASE: Record<ESessionStatus, ESessionDisplay> = {
   [ESessionStatus.WaitingForCredentials]: ESessionDisplay.WaitingForYou,
   [ESessionStatus.WaitingForOperator]: ESessionDisplay.WaitingForYou,
   [ESessionStatus.Preparing]: ESessionDisplay.Starting,
-  [ESessionStatus.Queued]: ESessionDisplay.Idle,
+  [ESessionStatus.Queued]: ESessionDisplay.Working,
   [ESessionStatus.Thinking]: ESessionDisplay.Working,
   [ESessionStatus.RunningTool]: ESessionDisplay.Working,
   [ESessionStatus.WaitingToRetry]: ESessionDisplay.Working,
@@ -26,6 +26,11 @@ const BASE: Record<ESessionStatus, ESessionDisplay> = {
   [ESessionStatus.WaitingForBackground]: ESessionDisplay.Working,
   [ESessionStatus.Idle]: ESessionDisplay.Idle,
 }
+
+const TURN_LESS: ReadonlySet<ESessionStatus> = new Set([
+  ESessionStatus.Idle,
+  ESessionStatus.WaitingForBackground,
+])
 
 const POD: Partial<Record<ESandboxStatus, ESessionDisplay>> = {
   [ESandboxStatus.Provisioning]: ESessionDisplay.Starting,
@@ -47,7 +52,7 @@ export const sessionDisplayOf = (args: {
 }): ESessionDisplay | undefined => {
   if (args.state === undefined) return undefined
   const display = BASE[args.state]
-  if (display !== ESessionDisplay.Idle || args.sandboxStatus === undefined) return display
+  if (!TURN_LESS.has(args.state) || args.sandboxStatus === undefined) return display
   return POD[args.sandboxStatus] ?? display
 }
 

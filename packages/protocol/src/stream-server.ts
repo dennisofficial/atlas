@@ -58,6 +58,15 @@ export const streamServerMessageSchema = z.discriminatedUnion('type', [
     reason: z.enum(EStreamResetReason),
     tailFrom: z.number().int().min(0),
   }),
+  z.strictObject({
+    type: z.literal('base'),
+    id: idSchema,
+    cursor: z.strictObject({ seq: z.number().int().min(1), hash: z.string().min(1) }),
+    visibility: z.record(z.string(), z.unknown()),
+    view: z.record(z.string(), z.unknown()),
+    durable: z.array(sessionEventsOutputSchema.shape.events.element),
+    commandLog: z.array(sessionEventsOutputSchema.shape.events.element),
+  }),
   streamViewMessageSchema,
   z.strictObject({
     type: z.literal('overlay'),

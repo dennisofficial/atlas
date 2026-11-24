@@ -1,5 +1,6 @@
 import { SidebarTrigger } from '@dltech/atlas-ui/components/sidebar'
 import { Skeleton } from '@dltech/atlas-ui/components/skeleton'
+import { readingClasses } from '@dltech/atlas-ui/tokens'
 
 import { TranscriptLoading } from './panel/agents/agents-skeletons'
 import { useRightPanelCollapsed } from './panel/right-panel-collapsed'
@@ -25,7 +26,9 @@ function HeaderSkeleton() {
 
 function ComposerSkeleton() {
   return (
-    <div className="mx-auto flex w-full max-w-4xl shrink-0 flex-col gap-2 px-4 pb-[max(1rem,var(--safe-area-bottom))]">
+    <div
+      className={`mx-auto flex w-full ${readingClasses.measure} shrink-0 flex-col gap-2 px-4 pb-[max(1rem,var(--safe-area-bottom))]`}
+    >
       <Skeleton className="h-24 w-full rounded-xl" />
     </div>
   )

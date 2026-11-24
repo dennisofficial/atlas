@@ -1,4 +1,4 @@
-import posthog from 'posthog-js'
+import posthog, { type CaptureResult } from 'posthog-js'
 
 import { isDesktopHost } from '@/features/desktop/desktop-attributes'
 import { webBuild } from '@/lib/build-info'
@@ -6,6 +6,10 @@ import { webBuild } from '@/lib/build-info'
 const POSTHOG_TOKEN = 'phc_q27hvgM8kSbwyjca72m3v7QexFE25FfFG8n529zM2WqL'
 const POSTHOG_UI_HOST = 'https://us.posthog.com'
 const SHORT_SHA_LENGTH = 7
+const EXCEPTION_EVENT = '$exception'
+// Browsers raise this when a ResizeObserver callback resizes what it observes; it is harmless
+// and not catchable (https://github.com/WICG/resize-observer/issues/38).
+const BENIGN_EXCEPTION_PREFIXES = ['ResizeObserver loop']
 
 export interface SuperProps {
   surface: 'mac' | 'web'
@@ -38,6 +42,36 @@ export function superPropsOf({ host, commit }: { host: object; commit: string })
   }
 }
 
+const exceptionMessagesOf = (properties: Record<string, unknown>): readonly string[] => {
+  const list = properties.$exception_list
+  if (!Array.isArray(list)) return []
+  return list.flatMap((entry: unknown) =>
+    typeof entry === 'object' &&
+    entry !== null &&
+    'value' in entry &&
+    typeof entry.value === 'string'
+      ? [entry.value]
+      : [],
+  )
+}
+
+export function isBenignException(event: {
+  event: string
+  properties: Record<string, unknown>
+}): boolean {
+  if (event.event !== EXCEPTION_EVENT) return false
+  const messages = exceptionMessagesOf(event.properties)
+  return (
+    messages.length > 0 &&
+    messages.every((message) =>
+      BENIGN_EXCEPTION_PREFIXES.some((prefix) => message.startsWith(prefix)),
+    )
+  )
+}
+
+const dropBenignExceptions = (event: CaptureResult | null): CaptureResult | null =>
+  event === null || isBenignException(event) ? null : event
+
 const posthogClient: AnalyticsClient = {
   capture: (event, props) => posthog.capture(event, props),
   identify: (userId, props) => posthog.identify(userId, props),
@@ -62,6 +96,7 @@ export function initAnalytics(options: { enabled?: boolean; client?: AnalyticsCl
       disable_session_recording: true,
       capture_exceptions: true,
       person_profiles: 'identified_only',
+      before_send: dropBenignExceptions,
     })
     posthog.register(superPropsOf({ host: window, commit: webBuild().commit }))
   }

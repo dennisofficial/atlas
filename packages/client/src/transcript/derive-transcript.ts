@@ -2,6 +2,7 @@ import { EBlockKind, type CallId, type Event } from '@dltech/atlas-core'
 import { EStepEnd, type StepSignal } from '../channel'
 
 import { durableEntries } from './durable-entries'
+import type { TranscriptEntryFold } from './entry-builders'
 import {
   liveSteps,
   runKey,
@@ -186,9 +187,14 @@ export function deriveTranscript(args: {
   sandbox?: TranscriptSandbox | null | undefined
   outputs?: ReadonlyMap<CallId, string> | undefined
   now?: Clock | undefined
+  pluginEntries?: readonly TranscriptEntryFold[] | undefined
 }): TranscriptModel {
   return assembleTranscript({
-    durable: durableEntries({ events: args.events, turns: args.turns }),
+    durable: durableEntries({
+      events: args.events,
+      turns: args.turns,
+      ...(args.pluginEntries === undefined ? {} : { pluginEntries: args.pluginEntries }),
+    }),
     durableFailure: latestRunFailure(args.events),
     persistedFailure: persistedFailureOf(args.events),
     failureDismissed: failureDismissedForTail(args.events),

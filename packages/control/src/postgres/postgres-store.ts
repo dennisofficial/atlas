@@ -31,6 +31,7 @@ import {
   type SubscriptionLease,
   type SubscriptionLeaseKey,
   type SubscriptionRow,
+  type ReleasePullRequestTrackingParams,
   type TrackingTarget,
   type WrittenSubscriptionRow,
   type SessionDigestRow,
@@ -48,8 +49,10 @@ import {
   type SessionViewRow,
   type TrackedPullRequestRow,
   type WorktreeChangesRead,
+  type WorktreeChangesSummary,
   type WorktreeChangesWrite,
 } from '../port'
+import type { ContextFileRow, ContextFileWrite } from '../context-files'
 import {
   changeBlobHashesPresentIn,
   changeBlobsUnreferencedIn,
@@ -57,8 +60,17 @@ import {
   deleteChangeBlobRowsIn,
   readChangeFileIn,
   readChangesIn,
+  readChangesSummaryIn,
   upsertChangesIn,
 } from './postgres-changes'
+import {
+  contextDigestsReferencedIn,
+  contextFileIn,
+  listContextFilesIn,
+  lockContextDigestIn,
+  removeContextFilesIn,
+  upsertContextFilesIn,
+} from './postgres-context-files'
 import {
   blobHashesPresent,
   blobReferencedIn,
@@ -88,6 +100,7 @@ import {
   setSessionPodDesiredIn,
   setSessionPodDiskIn,
   setSessionPodFailedIn,
+  setSessionPodWaitCancelledIn,
   setSessionPodWaitingIn,
   setSessionTitleIfUntitledIn,
   setSessionTitleIn,
@@ -137,7 +150,7 @@ import {
   updateSubscriptionRowIn,
   upsertSubscriptionLeaseIn,
 } from './postgres-subscriptions'
-import { upsertTrackingTargetIn } from './postgres-tracking-targets'
+import { releasePullRequestTrackingIn, upsertTrackingTargetIn } from './postgres-tracking-targets'
 import { toLease, toThreadRow } from './postgres-rows'
 import { insertEventsIn, listSessionsIn, readEventsIn, writeThreadHeadIn } from './postgres-threads'
 import {
@@ -242,6 +255,16 @@ export class PostgresTx implements ControlTx {
       sessionId: params.sessionId,
       generation: params.generation,
       since: params.since,
+    })
+  }
+
+  async setSessionPodWaitCancelled(params: Parameters<ControlTx['setSessionPodWaitCancelled']>[0]) {
+    return setSessionPodWaitCancelledIn({
+      tx: this.tx,
+      sessionId: params.sessionId,
+      generation: params.generation,
+      vcpus: params.vcpus,
+      memoryGb: params.memoryGb,
     })
   }
 
@@ -380,6 +403,10 @@ export class PostgresTx implements ControlTx {
     return readChangesIn({ tx: this.tx, ...params })
   }
 
+  async readChangesSummary(params: { sessionId: string }): Promise<WorktreeChangesSummary[]> {
+    return readChangesSummaryIn({ tx: this.tx, ...params })
+  }
+
   async readChangeFile(params: {
     sessionId: string
     checkoutId: string
@@ -401,6 +428,35 @@ export class PostgresTx implements ControlTx {
 
   async deleteChangeBlobs(params: { hashes: readonly string[] }): Promise<void> {
     await deleteChangeBlobRowsIn({ tx: this.tx, ...params })
+  }
+
+  async upsertContextFiles(params: {
+    sessionId: string
+    files: readonly ContextFileWrite[]
+  }): Promise<void> {
+    await upsertContextFilesIn({ tx: this.tx, ...params })
+  }
+
+  async removeContextFiles(params: { sessionId: string; paths: readonly string[] }): Promise<void> {
+    await removeContextFilesIn({ tx: this.tx, ...params })
+  }
+
+  async listContextFiles(params: { sessionId: string }): Promise<readonly ContextFileRow[]> {
+    return listContextFilesIn({ tx: this.tx, ...params })
+  }
+
+  async contextFileOf(params: { sessionId: string; path: string }): Promise<ContextFileRow | null> {
+    return contextFileIn({ tx: this.tx, ...params })
+  }
+
+  async contextDigestsReferenced(params: {
+    digests: readonly string[]
+  }): Promise<ReadonlySet<string>> {
+    return contextDigestsReferencedIn({ tx: this.tx, ...params })
+  }
+
+  async lockContextDigest(params: { digest: string }): Promise<void> {
+    await lockContextDigestIn({ tx: this.tx, ...params })
   }
 
   async readEvents(params: ReadEventsParams): Promise<StoredEvent[]> {
@@ -566,7 +622,7 @@ export class PostgresTx implements ControlTx {
     target: SubscriptionRow['target']
     label: string
     events: readonly string[]
-    expiresAt: string
+    expiresAt: string | null
     deadline: string | null
   }): Promise<boolean> {
     return updateSubscriptionRowIn({ tx: this.tx, ...params })
@@ -585,6 +641,10 @@ export class PostgresTx implements ControlTx {
 
   async upsertTrackingTarget(params: TrackingTarget): Promise<void> {
     await upsertTrackingTargetIn({ tx: this.tx, ...params })
+  }
+
+  async releasePullRequestTracking(params: ReleasePullRequestTrackingParams): Promise<void> {
+    await releasePullRequestTrackingIn({ tx: this.tx, ...params })
   }
 
   async hostPresent(hostId: number): Promise<boolean> {

@@ -1,4 +1,5 @@
 import { createApiClient } from '@dltech/atlas-api-router'
+import { ENotifyInAppKind, ENotifyTrackEvent, type AtlasNotification } from '@dltech/atlas-core'
 import type {
   ListNotifyDevicesOutput,
   RegisterNotifyDeviceInput,
@@ -39,3 +40,17 @@ export const listNotifyDevices = (): Promise<ListNotifyDevicesOutput> =>
 
 export const setNotifyDeviceEnabled = (input: SetNotifyDeviceEnabledInput): Promise<void> =>
   cloudCall(api.notifications.setDeviceEnabled.mutate(input))
+
+const trackInAppShownOf = (notice: AtlasNotification) => ({
+  event: ENotifyTrackEvent.InAppShown,
+  sessionId: notice.sessionId,
+  seq: notice.seq,
+  moment: notice.moment,
+  deviceKind: ENotifyInAppKind.Web,
+})
+
+export const reportInAppShown = (notice: AtlasNotification): Promise<void> =>
+  api.notifications.track.mutate(trackInAppShownOf(notice)).then(
+    () => undefined,
+    () => undefined,
+  )

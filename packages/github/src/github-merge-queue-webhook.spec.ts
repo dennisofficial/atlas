@@ -1,7 +1,7 @@
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { ControlPlane } from '@dltech/atlas-control'
-import { PostgresControlStore } from '@dltech/atlas-control/postgres'
-import { createV2EventSchema } from '@dltech/atlas-core'
+import { NO_EXPIRY_AT, PostgresControlStore } from '@dltech/atlas-control/postgres'
+import { createV2EventSchema, ESubscriptionActor } from '@dltech/atlas-core'
 import { db } from '@dltech/atlas-db'
 import { EMergeQueueMove, EPrEventKind, INBOX_KIND_EVENT, inboxEventOf } from '@dltech/atlas-core'
 import { beforeEach, describe, expect, it } from 'bun:test'
@@ -115,6 +115,42 @@ describe('recordMergeQueueEntry', () => {
         url: 'https://github.com/compai/app/pull/42',
         queue: EMergeQueueMove.Entered,
       },
+    })
+  })
+
+  it('notifies a thread that subscribed through the control plane with no expiry', async () => {
+    await seedV2Thread({ sessionId: V2_SESSION, threadId: V2_THREAD, userId: USER })
+    const control = new ControlPlane({
+      store: new PostgresControlStore(db),
+      eventSchema: createV2EventSchema({ pluginBodies: [] }),
+    })
+    const subscribed = await control.subscribe({
+      sessionId: V2_SESSION,
+      threadId: V2_THREAD,
+      provider: 'github.pull-request',
+      target: { repo: 'github.com/compai/app', number: 42 },
+      label: 'compai/app#42',
+      events: [],
+      lease: { repo: 'compai/app', subject: { kind: 'pull-request', number: 42 } },
+      by: ESubscriptionActor.Agent,
+    })
+    expect(subscribed.subscription.expiresAt).toBeNull()
+    const stored = await db.orm.public.GithubSubscription.where({
+      id: subscribed.subscription.id,
+    }).first()
+    expect(stored?.expiresAt.toISOString()).toBe(NO_EXPIRY_AT.toISOString())
+
+    expect(await recordMergeQueueEntry({ queues: noQueues, payload: payloadOf() })).toBe(1)
+
+    const entries = (await inboxEvents(V2_SESSION)).filter(
+      (entry) => entry.kind === INBOX_KIND_EVENT,
+    )
+    expect(entries).toHaveLength(1)
+    expect(eventOf(entries[0]!)).toMatchObject({
+      type: 'pr-event',
+      prNumber: 42,
+      kind: EPrEventKind.MergeQueue,
+      queue: EMergeQueueMove.Entered,
     })
   })
 

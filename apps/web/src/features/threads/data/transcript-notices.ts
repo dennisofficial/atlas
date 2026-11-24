@@ -88,7 +88,7 @@ function fieldsOf(entry: TranscriptEntry): NoticeFields | null {
     case EEntryKind.PodOom:
       return {
         title: entry.text,
-        body: '',
+        body: entry.command ?? '',
         tone: ENoticeTone.Failed,
         action: ENoticeAction.ChangePodSize,
       }

@@ -7,6 +7,7 @@ import {
   MAX_MESSAGE_UPLOADS,
   parseRef,
   saidUploadSchema,
+  turnNotifySchema,
 } from '@dltech/atlas-core'
 import { z } from 'zod'
 
@@ -59,7 +60,11 @@ export const messageDraftSchema = z
   .refine(withinAttachmentLimit, `a message carries at most ${MAX_MESSAGE_UPLOADS} attachments`)
 
 export const sessionPostInputSchema = z
-  .strictObject({ sessionId: z.string().min(1), ...messageDraftFields })
+  .strictObject({
+    sessionId: z.string().min(1),
+    ...messageDraftFields,
+    sentAt: z.string().min(1).optional(),
+  })
   .refine(hasMessageContent, 'a message needs text or an attachment')
   .refine(withinAttachmentLimit, `a message carries at most ${MAX_MESSAGE_UPLOADS} attachments`)
 
@@ -213,6 +218,8 @@ export const sessionTurnEndingSchema = z.strictObject({
   seq: z.number().int().min(0),
   outcome: z.enum(ETurnOutcome),
   by: z.enum(ETurnEndedBy),
+  at: z.string().min(1).optional(),
+  notify: turnNotifySchema.optional(),
 })
 
 export const sessionSummarySchema = z.strictObject({
@@ -462,6 +469,11 @@ export const sessionContextMeterSchema = z.strictObject({
   used: z.number().min(0).nullable(),
   window: z.number().nullable(),
   measuredThroughSeq: z.number().int().nullable(),
+  breakdown: z
+    .array(z.strictObject({ label: z.string(), tokens: z.number().int().min(0) }))
+    .readonly()
+    .nullable()
+    .optional(),
 })
 
 export const sessionCheckoutsSchema = z.strictObject({

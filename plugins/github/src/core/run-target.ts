@@ -23,15 +23,6 @@ export const NO_RUN_REPOSITORY_ERROR =
 export const NO_RUN_FOR_PUSH_ERROR =
   'No workflow run exists for this push yet. Subscribe with <workflow>@<branch> to catch the run when it starts'
 
-export const finishedRunErrorOf = (args: {
-  name: string
-  conclusion: string
-  url: string
-  workflow: string
-  branch: string
-}): string =>
-  `The run ${args.name} already finished with conclusion ${args.conclusion}: ${args.url}. Nothing arrives for a finished run. Subscribe with ${args.workflow}@${args.branch} to catch its later runs`
-
 export const UNRECOGNIZED_RUN_ERROR =
   'Not a workflow run reference; pass nothing, #<run id>, owner/repo#<run id>, a github.com run URL, or <workflow>@<branch>'
 

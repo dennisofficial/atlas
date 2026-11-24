@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 
 import { foldCrew, oneLine, type ECrewStanding } from '@dltech/atlas-core'
 
-import { pullRequestChip } from '../../../plugins/github/pull-request-pill'
+import { pullRequestChip } from '../../pull-request-pill'
 import { crewTiersOf, type SidebarTeammate } from '../../../store/sidebar-model'
 import {
   crewRowReading,
@@ -265,20 +265,29 @@ export function SubagentsSection(props: {
 export function TeammatesSection(props: {
   teammates: readonly SidebarTeammate[]
   cells: number
+  onOpen?: ((id: string) => void) | undefined
 }): React.ReactNode {
+  const press = usePress()
   if (props.teammates.length === 0) return null
+
+  const { onOpen } = props
 
   return (
     <Section label="Teammates" count={String(props.teammates.length)}>
       {props.teammates.map((teammate) => (
-        <Row
+        <box
           key={teammate.id}
-          label={teammate.name}
-          labelFg={theme.hover}
-          cells={props.cells}
-          mark={{ text: glyph.unseen, fg: teammate.activity === null ? theme.rule : theme.ok }}
-          value={[{ text: teammate.activity ?? IDLE, fg: theme.hint }]}
-        />
+          flexShrink={0}
+          {...press(onOpen === undefined ? undefined : () => onOpen(teammate.id))}
+        >
+          <Row
+            label={teammate.name}
+            labelFg={theme.hover}
+            cells={props.cells}
+            mark={{ text: glyph.unseen, fg: teammate.activity === null ? theme.rule : theme.ok }}
+            value={[{ text: teammate.activity ?? IDLE, fg: theme.hint }]}
+          />
+        </box>
       ))}
     </Section>
   )

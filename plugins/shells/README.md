@@ -19,12 +19,12 @@ its roster view.
 
 ## Entry points
 
-| Import                                | Use it for                                                        |
-| ------------------------------------- | ----------------------------------------------------------------- |
-| `@dltech/atlas-plugin-shells/core`    | `shellsCoreSlots`, the `shells` view fold and its schemas.        |
-| `@dltech/atlas-plugin-shells/pod`     | `shellsPod`: four tools, the daemon hook and the prompt fragment. |
-| `@dltech/atlas-plugin-shells/control` | `shellsControl`, an empty control slot.                           |
-| `@dltech/atlas-plugin-shells/client`  | `shellsClient`, `shellsOfView` and `shellRosterOf`.               |
+| Import                                | Use it for                                                  |
+| ------------------------------------- | ----------------------------------------------------------- |
+| `@dltech/atlas-plugin-shells/core`    | `shellsCoreSlots`, the `shells` view fold and its schemas.  |
+| `@dltech/atlas-plugin-shells/pod`     | `shellsPod`: four tools, the hooks and the prompt fragment. |
+| `@dltech/atlas-plugin-shells/control` | `shellsControl`, an empty control slot.                     |
+| `@dltech/atlas-plugin-shells/client`  | `shellsClient`, `shellsOfView` and `shellRosterOf`.         |
 
 ## Capabilities
 
@@ -34,7 +34,7 @@ its roster view.
 - `foldShells(state, event)`: add or update one row. The status is `running`, `exited`, `killed` or `overflowed`.
 - `shellsOfEvents(events)` and `shellsOfView(views)`: the rows of a log or of a view record.
 - `shellRosterOf(views)`: the running shells, their count and whether one waits for input.
-- `looksLikePrompt(text)`: true when the printed text ends in a prompt.
+- `looksLikePrompt(text)` (pod tier): true when the printed text ends in a prompt.
 
 ## Plugin contributions
 
@@ -49,10 +49,26 @@ its roster view.
 
 ### The slots
 
-`shellsPod` gives the four tools, one daemon-event hook and the `shells.background` prompt
-fragment. The hook records a shell ending and marks a shell that waits for input.
+`shellsPod` gives the four tools, the after-tool hook, the daemon listener and the
+`shells.background` prompt fragment.
+- `shells-adopted-bash` (afterTool): drafts `background-shell-started` when a `bash` call returns
+  a backgrounded shell, and records that the shell has a stdin.
+- The daemon listener: records a shell ending, and publishes the shell output as it arrives.
 
-`shellsCoreSlots` gives the `shells` view and no events or commands. `shellsClient` gives one
+`shell_output` marks a shell that waits for input and sends the `background-shell-awaiting-input`
+notice.
+
+`shellsCoreSlots` gives the `shells` view and one command:
+
+| Command       | Argument | What it does                                                          |
+| ------------- | -------- | --------------------------------------------------------------------- |
+| `/shell-kill` | `<id>`   | Stop a running shell. Runs in the host, hidden from every slash menu. |
+
+`shellKillHandlerOf(ctx)` in `src/pod/commands.ts` calls the same `killShell` the `shell_kill` tool
+calls, forgets the shell's awaiting-input mark, and returns `done` after appending one
+`command-applied` row naming its inbox id. A replay of a kill that already happened is refused by
+the daemon, which settles the command. A refused kill carries the daemon's own sentence. The handler does not read the delta the tool reads: the loop needs the
+output, the operator reads the tail from the followed snapshot. `shellsClient` gives one
 hook, `shells-roster`, which applies to the `background-shell-*` events.
 
 ## Usage

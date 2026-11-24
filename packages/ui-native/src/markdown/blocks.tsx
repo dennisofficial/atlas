@@ -1,4 +1,3 @@
-import { space } from '@dltech/atlas-ui/tokens'
 import { ScrollView, StyleSheet, View } from 'react-native'
 
 import { withAlpha } from '../color'
@@ -6,6 +5,7 @@ import { Text } from '../text'
 import { EFontFamily, EFontWeight, ETextRole, ETextTone, RELAXED_LEADING } from '../text-style'
 import { useIsDark, useTheme } from '../use-theme'
 import { Inline } from './spans'
+import { listItemIndent, listTextLayout } from './layout'
 import { EMdBlock, type MdBlock } from './parse'
 import { type IInlineStyle, styles } from './styles'
 
@@ -55,7 +55,7 @@ const List = ({
     {block.items.map((item, index) => (
       <View
         key={`${item.depth}-${index}`}
-        style={[styles.listRow, { paddingLeft: space(2) * item.depth }]}
+        style={[styles.listRow, { paddingLeft: listItemIndent({ depth: item.depth }) }]}
       >
         <Text
           size={style.size}
@@ -65,7 +65,7 @@ const List = ({
         >
           {item.marker}
         </Text>
-        <View style={[styles.fill, styles.listText]}>
+        <View style={[styles.listText, listTextLayout]}>
           <Inline spans={item.spans} selectable={selectable} style={style} />
         </View>
       </View>

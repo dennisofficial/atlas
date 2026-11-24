@@ -21,6 +21,7 @@ import {
 import { toCallId, toEventId, toThreadId } from '../../events/ids'
 import { CORE_EVENT_TYPES } from '../../events/schema'
 import { ERunFailureKind } from '../../events/run-failure'
+import { EResumePoint } from '../../record/resume-point'
 import { EExecutionLocation } from '../../execution/location'
 import { EModelWaitCause, EWaitEpisodeKind } from '../../model-recovery/waiting'
 import { EClassifierMode, ETriage } from '../../policy/classifier/triage'
@@ -98,6 +99,7 @@ const SAMPLES: { readonly [K in EventType]: SampleOf<K> } = {
   },
   nudge: { type: 'nudge', text: 'keep going', lifetimeSteps: 3 },
   'sandbox-setup-reported': { type: 'sandbox-setup-reported', text: 'installed', failed: false },
+  'session-archived': { type: 'session-archived', bySessionId: 'ses_2', byTitle: 'the parser' },
   'pod-ran-out-of-memory': {
     type: 'pod-ran-out-of-memory',
     incidentId: 'oom-1',
@@ -116,6 +118,8 @@ const SAMPLES: { readonly [K in EventType]: SampleOf<K> } = {
     cause: ELocationChangeCause.SandboxExpired,
   },
   rotated: { type: 'rotated', handoff: 'the plan, the files and the branch' },
+  'resume-marked': { type: 'resume-marked', point: EResumePoint.Clean, discards: [], callIds: [] },
+  'command-applied': { type: 'command-applied', inboxId: 1, name: 'agent' },
   parked: {
     type: 'parked',
     reason: 'idle',

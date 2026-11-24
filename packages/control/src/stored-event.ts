@@ -19,6 +19,7 @@ const visibilitySchema: z.ZodType<VisibilityState> = z.object({
       fromSeq: z.number().int(),
       throughSeq: z.number().int(),
       keepSurvivors: z.boolean(),
+      keepTurns: z.boolean().default(false),
     }),
   ),
 })
@@ -44,13 +45,24 @@ export const toStoredEvent = (params: { event: V2Event; hash: Hash }): StoredEve
   canonical: canonicalJson(params.event),
 })
 
+const ISSUE_MESSAGE_LIMIT = 160
+
+const firstIssueOf = (error: z.ZodError): string => {
+  const issue = error.issues[0]
+  if (issue === undefined) return 'no issue reported'
+  const path = issue.path.length === 0 ? '(root)' : issue.path.join('.')
+  return `${path}: ${issue.message.slice(0, ISSUE_MESSAGE_LIMIT)}`
+}
+
 export function decodeStoredEvent(
   row: StoredEvent,
   eventSchema: z.ZodType<V2Event> = v2EventSchema,
 ): V2Event {
   const parsed = eventSchema.safeParse(JSON.parse(row.canonical))
   if (!parsed.success) {
-    throw new RecordCorruptError(`stored event ${row.threadId}:${row.seq} is invalid`)
+    throw new RecordCorruptError(
+      `stored event ${row.threadId}:${row.seq} is invalid (type ${row.type}; ${firstIssueOf(parsed.error)})`,
+    )
   }
   if (parsed.data.seq !== row.seq || parsed.data.threadId !== row.threadId) {
     throw new RecordCorruptError(`stored event ${row.threadId}:${row.seq} disagrees with its row`)

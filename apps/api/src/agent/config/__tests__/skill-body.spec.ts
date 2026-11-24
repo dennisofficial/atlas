@@ -77,7 +77,7 @@ describe('skillTextOf', () => {
     expect(texts.every((one) => one.text === 'body')).toBe(true)
   })
 
-  it('reads a lowercase entry file and skips a skill that has none', async () => {
+  it('reads the exact SKILL.md entry of every skill and skips a skill that has none', async () => {
     const { db } = testDb()
     await seedOwner(db)
     await seedSkill({ db, name: 'lower', scope: 'user', entryPath: 'skill.md' })
@@ -96,11 +96,7 @@ describe('skillTextOf', () => {
       hash: 'h',
     })
     const texts = await skillFrontmattersOf({ db, owner: OWNER })
-    expect(texts.map((one) => `${one.scope}:${one.name}`)).toEqual([
-      'user:lower',
-      'user:gamma',
-      'project:delta',
-    ])
+    expect(texts.map((one) => `${one.scope}:${one.name}`)).toEqual(['user:gamma'])
     expect(texts.every((one) => one.text === 'body')).toBe(true)
   })
 

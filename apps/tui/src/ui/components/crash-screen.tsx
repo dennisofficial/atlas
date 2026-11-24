@@ -2,7 +2,7 @@ import { useKeyboard, useRenderer, useTerminalDimensions } from '@opentui/react'
 import { readFileSync } from 'node:fs'
 import React, { useMemo, useRef, useState } from 'react'
 
-import { annotateCrashStack } from '../../composition/crash-report'
+import { annotateCrashStack } from '../crash-report'
 import { copyToClipboard } from '../clipboard'
 import { glyph, theme } from '../theme'
 import { Spans, type Span } from './spans'

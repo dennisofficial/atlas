@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
 import {
@@ -41,6 +41,7 @@ import {
 } from './credential-repair-view'
 import { retrySession } from './retry-session'
 import { sessionsApi } from './sessions-api'
+import type { ModelSwitchRetry } from './use-model-switch-retry'
 
 export enum ERepairDialog {
   SignIn = 'sign-in',
@@ -85,11 +86,11 @@ export function useCredentialRepair(args: {
   mainThreadId: string | undefined
   events: readonly V2Event[]
   onSwitchModel: () => void
+  retryAfterModel: ModelSwitchRetry
 }): CredentialRepairControl {
-  const { sessionId, mainThreadId, events, onSwitchModel } = args
+  const { sessionId, mainThreadId, events, onSwitchModel, retryAfterModel } = args
   const [dialog, setDialog] = useState<ERepairDialog | null>(null)
   const [failing, setFailing] = useState(false)
-  const switchPending = useRef(false)
   const accounts = useCloudQuery({ key: 'failure-accounts', load: fetchAccounts })
   const { reload } = accounts
   const list = accounts.state === EQueryState.Ready ? accounts.data : undefined
@@ -176,7 +177,7 @@ export function useCredentialRepair(args: {
           return
         }
         case ERepairAction.SwapModel:
-          switchPending.current = true
+          retryAfterModel.arm(() => void retryAfterRepair())
           onSwitchModel()
           return
         case ERepairAction.CheckAgain:
@@ -184,18 +185,14 @@ export function useCredentialRepair(args: {
           return
       }
     },
-    [repair, runMutation, onSwitchModel, retryAfterRepair],
+    [repair, runMutation, onSwitchModel, retryAfterModel, retryAfterRepair],
   )
 
   const handleRetry = useCallback(() => {
     void retryAfterRepair()
   }, [retryAfterRepair])
 
-  const handleModelSelected = useCallback(() => {
-    if (!switchPending.current) return
-    switchPending.current = false
-    void retryAfterRepair()
-  }, [retryAfterRepair])
+  const handleModelSelected = retryAfterModel.handleModelSelected
 
   const actions = useMemo<RunAttentionAction[]>(() => {
     const offered = specs.map((spec, index) => ({
@@ -253,7 +250,7 @@ export function useCredentialRepair(args: {
           await replaceApiKey({ accountId, apiKey })
           return
         }
-        await createApiKeyAccount({ provider, apiKey })
+        await createApiKeyAccount({ provider, apiKey, makeActive: true })
       })
     },
     [repair, accountKind, runMutation],

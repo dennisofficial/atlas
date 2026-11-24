@@ -21,8 +21,13 @@ export const WithBreakdown: Story = {
     used: 148_000,
     breakdown: [
       { label: 'System prompt', tokens: 6_200 },
+      { label: 'Skills', tokens: 3_100 },
+      { label: 'Memory', tokens: 900 },
+      { label: 'Instructions', tokens: 4_200 },
       { label: 'Tools', tokens: 14_800 },
-      { label: 'Messages', tokens: 127_000 },
+      { label: 'MCP: posthog', tokens: 5_600 },
+      { label: 'Tool results', tokens: 21_800 },
+      { label: 'Conversation', tokens: 91_400 },
     ],
   },
 }

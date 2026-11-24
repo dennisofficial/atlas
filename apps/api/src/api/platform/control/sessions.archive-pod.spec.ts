@@ -55,13 +55,14 @@ describe('SessionsService.archive parks the pod', () => {
       threadId: created.mainThreadId,
       bodies: [{ type: 'workspace-prepared' }],
     })
-    const { lease } = await plane.currentLease({ sessionId: created.sessionId })
-
     await archive({ service, sessionId: created.sessionId, archived: true })
+
+    const { lease } = await plane.currentLease({ sessionId: created.sessionId })
 
     expect(await inboxKindsOf({ plane, sessionId: created.sessionId })).not.toContain(
       INBOX_KIND_STOP,
     )
+    expect(lease.holderHostId).toBeNull()
     expect(dispatcher.dispatches).toEqual([
       {
         payload: { sessionId: created.sessionId, epoch: lease.epoch },
@@ -70,7 +71,7 @@ describe('SessionsService.archive parks the pod', () => {
     ])
   })
 
-  it('stops a running turn through the inbox, then sleeps the pod', async () => {
+  it('takes a running turn off its holder instead of posting a stop', async () => {
     const { plane, service, dispatcher } = setup()
     const created = await service.create({ userId: 'user-a', projectId: 'proj-a' })
     await appendAsHolder({
@@ -79,12 +80,23 @@ describe('SessionsService.archive parks the pod', () => {
       threadId: created.mainThreadId,
       bodies: [{ type: 'turn-started', turnId: 'turn-1', cause: ETurnCause.Input }],
     })
+    const held = await plane.currentLease({ sessionId: created.sessionId })
 
     const archived = await archive({ service, sessionId: created.sessionId, archived: true })
 
     expect(archived.archivedAt).toEqual(expect.any(String))
-    expect(await inboxKindsOf({ plane, sessionId: created.sessionId })).toContain(INBOX_KIND_STOP)
-    expect(dispatcher.dispatches).toHaveLength(1)
+    expect(await inboxKindsOf({ plane, sessionId: created.sessionId })).not.toContain(
+      INBOX_KIND_STOP,
+    )
+    const current = await plane.currentLease({ sessionId: created.sessionId })
+    expect(current.lease.holderHostId).toBeNull()
+    expect(current.lease.epoch).toBeGreaterThan(held.lease.epoch)
+    expect(dispatcher.dispatches).toEqual([
+      {
+        payload: { sessionId: created.sessionId, epoch: current.lease.epoch },
+        idempotencyKey: `pod-sleep:${created.sessionId}:${current.lease.epoch}`,
+      },
+    ])
   })
 
   it('leaves the pod asleep on unarchive', async () => {

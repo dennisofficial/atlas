@@ -22,6 +22,7 @@ import {
   type ConsumedCommand,
   type DiagramRepairsByMessage,
   type Event,
+  type ResumePoint,
 } from '@dltech/atlas-core'
 
 import {
@@ -57,6 +58,7 @@ export type TranscriptItem = Timed &
         text: string
         attachments?: readonly Attachment[]
         command?: ConsumedCommand | undefined
+        clientId?: string | undefined
       }
     | {
         kind: ETranscriptKind.Agent
@@ -65,6 +67,7 @@ export type TranscriptItem = Timed &
         streaming: boolean
         fast?: true
         stopped?: true
+        resume?: ResumePoint | null
         sender?: string
       }
     | {
@@ -74,6 +77,7 @@ export type TranscriptItem = Timed &
         streaming: boolean
         heldOpen: boolean
         stopped?: true
+        resume?: ResumePoint | null
       }
     | { kind: ETranscriptKind.Tools; id: string; calls: ToolCallItem[] }
     | SignInItem
@@ -128,6 +132,7 @@ function userItemOf(entry: OperatorSaidEntry): TranscriptItem | null {
     text: entry.text,
     ...(entry.attachments.length === 0 ? {} : { attachments: entry.attachments }),
     ...(entry.command === undefined ? {} : { command: entry.command }),
+    ...(entry.clientId === undefined ? {} : { clientId: entry.clientId }),
   }
 }
 
@@ -315,6 +320,24 @@ const senderLabelOf = (args: {
   return name === undefined || name === '' ? 'From another session' : `From ${name}`
 }
 
+const withResumePoint = (args: {
+  items: readonly TranscriptRow[]
+  resume?: ResumePoint | null | undefined
+}): TranscriptRow[] => {
+  if (args.resume === undefined || args.resume === null) return [...args.items]
+  const index = args.items.findLastIndex(
+    (item) =>
+      (item.kind === ETranscriptKind.Agent || item.kind === ETranscriptKind.Thought) &&
+      item.stopped === true,
+  )
+  if (index < 0) return [...args.items]
+  return args.items.map((item, position) => {
+    if (position !== index) return item
+    if (item.kind !== ETranscriptKind.Agent && item.kind !== ETranscriptKind.Thought) return item
+    return { ...item, resume: args.resume ?? null }
+  })
+}
+
 export function transcriptViewOf(args: {
   durable: DurableTranscript
   live: readonly InFlightStep[]
@@ -322,6 +345,7 @@ export function transcriptViewOf(args: {
   reveal?: RevealGate | null
   thinking?: EThinkingVisibility
   sessionNameOf?: SessionNameOf | undefined
+  resume?: ResumePoint | null | undefined
 }): ThreadTranscriptView {
   const model = assembleTranscript({
     durable: args.durable.entries,
@@ -350,9 +374,12 @@ export function transcriptViewOf(args: {
     for (const row of found) rows.push(stamped({ row, at: atOf({ row, stamps }) }))
   }
   return {
-    items: withInserted({
-      items: rows,
-      inserted: [...pool.values(), ...args.durable.reports],
+    items: withResumePoint({
+      items: withInserted({
+        items: rows,
+        inserted: [...pool.values(), ...args.durable.reports],
+      }),
+      resume: args.resume,
     }),
     streaming: model.streaming,
   }

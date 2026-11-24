@@ -11,6 +11,7 @@ import {
   EAgentStart,
   EAgentStatus,
   EInputConsumed,
+  EShellStatus,
   ESetupPhase,
   initialLoopState,
   toRunId,
@@ -110,9 +111,9 @@ describe('drainNeedsHolder with commands', () => {
     expect(await needsHolder({ entries, knowsPing: true })).toBe(false)
   })
 
-  it('does not want a holder for a known command kind this holder has no handler for', async () => {
+  it('wants a holder for a known command kind this holder has no handler for', async () => {
     const entries = [entry({ inboxId: 1, kind: ping.inboxKind })]
-    expect(await needsHolder({ entries, knowsPing: false })).toBe(false)
+    expect(await needsHolder({ entries, knowsPing: false })).toBe(true)
   })
 
   it('wants a holder for a command this holder resolves', async () => {
@@ -185,6 +186,30 @@ describe('drainNeedsHolder over the pending log', () => {
   it('wants a holder for a message posted in the log with no staging row', async () => {
     const events = eventsOf([posted()])
     expect(await needsHolder({ entries: [], knowsPing: true, events })).toBe(true)
+  })
+
+  it('wants a holder while a background shell has no ending', async () => {
+    const events = eventsOf([
+      { type: 'background-shell-started', shellId: 'shell-1', command: 'sh wait.sh' },
+    ])
+    expect(await needsHolder({ entries: [], knowsPing: true, events })).toBe(true)
+  })
+
+  it('does not want a holder once the background shell ended', async () => {
+    const events = eventsOf([
+      { type: 'background-shell-started', shellId: 'shell-1', command: 'sh wait.sh' },
+      {
+        type: 'background-shell-ended',
+        shellId: 'shell-1',
+        command: 'sh wait.sh',
+        status: EShellStatus.Exited,
+        exitCode: 0,
+        output: '',
+        droppedCharacters: 0,
+        remainingCharacters: 0,
+      },
+    ])
+    expect(await needsHolder({ entries: [], knowsPing: true, events })).toBe(false)
   })
 
   it('does not want a holder once the log has said its only message', async () => {

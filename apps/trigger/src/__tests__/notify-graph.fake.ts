@@ -1,15 +1,46 @@
-import type { NotifyPresence, SettingScalar } from '@dltech/atlas-core'
+import type { AtlasNotification, NotifyPresence, SettingScalar } from '@dltech/atlas-core'
 import {
   ENotifyDeviceKind,
   type NotifyDevice,
   type NotifyResult,
 } from '@dltech/atlas-notifications'
+import { ProductAnalytics } from '@dltech/atlas-observability'
 import type { NotifyGraph, NotifySessionRow } from '../trigger/notify/notify-send-graph'
 
+export type CapturedEvent = {
+  userId: string
+  event: string
+  properties: Record<string, unknown>
+}
+
+export class RecordingAnalytics extends ProductAnalytics {
+  constructor(readonly captured: CapturedEvent[] = []) {
+    super()
+  }
+
+  capture(args: { userId: string; event: string; properties?: Record<string, unknown> }): void {
+    this.captured.push({
+      userId: args.userId,
+      event: args.event,
+      properties: args.properties ?? {},
+    })
+  }
+
+  async flush(): Promise<void> {}
+}
+
 export type NotifyGraphRecord = {
-  delivered: { kind: ENotifyDeviceKind; devices: readonly NotifyDevice[]; at: string }[]
+  delivered: {
+    kind: ENotifyDeviceKind
+    devices: readonly NotifyDevice[]
+    notification: AtlasNotification
+    at: string
+  }[]
   removed: string[]
   touched: { deviceId: string; now: string }[]
+  soundClaims: string[]
+  supersededChecks: { threadId: string; seq: number }[]
+  captured: CapturedEvent[]
 }
 
 export const deviceOf = (overrides: Partial<NotifyDevice> = {}): NotifyDevice => ({
@@ -50,6 +81,9 @@ export const sessionOf = (overrides: Partial<NotifySessionRow> = {}): NotifySess
   userId: 'usr-1',
   title: 'Fix the parser',
   readSeq: null,
+  nested: false,
+  spawnedBySessionId: null,
+  mainThreadId: 'thread-1',
   ...overrides,
 })
 
@@ -61,23 +95,42 @@ const resultsOf = (args: {
     ? args.targets.map((device) => ({ deviceId: device.id, sent: true }))
     : args.results.filter((result) => args.targets.some((device) => device.id === result.deviceId))
 
-export const notifyGraphOf = (args: {
-  session?: NotifySessionRow | null
-  presence?: readonly NotifyPresence[]
-  devices?: readonly NotifyDevice[]
-  settings?: ReadonlyMap<string, SettingScalar>
-  results?: readonly NotifyResult[]
-  now?: string
-  record?: NotifyGraphRecord
-}): { graph: NotifyGraph; record: NotifyGraphRecord } => {
-  const record = args.record ?? { delivered: [], removed: [], touched: [] }
+export const notifyGraphOf = (
+  args: {
+    session?: NotifySessionRow | null
+    presence?: readonly NotifyPresence[]
+    devices?: readonly NotifyDevice[]
+    settings?: ReadonlyMap<string, SettingScalar>
+    results?: readonly NotifyResult[]
+    now?: string
+    superseded?: boolean
+    sound?: boolean
+    record?: NotifyGraphRecord
+    analytics?: ProductAnalytics
+  } = {},
+): { graph: NotifyGraph; record: NotifyGraphRecord } => {
+  const record = args.record ?? {
+    delivered: [],
+    removed: [],
+    touched: [],
+    soundClaims: [],
+    supersededChecks: [],
+    captured: [],
+  }
+  const analytics = args.analytics ?? new RecordingAnalytics(record.captured)
   const now = args.now ?? '2026-11-23T14:02:00.000Z'
   const devices = args.devices ?? [deviceOf()]
 
   const transportOf = (kind: ENotifyDeviceKind) => ({
     kind,
-    deliver: async ({ devices: targets }: { devices: readonly NotifyDevice[] }) => {
-      record.delivered.push({ kind, devices: targets, at: now })
+    deliver: async ({
+      devices: targets,
+      notification,
+    }: {
+      devices: readonly NotifyDevice[]
+      notification: AtlasNotification
+    }) => {
+      record.delivered.push({ kind, devices: targets, notification, at: now })
       return resultsOf({ targets, results: args.results })
     },
     clear: async ({ devices: targets }: { devices: readonly NotifyDevice[] }) =>
@@ -90,6 +143,18 @@ export const notifyGraphOf = (args: {
       session: {
         read: async () => (args.session === undefined ? sessionOf() : args.session),
       },
+      turns: {
+        startedAfter: async (check) => {
+          record.supersededChecks.push(check)
+          return args.superseded === true
+        },
+      },
+      sound: {
+        claim: async (claim) => {
+          record.soundClaims.push(claim.userId)
+          return args.sound ?? true
+        },
+      },
       devices: {
         listEnabled: async () => [...devices],
         touch: async (touch) => {
@@ -101,6 +166,7 @@ export const notifyGraphOf = (args: {
       },
       presence: { read: async () => [...(args.presence ?? [])] },
       settings: { read: async () => new Map(args.settings ?? []) },
+      analytics,
       transports: {
         [ENotifyDeviceKind.WebPush]: transportOf(ENotifyDeviceKind.WebPush),
         [ENotifyDeviceKind.Expo]: transportOf(ENotifyDeviceKind.Expo),

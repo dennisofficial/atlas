@@ -1,5 +1,12 @@
 import { defineOp, type DaemonGroupFactory } from '../../engine'
-import type { FetchToFileOp, GrepMatch, GrepOp } from '../../ops'
+import {
+  DIGEST_HEAD_BYTES,
+  type DigestFileOp,
+  type FetchToFileOp,
+  type GrepMatch,
+  type GrepOp,
+  type PutFileOp,
+} from '../../ops'
 import type { MemoryFileSystem } from '../memory-files'
 
 const decodeLenient = (bytes: Uint8Array): string =>
@@ -30,6 +37,44 @@ const fetchIntoMemory = async (args: {
     })
   }
   fs.writeFile({ path: op.path, content: bytes })
+}
+
+const putFromMemory = async (args: {
+  op: PutFileOp
+  fs: MemoryFileSystem
+  signal: AbortSignal
+}): Promise<{ sha256: string; size: number }> => {
+  const { op, fs, signal } = args
+  const bytes = fs.readBytes({ path: op.path })
+  const response = await fetch(op.url, {
+    method: 'PUT',
+    body: bytes,
+    signal,
+    headers: {
+      'content-type': 'application/octet-stream',
+      'content-length': String(bytes.length),
+    },
+  })
+  if (!response.ok) {
+    throw new Error(`putting the file failed with status ${response.status}`)
+  }
+  return { sha256: new Bun.CryptoHasher('sha256').update(bytes).digest('hex'), size: bytes.length }
+}
+
+const digestOf = (args: {
+  op: DigestFileOp
+  fs: MemoryFileSystem
+}): {
+  sha256: string
+  size: number
+  head: string
+} => {
+  const bytes = args.fs.readBytes({ path: args.op.path })
+  return {
+    sha256: new Bun.CryptoHasher('sha256').update(bytes).digest('hex'),
+    size: bytes.length,
+    head: Buffer.from(bytes.subarray(0, DIGEST_HEAD_BYTES)).toString('base64'),
+  }
 }
 
 const grepMemory = (args: { op: GrepOp; fs: MemoryFileSystem }): GrepMatch[] => {
@@ -125,6 +170,14 @@ export const fakeFilesGroup =
             await fetchIntoMemory({ op, fs, signal: ctx.signal })
             return null
           },
+        }),
+        defineOp({
+          op: 'digestFile',
+          run: async ({ op }) => digestOf({ op, fs }),
+        }),
+        defineOp({
+          op: 'putFile',
+          run: async ({ op, ctx }) => await putFromMemory({ op, fs, signal: ctx.signal }),
         }),
         defineOp({
           op: 'readDirectory',

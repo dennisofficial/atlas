@@ -17,7 +17,9 @@ const planeOf = (args: {
 }): Pick<ControlPlane, 'messagePeer' | 'reportToSpawner'> => ({
   messagePeer: async (params) => {
     args.calls.push(params)
-    return args.peerRefused === undefined ? { inboxId: 1 } : { refused: args.peerRefused }
+    return args.peerRefused === undefined
+      ? { inboxId: 1, title: 'Lexer rewrite' }
+      : { refused: args.peerRefused }
   },
   reportToSpawner: async () =>
     args.reportRefused === undefined ? { inboxId: 1 } : { refused: args.reportRefused },
@@ -48,6 +50,9 @@ const crewOf = (args: {
   stop: async () => {
     throw new Error('this rig stops nothing')
   },
+  resume: async () => {
+    throw new Error('this rig resumes nothing')
+  },
   list: () => [],
   report: async ({ text }) => {
     args.reported.push(text)
@@ -76,7 +81,7 @@ describe('send_message routing', () => {
     const rig = sentOf({ said: { queued: false, snapshot } })
     const sent = await rig.messages.send({ to: 'a1', text: 'more' })
 
-    expect(sent).toEqual({ delivered: true, to: 'a1', queued: false })
+    expect(sent).toEqual({ delivered: true, to: 'a1', name: 'trace the port', queued: false })
     expect(rig.said).toEqual([{ agentId: 'a1', text: 'more' }])
     expect(rig.peer).toEqual([])
   })
@@ -85,7 +90,7 @@ describe('send_message routing', () => {
     const rig = sentOf({})
     const sent = await rig.messages.send({ to: 'session-2', text: 'hello' })
 
-    expect(sent).toEqual({ delivered: true, to: 'session-2', queued: false })
+    expect(sent).toEqual({ delivered: true, to: 'session-2', name: 'Lexer rewrite', queued: false })
     expect(rig.peer).toEqual([{ fromSessionId: SESSION, toSessionId: 'session-2', text: 'hello' }])
   })
 
@@ -176,6 +181,7 @@ describe('send_message from a sub-agent', () => {
     expect(await rig.messages.send({ to: 'a2', text: 'take the parser' })).toEqual({
       delivered: true,
       to: 'a2',
+      name: 'trace the port',
       queued: true,
     })
     expect(rig.said).toEqual([{ agentId: 'a2', text: 'take the parser' }])
@@ -193,6 +199,7 @@ describe('send_message from a sub-agent', () => {
     expect(await rig.messages.send({ to: 'session-2', text: 'hello' })).toEqual({
       delivered: true,
       to: 'session-2',
+      name: 'Lexer rewrite',
       queued: false,
     })
     expect(rig.peer).toHaveLength(1)

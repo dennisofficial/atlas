@@ -1,6 +1,8 @@
 import type { InboxEntry, Lease, ThreadId } from '@dltech/atlas-core'
 import type { SessionChange } from '@dltech/atlas-protocol'
 
+import type { ContextFileRow, ContextFileWrite } from '../../context-files'
+
 import {
   type AdvanceRoutineParams,
   type AppendCommit,
@@ -17,6 +19,7 @@ import {
   type SubscriptionKey,
   type SubscriptionLease,
   type SubscriptionLeaseKey,
+  type ReleasePullRequestTrackingParams,
   type SubscriptionRow,
   type WrittenSubscriptionRow,
   type TrackingTarget,
@@ -31,6 +34,7 @@ import {
   type RoutineRow,
   type SessionListParams,
   type WorktreeChangesRead,
+  type WorktreeChangesSummary,
   type WorktreeChangesWrite,
 } from '../../port'
 import {
@@ -57,8 +61,10 @@ import {
   deleteSubscriptionRowIn,
   findSubscriptionIn,
   insertSubscriptionRowIn,
+  laterLiveUntilOf,
   readSessionSubscriptionRowsIn,
   readSubscriptionIn,
+  releasePullRequestTrackingIn,
   updateSubscriptionRowIn,
 } from './memory-subscriptions'
 import { blobHashesPresent, insertBlobRows, readBlobRow } from './memory-blobs'
@@ -68,8 +74,16 @@ import {
   deleteChangeBlobRowsIn,
   readChangeFileIn,
   readChangesIn,
+  readChangesSummaryIn,
   upsertChangesIn,
 } from './memory-changes'
+import {
+  contextDigestsReferencedIn,
+  contextFileIn,
+  listContextFilesIn,
+  removeContextFilesIn,
+  upsertContextFilesIn,
+} from './memory-context-files'
 import { commitAppendIn, openAppendIn } from './memory-append'
 import { insertEventsIn, readEventsIn } from './memory-events'
 import { claimNeedingIn } from './memory-claim-next'
@@ -90,6 +104,7 @@ import {
   setSessionPodDesiredIn,
   setSessionPodDiskIn,
   setSessionPodFailedIn,
+  setSessionPodWaitCancelledIn,
   setSessionPodWaitingIn,
   setSessionReadSeqIn,
   setSessionTitleIfUntitledIn,
@@ -179,6 +194,10 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
 
   async setSessionPodWaiting(params: Parameters<ControlTx['setSessionPodWaiting']>[0]) {
     return setSessionPodWaitingIn({ state: this.state, ...params })
+  }
+
+  async setSessionPodWaitCancelled(params: Parameters<ControlTx['setSessionPodWaitCancelled']>[0]) {
+    return setSessionPodWaitCancelledIn({ state: this.state, ...params })
   }
 
   async setSessionArchived(params: { sessionId: string; archivedAt: string | null }) {
@@ -310,6 +329,10 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
     return readChangesIn({ state: this.state, ...params })
   }
 
+  async readChangesSummary(params: { sessionId: string }): Promise<WorktreeChangesSummary[]> {
+    return readChangesSummaryIn({ state: this.state, ...params })
+  }
+
   async readChangeFile(params: {
     sessionId: string
     checkoutId: string
@@ -335,6 +358,35 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
 
   async deleteChangeBlobs(params: { hashes: readonly string[] }): Promise<void> {
     deleteChangeBlobRowsIn({ state: this.state, ...params })
+  }
+
+  async upsertContextFiles(params: {
+    sessionId: string
+    files: readonly ContextFileWrite[]
+  }): Promise<void> {
+    upsertContextFilesIn({ state: this.state, at: Date.parse(this.clock()), ...params })
+  }
+
+  async removeContextFiles(params: { sessionId: string; paths: readonly string[] }): Promise<void> {
+    removeContextFilesIn({ state: this.state, ...params })
+  }
+
+  async listContextFiles(params: { sessionId: string }): Promise<readonly ContextFileRow[]> {
+    return listContextFilesIn({ state: this.state, ...params })
+  }
+
+  async contextFileOf(params: { sessionId: string; path: string }): Promise<ContextFileRow | null> {
+    return contextFileIn({ state: this.state, ...params })
+  }
+
+  async contextDigestsReferenced(params: {
+    digests: readonly string[]
+  }): Promise<ReadonlySet<string>> {
+    return contextDigestsReferencedIn({ state: this.state, ...params })
+  }
+
+  lockContextDigest(_params: { digest: string }): Promise<void> {
+    return Promise.resolve()
   }
 
   async readEvents(params: ReadEventsParams): Promise<StoredEvent[]> {
@@ -462,7 +514,7 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
     target: SubscriptionRow['target']
     label: string
     events: readonly string[]
-    expiresAt: string
+    expiresAt: string | null
     deadline: string | null
   }): Promise<boolean> {
     return updateSubscriptionRowIn({ state: this.state, ...params })
@@ -483,10 +535,14 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
     const key = trackingTargetKey(params)
     const held = this.state.trackingTargets.get(key)
     const liveUntil =
-      held !== undefined && Date.parse(held.liveUntil) > Date.parse(params.liveUntil)
-        ? held.liveUntil
-        : params.liveUntil
+      held === undefined
+        ? params.liveUntil
+        : laterLiveUntilOf(held.liveUntil ?? null, params.liveUntil)
     this.state.trackingTargets.set(key, { ...params, liveUntil })
+  }
+
+  async releasePullRequestTracking(params: ReleasePullRequestTrackingParams): Promise<void> {
+    releasePullRequestTrackingIn({ state: this.state, ...params })
   }
 
   async hostPresent(hostId: number): Promise<boolean> {

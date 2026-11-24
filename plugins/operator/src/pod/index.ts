@@ -14,6 +14,5 @@ export const OPERATOR_TOOLS = [OPERATOR_INPUT_TOOL, OPERATOR_SHELL_INPUT_TOOL] a
 export const operatorPod: PodSlot = {
   tools: () => [new OperatorInputTool(), new OperatorShellInputTool()],
   prompts: [new OperatorInputFragment()],
-  commands: new Map(),
   childDeny: OPERATOR_TOOLS,
 }

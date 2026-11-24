@@ -1,10 +1,26 @@
 import { describe, expect, it } from 'bun:test'
 
-import { presentedNotificationOf, readDismissalIdsOf, sessionIdOfData } from '../notification-data'
+import { ENotifyInAppKind, ENotifyMoment, ENotifyTrackEvent } from '@dltech/atlas-core'
+
+import { NOTIFICATION_DISMISS_ACTION, NOTIFICATION_OPEN_ACTION } from '../action-identifiers'
+import {
+  notificationTrackOf,
+  presentedNotificationOf,
+  readDismissalIdsOf,
+  sessionIdOfData,
+  trackDataOf,
+  trackEventOfAction,
+} from '../notification-data'
 
 describe('sessionIdOfData', () => {
   it('reads the session an Expo push names', () => {
     expect(sessionIdOfData({ sessionId: 'session-1', seq: 7 })).toBe('session-1')
+  })
+
+  it('opens no session for a routine notice', () => {
+    expect(
+      sessionIdOfData({ sessionId: 'routine-rtn-1', seq: 0, routineId: 'rtn-1' }),
+    ).toBeUndefined()
   })
 
   it('ignores data that names no session', () => {
@@ -54,5 +70,57 @@ describe('readDismissalIdsOf', () => {
 
   it('keeps a notification whose session is not in the list', () => {
     expect(readDismissalIdsOf({ presented, readSeqs: new Map() })).toEqual([])
+  })
+})
+
+describe('trackDataOf', () => {
+  it('reads the moment and the send time a push carries', () => {
+    expect(
+      trackDataOf({
+        sessionId: 'session-1',
+        seq: 7,
+        moment: ENotifyMoment.TurnFinished,
+        sentAt: '2026-11-23T14:02:00.000Z',
+      }),
+    ).toEqual({
+      sessionId: 'session-1',
+      seq: 7,
+      moment: ENotifyMoment.TurnFinished,
+      sentAt: '2026-11-23T14:02:00.000Z',
+    })
+  })
+
+  it('reports nothing for a push from a server that named no moment', () => {
+    expect(trackDataOf({ sessionId: 'session-1', seq: 7 })).toBeNull()
+    expect(trackDataOf(undefined)).toBeNull()
+  })
+})
+
+describe('trackEventOfAction', () => {
+  it('reads the open and the dismissal a response reports, and nothing else', () => {
+    expect(trackEventOfAction(NOTIFICATION_OPEN_ACTION)).toBe(ENotifyTrackEvent.Opened)
+    expect(trackEventOfAction(NOTIFICATION_DISMISS_ACTION)).toBe(ENotifyTrackEvent.Dismissed)
+    expect(trackEventOfAction('some.custom.action')).toBeNull()
+  })
+})
+
+describe('notificationTrackOf', () => {
+  it('reports a shown in-app notice from the iOS app', () => {
+    expect(
+      notificationTrackOf({
+        sessionId: 'session-1',
+        seq: 7,
+        moment: ENotifyMoment.TurnFinished,
+        title: 'Fix the parser',
+        body: 'Finished',
+        at: '2026-11-23T14:02:00.000Z',
+      }),
+    ).toEqual({
+      event: ENotifyTrackEvent.InAppShown,
+      sessionId: 'session-1',
+      seq: 7,
+      moment: ENotifyMoment.TurnFinished,
+      deviceKind: ENotifyInAppKind.Ios,
+    })
   })
 })

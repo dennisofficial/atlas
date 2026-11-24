@@ -19,9 +19,10 @@ const persists = (op: Parameters<typeof journalOp>[0]) => {
 }
 
 describe('journalOp', () => {
-  it('keeps a tunnel token out of the persisted previews.expose op', () => {
-    const persisted = journalOp({ op: 'previews.expose', port: 3000, tunnelToken: 'secret' })
-    expect(persisted).toEqual({ op: 'previews.expose', port: 3000, tunnelToken: REDACTED })
+  it('keeps a tunnel token out of the persisted previews.ensure op', () => {
+    const persisted = journalOp({ op: 'previews.ensure', tunnelToken: 'secret' })
+    expect(persisted).toEqual({ op: 'previews.ensure', tunnelToken: REDACTED })
+    expect(persists({ op: 'previews.status' })).toEqual({ op: 'previews.status' })
   })
 
   it('redacts every exec env value and keeps the names', () => {

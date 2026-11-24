@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
-import { ETurnCause, ETurnEndedBy, ETurnOutcome, type V2Body } from '@dltech/atlas-core'
+import {
+  EPendingWork,
+  ETurnCause,
+  ETurnEndedBy,
+  ETurnOutcome,
+  type V2Body,
+} from '@dltech/atlas-core'
 
 import { ControlPlane } from '../../control-plane'
 import type { ControlStorePort, ControlTx } from '../../port'
@@ -207,6 +213,60 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
           error: 'no sandbox',
           sizing: VERCEL_SIZING,
         })
+      })
+
+      it('cancels the wait by reverting to the applied shape', async () => {
+        await seedSession({ sessionId: SESSION, offsetMs: 0 })
+        const applied = await plane.recordPodDesired({
+          sessionId: SESSION,
+          vcpus: 2,
+          memoryGb: 4,
+        })
+        await plane.recordPodApplied({
+          sessionId: SESSION,
+          vcpus: 2,
+          memoryGb: 4,
+          generation: applied,
+        })
+        const waiting = await plane.recordPodDesired({
+          sessionId: SESSION,
+          vcpus: 4,
+          memoryGb: 8,
+          diskGb: 30,
+        })
+        await plane.recordPodWaiting({ sessionId: SESSION, generation: waiting, since: waitAt })
+
+        expect(await plane.cancelPodWait({ sessionId: SESSION })).toBe(true)
+
+        const row = await plane.readSession({ sessionId: SESSION })
+        expect(row?.podSizeGeneration).toBe(waiting + 1)
+        expect(row?.podAppliedGeneration).toBe(waiting + 1)
+        expect(row?.podWaitingSince).toBeNull()
+        expect(row?.podDesiredDiskGb).toBeNull()
+        expect(await podOf()).toEqual({
+          shape: { vcpus: 2, memoryGb: 4 },
+          actualVcpus: 2,
+          desiredShape: { vcpus: 2, memoryGb: 4 },
+          desiredVcpus: 2,
+          phase: 'steady',
+          sizing: VERCEL_SIZING,
+        })
+      })
+
+      it('refuses to cancel when nothing waits for the pod', async () => {
+        await seedSession({ sessionId: SESSION, offsetMs: 0 })
+        const generation = await plane.recordPodDesired({
+          sessionId: SESSION,
+          vcpus: 4,
+          memoryGb: 8,
+        })
+
+        expect(await plane.cancelPodWait({ sessionId: SESSION })).toBe(false)
+
+        const row = await plane.readSession({ sessionId: SESSION })
+        expect(row?.podSizeGeneration).toBe(generation)
+        expect(row?.podDesiredVcpus).toBe(4)
+        expect(row?.podWaitingSince).toBeNull()
       })
     })
 
@@ -580,6 +640,42 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
         seq: appended.head.seq,
         outcome: ETurnOutcome.Completed,
         by: ETurnEndedBy.Agent,
+        at: T0,
+      })
+    })
+
+    it('digests the notify facts and the time of the last turn ending', async () => {
+      await seedSession({ sessionId: 's-a', offsetMs: 0 })
+      const granted = await plane.grant({ sessionId: 's-a', hostId: HOLDER_HOST })
+      const head = await plane.head({ threadId: 't-s-a' })
+      const appended = await plane.append({
+        threadId: 't-s-a',
+        epoch: granted.epoch,
+        events: mint({
+          bodies: [
+            { type: 'turn-started', turnId: 'turn-1', cause: ETurnCause.Input },
+            {
+              type: 'turn-ended',
+              turnId: 'turn-1',
+              outcome: ETurnOutcome.Completed,
+              by: ETurnEndedBy.Agent,
+              notify: { pending: [EPendingWork.Shell], operatorTurn: false },
+            },
+          ],
+          epoch: granted.epoch,
+          from: head,
+          threadId: 't-s-a',
+        }),
+      })
+      if (!appended.ok) throw new Error(JSON.stringify(appended.refusal))
+
+      const [digest] = await plane.listSessionDigests({ userId: USER, limit: 10 })
+      expect(digest?.lastTurn).toEqual({
+        seq: appended.head.seq,
+        outcome: ETurnOutcome.Completed,
+        by: ETurnEndedBy.Agent,
+        at: T0,
+        notify: { pending: [EPendingWork.Shell], operatorTurn: false },
       })
     })
 

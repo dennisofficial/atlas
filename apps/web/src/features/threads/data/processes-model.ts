@@ -1,4 +1,5 @@
 import { formatElapsed } from '@dltech/atlas-client/transcript'
+import { oneLine } from '@dltech/atlas-core'
 import {
   EKilledBy,
   EServiceStatus,
@@ -46,18 +47,15 @@ export const isShellRunning = (shell: ShellSnapshotWire): boolean =>
 export const isServiceRunning = (service: ServiceSnapshotWire): boolean =>
   service.status === EServiceStatus.Running
 
-const collapsed = (command: string): string => command.replace(/\s+/g, ' ').trim()
-
 export const processNameOf = (process: { command: string; description: string }): string => {
   const named = process.description.trim()
-  return named === '' ? collapsed(process.command) : named
+  return named === '' ? oneLine(process.command) : named
 }
 
 export const processCommandOf = (process: {
   command: string
   description: string
-}): string | undefined =>
-  process.description.trim() === '' ? undefined : collapsed(process.command)
+}): string | undefined => (process.description.trim() === '' ? undefined : oneLine(process.command))
 
 function shellStateLabel(shell: ShellSnapshotWire): string {
   if (shell.status === EShellStatus.Running) {

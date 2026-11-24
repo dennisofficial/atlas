@@ -10,6 +10,7 @@ import {
   v2Pods,
   type V2PodSweepScope,
 } from '@dltech/atlas-pods'
+import { EPreviewTunnelState } from '@dltech/atlas-previews'
 import '../init'
 import { triggerLog } from '../trigger-logger'
 import { runOrphanPodSweep } from './orphan-pod-sweep'
@@ -40,6 +41,11 @@ export const orphanPodSweepTask = schedules.task({
         v2Scopes: v2ScopesOf,
         softDeleteArchived: ({ cutoff, at }) =>
           db.transaction((tx) => softDeleteArchivedSessionsIn({ tx, cutoff, at })),
+        markPreviewDeleting: async ({ podSessionId }) => {
+          await db.orm.public.PreviewTunnel.where({ podSessionId }).updateAndCount({
+            state: EPreviewTunnelState.Deleting,
+          })
+        },
       },
     })
   },

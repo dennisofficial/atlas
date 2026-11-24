@@ -3,7 +3,6 @@ import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 
 import { runningDeclaredOf, servicesOfEvents } from '../core'
 import { stopService } from './daemon'
-import { stopPreview } from './expose'
 import type { DeclaredPlace } from './place'
 import { renderStopped } from './render'
 import type { ServiceInput } from './schema'
@@ -45,8 +44,6 @@ export const stopServiceAction = async (args: {
     state.stopping.delete(serviceId)
     return { ok: false, reason: stopped.reason }
   }
-  const row = servicesOfEvents(ctx.events()).find((kept) => kept.serviceId === serviceId)
-  await stopPreview({ ctx, port: row?.port })
   return {
     ok: true,
     output: {

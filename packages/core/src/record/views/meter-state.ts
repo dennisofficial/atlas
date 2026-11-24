@@ -1,3 +1,4 @@
+import type { ContextPart } from '../../assembly/context-breakdown'
 import type { ContextMeter } from '../context-meter'
 import type { V2Event, V2EventType } from '../event'
 import { stepReadingOf } from './step-reading'
@@ -6,12 +7,14 @@ export type MeterEntry = {
   seq: number
   type: V2EventType
   measured: number | null
+  breakdown: readonly ContextPart[] | null
 }
 
 export type MeterState = {
   window: number | null
   used: number | null
   readingSeq: number | null
+  breakdown: readonly ContextPart[] | null
   summaryAfterReading: boolean
 }
 
@@ -19,6 +22,7 @@ export const initialMeterState: MeterState = {
   window: null,
   used: null,
   readingSeq: null,
+  breakdown: null,
   summaryAfterReading: false,
 }
 
@@ -31,18 +35,26 @@ const entryOf = (event: V2Event): MeterEntry => {
     seq: event.seq,
     type: event.type,
     measured: reading === undefined ? null : measuredOf(reading),
+    breakdown: reading?.breakdown ?? null,
   }
 }
 
 const withEntry = (state: MeterState, entry: MeterEntry): MeterState => {
   if (entry.type === 'rotated') {
-    return { window: state.window, used: null, readingSeq: null, summaryAfterReading: false }
+    return {
+      window: state.window,
+      used: null,
+      readingSeq: null,
+      breakdown: null,
+      summaryAfterReading: false,
+    }
   }
   if (entry.measured !== null) {
     return {
       window: state.window,
       used: entry.measured,
       readingSeq: entry.seq,
+      breakdown: entry.breakdown,
       summaryAfterReading: false,
     }
   }
@@ -77,5 +89,6 @@ export const meterOf = (state: MeterState): ContextMeter | null => {
     used: live ? state.used : null,
     window: state.window,
     measuredThroughSeq: live ? state.readingSeq : null,
+    breakdown: live ? state.breakdown : null,
   }
 }

@@ -6,8 +6,9 @@ import {
   type InboxEntry,
   type ThreadId,
 } from '@dltech/atlas-core'
-import { LoopTurnRunner, type PauseSignal, settleCrashedCalls } from '@dltech/atlas-agent'
+import { LoopTurnRunner, settleCrashedCalls } from '@dltech/atlas-agent'
 import { logFieldsOf } from '@dltech/atlas-observability'
+import { composePodCommands } from '@dltech/atlas-plugin-sdk'
 
 import { ScopedToolDispatcher } from '../calls/call-scope'
 import { BranchObserver } from './branch-observer'
@@ -45,38 +46,6 @@ export const logReconcileFault = (args: { deps: HeldSessionDeps; error: unknown 
     message: `reconciling ${args.deps.sessionId} failed`,
     ...logFieldsOf({ error: args.error }),
   })
-}
-
-export const startHeldTurn = (args: {
-  deps: HeldSessionDeps
-  turns: HeldTurns
-  record: SessionRecord
-  pause: PauseSignal
-  runner: LoopTurnRunner
-  threadId: ThreadId
-  resume: boolean
-  refreshBranches(): void
-  onFault(): void
-  onSettled(): void
-}): void => {
-  void args.turns
-    .drive({
-      runner: args.runner,
-      record: args.record,
-      threadId: args.threadId,
-      pause: args.pause,
-      resume: args.resume,
-    })
-    .then(() => {
-      args.refreshBranches()
-    })
-    .catch((error) => {
-      logDriveFault({ deps: args.deps, error })
-      args.onFault()
-    })
-    .finally(() => {
-      args.onSettled()
-    })
 }
 
 const IDLE_COMMAND_ACTIONS: readonly EHeldAction[] = [
@@ -192,6 +161,7 @@ export const createLoopRunner = (args: {
     signal: args.signal,
     crew: args.crew,
   })
+  const podCommands = composePodCommands({ factories: deps.podCommands ?? [], ctx: pod.ctx })
   const intake = new InboxIntake({
     plane: deps.plane,
     sessionId: deps.sessionId,
@@ -200,13 +170,15 @@ export const createLoopRunner = (args: {
     runId: () => deps.ids.nextRunId(),
     scope: EIntakeScope.Main,
     commands: deps.commands,
-    handlers: deps.commandHandlers,
+    handlers: new Map([...(deps.commandHandlers ?? []), ...podCommands]),
     controlHandlers: deps.controlHandlers,
     ...(pod.slash === undefined ? {} : { slash: pod.slash }),
     model: runtime.model,
     childrenRunning: args.childrenRunning,
     ...(operator === undefined ? {} : { operatorAnswers: operator }),
     crewRunning: () => args.crewRunning(),
+    crew: args.crew,
+    mainThreadId: threadId,
     now: () => deps.timers.now(),
     ...(deps.log === undefined ? {} : { log: deps.log }),
   })

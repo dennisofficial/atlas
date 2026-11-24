@@ -1,5 +1,5 @@
 import { EAgentStatus, ECrewStanding } from '@dltech/atlas-core'
-import { EChecksState, EPullRequestState } from '@dltech/atlas-harness'
+import { EChecksState, EPullRequestState } from '@dltech/atlas-core'
 import { testRender } from '@opentui/react/test-utils'
 import { describe, expect, it } from 'bun:test'
 import React from 'react'

@@ -3,6 +3,7 @@ import type {
   ChangeBlobWrite,
   ChangedFileWrite,
   WorktreeChangesRead,
+  WorktreeChangesSummary,
   WorktreeChangesWrite,
 } from '../../port'
 import type { State } from './memory-state'
@@ -38,11 +39,28 @@ const readOf = (write: WorktreeChangesWrite): WorktreeChangesRead => ({
   files: [...write.files].sort((a, b) => a.path.localeCompare(b.path)).map((file) => ({ ...file })),
 })
 
-export const readChangesIn = (params: { state: State; sessionId: string }): WorktreeChangesRead[] =>
+const summaryOf = (write: WorktreeChangesWrite): WorktreeChangesSummary => ({
+  checkoutId: write.checkoutId,
+  sessionId: write.sessionId,
+  repo: write.repo,
+  worktreePath: write.worktreePath,
+  base: write.base,
+  fingerprint: write.fingerprint,
+  updatedAt: write.updatedAt,
+})
+
+const changesOf = (params: { state: State; sessionId: string }): WorktreeChangesWrite[] =>
   [...params.state.worktreeChanges.values()]
     .filter((write) => write.sessionId === params.sessionId)
     .sort((a, b) => b.updatedAt - a.updatedAt)
-    .map(readOf)
+
+export const readChangesIn = (params: { state: State; sessionId: string }): WorktreeChangesRead[] =>
+  changesOf(params).map(readOf)
+
+export const readChangesSummaryIn = (params: {
+  state: State
+  sessionId: string
+}): WorktreeChangesSummary[] => changesOf(params).map(summaryOf)
 
 export const readChangeFileIn = (params: {
   state: State

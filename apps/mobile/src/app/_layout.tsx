@@ -16,8 +16,11 @@ import { destinationOfUrl, type TDestination } from '../navigation/destination'
 import { installBackgroundNotifications } from '../push/background-notifications'
 import {
   installNotificationHandler,
+  lastNotificationTap,
   subscribeToNotificationResponses,
 } from '../push/notification-handler'
+import { installNotificationCategory, reportNotificationResponse } from '../push/notification-track'
+import { claimSessionTap, type TNotificationTap } from '../push/session-tap'
 import { SettingsProvider } from '../settings/settings-provider'
 import { SplashOverlay } from '../splash/splash-overlay'
 import { fontAssets } from '../theme/fonts'
@@ -28,6 +31,7 @@ import { UpdateCard } from '../updates/update-card'
 export const ErrorBoundary = CrashScreen
 
 installNotificationHandler()
+void installNotificationCategory()
 installBackgroundNotifications()
 installWebReset()
 void SplashScreen.preventAutoHideAsync()
@@ -37,7 +41,7 @@ const pushAfterGuardSettles = (destination: TDestination): void => {
 }
 
 const RootStack = ({ fontsReady }: { fontsReady: boolean }) => {
-  const { state } = useAuth()
+  const { state, api } = useAuth()
   const [incoming, setIncoming] = useState<TDestination | undefined>(undefined)
   const [launchUrl] = useState(() => Linking.getInitialURL())
   const launchRead = useRef(false)
@@ -46,11 +50,22 @@ const RootStack = ({ fontsReady }: { fontsReady: boolean }) => {
   const settled = state !== EAuthState.Loading
 
   useEffect(() => {
-    const subscription = subscribeToNotificationResponses({
-      onSessionId: (id) => setIncoming({ pathname: '/sessions/[id]', params: { id } }),
-    })
+    const handled = new Set<string>()
+    const route = (tap: TNotificationTap) => {
+      void reportNotificationResponse({
+        client: api,
+        actionIdentifier: tap.actionIdentifier ?? '',
+        data: tap.data,
+      })
+      const sessionId = claimSessionTap({ handled, tap })
+      if (sessionId === undefined) return
+      setIncoming((current) => current ?? { pathname: '/sessions/[id]', params: { id: sessionId } })
+    }
+    const subscription = subscribeToNotificationResponses({ onTap: route })
+    const launch = lastNotificationTap()
+    if (launch !== undefined) route(launch)
     return () => subscription.remove()
-  }, [])
+  }, [api])
 
   useEffect(() => {
     if (state !== EAuthState.SignedOut || launchRead.current) return

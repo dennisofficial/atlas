@@ -1,4 +1,4 @@
-import { podOomLine, type EventOfType } from '@dltech/atlas-core'
+import { podOomCommandOf, podOomTitle, type EventOfType } from '@dltech/atlas-core'
 
 import { EAuthor, EEntryKind, type PodOomEntry } from './transcript-model'
 
@@ -6,7 +6,8 @@ export const podOomEntryOf = (event: EventOfType<'pod-ran-out-of-memory'>): PodO
   kind: EEntryKind.PodOom,
   author: EAuthor.Model,
   key: event.id,
-  text: podOomLine(event),
+  text: podOomTitle(event),
+  command: podOomCommandOf(event),
   scope: event.scope,
   processes: event.processes,
 })

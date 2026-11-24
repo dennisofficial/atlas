@@ -42,6 +42,22 @@ const answered = {
   parts: [{ type: 'text', text: 'on it' }],
 }
 
+const parked = {
+  ...envelope(3),
+  type: 'tool-parked',
+  callId: 'call_1',
+  name: 'operator_input',
+  request: { kind: 'input', prompt: 'Paste the login code' },
+}
+
+const requestAnswered = {
+  ...envelope(4),
+  type: 'tool-result',
+  callId: 'call_1',
+  name: 'operator_input',
+  output: { outcome: 'delivered', path: '/x', bytes: 4 },
+}
+
 describe('v2ViewOf', () => {
   it('turns a page into message rows in order', () => {
     const rows = v2ViewOf({ snapshot: snapshotOf([said, answered]), now: NOW }).rows
@@ -57,6 +73,24 @@ describe('v2ViewOf', () => {
     const rows = v2ViewOf({ snapshot: snapshotOf([said, ready]), now: NOW }).rows
     expect(rows).toHaveLength(1)
     expect(rows[0]?.kind).toBe(ERowKind.Message)
+  })
+
+  it('draws no transcript row for a request that is still parked', () => {
+    expect(v2ViewOf({ snapshot: snapshotOf([parked]), now: NOW }).rows).toEqual([])
+  })
+
+  it('draws the operator answer as a notice row once the call settles', () => {
+    const rows = v2ViewOf({
+      snapshot: snapshotOf([parked, requestAnswered]),
+      now: NOW,
+    }).rows
+
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toMatchObject({
+      kind: ERowKind.Notice,
+      title: 'The operator answered',
+      body: 'Paste the login code',
+    })
   })
 
   it('stays empty for an empty snapshot', () => {

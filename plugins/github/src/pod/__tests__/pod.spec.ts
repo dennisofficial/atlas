@@ -344,7 +344,7 @@ describe('github pod tools', () => {
   })
 
   it('declares no pod commands', () => {
-    expect(githubPod.commands.size).toBe(0)
+    expect(githubPod.commands).toBeUndefined()
   })
 })
 

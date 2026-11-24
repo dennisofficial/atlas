@@ -40,7 +40,7 @@ export class SkillCatalogueService {
     const entries = await db.orm.public.SkillFile.where((file) =>
       file.skillId.in(skills.map((skill) => skill.id)),
     )
-      .where((file) => file.path.ilike(SKILL_ENTRY))
+      .where((file) => file.path.eq(SKILL_ENTRY))
       .all()
     const nameOf = new Map(skills.map((skill) => [skill.id, skill.name]))
     return entries.flatMap((file) => {

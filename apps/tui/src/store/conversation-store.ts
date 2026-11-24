@@ -1,19 +1,17 @@
 import type { Event } from '@dltech/atlas-core'
 import type { ChannelSignal, Unsubscribe } from '@dltech/atlas-client/channel'
-import type { TurnSpend } from '@dltech/atlas-harness'
+import type { TurnSpend } from '@dltech/atlas-client/transcript'
 import {
   assembleTranscript,
   persistedFailureOf,
   SHIPPED_THINKING,
   type EThinkingVisibility,
   type RevealGate,
-  type TranscriptModel,
 } from '@dltech/atlas-client/transcript'
 
 import { IDLE_TURN, type TurnClock } from '../ui/turn-clock'
 import type { ConversationStore, ConversationStoreArgs } from './conversation-store-types'
 import { createDurableCache } from './durable-cache'
-import type { LogAccumulator } from './log-accumulator'
 import { createLogWindow, sameLogSummary, type LogSummary } from './log-window'
 import { logSummaryOf } from './log-summary-of'
 import { createOutputTails } from './output-tails'

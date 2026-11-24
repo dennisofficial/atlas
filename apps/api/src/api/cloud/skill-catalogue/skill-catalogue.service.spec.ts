@@ -13,12 +13,12 @@ describe('SkillCatalogueService', () => {
   const database = useTestDatabase()
   const service = new SkillCatalogueService()
 
-  const put = async (args: { name: string; text: string }) => {
+  const put = async (args: { name: string; text: string; path?: string }) => {
     const skill = await db.orm.public.Skill.create({ userId: USER, name: args.name })
     const bytes = new TextEncoder().encode(args.text)
     await db.orm.public.SkillFile.create({
       skillId: skill.id,
-      path: 'SKILL.md',
+      path: args.path ?? 'SKILL.md',
       revision: 1,
       contentHash: '',
       content: bytes,
@@ -53,6 +53,24 @@ describe('SkillCatalogueService', () => {
     })
     const names = skills.map((skill) => skill.name)
     for (const absent of ['empty', 'hidden']) expect(names).not.toContain(absent)
+  })
+
+  it('reads only the exact SKILL.md entry of a skill', async () => {
+    await put({ name: 'exact', text: skillText({ name: 'exact', description: 'exact' }) })
+    await put({
+      name: 'lower',
+      path: 'skill.md',
+      text: skillText({ name: 'lower', description: 'lower' }),
+    })
+    await put({
+      name: 'bundled',
+      path: 'references/one.md',
+      text: skillText({ name: 'bundled', description: 'bundled' }),
+    })
+
+    const names = (await service.list({ userId: USER })).map((skill) => skill.name)
+    expect(names).toContain('exact')
+    for (const absent of ['lower', 'bundled']) expect(names).not.toContain(absent)
   })
 
   it('lets a user skill override a built-in', async () => {

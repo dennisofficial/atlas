@@ -200,6 +200,21 @@ describe('AccountsRouter', () => {
     expect(await db.orm.public.AgentAccount.all()).toHaveLength(0)
   })
 
+  it('renames the caller’s account and 404s for another user', async () => {
+    const id = await createdBy('token-a')
+
+    const foreign = await mutate('rename', 'token-b', { accountId: id, label: 'Stolen' })
+    const renamed = await mutate('rename', 'token-a', { accountId: id, label: 'Personal' })
+
+    expect(foreign.status).toBe(404)
+    expect(renamed.status).toBe(200)
+    expect(renamed.body).toEqual({ result: {} })
+    expect((await query('get', 'token-a', { accountId: id })).body.result.data.label).toBe(
+      'Personal',
+    )
+    expect((await mutate('rename', 'token-a', { accountId: id, label: ' ' })).status).toBe(400)
+  })
+
   it('removes only the caller’s account', async () => {
     const id = await createdBy('token-a')
 

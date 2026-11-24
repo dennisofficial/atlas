@@ -19,6 +19,7 @@ import {
   EUpdateCardAction,
   EUpdateCardKind,
   type UpdateCardModel,
+  updateCardFrameOf,
   updateCardOf,
 } from './update-card-state'
 
@@ -30,14 +31,14 @@ const updatesEnabled = Platform.OS !== 'web' && Updates.isEnabled && !__DEV__
 
 export const UpdateCardView = ({
   model,
-  topOffset,
+  frame,
   working,
   error,
   onAction,
   onDismiss,
 }: {
   model: UpdateCardModel
-  topOffset: number
+  frame: { top: number; left: number; right: number }
   working: boolean
   error: string | null
   onAction: () => void
@@ -47,7 +48,7 @@ export const UpdateCardView = ({
   const Glyph = model.kind === EUpdateCardKind.Ready ? RefreshCw : ArrowDownToLine
   const detail = error ?? model.detail
   return (
-    <View pointerEvents="box-none" style={[styles.layer, { top: topOffset }]}>
+    <View pointerEvents="box-none" style={[styles.layer, frame]}>
       <View
         accessibilityRole="summary"
         accessibilityLabel={`${model.title}. ${detail}`}
@@ -169,7 +170,7 @@ const LiveUpdateCard = () => {
   return (
     <UpdateCardView
       model={model}
-      topOffset={insets.top + HEADER_HEIGHT + CARD_TOP_GAP}
+      frame={updateCardFrameOf({ insets, below: HEADER_HEIGHT + CARD_TOP_GAP })}
       working={working}
       error={error}
       onAction={handleAction}
@@ -183,9 +184,7 @@ export const UpdateCard = () => (updatesEnabled ? <LiveUpdateCard /> : null)
 const styles = StyleSheet.create({
   layer: {
     alignItems: 'center',
-    left: space(4),
     position: 'absolute',
-    right: space(4),
     zIndex: 20,
   },
   card: {

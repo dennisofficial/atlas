@@ -12,7 +12,13 @@ import type { SubscriptionConnection } from './subscription-port'
 
 export type FollowPlane = Pick<
   ControlPlane,
-  'readSession' | 'readThread' | 'head' | 'readEvents' | 'listSessionDigests' | 'readSessionView'
+  | 'readSession'
+  | 'readThread'
+  | 'head'
+  | 'readEvents'
+  | 'readTailBase'
+  | 'listSessionDigests'
+  | 'readSessionView'
 >
 
 export type FollowDeps = {

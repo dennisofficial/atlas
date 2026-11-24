@@ -47,6 +47,7 @@ export type OperatorSaidEntry = {
   files: readonly string[]
   attachments: readonly Attachment[]
   command?: ConsumedCommand | undefined
+  clientId?: string | undefined
 }
 
 export type ModelSaidEntry = {
@@ -151,6 +152,7 @@ export type PodOomEntry = {
   author: EAuthor.Model
   key: string
   text: string
+  command: string | undefined
   scope: EOomScope
   processes: number
 }

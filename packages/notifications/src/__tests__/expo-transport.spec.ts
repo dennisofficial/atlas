@@ -64,11 +64,45 @@ describe('expoTransport.deliver', () => {
         title: 'Fix the parser',
         body: 'Finished',
         sound: 'default',
+        categoryId: 'atlas-notification',
         collapseId: 'session-1',
         threadId: 'session-1',
-        data: { sessionId: 'session-1', seq: 7 },
+        data: {
+          sessionId: 'session-1',
+          seq: 7,
+          moment: ENotifyMoment.TurnFinished,
+          sentAt: '2026-11-23T14:02:00.000Z',
+        },
       },
     ])
+  })
+
+  it('omits the sound of a notification that must not make one', async () => {
+    const recorder = recorderOf()
+
+    await expoTransport({ fetch: recorder.fetch }).deliver({
+      devices: [deviceOf()],
+      notification: { ...NOTIFICATION, silent: true },
+    })
+
+    expect(recorder.calls[0]?.messages[0]).not.toHaveProperty('sound')
+  })
+
+  it('names the routine in the data of a routine notice', async () => {
+    const recorder = recorderOf()
+
+    await expoTransport({ fetch: recorder.fetch }).deliver({
+      devices: [deviceOf()],
+      notification: { ...NOTIFICATION, routineId: 'rtn-1' },
+    })
+
+    expect(recorder.calls[0]?.messages[0]?.['data']).toEqual({
+      sessionId: 'session-1',
+      seq: 7,
+      routineId: 'rtn-1',
+      moment: ENotifyMoment.TurnFinished,
+      sentAt: '2026-11-23T14:02:00.000Z',
+    })
   })
 
   it('sends the access token as a bearer credential only when there is one', async () => {

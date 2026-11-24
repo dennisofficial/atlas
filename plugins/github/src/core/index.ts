@@ -1,9 +1,11 @@
 export * from './ci-watch'
 export * from './event-catalog'
 export * from './presentation'
+export * from './pull-request-snapshot'
 export * from './run-target'
 export * from './subscriptions-view'
 export * from './target'
+export * from './target-state'
 
 export const githubCoreSlots = {
   events: [] as readonly never[],

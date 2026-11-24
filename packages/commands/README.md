@@ -9,7 +9,8 @@ message. Native commands and plugin commands both use it.
 - The command spec `CommandSpec`, and `defineCommand` that validates it.
 - The name rule: lowercase letters, digits and hyphens, with no slash.
 - The registry: `composeCommands` and `commandOf`, with the inbox kind `command:<name>`.
-- Where a command runs (`ECommandRunsIn`) and the client action it opens (`EClientAction`).
+- Where a command runs (`ECommandRunsIn`) and the client action it opens (`EClientAction`:
+  `ModelPicker`, `CommandList`, `Skills`, `Mcp`, `Shells`).
 - The catalogue row `CommandEntry`, `entryOf`, `skillEntryOf` and the one merge in `catalogueOf`.
 - The surface table `SURFACE_PROFILES` and `catalogueForSurface`.
 - The text layer: `parseInvocation` and `clientActionOf`.
@@ -53,7 +54,13 @@ message. Native commands and plugin commands both use it.
 - `catalogueOf({commands, skills})`: drop a skill whose name matches a command, then sort by group
   (context, session, workspace) and by name.
 - `catalogueForSurface({entries, surface})`: drop the names the surface hides.
-- `SURFACE_PROFILES`: each surface's hidden names, with the reason, and the name it picks.
+- `SURFACE_PROFILES`: each surface's hidden names, with the reason, and the names it picks. A name
+  is hidden `because` it is a message action, `Panel` because only one surface draws it, or
+  `pane-action` because a pane owns it — web, Mac and mobile hide `skills`, `mcp` and `shells`, and
+  the TUI keeps them.
+- A pane action (`agent`, `shell-kill`, `service`) is hidden from every surface's catalogue,
+  because the pane that draws the row owns the verb and nobody types it. The host still resolves
+  the name against the full registry, so a typed `/agent stop <id>` runs.
 
 ### Read a typed line
 
@@ -62,10 +69,13 @@ message. Native commands and plugin commands both use it.
 - `clientActionOfEntries({text, entries})`: the same question against a surface's catalogue rows, for
   a client that holds `CommandEntry[]` and no registry. A name followed by argument text returns
   `null`, so the host refuses that line rather than the client swallowing it.
+- `clientOnlyReason({name})`: the sentence a surface shows for a client command it cannot run —
+  `/<name> opens in the app. Pick it from the / menu.` The agent host and the surfaces share it.
 
 ### Handle a command
 
-- `CommandHandler<Args>`: runs in the agent host with a `CommandContext<Args>`.
+- `CommandHandler<Args>`: runs in the agent host with a `CommandContext<Args>`, which reads the
+  loop events and the whole log, and names the session's main thread and its crew.
 - `CommandResult`: `{kind: 'done'}` or `{kind: 'refused', reason}`.
 - `ControlCommandHandler<Plane, Args>`: runs in the control plane with `{plane, sessionId, args}`.
 

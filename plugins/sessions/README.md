@@ -5,16 +5,17 @@ The tools a pod uses to reach other sessions, and the plan view. The API compose
 
 ## Owns
 
-- Five tools: `send_message`, `spawn_session`, `spawn_teammate`, `list_sessions` and
-  `list_teammates`.
+- Six tools: `send_message`, `archive_session`, `spawn_session`, `spawn_teammate`,
+  `list_sessions` and `list_teammates`.
 - The `plan` view, which folds the plan tasks the model keeps for its turn.
 - `nestPeers`, which builds the tree of teammates under each spawner.
-- The `sessions.peers` prompt fragment, which adds the spawner line for a nested session.
+- The `sessions.peers` prompt fragment, which adds the spawner line to a session that another
+  session started.
 
 ## Does not own
 
 - The session store and the sandbox of a spawned session. The `PodSessions` port owns them.
-- Archiving and stopping a session. The operator does that.
+- Stopping a session. The operator does that.
 - The title of a session. The `rename` command sets it (`@dltech/atlas-native-commands`).
 
 ## Entry points
@@ -22,7 +23,7 @@ The tools a pod uses to reach other sessions, and the plan view. The API compose
 | Import                                  | Use it for                                                                  |
 | --------------------------------------- | --------------------------------------------------------------------------- |
 | `@dltech/atlas-plugin-sessions/core`    | `sessionsCoreSlots` with the `plan` view, `PLAN_VIEW` and `planViewSchema`. |
-| `@dltech/atlas-plugin-sessions/pod`     | `sessionsPod`: the five tools and the `sessions.peers` prompt fragment.     |
+| `@dltech/atlas-plugin-sessions/pod`     | `sessionsPod`: the six tools and the `sessions.peers` prompt fragment.      |
 | `@dltech/atlas-plugin-sessions/control` | `sessionsControl`, an empty control slot.                                   |
 | `@dltech/atlas-plugin-sessions/client`  | `nestPeers` and `planOfView`.                                               |
 
@@ -43,15 +44,19 @@ The tools a pod uses to reach other sessions, and the plan view. The API compose
 
 ### The tools the model sees
 
-| Tool             | What it does                                                                                               |
-| ---------------- | ---------------------------------------------------------------------------------------------------------- |
-| `send_message`   | Send `{to, text}` to any agent or session of the operator's, or to `parent` for whoever started you.       |
-| `spawn_session`  | Create an independent session at the top level, like the new-session button. `brief` is its first message. |
-| `spawn_teammate` | Create a teammate nested under this session. It reaches you with `send_message` to `parent`.               |
-| `list_sessions`  | List the sessions of the operator, with the current one marked.                                            |
-| `list_teammates` | List the nested teammates of this session, newest first.                                                   |
+| Tool              | What it does                                                                                               |
+| ----------------- | ---------------------------------------------------------------------------------------------------------- |
+| `send_message`    | Send `{to, text}` to any agent or session of the operator's, or to `parent` for whoever started you.       |
+| `archive_session` | Archive a session this session spawned, once its work is done. Same archive as the operator's button.      |
+| `spawn_session`   | Create an independent session at the top level, like the new-session button. `brief` is its first message. |
+| `spawn_teammate`  | Create a teammate nested under this session. It reaches you with `send_message` to `parent`.               |
+| `list_sessions`   | List the sessions of the operator, with the current one marked.                                            |
+| `list_teammates`  | List the nested teammates of this session, newest first.                                                   |
 
 Every line of a list names whether the session is working, idle, failed or archived.
+
+Both spawn tools take an optional `title`, the name of the new session. They take an optional
+`brief`, its first message. A session with no brief waits for a message.
 
 Both spawn tools take `files`: paths relative to `$ATLAS_CONTEXT_DIR`. The files are read before
 the spawn, carried on the spawn message, and written into the spawned session's own context folder
@@ -60,7 +65,7 @@ is created.
 
 ### The slots
 
-`sessionsPod` gives the five tools and the `sessions.peers` prompt fragment.
+`sessionsPod` gives the six tools and the `sessions.peers` prompt fragment.
 
 `sessionsCoreSlots` gives the `plan` view and no events or commands. The client tier gives
 functions, not a slot object; the API passes `client: { hooks: [] }`.
@@ -93,6 +98,8 @@ definePlugin({
   belongs to the operator.
 - `send_message` is never deferred. It refuses an id that names no agent or session of the
   operator's, and the refusal names the tools that list ids.
+- `archive_session` archives only a session this one spawned: a teammate or a `spawn_session`
+  session. Any other session is refused, and so is one that is still working.
 - Pass `{ hooks: [] }` as the client slot. This package exports no client slot object.
 
 ## See also

@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'bun:test'
 
 import {
-  OPEN_SESSION_MESSAGE,
   PUSH_MESSAGE_CLEAR,
   PUSH_MESSAGE_NOTIFICATION,
+  ROUTINE_PATH,
   SERVICE_WORKER_PATH,
-  SESSION_QUERY_PARAM,
+  SESSION_PATH,
+  TRACK_PATH,
+  WEB_PUSH_DEVICE_KIND,
+  serviceWorkerApiBase,
   serviceWorkerSource,
 } from '../service-worker-source'
 
@@ -32,9 +35,19 @@ describe('the service worker source', () => {
     expect(serviceWorkerSource).toContain('self.registration.showNotification(notification.title')
     expect(serviceWorkerSource).toContain('tag: notification.sessionId')
     expect(serviceWorkerSource).toContain('renotify: false')
-    expect(serviceWorkerSource).toContain(
-      'data: { sessionId: notification.sessionId, seq: notification.seq }',
-    )
+    expect(serviceWorkerSource).toContain('sessionId: notification.sessionId,')
+    expect(serviceWorkerSource).toContain('seq: notification.seq,')
+    expect(serviceWorkerSource).toContain('routineId: notification.routineId,')
+  })
+
+  it('shows a notification silently when the push says so', () => {
+    expect(serviceWorkerSource).toContain('silent: notification.silent === true')
+  })
+
+  it('opens the routine page, not a session, when the notice names a routine', () => {
+    expect(serviceWorkerSource).toContain("if (typeof data.routineId === 'string')")
+    expect(serviceWorkerSource).toContain('openRoutine(data.routineId)')
+    expect(serviceWorkerSource).toContain(`'${ROUTINE_PATH}' + encodeURIComponent(routineId)`)
   })
 
   it('closes the notifications of a session by tag', () => {
@@ -42,11 +55,62 @@ describe('the service worker source', () => {
     expect(serviceWorkerSource).toContain('notification.close()')
   })
 
-  it('opens the session in an existing window before a new one', () => {
+  it('opens the session page a tap names', () => {
+    expect(serviceWorkerSource).toContain('openSession(data.sessionId)')
+    expect(serviceWorkerSource).toContain(`open('${SESSION_PATH}' + encodeURIComponent(sessionId))`)
+  })
+
+  it('routes a tap into an existing window before opening a new one', () => {
+    expect(serviceWorkerSource).toContain('existing.focus()')
     expect(serviceWorkerSource).toContain(
-      `existing.postMessage({ type: '${OPEN_SESSION_MESSAGE}', sessionId })`,
+      'await existing.navigate(url).catch(() => self.clients.openWindow(url))',
     )
-    expect(serviceWorkerSource).toContain(`'/?${SESSION_QUERY_PARAM}='`)
-    expect(serviceWorkerSource).toContain('self.clients.openWindow')
+    expect(serviceWorkerSource).toContain(
+      'const existing = windows[0]\n  if (existing === undefined) {\n    await self.clients.openWindow(url)',
+    )
+  })
+
+  it('navigates a window it cannot post to instead of messaging it', () => {
+    expect(serviceWorkerSource).not.toContain('postMessage')
+  })
+
+  it('posts a delivery report as soon as the push shows its notification', () => {
+    expect(serviceWorkerSource).toContain(
+      'Promise.all([\n        self.registration.showNotification(notification.title',
+    )
+    expect(serviceWorkerSource).toContain("track('delivered', data)")
+    expect(serviceWorkerSource).toContain('sentAt: notification.at,')
+  })
+
+  it('reports the open before it navigates and the dismissal when the browser fires it', () => {
+    expect(serviceWorkerSource).toContain("const tracked = track('opened', data)")
+    expect(serviceWorkerSource).toContain(
+      'event.waitUntil(tracked.then(() => openSession(data.sessionId)))',
+    )
+    expect(serviceWorkerSource).toContain("self.addEventListener('notificationclose'")
+    expect(serviceWorkerSource).toContain("track('dismissed', event.notification.data)")
+  })
+
+  it('posts the report to the API origin the page uses, with the session cookie', () => {
+    expect(serviceWorkerSource).toContain(`fetch('${serviceWorkerApiBase}${TRACK_PATH}'`)
+    expect(serviceWorkerSource).toContain("credentials: 'include'")
+    expect(serviceWorkerApiBase.startsWith('http')).toBe(true)
+  })
+
+  it('sends the tRPC mutation body the API parses', () => {
+    expect(serviceWorkerSource).toContain("method: 'POST'")
+    expect(serviceWorkerSource).toContain("headers: { 'content-type': 'application/json' }")
+    expect(serviceWorkerSource).toContain(`deviceKind: '${WEB_PUSH_DEVICE_KIND}',`)
+    expect(serviceWorkerSource).toContain('body: JSON.stringify(body),')
+  })
+
+  it('reports nothing for a routine notice', () => {
+    expect(serviceWorkerSource).toContain(
+      "if (typeof data.routineId === 'string') return Promise.resolve()",
+    )
+  })
+
+  it('never lets a failed report reject the event that carries it', () => {
+    expect(serviceWorkerSource).toContain('    () => undefined,\n    () => undefined,\n  )')
   })
 })

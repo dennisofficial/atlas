@@ -6,8 +6,8 @@ import React from 'react'
 import { useAppearance } from '../hooks/use-appearance'
 import { collapseHome, compactPath } from '../paths'
 import { theme } from '../theme'
-import type { ShellSnapshot } from '@dltech/atlas-harness'
 import type { ServiceRow } from '../services-model'
+import type { ShellSnapshot } from '../shells-model'
 
 import type { SidebarModel } from '../../store'
 import type { SidebarCrewFold } from '../../store/subagent-row'
@@ -114,6 +114,7 @@ function DerivedSidebar(props: {
   onOpenService?: (key: string) => void
   context?: Omit<ContextSectionProps, 'cells'>
   onSelectSubagent?: (agentId: string) => void
+  onOpenTeammate?: (id: string) => void
   naming?: NamingState | null | undefined
   back?: { label: string; onBack: () => void } | undefined
 }): React.ReactNode {
@@ -191,7 +192,11 @@ function DerivedSidebar(props: {
               standings={model.crewStandings}
               {...(props.onSelectSubagent === undefined ? {} : { onOpen: props.onSelectSubagent })}
             />
-            <TeammatesSection teammates={model.teammates ?? []} cells={cells} />
+            <TeammatesSection
+              teammates={model.teammates ?? []}
+              cells={cells}
+              {...(props.onOpenTeammate === undefined ? {} : { onOpen: props.onOpenTeammate })}
+            />
             <ContributedSections
               sections={model.sections ?? []}
               place={ESidebarPlace.Panels}

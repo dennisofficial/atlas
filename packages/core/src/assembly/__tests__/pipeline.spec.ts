@@ -13,7 +13,7 @@ const DOCTRINE = 'You are Atlas, a coding agent talking to a developer in their 
 
 const compiled = (text: string): CompiledPrompt => ({
   blocks: [{ text }],
-  parts: [{ id: 'fixture.doctrine', text, chars: text.length }],
+  parts: [],
   skipped: [],
 })
 

@@ -7,18 +7,17 @@ share. Every frame and every call is a `zod` schema here, and the daemon engine 
 
 - The daemon link frames: host frames, daemon frames, call keys, epochs and error kinds.
 - The call operations the host sends to the daemon, and their results and events.
-- The session API schemas: list, create, post, events, blob, withdraw, archive, status, and the
-  inactive and archived bucket page (`sessionBucketPageInputSchema`, `sessionBucketPageOutputSchema`).
-- The live frames, the bus channel names, and the stream protocol constants.
+- The session API schemas: list, create, post, events, blob, withdraw, archive, status and drafts.
+- The live frames, the pod call frames, the bus channel names, and the stream protocol constants.
 - The daemon engine: the call journal, the ledger, fencing and the op groups.
-- The terminal, files, media, health, subscription and changes schemas.
+- The terminal, files, context mirror, media, health, subscription, changes and diagram repair schemas.
 - The Mac app link frames and JSON-RPC messages.
 
 ## Does not own
 
 - The socket that carries a frame: `@dltech/atlas-host` connects, and `apps/daemon` serves.
 - The logic of an op: `apps/daemon` runs a shell, a service or a git call.
-- The HTTP routes: `apps/api` and `@dltech/atlas-control`.
+- The HTTP routes: `apps/api` owns them.
 - The session state machine: `@dltech/atlas-core`.
 
 ## Entry points
@@ -38,17 +37,29 @@ share. Every frame and every call is a `zod` schema here, and the daemon engine 
 - `callResultSchema`, `CallResult`, `okCallResultSchema`, `failedCallResultSchema`: the answer.
 - `daemonEventSchema`, `DaemonEvent`: an event that arrives during a call, such as shell output.
 
-The ops are `exec`, `stat`, `readFile`, `readBytes`, `readTextForEdit`, `readLink`, `readDirectory`,
-`writeFile`, `fetchToFile`, `remove`, `mkdir`, `rename`, `glob` and `grep`. They also include the
-groups `changes.*`, `git.*`, `mcp.*`, `metrics.*`, `previews.*`, `services.*`, `shells.*`,
-`terminal.*` and `watch.*`.
+The ops are `exec`, `exec.background`, `stat`, `readFile`, `readBytes`, `readTextForEdit`, `readLink`,
+`readDirectory`, `writeFile`, `fetchToFile`, `digestFile`, `putFile`, `remove`, `mkdir`, `rename`,
+`glob` and `grep`. They also include the groups `changes.*`, `git.*`, `mcp.*`, `metrics.*`, `oom.*`,
+`previews.*`, `services.*`, `shells.*`, `terminal.*` and `watch.*`.
+
+### Call a pod from the API
+
+- `podCallRequestSchema`, `PodCallRequest`, `EPodCallKind`: the request that the API sends to the
+  host that holds the session. The kinds are `invoke`, `follow`, `renew` and `release`.
+- `podCallReplySchema`, `PodCallReply`, `EPodCallFailure`: the answer. A `failed` answer with
+  `EPodCallFailure.Fenced` means the host that answered lost the session, so the caller routes the
+  request again.
+- `podStreamFrameSchema`, `PodStreamFrame`: an event, or a close with its reason, on a followed
+  stream. `podReadySchema`, `PodReady`: the message that the host publishes when it holds the pod.
+- `ELiveOpFailure`, `liveOpFailureSchema`, `CP_POD_OPS`, `EPodNotReady`: why the API cannot reach
+  the op, the ops it calls on a pod, and the marker that tells a client to wait, not fail.
 
 ### Carry a frame over the link
 
 - `hostFrameSchema`, `HostFrame`: what the host sends.
 - `daemonFrameSchema`, `DaemonFrame`: what the daemon sends.
 - `EDaemonErrorKind`, `ERunState`: the error kind and the run state a frame reports.
-- `DAEMON_PORT`, `DAEMON_LINK_PROTOCOL_VERSION`, `DAEMON_PROTOCOL_HEADER`: the link constants.
+- `DAEMON_PORT`, `DAEMON_LINK_PROTOCOL_VERSION`, `DAEMON_LINK_SCHEMA_HASH`, `DAEMON_PROTOCOL_HEADER`: the link constants and the fingerprint of `hostFrameSchema`.
 
 ### Read and publish live state
 
@@ -84,6 +95,13 @@ groups `changes.*`, `git.*`, `mcp.*`, `metrics.*`, `previews.*`, `services.*`, `
 - `inboxFileSchema`, `InboxFile`: one context file a spawn attaches for the child, `{path, text}`.
   A message carries at most 32. These files belong to the child's context folder; they are not
   model attachments.
+
+### Repair a diagram
+
+- `diagramRepairInputSchema`, `diagramRepairOutputSchema`: repair a Mermaid diagram in place, and
+  return its new source.
+- `diagramRepairListInputSchema`, `diagramRepairListOutputSchema`: list the repairs that a session
+  holds.
 
 ### Speak the stream protocol
 
@@ -122,7 +140,8 @@ const frame: DaemonFrame = parsed.data
 - Add an op to `ops/` and register it in `callOpSchema` and `okCallResultSchema`. Never add a loose
   `unknown` payload to a frame.
 - Change a schema and bump the matching version constant (`DAEMON_LINK_PROTOCOL_VERSION`,
-  `STREAM_PROTOCOL_VERSION`) in the same change.
+  `STREAM_PROTOCOL_VERSION`) in the same change. `hostFrameSchema` also raises both daemon link
+  constants and `DAEMON_LINK_SCHEMA_HASH`; `bun scripts/check-daemon-link-skew.ts` enforces it.
 
 ## See also
 

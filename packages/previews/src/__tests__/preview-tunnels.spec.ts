@@ -1,7 +1,7 @@
 import { seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it, vi } from 'bun:test'
 import { type CloudflareTunnelClient } from '../cloudflare-tunnel.client'
-import { CloudflareRecordExistsError } from '../errors'
+import { EPreviewTunnelState } from '../preview-state'
 import { PreviewTunnels, type PreviewSecretCipher } from '../preview-tunnels'
 
 const fakeCipher: PreviewSecretCipher = {
@@ -11,11 +11,16 @@ const fakeCipher: PreviewSecretCipher = {
 
 describe('PreviewTunnels', () => {
   const currentDb = useTestDatabase()
+  const tunnels = new Map<string, { id: string; token: string }>()
   let created = 0
   const cloudflare = {
-    createTunnel: vi.fn(async (_args: { name: string }) => {
+    ensureTunnel: vi.fn(async (args: { name: string }) => {
+      const held = tunnels.get(args.name)
+      if (held !== undefined) return held
       created += 1
-      return { id: `tun-${created}`, token: `tok-${created}` }
+      const tunnel = { id: `tun-${created}`, token: `tok-${created}` }
+      tunnels.set(args.name, tunnel)
+      return tunnel
     }),
     putIngress: vi.fn(async (_args: { tunnelId: string; rules: unknown[] }) => undefined),
     createCname: vi.fn(async (args: { hostname: string; tunnelId: string }) => ({
@@ -31,7 +36,7 @@ describe('PreviewTunnels', () => {
     deleteDnsRecord: vi.fn(async (_args: { recordId: string }) => undefined),
     deleteTunnel: vi.fn(async (_args: { tunnelId: string }) => undefined),
   }
-  const tunnels = new PreviewTunnels({
+  const previews = new PreviewTunnels({
     db: currentDb().db,
     cipher: fakeCipher,
     domain: 'byatlas.dev',
@@ -40,13 +45,15 @@ describe('PreviewTunnels', () => {
 
   beforeEach(async () => {
     created = 0
+    tunnels.clear()
     for (const mock of Object.values(cloudflare)) mock.mockClear()
     await seedUser({ db: currentDb().db, id: 'usr-1' })
     await seedUser({ db: currentDb().db, id: 'usr-2' })
   })
 
-  it('creates tunnel, cname and ingress on first expose', async () => {
-    const reply = await tunnels.expose({
+  it('creates the pod tunnel and a ready row, with no cloudflare call after the create', async () => {
+    const reply = await previews.expose({
+      podSessionId: 'pod-1',
       threadId: 'thr-1',
       userId: 'usr-1',
       port: 3000,
@@ -54,30 +61,52 @@ describe('PreviewTunnels', () => {
 
     expect(reply.tunnelToken).toBe('tok-1')
     expect(reply.url).toMatch(/^https:\/\/3000-[0-9a-z]{10}\.byatlas\.dev$/)
-    expect(cloudflare.createTunnel.mock.calls[0]?.[0].name).toMatch(/^atlas-thr-1-[0-9a-z]{6}$/)
-    expect(cloudflare.createCname).toHaveBeenCalledTimes(1)
-    expect(cloudflare.putIngress).toHaveBeenCalledWith({
-      tunnelId: 'tun-1',
-      rules: [{ hostname: new URL(reply.url).hostname, port: 3000 }],
-    })
+    expect(cloudflare.ensureTunnel).toHaveBeenCalledWith({ name: 'atlas-pod-1' })
+    expect(cloudflare.createCname).not.toHaveBeenCalled()
+    expect(cloudflare.putIngress).not.toHaveBeenCalled()
     const row = await currentDb()
-      .db.orm.public.PreviewTunnel.where({
-        threadId: 'thr-1',
-      })
+      .db.orm.public.PreviewTunnel.where({ podSessionId: 'pod-1' })
       .first()
+    expect(row?.state).toBe(EPreviewTunnelState.Ready)
+    expect(row?.tunnelId).toBe('tun-1')
     expect(row?.sealedTunnelToken).toBe('enc:tok-1')
+    expect(row?.createdByThreadId).toBe('thr-1')
+    expect(row?.syncedAt).toBeNull()
+  })
+
+  it('leaves a pending row carrying the error when the tunnel cannot be created', async () => {
+    cloudflare.ensureTunnel.mockRejectedValueOnce(new Error('cf down'))
+
+    await expect(
+      previews.expose({
+        podSessionId: 'pod-1',
+        threadId: 'thr-1',
+        userId: 'usr-1',
+        port: 3000,
+      }),
+    ).rejects.toThrow('cf down')
+
+    const row = await currentDb()
+      .db.orm.public.PreviewTunnel.where({ podSessionId: 'pod-1' })
+      .first()
+    expect(row?.state).toBe(EPreviewTunnelState.Pending)
+    expect(row?.lastError).toBe('cf down')
+    expect(row?.tunnelId).toBe('')
+    expect(await currentDb().db.orm.public.PreviewRoute.all()).toEqual([])
   })
 
   it('answers a repeated port without calling cloudflare', async () => {
-    const first = await tunnels.expose({
+    const first = await previews.expose({
+      podSessionId: 'pod-1',
       threadId: 'thr-1',
       userId: 'usr-1',
       port: 3000,
     })
     for (const mock of Object.values(cloudflare)) mock.mockClear()
 
-    const second = await tunnels.expose({
-      threadId: 'thr-1',
+    const second = await previews.expose({
+      podSessionId: 'pod-1',
+      threadId: 'thr-2',
       userId: 'usr-1',
       port: 3000,
     })
@@ -86,107 +115,135 @@ describe('PreviewTunnels', () => {
     for (const mock of Object.values(cloudflare)) expect(mock).not.toHaveBeenCalled()
   })
 
-  it('puts both rules when a second port is exposed and shares the label', async () => {
-    const first = await tunnels.expose({
+  it('shares one tunnel and one label across two ports of a pod', async () => {
+    const first = await previews.expose({
+      podSessionId: 'pod-1',
       threadId: 'thr-1',
       userId: 'usr-1',
       port: 3000,
     })
-    const second = await tunnels.expose({
-      threadId: 'thr-1',
+    const second = await previews.expose({
+      podSessionId: 'pod-1',
+      threadId: 'thr-2',
       userId: 'usr-1',
       port: 4000,
     })
 
-    expect(cloudflare.createTunnel).toHaveBeenCalledTimes(1)
-    const rules = cloudflare.putIngress.mock.calls.at(-1)?.[0].rules
-    expect(rules).toHaveLength(2)
+    expect(cloudflare.ensureTunnel).toHaveBeenCalledTimes(1)
     expect(first.url.split('-')[1]).toBe(second.url.split('-')[1])
-  })
-
-  it('serialises concurrent exposes of one thread onto one tunnel', async () => {
-    await Promise.all([
-      tunnels.expose({ threadId: 'thr-1', userId: 'usr-1', port: 3000 }),
-      tunnels.expose({ threadId: 'thr-1', userId: 'usr-1', port: 3000 }),
-      tunnels.expose({ threadId: 'thr-1', userId: 'usr-1', port: 4000 }),
-    ])
-
-    expect(cloudflare.createTunnel).toHaveBeenCalledTimes(1)
     expect(await currentDb().db.orm.public.PreviewRoute.all()).toHaveLength(2)
   })
 
-  it('tears down dns records, tunnel and rows, and is a no-op when absent', async () => {
-    await tunnels.expose({ threadId: 'thr-1', userId: 'usr-1', port: 3000 })
-    await tunnels.expose({ threadId: 'thr-1', userId: 'usr-1', port: 4000 })
+  it('creates one cloudflare tunnel for two concurrent exposes of a new pod', async () => {
+    await Promise.all([
+      previews.expose({ podSessionId: 'pod-1', threadId: 'thr-1', userId: 'usr-1', port: 3000 }),
+      previews.expose({ podSessionId: 'pod-1', threadId: 'thr-2', userId: 'usr-1', port: 3000 }),
+      previews.expose({ podSessionId: 'pod-1', threadId: 'thr-2', userId: 'usr-1', port: 4000 }),
+    ])
 
-    await tunnels.teardown({ threadId: 'thr-1' })
-
-    expect(cloudflare.deleteDnsRecord).toHaveBeenCalledTimes(2)
-    expect(cloudflare.deleteTunnel).toHaveBeenCalledWith({ tunnelId: 'tun-1' })
-    expect(await currentDb().db.orm.public.PreviewTunnel.all()).toEqual([])
-    expect(await currentDb().db.orm.public.PreviewRoute.all()).toEqual([])
-    cloudflare.deleteTunnel.mockClear()
-    await tunnels.teardown({ threadId: 'thr-1' })
-    expect(cloudflare.deleteTunnel).not.toHaveBeenCalled()
+    expect(cloudflare.ensureTunnel).toHaveBeenCalledTimes(1)
+    expect(created).toBe(1)
+    expect(await currentDb().db.orm.public.PreviewRoute.all()).toHaveLength(2)
   })
 
-  it('keeps other threads untouched on teardown', async () => {
-    await tunnels.expose({ threadId: 'thr-1', userId: 'usr-1', port: 3000 })
-    const other = await tunnels.expose({
+  it('flips a deleting row back to pending when the tunnel cannot be re-sealed', async () => {
+    await previews.expose({
+      podSessionId: 'pod-1',
+      threadId: 'thr-1',
+      userId: 'usr-1',
+      port: 3000,
+    })
+    await previews.markDeleting({ podSessionId: 'pod-1' })
+    cloudflare.ensureTunnel.mockRejectedValueOnce(new Error('cf down'))
+
+    await expect(
+      previews.expose({
+        podSessionId: 'pod-1',
+        threadId: 'thr-1',
+        userId: 'usr-1',
+        port: 3000,
+      }),
+    ).rejects.toThrow('cf down')
+
+    const row = await currentDb()
+      .db.orm.public.PreviewTunnel.where({ podSessionId: 'pod-1' })
+      .first()
+    expect(row?.state).toBe(EPreviewTunnelState.Pending)
+    expect(row?.lastError).toBe('cf down')
+  })
+
+  it('marks a tunnel deleting and clears the mark again', async () => {
+    await previews.expose({
+      podSessionId: 'pod-1',
+      threadId: 'thr-1',
+      userId: 'usr-1',
+      port: 3000,
+    })
+
+    await previews.markDeleting({ podSessionId: 'pod-1' })
+    expect(
+      (await currentDb().db.orm.public.PreviewTunnel.where({ podSessionId: 'pod-1' }).first())
+        ?.state,
+    ).toBe(EPreviewTunnelState.Deleting)
+
+    await previews.clearDeleting({ podSessionId: 'pod-1' })
+    expect(
+      (await currentDb().db.orm.public.PreviewTunnel.where({ podSessionId: 'pod-1' }).first())
+        ?.state,
+    ).toBe(EPreviewTunnelState.Ready)
+  })
+
+  it('keeps a deleting mark with nothing to mark', async () => {
+    await previews.markDeleting({ podSessionId: 'pod-absent' })
+    await previews.clearDeleting({ podSessionId: 'pod-absent' })
+
+    expect(await currentDb().db.orm.public.PreviewTunnel.all()).toEqual([])
+  })
+
+  it('retries the teardown when the tunnel delete throws', async () => {
+    await previews.expose({
+      podSessionId: 'pod-1',
+      threadId: 'thr-1',
+      userId: 'usr-1',
+      port: 3000,
+    })
+    cloudflare.deleteTunnel.mockRejectedValueOnce(new Error('cf down'))
+
+    const first = await previews.teardown({ podSessionId: 'pod-1' })
+
+    expect(first).toEqual({ kind: 'failed', reason: 'cf down' })
+    const kept = await currentDb()
+      .db.orm.public.PreviewTunnel.where({ podSessionId: 'pod-1' })
+      .first()
+    expect(kept?.state).toBe(EPreviewTunnelState.Deleting)
+    expect(kept?.lastError).toBe('cf down')
+
+    const second = await previews.teardown({ podSessionId: 'pod-1' })
+
+    expect(second).toEqual({ kind: 'deleted' })
+    expect(cloudflare.deleteTunnel).toHaveBeenLastCalledWith({ tunnelId: 'tun-1' })
+    expect(await currentDb().db.orm.public.PreviewTunnel.all()).toEqual([])
+    expect(await currentDb().db.orm.public.PreviewRoute.all()).toEqual([])
+  })
+
+  it('keeps other pods untouched on teardown', async () => {
+    await previews.expose({
+      podSessionId: 'pod-1',
+      threadId: 'thr-1',
+      userId: 'usr-1',
+      port: 3000,
+    })
+    const other = await previews.expose({
+      podSessionId: 'pod-2',
       threadId: 'thr-2',
       userId: 'usr-2',
       port: 3000,
     })
 
-    await tunnels.teardown({ threadId: 'thr-1' })
+    await previews.teardown({ podSessionId: 'pod-1' })
 
     expect(other.tunnelToken).toBe('tok-2')
     const rows = await currentDb().db.orm.public.PreviewTunnel.all()
-    expect(rows.map((row) => row.threadId)).toEqual(['thr-2'])
-  })
-
-  it('removes the dns record when the ingress update fails', async () => {
-    cloudflare.putIngress.mockRejectedValueOnce(new Error('cf down'))
-
-    await expect(
-      tunnels.expose({ threadId: 'thr-1', userId: 'usr-1', port: 3000 }),
-    ).rejects.toThrow('cf down')
-
-    expect(cloudflare.deleteDnsRecord).toHaveBeenCalledTimes(1)
-    expect(await currentDb().db.orm.public.PreviewRoute.all()).toEqual([])
-  })
-
-  it('adopts an existing cname that already points at this tunnel', async () => {
-    cloudflare.createCname.mockRejectedValueOnce(new CloudflareRecordExistsError('exists'))
-    cloudflare.findDnsRecord.mockResolvedValueOnce({
-      id: 'rec-old',
-      content: 'tun-1.cfargotunnel.com',
-    })
-
-    await tunnels.expose({ threadId: 'thr-1', userId: 'usr-1', port: 3000 })
-
-    expect(cloudflare.repointCname).not.toHaveBeenCalled()
-    expect((await currentDb().db.orm.public.PreviewRoute.all())[0]?.dnsRecordId).toBe('rec-old')
-  })
-
-  it('repoints an existing cname that targets another tunnel', async () => {
-    cloudflare.createCname.mockRejectedValueOnce(new CloudflareRecordExistsError('exists'))
-    cloudflare.findDnsRecord.mockResolvedValueOnce({
-      id: 'rec-old',
-      content: 'tun-orphan.cfargotunnel.com',
-    })
-
-    const reply = await tunnels.expose({
-      threadId: 'thr-1',
-      userId: 'usr-1',
-      port: 3000,
-    })
-
-    expect(cloudflare.repointCname).toHaveBeenCalledWith({
-      recordId: 'rec-old',
-      hostname: new URL(reply.url).hostname,
-      tunnelId: 'tun-1',
-    })
-    expect((await currentDb().db.orm.public.PreviewRoute.all())[0]?.dnsRecordId).toBe('rec-old')
+    expect(rows.map((row) => row.podSessionId)).toEqual(['pod-2'])
   })
 })

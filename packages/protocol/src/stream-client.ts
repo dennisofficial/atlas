@@ -15,6 +15,7 @@ const subscribeSessionSchema = z
     threadId: z.string().min(1).optional(),
     afterSeq: z.number().int().min(0).optional(),
     afterHash: z.string().min(1).optional(),
+    tailViewVersion: z.number().int().min(1).optional(),
   })
   .refine((m) => m.afterHash === undefined || m.afterSeq !== undefined, {
     message: 'afterHash requires afterSeq',

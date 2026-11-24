@@ -1,10 +1,17 @@
 import type { LanguageModelV4 } from '@ai-sdk/provider'
-import { findCard, toAccountId, type ModelChoice, type ModelPort } from '@dltech/atlas-core'
+import {
+  EAuthKind,
+  findCard,
+  toAccountId,
+  type ModelChoice,
+  type ModelPort,
+} from '@dltech/atlas-core'
 import type { RoleModelChoice, RoleModelRequest } from '@dltech/atlas-host'
 import { logFieldsOf, type LogPort, type TracePort } from '@dltech/atlas-observability'
 import { generatedCatalogue } from '@dltech/atlas-models'
 
 import { AgentHostCredentialPort } from '../config/agent-host-credential-port'
+import type { ModelCredential } from '../config/agent-host-config'
 import type { ModelSource, ResolvedRoleModel } from '../config/model-config'
 import type { MediaSigner } from '../media/media-signer'
 import { signerUrls } from '../media/media-urls'
@@ -51,12 +58,16 @@ export const providerModelOf = (args: {
   })
 }
 
+const authOf = (credential: ModelCredential): EAuthKind =>
+  credential.kind === 'oauth' ? EAuthKind.Oauth : EAuthKind.ApiKey
+
 export const modelPortOf = (args: PortDeps & { resolved: ResolvedRoleModel }): AiSdkModelPort => {
   const { choice, config } = args.resolved
   const ref = config.configured === true ? config.ref : choice.ref
   return new AiSdkModelPort({
     model: providerModelOf(args),
     card: () => findCard({ catalog: generatedCatalogue(), ref }),
+    ...(config.configured === true ? { auth: authOf(config.credential) } : {}),
     ...(args.log === undefined ? {} : { log: args.log }),
     mediaSource:
       args.media === undefined
@@ -75,6 +86,17 @@ const readFailureLogOf = (log: LogPort | undefined): ((error: unknown) => void) 
           ...logFieldsOf({ error }),
         })
 
+const readTimeoutLogOf = (
+  log: LogPort | undefined,
+): ((args: { timeoutMs: number }) => void) | undefined =>
+  log === undefined
+    ? undefined
+    : ({ timeoutMs }) =>
+        log.warn({
+          source: 'runtime.model-refresh',
+          message: `kept the current model after the config read passed ${timeoutMs} ms`,
+        })
+
 export const liveSessionModelsOf = (
   args: PortDeps & {
     initial: ModelSource
@@ -88,12 +110,14 @@ export const liveSessionModelsOf = (
     return latest
   }
   const onReadFailure = readFailureLogOf(args.log)
+  const onReadTimeout = readTimeoutLogOf(args.log)
   const liveFor = (pick: (source: ModelSource) => ResolvedRoleModel): ModelPort =>
     new LiveModelPort({
       initial: pick(latest),
       read: async () => pick(await refreshed()),
       build: (resolved) => modelPortOf({ ...args, resolved }),
       ...(onReadFailure === undefined ? {} : { onReadFailure }),
+      ...(onReadTimeout === undefined ? {} : { onReadTimeout }),
       ...(args.trace === undefined ? {} : { trace: args.trace }),
     })
   return {

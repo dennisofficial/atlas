@@ -16,7 +16,7 @@ import {
   type PodShapeRequest,
 } from '@/features/pods/pod-resize-confirmation'
 
-import { resizePod } from '../../data/pod-resources'
+import { cancelPodResize, resizePod } from '../../data/pod-resources'
 import type { PodMetricsSample } from '../../data/pod-metrics-series'
 import type { PodPower } from '../../data/use-pod-power'
 import { PodPaneSection, podBusyOfView, podSectionViewOf } from '../details/pod-section'
@@ -92,6 +92,8 @@ const sectionOf = (overrides: Partial<React.ComponentProps<typeof PodPaneSection
     onConfirm={() => undefined}
     onCancel={() => undefined}
     onResize={() => undefined}
+    onResizeNow={() => Promise.resolve()}
+    onCancelResize={() => Promise.resolve()}
     onGrowDisk={() => undefined}
     {...overrides}
   />
@@ -175,6 +177,29 @@ describe('podSectionViewOf', () => {
     })
     expect(live?.state).toBe(EPodState.Running)
     expect(parked?.state).toBe(EPodState.Parked)
+  })
+
+  it('marks the resize that waits for the pod to go idle', () => {
+    const waiting = podSectionViewOf({
+      pod: {
+        shape: { vcpus: 4, memoryGb: 16 },
+        desiredShape: { vcpus: 8, memoryGb: 64 },
+        phase: 'waiting',
+        sizing: { cap: 8, offered: [], unavailable: [] },
+      },
+      live: true,
+    })
+    expect(waiting.resizeWaiting).toBe(true)
+    expect(waiting.pendingShape).toEqual({ vcpus: 8, memoryGb: 64 })
+    const steady = podSectionViewOf({
+      pod: {
+        desiredShape: { vcpus: 8, memoryGb: 64 },
+        phase: 'steady',
+        sizing: { cap: 8, offered: [], unavailable: [] },
+      },
+      live: true,
+    })
+    expect(steady.resizeWaiting).toBeUndefined()
   })
 
   it('names a failed resize and offers a shape when the pod has not reported one', () => {
@@ -286,6 +311,26 @@ describe('PodPaneSection', () => {
     expect(html).toContain('Resizing…')
     expect(html.indexOf('Resizing…')).toBeLessThan(html.indexOf('CPU'))
     expect(html.match(/8 vCPU · 64 GB/g)).toHaveLength(1)
+  })
+
+  it('offers resize now and cancel while the resize waits for idle', async () => {
+    const onResizeNow = mock(() => Promise.resolve())
+    const onCancelResize = mock(() => Promise.resolve())
+    const unmount = await mount(
+      sectionOf({
+        pendingShape: { vcpus: 8, memoryGb: 64 },
+        resizeWaiting: true,
+        onResizeNow,
+        onCancelResize,
+      }),
+    )
+    expect(document.body.textContent).toContain('Waiting for idle…')
+    expect(document.body.textContent).toContain('Resizes to 8 vCPU · 64 GB when the pod is idle.')
+    await click(buttonNamed('Resize now'))
+    expect(onResizeNow).toHaveBeenCalledTimes(1)
+    await click(buttonNamed('Cancel'))
+    expect(onCancelResize).toHaveBeenCalledTimes(1)
+    await unmount()
   })
 
   it('asks before stopping a working pod', async () => {
@@ -487,6 +532,14 @@ describe('resizePod', () => {
   })
 })
 
+describe('cancelPodResize', () => {
+  it('cancels the resize that waits for the pod to go idle', async () => {
+    const command = mock(() => Promise.resolve({}))
+    await cancelPodResize({ api: { command }, sessionId: 'ses-1' })
+    expect(command).toHaveBeenCalledWith({ sessionId: 'ses-1', name: 'cancel-resize', args: {} })
+  })
+})
+
 describe('podBusyOfView', () => {
   it('is idle with no shells and no services', () => {
     expect(podBusyOfView({ view: paneValueFixture().view, status: undefined })).toEqual({
@@ -499,11 +552,16 @@ describe('podBusyOfView', () => {
     expect(podBusyOfView({ view: populatedPaneValue().view, status: undefined }).busy).toBe(true)
   })
 
-  it('counts a turn in flight and a running setup script', () => {
+  it('resizes under a thinking turn and holds for a tool call or a setup script', () => {
     expect(
-      podBusyOfView({ view: paneValueFixture().view, status: { state: ESessionStatus.Thinking } })
-        .running,
-    ).toEqual(['Agent turn'])
+      podBusyOfView({ view: paneValueFixture().view, status: { state: ESessionStatus.Thinking } }),
+    ).toEqual({ busy: false, running: [] })
+    expect(
+      podBusyOfView({
+        view: paneValueFixture().view,
+        status: { state: ESessionStatus.RunningTool },
+      }).running,
+    ).toEqual(['Tool call'])
     expect(
       podBusyOfView({ view: paneValueFixture().view, status: { state: ESessionStatus.Preparing } })
         .running,

@@ -1,8 +1,6 @@
 import React from 'react'
 
-import { ESandboxState } from '@dltech/atlas-harness'
-
-import type { SidebarContainer } from '../../../store/sidebar-model'
+import { ESandboxState, type SidebarContainer } from '../../../store/sidebar-model'
 import { glyph, theme } from '../../theme'
 import type { Span } from '../spans'
 import { truncateCells } from './cells'

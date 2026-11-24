@@ -12,6 +12,7 @@ only what it can rebuild or drop.
 - The record adapter and its cache, and the once-ledger of a session.
 - The live step buffer, which flushes a streamed answer to the clients.
 - The change snapshotter, and the inbox intake of a held session.
+- The context mirror, which keeps a held session's context folder in the content store and index.
 - Seeding a session's context folder from the files a spawner attached, before its first turn.
 - Terminal and panel demand, which keep a pod awake.
 - The drain budget, and the errors a lost sandbox raises.
@@ -25,10 +26,10 @@ only what it can rebuild or drop.
 
 ## Entry points
 
-| Import                       | Use it for                                                |
-| ---------------------------- | --------------------------------------------------------- |
-| `@dltech/atlas-host`         | The holder, remote calls, daemon ports, drain and errors. |
-| `@dltech/atlas-host/testing` | Fault injection and two shared conformance suites.        |
+| Import                       | Use it for                                                        |
+| ---------------------------- | ----------------------------------------------------------------- |
+| `@dltech/atlas-host`         | The holder, remote calls, daemon ports, drain and errors.         |
+| `@dltech/atlas-host/testing` | Fault injection, memory stores and two shared conformance suites. |
 
 ## Capabilities
 
@@ -38,24 +39,27 @@ only what it can rebuild or drop.
   `demandOf()` and `discard()`.
 - `SessionHolderArgs`: presence, the control plane, the bus, the timers, the runtime factory, the
   ids, the commands and their pod and control handlers. It also takes the optional control, MCP,
-  operator, changes, notify and turn-ended hooks. `NotifyDispatch` tells another process that a turn
-  ended or parked, so it can reach the operator. `TurnEndedHook` reports a finished turn in this
-  process, so work that follows a turn can start without waiting for the next wake.
-- `PodCalls`: invoke an op on a held session, or listen to its frames.
+  operator, changes, context mirror, notify and turn-ended hooks, the log, the pod peers, the
+  terminal and panel demand, and the two start-error classifiers. `NotifyDispatch` tells another
+  process that a turn ended or parked. `ParkArchivedPod` sleeps an archived pod. `TurnEndedHook`
+  reports an ended turn.
+- `PodCalls`, `PodCallOutcome`: invoke an op on a held session, or listen to its frames.
 - `podControlOf(...)`: the control-plane client that a plugin's `PodControl` reaches.
-- `SessionRuntime.classifier` and `SessionRuntime.classifierStatus`: the core `ClassifierPort` of a
-  held session and its `ClassifierStatus`, wired into `ctx.classifier` for a plugin. The host
-  carries no classifier HTTP client; the runtime factory builds one.
+- `SessionRuntime.classifier`, `SessionRuntime.classifierStatus`: the core `ClassifierPort` of a
+  held session, wired into `ctx.classifier` for a plugin. The runtime factory builds the client.
 - `SessionRuntime.analytics`: the `PodAnalytics` a plugin reaches as `ctx.analytics`. The host adds
   `session_id` and `thread_id` to every capture; the runtime factory binds the user id.
-- The holder holds a clean sub-agent ending while a sibling from the same spawn step still runs.
-  Then it wakes the parent once the last member ends. The parent reads one notice for each ending.
-  A compacted log cannot lose the group.
+- `placeContextFiles`, `contextFilesPlacerOf`: write the files a spawner attached into the context
+  folder of a session, before its first turn.
+- The holder holds a clean sub-agent ending while a sibling from the same spawn step still runs, then
+  wakes the parent once the last member ends. A compacted log cannot lose the group.
 
 ### Call the daemon
 
 - `RemoteCalls`: the client of the daemon link. `open`, `ready`, `invoke`, `ack`, `ackScope`,
-  `handoff` and `close`.
+  `handoff` and `close`. It reports each `EventFrame` to its listeners.
+- `WorkspaceGate`, `POD_WAIT_INTERRUPTED`, `WorkspaceGateOutcome`: hold a tool call until the
+  workspace prepare settles, and fail the call when the wait is interrupted.
 - `webSocketConnector({url})`, `DaemonConnector`, `DaemonSocket`: connect to the daemon.
 - `newKey()`, `systemTimers`, `CallTimers`: a call key and the timers the link uses.
 - `ScopedToolDispatcher`, `runInCallScope`, `scopeKeyOf`, `markDispatched`, `nextKey`: bind a call
@@ -63,8 +67,7 @@ only what it can rebuild or drop.
 
 ### Reach the sandbox through a port
 
-- `DaemonFileSystemPort`, `DaemonAgentFileSystemPort`, `DaemonProcessPort`: the port
-  implementations that send an op and wait for its result.
+- `DaemonFileSystemPort`, `DaemonAgentFileSystemPort`, `DaemonProcessPort`: the daemon-backed ports.
 - `DEFAULT_SANDBOX_COMMANDS`: the command names the sandbox resolves.
 
 ### Keep the record
@@ -79,34 +82,34 @@ only what it can rebuild or drop.
 
 - `LiveStepBuffer`, `LIVE_FLUSH_MS`, `LIVE_FLUSH_BYTES`, `LIVE_STEP_CAP_BYTES`: buffer the output
   of a step and flush it to the live channel.
-- `ChangesSnapshotter`, `fingerprintOf`, `changeCheckoutId`: snapshot the files a session changed.
-  A checkout id is session-scoped: `sha256(sessionId, repo, realpath(worktreePath))`, so two
-  sessions of one project keep two rows for the same worktree path.
-- `TerminalDemand`, `PanelDemand`, `PANEL_HOLD_TTL_MS`: keep the pod awake for a terminal or panel.
+- `ChangesSnapshotter`, `fingerprintOf`, `changeCheckoutId`, `changeRepoOf`: snapshot the files a
+  session changed. The checkout id is `sha256(sessionId, repo, realpath(worktreePath))`, so it is
+  session-scoped: one worktree path keeps two rows for two sessions.
+- `TerminalDemand`, `PanelDemand`, `PANEL_HOLD_TTL_MS`: keep a pod awake for a terminal or panel.
+- `ContextMirror`: the rescanner that keeps a held session's context folder in the content store and
+  index. The pod streams each file to the store at any size; a row its scan could not see stays.
 
 ### Route a pod call to its holder
 
 - `SessionHolder.podRouter()`: a `PodRouter` (`PodReach`, `EPodReach`, `PodFollowClose`). `reach`
-  decides local, remote or unreachable; `invoke` serves here or forwards to the holder; `follow`
-  streams a held session's frames here.
+  decides the route. `invoke` holds a panel when `waitForHolder` is set. `follow` streams frames.
 - `SessionHolderArgs.podCallBus`: the bus the router and the `PodCallResponder` share; the
   responder (`POD_RESPONDER_READY_WAIT_MS`) serves calls another host addresses to this one.
 
 ### Drain and fail
 
-- `DRAIN_IN_FLIGHT_CAP_MS`, `LEASE_HAND_BACK_MARGIN_MS`, `DRAIN_HANDOFF_BUDGET_MS`: the budget of
-  a drain.
+- `DRAIN_IN_FLIGHT_CAP_MS`, `LEASE_HAND_BACK_MARGIN_MS`, `DRAIN_HANDOFF_BUDGET_MS`: the budget
+  of a drain.
 - `SandboxUnavailableError`, `SANDBOX_OFFLINE_GUIDANCE`, `ReadyTimeoutError`, `FencedError`,
   `OpMismatchError`, `ProtocolViolationError`: the failures of a lost, fenced or broken sandbox.
 - `isReadOnlyOp(op)`: whether an op reads only, so a retry is safe.
 
 ### Test a host
 
-- `FaultProxy`, `ProxyFault`: a proxy that drops, delays or corrupts a frame.
-- `createMemoryHostPresence()`: a presence store in memory.
-- `createMemoryPodCallHub()`: a `PodCallBus` hub in memory, where every bus sees every request.
-- `describeRemoteCalls(target)`, `describeHostPresence(target)`: the two shared suites, run against
-  the real implementation.
+- `FaultProxy`, `ProxyFault`: a proxy that drops, delays, throttles, refuses or holds a link.
+- `createMemoryHostPresence({store})`, `createMemoryPodCallHub()`: presence and the `PodCallBus` in
+  memory, where every bus sees every request.
+- `describeRemoteCalls(target)`, `describeHostPresence(target)`: the two shared suites.
 
 ## Usage
 
@@ -120,9 +123,6 @@ const holder = new SessionHolder({
   timers: { now: () => Date.now(), ...systemTimers },
   runtimes,
   ids,
-  commands,
-  commandHandlers,
-  controlHandlers,
 })
 
 await holder.start()
@@ -131,7 +131,7 @@ await holder.start()
 ## Rules
 
 - Read `@dltech/atlas-host/testing` in a spec only. It opens sockets and injects faults.
-- Never import app code, Nest or tRPC here. A boundary spec fails the build if you do.
+- Never import app code, Nest or tRPC here; a boundary spec fails the build on those imports.
 - Do not keep the state of a session in a field of your class. Write it to the record, because a
   SIGKILL can end the host at any moment.
 

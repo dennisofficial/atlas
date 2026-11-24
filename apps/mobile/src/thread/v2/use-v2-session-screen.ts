@@ -1,4 +1,11 @@
-import { ESessionConnection, sessionStateLineOf } from '@dltech/atlas-client/stream'
+import { clientOnlyReason } from '@dltech/atlas-commands'
+import {
+  canReconnectOf,
+  ESessionConnection,
+  sessionStateLineOf,
+  startFailureOf,
+} from '@dltech/atlas-client/stream'
+import { turnStartedAtOf } from '@dltech/atlas-client/transcript'
 import { randomUUID } from 'expo-crypto'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
@@ -7,16 +14,25 @@ import { dismissPresentedForSession } from '../../push/notification-handler'
 import type { ThreadRow } from '../rows'
 import { agentLinksOf, type AgentLinks } from './agent-links'
 import type { ContextMeter } from '../composer/context-reading'
-import { stagedQueueRowsOf, stagedRowsOf, v2ViewOf, type V2ThreadView } from './rows'
+import { queuedDockOf, type QueuedDockState } from './queued-dock'
+import { stagedRowsOf, v2ViewOf, type V2ThreadView } from './rows'
+import { sessionHeaderOf, type SessionHeader } from './session-header'
+import { sessionStream } from './session-stream'
 import { clientIdOfSend, settlementOf, type StagedSend } from './staged-send'
 import { useV2Session } from './use-v2-session'
+import { useSessionSummary } from './use-session-summary'
 import { useV2SessionCommands, type V2SessionCommands } from './use-v2-session-commands'
+import { useOperatorRequest, type OperatorRequestControl } from './use-operator-request'
 
 const TICK_MS = 1_000
 
 export type V2SessionScreen = V2ThreadView & {
   now: number
   stateLine: string | null
+  canReconnect: boolean
+  header: SessionHeader
+  queued: QueuedDockState
+  startFailure: { reason: string | undefined } | undefined
   loaded: boolean
   fromCache: boolean
   catchingUp: boolean
@@ -26,24 +42,38 @@ export type V2SessionScreen = V2ThreadView & {
   agentLinks: AgentLinks
   stagedRows: ThreadRow[]
   commands: V2SessionCommands
+  operator: OperatorRequestControl
   restored: { token: number; text: string } | undefined
   notice: string | undefined
   loadOlder: () => Promise<number>
   send: (message: { text: string }) => Promise<boolean>
   stop: () => void
-  retry: () => void
+  retry: () => Promise<void>
+  reconnect: () => void
 }
 
-export function useV2SessionScreen(sessionId: string): V2SessionScreen {
+export function useV2SessionScreen(args: {
+  sessionId: string
+  fallbackTitle: string | undefined
+}): V2SessionScreen {
+  const { sessionId, fallbackTitle } = args
   const { api } = useAuth()
   const { snapshot, loadOlder } = useV2Session({ sessionId, api })
-  const commands = useV2SessionCommands({ api, sessionId, events: snapshot.foldable })
+  const summary = useSessionSummary(sessionId)
+  const [notice, setNotice] = useState<string | undefined>(undefined)
+  const reportHidden = useCallback((name: string) => setNotice(clientOnlyReason(name)), [setNotice])
+  const commands = useV2SessionCommands({
+    api,
+    sessionId,
+    events: snapshot.foldable,
+    reportHidden,
+  })
+  const operator = useOperatorRequest({ api, sessionId, events: snapshot.events })
   const [now, setNow] = useState(() => Date.now())
   const view = useMemo(() => v2ViewOf({ snapshot, now }), [snapshot, now])
   const [staged, setStaged] = useState<readonly StagedSend[]>([])
   const agentLinks = useMemo(() => agentLinksOf({ events: snapshot.events }), [snapshot.events])
   const [restored, setRestored] = useState<{ token: number; text: string } | undefined>(undefined)
-  const [notice, setNotice] = useState<string | undefined>(undefined)
   const retryClientId = useRef<string | undefined>(undefined)
   const restoreToken = useRef(0)
 
@@ -77,14 +107,17 @@ export function useV2SessionScreen(sessionId: string): V2SessionScreen {
   }, [staged, snapshot.events])
 
   const stagedRows = useMemo(
-    () =>
-      staged.length === 0
-        ? []
-        : [
-            ...stagedRowsOf({ snapshot, staged, now }),
-            ...stagedQueueRowsOf({ snapshot, staged, now }),
-          ],
+    () => (staged.length === 0 ? [] : stagedRowsOf({ snapshot, staged, now })),
     [snapshot, staged, now],
+  )
+  const queued = useMemo(() => queuedDockOf({ snapshot, staged }), [snapshot, staged])
+  const turnStartedAt = useMemo(
+    () => turnStartedAtOf({ events: snapshot.foldable, status: snapshot.status }),
+    [snapshot.foldable, snapshot.status],
+  )
+  const header = useMemo(
+    () => sessionHeaderOf({ summary, fallbackTitle, status: snapshot.status, turnStartedAt, now }),
+    [summary, fallbackTitle, snapshot.status, turnStartedAt, now],
   )
 
   const send = useCallback(
@@ -97,7 +130,12 @@ export function useV2SessionScreen(sessionId: string): V2SessionScreen {
       })
       retryClientId.current = clientId
       try {
-        await api.sessions.post.mutate({ sessionId, text, clientId })
+        await api.sessions.post.mutate({
+          sessionId,
+          text,
+          clientId,
+          sentAt: new Date().toISOString(),
+        })
       } catch {
         return false
       }
@@ -113,9 +151,18 @@ export function useV2SessionScreen(sessionId: string): V2SessionScreen {
     void api?.sessions.stop.mutate({ sessionId }).catch(() => undefined)
   }, [api, sessionId])
 
-  const retry = useCallback(() => {
-    void api?.sessions.retry.mutate({ sessionId }).catch(() => undefined)
+  const retry = useCallback(async () => {
+    if (api === undefined) return
+    try {
+      await api.sessions.retry.mutate({ sessionId })
+    } catch {
+      setNotice('Retry failed. Try again.')
+    }
   }, [api, sessionId])
+
+  const reconnect = useCallback(() => {
+    if (api !== undefined) sessionStream(api).reconnect()
+  }, [api])
 
   const loaded = snapshot.cursor !== undefined || snapshot.status !== undefined
   const head = snapshot.events.at(-1)?.seq
@@ -130,6 +177,10 @@ export function useV2SessionScreen(sessionId: string): V2SessionScreen {
     ...view,
     now,
     stateLine: sessionStateLineOf(snapshot),
+    canReconnect: canReconnectOf(snapshot),
+    header,
+    queued,
+    startFailure: startFailureOf(snapshot.status),
     loaded,
     agentLinks,
     fromCache: snapshot.fromCache,
@@ -139,11 +190,13 @@ export function useV2SessionScreen(sessionId: string): V2SessionScreen {
     context: snapshot.view?.context ?? null,
     stagedRows,
     commands,
+    operator,
     restored,
     notice,
     loadOlder,
     send,
     stop,
     retry,
+    reconnect,
   }
 }

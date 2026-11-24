@@ -14,6 +14,10 @@ export const COMMAND_OUTCOMES: Readonly<Record<string, readonly string[]>> = {
   rewind: ['history-rewound'],
   summarise: ['history-summarised'],
   rotate: ['rotated'],
+  resume: ['resume-marked'],
+  agent: ['command-applied'],
+  'shell-kill': ['command-applied'],
+  service: ['command-applied'],
 }
 
 export const COMMAND_OUTCOME_EVENT_TYPES: ReadonlySet<string> = new Set(
@@ -71,13 +75,14 @@ export const unfinishedCommandIdsOf = (
   )
 }
 
-const COMMAND_LOG_TYPES: ReadonlySet<string> = new Set([
+export const COMMAND_LOG_TYPES: ReadonlySet<string> = new Set([
   'input-posted',
   'input-consumed',
   'input-refused',
   'history-rewound',
   'history-summarised',
   'rotated',
+  'resume-marked',
 ])
 
 export const isCommandLogEvent = (event: V2Event): boolean => COMMAND_LOG_TYPES.has(event.type)

@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'bun:test'
 import { EToolEffect } from '@dltech/atlas-core'
 
+import { type PluginPodContext } from '@dltech/atlas-plugin-sdk'
 import { podControlStub } from '@dltech/atlas-plugin-sdk/testing'
+import { ECallFailure, ECallStatus, type CallResult } from '@dltech/atlas-protocol'
 
 import { servicesPod } from '..'
 import { servicesOfEvents } from '../../core'
@@ -108,7 +110,9 @@ describe('the service tool', () => {
     expect(harness.calls.filter((call) => call.op === 'services.stop')).toMatchObject([
       { serviceId },
     ])
-    expect(harness.calls.at(-1)).toMatchObject({ op: 'previews.stop', port: 3000 })
+    expect(harness.calls.map((call) => call.op).filter((op) => op.startsWith('previews.'))).toEqual(
+      [],
+    )
   })
 
   it('stop reports an unknown id', async () => {
@@ -248,8 +252,7 @@ describe('the service tool', () => {
       port: 3000,
       url: 'https://six-words.trycloudflare.com',
     })
-    expect(harness.calls.find((call) => call.op === 'previews.expose')).toMatchObject({
-      port: 3000,
+    expect(harness.calls.find((call) => call.op === 'previews.ensure')).toMatchObject({
       tunnelToken: 'tunnel-token',
     })
     expect(textOf(outcome)).toContain('https://six-words.trycloudflare.com')
@@ -266,7 +269,7 @@ describe('the service tool', () => {
     })
     expect(outcome.ok).toBe(true)
     expect(harness.log[0]).not.toHaveProperty('url')
-    expect(harness.calls.some((call) => call.op === 'previews.expose')).toBe(false)
+    expect(harness.calls.some((call) => call.op === 'previews.ensure')).toBe(false)
     expect(textOf(outcome)).toContain('only reachable inside the sandbox')
   })
 
@@ -285,7 +288,7 @@ describe('the service tool', () => {
     })
     expect(outcome.ok).toBe(true)
     expect(harness.log[0]).not.toHaveProperty('url')
-    expect(harness.calls.some((call) => call.op === 'previews.expose')).toBe(false)
+    expect(harness.calls.some((call) => call.op === 'previews.ensure')).toBe(false)
     expect(textOf(outcome)).toContain('only reachable inside the sandbox')
   })
 
@@ -304,6 +307,35 @@ describe('the service tool', () => {
     expect(harness.log[0]).not.toHaveProperty('url')
     expect(textOf(outcome)).toContain('only reachable inside the sandbox')
     expect(textOf(outcome)).toContain('the control plane is down')
+  })
+
+  it('starts the service when the tunnel never connects, and says the url is missing', async () => {
+    const harness = rig({ control: controlOf({ url: 'https://six-words.trycloudflare.com' }) })
+    const failExpose = async (
+      op: Parameters<PluginPodContext['call']>[0],
+      options?: Parameters<PluginPodContext['call']>[1],
+    ): Promise<CallResult> => {
+      if (op.op !== 'previews.ensure') return await harness.ctx.call(op, options)
+      return {
+        status: ECallStatus.Failed,
+        op: 'previews.ensure',
+        error: {
+          code: ECallFailure.SpawnFailed,
+          message:
+            'cloudflared exited with code 3 before its tunnel connected; output: mise ERROR No version is set for shim: cloudflared',
+        },
+      }
+    }
+    const { outcome, serviceId } = await start({
+      ...harness,
+      ctx: { ...harness.ctx, call: failExpose },
+    })
+    expect(outcome.ok).toBe(true)
+    expect(harness.log[0]).toMatchObject({ type: 'service-started', serviceId, port: 3000 })
+    expect(harness.log[0]).not.toHaveProperty('url')
+    expect(textOf(outcome)).toContain('its public URL could not be created')
+    expect(textOf(outcome)).toContain('No version is set for shim')
+    expect(textOf(outcome)).not.toContain('It is published at')
   })
 
   it('shows the public url in the view and in the list', async () => {

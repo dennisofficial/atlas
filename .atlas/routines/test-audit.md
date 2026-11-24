@@ -23,49 +23,93 @@ A spec earns its place by failing when the behaviour it names breaks. A good uni
 ## Backlog
 
 Ordered by value. Each item fits in one sitting.
-1. **`apps/api/src/agent-boundary.spec.ts:100` is red on main, CI never reruns it.** Six files
-   import agent internals: `sessions.service.ts:64`, `pod-provision-rollback.ts:8`,
-   `pod-provision-run.ts:29` and `trigger/sandbox-cost/agent37-usage-reconcile.task.ts:7-9`.
-   The fix is production (export through `agent/index.ts`), so the PR stays open for Dennis.
-   Likely cause: the spec scans directories at runtime, so CI's `--changed` selection skips it.
-2. **`declared-reality.spec.ts` deadlock** (`packages/harness/src/services/__tests__/`). Four
+1. **Scan specs go stale under CI's incremental run.** `no-chrome-overrides.spec.ts` went red with
+   #2645 while main CI stayed green. Likely cause: it reads sources through `Bun.Glob`/`Bun.file`,
+   which neither `--changed` import selection nor the recorder
+   (`packages/bun-test-incremental/src/fs-env-recorder.ts:129-130`, `node:fs` only) sees.
+   Confirm first. The fix is in the runner, so the PR stays open.
+2. **Real sleeps, measured 2026-11-23.** Test-only: `overlay-watcher.spec.ts:86-127` (5.9s),
+   `agent-tools/bash.spec.ts:106-121` (3.3s), `use-preview-origins.spec.tsx:102` (5.7s),
+   `tool-container.spec.ts:274` (5.4s), `workspace-setup.spec.ts:152-166` (23s),
+   `use-process-log.spec.tsx:47,66` (1.7s; `jest.useFakeTimers()` stalls `processes-fixture`
+   `mount`, so fake the clock after mount or inject the gap). New since 11-23:
+   `previews.spec.ts:332` (1.4s), `context-mirror.spec.ts:209-228` and
+   `held-observation-context.spec.ts:95` (`settle(1_200)`), `sandboxes.revocation.spec.ts:142`.
+   Production seam: `app-cloud-tab.spec.tsx:223` (7.8s), `sign-in-flow.spec.tsx:63` (6.1s),
+   `runtime-checkpoint-mirror.spec.ts:275` (8.7s).
+3. **`declared-reality.spec.ts` deadlock** (`packages/harness/src/services/__tests__/`). Four
    specs hang in a nested cloud sandbox but pass on CI. Find the await that never settles first.
-3. **Real sleeps, measured 2026-11-20.** Test-only: `use-preview-origins.spec.tsx:102`
-   (4.7s, fake timers), `tool-container.spec.ts:270-274` (3.2s, await dispose),
-   `use-process-log.spec.tsx:47` (2.3s), `workspace-setup.spec.ts:153-166` (15s poll loops).
-   Production seam needed:
-   `serve/runtime-checkpoint-mirror.spec.ts:275` (7.2s file, the 5s abandon timeout).
-4. **Assertion-free specs: 19 left.** Top: `stream-ended.spec.ts:80` (assert
-   `{ parts: [], toolCalls: [], finishReason: 'other' }`), `github-pr-stream.router.spec.ts:76`,
+4. **Assertion-free bodies: 24 in 18 files.** Top: `github-pr-stream.router.spec.ts:76`,
    `serve-drain-client.spec.ts:138,191`, `serve-hydrate.spec.ts:230`,
    `cloud-service-oauth.spec.ts:88`, `boot-reporter.spec.ts:28`, `pod-rollover-stop.spec.ts:61`,
-   `prose-stream.bench.spec.tsx:58,73`.
-5. **Awaitable tl;dr footer.** `loop/tldr-turn-runner.ts:70-76` has no settle signal, so
+   `prose-stream.bench.spec.tsx:58,73` (delete), `cloud-oauth-sandbox.spec.ts:52,130`,
+   `pod-engine-lifecycle.spec.ts:92,120`. All test-only. None added since 11-23.
+5. **Date rot:** `expiresAt: '2026-12-01'` in `classifier-config.spec.ts:31` and
+   `accounts.router.spec.ts:252` turns past on 2026-12-01; no expiry check reads it today.
+   Wall-time asserts: `live-model-port.spec.ts:186-188`, `quality/deadline.spec.ts:139-146`,
+   `plugin-resources-turn-start.spec.ts:105,136`.
+6. **Duplicates.** `registered-plugins.spec.ts` in `apps/api/src/agent` and
+   `packages/pods/src/control`; 16 pairs in the web prototype mirror; `sidebar-cache.spec.tsx` vs
+   `v2-sessions-cache.spec.tsx`.
+7. **Missing specs, by churn × importers:** `packages/control/src/postgres/postgres-rows.ts`
+   (21 × 8, pure row mappers; all-distinct-field row spec), `holder/held-runner.ts:57`
+   `ranQueuedCommand` (50 × 4), `control/src/inbox-ops.ts:21-24` (10 × 10, pure),
+   `holder/staged-log.ts:39-146` (pure over events), `postgres-digests.ts:12` `likePatternOf`,
+   `thread-message-queue.ts:27` `servesLiveIn` (needs a two-method reader stub),
+   `serve-boot-finish.ts`.
+8. **Awaitable tl;dr footer.** `loop/tldr-turn-runner.ts:70-76` has no settle signal, so
    `turn-wiring.spec.ts` keeps two 400 ms waits. Production change; PR stays open.
-6. **Duplicates in `apps/*`.** 16 near-identical spec pairs, mostly the web prototype mirror.
-   Also diff `sidebar-cache.spec.tsx` against `v2-sessions-cache.spec.tsx`.
-7. **Composition roots without a spec:** `apps/tui/src/composition/overlay-stack.tsx` and
-   `apps/serve/src/serve-boot-finish.ts`.
-8. **Over-300-line specs** (212 files). Split as touched, from `remote-delta-channel.spec.ts`.
-9. **Slow tail kept on purpose:** `sandbox-client` 10s, `plugin-types/drift` 15s,
-   `local-process` 5s, the SSE PR recovery and watchdog specs, `mirror-upload` 0.7–2.4s.
+9. **Drift:** `apps/web/.../use-pod-power.spec.ts` and 91 `packages/github/src` specs sit outside
+   `__tests__/` (the package's own convention; needs a local `AGENTS.md` or a move); unreset
+   `let pathname` in `in-app-notices.spec.tsx:35`.
+10. **Over-300-line specs** (212 files). Split as touched, from `remote-delta-channel.spec.ts`.
+11. **Slow tail kept on purpose:** `sandbox-client` 10s, `plugin-types/drift` 15s,
+    `local-process` 5s, the SSE PR recovery and watchdog specs, `mirror-upload` 0.7–2.4s.
 
 ## Ruled out — do not re-investigate
 
 - **`apps/api/src/agent/agent-tools/__tests__/*`** are not dead clones; the fork is live
   (`apps/api/src/agent/runtime/tools.ts:18-25`).
-- **`lockstep-stream.spec.ts` and `packages/control/__tests__/memory.spec.ts`** have no `expect`
-  but assert by throwing or through shared conformance suites.
+- **No `expect`, but asserts:** `lockstep-stream.spec.ts`, `packages/control/__tests__/memory.spec.ts`,
+  `ssrf.spec.ts` (`blocked` throws), `sessions.service.archived.spec.ts:77`, `fixture-run.spec.ts:234`,
+  `port-registry.spec.ts` (type-level `Expect`), the `packages/syntax` lexical specs, and bodies that
+  wait with throwing `waitFor`/`until`/`frameWhen`/`expectUntil` helpers.
+- **Not duplicates:** the `classifier` jev/openai pairs and the `purity-guard` pair. The 91
+  `toHaveBeenCalledTimes` sites assert collaborators beside a state assertion.
 - **`apps/daemon/src/__tests__/conformance-bundle.spec.ts:14`** `it.skip` guards an unbuilt bundle.
 - **The 13 `adapter.available ? describe : describe.skip` gates** in
   `packages/harness/src/shells/__tests__/` are a deliberate platform seam.
 - **No vault KDF cost in `packages/harness/src/cloud/__tests__/`.** It was retry backoff.
-- **Expect-free bodies that do assert:** the `packages/syntax` lexical specs (`expectLexes`), and
-  specs that wait with throwing `waitFor`/`until`/`frameWhen`/`expectUntil` helpers.
+- **`agent-boundary.spec.ts`** is green on main since 2026-11-23.
+- **Caller-abort in `runModelStream`** has three guards (`ai-sdk-model-port.ts:143,163`,
+  `stream-ended-without-finish.ts:22`); a single-guard mutation stays green by design.
 - **Postgres specs failing with `no test Postgres at localhost:55441`** are environmental. Run
   `bun run --cwd packages/db db:test:up` first.
+- **Not untested:** `threads-api.ts` has a spec; `overlay-stack.tsx` was deleted in #2791;
+  `control-plane.module.ts`, `holder.module.ts`, `sessions.module.ts` are DI wiring only.
+- **No snapshots exist** (`toMatchSnapshot` has no use), so there are no unread snapshots.
 - **Convention drift:** no `.test.ts(x)`, no Vitest outside `evals/`, `noFocusedTests` blocks
   focused tests. Specs outside `__tests__/` are sanctioned by `apps/api/AGENTS.md`.
+
+## 2026-11-24
+
+- **`use-pod-metrics.spec.ts`: 9.9s → 0.34s.** Fake timers replace four 2.2s sleeps. The specs
+  now pin the exact 2s resubscribe edge and the 4s second backoff (which was not asserted before).
+- **Deleted the duplicate in `ending-hold.spec.ts:140`**, a byte copy of `:73`.
+- **`support-modules.spec.ts:69`:** dropped `expect(THREAD).toBeDefined()` on a module constant.
+- Tried fake timers in `use-process-log.spec.tsx`; the fixture's `mount` never renders. Reverted.
+- Audit of the 1,230 specs changed since 11-23: no new skips, no assertion-free bodies, 10 new sleeps.
+- Mutation checks: 6 product breaks, each turned the owning spec red. They are listed in the PR.
+
+## 2026-11-23
+
+- **`no-chrome-overrides.spec.ts` was red on main since #2645** (`rotation-divider.tsx:21`
+  `<Collapsible> gap-2`); CI stayed green (backlog 1). Allowlisted with a reason: Collapsible has no layout.
+- **`stream-ended.spec.ts:80`** now asserts the empty result of a caller-aborted stream.
+- **Deleted the `qualityNoticeOf` block in tui `quality-indicator.spec.tsx`**, a byte copy of
+  `packages/client/.../quality-notice.spec.ts`.
+- Mutation checks: 5 product breaks, each turned the owning spec red. They are listed in the PR.
+- Audit of the 980 specs changed since 11-20: no tautologies, no new skips, no order assertions.
 
 ## 2026-11-20
 

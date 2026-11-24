@@ -4,7 +4,7 @@ import { ESubscriptionActor, ESubscriptionEnd, INBOX_KIND_RECORD } from '@dltech
 import { seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
 
 import { ControlPlane } from '../src/control-plane'
-import { PostgresControlStore } from '../src/postgres'
+import { NO_EXPIRY_AT, PostgresControlStore } from '../src/postgres'
 import { endSubscriptionsIn } from '../src/subscription-endings'
 
 const REPO = 'github.com/acme/atlas'
@@ -178,6 +178,77 @@ describe('subscription rows on postgres', () => {
 
     expect(ended).toBe(0)
     expect(await control.listSubscriptions({ sessionId })).toHaveLength(1)
+  })
+
+  it('keeps a row with no expiry past a far future sweep and reads back no expiry', async () => {
+    const { plane: control, sessionId, threadId } = await seeded()
+    const written = await control.subscribe({
+      sessionId,
+      threadId,
+      provider: 'github.pull-request',
+      target: { repo: REPO, number: 7 },
+      label: 'acme/atlas#7',
+      events: [],
+      lease: { repo: REPO, subject: { kind: 'pull-request', number: 7 } },
+      by: ESubscriptionActor.Agent,
+    })
+    expect(written.subscription.expiresAt).toBeNull()
+
+    const ended = await new PostgresControlStore(testDb().db).transact((tx) =>
+      endSubscriptionsIn({
+        tx,
+        rows: [{ subscriptionId: written.subscription.id, threadId }],
+        by: ESubscriptionActor.Clock,
+        reason: ESubscriptionEnd.Expired,
+        at: '2100-01-01T00:00:00.000Z',
+        endedBefore: '2100-01-01T00:00:00.000Z',
+      }),
+    )
+
+    expect(ended).toBe(0)
+    expect(await control.listSubscriptions({ sessionId })).toMatchObject([
+      { id: written.subscription.id, expiresAt: null },
+    ])
+    const row = await testDb()
+      .db.orm.public.GithubSubscription.where({ id: written.subscription.id })
+      .first()
+    expect(row?.expiresAt.toISOString()).toBe(NO_EXPIRY_AT.toISOString())
+    expect(row?.liveUntil.toISOString()).toBe(NO_EXPIRY_AT.toISOString())
+    expect(row?.deadline).toBeNull()
+  })
+
+  it('releases the tracking target when the last subscriber unsubscribes', async () => {
+    const { plane: control, sessionId, threadId, userId } = await seeded()
+    const written = await control.subscribe({
+      sessionId,
+      threadId,
+      provider: 'github.pull-request',
+      target: { repo: REPO, number: 7 },
+      label: 'acme/atlas#7',
+      events: [],
+      lease: { repo: REPO, subject: { kind: 'pull-request', number: 7 } },
+      by: ESubscriptionActor.Agent,
+    })
+    const target = () =>
+      testDb()
+        .db.orm.public.GithubTrackingTarget.where({
+          userId,
+          kind: 'pull-request',
+          repoFullName: 'acme/atlas',
+          branch: '',
+          prNumber: 7,
+        })
+        .first()
+    expect((await target())?.liveUntil.toISOString()).toBe(NO_EXPIRY_AT.toISOString())
+
+    await control.unsubscribe({
+      sessionId,
+      subscriptionId: written.subscription.id,
+      by: ESubscriptionActor.Operator,
+      reason: ESubscriptionEnd.Unsubscribed,
+    })
+
+    expect((await target())?.liveUntil.getTime()).toBeLessThan(Date.now() + 60_000)
   })
 
   it('starts a workflow-run row at the epoch so an in-flight run still matches', async () => {

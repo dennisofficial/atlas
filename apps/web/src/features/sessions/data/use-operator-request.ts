@@ -6,17 +6,6 @@ import {
   type OperatorAnswerKey,
   type OperatorAnswerResult,
 } from '@/features/threads/data/operator-answer'
-import {
-  ETranscriptKind,
-  type RequestItem,
-  type TranscriptRow,
-} from '@/features/threads/data/transcript-items'
-
-export const pendingOperatorRequestOf = (items: readonly TranscriptRow[]): RequestItem | null =>
-  items.find(
-    (item): item is RequestItem =>
-      item.kind === ETranscriptKind.Request && item.state === 'pending',
-  ) ?? null
 
 type EAnswerPhase = 'sending' | 'sent' | 'failed'
 
@@ -28,7 +17,7 @@ type AnswerState = {
 
 export type OperatorRequestAnswerArgs = {
   sessionId: string
-  request: RequestItem | null
+  request: { callId: string; prompt: string } | null
 }
 
 export function useOperatorRequestAnswer(args: OperatorRequestAnswerArgs) {

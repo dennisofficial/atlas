@@ -1,3 +1,4 @@
+import { ENotifyMoment } from '@dltech/atlas-core'
 import { z } from 'zod'
 
 export enum EMacPush {
@@ -7,13 +8,21 @@ export enum EMacPush {
 
 export type MacPush =
   | { kind: EMacPush.Clear; sessionId: string }
-  | { kind: EMacPush.Notification; sessionId: string; seq: number }
+  | {
+      kind: EMacPush.Notification
+      sessionId: string
+      seq: number
+      moment?: ENotifyMoment | undefined
+      sentAt?: string | undefined
+    }
 
 const clearSchema = z.object({ clearSessionId: z.string().min(1) })
 
 const notificationSchema = z.object({
   sessionId: z.string().min(1),
   seq: z.number().int().nonnegative(),
+  moment: z.enum(ENotifyMoment).optional(),
+  sentAt: z.string().min(1).optional(),
 })
 
 export const macPushOf = (userInfo: unknown): MacPush | null => {
@@ -25,6 +34,8 @@ export const macPushOf = (userInfo: unknown): MacPush | null => {
         kind: EMacPush.Notification,
         sessionId: notification.data.sessionId,
         seq: notification.data.seq,
+        ...(notification.data.moment === undefined ? {} : { moment: notification.data.moment }),
+        ...(notification.data.sentAt === undefined ? {} : { sentAt: notification.data.sentAt }),
       }
     : null
 }

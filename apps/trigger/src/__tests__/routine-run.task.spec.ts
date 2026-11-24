@@ -130,11 +130,18 @@ describe('a failed routine run', () => {
   it('advances past the failed occurrence and records why', async () => {
     const record = writes()
 
-    await recordRoutineFailure({
+    const failure = await recordRoutineFailure({
       graph: runGraphOf({ routine: routineRowOf(), writes: record }),
       payload: { routineId: 'rtn_1', scheduledFor: '2026-11-10T03:00:00.000Z' },
       error: new Error('sandbox never answered'),
       now: '2026-11-10T03:00:02.000Z',
+    })
+
+    expect(failure).toEqual({
+      routineId: 'rtn_1',
+      routineName: 'Nightly triage',
+      userId: 'usr_1',
+      reason: 'failed: sandbox never answered',
     })
 
     expect(record.advanced).toEqual([

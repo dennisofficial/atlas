@@ -1,3 +1,5 @@
+import { clipText } from '../../text/clip-text'
+import { oneLine } from '../../text/one-line'
 import type { ERiskDimension } from './dimension'
 import type { RiskSignal } from './signals'
 
@@ -23,10 +25,7 @@ const REASON = /<reason\s*>([\s\S]*?)<\/reason\s*>/i
 
 const REASON_LIMIT = 300
 
-const collapsed = (text: string): string => text.replace(/\s+/g, ' ').trim()
-
-const clipped = (text: string): string =>
-  text.length <= REASON_LIMIT ? text : `${text.slice(0, REASON_LIMIT - 1)}…`
+const clipped = (text: string): string => clipText({ text, limit: REASON_LIMIT })
 
 export function withoutThinking({ text }: { text: string }): string {
   return text.replace(CLOSED_THINKING, ' ').replace(UNCLOSED_THINKING, ' ')
@@ -81,7 +80,7 @@ export function parseVerdict({
     }
   }
 
-  const reason = clipped(collapsed(spoken.match(REASON)?.[1] ?? ''))
+  const reason = clipped(oneLine(spoken.match(REASON)?.[1] ?? ''))
   if (declared === EJudgment.Proceed) {
     return { verdict: { judgment: EJudgment.Proceed, reason }, fault: undefined }
   }

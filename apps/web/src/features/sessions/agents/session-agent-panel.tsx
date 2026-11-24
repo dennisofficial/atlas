@@ -2,11 +2,15 @@
 
 import { ArrowLeftIcon, WifiOffIcon } from 'lucide-react'
 import { useMemo } from 'react'
+import { toast } from 'sonner'
 
 import { NOTHING_IN_BACKGROUND } from '@dltech/atlas-client/crew'
 import { agentOf } from '@dltech/atlas-client/transcript'
-import { EAgentStatus } from '@dltech/atlas-core'
+import { EAgentStatus, resumableOf, resumePointOf } from '@dltech/atlas-core'
 import { Button } from '@dltech/atlas-ui/components/button'
+
+import { messageOf } from '@/features/threads/data/use-send'
+import { RESUMING_LABEL, RESUME_LABEL } from '@/features/threads/transcript/stopped-line'
 
 import {
   ThreadPanelProvider,
@@ -18,6 +22,8 @@ import { TranscriptLoading } from '@/features/threads/panel/agents/agents-skelet
 import { ThreadTranscript } from '@/features/threads/thread-transcript'
 
 import { crewStatusLabelOf } from '../data/crew-status-label'
+import { requestResume, resumePendingOf } from '../data/session-commands'
+import { sessionsApi } from '../data/sessions-api'
 import { sessionStateLineOf } from '../data/session-state'
 import { sessionTranscriptOf } from '../data/session-transcript'
 import { useDiagramRepairedTranscript } from '../data/use-session-diagram-transcript'
@@ -41,15 +47,17 @@ const PARENT_BACK: BackLabel = {
   aria: 'Back to the sub-agent that started this one',
 }
 
-function AgentPanelHeader({
+export function AgentPanelHeader({
   agentId,
   identity,
   backLabel,
+  resume,
   onClose,
 }: {
   agentId: string
   identity: AgentIdentity
   backLabel: BackLabel
+  resume: { pending: boolean; onResume: () => void } | null
   onClose: () => void
 }) {
   return (
@@ -68,6 +76,17 @@ function AgentPanelHeader({
         <span data-agent-status className="shrink-0 text-xs text-muted-foreground">
           {identity.status}
         </span>
+      )}
+      {resume === null ? null : (
+        <Button
+          data-slot="resume-agent"
+          variant="ghost"
+          size="xs"
+          disabled={resume.pending}
+          onClick={resume.onResume}
+        >
+          {resume.pending ? RESUMING_LABEL : RESUME_LABEL}
+        </Button>
       )}
     </div>
   )
@@ -110,7 +129,7 @@ function AgentPanelBody({
   backLabel: BackLabel
   onClose: () => void
 }) {
-  const { sessionId } = useSessionPaneValue()
+  const { sessionId, status } = useSessionPaneValue()
   const panel = useThreadPanel()
   const { snapshot, loadOlder } = useAgentStream({ sessionId, agentId })
   const transcript = sessionTranscriptOf({ events: snapshot.events, overlay: snapshot.overlay })
@@ -119,6 +138,17 @@ function AgentPanelBody({
     items: transcript.items,
   })
   const state = agentPanelStateOf(snapshot)
+  const resume = useMemo(() => {
+    if (!resumableOf(resumePointOf({ events: snapshot.events }))) return null
+    return {
+      pending: resumePendingOf(status?.commands),
+      onResume: () => {
+        requestResume({ api: sessionsApi, sessionId, agentId }).catch((failure: unknown) => {
+          toast.error(messageOf(failure))
+        })
+      },
+    }
+  }, [snapshot.events, status?.commands, sessionId, agentId])
   const nestedPanel = useMemo<ThreadPanelValue>(
     () => ({
       ...panel,
@@ -134,6 +164,7 @@ function AgentPanelBody({
         agentId={agentId}
         identity={identity}
         backLabel={backLabel}
+        resume={resume}
         onClose={onClose}
       />
       <div className="min-h-0 flex-1 overflow-auto">

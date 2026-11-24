@@ -9,6 +9,9 @@ import {
   type PluginViewFold,
   type RevokeResult,
   type SpawnFile,
+  type SubscriptionTargetState,
+  type SubscriptionTargetStates,
+  UNKNOWN_TARGET_STATE,
   type V2Event,
   type V2EventType,
   type ThreadId,
@@ -23,6 +26,8 @@ import { UnknownThreadError } from './errors'
 import { postIn, withdrawIn } from './inbox-ops'
 import { messagePeerIn, reportToSpawnerIn, sessionsOfIn, spawnPeerIn } from './peer-sessions'
 import { LeaseOps } from './lease-ops'
+import type { ContextContentStore } from './context-content'
+import type { ContextFileRow, ContextFileWrite } from './context-files'
 import {
   ControlStorePort,
   SeqConflictError,
@@ -35,6 +40,7 @@ import {
   type ControlTx,
   type ThreadRow,
   type WorktreeChangesRead,
+  type WorktreeChangesSummary,
   type WorktreeChangesWrite,
   type ControlSessionDigest,
   type ControlSessionRow,
@@ -60,6 +66,7 @@ import {
   type SessionViewRead,
 } from './session-view-read'
 import { readEventsIn, type ReadEventsPage } from './read-events'
+import { readTailBaseIn, TAIL_BASE_ATTEMPTS, type TailBase } from './tail-base'
 import { runRoutineIn, type RunRoutineParams, type RunRoutineResult } from './routine-ops'
 import {
   createRoutineIn,
@@ -70,6 +77,7 @@ import {
 import { AppendAbort, type AppendOutcome } from './refusal'
 import {
   archiveIn,
+  cancelPodWaitIn,
   createSessionIn,
   markReadIn,
   recordPodAppliedIn,
@@ -81,9 +89,11 @@ import {
   setSessionModelIn,
   titleUntitledIn,
 } from './session-ops'
+import { archiveSpawnedOf, type SpawnedArchive } from './spawned-archive'
 import { EMPTY_VISIBILITY_TEXT } from './stored-event'
 import { endSubscriptionsIn, unsubscribeIn } from './subscription-endings'
-import { listSubscriptionsIn, subscribeIn, type SubscribeResult } from './subscription-ops'
+import { listSubscriptionsIn } from './subscription-ops'
+import { subscribeToStateIn, type SubscribeToStateResult } from './subscription-completion'
 import type { SubscriptionLeaseInput } from './subscription-rows'
 
 export const MAX_READ_LIMIT = 1000
@@ -95,6 +105,7 @@ export type ControlPlaneParams = {
   eventSchema?: z.ZodType<V2Event> | undefined
   pluginViews?: readonly PluginViewFold[] | undefined
   appendHooks?: readonly AppendHook[] | undefined
+  targetStates?: SubscriptionTargetStates | undefined
 }
 
 export type { ReadEventsPage } from './read-events'
@@ -114,8 +125,10 @@ export class ControlPlane {
   private readonly eventSchema: z.ZodType<V2Event> | undefined
   private readonly pluginViews: readonly PluginViewFold[]
   private readonly appendHooks: readonly AppendHook[]
+  private readonly targetStates: SubscriptionTargetStates | undefined
 
   constructor(params: ControlPlaneParams) {
+    this.targetStates = params.targetStates
     this.store = params.store
     this.clock = params.clock
     this.eventSchema = params.eventSchema
@@ -232,6 +245,10 @@ export class ControlPlane {
     return this.store.transact((tx) => recordPodWaitingIn({ tx, ...params }))
   }
 
+  async cancelPodWait(params: { sessionId: string }): Promise<boolean> {
+    return this.store.transact((tx) => cancelPodWaitIn({ tx, ...params }))
+  }
+
   async spawnPeer(params: {
     spawnerSessionId: string
     sessionId: string
@@ -264,7 +281,7 @@ export class ControlPlane {
     fromSessionId: string
     toSessionId: string
     text: string
-  }): Promise<{ inboxId: number } | { refused: string }> {
+  }): Promise<{ inboxId: number; title: string | null } | { refused: string }> {
     return this.store.transact(async (tx) => {
       const from = await tx.readSession({ sessionId: params.fromSessionId })
       if (from === undefined) throw new Error(`unknown session ${params.fromSessionId}`)
@@ -326,6 +343,18 @@ export class ControlPlane {
 
   async setSessionArchived(params: { sessionId: string; archivedAt: string | null }) {
     await this.store.transact(async (tx) => archiveIn({ tx, ...params, at: await this.nowIn(tx) }))
+  }
+
+  async archiveSpawned(params: {
+    fromSessionId: string
+    sessionId: string
+  }): Promise<SpawnedArchive> {
+    return archiveSpawnedOf({
+      store: this.store,
+      leases: this.leases,
+      nowIn: (tx) => this.nowIn(tx),
+      ...params,
+    })
   }
 
   async markSessionRead(params: { sessionId: string; seq: number }): Promise<number> {
@@ -494,6 +523,26 @@ export class ControlPlane {
     })
   }
 
+  async readTailBase(params: {
+    sessionId: string
+    threadId: string
+    tailFrom: number
+  }): Promise<TailBase | undefined> {
+    for (let attempt = 0; attempt < TAIL_BASE_ATTEMPTS; attempt += 1) {
+      const base = await this.store.transact(async (tx) => {
+        await this.requireThread({ tx, threadId: params.threadId })
+        return readTailBaseIn({
+          tx,
+          ...params,
+          eventSchema: this.eventSchema,
+          pluginViews: this.pluginViews,
+        })
+      })
+      if (base !== undefined) return base
+    }
+    return undefined
+  }
+
   async readBlob(params: {
     hash: string
     offset?: number | undefined
@@ -561,6 +610,12 @@ export class ControlPlane {
     return this.store.transact((tx) => tx.readChanges(params))
   }
 
+  async readChangesSummary(params: {
+    sessionId: string
+  }): Promise<readonly WorktreeChangesSummary[]> {
+    return this.store.transact((tx) => tx.readChangesSummary(params))
+  }
+
   async readChangeFile(params: {
     sessionId: string
     checkoutId: string
@@ -584,6 +639,60 @@ export class ControlPlane {
     await this.store.transact((tx) => tx.deleteChangeBlobs(params))
   }
 
+  async upsertContextFiles(params: {
+    sessionId: string
+    files: readonly ContextFileWrite[]
+  }): Promise<void> {
+    await this.store.transact((tx) => tx.upsertContextFiles(params))
+  }
+
+  async removeContextFiles(params: { sessionId: string; paths: readonly string[] }): Promise<void> {
+    await this.store.transact((tx) => tx.removeContextFiles(params))
+  }
+
+  async listContextFiles(params: { sessionId: string }): Promise<readonly ContextFileRow[]> {
+    return this.store.transact((tx) => tx.listContextFiles(params))
+  }
+
+  async contextFileOf(params: { sessionId: string; path: string }): Promise<ContextFileRow | null> {
+    return this.store.transact((tx) => tx.contextFileOf(params))
+  }
+
+  async contextDigestsReferenced(params: {
+    digests: readonly string[]
+  }): Promise<ReadonlySet<string>> {
+    return this.store.transact((tx) => tx.contextDigestsReferenced(params))
+  }
+
+  async commitContextFile(params: {
+    sessionId: string
+    write: ContextFileWrite
+    content: Pick<ContextContentStore, 'exists'>
+  }): Promise<boolean> {
+    return this.store.transact(async (tx) => {
+      const { digest } = params.write
+      if (digest !== null) {
+        await tx.lockContextDigest({ digest })
+        if (!(await params.content.exists({ hash: digest }))) return false
+      }
+      await tx.upsertContextFiles({ sessionId: params.sessionId, files: [params.write] })
+      return true
+    })
+  }
+
+  async removeContextBytesIfUnreferenced(params: {
+    digest: string
+    content: Pick<ContextContentStore, 'removing'>
+  }): Promise<boolean> {
+    return this.store.transact(async (tx) => {
+      await tx.lockContextDigest({ digest: params.digest })
+      const referenced = await tx.contextDigestsReferenced({ digests: [params.digest] })
+      if (referenced.has(params.digest)) return false
+      await params.content.removing([params.digest])
+      return true
+    })
+  }
+
   async subscribe(params: {
     sessionId: string
     threadId: string
@@ -594,14 +703,31 @@ export class ControlPlane {
     expiresAt?: string | undefined
     lease: SubscriptionLeaseInput
     by: ESubscriptionActor
-  }): Promise<SubscribeResult> {
+  }): Promise<SubscribeToStateResult> {
+    const state = await this.targetStateOf(params)
     return this.store.transact(async (tx) => {
       const session = await this.requireSession({ tx, sessionId: params.sessionId })
       const thread = await this.requireThread({ tx, threadId: params.threadId })
       if (thread.sessionId !== params.sessionId) {
         throw new Error(`thread ${params.threadId} belongs to another session`)
       }
-      return subscribeIn({ tx, session, ...params, at: await this.nowIn(tx) })
+      return subscribeToStateIn({ tx, session, ...params, state, at: await this.nowIn(tx) })
+    })
+  }
+
+  private async targetStateOf(params: {
+    sessionId: string
+    provider: string
+    target: JsonValue
+  }): Promise<SubscriptionTargetState> {
+    if (this.targetStates === undefined) return UNKNOWN_TARGET_STATE
+    const session = await this.store.transact((tx) =>
+      this.requireSession({ tx, sessionId: params.sessionId }),
+    )
+    return this.targetStates.read({
+      userId: session.userId,
+      provider: params.provider,
+      target: params.target,
     })
   }
 

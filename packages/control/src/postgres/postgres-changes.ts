@@ -5,6 +5,7 @@ import type {
   ChangeBlobWrite,
   ChangedFileWrite,
   WorktreeChangesRead,
+  WorktreeChangesSummary,
   WorktreeChangesWrite,
 } from '../port'
 import { announceIn } from './postgres-notify'
@@ -35,22 +36,95 @@ export const changeBlobHashesPresentIn = async (
   return new Set(rows.map((row) => row.hash))
 }
 
-const upsertChangedFileIn = async (tx: Tx, file: ChangedFileWrite & { checkoutId: string }) => {
-  const fields = {
-    oldPath: file.oldPath,
-    status: file.status,
-    additions: file.additions,
-    deletions: file.deletions,
-    binary: file.binary,
-    baseHash: file.baseHash,
-    currentHash: file.currentHash,
-    size: file.size,
+const fileOf = (row: {
+  path: string
+  oldPath: string | null
+  status: string
+  additions: number
+  deletions: number
+  binary: boolean
+  baseHash: string | null
+  currentHash: string | null
+  size: number | null
+}): ChangedFileWrite => ({
+  path: row.path,
+  oldPath: row.oldPath,
+  status: row.status as ChangedFileWrite['status'],
+  additions: row.additions,
+  deletions: row.deletions,
+  binary: row.binary,
+  baseHash: row.baseHash,
+  currentHash: row.currentHash,
+  size: row.size,
+})
+
+const sameFile = (stored: ChangedFileWrite, next: ChangedFileWrite): boolean =>
+  stored.oldPath === next.oldPath &&
+  stored.status === next.status &&
+  stored.additions === next.additions &&
+  stored.deletions === next.deletions &&
+  stored.binary === next.binary &&
+  stored.baseHash === next.baseHash &&
+  stored.currentHash === next.currentHash &&
+  stored.size === next.size
+
+export const diffChangedFiles = (params: {
+  stored: readonly ChangedFileWrite[]
+  next: readonly ChangedFileWrite[]
+}): { removed: readonly string[]; written: readonly ChangedFileWrite[] } => {
+  const storedByPath = new Map(params.stored.map((file) => [file.path, file]))
+  const nextPaths = new Set(params.next.map((file) => file.path))
+  return {
+    removed: params.stored.map((file) => file.path).filter((path) => !nextPaths.has(path)),
+    written: params.next.filter((file) => {
+      const stored = storedByPath.get(file.path)
+      return stored === undefined || !sameFile(stored, file)
+    }),
   }
-  await tx.orm.v2.V2WorktreeChangedFile.upsert({
-    conflictOn: { checkoutId: file.checkoutId, path: file.path },
-    create: { checkoutId: file.checkoutId, path: file.path, ...fields },
-    update: fields,
-  })
+}
+
+const storedFilesIn = async (tx: Tx, checkoutId: string): Promise<ChangedFileWrite[]> => {
+  const rows = await tx.orm.v2.V2WorktreeChangedFile.where({ checkoutId }).all()
+  return rows.map(fileOf)
+}
+
+const removeChangedFilesIn = async (params: {
+  tx: Tx
+  checkoutId: string
+  paths: readonly string[]
+}): Promise<void> => {
+  if (params.paths.length === 0) return
+  await params.tx.execute(
+    params.tx.raw.sql`DELETE FROM "v2"."V2WorktreeChangedFile"
+      WHERE "checkoutId" = ${params.checkoutId}
+        AND "path" IN (SELECT jsonb_array_elements_text(${JSON.stringify(params.paths)}::jsonb))`
+      .affectedCount()
+      .build(),
+  )
+}
+
+const writeChangedFilesIn = async (params: {
+  tx: Tx
+  checkoutId: string
+  files: readonly ChangedFileWrite[]
+}): Promise<void> => {
+  if (params.files.length === 0) return
+  await params.tx.execute(
+    params.tx.raw.sql`INSERT INTO "v2"."V2WorktreeChangedFile" ("checkoutId", "path", "oldPath",
+        "status", "additions", "deletions", "binary", "baseHash", "currentHash", "size")
+      SELECT ${params.checkoutId}, f."path", f."oldPath", f."status", f."additions", f."deletions",
+        f."binary", f."baseHash", f."currentHash", f."size"
+        FROM jsonb_to_recordset(${JSON.stringify(params.files)}::jsonb) AS f(
+          "path" text, "oldPath" text, "status" text, "additions" int4, "deletions" int4,
+          "binary" bool, "baseHash" text, "currentHash" text, "size" int4)
+      ON CONFLICT ("checkoutId", "path") DO UPDATE
+        SET "oldPath" = EXCLUDED."oldPath", "status" = EXCLUDED."status",
+          "additions" = EXCLUDED."additions", "deletions" = EXCLUDED."deletions",
+          "binary" = EXCLUDED."binary", "baseHash" = EXCLUDED."baseHash",
+          "currentHash" = EXCLUDED."currentHash", "size" = EXCLUDED."size"`
+      .affectedCount()
+      .build(),
+  )
 }
 
 export const upsertChangesIn = async (params: {
@@ -75,66 +149,67 @@ export const upsertChangesIn = async (params: {
     create: { id: write.checkoutId, ...fields },
     update: fields,
   })
-  await tx.execute(
-    tx.raw.sql`DELETE FROM "v2"."V2WorktreeChangedFile" WHERE "checkoutId" = ${write.checkoutId}`
-      .affectedCount()
-      .build(),
-  )
-  for (const file of write.files) {
-    await upsertChangedFileIn(tx, { checkoutId: write.checkoutId, ...file })
-  }
+  const diff = diffChangedFiles({
+    stored: await storedFilesIn(tx, write.checkoutId),
+    next: write.files,
+  })
+  await removeChangedFilesIn({ tx, checkoutId: write.checkoutId, paths: diff.removed })
+  await writeChangedFilesIn({ tx, checkoutId: write.checkoutId, files: diff.written })
   await announceIn({ tx, change: { sessionId: params.sessionId } })
 }
 
-const fileOf = (row: {
-  path: string
-  oldPath: string | null
-  status: string
-  additions: number
-  deletions: number
-  binary: boolean
-  baseHash: string | null
-  currentHash: string | null
-  size: number | null
-}): ChangedFileWrite => ({
-  path: row.path,
-  oldPath: row.oldPath,
-  status: row.status as ChangedFileWrite['status'],
-  additions: row.additions,
-  deletions: row.deletions,
-  binary: row.binary,
-  baseHash: row.baseHash,
-  currentHash: row.currentHash,
-  size: row.size,
-})
+const filesByCheckoutIn = async (
+  tx: Tx,
+  checkoutIds: readonly string[],
+): Promise<Map<string, ChangedFileWrite[]>> => {
+  const grouped = new Map<string, ChangedFileWrite[]>()
+  if (checkoutIds.length === 0) return grouped
+  const rows = await tx.orm.v2.V2WorktreeChangedFile.where((row) =>
+    row.checkoutId.in([...checkoutIds]),
+  )
+    .orderBy((row) => row.path.asc())
+    .all()
+  for (const row of rows) {
+    const files = grouped.get(row.checkoutId) ?? []
+    files.push(fileOf(row))
+    grouped.set(row.checkoutId, files)
+  }
+  return grouped
+}
+
+export const readChangesSummaryIn = async (params: {
+  tx: Tx
+  sessionId: string
+}): Promise<WorktreeChangesSummary[]> => {
+  const checkouts = await params.tx.orm.v2.V2WorktreeChanges.where({
+    sessionId: params.sessionId,
+  })
+    .orderBy((row) => row.updatedAt.desc())
+    .all()
+  return checkouts.map((checkout) => ({
+    checkoutId: checkout.id,
+    sessionId: checkout.sessionId,
+    repo: checkout.repo,
+    worktreePath: checkout.worktreePath,
+    base: checkout.base,
+    fingerprint: checkout.fingerprint,
+    updatedAt: checkout.updatedAt.getTime(),
+  }))
+}
 
 export const readChangesIn = async (params: {
   tx: Tx
   sessionId: string
 }): Promise<WorktreeChangesRead[]> => {
-  const { tx } = params
-  const checkouts = await tx.orm.v2.V2WorktreeChanges.where({
-    sessionId: params.sessionId,
-  })
-    .orderBy((row) => row.updatedAt.desc())
-    .all()
-  const reads: WorktreeChangesRead[] = []
-  for (const checkout of checkouts) {
-    const files = await tx.orm.v2.V2WorktreeChangedFile.where({ checkoutId: checkout.id })
-      .orderBy((row) => row.path.asc())
-      .all()
-    reads.push({
-      checkoutId: checkout.id,
-      sessionId: checkout.sessionId,
-      repo: checkout.repo,
-      worktreePath: checkout.worktreePath,
-      base: checkout.base,
-      fingerprint: checkout.fingerprint,
-      updatedAt: checkout.updatedAt.getTime(),
-      files: files.map(fileOf),
-    })
-  }
-  return reads
+  const summaries = await readChangesSummaryIn(params)
+  const files = await filesByCheckoutIn(
+    params.tx,
+    summaries.map((summary) => summary.checkoutId),
+  )
+  return summaries.map((summary) => ({
+    ...summary,
+    files: files.get(summary.checkoutId) ?? [],
+  }))
 }
 
 export const readChangeFileIn = async (params: {

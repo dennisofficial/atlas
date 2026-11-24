@@ -1,5 +1,5 @@
 import { ERunner } from '@dltech/atlas-core'
-import { EConnectionView } from '@dltech/atlas-harness'
+import { EConnectionView } from '@dltech/atlas-client/channel'
 import { describe, expect, it } from 'bun:test'
 
 import { cloudHeadingOf } from '../cloud'

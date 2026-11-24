@@ -98,7 +98,30 @@ branch. The change is that the contract says so:
 - Live check: one child in its own worktree commits, pushes and opens a PR; the parent's report names
   the URL, and the session view shows the branch and PR.
 
-## 7. Out of scope
+## 7. Archive a spawned session
+
+A session archives a session it spawned with one tool, `archive_session {sessionId}`. The scope is
+direct provenance: a teammate or a `spawn_session` session whose `spawnedBySessionId` is the caller.
+Any other session is refused, and so is one that is still working, with the advice to message it or
+wait.
+- **The same archive as the operator's button.** `ControlPlane.archiveSpawned` runs `archiveIn`
+  (`packages/control/src/session-ops.ts`): it keeps the first `archivedAt`, archives the nested
+  descendants, ends the subscriptions and announces. The operator can unarchive it from the sidebar.
+- **The child reads it as a record.** The archived session gets a `session-archived` record in its
+  inbox (`INBOX_KIND_RECORD`), drained into its log the next time it is held. A record never asks
+  for a holder, so it does not wake the archived session.
+- **The child's pod sleeps through the same task as the operator path.** A new host port,
+  `parkArchived`, dispatches the `pod-sleep` trigger task for the session's current lease epoch,
+  and skips a pod that another session shares. No stop is posted: the target is idle.
+- **The prompt says so.** The `sessions.peers` fragment drops "Archiving and stopping belong to the
+  operator" for the tool; the delegation fragment tells an agent to archive a teammate after its
+  work is merged and verified.
+
+Specs: the tool's own spec in `plugins/sessions/src/pod/__tests__/archive-tool.spec.ts`, the host
+port's in `apps/api/src/agent/host/__tests__/park-archived.port.spec.ts`, and the client label in
+`packages/client/src/transcript/tools/__tests__/classify.spec.ts`.
+
+## 8. Out of scope
 
 - Nested teammates (a teammate creating a teammate) beyond "it just works as a session".
 - Production gaps carried from the smoke test: the lease fence, the browser lifecycle, the
@@ -106,7 +129,7 @@ branch. The change is that the contract says so:
 - TUI and mobile surfaces for any of this (slice 9).
 - Per-teammate budgets or limits.
 
-## 8. Open question for the operator
+## 9. Open question for the operator
 
 1. **Where a report lands.** Today `send_message {to: "parent"}` would post a normal message into the creator's
    transcript. Confirm that is wanted, or that it should also mark the session view (a

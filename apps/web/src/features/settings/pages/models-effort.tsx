@@ -19,7 +19,8 @@ import {
   pickedModelDraft,
 } from '../data/personal/models-settings'
 import { QueryPage } from '../data/personal/query-boundary'
-import { usePersonalSettings, useSettingsDraft } from '../data/personal/use-settings-draft'
+import { useCloudSettings } from '@/lib/cloud-settings'
+import { useSettingsDraft } from '../data/personal/use-settings-draft'
 import { ModelsSkeleton } from '../skeletons/agent-skeletons'
 import { ConfigFooter } from '../parts/agent-config-footer'
 import { ProviderAlert } from '../parts/models/provider-alert'
@@ -32,7 +33,7 @@ const TITLE = 'Models & Effort'
 const DESCRIPTION = 'Choose which model each part of the agent runs on and how hard it thinks.'
 
 export function ModelsEffortPage() {
-  const settings = usePersonalSettings()
+  const settings = useCloudSettings()
   const { read } = settings
   const currentIds = useMemo(
     () => currentModelIds((args) => read({ ...args, schema: z.string() })),

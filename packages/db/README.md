@@ -1,7 +1,8 @@
 # @dltech/atlas-db
 
 Atlas Cloud's Postgres contract, migrations and runtime client, on Prisma 8. Server-side code only:
-`apps/api`, the Trigger.dev worker, `packages/memory` and `packages/previews` import it.
+`apps/api`, the Trigger.dev worker, `packages/control`, `packages/github`, `packages/memory`,
+`packages/pods` and `packages/previews` import it.
 
 ## Owns
 
@@ -22,7 +23,7 @@ Atlas Cloud's Postgres contract, migrations and runtime client, on Prisma 8. Ser
 | -------------------------------- | ------------------------------------------------------------------ |
 | `@dltech/atlas-db`               | The `db` client, the pool, the errors and the row and model types. |
 | `@dltech/atlas-db/testing`       | `useTestDatabase` and the seed helpers for a spec.                 |
-| `@dltech/atlas-db/testing/env`   | Sets `DATABASE_URL` to the test lane when the module loads.        |
+| `@dltech/atlas-db/testing/env`   | Sets `DATABASE_URL` to the run database in the test lane.          |
 | `@dltech/atlas-db/migrations`    | `migrationGraphHashes()`, the hashes of the migration graph.       |
 | `@dltech/atlas-db/contract.json` | The emitted contract as JSON data.                                 |
 
@@ -30,8 +31,8 @@ Atlas Cloud's Postgres contract, migrations and runtime client, on Prisma 8. Ser
 
 ### Query the database
 
-- `db`: a lazy proxy over one shared pool. Importing the package does not connect. The first query
-  reads `DATABASE_URL` and connects.
+- `db`: a lazy proxy over one shared pool. Importing the package does not connect. The first use
+  of `db` reads `DATABASE_URL` and connects.
 - `db.orm.public.<Model>`: the native ORM query. There is no Prisma 7 shim.
 - `db.transaction(async (tx) => …)`: one transaction. A helper takes `tx: Tx`.
 - `createDb(pool)`, `sharedPool()`, `closeSharedDb()`.
@@ -86,7 +87,8 @@ export async function seedUsers(...ids: string[]): Promise<void> {
 ## Rules
 
 - Import this package only in server-side code. It needs a database connection. `apps/api`, the
-  Trigger.dev worker, `packages/memory` and `packages/previews` import it.
+  Trigger.dev worker, `packages/control`, `packages/github`, `packages/memory`, `packages/pods`
+  and `packages/previews` import it.
 - Never make `db` eager. A build and a type-only import must run without a database.
 - Run the specs against a real Postgres. Do not mock the client.
 - Read a unique violation with `isUniqueViolation`. There is no P2002 code under Prisma 8.

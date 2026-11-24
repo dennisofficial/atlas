@@ -1,5 +1,5 @@
 import Redis from 'ioredis'
-import { db } from '@dltech/atlas-db'
+import { and, db } from '@dltech/atlas-db'
 import {
   ENotifyDeviceKind,
   type AtlasNotification,
@@ -16,11 +16,22 @@ import {
   type PresenceHash,
 } from '@dltech/atlas-notifications/server'
 import { decodeSettingValue, type NotifyPresence, type SettingScalar } from '@dltech/atlas-core'
+import type { ProductAnalytics } from '@dltech/atlas-observability'
+import { serverObservability } from '@dltech/atlas-observability/node'
 
-export type NotifySessionRow = { userId: string; title: string | null; readSeq: number | null }
+export type NotifySessionRow = {
+  userId: string
+  title: string | null
+  readSeq: number | null
+  nested: boolean
+  spawnedBySessionId: string | null
+  mainThreadId: string
+}
 
 export type NotifyGraph = {
   session: { read(args: { sessionId: string }): Promise<NotifySessionRow | null> }
+  turns: { startedAfter(args: { threadId: string; seq: number }): Promise<boolean> }
+  sound: { claim(args: { userId: string }): Promise<boolean> }
   devices: {
     listEnabled(args: { userId: string }): Promise<NotifyDevice[]>
     touch(args: { deviceId: string; now: string }): Promise<void>
@@ -28,6 +39,7 @@ export type NotifyGraph = {
   }
   presence: { read(args: { userId: string; now: string }): Promise<NotifyPresence[]> }
   settings: { read(args: { userId: string }): Promise<ReadonlyMap<string, SettingScalar>> }
+  analytics: ProductAnalytics
   transports: Partial<Record<ENotifyDeviceKind, NotificationTransport>>
   now(): string
   dispose(): Promise<void>
@@ -69,10 +81,22 @@ export const transportsOf = (
 const redisOf = (url: string | undefined): Redis | null =>
   url === undefined || url === '' ? null : new Redis(url)
 
+const versionOf = (env: Record<string, string | undefined>): string =>
+  absent(env['ATLAS_APP_VERSION']) ?? 'trigger'
+
+const flushQuietly = async (analytics: ProductAnalytics): Promise<void> => {
+  try {
+    await analytics.flush()
+  } catch {
+    return
+  }
+}
+
 export const buildNotifyGraph = (
   env: Record<string, string | undefined> = process.env,
 ): NotifyGraph => {
   const redis = redisOf(env['REDIS_URL'])
+  const { analytics } = serverObservability({ version: versionOf(env), env })
   const presenceOf = (hash: PresenceHash) => ({
     read: async (args: { userId: string; now: string }): Promise<NotifyPresence[]> =>
       readPresence({ redis: hash, userId: args.userId, now: args.now }),
@@ -81,10 +105,36 @@ export const buildNotifyGraph = (
   return {
     session: {
       read: async (args) => {
-        const row = await db.orm.v2.V2Session.select('userId', 'title', 'readSeq').first({
-          id: args.sessionId,
-        })
+        const row = await db.orm.v2.V2Session.select(
+          'userId',
+          'title',
+          'readSeq',
+          'nested',
+          'spawnedBySessionId',
+          'mainThreadId',
+        ).first({ id: args.sessionId })
         return row === null ? null : row
+      },
+    },
+    turns: {
+      startedAfter: async (args) => {
+        const rows = await db.orm.v2.V2Event.where((event) =>
+          and(
+            event.threadId.eq(args.threadId),
+            event.type.eq('turn-started'),
+            event.seq.gt(args.seq),
+          ),
+        )
+          .limit(1)
+          .all()
+        return rows.length > 0
+      },
+    },
+    sound: {
+      claim: async (args) => {
+        if (redis === null) return true
+        const claimed = await redis.set(`notify:sound:${args.userId}`, '1', 'PX', 60_000, 'NX')
+        return claimed === 'OK'
       },
     },
     devices: {
@@ -115,10 +165,12 @@ export const buildNotifyGraph = (
         return new Map(rows.map((row) => [row.key, decodeSettingValue(row.value)]))
       },
     },
+    analytics,
     transports: transportsOf(env),
     now: () => new Date().toISOString(),
     dispose: async () => {
       if (redis !== null) await redis.quit()
+      await flushQuietly(analytics)
     },
   }
 }

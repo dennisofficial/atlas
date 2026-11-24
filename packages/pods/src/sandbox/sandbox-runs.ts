@@ -15,8 +15,10 @@ import type { SandboxProvider, SandboxTarget } from './sandbox-provider'
 
 export const VERCEL_MEMORY_GB_PER_VCPU = 2
 
+const sandboxRunStore = new PostgresSandboxRunStore(db)
+
 export const sandboxRuns = sandboxRunRecorderOf({
-  store: new PostgresSandboxRunStore(db),
+  store: sandboxRunStore,
   ids: () => randomUUID(),
   now: () => Date.now(),
 })
@@ -153,6 +155,30 @@ export const recordSandboxRunCloseForInstance = async (args: {
     return
   }
   await postQuietEndings(session.id)
+}
+
+export const recordSandboxRunReopenForInstance = async (args: {
+  sandboxInstanceId: string
+  at: number
+}): Promise<void> => {
+  const session = await db.orm.v2.V2Session.first({ sandboxInstanceId: args.sandboxInstanceId })
+  if (session === undefined || session === null) return
+  try {
+    if ((await sandboxRunStore.openRunOf(session.id)) !== undefined) return
+    const latest = (await sandboxRunStore.runsForInstance(args.sandboxInstanceId)).at(-1)
+    if (latest === undefined) return
+    await sandboxRuns.open({
+      sessionId: session.id,
+      provider: latest.provider,
+      vcpus: latest.vcpus,
+      memoryGb: latest.memoryGb,
+      diskGb: latest.diskGb,
+      sandboxInstanceId: latest.sandboxInstanceId,
+      at: args.at,
+    })
+  } catch {
+    return
+  }
 }
 
 export const recordSandboxRunMeter = async (args: {

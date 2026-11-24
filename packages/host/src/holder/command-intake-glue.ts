@@ -2,6 +2,7 @@ import {
   awaitsReplyOf,
   EInputConsumed,
   pendingInputsOf,
+  type EventDraft,
   type InboxEntry,
   type ThreadId,
   type V2Event,
@@ -12,7 +13,7 @@ import type { LogPort } from '@dltech/atlas-observability'
 import { isCommandKind, type CommandIntake } from './command-intake'
 import type { SessionRecord } from './record/record-adapter'
 import type { AppendDrafts } from './staged-log'
-import { ETextPlan } from './text-command'
+import { ETextPlan, type SkillNames } from './text-command'
 
 export const UNKNOWN_COMMAND_MAX_AGE_MS = 60 * 60 * 1000
 
@@ -29,11 +30,14 @@ export type CommandGlue = {
   log?: LogPort | undefined
 }
 
-export type CommandEntryArgs = CommandGlue & { entry: InboxEntry }
+export type CommandEntryArgs = CommandGlue & {
+  entry: InboxEntry
+  drafts?: readonly EventDraft[] | undefined
+}
 
 export type LoggedCommandsArgs = CommandGlue & {
   events: readonly V2Event[]
-  skills?: readonly string[] | undefined
+  skills?: SkillNames | undefined
   readEntry: (inboxId: number) => Promise<InboxEntry | undefined>
 }
 
@@ -44,6 +48,7 @@ export const turnOpenOf = async (params: {
 
 export const consumeQuietly = async (params: CommandEntryArgs): Promise<void> => {
   await params.appendDrafts([
+    ...(params.drafts ?? []),
     {
       type: 'input-consumed',
       inboxId: params.entry.inboxId,

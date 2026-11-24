@@ -13,6 +13,7 @@ export type BenchOptions = {
   seed: number
   json: boolean
   quick: boolean
+  gzip: boolean
 }
 
 const QUICK_SIZES = [500, 5_000]
@@ -58,6 +59,7 @@ export const parseArgs = (argv: readonly string[]): BenchOptions => {
     seed: seed === undefined ? DEFAULT_SEED : Number(seed),
     json: !argv.includes('--no-json'),
     quick,
+    gzip: !argv.includes('--no-gzip'),
   }
 }
 

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
-import { db, isUniqueViolation, type Row } from '@dltech/atlas-db'
+import { db, type Row } from '@dltech/atlas-db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import {
   EAccountStatus,
@@ -17,7 +17,7 @@ import {
   type StoredAccountDto,
 } from '@dltech/atlas-wire'
 
-function toAccountDto(row: Row<'AgentAccount'>): AccountDto {
+function toAccountDto(row: Row<'AgentAccount'>, keyHint?: string): AccountDto {
   return {
     id: row.id,
     provider: row.provider,
@@ -29,9 +29,14 @@ function toAccountDto(row: Row<'AgentAccount'>): AccountDto {
     ...(row.subscription === null ? {} : { subscription: row.subscription }),
     ...(row.importedFrom === null ? {} : { importedFrom: row.importedFrom }),
     secretVersion: row.secretVersion,
+    ...(keyHint === undefined ? {} : { keyHint }),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   }
+}
+
+function apiKeyHint(secret: AccountSecretDto): string | undefined {
+  return secret.kind === EAuthKind.ApiKey ? secret.apiKey.slice(-4) : undefined
 }
 
 function withoutRefreshToken(secret: AccountSecretDto): AccountSecretDto {
@@ -87,7 +92,7 @@ export class AccountsService {
     const rows = await db.orm.public.AgentAccount.where({ userId: args.userId })
       .orderBy((account) => account.createdAt.asc())
       .all()
-    return rows.map(toAccountDto)
+    return rows.map((row) => this.dtoOf(row))
   }
 
   async lease(args: { userId: string }): Promise<AccountLease> {
@@ -96,10 +101,13 @@ export class AccountsService {
       .all()
     const pointers = await db.orm.public.ActiveAccount.where({ userId: args.userId }).all()
     return {
-      accounts: rows.map((row) => ({
-        ...toAccountDto(row),
-        secret: withoutRefreshToken(this.openSecret(row.sealedSecret)),
-      })),
+      accounts: rows.map((row) => {
+        const secret = this.openSecret(row.sealedSecret)
+        return {
+          ...toAccountDto(row, apiKeyHint(secret)),
+          secret: withoutRefreshToken(secret),
+        }
+      }),
       active: pointers.map((pointer) => ({
         provider: pointer.provider,
         accountId: pointer.accountId,
@@ -109,52 +117,21 @@ export class AccountsService {
 
   async read(args: { userId: string; accountId: string }): Promise<StoredAccountDto> {
     const row = await this.ownedRow(args)
-    return { ...toAccountDto(row), secret: this.openSecret(row.sealedSecret) }
+    const secret = this.openSecret(row.sealedSecret)
+    return { ...toAccountDto(row, apiKeyHint(secret)), secret }
   }
 
   async add(args: { userId: string; draft: CreateAccountInput }): Promise<AccountDto> {
     const secret = toAccountSecret(args.draft.secret)
-    if (secret.kind === EAuthKind.ApiKey) return this.upsertApiKey({ ...args, secret })
     const row = await this.insertRow({ ...args, secret })
-    await this.activateIfNone(row)
-    return toAccountDto(row)
+    if (args.draft.makeActive === true) await this.pointActiveAt(row)
+    else await this.activateIfNone(row)
+    return this.dtoOf(row)
   }
 
-  private async upsertApiKey(args: {
-    userId: string
-    draft: CreateAccountInput
-    secret: AccountSecretDto
-  }): Promise<AccountDto> {
-    const { userId, secret } = args
-    const existing = await this.apiKeyRow({ userId, provider: args.draft.provider })
-    if (existing !== null) await this.overwriteSecret({ accountId: existing.id, secret })
-    const row = existing ?? (await this.insertApiKeyOrReplaceWinner(args))
-    await this.pointActiveAt(row)
-    return toAccountDto(await this.ownedRow({ userId, accountId: row.id }))
-  }
-
-  private async insertApiKeyOrReplaceWinner(args: {
-    userId: string
-    draft: CreateAccountInput
-    secret: AccountSecretDto
-  }): Promise<Row<'AgentAccount'>> {
-    try {
-      return await this.insertRow(args)
-    } catch (error) {
-      if (!isUniqueViolation(error)) throw error
-      const winner = await this.apiKeyRow({ userId: args.userId, provider: args.draft.provider })
-      if (winner === null) throw error
-      await this.overwriteSecret({ accountId: winner.id, secret: args.secret })
-      return winner
-    }
-  }
-
-  private apiKeyRow(args: { userId: string; provider: string }) {
-    return db.orm.public.AgentAccount.first({
-      userId: args.userId,
-      provider: args.provider,
-      kind: EAuthKind.ApiKey,
-    })
+  private dtoOf(row: Row<'AgentAccount'>): AccountDto {
+    if (row.kind !== EAuthKind.ApiKey) return toAccountDto(row)
+    return toAccountDto(row, apiKeyHint(this.openSecret(row.sealedSecret)))
   }
 
   private insertRow(args: {
@@ -227,6 +204,14 @@ export class AccountsService {
     await this.overwriteSecret({ accountId: args.accountId, secret })
   }
 
+  async rename(args: { userId: string; accountId: string; label: string }): Promise<void> {
+    await this.ownedRow(args)
+    await db.orm.public.AgentAccount.where({ id: args.accountId }).update({
+      label: args.label,
+      updatedAt: new Date(),
+    })
+  }
+
   async setStatus(args: {
     userId: string
     accountId: string
@@ -239,8 +224,21 @@ export class AccountsService {
   }
 
   async remove(args: { userId: string; accountId: string }): Promise<void> {
-    await this.ownedRow(args)
-    await db.orm.public.AgentAccount.where({ id: args.accountId }).delete()
+    const row = await this.ownedRow(args)
+    const pointer = await db.orm.public.ActiveAccount.first({
+      userId: row.userId,
+      provider: row.provider,
+    })
+    const wasActive = pointer?.accountId === row.id
+    await db.orm.public.AgentAccount.where({ id: row.id }).delete()
+    if (!wasActive) return
+    const remaining = await db.orm.public.AgentAccount.where({
+      userId: row.userId,
+      provider: row.provider,
+    })
+      .orderBy((account) => account.updatedAt.desc())
+      .first()
+    if (remaining !== null) await this.pointActiveAt(remaining)
   }
 
   async setActive(args: { userId: string; draft: SetActiveInput }): Promise<void> {

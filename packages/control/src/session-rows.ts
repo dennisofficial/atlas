@@ -1,4 +1,4 @@
-import type { SessionStatus, ETurnEndedBy, ETurnOutcome } from '@dltech/atlas-core'
+import type { SessionStatus, ETurnEndedBy, ETurnOutcome, TurnNotify } from '@dltech/atlas-core'
 import type { SessionSandboxStatus } from '@dltech/atlas-protocol'
 
 export type ControlSessionRow = {
@@ -34,8 +34,6 @@ export type ControlSessionRow = {
   routineId: string | null
 }
 
-export type SessionBucketFilter = { archived: true } | { archived: false; idleBefore: string }
-
 export type SessionPageCursor = { createdAt: string; sessionId: string }
 
 export type SessionListParams = {
@@ -44,23 +42,24 @@ export type SessionListParams = {
   sessionId?: string | undefined
   spawnedBySessionId?: string | undefined
   limit: number
-  bucket?: SessionBucketFilter | undefined
+  archivedOnly?: boolean | undefined
   search?: string | undefined
   after?: SessionPageCursor | undefined
 }
 
 export type SessionBucketCountParams = {
   userId: string
-  idleBefore: string
   search?: string | undefined
 }
 
-export type SessionBucketCounts = { inactive: number; archived: number }
+export type SessionBucketCounts = { archived: number }
 
 export type SessionTurnEnding = {
   seq: number
   outcome: ETurnOutcome
   by: ETurnEndedBy
+  at?: string | undefined
+  notify?: TurnNotify | undefined
 }
 
 export type SessionDigestRow = ControlSessionRow & {

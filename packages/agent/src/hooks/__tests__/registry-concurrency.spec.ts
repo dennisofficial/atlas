@@ -167,6 +167,23 @@ describe('each hook gets its own span', () => {
     expect(trace.named(ESpan.Hook)[0]?.fields.failureKind).toBe(EHookMishapKind.Overran)
   })
 
+  it('leaves before-step hooks unspanned, because they run on every step in well under a millisecond', async () => {
+    const trace = new RecordingTracer()
+    const chain = new HookChain({
+      beforeStep: [{ name: 'listing', order: observe(0), run: async ({ assembled }) => assembled }],
+      trace,
+    })
+    const assembled = { system: [], messages: [] }
+
+    await trace.span({
+      name: ESpan.ContextPrepare,
+      root: true,
+      run: () => chain.beforeStep({ assembled, trace: [] }),
+    })
+
+    expect(trace.named(ESpan.Hook)).toEqual([])
+  })
+
   it('runs untraced when the chain has no tracer', async () => {
     const chain = new HookChain({
       beforeTurn: [hook({ name: 'plain', order: observe(0), run: async () => said('plain') })],

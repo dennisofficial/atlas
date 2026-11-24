@@ -1,3 +1,5 @@
+import { oneLine } from '../text/one-line'
+
 const NAME_WORD_LIMIT = 3
 
 /**
@@ -7,7 +9,7 @@ const NAME_WORD_LIMIT = 3
  * off reads like it was cut rather than named.
  */
 export function agentDisplayName(args: { agentType: string; intent: string }): string {
-  const single = args.intent.replace(/\s+/g, ' ').trim()
+  const single = oneLine(args.intent)
   if (single === '') return args.agentType
 
   return single.split(' ').slice(0, NAME_WORD_LIMIT).join(' ')

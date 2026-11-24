@@ -7,7 +7,6 @@ import {
   isNoticeArrival,
   laneNameOf,
   latestTldrPerAnchor,
-  modelFallbackCopy,
   saidBy,
   type ConsumedCommand,
   type Event,
@@ -20,6 +19,7 @@ import { inOneBreath } from './entry-folds'
 import type { TranscriptEntryFold } from './entry-builders'
 import { noticeEntriesOf } from './notice-entries'
 import { podOomEntryOf } from './pod-oom-entry'
+import { sessionArchivedEntryOf } from './session-archived-entry'
 import { summariesAtTarget } from './summary-placement'
 import { attachmentsOf } from './tool-attachments'
 import { toolRuns, type ToolRun } from './tool-runs'
@@ -139,6 +139,7 @@ export function durableEntries(args: {
           skills: (attached.get(event.id) ?? NOTHING_ATTACHED).skills,
           files: (attached.get(event.id) ?? NOTHING_ATTACHED).files,
           attachments: attachmentsOfSaid(event),
+          ...(event.clientId === undefined ? {} : { clientId: event.clientId }),
         },
       ]
     }
@@ -180,32 +181,9 @@ export function durableEntries(args: {
       ]
     }
 
-    if (event.type === 'model-fell-back') {
-      const copy = modelFallbackCopy(event)
-      return [
-        {
-          kind: EEntryKind.ModelFellBack,
-          author: EAuthor.Model,
-          key: event.id,
-          text: copy.title,
-          content: copy.detail,
-        },
-      ]
-    }
-
-    if (event.type === 'sandbox-setup-reported') {
-      return [
-        {
-          kind: EEntryKind.SandboxNotice,
-          author: EAuthor.Model,
-          key: event.id,
-          text: event.text,
-          failed: event.failed,
-        },
-      ]
-    }
-
     if (event.type === 'pod-ran-out-of-memory') return [podOomEntryOf(event)]
+
+    if (event.type === 'session-archived') return [sessionArchivedEntryOf(event)]
 
     if (event.type === 'tool-called') {
       const run = opened.get(event.callId)

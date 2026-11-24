@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common'
 import type { RegisterSandboxMetadata } from '@dltech/atlas-wire'
 import { db, type Row } from '@dltech/atlas-db'
+import { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { ThreadSignalsService } from '../sessions/thread-signals.service'
 import { podSessionOf } from '../sessions/session-of-thread'
@@ -51,16 +52,21 @@ export class SandboxesService implements OnModuleInit, OnModuleDestroy {
   /** Swappable so a spec can hold a lookup open across a revoking write. */
   lookupPrincipal: TokenLookup = lookupTokenPrincipal
 
-  private readonly revocations = new PrincipalRevocations(this.principals, (line, error) =>
-    this.logger.warn(error === undefined ? line : `${line}: ${messageOf(error)}`),
-  )
+  private readonly revocations: PrincipalRevocations
 
   constructor(
     private readonly vercel: VercelSandboxClient,
     private readonly cipher: SecretCipherService,
     private readonly signals: ThreadSignalsService,
+    env: EnvService,
   ) {
     this.endpoints = new SandboxEndpointService(vercel, cipher)
+    this.revocations = new PrincipalRevocations({
+      cache: this.principals,
+      log: (line, error) =>
+        this.logger.warn(error === undefined ? line : `${line}: ${messageOf(error)}`),
+      databaseUrl: env.get('DATABASE_URL'),
+    })
   }
 
   onModuleInit(): void {

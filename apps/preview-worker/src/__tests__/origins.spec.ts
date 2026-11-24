@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { isAtlasWebOrigin, isPreviewHost } from '../origins'
+import { isAtlasWebOrigin, isPreviewHost, previewHostPatternOf } from '../origins'
 
 describe('isPreviewHost', () => {
   it('accepts minted preview hosts', () => {
@@ -30,6 +30,15 @@ describe('isPreviewHost', () => {
     '',
   ])('rejects %p', (host) => {
     expect(isPreviewHost(host)).toBe(false)
+  })
+})
+
+describe('previewHostPatternOf', () => {
+  it('builds the gate for whatever domain the tunnel side mints on', () => {
+    const pattern = previewHostPatternOf('preview.example.dev')
+    expect(pattern.test('3000-abcdefghij.preview.example.dev')).toBe(true)
+    expect(pattern.test('3000-abcdefghij.byatlas.dev')).toBe(false)
+    expect(isPreviewHost('3000-abcdefghij.preview.example.dev', 'preview.example.dev')).toBe(true)
   })
 })
 
