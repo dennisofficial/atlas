@@ -176,6 +176,18 @@ describe('jina reader port', () => {
     }
   })
 
+  it('hands the page back to the direct fetch when Jina answers with an empty body', async () => {
+    for (const content of ['', undefined]) {
+      const { fetcher } = recordingFetch(() =>
+        json({ data: { title: 'llms.txt', url: 'https://example.com/llms.txt', content } }),
+      )
+
+      const outcome = await jinaReaderOf({ key: 'jina-key', fetcher }).read(readOf({}))
+
+      expect(outcome.kind).toBe('unavailable')
+    }
+  })
+
   it('hands the page back to the direct fetch when Jina cannot be reached', async () => {
     const fetcher = (async () => {
       throw new Error('boom')

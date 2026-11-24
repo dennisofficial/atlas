@@ -171,10 +171,12 @@ describe('jina search port', () => {
       return outcome.ok ? '' : outcome.reason
     }
 
-    expect(await reasonFor(401)).toBe('Jina refused the platform search key.')
-    expect(await reasonFor(403)).toBe('Jina refused the platform search key.')
+    const elsewhere =
+      'web_search stays down until the operator fixes it, so open a search page with the browser tool instead.'
+    expect(await reasonFor(401)).toBe(`Jina refused the platform search key. ${elsewhere}`)
+    expect(await reasonFor(403)).toBe(`Jina refused the platform search key. ${elsewhere}`)
     expect(await reasonFor(402)).toBe(
-      'Jina refused the search because the platform Jina account has no balance.',
+      `Jina refused the search because the platform Jina account has no balance. ${elsewhere}`,
     )
     expect(await reasonFor(429)).toBe('Jina is rate-limiting searches; try again in a moment.')
     expect(await reasonFor(503)).toBe('Jina search is down (status 503); try again shortly.')
