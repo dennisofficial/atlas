@@ -37,7 +37,12 @@ describe('the agent pod command', () => {
       input: { action: EAgentAction.Say, agentId: 'a1', text: 'take the parser' },
     })
     expect(result).toEqual({ kind: 'done' })
-    expect(calls).toEqual([{ method: 'say', args: { agentId: 'a1', text: 'take the parser' } }])
+    expect(calls).toEqual([
+      {
+        method: 'say',
+        args: { agentId: 'a1', text: 'take the parser', clientId: 'agent-say:7' },
+      },
+    ])
   })
 
   it('refuses say when the crew knows no such child', async () => {
@@ -98,5 +103,46 @@ describe('the agent pod command', () => {
     })
     expect(result.kind).toBe('refused')
     expect(await fakeCrew().port.resume({ agentId: 'a1' })).toBe(EResumeOutcome.Resumed)
+  })
+})
+
+const appendedOf = async (args: { crew: PodCrew; input: unknown }): Promise<readonly unknown[]> => {
+  const appended: unknown[] = []
+  const { ctx } = rig(args.crew)
+  await agentHandlerOf(ctx)({
+    ...contextOf(args.input),
+    append: async (drafts) => {
+      appended.push(...drafts)
+    },
+  })
+  return appended
+}
+
+describe('the outcome the agent pod command records', () => {
+  it('records one applied outcome naming the inbox it answers, for a say', async () => {
+    expect(
+      await appendedOf({
+        crew: fakeCrew().port,
+        input: { action: EAgentAction.Say, agentId: 'a1', text: 'hi' },
+      }),
+    ).toEqual([{ type: 'command-applied', inboxId: 7, name: 'agent' }])
+  })
+
+  it('records the same outcome for a stop', async () => {
+    expect(
+      await appendedOf({
+        crew: fakeCrew().port,
+        input: { action: EAgentAction.Stop, agentId: 'a1' },
+      }),
+    ).toEqual([{ type: 'command-applied', inboxId: 7, name: 'agent' }])
+  })
+
+  it('records no outcome when the crew knows no such child', async () => {
+    expect(
+      await appendedOf({
+        crew: { ...fakeCrew().port, say: async () => undefined },
+        input: { action: EAgentAction.Say, agentId: 'ghost', text: 'hi' },
+      }),
+    ).toEqual([])
   })
 })

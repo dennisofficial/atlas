@@ -16,6 +16,7 @@ export const teardownHeld = async (args: {
   record: SessionRecord | undefined
   turnRunning: boolean
   kind: EHeldOutcome
+  handedBackNeedsHolder?: boolean | undefined
   released: boolean
   settleFence: boolean
   epoch: number
@@ -35,6 +36,9 @@ export const teardownHeld = async (args: {
         ...logFieldsOf({ error }),
       }),
     )
+  }
+  if (kind === EHeldOutcome.Drained && args.handedBackNeedsHolder !== undefined) {
+    return { kind, needsHolder: args.handedBackNeedsHolder }
   }
   if (!readsNeedsHolder(kind)) return { kind, needsHolder: true }
   return {

@@ -69,7 +69,8 @@ its roster and its preview URLs.
 
 `serviceHandlerOf(ctx)` in `src/pod/commands.ts` calls the same `stopServiceAction` and
 `restartService` the `service` tool calls, so a service stopped from a drawer and one stopped by
-the model take one code path. It takes no `start` action: a declared-but-stopped service has no
+the model take one code path. It appends one `command-applied` row naming its inbox id once it has
+acted, so a holder that takes the session over does not run the command again. It takes no `start` action: a declared-but-stopped service has no
 row, so the operator has nothing to act on. It refuses a line with no service id, and a refused
 stop or restart carries the daemon's own sentence. `servicesClient` gives one hook,
 `services-roster`, which applies to the `service-*` events.

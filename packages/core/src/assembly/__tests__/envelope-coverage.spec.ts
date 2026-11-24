@@ -119,6 +119,7 @@ const SAMPLES: { readonly [K in EventType]: SampleOf<K> } = {
   },
   rotated: { type: 'rotated', handoff: 'the plan, the files and the branch' },
   'resume-marked': { type: 'resume-marked', point: EResumePoint.Clean, discards: [], callIds: [] },
+  'command-applied': { type: 'command-applied', inboxId: 1, name: 'agent' },
   parked: {
     type: 'parked',
     reason: 'idle',

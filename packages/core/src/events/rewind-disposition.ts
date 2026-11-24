@@ -25,6 +25,7 @@ export const REWIND_DISPOSITION = {
   'directory-changed': ERewindDisposition.Discard,
   'history-compacted': ERewindDisposition.Discard,
   'resume-marked': ERewindDisposition.Discard,
+  'command-applied': ERewindDisposition.Discard,
   'loop-watch-verdict': ERewindDisposition.Discard,
   nudge: ERewindDisposition.Discard,
   'sandbox-setup-reported': ERewindDisposition.Discard,

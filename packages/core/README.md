@@ -43,7 +43,7 @@ assembly, settings, ports, and the record folds. It imports `zod` and nothing el
 - `eventsOfType({events, type})`: the events of one type, narrowed.
 - `openParkedCallsOf(events)`: the calls that still wait for a result.
 - `latestResourceOf({events, resource})`: the newest value of a loaded resource.
-- `isDurable(type)`: whether a replay keeps that row. `summaryTargetOf({events, throughSeq})`: the range a summary can cover.
+- `isDurable(type)`: whether a replay keeps that row. `summaryTargetOf({events, throughSeq})`: the range a summary can cover. `unfinishedCommandIdsOf(events)`, `COMMAND_OUTCOMES`: the consumed commands that still owe an outcome, which a new holder replays; a pane command owes one `command-applied`.
 
 ### Assemble the model request
 

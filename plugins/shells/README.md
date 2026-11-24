@@ -65,8 +65,9 @@ notice.
 | `/shell-kill` | `<id>`   | Stop a running shell. Runs in the host, hidden from every slash menu. |
 
 `shellKillHandlerOf(ctx)` in `src/pod/commands.ts` calls the same `killShell` the `shell_kill` tool
-calls, forgets the shell's awaiting-input mark, and returns `done`. A refused kill carries the
-daemon's own sentence. The handler does not read the delta the tool reads: the loop needs the
+calls, forgets the shell's awaiting-input mark, and returns `done` after appending one
+`command-applied` row naming its inbox id. A replay of a kill that already happened is refused by
+the daemon, which settles the command. A refused kill carries the daemon's own sentence. The handler does not read the delta the tool reads: the loop needs the
 output, the operator reads the tail from the followed snapshot. `shellsClient` gives one
 hook, `shells-roster`, which applies to the `background-shell-*` events.
 

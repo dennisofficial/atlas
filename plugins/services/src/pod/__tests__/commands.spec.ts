@@ -82,3 +82,37 @@ describe('the service pod command', () => {
     expect(harness.calls).toEqual([])
   })
 })
+
+const appendedOf = async (args: { harness: ReturnType<typeof rig>; input: unknown }) => {
+  const appended: unknown[] = []
+  await serviceHandlerOf(args.harness.ctx)({
+    ...contextOf(args.input),
+    append: async (drafts) => {
+      appended.push(...drafts)
+    },
+  })
+  return appended
+}
+
+describe('the outcome the service pod command records', () => {
+  it('records one applied outcome naming the inbox it answers, after a stop', async () => {
+    const harness = rig()
+    const serviceId = await startOf(harness)
+    expect(await appendedOf({ harness, input: { action: 'stop', serviceId } })).toEqual([
+      { type: 'command-applied', inboxId: 9, name: 'service' },
+    ])
+  })
+
+  it('records the same outcome after a restart', async () => {
+    const harness = rig()
+    const serviceId = await startOf(harness)
+    expect(await appendedOf({ harness, input: { action: 'restart', serviceId } })).toEqual([
+      { type: 'command-applied', inboxId: 9, name: 'service' },
+    ])
+  })
+
+  it('records no outcome when the stop fails', async () => {
+    const harness = rig()
+    expect(await appendedOf({ harness, input: { action: 'stop', serviceId: 'ghost' } })).toEqual([])
+  })
+})

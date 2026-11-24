@@ -304,6 +304,11 @@ const coreEventBodySchema = z.discriminatedUnion('type', [
     callIds: z.array(z.string().min(1)),
     inboxId: z.number().int().min(1).optional(),
   }),
+  z.object({
+    type: z.literal('command-applied'),
+    inboxId: z.number().int().min(1),
+    name: z.string().min(1),
+  }),
   ...runEventSchemas,
   diagramRepairedSchema,
   ...policyEventSchemas,

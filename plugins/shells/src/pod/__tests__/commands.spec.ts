@@ -17,6 +17,17 @@ const contextOf = (args: unknown): CommandContext<unknown> => ({
   log: () => undefined,
 })
 
+const appendedOf = async (args: { harness: ReturnType<typeof rig>; input: unknown }) => {
+  const appended: unknown[] = []
+  await shellKillHandlerOf(args.harness.ctx)({
+    ...contextOf(args.input),
+    append: async (drafts) => {
+      appended.push(...drafts)
+    },
+  })
+  return appended
+}
+
 describe('the shell-kill pod command', () => {
   it('kills the named shell through the daemon', async () => {
     const harness = rig()
@@ -44,5 +55,20 @@ describe('the shell-kill pod command', () => {
     const harness = rig()
     const result = await shellKillHandlerOf(harness.ctx)(contextOf({ shellId: '' }))
     expect(result.kind).toBe('refused')
+  })
+})
+
+describe('the outcome the shell-kill pod command records', () => {
+  it('records one applied outcome naming the inbox it answers, after the kill', async () => {
+    const harness = rig()
+    const shellId = await seedShell({ harness })
+    expect(await appendedOf({ harness, input: { shellId } })).toEqual([
+      { type: 'command-applied', inboxId: 9, name: 'shell-kill' },
+    ])
+  })
+
+  it('records no outcome when the kill fails', async () => {
+    const harness = rig()
+    expect(await appendedOf({ harness, input: { shellId: 'ghost' } })).toEqual([])
   })
 })

@@ -156,9 +156,14 @@ export class ChildRun {
     return this.pump ?? Promise.resolve()
   }
 
-  async say(args: { text: string; from?: CrewSender | undefined }): Promise<SubagentSaid> {
+  async say(args: {
+    text: string
+    from?: CrewSender | undefined
+    clientId?: string | undefined
+  }): Promise<SubagentSaid> {
     await this.inbox.post(inboxInputOf(args))
     if (this.pump !== undefined) return { queued: true, snapshot: this.snapshot() }
+    if (!(await this.inbox.intake.hasQueued())) return { queued: false, snapshot: this.snapshot() }
     this.begin({ restart: this.ending !== undefined })
     return { queued: false, snapshot: this.snapshot() }
   }
