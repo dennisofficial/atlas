@@ -229,8 +229,7 @@ export class McpOauthStore {
       SET "oauthSealed" = ${args.sealed},
           "oauthGeneration" = "oauthGeneration" + 1,
           "oauthRefreshAttempt" = NULL,
-          "oauthRefreshStartedAt" = NULL,
-          "oauthUpdatedAt" = now()
+          "oauthRefreshStartedAt" = NULL
       WHERE "id" = ${args.id}
         AND "oauthGeneration" = ${args.generation}
         AND "oauthRefreshAttempt" = ${args.attemptId}`
@@ -241,10 +240,16 @@ export class McpOauthStore {
   }
 
   async release(fence: AttemptFence): Promise<boolean> {
-    const count = await this.db.orm.public.McpServer.where(fenceWhere(fence)).updateAndCount(
-      CLEARED_ATTEMPT,
-    )
-    return count === 1
+    const statement = this.db.raw.sql`UPDATE "McpServer"
+      SET "oauthRefreshAttempt" = NULL,
+          "oauthRefreshStartedAt" = NULL
+      WHERE "id" = ${fence.id}
+        AND "oauthGeneration" = ${fence.generation}
+        AND "oauthRefreshAttempt" = ${fence.attemptId}`
+      .affectedCount()
+      .build()
+    const { affectedRows } = await this.db.execute(statement)
+    return affectedRows === 1
   }
 
   async reject(fence: AttemptFence): Promise<boolean> {

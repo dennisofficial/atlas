@@ -95,7 +95,7 @@ The result is one extra wake, and no ending is lost. The operator accepted this 
 
 | Command  | Arguments                 | What it does                                                                     |
 | -------- | ------------------------- | -------------------------------------------------------------------------------- |
-| `/agent` | `<say\|stop> <id> [text]` | Message a sub-agent, or stop it. Runs in the host, hidden from every slash menu. |
+| `/agent` | `<say\|stop> <id> [text]` | Message a sub-agent, or stop it. Runs in the host, never in a session catalogue. |
 
 `/agent say <id> <text>` queues the text on the child and reopens a child that had ended. The
 `agentHandlerOf(ctx)` handler in `src/pod/commands.ts` calls `ctx.crew.say`, so it and the

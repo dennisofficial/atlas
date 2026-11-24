@@ -1,4 +1,5 @@
 import type { CommandEntry } from './entry'
+import type { Command } from './registry'
 import { ECommandGroup } from './spec'
 
 const GROUP_ORDER: readonly ECommandGroup[] = [
@@ -14,6 +15,9 @@ const compareEntries = (left: CommandEntry, right: CommandEntry): number => {
   if (byGroup !== 0) return byGroup
   return left.name.localeCompare(right.name)
 }
+
+export const listedCommands = (commands: readonly Command[]): readonly Command[] =>
+  commands.filter((command) => command.spec.listed !== false)
 
 export const catalogueOf = ({
   commands,
