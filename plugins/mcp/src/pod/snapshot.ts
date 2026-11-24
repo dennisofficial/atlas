@@ -77,6 +77,7 @@ export const mcpServerToolsSchema = z.object({
   reason: z.string().optional(),
   tools: z.array(mcpToolInfoSchema).readonly(),
   instructions: z.string().optional(),
+  retry: z.boolean().optional(),
 })
 
 export type McpServerTools = z.infer<typeof mcpServerToolsSchema>

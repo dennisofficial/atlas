@@ -44,6 +44,13 @@ export class McpTransportError extends Error {
   }
 }
 
+export class McpUnavailableError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'McpUnavailableError'
+  }
+}
+
 export const asRecord = (value: unknown): Record<string, unknown> | undefined => {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined
   return value as Record<string, unknown>

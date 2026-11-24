@@ -9,7 +9,13 @@ import {
 import { z } from 'zod'
 
 import { renderCall } from './render'
-import { McpUnauthorizedError, messageOf, type McpCallResult, type McpToolInfo } from './types'
+import {
+  McpUnauthorizedError,
+  McpUnavailableError,
+  messageOf,
+  type McpCallResult,
+  type McpToolInfo,
+} from './types'
 
 export const MCP_NAME_PREFIX = MCP_TOOL_PREFIX
 
@@ -69,6 +75,7 @@ export class McpBridgeTool extends ToolDefinition {
           ok: false,
           reason: `the '${this.server}' MCP server needs a sign-in. Call operator_mcp_sign_in to start one`,
         }
+      if (error instanceof McpUnavailableError) return { ok: false, reason: error.message }
       return {
         ok: false,
         reason: `the '${this.server}' MCP server rejected the call: ${messageOf(error)}`,

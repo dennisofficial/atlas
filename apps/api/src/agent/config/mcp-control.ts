@@ -1,7 +1,9 @@
 import { createDb, createPool, type Db } from '@dltech/atlas-db'
 import {
+  EMcpToken,
   MacOfflineError,
   type McpServerSource,
+  type McpToken,
   type PodMcpControl,
   type PodMcpProxyTransport,
 } from '@dltech/atlas-plugin-sdk'
@@ -112,7 +114,7 @@ export const mcpControlOf = (args: {
     name: string
     source: McpServerSource
     url: string
-  }): Promise<string | undefined> => {
+  }): Promise<McpToken> => {
     const rows = await rowsFor(args2)
     const row = rows.find(
       (candidate) =>
@@ -120,9 +122,9 @@ export const mcpControlOf = (args: {
         sameServerUrl(candidate.oauthServerUrl, args2.url),
     )
     if (row === undefined || row.oauthStatus !== 'active' || row.oauthSealed === null)
-      return undefined
+      return { kind: EMcpToken.SignIn }
     const fresh = freshTokenOf({ cipher: args.cipher, sealed: row.oauthSealed })
-    if (fresh !== undefined) return fresh
+    if (fresh !== undefined) return { kind: EMcpToken.Granted, accessToken: fresh }
     const refreshed = await args.gateway.refresh({
       userId: args2.owner.userId,
       ...(args2.owner.projectId === null ? {} : { projectId: args2.owner.projectId }),
@@ -130,14 +132,22 @@ export const mcpControlOf = (args: {
       name: args2.name,
       url: args2.url,
     })
-    return refreshed.ok ? refreshed.accessToken : undefined
+    if (refreshed.ok) return { kind: EMcpToken.Granted, accessToken: refreshed.accessToken }
+    return refreshed.signIn === true
+      ? { kind: EMcpToken.SignIn }
+      : { kind: EMcpToken.Unavailable, reason: refreshed.reason }
   }
 
   const controlOf = (sessionId: string): PodMcpControl => ({
     token: async (request) => {
-      const owner = await ownerFor(sessionId)
-      if (owner === null) return undefined
-      return await tokenOf({ owner, ...request })
+      try {
+        const owner = await ownerFor(sessionId)
+        if (owner === null) return { kind: EMcpToken.SignIn }
+        return await tokenOf({ owner, ...request })
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error)
+        return { kind: EMcpToken.Unavailable, reason }
+      }
     },
     begin: async (request) => {
       const owner = await ownerFor(sessionId)
