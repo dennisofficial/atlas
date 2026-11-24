@@ -1,5 +1,5 @@
 import { Button, EButtonSize, EButtonVariant, useTheme } from '@dltech/atlas-ui-native'
-import { router, Stack, useCanGoBack, usePathname } from 'expo-router'
+import { router, Stack, usePathname } from 'expo-router'
 import { Platform, StyleSheet, View } from 'react-native'
 
 import { useAuth } from '../../auth/auth-provider'
@@ -8,8 +8,6 @@ import { RailContentFrame } from '../../layout/rail-content-frame'
 import { PostureProvider, usePosture } from '../../layout/use-posture'
 import { AccountButton } from '../../navigation/account-button'
 import { AppControls } from '../../navigation/app-controls'
-import { AppHeader } from '../../navigation/app-header'
-import { BackButton } from '../../navigation/back-button'
 import { NewSessionButton } from '../../navigation/new-session-button'
 import { InAppNoticesProvider } from '../../notifications/in-app-notices-provider'
 import { sessionIdOfPathname } from '../../thread/v2/presence-state'
@@ -24,23 +22,17 @@ const CancelButton = () => (
   />
 )
 
-const AppStackHeader = ({ options }: { options: { title?: string } }) => {
-  const theme = useTheme()
-  const canGoBack = useCanGoBack()
-  const left = canGoBack ? <BackButton /> : undefined
-  return <AppHeader title={options.title ?? ''} left={left} surface={theme.background} />
-}
-
-const renderAppStackHeader = ({ options }: { options: { title?: string } }) => (
-  <AppStackHeader options={options} />
-)
-
 const AppStack = () => {
   const theme = useTheme()
   const rail = usePosture().controls === EControlsPlacement.Rail
   const headerLeft = rail ? undefined : () => <AccountButton />
   const headerRight = () => <NewSessionButton />
   const tabContentStyle = { backgroundColor: theme.sidebar }
+  const pushedHeaderOptions = {
+    headerBackButtonDisplayMode: 'minimal' as const,
+    headerStyle: { backgroundColor: theme.background },
+    headerTintColor: theme.foreground,
+  }
   return (
     <Stack screenOptions={{ contentStyle: { backgroundColor: theme.background } }}>
       <Stack.Screen
@@ -97,12 +89,12 @@ const AppStack = () => {
           headerTintColor: theme.foreground,
         }}
       />
-      <Stack.Screen name="sessions/[id]" options={{ title: '', header: renderAppStackHeader }} />
+      <Stack.Screen name="sessions/[id]" options={{ title: '', ...pushedHeaderOptions }} />
       <Stack.Screen
         name="agents/[agentId]"
-        options={{ title: 'Sub-agent', header: renderAppStackHeader }}
+        options={{ title: 'Sub-agent', ...pushedHeaderOptions }}
       />
-      <Stack.Screen name="settings" options={{ title: 'Settings', header: renderAppStackHeader }} />
+      <Stack.Screen name="settings" options={{ title: 'Settings', ...pushedHeaderOptions }} />
     </Stack>
   )
 }

@@ -144,7 +144,9 @@ What the web bundle cannot prove:
 - `apps/mobile/src/layout/split-panes.tsx:22` renders the two panes in a row, with a hairline border
   at `:40`. A single pane renders at `:19`.
 - `apps/mobile/app.config.ts:11` allows every orientation.
-- `apps/mobile/src/navigation/app-header.tsx:18` adds the top safe-area inset to the header.
+- `apps/mobile/src/app/(app)/_layout.tsx:31` lets the native header lay out the top band; the pushed
+  screens (`sessions/[id]`, `agents/[agentId]`, `settings`) share `pushedHeaderOptions` so the
+  system clock and our title sit in one row.
 
 ## Gaps
 
