@@ -110,11 +110,8 @@ still points at the same mirror for its own updates, so the mirror and the relea
 ## 2. trigger.dev
 
 Two projects, both deployed from `main`, both pinned to the same SDK (`apps/api/AGENTS.md:362`).
-
-| project                                 | config                                               | who deploys                                                                                                                                              |
-| --------------------------------------- | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Atlas `proj_yvwotwceptrneuuasamk` (v1)  | `apps/api/trigger.config.ts:5`, dirs `./src/trigger` | **no automatic deploy** ("v1 is being retired, so CI no longer deploys this project", `apps/api/AGENTS.md:368`). Manual only: `bun run trigger:deploy`.  |
-| `proj_wcjbubibkotgsclldnyz` (v2)        | `apps/trigger/trigger.config.ts:5`                   | `.github/workflows/trigger-v2.yml`, after the Render deploy of the same SHA is live                                                                      |
+- v1, Atlas `proj_yvwotwceptrneuuasamk`: config `apps/api/trigger.config.ts:5`, dirs `./src/trigger`. **No automatic deploy** ("v1 is being retired, so CI no longer deploys this project", `apps/api/AGENTS.md:368`). Manual only: `bun run trigger:deploy`.
+- v2, `proj_wcjbubibkotgsclldnyz`: config `apps/trigger/trigger.config.ts:5`. Deployed by `.github/workflows/trigger-v2.yml` after the Render deploy of the same SHA is live.
 
 `apps/api/src/trigger` (v1 project):
 
