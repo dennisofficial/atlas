@@ -19,6 +19,7 @@ export const useV2SessionCommands = (args: {
   api: ApiClient | undefined
   sessionId: string
   events: readonly V2Event[]
+  reportHidden: (name: string) => void
 }): V2SessionCommands => {
   const [commands, setCommands] = useState<readonly CommandEntry[]>(NO_COMMANDS)
   const [modelOpen, setModelOpen] = useState(false)
@@ -47,8 +48,9 @@ export const useV2SessionCommands = (args: {
       composerActionsOf({
         openModelPicker: () => setModelOpen(true),
         openCommandList: () => setListOpen(true),
+        reportHidden: args.reportHidden,
       }),
-    [],
+    [args.reportHidden],
   )
   const model = useSessionModelChoice({
     api: args.api,

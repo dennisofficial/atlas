@@ -1,3 +1,4 @@
+import { clientOnlyReason } from '@dltech/atlas-commands'
 import {
   canReconnectOf,
   ESessionConnection,
@@ -57,13 +58,19 @@ export function useV2SessionScreen(args: {
   const { api } = useAuth()
   const { snapshot, loadOlder } = useV2Session({ sessionId, api })
   const summary = useSessionSummary(sessionId)
-  const commands = useV2SessionCommands({ api, sessionId, events: snapshot.foldable })
+  const [notice, setNotice] = useState<string | undefined>(undefined)
+  const reportHidden = useCallback((name: string) => setNotice(clientOnlyReason(name)), [setNotice])
+  const commands = useV2SessionCommands({
+    api,
+    sessionId,
+    events: snapshot.foldable,
+    reportHidden,
+  })
   const [now, setNow] = useState(() => Date.now())
   const view = useMemo(() => v2ViewOf({ snapshot, now }), [snapshot, now])
   const [staged, setStaged] = useState<readonly StagedSend[]>([])
   const agentLinks = useMemo(() => agentLinksOf({ events: snapshot.events }), [snapshot.events])
   const [restored, setRestored] = useState<{ token: number; text: string } | undefined>(undefined)
-  const [notice, setNotice] = useState<string | undefined>(undefined)
   const retryClientId = useRef<string | undefined>(undefined)
   const restoreToken = useRef(0)
 

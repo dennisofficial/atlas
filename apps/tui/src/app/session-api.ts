@@ -57,6 +57,25 @@ export type SigningKeyStatus = Awaited<ReturnType<ApiClient['sshSigningKey']['st
 export type GithubState = Awaited<ReturnType<ApiClient['github']['get']['query']>>
 export type GithubDeviceCodes = Awaited<ReturnType<ApiClient['github']['beginConnect']['mutate']>>
 export type GithubPollResult = Awaited<ReturnType<ApiClient['github']['pollConnect']['mutate']>>
+export type AccountRow = Awaited<ReturnType<ApiClient['accounts']['list']['query']>>[number]
+export type AccountCreateInput = Parameters<ApiClient['accounts']['create']['mutate']>[0]
+export type SetActiveAccountInput = Parameters<ApiClient['accounts']['setActive']['mutate']>[0]
+export type ActiveAccountInput = Parameters<ApiClient['accounts']['active']['query']>[0]
+export type ProviderSignInBeginInput = Parameters<ApiClient['providerSignIn']['begin']['mutate']>[0]
+export type ProviderSignInCompleteInput = Parameters<
+  ApiClient['providerSignIn']['complete']['mutate']
+>[0]
+export type ProviderSignInPollInput = Parameters<ApiClient['providerSignIn']['poll']['mutate']>[0]
+export type McpOauthBeginInput = Parameters<ApiClient['mcpOauth']['begin']['mutate']>[0]
+export type ActiveAccount = Awaited<ReturnType<ApiClient['accounts']['active']['query']>>
+export type ProviderSignInBegin = Awaited<
+  ReturnType<ApiClient['providerSignIn']['begin']['mutate']>
+>
+export type ProviderSignInPoll = Awaited<ReturnType<ApiClient['providerSignIn']['poll']['mutate']>>
+export type McpOauthBeginResult = Awaited<ReturnType<ApiClient['mcpOauth']['begin']['mutate']>>
+export type McpOauthServer = Awaited<
+  ReturnType<ApiClient['mcpOauth']['servers']['query']>
+>['servers'][number]
 
 export type SessionApi = {
   post(input: SessionPostInput): Promise<SessionPostOutput>
@@ -99,6 +118,16 @@ export type SessionApi = {
   beginGithubConnect(): Promise<GithubDeviceCodes>
   pollGithubConnect(input: { deviceCode: string }): Promise<GithubPollResult>
   disconnectGithub(): Promise<void>
+  accounts(): Promise<readonly AccountRow[]>
+  activeAccount(input: ActiveAccountInput): Promise<ActiveAccount>
+  createAccount(input: AccountCreateInput): Promise<AccountRow>
+  setActiveAccount(input: SetActiveAccountInput): Promise<void>
+  removeAccount(input: { accountId: string }): Promise<void>
+  beginProviderSignIn(input: ProviderSignInBeginInput): Promise<ProviderSignInBegin>
+  completeProviderSignIn(input: ProviderSignInCompleteInput): Promise<AccountRow>
+  pollProviderSignIn(input: ProviderSignInPollInput): Promise<ProviderSignInPoll>
+  mcpServers(): Promise<readonly McpOauthServer[]>
+  mcpOauthBegin(input: McpOauthBeginInput): Promise<McpOauthBeginResult>
 }
 
 const authStatusOf = (failure: unknown): AuthRefusal | null => {
@@ -218,5 +247,23 @@ export const sessionApiOf = (args: {
     disconnectGithub: async () => {
       await guarded(() => args.api.github.disconnect.mutate())
     },
+    accounts: () => guarded(() => args.api.accounts.list.query()),
+    activeAccount: (input) => guarded(() => args.api.accounts.active.query(input)),
+    createAccount: (input) => guarded(() => args.api.accounts.create.mutate(input)),
+    setActiveAccount: async (input) => {
+      await guarded(() => args.api.accounts.setActive.mutate(input))
+    },
+    removeAccount: async (input) => {
+      await guarded(() => args.api.accounts.remove.mutate(input))
+    },
+    beginProviderSignIn: (input) => guarded(() => args.api.providerSignIn.begin.mutate(input)),
+    completeProviderSignIn: (input) =>
+      guarded(() => args.api.providerSignIn.complete.mutate(input)),
+    pollProviderSignIn: (input) => guarded(() => args.api.providerSignIn.poll.mutate(input)),
+    mcpServers: async () => {
+      const reply = await guarded(() => args.api.mcpOauth.servers.query({}))
+      return reply.servers
+    },
+    mcpOauthBegin: (input) => guarded(() => args.api.mcpOauth.begin.mutate(input)),
   }
 }

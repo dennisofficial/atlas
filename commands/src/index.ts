@@ -2,6 +2,7 @@ import type { Command, CommandHandler, ControlCommandHandler } from '@dltech/atl
 
 import { cancelResize, cancelResizeArgs } from './cancel-resize/spec'
 import { help } from './help/spec'
+import { mcp } from './mcp/spec'
 import { model } from './model/spec'
 import { renameHandler, type RenamePlane } from './rename/control'
 import { resize, RESIZE_MAX_DISK_GB, resizeArgs } from './resize/spec'
@@ -10,6 +11,8 @@ import { resumeHandler } from './resume/pod'
 import { rotate } from './rotate/spec'
 import { rotateHandler } from './rotate/pod'
 import { rename } from './rename/spec'
+import { shells } from './shells/spec'
+import { skills } from './skills/spec'
 import { rewindHandler } from './rewind/pod'
 import { rewind } from './rewind/spec'
 import { summariseHandler } from './summarise/pod'
@@ -25,6 +28,9 @@ export const nativeCommands: readonly Command[] = [
   cancelResize,
   model,
   help,
+  skills,
+  mcp,
+  shells,
 ]
 
 export const nativeCommandHandlers: ReadonlyMap<string, CommandHandler<unknown>> = new Map([
@@ -43,11 +49,14 @@ export {
   cancelResize,
   cancelResizeArgs,
   help,
+  mcp,
   model,
   rename,
   RESIZE_MAX_DISK_GB,
   resize,
   resizeArgs,
+  shells,
+  skills,
 }
 export type { ResizeArgs } from './resize/spec'
 export { REFUSAL_RENAME_NEEDS_NAME } from './rename/spec'

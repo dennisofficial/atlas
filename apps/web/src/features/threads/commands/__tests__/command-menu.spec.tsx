@@ -85,6 +85,9 @@ const press = (area: HTMLTextAreaElement, key: string) =>
 const actionsOf = (log: { model: number; list: number }) => ({
   [EClientAction.ModelPicker]: () => void (log.model += 1),
   [EClientAction.CommandList]: () => void (log.list += 1),
+  [EClientAction.Skills]: () => undefined,
+  [EClientAction.Mcp]: () => undefined,
+  [EClientAction.Shells]: () => undefined,
 })
 
 describe('command menu', () => {

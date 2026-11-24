@@ -11,12 +11,15 @@ describe('native commands', () => {
     expect([...registry.byName.keys()].sort()).toEqual([
       'cancel-resize',
       'help',
+      'mcp',
       'model',
       'rename',
       'resize',
       'resume',
       'rewind',
       'rotate',
+      'shells',
+      'skills',
       'summarise',
     ])
   })

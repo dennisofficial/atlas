@@ -1,11 +1,12 @@
 # @dltech/atlas-native-commands
 
 The native session commands: `rewind`, `summarise`, `rename`, `resize`, `cancel-resize`, `rotate`,
-`resume`, `model` and `help`. The API adds them to the command registry of every session.
+`resume`, `model`, `help`, `skills`, `mcp` and `shells`. The API adds them to the command registry of
+every session.
 
 ## Owns
 
-- The nine command specs, their zod arguments, their argument hints and the text form of `rewind`,
+- The twelve command specs, their zod arguments, their argument hints and the text form of `rewind`,
   `summarise`, `rename`, `resize`, `rotate` and `resume`.
 - The holder handlers for `rewind`, `summarise`, `rotate` and `resume`, which run in the agent host.
 - The control handler for `rename`, which sets the session title.
@@ -29,7 +30,7 @@ The native session commands: `rewind`, `summarise`, `rename`, `resize`, `cancel-
 ### The command list
 
 - `nativeCommands`: the specs, in declaration order — `rewind`, `rename`, `summarise`, `rotate`,
-  `resume`, `resize`, `cancel-resize`, `model`, `help`.
+  `resume`, `resize`, `cancel-resize`, `model`, `help`, `skills`, `mcp`, `shells`.
 - `nativeCommandHandlers`: one holder handler for each `host` command, keyed by `inboxKind`.
 - `nativeControlHandlers`: the `rename` handler, keyed by the command name.
 - `rename`, `resize`, `resizeArgs`, `RESIZE_MAX_DISK_GB`: the rename and resize specs, and the
@@ -37,8 +38,9 @@ The native session commands: `rewind`, `summarise`, `rename`, `resize`, `cancel-
   none for it.
 - `cancelResize`, `cancelResizeArgs`: the cancel spec, which takes an empty argument object and
   cancels a resize that waits for the pod to go idle. The API supplies the handler.
-- `model`, `help`: the two client commands. Each opens one `EClientAction`, and neither runs
-  anywhere on the server.
+- `model`, `help`, `skills`, `mcp`, `shells`: the client commands. Each opens one
+  `EClientAction` (`ModelPicker`, `CommandList`, `Skills`, `Mcp`, `Shells`) and none runs anywhere
+  on the server. A surface without the panel hides the name; the TUI draws all three.
 
 ### Read a rewind target
 

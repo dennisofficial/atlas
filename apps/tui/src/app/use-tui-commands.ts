@@ -1,4 +1,4 @@
-import type { EClientAction } from '@dltech/atlas-commands'
+import { EClientAction } from '@dltech/atlas-commands'
 import { useCallback, useMemo } from 'react'
 
 import { buildInfo } from '../build/info'
@@ -20,10 +20,15 @@ export function useTuiCommands(args: {
   onRewind: () => void
   onWake: () => void
   onShells: () => void
+  onSkills: () => void
+  onMcp: () => void
+  onSettings: () => void
+  onAuth: () => void
   onProblem: (reason: string) => void
 }): TuiCommands {
   const { sessionId, cwd, onProblem } = args
   const { onNew, onSessions, onQuit, onModel, onHelp, onRewind, onWake, onShells } = args
+  const { onSkills, onMcp, onSettings, onAuth } = args
 
   const run = useCallback(
     (name: string) => {
@@ -47,8 +52,13 @@ export function useTuiCommands(args: {
         return
       }
 
-      if (name === 'shells') {
-        onShells()
+      if (name === 'settings') {
+        onSettings()
+        return
+      }
+
+      if (name === 'auth') {
+        onAuth()
         return
       }
 
@@ -77,18 +87,30 @@ export function useTuiCommands(args: {
 
       onProblem(`/${name} is not a command in this build`)
     },
-    [cwd, onNew, onProblem, onQuit, onRewind, onSessions, onShells, onWake, sessionId],
+    [cwd, onAuth, onNew, onProblem, onQuit, onRewind, onSessions, onSettings, onWake, sessionId],
   )
 
   const action = useCallback(
     (picked: EClientAction) => {
-      if (picked === 'model-picker') {
+      if (picked === EClientAction.ModelPicker) {
         onModel()
+        return
+      }
+      if (picked === EClientAction.Skills) {
+        onSkills()
+        return
+      }
+      if (picked === EClientAction.Mcp) {
+        onMcp()
+        return
+      }
+      if (picked === EClientAction.Shells) {
+        onShells()
         return
       }
       onHelp()
     },
-    [onHelp, onModel],
+    [onHelp, onMcp, onModel, onShells, onSkills],
   )
 
   return useMemo(() => ({ run, action }), [action, run])

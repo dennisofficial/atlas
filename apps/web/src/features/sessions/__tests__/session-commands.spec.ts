@@ -91,8 +91,27 @@ describe('commandSectionsOf', () => {
 })
 
 describe('composerActionsOf', () => {
+  it('reports the panel commands, because only the app draws them', () => {
+    const hidden: string[] = []
+    const actions = composerActionsOf({
+      openModelPicker: () => {},
+      openCommandList: () => {},
+      reportHidden: (name) => void hidden.push(name),
+    })
+
+    actions[EClientAction.Skills]()
+    actions[EClientAction.Mcp]()
+    actions[EClientAction.Shells]()
+
+    expect(hidden).toEqual(['skills', 'mcp', 'shells'])
+  })
+
   it('answers every client action', () => {
-    const actions = composerActionsOf({ openModelPicker: () => {}, openCommandList: () => {} })
+    const actions = composerActionsOf({
+      openModelPicker: () => {},
+      openCommandList: () => {},
+      reportHidden: () => {},
+    })
 
     expect(Object.keys(actions).sort()).toEqual(Object.values(EClientAction).sort())
     for (const action of Object.values(EClientAction))
@@ -104,6 +123,7 @@ describe('composerActionsOf', () => {
     const actions = composerActionsOf({
       openModelPicker: () => void opened.push('model'),
       openCommandList: () => void opened.push('list'),
+      reportHidden: (name) => void opened.push(name),
     })
 
     actions[EClientAction.ModelPicker]()
