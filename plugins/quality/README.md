@@ -101,6 +101,7 @@ The hooks send product events through `ctx.analytics` with ids, enums, numbers a
 `notified`, `classifier_model`, `classifier_provider`, `scope_build_ms`, `classifier_ms`, `total_ms`,
 `input_tokens`, `language`, `first_review_in_session`, and for a finding `policy_id`,
 `steps_after_nudge` and `turns_after_nudge`. The host adds `session_id` and `thread_id`.
+The "Jev quality" PostHog dashboard reads them: https://us.posthog.com/project/411591/dashboard/2407147.
 
 The hook asks for captured text only for a write or destructive call, while the classifier is on and the `quality.enabled` setting is true. When it asks for nothing, the tool captures nothing.
 
