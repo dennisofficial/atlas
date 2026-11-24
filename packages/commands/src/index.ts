@@ -1,4 +1,4 @@
-export { catalogueOf } from './catalogue'
+export { catalogueOf, listedCommands } from './catalogue'
 export type { ControlCommandHandler } from './control'
 export { clientActionOf, clientActionOfEntries, clientOnlyReason } from './client'
 export {

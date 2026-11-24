@@ -65,7 +65,7 @@ its roster and its preview URLs.
 
 | Command    | Arguments              | What it does                                                                     |
 | ---------- | ---------------------- | -------------------------------------------------------------------------------- |
-| `/service` | `<stop\|restart> <id>` | Stop or restart a service by id. Runs in the host, hidden from every slash menu. |
+| `/service` | `<stop\|restart> <id>` | Stop or restart a service by id. Runs in the host, never in a session catalogue. |
 
 `serviceHandlerOf(ctx)` in `src/pod/commands.ts` calls the same `stopServiceAction` and
 `restartService` the `service` tool calls, so a service stopped from a drawer and one stopped by

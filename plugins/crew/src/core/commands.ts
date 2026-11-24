@@ -53,6 +53,7 @@ export const agent = defineCommand({
     args: agentArgs,
     runsIn: ECommandRunsIn.Host,
     fromText: agentFromText,
+    listed: false,
   },
 })
 
