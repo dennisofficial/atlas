@@ -1,6 +1,7 @@
 import { ESessionConnection } from '@dltech/atlas-client/stream'
 import React from 'react'
 
+import { NoticeStack } from '../ui/components/notice-stack'
 import { Spans } from '../ui/components/spans'
 import { Transcript } from '../ui/components/transcript'
 import { theme } from '../ui/theme'
@@ -56,6 +57,7 @@ export function AgentTranscriptScreen(props: {
         onNearTop={() => void transcript.loadOlder()}
         cloudConnected={transcript.connection === ESessionConnection.Live}
       />
+      <NoticeStack width={props.width} />
     </box>
   )
 }

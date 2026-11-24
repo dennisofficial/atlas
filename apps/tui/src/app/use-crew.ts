@@ -165,7 +165,7 @@ export function useCrew(args: {
   }, [rowset.subagents, setViewing, viewing])
 
   const handleEscape = useCallback((): boolean => {
-    const stoppable = crew.some((row) => row.agentId === viewing && isSubagentWorking(row.status))
+    const stoppable = crew.some((row) => row.agentId === viewing && isSubagentWorking(row))
     switch (crewEscapeOf({ viewing, armed, stoppable })) {
       case ECrewEscape.Ignore:
         return false
