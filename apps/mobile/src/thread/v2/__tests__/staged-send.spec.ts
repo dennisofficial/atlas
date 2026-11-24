@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
+import { withdrawStepOf } from '@dltech/atlas-client/session'
 import { EAttachmentStore, type Attachment } from '@dltech/atlas-core'
 
 import { clientIdOfSend, draftAfterSettlementOf, settlementOf } from '../staged-send'
@@ -134,29 +135,36 @@ describe('settlementOf', () => {
     expect(settlementOf({ staged: STAGED, events: consumed, unread: new Set() }).kept).toEqual([])
   })
 
-  it('treats a losing withdraw as already sent', () => {
-    const settlement = settlementOf({
-      staged: STAGED,
-      events: eventsOf([
-        {
-          ...envelope(1),
-          type: 'input-posted',
-          inboxId: 1,
-          kind: 'message',
-          postedAt: '2026-11-08T20:00:01.000Z',
-          message: { text: 'first', clientId: 'client-a' },
-        },
-        {
-          ...envelope(2),
-          type: 'input-refused',
-          inboxId: 1,
-          targetInboxId: 1,
-          reason: 'already-sent',
-        },
-      ]),
+  it('leaves a losing withdraw to the withdraw path, which owns the single notice', () => {
+    const events = eventsOf([
+      {
+        ...envelope(1),
+        type: 'input-posted',
+        inboxId: 1,
+        kind: 'message',
+        postedAt: '2026-11-08T20:00:01.000Z',
+        message: { text: 'first', clientId: 'client-a' },
+      },
+      {
+        ...envelope(2),
+        type: 'input-refused',
+        inboxId: 1,
+        targetInboxId: 1,
+        reason: 'already-sent',
+      },
+    ])
+    const settlement = settlementOf({ staged: STAGED, events })
+    const step = withdrawStepOf({
+      requests: [{ targetInboxId: 1, restoreText: true, text: 'first', attachments: [] }],
+      handled: new Set(),
+      events,
     })
+
+    expect(settlement.kept).toEqual([])
     expect(settlement.restored).toEqual([])
-    expect(settlement.notices).toEqual(['Already sent'])
+    expect(settlement.notices).toEqual([])
+    expect(step.restore).toBeUndefined()
+    expect([...settlement.notices, ...step.notices]).toEqual(['Already sent'])
   })
 })
 

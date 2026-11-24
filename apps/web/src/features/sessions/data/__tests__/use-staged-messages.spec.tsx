@@ -270,9 +270,9 @@ describe('useStagedMessages', () => {
     await act(async () => view.root.unmount())
   })
 
-  it('still puts a message the host refused on its own back in the composer', async () => {
+  it('still puts a message the host refused on its own back in the composer with its attachments', async () => {
     const view = await mount({ sessionId: 'refused-1' })
-    await act(async () => view.handles.stage?.(stagedOf('x1', 'hello')))
+    await act(async () => view.handles.stage?.(stagedOf('x1', 'hello', [SHOT])))
     await view.render(
       mintEvents({
         bodies: [
@@ -283,6 +283,7 @@ describe('useStagedMessages', () => {
     )
 
     expect(view.handles.draft).toBe('hello')
+    expect(view.handles.restoredAttachments).toEqual([SHOT])
     expect(shownErrors).toEqual(['session is archived'])
     await act(async () => view.root.unmount())
   })

@@ -15,8 +15,7 @@ The headless client library that web, the TUI and the mobile app share.
 
 ## Does not own
 
-- Frame and payload schemas, the channel protocol: `@dltech/atlas-wire`, `@dltech/atlas-protocol`.
-- Records and the API transport: `@dltech/atlas-control`, `@dltech/atlas-api-router`.
+- Frame and payload schemas, the channel protocol, records and the API transport: `@dltech/atlas-wire`, `@dltech/atlas-protocol`, `@dltech/atlas-control`, `@dltech/atlas-api-router`.
 - The visual components, their styles, and the held composer state that a surface draws.
 
 ## Entry points
@@ -45,8 +44,8 @@ The headless client library that web, the TUI and the mobile app share.
   by default; `followSessions()` gives the live list.
 - `createSessionFollower(args)`: a session's follower, its connection state and snapshot.
   `HYDRATE_TIMEOUT_MS` bounds the first load. `createSessionsFeed({ follow, write })` holds the list.
-- `StreamTransport`, `StreamScheduler`, `systemStreamScheduler`, `browserNetworkSignal`: the ports
-  that a surface supplies.
+  `StreamTransport`, `StreamScheduler`, `systemStreamScheduler`, `browserNetworkSignal`: the ports a
+  surface supplies.
 - `nestPeers(rows)` nests each teammate under its spawner. `peerBucketOf({ row })` and
   `EPeerBucket` give a row's bucket; `splitTeammates(rows)` gives its active and done teammates.
   `isRecentProject(args)`, `lastActivityAt(args)` and `RECENT_PROJECT_WINDOW_MS` keep new projects.
@@ -113,9 +112,8 @@ The headless client library that web, the TUI and the mobile app share.
 - `sessionCreateInputOf(args)`, `initialProjectIdOf(args)`: a new session's create input and project.
 - `composerSendStateOf`, `contextPercentOf`, `createDraftSync(args)`: send, context, draft write.
 - `queuedMessagesOf`, `queuedNoticesOf`, `stagedQueuedMessagesOf`, `optimisticPlacementOf(args)`: the queued rows.
-- `withdrawStepOf({ requests, handled, events })`, `withdrawRefusalNoticeOf(reason)`: the settlement
-  of a withdrawn queued message and the notice a refusal shows. A surface restores the text only
-  after the holder's `input-withdrawn`, and never after a refusal.
+- `withdrawStepOf({ requests, handled, events })`, `withdrawRefusalNoticeOf(reason)`: a withdrawn
+  message's settlement and the notice a refusal shows; a surface restores only on `input-withdrawn`.
 
 ### Sign in to Atlas Cloud
 
@@ -143,8 +141,7 @@ connection.connect()
 - Import a `-fixture` subpath in a spec, or in a prototype. Do not import it in a product path.
 - Supply the stream transport and the scheduler. The stream connection opens no socket of its own;
   `createRemoteDeltaChannel` opens the websocket to the pod, through the socket factory.
-- Pass the events through the protocol schema of the surface, which the log and the connection take
-  as an `eventSchema`. Keep the derivation pure: a transcript or a view is a function of its inputs.
+- Pass the events through the surface's protocol schema as `eventSchema`; keep a transcript or a view a pure function of its inputs.
 - Send a message through the channel. `SignalChatTransport.transport.sendMessages` throws.
 
 ## See also

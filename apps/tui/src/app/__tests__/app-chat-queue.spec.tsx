@@ -6,6 +6,7 @@ import { join } from 'node:path'
 
 import type { StreamSessionRow } from '@dltech/atlas-protocol'
 import { mintEvents } from '@dltech/atlas-client/stream-fixture'
+import { TextareaRenderable } from '@opentui/core'
 
 import { frameShowing, frameWhen } from '../../ui/__tests__/waiting'
 import { teardown } from '../../ui/markdown/__tests__/harness'
@@ -95,6 +96,18 @@ const clientOf = (mounted: Mounted): FakeSessionClient => {
   return client
 }
 
+const editorTextOf = (node: {
+  getChildren: () => readonly unknown[]
+  plainText?: string
+}): string => {
+  if (node instanceof TextareaRenderable) return node.plainText
+  for (const child of node.getChildren()) {
+    const found = editorTextOf(child as Parameters<typeof editorTextOf>[0])
+    if (found !== '') return found
+  }
+  return ''
+}
+
 describe('the queue of a v2 session', () => {
   test('a message the server queued while the turn works is on screen', async () => {
     const mounted = await open()
@@ -112,7 +125,7 @@ describe('the queue of a v2 session', () => {
     }
   }, 30_000)
 
-  test('up takes the queued message back into the draft', async () => {
+  test('up takes the queued message back into the draft once the server confirms', async () => {
     const mounted = await open()
     const client = clientOf(mounted)
     const first = mintEvents({ bodies: [postedBody(3)] })
@@ -129,6 +142,7 @@ describe('the queue of a v2 session', () => {
       })
 
       expect(client.calls.withdraw[0]).toEqual({ sessionId: SESSION_ID, inboxId: 3 })
+      expect(editorTextOf(mounted.setup.renderer.root)).toBe('')
 
       client.pushEvents({
         sessionId: SESSION_ID,
@@ -137,7 +151,12 @@ describe('the queue of a v2 session', () => {
         }),
         live: true,
       })
-      await frameShowing({ setup: mounted.setup, text: QUEUED, within: WITHIN })
+      await frameWhen({
+        setup: mounted.setup,
+        holds: () => editorTextOf(mounted.setup.renderer.root) === QUEUED,
+        describe: 'the withdrawn message in the draft',
+        within: WITHIN,
+      })
     } finally {
       await teardown(mounted.setup)
     }
@@ -148,7 +167,10 @@ describe('the queue of a v2 session', () => {
     const client = clientOf(mounted)
 
     try {
-      client.api.withdraw = async () => ({ ok: false, reason: 'already-consumed' })
+      client.api.withdraw = async (input) => {
+        client.calls.withdraw.push(input)
+        return { ok: false, reason: 'already-consumed' }
+      }
       client.pushEvents({
         sessionId: SESSION_ID,
         events: mintEvents({ bodies: [postedBody(3)] }),
@@ -158,7 +180,8 @@ describe('the queue of a v2 session', () => {
 
       mounted.setup.mockInput.pressArrow('up')
       await frameShowing({ setup: mounted.setup, text: 'Already sent', within: WITHIN })
-      expect(client.calls.withdraw).toBeDefined()
+      expect(client.calls.withdraw).toHaveLength(1)
+      expect(editorTextOf(mounted.setup.renderer.root)).toBe('')
     } finally {
       await teardown(mounted.setup)
     }

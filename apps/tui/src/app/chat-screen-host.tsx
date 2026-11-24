@@ -113,6 +113,7 @@ export function ChatScreenHost(props: ChatScreenHostProps): React.ReactNode {
     sessionId: props.sessionId,
     pending: transcript.pending,
     staged,
+    events: transcript.rawEvents,
     draft: composer.draft,
     tokens: composer.tokens,
     onProblem: problemOf,

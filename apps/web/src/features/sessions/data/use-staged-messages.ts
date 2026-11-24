@@ -73,6 +73,7 @@ export function useStagedMessages(args: {
       }
       if (outcome.outcome !== EStagedOutcome.Refused) continue
       texts.push(entry.text)
+      attachments.push(...entry.attachments)
       if (outcome.reason !== undefined) toast.error(outcome.reason)
     }
     if (texts.length > 0) {
