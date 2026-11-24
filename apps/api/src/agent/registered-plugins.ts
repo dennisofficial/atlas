@@ -56,7 +56,7 @@ import { sessionsPod } from '@dltech/atlas-plugin-sessions/pod'
 import { webClient } from '@dltech/atlas-plugin-web/client'
 import { webControl } from '@dltech/atlas-plugin-web/control'
 import { webCoreSlots } from '@dltech/atlas-plugin-web/core'
-import { webPod } from '@dltech/atlas-plugin-web/pod'
+import { webPodOf } from '@dltech/atlas-plugin-web/pod'
 
 const skillCloud = skillCloudPort()
 
@@ -180,7 +180,7 @@ export const registeredPlugins: readonly Plugin[] = [
   definePlugin({
     name: 'web',
     ...webCoreSlots,
-    pod: webPod,
+    pod: webPodOf({ jinaKey: process.env['JINA_API_KEY'] }),
     control: webControl,
     client: webClient,
     transport: 'none',

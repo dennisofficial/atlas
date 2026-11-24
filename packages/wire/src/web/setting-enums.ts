@@ -18,7 +18,6 @@ export {
   ETheme,
   EVercelPlan,
   EVerdictTiming,
-  EWebSearchBackendWire,
   effortOrInheritSchema,
   effortSchema,
   modelRefSettingSchema,
