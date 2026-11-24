@@ -45,7 +45,8 @@ they read. `apps/api` and `apps/trigger` both use it. It has no framework import
 - `sandboxSleeperOf({ config, sandbox })` and `sandboxResizerOf({ config, sandbox })` take a
   `SandboxConfigSource`.
 - `podSleeperOf({ env, db })` and `podResizerOf({ env, db })` wire the registry and the config
-  source for a pod.
+  source for a pod. Both throw `SandboxNotConfiguredError` when the session has no usable
+  credential.
 - `sandboxLiveCpuMs({ sessionId })` reads the Vercel CPU series from a 30 s cache.
 
 ### Read the sandbox config

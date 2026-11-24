@@ -24,7 +24,7 @@ Gives a thread its sub-agents and its git worktrees. The main thread starts a su
 | `@dltech/atlas-plugin-crew/core`    | The `crew` view fold, the row schema, the built-in agent types and the repository agent parser. |
 | `@dltech/atlas-plugin-crew/pod`     | `crewPod`: the tools, the repository agent type resource, the hooks and the prompt fragment.    |
 | `@dltech/atlas-plugin-crew/control` | `crewControl`: an empty control slot.                                                           |
-| `@dltech/atlas-plugin-crew/client`  | `crewClient`, `crewOfView` and `crewRosterOf`: the client hook and two view readers.            |
+| `@dltech/atlas-plugin-crew/client`  | `crewClient`, `crewOfView`, `crewRosterOf` and the `CrewRow` and `CrewRoster` types.            |
 
 ## Capabilities
 

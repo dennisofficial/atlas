@@ -8,7 +8,8 @@ its roster view.
 
 - The shell tools: `shell_output`, `shell_input`, `shell_kill` and `shell_list`. `bash` with
   `background: true` starts the shell, and this plugin records it.
-- The record of each shell: its status, its printed size and its read cursor.
+- The record of each shell: its name, its status, its printed size and its read cursor. A shell is
+  named by the description the agent gave, or by its command when the call gave none.
 - The `shells` view, which folds the `background-shell-*` events into one row for each shell.
 - The `shells.background` prompt fragment.
 
@@ -19,12 +20,12 @@ its roster view.
 
 ## Entry points
 
-| Import                                | Use it for                                                  |
-| ------------------------------------- | ----------------------------------------------------------- |
-| `@dltech/atlas-plugin-shells/core`    | `shellsCoreSlots`, the `shells` view fold and its schemas.  |
-| `@dltech/atlas-plugin-shells/pod`     | `shellsPod`: four tools, the hooks and the prompt fragment. |
-| `@dltech/atlas-plugin-shells/control` | `shellsControl`, an empty control slot.                     |
-| `@dltech/atlas-plugin-shells/client`  | `shellsClient`, `shellsOfView` and `shellRosterOf`.         |
+| Import                                | Use it for                                                                  |
+| ------------------------------------- | --------------------------------------------------------------------------- |
+| `@dltech/atlas-plugin-shells/core`    | `shellsCoreSlots`, the `shells` view fold, its schemas and `ShellRow`.      |
+| `@dltech/atlas-plugin-shells/pod`     | `shellsPod`: four tools, the hooks and the prompt fragment.                 |
+| `@dltech/atlas-plugin-shells/control` | `shellsControl`, an empty control slot.                                     |
+| `@dltech/atlas-plugin-shells/client`  | `shellsClient`, `shellsOfView`, `shellRosterOf` and the `ShellRoster` type. |
 
 ## Capabilities
 

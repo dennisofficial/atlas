@@ -67,7 +67,7 @@ The headless client library that web, the TUI and the mobile app share.
 - `createRemoteDeltaChannel(args)`: the delta channel to the serve in a pod. `webSocketFactory`,
   `sessionSocketUrlOf`, `ChannelSocket`: the socket adapter. `encodeFrame`, `decodeClientFrame`,
   `EServeFrame`, `EClientFrame`: the client side of the frame codec.
-- `turn-outcome`, `signal`, `session-tools`, `subscription-tools`, `rewind-tools`, `in-flight`.
+- `EClientRequest`, `ChannelSignal`, `StepSignal`, `TurnOutcome`, `InFlightSlots`: the request names, the signals, a turn's outcome and the in-flight slots.
 
 ### Build the transcript
 
@@ -75,7 +75,7 @@ The headless client library that web, the TUI and the mobile app share.
   transcript rows and the durable rows of a thread; `pluginEntries` adds a plugin's rows. `summariesAtTarget(events)`: the events with
   each compaction summary at its target.
 - `turnsBySeq(args)`, `settledAtOf(entries)`, `turnEndedEntry(turn)`: the turn rows and the settled
-  time. `turnStartedAtOf(events)`: the open turn's start. `TurnSpend`, `totalSpend`, `SpendTotals` and `NOTHING_SPENT`: what a turn spent.
+  time. `turnStartedAtOf({ events, status? })`: the open turn's start, or a queued session's `since`. `TurnSpend`, `totalSpend`, `SpendTotals` and `NOTHING_SPENT`: what a turn spent.
 - `ECallState`, `ECallKind`, `callKindOf(name)`, `ToolCall`, `ToolRun`, `attachmentsOf`,
   `qualityNoticeOf`, `qualityNoticeLine`, `EQualityNoticeTone`: the tool runs and a call's quality
   line. `agentsOf(args)`, `agentOf(args)`, `agentLabelOf(agent)`: a sub-agent's type, intent, state.

@@ -51,7 +51,8 @@ Subscribe a thread to a GitHub pull request or workflow run, so the events reach
   `github.pull-request` takes `comments`, `ci`, `mergeability` and `state`; `state` always arrives.
   `github.workflow-run` takes no filter.
 - `githubPresenters`: the title, icon and tone of a subscription row for each provider.
-- `subscriptionsOfEvents(events)`: the GitHub subscription rows of a thread.
+- `foldSubscriptions(state, event)` and `subscriptionsOfEvents(events)`: the `subscriptions` view
+  state of a thread, for every provider in its events.
 
 ### Call the subscription tool
 
@@ -77,12 +78,12 @@ keeps only the named filters. `expiresInMinutes` ends the subscription later.
 
 ### Pod tier (`githubPod`)
 
-| Kind       | Name                                 | What it adds                                                                                |
-| ---------- | ------------------------------------ | ------------------------------------------------------------------------------------------- |
-| Tool       | `subscription`                       | Subscribes the thread to a provider, unsubscribes one, or lists the subscriptions.          |
-| Hook       | `github-block-ci-watch` (beforeTool) | Denies a `bash` command that runs `gh ... --watch`, `watch gh`, or a poll loop.             |
-| Prompt     | `github.ci-feed`                     | Tells the model how a subscription delivers events, and that a one-shot read stays allowed. |
-| Child deny | `subscription`                       | A sub-agent cannot subscribe.                                                               |
+| Kind       | Name                                 | What it adds                                                                                                          |
+| ---------- | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------- |
+| Tool       | `subscription`                       | Subscribes the thread to a provider, unsubscribes one, or lists the subscriptions.                                    |
+| Hook       | `github-block-ci-watch` (beforeTool) | Denies a `bash` command that watches or polls CI. The refusal names the subscription that makes the wait unnecessary. |
+| Prompt     | `github.ci-feed`                     | Tells the model how a subscription delivers events, and that a one-shot read stays allowed.                           |
+| Child deny | `subscription`                       | A sub-agent cannot subscribe.                                                                                         |
 
 ### Core tier (`githubCoreSlots`)
 

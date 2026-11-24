@@ -19,7 +19,8 @@ produces the review records plus one one-time nudge. The host builds it from a `
   `@dltech/atlas-core` owns them.
 - The classifier's transports, model table and credential. `@dltech/atlas-classifier` owns them.
 - Reading settings, the clock and the workspace identity. The caller injects each one.
-- The workspace identity probe itself. `@dltech/atlas-host` owns the git probe and its port.
+- The workspace identity probe itself. `@dltech/atlas-core` owns the port, and
+  `@dltech/atlas-host` owns the git probe.
 - Any storage. Records reach the event log through the drafts this package returns.
 
 ## Entry points
@@ -70,17 +71,21 @@ produces the review records plus one one-time nudge. The host builds it from a `
 ## Usage
 
 ```ts
-import { CodeQualityReview, qualityRegistry } from '@dltech/atlas-quality'
+import { ESettingId } from '@dltech/atlas-core'
+import { CodeQualityReview, prepareQualityScopes, qualityRegistry } from '@dltech/atlas-quality'
 
 const engine = new CodeQualityReview({
   classifier,
   requestedModel: classifierStatus.model,
   source: { prepareQualityScopes },
   registry: qualityRegistry,
-  settings: readOf(settings),
-  workspaceIdentity,
-  clock: Date.now,
-  deadlineMs: 1000,
+  settings: () => ({
+    ...quality.policies,
+    [ESettingId.QualityEnabled]: quality.enabled,
+  }),
+  workspaceIdentity: new DaemonWorkspaceIdentity({ process: processes }),
+  clock: () => Date.now(),
+  deadlineMs: QUALITY_REVIEW_BUDGET_MS,
 })
 
 const drafts = await engine.review({

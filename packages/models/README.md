@@ -21,7 +21,8 @@ package.
 - The `ModelCard`, `ModelChoice` and `ModelRef` types, the account types and `resolveModelChoice`.
   `@dltech/atlas-core` owns them.
 - The provider clients and the model calls. `@dltech/atlas-agent` owns them.
-- The picker UI. Each surface owns its own.
+- The picker UI. `@dltech/atlas-ui/ai/model-selector` owns the shared picker, and the TUI draws its
+  own.
 - The provider network calls and the credential store. The caller passes the fetch function and the
   credential port.
 
@@ -61,6 +62,10 @@ package.
 - `catalogueProviders()`: returns the five `CatalogueSource` entries, one for each provider.
 - `modelsView({ accounts, liveCards? })`: returns the flat `ModelsViewProvider[]` that the API and
   the web show. A provider is `connected`, `expired` or `unavailable`.
+- `isRefReachable({ catalogue, ref })` and `catalogueLabel({ catalogue, ref })`: whether a card
+  exists and its provider is reachable, and the label of the ref.
+- `knownRefs(catalogue)`, `unmeasuredWindowWarning({ catalogue, ref })` and `unanswerableRef(key)`:
+  every ref key, the warning for a ref with no card, and the error for a ref that no adapter answers.
 - `CodexModelsCatalogue`: reads the model list of the Codex backend for a ChatGPT login, and caches
   it for `CODEX_MODELS_TTL_MS`. `codexCatalogueFor({ login, ports, clientVersion })` builds one.
 - `CODEX_VERSION`: the `openai/codex` client version that the catalogue request sends.
