@@ -1,0 +1,23 @@
+{
+  "name": "@dltech/atlas-plugin-quality",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./pod": "./src/pod/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@dltech/atlas-agent": "workspace:*",
+    "@dltech/atlas-core": "workspace:*",
+    "@dltech/atlas-plugin-sdk": "workspace:*",
+    "typescript": "6.0.3"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "zod": "^4.4.3"
+  }
+}

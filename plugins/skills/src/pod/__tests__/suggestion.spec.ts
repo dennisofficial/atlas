@@ -34,7 +34,9 @@ const fakeClassifier = (args: {
   const fake = {
     calls: 0,
     status: () =>
-      args.on === false ? { on: false as const, reason: 'off' } : { on: true as const, model: 'm' },
+      args.on === false
+        ? { on: false as const, reason: 'off' }
+        : { on: true as const, model: 'm', provider: 'jev' },
     classify: async ({ questions }: { questions: Record<string, unknown> }) => {
       fake.calls += 1
       return await args.answer(Object.keys(questions))

@@ -47,8 +47,8 @@ only what it can rebuild or drop.
 - `podControlOf(...)`: the control-plane client that a plugin's `PodControl` reaches.
 - `SessionRuntime.classifier`, `SessionRuntime.classifierStatus`: the core `ClassifierPort` of a
   held session, wired into `ctx.classifier` for a plugin. The runtime factory builds the client.
-- `SessionRuntime.quality`: the optional `QualityStagePort` the runtime factory builds, so a held
-  session and every child it spawns review their writes through one stage.
+- `SessionRuntime.analytics`: the `PodAnalytics` a plugin reaches as `ctx.analytics`. The host adds
+  `session_id` and `thread_id` to every capture; the runtime factory binds the user id.
 - `placeContextFiles`, `contextFilesPlacerOf`: write the files a spawner attached into the context
   folder of a session, before its first turn.
 - The holder holds a clean sub-agent ending while a sibling from the same spawn step still runs, then
@@ -103,14 +103,6 @@ only what it can rebuild or drop.
 - `SandboxUnavailableError`, `SANDBOX_OFFLINE_GUIDANCE`, `ReadyTimeoutError`, `FencedError`,
   `OpMismatchError`, `ProtocolViolationError`: the failures of a lost, fenced or broken sandbox.
 - `isReadOnlyOp(op)`: whether an op reads only, so a retry is safe.
-
-### Review a write
-
-- `qualityStageOf({review, clock, logPort, budgetMs})`: the `QualityStagePort` the tool dispatcher
-  calls. It bounds one review, validates the drafts and never replaces a committed write's result.
-- `QUALITY_REVIEW_BUDGET_MS`: the 1000 ms budget one review gets.
-- `DaemonWorkspaceIdentity`: the `WorkspaceIdentityPort` over the daemon process port. It reads the
-  layout, origin and branch with `git` and caches a thread and directory layout (750–1000 ms).
 
 ### Test a host
 

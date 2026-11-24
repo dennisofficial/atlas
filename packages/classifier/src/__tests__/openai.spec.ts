@@ -61,6 +61,31 @@ describe('OpenAiClassifier', () => {
     })
   })
 
+  it('reports the prompt tokens the provider charged', async () => {
+    const { fetch: fetchImpl } = recordingFetch(() =>
+      json({
+        answers: [{ type: 'predicate', name: 'danger', probability: 0.3 }],
+        usage: { prompt_tokens: 64, completion_tokens: 8 },
+      }),
+    )
+
+    expect(await ask(classifierOf(fetchImpl))).toMatchObject({
+      ok: true,
+      usage: { inputTokens: 64 },
+    })
+  })
+
+  it('carries no usage when the provider reports none', async () => {
+    const { fetch: fetchImpl } = recordingFetch(() =>
+      json({ answers: [{ type: 'predicate', name: 'danger', probability: 0.3 }] }),
+    )
+
+    const outcome = await ask(classifierOf(fetchImpl))
+
+    expect(outcome.ok).toBe(true)
+    if (outcome.ok) expect(outcome.usage).toBeUndefined()
+  })
+
   it('answers Rejected on a 401', async () => {
     const { fetch: fetchImpl } = recordingFetch(() => new Response('bad key', { status: 401 }))
 

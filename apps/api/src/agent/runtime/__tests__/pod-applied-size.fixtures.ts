@@ -35,7 +35,6 @@ const config: AgentHostConfig = {
   model: MODEL,
   models: fakeModelSourceOf(MODEL),
   classifier: { on: false, reason: 'no classifier model is set' },
-  quality: { enabled: false, policies: {} },
   rotation: { autoRotateAtPercent: 85 },
   sandbox: {
     configured: true,

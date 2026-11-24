@@ -5,6 +5,7 @@ import type { TracePort } from '@dltech/atlas-observability'
 import {
   ECloudSetting,
   EMPTY_CREW,
+  EMPTY_ANALYTICS,
   EMPTY_CLASSIFIER,
   EMPTY_POD_RESOURCES,
   EMPTY_SESSIONS,
@@ -123,6 +124,7 @@ export const rig = (args: {
     crew: EMPTY_CREW,
     messages: EMPTY_MESSAGES,
     classifier: EMPTY_CLASSIFIER,
+    analytics: EMPTY_ANALYTICS,
     sessions: EMPTY_SESSIONS,
     worktrees: EMPTY_WORKTREES,
     resources: EMPTY_POD_RESOURCES,

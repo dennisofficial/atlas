@@ -38,8 +38,6 @@ export {
   type WorkspaceGateOutcome,
 } from './calls/workspace-gate'
 export { DaemonAgentFileSystemPort } from './calls/ports/agent-filesystem'
-export { DaemonWorkspaceIdentity } from './quality/workspace-identity'
-export { QUALITY_REVIEW_BUDGET_MS, qualityStageOf } from './quality/quality-stage'
 export { DaemonFileSystemPort } from './calls/ports/filesystem'
 export {
   DaemonProcessPort,

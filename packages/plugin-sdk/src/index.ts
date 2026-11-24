@@ -1,3 +1,4 @@
+export * from './analytics'
 export * from './compose-pod'
 export * from './event-registry'
 export * from './latch'

@@ -21,7 +21,6 @@
     "@dltech/atlas-plugin-operator": "workspace:*",
     "@dltech/atlas-plugin-sdk": "workspace:*",
     "@dltech/atlas-protocol": "workspace:*",
-    "@dltech/atlas-quality": "workspace:*",
     "zod": "^4.4.3"
   },
   "devDependencies": {
