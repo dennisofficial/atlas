@@ -489,6 +489,14 @@ export const fakeSessionClient = (args: {
       calls.unsubscribe.push(input)
       return { ended: true }
     },
+    browseContext: async (input) => ({ directory: input.directory, entries: [] }),
+    readContext: async (input) => ({
+      file: {
+        type: 'refused',
+        path: input.path,
+        reason: `${input.path} is not in the context directory`,
+      },
+    }),
     changes: async (input) => {
       calls.changes.push(input)
       if (changesRefusal !== null) {
