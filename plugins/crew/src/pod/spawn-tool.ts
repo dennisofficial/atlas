@@ -146,6 +146,7 @@ export class AgentSpawnTool extends SchemaTool<typeof inputSchema> {
     const events = this.ctx.events()
     const groupSize = spawnsInStepOf(events)
     const group = spawnStepKeyOf(events)
+    const callId = this.ctx.toolCallId?.()
 
     try {
       const snapshot = await this.ctx.crew.spawn({
@@ -153,6 +154,7 @@ export class AgentSpawnTool extends SchemaTool<typeof inputSchema> {
         intent: input.intent,
         prompt: planned.prompt,
         ...(group === undefined ? {} : { group }),
+        ...(callId === undefined ? {} : { callId }),
         ...(target === undefined ? {} : { worktree: target.entry }),
       })
       return {

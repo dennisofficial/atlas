@@ -152,6 +152,8 @@ export type PluginPodContext = {
   /** Delivers a turn-taking notice through the agent's queue. */
   notify(event: EventBody, options: { key: string }): Promise<void>
   events(): readonly V2Event[]
+  /** The tool call this dispatch belongs to, so a replayed tool reuses what it already recorded. */
+  toolCallId?(): string | undefined
   call(
     op: CallOp,
     options?: { signal?: AbortSignal; onOutput?(bytes: Uint8Array): void },

@@ -26,6 +26,7 @@ export type PodCrew = {
     intent: string
     prompt: string
     group?: string | undefined
+    callId?: string | undefined
     worktree?: WorktreeEntryInfo | undefined
   }): Promise<SubagentSnapshot>
   say(args: {

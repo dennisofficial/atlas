@@ -118,7 +118,7 @@ export class ChildRun {
         agentId: run.agentId,
         worktree: args.worktree,
       })
-    await run.transcript.spawned({ worktree: args.worktree })
+    await run.transcript.spawned({ worktree: args.worktree, callId: args.callId })
     return run
   }
 

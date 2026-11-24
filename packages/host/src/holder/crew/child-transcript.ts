@@ -57,7 +57,10 @@ export class ChildTranscript {
     }
   }
 
-  async spawned(args: { worktree: WorktreeEntryInfo | undefined }): Promise<void> {
+  async spawned(args: {
+    worktree: WorktreeEntryInfo | undefined
+    callId?: string | undefined
+  }): Promise<void> {
     await this.append([
       {
         type: 'agent-spawned',
@@ -66,6 +69,7 @@ export class ChildTranscript {
         intent: this.args.intent,
         mode: EAgentStart.Fresh,
         ...(this.args.group === undefined ? {} : { group: this.args.group }),
+        ...(args.callId === undefined ? {} : { callId: args.callId }),
         ...(args.worktree === undefined ? {} : { worktree: worktreeDraftOf(args.worktree) }),
       },
       ...this.unavailableDrafts(),

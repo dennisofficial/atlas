@@ -4,10 +4,12 @@ import {
   EResumeOutcome,
   heldDraftOf,
   lostAgentEnding,
+  toLoopEvent,
   type AgentLost,
   type CrewRoomMember,
   type EventDraft,
   type ThreadId,
+  type V2Event,
 } from '@dltech/atlas-core'
 import type {
   PodCrew,
@@ -19,7 +21,7 @@ import type {
 import { ChildRun, type ChildRunArgs } from './child-run'
 import type { CrewSender } from './child-message'
 import { endingKeyOf, postNotice, threadLastSeq } from './child-reports'
-import { settledChildOf, type OpenChild } from './open-children'
+import { settledChildOf, spawnedChildrenOf, type OpenChild } from './open-children'
 
 export type CrewRoomArgs = Omit<
   ChildRunArgs,
@@ -39,8 +41,11 @@ export class CrewRoom {
     intent: string
     prompt: string
     group?: string | undefined
+    callId?: string | undefined
     worktree?: WorktreeEntryInfo | undefined
   }): Promise<SubagentSnapshot> {
+    const spawned = await this.spawnedForCall(args.callId)
+    if (spawned !== undefined) return spawned
     const run = await ChildRun.open({
       ...this.childArgs(),
       agentType: args.agentType,
@@ -48,11 +53,39 @@ export class CrewRoom {
       groupHold: (draft) => this.holdOf(draft),
       postHold: (post) => this.postInOrder(post),
       ...(args.group === undefined ? {} : { group: args.group }),
+      ...(args.callId === undefined ? {} : { callId: args.callId }),
       ...(args.worktree === undefined ? {} : { worktree: args.worktree }),
     })
     this.runs.set(run.agentId, run)
     await run.say({ text: args.prompt })
     return run.snapshot()
+  }
+
+  private async spawnedForCall(callId: string | undefined): Promise<SubagentSnapshot | undefined> {
+    if (callId === undefined) return undefined
+    const spawn = this.parentEvents().findLast(
+      (event): event is Extract<V2Event, { type: 'agent-spawned' }> =>
+        event.type === 'agent-spawned' && event.callId === callId,
+    )
+    if (spawn === undefined) return undefined
+    const kept = this.runs.get(spawn.agentId as ThreadId)
+    if (kept !== undefined) return kept.snapshot()
+    const child = this.openChildOf(spawn.agentId as ThreadId)
+    if (child === undefined) return undefined
+    await this.adopt(child)
+    return this.runs.get(spawn.agentId as ThreadId)?.snapshot()
+  }
+
+  private parentEvents(): readonly V2Event[] {
+    return this.args.parentRecord.eventCache().eventsAfter(0)
+  }
+
+  private openChildOf(agentId: ThreadId): OpenChild | undefined {
+    const loopEvents = this.parentEvents().flatMap((event) => {
+      const loop = toLoopEvent({ event })
+      return loop === undefined ? [] : [loop]
+    })
+    return spawnedChildrenOf(loopEvents).find((child) => child.agentId === agentId)
   }
 
   async adoptAll(children: readonly OpenChild[]): Promise<void> {
