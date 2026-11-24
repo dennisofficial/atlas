@@ -10,6 +10,7 @@ import {
   mintEvents,
   settle,
 } from '@dltech/atlas-client/stream-fixture'
+import { SESSION_VIEW_VERSION } from '@dltech/atlas-core'
 import { STREAM_PROTOCOL_VERSION } from '@dltech/atlas-protocol'
 
 const clock = createFakeScheduler()
@@ -64,7 +65,11 @@ describe('useAgentStream', () => {
 
     const subscription = fakes.follows[0]
     if (subscription === undefined) throw new Error('no subscription')
-    expect(subscription.input).toEqual({ sessionId: 'session-1', threadId: 'agent-1' })
+    expect(subscription.input).toEqual({
+      sessionId: 'session-1',
+      threadId: 'agent-1',
+      tailViewVersion: SESSION_VIEW_VERSION,
+    })
 
     const events = mintEvents({ bodies: [{ type: 'user-said', text: 'working' }] })
     await act(async () => {

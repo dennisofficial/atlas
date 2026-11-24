@@ -1,6 +1,8 @@
 import { registerDom, unregisterDom } from '@/lib/__tests__/happy-dom-globals'
-import { afterAll, afterEach, beforeAll, describe, expect, it, mock } from 'bun:test'
+import { afterAll, afterEach, beforeAll, describe, expect, it, jest, mock } from 'bun:test'
 import { act } from 'react'
+
+import { CLOUD_REQUEST_DEADLINE_MS } from '@/lib/auth-api'
 
 const replace = mock((_href: string) => {})
 mock.module('next/navigation', () => ({
@@ -21,6 +23,7 @@ afterAll(async () => {
 })
 
 afterEach(() => {
+  jest.useRealTimers()
   globalThis.fetch = originalFetch
   replace.mockClear()
 })
@@ -41,7 +44,7 @@ const serve = (options: { signedIn: boolean; active?: boolean }): void => {
 
 const settle = () => act(async () => new Promise<void>((done) => setTimeout(done, 20)))
 
-const mount = async () => {
+const renderGate = async () => {
   const { createTestQueryClient, TestQueryProvider } = await import(
     '@/lib/__tests__/query-test-provider'
   )
@@ -57,8 +60,31 @@ const mount = async () => {
       </TestQueryProvider>,
     ),
   )
-  await settle()
   return { host, root }
+}
+
+const mount = async () => {
+  const rendered = await renderGate()
+  await settle()
+  return rendered
+}
+
+const hangUntilAborted = (): typeof fetch =>
+  mock(
+    (_input: string | URL | Request, init?: RequestInit) =>
+      new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () =>
+          reject(new DOMException('The session check timed out', 'AbortError')),
+        )
+      }),
+  ) as unknown as typeof fetch
+
+const advance = async (ms: number): Promise<void> => {
+  for (let round = 0; round < 3; round += 1) {
+    await act(async () => {
+      jest.advanceTimersByTime(round === 0 ? ms : 0)
+    })
+  }
 }
 
 describe('SessionGate', () => {
@@ -96,6 +122,24 @@ describe('SessionGate', () => {
     const retry = host.querySelector('button')
     await act(async () => retry?.click())
     await settle()
+    expect(host.textContent).toContain('private content')
+    await act(async () => root.unmount())
+  })
+
+  it('shows retry after the deadline when the session check never answers', async () => {
+    jest.useFakeTimers()
+    globalThis.fetch = hangUntilAborted()
+    const { host, root } = await renderGate()
+    expect(host.textContent).not.toContain('Could not reach Atlas Cloud')
+
+    await advance(CLOUD_REQUEST_DEADLINE_MS + 1)
+    expect(host.textContent).toContain('Could not reach Atlas Cloud')
+    expect(host.querySelector('button')).not.toBeNull()
+
+    serve({ signedIn: true, active: true })
+    const retry = host.querySelector('button')
+    await act(async () => retry?.click())
+    await advance(20)
     expect(host.textContent).toContain('private content')
     await act(async () => root.unmount())
   })

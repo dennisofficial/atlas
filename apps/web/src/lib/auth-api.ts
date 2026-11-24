@@ -29,10 +29,15 @@ const HTTP_UNAUTHORIZED = 401
 const HTTP_FORBIDDEN = 403
 const SESSION_CHECK_FAILED = 'Session check failed — Atlas Cloud returned an error.'
 export const UNREACHABLE = 'Could not reach Atlas Cloud — check your connection and retry.'
+export const CLOUD_REQUEST_DEADLINE_MS = 10_000
 
 export const authFetch = async (path: string, init: RequestInit = {}): Promise<Response> => {
   try {
-    return await fetch(apiUrl(path), { credentials: 'include', ...init })
+    return await fetch(apiUrl(path), {
+      credentials: 'include',
+      ...init,
+      signal: init.signal ?? AbortSignal.timeout(CLOUD_REQUEST_DEADLINE_MS),
+    })
   } catch {
     throw new AuthApiError(UNREACHABLE)
   }
@@ -147,7 +152,9 @@ export async function sessionAccess(): Promise<SessionAccess | null> {
   const user = await sessionUser()
   if (user === null) return null
   try {
-    const account = await cloudCall(api.account.me.query({}))
+    const account = await cloudCall(
+      api.account.me.query({}, { signal: AbortSignal.timeout(CLOUD_REQUEST_DEADLINE_MS) }),
+    )
     return { ...user, active: account.active, userId: account.userId }
   } catch (failure) {
     if (isAwaitingAccess(failure)) return { ...user, active: false }

@@ -14,6 +14,7 @@ import {
   mintEvents,
   settle,
 } from '@dltech/atlas-client/stream-fixture'
+import { SESSION_VIEW_VERSION } from '@dltech/atlas-core'
 import { STREAM_PROTOCOL_VERSION } from '@dltech/atlas-protocol'
 
 import { useSessionStream } from '../use-session-stream'
@@ -79,7 +80,10 @@ describe('useSessionStream', () => {
     expect(await loadOlder()).toBe(0)
     const subscription = follows[0]
     if (subscription === undefined) throw new Error('no subscription')
-    expect(subscription.input).toEqual({ sessionId: 'session-1' })
+    expect(subscription.input).toEqual({
+      sessionId: 'session-1',
+      tailViewVersion: SESSION_VIEW_VERSION,
+    })
     const events = mintEvents({ bodies: [{ type: 'user-said', text: 'hello' }] })
     await act(async () => {
       subscription.handlers.handleFrame({
@@ -103,7 +107,11 @@ describe('useSessionStream', () => {
 
     const subscription = follows[0]
     if (subscription === undefined) throw new Error('no subscription')
-    expect(subscription.input).toEqual({ sessionId: 'session-1', threadId: 'agent-1' })
+    expect(subscription.input).toEqual({
+      sessionId: 'session-1',
+      threadId: 'agent-1',
+      tailViewVersion: SESSION_VIEW_VERSION,
+    })
     await act(async () => root.unmount())
   })
 
