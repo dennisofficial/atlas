@@ -64,6 +64,18 @@ const thinkingOnlyTurn = (): V2Body[] => [
   { type: 'assistant-said', parts: [{ type: 'reasoning', text: 'weighing it' }] },
 ]
 
+const drainedAfterStart = (): V2Body[] => [
+  { type: 'turn-started', turnId: 'turn-quick', cause: ETurnCause.Input },
+  {
+    type: 'input-posted',
+    inboxId: 5,
+    kind: 'message',
+    postedAt: '2026-11-24T21:55:00.000Z',
+    message: { text: 'think hard about the meaning of life', clientId: 'client-a' },
+  },
+  { type: 'user-said', text: 'think hard about the meaning of life', inboxId: 5 },
+]
+
 const toolTurn = (): V2Body[] => [
   { type: 'user-said', text: 'run the suite' },
   { type: 'turn-started', turnId: 'turn-quick', cause: ETurnCause.Input },
@@ -111,6 +123,19 @@ const lastCallOf = (log: BatchLog): readonly AppendBody[] => log.calls.at(-1) ??
 describe('a quick stop writes one append', () => {
   it('rewinds the message with the turn it cut', async () => {
     const log = await stoppedTurnOf(eventsOf(thinkingOnlyTurn()))
+
+    const drafts = lastCallOf(log)
+    expect(drafts.map((draft) => draft.type)).toEqual(['turn-ended', 'history-rewound'])
+    const rewound = drafts[1]
+    expect(rewound?.type === 'history-rewound' ? rewound : undefined).toMatchObject({
+      toSeq: 0,
+      draft: 'think hard about the meaning of life',
+      cause: ERewindCause.QuickStop,
+    })
+  })
+
+  it('rewinds a message the host drained after the turn started', async () => {
+    const log = await stoppedTurnOf(eventsOf(drainedAfterStart()))
 
     const drafts = lastCallOf(log)
     expect(drafts.map((draft) => draft.type)).toEqual(['turn-ended', 'history-rewound'])
