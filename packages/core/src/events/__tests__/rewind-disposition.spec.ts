@@ -16,6 +16,8 @@ describe('rewindDisposition', () => {
       'model-wait-cleared',
       'model-waiting',
       'pod-ran-out-of-memory',
+      'pod-resize-started',
+      'pod-resized',
       'pr-event',
       'run-event',
       'session-archived',

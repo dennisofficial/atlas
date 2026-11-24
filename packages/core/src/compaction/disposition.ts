@@ -42,6 +42,8 @@ export const COMPACTION_DISPOSITION = {
   nudge: ECompactionDisposition.Summarise,
   'sandbox-setup-reported': ECompactionDisposition.Summarise,
   'pod-ran-out-of-memory': ECompactionDisposition.Summarise,
+  'pod-resize-started': ECompactionDisposition.Drop,
+  'pod-resized': ECompactionDisposition.Summarise,
   'session-archived': ECompactionDisposition.Keep,
   parked: ECompactionDisposition.Summarise,
   'tool-parked': ECompactionDisposition.Drop,

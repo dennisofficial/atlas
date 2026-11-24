@@ -20,7 +20,7 @@ export type ProcessOutcome =
   | { readonly kind: EProcessOutcome.Exited; readonly code: number }
   | { readonly kind: EProcessOutcome.Failed; readonly code: string; readonly message: string }
   | { readonly kind: EProcessOutcome.OomKilled; readonly memory?: OomMemory | undefined }
-  | { readonly kind: EProcessOutcome.Interrupted }
+  | { readonly kind: EProcessOutcome.Interrupted; readonly message?: string | undefined }
   | { readonly kind: EProcessOutcome.Backgrounded; readonly shellId: string }
 
 export type ProcessHandle = {

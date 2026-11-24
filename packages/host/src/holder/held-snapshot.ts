@@ -24,10 +24,13 @@ import { idleReleaseDue } from './held-idle'
 import { countRunningShells, shellHoldOf } from './held-shells'
 import {
   actionableEntries,
+  carriesPodResized,
+  isInterrupt,
   isNoticeEntry,
   isStop,
   logPendingInputIdsOf,
   logPendingNoticeIdsOf,
+  podResizedNoticeIdsOf,
   queuedPromptAtOf,
   readFullInbox,
   stopSettledPromptOf,
@@ -37,6 +40,8 @@ import {
 import type { HeldSessionDeps } from './held-session-deps'
 import type { SessionRuntime } from './ports'
 import type { SessionRecord } from './record/record-adapter'
+
+const startsNoTurn = (entry: InboxEntry): boolean => isInterrupt(entry) || carriesPodResized(entry)
 
 const IDLE_WHILE_SETUP_RUNS: readonly EHeldAction[] = [
   EHeldAction.StartTurn,
@@ -91,19 +96,19 @@ export const readHeldAction = async (args: {
   const resumeEvents = cache?.loopEventsAfter(args.resumeAfterSeq) ?? []
   const entries = await readFullInbox(deps)
   const resolvable = forMainThread(entries.filter((entry) => understandsCommand(deps, entry)))
-  const logIds = logPendingInputIdsOf(events)
+  const logIds = logPendingInputIdsOf(events).filter((id) => !podResizedNoticeIdsOf(events).has(id))
   const preparedBefore = preparedBeforeOf(events)
   const workspace = workspaceStateFrom({
     record: args.record?.eventCache().bookkeeping().workspace() ?? NO_WORKSPACE_RECORD,
     preparing: args.preparing,
     pendingMessageIds: [
-      ...resolvable.filter((entry) => !isStop(entry)).map((entry) => entry.inboxId),
+      ...resolvable.filter((entry) => !startsNoTurn(entry)).map((entry) => entry.inboxId),
       ...logIds,
     ],
   })
   const actionable = actionableEntries({ entries: resolvable, failure: workspace.failure })
   const heldEndings = heldEndingIdsOf({
-    entries: actionable.filter((entry) => !isStop(entry)),
+    entries: actionable.filter((entry) => !isInterrupt(entry)),
     recordEvents: events,
     childrenRunning: args.childrenRunning,
   })
@@ -112,7 +117,9 @@ export const readHeldAction = async (args: {
   const messagePending =
     actionable.some(
       (entry) =>
-        !isStop(entry) && !heldEndings.has(entry.inboxId) && !(repairHeld && isNoticeEntry(entry)),
+        !startsNoTurn(entry) &&
+        !heldEndings.has(entry.inboxId) &&
+        !(repairHeld && isNoticeEntry(entry)),
     ) ||
     waitingInputIdsOf({
       ids: logIds.filter((id) => !noticeIds.has(id) && !heldEndings.has(id)),

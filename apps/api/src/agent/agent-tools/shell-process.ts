@@ -150,7 +150,10 @@ export async function readShell(args: {
   stderr.stop()
 
   if (outcome.kind === EProcessOutcome.Interrupted) {
-    throw new CallInterruptedError('the command was interrupted before it finished')
+    throw new CallInterruptedError({
+      message: 'the command was interrupted before it finished',
+      ...(outcome.message === undefined ? {} : { modelMessage: outcome.message }),
+    })
   }
   return { stdout: stdout.tail(), stderr: stderr.tail(), outcome }
 }

@@ -48,7 +48,9 @@ const exitedOutcomeOf = (result: ExecResult): ProcessOutcome => {
 }
 
 const failedOutcomeOf = (failure: { code: string; message: string }): ProcessOutcome => {
-  if (failure.code === ECallFailure.Interrupted) return { kind: EProcessOutcome.Interrupted }
+  if (failure.code === ECallFailure.Interrupted) {
+    return { kind: EProcessOutcome.Interrupted, message: failure.message }
+  }
   if (failure.code === ECallFailure.Cancelled) {
     return { kind: EProcessOutcome.Exited, code: CANCELLED_EXIT_CODE }
   }
@@ -60,7 +62,10 @@ const exitCodeOf = (outcome: ProcessOutcome): number => {
   if (outcome.kind === EProcessOutcome.OomKilled) return OOM_KILLED_EXIT_CODE
   if (outcome.kind === EProcessOutcome.Backgrounded) return BACKGROUNDED_EXIT_CODE
   if (outcome.kind === EProcessOutcome.Interrupted) {
-    throw new CallInterruptedError('the command was interrupted before it finished')
+    throw new CallInterruptedError({
+      message: 'the command was interrupted before it finished',
+      ...(outcome.message === undefined ? {} : { modelMessage: outcome.message }),
+    })
   }
   throw new Error(outcome.message)
 }

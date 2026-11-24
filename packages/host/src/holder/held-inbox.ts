@@ -4,10 +4,13 @@ import {
   INBOX_KIND_EVENT,
   INBOX_KIND_RECORD,
   INBOX_KIND_STOP,
+  inboxEventOf,
   isMessageInputKind,
   pendingInputsOf,
   pendingMessagesOf,
   pendingNoticesOf,
+  type PodResizeNotice,
+  type PodResizeStarted,
   type ThreadId,
   type V2Event,
   type InboxEntry,
@@ -86,6 +89,13 @@ export const logPendingInputIdsOf = (events: readonly V2Event[]): number[] => {
 export const logPendingNoticeIdsOf = (events: readonly V2Event[]): number[] =>
   pendingNoticesOf(pendingInputsOf(events)).map((entry) => entry.inboxId)
 
+export const podResizedNoticeIdsOf = (events: readonly V2Event[]): ReadonlySet<number> =>
+  new Set(
+    events.flatMap((event) =>
+      event.type === 'input-posted' && event.event?.type === 'pod-resized' ? [event.inboxId] : [],
+    ),
+  )
+
 export const isNoticeEntry = (entry: InboxEntry): boolean =>
   entry.kind === INBOX_KIND_EVENT || entry.kind === INBOX_KIND_RECORD
 
@@ -103,6 +113,28 @@ export const actionableEntries = (args: {
 }
 
 export const isStop = (entry: InboxEntry): boolean => entry.kind === INBOX_KIND_STOP
+
+export const podResizeStartedOf = (entry: InboxEntry): PodResizeStarted | undefined => {
+  if (entry.kind !== INBOX_KIND_RECORD) return undefined
+  const read = inboxEventOf(entry.payload)
+  return read.ok && read.event.type === 'pod-resize-started' ? read.event : undefined
+}
+
+export const isPodResizeStarted = (entry: InboxEntry): boolean =>
+  podResizeStartedOf(entry) !== undefined
+
+export const isResizeEntry = (entry: InboxEntry): boolean =>
+  isPodResizeStarted(entry) || carriesPodResized(entry)
+
+export const isInterrupt = (entry: InboxEntry): boolean => isStop(entry) || isResizeEntry(entry)
+
+export const podResizedOf = (entry: InboxEntry): PodResizeNotice | undefined => {
+  if (entry.kind !== INBOX_KIND_RECORD) return undefined
+  const read = inboxEventOf(entry.payload)
+  return read.ok && read.event.type === 'pod-resized' ? read.event : undefined
+}
+
+export const carriesPodResized = (entry: InboxEntry): boolean => podResizedOf(entry) !== undefined
 
 const onThread = (args: { entry: InboxEntry; threadId: ThreadId }): boolean =>
   args.entry.threadId === null || args.entry.threadId === args.threadId

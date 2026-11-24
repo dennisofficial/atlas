@@ -27,7 +27,7 @@ export const pluginCallOf = (args: {
     const outcome = await args.gate.wait(signal)
     if (outcome.state === 'prepared') return null
     if (outcome.state === 'aborted') {
-      throw new CallInterruptedError(POD_WAIT_INTERRUPTED)
+      throw new CallInterruptedError({ message: POD_WAIT_INTERRUPTED })
     }
     return {
       status: ECallStatus.Failed,

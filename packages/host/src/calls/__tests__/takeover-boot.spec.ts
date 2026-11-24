@@ -74,7 +74,7 @@ describe('a takeover onto a new daemon boot', () => {
     const result = drafts.find((draft) => draft.type === 'tool-result')
     if (result?.type !== 'tool-result') throw new Error('no tool-result draft')
     expect(result.interrupted).toBe(true)
-    expect(result.error?.message).toBe(interruptedMessage('bash'))
+    expect(result.error?.message).toBe(interruptedMessage('exec'))
     expect(daemon.runCount()).toBe(0)
 
     calls.close()

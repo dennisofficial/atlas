@@ -326,6 +326,10 @@ export class ControlPlane {
     })
   }
 
+  async podSessionsPlaced(params: { podSessionId: string }) {
+    return this.store.transact((tx) => tx.podSessionsPlaced(params))
+  }
+
   async podPeersPlaced(params: {
     podSessionId: string
     excludeSessionId: string
@@ -790,6 +794,10 @@ export class ControlPlane {
     inboxId: number
   }): Promise<InboxEntry | undefined> {
     return this.store.transact((tx) => tx.readInboxEntry(params))
+  }
+
+  async deleteInboxEntry(params: { sessionId: string; inboxId: number }): Promise<boolean> {
+    return this.store.transact((tx) => tx.deleteInboxEntry(params))
   }
 
   async readInbox(params: {

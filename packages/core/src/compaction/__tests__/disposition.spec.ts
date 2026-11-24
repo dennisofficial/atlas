@@ -5,6 +5,7 @@ import { ECompactionAnchor, EPrEventKind, EPrVerdict, type EventType } from '../
 import { toCallId, toThreadId } from '../../events/ids'
 import { EExecutionLocation } from '../../execution/location'
 import { EOomScope } from '../../pod/pod-oom'
+import { EPodResizeNotice } from '../../pod/pod-resize-notice'
 import { EServiceStatus } from '../../services/status'
 import { EShellStatus } from '../../shells/status'
 import { ESubscriptionActor } from '../../subscriptions/subscription'
@@ -140,6 +141,13 @@ const SURVIVOR_MINIMAL = {
     command: 'bunx turbo run typecheck',
     processes: 12,
     memory: { commandLimitBytes: 2_490_195_968, podBytes: 4_100_808_704 },
+  },
+  'pod-resized': {
+    type: 'pod-resized',
+    vcpus: 8,
+    memoryGb: 32,
+    generation: 3,
+    outcome: EPodResizeNotice.Applied,
   },
   parked: {
     type: 'parked',

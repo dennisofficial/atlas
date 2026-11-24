@@ -22,6 +22,16 @@ export const inboxIdOf = (draft: AppendBody): number | undefined => {
   return id !== undefined && Number.isInteger(id) && id >= 1 ? id : undefined
 }
 
+export class TurnAbortedError extends Error {
+  constructor(message = 'the turn was interrupted before its dispatch was recorded') {
+    super(message)
+    this.name = 'TurnAbortedError'
+  }
+}
+
+export const abortErrorOf = (signal: AbortSignal): Error =>
+  signal.reason instanceof Error ? signal.reason : new TurnAbortedError()
+
 export const abortedOnHandoff = (draft: AppendBody, draining: boolean): AppendBody => {
   if (!draining) return draft
   if (draft.type !== 'assistant-said' || draft.interrupted !== true) return draft

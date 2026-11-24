@@ -19,7 +19,7 @@ import { AppendRetry, type DaemonAck } from './append-retry'
 import { LeaseLostError } from './lease-lost-error'
 import { RecordCache } from './record-cache'
 import { spillForAppend } from './record-spill'
-import { abortedOnHandoff, toRecordBody, type AppendBody } from './append-drafts'
+import { abortErrorOf, abortedOnHandoff, toRecordBody, type AppendBody } from './append-drafts'
 import { RecordCorruptionError } from './append-drafts'
 import { ackRecordedDaemonResults, prepareDraft } from './record-commit'
 
@@ -36,6 +36,15 @@ const postedInputAtsOf = (events: readonly V2Event[]): ReadonlyMap<number, strin
       event.type === 'input-posted' ? [[event.inboxId, event.postedAt] as const] : [],
     ),
   )
+
+export type AppendArgs = {
+  threadId: ThreadId
+  runId: RunId
+  parentRunId?: RunId | undefined
+  depth?: number | undefined
+  drafts: readonly AppendBody[]
+  signal?: AbortSignal | undefined
+}
 
 export type SessionRecordArgs = {
   plane: ControlPlane
@@ -100,10 +109,12 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
 
   markDraining(): void {
     this.draining = true
+    this.args.remoteCalls.releaseResize()
   }
 
   fence(): void {
     this.fenced = true
+    this.args.remoteCalls.releaseResize()
     this.retry.wake()
   }
 
@@ -136,13 +147,30 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
     return { events: projectedEvents(this.cache.visibleLoopEvents()) }
   }
 
-  append(args: {
-    threadId: ThreadId
-    runId: RunId
-    parentRunId?: RunId | undefined
-    depth?: number | undefined
-    drafts: readonly AppendBody[]
-  }): Promise<Event[]> {
+  append(args: AppendArgs): Promise<Event[]> {
+    return this.gatedAppend(args)
+  }
+
+  private async gatedAppend(args: AppendArgs): Promise<Event[]> {
+    if (!args.drafts.some((draft) => this.isDaemonDispatch(draft))) {
+      return (await this.enqueue(args)) ?? []
+    }
+    for (;;) {
+      await this.admit(args.signal)
+      const events = await this.enqueue(args)
+      if (events !== undefined) return events
+    }
+  }
+
+  private async admit(signal: AbortSignal | undefined): Promise<void> {
+    await this.args.remoteCalls.awaitResize({ signal })
+    if (this.fenced) {
+      throw new LeaseLostError('the holder self-fenced; no append is attempted', 'self-fenced')
+    }
+    if (signal?.aborted === true) throw abortErrorOf(signal)
+  }
+
+  private enqueue(args: AppendArgs): Promise<Event[] | undefined> {
     const run = this.tail.then(() => this.appendSerial(args))
     this.tail = run.then(
       () => undefined,
@@ -151,16 +179,24 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
     return run
   }
 
-  private async appendSerial(args: {
-    threadId: ThreadId
-    runId: RunId
-    parentRunId?: RunId | undefined
-    depth?: number | undefined
-    drafts: readonly AppendBody[]
-  }): Promise<Event[]> {
+  private resizeHeld(): boolean {
+    return this.args.remoteCalls.resizeHeld() !== undefined
+  }
+
+  private isDaemonDispatch(draft: AppendBody): boolean {
+    return (
+      draft.type === 'tool-dispatched' &&
+      draft.detached !== true &&
+      this.args.daemonTools.has(draft.name)
+    )
+  }
+
+  private async appendSerial(args: AppendArgs): Promise<Event[] | undefined> {
     if (this.fenced) {
       throw new LeaseLostError('the holder self-fenced; no append is attempted', 'self-fenced')
     }
+    const gated = args.drafts.some((draft) => this.isDaemonDispatch(draft))
+    if (gated && this.resizeHeld()) return undefined
     const bodies: V2Body[] = []
     const blobs: BlobWrite[] = []
     const resolved = new Map<string, unknown>()
@@ -188,6 +224,7 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
       }
     }
     if (bodies.length === 0) return []
+    if (gated && this.resizeHeld()) return undefined
     const events = chainEvents({
       threadId: args.threadId,
       runId: args.runId,

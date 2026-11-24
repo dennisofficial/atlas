@@ -1,5 +1,10 @@
 import type { ControlSessionRow } from '@dltech/atlas-control'
-import type { PodBusy, PodShape } from '@dltech/atlas-core'
+import {
+  EPodResizeNotice,
+  type PodBusy,
+  type PodResizeNotice,
+  type PodShape,
+} from '@dltech/atlas-core'
 
 import type { PodResizeOutcome } from '../sandbox/sandbox-provider'
 import {
@@ -7,6 +12,7 @@ import {
   type PodResizeOutput,
   type PodResizePayload,
 } from '@dltech/atlas-jobs/pod-resize'
+import { announceResize, type PodResizeInterruptDeps } from './pod-resize-interrupt'
 
 export type PodResizeSession = Pick<
   ControlSessionRow,
@@ -19,15 +25,21 @@ export type PodResizeSession = Pick<
   | 'archivedAt'
 >
 
-export type PodResizeDeps = {
+export type PodPlacedTarget = { sessionId: string; archivedAt: string | null }
+
+export type PodResizeLease = { live: boolean; epoch: number }
+
+export type PodResizeDeps = PodResizeInterruptDeps & {
   session(args: { sessionId: string }): Promise<PodResizeSession | undefined>
   resize(args: {
     sandboxSessionId: string
     shape: PodShape
     diskGb?: number | undefined
   }): Promise<PodResizeOutcome>
-  rewake(args: { sessionId: string }): Promise<unknown>
-  held(args: { sessionId: string }): Promise<boolean>
+  placed(args: { podSessionId: string }): Promise<readonly PodPlacedTarget[]>
+  notice(args: { sessionId: string; notice: PodResizeNotice }): Promise<unknown>
+  wake(args: { sessionId: string; epoch: number }): Promise<unknown>
+  lease(args: { sessionId: string }): Promise<PodResizeLease>
   recordApplied(args: {
     sessionId: string
     vcpus: number
@@ -70,11 +82,35 @@ export const runPodResize = async (args: {
   }
   const sandboxSessionId = session.podSessionId ?? session.sessionId
   const diskGb = session.podDesiredDiskGb ?? payload.diskGb
-  const resized = await deps.resize({
-    sandboxSessionId,
-    shape,
-    ...(diskGb === undefined ? {} : { diskGb }),
+  const targets = await deps.placed({ podSessionId: sandboxSessionId })
+  const leases = await leasesOf({
+    deps,
+    sessionIds: [...new Set([sandboxSessionId, ...targets.map((target) => target.sessionId)])],
   })
+  const live = (sessionId: string): boolean => leases.get(sessionId)?.live === true
+  await announceResize({
+    deps,
+    sessionIds: targets.map((target) => target.sessionId).filter(live),
+    shape,
+    generation: payload.generation,
+  })
+  const notice = (args: { outcome: EPodResizeNotice; error?: string }): Promise<unknown[]> =>
+    postNotices({
+      deps,
+      targets: targets.filter((target) => target.archivedAt === null),
+      notice: { ...shape, generation: payload.generation, ...args },
+    })
+  let resized: PodResizeOutcome
+  try {
+    resized = await deps.resize({
+      sandboxSessionId,
+      shape,
+      ...(diskGb === undefined ? {} : { diskGb }),
+    })
+  } catch (failure) {
+    await notice({ outcome: EPodResizeNotice.Failed, error: failureText(failure) })
+    throw failure
+  }
   if (resized === 'absent') {
     // nothing will ever apply this size: say so rather than claim it was stored
     await deps.recordFailed({
@@ -82,11 +118,8 @@ export const runPodResize = async (args: {
       generation: payload.generation,
       error: NO_SANDBOX_TO_RESIZE,
     })
+    await notice({ outcome: EPodResizeNotice.Failed, error: NO_SANDBOX_TO_RESIZE })
     return { outcome: EPodResizeOutcome.Failed }
-  }
-  // a parked pod keeps the size for its next wake; waking it now would defeat the park
-  if (resized === 'stored' && !(await deps.held({ sessionId: sandboxSessionId }))) {
-    return { outcome: EPodResizeOutcome.Deferred }
   }
   // A restart has already recreated the container at the new shape, so the size is applied before
   // anything wakes the pod again: the re-wake below can fail, be claimed elsewhere, or never report
@@ -99,7 +132,44 @@ export const runPodResize = async (args: {
       generation: payload.generation,
     })
   }
-  if (session.archivedAt !== null) return { outcome: EPodResizeOutcome.Applied }
-  await deps.rewake({ sessionId: sandboxSessionId })
+  await notice({ outcome: EPodResizeNotice.Applied })
+  if (resized === 'stored' && !live(sandboxSessionId)) {
+    return { outcome: EPodResizeOutcome.Deferred }
+  }
+  if (session.archivedAt !== null || live(sandboxSessionId)) {
+    return { outcome: EPodResizeOutcome.Applied }
+  }
+  await deps.wake({
+    sessionId: sandboxSessionId,
+    epoch: epochOf({ leases, sessionId: sandboxSessionId }),
+  })
   return { outcome: EPodResizeOutcome.Applied }
+}
+
+const leasesOf = async (args: {
+  deps: PodResizeDeps
+  sessionIds: readonly string[]
+}): Promise<Map<string, PodResizeLease>> => {
+  const leases = new Map<string, PodResizeLease>()
+  for (const sessionId of args.sessionIds) {
+    leases.set(sessionId, await args.deps.lease({ sessionId }))
+  }
+  return leases
+}
+
+const epochOf = (args: {
+  leases: ReadonlyMap<string, PodResizeLease>
+  sessionId: string
+}): number => args.leases.get(args.sessionId)?.epoch ?? 0
+
+const postNotices = async (args: {
+  deps: PodResizeDeps
+  targets: readonly PodPlacedTarget[]
+  notice: PodResizeNotice
+}): Promise<unknown[]> => {
+  const posted: unknown[] = []
+  for (const target of args.targets) {
+    posted.push(await args.deps.notice({ sessionId: target.sessionId, notice: args.notice }))
+  }
+  return posted
 }

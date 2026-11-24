@@ -11,6 +11,7 @@ import { INBOX_KIND_MESSAGE } from '@dltech/atlas-protocol'
 import { INBOX_KIND_OPERATOR_ANSWER } from '@dltech/atlas-plugin-operator/core'
 
 import { childRetryAgentIdOf } from './child-retry'
+import { isResizeEntry } from './held-inbox'
 import { consumeQuietly, consumeUnknown, runCommand, type CommandGlue } from './command-intake-glue'
 import { ESkillDrafts, isCommandKind } from './command-intake'
 import { EIntakeScope, skipsInChildScope } from './intake-scope'
@@ -59,6 +60,7 @@ export const drainEntries = async (args: {
       await consumeQuietly({ ...args.glue, entry, drafts: reopen })
       continue
     }
+    if (isResizeEntry(entry)) continue
     if (entry.kind === INBOX_KIND_EVENT || entry.kind === INBOX_KIND_RECORD) {
       if (
         await drainEventEntry({

@@ -29,6 +29,8 @@ import type {
   TerminalEndedReason,
 } from './terminal-rows'
 
+export type PodPlacedSession = { sessionId: string; archivedAt: string | null }
+
 export type {
   ControlTerminalRow,
   CreateTerminalParams,
@@ -376,6 +378,7 @@ export interface ControlTx {
   listSessionDigests(params: SessionListParams): Promise<SessionDigestRow[]>
   countSessionBuckets(params: SessionBucketCountParams): Promise<SessionBucketCounts>
   podPeersPlaced(params: { podSessionId: string; excludeSessionId: string }): Promise<number>
+  podSessionsPlaced(params: { podSessionId: string }): Promise<PodPlacedSession[]>
   createThread(params: {
     threadId: string
     sessionId: string

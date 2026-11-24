@@ -4,6 +4,8 @@ import type { CallTimers } from './remote-calls'
 
 export const READY_TIMEOUT_MS = 60_000
 
+export const POD_RESTART_TIMEOUT_MS = 5 * 60_000
+
 type ReadyDeadlineArgs = {
   promise: Promise<ReadyReply>
   timeoutMs: number

@@ -36,6 +36,7 @@ import { prEventSchemas } from './pr-schema'
 import { runEventSchemas } from './run-schema'
 import { oomMemorySchema, shellEventSchemas } from './shell-schema'
 import { EOomScope } from '../pod/pod-oom'
+import { EPodResizeNotice } from '../pod/pod-resize-notice'
 import { runFailureSchema } from './run-failure'
 import { threadIdSchema, callIdSchema, eventIdSchema, runIdSchema } from './ids'
 import {
@@ -171,6 +172,20 @@ const coreEventBodySchema = z.discriminatedUnion('type', [
     command: z.string().min(1).optional(),
     processes: z.number().int().positive(),
     memory: oomMemorySchema,
+  }),
+  z.object({
+    type: z.literal('pod-resize-started'),
+    vcpus: z.number().int().positive(),
+    memoryGb: z.number().int().positive(),
+    generation: z.number().int().nonnegative(),
+  }),
+  z.object({
+    type: z.literal('pod-resized'),
+    vcpus: z.number().int().positive(),
+    memoryGb: z.number().int().positive(),
+    generation: z.number().int().nonnegative(),
+    outcome: z.enum(EPodResizeNotice),
+    error: z.string().optional(),
   }),
   z.object({
     type: z.literal('session-archived'),

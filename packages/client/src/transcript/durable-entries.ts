@@ -7,6 +7,7 @@ import {
   isNoticeArrival,
   laneNameOf,
   latestTldrPerAnchor,
+  podResizedLine,
   saidBy,
   type ConsumedCommand,
   type Event,
@@ -182,6 +183,18 @@ export function durableEntries(args: {
     }
 
     if (event.type === 'pod-ran-out-of-memory') return [podOomEntryOf(event)]
+
+    if (event.type === 'pod-resized') {
+      return [
+        {
+          kind: EEntryKind.SystemNotice,
+          author: EAuthor.Model,
+          key: event.id,
+          text: 'pod-resized',
+          content: podResizedLine(event),
+        },
+      ]
+    }
 
     if (event.type === 'session-archived') return [sessionArchivedEntryOf(event)]
 

@@ -26,7 +26,10 @@ export const throwFailure = (
   result: Extract<CallResult, { status: ECallStatus.Failed }>,
 ): never => {
   if (result.error.code === ECallFailure.Interrupted) {
-    throw new CallInterruptedError(result.error.message)
+    throw new CallInterruptedError({
+      message: result.error.message,
+      modelMessage: result.error.message,
+    })
   }
   const errno = FAILURE_ERRNOS[result.error.code]
   if (errno !== undefined) {

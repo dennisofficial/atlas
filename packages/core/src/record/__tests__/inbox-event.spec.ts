@@ -8,6 +8,7 @@ import { EShellStatus } from '../../shells/status'
 import { ENoticeStage } from '../../events/notice-stage'
 import { ESetupPhase } from '../../workspace/setup-notice'
 import { inboxEventOf, inboxEventPayloadOf } from '../inbox-event'
+import { EPodResizeNotice } from '../../pod/pod-resize-notice'
 
 const prEvent = {
   type: 'pr-event' as const,
@@ -91,6 +92,20 @@ describe('inboxEventOf', () => {
     for (const event of [ended, shellEnded, serviceEnded, setupEnded]) {
       expect(inboxEventOf(inboxEventPayloadOf({ event }))).toEqual({ ok: true, event })
     }
+  })
+
+  it('carries a pod-resized notice, which the operator never starts a turn with', () => {
+    const notice = {
+      type: 'pod-resized' as const,
+      vcpus: 8,
+      memoryGb: 32,
+      generation: 3,
+      outcome: EPodResizeNotice.Applied,
+    }
+    expect(inboxEventOf(inboxEventPayloadOf({ event: notice }))).toEqual({
+      ok: true,
+      event: notice,
+    })
   })
 
   it('carries a clientId at the top level for idempotent posts', () => {

@@ -7,6 +7,7 @@ export abstract class AgentRecordPort {
     parentRunId?: RunId | undefined
     depth?: number | undefined
     drafts: readonly EventDraft[]
+    signal?: AbortSignal | undefined
   }): Promise<Event[]>
 
   abstract ownEvents(args: { threadId: ThreadId; afterSeq?: number | undefined }): Promise<Event[]>

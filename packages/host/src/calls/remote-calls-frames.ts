@@ -18,6 +18,7 @@ export type Pending = {
   controller: AbortController
   delivered: number
   sent: boolean
+  armed: boolean
   done: boolean
   awaitingAnswer: boolean
   detach?: (() => void) | undefined

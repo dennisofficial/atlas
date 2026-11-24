@@ -85,7 +85,7 @@ import { hostPresentIn, hostsPresentIn } from './postgres-presence'
 import { resolveSessionModelIn } from './postgres-session-model'
 import { sessionDigestsIn } from './postgres-digests'
 import { sessionBucketCountsIn } from './postgres-session-buckets'
-import { podPeersPlacedIn } from './postgres-peers'
+import { podPeersPlacedIn, podSessionsPlacedIn } from './postgres-peers'
 import {
   clearTitleFromIn,
   createSessionIn,
@@ -310,6 +310,10 @@ export class PostgresTx implements ControlTx {
 
   async countSessionBuckets(params: SessionBucketCountParams): Promise<SessionBucketCounts> {
     return sessionBucketCountsIn({ tx: this.tx, ...params })
+  }
+
+  async podSessionsPlaced(params: { podSessionId: string }) {
+    return podSessionsPlacedIn({ tx: this.tx, ...params })
   }
 
   async podPeersPlaced(params: {

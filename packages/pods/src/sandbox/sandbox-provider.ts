@@ -1,4 +1,4 @@
-import type { PodShape } from '@dltech/atlas-core'
+import { EPodResizeProbe, type PodShape } from '@dltech/atlas-core'
 import { ESandboxProvider } from '@dltech/atlas-protocol'
 
 export type SandboxCredentials =
@@ -54,5 +54,9 @@ export abstract class SandboxProvider {
   }
   podDiskGb(): number | undefined {
     return undefined
+  }
+
+  async resizeState(_args: { target: SandboxTarget; shape: PodShape }): Promise<EPodResizeProbe> {
+    return EPodResizeProbe.Unknown
   }
 }

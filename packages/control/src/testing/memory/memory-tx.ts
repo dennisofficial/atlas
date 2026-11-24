@@ -90,7 +90,7 @@ import { claimNeedingIn } from './memory-claim-next'
 import { leasesHeldByIn, writeLeaseIn } from './memory-leases'
 import { createThreadIn, readThreadIn, writeThreadHeadIn } from './memory-threads'
 import { sessionBucketCountsIn, sessionDigestsIn } from './memory-digests'
-import { podPeersPlacedIn } from './memory-peers'
+import { podPeersPlacedIn, podSessionsPlacedIn } from './memory-peers'
 import {
   clearTitleFromIn,
   createSessionIn,
@@ -167,6 +167,10 @@ export class MemoryTx extends MemoryTxViews implements ControlTx {
 
   async readNestedChildren(params: { sessionId: string }): Promise<ControlSessionRow[]> {
     return readNestedChildrenIn({ state: this.state, ...params })
+  }
+
+  async podSessionsPlaced(params: { podSessionId: string }) {
+    return podSessionsPlacedIn({ state: this.state, ...params })
   }
 
   async podPeersPlaced(params: {
