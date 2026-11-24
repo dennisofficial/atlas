@@ -1,11 +1,11 @@
 import type { ExpoConfig } from 'expo/config'
 
-const EAS_PROJECT_ID = 'caf9803f-fa40-4b47-a9be-775097e17d0a'
+const EAS_PROJECT_ID = '16cd56e9-a0b0-4b22-b6d2-960163c726e6'
 
 export default (): ExpoConfig => ({
   name: 'Atlas',
   slug: 'atlas',
-  owner: 'dennisofficial',
+  owner: 'comp-ai',
   version: '1.0.0',
   platforms: ['ios', 'web'],
   orientation: 'default',

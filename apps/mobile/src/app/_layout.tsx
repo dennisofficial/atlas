@@ -1,6 +1,7 @@
 import { useIsDark, useTheme } from '@dltech/atlas-ui-native'
 import { useFonts } from 'expo-font'
 import * as Linking from 'expo-linking'
+import { ObserveRoot, useObserve } from 'expo-observe'
 import { router, Stack, ThemeProvider } from 'expo-router'
 import * as SplashScreen from 'expo-splash-screen'
 import { StatusBar } from 'expo-status-bar'
@@ -49,6 +50,11 @@ const RootStack = ({ fontsReady }: { fontsReady: boolean }) => {
   const replaying = useRef<TDestination | undefined>(undefined)
   const signedIn = state === EAuthState.SignedIn
   const settled = state !== EAuthState.Loading
+  const { markInteractive } = useObserve()
+
+  useEffect(() => {
+    if (fontsReady && settled) markInteractive()
+  }, [fontsReady, settled, markInteractive])
 
   useEffect(() => {
     const handled = new Set<string>()
@@ -103,7 +109,7 @@ const RootStack = ({ fontsReady }: { fontsReady: boolean }) => {
   )
 }
 
-export default function RootLayout() {
+const RootLayout = () => {
   const theme = useTheme()
   const dark = useIsDark()
   const [fontsLoaded, fontError] = useFonts(fontAssets)
@@ -123,6 +129,8 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   )
 }
+
+export default ObserveRoot.wrap(RootLayout)
 
 const styles = StyleSheet.create({
   root: {
