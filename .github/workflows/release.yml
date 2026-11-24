@@ -53,110 +53,21 @@ jobs:
             echo "deploy-install-worker=false" >> "$GITHUB_OUTPUT"
           fi
 
-  # Render pulls a prebuilt image, so it spends no build minutes: this workflow builds the image,
-  # migrates, then deploys the image of this commit. The release concurrency group keeps one run
-  # pending, so a burst of merges deploys only the newest commit. A failed migration stops the
-  # deploy and the previous instance keeps serving.
-  api-image:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    permissions:
-      contents: read
-      packages: write
-    env:
-      IMAGE: ghcr.io/${{ github.repository_owner }}/atlas-api
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: docker/setup-buildx-action@v4
-
-      - uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - uses: docker/build-push-action@v7
-        env:
-          DOCKER_BUILD_RECORD_UPLOAD: false
-        with:
-          context: .
-          file: apps/api/docker/Dockerfile
-          push: true
-          platforms: linux/amd64
-          build-args: ATLAS_APP_VERSION=${{ github.sha }}
-          labels: org.opencontainers.image.source=https://github.com/${{ github.repository }}
-          tags: |
-            ${{ env.IMAGE }}:${{ github.sha }}
-            ${{ env.IMAGE }}:latest
-          cache-from: type=registry,ref=${{ env.IMAGE }}:buildcache
-          cache-to: type=registry,ref=${{ env.IMAGE }}:buildcache,mode=max
-
-  migrate:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: oven-sh/setup-bun@v2.2.0
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version-file: .nvmrc
-
-      - uses: actions/cache@v6
-        with:
-          path: ~/.bun/install/cache
-          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-
-      - run: bun install --frozen-lockfile
-
-      - name: migrate the production database and verify it matches the contract
-        run: bun run --cwd apps/api db:migrate:predeploy
-        env:
-          APP_TIER: production
-          DOTENV_PRIVATE_KEY_PRODUCTION_ENC: ${{ secrets.DOTENV_PRIVATE_KEY_PRODUCTION_ENC }}
-
+  # Render builds apps/api/docker/Dockerfile from the repo and runs `db:migrate:predeploy` as the
+  # service's pre-deploy command, so a failed migration fails the deploy and the previous instance
+  # keeps serving. The release concurrency group runs one release at a time and keeps one pending, so
+  # a deploy is never triggered while the previous one is still building or migrating, and a burst of
+  # merges deploys only the newest commit.
   render-deploy:
-    needs: [api-image, migrate]
     runs-on: ubuntu-latest
     steps:
-      - name: deploy the image of this commit on Render
-        run: |
-          set -euo pipefail
-          curl -fsS -X POST "https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys" \
-            -H "authorization: Bearer $RENDER_API_KEY" \
-            -H 'content-type: application/json' \
-            -d "{\"imageUrl\":\"ghcr.io/${{ github.repository_owner }}/atlas-api:$GITHUB_SHA\"}"
-        env:
-          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
-          RENDER_SERVICE_ID: srv-dbuu4tui0phs73ercifg
-
-  # atlas-api builds apps/api/docker/Dockerfile from the repo on Render and runs the migration as its
-  # pre-deploy command, so it deploys after the migrate job and finds the schema already applied.
-  atlas-api-deploy:
-    needs: migrate
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: oven-sh/setup-bun@v2.2.0
-
-      - name: deploy this commit on the repo-built Render service
+      - name: deploy this commit on Render
         run: |
           set -euo pipefail
           curl -fsS -X POST "https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys" \
             -H "authorization: Bearer $RENDER_API_KEY" \
             -H 'content-type: application/json' \
             -d "{\"commitId\":\"$GITHUB_SHA\"}"
-        env:
-          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
-          RENDER_SERVICE_ID: srv-dc314ot9el5s73d4igp0
-
-      - name: wait for the atlas-api deploy of this commit to go live
-        run: bun scripts/render-deploy-gate.ts
-        working-directory: apps/api
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           RENDER_SERVICE_ID: srv-dc314ot9el5s73d4igp0
@@ -177,7 +88,7 @@ jobs:
         working-directory: apps/api
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
-          RENDER_SERVICE_ID: srv-dbuu4tui0phs73ercifg
+          RENDER_SERVICE_ID: srv-dc314ot9el5s73d4igp0
 
   # Vercel builds every main push as a staged production deployment (the web project's "Auto-assign
   # Custom Production Domains" is off), so byatlas.io moves to a commit only once the API that commit
