@@ -16,7 +16,6 @@ const ACTIONS: TranscriptActions = {
   resume: null,
   openChanges: null,
   openAgent: null,
-  repairDiagram: null,
 }
 
 const CLEAN: ResumePoint = { kind: EResumePoint.Clean, discard: null }

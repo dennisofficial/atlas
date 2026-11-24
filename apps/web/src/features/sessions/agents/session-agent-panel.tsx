@@ -20,6 +20,7 @@ import {
 import { TabPlaceholder } from '@/features/threads/panel/tab-placeholder'
 import { TranscriptLoading } from '@/features/threads/panel/agents/agents-skeletons'
 import { ThreadTranscript } from '@/features/threads/thread-transcript'
+import { SessionDiagramRepairProvider } from '@/features/threads/data/session-diagram-repair-provider'
 
 import { crewStatusLabelOf } from '../data/crew-status-label'
 import { requestResume, resumePendingOf } from '../data/session-commands'
@@ -185,19 +186,20 @@ function AgentPanelBody({
           <TranscriptLoading />
         ) : state === EAgentPanelState.Ready ? (
           <ThreadPanelProvider value={nestedPanel}>
-            <ThreadTranscript
-              items={transcriptItems}
-              failureCard={null}
-              failedLabel={null}
-              pod={null}
-              working={identity.working}
-              background={NOTHING_IN_BACKGROUND}
-              onRetryBoot={() => undefined}
-              rewind={null}
-              summarise={null}
-              repairDiagram={repairDiagram}
-              onLoadOlder={loadOlder}
-            />
+            <SessionDiagramRepairProvider repairDiagram={repairDiagram}>
+              <ThreadTranscript
+                items={transcriptItems}
+                failureCard={null}
+                failedLabel={null}
+                pod={null}
+                working={identity.working}
+                background={NOTHING_IN_BACKGROUND}
+                onRetryBoot={() => undefined}
+                rewind={null}
+                summarise={null}
+                onLoadOlder={loadOlder}
+              />
+            </SessionDiagramRepairProvider>
           </ThreadPanelProvider>
         ) : null}
       </div>

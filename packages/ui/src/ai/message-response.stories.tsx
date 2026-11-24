@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react'
 
+import { DiagramRepairProvider } from './diagram-repair'
 import { MessageResponse } from './message-response'
 
 const INTRO = [
@@ -89,10 +90,12 @@ const BROKEN_DIAGRAM = [
 ].join('\n')
 
 export const BrokenDiagram: Story = {
-  args: {
-    children: BROKEN_DIAGRAM,
-    onRepairDiagram: () => new Promise((resolve) => setTimeout(resolve, 1500)),
-  },
+  args: { children: BROKEN_DIAGRAM },
+  render: (args) => (
+    <DiagramRepairProvider repair={() => new Promise((resolve) => setTimeout(resolve, 1500))}>
+      <MessageResponse {...args} />
+    </DiagramRepairProvider>
+  ),
 }
 
 const LARGE_DIAGRAM = [
