@@ -9,6 +9,18 @@ export enum ENavigationAction {
   ResetStack = 'reset-stack',
 }
 
+export enum ESettingsPlacement {
+  Root = 'root',
+  Pushed = 'pushed',
+}
+
+export const settingsPlacementOf = ({
+  controls,
+}: {
+  controls: EControlsPlacement
+}): ESettingsPlacement =>
+  controls === EControlsPlacement.Rail ? ESettingsPlacement.Root : ESettingsPlacement.Pushed
+
 export type TNavigationAction =
   | { action: ENavigationAction.None }
   | { action: ENavigationAction.Push; href: string }
@@ -32,7 +44,7 @@ export const accountNavigationOf = ({
   controls: EControlsPlacement
   pathname: string
 }): TNavigationAction => {
-  if (controls !== EControlsPlacement.Rail)
+  if (settingsPlacementOf({ controls }) === ESettingsPlacement.Pushed)
     return { action: ENavigationAction.Push, href: SETTINGS_HREF }
   return pathnameOf(pathname) === SETTINGS_HREF
     ? { action: ENavigationAction.None }

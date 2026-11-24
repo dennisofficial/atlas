@@ -7,6 +7,7 @@ import { RailContentFrame } from '../../layout/rail-content-frame'
 import { PostureProvider, usePosture } from '../../layout/use-posture'
 import { AppControls } from '../../navigation/app-controls'
 import { tabHeaderOptionsOf } from '../../navigation/header-options'
+import { ESettingsPlacement, settingsPlacementOf } from '../../navigation/root-navigation'
 import { InAppNoticesProvider } from '../../notifications/in-app-notices-provider'
 import { sessionIdOfPathname } from '../../thread/v2/presence-state'
 import { usePresenceReport } from '../../thread/v2/use-presence-report'
@@ -30,6 +31,10 @@ const AppStack = () => {
     animation: 'none' as const,
     contentStyle: tabContentStyle,
   })
+  const settingsRootOptions =
+    settingsPlacementOf({ controls: posture.controls }) === ESettingsPlacement.Root
+      ? { animation: 'none' as const, gestureEnabled: false }
+      : {}
   const pushedHeaderOptions = {
     headerBackButtonDisplayMode: 'minimal' as const,
     headerStyle: { backgroundColor: theme.background },
@@ -56,7 +61,10 @@ const AppStack = () => {
         name="agents/[agentId]"
         options={{ title: 'Sub-agent', ...pushedHeaderOptions }}
       />
-      <Stack.Screen name="settings" options={{ title: 'Settings', ...pushedHeaderOptions }} />
+      <Stack.Screen
+        name="settings"
+        options={{ title: 'Settings', ...pushedHeaderOptions, ...settingsRootOptions }}
+      />
     </Stack>
   )
 }
