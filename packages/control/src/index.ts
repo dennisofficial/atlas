@@ -77,6 +77,7 @@ export type {
   ChangeBlobWrite,
   ChangedFileWrite,
   WorktreeChangesRead,
+  WorktreeChangesSummary,
   WorktreeChangesWrite,
 } from './port'
 export {

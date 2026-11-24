@@ -55,6 +55,22 @@ export function describeControlPlaneWorktreeChanges(params: ConformanceParams): 
       expect(read?.files[0]).toEqual(fileOf('src/a.ts'))
     })
 
+    it('reads the checkout rows without their files', async () => {
+      await write([fileOf('src/b.ts'), fileOf('src/a.ts')])
+
+      expect(await harness.plane.readChangesSummary({ sessionId: SESSION })).toEqual([
+        {
+          checkoutId: 'checkout-1',
+          sessionId: SESSION,
+          repo: 'github.com/acme/repo',
+          worktreePath: '/workspace/repo',
+          base: 'origin/main',
+          fingerprint: 'fingerprint-1',
+          updatedAt: Date.parse(T0),
+        },
+      ])
+    })
+
     it('replaces rows and drops a path that left the manifest', async () => {
       await write([fileOf('src/a.ts'), fileOf('src/b.ts')])
       await write([fileOf('src/a.ts', { additions: 9 })])

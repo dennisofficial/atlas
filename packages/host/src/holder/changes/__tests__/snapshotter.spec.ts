@@ -61,6 +61,24 @@ describe('ChangesSnapshotter', () => {
     calls.close()
   })
 
+  it('compares the fingerprint from the checkout rows and never reads the file set', async () => {
+    const state = singleFile()
+    const { snapshotter, plane, writes, calls } = await rig({ state })
+    const readFiles: string[] = []
+    const readChanges = plane.readChanges.bind(plane)
+    plane.readChanges = async (params) => {
+      readFiles.push(params.sessionId)
+      return readChanges(params)
+    }
+
+    await snapshotter.snapshotNow(ESnapshotTrigger.TurnEnd)
+    await snapshotter.snapshotNow(ESnapshotTrigger.TurnEnd)
+
+    expect(readFiles).toEqual([])
+    expect(writes).toHaveLength(1)
+    calls.close()
+  })
+
   it('replaces the file rows when the worktree loses its only change', async () => {
     const state = singleFile()
     const { snapshotter, plane, writes, calls } = await rig({ state })

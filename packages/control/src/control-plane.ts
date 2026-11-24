@@ -40,6 +40,7 @@ import {
   type ControlTx,
   type ThreadRow,
   type WorktreeChangesRead,
+  type WorktreeChangesSummary,
   type WorktreeChangesWrite,
   type ControlSessionDigest,
   type ControlSessionRow,
@@ -607,6 +608,12 @@ export class ControlPlane {
 
   async readChanges(params: { sessionId: string }): Promise<readonly WorktreeChangesRead[]> {
     return this.store.transact((tx) => tx.readChanges(params))
+  }
+
+  async readChangesSummary(params: {
+    sessionId: string
+  }): Promise<readonly WorktreeChangesSummary[]> {
+    return this.store.transact((tx) => tx.readChangesSummary(params))
   }
 
   async readChangeFile(params: {
