@@ -1,10 +1,12 @@
 #!/usr/bin/env sh
 set -eu
 
-# The releases are public, so downloads are unauthenticated. The installed binary self-updates
-# from then on; this script is only ever a bootstrap.
+# The mirror needs no login and outlives the repository's visibility and owner. github.com is the
+# fallback, for the window before the mirror has every asset. The installed binary self-updates from
+# then on; this script is only ever a bootstrap.
 
 REPO=dennisofficial/atlas
+MIRROR=https://install.byatlas.io
 
 usage() {
   printf 'usage: install.sh [tui|serve] [VERSION]\n' >&2
@@ -64,22 +66,33 @@ tmp=$(mktemp -d "${TMPDIR:-/tmp}/atlas-install.XXXXXX")
 trap 'rm -rf "$tmp"' EXIT
 
 if [ "$version" = latest ]; then
-  base="https://github.com/$REPO/releases/latest/download"
+  path=releases/latest/download
 else
   version=${version#tui-v}
   version=${version#v}
   [ -n "$version" ] || usage
-  base="https://github.com/$REPO/releases/download/tui-v$version"
+  path="releases/download/tui-v$version"
 fi
+base="$MIRROR/$path"
+fallback="https://github.com/$REPO/$path"
 
-if [ -t 2 ]; then
-  printf 'downloading %s (about 100MB)\n' "$asset" >&2
-  curl -fSL --progress-bar "$base/$asset" -o "$tmp/$asset"
-else
-  printf 'downloading %s (about 100MB, this can take a minute)\n' "$asset" >&2
-  curl -fsSL "$base/$asset" -o "$tmp/$asset"
-fi
-curl -fsSL "$base/$asset.sha256" -o "$tmp/$asset.sha256"
+fetch() {
+  if [ -t 2 ]; then
+    curl -fSL --progress-bar "$1" -o "$2" || {
+      printf '%s did not answer, retrying from github.com\n' "$MIRROR" >&2
+      curl -fSL --progress-bar "$3" -o "$2"
+    }
+  else
+    curl -fsSL "$1" -o "$2" || {
+      printf '%s did not answer, retrying from github.com\n' "$MIRROR" >&2
+      curl -fsSL "$3" -o "$2"
+    }
+  fi
+}
+
+printf 'downloading %s (about 100MB)\n' "$asset" >&2
+fetch "$base/$asset" "$tmp/$asset" "$fallback/$asset"
+fetch "$base/$asset.sha256" "$tmp/$asset.sha256" "$fallback/$asset.sha256"
 
 printf 'verifying sha256 checksum\n' >&2
 

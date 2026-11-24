@@ -489,13 +489,14 @@ jobs:
       # Three readers resolve releases/latest/download by name and none of them may 404: install.sh
       # with no version fetches the tui binaries and atlas-serve, the site's download button fetches
       # macos-arm64-Atlas.dmg, and the installed Mac app fetches latest-mac.yml. latest must not move
-      # without those Mac files. This release has no Mac build of its own, because only a change to
-      # apps/mac pays for the mac runner, so the Mac files of whichever release is latest are copied
-      # onto it first and then it is marked latest. latest-mac.yml names the zip by file name and
-      # that zip is copied beside it, so the feed keeps offering the last Mac build the installed app
-      # already runs and no spurious update appears. A latest release with no Mac files is a broken
-      # state to inherit, so this fails instead of marking latest without them: releases/latest then
-      # stays where it is and the next run copies from there.
+      # without those Mac files. All three read the same paths from install.byatlas.io, which the
+      # step after this one mirrors and verifies there. This release has no Mac build of its own,
+      # because only a change to apps/mac pays for the mac runner, so the Mac files of whichever
+      # release is latest are copied onto it first and then it is marked latest. latest-mac.yml names
+      # the zip by file name and that zip is copied beside it, so the feed keeps offering the last
+      # Mac build the installed app already runs and no spurious update appears. A latest release
+      # with no Mac files is a broken state to inherit, so this fails instead of marking latest
+      # without them: releases/latest then stays where it is and the next run copies from there.
       - name: carry the mac files forward and mark latest
         if: steps.version.outputs.skip != 'true' && steps.version.outputs.mac != 'true'
         env:
@@ -528,6 +529,17 @@ jobs:
           done
           gh release edit "$tag" --latest --repo "$GITHUB_REPOSITORY"
 
+      # Every reader downloads from the mirror once this tag is latest. A missing upload or a byte
+      # that does not match fails this job rather than 404ing a sandbox or the Mac update feed.
+      - name: mirror the release to install.byatlas.io
+        if: steps.version.outputs.skip != 'true' && steps.version.outputs.mac != 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          DOTENV_PRIVATE_KEY_PRODUCTION_ENC: ${{ secrets.INSTALL_WORKER_DOTENV_PRIVATE_KEY }}
+        run: >-
+          ./node_modules/.bin/dotenvx run -f scripts/install-worker/.env.production.enc --
+          bun scripts/mirror-release.ts "tui-v${VERSION}" --latest
+
   # Signed and notarized build, only for a release the `release` job actually cut and only when the
   # app itself changed (`release-version.ts` reports whether a change reached apps/mac or a package
   # it depends on). A merge that touches only the interface cuts the release for the binaries and
@@ -540,7 +552,7 @@ jobs:
     runs-on: macos-latest
     needs: [release]
     if: ${{ !cancelled() && needs.release.result == 'success' && needs.release.outputs.tag != '' && needs.release.outputs.mac == 'true' }}
-    timeout-minutes: 30
+    timeout-minutes: 45
     permissions:
       contents: write
     env:
@@ -652,6 +664,13 @@ jobs:
             sleep $((attempt * 15))
           done
           gh release edit "$TAG" --latest --repo "$GITHUB_REPOSITORY"
+
+      - name: mirror the release to install.byatlas.io
+        env:
+          DOTENV_PRIVATE_KEY_PRODUCTION_ENC: ${{ secrets.INSTALL_WORKER_DOTENV_PRIVATE_KEY }}
+        run: >-
+          ./node_modules/.bin/dotenvx run -f scripts/install-worker/.env.production.enc --
+          bun scripts/mirror-release.ts "$TAG" --latest
 
       - name: remove signing material
         if: always()

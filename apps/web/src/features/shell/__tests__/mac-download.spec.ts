@@ -59,3 +59,11 @@ describe('macDownloadHref', () => {
     expect(macDownloadHref({})).toBe(null)
   })
 })
+
+describe('MAC_DOWNLOAD_URL', () => {
+  it('downloads from the mirror, which outlives the repository owner and visibility', () => {
+    expect(MAC_DOWNLOAD_URL).toBe(
+      'https://install.byatlas.io/releases/latest/download/macos-arm64-Atlas.dmg',
+    )
+  })
+})

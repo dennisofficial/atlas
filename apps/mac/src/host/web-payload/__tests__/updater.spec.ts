@@ -1,7 +1,12 @@
 import { describe, expect, test } from 'bun:test'
 
 import type { IPayloadState } from '../state'
-import { createWebUpdater, EWebPayloadState, type IWebUpdaterPorts } from '../updater'
+import {
+  createWebUpdater,
+  EWebPayloadState,
+  type IWebUpdaterPorts,
+  WEB_MANIFEST_URL,
+} from '../updater'
 import { fakePayloadFs, manifestOf } from './fixtures'
 
 const archive = new Uint8Array([1, 2, 3])
@@ -206,5 +211,13 @@ describe('createWebUpdater', () => {
     updater.stop()
     updater.stop()
     expect(fake.intervals).toHaveLength(1)
+  })
+})
+
+describe('WEB_MANIFEST_URL', () => {
+  test('reads the manifest from the mirror, which outlives the repository owner and visibility', () => {
+    expect(WEB_MANIFEST_URL).toBe(
+      'https://install.byatlas.io/releases/download/web-ota/web-update.json',
+    )
   })
 })

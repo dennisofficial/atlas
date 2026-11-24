@@ -13,6 +13,8 @@ import {
 
 const DOWNLOAD_TIMEOUT_MS = 300_000
 
+export const RELEASE_MIRROR_URL = 'https://install.byatlas.io/releases/download'
+
 export enum EStageOutcome {
   Staged = 'staged',
   AlreadyStaged = 'already-staged',
@@ -165,15 +167,20 @@ export async function downloadReleaseAssets(args: {
   })
 }
 
+/** The mirror first, then github.com: the repository may go private, and the mirror may lag. */
+export const releaseBaseUrlsOf = (repo: string): readonly string[] => [
+  RELEASE_MIRROR_URL,
+  `https://github.com/${repo}/releases/download`,
+]
+
 export function realSelfUpdatePorts(): SelfUpdatePorts {
   return {
-    download: ({ tag, asset, repo, dir }) =>
-      downloadReleaseAssets({
-        baseUrl: `https://github.com/${repo}/releases/download`,
-        tag,
-        asset,
-        dir,
-      }),
+    download: async ({ tag, asset, repo, dir }) => {
+      for (const baseUrl of releaseBaseUrlsOf(repo)) {
+        if (await downloadReleaseAssets({ baseUrl, tag, asset, dir })) return true
+      }
+      return false
+    },
     readFile: async (path) => {
       const file = Bun.file(path)
       if (!(await file.exists())) return null
