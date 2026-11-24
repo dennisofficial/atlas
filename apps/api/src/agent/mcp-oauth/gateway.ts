@@ -50,6 +50,7 @@ const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout
 const needsSignIn = (): McpOauthGrant => ({
   ok: false,
   reason: 'the server has no usable grant; sign in again',
+  signIn: true,
 })
 
 export class McpOauthService implements McpOauthGateway {
@@ -143,7 +144,7 @@ export class McpOauthService implements McpOauthGateway {
 
   async refresh(args: McpOauthServerRef): Promise<McpOauthGrant> {
     const resolved = await this.rowFor(args)
-    if (!resolved.ok) return resolved
+    if (!resolved.ok) return { ok: false, reason: resolved.reason, signIn: true }
     for (let pass = 0; pass < REFRESH_PASSES; pass += 1) {
       const row = pass === 0 ? resolved.row : await this.store.find({ id: resolved.row.id })
       if (row === null) return needsSignIn()

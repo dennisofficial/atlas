@@ -1,5 +1,7 @@
 import { EContextSlot, type EventDraft, type V2Event } from '@dltech/atlas-core'
 
+import { EMcpServerStatus, type McpServerTools } from './snapshot'
+
 const SLOT = EContextSlot.McpInstructions
 
 const offeredOf = (events: readonly V2Event[]): ReadonlyMap<string, string> => {
@@ -19,17 +21,26 @@ const draftOf = (args: { key: string; content: string }): EventDraft => ({
   content: args.content,
 })
 
+const desiredOf = (args: {
+  server: McpServerTools | undefined
+  offered: string | undefined
+}): string => {
+  if (args.server === undefined) return ''
+  if (args.server.status !== EMcpServerStatus.Connected) return args.offered ?? ''
+  return args.server.instructions ?? ''
+}
+
 export const mcpInstructionsDraftsOf = (args: {
   events: readonly V2Event[]
-  next: ReadonlyMap<string, string>
+  servers: readonly McpServerTools[]
 }): readonly EventDraft[] => {
   const offered = offeredOf(args.events)
-  return [
-    ...[...args.next]
-      .filter(([key, content]) => offered.get(key) !== content)
-      .map(([key, content]) => draftOf({ key, content })),
-    ...[...offered.keys()]
-      .filter((key) => !args.next.has(key))
-      .map((key) => draftOf({ key, content: '' })),
-  ]
+  const byName = new Map(args.servers.map((server) => [server.name, server]))
+  const drafts: EventDraft[] = []
+  for (const key of new Set([...byName.keys(), ...offered.keys()])) {
+    const current = offered.get(key)
+    const desired = desiredOf({ server: byName.get(key), offered: current })
+    if (desired !== (current ?? '')) drafts.push(draftOf({ key, content: desired }))
+  }
+  return drafts
 }
