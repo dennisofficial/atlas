@@ -90,6 +90,8 @@ export type HandoffScenario = {
   /** the operator message the session starts with */
   prompt?: string
   files?: readonly SpawnFile[] | undefined
+  /** whether the clean drain case runs; a tool blocked inside the host never lets a drain finish */
+  drain?: boolean
   /** whether the workspace is already prepared when the session starts (default true) */
   prepared?: boolean
   /** what the pod runs as the setup script; the work under test when the scenario is a setup */
@@ -99,6 +101,8 @@ export type HandoffScenario = {
   takeOverScripts?(args: { sessionId: string }): Record<string, ScriptedModelStep[]>
   /** begins the work on host A, and waits until it is really in flight */
   start(ctx: HandoffContext): Promise<HostProcess>
+  /** runs once host B is up and before it claims: fault the pod link here so the takeover meets it down */
+  beforeClaim?(ctx: HandoffContext, hostB: HostProcess): Promise<void>
   /** wakes a session that waits for the operator and wants no holder until then */
   wake?(ctx: HandoffContext): Promise<void>
   /** the record still says the work is in flight, after another host took the session over */
@@ -213,6 +217,7 @@ export const describeHandoff = (scenario: HandoffScenario): void => {
         ...(scenario.setupScript === undefined ? {} : { setupScript: scenario.setupScript }),
         ...(scenario.knobs === undefined ? {} : { knobs: scenario.knobs }),
       })
+      await scenario.beforeClaim?.(ctx, hostB)
       await ctx.rig.claim({ sessionId: ctx.sessionId, label: 'host-b', timeoutMs: 30_000 })
       return hostB
     }
@@ -257,15 +262,19 @@ export const describeHandoff = (scenario: HandoffScenario): void => {
         }
       })
 
-    it('survives host A draining cleanly mid-work', async () => {
-      await ownFault({
-        slug: 'drain',
-        apply: async (_ctx, hostA) => {
-          hostA.kill('SIGTERM')
-          await hostA.exited
-        },
-      })
-    }, 90_000)
+    it.skipIf(scenario.drain === false)(
+      'survives host A draining cleanly mid-work',
+      async () => {
+        await ownFault({
+          slug: 'drain',
+          apply: async (_ctx, hostA) => {
+            hostA.kill('SIGTERM')
+            await hostA.exited
+          },
+        })
+      },
+      90_000,
+    )
 
     it('survives host A being SIGKILLed mid-work', async () => {
       await ownFault({

@@ -11,6 +11,7 @@ import {
   resize,
 } from '@dltech/atlas-native-commands'
 import { composedPlugins, controlEventSchema } from '../registered-plugins'
+import { gatedToolsOf, toolGateOf } from './gated-tools'
 import { ERunFailureKind, ModelPort } from '@dltech/atlas-core'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import { createDb, createPool } from '@dltech/atlas-db'
@@ -42,6 +43,7 @@ import { FixedEndpointSandboxProvider } from './fixed-endpoint-sandbox-provider'
 import { faultedPlane, faultSandbox, hostFaultOf } from './host-faults'
 import type { JobsProjectDispatcher } from '../../_core/ports/job-dispatcher'
 import { podResizeHandlerOf } from '../../_lib/pod-resize/pod-resize-handler'
+import type { ComposedPlugins } from '@dltech/atlas-plugin-sdk'
 
 const requireEnv = (name: string): string => {
   const value = process.env[name]
@@ -211,6 +213,19 @@ const scriptedStepsOf = (steps: readonly ScriptedModelStep[]): ScriptedModelStep
     return fault === undefined ? step : { throws: fault }
   })
 
+const pluginsOf = (): ComposedPlugins | undefined => {
+  if (process.env.FAULT_PLUGINS !== '1') return undefined
+  const gate = toolGateOf(process.env.PLUGIN_TOOL_GATE)
+  if (gate === undefined) return composedPlugins
+  return {
+    ...composedPlugins,
+    pod: {
+      ...composedPlugins.pod,
+      tools: (ctx) => gatedToolsOf({ gate, tools: composedPlugins.pod.tools(ctx) }),
+    },
+  }
+}
+
 const main = async (): Promise<void> => {
   const holderLabel = requireEnv('HOLDER_ID')
   const daemonSecret = requireEnv('DAEMON_SECRET')
@@ -288,7 +303,7 @@ const main = async (): Promise<void> => {
       launchDirectory: workspace,
       sandboxHome: process.env.SANDBOX_HOME,
       panelHolds: (sessionId) => held?.demandOf().panel.countOf(sessionId) ?? 0,
-      plugins: process.env.FAULT_PLUGINS === '1' ? composedPlugins : undefined,
+      plugins: pluginsOf(),
       log,
       pingMs: numberEnv('PING_MS', 10_000),
     }),
