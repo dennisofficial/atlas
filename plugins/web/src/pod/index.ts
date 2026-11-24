@@ -27,17 +27,18 @@ export { WebSearchTool } from './search-tool'
 export const WEB_TOOLS = ['web_search', 'web_fetch', 'browser'] as const
 
 export type WebPodArgs = {
-  jinaKey: string | undefined
+  jinaKey: () => string | undefined
   fetcher?: typeof fetch | undefined
 }
 
 export const webPodOf = (args: WebPodArgs): PodSlot => ({
   ...EMPTY_POD,
-  tools: (ctx) => [
-    new WebSearchTool(searchPortOf({ jinaKey: args.jinaKey, fetcher: args.fetcher })),
-    new WebFetchTool({
-      reader: readerPortOf({ jinaKey: args.jinaKey, fetcher: args.fetcher }),
-    }),
-    new BrowserTool(ctx),
-  ],
+  tools: (ctx) => {
+    const jinaKey = args.jinaKey()
+    return [
+      new WebSearchTool(searchPortOf({ jinaKey, fetcher: args.fetcher })),
+      new WebFetchTool({ reader: readerPortOf({ jinaKey, fetcher: args.fetcher }) }),
+      new BrowserTool(ctx),
+    ]
+  },
 })

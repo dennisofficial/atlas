@@ -180,7 +180,7 @@ export const registeredPlugins: readonly Plugin[] = [
   definePlugin({
     name: 'web',
     ...webCoreSlots,
-    pod: webPodOf({ jinaKey: process.env['JINA_API_KEY'] }),
+    pod: webPodOf({ jinaKey: () => process.env['JINA_API_KEY'] }),
     control: webControl,
     client: webClient,
     transport: 'none',
