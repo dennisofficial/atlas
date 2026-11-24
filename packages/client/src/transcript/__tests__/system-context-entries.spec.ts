@@ -115,6 +115,17 @@ describe('system context entries', () => {
     expect(entries[0]?.items[1]?.superseded).toBe(false)
   })
 
+  it('marks an emptied injection as a removal', () => {
+    const entries = systemContexts([
+      contextLoaded({ slot: EContextSlot.McpInstructions, key: 'paper', content: 'PAPER' }),
+      contextLoaded({ slot: EContextSlot.McpInstructions, key: 'paper', content: '' }),
+    ])
+
+    expect(entries[0]?.items[0]?.removed).toBe(false)
+    expect(entries[0]?.items[1]?.removed).toBe(true)
+    expect(entries[0]?.items[1]?.label).toBe('MCP server instructions')
+  })
+
   it('renders instruction loads that arrive before any tool call', () => {
     const entries = systemContexts([
       contextLoaded({

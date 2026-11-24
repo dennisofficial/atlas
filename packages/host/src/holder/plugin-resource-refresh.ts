@@ -187,6 +187,7 @@ export const refresh = async (args: {
   projectDirectory: string
   trace: TracePort | undefined
   shared: (() => readonly V2Event[]) | undefined
+  loadingOf?: ((resource: string) => boolean) | undefined
   onBackground?: ((background: { resource: string; loading: Promise<void> }) => void) | undefined
 }): Promise<void> => {
   const { ctx, resources, projectDirectory, trace, shared } = args
@@ -279,6 +280,7 @@ export const refresh = async (args: {
 
   for (const entry of prepared) {
     if (entry.resource.background !== true) continue
+    if (args.loadingOf?.(entry.resource.name) === true) continue
     const loading = startInBackground({ ctx, entry, directory: projectDirectory })
     args.onBackground?.({ resource: entry.resource.name, loading })
   }

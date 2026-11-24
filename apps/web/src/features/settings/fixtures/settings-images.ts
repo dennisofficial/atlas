@@ -1,6 +1,6 @@
 import { EImageModelWire as EImageModel } from '@dltech/atlas-wire/web'
 
-import type { ChoiceItem } from './settings-search'
+import type { ChoiceItem } from './settings-choice'
 
 export { EImageModel }
 

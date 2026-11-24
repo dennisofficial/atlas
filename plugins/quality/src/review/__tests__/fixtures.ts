@@ -175,6 +175,7 @@ export type RigOptions = {
   settings?: Record<string, unknown>
   policies?: readonly QualityPolicy[]
   scopes?: readonly QualityScope[]
+  scopesOfChange?: ((change: CapturedFileChange) => readonly QualityScope[]) | undefined
   skipped?: ReturnType<QualitySourceAdapter['prepareQualityScopes']>['skipped']
   classify?: (args: ClassifyArgs) => Promise<ClassifierOutcome>
   deadlineMs?: number
@@ -210,7 +211,7 @@ export function createRig(options: RigOptions = {}) {
     source: {
       prepareQualityScopes: (args) => {
         sourceCalls.push(args)
-        const scopes = state.scopes.map((scope) => ({
+        const scopes = (options.scopesOfChange?.(args.change) ?? state.scopes).map((scope) => ({
           ...scope,
           workspaceNamespace: args.workspaceNamespace,
         }))
@@ -271,7 +272,8 @@ export function stampHistory({
 export const recordsOf = (result: QualityReviewResult): readonly CodeQualityReviewedBody[] =>
   result.records
 
-export const contextOf = (result: QualityReviewResult): string | undefined => result.context
+export const contextOf = (result: QualityReviewResult): string | undefined =>
+  result.notes.length === 0 ? undefined : result.notes.map((note) => note.content).join('\n\n')
 
 export const reasonOf = (
   record: CodeQualityReviewedBody | undefined,

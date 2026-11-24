@@ -5,15 +5,13 @@ import {
   EClassifierModeWire,
   encodeSettingValue,
   ESettingConsumer,
-  EWebSearchBackendWire,
   PROJECT_SETTING_REGISTRY,
   validateCloudSetting,
 } from '../web'
 
-const POD_DELIVERED_KEYS = ['classifier.mode', 'web.searchBackend']
+const POD_DELIVERED_KEYS = ['classifier.mode']
 
 const CORE_CLASSIFIER_MODES = ['off', 'shadow', 'nudge']
-const CORE_SEARCH_BACKENDS = ['bing', 'duckduckgo', 'jina', 'tavily', 'exa', 'brave', 'searxng']
 
 const verdictOf = (args: { key: string; value: unknown }) =>
   validateCloudSetting({ key: args.key, stored: encodeSettingValue(args.value) })
@@ -26,11 +24,13 @@ describe('pod-delivered agent settings', () => {
     }
   })
 
-  it('rejects out-of-enum classifier.mode and web.searchBackend', () => {
+  it('rejects an out-of-enum classifier.mode', () => {
     expect(verdictOf({ key: 'classifier.mode', value: 'interrupt' }).ok).toBe(false)
-    expect(verdictOf({ key: 'web.searchBackend', value: 'google' }).ok).toBe(false)
     expect(verdictOf({ key: 'classifier.mode', value: 'nudge' }).ok).toBe(true)
-    expect(verdictOf({ key: 'web.searchBackend', value: 'searxng' }).ok).toBe(true)
+  })
+
+  it('no longer registers a web search backend setting', () => {
+    expect(CLOUD_SETTING_REGISTRY.has('web.searchBackend')).toBe(false)
   })
 
   it('takes an effort or inherit for sub-agents, and only a rung for one type', () => {
@@ -54,6 +54,5 @@ describe('pod-delivered agent settings', () => {
   it('matches the core registry values byte-for-byte', () => {
     const sorted = (values: readonly string[]): string[] => [...values].sort()
     expect(sorted(Object.values(EClassifierModeWire))).toEqual(sorted(CORE_CLASSIFIER_MODES))
-    expect(sorted(Object.values(EWebSearchBackendWire))).toEqual(sorted(CORE_SEARCH_BACKENDS))
   })
 })

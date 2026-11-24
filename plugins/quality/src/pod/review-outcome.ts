@@ -38,9 +38,9 @@ export function outcomeOf(args: {
     if (parsed.data.callId !== args.callId) return undefined
     records.push(parsed.data)
   }
-  const { context } = args.value
-  if (context !== undefined && context.trim() === '') return undefined
-  return { ...metricsOf(args.value), records, context }
+  const { notes } = args.value
+  if (notes.some((note) => note.content.trim() === '')) return undefined
+  return { ...metricsOf(args.value), records, notes }
 }
 
 const metricsOf = (value: QualityReviewResult): QualityReviewMetrics => ({
@@ -140,11 +140,11 @@ export async function reviewWithinBudget(args: {
       const late =
         valid?.records.filter((record) => record.status !== EQualityReviewStatus.Completed) ?? []
       const metrics = metricsOf(raced.value)
-      if (late.length > 0) return { ...metrics, records: late, context: undefined }
+      if (late.length > 0) return { ...metrics, records: late, notes: [] }
       return {
         ...metrics,
         records: [deadlineBookkeeping({ ...bookkeepingFacts, budgetMs: args.budgetMs })],
-        context: undefined,
+        notes: [],
       }
     }
     if (valid !== undefined) return valid
@@ -160,7 +160,7 @@ export async function reviewWithinBudget(args: {
           detail: 'review returned malformed records and they were dropped',
         }),
       ],
-      context: undefined,
+      notes: [],
     }
   }
 
@@ -168,7 +168,7 @@ export async function reviewWithinBudget(args: {
     return {
       ...NO_REVIEW_METRICS,
       records: [deadlineBookkeeping({ ...bookkeepingFacts, budgetMs: args.budgetMs })],
-      context: undefined,
+      notes: [],
     }
   }
 
@@ -183,7 +183,7 @@ export async function reviewWithinBudget(args: {
           detail: 'the turn was interrupted before the review finished',
         }),
       ],
-      context: undefined,
+      notes: [],
     }
   }
 
@@ -197,6 +197,6 @@ export async function reviewWithinBudget(args: {
         detail: `review failed: ${messageOf(raced.error)}`,
       }),
     ],
-    context: undefined,
+    notes: [],
   }
 }

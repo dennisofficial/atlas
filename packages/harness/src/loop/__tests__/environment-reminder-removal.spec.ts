@@ -83,15 +83,24 @@ describe('a turn without recurring environment reminders', () => {
       expect(model.doStreamCalls.map((call) => call.prompt.map((message) => message.role))).toEqual(
         [
           ['user', 'user'],
-          ['user', 'assistant', 'tool', 'user'],
-          ['user', 'assistant', 'tool', 'assistant', 'tool', 'user'],
+          ['user', 'user', 'assistant', 'tool'],
+          ['user', 'user', 'assistant', 'tool', 'assistant', 'tool'],
         ],
       )
-      const tails = model.doStreamCalls.map((call) => call.prompt.at(-1))
-      for (const tail of tails) {
-        expect(tail?.role).toBe('user')
-        expect(JSON.stringify(tail)).toContain('Project directory')
+      const notes = model.doStreamCalls.map((call) => call.prompt[0])
+      const textOf = (message: (typeof notes)[number]): string =>
+        message?.role === 'user' && Array.isArray(message.content)
+          ? message.content.flatMap((part) => (part.type === 'text' ? [part.text] : [])).join('\n')
+          : ''
+
+      expect(notes).toHaveLength(3)
+      for (const note of notes) {
+        expect(note?.role).toBe('user')
+        expect(textOf(note)).toStartWith('<system')
+        expect(textOf(note)).toContain('source="workspace"')
+        expect(textOf(note)).toContain('Project directory')
       }
+      expect(new Set(notes.map(textOf)).size).toBe(1)
       expect(JSON.stringify(model.doStreamCalls)).not.toContain('probed capabilities')
       expect(JSON.stringify(model.doStreamCalls)).not.toContain('You are executing inside')
       const events = await harness.log.read({ threadId: thread.id })

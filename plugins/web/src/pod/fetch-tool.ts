@@ -16,14 +16,19 @@ import { z } from 'zod'
 
 import { PageCache } from './cache'
 import { DEFAULT_TIMEOUT_SECONDS, EPageFormat, fetchPage, MAX_TIMEOUT_SECONDS } from './fetch-page'
+import { readerPortOf, type ReadArgs, type ReaderPort } from './read'
 
 const CONTEXT_LINES = 2
 
 const KIB = 1024
 
+const FALLBACK_NOTE =
+  'Jina was unavailable, so the page was fetched directly and selector/render/page were not applied.'
+
 export type WebFetchDeps = {
   cache?: PageCache | undefined
   fetcher?: typeof fetchPage | undefined
+  reader?: ReaderPort | undefined
 }
 
 const inputSchema = z.strictObject({
@@ -31,10 +36,17 @@ const inputSchema = z.strictObject({
   format: z.enum(EPageFormat).default(EPageFormat.Markdown),
   pattern: z.string().min(1).optional(),
   timeout: z.number().int().positive().max(MAX_TIMEOUT_SECONDS).optional(),
+  selector: z.string().min(1).optional(),
+  remove: z.string().min(1).optional(),
+  waitFor: z.string().min(1).optional(),
+  render: z.boolean().optional(),
+  page: z.number().int().positive().optional(),
 })
 
 const description = [
   'Fetch any url: a page as markdown, plain text or raw html, and a pdf as its text.',
+  'The reader renders JavaScript pages and reads pdfs, so a page that needs a browser still comes back as text.',
+  'Narrow a long page with selector, or drop nav and footers with remove; waitFor waits for a selector that content loads late. render fetches the page in a browser and can take over a minute. page reads one page of a long or scanned PDF.',
   'The tool returns the body itself, not a summary of it. Read what came back rather than asking for it again.',
   'Give a pattern to read only the passages that match it, without spending the context window on the whole reference. The pattern is a case-insensitive regular expression matched line by line.',
   'Redirects are followed wherever they lead, and http is fetched as asked, so a link that moves hosts still reads.',
@@ -57,6 +69,42 @@ const fileText = (page: FetchedPage): string => {
   ].join(' ')
 }
 
+const withNote = (note: string | undefined, text: string): string =>
+  note === undefined ? text : [note, text].join('\n\n')
+
+const isFile = (page: FetchedPage): boolean =>
+  page.kind === EContentKind.Image || page.kind === EContentKind.Binary
+
+const variantOf = (input: {
+  format: EPageFormat
+  selector?: string | undefined
+  remove?: string | undefined
+  waitFor?: string | undefined
+  render?: boolean | undefined
+  page?: number | undefined
+}): string =>
+  [
+    input.format,
+    input.selector ?? '',
+    input.remove ?? '',
+    input.waitFor ?? '',
+    input.render === true ? 'browser' : '',
+    input.page === undefined ? '' : String(input.page),
+  ].join('|')
+
+const asksForJinaOnly = (input: {
+  selector?: string | undefined
+  remove?: string | undefined
+  waitFor?: string | undefined
+  render?: boolean | undefined
+  page?: number | undefined
+}): boolean =>
+  input.selector !== undefined ||
+  input.remove !== undefined ||
+  input.waitFor !== undefined ||
+  input.render === true ||
+  input.page !== undefined
+
 export class WebFetchTool extends SchemaTool<typeof inputSchema> {
   readonly name = 'web_fetch'
   readonly description = description
@@ -67,58 +115,57 @@ export class WebFetchTool extends SchemaTool<typeof inputSchema> {
 
   private readonly cache: PageCache
   private readonly fetcher: typeof fetchPage
+  private readonly reader: ReaderPort
 
   constructor(deps: WebFetchDeps = {}) {
     super()
     this.cache = deps.cache ?? new PageCache()
     this.fetcher = deps.fetcher ?? fetchPage
+    this.reader = deps.reader ?? readerPortOf({ jinaKey: undefined })
   }
 
-  private async pageFor(args: {
-    url: string
-    format: EPageFormat
-    timeout: number | undefined
-    signal: AbortSignal
-  }): Promise<{ ok: true; page: FetchedPage; cached: boolean } | { ok: false; reason: string }> {
-    const remembered = this.cache.read({ url: args.url, format: args.format })
-    if (remembered !== undefined) return { ok: true, page: remembered, cached: true }
+  private async readOf(
+    args: ReadArgs,
+  ): Promise<ToolOutcome | { page: FetchedPage; note: string | undefined }> {
+    const read = await this.reader.read(args)
+    if (read.kind === 'page') return { page: read.page, note: undefined }
+    if (read.kind === 'failed') return { ok: false, reason: read.reason }
 
     const outcome = await this.fetcher({
       url: args.url,
       format: args.format,
-      timeoutSeconds: args.timeout,
+      timeoutSeconds: args.timeoutSeconds,
       signal: args.signal,
     })
     if (!outcome.ok) return outcome
 
-    const isFile =
-      outcome.page.kind === EContentKind.Image || outcome.page.kind === EContentKind.Binary
-    if (!isFile) this.cache.write({ url: args.url, format: args.format, page: outcome.page })
-    return { ok: true, page: outcome.page, cached: false }
+    const note = asksForJinaOnly(args) ? FALLBACK_NOTE : undefined
+    return { page: outcome.page, note }
   }
 
-  protected override async run({
-    input,
-    signal,
-  }: ToolRun<typeof inputSchema>): Promise<ToolOutcome> {
-    const { url, format, pattern } = input
+  private rendered(args: {
+    page: FetchedPage
+    format: EPageFormat
+    pattern: string | undefined
+    cached: boolean
+    note: string | undefined
+  }): ToolOutcome {
+    const { page, format, pattern, cached, note } = args
 
-    const fetched = await this.pageFor({ url, format, timeout: input.timeout, signal })
-    if (!fetched.ok) return { ok: false, reason: fetched.reason }
-
-    const { page, cached } = fetched
-    const isFile = page.kind === EContentKind.Image || page.kind === EContentKind.Binary
-
-    if (isFile) {
+    if (isFile(page)) {
       return {
         ok: true,
         output: { ...page, format, cached },
-        modelText: fileText(page),
+        modelText: withNote(note, fileText(page)),
       }
     }
 
     if (pattern === undefined) {
-      return { ok: true, output: { ...page, format, cached }, modelText: renderFetchedPage(page) }
+      return {
+        ok: true,
+        output: { ...page, format, cached },
+        modelText: withNote(note, renderFetchedPage(page)),
+      }
     }
 
     const found = findInPage({ body: page.body, pattern, context: CONTEXT_LINES })
@@ -137,7 +184,45 @@ export class WebFetchTool extends SchemaTool<typeof inputSchema> {
         matched: found.found.matched,
         body: found.found.excerpt,
       },
-      modelText: found.found.matched === 0 ? heading : [heading, envelope].join('\n\n'),
+      modelText: withNote(
+        note,
+        found.found.matched === 0 ? heading : [heading, envelope].join('\n\n'),
+      ),
     }
+  }
+
+  protected override async run({
+    input,
+    signal,
+  }: ToolRun<typeof inputSchema>): Promise<ToolOutcome> {
+    const { url, format, pattern } = input
+    const variant = variantOf(input)
+
+    const remembered = this.cache.read({ url, variant })
+    if (remembered !== undefined) {
+      return this.rendered({ page: remembered, format, pattern, cached: true, note: undefined })
+    }
+
+    const read = await this.readOf({
+      url,
+      format,
+      signal,
+      timeoutSeconds: input.timeout,
+      selector: input.selector,
+      remove: input.remove,
+      waitFor: input.waitFor,
+      render: input.render,
+      page: input.page,
+    })
+    if ('ok' in read) return read
+
+    if (!isFile(read.page)) this.cache.write({ url, variant, page: read.page })
+    return this.rendered({
+      page: read.page,
+      format,
+      pattern,
+      cached: false,
+      note: read.note,
+    })
   }
 }

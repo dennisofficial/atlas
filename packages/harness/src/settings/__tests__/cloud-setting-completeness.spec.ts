@@ -5,7 +5,10 @@ import { describe, expect, it } from 'bun:test'
 import { CLOUD_SETTING_DEFINITIONS } from '../../cloud/settings-definitions'
 
 const cloudIds = [...ATLAS_SETTINGS, ...CLOUD_SETTING_DEFINITIONS]
-  .filter((definition) => definition.id !== ESettingId.SandboxImage)
+  .filter(
+    (definition) =>
+      definition.id !== ESettingId.SandboxImage && definition.id !== ESettingId.WebSearchBackend,
+  )
   .filter((definition) => !isLocalSetting(definition))
   .filter((definition) => definition.kind !== ESettingKind.Secret)
   .map((definition) => definition.id)

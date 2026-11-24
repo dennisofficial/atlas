@@ -19,7 +19,7 @@ describe('SettingsService', () => {
   })
 
   it('set stores the value in plain text and list returns it', async () => {
-    await service.set({ userId: USER_A, key: 'sandbox.diskGb', value: 'disk-1' })
+    await service.set({ userId: USER_A, key: 'worktree.directory', value: 'disk-1' })
 
     const stored = (await settings())[0]
     expect(stored?.id).toMatch(/^set_/)
@@ -27,7 +27,7 @@ describe('SettingsService', () => {
 
     expect<unknown>(await service.list({ userId: USER_A })).toEqual([
       {
-        key: 'sandbox.diskGb',
+        key: 'worktree.directory',
         value: 'disk-1',
         updatedAt: stored?.updatedAt.toISOString(),
       },
@@ -35,11 +35,11 @@ describe('SettingsService', () => {
   })
 
   it('set upserts an existing key and bumps updatedAt', async () => {
-    await service.set({ userId: USER_A, key: 'sandbox.diskGb', value: 'disk-old' })
+    await service.set({ userId: USER_A, key: 'worktree.directory', value: 'disk-old' })
     const updatedAtBefore = (await settings())[0]?.updatedAt
 
     await new Promise((resolve) => setTimeout(resolve, 5))
-    await service.set({ userId: USER_A, key: 'sandbox.diskGb', value: 'disk-new' })
+    await service.set({ userId: USER_A, key: 'worktree.directory', value: 'disk-new' })
 
     const rows = await settings()
     expect(rows).toHaveLength(1)
@@ -48,7 +48,7 @@ describe('SettingsService', () => {
   })
 
   it('list scopes to the owning user', async () => {
-    await service.set({ userId: USER_A, key: 'sandbox.diskGb', value: 'disk-1' })
+    await service.set({ userId: USER_A, key: 'worktree.directory', value: 'disk-1' })
 
     expect(await service.list({ userId: USER_B })).toEqual([])
   })
@@ -62,10 +62,10 @@ describe('SettingsService', () => {
   })
 
   it('remove deletes only the caller’s own entry and tolerates unknown keys', async () => {
-    await service.set({ userId: USER_A, key: 'sandbox.diskGb', value: 'disk-1' })
-    await service.set({ userId: USER_B, key: 'sandbox.diskGb', value: 'disk-2' })
+    await service.set({ userId: USER_A, key: 'worktree.directory', value: 'disk-1' })
+    await service.set({ userId: USER_B, key: 'worktree.directory', value: 'disk-2' })
 
-    await service.remove({ userId: USER_A, key: 'sandbox.diskGb' })
+    await service.remove({ userId: USER_A, key: 'worktree.directory' })
     await service.remove({ userId: USER_A, key: 'never.existed' })
 
     expect(await settings()).toHaveLength(1)

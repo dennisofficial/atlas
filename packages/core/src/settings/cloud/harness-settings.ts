@@ -11,7 +11,6 @@ import {
   effortSchema,
   EImageModelWire,
   EVerdictTiming,
-  EWebSearchBackendWire,
   modelRefSettingSchema,
   DEFAULT_SANDBOX_DISK_GB,
   sandboxDiskGbSchema,
@@ -103,12 +102,6 @@ export const HARNESS_SETTING_ENTRIES = [
     key: 'classifier.mode',
     schema: z.enum(EClassifierModeWire),
     fallback: EClassifierModeWire.Shadow,
-    consumer: ESettingConsumer.Harness,
-  }),
-  settingEntry({
-    key: 'web.searchBackend',
-    schema: z.enum(EWebSearchBackendWire),
-    fallback: EWebSearchBackendWire.Bing,
     consumer: ESettingConsumer.Harness,
   }),
   settingEntry({

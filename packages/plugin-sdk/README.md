@@ -81,7 +81,7 @@ the capabilities `control`, `crew`, `messages`, `classifier`, `analytics`, `sess
 user; the host adds `session_id` and `thread_id`.
 `ctx.crew` is a `PodCrew`: `spawn` with a `group` wakes the parent once, after every member ends.
 `say({agentId, text})`, `stop({agentId})`, `list()` and `resume({agentId})` act on one sub-agent.
-`ctx.control` is a `PodControl`: `exposePort({port})`, `settingsVersions()`, `memory`, `webSearch`,
+`ctx.control` is a `PodControl`: `exposePort({port})`, `settingsVersions()`, `memory`,
 `gateway` (`apiKey()`, `imageModel()`), `mcp`, `routines`, `subscriptions`.
 
 ### The control and client slots

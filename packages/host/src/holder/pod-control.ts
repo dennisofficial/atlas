@@ -19,7 +19,6 @@ import type {
   PodRoutines,
   PodSubscriptionLease,
   PodSubscriptions,
-  WebSearchConfig,
 } from '@dltech/atlas-plugin-sdk'
 import type {
   Routine,
@@ -37,9 +36,6 @@ export type PodControlClient = {
     port: number
     signal?: AbortSignal | undefined
   }): Promise<{ url: string; tunnelToken: string }>
-  webSearch: {
-    config(args: Called): Promise<WebSearchConfig>
-  }
   gateway: {
     apiKey(args: Called): Promise<string | undefined>
     imageModel(args: Called): Promise<string | undefined>
@@ -162,12 +158,6 @@ export const podControlOf = (args: {
   mcp: args.mcp ?? EMPTY_MCP_CONTROL,
   routines: routinesOf({ client: args.client, threadId: args.threadId }),
   subscriptions: subscriptionsOf({ client: args.client, threadId: args.threadId }),
-  webSearch: {
-    config: async () => {
-      if (args.client === undefined) throw unreachable()
-      return await args.client.webSearch.config({ threadId: args.threadId })
-    },
-  },
   gateway: {
     apiKey: async () => {
       if (args.client === undefined) throw unreachable()

@@ -32,16 +32,6 @@ export enum EClassifierModeWire {
   Nudge = 'nudge',
 }
 
-export enum EWebSearchBackendWire {
-  Bing = 'bing',
-  DuckDuckGo = 'duckduckgo',
-  Jina = 'jina',
-  Tavily = 'tavily',
-  Exa = 'exa',
-  Brave = 'brave',
-  SearXNG = 'searxng',
-}
-
 export enum EImageModelWire {
   Gemini31FlashImage = 'google/gemini-3.1-flash-image',
   Gemini3ProImage = 'google/gemini-3-pro-image',

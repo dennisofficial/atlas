@@ -109,7 +109,7 @@ describe('account lease and pod-reachable settings and secrets', () => {
       await db.orm.public.UserSetting.create({
         id: `set_${userId}`,
         userId,
-        key: 'sandbox.diskGb',
+        key: 'worktree.directory',
         value,
         createdAt: stamp,
         updatedAt: stamp,
@@ -241,7 +241,7 @@ describe('account lease and pod-reachable settings and secrets', () => {
     expect(settings.headers['cache-control']).toBe('no-store')
     expect(secrets.headers['cache-control']).toBe('no-store')
     expect(settings.body.result.data.settings).toEqual([
-      { key: 'sandbox.diskGb', value: 'disk-a', updatedAt: '2026-10-03T00:00:00.000Z' },
+      { key: 'worktree.directory', value: 'disk-a', updatedAt: '2026-10-03T00:00:00.000Z' },
     ])
     expect(secrets.body.result.data.secrets).toEqual([
       { name: 'search.tavily', value: 'vercel-a', updatedAt: '2026-10-03T00:00:00.000Z' },
@@ -261,13 +261,13 @@ describe('account lease and pod-reachable settings and secrets', () => {
     await http()
       .post('/v1/trpc/settings.set')
       .set(pod)
-      .send({ key: 'sandbox.diskGb', value: 'x' })
+      .send({ key: 'worktree.directory', value: 'x' })
       .expect(403)
     await http().post('/v1/trpc/secrets.remove').set(pod).send({ name: 'NAME' }).expect(403)
     await http()
       .post('/v1/trpc/settings.remove')
       .set(pod)
-      .send({ key: 'sandbox.diskGb' })
+      .send({ key: 'worktree.directory' })
       .expect(403)
     expect(await countWrites()).toEqual(before)
   })

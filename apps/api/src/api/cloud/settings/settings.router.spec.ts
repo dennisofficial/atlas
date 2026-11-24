@@ -102,7 +102,6 @@ describe('SettingsRouter', () => {
   describe('pod-delivered settings', () => {
     const podDelivered = {
       'classifier.mode': 'nudge',
-      'web.searchBackend': 'exa',
     }
 
     it('stores and lists the pod-delivered settings for the personal scope', async () => {
@@ -136,7 +135,7 @@ describe('SettingsRouter', () => {
         await db.orm.public.UserSetting.create({
           id: `set_${userId}`,
           userId,
-          key: 'sandbox.diskGb',
+          key: 'worktree.directory',
           value,
           createdAt: stamp,
           updatedAt: stamp,
@@ -149,7 +148,7 @@ describe('SettingsRouter', () => {
 
       expect(reply.headers['cache-control']).toBe('no-store')
       expect(reply.body.result.data.settings).toEqual([
-        { key: 'sandbox.diskGb', value: 'disk-a', updatedAt: '2026-10-03T00:00:00.000Z' },
+        { key: 'worktree.directory', value: 'disk-a', updatedAt: '2026-10-03T00:00:00.000Z' },
       ])
     })
 
@@ -161,22 +160,24 @@ describe('SettingsRouter', () => {
 
     it('refuses a pod bearer on every settings write', async () => {
       const pod = 'pod-token-a'
-      await mutate('settings.set', pod, { key: 'sandbox.diskGb', value: 'x' }).expect(403)
-      await mutate('settings.remove', pod, { key: 'sandbox.diskGb' }).expect(403)
-      await mutate('settings.patch', pod, { values: { 'sandbox.diskGb': 'x' } }).expect(401)
+      await mutate('settings.set', pod, { key: 'worktree.directory', value: 'x' }).expect(403)
+      await mutate('settings.remove', pod, { key: 'worktree.directory' }).expect(403)
+      await mutate('settings.patch', pod, { values: { 'worktree.directory': 'x' } }).expect(401)
       expect((await settings()).map((row) => row.value).sort()).toEqual(['disk-a', 'disk-b'])
     })
 
     it('lets a sandbox set and remove its owner\u2019s personal settings', async () => {
       const setReply = await mutate('settings.set', 'sandbox-token-a', {
-        key: 'sandbox.diskGb',
+        key: 'worktree.directory',
         value: 'disk-c',
       })
       expect(setReply.status).toBe(200)
       expect(await db.orm.public.UserSetting.where({ userId: 'user-a' }).all()).toHaveLength(1)
       expect((await settings()).map((row) => row.value).sort()).toEqual(['disk-b', 'disk-c'])
 
-      const removed = await mutate('settings.remove', 'sandbox-token-a', { key: 'sandbox.diskGb' })
+      const removed = await mutate('settings.remove', 'sandbox-token-a', {
+        key: 'worktree.directory',
+      })
       expect(removed.status).toBe(200)
       expect(await db.orm.public.UserSetting.where({ userId: 'user-a' }).all()).toHaveLength(0)
       expect(await db.orm.public.UserSetting.where({ userId: 'user-b' }).all()).toHaveLength(1)
@@ -184,21 +185,21 @@ describe('SettingsRouter', () => {
 
     it('a sandbox touches only its owner\u2019s personal settings', async () => {
       await mutate('settings.set', 'sandbox-token-a', {
-        key: 'sandbox.diskGb',
+        key: 'worktree.directory',
         value: 'disk-c',
       }).expect(200)
       expect(
         (await db.orm.public.UserSetting.where({ userId: 'user-b' }).all()).map((row) => row.value),
       ).toEqual(['disk-b'])
 
-      await mutate('settings.remove', 'sandbox-token-a', { key: 'sandbox.diskGb' }).expect(200)
+      await mutate('settings.remove', 'sandbox-token-a', { key: 'worktree.directory' }).expect(200)
       expect(await db.orm.public.UserSetting.where({ userId: 'user-b' }).all()).toHaveLength(1)
     })
 
     it('still lists and removes settings for a session', async () => {
       expect((await list('session-a').expect(200)).body.result.data.settings).toHaveLength(1)
 
-      const removed = await mutate('settings.remove', 'session-a', { key: 'sandbox.diskGb' })
+      const removed = await mutate('settings.remove', 'session-a', { key: 'worktree.directory' })
       expect(removed.status).toBe(200)
       expect(removed.body).toEqual({ result: {} })
       expect(await db.orm.public.UserSetting.where({ userId: 'user-a' }).all()).toHaveLength(0)

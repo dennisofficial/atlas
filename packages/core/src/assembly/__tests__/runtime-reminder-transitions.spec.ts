@@ -3,6 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import type { EventDraft } from '../../events/body'
 import { EExecutionLocation } from '../../execution/location'
 import type { CompiledPrompt } from '../../prompt/compiled'
+import type { Assembled, AssembledMessage } from '../assembled'
 import { assemble } from '../assemble'
 import { defaultPipeline } from '../pipeline'
 import { contextFor, log } from './log-fixture'
@@ -70,12 +71,22 @@ const assembleWith = ({
   }).assembled
 }
 
-const textOf = (entry: { message: unknown } | undefined): string => {
-  const message = entry?.message as
-    | { content: readonly { type: string; text?: string }[] }
-    | undefined
-  return message?.content.find((part) => part.type === 'text')?.text ?? ''
-}
+const textOf = (entry: AssembledMessage | undefined): string =>
+  entry?.message.content.find((part) => part.type === 'text')?.text ?? ''
+
+const isWorkspaceNote = (text: string): boolean =>
+  text.startsWith('<system') && text.includes('workspace')
+
+const withoutNote = (messages: Assembled['messages']): readonly AssembledMessage[] =>
+  messages.filter((entry) => !isWorkspaceNote(textOf(entry)))
+
+const shapeOf = (messages: Assembled['messages']): readonly { role: string; text: string }[] =>
+  withoutNote(messages).map((entry) => ({ role: entry.message.role, text: textOf(entry) }))
+
+const notesOf = (messages: Assembled['messages']): readonly AssembledMessage[] =>
+  messages.filter((entry) => isWorkspaceNote(textOf(entry)))
+
+const noteOf = (assembled: Assembled): string => textOf(notesOf(assembled.messages)[0])
 
 const conversationOf = (pairs: number): EventDraft[] => [
   ...Array.from({ length: pairs }, (_unused, index): EventDraft[] => [
@@ -93,12 +104,17 @@ describe('runtime reminders across transitions', () => {
 
       expect(after.system).toEqual(before.system)
       expect(after.system).toEqual([{ text: DOCTRINE, source: 'system-prompt' }])
-      expect(after.messages.slice(0, 2)).toEqual(before.messages.slice(0, 2))
+      expect(withoutNote(after.messages).slice(0, 2)).toEqual(
+        withoutNote(before.messages).slice(0, 2),
+      )
     })
   }
 
-  it('adds no reminder to a completed exchange', () => {
-    expect(assembleWith({ drafts: BASE }).messages).toHaveLength(2)
+  it('adds no reminder to the tail of a completed exchange', () => {
+    const assembled = assembleWith({ drafts: BASE })
+
+    expect(withoutNote(assembled.messages)).toHaveLength(2)
+    expect(assembled.messages.at(-1)?.message.role).toBe('assistant')
   })
 
   it('changes the system prompt on no step of enter, move to Docker, return to host', () => {
@@ -112,7 +128,9 @@ describe('runtime reminders across transitions', () => {
 
     for (const step of steps) {
       expect(step.system).toEqual([{ text: DOCTRINE, source: 'system-prompt' }])
-      expect(step.messages.slice(0, 2)).toEqual(baseline.messages.slice(0, 2))
+      expect(withoutNote(step.messages).slice(0, 2)).toEqual(
+        withoutNote(baseline.messages).slice(0, 2),
+      )
     }
   })
 
@@ -121,15 +139,13 @@ describe('runtime reminders across transitions', () => {
     const inDocker = assembleWith({ drafts: [...BASE, ENTERED, TO_DOCKER] })
     const backOnHost = assembleWith({ drafts: [...BASE, ENTERED, TO_DOCKER, TO_HOST] })
 
-    expect(textOf(inTree.messages.at(-1))).toContain(`Project directory: ${TREE}`)
-    expect(textOf(inDocker.messages.at(-1))).toContain('Execution location: a Docker sandbox')
+    expect(noteOf(inTree)).toContain(`Project directory: ${TREE}`)
+    expect(noteOf(inDocker)).toContain('Execution location: a Docker sandbox')
     for (const assembled of [inTree, backOnHost]) {
-      for (const entry of assembled.messages) {
-        expect(textOf(entry)).not.toContain('Execution location')
-        expect(textOf(entry)).not.toContain('Docker container')
-      }
+      expect(assembled.messages.map(textOf).join('\n')).not.toContain('Execution location')
+      expect(assembled.messages.map(textOf).join('\n')).not.toContain('Docker container')
     }
-    for (const entry of inDocker.messages.slice(0, -1)) {
+    for (const entry of withoutNote(inDocker.messages)) {
       expect(textOf(entry)).not.toContain('Execution location')
       expect(textOf(entry)).not.toContain('Docker container')
     }
@@ -140,7 +156,7 @@ describe('runtime reminders across transitions', () => {
       [...BASE, ENTERED, TO_DOCKER],
       [...BASE, ENTERED, TO_DOCKER, TO_HOST],
     ]) {
-      const note = textOf(assembleWith({ drafts }).messages.at(-1))
+      const note = noteOf(assembleWith({ drafts }))
 
       expect(note).toContain(`Project directory: ${LAUNCH}.`)
       expect(note).not.toContain(TREE)
@@ -148,13 +164,23 @@ describe('runtime reminders across transitions', () => {
     }
   })
 
-  it('keeps every earlier message byte-identical as the tail reminders change', () => {
+  it('keeps every conversation message identical as the tail reminders change', () => {
     const withReminders = assembleWith({ drafts: [...BASE, ENTERED, TO_DOCKER] })
     const later = assembleWith({
       drafts: [...BASE, ENTERED, TO_DOCKER, TO_HOST, { type: 'user-said', text: 'continue' }],
     })
 
-    expect(later.messages.slice(0, 2)).toEqual(withReminders.messages.slice(0, 2))
+    expect(withoutNote(later.messages).slice(0, 2)).toEqual(
+      withoutNote(withReminders.messages).slice(0, 2),
+    )
+  })
+
+  it('sends the workspace note once, and the same list twice, for one log', () => {
+    const first = assembleWith({ drafts: [...BASE, ENTERED] })
+    const second = assembleWith({ drafts: [...BASE, ENTERED] })
+
+    expect(notesOf(first.messages)).toHaveLength(1)
+    expect(second.messages).toEqual(first.messages)
   })
 })
 
@@ -163,7 +189,7 @@ describe('the cache prefix across Host to Docker to Host', () => {
   const marksIn = (messages: readonly unknown[]): number =>
     messages.filter((entry) => JSON.stringify(entry).includes('cacheControl')).length
 
-  it('holds the system and the 121 durable messages byte-identical through real location events', () => {
+  it('holds the system and every conversation message byte-identical through real location events', () => {
     expect(conversation.filter((draft) => draft.type !== 'location-changed')).toHaveLength(121)
 
     const onHost = assembleWith({ drafts: conversation, provider: CACHING_PROVIDER })
@@ -176,27 +202,25 @@ describe('the cache prefix across Host to Docker to Host', () => {
       provider: CACHING_PROVIDER,
     })
 
-    const prefixOf = (assembled: typeof onHost): string =>
-      JSON.stringify({ system: assembled.system, durable: assembled.messages.slice(0, 121) })
+    const prefixOf = (assembled: Assembled): string =>
+      JSON.stringify({ system: assembled.system, conversation: shapeOf(assembled.messages) })
 
     expect(JSON.stringify(onHost.system)).toContain('cacheControl')
-    expect(marksIn(onHost.messages.slice(0, 121))).toBeGreaterThan(0)
+    expect(marksIn(onHost.messages)).toBeGreaterThan(0)
     expect(prefixOf(inDocker)).toBe(prefixOf(onHost))
     expect(prefixOf(backOnHost)).toBe(prefixOf(onHost))
   })
 
-  it('keeps the whole prefix identical when the location changes, adding only the logged event', () => {
+  it('keeps every conversation message identical when the location changes, leaving the note as the only difference', () => {
     const onHost = assembleWith({ drafts: conversation, provider: CACHING_PROVIDER })
     const inDocker = assembleWith({
       drafts: [...conversation, TO_DOCKER],
       provider: CACHING_PROVIDER,
     })
 
-    const durable = (
-      messages: readonly (typeof inDocker.messages)[number][],
-    ): readonly (typeof inDocker.messages)[number][] =>
-      messages.filter((entry) => !textOf(entry).includes('Project directory'))
-
-    expect(durable(inDocker.messages)).toEqual([...durable(onHost.messages)])
+    expect(shapeOf(inDocker.messages)).toEqual(shapeOf(onHost.messages))
+    expect(notesOf(inDocker.messages)).toHaveLength(1)
+    expect(noteOf(inDocker)).toContain('Execution location: a Docker sandbox')
+    expect(noteOf(onHost)).not.toContain('Execution location')
   })
 })

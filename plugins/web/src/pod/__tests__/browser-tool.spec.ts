@@ -45,7 +45,6 @@ const ctxOf = (args: {
       exposePort: unsupported,
       memory: {} as never,
       mcp: EMPTY_MCP_CONTROL,
-      webSearch: { config: async () => ({ backend: 'bing', key: undefined }) },
       gateway: { apiKey: async () => undefined, imageModel: async () => undefined },
       routines: EMPTY_ROUTINES,
       subscriptions: EMPTY_SUBSCRIPTIONS,

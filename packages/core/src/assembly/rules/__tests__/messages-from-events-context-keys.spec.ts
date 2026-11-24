@@ -93,3 +93,16 @@ describe('context keyed to the call it belongs to', () => {
     expect(text).not.toContain('first finding')
   })
 })
+
+describe('context that a later event emptied', () => {
+  it('sends nothing for the slot once its current content is blank', () => {
+    const text = projected([
+      findingOn({ call: 'src/a.ts', content: 'a finding' }),
+      { type: 'user-said' as const, text: 'go' },
+      findingOn({ call: 'src/a.ts', content: '' }),
+    ])
+
+    expect(text).not.toContain('a finding')
+    expect(text).not.toContain('source=\\"review\\"')
+  })
+})
