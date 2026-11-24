@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EUpdateCardAction, EUpdateCardKind, updateCardOf } from '../update-card-state'
+import {
+  CARD_EDGE_GAP,
+  EUpdateCardAction,
+  EUpdateCardKind,
+  updateCardFrameOf,
+  updateCardOf,
+} from '../update-card-state'
 
 const idle = {
   enabled: true,
@@ -47,5 +53,19 @@ describe('updateCardOf', () => {
     expect(model?.action).toBe(EUpdateCardAction.Download)
     expect(model?.actionLabel).toBe('Download')
     expect(model?.dismissible).toBe(true)
+  })
+})
+
+describe('updateCardFrameOf', () => {
+  it('keeps the card clear of the right system column on iPhone Duo', () => {
+    expect(
+      updateCardFrameOf({ insets: { top: 0, right: 80, bottom: 21, left: 0 }, below: 56 }),
+    ).toEqual({ top: 56, left: CARD_EDGE_GAP, right: 80 + CARD_EDGE_GAP })
+  })
+
+  it('sits below the status bar and the header on a plain iPhone', () => {
+    expect(
+      updateCardFrameOf({ insets: { top: 54, right: 0, bottom: 34, left: 0 }, below: 56 }),
+    ).toEqual({ top: 54 + 56, left: CARD_EDGE_GAP, right: CARD_EDGE_GAP })
   })
 })

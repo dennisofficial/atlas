@@ -1,3 +1,19 @@
+export const CARD_EDGE_GAP = 16
+
+export type TCardInsets = { top: number; right: number; bottom: number; left: number }
+
+export const updateCardFrameOf = ({
+  insets,
+  below,
+}: {
+  insets: TCardInsets
+  below: number
+}): { top: number; left: number; right: number } => ({
+  top: insets.top + below,
+  left: insets.left + CARD_EDGE_GAP,
+  right: insets.right + CARD_EDGE_GAP,
+})
+
 export enum EUpdateCardKind {
   Downloading = 'downloading',
   Downloadable = 'downloadable',
