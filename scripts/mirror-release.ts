@@ -87,6 +87,8 @@ const sha256Of = async (path: string): Promise<string> => {
   return hasher.digest('hex')
 }
 
+export type ServedAsset = { bytes: number; digest: string }
+
 const digestOf = async (body: ReadableStream<Uint8Array>): Promise<ServedAsset> => {
   const hasher = new Bun.CryptoHasher('sha256')
   const reader = body.getReader()
@@ -99,8 +101,6 @@ const digestOf = async (body: ReadableStream<Uint8Array>): Promise<ServedAsset> 
   }
   return { bytes, digest: hasher.digest('hex') }
 }
-
-export type ServedAsset = { bytes: number; digest: string }
 
 // A release asset is up to a few hundred megabytes over one connection, and the mirror's edge drops
 // that connection now and then; the release job then failed on a download it could have repeated
