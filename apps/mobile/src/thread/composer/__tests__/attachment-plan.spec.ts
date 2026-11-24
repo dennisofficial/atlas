@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'bun:test'
 
-import { MAX_MESSAGE_UPLOADS, MAX_UPLOAD_BYTES } from '@dltech/atlas-core'
+import { MAX_INLINE_BYTES, MAX_MESSAGE_UPLOADS, MAX_UPLOAD_BYTES } from '@dltech/atlas-core'
 
 import {
+  attachRouteOf,
+  EAttachRoute,
   EAttachmentStatus,
   attachmentsOf,
   describeBytes,
@@ -12,11 +14,14 @@ import {
   sendableOf,
   startedAttachment,
   withFailed,
+  withMediaReady,
   withProgress,
   withReady,
   withoutAttachment,
   type PickedFile,
 } from '../attachment-plan'
+
+const HASH = 'a'.repeat(64)
 
 const picked = (name: string, size = 1024): PickedFile => ({
   name,
@@ -64,8 +69,43 @@ describe('planAttach', () => {
   })
 })
 
+describe('attachRouteOf', () => {
+  it('routes a supported image within the inline ceiling to the media store', () => {
+    expect(attachRouteOf(picked('a.jpg'))).toBe(EAttachRoute.Media)
+    expect(attachRouteOf(picked('a.png', MAX_INLINE_BYTES))).toBe(EAttachRoute.Media)
+  })
+
+  it('routes an image type the media store does not take to the upload store', () => {
+    const heic = { ...picked('a.heic'), mediaType: 'image/heic' }
+    expect(attachRouteOf(heic)).toBe(EAttachRoute.Upload)
+  })
+
+  it('routes a file past the inline ceiling to the upload store', () => {
+    expect(attachRouteOf(picked('a.jpg', MAX_INLINE_BYTES + 1))).toBe(EAttachRoute.Upload)
+  })
+
+  it('routes a file of unknown size to the upload store', () => {
+    expect(attachRouteOf(picked('a.jpg', 0))).toBe(EAttachRoute.Upload)
+  })
+})
+
 describe('held attachment status', () => {
   const started = startedAttachment({ id: 'one', file: picked('a.jpg') })
+
+  it('projects a ready media hash into a media-store attachment', () => {
+    const ready = withMediaReady({ held: [started], id: 'one', hash: HASH })
+    expect(ready[0]?.status).toBe(EAttachmentStatus.Ready)
+    expect(ready[0]?.progress).toBe(1)
+    expect(attachmentsOf(ready)).toEqual([
+      {
+        id: `media:${HASH}`,
+        name: 'a.jpg',
+        mediaType: 'image/jpeg',
+        size: 1024,
+        content: { store: 'media', hash: HASH },
+      },
+    ])
+  })
 
   it('starts uploading with no upload attached', () => {
     expect(started.status).toBe(EAttachmentStatus.Uploading)

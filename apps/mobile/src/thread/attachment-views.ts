@@ -9,7 +9,12 @@ import {
 export type AttachmentSource =
   | { kind: 'ready'; uri: string }
   | { kind: 'fetch'; key: string; pathname: string }
+  | { kind: 'media'; key: string; hash: string }
   | { kind: 'unavailable' }
+
+export type FetchableSource =
+  | { kind: 'upload'; key: string; pathname: string }
+  | { kind: 'media'; key: string; hash: string }
 
 export type AttachmentView = {
   key: string
@@ -29,16 +34,20 @@ export function sourceOf(attachment: Attachment): AttachmentSource {
     const pathname = attachment.content.pathname
     return { kind: 'fetch', key: `upload:${pathname}`, pathname }
   }
-  const hash = mediaHashOf(attachment)
-  return hash === null ? { kind: 'unavailable' } : { kind: 'unavailable' }
+  if (attachment.content.store === EAttachmentStore.Media) {
+    const hash = mediaHashOf(attachment)
+    if (hash !== null) return { kind: 'media', key: `media:${hash}`, hash }
+  }
+  return { kind: 'unavailable' }
 }
 
-export const fetchableOf = (
-  attachments: readonly Attachment[],
-): { key: string; pathname: string }[] =>
-  attachments.flatMap((attachment) => {
+export const fetchableOf = (attachments: readonly Attachment[]): FetchableSource[] =>
+  attachments.flatMap<FetchableSource>((attachment) => {
     const source = sourceOf(attachment)
-    return source.kind === 'fetch' ? [{ key: source.key, pathname: source.pathname }] : []
+    if (source.kind === 'fetch')
+      return [{ kind: 'upload', key: source.key, pathname: source.pathname }]
+    if (source.kind === 'media') return [{ kind: 'media', key: source.key, hash: source.hash }]
+    return []
   })
 
 export const viewsOf = (args: {
@@ -50,9 +59,9 @@ export const viewsOf = (args: {
     const uri =
       source.kind === 'ready'
         ? source.uri
-        : source.kind === 'fetch'
-          ? args.sources.get(source.key)
-          : undefined
+        : source.kind === 'unavailable'
+          ? undefined
+          : args.sources.get(source.key)
     return {
       key: `${attachment.id}:${index}`,
       id: attachment.id,

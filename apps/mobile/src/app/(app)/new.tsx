@@ -21,6 +21,7 @@ import { applyNavigation } from '../../navigation/apply-navigation'
 import { sessionOpenOf } from '../../navigation/root-navigation'
 import { useSettings } from '../../settings/settings-provider'
 import { Composer } from '../../thread/composer/composer'
+import { useAttachments } from '../../thread/composer/use-attachments'
 
 export default function NewSessionScreen() {
   const theme = useTheme()
@@ -33,6 +34,7 @@ export default function NewSessionScreen() {
   const [effort, setEffort] = useState<string | null>(null)
   const [fast, setFast] = useState(false)
   const { models } = useModels()
+  const attachments = useAttachments()
   const settings = useSettings()
   const [localPinned, setLocalPinned] = useState<string[] | null>(null)
   const selection = selectionOf({ models, modelId, effort, fast })
@@ -78,6 +80,7 @@ export default function NewSessionScreen() {
         api,
         projectId,
         text: message.text,
+        attachments: message.attachments,
         model: selection?.model.id,
         effort: selection?.effort,
         fast: selection?.fast,
@@ -111,6 +114,7 @@ export default function NewSessionScreen() {
           sendable={api !== undefined}
           placeholder="Describe a task for Atlas…"
           draftSessionId={null}
+          attachments={attachments}
           onSend={handleSend}
         >
           <View style={styles.footer}>

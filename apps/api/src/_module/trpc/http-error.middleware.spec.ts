@@ -4,6 +4,7 @@ import { Query, Router } from 'nestjs-trpc'
 import request from 'supertest'
 import type { Mock } from 'bun:test'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'bun:test'
+import { UnknownModelRefError } from '@dltech/atlas-core'
 import { z } from 'zod'
 import { UNTHROTTLED_RATE_LIMIT, createMiddlewareApp } from './trpc-middleware.fixture'
 
@@ -21,6 +22,11 @@ class FaultRouter {
   @Query({ output: z.string() })
   clientFault(): string {
     throw new HttpException('input is invalid', HttpStatus.BAD_REQUEST)
+  }
+
+  @Query({ output: z.string() })
+  unknownModelRef(): string {
+    throw new UnknownModelRefError({ ref: 'claude-opus-5-5' })
   }
 }
 
@@ -76,6 +82,35 @@ describe('HttpErrorMiddleware', () => {
 
     expect(reply.body.error.message).toBe('input is invalid')
     expect(reply.body.error.data.stack).toBeUndefined()
+    expect(reply.text).not.toContain('at ')
+  })
+})
+
+describe('HttpErrorMiddleware with an unknown model ref', () => {
+  let app: INestApplication
+
+  beforeAll(async () => {
+    vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined)
+    vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined)
+    app = await createMiddlewareApp({
+      providers: [FaultRouter],
+      rateLimit: UNTHROTTLED_RATE_LIMIT,
+    })
+  })
+
+  afterAll(async () => {
+    await app.close()
+    vi.restoreAllMocks()
+  })
+
+  it('answers a bad request that keeps the message the client reads', async () => {
+    const reply = await request(app.getHttpServer())
+      .get('/v1/trpc/faults.unknownModelRef')
+      .expect(400)
+
+    expect(reply.body.error.message).toBe(
+      'Unknown model "claude-opus-5-5". Use the form "<provider>/<model>".',
+    )
     expect(reply.text).not.toContain('at ')
   })
 })
