@@ -55,7 +55,6 @@ const OperatorRequestCard = ({
         label={sending ? 'Sending…' : 'Answer'}
         size={EButtonSize.Sm}
         variant={EButtonVariant.Default}
-        loading={sending}
         disabled={sending}
         onPress={onOpen}
       />

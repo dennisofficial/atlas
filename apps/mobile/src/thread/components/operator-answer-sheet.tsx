@@ -10,7 +10,7 @@ import {
   Text,
   useTheme,
 } from '@dltech/atlas-ui-native'
-import { Modal, StyleSheet, View } from 'react-native'
+import { Modal, ScrollView, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 export const OperatorAnswerSheet = ({
@@ -45,11 +45,10 @@ export const OperatorAnswerSheet = ({
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <View
-        style={[
-          styles.sheet,
-          { backgroundColor: theme.background, paddingBottom: insets.bottom + space(4) },
-        ]}
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        style={{ backgroundColor: theme.background }}
+        contentContainerStyle={[styles.sheet, { paddingBottom: insets.bottom + space(4) }]}
       >
         <View style={styles.bar}>
           <View style={styles.side}>
@@ -106,15 +105,17 @@ export const OperatorAnswerSheet = ({
           variant={EButtonVariant.Destructive}
           onPress={onDecline}
         />
-      </View>
+      </ScrollView>
     </Modal>
   )
 }
 
 const styles = StyleSheet.create({
   sheet: {
-    flex: 1,
+    alignSelf: 'center',
     gap: space(3),
+    maxWidth: 560,
+    width: '100%',
     paddingHorizontal: space(4),
     paddingTop: space(4),
   },
