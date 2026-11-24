@@ -13,6 +13,14 @@ export type OpenRequest =
 
 export type LaunchFlags = { open: OpenRequest; model: string | null }
 
+export enum EMissedEnd {
+  ResumeUnknown = 'resume-unknown',
+  LastArchived = 'last-archived',
+  LastNotListed = 'last-not-listed',
+}
+
+export type OpenTarget = { row: StreamSessionRow | null; missed: EMissedEnd | null }
+
 const CONTINUE_FLAGS: readonly string[] = ['--continue', '-c']
 
 const RESUME_FLAG = '--resume'
@@ -47,6 +55,11 @@ const newestOf = (rows: readonly StreamSessionRow[]): StreamSessionRow | null =>
     null,
   )
 
+const listedOf = (rows: readonly StreamSessionRow[]): readonly StreamSessionRow[] =>
+  rows.filter(
+    (row) => row.archivedAt === null && (row.spawnedBy === null || row.spawnedBy === undefined),
+  )
+
 const rankOf = (args: { row: StreamSessionRow; wanted: string; needle: string }): number => {
   if (args.row.sessionId === args.wanted) return 0
   if (args.row.sessionId.startsWith(args.wanted)) return 1
@@ -60,8 +73,6 @@ export const resumeTargetOf = (args: {
   rows: readonly StreamSessionRow[]
   open: OpenRequest
 }): StreamSessionRow | null => {
-  if (args.open.mode === EOpenMode.Continue)
-    return newestOf(args.rows.filter((row) => row.archivedAt === null))
   if (args.open.mode !== EOpenMode.Resume) return null
 
   const wanted = args.open.handle
@@ -74,4 +85,35 @@ export const resumeTargetOf = (args: {
 
   const best = Math.min(...ranked.map((entry) => entry.rank))
   return newestOf(ranked.filter((entry) => entry.rank === best).map((entry) => entry.row))
+}
+
+export const continueTargetOf = (args: {
+  rows: readonly StreamSessionRow[]
+  lastSessionId: string | null
+}): OpenTarget => {
+  const listed = listedOf(args.rows)
+  const last =
+    args.lastSessionId === null
+      ? undefined
+      : listed.find((row) => row.sessionId === args.lastSessionId)
+  if (last !== undefined) return { row: last, missed: null }
+
+  const row = newestOf(listed)
+  if (args.lastSessionId === null) return { row, missed: null }
+
+  const known = args.rows.some((entry) => entry.sessionId === args.lastSessionId)
+  return { row, missed: known ? EMissedEnd.LastArchived : EMissedEnd.LastNotListed }
+}
+
+export const resolveOpen = (args: {
+  rows: readonly StreamSessionRow[]
+  open: OpenRequest
+  lastSessionId: string | null
+}): OpenTarget => {
+  if (args.open.mode === EOpenMode.Continue)
+    return continueTargetOf({ rows: args.rows, lastSessionId: args.lastSessionId })
+  if (args.open.mode !== EOpenMode.Resume) return { row: null, missed: null }
+
+  const row = resumeTargetOf({ rows: args.rows, open: args.open })
+  return { row, missed: row === null ? EMissedEnd.ResumeUnknown : null }
 }

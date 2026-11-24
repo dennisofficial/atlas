@@ -96,6 +96,7 @@ describe('the sign-in flow', () => {
           email: EMAIL,
           token: 'token-1',
           preferences: {},
+          lastSessionId: null,
         })
         expect(statSync(accountPath).mode & 0o777).toBe(0o600)
       } finally {

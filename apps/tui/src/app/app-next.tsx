@@ -43,7 +43,14 @@ export function AppNext(props: AppNextProps): React.ReactNode {
   const launch = props.launch ?? DEFAULT_LAUNCH
   const cwd = props.cwd ?? process.cwd()
 
-  const { account, handleAuthLost, handlePreferences, signIn, handleSignOut } = useAccountFlow({
+  const {
+    account,
+    handleAuthLost,
+    handlePreferences,
+    handleRememberSession,
+    signIn,
+    handleSignOut,
+  } = useAccountFlow({
     accountPath: props.accountPath,
     apiUrl: props.apiUrl,
     initialAccount: props.initialAccount,
@@ -134,11 +141,18 @@ export function AppNext(props: AppNextProps): React.ReactNode {
     onPick: nav.handlePick,
     now,
     pendingOpen: launch.open,
+    lastSessionId: props.initialAccount?.lastSessionId ?? null,
     onProblem: problemOf,
     onRows: watch,
   })
   lookupModel.current = list.modelOf
   rowOfRef.current = list.rowOf
+
+  const openedSessionId = screen.screen === EScreen.Transcript ? screen.sessionId : null
+
+  useEffect(() => {
+    if (openedSessionId !== null) handleRememberSession(openedSessionId)
+  }, [handleRememberSession, openedSessionId])
 
   const chatKeys = useRef<((key: KeyEvent) => boolean) | null>(null)
   const newKeys = useRef<((key: KeyEvent) => boolean) | null>(null)
