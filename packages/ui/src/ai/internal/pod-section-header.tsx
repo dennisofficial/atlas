@@ -35,16 +35,19 @@ function stateTextOf({
 
 function powerLabelOf({
   state,
+  starting,
   stopping,
   resizing,
   waiting,
 }: {
   state: EPodState
+  starting: boolean
   stopping: boolean
   resizing: boolean
   waiting: boolean
 }): string {
   if (stopping) return 'Stopping pod'
+  if (starting) return 'Starting pod'
   if (waiting) return 'Waiting to resize pod'
   if (resizing) return 'Resizing pod'
   if (wakingOf(state)) return 'Starting pod'
@@ -53,6 +56,7 @@ function powerLabelOf({
 
 export interface PodSectionHeaderProps {
   state: EPodState
+  starting?: boolean | undefined
   stopping?: boolean | undefined
   resizing?: boolean | undefined
   waiting?: boolean | undefined
@@ -63,6 +67,7 @@ export interface PodSectionHeaderProps {
 
 export function PodSectionHeader({
   state,
+  starting = false,
   stopping = false,
   resizing = false,
   waiting = false,
@@ -70,8 +75,8 @@ export function PodSectionHeader({
   onStart,
   onStop,
 }: PodSectionHeaderProps) {
-  const label = powerLabelOf({ state, stopping, resizing, waiting })
-  const pending = resizing || waiting || wakingOf(state)
+  const label = powerLabelOf({ state, starting, stopping, resizing, waiting })
+  const pending = starting || resizing || waiting || wakingOf(state)
   const busy = stopping || pending
   const running = state === EPodState.Running
 

@@ -12,6 +12,8 @@ import { api, cloudCall } from '@/lib/api-client'
 import { CloudApiError } from '@/lib/cloud-api'
 
 export const POD_TURN_RUNNING = 'TURN_RUNNING'
+export const POD_WAKE_DEADLINE_MS = 60_000
+export const POD_WAKE_FAILURE = 'The pod did not report running. Try again.'
 
 export type PodPowerState =
   | { phase: 'awake' }
@@ -77,12 +79,14 @@ export type PodPower = {
 export function usePodPower(args: {
   sessionId: string
   declared?: PodDeclaredState | undefined
+  wakeDeadlineMs?: number | undefined
   sleep?: (input: SessionSleepPodInput) => Promise<SessionSleepPodOutput>
   wake?: (input: SessionWakeInput) => Promise<SessionWakeOutput>
 }): PodPower {
   const { sessionId, declared } = args
   const sleepCall = args.sleep ?? sleepRequest
   const wakeCall = args.wake ?? wakeRequest
+  const wakeDeadlineMs = args.wakeDeadlineMs ?? POD_WAKE_DEADLINE_MS
   const [state, setState] = useState<PodPowerState>({ phase: 'awake' })
   const [message, setMessage] = useState<string | undefined>(undefined)
 
@@ -93,6 +97,15 @@ export function usePodPower(args: {
   useEffect(() => {
     setState((previous) => podPowerSettled({ state: previous, declared }))
   }, [declared, state])
+
+  useEffect(() => {
+    if (state.phase !== 'waking') return undefined
+    const timer = setTimeout(() => {
+      setMessage(POD_WAKE_FAILURE)
+      setState({ phase: 'awake' })
+    }, wakeDeadlineMs)
+    return () => clearTimeout(timer)
+  }, [state.phase, wakeDeadlineMs])
 
   const sleep = useCallback(
     (force: boolean) => {
