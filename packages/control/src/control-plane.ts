@@ -636,22 +636,19 @@ export class ControlPlane {
     return this.store.transact((tx) => tx.contextDigestsReferenced(params))
   }
 
-  async publishContextFile(params: {
+  async commitContextFile(params: {
     sessionId: string
     write: ContextFileWrite
-    bytes?: Uint8Array | undefined
-    content: Pick<ContextContentStore, 'put'>
-  }): Promise<void> {
-    await this.store.transact(async (tx) => {
+    content: Pick<ContextContentStore, 'exists'>
+  }): Promise<boolean> {
+    return this.store.transact(async (tx) => {
       const { digest } = params.write
-      if (digest !== null && params.bytes !== undefined) {
+      if (digest !== null) {
         await tx.lockContextDigest({ digest })
-        const referenced = await tx.contextDigestsReferenced({ digests: [digest] })
-        if (!referenced.has(digest)) {
-          await params.content.put({ hash: digest, bytes: params.bytes })
-        }
+        if (!(await params.content.exists({ hash: digest }))) return false
       }
       await tx.upsertContextFiles({ sessionId: params.sessionId, files: [params.write] })
+      return true
     })
   }
 

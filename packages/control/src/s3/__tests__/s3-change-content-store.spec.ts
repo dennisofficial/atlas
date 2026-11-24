@@ -3,6 +3,7 @@ import {
   type DeleteObjectsCommandOutput,
   type GetObjectCommand,
   type GetObjectCommandOutput,
+  type HeadObjectCommand,
   type ListObjectsV2Command,
   type ListObjectsV2CommandOutput,
   type PutObjectCommand,
@@ -42,6 +43,8 @@ class FakeGateway implements ChangesS3Gateway {
   readonly puts: PutObjectCommand[] = []
   readonly removes: DeleteObjectsCommand[] = []
   readonly signed: { command: GetObjectCommand; ttlMs: number }[] = []
+  readonly signedPuts: { command: PutObjectCommand; ttlMs: number }[] = []
+  readonly heads: HeadObjectCommand[] = []
   readonly objects = new Map<string, Uint8Array>()
   pages: ListObjectsV2CommandOutput[] = []
 
@@ -69,6 +72,16 @@ class FakeGateway implements ChangesS3Gateway {
   async signGet(args: { command: GetObjectCommand; ttlMs: number }): Promise<string> {
     this.signed.push(args)
     return `https://signed/${args.command.input.Key}`
+  }
+
+  async signPut(args: { command: PutObjectCommand; ttlMs: number }): Promise<string> {
+    this.signedPuts.push(args)
+    return `https://signed-put/${args.command.input.Key}`
+  }
+
+  async head(command: HeadObjectCommand): Promise<boolean> {
+    this.heads.push(command)
+    return this.objects.has(command.input.Key ?? '')
   }
 }
 
@@ -143,6 +156,36 @@ describe('S3ChangeContentStore', () => {
     const url = await store.presignGet({ hash: HASH, ttlMs: 300_000 })
     expect(url).toBe(`https://signed/worktree-changes/sha256/ab/${HASH}`)
     expect(gateway.signed[0]?.ttlMs).toBe(300_000)
+  })
+
+  it('carries the response type and the download name on the signed command', async () => {
+    const { gateway, store } = storeOf()
+    await store.presignGet({
+      hash: HASH,
+      ttlMs: 300_000,
+      contentType: 'video/mp4',
+      downloadName: 'walkthrough.mp4',
+    })
+    expect(gateway.signed[0]?.command.input.ResponseContentType).toBe('video/mp4')
+    expect(gateway.signed[0]?.command.input.ResponseContentDisposition).toBe(
+      `attachment; filename="walkthrough.mp4"; filename*=UTF-8''walkthrough.mp4`,
+    )
+  })
+
+  it('presigns a PUT for the content key as a byte stream', async () => {
+    const { gateway, store } = storeOf()
+    const url = await store.presignPut({ hash: HASH, ttlMs: 900_000 })
+    expect(url).toBe(`https://signed-put/worktree-changes/sha256/ab/${HASH}`)
+    expect(gateway.signedPuts[0]?.ttlMs).toBe(900_000)
+    expect(gateway.signedPuts[0]?.command.input.ContentType).toBe('application/octet-stream')
+  })
+
+  it('answers whether the content key is in the bucket', async () => {
+    const { gateway, store } = storeOf()
+    gateway.objects.set(`worktree-changes/sha256/ab/${HASH}`, new Uint8Array([1]))
+    expect(await store.exists({ hash: HASH })).toBeTrue()
+    expect(await store.exists({ hash: OTHER })).toBeFalse()
+    expect(gateway.heads).toHaveLength(2)
   })
 
   it('removes in batches of 1000 and skips an empty list', async () => {

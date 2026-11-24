@@ -43,7 +43,7 @@ describe('ContextMirrorRouter', () => {
 
   it('reads for the signed-in user', async () => {
     mirror.read.mockResolvedValue({
-      file: { type: 'refused', path: 'a.md', reason: 'too large to mirror (20.0 MB)' },
+      file: { type: 'pending', path: 'a.md' },
     })
 
     const response = await get({

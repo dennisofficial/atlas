@@ -23,11 +23,36 @@ const mirrorFile = {
   bytes: 6,
 }
 
+const videoFile = (path: string) => ({
+  type: 'video' as const,
+  path,
+  mime: 'video/mp4',
+  bytes: 7118,
+  url: 'https://signed.test/play',
+  downloadUrl: 'https://signed.test/download',
+})
+
+const audioFile = (path: string) => ({
+  type: 'audio' as const,
+  path,
+  mime: 'audio/mp4',
+  bytes: 2048,
+  url: 'https://signed.test/play',
+  downloadUrl: 'https://signed.test/download',
+})
+
+const fileAt = (path: string) => {
+  if (path.endsWith('.mp4')) return videoFile(path)
+  if (path.endsWith('.m4a')) return audioFile(path)
+  if (path.endsWith('.bin')) return { type: 'pending' as const, path }
+  return { ...mirrorFile, path }
+}
+
 mock.module('@/lib/api-client', () => ({
   api: {
     contextMirror: {
       list: { query: async () => ({ files: [] }) },
-      read: { query: async ({ path }: { path: string }) => ({ file: { ...mirrorFile, path } }) },
+      read: { query: async ({ path }: { path: string }) => ({ file: fileAt(path) }) },
     },
     sessions: {
       holdPod: {
@@ -171,6 +196,15 @@ describe('FilesTab context files', () => {
     expect(host.textContent).toContain('# Plan')
   })
 
+  it('says quietly that a context file is not mirrored yet', async () => {
+    const host = await mount(
+      withOpen(runningValue(), '$ATLAS_CONTEXT_DIR/media/long.bin', EPaneOpen.Context),
+    )
+
+    expect(host.textContent).toContain('Context · media/long.bin')
+    expect(host.textContent).toContain('Not mirrored yet')
+  })
+
   it('opens a context file while the pod sleeps, without touching the pod', async () => {
     const host = await mount(withOpen(sleepingValue(), 'plan.md', EPaneOpen.Context))
 
@@ -211,5 +245,39 @@ describe('FilesTab context files', () => {
 
     expect(host.textContent).not.toContain('Context ·')
     expect(host.textContent).toContain('src')
+  })
+
+  it('plays a video in the pane and downloads under the real file name', async () => {
+    const host = await mount(
+      withOpen(runningValue(), '$ATLAS_CONTEXT_DIR/media/walkthrough.mp4', EPaneOpen.Context),
+    )
+
+    const video = host.querySelector('video')
+    if (!(video instanceof HTMLVideoElement)) throw new Error('video element missing')
+    expect(video.getAttribute('src')).toBe('https://signed.test/play')
+    expect(video.hasAttribute('controls')).toBe(true)
+    expect(video.getAttribute('preload')).toBe('metadata')
+    expect(host.textContent).toContain('video/mp4')
+    expect(host.textContent).toContain('7.0 KiB')
+
+    const download = host.querySelector('[data-context-file] a[download]')
+    if (!(download instanceof HTMLAnchorElement)) throw new Error('download link missing')
+    expect(download.getAttribute('href')).toBe('https://signed.test/download')
+  })
+
+  it('plays audio in the pane and downloads under the real file name', async () => {
+    const host = await mount(
+      withOpen(runningValue(), '$ATLAS_CONTEXT_DIR/media/note.m4a', EPaneOpen.Context),
+    )
+
+    const audio = host.querySelector('audio')
+    if (!(audio instanceof HTMLAudioElement)) throw new Error('audio element missing')
+    expect(audio.getAttribute('src')).toBe('https://signed.test/play')
+    expect(audio.hasAttribute('controls')).toBe(true)
+    expect(host.textContent).toContain('audio/mp4')
+
+    const download = host.querySelector('[data-context-file] a[download]')
+    if (!(download instanceof HTMLAnchorElement)) throw new Error('download link missing')
+    expect(download.getAttribute('href')).toBe('https://signed.test/download')
   })
 })

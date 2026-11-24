@@ -53,6 +53,8 @@ describe('S3ContextContentStore', () => {
         remove: async () => ({ $metadata: {} }),
         list: async () => ({ $metadata: {}, Contents: [] }),
         signGet: async (args) => `https://signed/${args.command.input.Key}`,
+        signPut: async (args) => `https://signed-put/${args.command.input.Key}`,
+        head: async (command) => objects.has(command.input.Key ?? ''),
       },
     })
 

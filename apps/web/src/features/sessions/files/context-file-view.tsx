@@ -50,28 +50,74 @@ function ImageBody(props: { file: Extract<ContextMirrorFile, { type: 'image' }> 
   )
 }
 
+function MediaCaption(props: { mime: string; bytes: number }) {
+  return (
+    <p className="text-xs text-muted-foreground">
+      {props.mime} · {fileSizeLabelOf(props.bytes)}
+    </p>
+  )
+}
+
+function DownloadButton(props: { href: string }) {
+  return (
+    <a href={props.href} download className="w-fit">
+      <Button variant="outline" size="sm">
+        <DownloadIcon />
+        Download
+      </Button>
+    </a>
+  )
+}
+
 function BinaryBody(props: { file: Extract<ContextMirrorFile, { type: 'binary' }> }) {
   return (
     <div className="flex flex-col gap-2">
       <p className="font-mono text-xs text-muted-foreground">{props.file.path}</p>
-      <p className="text-xs text-muted-foreground">
-        {props.file.mime} · {fileSizeLabelOf(props.file.bytes)}
-      </p>
-      <a href={props.file.url} download className="w-fit">
-        <Button variant="outline" size="sm">
-          <DownloadIcon />
-          Download
-        </Button>
-      </a>
+      <MediaCaption mime={props.file.mime} bytes={props.file.bytes} />
+      <DownloadButton href={props.file.downloadUrl} />
+    </div>
+  )
+}
+
+function VideoBody(props: { file: Extract<ContextMirrorFile, { type: 'video' }> }) {
+  return (
+    <div className="flex h-full min-h-0 flex-col gap-2">
+      {/* biome-ignore lint/a11y/useMediaCaption: a mirrored context file carries no caption track */}
+      <video
+        src={props.file.url}
+        controls
+        preload="metadata"
+        playsInline
+        className="mx-auto min-h-0 max-w-full flex-1 object-contain"
+      />
+      <div className="flex shrink-0 items-center justify-between gap-2">
+        <MediaCaption mime={props.file.mime} bytes={props.file.bytes} />
+        <DownloadButton href={props.file.downloadUrl} />
+      </div>
+    </div>
+  )
+}
+
+function AudioBody(props: { file: Extract<ContextMirrorFile, { type: 'audio' }> }) {
+  return (
+    <div className="flex flex-col gap-2">
+      {/* biome-ignore lint/a11y/useMediaCaption: a mirrored context file carries no caption track */}
+      <audio src={props.file.url} controls className="w-full" />
+      <div className="flex items-center justify-between gap-2">
+        <MediaCaption mime={props.file.mime} bytes={props.file.bytes} />
+        <DownloadButton href={props.file.downloadUrl} />
+      </div>
     </div>
   )
 }
 
 function ContextFileBody(props: { file: ContextMirrorFile; rendered: boolean }) {
   const { file } = props
-  if (file.type === 'refused') return <Notice>{file.reason}</Notice>
+  if (file.type === 'pending') return <Notice>Not mirrored yet</Notice>
   if (file.type === 'image') return <ImageBody file={file} />
   if (file.type === 'binary') return <BinaryBody file={file} />
+  if (file.type === 'video') return <VideoBody file={file} />
+  if (file.type === 'audio') return <AudioBody file={file} />
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="min-h-0 flex-1">
