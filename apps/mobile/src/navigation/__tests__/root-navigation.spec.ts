@@ -4,7 +4,9 @@ import { EControlsPlacement } from '../../layout/posture'
 import {
   accountNavigationOf,
   ENavigationAction,
+  ESettingsPlacement,
   SETTINGS_HREF,
+  settingsPlacementOf,
   tabNavigationOf,
 } from '../root-navigation'
 
@@ -74,5 +76,17 @@ describe('accountNavigationOf', () => {
       action: ENavigationAction.Push,
       href: SETTINGS_HREF,
     })
+  })
+})
+
+describe('settingsPlacementOf', () => {
+  it('treats Settings as a root that appears in place in the rail posture', () => {
+    expect(settingsPlacementOf({ controls: EControlsPlacement.Rail })).toBe(ESettingsPlacement.Root)
+  })
+
+  it('treats Settings as a pushed page with a back swipe in the bottom bar posture', () => {
+    expect(settingsPlacementOf({ controls: EControlsPlacement.BottomBar })).toBe(
+      ESettingsPlacement.Pushed,
+    )
   })
 })

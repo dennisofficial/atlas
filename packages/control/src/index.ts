@@ -3,6 +3,7 @@ export type { ChangeFeed } from './change-feed'
 export { ControlPlane, MAX_READ_LIMIT, MAX_SESSION_LIST_LIMIT } from './control-plane'
 export type { ControlPlaneParams, ReadEventsPage } from './control-plane'
 export { changeBlobKey, ChangeContentStore, changeHashOf } from './change-content'
+export type { PresignGetArgs, PresignPutArgs } from './change-content'
 export { CHANGES_GC_GRACE_MS, CHANGES_GC_ROW_LIMIT, runChangesGc } from './changes-gc'
 export { ContextContentStore } from './context-content'
 export type { ContextFileRow, ContextFileWrite } from './context-files'
@@ -111,6 +112,8 @@ export {
 } from './session-summary'
 export type { SessionStatusRead, StatusPlane } from './session-status'
 export { RecordCorruptError } from './refusal'
+export { TAIL_BASE_ATTEMPTS } from './tail-base'
+export type { TailBase } from './tail-base'
 export type { AppendOutcome, BlobRefusal, ControlRefusal } from './refusal'
 export type {
   ControlPullRequest,

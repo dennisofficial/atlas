@@ -83,6 +83,41 @@ describe('daemon-backed ports over the fake daemon', () => {
     await daemon.stop()
   })
 
+  it('digests a file and puts it to a presigned url', async () => {
+    const received: Uint8Array[] = []
+    const server = Bun.serve({
+      port: 0,
+      fetch: async (request) => {
+        received.push(new Uint8Array(await request.arrayBuffer()))
+        return new Response(null, { status: 200 })
+      },
+    })
+    const { files, calls, daemon } = await openPorts()
+    try {
+      await files.mkdir({ path: '/work' })
+      await files.writeFile({ path: '/work/a.bin', content: Uint8Array.from([0, 1, 250, 255]) })
+      const digest = await files.digestFile({ path: '/work/a.bin' })
+      expect(digest).toEqual({
+        sha256: new Bun.CryptoHasher('sha256')
+          .update(Uint8Array.from([0, 1, 250, 255]))
+          .digest('hex'),
+        size: 4,
+        head: Uint8Array.from([0, 1, 250, 255]),
+      })
+      const put = await files.putFile({
+        path: '/work/a.bin',
+        url: `http://127.0.0.1:${server.port}/put`,
+        size: 4,
+      })
+      expect(put).toEqual({ sha256: digest.sha256, size: 4 })
+      expect(Buffer.concat(received)).toEqual(Buffer.from([0, 1, 250, 255]))
+    } finally {
+      await server.stop(true)
+      calls.close()
+      await daemon.stop()
+    }
+  })
+
   it('throws an ENOENT-coded error for a missing file', async () => {
     const { files, calls, daemon } = await openPorts()
     expect(await codeOf(files.readFile({ path: '/missing' }))).toBe('ENOENT')

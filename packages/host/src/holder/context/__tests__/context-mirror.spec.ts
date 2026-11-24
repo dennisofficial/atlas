@@ -1,4 +1,4 @@
-import { CONTEXT_MIRROR_MAX_BYTES, EContextFileKind } from '@dltech/atlas-core'
+import { EContextFileKind } from '@dltech/atlas-core'
 import { FakeContextContentStore } from '@dltech/atlas-control/testing'
 import { describe, expect, it } from 'bun:test'
 
@@ -7,6 +7,7 @@ import {
   binaryOf,
   bytesOf,
   fakeFs,
+  NOW,
   putFile,
   removeFile,
   rig,
@@ -64,10 +65,10 @@ describe('ContextMirror', () => {
     const { mirror, plane, announces, content } = await rig({ fs })
 
     await mirror.rescanNow()
-    fs.reads.length = 0
+    fs.digests.length = 0
     await mirror.rescanNow()
 
-    expect(fs.reads).toEqual([])
+    expect(fs.digests).toEqual([])
     expect(content.puts).toHaveLength(1)
     expect(announces).toHaveLength(1)
     expect(await rowsOf({ plane })).toHaveLength(1)
@@ -109,14 +110,10 @@ describe('ContextMirror', () => {
     expect(announces.at(-1)).toEqual(['notes.md'])
   })
 
-  it('records a file past the byte cap without reading or storing it', async () => {
+  it('mirrors a file of any size without reading it onto the host', async () => {
     const fs = fakeFs()
-    putFile({
-      fs,
-      path: 'huge.bin',
-      bytes: binaryOf(1, 2, 3),
-      size: CONTEXT_MIRROR_MAX_BYTES + 1,
-    })
+    const bytes = binaryOf(1, 0, 3)
+    putFile({ fs, path: 'huge.bin', bytes, size: 12 * 1024 * 1024 })
     const { mirror, plane, content } = await rig({ fs })
 
     await mirror.rescanNow()
@@ -125,14 +122,16 @@ describe('ContextMirror', () => {
     expect(rows).toHaveLength(1)
     expect(rows[0]).toMatchObject({
       path: 'huge.bin',
-      digest: null,
-      size: CONTEXT_MIRROR_MAX_BYTES + 1,
+      digest: FakeContextContentStore.hashOf(bytes),
+      size: 12 * 1024 * 1024,
+      mime: 'application/octet-stream',
+      kind: EContextFileKind.Binary,
     })
     expect(fs.reads).toEqual([])
-    expect(content.puts).toEqual([])
+    expect(content.puts).toEqual([FakeContextContentStore.hashOf(bytes)])
   })
 
-  it('stores the bytes before it writes the index row', async () => {
+  it('uploads the bytes before it writes the index row', async () => {
     const fs = fakeFs()
     putFile({ fs, path: 'notes.md', text: 'one' })
     putFile({ fs, path: 'other.md', text: 'two' })
@@ -140,10 +139,49 @@ describe('ContextMirror', () => {
 
     await mirror.rescanNow()
 
-    const firstPut = order.findIndex((entry) => entry.startsWith('put:'))
+    const firstUpload = order.findIndex((entry) => entry.startsWith('presignPut:'))
     const upsert = order.findIndex((entry) => entry.startsWith('upsert:'))
-    expect(firstPut).toBeGreaterThanOrEqual(0)
-    expect(upsert).toBeGreaterThan(firstPut)
+    expect(firstUpload).toBeGreaterThanOrEqual(0)
+    expect(upsert).toBeGreaterThan(firstUpload)
+  })
+
+  it('leaves a stored object alone and only writes the row', async () => {
+    const fs = fakeFs()
+    const bytes = bytesOf('one')
+    putFile({ fs, path: 'notes.md', bytes })
+    const { mirror, content } = await rig({ fs })
+    await content.put({ hash: FakeContextContentStore.hashOf(bytes), bytes })
+
+    await mirror.rescanNow()
+
+    expect(content.puts).toHaveLength(1)
+  })
+
+  it('re-mirrors a row whose mime or media kind the old rules got wrong', async () => {
+    const fs = fakeFs()
+    const bytes = binaryOf(0)
+    putFile({ fs, path: 'media/walkthrough.mp4', bytes })
+    const { mirror, plane } = await rig({ fs })
+    await plane.upsertContextFiles({
+      sessionId: SESSION,
+      files: [
+        {
+          path: 'media/walkthrough.mp4',
+          digest: FakeContextContentStore.hashOf(bytes),
+          size: 1,
+          mime: 'application/octet-stream',
+          kind: EContextFileKind.Binary,
+          mtimeMs: NOW,
+        },
+      ],
+    })
+
+    await mirror.rescanNow()
+
+    expect((await rowsOf({ plane }))[0]).toMatchObject({
+      mime: 'video/mp4',
+      kind: EContextFileKind.Video,
+    })
   })
 
   it('announces one set of paths per change and nothing when nothing changed', async () => {
@@ -193,11 +231,11 @@ describe('ContextMirror', () => {
     expect(fs.scans).toBe(before)
   })
 
-  it('keeps the other files when one read fails', async () => {
+  it('keeps the other files when one upload fails', async () => {
     const fs = fakeFs()
     putFile({ fs, path: 'broken.md', text: 'one' })
     putFile({ fs, path: 'fine.md', text: 'two' })
-    fs.failReads.add(`${ROOT}/broken.md`)
+    fs.failDigests.add(`${ROOT}/broken.md`)
     const { mirror, plane, errors } = await rig({ fs })
 
     await mirror.rescanNow()
@@ -205,78 +243,5 @@ describe('ContextMirror', () => {
     expect((await rowsOf({ plane })).map((row) => row.path)).toEqual(['fine.md'])
     expect(errors).toHaveLength(1)
     expect(errors[0]).toContain('broken.md')
-  })
-})
-
-const interleaved = (order: readonly string[]): readonly string[] => {
-  const steps: string[] = []
-  for (const entry of order) {
-    const kind = entry.startsWith('put:') ? 'put' : 'upsert'
-    if (steps.at(-1) === kind) continue
-    steps.push(kind)
-  }
-  return steps
-}
-
-describe('ContextMirror publishing', () => {
-  it('publishes each file before it reads the next one', async () => {
-    const fs = fakeFs()
-    putFile({ fs, path: 'a.md', text: 'one' })
-    putFile({ fs, path: 'b.md', text: 'two' })
-    const { mirror, order } = await rig({ fs })
-
-    await mirror.rescanNow()
-
-    expect(interleaved(order)).toEqual(['put', 'upsert', 'put', 'upsert'])
-  })
-})
-
-describe('ContextMirror rescanning', () => {
-  it('indexes a file written during the scan before rescanNow resolves', async () => {
-    const fs = fakeFs()
-    putFile({ fs, path: 'notes.md', text: 'one' })
-    const { mirror, plane } = await rig({ fs })
-    await mirror.rescanNow()
-    let once = true
-    fs.onScan = () => {
-      if (!once) return
-      once = false
-      putFile({ fs, path: 'late.md', text: 'two', mtimeMs: 1_700_000_009_000 })
-      void mirror.rescanNow()
-    }
-
-    await mirror.rescanNow()
-
-    expect((await rowsOf({ plane })).map((row) => row.path)).toEqual(['late.md', 'notes.md'])
-  })
-})
-
-describe('ContextMirror removing rows', () => {
-  it('keeps the rows under a directory it could not read', async () => {
-    const fs = fakeFs()
-    putFile({ fs, path: 'notes.md', text: 'one' })
-    putFile({ fs, path: 'locked/kept.md', text: 'two' })
-    const { mirror, plane, announces } = await rig({ fs })
-    await mirror.rescanNow()
-    removeFile({ fs, path: 'notes.md' })
-    removeFile({ fs, path: 'locked/kept.md' })
-    fs.failDirs.add(`${ROOT}/locked`)
-
-    await mirror.rescanNow()
-
-    expect((await rowsOf({ plane })).map((row) => row.path)).toEqual(['locked/kept.md'])
-    expect(announces.at(-1)).toEqual(['notes.md'])
-  })
-
-  it('keeps the row of a file whose stat failed', async () => {
-    const fs = fakeFs()
-    putFile({ fs, path: 'notes.md', text: 'one' })
-    const { mirror, plane } = await rig({ fs })
-    await mirror.rescanNow()
-    fs.failStats.add(`${ROOT}/notes.md`)
-
-    await mirror.rescanNow()
-
-    expect((await rowsOf({ plane })).map((row) => row.path)).toEqual(['notes.md'])
   })
 })

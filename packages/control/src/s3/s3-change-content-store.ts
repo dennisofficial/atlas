@@ -1,14 +1,22 @@
 import {
   DeleteObjectsCommand,
   GetObjectCommand,
+  HeadObjectCommand,
   ListObjectsV2Command,
   PutObjectCommand,
   S3ServiceException,
 } from '@aws-sdk/client-s3'
 
-import { type ChangeBlobRow, ChangeContentStore, changeBlobKey } from '../change-content'
+import {
+  type ChangeBlobRow,
+  ChangeContentStore,
+  changeBlobKey,
+  type PresignGetArgs,
+  type PresignPutArgs,
+} from '../change-content'
 import { ChangesAwsGateway, type ChangesS3Gateway } from './changes-aws-gateway'
 import type { ChangesSettings } from './changes-settings'
+import { presignGetOverridesOf } from './presign-get'
 
 const REMOVE_BATCH_SIZE = 1000
 
@@ -73,13 +81,32 @@ export class S3ChangeContentStore extends ChangeContentStore {
     }
   }
 
-  async presignGet(args: { hash: string; ttlMs: number }): Promise<string> {
+  async presignGet(args: PresignGetArgs): Promise<string> {
     const { gateway } = this.s3()
     const { bucket, key } = this.keyOf(args.hash)
     return gateway.signGet({
-      command: new GetObjectCommand({ Bucket: bucket, Key: key }),
+      command: new GetObjectCommand({ Bucket: bucket, Key: key, ...presignGetOverridesOf(args) }),
       ttlMs: args.ttlMs,
     })
+  }
+
+  async presignPut(args: PresignPutArgs): Promise<string> {
+    const { gateway } = this.s3()
+    const { bucket, key } = this.keyOf(args.hash)
+    return gateway.signPut({
+      command: new PutObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        ContentType: 'application/octet-stream',
+      }),
+      ttlMs: args.ttlMs,
+    })
+  }
+
+  async exists(args: { hash: string }): Promise<boolean> {
+    const { gateway } = this.s3()
+    const { bucket, key } = this.keyOf(args.hash)
+    return gateway.head(new HeadObjectCommand({ Bucket: bucket, Key: key }))
   }
 
   async removing(hashes: readonly string[]): Promise<void> {

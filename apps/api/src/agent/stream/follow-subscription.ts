@@ -12,6 +12,8 @@ import {
   FOLLOW_PAGE_BYTES,
   FOLLOW_SLOW_CONSUMER_MS,
 } from './follow-limits'
+import { tailBaseOf } from './base-frame'
+import { CatchupMeter, ECatchupStart } from './catchup-meter'
 import type { FollowConnection, FollowDeps, FollowTarget, SubscriptionIndex } from './follow-types'
 import { resolveStart, type StartRequest } from './resolve-start'
 
@@ -37,6 +39,8 @@ export class FollowSubscription implements FollowTarget {
   private stopped = false
   private announcedLive = false
   private wakeDrain: (() => void) | undefined
+  private meter: CatchupMeter | undefined
+  private behindNoted = false
 
   constructor(private readonly args: FollowSubscriptionArgs) {
     this.id = args.id
@@ -44,6 +48,8 @@ export class FollowSubscription implements FollowTarget {
   }
 
   async begin(): Promise<void> {
+    const startedAt = this.args.deps.timers.now()
+    const beganBytes = this.args.connection.sentBytes()
     try {
       const session = await this.args.deps.plane.readSession({ sessionId: this.sessionId })
       if (this.stopped) return
@@ -72,6 +78,18 @@ export class FollowSubscription implements FollowTarget {
       }
       this.thread = requested
       this.main = requested === session.mainThreadId
+      this.meter = new CatchupMeter({
+        sessionId: this.sessionId,
+        userId: this.args.connection.userId,
+        surface: this.args.connection.surface,
+        mainThread: this.main,
+        start: this.args.request.afterSeq === undefined ? ECatchupStart.Cold : ECatchupStart.Warm,
+        startedAt,
+        beganBytes,
+        now: () => this.args.deps.timers.now(),
+        sentBytes: () => this.args.connection.sentBytes(),
+        analytics: this.args.deps.analytics,
+      })
       this.args.deps.recordSurface?.({
         sessionId: this.sessionId,
         userId: this.args.connection.userId,
@@ -131,6 +149,7 @@ export class FollowSubscription implements FollowTarget {
   stop(): void {
     if (this.stopped) return
     this.stopped = true
+    this.meter?.close()
     this.args.index.remove(this)
     this.releaseDrainWait()
     this.args.onEnded(this)
@@ -158,13 +177,30 @@ export class FollowSubscription implements FollowTarget {
       plane: this.args.deps.plane,
       threadId: this.requireThread(),
       request: this.args.request,
+      isMainThread: this.isMainThread,
     })
     if (this.stopped) return false
     this.cursor = position.cursor
     if (position.reset !== undefined) {
+      this.meter?.markReset()
       this.args.connection.send({ type: 'reset', id: this.id, ...position.reset })
     }
+    if (position.tail !== undefined) await this.openTail(position.tail.tailFrom)
     return true
+  }
+
+  private async openTail(tailFrom: number): Promise<void> {
+    const base = await tailBaseOf({
+      plane: this.args.deps.plane,
+      id: this.id,
+      sessionId: this.sessionId,
+      threadId: this.requireThread(),
+      tailFrom,
+    })
+    if (this.stopped || base === undefined) return
+    this.meter?.markTail()
+    this.cursor = base.cursor
+    this.args.connection.send(base.frame)
   }
 
   private async drainPages(): Promise<void> {
@@ -172,6 +208,10 @@ export class FollowSubscription implements FollowTarget {
     const threadId = this.requireThread()
     let head = await plane.head({ threadId })
     if (this.stopped) return
+    if (!this.behindNoted) {
+      this.behindNoted = true
+      this.meter?.noteBehind({ headSeq: head.seq, cursor: this.cursor ?? 0 })
+    }
     for (;;) {
       if (!(await this.awaitDrained())) return
       this.dirty = false
@@ -194,14 +234,16 @@ export class FollowSubscription implements FollowTarget {
       this.args.connection.send({
         type: 'events',
         id: this.id,
-        events: page.events.map((event) => ({ ...event })),
+        events: page.events,
         head: { seq: head.seq, hash: head.hash },
         live,
       })
+      this.meter?.notePage(page.events.length)
       if (this.isMainThread)
         this.args.deps.viewHead?.({ sessionId: this.sessionId, headSeq: head.seq })
       if (live) {
         this.announcedLive = true
+        this.meter?.reachedLive()
         return
       }
     }
@@ -210,6 +252,7 @@ export class FollowSubscription implements FollowTarget {
   private async awaitDrained(): Promise<boolean> {
     const { connection, deps } = this.args
     if (connection.bufferedAmount() < FOLLOW_HIGH_WATER_BYTES) return !this.stopped
+    this.meter?.noteDrainWait()
     const slowTimer = deps.timers.setTimeout(() => {
       connection.close(EStreamClose.SlowConsumer)
       this.stop()

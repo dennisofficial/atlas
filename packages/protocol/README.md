@@ -38,9 +38,9 @@ share. Every frame and every call is a `zod` schema here, and the daemon engine 
 - `daemonEventSchema`, `DaemonEvent`: an event that arrives during a call, such as shell output.
 
 The ops are `exec`, `exec.background`, `stat`, `readFile`, `readBytes`, `readTextForEdit`, `readLink`,
-`readDirectory`, `writeFile`, `fetchToFile`, `remove`, `mkdir`, `rename`, `glob` and `grep`. They
-also include the groups `changes.*`, `git.*`, `mcp.*`, `metrics.*`, `oom.*`, `previews.*`,
-`services.*`, `shells.*`, `terminal.*` and `watch.*`.
+`readDirectory`, `writeFile`, `fetchToFile`, `digestFile`, `putFile`, `remove`, `mkdir`, `rename`,
+`glob` and `grep`. They also include the groups `changes.*`, `git.*`, `mcp.*`, `metrics.*`, `oom.*`,
+`previews.*`, `services.*`, `shells.*`, `terminal.*` and `watch.*`.
 
 ### Call a pod from the API
 

@@ -46,8 +46,17 @@ export const createSessionLogWriter = (args: {
   return {
     append: ({ events, head }) => enqueue(() => log.appendPage({ sessionId, events, head })),
     save: (window) => {
-      const { cursor, visibility, pending, view, failureMessage, durable, commandLog } = window
-      if (cursor === undefined) return
+      const {
+        cursor,
+        visibility,
+        pending,
+        view,
+        failureMessage,
+        durable,
+        commandLog,
+        foldedThrough,
+      } = window
+      if (cursor === undefined || cursor.seq < foldedThrough) return
       enqueue(() =>
         log.saveSnapshot({
           sessionId,

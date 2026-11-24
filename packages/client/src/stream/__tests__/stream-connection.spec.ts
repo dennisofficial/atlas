@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import type { PluginViewFold } from '@dltech/atlas-core'
+import { SESSION_VIEW_VERSION, type PluginViewFold } from '@dltech/atlas-core'
 import { EStreamErrorCode, STREAM_STALL_MS } from '@dltech/atlas-protocol'
 
 import { EStreamConnectionState } from '../connection-machine'
@@ -48,7 +48,10 @@ describe('the stream connection', () => {
     const followed = connection.follow({ sessionId: 'session-1' })
     await settle()
     expect(follows).toHaveLength(1)
-    expect(follows[0]?.input).toEqual({ sessionId: 'session-1' })
+    expect(follows[0]?.input).toEqual({
+      sessionId: 'session-1',
+      tailViewVersion: SESSION_VIEW_VERSION,
+    })
     const events = mintUserEvents({ count: 2 })
     follows[0]?.handlers.handleFrame(READY)
     follows[0]?.handlers.handleFrame(eventsMessage({ id: 's1', events, live: true }))
@@ -74,6 +77,7 @@ describe('the stream connection', () => {
       sessionId: 'session-1',
       afterSeq: head.seq,
       afterHash: head.hash,
+      tailViewVersion: SESSION_VIEW_VERSION,
     })
     follows[1]?.handlers.handleFrame(eventsMessage({ id: 's2', events, live: true }))
     expect(followed.getSnapshot().events).toHaveLength(3)
@@ -101,7 +105,11 @@ describe('the stream connection', () => {
     const { connection, follows } = setup()
     connection.follow({ sessionId: 'session-1', threadId: 'child-1' })
     await settle()
-    expect(follows[0]?.input).toEqual({ sessionId: 'session-1', threadId: 'child-1' })
+    expect(follows[0]?.input).toEqual({
+      sessionId: 'session-1',
+      threadId: 'child-1',
+      tailViewVersion: SESSION_VIEW_VERSION,
+    })
   })
 
   it('closes every subscription when the connection closes', async () => {
@@ -154,6 +162,7 @@ describe('the stream connection', () => {
       sessionId: 'session-1',
       afterSeq: head.seq,
       afterHash: head.hash,
+      tailViewVersion: SESSION_VIEW_VERSION,
     })
   })
 

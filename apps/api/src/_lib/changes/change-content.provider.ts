@@ -20,6 +20,14 @@ export class UnavailableChangeContentStore extends ChangeContentStore {
     return unavailable()
   }
 
+  presignPut(): Promise<string> {
+    return unavailable()
+  }
+
+  exists(): Promise<boolean> {
+    return unavailable()
+  }
+
   removing(): Promise<void> {
     return unavailable()
   }

@@ -27,6 +27,14 @@ export const contextMirrorReadInputSchema = z.strictObject({
 })
 export type ContextMirrorReadInput = z.infer<typeof contextMirrorReadInputSchema>
 
+const contextMirrorReferenceSchema = z.strictObject({
+  path: z.string().min(1),
+  mime: z.string().min(1),
+  bytes: z.number().int().nonnegative(),
+  url: z.string(),
+  downloadUrl: z.string(),
+})
+
 export const contextMirrorFileSchema = z.discriminatedUnion('type', [
   z.strictObject({
     type: z.literal('text'),
@@ -35,24 +43,13 @@ export const contextMirrorFileSchema = z.discriminatedUnion('type', [
     truncated: z.boolean(),
     bytes: z.number().int().nonnegative(),
   }),
+  contextMirrorReferenceSchema.extend({ type: z.literal('image') }),
+  contextMirrorReferenceSchema.extend({ type: z.literal('binary') }),
+  contextMirrorReferenceSchema.extend({ type: z.literal('video') }),
+  contextMirrorReferenceSchema.extend({ type: z.literal('audio') }),
   z.strictObject({
-    type: z.literal('image'),
+    type: z.literal('pending'),
     path: z.string().min(1),
-    mime: z.string().min(1),
-    bytes: z.number().int().nonnegative(),
-    url: z.string(),
-  }),
-  z.strictObject({
-    type: z.literal('binary'),
-    path: z.string().min(1),
-    mime: z.string().min(1),
-    bytes: z.number().int().nonnegative(),
-    url: z.string(),
-  }),
-  z.strictObject({
-    type: z.literal('refused'),
-    path: z.string().min(1),
-    reason: z.string().min(1),
   }),
 ])
 export type ContextMirrorFile = z.infer<typeof contextMirrorFileSchema>

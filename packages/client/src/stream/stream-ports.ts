@@ -7,7 +7,17 @@ export type StreamFollowInput = {
   threadId?: string | undefined
   afterSeq?: number | undefined
   afterHash?: string | undefined
+  tailViewVersion?: number | undefined
 }
+
+export type OlderEventsInput = {
+  sessionId: string
+  threadId?: string | undefined
+  afterSeq: number
+  limit: number
+}
+
+export type OlderEventsPage = { events: readonly unknown[]; next?: number | undefined }
 
 export type FollowArgs = Pick<StreamFollowInput, 'sessionId' | 'threadId'> & {
   log?: SessionLog | undefined
@@ -24,6 +34,7 @@ export type StreamSubscriptionHandlers = {
 export type StreamTransport = {
   follow(input: StreamFollowInput, handlers: StreamSubscriptionHandlers): StreamSubscription
   list(handlers: StreamSubscriptionHandlers): StreamSubscription
+  events?(input: OlderEventsInput): Promise<OlderEventsPage>
 }
 
 export type StreamScheduler = {

@@ -111,6 +111,33 @@ export class DaemonFileSystemPort extends FileSystemPort {
     })
   }
 
+  async digestFile(args: {
+    path: string
+  }): Promise<{ sha256: string; size: number; head: Uint8Array }> {
+    const value = await invoke({
+      calls: this.args.calls,
+      op: { op: 'digestFile', path: args.path },
+    })
+    return {
+      sha256: value.sha256,
+      size: value.size,
+      head: new Uint8Array(Buffer.from(value.head, 'base64')),
+    }
+  }
+
+  async putFile(args: {
+    path: string
+    url: string
+    size: number
+    signal?: AbortSignal
+  }): Promise<{ sha256: string; size: number }> {
+    return await invoke({
+      calls: this.args.calls,
+      op: { op: 'putFile', path: args.path, url: args.url, size: args.size },
+      ...(args.signal === undefined ? {} : { signal: args.signal }),
+    })
+  }
+
   async readDirectory(args: { path: string }): Promise<readonly FileSystemEntry[]> {
     const entries = await invoke({
       calls: this.args.calls,

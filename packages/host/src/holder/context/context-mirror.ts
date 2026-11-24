@@ -1,10 +1,5 @@
-import { CONTEXT_MIRROR_MAX_BYTES, contextFileKindOf, contextMimeOf } from '@dltech/atlas-core'
-import {
-  changeHashOf,
-  type ContextContentStore,
-  type ContextFileWrite,
-  type ControlPlane,
-} from '@dltech/atlas-control'
+import { contextFileKindOf, contextMediaKindOf, contextMimeOf } from '@dltech/atlas-core'
+import type { ContextContentStore, ContextFileWrite, ControlPlane } from '@dltech/atlas-control'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
 import { newKey, type RemoteCalls } from '../../calls/remote-calls'
@@ -17,11 +12,11 @@ import {
 } from './daemon-context'
 
 const WATCH_DEBOUNCE_MS = 1000
-const KIND_HEAD_BYTES = 8192
+const PRESIGN_PUT_TTL_MS = 15 * 60 * 1000
 
 export enum EContextMirrorPhase {
   Scan = 'scan',
-  Read = 'read',
+  Upload = 'upload',
   Store = 'store',
   Announce = 'announce',
 }
@@ -36,10 +31,6 @@ export type ContextMirrorArgs = {
   log?: LogPort | undefined
   now(): number
 }
-
-type MirroredWrite = { write: ContextFileWrite; bytes: Uint8Array | undefined }
-
-const EMPTY = new Uint8Array()
 
 export class ContextMirror {
   private readonly args: ContextMirrorArgs
@@ -121,7 +112,10 @@ export class ContextMirror {
     const scannedPaths = new Set(scan.files.map((file) => file.path))
     const changed = scan.files.filter((file) => {
       const row = byPath.get(file.path)
-      return row === undefined || row.size !== file.size || row.mtimeMs !== file.mtimeMs
+      if (row === undefined || row.size !== file.size || row.mtimeMs !== file.mtimeMs) return true
+      if (row.mime !== contextMimeOf(file.path)) return true
+      const mediaKind = contextMediaKindOf(file.path)
+      return mediaKind !== null && row.kind !== mediaKind
     })
     const mirrored: string[] = []
     for (const file of changed) {
@@ -145,52 +139,45 @@ export class ContextMirror {
   }
 
   private async publish(file: ScannedFile): Promise<string | undefined> {
-    const mirrored = await this.readOne(file).catch((error: unknown) => {
-      this.fail({ phase: EContextMirrorPhase.Read, path: file.path, error })
+    const path = contextFilePathOf({ root: this.args.root, path: file.path })
+    const write = await this.mirror(file, path).catch((error: unknown) => {
+      this.fail({ phase: EContextMirrorPhase.Upload, path: file.path, error })
       return undefined
     })
-    if (mirrored === undefined) return undefined
+    if (write === undefined) return undefined
     try {
-      await this.args.plane.publishContextFile({
+      const committed = await this.args.plane.commitContextFile({
         sessionId: this.args.sessionId,
-        write: mirrored.write,
-        bytes: mirrored.bytes,
+        write,
         content: this.args.content,
       })
-      return mirrored.write.path
+      return committed ? write.path : undefined
     } catch (error: unknown) {
       this.fail({ phase: EContextMirrorPhase.Store, path: file.path, error })
       return undefined
     }
   }
 
-  private async readOne(file: ScannedFile): Promise<MirroredWrite> {
-    if (file.size > CONTEXT_MIRROR_MAX_BYTES) {
-      return {
-        write: {
-          path: file.path,
-          digest: null,
-          size: file.size,
-          mime: contextMimeOf(file.path),
-          kind: contextFileKindOf({ path: file.path, head: EMPTY }),
-          mtimeMs: file.mtimeMs,
-        },
-        bytes: undefined,
+  private async mirror(file: ScannedFile, path: string): Promise<ContextFileWrite> {
+    const digest = await this.files.digestFile({ path })
+    if (!(await this.args.content.exists({ hash: digest.sha256 }))) {
+      const url = await this.args.content.presignPut({
+        hash: digest.sha256,
+        ttlMs: PRESIGN_PUT_TTL_MS,
+      })
+      const put = await this.files.putFile({ path, url, size: digest.size })
+      if (put.sha256 !== digest.sha256) {
+        await this.args.content.removing([digest.sha256])
+        throw new Error(`the store kept ${put.sha256} where the file hashes to ${digest.sha256}`)
       }
     }
-    const bytes = await this.files.readBytes({
-      path: contextFilePathOf({ root: this.args.root, path: file.path }),
-    })
     return {
-      write: {
-        path: file.path,
-        digest: changeHashOf(bytes),
-        size: bytes.byteLength,
-        mime: contextMimeOf(file.path),
-        kind: contextFileKindOf({ path: file.path, head: bytes.subarray(0, KIND_HEAD_BYTES) }),
-        mtimeMs: file.mtimeMs,
-      },
-      bytes,
+      path: file.path,
+      digest: digest.sha256,
+      size: digest.size,
+      mime: contextMimeOf(file.path),
+      kind: contextFileKindOf({ path: file.path, head: digest.head }),
+      mtimeMs: file.mtimeMs,
     }
   }
 

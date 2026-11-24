@@ -1,9 +1,20 @@
 import { createHash } from 'node:crypto'
 
+export type PresignGetArgs = {
+  hash: string
+  ttlMs: number
+  contentType?: string
+  downloadName?: string
+}
+
+export type PresignPutArgs = { hash: string; ttlMs: number }
+
 export abstract class ChangeContentStore {
   abstract put(args: { hash: string; bytes: Uint8Array }): Promise<void>
   abstract read(args: { hash: string }): Promise<Uint8Array | null>
-  abstract presignGet(args: { hash: string; ttlMs: number }): Promise<string>
+  abstract presignGet(args: PresignGetArgs): Promise<string>
+  abstract presignPut(args: PresignPutArgs): Promise<string>
+  abstract exists(args: { hash: string }): Promise<boolean>
   abstract removing(hashes: readonly string[]): Promise<void>
   abstract list(): Promise<readonly ChangeBlobRow[]>
 }

@@ -38,4 +38,5 @@ export const sharedReads = (plane: FollowPlane): FollowPlane => ({
   listSessionDigests: (params) => plane.listSessionDigests(params),
   head: shareInFlight({ call: (params) => plane.head(params), keyOf: (params) => params.threadId }),
   readEvents: shareInFlight({ call: (params) => plane.readEvents(params), keyOf: readKey }),
+  readTailBase: (params) => plane.readTailBase(params),
 })

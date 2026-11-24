@@ -8,6 +8,7 @@ export const sessionStreamFollowInputSchema = z
     surface: z.enum(EStreamSurface).optional(),
     afterSeq: z.number().int().min(0).optional(),
     afterHash: z.string().min(1).optional(),
+    tailViewVersion: z.number().int().min(1).optional(),
   })
   .refine((input) => input.afterHash === undefined || input.afterSeq !== undefined, {
     message: 'afterHash requires afterSeq',

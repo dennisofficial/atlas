@@ -164,6 +164,21 @@ describe('createApnsBridge.received', () => {
   })
 })
 
+describe('createApnsBridge.attach', () => {
+  it('posts to the host origin when the host reports its session URL', async () => {
+    const { calls, fetchFn } = recorderOf()
+    const { notifications } = notificationsOf()
+    const { pushes } = pushesOf()
+
+    const bridge = createApnsBridge({ secret: 's3cret', fetchFn, notifications, pushes })
+    await bridge.start()
+    bridge.attach('http://127.0.0.1:4949/desktop/session?secret=s3cret')
+    await settle()
+
+    expect(calls.map((call) => call.url)).toEqual([`http://127.0.0.1:4949${APNS_TOKEN_PATH}`])
+  })
+})
+
 describe('createApnsBridge history reads', () => {
   it('releases the Notification Center copies it reads so they cannot take a click', async () => {
     const { fetchFn } = recorderOf({ groups: [] })
@@ -214,6 +229,15 @@ describe('urlForSession', () => {
     expect(urlForSession('http://127.0.0.1:4242', 'session/1')).toBe(
       `http://127.0.0.1:4242${SESSION_PATH}session%2F1`,
     )
+  })
+
+  it('asks the host session URL to land on the session', () => {
+    const hostUrl = 'http://127.0.0.1:4242/desktop/session?secret=s3cret'
+    const url = new URL(urlForSession(hostUrl, 'session/1'))
+
+    expect(url.origin + url.pathname).toBe('http://127.0.0.1:4242/desktop/session')
+    expect(url.searchParams.get('secret')).toBe('s3cret')
+    expect(url.searchParams.get('next')).toBe(`${SESSION_PATH}session%2F1`)
   })
 
   it('loads the plain window URL when no notification launched the app', () => {

@@ -44,6 +44,7 @@ export type SessionStreamFollowArgs = {
   surface?: EStreamSurface | undefined
   afterSeq?: number | undefined
   afterHash?: string | undefined
+  tailViewVersion?: number | undefined
   signal?: AbortSignal | undefined
 }
 
@@ -70,8 +71,12 @@ type OpenSubscription = {
   subscribe: (id: string) => StreamSubscriptionMessage
 }
 
-const messageOf = (frame: OutgoingFrame): StreamServerMessage =>
-  streamServerMessageSchema.parse(frame)
+const isEventsFrame = (
+  frame: OutgoingFrame,
+): frame is Extract<StreamServerMessage, { type: 'events' }> => frame.type === 'events'
+
+export const messageOf = (frame: OutgoingFrame): StreamServerMessage =>
+  isEventsFrame(frame) ? frame : streamServerMessageSchema.parse(frame)
 
 export const createSessionStream = (deps: SessionStreamDeps): SessionStream => {
   const open = new Set<StreamFrameQueue>()
@@ -97,6 +102,7 @@ export const createSessionStream = (deps: SessionStreamDeps): SessionStream => {
         flush.afterSend()
       },
       bufferedAmount: () => queue.bufferedAmount(),
+      sentBytes: () => queue.sentBytes(),
       close: () => queue.end(),
     })
     const abort = (): void => queue.end()
@@ -164,6 +170,7 @@ export const createSessionStream = (deps: SessionStreamDeps): SessionStream => {
           ...(args.threadId === undefined ? {} : { threadId: args.threadId }),
           ...(args.afterSeq === undefined ? {} : { afterSeq: args.afterSeq }),
           ...(args.afterHash === undefined ? {} : { afterHash: args.afterHash }),
+          ...(args.tailViewVersion === undefined ? {} : { tailViewVersion: args.tailViewVersion }),
         }),
       }),
     list: (args) =>

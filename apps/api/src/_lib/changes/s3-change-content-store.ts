@@ -1,5 +1,10 @@
 import { ServiceUnavailableException } from '@nestjs/common'
-import { type ChangeBlobRow, ChangeContentStore } from '@dltech/atlas-control'
+import {
+  type ChangeBlobRow,
+  ChangeContentStore,
+  type PresignGetArgs,
+  type PresignPutArgs,
+} from '@dltech/atlas-control'
 import {
   ChangeStorageMissingError,
   changesSettingsOf,
@@ -53,8 +58,16 @@ export class S3ChangeContentStore extends ChangeContentStore {
     return translated(() => this.core.read(args))
   }
 
-  presignGet(args: { hash: string; ttlMs: number }): Promise<string> {
+  presignGet(args: PresignGetArgs): Promise<string> {
     return translated(() => this.core.presignGet(args))
+  }
+
+  presignPut(args: PresignPutArgs): Promise<string> {
+    return translated(() => this.core.presignPut(args))
+  }
+
+  exists(args: { hash: string }): Promise<boolean> {
+    return translated(() => this.core.exists(args))
   }
 
   removing(hashes: readonly string[]): Promise<void> {

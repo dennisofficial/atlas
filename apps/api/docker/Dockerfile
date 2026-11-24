@@ -6,6 +6,8 @@ RUN bun install --frozen-lockfile --filter @dltech/atlas-api --filter @dltech/at
   && rm -rf /root/.bun/install/cache
 
 FROM oven/bun:1.4.2-debian
+ARG ATLAS_APP_VERSION
+ENV ATLAS_APP_VERSION=$ATLAS_APP_VERSION
 RUN apt-get update \
   && apt-get install -y --no-install-recommends git openssh-client procps ca-certificates \
   && rm -rf /var/lib/apt/lists/*

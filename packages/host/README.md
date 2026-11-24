@@ -87,7 +87,7 @@ only what it can rebuild or drop.
   session-scoped: one worktree path keeps two rows for two sessions.
 - `TerminalDemand`, `PanelDemand`, `PANEL_HOLD_TTL_MS`: keep a pod awake for a terminal or panel.
 - `ContextMirror`: the rescanner that keeps a held session's context folder in the content store and
-  its index, one file at a time, and skips the removal of a row its scan could not see.
+  index. The pod streams each file to the store at any size; a row its scan could not see stays.
 
 ### Route a pod call to its holder
 

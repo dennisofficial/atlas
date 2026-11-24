@@ -65,6 +65,7 @@ import {
   type SessionViewRead,
 } from './session-view-read'
 import { readEventsIn, type ReadEventsPage } from './read-events'
+import { readTailBaseIn, TAIL_BASE_ATTEMPTS, type TailBase } from './tail-base'
 import { runRoutineIn, type RunRoutineParams, type RunRoutineResult } from './routine-ops'
 import {
   createRoutineIn,
@@ -521,6 +522,26 @@ export class ControlPlane {
     })
   }
 
+  async readTailBase(params: {
+    sessionId: string
+    threadId: string
+    tailFrom: number
+  }): Promise<TailBase | undefined> {
+    for (let attempt = 0; attempt < TAIL_BASE_ATTEMPTS; attempt += 1) {
+      const base = await this.store.transact(async (tx) => {
+        await this.requireThread({ tx, threadId: params.threadId })
+        return readTailBaseIn({
+          tx,
+          ...params,
+          eventSchema: this.eventSchema,
+          pluginViews: this.pluginViews,
+        })
+      })
+      if (base !== undefined) return base
+    }
+    return undefined
+  }
+
   async readBlob(params: {
     hash: string
     offset?: number | undefined
@@ -636,22 +657,19 @@ export class ControlPlane {
     return this.store.transact((tx) => tx.contextDigestsReferenced(params))
   }
 
-  async publishContextFile(params: {
+  async commitContextFile(params: {
     sessionId: string
     write: ContextFileWrite
-    bytes?: Uint8Array | undefined
-    content: Pick<ContextContentStore, 'put'>
-  }): Promise<void> {
-    await this.store.transact(async (tx) => {
+    content: Pick<ContextContentStore, 'exists'>
+  }): Promise<boolean> {
+    return this.store.transact(async (tx) => {
       const { digest } = params.write
-      if (digest !== null && params.bytes !== undefined) {
+      if (digest !== null) {
         await tx.lockContextDigest({ digest })
-        const referenced = await tx.contextDigestsReferenced({ digests: [digest] })
-        if (!referenced.has(digest)) {
-          await params.content.put({ hash: digest, bytes: params.bytes })
-        }
+        if (!(await params.content.exists({ hash: digest }))) return false
       }
       await tx.upsertContextFiles({ sessionId: params.sessionId, files: [params.write] })
+      return true
     })
   }
 

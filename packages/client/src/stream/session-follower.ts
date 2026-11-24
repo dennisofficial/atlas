@@ -11,23 +11,18 @@ import {
   type FrameFacts,
 } from './derived-session-view'
 import { hydrateFollower } from './follower-hydrate'
+import { createOlderLoader } from './follower-older'
 import { createFollowerRender } from './follower-render'
 import { ESessionConnection, type FollowedState, type SessionSnapshot } from './follower-state'
 import { acceptsView, adoptRewindable, settlesSetup, viewSettlesCatchUp } from './follower-views'
 import { createFollowerLogWriter } from './follower-writer'
 import { applyOverlayMessage, closeOverlayForEvents, EMPTY_OVERLAY_STATE } from './overlay-store'
-import { olderVisibleOf } from './session-log-restore'
+import { basedStateOf, resetStateOf } from './session-base'
 import type { SessionLog } from './session-log'
 import { applyShellOutput, withoutEndedShells } from './shell-tails'
-import {
-  applyPageOutcome,
-  EMPTY_WINDOW,
-  OLDER_PAGE,
-  RENDER_LIMIT,
-  resetWindow,
-  type SessionCursor,
-} from './session-window'
+import { applyPageOutcome, EMPTY_WINDOW, RENDER_LIMIT, type SessionCursor } from './session-window'
 import { defaultKnownEventTypes } from './known-event-types'
+import type { OlderFetch } from './session-older'
 import type { StreamScheduler } from './stream-ports'
 
 export { HYDRATE_TIMEOUT_MS } from './follower-hydrate'
@@ -57,6 +52,8 @@ export type SessionFollowerArgs = {
   knownEventTypes?: ReadonlySet<string> | undefined
   renderLimit?: number | undefined
   views?: readonly PluginViewFold[] | undefined
+  fetchOlder?: OlderFetch | undefined
+  onTailUnsupported?: (() => void) | undefined
 }
 
 type Inner = FollowedState
@@ -87,8 +84,8 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
     scheduler,
     windowOf: () => inner.window,
   })
-  let olderInFlight: Promise<number> | undefined
   let retryTimer: unknown
+  let logHasEvents = false
 
   const apply = (next: Inner): void => {
     inner = {
@@ -98,15 +95,14 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
     scheduleRetryWake()
   }
 
-  const commit = (next: Inner): void => {
+  const settle = (next: Inner, flush: () => void): void => {
     apply(next)
-    render.flush()
+    flush()
   }
 
-  const deferCommit = (next: Inner): void => {
-    apply(next)
-    render.defer()
-  }
+  const commit = (next: Inner): void => settle(next, render.flush)
+
+  const deferCommit = (next: Inner): void => settle(next, render.defer)
 
   const scheduleRetryWake = (): void => {
     if (retryTimer !== undefined) {
@@ -130,7 +126,10 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
       renderLimit,
       views: args.views,
     })
-    if (fresh.length > 0) writer.append({ events: fresh, head: message.head })
+    if (fresh.length > 0) {
+      logHasEvents = true
+      writer.append({ events: fresh, head: message.head })
+    }
     const overlay = closeOverlayForEvents({ state: inner.overlay, events: window.events })
     if (skipped > 0) {
       console.warn(
@@ -196,16 +195,22 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
   const handleReset = (): void => {
     renderLimit = baseRenderLimit
     writer.drop()
-    commit({
-      ...inner,
-      window: resetWindow(),
-      frame: EMPTY_FRAME_FACTS,
-      setupOutput: '',
-      shells: {},
-      live: false,
-      skipped: 0,
-      fromCache: false,
-    })
+    logHasEvents = false
+    commit(resetStateOf(inner))
+  }
+
+  const handleBase = (message: Extract<StreamServerMessage, { type: 'base' }>): void => {
+    const next = basedStateOf({ inner, message, eventSchema: args.eventSchema })
+    if (next === undefined) {
+      console.warn(`session ${sessionId}: unreadable tail base, replaying the log`)
+      handleReset()
+      args.onTailUnsupported?.()
+      return
+    }
+    if (logHasEvents) writer.drop()
+    logHasEvents = false
+    renderLimit = baseRenderLimit
+    commit(next)
   }
 
   const handleMessage = (message: StreamServerMessage): void => {
@@ -213,6 +218,7 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
     else if (message.type === 'view') handleView(message)
     else if (message.type === 'error') commit({ ...inner, error: message.code })
     else if (message.type === 'reset') handleReset()
+    else if (message.type === 'base') handleBase(message)
     else if (
       message.type === 'frame' &&
       message.frame.type === 'tool-output' &&
@@ -231,30 +237,25 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
     }
   }
 
-  const loadOlder = (): Promise<number> => {
-    if (olderInFlight !== undefined) return olderInFlight
-    const run = olderVisibleOf({ log, sessionId, window: inner.window, count: OLDER_PAGE })
-      .then((visible) => {
-        if (visible.length === 0) return 0
-        renderLimit += visible.length
-        const events = [...visible, ...inner.window.events].slice(-renderLimit)
-        commit({
-          ...inner,
-          window: {
-            ...inner.window,
-            events,
-            foldable: foldableOf({ visible: events, durable: inner.window.durable }),
-          },
-        })
-        return visible.length
+  const loadOlder = createOlderLoader({
+    log,
+    sessionId,
+    windowOf: () => inner.window,
+    fetchOlder: args.fetchOlder,
+    eventSchema: args.eventSchema,
+    extend: (visible) => {
+      renderLimit += visible.length
+      const events = [...visible, ...inner.window.events].slice(-renderLimit)
+      commit({
+        ...inner,
+        window: {
+          ...inner.window,
+          events,
+          foldable: foldableOf({ visible: events, durable: inner.window.durable }),
+        },
       })
-      .catch(() => 0)
-    olderInFlight = run
-    void run.finally(() => {
-      if (olderInFlight === run) olderInFlight = undefined
-    })
-    return run
-  }
+    },
+  })
 
   const hydrated = hydrateFollower({
     log,

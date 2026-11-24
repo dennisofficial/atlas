@@ -6,8 +6,9 @@ import {
   STREAM_PROTOCOL_VERSION,
   type StreamServerMessage,
 } from '@dltech/atlas-protocol'
+import { GENESIS_HASH } from '@dltech/atlas-core'
 
-import { createSessionStream, SessionStreamLimitError } from '../session-stream'
+import { createSessionStream, messageOf, SessionStreamLimitError } from '../session-stream'
 import { createUserSlots } from '../user-slots'
 import { FollowRig, OWNER, said, SESSION, THREAD } from './follow-rig'
 
@@ -103,6 +104,18 @@ describe('session stream adapters', () => {
     }
     expect((await pull(generator)).type).toBe('pong')
     await generator.return(undefined)
+  })
+
+  it('hands an events frame on as the same object and parses the rest', () => {
+    const frame: Extract<StreamServerMessage, { type: 'events' }> = {
+      type: 'events',
+      id: 'sub-1',
+      events: [],
+      head: { seq: 0, hash: GENESIS_HASH },
+      live: true,
+    }
+    expect(messageOf(frame)).toBe(frame)
+    expect(messageOf({ type: 'pong' })).toEqual({ type: 'pong' })
   })
 
   it('pongs a subscription that has been idle for the heartbeat interval', async () => {

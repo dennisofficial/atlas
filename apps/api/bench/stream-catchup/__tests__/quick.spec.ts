@@ -12,6 +12,7 @@ const quickOptions: BenchOptions = {
   seed: 1,
   json: false,
   quick: true,
+  gzip: true,
 }
 
 describe('stream catch-up bench', () => {
@@ -24,5 +25,12 @@ describe('stream catch-up bench', () => {
     expect(row?.eventsFrames).toBeGreaterThan(0)
     expect(row?.bytesDown).toBeGreaterThan(0)
     expect(row?.readEvents).toBeGreaterThan(0)
+  }, 60_000)
+
+  test('gzip shrinks the wire and the client still reaches live', async () => {
+    const plain = await runMatrix({ options: { ...quickOptions, gzip: false } })
+    const gzipped = await runMatrix({ options: { ...quickOptions, gzip: true } })
+    expect(gzipped[0]?.timedOut).toBe(false)
+    expect(gzipped[0]?.bytesDown ?? 0).toBeLessThan(plain[0]?.bytesDown ?? 0)
   }, 60_000)
 })

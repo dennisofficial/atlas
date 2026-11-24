@@ -64,7 +64,7 @@ export function describeControlPlaneContextFiles(params: ConformanceParams): voi
       expect(rows.map(withoutStamp)).toEqual([next, fileOf('b/second.md')])
     })
 
-    it('keeps a path that is too large to mirror with a null digest', async () => {
+    it('keeps a path that is not stored yet with a null digest', async () => {
       await write([fileOf('huge.bin', { digest: null, size: 20_000_000 })])
       const [row] = await harness.plane.listContextFiles({ sessionId: SESSION })
       expect(row?.digest).toBeNull()
@@ -137,42 +137,58 @@ export function describeControlPlaneContextFiles(params: ConformanceParams): voi
       expect([...(await harness.plane.contextDigestsReferenced({ digests: [] }))]).toEqual([])
     })
 
-    it('puts the bytes of a new digest before it writes the row that uses it', async () => {
+    it('writes the row of a digest the store already holds', async () => {
       const content = new FakeContextContentStore()
       const digest = FakeContextContentStore.hashOf(BYTES)
+      await content.put({ hash: digest, bytes: BYTES })
       const write = fileOf('a/first.md', { digest })
-      await harness.plane.publishContextFile({ sessionId: SESSION, write, bytes: BYTES, content })
-      expect(content.puts).toEqual([digest])
+      expect(
+        await harness.plane.commitContextFile({ sessionId: SESSION, write, content }),
+      ).toBeTrue()
       expect(
         withoutStamp(await harness.plane.contextFileOf({ sessionId: SESSION, path: write.path })),
       ).toEqual(write)
-      expect(await content.read({ hash: digest })).toEqual(BYTES)
     })
 
-    it('keeps the bytes another row already uses instead of putting them again', async () => {
+    it('writes a row that reuses bytes another row already points at', async () => {
       const content = new FakeContextContentStore()
       const digest = FakeContextContentStore.hashOf(BYTES)
+      await content.put({ hash: digest, bytes: BYTES })
       await write([fileOf('a/first.md', { digest })])
-      await harness.plane.publishContextFile({
+      const committed = await harness.plane.commitContextFile({
         sessionId: SESSION,
         write: fileOf('b/second.md', { digest }),
-        bytes: BYTES,
         content,
       })
-      expect(content.puts).toEqual([])
+      expect(committed).toBeTrue()
+      expect(content.puts).toEqual([digest])
       expect(
         (await harness.plane.listContextFiles({ sessionId: SESSION })).map((row) => row.digest),
       ).toEqual([digest, digest])
     })
 
-    it('writes the row of a file too large to mirror without touching the content', async () => {
+    it('skips the row of a digest the store does not hold', async () => {
+      const content = new FakeContextContentStore()
+      const write = fileOf('a/first.md', { digest: FakeContextContentStore.hashOf(BYTES) })
+      const committed = await harness.plane.commitContextFile({
+        sessionId: SESSION,
+        write,
+        content,
+      })
+      expect(committed).toBeFalse()
+      expect(await harness.plane.listContextFiles({ sessionId: SESSION })).toEqual([])
+    })
+
+    it('writes the row of a file that is not stored yet with a null digest', async () => {
       const content = new FakeContextContentStore()
       const write = fileOf('huge.bin', { digest: null, size: 20_000_000 })
-      await harness.plane.publishContextFile({ sessionId: SESSION, write, content })
-      expect(content.puts).toEqual([])
+      expect(
+        await harness.plane.commitContextFile({ sessionId: SESSION, write, content }),
+      ).toBeTrue()
       expect(
         (await harness.plane.listContextFiles({ sessionId: SESSION })).map(withoutStamp),
       ).toEqual([write])
+      expect(content.puts).toEqual([])
     })
 
     it('removes the bytes of a digest no row uses and reports it', async () => {

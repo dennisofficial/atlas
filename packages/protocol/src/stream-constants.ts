@@ -18,6 +18,8 @@ export const STREAM_MAX_SESSION_SUBSCRIPTIONS = 32
 
 export const STREAM_TAIL_EVENTS = 1_000
 
+export const STREAM_TOO_FAR_BEHIND_EVENTS = 1_500
+
 export const STREAM_PAGE_EVENTS = 200
 
 export enum EStreamClose {

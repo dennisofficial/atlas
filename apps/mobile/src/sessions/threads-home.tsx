@@ -1,11 +1,19 @@
 import { ETextRole, ETextTone, Text, useTheme } from '@dltech/atlas-ui-native'
 import { space } from '@dltech/atlas-ui/tokens'
-import { router } from 'expo-router'
+import { type NativeStackNavigationOptions, router, Stack } from 'expo-router'
 import { useMemo, useState } from 'react'
-import { ActivityIndicator, RefreshControl, SectionList, StyleSheet, View } from 'react-native'
+import {
+  ActivityIndicator,
+  Platform,
+  RefreshControl,
+  SectionList,
+  StyleSheet,
+  View,
+} from 'react-native'
 
 import { usePosture } from '../layout/use-posture'
 import { DoneToggle } from './done-toggle'
+import { EListStatus, listStatusOf } from './list-status'
 import { SearchField } from './search-field'
 import type { ISessionEntry } from './session-groups'
 import { SectionHeader } from './section-header'
@@ -16,26 +24,66 @@ import { ELoadState, useSessions } from './use-sessions'
 const sessionRouteOf = (entry: ISessionEntry) =>
   ({ pathname: '/sessions/[id]', params: { id: entry.id, title: entry.title } }) as const
 
-const EmptyState = ({ searching }: { searching: boolean }) => (
-  <View style={styles.empty}>
-    <Text size={ETextRole.Sm} tone={ETextTone.Muted}>
-      {searching ? 'No matching sessions.' : 'No sessions yet. Tap + to start one.'}
-    </Text>
-  </View>
-)
+const ListStatusView = ({ status, onRetry }: { status: EListStatus; onRetry: () => void }) => {
+  const theme = useTheme()
+  if (status === EListStatus.Ready) return null
+  if (status === EListStatus.Loading) {
+    return (
+      <View style={styles.status}>
+        <ActivityIndicator color={theme.primary} />
+      </View>
+    )
+  }
+  if (status === EListStatus.Failed) {
+    return (
+      <View style={styles.status}>
+        <Text size={ETextRole.Sm} tone={ETextTone.Destructive}>
+          Sessions could not be loaded.
+        </Text>
+        <Text size={ETextRole.Sm} tone={ETextTone.Muted} onPress={onRetry}>
+          Tap to try again.
+        </Text>
+      </View>
+    )
+  }
+  return (
+    <View style={styles.status}>
+      <Text size={ETextRole.Sm} tone={ETextTone.Muted}>
+        {status === EListStatus.NoMatches
+          ? 'No matching sessions.'
+          : 'No sessions yet. Tap + to start one.'}
+      </Text>
+    </View>
+  )
+}
+
+type TSearchBarOptions = NativeStackNavigationOptions['headerSearchBarOptions']
 
 export const ThreadsHome = ({
   onOpen,
   activeId,
+  nativeSearch = false,
 }: {
   onOpen?: (entry: ISessionEntry) => void
   activeId?: string
+  nativeSearch?: boolean
 }) => {
   const theme = useTheme()
   const posture = usePosture()
   const { partition, loadState, refreshing, refresh, now } = useSessions()
   const [query, setQuery] = useState('')
   const [toggled, setToggled] = useState<ReadonlySet<string>>(new Set())
+  const showsNativeSearch = nativeSearch && Platform.OS === 'ios'
+  const searchBarOptions = useMemo<TSearchBarOptions>(
+    () => ({
+      placeholder: 'Search',
+      placement: 'stacked',
+      autoCapitalize: 'none',
+      hideWhenScrolling: true,
+      onChangeText: (event) => setQuery(event.nativeEvent.text),
+    }),
+    [],
+  )
   const sections = useMemo(
     () => sectionsOf({ partition, query, toggled }),
     [partition, query, toggled],
@@ -57,98 +105,85 @@ export const ThreadsHome = ({
     else onOpen(entry)
   }
 
-  if (loadState === ELoadState.Loading) {
-    return (
-      <View style={[styles.center, { backgroundColor: theme.sidebar }]}>
-        <ActivityIndicator color={theme.primary} />
-      </View>
-    )
-  }
-
-  if (loadState === ELoadState.Failed) {
-    return (
-      <View style={[styles.center, { backgroundColor: theme.sidebar }]}>
-        <Text size={ETextRole.Sm} tone={ETextTone.Destructive}>
-          Sessions could not be loaded.
-        </Text>
-        <Text size={ETextRole.Sm} tone={ETextTone.Muted} onPress={() => void refresh()}>
-          Tap to try again.
-        </Text>
-      </View>
-    )
-  }
-
-  const hasSessions = sections.some((section) => section.count > 0)
+  const status = listStatusOf({
+    loading: loadState === ELoadState.Loading,
+    failed: loadState === ELoadState.Failed,
+    hasSessions: sections.some((section) => section.count > 0),
+    searching: query.trim().length > 0,
+  })
 
   return (
-    <SectionList
-      style={{ backgroundColor: theme.sidebar }}
-      contentContainerStyle={[
-        styles.list,
-        {
-          paddingRight: space(2),
-          paddingBottom: space(8) + posture.clearance.bottom,
-        },
-      ]}
-      contentInsetAdjustmentBehavior="automatic"
-      keyboardDismissMode="on-drag"
-      sections={sections}
-      keyExtractor={(item) => item.key}
-      stickySectionHeadersEnabled={false}
-      ListHeaderComponent={<SearchField value={query} onChangeText={setQuery} />}
-      ListFooterComponent={
-        hasSessions ? undefined : <EmptyState searching={query.trim().length > 0} />
-      }
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={() => void refresh()}
-          tintColor={theme.primary}
-        />
-      }
-      renderSectionHeader={({ section }) => (
-        <SectionHeader section={section} onToggle={handleToggle} onNewSession={handleNewSession} />
-      )}
-      renderItem={({ item }) => {
-        if (item.kind === EItemKind.ProjectLabel) return <BucketProjectLabel name={item.name} />
-        if (item.kind === EItemKind.DoneToggle) {
+    <>
+      {showsNativeSearch ? (
+        <Stack.Screen options={{ headerSearchBarOptions: searchBarOptions }} />
+      ) : null}
+      <SectionList
+        style={{ backgroundColor: theme.sidebar }}
+        contentContainerStyle={[
+          styles.list,
+          {
+            paddingRight: space(2),
+            paddingBottom: space(8) + posture.clearance.bottom,
+          },
+        ]}
+        contentInsetAdjustmentBehavior="automatic"
+        keyboardDismissMode="on-drag"
+        sections={sections}
+        keyExtractor={(item) => item.key}
+        stickySectionHeadersEnabled={false}
+        ListHeaderComponent={
+          showsNativeSearch ? undefined : <SearchField value={query} onChangeText={setQuery} />
+        }
+        ListFooterComponent={<ListStatusView status={status} onRetry={() => void refresh()} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => void refresh()}
+            tintColor={theme.primary}
+          />
+        }
+        renderSectionHeader={({ section }) => (
+          <SectionHeader
+            section={section}
+            onToggle={handleToggle}
+            onNewSession={handleNewSession}
+          />
+        )}
+        renderItem={({ item }) => {
+          if (item.kind === EItemKind.ProjectLabel) return <BucketProjectLabel name={item.name} />
+          if (item.kind === EItemKind.DoneToggle) {
+            return (
+              <DoneToggle
+                count={item.count}
+                open={item.open}
+                depth={item.depth}
+                onPress={() => handleToggle(item.key)}
+              />
+            )
+          }
           return (
-            <DoneToggle
-              count={item.count}
-              open={item.open}
+            <SessionRow
+              entry={item.entry}
+              now={now}
               depth={item.depth}
-              onPress={() => handleToggle(item.key)}
+              selected={item.entry.id === activeId}
+              onPress={() => handleOpen(item.entry)}
             />
           )
-        }
-        return (
-          <SessionRow
-            entry={item.entry}
-            now={now}
-            depth={item.depth}
-            selected={item.entry.id === activeId}
-            onPress={() => handleOpen(item.entry)}
-          />
-        )
-      }}
-    />
+        }}
+      />
+    </>
   )
 }
 
 const styles = StyleSheet.create({
-  center: {
-    alignItems: 'center',
-    flex: 1,
-    gap: space(2),
-    justifyContent: 'center',
-    padding: space(6),
-  },
   list: {
     gap: space(0.5),
     padding: space(2),
   },
-  empty: {
+  status: {
     alignItems: 'center',
+    gap: space(2),
     paddingTop: space(12),
   },
 })

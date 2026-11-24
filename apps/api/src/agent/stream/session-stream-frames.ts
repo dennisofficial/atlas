@@ -10,6 +10,7 @@ type QueuedFrame = { frame: OutgoingFrame; bytes: number }
 export class StreamFrameQueue {
   private readonly queued: QueuedFrame[] = []
   private bytes = 0
+  private sent = 0
   private ended = false
   private goingAway: number | undefined
   private wake: (() => void) | undefined
@@ -19,6 +20,7 @@ export class StreamFrameQueue {
     const bytes = Buffer.byteLength(JSON.stringify(frame))
     this.queued.push({ frame, bytes })
     this.bytes += bytes
+    this.sent += bytes
     this.notify()
   }
 
@@ -35,6 +37,10 @@ export class StreamFrameQueue {
 
   bufferedAmount(): number {
     return this.bytes
+  }
+
+  sentBytes(): number {
+    return this.sent
   }
 
   async next(): Promise<FrameQueueStep> {

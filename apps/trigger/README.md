@@ -19,10 +19,10 @@ deployments.
 1. The trigger.dev project already exists. Nothing to create.
 2. Set the deploy token. `trigger deploy` authenticates from `TRIGGER_ACCESS_TOKEN`, a `tr_pat_`
    personal token of a Comp AI org member. CI reads it from the repo secret
-   `TRIGGER_ACCESS_TOKEN_COMP_AI`:
+   `TRIGGER_ACCESS_TOKEN`:
 
    ```sh
-   gh secret set TRIGGER_ACCESS_TOKEN_COMP_AI
+   gh secret set TRIGGER_ACCESS_TOKEN
    ```
 
    `.github/workflows/trigger-v2.yml` deploys with that secret and nothing else — no project ref

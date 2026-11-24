@@ -70,7 +70,11 @@ export class FollowSession implements SubscriptionSession {
       id: message.id,
       sessionId: message.sessionId,
       threadId: message.threadId,
-      request: { afterSeq: message.afterSeq, afterHash: message.afterHash },
+      request: {
+        afterSeq: message.afterSeq,
+        afterHash: message.afterHash,
+        tailViewVersion: message.tailViewVersion,
+      },
       connection: this.connection,
       deps: this.deps,
       index: this.index,

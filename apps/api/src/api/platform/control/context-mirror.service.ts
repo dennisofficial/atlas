@@ -12,8 +12,6 @@ import { SessionsService } from './sessions.service'
 
 export const CONTEXT_MIRROR_URL_TTL_MS = 10 * 60 * 1000
 
-const MEGABYTE = 1024 * 1024
-
 const entryOf = (row: ContextFileRow): ContextMirrorEntry => ({
   path: row.path,
   size: row.size,
@@ -23,7 +21,26 @@ const entryOf = (row: ContextFileRow): ContextMirrorEntry => ({
   mirrored: row.digest !== null,
 })
 
-const megabytesOf = (bytes: number): string => (bytes / MEGABYTE).toFixed(1)
+type ReferencedKind = Exclude<EContextFileKind, EContextFileKind.Text>
+
+type ReferencedFile = Exclude<ContextMirrorFile, { type: 'text' } | { type: 'pending' }>
+
+type ReferenceShape = {
+  path: string
+  mime: string
+  bytes: number
+  url: string
+  downloadUrl: string
+}
+
+const REFERENCED_FILE_BY_KIND: Record<ReferencedKind, (shape: ReferenceShape) => ReferencedFile> = {
+  [EContextFileKind.Image]: (shape) => ({ type: 'image', ...shape }),
+  [EContextFileKind.Binary]: (shape) => ({ type: 'binary', ...shape }),
+  [EContextFileKind.Video]: (shape) => ({ type: 'video', ...shape }),
+  [EContextFileKind.Audio]: (shape) => ({ type: 'audio', ...shape }),
+}
+
+const fileNameOf = (path: string): string => path.slice(path.lastIndexOf('/') + 1)
 
 @Injectable()
 export class ContextMirrorService {
@@ -55,15 +72,12 @@ export class ContextMirrorService {
   }
 
   private async fileOf(row: ContextFileRow): Promise<ContextMirrorFile> {
-    if (row.digest === null) {
-      return {
-        type: 'refused',
-        path: row.path,
-        reason: `too large to mirror (${megabytesOf(row.size)} MB)`,
-      }
+    if (row.digest === null) return { type: 'pending', path: row.path }
+    const { digest } = row
+    if (row.kind !== EContextFileKind.Text) {
+      return this.referenceOf({ row, digest, kind: row.kind })
     }
-    if (row.kind !== EContextFileKind.Text) return this.referenceOf(row, row.digest)
-    const bytes = await this.content.read({ hash: row.digest })
+    const bytes = await this.content.read({ hash: digest })
     if (bytes === null) throw new NotFoundException('context file content not found')
     const head = bytes.subarray(0, LIVE_OP_MAX_BYTES)
     return {
@@ -75,14 +89,29 @@ export class ContextMirrorService {
     }
   }
 
-  private async referenceOf(row: ContextFileRow, digest: string): Promise<ContextMirrorFile> {
-    const url = await this.content.presignGet({ hash: digest, ttlMs: CONTEXT_MIRROR_URL_TTL_MS })
-    return {
-      type: row.kind === EContextFileKind.Image ? 'image' : 'binary',
+  private async referenceOf(args: {
+    row: ContextFileRow
+    digest: string
+    kind: ReferencedKind
+  }): Promise<ReferencedFile> {
+    const { row } = args
+    const url = await this.content.presignGet({
+      hash: args.digest,
+      ttlMs: CONTEXT_MIRROR_URL_TTL_MS,
+      contentType: row.mime,
+    })
+    const downloadUrl = await this.content.presignGet({
+      hash: args.digest,
+      ttlMs: CONTEXT_MIRROR_URL_TTL_MS,
+      downloadName: fileNameOf(row.path),
+    })
+    const build = REFERENCED_FILE_BY_KIND[args.kind]
+    return build({
       path: row.path,
       mime: row.mime,
       bytes: row.size,
       url,
-    }
+      downloadUrl,
+    })
   }
 }

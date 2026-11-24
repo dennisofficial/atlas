@@ -85,6 +85,7 @@ const bodyAt = (n: number): V2Body => {
 
 export type QueryCounts = {
   readEvents: number
+  readTailBase: number
   head: number
   readSessionView: number
   readSession: number
@@ -111,7 +112,13 @@ export const createBenchWorld = async (args: {
 }): Promise<BenchWorld> => {
   const store = new InMemoryControlStore({ clock: () => AT })
   const plane = new ControlPlane({ store, clock: () => AT })
-  const counts: QueryCounts = { readEvents: 0, head: 0, readSessionView: 0, readSession: 0 }
+  const counts: QueryCounts = {
+    readEvents: 0,
+    readTailBase: 0,
+    head: 0,
+    readSessionView: 0,
+    readSession: 0,
+  }
 
   await plane.createSession({
     sessionId: BENCH_SESSION,
@@ -162,6 +169,11 @@ export const createBenchWorld = async (args: {
       await delay(args.queryDelayMs)
       return plane.readSessionView(params)
     },
+    readTailBase: async (params) => {
+      counts.readTailBase += 1
+      await delay(args.queryDelayMs)
+      return plane.readTailBase(params)
+    },
     listSessionDigests: (params) => plane.listSessionDigests(params),
     readThread: (params) => plane.readThread(params),
   }
@@ -191,6 +203,7 @@ export const createBenchWorld = async (args: {
     events: seeded,
     resetCounts: () => {
       counts.readEvents = 0
+      counts.readTailBase = 0
       counts.head = 0
       counts.readSessionView = 0
       counts.readSession = 0
