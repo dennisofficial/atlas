@@ -15,7 +15,12 @@ import { ERunFailureKind, ModelPort } from '@dltech/atlas-core'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import { createDb, createPool } from '@dltech/atlas-db'
 import { RandomIds } from '../runtime/random-ids'
-import { SessionHolder, systemTimers, type NotifyDispatch } from '@dltech/atlas-host'
+import {
+  SessionHolder,
+  systemTimers,
+  DRAIN_IN_FLIGHT_CAP_MS,
+  type NotifyDispatch,
+} from '@dltech/atlas-host'
 import { createPgHostPresence } from '../presence/pg-host-presence'
 import { startHostWatch, type HostWatch } from '../presence/pg-host-watch'
 import { LogPort, logFieldsOf } from '@dltech/atlas-observability'
@@ -289,6 +294,7 @@ const main = async (): Promise<void> => {
     }),
     ids: new RandomIds(),
     appendRetryMs: numberEnv('APPEND_RETRY_MS', 2_500),
+    drainCapMs: numberEnv('DRAIN_CAP_MS', DRAIN_IN_FLIGHT_CAP_MS),
     sweepMs: numberEnv('SWEEP_MS', 20_000),
     commands: composeCommands([...nativeCommands, ...composedPlugins.commands]),
     commandHandlers: nativeCommandHandlers,

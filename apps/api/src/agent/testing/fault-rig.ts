@@ -41,6 +41,7 @@ export type PanelBeats = { stop(): Promise<void> }
 
 export type HostKnobs = {
   appendRetryMs?: number
+  drainCapMs?: number
   pingMs?: number
   poolMax?: number
   noRing?: boolean

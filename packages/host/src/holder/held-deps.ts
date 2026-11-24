@@ -22,6 +22,7 @@ export const heldSessionDepsOf = (args: HeldDepsArgs): HeldSessionDeps => {
     timers: holder.timers,
     ids: holder.ids,
     appendRetryMs: holder.appendRetryMs ?? DEFAULTS.appendRetryMs,
+    drainCapMs: holder.drainCapMs ?? DEFAULTS.drainCapMs,
     runtimeFor: holder.runtimes,
     judgeStartFailure: (error) =>
       startVerdict({

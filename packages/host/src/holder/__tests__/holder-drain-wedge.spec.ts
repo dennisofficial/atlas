@@ -107,4 +107,45 @@ describe('SessionHolder drain while a record append never settles', () => {
     const { lease } = await a.plane.currentLease({ sessionId: SESSION })
     expect(lease.holderHostId).toBeNull()
   }, 15_000)
+
+  it('waits the drain cap it was given, not the default one', async () => {
+    const clock = new FakeClock()
+    const store = new InMemoryControlStore({ clock: () => new Date(clock.now()).toISOString() })
+    const plane = new StallingPlane({ store })
+    const model = new ScriptedModel([
+      { calls: [{ callId: 'call-1', name: 'slow', input: {} }] },
+      { text: 'done' },
+    ])
+    const tool = new GatedTool()
+    const a = await makeRig({
+      plane,
+      store,
+      clock,
+      model: () => model,
+      hostTools: [tool],
+      drainCapMs: 1_000,
+    })
+    await seedSession(a)
+    await a.holder.start()
+    await a.post('go')
+    await a.wake()
+    expect(await flushUntil({ check: () => tool.started })).toBe(true)
+
+    plane.stalled = true
+    tool.releaseNow()
+    await a.flush()
+
+    let drained = false
+    void a.holder.drain().then(() => {
+      drained = true
+    })
+    await a.flush()
+    clock.advance(1_000)
+    await a.flush()
+    clock.advance(DRAIN_DETACH_CAP_MS)
+
+    expect(await flushUntil({ check: () => drained })).toBe(true)
+    const { lease } = await a.plane.currentLease({ sessionId: SESSION })
+    expect(lease.holderHostId).toBeNull()
+  }, 15_000)
 })

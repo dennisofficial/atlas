@@ -2,7 +2,7 @@ import { crashedCallsOf } from '@dltech/atlas-core'
 import { logFieldsOf } from '@dltech/atlas-observability'
 
 import { settledWithin } from './crew/child-turns'
-import { DRAIN_DETACH_CAP_MS, DRAIN_IN_FLIGHT_CAP_MS } from './drain-cap'
+import { DRAIN_DETACH_CAP_MS } from './drain-cap'
 import type { HeldEnding } from './held-ending'
 import { drainNeedsHolder, outcomeCommandPending } from './held-needs-holder'
 import type { HeldSessionDeps } from './held-session-deps'
@@ -50,7 +50,7 @@ export class HeldDrain {
     await new Promise<void>((resolve) => {
       const timer = this.args.deps.timers.setTimeout(() => {
         void this.abortPastCap({ startedAt }).finally(resolve)
-      }, DRAIN_IN_FLIGHT_CAP_MS)
+      }, this.args.deps.drainCapMs)
       void this.args.turns.whenIdle().then(() => {
         this.args.deps.timers.clearTimeout(timer)
         resolve()
@@ -104,7 +104,7 @@ export class HeldDrain {
     const inFlight = call === undefined ? 'an in-flight model step' : `the tool call ${call.name}`
     this.args.deps.log?.warn({
       source: 'holder.drain',
-      message: `session ${this.args.sessionId} ran ${inFlight} for ${this.args.deps.timers.now() - args.startedAt}ms, past the ${DRAIN_IN_FLIGHT_CAP_MS}ms drain cap; aborting the turn`,
+      message: `session ${this.args.sessionId} ran ${inFlight} for ${this.args.deps.timers.now() - args.startedAt}ms, past the ${this.args.deps.drainCapMs}ms drain cap; aborting the turn`,
     })
   }
 }
