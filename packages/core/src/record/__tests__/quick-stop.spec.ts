@@ -63,6 +63,19 @@ describe('quickStopOf', () => {
     expect(stop).toEqual({ toSeq: 0, draft: 'think hard about the meaning of life' })
   })
 
+  it('rewinds a thinking-only stop that came in through the inbox', () => {
+    const posted: V2Body = {
+      type: 'input-posted',
+      inboxId: 4,
+      kind: 'message',
+      postedAt: '2026-11-24T20:00:00.000Z',
+      message: { text: 'think hard', clientId: 'client-a' },
+    }
+    const stop = stopOf([posted, said('think hard'), started(), thought('hm')])
+
+    expect(stop).toEqual({ toSeq: 1, draft: 'think hard' })
+  })
+
   it('keeps the turn when reply text streamed', () => {
     expect(stopOf([said('explain it'), started(), replied('half a sentence')])).toBeNull()
   })
