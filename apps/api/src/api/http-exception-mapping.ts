@@ -8,6 +8,7 @@ import {
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common'
+import { UnknownModelRefError } from '@dltech/atlas-core'
 import { databaseErrorCode, isNoRows, isUniqueViolation } from '@dltech/atlas-db'
 import { EGithubHttpStatus, GithubHttpError } from '@dltech/atlas-github'
 import { GithubUserReadFailed } from '@dltech/atlas-github'
@@ -95,6 +96,8 @@ export function mapToHttpException({
     log.warn(`github read failed with ${exception.status}: ${exception.message}`)
     return failure({ status: HttpStatus.BAD_GATEWAY, message: exception.message })
   }
+
+  if (exception instanceof UnknownModelRefError) return new BadRequestException(exception.message)
 
   if (isOutboundTimeout(exception)) {
     log.warn(UPSTREAM_TIMEOUT_MESSAGE)

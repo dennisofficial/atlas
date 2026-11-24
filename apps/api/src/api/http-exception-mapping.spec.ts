@@ -7,6 +7,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common'
 import { describe, expect, it } from 'bun:test'
+import { UnknownModelRefError } from '@dltech/atlas-core'
 import { EGithubHttpStatus, GithubHttpError } from '@dltech/atlas-github'
 import { mapToHttpException } from './http-exception-mapping'
 
@@ -54,5 +55,20 @@ describe('mapToHttpException', () => {
     }) as HttpException
     expect(mapped.getStatus()).toBe(403)
     expect(logged).toEqual([])
+  })
+})
+
+describe('mapToHttpException with an unknown model ref', () => {
+  it('answers a bad request that keeps the message', () => {
+    const mapped = mapToHttpException({
+      exception: new UnknownModelRefError({ ref: 'claude-opus-5-5' }),
+      log: silentLog,
+    }) as HttpException
+
+    expect(mapped).toBeInstanceOf(BadRequestException)
+    expect(mapped.getStatus()).toBe(400)
+    expect(mapped.message).toBe(
+      'Unknown model "claude-opus-5-5". Use the form "<provider>/<model>".',
+    )
   })
 })

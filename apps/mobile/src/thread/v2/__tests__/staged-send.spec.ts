@@ -16,7 +16,7 @@ const envelope = (seq: number) => ({
 
 const eventsOf = (events: readonly unknown[]) => events.map((event) => v2EventSchema.parse(event))
 
-const STAGED = [{ clientId: 'client-a', text: 'first' }]
+const STAGED = [{ clientId: 'client-a', text: 'first', attachments: [] }]
 
 describe('clientIdOfSend', () => {
   it('keeps the id of a failed post so the retry does not land twice', () => {
