@@ -37,12 +37,14 @@ only what it can rebuild or drop.
 
 - `SessionHolder`: `start()`, `drain()`, `heldIds()`, `hostId()`, `ring()`, `podCalls()`,
   `demandOf()` and `discard()`.
-- `SessionHolderArgs`: presence, the control plane, the bus, the timers, the runtime factory, the
-  ids, the commands and their pod and control handlers. It also takes the optional control, MCP,
-  operator, changes, context mirror, notify and turn-ended hooks, the log, the pod peers, the
-  terminal and panel demand, and the two start-error classifiers. `NotifyDispatch` tells another
-  process that a turn ended or parked. `ParkArchivedPod` sleeps an archived pod. `TurnEndedHook`
-  reports an ended turn.
+- `SessionHolderArgs`: `HostPresence`, the control plane, `HostBus`, `HostTimers`,
+  `SessionRuntimeFactory`, the ids, the commands and their handlers. It also takes the optional
+  `PodControlClient`, MCP, operator, changes, context mirror, notify, `ParkArchivedPod`, turn-ended
+  hooks, the log, `PodPeers`, terminal and panel demand, and the two start-error classifiers.
+  `NotifyDispatch` tells another process that a turn ended or parked. `TurnEndedHook` reports it.
+- `SessionRuntime`, `PrepareResult`, `PrepareStepReporter`, `SetupLifecycle`, `CapturedBase`,
+  `BootNotice`, `RoleModelRequest`, `RoleModelChoice`: the runtime a factory builds, what `prepare`
+  and `subscribeSetup` report, and the model `choiceFor` picks.
 - `PodCalls`, `PodCallOutcome`: invoke an op on a held session, or listen to its frames.
 - `podControlOf(...)`: the control-plane client that a plugin's `PodControl` reaches.
 - `SessionRuntime.classifier`, `SessionRuntime.classifierStatus`: the core `ClassifierPort` of a
@@ -57,7 +59,7 @@ only what it can rebuild or drop.
 ### Call the daemon
 
 - `RemoteCalls`: the client of the daemon link. `open`, `ready`, `invoke`, `ack`, `ackScope`,
-  `handoff` and `close`. It reports each `EventFrame` to its listeners.
+  `handoff`, `bootId` and `close(RemoteCloseReason)`. It reports each `EventFrame` to its listeners.
 - `WorkspaceGate`, `POD_WAIT_INTERRUPTED`, `WorkspaceGateOutcome`: hold a tool call until the
   workspace prepare settles, and fail the call when the wait is interrupted.
 - `webSocketConnector({url})`, `DaemonConnector`, `DaemonSocket`: connect to the daemon.
@@ -86,20 +88,17 @@ only what it can rebuild or drop.
   session changed. The checkout id is `sha256(sessionId, repo, realpath(worktreePath))`, so it is
   session-scoped: one worktree path keeps two rows for two sessions.
 - `TerminalDemand`, `PanelDemand`, `PANEL_HOLD_TTL_MS`: keep a pod awake for a terminal or panel.
-- `ContextMirror`: the rescanner that keeps a held session's context folder in the content store and
-  index. The pod streams each file to the store at any size; a row its scan could not see stays.
 
 ### Route a pod call to its holder
 
-- `SessionHolder.podRouter()`: a `PodRouter` (`PodReach`, `EPodReach`, `PodFollowClose`). `reach`
-  decides the route. `invoke` holds a panel when `waitForHolder` is set. `follow` streams frames.
+- `SessionHolder.podRouter()`: a `PodRouter` (`PodReach`, `EPodReach`, `PodFollowClose`). `reach` picks
+  the route, `invoke` holds a panel when `waitForHolder` is set, and `follow` streams frames.
 - `SessionHolderArgs.podCallBus`: the bus the router and the `PodCallResponder` share; the
   responder (`POD_RESPONDER_READY_WAIT_MS`) serves calls another host addresses to this one.
 
 ### Drain and fail
 
-- `DRAIN_IN_FLIGHT_CAP_MS`, `LEASE_HAND_BACK_MARGIN_MS`, `DRAIN_HANDOFF_BUDGET_MS`: the budget
-  of a drain.
+- `DRAIN_IN_FLIGHT_CAP_MS`, `LEASE_HAND_BACK_MARGIN_MS`, `DRAIN_HANDOFF_BUDGET_MS`: the drain budget.
 - `SandboxUnavailableError`, `SANDBOX_OFFLINE_GUIDANCE`, `ReadyTimeoutError`, `FencedError`,
   `OpMismatchError`, `ProtocolViolationError`: the failures of a lost, fenced or broken sandbox.
 - `isReadOnlyOp(op)`: whether an op reads only, so a retry is safe.
@@ -131,7 +130,8 @@ await holder.start()
 ## Rules
 
 - Read `@dltech/atlas-host/testing` in a spec only. It opens sockets and injects faults.
-- Never import app code, Nest or tRPC here; a boundary spec fails the build on those imports.
+- Never import app code, harness, UI, Nest or tRPC here. A boundary spec fails on a harness, UI,
+  Nest or tRPC import.
 - Do not keep the state of a session in a field of your class. Write it to the record, because a
   SIGKILL can end the host at any moment.
 

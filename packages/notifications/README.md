@@ -7,15 +7,13 @@ Redis and sends the pushes.
 
 ## Owns
 
-- The device kinds: Web Push, Expo and Mac APNs.
-- The device shape that a transport receives.
+- The device kinds: Web Push, Expo and Mac APNs, and the device shape that a transport receives.
 - The transport interface, with `deliver` and `clear`, and its result type.
 - The in-app notice: which sessions list row changed, and which notice to show or drop.
 - The presence store that the API writes and the trigger task reads.
 - The client presence loop that web, Mac and iOS run.
-- The Web Push transport, which signs a message with VAPID and posts it to a subscription.
-- The Expo transport, which posts alerts and headless clears to the Expo push service.
-- The APNs transport, which signs a provider token and posts an alert or a background push to Apple.
+- The Web Push, Expo and APNs transports, each of which signs and posts a message in its own
+  protocol.
 - The Mac push reader: what a received push means, and which groups to remove.
 
 ## Does not own
@@ -50,6 +48,9 @@ Redis and sends the pushes.
   `NOTIFY_DATA_CLEAR_SESSION_KEY` (`clearSessionId`): the keys of the Expo and APNs payloads.
 - `NOTIFY_DATA_ROUTINE_KEY` (`routineId`) and `routineDataOf(notification)`: a routine notice names
   its routine. A client opens the routine for it, never the `sessionId`.
+- `NOTIFY_DATA_MOMENT_KEY` (`moment`), `NOTIFY_DATA_SENT_AT_KEY` (`sentAt`) and `NOTIFY_CATEGORY_ID`
+  (`atlas-notification`), with `momentDataOf(notification)`: the moment and the send time of a
+  notice, and the category of a native notice. A device reports delivery with them.
 
 ### Implement a transport
 
@@ -59,15 +60,13 @@ Redis and sends the pushes.
 
 ### Find the moment in a sessions list
 
-- `InAppRow`: one row of the list. It holds the session id, the title, the status, the read
-  marker, the head seq, whether the row is a nested session, and the last turn ending with its
-  time and its notify facts.
+- `InAppRow`: one row of the list. It holds the session id, the title, the status, the read marker,
+  the head seq, the nested flag, and the last turn with its time and its notify facts.
 - `inAppRowOf`: reads a session summary into a row.
 - `HeldNotice`: a notice that waits for its turn: the session id, the turn seq and the due time.
 - `inAppScanOf`: gives the notices to show now and the held notices to keep. It says nothing for
-  the first list or a new row. A row gives a moment when its last turn ending is newer, or when
-  its status newly waits for the operator. `inAppDueOf` decides whether the moment shows, stays
-  silent or waits until a due time.
+  the first list or a new row. A row gives a moment when its last turn ending is newer, or when its
+  status newly waits for the operator. `inAppDueOf` decides to show, to stay silent or to wait.
 - `dueNoticesOf`: turns the held notices that are due into moments, and drops the ones a newer
   turn replaced, or whose session runs again.
 - `earliestDueAt`: the first due time in a held list, so a caller arms one timer.
@@ -95,7 +94,9 @@ Redis and sends the pushes.
 ### Send Expo push
 
 - `expoTransport({ accessToken, fetch })`: the `expo` kind. `accessToken` is optional; `fetch` takes a fake in a spec.
-- `deliver` posts an alert with the title, the body, `sound: 'default'`, the `collapseId` and `threadId` of the session, and `data: { sessionId, seq }`, at most 100 messages per request.
+- `deliver` posts an alert with the title, the body, the `categoryId`, the `collapseId` and the
+  `threadId` of the session, and the payload data. `sound` is `'default'` unless the notice is
+  silent. It sends at most 100 messages per request.
 - `clear` posts `{ contentAvailable: true, data: { clearSessionId } }` with no title and no body.
 - A ticket with `details.error === 'DeviceNotRegistered'` reports the device `gone`. A refused or
   unreachable request reports every device unsent.
@@ -112,7 +113,7 @@ Redis and sends the pushes.
 
 ### Read a Mac push
 
-- `macPushOf(userInfo)`: a clear, a notification with its `seq`, or nothing for a payload it does not know.
+- `macPushOf(userInfo)`: a clear, or a notification with its `seq` and the optional `moment` and `sentAt`. It gives nothing for a payload it does not know.
 - `groupsToRemove({ history, sessionId | readSessionIds })`: the distinct group ids that a notification history holds for those sessions.
 - `EMacPush`: `Clear` and `Notification`.
 

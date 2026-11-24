@@ -79,9 +79,10 @@ A `PodSlot` declares:
 the capabilities `control`, `crew`, `messages`, `classifier`, `analytics`, `sessions`, `worktrees`,
 `resources`. `ctx.analytics.capture({event, properties})` sends a product event for the session's
 user; the host adds `session_id` and `thread_id`.
-`ctx.crew` is a `PodCrew`. Its `spawn` takes `group`; the parent wakes once, after every sub-agent of
-that group ends. `resume({agentId})` continues a stopped sub-agent turn with an `EResumeOutcome`. `ctx.control` is a `PodControl`: `exposePort({port})`, `settingsVersions()`,
-`memory`, `webSearch`, `gateway` (`apiKey()`, `imageModel()`), `mcp`, `routines`, `subscriptions`.
+`ctx.crew` is a `PodCrew`: `spawn` with a `group` wakes the parent once, after every member ends.
+`say({agentId, text})`, `stop({agentId})`, `list()` and `resume({agentId})` act on one sub-agent.
+`ctx.control` is a `PodControl`: `exposePort({port})`, `settingsVersions()`, `memory`, `webSearch`,
+`gateway` (`apiKey()`, `imageModel()`), `mcp`, `routines`, `subscriptions`.
 
 ### The control and client slots
 
@@ -92,14 +93,13 @@ adds a transactional side effect. It cannot rewrite the event. `ClientSlot` hold
 
 ### Load a resource
 
-A `PodResource<T>` needs a `name`, a `schema` and `load({ctx, directory, signal})`. Five members are
+A `PodResource<T>` needs a `name`, a `schema` and a `load({ctx, directory, signal})`. Five members are
 optional: `watch(directory)` names the paths to watch, `announce(value, ctx)` returns the events to
-append, `stale(value)` tells whether the value is out of date, `background` starts the load without
-blocking the step, and `cloud` names the settings it follows. A plugin reads a cloud setting through
-a resource: set `cloud: [ECloudSetting.McpServers]`, `ECloudSetting.Skills` or
-`ECloudSetting.PersonalInstructions`, and compare `ctx.control.settingsVersions()` with
-`UNVERSIONED_SETTINGS`. Read the value with `readResource({ctx, resource})`, and reload it with
-`ctx.resources.reload(name)`.
+append, `stale(value)` says if the value is out of date, `background` starts the load without blocking
+the step, and `cloud` names the settings it follows. Read a cloud setting through a resource: set
+`cloud: [ECloudSetting.McpServers]`, `ECloudSetting.Skills` or `ECloudSetting.PersonalInstructions`,
+and compare `ctx.control.settingsVersions()` with `UNVERSIONED_SETTINGS`. Read the value with
+`readResource({ctx, resource})`, and reload it with `ctx.resources.reload(name)`.
 
 ## Capabilities
 
@@ -107,7 +107,7 @@ a resource: set `cloud: [ECloudSetting.McpServers]`, `ECloudSetting.Skills` or
 - `composePlugins(plugins)`: merge most slots; two plugins may not register the same tool, prompt
   fragment, resource or command name. Collect `entryFolds` from each plugin yourself, as
   `apps/web/src/features/sessions/registered-plugins.ts` does.
-- `composePod(pods)`: the merged pod slot that the agent host builds once.
+- `composePod(pods)`, `composePodCommands({factories, ctx})`: the merged pod slot and pod commands.
 - `eventSchemaOf(plugins)`, `eventTypesOf(plugins)`: the decoder and the type list for a session.
 - `crossLatch({ctx, name, level, mayFire})`: fire a level-triggered latch once, and record it.
 - `MacOfflineError`, `PodMcpProxyTransport`, `PodMcpProxyChannel`: the proxy to the Mac app.

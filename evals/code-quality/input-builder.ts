@@ -3,8 +3,8 @@ import { EQualityScopeKind, type QualityScope } from '@dltech/atlas-core'
 import {
   QUALITY_SOURCE_ADAPTER_VERSION,
   hashScopeText,
-} from '../../packages/harness/src/quality/source/typescript-parser'
-import { renderScopeDiff } from '../../packages/harness/src/quality/source/scope-diff'
+  renderScopeDiff,
+} from '@dltech/atlas-plugin-quality/review'
 import type { Candidate } from '../src/curation/candidates'
 import { sha256Hex } from '../src/hash'
 import type { CodeQualityInput } from './task'

@@ -1,12 +1,10 @@
+import type { CodeQualityReviewedBody, EventLogPort, Event, ThreadId } from '@dltech/atlas-core'
+
 import {
   projectQualityHealth,
-  type CodeQualityReviewedBody,
-  type EventLogPort,
-  type Event,
   type QualityHealth,
   type QualityHealthRecord,
-  type ThreadId,
-} from '@dltech/atlas-core'
+} from './core-logic/health'
 
 export function qualityReviewsOf(event: Event): readonly CodeQualityReviewedBody[] {
   if (event.type === 'code-quality-reviewed') return [event]

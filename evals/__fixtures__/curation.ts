@@ -4,12 +4,12 @@ import { join } from 'node:path'
 
 import { toCallId, toRunId, toThreadId, type QualityScope } from '@dltech/atlas-core'
 
-import { singleResponsibilityPolicy } from '../../packages/core/src/quality/policies/single-responsibility'
+import { singleResponsibilityPolicy } from '@dltech/atlas-plugin-quality/review'
 import {
   QualityExampleSink,
   EXAMPLE_SCHEMA_VERSION,
 } from '../../packages/harness/src/quality/example-sink'
-import { prepareQualityScopes } from '../../packages/harness/src/quality/source/scope-adapter'
+import { prepareQualityScopes } from '@dltech/atlas-plugin-quality/review'
 import { writeFileAtomic } from '../src/atomic'
 
 export const PROJECT_DIRECTORY = '/proj'

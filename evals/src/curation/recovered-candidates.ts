@@ -1,14 +1,12 @@
 import { relative, isAbsolute } from 'node:path'
 
-import { singleResponsibilityPolicy, type CapturedFileChange } from '@dltech/atlas-core'
+import type { CapturedFileChange } from '@dltech/atlas-core'
+import { singleResponsibilityPolicy } from '@dltech/atlas-plugin-quality/review'
 
 import { buildCodeQualityInput } from '../../code-quality/input-builder'
-import { prepareQualityScopes } from '../../../packages/harness/src/quality/source/scope-adapter'
-import {
-  hashScopeText,
-  QUALITY_SOURCE_ADAPTER_VERSION,
-} from '../../../packages/harness/src/quality/source/typescript-parser'
-import { renderScopeDiff } from '../../../packages/harness/src/quality/source/scope-diff'
+import { prepareQualityScopes } from '@dltech/atlas-plugin-quality/review'
+import { hashScopeText, QUALITY_SOURCE_ADAPTER_VERSION } from '@dltech/atlas-plugin-quality/review'
+import { renderScopeDiff } from '@dltech/atlas-plugin-quality/review'
 import { sha256Hex } from '../hash'
 import { ECandidateMethod, type Candidate } from './candidates'
 import type { ExportedScope } from './exported-example'

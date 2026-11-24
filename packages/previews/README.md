@@ -60,12 +60,15 @@ records that no row owns. The API's preview path and the `preview-reconcile` tri
 - `new PreviewReconciler(deps)`: the same three as methods, `run`, `pass` and `sweep`, for a
   caller that builds the deps once, such as the agent host and the trigger task.
 
-`PreviewReconcileDeps` is `{ db, cloudflare, domain, cipher, livePeersOf, now? }`. The pass is
-row-driven: it never runs a Cloudflare call inside a database transaction.
+`PreviewReconcileDeps` is `{ db, cloudflare, domain, cipher, livePeersOf, now? }`.
+`PreviewReconcileOutcome`, `PreviewPassSummary` and `PreviewOrphanSummary` are what one pod, one
+pass and one sweep answer. The pass is row-driven: it never runs a Cloudflare call inside a
+database transaction.
 
 ### Call Cloudflare
 
-- `new CloudflareTunnelClient({ apiToken, accountId, zoneId }, { fetchFn? })`: builds the client.
+- `new CloudflareTunnelClient({ apiToken, accountId, zoneId }, { fetchFn? })`: builds the client
+  from a `CloudflareConfig`.
 - `createTunnel({ name })`, `putIngress({ tunnelId, rules })`.
 - `findTunnelByName({ name })`, `getTunnel({ tunnelId })`, `tunnelToken({ tunnelId })`,
   `ensureTunnel({ name })`: find before create, so a crash between the Cloudflare object and the
@@ -94,14 +97,24 @@ row-driven: it never runs a Cloudflare call inside a database transaction.
 ## Usage
 
 ```ts
+import { CloudflareTunnelClient, PreviewTunnels } from '@dltech/atlas-previews'
+
+const tunnels = new PreviewTunnels({
+  db,
+  cipher,
+  domain: 'preview.example.dev',
+  cloudflare: new CloudflareTunnelClient({ apiToken, accountId, zoneId }),
+  livePeersOf: (podSessionId) => livePreviewPeersOf({ reader: db, podSessionId }),
+})
+
 const reply = await tunnels.expose({
   podSessionId: 'ses_pod',
   threadId: 'thr-1',
   userId: 'usr-1',
   port: 3000,
 })
-// reply.url is https://3000-<label>.byatlas.dev
-await markDeleting({ podSessionId: 'ses_pod' })
+// reply.url is https://3000-<label>.<domain>
+await tunnels.markDeleting({ podSessionId: 'ses_pod' })
 ```
 
 ## Rules

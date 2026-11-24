@@ -5,8 +5,6 @@ import {
   EQualityScopeKind,
   EQualityTransition,
   EToolEffect,
-  JEV_QUALITY_MODEL,
-  createQualityRegistry,
   stampDrafts,
   toCallId,
   toEventId,
@@ -27,6 +25,8 @@ import {
 } from '@dltech/atlas-core'
 
 import { CodeQualityReview, type QualityReviewResult } from '../engine'
+import { createQualityRegistry } from '../registry'
+import { JEV_QUALITY_MODEL } from '../request'
 import type { QualitySourceAdapter } from '../review-scopes'
 
 export const THREAD = toThreadId('thread-1')

@@ -24,12 +24,12 @@ its roster and its preview URLs.
 
 ## Entry points
 
-| Import                                  | Use it for                                                                                   |
-| --------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `@dltech/atlas-plugin-services/core`    | `servicesCoreSlots`, the declaration parser, the `services` view and `service-ready`.        |
-| `@dltech/atlas-plugin-services/pod`     | `servicesPod`: the tool, the daemon hook, the reconcile, the resume and the prompt fragment. |
-| `@dltech/atlas-plugin-services/control` | `servicesControl`, an empty control slot.                                                    |
-| `@dltech/atlas-plugin-services/client`  | `servicesClient`, `servicesOfView` and `previewsOfView`.                                     |
+| Import                                  | Use it for                                                                                          |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `@dltech/atlas-plugin-services/core`    | `servicesCoreSlots`, the declaration parser, the `services` view, `ServiceRow` and `service-ready`. |
+| `@dltech/atlas-plugin-services/pod`     | `servicesPod`: the tool, the daemon hook, the reconcile, the resume and the prompt fragment.        |
+| `@dltech/atlas-plugin-services/control` | `servicesControl`, an empty control slot.                                                           |
+| `@dltech/atlas-plugin-services/client`  | `servicesClient`, `servicesOfView`, `previewsOfView` and the `PreviewItem` type.                    |
 
 ## Capabilities
 

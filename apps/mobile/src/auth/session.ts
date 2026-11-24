@@ -3,7 +3,7 @@ import { z } from 'zod'
 import type { IAuthUser } from './auth-reducer'
 
 const sessionSchema = z.object({
-  user: z.object({ email: z.string(), name: z.string().nullish() }),
+  user: z.object({ id: z.string(), email: z.string(), name: z.string().nullish() }),
 })
 
 export const fetchSession = async ({
@@ -22,8 +22,8 @@ export const fetchSession = async ({
     if (!response.ok) return undefined
     const parsed = sessionSchema.safeParse(await response.json().catch(() => undefined))
     if (!parsed.success) return undefined
-    const { email, name } = parsed.data.user
-    return name == null ? { email } : { email, name }
+    const { id, email, name } = parsed.data.user
+    return name == null ? { id, email } : { id, email, name }
   } catch {
     return undefined
   }

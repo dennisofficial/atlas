@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./pod": "./src/pod/index.ts"
+    "./core": "./src/core/index.ts",
+    "./pod": "./src/pod/index.ts",
+    "./review": "./src/review/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

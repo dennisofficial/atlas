@@ -1,6 +1,8 @@
-import { createQualityRegistry, type QualityPolicy } from '@dltech/atlas-core'
-
-import { singleResponsibilityPolicy } from '../../packages/core/src/quality/policies/single-responsibility'
+import type { QualityPolicy } from '@dltech/atlas-core'
+import {
+  createQualityRegistry,
+  singleResponsibilityPolicy,
+} from '@dltech/atlas-plugin-quality/review'
 
 const evalQualityRegistry = createQualityRegistry({ policies: [singleResponsibilityPolicy] })
 

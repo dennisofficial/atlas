@@ -8,7 +8,7 @@ reaches the API through this package. No client imports `apps/api`.
 - `AppRouter`: the type of the API router.
 - `createApiClient`: the tRPC client, with an HTTP link and a subscription link.
 - The failure helpers that read a tRPC error.
-- `sessionStreamTransport`: the follow and list streams of a session.
+- `sessionStreamTransport`: the follow and list streams of a session, and its older events page.
 
 ## Does not own
 
@@ -40,6 +40,9 @@ reaches the API through this package. No client imports `apps/api`.
 - `sessionStreamTransport({ client, surface?, handleUnauthorized? })`: returns a
   `SessionStreamTransport`. `follow({ sessionId, threadId?, afterSeq?, afterHash? }, handlers)`
   resumes from a sequence and hash. `list(handlers)` follows the session list.
+  `events({ sessionId, threadId?, afterSeq, limit })` reads one page of older events.
+- `SessionStreamFollowInput`, `SessionStreamOlderInput`, `SessionStreamOlderPage`: the follow
+  input, the request for an older page and the page.
 - `SessionStreamHandlers`: `handleFrame`, `handleFailure` and `handleEnd`.
 - `SessionStreamSubscription`: `close()`.
 - The transport parses every frame with `streamServerMessageSchema` before it calls the handler.

@@ -1,9 +1,6 @@
 import {
   EQualityReviewStatus,
   EQualitySkipReason,
-  JEV_QUALITY_MODEL,
-  applyAssessments,
-  interpretQualityResponse,
   type CallId,
   type DecisionPort,
   type QualityAssessment,
@@ -11,6 +8,8 @@ import {
   type QualityScope,
 } from '@dltech/atlas-core'
 
+import { applyAssessments } from './core-logic/ledger'
+import { JEV_QUALITY_MODEL, interpretQualityResponse } from './core-logic/request'
 import { deadlineErrorOf, settleUnderBudget, type QualityDeadlineError } from './deadline'
 import { buildAssessmentCacheKey, type QualityAssessmentCache } from './evaluation-cache'
 import { buildRecord, type NotifiableEntry, type ReviewItem } from './review-records'

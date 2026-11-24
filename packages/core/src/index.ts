@@ -245,12 +245,7 @@ export * from './hooks/hooks'
 
 export * from './quality/change'
 export * from './quality/policy'
-export * from './quality/request'
-export * from './quality/registry'
-export * from './quality/ledger'
-export * from './quality/health'
 export * from './quality/schema'
-export { singleResponsibilityPolicy } from './quality/policies/single-responsibility'
 
 export * from './credentials/account'
 export * from './credentials/adoption'

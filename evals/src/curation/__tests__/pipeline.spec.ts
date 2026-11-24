@@ -2,12 +2,8 @@ import { afterEach, describe, expect, test } from 'vitest'
 import { readFile, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 
-import {
-  JEV_QUALITY_MODEL,
-  EQualityImpact,
-  EQualityReviewStatus,
-  EQualityScopeKind,
-} from '@dltech/atlas-core'
+import { EQualityImpact, EQualityReviewStatus, EQualityScopeKind } from '@dltech/atlas-core'
+import { JEV_QUALITY_MODEL } from '@dltech/atlas-plugin-quality/review'
 
 import { createFakeTransport } from '../../../__fixtures__/fake-transport'
 import {

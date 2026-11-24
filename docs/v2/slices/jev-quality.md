@@ -2,7 +2,7 @@
 
 > **Approved by Dennis 2026-11-23.** On when the classifier is available; example recording dropped; web shows the indicator line. Built after the classifier role's slice 2.
 
-Status: **approved**, 2026-11-23; built in PR 1 and PR 2 (§5). Owner: new `packages/quality` plus `packages/host`.
+Status: **approved**, 2026-11-23; built in PR 1 and PR 2 (§5). Owner: `plugins/quality` (`@dltech/atlas-plugin-quality`) plus `packages/host`.
 Anchors read at `ee5fdfdef` (repo `/atlas/workspaces/atlas`). "Jev" is the product name for this
 review; the model that answers is whichever classifier the operator chose (Jev direct, Jev through
 a gateway, or OpenAI Decisions).
@@ -75,15 +75,15 @@ flowchart TD
   declaration, hashes each side and renders a diff. Skips are coverage outcomes, never clean
   reviews: unsupported language, declaration-only file, outside the workspace, oversized source
   (1 MiB, `source/capture-text.ts:7`), invalid syntax, ambiguous identity.
-- **The questions.** `prepareQualityRequest` (`packages/core/src/quality/request.ts:69-96`) serialises
+- **The questions.** `prepareQualityRequest` (`plugins/quality/src/review/request.ts:69-96`) serialises
   the scope (before, after, diff, evidence, imports) as `state` and adds the policy's typed
   questions under `<policyId>:<questionKey>`. The single-responsibility policy asks three
-  (`packages/core/src/quality/policies/single-responsibility.ts:16-22`): current concern probability,
+  (`plugins/quality/src/policies/single-responsibility/keys.ts:1-5`): current concern probability,
   impact (7-way choice), focus. Answers are validated (`request.ts:120-141`) and then handed to the
   policy's own `interpret`.
 - **The model.** `DecisionPort.decide` is called with `model: JEV_QUALITY_MODEL`
   (`scope-review.ts:90-99`), which is `JEV_MODEL = 'jev-latest'`
-  (`packages/core/src/quality/request.ts:13`, `packages/core/src/policy/classifier/jev.ts:6`). An
+  (`plugins/quality/src/review/request.ts:13`, `packages/core/src/policy/classifier/jev.ts:6`). An
   answer that reports a different model is recorded `Inconclusive` / `UncalibratedModel`
   (`scope-review.ts:124-131`) — the review refuses to claim calibration it does not have. In v2 the
   model id comes from the classifier role: the port asks for it and the answer must echo it.
@@ -141,7 +141,7 @@ If the current structure is justified, leaving it unchanged is fine.
 ```
 
 Only findings that are **newly** notifiable appear (`review-records.ts:234-240`,
-`packages/core/src/quality/ledger.ts:88-140`): the same debt on a later write re-notifies nothing.
+`plugins/quality/src/review/ledger.ts:88-140`): the same debt on a later write re-notifies nothing.
 The note is one step of context, roughly 60–120 tokens.
 
 ### 2.4 What the operator sees
@@ -152,7 +152,7 @@ The note is one step of context, roughly 60–120 tokens.
 - The TUI already renders it in v2: `qualityNoticeOf` reads `call.qualityReviews`
   (`apps/tui/src/ui/components/blocks/quality-indicator.tsx:41-65`) and shows
   `⚠ Single responsibility` or `✗ review <fault>` (`:69-78`). The web transcript shows nothing.
-- v1 additionally had a health projection (`packages/core/src/quality/health.ts:48-69`) and a TUI
+- v1 additionally had a health projection (`packages/harness/src/quality/core-logic/health.ts:48-69`) and a TUI
   quality panel (`apps/tui/src/composition/use-workspace-quality-health.ts`).
 - Settings already exist in both surfaces: `quality.enabled` and `quality.recordExamples`
   (`packages/core/src/settings/registry.ts:941-963`) and the v2 web page
@@ -184,16 +184,16 @@ The note is one step of context, roughly 60–120 tokens.
 
 ### 4.1 Where each part runs
 
-| Part                                                                                     | Home                                                                                                                        | Why there                                                                                                                          |
-| ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| Policies, request building, answer interpretation, finding ledger, record schema, health | `packages/core/src/quality/*` (exists, unchanged)                                                                           | pure, plain data, already v2-safe; only `zod`                                                                                      |
-| Review engine, deadline, scope planning, records, source adapter                         | **new `packages/quality`**                                                                                                  | pure code that must not reach the sandbox, the host's session state or a network client; stays after `packages/harness` is deleted |
-| Workspace identity probe, the `QualityStagePort` implementation, per-session wiring      | `packages/host/src/quality/*`                                                                                               | the host owns the daemon calls; the review runs on the agent host, never in the sandbox                                            |
-| The classifier port, its transports, its key and its availability                        | `packages/core/src/ports/classifier.port.ts`, `packages/classifier/*`                                                       | owned by `classifier.md`; this review is one caller                                                                                |
-| Setting and secret rows → session config                                                 | `apps/api/src/agent/config/*`                                                                                               | the API already reads the user and project setting rows per session                                                                |
-| Before/after text capture                                                                | sandbox-side tools, unchanged (`apps/api/src/agent/agent-tools/edit.ts:86-93`, `write.ts:130-132`, `multi-edit.ts:139-141`) | the text arrives in the tool outcome; the review needs no file read of its own                                                     |
-| `code-quality-reviewed` on the tool result, nudge draft                                  | `packages/agent/src/tools/dispatch.ts:246-256` (exists)                                                                     | the seam is already there and already emits `tool.quality`                                                                         |
-| Transcript indicator                                                                     | `apps/tui` (exists), `packages/client` + `apps/web` (question 3)                                                            | surfaces own rendering                                                                                                             |
+| Part                                                                                | Home                                                                                                                        | Why there                                                                                                                                                       |
+| ----------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Policies, request building, answer interpretation, finding ledger                   | `plugins/quality/src/*` (pure; shared types and the record schema stay in `packages/core/src/quality`)                      | pure, plain data; only `@dltech/atlas-core`                                                                                                                     |
+| Review engine, deadline, scope planning, records, source adapter                    | `plugins/quality/src/review/*`                                                                                              | pure code that must not reach the sandbox, the host's session state or a network client; v1 keeps a frozen copy under `packages/harness/src/quality/core-logic` |
+| Workspace identity probe, the `QualityStagePort` implementation, per-session wiring | `packages/host/src/quality/*`                                                                                               | the host owns the daemon calls; the review runs on the agent host, never in the sandbox                                                                         |
+| The classifier port, its transports, its key and its availability                   | `packages/core/src/ports/classifier.port.ts`, `packages/classifier/*`                                                       | owned by `classifier.md`; this review is one caller                                                                                                             |
+| Setting and secret rows → session config                                            | `apps/api/src/agent/config/*`                                                                                               | the API already reads the user and project setting rows per session                                                                                             |
+| Before/after text capture                                                           | sandbox-side tools, unchanged (`apps/api/src/agent/agent-tools/edit.ts:86-93`, `write.ts:130-132`, `multi-edit.ts:139-141`) | the text arrives in the tool outcome; the review needs no file read of its own                                                                                  |
+| `code-quality-reviewed` on the tool result, nudge draft                             | `packages/agent/src/tools/dispatch.ts:246-256` (exists)                                                                     | the seam is already there and already emits `tool.quality`                                                                                                      |
+| Transcript indicator                                                                | `apps/tui` (exists), `packages/client` + `apps/web` (question 3)                                                            | surfaces own rendering                                                                                                                                          |
 
 The review therefore adds **no daemon protocol op and no sandbox code**. The only daemon traffic it
 adds is the git identity probe (§4.5), which uses the existing `exec` op.
@@ -235,7 +235,7 @@ quality?: QualityStagePort | undefined
 built once per runtime in `apps/api/src/agent/runtime/session-runtime-factory.ts`. The runtime holds
 no review state; the stage is a stateless adapter over the event log, the config and the Jev client.
 
-### 4.3 `packages/quality`
+### 4.3 `plugins/quality`
 
 New workspace package. `package.json` dependencies: `@dltech/atlas-core`, `typescript`. No
 `node:fs`, no network, no clock of its own (`clock` and `deadlineMs` are injected). A
@@ -243,17 +243,17 @@ New workspace package. `package.json` dependencies: `@dltech/atlas-core`, `types
 
 Moved without behaviour change, imports re-pointed, specs moved with them:
 
-| v1 file                                               | New file                                                                                                                                      |
-| ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `packages/harness/src/quality/deadline.ts`            | `packages/quality/src/deadline.ts`                                                                                                            |
-| `packages/harness/src/quality/review-scopes.ts`       | `packages/quality/src/review-scopes.ts`                                                                                                       |
-| `packages/harness/src/quality/scope-review.ts`        | `packages/quality/src/scope-review.ts`                                                                                                        |
-| `packages/harness/src/quality/review-records.ts`      | `packages/quality/src/review-records.ts`                                                                                                      |
-| `packages/harness/src/quality/coverage-records.ts`    | `packages/quality/src/coverage-records.ts`                                                                                                    |
-| `packages/harness/src/quality/workspace-namespace.ts` | `packages/quality/src/workspace-namespace.ts`                                                                                                 |
-| `packages/harness/src/quality/settings.ts`            | `packages/quality/src/settings.ts` (minus `qualitySettingDefinitions`, which needs `ESettingPage` registration that v2 does not do from here) |
-| `packages/harness/src/quality/source/*`               | `packages/quality/src/source/*` (all six files, unchanged)                                                                                    |
-| `packages/harness/src/quality/engine.ts`              | `packages/quality/src/engine.ts` (changed as below)                                                                                           |
+| v1 file                                               | New file                                                                                                                                            |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/harness/src/quality/deadline.ts`            | `plugins/quality/src/review/deadline.ts`                                                                                                            |
+| `packages/harness/src/quality/review-scopes.ts`       | `plugins/quality/src/review/review-scopes.ts`                                                                                                       |
+| `packages/harness/src/quality/scope-review.ts`        | `plugins/quality/src/review/scope-review.ts`                                                                                                        |
+| `packages/harness/src/quality/review-records.ts`      | `plugins/quality/src/review/review-records.ts`                                                                                                      |
+| `packages/harness/src/quality/coverage-records.ts`    | `plugins/quality/src/review/coverage-records.ts`                                                                                                    |
+| `packages/harness/src/quality/workspace-namespace.ts` | `plugins/quality/src/review/workspace-namespace.ts`                                                                                                 |
+| `packages/harness/src/quality/settings.ts`            | `plugins/quality/src/review/settings.ts` (minus `qualitySettingDefinitions`, which needs `ESettingPage` registration that v2 does not do from here) |
+| `packages/harness/src/quality/source/*`               | `plugins/quality/src/review/source/*` (all six files, unchanged)                                                                                    |
+| `packages/harness/src/quality/engine.ts`              | `plugins/quality/src/review/engine.ts` (changed as below)                                                                                           |
 
 `engine.ts` keeps `CodeQualityReview` and drops two things:
 
@@ -294,7 +294,7 @@ not on the engine. No separate `ReviewEngine` type is added.
 | ------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | assessment cache (`packages/harness/src/quality/evaluation-cache.ts:39-51`, `Map`, 256 entries)        | process memory                                                                    | **dropped.** Hosts keep nothing between turns, and the key is a scope hash with its policy versions, so it only ever saved a repeat call for content already reviewed in the same process. A restart would have lost it anyway. Cost of dropping: one extra Jev call if the same scope and content is written twice. |
 | review records                                                                                         | events (`code-quality-reviewed` on the tool result, plus standalone events in v1) | **durable, unchanged:** `tool-result.qualityReviews` (`packages/core/src/events/schema.ts:127`) is the record; the loop already writes it (`dispatch.ts:252`).                                                                                                                                                       |
-| finding ledger                                                                                         | folded from records (`core/src/quality/ledger.ts:142-153`)                        | **derived, unchanged:** folded from the thread's events on each review. In v2 the dispatcher receives `record.composedEvents({ threadId })` (`packages/agent/src/loop/settle-pending.ts:92`), so the ledger spans the whole thread, not just the run.                                                                |
+| finding ledger                                                                                         | folded from records (`plugins/quality/src/review/ledger.ts:142-153`)              | **derived, unchanged:** folded from the thread's events on each review. In v2 the dispatcher receives `record.composedEvents({ threadId })` (`packages/agent/src/loop/settle-pending.ts:92`), so the ledger spans the whole thread, not just the run.                                                                |
 | coverage records                                                                                       | events                                                                            | **durable, unchanged.**                                                                                                                                                                                                                                                                                              |
 | example files (`packages/harness/src/quality/example-sink.ts:10-116`)                                  | `threadDataDirectory` in the harness store                                        | **dropped** with the setting (question 2): no v2 reader exists, and writing source copies into a sandbox to be read by nobody is cost without a consumer.                                                                                                                                                            |
 | git layout cache (`packages/harness/src/quality/git-workspace-identity.ts:238-241`, `Map`, 64 entries) | process memory                                                                    | **dropped.** The probe is five `git` reads per reviewed write (six when `core.worktree` is read), all inside one 750 ms bound (`:11`); the cache is exactly the cross-turn memory v2 forbids.                                                                                                                        |
@@ -318,7 +318,7 @@ const outcome = await classifier.classify({
 ```
 
 `request.questions` narrows to `Record<string, ClassifierQuestion>`; `prepareQualityRequest`
-(`packages/core/src/quality/request.ts:69-96`) keeps its shape and `assertChoiceWithinLimit`
+(`plugins/quality/src/review/request.ts:69-96`) keeps its shape and `assertChoiceWithinLimit`
 (`:25-40`) still guards the 255-option limit. Two files remain in this directory:
 `workspace-identity.ts` and `quality-stage.ts`.
 
@@ -371,7 +371,7 @@ no second credential read.
 `ConfigReader.read` (`apps/api/src/agent/config/config-reader.ts:88-124`) fills the quality field
 from the settings map it already builds (`settingsOf`, `:198-209`): decode each stored value with
 `decodeSettingValue` (`packages/core/src/settings/cloud/setting-codec.ts:11`), then run the ported
-`qualitySwitches` (`packages/quality/src/settings.ts`).
+`qualitySwitches` (`plugins/quality/src/review/settings.ts`).
 
 Consequence, stated plainly: **a toggle change applies at the next runtime build**, i.e. the next
 session start or pod restart. That matches the copy the settings page already carries — "Every
@@ -446,10 +446,10 @@ Two PRs. PR 1 is the feature; without both halves of it nothing works, so the en
 wiring travel together. PR 2 is surface polish and the two setting answers. Both depend on the
 classifier role's slice 2 (`classifier.md` §8): this module cannot run without a port.
 
-| #   | Contents                                                                                                                                                                                                                                                                                                                                                                                                          | Files                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | `packages/quality`: engine, deadline, scope planning, records, source adapter, settings, specs, README. Host: daemon workspace identity, stage adapter, specs. Seam: `hookedToolsOf`, `held-runner`, `crew/child-runner`, `SessionRuntime.quality`. Config: `AgentHostConfig.quality`, `ConfigReader.read`, runtime assembly gated on `config.classifier.on`. READMEs for `packages/quality` and `packages/host`. | `packages/quality/**`, `packages/host/src/quality/**`, `packages/host/src/holder/hooked-tools.ts:4-13`, `packages/host/src/holder/held-runner.ts:218`, `packages/host/src/holder/crew/child-runner.ts:83`, `packages/host/src/holder/ports.ts:93`, `apps/api/src/agent/runtime/session-runtime-factory.ts:249-330`, `apps/api/src/agent/config/agent-host-config.ts:49-58`, `apps/api/src/agent/config/config-reader.ts:88-124` |
-| 2   | Web transcript indicator on the tool call; `quality.recordExamples` removed with its fixture and registry entry if question 2 says drop; master-switch default and description per question 1.                                                                                                                                                                                                                    | `packages/client/src/transcript/**`, `apps/web/**` transcript block, `apps/web/src/features/settings/fixtures/settings-fields.ts:92-107`, `packages/core/src/settings/registry.ts:941-963`                                                                                                                                                                                                                                      |
+| #   | Contents                                                                                                                                                                                                                                                                                                                                                                                                        | Files                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | `plugins/quality`: engine, deadline, scope planning, records, source adapter, settings, specs, README. Host: daemon workspace identity, stage adapter, specs. Seam: `hookedToolsOf`, `held-runner`, `crew/child-runner`, `SessionRuntime.quality`. Config: `AgentHostConfig.quality`, `ConfigReader.read`, runtime assembly gated on `config.classifier.on`. READMEs for `plugins/quality` and `packages/host`. | `plugins/quality/**`, `packages/host/src/quality/**`, `packages/host/src/holder/hooked-tools.ts:4-13`, `packages/host/src/holder/held-runner.ts:218`, `packages/host/src/holder/crew/child-runner.ts:83`, `packages/host/src/holder/ports.ts:93`, `apps/api/src/agent/runtime/session-runtime-factory.ts:249-330`, `apps/api/src/agent/config/agent-host-config.ts:49-58`, `apps/api/src/agent/config/config-reader.ts:88-124` |
+| 2   | Web transcript indicator on the tool call; `quality.recordExamples` removed with its fixture and registry entry if question 2 says drop; master-switch default and description per question 1.                                                                                                                                                                                                                  | `packages/client/src/transcript/**`, `apps/web/**` transcript block, `apps/web/src/features/settings/fixtures/settings-fields.ts:92-107`, `packages/core/src/settings/registry.ts:941-963`                                                                                                                                                                                                                                     |
 
 Ownership: PR 1 owns the integration; PR 2 depends on it and touches only surfaces. No v1 file is
 edited by either — the port copies from `packages/harness` and leaves it alone until v1 is deleted.
@@ -459,7 +459,7 @@ No file outside these lists grows past 300 lines.
 
 ## 6. Test plan and live check
 
-**Pure (`packages/quality/src/__tests__/`).** Move the existing v1 specs and keep them as plain
+**Pure (`plugins/quality/src/review/__tests__/`).** Move the existing v1 specs and keep them as plain
 data: `deadline.spec.ts`, `engine-review.spec.ts`, `engine-requests.spec.ts`,
 `engine-switches.spec.ts`, `support-modules.spec.ts`, `source/scope-adapter.spec.ts`,
 `source/typescript-parser.spec.ts`, `source/capture-text.spec.ts`. Drop `example-sink.spec.ts` and
@@ -485,7 +485,7 @@ rows, project over user. `apps/api/src/agent/runtime/__tests__/quality-stage.spe
 status of `{ on: false }` → no stage; on with the master switch off → no stage; on with it on → a
 stage whose `captureEnabled()` is true.
 
-**Commands.** `bun test` in `packages/quality`, `packages/host`, `packages/agent`, `apps/api`;
+**Commands.** `bun test` in `plugins/quality`, `packages/host`, `packages/agent`, `apps/api`;
 `turbo run typecheck`; `bunx biome check --write` on the touched files.
 
 **Live check (a v2 session on this repo, review on, a classifier connected).**
