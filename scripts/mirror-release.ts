@@ -5,7 +5,6 @@ const BUCKET = 'atlas-releases'
 const MIRROR = 'https://install.byatlas.io'
 const WRANGLER = ['bunx', 'wrangler@4.157.0']
 const INDEX_KEY = 'index.json'
-const TAG_HISTORY = 50
 const SMALL_ASSET_BYTES = 1024 * 1024
 
 export type MirrorArgs = { tag: string; latest: boolean; prune: boolean }
@@ -41,12 +40,6 @@ const run = (cmd: readonly string[], options: { allowFailure?: boolean } = {}): 
   if (result.exitCode !== 0 && options.allowFailure !== true) {
     throw new Error(`${cmd.join(' ')} failed (${result.exitCode})`)
   }
-}
-
-const output = (cmd: readonly string[]): string => {
-  const result = Bun.spawnSync([...cmd], { stdout: 'pipe', stderr: 'inherit' })
-  if (result.exitCode !== 0) throw new Error(`${cmd.join(' ')} failed (${result.exitCode})`)
-  return result.stdout.toString()
 }
 
 const wrangler = (args: readonly string[], options: { allowFailure?: boolean } = {}): void =>
@@ -118,24 +111,8 @@ async function verify(args: {
 }
 
 async function mirrorIndex(args: { dir: string; tag: string }): Promise<void> {
-  const tags = output([
-    'gh',
-    'release',
-    'list',
-    '--repo',
-    REPO,
-    '--limit',
-    String(TAG_HISTORY),
-    '--json',
-    'tagName',
-    '--jq',
-    '.[].tagName',
-  ])
-    .split('\n')
-    .map((line) => line.trim())
-    .filter((line) => line !== '')
-  putJson({ key: INDEX_KEY, body: JSON.stringify({ latest: args.tag, tags }), dir: args.dir })
-  console.log(`index.json names ${args.tag} latest over ${tags.length} tags`)
+  putJson({ key: INDEX_KEY, body: JSON.stringify({ latest: args.tag }), dir: args.dir })
+  console.log(`index.json names ${args.tag} latest`)
 }
 
 async function prune(args: {

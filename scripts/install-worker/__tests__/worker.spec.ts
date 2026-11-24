@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'bun:test'
 
 import worker from '../worker.js'
 
-const INDEX = { latest: 'tui-v1.2.3', tags: ['tui-v1.2.3', 'web-ota', 'tui-v1.2.2'] }
+const INDEX = { latest: 'tui-v1.2.3' }
 const BINARY = new TextEncoder().encode('a release binary')
 
 type Object = { body: Uint8Array; range?: { offset: number; length: number } }
@@ -34,6 +34,15 @@ const bucketOf = (objects: Record<string, Object>) => ({
       json: async () => JSON.parse(new TextDecoder().decode(bytes)),
     }
   },
+  list: async ({ prefix }: { prefix: string }) => ({
+    delimitedPrefixes: [
+      ...new Set(
+        Object.keys(objects)
+          .filter((key) => key.startsWith(prefix) && key.slice(prefix.length).includes('/'))
+          .map((key) => `${prefix}${key.slice(prefix.length).split('/')[0] as string}/`),
+      ),
+    ],
+  }),
   head: async (key: string) => {
     const object = objects[key]
     if (object === undefined) return null
@@ -159,10 +168,13 @@ describe('release downloads', () => {
     expect(await response.text()).toContain('atlas-darwin-x64')
   })
 
-  it('lists the mirrored tags for the update check', async () => {
-    const response = await worker.fetch(request('/releases/tags'), envOf())
+  it('lists only the tags the bucket holds, for the update check', async () => {
+    const response = await worker.fetch(
+      request('/releases/tags'),
+      envOf({ 'releases/web-ota/web-update.json': { body: new TextEncoder().encode('{}') } }),
+    )
 
-    expect(await response.json()).toEqual({ tags: INDEX.tags })
+    expect(await response.json()).toEqual({ tags: ['tui-v1.2.3', 'web-ota'] })
   })
 
   it('refuses a write', async () => {

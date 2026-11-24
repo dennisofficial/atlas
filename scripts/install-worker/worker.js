@@ -141,9 +141,14 @@ const latestAssetOf = async ({ request, env, name }) => {
   return assetOf({ request, env, tag: index.latest, name, latest: true })
 }
 
+const TAGS_PREFIX = 'releases/'
+
 const tagsOf = async (env) => {
-  const index = await indexOf(env)
-  const tags = index !== null && Array.isArray(index.tags) ? index.tags : []
+  const listed = await env.RELEASES.list({ prefix: TAGS_PREFIX, delimiter: '/' })
+  const tags = (listed.delimitedPrefixes ?? [])
+    .map((prefix) => prefix.slice(TAGS_PREFIX.length).replace(/\/$/, ''))
+    .filter((tag) => tag !== '')
+    .sort()
   return new Response(JSON.stringify({ tags }), {
     headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': LATEST_CACHE },
   })
