@@ -17,7 +17,7 @@ export enum EPageFormat {
 
 const MAX_BYTES = 25 * 1024 * 1024
 
-const MAX_CHARACTERS = 120_000
+export const MAX_CHARACTERS = 120_000
 
 const MAX_REDIRECTS = 10
 

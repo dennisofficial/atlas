@@ -29,6 +29,8 @@ import type { ITriggerEnv } from './sections/trigger'
 import { triggerEnvSchema } from './sections/trigger'
 import type { IVercelOauthEnv } from './sections/vercel-oauth'
 import { vercelOauthEnvSchema } from './sections/vercel-oauth'
+import type { IWebEnv } from './sections/web'
+import { webEnvSchema } from './sections/web'
 import type { IWebPushEnv } from './sections/web-push'
 import { webPushEnvSchema } from './sections/web-push'
 
@@ -48,7 +50,8 @@ export interface IEnvConfig
     ISandboxEnv,
     ITriggerEnv,
     IVercelOauthEnv,
-    IWebPushEnv {}
+    IWebPushEnv,
+    IWebEnv {}
 
 export const envConfigValidation = Joi.object({
   ...runtimeEnvSchema,
@@ -67,4 +70,5 @@ export const envConfigValidation = Joi.object({
   ...triggerEnvSchema,
   ...vercelOauthEnvSchema,
   ...webPushEnvSchema,
+  ...webEnvSchema,
 })

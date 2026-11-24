@@ -105,10 +105,9 @@ describe('SettingsRouter', () => {
       'decisions.url': 'https://jev.internal',
       'decisions.model': 'jev-luna',
       'classifier.mode': 'nudge',
-      'web.searchBackend': 'exa',
     }
 
-    it('stores and lists the five settings for the personal scope', async () => {
+    it('stores and lists the four settings for the personal scope', async () => {
       const values = Object.fromEntries(
         Object.entries(podDelivered).map(([key, value]) => [key, encodeSettingValue(value)]),
       )

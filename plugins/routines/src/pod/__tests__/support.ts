@@ -112,7 +112,6 @@ export const rig = (routines: PodRoutines = fakeRoutines().port) => {
     worktrees: EMPTY_WORKTREES,
     control: {
       mcp: EMPTY_MCP_CONTROL,
-      webSearch: { config: async () => ({ backend: undefined, key: undefined }) },
       gateway: { apiKey: async () => undefined, imageModel: async () => undefined },
       settingsVersions: async () => UNVERSIONED_SETTINGS,
       exposePort: async () => {
