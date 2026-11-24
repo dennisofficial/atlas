@@ -18,9 +18,11 @@ import { operatorCoreSlots } from '@dltech/atlas-plugin-operator/core'
 import { operatorPod } from '@dltech/atlas-plugin-operator/pod'
 import { instructionsCoreSlots } from '@dltech/atlas-plugin-instructions/core'
 import { instructionsPodOf } from '@dltech/atlas-plugin-instructions/pod'
+import { qualityPodOf } from '@dltech/atlas-plugin-quality/pod'
 import { mcpServerPort } from './config/mcp-servers'
 import { skillCloudPort } from './config/skills'
 import { instructionsPort } from './config/instructions'
+import { qualitySettingsPort } from './config/quality-settings'
 import { skillsClient } from '@dltech/atlas-plugin-skills/client'
 import { skillsCoreSlots } from '@dltech/atlas-plugin-skills/core'
 import { skillsPodOf } from '@dltech/atlas-plugin-skills/pod'
@@ -68,6 +70,12 @@ const skillsPod = skillsPodOf({
   cloud: (ctx) => skillCloud.source(ctx.sessionId),
   writes: (ctx) => skillCloud.writer(ctx.sessionId),
   suggests: async (ctx) => await skillCloud.suggests(ctx.sessionId),
+})
+
+const qualitySettings = qualitySettingsPort()
+
+const qualityPod = qualityPodOf({
+  settings: async (ctx) => await qualitySettings.settings(ctx.sessionId),
 })
 
 export const registeredPlugins: readonly Plugin[] = [
@@ -150,6 +158,16 @@ export const registeredPlugins: readonly Plugin[] = [
     control: EMPTY_CONTROL,
     client: skillsClient,
     transport: 'stream',
+  }),
+  definePlugin({
+    name: 'quality',
+    events: [],
+    views: [],
+    commands: [],
+    pod: qualityPod,
+    control: EMPTY_CONTROL,
+    client: { hooks: [] },
+    transport: 'none',
   }),
   definePlugin({
     name: 'sessions',

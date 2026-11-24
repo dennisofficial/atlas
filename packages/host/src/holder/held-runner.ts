@@ -197,7 +197,6 @@ export const createLoopRunner = (args: {
       hookedToolsOf({
         registry: pod.tools,
         hooks: pod.hooks,
-        quality: runtime.quality,
         trace: runtime.trace,
       }),
     ),

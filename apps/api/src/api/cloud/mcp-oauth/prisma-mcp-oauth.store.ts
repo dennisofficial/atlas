@@ -208,8 +208,7 @@ export class PrismaMcpOauthStore implements McpOauthStore {
       SET "oauthSealed" = ${args.sealed},
           "oauthGeneration" = "oauthGeneration" + 1,
           "oauthRefreshAttempt" = NULL,
-          "oauthRefreshStartedAt" = NULL,
-          "oauthUpdatedAt" = now()
+          "oauthRefreshStartedAt" = NULL
       WHERE "id" = ${args.id}
         AND "oauthGeneration" = ${args.generation}
         AND "oauthRefreshAttempt" = ${args.attemptId}`
@@ -220,10 +219,16 @@ export class PrismaMcpOauthStore implements McpOauthStore {
   }
 
   async release(args: AttemptFence): Promise<boolean> {
-    const count = await db.orm.public.McpServer.where(fenceWhere(args)).updateAndCount(
-      CLEARED_ATTEMPT,
-    )
-    return count === 1
+    const statement = db.raw.sql`UPDATE "McpServer"
+      SET "oauthRefreshAttempt" = NULL,
+          "oauthRefreshStartedAt" = NULL
+      WHERE "id" = ${args.id}
+        AND "oauthGeneration" = ${args.generation}
+        AND "oauthRefreshAttempt" = ${args.attemptId}`
+      .affectedCount()
+      .build()
+    const { affectedRows } = await db.execute(statement)
+    return affectedRows === 1
   }
 
   async reject(args: AttemptFence): Promise<boolean> {

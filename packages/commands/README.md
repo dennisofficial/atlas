@@ -62,6 +62,9 @@ message. Native commands and plugin commands both use it.
 - `SURFACE_PROFILES`: each surface's hidden names, with the reason, and the names it picks. A name
   is hidden `because` it is a message action, or `Panel` because only one surface draws it — web,
   Mac and mobile hide `skills`, `mcp` and `shells`, and the TUI keeps them.
+- `ESurface`, `EHiddenBecause`, `SurfaceProfile`: the surface names, the reason a name is hidden,
+  and the shape of a profile. `ECommandSource`, `ECommandEntryKind`, `commandEntrySchema`: the
+  source of a row, its kind, and the schema of a row.
 
 ### Read a typed line
 

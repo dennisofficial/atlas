@@ -26,7 +26,7 @@ import type { MacLink } from './mac-link/port'
 import { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 import { composedPlugins } from './registered-plugins'
 import type { ChangeContentStore, ContextContentStore, ControlPlane } from '@dltech/atlas-control'
-import type { LogPort, TracePort } from '@dltech/atlas-observability'
+import type { LogPort, ProductAnalytics, TracePort } from '@dltech/atlas-observability'
 
 import type { ModelTokenService } from './tokens/model-token-service'
 import type { GithubTokenReader } from './tokens/github-token-reader'
@@ -65,6 +65,7 @@ export type ComposeAgentHostArgs = {
   timers?: HostTimers | undefined
   log?: LogPort | undefined
   traceFor?: ((distinctId: string) => TracePort) | undefined
+  analytics?: ProductAnalytics | undefined
   media?: MediaSigner | undefined
   changes?: { content: ChangeContentStore } | undefined
   contextMirror?:
@@ -101,6 +102,7 @@ export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
       daemonSecret: args.env.daemonSecret,
       timers,
       ...(args.traceFor === undefined ? {} : { traceFor: args.traceFor }),
+      ...(args.analytics === undefined ? {} : { analytics: args.analytics }),
       media: args.media,
       plugins: composedPlugins,
       configWrites: cloudConfigStore(),

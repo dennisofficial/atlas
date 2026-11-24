@@ -25,10 +25,10 @@ helpers. The serve process in a pod, `apps/api` and every client read it.
 
 ## Entry points
 
-| Import                   | Use it for                                                                                         |
-| ------------------------ | -------------------------------------------------------------------------------------------------- |
-| `@dltech/atlas-wire`     | The full contract: frames, payload schemas, capabilities, pod paths, sandbox helpers.              |
-| `@dltech/atlas-wire/web` | The browser-safe subset: project, thread, settings, model, GitHub, notification and event schemas. |
+| Import                   | Use it for                                                                                                                      |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| `@dltech/atlas-wire`     | The full contract: frames, payload schemas, capabilities, pod paths, sandbox helpers.                                           |
+| `@dltech/atlas-wire/web` | The browser-safe subset: thread, session, project, settings, model, memory, MCP, secret, file, GitHub and notification schemas. |
 
 ## Capabilities
 

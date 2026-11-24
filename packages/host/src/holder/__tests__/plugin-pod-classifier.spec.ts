@@ -60,7 +60,7 @@ describe('pluginPodContextOf classifier', () => {
           return { ok: true, answers: { danger: { noul: 0.2 } }, model: 'jev-latest' }
         },
       },
-      classifierStatus: { on: true, model: 'jev-latest' },
+      classifierStatus: { on: true, model: 'jev-latest', provider: 'jev' },
     })
 
     const outcome = await ctx.classifier.classify({
@@ -75,6 +75,6 @@ describe('pluginPodContextOf classifier', () => {
       answers: { danger: { noul: 0.2 } },
       model: 'jev-latest',
     })
-    expect(ctx.classifier.status()).toEqual({ on: true, model: 'jev-latest' })
+    expect(ctx.classifier.status()).toEqual({ on: true, model: 'jev-latest', provider: 'jev' })
   })
 })

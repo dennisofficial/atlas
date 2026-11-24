@@ -7,7 +7,7 @@ A main agent, a sub-agent and a teammate all run this loop. It knows nothing of 
 
 - The turn runner: `say`, `runTurn` and `resume`, and the outcome of each.
 - The step loop: the model step, the chunk stream, the loop guard, the retry and the recovery.
-- Tool dispatch, the tool registry, and the quality stage between a call and its result.
+- Tool dispatch and the tool registry, including the capture that an after-tool hook asks for.
 - The hook chain: the order of hooks and the budget of each phase.
 - Intake: how a pending input becomes part of the next step.
 - The trace of a turn: the root span, and one span for each collaborator that the loop calls.
@@ -36,6 +36,9 @@ A main agent, a sub-agent and a teammate all run this loop. It knows nothing of 
 - `TurnDeps`: the record, the model, the ids, the assembly, the tools, the hooks and the tracer.
 - `TurnOutcome`, `ETurnStatus`: how a turn ends: `completed`, `paused`, `idle`, `interrupted`,
   `failed`, `waiting-for-model`, `parked` or `relocation-paused`.
+- `PauseSignal`: pause a running turn at the next step boundary. `say`, `runTurn` and `resume` take it
+  as `pause`; a paused turn ends `relocation-paused`.
+- `TurnDeps.uploads`: a `SaidUploadsPort` places the files of a said message on disk.
 
 ### Trace a turn
 
@@ -48,7 +51,7 @@ A main agent, a sub-agent and a teammate all run this loop. It knows nothing of 
 
 ### Order the hooks
 
-- `HookChain({...})`: run the hooks of one phase in order, within their budget.
+- `new HookChain({...})`: run the hooks of one phase in order, within their budget.
 - `HookChainArgs`: the hooks of each phase: `beforeTurn`, `beforeStep`, `beforeRequest`,
   `beforeTool`, `afterTool`, `afterShell`, `onChunk`, `afterTurn`, `onThreadOpen`.
 - `EHookPhase`, `RegisteredHook`, `Bounds`: the phase names, one registered hook, and the limits.
@@ -61,13 +64,16 @@ A main agent, a sub-agent and a teammate all run this loop. It knows nothing of 
 
 - `ToolRegistry`, `InMemoryToolRegistry`: find a tool by name and declare it to the model.
 - `filteredToolRegistry({registry, allow, deny})`: a registry that hides some tools.
-- `ToolDispatcher`: the abstract dispatcher. `HookedToolDispatcher` runs the hook phases and the
-  quality stage around each call.
+- `ToolDispatcher`: the abstract dispatcher. `HookedToolDispatcher` runs the hook phases around
+  each call, and asks the tool to capture file changes when an after-tool hook wants them.
+- `DispatchArgs`, `DispatchableCall`: what a dispatcher receives for one call.
+- `TurnDeps.onceLedger`: an `OnceLedger` runs one keyed decision once, so a retry does not repeat it.
 
 ### Take in an input
 
 - `AgentIntake`: `prepare({threadId})` returns the pending drain, and an optional `subscribe`.
 - `composeIntake(sources)`: merge several intake sources into one.
+- `PendingDrain`: the drafts, the wake flag and the optional `acknowledge` and `release` of a drain.
 
 ### Record the spend and the failure
 
@@ -75,7 +81,16 @@ A main agent, a sub-agent and a teammate all run this loop. It knows nothing of 
 - `ModelStreamError`, `StreamStallError`, `MessageConversionError`, `ModelAdmissionBlockedError`:
   the failures a provider raises.
 - `TurnFault`, `causeChainOf(error)`, `runFailureWith({...})`: name the failure for the record.
+- `NormalizeFailure`: how a provider error becomes a `RunFailure`. `TurnDeps` requires one.
+- `OPERATOR_STOP_REASON`: the abort reason that marks a turn stopped by the operator.
 - `guardRepeatLoop({...})`, `MAX_LOOP_CUTS_PER_TURN`: stop a loop that repeats itself.
+
+### Settle and report
+
+- `settleCrashedCalls({record, ids, threadId, effectOf})`, `ToolEffectResolver`: record an interrupted
+  result for each call a restart left open, unless `effectOf` says the call only reads.
+- `AgentOutput`, `AgentOutputEvent`, `StepStreamEvent`, `StepKey`: report each step, chunk and tool
+  output to a surface.
 
 ### Test the loop
 

@@ -26,12 +26,12 @@ a thread's event log.
 
 ## Entry points
 
-| Import                           | Use it for                                                                 |
-| -------------------------------- | -------------------------------------------------------------------------- |
-| `@dltech/atlas-control`          | `ControlPlane`, the store port, the refusal kinds and the routine service. |
-| `@dltech/atlas-control/postgres` | The Postgres store and the session write and view helpers.                 |
-| `@dltech/atlas-control/testing`  | `InMemoryControlStore`, the conformance suites and a fake change store.    |
-| `@dltech/atlas-control/s3`       | The S3 change and context content stores, and the settings of each.        |
+| Import                           | Use it for                                                                  |
+| -------------------------------- | --------------------------------------------------------------------------- |
+| `@dltech/atlas-control`          | `ControlPlane`, the store port, the refusal kinds and the routine service.  |
+| `@dltech/atlas-control/postgres` | The Postgres store and the session write and view helpers.                  |
+| `@dltech/atlas-control/testing`  | `InMemoryControlStore`, the conformance suites and the fake content stores. |
+| `@dltech/atlas-control/s3`       | The S3 change and context content stores, and the settings of each.         |
 
 ## Capabilities
 
@@ -76,13 +76,15 @@ a thread's event log.
 
 - `post`, `withdraw`, `readInbox`, `readInboxEntry`; `INBOX_KIND_WITHDRAW`, `withdrawPayloadOf`.
 - `subscribe`, `unsubscribe`, `endSubscriptions`, `listSubscriptions`.
+- A plane that reads the state of a subscription target takes `targetStates` in
+  `ControlPlaneParams`. `@dltech/atlas-github` supplies the GitHub port.
 - `listTerminals`, `readTerminal`, `createTerminal`, `renameTerminal`, `markTerminalOpen`,
   `endTerminal`, `endTerminals`, `deleteTerminal`.
 
 ### Track the worktree changes and the context mirror
 
-- `upsertChanges`, `readChanges`, `readChangeFile`, `changesUpdatedAt`, `changeBlobsPresent`,
-  `changeBlobsUnreferenced`, `deleteChangeBlobs`.
+- `upsertChanges`, `readChanges`, `readChangesSummary`, `readChangeFile`, `changesUpdatedAt`,
+  `changeBlobsPresent`, `changeBlobsUnreferenced`, `deleteChangeBlobs`.
 - `changeHashOf`, `changeBlobKey`, `ChangeContentStore`, `ContextContentStore` (`presignPut`, `exists`).
 - `runChangesGc` and `runContextFilesGc({ store, content, graceMs? })`: remove blobs no row uses.
   `CHANGES_GC_GRACE_MS` and `CHANGES_GC_ROW_LIMIT` set the default.
@@ -92,7 +94,7 @@ a thread's event log.
 ### Record a sandbox run
 
 - `sandboxRunRecorderOf({ store, ids, now })`: a `SandboxRunRecorder` with `open`, `close`, `meter`
-  and `compute`, over a `SandboxRunStore`. `compute` returns the `SandboxCompute`.
+  and `compute`. `PostgresSandboxRunStore` is the `SandboxRunStore` over a `Db`.
 
 ### Run a routine
 
@@ -108,32 +110,26 @@ a thread's event log.
 - `PostgresControlStore`, `controlTxOf(tx)`: the Postgres adapter, and its transaction wrapper.
 - `InMemoryControlStore`: the in-memory adapter for a spec.
 - `describeControlPlaneConformance(params)`, `describeControlPlaneSessions`,
-  `describeControlPlaneClaims`, `describeControlPlanePeers`, `describeControlPlaneSessionBuckets`,
-  `describeControlPlaneContextFiles`.
+  `describeControlPlaneClaims`, `describeControlPlanePeers`, `describeControlPlaneSessionBuckets`.
 - `FakeChangeContentStore`, `FakeContextContentStore`: the change and context stores, in memory.
 
 ## Usage
 
-From `apps/trigger/src/trigger/routine/routine-graph.ts`:
+Build a plane over the Postgres store, from `apps/trigger/src/trigger/changes/changes-gc.ts`:
 
 ```ts
-import { ControlPlane } from '@dltech/atlas-control'
+import { ControlPlane, runChangesGc } from '@dltech/atlas-control'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
+import { changesSettingsOf, S3ChangeContentStore } from '@dltech/atlas-control/s3'
 import { db } from '@dltech/atlas-db'
 
-export const buildRoutineGraph = () => {
-  const store = new PostgresControlStore(db)
-  return { store, plane: new ControlPlane({ store }) }
-}
-```
-
-From `apps/trigger/src/trigger/changes/changes-gc.ts`:
-
-```ts
 const store = new ControlPlane({ store: new PostgresControlStore(db) })
 const content = new S3ChangeContentStore({ settings: () => changesSettingsOf(process.env) })
 const summary = await runChangesGc({ store, content })
 ```
+
+A plane that needs the plugin views and the event schema comes from `composedControlPlaneOver` in
+`@dltech/atlas-pods`.
 
 ## Rules
 

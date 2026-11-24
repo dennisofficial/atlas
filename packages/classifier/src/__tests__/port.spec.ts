@@ -70,7 +70,7 @@ describe('classifierStatusOf', () => {
         model: 'jev-latest',
         apiKey: 'sk',
       }),
-    ).toEqual({ on: true, model: 'jev-latest' })
+    ).toEqual({ on: true, model: 'jev-latest', provider: EClassifierTransport.Jev })
     expect(classifierStatusOf({ on: false, reason: 'off' })).toEqual({
       on: false,
       reason: 'off',

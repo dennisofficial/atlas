@@ -10,6 +10,7 @@ spans. The core tiers depend on the ports. Only the node tier imports a vendor S
 - `LogPort`: the operational log entry and the severity levels.
 - `ProductAnalytics`: `capture({ userId, event, properties? })` sends one product event, and
   `flush()` sends the batch at shutdown. `capture` never throws and never waits on the network.
+  `ProductAnalyticsProperties` types the `properties`.
 - The telemetry policy, and the classifiers that turn a tool name or a reason into a class.
 - The PostHog exporters in the node tier, and `RecordingTracer` for specs.
 
@@ -18,7 +19,8 @@ spans. The core tiers depend on the ports. Only the node tier imports a vendor S
 - The hooks that emit a span, and the code that calls the ports. `@dltech/atlas-agent`,
   `@dltech/atlas-control` and the apps own it.
 - The record of a thread. The thread record is the event log, not telemetry.
-- The port registration. `@dltech/atlas-core` holds the port registry.
+- The registry type. `@dltech/atlas-core` defines `PortRegistryEntries`; `src/ports.ts` adds this
+  package's three entries to it.
 
 ## Entry points
 
@@ -47,7 +49,8 @@ spans. The core tiers depend on the ports. Only the node tier imports a vendor S
   the callback with `NULL_SPAN_HANDLE` and records nothing.
 - `spanWith(trace, request)`: runs a span when a tracer exists, and runs the work alone when it does
   not. `NULL_SPAN_HANDLE`, `NullTracer`: the empty implementation.
-- `ESpan`, `ESpanMark`, `ESpanOutcome`, `SpanFields`, `SpanHandle`: the span vocabulary.
+- `ESpan`, `ESpanMark`, `ESpanOutcome`, `ETurnEntry`, `EWake`, `ESpanSpeed`, `SpanFields`,
+  `SpanHandle`: the span vocabulary.
 - `spanAttributesOf(fields)`, `markAttributeOf(mark)`, `errorClassOf(error)`: the attribute helpers.
 
 ```ts
@@ -72,34 +75,25 @@ await trace.span({ name: ESpan.Turn, root: true, run: () => turn() })
 
 ## Usage
 
-From `apps/tui/src/composition/open-session.ts`:
+From `apps/tui/src/main.tsx`:
 
 ```ts
 import { logFieldsOf } from '@dltech/atlas-observability'
 
-void sweepOrphanedSandboxes({ cwd: config.cwd }).catch((error: unknown) => {
-  durableOpLog()?.warn({
-    source: 'tui.open-session',
-    message: 'sandbox sweep failed',
+import { durableOpLog } from './boot/durable-op-log'
+
+const report = (error: unknown): void => {
+  durableOpLog()?.error({
+    source: 'tui.boot',
+    message: 'atlas could not start',
     ...logFieldsOf({ error }),
-    data: { cwd: config.cwd },
+    data: { cwd: process.cwd() },
   })
-})
-```
-
-From `apps/serve/src/fatal-log.ts`:
-
-```ts
-import type { LogPort } from '@dltech/atlas-observability'
-
-export function logServeFatal(args: {
-  log: LogPort | null
-  error: unknown
-  env: Record<string, string | undefined>
-}): void {
-  args.log?.error(serveFatalEntry({ error: args.error, env: args.env }))
 }
 ```
+
+A package that takes a `LogPort` calls `record`, `info`, `warn` or `error` and adds
+`logFieldsOf({ error })` to the entry.
 
 ## Rules
 

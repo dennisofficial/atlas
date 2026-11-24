@@ -73,6 +73,29 @@ describe('JevClassifier', () => {
     })
   })
 
+  it('reports the input tokens the provider charged', async () => {
+    const { fetch: fetchImpl } = recordingFetch(() =>
+      json({
+        answers: { danger: { noul: 0.2 } },
+        usage: { input_tokens: 120, output_tokens: 4 },
+      }),
+    )
+
+    expect(await ask(classifierOf(fetchImpl))).toMatchObject({
+      ok: true,
+      usage: { inputTokens: 120 },
+    })
+  })
+
+  it('carries no usage when the provider reports none', async () => {
+    const { fetch: fetchImpl } = recordingFetch(() => json({ answers: { danger: { noul: 0.2 } } }))
+
+    const outcome = await ask(classifierOf(fetchImpl))
+
+    expect(outcome.ok).toBe(true)
+    if (outcome.ok) expect(outcome.usage).toBeUndefined()
+  })
+
   it('strips a doubled /v1/systemone from the endpoint', async () => {
     const { calls, fetch: fetchImpl } = recordingFetch(() =>
       json({ answers: { danger: { noul: 0.2 } } }),

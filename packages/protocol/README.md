@@ -34,7 +34,8 @@ share. Every frame and every call is a `zod` schema here, and the daemon engine 
 ### Send a call to the daemon
 
 - `callOpSchema`, `CallOp`, `OpName`: the discriminated union of every op.
-- `callResultSchema`, `CallResult`, `okCallResultSchema`, `failedCallResultSchema`: the answer.
+- `callResultSchema`, `CallResult`, `okCallResultSchema`, `failedCallResultSchema`: the answer, whose
+  status is an `ECallStatus`. `ECallFailure`: the failure code. `CallFailureError`: the thrown error.
 - `daemonEventSchema`, `DaemonEvent`: an event that arrives during a call, such as shell output.
 
 The ops are `exec`, `exec.background`, `stat`, `readFile`, `readBytes`, `readTextForEdit`, `readLink`,
@@ -56,10 +57,11 @@ The ops are `exec`, `exec.background`, `stat`, `readFile`, `readBytes`, `readTex
 
 ### Carry a frame over the link
 
-- `hostFrameSchema`, `HostFrame`: what the host sends.
-- `daemonFrameSchema`, `DaemonFrame`: what the daemon sends.
+- `hostFrameSchema`, `HostFrame`, `daemonFrameSchema`, `DaemonFrame`: the frame each side sends.
 - `EDaemonErrorKind`, `ERunState`: the error kind and the run state a frame reports.
-- `DAEMON_PORT`, `DAEMON_LINK_PROTOCOL_VERSION`, `DAEMON_LINK_SCHEMA_HASH`, `DAEMON_PROTOCOL_HEADER`: the link constants and the fingerprint of `hostFrameSchema`.
+- `DAEMON_PORT`, `DAEMON_LINK_PROTOCOL_VERSION`, `DAEMON_LINK_PROTOCOL_MIN_VERSION`: the link
+  constants. `DAEMON_LINK_SCHEMA_HASH`, `DAEMON_PROTOCOL_HEADER`, `DAEMON_MIN_PROTOCOL_HEADER`: the
+  hash of `hostFrameSchema` and the two headers.
 
 ### Read and publish live state
 
@@ -70,10 +72,8 @@ The ops are `exec`, `exec.background`, `stat`, `readFile`, `readBytes`, `readTex
 ### Read a session's files
 
 - `filesTreeInputSchema`, `filesSearchInputSchema`, `filesReadInputSchema`: browse, search and read.
-  Each takes an optional `checkoutId`; when it is set, the directory or path resolves inside that
-  checkout's worktree instead of the session's launch directory. `filesTreeInputSchema` and
-  `filesReadInputSchema` also take an optional `root`: `EFilesRoot.Context` resolves the path inside
-  the session's context folder instead of any checkout.
+  Each takes an optional `checkoutId` for that worktree instead of the launch directory; tree and read
+  also take a `root`: `EFilesRoot.Context` reads the session's context folder instead of a checkout.
 
 ### Read a service's log
 
@@ -85,6 +85,7 @@ The ops are `exec`, `exec.background`, `stat`, `readFile`, `readBytes`, `readTex
 - `sessionListInputSchema`, `sessionSummarySchema`, `sessionListOutputSchema`: the session list.
 - `sessionCreateInputSchema`, `sessionPostInputSchema`, `sessionEventsOutputSchema`: create, post, read.
 - `sessionSubscriptionSchema`, `sessionSubscribeInputSchema`, `sessionUnsubscribeInputSchema`.
+- `ESandboxProvider`, `ECredentialSource`, `ESandboxStatus`: the sandbox provider, its source and status.
 - `usageReportInputSchema`, `usageReportDtoSchema`, `usageWindowDtoSchema`: a plan account's usage
   as the API reports it, by account id or by provider, with the age of the reading.
 
@@ -92,16 +93,14 @@ The ops are `exec`, `exec.background`, `stat`, `readFile`, `readBytes`, `readTex
 
 - `inboxMessageSchema`, `InboxMessage`: a message body: `text`, `clientId`, `via`, `media`,
   `uploads`, `attachments` and `files`.
-- `inboxFileSchema`, `InboxFile`: one context file a spawn attaches for the child, `{path, text}`.
-  A message carries at most 32. These files belong to the child's context folder; they are not
-  model attachments.
+- `inboxFileSchema`, `InboxFile`: a context file a spawn attaches for the child, `{path, text}`. A
+  message carries at most 32. They belong to the child's context folder, not the model.
 
 ### Repair a diagram
 
 - `diagramRepairInputSchema`, `diagramRepairOutputSchema`: repair a Mermaid diagram in place, and
-  return its new source.
-- `diagramRepairListInputSchema`, `diagramRepairListOutputSchema`: list the repairs that a session
-  holds.
+  return its new source. `diagramRepairListInputSchema`, `diagramRepairListOutputSchema`: list the
+  repairs that a session holds.
 
 ### Speak the stream protocol
 
@@ -120,8 +119,7 @@ The ops are `exec`, `exec.background`, `stat`, `readFile`, `readBytes`, `readTex
 ### Link to the Mac app
 
 - `MAC_LINK_PATH`, `jsonRpcMessageSchema`, `macServerTransportSchema`: the relay and its transport.
-- `macLinkPresenceKey(userId)`, `macLinkChannel(userId)`: the presence key and the frame channel
-  for one user.
+- `macLinkPresenceKey(userId)`, `macLinkChannel(userId)`: the presence key and channel of a user.
 - `macHostFrameSchema`, `macClientFrameSchema`, `macRelayFrameSchema`: the three frame directions.
 
 ## Usage
@@ -129,9 +127,11 @@ The ops are `exec`, `exec.background`, `stat`, `readFile`, `readBytes`, `readTex
 ```ts
 import { daemonFrameSchema, type DaemonFrame } from '@dltech/atlas-protocol'
 
-const parsed = daemonFrameSchema.safeParse(JSON.parse(text))
-if (!parsed.success) throw new Error('the daemon sent an invalid frame')
-const frame: DaemonFrame = parsed.data
+export function frameOf(text: string): DaemonFrame {
+  const parsed = daemonFrameSchema.safeParse(JSON.parse(text))
+  if (!parsed.success) throw new Error('the daemon sent an invalid frame')
+  return parsed.data
+}
 ```
 
 ## Rules

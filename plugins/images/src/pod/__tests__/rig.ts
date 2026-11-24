@@ -1,5 +1,6 @@
 import { toThreadId, type ToolOutcome } from '@dltech/atlas-core'
 import {
+  EMPTY_ANALYTICS,
   EMPTY_CLASSIFIER,
   EMPTY_CREW,
   EMPTY_MESSAGES,
@@ -113,6 +114,7 @@ export const rigOf = (
     crew: EMPTY_CREW,
     messages: EMPTY_MESSAGES,
     classifier: EMPTY_CLASSIFIER,
+    analytics: EMPTY_ANALYTICS,
     sessions: EMPTY_SESSIONS,
     worktrees: EMPTY_WORKTREES,
     notify: unsupported,
