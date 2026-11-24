@@ -23,7 +23,8 @@ import {
 } from '@dltech/atlas-plugin-github/core'
 
 import { EGithubCallSource } from './github-call-log'
-import { readHeadChecks } from './github-head-checks-read'
+import { pendingCheckSuiteCountOf } from './github-check-suites'
+import { readHeadCheckSuites, readHeadChecks } from './github-head-checks-read'
 import { githubJsonGet } from './github-user-http'
 
 type PullResponse = {
@@ -90,6 +91,7 @@ export class GithubSubscriptionTargetStates implements SubscriptionTargetStates 
     const state = pullRequestStateOf({ target, pull })
     if (state.phase !== ETargetPhase.Open) return state
     const headSha = pull.head?.sha ?? null
+    const head = await this.headStateOf({ token, repoFullName, headSha })
     return {
       ...state,
       snapshot: pullRequestSnapshotOf({
@@ -97,7 +99,8 @@ export class GithubSubscriptionTargetStates implements SubscriptionTargetStates 
         headSha,
         mergeable: pull.mergeable ?? null,
         baseBranch: pull.base?.ref ?? null,
-        checks: await this.headChecksOf({ token, repoFullName, headSha }),
+        checks: head.checks,
+        pendingSuites: head.pendingSuites,
         reviews: await this.reviewsOf({ token, repoFullName, number: target.number }),
       }),
     }
@@ -127,32 +130,54 @@ export class GithubSubscriptionTargetStates implements SubscriptionTargetStates 
     return { ...state, snapshot: runSnapshotOf(jobs) }
   }
 
-  private async headChecksOf(args: {
+  private async headStateOf(args: {
     token: string
     repoFullName: string
     headSha: string | null
-  }): Promise<PullRequestChecks | undefined> {
-    if (args.headSha === null || args.headSha === '') return undefined
+  }): Promise<{ checks: PullRequestChecks | undefined; pendingSuites: number | undefined }> {
+    const unknown = { checks: undefined, pendingSuites: undefined }
+    if (args.headSha === null || args.headSha === '') return unknown
     const [owner, repo] = args.repoFullName.split('/') as [string | undefined, string | undefined]
-    if (owner === undefined || repo === undefined) return undefined
-    try {
-      const { checks } = await readHeadChecks({
-        get: <T>(path: string) =>
-          githubJsonGet<T>({
-            source: EGithubCallSource.SubscriptionResolve,
-            token: args.token,
-            path,
-          }),
-        owner,
-        repo,
-        headSha: args.headSha,
+    if (owner === undefined || repo === undefined) return unknown
+    const get = <T>(path: string): Promise<T> =>
+      githubJsonGet<T>({
+        source: EGithubCallSource.SubscriptionResolve,
+        token: args.token,
+        path,
       })
+    return {
+      checks: await this.checksOf({ get, owner, repo, headSha: args.headSha }),
+      pendingSuites: await this.pendingSuitesOf({ get, owner, repo, headSha: args.headSha }),
+    }
+  }
+
+  private async checksOf(args: {
+    get: <T>(path: string) => Promise<T>
+    owner: string
+    repo: string
+    headSha: string
+  }): Promise<PullRequestChecks | undefined> {
+    try {
+      const { checks } = await readHeadChecks(args)
       return {
         tally: checksTally(checks.map((check) => check.outcome)),
         failedNames: checks
           .filter((check) => check.outcome === ECheckOutcome.Failed)
           .map((check) => check.name),
       }
+    } catch {
+      return undefined
+    }
+  }
+
+  private async pendingSuitesOf(args: {
+    get: <T>(path: string) => Promise<T>
+    owner: string
+    repo: string
+    headSha: string
+  }): Promise<number | undefined> {
+    try {
+      return pendingCheckSuiteCountOf(await readHeadCheckSuites(args))
     } catch {
       return undefined
     }

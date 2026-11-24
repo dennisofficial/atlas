@@ -99,6 +99,7 @@ export function ChatScreenHost(props: ChatScreenHostProps): React.ReactNode {
   )
 
   const panes = useSessionPanes({
+    api: props.client.api,
     transcript,
     api: props.client.api,
     sessionId: props.sessionId,
@@ -319,6 +320,7 @@ export function ChatScreenHost(props: ChatScreenHostProps): React.ReactNode {
         serviceFold={panes.serviceFold}
         shells={panes.shells}
         services={panes.services}
+        context={panes.context}
         onSelectSubagent={panes.crew.handleSelect}
         onOpenTeammate={props.onOpenSession}
         onShellKill={(shellId) => runCommand({ name: 'shell-kill', args: { shellId } })}

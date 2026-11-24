@@ -21,6 +21,7 @@ const JOBS_URL = 'https://api.github.com/repos/dltech/atlas/actions/runs/42/jobs
 const HEAD = 'a1b2c3d4e5f6'
 const CHECK_RUNS_URL = `https://api.github.com/repos/dltech/atlas/commits/${HEAD}/check-runs?per_page=100`
 const STATUS_URL = `https://api.github.com/repos/dltech/atlas/commits/${HEAD}/status`
+const SUITES_URL = `https://api.github.com/repos/dltech/atlas/commits/${HEAD}/check-suites?per_page=100`
 const REVIEWS_URL = 'https://api.github.com/repos/dltech/atlas/pulls/7/reviews?per_page=100'
 
 const checkRun = (id: number, name: string, conclusion: string) => ({
@@ -31,6 +32,30 @@ const checkRun = (id: number, name: string, conclusion: string) => ({
   started_at: '2026-11-24T10:00:00Z',
   completed_at: '2026-11-24T10:05:00Z',
 })
+
+const commitStatus = (id: number, context: string) => ({
+  id,
+  context,
+  state: 'success',
+  created_at: '2026-11-24T10:00:00Z',
+})
+
+const suite = (slug: string, args: { status: string; runs?: number }) => ({
+  status: args.status,
+  conclusion: null,
+  latest_check_runs_count: args.runs ?? 0,
+  app: { slug },
+})
+
+const OPEN_PULL = {
+  state: 'open',
+  merged_at: null,
+  draft: false,
+  html_url: 'https://github.com/dltech/atlas/pull/7',
+  mergeable: true,
+  head: { sha: HEAD },
+  base: { ref: 'main' },
+}
 
 describe('GithubSubscriptionTargetStates', () => {
   const urls: string[] = []
@@ -107,6 +132,14 @@ describe('GithubSubscriptionTargetStates', () => {
         },
       },
       [STATUS_URL]: { body: { statuses: [] } },
+      [SUITES_URL]: {
+        body: {
+          check_suites: [
+            suite('vercel', { status: 'queued' }),
+            suite('github-actions', { status: 'completed', runs: 3 }),
+          ],
+        },
+      },
       [REVIEWS_URL]: { body: [{ user: { login: 'tofik' }, state: 'APPROVED' }] },
     })
 
@@ -129,7 +162,107 @@ describe('GithubSubscriptionTargetStates', () => {
         next: 'No CI notice comes for this head. The next notices are a new push, a comment or review, or a merge or close.',
       },
     })
-    expect(urls).toEqual([PULL_URL, CHECK_RUNS_URL, STATUS_URL, REVIEWS_URL])
+    expect(urls).toEqual([PULL_URL, CHECK_RUNS_URL, STATUS_URL, SUITES_URL, REVIEWS_URL])
+  })
+
+  it('counts a queued check suite as CI still running when no check run has started', async () => {
+    stub({
+      [PULL_URL]: { body: OPEN_PULL },
+      [CHECK_RUNS_URL]: { body: { check_runs: [] } },
+      [STATUS_URL]: {
+        body: { statuses: [commitStatus(1, 'Vercel – atlas'), commitStatus(2, 'Vercel – web')] },
+      },
+      [SUITES_URL]: {
+        body: {
+          check_suites: [
+            suite('vercel', { status: 'queued' }),
+            suite('sentry', { status: 'queued' }),
+            suite('renovate', { status: 'queued' }),
+            suite('github-actions', { status: 'queued' }),
+          ],
+        },
+      },
+      [REVIEWS_URL]: { body: [] },
+    })
+
+    expect(
+      await reader({ token: 'ghu_1' }).read({
+        userId: 'u1',
+        provider: GITHUB_PROVIDER,
+        target: PR_TARGET,
+      }),
+    ).toEqual({
+      phase: ETargetPhase.Open,
+      summary: 'Pull request dltech/atlas#7 is open.',
+      snapshot: {
+        facts: [
+          'ready for review, head a1b2c3d',
+          'CI is still running (2 passed, 0 failed, 0 running)',
+          'mergeable',
+        ],
+        next: 'A CI notice follows when it settles.',
+      },
+    })
+  })
+
+  it('ignores a queued suite of an app that runs nothing for the commit', async () => {
+    stub({
+      [PULL_URL]: { body: OPEN_PULL },
+      [CHECK_RUNS_URL]: { body: { check_runs: [checkRun(1, 'test (20)', 'success')] } },
+      [STATUS_URL]: {
+        body: { statuses: [commitStatus(1, 'Vercel – atlas'), commitStatus(2, 'Vercel – web')] },
+      },
+      [SUITES_URL]: {
+        body: {
+          check_suites: [
+            suite('vercel', { status: 'queued' }),
+            suite('sentry', { status: 'queued' }),
+            suite('github-actions', { status: 'completed', runs: 1 }),
+          ],
+        },
+      },
+      [REVIEWS_URL]: { body: [] },
+    })
+
+    const state = await reader({ token: 'ghu_1' }).read({
+      userId: 'u1',
+      provider: GITHUB_PROVIDER,
+      target: PR_TARGET,
+    })
+    if (state.phase !== ETargetPhase.Open) throw new Error('expected an open pull request')
+
+    expect(state.snapshot?.facts).toEqual([
+      'ready for review, head a1b2c3d',
+      'CI finished, all checks passed (3 passed, 0 failed, 0 running)',
+      'mergeable',
+    ])
+    expect(state.snapshot?.next).toBe(
+      'No CI notice comes for this head. The next notices are a new push, a comment or review, or a merge or close.',
+    )
+  })
+
+  it('does not claim CI finished when the check suites cannot be read', async () => {
+    stub({
+      [PULL_URL]: { body: OPEN_PULL },
+      [CHECK_RUNS_URL]: { body: { check_runs: [checkRun(1, 'test (20)', 'success')] } },
+      [STATUS_URL]: { body: { statuses: [commitStatus(1, 'Vercel – atlas')] } },
+    })
+
+    const state = await reader({ token: 'ghu_1' }).read({
+      userId: 'u1',
+      provider: GITHUB_PROVIDER,
+      target: PR_TARGET,
+    })
+    if (state.phase !== ETargetPhase.Open) throw new Error('expected an open pull request')
+
+    expect(state.snapshot?.facts).toEqual([
+      'ready for review, head a1b2c3d',
+      'CI finished, all checks passed (2 passed, 0 failed, 0 running)',
+      'mergeable',
+    ])
+    expect(state.snapshot?.next).toBe(
+      'CI state is not known now. The next notices are a new push, a comment or review, or a merge or close.',
+    )
   })
 
   it('keeps the pull request open when its checks and reviews cannot be read', async () => {

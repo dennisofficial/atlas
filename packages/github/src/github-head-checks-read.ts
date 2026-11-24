@@ -1,3 +1,4 @@
+import type { CheckSuiteShape } from './github-check-suites'
 import type { RestCheckRun, RestCommitStatus } from './github-pull-request-mapping'
 import { type CommitCheckInput, restCommitChecksOf } from './github-commit-checks'
 
@@ -22,4 +23,16 @@ export async function readHeadChecks(args: {
       statuses: status.statuses,
     }),
   }
+}
+
+export async function readHeadCheckSuites(args: {
+  get: <T>(path: string) => Promise<T>
+  owner: string
+  repo: string
+  headSha: string
+}): Promise<readonly CheckSuiteShape[]> {
+  const page = await args.get<{ check_suites?: readonly CheckSuiteShape[] }>(
+    `/repos/${args.owner}/${args.repo}/commits/${args.headSha}/check-suites?per_page=100`,
+  )
+  return page.check_suites ?? []
 }

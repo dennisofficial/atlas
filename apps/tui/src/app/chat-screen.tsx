@@ -17,9 +17,11 @@ import { sidebarWidth } from '../ui/sidebar-width-store'
 import { shellSnapshotOf } from '../ui/shells-model'
 import type { PendingRow, SidebarModel } from '../store'
 import { isDrawerShellRunning } from './drawer-shells'
+import { ContextViewerScreen } from './context-viewer-screen'
 import type { ConnectionView } from './connection-view'
 import { SlashMenu } from './slash-menu-view'
 import type { CommandMenu } from './use-command-menu'
+import type { ContextTreeControl } from './use-context-tree'
 import type { OperatorInputControl } from './use-operator-input'
 import type { RewindControl } from './use-rewind'
 import type { ServicesDrawer } from './use-services-drawer'
@@ -78,6 +80,7 @@ export function ChatScreen(props: {
   serviceFold: { hidden: number; hiddenFailed: boolean }
   shells: ShellsDrawer
   services: ServicesDrawer
+  context: ContextTreeControl
   onSelectSubagent: (agentId: string) => void
   onOpenTeammate: (sessionId: string) => void
   onShellKill: (shellId: string) => void
@@ -217,6 +220,7 @@ export function ChatScreen(props: {
               services={services.rows}
               serviceNow={props.paneNow}
               serviceFold={props.serviceFold}
+              context={props.context.section}
               onOpenShell={shells.handleOpen}
               onOpenService={services.handleOpen}
               onSelectSubagent={props.onSelectSubagent}
@@ -254,6 +258,16 @@ export function ChatScreen(props: {
             onDismiss={services.handleDismiss}
           />
         ) : null}
+        {props.context.viewer === null ? null : (
+          <ContextViewerScreen
+            width={props.width}
+            path={props.context.viewer.path}
+            loading={props.context.viewer.loading}
+            content={props.context.viewer.content}
+            onDismiss={props.context.handleDismiss}
+            attachScroll={props.context.attachScroll}
+          />
+        )}
       </box>
     </KeyRegistryContext.Provider>
   )
