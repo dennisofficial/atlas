@@ -1,5 +1,5 @@
-import { ThreadsHome } from '../../sessions/threads-home'
+import { SessionsHome } from '../../sessions/sessions-home'
 
-export default function ThreadsScreen() {
-  return <ThreadsHome nativeSearch />
+export default function SessionsScreen() {
+  return <SessionsHome nativeSearch />
 }

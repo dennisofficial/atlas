@@ -1,5 +1,5 @@
 export enum EAppTab {
-  Threads = 'threads',
+  Sessions = 'sessions',
   Routines = 'routines',
   Projects = 'projects',
   Artifacts = 'artifacts',
@@ -8,7 +8,7 @@ export enum EAppTab {
 export type TAppTabItem = { tab: EAppTab; label: string; href: string }
 
 export const APP_TAB_ITEMS: Record<EAppTab, TAppTabItem> = {
-  [EAppTab.Threads]: { tab: EAppTab.Threads, label: 'Threads', href: '/' },
+  [EAppTab.Sessions]: { tab: EAppTab.Sessions, label: 'Sessions', href: '/' },
   [EAppTab.Routines]: { tab: EAppTab.Routines, label: 'Routines', href: '/routines' },
   [EAppTab.Projects]: { tab: EAppTab.Projects, label: 'Projects', href: '/projects' },
   [EAppTab.Artifacts]: { tab: EAppTab.Artifacts, label: 'Artifacts', href: '/artifacts' },

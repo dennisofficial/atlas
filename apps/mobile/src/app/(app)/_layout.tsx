@@ -42,7 +42,7 @@ const AppStack = () => {
   }
   return (
     <Stack screenOptions={{ contentStyle: { backgroundColor: theme.background } }}>
-      <Stack.Screen name="index" options={tabOptions('Threads')} />
+      <Stack.Screen name="index" options={tabOptions('Sessions')} />
       <Stack.Screen name="routines" options={tabOptions('Routines')} />
       <Stack.Screen name="projects" options={tabOptions('Projects')} />
       <Stack.Screen name="artifacts" options={tabOptions('Artifacts')} />

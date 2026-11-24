@@ -4,13 +4,13 @@ import type { ReactNode } from 'react'
 import { StyleSheet, View } from 'react-native'
 
 import { PANEL_WIDTH } from '../layout/pane-layout'
-import { EThreadsLayout } from '../layout/posture'
+import { ESessionsLayout } from '../layout/posture'
 import { usePosture } from '../layout/use-posture'
 import type { ISessionEntry } from './session-groups'
-import { ThreadsHome } from './threads-home'
-import { ThreadsOverlayLayer } from './threads-overlay-layer'
+import { SessionsHome } from './sessions-home'
+import { SessionsOverlayLayer } from './sessions-overlay-layer'
 
-export const ThreadsPanelLayout = ({
+export const SessionsPanelLayout = ({
   sessionId,
   overlayOpen,
   onCloseOverlay,
@@ -22,16 +22,16 @@ export const ThreadsPanelLayout = ({
   children: ReactNode
 }) => {
   const theme = useTheme()
-  const { threads } = usePosture()
+  const { sessions } = usePosture()
 
   const handleOpen = (entry: ISessionEntry) => {
     router.setParams({ id: entry.id, title: entry.title })
     onCloseOverlay()
   }
 
-  const list = <ThreadsHome activeId={sessionId} onOpen={handleOpen} />
+  const list = <SessionsHome activeId={sessionId} onOpen={handleOpen} />
 
-  if (threads === EThreadsLayout.Panel) {
+  if (sessions === ESessionsLayout.Panel) {
     return (
       <View style={styles.row}>
         <View style={[styles.panel, { borderColor: theme.border }]}>{list}</View>
@@ -40,13 +40,13 @@ export const ThreadsPanelLayout = ({
     )
   }
 
-  if (threads === EThreadsLayout.Overlay) {
+  if (sessions === ESessionsLayout.Overlay) {
     return (
       <View style={styles.fill}>
         {children}
-        <ThreadsOverlayLayer open={overlayOpen} onClose={onCloseOverlay}>
+        <SessionsOverlayLayer open={overlayOpen} onClose={onCloseOverlay}>
           {list}
-        </ThreadsOverlayLayer>
+        </SessionsOverlayLayer>
       </View>
     )
   }

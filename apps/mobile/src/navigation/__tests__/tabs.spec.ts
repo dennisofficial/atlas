@@ -5,7 +5,7 @@ import { activeTabOf, APP_TABS, EAppTab, isTabRoot } from '../tabs'
 describe('APP_TABS', () => {
   it('lists the four tabs in web order with their routes', () => {
     expect(APP_TABS.map((item) => [item.tab, item.label, item.href])).toEqual([
-      [EAppTab.Threads, 'Threads', '/'],
+      [EAppTab.Sessions, 'Sessions', '/'],
       [EAppTab.Routines, 'Routines', '/routines'],
       [EAppTab.Projects, 'Projects', '/projects'],
       [EAppTab.Artifacts, 'Artifacts', '/artifacts'],
@@ -15,7 +15,7 @@ describe('APP_TABS', () => {
 
 describe('activeTabOf', () => {
   it('reads the tab from each tab root', () => {
-    expect(activeTabOf('/')).toBe(EAppTab.Threads)
+    expect(activeTabOf('/')).toBe(EAppTab.Sessions)
     expect(activeTabOf('/routines')).toBe(EAppTab.Routines)
     expect(activeTabOf('/projects')).toBe(EAppTab.Projects)
     expect(activeTabOf('/artifacts')).toBe(EAppTab.Artifacts)
@@ -23,7 +23,7 @@ describe('activeTabOf', () => {
 
   it('ignores a trailing slash', () => {
     expect(activeTabOf('/routines/')).toBe(EAppTab.Routines)
-    expect(activeTabOf('')).toBe(EAppTab.Threads)
+    expect(activeTabOf('')).toBe(EAppTab.Sessions)
   })
 
   it('reads no tab from another screen', () => {

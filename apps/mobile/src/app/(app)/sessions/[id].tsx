@@ -21,7 +21,7 @@ import { usePosture } from '../../../layout/use-posture'
 import { BackButton } from '../../../navigation/back-button'
 import { EHeaderLeadingItem, sessionHeaderLeadingOf } from '../../../navigation/header-leading'
 import { leadingHeaderOptionsOf } from '../../../navigation/header-options'
-import { ThreadsPanelLayout } from '../../../sessions/threads-panel-layout'
+import { SessionsPanelLayout } from '../../../sessions/sessions-panel-layout'
 import { CommandListSheet } from '../../../thread/composer/command-list-sheet'
 import { Composer } from '../../../thread/composer/composer'
 import { ContextReading } from '../../../thread/composer/context-reading'
@@ -43,8 +43,8 @@ export default function SessionScreen() {
   const session = useV2SessionScreen({ sessionId: id, fallbackTitle: title })
   const model = session.commands.model
 
-  const handleOpenThreads = useCallback(() => setOverlayOpen(true), [])
-  const handleCloseThreads = useCallback(() => setOverlayOpen(false), [])
+  const handleOpenSessions = useCallback(() => setOverlayOpen(true), [])
+  const handleCloseSessions = useCallback(() => setOverlayOpen(false), [])
 
   const handleOpenAgent = useCallback(
     (agentId: string) => {
@@ -71,13 +71,13 @@ export default function SessionScreen() {
     [model],
   )
 
-  const showsThreads = sessionHeaderLeadingOf({ posture }).includes(EHeaderLeadingItem.Threads)
-  const threadsHeaderItem = {
+  const showsSessions = sessionHeaderLeadingOf({ posture }).includes(EHeaderLeadingItem.Sessions)
+  const sessionsHeaderItem = {
     type: 'button' as const,
-    label: 'Threads',
+    label: 'Sessions',
     icon: { type: 'sfSymbol' as const, name: 'sidebar.left' as const },
-    accessibilityLabel: 'Threads',
-    onPress: handleOpenThreads,
+    accessibilityLabel: 'Sessions',
+    onPress: handleOpenSessions,
   }
 
   return (
@@ -86,33 +86,33 @@ export default function SessionScreen() {
         options={{
           title: session.header.title,
           ...leadingHeaderOptionsOf({
-            leading: showsThreads ? [threadsHeaderItem] : [],
+            leading: showsSessions ? [sessionsHeaderItem] : [],
             title: <SessionTitle header={session.header} />,
-            titleButtons: showsThreads ? 2 : 1,
+            titleButtons: showsSessions ? 2 : 1,
             windowWidth,
             posture,
           }),
           headerBackVisible: true,
-          headerLeft: showsThreads
+          headerLeft: showsSessions
             ? () => (
                 <View style={styles.headerLeft}>
                   <BackButton />
                   <Button
-                    label="Threads"
+                    label="Sessions"
                     icon={PanelLeft}
                     variant={EButtonVariant.Ghost}
                     size={EButtonSize.IconLg}
-                    onPress={handleOpenThreads}
+                    onPress={handleOpenSessions}
                   />
                 </View>
               )
             : undefined,
         }}
       />
-      <ThreadsPanelLayout
+      <SessionsPanelLayout
         sessionId={id}
         overlayOpen={overlayOpen}
-        onCloseOverlay={handleCloseThreads}
+        onCloseOverlay={handleCloseSessions}
       >
         <View style={styles.content}>
           {session.loaded || session.failedToLoad ? null : <SessionSkeleton />}
@@ -213,7 +213,7 @@ export default function SessionScreen() {
             </>
           ) : null}
         </View>
-      </ThreadsPanelLayout>
+      </SessionsPanelLayout>
     </View>
   )
 }
