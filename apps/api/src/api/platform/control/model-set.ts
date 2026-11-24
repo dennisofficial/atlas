@@ -4,6 +4,7 @@ import { defineCommand, ECommandGroup, ECommandRunsIn } from '@dltech/atlas-comm
 import { z } from 'zod'
 
 import { controlCommandHandlers } from './command-registry'
+import { badRequestOnUnknownModelRef } from './unknown-model-ref'
 
 export const modelSetArgs = z.strictObject({
   model: z.string().min(1),
@@ -27,10 +28,12 @@ export const modelSetHandlers = (args: {
 }): ReadonlyMap<string, ControlCommandHandler<ControlPlane, unknown>> => {
   const handler: ControlCommandHandler<ControlPlane, unknown> = async ({ args: raw }) => {
     const parsed = modelSetArgs.parse(raw)
-    await args.plane.setSessionModel({
-      sessionId: args.session.sessionId,
-      ask: { ref: parsed.model, effort: parsed.effort, fast: parsed.fast },
-    })
+    await badRequestOnUnknownModelRef(() =>
+      args.plane.setSessionModel({
+        sessionId: args.session.sessionId,
+        ask: { ref: parsed.model, effort: parsed.effort, fast: parsed.fast },
+      }),
+    )
   }
   return new Map([...controlCommandHandlers(), [modelSet.spec.name, handler]])
 }

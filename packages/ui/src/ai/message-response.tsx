@@ -11,11 +11,7 @@ import remarkBreaks from 'remark-breaks'
 import remarkGemoji from 'remark-gemoji'
 import { defaultRemarkPlugins, Streamdown } from 'streamdown'
 
-import {
-  DiagramRepairContext,
-  MermaidErrorView,
-  type RepairDiagram,
-} from './internal/diagram-repair-context'
+import { DiagramMessageScope, MermaidErrorView } from './internal/diagram-repair-context'
 import { remarkGithubAlerts } from './internal/markdown-alerts'
 import { fenceBareJson } from '../lib/markdown-json'
 import { remarkLiteralHtml } from './internal/markdown-literal-html'
@@ -32,7 +28,8 @@ import { useDiagramWheelDamping } from './internal/mermaid-wheel'
 
 export type MessageResponseProps = ComponentProps<typeof Streamdown> & {
   onLinkClick?: MarkdownLinkClick
-  onRepairDiagram?: RepairDiagram
+  repairDiagrams?: boolean
+  messageId?: string
   breaks?: boolean
 }
 
@@ -63,7 +60,8 @@ export const MessageResponse = memo(
     className,
     components,
     onLinkClick,
-    onRepairDiagram,
+    repairDiagrams = true,
+    messageId,
     breaks = false,
     children,
     ...props
@@ -73,11 +71,18 @@ export const MessageResponse = memo(
       () => nestUnderIndentedListItems(repairTableDelimiters(fenceBareJson(children ?? ''))),
       [children],
     )
+    const message = useMemo(
+      () =>
+        repairDiagrams
+          ? { text: markdown, ...(messageId === undefined ? {} : { messageId }) }
+          : undefined,
+      [repairDiagrams, markdown, messageId],
+    )
     useDiagramWheelDamping()
 
     return (
       <MarkdownLinkClickContext.Provider value={onLinkClick}>
-        <DiagramRepairContext.Provider value={onRepairDiagram}>
+        <DiagramMessageScope message={message}>
           <Streamdown
             className={cn(
               'size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&>*:last-child]:after:text-primary',
@@ -94,7 +99,7 @@ export const MessageResponse = memo(
           >
             {markdown}
           </Streamdown>
-        </DiagramRepairContext.Provider>
+        </DiagramMessageScope>
       </MarkdownLinkClickContext.Provider>
     )
   },
@@ -103,7 +108,8 @@ export const MessageResponse = memo(
     previous.isAnimating === next.isAnimating &&
     previous.breaks === next.breaks &&
     previous.onLinkClick === next.onLinkClick &&
-    previous.onRepairDiagram === next.onRepairDiagram,
+    previous.repairDiagrams === next.repairDiagrams &&
+    previous.messageId === next.messageId,
 )
 
 MessageResponse.displayName = 'MessageResponse'

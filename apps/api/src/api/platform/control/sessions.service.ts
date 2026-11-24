@@ -78,6 +78,7 @@ import { refuseArchivedCommand, requireLiveSession } from './session-archived'
 import { SubscriptionTargetError, resolvedSubscriptionTargetOf } from './subscription-target'
 import { modelSet, modelSetArgs, modelSetHandlers } from './model-set'
 import { MediaRegistry } from './media-registry'
+import { badRequestOnUnknownModelRef } from './unknown-model-ref'
 import { ProjectAccess } from './project-access'
 import { nameSession } from './session-naming'
 import {
@@ -157,7 +158,9 @@ export class SessionsService {
       credentialSource: ECredentialSource.Platform,
     }
     if (args.firstMessage === undefined) {
-      const { modelRef } = await this.plane.createSession(session)
+      const { modelRef } = await badRequestOnUnknownModelRef(() =>
+        this.plane.createSession(session),
+      )
       this.captureSessionCreated({ sessionId, modelRef, args, provider: sandboxProvider })
       return { sessionId, mainThreadId }
     }
@@ -167,10 +170,12 @@ export class SessionsService {
       userId: args.userId,
       draft: args.firstMessage,
     })
-    const { inboxId, modelRef } = await this.plane.createSessionWithMessage({
-      ...session,
-      message: { kind: INBOX_KIND_MESSAGE, payload: message.payload },
-    })
+    const { inboxId, modelRef } = await badRequestOnUnknownModelRef(() =>
+      this.plane.createSessionWithMessage({
+        ...session,
+        message: { kind: INBOX_KIND_MESSAGE, payload: message.payload },
+      }),
+    )
     this.captureSessionCreated({ sessionId, modelRef, args, provider: sandboxProvider })
     this.nameIfUntitled({
       userId: args.userId,

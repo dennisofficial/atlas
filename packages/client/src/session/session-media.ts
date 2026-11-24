@@ -46,8 +46,9 @@ export async function storeImage(args: {
   put: PutImage
   onProgress: (fraction: number) => void
   onHandle: (handle: UploadHandle) => void
+  hashOf?: (bytes: Uint8Array) => Promise<string>
 }): Promise<string> {
-  const hash = await sha256Hex(args.bytes)
+  const hash = await (args.hashOf ?? sha256Hex)(args.bytes)
   const presigned = await args.api.presign({
     hash,
     size: args.bytes.byteLength,

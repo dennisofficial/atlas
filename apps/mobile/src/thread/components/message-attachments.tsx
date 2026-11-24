@@ -39,12 +39,14 @@ const FileChip = ({ view }: { view: AttachmentView }) => {
 
 export const MessageAttachments = ({
   threadId,
+  sessionId,
   attachments,
 }: {
   threadId: string | undefined
+  sessionId: string | undefined
   attachments: readonly Attachment[]
 }) => {
-  const sources = useAttachmentSources({ threadId, attachments })
+  const sources = useAttachmentSources({ threadId, sessionId, attachments })
   const views = viewsOf({ attachments, sources })
   const [opened, setOpened] = useState<AttachmentView | null>(null)
 

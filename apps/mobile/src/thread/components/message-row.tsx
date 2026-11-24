@@ -69,9 +69,11 @@ const CommandMessage = ({ command, at }: { command: CommandRow; at: string | und
 export const MessageRowView = ({
   row,
   threadId,
+  sessionId,
 }: {
   row: MessageRow
   threadId: string | undefined
+  sessionId: string | undefined
 }) => {
   if (row.author === EMessageAuthor.Atlas) {
     return (
@@ -87,7 +89,11 @@ export const MessageRowView = ({
   if (row.staged === true) {
     return (
       <View style={[styles.you, styles.staged]}>
-        <MessageAttachments threadId={threadId} attachments={row.attachments} />
+        <MessageAttachments
+          threadId={threadId}
+          sessionId={sessionId}
+          attachments={row.attachments}
+        />
         {row.text.trim().length > 0 ? (
           <Bubble>
             <Markdown value={row.text} breaks selectable />
@@ -99,7 +105,7 @@ export const MessageRowView = ({
 
   return (
     <View style={styles.you}>
-      <MessageAttachments threadId={threadId} attachments={row.attachments} />
+      <MessageAttachments threadId={threadId} sessionId={sessionId} attachments={row.attachments} />
       {row.text.trim().length > 0 ? (
         <Bubble>
           <Markdown value={row.text} breaks selectable />

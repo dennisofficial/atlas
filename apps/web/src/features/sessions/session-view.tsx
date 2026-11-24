@@ -35,6 +35,8 @@ import { sessionRefusalsOf } from './data/session-refusals'
 import { sessionBootViewOf } from './data/session-boot-view'
 import { sessionModelOf } from './data/session-model'
 import { sessionTranscriptOf } from './data/session-transcript'
+import { SessionDiagramRepairProvider } from '@/features/threads/data/session-diagram-repair-provider'
+
 import { useDiagramRepairedTranscript } from './data/use-session-diagram-transcript'
 import { useSessionMarkRead } from './data/use-session-mark-read'
 import { useSessionModelChoice } from './data/use-session-model-choice'
@@ -329,25 +331,26 @@ export function SessionView({ sessionId }: { sessionId: string }) {
               setCollapsed={pane.setCollapsed}
             >
               <div className="min-h-0 flex-1">
-                <ThreadTranscript
-                  items={queuedTranscript.transcript}
-                  failureCard={failure.card}
-                  repairCard={failure.repairCard}
-                  failedLabel={failure.failedLabel}
-                  pod={null}
-                  working={working}
-                  turnStartedAt={turnStartedAt}
-                  background={background}
-                  onRetryBoot={() => void handleRetry()}
-                  onOpenPodSize={handleOpenPodSize}
-                  rewind={rewind}
-                  summarise={summarise.transcript}
-                  resume={resume}
-                  repairDiagram={repairDiagram}
-                  boot={boot}
-                  queued={queuedTranscript.queued}
-                  onLoadOlder={loadOlder}
-                />
+                <SessionDiagramRepairProvider repairDiagram={repairDiagram}>
+                  <ThreadTranscript
+                    items={queuedTranscript.transcript}
+                    failureCard={failure.card}
+                    repairCard={failure.repairCard}
+                    failedLabel={failure.failedLabel}
+                    pod={null}
+                    working={working}
+                    turnStartedAt={turnStartedAt}
+                    background={background}
+                    onRetryBoot={() => void handleRetry()}
+                    onOpenPodSize={handleOpenPodSize}
+                    rewind={rewind}
+                    summarise={summarise.transcript}
+                    resume={resume}
+                    boot={boot}
+                    queued={queuedTranscript.queued}
+                    onLoadOlder={loadOlder}
+                  />
+                </SessionDiagramRepairProvider>
               </div>
               <div
                 className={`mx-auto flex w-full ${readingClasses.measure} shrink-0 flex-col gap-2 px-4 pb-[max(1rem,var(--safe-area-bottom))]`}
