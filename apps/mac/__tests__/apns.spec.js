@@ -22,10 +22,18 @@ const recorderOf = ({ groups = [] } = {}) => {
   return { calls, fetchFn }
 }
 
-const notificationsOf = (history = []) => {
+const notificationsOf = (entries = []) => {
   const removed = []
+  const history = entries.map((entry) => ({
+    ...entry,
+    closed: false,
+    close() {
+      this.closed = true
+    },
+  }))
   return {
     removed,
+    history,
     notifications: {
       getHistory: async () => history,
       removeGroup: (groupId) => removed.push(groupId),
@@ -153,6 +161,20 @@ describe('createApnsBridge.received', () => {
     await bridge.received({ clearSessionId: 'session-1' })
 
     expect(removed).toEqual([])
+  })
+})
+
+describe('createApnsBridge history reads', () => {
+  it('releases the Notification Center copies it reads so they cannot take a click', async () => {
+    const { fetchFn } = recorderOf({ groups: [] })
+    const { history, notifications } = notificationsOf([{ id: 'n-1', groupId: 'session-1' }])
+    const { pushes } = pushesOf()
+
+    const bridge = createApnsBridge({ secret: 's3cret', fetchFn, notifications, pushes })
+    bridge.attach('http://127.0.0.1:4848')
+    await bridge.received({ sessionId: 'session-1', seq: 1 })
+
+    expect(history.map((entry) => entry.closed)).toEqual([true])
   })
 })
 
