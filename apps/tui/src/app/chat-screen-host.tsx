@@ -100,12 +100,17 @@ export function ChatScreenHost(props: ChatScreenHostProps): React.ReactNode {
 
   const panes = useSessionPanes({
     transcript,
+    api: props.client.api,
     sessionId: props.sessionId,
     teammates: props.teammates,
     sections: chrome.sections,
     onOpenSession: props.onOpenSession,
     onStopAgent: (agentId) => runCommand({ name: 'agent', args: { action: 'stop', agentId } }),
     onKillShell: (shellId) => runCommand({ name: 'shell-kill', args: { shellId } }),
+    onStopService: (serviceId) =>
+      runCommand({ name: 'service', args: { action: 'stop', serviceId } }),
+    onRestartService: (serviceId) =>
+      runCommand({ name: 'service', args: { action: 'restart', serviceId } }),
     onProblem: problemOf,
   })
 

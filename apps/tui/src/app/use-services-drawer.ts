@@ -3,13 +3,17 @@ import { useCallback, useMemo, useState } from 'react'
 
 import { useOutputScroll, type OutputScroll } from '../ui/hooks/use-output-scroll'
 import {
+  isRowRunning,
   moveServiceSelection,
   openServices,
+  rowServiceId,
   selectedService,
   type ServiceRow,
   type ServicesState,
 } from '../ui/services-model'
 import { outputScrollCommand } from '../ui/shells-model'
+import type { SessionApi } from './session-api'
+import { useServiceLog, serviceLogText } from './use-service-log'
 
 export type ServicesDrawer = {
   open: boolean
@@ -21,14 +25,30 @@ export type ServicesDrawer = {
   handleOpen: (key?: string) => void
   handleDismiss: () => void
   handleKey: (key: KeyEvent) => void
+  onStop: (serviceId: string) => void
+  onRestart: (serviceId: string) => void
 }
 
-export function useServicesDrawer(args: { rows: readonly ServiceRow[] }): ServicesDrawer {
+export function useServicesDrawer(args: {
+  rows: readonly ServiceRow[]
+  api: SessionApi
+  sessionId: string
+  onStop: (serviceId: string) => void
+  onRestart: (serviceId: string) => void
+}): ServicesDrawer {
   const [state, setState] = useState<ServicesState | null>(null)
   const { rows } = args
 
   const selected = state === null ? undefined : selectedService({ state, rows })
+  const serviceId = selected === undefined ? undefined : rowServiceId(selected)
+  const running = selected !== undefined && isRowRunning(selected)
   const scroll = useOutputScroll({ resetKey: selected?.key })
+  const serviceLog = useServiceLog({
+    api: args.api,
+    sessionId: args.sessionId,
+    serviceId,
+    running,
+  })
 
   const handleOpen = useCallback(
     (key?: string) => setState(openServices({ rows, ...(key === undefined ? {} : { key }) })),
@@ -60,9 +80,16 @@ export function useServicesDrawer(args: { rows: readonly ServiceRow[] }): Servic
             delta: key.name === 'up' ? -1 : 1,
           }),
         )
+        return
       }
+
+      const target = rows[state.index]
+      const targetId = target === undefined ? undefined : rowServiceId(target)
+      if (targetId === undefined) return
+      if (key.name === 's') args.onStop(targetId)
+      if (key.name === 'r') args.onRestart(targetId)
     },
-    [handleDismiss, rows.length, scroll, state],
+    [args, handleDismiss, rows, scroll, state],
   )
 
   return useMemo(
@@ -70,13 +97,15 @@ export function useServicesDrawer(args: { rows: readonly ServiceRow[] }): Servic
       open: state !== null,
       rows,
       selected,
-      log: '',
+      log: serviceLogText(serviceLog),
       notice: null,
       scroll,
       handleOpen,
       handleDismiss,
       handleKey,
+      onStop: args.onStop,
+      onRestart: args.onRestart,
     }),
-    [handleDismiss, handleKey, handleOpen, rows, scroll, selected, state],
+    [args, handleDismiss, handleKey, handleOpen, rows, scroll, selected, serviceLog, state],
   )
 }

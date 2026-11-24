@@ -11,6 +11,7 @@ import { Sidebar } from '../ui/components/sidebar'
 import { Spans, type Span } from '../ui/components/spans'
 import { Transcript } from '../ui/components/transcript'
 import { createKeyRegistry, KeyRegistryContext } from '../ui/keys'
+import type { Hint } from '../ui/hint-layout'
 import { MIN_TRANSCRIPT_WIDTH, theme } from '../ui/theme'
 import { sidebarWidth } from '../ui/sidebar-width-store'
 import { shellSnapshotOf } from '../ui/shells-model'
@@ -35,6 +36,13 @@ import { ComposerPane } from './composer-pane'
 const notDrawn = (): void => undefined
 
 const BACK_HINT = '   esc back'
+
+const SERVICE_HINTS: readonly Hint[] = [
+  { key: '↑↓', label: 'pick' },
+  { key: 's', label: 'stop' },
+  { key: 'r', label: 'restart' },
+  { key: 'esc', label: 'close' },
+]
 
 const noop = (): void => undefined
 
@@ -239,10 +247,10 @@ export function ChatScreen(props: {
             notice={services.notice}
             scroll={services.scroll}
             overlay
-            readOnly
+            hints={SERVICE_HINTS}
             onStart={notDrawn}
-            onRestart={notDrawn}
-            onStop={notDrawn}
+            onRestart={services.onRestart}
+            onStop={services.onStop}
             onDismiss={services.handleDismiss}
           />
         ) : null}

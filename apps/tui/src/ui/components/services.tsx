@@ -6,7 +6,6 @@ import { useClickRegion } from '../hooks/use-click-region'
 import { usePress, type PressHandlers } from '../hooks/use-press'
 import {
   isRowRunning,
-  isServiceRunning,
   rowActions,
   rowServiceId,
   rowStateLabel,
@@ -220,6 +219,7 @@ export function Services(props: {
   scroll?: OutputScroll | undefined
   overlay?: boolean
   readOnly?: boolean
+  hints?: readonly Hint[] | undefined
   onStart: (name: string) => void
   onRestart: (serviceId: string) => void
   onStop: (serviceId: string) => void
@@ -237,7 +237,13 @@ export function Services(props: {
       width={props.width}
       side={EDrawerEdge.Left}
       overlay={props.overlay === true}
-      footer={<DrawerHints hints={hintsFor(readOnly)} cells={cells} onDismiss={props.onDismiss} />}
+      footer={
+        <DrawerHints
+          hints={props.hints ?? hintsFor(readOnly)}
+          cells={cells}
+          onDismiss={props.onDismiss}
+        />
+      }
     >
       {selected === undefined ? (
         <box flexDirection="column" flexShrink={0}>
