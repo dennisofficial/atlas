@@ -2,10 +2,19 @@ import { registerDom, unregisterDom } from '@/lib/__tests__/happy-dom-globals'
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 import { act } from 'react'
 
-import { pendingInputsOf, type V2Event } from '@dltech/atlas-core'
+import {
+  EAttachmentStore,
+  ERewindCause,
+  ETurnCause,
+  pendingInputsOf,
+  type Attachment,
+  type V2Body,
+  type V2Event,
+} from '@dltech/atlas-core'
 import { EOutgoingPlacement } from '@dltech/atlas-client/stream'
 import { mintEvents } from '@dltech/atlas-client/stream-fixture'
 
+import { useQuickStopRestore } from '../use-quick-stop-restore'
 import { useStagedMessages } from '../use-staged-messages'
 
 beforeAll(() => {
@@ -19,10 +28,10 @@ afterAll(async () => {
 
 const AT = '2026-11-23T10:00:00.000Z'
 
-const stagedOf = (clientId: string, text: string) => ({
+const stagedOf = (clientId: string, text: string, attachments: readonly Attachment[] = []) => ({
   clientId,
   text,
-  attachments: [],
+  attachments,
   placement: EOutgoingPlacement.Transcript,
   at: AT,
 })
@@ -30,20 +39,35 @@ const stagedOf = (clientId: string, text: string) => ({
 type Handles = {
   stage?: ReturnType<typeof useStagedMessages>['stage']
   staged?: readonly string[]
+  draft: string
+  restoredAttachments: readonly Attachment[]
+  quickStops: { text: string; attachments: readonly Attachment[] }[]
 }
 
 const mount = async (args: { sessionId: string; events?: readonly V2Event[] }) => {
   const { createRoot } = await import('react-dom/client')
   const host = document.createElement('div')
   const root = createRoot(host)
-  const handles: Handles = {}
+  const handles: Handles = { draft: '', restoredAttachments: [], quickStops: [] }
   function Probe({ events }: { events: readonly V2Event[] }) {
     const staged = useStagedMessages({
       sessionId: args.sessionId,
       events,
       pending: pendingInputsOf(events),
       draft: '',
-      onDraftChange: () => {},
+      onDraftChange: (draft) => {
+        handles.draft = draft
+      },
+      onRestoreAttachments: (attachments) => {
+        handles.restoredAttachments = attachments
+      },
+    })
+    useQuickStopRestore({
+      sessionId: args.sessionId,
+      events,
+      onRestore: (restored) => {
+        handles.quickStops = [...handles.quickStops, restored]
+      },
     })
     handles.stage = staged.stage
     handles.staged = staged.staged.map((entry) => entry.clientId)
@@ -55,6 +79,30 @@ const mount = async (args: { sessionId: string; events?: readonly V2Event[] }) =
   await render(args.events ?? [])
   return { host, root, handles, render }
 }
+
+const SHOT: Attachment = {
+  id: 'shot-1',
+  name: 'shot.png',
+  mediaType: 'image/png',
+  size: 12,
+  content: { store: EAttachmentStore.Inline, data: 'AAAA' },
+}
+
+const POSTED_ROW = (clientId: string, inboxId: number): V2Body => ({
+  type: 'input-posted',
+  inboxId,
+  kind: 'message',
+  postedAt: AT,
+  message: { text: 'hello', clientId },
+})
+
+const QUICK_STOP = (clientId: string): V2Body[] => [
+  { type: 'user-said', text: 'hello', clientId, inboxId: 3 },
+  { type: 'turn-started', turnId: 'turn-1', cause: ETurnCause.Input },
+  { type: 'assistant-said', parts: [{ type: 'reasoning', text: 'hm' }] },
+  { type: 'turn-ended', turnId: 'turn-1', outcome: 'stopped', by: 'operator' },
+  { type: 'history-rewound', toSeq: 0, draft: 'hello', cause: ERewindCause.QuickStop },
+]
 
 describe('useStagedMessages', () => {
   it('keeps a staged message after the view unmounts and mounts again', async () => {
@@ -124,6 +172,46 @@ describe('useStagedMessages', () => {
       mintEvents({ bodies: [{ type: 'user-said', text: 'hello', clientId: 's1' }] }),
     )
     expect(view.host.textContent).toBe('')
+    await act(async () => view.root.unmount())
+  })
+
+  it('puts a message the stop discarded back in the composer with its attachment', async () => {
+    const view = await mount({ sessionId: 'discarded-1' })
+    await act(async () => view.handles.stage?.(stagedOf('d1', 'hello', [SHOT])))
+    await view.render(
+      mintEvents({
+        bodies: [
+          POSTED_ROW('d1', 2),
+          { type: 'input-consumed', inboxId: 2, consumed: 'discarded' },
+        ],
+      }),
+    )
+
+    expect(view.handles.draft).toBe('hello')
+    expect(view.handles.restoredAttachments).toEqual([SHOT])
+    expect(view.host.textContent).toBe('')
+    await act(async () => view.root.unmount())
+  })
+
+  it('restores a quick stop once for the client that sent the message', async () => {
+    const view = await mount({ sessionId: 'quick-stop-1' })
+    await act(async () => view.handles.stage?.(stagedOf('q1', 'hello')))
+    const rewound = mintEvents({ bodies: QUICK_STOP('q1') })
+    await view.render(rewound)
+
+    expect(view.handles.quickStops.map((restored) => restored.text)).toEqual(['hello'])
+
+    await view.render(rewound)
+    expect(view.handles.quickStops).toHaveLength(1)
+    await act(async () => view.root.unmount())
+  })
+
+  it("leaves another client's message out of a quick stop", async () => {
+    const view = await mount({ sessionId: 'quick-stop-2' })
+    await act(async () => view.handles.stage?.(stagedOf('mine', 'hello')))
+    await view.render(mintEvents({ bodies: QUICK_STOP('theirs') }))
+
+    expect(view.handles.quickStops).toEqual([])
     await act(async () => view.root.unmount())
   })
 })

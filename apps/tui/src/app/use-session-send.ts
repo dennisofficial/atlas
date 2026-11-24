@@ -3,6 +3,7 @@ import { useCallback, useRef, useState } from 'react'
 import type { Attachment, SaidUpload } from '@dltech/atlas-core'
 import { postInputOf } from '@dltech/atlas-client/session'
 
+import { rememberSentClientId } from './sent-client-ids'
 import type { SessionApi } from './session-api'
 import type { StagedState } from './staged-messages'
 
@@ -80,6 +81,7 @@ export function useSessionSend(args: {
           : crypto.randomUUID()
 
       attempt.current = { text: message.text, attachmentIds, clientId }
+      rememberSentClientId(clientId)
       staged.stage({ clientId, text: message.text, attachments: message.media })
       setSending(true)
 

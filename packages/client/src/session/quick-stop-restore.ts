@@ -60,3 +60,10 @@ export const quickStopRestoresOf = (args: {
     ]
   })
 }
+
+export const quickStopRestoresToApply = (args: {
+  events: readonly V2Event[]
+  clientIds: readonly string[]
+  handled: ReadonlySet<string>
+}): readonly QuickStopRestore[] =>
+  quickStopRestoresOf(args).filter((restore) => !args.handled.has(restore.rewindEventId))

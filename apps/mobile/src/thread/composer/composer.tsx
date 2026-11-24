@@ -51,7 +51,7 @@ export const Composer = ({
   sendable?: boolean
   placeholder?: string
   autoFocus?: boolean
-  restored?: { token: number; text: string } | undefined
+  restored?: { token: number; text: string; attachments: readonly Attachment[] } | undefined
   draftSessionId?: string | null | undefined
   refusal?: string | undefined
   entries?: readonly CommandEntry[]
@@ -86,7 +86,8 @@ export const Composer = ({
   useEffect(() => {
     if (restored === undefined) return
     setDraft((current) => mergeIntoDraft({ withdrawn: restored.text, draft: current }))
-  }, [restored])
+    attachments?.restore(restored.attachments)
+  }, [attachments, restored])
 
   const handleSend = async () => {
     if (!canSend) return

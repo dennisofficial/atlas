@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
+import { EAttachmentStore, type Attachment } from '@dltech/atlas-core'
+
 import { clientIdOfSend, draftAfterSettlementOf, settlementOf } from '../staged-send'
 import { v2EventSchema } from '../registered-plugins'
 
@@ -64,7 +66,7 @@ describe('settlementOf', () => {
       ]),
     })
     expect(settlement.kept).toEqual([])
-    expect(settlement.restored).toEqual(['first'])
+    expect(settlement.restored).toEqual([{ text: 'first', attachments: [] }])
     expect(settlement.notices).toEqual(['session is archived'])
   })
 
@@ -84,7 +86,34 @@ describe('settlementOf', () => {
       ]),
     })
     expect(settlement.kept).toEqual([])
-    expect(settlement.restored).toEqual(['first'])
+    expect(settlement.restored).toEqual([{ text: 'first', attachments: [] }])
+    expect(settlement.notices).toEqual([])
+  })
+
+  it('restores a discarded message with its attachment and no notice', () => {
+    const shot: Attachment = {
+      id: 'shot-1',
+      name: 'shot.png',
+      mediaType: 'image/png',
+      size: 12,
+      content: { store: EAttachmentStore.Inline, data: 'AAAA' },
+    }
+    const settlement = settlementOf({
+      staged: [{ clientId: 'client-a', text: 'first', attachments: [shot] }],
+      events: eventsOf([
+        {
+          ...envelope(1),
+          type: 'input-posted',
+          inboxId: 1,
+          kind: 'message',
+          postedAt: '2026-11-08T20:00:01.000Z',
+          message: { text: 'first', clientId: 'client-a' },
+        },
+        { ...envelope(2), type: 'input-consumed', inboxId: 1, consumed: 'discarded' },
+      ]),
+    })
+    expect(settlement.kept).toEqual([])
+    expect(settlement.restored).toEqual([{ text: 'first', attachments: [shot] }])
     expect(settlement.notices).toEqual([])
   })
 

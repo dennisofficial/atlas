@@ -24,7 +24,11 @@ export function useStagedMessages(args: {
   sessionId: string
   events: readonly V2Event[]
   working: boolean
-  onRestore: (args: { text: string; reason: string | undefined }) => void
+  onRestore: (args: {
+    text: string
+    attachments: readonly Attachment[]
+    reason: string | undefined
+  }) => void
 }): StagedState {
   const { sessionId, events, working } = args
   const held = useRef(new Map<string, readonly StagedMessage[]>())
@@ -99,11 +103,19 @@ export function useStagedMessages(args: {
       handled.current.add(entry.clientId)
       done.push(entry.clientId)
 
+      if (outcome.outcome === EStagedOutcome.Discarded) {
+        restore.current({ text: entry.text, attachments: entry.attachments, reason: undefined })
+        continue
+      }
       if (outcome.outcome !== EStagedOutcome.Refused) continue
       if (outcome.reason === ALREADY_SENT_REASON) continue
 
       nowFailed.push(entry.clientId)
-      restore.current({ text: entry.text, reason: outcome.reason })
+      restore.current({
+        text: entry.text,
+        attachments: entry.attachments,
+        reason: outcome.reason,
+      })
     }
 
     if (nowFailed.length > 0) {

@@ -1,7 +1,13 @@
 import { describe, expect, test } from 'bun:test'
 import React from 'react'
 
-import type { V2Body, V2Event } from '@dltech/atlas-core'
+import {
+  EAttachmentStore,
+  EInputConsumed,
+  type Attachment,
+  type V2Body,
+  type V2Event,
+} from '@dltech/atlas-core'
 
 import { mountProbe, type Mounted } from '../../ui/hooks/__tests__/mention-reader-fixture'
 import { mintEvents } from '@dltech/atlas-client/stream-fixture'
@@ -27,7 +33,7 @@ const SAID: V2Body = { type: 'user-said', text: 'hello', clientId: 'c1', inboxId
 
 type Probe = {
   staged: StagedState | null
-  restores: { text: string; reason: string | undefined }[]
+  restores: { text: string; attachments: readonly Attachment[]; reason: string | undefined }[]
 }
 
 const probe: Probe = { staged: null, restores: [] }
@@ -58,6 +64,20 @@ const staged = (): StagedState => {
   return probe.staged
 }
 
+const SHOT: Attachment = {
+  id: 'shot-1',
+  name: 'shot.png',
+  mediaType: 'image/png',
+  size: 12,
+  content: { store: EAttachmentStore.Inline, data: 'AAAA' },
+}
+
+const DISCARDED: V2Body = {
+  type: 'input-consumed',
+  inboxId: 4,
+  consumed: EInputConsumed.Discarded,
+}
+
 const message = { clientId: 'c1', text: 'hello', attachments: [] }
 
 describe('useStagedMessages', () => {
@@ -67,8 +87,22 @@ describe('useStagedMessages', () => {
       await harness.act(() => staged().stage(message))
       await harness.rerender({ events: eventsOf([REFUSED]), working: false })
 
-      expect(probe.restores).toEqual([{ text: 'hello', reason: 'unreadable' }])
+      expect(probe.restores).toEqual([{ text: 'hello', attachments: [], reason: 'unreadable' }])
       expect(staged().staged).toEqual([])
+    } finally {
+      await harness.done()
+    }
+  })
+
+  test('a discarded event puts the text and its attachment back', async () => {
+    const harness = await mounted()
+    try {
+      await harness.act(() => staged().stage({ ...message, attachments: [SHOT] }))
+      await harness.rerender({ events: eventsOf([POSTED, DISCARDED]), working: false })
+
+      expect(probe.restores).toEqual([{ text: 'hello', attachments: [SHOT], reason: undefined }])
+      expect(staged().staged).toEqual([])
+      expect(staged().refused).toEqual([])
     } finally {
       await harness.done()
     }

@@ -171,6 +171,38 @@ const attachmentOf = (entry: HeldAttachment): Attachment | null => {
   }
 }
 
+export const restoredHeldOf = (attachments: readonly Attachment[]): HeldAttachment[] =>
+  attachments.flatMap((attachment): HeldAttachment[] => {
+    const base = {
+      name: attachment.name,
+      size: attachment.size,
+      mediaType: attachment.mediaType,
+      uri: '',
+      status: EAttachmentStatus.Ready,
+      progress: 1,
+    }
+    const { content } = attachment
+    if (content.store === EAttachmentStore.Media) {
+      return [{ ...base, id: `media:${content.hash}`, hash: content.hash }]
+    }
+    if (content.store === EAttachmentStore.Upload) {
+      return [
+        {
+          ...base,
+          id: content.uploadId,
+          upload: {
+            uploadId: content.uploadId,
+            pathname: content.pathname,
+            name: attachment.name,
+            size: attachment.size,
+            mediaType: attachment.mediaType,
+          },
+        },
+      ]
+    }
+    return []
+  })
+
 export const attachmentsOf = (held: readonly HeldAttachment[]): Attachment[] =>
   held.flatMap((entry) => attachmentOf(entry) ?? [])
 

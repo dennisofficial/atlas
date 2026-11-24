@@ -11,7 +11,7 @@ import {
   type V2Body,
 } from '@dltech/atlas-core'
 
-import { quickStopRestoresOf } from '../quick-stop-restore'
+import { quickStopRestoresOf, quickStopRestoresToApply } from '../quick-stop-restore'
 
 const eventsOf = (bodies: readonly V2Body[]) =>
   chainEvents({
@@ -147,5 +147,40 @@ describe('quickStopRestoresOf', () => {
     const restores = quickStopRestoresOf({ events, clientIds: ['client-a'] })
 
     expect(restores.map((restore) => restore.text)).toEqual(['first', 'second'])
+  })
+})
+
+describe('quickStopRestoresToApply', () => {
+  it('skips a rewind this client already put back', () => {
+    const events = eventsOf([
+      said('first', { clientId: 'client-a' }),
+      started,
+      thought,
+      ended,
+      quickStop(0, 'first'),
+    ])
+    const [restore] = quickStopRestoresOf({ events, clientIds: ['client-a'] })
+
+    expect(
+      quickStopRestoresToApply({
+        events,
+        clientIds: ['client-a'],
+        handled: new Set([restore?.rewindEventId ?? '']),
+      }),
+    ).toEqual([])
+  })
+
+  it('applies a rewind this client has not handled yet', () => {
+    const events = eventsOf([
+      said('first', { clientId: 'client-a' }),
+      started,
+      thought,
+      ended,
+      quickStop(0, 'first'),
+    ])
+
+    expect(
+      quickStopRestoresToApply({ events, clientIds: ['client-a'], handled: new Set() }),
+    ).toHaveLength(1)
   })
 })

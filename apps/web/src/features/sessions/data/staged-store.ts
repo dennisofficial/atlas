@@ -1,8 +1,10 @@
 import type { StagedMessage } from './queued-messages'
 
 const EMPTY: readonly StagedMessage[] = []
+const EMPTY_CLIENT_IDS: readonly string[] = []
 
 const entries = new Map<string, readonly StagedMessage[]>()
+const sent = new Map<string, readonly string[]>()
 const listeners = new Map<string, Set<() => void>>()
 
 const emit = (sessionId: string): void => {
@@ -12,8 +14,12 @@ const emit = (sessionId: string): void => {
 export const stagedOf = (sessionId: string): readonly StagedMessage[] =>
   entries.get(sessionId) ?? EMPTY
 
+export const sentClientIdsOf = (sessionId: string): readonly string[] =>
+  sent.get(sessionId) ?? EMPTY_CLIENT_IDS
+
 export const stageMessage = (args: { sessionId: string; message: StagedMessage }): void => {
   entries.set(args.sessionId, [...stagedOf(args.sessionId), args.message])
+  sent.set(args.sessionId, [...sentClientIdsOf(args.sessionId), args.message.clientId])
   emit(args.sessionId)
 }
 

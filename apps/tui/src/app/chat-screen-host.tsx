@@ -1,5 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react'
 
+import type { Attachment } from '@dltech/atlas-core'
+
 import { AgentTranscriptScreen } from './agent-transcript'
 import { useAgentMessage } from './use-agent-message'
 import { useKeyHandlerStack } from './use-key-handler-stack'
@@ -12,6 +14,7 @@ import { useStagedMessages } from './staged-messages'
 import { useOperatorInput } from './use-operator-input'
 import { usePendingTakeBack } from './use-pending-take-back'
 import { useRunAttention } from './use-run-attention'
+import { useQuickStopRestore } from './use-quick-stop-restore'
 import { useSessionAttachments } from './use-session-attachments'
 import { useRewind } from './use-rewind'
 import { useSessionComposer } from './use-session-composer'
@@ -40,9 +43,9 @@ export function ChatScreenHost(props: ChatScreenHostProps): React.ReactNode {
   const contentWidth = sidebarOpen
     ? Math.max(MIN_TRANSCRIPT_WIDTH, props.width - sidebarWidth())
     : props.width
-  const restoreText = useRef<(args: { text: string; reason: string | undefined }) => void>(
-    () => undefined,
-  )
+  const restoreText = useRef<
+    (args: { text: string; attachments: readonly Attachment[]; reason: string | undefined }) => void
+  >(() => undefined)
 
   const staged = useStagedMessages({
     sessionId: props.sessionId,
@@ -71,8 +74,13 @@ export function ChatScreenHost(props: ChatScreenHostProps): React.ReactNode {
     onSlashCommand: (text) => menu.handleSubmit(text),
   })
 
-  restoreText.current = (args: { text: string; reason: string | undefined }) => {
+  restoreText.current = (args: {
+    text: string
+    attachments: readonly Attachment[]
+    reason: string | undefined
+  }) => {
     composer.tokens.restore({ text: args.text, images: [] })
+    attachments.restore(args.attachments)
     if (args.reason !== undefined) problemOf(args.reason)
   }
 
@@ -148,6 +156,12 @@ export function ChatScreenHost(props: ChatScreenHostProps): React.ReactNode {
     api: props.client.api,
     sessionId: props.sessionId,
     live: connection.cloudConnected,
+  })
+
+  useQuickStopRestore({
+    rawEvents: transcript.rawEvents,
+    draft: composer.draft,
+    attachments,
   })
 
   const rewind = useRewind({

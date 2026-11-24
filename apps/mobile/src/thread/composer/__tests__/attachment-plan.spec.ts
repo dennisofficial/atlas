@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'bun:test'
 
-import { MAX_INLINE_BYTES, MAX_MESSAGE_UPLOADS, MAX_UPLOAD_BYTES } from '@dltech/atlas-core'
+import {
+  EAttachmentStore,
+  MAX_INLINE_BYTES,
+  MAX_MESSAGE_UPLOADS,
+  MAX_UPLOAD_BYTES,
+} from '@dltech/atlas-core'
 
 import {
   attachRouteOf,
@@ -11,6 +16,7 @@ import {
   hasFailed,
   isUploading,
   planAttach,
+  restoredHeldOf,
   sendableOf,
   startedAttachment,
   withFailed,
@@ -147,6 +153,57 @@ describe('held attachment status', () => {
   it('reports uploading and removes by id', () => {
     expect(isUploading([started])).toBe(true)
     expect(withoutAttachment({ held: [started], id: 'one' })).toEqual([])
+  })
+})
+
+describe('restoredHeldOf', () => {
+  it('makes a ready media attachment out of a restored hash', () => {
+    const [held] = restoredHeldOf([
+      {
+        id: 'media:abc',
+        name: 'shot.png',
+        mediaType: 'image/png',
+        size: 12,
+        content: { store: EAttachmentStore.Media, hash: 'abc' },
+      },
+    ])
+
+    expect(held?.status).toBe(EAttachmentStatus.Ready)
+    expect(held?.hash).toBe('abc')
+    expect(held?.id).toBe('media:abc')
+  })
+
+  it('makes a ready upload attachment out of a restored upload', () => {
+    const [held] = restoredHeldOf([
+      {
+        id: 'up-1',
+        name: 'notes.pdf',
+        mediaType: 'application/pdf',
+        size: 24,
+        content: {
+          store: EAttachmentStore.Upload,
+          uploadId: 'up-1',
+          pathname: 'u/up-1/notes.pdf',
+        },
+      },
+    ])
+
+    expect(held?.status).toBe(EAttachmentStatus.Ready)
+    expect(held?.upload?.uploadId).toBe('up-1')
+  })
+
+  it('drops an inline attachment the composer cannot hold', () => {
+    expect(
+      restoredHeldOf([
+        {
+          id: 'shot-1',
+          name: 'shot.png',
+          mediaType: 'image/png',
+          size: 12,
+          content: { store: EAttachmentStore.Inline, data: 'AAAA' },
+        },
+      ]),
+    ).toEqual([])
   })
 })
 

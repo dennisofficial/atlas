@@ -15,6 +15,7 @@ import {
   isUploading,
   OCTET_STREAM,
   planAttach,
+  restoredHeldOf,
   startedAttachment,
   TOO_MANY_FILES,
   tooLargeNotice,
@@ -39,6 +40,7 @@ export type ComposerAttachments = {
   pickPhotos: () => Promise<void>
   pickFiles: () => Promise<void>
   remove: (id: string) => void
+  restore: (attachments: readonly Attachment[]) => void
   clear: () => void
 }
 
@@ -242,6 +244,18 @@ export function useAttachments(): ComposerAttachments {
     [commit, discard],
   )
 
+  const restore = useCallback(
+    (attachments: readonly Attachment[]) => {
+      const incoming = restoredHeldOf(attachments)
+      if (incoming.length === 0) return
+      update((current) => {
+        const known = new Set(current.map((entry) => entry.id))
+        return [...current, ...incoming.filter((entry) => !known.has(entry.id))]
+      })
+    },
+    [update],
+  )
+
   const clear = useCallback(() => {
     for (const handle of handles.current.values()) handle.abort()
     handles.current.clear()
@@ -260,6 +274,7 @@ export function useAttachments(): ComposerAttachments {
     pickPhotos,
     pickFiles,
     remove,
+    restore,
     clear,
   }
 }

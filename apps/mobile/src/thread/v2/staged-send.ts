@@ -3,9 +3,11 @@ import { ALREADY_SENT_REASON, EStagedOutcome, stagedOutcomesOf } from '@dltech/a
 
 export type StagedSend = { clientId: string; text: string; attachments: readonly Attachment[] }
 
+export type StagedRestore = { text: string; attachments: readonly Attachment[] }
+
 export type StagedSettlement = {
   kept: StagedSend[]
-  restored: string[]
+  restored: StagedRestore[]
   notices: string[]
 }
 
@@ -35,7 +37,7 @@ export const settlementOf = (args: {
       settlement.notices.push('Already sent')
       continue
     }
-    settlement.restored.push(entry.text)
+    settlement.restored.push({ text: entry.text, attachments: entry.attachments })
     if (outcome.reason !== undefined) settlement.notices.push(outcome.reason)
   }
   return settlement

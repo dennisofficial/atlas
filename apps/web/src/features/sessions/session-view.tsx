@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
 import { clientOnlyReason } from '@dltech/atlas-commands'
+import type { Attachment } from '@dltech/atlas-core'
 
 import { liveBackgroundOf } from '@dltech/atlas-client/crew'
 import { mergedDraftOf } from '@dltech/atlas-client/session'
@@ -49,6 +50,7 @@ import { RepairSignInDialog } from './repair-sign-in-dialog'
 import { RepairStrip } from './repair-strip'
 import { SessionUpdateCard } from './session-update-card'
 import { useQueuedTranscript } from './data/use-queued-transcript'
+import { useQuickStopRestore } from './data/use-quick-stop-restore'
 import { useStagedMessages } from './data/use-staged-messages'
 import { useSessionComposer } from './data/use-session-composer'
 import { useSessionDraft } from './data/use-session-draft'
@@ -182,12 +184,28 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     snapshot,
     pane,
   })
+  const previewOf = useCallback((hash: string) => mediaUrls.urlOf({ sessionId, hash }), [sessionId])
+  const restoreAttachments = useCallback(
+    (attachments: readonly Attachment[]) => {
+      if (attachments.length === 0) return
+      composer.attachments.restore({ attachments, previewOf })
+    },
+    [composer.attachments.restore, previewOf],
+  )
+  const restoreQuickStop = useCallback(
+    (restored: { text: string; attachments: readonly Attachment[] }) => {
+      composer.setDraft((current) => mergedDraftOf({ rewound: restored.text, current }))
+      restoreAttachments(restored.attachments)
+    },
+    [composer.setDraft, restoreAttachments],
+  )
   const stagedRun = useStagedMessages({
     sessionId,
     events: snapshot.events,
     pending: snapshot.pending,
     draft: composer.draft,
     onDraftChange: composer.setDraft,
+    onRestoreAttachments: restoreAttachments,
   })
   const queuedTranscript = useQueuedTranscript({
     sessionId,
@@ -221,6 +239,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
       })
     },
   })
+  useQuickStopRestore({ sessionId, events: snapshot.events, onRestore: restoreQuickStop })
   const [dismissedRefusals, setDismissedRefusals] = useState<ReadonlySet<number>>(new Set())
   const refusals = useMemo(
     () =>

@@ -5,6 +5,7 @@ import {
   sessionStateLineOf,
   startFailureOf,
 } from '@dltech/atlas-client/stream'
+import { quickStopRestoresToApply } from '@dltech/atlas-client/session'
 import { turnStartedAtOf } from '@dltech/atlas-client/transcript'
 import type { Attachment } from '@dltech/atlas-core'
 import { randomUUID } from 'expo-crypto'
@@ -44,7 +45,7 @@ export type V2SessionScreen = V2ThreadView & {
   stagedRows: ThreadRow[]
   commands: V2SessionCommands
   operator: OperatorRequestControl
-  restored: { token: number; text: string } | undefined
+  restored: { token: number; text: string; attachments: readonly Attachment[] } | undefined
   notice: string | undefined
   loadOlder: () => Promise<number>
   send: (message: { text: string; attachments: Attachment[] }) => Promise<boolean>
@@ -74,9 +75,13 @@ export function useV2SessionScreen(args: {
   const view = useMemo(() => v2ViewOf({ snapshot, now }), [snapshot, now])
   const [staged, setStaged] = useState<readonly StagedSend[]>([])
   const agentLinks = useMemo(() => agentLinksOf({ events: snapshot.events }), [snapshot.events])
-  const [restored, setRestored] = useState<{ token: number; text: string } | undefined>(undefined)
+  const [restored, setRestored] = useState<
+    { token: number; text: string; attachments: readonly Attachment[] } | undefined
+  >(undefined)
   const retryClientId = useRef<string | undefined>(undefined)
   const restoreToken = useRef(0)
+  const sent = useRef<ReadonlySet<string>>(new Set())
+  const handledQuickStops = useRef<ReadonlySet<string>>(new Set())
 
   useEffect(() => {
     void dismissPresentedForSession(sessionId).catch(() => undefined)
@@ -102,10 +107,33 @@ export function useV2SessionScreen(args: {
     setStaged(settlement.kept)
     if (settlement.restored.length > 0) {
       restoreToken.current += 1
-      setRestored({ token: restoreToken.current, text: settlement.restored.join('\n\n') })
+      setRestored({
+        token: restoreToken.current,
+        text: settlement.restored.map((entry) => entry.text).join('\n\n'),
+        attachments: settlement.restored.flatMap((entry) => [...entry.attachments]),
+      })
     }
     if (settlement.notices.length > 0) setNotice(settlement.notices.join('\n'))
   }, [staged, snapshot.events])
+
+  useEffect(() => {
+    const pending = quickStopRestoresToApply({
+      events: snapshot.events,
+      clientIds: [...sent.current],
+      handled: handledQuickStops.current,
+    })
+    if (pending.length === 0) return
+    handledQuickStops.current = new Set([
+      ...handledQuickStops.current,
+      ...pending.map((entry) => entry.rewindEventId),
+    ])
+    restoreToken.current += 1
+    setRestored({
+      token: restoreToken.current,
+      text: pending.map((entry) => entry.text).join('\n\n'),
+      attachments: pending.flatMap((entry) => [...entry.attachments]),
+    })
+  }, [snapshot.events])
 
   const stagedRows = useMemo(
     () => (staged.length === 0 ? [] : stagedRowsOf({ snapshot, staged, now })),
@@ -143,6 +171,7 @@ export function useV2SessionScreen(args: {
         return false
       }
       retryClientId.current = undefined
+      sent.current = new Set([...sent.current, clientId])
       setNotice(undefined)
       setStaged((current) => [...current, { clientId, text, attachments }])
       return true
