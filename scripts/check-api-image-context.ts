@@ -71,6 +71,23 @@ export function bunPinProblems(args: {
     )
 }
 
+export function daemonStageProblems(args: {
+  dockerfile: string
+  workspaces: readonly ImageWorkspace[]
+}): readonly string[] {
+  const stage = /^FROM\s+\S+\s+AS\s+daemon\s*$([\s\S]*?)(?=^FROM\s|(?![\s\S]))/m.exec(
+    args.dockerfile,
+  )?.[1]
+  if (stage === undefined) return [`${API_IMAGE_DOCKERFILE_PATH} has no daemon stage`]
+  const daemonClosure = closureOf({ roots: ['@dltech/atlas-daemon'], workspaces: args.workspaces })
+  return daemonClosure
+    .filter((workspace) => !stage.includes(`COPY ${workspace.dir}/ ${workspace.dir}/`))
+    .map(
+      (workspace) =>
+        `the daemon stage does not COPY ${workspace.dir}/, which @dltech/atlas-daemon depends on`,
+    )
+}
+
 async function readWorkspaces(): Promise<readonly ImageWorkspace[]> {
   const paths = [...WORKSPACE_GLOB.scanSync('.'), 'commands/package.json']
   return Promise.all(
@@ -88,12 +105,12 @@ async function readWorkspaces(): Promise<readonly ImageWorkspace[]> {
 async function main(): Promise<void> {
   const ignoreLines = (await Bun.file(API_IMAGE_IGNORE_PATH).text()).split('\n')
   const rootManifest: { packageManager?: unknown } = await Bun.file('package.json').json()
+  const dockerfile = await Bun.file(API_IMAGE_DOCKERFILE_PATH).text()
+  const workspaces = await readWorkspaces()
   const problems = [
-    ...apiImageContextProblems({ ignoreLines, workspaces: await readWorkspaces() }),
-    ...bunPinProblems({
-      dockerfile: await Bun.file(API_IMAGE_DOCKERFILE_PATH).text(),
-      packageManager: String(rootManifest.packageManager),
-    }),
+    ...apiImageContextProblems({ ignoreLines, workspaces }),
+    ...daemonStageProblems({ dockerfile, workspaces }),
+    ...bunPinProblems({ dockerfile, packageManager: String(rootManifest.packageManager) }),
   ]
   for (const problem of problems) console.error(`api image context: ${problem}`)
   if (problems.length > 0) process.exit(1)

@@ -19,8 +19,18 @@ WORKDIR /app
 COPY --from=manifests /out/ ./
 RUN bun install --frozen-lockfile --filter @dltech/atlas-daemon \
   && rm -rf /root/.bun/install/cache
-COPY . .
+COPY tsconfig.base.json ./
+COPY apps/daemon/ apps/daemon/
+COPY packages/commands/ packages/commands/
+COPY packages/core/ packages/core/
+COPY packages/protocol/ packages/protocol/
+COPY packages/sandbox/ packages/sandbox/
 RUN bun run --cwd apps/daemon build
+
+FROM base AS source
+WORKDIR /src
+COPY . .
+RUN rm -rf plugins/skills/skills packages/db/migrations
 
 FROM base
 RUN apt-get update \
@@ -28,7 +38,9 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --link --from=deps /app/ ./
-COPY --link . .
+COPY --link plugins/skills/skills/ plugins/skills/skills/
+COPY --link packages/db/migrations/ packages/db/migrations/
+COPY --link --from=source /src/ ./
 COPY --link --from=daemon /app/apps/daemon/bin/ apps/daemon/bin/
 ENV NODE_ENV=production APP_TIER=production PORT=10000
 EXPOSE 10000

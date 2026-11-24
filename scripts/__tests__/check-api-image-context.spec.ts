@@ -5,6 +5,7 @@ import {
   API_IMAGE_IGNORE_PATH,
   apiImageContextProblems,
   bunPinProblems,
+  daemonStageProblems,
   type ImageWorkspace,
 } from '../check-api-image-context'
 
@@ -38,6 +39,28 @@ describe('bunPinProblems', () => {
   it('rejects a Dockerfile with no oven/bun base', () => {
     expect(bunPinProblems({ dockerfile: 'FROM debian\n', packageManager: 'bun@1.4.2' })).toEqual([
       'apps/api/docker/Dockerfile has no FROM oven/bun:<version>',
+    ])
+  })
+})
+
+describe('daemonStageProblems', () => {
+  const stageOf = (copies: readonly string[]): string =>
+    [
+      'FROM base AS daemon',
+      ...copies.map((dir) => `COPY ${dir}/ ${dir}/`),
+      'FROM base',
+      'COPY . .',
+    ].join('\n')
+
+  it('accepts a daemon stage that copies every workspace the daemon reaches', () => {
+    expect(
+      daemonStageProblems({ dockerfile: stageOf(['apps/daemon', 'packages/sandbox']), workspaces }),
+    ).toEqual([])
+  })
+
+  it('rejects a daemon stage that misses a workspace the daemon reaches', () => {
+    expect(daemonStageProblems({ dockerfile: stageOf(['apps/daemon']), workspaces })).toEqual([
+      'the daemon stage does not COPY packages/sandbox/, which @dltech/atlas-daemon depends on',
     ])
   })
 })
