@@ -14,8 +14,11 @@ const dispatchesOf = async (ctx: HandoffContext) =>
 const resultsOf = async (ctx: HandoffContext) =>
   (await ctx.events()).filter((row) => row.type === 'tool-result' && callIdOf(row) === CALL_ID)
 
-const interruptedOf = (row: { event: unknown }): boolean =>
-  (row.event as { interrupted?: boolean }).interrupted === true
+const interruptedOf = (row: { event: unknown }): boolean => {
+  const event = row.event as { interrupted?: boolean; error?: { message: string } }
+  if (event.interrupted === true) return true
+  return event.error !== undefined && /interrupt/i.test(event.error.message)
+}
 
 type ResultEvent = {
   output?: { serviceId?: string }
