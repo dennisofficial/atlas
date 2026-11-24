@@ -50,6 +50,7 @@ export class SessionStreamRouter {
       surface: input.surface,
       afterSeq: input.afterSeq,
       afterHash: input.afterHash,
+      tailViewVersion: input.tailViewVersion,
       signal: opts.signal,
     })
   }

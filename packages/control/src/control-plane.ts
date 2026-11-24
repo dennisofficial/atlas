@@ -65,6 +65,7 @@ import {
   type SessionViewRead,
 } from './session-view-read'
 import { readEventsIn, type ReadEventsPage } from './read-events'
+import { readTailBaseIn, TAIL_BASE_ATTEMPTS, type TailBase } from './tail-base'
 import { runRoutineIn, type RunRoutineParams, type RunRoutineResult } from './routine-ops'
 import {
   createRoutineIn,
@@ -519,6 +520,26 @@ export class ControlPlane {
         eventSchema: this.eventSchema,
       })
     })
+  }
+
+  async readTailBase(params: {
+    sessionId: string
+    threadId: string
+    tailFrom: number
+  }): Promise<TailBase | undefined> {
+    for (let attempt = 0; attempt < TAIL_BASE_ATTEMPTS; attempt += 1) {
+      const base = await this.store.transact(async (tx) => {
+        await this.requireThread({ tx, threadId: params.threadId })
+        return readTailBaseIn({
+          tx,
+          ...params,
+          eventSchema: this.eventSchema,
+          pluginViews: this.pluginViews,
+        })
+      })
+      if (base !== undefined) return base
+    }
+    return undefined
   }
 
   async readBlob(params: {

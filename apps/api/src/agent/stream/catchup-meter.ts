@@ -5,6 +5,7 @@ export enum ECatchupStart {
   Cold = 'cold',
   Warm = 'warm',
   Reset = 'reset',
+  Tail = 'tail',
 }
 
 export type CatchupMeterArgs = {
@@ -34,6 +35,10 @@ export class CatchupMeter {
 
   markReset(): void {
     this.start = ECatchupStart.Reset
+  }
+
+  markTail(): void {
+    this.start = ECatchupStart.Tail
   }
 
   noteBehind(args: { headSeq: number; cursor: number }): void {

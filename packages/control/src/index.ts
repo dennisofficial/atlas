@@ -112,6 +112,8 @@ export {
 } from './session-summary'
 export type { SessionStatusRead, StatusPlane } from './session-status'
 export { RecordCorruptError } from './refusal'
+export { TAIL_BASE_ATTEMPTS } from './tail-base'
+export type { TailBase } from './tail-base'
 export type { AppendOutcome, BlobRefusal, ControlRefusal } from './refusal'
 export type {
   ControlPullRequest,

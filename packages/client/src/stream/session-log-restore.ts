@@ -31,7 +31,7 @@ const refoldViewOf = async (args: RefoldArgs): Promise<SessionViewState | undefi
   const cached = await args.log
     .readRange({ sessionId: args.sessionId, fromSeq: 1, toSeq: args.throughSeq })
     .catch(() => undefined)
-  if (cached === undefined) return undefined
+  if (cached === undefined || cached[0]?.seq !== 1) return undefined
   return cached.reduce(
     (state, event) => stepSessionViewWith({ state, views: args.views, event }),
     initialSessionViewState,
@@ -93,6 +93,7 @@ export const restoredWindowOf = async (args: {
     foldable,
     commandLog,
     cursor: saved.cursor,
+    foldedThrough: 0,
   }
 }
 

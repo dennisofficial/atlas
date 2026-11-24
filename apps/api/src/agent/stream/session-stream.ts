@@ -44,6 +44,7 @@ export type SessionStreamFollowArgs = {
   surface?: EStreamSurface | undefined
   afterSeq?: number | undefined
   afterHash?: string | undefined
+  tailViewVersion?: number | undefined
   signal?: AbortSignal | undefined
 }
 
@@ -169,6 +170,7 @@ export const createSessionStream = (deps: SessionStreamDeps): SessionStream => {
           ...(args.threadId === undefined ? {} : { threadId: args.threadId }),
           ...(args.afterSeq === undefined ? {} : { afterSeq: args.afterSeq }),
           ...(args.afterHash === undefined ? {} : { afterHash: args.afterHash }),
+          ...(args.tailViewVersion === undefined ? {} : { tailViewVersion: args.tailViewVersion }),
         }),
       }),
     list: (args) =>

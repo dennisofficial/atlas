@@ -22,7 +22,7 @@ const isSpan = (value: unknown): boolean =>
   typeof value.throughSeq === 'number' &&
   typeof value.keepSurvivors === 'boolean'
 
-const isVisibility = (value: unknown): value is VisibilityState =>
+export const isVisibility = (value: unknown): value is VisibilityState =>
   isRecord(value) && Array.isArray(value.spans) && value.spans.every(isSpan)
 
 const isPending = (value: unknown): value is PendingInputsState =>
@@ -36,7 +36,7 @@ const isFailure = (value: unknown): value is FailureMessageState =>
   typeof value.prepared === 'boolean' &&
   typeof value.afterFailure === 'boolean'
 
-const isView = (value: unknown): value is SessionViewState =>
+export const isView = (value: unknown): value is SessionViewState =>
   isRecord(value) &&
   typeof value.version === 'number' &&
   typeof value.at === 'number' &&

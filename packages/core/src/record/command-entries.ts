@@ -72,7 +72,7 @@ export const unfinishedCommandIdsOf = (
   )
 }
 
-const COMMAND_LOG_TYPES: ReadonlySet<string> = new Set([
+export const COMMAND_LOG_TYPES: ReadonlySet<string> = new Set([
   'input-posted',
   'input-consumed',
   'input-refused',
