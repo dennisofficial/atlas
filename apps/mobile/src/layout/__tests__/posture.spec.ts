@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import {
   BOTTOM_BAR_CLEARANCE,
+  contentInsetsOf,
   EControlsPlacement,
   EThreadsLayout,
   postureOf,
@@ -24,7 +25,7 @@ describe('postureOf', () => {
       threads: EThreadsLayout.Stacked,
       railWidth: 80,
       railBottom: RAIL_BOTTOM_GAP,
-      clearance: { right: 80, bottom: 0 },
+      clearance: { bottom: 0 },
     })
   })
 
@@ -36,7 +37,7 @@ describe('postureOf', () => {
       threads: EThreadsLayout.Overlay,
       railWidth: 0,
       railBottom: 20 + RAIL_BOTTOM_GAP,
-      clearance: { right: 0, bottom: 20 + BOTTOM_BAR_CLEARANCE },
+      clearance: { bottom: 20 + BOTTOM_BAR_CLEARANCE },
     })
   })
 
@@ -59,7 +60,7 @@ describe('postureOf', () => {
       threads: EThreadsLayout.Panel,
       railWidth: 80,
       railBottom: RAIL_BOTTOM_GAP,
-      clearance: { right: 80, bottom: 0 },
+      clearance: { bottom: 0 },
     })
   })
 
@@ -74,5 +75,19 @@ describe('postureOf', () => {
     expect(postureOf({ width: 660, height: 900, insets: insets({ right: 80 }) }).threads).toBe(
       EThreadsLayout.Stacked,
     )
+  })
+})
+
+describe('contentInsetsOf', () => {
+  it('gives the rail column to the rail so screens inside the frame see no right inset', () => {
+    const window = insets({ top: 0, right: 80, bottom: 21 })
+    const posture = postureOf({ width: 470, height: 690, insets: window })
+    expect(contentInsetsOf({ insets: window, posture })).toEqual(insets({ bottom: 21 }))
+  })
+
+  it('keeps every inset when the controls are a bottom bar', () => {
+    const window = insets({ top: 54, left: 59, right: 59, bottom: 20 })
+    const posture = postureOf({ width: 932, height: 430, insets: window })
+    expect(contentInsetsOf({ insets: window, posture })).toEqual(window)
   })
 })

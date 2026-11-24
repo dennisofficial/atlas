@@ -102,7 +102,7 @@ export default function SessionScreen() {
         overlayOpen={overlayOpen}
         onCloseOverlay={handleCloseThreads}
       >
-        <View style={{ flex: 1, paddingRight: posture.clearance.right }}>
+        <View style={styles.content}>
           {session.loaded || session.failedToLoad ? null : <SessionSkeleton />}
           {session.failedToLoad ? (
             <View style={styles.center}>
@@ -207,6 +207,9 @@ export default function SessionScreen() {
 
 const styles = StyleSheet.create({
   screen: {
+    flex: 1,
+  },
+  content: {
     flex: 1,
   },
   center: {
