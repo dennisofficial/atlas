@@ -6,7 +6,7 @@ import {
   nextOccurrenceFrom,
   nextRunAtAfterFailure,
   wedgedAfterMs,
-} from '../trigger/routine/routine-cron'
+} from '../routine/routine-cron'
 
 describe('routine cron', () => {
   it('reads the interval between two occurrences of the schedule', () => {

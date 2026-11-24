@@ -5,7 +5,7 @@ import { routineRowOf, sweepGraphOf, type DueRead } from './routine-graph.fake'
 mock.module('@trigger.dev/sdk', () => triggerSdkFake)
 
 const { ROUTINE_SWEEP_CRON, ROUTINE_SWEEP_LIMIT, routineSweepTask, runRoutineSweep } = await import(
-  '../trigger/routine/routine-sweep.task'
+  '../routine/routine-sweep.task'
 )
 
 describe('routine sweep task', () => {

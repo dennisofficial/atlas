@@ -3,13 +3,11 @@ import { triggerSdkFake } from './trigger-sdk.fake'
 
 mock.module('@trigger.dev/sdk', () => triggerSdkFake)
 
-import type { ComposerUploadSweepStore } from '../trigger/composer-uploads/composer-upload-sweep'
+import type { ComposerUploadSweepStore } from '../composer-uploads/composer-upload-sweep'
 
 const { COMPOSER_UPLOAD_MAX_AGE_MS, composerUploadSweepStoreOf, sweepComposerUploads } =
-  await import('../trigger/composer-uploads/composer-upload-sweep')
-const { composerUploadSweepTask } = await import(
-  '../trigger/composer-uploads/composer-upload-sweep.task'
-)
+  await import('../composer-uploads/composer-upload-sweep')
+const { composerUploadSweepTask } = await import('../composer-uploads/composer-upload-sweep.task')
 
 const NOW = new Date('2026-10-30T04:17:00Z')
 

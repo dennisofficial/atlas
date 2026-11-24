@@ -7,8 +7,8 @@ import { routineRowOf } from './routine-graph.fake'
 
 mock.module('@trigger.dev/sdk', () => triggerSdkFake)
 
-const { runRoutineOnce } = await import('../trigger/routine/routine-run.task')
-const { routineGraphOver } = await import('../trigger/routine/routine-graph')
+const { runRoutineOnce } = await import('../routine/routine-run.task')
+const { routineGraphOver } = await import('../routine/routine-graph')
 
 const LAST_SESSION = 'ses-last'
 const LAST_THREAD = 'thr-last'

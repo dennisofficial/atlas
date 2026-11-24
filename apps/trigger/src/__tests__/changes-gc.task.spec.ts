@@ -8,11 +8,9 @@ const { FakeChangeContentStore, FakeContextContentStore } = await import(
   '@dltech/atlas-control/testing'
 )
 const { changesGcDepsOf, CHANGES_GC_CRON, CHANGES_GC_TASK_ID, graceMsOf, runChangesGcTask } =
-  await import('../trigger/changes/changes-gc')
-const { contextFilesGcDepsOf, runContextFilesGcTask } = await import(
-  '../trigger/changes/context-files-gc'
-)
-const { changesGcTask } = await import('../trigger/changes/changes-gc.task')
+  await import('../changes/changes-gc')
+const { contextFilesGcDepsOf, runContextFilesGcTask } = await import('../changes/context-files-gc')
+const { changesGcTask } = await import('../changes/changes-gc.task')
 
 const DAY_MS = 24 * 60 * 60 * 1_000
 
