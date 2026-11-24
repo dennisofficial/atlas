@@ -150,6 +150,11 @@ describeHandoff({
       timeoutMs: 60_000,
       check: async () => ofType(await parentEvents(ctx), 'agent-spawned').length === 1,
     })
+    await waitUntil({
+      what: 'the operator turn that spawned the sub-agent to end',
+      timeoutMs: 60_000,
+      check: async () => ofType(await parentEvents(ctx), 'turn-ended').length === 1,
+    })
     await ctx.rig.plane.post({
       sessionId: ctx.sessionId,
       kind: 'command:agent',
