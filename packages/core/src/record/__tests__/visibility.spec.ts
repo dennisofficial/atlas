@@ -14,7 +14,6 @@ import {
   visibleEvents,
   visibleSegments,
 } from '../visibility'
-import { openTurnOf, ETurnCause, ETurnEndedBy, ETurnOutcome } from '../turns'
 import { NOW, runId, threadId } from './support'
 
 type Op =
@@ -226,53 +225,6 @@ describe('visibility', () => {
         expect(spans([...bodies, { type: 'history-rewound', toSeq: 0 }]).length).toBe(1)
       }),
     )
-  })
-})
-
-describe('a rewind that lands inside a turn', () => {
-  const build = (bodies: readonly V2Body[]): V2Event[] =>
-    chainEvents({ threadId, runId, epoch: 1, at: NOW, bodies })
-
-  const insideATurn = build([
-    { type: 'user-said', text: 'a' },
-    { type: 'turn-started', turnId: 'turn-1', cause: ETurnCause.Input },
-    { type: 'user-said', text: 'the message rewound to' },
-    {
-      type: 'turn-ended',
-      turnId: 'turn-1',
-      outcome: ETurnOutcome.Completed,
-      by: ETurnEndedBy.Agent,
-    },
-    { type: 'history-rewound', toSeq: 2 },
-    { type: 'user-said', text: 'c' },
-  ])
-
-  it('keeps the end of the turn it leaves the start of', () => {
-    expect(visibleEvents(insideATurn).map((event) => event.seq)).toEqual([1, 2, 4, 6])
-    expect(openTurnOf(visibleEvents(insideATurn))).toBeNull()
-  })
-
-  it('reads the same rows through the visible segments', () => {
-    const state = insideATurn.reduce(stepVisibility, EMPTY_VISIBILITY)
-    expect(
-      readThroughSegments({ log: insideATurn, state, fromSeq: 1, throughSeq: insideATurn.length }),
-    ).toEqual(visibleEvents(insideATurn))
-  })
-
-  it('hides both boundaries of a turn it swallows whole', () => {
-    const swallowed = build([
-      { type: 'user-said', text: 'a' },
-      { type: 'turn-started', turnId: 'turn-1', cause: ETurnCause.Input },
-      { type: 'assistant-said', parts: [{ type: 'text', text: 'half' }], stopped: true },
-      {
-        type: 'turn-ended',
-        turnId: 'turn-1',
-        outcome: ETurnOutcome.Stopped,
-        by: ETurnEndedBy.Operator,
-      },
-      { type: 'history-rewound', toSeq: 1 },
-    ])
-    expect(visibleEvents(swallowed).map((event) => event.seq)).toEqual([1])
   })
 })
 

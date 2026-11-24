@@ -18,7 +18,7 @@ export const workStopped = (items: readonly WorkItem[]): boolean =>
   items.some((item) => item.kind === ETranscriptKind.Thought && item.stopped === true)
 
 export const workResume = (items: readonly WorkItem[]): ResumePoint | null =>
-  items.findLast(
+  items.find(
     (item): item is Extract<WorkItem, { kind: ETranscriptKind.Thought }> =>
       item.kind === ETranscriptKind.Thought && item.stopped === true,
   )?.resume ?? null

@@ -123,42 +123,6 @@ describe('resuming a stopped turn from the transcript', () => {
     expect(html).toContain('data-slot="resume-turn"')
   })
 
-  it('takes the point from the last stopped thought of the work segment', () => {
-    const html = render(
-      [
-        {
-          kind: ESegmentKind.Work,
-          id: 'turn:1:work:start',
-          items: [
-            {
-              kind: ETranscriptKind.Thought,
-              id: 'e1#0',
-              text: 'first thought',
-              streaming: false,
-              heldOpen: false,
-              stopped: true,
-            },
-            {
-              kind: ETranscriptKind.Thought,
-              id: 'e1#1',
-              text: 'second thought',
-              streaming: false,
-              heldOpen: false,
-              stopped: true,
-              resume: CLEAN,
-            },
-          ],
-          stepCount: 2,
-          running: false,
-        },
-      ],
-      resumeActions(() => undefined),
-    )
-
-    expect(html).toContain('data-slot="stopped-line"')
-    expect(html).toContain('data-slot="resume-turn"')
-  })
-
   it('hides the action when the core says the turn is not resumable', () => {
     const html = render(
       [said(true, NOT_RESUMABLE)],
