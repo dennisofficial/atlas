@@ -201,8 +201,8 @@ CNAME to `atlas-api-image.onrender.com`. The MCP OAuth `redirect_uri` is
 
 `.github/workflows/release.yml` runs on every push to main. Its `render-live` job waits for the Render
 deploy of `GITHUB_SHA` to go live, or to be superseded by a newer deploy. It then probes
-`https://api.byatlas.io/healthz`. `deploy-trigger` (see Background jobs) needs that job, so trigger tasks
-never run ahead of the migrated schema.
+`https://api.byatlas.io/healthz`. `.github/workflows/trigger-v2.yml` waits for the same live deploy, so
+trigger tasks never run ahead of the migrated schema.
 
 The migration is the only thing that applies schema in a deployed tier. The app never applies schema,
 because it holds no DDL rights by design. The migration connects through
@@ -365,14 +365,10 @@ one exact version. Bump all three at once.
   `env:inject`. When either exits, both stop. Dispatched runs execute only while that worker is up.
   `bun run dev:no-trigger` is the API alone, for work that dispatches nothing.
   `trigger:dev` runs only the worker.
-- **Deploy is automatic.** The `deploy-trigger` job in `.github/workflows/release.yml` deploys to
-  prod after `render-live` passes, on every merge to main that touches the API's build
-  closure. It is serialized and never cancelled. The CLI authenticates with the `TRIGGER_ACCESS_TOKEN` repo secret (a `tr_pat_` personal token) and takes
-  the project from `trigger.config.ts`. The job then decrypts the prod `TRIGGER_SECRET_KEY` and runs
-  `scripts/trigger-smoke.ts`, which dispatches `atlas-smoke` (`SELECT 1` through the worker's db)
-  and fails unless the run completes within two minutes. PRs get no deploy dry-run: `trigger deploy
-  --dry-run` authenticates and fetches project env vars before it bundles, and PR code never
-  receives the token. A manual deploy is `bun run trigger:deploy`.
+- **No automatic deploy.** v1 is being retired, so CI no longer deploys this project; only
+  `apps/trigger` (v2) deploys, through `.github/workflows/trigger-v2.yml`. A manual deploy is
+  `bun run trigger:deploy` with a personal token of the org that owns this project, followed by
+  `scripts/trigger-smoke.ts`, which dispatches `atlas-smoke` (`SELECT 1` through the worker's db).
 - **Bundling:** `@dltech/atlas-wire` resolves through its `bun` export condition, so
   `trigger.config.ts` sets `conditions: ['bun']`. `@dltech/atlas-db`, `@prisma/orm-postgres`, `pg`
   and ioredis bundle. Prisma 8 has no query engine or wasm to keep external, and its
