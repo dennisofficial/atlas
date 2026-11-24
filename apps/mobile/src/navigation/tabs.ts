@@ -16,7 +16,7 @@ export const APP_TAB_ITEMS: Record<EAppTab, TAppTabItem> = {
 
 export const APP_TABS: readonly TAppTabItem[] = Object.values(APP_TAB_ITEMS)
 
-const pathnameOf = (pathname: string): string => {
+export const pathnameOf = (pathname: string): string => {
   const trimmed = pathname.replace(/\/+$/, '')
   return trimmed === '' ? '/' : trimmed
 }

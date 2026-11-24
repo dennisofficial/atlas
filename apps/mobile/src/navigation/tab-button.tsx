@@ -1,8 +1,10 @@
 import { ETextRole, Icon, Text, useTheme } from '@dltech/atlas-ui-native'
 import { space } from '@dltech/atlas-ui/tokens'
-import { router } from 'expo-router'
+import { usePathname } from 'expo-router'
 import { Pressable, StyleSheet, View } from 'react-native'
 
+import { applyNavigation } from './apply-navigation'
+import { tabNavigationOf } from './root-navigation'
 import { TAB_ICONS } from './tab-icons'
 import type { TAppTabItem } from './tabs'
 
@@ -16,13 +18,15 @@ export const TabButton = ({
   showLabel?: boolean
 }) => {
   const theme = useTheme()
+  const pathname = usePathname()
   const color = active ? theme.foreground : theme.mutedForeground
+  const handlePress = () => applyNavigation(tabNavigationOf({ href: item.href, pathname }))
   return (
     <Pressable
       accessibilityRole="tab"
       accessibilityLabel={item.label}
       accessibilityState={{ selected: active }}
-      onPress={() => router.navigate(item.href)}
+      onPress={handlePress}
       style={showLabel ? styles.labelled : styles.rail}
     >
       <View style={[styles.glyph, active ? { backgroundColor: theme.accent } : null]}>
