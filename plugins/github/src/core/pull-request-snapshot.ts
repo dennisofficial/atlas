@@ -24,6 +24,7 @@ export type PullRequestSnapshotInput = {
   mergeable: boolean | null
   baseBranch: string | null
   checks?: PullRequestChecks | undefined
+  pendingSuites?: number | undefined
   reviews?: readonly PullRequestReview[] | undefined
 }
 
@@ -46,11 +47,12 @@ const tallyPhrase = (tally: ChecksCount): string =>
 const failedNamesPhrase = (names: readonly string[]): string =>
   names.length === 0 ? '' : `: ${names.join(', ')}`
 
-const checksFactOf = (checks: PullRequestChecks): string | undefined => {
-  if (reportedChecks(checks.tally) === 0) return undefined
+const runningFactOf = (checks: PullRequestChecks): string =>
+  `CI is still running ${tallyPhrase(checks.tally)}${failedNamesPhrase(checks.failedNames)}`
+
+const settledFactOf = (checks: PullRequestChecks): string => {
   const tally = tallyPhrase(checks.tally)
   const failed = failedNamesPhrase(checks.failedNames)
-  if (checks.tally.running > 0) return `CI is still running ${tally}${failed}`
   if (checks.tally.failed > 0) {
     const count =
       checks.tally.failed === 1 ? 'a check failed' : `${checks.tally.failed} checks failed`
@@ -59,13 +61,26 @@ const checksFactOf = (checks: PullRequestChecks): string | undefined => {
   return `CI finished, all checks passed ${tally}`
 }
 
-const nextOf = (checks: PullRequestChecks | undefined): string => {
+const checksRunning = (input: PullRequestSnapshotInput): boolean =>
+  (input.pendingSuites ?? 0) > 0 || (input.checks?.tally.running ?? 0) > 0
+
+const checksFactOf = (input: PullRequestSnapshotInput): string | undefined => {
+  const { checks } = input
+  if (checks === undefined) return undefined
+  if (checksRunning(input)) return runningFactOf(checks)
+  if (reportedChecks(checks.tally) === 0) return undefined
+  return settledFactOf(checks)
+}
+
+const nextOf = (input: PullRequestSnapshotInput): string => {
   const settled = 'The next notices are a new push, a comment or review, or a merge or close.'
+  const { checks } = input
   if (checks === undefined) return `CI state is not known now. ${settled}`
-  if (checks.tally.running > 0) return 'A CI notice follows when it settles.'
+  if (checksRunning(input)) return 'A CI notice follows when it settles.'
   if (reportedChecks(checks.tally) === 0) {
     return 'No checks are reported for this head yet. If CI starts on it, a CI notice follows when it settles.'
   }
+  if (input.pendingSuites === undefined) return `CI state is not known now. ${settled}`
   return `No CI notice comes for this head. ${settled}`
 }
 
@@ -93,11 +108,11 @@ const reviewFactOf = (reviews: readonly PullRequestReview[] | undefined): string
 export const pullRequestSnapshotOf = (input: PullRequestSnapshotInput): SubscriptionSnapshot => {
   const facts = [
     headFactOf(input),
-    input.checks === undefined ? undefined : checksFactOf(input.checks),
+    checksFactOf(input),
     mergeabilityFactOf(input),
     reviewFactOf(input.reviews),
   ].filter((fact): fact is string => fact !== undefined)
-  return { facts, next: nextOf(input.checks) }
+  return { facts, next: nextOf(input) }
 }
 
 const jobFailed = (job: WorkflowRunJob): boolean =>
