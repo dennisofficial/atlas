@@ -567,12 +567,25 @@ jobs:
 
       - run: bun install --frozen-lockfile
 
+      # The runner evaluates a cache step's `with:` a second time in its post step, where hashFiles
+      # is a spawned node process with a hard 120 second limit that times out on hosted macOS and
+      # fails a finished job (https://github.com/actions/runner/issues/1840). The key is therefore
+      # read once from the git index, before the build, and the cache step only reads it back.
+      - name: compute the next cache key
+        id: next-cache
+        run: |
+          set -euo pipefail
+          lock=$(git ls-files -s -- bun.lock | shasum -a 256 | cut -d' ' -f1)
+          web=$(git ls-files -s -- apps/web/src 'apps/web/*.ts' 'apps/web/*.mjs' apps/web/package.json | shasum -a 256 | cut -d' ' -f1)
+          echo "key=next-${{ runner.os }}-$lock-$web" >> "$GITHUB_OUTPUT"
+          echo "previous=next-${{ runner.os }}-$lock-" >> "$GITHUB_OUTPUT"
+
       - uses: actions/cache@v6
         with:
           path: apps/web/.next/cache
-          key: next-${{ runner.os }}-${{ hashFiles('bun.lock') }}-${{ hashFiles('apps/web/src/**', 'apps/web/*.ts', 'apps/web/*.mjs', 'apps/web/package.json') }}
+          key: ${{ steps.next-cache.outputs.key }}
           restore-keys: |
-            next-${{ runner.os }}-${{ hashFiles('bun.lock') }}-
+            ${{ steps.next-cache.outputs.previous }}
             next-${{ runner.os }}-
 
       - name: import signing certificate
