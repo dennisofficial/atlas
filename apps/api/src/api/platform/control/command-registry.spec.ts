@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'bun:test'
 import { BadRequestException } from '@nestjs/common'
 import { setupSessionsService } from './sessions.service.fixture'
-import { composeCommands, ECommandEntryKind, ECommandSource } from '@dltech/atlas-commands'
+import {
+  composeCommands,
+  ECommandEntryKind,
+  ECommandSource,
+  listedCommands,
+} from '@dltech/atlas-commands'
 import { composePlugins } from '@dltech/atlas-plugin-sdk'
 import { createFixturePlugin } from '@dltech/atlas-plugin-sdk/testing'
 import { nativeCommands } from '@dltech/atlas-native-commands'
@@ -155,7 +160,7 @@ describe('a plugin command', () => {
 })
 
 describe('commandCatalogue', () => {
-  it('lists every composed command once, tagged by its source, and never model-set', () => {
+  it('lists every listed composed command once, tagged by its source, and never model-set', () => {
     const catalogue = commandCatalogue()
     const names = catalogue.map((entry) => entry.name)
     expect(new Set(names).size).toBe(names.length)
@@ -165,9 +170,9 @@ describe('commandCatalogue', () => {
     const builtin = catalogue
       .filter((entry) => entry.source === ECommandSource.Builtin)
       .map((entry) => entry.name)
-    expect(builtin).toEqual(nativeCommands.map((command) => command.spec.name))
+    expect(builtin).toEqual(listedCommands(nativeCommands).map((command) => command.spec.name))
 
-    const composed = nativeCommandRegistry().all.map((command) => command.spec.name)
+    const composed = listedCommands(nativeCommandRegistry().all).map((command) => command.spec.name)
     const plugin = catalogue
       .filter((entry) => entry.source === ECommandSource.Plugin)
       .map((entry) => entry.name)
@@ -176,5 +181,12 @@ describe('commandCatalogue', () => {
         name !== 'model-set' && !nativeCommands.some((command) => command.spec.name === name),
     )
     expect(plugin).toEqual(expectedPlugin)
+  })
+
+  it('omits the commands that only an in-app action runs', () => {
+    const names = commandCatalogue().map((entry) => entry.name)
+    for (const name of ['agent', 'shell-kill', 'service']) {
+      expect(names).not.toContain(name)
+    }
   })
 })

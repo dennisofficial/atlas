@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'bun:test'
-import { catalogueOf } from '../catalogue'
+import { catalogueOf, listedCommands } from '../catalogue'
 import { ECommandEntryKind, ECommandSource, type CommandEntry } from '../entry'
-import { ECommandGroup } from '../spec'
+import { defineCommand } from '../registry'
+import { ECommandGroup, ECommandRunsIn } from '../spec'
+import { z } from 'zod'
 
 const commandEntry = (name: string, group: ECommandGroup): CommandEntry => ({
   name,
@@ -45,5 +47,28 @@ describe('catalogueOf', () => {
     })
     expect(catalogue.map((entry) => entry.name)).toEqual(['model', 'review'])
     expect(catalogue[0]?.kind).toBe(ECommandEntryKind.Command)
+  })
+})
+
+describe('listedCommands', () => {
+  const command = (name: string, listed?: boolean) =>
+    defineCommand({
+      spec: {
+        name,
+        summary: `${name} summary`,
+        group: ECommandGroup.Session,
+        args: z.strictObject({}),
+        runsIn: ECommandRunsIn.Host,
+        listed,
+      },
+    })
+
+  it('keeps a command that leaves the flag out and drops one that sets it false', () => {
+    const kept = listedCommands([
+      command('rewind'),
+      command('agent', true),
+      command('service', false),
+    ])
+    expect(kept.map((entry) => entry.spec.name)).toEqual(['rewind', 'agent'])
   })
 })

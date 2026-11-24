@@ -39,6 +39,7 @@ export const service = defineCommand({
     args: serviceArgs,
     runsIn: ECommandRunsIn.Host,
     fromText: serviceFromText,
+    listed: false,
   },
 })
 

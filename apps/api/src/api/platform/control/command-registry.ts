@@ -5,6 +5,7 @@ import {
   entryOf,
   ECommandRunsIn,
   ECommandSource,
+  listedCommands,
   type CommandEntry,
   type CommandRegistry,
   type ControlCommandHandler,
@@ -21,8 +22,12 @@ export const nativeCommandRegistry = (): CommandRegistry =>
   composeCommands([...nativeCommands, modelSet, ...composedPlugins.commands])
 
 export const commandCatalogue = (): readonly CommandEntry[] => [
-  ...nativeCommands.map((command) => entryOf({ command, source: ECommandSource.Builtin })),
-  ...composedPlugins.commands.map((command) => entryOf({ command, source: ECommandSource.Plugin })),
+  ...listedCommands(nativeCommands).map((command) =>
+    entryOf({ command, source: ECommandSource.Builtin }),
+  ),
+  ...listedCommands(composedPlugins.commands).map((command) =>
+    entryOf({ command, source: ECommandSource.Plugin }),
+  ),
 ]
 
 export const controlCommandHandlers = (): ReadonlyMap<
