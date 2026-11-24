@@ -165,12 +165,16 @@ export type PodSlash = {
 
 export type DaemonReady = { bootId: string; restart: boolean }
 
+export type PodCommandFactory = (
+  ctx: PluginPodContext,
+) => ReadonlyMap<string, CommandHandler<unknown>>
+
 export type PodSlot = {
   childDeny?: readonly string[] | undefined
   tools?(ctx: PluginPodContext): readonly ToolDefinition[]
   hooks?(ctx: PluginPodContext): HookChainArgs
   prompts: readonly PromptFragment[]
-  commands: ReadonlyMap<string, CommandHandler<unknown>>
+  commands?: PodCommandFactory | undefined
   resources?: readonly PodResource<unknown>[] | undefined
   slash?: ((ctx: PluginPodContext) => PodSlash) | undefined
   onDaemonEvent?(frame: DaemonEventFrame): void
@@ -211,6 +215,6 @@ export const EMPTY_CREW: PodCrew = Object.freeze({
   report: async () => noCrew('parent to report to')(),
 })
 
-export const EMPTY_POD: PodSlot = Object.freeze({ prompts: [], commands: new Map() })
+export const EMPTY_POD: PodSlot = Object.freeze({ prompts: [] })
 
 export const EMPTY_CONTROL: ControlSlot = Object.freeze({ hooks: [], commands: new Map() })

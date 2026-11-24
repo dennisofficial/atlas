@@ -49,6 +49,7 @@ export function useShellsDrawer(args: {
   rows: readonly ShellRow[]
   sessionId: string
   tails: Readonly<Record<string, { text: string }>>
+  onKill: (shellId: string) => void
 }): ShellsDrawer {
   const rows = useMemo(
     () => drawerShellsOf({ rows: args.rows, sessionId: args.sessionId }),
@@ -91,9 +92,15 @@ export function useShellsDrawer(args: {
 
       if (key.name === 'up' || key.name === 'down') {
         setState(moved({ state, count: rows.length, delta: key.name === 'up' ? -1 : 1 }))
+        return
+      }
+
+      if (key.name === 'k' || key.name === 'x') {
+        const target = rows[state.index]
+        if (target !== undefined) args.onKill(target.shellId)
       }
     },
-    [handleDismiss, rows.length, scroll, state],
+    [args, handleDismiss, rows, scroll, state],
   )
 
   const fold = useMemo(() => shellFoldOf(rows), [rows])

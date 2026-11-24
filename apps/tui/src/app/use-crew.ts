@@ -8,6 +8,23 @@ import { lastVisitOf, NO_VISITS, recordDeparture, type CrewVisits } from '../sto
 import type { SidebarSubagent } from '../store/subagent-row'
 import { crewMemberRowsOf, crewRowsetOf, crewSidebarRowsOf } from './crew-rows'
 
+export enum ECrewEscape {
+  Ignore = 'ignore',
+  Back = 'back',
+  Arm = 'arm',
+  Stop = 'stop',
+}
+
+export const crewEscapeOf = (args: {
+  viewing: string | null
+  armed: string | null
+  stoppable: boolean
+}): ECrewEscape => {
+  if (args.viewing === null) return ECrewEscape.Ignore
+  if (!args.stoppable) return ECrewEscape.Back
+  return args.armed === args.viewing ? ECrewEscape.Stop : ECrewEscape.Arm
+}
+
 export type CrewControl = {
   rows: readonly SidebarSubagent[]
   teammates: readonly SidebarSubagent[]
@@ -65,9 +82,15 @@ export function useCrew(args: {
   setViewing: (agentId: string | null) => void
   now: number
   onOpenSession: (agentId: string) => void
+  onStop: (agentId: string) => void
   onProblem: (reason: string) => void
 }): CrewControl {
   const { crew, viewing, setViewing, now } = args
+  const [armed, setArmed] = useState<string | null>(null)
+
+  useEffect(() => {
+    setArmed(null)
+  }, [viewing])
   const visits = useCrewVisits(viewing)
 
   const rowset = useMemo(() => crewRowsetOf(crew), [crew])
@@ -142,10 +165,23 @@ export function useCrew(args: {
   }, [rowset.subagents, setViewing, viewing])
 
   const handleEscape = useCallback((): boolean => {
-    if (viewing === null) return false
-    setViewing(null)
-    return true
-  }, [setViewing, viewing])
+    const stoppable = crew.some((row) => row.agentId === viewing && isSubagentWorking(row.status))
+    switch (crewEscapeOf({ viewing, armed, stoppable })) {
+      case ECrewEscape.Ignore:
+        return false
+      case ECrewEscape.Back:
+        setViewing(null)
+        return true
+      case ECrewEscape.Arm:
+        setArmed(viewing)
+        args.onProblem(`esc again to stop ${viewing}`)
+        return true
+      case ECrewEscape.Stop:
+        setArmed(null)
+        if (viewing !== null) args.onStop(viewing)
+        return true
+    }
+  }, [armed, args, crew, setViewing, viewing])
 
   const running = rows.filter(isSubagentWorking).length
 

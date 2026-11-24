@@ -39,7 +39,8 @@ describe('the shells drawer', () => {
         within: WITHIN,
       })
       expect(open).toContain('the test run')
-      expect(open).not.toContain('stop it')
+      expect(open).toContain('stop it')
+      expect(open).toContain('k kill')
 
       mounted.setup.mockInput.pressEscape()
       const closed = await frameWhen({
@@ -49,6 +50,32 @@ describe('the shells drawer', () => {
         describe: 'the drawer to close',
       })
       expect(closed).toContain('run the tests')
+    } finally {
+      await teardown(mounted.setup)
+    }
+  }, 60_000)
+
+  test('k kills the open shell with the shell-kill command', async () => {
+    const mounted = await openSession()
+
+    try {
+      mounted.client()?.pushEvents({ sessionId: SESSION_ID, events: SHELL_STARTED, live: true })
+      await frameShowing({ setup: mounted.setup, text: 'the test run', within: WITHIN })
+
+      mounted.setup.mockInput.pressKey('t', { ctrl: true })
+      await frameShowing({ setup: mounted.setup, text: 'SHELL LOG', within: WITHIN })
+
+      mounted.setup.mockInput.pressKey('k')
+      const posted = await frameWhen({
+        setup: mounted.setup,
+        holds: () => (mounted.client()?.calls.runCommand.length ?? 0) === 1,
+        within: WITHIN,
+        describe: 'the kill to be posted',
+      })
+      expect(posted).toContain('SHELL LOG')
+      expect(mounted.client()?.calls.runCommand).toEqual([
+        { sessionId: SESSION_ID, name: 'shell-kill', args: { shellId: 'sh-1' } },
+      ])
     } finally {
       await teardown(mounted.setup)
     }

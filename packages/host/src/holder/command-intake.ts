@@ -53,8 +53,8 @@ export type CommandIntakeArgs = {
   log?: LogPort | undefined
 }
 
-type Resolved = { command: Command; handler: CommandHandler<unknown> }
-type CommandPlan = Extract<TextPlan, { kind: ETextPlan.Command }>
+type Resolved = { command: Command; handler: CommandHandler<unknown> | undefined }
+export type CommandPlan = Extract<TextPlan, { kind: ETextPlan.Command }>
 type SkillPlan = Extract<TextPlan, { kind: ETextPlan.Skill }>
 
 export enum ESkillDrafts {
@@ -118,20 +118,27 @@ export class CommandIntake {
 
   resolve(entry: InboxEntry): Resolved | undefined {
     const command = this.args.commands.byInboxKind.get(entry.kind)
-    const handler = this.args.handlers.get(entry.kind)
-    if (command === undefined || handler === undefined) return undefined
-    return { command, handler }
+    if (command === undefined) return undefined
+    return { command, handler: this.args.handlers.get(entry.kind) }
   }
 
-  async run(params: { entry: InboxEntry; command: Command; handler: CommandHandler<unknown> }) {
+  async run(params: {
+    entry: InboxEntry
+    command: Command
+    handler: CommandHandler<unknown> | undefined
+  }) {
     const { inboxId } = params.entry
     await this.args.append([{ type: 'input-consumed', inboxId, consumed: EInputConsumed.Command }])
+    if (params.handler === undefined) {
+      await this.refuse({ inboxId, reason: this.missingHandlerReason(params.command) })
+      return
+    }
     const parsed = params.command.spec.args.safeParse(payloadOf(params.entry.payload))
     if (!parsed.success) {
       await this.refuse({ inboxId, reason: parsed.error.message })
       return
     }
-    await this.invoke({ ...params, args: parsed.data })
+    await this.invoke({ ...params, handler: params.handler, args: parsed.data })
   }
 
   async runText(params: {
@@ -193,12 +200,23 @@ export class CommandIntake {
       })
       return
     }
+    if (resolved.handler === undefined) {
+      await this.refuse({
+        inboxId: entry.inboxId,
+        reason: this.missingHandlerReason(resolved.command),
+      })
+      return
+    }
     const parsed = resolved.command.spec.args.safeParse(payloadOf(entry.payload))
     if (!parsed.success) {
       await this.refuse({ inboxId: entry.inboxId, reason: parsed.error.message })
       return
     }
-    await this.invoke({ entry, ...resolved, args: parsed.data })
+    await this.invoke({ entry, ...resolved, handler: resolved.handler, args: parsed.data })
+  }
+
+  private missingHandlerReason(command: Command): string {
+    return `/${command.spec.name} cannot run on this host`
   }
 
   private isLogged(inboxId: number): boolean {

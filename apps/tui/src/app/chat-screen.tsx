@@ -72,6 +72,7 @@ export function ChatScreen(props: {
   services: ServicesDrawer
   onSelectSubagent: (agentId: string) => void
   onOpenTeammate: (sessionId: string) => void
+  onShellKill: (shellId: string) => void
   header: { repo: string; diff: DiffStat | null }
   footer: FooterLayout
   footerContext: FooterContext
@@ -224,8 +225,7 @@ export function ChatScreen(props: {
             output={shells.output}
             scroll={shells.scroll}
             overlay
-            readOnly
-            onKill={notDrawn}
+            onKill={props.onShellKill}
             onDismiss={shells.handleDismiss}
           />
         ) : null}

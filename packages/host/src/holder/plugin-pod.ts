@@ -299,7 +299,12 @@ export const pluginHooksOf = (args: {
   })
 }
 
-export type PluginPod = { tools: ToolRegistry; hooks: HookChain; slash?: PodSlash | undefined }
+export type PluginPod = {
+  tools: ToolRegistry
+  hooks: HookChain
+  slash?: PodSlash | undefined
+  ctx?: PluginPodContext | undefined
+}
 
 export const pluginPodOf = (args: {
   deps: HeldSessionDeps
@@ -338,5 +343,5 @@ export const pluginPodOf = (args: {
     ...(sync === undefined ? {} : { sync }),
   })
   ctx.onDaemonEvent((frame) => plugins.pod.onDaemonEvent(frame))
-  return { tools, hooks, ...(slash === undefined ? {} : { slash }) }
+  return { tools, hooks, ctx, ...(slash === undefined ? {} : { slash }) }
 }

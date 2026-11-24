@@ -55,8 +55,12 @@ message. Native commands and plugin commands both use it.
   (context, session, workspace) and by name.
 - `catalogueForSurface({entries, surface})`: drop the names the surface hides.
 - `SURFACE_PROFILES`: each surface's hidden names, with the reason, and the names it picks. A name
-  is hidden `because` it is a message action, or `Panel` because only one surface draws it — web,
-  Mac and mobile hide `skills`, `mcp` and `shells`, and the TUI keeps them.
+  is hidden `because` it is a message action, `Panel` because only one surface draws it, or
+  `pane-action` because a pane owns it — web, Mac and mobile hide `skills`, `mcp` and `shells`, and
+  the TUI keeps them.
+- A pane action (`agent`, `shell-kill`) is hidden from every surface's catalogue, because the pane
+  that draws the row owns the verb and nobody types it. The host still resolves the name against
+  the full registry, so a typed `/agent stop <id>` runs.
 
 ### Read a typed line
 

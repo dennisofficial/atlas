@@ -48,6 +48,8 @@ export function useSessionPanes(args: {
   teammates: readonly StreamSessionRow[]
   sections: readonly SidebarSection[]
   onOpenSession: (agentId: string) => void
+  onStopAgent: (agentId: string) => void
+  onKillShell: (shellId: string) => void
   onProblem: (reason: string) => void
 }): SessionPanesControl {
   const { sessionId, transcript } = args
@@ -67,6 +69,7 @@ export function useSessionPanes(args: {
     setViewing: navigation.setViewing,
     now: paneNow,
     onOpenSession: args.onOpenSession,
+    onStop: args.onStopAgent,
     onProblem: args.onProblem,
   })
 
@@ -74,6 +77,7 @@ export function useSessionPanes(args: {
     rows: panes.shells,
     sessionId,
     tails: transcript.shells,
+    onKill: args.onKillShell,
   })
 
   const serviceViews = useMemo(() => drawerServicesOf(panes.services), [panes.services])

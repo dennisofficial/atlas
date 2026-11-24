@@ -61,7 +61,7 @@ const pluginRig = async (
     runningShells,
     plugins: composed,
     commands: composeCommands(composed.commands),
-    commandHandlers: composed.pod.commands,
+    podCommands: [composed.pod.commands],
   })
   await seedSession(rig)
   await rig.holder.start()

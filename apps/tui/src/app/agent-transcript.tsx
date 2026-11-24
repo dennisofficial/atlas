@@ -16,6 +16,7 @@ export function AgentTranscriptScreen(props: {
   cwd: string
   now: () => number
   backLabel: string | null
+  message: string | null
   onBack: () => void
 }): React.ReactNode {
   const transcript = useSessionTranscript({
@@ -33,6 +34,7 @@ export function AgentTranscriptScreen(props: {
           <Spans
             spans={[
               { text: transcript.name ?? props.agentId, fg: theme.body },
+              { text: '   m message', fg: theme.hint },
               ...(props.backLabel === null
                 ? []
                 : [{ text: `   esc ${props.backLabel}`, fg: theme.hint }]),
@@ -40,6 +42,11 @@ export function AgentTranscriptScreen(props: {
           />
         </text>
       </box>
+      {props.message === null ? null : (
+        <box flexShrink={0} paddingLeft={2} paddingRight={2}>
+          <text fg={theme.hover}>{`message: ${props.message}`}</text>
+        </box>
+      )}
       <Transcript
         model={transcript.model}
         width={props.width}

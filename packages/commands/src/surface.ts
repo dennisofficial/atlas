@@ -9,6 +9,7 @@ export enum ESurface {
 
 export enum EHiddenBecause {
   MessageAction = 'message-action',
+  PaneAction = 'pane-action',
   Panel = 'panel',
 }
 
@@ -18,18 +19,24 @@ export type SurfaceProfile = {
   picks: readonly { name: string }[]
 }
 
+const PANE_ACTIONS: readonly { name: string; because: EHiddenBecause }[] = [
+  { name: 'agent', because: EHiddenBecause.PaneAction },
+  { name: 'shell-kill', because: EHiddenBecause.PaneAction },
+]
+
 const WEB_HIDDEN: readonly { name: string; because: EHiddenBecause }[] = [
   { name: 'rewind', because: EHiddenBecause.MessageAction },
   { name: 'summarise', because: EHiddenBecause.MessageAction },
   { name: 'skills', because: EHiddenBecause.Panel },
   { name: 'mcp', because: EHiddenBecause.Panel },
   { name: 'shells', because: EHiddenBecause.Panel },
+  ...PANE_ACTIONS,
 ]
 
 export const SURFACE_PROFILES: Record<ESurface, SurfaceProfile> = {
   [ESurface.Tui]: {
     surface: ESurface.Tui,
-    hides: [{ name: 'summarise', because: EHiddenBecause.MessageAction }],
+    hides: [{ name: 'summarise', because: EHiddenBecause.MessageAction }, ...PANE_ACTIONS],
     picks: [{ name: 'rewind' }],
   },
   [ESurface.Web]: { surface: ESurface.Web, hides: WEB_HIDDEN, picks: [] },

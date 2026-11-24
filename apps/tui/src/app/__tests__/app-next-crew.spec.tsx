@@ -19,7 +19,7 @@ const SPAWNED = mintEvents({
 })
 
 describe('walking into a sub-agent', () => {
-  test('ctrl+g opens its transcript, and esc comes back to the session', async () => {
+  test('ctrl+g opens its transcript, and esc keeps the sub-agent on screen to stop', async () => {
     const mounted = await openSession()
 
     try {
@@ -39,13 +39,13 @@ describe('walking into a sub-agent', () => {
 
       mounted.setup.mockInput.pressEscape()
 
-      const parent = await frameWhen({
+      const kept = await frameWhen({
         setup: mounted.setup,
-        holds: (frame) => frame.includes('esc back') && !frame.includes('back to main agent'),
+        holds: (frame) => frame.includes('back to main agent'),
         within: WITHIN,
-        describe: 'the parent transcript',
+        describe: 'the sub-agent to stay on screen',
       })
-      expect(parent).toContain('read the tracing tree')
+      expect(kept).toContain('read the tracing tree')
     } finally {
       await teardown(mounted.setup)
     }

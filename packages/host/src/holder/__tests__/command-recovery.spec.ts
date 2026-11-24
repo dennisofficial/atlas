@@ -19,6 +19,13 @@ import {
 } from '@dltech/atlas-core'
 import { z } from 'zod'
 
+import { createV2EventSchema } from '@dltech/atlas-core'
+import { ControlPlane } from '@dltech/atlas-control'
+import { InMemoryControlStore } from '@dltech/atlas-control/testing'
+import { composePlugins } from '@dltech/atlas-plugin-sdk'
+import { createFixturePlugin } from '@dltech/atlas-plugin-sdk/testing'
+import type { PodCommandFactory } from '@dltech/atlas-plugin-sdk'
+
 import { flushUntil, makeRig, seedSession, SESSION, THREAD_ID } from './holder-rig'
 
 type Rig = Awaited<ReturnType<typeof makeRig>>
@@ -253,6 +260,78 @@ describe('SessionHolder command recovery', () => {
     await rig.wake()
     await rig.flush()
     expect(await typesOf(rig)).not.toContain('fact-recorded')
+  })
+
+  it('replays a consumed pod command once, through the handler its pod context built', async () => {
+    const { plugin } = createFixturePlugin()
+    const composed = composePlugins([plugin])
+    const store = new InMemoryControlStore()
+    const plane = new ControlPlane({
+      store,
+      eventSchema: createV2EventSchema({ pluginBodies: composed.eventBodies }),
+      pluginViews: composed.views,
+    })
+    const podCommands: readonly PodCommandFactory[] = [
+      (ctx) =>
+        new Map([
+          [
+            summarise.inboxKind,
+            async ({ args, append }) => {
+              const { word } = args as { word: string }
+              ctx.log(`replaying ${word}`)
+              await append([{ type: 'fact-recorded', key: 'ping', kind: 'pod', value: word }])
+              return { kind: 'done' }
+            },
+          ],
+        ]),
+    ]
+    const rig = await makeRig({
+      store,
+      plane,
+      plugins: composed,
+      commands: composeCommands([...composed.commands, summarise]),
+      podCommands,
+    })
+    await seedSession(rig)
+    const posted = await rig.plane.post({
+      sessionId: SESSION,
+      kind: summarise.inboxKind,
+      payload: JSON.stringify({ word: 'from-command' }),
+    })
+    const { epoch } = await rig.plane.grant({ sessionId: SESSION, hostId: 9001 })
+    const outcome = await rig.plane.append({
+      threadId: THREAD_ID,
+      epoch,
+      events: chainEvents({
+        threadId: toThreadId(THREAD_ID),
+        runId: toRunId('dead-run'),
+        epoch,
+        at: new Date(0).toISOString(),
+        bodies: [
+          { type: 'workspace-prepared' },
+          {
+            type: 'input-posted',
+            inboxId: posted.inboxId,
+            kind: summarise.inboxKind,
+            postedAt: new Date(0).toISOString(),
+          },
+          consumed(posted.inboxId),
+        ],
+        from: await rig.plane.head({ threadId: THREAD_ID }),
+      }),
+    })
+    if (!outcome.ok) throw new Error(JSON.stringify(outcome.refusal))
+    await rig.plane.revoke({ sessionId: SESSION, wantsHolder: true })
+    await takeOver(rig)
+    const replayed = await flushUntil({
+      check: async () => (await typesOf(rig)).includes('fact-recorded'),
+    })
+    expect(replayed).toBe(true)
+    await rig.wake()
+    await rig.flush()
+    const types = await typesOf(rig)
+    expect(types.filter((type) => type === 'fact-recorded')).toHaveLength(1)
+    expect(types.filter((type) => type === 'input-consumed')).toHaveLength(1)
   })
 
   it('logs and keeps the session alive when the replay throws', async () => {

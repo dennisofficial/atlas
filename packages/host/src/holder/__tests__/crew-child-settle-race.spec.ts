@@ -66,7 +66,6 @@ const spawnProbePlugin = (state: ProbeState): Plugin =>
       childDeny: [SPAWN_PROBE],
       tools: (ctx) => [new SpawnProbe(ctx, state)],
       prompts: [],
-      commands: new Map(),
     },
     control: { hooks: [], commands: new Map() },
     client: { hooks: [] },

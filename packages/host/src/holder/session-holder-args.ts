@@ -1,5 +1,5 @@
 import type { CommandRegistry } from '@dltech/atlas-commands'
-import type { PodMcpControl } from '@dltech/atlas-plugin-sdk'
+import type { PodMcpControl, PodCommandFactory } from '@dltech/atlas-plugin-sdk'
 import type { IdPort } from '@dltech/atlas-core'
 import type { ChangeContentStore, ContextContentStore, ControlPlane } from '@dltech/atlas-control'
 import type { LogPort } from '@dltech/atlas-observability'
@@ -29,6 +29,7 @@ export type SessionHolderArgs = {
   reasonOfStartError?: ((error: unknown) => string) | undefined
   commands?: CommandRegistry | undefined
   commandHandlers?: CommandHandlers | undefined
+  podCommands?: readonly PodCommandFactory[] | undefined
   controlHandlers?: ControlHandlers | undefined
   control?: PodControlClient | undefined
   mcp?: ((sessionId: string) => PodMcpControl) | undefined

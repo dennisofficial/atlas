@@ -91,7 +91,18 @@ The result is one extra wake, and no ending is lost. The operator accepted this 
 | ---- | ------ | ----------------------------------------------- |
 | View | `crew` | The rows that `foldCrew` keeps for the session. |
 
-`crewCoreSlots` declares no events and no commands.
+`crewCoreSlots` declares no events. Its one command is `agent`:
+
+| Command  | Arguments                 | What it does                                                                     |
+| -------- | ------------------------- | -------------------------------------------------------------------------------- |
+| `/agent` | `<say\|stop> <id> [text]` | Message a sub-agent, or stop it. Runs in the host, hidden from every slash menu. |
+
+`/agent say <id> <text>` queues the text on the child and reopens a child that had ended. The
+`agentHandlerOf(ctx)` handler in `src/pod/commands.ts` calls `ctx.crew.say`, so it and the
+`agent_stop` tool share one path. `text` is capped at 20,000 characters because the payload rides
+the durable inbox entry. Refusals: `No sub-agent with that id is in this session`, and
+`/agent say needs the text to send`. Stopping a child that had already ended is `done`, not a
+refusal. `/agent` has no `resume` action: resume is its own feature.
 
 ### Client tier (`crewClient`)
 

@@ -32,7 +32,9 @@ export type AppendDrafts = (
   drafts: readonly (EventDraft | RecordBody | PluginEventBody)[],
 ) => Promise<void>
 
-type ResolvedCommand = { command: Command; handler: CommandHandler<unknown> } | undefined
+type ResolvedCommand =
+  | { command: Command; handler: CommandHandler<unknown> | undefined }
+  | undefined
 
 export const jsonOf = (payload: string): unknown => {
   try {
