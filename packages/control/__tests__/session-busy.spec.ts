@@ -76,7 +76,7 @@ describe('the session busy read', () => {
     )
   }
 
-  it('answers from a current view on a plane that cannot decode the plugin event', async () => {
+  it('answers busy and view reads from a current view on a plane that cannot decode the plugin event', async () => {
     const composed = await seed()
     const view = await composed.plane.readSessionView({ sessionId: SESSION, threadId: THREAD })
     const core = makeHarness(store)
@@ -85,9 +85,8 @@ describe('the session busy read', () => {
     expect(busy.at).toBe(2)
     expect(busy.status.state).toBe(view.value.status.state)
 
-    await expect(
-      core.plane.readSessionView({ sessionId: SESSION, threadId: THREAD }),
-    ).rejects.toThrow('stored event thread-1:2 is invalid')
+    const coreView = await core.plane.readSessionView({ sessionId: SESSION, threadId: THREAD })
+    expect(coreView.value.status.state).toBe(view.value.status.state)
   })
 
   it('still refuses to catch a view up over an event it cannot decode', async () => {
