@@ -62,6 +62,14 @@ describe('parseMarkdown blocks', () => {
     ])
   })
 
+  test('pasted json becomes a code block that keeps its indentation', () => {
+    expect(parseMarkdown('see\n{\n  "a": {\n    "b": 1\n  }\n}\nok', { breaks: true })).toEqual([
+      { type: EMdBlock.Paragraph, spans: [text('see')] },
+      { type: EMdBlock.Code, language: 'json', value: '{\n  "a": {\n    "b": 1\n  }\n}' },
+      { type: EMdBlock.Paragraph, spans: [text('ok')] },
+    ])
+  })
+
   test('fenced code without a language omits it', () => {
     expect(parseMarkdown('```\nx\n```')).toEqual([{ type: EMdBlock.Code, value: 'x' }])
   })

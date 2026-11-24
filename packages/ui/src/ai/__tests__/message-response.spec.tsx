@@ -54,6 +54,24 @@ describe('MessageResponse', () => {
     expect(item).not.toContain('flex')
   })
 
+  it('nests a numbered sub-list indented by two spaces', () => {
+    const html = render('1. First\n  1. Second\n  2. Second again\n2. First again')
+
+    expect(html.match(/<ol/g)?.length).toBe(2)
+  })
+
+  it('renders pasted json in a user message as a code block', () => {
+    const html = renderToStaticMarkup(
+      <MessageResponse breaks mode="static">
+        {'see this\n{\n  "mcpServers": {\n    "url": "x"\n  }\n}\nthanks'}
+      </MessageResponse>,
+    )
+
+    expect(html).toContain('data-slot="code-block"')
+    expect(html).toContain('>json<')
+    expect(html).toContain('thanks')
+  })
+
   it('renders inline code without a code block', () => {
     const html = render('Use `bun test` here')
 
