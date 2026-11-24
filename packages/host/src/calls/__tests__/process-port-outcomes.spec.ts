@@ -53,7 +53,10 @@ describe('DaemonProcessPort failed calls', () => {
       Promise.resolve(failed({ code: ECallFailure.Interrupted, message: 'restarted' })),
     )
 
-    expect(await handle.outcome).toEqual({ kind: EProcessOutcome.Interrupted })
+    expect(await handle.outcome).toEqual({
+      kind: EProcessOutcome.Interrupted,
+      message: 'restarted',
+    })
     await expect(handle.exited).rejects.toBeInstanceOf(CallInterruptedError)
   })
 })

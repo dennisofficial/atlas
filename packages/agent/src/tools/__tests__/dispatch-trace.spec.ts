@@ -34,7 +34,7 @@ class InterruptedTool extends ToolDefinition {
   readonly inputSchema = z.unknown()
 
   async invoke(_args: ToolInvocation): Promise<ToolOutcome> {
-    throw new CallInterruptedError('the command was interrupted before it finished')
+    throw new CallInterruptedError({ message: 'the command was interrupted before it finished' })
   }
 }
 

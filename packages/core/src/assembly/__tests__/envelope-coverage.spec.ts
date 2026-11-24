@@ -6,6 +6,7 @@ import { EAgentStart } from '../../agents/start'
 import { EAgentStatus } from '../../agents/status'
 import { ELane } from '../../context/envelope'
 import { EContextSlot } from '../../context/slot'
+import { EPodResizeNotice } from '../../pod/pod-resize-notice'
 import {
   ECompactionAnchor,
   EDecision,
@@ -106,6 +107,14 @@ const SAMPLES: { readonly [K in EventType]: SampleOf<K> } = {
     scope: EOomScope.Pod,
     processes: 2,
     memory: { commandLimitBytes: 2_490_195_968, podBytes: 4_100_808_704 },
+  },
+  'pod-resize-started': { type: 'pod-resize-started', vcpus: 8, memoryGb: 32, generation: 3 },
+  'pod-resized': {
+    type: 'pod-resized',
+    vcpus: 8,
+    memoryGb: 32,
+    generation: 3,
+    outcome: EPodResizeNotice.Applied,
   },
   'turn-failed': { type: 'turn-failed', message: 'provider said no' },
   'loop-watch-verdict': { type: 'loop-watch-verdict', consulted: true, looping: true, steps: 4 },

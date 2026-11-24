@@ -25,6 +25,7 @@ import { HeldEnding } from './held-ending'
 import { HeldObservation } from './held-observation'
 import { HeldActions } from './held-actions'
 import { HeldDrain } from './held-drain'
+import { reconcileResizeGate } from './held-resize'
 import { HeldRotation } from './rotation'
 
 export type { HeldSessionDeps }
@@ -211,6 +212,7 @@ export class HeldSession {
       },
     })
     this.record = record
+    reconcileResizeGate({ record, runtime })
     if (this.lifetimeAbort.signal.aborted) return record.fence()
     if (this.draining) record.markDraining()
     const crew = new CrewRoom({

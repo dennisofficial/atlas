@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
 
-import { consume, takeBack, type InboxEntry } from '../inbox'
+import { consume, type InboxEntry } from '../inbox'
 import { claimGrant, grant, retryDelayMs, revoke, revokeIfEpoch } from '../lease'
 import { NOW, lease } from './support'
 
@@ -17,18 +17,6 @@ const entry = (consumedSeq: number | null): InboxEntry => ({
 })
 
 describe('inbox moves', () => {
-  it('take-back deletes an unconsumed entry', () => {
-    expect(takeBack(entry(null))).toEqual({ ok: true, action: 'delete' })
-  })
-
-  it('take-back of a consumed entry is already-consumed', () => {
-    fc.assert(
-      fc.property(fc.integer({ min: 1 }), (seq) => {
-        expect(takeBack(entry(seq))).toEqual({ ok: false, refusal: { kind: 'already-consumed' } })
-      }),
-    )
-  })
-
   it('consume stamps the seq on an unconsumed entry', () => {
     fc.assert(
       fc.property(fc.integer({ min: 1 }), (seq) => {

@@ -79,7 +79,12 @@ export function createSettlePending(deps: {
       events: args.events,
       onceLedger: deps.onceLedger,
       onDispatchStarted: async (draft) => {
-        await deps.record.append({ threadId: call.threadId, runId: call.runId, drafts: [draft] })
+        await deps.record.append({
+          threadId: call.threadId,
+          runId: call.runId,
+          drafts: [draft],
+          signal: args.signal,
+        })
       },
       ...(tap === undefined
         ? {}
@@ -129,7 +134,9 @@ export function createSettlePending(deps: {
             return []
           }
           if ((signal.aborted || paused()) && detach?.(call.name) === true) return []
-          if (drafts.length > 0) await deps.record.append({ threadId, runId: call.runId, drafts })
+          if (drafts.length > 0) {
+            await deps.record.append({ threadId, runId: call.runId, drafts, signal })
+          }
           return drafts
         }),
       )

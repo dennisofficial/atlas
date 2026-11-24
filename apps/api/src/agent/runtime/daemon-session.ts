@@ -1,4 +1,9 @@
-import { EWorkspaceStep, EWorkspaceStepState } from '@dltech/atlas-core'
+import {
+  EPodResizeProbe,
+  EWorkspaceStep,
+  EWorkspaceStepState,
+  type PodResizeOpen,
+} from '@dltech/atlas-core'
 import { RemoteCalls, type HostTimers } from '@dltech/atlas-host'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
@@ -28,6 +33,7 @@ export const daemonSessionOf = (args: {
   timers: HostTimers
   signal: AbortSignal
   steps: PrepareSteps
+  probeResize?: ((args: { open: PodResizeOpen }) => Promise<EPodResizeProbe>) | undefined
   log?: LogPort | undefined
   pingMs?: number | undefined
 }): DaemonSession => {
@@ -67,9 +73,11 @@ export const daemonSessionOf = (args: {
     }),
     started: endpoint,
     timers: args.timers,
+    now: () => args.timers.now(),
     onFenced: () => {},
     ...(args.pingMs === undefined ? {} : { pingMs: args.pingMs }),
     ...(args.log === undefined ? {} : { log: args.log }),
+    ...(args.probeResize === undefined ? {} : { probeResize: args.probeResize }),
   })
   calls.open({ epoch: args.epoch })
   return { calls, endpoint, wake }

@@ -213,6 +213,11 @@ export const createSessionRuntimeFactory = (
       timers: args.timers,
       signal,
       steps,
+      probeResize: (probe) =>
+        provider.resizeState({
+          target,
+          shape: { vcpus: probe.open.vcpus, memoryGb: probe.open.memoryGb },
+        }),
       ...(args.log === undefined ? {} : { log: args.log }),
       ...(args.pingMs === undefined ? {} : { pingMs: args.pingMs }),
     })

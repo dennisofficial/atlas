@@ -6,6 +6,7 @@ import type { JsonValue } from '../json/value'
 import type { ReasoningPart, TextPart, UserContentPart } from '../message/parts'
 import type { CodeQualityReviewedBody } from '../quality/schema'
 import type { EOomScope, OomMemory } from '../pod/pod-oom'
+import type { EPodResizeNotice } from '../pod/pod-resize-notice'
 import type { EServiceStatus } from '../services/status'
 import type { EModelWaitCause, WaitEpisodeRef, WaitingForModel } from '../model-recovery/waiting'
 import type { EKilledBy, EShellEndCause } from '../shells/status'
@@ -191,6 +192,7 @@ export type EventBody =
       triggeredBy?: string | undefined
     }
   | { type: 'nudge'; text: string; lifetimeSteps: number }
+  | { type: 'pod-resize-started'; vcpus: number; memoryGb: number; generation: number }
   | {
       type: 'pod-ran-out-of-memory'
       incidentId: string
@@ -198,6 +200,14 @@ export type EventBody =
       command?: string | undefined
       processes: number
       memory: OomMemory
+    }
+  | {
+      type: 'pod-resized'
+      vcpus: number
+      memoryGb: number
+      generation: number
+      outcome: EPodResizeNotice
+      error?: string | undefined
     }
   | { type: 'session-archived'; bySessionId: string; byTitle?: string | undefined }
   | {

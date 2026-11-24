@@ -1,6 +1,9 @@
 export class CallInterruptedError extends Error {
-  constructor(message: string) {
-    super(message)
+  readonly modelMessage: string | undefined
+
+  constructor(args: { message: string; modelMessage?: string | undefined }) {
+    super(args.message)
     this.name = 'CallInterruptedError'
+    this.modelMessage = args.modelMessage
   }
 }

@@ -11,7 +11,6 @@ import {
   systemTimers,
   type DaemonConnector,
 } from '../..'
-import { interruptedMessage } from '../errors'
 
 const SANDBOX = 'atlas-v2-interrupted-test'
 const SECRET = 'interrupted-test-secret'
@@ -90,7 +89,7 @@ describe('ScopedToolDispatcher across a daemon restart (F17)', () => {
     expect(result.output).toBeUndefined()
     expect(result.modelText).toBeUndefined()
     expect(result.modelParts).toBeUndefined()
-    expect(result.error?.message).toBe(interruptedMessage('bash'))
+    expect(result.error?.message).toContain('was interrupted by a daemon restart')
     expect(daemon.runCount()).toBe(0)
 
     calls.close()

@@ -14,3 +14,12 @@ export const agent37ShapeOfVcpus = (vcpus: number): Agent37Shape => {
   const shape = agent37PodShapeOfVcpus(vcpus)
   return { cpu: shape.vcpus, memory: shape.memoryGb }
 }
+
+export const grownDiskOf = (args: {
+  current: number | undefined
+  wanted: number | undefined
+}): number | undefined => {
+  if (args.wanted === undefined) return undefined
+  if (args.current !== undefined && args.current >= args.wanted) return undefined
+  return args.wanted
+}

@@ -75,7 +75,7 @@ export class ScopedToolDispatcher extends ToolDispatcher {
           callId: args.call.callId,
           name: args.call.name,
           output: undefined,
-          error: { message: interruptedMessage(args.call.name) },
+          error: { message: error.modelMessage ?? interruptedMessage(args.call.name) },
           interrupted: true,
         }
         return [interrupted]

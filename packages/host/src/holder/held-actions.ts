@@ -12,6 +12,7 @@ import type { HeldSessionDeps } from './held-session-deps'
 import { readHeldAction } from './held-snapshot'
 import type { HeldTurns } from './held-turns'
 import { startHeldTurn } from './held-turns'
+import { handleResizeEntries, reconcileResizeGate } from './held-resize'
 import { ETakeoverLap } from './held-takeover'
 import { consumeStops } from './held-wait'
 import { settleOperatorOnStop } from './operator-stop'
@@ -81,6 +82,18 @@ export class HeldActions {
     })
     this.shellsOwedSince = snapshot.shellsOwedSince
     const { entries, action, resumable, inboxHead, failure, preparedBefore, queuedAt } = snapshot
+    reconcileResizeGate({ record: this.args.record(), runtime: this.args.runtime() })
+    if (
+      await handleResizeEntries({
+        entries,
+        record: this.args.record(),
+        calls: this.args.runtime()?.remoteCalls,
+        runId: () => this.args.deps.ids.nextRunId(),
+      })
+    ) {
+      this.args.request()
+      return
+    }
     if (action === EHeldAction.AbortTurn) return turns.abort(OPERATOR_STOP_REASON)
     if (action !== EHeldAction.StartTurn) await this.staged?.()
     if (!turnRunning && (await this.retryChildren({ entries, threadId: args.threadId }))) {

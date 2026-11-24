@@ -30,6 +30,8 @@ export const REWIND_DISPOSITION = {
   nudge: ERewindDisposition.Discard,
   'sandbox-setup-reported': ERewindDisposition.Discard,
   'pod-ran-out-of-memory': ERewindDisposition.Keep,
+  'pod-resize-started': ERewindDisposition.Keep,
+  'pod-resized': ERewindDisposition.Keep,
   'session-archived': ERewindDisposition.Keep,
   'turn-failed': ERewindDisposition.Discard,
   parked: ERewindDisposition.Discard,

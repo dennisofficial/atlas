@@ -46,6 +46,12 @@ const READ_ONLY_OPS = new Set([
   'grep',
 ])
 
+export const resizeInterruptReason = (args: { vcpus: number; memoryGb: number }): string =>
+  `the pod is being resized to ${args.vcpus} vCPU / ${args.memoryGb} GB`
+
+export const resizeInterruptedMessage = (args: { reason: string }): string =>
+  `This call was interrupted because ${args.reason}. Try again now: the next call waits until the resize finishes.`
+
 const crashedCallMessage = (op: string): string =>
   `${op} was interrupted by a process restart before its result was recorded; its effects are unknown — check before repeating it`
 

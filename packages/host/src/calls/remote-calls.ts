@@ -2,8 +2,10 @@ import { randomUUID } from 'node:crypto'
 
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 import type { CallOp, CallResult, DaemonFrame } from '@dltech/atlas-protocol'
+import { EPodResizeProbe, type PodResizeOpen } from '@dltech/atlas-core'
 
 import { RemoteCallsState } from './remote-calls-state'
+import { ResizeGate } from './resize-gate'
 import type { DaemonConnector } from './socket'
 
 export type CallTimers = {
@@ -31,10 +33,13 @@ export type RemoteCallsArgs = {
   readyTimeoutMs?: number | undefined
   onEvent?: ((frame: EventFrame) => void) | undefined
   onReady?: ((hello: RemoteHello) => void) | undefined
+  probeResize?: ((args: { open: PodResizeOpen }) => Promise<EPodResizeProbe>) | undefined
+  now?: (() => number) | undefined
 }
 
 export class RemoteCalls {
   private readonly state: RemoteCallsState
+  private readonly gate: ResizeGate
   private readonly eventListeners = new Set<(frame: EventFrame) => void>()
   private readonly closeListeners = new Set<(reason: RemoteCloseReason) => void>()
   private readonly readyListeners = new Set<(hello: RemoteHello) => void>()
@@ -42,10 +47,17 @@ export class RemoteCalls {
 
   constructor(args: RemoteCallsArgs) {
     this.log = args.log
+    this.gate = new ResizeGate({
+      timers: args.timers,
+      now: args.now ?? (() => Date.now()),
+      probe: args.probeResize ?? (async () => EPodResizeProbe.Unknown),
+    })
     this.state = new RemoteCallsState({
       ...args,
       onEvent: (frame) => this.emitEvent(frame),
       onReady: (hello) => this.emitReady(hello),
+      releaseResize: () => this.gate.release(),
+      resizeReason: () => this.gate.reason,
     })
   }
 
@@ -111,10 +123,12 @@ export class RemoteCalls {
   }
 
   handoff(): void {
+    this.gate.release()
     this.state.handoff()
   }
 
   close(reason: RemoteCloseReason = 'detached'): void {
+    this.gate.release()
     const listeners = [...this.closeListeners]
     this.closeListeners.clear()
     this.eventListeners.clear()
@@ -142,6 +156,39 @@ export class RemoteCalls {
     attachOnly?: boolean | undefined
   }): Promise<CallResult> {
     return this.state.invoke(args)
+  }
+
+  interruptForRestart(args: { reason: string }): void {
+    this.state.interruptForRestart(args)
+  }
+
+  armResize(args: { open: PodResizeOpen; reason: string }): void {
+    this.gate.hold(args)
+  }
+
+  resizeStarted(args: { open: PodResizeOpen; reason: string }): void {
+    this.state.interruptForRestart({ reason: args.reason })
+    this.gate.hold(args)
+  }
+
+  resizeHeld(): PodResizeOpen | undefined {
+    return this.gate.open
+  }
+
+  resizeReason(): string | undefined {
+    return this.gate.reason
+  }
+
+  resizeSettled(args: { generation: number }): void {
+    this.gate.settled(args)
+  }
+
+  releaseResize(): void {
+    this.gate.release()
+  }
+
+  awaitResize(args: { signal?: AbortSignal | undefined }): Promise<void> {
+    return this.gate.wait(args)
   }
 
   ack(args: { key: string }): Promise<void> {

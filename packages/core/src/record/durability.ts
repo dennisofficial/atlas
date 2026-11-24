@@ -62,6 +62,8 @@ export const EVENT_DURABILITY = {
   'history-summarised': false,
   'agent-reported': false,
   'pod-ran-out-of-memory': false,
+  'pod-resize-started': false,
+  'pod-resized': false,
   'pr-event': false,
   'run-event': false,
   'run-failed': false,

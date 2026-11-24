@@ -1,4 +1,4 @@
-import type { PodShape } from '@dltech/atlas-core'
+import { EPodResizeProbe, type PodShape } from '@dltech/atlas-core'
 import { ESandboxProvider } from '@dltech/atlas-protocol'
 import { daemonToken } from '@dltech/atlas-protocol/engine'
 import { SandboxUnavailableError } from '@dltech/atlas-host'
@@ -24,6 +24,8 @@ import {
 import { agent37EndpointOf } from './agent37-endpoint'
 import { listAgent37Instances, removeAgent37Pod, sleepAgent37Pod } from './agent37-instance-sweep'
 import { readyAgent37Instance, repairAgent37IfWedged } from './agent37-lifecycle'
+import { grownDiskOf } from './agent37-resize'
+import { agent37ResizeProbe } from './agent37-resize-state'
 import {
   agent37InstanceNameOf,
   type Agent37Env,
@@ -58,15 +60,6 @@ const CAPACITY_MESSAGES: Record<string, string> = {
 
 const capacityMessageOf = (error: unknown): string | undefined =>
   error instanceof Agent37Error ? CAPACITY_MESSAGES[error.code] : undefined
-
-const grownDiskOf = (args: {
-  current: number | undefined
-  wanted: number | undefined
-}): number | undefined => {
-  if (args.wanted === undefined) return undefined
-  if (args.current !== undefined && args.current >= args.wanted) return undefined
-  return args.wanted
-}
 
 export class Agent37SandboxProvider extends SandboxProvider {
   constructor(
@@ -268,6 +261,15 @@ export class Agent37SandboxProvider extends SandboxProvider {
       ...(disk === undefined ? {} : { disk }),
     })
     return 'restarted'
+  }
+
+  override resizeState(args: { target: SandboxTarget; shape: PodShape }): Promise<EPodResizeProbe> {
+    return agent37ResizeProbe({
+      client: () => this.clientOf(apiKeyOf(args.target.credentials)),
+      instances: this.args.instances,
+      podSessionId: args.target.sandboxSessionId,
+      shape: args.shape,
+    })
   }
 
   async keepAlive(args: { target: SandboxTarget; until: number }): Promise<void> {

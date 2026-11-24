@@ -18,6 +18,8 @@ export const INBOX_EVENT_TYPES: ReadonlySet<string> = new Set([
   'nudge',
   'subscription-created',
   'subscription-ended',
+  'pod-resize-started',
+  'pod-resized',
 ])
 
 export type InboxEvent = { event: EventBody }

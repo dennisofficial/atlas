@@ -7,7 +7,7 @@ import { files } from './support'
 
 const interruptedFiles = (): AgentFileSystemPort =>
   Object.assign(Object.create(files), {
-    stat: () => Promise.reject(new CallInterruptedError('stat was interrupted')),
+    stat: () => Promise.reject(new CallInterruptedError({ message: 'stat was interrupted' })),
   })
 
 describe('tools that tolerate a missing file', () => {

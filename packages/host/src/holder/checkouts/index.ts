@@ -29,7 +29,7 @@ const awaitWorkspace = async (gate: WorkspaceGate | undefined): Promise<void> =>
   const outcome = await gate.wait()
   if (outcome.state === 'prepared') return
   if (outcome.state === 'failed') throw new Error(outcome.message)
-  throw new CallInterruptedError(POD_WAIT_INTERRUPTED)
+  throw new CallInterruptedError({ message: POD_WAIT_INTERRUPTED })
 }
 
 export class HostWorktrees implements PodWorktrees {

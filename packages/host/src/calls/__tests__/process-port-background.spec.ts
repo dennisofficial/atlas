@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EProcessOutcome } from '@dltech/atlas-core'
+import { CallInterruptedError, EProcessOutcome } from '@dltech/atlas-core'
 import {
   ECallFailure,
   ECallStatus,
@@ -24,6 +24,15 @@ const BACKGROUNDED: CallResult = {
   status: ECallStatus.Ok,
   op: 'exec',
   value: BACKGROUNDED_RESULT,
+}
+
+const RESIZE_MESSAGE =
+  'This call was interrupted because the pod is being resized to 8 vCPU / 32 GB. Try again now: the next call waits until the resize finishes.'
+
+const INTERRUPTED: CallResult = {
+  status: ECallStatus.Failed,
+  op: 'exec',
+  error: { code: ECallFailure.Interrupted, message: RESIZE_MESSAGE },
 }
 
 const adopted = (value: boolean): CallResult => ({
@@ -104,5 +113,27 @@ describe('a daemon that hands the exec over', () => {
     if (move === undefined) throw new Error('the daemon handle cannot be handed over')
 
     expect(await move({ shellId: 'shell-1a2b3c4d' })).toBe(false)
+  })
+})
+
+describe('a daemon that interrupted the exec to resize the pod', () => {
+  it('keeps the reason the host gave in the outcome', async () => {
+    const handle = spawned(() => Promise.resolve(INTERRUPTED))
+
+    expect(await handle.outcome).toEqual({
+      kind: EProcessOutcome.Interrupted,
+      message: RESIZE_MESSAGE,
+    })
+  })
+
+  it('hands that reason on as the model message of the interruption', async () => {
+    const handle = spawned(() => Promise.resolve(INTERRUPTED))
+
+    const thrown = await handle.exited.then(
+      () => undefined,
+      (error: unknown) => error,
+    )
+    expect(thrown).toBeInstanceOf(CallInterruptedError)
+    expect((thrown as CallInterruptedError).modelMessage).toBe(RESIZE_MESSAGE)
   })
 })
