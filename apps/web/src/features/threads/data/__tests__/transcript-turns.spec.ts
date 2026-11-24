@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { isSessionWorking } from '@dltech/atlas-client/stream'
+import { isSessionWorking, isTurnRunning } from '@dltech/atlas-client/stream'
 import { turnStartedAtOf } from '@dltech/atlas-client/transcript'
 import { ESessionStatus } from '@dltech/atlas-core'
 import { EToolKind, EToolState } from '@dltech/atlas-ui/ai/tool'
@@ -420,5 +420,20 @@ describe('a turn that has just begun', () => {
     const tail = tailWorkOf(turns)
     expect(tail?.startedAt).toBe(postedAt)
     expect(tail === undefined ? undefined : elapsedOf(tail)).toBe(2000)
+  })
+
+  it('opens no work group while a command such as summarise runs between turns', () => {
+    const status = {
+      state: ESessionStatus.RunningCommand,
+      reason: 'summarise',
+      since: turnStartedAt,
+      lease: { epoch: 1, holderHostId: 1, live: true },
+    }
+    const turns = turnsOf({
+      items: [user('u1', '2026-11-22T14:20:00.000Z'), agent('a1', lastReplyAt)],
+      working: isTurnRunning(status),
+      turnStartedAt: turnStartedAtOf({ events: [], status }),
+    })
+    expect(tailWorkOf(turns)).toBeUndefined()
   })
 })

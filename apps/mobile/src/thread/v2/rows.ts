@@ -1,5 +1,6 @@
 import {
   isSessionWorking,
+  isTurnRunning,
   stagedPlacementOf,
   transcriptEventsOf,
   type SessionSnapshot,
@@ -13,6 +14,7 @@ import { v2EntryFolds } from './registered-plugins'
 export type V2ThreadView = {
   rows: ThreadRow[]
   working: boolean
+  turnRunning: boolean
   streaming: boolean
   failure: string | null
   lastUserRowId: string | null
@@ -51,7 +53,7 @@ export const stagedRowsOf = (args: {
 }): ThreadRow[] => stagedSplitOf(args).transcript.map(stagedRowOf)
 
 export const v2ViewOf = (args: { snapshot: SessionSnapshot; now: number }): V2ThreadView => {
-  const working = isSessionWorking(args.snapshot.status)
+  const turnRunning = isTurnRunning(args.snapshot.status)
   const model = deriveTranscript({
     events: transcriptEventsOf(args.snapshot.events),
     signals: [],
@@ -64,7 +66,7 @@ export const v2ViewOf = (args: { snapshot: SessionSnapshot; now: number }): V2Th
   )
   const rows = rowsOf({
     entries: model.entries,
-    working,
+    working: turnRunning,
     now: args.now,
     atOf: (id) => atByEntry.get(id),
   })
@@ -73,7 +75,8 @@ export const v2ViewOf = (args: { snapshot: SessionSnapshot; now: number }): V2Th
   )
   return {
     rows,
-    working,
+    working: isSessionWorking(args.snapshot.status),
+    turnRunning,
     streaming: model.streaming,
     failure: model.failure?.message ?? null,
     lastUserRowId: lastUser?.id ?? null,
