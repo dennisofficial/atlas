@@ -12,16 +12,14 @@ import { space } from '@dltech/atlas-ui/tokens'
 import { router, Stack, useLocalSearchParams } from 'expo-router'
 import { PanelLeft } from 'lucide-react-native'
 import { useCallback, useState } from 'react'
-import { BackButton } from '../../../navigation/back-button'
-import { AppHeader } from '../../../navigation/app-header'
 import { ActivityIndicator, StyleSheet, View } from 'react-native'
-
 import { EffortSelect, FastToggle } from '../../../composer/model-controls'
 import { ModelSheet } from '../../../composer/model-picker'
 import { ModelTrigger } from '../../../composer/model-trigger'
 import { KeyboardDock } from '../../../layout/keyboard-dock'
-import { EThreadsLayout } from '../../../layout/posture'
 import { usePosture } from '../../../layout/use-posture'
+import { BackButton } from '../../../navigation/back-button'
+import { ESessionHeaderItem, sessionHeaderItemsOf } from '../../../navigation/session-header-items'
 import { ThreadsPanelLayout } from '../../../sessions/threads-panel-layout'
 import { CommandListSheet } from '../../../thread/composer/command-list-sheet'
 import { Composer } from '../../../thread/composer/composer'
@@ -70,31 +68,41 @@ export default function SessionScreen() {
     [model],
   )
 
+  const showsThreads = sessionHeaderItemsOf({ posture }).includes(ESessionHeaderItem.Threads)
+
   return (
     <View style={[styles.screen, { backgroundColor: theme.background }]}>
       <Stack.Screen
         options={{
           title: session.header.title,
-          header: () => (
-            <AppHeader
-              title={<SessionTitle header={session.header} />}
-              left={
-                <>
+          headerTitle: () => <SessionTitle header={session.header} />,
+          headerBackVisible: true,
+          unstable_headerLeftItems: () =>
+            showsThreads
+              ? [
+                  {
+                    type: 'button',
+                    label: 'Threads',
+                    icon: { type: 'sfSymbol', name: 'sidebar.left' },
+                    accessibilityLabel: 'Threads',
+                    onPress: handleOpenThreads,
+                  },
+                ]
+              : [],
+          headerLeft: showsThreads
+            ? () => (
+                <View style={styles.headerLeft}>
                   <BackButton />
-                  {posture.threads === EThreadsLayout.Overlay ? (
-                    <Button
-                      label="Threads"
-                      icon={PanelLeft}
-                      variant={EButtonVariant.Ghost}
-                      size={EButtonSize.IconLg}
-                      onPress={handleOpenThreads}
-                    />
-                  ) : null}
-                </>
-              }
-              surface={theme.background}
-            />
-          ),
+                  <Button
+                    label="Threads"
+                    icon={PanelLeft}
+                    variant={EButtonVariant.Ghost}
+                    size={EButtonSize.IconLg}
+                    onPress={handleOpenThreads}
+                  />
+                </View>
+              )
+            : undefined,
         }}
       />
       <ThreadsPanelLayout
@@ -241,5 +249,10 @@ const styles = StyleSheet.create({
   },
   state: {
     flexShrink: 1,
+  },
+  headerLeft: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: space(1),
   },
 })
