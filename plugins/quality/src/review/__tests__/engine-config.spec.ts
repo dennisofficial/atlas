@@ -48,7 +48,7 @@ describe('classifier configuration', () => {
     const rig = createRig({ settings: {} })
     expect(await rig.review()).toMatchObject({
       records: [],
-      context: undefined,
+      notes: [],
       timings: { scopeBuildMs: 0, classifierMs: 0, totalMs: 0 },
       language: null,
       inputTokens: null,

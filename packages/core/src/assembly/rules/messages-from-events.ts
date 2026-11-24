@@ -255,6 +255,7 @@ function walkEvents({
 
     if (event.type === 'context-loaded') {
       if (!current.has(event.id)) continue
+      if (event.content.trim() === '') continue
 
       groups.push({
         message: {

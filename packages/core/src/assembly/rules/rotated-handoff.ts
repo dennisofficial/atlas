@@ -1,4 +1,5 @@
 import { systemContext } from '../../context/envelope'
+import { currentContextEvents } from '../../context/supersede'
 import { latestRotationOf } from '../../record/rotation'
 import { defineRule, type Rule } from '../rule'
 
@@ -11,6 +12,10 @@ export function rotatedHandoff(): Rule {
     apply: (input, ctx) => {
       const point = latestRotationOf(ctx.events)
       if (point === undefined) return input
+      const current = new Set(currentContextEvents(ctx.events).map((event) => event.id))
+      const carried = input.messages.filter(
+        (entry) => entry.origin.seq < point.seq && current.has(entry.origin.eventId),
+      )
       const kept = input.messages.filter((entry) => entry.origin.seq >= point.seq)
       return {
         system: input.system,
@@ -31,6 +36,7 @@ export function rotatedHandoff(): Rule {
             },
             origin: { eventId: point.id, seq: point.seq },
           },
+          ...carried,
           ...kept,
         ],
       }
