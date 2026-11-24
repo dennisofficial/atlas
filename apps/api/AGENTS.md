@@ -183,26 +183,32 @@ over 3,000,000 bytes (`MAX_USER_LAYER_FILE_BYTES`). A file of 3,000,000 bytes ha
 
 ## Deploy
 
-Production is the image-backed Render web service `atlas-api-image` (`srv-dbuu4tui0phs73ercifg`)
-over PlanetScale `atlas/main`. Render builds nothing, because the workspace has no build minutes to spare.
-`.github/workflows/release.yml` builds `apps/api/docker/Dockerfile` on every push to main. It pushes
-the public `ghcr.io/dennisofficial/atlas-api:<sha>`, migrates, then deploys that image. Render's
-auto-deploy is off. Background jobs run on trigger.dev. Nothing else hosts Atlas.
+Production is the Render web service `atlas-api` (`srv-dc314ot9el5s73d4igp0`, 2 instances) over
+PlanetScale `atlas/main`. Render builds `apps/api/docker/Dockerfile` from this repo (context: the repo
+root) and keeps its layer cache between builds, so a code-only deploy rebuilds only the source layer.
+Render's auto-deploy is off. `.github/workflows/release.yml`'s `render-deploy` job deploys every push
+to main by `commitId`. Background jobs run on trigger.dev. Nothing else hosts Atlas.
 - Image: `oven/bun` with only `@dltech/atlas-api` and `@dltech/atlas-daemon` installed and the daemon
   bundle built. Start: `bun run --cwd apps/api start`. Render's health check is `/healthz`.
-- Migrate: the `migrate` job runs `bun run --cwd apps/api db:migrate:predeploy` (three-try retry,
-  then `prisma db verify --strict`). A failure stops the deploy. The previous instance keeps
-  serving, so the schema never half-applies.
+  `scripts/check-api-image-context.ts` (in `bun run lint`) keeps the Dockerfile's bun pin, its daemon
+  stage and the build-context ignore list in step with the workspaces.
+- Migrate: the service's pre-deploy command is `bun run --cwd apps/api db:migrate:predeploy`
+  (three-try retry, then `prisma db verify --strict`). A failure fails the deploy. The previous
+  instance keeps serving, so the schema never half-applies.
 - Render env: `DOTENV_PRIVATE_KEY_PRODUCTION_ENC`, `APP_TIER=production`, `BUN_VERSION`, `NODE_ENV`.
+  The image carries no version stamp; `apiVersion()` reads Render's `RENDER_GIT_COMMIT`.
 
 `api.byatlas.io` is a Render custom domain on the service, reached through an unproxied Cloudflare
-CNAME to `atlas-api-image.onrender.com`. The MCP OAuth `redirect_uri` is
-`https://api.byatlas.io/mcp-oauth/callback`.
+CNAME to `atlas-api-w2nw.onrender.com`. The MCP OAuth `redirect_uri` is
+`https://api.byatlas.io/mcp-oauth/callback`. Render routes a custom domain by host, so moving it
+between services takes effect when it is attached to the new one (about 2 s of 404 when it moved on
+2026-11-24); the CNAME is not on that path.
 
-`.github/workflows/release.yml` runs on every push to main. Its `render-live` job waits for the Render
-deploy of `GITHUB_SHA` to go live, or to be superseded by a newer deploy. It then probes
-`https://api.byatlas.io/healthz`. `.github/workflows/trigger-v2.yml` waits for the same live deploy, so
-trigger tasks never run ahead of the migrated schema.
+`.github/workflows/release.yml` runs on every push to main, one release at a time. Its `render-live`
+job waits for the Render deploy of `GITHUB_SHA` to go live, or to be superseded by a newer deploy. It
+then probes `https://api.byatlas.io/healthz`. `.github/workflows/trigger-v2.yml` and `web-ota.yml`
+wait for the same live deploy, so trigger tasks and the Mac web payload never run ahead of the
+migrated schema.
 
 The migration is the only thing that applies schema in a deployed tier. The app never applies schema,
 because it holds no DDL rights by design. The migration connects through
