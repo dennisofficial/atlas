@@ -666,10 +666,14 @@ the `Stopped` line in the transcript.
 
 ### 16.1 Two windows, one rule
 
-| Window                                                                | What the log holds today                                                                                                            | What changes                                                                                   |
-| --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| A. The stop lands before the message is drained                       | `input-consumed{consumed: discarded}` for the message, no `user-said` (`packages/host/src/holder/held-wait.ts:10-40`)               | Nothing in the log. The client that sent it puts it back.                                      |
-| B. The turn started, and the stop cut it while the model only thought | `user-said`, `turn-started{cause: input}`, maybe `assistant-said{interrupted}` with no `text` part, `turn-ended{stopped, operator}` | The host appends one `history-rewound{cause: quick-stop}` in the same append as `turn-ended`.  |
+- **Window A. The stop lands before the message is drained.** The log holds
+  `input-consumed{consumed: discarded}` for the message and no `user-said`
+  (`packages/host/src/holder/held-wait.ts:10-40`). Nothing changes in the log: the client that sent
+  the message puts it back.
+- **Window B. The turn started, and the stop cut it while the model only thought.** The log holds
+  `user-said`, `turn-started{cause: input}`, maybe `assistant-said{interrupted}` with no `text` part,
+  and `turn-ended{stopped, operator}`. The host appends one `history-rewound{cause: quick-stop}` in the
+  same append as `turn-ended`.
 
 Window A is a client bug today: `stagedOutcomesOf` maps every `input-consumed` to `Posted`
 (`packages/client/src/stream/outgoing-messages.ts:60-64`), so the staged text is dropped silently.
