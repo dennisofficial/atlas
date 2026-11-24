@@ -66,8 +66,7 @@ The ops are `exec`, `exec.background`, `stat`, `readFile`, `readBytes`, `readTex
 ### Read and publish live state
 
 - `liveFrameSchema`, `LiveFrame`: one streamed update of a held session.
-- `sessionLiveChannel(sessionId)`, `panelHoldKey(sessionId)`, `PG_WAKE_CHANNEL`,
-  `PG_CHANGE_CHANNEL`: the channel and key names.
+- `sessionLiveChannel(sessionId)`, `panelHoldKey(sessionId)`, `PG_WAKE_CHANNEL`, `PG_CHANGE_CHANNEL`: the names.
 - `frameStampSchema`, `compareFrameStamp({left, right})`: order two frames.
 
 ### Read a session's files
