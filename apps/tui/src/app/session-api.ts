@@ -1,5 +1,6 @@
 import { httpStatusOf, type ApiClient } from '@dltech/atlas-api-router'
 import type { CommandEntry } from '@dltech/atlas-commands'
+import { EFilesRoot } from '@dltech/atlas-protocol'
 import type {
   FilesReadInput,
   FilesReadOutput,
@@ -94,6 +95,8 @@ export type SessionApi = {
   treeFiles(input: FilesTreeInput): Promise<FilesTreeOutput>
   searchFiles(input: FilesSearchInput): Promise<FilesSearchOutput>
   readFile(input: FilesReadInput): Promise<FilesReadOutput>
+  browseContext(input: FilesTreeInput): Promise<FilesTreeOutput>
+  readContext(input: FilesReadInput): Promise<FilesReadOutput>
   createSession(input: SessionCreateInput): Promise<SessionCreateOutput>
   listProjects(): Promise<readonly ProjectChoice[]>
   createProject(input: ProjectSaveBody): Promise<ProjectChoice>
@@ -177,6 +180,10 @@ export const sessionApiOf = (args: {
     treeFiles: (input) => guarded(() => args.api.files.tree.query(input)),
     searchFiles: (input) => guarded(() => args.api.files.search.query(input)),
     readFile: (input) => guarded(() => args.api.files.read.query(input)),
+    browseContext: (input) =>
+      guarded(() => args.api.files.tree.query({ ...input, root: EFilesRoot.Context })),
+    readContext: (input) =>
+      guarded(() => args.api.files.read.query({ ...input, root: EFilesRoot.Context })),
     createSession: (input) => guarded(() => args.api.sessions.create.mutate(input)),
     listProjects: async () => {
       const reply = await guarded(() => args.api.projects.list.query())
