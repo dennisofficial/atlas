@@ -1,7 +1,7 @@
 import { BoxRenderable, NativeImage } from '@opentui/core'
 import { createTestRenderer, setRendererCapabilities } from '@opentui/core/testing'
 
-import { kittyImageTransportOf } from '../../../composition/terminal-image-transport'
+import { kittyImageTransportOf } from '../../../boot/terminal-image-transport'
 import { TranscriptImageRenderable } from '../transcript-image'
 
 process.env.TERM_PROGRAM = 'WarpTerminal'

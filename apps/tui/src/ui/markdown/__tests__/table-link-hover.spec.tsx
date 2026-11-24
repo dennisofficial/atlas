@@ -3,7 +3,7 @@ import React, { act } from 'react'
 import { rgbToHex } from '@opentui/core'
 import { testRender } from '@opentui/react/test-utils'
 
-import { installLinkClickOpen, notifyLinkHover } from '../../../composition/link-click'
+import { installLinkClickOpen, notifyLinkHover } from '../../link-click'
 import { linkHoverStyle } from '../../link-hover-style'
 import { theme } from '../../theme'
 import { TableBlock } from '../table-block'

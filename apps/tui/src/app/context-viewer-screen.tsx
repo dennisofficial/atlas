@@ -13,6 +13,7 @@ export function ContextViewerScreen(props: {
   path: string
   loading: boolean
   content: FileContent | null
+  openUrl: (url: string) => void
   onDismiss: () => void
   attachScroll: (box: ScrollBoxRenderable | null) => void
 }): React.ReactNode {
@@ -34,6 +35,7 @@ export function ContextViewerScreen(props: {
         path={props.path}
         loading={props.loading}
         content={props.content}
+        openUrl={props.openUrl}
         onDismiss={props.onDismiss}
         attachScroll={props.attachScroll}
       />

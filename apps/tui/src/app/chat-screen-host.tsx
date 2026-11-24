@@ -320,6 +320,7 @@ export function ChatScreenHost(props: ChatScreenHostProps): React.ReactNode {
         shells={panes.shells}
         services={panes.services}
         context={panes.context}
+        openUrl={props.openUrl}
         onSelectSubagent={panes.crew.handleSelect}
         onOpenTeammate={props.onOpenSession}
         onShellKill={(shellId) => runCommand({ name: 'shell-kill', args: { shellId } })}

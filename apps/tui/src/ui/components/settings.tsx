@@ -19,7 +19,7 @@ import {
 } from '../settings-model'
 import { ESettingsLogin, type SettingsLoginState } from '../settings-login-model'
 import { theme } from '../theme'
-import type { QualityHealthStatusProps } from '../../composition/use-workspace-quality-health'
+import type { QualityHealthStatusProps } from '../quality-health-model'
 import type { Appearance } from '../appearance'
 import { ECloudAction, SettingsCloud, type CloudSyncState } from './settings/cloud'
 import { type GithubAccountView } from './settings/github-connect'

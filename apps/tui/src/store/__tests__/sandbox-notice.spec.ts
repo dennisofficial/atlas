@@ -3,7 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { createDeltaChannel, ESandboxState } from '@dltech/atlas-harness'
 
 import { createConversationStore } from '../conversation-store'
-import { channelSignalFeed } from '../../composition/channel-signal-feed'
+import { channelSignalFeed } from './signal-feed-fixture'
 import { deriveTranscript, EEntryKind } from '@dltech/atlas-client/transcript'
 import type { SidebarContainer } from '../sidebar-model'
 import { transcriptSandboxOf } from '../transcript-sandbox'

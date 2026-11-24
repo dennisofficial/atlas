@@ -81,6 +81,7 @@ export function ChatScreen(props: {
   shells: ShellsDrawer
   services: ServicesDrawer
   context: ContextTreeControl
+  openUrl: (url: string) => void
   onSelectSubagent: (agentId: string) => void
   onOpenTeammate: (sessionId: string) => void
   onShellKill: (shellId: string) => void
@@ -264,6 +265,7 @@ export function ChatScreen(props: {
             path={props.context.viewer.path}
             loading={props.context.viewer.loading}
             content={props.context.viewer.content}
+            openUrl={props.openUrl}
             onDismiss={props.context.handleDismiss}
             attachScroll={props.context.attachScroll}
           />

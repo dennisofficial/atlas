@@ -1,8 +1,8 @@
 import { useEffect, useRef, type RefObject } from 'react'
 import type { BoxRenderable, Renderable } from '@opentui/core'
 
-import { EContextLink, routeContextLink } from '../../composition/context-link-route'
-import { ELinkVerdict, registerLinkScope } from '../../composition/link-scope'
+import { EContextLink, routeContextLink } from '../context-link-route'
+import { ELinkVerdict, registerLinkScope } from '../link-scope'
 
 export function useContextLinkScope(args: {
   box: RefObject<BoxRenderable | null>

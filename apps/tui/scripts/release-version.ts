@@ -5,7 +5,7 @@ import {
   nextReleaseVersion,
 } from '@dltech/atlas-core'
 
-import { RELEASE_TAG_PREFIX, latestRelease } from '../src/composition/update-check'
+import { RELEASE_TAG_PREFIX, latestRelease } from '../src/boot/update-check'
 import { nonEmptyLines, run, workspaceManifests } from '../../../scripts/workspace-manifests'
 
 function releaseTags(): readonly string[] {

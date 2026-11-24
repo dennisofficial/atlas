@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'bun:test'
 import { createPathResolver } from '@dltech/atlas-harness'
 
-import { bindPathLinks, unbindPathLinks } from '../../../../composition/path-links'
+import { bindPathLinks, unbindPathLinks } from '../../../path-links'
 import { EProseBlock, proseBlocks } from '../blocks'
 import { EInline } from '../inline'
 

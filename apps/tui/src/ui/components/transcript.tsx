@@ -17,8 +17,6 @@ import { useHiddenVerticalScrollbar } from '../hide-scrollbar'
 import { TRANSCRIPT_PADDING } from '../theme'
 import { useTranscriptViewport } from '../transcript-viewport-store'
 import { applyTranscriptBounds } from '../viewport-rows-store'
-import type { ContainerMove } from '../../composition/container-move'
-import { BootBlockView } from './boot-block'
 import { PendingBlock } from './blocks/pending-block'
 import { RunAttentionSection } from './blocks/run-attention-section'
 import { openedInjectionsOf, type OpenedInjections } from './blocks/system-context-expansion'
@@ -54,7 +52,6 @@ function DerivedTranscript(props: {
   anchorKey?: string | null
   sends?: number
   pending?: readonly PendingRow[]
-  boot?: { move: ContainerMove; cancel: (() => void) | undefined } | null
   background?: BackgroundWork
   waitingSince?: number | null
   accountLabel?: string
@@ -280,14 +277,6 @@ function DerivedTranscript(props: {
         )}
 
         <PendingBlock rows={props.pending ?? NOTHING_PENDING} width={props.width} />
-
-        {props.boot === null || props.boot === undefined ? null : (
-          <BootBlockView
-            move={props.boot.move}
-            cancellable={props.boot.cancel !== undefined}
-            width={props.width}
-          />
-        )}
       </scrollbox>
 
       {viewport.tailing ? null : (

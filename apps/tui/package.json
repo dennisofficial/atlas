@@ -10,21 +10,9 @@
   },
   "scripts": {
     "dev": "bin/atlas-dev",
-    "proto:shell": "bun prototype/shell.tsx",
-    "proto:round2": "bun prototype/round2.tsx",
-    "proto:tools": "bun prototype/tools.tsx",
-    "proto:failure": "bun prototype/failure-rows.tsx",
-    "proto:settings": "bun prototype/settings.tsx",
-    "proto:footer": "bun prototype/footer-pills.tsx",
-    "proto:attachments": "bun prototype/user-attachments.tsx",
-    "proto:focus": "bun prototype/terminal-focus.tsx",
-    "proto:links": "bun prototype/link-affordances.tsx",
-    "probe:size": "bun scripts/probe-size.ts",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
-    "build:prepare": "bun run --filter @dltech/atlas-harness plugins:generate && bun run --filter @dltech/atlas-harness plugin-types:generate && bun scripts/generate-manifest.ts && bun scripts/generate-skills.ts",
-    "build": "bun run build:prepare && bun scripts/build.ts",
-    "skills:generate": "bun scripts/generate-skills.ts"
+    "build": "bun scripts/build.ts"
   },
   "dependencies": {
     "@dltech/atlas-api-router": "workspace:*",

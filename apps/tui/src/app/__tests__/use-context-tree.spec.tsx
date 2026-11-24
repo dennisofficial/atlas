@@ -98,6 +98,7 @@ function Pane(props: { probe: Probe; files: ContextFiles }): React.ReactNode {
           path={control.viewer.path}
           loading={control.viewer.loading}
           content={control.viewer.content}
+          openUrl={() => undefined}
           onDismiss={control.handleDismiss}
           attachScroll={control.attachScroll}
         />

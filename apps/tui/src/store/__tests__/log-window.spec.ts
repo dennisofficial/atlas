@@ -4,7 +4,7 @@ import { EToolEffect } from '@dltech/atlas-core'
 import { createDeltaChannel } from '@dltech/atlas-harness'
 
 import { createConversationStore } from '../conversation-store'
-import { channelSignalFeed } from '../../composition/channel-signal-feed'
+import { channelSignalFeed } from './signal-feed-fixture'
 import { foldLogEvents } from '../log-accumulator'
 import { createLogWindow } from '../log-window'
 import { sidebarFoldFrom, sidebarFoldOf } from '../sidebar-model'

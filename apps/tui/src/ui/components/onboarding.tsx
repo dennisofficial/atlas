@@ -1,6 +1,6 @@
 import React from 'react'
 
-import type { OnboardingRowView } from '../../composition/use-onboarding'
+import type { OnboardingRowView } from '../onboarding-model'
 import { fitHints, hintSpans, type Hint } from '../hint-layout'
 import { useClickRegion } from '../hooks/use-click-region'
 import { theme } from '../theme'

@@ -29,6 +29,7 @@ import { useSessionList } from './use-session-list'
 import { useSessionModels } from './use-session-models'
 import { useSettingsPanel, type SettingsPanel } from './use-settings-panel'
 import { useAppSessionWatch } from './use-app-session-watch'
+import { useUpdateCheck } from './use-update-check'
 
 import type { AppNextProps } from './app-next-props'
 
@@ -147,6 +148,12 @@ export function AppNext(props: AppNextProps): React.ReactNode {
   })
   lookupModel.current = list.modelOf
   rowOfRef.current = list.rowOf
+
+  useUpdateCheck({
+    ready: screen.screen !== EScreen.SignIn && screen.screen !== EScreen.AwaitingAccess,
+    accountPath: props.accountPath,
+    check: props.checkUpdate,
+  })
 
   const openedSessionId = screen.screen === EScreen.Transcript ? screen.sessionId : null
 

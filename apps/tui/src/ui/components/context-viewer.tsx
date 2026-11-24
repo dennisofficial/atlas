@@ -1,8 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { BoxRenderable, ScrollBoxRenderable } from '@opentui/core'
-import { createUrlOpener, type ContextFileContent } from '@dltech/atlas-harness'
-
-import { openFileInEditor } from '../../composition/file-opener'
+import { openFileInEditor, type UrlOpener } from '../file-opener'
 import { cellsOf } from '../hint-layout'
 import '../images/viewer-image'
 import { useClickRegion } from '../hooks/use-click-region'
@@ -21,7 +19,15 @@ const VIEWPORT_PAD = 2
 
 const LEFT_PAD = 2
 
+export type ContextFileContent =
+  | { type: 'text'; content: string; truncated: boolean }
+  | { type: 'image'; data: string; mediaType: string }
+  | { type: 'binary'; data: string; bytes: number }
+  | { type: 'refused'; reason: string }
+
 export const isMarkdownPath = (path: string): boolean => /\.(md|markdown)$/i.test(path)
+
+const noop = (): void => undefined
 
 function ActionButton(props: { label: string; onPress: () => void }): React.ReactNode {
   const { handlers, hovered, wash } = useClickRegion(props.onPress)
@@ -127,6 +133,7 @@ export function ContextViewer(props: {
   localFilePath?: string | null
   onDismiss: () => void
   onNavigate?: (path: string) => void
+  openUrl?: UrlOpener | undefined
   attachScroll: (box: ScrollBoxRenderable | null) => void
 }): React.ReactNode {
   const image = props.content?.type === 'image' ? props.content.data : null
@@ -175,10 +182,10 @@ export function ContextViewer(props: {
   )
   const diagram = diagrams[0]
   const [showDiagram, setShowDiagram] = useState(true)
-  const urlOpener = useMemo(() => createUrlOpener(), [])
+  const openUrl = props.openUrl ?? noop
   const handleOpenLive = useCallback(() => {
-    if (diagram !== undefined) urlOpener(mermaidLiveUrl(diagram))
-  }, [diagram, urlOpener])
+    if (diagram !== undefined) openUrl(mermaidLiveUrl(diagram))
+  }, [diagram, openUrl])
   const handleToggle = useCallback(() => setShowDiagram((value) => !value), [])
 
   const viewport = Math.max(1, props.width - LEFT_PAD - VIEWPORT_PAD)

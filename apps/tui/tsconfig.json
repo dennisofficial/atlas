@@ -5,5 +5,5 @@
     "jsx": "react-jsx",
     "jsxImportSource": "@opentui/react"
   },
-  "include": ["src", "scripts", "prototype"]
+  "include": ["src", "scripts"]
 }

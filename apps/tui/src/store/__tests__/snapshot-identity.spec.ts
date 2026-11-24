@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from 'bun:test'
 import { createDeltaChannel, type DeltaChannel } from '@dltech/atlas-harness'
 
 import { createConversationStore, type ConversationStore } from '../conversation-store'
-import { channelSignalFeed } from '../../composition/channel-signal-feed'
+import { channelSignalFeed } from './signal-feed-fixture'
 import { IDLE_TURN } from '../../ui/turn-clock'
 import { fixtureThreadId, log } from '@dltech/atlas-client/transcript-fixture'
 
