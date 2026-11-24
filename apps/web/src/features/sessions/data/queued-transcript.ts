@@ -37,6 +37,7 @@ export type QueuedTurn = {
 
 export type QueuedTranscript = {
   rows: readonly QueuedTurn[]
+  waitLabel?: string | undefined
   onEdit: (inboxId: string) => void
   onRemove: (inboxId: string) => void
 }

@@ -49,14 +49,20 @@ export function quickStopOf(input: {
   const previousEnd = visible.findLastIndex(
     (event, index) => index < startIndex && event.type === 'turn-ended',
   )
-  const intake = visible.slice(previousEnd + 1, startIndex)
-  if (!intake.every((event) => operatorPromptOf(event) || BOOKKEEPING_TYPES.has(event.type))) {
-    return null
-  }
+  const hidden = visible.slice(previousEnd + 1)
+  const firstStep = hidden.findIndex((event) => event.type === 'assistant-said')
+  const intake = firstStep < 0 ? hidden : hidden.slice(0, firstStep)
+  const steps = firstStep < 0 ? [] : hidden.slice(firstStep)
+  const intakeRowOf = (event: V2Event): boolean =>
+    event === start || operatorPromptOf(event) || BOOKKEEPING_TYPES.has(event.type)
+  if (!intake.every(intakeRowOf)) return null
+  if (!steps.every(quietRowOf)) return null
   const prompts = intake.filter(operatorPromptOf)
   const first = prompts[0]
   if (first === undefined) return null
-  if (!visible.slice(startIndex + 1).every(quietRowOf)) return null
 
-  return { toSeq: first.seq - 1, draft: prompts.map((event) => event.text).join('\n\n') }
+  return {
+    toSeq: Math.min(first.seq, start.seq) - 1,
+    draft: prompts.map((event) => event.text).join('\n\n'),
+  }
 }

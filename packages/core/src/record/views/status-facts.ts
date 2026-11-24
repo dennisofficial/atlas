@@ -7,6 +7,7 @@ import type { OpenTurn, TurnEnd } from '../turns'
 import { countsAsPrepared, EWorkspaceStep, EWorkspaceStepState } from '../workspace'
 import { attemptTagOf } from '../workspace-attempts'
 import { NO_BACKGROUND, stepBackground, type BackgroundFacts } from './background-facts'
+import { NO_COMMANDS, stepCommandFacts, type CommandFacts } from './command-facts'
 
 export type TimedReason = { reason: string; at: string }
 
@@ -46,6 +47,7 @@ export type StatusFacts = {
   parked: ParkedFacts
   background: BackgroundFacts
   setupRun: SetupRun | null
+  commands: CommandFacts
 }
 
 export const initialStatusFacts: StatusFacts = {
@@ -63,6 +65,7 @@ export const initialStatusFacts: StatusFacts = {
   parked: {},
   background: NO_BACKGROUND,
   setupRun: null,
+  commands: NO_COMMANDS,
 }
 
 const LABEL_TYPES: ReadonlySet<V2EventType> = new Set<V2EventType>([
@@ -190,13 +193,21 @@ const stepBackgroundFacts = (facts: StatusFacts, event: V2Event): StatusFacts =>
   return background === facts.background ? facts : { ...facts, background }
 }
 
+const withCommands = (facts: StatusFacts, event: V2Event): StatusFacts => {
+  const commands = stepCommandFacts(facts.commands, event)
+  return commands === facts.commands ? facts : { ...facts, commands }
+}
+
 export const stepStatusFacts = (facts: StatusFacts, event: V2Event): StatusFacts =>
-  stepSetupRun(
-    stepBackgroundFacts(
-      stepParked(
-        stepTurn(
-          stepWaits(
-            stepWorkspace({ ...facts, firstSeq: facts.firstSeq ?? event.seq }, event),
+  withCommands(
+    stepSetupRun(
+      stepBackgroundFacts(
+        stepParked(
+          stepTurn(
+            stepWaits(
+              stepWorkspace({ ...facts, firstSeq: facts.firstSeq ?? event.seq }, event),
+              event,
+            ),
             event,
           ),
           event,

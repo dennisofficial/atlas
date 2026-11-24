@@ -114,7 +114,7 @@ describe('jina reader port', () => {
     expect(outcome.page.truncated).toBe(true)
   })
 
-  it('names a missing page, a refused reader and a rate limit from the target status', async () => {
+  it('names a missing page and other target failures from the target status', async () => {
     const failedFor = async (httpStatus: string): Promise<string> => {
       const { fetcher } = recordingFetch(() => json({ data: { ...data.data, httpStatus } }))
       const outcome = await jinaReaderOf({ key: 'jina-key', fetcher }).read(readOf({}))
@@ -124,11 +124,27 @@ describe('jina reader port', () => {
     expect(await failedFor('404')).toBe(
       'example.com answered 404: the page does not exist. Find the right url with web_search rather than guessing another.',
     )
-    expect(await failedFor('403')).toBe(
-      'example.com answered 403 and refuses automated readers. Try render: true, or the browser tool.',
-    )
-    expect(await failedFor('429')).toBe('example.com is rate-limiting readers (429).')
     expect(await failedFor('500')).toBe('example.com answered 500.')
+  })
+
+  it('hands the page back to the direct fetch when the target refuses Jina', async () => {
+    for (const httpStatus of ['401', '403', '429']) {
+      const { fetcher } = recordingFetch(() => json({ data: { ...data.data, httpStatus } }))
+
+      const outcome = await jinaReaderOf({ key: 'jina-key', fetcher }).read(readOf({}))
+
+      expect(outcome.kind).toBe('unavailable')
+    }
+  })
+
+  it('hands the page back to the direct fetch when Jina cannot interpret the content type', async () => {
+    const message =
+      'Failed to interpret https://ec.europa.eu: unexpected content type application/vnd.ms-excel'
+    const { fetcher } = recordingFetch(() => json({ code: 422, message }, 422))
+
+    const outcome = await jinaReaderOf({ key: 'jina-key', fetcher }).read(readOf({}))
+
+    expect(outcome.kind).toBe('unavailable')
   })
 
   it('names a domain that does not resolve', async () => {

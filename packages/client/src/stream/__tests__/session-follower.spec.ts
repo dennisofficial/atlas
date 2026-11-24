@@ -88,12 +88,14 @@ describe('the session follower', () => {
     expect(status?.lease).toEqual({ epoch: 0, holderHostId: null, live: false })
   })
 
-  it('discards a session view behind the cursor and takes the newest one', () => {
+  it('takes the lease of every session view, behind the cursor or not', () => {
     const { follower } = setup()
     follower.handleMessage(
       eventsMessage({ id: 's1', events: mintUserEvents({ count: 20 }), live: true }),
     )
     follower.handleMessage(sessionView({ at: 5, live: true }))
+    expect(follower.getSnapshot().view?.status.lease.live).toBe(true)
+    follower.handleMessage(sessionView({ at: 5, live: false }))
     expect(follower.getSnapshot().view?.status.lease.live).toBe(false)
     follower.handleMessage(sessionView({ at: 20, live: true }))
     expect(follower.getSnapshot().view?.status.lease.live).toBe(true)

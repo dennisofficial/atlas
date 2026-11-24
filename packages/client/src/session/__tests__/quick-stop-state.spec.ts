@@ -86,6 +86,27 @@ describe('stepQuickStop', () => {
     ])
   })
 
+  it('keeps a prompt the host drained after the turn started', () => {
+    const events = eventsOf([
+      started,
+      {
+        type: 'input-posted',
+        inboxId: 5,
+        kind: 'message',
+        postedAt: 'now',
+        message: { text: 'think it over', clientId: 'client-a' },
+      },
+      { type: 'user-said', text: 'think it over', inboxId: 5 },
+      thought,
+      ended,
+      quickStop(0),
+    ])
+
+    expect(stateOf(events).evidence[0]?.messages).toEqual([
+      { clientId: 'client-a', text: 'think it over', attachments: [] },
+    ])
+  })
+
   it('resolves the client id of a prompt from its unsaid inbox row', () => {
     const state = stateOf(
       eventsOf([

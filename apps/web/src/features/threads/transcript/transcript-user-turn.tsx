@@ -13,6 +13,7 @@ import { TranscriptMarkdown } from './transcript-markdown'
 import type { TranscriptRewind } from './transcript-turn'
 
 export type QueuedTurnActions = {
+  label: string
   disabled: boolean
   onEdit: () => void
   onRemove: () => void
@@ -64,7 +65,7 @@ export function UserTurnView({
     return (
       <UserMessage
         author={userName}
-        timestamp="Queued"
+        timestamp={queued.label}
         copyText={turn.item.text}
         attachments={attachments}
         actionsDisabled={queued.disabled}

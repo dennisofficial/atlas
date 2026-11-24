@@ -476,6 +476,14 @@ describe('ThreadTranscript queued rows', () => {
     expect(removes).toEqual(['3'])
   })
 
+  it('labels a queued message with the wait label while a command blocks the session', async () => {
+    await mountWith({ rewind: null, queued: { ...queued, waitLabel: 'Waits for the summary' } })
+
+    const row = document.body.querySelector('[data-queued="user"]')
+    expect(row?.textContent).toContain('Waits for the summary')
+    expect(row?.textContent).not.toContain('Queued')
+  })
+
   it('renders a queued message from another session with its caption and no Edit or Remove', async () => {
     await mountWith({ rewind: null, queued })
 

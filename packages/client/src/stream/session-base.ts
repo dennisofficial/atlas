@@ -3,7 +3,6 @@ import type { StreamServerMessage } from '@dltech/atlas-protocol'
 import type { z } from 'zod'
 
 import { EMPTY_QUICK_STOP_STATE } from '../session/quick-stop-state'
-import { EMPTY_FRAME_FACTS } from './derived-session-view'
 import type { FollowedState } from './follower-state'
 import { isView, isVisibility } from './session-log-record'
 import { resetWindow, type SessionWindow } from './session-window'
@@ -53,7 +52,6 @@ export const basedStateOf = (args: {
   return {
     ...args.inner,
     window,
-    frame: EMPTY_FRAME_FACTS,
     setupOutput: '',
     shells: {},
     live: false,
@@ -65,7 +63,6 @@ export const basedStateOf = (args: {
 export const resetStateOf = (inner: FollowedState): FollowedState => ({
   ...inner,
   window: resetWindow(),
-  frame: EMPTY_FRAME_FACTS,
   setupOutput: '',
   shells: {},
   live: false,

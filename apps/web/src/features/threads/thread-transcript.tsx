@@ -193,6 +193,7 @@ export function ThreadTranscript({
                 models={models}
                 userName={userName}
                 actions={actions}
+                waitLabel={queued.waitLabel}
                 onEdit={queued.onEdit}
                 onRemove={queued.onRemove}
               />

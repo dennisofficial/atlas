@@ -6,6 +6,7 @@ import { EProviderFailureKind } from '../../models/provider-failure'
 import { ERetryReason } from '../../models/retry'
 import { EFinishReason } from '../../stream/chunk'
 import { ESubscriptionActor, ESubscriptionEnd } from '../../subscriptions/subscription'
+import { ECompactionAnchor } from '../../events/body'
 import { EInputConsumed, type Hash, type V2Event } from '../event'
 import { sessionStatusOf } from '../session-status'
 import { ETurnCause, ETurnEndedBy, ETurnOutcome } from '../turns'
@@ -163,6 +164,41 @@ export const inputConsumed = (consumed: EInputConsumed = EInputConsumed.Stop): V
   type: 'input-consumed',
   inboxId: 7,
   consumed,
+})
+
+export const commandPosted = (args: { inboxId?: number; name?: string } = {}): V2Event => ({
+  ...envelope(STARTED_AT),
+  type: 'input-posted',
+  inboxId: args.inboxId ?? 7,
+  kind: `command:${args.name ?? 'summarise'}`,
+  postedAt: STARTED_AT,
+})
+
+export const commandConsumed = (args: { inboxId?: number; name?: string } = {}): V2Event => ({
+  ...envelope(),
+  type: 'input-consumed',
+  inboxId: args.inboxId ?? 7,
+  consumed: EInputConsumed.Command,
+  ...(args.name === undefined
+    ? {}
+    : { command: { name: args.name, argumentText: '', text: args.name } }),
+})
+
+export const summarised = (args: { inboxId?: number } = {}): V2Event => ({
+  ...envelope(),
+  type: 'history-summarised',
+  fromSeq: 1,
+  throughSeq: 1,
+  anchor: ECompactionAnchor.Prefix,
+  summary: 's',
+  inboxId: args.inboxId ?? 7,
+})
+
+export const commandRefused = (args: { inboxId?: number } = {}): V2Event => ({
+  ...envelope(),
+  type: 'input-refused',
+  inboxId: args.inboxId ?? 7,
+  reason: 'no',
 })
 
 export const runFailed = (args: { message?: string; kind?: ERunFailureKind } = {}): V2Event => ({

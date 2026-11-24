@@ -165,8 +165,11 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
 
   const handleView = (message: Extract<StreamServerMessage, { type: 'view' }>): void => {
     if (message.name !== 'session') return
-    if (!acceptsView({ inner, at: message.at })) return
     const frame: FrameFacts = frameFactsOf(message.value)
+    if (!acceptsView({ inner, at: message.at })) {
+      commit({ ...inner, frame })
+      return
+    }
     const window = adoptRewindable({
       window: inner.window,
       views: args.views ?? [],

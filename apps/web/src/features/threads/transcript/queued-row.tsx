@@ -12,6 +12,7 @@ export function QueuedRowItem({
   models,
   userName,
   actions,
+  waitLabel,
   onEdit,
   onRemove,
 }: {
@@ -20,6 +21,7 @@ export function QueuedRowItem({
   models: ReadonlyMap<string, string>
   userName: string | undefined
   actions: TranscriptActions
+  waitLabel?: string | undefined
   onEdit: (inboxId: string) => void
   onRemove: (inboxId: string) => void
 }) {
@@ -28,6 +30,7 @@ export function QueuedRowItem({
     withdraw === undefined
       ? undefined
       : {
+          label: waitLabel ?? 'Queued',
           disabled: withdraw.disabled,
           onEdit: () => onEdit(withdraw.inboxId),
           onRemove: () => onRemove(withdraw.inboxId),

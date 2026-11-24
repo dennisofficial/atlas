@@ -76,6 +76,29 @@ describe('quickStopOf', () => {
     expect(stop).toEqual({ toSeq: 1, draft: 'think hard' })
   })
 
+  it('rewinds a prompt the host drained after the turn started', () => {
+    const posted: V2Body = {
+      type: 'input-posted',
+      inboxId: 5,
+      kind: 'message',
+      postedAt: '2026-11-24T20:00:00.000Z',
+      message: { text: 'think hard', clientId: 'client-a' },
+    }
+    const stop = stopOf([started(), posted, said('think hard'), thought('hm')])
+
+    expect(stop).toEqual({ toSeq: 0, draft: 'think hard' })
+  })
+
+  it('rewinds prompts queued on both sides of the turn start', () => {
+    const stop = stopOf([said('first'), started(), said('second')])
+
+    expect(stop).toEqual({ toSeq: 0, draft: 'first\n\nsecond' })
+  })
+
+  it('keeps a turn whose drained prompt came from a routine', () => {
+    expect(stopOf([started(), said('nightly', { via: EMessageOrigin.Routine })])).toBeNull()
+  })
+
   it('keeps the turn when reply text streamed', () => {
     expect(stopOf([said('explain it'), started(), replied('half a sentence')])).toBeNull()
   })
@@ -105,7 +128,7 @@ describe('quickStopOf', () => {
   })
 
   it('keeps the turn when a message was drained mid-turn', () => {
-    expect(stopOf([said('first thing'), started(), said('second thing')])).toBeNull()
+    expect(stopOf([said('first thing'), started(), thought('hm'), said('second thing')])).toBeNull()
   })
 
   it('keeps a resumed turn', () => {
@@ -243,13 +266,19 @@ const userTextsOf = (assembled: Assembled): readonly string[] =>
 
 const PROMPT = 'think hard about the meaning of life'
 
-const bodies = (): readonly V2Body[] => [
+const promptFirst = (): readonly V2Body[] => [
   said(PROMPT, { clientId: 'client-a' }),
   started(),
   thought('hm'),
 ]
 
-const rewound = (): V2Event[] => {
+const startFirst = (): readonly V2Body[] => [
+  started(),
+  said(PROMPT, { clientId: 'client-a' }),
+  thought('hm'),
+]
+
+const rewoundOf = (bodies: () => readonly V2Body[]): V2Event[] => {
   const stop = stopOf(bodies())
   if (stop === null) throw new Error('expected a quick stop')
   return eventsOf([
@@ -264,7 +293,12 @@ const rewound = (): V2Event[] => {
   ])
 }
 
-describe('a quick stop in the log', () => {
+describe.each([
+  ['the prompt before the turn start', promptFirst],
+  ['the prompt drained after the turn start', startFirst],
+])('a quick stop in the log, %s', (_order, bodies) => {
+  const rewound = () => rewoundOf(bodies)
+
   it('leaves no stopped turn to resume', () => {
     expect(resumePointOf({ events: rewound() })).toEqual({
       kind: EResumePoint.NotResumable,

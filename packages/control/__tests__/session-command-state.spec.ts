@@ -4,6 +4,7 @@ import {
   chainEvents,
   ECompactionAnchor,
   EInputConsumed,
+  ESessionStatus,
   toRunId,
   toThreadId,
   type V2Body,
@@ -126,6 +127,98 @@ describe('session command state', () => {
     const { inboxId } = await post('summarise')
     await append([consume(inboxId), summarised()])
     expect(await commands()).toBeUndefined()
+  })
+
+  it('reports a consumed command the log never posted by the name it was consumed with', async () => {
+    const { append, plane, commands } = await setup()
+    const { inboxId } = await plane.post({
+      sessionId: SESSION,
+      kind: 'command:summarise',
+      payload: '{}',
+    })
+    await append([
+      {
+        type: 'input-consumed',
+        inboxId,
+        consumed: EInputConsumed.Command,
+        command: { name: 'summarise', argumentText: '', text: '/summarise' },
+      },
+    ])
+    expect(await commands()).toEqual([
+      { inboxId, name: 'summarise', postedAt: NOW, state: ECommandState.Running },
+    ])
+    const status = await readSessionStatus({ plane, sessionId: SESSION, threadId: THREAD })
+    expect(status.value.state).toBe(ESessionStatus.RunningCommand)
+    expect(status.value.reason).toBe('summarise')
+  })
+
+  it('reports the running command as the session status', async () => {
+    const { append, post, consume, plane } = await setup()
+    const { inboxId } = await post('summarise')
+    await append([consume(inboxId)])
+    const status = await readSessionStatus({ plane, sessionId: SESSION, threadId: THREAD })
+    expect(status.value.state).toBe(ESessionStatus.RunningCommand)
+    expect(status.value.reason).toBe('summarise')
+    expect(status.value.since).toBe(NOW)
+  })
+
+  it('does not read idle while a command runs and a message waits unlogged', async () => {
+    const { append, plane, post, consume } = await setup()
+    const { inboxId } = await post('summarise')
+    await append([consume(inboxId)])
+    await plane.post({
+      sessionId: SESSION,
+      kind: 'message',
+      payload: JSON.stringify({ text: 'hi', via: 'operator' }),
+    })
+    const status = await readSessionStatus({ plane, sessionId: SESSION, threadId: THREAD })
+    expect(status.value.state).toBe(ESessionStatus.RunningCommand)
+    expect(status.value.reason).toBe('summarise')
+  })
+
+  it('reads queued while a posted message waits unlogged', async () => {
+    const { plane } = await setup()
+    const posted = await plane.post({
+      sessionId: SESSION,
+      kind: 'message',
+      payload: JSON.stringify({ text: 'hi', via: 'operator' }),
+    })
+    const status = await readSessionStatus({ plane, sessionId: SESSION, threadId: THREAD })
+    expect(status.value.state).toBe(ESessionStatus.Queued)
+    expect(status.value.since).toBe(NOW)
+    expect(status.value.queued).toEqual([{ inboxId: posted.inboxId, text: 'hi', postedAt: NOW }])
+  })
+
+  it('leaves queued once the message is consumed', async () => {
+    const { append, plane } = await setup()
+    const posted = await plane.post({
+      sessionId: SESSION,
+      kind: 'message',
+      payload: JSON.stringify({ text: 'hi', via: 'operator' }),
+    })
+    await append([
+      { type: 'input-posted', inboxId: posted.inboxId, kind: 'message', postedAt: NOW },
+      { type: 'input-consumed', inboxId: posted.inboxId },
+    ])
+    const status = await readSessionStatus({ plane, sessionId: SESSION, threadId: THREAD })
+    expect(status.value.state).toBe(ESessionStatus.Idle)
+    expect(status.value.queued).toBeUndefined()
+  })
+
+  it('lists a session with a message waiting unlogged as queued', async () => {
+    const { plane } = await setup()
+    await plane.post({
+      sessionId: SESSION,
+      kind: 'message',
+      payload: JSON.stringify({ text: 'hi', via: 'operator' }),
+    })
+    const digests = await plane.listSessionDigests({
+      userId: 'user-a',
+      limit: 10,
+      withView: true,
+    })
+    expect(digests[0]?.view?.status.state).toBe(ESessionStatus.Queued)
+    expect(digests[0]?.view?.status.since).toBe(NOW)
   })
 
   it('does not report a consumed message as a command', async () => {

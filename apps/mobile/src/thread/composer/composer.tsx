@@ -43,6 +43,7 @@ export const Composer = ({
   refusal,
   entries = [],
   clientActions,
+  joined = false,
   children,
 }: {
   working: boolean
@@ -57,6 +58,7 @@ export const Composer = ({
   refusal?: string | undefined
   entries?: readonly CommandEntry[]
   clientActions?: Record<EClientAction, () => void> | undefined
+  joined?: boolean
   children?: ReactNode
 }) => {
   const theme = useTheme()
@@ -144,7 +146,7 @@ export const Composer = ({
   }
 
   return (
-    <View style={styles.dock}>
+    <View style={[styles.dock, joined ? styles.joinedDock : null]}>
       {menuQueryOf(draft) === null || candidates.length === 0 ? null : (
         <SlashMenu entries={candidates} onPick={handleCommand} />
       )}
@@ -165,6 +167,7 @@ export const Composer = ({
       <View
         style={[
           styles.field,
+          joined ? styles.joinedField : null,
           {
             backgroundColor: dark ? withAlpha({ color: theme.input, alpha: 0.3 }) : 'transparent',
             borderColor: theme.input,
@@ -244,6 +247,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingHorizontal: space(2.5),
     paddingTop: space(2.5),
+  },
+  joinedDock: {
+    paddingTop: 0,
+  },
+  joinedField: {
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    borderTopWidth: 0,
   },
   input: {
     fontFamily: 'Geist_400Regular',

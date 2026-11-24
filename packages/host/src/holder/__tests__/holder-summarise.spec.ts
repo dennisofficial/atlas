@@ -78,6 +78,28 @@ describe('SessionHolder summarise command', () => {
     expect(events.some((event) => event.type === 'input-refused')).toBe(false)
   })
 
+  it('posts the command into the log before it is consumed, once', async () => {
+    const rig = await rigWithConversation({ text: 'the notes' })
+    const through = (await secondMessageSeq(rig)) - 1
+    const posted = await postSummarise(rig, through)
+    expect(
+      await flushUntil({ check: async () => (await typesOf(rig)).includes('history-summarised') }),
+    ).toBe(true)
+    await rig.wake()
+    await rig.flush()
+    const events = await eventsOf(rig)
+    const posts = events.filter(
+      (event) => event.type === 'input-posted' && event.inboxId === posted.inboxId,
+    )
+    expect(posts).toHaveLength(1)
+    const consumed = events.find(
+      (event) => event.type === 'input-consumed' && event.inboxId === posted.inboxId,
+    )
+    expect(posts[0]?.seq ?? Number.MAX_SAFE_INTEGER).toBeLessThan(
+      consumed?.seq ?? Number.MIN_SAFE_INTEGER,
+    )
+  })
+
   it('records input-refused when the model returns nothing', async () => {
     const rig = await rigWithConversation({ text: '' })
     const through = (await secondMessageSeq(rig)) - 1
