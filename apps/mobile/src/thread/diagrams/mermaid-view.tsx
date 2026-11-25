@@ -1,5 +1,6 @@
 'use dom'
 
+import mermaid from 'mermaid'
 import { type CSSProperties, useEffect, useRef, useState } from 'react'
 
 const THEME_CSS = `
@@ -96,7 +97,6 @@ export default function MermaidView({
     let cancelled = false
     const draw = async () => {
       try {
-        const { default: mermaid } = await import('mermaid')
         mermaid.initialize({
           startOnLoad: false,
           securityLevel: 'strict',
