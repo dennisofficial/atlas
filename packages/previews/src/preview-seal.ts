@@ -27,10 +27,16 @@ export type PreviewSealOutcome =
   | { kind: 'sealed'; tunnelId: string; sealedTunnelToken: string; tunnelToken: string }
   | { kind: 'claimed-elsewhere' }
 
+function hasSealOf(row: Row<'PreviewTunnel'>): boolean {
+  return row.tunnelId !== '' && row.sealedTunnelToken !== ''
+}
+
 function sealedOf(row: Row<'PreviewTunnel'>): boolean {
-  return (
-    row.state === EPreviewTunnelState.Ready && row.tunnelId !== '' && row.sealedTunnelToken !== ''
-  )
+  return row.state === EPreviewTunnelState.Ready && hasSealOf(row)
+}
+
+function sealedWhileWeWaited(args: { row: Row<'PreviewTunnel'>; restoreState: string }): boolean {
+  return args.restoreState === EPreviewTunnelState.Creating && hasSealOf(args.row)
 }
 
 export async function sealPreviewTunnel(args: {
@@ -61,7 +67,10 @@ async function createUnderClaim(args: {
   restoreState: string
 }): Promise<PreviewSealOutcome> {
   const row = await tunnelRowOf(args)
-  if (args.seal === EPreviewSeal.Reuse && sealedOf(row)) {
+  if (
+    args.seal === EPreviewSeal.Reuse &&
+    sealedWhileWeWaited({ row, restoreState: args.restoreState })
+  ) {
     return sealedReplyOf({ row, cipher: args.deps.cipher })
   }
   try {
