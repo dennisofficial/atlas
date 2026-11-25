@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import type { Attachment, PendingInputsState, V2Event } from '@dltech/atlas-core'
+import type { Attachment, PendingInputsState, RecordEvent } from '@dltech/atlas-core'
 import {
   ALREADY_SENT_REASON,
   EStagedOutcome,
@@ -22,7 +22,7 @@ export type StagedState = {
 
 export function useStagedMessages(args: {
   sessionId: string
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   pending: PendingInputsState
   working: boolean
   onRestore: (args: {

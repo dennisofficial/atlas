@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import type { V2Event } from '../record/event'
+import type { RecordEvent } from '../record/event'
 import type { PluginViewFold } from '../record/views/plugin-view'
 import { EPlanStatus, PLAN_TOOL_NAME, planInputSchema, planTasks, type PlanTask } from './plan'
 
@@ -33,7 +33,7 @@ const settled = (state: PlanViewState, callId: string): PlanViewState => {
   return { tasks: state.tasks, pending }
 }
 
-const fold = (state: PlanViewState, event: V2Event): PlanViewState => {
+const fold = (state: PlanViewState, event: RecordEvent): PlanViewState => {
   if (event.type === 'tool-called') {
     if (event.name !== PLAN_TOOL_NAME) return state
     const parsed = planInputSchema.safeParse(event.input)

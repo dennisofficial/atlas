@@ -7,8 +7,8 @@ import {
   toRunId,
   toThreadId,
   type ThreadId,
-  type V2Body,
-  type V2Event,
+  type RecordEventBody,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 
 import { flushUntil, makeRig, seedSession, SESSION, THREAD_ID } from './holder-rig'
@@ -20,7 +20,7 @@ const AT = new Date(0).toISOString()
 
 type Rig = Awaited<ReturnType<typeof makeRig>>
 
-const SPAWN: V2Body = {
+const SPAWN: RecordEventBody = {
   type: 'agent-spawned',
   agentId: CHILD,
   agentType: 'general-purpose',
@@ -28,19 +28,19 @@ const SPAWN: V2Body = {
   mode: EAgentStart.Fresh,
 }
 
-const FINISHED_CHILD: readonly V2Body[] = [
+const FINISHED_CHILD: readonly RecordEventBody[] = [
   { type: 'user-said', text: BRIEF },
   { type: 'assistant-said', parts: [{ type: 'text', text: ANSWER }] },
 ]
 
-const RESUMABLE_CHILD: readonly V2Body[] = [{ type: 'user-said', text: BRIEF }]
+const RESUMABLE_CHILD: readonly RecordEventBody[] = [{ type: 'user-said', text: BRIEF }]
 
-const IDLE_CHILD: readonly V2Body[] = [
+const IDLE_CHILD: readonly RecordEventBody[] = [
   { type: 'worktree-entered', path: '/work/tree', branch: 'dennis/tree', adopted: false },
 ]
 
-const eventsIn = async (args: { rig: Rig; threadId: ThreadId }): Promise<V2Event[]> => {
-  const events: V2Event[] = []
+const eventsIn = async (args: { rig: Rig; threadId: ThreadId }): Promise<RecordEvent[]> => {
+  const events: RecordEvent[] = []
   let afterSeq = 0
   for (;;) {
     const page = await args.rig.plane.readEvents({
@@ -55,20 +55,20 @@ const eventsIn = async (args: { rig: Rig; threadId: ThreadId }): Promise<V2Event
   }
 }
 
-const endingsOf = (args: { events: readonly V2Event[]; threadId: ThreadId }): V2Event[] =>
+const endingsOf = (args: { events: readonly RecordEvent[]; threadId: ThreadId }): RecordEvent[] =>
   args.events.filter((event) => event.type === 'agent-ended' && event.agentId === args.threadId)
 
-const ofType = (args: { events: readonly V2Event[]; type: string }): V2Event[] =>
+const ofType = (args: { events: readonly RecordEvent[]; type: string }): RecordEvent[] =>
   args.events.filter((event) => event.type === args.type)
 
-const parentEndings = async (rig: Rig): Promise<V2Event[]> =>
+const parentEndings = async (rig: Rig): Promise<RecordEvent[]> =>
   endingsOf({ events: await eventsIn({ rig, threadId: THREAD_ID }), threadId: CHILD })
 
 const appendSeeded = async (args: {
   rig: Rig
   threadId: ThreadId
   epoch: number
-  bodies: readonly V2Body[]
+  bodies: readonly RecordEventBody[]
 }): Promise<void> => {
   const head = await args.rig.plane.head({ threadId: args.threadId })
   const outcome = await args.rig.plane.append({
@@ -87,7 +87,7 @@ const appendSeeded = async (args: {
 }
 
 const seedTakeover = async (args: {
-  child: readonly V2Body[]
+  child: readonly RecordEventBody[]
   script?: readonly { text: string }[] | undefined
 }): Promise<Rig> => {
   const rig = await makeRig({

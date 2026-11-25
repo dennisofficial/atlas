@@ -1,7 +1,7 @@
 import type { ERunFailureKind } from '../../events/run-failure'
 import { EWaitEpisodeKind } from '../../model-recovery/waiting'
 import { ESetupPhase } from '../../workspace/setup-notice'
-import type { V2Event, V2EventType } from '../event'
+import type { RecordEvent, RecordEventType } from '../event'
 import { endsStartFailure } from '../start-failure'
 import type { OpenTurn, TurnEnd } from '../turns'
 import { countsAsPrepared, EWorkspaceStep, EWorkspaceStepState } from '../workspace'
@@ -12,7 +12,7 @@ import { NO_COMMANDS, stepCommandFacts, type CommandFacts } from './command-fact
 export type TimedReason = { reason: string; at: string }
 
 export type TurnFact = {
-  type: V2EventType
+  type: RecordEventType
   at: string
   toolName: string | null
 }
@@ -68,7 +68,7 @@ export const initialStatusFacts: StatusFacts = {
   commands: NO_COMMANDS,
 }
 
-const LABEL_TYPES: ReadonlySet<V2EventType> = new Set<V2EventType>([
+const LABEL_TYPES: ReadonlySet<RecordEventType> = new Set<RecordEventType>([
   'tool-dispatched',
   'tool-called',
   'tool-denied',
@@ -78,7 +78,7 @@ const LABEL_TYPES: ReadonlySet<V2EventType> = new Set<V2EventType>([
   'run-failed',
 ])
 
-const labelOf = (event: V2Event): TurnFact | null => {
+const labelOf = (event: RecordEvent): TurnFact | null => {
   if (!LABEL_TYPES.has(event.type)) return null
   return {
     type: event.type,
@@ -87,7 +87,7 @@ const labelOf = (event: V2Event): TurnFact | null => {
   }
 }
 
-const unfinishedFailureAfter = (event: V2Event): StatusFacts['unfinishedFailure'] =>
+const unfinishedFailureAfter = (event: RecordEvent): StatusFacts['unfinishedFailure'] =>
   event.type === 'run-failed'
     ? { message: event.failure.message, kind: event.failure.kind, at: event.at }
     : null
@@ -97,7 +97,7 @@ const withRetry = (retries: readonly RetryFact[], retry: RetryFact): readonly Re
   return [...retries.filter((kept) => Date.parse(kept.notBefore) > deadline), retry]
 }
 
-const stepWorkspace = (facts: StatusFacts, event: V2Event): StatusFacts => {
+const stepWorkspace = (facts: StatusFacts, event: RecordEvent): StatusFacts => {
   const prepared = facts.prepared || countsAsPrepared(event)
   if (event.type === 'workspace-attempt-started') {
     return { ...facts, attempt: event.attempt, prepared, prepareFailure: null }
@@ -119,7 +119,7 @@ const stepWorkspace = (facts: StatusFacts, event: V2Event): StatusFacts => {
   return { ...facts, prepared, prepareFailure, startFailure }
 }
 
-const stepWaits = (facts: StatusFacts, event: V2Event): StatusFacts => {
+const stepWaits = (facts: StatusFacts, event: RecordEvent): StatusFacts => {
   if (event.type === 'model-wait-cleared') return { ...facts, credentialWait: null }
   if (event.type === 'model-waiting') {
     const credential = event.waiting.episode.kind === EWaitEpisodeKind.Credential
@@ -140,7 +140,7 @@ const stepWaits = (facts: StatusFacts, event: V2Event): StatusFacts => {
 const withoutParked = (parked: ParkedFacts, callId: string): ParkedFacts =>
   Object.fromEntries(Object.entries(parked).filter(([id]) => id !== callId))
 
-const stepParked = (facts: StatusFacts, event: V2Event): StatusFacts => {
+const stepParked = (facts: StatusFacts, event: RecordEvent): StatusFacts => {
   if (event.type === 'tool-parked') {
     return {
       ...facts,
@@ -153,7 +153,7 @@ const stepParked = (facts: StatusFacts, event: V2Event): StatusFacts => {
   return { ...facts, parked: withoutParked(facts.parked, event.callId) }
 }
 
-const stepTurn = (facts: StatusFacts, event: V2Event): StatusFacts => {
+const stepTurn = (facts: StatusFacts, event: RecordEvent): StatusFacts => {
   if (event.type === 'turn-started') {
     return { ...facts, openTurn: { turnId: event.turnId, startedAt: event.at } }
   }
@@ -169,7 +169,7 @@ const stepTurn = (facts: StatusFacts, event: V2Event): StatusFacts => {
   return { ...facts, turn: label, unfinishedFailure: unfinishedFailureAfter(event) }
 }
 
-const setupRunAfter = (event: V2Event): SetupRun | null | undefined => {
+const setupRunAfter = (event: RecordEvent): SetupRun | null | undefined => {
   if (event.type === 'workspace-attempt-started') return null
   if (event.type === 'workspace-step') {
     if (event.step !== EWorkspaceStep.Setup) return undefined
@@ -181,24 +181,24 @@ const setupRunAfter = (event: V2Event): SetupRun | null | undefined => {
   return undefined
 }
 
-const stepSetupRun = (facts: StatusFacts, event: V2Event): StatusFacts => {
+const stepSetupRun = (facts: StatusFacts, event: RecordEvent): StatusFacts => {
   const run = setupRunAfter(event)
   if (run === undefined) return facts
   if (run === null && facts.setupRun === null) return facts
   return { ...facts, setupRun: run }
 }
 
-const stepBackgroundFacts = (facts: StatusFacts, event: V2Event): StatusFacts => {
+const stepBackgroundFacts = (facts: StatusFacts, event: RecordEvent): StatusFacts => {
   const background = stepBackground(facts.background, event)
   return background === facts.background ? facts : { ...facts, background }
 }
 
-const withCommands = (facts: StatusFacts, event: V2Event): StatusFacts => {
+const withCommands = (facts: StatusFacts, event: RecordEvent): StatusFacts => {
   const commands = stepCommandFacts(facts.commands, event)
   return commands === facts.commands ? facts : { ...facts, commands }
 }
 
-export const stepStatusFacts = (facts: StatusFacts, event: V2Event): StatusFacts =>
+export const stepStatusFacts = (facts: StatusFacts, event: RecordEvent): StatusFacts =>
   withCommands(
     stepSetupRun(
       stepBackgroundFacts(

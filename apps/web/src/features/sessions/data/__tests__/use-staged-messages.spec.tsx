@@ -8,8 +8,8 @@ import {
   ETurnCause,
   pendingInputsOf,
   type Attachment,
-  type V2Body,
-  type V2Event,
+  type RecordEventBody,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import { quickStopsOf } from '@dltech/atlas-client/session'
 import { EOutgoingPlacement } from '@dltech/atlas-client/stream'
@@ -45,12 +45,12 @@ type Handles = {
   quickStops: { text: string; attachments: readonly Attachment[] }[]
 }
 
-const mount = async (args: { sessionId: string; events?: readonly V2Event[] }) => {
+const mount = async (args: { sessionId: string; events?: readonly RecordEvent[] }) => {
   const { createRoot } = await import('react-dom/client')
   const host = document.createElement('div')
   const root = createRoot(host)
   const handles: Handles = { draft: '', restoredAttachments: [], quickStops: [] }
-  function Probe({ events }: { events: readonly V2Event[] }) {
+  function Probe({ events }: { events: readonly RecordEvent[] }) {
     const staged = useStagedMessages({
       sessionId: args.sessionId,
       events,
@@ -74,7 +74,7 @@ const mount = async (args: { sessionId: string; events?: readonly V2Event[] }) =
     handles.staged = staged.staged.map((entry) => entry.clientId)
     return <p>{handles.staged.join(',')}</p>
   }
-  const render = async (events: readonly V2Event[]): Promise<void> => {
+  const render = async (events: readonly RecordEvent[]): Promise<void> => {
     await act(async () => root.render(<Probe events={events} />))
   }
   await render(args.events ?? [])
@@ -89,7 +89,7 @@ const SHOT: Attachment = {
   content: { store: EAttachmentStore.Inline, data: 'AAAA' },
 }
 
-const POSTED_ROW = (clientId: string, inboxId: number): V2Body => ({
+const POSTED_ROW = (clientId: string, inboxId: number): RecordEventBody => ({
   type: 'input-posted',
   inboxId,
   kind: 'message',
@@ -97,7 +97,7 @@ const POSTED_ROW = (clientId: string, inboxId: number): V2Body => ({
   message: { text: 'hello', clientId },
 })
 
-const QUICK_STOP = (clientId: string): V2Body[] => [
+const QUICK_STOP = (clientId: string): RecordEventBody[] => [
   { type: 'user-said', text: 'hello', clientId, inboxId: 3 },
   { type: 'turn-started', turnId: 'turn-1', cause: ETurnCause.Input },
   { type: 'assistant-said', parts: [{ type: 'reasoning', text: 'hm' }] },

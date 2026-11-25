@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EInputConsumed, type V2Event } from '@dltech/atlas-core'
+import { EInputConsumed, type RecordEvent } from '@dltech/atlas-core'
 
 import { flushUntil, makeRig, seedSession, THREAD_ID } from './holder-rig'
 
-const eventsOf = async (rig: Awaited<ReturnType<typeof makeRig>>): Promise<V2Event[]> => {
+const eventsOf = async (rig: Awaited<ReturnType<typeof makeRig>>): Promise<RecordEvent[]> => {
   const page = await rig.plane.readEvents({
     threadId: THREAD_ID,
     afterSeq: 0,
@@ -14,7 +14,7 @@ const eventsOf = async (rig: Awaited<ReturnType<typeof makeRig>>): Promise<V2Eve
   return [...page.events]
 }
 
-const stopConsumed = (events: readonly V2Event[]): boolean =>
+const stopConsumed = (events: readonly RecordEvent[]): boolean =>
   events.some((event) => event.type === 'input-consumed' && event.consumed === EInputConsumed.Stop)
 
 describe('SessionHolder after a consumed stop', () => {

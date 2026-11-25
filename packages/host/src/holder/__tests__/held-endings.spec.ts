@@ -10,8 +10,8 @@ import {
   toThreadId,
   type EventDraft,
   type InboxEntry,
-  type V2Body,
-  type V2Event,
+  type RecordEventBody,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 
 import { heldEndingIdsOf } from '../held-endings'
@@ -51,7 +51,7 @@ const entryOf = (args: { inboxId: number; event: EventDraft }): InboxEntry => ({
   senderSessionId: null,
 })
 
-const rowsOf = (bodies: readonly V2Body[]): V2Event[] =>
+const rowsOf = (bodies: readonly RecordEventBody[]): RecordEvent[] =>
   chainEvents({
     threadId: THREAD,
     runId: RUN,
@@ -60,7 +60,7 @@ const rowsOf = (bodies: readonly V2Body[]): V2Event[] =>
     bodies,
   })
 
-const postedNotice = (args: { inboxId: number; event: EventDraft }): V2Body => ({
+const postedNotice = (args: { inboxId: number; event: EventDraft }): RecordEventBody => ({
   type: 'input-posted',
   inboxId: args.inboxId,
   kind: INBOX_KIND_EVENT,
@@ -78,7 +78,7 @@ const depsOf = (entries: readonly InboxEntry[]): HeldSessionDeps =>
     timers: { now: () => 0 },
   }) as unknown as HeldSessionDeps
 
-const recordOf = (args: { bodies: readonly V2Body[] }): SessionRecord => {
+const recordOf = (args: { bodies: readonly RecordEventBody[] }): SessionRecord => {
   const rows = rowsOf(args.bodies)
   return {
     eventCache: () => ({
@@ -91,7 +91,7 @@ const recordOf = (args: { bodies: readonly V2Body[] }): SessionRecord => {
 
 const actionOf = async (args: {
   entries: readonly InboxEntry[]
-  bodies: readonly V2Body[]
+  bodies: readonly RecordEventBody[]
   childrenRunning: number
 }): Promise<EHeldAction> => {
   const { action } = await readHeldAction({

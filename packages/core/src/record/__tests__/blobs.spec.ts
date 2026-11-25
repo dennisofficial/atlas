@@ -13,9 +13,9 @@ import {
   type BlobRef,
 } from '../blobs'
 import { chainEvents } from '../chain-events'
-import { v2EventSchema, type V2Body } from '../event'
+import { recordEventSchema, type RecordEventBody } from '../event'
 
-const toolResult = (output: unknown): V2Body => ({
+const toolResult = (output: unknown): RecordEventBody => ({
   type: 'tool-result',
   callId: toCallId('call-1'),
   name: 'bash',
@@ -33,7 +33,7 @@ describe('spillBody', () => {
   })
 
   it('leaves non-spillable bodies untouched', () => {
-    const body: V2Body = { type: 'user-said', text: 'x'.repeat(10_000) }
+    const body: RecordEventBody = { type: 'user-said', text: 'x'.repeat(10_000) }
     const result = spillBody({ body, thresholdBytes })
     expect(result.body).toBe(body)
     expect(result.blobs).toEqual([])
@@ -57,14 +57,19 @@ describe('spillBody', () => {
   })
 
   it('spills tool-called input and fact-recorded value', () => {
-    const called: V2Body = {
+    const called: RecordEventBody = {
       type: 'tool-called',
       callId: toCallId('c1'),
       name: 'bash',
       input: { big: 'z'.repeat(1000) },
       ordinal: 0,
     }
-    const fact: V2Body = { type: 'fact-recorded', key: 'k', kind: 'note', value: 'v'.repeat(1000) }
+    const fact: RecordEventBody = {
+      type: 'fact-recorded',
+      key: 'k',
+      kind: 'note',
+      value: 'v'.repeat(1000),
+    }
     expect(blobRefsOf(spillBody({ body: called, thresholdBytes }).body)).toEqual([
       expect.objectContaining({ field: 'input' }),
     ])
@@ -75,7 +80,7 @@ describe('spillBody', () => {
 
   it('spills a resource snapshot value', () => {
     const value = { payload: 'x'.repeat(4000) }
-    const body: V2Body = {
+    const body: RecordEventBody = {
       type: 'resource-loaded',
       resource: 'mcp',
       fingerprint: 'instance-1:3:v1:/work',
@@ -117,7 +122,7 @@ describe('spillBody', () => {
     expect(ref?.size).toBeGreaterThan(BLOB_PREVIEW_BYTES)
   })
 
-  it('keeps the reference form valid through v2EventSchema', () => {
+  it('keeps the reference form valid through recordEventSchema', () => {
     const spilled = spillBody({ body: toolResult('q'.repeat(1000)), thresholdBytes })
     const [event] = chainEvents({
       threadId: toThreadId('thread-1'),
@@ -126,7 +131,7 @@ describe('spillBody', () => {
       bodies: [spilled.body],
       at: '2026-11-04T00:00:00.000Z',
     })
-    const parsed = v2EventSchema.safeParse(event)
+    const parsed = recordEventSchema.safeParse(event)
     expect(parsed.success).toBe(true)
   })
 })

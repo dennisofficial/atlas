@@ -10,7 +10,7 @@ import {
   toThreadId,
   type ModelPort,
   type ToolOutcome,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import {
   composePlugins,
@@ -95,7 +95,7 @@ const noticeProbePlugin = (state: NoticeState): Plugin =>
 const eventsIn = async (
   rig: Awaited<ReturnType<typeof makeRig>>,
   threadId: string,
-): Promise<V2Event[]> =>
+): Promise<RecordEvent[]> =>
   (
     await rig.plane.readEvents({
       threadId: threadId as typeof THREAD_ID,
@@ -105,10 +105,10 @@ const eventsIn = async (
     })
   ).events
 
-const childIdOf = (events: readonly V2Event[]): string | undefined =>
+const childIdOf = (events: readonly RecordEvent[]): string | undefined =>
   events.flatMap((event) => (event.type === 'agent-spawned' ? [event.agentId] : []))[0]
 
-const saidTexts = (events: readonly V2Event[]): string[] =>
+const saidTexts = (events: readonly RecordEvent[]): string[] =>
   events.flatMap((event) =>
     event.type === 'assistant-said'
       ? event.parts.flatMap((part) => (part.type === 'text' ? [part.text] : []))

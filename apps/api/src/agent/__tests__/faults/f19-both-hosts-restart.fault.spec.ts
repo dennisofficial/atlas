@@ -3,7 +3,7 @@ import { join } from 'node:path'
 
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 
-import { GENESIS_HASH, verifySuffix, type V2Event } from '@dltech/atlas-core'
+import { GENESIS_HASH, verifySuffix, type RecordEvent } from '@dltech/atlas-core'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 
 import { startRig, type FaultRig } from '../../testing/fault-rig'
@@ -148,7 +148,7 @@ describe.skipIf(REDIS_URL === undefined)('F19 both agent hosts restarted at once
 
     const chain = verifySuffix({
       trusted: { seq: 0, hash: GENESIS_HASH },
-      events: events.map((row) => row.event as V2Event),
+      events: events.map((row) => row.event as RecordEvent),
     })
     expect(chain).toMatchObject({ ok: true })
 

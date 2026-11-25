@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'bun:test'
-import { chainEvents, toRunId, toThreadId, type V2Body } from '@dltech/atlas-core'
+import { chainEvents, toRunId, toThreadId, type RecordEventBody } from '@dltech/atlas-core'
 
 import { sessionRefusalsOf } from '../session-refusals'
 
-const eventsOf = (bodies: readonly V2Body[]) =>
+const eventsOf = (bodies: readonly RecordEventBody[]) =>
   chainEvents({
     threadId: toThreadId('thread-1'),
     runId: toRunId('run-1'),
@@ -13,7 +13,7 @@ const eventsOf = (bodies: readonly V2Body[]) =>
     bodies,
   })
 
-const refused = (inboxId: number, reason: string): V2Body => ({
+const refused = (inboxId: number, reason: string): RecordEventBody => ({
   type: 'input-refused',
   inboxId,
   reason,

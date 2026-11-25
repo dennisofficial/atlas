@@ -3,7 +3,7 @@ import { join } from 'node:path'
 
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 
-import { GENESIS_HASH, verifySuffix, type V2Event } from '@dltech/atlas-core'
+import { GENESIS_HASH, verifySuffix, type RecordEvent } from '@dltech/atlas-core'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 
 import { startRig, type FaultRig } from '../../testing/fault-rig'
@@ -32,7 +32,7 @@ const waitForCommittedResult = async (args: {
   }
 }
 
-const readAllEvents = async (args: { rig: FaultRig; threadId: string }): Promise<V2Event[]> => {
+const readAllEvents = async (args: { rig: FaultRig; threadId: string }): Promise<RecordEvent[]> => {
   const page = await args.rig.plane.readEvents({
     threadId: args.threadId,
     afterSeq: 0,

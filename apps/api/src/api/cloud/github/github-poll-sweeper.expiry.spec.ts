@@ -1,7 +1,7 @@
 import { ControlPlane } from '@dltech/atlas-control'
 import { NO_EXPIRY_AT, PostgresControlStore } from '@dltech/atlas-control/postgres'
 import {
-  createV2EventSchema,
+  createRecordEventSchema,
   ESubscriptionActor,
   ESubscriptionEnd,
   INBOX_KIND_RECORD,
@@ -24,7 +24,7 @@ const FUTURE = () => new Date(Date.now() + 3_600_000)
 const seedV2Thread = async () => {
   const plane = new ControlPlane({
     store: new PostgresControlStore(db),
-    eventSchema: createV2EventSchema({ pluginBodies: [] }),
+    eventSchema: createRecordEventSchema({ pluginBodies: [] }),
   })
   await plane.createSession({
     sessionId: SESSION,

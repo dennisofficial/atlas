@@ -1,7 +1,7 @@
 import type { KeyEvent } from '@opentui/core'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import type { Attachment, V2Event } from '@dltech/atlas-core'
+import type { Attachment, RecordEvent } from '@dltech/atlas-core'
 import {
   mergedDraftOf,
   requestRewind,
@@ -52,7 +52,7 @@ export type RewindControl = {
 export function useRewind(args: {
   api: Pick<SessionApi, 'runCommand'>
   sessionId: string
-  rawEvents: readonly V2Event[]
+  rawEvents: readonly RecordEvent[]
   draft: Pick<DraftControls, 'value' | 'setValue'> & { editor: DraftControls['editor'] }
   attachments: Pick<SessionAttachments, 'restore'>
   onProblem: (reason: string) => void

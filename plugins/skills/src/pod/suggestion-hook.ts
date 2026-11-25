@@ -5,7 +5,7 @@ import {
   type Assembled,
   type BeforeStep,
   type EventDraft,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 
@@ -60,9 +60,12 @@ const suggestionOf = async (args: {
   }
 }
 
-type Recorded = Extract<V2Event, { type: 'context-loaded' }>
+type Recorded = Extract<RecordEvent, { type: 'context-loaded' }>
 
-const recordedOf = (args: { events: readonly V2Event[]; content: string }): Recorded | undefined =>
+const recordedOf = (args: {
+  events: readonly RecordEvent[]
+  content: string
+}): Recorded | undefined =>
   args.events.findLast(
     (event): event is Recorded =>
       event.type === 'context-loaded' &&

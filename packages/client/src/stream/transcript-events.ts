@@ -1,8 +1,9 @@
-import { CORE_EVENT_TYPES, isBlobRef, type Event, type V2Event } from '@dltech/atlas-core'
+import { CORE_EVENT_TYPES, isBlobRef, type Event, type RecordEvent } from '@dltech/atlas-core'
 
-type CoreV2Event = Extract<V2Event, Event>
+type CoreRecordEvent = Extract<RecordEvent, Event>
 
-const isCoreEvent = (event: V2Event): event is CoreV2Event => CORE_EVENT_TYPES.has(event.type)
+const isCoreEvent = (event: RecordEvent): event is CoreRecordEvent =>
+  CORE_EVENT_TYPES.has(event.type)
 
 type WithoutChain<TEvent> = TEvent extends unknown ? Omit<TEvent, 'epoch' | 'prevHash'> : never
 
@@ -13,7 +14,7 @@ const withoutChain = <TEvent extends { epoch: number; prevHash: string }>(
   return rest as WithoutChain<TEvent>
 }
 
-const compactedOf = (event: Extract<V2Event, { type: 'history-summarised' }>): Event => ({
+const compactedOf = (event: Extract<RecordEvent, { type: 'history-summarised' }>): Event => ({
   ...withoutChain(event),
   type: 'history-compacted',
   replaced: event.throughSeq - event.fromSeq + 1,
@@ -34,11 +35,11 @@ const resolvedOf = (event: Event): Event => {
  * A plugin's own event, carried untouched: this package cannot name its body, so the surface says
  * which plugin types it parsed and the plugin's own fold narrows them.
  */
-const carriedOf = (event: V2Event): Event => withoutChain(event) as unknown as Event
+const carriedOf = (event: RecordEvent): Event => withoutChain(event) as unknown as Event
 
 const NO_PLUGIN_TYPES: ReadonlySet<string> = new Set()
 
-const transcriptEventOf = (event: V2Event, pluginTypes: ReadonlySet<string>): Event | null => {
+const transcriptEventOf = (event: RecordEvent, pluginTypes: ReadonlySet<string>): Event | null => {
   const type: string = event.type
   switch (event.type) {
     case 'history-rewound':
@@ -63,7 +64,7 @@ const transcriptEventOf = (event: V2Event, pluginTypes: ReadonlySet<string>): Ev
 }
 
 export const transcriptEventsOf = (
-  events: readonly V2Event[],
+  events: readonly RecordEvent[],
   pluginTypes: ReadonlySet<string> = NO_PLUGIN_TYPES,
 ): Event[] =>
   events.flatMap((event) => {

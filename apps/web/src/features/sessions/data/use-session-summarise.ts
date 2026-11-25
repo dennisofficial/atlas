@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
-import type { SummariseReach, V2Event } from '@dltech/atlas-core'
+import type { SummariseReach, RecordEvent } from '@dltech/atlas-core'
 
 import type { TranscriptSummarise } from '@/features/threads/data/use-summarise'
 import { messageOf } from '@/features/threads/data/message-of'
@@ -23,7 +23,7 @@ export type SessionSummarise = {
 
 export function useSessionSummarise(args: {
   sessionId: string
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
 }): SessionSummarise {
   const { sessionId, events } = args
   const [pick, setPick] = useState<SummariseReach | null>(null)

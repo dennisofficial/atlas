@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import type { V2Event } from '@dltech/atlas-core'
+import type { RecordEvent } from '@dltech/atlas-core'
 import type { StreamServerMessage } from '@dltech/atlas-protocol'
 
 import { createSessionFollower } from '../session-follower'
@@ -38,7 +38,7 @@ const setup = (extra: { log?: ReturnType<typeof memorySessionLog> } = {}) => {
   return { follower, clock, resnaps, unsupported, log, fetchCalls, all, base, tail, full }
 }
 
-const pageFrom = (all: readonly V2Event[], input: OlderEventsInput): OlderEventsPage => ({
+const pageFrom = (all: readonly RecordEvent[], input: OlderEventsInput): OlderEventsPage => ({
   events: all
     .filter((event) => event.seq > input.afterSeq)
     .slice(0, input.limit)

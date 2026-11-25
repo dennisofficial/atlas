@@ -14,7 +14,7 @@ import type { WorkflowRunSnapshot } from './github-run-snapshot'
 const pinnedToRun = (subscription: Row<'GithubSubscription'>): boolean =>
   runSelectorOf(subscription.branch)?.selector === 'run'
 
-export async function postRunNoticeV2Sessions(args: {
+export async function postRunNoticeSessions(args: {
   tx: Tx
   subscription: Row<'GithubSubscription'>
   run: WorkflowRunSnapshot

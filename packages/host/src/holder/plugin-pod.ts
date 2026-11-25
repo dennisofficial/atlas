@@ -10,7 +10,7 @@ import {
   type ThreadId,
   type ToolDeclaration,
   type ToolDefinition,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import {
   mergeHooks,
@@ -136,7 +136,7 @@ const postNoticeToSession = async (args: {
   })
 }
 
-export const resolvedEventsOf = (record: SessionRecord): readonly V2Event[] => {
+export const resolvedEventsOf = (record: SessionRecord): readonly RecordEvent[] => {
   const cache = record.eventCache()
   return cache.eventsAfter(0).map((event) => cache.resolvedEvent(event))
 }
@@ -228,7 +228,7 @@ export const resourceSyncOf = (args: {
   ctx: PluginPodContext
   record: SessionRecord
   signal: AbortSignal
-  shared?: (() => readonly V2Event[]) | undefined
+  shared?: (() => readonly RecordEvent[]) | undefined
 }): ResourceSync | undefined => {
   const resources = args.runtime.plugins?.pod.resources ?? []
   if (resources.length === 0) return undefined

@@ -1,6 +1,6 @@
 import '@dltech/atlas-plugin-sdk/testing'
 
-import { toEventId, toRunId, toThreadId, type V2Event } from '@dltech/atlas-core'
+import { toEventId, toRunId, toThreadId, type RecordEvent } from '@dltech/atlas-core'
 import type { TracePort } from '@dltech/atlas-observability'
 import {
   ECloudSetting,
@@ -72,7 +72,7 @@ export const daemonOf = (): Daemon => {
 
 export type Rig = {
   ctx: PluginPodContext
-  events: V2Event[]
+  events: RecordEvent[]
   calls: CallOp[]
   logs: string[]
   daemon: Daemon
@@ -84,7 +84,7 @@ export type Rig = {
   settled(): Promise<void>
 }
 
-const stamp = (draft: object, seq: number): V2Event =>
+const stamp = (draft: object, seq: number): RecordEvent =>
   ({
     ...draft,
     id: toEventId(`t:${seq}`),
@@ -95,23 +95,23 @@ const stamp = (draft: object, seq: number): V2Event =>
     at: '2026-11-20T12:00:00.000Z',
     epoch: 1,
     prevHash: 'a'.repeat(64),
-  }) as V2Event
+  }) as RecordEvent
 
 export const snapshotEventOf = (args: {
   resource: string
   fingerprint: string
   value: unknown
-}): V2Event => stamp({ type: 'resource-loaded', ...args }, 1)
+}): RecordEvent => stamp({ type: 'resource-loaded', ...args }, 1)
 
 export const rig = (args: {
   resources: readonly PodResource<unknown>[]
   daemon?: Daemon | undefined
-  shared?: (() => readonly V2Event[]) | undefined
+  shared?: (() => readonly RecordEvent[]) | undefined
   trace?: TracePort | undefined
   beforeCall?: ((op: CallOp) => Promise<void>) | undefined
 }): Rig => {
   const daemon = args.daemon ?? daemonOf()
-  const events: V2Event[] = []
+  const events: RecordEvent[] = []
   const calls: CallOp[] = []
   const logs: string[] = []
   const daemonListeners = new Set<(frame: DaemonEventFrame) => void>()

@@ -15,7 +15,7 @@ import {
   type EventDraft,
   type ToolCall,
   type ToolOutcome,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import {
   EMPTY_ANALYTICS,
@@ -169,7 +169,7 @@ export function createRig(options: RigOptions = {}) {
     worktrees: EMPTY_WORKTREES,
     append: async () => undefined,
     notify: async () => undefined,
-    events: () => [...(options.events ?? [])] as unknown as V2Event[],
+    events: () => [...(options.events ?? [])] as unknown as RecordEvent[],
     call: async () => {
       throw new Error('this rig makes no daemon call')
     },

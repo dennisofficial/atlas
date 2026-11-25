@@ -31,7 +31,7 @@ const seedV1Rows = async () => ({
   ),
 })
 
-const seedV2Row = () =>
+const seedRow = () =>
   db.orm.public.GithubPrOutbox.create(
     rowOf({ kind: 'reconcile-checks', payload: { repoFullName: 'compai/app', headSha: 'abc' } }),
   )
@@ -56,7 +56,7 @@ describe('GithubPrOutboxDispatcher over the rows the v1 outbox left behind', () 
 
   it('drains the v2 rows and leaves every v1 row unclaimed', async () => {
     const rows = await seedV1Rows()
-    const reconcileRow = await seedV2Row()
+    const reconcileRow = await seedRow()
     const { dispatcher, reconcile } = rig()
 
     expect(await dispatcher.drain()).toBe(1)

@@ -1,4 +1,4 @@
-import type { SaidUpload, V2Event } from '@dltech/atlas-core'
+import type { SaidUpload, RecordEvent } from '@dltech/atlas-core'
 import { EStreamResetReason, STREAM_PROTOCOL_MIN_VERSION } from '@dltech/atlas-protocol'
 import type { CommandEntry } from '@dltech/atlas-commands'
 import type {
@@ -147,7 +147,7 @@ export type FakeSessionClient = SessionClient & {
   refuseSettingReads: (message: string | null) => void
   pushCreated: (created: SessionCreateOutput) => void
   pushRows: (rows: readonly StreamSessionRow[]) => void
-  pushEvents: (args: { sessionId: string; events: readonly V2Event[]; live: boolean }) => void
+  pushEvents: (args: { sessionId: string; events: readonly RecordEvent[]; live: boolean }) => void
   pushView: (args: { sessionId: string; view: SessionViewOutput }) => void
   pushStatus: (args: { sessionId: string; status: SessionStatusOutput }) => void
   pushShellOutput: (args: {

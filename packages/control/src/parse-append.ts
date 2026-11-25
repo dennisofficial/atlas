@@ -1,9 +1,11 @@
-import { v2EventSchema, type V2Event } from '@dltech/atlas-core'
+import { recordEventSchema, type RecordEvent } from '@dltech/atlas-core'
 import type { z } from 'zod'
 
 import type { ControlRefusal } from './refusal'
 
-export type ParsedAppend = { ok: true; events: V2Event[] } | { ok: false; refusal: ControlRefusal }
+export type ParsedAppend =
+  | { ok: true; events: RecordEvent[] }
+  | { ok: false; refusal: ControlRefusal }
 
 const seqOf = (raw: unknown, fallback: number): number =>
   typeof raw === 'object' && raw !== null && 'seq' in raw && typeof raw.seq === 'number'
@@ -19,10 +21,10 @@ export function parseAppendEvents(params: {
   threadId: string
   nextSeq: number
   raw: readonly unknown[]
-  eventSchema?: z.ZodType<V2Event> | undefined
+  eventSchema?: z.ZodType<RecordEvent> | undefined
 }): ParsedAppend {
-  const schema = params.eventSchema ?? v2EventSchema
-  const events: V2Event[] = []
+  const schema = params.eventSchema ?? recordEventSchema
+  const events: RecordEvent[] = []
   for (const raw of params.raw) {
     const parsed = schema.safeParse(raw)
     if (!parsed.success) {

@@ -9,7 +9,7 @@ import {
   ToolDefinition,
   type ModelPort,
   type ToolOutcome,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import { ScriptedModel, type ScriptedModelStep } from '@dltech/atlas-agent/testing'
 import {
@@ -86,7 +86,7 @@ const spawnPlugin = (state: SpawnState): Plugin =>
     transport: 'none',
   })
 
-const eventsIn = async (rig: HolderRig, threadId: string): Promise<V2Event[]> =>
+const eventsIn = async (rig: HolderRig, threadId: string): Promise<RecordEvent[]> =>
   (
     await rig.plane.readEvents({
       threadId: threadId as typeof THREAD_ID,
@@ -96,14 +96,14 @@ const eventsIn = async (rig: HolderRig, threadId: string): Promise<V2Event[]> =>
     })
   ).events
 
-const saidIn = (events: readonly V2Event[]): string[] =>
+const saidIn = (events: readonly RecordEvent[]): string[] =>
   events.flatMap((event) =>
     event.type === 'assistant-said'
       ? event.parts.flatMap((part) => (part.type === 'text' ? [part.text] : []))
       : [],
   )
 
-const agentIdIn = (events: readonly V2Event[]): string => {
+const agentIdIn = (events: readonly RecordEvent[]): string => {
   const spawned = events.find((event) => event.type === 'agent-spawned')
   if (spawned === undefined || spawned.type !== 'agent-spawned') throw new Error('no spawn')
   return spawned.agentId
@@ -207,12 +207,12 @@ const handOff = async (rig: HolderRig): Promise<void> => {
   await draining
 }
 
-const restartedIn = async (rig: HolderRig, agentId: string): Promise<V2Event[]> =>
+const restartedIn = async (rig: HolderRig, agentId: string): Promise<RecordEvent[]> =>
   (await eventsIn(rig, THREAD_ID)).filter(
     (event) => event.type === 'agent-restarted' && event.agentId === agentId,
   )
 
-const retryEntryConsumed = async (rig: HolderRig, inboxId: number): Promise<V2Event[]> =>
+const retryEntryConsumed = async (rig: HolderRig, inboxId: number): Promise<RecordEvent[]> =>
   (await eventsIn(rig, THREAD_ID)).filter(
     (event) => event.type === 'input-consumed' && event.inboxId === inboxId,
   )

@@ -1,17 +1,17 @@
-import type { Event, V2Event } from '@dltech/atlas-core'
+import type { Event, RecordEvent } from '@dltech/atlas-core'
 import { EAuthor, EEntryKind, type SignInEntry } from '@dltech/atlas-client/transcript'
 
 import { EMcpSignInResult } from '../core/sign-in'
 
-type SignInStarted = Extract<V2Event, { type: 'mcp-sign-in-started' }>
-type SignInResolved = Extract<V2Event, { type: 'mcp-sign-in-resolved' }>
+type SignInStarted = Extract<RecordEvent, { type: 'mcp-sign-in-started' }>
+type SignInResolved = Extract<RecordEvent, { type: 'mcp-sign-in-resolved' }>
 
 type SignInRun = { started: SignInStarted; resolved: SignInResolved | undefined }
 
 const pairKey = (event: SignInStarted | SignInResolved): string =>
   `${event.sessionId}:${event.server}`
 
-const runsOf = (events: readonly (Event | V2Event)[]): ReadonlyMap<string, SignInRun> => {
+const runsOf = (events: readonly (Event | RecordEvent)[]): ReadonlyMap<string, SignInRun> => {
   const open = new Map<string, string>()
   const runs = new Map<string, SignInRun>()
 
@@ -57,7 +57,7 @@ const entryOfRun = (run: SignInRun): SignInEntry => {
 
 /** Two events per sign-in: the row is keyed by the one that drew the card, so it redraws when the other lands. */
 export const mcpSignInEntries = (
-  events: readonly (Event | V2Event)[],
+  events: readonly (Event | RecordEvent)[],
 ): ReadonlyMap<string, SignInEntry> => {
   const entries = new Map<string, SignInEntry>()
   for (const [id, run] of runsOf(events)) entries.set(id, entryOfRun(run))

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'bun:test'
 import { z } from 'zod'
 
-import { createV2EventSchema, type PluginViewFold } from '@dltech/atlas-core'
+import { createRecordEventSchema, type PluginViewFold } from '@dltech/atlas-core'
 
 import { InMemoryControlStore } from '../src/testing/memory'
 import {
@@ -42,7 +42,7 @@ const failedRosterView: PluginViewFold<readonly string[]> = {
 }
 
 const composedHarness = (store: InMemoryControlStore): Harness =>
-  makeHarness(store, createV2EventSchema({ pluginBodies: [mcpServerChangedSchema] }), {
+  makeHarness(store, createRecordEventSchema({ pluginBodies: [mcpServerChangedSchema] }), {
     pluginViews: [failedRosterView as PluginViewFold],
   })
 

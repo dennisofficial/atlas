@@ -5,7 +5,7 @@ import {
   INBOX_KIND_STOP,
   toRunId,
   toThreadId,
-  type V2Body,
+  type RecordEventBody,
 } from '@dltech/atlas-core'
 
 import { POD_TURN_RUNNING } from './pod-power.error'
@@ -17,7 +17,9 @@ const startTurn = async (args: {
   threadId: string
 }): Promise<void> => {
   const granted = await args.plane.grant({ sessionId: args.sessionId, hostId: 9000 })
-  const bodies: V2Body[] = [{ type: 'turn-started', turnId: 'turn-1', cause: ETurnCause.Input }]
+  const bodies: RecordEventBody[] = [
+    { type: 'turn-started', turnId: 'turn-1', cause: ETurnCause.Input },
+  ]
   const appended = await args.plane.append({
     threadId: args.threadId,
     epoch: granted.epoch,

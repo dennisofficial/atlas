@@ -2,7 +2,12 @@ import { registerDom, unregisterDom } from '@/lib/__tests__/happy-dom-globals'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test'
 import { act } from 'react'
 
-import { EAgentStatus, ERunFailureKind, type RunFailure, type V2Event } from '@dltech/atlas-core'
+import {
+  EAgentStatus,
+  ERunFailureKind,
+  type RunFailure,
+  type RecordEvent,
+} from '@dltech/atlas-core'
 
 import { RepairCard } from '@/features/threads/transcript/repair-card'
 
@@ -32,7 +37,7 @@ const failure: RunFailure = {
   accountId: 'acc_1',
 }
 
-const render = async (events: readonly V2Event[]): Promise<void> =>
+const render = async (events: readonly RecordEvent[]): Promise<void> =>
   mountRepair({
     events,
     onSwitchModel: () => {

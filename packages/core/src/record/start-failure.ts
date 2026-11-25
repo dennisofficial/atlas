@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import type { V2Event } from './event'
+import type { RecordEvent } from './event'
 
 export const sessionStartFailedSchema = z.object({
   type: z.literal('session-start-failed'),
@@ -18,7 +18,7 @@ export type StartFailure = {
   at: string
 }
 
-const ENDS_START_FAILURE: ReadonlySet<V2Event['type']> = new Set([
+const ENDS_START_FAILURE: ReadonlySet<RecordEvent['type']> = new Set([
   'user-said',
   'assistant-said',
   'workspace-prepared',
@@ -26,9 +26,9 @@ const ENDS_START_FAILURE: ReadonlySet<V2Event['type']> = new Set([
   'run-failed',
 ])
 
-export const endsStartFailure = (event: V2Event): boolean => ENDS_START_FAILURE.has(event.type)
+export const endsStartFailure = (event: RecordEvent): boolean => ENDS_START_FAILURE.has(event.type)
 
-export const activeStartFailure = (events: readonly V2Event[]): StartFailure | undefined => {
+export const activeStartFailure = (events: readonly RecordEvent[]): StartFailure | undefined => {
   const index = events.findLastIndex((event) => event.type === 'session-start-failed')
   const failed = events[index]
   if (failed === undefined || failed.type !== 'session-start-failed') return undefined

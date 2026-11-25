@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EMessageOrigin, type V2Event } from '@dltech/atlas-core'
+import { EMessageOrigin, type RecordEvent } from '@dltech/atlas-core'
 
 import {
   SKILL_SUGGEST_AGENT_CHARS,
@@ -10,7 +10,7 @@ import {
 
 let seq = 0
 
-const stamped = (body: Record<string, unknown>): V2Event =>
+const stamped = (body: Record<string, unknown>): RecordEvent =>
   ({
     id: `e${++seq}`,
     seq,
@@ -21,20 +21,20 @@ const stamped = (body: Record<string, unknown>): V2Event =>
     epoch: 0,
     prevHash: '',
     ...body,
-  }) as V2Event
+  }) as RecordEvent
 
-const operator = (text: string): V2Event => stamped({ type: 'user-said', text })
+const operator = (text: string): RecordEvent => stamped({ type: 'user-said', text })
 
-const peer = (text: string): V2Event =>
+const peer = (text: string): RecordEvent =>
   stamped({ type: 'user-said', text, via: EMessageOrigin.PeerAgent })
 
-const reply = (text: string): V2Event =>
+const reply = (text: string): RecordEvent =>
   stamped({ type: 'assistant-said', parts: [{ type: 'text', text }] })
 
-const skillCall = (input: unknown): V2Event =>
+const skillCall = (input: unknown): RecordEvent =>
   stamped({ type: 'tool-called', callId: 'c', name: 'skill', input, ordinal: 0 })
 
-const suggestion = (): V2Event =>
+const suggestion = (): RecordEvent =>
   stamped({
     type: 'context-loaded',
     slot: 'skill-suggestion',
@@ -42,7 +42,7 @@ const suggestion = (): V2Event =>
     content: 'skill: video — 0.90',
   })
 
-const posted = (inboxId: number, text: string, via?: EMessageOrigin): V2Event =>
+const posted = (inboxId: number, text: string, via?: EMessageOrigin): RecordEvent =>
   stamped({
     type: 'input-posted',
     inboxId,
@@ -51,10 +51,10 @@ const posted = (inboxId: number, text: string, via?: EMessageOrigin): V2Event =>
     message: { text, ...(via === undefined ? {} : { via }) },
   })
 
-const drained = (inboxId: number, text: string): V2Event =>
+const drained = (inboxId: number, text: string): RecordEvent =>
   stamped({ type: 'user-said', text, inboxId })
 
-const suggestionFor = (inboxId: number): V2Event =>
+const suggestionFor = (inboxId: number): RecordEvent =>
   stamped({
     type: 'context-loaded',
     slot: 'skill-suggestion',

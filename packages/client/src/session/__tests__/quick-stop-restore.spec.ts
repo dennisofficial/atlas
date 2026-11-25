@@ -9,7 +9,7 @@ import {
   toRunId,
   toThreadId,
   type Attachment,
-  type V2Body,
+  type RecordEventBody,
 } from '@dltech/atlas-core'
 
 import {
@@ -19,7 +19,7 @@ import {
   type QuickStopEvidence,
 } from '../quick-stop-restore'
 
-const eventsOf = (bodies: readonly V2Body[]) =>
+const eventsOf = (bodies: readonly RecordEventBody[]) =>
   chainEvents({
     threadId: toThreadId('thread-1'),
     runId: toRunId('run-1'),
@@ -29,24 +29,30 @@ const eventsOf = (bodies: readonly V2Body[]) =>
     bodies,
   })
 
-const said = (text: string, over: Partial<{ clientId: string; inboxId: number }> = {}): V2Body => ({
+const said = (
+  text: string,
+  over: Partial<{ clientId: string; inboxId: number }> = {},
+): RecordEventBody => ({
   type: 'user-said',
   text,
   ...over,
 })
 
-const started: V2Body = { type: 'turn-started', turnId: 'turn-1', cause: ETurnCause.Input }
+const started: RecordEventBody = { type: 'turn-started', turnId: 'turn-1', cause: ETurnCause.Input }
 
-const thought: V2Body = { type: 'assistant-said', parts: [{ type: 'reasoning', text: 'hm' }] }
+const thought: RecordEventBody = {
+  type: 'assistant-said',
+  parts: [{ type: 'reasoning', text: 'hm' }],
+}
 
-const ended: V2Body = {
+const ended: RecordEventBody = {
   type: 'turn-ended',
   turnId: 'turn-1',
   outcome: 'stopped' as never,
   by: 'operator' as never,
 }
 
-const quickStop = (toSeq: number, draft: string): V2Body => ({
+const quickStop = (toSeq: number, draft: string): RecordEventBody => ({
   type: 'history-rewound',
   toSeq,
   draft,

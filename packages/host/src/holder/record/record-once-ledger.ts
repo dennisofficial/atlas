@@ -6,7 +6,7 @@ import type { SessionRecord } from './record-adapter'
 
 type Inflight = { promise: Promise<unknown> }
 
-export class V2OnceLedger extends OnceLedger {
+export class RecordOnceLedger extends OnceLedger {
   private readonly inflight = new Map<string, Inflight>()
   private readonly inflightRetries = new Map<string, Promise<ScheduledRetry>>()
 

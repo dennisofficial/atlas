@@ -7,7 +7,7 @@ import { ERetryReason } from '../../models/retry'
 import { EFinishReason } from '../../stream/chunk'
 import { ESubscriptionActor, ESubscriptionEnd } from '../../subscriptions/subscription'
 import { ECompactionAnchor } from '../../events/body'
-import { EInputConsumed, type Hash, type V2Event } from '../event'
+import { EInputConsumed, type Hash, type RecordEvent } from '../event'
 import { sessionStatusOf } from '../session-status'
 import { ETurnCause, ETurnEndedBy, ETurnOutcome } from '../turns'
 
@@ -23,7 +23,10 @@ let seq = 0
 
 const envelope = (
   at: string = NOW,
-): Pick<V2Event, 'id' | 'seq' | 'threadId' | 'runId' | 'depth' | 'at' | 'epoch' | 'prevHash'> => {
+): Pick<
+  RecordEvent,
+  'id' | 'seq' | 'threadId' | 'runId' | 'depth' | 'at' | 'epoch' | 'prevHash'
+> => {
   seq += 1
   return {
     id: toEventId(`t:${seq}`),
@@ -37,7 +40,7 @@ const envelope = (
   }
 }
 
-export const turnStarted = (args: { turnId?: string; at?: string } = {}): V2Event => ({
+export const turnStarted = (args: { turnId?: string; at?: string } = {}): RecordEvent => ({
   ...envelope(args.at ?? STARTED_AT),
   type: 'turn-started',
   turnId: args.turnId ?? 'turn-1',
@@ -46,7 +49,7 @@ export const turnStarted = (args: { turnId?: string; at?: string } = {}): V2Even
 
 export const turnEnded = (
   args: { turnId?: string; outcome?: ETurnOutcome; by?: ETurnEndedBy; at?: string } = {},
-): V2Event => ({
+): RecordEvent => ({
   ...envelope(args.at ?? ENDED_AT),
   type: 'turn-ended',
   turnId: args.turnId ?? 'turn-1',
@@ -54,7 +57,7 @@ export const turnEnded = (
   by: args.by ?? ETurnEndedBy.Agent,
 })
 
-export const userSaid = (at?: string): V2Event => ({
+export const userSaid = (at?: string): RecordEvent => ({
   ...envelope(at),
   type: 'user-said',
   text: 'hi',
@@ -62,7 +65,7 @@ export const userSaid = (at?: string): V2Event => ({
 
 export const assistantSaid = (
   args: { aborted?: 'handoff'; finish?: EFinishReason; at?: string } = {},
-): V2Event => ({
+): RecordEvent => ({
   ...envelope(args.at),
   type: 'assistant-said',
   parts: [],
@@ -70,7 +73,7 @@ export const assistantSaid = (
   finish: args.finish,
 })
 
-export const toolCalled = (at?: string): V2Event => ({
+export const toolCalled = (at?: string): RecordEvent => ({
   ...envelope(at),
   type: 'tool-called',
   callId: CALL,
@@ -78,14 +81,14 @@ export const toolCalled = (at?: string): V2Event => ({
   ordinal: 0,
 })
 
-export const toolDispatched = (args: { name?: string; at?: string } = {}): V2Event => ({
+export const toolDispatched = (args: { name?: string; at?: string } = {}): RecordEvent => ({
   ...envelope(args.at),
   type: 'tool-dispatched',
   callId: CALL,
   name: args.name ?? 'bash',
 })
 
-export const toolResult = (args: { interrupted?: boolean; at?: string } = {}): V2Event => ({
+export const toolResult = (args: { interrupted?: boolean; at?: string } = {}): RecordEvent => ({
   ...envelope(args.at),
   type: 'tool-result',
   callId: CALL,
@@ -93,7 +96,7 @@ export const toolResult = (args: { interrupted?: boolean; at?: string } = {}): V
   interrupted: args.interrupted,
 })
 
-export const toolDenied = (at?: string): V2Event => ({
+export const toolDenied = (at?: string): RecordEvent => ({
   ...envelope(at),
   type: 'tool-denied',
   callId: CALL,
@@ -101,14 +104,14 @@ export const toolDenied = (at?: string): V2Event => ({
   reason: 'no',
 })
 
-export const toolParked = (at?: string): V2Event => ({
+export const toolParked = (at?: string): RecordEvent => ({
   ...envelope(at),
   type: 'tool-parked',
   callId: CALL,
   name: 'bash',
 })
 
-export const branchesObserved = (): V2Event => ({
+export const branchesObserved = (): RecordEvent => ({
   ...envelope(),
   type: 'branches-observed',
   repo: '/work',
@@ -117,7 +120,7 @@ export const branchesObserved = (): V2Event => ({
   worktrees: [],
 })
 
-export const pullRequestLinked = (): V2Event => ({
+export const pullRequestLinked = (): RecordEvent => ({
   ...envelope(),
   type: 'pull-request-linked',
   number: 7,
@@ -126,7 +129,7 @@ export const pullRequestLinked = (): V2Event => ({
   branch: 'topic',
 })
 
-export const subscriptionEnded = (): V2Event => ({
+export const subscriptionEnded = (): RecordEvent => ({
   ...envelope(),
   type: 'subscription-ended',
   subscriptionId: 'sub_1',
@@ -134,7 +137,7 @@ export const subscriptionEnded = (): V2Event => ({
   by: ESubscriptionActor.Provider,
 })
 
-export const contextLoaded = (): V2Event => ({
+export const contextLoaded = (): RecordEvent => ({
   ...envelope(),
   type: 'context-loaded',
   slot: 'repo',
@@ -142,31 +145,31 @@ export const contextLoaded = (): V2Event => ({
   content: 'loaded',
 })
 
-export const worktreeEntered = (): V2Event => ({
+export const worktreeEntered = (): RecordEvent => ({
   ...envelope(),
   type: 'worktree-entered',
   path: '/work/wt',
   branch: 'topic',
 })
 
-export const otherFact = (): V2Event => ({
+export const otherFact = (): RecordEvent => ({
   ...envelope(),
   type: 'fact-recorded',
   key: 'note',
   kind: 'note',
 })
 
-export const unknownFact = (): V2Event =>
-  ({ ...envelope(), type: 'bookkeeping-from-a-newer-client' }) as unknown as V2Event
+export const unknownFact = (): RecordEvent =>
+  ({ ...envelope(), type: 'bookkeeping-from-a-newer-client' }) as unknown as RecordEvent
 
-export const inputConsumed = (consumed: EInputConsumed = EInputConsumed.Stop): V2Event => ({
+export const inputConsumed = (consumed: EInputConsumed = EInputConsumed.Stop): RecordEvent => ({
   ...envelope(),
   type: 'input-consumed',
   inboxId: 7,
   consumed,
 })
 
-export const commandPosted = (args: { inboxId?: number; name?: string } = {}): V2Event => ({
+export const commandPosted = (args: { inboxId?: number; name?: string } = {}): RecordEvent => ({
   ...envelope(STARTED_AT),
   type: 'input-posted',
   inboxId: args.inboxId ?? 7,
@@ -174,7 +177,7 @@ export const commandPosted = (args: { inboxId?: number; name?: string } = {}): V
   postedAt: STARTED_AT,
 })
 
-export const commandConsumed = (args: { inboxId?: number; name?: string } = {}): V2Event => ({
+export const commandConsumed = (args: { inboxId?: number; name?: string } = {}): RecordEvent => ({
   ...envelope(),
   type: 'input-consumed',
   inboxId: args.inboxId ?? 7,
@@ -184,7 +187,7 @@ export const commandConsumed = (args: { inboxId?: number; name?: string } = {}):
     : { command: { name: args.name, argumentText: '', text: args.name } }),
 })
 
-export const summarised = (args: { inboxId?: number } = {}): V2Event => ({
+export const summarised = (args: { inboxId?: number } = {}): RecordEvent => ({
   ...envelope(),
   type: 'history-summarised',
   fromSeq: 1,
@@ -194,14 +197,16 @@ export const summarised = (args: { inboxId?: number } = {}): V2Event => ({
   inboxId: args.inboxId ?? 7,
 })
 
-export const commandRefused = (args: { inboxId?: number } = {}): V2Event => ({
+export const commandRefused = (args: { inboxId?: number } = {}): RecordEvent => ({
   ...envelope(),
   type: 'input-refused',
   inboxId: args.inboxId ?? 7,
   reason: 'no',
 })
 
-export const runFailed = (args: { message?: string; kind?: ERunFailureKind } = {}): V2Event => ({
+export const runFailed = (
+  args: { message?: string; kind?: ERunFailureKind } = {},
+): RecordEvent => ({
   ...envelope(),
   type: 'run-failed',
   failure: {
@@ -210,13 +215,13 @@ export const runFailed = (args: { message?: string; kind?: ERunFailureKind } = {
   },
 })
 
-export const dismissFailure = (failure: V2Event): V2Event => ({
+export const dismissFailure = (failure: RecordEvent): RecordEvent => ({
   ...envelope(),
   type: 'run-failure-dismissed',
   failureSeq: failure.seq,
 })
 
-export const retry = (args: { notBefore: string }): V2Event => ({
+export const retry = (args: { notBefore: string }): RecordEvent => ({
   ...envelope(),
   type: 'retry-scheduled',
   key: 'retry:t:s0:1',
@@ -225,7 +230,7 @@ export const retry = (args: { notBefore: string }): V2Event => ({
   reason: ERetryReason.Network,
 })
 
-export const retryLikeFact = (args: { notBefore: string }): V2Event => ({
+export const retryLikeFact = (args: { notBefore: string }): RecordEvent => ({
   ...envelope(),
   type: 'fact-recorded',
   key: 'retry:model',
@@ -233,7 +238,7 @@ export const retryLikeFact = (args: { notBefore: string }): V2Event => ({
   value: { notBefore: args.notBefore },
 })
 
-export const modelWaiting = (args: { reason?: string } = {}): V2Event => ({
+export const modelWaiting = (args: { reason?: string } = {}): RecordEvent => ({
   ...envelope(),
   type: 'model-waiting',
   waiting: {
@@ -252,7 +257,9 @@ export const modelWaiting = (args: { reason?: string } = {}): V2Event => ({
   },
 })
 
-export const waitCleared = (waiting: Extract<V2Event, { type: 'model-waiting' }>): V2Event => ({
+export const waitCleared = (
+  waiting: Extract<RecordEvent, { type: 'model-waiting' }>,
+): RecordEvent => ({
   ...envelope(),
   type: 'model-wait-cleared',
   episode: waiting.waiting.episode,
@@ -260,7 +267,7 @@ export const waitCleared = (waiting: Extract<V2Event, { type: 'model-waiting' }>
 })
 
 export const statusOf = (args: {
-  events?: readonly V2Event[]
+  events?: readonly RecordEvent[]
   live?: boolean
   queuedSince?: string | null
   messageAfterFailure?: boolean

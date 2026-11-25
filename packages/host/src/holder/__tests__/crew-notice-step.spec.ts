@@ -9,7 +9,7 @@ import {
   type Assembled,
   type ModelPort,
   type ToolOutcome,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import {
   composePlugins,
@@ -99,7 +99,7 @@ const probePlugin = (state: ProbeState): Plugin =>
 const eventsIn = async (args: {
   rig: Awaited<ReturnType<typeof makeRig>>
   threadId: string
-}): Promise<V2Event[]> =>
+}): Promise<RecordEvent[]> =>
   (
     await args.rig.plane.readEvents({
       threadId: args.threadId as typeof THREAD_ID,
@@ -116,7 +116,7 @@ const queuedEndings = async (rig: Awaited<ReturnType<typeof makeRig>>): Promise<
       : [],
   )
 
-const ofType = (args: { events: readonly V2Event[]; type: string }): V2Event[] =>
+const ofType = (args: { events: readonly RecordEvent[]; type: string }): RecordEvent[] =>
   args.events.filter((event) => event.type === args.type)
 
 const parentOf = (args: {

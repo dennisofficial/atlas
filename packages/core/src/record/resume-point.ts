@@ -1,6 +1,6 @@
 import { EResumePoint, type EventDraft, type ResumeDiscard } from '../events/body'
 import { APPROVAL_WAITING, carriesInterruption, TOOL_PARKED_WAITING } from '../events/resume-plan'
-import type { V2Event } from './event'
+import type { RecordEvent } from './event'
 import { loopStateOf, openParkedCallOfState, outstandingApprovalOf } from './loop-state'
 import { visibleLoopEvents } from './loop-events'
 import { ETurnOutcome, openTurnOf } from './turns'
@@ -20,8 +20,8 @@ export const RESUME_REFUSAL_FAILED = 'The last turn failed; retry it.'
 export const RESUME_REFUSAL_MESSAGE = 'A message follows the stop; the turn continues from it.'
 export const RESUME_REFUSAL_ALREADY = 'This turn has already been resumed.'
 
-type TurnEndedEvent = Extract<V2Event, { type: 'turn-ended' }>
-type AssistantSaidEvent = Extract<V2Event, { type: 'assistant-said' }>
+type TurnEndedEvent = Extract<RecordEvent, { type: 'turn-ended' }>
+type AssistantSaidEvent = Extract<RecordEvent, { type: 'assistant-said' }>
 
 const notResumable = (because: string): ResumePoint => ({
   kind: EResumePoint.NotResumable,
@@ -46,21 +46,21 @@ export const resumeMarkedDraft = (params: {
   ...(params.inboxId === undefined ? {} : { inboxId: params.inboxId }),
 })
 
-const blockedReasonOf = (events: readonly V2Event[]): string | undefined => {
+const blockedReasonOf = (events: readonly RecordEvent[]): string | undefined => {
   const state = loopStateOf({ events: visibleLoopEvents(events) })
   if (outstandingApprovalOf(state) !== undefined) return APPROVAL_WAITING
   if (openParkedCallOfState(state) !== undefined) return TOOL_PARKED_WAITING
   return undefined
 }
 
-const isStepRow = (event: V2Event): boolean =>
+const isStepRow = (event: RecordEvent): boolean =>
   event.type === 'tool-called' ||
   event.type === 'tool-dispatched' ||
   event.type === 'tool-parked' ||
   event.type === 'tool-result' ||
   event.type === 'tool-denied'
 
-const interruptedCallIds = (window: readonly V2Event[]): readonly string[] => {
+const interruptedCallIds = (window: readonly RecordEvent[]): readonly string[] => {
   const unsettled = new Map<string, number>()
   const found: { seq: number; callId: string }[] = []
   for (const event of window) {
@@ -83,7 +83,7 @@ const interruptedCallIds = (window: readonly V2Event[]): readonly string[] => {
     })
 }
 
-const discardThroughOf = (params: { window: readonly V2Event[]; cutIndex: number }): number => {
+const discardThroughOf = (params: { window: readonly RecordEvent[]; cutIndex: number }): number => {
   let through = 0
   for (let index = params.cutIndex; index < params.window.length; index += 1) {
     const event = params.window[index]
@@ -94,7 +94,7 @@ const discardThroughOf = (params: { window: readonly V2Event[]; cutIndex: number
   return through
 }
 
-const cutPointOf = (window: readonly V2Event[]): ResumePoint => {
+const cutPointOf = (window: readonly RecordEvent[]): ResumePoint => {
   const cutIndex = window.findLastIndex(
     (event): event is AssistantSaidEvent =>
       event.type === 'assistant-said' && carriesInterruption(event),
@@ -111,7 +111,7 @@ const cutPointOf = (window: readonly V2Event[]): ResumePoint => {
   }
 }
 
-export function resumePointOf(input: { events: readonly V2Event[] }): ResumePoint {
+export function resumePointOf(input: { events: readonly RecordEvent[] }): ResumePoint {
   const visible = visibleEvents(input.events)
   if (openTurnOf(visible) !== null) return notResumable(RESUME_REFUSAL_RUNNING)
 

@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 import { sha256Hex } from '../events/event-identity'
 import { canonicalJson } from './canonical'
-import type { V2Body } from './event'
+import type { RecordEventBody } from './event'
 
 export const BLOB_PREVIEW_BYTES = 2048
 
@@ -54,7 +54,7 @@ export const containsRefShape = (value: unknown): boolean => {
 
 export type SpillableField = 'input' | 'output' | 'value'
 
-export const spillableFieldOf = (body: V2Body): SpillableField | undefined => {
+export const spillableFieldOf = (body: RecordEventBody): SpillableField | undefined => {
   if (body.type === 'tool-called') return 'input'
   if (body.type === 'tool-result') return 'output'
   if (body.type === 'fact-recorded') return 'value'
@@ -62,7 +62,7 @@ export const spillableFieldOf = (body: V2Body): SpillableField | undefined => {
   return undefined
 }
 
-const fieldValue = (body: V2Body, field: SpillableField): unknown => {
+const fieldValue = (body: RecordEventBody, field: SpillableField): unknown => {
   if (body.type === 'tool-called' && field === 'input') return body.input
   if (body.type === 'tool-result' && field === 'output') return body.output
   if (body.type === 'fact-recorded' && field === 'value') return body.value
@@ -70,7 +70,11 @@ const fieldValue = (body: V2Body, field: SpillableField): unknown => {
   return undefined
 }
 
-const withField = <T extends V2Body>(body: T, field: SpillableField, value: unknown): T => {
+const withField = <T extends RecordEventBody>(
+  body: T,
+  field: SpillableField,
+  value: unknown,
+): T => {
   if (body.type === 'tool-called' && field === 'input') return { ...body, input: value } as T
   if (body.type === 'tool-result' && field === 'output') return { ...body, output: value } as T
   if (body.type === 'fact-recorded' && field === 'value') return { ...body, value } as T
@@ -96,8 +100,8 @@ const previewOf = (text: string): string => {
   return text.slice(0, end)
 }
 
-export function spillBody(args: { body: V2Body; thresholdBytes: number }): {
-  body: V2Body
+export function spillBody(args: { body: RecordEventBody; thresholdBytes: number }): {
+  body: RecordEventBody
   blobs: BlobPayload[]
 } {
   const field = spillableFieldOf(args.body)
@@ -115,7 +119,7 @@ export function spillBody(args: { body: V2Body; thresholdBytes: number }): {
 
 export type BlobRefOccurrence = { field: SpillableField; hash: string; size: number }
 
-export const blobRefsOf = (event: V2Body): BlobRefOccurrence[] => {
+export const blobRefsOf = (event: RecordEventBody): BlobRefOccurrence[] => {
   const field = spillableFieldOf(event)
   if (field === undefined) return []
   const value = fieldValue(event, field)
@@ -124,7 +128,7 @@ export const blobRefsOf = (event: V2Body): BlobRefOccurrence[] => {
   return [{ field, hash, size }]
 }
 
-export function resolveBody<T extends V2Body>(args: {
+export function resolveBody<T extends RecordEventBody>(args: {
   body: T
   values: ReadonlyMap<string, unknown>
 }): T {

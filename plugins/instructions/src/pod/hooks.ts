@@ -5,7 +5,7 @@ import {
   type AfterTool,
   type BeforeStep,
   type EventDraft,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 import { readResource } from '@dltech/atlas-plugin-sdk'
@@ -70,7 +70,7 @@ const snapshotOf = (args: {
 }): InstructionsSnapshot | undefined =>
   readResource({ ctx: args.ctx, resource: instructionsResource(args.options) })
 
-const recordedNestedOf = (events: readonly V2Event[]): ReadonlyMap<string, string> => {
+const recordedNestedOf = (events: readonly RecordEvent[]): ReadonlyMap<string, string> => {
   const recorded = new Map<string, string>()
   for (const event of events) {
     if (event.type !== 'context-loaded' || event.slot !== NESTED_SLOT) continue

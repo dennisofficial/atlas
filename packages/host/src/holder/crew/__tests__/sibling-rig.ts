@@ -3,7 +3,7 @@ import {
   ToolDefinition,
   type ModelPort,
   type ToolOutcome,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import {
   composePlugins,
@@ -61,7 +61,7 @@ class ParentSayProbe extends ToolDefinition {
   }
 }
 
-const lastReporterOf = (events: readonly V2Event[]): string | undefined => {
+const lastReporterOf = (events: readonly RecordEvent[]): string | undefined => {
   const reported = events.filter((event) => event.type === 'agent-reported').at(-1)
   return reported?.type === 'agent-reported' ? reported.agentId : undefined
 }
@@ -238,7 +238,7 @@ export const siblingRig = async (args: {
 export const eventsIn = async (
   rig: Awaited<ReturnType<typeof makeRig>>,
   threadId: string,
-): Promise<V2Event[]> =>
+): Promise<RecordEvent[]> =>
   (
     await rig.plane.readEvents({
       threadId: threadId as typeof THREAD_ID,
@@ -248,7 +248,7 @@ export const eventsIn = async (
     })
   ).events
 
-export const reportedOn = (events: readonly V2Event[], threadId: string, prose: string) =>
+export const reportedOn = (events: readonly RecordEvent[], threadId: string, prose: string) =>
   events.find(
     (event) =>
       event.type === 'agent-reported' && event.agentId === threadId && event.prose === prose,
@@ -259,7 +259,7 @@ export const arrivesOn = async (args: {
   threadId: () => string
   from: () => string
   prose: string
-}): Promise<V2Event[]> => {
+}): Promise<RecordEvent[]> => {
   const arrived = await flushUntil({
     check: async () =>
       reportedOn(await eventsIn(args.rig, args.threadId()), args.from(), args.prose) !== undefined,

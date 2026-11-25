@@ -6,7 +6,7 @@ import {
   skillEntryOf,
   type CommandEntry,
 } from '@dltech/atlas-commands'
-import type { V2Event } from '@dltech/atlas-core'
+import type { RecordEvent } from '@dltech/atlas-core'
 import { latestSkillsOf } from '@dltech/atlas-plugin-skills/client'
 import type { SessionModelChoice } from '@dltech/atlas-protocol'
 
@@ -14,7 +14,7 @@ import { type IModelOption, type IModelSelection, selectionOf } from '../../comp
 
 export type ModelSetArgs = { model: string; effort?: string; fast?: boolean }
 
-export const skillEntriesOf = (events: readonly V2Event[]): readonly CommandEntry[] =>
+export const skillEntriesOf = (events: readonly RecordEvent[]): readonly CommandEntry[] =>
   latestSkillsOf(events).map((skill) =>
     skillEntryOf({
       name: skill.name,
@@ -25,7 +25,7 @@ export const skillEntriesOf = (events: readonly V2Event[]): readonly CommandEntr
 
 export const mobileEntriesOf = (args: {
   commands: readonly CommandEntry[]
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
 }): readonly CommandEntry[] =>
   catalogueForSurface({
     entries: catalogueOf({ commands: args.commands, skills: skillEntriesOf(args.events) }),

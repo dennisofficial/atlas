@@ -1,17 +1,17 @@
-import { EInputConsumed, type V2Event } from '@dltech/atlas-core'
+import { EInputConsumed, type RecordEvent } from '@dltech/atlas-core'
 import { expect } from 'bun:test'
 
 import { describeHandoff, waitUntil, type HandoffContext } from '../../testing/handoff-suite'
 import { EHostFault } from '../../testing/host-faults'
 import type { HostProcess } from '../../testing/fault-rig'
 
-const rowsOf = async (ctx: HandoffContext): Promise<V2Event[]> =>
-  (await ctx.record()).map((row) => row.event as V2Event)
+const rowsOf = async (ctx: HandoffContext): Promise<RecordEvent[]> =>
+  (await ctx.record()).map((row) => row.event as RecordEvent)
 
-const rotatedOf = async (ctx: HandoffContext): Promise<V2Event[]> =>
+const rotatedOf = async (ctx: HandoffContext): Promise<RecordEvent[]> =>
   (await rowsOf(ctx)).filter((event) => event.type === 'rotated')
 
-const consumedOf = async (ctx: HandoffContext): Promise<V2Event[]> =>
+const consumedOf = async (ctx: HandoffContext): Promise<RecordEvent[]> =>
   (await rowsOf(ctx)).filter(
     (event) => event.type === 'input-consumed' && event.consumed === EInputConsumed.Command,
   )

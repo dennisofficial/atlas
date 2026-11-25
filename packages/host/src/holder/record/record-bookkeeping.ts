@@ -1,7 +1,7 @@
 import {
   type BranchObservation,
   type ScheduledRetry,
-  type V2Event,
+  type RecordEvent,
   type WorkspaceRecord,
 } from '@dltech/atlas-core'
 
@@ -24,7 +24,7 @@ export class RecordBookkeeping {
   }
   private userSaidSeq = 0
 
-  step(event: V2Event): void {
+  step(event: RecordEvent): void {
     switch (event.type) {
       case 'tool-dispatched':
         this.dispatched.set(event.callId, { bootId: event.bootId })

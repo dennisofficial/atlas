@@ -11,8 +11,8 @@ import {
   toRunId,
   toThreadId,
   type RunFailure,
-  type V2Body,
-  type V2Event,
+  type RecordEventBody,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 
 import type { Account } from '@/features/settings/data/personal/accounts-api'
@@ -27,7 +27,7 @@ import {
 const MAIN = toThreadId('thread-1')
 const CHILD = toThreadId('agent-1')
 
-const eventsOf = (bodies: readonly V2Body[]): V2Event[] =>
+const eventsOf = (bodies: readonly RecordEventBody[]): RecordEvent[] =>
   chainEvents({
     threadId: MAIN,
     runId: toRunId('run-1'),
@@ -58,7 +58,7 @@ const account = (over: Partial<Account> = {}): Account => ({
 
 const otherAccount = account({ id: 'acc_2', label: 'work@example.com' })
 
-const repairOf = (bodies: readonly V2Body[]) => {
+const repairOf = (bodies: readonly RecordEventBody[]) => {
   const repair = credentialRepairOf({ mainThreadId: MAIN, events: eventsOf(bodies) })
   if (repair === null) throw new Error('expected a repair')
   return repair

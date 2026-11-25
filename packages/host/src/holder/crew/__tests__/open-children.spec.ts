@@ -18,8 +18,8 @@ import {
   type LogHead,
   type RunId,
   type ThreadId,
-  type V2Body,
-  type V2Event,
+  type RecordEventBody,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import type { HeldSessionDeps } from '../../held-session-deps'
 import type { SessionRuntime } from '../../ports'
@@ -36,7 +36,7 @@ const spawned = (args: {
   agentId: ThreadId
   group?: string | undefined
   worktree?: { path: string; branch: string } | undefined
-}): V2Body => ({
+}): RecordEventBody => ({
   agentId: args.agentId,
   type: 'agent-spawned',
   agentType: 'builder',
@@ -46,7 +46,7 @@ const spawned = (args: {
   ...(args.worktree === undefined ? {} : { worktree: args.worktree }),
 })
 
-const ended = (agentId: ThreadId): V2Body => ({
+const ended = (agentId: ThreadId): RecordEventBody => ({
   type: 'agent-ended',
   agentId,
   agentType: 'builder',
@@ -57,7 +57,7 @@ const ended = (agentId: ThreadId): V2Body => ({
   toolCalls: 2,
 })
 
-const headOf = (events: readonly V2Event[]): LogHead => {
+const headOf = (events: readonly RecordEvent[]): LogHead => {
   const last = events[events.length - 1]
   return last === undefined
     ? { seq: 0, hash: GENESIS_HASH }
@@ -65,20 +65,24 @@ const headOf = (events: readonly V2Event[]): LogHead => {
 }
 
 const parentRecordOf = (
-  bodies: readonly V2Body[],
-): { record: SessionRecord; appends: V2Body[][] } => {
-  const events: V2Event[] = chainEvents({
+  bodies: readonly RecordEventBody[],
+): { record: SessionRecord; appends: RecordEventBody[][] } => {
+  const events: RecordEvent[] = chainEvents({
     threadId: PARENT,
     runId: toRunId('run-seed'),
     epoch: 1,
     bodies,
     at: AT,
   })
-  const appends: V2Body[][] = []
+  const appends: RecordEventBody[][] = []
   const record = {
     ownEvents: async () => [...events],
     eventCache: () => ({ eventsAfter: () => [...events] }),
-    append: async (args: { threadId: ThreadId; runId: RunId; drafts: readonly V2Body[] }) => {
+    append: async (args: {
+      threadId: ThreadId
+      runId: RunId
+      drafts: readonly RecordEventBody[]
+    }) => {
       appends.push([...args.drafts])
       events.push(
         ...chainEvents({
@@ -96,7 +100,7 @@ const parentRecordOf = (
   return { record, appends }
 }
 
-const childrenOf = async (bodies: readonly V2Body[]) =>
+const childrenOf = async (bodies: readonly RecordEventBody[]) =>
   openChildrenOf((await parentRecordOf(bodies).record.ownEvents({ threadId: PARENT })) as Event[])
 
 const crewOf = (args: { record: SessionRecord; plane: undefined; posted: string[] }): CrewRoom =>

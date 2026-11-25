@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import type { InboxEntry, V2Event } from '@dltech/atlas-core'
+import type { InboxEntry, RecordEvent } from '@dltech/atlas-core'
 
 import { supersededRewindIdsOf } from '../rewind-dedupe'
 
@@ -26,13 +26,13 @@ const message = (inboxId: number): InboxEntry => ({
   senderSessionId: null,
 })
 
-const rewound = (seq: number, toSeq: number): V2Event =>
+const rewound = (seq: number, toSeq: number): RecordEvent =>
   ({
     seq,
     type: 'history-rewound',
     toSeq,
     draft: 'text',
-  }) as unknown as V2Event
+  }) as unknown as RecordEvent
 
 describe('supersededRewindIdsOf', () => {
   it('keeps only the last rewind to each target', () => {

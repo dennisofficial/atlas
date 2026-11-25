@@ -16,7 +16,7 @@ import {
   type ModelPort,
   type PluginEventBody,
   type RecordBody,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import type { PodSlash } from '@dltech/atlas-plugin-sdk'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
@@ -44,11 +44,11 @@ export type CommandIntakeArgs = {
   sessionId: string
   model?: ModelPort | undefined
   visibleEvents(): readonly Event[]
-  logEvents(): readonly V2Event[]
+  logEvents(): readonly RecordEvent[]
   crew?: { resume(args: { agentId: string }): Promise<EResumeOutcome> } | undefined
   mainThreadId?: string | undefined
   childrenRunning?: (() => number) | undefined
-  loggedEvents(): readonly V2Event[]
+  loggedEvents(): readonly RecordEvent[]
   append(drafts: readonly (EventDraft | RecordBody | PluginEventBody)[]): Promise<void>
   log?: LogPort | undefined
 }

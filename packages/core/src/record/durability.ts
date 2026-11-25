@@ -1,5 +1,5 @@
 import type { EventType } from '../events/body'
-import type { RecordBody, V2EventType } from './event'
+import type { RecordBody, RecordEventType } from './event'
 
 type CoreType = EventType | RecordBody['type']
 
@@ -88,8 +88,8 @@ const isCoreType = (type: string): type is CoreType => Object.hasOwn(EVENT_DURAB
 export const isDurable = (type: string): boolean =>
   isCoreType(type) ? EVENT_DURABILITY[type] : true
 
-export const DURABLE_TYPES: readonly V2EventType[] = (
-  Object.keys(EVENT_DURABILITY) as V2EventType[]
+export const DURABLE_TYPES: readonly RecordEventType[] = (
+  Object.keys(EVENT_DURABILITY) as RecordEventType[]
 ).filter(isDurable)
 
 export const foldableOf = <TEvent extends { seq: number }>(args: {

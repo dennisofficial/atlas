@@ -1,6 +1,6 @@
 import { resolve } from 'node:path'
 
-import type { ActiveWorktree, V2Event } from '@dltech/atlas-core'
+import type { ActiveWorktree, RecordEvent } from '@dltech/atlas-core'
 import type {
   PodWorktrees,
   WorktreeEntryInfo,
@@ -73,7 +73,7 @@ const stateLine = (state: {
 }
 
 export const provenanceIn =
-  (events: readonly V2Event[]) =>
+  (events: readonly RecordEvent[]) =>
   (path: string): { created: boolean; base: string | undefined } => {
     let created = false
     let base: string | undefined

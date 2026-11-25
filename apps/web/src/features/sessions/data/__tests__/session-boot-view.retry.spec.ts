@@ -9,8 +9,8 @@ import {
   sessionStatusOf,
   toRunId,
   toThreadId,
-  type V2Body,
-  type V2Event,
+  type RecordEventBody,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import { EBootStepState } from '@dltech/atlas-wire/web'
 
@@ -22,15 +22,17 @@ const step = (
   attempt: number,
   name: EWorkspaceStep,
   state: EWorkspaceStepState,
-  extra: Partial<Omit<Extract<V2Body, { type: 'workspace-step' }>, 'type' | 'step' | 'state'>> = {},
-): V2Body => ({ type: 'workspace-step', step: name, state, attempt, ...extra })
+  extra: Partial<
+    Omit<Extract<RecordEventBody, { type: 'workspace-step' }>, 'type' | 'step' | 'state'>
+  > = {},
+): RecordEventBody => ({ type: 'workspace-step', step: name, state, attempt, ...extra })
 
-const attemptStarted = (attempt: number): V2Body => ({
+const attemptStarted = (attempt: number): RecordEventBody => ({
   type: 'workspace-attempt-started',
   attempt,
 })
 
-const prepareFailed = (attempt: number): V2Body => ({
+const prepareFailed = (attempt: number): RecordEventBody => ({
   type: 'workspace-prepare-failed',
   reason: TIMEOUT,
   inboxHead: 1,
@@ -39,7 +41,7 @@ const prepareFailed = (attempt: number): V2Body => ({
 
 const at = (seconds: number): string => `2026-11-20T10:${String(seconds).padStart(2, '0')}.000Z`
 
-const log = (bodies: V2Body[], from = 0): V2Event[] =>
+const log = (bodies: RecordEventBody[], from = 0): RecordEvent[] =>
   chainEvents({
     threadId: toThreadId('t'),
     runId: toRunId('r'),
@@ -48,14 +50,14 @@ const log = (bodies: V2Body[], from = 0): V2Event[] =>
     bodies,
   }).map((event, index) => ({ ...event, at: at(from + index) }))
 
-const sandboxUp = (attempt: number): V2Body[] => [
+const sandboxUp = (attempt: number): RecordEventBody[] => [
   step(attempt, EWorkspaceStep.Sandbox, EWorkspaceStepState.Started),
   step(attempt, EWorkspaceStep.Sandbox, EWorkspaceStepState.Done),
   step(attempt, EWorkspaceStep.Daemon, EWorkspaceStepState.Started),
   step(attempt, EWorkspaceStep.Daemon, EWorkspaceStepState.Done),
 ]
 
-const failedAttempt = (failure: 'sandbox' | 'setup'): V2Body[] => [
+const failedAttempt = (failure: 'sandbox' | 'setup'): RecordEventBody[] => [
   attemptStarted(1),
   ...sandboxUp(1),
   ...(failure === 'sandbox'
@@ -72,7 +74,7 @@ const failedAttempt = (failure: 'sandbox' | 'setup'): V2Body[] => [
   prepareFailed(1),
 ]
 
-const statusOfEvents = (events: readonly V2Event[]) =>
+const statusOfEvents = (events: readonly RecordEvent[]) =>
   sessionStatusOf({
     events,
     live: true,
@@ -81,7 +83,7 @@ const statusOfEvents = (events: readonly V2Event[]) =>
     now: at(50),
   })
 
-const viewOf = (events: readonly V2Event[]) =>
+const viewOf = (events: readonly RecordEvent[]) =>
   sessionBootViewOf({ events, status: statusOfEvents(events) })
 
 const statesOf = (view: ReturnType<typeof sessionBootViewOf>) => view?.steps.map((s) => s.state)

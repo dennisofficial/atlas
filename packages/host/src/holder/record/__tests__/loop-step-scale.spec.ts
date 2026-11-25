@@ -10,7 +10,7 @@ import {
   toCallId,
   toRunId,
   toThreadId,
-  type V2Body,
+  type RecordEventBody,
 } from '@dltech/atlas-core'
 
 import { RecordCache } from '../record-cache'
@@ -21,8 +21,8 @@ const AT = '2026-11-06T12:00:00.000Z'
 const RUNS = 21
 const BATCH = 1000
 
-const bodiesOf = (args: { start: number; count: number }): V2Body[] =>
-  Array.from({ length: args.count }, (_, offset): V2Body => {
+const bodiesOf = (args: { start: number; count: number }): RecordEventBody[] =>
+  Array.from({ length: args.count }, (_, offset): RecordEventBody => {
     const index = args.start + offset
     const callId = toCallId(`call-${Math.floor(index / 4)}`)
     switch (index % 4) {

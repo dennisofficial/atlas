@@ -5,8 +5,8 @@ import {
   ETurnCause,
   toCallId,
   type LogHead,
-  type V2Body,
-  type V2Event,
+  type RecordEventBody,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 
 import { memorySessionLog } from '../session-log'
@@ -16,35 +16,42 @@ import { createFakeScheduler, eventsMessage, headOf, mintEvents, settle } from '
 const SESSION = 'session-1'
 const FUTURE = new Date(60_000).toISOString()
 
-const userSaid: V2Body = { type: 'user-said', text: 'hi' }
-const turnStarted: V2Body = { type: 'turn-started', turnId: 'turn-1', cause: ETurnCause.Input }
-const finalReply: V2Body = { type: 'assistant-said', parts: [{ type: 'text', text: 'done' }] }
-const toolCall: V2Body = {
+const userSaid: RecordEventBody = { type: 'user-said', text: 'hi' }
+const turnStarted: RecordEventBody = {
+  type: 'turn-started',
+  turnId: 'turn-1',
+  cause: ETurnCause.Input,
+}
+const finalReply: RecordEventBody = {
+  type: 'assistant-said',
+  parts: [{ type: 'text', text: 'done' }],
+}
+const toolCall: RecordEventBody = {
   type: 'tool-called',
   callId: toCallId('c1'),
   name: 'bash',
   ordinal: 0,
 }
-const toolRunning: V2Body = {
+const toolRunning: RecordEventBody = {
   type: 'tool-dispatched',
   callId: toCallId('c1'),
   name: 'bash',
 }
-const parked: V2Body = { type: 'tool-parked', callId: toCallId('c1'), name: 'bash' }
-const retry: V2Body = {
+const parked: RecordEventBody = { type: 'tool-parked', callId: toCallId('c1'), name: 'bash' }
+const retry: RecordEventBody = {
   type: 'retry-scheduled',
   key: 'k',
   notBefore: FUTURE,
   attempt: 1,
   reason: ERetryReason.RateLimited,
 }
-const startFailed: V2Body = {
+const startFailed: RecordEventBody = {
   type: 'session-start-failed',
   reason: 'no credentials',
   inboxHead: 3,
   permanent: false,
 }
-const posted: V2Body = {
+const posted: RecordEventBody = {
   type: 'input-posted',
   inboxId: 4,
   kind: 'message',
@@ -65,9 +72,9 @@ const setup = (log = memorySessionLog()) => {
 
 const say = (args: {
   follower: SessionFollower
-  bodies: readonly V2Body[]
+  bodies: readonly RecordEventBody[]
   from?: LogHead | undefined
-}): readonly V2Event[] => {
+}): readonly RecordEvent[] => {
   const events = mintEvents({ bodies: args.bodies, from: args.from })
   args.follower.handleMessage(eventsMessage({ id: 's1', events, live: true }))
   return events

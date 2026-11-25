@@ -3,7 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { EAgentStatus } from '../../agents/status'
 import { toCallId, toThreadId } from '../../events/ids'
 import { chainEvents } from '../chain-events'
-import type { V2Body, V2Event } from '../event'
+import type { RecordEventBody, RecordEvent } from '../event'
 import { EInputKind, commandInputKind } from '../input-events'
 import {
   EMPTY_PENDING,
@@ -23,7 +23,7 @@ import { mint, NOW, runId, threadId } from './support'
 const EARLIER = '2026-11-02T11:59:00.000Z'
 const LATER = '2026-11-02T12:00:30.000Z'
 
-const log = (bodies: readonly V2Body[]): V2Event[] =>
+const log = (bodies: readonly RecordEventBody[]): RecordEvent[] =>
   chainEvents({ threadId, runId, epoch: 3, at: NOW, bodies })
 
 const posted = (args: {
@@ -32,7 +32,7 @@ const posted = (args: {
   text?: string
   clientId?: string
   postedAt?: string
-}): V2Body => ({
+}): RecordEventBody => ({
   type: 'input-posted',
   inboxId: args.inboxId,
   kind: args.kind ?? EInputKind.Message,
@@ -41,15 +41,19 @@ const posted = (args: {
   ...(args.clientId === undefined ? {} : { clientId: args.clientId }),
 })
 
-const said = (args: { inboxId?: number; text?: string }): V2Body => ({
+const said = (args: { inboxId?: number; text?: string }): RecordEventBody => ({
   type: 'user-said',
   text: args.text ?? 'hello',
   ...(args.inboxId === undefined ? {} : { inboxId: args.inboxId }),
 })
 
-const message = (text: string): V2Body => said({ text })
+const message = (text: string): RecordEventBody => said({ text })
 
-const turnStarted: V2Body = { type: 'turn-started', turnId: 'turn-1', cause: ETurnCause.Input }
+const turnStarted: RecordEventBody = {
+  type: 'turn-started',
+  turnId: 'turn-1',
+  cause: ETurnCause.Input,
+}
 
 describe('stepPending', () => {
   it('drops a posted message once user-said carries its inboxId', () => {
@@ -160,7 +164,7 @@ describe('stepPending', () => {
 
   it('ignores events that are not about inputs', () => {
     const [plain] = mint({ count: 1 })
-    expect(stepPending(EMPTY_PENDING, plain as V2Event)).toBe(EMPTY_PENDING)
+    expect(stepPending(EMPTY_PENDING, plain as RecordEvent)).toBe(EMPTY_PENDING)
   })
 })
 
@@ -229,7 +233,7 @@ describe('queuedSinceOfInbox', () => {
 
 describe('status from the pending fold', () => {
   const status = (args: {
-    events: readonly V2Event[]
+    events: readonly RecordEvent[]
     pending?: boolean
     queuedSince?: string | null
   }): ReturnType<typeof deriveStatus> =>
@@ -268,7 +272,7 @@ describe('status from the pending fold', () => {
   })
 
   it('reports the running turn, not queued, while a message waits', () => {
-    const running: V2Body[] = [
+    const running: RecordEventBody[] = [
       turnStarted,
       { type: 'tool-dispatched', callId: toCallId('call-1'), name: 'bash' },
     ]

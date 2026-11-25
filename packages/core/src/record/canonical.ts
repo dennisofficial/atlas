@@ -1,4 +1,4 @@
-import type { V2Event } from './event'
+import type { RecordEvent } from './event'
 
 const isPlainObject = (value: object): boolean => {
   const prototype = Object.getPrototypeOf(value)
@@ -17,7 +17,7 @@ const canonicalObject = (value: object): string => {
   return `{${members.join(',')}}`
 }
 
-export const canonicalEvent = (event: V2Event): V2Event => JSON.parse(canonicalJson(event))
+export const canonicalEvent = (event: RecordEvent): RecordEvent => JSON.parse(canonicalJson(event))
 
 export function canonicalJson(value: unknown): string {
   if (value === null) return 'null'

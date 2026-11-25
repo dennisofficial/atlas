@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'bun:test'
 
 import { composeCommands } from '@dltech/atlas-commands'
-import { EInputConsumed, visibleEvents, type V2Event } from '@dltech/atlas-core'
+import { EInputConsumed, visibleEvents, type RecordEvent } from '@dltech/atlas-core'
 import { nativeCommandHandlers, nativeCommands } from '@dltech/atlas-native-commands'
 
 import { flushUntil, makeRig, seedSession, SESSION, THREAD_ID } from './holder-rig'
 
 type Rig = Awaited<ReturnType<typeof makeRig>>
 
-const eventsOf = async (rig: Rig): Promise<V2Event[]> =>
+const eventsOf = async (rig: Rig): Promise<RecordEvent[]> =>
   (await rig.plane.readEvents({ threadId: THREAD_ID, afterSeq: 0, limit: 500, visible: false }))
     .events
 
@@ -88,7 +88,7 @@ describe('SessionHolder rewind command', () => {
       inboxId: kept.inboxId,
     })
     const discarded = events.filter(
-      (event): event is Extract<V2Event, { type: 'input-consumed' }> =>
+      (event): event is Extract<RecordEvent, { type: 'input-consumed' }> =>
         event.type === 'input-consumed' && event.consumed === EInputConsumed.Discarded,
     )
     expect(discarded.map((event) => event.inboxId)).toContain(superseded.inboxId)

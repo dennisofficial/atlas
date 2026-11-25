@@ -1,6 +1,6 @@
 import { basename, dirname } from 'node:path'
 
-import { toThreadId, type Assembled, type V2Event } from '@dltech/atlas-core'
+import { toThreadId, type Assembled, type RecordEvent } from '@dltech/atlas-core'
 import {
   type PluginPodContext,
   EMPTY_CREW,
@@ -46,7 +46,7 @@ const failed = (op: string, message: string): CallResult =>
 export const fakeDaemon = (nodes: Record<string, FakeNode>) => {
   const calls: CallOp[] = []
   const watchers = new Set<(frame: DaemonEventFrame) => void>()
-  const events: V2Event[] = []
+  const events: RecordEvent[] = []
 
   const targetOf = (path: string): string | undefined => {
     const seen = new Set<string>()
@@ -155,7 +155,7 @@ export const fakeDaemon = (nodes: Record<string, FakeNode>) => {
     sessions: EMPTY_SESSIONS,
     worktrees: EMPTY_WORKTREES,
     append: async (drafts) => {
-      for (const draft of drafts) events.push(draft as unknown as V2Event)
+      for (const draft of drafts) events.push(draft as unknown as RecordEvent)
     },
     notify: async () => undefined,
     events: () => events,

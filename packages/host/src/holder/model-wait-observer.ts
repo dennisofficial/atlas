@@ -5,7 +5,7 @@ import {
   waitEpisodeGroupKey,
   type RunId,
   type ThreadId,
-  type V2Event,
+  type RecordEvent,
   type WaitEpisodeRef,
   type WaitingForModel,
 } from '@dltech/atlas-core'
@@ -13,9 +13,9 @@ import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 
 import type { AppendBody, SessionRecord } from './record/record-adapter'
 
-type WaitingEvent = Extract<V2Event, { type: 'model-waiting' | 'model-wait-cleared' }>
+type WaitingEvent = Extract<RecordEvent, { type: 'model-waiting' | 'model-wait-cleared' }>
 
-const isWaitingEvent = (event: V2Event): event is WaitingEvent =>
+const isWaitingEvent = (event: RecordEvent): event is WaitingEvent =>
   event.type === 'model-waiting' || event.type === 'model-wait-cleared'
 
 const generationOf = (episode: WaitEpisodeRef): number =>

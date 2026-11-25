@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'bun:test'
-import { chainEvents, EInputConsumed, toRunId, toThreadId, type V2Body } from '@dltech/atlas-core'
+import {
+  chainEvents,
+  EInputConsumed,
+  toRunId,
+  toThreadId,
+  type RecordEventBody,
+} from '@dltech/atlas-core'
 import { ECommandState } from '@dltech/atlas-protocol'
 
 import { ControlPlane } from '../src'
@@ -45,7 +51,7 @@ const recordingStoreOf = (
   return { port, calls }
 }
 
-const filler: readonly V2Body[] = Array.from({ length: 400 }, (_, index) => ({
+const filler: readonly RecordEventBody[] = Array.from({ length: 400 }, (_, index) => ({
   type: 'assistant-said',
   parts: [{ type: 'text', text: `reply ${index}` }],
 }))
@@ -64,7 +70,7 @@ const seeded = async () => {
     mainThreadId: THREAD,
   })
   const lease = await plane.grant({ sessionId: SESSION, hostId: 7 })
-  const append = async (bodies: readonly V2Body[]) => {
+  const append = async (bodies: readonly RecordEventBody[]) => {
     const outcome = await plane.append({
       threadId: THREAD,
       epoch: lease.epoch,

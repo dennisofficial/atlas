@@ -7,7 +7,7 @@ import {
   observationChanged,
   type BranchObservation,
 } from '../branches'
-import { v2EventSchema } from '../event'
+import { recordEventSchema } from '../event'
 import { NOW, runId, threadId } from './support'
 
 const observation = (overrides: Partial<BranchObservation> = {}): BranchObservation => ({
@@ -34,13 +34,13 @@ describe('branchesObservedSchema', () => {
   it('round-trips a branches-observed record through the v2 event schema', () => {
     const [event] = recorded(observation())
     expect(event?.type).toBe('branches-observed')
-    const parsed = v2EventSchema.parse(event)
+    const parsed = recordEventSchema.parse(event)
     expect(parsed.type).toBe('branches-observed')
   })
 
   it('round-trips the remote default branch', () => {
     const [event] = recorded(observation({ defaultBranch: 'main' }))
-    const parsed = v2EventSchema.parse(event)
+    const parsed = recordEventSchema.parse(event)
     expect(parsed.type === 'branches-observed' ? parsed.defaultBranch : null).toBe('main')
   })
 

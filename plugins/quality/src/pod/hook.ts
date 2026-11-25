@@ -5,7 +5,7 @@ import {
   EToolEffect,
   type AfterTurn,
   type Event,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 
@@ -38,7 +38,7 @@ export type QualityReviewOptions = {
   clock: () => number
 }
 
-const coreEventsOf = (events: readonly V2Event[]): readonly Event[] =>
+const coreEventsOf = (events: readonly RecordEvent[]): readonly Event[] =>
   events.flatMap((event): readonly Event[] => {
     if (event.type === 'code-quality-reviewed') return [event]
     if (event.type === 'tool-result') return [event]

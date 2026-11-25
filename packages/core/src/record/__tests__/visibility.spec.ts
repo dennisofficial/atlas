@@ -5,7 +5,7 @@ import { ECompactionAnchor } from '../../events/body'
 import { KEPT_THROUGH_COMPACTION } from '../../compaction/disposition'
 import { chainHash } from '../chain'
 import { chainEvents } from '../chain-events'
-import type { V2Body, V2Event } from '../event'
+import type { RecordEventBody, RecordEvent } from '../event'
 import {
   EMPTY_VISIBILITY,
   isSurviving,
@@ -35,7 +35,7 @@ const opArb: fc.Arbitrary<Op> = fc.oneof(
   },
 )
 
-const bodyFor = (params: { op: Op; nextSeq: number; targets: number[] }): V2Body => {
+const bodyFor = (params: { op: Op; nextSeq: number; targets: number[] }): RecordEventBody => {
   const { op, nextSeq, targets } = params
   if (op.kind === 'message' || nextSeq < 3) return { type: 'user-said', text: `m${nextSeq}` }
   if (op.kind === 'survivor') return { type: 'permission-revoked', grantId: `g${nextSeq}` }
@@ -53,8 +53,8 @@ const bodyFor = (params: { op: Op; nextSeq: number; targets: number[] }): V2Body
   }
 }
 
-const buildLog = (ops: Op[]): V2Event[] => {
-  const log: V2Event[] = []
+const buildLog = (ops: Op[]): RecordEvent[] => {
+  const log: RecordEvent[] = []
   let state = EMPTY_VISIBILITY
   ops.forEach((op, index) => {
     const nextSeq = index + 1
@@ -67,11 +67,11 @@ const buildLog = (ops: Op[]): V2Event[] => {
       from:
         log.length === 0
           ? undefined
-          : { seq: nextSeq - 1, hash: chainHash(log[log.length - 1] as V2Event) },
+          : { seq: nextSeq - 1, hash: chainHash(log[log.length - 1] as RecordEvent) },
       bodies: [bodyFor({ op, nextSeq, targets })],
     })
-    log.push(event as V2Event)
-    state = stepVisibility(state, event as V2Event)
+    log.push(event as RecordEvent)
+    state = stepVisibility(state, event as RecordEvent)
   })
   return log
 }
@@ -81,9 +81,9 @@ const logArb = fc.array(opArb, { minLength: 1, maxLength: 60 }).map(buildLog)
 const survivor = (type: string): boolean =>
   (KEPT_THROUGH_COMPACTION as readonly string[]).includes(type)
 
-const referenceVisible = (log: readonly V2Event[]): V2Event[] => {
-  const snapshots = new Map<number, V2Event[]>([[0, []]])
-  let current: V2Event[] = []
+const referenceVisible = (log: readonly RecordEvent[]): RecordEvent[] => {
+  const snapshots = new Map<number, RecordEvent[]>([[0, []]])
+  let current: RecordEvent[] = []
   for (const event of log) {
     if (event.type === 'history-rewound') {
       current = [...(snapshots.get(event.toSeq) ?? [])]
@@ -102,11 +102,11 @@ const referenceVisible = (log: readonly V2Event[]): V2Event[] => {
 }
 
 const readThroughSegments = (params: {
-  log: readonly V2Event[]
+  log: readonly RecordEvent[]
   state: ReturnType<typeof stepVisibility>
   fromSeq: number
   throughSeq: number
-}): V2Event[] =>
+}): RecordEvent[] =>
   visibleSegments(params).flatMap((segment) =>
     params.log.filter(
       (event) =>
@@ -202,8 +202,11 @@ describe('visibility', () => {
           runId,
           epoch: 1,
           at: NOW,
-          from: { seq: log.length, hash: chainHash(log[log.length - 1] as V2Event) },
-          bodies: Array.from({ length: extra }, () => ({ type: 'user-said', text: 'x' }) as V2Body),
+          from: { seq: log.length, hash: chainHash(log[log.length - 1] as RecordEvent) },
+          bodies: Array.from(
+            { length: extra },
+            () => ({ type: 'user-said', text: 'x' }) as RecordEventBody,
+          ),
         })
         const after = plain.reduce(stepVisibility, state)
         expect(after.spans.length).toBe(state.spans.length)
@@ -214,10 +217,10 @@ describe('visibility', () => {
   it('rewinds drop spans created after the target', () => {
     fc.assert(
       fc.property(fc.integer({ min: 1, max: 50 }), (n) => {
-        const bodies: V2Body[] = []
+        const bodies: RecordEventBody[] = []
         for (let i = 1; i <= n; i += 1) bodies.push({ type: 'user-said', text: `m${i}` })
         for (let i = 0; i < 5; i += 1) bodies.push({ type: 'history-rewound', toSeq: n })
-        const spans = (all: V2Body[]) =>
+        const spans = (all: RecordEventBody[]) =>
           chainEvents({ threadId, runId, epoch: 1, at: NOW, bodies: all }).reduce(
             stepVisibility,
             EMPTY_VISIBILITY,
@@ -230,7 +233,7 @@ describe('visibility', () => {
 })
 
 describe('a rewind that lands inside a turn', () => {
-  const build = (bodies: readonly V2Body[]): V2Event[] =>
+  const build = (bodies: readonly RecordEventBody[]): RecordEvent[] =>
     chainEvents({ threadId, runId, epoch: 1, at: NOW, bodies })
 
   const insideATurn = build([
@@ -277,7 +280,7 @@ describe('a rewind that lands inside a turn', () => {
 })
 
 describe('the surviving log', () => {
-  const build = (bodies: readonly V2Body[]): V2Event[] =>
+  const build = (bodies: readonly RecordEventBody[]): RecordEvent[] =>
     chainEvents({ threadId, runId, epoch: 1, at: NOW, bodies })
 
   it('keeps an event a summary hid and drops one a rewind hid', () => {
@@ -293,8 +296,8 @@ describe('the surviving log', () => {
       },
     ])
     const summaryState = summarised.reduce(stepVisibility, EMPTY_VISIBILITY)
-    expect(isVisible(summaryState, summarised[1] as V2Event)).toBe(false)
-    expect(isSurviving(summaryState, summarised[1] as V2Event)).toBe(true)
+    expect(isVisible(summaryState, summarised[1] as RecordEvent)).toBe(false)
+    expect(isSurviving(summaryState, summarised[1] as RecordEvent)).toBe(true)
 
     const rewound = build([
       { type: 'user-said', text: 'a' },
@@ -303,8 +306,8 @@ describe('the surviving log', () => {
       { type: 'history-rewound', toSeq: 2 },
     ])
     const rewindState = rewound.reduce(stepVisibility, EMPTY_VISIBILITY)
-    expect(isSurviving(rewindState, rewound[0] as V2Event)).toBe(true)
-    expect(isSurviving(rewindState, rewound[2] as V2Event)).toBe(false)
-    expect(isSurviving(rewindState, rewound[3] as V2Event)).toBe(false)
+    expect(isSurviving(rewindState, rewound[0] as RecordEvent)).toBe(true)
+    expect(isSurviving(rewindState, rewound[2] as RecordEvent)).toBe(false)
+    expect(isSurviving(rewindState, rewound[3] as RecordEvent)).toBe(false)
   })
 })

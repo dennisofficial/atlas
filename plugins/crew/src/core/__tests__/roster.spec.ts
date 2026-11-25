@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EAgentStatus, type V2Event } from '@dltech/atlas-core'
+import { EAgentStatus, type RecordEvent } from '@dltech/atlas-core'
 
 import { crewOfEvents, foldCrew, type CrewViewState } from '..'
 
 const at = (n: number): string => `2026-11-09T10:00:0${n}.000Z`
 
-const stamp = (body: Record<string, unknown>, n: number): V2Event =>
-  ({ ...body, seq: n, at: at(n), threadId: 't1', id: `e${n}` }) as unknown as V2Event
+const stamp = (body: Record<string, unknown>, n: number): RecordEvent =>
+  ({ ...body, seq: n, at: at(n), threadId: 't1', id: `e${n}` }) as unknown as RecordEvent
 
-const spawned = (n: number, extra: Record<string, unknown> = {}): V2Event =>
+const spawned = (n: number, extra: Record<string, unknown> = {}): RecordEvent =>
   stamp(
     {
       type: 'agent-spawned',
@@ -22,7 +22,7 @@ const spawned = (n: number, extra: Record<string, unknown> = {}): V2Event =>
     n,
   )
 
-const ended = (n: number, extra: Record<string, unknown> = {}): V2Event =>
+const ended = (n: number, extra: Record<string, unknown> = {}): RecordEvent =>
   stamp(
     {
       type: 'agent-ended',
@@ -38,7 +38,7 @@ const ended = (n: number, extra: Record<string, unknown> = {}): V2Event =>
     n,
   )
 
-const reported = (n: number, prose: string): V2Event =>
+const reported = (n: number, prose: string): RecordEvent =>
   stamp(
     {
       type: 'agent-reported',

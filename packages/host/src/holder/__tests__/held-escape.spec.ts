@@ -10,8 +10,8 @@ import {
   toThreadId,
   type EventDraft,
   type InboxEntry,
-  type V2Body,
-  type V2Event,
+  type RecordEventBody,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 
 import { InboxIntake } from '../inbox-intake'
@@ -49,7 +49,10 @@ const entryOf = (args: { inboxId: number; event: EventDraft }): InboxEntry => ({
   senderSessionId: null,
 })
 
-const rigOf = (args: { log: readonly (EventDraft | V2Body)[]; crewRunning: () => number }) => {
+const rigOf = (args: {
+  log: readonly (EventDraft | RecordEventBody)[]
+  crewRunning: () => number
+}) => {
   const entries: InboxEntry[] = []
   const appends: AppendBody[][] = []
   const appended: AppendBody[] = []
@@ -61,7 +64,7 @@ const rigOf = (args: { log: readonly (EventDraft | V2Body)[]; crewRunning: () =>
       appended.push(...drafts)
     },
     eventCache: () => ({
-      eventsAfter: () => loopLogOf() as unknown as V2Event[],
+      eventsAfter: () => loopLogOf() as unknown as RecordEvent[],
       loopEventsAfter: () => loopLogOf(),
     }),
     loopState: async () => initialLoopState(),
@@ -98,7 +101,7 @@ const rigOf = (args: { log: readonly (EventDraft | V2Body)[]; crewRunning: () =>
   return { intake, post: (entry: InboxEntry) => entries.push(entry), appends }
 }
 
-const postedRow = (event: EventDraft): V2Body[] =>
+const postedRow = (event: EventDraft): RecordEventBody[] =>
   chainEvents({
     threadId: THREAD,
     runId: RUN,
@@ -113,7 +116,7 @@ const postedRow = (event: EventDraft): V2Body[] =>
         event,
       },
     ],
-  }).map((row) => row as unknown as V2Body)
+  }).map((row) => row as unknown as RecordEventBody)
 
 describe('a held ending drained with the crew idle', () => {
   it('ignores the held stamp so the last ending wakes the parent', async () => {

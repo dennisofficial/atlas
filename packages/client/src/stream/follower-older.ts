@@ -1,4 +1,4 @@
-import type { V2Event } from '@dltech/atlas-core'
+import type { RecordEvent } from '@dltech/atlas-core'
 import type { z } from 'zod'
 
 import type { SessionLog } from './session-log'
@@ -12,10 +12,10 @@ export type OlderWindowArgs = {
   window: SessionWindow
   count: number
   fetchOlder?: OlderFetch | undefined
-  eventSchema?: z.ZodType<V2Event> | undefined
+  eventSchema?: z.ZodType<RecordEvent> | undefined
 }
 
-const olderWindowOf = async (args: OlderWindowArgs): Promise<readonly V2Event[]> => {
+const olderWindowOf = async (args: OlderWindowArgs): Promise<readonly RecordEvent[]> => {
   const cached = await olderVisibleOf({
     log: args.log,
     sessionId: args.sessionId,
@@ -39,9 +39,9 @@ export type OlderLoaderArgs = {
   log: SessionLog
   sessionId: string
   windowOf: () => SessionWindow
-  extend: (visible: readonly V2Event[]) => void
+  extend: (visible: readonly RecordEvent[]) => void
   fetchOlder?: OlderFetch | undefined
-  eventSchema?: z.ZodType<V2Event> | undefined
+  eventSchema?: z.ZodType<RecordEvent> | undefined
 }
 
 export const createOlderLoader = (args: OlderLoaderArgs): (() => Promise<number>) => {

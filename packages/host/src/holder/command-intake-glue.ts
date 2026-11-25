@@ -5,7 +5,7 @@ import {
   type EventDraft,
   type InboxEntry,
   type ThreadId,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import { INBOX_KIND_MESSAGE } from '@dltech/atlas-protocol'
 import type { LogPort } from '@dltech/atlas-observability'
@@ -36,7 +36,7 @@ export type CommandEntryArgs = CommandGlue & {
 }
 
 export type LoggedCommandsArgs = CommandGlue & {
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   skills?: SkillNames | undefined
   readEntry: (inboxId: number) => Promise<InboxEntry | undefined>
 }

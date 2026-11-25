@@ -3,7 +3,7 @@ import fc from 'fast-check'
 
 import { tokenSpendOf } from '../../../models/cost'
 import { contextMeterOf, type ContextMeter } from '../../context-meter'
-import type { V2Event } from '../../event'
+import type { RecordEvent } from '../../event'
 import { sessionStatusOf } from '../../session-status'
 import { foldableEvents, visibleEvents } from '../../visibility'
 import {
@@ -18,10 +18,10 @@ import {
 import type { PluginViewFold } from '../plugin-view'
 import { eventsOf, NOW, opsWithEdits, opsWithoutEdits, type Op } from './support'
 
-const fold = (events: readonly V2Event[]): SessionViewState =>
+const fold = (events: readonly RecordEvent[]): SessionViewState =>
   events.reduce(stepSessionView, initialSessionViewState)
 
-const foldWithRebuilds = (events: readonly V2Event[]): SessionViewState => {
+const foldWithRebuilds = (events: readonly RecordEvent[]): SessionViewState => {
   let state = initialSessionViewState
   events.forEach((event, index) => {
     state = stepSessionView(state, event)
@@ -49,7 +49,7 @@ const expectContext = (actual: ContextMeter | null, oracle: ContextMeter): void 
   expect(actual).toEqual(oracle)
 }
 
-const spendOracle = (events: readonly V2Event[]) => {
+const spendOracle = (events: readonly RecordEvent[]) => {
   const rows = new Map<
     string,
     {

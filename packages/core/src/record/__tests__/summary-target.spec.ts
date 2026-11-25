@@ -3,7 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { ECompactionAnchor } from '../../events/body'
 import { toCallId } from '../../events/ids'
 import { chainEvents } from '../chain-events'
-import type { V2Body } from '../event'
+import type { RecordEventBody } from '../event'
 import { visibleLoopEvents } from '../loop-events'
 import {
   SUMMARY_REFUSAL_ALREADY,
@@ -15,21 +15,26 @@ import {
 } from '../summary-target'
 import { NOW, runId, threadId } from './support'
 
-const said = (text: string): V2Body => ({ type: 'user-said', text })
-const replied = (text: string): V2Body => ({
+const said = (text: string): RecordEventBody => ({ type: 'user-said', text })
+const replied = (text: string): RecordEventBody => ({
   type: 'assistant-said',
   parts: [{ type: 'text', text }],
 })
-const called: V2Body = {
+const called: RecordEventBody = {
   type: 'tool-called',
   callId: toCallId('c1'),
   name: 'bash',
   input: {},
   ordinal: 0,
 }
-const answered: V2Body = { type: 'tool-result', callId: toCallId('c1'), name: 'bash', output: 'x' }
+const answered: RecordEventBody = {
+  type: 'tool-result',
+  callId: toCallId('c1'),
+  name: 'bash',
+  output: 'x',
+}
 
-const visibleOf = (bodies: readonly V2Body[]) =>
+const visibleOf = (bodies: readonly RecordEventBody[]) =>
   visibleLoopEvents(chainEvents({ threadId, runId, epoch: 1, at: NOW, from: undefined, bodies }))
 
 describe('summaryTargetOf', () => {
@@ -65,7 +70,7 @@ describe('summaryTargetOf', () => {
   })
 
   it('refuses a range that only holds what a summary already covers', () => {
-    const summarised: V2Body = {
+    const summarised: RecordEventBody = {
       type: 'history-summarised',
       fromSeq: 1,
       throughSeq: 4,
@@ -88,7 +93,7 @@ describe('summaryTargetOf', () => {
   })
 
   it('folds an earlier summary into the next one', () => {
-    const summarised: V2Body = {
+    const summarised: RecordEventBody = {
       type: 'history-summarised',
       fromSeq: 1,
       throughSeq: 2,
@@ -132,7 +137,7 @@ describe('summaryPointsOf', () => {
 })
 
 describe('summarising after a rotation', () => {
-  const rotated: V2Body = { type: 'rotated', handoff: 'the brief' }
+  const rotated: RecordEventBody = { type: 'rotated', handoff: 'the brief' }
   const events = visibleOf([said('a'), replied('b'), rotated, said('c'), replied('d'), said('e')])
 
   it('starts the range after the boundary', () => {
@@ -155,7 +160,7 @@ describe('summarising after a rotation', () => {
   })
 
   it('keeps the boundary visible when a summary covers it', () => {
-    const summarised: V2Body = {
+    const summarised: RecordEventBody = {
       type: 'history-summarised',
       fromSeq: 1,
       throughSeq: 5,

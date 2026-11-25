@@ -1,4 +1,4 @@
-import type { V2Event } from '@dltech/atlas-core'
+import type { RecordEvent } from '@dltech/atlas-core'
 
 export type AgentState = {
   agentId: string
@@ -7,7 +7,9 @@ export type AgentState = {
   running: boolean
 }
 
-export const agentsOf = (args: { events: readonly V2Event[] }): ReadonlyMap<string, AgentState> => {
+export const agentsOf = (args: {
+  events: readonly RecordEvent[]
+}): ReadonlyMap<string, AgentState> => {
   const agents = new Map<string, AgentState>()
 
   for (const event of args.events) {
@@ -34,7 +36,7 @@ export const agentsOf = (args: { events: readonly V2Event[] }): ReadonlyMap<stri
 }
 
 export const agentOf = (args: {
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   agentId: string
 }): AgentState | undefined => agentsOf({ events: args.events }).get(args.agentId)
 

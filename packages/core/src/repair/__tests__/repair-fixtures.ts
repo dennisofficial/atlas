@@ -11,7 +11,7 @@ import {
   type WaitingForModel,
 } from '../../model-recovery/waiting'
 import { EProviderFailureKind } from '../../models/provider-failure'
-import type { Hash, RecordEnvelope, V2Event } from '../../record/event'
+import type { Hash, RecordEnvelope, RecordEvent } from '../../record/event'
 import { ETurnCause } from '../../record/turns'
 
 export const MAIN = toThreadId('main')
@@ -42,25 +42,25 @@ export const failureOf = (overrides: Partial<RunFailure> = {}): RunFailure => ({
   ...overrides,
 })
 
-export const runFailed = (failure: RunFailure, threadId: ThreadId = MAIN): V2Event => ({
+export const runFailed = (failure: RunFailure, threadId: ThreadId = MAIN): RecordEvent => ({
   ...envelopeOf(threadId),
   type: 'run-failed',
   failure,
 })
 
-export const dismissed = (failureSeq: number, threadId: ThreadId = MAIN): V2Event => ({
+export const dismissed = (failureSeq: number, threadId: ThreadId = MAIN): RecordEvent => ({
   ...envelopeOf(threadId),
   type: 'run-failure-dismissed',
   failureSeq,
 })
 
-export const userSaid = (threadId: ThreadId = MAIN): V2Event => ({
+export const userSaid = (threadId: ThreadId = MAIN): RecordEvent => ({
   ...envelopeOf(threadId),
   type: 'user-said',
   text: 'carry on',
 })
 
-export const turnStarted = (threadId: ThreadId = MAIN): V2Event => ({
+export const turnStarted = (threadId: ThreadId = MAIN): RecordEvent => ({
   ...envelopeOf(threadId),
   type: 'turn-started',
   turnId: 'turn-1',
@@ -69,7 +69,7 @@ export const turnStarted = (threadId: ThreadId = MAIN): V2Event => ({
 
 export const agentSpawned = (
   args: { agentId?: ThreadId; agentType?: string; intent?: string; threadId?: ThreadId } = {},
-): V2Event => ({
+): RecordEvent => ({
   ...envelopeOf(args.threadId ?? MAIN),
   type: 'agent-spawned',
   agentId: args.agentId ?? CHILD,
@@ -88,7 +88,7 @@ export const agentEnded = (
     intent?: string
     threadId?: ThreadId
   } = {},
-): V2Event => ({
+): RecordEvent => ({
   ...envelopeOf(args.threadId ?? MAIN),
   type: 'agent-ended',
   agentId: args.agentId ?? CHILD,
@@ -102,7 +102,7 @@ export const agentEnded = (
   ...(args.failureCause === undefined ? {} : { failureCause: args.failureCause }),
 })
 
-export const agentRestarted = (agentId: ThreadId = CHILD): V2Event => ({
+export const agentRestarted = (agentId: ThreadId = CHILD): RecordEvent => ({
   ...envelopeOf(MAIN),
   type: 'agent-restarted',
   agentId,
@@ -145,13 +145,16 @@ export const credentialWait = (
   }
 }
 
-export const modelWaiting = (waiting: WaitingForModel, threadId: ThreadId = MAIN): V2Event => ({
+export const modelWaiting = (waiting: WaitingForModel, threadId: ThreadId = MAIN): RecordEvent => ({
   ...envelopeOf(threadId),
   type: 'model-waiting',
   waiting,
 })
 
-export const modelWaitCleared = (episode: WaitEpisodeRef, threadId: ThreadId = MAIN): V2Event => ({
+export const modelWaitCleared = (
+  episode: WaitEpisodeRef,
+  threadId: ThreadId = MAIN,
+): RecordEvent => ({
   ...envelopeOf(threadId),
   type: 'model-wait-cleared',
   episode,

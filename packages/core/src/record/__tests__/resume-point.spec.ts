@@ -12,7 +12,7 @@ import {
   TOOL_PARKED_WAITING,
 } from '../../events/resume-plan'
 import { chainEvents } from '../chain-events'
-import { v2EventSchema, type V2Body, type V2Event } from '../event'
+import { recordEventSchema, type RecordEventBody, type RecordEvent } from '../event'
 import { isResumableOf, loopStateOf } from '../loop-state'
 import { visibleLoopEvents } from '../loop-events'
 import {
@@ -32,24 +32,24 @@ import { visibleEvents } from '../visibility'
 import { REWIND_MID_TURN_ROWS } from './rewind-mid-turn-fixture'
 import { NOW, runId, threadId } from './support'
 
-const eventsOf = (bodies: readonly V2Body[]): V2Event[] =>
+const eventsOf = (bodies: readonly RecordEventBody[]): RecordEvent[] =>
   chainEvents({ threadId, runId, epoch: 1, at: NOW, bodies })
 
-const said = (text: string): V2Body => ({ type: 'user-said', text })
+const said = (text: string): RecordEventBody => ({ type: 'user-said', text })
 
-const replied = (text: string): V2Body => ({
+const replied = (text: string): RecordEventBody => ({
   type: 'assistant-said',
   parts: [{ type: 'text', text }],
 })
 
-const cutReply = (text: string): V2Body => ({
+const cutReply = (text: string): RecordEventBody => ({
   type: 'assistant-said',
   parts: [{ type: 'text', text }],
   interrupted: true,
   stopped: true,
 })
 
-const called = (params: { id: string; name?: string }): V2Body => ({
+const called = (params: { id: string; name?: string }): RecordEventBody => ({
   type: 'tool-called',
   callId: toCallId(params.id),
   name: params.name ?? 'bash',
@@ -57,7 +57,7 @@ const called = (params: { id: string; name?: string }): V2Body => ({
   ordinal: 0,
 })
 
-const answered = (params: { id: string; interrupted?: boolean }): V2Body => ({
+const answered = (params: { id: string; interrupted?: boolean }): RecordEventBody => ({
   type: 'tool-result',
   callId: toCallId(params.id),
   name: 'bash',
@@ -65,27 +65,27 @@ const answered = (params: { id: string; interrupted?: boolean }): V2Body => ({
   ...(params.interrupted === true ? { interrupted: true } : {}),
 })
 
-const started = (turnId = 'turn-1', cause = ETurnCause.Input): V2Body => ({
+const started = (turnId = 'turn-1', cause = ETurnCause.Input): RecordEventBody => ({
   type: 'turn-started',
   turnId,
   cause,
 })
 
-const ended = (outcome: ETurnOutcome, by = ETurnEndedBy.Operator): V2Body => ({
+const ended = (outcome: ETurnOutcome, by = ETurnEndedBy.Operator): RecordEventBody => ({
   type: 'turn-ended',
   turnId: 'turn-1',
   outcome,
   by,
 })
 
-const cleanResume = (discards: readonly ResumeDiscard[] = []): V2Body => ({
+const cleanResume = (discards: readonly ResumeDiscard[] = []): RecordEventBody => ({
   type: 'resume-marked',
   point: EResumePoint.Clean,
   discards: [...discards],
   callIds: [],
 })
 
-const pointOf = (bodies: readonly V2Body[]) => resumePointOf({ events: eventsOf(bodies) })
+const pointOf = (bodies: readonly RecordEventBody[]) => resumePointOf({ events: eventsOf(bodies) })
 
 describe('resumePointOf', () => {
   it('row 1: a stop while streaming text discards the cut reply', () => {
@@ -232,7 +232,7 @@ describe('resumePointOf', () => {
   })
 
   it('reads the same answer from the recorded session 4ca7d5a5', () => {
-    const events = REWIND_MID_TURN_ROWS.map((row) => v2EventSchema.parse(row))
+    const events = REWIND_MID_TURN_ROWS.map((row) => recordEventSchema.parse(row))
 
     expect(openTurnOf(visibleEvents(events))).toBeNull()
     expect(resumePointOf({ events })).toEqual({

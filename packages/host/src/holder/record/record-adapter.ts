@@ -6,8 +6,8 @@ import {
   type LoopState,
   type RunId,
   type ThreadId,
-  type V2Body,
-  type V2Event,
+  type RecordEventBody,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import type { BlobWrite, ControlPlane } from '@dltech/atlas-control'
 import type { AgentRecordPort, ModelContextPort } from '@dltech/atlas-agent'
@@ -30,7 +30,7 @@ export const BLOB_SPILL_BYTES = 256 * 1024
 
 const STEP_EVENT_TYPES: ReadonlySet<string> = new Set(['assistant-said', 'tool-called'])
 
-const postedInputAtsOf = (events: readonly V2Event[]): ReadonlyMap<number, string> =>
+const postedInputAtsOf = (events: readonly RecordEvent[]): ReadonlyMap<number, string> =>
   new Map(
     events.flatMap((event) =>
       event.type === 'input-posted' ? [[event.inboxId, event.postedAt] as const] : [],
@@ -197,7 +197,7 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
     }
     const gated = args.drafts.some((draft) => this.isDaemonDispatch(draft))
     if (gated && this.resizeHeld()) return undefined
-    const bodies: V2Body[] = []
+    const bodies: RecordEventBody[] = []
     const blobs: BlobWrite[] = []
     const resolved = new Map<string, unknown>()
     const ackDaemons: DaemonAck[] = []

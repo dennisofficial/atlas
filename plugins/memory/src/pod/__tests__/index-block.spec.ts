@@ -6,7 +6,7 @@ import {
   toThreadId,
   type Assembled,
   type Hash,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import { type PluginPodContext, type PodMemory } from '@dltech/atlas-plugin-sdk'
 
@@ -26,7 +26,7 @@ const rowOf = (patch: { name?: string; description?: string } = {}) => ({
 
 let sequence = 0
 
-const loadedOf = (value: unknown): V2Event => {
+const loadedOf = (value: unknown): RecordEvent => {
   sequence += 1
   return {
     id: toEventId(`t:${sequence}`),
@@ -44,12 +44,12 @@ const loadedOf = (value: unknown): V2Event => {
   }
 }
 
-const hostCtx = (args: { memory?: PodMemory; recorded: V2Event[] }): PluginPodContext => ({
+const hostCtx = (args: { memory?: PodMemory; recorded: RecordEvent[] }): PluginPodContext => ({
   ...rig(args.memory).ctx,
   events: () => args.recorded,
 })
 
-const record = async (args: { memory: PodMemory; recorded: V2Event[] }): Promise<void> => {
+const record = async (args: { memory: PodMemory; recorded: RecordEvent[] }): Promise<void> => {
   const value = await memoryIndexResource.load({
     ctx: hostCtx({ memory: args.memory, recorded: args.recorded }),
     directory: '/work',
@@ -68,7 +68,7 @@ describe('the memory index block', () => {
   it('renders the recorded index as a system block', async () => {
     const memory = fakeMemory()
     await memory.port.write(rowOf())
-    const recorded: V2Event[] = []
+    const recorded: RecordEvent[] = []
     await record({ memory: memory.port, recorded })
     const next = withMemoryIndex({
       assembled,
@@ -90,8 +90,8 @@ describe('the memory index block', () => {
         return { ...listed, memories: [...listed.memories].reverse() }
       },
     }
-    const ordered: V2Event[] = []
-    const backwards: V2Event[] = []
+    const ordered: RecordEvent[] = []
+    const backwards: RecordEvent[] = []
     await record({ memory: memory.port, recorded: ordered })
     await record({ memory: reversed, recorded: backwards })
     expect(render({ ctx: { events: () => backwards } })).toBe(
@@ -102,7 +102,7 @@ describe('the memory index block', () => {
   it('renders the same block after the agent writes, edits and deletes', async () => {
     const memory = fakeMemory()
     await memory.port.write(rowOf())
-    const recorded: V2Event[] = []
+    const recorded: RecordEvent[] = []
     await record({ memory: memory.port, recorded })
     const first = render({ ctx: { events: () => recorded } })
 
@@ -123,7 +123,7 @@ describe('the memory index block', () => {
   it('renders the recorded text on a fresh host without listing again', async () => {
     const memory = fakeMemory()
     await memory.port.write(rowOf())
-    const recorded: V2Event[] = []
+    const recorded: RecordEvent[] = []
     await record({ memory: memory.port, recorded })
     const listed = render({ ctx: { events: () => recorded } })
 
@@ -138,7 +138,7 @@ describe('the memory index block', () => {
   })
 
   it('adds no block until a load is recorded, so the prompt never carries a pending failure', async () => {
-    const recorded: V2Event[] = []
+    const recorded: RecordEvent[] = []
     expect(withMemoryIndex({ assembled, ctx: { events: () => recorded } })).toEqual(assembled)
 
     const failing: PodMemory = {

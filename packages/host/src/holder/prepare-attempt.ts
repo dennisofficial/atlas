@@ -7,7 +7,7 @@ import {
   setupFinishedText,
   type RunId,
   type ThreadId,
-  type V2Event,
+  type RecordEvent,
   type WorkspaceStepReport,
 } from '@dltech/atlas-core'
 
@@ -17,7 +17,7 @@ import type { SessionRecord } from './record/record-adapter'
 const SETUP_STOPPED_REASON = 'setup was stopped with the session'
 
 export const prepareAttemptOf = (args: {
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   resuming: boolean
 }): number | undefined =>
   args.resuming ? latestAttemptOf(args.events) || undefined : nextAttemptOf(args.events)

@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'bun:test'
 
-import { ESessionStatus, v2EventSchema, type V2Event } from '@dltech/atlas-core'
+import { ESessionStatus, recordEventSchema, type RecordEvent } from '@dltech/atlas-core'
 
 import { turnStartedAtOf } from '../turn-start'
 
 const HASH = 'a'.repeat(64)
 
-const eventOf = (args: { seq: number; at: string; depth?: number; body: object }): V2Event =>
-  v2EventSchema.parse({
+const eventOf = (args: { seq: number; at: string; depth?: number; body: object }): RecordEvent =>
+  recordEventSchema.parse({
     ...args.body,
     id: `evt_${args.seq}`,
     seq: args.seq,
@@ -19,7 +19,7 @@ const eventOf = (args: { seq: number; at: string; depth?: number; body: object }
     prevHash: HASH,
   })
 
-const started = (args: { seq: number; turnId: string; at: string; depth?: number }): V2Event =>
+const started = (args: { seq: number; turnId: string; at: string; depth?: number }): RecordEvent =>
   eventOf({
     seq: args.seq,
     at: args.at,
@@ -27,7 +27,7 @@ const started = (args: { seq: number; turnId: string; at: string; depth?: number
     body: { type: 'turn-started', turnId: args.turnId, cause: 'input' },
   })
 
-const ended = (args: { seq: number; turnId: string; at: string; depth?: number }): V2Event =>
+const ended = (args: { seq: number; turnId: string; at: string; depth?: number }): RecordEvent =>
   eventOf({
     seq: args.seq,
     at: args.at,

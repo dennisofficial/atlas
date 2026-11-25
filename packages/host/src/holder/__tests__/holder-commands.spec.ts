@@ -7,7 +7,7 @@ import {
   ECommandRunsIn,
   type CommandHandler,
 } from '@dltech/atlas-commands'
-import { EInputConsumed, type V2Event } from '@dltech/atlas-core'
+import { EInputConsumed, type RecordEvent } from '@dltech/atlas-core'
 import { z } from 'zod'
 
 import { flushUntil, makeRig, seedSession, SESSION, THREAD_ID } from './holder-rig'
@@ -32,7 +32,7 @@ const handlerOf = (result: 'done' | string): CommandHandler<unknown> => {
   }
 }
 
-const eventsOf = async (rig: Awaited<ReturnType<typeof makeRig>>): Promise<V2Event[]> =>
+const eventsOf = async (rig: Awaited<ReturnType<typeof makeRig>>): Promise<RecordEvent[]> =>
   (await rig.plane.readEvents({ threadId: THREAD_ID, afterSeq: 0, limit: 500, visible: false }))
     .events
 

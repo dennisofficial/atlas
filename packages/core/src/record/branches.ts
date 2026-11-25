@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 import { canonicalJson } from './canonical'
-import type { V2Event } from './event'
+import type { RecordEvent } from './event'
 
 export const observedBranchSchema = z
   .object({
@@ -79,7 +79,7 @@ export const canonicalObservation = (observation: BranchObservation): string =>
   })
 
 export const branchesChanged = (args: {
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   set: BranchObservation
 }): boolean => {
   const last = args.events.findLast(

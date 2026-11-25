@@ -3,7 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { toRunId, toThreadId } from '../../events/ids'
 import { ERunFailureKind } from '../../events/run-failure'
 import { chainEvents } from '../chain-events'
-import type { V2Body } from '../event'
+import type { RecordEventBody } from '../event'
 import { ESessionStatus } from '../session-status'
 import { ETurnEndedBy, ETurnOutcome } from '../turns'
 import {
@@ -176,7 +176,10 @@ describe('bookkeeping events never move the turn', () => {
 })
 
 describe('sessionStatusOf workspace preparation', () => {
-  const chained = (bodies: V2Body[], messageAfterFailure = false): ReturnType<typeof statusOf> => {
+  const chained = (
+    bodies: RecordEventBody[],
+    messageAfterFailure = false,
+  ): ReturnType<typeof statusOf> => {
     const events = chainEvents({
       threadId: toThreadId('t'),
       runId: toRunId('r'),
@@ -193,7 +196,7 @@ describe('sessionStatusOf workspace preparation', () => {
   })
 
   it('reports setup-failed with the reason until a message arrives', () => {
-    const failed: V2Body = {
+    const failed: RecordEventBody = {
       type: 'workspace-prepare-failed',
       reason: 'clone failed',
       inboxHead: 1,

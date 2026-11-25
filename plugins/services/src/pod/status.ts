@@ -1,4 +1,4 @@
-import { EKilledBy, EServiceStatus, type OomMemory, type V2Event } from '@dltech/atlas-core'
+import { EKilledBy, EServiceStatus, type OomMemory, type RecordEvent } from '@dltech/atlas-core'
 import { EServiceRunStatus, type ServiceInfo } from '@dltech/atlas-protocol'
 
 export type ServiceOutcome = {
@@ -38,7 +38,7 @@ export type StartedService = {
 }
 
 export const startedOf = (args: {
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   serviceId: string
 }): StartedService | undefined => {
   for (const event of args.events) {
@@ -50,14 +50,14 @@ export const startedOf = (args: {
 }
 
 const hasEvent = (args: {
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   serviceId: string
   type: 'service-ready' | 'service-ended'
 }): boolean =>
   args.events.some((event) => event.type === args.type && event.serviceId === args.serviceId)
 
-export const hasEnded = (args: { events: readonly V2Event[]; serviceId: string }): boolean =>
+export const hasEnded = (args: { events: readonly RecordEvent[]; serviceId: string }): boolean =>
   hasEvent({ ...args, type: 'service-ended' })
 
-export const hasReady = (args: { events: readonly V2Event[]; serviceId: string }): boolean =>
+export const hasReady = (args: { events: readonly RecordEvent[]; serviceId: string }): boolean =>
   hasEvent({ ...args, type: 'service-ready' })

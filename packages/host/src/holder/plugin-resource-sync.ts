@@ -1,4 +1,4 @@
-import { latestResourceOf, loadedUnderCloudOf, type V2Event } from '@dltech/atlas-core'
+import { latestResourceOf, loadedUnderCloudOf, type RecordEvent } from '@dltech/atlas-core'
 import { ESpan, spanWith, type TracePort } from '@dltech/atlas-observability'
 import type { ECloudSetting, PluginPodContext, PodResource } from '@dltech/atlas-plugin-sdk'
 
@@ -18,7 +18,7 @@ export type ResourceSyncArgs = {
   resources: readonly PodResource<unknown>[]
   directory(): string
   trace: TracePort | undefined
-  shared: (() => readonly V2Event[]) | undefined
+  shared: (() => readonly RecordEvent[]) | undefined
   reconnect: ReconnectWatch
   signal?: AbortSignal | undefined
 }

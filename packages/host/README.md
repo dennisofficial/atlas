@@ -76,7 +76,7 @@ only what it can rebuild or drop.
 
 - `SessionRecord`: the `AgentRecordPort` and `ModelContextPort` over the control plane.
 - `RecordCache`: keeps the events of a thread in memory while the holder holds the session.
-- `V2OnceLedger`: the v2 `OnceLedger`, which reads the cached log.
+- `RecordOnceLedger`: the `OnceLedger` backed by the record cache.
 - `LeaseLostError`, `RecordCorruptionError`: the two failures a record raises.
 - `InboxIntake`, `INBOX_KIND_STOP`: turn the inbox into the agent's input.
 

@@ -1,4 +1,4 @@
-import { toEventId, toRunId, toThreadId, type Hash, type V2Event } from '@dltech/atlas-core'
+import { toEventId, toRunId, toThreadId, type Hash, type RecordEvent } from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 import { z } from 'zod'
 
@@ -10,7 +10,7 @@ const HASH = 'a'.repeat(64) as Hash
 
 let seq = 0
 
-const loadedOf = (args: { resource: string; value: unknown }): V2Event => {
+const loadedOf = (args: { resource: string; value: unknown }): RecordEvent => {
   seq += 1
   return {
     id: toEventId(`t:${seq}`),
@@ -48,7 +48,7 @@ const skillsResource = (): PodResource<readonly string[]> =>
     cloud: [ECloudSetting.Skills],
   })
 
-const ctxWith = (events: readonly V2Event[]): Pick<PluginPodContext, 'events'> => ({
+const ctxWith = (events: readonly RecordEvent[]): Pick<PluginPodContext, 'events'> => ({
   events: () => events,
 })
 

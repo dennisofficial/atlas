@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'bun:test'
-import { ECompactionAnchor, visibleEvents, type V2Body } from '@dltech/atlas-core'
+import { ECompactionAnchor, visibleEvents, type RecordEventBody } from '@dltech/atlas-core'
 
 import type { ConformanceParams } from './conformance'
 import { appendBodies, makeHarness, readAll, said, seedGranted, type Harness } from './support'
@@ -18,7 +18,7 @@ export function describeControlPlaneReads(
     })
 
     it('visible reads equal core visibleEvents after rewind and summary', async () => {
-      const bodies: V2Body[] = Array.from({ length: 8 }, (_, i) => said(`m${i}`))
+      const bodies: RecordEventBody[] = Array.from({ length: 8 }, (_, i) => said(`m${i}`))
       bodies.push({ type: 'permission-revoked', grantId: 'g1' })
       bodies.push({
         type: 'history-summarised',
@@ -37,12 +37,12 @@ export function describeControlPlaneReads(
     })
 
     it('visible reads with hidden types add only those types from hidden ranges', async () => {
-      const fact = (key: string): V2Body => ({
+      const fact = (key: string): RecordEventBody => ({
         type: 'fact-recorded',
         key,
         kind: 'fact',
       })
-      const bodies: V2Body[] = [said('m0'), fact('f1'), said('m2'), fact('f3'), said('m4')]
+      const bodies: RecordEventBody[] = [said('m0'), fact('f1'), said('m2'), fact('f3'), said('m4')]
       bodies.push({ type: 'permission-revoked', grantId: 'g1' })
       bodies.push({
         type: 'history-summarised',

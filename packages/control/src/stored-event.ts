@@ -2,9 +2,9 @@ import {
   canonicalEvent,
   canonicalJson,
   EMPTY_VISIBILITY,
-  v2EventSchema,
+  recordEventSchema,
   type Hash,
-  type V2Event,
+  type RecordEvent,
   type VisibilityState,
 } from '@dltech/atlas-core'
 import { z } from 'zod'
@@ -32,7 +32,7 @@ export function decodeVisibility(text: string): VisibilityState {
   return parsed.data
 }
 
-export const toStoredEvent = (params: { event: V2Event; hash: Hash }): StoredEvent => ({
+export const toStoredEvent = (params: { event: RecordEvent; hash: Hash }): StoredEvent => ({
   threadId: params.event.threadId,
   seq: params.event.seq,
   id: params.event.id,
@@ -56,8 +56,8 @@ const firstIssueOf = (error: z.ZodError): string => {
 
 export function decodeStoredEvent(
   row: StoredEvent,
-  eventSchema: z.ZodType<V2Event> = v2EventSchema,
-): V2Event {
+  eventSchema: z.ZodType<RecordEvent> = recordEventSchema,
+): RecordEvent {
   const parsed = eventSchema.safeParse(JSON.parse(row.canonical))
   if (!parsed.success) {
     throw new RecordCorruptError(

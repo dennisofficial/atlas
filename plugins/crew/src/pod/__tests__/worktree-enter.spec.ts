@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { type V2Event } from '@dltech/atlas-core'
+import { type RecordEvent } from '@dltech/atlas-core'
 
 import { event, fakeWorktrees, inWorktree, invoke, rig } from './worktree-rig'
 
@@ -65,7 +65,7 @@ describe('enter_worktree', () => {
       intent: 'work the branch',
       mode: 'fresh',
       worktree: { path: '/work/.atlas/worktrees/dennis/wt', branch: 'dennis/wt' },
-    } as unknown as V2Event
+    } as unknown as RecordEvent
     const { ctx } = rig({ worktrees: worktrees.port, events: [spawnedInto] })
 
     const entered = await invoke({

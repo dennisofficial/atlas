@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { EFinishReason } from '../../stream/chunk'
-import type { V2Event } from '../event'
+import type { RecordEvent } from '../event'
 import { ESessionStatus } from '../session-status'
 import { ETurnEndedBy, ETurnOutcome } from '../turns'
 import {
@@ -25,7 +25,7 @@ import {
   waitCleared,
 } from './status-fixtures'
 
-const open = (...events: readonly V2Event[]) =>
+const open = (...events: readonly RecordEvent[]) =>
   statusOf({ events: [turnStarted(), ...events], live: true })
 
 describe('the label inside an open turn', () => {

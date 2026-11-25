@@ -1,19 +1,19 @@
 import type { EventId, RunId, ThreadId } from '../events/ids'
 import { GENESIS_HASH, chainHash, type LogHead } from './chain'
-import type { V2Body, V2Event } from './event'
+import type { RecordEventBody, RecordEvent } from './event'
 
 export type ChainEventsParams = {
   threadId: ThreadId
   runId: RunId
   epoch: number
-  bodies: readonly V2Body[]
+  bodies: readonly RecordEventBody[]
   from?: LogHead | undefined
   at: string
 }
 
-export function chainEvents(params: ChainEventsParams): V2Event[] {
+export function chainEvents(params: ChainEventsParams): RecordEvent[] {
   let head: LogHead = params.from ?? { seq: 0, hash: GENESIS_HASH }
-  const events: V2Event[] = []
+  const events: RecordEvent[] = []
   for (const body of params.bodies) {
     const seq = head.seq + 1
     const event = {
@@ -26,7 +26,7 @@ export function chainEvents(params: ChainEventsParams): V2Event[] {
       at: params.at,
       epoch: params.epoch,
       prevHash: head.hash,
-    } as V2Event
+    } as RecordEvent
     events.push(event)
     head = { seq, hash: chainHash(event) }
   }

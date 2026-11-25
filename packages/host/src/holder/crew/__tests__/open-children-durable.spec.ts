@@ -11,8 +11,8 @@ import {
   toRunId,
   toThreadId,
   type ThreadId,
-  type V2Body,
-  type V2Event,
+  type RecordEventBody,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import type { ControlPlane } from '@dltech/atlas-control'
 
@@ -26,7 +26,7 @@ const REWOUND = toThreadId('thread-child-3')
 const AT = '2026-01-01T00:00:00.000Z'
 const GROUP = 'call-1'
 
-const spawned = (agentId: ThreadId, group: string): V2Body => ({
+const spawned = (agentId: ThreadId, group: string): RecordEventBody => ({
   type: 'agent-spawned',
   agentId,
   agentType: 'builder',
@@ -35,7 +35,7 @@ const spawned = (agentId: ThreadId, group: string): V2Body => ({
   group,
 })
 
-const endedBody = (agentId: ThreadId): V2Body => ({
+const endedBody = (agentId: ThreadId): RecordEventBody => ({
   type: 'agent-ended',
   agentId,
   agentType: 'builder',
@@ -46,7 +46,7 @@ const endedBody = (agentId: ThreadId): V2Body => ({
   toolCalls: 2,
 })
 
-const summarised = (args: { fromSeq: number; throughSeq: number }): V2Body => ({
+const summarised = (args: { fromSeq: number; throughSeq: number }): RecordEventBody => ({
   type: 'history-summarised',
   fromSeq: args.fromSeq,
   throughSeq: args.throughSeq,
@@ -54,7 +54,10 @@ const summarised = (args: { fromSeq: number; throughSeq: number }): V2Body => ({
   summary: 'the spawn rows are behind the compaction watermark',
 })
 
-const planeOf = (events: readonly V2Event[], childEvents: readonly V2Event[] = []): ControlPlane =>
+const planeOf = (
+  events: readonly RecordEvent[],
+  childEvents: readonly RecordEvent[] = [],
+): ControlPlane =>
   ({
     readEvents: async (args: {
       threadId: ThreadId
@@ -72,7 +75,7 @@ const planeOf = (events: readonly V2Event[], childEvents: readonly V2Event[] = [
     endTerminals: async () => 0,
   }) as unknown as ControlPlane
 
-const cacheOf = (events: readonly V2Event[]): SessionRecord => {
+const cacheOf = (events: readonly RecordEvent[]): SessionRecord => {
   const visible = new Set(visibleEvents(events))
   const cached = events.filter((event) => visible.has(event) || event.type === 'history-summarised')
   return {
@@ -80,7 +83,10 @@ const cacheOf = (events: readonly V2Event[]): SessionRecord => {
   } as unknown as SessionRecord
 }
 
-const openOver = (bodies: readonly V2Body[], childBodies: readonly V2Body[] = []) => {
+const openOver = (
+  bodies: readonly RecordEventBody[],
+  childBodies: readonly RecordEventBody[] = [],
+) => {
   const events = chainEvents({
     threadId: PARENT,
     runId: toRunId('run-seed'),
@@ -141,7 +147,7 @@ describe('a takeover whose parent log was compacted', () => {
 })
 
 describe('a child that was restarted after its ending', () => {
-  const restartBody = (agentId: ThreadId): V2Body => ({
+  const restartBody = (agentId: ThreadId): RecordEventBody => ({
     type: 'agent-restarted',
     agentId,
     agentType: 'builder',
@@ -149,7 +155,7 @@ describe('a child that was restarted after its ending', () => {
     via: EAgentRestart.Message,
   })
 
-  const childLog: readonly V2Body[] = [
+  const childLog: readonly RecordEventBody[] = [
     { type: 'user-said', text: 'go on' },
     { type: 'input-consumed', inboxId: 12 },
     {

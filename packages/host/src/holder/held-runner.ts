@@ -27,7 +27,7 @@ import type { PodCrew } from '@dltech/atlas-plugin-sdk'
 
 import type { SessionRuntime } from './ports'
 import type { SessionRecord } from './record/record-adapter'
-import { V2OnceLedger } from './record/v2-once-ledger'
+import { RecordOnceLedger } from './record/record-once-ledger'
 import { retryDepsFromTimers } from './timer-sleep'
 
 export const logDriveFault = (args: { deps: HeldSessionDeps; error: unknown }): void => {
@@ -209,7 +209,7 @@ export const createLoopRunner = (args: {
     launchDirectory: runtime.launchDirectory,
     normalizeFailure: runtime.normalizeFailure,
     retry: retryDepsFromTimers(deps.timers),
-    onceLedger: new V2OnceLedger({
+    onceLedger: new RecordOnceLedger({
       cache: record.eventCache(),
       record,
       threadId,

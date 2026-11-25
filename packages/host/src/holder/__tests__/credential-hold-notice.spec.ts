@@ -8,7 +8,7 @@ import {
   ERunFailureKind,
   ESetupPhase,
   inboxEventPayloadOf,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 
 import { flushUntil, makeRig, seedSession, SESSION, THREAD_ID } from './holder-rig'
@@ -27,11 +27,11 @@ const setupNotice = (): Parameters<typeof inboxEventPayloadOf>[0]['event'] => ({
   phase: ESetupPhase.Finished,
 })
 
-const eventsOf = async (rig: Awaited<ReturnType<typeof makeRig>>): Promise<V2Event[]> =>
+const eventsOf = async (rig: Awaited<ReturnType<typeof makeRig>>): Promise<RecordEvent[]> =>
   (await rig.plane.readEvents({ threadId: THREAD_ID, afterSeq: 0, limit: 400, visible: false }))
     .events
 
-const ofType = (events: readonly V2Event[], type: V2Event['type']): V2Event[] =>
+const ofType = (events: readonly RecordEvent[], type: RecordEvent['type']): RecordEvent[] =>
   events.filter((event) => event.type === type)
 
 const authFailed = async (rig: Awaited<ReturnType<typeof makeRig>>): Promise<boolean> =>

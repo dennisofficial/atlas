@@ -15,8 +15,8 @@ import {
   type CodeQualityReviewedBody,
   type Hash,
   type QualityScopeIdentity,
-  type V2Body,
-  type V2Event,
+  type RecordEventBody,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import type { PodAnalyticsValue } from '@dltech/atlas-plugin-sdk'
 
@@ -26,7 +26,7 @@ import { CALL, FILE, PROJECT, THREAD, analyticsRecorder, createRig, wroteNothing
 
 const HASH = 'a'.repeat(64) as Hash
 
-const eventsOf = (bodies: readonly V2Body[]): readonly V2Event[] =>
+const eventsOf = (bodies: readonly RecordEventBody[]): readonly RecordEvent[] =>
   bodies.map(
     (body, index) =>
       ({
@@ -39,7 +39,7 @@ const eventsOf = (bodies: readonly V2Body[]): readonly V2Event[] =>
         at: '2026-11-23T00:00:00.000Z',
         epoch: 1,
         prevHash: HASH,
-      }) as V2Event,
+      }) as RecordEvent,
   )
 
 const SCOPE: QualityScopeIdentity = {
@@ -96,8 +96,12 @@ const reviewed = (args: {
   durationMs: 5,
 })
 
-const said: V2Body = { type: 'assistant-said', parts: [{ type: 'text', text: 'done' }] }
-const turnStarted: V2Body = { type: 'turn-started', turnId: 'turn-1', cause: ETurnCause.Input }
+const said: RecordEventBody = { type: 'assistant-said', parts: [{ type: 'text', text: 'done' }] }
+const turnStarted: RecordEventBody = {
+  type: 'turn-started',
+  turnId: 'turn-1',
+  cause: ETurnCause.Input,
+}
 
 const notified = (): CodeQualityReviewedBody =>
   reviewed({
@@ -313,7 +317,11 @@ describe('the ignored event through the after-turn hook', () => {
     const { captured, analytics } = analyticsRecorder()
     const reviewRig = createRig({ analytics })
     const outcome = await reviewRig.run()
-    const events = eventsOf([turnStarted, ...((outcome.drafts ?? []) as readonly V2Body[]), said])
+    const events = eventsOf([
+      turnStarted,
+      ...((outcome.drafts ?? []) as readonly RecordEventBody[]),
+      said,
+    ])
     const turnRig = createRig({ analytics, events: events as never })
 
     await turnRig.ignored.run({ threadId: THREAD })

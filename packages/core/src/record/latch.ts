@@ -1,4 +1,4 @@
-import type { RecordBody, V2Event } from './event'
+import type { RecordBody, RecordEvent } from './event'
 
 type LatchFact = Extract<RecordBody, { type: 'fact-recorded' }>
 
@@ -8,7 +8,10 @@ const LATCH_KIND = 'latch'
 
 export const latchKeyOf = (name: string): string => `${LATCH_KIND}:${name}`
 
-export const firedLatchLevelOf = (args: { events: readonly V2Event[]; name: string }): number => {
+export const firedLatchLevelOf = (args: {
+  events: readonly RecordEvent[]
+  name: string
+}): number => {
   const key = latchKeyOf(args.name)
   for (let index = args.events.length - 1; index >= 0; index -= 1) {
     const event = args.events[index]

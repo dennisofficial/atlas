@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 
-import type { V2Event } from '@dltech/atlas-core'
+import type { RecordEvent } from '@dltech/atlas-core'
 import type { ContextMirrorListOutput, ContextMirrorReadOutput } from '@dltech/atlas-protocol'
 
 import type { TreeEntry } from '@/features/threads/data/file-tree-source'
@@ -53,7 +53,7 @@ export const contextTreeOf = (args: {
   )
 }
 
-export const contextChangesOf = (events: readonly V2Event[]): ContextChange | undefined => {
+export const contextChangesOf = (events: readonly RecordEvent[]): ContextChange | undefined => {
   let seq = 0
   const paths = new Set<string>()
   for (const event of events) {

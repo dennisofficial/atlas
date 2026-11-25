@@ -1,4 +1,4 @@
-import { EInputConsumed, type V2Event } from '@dltech/atlas-core'
+import { EInputConsumed, type RecordEvent } from '@dltech/atlas-core'
 
 export enum EOutgoingPlacement {
   Queue = 'queue',
@@ -29,7 +29,7 @@ export type StagedSplit<TStaged extends StagedInput> = {
   transcript: TStaged[]
 }
 
-const clientIdByInbox = (events: readonly V2Event[]): ReadonlyMap<number, string> =>
+const clientIdByInbox = (events: readonly RecordEvent[]): ReadonlyMap<number, string> =>
   new Map(
     events.flatMap((event) =>
       event.type === 'input-posted' && event.message?.clientId !== undefined
@@ -46,7 +46,7 @@ type EventOutcome = {
 }
 
 const outcomeOf = (args: {
-  event: V2Event
+  event: RecordEvent
   byInbox: ReadonlyMap<number, string>
 }): EventOutcome | undefined => {
   const { event, byInbox } = args
@@ -94,7 +94,7 @@ const outcomeOf = (args: {
 }
 
 export const stagedOutcomesOf = (args: {
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   clientIds: readonly string[]
 }): ReadonlyMap<string, StagedOutcome> => {
   const byInbox = clientIdByInbox(args.events)
@@ -113,7 +113,7 @@ export const placementOf = (args: { working: boolean }): EOutgoingPlacement =>
 
 export const pendingStagedOf = <TStaged extends StagedInput>(args: {
   staged: readonly TStaged[]
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
 }): TStaged[] => {
   const outcomes = stagedOutcomesOf({
     events: args.events,
@@ -127,7 +127,7 @@ export const pendingStagedOf = <TStaged extends StagedInput>(args: {
 
 export const stagedPlacementOf = <TStaged extends StagedInput>(args: {
   staged: readonly TStaged[]
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   working: boolean
 }): StagedSplit<TStaged> => {
   const pending = pendingStagedOf({ staged: args.staged, events: args.events })
@@ -143,7 +143,7 @@ export type RestorableStaged<TStaged extends StagedInput> = {
 
 export const restorableStagedOf = <TStaged extends StagedInput>(args: {
   staged: readonly TStaged[]
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
 }): RestorableStaged<TStaged>[] => {
   const outcomes = stagedOutcomesOf({
     events: args.events,

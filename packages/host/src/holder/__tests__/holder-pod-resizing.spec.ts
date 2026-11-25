@@ -5,14 +5,14 @@ import {
   EPodResizeNotice,
   INBOX_KIND_RECORD,
   inboxEventPayloadOf,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import { ScriptedModel } from '@dltech/atlas-agent/testing'
 
 import { flushUntil, makeRig, seedSession, SESSION, THREAD_ID } from './holder-rig'
 
-const fullLog = async (rig: Awaited<ReturnType<typeof makeRig>>): Promise<V2Event[]> => {
-  const events: V2Event[] = []
+const fullLog = async (rig: Awaited<ReturnType<typeof makeRig>>): Promise<RecordEvent[]> => {
+  const events: RecordEvent[] = []
   let afterSeq = 0
   for (;;) {
     const page = await rig.plane.readEvents({

@@ -4,14 +4,14 @@ import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { PG_PRESENCE_LOCK_NAMESPACE } from '@dltech/atlas-protocol'
 import { describe, expect, it } from 'bun:test'
 
-import { podStillRetirable, podStillRetirableIn, v2Pods } from '../live-sandbox-names'
+import { podStillRetirable, podStillRetirableIn, pods } from '../live-sandbox-names'
 
 const UNCLAIMED_HOST_ID = 2_000_000_007
 
 const NOW = new Date('2026-11-10T06:00:00Z')
 const hoursBefore = (hours: number): Date => new Date(NOW.getTime() - hours * 60 * 60 * 1_000)
 
-const v2Session = async (args: {
+const seedSession = async (args: {
   id: string
   podSessionId?: string
   archivedAt?: Date
@@ -34,7 +34,10 @@ const v2Session = async (args: {
   })
 }
 
-const v2Lease = async (args: { sessionId: string; holderHostId: number | null }): Promise<void> => {
+const seedLease = async (args: {
+  sessionId: string
+  holderHostId: number | null
+}): Promise<void> => {
   await db.orm.public.Lease.create({
     sessionId: args.sessionId,
     epoch: 0,
@@ -65,18 +68,22 @@ const openSandboxRun = async (args: { id: string; sessionId: string }): Promise<
   })
 }
 
-describe('v2Pods', () => {
+describe('pods', () => {
   useTestDatabase()
 
   it('retires a v2 pod only once every session on it is archived past the grace', async () => {
-    await v2Session({ id: 'v2-fresh', archivedAt: hoursBefore(1) })
-    await v2Session({ id: 'v2-a', archivedAt: hoursBefore(25) })
-    await v2Session({ id: 'v2-b', podSessionId: 'v2-a', archivedAt: hoursBefore(25) })
-    await v2Session({ id: 'v2-shared', archivedAt: hoursBefore(25) })
-    await v2Session({ id: 'v2-peer-fresh', podSessionId: 'v2-shared', archivedAt: hoursBefore(1) })
-    await v2Session({ id: 'v2-live' })
+    await seedSession({ id: 'v2-fresh', archivedAt: hoursBefore(1) })
+    await seedSession({ id: 'v2-a', archivedAt: hoursBefore(25) })
+    await seedSession({ id: 'v2-b', podSessionId: 'v2-a', archivedAt: hoursBefore(25) })
+    await seedSession({ id: 'v2-shared', archivedAt: hoursBefore(25) })
+    await seedSession({
+      id: 'v2-peer-fresh',
+      podSessionId: 'v2-shared',
+      archivedAt: hoursBefore(1),
+    })
+    await seedSession({ id: 'v2-live' })
 
-    const { live, retirable, sessionIdsByPod } = await v2Pods({ now: NOW })
+    const { live, retirable, sessionIdsByPod } = await pods({ now: NOW })
 
     expect(retirable.has('v2-a')).toBe(true)
     expect(retirable.has('v2-fresh')).toBe(false)
@@ -88,9 +95,9 @@ describe('v2Pods', () => {
   })
 
   it('says a pod is still retirable only while every session on it stays archived', async () => {
-    await v2Session({ id: 'v2-a', archivedAt: hoursBefore(25) })
-    await v2Session({ id: 'v2-b', podSessionId: 'v2-a', archivedAt: hoursBefore(25) })
-    await v2Session({ id: 'v2-fresh', podSessionId: 'v2-fresh', archivedAt: hoursBefore(1) })
+    await seedSession({ id: 'v2-a', archivedAt: hoursBefore(25) })
+    await seedSession({ id: 'v2-b', podSessionId: 'v2-a', archivedAt: hoursBefore(25) })
+    await seedSession({ id: 'v2-fresh', podSessionId: 'v2-fresh', archivedAt: hoursBefore(1) })
 
     expect(await podStillRetirable({ podSessionId: 'v2-a', now: NOW })).toBe(true)
     expect(await podStillRetirable({ podSessionId: 'v2-unknown', now: NOW })).toBe(true)
@@ -101,10 +108,10 @@ describe('v2Pods', () => {
   })
 
   it('keeps the pod of an archived session live while a sandbox run on it is still open', async () => {
-    await v2Session({ id: 'v2-running', archivedAt: hoursBefore(25) })
+    await seedSession({ id: 'v2-running', archivedAt: hoursBefore(25) })
     await openSandboxRun({ id: 'run-1', sessionId: 'v2-running' })
 
-    const { live, retirable } = await v2Pods({ now: NOW })
+    const { live, retirable } = await pods({ now: NOW })
 
     expect(live.has('v2-running')).toBe(true)
     expect(retirable.has('v2-running')).toBe(false)
@@ -112,8 +119,8 @@ describe('v2Pods', () => {
   })
 
   it('keeps the pod of an archived session live while a present host holds its lease', async () => {
-    await v2Session({ id: 'v2-held', archivedAt: hoursBefore(25) })
-    await v2Lease({ sessionId: 'v2-held', holderHostId: UNCLAIMED_HOST_ID })
+    await seedSession({ id: 'v2-held', archivedAt: hoursBefore(25) })
+    await seedLease({ sessionId: 'v2-held', holderHostId: UNCLAIMED_HOST_ID })
 
     await db.transaction(async (tx) => {
       await tx.query(
@@ -122,7 +129,7 @@ describe('v2Pods', () => {
           .returnsRow({ held: 'pg/text@1' })
           .build(),
       )
-      const { live, retirable } = await v2Pods({ now: NOW })
+      const { live, retirable } = await pods({ now: NOW })
 
       expect(live.has('v2-held')).toBe(true)
       expect(retirable.has('v2-held')).toBe(false)
@@ -131,16 +138,16 @@ describe('v2Pods', () => {
   })
 
   it('retires the pod of an archived session whose lease has no host behind it', async () => {
-    await v2Session({ id: 'v2-stale', archivedAt: hoursBefore(25) })
-    await v2Lease({ sessionId: 'v2-stale', holderHostId: UNCLAIMED_HOST_ID })
+    await seedSession({ id: 'v2-stale', archivedAt: hoursBefore(25) })
+    await seedLease({ sessionId: 'v2-stale', holderHostId: UNCLAIMED_HOST_ID })
 
-    const { retirable } = await v2Pods({ now: NOW })
+    const { retirable } = await pods({ now: NOW })
 
     expect(retirable.get('v2-stale')).toBe(hoursBefore(25).getTime())
   })
 
   it('makes an unarchive wait for a held retirement, and the recheck then sees the session live', async () => {
-    await v2Session({ id: 'v2-fenced', archivedAt: hoursBefore(25) })
+    await seedSession({ id: 'v2-fenced', archivedAt: hoursBefore(25) })
     const holding = Promise.withResolvers<void>()
     const release = Promise.withResolvers<void>()
     const retirement = db.transaction(async (tx) => {

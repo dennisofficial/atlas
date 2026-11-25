@@ -8,7 +8,7 @@ import { EModelWaitCause, EWaitEpisodeKind } from '../../../model-recovery/waiti
 import { ERetryReason } from '../../../models/retry'
 import { EFinishReason } from '../../../stream/chunk'
 import { chainEvents } from '../../chain-events'
-import { EInputConsumed, type V2Body, type V2Event } from '../../event'
+import { EInputConsumed, type RecordEventBody, type RecordEvent } from '../../event'
 import { ETurnCause, ETurnEndedBy, ETurnOutcome } from '../../turns'
 import { EWorkspaceStep, EWorkspaceStepState } from '../../workspace'
 
@@ -91,7 +91,7 @@ const readingOf = (op: Op): StepReading => ({
   ...(op.b % 2 === 0 ? { modelId: 'gpt-5' } : {}),
 })
 
-const waiting = (kind: EWaitEpisodeKind): V2Body => ({
+const waiting = (kind: EWaitEpisodeKind): RecordEventBody => ({
   type: 'model-waiting',
   waiting: {
     episode:
@@ -112,7 +112,7 @@ const waiting = (kind: EWaitEpisodeKind): V2Body => ({
   },
 })
 
-const branchesBody = (op: Op): V2Body => {
+const branchesBody = (op: Op): RecordEventBody => {
   const sha = (salt: number): string => `sha${(op.a + salt) % 3}`
   const branches = [
     { name: 'main', sha: sha(0) },
@@ -131,12 +131,12 @@ const branchesBody = (op: Op): V2Body => {
   }
 }
 
-const rewind = (op: Op, seq: number): V2Body => ({
+const rewind = (op: Op, seq: number): RecordEventBody => ({
   type: 'history-rewound',
   toSeq: Math.min(seq - 1, Math.floor((op.a * seq) / 100)),
 })
 
-const summarise = (op: Op, seq: number): V2Body => {
+const summarise = (op: Op, seq: number): RecordEventBody => {
   const through = 1 + Math.floor((op.a * (seq - 1)) / 100)
   return {
     type: 'history-summarised',
@@ -147,7 +147,7 @@ const summarise = (op: Op, seq: number): V2Body => {
   }
 }
 
-const bodyOf = (op: Op, seq: number): V2Body => {
+const bodyOf = (op: Op, seq: number): RecordEventBody => {
   switch (op.kind) {
     case 'user':
       return { type: 'user-said', text: `message ${op.a}` }
@@ -247,8 +247,8 @@ const bodyOf = (op: Op, seq: number): V2Body => {
   }
 }
 
-export const eventsOf = (ops: readonly Op[]): V2Event[] => {
-  const bodies: V2Body[] = []
+export const eventsOf = (ops: readonly Op[]): RecordEvent[] => {
+  const bodies: RecordEventBody[] = []
   for (const op of ops) bodies.push(bodyOf(op, bodies.length + 1))
   return chainEvents({ threadId: THREAD, runId: RUN, epoch: 1, at: NOW, bodies })
 }

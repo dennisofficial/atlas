@@ -4,7 +4,7 @@ import {
   ERewindCause,
   saidBy,
   type Attachment,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 
 export type QuickStopMessage = {
@@ -38,8 +38,8 @@ export const EMPTY_QUICK_STOP_STATE: QuickStopState = {
   evidence: [],
 }
 
-type SaidRow = Extract<V2Event, { type: 'user-said' }>
-type RewindRow = Extract<V2Event, { type: 'history-rewound' }>
+type SaidRow = Extract<RecordEvent, { type: 'user-said' }>
+type RewindRow = Extract<RecordEvent, { type: 'history-rewound' }>
 
 const clientIdIn = (args: {
   clientIdByInbox: readonly QuickStopInbox[]
@@ -88,7 +88,7 @@ const rewindPlain = (state: QuickStopState, rewind: RewindRow): QuickStopState =
   return kept.length === state.candidates.length ? state : { ...state, candidates: kept }
 }
 
-export const stepQuickStop = (state: QuickStopState, event: V2Event): QuickStopState => {
+export const stepQuickStop = (state: QuickStopState, event: RecordEvent): QuickStopState => {
   if (event.type === 'input-posted') {
     const clientId = event.message?.clientId
     if (clientId === undefined) return state
@@ -125,5 +125,5 @@ export const stepQuickStop = (state: QuickStopState, event: V2Event): QuickStopS
   return state
 }
 
-export const quickStopsOf = (events: readonly V2Event[]): readonly QuickStopEvidence[] =>
+export const quickStopsOf = (events: readonly RecordEvent[]): readonly QuickStopEvidence[] =>
   events.reduce(stepQuickStop, EMPTY_QUICK_STOP_STATE).evidence

@@ -5,7 +5,7 @@ import type {
   ModelPort,
   PluginEventBody,
   RecordBody,
-  V2Event,
+  RecordEvent,
 } from '@dltech/atlas-core'
 
 export type CommandContext<Args> = {
@@ -14,7 +14,7 @@ export type CommandContext<Args> = {
   inboxId: number
   model?: ModelPort | undefined
   visibleEvents(): readonly Event[]
-  logEvents(): readonly V2Event[]
+  logEvents(): readonly RecordEvent[]
   runningChildren(): number
   crew?: { resume(args: { agentId: string }): Promise<EResumeOutcome> } | undefined
   mainThreadId?: string | undefined

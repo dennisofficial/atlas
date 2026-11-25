@@ -14,8 +14,8 @@ import {
   toRunId,
   toThreadId,
   type LogHead,
-  type V2Body,
-  type V2Event,
+  type RecordEventBody,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 
 import { ControlPlane } from '../src/control-plane'
@@ -28,9 +28,9 @@ const THREAD = 'thread-1'
 const OWNER = 'user-a'
 const TAIL_FROM = 41
 
-const said = (text: string): V2Body => ({ type: 'user-said', text })
+const said = (text: string): RecordEventBody => ({ type: 'user-said', text })
 
-const bodiesOf = (): V2Body[] => [
+const bodiesOf = (): RecordEventBody[] => [
   { type: 'turn-started', turnId: 'turn-1', cause: ETurnCause.Input },
   ...Array.from({ length: 29 }, (_, n) => said(`m${n}`)),
   { type: 'history-rewound', toSeq: 20 },
@@ -44,7 +44,7 @@ const bodiesOf = (): V2Body[] => [
   ...Array.from({ length: 28 }, (_, n) => said(`n${n}`)),
 ]
 
-const worldOf = async (): Promise<{ plane: ControlPlane; events: V2Event[] }> => {
+const worldOf = async (): Promise<{ plane: ControlPlane; events: RecordEvent[] }> => {
   const store = new InMemoryControlStore({ clock: () => AT })
   const plane = new ControlPlane({ store, clock: () => AT })
   await plane.createSession({
@@ -55,7 +55,7 @@ const worldOf = async (): Promise<{ plane: ControlPlane; events: V2Event[] }> =>
   })
   const lease = await plane.grant({ sessionId: SESSION, hostId: 1 })
   const bodies = bodiesOf()
-  const events: V2Event[] = []
+  const events: RecordEvent[] = []
   let head: LogHead = { seq: 0, hash: GENESIS_HASH }
   for (let start = 0; start < bodies.length; start += 10) {
     const chained = chainEvents({
@@ -75,8 +75,8 @@ const worldOf = async (): Promise<{ plane: ControlPlane; events: V2Event[] }> =>
 }
 
 const seqsBefore = (args: {
-  events: readonly V2Event[]
-  matches: (event: V2Event) => boolean
+  events: readonly RecordEvent[]
+  matches: (event: RecordEvent) => boolean
 }): number[] =>
   args.events
     .filter((event) => event.seq < TAIL_FROM && args.matches(event))
@@ -94,7 +94,7 @@ describe('readTailBase', () => {
       tailFrom: TAIL_FROM,
     })
 
-    expect(base?.cursor).toEqual({ seq: 40, hash: chainHash(events[39] as V2Event) })
+    expect(base?.cursor).toEqual({ seq: 40, hash: chainHash(events[39] as RecordEvent) })
     const folded = foldEvents({ state: initialSessionViewState, events }).state
     expect(base?.view.at).toBe(60)
     expect(base?.view.version).toBe(folded.version)
@@ -112,9 +112,9 @@ describe('readTailBase', () => {
     )
     expect(base?.commandLog.map((event) => event.seq)).toEqual([31, 32])
     const visibility = base?.visibility ?? { spans: [] }
-    expect(isVisible(visibility, events[4] as V2Event)).toBe(false)
-    expect(isSurviving(visibility, events[24] as V2Event)).toBe(false)
-    expect(isVisible(visibility, events[50] as V2Event)).toBe(true)
+    expect(isVisible(visibility, events[4] as RecordEvent)).toBe(false)
+    expect(isSurviving(visibility, events[24] as RecordEvent)).toBe(false)
+    expect(isVisible(visibility, events[50] as RecordEvent)).toBe(true)
   })
 
   test('refuses a base at the start of the log', async () => {

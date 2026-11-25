@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'bun:test'
-import { canonicalJson, type V2Body, type V2Event } from '@dltech/atlas-core'
+import { canonicalJson, type RecordEventBody, type RecordEvent } from '@dltech/atlas-core'
 
 import type { SessionChange } from '@dltech/atlas-protocol'
 
@@ -30,7 +30,7 @@ export type ConformanceParams = {
   seedPrState?: ((row: PrStateRow) => Promise<void>) | undefined
 }
 
-const consumed = (inboxId: number): V2Body => ({ type: 'input-consumed', inboxId })
+const consumed = (inboxId: number): RecordEventBody => ({ type: 'input-consumed', inboxId })
 
 export function describeControlPlaneConformance(params: ConformanceParams): void {
   describe(`ControlPlane conformance (${params.name})`, () => {
@@ -213,11 +213,13 @@ export function describeControlPlaneConformance(params: ConformanceParams): void
     })
 
     it('byte-bounded paging returns every event once and keeps pages within maxBytes', async () => {
-      const bodies: V2Body[] = Array.from({ length: 25 }, (_, i) => said(`m${i}${'x'.repeat(300)}`))
+      const bodies: RecordEventBody[] = Array.from({ length: 25 }, (_, i) =>
+        said(`m${i}${'x'.repeat(300)}`),
+      )
       bodies.push(said('oversize-'.repeat(2000)))
       const { events } = await appendBodies({ harness, epoch, bodies })
       const maxBytes = 2_000
-      const seen: V2Event[] = []
+      const seen: RecordEvent[] = []
       let afterSeq = 0
       for (let guard = 0; guard < 100; guard += 1) {
         const page = await harness.plane.readEvents({

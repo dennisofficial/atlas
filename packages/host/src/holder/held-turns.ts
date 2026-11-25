@@ -10,7 +10,7 @@ import {
   type Event,
   type RunId,
   type ThreadId,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import { logFieldsOf } from '@dltech/atlas-observability'
 
@@ -37,7 +37,7 @@ export type TurnLog = {
     drafts: readonly AppendBody[]
   }): Promise<Event[]>
   eventCache(): {
-    eventsAfter(seq: number): V2Event[]
+    eventsAfter(seq: number): RecordEvent[]
     currentHead(): { seq: number }
     queuedSince(): string | null
   }

@@ -14,12 +14,12 @@ import {
   EInputConsumed,
   toRunId,
   toThreadId,
-  type V2Body,
-  type V2Event,
+  type RecordEventBody,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import { z } from 'zod'
 
-import { createV2EventSchema } from '@dltech/atlas-core'
+import { createRecordEventSchema } from '@dltech/atlas-core'
 import { ControlPlane } from '@dltech/atlas-control'
 import { InMemoryControlStore } from '@dltech/atlas-control/testing'
 import { composePlugins } from '@dltech/atlas-plugin-sdk'
@@ -52,20 +52,20 @@ const handler: CommandHandler<unknown> = async ({ args, append }) => {
   return { kind: 'done' }
 }
 
-const eventsOf = async (rig: Rig): Promise<V2Event[]> =>
+const eventsOf = async (rig: Rig): Promise<RecordEvent[]> =>
   (await rig.plane.readEvents({ threadId: THREAD_ID, afterSeq: 0, limit: 500, visible: false }))
     .events
 
 const typesOf = async (rig: Rig): Promise<string[]> =>
   (await eventsOf(rig)).map((event) => event.type)
 
-const consumed = (inboxId: number): V2Body => ({
+const consumed = (inboxId: number): RecordEventBody => ({
   type: 'input-consumed',
   inboxId,
   consumed: EInputConsumed.Command,
 })
 
-const summarised = (inboxId: number): V2Body => ({
+const summarised = (inboxId: number): RecordEventBody => ({
   type: 'history-summarised',
   fromSeq: 1,
   throughSeq: 1,
@@ -77,7 +77,7 @@ const summarised = (inboxId: number): V2Body => ({
 const deadHolderLeft = async (args: {
   rig: Rig
   command: Command
-  after?: (inboxId: number) => V2Body[]
+  after?: (inboxId: number) => RecordEventBody[]
 }): Promise<void> => {
   const { rig } = args
   await seedSession(rig)
@@ -268,7 +268,7 @@ describe('SessionHolder command recovery', () => {
     const store = new InMemoryControlStore()
     const plane = new ControlPlane({
       store,
-      eventSchema: createV2EventSchema({ pluginBodies: composed.eventBodies }),
+      eventSchema: createRecordEventSchema({ pluginBodies: composed.eventBodies }),
       pluginViews: composed.views,
     })
     const podCommands: readonly PodCommandFactory[] = [

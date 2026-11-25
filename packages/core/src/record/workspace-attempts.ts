@@ -1,11 +1,11 @@
-import type { V2Event } from './event'
+import type { RecordEvent } from './event'
 
-export const attemptTagOf = (event: V2Event): number | undefined =>
+export const attemptTagOf = (event: RecordEvent): number | undefined =>
   event.type === 'workspace-step' || event.type === 'workspace-prepare-failed'
     ? event.attempt
     : undefined
 
-export const latestAttemptOf = (events: readonly V2Event[]): number => {
+export const latestAttemptOf = (events: readonly RecordEvent[]): number => {
   let latest = 0
   for (const event of events) {
     if (event.type === 'workspace-attempt-started') latest = Math.max(latest, event.attempt)
@@ -13,7 +13,7 @@ export const latestAttemptOf = (events: readonly V2Event[]): number => {
   return latest
 }
 
-export const nextAttemptOf = (events: readonly V2Event[]): number => latestAttemptOf(events) + 1
+export const nextAttemptOf = (events: readonly RecordEvent[]): number => latestAttemptOf(events) + 1
 
 export const attemptIsCurrent = (args: {
   attempt: number | undefined
@@ -24,9 +24,9 @@ export const attemptIsCurrent = (args: {
   return (args.attempt ?? args.position) === args.latest
 }
 
-export const withinLatestAttempt = <TEvent extends V2Event>(args: {
-  events: readonly V2Event[]
-  keep: (event: V2Event) => event is TEvent
+export const withinLatestAttempt = <TEvent extends RecordEvent>(args: {
+  events: readonly RecordEvent[]
+  keep: (event: RecordEvent) => event is TEvent
 }): TEvent[] => {
   const latest = latestAttemptOf(args.events)
   let position = 0

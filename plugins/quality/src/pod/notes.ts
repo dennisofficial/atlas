@@ -6,7 +6,7 @@ import {
   type CodeQualityReviewedBody,
   type Event,
   type EventDraft,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 
 import type { QualityNote } from '../review/review-records'
@@ -21,11 +21,11 @@ export const noteDraftsOf = ({ notes }: { notes: readonly QualityNote[] }): read
     content: note.content,
   }))
 
-type CoreEvent = Extract<V2Event, Event>
+type CoreEvent = Extract<RecordEvent, Event>
 
-const isCoreEvent = (event: V2Event): event is CoreEvent => CORE_EVENT_TYPES.has(event.type)
+const isCoreEvent = (event: RecordEvent): event is CoreEvent => CORE_EVENT_TYPES.has(event.type)
 
-const currentNoteKeys = ({ events }: { events: readonly V2Event[] }): ReadonlySet<string> =>
+const currentNoteKeys = ({ events }: { events: readonly RecordEvent[] }): ReadonlySet<string> =>
   new Set(
     currentContextEvents(events.filter(isCoreEvent))
       .filter((event) => event.slot === QUALITY_REVIEW_SLOT && event.content.trim() !== '')
@@ -48,7 +48,7 @@ const reviewedClean = (args: {
   )
 
 export const retirementDraftsOf = (args: {
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   records: readonly CodeQualityReviewedBody[]
   notes: readonly QualityNote[]
 }): readonly EventDraft[] => {

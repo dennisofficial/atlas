@@ -11,8 +11,8 @@ import {
   EWorkspaceStepState,
   workspaceStepsOf,
   type Attachment,
-  type V2Body,
-  type V2Event,
+  type RecordEventBody,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import fc from 'fast-check'
 
@@ -27,7 +27,7 @@ import {
 } from '../session-window'
 import { headOf, mintEvents, mintUserEvents } from './support'
 
-const page = (events: readonly V2Event[], head = headOf(events)) => ({
+const page = (events: readonly RecordEvent[], head = headOf(events)) => ({
   events: events.map((event) => ({ ...event })) as unknown[],
   head,
 })
@@ -138,7 +138,7 @@ describe('applyPage', () => {
   it('folds a hidden setup ending from the durable log while the transcript stays visible-only', () => {
     const setupStep = (
       state: EWorkspaceStepState,
-    ): Extract<V2Body, { type: 'workspace-step' }> => ({
+    ): Extract<RecordEventBody, { type: 'workspace-step' }> => ({
       type: 'workspace-step',
       step: EWorkspaceStep.Setup,
       state,
@@ -197,8 +197,8 @@ const opArb: fc.Arbitrary<Op> = fc.oneof(
   { weight: 1, arbitrary: fc.nat(1000).map((pick): Op => ({ kind: 'rewind', pick })) },
 )
 
-const logOf = (ops: readonly Op[]): V2Event[] => {
-  const bodies: V2Body[] = []
+const logOf = (ops: readonly Op[]): RecordEvent[] => {
+  const bodies: RecordEventBody[] = []
   const visibleSeqs: number[] = []
   for (const op of ops) {
     const seq = bodies.length + 1
@@ -248,7 +248,7 @@ describe('a quick stop in a raw page', () => {
     content: { store: EAttachmentStore.Inline, data: 'AAAA' },
   }
 
-  const events = (): V2Event[] =>
+  const events = (): RecordEvent[] =>
     mintEvents({
       bodies: [
         { type: 'user-said', text: 'think hard', clientId: 'client-a', attachments: [shot] },

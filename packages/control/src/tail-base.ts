@@ -3,7 +3,7 @@ import {
   DURABLE_TYPES,
   type PluginViewFold,
   type SessionViewState,
-  type V2Event,
+  type RecordEvent,
   type VisibilityState,
 } from '@dltech/atlas-core'
 import type { z } from 'zod'
@@ -20,8 +20,8 @@ export type TailBase = {
   cursor: { seq: number; hash: string }
   view: SessionViewState
   visibility: VisibilityState
-  durable: V2Event[]
-  commandLog: V2Event[]
+  durable: RecordEvent[]
+  commandLog: RecordEvent[]
 }
 
 const typedEventsIn = async (args: {
@@ -29,9 +29,9 @@ const typedEventsIn = async (args: {
   threadId: string
   throughSeq: number
   onlyTypes: readonly string[]
-  eventSchema?: z.ZodType<V2Event> | undefined
-}): Promise<V2Event[]> => {
-  const events: V2Event[] = []
+  eventSchema?: z.ZodType<RecordEvent> | undefined
+}): Promise<RecordEvent[]> => {
+  const events: RecordEvent[] = []
   let afterSeq = 0
   for (;;) {
     const rows = await args.tx.readEvents({
@@ -69,7 +69,7 @@ export const readTailBaseIn = async (args: {
   sessionId: string
   threadId: string
   tailFrom: number
-  eventSchema?: z.ZodType<V2Event> | undefined
+  eventSchema?: z.ZodType<RecordEvent> | undefined
   pluginViews?: readonly PluginViewFold[] | undefined
 }): Promise<TailBase | undefined> => {
   const { tx, threadId } = args

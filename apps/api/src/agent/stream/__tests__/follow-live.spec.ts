@@ -11,10 +11,10 @@ import {
   stepVisibility,
   toRunId,
   toThreadId,
-  v2EventSchema,
+  recordEventSchema,
   type LogHead,
-  type V2Body,
-  type V2Event,
+  type RecordEventBody,
+  type RecordEvent,
   type VisibilityState,
 } from '@dltech/atlas-core'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
@@ -33,11 +33,11 @@ const THREAD = 'live-thread'
 const OWNER = 'user-a'
 const AT = '2026-11-02T12:00:00.000Z'
 
-const said = (text: string): V2Body => ({ type: 'user-said', text })
+const said = (text: string): RecordEventBody => ({ type: 'user-said', text })
 
 class ClientWindow {
   private state: VisibilityState = EMPTY_VISIBILITY
-  private window: V2Event[] = []
+  private window: RecordEvent[] = []
   lastLive = false
   received: number[] = []
 
@@ -60,7 +60,7 @@ class ClientWindow {
     if (frame.type !== 'events') return
     this.lastLive = frame.live
     for (const raw of frame.events) {
-      const event = v2EventSchema.parse(raw)
+      const event = recordEventSchema.parse(raw)
       this.state = stepVisibility(this.state, event)
       this.window.push(event)
     }
@@ -93,7 +93,7 @@ describe('follow a session over a real stream', () => {
   let head: LogHead = { seq: 0, hash: GENESIS_HASH }
   const clients: ClientWindow[] = []
 
-  const append = async (bodies: readonly V2Body[]): Promise<V2Event[]> => {
+  const append = async (bodies: readonly RecordEventBody[]): Promise<RecordEvent[]> => {
     const events = chainEvents({
       threadId: toThreadId(THREAD),
       runId: toRunId('run-1'),
@@ -179,7 +179,7 @@ describe('follow a session over a real stream', () => {
     await first.followUntil(3)
     first.close()
     await append([said('d'), said('e')])
-    const second = await connect({ seq: 3, hash: chainHash(events[2] as V2Event) })
+    const second = await connect({ seq: 3, hash: chainHash(events[2] as RecordEvent) })
     await second.followUntil(5)
     expect(second.received).toEqual([4, 5])
   })

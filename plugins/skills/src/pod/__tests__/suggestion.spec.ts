@@ -4,7 +4,7 @@ import {
   EClassifierFault,
   type Assembled,
   type ClassifierOutcome,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import type { PluginPodContext, PodClassifier } from '@dltech/atlas-plugin-sdk'
 
@@ -57,8 +57,8 @@ const EMPTY: Assembled = { system: [], messages: [] }
 
 let seq = 0
 
-const stamped = (body: Record<string, unknown>): V2Event =>
-  ({ id: `e${++seq}`, seq, ...body }) as unknown as V2Event
+const stamped = (body: Record<string, unknown>): RecordEvent =>
+  ({ id: `e${++seq}`, seq, ...body }) as unknown as RecordEvent
 
 const rig = async (args: {
   classifier: PodClassifier

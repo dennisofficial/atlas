@@ -1,4 +1,4 @@
-import { summaryPointsOf, type SummariseReach, type V2Event } from '@dltech/atlas-core'
+import { summaryPointsOf, type SummariseReach, type RecordEvent } from '@dltech/atlas-core'
 import type { SessionCommandInput, SessionCommandOutput } from '@dltech/atlas-protocol'
 
 import type { SummariseCopy } from '@/features/threads/data/summarise'
@@ -8,7 +8,7 @@ export type SummariseApi = {
 }
 
 export const summarisePointsOf = (
-  events: readonly V2Event[],
+  events: readonly RecordEvent[],
 ): ReadonlyMap<string, SummariseReach> => summaryPointsOf(events)
 
 export const summariseCopyOf = (pick: SummariseReach): SummariseCopy => ({

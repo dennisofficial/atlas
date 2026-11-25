@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { chainEvents } from '../chain-events'
-import { v2EventSchema, type V2Body } from '../event'
+import { recordEventSchema, type RecordEventBody } from '../event'
 import { isRecordOnly, toLoopEvent } from '../loop-events'
 import { contextMeterOf } from '../context-meter'
 import { ESessionStatus, sessionStatusOf } from '../session-status'
@@ -17,13 +17,16 @@ import { latestAttemptOf, nextAttemptOf } from '../workspace-attempts'
 import { lastPrepareFailure } from '../workspace'
 import { NOW, runId, threadId } from './support'
 
-const log = (bodies: V2Body[]) => chainEvents({ threadId, runId, epoch: 1, at: NOW, bodies })
+const log = (bodies: RecordEventBody[]) =>
+  chainEvents({ threadId, runId, epoch: 1, at: NOW, bodies })
 
 const step = (
   name: EWorkspaceStep,
   state: EWorkspaceStepState,
-  extra: Partial<Omit<Extract<V2Body, { type: 'workspace-step' }>, 'type' | 'step' | 'state'>> = {},
-): V2Body => ({ type: 'workspace-step', step: name, state, ...extra })
+  extra: Partial<
+    Omit<Extract<RecordEventBody, { type: 'workspace-step' }>, 'type' | 'step' | 'state'>
+  > = {},
+): RecordEventBody => ({ type: 'workspace-step', step: name, state, ...extra })
 
 describe('workspace-step event', () => {
   it('round-trips through the v2 event schema and stays out of the model view', () => {
@@ -32,14 +35,14 @@ describe('workspace-step event', () => {
         outcome: EWorkspaceStepOutcome.Skipped,
       }),
     ])
-    expect(v2EventSchema.parse(events[0]).type).toBe('workspace-step')
+    expect(recordEventSchema.parse(events[0]).type).toBe('workspace-step')
     expect(isRecordOnly(events[0] as never)).toBe(true)
     expect(toLoopEvent({ event: events[0] as never })).toBeUndefined()
   })
 
   it('rejects an unknown step', () => {
     const [event] = log([step(EWorkspaceStep.Clone, EWorkspaceStepState.Done)])
-    expect(v2EventSchema.safeParse({ ...event, step: 'nope' }).success).toBe(false)
+    expect(recordEventSchema.safeParse({ ...event, step: 'nope' }).success).toBe(false)
   })
 
   it('does not mark the workspace prepared', () => {
@@ -109,7 +112,7 @@ describe('workspace-step detail', () => {
       }),
       step(EWorkspaceStep.Setup, EWorkspaceStepState.Done, { command: 'bun i', output: 'ok' }),
     ])
-    expect(events.map((event) => v2EventSchema.parse(event))).toMatchObject([
+    expect(events.map((event) => recordEventSchema.parse(event))).toMatchObject([
       { repos: [{ repo: 'acme/app', state: 'pending' }] },
       { command: 'bun i', output: 'ok' },
     ])
@@ -133,11 +136,14 @@ describe('workspace-step detail', () => {
   })
 })
 
-const attemptStarted = (attempt: number): V2Body => ({ type: 'workspace-attempt-started', attempt })
+const attemptStarted = (attempt: number): RecordEventBody => ({
+  type: 'workspace-attempt-started',
+  attempt,
+})
 
 const FAILED = 'sandbox did not answer'
 
-const failedFirstAttempt = (): V2Body[] => [
+const failedFirstAttempt = (): RecordEventBody[] => [
   attemptStarted(1),
   step(EWorkspaceStep.Sandbox, EWorkspaceStepState.Started, { attempt: 1 }),
   step(EWorkspaceStep.Sandbox, EWorkspaceStepState.Done, { attempt: 1 }),
@@ -153,11 +159,11 @@ const failedFirstAttempt = (): V2Body[] => [
 describe('workspace attempts', () => {
   it('round-trips an attempt through the v2 event schema', () => {
     const [event] = log([attemptStarted(2)])
-    expect(v2EventSchema.parse(event)).toMatchObject({
+    expect(recordEventSchema.parse(event)).toMatchObject({
       type: 'workspace-attempt-started',
       attempt: 2,
     })
-    expect(v2EventSchema.safeParse({ ...event, attempt: 0 }).success).toBe(false)
+    expect(recordEventSchema.safeParse({ ...event, attempt: 0 }).success).toBe(false)
   })
 
   it('numbers the next attempt from the log', () => {

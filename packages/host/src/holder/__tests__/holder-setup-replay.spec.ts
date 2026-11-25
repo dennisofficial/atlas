@@ -6,7 +6,7 @@ import {
   EWorkspaceStepState,
   toRunId,
   toThreadId,
-  type V2Body,
+  type RecordEventBody,
 } from '@dltech/atlas-core'
 
 import type { PrepareStepReporter, SetupLifecycle } from '../ports'
@@ -57,13 +57,13 @@ const seedRunningSetup = async (
   rig: Awaited<ReturnType<typeof makeRig>>,
   args: { reported: boolean },
 ): Promise<void> => {
-  const startedStep: V2Body = {
+  const startedStep: RecordEventBody = {
     type: 'workspace-step',
     step: EWorkspaceStep.Setup,
     state: EWorkspaceStepState.Started,
     command: SETUP_SCRIPT,
   }
-  const startedNotice: V2Body = {
+  const startedNotice: RecordEventBody = {
     type: 'sandbox-setup-reported',
     text: `setup started in the background: ${SETUP_SCRIPT}`,
     failed: false,

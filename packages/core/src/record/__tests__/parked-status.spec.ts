@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { toCallId, toRunId, toThreadId } from '../../events/ids'
 import { chainEvents } from '../chain-events'
-import type { V2Body, V2Event } from '../event'
+import type { RecordEventBody, RecordEvent } from '../event'
 import { ESessionStatus, sessionStatusOf } from '../session-status'
 import { ETurnCause, ETurnEndedBy, ETurnOutcome } from '../turns'
 
@@ -12,13 +12,13 @@ const RUN = toRunId('r')
 const CALL = toCallId('c1')
 const OTHER = toCallId('c2')
 
-const eventsOf = (bodies: readonly V2Body[]): readonly V2Event[] =>
+const eventsOf = (bodies: readonly RecordEventBody[]): readonly RecordEvent[] =>
   chainEvents({ threadId: THREAD, runId: RUN, epoch: 1, at: NOW, bodies })
 
-const statusOf = (bodies: readonly V2Body[]) =>
+const statusOf = (bodies: readonly RecordEventBody[]) =>
   sessionStatusOf({ events: eventsOf(bodies), live: true, queuedSince: null, now: NOW })
 
-const ASKED: readonly V2Body[] = [
+const ASKED: readonly RecordEventBody[] = [
   { type: 'turn-started', turnId: 'turn-1', cause: ETurnCause.Input },
   { type: 'user-said', text: 'ask for the secret' },
   { type: 'assistant-said', parts: [] },

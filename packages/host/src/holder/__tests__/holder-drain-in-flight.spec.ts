@@ -9,7 +9,7 @@ import {
   type ModelStepResult,
   type ToolDeclaration,
   type ToolOutcome,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import { FakeTool, ScriptedModel } from '@dltech/atlas-agent/testing'
 
@@ -69,8 +69,8 @@ class CallThenGateModel extends ModelPort {
   }
 }
 
-const eventsOf = async (rig: HolderRig): Promise<V2Event[]> => {
-  const events: V2Event[] = []
+const eventsOf = async (rig: HolderRig): Promise<RecordEvent[]> => {
+  const events: RecordEvent[] = []
   let afterSeq = 0
   for (;;) {
     const page = await rig.plane.readEvents({
@@ -85,7 +85,7 @@ const eventsOf = async (rig: HolderRig): Promise<V2Event[]> => {
   }
 }
 
-const typesOf = (events: readonly V2Event[]): string[] => events.map((event) => event.type)
+const typesOf = (events: readonly RecordEvent[]): string[] => events.map((event) => event.type)
 
 const started = async (rig: HolderRig, text: string): Promise<void> => {
   await seedSession(rig)

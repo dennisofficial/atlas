@@ -6,7 +6,7 @@ import {
   type EventDraft,
   type PluginEventBody,
   type RecordBody,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import { ECallStatus, type CallOp, type CallResult } from '@dltech/atlas-protocol'
 import {
@@ -45,7 +45,7 @@ const exec =
   }
 
 const rig = (answers: Record<string, ReturnType<typeof exec>>) => {
-  const log: V2Event[] = []
+  const log: RecordEvent[] = []
   const calls: string[] = []
   const subscriptions = fakeSubscriptions()
   const append = async (drafts: Drafts): Promise<void> => {
@@ -55,7 +55,7 @@ const rig = (answers: Record<string, ReturnType<typeof exec>>) => {
         seq: log.length + 1,
         threadId: toThreadId('t1'),
         at: '2026-11-08T10:00:00.000Z',
-      } as V2Event)
+      } as RecordEvent)
     }
   }
   const ctx: PluginPodContext = {

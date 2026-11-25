@@ -10,8 +10,8 @@ import {
   toRunId,
   toThreadId,
   type ThreadId,
-  type V2Body,
-  type V2Event,
+  type RecordEventBody,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 
 import { flushUntil, makeRig, seedSession, SESSION, THREAD_ID } from './holder-rig'
@@ -23,7 +23,7 @@ const AT = new Date(0).toISOString()
 
 type Rig = Awaited<ReturnType<typeof makeRig>>
 
-const SPAWN: V2Body = {
+const SPAWN: RecordEventBody = {
   type: 'agent-spawned',
   agentId: CHILD,
   agentType: 'general-purpose',
@@ -31,14 +31,14 @@ const SPAWN: V2Body = {
   mode: EAgentStart.Fresh,
 }
 
-const CHILD_LOG: readonly V2Body[] = [
+const CHILD_LOG: readonly RecordEventBody[] = [
   { type: 'user-said', text: BRIEF },
   { type: 'assistant-said', parts: [{ type: 'text', text: ANSWER }] },
   { type: 'input-consumed', inboxId: 91 },
 ]
 
-const eventsIn = async (args: { rig: Rig; threadId: ThreadId }): Promise<V2Event[]> => {
-  const events: V2Event[] = []
+const eventsIn = async (args: { rig: Rig; threadId: ThreadId }): Promise<RecordEvent[]> => {
+  const events: RecordEvent[] = []
   let afterSeq = 0
   for (;;) {
     const page = await args.rig.plane.readEvents({
@@ -53,14 +53,14 @@ const eventsIn = async (args: { rig: Rig; threadId: ThreadId }): Promise<V2Event
   }
 }
 
-const endingsOf = (events: readonly V2Event[]): V2Event[] =>
+const endingsOf = (events: readonly RecordEvent[]): RecordEvent[] =>
   events.filter((event) => event.type === 'agent-ended' && event.agentId === CHILD)
 
 const appendSeeded = async (args: {
   rig: Rig
   threadId: ThreadId
   epoch: number
-  bodies: readonly V2Body[]
+  bodies: readonly RecordEventBody[]
 }): Promise<void> => {
   const head = await args.rig.plane.head({ threadId: args.threadId })
   const outcome = await args.rig.plane.append({
@@ -78,7 +78,7 @@ const appendSeeded = async (args: {
   if (!outcome.ok) throw new Error(`seed refused: ${JSON.stringify(outcome.refusal)}`)
 }
 
-const INTERRUPTED_LOG: readonly V2Body[] = [
+const INTERRUPTED_LOG: readonly RecordEventBody[] = [
   { type: 'user-said', text: BRIEF },
   { type: 'input-consumed', inboxId: 91 },
 ]

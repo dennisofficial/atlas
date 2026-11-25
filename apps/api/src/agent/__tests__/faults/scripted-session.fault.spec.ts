@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import { GENESIS_HASH, verifySuffix, type V2Event } from '@dltech/atlas-core'
+import { GENESIS_HASH, verifySuffix, type RecordEvent } from '@dltech/atlas-core'
 
 import { startRig, type FaultRig } from '../../testing/fault-rig'
 
@@ -90,7 +90,7 @@ describe.skipIf(REDIS_URL === undefined)('scripted session across processes', ()
     ])
     const chain = verifySuffix({
       trusted: { seq: 0, hash: GENESIS_HASH },
-      events: events.map((row) => row.event as V2Event),
+      events: events.map((row) => row.event as RecordEvent),
     })
     expect(chain).toMatchObject({ ok: true })
   }, 60_000)

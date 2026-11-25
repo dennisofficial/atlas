@@ -21,7 +21,7 @@ import { liveOutputOf } from '../live-output'
 import { modelWaitObserverOf } from '../model-wait-observer'
 import type { RoleModelChoice, SessionRuntime } from '../ports'
 import type { SessionRecord } from '../record/record-adapter'
-import { V2OnceLedger } from '../record/v2-once-ledger'
+import { RecordOnceLedger } from '../record/record-once-ledger'
 import { retryDepsFromTimers } from '../timer-sleep'
 import { childModelOf } from './child-model'
 import { DeniedToolRegistry } from './child-tools'
@@ -102,7 +102,7 @@ export const childRunnerOf = (args: {
     launchDirectory: runtime.launchDirectory,
     normalizeFailure: runtime.normalizeFailure,
     retry: retryDepsFromTimers(deps.timers),
-    onceLedger: new V2OnceLedger({
+    onceLedger: new RecordOnceLedger({
       cache: record.eventCache(),
       record,
       threadId: args.agentId,

@@ -6,7 +6,7 @@ import {
   type Event,
   type PluginViewFold,
   type SubscriptionPresentation,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import { z } from 'zod'
 
@@ -49,7 +49,7 @@ const presented = (row: SubscriptionRowFields): SubscriptionPresentation =>
 
 export const foldSubscriptions = (
   state: SubscriptionsViewState,
-  event: Event | V2Event,
+  event: Event | RecordEvent,
 ): SubscriptionsViewState => {
   if (event.type === 'subscription-created') {
     const fields: SubscriptionRowFields = {
@@ -78,5 +78,5 @@ export const subscriptionsView: PluginViewFold<SubscriptionsViewState> = {
 }
 
 export const subscriptionsOfEvents = (
-  events: readonly (Event | V2Event)[],
+  events: readonly (Event | RecordEvent)[],
 ): SubscriptionsViewState => events.reduce(foldSubscriptions, subscriptionsView.initial)

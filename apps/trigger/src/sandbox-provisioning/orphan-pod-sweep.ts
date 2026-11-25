@@ -5,16 +5,16 @@ import {
   endPodTerminals,
   podStillRetirableIn,
   recordSandboxRunClose,
-  sweepV2Pods,
-  type V2PodFence,
-  type V2PodSweepScope,
-  type V2PodSweepSummary,
-  type V2Pods,
+  sweepPods,
+  type PodFence,
+  type PodSweepScope,
+  type PodSweepSummary,
+  type Pods,
 } from '@dltech/atlas-pods'
 import { triggerLog } from '../trigger-logger'
 
 const retirementFenceOf =
-  (now: Date): V2PodFence =>
+  (now: Date): PodFence =>
   async ({ podSessionId, act }) =>
     db.transaction(async (tx) => {
       await lockPodRetireIn({ tx, podSessionId })
@@ -24,14 +24,14 @@ const retirementFenceOf =
     })
 
 export type OrphanPodSweepDeps = {
-  pods: () => Promise<V2Pods>
-  v2Scopes: () => Promise<readonly V2PodSweepScope[]>
+  pods: () => Promise<Pods>
+  v2Scopes: () => Promise<readonly PodSweepScope[]>
   softDeleteArchived: (args: { cutoff: Date; at: Date }) => Promise<number>
   markPreviewDeleting: (args: { podSessionId: string }) => Promise<void>
 }
 
 export type OrphanPodSweepRun = {
-  v2: V2PodSweepSummary | null
+  v2: PodSweepSummary | null
   softDeleted: number | null
   failedScopes: string[]
 }
@@ -62,7 +62,7 @@ export async function runOrphanPodSweep(args: {
     label: 'v2 pods',
     run: async () => {
       const pods = await args.deps.pods()
-      return sweepV2Pods({
+      return sweepPods({
         scopes: await args.deps.v2Scopes(),
         pods,
         fence: retirementFenceOf(args.now),

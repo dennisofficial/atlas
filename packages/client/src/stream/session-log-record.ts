@@ -2,7 +2,7 @@ import type {
   FailureMessageState,
   PendingInputsState,
   SessionViewState,
-  V2Event,
+  RecordEvent,
   VisibilityState,
 } from '@dltech/atlas-core'
 
@@ -50,7 +50,7 @@ export const isView = (value: unknown): value is SessionViewState =>
   isFailure(value.failure) &&
   isRecord(value.pluginViews)
 
-const isEventList = (value: unknown): value is readonly V2Event[] =>
+const isEventList = (value: unknown): value is readonly RecordEvent[] =>
   Array.isArray(value) && value.every((event) => isRecord(event) && typeof event.seq === 'number')
 
 const isQuickStopMessage = (value: unknown): boolean =>

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
-import type { Attachment, V2Event } from '@dltech/atlas-core'
+import type { Attachment, RecordEvent } from '@dltech/atlas-core'
 
 import {
   requestRewind,
@@ -31,7 +31,7 @@ export type RewindPick = {
  */
 export function useSessionRewind(args: {
   sessionId: string
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   api: RewindApi
   onRestore: (restored: {
     text: string

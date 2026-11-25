@@ -4,8 +4,8 @@ import {
   toRunId,
   toThreadId,
   type LogHead,
-  type V2Body,
-  type V2Event,
+  type RecordEventBody,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import type { StreamServerMessage } from '@dltech/atlas-protocol'
 
@@ -18,13 +18,13 @@ import type {
 
 const NOW = '2026-11-05T10:00:00.000Z'
 
-export const userSaid = (text: string): V2Body => ({ type: 'user-said', text })
+export const userSaid = (text: string): RecordEventBody => ({ type: 'user-said', text })
 
 export const mintEvents = (params: {
-  bodies: readonly V2Body[]
+  bodies: readonly RecordEventBody[]
   from?: LogHead | undefined
   runId?: string
-}): V2Event[] =>
+}): RecordEvent[] =>
   chainEvents({
     threadId: toThreadId('thread-1'),
     runId: toRunId(params.runId ?? 'run-1'),
@@ -34,20 +34,23 @@ export const mintEvents = (params: {
     bodies: params.bodies,
   })
 
-export const mintUserEvents = (params: { count: number; from?: LogHead | undefined }): V2Event[] =>
+export const mintUserEvents = (params: {
+  count: number
+  from?: LogHead | undefined
+}): RecordEvent[] =>
   mintEvents({
     bodies: Array.from({ length: params.count }, (_, index) => userSaid(`m${index}`)),
     from: params.from,
   })
 
-export const headOf = (events: readonly V2Event[]): LogHead => {
-  const last = events[events.length - 1] as V2Event
+export const headOf = (events: readonly RecordEvent[]): LogHead => {
+  const last = events[events.length - 1] as RecordEvent
   return { seq: last.seq, hash: chainHash(last) }
 }
 
 export const eventsMessage = (params: {
   id: string
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   live: boolean
 }): StreamServerMessage => ({
   type: 'events',

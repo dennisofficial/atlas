@@ -18,8 +18,8 @@ import {
   toThreadId,
   type ModelPort,
   type ThreadId,
-  type V2Body,
-  type V2Event,
+  type RecordEventBody,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import { ScriptedModel } from '@dltech/atlas-agent/testing'
 import { z } from 'zod'
@@ -44,7 +44,7 @@ const holdProbe = defineCommand({
   },
 })
 
-const SPAWN: V2Body = {
+const SPAWN: RecordEventBody = {
   type: 'agent-spawned',
   agentId: CHILD,
   agentType: 'general-purpose',
@@ -52,7 +52,7 @@ const SPAWN: V2Body = {
   mode: EAgentStart.Fresh,
 }
 
-const STARTED: V2Body = {
+const STARTED: RecordEventBody = {
   type: 'pod-resize-started',
   vcpus: 16,
   memoryGb: 64,
@@ -67,8 +67,8 @@ const RESIZED = {
   outcome: EPodResizeNotice.Applied,
 }
 
-const eventsIn = async (args: { rig: Rig; threadId: ThreadId }): Promise<V2Event[]> => {
-  const events: V2Event[] = []
+const eventsIn = async (args: { rig: Rig; threadId: ThreadId }): Promise<RecordEvent[]> => {
+  const events: RecordEvent[] = []
   let afterSeq = 0
   for (;;) {
     const page = await args.rig.plane.readEvents({
@@ -94,7 +94,7 @@ const appendSeeded = async (args: {
   threadId: ThreadId
   epoch: number
   at: string
-  bodies: readonly V2Body[]
+  bodies: readonly RecordEventBody[]
 }): Promise<void> => {
   const head = await args.rig.plane.head({ threadId: args.threadId })
   const outcome = await args.rig.plane.append({

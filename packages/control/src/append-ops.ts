@@ -6,7 +6,7 @@ import {
   type LogHead,
   type PluginViewFold,
   type SessionViewState,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import type { z } from 'zod'
 
@@ -38,7 +38,7 @@ const viewSeatOf = (args: {
   state: SessionViewState | undefined
   threadId: string
   sessionId: string
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   pluginViews?: readonly PluginViewFold[] | undefined
 }): ViewSeat | undefined => {
   if (args.state === undefined) return undefined
@@ -67,8 +67,8 @@ const settleViewIn = async (args: {
   seat: ViewSeat
   head: LogHead
   visibility: string
-  events: readonly V2Event[]
-  eventSchema?: z.ZodType<V2Event> | undefined
+  events: readonly RecordEvent[]
+  eventSchema?: z.ZodType<RecordEvent> | undefined
   pluginViews?: readonly PluginViewFold[] | undefined
 }): Promise<void> => {
   if (args.seat.row !== undefined) {
@@ -98,7 +98,7 @@ export const appendIn = async (params: {
   epoch: number
   events: readonly unknown[]
   blobs?: readonly BlobWrite[] | undefined
-  eventSchema?: z.ZodType<V2Event> | undefined
+  eventSchema?: z.ZodType<RecordEvent> | undefined
   pluginViews?: readonly PluginViewFold[] | undefined
   appendHooks?: readonly AppendHook[] | undefined
 }): Promise<AppendOutcome> => {

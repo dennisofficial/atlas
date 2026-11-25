@@ -2,7 +2,7 @@ import {
   EQualityFindingState,
   type CodeQualityReviewedBody,
   type ThreadId,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 
 import { foldQualityFindings } from '../../review/ledger'
@@ -29,7 +29,7 @@ const activeFindingsOf = (args: {
 }
 
 export const ignoredFindingProperties = (args: {
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   threadId: ThreadId
 }): readonly QualityReviewEventProperties[] => {
   const thread = threadEventsOf({ events: args.events, threadId: args.threadId })

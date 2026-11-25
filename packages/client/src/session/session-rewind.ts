@@ -4,7 +4,7 @@ import {
   EAttachmentStore,
   type Attachment,
   type SaidUpload,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import type { SessionCommandInput, SessionCommandOutput } from '@dltech/atlas-protocol'
 import type { SaidImageWire } from '@dltech/atlas-wire/web'
@@ -40,11 +40,11 @@ export type RestorePlan = {
   images: SaidImageWire[]
 }
 
-export const seqByEventIdOf = (events: readonly V2Event[]): ReadonlyMap<string, number> =>
+export const seqByEventIdOf = (events: readonly RecordEvent[]): ReadonlyMap<string, number> =>
   new Map(events.flatMap((event) => (event.type === 'user-said' ? [[event.id, event.seq]] : [])))
 
 export const rewoundMessageOf = (args: {
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   eventId: string
 }): RewoundMessage | undefined => {
   const picked = args.events.find((event) => event.id === args.eventId)
@@ -61,7 +61,7 @@ const shellLabelOf = (event: { command: string; description?: string | undefined
   event.description?.trim() || event.command.replace(/\s+/g, ' ').trim()
 
 export const rewindKillsOf = (args: {
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   toSeq: number
 }): readonly RewindKillRow[] => {
   const seeds = new Map<string, { kind: RewindKillRow['kind']; id: string; label: string }>()
@@ -100,10 +100,10 @@ export const rewindKillsOf = (args: {
   }))
 }
 
-export const rewindLanded = (args: { events: readonly V2Event[]; eventId: string }): boolean =>
+export const rewindLanded = (args: { events: readonly RecordEvent[]; eventId: string }): boolean =>
   !args.events.some((event) => event.id === args.eventId)
 
-export const rewindRefused = (args: { events: readonly V2Event[]; inboxId: number }): boolean =>
+export const rewindRefused = (args: { events: readonly RecordEvent[]; inboxId: number }): boolean =>
   args.events.some((event) => event.type === 'input-refused' && event.inboxId === args.inboxId)
 
 export const mergedDraftOf = (args: { rewound: string; current: string }): string => {

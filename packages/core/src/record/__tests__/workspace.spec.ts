@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { chainEvents } from '../chain-events'
-import { v2EventSchema, type V2Body } from '../event'
+import { recordEventSchema, type RecordEventBody } from '../event'
 import {
   actionableInboxIds,
   EWorkspaceState,
@@ -13,17 +13,18 @@ import { isRecordOnly, toLoopEvent } from '../loop-events'
 import { decideHeldAction, EHeldAction } from '../../execution/held-session-decision'
 import { NOW, runId, threadId } from './support'
 
-const log = (bodies: V2Body[]) => chainEvents({ threadId, runId, epoch: 1, at: NOW, bodies })
+const log = (bodies: RecordEventBody[]) =>
+  chainEvents({ threadId, runId, epoch: 1, at: NOW, bodies })
 
-const prepared: V2Body = { type: 'workspace-prepared' }
-const failed = (inboxHead: number): V2Body => ({
+const prepared: RecordEventBody = { type: 'workspace-prepared' }
+const failed = (inboxHead: number): RecordEventBody => ({
   type: 'workspace-prepare-failed',
   reason: 'clone failed',
   inboxHead,
 })
-const said: V2Body = { type: 'user-said', text: 'hi' }
+const said: RecordEventBody = { type: 'user-said', text: 'hi' }
 
-const state = (args: { bodies: V2Body[]; preparing?: boolean; pending?: number[] }) =>
+const state = (args: { bodies: RecordEventBody[]; preparing?: boolean; pending?: number[] }) =>
   workspaceStateOf({
     events: log(args.bodies),
     preparing: args.preparing ?? false,
@@ -34,14 +35,14 @@ describe('workspace events', () => {
   it('round-trips both events through the v2 event schema', () => {
     for (const body of [prepared, failed(2)]) {
       const [event] = log([body])
-      expect(v2EventSchema.parse(event).type).toBe(body.type)
+      expect(recordEventSchema.parse(event).type).toBe(body.type)
     }
   })
 
   it('rejects a failure without a reason', () => {
     const [event] = log([failed(1)])
     const { reason: _reason, ...rest } = event as Record<string, unknown>
-    expect(v2EventSchema.safeParse(rest).success).toBe(false)
+    expect(recordEventSchema.safeParse(rest).success).toBe(false)
   })
 
   it('records both events without showing them to the model', () => {
@@ -165,11 +166,16 @@ describe('a record that holds a message and no prepare', () => {
 })
 
 describe('a prepare that finished with warnings', () => {
-  const warned: V2Body = { type: 'workspace-prepared', warnings: ['workspace clone failed: nope'] }
+  const warned: RecordEventBody = {
+    type: 'workspace-prepared',
+    warnings: ['workspace clone failed: nope'],
+  }
 
   it('round-trips the warnings through the v2 event schema', () => {
     const [event] = log([warned])
-    expect(v2EventSchema.parse(event)).toMatchObject({ warnings: ['workspace clone failed: nope'] })
+    expect(recordEventSchema.parse(event)).toMatchObject({
+      warnings: ['workspace clone failed: nope'],
+    })
   })
 
   it('is prepared, and a pending message starts a turn', () => {

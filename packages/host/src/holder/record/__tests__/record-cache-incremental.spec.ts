@@ -12,8 +12,8 @@ import {
   toThreadId,
   visibleLoopEvents,
   workspaceRecordOf,
-  type V2Body,
-  type V2Event,
+  type RecordEventBody,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 
 import type { FactLookup } from '../record-bookkeeping'
@@ -54,7 +54,7 @@ const pickerOf = (seed: number): Picker => {
 const valueOf = (pick: Picker): unknown =>
   pick.int(3) === 0 ? 'x'.repeat(SPILL_BYTES * 2) : { at: pick.int(1000) }
 
-const historyEditOf = (args: { pick: Picker; headSeq: number }): V2Body => {
+const historyEditOf = (args: { pick: Picker; headSeq: number }): RecordEventBody => {
   const { pick, headSeq } = args
   if (pick.int(2) === 0) return { type: 'history-rewound', toSeq: pick.int(headSeq) }
   const fromSeq = 1 + pick.int(headSeq)
@@ -67,7 +67,7 @@ const historyEditOf = (args: { pick: Picker; headSeq: number }): V2Body => {
   }
 }
 
-const bodyOf = (args: { pick: Picker; headSeq: number }): V2Body => {
+const bodyOf = (args: { pick: Picker; headSeq: number }): RecordEventBody => {
   const { pick } = args
   const callId = toCallId(pick.of(CALLS))
   switch (pick.int(13)) {
@@ -129,7 +129,7 @@ const commit = async (args: {
   plane: ControlPlane
   epoch: number
   cache: RecordCache
-  bodies: readonly V2Body[]
+  bodies: readonly RecordEventBody[]
 }): Promise<void> => {
   const spilled = args.bodies.map((body) => spillForAppend({ body, thresholdBytes: SPILL_BYTES }))
   const events = chainEvents({
@@ -178,8 +178,8 @@ const viewOf = (cache: RecordCache) => {
 
 const foldedViewOf = (cache: RecordCache) => {
   const events = cache.eventsAfter(0).map((event) => cache.resolvedEvent(event))
-  const ofType = <T extends V2Event['type']>(type: T) =>
-    events.filter((event): event is Extract<V2Event, { type: T }> => event.type === type)
+  const ofType = <T extends RecordEvent['type']>(type: T) =>
+    events.filter((event): event is Extract<RecordEvent, { type: T }> => event.type === type)
   const facts = ofType('fact-recorded').map((event) => ({ key: event.key, value: event.value }))
   const retries = ofType('retry-scheduled').map(({ key, notBefore, attempt, reason }) => ({
     key,
@@ -226,7 +226,7 @@ describe('RecordCache incremental views', () => {
       const { plane, epoch } = await openThread()
       const cache = await RecordCache.load({ plane, threadId: THREAD })
       for (let batch = 0; batch < 40; batch += 1) {
-        const bodies: V2Body[] = []
+        const bodies: RecordEventBody[] = []
         const count = 1 + pick.int(5)
         for (let index = 0; index < count; index += 1) {
           bodies.push(bodyOf({ pick, headSeq: cache.currentHead().seq + index }))

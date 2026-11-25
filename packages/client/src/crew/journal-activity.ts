@@ -1,4 +1,4 @@
-import { shellKey, type V2Event } from '@dltech/atlas-core'
+import { shellKey, type RecordEvent } from '@dltech/atlas-core'
 
 import { NOTHING_IN_BACKGROUND, type BackgroundWork } from './background-wait'
 
@@ -7,7 +7,7 @@ import { NOTHING_IN_BACKGROUND, type BackgroundWork } from './background-wait'
  * session's journal and no roster, and every shell and child run leaves a start and an ending in
  * it. Counted over the whole tree, so a child's own background shell is the parent's wait too.
  */
-export function journalActivityOf(events: readonly V2Event[]): BackgroundWork {
+export function journalActivityOf(events: readonly RecordEvent[]): BackgroundWork {
   const shells = new Set<string>()
   const agents = new Set<string>()
 
@@ -34,7 +34,7 @@ export function journalActivityOf(events: readonly V2Event[]): BackgroundWork {
 }
 
 export function liveBackgroundOf(args: {
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   live: boolean
 }): BackgroundWork {
   if (!args.live) return NOTHING_IN_BACKGROUND

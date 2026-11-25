@@ -1,4 +1,4 @@
-import { EAgentStatus, toThreadId, type ActiveWorktree, type V2Event } from '@dltech/atlas-core'
+import { EAgentStatus, toThreadId, type ActiveWorktree, type RecordEvent } from '@dltech/atlas-core'
 import {
   type PluginPodContext,
   type PodCrew,
@@ -75,8 +75,8 @@ export const unknownPushState: WorktreeState = {
   behind: undefined,
 }
 
-export const event = (body: Record<string, unknown>): V2Event =>
-  ({ ...body, seq: 1, at: startedAt, threadId: 't1', id: 'e1' }) as unknown as V2Event
+export const event = (body: Record<string, unknown>): RecordEvent =>
+  ({ ...body, seq: 1, at: startedAt, threadId: 't1', id: 'e1' }) as unknown as RecordEvent
 
 export type Call = { method: string; args: unknown }
 
@@ -136,7 +136,7 @@ export const fakeWorktrees = (args: { state?: WorktreeState } = {}) => {
 }
 
 export const rig = (
-  args: { worktrees?: PodWorktrees; crew?: PodCrew; events?: readonly V2Event[] } = {},
+  args: { worktrees?: PodWorktrees; crew?: PodCrew; events?: readonly RecordEvent[] } = {},
 ) => {
   const ctx: PluginPodContext = {
     sessionId: 's1',

@@ -1,5 +1,5 @@
 import { chainHash, type LogHead } from './chain'
-import type { Hash, V2Event } from './event'
+import type { Hash, RecordEvent } from './event'
 import type { Lease } from './lease'
 
 export type AppendRefusal =
@@ -18,7 +18,7 @@ export function acceptAppend(params: {
   head: LogHead
   lease: Lease
   epoch: number
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
 }): AppendResult {
   const { head, lease, events } = params
   const fenced =

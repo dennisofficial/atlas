@@ -4,21 +4,21 @@ import { ECompactionAnchor } from '../../events/body'
 import { toCallId } from '../../events/ids'
 import { chainEvents } from '../chain-events'
 import { contextMeterOf } from '../context-meter'
-import type { V2Body } from '../event'
+import type { RecordEventBody } from '../event'
 import { NOW, runId, threadId } from './support'
 
 const WINDOW = 200_000
 
-const logOf = (bodies: readonly V2Body[]) =>
+const logOf = (bodies: readonly RecordEventBody[]) =>
   chainEvents({ threadId, runId, epoch: 1, at: NOW, bodies })
 
-const said = (inputTokens: number, outputTokens = 100): V2Body => ({
+const said = (inputTokens: number, outputTokens = 100): RecordEventBody => ({
   type: 'assistant-said',
   parts: [{ type: 'text', text: 'ok' }],
   usage: { inputTokens, outputTokens, contextWindow: WINDOW },
 })
 
-const called = (id: string, inputTokens?: number): V2Body => ({
+const called = (id: string, inputTokens?: number): RecordEventBody => ({
   type: 'tool-called',
   callId: toCallId(id),
   name: 'bash',
@@ -29,7 +29,7 @@ const called = (id: string, inputTokens?: number): V2Body => ({
     : { usage: { inputTokens, outputTokens: 50, contextWindow: WINDOW } }),
 })
 
-const result = (id: string, text: string): Extract<V2Body, { type: 'tool-result' }> => ({
+const result = (id: string, text: string): Extract<RecordEventBody, { type: 'tool-result' }> => ({
   type: 'tool-result',
   callId: toCallId(id),
   name: 'bash',

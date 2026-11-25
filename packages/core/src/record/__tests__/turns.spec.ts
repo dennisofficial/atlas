@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { toEventId, toRunId, toThreadId } from '../../events/ids'
 import { EPendingWork } from '../../notify/pending-work'
-import type { Hash, V2Body, V2Event } from '../event'
+import type { Hash, RecordEventBody, RecordEvent } from '../event'
 import { ETurnCause, ETurnEndedBy, ETurnOutcome, openTurnOf, turnEndedSchema } from '../turns'
 
 const HASH = 'a'.repeat(64) as Hash
@@ -11,22 +11,25 @@ const RUN = toRunId('r')
 const FIRST_AT = '2026-11-21T10:00:00.000Z'
 const SECOND_AT = '2026-11-21T10:05:00.000Z'
 
-const started = (turnId: string, cause: ETurnCause = ETurnCause.Input): V2Body => ({
+const started = (turnId: string, cause: ETurnCause = ETurnCause.Input): RecordEventBody => ({
   type: 'turn-started',
   turnId,
   cause,
 })
 
-const ended = (turnId: string, outcome: ETurnOutcome = ETurnOutcome.Completed): V2Body => ({
+const ended = (
+  turnId: string,
+  outcome: ETurnOutcome = ETurnOutcome.Completed,
+): RecordEventBody => ({
   type: 'turn-ended',
   turnId,
   outcome,
   by: ETurnEndedBy.Agent,
 })
 
-const reply: V2Body = { type: 'assistant-said', parts: [] }
+const reply: RecordEventBody = { type: 'assistant-said', parts: [] }
 
-const eventsOf = (bodies: readonly V2Body[], at = FIRST_AT): V2Event[] =>
+const eventsOf = (bodies: readonly RecordEventBody[], at = FIRST_AT): RecordEvent[] =>
   bodies.map(
     (body, index) =>
       ({
@@ -39,7 +42,7 @@ const eventsOf = (bodies: readonly V2Body[], at = FIRST_AT): V2Event[] =>
         at,
         epoch: 1,
         prevHash: HASH,
-      }) as V2Event,
+      }) as RecordEvent,
   )
 
 describe('openTurnOf', () => {

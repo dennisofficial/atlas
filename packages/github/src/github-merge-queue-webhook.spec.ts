@@ -1,7 +1,7 @@
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { ControlPlane } from '@dltech/atlas-control'
 import { NO_EXPIRY_AT, PostgresControlStore } from '@dltech/atlas-control/postgres'
-import { createV2EventSchema, ESubscriptionActor } from '@dltech/atlas-core'
+import { createRecordEventSchema, ESubscriptionActor } from '@dltech/atlas-core'
 import { db } from '@dltech/atlas-db'
 import { EMergeQueueMove, EPrEventKind, INBOX_KIND_EVENT, inboxEventOf } from '@dltech/atlas-core'
 import { beforeEach, describe, expect, it } from 'bun:test'
@@ -18,15 +18,15 @@ const noQueues = async (): Promise<void> => undefined
 
 const USER = 'usr-1'
 const OTHER_USER = 'usr-2'
-const V2_SESSION = 'ses_v2_queue'
-const V2_THREAD = 'thr_v2_queue'
+const SESSION = 'ses_v2_queue'
+const THREAD = 'thr_v2_queue'
 const OTHER_SESSION = 'ses_v2_queue_2'
 const OTHER_THREAD = 'thr_v2_queue_2'
 
-const seedV2Thread = async (args: { sessionId: string; threadId: string; userId: string }) => {
+const seedThread = async (args: { sessionId: string; threadId: string; userId: string }) => {
   const plane = new ControlPlane({
     store: new PostgresControlStore(db),
-    eventSchema: createV2EventSchema({ pluginBodies: [] }),
+    eventSchema: createRecordEventSchema({ pluginBodies: [] }),
   })
   await plane.createSession({
     sessionId: args.sessionId,
@@ -98,12 +98,12 @@ describe('recordMergeQueueEntry', () => {
   })
 
   it('notifies the subscribed thread that the PR entered the queue', async () => {
-    await seedV2Thread({ sessionId: V2_SESSION, threadId: V2_THREAD, userId: USER })
-    await seedSubscription({ userId: USER, prNumber: 42, threadId: V2_THREAD })
+    await seedThread({ sessionId: SESSION, threadId: THREAD, userId: USER })
+    await seedSubscription({ userId: USER, prNumber: 42, threadId: THREAD })
 
     expect(await recordMergeQueueEntry({ queues: noQueues, payload: payloadOf() })).toBe(1)
 
-    const [entry] = await inboxEvents(V2_SESSION)
+    const [entry] = await inboxEvents(SESSION)
     if (entry === undefined) throw new Error('no inbox entry')
     expect(queueMoveOf(entry)).toEqual({
       kind: INBOX_KIND_EVENT,
@@ -119,14 +119,14 @@ describe('recordMergeQueueEntry', () => {
   })
 
   it('notifies a thread that subscribed through the control plane with no expiry', async () => {
-    await seedV2Thread({ sessionId: V2_SESSION, threadId: V2_THREAD, userId: USER })
+    await seedThread({ sessionId: SESSION, threadId: THREAD, userId: USER })
     const control = new ControlPlane({
       store: new PostgresControlStore(db),
-      eventSchema: createV2EventSchema({ pluginBodies: [] }),
+      eventSchema: createRecordEventSchema({ pluginBodies: [] }),
     })
     const subscribed = await control.subscribe({
-      sessionId: V2_SESSION,
-      threadId: V2_THREAD,
+      sessionId: SESSION,
+      threadId: THREAD,
       provider: 'github.pull-request',
       target: { repo: 'github.com/compai/app', number: 42 },
       label: 'compai/app#42',
@@ -141,9 +141,7 @@ describe('recordMergeQueueEntry', () => {
 
     expect(await recordMergeQueueEntry({ queues: noQueues, payload: payloadOf() })).toBe(1)
 
-    const entries = (await inboxEvents(V2_SESSION)).filter(
-      (entry) => entry.kind === INBOX_KIND_EVENT,
-    )
+    const entries = (await inboxEvents(SESSION)).filter((entry) => entry.kind === INBOX_KIND_EVENT)
     expect(entries).toHaveLength(1)
     expect(eventOf(entries[0]!)).toMatchObject({
       type: 'pr-event',
@@ -154,14 +152,14 @@ describe('recordMergeQueueEntry', () => {
   })
 
   it('says the PR left the queue on a removal', async () => {
-    await seedV2Thread({ sessionId: V2_SESSION, threadId: V2_THREAD, userId: USER })
-    await seedSubscription({ userId: USER, prNumber: 42, threadId: V2_THREAD })
+    await seedThread({ sessionId: SESSION, threadId: THREAD, userId: USER })
+    await seedSubscription({ userId: USER, prNumber: 42, threadId: THREAD })
 
     expect(
       await recordMergeQueueEntry({ queues: noQueues, payload: payloadOf({ action: 'removed' }) }),
     ).toBe(1)
 
-    const [entry] = await inboxEvents(V2_SESSION)
+    const [entry] = await inboxEvents(SESSION)
     if (entry === undefined) throw new Error('no inbox entry')
     expect(queueMoveOf(entry).event).toMatchObject({
       kind: EPrEventKind.MergeQueue,
@@ -170,47 +168,47 @@ describe('recordMergeQueueEntry', () => {
   })
 
   it('notifies every subscribed thread of the PR once', async () => {
-    await seedV2Thread({ sessionId: V2_SESSION, threadId: V2_THREAD, userId: USER })
-    await seedV2Thread({
+    await seedThread({ sessionId: SESSION, threadId: THREAD, userId: USER })
+    await seedThread({
       sessionId: OTHER_SESSION,
       threadId: OTHER_THREAD,
       userId: OTHER_USER,
     })
-    await seedSubscription({ userId: USER, prNumber: 42, threadId: V2_THREAD })
+    await seedSubscription({ userId: USER, prNumber: 42, threadId: THREAD })
     await seedSubscription({ userId: OTHER_USER, prNumber: 42, threadId: OTHER_THREAD })
 
     expect(await recordMergeQueueEntry({ queues: noQueues, payload: payloadOf() })).toBe(2)
 
-    expect(await inboxEvents(V2_SESSION)).toHaveLength(1)
+    expect(await inboxEvents(SESSION)).toHaveLength(1)
     expect(await inboxEvents(OTHER_SESSION)).toHaveLength(1)
   })
 
   it('reaches a branch subscriber whose branch is the PR head', async () => {
-    await seedV2Thread({ sessionId: V2_SESSION, threadId: V2_THREAD, userId: USER })
+    await seedThread({ sessionId: SESSION, threadId: THREAD, userId: USER })
     await seedSubscription({
       userId: USER,
       prNumber: null,
       branch: 'dennis/add-the-thing',
-      threadId: V2_THREAD,
+      threadId: THREAD,
     })
 
     expect(await recordMergeQueueEntry({ queues: noQueues, payload: payloadOf() })).toBe(1)
-    expect(await inboxEvents(V2_SESSION)).toHaveLength(1)
+    expect(await inboxEvents(SESSION)).toHaveLength(1)
   })
 
   it('writes nothing for a PR it has no state row for', async () => {
-    await seedV2Thread({ sessionId: V2_SESSION, threadId: V2_THREAD, userId: USER })
-    await seedSubscription({ userId: USER, prNumber: 42, threadId: V2_THREAD })
+    await seedThread({ sessionId: SESSION, threadId: THREAD, userId: USER })
+    await seedSubscription({ userId: USER, prNumber: 42, threadId: THREAD })
 
     expect(
       await recordMergeQueueEntry({ queues: noQueues, payload: payloadOf({ prNumber: 43 }) }),
     ).toBe(0)
-    expect(await inboxEvents(V2_SESSION)).toEqual([])
+    expect(await inboxEvents(SESSION)).toEqual([])
   })
 
   it('writes nothing for an action that is not an entry or an exit', async () => {
-    await seedV2Thread({ sessionId: V2_SESSION, threadId: V2_THREAD, userId: USER })
-    await seedSubscription({ userId: USER, prNumber: 42, threadId: V2_THREAD })
+    await seedThread({ sessionId: SESSION, threadId: THREAD, userId: USER })
+    await seedSubscription({ userId: USER, prNumber: 42, threadId: THREAD })
 
     expect(
       await recordMergeQueueEntry({
@@ -218,12 +216,12 @@ describe('recordMergeQueueEntry', () => {
         payload: payloadOf({ action: 'destroyed' }),
       }),
     ).toBe(0)
-    expect(await inboxEvents(V2_SESSION)).toEqual([])
+    expect(await inboxEvents(SESSION)).toEqual([])
   })
 
   it('reads the PR number out of the queue head ref when the payload omits the pull request', async () => {
-    await seedV2Thread({ sessionId: V2_SESSION, threadId: V2_THREAD, userId: USER })
-    await seedSubscription({ userId: USER, prNumber: 42, threadId: V2_THREAD })
+    await seedThread({ sessionId: SESSION, threadId: THREAD, userId: USER })
+    await seedSubscription({ userId: USER, prNumber: 42, threadId: THREAD })
 
     expect(mergeQueuePrNumberOf(payloadOf({ prNumber: undefined }))).toBe(42)
     expect(
@@ -232,7 +230,7 @@ describe('recordMergeQueueEntry', () => {
         payload: payloadOf({ prNumber: undefined }),
       }),
     ).toBe(1)
-    const [entry] = await inboxEvents(V2_SESSION)
+    const [entry] = await inboxEvents(SESSION)
     if (entry === undefined) throw new Error('no inbox entry')
     expect(queueMoveOf(entry)).toEqual({
       kind: INBOX_KIND_EVENT,

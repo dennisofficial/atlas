@@ -5,7 +5,7 @@ import {
   providerLabelOf,
   remediesOf,
   type RunFailure,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import type { RunAttentionAction } from '@dltech/atlas-ui/ai/run-attention-strip'
 
@@ -13,20 +13,20 @@ import { runAttentionActionsOf } from '@/features/threads/data/run-attention-act
 import type { PendingRemedy } from '@/features/threads/data/run-attention-pending'
 import type { RunFailureCardProps } from '@/features/threads/transcript/run-failure-card'
 
-type RunFailedEvent = Extract<V2Event, { type: 'run-failed' }>
+type RunFailedEvent = Extract<RecordEvent, { type: 'run-failed' }>
 
 const RUN_GATED: ReadonlySet<ERunRemedy> = new Set([ERunRemedy.Retry, ERunRemedy.Resume])
 
-const isRunFailed = (event: V2Event): event is RunFailedEvent => event.type === 'run-failed'
+const isRunFailed = (event: RecordEvent): event is RunFailedEvent => event.type === 'run-failed'
 
-const supersedesFailure = (event: V2Event): boolean =>
+const supersedesFailure = (event: RecordEvent): boolean =>
   event.type === 'user-said' || event.type === 'assistant-said'
 
-const superseded = (args: { events: readonly V2Event[]; seq: number }): boolean =>
+const superseded = (args: { events: readonly RecordEvent[]; seq: number }): boolean =>
   args.events.some((event) => event.seq > args.seq && supersedesFailure(event))
 
 export function sessionAttentionOf(args: {
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   working: boolean
 }): RunAttention | null {
   const failed = args.events.filter(isRunFailed).at(-1)

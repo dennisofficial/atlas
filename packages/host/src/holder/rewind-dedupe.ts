@@ -1,4 +1,4 @@
-import { commandInputKind, type InboxEntry, type V2Event } from '@dltech/atlas-core'
+import { commandInputKind, type InboxEntry, type RecordEvent } from '@dltech/atlas-core'
 
 export const INBOX_KIND_REWIND = commandInputKind('rewind')
 
@@ -14,7 +14,7 @@ const toSeqOf = (entry: InboxEntry): number | undefined => {
   }
 }
 
-const appliedTargetsOf = (events: readonly V2Event[]): ReadonlySet<number> =>
+const appliedTargetsOf = (events: readonly RecordEvent[]): ReadonlySet<number> =>
   new Set(events.flatMap((event) => (event.type === 'history-rewound' ? [event.toSeq + 1] : [])))
 
 /**
@@ -24,7 +24,7 @@ const appliedTargetsOf = (events: readonly V2Event[]): ReadonlySet<number> =>
  */
 export const supersededRewindIdsOf = (args: {
   entries: readonly InboxEntry[]
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
 }): ReadonlySet<number> => {
   const applied = appliedTargetsOf(args.events)
   const rewinds = args.entries.filter((entry) => toSeqOf(entry) !== undefined)

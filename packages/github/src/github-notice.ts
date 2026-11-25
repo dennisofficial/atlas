@@ -91,7 +91,7 @@ export const prEventBodyOf = (args: {
   }
 }
 
-const subscribedV2Sessions = async (args: {
+const subscribedSessions = async (args: {
   tx: Tx
   event: Row<'GithubPrEvent'>
   now: Date
@@ -158,7 +158,7 @@ const postEventNotices = async (args: {
   const { tx, event } = args
   const id = event.id
   const firedAt = args.at
-  const targets = await subscribedV2Sessions({ tx, event, now: firedAt })
+  const targets = await subscribedSessions({ tx, event, now: firedAt })
   if (targets.length === 0) return 0
   const state = await tx.orm.public.GithubPrState.where({
     repoFullName: event.repoFullName,
@@ -191,7 +191,7 @@ const postEventNotices = async (args: {
   return posted
 }
 
-export async function noticeV2Sessions(args: {
+export async function noticeSessions(args: {
   tx: Tx
   event: Row<'GithubPrEvent'>
 }): Promise<number> {

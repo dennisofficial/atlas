@@ -1,4 +1,4 @@
-import { toEventId, toRunId, toThreadId, type V2Event } from '@dltech/atlas-core'
+import { toEventId, toRunId, toThreadId, type RecordEvent } from '@dltech/atlas-core'
 import type { PluginPodContext, PodMcpControl } from '@dltech/atlas-plugin-sdk'
 
 import type { McpCloudRow } from '../../core'
@@ -10,7 +10,7 @@ import type { fakeDaemon } from './support'
 
 export const THREAD = toThreadId('t1')
 
-export const eventOf = (draft: object, seq: number): V2Event =>
+export const eventOf = (draft: object, seq: number): RecordEvent =>
   ({
     ...draft,
     id: toEventId(`t:${seq}`),
@@ -21,13 +21,13 @@ export const eventOf = (draft: object, seq: number): V2Event =>
     at: '2026-11-20T12:00:00.000Z',
     epoch: 1,
     prevHash: 'a'.repeat(64),
-  }) as V2Event
+  }) as RecordEvent
 
 export const snapshotEventOf = (args: {
   resource: string
   value: unknown
   seq?: number
-}): V2Event =>
+}): RecordEvent =>
   eventOf(
     {
       type: 'resource-loaded',
@@ -40,14 +40,14 @@ export const snapshotEventOf = (args: {
 
 export type Recording = {
   ctx: PluginPodContext
-  events: V2Event[]
+  events: RecordEvent[]
 }
 
 export const recordingRig = (
   daemon: ReturnType<typeof fakeDaemon>,
-  args: { records?: readonly V2Event[]; mcp?: PodMcpControl } = {},
+  args: { records?: readonly RecordEvent[]; mcp?: PodMcpControl } = {},
 ): Recording => {
-  const events: V2Event[] = [...(args.records ?? [])]
+  const events: RecordEvent[] = [...(args.records ?? [])]
   const ctx: PluginPodContext = {
     ...rig(daemon, args.mcp === undefined ? {} : { mcp: args.mcp }),
     events: () => events,
@@ -65,7 +65,7 @@ const cloudOf = (rows: readonly McpCloudRow[], rejections: readonly never[] = []
 export const loadConfig = async (args: {
   daemon: ReturnType<typeof fakeDaemon>
   rows: readonly McpCloudRow[]
-  records?: readonly V2Event[]
+  records?: readonly RecordEvent[]
   directory?: string
 }): Promise<{ snapshot: McpConfigSnapshot; recording: Recording }> => {
   const recording = recordingRig(args.daemon, {
@@ -82,7 +82,7 @@ export const loadConfig = async (args: {
 export const loadTools = async (args: {
   daemon: ReturnType<typeof fakeDaemon>
   rows: readonly McpCloudRow[]
-  records?: readonly V2Event[]
+  records?: readonly RecordEvent[]
   mcp?: PodMcpControl
   connectTimeoutMs?: number
   directory?: string

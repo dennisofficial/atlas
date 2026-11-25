@@ -10,7 +10,7 @@ import { defaultRules } from '../../assembly/pipeline'
 import { EMPTY_PROMPT } from '../../assembly/rules/system-prompt'
 import { chainHash } from '../chain'
 import { chainEvents } from '../chain-events'
-import type { V2Body, V2Event } from '../event'
+import type { RecordEventBody, RecordEvent } from '../event'
 import { visibleLoopEvents } from '../loop-events'
 import { EMPTY_VISIBILITY, isVisible, stepVisibility } from '../visibility'
 import { NOW, runId, threadId } from './support'
@@ -39,7 +39,11 @@ const opArb: fc.Arbitrary<Op> = fc.oneof(
   },
 )
 
-const bodyFor = (params: { op: Op; nextSeq: number; targets: readonly number[] }): V2Body => {
+const bodyFor = (params: {
+  op: Op
+  nextSeq: number
+  targets: readonly number[]
+}): RecordEventBody => {
   const { op, nextSeq, targets } = params
   if (op.kind === 'user' || nextSeq < 2) return { type: 'user-said', text: `u${nextSeq}` }
   if (op.kind === 'said') return { type: 'assistant-said', parts: [{ type: 'text', text: 'a' }] }
@@ -68,8 +72,8 @@ const bodyFor = (params: { op: Op; nextSeq: number; targets: readonly number[] }
   }
 }
 
-const buildLog = (ops: readonly Op[]): V2Event[] => {
-  const built: V2Event[] = []
+const buildLog = (ops: readonly Op[]): RecordEvent[] => {
+  const built: RecordEvent[] = []
   let state = EMPTY_VISIBILITY
   const bodies = [...ops, { kind: 'user' } as const]
   bodies.forEach((op, index) => {
@@ -93,7 +97,7 @@ const buildLog = (ops: readonly Op[]): V2Event[] => {
 
 const logArb = fc.array(opArb, { minLength: 1, maxLength: 40 }).map(buildLog)
 
-const faultsOf = (args: { log: readonly V2Event[]; windowStart: number }) => {
+const faultsOf = (args: { log: readonly RecordEvent[]; windowStart: number }) => {
   const events = visibleLoopEvents(args.log)
   const assembled = assemble({
     rules: defaultRules({ prompt: () => EMPTY_PROMPT, launchDirectory: '/w' }),

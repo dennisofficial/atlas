@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { toEventId, toRunId, toThreadId } from '../../events/ids'
-import { RECORD_ONLY_TYPES, type Hash, type V2Event } from '../event'
+import { RECORD_ONLY_TYPES, type Hash, type RecordEvent } from '../event'
 import { toLoopEvent } from '../loop-events'
 import {
   latestResourceOf,
@@ -16,7 +16,7 @@ const RUN = toRunId('r')
 
 let seq = 0
 
-const loadedOf = (args: { resource: string; fingerprint: string; value: unknown }): V2Event => {
+const loadedOf = (args: { resource: string; fingerprint: string; value: unknown }): RecordEvent => {
   seq += 1
   return {
     id: toEventId(`t:${seq}`),

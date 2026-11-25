@@ -2,7 +2,7 @@ import { join } from 'node:path'
 
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 
-import { ESessionStatus, sessionStatusOf, type V2Event } from '@dltech/atlas-core'
+import { ESessionStatus, sessionStatusOf, type RecordEvent } from '@dltech/atlas-core'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 
 import { startRig, type FaultRig, type ReadEvent } from '../../testing/fault-rig'
@@ -12,8 +12,8 @@ const REDIS_URL = process.env.ATLAS_TEST_REDIS_URL
 
 const epochOf = (row: ReadEvent): number => (row.event as { epoch: number }).epoch
 
-const v2EventsOf = (rows: readonly ReadEvent[]): V2Event[] =>
-  rows.map((row) => row.event as V2Event)
+const v2EventsOf = (rows: readonly ReadEvent[]): RecordEvent[] =>
+  rows.map((row) => row.event as RecordEvent)
 
 const textOfAssistantSaid = (row: ReadEvent): string =>
   JSON.stringify((row.event as { parts?: unknown }).parts ?? [])

@@ -7,7 +7,7 @@ import {
   type IdPort,
   type RunId,
   type ThreadId,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 
 import type { HeldSessionDeps } from '../held-session-deps'
@@ -25,11 +25,11 @@ export class FakeLog implements TurnLog {
 
   constructor(
     readonly threadId: ThreadId = THREAD,
-    private readonly events: readonly V2Event[] = [],
+    private readonly events: readonly RecordEvent[] = [],
   ) {}
 
   eventCache(): {
-    eventsAfter(seq: number): V2Event[]
+    eventsAfter(seq: number): RecordEvent[]
     currentHead(): { seq: number }
     queuedSince(): string | null
   } {
@@ -73,7 +73,7 @@ export const depsOf = (over: Partial<HeldSessionDeps> = {}): HeldSessionDeps =>
     ...over,
   }) as HeldSessionDeps
 
-export const openTurnIn = (turnId: string): V2Event[] =>
+export const openTurnIn = (turnId: string): RecordEvent[] =>
   [
     {
       type: 'turn-started',
@@ -84,4 +84,4 @@ export const openTurnIn = (turnId: string): V2Event[] =>
       at: AT,
       threadId: THREAD,
     },
-  ] as V2Event[]
+  ] as RecordEvent[]

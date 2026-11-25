@@ -8,8 +8,8 @@ import {
   ETurnCause,
   ETurnEndedBy,
   ETurnOutcome,
-  type V2Body,
-  type V2Event,
+  type RecordEventBody,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import type { StreamSessionRow } from '@dltech/atlas-protocol'
 import { mintEvents } from '@dltech/atlas-client/stream-fixture'
@@ -46,7 +46,7 @@ const ROW: StreamSessionRow = {
   model: { ref: 'claude-sonnet-4-5', effort: 'high', fast: false },
 }
 
-const STOPPED: readonly V2Body[] = [
+const STOPPED: readonly RecordEventBody[] = [
   { type: 'user-said', text: 'go' },
   { type: 'turn-started', turnId: 'turn-1', cause: ETurnCause.Input },
   {
@@ -108,7 +108,7 @@ const clientOf = (mounted: Mounted): FakeSessionClient => {
   return client
 }
 
-const push = (client: FakeSessionClient, events: readonly V2Event[]): void => {
+const push = (client: FakeSessionClient, events: readonly RecordEvent[]): void => {
   client.open()
   client.pushEvents({ sessionId: SESSION_ID, events, live: true })
 }

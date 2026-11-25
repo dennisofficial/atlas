@@ -4,10 +4,10 @@ import { ControlPlane } from '@dltech/atlas-control'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import {
   chainEvents,
-  createV2EventSchema,
+  createRecordEventSchema,
   toRunId,
   toThreadId,
-  type V2Body,
+  type RecordEventBody,
 } from '@dltech/atlas-core'
 import { seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
 
@@ -17,7 +17,7 @@ const SESSION = 'ses_1'
 const THREAD = 'thr_1'
 const AT = '2026-11-08T10:00:00.000Z'
 
-const observed = (overrides: Record<string, unknown> = {}): V2Body =>
+const observed = (overrides: Record<string, unknown> = {}): RecordEventBody =>
   ({
     type: 'branches-observed',
     repo: '/atlas/workspaces/workspace',
@@ -44,7 +44,7 @@ describe('github tracking target hook on append (postgres)', () => {
     await seedUser({ db, id: 'usr_1' })
     const plane = new ControlPlane({
       store: new PostgresControlStore(db),
-      eventSchema: createV2EventSchema({ pluginBodies: [] }),
+      eventSchema: createRecordEventSchema({ pluginBodies: [] }),
       appendHooks: githubControl.hooks,
     })
     await plane.createSession({
@@ -54,7 +54,7 @@ describe('github tracking target hook on append (postgres)', () => {
       mainThreadId: THREAD,
     })
     const lease = await plane.grant({ sessionId: SESSION, hostId: 9001 })
-    const append = async (bodies: V2Body[], at: string = AT) => {
+    const append = async (bodies: RecordEventBody[], at: string = AT) => {
       const outcome = await plane.append({
         threadId: THREAD,
         epoch: lease.epoch,

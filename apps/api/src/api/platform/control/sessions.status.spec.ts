@@ -8,7 +8,7 @@ import {
   ETurnCause,
   toRunId,
   toThreadId,
-  type V2Body,
+  type RecordEventBody,
 } from '@dltech/atlas-core'
 import { inboxMessageSchema } from '@dltech/atlas-protocol'
 import {
@@ -59,7 +59,7 @@ describe('SessionsService status and events', () => {
       sessionId: created.sessionId,
       hostId: 9001,
     })
-    const bodies: V2Body[] = [
+    const bodies: RecordEventBody[] = [
       { type: 'turn-started', turnId: 'turn-1', cause: ETurnCause.Input },
       { type: 'input-consumed', inboxId: 1 },
       { type: 'user-said', text: 'hi', requestId: 'inbox:1' },
@@ -94,8 +94,11 @@ describe('SessionsService status and events', () => {
       sessionId: created.sessionId,
       hostId: 9001,
     })
-    const bodies: V2Body[] = [
-      ...Array.from({ length: 1000 }, (): V2Body => ({ type: 'user-said', text: 'filler' })),
+    const bodies: RecordEventBody[] = [
+      ...Array.from(
+        { length: 1000 },
+        (): RecordEventBody => ({ type: 'user-said', text: 'filler' }),
+      ),
       { type: 'run-failed', failure: { kind: ERunFailureKind.Network, message: 'latest failure' } },
     ]
     const appended = await plane.append({
@@ -121,7 +124,7 @@ describe('SessionsService status and events', () => {
       sessionId: created.sessionId,
       hostId: 9001,
     })
-    const bodies: V2Body[] = Array.from({ length: 20 }, (_, i) => ({
+    const bodies: RecordEventBody[] = Array.from({ length: 20 }, (_, i) => ({
       type: 'user-said',
       text: `m${i}${'x'.repeat(300)}`,
     }))

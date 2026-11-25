@@ -16,8 +16,8 @@ import {
   type Event,
   type RunId,
   type ThreadId,
-  type V2Body,
-  type V2Event,
+  type RecordEventBody,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 
@@ -34,10 +34,10 @@ class BatchLog implements TurnLog {
   readonly calls: AppendBody[][] = []
   readonly threadId: ThreadId = THREAD
 
-  constructor(private readonly events: readonly V2Event[] = []) {}
+  constructor(private readonly events: readonly RecordEvent[] = []) {}
 
   eventCache(): {
-    eventsAfter(seq: number): V2Event[]
+    eventsAfter(seq: number): RecordEvent[]
     currentHead(): { seq: number }
     queuedSince(): string | null
   } {
@@ -58,13 +58,13 @@ class BatchLog implements TurnLog {
   }
 }
 
-const thinkingOnlyTurn = (): V2Body[] => [
+const thinkingOnlyTurn = (): RecordEventBody[] => [
   { type: 'user-said', text: 'think hard about the meaning of life' },
   { type: 'turn-started', turnId: 'turn-quick', cause: ETurnCause.Input },
   { type: 'assistant-said', parts: [{ type: 'reasoning', text: 'weighing it' }] },
 ]
 
-const drainedAfterStart = (): V2Body[] => [
+const drainedAfterStart = (): RecordEventBody[] => [
   { type: 'turn-started', turnId: 'turn-quick', cause: ETurnCause.Input },
   {
     type: 'input-posted',
@@ -76,7 +76,7 @@ const drainedAfterStart = (): V2Body[] => [
   { type: 'user-said', text: 'think hard about the meaning of life', inboxId: 5 },
 ]
 
-const toolTurn = (): V2Body[] => [
+const toolTurn = (): RecordEventBody[] => [
   { type: 'user-said', text: 'run the suite' },
   { type: 'turn-started', turnId: 'turn-quick', cause: ETurnCause.Input },
   {
@@ -88,7 +88,7 @@ const toolTurn = (): V2Body[] => [
   },
 ]
 
-const eventsOf = (bodies: readonly V2Body[]): V2Event[] =>
+const eventsOf = (bodies: readonly RecordEventBody[]): RecordEvent[] =>
   chainEvents({ threadId: THREAD, runId: RUN, epoch: 1, at: AT, bodies })
 
 const runnerOf = (outcome: TurnOutcome): LoopTurnRunner =>
@@ -103,7 +103,7 @@ const stoppedByOperator: TurnOutcome = {
   committed: false,
 }
 
-const stoppedTurnOf = async (events: readonly V2Event[]): Promise<BatchLog> => {
+const stoppedTurnOf = async (events: readonly RecordEvent[]): Promise<BatchLog> => {
   const log = new BatchLog(events)
   const turns = new HeldTurns(depsOf())
   const running = turns.drive({

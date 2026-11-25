@@ -1,4 +1,4 @@
-import type { V2Event } from './event'
+import type { RecordEvent } from './event'
 import { withinLatestAttempt } from './workspace-attempts'
 import { EWorkspaceStep, EWorkspaceStepState, type WorkspaceStep } from './workspace'
 
@@ -17,12 +17,12 @@ export const WORKSPACE_STEP_ORDER: readonly EWorkspaceStep[] = [
 ]
 
 export const workspaceStepsOf = (
-  events: readonly V2Event[],
+  events: readonly RecordEvent[],
 ): Partial<Record<EWorkspaceStep, WorkspaceStepStatus>> => {
   const folded: Partial<Record<EWorkspaceStep, WorkspaceStepStatus>> = {}
   const current = withinLatestAttempt({
     events,
-    keep: (event): event is Extract<V2Event, { type: 'workspace-step' }> =>
+    keep: (event): event is Extract<RecordEvent, { type: 'workspace-step' }> =>
       event.type === 'workspace-step',
   })
   for (const event of current) {
@@ -44,5 +44,5 @@ export const workspaceStepsOf = (
  * The setup script was started and has not reported an end since, so a host that takes the
  * session over has to re-join the running call rather than start the script again.
  */
-export const setupInFlightOf = (events: readonly V2Event[]): boolean =>
+export const setupInFlightOf = (events: readonly RecordEvent[]): boolean =>
   workspaceStepsOf(events)[EWorkspaceStep.Setup]?.state === EWorkspaceStepState.Started

@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'bun:test'
 
-import { chainEvents, ESessionStatus, toRunId, toThreadId, type V2Body } from '@dltech/atlas-core'
+import {
+  chainEvents,
+  ESessionStatus,
+  toRunId,
+  toThreadId,
+  type RecordEventBody,
+} from '@dltech/atlas-core'
 
 import { ControlPlane } from '../src'
 import type { ControlTx } from '../src/port'
@@ -39,7 +45,7 @@ class CountingStore extends InMemoryControlStore {
   }
 }
 
-const posted = (inboxId: number): V2Body => ({
+const posted = (inboxId: number): RecordEventBody => ({
   type: 'input-posted',
   inboxId,
   kind: 'message',
@@ -56,7 +62,7 @@ const setup = async () => {
     mainThreadId: THREAD,
   })
   const lease = await plane.grant({ sessionId: SESSION, hostId: 7 })
-  const append = async (bodies: V2Body[]): Promise<void> => {
+  const append = async (bodies: RecordEventBody[]): Promise<void> => {
     const outcome = await plane.append({
       threadId: THREAD,
       epoch: lease.epoch,

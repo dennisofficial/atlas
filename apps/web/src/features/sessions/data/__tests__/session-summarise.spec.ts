@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'bun:test'
-import { chainEvents, toRunId, toThreadId, type V2Body } from '@dltech/atlas-core'
+import { chainEvents, toRunId, toThreadId, type RecordEventBody } from '@dltech/atlas-core'
 
 import { requestSummarise, summariseCopyOf, summarisePointsOf } from '../session-summarise'
 
-const eventsOf = (bodies: readonly V2Body[]) =>
+const eventsOf = (bodies: readonly RecordEventBody[]) =>
   chainEvents({
     threadId: toThreadId('thread-1'),
     runId: toRunId('run-1'),
@@ -13,8 +13,8 @@ const eventsOf = (bodies: readonly V2Body[]) =>
     bodies,
   })
 
-const said = (text: string): V2Body => ({ type: 'user-said', text })
-const replied: V2Body = { type: 'assistant-said', parts: [{ type: 'text', text: 'r' }] }
+const said = (text: string): RecordEventBody => ({ type: 'user-said', text })
+const replied: RecordEventBody = { type: 'assistant-said', parts: [{ type: 'text', text: 'r' }] }
 
 describe('session summarise', () => {
   it('offers every message but the first, reaching the event before it', () => {

@@ -7,7 +7,7 @@ import {
   toRunId,
   toThreadId,
   type Lease,
-  type V2Body,
+  type RecordEventBody,
 } from '@dltech/atlas-core'
 
 import { ControlPlane } from '../src'
@@ -20,7 +20,11 @@ const NOW = '2026-11-06T12:00:00.000Z'
 const USER = 'user-a'
 const PRESENT = 'session-present'
 const ABSENT = 'session-absent'
-const TURN_STARTED: V2Body = { type: 'turn-started', turnId: 'turn-1', cause: ETurnCause.Input }
+const TURN_STARTED: RecordEventBody = {
+  type: 'turn-started',
+  turnId: 'turn-1',
+  cause: ETurnCause.Input,
+}
 
 class ForgetfulLeaseOps extends LeaseOps {
   override async currentLeasesIn(params: {
@@ -36,7 +40,7 @@ const appendOne = async (args: {
   plane: ControlPlane
   threadId: string
   epoch: number
-  body: V2Body
+  body: RecordEventBody
 }): Promise<void> => {
   const outcome = await args.plane.append({
     threadId: args.threadId,

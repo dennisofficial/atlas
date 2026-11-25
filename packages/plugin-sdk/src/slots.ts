@@ -12,7 +12,7 @@ import type {
   PromptFragment,
   RecordBody,
   ToolDefinition,
-  V2Event,
+  RecordEvent,
 } from '@dltech/atlas-core'
 import type { AppendHook, ControlPlane } from '@dltech/atlas-control'
 import type { CallOp, CallResult, DaemonEventFrame, LiveFrame } from '@dltech/atlas-protocol'
@@ -151,7 +151,7 @@ export type PluginPodContext = {
   append(drafts: readonly (EventDraft | RecordBody | PluginEventBody)[]): Promise<void>
   /** Delivers a turn-taking notice through the agent's queue. */
   notify(event: EventBody, options: { key: string }): Promise<void>
-  events(): readonly V2Event[]
+  events(): readonly RecordEvent[]
   call(
     op: CallOp,
     options?: { signal?: AbortSignal; onOutput?(bytes: Uint8Array): void },
@@ -198,7 +198,7 @@ export type ControlSlot = {
 
 export type ClientHook = {
   name: string
-  appliesTo(event: V2Event): boolean
+  appliesTo(event: RecordEvent): boolean
 }
 
 export type ClientSlot = {

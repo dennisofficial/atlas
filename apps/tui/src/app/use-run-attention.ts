@@ -1,4 +1,4 @@
-import type { Event, V2Event } from '@dltech/atlas-core'
+import type { Event, RecordEvent } from '@dltech/atlas-core'
 import { ERunRemedy, resumableOf, resumePointOf } from '@dltech/atlas-core'
 import {
   INTERRUPTED_TITLE,
@@ -53,7 +53,7 @@ export function useRunAttention(args: {
   api: SessionApi
   sessionId: string
   events: readonly Event[]
-  rawEvents: readonly V2Event[]
+  rawEvents: readonly RecordEvent[]
   live: readonly InFlightStep[]
   working: boolean
   connected: boolean

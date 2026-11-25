@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EMessageOrigin, type ModelPort, type SpawnFile, type V2Event } from '@dltech/atlas-core'
+import {
+  EMessageOrigin,
+  type ModelPort,
+  type SpawnFile,
+  type RecordEvent,
+} from '@dltech/atlas-core'
 import { ScriptedModel } from '@dltech/atlas-agent/testing'
 import { createInMemoryDaemon } from '@dltech/atlas-protocol/testing'
 
@@ -43,7 +48,7 @@ const answered = async (rig: HolderRig): Promise<boolean> =>
     check: async () => (await rig.events()).some((event) => event.type === 'assistant-said'),
   })
 
-const recordOf = async (rig: HolderRig): Promise<readonly V2Event[]> => {
+const recordOf = async (rig: HolderRig): Promise<readonly RecordEvent[]> => {
   const page = await rig.plane.readEvents({
     threadId: THREAD_ID,
     afterSeq: 0,
@@ -152,7 +157,7 @@ describe('SessionHolder context files', () => {
     })
     expect(failed).toBe(true)
     const failure = (await recordOf(rig)).find(
-      (event): event is Extract<V2Event, { type: 'workspace-prepare-failed' }> =>
+      (event): event is Extract<RecordEvent, { type: 'workspace-prepare-failed' }> =>
         event.type === 'workspace-prepare-failed',
     )
     expect(failure?.reason).toContain('the pod disk is full')
@@ -175,7 +180,7 @@ describe('SessionHolder context files', () => {
       }),
     ).toBe(true)
     const failure = (await recordOf(rig)).find(
-      (event): event is Extract<V2Event, { type: 'workspace-prepare-failed' }> =>
+      (event): event is Extract<RecordEvent, { type: 'workspace-prepare-failed' }> =>
         event.type === 'workspace-prepare-failed',
     )
     expect(failure?.reason).toContain('../outside.md is outside')

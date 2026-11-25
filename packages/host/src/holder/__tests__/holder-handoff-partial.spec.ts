@@ -7,7 +7,7 @@ import {
   type ChunkFilter,
   type ModelStepResult,
   type ToolDeclaration,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import { LogPort } from '@dltech/atlas-observability'
 
@@ -72,7 +72,7 @@ const saids = async (rig: HolderRig) => {
     visible: false,
   })
   return page.events.filter(
-    (event): event is Extract<V2Event, { type: 'assistant-said' }> =>
+    (event): event is Extract<RecordEvent, { type: 'assistant-said' }> =>
       event.type === 'assistant-said',
   )
 }

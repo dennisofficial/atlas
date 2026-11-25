@@ -8,7 +8,7 @@ import {
   EProviderRetry,
   ERunFailureKind,
   RETRY_NUDGE,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 
 import { flushUntil, makeRig, seedSession, SESSION, THREAD_ID, type HolderRig } from './holder-rig'
@@ -29,7 +29,7 @@ const brokenFailure = ({ message }: { message: string }) => ({
   message,
 })
 
-const eventsOf = async (rig: HolderRig): Promise<V2Event[]> =>
+const eventsOf = async (rig: HolderRig): Promise<RecordEvent[]> =>
   (await rig.plane.readEvents({ threadId: THREAD_ID, afterSeq: 0, limit: 400, visible: false }))
     .events
 

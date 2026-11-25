@@ -6,7 +6,7 @@ import {
   type CodeQualityReviewedBody,
   type QualityAssessment,
   type ThreadId,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import type { PodAnalyticsRecord, PodAnalyticsValue } from '@dltech/atlas-plugin-sdk'
 
@@ -111,7 +111,7 @@ export const reviewCompletedProperties = (args: {
   files: number
   notified: boolean
   classifier: { model: string; provider: string }
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
 }): QualityReviewEventProperties => {
   const policies = policiesOf({ records: args.records })
   return {
@@ -134,7 +134,7 @@ export const reviewCompletedProperties = (args: {
 
 export const resolvedFindingProperties = (args: {
   records: readonly CodeQualityReviewedBody[]
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   threadId: ThreadId
 }): readonly QualityReviewEventProperties[] => {
   const thread = threadEventsOf({ events: args.events, threadId: args.threadId })

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'bun:test'
 import { z } from 'zod'
 
-import { createV2EventSchema, type V2Event } from '@dltech/atlas-core'
+import { createRecordEventSchema, type RecordEvent } from '@dltech/atlas-core'
 
 import type { AppendHook } from '../src/append-hooks'
 import { InMemoryControlStore } from '../src/testing/memory'
@@ -20,7 +20,7 @@ declare module '@dltech/atlas-core' {
   }
 }
 
-const schema = createV2EventSchema({
+const schema = createRecordEventSchema({
   pluginBodies: [z.object({ type: z.literal('probe-observed'), label: z.string().min(1) })],
 })
 
@@ -28,7 +28,7 @@ type Seen = { sessionId: string; type: string; headSeqInTx: number }
 
 const hookOf = (args: { seen: Seen[]; fail?: boolean }): AppendHook => ({
   name: 'probe',
-  appliesTo: (event: V2Event) => event.type === 'probe-observed',
+  appliesTo: (event: RecordEvent) => event.type === 'probe-observed',
   handle: async ({ tx, sessionId, event }) => {
     const thread = await tx.readThread(event.threadId)
     args.seen.push({ sessionId, type: event.type, headSeqInTx: thread?.headSeq ?? -1 })

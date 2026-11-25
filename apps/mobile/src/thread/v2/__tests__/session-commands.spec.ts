@@ -7,7 +7,7 @@ import {
   ECommandSource,
   type CommandEntry,
 } from '@dltech/atlas-commands'
-import { type V2Event } from '@dltech/atlas-core'
+import { type RecordEvent } from '@dltech/atlas-core'
 
 import type { IModelOption } from '../../../composer/model-options'
 import {
@@ -26,7 +26,7 @@ const entryOf = (args: Partial<CommandEntry> & { name: string }): CommandEntry =
   ...args,
 })
 
-const skillsChanged = (skills: readonly { name: string }[]): V2Event =>
+const skillsChanged = (skills: readonly { name: string }[]): RecordEvent =>
   ({
     type: 'skills-changed',
     skills: skills.map((skill) => ({
@@ -35,7 +35,7 @@ const skillsChanged = (skills: readonly { name: string }[]): V2Event =>
       argumentHint: null,
       origin: 'repo',
     })),
-  }) as unknown as V2Event
+  }) as unknown as RecordEvent
 
 const COMMANDS: readonly CommandEntry[] = [
   entryOf({ name: 'help', opens: EClientAction.CommandList }),

@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import type { V2Event } from './event'
+import type { RecordEvent } from './event'
 import { INBOX_KIND_STOP, type InboxEntry } from './inbox'
 import { withinLatestAttempt } from './workspace-attempts'
 
@@ -84,19 +84,19 @@ export enum EWorkspaceState {
 
 export type PrepareFailure = { inboxHead: number; reason: string; at: string }
 
-export const countsAsPrepared = (event: V2Event): boolean =>
+export const countsAsPrepared = (event: RecordEvent): boolean =>
   event.type === 'workspace-prepared' || event.type === 'user-said'
 
-export const isWorkspacePrepared = (events: readonly V2Event[]): boolean =>
+export const isWorkspacePrepared = (events: readonly RecordEvent[]): boolean =>
   events.some(countsAsPrepared)
 
-export const preparedBeforeOf = (events: readonly V2Event[]): boolean =>
+export const preparedBeforeOf = (events: readonly RecordEvent[]): boolean =>
   events.some((event) => event.type === 'workspace-prepared')
 
-export const lastPrepareFailure = (events: readonly V2Event[]): PrepareFailure | undefined => {
+export const lastPrepareFailure = (events: readonly RecordEvent[]): PrepareFailure | undefined => {
   const failures = withinLatestAttempt({
     events,
-    keep: (event): event is Extract<V2Event, { type: 'workspace-prepare-failed' }> =>
+    keep: (event): event is Extract<RecordEvent, { type: 'workspace-prepare-failed' }> =>
       event.type === 'workspace-prepare-failed',
   })
   const failed = failures.at(-1)
@@ -104,7 +104,7 @@ export const lastPrepareFailure = (events: readonly V2Event[]): PrepareFailure |
   return { inboxHead: failed.inboxHead, reason: failed.reason, at: failed.at }
 }
 
-export const activeFailure = (events: readonly V2Event[]): PrepareFailure | undefined =>
+export const activeFailure = (events: readonly RecordEvent[]): PrepareFailure | undefined =>
   preparedBeforeOf(events) ? undefined : lastPrepareFailure(events)
 
 export const actionableInboxIds = (args: {
@@ -130,13 +130,13 @@ export type WorkspaceStateView = {
   failure: PrepareFailure | undefined
 }
 
-export const workspaceRecordOf = (events: readonly V2Event[]): WorkspaceRecord => ({
+export const workspaceRecordOf = (events: readonly RecordEvent[]): WorkspaceRecord => ({
   prepared: preparedBeforeOf(events),
   failure: lastPrepareFailure(events),
 })
 
 export const workspaceStateOf = (args: {
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   preparing: boolean
   pendingMessageIds: readonly number[]
 }): WorkspaceStateView =>

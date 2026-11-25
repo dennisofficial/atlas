@@ -9,8 +9,8 @@ import {
   visibleLoopEvents,
   toRunId,
   toThreadId,
-  type V2Body,
-  type V2Event,
+  type RecordEventBody,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import type { ControlPlane } from '@dltech/atlas-control'
 
@@ -22,7 +22,7 @@ const THREAD = toThreadId('thr_1')
 const RUN = toRunId('run_1')
 const PREPARED = { prepared: true, failure: undefined }
 
-const eventsOf = (bodies: readonly V2Body[]): V2Event[] =>
+const eventsOf = (bodies: readonly RecordEventBody[]): RecordEvent[] =>
   chainEvents({
     threadId: THREAD,
     runId: RUN,
@@ -41,7 +41,7 @@ const depsOf = (): HeldSessionDeps =>
     timers: { now: () => 0 },
   }) as unknown as HeldSessionDeps
 
-const recordOf = (events: readonly V2Event[]): SessionRecord =>
+const recordOf = (events: readonly RecordEvent[]): SessionRecord =>
   ({
     eventCache: () => ({
       bookkeeping: () => ({ workspace: () => PREPARED }),
@@ -52,7 +52,7 @@ const recordOf = (events: readonly V2Event[]): SessionRecord =>
   }) as unknown as SessionRecord
 
 const actionOf = async (args: {
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   resumeAfterSeq?: number
 }): Promise<EHeldAction> => {
   const { action } = await readHeldAction({
@@ -71,7 +71,7 @@ const actionOf = async (args: {
   return action
 }
 
-const posted = (): V2Body => ({
+const posted = (): RecordEventBody => ({
   type: 'input-posted',
   inboxId: 4,
   kind: 'message',
@@ -98,7 +98,7 @@ describe('readHeldAction over the pending log', () => {
 })
 
 describe('readHeldAction after a consumed stop', () => {
-  const stopped = (): V2Body => ({
+  const stopped = (): RecordEventBody => ({
     type: 'input-consumed',
     inboxId: 9,
     consumed: EInputConsumed.Stop,
@@ -109,7 +109,7 @@ describe('readHeldAction after a consumed stop', () => {
   })
 
   it('does not resume the stopped turn on a take-over that folds the whole log', async () => {
-    const interrupted: V2Body = {
+    const interrupted: RecordEventBody = {
       type: 'assistant-said',
       parts: [{ type: 'text', text: 'working' }],
       interrupted: true,
@@ -127,7 +127,7 @@ describe('readHeldAction after a consumed stop', () => {
   })
 })
 
-const noticePosted = (): V2Body => ({
+const noticePosted = (): RecordEventBody => ({
   type: 'input-posted',
   inboxId: 7,
   kind: 'event',
@@ -154,11 +154,11 @@ describe('readHeldAction over a notice the drain has not reached', () => {
   })
 })
 
-const said = (text: string): V2Body => ({ type: 'user-said', text })
+const said = (text: string): RecordEventBody => ({ type: 'user-said', text })
 
-const replied = (): V2Body => ({ type: 'assistant-said', parts: [] })
+const replied = (): RecordEventBody => ({ type: 'assistant-said', parts: [] })
 
-const shellEnded = (): V2Body => ({
+const shellEnded = (): RecordEventBody => ({
   type: 'background-shell-ended',
   shellId: 'shell-1',
   command: 'bun run build',

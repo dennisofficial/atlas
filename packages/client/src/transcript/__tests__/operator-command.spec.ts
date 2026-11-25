@@ -2,9 +2,9 @@ import { describe, expect, it } from 'bun:test'
 
 import {
   EInputConsumed,
-  v2EventSchema,
+  recordEventSchema,
   type ConsumedCommand,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 
 import { transcriptEventsOf } from '../../stream/transcript-events'
@@ -27,8 +27,8 @@ const envelope = () => {
   }
 }
 
-const consumed = (command: ConsumedCommand | undefined): V2Event =>
-  v2EventSchema.parse({
+const consumed = (command: ConsumedCommand | undefined): RecordEvent =>
+  recordEventSchema.parse({
     ...envelope(),
     type: 'input-consumed',
     inboxId: seq,
@@ -36,17 +36,17 @@ const consumed = (command: ConsumedCommand | undefined): V2Event =>
     ...(command === undefined ? {} : { command }),
   })
 
-const said = (text: string): V2Event =>
-  v2EventSchema.parse({ ...envelope(), type: 'user-said', text })
+const said = (text: string): RecordEvent =>
+  recordEventSchema.parse({ ...envelope(), type: 'user-said', text })
 
-const replied = (text: string): V2Event =>
-  v2EventSchema.parse({
+const replied = (text: string): RecordEvent =>
+  recordEventSchema.parse({
     ...envelope(),
     type: 'assistant-said',
     parts: [{ type: 'text', text }],
   })
 
-const operatorEntries = (events: readonly V2Event[]): OperatorSaidEntry[] =>
+const operatorEntries = (events: readonly RecordEvent[]): OperatorSaidEntry[] =>
   durableEntries({ events: transcriptEventsOf(events) }).filter(
     (entry): entry is OperatorSaidEntry => entry.kind === EEntryKind.OperatorSaid,
   )

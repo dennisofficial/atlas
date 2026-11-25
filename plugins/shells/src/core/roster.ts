@@ -3,7 +3,7 @@ import {
   fallbackShellName,
   type Event,
   type PluginViewFold,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import { z } from 'zod'
 
@@ -52,7 +52,7 @@ const carriedOf = (args: {
   }
 }
 
-export const foldShells = (state: ShellsViewState, event: Event | V2Event): ShellsViewState => {
+export const foldShells = (state: ShellsViewState, event: Event | RecordEvent): ShellsViewState => {
   if (event.type === 'background-shell-started') {
     return upsert(state, {
       shellId: event.shellId,
@@ -94,5 +94,5 @@ export const shellsView: PluginViewFold<ShellsViewState> = {
   fold: foldShells,
 }
 
-export const shellsOfEvents = (events: readonly (Event | V2Event)[]): ShellsViewState =>
+export const shellsOfEvents = (events: readonly (Event | RecordEvent)[]): ShellsViewState =>
   events.reduce(foldShells, shellsView.initial)

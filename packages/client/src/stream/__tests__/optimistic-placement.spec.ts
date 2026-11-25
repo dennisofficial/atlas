@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EMPTY_PENDING, ETurnCause, pendingInputsOf, type V2Body } from '@dltech/atlas-core'
+import {
+  EMPTY_PENDING,
+  ETurnCause,
+  pendingInputsOf,
+  type RecordEventBody,
+} from '@dltech/atlas-core'
 
 import { mintEvents } from '../__tests__/support'
 import { EOutgoingPlacement } from '../outgoing-messages'
@@ -8,7 +13,7 @@ import { optimisticPlacementOf } from '../optimistic-placement'
 
 const staged = (placement: EOutgoingPlacement) => [{ clientId: 'client-a', placement }]
 
-const posted = (inboxId: number): V2Body => ({
+const posted = (inboxId: number): RecordEventBody => ({
   type: 'input-posted',
   inboxId,
   kind: 'message',
@@ -16,14 +21,14 @@ const posted = (inboxId: number): V2Body => ({
   message: { text: 'ship it', clientId: 'client-a' },
 })
 
-const said = (inboxId: number): V2Body => ({
+const said = (inboxId: number): RecordEventBody => ({
   type: 'user-said',
   text: 'ship it',
   clientId: 'client-a',
   inboxId,
 })
 
-const started = (turnId: string): V2Body => ({
+const started = (turnId: string): RecordEventBody => ({
   type: 'turn-started',
   turnId,
   cause: ETurnCause.Input,
@@ -31,7 +36,7 @@ const started = (turnId: string): V2Body => ({
 
 const placement = (args: {
   placement: EOutgoingPlacement
-  bodies?: readonly V2Body[]
+  bodies?: readonly RecordEventBody[]
 }): ReturnType<typeof optimisticPlacementOf> => {
   const events = mintEvents({ bodies: args.bodies ?? [] })
   return optimisticPlacementOf({

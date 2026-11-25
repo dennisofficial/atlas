@@ -14,12 +14,12 @@ import {
   stepPending,
   stepSessionViewWith,
   stepVisibility,
-  v2EventSchema,
+  recordEventSchema,
   type FailureMessageState,
   type PendingInputsState,
   type PluginViewFold,
   type SessionViewState,
-  type V2Event,
+  type RecordEvent,
   type VisibilityState,
 } from '@dltech/atlas-core'
 import type { z, ZodError } from 'zod'
@@ -37,14 +37,14 @@ export const OLDER_PAGE = 200
 export type SessionCursor = { seq: number; hash: string }
 
 export type SessionWindow = {
-  events: V2Event[]
+  events: RecordEvent[]
   visibility: VisibilityState
   pending: PendingInputsState
   view: SessionViewState
   failureMessage: FailureMessageState
-  durable: readonly V2Event[]
-  foldable: readonly V2Event[]
-  commandLog: readonly V2Event[]
+  durable: readonly RecordEvent[]
+  foldable: readonly RecordEvent[]
+  commandLog: readonly RecordEvent[]
   quickStops: QuickStopState
   cursor: SessionCursor | undefined
   foldedThrough: number
@@ -68,15 +68,15 @@ export const EMPTY_WINDOW: SessionWindow = {
 
 export const resetWindow = (): SessionWindow => EMPTY_WINDOW
 
-const wireHashOf = (raw: unknown): string => chainHash(raw as V2Event)
+const wireHashOf = (raw: unknown): string => chainHash(raw as RecordEvent)
 
-type Parsed = { event: V2Event; raw: unknown }
+type Parsed = { event: RecordEvent; raw: unknown }
 
 type Seen = { seq: number; raw: unknown }
 
 export type PageOutcome = {
   window: SessionWindow
-  fresh: readonly V2Event[]
+  fresh: readonly RecordEvent[]
   skipped: number
   issue: string | undefined
 }
@@ -95,7 +95,7 @@ const issueOf = (error: ZodError): string => {
 const readPage = (args: {
   raw: readonly unknown[]
   after: number
-  eventSchema: z.ZodType<V2Event>
+  eventSchema: z.ZodType<RecordEvent>
 }): { fresh: Parsed[]; last: Seen | undefined; skipped: number; issue: string | undefined } => {
   const fresh: Parsed[] = []
   let last: Seen | undefined
@@ -125,7 +125,7 @@ const cursorAfter = (args: { page: EventsPage; last: Seen }): SessionCursor =>
 export const applyPageOutcome = (args: {
   window: SessionWindow
   page: EventsPage
-  eventSchema?: z.ZodType<V2Event> | undefined
+  eventSchema?: z.ZodType<RecordEvent> | undefined
   renderLimit?: number | undefined
   views?: readonly PluginViewFold[] | undefined
 }): PageOutcome => {
@@ -134,7 +134,7 @@ export const applyPageOutcome = (args: {
   const { fresh, last, skipped, issue } = readPage({
     raw: page.events,
     after: window.cursor?.seq ?? 0,
-    eventSchema: args.eventSchema ?? v2EventSchema,
+    eventSchema: args.eventSchema ?? recordEventSchema,
   })
   if (last === undefined) return { window, fresh: [], skipped, issue }
   const events = fresh.map(({ event }) => event)
@@ -179,5 +179,5 @@ export const applyPageOutcome = (args: {
 export const applyPage = (args: {
   window: SessionWindow
   page: EventsPage
-  eventSchema?: z.ZodType<V2Event> | undefined
+  eventSchema?: z.ZodType<RecordEvent> | undefined
 }): SessionWindow => applyPageOutcome(args).window

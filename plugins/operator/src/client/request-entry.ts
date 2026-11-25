@@ -1,4 +1,4 @@
-import type { Event, V2Event } from '@dltech/atlas-core'
+import type { Event, RecordEvent } from '@dltech/atlas-core'
 import {
   EAuthor,
   EEntryKind,
@@ -56,7 +56,7 @@ const outcomeOf = (event: Result): OperatorOutcome => {
   return failedOf(event.error?.message)
 }
 
-const runsOf = (events: readonly (Event | V2Event)[]): ReadonlyMap<string, Parked> => {
+const runsOf = (events: readonly (Event | RecordEvent)[]): ReadonlyMap<string, Parked> => {
   const runs = new Map<string, Parked>()
 
   for (const event of events) {
@@ -130,7 +130,7 @@ const entryOf = (run: Parked): OperatorRequestEntry => {
 }
 
 export const requestEntriesAt = (args: {
-  events: readonly (Event | V2Event)[]
+  events: readonly (Event | RecordEvent)[]
 }): ReadonlyMap<string, OperatorRequestEntry> => {
   const entries = new Map<string, OperatorRequestEntry>()
   const runs = [...runsOf(args.events).values()].sort((left, right) => left.seq - right.seq)

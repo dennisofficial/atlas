@@ -1,4 +1,4 @@
-import { EAgentStatus, type Event, type PluginViewFold, type V2Event } from '@dltech/atlas-core'
+import { EAgentStatus, type Event, type PluginViewFold, type RecordEvent } from '@dltech/atlas-core'
 import { z } from 'zod'
 
 export const CREW_VIEW = 'crew'
@@ -29,7 +29,7 @@ const upsert = (state: CrewViewState, row: CrewRow): CrewViewState =>
 const rowFor = (state: CrewViewState, agentId: string): CrewRow | undefined =>
   state.find((kept) => kept.agentId === agentId)
 
-export const foldCrew = (state: CrewViewState, event: Event | V2Event): CrewViewState => {
+export const foldCrew = (state: CrewViewState, event: Event | RecordEvent): CrewViewState => {
   if (event.type === 'agent-spawned') {
     return upsert(state, {
       agentId: event.agentId,
@@ -96,5 +96,5 @@ export const crewView: PluginViewFold<CrewViewState> = {
   fold: foldCrew,
 }
 
-export const crewOfEvents = (events: readonly (Event | V2Event)[]): CrewViewState =>
+export const crewOfEvents = (events: readonly (Event | RecordEvent)[]): CrewViewState =>
   events.reduce(foldCrew, crewView.initial)

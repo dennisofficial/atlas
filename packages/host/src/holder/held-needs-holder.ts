@@ -12,7 +12,7 @@ import {
   visibleEvents,
   workspaceStateFrom,
   type Event,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 
 import {
@@ -31,7 +31,7 @@ import type { HeldSessionDeps } from './held-session-deps'
 import type { SessionRecord } from './record/record-adapter'
 
 export const outcomeCommandPending = async (args: {
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   kindOf(inboxId: number): Promise<string | undefined>
 }): Promise<boolean> => {
   for (const inboxId of unfinishedCommandIdsOf(visibleEvents(args.events))) {

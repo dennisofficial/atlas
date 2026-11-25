@@ -1,6 +1,6 @@
 # @dltech/atlas-pods
 
-The sandbox provider layer and the pod job logic that v2 runs: the Vercel and Agent37 adapters,
+The sandbox provider layer and the pod job logic that runs: the Vercel and Agent37 adapters,
 the pod sleep, resize, disk-grow and orphan sweeps, the control-plane plugin list, and the env
 they read. `apps/api` and `apps/trigger` both use it. It has no framework import.
 
@@ -10,7 +10,7 @@ they read. `apps/api` and `apps/trigger` both use it. It has no framework import
 - The sandbox provider registry, daemon launch, and the sandbox run-close bookkeeping.
 - Reading a session's `SandboxConfig` from the database and the platform credentials.
 - The pod job bodies: sleep, resize, disk grow, and the agent37 usage reconcile.
-- The v2 pod identity rules (`v2Pods`, `podStillRetirable`) and the pod sweep.
+- The pod identity rules (`pods`, `podStillRetirable`) and the pod sweep.
 - The control-plane plugin list and `jobsControlPlaneOf`.
 - `readPodsEnv`, the env the providers and jobs read.
 
@@ -70,11 +70,11 @@ they read. `apps/api` and `apps/trigger` both use it. It has no framework import
 - `POD_DISK_CEILING_LIFETIME_STEPS` and `podDiskCeilingNotice({ usedBytes, limitBytes, percent })`
   are the inbox nudge a pod at the 100 GB ceiling leaves for its session at 85% and 95% full.
 
-### Sweep v2 pods
+### Sweep pods
 
-- `v2Pods({ now })` gives the live pods, the retirable ones and their sessions.
+- `pods({ now })` gives the live pods, the retirable ones and their sessions.
 - `podStillRetirableIn({ tx, podSessionId, now })` re-checks one pod inside its fence.
-- `sweepV2Pods`, `planV2Pods` and `uniqueV2Scopes` stop and delete the pods nothing can reach.
+- `sweepPods`, `planPods` and `uniqueScopes` stop and delete the pods nothing can reach.
 - `endPodTerminals({ podSessionIds })` closes the terminal rows of a retired pod.
 - `ARCHIVED_SANDBOX_GRACE_MS` is the six-hour grace both sweeps measure from `archivedAt`.
 

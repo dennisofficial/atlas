@@ -1,4 +1,4 @@
-import type { V2Event } from '../event'
+import type { RecordEvent } from '../event'
 
 export type FailureMessageState = {
   failureHead: number | null
@@ -12,7 +12,7 @@ export const initialFailureMessage: FailureMessageState = {
   afterFailure: false,
 }
 
-const ENDS_FAILURE: ReadonlySet<V2Event['type']> = new Set([
+const ENDS_FAILURE: ReadonlySet<RecordEvent['type']> = new Set([
   'user-said',
   'assistant-said',
   'workspace-prepared',
@@ -21,7 +21,7 @@ const ENDS_FAILURE: ReadonlySet<V2Event['type']> = new Set([
 
 export const stepFailureMessage = (
   state: FailureMessageState,
-  event: V2Event,
+  event: RecordEvent,
 ): FailureMessageState => {
   switch (event.type) {
     case 'session-start-failed':
@@ -49,5 +49,5 @@ export const stepFailureMessage = (
 
 export const messageAfterFailureOf = (state: FailureMessageState): boolean => state.afterFailure
 
-export const failureMessageOf = (events: readonly V2Event[]): FailureMessageState =>
+export const failureMessageOf = (events: readonly RecordEvent[]): FailureMessageState =>
   events.reduce(stepFailureMessage, initialFailureMessage)

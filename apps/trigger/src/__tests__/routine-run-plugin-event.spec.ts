@@ -1,5 +1,5 @@
 import { describe, expect, it, mock } from 'bun:test'
-import { chainEvents, toRunId, toThreadId, type V2Body } from '@dltech/atlas-core'
+import { chainEvents, toRunId, toThreadId, type RecordEventBody } from '@dltech/atlas-core'
 import { InMemoryControlStore } from '@dltech/atlas-control/testing'
 import { composedControlPlaneOver } from '@dltech/atlas-pods'
 import { triggerSdkFake } from './trigger-sdk.fake'
@@ -17,7 +17,7 @@ const AT = '2026-11-16T12:02:47.854Z'
 const mcpServerChanged = {
   type: 'mcp-server-changed',
   row: { layer: 'user', name: 'wispr-flow', status: 'connected', toolCount: 16, transport: 'http' },
-} as V2Body
+} as RecordEventBody
 
 const seedLastSessionWithPluginEvent = async (store: InMemoryControlStore): Promise<void> => {
   const plane = composedControlPlaneOver({ store })

@@ -1,5 +1,5 @@
 import { EMessageOrigin, saidBy, type AssistantPart } from '../events/body'
-import type { V2Event, V2EventType } from './event'
+import type { RecordEvent, RecordEventType } from './event'
 import { openTurnOf, ETurnCause, ETurnEndedBy, ETurnOutcome } from './turns'
 import { visibleEvents } from './visibility'
 
@@ -7,7 +7,7 @@ export type QuickStop = { toSeq: number; draft: string } | null
 
 export type QuickStopEnding = { outcome: ETurnOutcome; by: ETurnEndedBy }
 
-const BOOKKEEPING_TYPES: ReadonlySet<V2EventType> = new Set<V2EventType>([
+const BOOKKEEPING_TYPES: ReadonlySet<RecordEventType> = new Set<RecordEventType>([
   'input-consumed',
   'input-posted',
   'retry-scheduled',
@@ -20,16 +20,18 @@ const BOOKKEEPING_TYPES: ReadonlySet<V2EventType> = new Set<V2EventType>([
 const saysSomething = (parts: readonly AssistantPart[]): boolean =>
   parts.some((part) => part.type === 'text' && part.text.length > 0)
 
-const quietRowOf = (event: V2Event): boolean => {
+const quietRowOf = (event: RecordEvent): boolean => {
   if (BOOKKEEPING_TYPES.has(event.type)) return true
   return event.type === 'assistant-said' && !saysSomething(event.parts)
 }
 
-const operatorPromptOf = (event: V2Event): event is Extract<V2Event, { type: 'user-said' }> =>
+const operatorPromptOf = (
+  event: RecordEvent,
+): event is Extract<RecordEvent, { type: 'user-said' }> =>
   event.type === 'user-said' && saidBy(event) === EMessageOrigin.Operator
 
 export function quickStopOf(input: {
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   ending: QuickStopEnding
 }): QuickStop {
   if (input.ending.outcome !== ETurnOutcome.Stopped) return null
@@ -53,7 +55,7 @@ export function quickStopOf(input: {
   const firstStep = hidden.findIndex((event) => event.type === 'assistant-said')
   const intake = firstStep < 0 ? hidden : hidden.slice(0, firstStep)
   const steps = firstStep < 0 ? [] : hidden.slice(firstStep)
-  const intakeRowOf = (event: V2Event): boolean =>
+  const intakeRowOf = (event: RecordEvent): boolean =>
     event === start || operatorPromptOf(event) || BOOKKEEPING_TYPES.has(event.type)
   if (!intake.every(intakeRowOf)) return null
   if (!steps.every(quietRowOf)) return null

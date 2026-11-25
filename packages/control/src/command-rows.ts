@@ -1,8 +1,8 @@
 import {
   commandInputName,
   unfinishedCommandIdsOf,
-  type V2Event,
-  type V2EventType,
+  type RecordEvent,
+  type RecordEventType,
 } from '@dltech/atlas-core'
 import {
   ECommandState,
@@ -18,7 +18,7 @@ import { VIEW_TAIL_LIMIT } from './session-view-ops'
 
 export { unfinishedCommandIdsOf } from '@dltech/atlas-core'
 
-export const COMMAND_TAIL_TYPES: readonly V2EventType[] = [
+export const COMMAND_TAIL_TYPES: readonly RecordEventType[] = [
   'input-posted',
   'input-consumed',
   'input-refused',
@@ -33,7 +33,7 @@ export const runningCommandsIn = async (args: {
   tx: ControlTx
   sessionId: string
   threadId: string
-  eventSchema?: z.ZodType<V2Event> | undefined
+  eventSchema?: z.ZodType<RecordEvent> | undefined
 }): Promise<SessionCommandRow[]> => {
   const { tx } = args
   const row = await tx.readThread(args.threadId)

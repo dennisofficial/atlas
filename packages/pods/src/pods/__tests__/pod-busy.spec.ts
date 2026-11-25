@@ -11,7 +11,7 @@ import {
   toCallId,
   toRunId,
   toThreadId,
-  type V2Body,
+  type RecordEventBody,
 } from '@dltech/atlas-core'
 
 import { ControlPlane } from '@dltech/atlas-control'
@@ -31,7 +31,7 @@ const appendIn = async (args: {
   plane: ReturnType<typeof setup>['plane']
   sessionId: string
   threadId: string
-  bodies: readonly V2Body[]
+  bodies: readonly RecordEventBody[]
 }): Promise<void> => {
   const granted = await args.plane.grant({ sessionId: args.sessionId, hostId: 9000 })
   const appended = await args.plane.append({
@@ -49,7 +49,7 @@ const appendIn = async (args: {
   await args.plane.revoke({ sessionId: args.sessionId, wantsHolder: false })
 }
 
-const setupStarted: readonly V2Body[] = [
+const setupStarted: readonly RecordEventBody[] = [
   {
     type: 'workspace-step',
     step: EWorkspaceStep.Setup,
@@ -120,13 +120,13 @@ describe('pod busy facts of a session running its setup script', () => {
 })
 
 describe('pod busy facts a resize reads', () => {
-  const turnBodies: readonly V2Body[] = [
+  const turnBodies: readonly RecordEventBody[] = [
     { type: 'workspace-prepared' },
     { type: 'user-said', text: 'hi' },
     { type: 'turn-started', turnId: 'turn-1', cause: ETurnCause.Input },
   ]
 
-  const seeded = async (bodies: readonly V2Body[]) => {
+  const seeded = async (bodies: readonly RecordEventBody[]) => {
     const { plane } = setup()
     await plane.createSession({
       sessionId: 's-1',
@@ -144,7 +144,7 @@ describe('pod busy facts a resize reads', () => {
     expect(await readPodResizeBusy({ plane, session })).toEqual({ busy: false, running: [] })
   })
 
-  const toolRunning = (name: string): readonly V2Body[] => [
+  const toolRunning = (name: string): readonly RecordEventBody[] => [
     ...turnBodies,
     { type: 'tool-called', callId: toCallId('call-1'), name, input: {}, ordinal: 0 },
     { type: 'tool-dispatched', callId: toCallId('call-1'), name },

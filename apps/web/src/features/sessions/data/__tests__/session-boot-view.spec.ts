@@ -9,7 +9,7 @@ import {
   ESessionStatus,
   toRunId,
   toThreadId,
-  type V2Body,
+  type RecordEventBody,
 } from '@dltech/atlas-core'
 import type { SessionSnapshot } from '@dltech/atlas-client/stream'
 import { EBootStepState } from '@dltech/atlas-wire/web'
@@ -18,7 +18,7 @@ import { sessionBootViewOf } from '../session-boot-view'
 
 const LEASE = { epoch: 1, holderHostId: 1, live: true }
 
-const eventsOf = (bodies: V2Body[]) =>
+const eventsOf = (bodies: RecordEventBody[]) =>
   chainEvents({
     threadId: toThreadId('t'),
     runId: toRunId('r'),
@@ -36,8 +36,10 @@ const statusOf = (state: ESessionStatus, reason?: string): SessionSnapshot['stat
 const step = (
   name: EWorkspaceStep,
   state: EWorkspaceStepState,
-  extra: Partial<Omit<Extract<V2Body, { type: 'workspace-step' }>, 'type' | 'step' | 'state'>> = {},
-): V2Body => ({ type: 'workspace-step', step: name, state, ...extra })
+  extra: Partial<
+    Omit<Extract<RecordEventBody, { type: 'workspace-step' }>, 'type' | 'step' | 'state'>
+  > = {},
+): RecordEventBody => ({ type: 'workspace-step', step: name, state, ...extra })
 
 const statesOf = (view: ReturnType<typeof sessionBootViewOf>) => view?.steps.map((s) => s.state)
 

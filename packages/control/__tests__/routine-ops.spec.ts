@@ -4,8 +4,8 @@ import {
   EMessageOrigin,
   toRunId,
   toThreadId,
-  type V2Body,
-  type V2Event,
+  type RecordEventBody,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import { DEFAULT_SANDBOX_PROVIDER } from '@dltech/atlas-protocol'
 
@@ -166,8 +166,8 @@ describe('ControlPlane.runRoutine', () => {
     const hostId = store.nextHostId()
     const lease = await plane.grant({ sessionId: 'parked', hostId })
     const head = await plane.head({ threadId: 'parked-thread' })
-    const body: V2Body = { type: 'user-said', text: 'keep going' }
-    const events: V2Event[] = chainEvents({
+    const body: RecordEventBody = { type: 'user-said', text: 'keep going' }
+    const events: RecordEvent[] = chainEvents({
       threadId: toThreadId('parked-thread'),
       runId: toRunId('run-1'),
       epoch: lease.epoch,

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { ESandboxProvider } from '@dltech/atlas-protocol'
 import type { SandboxCredentials } from '../../sandbox/sandbox-provider'
-import { sweepV2Pods } from '../v2-pod-sweep'
+import { sweepPods } from '../pod-sweep'
 import {
   actDirectly,
   AGENT37_CREDENTIALS,
@@ -11,9 +11,9 @@ import {
   listing,
   noPods,
   scope,
-} from '../v2-pod-sweep.fixture'
+} from '../pod-sweep.fixture'
 
-describe('sweepV2Pods', () => {
+describe('sweepPods', () => {
   it('stops and deletes through the port, naming pods by their session id', async () => {
     const sandbox = new FakeSandboxProvider({
       listings: [
@@ -23,7 +23,7 @@ describe('sweepV2Pods', () => {
       ],
     })
 
-    const summary = await sweepV2Pods({
+    const summary = await sweepPods({
       scopes: [scope(sandbox)],
       pods: { live: new Set(['ses-live']), retirable: new Map([['ses-running', hoursAgo(25)]]) },
       fence: actDirectly,
@@ -56,7 +56,7 @@ describe('sweepV2Pods', () => {
     const retired: string[] = []
     const terminalPods: string[][] = []
 
-    await sweepV2Pods({
+    await sweepPods({
       scopes: [scope(sandbox)],
       pods: { live: new Set(), retirable: new Map([['ses-running', hoursAgo(25)]]) },
       fence: actDirectly,
@@ -83,7 +83,7 @@ describe('sweepV2Pods', () => {
     })
     const lines: string[] = []
 
-    const summary = await sweepV2Pods({
+    const summary = await sweepPods({
       scopes: [
         { label: 'usr-1/prj-byok', credentials: AGENT37_CREDENTIALS, sandbox: broken },
         scope(healthy),
@@ -117,7 +117,7 @@ describe('sweepV2Pods', () => {
       failStop: 'provider said no',
     })
 
-    const summary = await sweepV2Pods({
+    const summary = await sweepPods({
       scopes: [scope(sandbox)],
       pods: {
         live: new Set(),
@@ -144,7 +144,7 @@ describe('sweepV2Pods', () => {
     })
     const retired: string[] = []
 
-    const summary = await sweepV2Pods({
+    const summary = await sweepPods({
       scopes: [scope(sandbox)],
       pods: noPods,
       fence: async ({ podSessionId, act }) => {
@@ -170,7 +170,7 @@ describe('sweepV2Pods', () => {
       listings: [listing({ sandboxSessionId: 'ses-revived', running: true })],
     })
 
-    await sweepV2Pods({
+    await sweepPods({
       scopes: [scope(sandbox)],
       pods: { live: new Set(), retirable: new Map([['ses-revived', hoursAgo(25)]]) },
       fence: async () => 'kept',
@@ -188,7 +188,7 @@ describe('sweepV2Pods', () => {
     })
     const lines: string[] = []
 
-    const summary = await sweepV2Pods({
+    const summary = await sweepPods({
       scopes: [scope(sandbox)],
       pods: noPods,
       fence: async ({ podSessionId, act }) => {
@@ -213,7 +213,7 @@ describe('sweepV2Pods', () => {
     const retired: string[] = []
     const fences: string[] = []
 
-    const summary = await sweepV2Pods({
+    const summary = await sweepPods({
       scopes: [scope(sandbox)],
       pods: noPods,
       fence: async ({ podSessionId, act }) => {
@@ -236,7 +236,7 @@ describe('sweepV2Pods', () => {
   })
 })
 
-describe('sweepV2Pods credentials', () => {
+describe('sweepPods credentials', () => {
   it('hands each scope its own credentials', async () => {
     const vercel: SandboxCredentials = {
       provider: ESandboxProvider.Vercel,
@@ -246,7 +246,7 @@ describe('sweepV2Pods credentials', () => {
     }
     const sandbox = new FakeSandboxProvider({})
 
-    await sweepV2Pods({
+    await sweepPods({
       scopes: [{ label: 'usr-1/prj-1', credentials: vercel, sandbox }],
       pods: noPods,
       fence: actDirectly,

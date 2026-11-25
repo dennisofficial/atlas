@@ -5,7 +5,7 @@ import {
   EShellStatus,
   toRunId,
   toThreadId,
-  type V2Body,
+  type RecordEventBody,
 } from '@dltech/atlas-core'
 
 import {
@@ -19,7 +19,7 @@ import {
   seqByEventIdOf,
 } from '../session-rewind'
 
-const eventsOf = (bodies: readonly V2Body[]) =>
+const eventsOf = (bodies: readonly RecordEventBody[]) =>
   chainEvents({
     threadId: toThreadId('thread-1'),
     runId: toRunId('run-1'),
@@ -29,7 +29,7 @@ const eventsOf = (bodies: readonly V2Body[]) =>
     bodies,
   })
 
-const said = (text: string): V2Body => ({ type: 'user-said', text })
+const said = (text: string): RecordEventBody => ({ type: 'user-said', text })
 
 describe('session rewind', () => {
   it('maps user messages to their sequence', () => {

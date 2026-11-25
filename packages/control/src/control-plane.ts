@@ -12,8 +12,8 @@ import {
   type SubscriptionTargetState,
   type SubscriptionTargetStates,
   UNKNOWN_TARGET_STATE,
-  type V2Event,
-  type V2EventType,
+  type RecordEvent,
+  type RecordEventType,
   type ThreadId,
 } from '@dltech/atlas-core'
 import type { SessionModelAsk } from '@dltech/atlas-models'
@@ -102,7 +102,7 @@ export const MAX_SESSION_LIST_LIMIT = 100
 export type ControlPlaneParams = {
   store: ControlStorePort
   clock?: (() => string) | undefined
-  eventSchema?: z.ZodType<V2Event> | undefined
+  eventSchema?: z.ZodType<RecordEvent> | undefined
   pluginViews?: readonly PluginViewFold[] | undefined
   appendHooks?: readonly AppendHook[] | undefined
   targetStates?: SubscriptionTargetStates | undefined
@@ -122,7 +122,7 @@ export class ControlPlane {
   private readonly store: ControlStorePort
   private readonly clock: (() => string) | undefined
   private readonly leases: LeaseOps
-  private readonly eventSchema: z.ZodType<V2Event> | undefined
+  private readonly eventSchema: z.ZodType<RecordEvent> | undefined
   private readonly pluginViews: readonly PluginViewFold[]
   private readonly appendHooks: readonly AppendHook[]
   private readonly targetStates: SubscriptionTargetStates | undefined
@@ -508,7 +508,7 @@ export class ControlPlane {
     afterSeq: number
     limit: number
     visible: boolean
-    hiddenTypes?: readonly V2EventType[] | undefined
+    hiddenTypes?: readonly RecordEventType[] | undefined
     maxBytes?: number | undefined
   }): Promise<ReadEventsPage> {
     const limit = clampLimit(params.limit)

@@ -1,11 +1,11 @@
 import type { ContextPart } from '../../assembly/context-breakdown'
 import type { ContextMeter } from '../context-meter'
-import type { V2Event, V2EventType } from '../event'
+import type { RecordEvent, RecordEventType } from '../event'
 import { stepReadingOf } from './step-reading'
 
 export type MeterEntry = {
   seq: number
-  type: V2EventType
+  type: RecordEventType
   measured: number | null
   breakdown: readonly ContextPart[] | null
 }
@@ -29,7 +29,7 @@ export const initialMeterState: MeterState = {
 const measuredOf = (reading: { inputTokens: number; outputTokens: number }): number =>
   Math.max(0, reading.inputTokens) + Math.max(0, reading.outputTokens)
 
-const entryOf = (event: V2Event): MeterEntry => {
+const entryOf = (event: RecordEvent): MeterEntry => {
   const reading = stepReadingOf(event)
   return {
     seq: event.seq,
@@ -62,12 +62,12 @@ const withEntry = (state: MeterState, entry: MeterEntry): MeterState => {
   return state
 }
 
-const isEdit = (event: V2Event): boolean =>
+const isEdit = (event: RecordEvent): boolean =>
   event.type === 'history-rewound' ||
   event.type === 'history-summarised' ||
   event.type === 'rotated'
 
-export const stepMeter = (state: MeterState, event: V2Event): MeterState => {
+export const stepMeter = (state: MeterState, event: RecordEvent): MeterState => {
   const window = stepReadingOf(event)?.contextWindow ?? state.window
   if (isEdit(event)) return { ...initialMeterState, window }
   return withEntry({ ...state, window }, entryOf(event))
@@ -75,7 +75,7 @@ export const stepMeter = (state: MeterState, event: V2Event): MeterState => {
 
 export const rebuildMeter = (args: {
   state: MeterState
-  visibleTail: readonly V2Event[]
+  visibleTail: readonly RecordEvent[]
 }): MeterState =>
   args.visibleTail.reduce((state, event) => withEntry(state, entryOf(event)), {
     ...initialMeterState,

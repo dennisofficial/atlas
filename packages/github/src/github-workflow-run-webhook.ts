@@ -4,7 +4,7 @@ import { githubLogOf } from './github-log'
 import { repoPattern } from './github-pr-identity'
 import { WORKFLOW_RUN_KIND, runSelectorOf, type RunSelector } from './github-run-selector'
 import type { WorkflowRunSnapshot } from './github-run-snapshot'
-import { postRunNoticeV2Sessions } from './github-v2-run-notice'
+import { postRunNoticeSessions } from './github-run-notice'
 import type {
   GithubWorkflowRunWebhookPayload,
   GithubWorkflowRunWebhookRun,
@@ -111,7 +111,7 @@ async function notifyOne(args: {
   const claimed = await claimRun(args)
   if (claimed === 0) return false
   await db.transaction((tx) =>
-    postRunNoticeV2Sessions({ tx, subscription: args.subscription, run: args.run }),
+    postRunNoticeSessions({ tx, subscription: args.subscription, run: args.run }),
   )
   logger.log(
     `notifying thread ${args.subscription.threadId} of the completed run ${args.run.id} of ${args.subscription.repoFullName}`,

@@ -15,8 +15,8 @@ import {
   stepSessionView,
   workspaceStepsOf,
   type SessionViewState,
-  type V2Body,
-  type V2Event,
+  type RecordEventBody,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 
 import { quickStopRestoresOf } from '../../session/quick-stop-restore'
@@ -28,12 +28,12 @@ import { headOf, mintEvents, mintUserEvents } from './support'
 const SESSION = 'session-1'
 const RENDER_LIMIT = 100
 
-const foldOf = (events: readonly V2Event[]): SessionViewState =>
+const foldOf = (events: readonly RecordEvent[]): SessionViewState =>
   events.reduce(stepSessionView, initialSessionViewState)
 
 const seedSnapshot = async (args: {
   log: SessionLog
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   view: SessionViewState
 }): Promise<void> =>
   args.log.saveSnapshot({
@@ -119,7 +119,7 @@ describe('restoring the cached session view', () => {
   })
 })
 
-const setupStep = (state: EWorkspaceStepState): V2Body => ({
+const setupStep = (state: EWorkspaceStepState): RecordEventBody => ({
   type: 'workspace-step',
   step: EWorkspaceStep.Setup,
   state,
@@ -180,7 +180,7 @@ describe('restoring the durable log', () => {
   })
 })
 
-const seedQuickStopSnapshot = async (args: { log: SessionLog; events: readonly V2Event[] }) => {
+const seedQuickStopSnapshot = async (args: { log: SessionLog; events: readonly RecordEvent[] }) => {
   const window = applyPage({
     window: EMPTY_WINDOW,
     page: { events: args.events, head: headOf(args.events) },
@@ -207,7 +207,7 @@ const seedQuickStopSnapshot = async (args: { log: SessionLog; events: readonly V
   })
 }
 
-const quickStopBodies: readonly V2Body[] = [
+const quickStopBodies: readonly RecordEventBody[] = [
   { type: 'user-said', text: 'think hard', clientId: 'client-a' },
   { type: 'turn-started', turnId: 'turn-1', cause: ETurnCause.Input },
   { type: 'assistant-said', parts: [{ type: 'reasoning', text: 'hm' }] },

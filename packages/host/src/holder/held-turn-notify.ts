@@ -9,7 +9,7 @@ import {
   type Event,
   type PendingWork,
   type TurnNotify,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import { logFieldsOf } from '@dltech/atlas-observability'
 
@@ -22,13 +22,13 @@ export type TurnNotifyFacts = {
   operatorTurn: boolean
 }
 
-const loopEventsOf = (events: readonly V2Event[]): Event[] =>
+const loopEventsOf = (events: readonly RecordEvent[]): Event[] =>
   events.flatMap((event) => {
     const loop = toLoopEvent({ event })
     return loop === undefined ? [] : [loop]
   })
 
-export const turnNotifyFactsOf = (args: { events: readonly V2Event[] }): TurnNotifyFacts => ({
+export const turnNotifyFactsOf = (args: { events: readonly RecordEvent[] }): TurnNotifyFacts => ({
   pending: pendingWorkOf({ events: loopEventsOf(args.events) }),
   operatorTurn: operatorTurnOf({ events: args.events }),
 })

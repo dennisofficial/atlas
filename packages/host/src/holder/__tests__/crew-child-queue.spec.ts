@@ -6,7 +6,7 @@ import {
   toThreadId,
   type ModelPort,
   type ToolOutcome,
-  type V2Event,
+  type RecordEvent,
 } from '@dltech/atlas-core'
 import {
   composePlugins,
@@ -97,7 +97,7 @@ const queueProbePlugin = (state: ProbeState): Plugin =>
 const eventsIn = async (
   rig: Awaited<ReturnType<typeof makeRig>>,
   threadId: string,
-): Promise<V2Event[]> =>
+): Promise<RecordEvent[]> =>
   (
     await rig.plane.readEvents({
       threadId: threadId as typeof THREAD_ID,
@@ -107,23 +107,23 @@ const eventsIn = async (
     })
   ).events
 
-const childIdOf = (events: readonly V2Event[]): string => {
+const childIdOf = (events: readonly RecordEvent[]): string => {
   const spawned = events.find((event) => event.type === 'agent-spawned')
   if (spawned === undefined || spawned.type !== 'agent-spawned') throw new Error('no spawn')
   return spawned.agentId
 }
 
-const saidTexts = (events: readonly V2Event[]): string[] =>
+const saidTexts = (events: readonly RecordEvent[]): string[] =>
   events.flatMap((event) =>
     event.type === 'assistant-said'
       ? event.parts.flatMap((part) => (part.type === 'text' ? [part.text] : []))
       : [],
   )
 
-const userSaidTexts = (events: readonly V2Event[]): string[] =>
+const userSaidTexts = (events: readonly RecordEvent[]): string[] =>
   events.flatMap((event) => (event.type === 'user-said' ? [event.text] : []))
 
-const stagedTexts = (events: readonly V2Event[], text: string): number[] =>
+const stagedTexts = (events: readonly RecordEvent[], text: string): number[] =>
   events.flatMap((event) =>
     event.type === 'input-posted' && event.message?.text === text ? [event.inboxId] : [],
   )

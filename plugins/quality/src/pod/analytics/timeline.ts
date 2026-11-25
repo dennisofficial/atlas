@@ -1,25 +1,25 @@
-import type { CodeQualityReviewedBody, ThreadId, V2Event } from '@dltech/atlas-core'
+import type { CodeQualityReviewedBody, ThreadId, RecordEvent } from '@dltech/atlas-core'
 
 export type QualityRecordEntry = { record: CodeQualityReviewedBody; index: number }
 
-const recordsInEvent = (event: V2Event): readonly CodeQualityReviewedBody[] => {
+const recordsInEvent = (event: RecordEvent): readonly CodeQualityReviewedBody[] => {
   if (event.type === 'code-quality-reviewed') return [event]
   if (event.type === 'tool-result') return event.qualityReviews ?? []
   return []
 }
 
 export const threadEventsOf = (args: {
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   threadId: ThreadId
-}): readonly V2Event[] => args.events.filter((event) => event.threadId === args.threadId)
+}): readonly RecordEvent[] => args.events.filter((event) => event.threadId === args.threadId)
 
 export const qualityRecordsOf = (args: {
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
 }): readonly QualityRecordEntry[] =>
   args.events.flatMap((event, index) => recordsInEvent(event).map((record) => ({ record, index })))
 
 export const notifyIndexOf = (args: {
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   findingId: string
 }): number | null => {
   for (const { record, index } of qualityRecordsOf({ events: args.events })) {
@@ -30,15 +30,15 @@ export const notifyIndexOf = (args: {
 }
 
 export const countAfter = (args: {
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   index: number
-  types: readonly V2Event['type'][]
+  types: readonly RecordEvent['type'][]
 }): number =>
   args.events.filter((event, index) => index > args.index && args.types.includes(event.type)).length
 
 export const lastIndexOfType = (args: {
-  events: readonly V2Event[]
-  type: V2Event['type']
+  events: readonly RecordEvent[]
+  type: RecordEvent['type']
 }): number => {
   let found = -1
   args.events.forEach((event, index) => {
@@ -47,8 +47,8 @@ export const lastIndexOfType = (args: {
   return found
 }
 
-export const stepsAfter = (args: { events: readonly V2Event[]; index: number }): number =>
+export const stepsAfter = (args: { events: readonly RecordEvent[]; index: number }): number =>
   countAfter({ ...args, types: ['assistant-said'] })
 
-export const turnsAfter = (args: { events: readonly V2Event[]; index: number }): number =>
+export const turnsAfter = (args: { events: readonly RecordEvent[]; index: number }): number =>
   countAfter({ ...args, types: ['turn-started'] })

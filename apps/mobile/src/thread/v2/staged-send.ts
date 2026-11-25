@@ -1,4 +1,4 @@
-import type { Attachment, V2Event } from '@dltech/atlas-core'
+import type { Attachment, RecordEvent } from '@dltech/atlas-core'
 import { ALREADY_SENT_REASON, EStagedOutcome, stagedOutcomesOf } from '@dltech/atlas-client/stream'
 
 export type StagedSend = { clientId: string; text: string; attachments: readonly Attachment[] }
@@ -19,7 +19,7 @@ export const mergeIntoDraft = (args: { withdrawn: string; draft: string }): stri
 
 export const settlementOf = (args: {
   staged: readonly StagedSend[]
-  events: readonly V2Event[]
+  events: readonly RecordEvent[]
   unread?: ReadonlySet<string> | undefined
 }): StagedSettlement => {
   const unread = args.unread ?? new Set<string>()
