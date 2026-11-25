@@ -4,6 +4,7 @@ import { ENV_NAME_PATTERN } from '@dltech/atlas-core'
 import { createDb, createPool, type Db } from '@dltech/atlas-db'
 import { mcpSpecSchema, type McpTransport } from '@dltech/atlas-plugin-mcp/core'
 
+import { cleanupProjectGrant, createProjectGrant } from '../../_lib/access-grants/grant-of-one'
 import { databaseUrlWithTls } from './database-url'
 import { readAgentHostEnv } from './env'
 import { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
@@ -144,16 +145,27 @@ export const cloudConfigClientOf = (args: {
       const problem = envNameProblem(name)
       if (problem !== undefined) throw new Error(problem)
       const sealedValue = sealed({ cipher, value })
-      await secrets.upsert({
-        conflictOn: { projectId, name },
-        create: { id: `psec_${randomUUID()}`, projectId, name, sealedValue },
-        update: { sealedValue },
+      await db.transaction(async (tx) => {
+        const rows = tx.orm.public.ProjectSecret
+        const existing = await rows.where({ projectId, name }).first()
+        if (existing !== null) {
+          await rows.where({ projectId, name }).update({ sealedValue })
+          return
+        }
+        const grantId = await createProjectGrant({ tx, projectId, label: name })
+        await rows.create({ id: `psec_${randomUUID()}`, projectId, grantId, name, sealedValue })
       })
     },
     removeSecret: async (name) => {
       const problem = envNameProblem(name)
       if (problem !== undefined) throw new Error(problem)
-      return (await secrets.where({ projectId, name }).deleteAndCount()) > 0
+      return db.transaction(async (tx) => {
+        const row = await tx.orm.public.ProjectSecret.where({ projectId, name }).first()
+        if (row === null) return false
+        await tx.orm.public.ProjectSecret.where({ projectId, name }).deleteAndCount()
+        await cleanupProjectGrant({ tx, projectId, grantId: row.grantId })
+        return true
+      })
     },
     listMcpServers: async () =>
       (
@@ -205,19 +217,32 @@ export const cloudConfigClientOf = (args: {
       })),
     setFileMount: async ({ path, contents, mode }) => {
       const sealedContents = sealed({ cipher, value: contents })
-      await mounts.upsert({
-        conflictOn: { projectId, path },
-        create: {
+      await db.transaction(async (tx) => {
+        const rows = tx.orm.public.ProjectFileMount
+        const existing = await rows.where({ projectId, path }).first()
+        if (existing !== null) {
+          await rows.where({ projectId, path }).update({ sealedContents, mode })
+          return
+        }
+        const grantId = await createProjectGrant({ tx, projectId, label: path })
+        await rows.create({
           id: `pfm_${randomUUID()}`,
           projectId,
+          grantId,
           path,
           sealedContents,
           mode,
-        },
-        update: { sealedContents, mode },
+        })
       })
     },
-    removeFileMount: async (path) => (await mounts.where({ projectId, path }).deleteAndCount()) > 0,
+    removeFileMount: async (path) =>
+      db.transaction(async (tx) => {
+        const row = await tx.orm.public.ProjectFileMount.where({ projectId, path }).first()
+        if (row === null) return false
+        await tx.orm.public.ProjectFileMount.where({ projectId, path }).deleteAndCount()
+        await cleanupProjectGrant({ tx, projectId, grantId: row.grantId })
+        return true
+      }),
   }
 }
 

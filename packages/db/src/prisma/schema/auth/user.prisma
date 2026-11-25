@@ -29,6 +29,8 @@ model User {
   githubTrackingTargets    GithubTrackingTarget[]
   publishedBundles         PublishedBundle[]
   secrets                  UserSecret[]
+  accessGrants             UserAccessGrant[]
+  fileMounts               UserFileMount[]
   harnessSecrets           UserHarnessSecret[]
   authSessions             AuthSession[]
   sshSigningKey            SshSigningKey?

@@ -24,10 +24,10 @@ response payloads, the constants that both sides must agree on, and the sandbox 
 
 ## Entry points
 
-| Import                   | Use it for                                                                                                                      |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
-| `@dltech/atlas-wire`     | The full contract: frames, payload schemas, capabilities, pod paths, sandbox helpers.                                           |
-| `@dltech/atlas-wire/web` | The browser-safe subset: thread, session, project, settings, model, memory, MCP, secret, file, GitHub and notification schemas. |
+| Import                   | Use it for                                                                                                                                    |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@dltech/atlas-wire`     | The full contract: frames, payload schemas, capabilities, pod paths, sandbox helpers.                                                         |
+| `@dltech/atlas-wire/web` | The browser-safe subset: thread, session, project, settings, model, memory, MCP, secret, file, access grant, GitHub and notification schemas. |
 
 ## Capabilities
 
@@ -60,6 +60,11 @@ response payloads, the constants that both sides must agree on, and the sandbox 
 - `memoryPutSchema`, `memoryEditSchema`, `memoryKeySchema`: the memory write and edit payloads.
 - `MEMORY_STALE_REVISION_CODE`, `MEMORY_EDIT_NO_MATCH_CODE`, `MEMORY_EDIT_AMBIGUOUS_CODE`: the
   memory error codes. `@dltech/atlas-core` owns these, and wire re-exports them.
+- `accessScopeSchema`, `accessGrantSchema`, `accessGrantSaveSchema`, `accessGrantMoveSchema`: a
+  grant at personal or project scope, the secrets and files it holds, and its writes. `EAccessScope`
+  and `EAccessMemberKind` name the scopes and the member kinds.
+- `fileMountSummarySchema`, `projectFileMountSetSchema`, `personalFileMountSetSchema`: a file mount
+  a sandbox gets, with its mode. A personal mount path must start with `~/` or `@/`.
 
 ### Provision a sandbox
 

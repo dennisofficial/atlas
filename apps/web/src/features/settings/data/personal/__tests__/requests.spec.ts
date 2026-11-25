@@ -7,19 +7,11 @@ import { EMcpTransport } from '../../../fixtures/settings-mcp'
 import { addMcpServer } from '../mcp-api'
 import { deleteMemory, fetchMemoryEntry, fetchMemoryGroups } from '../memory-api'
 import { putHarnessSecret } from '../harness-secrets-api'
-import { deleteSecret, putSecret, revealSecret } from '../secrets-api'
 
 beforeEach(resetTrpc)
 afterEach(restoreTrpc)
 
-describe('personal secret save', () => {
-  it('sends the typed value', async () => {
-    await putSecret({ name: 'API_KEY', value: 'new' })
-    expect(trpcCalls).toEqual([
-      { url: '/v1/trpc/secrets.set', method: 'POST', body: { name: 'API_KEY', value: 'new' } },
-    ])
-  })
-
+describe('harness secret save', () => {
   it('sends agent keys to harnessSecrets.set', async () => {
     await putHarnessSecret({ name: 'search.tavily', value: 'k' })
     expect(trpcCalls).toEqual([
@@ -28,20 +20,6 @@ describe('personal secret save', () => {
         method: 'POST',
         body: { name: 'search.tavily', value: 'k' },
       },
-    ])
-  })
-
-  it('reveals one value by name through secrets.reveal', async () => {
-    answerTrpc(() => trpcData({ value: 'hunter2' }))
-    expect(await revealSecret('API_KEY')).toBe('hunter2')
-    expect(trpcCalls[0]?.url).toContain('/v1/trpc/secrets.reveal')
-    expect(decodeURIComponent(trpcCalls[0]?.url ?? '')).toContain('"name":"API_KEY"')
-  })
-
-  it('deletes by name', async () => {
-    await deleteSecret('API_KEY')
-    expect(trpcCalls).toEqual([
-      { url: '/v1/trpc/secrets.remove', method: 'POST', body: { name: 'API_KEY' } },
     ])
   })
 })

@@ -36,7 +36,10 @@ export type PersonalSecretNames = z.infer<typeof personalSecretNamesSchema>
 export const personalSecretNameSchema = z.strictObject({ name: z.string().min(1) })
 export type PersonalSecretName = z.infer<typeof personalSecretNameSchema>
 
-export const personalSecretSetSchema = secretSetSchema.extend(personalSecretNameSchema.shape)
+export const personalSecretSetSchema = secretSetSchema.extend({
+  ...personalSecretNameSchema.shape,
+  grantId: z.string().min(1).optional(),
+})
 export type PersonalSecretSet = z.infer<typeof personalSecretSetSchema>
 
 export const personalMcpServerListSchema = z.object({ servers: z.array(mcpServerSchema) })

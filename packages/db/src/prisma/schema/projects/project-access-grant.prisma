@@ -1,0 +1,14 @@
+// use prisma-8
+model ProjectAccessGrant {
+  id          String               @id
+  projectId   String
+  name        String
+  instruction String               @default("")
+  createdAt   TimestamptzJsDate(3) @default(now())
+  updatedAt   TimestamptzJsDate(3) @onCreate(now()) @onUpdate(now())
+  project     Project              @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  secrets     ProjectSecret[]
+  fileMounts  ProjectFileMount[]
+
+  @@unique([projectId, name])
+}

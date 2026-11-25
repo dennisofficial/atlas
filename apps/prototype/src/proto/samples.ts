@@ -36,6 +36,10 @@ export const PROTO_SAMPLES: Record<string, ProtoSample[]> = {
     { label: 'atlas', path: '/projects/atlas/settings/files' },
     { label: 'rs-crm', path: '/projects/rs-crm/settings/files' },
   ],
+  '/projects/[projectId]/settings/access': [
+    { label: 'atlas', path: '/projects/atlas/settings/access' },
+    { label: 'rs-crm', path: '/projects/rs-crm/settings/access' },
+  ],
   '/projects/[projectId]/settings/mcp': [
     { label: 'atlas', path: '/projects/atlas/settings/mcp' },
     { label: 'rs-crm', path: '/projects/rs-crm/settings/mcp' },

@@ -52,6 +52,7 @@ only what it can rebuild or drop.
   held session, wired into `ctx.classifier` for a plugin. The runtime factory builds the client.
 - `SessionRuntime.analytics`: the `PodAnalytics` a plugin reaches as `ctx.analytics`. The host adds
   `session_id` and `thread_id` to every capture; the runtime factory binds the user id.
+- `SessionRuntime.hooks`: session-owned hooks (the access notice), merged into the plugin hook chain.
 - `placeContextFiles`, `contextFilesPlacerOf`: write the files a spawner attached into the context
   folder of a session, before its first turn.
 - The holder holds a clean sub-agent ending while a sibling from the same spawn step still runs, then

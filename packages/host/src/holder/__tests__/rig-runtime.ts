@@ -17,7 +17,7 @@ import {
   type ToolOutcome,
 } from '@dltech/atlas-core'
 import { z } from 'zod'
-import type { NormalizeFailure, SaidUploadsPort } from '@dltech/atlas-agent'
+import type { HookChainArgs, NormalizeFailure, SaidUploadsPort } from '@dltech/atlas-agent'
 import {
   ScriptedModel,
   fakeToolRegistry,
@@ -168,6 +168,7 @@ export const makeRuntimeFactory = (args: {
   beforeRuntime?: (() => Promise<void>) | undefined
   stopGate?: Promise<void> | undefined
   plugins?: ComposedPlugins | undefined
+  hooks?: HookChainArgs | undefined
   rotation?: { autoRotateAtPercent: number } | undefined
   placeContextFiles?: SessionRuntime['placeContextFiles'] | undefined
   trace?: TracePort | undefined
@@ -264,6 +265,7 @@ export const makeRuntimeFactory = (args: {
       watchedCheckouts: args.watchedCheckouts ?? args.watchedRepos ?? (async () => runtime.watched),
       baseBranchOf: (repoPath) => args.baseBranches?.[repoPath] ?? null,
       ...(args.plugins === undefined ? {} : { plugins: args.plugins }),
+      ...(args.hooks === undefined ? {} : { hooks: args.hooks }),
       ...(args.trace === undefined ? {} : { trace: args.trace }),
       runningShells: args.runningShells ?? (async () => 0),
       ...(args.terminalStreams === undefined ? {} : { terminalStreams: args.terminalStreams }),

@@ -37,6 +37,7 @@ import { TerminalStreamModule } from './cloud/stream/terminal-stream.module'
 import { ProviderSignInModule } from './platform/provider-sign-in/provider-sign-in.module'
 import { DesktopAuthModule } from './platform/desktop-auth/desktop-auth.module'
 import { ProjectsModule } from './cloud/projects/projects.module'
+import { AccessGrantsModule } from './cloud/access-grants/access-grants.module'
 import { ComposerUploadsModule } from './cloud/composer-uploads/composer-uploads.module'
 import { SecretsModule } from './cloud/secrets/secrets.module'
 import { HarnessSecretsModule } from './cloud/harness-secrets/harness-secrets.module'
@@ -45,6 +46,7 @@ import { UsageModule } from './platform/usage/usage.module'
 import { SshSigningKeyModule } from './cloud/ssh-signing-key/ssh-signing-key.module'
 import { SkillCatalogueModule } from './cloud/skill-catalogue/skill-catalogue.module'
 import { SkillsModule } from './cloud/skills/skills.module'
+import { UserFileMountsModule } from './cloud/user-file-mounts/user-file-mounts.module'
 import { UserFilesModule } from './cloud/user-files/user-files.module'
 import { ControlPlaneModule } from './platform/sessions/control-plane.module'
 import { SessionTitlerModule } from './cloud/thread-titling/session-titler.module'
@@ -80,10 +82,12 @@ import { SessionTitlerModule } from './cloud/thread-titling/session-titler.modul
     ProviderSignInModule,
     ModelsModule,
     SecretsModule,
+    AccessGrantsModule,
     HarnessSecretsModule,
     SettingsModule,
     ProjectsModule,
     UserFilesModule,
+    UserFileMountsModule,
     SkillCatalogueModule,
     SkillsModule,
     McpServersModule,
