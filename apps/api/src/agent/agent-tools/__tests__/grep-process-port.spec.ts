@@ -232,7 +232,28 @@ describe('GrepTool over a ProcessPort', () => {
     expect(outcome.ok).toBe(true)
     expect(processes.spawned.map((command) => command.cmd[0])).toEqual(['rg', 'grep'])
   })
+
+  it('folds the stderr of a failed search onto one trimmed line', async () => {
+    const processes = new ComplainingProcesses('\n  regex parse error:\n\t  unclosed group \n')
+
+    const outcome = await searchWith(processes)
+
+    expect(outcome).toMatchObject({
+      ok: false,
+      reason: 'ripgrep exited 2: regex parse error: unclosed group',
+    })
+  })
 })
+
+class ComplainingProcesses extends FakeProcesses {
+  constructor(private readonly complaint: string) {
+    super('/container/bin/rg', '', 2)
+  }
+
+  override spawn(args: SpawnCommand): ProcessHandle {
+    return { ...super.spawn(args), stderr: streamOf(this.complaint) }
+  }
+}
 
 class MissingRipgrepProcesses extends FakeProcesses {
   constructor() {

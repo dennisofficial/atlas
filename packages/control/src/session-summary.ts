@@ -1,3 +1,4 @@
+import { oneLine } from '@dltech/atlas-core'
 import { sessionModelChoiceOf, type SessionSummary } from '@dltech/atlas-protocol'
 
 import type { ControlDigestView, ControlSessionDigest } from './port'
@@ -6,7 +7,7 @@ export const NAMING_WINDOW_MS = 60_000
 export const FALLBACK_TITLE_CHARS = 40
 
 export const fallbackTitleOf = (text: string): string | null => {
-  const flat = text.replace(/\s+/g, ' ').trim()
+  const flat = oneLine(text)
   if (flat.length === 0) return null
   if (flat.length <= FALLBACK_TITLE_CHARS) return flat
   const cut = flat.slice(0, FALLBACK_TITLE_CHARS)

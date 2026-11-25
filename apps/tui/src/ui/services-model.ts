@@ -3,6 +3,7 @@ import {
   EKilledBy,
   EServiceStatus,
   mayStillBeAlive,
+  oneLine,
   type DeclaredServicesView,
   type DeclaredServiceView,
 } from '@dltech/atlas-core'
@@ -170,7 +171,7 @@ export const isServiceAlive = (service: {
 
 export function serviceNameLabel(service: { command: string; description: string }): string {
   const named = service.description.trim()
-  return named === '' ? service.command.replace(/\s+/g, ' ').trim() : named
+  return named === '' ? oneLine(service.command) : named
 }
 
 export function serviceStateLabel(service: ServiceRowView): string {
