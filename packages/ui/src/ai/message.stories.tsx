@@ -154,6 +154,24 @@ export const FromAnotherSession: Story = {
   ),
 }
 
+const LONG_BRIEF_PARAGRAPHS = [
+  'You are a teammate of the main session "V2 Feature Parity". Write the spec first. Build nothing until the parent relays approval.',
+  'Jev is a code-quality review. After each file write, a classifier reviews the changed code against policies, and a finding over the threshold goes into the agent context, keyed by the tool call id.',
+  'About 2,099 reviews ran in 48 hours, and 87% of them ran in sub-agent threads. Only 2 examples were flagged in 7 days.',
+  'Find the funnel: writes, then reviewed, then skipped by reason, then scored, then over the threshold, then nudged. Show the score distribution of every completed review per policy.',
+  'Design telemetry for precision and recall, not only for flagged cases. Report back with the spec path.',
+]
+
+export const FromAnotherSessionLong: Story = {
+  render: () => (
+    <AgentMessage author="Atlas" caption="From V2 Feature Parity" timestamp="7:47 PM" copyText="…">
+      {LONG_BRIEF_PARAGRAPHS.map((paragraph) => (
+        <p key={paragraph}>{paragraph}</p>
+      ))}
+    </AgentMessage>
+  ),
+}
+
 export const Harness: Story = {
   render: () => <HarnessMessage>Turn complete · 2 files changed</HarnessMessage>,
 }

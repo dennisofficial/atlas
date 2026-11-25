@@ -30,7 +30,7 @@ const ALLOWED: AllowedOverride[] = [
     reason: 'spaces the children the pattern composes in the hover body',
   },
   {
-    file: 'message.tsx',
+    file: 'internal/inbound-bubble.tsx',
     component: 'BubbleContent',
     token: 'gap-1.5',
     reason: 'spaces the caption and body the inbound bubble composes',
