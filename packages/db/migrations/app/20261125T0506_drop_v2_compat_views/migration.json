@@ -1,0 +1,9 @@
+{
+  "from": "f42fc9afa2a82c3afeffc94cdc6ed81c181325cd2eaae4b4d0e2dc2bccf31ac1",
+  "to": "f42fc9afa2a82c3afeffc94cdc6ed81c181325cd2eaae4b4d0e2dc2bccf31ac1",
+  "providedInvariants": [
+    "drop-v2-compat-views"
+  ],
+  "createdAt": "2026-11-25T05:06:50.408Z",
+  "migrationHash": "b3b4fb62cb427c7a4de8099c65d6ac4ab08d029f382d938f80a43526457c9cfe"
+}

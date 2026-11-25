@@ -7,20 +7,21 @@ rely on it. The raw inventories behind this spec are in `docs/research/v1-retire
 
 ## What shipped
 
-| Slice  | PR    | What landed                                                                        |
-| ------ | ----- | ---------------------------------------------------------------------------------- |
-| spec   | #2865 | This document, its decisions and the inventories                                   |
-| 1      | #2881 | Web and Mac render v2 only; the v1 thread route and its 112 files are gone         |
-| 2      | #2877 | The Mac host drops the local-pods host and owns its token store                    |
-| 3      | #2883 | The API drops the v1 background lanes, the v1 trigger project and the env keys     |
-| 4a     | #2885 | The auth seam: the middleware keeps only the session principal                     |
-| 4b     | #2886 | Part of the v1 request lanes and their routers                                     |
-| 5      | #2887 | `apps/serve`, `packages/harness` and `packages/agent-v1` deleted                   |
-| 4c     | #2888 | The rest of the v1 request lanes; the API carries none                             |
-| 6      | #2891 | The sandbox image and the release drop the serve leftovers                         |
-| 7-prep | #2892 | Schema prep for the archive                                                        |
-| 7      | #2896 | The v1 tables move to the `v1_archive` schema                                      |
-| 8      | this  | The docs: the whole `v2` directory up to `docs/`, the v1 architecture docs retired |
+| Slice  | PR      | What landed                                                                        |
+| ------ | ------- | ---------------------------------------------------------------------------------- |
+| spec   | #2865   | This document, its decisions and the inventories                                   |
+| 1      | #2881   | Web and Mac render v2 only; the v1 thread route and its 112 files are gone         |
+| 2      | #2877   | The Mac host drops the local-pods host and owns its token store                    |
+| 3      | #2883   | The API drops the v1 background lanes, the v1 trigger project and the env keys     |
+| 4a     | #2885   | The auth seam: the middleware keeps only the session principal                     |
+| 4b     | #2886   | Part of the v1 request lanes and their routers                                     |
+| 5      | #2887   | `apps/serve`, `packages/harness` and `packages/agent-v1` deleted                   |
+| 4c     | #2888   | The rest of the v1 request lanes; the API carries none                             |
+| 6      | #2891   | The sandbox image and the release drop the serve leftovers                         |
+| 7-prep | #2892   | Schema prep for the archive                                                        |
+| 7      | #2896   | The v1 tables move to the `v1_archive` schema                                      |
+| 8      | this    | The docs: the whole `v2` directory up to `docs/`, the v1 architecture docs retired |
+| R3     | this PR | The 24 compatibility views in schema `v2` and the schema itself are dropped        |
 
 Slice 5 shipped before 4c, though §4 draws it after 4: harness and serve called 73 v1 procedures
 through the typed router, so the routers could not go until their callers did.
