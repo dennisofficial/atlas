@@ -6,10 +6,14 @@ import type { Root } from 'react-dom/client'
 import type { CrewRow } from '@dltech/atlas-plugin-crew/client'
 import { EAgentStatus } from '@dltech/atlas-core'
 
+import * as realSessionsApi from '../data/sessions-api'
+
 const calls: unknown[] = []
 
 mock.module('../data/sessions-api', () => ({
+  ...realSessionsApi,
   sessionsApi: {
+    ...realSessionsApi.sessionsApi,
     command: async (input: unknown) => {
       calls.push(input)
       return {}
