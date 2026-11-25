@@ -3,6 +3,8 @@ import { join } from 'node:path'
 
 import { expect } from 'bun:test'
 
+import { ECallStatus } from '@dltech/atlas-protocol'
+
 import { callIdOf, daemonCall } from './fault-support'
 import { describeHandoff, waitUntil, type HandoffContext } from '../../testing/handoff-suite'
 import type { HostProcess } from '../../testing/fault-rig'
@@ -71,6 +73,9 @@ describeHandoff({
 
   async start(ctx): Promise<HostProcess> {
     const gate = ctx.gate('gate')
+    ctx.path('db-started')
+    ctx.path('db-runs')
+    ctx.path('api-runs')
     mkdirSync(join(ctx.workspace, '.atlas'), { recursive: true })
     writeFileSync(
       join(ctx.workspace, '.atlas', 'services.yaml'),
@@ -151,7 +156,7 @@ describeHandoff({
       key: `${ctx.sessionId}.declared-${probeCount}`,
       op: { op: 'services.list' },
     })
-    if (listed.status !== 'ok' || listed.op !== 'services.list') {
+    if (listed.status !== ECallStatus.Ok || listed.op !== 'services.list') {
       throw new Error(`the pod refused to list its services: ${JSON.stringify(listed)}`)
     }
     const ids = listed.value.map((service) => service.serviceId)

@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'bun:test'
 
 import { ToolDispatcher, type DispatchArgs, type DispatchableCall } from '@dltech/atlas-agent'
-import type { CallId, EventDraft, RunId, ThreadId } from '@dltech/atlas-core'
+import {
+  toEventId,
+  type CallId,
+  type Event,
+  type EventDraft,
+  type RunId,
+  type ThreadId,
+} from '@dltech/atlas-core'
 import { ECallStatus, type CallOp } from '@dltech/atlas-protocol'
 import { createInMemoryDaemon, inMemoryDaemonToken } from '@dltech/atlas-protocol/testing'
 
@@ -22,6 +29,19 @@ const call: DispatchableCall = {
   runId: 'run-1' as RunId,
   threadId: 'thread-1' as ThreadId,
 }
+
+const dispatchEvent = (bootId?: string): Event => ({
+  id: toEventId('evt-1'),
+  seq: 1,
+  threadId: call.threadId,
+  runId: call.runId,
+  depth: 0,
+  at: '2026-01-01T00:00:00.000Z',
+  type: 'tool-dispatched',
+  callId: call.callId,
+  name: call.name,
+  ...(bootId === undefined ? {} : { bootId }),
+})
 
 const argsOf = (events: DispatchArgs['events']): DispatchArgs => ({
   call,
@@ -78,9 +98,7 @@ describe('a call an earlier holder dispatched without a boot identity', () => {
     const runsBefore = daemon.runCount()
 
     const tool = new PluginLikeTool(calls)
-    await new ScopedToolDispatcher(tool).dispatch(
-      argsOf([{ type: 'tool-dispatched', callId: call.callId, name: call.name }]),
-    )
+    await new ScopedToolDispatcher(tool).dispatch(argsOf([dispatchEvent()]))
 
     expect(tool.keys).toEqual([`${SCOPE}.0`, `${SCOPE}.1`])
     expect(daemon.runCount()).toBe(runsBefore)
@@ -93,9 +111,7 @@ describe('a call an earlier holder dispatched without a boot identity', () => {
     const { daemon, calls } = await daemonOf()
 
     const tool = new PluginLikeTool(calls)
-    await new ScopedToolDispatcher(tool).dispatch(
-      argsOf([{ type: 'tool-dispatched', callId: call.callId, name: call.name, bootId: 'boot-a' }]),
-    )
+    await new ScopedToolDispatcher(tool).dispatch(argsOf([dispatchEvent('boot-a')]))
 
     expect(tool.keys[0]).toMatch(/^run-1:call-1\.[0-9a-f]{12}\.0$/)
     expect(tool.keys[1]).toMatch(/^run-1:call-1\.[0-9a-f]{12}\.1$/)
