@@ -21,6 +21,8 @@ const messageOf = (failure: unknown): string =>
 
 const NO_IDS: ReadonlySet<number> = new Set()
 
+const NO_INTENTS: readonly WithdrawIntent[] = []
+
 export type TakeBackTarget = {
   targetInboxId: number
   text: string
@@ -56,7 +58,7 @@ export function usePendingTakeBack(args: {
     [sessionId],
   )
   const getIntents = useCallback(
-    () => (sessionId === null ? [] : withdrawStore.intentsOf(sessionId)),
+    () => (sessionId === null ? NO_INTENTS : withdrawStore.intentsOf(sessionId)),
     [sessionId],
   )
   const intents = useSyncExternalStore(subscribe, getIntents, getIntents)
