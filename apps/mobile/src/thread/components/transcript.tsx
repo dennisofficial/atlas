@@ -144,6 +144,7 @@ export const Transcript = ({
       ref={listRef}
       data={rows}
       keyExtractor={keyOf}
+      scrollsToTop={false}
       renderItem={renderRow}
       contentContainerStyle={styles.content}
       keyboardDismissMode="none"

@@ -21,7 +21,7 @@ const accountHeaderItemOf = (): NativeStackHeaderItem => ({
   hidesSharedBackground: false,
 })
 
-const newSessionHeaderItemOf = (): NativeStackHeaderItem => ({
+export const newSessionHeaderItemOf = (): NativeStackHeaderItem => ({
   type: 'button',
   label: 'New session',
   icon: { type: 'sfSymbol', name: 'plus' },
