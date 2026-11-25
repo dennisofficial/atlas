@@ -17,8 +17,8 @@ const SLEPT_THROUGH: ReadonlySet<EKilledBy | undefined> = new Set([
 
 const WOKE_UP = 'Start it again if you still need it.'
 
-const SANDBOX_STOPPED =
-  'The sandbox it ran in stopped, so it ended with the sandbox. Start it again if you still need it.'
+const POD_RESTARTED =
+  'The pod restarted, so this service ended with it. Start it again if you still need it.'
 
 const NOT_WORK =
   'This was infrastructure you work against, not work you were waiting on. Its full log is at the path above. Read it with the read tool if you need more than the tail.'
@@ -33,7 +33,7 @@ export function serviceEndedBlock(event: EventOfType<'service-ended'>): string {
 
   if (event.killedBy === EKilledBy.User) sections.push(USER_KILLED)
   if (SLEPT_THROUGH.has(event.killedBy)) sections.push(WOKE_UP)
-  if (event.cause === EShellEndCause.SandboxStopped) sections.push(SANDBOX_STOPPED)
+  if (event.cause === EShellEndCause.PodRestarted) sections.push(POD_RESTARTED)
   if (event.killedBy === EKilledBy.OutOfMemory) sections.push(outOfMemoryNote(event.memory))
 
   sections.push(event.tail.trimEnd() === '' ? PRINTED_NOTHING : event.tail.trimEnd())

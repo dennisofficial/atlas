@@ -39,7 +39,7 @@ describe('reconciling open services when a host takes the session over', () => {
           bootId: 'b1',
           status: EServiceStatus.Killed,
           killedBy: EKilledBy.Unrecorded,
-          cause: EShellEndCause.SandboxStopped,
+          cause: EShellEndCause.PodRestarted,
           tail: '',
         },
         key: `service-ended:${serviceId}`,
@@ -81,7 +81,7 @@ describe('reconciling open services when a host takes the session over', () => {
     expect(harness.notices.at(-1)?.event).toMatchObject({
       type: 'service-ended',
       serviceId,
-      cause: EShellEndCause.SandboxStopped,
+      cause: EShellEndCause.PodRestarted,
     })
   })
 })

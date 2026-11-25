@@ -178,7 +178,7 @@ describe('Agent37SandboxProvider.wake past its deadline', () => {
     try {
       await expect(
         provider.wake({ target: TARGET, signal: new AbortController().signal }),
-      ).rejects.toThrow('did not wake')
+      ).rejects.toThrow('did not finish waking')
       const reads = calls.get
       await pause(2_200)
 
@@ -194,7 +194,7 @@ describe('Agent37SandboxProvider.wake past its deadline', () => {
     try {
       await expect(
         provider.wake({ target: TARGET, signal: new AbortController().signal }),
-      ).rejects.toThrow('did not wake')
+      ).rejects.toThrow('did not finish waking')
       const probes = calls.probe
       await pause(1_200)
 

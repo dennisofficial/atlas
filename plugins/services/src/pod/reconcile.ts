@@ -35,7 +35,7 @@ export const recordQuietEnding = async (args: {
         ...(started.bootId === undefined ? {} : { bootId: started.bootId }),
         status: EServiceStatus.Killed,
         killedBy: EKilledBy.Unrecorded,
-        cause: EShellEndCause.SandboxStopped,
+        cause: EShellEndCause.PodRestarted,
         tail: '',
       },
       { key: `service-ended:${serviceId}` },

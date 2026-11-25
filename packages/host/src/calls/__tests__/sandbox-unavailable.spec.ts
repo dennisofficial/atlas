@@ -5,7 +5,7 @@ import { createInMemoryDaemon, inMemoryDaemonToken } from '@dltech/atlas-protoco
 
 import {
   RemoteCalls,
-  SANDBOX_OFFLINE_GUIDANCE,
+  SANDBOX_UNREACHABLE_GUIDANCE,
   SandboxUnavailableError,
   systemTimers,
   type DaemonConnector,
@@ -14,19 +14,20 @@ import {
 const SANDBOX = 'atlas-v2-unavailable-test'
 const SECRET = 'unavailable-test-secret'
 
-describe('the text a model reads when its sandbox is down', () => {
+describe('the text a model reads when its sandbox does not answer', () => {
   it('keeps the reason, says nothing ran, and tells the agent to stop and tell the operator', () => {
     const error = new SandboxUnavailableError(
       'sandbox for s-1 is unavailable: wake failed: no answer on port 3000',
     )
 
     expect(error.message).toBe(
-      `sandbox for s-1 is unavailable: wake failed: no answer on port 3000. Nothing ran. ${SANDBOX_OFFLINE_GUIDANCE}`,
+      `sandbox for s-1 is unavailable: wake failed: no answer on port 3000. Nothing ran. ${SANDBOX_UNREACHABLE_GUIDANCE}`,
     )
-    expect(error.message).toContain('The sandbox is offline')
-    expect(error.message).toContain('retrying tool calls will not help')
+    expect(error.message).toContain('more tool calls this turn will not help')
     expect(error.message).toContain('end your turn')
-    expect(error.message).not.toContain('wakes it again')
+    expect(error.message).toContain('next message wakes the sandbox again')
+    expect(error.message).not.toContain('offline')
+    expect(error.message).not.toContain(' down')
     expect(error.name).toBe('SandboxUnavailableError')
   })
 })

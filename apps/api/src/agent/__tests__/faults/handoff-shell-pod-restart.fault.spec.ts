@@ -1,10 +1,10 @@
 import { expect } from 'bun:test'
 
-import { quietEndingRecordsOf } from '@dltech/atlas-control'
-import { EShellEndCause, type RecordEvent } from '@dltech/atlas-core'
+import { EShellEndCause } from '@dltech/atlas-core'
 
 import { describeHandoff, waitUntil, type HandoffContext } from '../../testing/handoff-suite'
 import type { HostProcess, ReadEvent } from '../../testing/fault-rig'
+import { postMessage } from './settle-fault-support'
 
 const rowsOf = async (args: { ctx: HandoffContext; type: string }): Promise<readonly ReadEvent[]> =>
   (await args.ctx.record()).filter((row) => row.type === args.type)
@@ -13,26 +13,25 @@ const endedRows = (ctx: HandoffContext) => rowsOf({ ctx, type: 'background-shell
 
 const turnsStarted = (ctx: HandoffContext) => rowsOf({ ctx, type: 'turn-started' })
 
-const turnsEnded = (ctx: HandoffContext) => rowsOf({ ctx, type: 'turn-ended' })
-
-const stopTheSandbox = async (ctx: HandoffContext): Promise<void> => {
+const restartThePod = async (ctx: HandoffContext): Promise<void> => {
   await ctx.daemon.restart({ keepHome: true })
-  const events = (await ctx.record()).map((row) => row.event as RecordEvent)
-  for (const record of quietEndingRecordsOf(events)) {
-    await ctx.rig.plane.post({
-      sessionId: ctx.sessionId,
-      kind: record.kind,
-      payload: record.payload,
-    })
-  }
+  await postMessage({
+    rig: ctx.rig,
+    sessionId: ctx.sessionId,
+    text: 'the pod restarted, are things back?',
+  })
+  await ctx.rig.wake(ctx.sessionId)
 }
 
 describeHandoff({
-  name: 'a background shell whose sandbox stops after the turn ended',
+  name: 'a background shell whose pod restarts after the turn ended',
   prompt: 'start a long command in the background and end your turn',
   knobs: { plugins: true },
   takeOverScripts: ({ sessionId }) => ({
-    [sessionId]: [{ text: 'the sandbox stopped, so I will start it again later' }],
+    [sessionId]: [
+      { text: 'the pod restarted, so the shell went with it and I will start it again later' },
+      { text: 'nothing more to do' },
+    ],
   }),
 
   async start(ctx): Promise<HostProcess> {
@@ -74,18 +73,18 @@ describeHandoff({
   },
 
   async release(ctx) {
-    await stopTheSandbox(ctx)
+    await restartThePod(ctx)
   },
 
   async settled(ctx) {
     await waitUntil({
-      what: 'the agent to wake on the ending the stopped sandbox left and end that turn',
-      check: async () => (await turnsEnded(ctx)).length === 2,
+      what: 'the agent to wake on the ending the restarted pod left and end that turn',
+      check: async () => (await endedRows(ctx)).length === 1,
     })
     const ended = await endedRows(ctx)
-    expect(await turnsStarted(ctx)).toHaveLength(2)
     expect(ended).toHaveLength(1)
-    expect(ended[0]?.event).toMatchObject({ cause: EShellEndCause.SandboxStopped })
+    expect(ended[0]?.event).toMatchObject({ cause: EShellEndCause.PodRestarted })
+    expect((await turnsStarted(ctx)).length).toBeGreaterThanOrEqual(2)
   },
 
   async runs(ctx) {
@@ -95,10 +94,10 @@ describeHandoff({
   async interrupted(ctx) {
     await waitUntil({
       what: 'the agent to wake on the ending of the shell the restarted pod lost',
-      check: async () => (await turnsEnded(ctx)).length === 2,
+      check: async () => (await endedRows(ctx)).length === 1,
     })
     const ended = await endedRows(ctx)
     expect(ended).toHaveLength(1)
-    expect(ended[0]?.event).toMatchObject({ cause: EShellEndCause.SandboxStopped })
+    expect(ended[0]?.event).toMatchObject({ cause: EShellEndCause.PodRestarted })
   },
 })

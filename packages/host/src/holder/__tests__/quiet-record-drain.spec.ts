@@ -29,7 +29,7 @@ const quietEnding = JSON.stringify({
     command: 'bun test',
     status: EShellStatus.Killed,
     killedBy: EKilledBy.Unrecorded,
-    cause: EShellEndCause.SandboxStopped,
+    cause: EShellEndCause.PodRestarted,
     output: '',
     droppedCharacters: 0,
     remainingCharacters: 0,

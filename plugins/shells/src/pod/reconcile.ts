@@ -16,7 +16,7 @@ export const reconcileShells = async (args: {
   if (open.length === 0) return
   const listed = await listShells({ ctx })
   if (!listed.ok) {
-    ctx.log(`shells: takeover reconcile skipped, the sandbox did not answer: ${listed.reason}`)
+    ctx.log(`shells: reconcile skipped, the sandbox did not answer: ${listed.reason}`)
     return
   }
   const running = new Map(listed.value.map((info) => [info.shellId, info]))

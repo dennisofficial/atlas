@@ -165,7 +165,7 @@ describe('VercelSandboxProvider.wake deadline', () => {
         })
         .catch((error: unknown) => error)
       expect(failure).toBeInstanceOf(SandboxUnavailableError)
-      expect((failure as Error).message).toContain('did not wake')
+      expect((failure as Error).message).toContain('did not finish waking')
       expect(Date.now() - started).toBeLessThan(2000)
       expect(seen[0]?.aborted).toBe(true)
     } finally {

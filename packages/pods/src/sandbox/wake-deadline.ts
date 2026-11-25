@@ -9,7 +9,7 @@ export const abortedWake = (args: { signal: AbortSignal; caller: AbortSignal }):
         new SandboxUnavailableError(
           args.caller.aborted
             ? 'waking the sandbox was cancelled'
-            : 'the sandbox did not wake within 5 minutes',
+            : 'the sandbox did not finish waking within 5 minutes',
         ),
       )
     if (args.signal.aborted) fail()

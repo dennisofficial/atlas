@@ -49,7 +49,7 @@ describe('reconciling open shells when a host takes the session over', () => {
       key: `background-shell-ended:${shellId}`,
     })
     expect(harness.notices.at(-1)?.event).not.toMatchObject({
-      cause: EShellEndCause.SandboxStopped,
+      cause: EShellEndCause.PodRestarted,
     })
   })
 
@@ -66,7 +66,7 @@ describe('reconciling open shells when a host takes the session over', () => {
           command: 'sleep 30',
           status: EShellStatus.Killed,
           killedBy: EKilledBy.Unrecorded,
-          cause: EShellEndCause.SandboxStopped,
+          cause: EShellEndCause.PodRestarted,
           output: '',
           droppedCharacters: 0,
           remainingCharacters: 0,
@@ -123,7 +123,7 @@ describe('reconciling open shells when a host takes the session over', () => {
     expect(harness.notices.at(-1)?.event).toMatchObject({
       type: 'background-shell-ended',
       shellId,
-      cause: EShellEndCause.SandboxStopped,
+      cause: EShellEndCause.PodRestarted,
     })
   })
 })

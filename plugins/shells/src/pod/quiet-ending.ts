@@ -23,7 +23,7 @@ export const recordQuietShellEnding = async (args: {
         ...(shell.bootId === undefined ? {} : { bootId: shell.bootId }),
         status: EShellStatus.Killed,
         killedBy: EKilledBy.Unrecorded,
-        cause: EShellEndCause.SandboxStopped,
+        cause: EShellEndCause.PodRestarted,
         output: '',
         droppedCharacters: 0,
         remainingCharacters: 0,
