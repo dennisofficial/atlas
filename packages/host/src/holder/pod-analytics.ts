@@ -28,14 +28,14 @@ export const analyticsOf = (args: {
   analytics: PodAnalytics | undefined
   sessionId: string
   threadId: ThreadId
-  threadKind: EAnalyticsThreadKind
+  threadKind?: EAnalyticsThreadKind | undefined
 }): PodAnalytics => {
   const analytics = args.analytics ?? EMPTY_ANALYTICS
   const raw = { session_id: args.sessionId, thread_id: args.threadId }
   const hashed = {
     session_hash: hashedLinkOf({ id: args.sessionId }),
     thread_hash: hashedLinkOf({ id: args.threadId }),
-    thread_kind: args.threadKind,
+    ...(args.threadKind === undefined ? {} : { thread_kind: args.threadKind }),
   }
   return {
     capture: ({ event, properties, links }) =>
