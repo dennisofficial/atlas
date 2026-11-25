@@ -1,13 +1,12 @@
 import { join, resolve } from 'node:path'
 
-import { app, BrowserWindow, clipboard, ipcMain, Menu, WebContentsView, shell } from 'electron'
-import { Notification, pushNotifications } from 'electron'
+import { app, BrowserWindow, ipcMain, WebContentsView } from 'electron'
+import { Notification, pushNotifications, session as electronSession } from 'electron'
 // electron-updater ships CommonJS and builds `autoUpdater` behind a getter, so it is read here
 // rather than destructured by the ESM loader.
 import electronUpdater from 'electron-updater'
 
 import { createApnsBridge, sessionIdOfLaunchInfo, userInfoOfLaunchInfo } from './apns.js'
-import { contextMenuTemplate } from './context-menu.js'
 import {
   createDeepLinkOpener,
   deepLinkOf,
@@ -17,14 +16,10 @@ import {
 } from './deep-links.js'
 import { errorPage, startDesktopServer } from './desktop-server.js'
 import { hostEnvironment, resolveBun, resolveHostScript, webRootAt } from './host-paths.js'
-import {
-  ENavigation,
-  browserUrlOf,
-  paneNavigationOf,
-  sameOrigin,
-  windowNavigationOf,
-} from './links.js'
-import { startHost } from './host-process.js'
+import { ENavigation, paneNavigationOf, sameOrigin, windowNavigationOf } from './links.js'
+import { attachContextMenu, denyWindow, sendToBrowser } from './window-chrome.js'
+import { createHostLauncher } from './host-launch.js'
+import { createHostTrust } from './host-trust.js'
 import { createClickWatcher, createSessionOpener, revealWindow } from './notification-clicks.js'
 import { createPaneRegistry } from './panes.js'
 import { createBinaryUpdater, createDesktopUpdates } from './updates.js'
@@ -48,6 +43,8 @@ const { autoUpdater } = electronUpdater
 
 const desktopSecret = process.env.ATLAS_SECRET ?? crypto.randomUUID()
 
+const hostTrust = createHostTrust({ sessionOf: () => electronSession.defaultSession })
+
 const apns = createApnsBridge({
   secret: desktopSecret,
   notifications: Notification,
@@ -57,36 +54,6 @@ const apns = createApnsBridge({
 ipcMain.on(FULLSCREEN_QUERY, (event) => {
   event.returnValue = BrowserWindow.fromWebContents(event.sender)?.isFullScreen() ?? false
 })
-
-function openInBrowser(url) {
-  const external = browserUrlOf(url)
-  if (external !== null) void shell.openExternal(external)
-}
-
-function sendToBrowser({ event, url }) {
-  event.preventDefault()
-  if (url !== null) void shell.openExternal(url)
-}
-
-function denyWindow(url) {
-  openInBrowser(url)
-  return { action: 'deny' }
-}
-
-function attachContextMenu({ win, contents }) {
-  contents.on('context-menu', (_event, params) => {
-    const template = contextMenuTemplate({
-      params,
-      openLink: openInBrowser,
-      copyText: (text) => clipboard.writeText(text),
-      copyImage: ({ x, y }) => contents.copyImageAt(x, y),
-      replaceMisspelling: (word) => contents.replaceMisspelling(word),
-      learnSpelling: (word) => contents.session.addWordToSpellCheckerDictionary(word),
-    })
-    if (template.length === 0) return
-    Menu.buildFromTemplate(template).popup({ window: win })
-  })
-}
 
 async function createWindow({ sessionId, path } = {}) {
   const win = new BrowserWindow({
@@ -101,6 +68,8 @@ async function createWindow({ sessionId, path } = {}) {
       contextIsolation: true,
     },
   })
+
+  hostTrust.install()
 
   win.on('enter-full-screen', () => win.webContents.send(FULLSCREEN_STATE, true))
   win.on('leave-full-screen', () => win.webContents.send(FULLSCREEN_STATE, false))
@@ -166,21 +135,21 @@ async function createWindow({ sessionId, path } = {}) {
   let host
   let session
 
-  const startSession = (webRoot) => {
-    const started = startHost({
-      script,
-      bun,
-      environment: hostEnvironment({
+  const startSession = createHostLauncher({
+    trust: (fingerprint) => hostTrust.trust(fingerprint),
+    apns,
+    script,
+    bun,
+    environmentOf: (webRoot) =>
+      hostEnvironment({
         base: { ...process.env, ATLAS_SECRET: desktopSecret },
         paneOrigin: session.origin,
         updateOrigin: session.origin,
         webRoot,
         appVersion: app.getVersion(),
       }),
-    })
-    void started.url.then((url) => apns.attach(url)).catch(() => undefined)
-    return started
-  }
+    log: (error) => console.error('[desktop-host] the host did not start', error),
+  })
 
   // A new interface is installed in the background and waits for the person to take it: the web app
   // asks for this route and reloads itself when the window is in the background, so no update ever
@@ -188,7 +157,7 @@ async function createWindow({ sessionId, path } = {}) {
   const swapTo = async ({ hash }) => {
     const next = startSession(payloadWebRoot({ home, hash }))
     try {
-      const url = await next.url
+      const { url } = await next.page
       await win.loadURL(url)
       host?.child.kill('SIGTERM')
       host = next
@@ -198,7 +167,7 @@ async function createWindow({ sessionId, path } = {}) {
     } catch (error) {
       next.child.kill('SIGTERM')
       console.error('[web-payload] the new interface did not start; keeping this one', error)
-      void host?.url.then((url) => apns.attach(url)).catch(() => undefined)
+      void host?.page.then((page) => apns.attach(page.httpOrigin)).catch(() => undefined)
       await payloads.updater.fail({ hash })
       return false
     }
@@ -223,13 +192,13 @@ async function createWindow({ sessionId, path } = {}) {
     const installedHash = await payloads.updater.installedRoot()
     try {
       host = startSession(webRootFor({ home, bundledRoot, installedHash }))
-      await win.loadURL(landingUrlOf({ pageUrl: await host.url, sessionId, path }))
+      await win.loadURL(landingUrlOf({ pageUrl: (await host.page).url, sessionId, path }))
     } catch (error) {
       if (installedHash === undefined) throw error
       console.error('[web-payload] the installed interface failed; using the bundled one', error)
       await payloads.updater.fail({ hash: installedHash })
       host = startSession(bundledRoot)
-      await win.loadURL(landingUrlOf({ pageUrl: await host.url, sessionId, path }))
+      await win.loadURL(landingUrlOf({ pageUrl: (await host.page).url, sessionId, path }))
     }
     payloads.start()
     binary.start()

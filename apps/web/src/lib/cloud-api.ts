@@ -1,6 +1,6 @@
 import type { z } from 'zod'
 
-import { UNREACHABLE } from './auth-api'
+import { CLOUD_REQUEST_DEADLINE_MS, UNREACHABLE } from './auth-api'
 import { apiUrl } from './api-base-url'
 
 export class CloudApiError extends Error {
@@ -49,6 +49,10 @@ async function send(args: CloudRequest): Promise<Response> {
       cache: 'no-store',
       headers: args.body === undefined ? undefined : { 'content-type': 'application/json' },
       body: args.body === undefined ? undefined : JSON.stringify(args.body),
+      signal:
+        args.method === EHttpMethod.Get
+          ? AbortSignal.timeout(CLOUD_REQUEST_DEADLINE_MS)
+          : undefined,
     })
   } catch {
     throw new CloudApiError({ message: UNREACHABLE, status: 0 })

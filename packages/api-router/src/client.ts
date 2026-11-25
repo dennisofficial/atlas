@@ -22,6 +22,20 @@ export type ApiClientOptions = {
   credentials?: ApiCredentials | undefined
   fetchFn?: typeof fetch | undefined
   EventSource?: SubscriptionEventSource | undefined
+  queryDeadlineMs?: number | undefined
+}
+
+export const QUERY_DEADLINE_MS = 10_000
+
+const deadlineSignalOf = (args: {
+  method: string | undefined
+  signal: AbortSignal | null | undefined
+  deadlineMs: number
+}): AbortSignal | null => {
+  const callerSignal = args.signal ?? null
+  if (args.method !== 'GET') return callerSignal
+  const deadline = AbortSignal.timeout(args.deadlineMs)
+  return callerSignal === null ? deadline : AbortSignal.any([callerSignal, deadline])
 }
 
 const trpcUrlOf = (baseUrl: string): string => `${baseUrl.replace(/\/+$/, '')}/v1/trpc`
@@ -59,6 +73,7 @@ export const createApiClient = (options: ApiClientOptions) => {
   const fetchFn = (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) =>
     (options.fetchFn ?? globalThis.fetch)(input, init)
   const credentials = credentialsOf(options)
+  const queryDeadlineMs = options.queryDeadlineMs ?? QUERY_DEADLINE_MS
   const subscriptionLink =
     options.EventSource === undefined
       ? httpSubscriptionLink({
@@ -92,7 +107,11 @@ export const createApiClient = (options: ApiClientOptions) => {
               encodeBody({
                 ...init,
                 credentials,
-                signal: init?.signal ?? null,
+                signal: deadlineSignalOf({
+                  method: init?.method,
+                  signal: init?.signal,
+                  deadlineMs: queryDeadlineMs,
+                }),
               }),
             )
             return { ok: response.ok, json: () => response.json() }
