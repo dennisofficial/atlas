@@ -46,7 +46,7 @@ import { SshSigningKeyModule } from './cloud/ssh-signing-key/ssh-signing-key.mod
 import { SkillCatalogueModule } from './cloud/skill-catalogue/skill-catalogue.module'
 import { SkillsModule } from './cloud/skills/skills.module'
 import { UserFilesModule } from './cloud/user-files/user-files.module'
-import { ControlPlaneModule } from './platform/control/control-plane.module'
+import { ControlPlaneModule } from './platform/sessions/control-plane.module'
 import { SessionTitlerModule } from './cloud/thread-titling/session-titler.module'
 
 @Module({

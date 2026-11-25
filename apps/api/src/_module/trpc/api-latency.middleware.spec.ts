@@ -4,7 +4,7 @@ import { ECallFailure, ECallStatus } from '@dltech/atlas-protocol'
 import type { MiddlewareOptions } from 'nestjs-trpc'
 
 import type { AuthenticatedRequest } from '../../api/api-latency.interceptor'
-import { PodNotReadyError, podFailureError } from '../../api/platform/control/pod-errors'
+import { PodNotReadyError, podFailureError } from '../../api/platform/sessions/pod-errors'
 import { ApiLatencyMiddleware } from './api-latency.middleware'
 
 type Captured = { userId: string; event: string; properties: Record<string, unknown> }

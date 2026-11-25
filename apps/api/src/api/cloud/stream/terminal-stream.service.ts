@@ -7,8 +7,8 @@ import {
   type TerminalStreamFrame,
 } from '@dltech/atlas-protocol'
 import { POD_OPS, TERMINAL_DEMAND, type PodOps, type TerminalDemand } from '../../../agent'
-import { PodNotReadyError } from '../../platform/control/pod-errors'
-import { TerminalService } from '../../platform/control/terminal.service'
+import { PodNotReadyError } from '../../platform/sessions/pod-errors'
+import { TerminalService } from '../../platform/sessions/terminal.service'
 import { DrainStateService } from '../../platform/health/drain-state.service'
 import { HOST_ABSENT } from './session-stream.router'
 import { TerminalStreamQueue, type TerminalStreamCloseReason } from './terminal-stream-queue'

@@ -11,7 +11,7 @@ import {
   type TerminalStreamFrame,
 } from '@dltech/atlas-protocol'
 import type { PodOps, TerminalDemand } from '../../../agent'
-import type { TerminalService } from '../../platform/control/terminal.service'
+import type { TerminalService } from '../../platform/sessions/terminal.service'
 import type { DrainStateService } from '../../platform/health/drain-state.service'
 import { TerminalStreamQueue } from './terminal-stream-queue'
 import { TerminalStreamService } from './terminal-stream.service'
