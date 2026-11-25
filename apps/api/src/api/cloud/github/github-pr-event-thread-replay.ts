@@ -3,7 +3,6 @@ import { PARK_WAKE_WINDOW_MS } from '@dltech/atlas-github'
 import { wantsPrEvent } from '@dltech/atlas-github'
 import { eventDtoOf, REPLAY_LEASE_MS } from '@dltech/atlas-github'
 import { claimDeliveries } from '@dltech/atlas-github'
-import { teammateThreadIds } from '../../platform/sessions/thread-subscriptions'
 import type { GithubPrEventDto } from '@dltech/atlas-github'
 
 type ThreadReplay = { threadId: string; events: GithubPrEventDto[] }
@@ -30,8 +29,7 @@ export async function replayThreadEventsGrouped(args: {
   userId: string
   threadId: string
 }): Promise<ThreadReplay[]> {
-  const teammates = await teammateThreadIds({ reader: db, threadIds: [args.threadId] })
-  const threadIds = [args.threadId, ...(teammates.get(args.threadId) ?? [])]
+  const threadIds = [args.threadId]
   const subscriptions = await db.orm.public.GithubSubscription.where({ userId: args.userId })
     .where((subscription) => subscription.threadId.in(threadIds))
     .all()

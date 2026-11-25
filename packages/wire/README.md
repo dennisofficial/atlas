@@ -1,8 +1,8 @@
 # @dltech/atlas-wire
 
 The contract that crosses a seam. It holds the websocket channel frames, the HTTP request and
-response payloads, the constants that both sides must agree on, and the sandbox provisioning
-helpers. The serve process in a pod, `apps/api` and every client read it.
+response payloads, the constants that both sides must agree on, and the sandbox SDK wrapper.
+`apps/api` and every client read it.
 
 ## Owns
 
@@ -13,8 +13,7 @@ helpers. The serve process in a pod, `apps/api` and every client read it.
 - Capability negotiation: `ECapability`, `capabilitySetOf`, `supports` and the downgrade helpers in
   `agent-compat`.
 - The HTTP request and response schemas that the API and its clients share.
-- The sandbox provisioning helpers: the Vercel SDK wrapper, the serve install, launch and upload
-  helpers, and the retry policies.
+- The sandbox SDK wrapper and its retry policies.
 - The pod paths and environment names in `serve-env`.
 
 ## Does not own
@@ -67,8 +66,6 @@ helpers. The serve process in a pod, `apps/api` and every client read it.
 - `liveSdk`: the Vercel sandbox operations. `stateOf(status)`, `sandboxSessionIdOf(sandbox)`,
   `routedUrlOf(sandbox)`, `assertLiveSession`.
 - `SANDBOX_REGION`, `SANDBOX_SERVE_PORT`, `WORKSPACE_PATH`, `SANDBOX_TIMEOUT_MS`.
-- `createServeLauncher()`, `probeServeAlive(sandbox)`, `parseServeObservation(stdout)`.
-- `installServe`, `serveInstallScript`, `uploadDevServe`, `isDevServeVersion(version)`.
 - `settleRetry`, `imageOptimizeRetry`, `retrySleep(policy)`: the retry policies.
 - `EBootStep`, `BOOT_STEP_ORDER`, `BOOT_STEP_EVENT_TYPE`: the boot progress the pod reports.
 

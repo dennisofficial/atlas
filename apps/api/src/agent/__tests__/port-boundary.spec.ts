@@ -12,54 +12,7 @@ const VERCEL_SDK = /['"]@vercel\/sandbox(?:\/[^'"]*)?['"]/
 const VERCEL_CLIENT = /\bVercelSandboxClient\b|vercel-sandbox\.client/
 const POD_NAME_LITERAL = /['"`]atlas-v2-/
 
-/**
- * v1 code that still reaches the Vercel SDK or `VercelSandboxClient` directly. It is deleted with
- * v1 when v2 ships, so it is listed here rather than migrated; an entry whose file stops offending
- * fails the suite. `vercel-orphan-sandbox-store.ts` is the hourly sweep's v1 store — v2 pods are
- * listed and deleted through the port instead (`api/cloud/sandbox-provisioning/v2-pod-sweep.ts`).
- */
-const GRANDFATHERED_V1 = new Set([
-  'src/api/cloud/github/github-sandbox-wake-boot.spec.ts',
-  'src/api/cloud/github/github-sandbox-wake-boot.ts',
-  'src/api/cloud/sandbox-provisioning/archived-sandbox-sweep.ts',
-  'src/api/cloud/sandbox-provisioning/pod-clone-prefetch.ts',
-  'src/api/cloud/sandbox-provisioning/pod-provision-run.rollback.spec.ts',
-  'src/api/cloud/sandbox-provisioning/pod-resize-restart.ts',
-  'src/api/cloud/sandbox-provisioning/sandbox-provisioning-bootstrap.ts',
-  'src/api/cloud/sandbox-provisioning/sandbox-provisioning-rows.ts',
-  'src/api/cloud/sandbox-provisioning/sandbox-provisioning.fixture.ts',
-  'src/api/cloud/sandbox-provisioning/thread-pod.destroy.spec.ts',
-  'src/api/cloud/sandbox-provisioning/thread-pod.fixture.ts',
-  'src/api/cloud/sandbox-provisioning/thread-pod.resize.spec.ts',
-  'src/api/cloud/sandbox-provisioning/thread-pod.resources.spec.ts',
-  'src/api/cloud/sandbox-provisioning/thread-pod.router.spec.ts',
-  'src/api/cloud/sandbox-provisioning/thread-pod.service.ts',
-  'src/api/cloud/sandbox-provisioning/thread-pod.status-cost.spec.ts',
-  'src/api/cloud/sandbox-provisioning/vercel-orphan-sandbox-store.ts',
-  'src/api/platform/sandboxes/pod-resources-cache.spec.ts',
-  'src/api/platform/sandboxes/pod-resources-cache.ts',
-  'src/api/platform/sandboxes/sandbox-claim.ts',
-  'src/api/platform/sandboxes/sandbox-endpoint.ts',
-  'src/api/platform/sandboxes/sandbox-register.ts',
-  'src/api/platform/sandboxes/sandbox-routers.fixture.ts',
-  'src/api/platform/sandboxes/sandbox-self.router.ts',
-  'src/api/platform/sandboxes/sandboxes.fixture.ts',
-  'src/api/platform/sandboxes/sandboxes.module.ts',
-  'src/api/platform/sandboxes/sandboxes.register-collision.spec.ts',
-  'src/api/platform/sandboxes/sandboxes.service.ts',
-  'src/api/platform/sandboxes/sandboxes.status.spec.ts',
-  'src/api/platform/sandboxes/vercel-sandbox.client.delete.spec.ts',
-  'src/api/platform/sandboxes/vercel-sandbox.client.renew.spec.ts',
-  'src/api/platform/sandboxes/vercel-sandbox.client.resources.spec.ts',
-  'src/api/platform/sandboxes/vercel-sandbox.client.spec.ts',
-  'src/api/platform/sandboxes/vercel-sandbox.client.ts',
-  'src/api/platform/sandboxes/vercel-sandbox.errors.ts',
-  'src/api/platform/sessions/teammate-archive-stop.fixture.ts',
-  'src/api/platform/sessions/teammate-archive-stop.spec.ts',
-  'src/api/platform/sessions/teammate-archive-stop.ts',
-  'src/api/platform/sessions/thread-archive.router.fixture.ts',
-  'src/api/platform/sessions/thread-archive.service.spec.ts',
-])
+const GRANDFATHERED_V1 = new Set<string>([])
 
 interface Finding {
   absolute: string

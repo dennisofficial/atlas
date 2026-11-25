@@ -99,59 +99,6 @@ describe('projects router', () => {
     expect(listed.headers['cache-control']).toBe('no-store')
   })
 
-  it('reads its owner’s project workspace with the brokered token, uncached', async () => {
-    const id = await createProjectAs({ app, token: 'session-a', body: BODY })
-
-    const response = await trpcQuery({
-      app,
-      path: 'projectWorkspace.get',
-      token: 'session-a',
-      input: { projectId: id },
-    }).expect(200)
-
-    expect(response.headers['cache-control']).toBe('no-store')
-    expect(dataOf(response.body)).toEqual({
-      projectId: id,
-      repo: BODY.repo,
-      baseBranch: BODY.baseBranch,
-      additionalRepos: BODY.additionalRepos,
-      githubToken: 'gho_user-a',
-      setupScript: '',
-    })
-  })
-
-  it('answers githubToken null when the owner has no github connection', async () => {
-    const id = await createProjectAs({ app, token: 'session-b', body: BODY })
-
-    const response = await trpcQuery({
-      app,
-      path: 'projectWorkspace.get',
-      token: 'session-b',
-      input: { projectId: id },
-    }).expect(200)
-
-    expect(dataOf(response.body)).toMatchObject({ githubToken: null })
-  })
-
-  it('answers 404 reading another user’s project', async () => {
-    const id = await createProjectAs({ app, token: 'session-a', body: BODY })
-
-    await trpcQuery({
-      app,
-      path: 'projectWorkspace.get',
-      token: 'session-b',
-      input: { projectId: id },
-    }).expect(404)
-  })
-
-  it('answers 401 to a missing token on the workspace route', async () => {
-    await trpcQuery({
-      app,
-      path: 'projectWorkspace.get',
-      input: { projectId: 'p' },
-    }).expect(401)
-  })
-
   it('rejects a malformed repo, a branch starting with a dash and more than ten extras with 400', async () => {
     const extras = Array.from({ length: 11 }, (_, index) => ({ repo: `octocat/repo-${index}` }))
 

@@ -2,11 +2,9 @@ import { Module } from '@nestjs/common'
 import { CloudflareTunnelClient } from '@dltech/atlas-previews'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { PreviewTeardownService } from './preview-teardown.service'
-import { PreviewTunnelService } from './preview-tunnel.service'
 
 @Module({
   providers: [
-    PreviewTunnelService,
     PreviewTeardownService,
     {
       provide: CloudflareTunnelClient,
@@ -19,6 +17,6 @@ import { PreviewTunnelService } from './preview-tunnel.service'
       inject: [EnvService],
     },
   ],
-  exports: [PreviewTunnelService, PreviewTeardownService],
+  exports: [PreviewTeardownService],
 })
 export class PreviewsModule {}

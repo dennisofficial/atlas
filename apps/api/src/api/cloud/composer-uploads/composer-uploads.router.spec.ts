@@ -1,8 +1,8 @@
+import { db } from '@dltech/atlas-db'
 import type { INestApplication } from '@nestjs/common'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { composerUploadPresignReplySchema } from '@dltech/atlas-wire'
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
-import { seedEventRow, seedThreadRow } from '../../../../test/session-seed'
 import { buildSessionTrpcApp, dataOf, trpcMutation } from '../session-trpc-test-app'
 import { seedSessionUsers } from '../../../test/web-settings.fake-db'
 import { ComposerUploadBlobStore } from './composer-upload-blob-store'
@@ -19,8 +19,6 @@ describe('ComposerUploadsRouter', () => {
 
   beforeEach(async () => {
     await seedSessionUsers()
-    await seedThreadRow({ id: 'thread-a', userId: 'user-a' })
-    await seedThreadRow({ id: 'thread-b', userId: 'user-b' })
     blobs.reset()
     app = await buildSessionTrpcApp({
       providers: [
@@ -65,61 +63,23 @@ describe('ComposerUploadsRouter', () => {
   describe('discard', () => {
     const PATHNAME = 'composer-uploads/user-a/x/f.txt'
 
-    const seedSaid = async (args: {
-      threadId: string
-      userId: string
-      pathname: string
-      type?: string
-    }) =>
-      seedEventRow({
-        threadId: args.threadId,
-        seq: 1,
+    const seedDraft = async (args: { userId: string; pathname: string }) =>
+      db.orm.v2.V2ComposerDraft.create({
         userId: args.userId,
-        ...(args.type === undefined ? {} : { type: args.type }),
-        body: JSON.stringify({
-          type: 'user-said',
-          text: 'see the file',
-          attachments: [
-            {
-              id: 'c1f0a9a0-1111-4111-8111-111111111111',
-              name: 'f.txt',
-              mediaType: 'text/plain',
-              size: 3,
-              content: { store: 'upload', uploadId: 'x', pathname: args.pathname },
-            },
-          ],
-        }),
+        scopeKey: 'new',
+        text: 'see the file',
+        attachments: JSON.stringify([{ pathname: args.pathname }]),
+        updatedAt: new Date(),
       })
 
-    it('keeps a blob a sent message references', async () => {
-      await seedSaid({ threadId: 'thread-a', userId: 'user-a', pathname: PATHNAME })
+    it('keeps a blob a composer draft references', async () => {
+      await seedDraft({ userId: 'user-a', pathname: PATHNAME })
       await call('discard', 'session-a', { pathname: PATHNAME }).expect(200)
       expect(blobs.deleted).toEqual([])
     })
 
-    it('keeps a blob a sent message of another thread references', async () => {
-      await seedEventRow({
-        threadId: 'thread-a',
-        seq: 2,
-        userId: 'user-a',
-        body: JSON.stringify({
-          type: 'user-said',
-          text: 'look',
-          uploads: [{ pathname: PATHNAME }],
-        }),
-      })
-      await call('discard', 'session-a', { pathname: PATHNAME }).expect(200)
-      expect(blobs.deleted).toEqual([])
-    })
-
-    it('deletes a blob only a message that was never sent mentions', async () => {
-      await seedSaid({
-        threadId: 'thread-a',
-        userId: 'user-a',
-        pathname: PATHNAME,
-        type: 'assistant-said',
-      })
-      await seedSaid({ threadId: 'thread-b', userId: 'user-b', pathname: PATHNAME })
+    it('deletes a blob only another user draft mentions', async () => {
+      await seedDraft({ userId: 'user-b', pathname: PATHNAME })
       await call('discard', 'session-a', { pathname: PATHNAME }).expect(200)
       expect(blobs.deleted).toEqual([PATHNAME])
     })
@@ -161,13 +121,6 @@ describe('ComposerUploadsRouter', () => {
         pathname,
       }).expect(200)
       expect(dataOf(res.body)).toEqual({ found: false })
-    })
-
-    it('refuses a thread the user does not own', async () => {
-      await call('download', 'session-a', {
-        threadId: 'thread-b',
-        pathname,
-      }).expect(404)
     })
 
     it('refuses another user pathname on an owned thread', async () => {

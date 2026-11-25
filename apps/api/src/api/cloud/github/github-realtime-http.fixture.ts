@@ -3,9 +3,7 @@ import { spyOn } from 'bun:test'
 import type { RedisService } from '../../../_lib/redis/redis.service'
 import type { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { DrainStateService } from '../../platform/health/drain-state.service'
-import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
 import { inertMergeabilityRefresh, inertReconcile } from '@dltech/atlas-github/testing'
-import type { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import type { GithubAppInstallationsService } from '@dltech/atlas-github'
 import { GithubConfig } from '@dltech/atlas-github'
 import { GithubDeliveryService } from '@dltech/atlas-github'
@@ -165,7 +163,6 @@ export function realGithubGraph(args: {
     installations,
     coordinator,
   )
-  const signals: ThreadSignalsService = inertSignals()
   const mailbox = new GithubPrEventMailboxService(
     fanout,
     new GithubPrOutboxDispatcher({
@@ -203,6 +200,5 @@ export function realGithubGraph(args: {
     mailbox,
     delivery,
     poll,
-    signals,
   }
 }

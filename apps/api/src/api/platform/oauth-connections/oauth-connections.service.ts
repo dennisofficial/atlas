@@ -164,17 +164,6 @@ export class OauthConnectionsService {
     throw new ServiceUnavailableException('the connection changed during refresh; retry shortly')
   }
 
-  async assignSandbox(args: {
-    userId: string
-    connectionId: string
-    threadId: string
-  }): Promise<void> {
-    await this.authorizedRow(args)
-    const sandboxId = await this.store.ownedSandboxId(args)
-    if (sandboxId === null) throw new NotFoundException('sandbox not found')
-    await this.store.assign({ connectionId: args.connectionId, sandboxId })
-  }
-
   async remove(args: { userId: string; connectionId: string }): Promise<void> {
     const removed = await this.store.remove({ id: args.connectionId, userId: args.userId })
     if (!removed) throw new NotFoundException('connection not found')

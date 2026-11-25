@@ -50,8 +50,7 @@ describe('OauthConnectionsService reauthorize', () => {
   })
 
   it('replaces the grant on the same connection so an assigned sandbox gets the new token', async () => {
-    store.sandboxes.set('thread-1', { id: 'sbx-1', userId: OWNER })
-    await service.assignSandbox({ userId: OWNER, connectionId: CONNECTION, threadId: 'thread-1' })
+    await store.assign({ connectionId: CONNECTION, sandboxId: 'sbx-1' })
 
     const dto = await reauthorize({ to: 'auth-2', from: CONNECTION })
 

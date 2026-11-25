@@ -3,14 +3,11 @@ import { GithubRepoReads } from '@dltech/atlas-github'
 import { localCoordinator } from '@dltech/atlas-github/testing'
 import { GithubRequestCoordinator } from '@dltech/atlas-github'
 import { GithubService } from '@dltech/atlas-github'
-import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
-import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import { buildSessionTrpcApp, dataOf, trpcMutation } from '../session-trpc-test-app'
 import { ProjectFileMountsService } from './project-file-mounts.service'
 import { ProjectResourcesRouter } from './project-resources.router'
 import { ProjectResourcesService } from './project-resources.service'
 import { ProjectSettingsService } from './project-settings.service'
-import { ProjectWorkspaceRouter } from './project-workspace.router'
 import { ProjectsRouter } from './projects.router'
 import { ProjectsService } from './projects.service'
 
@@ -26,7 +23,6 @@ export const projectProviders = (
   coordinator: GithubRequestCoordinator = localCoordinator(),
 ): Provider[] => [
   ProjectsService,
-  { provide: ThreadSignalsService, useValue: inertSignals() },
   ProjectResourcesService,
   ProjectFileMountsService,
   GithubRepoReads,
@@ -34,7 +30,6 @@ export const projectProviders = (
   ProjectSettingsService,
   ProjectsRouter,
   ProjectResourcesRouter,
-  ProjectWorkspaceRouter,
   {
     provide: GithubService,
     useValue: { findToken: async (args: { userId: string }) => githubTokens[args.userId] },

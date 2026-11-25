@@ -113,10 +113,8 @@ export class McpOauthRouter {
     @Input() input: McpOauthAccessInput,
     @Ctx() ctx: SessionTrpcCtx,
   ): Promise<McpOauthAccessResult> {
-    const threadId = undefined
     return this.access.accessToken({
       userId: ctx.auth.userId,
-      ...(threadId === undefined ? {} : { threadId }),
       name: input.name,
       source: input.source,
       url: input.url,
