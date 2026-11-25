@@ -1,23 +1,15 @@
 import {
-  EResumeOutcome,
   INBOX_KIND_STOP,
   pendingInputsOf,
   unheldDraftOf,
   type EventDraft,
   type InboxEntry,
-  type ModelPort,
   type PluginEventBody,
   type RecordBody,
-  type RunId,
-  type ThreadId,
   type RecordEvent,
 } from '@dltech/atlas-core'
-import type { ControlPlane } from '@dltech/atlas-control'
 import type { AgentIntake, PendingDrain } from '@dltech/atlas-agent'
-import type { CommandRegistry } from '@dltech/atlas-commands'
-import type { PodSlash } from '@dltech/atlas-plugin-sdk'
 import { INBOX_KIND_MESSAGE } from '@dltech/atlas-protocol'
-import type { LogPort } from '@dltech/atlas-observability'
 
 import {
   consumeQuietly,
@@ -25,15 +17,16 @@ import {
   turnOpenOf,
   type CommandGlue,
 } from './command-intake-glue'
-import {
-  CommandIntake,
-  isCommandKind,
-  type CommandHandlers,
-  type ControlHandlers,
-} from './command-intake'
+import { CommandIntake, isCommandKind } from './command-intake'
 import { EIntakeScope, intakeThreadOf, skipsInChildScope } from './intake-scope'
-import { fetchInboxEntries, INBOX_INTAKE_MAX_PAGES, logPendingInputIdsOf } from './held-inbox'
+import {
+  fetchInboxEntries,
+  INBOX_INTAKE_MAX_PAGES,
+  isResizeEntry,
+  logPendingInputIdsOf,
+} from './held-inbox'
 import { drainEntries } from './intake-entries'
+import { commandIntakeOf, type InboxIntakeArgs } from './inbox-intake-args'
 import { consumedInboxIdsOf, loggedDrainablesOf, skillsForPassOf } from './logged-drainables'
 import {
   drainLoggedNotices,
@@ -41,8 +34,6 @@ import {
   stagedMessageOf,
   type DraftRelease,
 } from './notice-drain'
-import type { OperatorAnswerIntake } from './operator-answer'
-import type { SessionRecord } from './record/record-adapter'
 import { recoverUnfinishedCommands } from './recover-unfinished-commands'
 import {
   drainDraftsOf,
@@ -57,27 +48,7 @@ import { supersededRewindIdsOf } from './rewind-dedupe'
 import { ETextPlan } from './text-command'
 
 export { INBOX_KIND_STOP }
-
-export type InboxIntakeArgs = {
-  plane: ControlPlane
-  sessionId: string
-  record: SessionRecord
-  threadId: ThreadId
-  runId: () => RunId
-  scope: EIntakeScope
-  commands?: CommandRegistry | undefined
-  handlers?: CommandHandlers | undefined
-  controlHandlers?: ControlHandlers | undefined
-  slash?: PodSlash | undefined
-  model?: ModelPort | undefined
-  childrenRunning?: (() => number) | undefined
-  operatorAnswers?: OperatorAnswerIntake | undefined
-  crewRunning?: (() => number) | undefined
-  crew?: { resume(args: { agentId: string }): Promise<EResumeOutcome> } | undefined
-  mainThreadId?: string | undefined
-  log?: LogPort | undefined
-  now?: (() => number) | undefined
-}
+export type { InboxIntakeArgs }
 
 export class InboxIntake implements AgentIntake {
   private readonly commandIntake: CommandIntake | undefined
@@ -86,46 +57,29 @@ export class InboxIntake implements AgentIntake {
   private readonly append: AppendDrafts = (drafts) => this.appendDrafts(drafts)
 
   constructor(private readonly args: InboxIntakeArgs) {
-    this.commandIntake =
-      args.commands === undefined
-        ? undefined
-        : new CommandIntake({
-            plane: args.plane,
-            commands: args.commands,
-            handlers: args.handlers ?? new Map(),
-            controlHandlers: args.controlHandlers ?? new Map(),
-            slash: args.slash,
-            sessionId: args.sessionId,
-            model: args.model,
-            visibleEvents: () => args.record.eventCache().visibleLoopEvents(),
-            logEvents: () => this.events(),
-            ...(args.crew === undefined ? {} : { crew: args.crew }),
-            ...(args.mainThreadId === undefined ? {} : { mainThreadId: args.mainThreadId }),
-            ...(args.childrenRunning === undefined
-              ? {}
-              : { childrenRunning: args.childrenRunning }),
-            loggedEvents: () => this.events(),
-            append: (drafts) => this.appendDrafts(drafts),
-            log: args.log,
-          })
+    this.commandIntake = commandIntakeOf({
+      args,
+      logEvents: () => this.events(),
+      append: (drafts) => this.appendDrafts(drafts),
+    })
   }
 
   async logStaged(
     args: { willDrain?: (() => boolean) | undefined; prepared?: (() => boolean) | undefined } = {},
-  ): Promise<void> {
+  ): Promise<readonly InboxEntry[] | undefined> {
     const child = this.args.scope === EIntakeScope.Child
-    await this.serial(async () => {
-      await logStagedInputs({
+    return await this.serial(async () =>
+      logStagedInputs({
         fetch: () => this.fetch(),
         willDrain: args.willDrain,
         prepared: args.prepared,
         resolveWithdraws: (entries) => this.withdrawsOf(entries),
-        skips: child ? skipsInChildScope : undefined,
+        skips: (entry) => isResizeEntry(entry) || (child && skipsInChildScope(entry)),
         postedDraftsOf: (entry) => this.postedDraftsOf(entry),
         appendDrafts: (drafts) => this.appendDrafts(drafts),
         log: this.args.log,
-      })
-    })
+      }),
+    )
   }
 
   async prepare(): Promise<PendingDrain> {

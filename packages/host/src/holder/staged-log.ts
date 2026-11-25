@@ -226,23 +226,24 @@ export const logStagedInputs = async (params: {
   willDrain?: (() => boolean) | undefined
   prepared?: (() => boolean) | undefined
   log?: LogPort | undefined
-}): Promise<void> => {
+}): Promise<readonly InboxEntry[] | undefined> => {
   try {
     const entries = await params.fetch()
-    if (params.willDrain?.() === true) return
+    if (params.willDrain?.() === true) return undefined
     const resolved = await params.resolveWithdraws(entries)
     const drafts = entries
       .filter((entry) => params.skips?.(entry) !== true)
       .filter((entry) => !resolved.has(entry.inboxId))
       .filter((entry) => params.prepared?.() !== false || stagesUnprepared(entry.kind))
       .flatMap((entry) => params.postedDraftsOf(entry))
-    if (drafts.length === 0) return
-    await params.appendDrafts(drafts)
+    if (drafts.length > 0) await params.appendDrafts(drafts)
+    return entries
   } catch (error) {
     params.log?.error({
       source: 'holder.intake',
       message: 'logging the staged inputs failed',
       ...logFieldsOf({ error }),
     })
+    return undefined
   }
 }

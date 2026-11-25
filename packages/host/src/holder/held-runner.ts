@@ -244,7 +244,7 @@ export const wireHeldLoop = (args: {
   branchesStarted: Promise<void>
   recoverCommands(): Promise<void>
   runCommands(entries: readonly InboxEntry[]): Promise<boolean>
-  logStaged(): Promise<void>
+  logStaged(): Promise<readonly InboxEntry[] | undefined>
 } => {
   const { runner, intake } = createLoopRunner(args)
   const branches = createBranchObserver(args)

@@ -12,6 +12,7 @@ import type { HeldSessionDeps } from './held-session-deps'
 import { readHeldAction } from './held-snapshot'
 import type { HeldTurns } from './held-turns'
 import { startHeldTurn } from './held-turns'
+import { isResizeEntry } from './held-inbox'
 import { handleResizeEntries, reconcileResizeGate } from './held-resize'
 import { ETakeoverLap } from './held-takeover'
 import { consumeStops } from './held-wait'
@@ -26,7 +27,7 @@ export type Lapped = <T>(args: { lap: ETakeoverLap; work: () => Promise<T> }) =>
 export class HeldActions {
   private resumeAfterSeq = 0
   private shellsOwedSince: number | undefined
-  private staged: (() => Promise<void>) | undefined
+  private staged: (() => Promise<readonly InboxEntry[] | undefined>) | undefined
   private commands: ((entries: readonly InboxEntry[]) => Promise<boolean>) | undefined
   private retryChild: ((agentId: string) => Promise<boolean>) | undefined
 
@@ -49,7 +50,7 @@ export class HeldActions {
   ) {}
 
   attach(args: {
-    logStaged: () => Promise<void>
+    logStaged: () => Promise<readonly InboxEntry[] | undefined>
     runCommands: (entries: readonly InboxEntry[]) => Promise<boolean>
     retryChild: (agentId: string) => Promise<boolean>
   }): void {
@@ -95,7 +96,12 @@ export class HeldActions {
       return
     }
     if (action === EHeldAction.AbortTurn) return turns.abort(OPERATOR_STOP_REASON)
-    if (action !== EHeldAction.StartTurn) await this.staged?.()
+    if (
+      action !== EHeldAction.StartTurn &&
+      (await this.settleStagedResize(await this.staged?.()))
+    ) {
+      return
+    }
     if (!turnRunning && (await this.retryChildren({ entries, threadId: args.threadId }))) {
       this.args.request()
       return
@@ -132,6 +138,19 @@ export class HeldActions {
         return
       }
     }
+  }
+
+  private async settleStagedResize(entries: readonly InboxEntry[] | undefined): Promise<boolean> {
+    const resized = entries?.filter(isResizeEntry) ?? []
+    if (resized.length === 0) return false
+    const handled = await handleResizeEntries({
+      entries: resized,
+      record: this.args.record(),
+      calls: this.args.runtime()?.remoteCalls,
+      runId: () => this.args.deps.ids.nextRunId(),
+    })
+    if (handled) this.args.request()
+    return handled
   }
 
   private async retryChildren(args: {

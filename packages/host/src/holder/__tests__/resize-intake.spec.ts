@@ -123,6 +123,58 @@ describe('a resize record that arrives while the intake drains', () => {
     expect(logTypes(rig.record)).toContain('pod-resized')
   })
 
+  it('hands a resize record the lap had not read yet back to the lap instead of posting it', async () => {
+    const rig = await rigOf()
+    const resizedId = await rig.post({
+      type: 'pod-resized',
+      ...SHAPE,
+      outcome: EPodResizeNotice.Applied,
+    })
+
+    const staged = await rig.intake.logStaged({ prepared: () => true })
+
+    expect(staged?.map((entry) => entry.inboxId)).toEqual([resizedId])
+    expect(logTypes(rig.record)).toEqual([])
+    expect((await rig.inbox()).map((entry) => entry.inboxId)).toEqual([resizedId])
+  })
+
+  it('releases an armed gate whose resize notice the log carries only as a posting', async () => {
+    const rig = await rigOf()
+    await rig.record.append({
+      threadId: THREAD,
+      runId: toRunId('run-log'),
+      drafts: [{ type: 'pod-resize-started', ...SHAPE }],
+    })
+    rig.remoteCalls.armResize({
+      open: { ...SHAPE, startedAt: T0 },
+      reason: 'the pod is being resized to 16 vCPU / 64 GB',
+    })
+    const resizedId = await rig.post({
+      type: 'pod-resized',
+      ...SHAPE,
+      outcome: EPodResizeNotice.Applied,
+    })
+    await rig.record.append({
+      threadId: THREAD,
+      runId: toRunId('run-post'),
+      drafts: [
+        {
+          type: 'input-posted',
+          inboxId: resizedId,
+          kind: INBOX_KIND_RECORD,
+          postedAt: AT,
+          event: { type: 'pod-resized', ...SHAPE, outcome: EPodResizeNotice.Applied },
+        },
+      ],
+    })
+    expect(rig.remoteCalls.resizeHeld()).toMatchObject({ generation: 3 })
+    expect(await rig.inbox()).toEqual([])
+
+    reconcileResizeGate({ record: rig.record, runtime: { remoteCalls: rig.remoteCalls } })
+
+    expect(rig.remoteCalls.resizeHeld()).toBeUndefined()
+  })
+
   it('releases an armed gate whose generation the log already reports as resized', async () => {
     const rig = await rigOf()
     await rig.record.append({
