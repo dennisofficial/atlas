@@ -82,17 +82,45 @@ export const checkSentinels = async (args: {
     (await exists({ files: args.deps.files, path: args.sentinels.materialized })) &&
     (await exists({ files: args.deps.files, path: args.launchDirectory })),
   setupRan: await exists({ files: args.deps.files, path: args.sentinels.setupRan }),
+  setupStarted: await readSetupStarted({ deps: args.deps, path: args.sentinels.setupStarted }),
 })
+
+export type SetupStartedMarker = { bootId?: string | undefined }
+
+/**
+ * The marker a host writes before it dispatches the setup script. Its boot id is what tells a later
+ * host whether the pod ever had the chance to run that script.
+ */
+export const readSetupStarted = async (args: {
+  deps: Deps
+  path: string
+}): Promise<SetupStartedMarker | undefined> => {
+  const found = await args.deps.files.readFile({ path: args.path }).then(
+    (text) => text,
+    () => null,
+  )
+  if (found === null) return undefined
+  try {
+    const parsed = JSON.parse(found) as { bootId?: unknown }
+    return { ...(typeof parsed.bootId === 'string' ? { bootId: parsed.bootId } : {}) }
+  } catch {
+    return {}
+  }
+}
 
 export const writeSentinel = async (args: {
   deps: Deps
   path: string
   message: string
+  bootId?: string | undefined
 }): Promise<boolean> => {
   try {
     await args.deps.files.writeFile({
       path: args.path,
-      content: JSON.stringify({ at: new Date().toISOString() }),
+      content: JSON.stringify({
+        at: new Date().toISOString(),
+        ...(args.bootId === undefined ? {} : { bootId: args.bootId }),
+      }),
     })
     return true
   } catch (error) {

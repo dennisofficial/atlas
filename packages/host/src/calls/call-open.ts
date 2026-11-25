@@ -64,6 +64,8 @@ export const openCall = async (args: {
     armed: false,
     done: false,
     awaitingAnswer: false,
+    recovering: false,
+    ...(args.dispatchedBootId === undefined ? {} : { dispatchedBootId: args.dispatchedBootId }),
   }
   if (!lane.detached()) call.waiters.push(waiter)
   lane.pending.set(request.key, call)
@@ -87,13 +89,21 @@ export const openCall = async (args: {
   if (request.attachOnly === true) {
     const answer = await lane.answers.ask(call.key)
     if (call.done || lane.gone()) return outcome
-    if (answer === 'unavailable') {
+    if (answer === 'unavailable' || args.dispatchedBootId === undefined) {
       call.armed = true
       return outcome
     }
     if (answer !== 'running' && answer !== 'done') {
-      lane.settle(call, interruptedResult(call.op.op))
-      return outcome
+      const action = actionForAnswer({
+        op: call.op.op,
+        dispatchedBootId: args.dispatchedBootId,
+        currentBootId: lane.bootId(),
+        answer,
+      })
+      if (action.type === 'interrupted') {
+        lane.settle(call, interruptedResult(call.op.op))
+        return outcome
+      }
     }
   }
   if (

@@ -8,6 +8,7 @@ import {
   type WorkspaceStepReport,
 } from '@dltech/atlas-core'
 import {
+  markDispatched,
   runInCallScope,
   scopeKeyOf,
   type BootNotice,
@@ -51,6 +52,7 @@ const startSetupInBackground = (args: {
   scrub: (text: string) => string
   scopeKey: string
   resume?: boolean | undefined
+  dispatchedBootId?: string | undefined
   onOutput?: ((text: string) => void) | undefined
   onStep?: ((step: WorkspaceStepReport) => void) | undefined
   onSetup?: ((lifecycle: SetupLifecycle) => void) | undefined
@@ -63,8 +65,11 @@ const startSetupInBackground = (args: {
     scopeKey: args.scopeKey,
     // a resume re-joins the call the earlier host started: the pod may never run it a second time
     ...(args.resume === undefined ? {} : { attachOnly: args.resume }),
-    body: () =>
-      runSetupOnce({
+    body: () => {
+      if (args.dispatchedBootId !== undefined) {
+        markDispatched({ bootId: args.dispatchedBootId })
+      }
+      return runSetupOnce({
         deps,
         setupScript: command,
         launchDirectory: args.launchDirectory,
@@ -72,7 +77,8 @@ const startSetupInBackground = (args: {
         scrub: args.scrub,
         onOutput: args.onOutput,
         onStep: args.onStep,
-      }),
+      })
+    },
   })
     .then((outcome) => {
       args.onSetup?.({
@@ -97,7 +103,7 @@ const scopeFor = (args: { sandboxName: string; phase: string }): string =>
   scopeKeyOf({ runId: 'setup', callId: `${args.sandboxName}:${args.phase}` })
 
 export const ensureWorkspace = async (args: {
-  calls: Pick<RemoteCalls, 'ackScope'>
+  calls: Pick<RemoteCalls, 'ackScope' | 'bootId'>
   processes: ProcessPort
   files: FileSystemPort
   workspace: WorkspaceConfig
@@ -203,10 +209,7 @@ export const ensureWorkspace = async (args: {
       await installToolchain({ deps, launchDirectory, scrub })
     }
     args.signal?.throwIfAborted()
-    const setupStarted =
-      !state.setupRan &&
-      state.materialized &&
-      (await exists({ files: args.files, path: sentinels.setupStarted }))
+    const startedMarker = state.materialized ? state.setupStarted : undefined
     if (state.setupRan || workspace.setupScript.trim() === '') {
       onStep?.({
         step: EWorkspaceStep.Setup,
@@ -214,7 +217,7 @@ export const ensureWorkspace = async (args: {
         outcome: EWorkspaceStepOutcome.Skipped,
       })
     } else {
-      if (!setupStarted) {
+      if (startedMarker === undefined) {
         onStep?.({
           step: EWorkspaceStep.Setup,
           state: EWorkspaceStepState.Started,
@@ -224,6 +227,7 @@ export const ensureWorkspace = async (args: {
           deps,
           path: sentinels.setupStarted,
           message: 'setup start marker write failed; a new host may not find this setup again',
+          bootId: args.calls.bootId(),
         })
       }
       setupInBackground = true
@@ -234,7 +238,8 @@ export const ensureWorkspace = async (args: {
         sentinels,
         scrub,
         scopeKey: setupScope,
-        resume: setupStarted,
+        resume: startedMarker !== undefined,
+        ...(startedMarker?.bootId === undefined ? {} : { dispatchedBootId: startedMarker.bootId }),
         onOutput: args.onOutput,
         onStep,
         onSetup: args.onSetup,
