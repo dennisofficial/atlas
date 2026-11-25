@@ -1,6 +1,6 @@
 import { EHeldAction, EHeldOutcome, type InboxEntry, type ThreadId } from '@dltech/atlas-core'
 import { OPERATOR_STOP_REASON, type LoopTurnRunner, type PauseSignal } from '@dltech/atlas-agent'
-import { logFieldsOf } from '@dltech/atlas-observability'
+import { EFirstAction, logFieldsOf } from '@dltech/atlas-observability'
 
 import { retryChildrenIn } from './child-retry'
 import type { ContextSeedGate } from './context-seed'
@@ -14,7 +14,7 @@ import type { HeldTurns } from './held-turns'
 import { startHeldTurn } from './held-turns'
 import { isResizeEntry } from './held-inbox'
 import { handleResizeEntries, reconcileResizeGate } from './held-resize'
-import { ETakeoverLap } from './held-takeover'
+import { ETakeoverLap, type TakeOverFirstStep } from './held-takeover'
 import { consumeStops } from './held-wait'
 import { settleOperatorOnStop } from './operator-stop'
 import { closeOpenTurn } from './orphan-turn'
@@ -44,7 +44,7 @@ export class HeldActions {
       record(): SessionRecord | undefined
       observation(): HeldObservation | undefined
       childrenRunning(): number
-      takeOverFirstStep(): void
+      takeOverFirstStep(first: TakeOverFirstStep): void
       request(): void
     },
   ) {}
@@ -83,6 +83,7 @@ export class HeldActions {
     })
     this.shellsOwedSince = snapshot.shellsOwedSince
     const { entries, action, resumable, inboxHead, failure, preparedBefore, queuedAt } = snapshot
+    const { promptWaiting } = snapshot
     reconcileResizeGate({ record: this.args.record(), runtime: this.args.runtime() })
     if (
       await handleResizeEntries({
@@ -116,15 +117,18 @@ export class HeldActions {
         return
       }
       case EHeldAction.Prepare: {
-        this.prepare({ threadId: args.threadId, inboxHead })
+        this.prepare({ threadId: args.threadId, inboxHead, promptWaiting, preparedBefore })
         return
       }
       case EHeldAction.StartTurn: {
         await this.startTurn({
           runner: args.runner,
           threadId: args.threadId,
+          entries,
+          lap: args.lap,
           resumable,
           preparedBefore,
+          promptWaiting,
           inboxHead,
           queuedAt,
         })
@@ -181,21 +185,39 @@ export class HeldActions {
     this.args.request()
   }
 
-  private prepare(args: { threadId: ThreadId; inboxHead: number }): void {
+  private prepare(args: {
+    threadId: ThreadId
+    inboxHead: number
+    promptWaiting: boolean
+    preparedBefore: boolean
+  }): void {
     const runtime = this.args.runtime()
     const record = this.args.record()
     if (runtime === undefined || record === undefined) return
-    this.args.takeOverFirstStep()
+    this.args.takeOverFirstStep({
+      action: EFirstAction.Prepare,
+      promptWaiting: args.promptWaiting,
+      preparedBefore: args.preparedBefore,
+    })
     const started = !this.args.prepare.running
-    this.args.prepare.start({ runtime, record, threadId: args.threadId, inboxHead: args.inboxHead })
+    this.args.prepare.start({
+      runtime,
+      record,
+      threadId: args.threadId,
+      inboxHead: args.inboxHead,
+      promptWaiting: args.promptWaiting,
+    })
     if (started && this.args.prepare.running) this.args.request()
   }
 
   private async startTurn(args: {
     runner: LoopTurnRunner
     threadId: ThreadId
+    entries: readonly InboxEntry[]
+    lap: Lapped
     resumable: boolean
     preparedBefore: boolean
+    promptWaiting: boolean
     inboxHead: number
     queuedAt: string | undefined
   }): Promise<void> {
@@ -203,7 +225,10 @@ export class HeldActions {
     if (this.args.draining() || ending.outcome !== undefined) return
     const record = this.args.record()
     if (record === undefined) return
-    const seeded = await this.args.seed.ensure()
+    const seeded = await args.lap({
+      lap: ETakeoverLap.Seed,
+      work: () => this.args.seed.ensure({ entries: args.entries }),
+    })
     if (!seeded.ok) {
       await this.recordSeedFailure({
         record,
@@ -214,7 +239,11 @@ export class HeldActions {
       ending.finish(EHeldOutcome.Idle)
       return
     }
-    this.args.takeOverFirstStep()
+    this.args.takeOverFirstStep({
+      action: EFirstAction.Turn,
+      promptWaiting: args.promptWaiting,
+      preparedBefore: args.preparedBefore,
+    })
     this.resumeAfterSeq = record.eventCache().currentHead().seq ?? this.resumeAfterSeq
     if (args.preparedBefore) this.retryWake()
     startHeldTurn({

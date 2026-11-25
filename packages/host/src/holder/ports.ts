@@ -79,7 +79,7 @@ export type SetupLifecycle =
       output: string
     }
 
-export type PrepareStepReporter = (step: WorkspaceStepReport) => void
+export type PrepareStepReporter = (step: WorkspaceStepReport, producedAtMs?: number) => void
 
 export type RoleModelRequest = { role: ModelRole; root?: ModelChoice | undefined }
 

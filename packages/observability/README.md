@@ -52,7 +52,8 @@ spans. The core tiers depend on the ports. Only the node tier imports a vendor S
 - `spanWith(trace, request)`: runs a span when a tracer exists, and runs the work alone when it does
   not. `NULL_SPAN_HANDLE`, `NullTracer`: the empty implementation.
 - `ESpan`, `EResourceWait`, `ESpanMark`, `ESpanOutcome`, `ETurnEntry`, `EWake`, `ESpanSpeed`,
-  `SpanFields`, `SpanHandle`: the span vocabulary.
+  `EFirstAction`, `ESandboxStart`, `EPrepareOutcome`, `SpanFields`, `SpanHandle`: the span
+  vocabulary.
 - `spanAttributesOf(fields)`, `markAttributeOf(mark)`, `errorClassOf(error)`: the attribute helpers.
 
 ```ts

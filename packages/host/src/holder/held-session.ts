@@ -11,7 +11,8 @@ import { FencedSettlement } from './fenced-settlement'
 import type { SessionRuntime } from './ports'
 import { ContextSeedGate } from './context-seed'
 import { CrewRoom } from './crew'
-import { logDriveFault, logReconcileFault, settleAndCheckResume, wireHeldLoop } from './held-runner'
+import { logDriveFault, logReconcileFault, wireHeldLoop } from './held-runner'
+import { runTurnPrelude, settleAndAdoptOf } from './takeover-work'
 import { teardownHeld } from './held-teardown'
 import { HeldPrepare } from './held-prepare'
 import { lostOutcome } from './lost-outcome'
@@ -115,7 +116,7 @@ export class HeldSession {
       record: () => this.record,
       observation: () => this.observation,
       childrenRunning: () => this.crew?.runningCount() ?? 0,
-      takeOverFirstStep: () => this.takeOver?.firstStep(),
+      takeOverFirstStep: (first) => this.takeOver?.firstStep(first),
       request: () => this.reconciler?.request(),
     })
     this.drain = new HeldDrain({
@@ -249,16 +250,17 @@ export class HeldSession {
       oom,
     })
     this.observation.start()
+    takeOver.observationStarted()
     this.actions.attach({
       logStaged,
       runCommands,
       retryChild: (agentId) => crew.retry({ agentId }),
     })
-    await takeOver.lapped({
-      lap: ETakeoverLap.Settle,
-      work: () => settleAndCheckResume({ deps, runtime, record, threadId, crew }),
+    await runTurnPrelude({
+      takeOver,
+      settle: () => settleAndAdoptOf({ crew, deps, runtime, record, threadId }),
+      commands: recoverCommands,
     })
-    await takeOver.lapped({ lap: ETakeoverLap.Commands, work: recoverCommands })
     runtime.workspaceGate?.hold(branchesStarted)
     void branchesStarted.then(() => takeOver.branchesSettled())
     const completion = this.ending.waitForDrive()

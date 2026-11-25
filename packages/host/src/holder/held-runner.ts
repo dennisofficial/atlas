@@ -1,7 +1,6 @@
 import {
   EHeldAction,
   EToolEffect,
-  isResumableOf,
   modelFacingDeclarationsOf,
   type InboxEntry,
   type ThreadId,
@@ -64,13 +63,12 @@ export const ranQueuedCommand = async (args: {
   return (await args.runCommands?.(args.entries)) === true
 }
 
-export const settleAndCheckResume = async (args: {
+export const settleCrashedOf = async (args: {
   deps: HeldSessionDeps
   runtime: SessionRuntime
   record: SessionRecord
   threadId: ThreadId
-  crew: { adoptAll(children: readonly OpenChild[]): Promise<void> }
-}): Promise<boolean> => {
+}): Promise<void> => {
   const { deps, runtime, record, threadId } = args
   await settleCrashedCalls({
     record,
@@ -78,11 +76,19 @@ export const settleAndCheckResume = async (args: {
     threadId,
     effectOf: (name) => (runtime.daemonTools.has(name) ? EToolEffect.Read : runtime.effectOf(name)),
   })
-  await args.crew.adoptAll(
-    await openChildren({ record, plane: deps.plane, sessionId: deps.sessionId, threadId }),
-  )
-  return isResumableOf(await record.loopState({ threadId }))
 }
+
+export const adoptChildrenOf = (args: {
+  deps: HeldSessionDeps
+  record: SessionRecord
+  threadId: ThreadId
+}): Promise<readonly OpenChild[]> =>
+  openChildren({
+    record: args.record,
+    plane: args.deps.plane,
+    sessionId: args.deps.sessionId,
+    threadId: args.threadId,
+  })
 
 export const createBranchObserver = (args: {
   deps: HeldSessionDeps

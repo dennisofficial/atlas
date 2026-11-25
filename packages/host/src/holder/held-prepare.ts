@@ -1,14 +1,9 @@
 import {
   ESetupPhase,
   EWorkspaceStep,
-  EWorkspaceStepState,
-  INBOX_KIND_EVENT,
-  inboxEventPayloadOf,
-  setupFinishedText,
-  setupStartedText,
+  preparedBeforeOf,
   setupInFlightOf,
   workspaceStepsOf,
-  type EventDraft,
   type RunId,
   type ThreadId,
   type WorkspaceStepReport,
@@ -16,19 +11,19 @@ import {
 import { logFieldsOf } from '@dltech/atlas-observability'
 import { setupOutputCallId } from '@dltech/atlas-protocol'
 
-import {
-  appendAttemptStarted,
-  appendSetupStep,
-  elapsedMsOf,
-  prepareAttemptOf,
-  stoppedSetupDraftsOf,
-} from './prepare-attempt'
+import { appendAttemptStarted, appendSetupStep, prepareAttemptOf } from './prepare-attempt'
 import type { HeldSessionDeps } from './held-session-deps'
-import { fireLive, type PrepareResult, type SessionRuntime, type SetupLifecycle } from './ports'
+import {
+  fireLive,
+  type PrepareResult,
+  type PrepareStepReporter,
+  type SessionRuntime,
+} from './ports'
+import { PrepareSpan } from './prepare-span'
+import { PrepareSetup } from './prepare-setup'
 import { setupNoticesOf } from './prepare-notices'
 import { recordPrepare } from './prepare-record'
 import { preparedWithContextFiles, type ContextSeedGate } from './context-seed'
-import type { AppendBody } from './record/append-drafts'
 import type { SessionRecord } from './record/record-adapter'
 
 const appendFailureReporter =
@@ -40,19 +35,23 @@ const appendFailureReporter =
       ...logFieldsOf({ error }),
     })
 
+type PrepareStart = {
+  runtime: SessionRuntime
+  record: SessionRecord
+  threadId: ThreadId
+  inboxHead: number
+  promptWaiting?: boolean | undefined
+}
+
 export class HeldPrepare {
   private active = false
-  private setupRunning = false
   private resuming = false
-  private joined = false
   private attempt: number | undefined
-  private script: string | undefined
-  private setupStartedAt = 0
-  private startedText: string | undefined
-  private finished: { text: string; failed: boolean } | undefined
   private target: { record: SessionRecord; threadId: ThreadId } | undefined
   private steps: Promise<void> = Promise.resolve()
   private settled = false
+  private span: PrepareSpan | undefined
+  private readonly setup: PrepareSetup
 
   constructor(
     private readonly args: {
@@ -62,44 +61,47 @@ export class HeldPrepare {
       onSettled(args: { failed: boolean }): void
       onSetupEnded(): void
     },
-  ) {}
+  ) {
+    this.setup = new PrepareSetup({
+      deps: args.deps,
+      abandoned: () => args.abandoned(),
+      settled: () => this.settled,
+      steps: () => this.steps,
+      attempt: () => this.attempt,
+      target: () => this.target,
+      onEnded: () => args.onSetupEnded(),
+    })
+  }
 
   get running(): boolean {
     return this.active
   }
 
   get hasSetupRunning(): boolean {
-    return this.setupRunning
+    return this.setup.isRunning
   }
 
   get resumed(): boolean {
     return this.resuming
   }
 
-  start(args: {
-    runtime: SessionRuntime
-    record: SessionRecord
-    threadId: ThreadId
-    inboxHead: number
-  }): void {
+  start(args: PrepareStart): void {
     // a setup left running by an earlier host is joined once, not on every reconciler step
-    if (this.active || this.joined) return
+    if (this.active || this.setup.isJoined) return
     this.active = true
     this.settled = false
-    this.startedText = undefined
-    this.finished = undefined
     this.target = { record: args.record, threadId: args.threadId }
     const recorded = args.record.eventCache().eventsAfter(0)
     const setup = workspaceStepsOf(recorded)[EWorkspaceStep.Setup]
     this.resuming = setupInFlightOf(recorded)
-    this.joined = this.resuming
     this.attempt = prepareAttemptOf({ events: recorded, resuming: this.resuming })
-    this.script = setup?.command
-    this.setupStartedAt = setup === undefined ? 0 : Date.parse(setup.at)
-    this.setupRunning = this.resuming
+    this.setup.start({
+      script: setup?.command,
+      since: setup === undefined ? 0 : Date.parse(setup.at),
+      resuming: this.resuming,
+    })
     const { deps } = this.args
     const runId: RunId = deps.ids.nextRunId()
-    let failed = false
     this.steps =
       this.attempt === undefined || this.resuming
         ? Promise.resolve()
@@ -112,7 +114,8 @@ export class HeldPrepare {
           }).catch(
             appendFailureReporter(this.args.deps, 'recording the start of a prepare attempt'),
           )
-    const onStep = (step: WorkspaceStepReport): void => {
+    const onStep = (step: WorkspaceStepReport, producedAtMs?: number): void => {
+      this.span?.step(step, producedAtMs)
       this.steps = this.steps.then(() => this.recordStep({ ...args, runId, step }))
     }
     args.runtime.subscribePrepareOutput?.((text) =>
@@ -122,117 +125,73 @@ export class HeldPrepare {
         frame: { type: 'tool-output', callId: setupOutputCallId(deps.sessionId), text },
       }),
     )
-    args.runtime.subscribeSetup?.((lifecycle) => this.onSetup(lifecycle))
-    void args.runtime
-      .prepare(onStep)
-      .catch((error): PrepareResult => {
-        deps.log?.error({
-          source: 'holder.prepare',
-          message: `preparing ${deps.sessionId} threw`,
-          ...logFieldsOf({ error }),
-        })
-        return { ok: false, reason: error instanceof Error ? error.message : String(error) }
-      })
-      .then(async (result) => {
-        await this.steps
-        const recorded = await preparedWithContextFiles({
-          seed: this.args.seed,
-          result,
-          log: deps.log,
-          sessionId: deps.sessionId,
-        })
-        await this.record({ ...args, runId, result: recorded })
-        this.settled = true
-        await this.flushSetupEnd()
-        failed = !recorded.ok
-      })
-      .catch((error) => {
+    args.runtime.subscribeSetup?.((lifecycle) => this.setup.onLifecycle(lifecycle))
+    this.span = new PrepareSpan({
+      trace: args.runtime.trace,
+      sessionId: deps.sessionId,
+      threadId: args.threadId,
+      attempt: this.attempt,
+      preparedBefore: preparedBeforeOf(recorded),
+      promptWaiting: args.promptWaiting,
+      now: () => deps.timers.now(),
+    })
+    void this.span
+      .begin(() => this.attemptOf({ start: args, runId, onStep }))
+      .catch((error: unknown): { failed: boolean } => {
         deps.log?.error({
           source: 'holder.prepare',
           message: `recording the preparation of ${deps.sessionId} failed`,
           ...logFieldsOf({ error }),
         })
+        return { failed: false }
       })
-      .finally(() => {
+      .then(({ failed }) => {
         this.active = false
         this.args.onSettled({ failed })
       })
   }
 
-  private onSetup(lifecycle: SetupLifecycle): void {
-    if (this.args.abandoned()) return
-    if (lifecycle.phase === ESetupPhase.Started) {
-      this.script = lifecycle.script
-      if (this.setupStartedAt === 0) this.setupStartedAt = this.args.deps.timers.now()
-      const record = this.target?.record
-      if (record === undefined || !setupNoticesOf(record).has(ESetupPhase.Started)) {
-        this.startedText = setupStartedText({ script: lifecycle.script })
-      }
-      this.setupRunning = true
-      return
+  private async attemptOf(args: {
+    start: PrepareStart
+    runId: RunId
+    onStep: PrepareStepReporter
+  }): Promise<{ failed: boolean }> {
+    const { deps } = this.args
+    const { start, runId } = args
+    const result = await start.runtime.prepare(args.onStep).catch((error): PrepareResult => {
+      deps.log?.error({
+        source: 'holder.prepare',
+        message: `preparing ${deps.sessionId} threw`,
+        ...logFieldsOf({ error }),
+      })
+      return { ok: false, reason: error instanceof Error ? error.message : String(error) }
+    })
+    try {
+      await this.steps
+      const recorded = await preparedWithContextFiles({
+        seed: this.args.seed,
+        result,
+        log: deps.log,
+        sessionId: deps.sessionId,
+      })
+      await this.record({ ...start, runId, result: recorded })
+      this.settled = true
+      await this.setup.flushEnd()
+      return { failed: !recorded.ok }
+    } catch (error) {
+      deps.log?.error({
+        source: 'holder.prepare',
+        message: `recording the preparation of ${deps.sessionId} failed`,
+        ...logFieldsOf({ error }),
+      })
+      return { failed: false }
     }
-    this.joined = false
-    this.finished = {
-      text: setupFinishedText({
-        script: lifecycle.script,
-        ok: lifecycle.ok,
-        durationMs: Math.max(lifecycle.durationMs, this.elapsedMs()),
-        output: lifecycle.output,
-      }),
-      failed: !lifecycle.ok,
-    }
-    void this.flushSetupEnd()
   }
 
   async failStopped(): Promise<void> {
-    const target = this.target
-    if (target === undefined || !this.setupRunning) return
-    const script = this.script ?? ''
-    this.setupRunning = false
-    this.joined = false
-    this.finished = undefined
-    await target.record
-      .append({
-        threadId: target.threadId,
-        runId: this.args.deps.ids.nextRunId(),
-        drafts: stoppedSetupDraftsOf({
-          script,
-          attempt: this.attempt,
-          durationMs: this.elapsedMs(),
-        }),
-      })
-      .catch(appendFailureReporter(this.args.deps, 'recording the stop of the setup'))
-  }
-
-  private elapsedMs(): number {
-    return elapsedMsOf({ startedAt: this.setupStartedAt, nowMs: this.args.deps.timers.now() })
-  }
-
-  private async flushSetupEnd(): Promise<void> {
-    const { finished, target } = this
-    if (finished === undefined || target === undefined || !this.settled) return
-    this.finished = undefined
-    await this.steps
-    // a replayed lifecycle, or an end an earlier host already recorded, is reported once
-    if (!this.args.abandoned() && !setupNoticesOf(target.record).has(ESetupPhase.Finished)) {
-      await this.args.deps.plane
-        .post({
-          sessionId: this.args.deps.sessionId,
-          kind: INBOX_KIND_EVENT,
-          payload: inboxEventPayloadOf({
-            event: {
-              type: 'sandbox-setup-reported',
-              text: finished.text,
-              failed: finished.failed,
-              phase: ESetupPhase.Finished,
-            },
-            clientId: `sandbox-setup-finished:${this.args.deps.sessionId}`,
-          }),
-        })
-        .catch(appendFailureReporter(this.args.deps, 'recording the end of the setup'))
-    }
-    this.setupRunning = false
-    this.args.onSetupEnded()
+    if (!this.setup.isRunning) return
+    this.span?.markStopped()
+    await this.setup.failStopped()
   }
 
   private async recordStep(args: {
@@ -265,31 +224,8 @@ export class HeldPrepare {
       result,
       attempt: this.attempt,
       resuming: this.resuming,
-      started: setupNoticesOf(args.record).has(ESetupPhase.Started) ? [] : this.takeStarted(),
-      lostSetup: result.ok ? [] : this.endLostSetup(result.reason),
+      started: setupNoticesOf(args.record).has(ESetupPhase.Started) ? [] : this.setup.takeStarted(),
+      lostSetup: result.ok ? [] : this.setup.endLostSetup(result.reason),
     })
-  }
-
-  private endLostSetup(reason: string): AppendBody[] {
-    this.joined = false
-    if (!this.setupRunning) return []
-    this.setupRunning = false
-    return [
-      {
-        type: 'workspace-step',
-        step: EWorkspaceStep.Setup,
-        state: EWorkspaceStepState.Interrupted,
-        reason: `the setup was lost when the workspace could not be prepared again: ${reason}`,
-        ...(this.script === undefined ? {} : { command: this.script }),
-        ...(this.attempt === undefined ? {} : { attempt: this.attempt }),
-      },
-    ]
-  }
-
-  private takeStarted(): EventDraft[] {
-    const text = this.startedText
-    if (text === undefined) return []
-    this.startedText = undefined
-    return [{ type: 'sandbox-setup-reported', text, failed: false, phase: ESetupPhase.Started }]
   }
 }

@@ -18,8 +18,10 @@ import type {
 
 import { ChildRun, type ChildRunArgs } from './child-run'
 import type { CrewSender } from './child-message'
+import { CHILD_READ_CONCURRENCY } from './child-reads'
 import { endingKeyOf, postNotice, threadLastSeq } from './child-reports'
 import { settledChildOf, type OpenChild } from './open-children'
+import { pooledMap } from './pooled-map'
 
 export type CrewRoomArgs = Omit<
   ChildRunArgs,
@@ -56,12 +58,26 @@ export class CrewRoom {
   }
 
   async adoptAll(children: readonly OpenChild[]): Promise<void> {
-    const adopted: { run: ChildRun; child: OpenChild }[] = []
-    for (const child of children) {
-      const run = await this.openAdopted(child)
-      if (run !== undefined) adopted.push({ run, child })
+    const opened = await pooledMap({
+      items: children,
+      limit: CHILD_READ_CONCURRENCY,
+      work: (child) => this.openedOf(child),
+    })
+    const failed = opened.find((entry) => entry.error !== undefined)
+    if (failed !== undefined) throw failed.error
+    for (const entry of opened) {
+      if (entry.run !== undefined) await this.startAdopted({ run: entry.run, child: entry.child })
     }
-    for (const { run, child } of adopted) await this.startAdopted({ run, child })
+  }
+
+  private async openedOf(
+    child: OpenChild,
+  ): Promise<{ child: OpenChild; run?: ChildRun | undefined; error?: unknown }> {
+    try {
+      return { child, run: await this.openAdopted(child) }
+    } catch (error) {
+      return { child, error }
+    }
   }
 
   async adopt(child: OpenChild): Promise<void> {
