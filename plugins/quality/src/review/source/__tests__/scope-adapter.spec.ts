@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 
+import { clearQualityParseCache } from '../parse-cache'
 import { prepareQualityScopes } from '../scope-adapter'
 import { NAMESPACE, PROJECT, byKind, prepare } from './adapter-fixtures'
 
@@ -203,5 +204,37 @@ describe('prepareQualityScopes scopes', () => {
     const result = prepare({ path: `${PROJECT}/..config.ts`, before: null, after: 'const a = 1\n' })
     expect(result.skipped).toHaveLength(0)
     expect(result.scopes.length).toBeGreaterThan(0)
+  })
+})
+
+describe('prepareQualityScopes with a cached parse', () => {
+  it('gives the same scopes from the cache as from a cold parse', () => {
+    const path = `${PROJECT}/a.ts`
+    const before = 'export function a() { return 1 }\n'
+    const after = 'export function a() { return 2 }\n'
+
+    clearQualityParseCache()
+    const warm = prepare({ path, before, after })
+    clearQualityParseCache()
+    const cold = prepare({ path, before, after })
+
+    expect(warm.scopes.length).toBeGreaterThan(1)
+    expect(warm).toEqual(cold)
+  })
+
+  it('gives the write after another write the same scopes as a cold parse of it', () => {
+    const path = `${PROJECT}/b.ts`
+    const first = 'export function a() { return 1 }\n'
+    const second = 'export function a() { return 2 }\n'
+    const third = 'export function a() { return 3 }\nexport function b() { return 4 }\n'
+
+    clearQualityParseCache()
+    const firstWrite = prepare({ path, before: first, after: second })
+    const secondWrite = prepare({ path, before: second, after: third })
+    clearQualityParseCache()
+    const coldSecondWrite = prepare({ path, before: second, after: third })
+
+    expect(firstWrite.scopes.length).toBeGreaterThan(0)
+    expect(secondWrite).toEqual(coldSecondWrite)
   })
 })

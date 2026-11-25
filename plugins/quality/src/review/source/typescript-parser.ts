@@ -8,6 +8,9 @@ import {
 } from '@dltech/atlas-core'
 import ts from 'typescript'
 
+import { readQualityParse, type QualityParseBody } from './parse-cache'
+import { hasSyntaxErrorsInFile } from './syntax-check'
+
 export const QUALITY_SOURCE_ADAPTER_VERSION = '1'
 
 export type ParsedDeclaration = {
@@ -137,23 +140,12 @@ function declarationOf(node: ts.Node): { kind: EQualityScopeKind; name: string }
   return null
 }
 
-function hasSyntaxErrors(args: { path: string; text: string }): boolean {
-  const output = ts.transpileModule(args.text, {
-    fileName: args.path,
-    compilerOptions: { target: ts.ScriptTarget.ESNext, jsx: ts.JsxEmit.Preserve },
-    reportDiagnostics: true,
-  })
-  return (output.diagnostics ?? []).some(
-    (diagnostic) => diagnostic.category === ts.DiagnosticCategory.Error,
-  )
-}
-
-function parseSourceFile(args: {
+function parseQualityBody(args: {
   path: string
   text: string
   kind: ts.ScriptKind
   language: EQualityLanguage
-}): ParsedDocument {
+}): QualityParseBody {
   const sourceFile = ts.createSourceFile(
     args.path,
     args.text,
@@ -226,20 +218,17 @@ function parseSourceFile(args: {
     }
   }
 
-  if (hasSyntaxErrors({ path: args.path, text: args.text })) {
-    return { ok: false, invalidSyntax: true }
-  }
-
   return {
-    ok: true,
-    source: {
+    language: args.language,
+    declarations,
+    evidenceLabels,
+    importStatements,
+    structuralHashes,
+    invalidSyntax: hasSyntaxErrorsInFile({
       path: args.path,
-      language: args.language,
-      declarations,
-      evidenceLabels,
-      importStatements,
-      structuralHashes,
-    },
+      text: args.text,
+      sourceFile,
+    }),
   }
 }
 
@@ -248,15 +237,29 @@ export function parseQualitySource(args: { path: string; text: string }): Parsed
   if (mapping === null) {
     return { ok: false, invalidSyntax: false }
   }
-  return parseSourceFile({
-    path: args.path,
+  const body = readQualityParse({
     text: args.text,
-    kind: mapping.kind,
-    language: mapping.language,
+    key: `${mapping.kind}:${hashText(args.text)}`,
+    parse: () =>
+      parseQualityBody({
+        path: args.path,
+        text: args.text,
+        kind: mapping.kind,
+        language: mapping.language,
+      }),
   })
+  if (body.invalidSyntax) return { ok: false, invalidSyntax: true }
+  return {
+    ok: true,
+    source: {
+      path: args.path,
+      language: body.language,
+      declarations: body.declarations,
+      evidenceLabels: body.evidenceLabels,
+      importStatements: body.importStatements,
+      structuralHashes: body.structuralHashes,
+    },
+  }
 }
 
-export function hasSyntaxDiagnostics(args: { path: string; text: string }): boolean {
-  if (scriptKindForPath({ path: args.path }) === null) return false
-  return hasSyntaxErrors({ path: args.path, text: args.text })
-}
+export { hasSyntaxDiagnostics } from './syntax-check'

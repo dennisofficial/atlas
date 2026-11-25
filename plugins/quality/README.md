@@ -75,6 +75,8 @@ The pod entry exports the first group only. The review modules below are the par
 - `QualitySourceAdapter`: the one method the engine calls to get the scopes of a change.
 - `captureText`, `makeChange`, `captureUnavailableFault`: text capture with its diagnostics.
 - `parseQualitySource`, `scriptKindForPath`, `hashScopeText`, `renderScopeDiff`: the parser helpers.
+- `MAX_QUALITY_PARSE_CACHE_ENTRIES`, `MAX_QUALITY_PARSE_CACHE_BYTES`, `qualityParseCacheStats`,
+  `clearQualityParseCache`: the parse cache, bounded by entries and source bytes. It is keyed by the content and the script kind, so the parse of one write's text serves the next review.
 
 ### Read a review back
 
@@ -128,6 +130,7 @@ const qualityPod = qualityPodOf({
 - The review is advisory. It never blocks, reverts or retries a write. A skipped, late or inconclusive review says nothing to the model.
 - A late review still writes its records, so the ledger stays complete, and it gives the model no finding.
 - A sub-agent and a teammate get the same afterTool hooks as the main agent, so their writes are reviewed too. No extra wiring is necessary.
+- The parse cache only skips work. A cached parse gives the same scopes as a fresh one, and a miss costs time only.
 - The hook budget is 5 s, above the 1 s review deadline, so the hook returns its own deadline record.
 - Import `@dltech/atlas-plugin-quality/pod` in the pod only. It imports `@dltech/atlas-agent`, `@dltech/atlas-core`, `@dltech/atlas-plugin-sdk`, `typescript`, `node:path` and `node:crypto`, and the guards enforce it.
 - `@dltech/atlas-plugin-quality/core` stays pure: `@dltech/atlas-core` and the policy modules only.

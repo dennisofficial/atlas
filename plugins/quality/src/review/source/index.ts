@@ -5,6 +5,15 @@ export {
   makeChange,
   type TextCapture,
 } from './capture-text'
+export {
+  MAX_QUALITY_PARSE_CACHE_BYTES,
+  MAX_QUALITY_PARSE_CACHE_ENTRIES,
+  clearQualityParseCache,
+  createQualityParseCache,
+  qualityParseCacheStats,
+  type QualityParseCache,
+  type QualityParseCacheStats,
+} from './parse-cache'
 export { prepareQualityScopes } from './scope-adapter'
 export { moduleScopeId, scopeIdOf } from './scope-build'
 export { renderScopeDiff } from './scope-diff'
