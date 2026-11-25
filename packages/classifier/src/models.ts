@@ -1,4 +1,10 @@
-import { EAuthProvider, parseRef, refKey, type ModelRef } from '@dltech/atlas-core'
+import {
+  EAuthProvider,
+  parseRef,
+  refKey,
+  type ClassifierPricing,
+  type ModelRef,
+} from '@dltech/atlas-core'
 
 export enum EClassifierTransport {
   Jev = 'jev',
@@ -12,6 +18,8 @@ export type DecisionModel = {
   endpoint: string
   model: string
   provider: EAuthProvider
+  inputUsdPerMillion: number
+  outputUsdPerMillion: number
 }
 
 export const DECISION_MODELS: readonly DecisionModel[] = [
@@ -22,6 +30,8 @@ export const DECISION_MODELS: readonly DecisionModel[] = [
     endpoint: 'https://api.typesafe.ai',
     model: 'jev-latest',
     provider: EAuthProvider.Typesafe,
+    inputUsdPerMillion: 0.042,
+    outputUsdPerMillion: 0,
   },
   {
     ref: { providerId: 'gateway', modelId: 'typesafe-ai/jev' },
@@ -30,6 +40,8 @@ export const DECISION_MODELS: readonly DecisionModel[] = [
     endpoint: 'https://ai-gateway.vercel.sh/typesafe',
     model: 'typesafe-ai/jev-1.14.0',
     provider: EAuthProvider.Gateway,
+    inputUsdPerMillion: 0.042,
+    outputUsdPerMillion: 0,
   },
   {
     ref: { providerId: 'openai', modelId: 'gpt-6-luna' },
@@ -38,6 +50,8 @@ export const DECISION_MODELS: readonly DecisionModel[] = [
     endpoint: 'https://api.openai.com/v1/decisions',
     model: 'gpt-6-luna',
     provider: EAuthProvider.OpenAI,
+    inputUsdPerMillion: 0.1,
+    outputUsdPerMillion: 0,
   },
 ]
 
@@ -50,3 +64,9 @@ export function decisionModelOf(stored: string): DecisionModel | undefined {
 }
 
 export const refKeyOf = (model: DecisionModel): string => refKey(model.ref)
+
+export const pricingOf = (model: DecisionModel): ClassifierPricing => ({
+  endpoint: model.endpoint,
+  inputUsdPerMillion: model.inputUsdPerMillion,
+  outputUsdPerMillion: model.outputUsdPerMillion,
+})

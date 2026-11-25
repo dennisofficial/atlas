@@ -9,7 +9,15 @@ export enum EClassifierFault {
   Aborted = 'aborted',
 }
 
-export type ClassifierUsage = { inputTokens: number }
+export type ClassifierUsage = { inputTokens: number; outputTokens: number | null }
+
+export type ClassifierCallContext = {
+  path: string
+  scopeId: string
+  policyIds: readonly string[]
+  lineStart: number | null
+  lineEnd: number | null
+}
 
 export type ClassifierOutcome =
   | {
@@ -20,8 +28,14 @@ export type ClassifierOutcome =
     }
   | { ok: false; fault: EClassifierFault; detail: string }
 
+export type ClassifierPricing = {
+  endpoint: string
+  inputUsdPerMillion: number
+  outputUsdPerMillion: number
+}
+
 export type ClassifierStatus =
-  | { on: true; model: string; provider: string }
+  | { on: true; model: string; provider: string; pricing?: ClassifierPricing | undefined }
   | { on: false; reason: string }
 
 export abstract class ClassifierPort {
@@ -29,5 +43,6 @@ export abstract class ClassifierPort {
     state: string
     questions: Record<string, ClassifierQuestion>
     signal: AbortSignal
+    context?: ClassifierCallContext | undefined
   }): Promise<ClassifierOutcome>
 }

@@ -71,7 +71,21 @@ describe('OpenAiClassifier', () => {
 
     expect(await ask(classifierOf(fetchImpl))).toMatchObject({
       ok: true,
-      usage: { inputTokens: 64 },
+      usage: { inputTokens: 64, outputTokens: 8 },
+    })
+  })
+
+  it('reports an unknown output count as null', async () => {
+    const { fetch: fetchImpl } = recordingFetch(() =>
+      json({
+        answers: [{ type: 'predicate', name: 'danger', probability: 0.3 }],
+        usage: { prompt_tokens: 64 },
+      }),
+    )
+
+    expect(await ask(classifierOf(fetchImpl))).toMatchObject({
+      ok: true,
+      usage: { inputTokens: 64, outputTokens: null },
     })
   })
 

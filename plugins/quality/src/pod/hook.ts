@@ -32,6 +32,7 @@ import {
 } from './analytics/unavailable'
 import { noteDraftsOf, retirementDraftsOf } from './notes'
 import { reviewWithinBudget } from './review-outcome'
+import { tracedClassifier } from './traced-classifier'
 
 export const QUALITY_REVIEW_BUDGET_MS = 1000
 
@@ -100,8 +101,15 @@ export const qualityReviewHook = (args: {
       return {}
     }
 
+    const reviewId = newReviewId()
     const review = new CodeQualityReview({
-      classifier: args.ctx.classifier,
+      classifier: tracedClassifier({
+        classifier: args.ctx.classifier,
+        analytics: args.ctx.analytics,
+        reviewId,
+        status,
+        clock: args.options.clock,
+      }),
       requestedModel: status.model,
       source: { prepareQualityScopes },
       registry: qualityRegistry,
@@ -110,7 +118,6 @@ export const qualityReviewHook = (args: {
       deadlineMs: args.options.budgetMs,
     })
 
-    const reviewId = newReviewId()
     const events = args.ctx.events()
     const startedAt = args.options.clock()
     const attempted = await reviewWithinBudget({

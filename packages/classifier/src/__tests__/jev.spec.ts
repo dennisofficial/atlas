@@ -83,7 +83,18 @@ describe('JevClassifier', () => {
 
     expect(await ask(classifierOf(fetchImpl))).toMatchObject({
       ok: true,
-      usage: { inputTokens: 120 },
+      usage: { inputTokens: 120, outputTokens: 4 },
+    })
+  })
+
+  it('reports an unknown output count as null', async () => {
+    const { fetch: fetchImpl } = recordingFetch(() =>
+      json({ answers: { danger: { noul: 0.2 } }, usage: { input_tokens: 120 } }),
+    )
+
+    expect(await ask(classifierOf(fetchImpl))).toMatchObject({
+      ok: true,
+      usage: { inputTokens: 120, outputTokens: null },
     })
   })
 

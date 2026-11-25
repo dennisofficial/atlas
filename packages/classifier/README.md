@@ -45,18 +45,21 @@ the classifier from it, and a plugin reaches it through the pod context.
 - `classifierOf(config, deps?)`: a `ClassifierPort`. An off config answers
   `{ ok: false, fault: Unavailable, detail: reason }` and never calls `fetch`. `deps` carries a
   `fetch` and an optional `timeoutMs`.
-- `classifierStatusOf(config)`: a core `ClassifierStatus` — the model when on, the reason when off.
-- `classifierConfigFrom(availability)`: the `ClassifierConfig` of an availability. An api-key
-  credential without its key becomes off `NotConnected`.
-- `ClassifierConfig`: `{ on: true; transport; endpoint; model; apiKey }` or
+- `classifierStatusOf(config)`: a core `ClassifierStatus` — the model when on, the reason when off,
+  and the model's prices when the config carries them.
+- `classifierConfigFrom(availability)`: the `ClassifierConfig` of an availability, with the prices of
+  its table row. An api-key credential without its key becomes off `NotConnected`.
+- `ClassifierConfig`: `{ on: true; transport; endpoint; model; apiKey; pricing? }` or
   `{ on: false; reason }`.
 
 ### The model table
 
 - `DECISION_MODELS`: the `DecisionModel` rows. A row holds the ref, the label, the transport, the
-  endpoint, the request model and the `EAuthProvider` whose account holds the key.
+  endpoint, the request model, the `EAuthProvider` whose account holds the key, and the input and
+  output price per million tokens.
 - `decisionModelOf(stored)`: the table row a `classifier.model` value names, or `undefined`.
 - `refKeyOf(model)`: the stored form, such as `gateway/typesafe-ai/jev`.
+- `pricingOf(model)`: the row's endpoint and prices, as a core `ClassifierPricing`.
 - `EClassifierTransport`: `jev` or `openai-decisions`.
 
 ### Translate and send

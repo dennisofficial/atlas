@@ -2,6 +2,7 @@ import {
   EQualityReviewStatus,
   EQualitySkipReason,
   type CallId,
+  type ClassifierCallContext,
   type ClassifierPort,
   type ClassifierQuestion,
   type DecisionQuestion,
@@ -85,15 +86,36 @@ export function classifierQuestionsOf({
   return narrowed
 }
 
+export function callContextOf({
+  path,
+  scope,
+  unit,
+}: {
+  path: string
+  scope: QualityScope
+  unit: RequestUnit
+}): ClassifierCallContext {
+  const range = scope.afterLineRange ?? scope.lineRange
+  return {
+    path,
+    scopeId: scope.id,
+    policyIds: unit.policies.map((policy) => policy.id),
+    lineStart: range?.start ?? null,
+    lineEnd: range?.end ?? null,
+  }
+}
+
 export async function executeUnit({
   classifier,
   requestedModel,
+  path,
   scope,
   unit,
   signal,
 }: {
   classifier: ClassifierPort
   requestedModel: string
+  path: string
   scope: QualityScope
   unit: RequestUnit
   signal: AbortSignal
@@ -108,6 +130,7 @@ export async function executeUnit({
         state: unit.request.state,
         questions: classifierQuestionsOf({ questions: unit.request.questions }),
         signal: inner,
+        context: callContextOf({ path, scope, unit }),
       }),
   })
   if (raced.kind === 'deadline') return deadlineFailure({ error: raced.error })
@@ -195,7 +218,7 @@ export async function reviewScopeJob({
 }): Promise<UnitResult[]> {
   const executed = await Promise.all(
     job.plan.units.map((unit) =>
-      executeUnit({ classifier, requestedModel, scope: job.scope, unit, signal }),
+      executeUnit({ classifier, requestedModel, path: job.path, scope: job.scope, unit, signal }),
     ),
   )
   const rejected = job.plan.rejected.map(

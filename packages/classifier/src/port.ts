@@ -2,17 +2,25 @@ import {
   ClassifierPort,
   EClassifierFault,
   type ClassifierOutcome,
+  type ClassifierPricing,
   type ClassifierQuestion,
   type ClassifierStatus,
 } from '@dltech/atlas-core'
 
 import { EClassifierOffReason, type ClassifierAvailability } from './availability'
 import { JevClassifier } from './jev'
-import { EClassifierTransport } from './models'
+import { EClassifierTransport, pricingOf } from './models'
 import { OpenAiClassifier } from './openai'
 
 export type ClassifierConfig =
-  | { on: true; transport: EClassifierTransport; endpoint: string; model: string; apiKey: string }
+  | {
+      on: true
+      transport: EClassifierTransport
+      endpoint: string
+      model: string
+      apiKey: string
+      pricing?: ClassifierPricing | undefined
+    }
   | { on: false; reason: string }
 
 export type ClassifierDeps = {
@@ -48,7 +56,12 @@ export function classifierOf(config: ClassifierConfig, deps?: ClassifierDeps): C
 
 export const classifierStatusOf = (config: ClassifierConfig): ClassifierStatus =>
   config.on
-    ? { on: true, model: config.model, provider: config.transport }
+    ? {
+        on: true,
+        model: config.model,
+        provider: config.transport,
+        ...(config.pricing === undefined ? {} : { pricing: config.pricing }),
+      }
     : { on: false, reason: config.reason }
 
 export function classifierConfigFrom(availability: ClassifierAvailability): ClassifierConfig {
@@ -63,5 +76,6 @@ export function classifierConfigFrom(availability: ClassifierAvailability): Clas
     endpoint: model.endpoint,
     model: model.model,
     apiKey: credential.apiKey,
+    pricing: pricingOf(model),
   }
 }

@@ -21,17 +21,18 @@ export type OpenAiClassifierArgs = {
 const messageOf = (fault: unknown): string =>
   fault instanceof Error ? fault.message : String(fault)
 
-const inputTokensOf = (body: unknown): number | null => {
+const tokenOf = ({ body, key }: { body: unknown; key: string }): number | null => {
   if (typeof body !== 'object' || body === null) return null
   const usage = (body as { usage?: unknown }).usage
   if (typeof usage !== 'object' || usage === null) return null
-  const tokens = (usage as { prompt_tokens?: unknown }).prompt_tokens
+  const tokens = (usage as Record<string, unknown>)[key]
   return typeof tokens === 'number' && Number.isFinite(tokens) ? tokens : null
 }
 
 const usageOf = (body: unknown): ClassifierUsage | undefined => {
-  const inputTokens = inputTokensOf(body)
-  return inputTokens === null ? undefined : { inputTokens }
+  const inputTokens = tokenOf({ body, key: 'prompt_tokens' })
+  if (inputTokens === null) return undefined
+  return { inputTokens, outputTokens: tokenOf({ body, key: 'completion_tokens' }) }
 }
 
 export class OpenAiClassifier extends ClassifierPort {

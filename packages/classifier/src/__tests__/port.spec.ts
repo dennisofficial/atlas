@@ -76,6 +76,32 @@ describe('classifierStatusOf', () => {
       reason: 'off',
     })
   })
+
+  it('carries the model prices and endpoint into the status when the config has them', () => {
+    expect(
+      classifierStatusOf({
+        on: true,
+        transport: EClassifierTransport.Jev,
+        endpoint: 'https://api.typesafe.ai',
+        model: 'jev-latest',
+        apiKey: 'sk',
+        pricing: {
+          endpoint: 'https://api.typesafe.ai',
+          inputUsdPerMillion: 0.042,
+          outputUsdPerMillion: 0,
+        },
+      }),
+    ).toEqual({
+      on: true,
+      model: 'jev-latest',
+      provider: EClassifierTransport.Jev,
+      pricing: {
+        endpoint: 'https://api.typesafe.ai',
+        inputUsdPerMillion: 0.042,
+        outputUsdPerMillion: 0,
+      },
+    })
+  })
 })
 
 describe('classifierConfigFrom', () => {
@@ -90,6 +116,8 @@ describe('classifierConfigFrom', () => {
           endpoint: 'https://ai-gateway.vercel.sh/typesafe',
           model: 'typesafe-ai/jev',
           provider: EAuthProvider.Gateway,
+          inputUsdPerMillion: 0.042,
+          outputUsdPerMillion: 0,
         },
         credential: { kind: 'api-key', accountId: 'acc', apiKey: 'gw-key' },
       }),
@@ -99,6 +127,11 @@ describe('classifierConfigFrom', () => {
       endpoint: 'https://ai-gateway.vercel.sh/typesafe',
       model: 'typesafe-ai/jev',
       apiKey: 'gw-key',
+      pricing: {
+        endpoint: 'https://ai-gateway.vercel.sh/typesafe',
+        inputUsdPerMillion: 0.042,
+        outputUsdPerMillion: 0,
+      },
     })
   })
 
@@ -113,6 +146,8 @@ describe('classifierConfigFrom', () => {
           endpoint: 'https://api.typesafe.ai',
           model: 'jev-latest',
           provider: EAuthProvider.Typesafe,
+          inputUsdPerMillion: 0.042,
+          outputUsdPerMillion: 0,
         },
         credential: { kind: 'api-key', accountId: 'acc' },
       }),

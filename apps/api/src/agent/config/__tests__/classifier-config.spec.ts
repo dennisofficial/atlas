@@ -60,6 +60,11 @@ describe('classifierConfigOf', () => {
       endpoint: 'https://ai-gateway.vercel.sh/typesafe',
       model: 'typesafe-ai/jev-1.14.0',
       apiKey: 'gateway-key',
+      pricing: {
+        endpoint: 'https://ai-gateway.vercel.sh/typesafe',
+        inputUsdPerMillion: 0.042,
+        outputUsdPerMillion: 0,
+      },
     })
   })
 
