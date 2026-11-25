@@ -13,7 +13,13 @@ import { radius, space } from '@dltech/atlas-ui/tokens'
 import { router } from 'expo-router'
 import { Maximize2 } from 'lucide-react-native'
 import { useCallback, useReducer, useState } from 'react'
-import { type LayoutChangeEvent, Pressable, StyleSheet, View } from 'react-native'
+import {
+  ActivityIndicator,
+  type LayoutChangeEvent,
+  Pressable,
+  StyleSheet,
+  View,
+} from 'react-native'
 
 import {
   cacheDiagramHeight,
@@ -131,6 +137,11 @@ const DiagramCardView = ({ source, closed }: IDiagramCardProps) => {
             dom={{ matchContents: false, scrollEnabled: false, style: { width, height } }}
           />
         ) : null}
+        {state.size === undefined ? (
+          <View pointerEvents="none" style={styles.loading}>
+            <ActivityIndicator color={theme.mutedForeground} />
+          </View>
+        ) : null}
         {clamped ? (
           <View
             pointerEvents="none"
@@ -166,6 +177,11 @@ const styles = StyleSheet.create({
   body: {
     overflow: 'hidden',
     width: '100%',
+  },
+  loading: {
+    ...StyleSheet.absoluteFill,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   fade: {
     alignItems: 'center',
