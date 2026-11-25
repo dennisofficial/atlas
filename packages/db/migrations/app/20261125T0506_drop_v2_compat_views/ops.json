@@ -1,0 +1,678 @@
+[
+  {
+    "id": "drop-v2-views.timeouts",
+    "invariantId": "drop-v2-compat-views",
+    "label": "Fail the deploy instead of waiting behind a long lock",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Session"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "bound the wait for ACCESS EXCLUSIVE locks",
+        "sql": "SET LOCAL lock_timeout = '5s'"
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "drop-v2-views.drop.V2Blob",
+    "label": "Drop the compatibility view v2.\"V2Blob\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Blob"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "drop v2.\"V2Blob\" when it is a view, and refuse any other relation",
+        "sql": "DO $$\nDECLARE\n  kind text;\nBEGIN\n  SELECT relkind::text INTO kind FROM pg_class WHERE oid = to_regclass('v2.\"V2Blob\"');\n  IF kind IS NULL THEN\n    RETURN;\n  END IF;\n  IF kind <> 'v' THEN\n    RAISE EXCEPTION 'refusing to drop %.%: relkind % is not a view', 'v2', 'V2Blob', kind;\n  END IF;\n  EXECUTE 'DROP VIEW v2.\"V2Blob\"';\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "v2.\"V2Blob\" is gone",
+        "sql": "SELECT to_regclass('v2.\"V2Blob\"') IS NULL AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "drop-v2-views.drop.V2BlobRef",
+    "label": "Drop the compatibility view v2.\"V2BlobRef\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "BlobRef"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "drop v2.\"V2BlobRef\" when it is a view, and refuse any other relation",
+        "sql": "DO $$\nDECLARE\n  kind text;\nBEGIN\n  SELECT relkind::text INTO kind FROM pg_class WHERE oid = to_regclass('v2.\"V2BlobRef\"');\n  IF kind IS NULL THEN\n    RETURN;\n  END IF;\n  IF kind <> 'v' THEN\n    RAISE EXCEPTION 'refusing to drop %.%: relkind % is not a view', 'v2', 'V2BlobRef', kind;\n  END IF;\n  EXECUTE 'DROP VIEW v2.\"V2BlobRef\"';\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "v2.\"V2BlobRef\" is gone",
+        "sql": "SELECT to_regclass('v2.\"V2BlobRef\"') IS NULL AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "drop-v2-views.drop.V2ChangeBlob",
+    "label": "Drop the compatibility view v2.\"V2ChangeBlob\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "ChangeBlob"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "drop v2.\"V2ChangeBlob\" when it is a view, and refuse any other relation",
+        "sql": "DO $$\nDECLARE\n  kind text;\nBEGIN\n  SELECT relkind::text INTO kind FROM pg_class WHERE oid = to_regclass('v2.\"V2ChangeBlob\"');\n  IF kind IS NULL THEN\n    RETURN;\n  END IF;\n  IF kind <> 'v' THEN\n    RAISE EXCEPTION 'refusing to drop %.%: relkind % is not a view', 'v2', 'V2ChangeBlob', kind;\n  END IF;\n  EXECUTE 'DROP VIEW v2.\"V2ChangeBlob\"';\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "v2.\"V2ChangeBlob\" is gone",
+        "sql": "SELECT to_regclass('v2.\"V2ChangeBlob\"') IS NULL AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "drop-v2-views.drop.V2ComposerDraft",
+    "label": "Drop the compatibility view v2.\"V2ComposerDraft\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "SessionDraft"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "drop v2.\"V2ComposerDraft\" when it is a view, and refuse any other relation",
+        "sql": "DO $$\nDECLARE\n  kind text;\nBEGIN\n  SELECT relkind::text INTO kind FROM pg_class WHERE oid = to_regclass('v2.\"V2ComposerDraft\"');\n  IF kind IS NULL THEN\n    RETURN;\n  END IF;\n  IF kind <> 'v' THEN\n    RAISE EXCEPTION 'refusing to drop %.%: relkind % is not a view', 'v2', 'V2ComposerDraft', kind;\n  END IF;\n  EXECUTE 'DROP VIEW v2.\"V2ComposerDraft\"';\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "v2.\"V2ComposerDraft\" is gone",
+        "sql": "SELECT to_regclass('v2.\"V2ComposerDraft\"') IS NULL AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "drop-v2-views.drop.V2ContextFile",
+    "label": "Drop the compatibility view v2.\"V2ContextFile\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "ContextFile"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "drop v2.\"V2ContextFile\" when it is a view, and refuse any other relation",
+        "sql": "DO $$\nDECLARE\n  kind text;\nBEGIN\n  SELECT relkind::text INTO kind FROM pg_class WHERE oid = to_regclass('v2.\"V2ContextFile\"');\n  IF kind IS NULL THEN\n    RETURN;\n  END IF;\n  IF kind <> 'v' THEN\n    RAISE EXCEPTION 'refusing to drop %.%: relkind % is not a view', 'v2', 'V2ContextFile', kind;\n  END IF;\n  EXECUTE 'DROP VIEW v2.\"V2ContextFile\"';\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "v2.\"V2ContextFile\" is gone",
+        "sql": "SELECT to_regclass('v2.\"V2ContextFile\"') IS NULL AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "drop-v2-views.drop.V2DiagramRepair",
+    "label": "Drop the compatibility view v2.\"V2DiagramRepair\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "DiagramRepair"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "drop v2.\"V2DiagramRepair\" when it is a view, and refuse any other relation",
+        "sql": "DO $$\nDECLARE\n  kind text;\nBEGIN\n  SELECT relkind::text INTO kind FROM pg_class WHERE oid = to_regclass('v2.\"V2DiagramRepair\"');\n  IF kind IS NULL THEN\n    RETURN;\n  END IF;\n  IF kind <> 'v' THEN\n    RAISE EXCEPTION 'refusing to drop %.%: relkind % is not a view', 'v2', 'V2DiagramRepair', kind;\n  END IF;\n  EXECUTE 'DROP VIEW v2.\"V2DiagramRepair\"';\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "v2.\"V2DiagramRepair\" is gone",
+        "sql": "SELECT to_regclass('v2.\"V2DiagramRepair\"') IS NULL AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "drop-v2-views.drop.V2Event",
+    "label": "Drop the compatibility view v2.\"V2Event\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Event"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "drop v2.\"V2Event\" when it is a view, and refuse any other relation",
+        "sql": "DO $$\nDECLARE\n  kind text;\nBEGIN\n  SELECT relkind::text INTO kind FROM pg_class WHERE oid = to_regclass('v2.\"V2Event\"');\n  IF kind IS NULL THEN\n    RETURN;\n  END IF;\n  IF kind <> 'v' THEN\n    RAISE EXCEPTION 'refusing to drop %.%: relkind % is not a view', 'v2', 'V2Event', kind;\n  END IF;\n  EXECUTE 'DROP VIEW v2.\"V2Event\"';\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "v2.\"V2Event\" is gone",
+        "sql": "SELECT to_regclass('v2.\"V2Event\"') IS NULL AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "drop-v2-views.drop.V2Host",
+    "label": "Drop the compatibility view v2.\"V2Host\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Host"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "drop v2.\"V2Host\" when it is a view, and refuse any other relation",
+        "sql": "DO $$\nDECLARE\n  kind text;\nBEGIN\n  SELECT relkind::text INTO kind FROM pg_class WHERE oid = to_regclass('v2.\"V2Host\"');\n  IF kind IS NULL THEN\n    RETURN;\n  END IF;\n  IF kind <> 'v' THEN\n    RAISE EXCEPTION 'refusing to drop %.%: relkind % is not a view', 'v2', 'V2Host', kind;\n  END IF;\n  EXECUTE 'DROP VIEW v2.\"V2Host\"';\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "v2.\"V2Host\" is gone",
+        "sql": "SELECT to_regclass('v2.\"V2Host\"') IS NULL AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "drop-v2-views.drop.V2InboxEntry",
+    "label": "Drop the compatibility view v2.\"V2InboxEntry\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "InboxEntry"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "drop v2.\"V2InboxEntry\" when it is a view, and refuse any other relation",
+        "sql": "DO $$\nDECLARE\n  kind text;\nBEGIN\n  SELECT relkind::text INTO kind FROM pg_class WHERE oid = to_regclass('v2.\"V2InboxEntry\"');\n  IF kind IS NULL THEN\n    RETURN;\n  END IF;\n  IF kind <> 'v' THEN\n    RAISE EXCEPTION 'refusing to drop %.%: relkind % is not a view', 'v2', 'V2InboxEntry', kind;\n  END IF;\n  EXECUTE 'DROP VIEW v2.\"V2InboxEntry\"';\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "v2.\"V2InboxEntry\" is gone",
+        "sql": "SELECT to_regclass('v2.\"V2InboxEntry\"') IS NULL AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "drop-v2-views.drop.V2Lease",
+    "label": "Drop the compatibility view v2.\"V2Lease\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Lease"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "drop v2.\"V2Lease\" when it is a view, and refuse any other relation",
+        "sql": "DO $$\nDECLARE\n  kind text;\nBEGIN\n  SELECT relkind::text INTO kind FROM pg_class WHERE oid = to_regclass('v2.\"V2Lease\"');\n  IF kind IS NULL THEN\n    RETURN;\n  END IF;\n  IF kind <> 'v' THEN\n    RAISE EXCEPTION 'refusing to drop %.%: relkind % is not a view', 'v2', 'V2Lease', kind;\n  END IF;\n  EXECUTE 'DROP VIEW v2.\"V2Lease\"';\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "v2.\"V2Lease\" is gone",
+        "sql": "SELECT to_regclass('v2.\"V2Lease\"') IS NULL AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "drop-v2-views.drop.Media",
+    "label": "Drop the compatibility view v2.\"Media\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Media"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "drop v2.\"Media\" when it is a view, and refuse any other relation",
+        "sql": "DO $$\nDECLARE\n  kind text;\nBEGIN\n  SELECT relkind::text INTO kind FROM pg_class WHERE oid = to_regclass('v2.\"Media\"');\n  IF kind IS NULL THEN\n    RETURN;\n  END IF;\n  IF kind <> 'v' THEN\n    RAISE EXCEPTION 'refusing to drop %.%: relkind % is not a view', 'v2', 'Media', kind;\n  END IF;\n  EXECUTE 'DROP VIEW v2.\"Media\"';\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "v2.\"Media\" is gone",
+        "sql": "SELECT to_regclass('v2.\"Media\"') IS NULL AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "drop-v2-views.drop.MediaSigningWindow",
+    "label": "Drop the compatibility view v2.\"MediaSigningWindow\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "MediaSigningWindow"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "drop v2.\"MediaSigningWindow\" when it is a view, and refuse any other relation",
+        "sql": "DO $$\nDECLARE\n  kind text;\nBEGIN\n  SELECT relkind::text INTO kind FROM pg_class WHERE oid = to_regclass('v2.\"MediaSigningWindow\"');\n  IF kind IS NULL THEN\n    RETURN;\n  END IF;\n  IF kind <> 'v' THEN\n    RAISE EXCEPTION 'refusing to drop %.%: relkind % is not a view', 'v2', 'MediaSigningWindow', kind;\n  END IF;\n  EXECUTE 'DROP VIEW v2.\"MediaSigningWindow\"';\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "v2.\"MediaSigningWindow\" is gone",
+        "sql": "SELECT to_regclass('v2.\"MediaSigningWindow\"') IS NULL AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "drop-v2-views.drop.V2PushDevice",
+    "label": "Drop the compatibility view v2.\"V2PushDevice\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "PushDevice"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "drop v2.\"V2PushDevice\" when it is a view, and refuse any other relation",
+        "sql": "DO $$\nDECLARE\n  kind text;\nBEGIN\n  SELECT relkind::text INTO kind FROM pg_class WHERE oid = to_regclass('v2.\"V2PushDevice\"');\n  IF kind IS NULL THEN\n    RETURN;\n  END IF;\n  IF kind <> 'v' THEN\n    RAISE EXCEPTION 'refusing to drop %.%: relkind % is not a view', 'v2', 'V2PushDevice', kind;\n  END IF;\n  EXECUTE 'DROP VIEW v2.\"V2PushDevice\"';\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "v2.\"V2PushDevice\" is gone",
+        "sql": "SELECT to_regclass('v2.\"V2PushDevice\"') IS NULL AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "drop-v2-views.drop.V2Routine",
+    "label": "Drop the compatibility view v2.\"V2Routine\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Routine"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "drop v2.\"V2Routine\" when it is a view, and refuse any other relation",
+        "sql": "DO $$\nDECLARE\n  kind text;\nBEGIN\n  SELECT relkind::text INTO kind FROM pg_class WHERE oid = to_regclass('v2.\"V2Routine\"');\n  IF kind IS NULL THEN\n    RETURN;\n  END IF;\n  IF kind <> 'v' THEN\n    RAISE EXCEPTION 'refusing to drop %.%: relkind % is not a view', 'v2', 'V2Routine', kind;\n  END IF;\n  EXECUTE 'DROP VIEW v2.\"V2Routine\"';\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "v2.\"V2Routine\" is gone",
+        "sql": "SELECT to_regclass('v2.\"V2Routine\"') IS NULL AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "drop-v2-views.drop.V2RoutineRun",
+    "label": "Drop the compatibility view v2.\"V2RoutineRun\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "RoutineRun"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "drop v2.\"V2RoutineRun\" when it is a view, and refuse any other relation",
+        "sql": "DO $$\nDECLARE\n  kind text;\nBEGIN\n  SELECT relkind::text INTO kind FROM pg_class WHERE oid = to_regclass('v2.\"V2RoutineRun\"');\n  IF kind IS NULL THEN\n    RETURN;\n  END IF;\n  IF kind <> 'v' THEN\n    RAISE EXCEPTION 'refusing to drop %.%: relkind % is not a view', 'v2', 'V2RoutineRun', kind;\n  END IF;\n  EXECUTE 'DROP VIEW v2.\"V2RoutineRun\"';\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "v2.\"V2RoutineRun\" is gone",
+        "sql": "SELECT to_regclass('v2.\"V2RoutineRun\"') IS NULL AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "drop-v2-views.drop.V2SandboxRun",
+    "label": "Drop the compatibility view v2.\"V2SandboxRun\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "SandboxRun"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "drop v2.\"V2SandboxRun\" when it is a view, and refuse any other relation",
+        "sql": "DO $$\nDECLARE\n  kind text;\nBEGIN\n  SELECT relkind::text INTO kind FROM pg_class WHERE oid = to_regclass('v2.\"V2SandboxRun\"');\n  IF kind IS NULL THEN\n    RETURN;\n  END IF;\n  IF kind <> 'v' THEN\n    RAISE EXCEPTION 'refusing to drop %.%: relkind % is not a view', 'v2', 'V2SandboxRun', kind;\n  END IF;\n  EXECUTE 'DROP VIEW v2.\"V2SandboxRun\"';\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "v2.\"V2SandboxRun\" is gone",
+        "sql": "SELECT to_regclass('v2.\"V2SandboxRun\"') IS NULL AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "drop-v2-views.drop.V2Session",
+    "label": "Drop the compatibility view v2.\"V2Session\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Session"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "drop v2.\"V2Session\" when it is a view, and refuse any other relation",
+        "sql": "DO $$\nDECLARE\n  kind text;\nBEGIN\n  SELECT relkind::text INTO kind FROM pg_class WHERE oid = to_regclass('v2.\"V2Session\"');\n  IF kind IS NULL THEN\n    RETURN;\n  END IF;\n  IF kind <> 'v' THEN\n    RAISE EXCEPTION 'refusing to drop %.%: relkind % is not a view', 'v2', 'V2Session', kind;\n  END IF;\n  EXECUTE 'DROP VIEW v2.\"V2Session\"';\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "v2.\"V2Session\" is gone",
+        "sql": "SELECT to_regclass('v2.\"V2Session\"') IS NULL AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "drop-v2-views.drop.V2SessionBranch",
+    "label": "Drop the compatibility view v2.\"V2SessionBranch\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "SessionBranch"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "drop v2.\"V2SessionBranch\" when it is a view, and refuse any other relation",
+        "sql": "DO $$\nDECLARE\n  kind text;\nBEGIN\n  SELECT relkind::text INTO kind FROM pg_class WHERE oid = to_regclass('v2.\"V2SessionBranch\"');\n  IF kind IS NULL THEN\n    RETURN;\n  END IF;\n  IF kind <> 'v' THEN\n    RAISE EXCEPTION 'refusing to drop %.%: relkind % is not a view', 'v2', 'V2SessionBranch', kind;\n  END IF;\n  EXECUTE 'DROP VIEW v2.\"V2SessionBranch\"';\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "v2.\"V2SessionBranch\" is gone",
+        "sql": "SELECT to_regclass('v2.\"V2SessionBranch\"') IS NULL AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "drop-v2-views.drop.V2SessionPullRequest",
+    "label": "Drop the compatibility view v2.\"V2SessionPullRequest\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "SessionPullRequest"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "drop v2.\"V2SessionPullRequest\" when it is a view, and refuse any other relation",
+        "sql": "DO $$\nDECLARE\n  kind text;\nBEGIN\n  SELECT relkind::text INTO kind FROM pg_class WHERE oid = to_regclass('v2.\"V2SessionPullRequest\"');\n  IF kind IS NULL THEN\n    RETURN;\n  END IF;\n  IF kind <> 'v' THEN\n    RAISE EXCEPTION 'refusing to drop %.%: relkind % is not a view', 'v2', 'V2SessionPullRequest', kind;\n  END IF;\n  EXECUTE 'DROP VIEW v2.\"V2SessionPullRequest\"';\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "v2.\"V2SessionPullRequest\" is gone",
+        "sql": "SELECT to_regclass('v2.\"V2SessionPullRequest\"') IS NULL AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "drop-v2-views.drop.V2SessionView",
+    "label": "Drop the compatibility view v2.\"V2SessionView\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "SessionView"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "drop v2.\"V2SessionView\" when it is a view, and refuse any other relation",
+        "sql": "DO $$\nDECLARE\n  kind text;\nBEGIN\n  SELECT relkind::text INTO kind FROM pg_class WHERE oid = to_regclass('v2.\"V2SessionView\"');\n  IF kind IS NULL THEN\n    RETURN;\n  END IF;\n  IF kind <> 'v' THEN\n    RAISE EXCEPTION 'refusing to drop %.%: relkind % is not a view', 'v2', 'V2SessionView', kind;\n  END IF;\n  EXECUTE 'DROP VIEW v2.\"V2SessionView\"';\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "v2.\"V2SessionView\" is gone",
+        "sql": "SELECT to_regclass('v2.\"V2SessionView\"') IS NULL AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "drop-v2-views.drop.V2Terminal",
+    "label": "Drop the compatibility view v2.\"V2Terminal\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Terminal"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "drop v2.\"V2Terminal\" when it is a view, and refuse any other relation",
+        "sql": "DO $$\nDECLARE\n  kind text;\nBEGIN\n  SELECT relkind::text INTO kind FROM pg_class WHERE oid = to_regclass('v2.\"V2Terminal\"');\n  IF kind IS NULL THEN\n    RETURN;\n  END IF;\n  IF kind <> 'v' THEN\n    RAISE EXCEPTION 'refusing to drop %.%: relkind % is not a view', 'v2', 'V2Terminal', kind;\n  END IF;\n  EXECUTE 'DROP VIEW v2.\"V2Terminal\"';\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "v2.\"V2Terminal\" is gone",
+        "sql": "SELECT to_regclass('v2.\"V2Terminal\"') IS NULL AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "drop-v2-views.drop.V2Thread",
+    "label": "Drop the compatibility view v2.\"V2Thread\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Thread"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "drop v2.\"V2Thread\" when it is a view, and refuse any other relation",
+        "sql": "DO $$\nDECLARE\n  kind text;\nBEGIN\n  SELECT relkind::text INTO kind FROM pg_class WHERE oid = to_regclass('v2.\"V2Thread\"');\n  IF kind IS NULL THEN\n    RETURN;\n  END IF;\n  IF kind <> 'v' THEN\n    RAISE EXCEPTION 'refusing to drop %.%: relkind % is not a view', 'v2', 'V2Thread', kind;\n  END IF;\n  EXECUTE 'DROP VIEW v2.\"V2Thread\"';\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "v2.\"V2Thread\" is gone",
+        "sql": "SELECT to_regclass('v2.\"V2Thread\"') IS NULL AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "drop-v2-views.drop.V2WorktreeChangedFile",
+    "label": "Drop the compatibility view v2.\"V2WorktreeChangedFile\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "WorktreeChangedFile"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "drop v2.\"V2WorktreeChangedFile\" when it is a view, and refuse any other relation",
+        "sql": "DO $$\nDECLARE\n  kind text;\nBEGIN\n  SELECT relkind::text INTO kind FROM pg_class WHERE oid = to_regclass('v2.\"V2WorktreeChangedFile\"');\n  IF kind IS NULL THEN\n    RETURN;\n  END IF;\n  IF kind <> 'v' THEN\n    RAISE EXCEPTION 'refusing to drop %.%: relkind % is not a view', 'v2', 'V2WorktreeChangedFile', kind;\n  END IF;\n  EXECUTE 'DROP VIEW v2.\"V2WorktreeChangedFile\"';\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "v2.\"V2WorktreeChangedFile\" is gone",
+        "sql": "SELECT to_regclass('v2.\"V2WorktreeChangedFile\"') IS NULL AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "drop-v2-views.drop.V2WorktreeChanges",
+    "label": "Drop the compatibility view v2.\"V2WorktreeChanges\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "WorktreeChanges"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "drop v2.\"V2WorktreeChanges\" when it is a view, and refuse any other relation",
+        "sql": "DO $$\nDECLARE\n  kind text;\nBEGIN\n  SELECT relkind::text INTO kind FROM pg_class WHERE oid = to_regclass('v2.\"V2WorktreeChanges\"');\n  IF kind IS NULL THEN\n    RETURN;\n  END IF;\n  IF kind <> 'v' THEN\n    RAISE EXCEPTION 'refusing to drop %.%: relkind % is not a view', 'v2', 'V2WorktreeChanges', kind;\n  END IF;\n  EXECUTE 'DROP VIEW v2.\"V2WorktreeChanges\"';\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "v2.\"V2WorktreeChanges\" is gone",
+        "sql": "SELECT to_regclass('v2.\"V2WorktreeChanges\"') IS NULL AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "drop-v2-views.drop-schema",
+    "label": "Drop the v2 schema once no relation is left in it",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Session"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "drop schema v2 without CASCADE, and refuse while a relation remains",
+        "sql": "DO $$\nDECLARE\n  remaining text;\nBEGIN\n  IF to_regnamespace('v2') IS NULL THEN\n    RETURN;\n  END IF;\n  SELECT string_agg(format('%s.%s (%s)', 'v2', c.relname, c.relkind), ', ' ORDER BY c.relname)\n    INTO remaining\n    FROM pg_class c\n    JOIN pg_namespace n ON n.oid = c.relnamespace\n   WHERE n.nspname = 'v2';\n  IF remaining IS NOT NULL THEN\n    RAISE EXCEPTION 'refusing to drop schema v2: relations remain: %', remaining;\n  END IF;\n  DROP SCHEMA IF EXISTS v2;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "the v2 namespace is gone",
+        "sql": "SELECT to_regnamespace('v2') IS NULL AS \"result\""
+      },
+      {
+        "description": "no relation lives in v2",
+        "sql": "SELECT count(*) = 0 AS \"result\"\n  FROM pg_class c\n  JOIN pg_namespace n ON n.oid = c.relnamespace\n WHERE n.nspname = 'v2'"
+      }
+    ]
+  }
+]
