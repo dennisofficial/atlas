@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 
 import type { LanguageModelV4CallOptions } from '@ai-sdk/provider'
 
-export const CLAUDE_CODE_VERSION = '2.1.296'
+export const CLAUDE_CODE_VERSION = '2.1.332'
 const ATLAS_ENTRYPOINT = 'atlas'
 const CLAUDE_CODE_FINGERPRINT_INDICES = [4, 7, 20] as const
 const CLAUDE_CODE_FINGERPRINT_SALT = '59cf53e54c78'
