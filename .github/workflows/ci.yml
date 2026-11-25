@@ -251,61 +251,6 @@ jobs:
           path: .cache/incremental-tests
           key: incremental-tests-${{ github.ref }}-${{ github.run_id }}-${{ github.run_attempt }}
 
-  # THROWAWAY proof for the instructions-push restart flake: ten parallel runs of one spec with the
-  # services and env of `test`. Reverted in a follow-up commit on this branch once CI is green.
-  instructions-push-repeat:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        run: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-    env:
-      ATLAS_TEST_DATABASE_URL: postgresql://atlas:atlas@localhost:55441/atlas_test
-      ATLAS_TEST_REDIS_URL: redis://127.0.0.1:55442
-    services:
-      postgres:
-        image: postgres:17-alpine
-        env:
-          POSTGRES_USER: atlas
-          POSTGRES_PASSWORD: atlas
-          POSTGRES_DB: atlas_test
-        ports:
-          - 55441:5432
-        options: >-
-          --health-cmd "pg_isready -U atlas -d atlas_test"
-          --health-interval 2s
-          --health-timeout 3s
-          --health-retries 15
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 55442:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 2s
-          --health-timeout 3s
-          --health-retries 15
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: oven-sh/setup-bun@v2.2.0
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version-file: .nvmrc
-
-      - uses: actions/cache@v6
-        with:
-          path: ~/.bun/install/cache
-          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-
-      - run: bun install
-
-      - name: the restart case, ten times over
-        working-directory: apps/api
-        run: bun test src/agent/__tests__/faults/handoff-instructions-push.fault.spec.ts -t "reports the work interrupted"
-
   # Unsigned rehearsal of the mac build on PRs: proves the web export, the OTA payload, the host
   # bundle and electron-builder packaging still work without touching a secret, so fork PRs run it
   # too and it gates merges. Main pushes skip it: the PR run already proved the merge commit and
