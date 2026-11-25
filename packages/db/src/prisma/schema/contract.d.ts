@@ -23,9 +23,9 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'cc41152adc40314d3a65a4dcfa9f1377281450f71fae9b89d6dc22eb6b0cec30'>;
+  StorageHashBase<'48eae429cd208fd07b61e49b7abc76598096c07ec0528c1142d8fec838d5a974'>;
 export type ExecutionHash =
-  ExecutionHashBase<'fd19c5954d71f00e27e0c02be3f06b71374f3b34bfb9f582b985590708b7518f'>;
+  ExecutionHashBase<'2177efb983de353ed275f943d06737e92fbddeac59ea03b9801f93db68d4ba53'>;
 export type ProfileHash =
   ProfileHashBase<'3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2'>;
 
@@ -402,60 +402,6 @@ export namespace Models {
     user: public_User;
     readonly [RelationKeys]?: 'user';
   };
-  export type public_CloudSandbox = {
-    contextPending: FieldOutputTypes['public']['CloudSandbox']['contextPending'];
-    createdAt: FieldOutputTypes['public']['CloudSandbox']['createdAt'];
-    id: FieldOutputTypes['public']['CloudSandbox']['id'];
-    lastActivityAt: FieldOutputTypes['public']['CloudSandbox']['lastActivityAt'];
-    name: FieldOutputTypes['public']['CloudSandbox']['name'];
-    pendingSend: FieldOutputTypes['public']['CloudSandbox']['pendingSend'];
-    pendingVcpus: FieldOutputTypes['public']['CloudSandbox']['pendingVcpus'];
-    pinnedModel: FieldOutputTypes['public']['CloudSandbox']['pinnedModel'];
-    region: FieldOutputTypes['public']['CloudSandbox']['region'];
-    retiredAt: FieldOutputTypes['public']['CloudSandbox']['retiredAt'];
-    runningServeVersion: FieldOutputTypes['public']['CloudSandbox']['runningServeVersion'];
-    runtimeCheckpoint: FieldOutputTypes['public']['CloudSandbox']['runtimeCheckpoint'];
-    runtimeCheckpointRevision: FieldOutputTypes['public']['CloudSandbox']['runtimeCheckpointRevision'];
-    sandboxId: FieldOutputTypes['public']['CloudSandbox']['sandboxId'];
-    sealedGitToken: FieldOutputTypes['public']['CloudSandbox']['sealedGitToken'];
-    sealedToken: FieldOutputTypes['public']['CloudSandbox']['sealedToken'];
-    serveUrl: FieldOutputTypes['public']['CloudSandbox']['serveUrl'];
-    serveVersion: FieldOutputTypes['public']['CloudSandbox']['serveVersion'];
-    sessionId: FieldOutputTypes['public']['CloudSandbox']['sessionId'];
-    state: FieldOutputTypes['public']['CloudSandbox']['state'];
-    tokenHash: FieldOutputTypes['public']['CloudSandbox']['tokenHash'];
-    updatedAt: FieldOutputTypes['public']['CloudSandbox']['updatedAt'];
-    userId: FieldOutputTypes['public']['CloudSandbox']['userId'];
-    vercelProjectId: FieldOutputTypes['public']['CloudSandbox']['vercelProjectId'];
-    wakeClaim: FieldOutputTypes['public']['CloudSandbox']['wakeClaim'];
-    wakeFailedAt: FieldOutputTypes['public']['CloudSandbox']['wakeFailedAt'];
-    workspaceRemoteUrl: FieldOutputTypes['public']['CloudSandbox']['workspaceRemoteUrl'];
-    oauthConnections: public_OauthConnectionSandbox[];
-    session: public_Session;
-    user: public_User;
-    readonly [RelationKeys]?: 'oauthConnections' | 'session' | 'user';
-  };
-  export type public_ComposerDraft = {
-    attachments: FieldOutputTypes['public']['ComposerDraft']['attachments'];
-    scopeKey: FieldOutputTypes['public']['ComposerDraft']['scopeKey'];
-    text: FieldOutputTypes['public']['ComposerDraft']['text'];
-    threadId: FieldOutputTypes['public']['ComposerDraft']['threadId'];
-    updatedAt: FieldOutputTypes['public']['ComposerDraft']['updatedAt'];
-    userId: FieldOutputTypes['public']['ComposerDraft']['userId'];
-    thread: public_Thread | null;
-    user: public_User;
-    readonly [RelationKeys]?: 'thread' | 'user';
-  };
-  export type public_ContextFile = {
-    content: FieldOutputTypes['public']['ContextFile']['content'];
-    digest: FieldOutputTypes['public']['ContextFile']['digest'];
-    id: FieldOutputTypes['public']['ContextFile']['id'];
-    path: FieldOutputTypes['public']['ContextFile']['path'];
-    threadId: FieldOutputTypes['public']['ContextFile']['threadId'];
-    updatedAt: FieldOutputTypes['public']['ContextFile']['updatedAt'];
-    thread: public_Thread;
-    readonly [RelationKeys]?: 'thread';
-  };
   export type public_CredentialAvailability = {
     accountId: FieldOutputTypes['public']['CredentialAvailability']['accountId'];
     availability: FieldOutputTypes['public']['CredentialAvailability']['availability'];
@@ -490,24 +436,6 @@ export namespace Models {
     userId: FieldOutputTypes['public']['DeviceCode']['userId'];
     user: public_User | null;
     readonly [RelationKeys]?: 'user';
-  };
-  export type public_Event = {
-    at: FieldOutputTypes['public']['Event']['at'];
-    body: FieldOutputTypes['public']['Event']['body'];
-    contextDigest: FieldOutputTypes['public']['Event']['contextDigest'];
-    contextKey: FieldOutputTypes['public']['Event']['contextKey'];
-    contextSlot: FieldOutputTypes['public']['Event']['contextSlot'];
-    depth: FieldOutputTypes['public']['Event']['depth'];
-    id: FieldOutputTypes['public']['Event']['id'];
-    parentRunId: FieldOutputTypes['public']['Event']['parentRunId'];
-    runId: FieldOutputTypes['public']['Event']['runId'];
-    seq: FieldOutputTypes['public']['Event']['seq'];
-    threadId: FieldOutputTypes['public']['Event']['threadId'];
-    toolName: FieldOutputTypes['public']['Event']['toolName'];
-    type: FieldOutputTypes['public']['Event']['type'];
-    userId: FieldOutputTypes['public']['Event']['userId'];
-    thread: public_Thread;
-    readonly [RelationKeys]?: 'thread';
   };
   export type public_GithubAppInstallation = {
     accountLogin: FieldOutputTypes['public']['GithubAppInstallation']['accountLogin'];
@@ -714,16 +642,6 @@ export namespace Models {
     receivedAt: FieldOutputTypes['public']['GithubWebhookInbox']['receivedAt'];
     readonly [RelationKeys]?: never;
   };
-  export type public_LocalPodLease = {
-    createdAt: FieldOutputTypes['public']['LocalPodLease']['createdAt'];
-    id: FieldOutputTypes['public']['LocalPodLease']['id'];
-    threadId: FieldOutputTypes['public']['LocalPodLease']['threadId'];
-    tokenHash: FieldOutputTypes['public']['LocalPodLease']['tokenHash'];
-    updatedAt: FieldOutputTypes['public']['LocalPodLease']['updatedAt'];
-    userId: FieldOutputTypes['public']['LocalPodLease']['userId'];
-    user: public_User;
-    readonly [RelationKeys]?: 'user';
-  };
   export type public_McpOauthPending = {
     completedAt: FieldOutputTypes['public']['McpOauthPending']['completedAt'];
     createdAt: FieldOutputTypes['public']['McpOauthPending']['createdAt'];
@@ -789,17 +707,8 @@ export namespace Models {
     status: FieldOutputTypes['public']['OauthConnection']['status'];
     updatedAt: FieldOutputTypes['public']['OauthConnection']['updatedAt'];
     userId: FieldOutputTypes['public']['OauthConnection']['userId'];
-    sandboxes: public_OauthConnectionSandbox[];
     user: public_User;
-    readonly [RelationKeys]?: 'sandboxes' | 'user';
-  };
-  export type public_OauthConnectionSandbox = {
-    connectionId: FieldOutputTypes['public']['OauthConnectionSandbox']['connectionId'];
-    createdAt: FieldOutputTypes['public']['OauthConnectionSandbox']['createdAt'];
-    sandboxId: FieldOutputTypes['public']['OauthConnectionSandbox']['sandboxId'];
-    connection: public_OauthConnection;
-    sandbox: public_CloudSandbox;
-    readonly [RelationKeys]?: 'connection' | 'sandbox';
+    readonly [RelationKeys]?: 'user';
   };
   export type public_PreviewRoute = {
     createdAt: FieldOutputTypes['public']['PreviewRoute']['createdAt'];
@@ -850,18 +759,10 @@ export namespace Models {
     mcpServers: public_McpServer[];
     owner: public_User;
     secrets: public_ProjectSecret[];
-    sessions: public_Session[];
     settings: public_ProjectSetting[];
     skills: public_Skill[];
     readonly [RelationKeys]?:
-      | 'createdBy'
-      | 'fileMounts'
-      | 'mcpServers'
-      | 'owner'
-      | 'secrets'
-      | 'sessions'
-      | 'settings'
-      | 'skills';
+      'createdBy' | 'fileMounts' | 'mcpServers' | 'owner' | 'secrets' | 'settings' | 'skills';
   };
   export type public_ProjectFileMount = {
     createdAt: FieldOutputTypes['public']['ProjectFileMount']['createdAt'];
@@ -907,65 +808,6 @@ export namespace Models {
     user: public_User;
     readonly [RelationKeys]?: 'user';
   };
-  export type public_PushDevice = {
-    authSessionId: FieldOutputTypes['public']['PushDevice']['authSessionId'];
-    createdAt: FieldOutputTypes['public']['PushDevice']['createdAt'];
-    id: FieldOutputTypes['public']['PushDevice']['id'];
-    lastSeenAt: FieldOutputTypes['public']['PushDevice']['lastSeenAt'];
-    platform: FieldOutputTypes['public']['PushDevice']['platform'];
-    token: FieldOutputTypes['public']['PushDevice']['token'];
-    updatedAt: FieldOutputTypes['public']['PushDevice']['updatedAt'];
-    userId: FieldOutputTypes['public']['PushDevice']['userId'];
-    user: public_User;
-    readonly [RelationKeys]?: 'user';
-  };
-  export type public_SandboxBootStep = {
-    at: FieldOutputTypes['public']['SandboxBootStep']['at'];
-    error: FieldOutputTypes['public']['SandboxBootStep']['error'];
-    gap: FieldOutputTypes['public']['SandboxBootStep']['gap'];
-    id: FieldOutputTypes['public']['SandboxBootStep']['id'];
-    outcome: FieldOutputTypes['public']['SandboxBootStep']['outcome'];
-    repos: FieldOutputTypes['public']['SandboxBootStep']['repos'];
-    seq: FieldOutputTypes['public']['SandboxBootStep']['seq'];
-    sessionId: FieldOutputTypes['public']['SandboxBootStep']['sessionId'];
-    state: FieldOutputTypes['public']['SandboxBootStep']['state'];
-    step: FieldOutputTypes['public']['SandboxBootStep']['step'];
-    session: public_Session;
-    readonly [RelationKeys]?: 'session';
-  };
-  export type public_Session = {
-    archivedAt: FieldOutputTypes['public']['Session']['archivedAt'];
-    createdAt: FieldOutputTypes['public']['Session']['createdAt'];
-    deletedAt: FieldOutputTypes['public']['Session']['deletedAt'];
-    executionLocation: FieldOutputTypes['public']['Session']['executionLocation'];
-    id: FieldOutputTypes['public']['Session']['id'];
-    mainThreadId: FieldOutputTypes['public']['Session']['mainThreadId'];
-    managedBySessionId: FieldOutputTypes['public']['Session']['managedBySessionId'];
-    pinnedAt: FieldOutputTypes['public']['Session']['pinnedAt'];
-    projectId: FieldOutputTypes['public']['Session']['projectId'];
-    repo: FieldOutputTypes['public']['Session']['repo'];
-    title: FieldOutputTypes['public']['Session']['title'];
-    updatedAt: FieldOutputTypes['public']['Session']['updatedAt'];
-    userId: FieldOutputTypes['public']['Session']['userId'];
-    workspace: FieldOutputTypes['public']['Session']['workspace'];
-    bootSteps: public_SandboxBootStep[];
-    cloudSandbox: public_CloudSandbox | null;
-    mainThread: public_Thread | null;
-    managedBy: public_Session | null;
-    project: public_Project | null;
-    teammates: public_Session[];
-    threads: public_Thread[];
-    user: public_User;
-    readonly [RelationKeys]?:
-      | 'bootSteps'
-      | 'cloudSandbox'
-      | 'mainThread'
-      | 'managedBy'
-      | 'project'
-      | 'teammates'
-      | 'threads'
-      | 'user';
-  };
   export type public_Skill = {
     createdAt: FieldOutputTypes['public']['Skill']['createdAt'];
     description: FieldOutputTypes['public']['Skill']['description'];
@@ -1006,79 +848,6 @@ export namespace Models {
     user: public_User;
     readonly [RelationKeys]?: 'user';
   };
-  export type public_Thread = {
-    activityAt: FieldOutputTypes['public']['Thread']['activityAt'];
-    agentType: FieldOutputTypes['public']['Thread']['agentType'];
-    awaiting: FieldOutputTypes['public']['Thread']['awaiting'];
-    createdAt: FieldOutputTypes['public']['Thread']['createdAt'];
-    forkMode: FieldOutputTypes['public']['Thread']['forkMode'];
-    forkSeq: FieldOutputTypes['public']['Thread']['forkSeq'];
-    head: FieldOutputTypes['public']['Thread']['head'];
-    historyRev: FieldOutputTypes['public']['Thread']['historyRev'];
-    id: FieldOutputTypes['public']['Thread']['id'];
-    lastAssistantSeq: FieldOutputTypes['public']['Thread']['lastAssistantSeq'];
-    lastOutcome: FieldOutputTypes['public']['Thread']['lastOutcome'];
-    modelEffort: FieldOutputTypes['public']['Thread']['modelEffort'];
-    modelFast: FieldOutputTypes['public']['Thread']['modelFast'];
-    modelRef: FieldOutputTypes['public']['Thread']['modelRef'];
-    parentThreadId: FieldOutputTypes['public']['Thread']['parentThreadId'];
-    rev: FieldOutputTypes['public']['Thread']['rev'];
-    sessionId: FieldOutputTypes['public']['Thread']['sessionId'];
-    spawnerThreadId: FieldOutputTypes['public']['Thread']['spawnerThreadId'];
-    updatedAt: FieldOutputTypes['public']['Thread']['updatedAt'];
-    userId: FieldOutputTypes['public']['Thread']['userId'];
-    working: FieldOutputTypes['public']['Thread']['working'];
-    contextFiles: public_ContextFile[];
-    events: public_Event[];
-    forks: public_Thread[];
-    mainOfSession: public_Session | null;
-    parent: public_Thread | null;
-    reads: public_ThreadRead[];
-    session: public_Session;
-    spawned: public_Thread[];
-    spawner: public_Thread | null;
-    turns: public_Turn[];
-    user: public_User;
-    readonly [RelationKeys]?:
-      | 'contextFiles'
-      | 'events'
-      | 'forks'
-      | 'mainOfSession'
-      | 'parent'
-      | 'reads'
-      | 'session'
-      | 'spawned'
-      | 'spawner'
-      | 'turns'
-      | 'user';
-  };
-  export type public_ThreadRead = {
-    seq: FieldOutputTypes['public']['ThreadRead']['seq'];
-    threadId: FieldOutputTypes['public']['ThreadRead']['threadId'];
-    updatedAt: FieldOutputTypes['public']['ThreadRead']['updatedAt'];
-    userId: FieldOutputTypes['public']['ThreadRead']['userId'];
-    thread: public_Thread;
-    user: public_User;
-    readonly [RelationKeys]?: 'thread' | 'user';
-  };
-  export type public_Turn = {
-    cacheReadTokens: FieldOutputTypes['public']['Turn']['cacheReadTokens'];
-    cacheWriteTokens: FieldOutputTypes['public']['Turn']['cacheWriteTokens'];
-    durationMs: FieldOutputTypes['public']['Turn']['durationMs'];
-    endedAt: FieldOutputTypes['public']['Turn']['endedAt'];
-    inputTokens: FieldOutputTypes['public']['Turn']['inputTokens'];
-    modelId: FieldOutputTypes['public']['Turn']['modelId'];
-    outputTokens: FieldOutputTypes['public']['Turn']['outputTokens'];
-    providerId: FieldOutputTypes['public']['Turn']['providerId'];
-    runId: FieldOutputTypes['public']['Turn']['runId'];
-    startedAt: FieldOutputTypes['public']['Turn']['startedAt'];
-    status: FieldOutputTypes['public']['Turn']['status'];
-    steps: FieldOutputTypes['public']['Turn']['steps'];
-    threadId: FieldOutputTypes['public']['Turn']['threadId'];
-    userId: FieldOutputTypes['public']['Turn']['userId'];
-    thread: public_Thread;
-    readonly [RelationKeys]?: 'thread';
-  };
   export type public_User = {
     active: FieldOutputTypes['public']['User']['active'];
     createdAt: FieldOutputTypes['public']['User']['createdAt'];
@@ -1093,8 +862,6 @@ export namespace Models {
     agentAccounts: public_AgentAccount[];
     artifacts: public_Artifact[];
     authSessions: public_AuthSession[];
-    cloudSandboxes: public_CloudSandbox[];
-    composerDrafts: public_ComposerDraft[];
     createdProjects: public_Project[];
     credentialAvailabilities: public_CredentialAvailability[];
     deviceCodes: public_DeviceCode[];
@@ -1105,7 +872,6 @@ export namespace Models {
     githubSubscriptions: public_GithubSubscription[];
     githubTrackingTargets: public_GithubTrackingTarget[];
     harnessSecrets: public_UserHarnessSecret[];
-    localPodLeases: public_LocalPodLease[];
     mcpOauthPendings: public_McpOauthPending[];
     mcpServers: public_McpServer[];
     memories: public_Memory[];
@@ -1113,13 +879,9 @@ export namespace Models {
     ownedProjects: public_Project[];
     previewTunnels: public_PreviewTunnel[];
     publishedBundles: public_PublishedBundle[];
-    pushDevices: public_PushDevice[];
     secrets: public_UserSecret[];
-    sessions: public_Session[];
     settings: public_UserSetting[];
     sshSigningKey: public_SshSigningKey | null;
-    threadReads: public_ThreadRead[];
-    threads: public_Thread[];
     userFiles: public_UserFile[];
     readonly [RelationKeys]?:
       | 'accounts'
@@ -1127,8 +889,6 @@ export namespace Models {
       | 'agentAccounts'
       | 'artifacts'
       | 'authSessions'
-      | 'cloudSandboxes'
-      | 'composerDrafts'
       | 'createdProjects'
       | 'credentialAvailabilities'
       | 'deviceCodes'
@@ -1139,7 +899,6 @@ export namespace Models {
       | 'githubSubscriptions'
       | 'githubTrackingTargets'
       | 'harnessSecrets'
-      | 'localPodLeases'
       | 'mcpOauthPendings'
       | 'mcpServers'
       | 'memories'
@@ -1147,13 +906,9 @@ export namespace Models {
       | 'ownedProjects'
       | 'previewTunnels'
       | 'publishedBundles'
-      | 'pushDevices'
       | 'secrets'
-      | 'sessions'
       | 'settings'
       | 'sshSigningKey'
-      | 'threadReads'
-      | 'threads'
       | 'userFiles';
   };
   export type public_UserFile = {
@@ -1530,12 +1285,8 @@ export declare const models: {
     Artifact: Models.public_Artifact;
     ArtifactVersion: Models.public_ArtifactVersion;
     AuthSession: Models.public_AuthSession;
-    CloudSandbox: Models.public_CloudSandbox;
-    ComposerDraft: Models.public_ComposerDraft;
-    ContextFile: Models.public_ContextFile;
     CredentialAvailability: Models.public_CredentialAvailability;
     DeviceCode: Models.public_DeviceCode;
-    Event: Models.public_Event;
     GithubAppInstallation: Models.public_GithubAppInstallation;
     GithubAppNoticeDismissal: Models.public_GithubAppNoticeDismissal;
     GithubBranchProtection: Models.public_GithubBranchProtection;
@@ -1550,12 +1301,10 @@ export declare const models: {
     GithubSubscription: Models.public_GithubSubscription;
     GithubTrackingTarget: Models.public_GithubTrackingTarget;
     GithubWebhookInbox: Models.public_GithubWebhookInbox;
-    LocalPodLease: Models.public_LocalPodLease;
     McpOauthPending: Models.public_McpOauthPending;
     McpServer: Models.public_McpServer;
     Memory: Models.public_Memory;
     OauthConnection: Models.public_OauthConnection;
-    OauthConnectionSandbox: Models.public_OauthConnectionSandbox;
     PreviewRoute: Models.public_PreviewRoute;
     PreviewTunnel: Models.public_PreviewTunnel;
     Project: Models.public_Project;
@@ -1563,15 +1312,9 @@ export declare const models: {
     ProjectSecret: Models.public_ProjectSecret;
     ProjectSetting: Models.public_ProjectSetting;
     PublishedBundle: Models.public_PublishedBundle;
-    PushDevice: Models.public_PushDevice;
-    SandboxBootStep: Models.public_SandboxBootStep;
-    Session: Models.public_Session;
     Skill: Models.public_Skill;
     SkillFile: Models.public_SkillFile;
     SshSigningKey: Models.public_SshSigningKey;
-    Thread: Models.public_Thread;
-    ThreadRead: Models.public_ThreadRead;
-    Turn: Models.public_Turn;
     User: Models.public_User;
     UserFile: Models.public_UserFile;
     UserHarnessSecret: Models.public_UserHarnessSecret;
@@ -2208,228 +1951,6 @@ type ContractBase = Omit<
                 },
               ];
             };
-            readonly CloudSandbox: {
-              columns: {
-                readonly contextPending: {
-                  readonly dataType: 'pg/bool';
-                  readonly codecId: 'pg/bool@1';
-                  readonly nullable: false;
-                  readonly default: {
-                    readonly kind: 'literal';
-                    readonly value: DefaultLiteralValue<'pg/bool@1', true>;
-                  };
-                  readonly many: false;
-                };
-                readonly createdAt: {
-                  readonly dataType: 'pg/timestamptz';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly nullable: false;
-                  readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-                readonly id: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly lastActivityAt: {
-                  readonly dataType: 'pg/timestamptz';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly nullable: false;
-                  readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-                readonly name: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly pendingSend: {
-                  readonly dataType: 'pg/jsonb';
-                  readonly codecId: 'pg/jsonb@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly pendingVcpus: {
-                  readonly dataType: 'pg/int4';
-                  readonly codecId: 'pg/int4@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly pinnedModel: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly region: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly retiredAt: {
-                  readonly dataType: 'pg/timestamptz';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly nullable: true;
-                  readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-                readonly runningServeVersion: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly runtimeCheckpoint: {
-                  readonly dataType: 'pg/jsonb';
-                  readonly codecId: 'pg/jsonb@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly runtimeCheckpointRevision: {
-                  readonly dataType: 'pg/int4';
-                  readonly codecId: 'pg/int4@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly sandboxId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly sealedGitToken: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly sealedToken: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly serveUrl: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly serveVersion: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly sessionId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly state: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly tokenHash: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly updatedAt: {
-                  readonly dataType: 'pg/timestamptz';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly nullable: false;
-                  readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-                readonly userId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly vercelProjectId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly wakeClaim: {
-                  readonly dataType: 'pg/timestamptz';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly nullable: true;
-                  readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-                readonly wakeFailedAt: {
-                  readonly dataType: 'pg/timestamptz';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly nullable: true;
-                  readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-                readonly workspaceRemoteUrl: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-              };
-              primaryKey: { readonly columns: readonly ['id'] };
-              uniques: readonly [
-                { readonly columns: readonly ['tokenHash'] },
-                {
-                  readonly columns: readonly ['sessionId'];
-                  readonly name: 'CloudSandbox_sessionId_key';
-                },
-              ];
-              indexes: readonly [
-                {
-                  readonly name: 'CloudSandbox_state_lastActivityAt_idx';
-                  readonly columns: readonly ['state', 'lastActivityAt'];
-                  readonly unique: false;
-                },
-                {
-                  readonly name: 'CloudSandbox_userId_idx';
-                  readonly columns: readonly ['userId'];
-                  readonly unique: false;
-                },
-              ];
-              foreignKeys: readonly [
-                {
-                  readonly source: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'CloudSandbox';
-                    readonly columns: readonly ['userId'];
-                  };
-                  readonly target: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'User';
-                    readonly columns: readonly ['id'];
-                  };
-                },
-                {
-                  readonly source: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'CloudSandbox';
-                    readonly columns: readonly ['sessionId'];
-                  };
-                  readonly target: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'Session';
-                    readonly columns: readonly ['id'];
-                  };
-                },
-              ];
-            };
             readonly CloudSetting: {
               columns: {
                 readonly createdAt: {
@@ -2490,148 +2011,6 @@ type ContractBase = Omit<
                   readonly target: {
                     readonly namespaceId: 'public' & NamespaceId;
                     readonly tableName: 'User';
-                    readonly columns: readonly ['id'];
-                  };
-                },
-              ];
-            };
-            readonly ComposerDraft: {
-              columns: {
-                readonly attachments: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly scopeKey: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly text: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly threadId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly updatedAt: {
-                  readonly dataType: 'pg/timestamptz';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly nullable: false;
-                  readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-                readonly userId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-              };
-              primaryKey: {
-                readonly columns: readonly ['userId', 'scopeKey'];
-                readonly name: 'ComposerDraft_pkey';
-              };
-              uniques: readonly [];
-              indexes: readonly [
-                {
-                  readonly name: 'ComposerDraft_threadId_idx';
-                  readonly columns: readonly ['threadId'];
-                  readonly unique: false;
-                },
-              ];
-              foreignKeys: readonly [
-                {
-                  readonly source: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'ComposerDraft';
-                    readonly columns: readonly ['userId'];
-                  };
-                  readonly target: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'User';
-                    readonly columns: readonly ['id'];
-                  };
-                },
-                {
-                  readonly source: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'ComposerDraft';
-                    readonly columns: readonly ['threadId'];
-                  };
-                  readonly target: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'Thread';
-                    readonly columns: readonly ['id'];
-                  };
-                },
-              ];
-            };
-            readonly ContextFile: {
-              columns: {
-                readonly content: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly digest: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly id: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly path: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly threadId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly updatedAt: {
-                  readonly dataType: 'pg/timestamptz';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly nullable: false;
-                  readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-              };
-              primaryKey: { readonly columns: readonly ['id'] };
-              uniques: readonly [
-                {
-                  readonly columns: readonly ['threadId', 'path'];
-                  readonly name: 'ContextFile_threadId_path_key';
-                },
-              ];
-              indexes: readonly [];
-              foreignKeys: readonly [
-                {
-                  readonly source: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'ContextFile';
-                    readonly columns: readonly ['threadId'];
-                  };
-                  readonly target: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'Thread';
                     readonly columns: readonly ['id'];
                   };
                 },
@@ -2853,147 +2232,6 @@ type ContractBase = Omit<
                   readonly target: {
                     readonly namespaceId: 'public' & NamespaceId;
                     readonly tableName: 'User';
-                    readonly columns: readonly ['id'];
-                  };
-                },
-              ];
-            };
-            readonly Event: {
-              columns: {
-                readonly at: {
-                  readonly dataType: 'pg/timestamptz';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly nullable: false;
-                  readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-                readonly body: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly contextDigest: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly contextKey: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly contextSlot: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly depth: {
-                  readonly dataType: 'pg/int4';
-                  readonly codecId: 'pg/int4@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly id: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly parentRunId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly runId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly seq: {
-                  readonly dataType: 'pg/int4';
-                  readonly codecId: 'pg/int4@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly threadId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly toolName: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly type: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly userId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-              };
-              primaryKey: { readonly columns: readonly ['id'] };
-              uniques: readonly [
-                {
-                  readonly columns: readonly [
-                    'threadId',
-                    'contextSlot',
-                    'contextKey',
-                    'contextDigest',
-                  ];
-                  readonly name: 'Event_threadId_contextSlot_contextKey_contextDigest_key';
-                },
-                {
-                  readonly columns: readonly ['threadId', 'seq'];
-                  readonly name: 'Event_threadId_seq_key';
-                },
-              ];
-              indexes: readonly [
-                {
-                  readonly name: 'Event_threadId_type_idx';
-                  readonly columns: readonly ['threadId', 'type'];
-                  readonly unique: false;
-                },
-                {
-                  readonly name: 'Event_userId_contextSlot_at_idx';
-                  readonly columns: readonly ['userId', 'contextSlot', 'at'];
-                  readonly unique: false;
-                },
-                {
-                  readonly name: 'Event_userId_type_at_idx';
-                  readonly columns: readonly ['userId', 'type', 'at'];
-                  readonly unique: false;
-                },
-                {
-                  readonly name: 'Event_userId_type_toolName_at_idx';
-                  readonly columns: readonly ['userId', 'type', 'toolName', 'at'];
-                  readonly unique: false;
-                },
-              ];
-              foreignKeys: readonly [
-                {
-                  readonly source: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'Event';
-                    readonly columns: readonly ['threadId'];
-                  };
-                  readonly target: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'Thread';
                     readonly columns: readonly ['id'];
                   };
                 },
@@ -4479,81 +3717,6 @@ type ContractBase = Omit<
               ];
               foreignKeys: readonly [];
             };
-            readonly LocalPodLease: {
-              columns: {
-                readonly createdAt: {
-                  readonly dataType: 'pg/timestamptz';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly nullable: false;
-                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
-                  readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-                readonly id: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly threadId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly tokenHash: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly updatedAt: {
-                  readonly dataType: 'pg/timestamptz';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly nullable: false;
-                  readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-                readonly userId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-              };
-              primaryKey: { readonly columns: readonly ['id'] };
-              uniques: readonly [
-                {
-                  readonly columns: readonly ['tokenHash'];
-                  readonly name: 'LocalPodLease_tokenHash_key';
-                },
-                {
-                  readonly columns: readonly ['userId', 'threadId'];
-                  readonly name: 'LocalPodLease_userId_threadId_key';
-                },
-              ];
-              indexes: readonly [
-                {
-                  readonly name: 'LocalPodLease_userId_idx';
-                  readonly columns: readonly ['userId'];
-                  readonly unique: false;
-                },
-              ];
-              foreignKeys: readonly [
-                {
-                  readonly source: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'LocalPodLease';
-                    readonly columns: readonly ['userId'];
-                  };
-                  readonly target: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'User';
-                    readonly columns: readonly ['id'];
-                  };
-                },
-              ];
-            };
             readonly McpOauthPending: {
               columns: {
                 readonly completedAt: {
@@ -5035,65 +4198,6 @@ type ContractBase = Omit<
                   readonly target: {
                     readonly namespaceId: 'public' & NamespaceId;
                     readonly tableName: 'User';
-                    readonly columns: readonly ['id'];
-                  };
-                },
-              ];
-            };
-            readonly OauthConnectionSandbox: {
-              columns: {
-                readonly connectionId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly createdAt: {
-                  readonly dataType: 'pg/timestamptz';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly nullable: false;
-                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
-                  readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-                readonly sandboxId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-              };
-              primaryKey: { readonly columns: readonly ['connectionId', 'sandboxId'] };
-              uniques: readonly [];
-              indexes: readonly [
-                {
-                  readonly name: 'OauthConnectionSandbox_sandboxId_idx';
-                  readonly columns: readonly ['sandboxId'];
-                  readonly unique: false;
-                },
-              ];
-              foreignKeys: readonly [
-                {
-                  readonly source: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'OauthConnectionSandbox';
-                    readonly columns: readonly ['connectionId'];
-                  };
-                  readonly target: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'OauthConnection';
-                    readonly columns: readonly ['id'];
-                  };
-                },
-                {
-                  readonly source: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'OauthConnectionSandbox';
-                    readonly columns: readonly ['sandboxId'];
-                  };
-                  readonly target: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'CloudSandbox';
                     readonly columns: readonly ['id'];
                   };
                 },
@@ -5748,185 +4852,6 @@ type ContractBase = Omit<
                 },
               ];
             };
-            readonly PushDevice: {
-              columns: {
-                readonly authSessionId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly createdAt: {
-                  readonly dataType: 'pg/timestamptz';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly nullable: false;
-                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
-                  readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-                readonly id: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly lastSeenAt: {
-                  readonly dataType: 'pg/timestamptz';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly nullable: false;
-                  readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-                readonly platform: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly token: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly updatedAt: {
-                  readonly dataType: 'pg/timestamptz';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly nullable: false;
-                  readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-                readonly userId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-              };
-              primaryKey: { readonly columns: readonly ['id'] };
-              uniques: readonly [
-                { readonly columns: readonly ['token']; readonly name: 'PushDevice_token_key' },
-              ];
-              indexes: readonly [
-                {
-                  readonly name: 'PushDevice_authSessionId_idx';
-                  readonly columns: readonly ['authSessionId'];
-                  readonly unique: false;
-                },
-                {
-                  readonly name: 'PushDevice_userId_idx';
-                  readonly columns: readonly ['userId'];
-                  readonly unique: false;
-                },
-              ];
-              foreignKeys: readonly [
-                {
-                  readonly source: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'PushDevice';
-                    readonly columns: readonly ['userId'];
-                  };
-                  readonly target: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'User';
-                    readonly columns: readonly ['id'];
-                  };
-                },
-              ];
-            };
-            readonly SandboxBootStep: {
-              columns: {
-                readonly at: {
-                  readonly dataType: 'pg/timestamptz';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly nullable: false;
-                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
-                  readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-                readonly error: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly gap: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly id: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly outcome: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly repos: {
-                  readonly dataType: 'pg/jsonb';
-                  readonly codecId: 'pg/jsonb@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly seq: {
-                  readonly dataType: 'pg/int8';
-                  readonly codecId: 'pg/int8@1';
-                  readonly nullable: false;
-                  readonly default: {
-                    readonly kind: 'function';
-                    readonly expression: 'autoincrement()';
-                  };
-                  readonly many: false;
-                };
-                readonly sessionId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly state: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly step: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-              };
-              primaryKey: { readonly columns: readonly ['id'] };
-              uniques: readonly [];
-              indexes: readonly [
-                {
-                  readonly name: 'SandboxBootStep_sessionId_seq_idx';
-                  readonly columns: readonly ['sessionId', 'seq'];
-                  readonly unique: false;
-                },
-              ];
-              foreignKeys: readonly [
-                {
-                  readonly source: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'SandboxBootStep';
-                    readonly columns: readonly ['sessionId'];
-                  };
-                  readonly target: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'Session';
-                    readonly columns: readonly ['id'];
-                  };
-                },
-              ];
-            };
             readonly SecretEntry: {
               columns: {
                 readonly createdAt: {
@@ -5987,183 +4912,6 @@ type ContractBase = Omit<
                   readonly target: {
                     readonly namespaceId: 'public' & NamespaceId;
                     readonly tableName: 'User';
-                    readonly columns: readonly ['id'];
-                  };
-                },
-              ];
-            };
-            readonly Session: {
-              columns: {
-                readonly archivedAt: {
-                  readonly dataType: 'pg/timestamptz';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly nullable: true;
-                  readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-                readonly createdAt: {
-                  readonly dataType: 'pg/timestamptz';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly nullable: false;
-                  readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-                readonly deletedAt: {
-                  readonly dataType: 'pg/timestamptz';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly nullable: true;
-                  readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-                readonly executionLocation: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly id: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly mainThreadId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly managedBySessionId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly pinnedAt: {
-                  readonly dataType: 'pg/timestamptz';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly nullable: true;
-                  readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-                readonly projectId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly repo: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly title: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly updatedAt: {
-                  readonly dataType: 'pg/timestamptz';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly nullable: false;
-                  readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-                readonly userId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly workspace: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-              };
-              primaryKey: { readonly columns: readonly ['id'] };
-              uniques: readonly [
-                {
-                  readonly columns: readonly ['mainThreadId'];
-                  readonly name: 'Session_mainThreadId_key';
-                },
-              ];
-              indexes: readonly [
-                {
-                  readonly name: 'Session_managedBySessionId_idx';
-                  readonly columns: readonly ['managedBySessionId'];
-                  readonly unique: false;
-                },
-                {
-                  readonly name: 'Session_projectId_idx';
-                  readonly columns: readonly ['projectId'];
-                  readonly unique: false;
-                },
-                {
-                  readonly name: 'Session_userId_repo_updatedAt_idx';
-                  readonly columns: readonly ['userId', 'repo', 'updatedAt'];
-                  readonly unique: false;
-                },
-                {
-                  readonly name: 'Session_userId_updatedAt_idx';
-                  readonly columns: readonly ['userId', 'updatedAt'];
-                  readonly unique: false;
-                },
-                {
-                  readonly name: 'Session_userId_workspace_updatedAt_idx';
-                  readonly columns: readonly ['userId', 'workspace', 'updatedAt'];
-                  readonly unique: false;
-                },
-              ];
-              foreignKeys: readonly [
-                {
-                  readonly source: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'Session';
-                    readonly columns: readonly ['userId'];
-                  };
-                  readonly target: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'User';
-                    readonly columns: readonly ['id'];
-                  };
-                },
-                {
-                  readonly source: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'Session';
-                    readonly columns: readonly ['projectId'];
-                  };
-                  readonly target: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'Project';
-                    readonly columns: readonly ['id'];
-                  };
-                },
-                {
-                  readonly source: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'Session';
-                    readonly columns: readonly ['mainThreadId'];
-                  };
-                  readonly target: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'Thread';
-                    readonly columns: readonly ['id'];
-                  };
-                },
-                {
-                  readonly source: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'Session';
-                    readonly columns: readonly ['managedBySessionId'];
-                  };
-                  readonly target: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'Session';
                     readonly columns: readonly ['id'];
                   };
                 },
@@ -6433,419 +5181,6 @@ type ContractBase = Omit<
                   readonly target: {
                     readonly namespaceId: 'public' & NamespaceId;
                     readonly tableName: 'User';
-                    readonly columns: readonly ['id'];
-                  };
-                },
-              ];
-            };
-            readonly Thread: {
-              columns: {
-                readonly activityAt: {
-                  readonly dataType: 'pg/timestamptz';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly nullable: true;
-                  readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-                readonly agentType: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly awaiting: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly createdAt: {
-                  readonly dataType: 'pg/timestamptz';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly nullable: false;
-                  readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-                readonly forkMode: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly forkSeq: {
-                  readonly dataType: 'pg/int4';
-                  readonly codecId: 'pg/int4@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly head: {
-                  readonly dataType: 'pg/int4';
-                  readonly codecId: 'pg/int4@1';
-                  readonly nullable: false;
-                  readonly default: {
-                    readonly kind: 'literal';
-                    readonly value: DefaultLiteralValue<'pg/int4@1', 0>;
-                  };
-                  readonly many: false;
-                };
-                readonly historyRev: {
-                  readonly dataType: 'pg/int4';
-                  readonly codecId: 'pg/int4@1';
-                  readonly nullable: false;
-                  readonly default: {
-                    readonly kind: 'literal';
-                    readonly value: DefaultLiteralValue<'pg/int4@1', 0>;
-                  };
-                  readonly many: false;
-                };
-                readonly id: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly lastAssistantSeq: {
-                  readonly dataType: 'pg/int4';
-                  readonly codecId: 'pg/int4@1';
-                  readonly nullable: false;
-                  readonly default: {
-                    readonly kind: 'literal';
-                    readonly value: DefaultLiteralValue<'pg/int4@1', 0>;
-                  };
-                  readonly many: false;
-                };
-                readonly lastOutcome: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly modelEffort: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly modelFast: {
-                  readonly dataType: 'pg/bool';
-                  readonly codecId: 'pg/bool@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly modelRef: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly parentThreadId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly rev: {
-                  readonly dataType: 'pg/int4';
-                  readonly codecId: 'pg/int4@1';
-                  readonly nullable: false;
-                  readonly default: {
-                    readonly kind: 'literal';
-                    readonly value: DefaultLiteralValue<'pg/int4@1', 0>;
-                  };
-                  readonly many: false;
-                };
-                readonly sessionId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly spawnerThreadId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly updatedAt: {
-                  readonly dataType: 'pg/timestamptz';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly nullable: false;
-                  readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-                readonly userId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly working: {
-                  readonly dataType: 'pg/bool';
-                  readonly codecId: 'pg/bool@1';
-                  readonly nullable: false;
-                  readonly default: {
-                    readonly kind: 'literal';
-                    readonly value: DefaultLiteralValue<'pg/bool@1', false>;
-                  };
-                  readonly many: false;
-                };
-              };
-              primaryKey: { readonly columns: readonly ['id'] };
-              uniques: readonly [];
-              indexes: readonly [
-                {
-                  readonly name: 'Thread_parentThreadId_idx';
-                  readonly columns: readonly ['parentThreadId'];
-                  readonly unique: false;
-                },
-                {
-                  readonly name: 'Thread_sessionId_idx';
-                  readonly columns: readonly ['sessionId'];
-                  readonly unique: false;
-                },
-                {
-                  readonly name: 'Thread_spawnerThreadId_idx';
-                  readonly columns: readonly ['spawnerThreadId'];
-                  readonly unique: false;
-                },
-                {
-                  readonly name: 'Thread_userId_idx_a489d58a';
-                  readonly prefix: 'Thread_userId_idx';
-                  readonly columns: readonly ['userId'];
-                  readonly unique: false;
-                },
-              ];
-              foreignKeys: readonly [
-                {
-                  readonly source: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'Thread';
-                    readonly columns: readonly ['sessionId'];
-                  };
-                  readonly target: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'Session';
-                    readonly columns: readonly ['id'];
-                  };
-                },
-                {
-                  readonly source: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'Thread';
-                    readonly columns: readonly ['userId'];
-                  };
-                  readonly target: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'User';
-                    readonly columns: readonly ['id'];
-                  };
-                },
-                {
-                  readonly source: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'Thread';
-                    readonly columns: readonly ['parentThreadId'];
-                  };
-                  readonly target: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'Thread';
-                    readonly columns: readonly ['id'];
-                  };
-                },
-                {
-                  readonly source: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'Thread';
-                    readonly columns: readonly ['spawnerThreadId'];
-                  };
-                  readonly target: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'Thread';
-                    readonly columns: readonly ['id'];
-                  };
-                },
-              ];
-            };
-            readonly ThreadRead: {
-              columns: {
-                readonly seq: {
-                  readonly dataType: 'pg/int4';
-                  readonly codecId: 'pg/int4@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly threadId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly updatedAt: {
-                  readonly dataType: 'pg/timestamptz';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly nullable: false;
-                  readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-                readonly userId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-              };
-              primaryKey: {
-                readonly columns: readonly ['userId', 'threadId'];
-                readonly name: 'ThreadRead_pkey';
-              };
-              uniques: readonly [];
-              indexes: readonly [
-                {
-                  readonly name: 'ThreadRead_threadId_idx';
-                  readonly columns: readonly ['threadId'];
-                  readonly unique: false;
-                },
-              ];
-              foreignKeys: readonly [
-                {
-                  readonly source: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'ThreadRead';
-                    readonly columns: readonly ['userId'];
-                  };
-                  readonly target: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'User';
-                    readonly columns: readonly ['id'];
-                  };
-                },
-                {
-                  readonly source: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'ThreadRead';
-                    readonly columns: readonly ['threadId'];
-                  };
-                  readonly target: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'Thread';
-                    readonly columns: readonly ['id'];
-                  };
-                },
-              ];
-            };
-            readonly Turn: {
-              columns: {
-                readonly cacheReadTokens: {
-                  readonly dataType: 'pg/int4';
-                  readonly codecId: 'pg/int4@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly cacheWriteTokens: {
-                  readonly dataType: 'pg/int4';
-                  readonly codecId: 'pg/int4@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly durationMs: {
-                  readonly dataType: 'pg/int4';
-                  readonly codecId: 'pg/int4@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly endedAt: {
-                  readonly dataType: 'pg/timestamptz';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly nullable: false;
-                  readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-                readonly inputTokens: {
-                  readonly dataType: 'pg/int4';
-                  readonly codecId: 'pg/int4@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly modelId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly outputTokens: {
-                  readonly dataType: 'pg/int4';
-                  readonly codecId: 'pg/int4@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly providerId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly runId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly startedAt: {
-                  readonly dataType: 'pg/timestamptz';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly nullable: false;
-                  readonly typeParams: { readonly precision: 3 };
-                  readonly many: false;
-                };
-                readonly status: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly steps: {
-                  readonly dataType: 'pg/int4';
-                  readonly codecId: 'pg/int4@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly threadId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-                readonly userId: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
-                  readonly many: false;
-                };
-              };
-              primaryKey: { readonly columns: readonly ['runId'] };
-              uniques: readonly [];
-              indexes: readonly [
-                {
-                  readonly name: 'Turn_threadId_startedAt_idx';
-                  readonly columns: readonly ['threadId', 'startedAt'];
-                  readonly unique: false;
-                },
-                {
-                  readonly name: 'Turn_userId_idx';
-                  readonly columns: readonly ['userId'];
-                  readonly unique: false;
-                },
-              ];
-              foreignKeys: readonly [
-                {
-                  readonly source: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'Turn';
-                    readonly columns: readonly ['threadId'];
-                  };
-                  readonly target: {
-                    readonly namespaceId: 'public' & NamespaceId;
-                    readonly tableName: 'Thread';
                     readonly columns: readonly ['id'];
                   };
                 },
@@ -9003,21 +7338,9 @@ type ContractBase = Omit<
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'AuthSession';
     };
-    readonly CloudSandbox: {
-      readonly namespace: 'public' & NamespaceId;
-      readonly model: 'CloudSandbox';
-    };
     readonly CloudSetting: {
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'UserSetting';
-    };
-    readonly ComposerDraft: {
-      readonly namespace: 'public' & NamespaceId;
-      readonly model: 'ComposerDraft';
-    };
-    readonly ContextFile: {
-      readonly namespace: 'public' & NamespaceId;
-      readonly model: 'ContextFile';
     };
     readonly CredentialAvailability: {
       readonly namespace: 'public' & NamespaceId;
@@ -9027,7 +7350,6 @@ type ContractBase = Omit<
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'DeviceCode';
     };
-    readonly Event: { readonly namespace: 'public' & NamespaceId; readonly model: 'Event' };
     readonly GithubAppInstallation: {
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'GithubAppInstallation';
@@ -9084,10 +7406,6 @@ type ContractBase = Omit<
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'GithubWebhookInbox';
     };
-    readonly LocalPodLease: {
-      readonly namespace: 'public' & NamespaceId;
-      readonly model: 'LocalPodLease';
-    };
     readonly McpOauthPending: {
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'McpOauthPending';
@@ -9102,10 +7420,6 @@ type ContractBase = Omit<
     readonly OauthConnection: {
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'OauthConnection';
-    };
-    readonly OauthConnectionSandbox: {
-      readonly namespace: 'public' & NamespaceId;
-      readonly model: 'OauthConnectionSandbox';
     };
     readonly PreviewRoute: {
       readonly namespace: 'public' & NamespaceId;
@@ -9132,31 +7446,16 @@ type ContractBase = Omit<
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'PublishedBundle';
     };
-    readonly PushDevice: {
-      readonly namespace: 'public' & NamespaceId;
-      readonly model: 'PushDevice';
-    };
-    readonly SandboxBootStep: {
-      readonly namespace: 'public' & NamespaceId;
-      readonly model: 'SandboxBootStep';
-    };
     readonly SecretEntry: {
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'UserSecret';
     };
-    readonly Session: { readonly namespace: 'public' & NamespaceId; readonly model: 'Session' };
     readonly Skill: { readonly namespace: 'public' & NamespaceId; readonly model: 'Skill' };
     readonly SkillFile: { readonly namespace: 'public' & NamespaceId; readonly model: 'SkillFile' };
     readonly SshSigningKey: {
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'SshSigningKey';
     };
-    readonly Thread: { readonly namespace: 'public' & NamespaceId; readonly model: 'Thread' };
-    readonly ThreadRead: {
-      readonly namespace: 'public' & NamespaceId;
-      readonly model: 'ThreadRead';
-    };
-    readonly Turn: { readonly namespace: 'public' & NamespaceId; readonly model: 'Turn' };
     readonly User: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
     readonly UserFile: { readonly namespace: 'public' & NamespaceId; readonly model: 'UserFile' };
     readonly UserHarnessSecret: {
@@ -9757,336 +8056,6 @@ type ContractBase = Omit<
               };
             };
           };
-          readonly CloudSandbox: {
-            readonly fields: {
-              readonly contextPending: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
-              };
-              readonly createdAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly id: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly lastActivityAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly name: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly pendingSend: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/jsonb@1' };
-              };
-              readonly pendingVcpus: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
-              };
-              readonly pinnedModel: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly region: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly retiredAt: {
-                readonly nullable: true;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly runningServeVersion: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly runtimeCheckpoint: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/jsonb@1' };
-              };
-              readonly runtimeCheckpointRevision: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
-              };
-              readonly sandboxId: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly sealedGitToken: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly sealedToken: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly serveUrl: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly serveVersion: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly sessionId: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly state: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly tokenHash: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly updatedAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly userId: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly vercelProjectId: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly wakeClaim: {
-                readonly nullable: true;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly wakeFailedAt: {
-                readonly nullable: true;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly workspaceRemoteUrl: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-            };
-            readonly relations: {
-              readonly oauthConnections: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'OauthConnectionSandbox';
-                };
-                readonly cardinality: '1:N';
-                readonly on: {
-                  readonly localFields: readonly ['id'];
-                  readonly targetFields: readonly ['sandboxId'];
-                };
-              };
-              readonly session: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'Session';
-                };
-                readonly cardinality: 'N:1';
-                readonly nullable: false;
-                readonly on: {
-                  readonly localFields: readonly ['sessionId'];
-                  readonly targetFields: readonly ['id'];
-                };
-              };
-              readonly user: {
-                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
-                readonly cardinality: 'N:1';
-                readonly nullable: false;
-                readonly on: {
-                  readonly localFields: readonly ['userId'];
-                  readonly targetFields: readonly ['id'];
-                };
-              };
-            };
-            readonly storage: {
-              readonly table: 'CloudSandbox';
-              readonly namespaceId: 'public';
-              readonly fields: {
-                readonly contextPending: { readonly column: 'contextPending' };
-                readonly createdAt: { readonly column: 'createdAt' };
-                readonly id: { readonly column: 'id' };
-                readonly lastActivityAt: { readonly column: 'lastActivityAt' };
-                readonly name: { readonly column: 'name' };
-                readonly pendingSend: { readonly column: 'pendingSend' };
-                readonly pendingVcpus: { readonly column: 'pendingVcpus' };
-                readonly pinnedModel: { readonly column: 'pinnedModel' };
-                readonly region: { readonly column: 'region' };
-                readonly retiredAt: { readonly column: 'retiredAt' };
-                readonly runningServeVersion: { readonly column: 'runningServeVersion' };
-                readonly runtimeCheckpoint: { readonly column: 'runtimeCheckpoint' };
-                readonly runtimeCheckpointRevision: {
-                  readonly column: 'runtimeCheckpointRevision';
-                };
-                readonly sandboxId: { readonly column: 'sandboxId' };
-                readonly sealedGitToken: { readonly column: 'sealedGitToken' };
-                readonly sealedToken: { readonly column: 'sealedToken' };
-                readonly serveUrl: { readonly column: 'serveUrl' };
-                readonly serveVersion: { readonly column: 'serveVersion' };
-                readonly sessionId: { readonly column: 'sessionId' };
-                readonly state: { readonly column: 'state' };
-                readonly tokenHash: { readonly column: 'tokenHash' };
-                readonly updatedAt: { readonly column: 'updatedAt' };
-                readonly userId: { readonly column: 'userId' };
-                readonly vercelProjectId: { readonly column: 'vercelProjectId' };
-                readonly wakeClaim: { readonly column: 'wakeClaim' };
-                readonly wakeFailedAt: { readonly column: 'wakeFailedAt' };
-                readonly workspaceRemoteUrl: { readonly column: 'workspaceRemoteUrl' };
-              };
-            };
-          };
-          readonly ComposerDraft: {
-            readonly fields: {
-              readonly attachments: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly scopeKey: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly text: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly threadId: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly updatedAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly userId: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-            };
-            readonly relations: {
-              readonly thread: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'Thread';
-                };
-                readonly cardinality: 'N:1';
-                readonly nullable: true;
-                readonly on: {
-                  readonly localFields: readonly ['threadId'];
-                  readonly targetFields: readonly ['id'];
-                };
-              };
-              readonly user: {
-                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
-                readonly cardinality: 'N:1';
-                readonly nullable: false;
-                readonly on: {
-                  readonly localFields: readonly ['userId'];
-                  readonly targetFields: readonly ['id'];
-                };
-              };
-            };
-            readonly storage: {
-              readonly table: 'ComposerDraft';
-              readonly namespaceId: 'public';
-              readonly fields: {
-                readonly attachments: { readonly column: 'attachments' };
-                readonly scopeKey: { readonly column: 'scopeKey' };
-                readonly text: { readonly column: 'text' };
-                readonly threadId: { readonly column: 'threadId' };
-                readonly updatedAt: { readonly column: 'updatedAt' };
-                readonly userId: { readonly column: 'userId' };
-              };
-            };
-          };
-          readonly ContextFile: {
-            readonly fields: {
-              readonly content: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly digest: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly id: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly path: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly threadId: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly updatedAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-            };
-            readonly relations: {
-              readonly thread: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'Thread';
-                };
-                readonly cardinality: 'N:1';
-                readonly nullable: false;
-                readonly on: {
-                  readonly localFields: readonly ['threadId'];
-                  readonly targetFields: readonly ['id'];
-                };
-              };
-            };
-            readonly storage: {
-              readonly table: 'ContextFile';
-              readonly namespaceId: 'public';
-              readonly fields: {
-                readonly content: { readonly column: 'content' };
-                readonly digest: { readonly column: 'digest' };
-                readonly id: { readonly column: 'id' };
-                readonly path: { readonly column: 'path' };
-                readonly threadId: { readonly column: 'threadId' };
-                readonly updatedAt: { readonly column: 'updatedAt' };
-              };
-            };
-          };
           readonly CredentialAvailability: {
             readonly fields: {
               readonly accountId: {
@@ -10296,104 +8265,6 @@ type ContractBase = Omit<
                 readonly status: { readonly column: 'status' };
                 readonly updatedAt: { readonly column: 'updatedAt' };
                 readonly userCode: { readonly column: 'userCode' };
-                readonly userId: { readonly column: 'userId' };
-              };
-            };
-          };
-          readonly Event: {
-            readonly fields: {
-              readonly at: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly body: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly contextDigest: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly contextKey: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly contextSlot: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly depth: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
-              };
-              readonly id: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly parentRunId: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly runId: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly seq: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
-              };
-              readonly threadId: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly toolName: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly type: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly userId: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-            };
-            readonly relations: {
-              readonly thread: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'Thread';
-                };
-                readonly cardinality: 'N:1';
-                readonly nullable: false;
-                readonly on: {
-                  readonly localFields: readonly ['threadId'];
-                  readonly targetFields: readonly ['id'];
-                };
-              };
-            };
-            readonly storage: {
-              readonly table: 'Event';
-              readonly namespaceId: 'public';
-              readonly fields: {
-                readonly at: { readonly column: 'at' };
-                readonly body: { readonly column: 'body' };
-                readonly contextDigest: { readonly column: 'contextDigest' };
-                readonly contextKey: { readonly column: 'contextKey' };
-                readonly contextSlot: { readonly column: 'contextSlot' };
-                readonly depth: { readonly column: 'depth' };
-                readonly id: { readonly column: 'id' };
-                readonly parentRunId: { readonly column: 'parentRunId' };
-                readonly runId: { readonly column: 'runId' };
-                readonly seq: { readonly column: 'seq' };
-                readonly threadId: { readonly column: 'threadId' };
-                readonly toolName: { readonly column: 'toolName' };
-                readonly type: { readonly column: 'type' };
                 readonly userId: { readonly column: 'userId' };
               };
             };
@@ -11610,65 +9481,6 @@ type ContractBase = Omit<
               };
             };
           };
-          readonly LocalPodLease: {
-            readonly fields: {
-              readonly createdAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly id: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly threadId: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly tokenHash: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly updatedAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly userId: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-            };
-            readonly relations: {
-              readonly user: {
-                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
-                readonly cardinality: 'N:1';
-                readonly nullable: false;
-                readonly on: {
-                  readonly localFields: readonly ['userId'];
-                  readonly targetFields: readonly ['id'];
-                };
-              };
-            };
-            readonly storage: {
-              readonly table: 'LocalPodLease';
-              readonly namespaceId: 'public';
-              readonly fields: {
-                readonly createdAt: { readonly column: 'createdAt' };
-                readonly id: { readonly column: 'id' };
-                readonly threadId: { readonly column: 'threadId' };
-                readonly tokenHash: { readonly column: 'tokenHash' };
-                readonly updatedAt: { readonly column: 'updatedAt' };
-                readonly userId: { readonly column: 'userId' };
-              };
-            };
-          };
           readonly McpOauthPending: {
             readonly fields: {
               readonly completedAt: {
@@ -12057,17 +9869,6 @@ type ContractBase = Omit<
               };
             };
             readonly relations: {
-              readonly sandboxes: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'OauthConnectionSandbox';
-                };
-                readonly cardinality: '1:N';
-                readonly on: {
-                  readonly localFields: readonly ['id'];
-                  readonly targetFields: readonly ['connectionId'];
-                };
-              };
               readonly user: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
                 readonly cardinality: 'N:1';
@@ -12093,61 +9894,6 @@ type ContractBase = Omit<
                 readonly status: { readonly column: 'status' };
                 readonly updatedAt: { readonly column: 'updatedAt' };
                 readonly userId: { readonly column: 'userId' };
-              };
-            };
-          };
-          readonly OauthConnectionSandbox: {
-            readonly fields: {
-              readonly connectionId: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly createdAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly sandboxId: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-            };
-            readonly relations: {
-              readonly connection: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'OauthConnection';
-                };
-                readonly cardinality: 'N:1';
-                readonly nullable: false;
-                readonly on: {
-                  readonly localFields: readonly ['connectionId'];
-                  readonly targetFields: readonly ['id'];
-                };
-              };
-              readonly sandbox: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'CloudSandbox';
-                };
-                readonly cardinality: 'N:1';
-                readonly nullable: false;
-                readonly on: {
-                  readonly localFields: readonly ['sandboxId'];
-                  readonly targetFields: readonly ['id'];
-                };
-              };
-            };
-            readonly storage: {
-              readonly table: 'OauthConnectionSandbox';
-              readonly namespaceId: 'public';
-              readonly fields: {
-                readonly connectionId: { readonly column: 'connectionId' };
-                readonly createdAt: { readonly column: 'createdAt' };
-                readonly sandboxId: { readonly column: 'sandboxId' };
               };
             };
           };
@@ -12438,17 +10184,6 @@ type ContractBase = Omit<
                 readonly to: {
                   readonly namespace: 'public' & NamespaceId;
                   readonly model: 'ProjectSecret';
-                };
-                readonly cardinality: '1:N';
-                readonly on: {
-                  readonly localFields: readonly ['id'];
-                  readonly targetFields: readonly ['projectId'];
-                };
-              };
-              readonly sessions: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'Session';
                 };
                 readonly cardinality: '1:N';
                 readonly on: {
@@ -12762,349 +10497,6 @@ type ContractBase = Omit<
               };
             };
           };
-          readonly PushDevice: {
-            readonly fields: {
-              readonly authSessionId: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly createdAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly id: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly lastSeenAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly platform: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly token: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly updatedAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly userId: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-            };
-            readonly relations: {
-              readonly user: {
-                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
-                readonly cardinality: 'N:1';
-                readonly nullable: false;
-                readonly on: {
-                  readonly localFields: readonly ['userId'];
-                  readonly targetFields: readonly ['id'];
-                };
-              };
-            };
-            readonly storage: {
-              readonly table: 'PushDevice';
-              readonly namespaceId: 'public';
-              readonly fields: {
-                readonly authSessionId: { readonly column: 'authSessionId' };
-                readonly createdAt: { readonly column: 'createdAt' };
-                readonly id: { readonly column: 'id' };
-                readonly lastSeenAt: { readonly column: 'lastSeenAt' };
-                readonly platform: { readonly column: 'platform' };
-                readonly token: { readonly column: 'token' };
-                readonly updatedAt: { readonly column: 'updatedAt' };
-                readonly userId: { readonly column: 'userId' };
-              };
-            };
-          };
-          readonly SandboxBootStep: {
-            readonly fields: {
-              readonly at: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly error: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly gap: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly id: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly outcome: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly repos: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/jsonb@1' };
-              };
-              readonly seq: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int8@1' };
-              };
-              readonly sessionId: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly state: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly step: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-            };
-            readonly relations: {
-              readonly session: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'Session';
-                };
-                readonly cardinality: 'N:1';
-                readonly nullable: false;
-                readonly on: {
-                  readonly localFields: readonly ['sessionId'];
-                  readonly targetFields: readonly ['id'];
-                };
-              };
-            };
-            readonly storage: {
-              readonly table: 'SandboxBootStep';
-              readonly namespaceId: 'public';
-              readonly fields: {
-                readonly at: { readonly column: 'at' };
-                readonly error: { readonly column: 'error' };
-                readonly gap: { readonly column: 'gap' };
-                readonly id: { readonly column: 'id' };
-                readonly outcome: { readonly column: 'outcome' };
-                readonly repos: { readonly column: 'repos' };
-                readonly seq: { readonly column: 'seq' };
-                readonly sessionId: { readonly column: 'sessionId' };
-                readonly state: { readonly column: 'state' };
-                readonly step: { readonly column: 'step' };
-              };
-            };
-          };
-          readonly Session: {
-            readonly fields: {
-              readonly archivedAt: {
-                readonly nullable: true;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly createdAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly deletedAt: {
-                readonly nullable: true;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly executionLocation: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly id: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly mainThreadId: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly managedBySessionId: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly pinnedAt: {
-                readonly nullable: true;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly projectId: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly repo: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly title: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly updatedAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly userId: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly workspace: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-            };
-            readonly relations: {
-              readonly bootSteps: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'SandboxBootStep';
-                };
-                readonly cardinality: '1:N';
-                readonly on: {
-                  readonly localFields: readonly ['id'];
-                  readonly targetFields: readonly ['sessionId'];
-                };
-              };
-              readonly cloudSandbox: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'CloudSandbox';
-                };
-                readonly cardinality: '1:1';
-                readonly nullable: true;
-                readonly on: {
-                  readonly localFields: readonly ['id'];
-                  readonly targetFields: readonly ['sessionId'];
-                };
-              };
-              readonly mainThread: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'Thread';
-                };
-                readonly cardinality: 'N:1';
-                readonly nullable: true;
-                readonly on: {
-                  readonly localFields: readonly ['mainThreadId'];
-                  readonly targetFields: readonly ['id'];
-                };
-              };
-              readonly managedBy: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'Session';
-                };
-                readonly cardinality: 'N:1';
-                readonly nullable: true;
-                readonly on: {
-                  readonly localFields: readonly ['managedBySessionId'];
-                  readonly targetFields: readonly ['id'];
-                };
-              };
-              readonly project: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'Project';
-                };
-                readonly cardinality: 'N:1';
-                readonly nullable: true;
-                readonly on: {
-                  readonly localFields: readonly ['projectId'];
-                  readonly targetFields: readonly ['id'];
-                };
-              };
-              readonly teammates: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'Session';
-                };
-                readonly cardinality: '1:N';
-                readonly on: {
-                  readonly localFields: readonly ['id'];
-                  readonly targetFields: readonly ['managedBySessionId'];
-                };
-              };
-              readonly threads: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'Thread';
-                };
-                readonly cardinality: '1:N';
-                readonly on: {
-                  readonly localFields: readonly ['id'];
-                  readonly targetFields: readonly ['sessionId'];
-                };
-              };
-              readonly user: {
-                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
-                readonly cardinality: 'N:1';
-                readonly nullable: false;
-                readonly on: {
-                  readonly localFields: readonly ['userId'];
-                  readonly targetFields: readonly ['id'];
-                };
-              };
-            };
-            readonly storage: {
-              readonly table: 'Session';
-              readonly namespaceId: 'public';
-              readonly fields: {
-                readonly archivedAt: { readonly column: 'archivedAt' };
-                readonly createdAt: { readonly column: 'createdAt' };
-                readonly deletedAt: { readonly column: 'deletedAt' };
-                readonly executionLocation: { readonly column: 'executionLocation' };
-                readonly id: { readonly column: 'id' };
-                readonly mainThreadId: { readonly column: 'mainThreadId' };
-                readonly managedBySessionId: { readonly column: 'managedBySessionId' };
-                readonly pinnedAt: { readonly column: 'pinnedAt' };
-                readonly projectId: { readonly column: 'projectId' };
-                readonly repo: { readonly column: 'repo' };
-                readonly title: { readonly column: 'title' };
-                readonly updatedAt: { readonly column: 'updatedAt' };
-                readonly userId: { readonly column: 'userId' };
-                readonly workspace: { readonly column: 'workspace' };
-              };
-            };
-          };
           readonly Skill: {
             readonly fields: {
               readonly createdAt: {
@@ -13348,414 +10740,6 @@ type ContractBase = Omit<
               };
             };
           };
-          readonly Thread: {
-            readonly fields: {
-              readonly activityAt: {
-                readonly nullable: true;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly agentType: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly awaiting: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly createdAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly forkMode: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly forkSeq: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
-              };
-              readonly head: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
-              };
-              readonly historyRev: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
-              };
-              readonly id: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly lastAssistantSeq: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
-              };
-              readonly lastOutcome: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly modelEffort: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly modelFast: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
-              };
-              readonly modelRef: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly parentThreadId: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly rev: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
-              };
-              readonly sessionId: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly spawnerThreadId: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly updatedAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly userId: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly working: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
-              };
-            };
-            readonly relations: {
-              readonly contextFiles: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'ContextFile';
-                };
-                readonly cardinality: '1:N';
-                readonly on: {
-                  readonly localFields: readonly ['id'];
-                  readonly targetFields: readonly ['threadId'];
-                };
-              };
-              readonly events: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'Event';
-                };
-                readonly cardinality: '1:N';
-                readonly on: {
-                  readonly localFields: readonly ['id'];
-                  readonly targetFields: readonly ['threadId'];
-                };
-              };
-              readonly forks: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'Thread';
-                };
-                readonly cardinality: '1:N';
-                readonly on: {
-                  readonly localFields: readonly ['id'];
-                  readonly targetFields: readonly ['parentThreadId'];
-                };
-              };
-              readonly mainOfSession: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'Session';
-                };
-                readonly cardinality: '1:1';
-                readonly nullable: true;
-                readonly on: {
-                  readonly localFields: readonly ['id'];
-                  readonly targetFields: readonly ['mainThreadId'];
-                };
-              };
-              readonly parent: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'Thread';
-                };
-                readonly cardinality: 'N:1';
-                readonly nullable: true;
-                readonly on: {
-                  readonly localFields: readonly ['parentThreadId'];
-                  readonly targetFields: readonly ['id'];
-                };
-              };
-              readonly reads: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'ThreadRead';
-                };
-                readonly cardinality: '1:N';
-                readonly on: {
-                  readonly localFields: readonly ['id'];
-                  readonly targetFields: readonly ['threadId'];
-                };
-              };
-              readonly session: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'Session';
-                };
-                readonly cardinality: 'N:1';
-                readonly nullable: false;
-                readonly on: {
-                  readonly localFields: readonly ['sessionId'];
-                  readonly targetFields: readonly ['id'];
-                };
-              };
-              readonly spawned: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'Thread';
-                };
-                readonly cardinality: '1:N';
-                readonly on: {
-                  readonly localFields: readonly ['id'];
-                  readonly targetFields: readonly ['spawnerThreadId'];
-                };
-              };
-              readonly spawner: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'Thread';
-                };
-                readonly cardinality: 'N:1';
-                readonly nullable: true;
-                readonly on: {
-                  readonly localFields: readonly ['spawnerThreadId'];
-                  readonly targetFields: readonly ['id'];
-                };
-              };
-              readonly turns: {
-                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'Turn' };
-                readonly cardinality: '1:N';
-                readonly on: {
-                  readonly localFields: readonly ['id'];
-                  readonly targetFields: readonly ['threadId'];
-                };
-              };
-              readonly user: {
-                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
-                readonly cardinality: 'N:1';
-                readonly nullable: false;
-                readonly on: {
-                  readonly localFields: readonly ['userId'];
-                  readonly targetFields: readonly ['id'];
-                };
-              };
-            };
-            readonly storage: {
-              readonly table: 'Thread';
-              readonly namespaceId: 'public';
-              readonly fields: {
-                readonly activityAt: { readonly column: 'activityAt' };
-                readonly agentType: { readonly column: 'agentType' };
-                readonly awaiting: { readonly column: 'awaiting' };
-                readonly createdAt: { readonly column: 'createdAt' };
-                readonly forkMode: { readonly column: 'forkMode' };
-                readonly forkSeq: { readonly column: 'forkSeq' };
-                readonly head: { readonly column: 'head' };
-                readonly historyRev: { readonly column: 'historyRev' };
-                readonly id: { readonly column: 'id' };
-                readonly lastAssistantSeq: { readonly column: 'lastAssistantSeq' };
-                readonly lastOutcome: { readonly column: 'lastOutcome' };
-                readonly modelEffort: { readonly column: 'modelEffort' };
-                readonly modelFast: { readonly column: 'modelFast' };
-                readonly modelRef: { readonly column: 'modelRef' };
-                readonly parentThreadId: { readonly column: 'parentThreadId' };
-                readonly rev: { readonly column: 'rev' };
-                readonly sessionId: { readonly column: 'sessionId' };
-                readonly spawnerThreadId: { readonly column: 'spawnerThreadId' };
-                readonly updatedAt: { readonly column: 'updatedAt' };
-                readonly userId: { readonly column: 'userId' };
-                readonly working: { readonly column: 'working' };
-              };
-            };
-          };
-          readonly ThreadRead: {
-            readonly fields: {
-              readonly seq: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
-              };
-              readonly threadId: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly updatedAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly userId: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-            };
-            readonly relations: {
-              readonly thread: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'Thread';
-                };
-                readonly cardinality: 'N:1';
-                readonly nullable: false;
-                readonly on: {
-                  readonly localFields: readonly ['threadId'];
-                  readonly targetFields: readonly ['id'];
-                };
-              };
-              readonly user: {
-                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
-                readonly cardinality: 'N:1';
-                readonly nullable: false;
-                readonly on: {
-                  readonly localFields: readonly ['userId'];
-                  readonly targetFields: readonly ['id'];
-                };
-              };
-            };
-            readonly storage: {
-              readonly table: 'ThreadRead';
-              readonly namespaceId: 'public';
-              readonly fields: {
-                readonly seq: { readonly column: 'seq' };
-                readonly threadId: { readonly column: 'threadId' };
-                readonly updatedAt: { readonly column: 'updatedAt' };
-                readonly userId: { readonly column: 'userId' };
-              };
-            };
-          };
-          readonly Turn: {
-            readonly fields: {
-              readonly cacheReadTokens: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
-              };
-              readonly cacheWriteTokens: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
-              };
-              readonly durationMs: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
-              };
-              readonly endedAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly inputTokens: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
-              };
-              readonly modelId: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly outputTokens: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
-              };
-              readonly providerId: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly runId: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly startedAt: {
-                readonly nullable: false;
-                readonly type: {
-                  readonly kind: 'scalar';
-                  readonly codecId: 'pg/timestamptz-date@1';
-                  readonly typeParams: { readonly precision: 3 };
-                };
-              };
-              readonly status: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly steps: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
-              };
-              readonly threadId: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-              readonly userId: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
-            };
-            readonly relations: {
-              readonly thread: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'Thread';
-                };
-                readonly cardinality: 'N:1';
-                readonly nullable: false;
-                readonly on: {
-                  readonly localFields: readonly ['threadId'];
-                  readonly targetFields: readonly ['id'];
-                };
-              };
-            };
-            readonly storage: {
-              readonly table: 'Turn';
-              readonly namespaceId: 'public';
-              readonly fields: {
-                readonly cacheReadTokens: { readonly column: 'cacheReadTokens' };
-                readonly cacheWriteTokens: { readonly column: 'cacheWriteTokens' };
-                readonly durationMs: { readonly column: 'durationMs' };
-                readonly endedAt: { readonly column: 'endedAt' };
-                readonly inputTokens: { readonly column: 'inputTokens' };
-                readonly modelId: { readonly column: 'modelId' };
-                readonly outputTokens: { readonly column: 'outputTokens' };
-                readonly providerId: { readonly column: 'providerId' };
-                readonly runId: { readonly column: 'runId' };
-                readonly startedAt: { readonly column: 'startedAt' };
-                readonly status: { readonly column: 'status' };
-                readonly steps: { readonly column: 'steps' };
-                readonly threadId: { readonly column: 'threadId' };
-                readonly userId: { readonly column: 'userId' };
-              };
-            };
-          };
           readonly User: {
             readonly fields: {
               readonly active: {
@@ -13848,28 +10832,6 @@ type ContractBase = Omit<
                 readonly to: {
                   readonly namespace: 'public' & NamespaceId;
                   readonly model: 'AuthSession';
-                };
-                readonly cardinality: '1:N';
-                readonly on: {
-                  readonly localFields: readonly ['id'];
-                  readonly targetFields: readonly ['userId'];
-                };
-              };
-              readonly cloudSandboxes: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'CloudSandbox';
-                };
-                readonly cardinality: '1:N';
-                readonly on: {
-                  readonly localFields: readonly ['id'];
-                  readonly targetFields: readonly ['userId'];
-                };
-              };
-              readonly composerDrafts: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'ComposerDraft';
                 };
                 readonly cardinality: '1:N';
                 readonly on: {
@@ -13988,17 +10950,6 @@ type ContractBase = Omit<
                   readonly targetFields: readonly ['userId'];
                 };
               };
-              readonly localPodLeases: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'LocalPodLease';
-                };
-                readonly cardinality: '1:N';
-                readonly on: {
-                  readonly localFields: readonly ['id'];
-                  readonly targetFields: readonly ['userId'];
-                };
-              };
               readonly mcpOauthPendings: {
                 readonly to: {
                   readonly namespace: 'public' & NamespaceId;
@@ -14076,32 +11027,10 @@ type ContractBase = Omit<
                   readonly targetFields: readonly ['userId'];
                 };
               };
-              readonly pushDevices: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'PushDevice';
-                };
-                readonly cardinality: '1:N';
-                readonly on: {
-                  readonly localFields: readonly ['id'];
-                  readonly targetFields: readonly ['userId'];
-                };
-              };
               readonly secrets: {
                 readonly to: {
                   readonly namespace: 'public' & NamespaceId;
                   readonly model: 'UserSecret';
-                };
-                readonly cardinality: '1:N';
-                readonly on: {
-                  readonly localFields: readonly ['id'];
-                  readonly targetFields: readonly ['userId'];
-                };
-              };
-              readonly sessions: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'Session';
                 };
                 readonly cardinality: '1:N';
                 readonly on: {
@@ -14127,28 +11056,6 @@ type ContractBase = Omit<
                 };
                 readonly cardinality: '1:1';
                 readonly nullable: true;
-                readonly on: {
-                  readonly localFields: readonly ['id'];
-                  readonly targetFields: readonly ['userId'];
-                };
-              };
-              readonly threadReads: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'ThreadRead';
-                };
-                readonly cardinality: '1:N';
-                readonly on: {
-                  readonly localFields: readonly ['id'];
-                  readonly targetFields: readonly ['userId'];
-                };
-              };
-              readonly threads: {
-                readonly to: {
-                  readonly namespace: 'public' & NamespaceId;
-                  readonly model: 'Thread';
-                };
-                readonly cardinality: '1:N';
                 readonly on: {
                   readonly localFields: readonly ['id'];
                   readonly targetFields: readonly ['userId'];
@@ -16452,23 +13359,6 @@ type ContractBase = Omit<
           };
         },
         {
-          readonly onCreate: { readonly id: 'cuid2'; readonly kind: 'generator' };
-          readonly ref: {
-            readonly entry: 'LocalPodLease';
-            readonly field: 'id';
-            readonly namespace: 'public';
-          };
-        },
-        {
-          readonly onCreate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
-          readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
-          readonly ref: {
-            readonly entry: 'LocalPodLease';
-            readonly field: 'updatedAt';
-            readonly namespace: 'public';
-          };
-        },
-        {
           readonly onCreate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
           readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
           readonly ref: {
@@ -16585,31 +13475,6 @@ type ContractBase = Omit<
           readonly onCreate: { readonly id: 'cuid2'; readonly kind: 'generator' };
           readonly ref: {
             readonly entry: 'PublishedBundle';
-            readonly field: 'id';
-            readonly namespace: 'public';
-          };
-        },
-        {
-          readonly onCreate: { readonly id: 'cuid2'; readonly kind: 'generator' };
-          readonly ref: {
-            readonly entry: 'PushDevice';
-            readonly field: 'id';
-            readonly namespace: 'public';
-          };
-        },
-        {
-          readonly onCreate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
-          readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
-          readonly ref: {
-            readonly entry: 'PushDevice';
-            readonly field: 'updatedAt';
-            readonly namespace: 'public';
-          };
-        },
-        {
-          readonly onCreate: { readonly id: 'cuid2'; readonly kind: 'generator' };
-          readonly ref: {
-            readonly entry: 'SandboxBootStep';
             readonly field: 'id';
             readonly namespace: 'public';
           };

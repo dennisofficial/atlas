@@ -240,24 +240,6 @@ describe('OauthConnectionsService', () => {
     expect(issuer.calls).toEqual(['refresh-0', 'refresh-0'])
   })
 
-  it('gates sandbox issuance on the connection being assigned to that sandbox', async () => {
-    await upload()
-
-    await expect(
-      service.issueAccessToken({ userId: OWNER, connectionId: CONNECTION, sandboxId: 'sbx-1' }),
-    ).rejects.toBeInstanceOf(NotFoundException)
-
-    await store.assign({ connectionId: CONNECTION, sandboxId: 'sbx-1' })
-    await store.assign({ connectionId: CONNECTION, sandboxId: 'sbx-1' })
-    const dto = await service.issueAccessToken({
-      userId: OWNER,
-      connectionId: CONNECTION,
-      sandboxId: 'sbx-1',
-    })
-    expect(dto.accessToken).toBe('access-0')
-    expect(store.assignments.size).toBe(1)
-  })
-
   it('removes only an owned connection', async () => {
     await upload()
     await expect(

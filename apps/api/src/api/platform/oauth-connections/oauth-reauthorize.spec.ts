@@ -49,9 +49,7 @@ describe('OauthConnectionsService reauthorize', () => {
     await service.upload({ userId: OWNER, connectionId: CONNECTION, draft: login('first') })
   })
 
-  it('replaces the grant on the same connection so an assigned sandbox gets the new token', async () => {
-    await store.assign({ connectionId: CONNECTION, sandboxId: 'sbx-1' })
-
+  it('replaces the grant on the same connection so a later issuance gets the new token', async () => {
     const dto = await reauthorize({ to: 'auth-2', from: CONNECTION })
 
     expect(dto).toMatchObject({
@@ -59,12 +57,8 @@ describe('OauthConnectionsService reauthorize', () => {
       authorizationId: 'auth-2',
       generation: 1,
     })
-    const viaSandbox = await service.issueAccessToken({
-      userId: OWNER,
-      connectionId: CONNECTION,
-      sandboxId: 'sbx-1',
-    })
-    expect(viaSandbox.accessToken).toBe('access-auth-2')
+    const issued = await service.issueAccessToken({ userId: OWNER, connectionId: CONNECTION })
+    expect(issued.accessToken).toBe('access-auth-2')
     expect(JSON.stringify(dto)).not.toContain('refresh-auth-2')
   })
 
