@@ -40,5 +40,10 @@ when no native one exists, and say why in the PR.
 - Before you publish, check that `bunx eas-cli@latest fingerprint:generate --platform ios --json
   --non-interactive` gives the same `hash` as the installed production build.
 - Publish from merged `main` with
-  `bunx eas-cli@latest update --channel production --environment production --platform ios
-  --message "<PR title> (#<n>)" --non-interactive`.
+  `EXPO_NO_BUNDLE_SPLITTING=1 bunx eas-cli@latest update --channel production --environment
+  production --platform ios --message "<PR title> (#<n>)" --non-interactive`.
+- Every `expo export` (and so every `eas update`) needs `EXPO_NO_BUNDLE_SPLITTING=1`. Without it,
+  @expo/cli 58 renames the split chunks of a DOM component (`'use dom'`) to their md5 hashes but
+  keeps the old names in their `requires`, and the export fails with `Asset not found:
+  _expo/static/js/web/__common-<hash>.js`. The native bundle does not split, so the flag changes
+  only the DOM bundles.
