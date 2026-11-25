@@ -1,0 +1,788 @@
+[
+  {
+    "id": "table.ProjectAccessGrant",
+    "label": "Create table \"ProjectAccessGrant\"",
+    "summary": "Creates table \"ProjectAccessGrant\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "ProjectAccessGrant"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"ProjectAccessGrant\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ProjectAccessGrant\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"ProjectAccessGrant\"",
+        "sql": "CREATE TABLE \"public\".\"ProjectAccessGrant\" (\n  \"createdAt\" timestamptz(3) DEFAULT (now()) NOT NULL,\n  \"id\" text NOT NULL,\n  \"instruction\" text DEFAULT '' NOT NULL,\n  \"name\" text NOT NULL,\n  \"projectId\" text NOT NULL,\n  \"updatedAt\" timestamptz(3) NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"ProjectAccessGrant\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"ProjectAccessGrant\"",
+          "r",
+          "p"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.UserAccessGrant",
+    "label": "Create table \"UserAccessGrant\"",
+    "summary": "Creates table \"UserAccessGrant\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "UserAccessGrant"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"UserAccessGrant\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"UserAccessGrant\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"UserAccessGrant\"",
+        "sql": "CREATE TABLE \"public\".\"UserAccessGrant\" (\n  \"createdAt\" timestamptz(3) DEFAULT (now()) NOT NULL,\n  \"id\" text NOT NULL,\n  \"instruction\" text DEFAULT '' NOT NULL,\n  \"name\" text NOT NULL,\n  \"updatedAt\" timestamptz(3) NOT NULL,\n  \"userId\" text NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"UserAccessGrant\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"UserAccessGrant\"",
+          "r",
+          "p"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.ProjectFileMount.grantId",
+    "label": "Add column \"grantId\" to \"ProjectFileMount\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "grantId",
+        "table": "ProjectFileMount"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"grantId\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "ProjectFileMount",
+          "grantId"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"grantId\"",
+        "sql": "ALTER TABLE \"public\".\"ProjectFileMount\" ADD COLUMN \"grantId\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"grantId\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "ProjectFileMount",
+          "grantId"
+        ]
+      },
+      {
+        "description": "verify column \"grantId\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "ProjectFileMount",
+          "grantId",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.ProjectSecret.grantId",
+    "label": "Add column \"grantId\" to \"ProjectSecret\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "grantId",
+        "table": "ProjectSecret"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"grantId\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "ProjectSecret",
+          "grantId"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"grantId\"",
+        "sql": "ALTER TABLE \"public\".\"ProjectSecret\" ADD COLUMN \"grantId\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"grantId\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "ProjectSecret",
+          "grantId"
+        ]
+      },
+      {
+        "description": "verify column \"grantId\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "ProjectSecret",
+          "grantId",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.SecretEntry.grantId",
+    "label": "Add column \"grantId\" to \"SecretEntry\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "grantId",
+        "table": "SecretEntry"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"grantId\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "SecretEntry",
+          "grantId"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"grantId\"",
+        "sql": "ALTER TABLE \"public\".\"SecretEntry\" ADD COLUMN \"grantId\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"grantId\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "SecretEntry",
+          "grantId"
+        ]
+      },
+      {
+        "description": "verify column \"grantId\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "SecretEntry",
+          "grantId",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.ProjectAccessGrant.ProjectAccessGrant_projectId_name_key",
+    "label": "Add unique constraint on \"ProjectAccessGrant\" (projectId, name)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "ProjectAccessGrant_projectId_name_key",
+        "table": "ProjectAccessGrant"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"ProjectAccessGrant_projectId_name_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ProjectAccessGrant_projectId_name_key",
+          "public",
+          "\"public\".\"ProjectAccessGrant\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"ProjectAccessGrant_projectId_name_key\"",
+        "sql": "ALTER TABLE \"public\".\"ProjectAccessGrant\" ADD CONSTRAINT \"ProjectAccessGrant_projectId_name_key\" UNIQUE (\"projectId\", \"name\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"ProjectAccessGrant_projectId_name_key\" exists on (projectId, name)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "ProjectAccessGrant_projectId_name_key",
+          "public",
+          "\"public\".\"ProjectAccessGrant\"",
+          "u",
+          "[\"projectId\",\"name\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.UserAccessGrant.UserAccessGrant_userId_name_key",
+    "label": "Add unique constraint on \"UserAccessGrant\" (userId, name)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "UserAccessGrant_userId_name_key",
+        "table": "UserAccessGrant"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"UserAccessGrant_userId_name_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "UserAccessGrant_userId_name_key",
+          "public",
+          "\"public\".\"UserAccessGrant\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"UserAccessGrant_userId_name_key\"",
+        "sql": "ALTER TABLE \"public\".\"UserAccessGrant\" ADD CONSTRAINT \"UserAccessGrant_userId_name_key\" UNIQUE (\"userId\", \"name\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"UserAccessGrant_userId_name_key\" exists on (userId, name)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "UserAccessGrant_userId_name_key",
+          "public",
+          "\"public\".\"UserAccessGrant\"",
+          "u",
+          "[\"userId\",\"name\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.ProjectAccessGrant.ProjectAccessGrant_projectId_idx_a96e4d92",
+    "label": "Create index \"ProjectAccessGrant_projectId_idx_a96e4d92\" on \"ProjectAccessGrant\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "ProjectAccessGrant_projectId_idx_a96e4d92",
+        "table": "ProjectAccessGrant"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"ProjectAccessGrant_projectId_idx_a96e4d92\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ProjectAccessGrant_projectId_idx_a96e4d92\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"ProjectAccessGrant_projectId_idx_a96e4d92\"",
+        "sql": "CREATE INDEX \"ProjectAccessGrant_projectId_idx_a96e4d92\" ON \"public\".\"ProjectAccessGrant\" (\"projectId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"ProjectAccessGrant_projectId_idx_a96e4d92\" exists on \"ProjectAccessGrant\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"ProjectAccessGrant_projectId_idx_a96e4d92\"",
+          "i",
+          "I",
+          "\"public\".\"ProjectAccessGrant\"",
+          "btree",
+          "[\"projectId\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.ProjectFileMount.ProjectFileMount_grantId_idx_2360ae61",
+    "label": "Create index \"ProjectFileMount_grantId_idx_2360ae61\" on \"ProjectFileMount\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "ProjectFileMount_grantId_idx_2360ae61",
+        "table": "ProjectFileMount"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"ProjectFileMount_grantId_idx_2360ae61\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ProjectFileMount_grantId_idx_2360ae61\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"ProjectFileMount_grantId_idx_2360ae61\"",
+        "sql": "CREATE INDEX \"ProjectFileMount_grantId_idx_2360ae61\" ON \"public\".\"ProjectFileMount\" (\"grantId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"ProjectFileMount_grantId_idx_2360ae61\" exists on \"ProjectFileMount\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"ProjectFileMount_grantId_idx_2360ae61\"",
+          "i",
+          "I",
+          "\"public\".\"ProjectFileMount\"",
+          "btree",
+          "[\"grantId\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.ProjectSecret.ProjectSecret_grantId_idx_2360ae61",
+    "label": "Create index \"ProjectSecret_grantId_idx_2360ae61\" on \"ProjectSecret\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "ProjectSecret_grantId_idx_2360ae61",
+        "table": "ProjectSecret"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"ProjectSecret_grantId_idx_2360ae61\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ProjectSecret_grantId_idx_2360ae61\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"ProjectSecret_grantId_idx_2360ae61\"",
+        "sql": "CREATE INDEX \"ProjectSecret_grantId_idx_2360ae61\" ON \"public\".\"ProjectSecret\" (\"grantId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"ProjectSecret_grantId_idx_2360ae61\" exists on \"ProjectSecret\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"ProjectSecret_grantId_idx_2360ae61\"",
+          "i",
+          "I",
+          "\"public\".\"ProjectSecret\"",
+          "btree",
+          "[\"grantId\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.SecretEntry.SecretEntry_grantId_idx_2360ae61",
+    "label": "Create index \"SecretEntry_grantId_idx_2360ae61\" on \"SecretEntry\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "SecretEntry_grantId_idx_2360ae61",
+        "table": "SecretEntry"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"SecretEntry_grantId_idx_2360ae61\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"SecretEntry_grantId_idx_2360ae61\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"SecretEntry_grantId_idx_2360ae61\"",
+        "sql": "CREATE INDEX \"SecretEntry_grantId_idx_2360ae61\" ON \"public\".\"SecretEntry\" (\"grantId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"SecretEntry_grantId_idx_2360ae61\" exists on \"SecretEntry\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"SecretEntry_grantId_idx_2360ae61\"",
+          "i",
+          "I",
+          "\"public\".\"SecretEntry\"",
+          "btree",
+          "[\"grantId\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.UserAccessGrant.UserAccessGrant_userId_idx_a489d58a",
+    "label": "Create index \"UserAccessGrant_userId_idx_a489d58a\" on \"UserAccessGrant\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "UserAccessGrant_userId_idx_a489d58a",
+        "table": "UserAccessGrant"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"UserAccessGrant_userId_idx_a489d58a\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"UserAccessGrant_userId_idx_a489d58a\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"UserAccessGrant_userId_idx_a489d58a\"",
+        "sql": "CREATE INDEX \"UserAccessGrant_userId_idx_a489d58a\" ON \"public\".\"UserAccessGrant\" (\"userId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"UserAccessGrant_userId_idx_a489d58a\" exists on \"UserAccessGrant\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"UserAccessGrant_userId_idx_a489d58a\"",
+          "i",
+          "I",
+          "\"public\".\"UserAccessGrant\"",
+          "btree",
+          "[\"userId\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.ProjectAccessGrant.ProjectAccessGrant_projectId_fkey",
+    "label": "Add foreign key \"ProjectAccessGrant_projectId_fkey\" on \"ProjectAccessGrant\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "ProjectAccessGrant_projectId_fkey",
+        "table": "ProjectAccessGrant"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"ProjectAccessGrant_projectId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ProjectAccessGrant_projectId_fkey",
+          "public",
+          "\"public\".\"ProjectAccessGrant\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"ProjectAccessGrant_projectId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"ProjectAccessGrant\"\nADD CONSTRAINT \"ProjectAccessGrant_projectId_fkey\"\nFOREIGN KEY (\"projectId\")\nREFERENCES \"public\".\"Project\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"ProjectAccessGrant_projectId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "ProjectAccessGrant_projectId_fkey",
+          "public",
+          "\"public\".\"ProjectAccessGrant\"",
+          "f",
+          "[\"projectId\"]",
+          "\"public\".\"Project\"",
+          "[\"id\"]",
+          "c",
+          "c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.ProjectFileMount.ProjectFileMount_grantId_fkey",
+    "label": "Add foreign key \"ProjectFileMount_grantId_fkey\" on \"ProjectFileMount\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "ProjectFileMount_grantId_fkey",
+        "table": "ProjectFileMount"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"ProjectFileMount_grantId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ProjectFileMount_grantId_fkey",
+          "public",
+          "\"public\".\"ProjectFileMount\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"ProjectFileMount_grantId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"ProjectFileMount\"\nADD CONSTRAINT \"ProjectFileMount_grantId_fkey\"\nFOREIGN KEY (\"grantId\")\nREFERENCES \"public\".\"ProjectAccessGrant\" (\"id\")\nON DELETE SET NULL\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"ProjectFileMount_grantId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "ProjectFileMount_grantId_fkey",
+          "public",
+          "\"public\".\"ProjectFileMount\"",
+          "f",
+          "[\"grantId\"]",
+          "\"public\".\"ProjectAccessGrant\"",
+          "[\"id\"]",
+          "n",
+          "c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.ProjectSecret.ProjectSecret_grantId_fkey",
+    "label": "Add foreign key \"ProjectSecret_grantId_fkey\" on \"ProjectSecret\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "ProjectSecret_grantId_fkey",
+        "table": "ProjectSecret"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"ProjectSecret_grantId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ProjectSecret_grantId_fkey",
+          "public",
+          "\"public\".\"ProjectSecret\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"ProjectSecret_grantId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"ProjectSecret\"\nADD CONSTRAINT \"ProjectSecret_grantId_fkey\"\nFOREIGN KEY (\"grantId\")\nREFERENCES \"public\".\"ProjectAccessGrant\" (\"id\")\nON DELETE SET NULL\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"ProjectSecret_grantId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "ProjectSecret_grantId_fkey",
+          "public",
+          "\"public\".\"ProjectSecret\"",
+          "f",
+          "[\"grantId\"]",
+          "\"public\".\"ProjectAccessGrant\"",
+          "[\"id\"]",
+          "n",
+          "c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.UserAccessGrant.UserAccessGrant_userId_fkey",
+    "label": "Add foreign key \"UserAccessGrant_userId_fkey\" on \"UserAccessGrant\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "UserAccessGrant_userId_fkey",
+        "table": "UserAccessGrant"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"UserAccessGrant_userId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "UserAccessGrant_userId_fkey",
+          "public",
+          "\"public\".\"UserAccessGrant\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"UserAccessGrant_userId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"UserAccessGrant\"\nADD CONSTRAINT \"UserAccessGrant_userId_fkey\"\nFOREIGN KEY (\"userId\")\nREFERENCES \"public\".\"User\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"UserAccessGrant_userId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "UserAccessGrant_userId_fkey",
+          "public",
+          "\"public\".\"UserAccessGrant\"",
+          "f",
+          "[\"userId\"]",
+          "\"public\".\"User\"",
+          "[\"id\"]",
+          "c",
+          "c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.SecretEntry.SecretEntry_grantId_fkey",
+    "label": "Add foreign key \"SecretEntry_grantId_fkey\" on \"SecretEntry\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "SecretEntry_grantId_fkey",
+        "table": "SecretEntry"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"SecretEntry_grantId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "SecretEntry_grantId_fkey",
+          "public",
+          "\"public\".\"SecretEntry\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"SecretEntry_grantId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"SecretEntry\"\nADD CONSTRAINT \"SecretEntry_grantId_fkey\"\nFOREIGN KEY (\"grantId\")\nREFERENCES \"public\".\"UserAccessGrant\" (\"id\")\nON DELETE SET NULL\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"SecretEntry_grantId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "SecretEntry_grantId_fkey",
+          "public",
+          "\"public\".\"SecretEntry\"",
+          "f",
+          "[\"grantId\"]",
+          "\"public\".\"UserAccessGrant\"",
+          "[\"id\"]",
+          "n",
+          "c"
+        ]
+      }
+    ]
+  }
+]

@@ -189,7 +189,7 @@ export const createLoopRunner = (args: {
     model: runtime.model,
     ids: deps.ids,
     assembly: runtime.assembly,
-    ...(runtime.plugins === undefined ? {} : { hooks: pod.hooks }),
+    ...(runtime.plugins === undefined && runtime.hooks === undefined ? {} : { hooks: pod.hooks }),
     ...(runtime.uploads === undefined ? {} : { uploads: runtime.uploads }),
     ...(runtime.mediaUrls === undefined ? {} : { mediaUrls: runtime.mediaUrls }),
     tools: () => modelFacingDeclarationsOf(pod.tools.declarations()),

@@ -31,7 +31,12 @@ export const PERSONAL_PAGE_STATUS = {
   },
   [ESettingsPage.Secrets]: {
     status: EPageStatus.Live,
-    detail: 'Delivered to your sandboxes as harness secrets.',
+    detail:
+      'Every cloud thread gets these as environment variables. A project value with the same name wins.',
+  },
+  [ESettingsPage.Access]: {
+    status: EPageStatus.Live,
+    detail: 'Delivered to every cloud thread at the start of its next turn.',
   },
   [ESettingsPage.Appearance]: {
     status: EPageStatus.Stored,

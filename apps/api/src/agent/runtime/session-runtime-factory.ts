@@ -29,6 +29,7 @@ import type { SigningKeyReader } from '../tokens/signing-key-reader'
 import { SandboxSaidUploads } from '../uploads/sandbox-said-uploads'
 import { signerUploadBlobs } from '../uploads/upload-blobs'
 import type { ConfigSource } from '../config/agent-host-config'
+import type { AccessSource } from '../config/access-rows'
 import type { CloudConfigStore } from '../config/cloud-config-store'
 import type { EnvSecretsSource } from '../config/env-secrets'
 import type { ProjectFilesSource } from '../config/project-files'
@@ -46,7 +47,7 @@ import { daemonSessionOf } from './daemon-session'
 import { githubIdentityLookup } from '@dltech/atlas-plugin-github/pod'
 import type { ComposedPlugins } from '@dltech/atlas-plugin-sdk'
 import { agentHostPrompt } from './prompt'
-import { EnvSecretsFragment } from './prompt-fragments/secrets'
+import { accessHook } from './access-hook'
 import { watchWorkspaceRepos } from './git-watch'
 import { TaskWriteTool } from '../agent-tools/task-write'
 import { configToolsOf } from './config-tools'
@@ -86,6 +87,7 @@ export type SessionRuntimeFactoryArgs = {
   plugins?: ComposedPlugins | undefined
   configWrites?: CloudConfigStore | undefined
   envSecrets?: EnvSecretsSource | undefined
+  access?: AccessSource | undefined
   projectFiles?: ProjectFilesSource | undefined
   terminalStreams?: ((sessionId: string) => number) | undefined
   panelHolds?: ((sessionId: string) => number) | undefined
@@ -380,10 +382,7 @@ export const createSessionRuntimeFactory = (
       assembly: defaultPipeline({
         prompt: agentHostPrompt({
           identity: () => models.main.identity,
-          extraFragments: [
-            ...(args.plugins?.pod.prompts ?? []),
-            new EnvSecretsFragment(() => shellEnv.exportedSecretNames()),
-          ],
+          extraFragments: args.plugins?.pod.prompts ?? [],
           spawner,
         }),
         launchDirectory,
@@ -413,6 +412,20 @@ export const createSessionRuntimeFactory = (
       baseBranchOf: (repoPath) =>
         repoAt(repoPath)?.base ?? prepareController.checkedOutBaseOf(repoPath),
       plugins: args.plugins,
+      ...(args.access === undefined
+        ? {}
+        : {
+            hooks: {
+              beforeTurn: [
+                accessHook({
+                  source: args.access,
+                  userId: config.userId,
+                  projectId: config.projectId,
+                  log: args.log,
+                }),
+              ],
+            },
+          }),
       runningShells: () => countRunningShells({ calls }),
       env: sessionShellEnv,
       placeContextFiles: contextFilesPlacerOf({ directory: paths.contextDir, port: files }),

@@ -7,7 +7,7 @@ import {
   createMemoryHostPresence,
   type MemoryHostPresence,
 } from '../../testing/memory-host-presence'
-import type { NormalizeFailure, SaidUploadsPort } from '@dltech/atlas-agent'
+import type { HookChainArgs, NormalizeFailure, SaidUploadsPort } from '@dltech/atlas-agent'
 import type { ComposedPlugins, PodCommandFactory } from '@dltech/atlas-plugin-sdk'
 import { SequentialIds, type ScriptedModelStep } from '@dltech/atlas-agent/testing'
 import { createInMemoryDaemon, type InMemoryDaemon } from '@dltech/atlas-protocol/testing'
@@ -92,6 +92,7 @@ export const makeRig = async (args: {
   onHostIdChanged?: (() => void) | undefined
   podCallBus?: PodCallBus | undefined
   plugins?: ComposedPlugins | undefined
+  hooks?: HookChainArgs | undefined
   rotation?: { autoRotateAtPercent: number } | undefined
   placeContextFiles?: SessionRuntime['placeContextFiles'] | undefined
   trace?: TracePort | undefined
@@ -148,6 +149,7 @@ export const makeRig = async (args: {
     beforeRuntime: args.beforeRuntime,
     stopGate: args.stopGate,
     plugins: args.plugins,
+    hooks: args.hooks,
     rotation: args.rotation,
     placeContextFiles: args.placeContextFiles,
     trace: args.trace,

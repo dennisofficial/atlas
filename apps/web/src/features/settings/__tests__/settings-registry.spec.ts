@@ -34,6 +34,7 @@ describe('settings page registry', () => {
     const library = filterNav({ groups: SETTINGS_NAV, query: 'library' })
     expect(library.flatMap((group) => group.items.map((item) => item.page))).toEqual([
       ESettingsPage.Secrets,
+      ESettingsPage.Access,
     ])
     expect(filterNav({ groups: SETTINGS_NAV, query: 'zzz' })).toEqual([])
   })

@@ -17,6 +17,10 @@ export const PROJECT_SECTION_STATUS: Record<EProjectSettingsSection, PageStatusI
   [EProjectSettingsSection.Files]: {
     status: EPageStatus.Live,
   },
+  [EProjectSettingsSection.Access]: {
+    status: EPageStatus.Live,
+    detail: 'Delivered to every session of this project at the start of its next turn.',
+  },
   [EProjectSettingsSection.Skills]: {
     status: EPageStatus.Live,
     detail: 'Saved for this project and written into its sandboxes when they start.',

@@ -23,9 +23,9 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'49cfe0bcc6c8d87db6f762e53cc306f42eda6e5e0ebde5e5aad54032999a12b9'>;
+  StorageHashBase<'b2ceade6147a05e0909288afc4005d74bfe3aad56dfa8a9358395b0f86b90930'>;
 export type ExecutionHash =
-  ExecutionHashBase<'2177efb983de353ed275f943d06737e92fbddeac59ea03b9801f93db68d4ba53'>;
+  ExecutionHashBase<'be031766f8425fedf7a26ba5219ab70266df2274ff76321ea82b5e3f3ee7be4f'>;
 export type ProfileHash =
   ProfileHashBase<'3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2'>;
 
@@ -849,6 +849,7 @@ export namespace Models {
     setupScript: FieldOutputTypes['public']['Project']['setupScript'];
     shipBehavior: FieldOutputTypes['public']['Project']['shipBehavior'];
     updatedAt: FieldOutputTypes['public']['Project']['updatedAt'];
+    accessGrants: public_ProjectAccessGrant[];
     createdBy: public_User | null;
     fileMounts: public_ProjectFileMount[];
     mcpServers: public_McpServer[];
@@ -857,28 +858,51 @@ export namespace Models {
     settings: public_ProjectSetting[];
     skills: public_Skill[];
     readonly [RelationKeys]?:
-      'createdBy' | 'fileMounts' | 'mcpServers' | 'owner' | 'secrets' | 'settings' | 'skills';
+      | 'accessGrants'
+      | 'createdBy'
+      | 'fileMounts'
+      | 'mcpServers'
+      | 'owner'
+      | 'secrets'
+      | 'settings'
+      | 'skills';
+  };
+  export type public_ProjectAccessGrant = {
+    createdAt: FieldOutputTypes['public']['ProjectAccessGrant']['createdAt'];
+    id: FieldOutputTypes['public']['ProjectAccessGrant']['id'];
+    instruction: FieldOutputTypes['public']['ProjectAccessGrant']['instruction'];
+    name: FieldOutputTypes['public']['ProjectAccessGrant']['name'];
+    projectId: FieldOutputTypes['public']['ProjectAccessGrant']['projectId'];
+    updatedAt: FieldOutputTypes['public']['ProjectAccessGrant']['updatedAt'];
+    fileMounts: public_ProjectFileMount[];
+    project: public_Project;
+    secrets: public_ProjectSecret[];
+    readonly [RelationKeys]?: 'fileMounts' | 'project' | 'secrets';
   };
   export type public_ProjectFileMount = {
     createdAt: FieldOutputTypes['public']['ProjectFileMount']['createdAt'];
+    grantId: FieldOutputTypes['public']['ProjectFileMount']['grantId'];
     id: FieldOutputTypes['public']['ProjectFileMount']['id'];
     mode: FieldOutputTypes['public']['ProjectFileMount']['mode'];
     path: FieldOutputTypes['public']['ProjectFileMount']['path'];
     projectId: FieldOutputTypes['public']['ProjectFileMount']['projectId'];
     sealedContents: FieldOutputTypes['public']['ProjectFileMount']['sealedContents'];
     updatedAt: FieldOutputTypes['public']['ProjectFileMount']['updatedAt'];
+    grant: public_ProjectAccessGrant | null;
     project: public_Project;
-    readonly [RelationKeys]?: 'project';
+    readonly [RelationKeys]?: 'grant' | 'project';
   };
   export type public_ProjectSecret = {
     createdAt: FieldOutputTypes['public']['ProjectSecret']['createdAt'];
+    grantId: FieldOutputTypes['public']['ProjectSecret']['grantId'];
     id: FieldOutputTypes['public']['ProjectSecret']['id'];
     name: FieldOutputTypes['public']['ProjectSecret']['name'];
     projectId: FieldOutputTypes['public']['ProjectSecret']['projectId'];
     sealedValue: FieldOutputTypes['public']['ProjectSecret']['sealedValue'];
     updatedAt: FieldOutputTypes['public']['ProjectSecret']['updatedAt'];
+    grant: public_ProjectAccessGrant | null;
     project: public_Project;
-    readonly [RelationKeys]?: 'project';
+    readonly [RelationKeys]?: 'grant' | 'project';
   };
   export type public_ProjectSetting = {
     createdAt: FieldOutputTypes['public']['ProjectSetting']['createdAt'];
@@ -1136,6 +1160,7 @@ export namespace Models {
     image: FieldOutputTypes['public']['User']['image'];
     name: FieldOutputTypes['public']['User']['name'];
     updatedAt: FieldOutputTypes['public']['User']['updatedAt'];
+    accessGrants: public_UserAccessGrant[];
     accounts: public_Account[];
     activeAccounts: public_ActiveAccount[];
     agentAccounts: public_AgentAccount[];
@@ -1163,6 +1188,7 @@ export namespace Models {
     sshSigningKey: public_SshSigningKey | null;
     userFiles: public_UserFile[];
     readonly [RelationKeys]?:
+      | 'accessGrants'
       | 'accounts'
       | 'activeAccounts'
       | 'agentAccounts'
@@ -1190,6 +1216,17 @@ export namespace Models {
       | 'sshSigningKey'
       | 'userFiles';
   };
+  export type public_UserAccessGrant = {
+    createdAt: FieldOutputTypes['public']['UserAccessGrant']['createdAt'];
+    id: FieldOutputTypes['public']['UserAccessGrant']['id'];
+    instruction: FieldOutputTypes['public']['UserAccessGrant']['instruction'];
+    name: FieldOutputTypes['public']['UserAccessGrant']['name'];
+    updatedAt: FieldOutputTypes['public']['UserAccessGrant']['updatedAt'];
+    userId: FieldOutputTypes['public']['UserAccessGrant']['userId'];
+    secrets: public_UserSecret[];
+    user: public_User;
+    readonly [RelationKeys]?: 'secrets' | 'user';
+  };
   export type public_UserFile = {
     content: FieldOutputTypes['public']['UserFile']['content'];
     contentHash: FieldOutputTypes['public']['UserFile']['contentHash'];
@@ -1216,13 +1253,15 @@ export namespace Models {
   };
   export type public_UserSecret = {
     createdAt: FieldOutputTypes['public']['UserSecret']['createdAt'];
+    grantId: FieldOutputTypes['public']['UserSecret']['grantId'];
     id: FieldOutputTypes['public']['UserSecret']['id'];
     name: FieldOutputTypes['public']['UserSecret']['name'];
     sealedValue: FieldOutputTypes['public']['UserSecret']['sealedValue'];
     updatedAt: FieldOutputTypes['public']['UserSecret']['updatedAt'];
     userId: FieldOutputTypes['public']['UserSecret']['userId'];
+    grant: public_UserAccessGrant | null;
     user: public_User;
-    readonly [RelationKeys]?: 'user';
+    readonly [RelationKeys]?: 'grant' | 'user';
   };
   export type public_UserSetting = {
     createdAt: FieldOutputTypes['public']['UserSetting']['createdAt'];
@@ -1313,6 +1352,7 @@ export declare const models: {
     PreviewRoute: Models.public_PreviewRoute;
     PreviewTunnel: Models.public_PreviewTunnel;
     Project: Models.public_Project;
+    ProjectAccessGrant: Models.public_ProjectAccessGrant;
     ProjectFileMount: Models.public_ProjectFileMount;
     ProjectSecret: Models.public_ProjectSecret;
     ProjectSetting: Models.public_ProjectSetting;
@@ -1332,6 +1372,7 @@ export declare const models: {
     Terminal: Models.public_Terminal;
     Thread: Models.public_Thread;
     User: Models.public_User;
+    UserAccessGrant: Models.public_UserAccessGrant;
     UserFile: Models.public_UserFile;
     UserHarnessSecret: Models.public_UserHarnessSecret;
     UserSecret: Models.public_UserSecret;
@@ -5154,6 +5195,77 @@ type ContractBase = Omit<
                 },
               ];
             };
+            readonly ProjectAccessGrant: {
+              columns: {
+                readonly createdAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly id: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly instruction: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/text@1', ''>;
+                  };
+                  readonly many: false;
+                };
+                readonly name: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly projectId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly updatedAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+              };
+              primaryKey: { readonly columns: readonly ['id'] };
+              uniques: readonly [{ readonly columns: readonly ['projectId', 'name'] }];
+              indexes: readonly [
+                {
+                  readonly name: 'ProjectAccessGrant_projectId_idx_a96e4d92';
+                  readonly prefix: 'ProjectAccessGrant_projectId_idx';
+                  readonly columns: readonly ['projectId'];
+                  readonly unique: false;
+                },
+              ];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'ProjectAccessGrant';
+                    readonly columns: readonly ['projectId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'Project';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+              ];
+            };
             readonly ProjectFileMount: {
               columns: {
                 readonly createdAt: {
@@ -5162,6 +5274,12 @@ type ContractBase = Omit<
                   readonly nullable: false;
                   readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
                   readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly grantId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
                   readonly many: false;
                 };
                 readonly id: {
@@ -5213,7 +5331,14 @@ type ContractBase = Omit<
                   readonly name: 'ProjectFileMount_projectId_path_key';
                 },
               ];
-              indexes: readonly [];
+              indexes: readonly [
+                {
+                  readonly name: 'ProjectFileMount_grantId_idx_2360ae61';
+                  readonly prefix: 'ProjectFileMount_grantId_idx';
+                  readonly columns: readonly ['grantId'];
+                  readonly unique: false;
+                },
+              ];
               foreignKeys: readonly [
                 {
                   readonly source: {
@@ -5227,6 +5352,18 @@ type ContractBase = Omit<
                     readonly columns: readonly ['id'];
                   };
                 },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'ProjectFileMount';
+                    readonly columns: readonly ['grantId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'ProjectAccessGrant';
+                    readonly columns: readonly ['id'];
+                  };
+                },
               ];
             };
             readonly ProjectSecret: {
@@ -5237,6 +5374,12 @@ type ContractBase = Omit<
                   readonly nullable: false;
                   readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
                   readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly grantId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
                   readonly many: false;
                 };
                 readonly id: {
@@ -5278,7 +5421,14 @@ type ContractBase = Omit<
                   readonly name: 'ProjectSecret_projectId_name_key';
                 },
               ];
-              indexes: readonly [];
+              indexes: readonly [
+                {
+                  readonly name: 'ProjectSecret_grantId_idx_2360ae61';
+                  readonly prefix: 'ProjectSecret_grantId_idx';
+                  readonly columns: readonly ['grantId'];
+                  readonly unique: false;
+                },
+              ];
               foreignKeys: readonly [
                 {
                   readonly source: {
@@ -5289,6 +5439,18 @@ type ContractBase = Omit<
                   readonly target: {
                     readonly namespaceId: 'public' & NamespaceId;
                     readonly tableName: 'Project';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'ProjectSecret';
+                    readonly columns: readonly ['grantId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'ProjectAccessGrant';
                     readonly columns: readonly ['id'];
                   };
                 },
@@ -5837,6 +5999,12 @@ type ContractBase = Omit<
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
+                readonly grantId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
                 readonly id: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
@@ -5876,7 +6044,14 @@ type ContractBase = Omit<
                   readonly name: 'SecretEntry_userId_name_key';
                 },
               ];
-              indexes: readonly [];
+              indexes: readonly [
+                {
+                  readonly name: 'SecretEntry_grantId_idx_2360ae61';
+                  readonly prefix: 'SecretEntry_grantId_idx';
+                  readonly columns: readonly ['grantId'];
+                  readonly unique: false;
+                },
+              ];
               foreignKeys: readonly [
                 {
                   readonly source: {
@@ -5887,6 +6062,18 @@ type ContractBase = Omit<
                   readonly target: {
                     readonly namespaceId: 'public' & NamespaceId;
                     readonly tableName: 'User';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'SecretEntry';
+                    readonly columns: readonly ['grantId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'UserAccessGrant';
                     readonly columns: readonly ['id'];
                   };
                 },
@@ -6876,6 +7063,77 @@ type ContractBase = Omit<
               indexes: readonly [];
               foreignKeys: readonly [];
             };
+            readonly UserAccessGrant: {
+              columns: {
+                readonly createdAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly id: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly instruction: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/text@1', ''>;
+                  };
+                  readonly many: false;
+                };
+                readonly name: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly updatedAt: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly userId: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+              };
+              primaryKey: { readonly columns: readonly ['id'] };
+              uniques: readonly [{ readonly columns: readonly ['userId', 'name'] }];
+              indexes: readonly [
+                {
+                  readonly name: 'UserAccessGrant_userId_idx_a489d58a';
+                  readonly prefix: 'UserAccessGrant_userId_idx';
+                  readonly columns: readonly ['userId'];
+                  readonly unique: false;
+                },
+              ];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'UserAccessGrant';
+                    readonly columns: readonly ['userId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'User';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+              ];
+            };
             readonly UserFile: {
               columns: {
                 readonly content: {
@@ -7413,6 +7671,10 @@ type ContractBase = Omit<
       readonly model: 'PreviewTunnel';
     };
     readonly Project: { readonly namespace: 'public' & NamespaceId; readonly model: 'Project' };
+    readonly ProjectAccessGrant: {
+      readonly namespace: 'public' & NamespaceId;
+      readonly model: 'ProjectAccessGrant';
+    };
     readonly ProjectFileMount: {
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'ProjectFileMount';
@@ -7472,6 +7734,10 @@ type ContractBase = Omit<
     readonly Terminal: { readonly namespace: 'public' & NamespaceId; readonly model: 'Terminal' };
     readonly Thread: { readonly namespace: 'public' & NamespaceId; readonly model: 'Thread' };
     readonly User: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
+    readonly UserAccessGrant: {
+      readonly namespace: 'public' & NamespaceId;
+      readonly model: 'UserAccessGrant';
+    };
     readonly UserFile: { readonly namespace: 'public' & NamespaceId; readonly model: 'UserFile' };
     readonly UserHarnessSecret: {
       readonly namespace: 'public' & NamespaceId;
@@ -10651,6 +10917,17 @@ type ContractBase = Omit<
               };
             };
             readonly relations: {
+              readonly accessGrants: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'ProjectAccessGrant';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['projectId'];
+                };
+              };
               readonly createdBy: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
                 readonly cardinality: 'N:1';
@@ -10747,6 +11024,90 @@ type ContractBase = Omit<
               };
             };
           };
+          readonly ProjectAccessGrant: {
+            readonly fields: {
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly instruction: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly name: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly projectId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly updatedAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+            };
+            readonly relations: {
+              readonly fileMounts: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'ProjectFileMount';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['grantId'];
+                };
+              };
+              readonly project: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'Project';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['projectId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+              readonly secrets: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'ProjectSecret';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['grantId'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'ProjectAccessGrant';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly createdAt: { readonly column: 'createdAt' };
+                readonly id: { readonly column: 'id' };
+                readonly instruction: { readonly column: 'instruction' };
+                readonly name: { readonly column: 'name' };
+                readonly projectId: { readonly column: 'projectId' };
+                readonly updatedAt: { readonly column: 'updatedAt' };
+              };
+            };
+          };
           readonly ProjectFileMount: {
             readonly fields: {
               readonly createdAt: {
@@ -10756,6 +11117,10 @@ type ContractBase = Omit<
                   readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
+              };
+              readonly grantId: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
               readonly id: {
                 readonly nullable: false;
@@ -10787,6 +11152,18 @@ type ContractBase = Omit<
               };
             };
             readonly relations: {
+              readonly grant: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'ProjectAccessGrant';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: true;
+                readonly on: {
+                  readonly localFields: readonly ['grantId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
               readonly project: {
                 readonly to: {
                   readonly namespace: 'public' & NamespaceId;
@@ -10805,6 +11182,7 @@ type ContractBase = Omit<
               readonly namespaceId: 'public';
               readonly fields: {
                 readonly createdAt: { readonly column: 'createdAt' };
+                readonly grantId: { readonly column: 'grantId' };
                 readonly id: { readonly column: 'id' };
                 readonly mode: { readonly column: 'mode' };
                 readonly path: { readonly column: 'path' };
@@ -10823,6 +11201,10 @@ type ContractBase = Omit<
                   readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
+              };
+              readonly grantId: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
               readonly id: {
                 readonly nullable: false;
@@ -10850,6 +11232,18 @@ type ContractBase = Omit<
               };
             };
             readonly relations: {
+              readonly grant: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'ProjectAccessGrant';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: true;
+                readonly on: {
+                  readonly localFields: readonly ['grantId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
               readonly project: {
                 readonly to: {
                   readonly namespace: 'public' & NamespaceId;
@@ -10868,6 +11262,7 @@ type ContractBase = Omit<
               readonly namespaceId: 'public';
               readonly fields: {
                 readonly createdAt: { readonly column: 'createdAt' };
+                readonly grantId: { readonly column: 'grantId' };
                 readonly id: { readonly column: 'id' };
                 readonly name: { readonly column: 'name' };
                 readonly projectId: { readonly column: 'projectId' };
@@ -12340,6 +12735,17 @@ type ContractBase = Omit<
               };
             };
             readonly relations: {
+              readonly accessGrants: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'UserAccessGrant';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['userId'];
+                };
+              };
               readonly accounts: {
                 readonly to: {
                   readonly namespace: 'public' & NamespaceId;
@@ -12644,6 +13050,76 @@ type ContractBase = Omit<
               };
             };
           };
+          readonly UserAccessGrant: {
+            readonly fields: {
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly instruction: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly name: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly updatedAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly userId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+            };
+            readonly relations: {
+              readonly secrets: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'UserSecret';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['grantId'];
+                };
+              };
+              readonly user: {
+                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['userId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'UserAccessGrant';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly createdAt: { readonly column: 'createdAt' };
+                readonly id: { readonly column: 'id' };
+                readonly instruction: { readonly column: 'instruction' };
+                readonly name: { readonly column: 'name' };
+                readonly updatedAt: { readonly column: 'updatedAt' };
+                readonly userId: { readonly column: 'userId' };
+              };
+            };
+          };
           readonly UserFile: {
             readonly fields: {
               readonly content: {
@@ -12796,6 +13272,10 @@ type ContractBase = Omit<
                   readonly typeParams: { readonly precision: 3 };
                 };
               };
+              readonly grantId: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
               readonly id: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -12822,6 +13302,18 @@ type ContractBase = Omit<
               };
             };
             readonly relations: {
+              readonly grant: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'UserAccessGrant';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: true;
+                readonly on: {
+                  readonly localFields: readonly ['grantId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
               readonly user: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
                 readonly cardinality: 'N:1';
@@ -12837,6 +13329,7 @@ type ContractBase = Omit<
               readonly namespaceId: 'public';
               readonly fields: {
                 readonly createdAt: { readonly column: 'createdAt' };
+                readonly grantId: { readonly column: 'grantId' };
                 readonly id: { readonly column: 'id' };
                 readonly name: { readonly column: 'name' };
                 readonly sealedValue: { readonly column: 'sealedValue' };
@@ -13418,6 +13911,15 @@ type ContractBase = Omit<
           readonly onCreate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
           readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
           readonly ref: {
+            readonly entry: 'ProjectAccessGrant';
+            readonly field: 'updatedAt';
+            readonly namespace: 'public';
+          };
+        },
+        {
+          readonly onCreate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
+          readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
+          readonly ref: {
             readonly entry: 'ProjectFileMount';
             readonly field: 'updatedAt';
             readonly namespace: 'public';
@@ -13514,6 +14016,15 @@ type ContractBase = Omit<
           readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
           readonly ref: {
             readonly entry: 'User';
+            readonly field: 'updatedAt';
+            readonly namespace: 'public';
+          };
+        },
+        {
+          readonly onCreate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
+          readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
+          readonly ref: {
+            readonly entry: 'UserAccessGrant';
             readonly field: 'updatedAt';
             readonly namespace: 'public';
           };

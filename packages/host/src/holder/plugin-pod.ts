@@ -284,14 +284,20 @@ export const pluginHooksOf = (args: {
   declarations: () => readonly ToolDeclaration[]
   sync?: ResourceSync | undefined
 }): HookChain => {
-  const { plugins } = args.runtime
+  const { plugins, hooks: session } = args.runtime
   const host = hostHooksOf({ declarations: args.declarations })
-  if (plugins === undefined) return new HookChain(host)
+  if (plugins === undefined) {
+    const merged = mergeHooks([host, session ?? {}])
+    return new HookChain({
+      ...merged,
+      ...(args.runtime.trace === undefined ? {} : { trace: args.runtime.trace }),
+    })
+  }
 
   const plugin = plugins.pod.hooks(args.ctx)
   const resources = args.sync === undefined ? [] : [pluginResourcesHook({ sync: args.sync })]
   const closed = args.sync === undefined ? [] : [pluginResourcesClosedHook({ sync: args.sync })]
-  const merged = mergeHooks([host, plugin])
+  const merged = mergeHooks([host, session ?? {}, plugin])
   return new HookChain({
     ...merged,
     beforeTurn: [...resources, ...(merged.beforeTurn ?? [])],
@@ -319,7 +325,12 @@ export const pluginPodOf = (args: {
   const { plugins } = args.runtime
   if (plugins === undefined) {
     const tools = withDiscoveryTools(args.runtime.tools)
-    const hooks = new HookChain(hostHooksOf({ declarations: () => tools.declarations() }))
+    const host = hostHooksOf({ declarations: () => tools.declarations() })
+    const merged = mergeHooks([host, args.runtime.hooks ?? {}])
+    const hooks = new HookChain({
+      ...merged,
+      ...(args.runtime.trace === undefined ? {} : { trace: args.runtime.trace }),
+    })
     return { tools, hooks }
   }
   const ctx = pluginPodContextOf(args)

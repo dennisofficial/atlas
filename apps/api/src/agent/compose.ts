@@ -19,6 +19,7 @@ import {
   resize,
 } from '@dltech/atlas-native-commands'
 import { cloudConfigStore } from './config/cloud-config-store'
+import { accessSourceOf } from './config/access-grants'
 import { envSecretsReader } from './config/env-secrets'
 import { projectFilesSourceOf } from './config/project-files'
 import { mcpControlPort } from './config/mcp-control'
@@ -111,6 +112,7 @@ export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
       plugins: composedPlugins,
       configWrites: cloudConfigStore(),
       envSecrets: envSecretsReader(),
+      access: accessSourceOf(),
       projectFiles: projectFilesSourceOf(),
       terminalStreams: (sessionId) => terminalDemand.countOf(sessionId),
       panelHolds: (sessionId) => panelDemand.countOf(sessionId),

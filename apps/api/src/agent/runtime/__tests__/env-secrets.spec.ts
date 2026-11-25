@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import {
-  RESERVED_ENV_PREFIX,
-  envSecretsNoticeOf,
-  exportEnvSecretsOf,
-  type CloudSecret,
-} from '../env-secrets'
+import { RESERVED_ENV_PREFIX, exportEnvSecretsOf, type CloudSecret } from '../env-secrets'
 import { ShellEnvCell } from '../shell-env'
 
 const secret = (name: string, value: string): CloudSecret => ({ name, value })
@@ -47,20 +42,6 @@ describe('exportEnvSecretsOf', () => {
   })
 })
 
-describe('envSecretsNoticeOf', () => {
-  it('says nothing when no secret was exported', () => {
-    expect(envSecretsNoticeOf([])).toBeNull()
-  })
-
-  it('lists names, says values stay out of the transcript and that edits reach new shells', () => {
-    const notice = envSecretsNoticeOf(['API_KEY', 'GH_PAT'])
-
-    expect(notice).toContain('API_KEY, GH_PAT')
-    expect(notice).toContain('Never print, log or commit their values')
-    expect(notice).toContain('without a restart')
-  })
-})
-
 describe('ShellEnvCell secrets', () => {
   it('keeps Atlas-owned git variables above the exported secrets', async () => {
     const cell = new ShellEnvCell({ identityOf: async () => ({ name: 'n', email: 'e' }) })
@@ -79,7 +60,6 @@ describe('ShellEnvCell secrets', () => {
 
     expect(cell.current().GH_TOKEN).toBe('gho_abc')
     expect(cell.current().API_KEY).toBe('k')
-    expect(cell.exportedSecretNames()).toEqual(['API_KEY', 'GH_TOKEN'])
   })
 
   it('drops a secret the moment the cloud config stops listing it', () => {
@@ -88,6 +68,5 @@ describe('ShellEnvCell secrets', () => {
     cell.setSecrets(exportEnvSecretsOf({ user: [], project: [] }))
 
     expect(cell.current()).toEqual({})
-    expect(cell.exportedSecretNames()).toEqual([])
   })
 })

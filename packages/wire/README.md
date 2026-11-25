@@ -24,10 +24,10 @@ response payloads, the constants that both sides must agree on, and the sandbox 
 
 ## Entry points
 
-| Import                   | Use it for                                                                                                                      |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
-| `@dltech/atlas-wire`     | The full contract: frames, payload schemas, capabilities, pod paths, sandbox helpers.                                           |
-| `@dltech/atlas-wire/web` | The browser-safe subset: thread, session, project, settings, model, memory, MCP, secret, file, GitHub and notification schemas. |
+| Import                   | Use it for                                                                                                                                    |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@dltech/atlas-wire`     | The full contract: frames, payload schemas, capabilities, pod paths, sandbox helpers.                                                         |
+| `@dltech/atlas-wire/web` | The browser-safe subset: thread, session, project, settings, model, memory, MCP, secret, file, access grant, GitHub and notification schemas. |
 
 ## Capabilities
 
