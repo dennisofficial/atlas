@@ -7,7 +7,7 @@ const setupOf = async (env?: Record<string, string>) => {
   const processes = new RecordingProcessPort()
 
   await ensureWorkspace({
-    calls: { ackScope: () => Promise.resolve() },
+    calls: { ackScope: () => Promise.resolve(), bootId: () => 'boot-a' },
     processes,
     files: new StubFileSystemPort(),
     workspace: {

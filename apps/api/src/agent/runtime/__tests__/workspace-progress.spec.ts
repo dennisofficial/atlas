@@ -31,7 +31,7 @@ const prepare = async (args: {
     finish = resolve
   })
   const result = await ensureWorkspace({
-    calls: { ackScope: () => Promise.resolve() },
+    calls: { ackScope: () => Promise.resolve(), bootId: () => 'boot-a' },
     processes: args.processes,
     files: new StubFileSystemPort(),
     workspace: {
@@ -232,7 +232,7 @@ describe('workspace steps that fail without blocking', () => {
 
   it('still fails the prepare when the sandbox cannot be reached', async () => {
     const result = await ensureWorkspace({
-      calls: { ackScope: () => Promise.resolve() },
+      calls: { ackScope: () => Promise.resolve(), bootId: () => 'boot-a' },
       processes: new RecordingProcessPort(),
       files: new (class extends StubFileSystemPort {
         override mkdir(): Promise<void> {

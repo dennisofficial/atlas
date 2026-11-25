@@ -42,7 +42,7 @@ const prepare = async (args: { processes: RecordingProcessPort; files: StubFileS
     finish = resolve
   })
   const result = await ensureWorkspace({
-    calls: { ackScope: () => Promise.resolve() },
+    calls: { ackScope: () => Promise.resolve(), bootId: () => 'boot-a' },
     processes: args.processes,
     files: args.files,
     workspace: { remoteUrl: null, baseBranch: null, additionalRepos: [], setupScript: SCRIPT },

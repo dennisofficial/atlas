@@ -13,7 +13,7 @@ const prepare = async (args: { setupScript: string; miseExitCode?: number }) => 
       call.cmd.some((part) => part.includes('mise install')) ? (args.miseExitCode ?? 0) : 0,
   })
   const result = await ensureWorkspace({
-    calls: { ackScope: () => Promise.resolve() },
+    calls: { ackScope: () => Promise.resolve(), bootId: () => 'boot-a' },
     processes,
     files,
     workspace: {

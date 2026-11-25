@@ -71,7 +71,7 @@ describe('ensureWorkspace project file mounts', () => {
     const files = new OrderedFiles(log)
 
     const result = await ensureWorkspace({
-      calls: { ackScope: async () => undefined },
+      calls: { ackScope: async () => undefined, bootId: () => 'boot-a' },
       processes: new OrderedProcesses(log),
       files,
       workspace: {

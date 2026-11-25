@@ -47,7 +47,7 @@ describe('workspace prepare and its scope acks', () => {
 
     let prepared: unknown
     void ensureWorkspace({
-      calls: { ackScope: (args) => calls.ackScope(args) },
+      calls: { ackScope: (args) => calls.ackScope(args), bootId: () => calls.bootId() },
       processes: new RecordingProcessPort(),
       files: new StubFileSystemPort(),
       workspace: {

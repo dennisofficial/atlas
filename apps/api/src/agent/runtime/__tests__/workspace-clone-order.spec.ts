@@ -24,7 +24,7 @@ describe('workspace clone ordering', () => {
   it('removes the github token before the workspace is marked materialized', async () => {
     const files = new OrderedFiles()
     await ensureWorkspace({
-      calls: { ackScope: () => Promise.resolve() },
+      calls: { ackScope: () => Promise.resolve(), bootId: () => 'boot-a' },
       processes: new RecordingProcessPort(),
       files,
       workspace: {
