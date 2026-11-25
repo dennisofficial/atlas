@@ -14,6 +14,7 @@ import { ControlPlane } from '../../control-plane'
 import type { z } from 'zod'
 
 import type { ControlStorePort } from '../../port'
+import type { ViewChangeHook } from '../../view-hooks'
 
 export const SESSION = 'session-1'
 export const THREAD = 'thread-1'
@@ -30,6 +31,7 @@ export function makeHarness(
   options?: {
     pluginViews?: readonly PluginViewFold[] | undefined
     appendHooks?: readonly AppendHook[] | undefined
+    viewHooks?: readonly ViewChangeHook[] | undefined
   },
 ): Harness {
   let now = T0
@@ -39,6 +41,7 @@ export function makeHarness(
     ...(eventSchema === undefined ? {} : { eventSchema }),
     pluginViews: options?.pluginViews,
     appendHooks: options?.appendHooks,
+    viewHooks: options?.viewHooks,
   })
   return { plane, setNow: (iso) => (now = iso) }
 }

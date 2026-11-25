@@ -52,14 +52,13 @@ export type PodResizeDeps = PodResizeInterruptDeps & {
     generation: number
   }): Promise<unknown>
   recordFailed(args: { sessionId: string; generation: number; error: string }): Promise<unknown>
-  recordWaiting(args: { sessionId: string; generation: number }): Promise<unknown>
+  recordWaiting(args: { sessionId: string; generation: number; since: string }): Promise<boolean>
+  claimWait(args: { sessionId: string; generation: number; since: string }): Promise<boolean>
   busy(args: { sessionId: string }): Promise<PodBusy>
-  requeue(args: { payload: PodResizePayload; delaySeconds: number }): Promise<unknown>
+  now(): string
 }
 
 export const NO_SANDBOX_TO_RESIZE = 'No sandbox to resize'
-
-export const POD_RESIZE_WAIT_SECONDS = 30
 
 const POD_RESIZE_DURATION_MARGIN_MS = 5 * 60_000
 
@@ -79,14 +78,8 @@ export const runPodResize = async (args: {
   if (session === undefined || session.podSizeGeneration !== payload.generation) {
     return { outcome: EPodResizeOutcome.Superseded }
   }
-  if (payload.whenIdle === true && (await deps.busy({ sessionId: payload.sessionId })).busy) {
-    await deps.recordWaiting({
-      sessionId: payload.sessionId,
-      generation: payload.generation,
-    })
-    await deps.requeue({ payload, delaySeconds: POD_RESIZE_WAIT_SECONDS })
-    return { outcome: EPodResizeOutcome.Waiting }
-  }
+  const held = await holdForIdle({ payload, deps })
+  if (held !== undefined) return { outcome: held }
   const shape = {
     vcpus: session.podDesiredVcpus ?? payload.vcpus,
     memoryGb: session.podDesiredMemoryGb ?? payload.memoryGb,
@@ -105,6 +98,8 @@ export const runPodResize = async (args: {
     shape,
     generation: payload.generation,
   })
+  const superseded = async (): Promise<boolean> =>
+    (await deps.session({ sessionId: payload.sessionId }))?.podSizeGeneration !== payload.generation
   const notice = (args: { outcome: EPodResizeNotice; error?: string }): Promise<unknown[]> =>
     postNotices({
       deps,
@@ -119,6 +114,7 @@ export const runPodResize = async (args: {
       ...(diskGb === undefined ? {} : { diskGb }),
     })
   } catch (failure) {
+    if (await superseded()) return { outcome: EPodResizeOutcome.Superseded }
     await notice({ outcome: EPodResizeNotice.Failed, error: failureText(failure) })
     throw failure
   }
@@ -129,6 +125,7 @@ export const runPodResize = async (args: {
       generation: payload.generation,
       error: NO_SANDBOX_TO_RESIZE,
     })
+    if (await superseded()) return { outcome: EPodResizeOutcome.Superseded }
     await notice({ outcome: EPodResizeNotice.Failed, error: NO_SANDBOX_TO_RESIZE })
     return { outcome: EPodResizeOutcome.Failed }
   }
@@ -143,6 +140,7 @@ export const runPodResize = async (args: {
       generation: payload.generation,
     })
   }
+  if (await superseded()) return { outcome: EPodResizeOutcome.Superseded }
   await notice({ outcome: EPodResizeNotice.Applied })
   if (resized === 'unchanged') return { outcome: EPodResizeOutcome.Applied }
   if (resized === 'stored' && !live(sandboxSessionId)) {
@@ -156,6 +154,27 @@ export const runPodResize = async (args: {
     epoch: epochOf({ leases, sessionId: sandboxSessionId }),
   })
   return { outcome: EPodResizeOutcome.Applied }
+}
+
+const holdForIdle = async (args: {
+  payload: PodResizePayload
+  deps: PodResizeDeps
+}): Promise<EPodResizeOutcome | undefined> => {
+  const { payload, deps } = args
+  const wait = { sessionId: payload.sessionId, generation: payload.generation }
+  if (payload.waitedSince !== undefined) {
+    const claimed = await deps.claimWait({ ...wait, since: payload.waitedSince })
+    if (!claimed) return EPodResizeOutcome.Superseded
+  }
+  if (payload.whenIdle !== true) return undefined
+  const busy = async (): Promise<boolean> =>
+    (await deps.busy({ sessionId: payload.sessionId })).busy
+  if (!(await busy())) return undefined
+  const since = deps.now()
+  if (!(await deps.recordWaiting({ ...wait, since }))) return EPodResizeOutcome.Superseded
+  if (await busy()) return EPodResizeOutcome.Waiting
+  const claimed = await deps.claimWait({ ...wait, since })
+  return claimed ? undefined : EPodResizeOutcome.Superseded
 }
 
 const leasesOf = async (args: {

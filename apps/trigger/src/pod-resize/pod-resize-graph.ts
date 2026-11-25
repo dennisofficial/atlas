@@ -8,12 +8,6 @@ import {
   type PodBusy,
 } from '@dltech/atlas-core'
 import {
-  POD_RESIZE_TASK_ID,
-  podResizeIdempotencyKey,
-  podResizePayloadSchema,
-  type PodResizePayload,
-} from '@dltech/atlas-jobs/pod-resize'
-import {
   failureText,
   jobsControlPlaneOf,
   podResizerOf,
@@ -21,27 +15,9 @@ import {
   readPodsEnv,
   type PodResizeDeps,
 } from '@dltech/atlas-pods'
-import { idempotencyKeys, tasks } from '@trigger.dev/sdk'
 import { triggerLog } from '../trigger-logger'
 
 export type PodResizeGraph = { deps: PodResizeDeps }
-
-export const requeuePodResize = async (args: {
-  payload: PodResizePayload
-  delaySeconds: number
-}): Promise<PodResizePayload> => {
-  const payload = podResizePayloadSchema.parse({
-    ...args.payload,
-    waits: (args.payload.waits ?? 0) + 1,
-  })
-  await tasks.trigger(POD_RESIZE_TASK_ID, payload, {
-    idempotencyKey: await idempotencyKeys.create(podResizeIdempotencyKey(payload), {
-      scope: 'global',
-    }),
-    delay: `${args.delaySeconds}s`,
-  })
-  return payload
-}
 
 const busyOf = async (args: { plane: ControlPlane; sessionId: string }): Promise<PodBusy> => {
   const session = await args.plane.readSession({ sessionId: args.sessionId })
@@ -124,14 +100,25 @@ export function buildPodResizeGraph(): PodResizeGraph {
         triggerLog.warn(`pod-resize for ${args.sessionId} failed: ${args.error}`)
       },
       recordWaiting: async (args) => {
-        await plane.recordPodWaiting({ ...args, since: new Date().toISOString() })
-        triggerLog.log(`pod-resize for ${args.sessionId} waits for the pod to go idle`)
+        const recorded = await plane.recordPodWaiting(args)
+        triggerLog.log(
+          recorded
+            ? `pod-resize for ${args.sessionId} waits for the pod to go idle`
+            : `pod-resize for ${args.sessionId} no longer waits: generation ${args.generation} was replaced`,
+        )
+        return recorded
+      },
+      claimWait: async (args) => {
+        const claimed = await plane.claimPodWait(args)
+        triggerLog.log(
+          claimed
+            ? `pod-resize for ${args.sessionId} took the wait of ${args.since}: the pod is idle`
+            : `pod-resize for ${args.sessionId} left the wait of ${args.since} to another run`,
+        )
+        return claimed
       },
       busy: (args) => busyOf({ plane, sessionId: args.sessionId }),
-      requeue: async (args) => {
-        const payload = await requeuePodResize(args)
-        triggerLog.log(`pod-resize for ${payload.sessionId} waits ${args.delaySeconds}s for idle`)
-      },
+      now: () => new Date().toISOString(),
     },
   }
 }

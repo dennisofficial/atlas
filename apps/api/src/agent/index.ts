@@ -62,6 +62,8 @@ export type {
 } from './usage/usage-accounts'
 export { podResizerOf, type SandboxResizer } from '@dltech/atlas-pods/sandbox/sandbox-resizer'
 export { podOpsOf, type PodOps } from './host/pod-ops'
+export { JsonLog } from './host/json-log'
+export { podResizeOnIdleOf } from './host/pod-resize-on-idle.port'
 export type { TerminalDemand } from '@dltech/atlas-host'
 export {
   OperatorAnswerService,

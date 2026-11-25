@@ -40,6 +40,7 @@ import { contextDirOf } from '../runtime/session-paths'
 import { DiskContextContentStore } from './disk-context-content-store'
 import { FixedEndpointSandboxProvider } from './fixed-endpoint-sandbox-provider'
 import { faultedPlane, faultSandbox, hostFaultOf } from './host-faults'
+import { podResizeViewHooksOf } from './rig-pod-resize'
 import type { JobsProjectDispatcher } from '../../_core/ports/job-dispatcher'
 import { podResizeHandlerOf } from '../../_lib/pod-resize/pod-resize-handler'
 
@@ -224,11 +225,14 @@ const main = async (): Promise<void> => {
   const pool = createPool(requireEnv('DATABASE_URL'), {
     queryTimeoutMs: numberEnv('DB_QUERY_TIMEOUT_MS', 10_000),
   })
+  const log = new JsonLog()
+  const composedPlugins = composedPluginsOf({ jinaApiKey: process.env.JINA_API_KEY })
   const realPlane = new ControlPlane({
     store: new PostgresControlStore(createDb(pool)),
     eventSchema: controlEventSchema,
+    pluginViews: composedPlugins.views,
+    ...podResizeViewHooksOf({ path: process.env.POD_RESIZE_FILE, log }),
   })
-  const log = new JsonLog()
   const fault = hostFaultOf(process.env.FAULT)
   const plane = faultedPlane({ plane: realPlane, fault, log })
   const liveFrames = createRedisLiveFrames({ url: requireEnv('REDIS_URL'), log })
@@ -237,7 +241,6 @@ const main = async (): Promise<void> => {
   const wakes = startPgWakeListener({ url: requireEnv('DATABASE_DIRECT_URL'), log })
   const bus = createHostBus({ wakes, liveFrames })
   const timers = { now: () => Date.now(), ...systemTimers }
-  const composedPlugins = composedPluginsOf({ jinaApiKey: process.env.JINA_API_KEY })
   const sandbox = new FixedEndpointSandboxProvider({
     url: daemonUrl,
     daemonSecret,

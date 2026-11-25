@@ -1,4 +1,5 @@
 export type { AppendHook } from './append-hooks'
+export type { ViewChangeHook } from './view-hooks'
 export type { ChangeFeed } from './change-feed'
 export { ControlPlane, MAX_READ_LIMIT, MAX_SESSION_LIST_LIMIT } from './control-plane'
 export type { ControlPlaneParams, ReadEventsPage } from './control-plane'

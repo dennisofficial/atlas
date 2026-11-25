@@ -286,6 +286,21 @@ export const cancelPodWaitIn = async (params: {
   return true
 }
 
+export const claimPodWaitIn = async (params: {
+  tx: ControlTx
+  sessionId: string
+  generation: number
+  since: string
+}): Promise<boolean> => {
+  const changed = await params.tx.takeSessionPodWait({
+    sessionId: params.sessionId,
+    generation: params.generation,
+    since: params.since,
+  })
+  if (changed) await params.tx.announce({ sessionId: params.sessionId })
+  return changed
+}
+
 export const recordPodDiskIn = async (params: {
   tx: ControlTx
   sessionId: string

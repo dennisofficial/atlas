@@ -268,6 +268,51 @@ export function describeControlPlaneSessions(params: ConformanceParams): void {
         expect(row?.podDesiredVcpus).toBe(4)
         expect(row?.podWaitingSince).toBeNull()
       })
+
+      it('claims the wait once for the recorded since', async () => {
+        await seedSession({ sessionId: SESSION, offsetMs: 0 })
+        const generation = await plane.recordPodDesired({
+          sessionId: SESSION,
+          vcpus: 4,
+          memoryGb: 8,
+        })
+        await plane.recordPodWaiting({ sessionId: SESSION, generation, since: waitAt })
+
+        expect(await plane.claimPodWait({ sessionId: SESSION, generation, since: waitAt })).toBe(
+          true,
+        )
+        expect((await plane.readSession({ sessionId: SESSION }))?.podWaitingSince).toBeNull()
+        expect(await plane.claimPodWait({ sessionId: SESSION, generation, since: waitAt })).toBe(
+          false,
+        )
+      })
+
+      it('claims nothing for another since or a stale generation', async () => {
+        await seedSession({ sessionId: SESSION, offsetMs: 0 })
+        const generation = await plane.recordPodDesired({
+          sessionId: SESSION,
+          vcpus: 4,
+          memoryGb: 8,
+        })
+        await plane.recordPodWaiting({ sessionId: SESSION, generation, since: waitAt })
+
+        const otherSince = after({ iso: waitAt, offsetMs: 1 })
+        expect(
+          await plane.claimPodWait({ sessionId: SESSION, generation, since: otherSince }),
+        ).toBe(false)
+        expect(
+          await plane.claimPodWait({
+            sessionId: SESSION,
+            generation: generation + 1,
+            since: waitAt,
+          }),
+        ).toBe(false)
+        expect((await plane.readSession({ sessionId: SESSION }))?.podWaitingSince).toBe(waitAt)
+
+        expect(await plane.claimPodWait({ sessionId: SESSION, generation, since: waitAt })).toBe(
+          true,
+        )
+      })
     })
 
     it('creates a session and its main thread in one transaction', async () => {

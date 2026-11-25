@@ -35,6 +35,7 @@ export class ResizeGate {
 
   hold(args: HeldResize): void {
     if (args.open.generation <= this.completed) return
+    if (this.held !== undefined && args.open.generation < this.held.open.generation) return
     if (this.held?.open.generation === args.open.generation) {
       this.held = args
       return

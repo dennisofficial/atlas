@@ -356,6 +356,11 @@ export interface ControlTx {
     generation: number
     since: string | null
   }): Promise<boolean>
+  takeSessionPodWait(params: {
+    sessionId: string
+    generation: number
+    since: string
+  }): Promise<boolean>
   setSessionPodWaitCancelled(params: {
     sessionId: string
     generation: number

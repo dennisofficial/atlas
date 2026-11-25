@@ -46,7 +46,7 @@ describe('podResizeHandlerOf', () => {
     expect(dispatcher.dispatches).toEqual([
       {
         payload: { sessionId: 's-1', generation: 1, vcpus: 4, memoryGb: 8 },
-        idempotencyKey: 'pod-resize:s-1:1:0',
+        idempotencyKey: 'pod-resize:s-1:1',
       },
     ])
   })
@@ -86,7 +86,7 @@ describe('podResizeHandlerOf', () => {
           diskGb: 30,
           whenIdle: true,
         },
-        idempotencyKey: 'pod-resize:s-1:1:0',
+        idempotencyKey: 'pod-resize:s-1:1',
       },
     ])
   })

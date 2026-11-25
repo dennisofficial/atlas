@@ -52,6 +52,7 @@ export type HostKnobs = {
   modelRequestsFile?: string
   contextMirrorDir?: string
   notifyLog?: boolean
+  podResizeLog?: boolean
 }
 
 /**

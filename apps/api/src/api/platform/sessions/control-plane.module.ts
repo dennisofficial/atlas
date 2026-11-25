@@ -7,12 +7,15 @@ import type { ProductAnalytics } from '@dltech/atlas-observability'
 import { eventSchemaOf } from '@dltech/atlas-plugin-sdk'
 import {
   AnalyticsModule,
+  JsonLog,
   PRODUCT_ANALYTICS,
   SecretCipher,
   analyticsAppendHook,
   diagramRepairerOf,
+  podResizeOnIdleOf,
 } from '../../../agent'
 import { EnvService } from '../../../_core/config/env/env.service'
+import { JobsProjectDispatcher } from '../../../_core/ports/job-dispatcher'
 import { changeContentStoreProvider } from '../../../_lib/changes/change-content.provider'
 import { contextContentStoreProvider } from '../../../_lib/changes/context-content.provider'
 import { backgroundWorkProvider } from '../../../_lib/background-work/background-work.providers'
@@ -51,18 +54,23 @@ import { SessionDraftsService } from './session-drafts.service'
 
 export const controlPlaneProvider: Provider = {
   provide: ControlPlane,
-  useFactory: (analytics: ProductAnalytics, env: EnvService): ControlPlane =>
+  useFactory: (
+    analytics: ProductAnalytics,
+    env: EnvService,
+    dispatcher: JobsProjectDispatcher,
+  ): ControlPlane =>
     new ControlPlane({
       store: new PostgresControlStore(db),
       eventSchema: eventSchemaOf(registeredPlugins),
       pluginViews: composedPlugins.views,
       appendHooks: [...composedPlugins.control.hooks, analyticsAppendHook(analytics)],
+      viewHooks: [podResizeOnIdleOf({ dispatcher, log: new JsonLog() })],
       targetStates: githubAppTargetStatesOf({
         appId: env.get('GITHUB_APP_ID'),
         appPrivateKey: env.get('GITHUB_APP_PRIVATE_KEY'),
       }),
     }),
-  inject: [PRODUCT_ANALYTICS, EnvService],
+  inject: [PRODUCT_ANALYTICS, EnvService, JobsProjectDispatcher],
 }
 
 @Module({

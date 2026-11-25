@@ -14,8 +14,10 @@ import { createRedisLiveFrames, type RedisLiveFrames } from '../bus/redis-live-f
 import { createRedisPodCallBus } from '../bus/redis-pod-call-bus'
 import { databaseUrlWithTls } from '../config/database-url'
 import type { AgentHostEnv } from '../config/env'
+import { JobsProjectDispatcher } from '../../_core/ports/job-dispatcher'
 import { composedPluginsOf, controlEventSchema } from '../registered-plugins'
 import { FollowStack } from './follow-stack'
+import { podResizeOnIdleOf } from './pod-resize-on-idle.port'
 import {
   AGENT_HOST_ENV,
   CONTROL_PLANE,
@@ -30,17 +32,24 @@ import {
 
 const controlPlaneProvider: Provider = {
   provide: CONTROL_PLANE,
-  useFactory: (db: Db, analytics: ProductAnalytics, env: AgentHostEnv): ControlPlane => {
+  useFactory: (
+    db: Db,
+    analytics: ProductAnalytics,
+    env: AgentHostEnv,
+    dispatcher: JobsProjectDispatcher,
+    log: LogPort,
+  ): ControlPlane => {
     const composedPlugins = composedPluginsOf(env)
     return new ControlPlane({
       store: new PostgresControlStore(db),
       eventSchema: controlEventSchema,
       pluginViews: composedPlugins.views,
       appendHooks: [...composedPlugins.control.hooks, analyticsAppendHook(analytics)],
+      viewHooks: [podResizeOnIdleOf({ dispatcher, log })],
       targetStates: githubAppTargetStatesOf(env.githubApp),
     })
   },
-  inject: [DB, PRODUCT_ANALYTICS, AGENT_HOST_ENV],
+  inject: [DB, PRODUCT_ANALYTICS, AGENT_HOST_ENV, JobsProjectDispatcher, LOG],
 }
 
 const liveFramesProvider: Provider = {

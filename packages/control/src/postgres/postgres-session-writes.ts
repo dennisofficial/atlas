@@ -324,3 +324,17 @@ export const setSessionPodWaitingIn = async (params: {
   })
   return changed === 1
 }
+
+export const takeSessionPodWaitIn = async (params: {
+  tx: Tx
+  sessionId: string
+  generation: number
+  since: string
+}): Promise<boolean> => {
+  const changed = await params.tx.orm.public.Session.where({
+    id: params.sessionId,
+    podSizeGeneration: params.generation,
+    podWaitingSince: new Date(params.since),
+  }).updateAndCount({ podWaitingSince: null })
+  return changed === 1
+}
