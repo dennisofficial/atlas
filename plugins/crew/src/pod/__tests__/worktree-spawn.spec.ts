@@ -86,6 +86,41 @@ describe('agent_spawn with a worktree', () => {
     })
   })
 
+  it('shares the parent worktree with a child spawned without one', async () => {
+    const crew = fakeCrew()
+    const worktrees = fakeWorktrees()
+    const { ctx } = rig({ crew: crew.port, worktrees: worktrees.port })
+    const outcome = await invoke({
+      ctx,
+      name: 'agent_spawn',
+      input: { agentType: 'explore', intent: 'look around', brief: 'Report pwd.' },
+      projectDirectory: inWorktree.path,
+      activeWorktree: inWorktree,
+    })
+
+    expect(outcome.ok).toBe(true)
+    expect(worktrees.calls.some((call) => call.method === 'create')).toBe(false)
+    const spawn = crew.calls.find((call) => call.method === 'spawn')
+    expect(spawn?.args).toMatchObject({
+      worktree: { path: inWorktree.path, branch: inWorktree.branch, adopted: true },
+    })
+    expect(outcome.ok ? outcome.modelText : '').toContain(`It works in ${inWorktree.path}`)
+  })
+
+  it('spawns a child without a worktree from the main checkout', async () => {
+    const crew = fakeCrew()
+    const { ctx } = rig({ crew: crew.port })
+    const outcome = await invoke({
+      ctx,
+      name: 'agent_spawn',
+      input: { agentType: 'explore', intent: 'look around', brief: 'Report pwd.' },
+    })
+
+    expect(outcome.ok).toBe(true)
+    const spawn = crew.calls.find((call) => call.method === 'spawn')
+    expect(spawn?.args).not.toHaveProperty('worktree')
+  })
+
   it('refuses an absolute path git does not list instead of creating a branch', async () => {
     const crew = fakeCrew()
     const worktrees = fakeWorktrees()

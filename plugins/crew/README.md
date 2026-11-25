@@ -71,19 +71,19 @@ The result is one extra wake, and no ending is lost. The operator accepted this 
 
 ### Pod tier (`crewPod`)
 
-| Kind       | Name                                   | What it adds                                                                                                 |
-| ---------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| Tool       | `agent_spawn`                          | Starts a sub-agent with `agentType`, `intent`, `brief` and an optional `worktree`, and names its group size. |
-| Tool       | `agent_stop`                           | Ends a sub-agent after the step it takes.                                                                    |
-| Tool       | `agent_list`                           | Lists the sub-agents of this thread with their status, turns and tool calls.                                 |
-| Tool       | `enter_worktree`                       | Creates a worktree by `name`, or adopts an existing one by `path`.                                           |
-| Tool       | `exit_worktree`                        | Leaves the worktree with `keep` or `remove`.                                                                 |
-| Tool       | `worktree_list`                        | Lists the worktrees of the repository with their branch.                                                     |
-| Resource   | `crew-agent-types`                     | Reads `.agents/agents` and reports the types and the refusals.                                               |
-| Hook       | `crew-repo-agent-listing` (beforeStep) | Adds the repository agent types to the system prompt.                                                        |
-| Hook       | `crew-worktree-track` (afterTool)      | Writes `worktree-entered` and `worktree-exited` from the tool output.                                        |
-| Prompt     | `crew.subagents`                       | Describes the crew tools, the group wake rule and the agent types to the model.                              |
-| Child deny | three names                            | A sub-agent cannot call `agent_spawn`, `agent_stop` or `agent_list`.                                         |
+| Kind       | Name                                   | What it adds                                                                                                                                                                                                        |
+| ---------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Tool       | `agent_spawn`                          | Starts a sub-agent with `agentType`, `intent`, `brief` and an optional `worktree`, and names its group size. Without `worktree` the sub-agent shares the worktree its parent is in, adopted so it cannot remove it. |
+| Tool       | `agent_stop`                           | Ends a sub-agent after the step it takes.                                                                                                                                                                           |
+| Tool       | `agent_list`                           | Lists the sub-agents of this thread with their status, turns and tool calls.                                                                                                                                        |
+| Tool       | `enter_worktree`                       | Creates a worktree by `name`, or adopts an existing one by `path`.                                                                                                                                                  |
+| Tool       | `exit_worktree`                        | Leaves the worktree with `keep` or `remove`.                                                                                                                                                                        |
+| Tool       | `worktree_list`                        | Lists the worktrees of the repository with their branch.                                                                                                                                                            |
+| Resource   | `crew-agent-types`                     | Reads `.agents/agents` and reports the types and the refusals.                                                                                                                                                      |
+| Hook       | `crew-repo-agent-listing` (beforeStep) | Adds the repository agent types to the system prompt.                                                                                                                                                               |
+| Hook       | `crew-worktree-track` (afterTool)      | Writes `worktree-entered` and `worktree-exited` from the tool output.                                                                                                                                               |
+| Prompt     | `crew.subagents`                       | Describes the crew tools, the group wake rule and the agent types to the model.                                                                                                                                     |
+| Child deny | three names                            | A sub-agent cannot call `agent_spawn`, `agent_stop` or `agent_list`.                                                                                                                                                |
 
 ### Core tier (`crewCoreSlots`)
 
