@@ -71,7 +71,7 @@ export class SshSigningKeyService {
         userEmail: registration.userEmail,
       })
     } catch (error) {
-      await this.removeIfCreated(registration)
+      await this.removeUnlessClaimed({ userId: args.userId, registration })
       if (violatedConstraint(error) === USER_ID_UNIQUE) throw alreadyRegistered()
       throw error
     }
@@ -91,7 +91,7 @@ export class SshSigningKeyService {
       privateKey: args.privateKey,
     })
     if (!swapped) {
-      await this.removeIfCreated(registration)
+      await this.removeUnlessClaimed({ userId: args.userId, registration })
       throw new ConflictException('the signing key changed concurrently; retry')
     }
     if (oldKeyId !== registration.keyId) {
@@ -176,14 +176,33 @@ export class SshSigningKeyService {
       })
       return count > 0
     } catch (error) {
-      await this.removeIfCreated(args.registration)
+      await this.removeUnlessClaimed({
+        userId: args.existing.userId,
+        registration: args.registration,
+      })
       throw error
     }
   }
 
-  private async removeIfCreated(registration: Registration): Promise<void> {
+  private async removeUnlessClaimed(args: {
+    userId: string
+    registration: Registration
+  }): Promise<void> {
+    const { registration } = args
     if (!registration.created) return
+    const claimed = await this.isClaimed({ userId: args.userId, keyId: registration.keyId }).catch(
+      () => true,
+    )
+    if (claimed) return
     await this.removeBestEffort({ token: registration.token, keyId: registration.keyId })
+  }
+
+  private async isClaimed(args: { userId: string; keyId: number }): Promise<boolean> {
+    const row = await db.orm.public.SshSigningKey.first({
+      userId: args.userId,
+      githubKeyId: BigInt(args.keyId),
+    })
+    return row !== null
   }
 
   private async removeBestEffort(args: { token: string; keyId: number }): Promise<void> {

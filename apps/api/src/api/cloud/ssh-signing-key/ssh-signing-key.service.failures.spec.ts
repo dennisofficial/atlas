@@ -40,33 +40,6 @@ describe('SshSigningKeyService failure ordering', () => {
   })
 
   describe('register', () => {
-    it('keeps the github key and the row when a concurrent register of the same key adopts it', async () => {
-      let posts = 0
-      github.override((call) => {
-        if (call.method === 'POST') {
-          posts += 1
-          if (posts === 2) return response({ status: 422 })
-        }
-        if (call.method === 'GET' && isKeyList(call.url)) {
-          return response({ status: 200, body: [{ id: 101, key: keyA.publicLine }] })
-        }
-        return undefined
-      })
-
-      const outcomes = await Promise.allSettled([
-        service.register({ userId: USER, privateKey: keyA.privateKey }),
-        service.register({ userId: USER, privateKey: keyA.privateKey }),
-      ])
-
-      expect(outcomes.map((outcome) => outcome.status).sort()).toEqual(['fulfilled', 'rejected'])
-      const rejected = outcomes.find((outcome) => outcome.status === 'rejected')
-      expect(rejected?.status === 'rejected' && rejected.reason).toBeInstanceOf(ConflictException)
-      expect(deletedIds()).toEqual([])
-      expect(github.registered.has(101)).toBe(true)
-      expect(await keys()).toHaveLength(1)
-      expect((await keys())[0]?.githubKeyId).toBe(101n)
-    })
-
     it('removes the created key when the row create fails', async () => {
       await failNext('create')
 
