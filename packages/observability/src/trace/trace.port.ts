@@ -18,6 +18,7 @@ export enum ESpan {
   ToolAfterHooks = 'tool.after-hooks',
   PromptPost = 'prompt.post',
   Takeover = 'holder.takeover',
+  Prepare = 'holder.prepare',
   ResourceStatus = 'resource.status',
   ResourceVersions = 'resource.versions',
   ResourceArm = 'resource.arm',
@@ -39,6 +40,24 @@ export enum ETurnEntry {
 export enum EWake {
   Warm = 'warm',
   Cold = 'cold',
+}
+
+export enum EFirstAction {
+  Turn = 'turn',
+  Prepare = 'prepare',
+}
+
+export enum ESandboxStart {
+  Created = 'created',
+  Woke = 'woke',
+  Running = 'running',
+  Unknown = 'unknown',
+}
+
+export enum EPrepareOutcome {
+  Prepared = 'prepared',
+  Failed = 'failed',
+  Stopped = 'stopped',
 }
 
 export enum ESpanSpeed {
@@ -72,9 +91,14 @@ export type SpanFields = {
   readonly failureKind?: string | undefined
   readonly verdict?: string | undefined
   readonly finishReason?: string | undefined
-  readonly outcome?: ESpanOutcome | undefined
+  readonly outcome?: ESpanOutcome | EPrepareOutcome | undefined
   readonly entry?: ETurnEntry | undefined
   readonly wake?: EWake | undefined
+  readonly firstAction?: EFirstAction | undefined
+  readonly sandbox?: ESandboxStart | undefined
+  readonly attempt?: number | undefined
+  readonly promptWaiting?: boolean | undefined
+  readonly preparedBefore?: boolean | undefined
   readonly queuedMs?: number | undefined
   readonly firstTokenMs?: number | undefined
   readonly clientToApiMs?: number | undefined

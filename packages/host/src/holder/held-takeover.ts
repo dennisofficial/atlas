@@ -3,7 +3,9 @@ import {
   ESpan,
   logFieldsOf,
   spanWith,
+  EFirstAction,
   type LogPort,
+  type SpanFields,
   type TracePort,
 } from '@dltech/atlas-observability'
 
@@ -20,7 +22,14 @@ export enum ETakeoverLap {
   Branches = 'branches',
   Commands = 'commands',
   Decide = 'decide',
+  Seed = 'seed',
   Settle = 'settle',
+}
+
+export type TakeOverFirstStep = {
+  action: EFirstAction
+  promptWaiting: boolean
+  preparedBefore: boolean
 }
 
 const timed = async <T>(deps: HeldSessionDeps, work: () => Promise<T>): Promise<Timed<T>> => {
@@ -32,11 +41,21 @@ const timed = async <T>(deps: HeldSessionDeps, work: () => Promise<T>): Promise<
 const msOf = (timings: Readonly<Record<string, number>>): Record<string, number> =>
   Object.fromEntries(Object.entries(timings).map(([key, ms]) => [`${key}Ms`, ms]))
 
+const firstStepFieldsOf = (
+  first: TakeOverFirstStep,
+): Pick<SpanFields, 'firstAction' | 'promptWaiting' | 'preparedBefore'> => ({
+  firstAction: first.action,
+  promptWaiting: first.promptWaiting,
+  preparedBefore: first.preparedBefore,
+})
+
 export class TakeOver {
   private readonly startedAt: number
   private trace: TracePort | undefined
   private epoch: number | undefined
   private cleared = false
+  private observedAt: number | undefined
+  private turnLogged = false
   private configMs = 0
   private recordMs = 0
   private logged = false
@@ -62,7 +81,26 @@ export class TakeOver {
   }
 
   branchesSettled(): void {
-    this.lap({ lap: ETakeoverLap.Branches, ms: this.deps.timers.now() - this.startedAt })
+    const from = this.observedAt ?? this.startedAt
+    this.lap({ lap: ETakeoverLap.Branches, ms: this.deps.timers.now() - from })
+  }
+
+  observationStarted(): void {
+    this.observedAt ??= this.deps.timers.now()
+  }
+
+  private turnStarted(): void {
+    if (this.turnLogged) return
+    this.turnLogged = true
+    this.deps.log?.info({
+      source: 'holder.takeover',
+      message: `take-over of ${this.deps.sessionId} started its turn`,
+      data: {
+        source: 'holder.takeover',
+        sessionId: this.deps.sessionId,
+        turnStartMs: this.deps.timers.now() - this.startedAt,
+      },
+    })
   }
 
   async open(args: {
@@ -123,14 +161,18 @@ export class TakeOver {
     return { runtime, record }
   }
 
-  firstStep(): void {
-    if (this.logged) return
+  firstStep(first: TakeOverFirstStep): void {
+    if (this.logged) {
+      if (first.action === EFirstAction.Turn) this.turnStarted()
+      return
+    }
     this.logged = true
     const timings = this.timingsOf()
+    const chosen = firstStepFieldsOf(first)
     void spanWith(this.trace, {
       name: ESpan.Takeover,
       root: true,
-      fields: { sessionId: this.deps.sessionId, timings },
+      fields: { sessionId: this.deps.sessionId, ...chosen, timings },
       run: async () => undefined,
     })
     this.deps.log?.info({
@@ -139,6 +181,7 @@ export class TakeOver {
       data: {
         source: 'holder.takeover',
         sessionId: this.deps.sessionId,
+        ...chosen,
         ...msOf(timings),
       },
     })

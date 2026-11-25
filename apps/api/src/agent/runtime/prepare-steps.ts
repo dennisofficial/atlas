@@ -5,19 +5,22 @@ import {
 } from '@dltech/atlas-core'
 import type { PrepareStepReporter } from '@dltech/atlas-host'
 
+type ProducedStep = { step: WorkspaceStepReport; producedAtMs: number }
+
 export class PrepareSteps {
   private listener: PrepareStepReporter | undefined
-  private pending: WorkspaceStepReport[] = []
+  private pending: ProducedStep[] = []
   private open: EWorkspaceStep | undefined
   private outputListener: ((text: string) => void) | undefined
 
   report(step: WorkspaceStepReport): void {
     this.open = step.state === EWorkspaceStepState.Started ? step.step : undefined
+    const producedAtMs = Date.now()
     if (this.listener === undefined) {
-      this.pending.push(step)
+      this.pending.push({ step, producedAtMs })
       return
     }
-    this.listener(step)
+    this.listener(step, producedAtMs)
   }
 
   failOpen(reason: string): void {
@@ -37,6 +40,6 @@ export class PrepareSteps {
     this.listener = listener
     const queued = this.pending
     this.pending = []
-    for (const step of queued) listener(step)
+    for (const entry of queued) listener(entry.step, entry.producedAtMs)
   }
 }

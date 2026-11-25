@@ -71,15 +71,15 @@ export const seedContextFiles = async (args: {
   deps: HeldSessionDeps
   runtime: SessionRuntime
   record: SessionRecord
+  entries?: readonly InboxEntry[] | undefined
 }): Promise<ContextSeedOutcome> => {
   if (args.runtime.placeContextFiles === undefined) return { ok: true }
   try {
     const inboxId = firstPostedMessageOf(args.record.eventCache().eventsAfter(0))
     if (inboxId === undefined) return { ok: true }
-    const entry = await args.deps.plane.readInboxEntry({
-      sessionId: args.deps.sessionId,
-      inboxId,
-    })
+    const entry =
+      args.entries?.find((candidate) => candidate.inboxId === inboxId) ??
+      (await args.deps.plane.readInboxEntry({ sessionId: args.deps.sessionId, inboxId }))
     const files = filesOf(entry)
     if (files.length === 0) return { ok: true }
     return await placeFiles({ runtime: args.runtime, files })
@@ -100,13 +100,18 @@ export class ContextSeedGate {
     },
   ) {}
 
-  ensure(): Promise<ContextSeedOutcome> {
+  ensure(args: { entries?: readonly InboxEntry[] | undefined } = {}): Promise<ContextSeedOutcome> {
     if (this.seeded) return Promise.resolve({ ok: true })
     if (this.running !== undefined) return this.running
     const runtime = this.args.runtime()
     const record = this.args.record()
     if (runtime === undefined || record === undefined) return Promise.resolve({ ok: true })
-    const running = seedContextFiles({ deps: this.args.deps, runtime, record }).then((outcome) => {
+    const running = seedContextFiles({
+      deps: this.args.deps,
+      runtime,
+      record,
+      ...(args.entries === undefined ? {} : { entries: args.entries }),
+    }).then((outcome) => {
       this.running = undefined
       this.seeded = outcome.ok
       return outcome

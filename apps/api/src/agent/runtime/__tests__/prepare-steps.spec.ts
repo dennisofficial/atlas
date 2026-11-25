@@ -19,6 +19,17 @@ describe('PrepareSteps', () => {
     ])
   })
 
+  it('keeps the moment each report was produced through the replay', async () => {
+    const steps = new PrepareSteps()
+    steps.report({ step: EWorkspaceStep.Sandbox, state: EWorkspaceStepState.Started })
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    steps.report({ step: EWorkspaceStep.Sandbox, state: EWorkspaceStepState.Done })
+    const produced: number[] = []
+    steps.subscribe((step, producedAtMs) => produced.push(producedAtMs ?? 0))
+    expect(produced).toHaveLength(2)
+    expect((produced[1] ?? 0) - (produced[0] ?? 0)).toBeGreaterThanOrEqual(15)
+  })
+
   it('fails only the step that is open', () => {
     const steps = new PrepareSteps()
     const seen: WorkspaceStepReport[] = []

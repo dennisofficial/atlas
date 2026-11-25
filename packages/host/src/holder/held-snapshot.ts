@@ -4,9 +4,12 @@ import {
   INBOX_KIND_RETRY,
   NO_WORKSPACE_RECORD,
   decideHeldAction,
+  isMessageInputKind,
   isResumablePlan,
   lostShellsOf,
   loopStateOf,
+  pendingInputsOf,
+  pendingMessagesOf,
   preparedBeforeOf,
   repairHoldsResume,
   resumePlanOf,
@@ -88,6 +91,7 @@ export const readHeldAction = async (args: {
   shellsOwedSince: number | undefined
   failure: PrepareFailure | undefined
   preparedBefore: boolean
+  promptWaiting: boolean
   queuedAt: string | undefined
 }> => {
   const { deps } = args
@@ -112,6 +116,14 @@ export const readHeldAction = async (args: {
     recordEvents: events,
     childrenRunning: args.childrenRunning,
   })
+  const promptWaiting =
+    actionable.some((entry) => isMessageInputKind(entry.kind) && !heldEndings.has(entry.inboxId)) ||
+    waitingInputIdsOf({
+      ids: pendingMessagesOf(pendingInputsOf(events))
+        .map((input) => input.inboxId)
+        .filter((id) => !heldEndings.has(id)),
+      failure: workspace.failure,
+    }).length > 0
   const repairHeld = repairHoldsResume({ mainThreadId: args.threadId, events })
   const noticeIds = new Set(repairHeld ? logPendingNoticeIdsOf(events) : [])
   const messagePending =
@@ -174,6 +186,7 @@ export const readHeldAction = async (args: {
     shellsOwedSince: hold.owedSince,
     failure: workspace.failure,
     preparedBefore,
+    promptWaiting,
     queuedAt: queuedPromptAtOf({ entries, events, threadId: args.threadId }),
   }
 }

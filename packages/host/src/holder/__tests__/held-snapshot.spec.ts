@@ -9,6 +9,7 @@ import {
   visibleLoopEvents,
   toRunId,
   toThreadId,
+  type InboxEntry,
   type RecordEventBody,
   type RecordEvent,
 } from '@dltech/atlas-core'
@@ -31,11 +32,11 @@ const eventsOf = (bodies: readonly RecordEventBody[]): RecordEvent[] =>
     bodies,
   })
 
-const depsOf = (): HeldSessionDeps =>
+const depsOf = (entries: readonly InboxEntry[] = []): HeldSessionDeps =>
   ({
     sessionId: 'session-1',
     plane: {
-      readInbox: async () => [],
+      readInbox: async () => [...entries],
       endTerminals: async () => 0,
     } as unknown as ControlPlane,
     timers: { now: () => 0 },
@@ -51,12 +52,13 @@ const recordOf = (events: readonly RecordEvent[]): SessionRecord =>
     }),
   }) as unknown as SessionRecord
 
-const actionOf = async (args: {
+const snapshotOf = async (args: {
   events: readonly RecordEvent[]
   resumeAfterSeq?: number
-}): Promise<EHeldAction> => {
-  const { action } = await readHeldAction({
-    deps: depsOf(),
+  inbox?: readonly InboxEntry[] | undefined
+}) => {
+  return await readHeldAction({
+    deps: depsOf(args.inbox ?? []),
     threadId: THREAD,
     draining: false,
     turnRunning: false,
@@ -68,8 +70,12 @@ const actionOf = async (args: {
     childrenRunning: 0,
     shellsOwedSince: undefined,
   })
-  return action
 }
+
+const actionOf = async (args: {
+  events: readonly RecordEvent[]
+  resumeAfterSeq?: number
+}): Promise<EHeldAction> => (await snapshotOf(args)).action
 
 const posted = (): RecordEventBody => ({
   type: 'input-posted',
@@ -151,6 +157,78 @@ describe('readHeldAction over a notice the drain has not reached', () => {
       { type: 'input-consumed', inboxId: 7, consumed: EInputConsumed.Message },
     ])
     expect(await actionOf({ events })).toBe(EHeldAction.Wait)
+  })
+})
+
+const inboxMessageOf = (args: { inboxId: number; text: string }): InboxEntry => ({
+  sessionId: 'session-1',
+  inboxId: args.inboxId,
+  kind: 'message',
+  payload: JSON.stringify({ text: args.text }),
+  postedAt: '2026-11-12T03:00:00.000Z',
+  consumedSeq: null,
+  threadId: null,
+  senderSessionId: null,
+})
+
+const inboxNoticeOf = (inboxId: number): InboxEntry => ({
+  sessionId: 'session-1',
+  inboxId,
+  kind: 'event',
+  payload: JSON.stringify({
+    event: {
+      type: 'sandbox-setup-reported',
+      text: 'setup finished after 1.2s',
+      failed: false,
+      phase: ESetupPhase.Finished,
+    },
+    clientId: 'sandbox-setup-finished:session-1',
+  }),
+  postedAt: '2026-11-12T03:00:00.000Z',
+  consumedSeq: null,
+  threadId: null,
+  senderSessionId: null,
+})
+
+describe('the prompt a take-over says was waiting', () => {
+  it('counts no prompt for a notice the inbox still holds', async () => {
+    const snapshot = await snapshotOf({ events: eventsOf([]), inbox: [inboxNoticeOf(7)] })
+    expect(snapshot.promptWaiting).toBe(false)
+  })
+
+  it('counts no prompt for a notice the log still holds', async () => {
+    const snapshot = await snapshotOf({ events: eventsOf([noticePosted()]) })
+    expect(snapshot.promptWaiting).toBe(false)
+  })
+
+  it('counts no prompt for a shell ending the reply never saw', async () => {
+    const snapshot = await snapshotOf({
+      events: eventsOf([said('watch it'), replied(), shellEnded()]),
+    })
+    expect(snapshot.promptWaiting).toBe(false)
+  })
+
+  it('counts the operator prompt the inbox still holds', async () => {
+    const snapshot = await snapshotOf({
+      events: eventsOf([]),
+      inbox: [inboxMessageOf({ inboxId: 4, text: 'go' })],
+    })
+    expect(snapshot.promptWaiting).toBe(true)
+  })
+
+  it('counts the operator prompt the log has posted and not drained', async () => {
+    const snapshot = await snapshotOf({ events: eventsOf([posted()]) })
+    expect(snapshot.promptWaiting).toBe(true)
+  })
+
+  it('counts no prompt once the log has drained the prompt it posted', async () => {
+    const snapshot = await snapshotOf({
+      events: eventsOf([
+        posted(),
+        { type: 'input-consumed', inboxId: 4, consumed: EInputConsumed.Message },
+      ]),
+    })
+    expect(snapshot.promptWaiting).toBe(false)
   })
 })
 
