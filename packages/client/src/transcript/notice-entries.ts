@@ -3,12 +3,13 @@ import {
   modelFallbackCopy,
   prEventContent,
   runEventContent,
+  serviceFailed,
   type Event,
 } from '@dltech/atlas-core'
 
 import { agentEndedLine, agentEndingFailed, agentReportedLine } from './agent-ended-line'
 import { prEventFailed, prEventLine } from './pr-event-line'
-import { serviceEndedLine, serviceEndingFailed } from './service-ended-line'
+import { serviceEndedLine } from './service-ended-line'
 import { shellAwaitingInputLine, shellEndedLine, shellEndingFailed } from './shell-ended-line'
 import { shellMatchedLine, shellStillRunningEntryLine } from './shell-lines'
 import { EAuthor, EEntryKind, type TranscriptEntry } from './transcript-model'
@@ -77,7 +78,7 @@ export function noticeEntriesOf(event: Event): TranscriptEntry[] | null {
         text: serviceEndedLine(event),
         serviceId: event.serviceId,
         output: event.tail,
-        failed: serviceEndingFailed(event),
+        failed: serviceFailed(event),
       },
     ]
   }

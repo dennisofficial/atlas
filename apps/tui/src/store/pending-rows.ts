@@ -1,10 +1,9 @@
-import { EMessageOrigin, EShellStatus } from '@dltech/atlas-core'
+import { EMessageOrigin, EShellStatus, serviceFailed } from '@dltech/atlas-core'
 
 import {
   agentEndedLine,
   agentEndingFailed,
   serviceEndedLine,
-  serviceEndingFailed,
   shellAwaitingInputLine,
   shellEndedLine,
   shellEndingFailed,
@@ -107,7 +106,7 @@ function pendingServiceRow(notice: ServiceRowView): PendingRow {
     kind: EPendingKind.Service,
     id: `service-${notice.status}-${notice.serviceId}`,
     text: serviceEndedLine(notice),
-    failed: serviceEndingFailed(notice),
+    failed: serviceFailed(notice),
     body: null,
     entryKind: EEntryKind.ServiceEnded,
   }

@@ -26,7 +26,6 @@ export {
 } from '@dltech/atlas-client/transcript'
 export {
   serviceEndedLine,
-  serviceEndingFailed,
   type ServiceEndedNotice,
 } from '@dltech/atlas-client/transcript'
 export { prEventLine, prEventFailed } from '@dltech/atlas-client/transcript'

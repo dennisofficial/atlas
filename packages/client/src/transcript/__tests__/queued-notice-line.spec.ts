@@ -119,6 +119,13 @@ describe('a queued service ending', () => {
     })
   })
 
+  it('tints a service that died on its own', () => {
+    expect(queuedNoticeLineOf(serviceEnded({ exitCode: 1 }))).toEqual({
+      text: 'Service dev "the dev server" exited with code 1',
+      failed: true,
+    })
+  })
+
   it('drops a service that is already restarting', () => {
     expect(queuedNoticeLineOf(serviceEnded({ restarting: true }))).toBeUndefined()
   })

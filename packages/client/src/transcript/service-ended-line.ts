@@ -3,7 +3,6 @@ import {
   EServiceStatus,
   quotedShellCommand,
   serviceEnding,
-  serviceFailed,
   type ServiceEnding,
 } from '@dltech/atlas-core'
 
@@ -29,5 +28,3 @@ const outcomeOf = (ending: ServiceEnding): string => {
 
 export const serviceEndedLine = (ended: ServiceEndedNotice): string =>
   `Service ${ended.serviceId} ${named(ended)} ${outcomeOf(ended)}`
-
-export const serviceEndingFailed = (ending: ServiceEnding): boolean => serviceFailed(ending)

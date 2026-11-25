@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'bun:test'
 
-import { EKilledBy, EServiceStatus, EShellStatus } from '@dltech/atlas-core'
+import { EKilledBy, EServiceStatus, EShellStatus, serviceFailed } from '@dltech/atlas-core'
 
-import { serviceEndedLine, serviceEndingFailed } from '../service-ended-line'
+import { serviceEndedLine } from '../service-ended-line'
 import { shellEndedLine, shellEndingFailed } from '../shell-ended-line'
 
 describe('an out-of-memory ending in the transcript', () => {
@@ -38,8 +38,8 @@ describe('an out-of-memory ending in the transcript', () => {
   })
 
   it('counts a service that ran out of memory as failed', () => {
-    expect(
-      serviceEndingFailed({ status: EServiceStatus.Killed, killedBy: EKilledBy.OutOfMemory }),
-    ).toBe(true)
+    expect(serviceFailed({ status: EServiceStatus.Killed, killedBy: EKilledBy.OutOfMemory })).toBe(
+      true,
+    )
   })
 })

@@ -2,12 +2,11 @@
 
 ## Backlog (ranked)
 
-1. `packages/client/src/transcript/service-ended-line.ts` `serviceEndingFailed` — rename of core `serviceFailed`; 2 callers + tui re-export.
-2. `apps/tui/src/ui/exit-guard-model.ts` — 4 wrapper fns and 3 row aliases over `stop-guard-model`; dead `EXIT_GUARD_INSET`/`exitGuardCells` in `components/exit-guard.tsx`.
-3. `apps/tui/src/build/info.ts` `clientVersionHeader` / `versionLabel` — `xOf(buildInfo())` conveniences, many callers; low value.
-4. `packages/core/src/ports/file-capabilities.port.ts` `acceptsFileParts` — always `true`; guard in `apps/api/src/agent/agent-tools/read.ts` never fires. The remaining implementation was in the v1 harness and went with it.
-5. `packages/core/src/quality/registry.ts` (only ever one policy).
-6. Small: `packages/client/src/stream/plugin-views.ts` `pluginViewOf` (no production caller); `packages/ui-native/src/use-theme.ts` `useScheme`.
+1. `apps/tui/src/ui/exit-guard-model.ts` — 4 wrapper fns and 3 row aliases over `stop-guard-model`; dead `EXIT_GUARD_INSET`/`exitGuardCells` in `components/exit-guard.tsx`.
+2. `packages/core/src/ports/file-capabilities.port.ts` `acceptsFileParts` — always `true`; guard in `apps/api/src/agent/agent-tools/read.ts` never fires. The remaining implementation was in the v1 harness and went with it.
+3. `packages/core/src/quality/registry.ts` (only ever one policy).
+4. `apps/tui/src/build/info.ts` `clientVersionHeader` / `versionLabel` — `xOf(buildInfo())` conveniences, many callers; low value.
+5. Small: `packages/client/src/stream/plugin-views.ts` `pluginViewOf` (no production caller); `packages/ui-native/src/use-theme.ts` `useScheme`.
 
 ## Ruled out (earn their keep)
 
@@ -47,3 +46,9 @@
 - Flattened `usePersonalSettings` (`apps/web/src/features/settings/data/personal/use-settings-draft.ts`), a pass-through to `useCloudSettings`; 9 pages now call `useCloudSettings` directly.
 - Pinned `useCloudSettings` read/fallback and save-then-reload in new `apps/web/src/lib/__tests__/use-cloud-settings.spec.tsx`; mutation-checked both.
 - Open PRs #2801/#2800/#2789/#2749 touched none of these files.
+
+### 2026-11-25
+
+- Flattened `serviceEndingFailed` (`packages/client/src/transcript/service-ended-line.ts`), a rename of core `serviceFailed`; `notice-entries.ts`, `queued-notice-line.ts` and tui `pending-rows.ts` call `serviceFailed` directly; dropped the tui store re-export.
+- Pinned the queued `failed: true` case in `queued-notice-line.spec.ts`; existing tui `service-ended-entry`/`pending-rows` specs pin the other two sites; mutation-checked each site.
+- Open PRs #2919/#2914/#2913/#2872 touched none of these files.
