@@ -188,15 +188,19 @@ describeHandoff({
   },
 
   async interrupted(ctx) {
+    const pushed = pushedOf(await ctx.record())[0]
+    if (pushed === undefined) {
+      throw new Error('the record never carried the pushed instructions snapshot')
+    }
     await waitUntil({
       what: 'the restarted pod to record the instructions again',
-      check: async () => {
-        const snapshots = snapshotsOf(await ctx.record())
-        const first = snapshots[0]
-        const last = snapshots.at(-1)
-        if (first === undefined || last === undefined) return false
-        return snapshots.length >= 2 && last.loaded.fingerprint !== first.loaded.fingerprint
-      },
+      check: async () =>
+        snapshotsOf(await ctx.record()).some((snapshot) => snapshot.seq > pushed.seq),
+      timeoutMs: 60_000,
+    })
+    await waitUntil({
+      what: 'the interrupted result of the gated call',
+      check: async () => resultsOf(await ctx.record()).length === 1,
       timeoutMs: 60_000,
     })
     const rows = await ctx.record()
