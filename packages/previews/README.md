@@ -42,7 +42,8 @@ records that no row owns. The API's preview path and the `preview-reconcile` tri
   transaction, seals its token and moves the row to `Ready`. A call that arrives while that seal
   runs waits for the same seal and makes no second Cloudflare call. A second process waits for the
   claim of the first, and throws `PreviewTunnelClaimedError` when the claim outlasts its wait. A
-  repeated port returns the same hostname and makes no Cloudflare call.
+  `Deleting` row comes back as `Pending` with its sealed token cleared, so the token is read from
+  Cloudflare again. A repeated port returns the same hostname and makes no Cloudflare call.
 - `markDeleting({ podSessionId })`, `clearDeleting({ podSessionId })`: one row update each, no
   Cloudflare call, safe to repeat.
 - `teardown({ podSessionId })`: marks the row deleting and runs one reconcile pass over it. It
