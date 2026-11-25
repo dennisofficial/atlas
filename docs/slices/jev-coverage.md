@@ -34,19 +34,19 @@ understand if it's actually working well or not."
 
 All reviews came from one user (Dennis). 85% ran in sub-agent threads (3,130 of 3,698).
 
-| Step                                         | Count | Share | Source                                      |
-| -------------------------------------------- | ----- | ----- | ------------------------------------------- |
-| Write tool calls with a captured file change | n/a   |       | not sent (gap G1)                           |
-| Reviews recorded                             | 3,697 | 100%  | `quality review completed`                  |
-| Skipped: `outside_workspace`                 | 649   | 17.6% | correct (routine run 1: context, `/tmp`)    |
-| Skipped: `unsupported_language`              | 350   | 9.5%  | extension not sent (gap G2)                 |
-| Skipped: `oversized_request`                 | 189   | 5.1%  | request over 24 KB / 48 KB                  |
-| Skipped: `invalid_syntax`                    | 67    | 1.8%  |                                             |
-| Skipped: other, deadline                     | 2     | 0.1%  | 1 `source_unavailable`, 1 `review_deadline` |
-| Completed, no scope selected                 | 936   | 25.3% | module-only change, never sent to Jev       |
-| Completed, at least one scope scored (SRP)   | 1,504 | 40.7% |                                             |
-| Max concern ≥ 0.8                            | 9     | 0.24% | 5 `new_finding`, 4 `tracked_debt`           |
-| Nudged                                       | 5     | 0.14% | 4 probes, 1 false positive                  |
+| Step                                         | Count | Share | Source                                             |
+| -------------------------------------------- | ----- | ----- | -------------------------------------------------- |
+| Write tool calls with a captured file change | n/a   |       | not sent (gap G1)                                  |
+| Reviews recorded                             | 3,697 | 100%  | `quality review completed`                         |
+| Skipped: `outside_workspace`                 | 649   | 17.6% | correct (routine run 1: context, `/tmp`)           |
+| Skipped: `unsupported_language`              | 350   | 9.5%  | extension not sent (gap G2)                        |
+| Skipped: `oversized_request`                 | 189   | 5.1%  | request over the 24 KB / 48 KB bound in force then |
+| Skipped: `invalid_syntax`                    | 67    | 1.8%  |                                                    |
+| Skipped: other, deadline                     | 2     | 0.1%  | 1 `source_unavailable`, 1 `review_deadline`        |
+| Completed, no scope selected                 | 936   | 25.3% | module-only change, never sent to Jev              |
+| Completed, at least one scope scored (SRP)   | 1,504 | 40.7% |                                                    |
+| Max concern ≥ 0.8                            | 9     | 0.24% | 5 `new_finding`, 4 `tracked_debt`                  |
+| Nudged                                       | 5     | 0.14% | 4 probes, 1 false positive                         |
 
 Concern distribution of every scored review (`max_confidence`, the highest concern over the
 review's scopes; per-scope scores are not sent, G4):
@@ -77,8 +77,9 @@ Other facts:
    never selects the module scope or a method on its own
    (`plugins/quality/src/policies/single-responsibility/select.ts:29-61`). A file of object
    literals, types, constants or `export default` arrows reaches no classifier. That is the 936.
-5. Request bound: state + longest question ≤ 24 KB, state + all ≤ 48 KB
-   (`plugins/quality/src/review/review-scopes.ts:17-18`).
+5. Request bound: the request is sized against Jev's 262k-token long-context limit, 597,688 bytes for
+   both `state + longest question` and `state + all questions`
+   (`plugins/quality/src/review/review-scopes.ts:18-32`).
 6. Budget 1000 ms + 10 ms grace (`hook.ts:29`, `plugins/quality/src/review/deadline.ts:1`). A late
    review is recorded and never nudges (`plugins/quality/src/pod/review-outcome.ts:137-192`).
 7. Nudge only on `introduce`: concern ≥ 0.8 **and** impact confidence ≥ 0.8 **and** impact
@@ -143,7 +144,8 @@ Facts that shape the design:
   `events`. Datasets expire after 90 days with no write.
 - 100k `$ai_*` events per month are free, then $0.00035 per event and less at volume. Jev makes
   about 1,500 calls per day today: about 45k per month.
-- The regular capture limit is 1 MB per event. A Jev request is at most 48 KB.
+- The regular capture limit is 1 MB per event. A Jev request carries at most 584 KiB of state and is
+  usually a few KB.
 
 What our own product events still must cover: the review funnel (skips and their reasons, which
 never reach a model), the nudge decision, the agent's reaction, and the link from a label to the
