@@ -4,6 +4,7 @@ import { seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
 import { seedProject } from '../src/test/web-settings.fake-db'
 import { EMcpOauthGrantStatus, EMcpServerSource } from '@dltech/atlas-wire'
 import { describe, expect, it } from 'bun:test'
+import { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 import { EnvService } from '../src/_core/config/env/env.service'
 import { SecretCipherService } from '../src/_lib/crypto/secret-cipher.service'
 import { McpOauthService } from '../src/api/cloud/mcp-oauth/mcp-oauth.service'
@@ -48,7 +49,7 @@ describe('per-server mcp oauth over real PostgreSQL', () => {
   const gateway = () =>
     mcpOauthGatewayOf({
       db: database().db,
-      cipher,
+      cipher: new SecretCipher(HEX_KEY),
       publicUrl: 'https://api.test',
       allowLocalTargets: true,
     })
