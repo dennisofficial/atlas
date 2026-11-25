@@ -14,7 +14,7 @@ import {
 
 import type { HeldSessionDeps } from '../held-session-deps'
 import { pluginPodContextOf } from '../plugin-pod'
-import { hashedLinkOf, threadKindOf } from '../pod-analytics'
+import { analyticsOf, hashedLinkOf, threadKindOf } from '../pod-analytics'
 import type { SessionRuntime } from '../ports'
 import type { SessionRecord } from '../record/record-adapter'
 
@@ -189,5 +189,21 @@ describe('hashedLinkOf', () => {
   it('takes the first 16 hex characters of the SHA-256 of the id', () => {
     expect(hashedLinkOf({ id: 'thread-1' })).toBe(expectedHash('thread-1'))
     expect(hashedLinkOf({ id: 'thread-1' })).toHaveLength(16)
+  })
+})
+
+describe('analyticsOf without a thread kind', () => {
+  it('sends hashed links without a thread kind when the caller cannot name one', () => {
+    const captured: Captured[] = []
+    const analytics = analyticsOf({
+      analytics: { capture: (args) => captured.push(args) },
+      sessionId: 'session-1',
+      threadId: toThreadId('thread-1'),
+    })
+    analytics.capture({ event: 'probe', properties: {}, links: EAnalyticsLinks.Hashed })
+    expect(captured[0]?.properties).toEqual({
+      session_hash: expectedHash('session-1'),
+      thread_hash: expectedHash('thread-1'),
+    })
   })
 })
