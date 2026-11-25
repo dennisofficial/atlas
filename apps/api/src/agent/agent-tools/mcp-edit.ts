@@ -8,7 +8,7 @@ import {
 import { mcpTransportSchema, type McpTransport } from '@dltech/atlas-plugin-mcp/core'
 import { z } from 'zod'
 
-import type { CloudConfigClient, McpServerView } from '../config/cloud-config-store'
+import type { McpConfigClient, McpServerView } from '../config/cloud-config-store'
 import { done, fail, foreignProject, listing, reasonOf } from './cloud-outcome'
 
 export enum EMcpEditAction {
@@ -69,7 +69,7 @@ const isFailure = (value: string | ToolOutcome): value is ToolOutcome => typeof 
 const APPLIES = 'It applies on the next sandbox start.'
 
 const change = async (args: {
-  client: CloudConfigClient
+  client: McpConfigClient
   input: Input
   name: string
 }): Promise<ToolOutcome> => {
@@ -121,7 +121,7 @@ export class McpEditTool extends SchemaTool<typeof mcpEditInputSchema> {
   readonly deferred = true
   override readonly pathFields = TAKES_NO_PATHS
 
-  constructor(private readonly access: { client: CloudConfigClient; projectId: string }) {
+  constructor(private readonly access: { client: McpConfigClient; projectId: string }) {
     super()
   }
 

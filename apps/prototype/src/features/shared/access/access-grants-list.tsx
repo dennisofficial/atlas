@@ -54,7 +54,7 @@ function MemberSection({
   title: string
   count: number
   emptyText: string
-  action: string
+  action: ReactNode
   children?: ReactNode
 }) {
   return (
@@ -64,10 +64,7 @@ function MemberSection({
           {title}
           <span className="ml-2 font-mono text-xs text-muted-foreground">{count}</span>
         </h4>
-        <Button variant="outline" size="sm">
-          <PlusIcon data-icon="inline-start" />
-          {action}
-        </Button>
+        {action}
       </div>
       {count === 0 ? (
         <p className="text-xs text-muted-foreground">{emptyText}</p>
@@ -97,7 +94,17 @@ export function GrantCard({ grant }: { grant: FixtureGrant }) {
           title="Secrets"
           count={grant.secrets.length}
           emptyText="No secrets in this grant yet."
-          action="Add secret"
+          action={
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="sm">
+                Bulk add
+              </Button>
+              <Button variant="outline" size="sm">
+                <PlusIcon data-icon="inline-start" />
+                Add secret
+              </Button>
+            </div>
+          }
         >
           {grant.secrets.map((secret) => (
             <MemberRow
@@ -113,7 +120,12 @@ export function GrantCard({ grant }: { grant: FixtureGrant }) {
           title="Files"
           count={grant.files.length}
           emptyText="No files in this grant yet."
-          action="Add file"
+          action={
+            <Button variant="outline" size="sm">
+              <PlusIcon data-icon="inline-start" />
+              Add file
+            </Button>
+          }
         >
           {grant.files.map((file) => (
             <MemberRow
@@ -140,7 +152,8 @@ export function AccessGrantsList({ grants }: { grants: FixtureGrant[] }) {
           </EmptyMedia>
           <EmptyTitle>No access grants yet</EmptyTitle>
           <EmptyDescription>
-            Group the secrets and files one job needs, then tell the agent what they unlock.
+            A grant groups the secrets and files one job needs. Create a grant, then add its secrets
+            and files, and tell the agent what they unlock.
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
@@ -159,25 +172,11 @@ export function AccessGrantsList({ grants }: { grants: FixtureGrant[] }) {
           Grants
           <span className="ml-2 font-mono text-xs text-muted-foreground">{grants.length}</span>
         </h3>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="ghost" size="sm">
-            Bulk add
-          </Button>
-          <Button variant="outline" size="sm">
-            Add secret
-          </Button>
-          <Button variant="outline" size="sm">
-            Add file
-          </Button>
-          <Button size="sm">
-            <PlusIcon data-icon="inline-start" />
-            New grant
-          </Button>
-        </div>
+        <Button size="sm">
+          <PlusIcon data-icon="inline-start" />
+          New grant
+        </Button>
       </div>
-      <p className="text-xs text-muted-foreground">
-        A quick add makes a grant of one, named after the secret or the path.
-      </p>
       <div className="flex flex-col gap-4">
         {grants.map((grant) => (
           <GrantCard key={grant.id} grant={grant} />

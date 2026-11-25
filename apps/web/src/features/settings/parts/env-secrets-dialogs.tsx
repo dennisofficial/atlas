@@ -138,12 +138,14 @@ export function BulkAddDialog({
   defaultOpen = false,
   initialText = '',
   hideTrigger = false,
+  grantId,
   onAdd,
 }: {
   defaultOpen?: boolean
   initialText?: string
   hideTrigger?: boolean
-  onAdd: (pairs: SecretPair[]) => void
+  grantId: string
+  onAdd: (args: { grantId: string; pairs: SecretPair[] }) => void
 }) {
   const [open, setOpen] = useState(defaultOpen)
   const [text, setText] = useState(initialText)
@@ -154,7 +156,7 @@ export function BulkAddDialog({
     if (!next) setText('')
   }
   const handleSubmit = () => {
-    onAdd(pairs)
+    onAdd({ grantId, pairs })
     handleOpenChange(false)
   }
 

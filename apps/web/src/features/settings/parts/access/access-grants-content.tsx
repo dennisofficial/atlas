@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { LockKeyholeIcon } from 'lucide-react'
 
-import { Button } from '@dltech/atlas-ui/components/button'
 import { Card, CardRow } from '@dltech/atlas-ui/components/card'
 import {
   Empty,
@@ -19,9 +18,7 @@ import type { AccessGrant } from '@dltech/atlas-wire/web'
 import type { TreeEntry } from '@/features/project-settings/data/file-mount-helpers'
 import { runAction } from '@/features/settings/data/shared/run-action'
 
-import { BulkAddDialog, AddSecretDialog, type SecretPair } from '../env-secrets-dialogs'
 import { LibraryConfirmDialog } from '../library-confirm-dialog'
-import { AccessFileDialog } from './access-file-dialog'
 import { AccessGrantCard } from './access-grant-card'
 import { AccessGrantDialog } from './access-grant-dialog'
 import { deleteGrantDescription } from './access-grant-helpers'
@@ -65,22 +62,7 @@ export function AccessGrantsContent({
 }) {
   const [editing, setEditing] = useState<AccessGrant | null>(null)
   const [deleting, setDeleting] = useState<AccessGrant | null>(null)
-  const [bulkOpen, setBulkOpen] = useState(false)
 
-  const handleQuickAddSecret = (pair: SecretPair) => {
-    void runAction({
-      work: () => actions.setSecret({ name: pair.name, value: pair.value }),
-      success: `Saved ${pair.name}`,
-    })
-  }
-  const handleBulkAdd = (pairs: readonly SecretPair[]) => {
-    void runAction({
-      work: async () => {
-        for (const pair of pairs) await actions.setSecret({ name: pair.name, value: pair.value })
-      },
-      success: `Saved ${pairs.length} ${pairs.length === 1 ? 'secret' : 'secrets'}`,
-    })
-  }
   const handleDelete = (grant: AccessGrant) => {
     setDeleting(null)
     void runAction({ work: () => actions.remove(grant.id), success: `Deleted ${grant.name}` })
@@ -95,8 +77,8 @@ export function AccessGrantsContent({
           </EmptyMedia>
           <EmptyTitle>No access grants yet</EmptyTitle>
           <EmptyDescription>
-            Group the secrets and files one job needs, then tell the agent what they unlock. Every
-            session here reads the grants at the start of its next turn.
+            A grant groups the secrets and files one job needs. Create a grant, then add its secrets
+            and files. Every session here reads the grants at the start of its next turn.
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
@@ -113,32 +95,8 @@ export function AccessGrantsContent({
           Grants
           <span className="ml-2 font-mono text-xs text-muted-foreground">{grants.length}</span>
         </h3>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={() => setBulkOpen(true)}>
-            Bulk add
-          </Button>
-          <AddSecretDialog
-            description={secretDescription}
-            triggerLabel="Add secret"
-            triggerVariant="outline"
-            onAdd={handleQuickAddSecret}
-          />
-          <AccessFileDialog
-            personal={personal}
-            entries={entries}
-            onSave={(draft) =>
-              runAction({
-                work: () => actions.setFile(draft),
-                success: `Saved ${draft.path}`,
-              })
-            }
-          />
-          <AccessGrantDialog onSave={actions.save} />
-        </div>
+        <AccessGrantDialog onSave={actions.save} />
       </div>
-      <p className="text-xs text-muted-foreground">
-        A quick add makes a grant of one, named after the secret or the path.
-      </p>
       <div className="flex flex-col gap-4">
         {grants.map((grant) => (
           <AccessGrantCard
@@ -155,16 +113,6 @@ export function AccessGrantsContent({
           />
         ))}
       </div>
-      {bulkOpen ? (
-        <BulkAddDialog
-          defaultOpen
-          hideTrigger
-          onAdd={(pairs) => {
-            setBulkOpen(false)
-            handleBulkAdd(pairs)
-          }}
-        />
-      ) : null}
       {editing === null ? null : (
         <AccessGrantDialog
           key={editing.id}

@@ -1,60 +1,58 @@
 # Atlas Cloud configuration
 
-Use the `cloud_config` tool to read and change Atlas Cloud configuration for the operator.
+Use the `cloud_config` tool for Atlas Cloud settings, secret values, file mounts and access grants.
 Use it only when the operator asks for a change.
 
-## Kinds and scopes
+## Scopes and kinds
 
 | Kind | Holds | Scopes |
 | --- | --- | --- |
-| `setting` | Atlas settings | project, personal |
-| `secret` | Named secret values | project, personal |
-| `mcp` | MCP server definitions | project, personal |
-| `file` | Files written into each sandbox | project only |
-| `skill` | Skill files | project, personal |
+| `setting` | Atlas setting keys | project, personal |
+| `secret` | Environment variables | project, personal |
+| `file` | Files written into the sandbox | project, personal |
+| `grant` | A named group of secrets and files, plus an instruction | project, personal |
 
-- Project scope applies to every sandbox of the project. Personal scope applies to the signed-in user.
-- When both scopes set the same name, the project value wins.
-- `projectId` defaults to the project of the current session.
+- `scope` is `project` (the project of this session) or `personal` (every project the operator runs).
+- A project secret or file with the same name or path wins over a personal one.
+- A session without a project has personal scope only; a project action fails.
 - Actions: `list`, `read`, `set`, `remove`.
-- `list` never shows secret or file values. `read` shows them. Do not repeat a value to the operator unless asked.
 
-## Limits
+## Access grants
 
-- A cloud sandbox can neither read nor change personal scope. Tell the operator to use a signed-in terminal or the web.
-- `setting` covers Atlas setting keys only; environment variables are `secret`s.
-- Without a sign-in, the tool answers "Not signed in to Atlas Cloud".
+- Every secret and every file belongs to a grant.
+- Create the grant first: `kind: grant, action: set, name: PlanetScale, instruction: "..."`.
+- The instruction says what the access is for. The agent reads it in its access notice each turn.
+- A new `secret` or `file` must name `grant`; without one the call is refused.
+- Setting an existing member again without `grant` keeps it in its grant. With `grant` it moves, and an earlier grant left with no members and no instruction is deleted.
+- `remove` on a grant deletes the grant with its secrets and files.
+- `set` on an existing grant name updates it; `newName` renames it.
 
-## File mounts
+## Values
 
-- `path` is relative to the repository, or starts with `~/` for the home folder.
-- Paths inside `.git` are refused.
+- `setting` covers Atlas setting keys only (`model.fast`); environment variables are `secret`s.
+- A secret is named like `FOO_BAR` and exported to the agent shells. `list` shows each name with its grant.
+- Secret and file values are write-only: `read` is refused, `set` replaces.
+- `kind: grant, action: read` shows one grant with its members and instruction.
+
+## Files
+
+- A project path is relative to the repository. Paths inside `.git` are refused.
+- A personal path starts with `~/` (the sandbox home) or `@/` (the Atlas home). A repo-relative personal path is refused.
 - `contents` is text, 64 KiB at most. `mode` is an octal string such as `"0600"` (the default) or `"644"`.
-- Atlas rewrites every file on each sandbox start. Edits made to a mounted file in a session are lost on the next start.
-- For a repository path, Atlas checks git first:
-  - ignored file: written.
-  - not ignored: written and added to `.git/info/exclude`, with a notice.
-  - tracked file: skipped, with a notice.
-- Home paths skip the git checks.
+- Atlas writes every file on each sandbox start, so an edit made in a session is lost on the next start.
+- For a project repository path, Atlas checks git first: an ignored file is written; an untracked one is written and added to `.git/info/exclude` with a notice; a tracked one is skipped with a notice. Home paths skip the git checks.
 
-## Recipes
+## Worked example
 
-- dotenvx Armor: set a `file` at `~/.config/dotenvx/.env` with the key lines.
-- CA file: set a `file` at `~/certs/ca.pem` with the PEM text, then set the project `secret` `NODE_EXTRA_CA_CERTS` to its absolute path, such as `/home/<user>/certs/ca.pem`. Run `echo $HOME` in the sandbox to get the home folder.
-- Local env file: set a `file` at `apps/api/.env.personal` with the variables the app needs.
+Give the agent PlanetScale access:
 
-## Skills
-
-- `path` is `<skill>/<file>`; a one-segment path names the skill itself.
-- `list` without a path lists the scope's skills; `list` with path `<skill>` shows its files.
-- `read` and `set` need a two-segment path. `remove` with `<skill>` deletes the whole skill; with `<skill>/<file>` deletes one file.
-- `contents` is utf8 text only; binary files are refused (manage those on the web settings page).
-- `set` and `remove` send the file's current revision, so they overwrite whatever is stored; a "changed since baseRevision" conflict means another writer landed between that lookup and the write, so retry.
-- In a cloud sandbox, personal skills land at `<atlas home>/skills` and project skills at `<atlas home>/project-skills`. At runtime repo skills win over project, project over personal (global), global over built-in.
-- Sandboxes overwrite these on-disk copies from Atlas Cloud at the next pod start — edit skills through the tool, never by writing the files. Edits apply to running sessions at the next turn.
-- Recipe — override a global skill for one project: `read` it from personal scope, then `set` the edited copy in project scope.
+1. `kind: grant, action: set, name: PlanetScale, instruction: "Use these for database work with the pscale CLI."`
+2. `kind: secret, action: set, name: PLANETSCALE_SERVICE_TOKEN, value: ..., grant: PlanetScale`
+3. `kind: secret, action: set, name: PLANETSCALE_SERVICE_TOKEN_ID, value: ..., grant: PlanetScale`
+4. `kind: grant, action: read, name: PlanetScale` to check the members.
 
 ## When a change takes effect
 
-- In a cloud sandbox: settings and secrets apply before the next turn.
-- In a cloud sandbox: files and MCP servers apply on the next sandbox start.
+- Settings and secrets: the next turn, in every sandbox of the scope.
+- Files: the next sandbox start.
+- Grants and their instructions: the next turn, through the access notice.

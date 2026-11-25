@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type ReactNode } from 'react'
+import { useState } from 'react'
 import { toast } from 'sonner'
 
 import { Card, CardRow } from '@dltech/atlas-ui/components/card'
@@ -16,45 +16,15 @@ import { formatFileMode, type TreeEntry } from '@/features/project-settings/data
 import { runAction } from '@/features/settings/data/shared/run-action'
 import { CloudApiError } from '@/lib/cloud-api'
 
-import { AddSecretDialog, type SecretPair } from '../env-secrets-dialogs'
+import { AddSecretDialog, BulkAddDialog, type SecretPair } from '../env-secrets-dialogs'
 import { LibraryConfirmDialog } from '../library-confirm-dialog'
 import { LibraryRowMenu } from '../library-row-menu'
 import { ReauthDialog } from '../reauth-dialog'
 import { AccessFileDialog, type AccessFileDraft, type EditingFile } from './access-file-dialog'
 import { moveTargetsOf } from './access-grant-helpers'
+import { AccessMemberSection } from './access-grant-section'
 import { FileMemberRow, SecretMemberRow } from './access-member-rows'
 import type { AccessGrantsActions } from './use-access-grants'
-
-function MemberSection({
-  title,
-  count,
-  emptyText,
-  action,
-  children,
-}: {
-  title: string
-  count: number
-  emptyText: string
-  action: ReactNode
-  children: ReactNode
-}) {
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between gap-3">
-        <h4 className="text-sm font-medium">
-          {title}
-          <span className="ml-2 font-mono text-xs text-muted-foreground">{count}</span>
-        </h4>
-        {action}
-      </div>
-      {count === 0 ? (
-        <p className="text-xs text-muted-foreground">{emptyText}</p>
-      ) : (
-        <div className="divide-y rounded-lg border">{children}</div>
-      )}
-    </div>
-  )
-}
 
 export function AccessGrantCard({
   grant,
@@ -92,6 +62,14 @@ export function AccessGrantCard({
     void runAction({
       work: () => actions.setSecret({ grantId: grant.id, name: pair.name, value: pair.value }),
       success: `Saved ${pair.name}`,
+    })
+  }
+  const handleBulkAdd = ({ grantId, pairs }: { grantId: string; pairs: readonly SecretPair[] }) => {
+    void runAction({
+      work: async () => {
+        for (const pair of pairs) await actions.setSecret({ grantId, ...pair })
+      },
+      success: `Saved ${pairs.length} ${pairs.length === 1 ? 'secret' : 'secrets'}`,
     })
   }
   const handleMoveMember = (args: {
@@ -167,17 +145,20 @@ export function AccessGrantCard({
             ]}
           />
         </div>
-        <MemberSection
+        <AccessMemberSection
           title="Secrets"
           count={grant.secrets.length}
           emptyText="No secrets in this grant yet."
           action={
-            <AddSecretDialog
-              description={secretDescription}
-              triggerLabel="Add secret"
-              triggerVariant="outline"
-              onAdd={handleAddSecret}
-            />
+            <div className="flex items-center gap-2">
+              <BulkAddDialog grantId={grant.id} onAdd={handleBulkAdd} />
+              <AddSecretDialog
+                description={secretDescription}
+                triggerLabel="Add secret"
+                triggerVariant="outline"
+                onAdd={handleAddSecret}
+              />
+            </div>
           }
         >
           {grant.secrets.map((secret) => (
@@ -199,8 +180,8 @@ export function AccessGrantCard({
               }
             />
           ))}
-        </MemberSection>
-        <MemberSection
+        </AccessMemberSection>
+        <AccessMemberSection
           title="Files"
           count={grant.files.length}
           emptyText="No files in this grant yet."
@@ -226,7 +207,7 @@ export function AccessGrantCard({
               }
             />
           ))}
-        </MemberSection>
+        </AccessMemberSection>
       </CardRow>
       {editingSecret === null ? null : (
         <AddSecretDialog

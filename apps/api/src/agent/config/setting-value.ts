@@ -2,6 +2,7 @@ import {
   encodeSettingValue,
   isProjectSettingKey,
   PROJECT_SETTING_REGISTRY,
+  validateCloudSetting,
   validateProjectSetting,
   type SettingScalar,
 } from '@dltech/atlas-core'
@@ -51,4 +52,21 @@ export const encodeProjectSetting = (args: { key: string; raw: string }): Settin
   const stored = encodeSettingValue(scalar)
   const check = validateProjectSetting({ key: args.key, stored })
   return check.ok ? { ok: true, stored } : check
+}
+
+const CLOUD_KEY_MAX = 200
+const CLOUD_KEY_PATTERN = /^[a-z][a-zA-Z0-9]*(\.[a-zA-Z0-9-]+)*$/
+
+export const encodeCloudSetting = (args: { key: string; raw: string }): SettingEncoding => {
+  if (args.key.length > CLOUD_KEY_MAX || !CLOUD_KEY_PATTERN.test(args.key)) {
+    return {
+      ok: false,
+      reason: `a setting key is dot-separated segments like sandbox.vcpus, up to ${CLOUD_KEY_MAX} characters`,
+    }
+  }
+  for (const candidate of candidatesOf(args.raw)) {
+    const stored = encodeSettingValue(candidate)
+    if (validateCloudSetting({ key: args.key, stored }).ok) return { ok: true, stored }
+  }
+  return { ok: false, reason: `invalid value for ${args.key}` }
 }
