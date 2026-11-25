@@ -11,13 +11,11 @@ import {
   View,
 } from 'react-native'
 
-import { EMessageAuthor, ERowKind, type ThreadRow } from '../rows'
+import { EMessageAuthor, ERowKind, type SessionNameOf, type ThreadRow } from '../rows'
 import { useKeyboard } from '../../layout/use-keyboard'
 import { EScrollSignal, FOLLOWING_TAIL, tailFollowAfter, type TTailFollow } from '../tail-follow'
 import type { AgentLinks } from '../v2/agent-links'
-import { MessageRowView } from './message-row'
-import { NoticeRowView } from './notice-row'
-import { WorkRowView } from './work-row'
+import { ThreadRowView } from './thread-row'
 
 const NEAR_TOP_PX = 400
 
@@ -53,6 +51,7 @@ export const Transcript = ({
   sessionId,
   onLoadOlder,
   agentLinks,
+  sessionNameOf,
   onOpenAgent,
 }: {
   rows: readonly ThreadRow[]
@@ -62,6 +61,7 @@ export const Transcript = ({
   sessionId?: string | undefined
   onLoadOlder?: (() => Promise<number>) | undefined
   agentLinks?: AgentLinks | undefined
+  sessionNameOf?: SessionNameOf | undefined
   onOpenAgent?: ((agentId: string) => void) | undefined
 }) => {
   const listRef = useRef<FlatList<ThreadRow>>(null)
@@ -75,20 +75,17 @@ export const Transcript = ({
   const renderRow = useCallback<ListRenderItem<ThreadRow>>(
     ({ item }) => (
       <View style={styles.item}>
-        {item.kind === ERowKind.Message ? (
-          <MessageRowView row={item} threadId={threadId} sessionId={sessionId} />
-        ) : null}
-        {item.kind === ERowKind.Work ? <WorkRowView row={item} onOpenAgent={onOpenAgent} /> : null}
-        {item.kind === ERowKind.Notice ? (
-          <NoticeRowView
-            row={item}
-            agentId={agentLinks?.byEventId.get(item.id)}
-            onOpenAgent={onOpenAgent}
-          />
-        ) : null}
+        <ThreadRowView
+          row={item}
+          threadId={threadId}
+          sessionId={sessionId}
+          agentLinks={agentLinks}
+          sessionNameOf={sessionNameOf}
+          onOpenAgent={onOpenAgent}
+        />
       </View>
     ),
-    [threadId, sessionId, agentLinks, onOpenAgent],
+    [threadId, sessionId, agentLinks, sessionNameOf, onOpenAgent],
   )
 
   const scrollToEnd = () => listRef.current?.scrollToEnd({ animated: settled.current })

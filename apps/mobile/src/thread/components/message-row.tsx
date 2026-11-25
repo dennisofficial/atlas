@@ -15,7 +15,13 @@ import { space } from '@dltech/atlas-ui/tokens'
 import { Terminal } from 'lucide-react-native'
 import { StyleSheet, View } from 'react-native'
 
-import { EMessageAuthor, type CommandRow, type MessageRow } from '../rows'
+import {
+  EMessageAuthor,
+  senderLabelOf,
+  type CommandRow,
+  type MessageRow,
+  type SessionNameOf,
+} from '../rows'
 import { MessageAttachments } from './message-attachments'
 
 const SentAt = ({ at, align }: { at: string | undefined; align?: 'start' | 'end' }) => {
@@ -70,14 +76,24 @@ export const MessageRowView = ({
   row,
   threadId,
   sessionId,
+  sessionNameOf,
+  queuedLabel,
 }: {
   row: MessageRow
   threadId: string | undefined
   sessionId: string | undefined
+  sessionNameOf?: SessionNameOf | undefined
+  queuedLabel?: string | undefined
 }) => {
   if (row.author === EMessageAuthor.Atlas) {
+    const caption = senderLabelOf({ row, sessionNameOf })
     return (
       <View style={styles.message}>
+        {caption === undefined ? null : (
+          <Text size={ETextRole.Xs} weight={EFontWeight.Medium} tone={ETextTone.Muted}>
+            {caption}
+          </Text>
+        )}
         <Markdown value={row.text} selectable />
         <SentAt at={row.at} />
       </View>
@@ -111,7 +127,20 @@ export const MessageRowView = ({
           <Markdown value={row.text} breaks selectable />
         </Bubble>
       ) : null}
-      <SentAt at={row.at} align="end" />
+      {queuedLabel === undefined ? (
+        <SentAt at={row.at} align="end" />
+      ) : (
+        <MessageFooter align="end">
+          <Text
+            size={ETextRole.Xs}
+            weight={EFontWeight.Medium}
+            tone={ETextTone.Muted}
+            style={styles.timestamp}
+          >
+            {queuedLabel}
+          </Text>
+        </MessageFooter>
+      )}
     </View>
   )
 }

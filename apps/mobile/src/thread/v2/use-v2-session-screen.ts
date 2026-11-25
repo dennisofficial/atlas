@@ -15,7 +15,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { useAuth } from '../../auth/auth-provider'
 import { dismissPresentedForSession } from '../../push/notification-handler'
-import type { ThreadRow } from '../rows'
+import type { SessionNameOf, ThreadRow } from '../rows'
 import { agentLinksOf, type AgentLinks } from './agent-links'
 import type { ContextMeter } from '../composer/context-reading'
 import { queuedDockOf, type QueuedDockState } from './queued-dock'
@@ -25,7 +25,7 @@ import { sessionStream } from './session-stream'
 import { handledQuickStopsOf, rememberHandledQuickStops } from './handled-quick-stops'
 import { clientIdOfSend, settlementOf, type StagedSend } from './staged-send'
 import { useV2Session } from './use-v2-session'
-import { useSessionSummary } from './use-session-summary'
+import { useSessionRows } from './use-session-rows'
 import { useV2SessionCommands, type V2SessionCommands } from './use-v2-session-commands'
 import { useOperatorRequest, type OperatorRequestControl } from './use-operator-request'
 
@@ -37,6 +37,7 @@ export type V2SessionScreen = V2ThreadView & {
   canReconnect: boolean
   header: SessionHeader
   queued: QueuedDockState
+  sessionNameOf: SessionNameOf
   blocking: BlockingCommand | undefined
   startFailure: { reason: string | undefined } | undefined
   loaded: boolean
@@ -65,7 +66,15 @@ export function useV2SessionScreen(args: {
   const { sessionId, fallbackTitle } = args
   const { api } = useAuth()
   const { snapshot, loadOlder } = useV2Session({ sessionId, api })
-  const summary = useSessionSummary(sessionId)
+  const sessionRows = useSessionRows()
+  const summary = useMemo(
+    () => sessionRows?.find((row) => row.sessionId === sessionId),
+    [sessionRows, sessionId],
+  )
+  const sessionNameOf = useMemo<SessionNameOf>(
+    () => (sender) => sessionRows?.find((row) => row.sessionId === sender)?.title ?? undefined,
+    [sessionRows],
+  )
   const [notice, setNotice] = useState<string | undefined>(undefined)
   const reportHidden = useCallback((name: string) => setNotice(clientOnlyReason(name)), [setNotice])
   const commands = useV2SessionCommands({
@@ -152,7 +161,7 @@ export function useV2SessionScreen(args: {
     () => (staged.length === 0 ? [] : stagedRowsOf({ snapshot, staged, now })),
     [snapshot, staged, now],
   )
-  const queued = useMemo(() => queuedDockOf({ snapshot, staged }), [snapshot, staged])
+  const queued = useMemo(() => queuedDockOf({ snapshot, staged, now }), [snapshot, staged, now])
   const turnStartedAt = useMemo(
     () => turnStartedAtOf({ events: snapshot.foldable, status: snapshot.status }),
     [snapshot.foldable, snapshot.status],
@@ -225,6 +234,7 @@ export function useV2SessionScreen(args: {
     canReconnect: canReconnectOf(snapshot),
     header,
     queued,
+    sessionNameOf,
     blocking,
     startFailure: startFailureOf(snapshot.status),
     loaded,

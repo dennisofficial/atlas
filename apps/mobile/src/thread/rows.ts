@@ -34,7 +34,12 @@ export type MessageRow = {
   staged?: boolean
   attachments: readonly Attachment[]
   command?: CommandRow | undefined
+  sender?: string
+  senderSessionId?: string | null
 }
+
+export type SessionNameOf = (sessionId: string) => string | undefined
+
 export type ThoughtItem = {
   kind: EEntryKind.ModelThought
   id: string
@@ -72,6 +77,17 @@ export type NoticeRow = {
 }
 
 export type ThreadRow = MessageRow | WorkRow | NoticeRow
+
+export const senderLabelOf = (args: {
+  row: MessageRow
+  sessionNameOf?: SessionNameOf | undefined
+}): string | undefined => {
+  const senderSessionId = args.row.senderSessionId
+  if (senderSessionId === undefined) return undefined
+  if (senderSessionId === null) return `From ${args.row.sender ?? 'another session'}`
+  const name = args.sessionNameOf?.(senderSessionId)?.trim()
+  return `From ${name === undefined || name.length === 0 ? 'another session' : name}`
+}
 
 const stampOf = (value: string | undefined | null): number | undefined => {
   if (value === undefined || value === null) return undefined
@@ -188,6 +204,22 @@ export function rowsOf(args: {
           ...(entry.command === undefined
             ? {}
             : { command: { text: entry.command.text, name: entry.command.name } }),
+        })
+        continue
+      case EEntryKind.AgentSaid:
+        flush()
+        if (entry.text.trim().length === 0) continue
+        rows.push({
+          kind: ERowKind.Message,
+          id: entry.key,
+          at: atOf(entry.key),
+          author: EMessageAuthor.Atlas,
+          text: entry.text,
+          streaming: false,
+          steer: false,
+          attachments: [],
+          sender: entry.sender,
+          senderSessionId: entry.senderSessionId,
         })
         continue
       case EEntryKind.ModelSaid:
