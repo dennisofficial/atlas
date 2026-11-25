@@ -78,6 +78,16 @@ export const actionForAnswer = (args: {
     variant: { doneRuns: true },
   })
 
+export const recoveryFor = (args: {
+  op: string
+  dispatchedBootId: string | undefined
+  currentBootId: string | undefined
+  answer: DaemonAnswer
+}): RecoverAction =>
+  args.answer === EDaemonAnswer.NeverSeen && args.dispatchedBootId === undefined
+    ? { type: 'wait' }
+    : actionForAnswer(args)
+
 export const needsRun = (action: RecoverAction): boolean =>
   action.type === 'run' || action.type === 'rerun' || action.type === 'attach'
 

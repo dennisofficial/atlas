@@ -243,6 +243,7 @@ export class RemoteCallsState {
 
   private sendRun(call: Pending): void {
     call.sent = true
+    call.dispatchedBootId = this.linkBootId ?? call.dispatchedBootId
     this.link.send({
       kind: 'run',
       key: call.key,
