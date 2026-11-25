@@ -6,7 +6,6 @@ import {
   type PodBusy,
   type PodRebootFacts,
 } from '@dltech/atlas-core'
-import { crewRosterOf } from '@dltech/atlas-plugin-crew/client'
 import { shellRosterOf } from '@dltech/atlas-plugin-shells/client'
 import { servicesOfView } from '@dltech/atlas-plugin-services/client'
 
@@ -22,10 +21,10 @@ const readPodBusyFacts = async (args: { plane: ControlPlane; session: BusySessio
   })
   return podBusyFactsOf({
     state: busy.status.state,
+    toolName: busy.status.reason,
     setupRunning: busy.setupRunning,
     shellsRunning: shellRosterOf(busy.pluginViews).running,
     servicesRunning: runningServicesOf(busy.pluginViews),
-    agentsRunning: crewRosterOf(busy.pluginViews).running,
   })
 }
 

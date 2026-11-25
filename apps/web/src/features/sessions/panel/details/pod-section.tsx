@@ -32,15 +32,21 @@ import { SectionHead } from './rows'
 
 export const podBusyOfView = (args: {
   view: SessionViewModel
-  status: { state: SessionStatusOutput['state']; setupRunning?: boolean | undefined } | undefined
+  status:
+    | {
+        state: SessionStatusOutput['state']
+        reason?: string | undefined
+        setupRunning?: boolean | undefined
+      }
+    | undefined
 }): PodBusy =>
   podResizeBusyOf(
     podBusyFactsOf({
       state: args.status?.state,
+      toolName: args.status?.reason,
       setupRunning: args.status?.setupRunning === true,
       shellsRunning: args.view.shells.running,
       servicesRunning: args.view.previews.length,
-      agentsRunning: args.view.crew.running,
     }),
   )
 

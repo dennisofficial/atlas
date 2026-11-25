@@ -6,13 +6,18 @@ import {
   type PodShape,
 } from '@dltech/atlas-core'
 
+import { AGENT37_RESIZE_BUDGET_MS } from '../sandbox/agent37/agent37-resize'
 import type { PodResizeOutcome } from '../sandbox/sandbox-provider'
 import {
   EPodResizeOutcome,
   type PodResizeOutput,
   type PodResizePayload,
 } from '@dltech/atlas-jobs/pod-resize'
-import { announceResize, type PodResizeInterruptDeps } from './pod-resize-interrupt'
+import {
+  announceResize,
+  POD_RESIZE_STARTED_WAIT_MS,
+  type PodResizeInterruptDeps,
+} from './pod-resize-interrupt'
 
 export type PodResizeSession = Pick<
   ControlSessionRow,
@@ -55,6 +60,12 @@ export type PodResizeDeps = PodResizeInterruptDeps & {
 export const NO_SANDBOX_TO_RESIZE = 'No sandbox to resize'
 
 export const POD_RESIZE_WAIT_SECONDS = 30
+
+const POD_RESIZE_DURATION_MARGIN_MS = 5 * 60_000
+
+export const POD_RESIZE_MAX_DURATION_SECONDS = Math.ceil(
+  (POD_RESIZE_STARTED_WAIT_MS + AGENT37_RESIZE_BUDGET_MS + POD_RESIZE_DURATION_MARGIN_MS) / 1000,
+)
 
 export const failureText = (failure: unknown): string =>
   failure instanceof Error ? failure.message : String(failure)
@@ -124,7 +135,7 @@ export const runPodResize = async (args: {
   // A restart has already recreated the container at the new shape, so the size is applied before
   // anything wakes the pod again: the re-wake below can fail, be claimed elsewhere, or never report
   // the instance's cpu, and the generation this resize was asked for is known here either way.
-  if (resized === 'restarted') {
+  if (resized === 'restarted' || resized === 'unchanged') {
     await deps.recordApplied({
       sessionId: sandboxSessionId,
       vcpus: shape.vcpus,
@@ -133,6 +144,7 @@ export const runPodResize = async (args: {
     })
   }
   await notice({ outcome: EPodResizeNotice.Applied })
+  if (resized === 'unchanged') return { outcome: EPodResizeOutcome.Applied }
   if (resized === 'stored' && !live(sandboxSessionId)) {
     return { outcome: EPodResizeOutcome.Deferred }
   }

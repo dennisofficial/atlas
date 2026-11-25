@@ -13,7 +13,7 @@ import type { Agent37Client } from './agent37-client'
 const DEFAULT_LISTEN_BUDGET_MS = 3 * 60_000
 const LISTEN_POLL_MS = 1_000
 const READY_POLL_MS = 2_000
-const DEFAULT_READY_BUDGET_MS = 2 * 60_000
+export const AGENT37_READY_BUDGET_MS = 2 * 60_000
 const DEFAULT_REPAIR_AFTER_MS = 30_000
 const RESTART_ACCEPTED = new Set([202, 409])
 
@@ -87,7 +87,7 @@ export const waitForAgent37Instance = async (args: {
   budgetMs?: number | undefined
   log?: ((line: string) => void) | undefined
 }): Promise<void> => {
-  const budgetMs = args.budgetMs ?? DEFAULT_READY_BUDGET_MS
+  const budgetMs = args.budgetMs ?? AGENT37_READY_BUDGET_MS
   const deadline = Date.now() + budgetMs
   let status = 'unknown'
   for (;;) {

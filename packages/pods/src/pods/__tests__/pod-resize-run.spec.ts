@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'bun:test'
 import { EPodResizeOutcome } from '@dltech/atlas-jobs/pod-resize'
+import { AGENT37_RESIZE_BUDGET_MS } from '../../sandbox/agent37/agent37-resize'
 import {
   failureText,
   NO_SANDBOX_TO_RESIZE,
+  POD_RESIZE_MAX_DURATION_SECONDS,
   POD_RESIZE_WAIT_SECONDS,
   runPodResize,
 } from '../pod-resize-run'
+import { POD_RESIZE_STARTED_WAIT_MS } from '../pod-resize-interrupt'
 import { depsOf, payload, sessionOf } from './pod-resize-fixture'
 
 describe('runPodResize', () => {
@@ -141,6 +144,15 @@ describe('runPodResize', () => {
     expect(failures).toEqual([])
   })
 
+  it('records the size a pod already runs at as applied, without waking it', async () => {
+    const { deps, applied, failures, wakes } = depsOf({ resize: async () => 'unchanged' })
+
+    expect(await runPodResize({ payload, deps })).toEqual({ outcome: EPodResizeOutcome.Applied })
+    expect(applied).toEqual([{ sessionId: 'session-a', vcpus: 4, memoryGb: 16, generation: 2 }])
+    expect(failures).toEqual([])
+    expect(wakes).toEqual([])
+  })
+
   it('rethrows the apply failure without recording it or rewaking', async () => {
     const { deps, applied, failures, wakes } = depsOf({
       resize: async () => {
@@ -210,6 +222,14 @@ describe('runPodResize waiting for the pod to go idle', () => {
     })
     expect(requeues).toEqual([])
     expect(resizes).toEqual([])
+  })
+})
+
+describe('POD_RESIZE_MAX_DURATION_SECONDS', () => {
+  it('outlasts the slowest resize agent37 can answer, so a provider timeout fails the run first', () => {
+    expect(POD_RESIZE_MAX_DURATION_SECONDS * 1000).toBeGreaterThan(
+      POD_RESIZE_STARTED_WAIT_MS + AGENT37_RESIZE_BUDGET_MS,
+    )
   })
 })
 

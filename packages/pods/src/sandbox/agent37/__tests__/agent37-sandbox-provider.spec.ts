@@ -373,7 +373,68 @@ describe('Agent37SandboxProvider.resize', () => {
     }
   })
 
-  it('leaves an instance already at the target shape alone, and stores the size', async () => {
+  it('waits out an instance that is still starting instead of starting it again', async () => {
+    const { bundle: b, cleanup } = bundle()
+    const version = await agent37BundleVersionOf(b.path)
+    const statuses: Agent37Status[] = ['starting', 'running']
+    const { client, started, resized } = fakeClient({
+      version,
+      get: async ({ id }) => ({
+        id,
+        status: statuses.shift() ?? 'running',
+        url: `https://${id}.agent37.app`,
+        resources: { cpu: 4, memory: 8, disk: 20 },
+      }),
+    })
+    const { provider } = providerOf({ client, bundlePath: b.path, stored: 'inst-9' })
+    try {
+      expect(await provider.resize({ target: TARGET, shape: { vcpus: 4, memoryGb: 16 } })).toBe(
+        'restarted',
+      )
+      expect(started).toEqual([])
+      expect(resized).toEqual([{ id: 'inst-9', memory: 16 }])
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('waits out a host move that outlasts the resize request before it reports the restart', async () => {
+    const { bundle: b, cleanup } = bundle()
+    const version = await agent37BundleVersionOf(b.path)
+    const reads: Agent37Status[] = []
+    let moving = 0
+    const { client, resized } = fakeClient({
+      version,
+      get: async ({ id }) => {
+        const status: Agent37Status = moving > 0 ? 'updating' : 'running'
+        if (moving > 0) moving -= 1
+        reads.push(status)
+        return {
+          id,
+          status,
+          url: `https://${id}.agent37.app`,
+          resources: { cpu: 4, memory: 8, disk: 20 },
+        }
+      },
+    })
+    const resize = client.resize
+    client.resize = async (body) => {
+      moving = 1
+      return resize(body)
+    }
+    const { provider } = providerOf({ client, bundlePath: b.path, stored: 'inst-9' })
+    try {
+      expect(await provider.resize({ target: TARGET, shape: { vcpus: 4, memoryGb: 16 } })).toBe(
+        'restarted',
+      )
+      expect(resized).toEqual([{ id: 'inst-9', memory: 16 }])
+      expect(reads).toEqual(['running', 'updating', 'running'])
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('leaves an instance already at the target shape alone, and reports it unchanged', async () => {
     const { bundle: b, cleanup } = bundle()
     const version = await agent37BundleVersionOf(b.path)
     const { client, started, resized } = fakeClient({
@@ -384,7 +445,7 @@ describe('Agent37SandboxProvider.resize', () => {
     const { provider } = providerOf({ client, bundlePath: b.path, stored: 'inst-9' })
     try {
       expect(await provider.resize({ target: TARGET, shape: { vcpus: 4, memoryGb: 8 } })).toBe(
-        'stored',
+        'unchanged',
       )
       expect(started).toEqual([])
       expect(resized).toEqual([])
@@ -417,7 +478,7 @@ describe('Agent37SandboxProvider.resize', () => {
     }
   })
 
-  it('stores a pod whose cpu, memory and disk are already at the target', async () => {
+  it('reports a pod whose cpu, memory and disk are already at the target unchanged', async () => {
     const { bundle: b, cleanup } = bundle()
     const version = await agent37BundleVersionOf(b.path)
     const { client, resized } = fakeClient({
@@ -432,7 +493,7 @@ describe('Agent37SandboxProvider.resize', () => {
           shape: { vcpus: 4, memoryGb: 16 },
           diskGb: 40,
         }),
-      ).toBe('stored')
+      ).toBe('unchanged')
       expect(resized).toEqual([])
     } finally {
       cleanup()
