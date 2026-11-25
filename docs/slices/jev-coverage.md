@@ -516,3 +516,67 @@ Otherwise the next rule comes from this list.
   trials went from 15/27 to 11/27. 7 notifications were lost and 2 gained. One lifecycle class
   lost all 3 trials, with impact probability falling from 0.86–0.89 to 0.57–0.64. A text exception
   that names a broad category leaks into nearby cases. That is one more reason for §11.1.
+
+---
+
+## 12. Status and handoff for S5–S8 (2026-11-25)
+
+### 12.1 What is done
+
+| Slice   | PR           | What it gives                                                                                                                                       |
+| ------- | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| S1a     | #2961, #2972 | `quality scope assessed`, `review_id`, hashed session and thread ids, `quality review unavailable`; allowlist and `quality example flagged` removed |
+| S1b     | #2957        | Bounds at Jev's default limits (32k / 64k tokens), excerpt above them, model pinned to `typesafe-ai/jev-1.14.0`                                     |
+| S1c     | #2977        | One parse per text and a parse cache: replay scope build p95 94.5 → 24.1 ms                                                                         |
+| S2      | #2970        | One `$ai_generation` per classifier call, with code for every user unless the secret filter matches                                                 |
+| S3, S3b | #2969, #2976 | `quality nudge reaction`; `review_id` = sha256(call id), first 32 hex, durable                                                                      |
+| S4      | #2980        | `eval:jev-real`; PostHog score definition, dataset and review queue; routine check 2 labels every other day                                         |
+
+Live checks passed for S1a, S2, S3 and S3b on 2026-11-25. The routine's check 1 owes the 24 h
+numbers for S1b (oversized skips, expected near 0) and S1c (`review_deadline` per hour, which rose
+to 1–8 per hour on 2026-11-25 18:00–22:00 UTC).
+
+### 12.2 Read before you start
+
+1. This file: §6 (the loop), §7 (levers), §11 (research), and this section.
+2. The routine "Quality: maintain Jev" (`07139640-2c30-435a-aef1-849101ab3461`): its prompt, and the
+   reports of its runs since 2026-11-27.
+3. PostHog project 411591: score definition `jev-single-responsibility-should-nudge`
+   (`01a21506-a910-7481-b715-b0ae5e47798c`), dataset `jev-single-responsibility-real`
+   (`01a21506-abe3-7d16-b877-3e6cdfa15fa8`), review queue `jev-unsure`
+   (`01a21506-aee9-74dd-b7de-2f87c0fdc043`), and the offline experiments of suite
+   `single-responsibility-real`.
+4. `plugins/quality/README.md`, `evals/code-quality/AGENTS.md`, `quality-rules.md` §5.3 and §7.
+
+### 12.3 Gates
+
+| Gate                   | Number                                                                                                                            | Applies to                                       |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| Enough labels          | ≥ 300 labelled real scopes for SRP, about 2 weeks of runs (about 2026-12-09); ≥ 30 labelled `nudge`                               | start of S6                                      |
+| Labels are trustworthy | labeller agreement ≥ 0.85 on real code                                                                                            | any precision claim; any new rule (gate 1 of §7) |
+| Ship bar               | precision ≥ 0.95, Wilson 95% lower bound ≥ 0.85, inclusion-weighted recall ≥ 0.6, on a holdout of the real set that no tuning saw | S6, S7, S8 and any threshold change              |
+| No regression          | SRP v2 matches or beats SRP v1 on the same real set, at the same precision bar                                                    | S6                                               |
+| Product target         | ≥ 20 real (non-`probe/`) nudges per week across all policies, at the ship bar                                                     | the whole plan                                   |
+
+Use weighted precision for any replay that changes a threshold: items from the random stratum
+carry a weight of 1 / inclusion probability (§6.3).
+
+### 12.4 The next slices
+
+- **S5 (dashboard)** — needs no labels; start it first. The insights of §5.4, plus
+  `scope_build_ms` p95 per hour and `review_deadline` per hour, and nudge reactions counted once per
+  finding episode. Insights 6 and 8 are SQL over `system.trace_review_scores` joined to
+  `$ai_generation` on `$ai_trace_id`.
+- **S6 (SRP v2)** — §11.1. Split the real set into development and holdout by `path` family before
+  any tuning. Compare with SRP v1 on both.
+- **S7 (verifier)** — §11.3, after S6 passes.
+- **S8 (next rule)** — §11.4 and §7. Gate 1 (agreement ≥ 0.85 on 30 real cases) before any eval run.
+
+### 12.5 Known limits
+
+- `thread_kind` is absent on events from a caller that cannot name the thread kind (#2972).
+- The first labels: 5 trace reviews from a dry run on 2026-11-25 saw Jev's answer. Routine step 2.0
+  re-labels them blind once.
+- A turn can still run the previous deploy's code for about 2 minutes after Render reports the new
+  deploy live (seen in the S3b live check). Check `atlas_version` on the events before you read a
+  live check.

@@ -120,9 +120,9 @@ flowchart TD
   | extra comment only, no declaration changed | 0               | 0                                      |
 
   The three questions are a fixed 8 241 bytes; the scope state runs 1.7–3.5 KB for a function. So
-  **about 2 500–3 000 input tokens per call**, tens of tokens back. Bounds: `state + longest
-  question ≤ 24 KB`, `state + all questions ≤ 48 KB` (`review-scopes.ts:17-18`); a scope over the
-  bound is skipped `OversizedRequest` rather than trimmed. A change with several top-level
+  **about 2 500–3 000 input tokens per call**, tens of tokens back. Bounds: since #2957 they are
+  Jev's default limits, 32k tokens per question and 64k per request (`review-scopes.ts`); a scope
+  over them is reviewed as an excerpt of the changed region (`jev-coverage.md` S1b). A change with several top-level
   functions costs one call each, inside the same 1 s budget.
 - The review sits between the tool result and the next model step (`dispatch.ts:221-232`), so a
   write delays the next step by at most about a second, and a review that misses the deadline
