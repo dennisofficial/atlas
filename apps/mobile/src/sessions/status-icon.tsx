@@ -19,7 +19,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated'
 
-const Spinning = ({ children }: { children: React.ReactNode }) => {
+export const Spinning = ({ children }: { children: React.ReactNode }) => {
   const turn = useSharedValue(0)
   useEffect(() => {
     turn.value = withRepeat(withTiming(360, { duration: 1000, easing: Easing.linear }), -1)

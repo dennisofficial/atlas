@@ -1,50 +1,58 @@
 import {
+  EChecksSummary,
+  EPullRequestGlyph,
+  EPullRequestStateWord,
+  EPullRequestTone,
+  isChecksTally,
+  pullRequestDisplayOf,
+} from '@dltech/atlas-plugin-github/core'
+import { cn } from '@dltech/atlas-ui/lib/utils'
+import {
   GitBranch,
   GitMerge,
   GitPullRequest,
   GitPullRequestClosed,
   GitPullRequestDraft,
+  type LucideIcon,
   TriangleAlert,
 } from 'lucide-react'
 
-import { cn } from '@dltech/atlas-ui/lib/utils'
 import { ChecksTally } from '@/features/threads/checks-tally'
-import {
-  checksTallyOf,
-  entryHasConflicts,
-  entryIsSettled,
-} from '@/features/threads/data/header-model'
+import { pullRequestFactsOf } from '@/features/threads/data/header-model'
 import type { PullRequestEntry } from '@/features/threads/data/pull-request-entries'
 import { PullRequestMergeMarker } from '@/features/threads/pull-request-merge-marker'
 import { latestThreadPullRequestOf } from './thread-pull-requests'
 
+const GLYPH_ICON: Record<EPullRequestGlyph, LucideIcon> = {
+  [EPullRequestGlyph.Open]: GitPullRequest,
+  [EPullRequestGlyph.Draft]: GitPullRequestDraft,
+  [EPullRequestGlyph.Merged]: GitMerge,
+  [EPullRequestGlyph.Closed]: GitPullRequestClosed,
+}
+
+const TONE_CLASS: Record<EPullRequestTone, string> = {
+  [EPullRequestTone.Open]: 'text-pr-open',
+  [EPullRequestTone.Draft]: 'text-muted-foreground',
+  [EPullRequestTone.Merged]: 'text-pr-merged',
+  [EPullRequestTone.Closed]: 'text-pr-closed',
+  [EPullRequestTone.Queued]: 'text-pr-queued',
+  [EPullRequestTone.Unknown]: 'text-muted-foreground',
+}
+
+const stateLabelOf = (word: EPullRequestStateWord): string => {
+  if (word === EPullRequestStateWord.Queued) return 'Pull request queued'
+  if (word === EPullRequestStateWord.Unknown) return 'Pull request state unknown'
+  return `Pull request ${word}`
+}
+
 export function PullRequestIcon({ entry }: { entry: PullRequestEntry }) {
-  const state = entry.state?.toLowerCase()
-  const queued = entry.mergeQueued === true && state !== 'merged' && state !== 'closed'
-  const Icon =
-    state === 'merged'
-      ? GitMerge
-      : state === 'closed'
-        ? GitPullRequestClosed
-        : state === 'draft'
-          ? GitPullRequestDraft
-          : GitPullRequest
+  const display = pullRequestDisplayOf(pullRequestFactsOf(entry))
+  const Icon = GLYPH_ICON[display.glyph]
   return (
     <Icon
       role="img"
-      aria-label={queued ? 'Pull request queued' : `Pull request ${state ?? 'state unknown'}`}
-      className={cn(
-        'size-4 shrink-0',
-        queued
-          ? 'text-pr-queued'
-          : state === 'merged'
-            ? 'text-pr-merged'
-            : state === 'closed'
-              ? 'text-pr-closed'
-              : state === 'open'
-                ? 'text-pr-open'
-                : 'text-muted-foreground',
-      )}
+      aria-label={stateLabelOf(display.stateWord)}
+      className={cn('size-4 shrink-0', TONE_CLASS[display.tone])}
     />
   )
 }
@@ -56,18 +64,18 @@ export function PullRequestChecks({
   entry: PullRequestEntry
   detailed?: boolean
 }) {
-  if (!detailed && entryIsSettled(entry)) return null
-  const { checksRunning: running, checksPassed: passed, checksFailed: failed } = entry
-  const complete = running !== undefined && passed !== undefined && failed !== undefined
+  const display = pullRequestDisplayOf(pullRequestFactsOf(entry))
+  if (!detailed && display.settled) return null
   if (!detailed) {
-    const tally = complete ? checksTallyOf(entry) : undefined
-    if (tally !== undefined) return <ChecksTally checks={tally} />
+    if (isChecksTally(display.checks)) return <ChecksTally checks={display.checks} />
     return (
       <span className="font-mono tabular-nums text-muted-foreground">
-        {complete ? 'No checks' : 'Checks unknown'}
+        {display.checks === EChecksSummary.None ? 'No checks' : 'Checks unknown'}
       </span>
     )
   }
+  const { checksRunning: running, checksPassed: passed, checksFailed: failed } = entry
+  const complete = running !== undefined && passed !== undefined && failed !== undefined
   if (running === undefined && passed === undefined && failed === undefined)
     return <span className="sr-only">Checks unknown</span>
   const label = `${running ?? 'unknown'} running, ${passed ?? 'unknown'} passed, ${failed ?? 'unknown'} failed`
@@ -98,7 +106,8 @@ export function PullRequestChecks({
 }
 
 export function PullRequestConflict({ entry }: { entry: PullRequestEntry }) {
-  return entryHasConflicts(entry) ? (
+  const display = pullRequestDisplayOf(pullRequestFactsOf(entry))
+  return display.conflict ? (
     <TriangleAlert
       role="img"
       aria-label="Merge conflicts"

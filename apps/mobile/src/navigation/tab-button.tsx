@@ -3,10 +3,11 @@ import { space } from '@dltech/atlas-ui/tokens'
 import { usePathname } from 'expo-router'
 import { Pressable, StyleSheet, View } from 'react-native'
 
+import { useSelectedSession } from '../sessions/selected-session'
 import { applyNavigation } from './apply-navigation'
-import { tabNavigationOf } from './root-navigation'
+import { sessionsTabHrefOf, tabNavigationOf } from './root-navigation'
 import { TAB_ICONS } from './tab-icons'
-import type { TAppTabItem } from './tabs'
+import { EAppTab, type TAppTabItem } from './tabs'
 
 export const TabButton = ({
   item,
@@ -19,8 +20,12 @@ export const TabButton = ({
 }) => {
   const theme = useTheme()
   const pathname = usePathname()
+  const selected = useSelectedSession()
   const color = active ? theme.foreground : theme.mutedForeground
-  const handlePress = () => applyNavigation(tabNavigationOf({ href: item.href, pathname }))
+  const handlePress = () => {
+    const href = item.tab === EAppTab.Sessions ? sessionsTabHrefOf({ selected }) : item.href
+    applyNavigation(tabNavigationOf({ href, pathname }))
+  }
   return (
     <Pressable
       accessibilityRole="tab"

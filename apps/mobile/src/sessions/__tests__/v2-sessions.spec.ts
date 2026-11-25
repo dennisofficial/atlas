@@ -3,7 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { ESessionDisplay } from '@dltech/atlas-client/stream'
 import { ESessionStatus as CoreStatus } from '@dltech/atlas-core'
 
-import { EPullRequestState, EWorkKind, partitionSessions } from '../session-groups'
+import { EWorkKind, partitionSessions } from '../session-groups'
 import { listV2Sessions, type V2SessionSummary } from '../v2-sessions'
 
 const NOW = Date.parse('2026-11-09T12:00:00.000Z')
@@ -103,10 +103,9 @@ describe('partitionSessions with v2 sessions', () => {
     const entry = partition.groups[0]?.sessions[0]
     expect(entry?.title).toBe('Untitled')
     expect(entry?.status).toBe(ESessionDisplay.Failed)
-    expect(entry?.work).toEqual({
+    expect(entry?.work).toMatchObject({
       kind: EWorkKind.PullRequest,
-      number: 42,
-      state: EPullRequestState.Open,
+      pullRequest: { number: 42, state: 'open' },
     })
   })
 })
