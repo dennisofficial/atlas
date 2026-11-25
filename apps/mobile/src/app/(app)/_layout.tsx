@@ -10,8 +10,8 @@ import { tabHeaderOptionsOf } from '../../navigation/header-options'
 import { ESettingsPlacement, settingsPlacementOf } from '../../navigation/root-navigation'
 import { InAppNoticesProvider } from '../../notifications/in-app-notices-provider'
 import { SessionsDrawerProvider } from '../../sessions/sessions-drawer-state'
-import { sessionIdOfPathname } from '../../thread/v2/presence-state'
-import { usePresenceReport } from '../../thread/v2/use-presence-report'
+import { sessionIdOfPathname } from '../../thread/session/presence-state'
+import { usePresenceReport } from '../../thread/session/use-presence-report'
 
 const CancelButton = () => (
   <Button

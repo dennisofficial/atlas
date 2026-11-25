@@ -7,8 +7,8 @@ import { renderToString } from 'react-dom/server'
 
 import { memorySessionLog } from '@dltech/atlas-client/stream'
 
-import type { V2SessionSummary } from '../v2-rows'
-import { readV2SessionsCache, V2_SESSIONS_CACHE_KEY, writeV2SessionsCache } from '../sidebar-cache'
+import type { SessionSummary } from '@dltech/atlas-protocol'
+import { readSessionsCache, SESSIONS_CACHE_KEY, writeSessionsCache } from '../sidebar-cache'
 import { agoIso, projectOf } from './fixtures'
 
 mock.module('@/features/projects/data/projects-api', () => ({
@@ -18,20 +18,20 @@ mock.module('@/features/projects/data/projects-api', () => ({
 const sessionsApi = await import('@/features/sessions/data/sessions-api')
 
 let pending: {
-  resolve: (rows: V2SessionSummary[]) => void
+  resolve: (rows: SessionSummary[]) => void
   reject: (error: unknown) => void
 }[] = []
 
 mock.module('@/features/sessions/data/sessions-api', () => ({
   ...sessionsApi,
-  fetchV2Sessions: () =>
-    new Promise<V2SessionSummary[]>((resolve, reject) => {
+  fetchSessions: () =>
+    new Promise<SessionSummary[]>((resolve, reject) => {
       pending.push({ resolve, reject })
     }),
 }))
 
 const followers = (() => {
-  let rows: readonly V2SessionSummary[] | undefined
+  let rows: readonly SessionSummary[] | undefined
   const listeners = new Set<() => void>()
   return {
     list: {
@@ -42,7 +42,7 @@ const followers = (() => {
       },
       close: () => listeners.clear(),
     },
-    emit: (next: readonly V2SessionSummary[]) => {
+    emit: (next: readonly SessionSummary[]) => {
       rows = next
       for (const listener of [...listeners]) listener()
     },
@@ -61,8 +61,8 @@ mock.module('@/features/sessions/data/session-stream', () => ({
 const { TestQueryProvider, createTestQueryClient } = await import(
   '@/lib/__tests__/query-test-provider'
 )
-const { V2_SESSIONS_KEY } = await import('@/lib/cloud-keys')
-const { useV2Sessions } = await import('../use-v2-sessions')
+const { SESSIONS_KEY } = await import('@/lib/cloud-keys')
+const { useSessions } = await import('../use-sessions')
 const { useShellEntries } = await import('../use-shell-entries')
 
 const roots: Root[] = []
@@ -89,10 +89,7 @@ afterEach(async () => {
   document.body.innerHTML = ''
 })
 
-const summary = (
-  sessionId: string,
-  overrides: Partial<V2SessionSummary> = {},
-): V2SessionSummary => ({
+const summary = (sessionId: string, overrides: Partial<SessionSummary> = {}): SessionSummary => ({
   sessionId,
   projectId: 'p1',
   title: `title-${sessionId}`,
@@ -106,7 +103,7 @@ const summary = (
 })
 
 function Probe() {
-  const sessions = useV2Sessions()
+  const sessions = useSessions()
   return <p>{sessions.map((session) => session.sessionId).join(',') || 'empty'}</p>
 }
 
@@ -157,7 +154,7 @@ async function mount(client: QueryClient = createTestQueryClient()) {
   return { container, client }
 }
 
-async function land(rows: V2SessionSummary[]) {
+async function land(rows: SessionSummary[]) {
   await act(async () => {
     pending[0]?.resolve(rows)
     await new Promise((resolve) => setTimeout(resolve, 0))
@@ -166,13 +163,13 @@ async function land(rows: V2SessionSummary[]) {
 
 describe('v2 sessions cache module', () => {
   it('round-trips sessions through the versioned payload', () => {
-    writeV2SessionsCache([summary('v2-a')])
-    expect(JSON.parse(window.localStorage.getItem(V2_SESSIONS_CACHE_KEY) ?? 'null').v).toBe(1)
-    expect(readV2SessionsCache()?.map((session) => session.sessionId)).toEqual(['v2-a'])
+    writeSessionsCache([summary('ses-a')])
+    expect(JSON.parse(window.localStorage.getItem(SESSIONS_CACHE_KEY) ?? 'null').v).toBe(1)
+    expect(readSessionsCache()?.map((session) => session.sessionId)).toEqual(['ses-a'])
   })
 
   it('treats absent, corrupt, wrong-version and wrong-shape payloads as absent', () => {
-    expect(readV2SessionsCache()).toBeUndefined()
+    expect(readSessionsCache()).toBeUndefined()
     for (const raw of [
       '{not json',
       'null',
@@ -180,81 +177,81 @@ describe('v2 sessions cache module', () => {
       '{"v":1,"sessions":"x"}',
       '{"v":1,"sessions":[{"createdAt":"2026-10-24T12:00:00.000Z"}]}',
     ]) {
-      window.localStorage.setItem(V2_SESSIONS_CACHE_KEY, raw)
-      expect(readV2SessionsCache()).toBeUndefined()
+      window.localStorage.setItem(SESSIONS_CACHE_KEY, raw)
+      expect(readSessionsCache()).toBeUndefined()
     }
   })
 })
 
-describe('useV2Sessions sidebar cache', () => {
+describe('useSessions sidebar cache', () => {
   it('renders cached sessions before the first fetch resolves', async () => {
-    writeV2SessionsCache([summary('v2-cached')])
+    writeSessionsCache([summary('ses-cached')])
     const { container } = await mount()
-    expect(container.textContent).toBe('v2-cached')
-    await land([summary('v2-live')])
-    expect(container.textContent).toBe('v2-live')
+    expect(container.textContent).toBe('ses-cached')
+    await land([summary('ses-live')])
+    expect(container.textContent).toBe('ses-live')
   })
 
   it('fetches over the cached sessions and caches the result', async () => {
-    writeV2SessionsCache([summary('v2-cached')])
+    writeSessionsCache([summary('ses-cached')])
     await mount()
     expect(pending).toHaveLength(1)
-    await land([summary('v2-live')])
-    expect(readV2SessionsCache()?.map((session) => session.sessionId)).toEqual(['v2-live'])
+    await land([summary('ses-live')])
+    expect(readSessionsCache()?.map((session) => session.sessionId)).toEqual(['ses-live'])
   })
 
   it('writes the cache when the sessions feed emits', async () => {
     await mount()
-    await land([summary('v2-http')])
+    await land([summary('ses-http')])
     await act(async () => {
-      followers.emit([summary('v2-feed')])
+      followers.emit([summary('ses-feed')])
       await new Promise((resolve) => setTimeout(resolve, 0))
     })
-    expect(readV2SessionsCache()?.map((session) => session.sessionId)).toEqual(['v2-feed'])
+    expect(readSessionsCache()?.map((session) => session.sessionId)).toEqual(['ses-feed'])
   })
 
   it('does not replace data already held by the query client', async () => {
     const client = createTestQueryClient()
-    client.setQueryData([V2_SESSIONS_KEY], [summary('v2-live')])
-    writeV2SessionsCache([summary('v2-cached')])
+    client.setQueryData([SESSIONS_KEY], [summary('ses-live')])
+    writeSessionsCache([summary('ses-cached')])
     const { container } = await mount(client)
-    expect(container.textContent).toBe('v2-live')
+    expect(container.textContent).toBe('ses-live')
     expect(pending).toHaveLength(0)
   })
 
   it('ignores corrupt cached JSON without throwing', async () => {
-    window.localStorage.setItem(V2_SESSIONS_CACHE_KEY, '{broken')
+    window.localStorage.setItem(SESSIONS_CACHE_KEY, '{broken')
     const { container } = await mount()
     expect(container.textContent).toBe('empty')
     expect(pending).toHaveLength(1)
   })
 
   it('renders no cache on the server', () => {
-    writeV2SessionsCache([summary('v2-cached')])
+    writeSessionsCache([summary('ses-cached')])
     const html = renderToString(
       <TestQueryProvider client={createTestQueryClient()}>
         <Probe />
       </TestQueryProvider>,
     )
     expect(html).toContain('empty')
-    expect(html).not.toContain('v2-cached')
+    expect(html).not.toContain('ses-cached')
   })
 })
 
 describe('useShellEntries', () => {
   it('builds sidebar rows from the projects query and the cached v2 sessions', async () => {
-    writeV2SessionsCache([summary('v2-cached', { title: 'v2-cached' })])
+    writeSessionsCache([summary('ses-cached', { title: 'ses-cached' })])
     const client = createTestQueryClient()
     client.setQueryData(['projects'], { value: [projectOf('p1')] })
     const { container } = await mountShell(client)
-    expect(container.textContent).toBe('v2-cached')
+    expect(container.textContent).toBe('ses-cached')
   })
 
   it('lists a project with no v2 sessions as an empty group', async () => {
     const client = createTestQueryClient()
     client.setQueryData(['projects'], { value: [projectOf('p1'), projectOf('p2')] })
-    client.setQueryData([V2_SESSIONS_KEY], [summary('v2-a', { title: 'v2-a' })])
+    client.setQueryData([SESSIONS_KEY], [summary('ses-a', { title: 'ses-a' })])
     const { container } = await mountShell(client)
-    expect(container.textContent).toBe('v2-a')
+    expect(container.textContent).toBe('ses-a')
   })
 })

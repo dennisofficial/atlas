@@ -93,10 +93,10 @@ export const registeredPluginNames: readonly string[] = registeredPlugins.map(
   (plugin) => plugin.name,
 )
 
-export const v2EntryFolds: readonly TranscriptEntryFold[] = registeredPlugins.flatMap(
+export const entryFolds: readonly TranscriptEntryFold[] = registeredPlugins.flatMap(
   (plugin) => plugin.client.entryFolds ?? [],
 )
 
-export const v2EventSchema = eventSchemaOf(registeredPlugins)
+export const eventSchema = eventSchemaOf(registeredPlugins)
 
-export const v2EventTypes: ReadonlySet<string> = new Set(eventTypesOf(registeredPlugins))
+export const eventTypes: ReadonlySet<string> = new Set(eventTypesOf(registeredPlugins))

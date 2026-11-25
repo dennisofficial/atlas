@@ -4,7 +4,7 @@ import type { Routine } from '@dltech/atlas-protocol'
 import { type QueryClient, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef } from 'react'
 
-import { useV2Sessions } from '@/features/shell/use-v2-sessions'
+import { useSessions } from '@/features/shell/use-sessions'
 import { ROUTINES_KEY } from '@/lib/cloud-keys'
 import { useInvalidateCloud } from '@/lib/use-invalidate-cloud'
 
@@ -17,7 +17,7 @@ const loadedRoutines = (client: QueryClient): readonly Routine[] | undefined =>
 export function useRoutineRunWatch(): void {
   const client = useQueryClient()
   const invalidate = useInvalidateCloud()
-  const sessions = useV2Sessions()
+  const sessions = useSessions()
   const seen = useRef<readonly RoutineFeedRun[] | null>(null)
 
   useEffect(() => {

@@ -18,7 +18,7 @@ import { ArrowUp, Plus, Square } from 'lucide-react-native'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { ScrollView, StyleSheet, View } from 'react-native'
 
-import { mergeIntoDraft } from '../v2/staged-send'
+import { mergeIntoDraft } from '../session/staged-send'
 import { AttachmentChips } from './attachment-chips'
 import { AttachMenu } from './attach-menu'
 import { PasteImageButton } from './paste-image-button'

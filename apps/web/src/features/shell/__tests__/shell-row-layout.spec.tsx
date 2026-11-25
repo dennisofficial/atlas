@@ -7,7 +7,7 @@ import { registerDom, unregisterDom } from '@/lib/__tests__/happy-dom-globals'
 
 import { ThreadRow } from '../shell-thread-row'
 import { ThreadActionsContext } from '../thread-actions-context'
-import { v2RowOf } from '../v2-rows'
+import { rowOf } from '../session-rows'
 import { agoIso, sessionOf, threadOf } from './fixtures'
 
 const render = (session: Parameters<typeof ThreadRow>[0]['session']) =>
@@ -59,8 +59,8 @@ describe('sidebar row action layout', () => {
 
   it('gives a v2 row the archive action without reserved padding', () => {
     const html = render(
-      v2RowOf({
-        sessionId: 'v2-a',
+      rowOf({
+        sessionId: 'ses-a',
         projectId: 'p1',
         title: 'Fix login',
         mainThreadId: 'thr-a',

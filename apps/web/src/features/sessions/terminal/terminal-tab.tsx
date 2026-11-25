@@ -12,7 +12,7 @@ import { usePodWake } from '../data/use-pod-wake'
 import { podAttached } from '../data/pod-attachment'
 import { useSessionPaneValue } from '../panel/pane-value'
 import { PodDisconnected } from '../panel/pod-disconnected'
-import { v2TerminalTransport, type TerminalTransportOf } from './terminal-api'
+import { terminalTransport, type TerminalTransportOf } from './terminal-api'
 import {
   TerminalEmptyBody,
   TerminalEndedBody,
@@ -44,7 +44,7 @@ const requestWake = (sessionId: string) => cloudCall(api.sessions.wake.mutate({ 
 
 export function TerminalTab(props: { transportOf?: TerminalTransportOf } = {}) {
   const { sessionId, status, checkouts } = useSessionPaneValue()
-  const transportOf = props.transportOf ?? v2TerminalTransport
+  const transportOf = props.transportOf ?? terminalTransport
   const store = useTerminalStore(sessionId)
   const snapshot = useTerminals(sessionId)
   const attached = podAttached(status)

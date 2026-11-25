@@ -5,7 +5,7 @@ import { Pressable, StyleSheet, View } from 'react-native'
 
 import { PullRequestChip } from '../../sessions/pull-request-chip'
 import { StatusIcon } from '../../sessions/status-icon'
-import type { SessionHeader } from '../v2/session-header'
+import type { SessionHeader } from '../session/session-header'
 
 export const SessionTitle = ({ header }: { header: SessionHeader }) => {
   const pullRequest = header.pullRequest

@@ -15,8 +15,8 @@ import { KeyRound } from 'lucide-react-native'
 import { useCallback, useState } from 'react'
 import { Pressable, StyleSheet, View } from 'react-native'
 
-import type { PendingOperatorAnswer } from '../v2/operator-answer-view'
-import type { OperatorRequestControl } from '../v2/use-operator-request'
+import type { PendingOperatorAnswer } from '../session/operator-answer-view'
+import type { OperatorRequestControl } from '../session/use-operator-request'
 import { OperatorAnswerSheet } from './operator-answer-sheet'
 
 const OperatorRequestCard = ({

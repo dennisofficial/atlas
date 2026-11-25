@@ -20,7 +20,7 @@ import {
   type MessageRow,
   type ThreadRow,
 } from '../../rows'
-import { v2EntryFolds, v2EventSchema } from '../registered-plugins'
+import { entryFolds, eventSchema } from '../registered-plugins'
 import { QUEUED_LABEL, QUEUED_ROW_OPACITY, queuedDockOf, queuedLabelOf } from '../queued-dock'
 import type { QueuedRow } from '../queued-rows'
 import type { StagedSend } from '../staged-send'
@@ -118,9 +118,9 @@ const queuedRowOf = (rows: readonly QueuedRow[], id: string): MessageRow => {
 
 const deliveredRowOf = (event: unknown): ThreadRow | undefined => {
   const model = deriveTranscript({
-    events: transcriptEventsOf([v2EventSchema.parse(event)]),
+    events: transcriptEventsOf([eventSchema.parse(event)]),
     signals: [],
-    pluginEntries: v2EntryFolds,
+    pluginEntries: entryFolds,
     now: () => new Date(NOW),
   })
   return rowsOf({ entries: model.entries, working: false, now: NOW }).at(-1)

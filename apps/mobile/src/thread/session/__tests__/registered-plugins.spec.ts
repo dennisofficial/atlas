@@ -9,7 +9,7 @@ import {
 } from '@dltech/atlas-client/stream'
 import { eventsMessage, mintEvents, userSaid } from '@dltech/atlas-client/stream-fixture'
 
-import { registeredPluginNames, v2EventSchema, v2EventTypes } from '../registered-plugins'
+import { registeredPluginNames, eventSchema, eventTypes } from '../registered-plugins'
 
 const WEB_REGISTRY = join(
   import.meta.dir,
@@ -45,7 +45,7 @@ describe('the plugins this app reads', () => {
   })
 
   it('reads the mcp and operator bodies the pod writes', () => {
-    for (const type of MISSING_BEFORE_THE_FIX) expect(v2EventTypes.has(type)).toBe(true)
+    for (const type of MISSING_BEFORE_THE_FIX) expect(eventTypes.has(type)).toBe(true)
   })
 
   it('skips no event of a page that carries an mcp body, so the stale card stays down', () => {
@@ -54,8 +54,8 @@ describe('the plugins this app reads', () => {
       log: memorySessionLog(),
       scheduler,
       onResnap: () => undefined,
-      eventSchema: v2EventSchema,
-      knownEventTypes: v2EventTypes,
+      eventSchema: eventSchema,
+      knownEventTypes: eventTypes,
     })
     const events = mintEvents({
       bodies: [{ type: 'mcp-server-removed', name: 'linear' }, userSaid('hello')],

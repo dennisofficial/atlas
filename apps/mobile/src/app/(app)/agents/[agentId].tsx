@@ -6,7 +6,7 @@ import { StyleSheet, View } from 'react-native'
 
 import { SessionSkeleton } from '../../../thread/components/session-skeleton'
 import { Transcript } from '../../../thread/components/transcript'
-import { useV2AgentScreen } from '../../../thread/v2/use-v2-agent-screen'
+import { useAgentScreen } from '../../../thread/session/use-agent-screen'
 
 export default function AgentScreen() {
   const theme = useTheme()
@@ -16,7 +16,7 @@ export default function AgentScreen() {
     title?: string
     parentThreadId?: string
   }>()
-  const agent = useV2AgentScreen({ sessionId, agentId, parentThreadId })
+  const agent = useAgentScreen({ sessionId, agentId, parentThreadId })
 
   const handleOpenAgent = useCallback(
     (id: string) => {

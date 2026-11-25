@@ -17,15 +17,15 @@ import type { RewindApi } from '@dltech/atlas-client/session'
 import type { StopApi } from './stop-session'
 import type { WithdrawApi } from './withdraw-queued'
 
-const V2_SESSIONS_LIMIT = 100
+const SESSIONS_LIMIT = 100
 
-export const fetchV2Sessions = async () =>
-  (await cloudCall(api.sessions.list.query({ limit: V2_SESSIONS_LIMIT }))).sessions
+export const fetchSessions = async () =>
+  (await cloudCall(api.sessions.list.query({ limit: SESSIONS_LIMIT }))).sessions
 
-export const archiveV2Session = (args: { sessionId: string; archived: boolean }) =>
+export const archiveSession = (args: { sessionId: string; archived: boolean }) =>
   cloudCall(api.sessions.archive.mutate(args))
 
-export const markV2SessionRead = async (args: { sessionId: string; seq: number }) => {
+export const markSessionRead = async (args: { sessionId: string; seq: number }) => {
   const { readSeq } = await cloudCall(api.sessions.markRead.mutate(args))
   return { readSeq }
 }

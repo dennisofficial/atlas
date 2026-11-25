@@ -32,7 +32,7 @@ import { ActivityIndicator, ScrollView, StyleSheet } from 'react-native'
 
 import { McpServerMark } from './mcp-server-mark'
 import { AgentOpenLink } from './agent-open-link'
-import { agentIdOfSpawnCall } from '../v2/agent-links'
+import { agentIdOfSpawnCall } from '../session/agent-links'
 
 const OUTPUT_MAX_HEIGHT = 240
 

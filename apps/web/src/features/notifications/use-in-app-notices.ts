@@ -16,10 +16,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
 import { reportInAppShown } from '@/features/sessions/data/notify-api'
-import { fetchV2Sessions } from '@/features/sessions/data/sessions-api'
+import { fetchSessions } from '@/features/sessions/data/sessions-api'
 import { activeSessionIdOf } from '@/features/shell/active-route'
-import { v2SessionHref } from '@/features/shell/v2-rows'
-import { V2_SESSIONS_KEY } from '@/lib/cloud-keys'
+import { sessionHref } from '@/features/shell/session-rows'
+import { SESSIONS_KEY } from '@/lib/cloud-keys'
 import { useCloudSettings } from '@/lib/cloud-settings'
 
 import { useWindowFocus } from './use-window-focus'
@@ -28,8 +28,8 @@ const OPEN_LABEL = 'Open'
 
 export function useInAppNotices(): void {
   const query = useQuery({
-    queryKey: [V2_SESSIONS_KEY],
-    queryFn: fetchV2Sessions,
+    queryKey: [SESSIONS_KEY],
+    queryFn: fetchSessions,
     staleTime: Infinity,
   })
   const pathname = usePathname()
@@ -63,7 +63,7 @@ export function useInAppNotices(): void {
           description: notice.body,
           action: {
             label: OPEN_LABEL,
-            onClick: () => router.push(v2SessionHref(notice.sessionId)),
+            onClick: () => router.push(sessionHref(notice.sessionId)),
           },
         })
       }

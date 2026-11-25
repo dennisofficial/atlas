@@ -4,12 +4,12 @@ import { useEffect, useMemo, useState } from 'react'
 
 import { useAuth } from '../../auth/auth-provider'
 import { agentLinksOf, type AgentLinks } from './agent-links'
-import { v2ViewOf, type V2ThreadView } from './rows'
-import { useV2Session } from './use-v2-session'
+import { viewOf, type ThreadView } from './rows'
+import { useSession } from './use-session'
 
 const TICK_MS = 1_000
 
-export type V2AgentScreen = V2ThreadView & {
+export type AgentScreen = ThreadView & {
   now: number
   title: string
   agentLinks: AgentLinks
@@ -18,15 +18,15 @@ export type V2AgentScreen = V2ThreadView & {
   loadOlder: () => Promise<number>
 }
 
-export function useV2AgentScreen(args: {
+export function useAgentScreen(args: {
   sessionId: string
   agentId: string
   parentThreadId?: string | undefined
-}): V2AgentScreen {
+}): AgentScreen {
   const { api } = useAuth()
   const { sessionId, agentId, parentThreadId } = args
-  const child = useV2Session({ sessionId, threadId: agentId, api })
-  const parent = useV2Session({ sessionId, threadId: parentThreadId, api })
+  const child = useSession({ sessionId, threadId: agentId, api })
+  const parent = useSession({ sessionId, threadId: parentThreadId, api })
   const [now, setNow] = useState(() => Date.now())
 
   const agent = useMemo(
@@ -34,7 +34,7 @@ export function useV2AgentScreen(args: {
     [parent.snapshot.foldable, agentId],
   )
   const working = agent?.running ?? false
-  const view = useMemo(() => v2ViewOf({ snapshot: child.snapshot, now }), [child.snapshot, now])
+  const view = useMemo(() => viewOf({ snapshot: child.snapshot, now }), [child.snapshot, now])
   const agentLinks = useMemo(
     () => agentLinksOf({ events: child.snapshot.events }),
     [child.snapshot.events],

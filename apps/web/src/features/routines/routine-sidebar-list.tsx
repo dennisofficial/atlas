@@ -8,7 +8,7 @@ import type { Routine } from '@dltech/atlas-protocol'
 import { cn } from '@dltech/atlas-ui/lib/utils'
 
 import { useClock } from '@/features/shell/use-clock'
-import { useV2Sessions } from '@/features/shell/use-v2-sessions'
+import { useSessions } from '@/features/shell/use-sessions'
 import { fetchProjects } from '@/features/projects/data/projects-api'
 import { PROJECTS_KEY } from '@/lib/cloud-keys'
 import { EQueryState, useCloudQuery } from '@/lib/use-cloud-query'
@@ -21,7 +21,7 @@ import { pushedSessionStateOf, routineStateOf } from './routine-state'
 import { RoutineStatusWord } from './routine-status'
 
 function RoutineRow({ routine, active, now }: { routine: Routine; active: boolean; now: number }) {
-  const sessions = useV2Sessions()
+  const sessions = useSessions()
   const sessionState = pushedSessionStateOf({ sessionId: routine.lastSessionId, sessions })
   const state = routineStateOf({ routine, sessionState })
   return (

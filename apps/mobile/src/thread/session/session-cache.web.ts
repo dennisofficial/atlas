@@ -5,7 +5,7 @@ import {
   type SessionLog,
 } from '@dltech/atlas-client/stream'
 
-import { v2EventSchema } from './registered-plugins'
+import { eventSchema } from './registered-plugins'
 import { queuedSessionLog, type QueuedSessionLog } from './session-cache-queue'
 
 let cache: QueuedSessionLog | undefined
@@ -13,7 +13,7 @@ let cache: QueuedSessionLog | undefined
 export const sessionLog = (): SessionLog => {
   if (cache !== undefined) return cache
   cache = queuedSessionLog(
-    defaultIndexedDbFactory() === undefined ? memorySessionLog() : browserSessionLog(v2EventSchema),
+    defaultIndexedDbFactory() === undefined ? memorySessionLog() : browserSessionLog(eventSchema),
   )
   return cache
 }

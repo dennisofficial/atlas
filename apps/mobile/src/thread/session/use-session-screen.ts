@@ -19,19 +19,19 @@ import type { SessionNameOf, ThreadRow } from '../rows'
 import { agentLinksOf, type AgentLinks } from './agent-links'
 import type { ContextMeter } from '../composer/context-reading'
 import { queuedDockOf, type QueuedDockState } from './queued-dock'
-import { stagedRowsOf, v2ViewOf, type V2ThreadView } from './rows'
+import { stagedRowsOf, viewOf, type ThreadView } from './rows'
 import { sessionHeaderOf, type SessionHeader } from './session-header'
 import { sessionStream } from './session-stream'
 import { handledQuickStopsOf, rememberHandledQuickStops } from './handled-quick-stops'
 import { clientIdOfSend, settlementOf, type StagedSend } from './staged-send'
-import { useV2Session } from './use-v2-session'
+import { useSession } from './use-session'
 import { useSessionRows } from './use-session-rows'
-import { useV2SessionCommands, type V2SessionCommands } from './use-v2-session-commands'
+import { useSessionCommands, type SessionCommands } from './use-session-commands'
 import { useOperatorRequest, type OperatorRequestControl } from './use-operator-request'
 
 const TICK_MS = 1_000
 
-export type V2SessionScreen = V2ThreadView & {
+export type SessionScreen = ThreadView & {
   now: number
   stateLine: string | null
   canReconnect: boolean
@@ -48,7 +48,7 @@ export type V2SessionScreen = V2ThreadView & {
   context: ContextMeter | null
   agentLinks: AgentLinks
   stagedRows: ThreadRow[]
-  commands: V2SessionCommands
+  commands: SessionCommands
   operator: OperatorRequestControl
   restored: { token: number; text: string; attachments: readonly Attachment[] } | undefined
   notice: string | undefined
@@ -59,13 +59,13 @@ export type V2SessionScreen = V2ThreadView & {
   reconnect: () => void
 }
 
-export function useV2SessionScreen(args: {
+export function useSessionScreen(args: {
   sessionId: string
   fallbackTitle: string | undefined
-}): V2SessionScreen {
+}): SessionScreen {
   const { sessionId, fallbackTitle } = args
   const { api } = useAuth()
-  const { snapshot, loadOlder } = useV2Session({ sessionId, api })
+  const { snapshot, loadOlder } = useSession({ sessionId, api })
   const sessionRows = useSessionRows()
   const summary = useMemo(
     () => sessionRows?.find((row) => row.sessionId === sessionId),
@@ -77,7 +77,7 @@ export function useV2SessionScreen(args: {
   )
   const [notice, setNotice] = useState<string | undefined>(undefined)
   const reportHidden = useCallback((name: string) => setNotice(clientOnlyReason(name)), [setNotice])
-  const commands = useV2SessionCommands({
+  const commands = useSessionCommands({
     api,
     sessionId,
     events: snapshot.foldable,
@@ -85,7 +85,7 @@ export function useV2SessionScreen(args: {
   })
   const operator = useOperatorRequest({ api, sessionId, events: snapshot.events })
   const [now, setNow] = useState(() => Date.now())
-  const view = useMemo(() => v2ViewOf({ snapshot, now }), [snapshot, now])
+  const view = useMemo(() => viewOf({ snapshot, now }), [snapshot, now])
   const blocking = useMemo(() => blockingCommandOf(snapshot.status), [snapshot.status])
   const [staged, setStaged] = useState<readonly StagedSend[]>([])
   const agentLinks = useMemo(() => agentLinksOf({ events: snapshot.events }), [snapshot.events])

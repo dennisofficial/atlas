@@ -8,11 +8,9 @@ import {
   peerBucketOf,
   sessionDisplayOf,
 } from '@dltech/atlas-client/stream'
-import type { SessionListOutput } from '@dltech/atlas-protocol'
+import type { SessionSummary } from '@dltech/atlas-protocol'
 
-export type V2SessionSummary = SessionListOutput['sessions'][number]
-
-export type SessionPullRequest = NonNullable<V2SessionSummary['pullRequest']>
+export type SessionPullRequest = NonNullable<SessionSummary['pullRequest']>
 
 export const NO_PROJECT_KEY = '__no-project__'
 export const NO_PROJECT_NAME = 'No project'
@@ -59,7 +57,7 @@ export interface ISessionPartition {
 
 interface IPlacedProject {
   name: string
-  sessions: V2SessionSummary[]
+  sessions: SessionSummary[]
 }
 
 const timeOf = (stamp: string): number => {
@@ -82,7 +80,7 @@ const placedOf = ({
   sessions,
   nameOf,
 }: {
-  sessions: readonly V2SessionSummary[]
+  sessions: readonly SessionSummary[]
   nameOf: ReadonlyMap<string, string>
 }): Map<string, IPlacedProject> => {
   const placed = new Map<string, IPlacedProject>()
@@ -95,7 +93,7 @@ const placedOf = ({
   return placed
 }
 
-const workOf = (summary: V2SessionSummary): SessionWork => {
+const workOf = (summary: SessionSummary): SessionWork => {
   const pullRequest = summary.pullRequest
   if (pullRequest !== null && pullRequest !== undefined) {
     return { kind: EWorkKind.PullRequest, pullRequest }
@@ -107,7 +105,7 @@ const entryOf = ({
   node,
   projectName,
 }: {
-  node: PeerTreeNode<V2SessionSummary>
+  node: PeerTreeNode<SessionSummary>
   projectName: string
 }): ISessionEntry => {
   const { children, ...summary } = node
@@ -133,7 +131,7 @@ const entryOf = ({
   }
 }
 
-const byCreated = (left: V2SessionSummary, right: V2SessionSummary): number =>
+const byCreated = (left: SessionSummary, right: SessionSummary): number =>
   timeOf(left.createdAt) - timeOf(right.createdAt)
 
 export const sortSessions = (sessions: readonly ISessionEntry[]): ISessionEntry[] =>
@@ -145,7 +143,7 @@ export const partitionSessions = ({
   now,
 }: {
   projects: readonly IProjectSummary[]
-  sessions: readonly V2SessionSummary[]
+  sessions: readonly SessionSummary[]
   now: number
 }): ISessionPartition => {
   const ordered = [...projects].sort(

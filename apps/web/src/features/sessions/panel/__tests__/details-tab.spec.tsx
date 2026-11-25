@@ -115,7 +115,7 @@ describe('SessionDetailsTab', () => {
 
   it('drops the checkout lines and the GitHub section', () => {
     const html = render(populatedPaneValue())
-    expect(html).not.toContain('main → dennis/v2-session-pane')
+    expect(html).not.toContain('main → dennis/session-pane')
     expect(html).not.toContain('/work/wt')
     expect(html).not.toContain('aria-label="GitHub"')
   })

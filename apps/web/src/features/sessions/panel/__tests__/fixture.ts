@@ -42,7 +42,7 @@ export const pullRequestFixture: PullRequestEntry = {
   repo: 'owner/atlas',
   number: 7,
   url: 'https://github.com/owner/atlas/pull/7',
-  branch: 'dennis/v2-session-pane',
+  branch: 'dennis/session-pane',
   state: 'open',
   title: 'Add the session pane',
   checksRunning: 1,
@@ -173,7 +173,7 @@ export const paneValueFixture = (overrides: Partial<SessionPaneValue> = {}): Ses
 export const populatedPaneValue = (): SessionPaneValue =>
   paneValueFixture({
     view: viewModelFixture({
-      branch: 'dennis/v2-session-pane',
+      branch: 'dennis/session-pane',
       entries: [pullRequestFixture],
       subscriptionRows: [subscriptionRowFixture()],
       shells: {
@@ -198,11 +198,11 @@ export const populatedPaneValue = (): SessionPaneValue =>
         {
           repo: 'owner/atlas',
           base: 'main',
-          head: 'dennis/v2-session-pane',
-          branches: [{ name: 'dennis/v2-session-pane', sha: 'abc123', worktreePath: '/work/wt' }],
+          head: 'dennis/session-pane',
+          branches: [{ name: 'dennis/session-pane', sha: 'abc123', worktreePath: '/work/wt' }],
         },
       ],
-      primary: { repo: 'owner/atlas', branch: 'dennis/v2-session-pane' },
+      primary: { repo: 'owner/atlas', branch: 'dennis/session-pane' },
     }),
     shellTails: { sh1: 'tick 1' },
   })

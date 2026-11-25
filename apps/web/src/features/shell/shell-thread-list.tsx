@@ -19,7 +19,6 @@ import {
   projectKeyOf,
   type ProjectThreads,
 } from './thread-partition'
-import { isV2Session } from './v2-rows'
 
 export interface ThreadListProps {
   entries: readonly ProjectThreads[]
@@ -57,8 +56,11 @@ export function ThreadList(props: ThreadListProps) {
   )
 }
 
-const countV2Sessions = (entries: readonly ProjectThreads[]): number =>
-  entries.reduce((total, entry) => total + entry.sessions.filter(isV2Session).length, 0)
+const countSessionRows = (entries: readonly ProjectThreads[]): number =>
+  entries.reduce(
+    (total, entry) => total + entry.sessions.filter((session) => session.view !== undefined).length,
+    0,
+  )
 
 const bucketTotalOf = (args: {
   streamCount: number | undefined
@@ -66,7 +68,7 @@ const bucketTotalOf = (args: {
 }): number =>
   args.streamCount === undefined
     ? countThreads(args.entries)
-    : args.streamCount + countV2Sessions(args.entries)
+    : args.streamCount + countSessionRows(args.entries)
 
 function ThreadListContent({ entries, counts, activeThreadId }: ThreadListProps) {
   const [collapsed, setCollapsed] = useState<string[]>([])

@@ -9,15 +9,9 @@ import {
   EPullRequestTone,
   pullRequestDisplayOf,
 } from '@dltech/atlas-plugin-github/core'
-import { ESandboxStatus } from '@dltech/atlas-protocol'
+import { ESandboxStatus, type SessionSummary } from '@dltech/atlas-protocol'
 
-import {
-  EWorkKind,
-  NO_PROJECT_NAME,
-  partitionSessions,
-  type SessionWork,
-  type V2SessionSummary,
-} from '../session-groups'
+import { EWorkKind, NO_PROJECT_NAME, partitionSessions, type SessionWork } from '../session-groups'
 
 const NOW = Date.parse('2026-11-03T20:00:00.000Z')
 const hoursAgo = (hours: number): string => new Date(NOW - hours * 3_600_000).toISOString()
@@ -28,9 +22,7 @@ const projects = [
   { id: 'rcp', name: 'RCP', createdAt: hoursAgo(100) },
 ]
 
-const summaryOf = (
-  overrides: Partial<V2SessionSummary> & { sessionId: string },
-): V2SessionSummary => ({
+const summaryOf = (overrides: Partial<SessionSummary> & { sessionId: string }): SessionSummary => ({
   projectId: 'atlas',
   title: null,
   naming: false,
@@ -248,7 +240,7 @@ describe('partitionSessions', () => {
 })
 
 describe('session display', () => {
-  const displayOf = (overrides: Partial<V2SessionSummary>) =>
+  const displayOf = (overrides: Partial<SessionSummary>) =>
     entriesOf(
       partitionSessions({
         projects,

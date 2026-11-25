@@ -4,8 +4,8 @@ import { useFocusEffect } from 'expo-router'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { useAuth } from '../auth/auth-provider'
-import { sessionLog } from '../thread/v2/session-cache'
-import { sessionStream } from '../thread/v2/session-stream'
+import { sessionLog } from '../thread/session/session-cache'
+import { sessionStream } from '../thread/session/session-stream'
 import { archiveStatesOf } from './archive-states'
 import {
   applyArchiveOverrides,

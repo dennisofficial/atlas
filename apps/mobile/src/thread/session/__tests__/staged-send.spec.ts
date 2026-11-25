@@ -3,7 +3,7 @@ import { describe, expect, it } from 'bun:test'
 import { EAttachmentStore, type Attachment } from '@dltech/atlas-core'
 
 import { clientIdOfSend, draftAfterSettlementOf, settlementOf } from '../staged-send'
-import { v2EventSchema } from '../registered-plugins'
+import { eventSchema } from '../registered-plugins'
 
 const envelope = (seq: number) => ({
   id: `evt_${seq}`,
@@ -16,7 +16,7 @@ const envelope = (seq: number) => ({
   prevHash: '0'.repeat(64),
 })
 
-const eventsOf = (events: readonly unknown[]) => events.map((event) => v2EventSchema.parse(event))
+const eventsOf = (events: readonly unknown[]) => events.map((event) => eventSchema.parse(event))
 
 const STAGED = [{ clientId: 'client-a', text: 'first', attachments: [] }]
 

@@ -8,7 +8,7 @@ import * as realSonner from 'sonner'
 
 import { registerDom, unregisterDom } from '@/lib/__tests__/happy-dom-globals'
 
-import { V2_SESSIONS_KEY } from '@/lib/cloud-keys'
+import { SESSIONS_KEY } from '@/lib/cloud-keys'
 
 const realSonnerExports = { ...realSonner }
 
@@ -68,7 +68,7 @@ const NEWER_TURN = {
 
 const mount = async (initial: readonly SessionSummary[]) => {
   const queryClient = new QueryClient()
-  queryClient.setQueryData([V2_SESSIONS_KEY], initial)
+  queryClient.setQueryData([SESSIONS_KEY], initial)
   const container = document.createElement('div')
   const { createRoot } = await import('react-dom/client')
   const root = createRoot(container)
@@ -82,7 +82,7 @@ const mount = async (initial: readonly SessionSummary[]) => {
   return {
     update: async (rows: readonly SessionSummary[]) => {
       await act(async () => {
-        queryClient.setQueryData([V2_SESSIONS_KEY], rows)
+        queryClient.setQueryData([SESSIONS_KEY], rows)
         await new Promise((resolve) => setTimeout(resolve, 0))
       })
     },

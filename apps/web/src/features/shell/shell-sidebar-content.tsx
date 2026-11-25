@@ -12,7 +12,7 @@ import { ThreadList } from './shell-thread-list'
 import type { SessionNode, ShellThreads } from './thread-partition'
 import { ThreadActionsContext } from './thread-actions-context'
 import { useThreadArchive } from './use-thread-archive'
-import { v2SessionHref } from './v2-rows'
+import { sessionHref } from './session-rows'
 
 export function ShellSidebarContent({
   query,
@@ -26,7 +26,7 @@ export function ShellSidebarContent({
     (threadId: string) => {
       if (threadId !== activeThreadId) return
       router.replace('/threads')
-      return () => router.push(v2SessionHref(threadId))
+      return () => router.push(sessionHref(threadId))
     },
     [activeThreadId, router],
   )

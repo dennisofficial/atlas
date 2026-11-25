@@ -25,7 +25,7 @@ import {
   type RewindState,
 } from '../ui/rewind-model'
 import { messageOf } from './app-next-support'
-import { v2EventTypes } from './registered-plugins'
+import { eventTypes } from './registered-plugins'
 import { rewindCommandOf } from './rewind-pick'
 import type { SessionApi } from './session-api'
 import type { SessionAttachments } from './use-session-attachments'
@@ -69,7 +69,7 @@ export function useRewind(args: {
   }, [])
 
   const handleOpen = useCallback(() => {
-    const events = transcriptEventsOf(latest.current.rawEvents, v2EventTypes)
+    const events = transcriptEventsOf(latest.current.rawEvents, eventTypes)
     const opened = openRewind({ events })
     if (opened === null) {
       latest.current.onProblem(NOTHING_TO_REWIND)

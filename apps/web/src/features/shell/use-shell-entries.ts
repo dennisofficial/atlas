@@ -10,8 +10,8 @@ import { PROJECTS_KEY } from '@/lib/cloud-keys'
 import { EQueryState, type CloudQuery, useCloudQuery } from '@/lib/use-cloud-query'
 
 import type { ProjectThreads, ShellThreads } from './thread-partition'
-import { useV2Sessions } from './use-v2-sessions'
-import { withV2Sessions } from './v2-rows'
+import { useSessions } from './use-sessions'
+import { mergeSessions } from './session-rows'
 
 const entriesOf = (projects: readonly Project[]): ProjectThreads[] => [
   ...projects.map((project) => ({ project, sessions: [] })),
@@ -19,10 +19,10 @@ const entriesOf = (projects: readonly Project[]): ProjectThreads[] => [
 ]
 
 export function useShellEntries(): CloudQuery<ShellThreads> {
-  const sessions = useV2Sessions()
+  const sessions = useSessions()
   const projects = useCloudQuery({ key: PROJECTS_KEY, load: fetchProjects })
   const entries = useMemo(
-    () => withV2Sessions({ entries: entriesOf(projects.data ?? []), sessions }),
+    () => mergeSessions({ entries: entriesOf(projects.data ?? []), sessions }),
     [projects.data, sessions],
   )
   const ready = projects.state === EQueryState.Ready

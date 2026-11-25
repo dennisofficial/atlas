@@ -22,8 +22,8 @@ import { createPendingRevokeStorage, createTokenStore } from './token-store'
 import { clearSettingsCache } from '../settings/settings-storage'
 import { installClientId } from '../storage/install-client-id'
 import { selectedSessionStore } from '../sessions/selected-session'
-import { clearSessionLog } from '../thread/v2/session-cache'
-import { XhrEventSource } from '../thread/v2/xhr-event-source'
+import { clearSessionLog } from '../thread/session/session-cache'
+import { XhrEventSource } from '../thread/session/xhr-event-source'
 
 export interface IAuthContextValue extends IAuthSnapshot {
   api: ApiClient | undefined

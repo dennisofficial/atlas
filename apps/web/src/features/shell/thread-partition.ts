@@ -11,7 +11,7 @@ import type {
   WireThread,
 } from '@dltech/atlas-wire/web'
 
-import type { V2RowView } from './v2-status'
+import type { RowView } from './row-status'
 
 export type SessionNode = WireSessionNode
 
@@ -21,9 +21,8 @@ export const NO_PROJECT_KEY = '__no-project__'
 export const NO_PROJECT_NAME = 'No project'
 
 export type ShellSessionNode = SessionNode & {
-  v2?: true
   naming?: boolean
-  v2View?: V2RowView
+  view?: RowView
   spawnedBy?: string
   nested?: boolean
 }

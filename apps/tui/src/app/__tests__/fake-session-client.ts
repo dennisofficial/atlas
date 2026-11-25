@@ -38,7 +38,7 @@ import {
   eventsMessage,
 } from '@dltech/atlas-client/stream-fixture'
 
-import { v2EventSchema, v2EventTypes, v2Views } from '../registered-plugins'
+import { eventSchema, eventTypes, views } from '../registered-plugins'
 import type { AuthRefusal, SessionClient } from '../session-client'
 import type { ProjectChoice } from '../../ui/project-prompt-model'
 import type {
@@ -280,9 +280,9 @@ export const fakeSessionClient = (args: {
     transport,
     scheduler: scheduler.scheduler,
     networkSignal: NO_NETWORK_SIGNAL,
-    eventSchema: v2EventSchema,
-    knownEventTypes: v2EventTypes,
-    views: v2Views,
+    eventSchema: eventSchema,
+    knownEventTypes: eventTypes,
+    views: views,
   })
 
   const calls: FakeCalls = {

@@ -35,14 +35,14 @@ import { SessionSkeleton } from '../../../thread/components/session-skeleton'
 import { Transcript } from '../../../thread/components/transcript'
 import { selectedSessionStore } from '../../../sessions/selected-session'
 import { useSessionsDrawer } from '../../../sessions/sessions-drawer-state'
-import { useV2SessionScreen } from '../../../thread/v2/use-v2-session-screen'
+import { useSessionScreen } from '../../../thread/session/use-session-screen'
 
 export default function SessionScreen() {
   const theme = useTheme()
   const posture = usePosture()
   const { width: windowWidth } = useWindowDimensions()
   const { id, title } = useLocalSearchParams<{ id: string; title?: string }>()
-  const session = useV2SessionScreen({ sessionId: id, fallbackTitle: title })
+  const session = useSessionScreen({ sessionId: id, fallbackTitle: title })
   const attachments = useAttachments()
   const model = session.commands.model
   const { setOpen } = useSessionsDrawer()

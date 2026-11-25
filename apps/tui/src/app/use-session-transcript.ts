@@ -20,7 +20,7 @@ import type { InFlightStep, TranscriptModel } from '@dltech/atlas-client/transcr
 import { createConversationStore } from '../store/conversation-store'
 import type { TurnClock } from '../ui/turn-clock'
 import { overlaySignalFeed } from './overlay-signal-feed'
-import { v2EventTypes } from './registered-plugins'
+import { eventTypes } from './registered-plugins'
 import type { SessionClient } from './session-client'
 
 const NOT_CONNECTED = ESessionConnection.Reconnecting
@@ -106,7 +106,7 @@ export function useSessionTranscript(args: {
       if (mapped.current?.source !== snapshot.events) {
         mapped.current = {
           source: snapshot.events,
-          events: transcriptEventsOf(snapshot.events, v2EventTypes),
+          events: transcriptEventsOf(snapshot.events, eventTypes),
         }
       }
       store.setEvents({ events: mapped.current.events })

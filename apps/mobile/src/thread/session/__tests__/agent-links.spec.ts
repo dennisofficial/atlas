@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { agentIdOfSpawnCall, agentIdOfToolOutput, agentLinksOf } from '../agent-links'
-import { v2EventSchema } from '../registered-plugins'
+import { eventSchema } from '../registered-plugins'
 
 const envelope = (seq: number) => ({
   id: `evt_${seq}`,
@@ -14,7 +14,7 @@ const envelope = (seq: number) => ({
   prevHash: '0'.repeat(64),
 })
 
-const eventsOf = (raw: readonly unknown[]) => raw.map((event) => v2EventSchema.parse(event))
+const eventsOf = (raw: readonly unknown[]) => raw.map((event) => eventSchema.parse(event))
 
 const spawned = {
   ...envelope(1),

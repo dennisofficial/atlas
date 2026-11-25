@@ -8,7 +8,7 @@ import {
 import type { StreamScheduler } from '@dltech/atlas-client/stream'
 import { ESkillOrigin } from '@dltech/atlas-plugin-skills/core'
 
-import { v2EventSchema, v2EventTypes } from '../registered-plugins'
+import { eventSchema, eventTypes } from '../registered-plugins'
 
 const envelope = (seq: number) => ({
   id: `evt_${seq}`,
@@ -43,7 +43,7 @@ const scheduler: StreamScheduler = {
 
 describe('the v2 bodies this app reads', () => {
   it('parses a body a plugin writes', () => {
-    const parsed = v2EventSchema.safeParse({
+    const parsed = eventSchema.safeParse({
       ...envelope(1),
       type: 'service-ready',
       serviceId: 'svc-1',
@@ -52,8 +52,8 @@ describe('the v2 bodies this app reads', () => {
   })
 
   it('keeps the message when the page also holds a plugin body', () => {
-    const said = v2EventSchema.parse({ ...envelope(1), type: 'user-said', text: 'hello' })
-    const ready = v2EventSchema.parse({
+    const said = eventSchema.parse({ ...envelope(1), type: 'user-said', text: 'hello' })
+    const ready = eventSchema.parse({
       ...envelope(2),
       type: 'service-ready',
       serviceId: 'svc-1',
@@ -62,12 +62,12 @@ describe('the v2 bodies this app reads', () => {
   })
 
   it('refuses a body no plugin on this app knows', () => {
-    const parsed = v2EventSchema.safeParse({ ...envelope(1), type: 'from-the-future' })
+    const parsed = eventSchema.safeParse({ ...envelope(1), type: 'from-the-future' })
     expect(parsed.success).toBe(false)
   })
 
   it('reads the skills catalogue a pod pushes', () => {
-    expect(v2EventSchema.safeParse(skillsChanged).success).toBe(true)
+    expect(eventSchema.safeParse(skillsChanged).success).toBe(true)
   })
 
   it('leaves the writer-ahead banner down for a host that announces a skills change', () => {
@@ -76,7 +76,7 @@ describe('the v2 bodies this app reads', () => {
       log: memorySessionLog(),
       scheduler,
       onResnap: () => undefined,
-      knownEventTypes: v2EventTypes,
+      knownEventTypes: eventTypes,
     })
 
     follower.setServerEventTypes(['skills-changed', 'service-ready'])
