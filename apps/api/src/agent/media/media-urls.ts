@@ -1,6 +1,8 @@
 import {
+  EUploadState,
   isOwnedUpload,
   type MediaPart,
+  type MediaUrlLookup,
   type MediaUrlResolver,
   type Message,
 } from '@dltech/atlas-core'
@@ -59,62 +61,34 @@ export const signerUrls = (args: { signer: MediaSigner; userId: string }): Media
   },
 })
 
-const PRESENT_BLOB_FOR_MS = 60_000
+const fileIdOf = (args: MediaUrlLookup): string =>
+  'hash' in args.ref ? args.ref.hash : args.ref.uploadId
 
-const uploadBlobPresence = (args: {
-  signer: MediaSigner
-  now: () => number
-}): ((pathname: string) => Promise<boolean>) => {
-  const absent = new Set<string>()
-  const presentUntil = new Map<string, number>()
-  return async (pathname) => {
-    if (absent.has(pathname)) return false
-    const now = args.now()
-    const heldUntil = presentUntil.get(pathname)
-    if (heldUntil !== undefined && heldUntil > now) return true
-    const size = await args.signer.sizeOf({ pathname })
-    if (size === null) {
-      absent.add(pathname)
-      presentUntil.delete(pathname)
-      return false
-    }
-    presentUntil.set(pathname, now + PRESENT_BLOB_FOR_MS)
-    return true
-  }
+const refuseMissing = (args: MediaUrlLookup): void => {
+  if (args.placements?.get(fileIdOf(args))?.state !== EUploadState.Missing) return
+  throw new Error(`${fileIdOf(args)} is no longer available`)
 }
 
 export const signerAttachmentUrls = (args: {
   signer: MediaSigner
   userId: string
-  now?: (() => number) | undefined
-}): MediaUrlResolver => {
-  const present = uploadBlobPresence({ signer: args.signer, now: args.now ?? Date.now })
-  return {
-    async urlOf({ ref }) {
-      await args.signer.ready()
-      if ('hash' in ref) return args.signer.urlOf({ userId: args.userId, hash: ref.hash })
-      if (!isOwnedUpload({ upload: ref, userId: args.userId })) {
-        throw new Error(`upload ${ref.uploadId} is not owned by this user`)
-      }
-      if (!(await present(ref.pathname))) {
-        throw new Error(`upload ${ref.uploadId} has no blob at ${ref.pathname}`)
-      }
-      return args.signer.urlOfPathname({ pathname: ref.pathname })
-    },
-  }
-}
+}): MediaUrlResolver => ({
+  async urlOf(lookup) {
+    await args.signer.ready()
+    const { ref } = lookup
+    refuseMissing(lookup)
+    if ('hash' in ref) return args.signer.urlOf({ userId: args.userId, hash: ref.hash })
+    if (!isOwnedUpload({ upload: ref, userId: args.userId })) {
+      throw new Error(`upload ${ref.uploadId} is not owned by this user`)
+    }
+    return args.signer.urlOfPathname({ pathname: ref.pathname })
+  },
+})
 
 export const attachmentUrlBinding = (args: {
   signer: MediaSigner | undefined
   userId: string
-  now?: (() => number) | undefined
 }): { mediaUrls?: MediaUrlResolver } =>
   args.signer === undefined
     ? {}
-    : {
-        mediaUrls: signerAttachmentUrls({
-          signer: args.signer,
-          userId: args.userId,
-          now: args.now,
-        }),
-      }
+    : { mediaUrls: signerAttachmentUrls({ signer: args.signer, userId: args.userId }) }

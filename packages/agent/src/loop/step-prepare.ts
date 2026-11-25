@@ -5,23 +5,29 @@ import {
   exchangeFaults,
   mediaFilesOf,
   resolveMediaUrls,
-  type MediaUrlResolver,
+  UPLOAD_PLACEMENT_KIND,
+  uploadPlacementsOf,
   uploadsOf,
+  type MediaUrlResolver,
   type Assembled,
   type AssemblyPipeline,
   type Event,
   type ModelPort,
   type RuleContext,
+  type RunId,
   type SaidMediaFile,
   type SaidUpload,
   type ThreadId,
+  type UploadPlacement,
 } from '@dltech/atlas-core'
 
 import { ESpan, spanWith, type TracePort } from '@dltech/atlas-observability'
 
 import type { HookChain } from '../hooks/registry'
+import type { AgentRecordPort } from '../record/agent-record.port'
 import type { SaidUploadsPort } from '../uploads/said-uploads.port'
 import { TurnFault } from '../model/turn-fault'
+import { placeUnplacedFiles } from './place-unplaced-files'
 import { faultReport } from './turn-faults'
 import type { TrackedTurnDeps } from './tracked-turn-deps'
 
@@ -44,6 +50,7 @@ export function preparedFailureMessage(failure: PreparedFailure): {
 }
 
 export type StepPrepareDeps = {
+  record: Pick<AgentRecordPort, 'factsOfKind' | 'appendFacts'>
   model: ModelPort
   assembly: AssemblyPipeline
   hooks: HookChain | undefined
@@ -53,6 +60,7 @@ export type StepPrepareDeps = {
 }
 
 export const stepPrepareDepsOf = (deps: TrackedTurnDeps): StepPrepareDeps => ({
+  record: deps.record,
   model: deps.model,
   assembly: deps.assembly,
   hooks: deps.hooks,
@@ -61,11 +69,19 @@ export const stepPrepareDepsOf = (deps: TrackedTurnDeps): StepPrepareDeps => ({
   trace: deps.trace,
 })
 
-function filesInEvents({ events, threadId }: { events: readonly Event[]; threadId: ThreadId }): {
+type FilesInEvents = {
   uploads: SaidUpload[]
   mediaFiles: SaidMediaFile[]
   current: Set<string>
-} {
+}
+
+function filesInEvents({
+  events,
+  threadId,
+}: {
+  events: readonly Event[]
+  threadId: ThreadId
+}): FilesInEvents {
   const uploads: SaidUpload[] = []
   const mediaFiles: SaidMediaFile[] = []
   const seenMedia = new Set<string>()
@@ -89,6 +105,7 @@ function filesInEvents({ events, threadId }: { events: readonly Event[]; threadI
 
 type StepPrepareArgs = {
   threadId: ThreadId
+  runId: RunId
   events: readonly Event[]
   step: number
   previous: Assembled | undefined
@@ -106,21 +123,45 @@ export function prepareStepAssembly(
   })
 }
 
+async function placementsForStep(args: {
+  deps: StepPrepareDeps
+  args: StepPrepareArgs
+  files: FilesInEvents
+}): Promise<ReadonlyMap<string, UploadPlacement> | undefined> {
+  const { deps, files } = args
+  const { threadId, runId, signal } = args.args
+  if (files.uploads.length === 0 && files.mediaFiles.length === 0) return undefined
+  const { uploads } = deps
+  if (uploads === undefined) {
+    const known = uploadPlacementsOf(
+      await deps.record.factsOfKind({ threadId, kind: UPLOAD_PLACEMENT_KIND }),
+    )
+    return known.size === 0 ? undefined : known
+  }
+  const placements = await placeUnplacedFiles(
+    {
+      record: deps.record,
+      uploads,
+      ...(deps.trace === undefined ? {} : { trace: deps.trace }),
+    },
+    {
+      threadId,
+      runId,
+      uploads: files.uploads,
+      mediaFiles: files.mediaFiles,
+      currentFileIds: files.current,
+      ...(signal === undefined ? {} : { signal }),
+    },
+  )
+  return placements.size === 0 ? undefined : placements
+}
+
 async function assembleStep(deps: StepPrepareDeps, args: StepPrepareArgs): Promise<PreparedStep> {
   const files = filesInEvents({
     events: args.events,
     threadId: args.threadId,
   })
-  const placements =
-    deps.uploads === undefined || (files.uploads.length === 0 && files.mediaFiles.length === 0)
-      ? undefined
-      : await deps.uploads.place({
-          threadId: args.threadId,
-          uploads: files.uploads,
-          mediaFiles: files.mediaFiles,
-          currentFileIds: files.current,
-          ...(args.signal === undefined ? {} : { signal: args.signal }),
-        })
+  const placements = await placementsForStep({ deps, args, files })
 
   const mediaUrls =
     deps.mediaUrls === undefined
@@ -131,6 +172,7 @@ async function assembleStep(deps: StepPrepareDeps, args: StepPrepareArgs): Promi
           ),
           threadId: args.threadId,
           resolver: deps.mediaUrls,
+          ...(placements === undefined ? {} : { placements }),
         })
 
   const ctx: RuleContext = {
