@@ -66,6 +66,7 @@ export function createSettlePending(deps: {
     projectDirectory: string
     homeDirectory: string
     activeWorktree: ActiveWorktree | undefined
+    paused: () => boolean
   }): Promise<readonly EventDraft[]> => {
     const { call } = args
 
@@ -78,6 +79,7 @@ export function createSettlePending(deps: {
       activeWorktree: args.activeWorktree,
       events: args.events,
       onceLedger: deps.onceLedger,
+      handedOff: args.paused,
       onDispatchStarted: async (draft) => {
         await deps.record.append({
           threadId: call.threadId,
@@ -124,6 +126,7 @@ export function createSettlePending(deps: {
             projectDirectory,
             homeDirectory,
             activeWorktree,
+            paused,
           })
           if (hostDetachedOnHandoff({ signal, detach, name: call.name })) {
             await deps.record.append({

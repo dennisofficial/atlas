@@ -41,6 +41,7 @@ class InterruptedTool extends ToolDefinition {
 const dispatchUnder = async (args: {
   signal: AbortSignal
   tool?: ToolDefinition | undefined
+  handedOff?: (() => boolean) | undefined
 }): Promise<RecordingTracer> => {
   const trace = new RecordingTracer()
   const dispatcher = new HookedToolDispatcher({
@@ -53,7 +54,13 @@ const dispatchUnder = async (args: {
       name: ESpan.Turn,
       root: true,
       run: () =>
-        dispatcher.dispatch({ call, signal: args.signal, projectDirectory: '/repo', events: [] }),
+        dispatcher.dispatch({
+          call,
+          signal: args.signal,
+          projectDirectory: '/repo',
+          events: [],
+          handedOff: args.handedOff,
+        }),
     })
     .catch(() => undefined)
   return trace
@@ -80,6 +87,15 @@ describe('the tool span outcome', () => {
     abort.abort('handoff')
 
     const trace = await dispatchUnder({ signal: abort.signal, tool: new InterruptedTool() })
+
+    expect(trace.named(ESpan.Tool)[0]?.fields.outcome).toBe(ESpanOutcome.Handoff)
+  })
+
+  it('is handoff for a call a drain paused, whose result the next host records', async () => {
+    const trace = await dispatchUnder({
+      signal: new AbortController().signal,
+      handedOff: () => true,
+    })
 
     expect(trace.named(ESpan.Tool)[0]?.fields.outcome).toBe(ESpanOutcome.Handoff)
   })
