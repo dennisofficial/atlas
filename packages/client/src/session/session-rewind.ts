@@ -4,11 +4,11 @@ import {
   EAttachmentStore,
   oneLine,
   type Attachment,
+  type SaidImage,
   type SaidUpload,
   type RecordEvent,
 } from '@dltech/atlas-core'
 import type { SessionCommandInput, SessionCommandOutput } from '@dltech/atlas-protocol'
-import type { SaidImageWire } from '@dltech/atlas-wire/web'
 
 export type RewindApi = {
   command(input: SessionCommandInput): Promise<SessionCommandOutput>
@@ -38,7 +38,7 @@ export type RestoredMedia = {
 export type RestorePlan = {
   media: RestoredMedia[]
   uploads: SaidUpload[]
-  images: SaidImageWire[]
+  images: SaidImage[]
 }
 
 export const seqByEventIdOf = (events: readonly RecordEvent[]): ReadonlyMap<string, number> =>
@@ -121,7 +121,7 @@ export const restorePlanOf = (attachments: readonly Attachment[]): RestorePlan =
       plan.media.push({ hash: content.hash, name, mediaType, size, inline: content.inline })
       continue
     }
-    const image = (data: string): SaidImageWire => ({
+    const image = (data: string): SaidImage => ({
       path: name,
       mediaType,
       data,
