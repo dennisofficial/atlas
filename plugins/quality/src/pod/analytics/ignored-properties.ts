@@ -8,7 +8,7 @@ import {
 import { foldQualityFindings } from '../../review/ledger'
 import type { QualityReviewEventProperties } from './review-properties'
 import {
-  lastIndexOfType,
+  lastTurnStartOf,
   notifyIndexOf,
   qualityRecordsOf,
   stepsAfter,
@@ -33,7 +33,7 @@ export const ignoredFindingProperties = (args: {
   threadId: ThreadId
 }): readonly QualityReviewEventProperties[] => {
   const thread = threadEventsOf({ events: args.events, threadId: args.threadId })
-  const turnStartedAt = lastIndexOfType({ events: thread, type: 'turn-started' })
+  const turnStartedAt = lastTurnStartOf({ events: thread })
   if (turnStartedAt === -1) return []
 
   const records = qualityRecordsOf({ events: thread })
