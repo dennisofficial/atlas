@@ -31,7 +31,9 @@ data on Prisma 8 is stale. After a Prisma bump, run `bunx prisma skills sync`. T
   table names. `McpServer` holds both user-scoped and project-scoped MCP servers, with `userId` XOR
   `projectId`. A cloud-registered server has `source = 'cloud'` and a sealed spec. A repo-defined
   server has `source = 'repo'` and the pod creates it. Each server's OAuth grant lives in its own
-  row.
+  row. An access grant names a bundle of access plus the operator's instruction: `UserAccessGrant`
+  and `ProjectAccessGrant`, whose members are the existing secret (and project file mount) rows
+  linked by a nullable `grantId` that is set to null when the grant is deleted.
 
 ## Migrations
 

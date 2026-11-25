@@ -46,6 +46,10 @@ export function AddSecretDialog({
   defaultOpen = false,
   initialName = '',
   hideTrigger = false,
+  triggerLabel = 'Add',
+  triggerVariant = 'default',
+  title = 'Add a secret',
+  submitLabel = 'Add secret',
   description,
   onClosed,
   onAdd,
@@ -53,6 +57,10 @@ export function AddSecretDialog({
   defaultOpen?: boolean
   initialName?: string
   hideTrigger?: boolean
+  triggerLabel?: string
+  triggerVariant?: 'default' | 'outline'
+  title?: string
+  submitLabel?: string
   description: string
   onClosed?: () => void
   onAdd: (pair: SecretPair) => void
@@ -79,14 +87,14 @@ export function AddSecretDialog({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       {hideTrigger ? null : (
-        <DialogTrigger render={<Button size="sm" />}>
+        <DialogTrigger render={<Button variant={triggerVariant} size="sm" />}>
           <PlusIcon data-icon="inline-start" />
-          Add
+          {triggerLabel}
         </DialogTrigger>
       )}
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Add a secret</DialogTitle>
+          <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <Field data-invalid={nameInvalid || undefined}>
@@ -113,14 +121,12 @@ export function AddSecretDialog({
             value={value}
             onChange={(event) => setValue(event.target.value)}
           />
-          <FieldDescription>
-            Encrypted at rest. Nobody can read it back after saving.
-          </FieldDescription>
+          <FieldDescription>Encrypted at rest.</FieldDescription>
         </Field>
         <DialogFooter>
           <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
           <Button disabled={!canSave} onClick={handleSubmit}>
-            Add secret
+            {submitLabel}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -131,10 +137,12 @@ export function AddSecretDialog({
 export function BulkAddDialog({
   defaultOpen = false,
   initialText = '',
+  hideTrigger = false,
   onAdd,
 }: {
   defaultOpen?: boolean
   initialText?: string
+  hideTrigger?: boolean
   onAdd: (pairs: SecretPair[]) => void
 }) {
   const [open, setOpen] = useState(defaultOpen)
@@ -152,7 +160,9 @@ export function BulkAddDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger render={<Button variant="outline" size="sm" />}>Bulk add</DialogTrigger>
+      {hideTrigger ? null : (
+        <DialogTrigger render={<Button variant="outline" size="sm" />}>Bulk add</DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Bulk add secrets</DialogTitle>

@@ -19,11 +19,6 @@ export const SHIP_BEHAVIORS: readonly {
   },
 ]
 
-export interface SecretRow {
-  name: string
-  updated: string
-}
-
 export enum EMcpTransport {
   Stdio = 'stdio',
   Http = 'http',

@@ -18,7 +18,6 @@ import { toMcpServer, transportOf } from '../mcp-api'
 import { buildGroups, memoryKeyInput } from '../memory-api'
 import { modelsChanges, modelsDraftFrom } from '../models-settings'
 import { relativeTime } from '../relative-time'
-import { toEnvSecretRow } from '../secrets-api'
 
 const NOW = Date.parse('2026-10-20T12:00:00Z')
 const ago = (ms: number) => new Date(NOW - ms).toISOString()
@@ -96,20 +95,6 @@ describe('memory mapping', () => {
       name: 'n',
       project: 'a/b',
     })
-  })
-})
-
-describe('secrets mapping', () => {
-  it('maps a detail onto a library row', () => {
-    const row = toEnvSecretRow({
-      summary: {
-        name: 'A',
-        createdAt: ago(0),
-        updatedAt: ago(2 * 3_600_000),
-      },
-      now: NOW,
-    })
-    expect(row).toEqual({ name: 'A', updated: '2h ago' })
   })
 })
 

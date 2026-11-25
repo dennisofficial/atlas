@@ -11,11 +11,9 @@ export const PROJECT_SECTION_STATUS: Record<EProjectSettingsSection, PageStatusI
   [EProjectSettingsSection.Sandbox]: {
     status: EPageStatus.Live,
   },
-  [EProjectSettingsSection.Secrets]: {
+  [EProjectSettingsSection.Access]: {
     status: EPageStatus.Live,
-  },
-  [EProjectSettingsSection.Files]: {
-    status: EPageStatus.Live,
+    detail: 'Delivered to every session of this project at the start of its next turn.',
   },
   [EProjectSettingsSection.Skills]: {
     status: EPageStatus.Live,

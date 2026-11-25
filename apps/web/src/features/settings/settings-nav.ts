@@ -5,6 +5,7 @@ import {
   BrainIcon,
   FlaskConicalIcon,
   GaugeIcon,
+  LockKeyholeIcon,
   PaletteIcon,
   PlugIcon,
   ScaleIcon,
@@ -12,7 +13,6 @@ import {
   ShieldIcon,
   SparklesIcon,
   UserIcon,
-  VariableIcon,
   WrenchIcon,
   type LucideIcon,
 } from 'lucide-react'
@@ -26,7 +26,7 @@ export enum ESettingsPage {
   ModelsEffort = 'models-effort',
   Providers = 'providers',
   Classifier = 'classifier',
-  Secrets = 'secrets',
+  Access = 'access',
   Appearance = 'appearance',
   Notifications = 'notifications',
   Security = 'security',
@@ -69,7 +69,7 @@ export const SETTINGS_NAV: SettingsNavGroup[] = [
   },
   {
     label: 'Library',
-    items: [{ page: ESettingsPage.Secrets, label: 'Secrets & Env Vars', icon: VariableIcon }],
+    items: [{ page: ESettingsPage.Access, label: 'Access', icon: LockKeyholeIcon }],
   },
   {
     label: 'Interface',

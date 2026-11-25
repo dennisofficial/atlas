@@ -2,21 +2,11 @@ import type { ReactNode } from 'react'
 
 import { CardRow } from '@dltech/atlas-ui/components/card'
 import { Skeleton } from '@dltech/atlas-ui/components/skeleton'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@dltech/atlas-ui/components/table'
-
 import { Line } from '@/features/settings/skeletons/primitives'
 
 import { ERowLayout, SettingsCard, SettingsRow, SettingsSection } from './settings-layout'
 
 const BUTTON = 'h-7 rounded-lg'
-const KEYS = [0, 1, 2]
 
 function RowSkeleton({
   layout = ERowLayout.Inline,
@@ -161,46 +151,5 @@ export function McpPageSkeleton() {
         ))}
       </SettingsCard>
     </SettingsSection>
-  )
-}
-
-export function FilesSkeleton() {
-  return (
-    <>
-      <div className="flex items-center justify-between gap-3">
-        <h3 className="text-sm font-medium">Mounted files</h3>
-        <Skeleton className={`${BUTTON} w-24`} />
-      </div>
-      <Table variant="framed" className="min-w-xl table-fixed">
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-[52%]">Path</TableHead>
-            <TableHead className="w-[16%]">Mode</TableHead>
-            <TableHead className="w-[24%]">Updated</TableHead>
-            <TableHead className="w-12">
-              <span className="sr-only">Actions</span>
-            </TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {KEYS.map((key) => (
-            <TableRow key={key}>
-              <TableCell>
-                <Skeleton className="h-4 w-48" />
-              </TableCell>
-              <TableCell>
-                <Skeleton className="h-4 w-10" />
-              </TableCell>
-              <TableCell>
-                <Skeleton className="h-4 w-16" />
-              </TableCell>
-              <TableCell className="text-right">
-                <Skeleton className="ml-auto size-7 rounded-lg" />
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </>
   )
 }

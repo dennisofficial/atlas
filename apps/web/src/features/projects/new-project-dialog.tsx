@@ -136,10 +136,8 @@ function NewProjectBody({
   const handleCancel = () => {
     const projectId = progress.current.projectId
     if (projectId !== null) {
-      toast.error(
-        'Project already created. Add the remaining values in Secrets & Env Vars settings.',
-      )
-      router.push(`/projects/${encodeURIComponent(projectId)}/settings/secrets`)
+      toast.error('Project already created. Add the remaining values in Access settings.')
+      router.push(`/projects/${encodeURIComponent(projectId)}/settings/access`)
     }
     onClose()
   }

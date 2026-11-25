@@ -3,6 +3,10 @@ import type { FileMountSummary } from '@dltech/atlas-wire/web'
 import { Injectable, NotFoundException } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
+import {
+  cleanupProjectGrant,
+  resolveProjectGrantId,
+} from '../access-grants/access-grant-membership'
 import { openSecretValue, sealSecretValue } from '../secrets/sealed-secret'
 import { ProjectsService } from './projects.service'
 
@@ -38,27 +42,67 @@ export class ProjectFileMountsService {
     return openSecretValue({ cipher: this.cipher, sealed: row.sealedContents })
   }
 
-  async set(args: Scope & { path: string; contents: string; mode: number }): Promise<void> {
+  async set(
+    args: Scope & {
+      path: string
+      contents: string
+      mode: number
+      grantId?: string | undefined
+    },
+  ): Promise<void> {
     await this.projects.read(args)
     const sealedContents = sealSecretValue({ cipher: this.cipher, value: args.contents })
-    await db.orm.public.ProjectFileMount.upsert({
-      conflictOn: { projectId: args.projectId, path: args.path },
-      create: {
-        id: `pfm_${randomUUID()}`,
+    await db.transaction(async (tx) => {
+      const existing = await tx.orm.public.ProjectFileMount.where({
         projectId: args.projectId,
         path: args.path,
-        sealedContents,
-        mode: args.mode,
-      },
-      update: { sealedContents, mode: args.mode },
+      }).first()
+      const grantId = await resolveProjectGrantId({
+        tx,
+        projectId: args.projectId,
+        requestedGrantId: args.grantId,
+        existingGrantId: existing === null ? null : existing.grantId,
+        label: args.path,
+      })
+      await tx.orm.public.ProjectFileMount.upsert({
+        conflictOn: { projectId: args.projectId, path: args.path },
+        create: {
+          id: `pfm_${randomUUID()}`,
+          projectId: args.projectId,
+          path: args.path,
+          sealedContents,
+          mode: args.mode,
+          grantId,
+        },
+        update: { sealedContents, mode: args.mode, grantId },
+      })
+      if (existing !== null && existing.grantId !== grantId) {
+        await cleanupProjectGrant({
+          tx,
+          projectId: args.projectId,
+          grantId: existing.grantId,
+        })
+      }
     })
   }
 
   async remove(args: Scope & { path: string }): Promise<void> {
     await this.projects.read(args)
-    await db.orm.public.ProjectFileMount.where({
-      projectId: args.projectId,
-      path: args.path,
-    }).deleteAndCount()
+    await db.transaction(async (tx) => {
+      const existing = await tx.orm.public.ProjectFileMount.where({
+        projectId: args.projectId,
+        path: args.path,
+      }).first()
+      if (existing === null) return
+      await tx.orm.public.ProjectFileMount.where({
+        projectId: args.projectId,
+        path: args.path,
+      }).deleteAndCount()
+      await cleanupProjectGrant({
+        tx,
+        projectId: args.projectId,
+        grantId: existing.grantId,
+      })
+    })
   }
 }

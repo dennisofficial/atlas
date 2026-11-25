@@ -6,13 +6,11 @@ import { AccountSignInMethodsCard } from '../parts/account-sign-in-methods-card'
 import { EMemoryType, type MemoryEntry } from '../fixtures/settings-memory'
 import { EQueryState } from '@/lib/use-cloud-query'
 import { EMemorySheetMode, MemorySheet } from '../parts/memory-sheet'
-import { EnvSecretsContent } from '../parts/env-secrets-table'
 import { DeviceRow } from '../parts/security-device-row'
 import { SettingsCard, SettingsSection } from '../settings-layout'
 import { AccountSkeleton } from './account-skeletons'
 import { ModelsSkeleton, NotificationsSkeleton } from './agent-skeletons'
 import { MemorySkeleton, ProvidersSkeleton, SecurityDevicesSkeleton } from './library-skeletons'
-import { EnvSecretsSkeleton } from './table-skeletons'
 
 function Pair({ loading, loaded }: { loading: ReactNode; loaded: ReactNode }) {
   return (
@@ -99,28 +97,6 @@ export const SecurityDevices = {
             />
           ))}
         </SettingsCard>
-      }
-    />
-  ),
-}
-
-export const Secrets = {
-  render: () => (
-    <Pair
-      loading={<EnvSecretsSkeleton />}
-      loaded={
-        <EnvSecretsContent
-          rows={[
-            { name: 'OPENAI_API_KEY', updated: '2d ago' },
-            { name: 'DATABASE_URL', updated: '5d ago' },
-            { name: 'SENTRY_DSN', updated: '1w ago' },
-          ]}
-          emptyDescription=""
-          dialogDescription=""
-          fetchValue={async () => 'value'}
-          onSave={async () => true}
-          onRemove={noop}
-        />
       }
     />
   ),

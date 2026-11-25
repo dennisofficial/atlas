@@ -1,7 +1,13 @@
+import { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 import { describe, expect, it } from 'bun:test'
 
-import { readProjectFiles, type ProjectFileRows, type SealedFileMountRow } from '../project-files'
-import { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
+import type { ScopedFileMount } from '../../runtime/project-files'
+import {
+  mergedFileMounts,
+  readProjectFiles,
+  type ProjectFileRows,
+  type SealedFileMountRow,
+} from '../project-files'
 
 const KEY = 'a'.repeat(64)
 
@@ -13,15 +19,49 @@ const row = (path: string, contents: string, mode = 0o600): SealedFileMountRow =
   mode,
 })
 
-const rowsOf = (mounts: readonly SealedFileMountRow[]): ProjectFileRows => ({
-  mounts: async () => mounts,
+const rowsOf = (args: {
+  projectMounts?: readonly SealedFileMountRow[]
+  userMounts?: readonly SealedFileMountRow[]
+}): ProjectFileRows => ({
+  projectMounts: async () => args.projectMounts ?? [],
+  userMounts: async () => args.userMounts ?? [],
+})
+
+const mountOf = (path: string, contents: string): ScopedFileMount => ({
+  path,
+  contents,
+  mode: 0o600,
+})
+
+describe('mergedFileMounts', () => {
+  it('keeps the project mount when a personal mount holds the same path', () => {
+    const mounts = mergedFileMounts({
+      projectMounts: [mountOf('~/notes.md', 'project')],
+      userMounts: [mountOf('~/notes.md', 'personal'), mountOf('~/.npmrc', 'personal')],
+    })
+
+    expect(mounts).toEqual([mountOf('~/.npmrc', 'personal'), mountOf('~/notes.md', 'project')])
+  })
+
+  it('returns the personal mounts of a session without a project', () => {
+    const mounts = mergedFileMounts({
+      projectMounts: [],
+      userMounts: [mountOf('~/.npmrc', 'personal')],
+    })
+
+    expect(mounts).toEqual([mountOf('~/.npmrc', 'personal')])
+  })
 })
 
 describe('readProjectFiles', () => {
-  it('unseals the mounted files with their modes', async () => {
+  it('unseals the project and personal mounts with their modes', async () => {
     const mounts = await readProjectFiles({
-      rows: rowsOf([row('.env.keys', 'DOTENV_PRIVATE_KEY=x'), row('~/notes.md', 'hi', 0o644)]),
+      rows: rowsOf({
+        projectMounts: [row('.env.keys', 'DOTENV_PRIVATE_KEY=x')],
+        userMounts: [row('~/notes.md', 'hi', 0o644)],
+      }),
       cipher,
+      userId: 'user-1',
       projectId: 'prj-1',
     })
 
@@ -31,10 +71,27 @@ describe('readProjectFiles', () => {
     ])
   })
 
+  it('reads the personal mounts of a session that has no project', async () => {
+    const mounts = await readProjectFiles({
+      rows: rowsOf({ userMounts: [row('~/.npmrc', 'registry=x')] }),
+      cipher,
+      userId: 'user-1',
+      projectId: null,
+    })
+
+    expect(mounts).toEqual([{ path: '~/.npmrc', contents: 'registry=x', mode: 0o600 }])
+  })
+
   it('drops a row whose contents do not open', async () => {
     const mounts = await readProjectFiles({
-      rows: rowsOf([row('.env', 'KEY=1'), { path: 'broken', sealedContents: 'nope', mode: 0o600 }]),
+      rows: rowsOf({
+        projectMounts: [
+          row('.env', 'KEY=1'),
+          { path: 'broken', sealedContents: 'nope', mode: 0o600 },
+        ],
+      }),
       cipher,
+      userId: 'user-1',
       projectId: 'prj-1',
     })
 

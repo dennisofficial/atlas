@@ -29,9 +29,9 @@ export const PERSONAL_PAGE_STATUS = {
     status: EPageStatus.Live,
     detail: 'Saved to your account and read by every new session.',
   },
-  [ESettingsPage.Secrets]: {
+  [ESettingsPage.Access]: {
     status: EPageStatus.Live,
-    detail: 'Delivered to your sandboxes as harness secrets.',
+    detail: 'Delivered to every cloud thread at the start of its next turn.',
   },
   [ESettingsPage.Appearance]: {
     status: EPageStatus.Stored,

@@ -50,7 +50,6 @@ describe('envSecretsRefresher', () => {
 
     expect(seen).toEqual([{ userId: 'usr-1', projectId: 'prj-1' }])
     expect(cell.current()).toEqual({ API_KEY: 'k' })
-    expect(cell.exportedSecretNames()).toEqual(['API_KEY'])
   })
 
   it('keeps the previous set and logs without a value when the read fails', async () => {

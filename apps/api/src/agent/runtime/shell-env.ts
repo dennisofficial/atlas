@@ -87,7 +87,6 @@ export const shellEnvOf = (args: {
 export class ShellEnvCell {
   private env: Record<string, string> = {}
   private secretEnv: Record<string, string> = {}
-  private secretNames: readonly string[] = []
   private token: string | null = null
   private signing: SigningConfig | null = null
   private launchDirectory: string | null = null
@@ -103,13 +102,8 @@ export class ShellEnvCell {
     return { ...this.secretEnv, ...this.env }
   }
 
-  exportedSecretNames(): readonly string[] {
-    return this.secretNames
-  }
-
   setSecrets(secrets: ExportedEnvSecrets): void {
     this.secretEnv = secrets.env
-    this.secretNames = secrets.names
   }
 
   async refresh(args: {

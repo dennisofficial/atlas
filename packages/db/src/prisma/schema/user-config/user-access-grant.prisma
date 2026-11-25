@@ -1,0 +1,14 @@
+// use prisma-8
+model UserAccessGrant {
+  id          String               @id
+  userId      String
+  name        String
+  instruction String               @default("")
+  createdAt   TimestamptzJsDate(3) @default(now())
+  updatedAt   TimestamptzJsDate(3) @onCreate(now()) @onUpdate(now())
+  user        User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  secrets     UserSecret[]
+  fileMounts  UserFileMount[]
+
+  @@unique([userId, name])
+}

@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
 import { EShipBehavior } from '@dltech/atlas-wire/web'
-import type { ListedSecret } from '@/features/settings/data/shared/resource-api'
 
 import type { ProjectView } from '../project-api'
 import {
@@ -11,9 +10,6 @@ import {
   saveBodyOf,
   shipOptionsOf,
 } from '../project-mapping'
-import { projectSecretRows } from '../project-secrets'
-
-const NOW = Date.parse('2026-10-20T12:00:00Z')
 
 const project: ProjectView = {
   id: 'p1',
@@ -71,18 +67,5 @@ describe('ship options', () => {
     expect(legacy).toMatchObject({ label: LEGACY_MERGE_LABEL, disabled: true })
     expect(LEGACY_MERGE_LABEL).toBe('Merge when green (no longer offered)')
     expect(options.filter((option) => !option.disabled)).toHaveLength(2)
-  })
-})
-
-describe('project secret rows', () => {
-  it('maps project secrets to rows', () => {
-    const secret: ListedSecret = {
-      name: 'A',
-      createdAt: '',
-      updatedAt: '2026-10-20T11:00:00Z',
-    }
-    expect(projectSecretRows({ secrets: [secret], now: NOW })).toEqual([
-      { name: 'A', updated: '1h ago' },
-    ])
   })
 })

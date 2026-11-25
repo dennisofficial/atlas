@@ -14,6 +14,7 @@ import type {
   WorkspaceStepReport,
 } from '@dltech/atlas-core'
 import type {
+  HookChainArgs,
   NormalizeFailure,
   SaidUploadsPort,
   ToolEffectResolver,
@@ -115,6 +116,7 @@ export type SessionRuntime = {
   onCheckout?: ((listener: (checkoutPath: string) => void) => () => void) | undefined
   baseBranchOf(repoPath: string): string | null
   plugins?: ComposedPlugins | undefined
+  hooks?: HookChainArgs | undefined
   runningShells(): Promise<number>
   terminalStreams?: (() => number) | undefined
   panelHolds?: (() => number) | undefined
