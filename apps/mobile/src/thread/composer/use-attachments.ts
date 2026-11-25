@@ -190,6 +190,7 @@ export function useAttachments(): ComposerAttachments {
 
   const pick = useCallback(
     async (source: EAttachSource) => {
+      setNotice(null)
       try {
         const outcome = await pickFrom(source)
         if (outcome.notice !== null) setNotice(outcome.notice)
