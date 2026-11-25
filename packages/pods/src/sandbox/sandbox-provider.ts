@@ -16,7 +16,7 @@ export type DaemonEndpoint = {
   diskGb?: number | undefined
 }
 
-export type PodResizeOutcome = 'restarted' | 'stored' | 'absent'
+export type PodResizeOutcome = 'restarted' | 'unchanged' | 'stored' | 'absent'
 
 /** One pod sandbox a provider holds, named by its pod session rather than by any provider's name. */
 export type SandboxListing = {

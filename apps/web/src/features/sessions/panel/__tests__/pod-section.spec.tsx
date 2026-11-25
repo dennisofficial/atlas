@@ -552,20 +552,34 @@ describe('podBusyOfView', () => {
     expect(podBusyOfView({ view: populatedPaneValue().view, status: undefined }).busy).toBe(true)
   })
 
-  it('resizes under a thinking turn and holds for a tool call or a setup script', () => {
+  it('resizes under a thinking turn and holds for a bash command or a setup script', () => {
     expect(
       podBusyOfView({ view: paneValueFixture().view, status: { state: ESessionStatus.Thinking } }),
     ).toEqual({ busy: false, running: [] })
     expect(
       podBusyOfView({
         view: paneValueFixture().view,
-        status: { state: ESessionStatus.RunningTool },
+        status: { state: ESessionStatus.RunningTool, reason: 'bash' },
       }).running,
-    ).toEqual(['Tool call'])
+    ).toEqual(['Bash command'])
+    expect(
+      podBusyOfView({
+        view: paneValueFixture().view,
+        status: { state: ESessionStatus.RunningTool, reason: 'read' },
+      }),
+    ).toEqual({ busy: false, running: [] })
     expect(
       podBusyOfView({ view: paneValueFixture().view, status: { state: ESessionStatus.Preparing } })
         .running,
     ).toEqual(['Setup script'])
+  })
+
+  it('resizes in the background while only sub-agents run', () => {
+    const view = { ...paneValueFixture().view, crew: { running: 3, total: 3 } }
+    expect(podBusyOfView({ view, status: { state: ESessionStatus.Thinking } })).toEqual({
+      busy: false,
+      running: [],
+    })
   })
 
   it('counts a background setup script whose session is idle', () => {

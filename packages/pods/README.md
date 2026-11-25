@@ -61,8 +61,10 @@ they read. `apps/api` and `apps/trigger` both use it. It has no framework import
 - `runPodSleep`, `runPodResize`, `runPodDiskGrow`, `growPodDisk` are plain
   functions over injected deps: no database, clock or network of their own.
 - `readPodBusy` and `readPodRebootFacts` read a session's busy state from a `ControlPlane`.
-- `readPodResizeBusy` reads what holds a resize: pod processes, a running tool call or sub-agents,
-  but not a turn that only thinks.
+- `readPodResizeBusy` reads what holds a resize: the setup script, shells, services and a
+  foreground bash command. Agent turns, other tool calls and sub-agents never hold one.
+- `POD_RESIZE_MAX_DURATION_SECONDS` is the pod-resize task budget. It outlasts the slowest
+  agent37 resize, so a provider timeout fails the run before trigger.dev kills it.
 - `reconcileAgent37Usage` meters the instances the wallet billed.
 - `POD_DISK_GROWN_LIFETIME_STEPS` and `podDiskGrownNotice(diskGb)` are the inbox nudge a grown pod
   leaves for its session.
