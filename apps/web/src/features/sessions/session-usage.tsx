@@ -113,7 +113,7 @@ export function SessionUsage(args: {
           <Button
             variant="ghost"
             size="sm"
-            className="tabular-nums"
+            className="text-sm font-bold tabular-nums"
             aria-label={labelOf({ report, shown })}
           />
         }
