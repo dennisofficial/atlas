@@ -203,7 +203,7 @@ describe('marking a workspace materialized', () => {
         },
         launchDirectory: '/workspace',
       }),
-    ).toEqual({ materialized: false, setupRan: false })
+    ).toEqual({ materialized: false, setupRan: false, setupStarted: undefined })
   })
 
   it('leaves no sentinel when the bases file cannot be published', async () => {

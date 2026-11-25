@@ -71,6 +71,7 @@ const controllerOf = (files: FailingBasesFiles): PrepareController =>
     calls: {
       ready: async () => ({ bootId: 'boot-1', version: 'test' }),
       ackScope: async () => {},
+      bootId: () => 'boot-1',
     },
     processes: new BranchProcessPort(),
     files,
