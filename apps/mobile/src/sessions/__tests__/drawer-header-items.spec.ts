@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'bun:test'
 
-import { ESessionsListLayout } from '../../layout/posture'
+import { EControlsPlacement, ESessionsListLayout } from '../../layout/posture'
 import {
   drawerBarItemsOf,
   drawerSearchBarPropsOf,
+  showsAccountViewOf,
   usesNativeSearchOf,
 } from '../drawer-header-items'
 
@@ -31,28 +32,16 @@ describe('usesNativeSearchOf', () => {
   })
 })
 
-describe('drawerBarItemsOf', () => {
-  it('puts account on the left only when the controls sit in the bottom bar', () => {
-    const withAccount = drawerBarItemsOf({
-      showsAccount: true,
-      onAccount: noop,
-      onNewSession: noop,
-    })
-    const withoutAccount = drawerBarItemsOf({
-      showsAccount: false,
-      onAccount: noop,
-      onNewSession: noop,
-    })
-    expect(withAccount.left).toHaveLength(1)
-    expect(withoutAccount.left).toHaveLength(0)
+describe('showsAccountViewOf', () => {
+  it('shows the account avatar in the header only when the controls sit in the bottom bar', () => {
+    expect(showsAccountViewOf({ controls: EControlsPlacement.BottomBar })).toBe(true)
+    expect(showsAccountViewOf({ controls: EControlsPlacement.Rail })).toBe(false)
   })
+})
 
+describe('drawerBarItemsOf', () => {
   it('always offers a plus button on the right', () => {
-    const { right } = drawerBarItemsOf({
-      showsAccount: false,
-      onAccount: noop,
-      onNewSession: noop,
-    })
+    const { right } = drawerBarItemsOf({ onNewSession: noop })
     expect(right).toEqual([
       {
         accessibilityLabel: 'New session',
@@ -63,19 +52,16 @@ describe('drawerBarItemsOf', () => {
     ])
   })
 
-  it('runs the account action when the account button is pressed', () => {
+  it('runs the new session action when the plus button is pressed', () => {
     let pressed = 0
-    const { left } = drawerBarItemsOf({
-      showsAccount: true,
-      onAccount: () => {
+    const { right } = drawerBarItemsOf({
+      onNewSession: () => {
         pressed += 1
       },
-      onNewSession: noop,
     })
-    const item = left[0]
-    if (item?.type !== 'button') throw new Error('account item is not a button')
+    const item = right[0]
+    if (item?.type !== 'button') throw new Error('new session item is not a button')
     item.onPress()
     expect(pressed).toBe(1)
-    expect(item.accessibilityLabel).toBe('Settings')
   })
 })

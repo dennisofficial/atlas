@@ -42,6 +42,7 @@ const outlineOf = (data: readonly SectionItem[]): string[] =>
     if (item.kind === EItemKind.DoneToggle) {
       return `${item.key}#${item.count}${item.open ? '+' : '-'}`
     }
+    if (item.kind === EItemKind.EmptyProject) return `${item.projectId}${item.kind}`
     return item.kind
   })
 
@@ -71,11 +72,31 @@ describe('sectionsOf', () => {
     const sections = sectionsOf({ partition, query: '', toggled: new Set() })
     expect(sections.map((section) => [section.title, section.count, section.data.length])).toEqual([
       ['atlas', 2, 2],
-      ['RCP', 0, 0],
+      ['RCP', 0, 1],
       ['Archived', 1, 0],
     ])
     expect(sections.map((section) => section.gapBefore)).toEqual([0, GROUP_GAP, GROUP_GAP])
     expect(sections[2]?.hint).toBeNull()
+  })
+
+  it('offers to start a session under an empty project', () => {
+    const sections = sectionsOf({ partition, query: '', toggled: new Set() })
+    expect(sections[1]?.data).toEqual([
+      { kind: EItemKind.EmptyProject, key: `${EItemKind.EmptyProject}:rcp`, projectId: 'rcp' },
+    ])
+  })
+
+  it('hides the empty project row while searching', () => {
+    const sections = sectionsOf({ partition, query: 'session b', toggled: new Set() })
+    expect(sections.flatMap((section) => section.data.map((item) => item.kind))).toEqual([
+      EItemKind.Session,
+    ])
+    expect(sections.map((section) => section.title)).toEqual(['atlas'])
+  })
+
+  it('hides the empty project row under a collapsed project', () => {
+    const sections = sectionsOf({ partition, query: '', toggled: new Set(['rcp']) })
+    expect(sections[1]).toMatchObject({ title: 'RCP', expanded: false, data: [] })
   })
 
   it('labels each project inside an open bucket', () => {

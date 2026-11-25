@@ -11,12 +11,14 @@ export enum EItemKind {
   Session = 'session',
   ProjectLabel = 'project-label',
   DoneToggle = 'done-toggle',
+  EmptyProject = 'empty-project',
 }
 
 export type SectionItem =
   | { kind: EItemKind.Session; key: string; entry: ISessionEntry; depth: number }
   | { kind: EItemKind.ProjectLabel; key: string; name: string }
   | { kind: EItemKind.DoneToggle; key: string; count: number; open: boolean; depth: number }
+  | { kind: EItemKind.EmptyProject; key: string; projectId: string }
 
 export interface ISessionSection {
   key: string
@@ -133,7 +135,19 @@ const rowsOfGroup = ({
 }: {
   group: IProjectGroup
   doneOpen: DoneOpen
-}): SectionItem[] => childrenRowsOf({ entries: group.sessions, depth: 0, doneOpen })
+}): SectionItem[] => {
+  if (group.sessions.length > 0) {
+    return childrenRowsOf({ entries: group.sessions, depth: 0, doneOpen })
+  }
+  if (group.projectId === null) return []
+  return [
+    {
+      kind: EItemKind.EmptyProject,
+      key: `${EItemKind.EmptyProject}:${group.key}`,
+      projectId: group.projectId,
+    },
+  ]
+}
 
 export const sectionsOf = ({
   partition,
