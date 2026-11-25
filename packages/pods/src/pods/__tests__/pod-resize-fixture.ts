@@ -11,6 +11,8 @@ export const sessionOf = (over: Partial<PodResizeSession> = {}): PodResizeSessio
   ...over,
 })
 
+export const WAIT_AT = '2026-11-25T10:00:00.000Z'
+
 export const depsOf = (over: Partial<PodResizeDeps> = {}) => {
   const resizes: {
     sandboxSessionId: string
@@ -20,8 +22,8 @@ export const depsOf = (over: Partial<PodResizeDeps> = {}) => {
   const wakes: { sessionId: string; epoch: number }[] = []
   const applied: { sessionId: string; vcpus: number; memoryGb: number; generation: number }[] = []
   const failures: { sessionId: string; generation: number; error: string }[] = []
-  const requeues: { payload: unknown; delaySeconds: number }[] = []
-  const waits: { sessionId: string; generation: number }[] = []
+  const waits: { sessionId: string; generation: number; since: string }[] = []
+  const claims: { sessionId: string; generation: number; since: string }[] = []
   const started: {
     sessionId: string
     vcpus: number
@@ -72,10 +74,13 @@ export const depsOf = (over: Partial<PodResizeDeps> = {}) => {
     busy: async () => ({ busy: false, running: [] }),
     recordWaiting: async (args) => {
       waits.push(args)
+      return true
     },
-    requeue: async (args) => {
-      requeues.push(args)
+    claimWait: async (args) => {
+      claims.push(args)
+      return true
     },
+    now: () => WAIT_AT,
     ...over,
   }
   return {
@@ -84,8 +89,8 @@ export const depsOf = (over: Partial<PodResizeDeps> = {}) => {
     wakes,
     applied,
     failures,
-    requeues,
     waits,
+    claims,
     started,
     notices,
     sleeps,

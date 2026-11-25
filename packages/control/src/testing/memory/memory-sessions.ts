@@ -120,6 +120,20 @@ export const setSessionPodWaitingIn = (params: {
   return true
 }
 
+export const takeSessionPodWaitIn = (params: {
+  state: State
+  sessionId: string
+  generation: number
+  since: string
+}): boolean => {
+  const row = params.state.sessions.get(params.sessionId)
+  if (row === undefined || row.podSizeGeneration !== params.generation) return false
+  if (row.podWaitingSince === null) return false
+  if (Date.parse(row.podWaitingSince) !== Date.parse(params.since)) return false
+  row.podWaitingSince = null
+  return true
+}
+
 export const setSessionPodWaitCancelledIn = (params: {
   state: State
   sessionId: string

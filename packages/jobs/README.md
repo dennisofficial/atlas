@@ -75,8 +75,9 @@ The worker registers the tasks. This package only names them and validates their
 - `notifyTestIdempotencyKey({ payload, now })`: gives `notify-test:<userId>:<minute>`, so repeated
   presses inside one minute send one test. `NOTIFY_TEST_WINDOW_MS` is that one-minute window.
 - `podSleepIdempotencyKey(payload)`: gives `pod-sleep:<sessionId>:<epoch>`.
-- `podResizeIdempotencyKey(payload)`: gives `pod-resize:<sessionId>:<generation>:<waits>`. The key
-  ends with `0` when the payload has no `waits`.
+- `podResizeIdempotencyKey(payload)`: gives `pod-resize:<sessionId>:<generation>`. A run the idle
+  push resumes carries `waitedSince` and gets `pod-resize:<sessionId>:<generation>:idle:<waitedSince>`,
+  so every push for one wait starts one run.
 - `notifyClearIdempotencyKey({ sessionId, momentSeq })`: gives `notify-clear:<sessionId>:<momentSeq>`,
   so one moment clears the devices once.
 

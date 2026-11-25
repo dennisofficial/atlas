@@ -63,6 +63,11 @@ they read. `apps/api` and `apps/trigger` both use it. It has no framework import
 - `readPodBusy` and `readPodRebootFacts` read a session's busy state from a `ControlPlane`.
 - `readPodResizeBusy` reads what holds a resize: the setup script, shells, services and a
   foreground bash command. Agent turns, other tool calls and sub-agents never hold one.
+  `podBusyFactsOfState({ state, now })` reads the same facts from a folded session view.
+- A whenIdle `runPodResize` on a busy pod records the wait once and ends. `podResizeOnIdleHook({
+  dispatch, warn })` is the control-plane view hook that pushes the waiting resize when an append
+  takes the pod from busy to idle. The resumed run claims the wait, so one wait resizes once. A run
+  that a newer generation superseded posts no `pod-resized` notice.
 - `POD_RESIZE_MAX_DURATION_SECONDS` is the pod-resize task budget. It outlasts the slowest
   agent37 resize, so a provider timeout fails the run before trigger.dev kills it.
 - `reconcileAgent37Usage` meters the instances the wallet billed.

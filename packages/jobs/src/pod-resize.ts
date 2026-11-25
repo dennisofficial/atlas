@@ -11,7 +11,7 @@ export const podResizePayloadSchema = z.object({
   memoryGb: z.number().int().min(1),
   diskGb: z.number().int().min(1).max(POD_RESIZE_MAX_DISK_GB).optional(),
   whenIdle: z.boolean().optional(),
-  waits: z.number().int().min(0).optional(),
+  waitedSince: z.string().min(1).optional(),
 })
 
 export type PodResizePayload = z.infer<typeof podResizePayloadSchema>
@@ -28,4 +28,6 @@ export enum EPodResizeOutcome {
 export type PodResizeOutput = { outcome: EPodResizeOutcome }
 
 export const podResizeIdempotencyKey = (payload: PodResizePayload): string =>
-  `pod-resize:${payload.sessionId}:${payload.generation}:${payload.waits ?? 0}`
+  payload.waitedSince === undefined
+    ? `pod-resize:${payload.sessionId}:${payload.generation}`
+    : `pod-resize:${payload.sessionId}:${payload.generation}:idle:${payload.waitedSince}`

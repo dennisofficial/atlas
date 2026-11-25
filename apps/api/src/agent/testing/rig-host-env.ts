@@ -57,5 +57,8 @@ export const hostEnv = (args: {
       ? {}
       : { CONTEXT_MIRROR_DIR: knobs.contextMirrorDir }),
     ...(knobs?.notifyLog === true ? { NOTIFY_FILE: join(args.workspace, 'notify.jsonl') } : {}),
+    ...(knobs?.podResizeLog === true
+      ? { POD_RESIZE_FILE: join(args.workspace, 'pod-resize.jsonl') }
+      : {}),
   }
 }
