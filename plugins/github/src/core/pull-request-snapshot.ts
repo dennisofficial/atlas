@@ -25,6 +25,7 @@ export type PullRequestSnapshotInput = {
   baseBranch: string | null
   checks?: PullRequestChecks | undefined
   pendingSuites?: number | undefined
+  missingRequired?: readonly string[] | undefined
   reviews?: readonly PullRequestReview[] | undefined
 }
 
@@ -47,8 +48,11 @@ const tallyPhrase = (tally: ChecksCount): string =>
 const failedNamesPhrase = (names: readonly string[]): string =>
   names.length === 0 ? '' : `: ${names.join(', ')}`
 
-const runningFactOf = (checks: PullRequestChecks): string =>
-  `CI is still running ${tallyPhrase(checks.tally)}${failedNamesPhrase(checks.failedNames)}`
+const waitingPhrase = (missing: readonly string[]): string =>
+  missing.length === 0 ? '' : `, waiting for required ${missing.join(', ')} to report`
+
+const runningFactOf = (input: PullRequestSnapshotInput, checks: PullRequestChecks): string =>
+  `CI is still running ${tallyPhrase(checks.tally)}${failedNamesPhrase(checks.failedNames)}${waitingPhrase(input.missingRequired ?? [])}`
 
 const settledFactOf = (checks: PullRequestChecks): string => {
   const tally = tallyPhrase(checks.tally)
@@ -62,12 +66,14 @@ const settledFactOf = (checks: PullRequestChecks): string => {
 }
 
 const checksRunning = (input: PullRequestSnapshotInput): boolean =>
-  (input.pendingSuites ?? 0) > 0 || (input.checks?.tally.running ?? 0) > 0
+  (input.pendingSuites ?? 0) > 0 ||
+  (input.checks?.tally.running ?? 0) > 0 ||
+  (input.missingRequired ?? []).length > 0
 
 const checksFactOf = (input: PullRequestSnapshotInput): string | undefined => {
   const { checks } = input
   if (checks === undefined) return undefined
-  if (checksRunning(input)) return runningFactOf(checks)
+  if (checksRunning(input)) return runningFactOf(input, checks)
   if (reportedChecks(checks.tally) === 0) return undefined
   return settledFactOf(checks)
 }

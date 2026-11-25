@@ -2,6 +2,7 @@ import {
   ECheckOutcome,
   ETargetPhase,
   checksTally,
+  missingRequiredContextsOf,
   type JsonValue,
   type SubscriptionTargetState,
   type SubscriptionTargetStates,
@@ -25,6 +26,7 @@ import {
 import { EGithubCallSource } from './github-call-log'
 import { pendingCheckSuiteCountOf } from './github-check-suites'
 import { readHeadCheckSuites, readHeadChecks } from './github-head-checks-read'
+import { GithubRequiredChecksRead } from './github-required-checks-read'
 import { githubJsonGet } from './github-user-http'
 
 type PullResponse = {
@@ -52,7 +54,15 @@ type JobsResponse = { jobs?: readonly JobResponse[] }
 
 type ReviewsResponse = readonly { user?: { login?: string | null } | null; state?: string | null }[]
 
+type HeadState = {
+  checks: PullRequestChecks | undefined
+  pendingSuites: number | undefined
+  missingRequired: readonly string[] | undefined
+}
+
 export class GithubSubscriptionTargetStates implements SubscriptionTargetStates {
+  private readonly requiredChecks = new GithubRequiredChecksRead()
+
   constructor(
     private readonly deps: {
       tokenFor: (args: { userId: string; repoFullName: string }) => Promise<string | undefined>
@@ -91,7 +101,12 @@ export class GithubSubscriptionTargetStates implements SubscriptionTargetStates 
     const state = pullRequestStateOf({ target, pull })
     if (state.phase !== ETargetPhase.Open) return state
     const headSha = pull.head?.sha ?? null
-    const head = await this.headStateOf({ token, repoFullName, headSha })
+    const head = await this.headStateOf({
+      token,
+      repoFullName,
+      headSha,
+      baseBranch: pull.base?.ref ?? null,
+    })
     return {
       ...state,
       snapshot: pullRequestSnapshotOf({
@@ -101,6 +116,7 @@ export class GithubSubscriptionTargetStates implements SubscriptionTargetStates 
         baseBranch: pull.base?.ref ?? null,
         checks: head.checks,
         pendingSuites: head.pendingSuites,
+        missingRequired: head.missingRequired,
         reviews: await this.reviewsOf({ token, repoFullName, number: target.number }),
       }),
     }
@@ -134,8 +150,9 @@ export class GithubSubscriptionTargetStates implements SubscriptionTargetStates 
     token: string
     repoFullName: string
     headSha: string | null
-  }): Promise<{ checks: PullRequestChecks | undefined; pendingSuites: number | undefined }> {
-    const unknown = { checks: undefined, pendingSuites: undefined }
+    baseBranch: string | null
+  }): Promise<HeadState> {
+    const unknown = { checks: undefined, pendingSuites: undefined, missingRequired: undefined }
     if (args.headSha === null || args.headSha === '') return unknown
     const [owner, repo] = args.repoFullName.split('/') as [string | undefined, string | undefined]
     if (owner === undefined || repo === undefined) return unknown
@@ -145,10 +162,40 @@ export class GithubSubscriptionTargetStates implements SubscriptionTargetStates 
         token: args.token,
         path,
       })
+    const checks = await this.checksOf({ get, owner, repo, headSha: args.headSha })
     return {
-      checks: await this.checksOf({ get, owner, repo, headSha: args.headSha }),
+      checks: checks?.counted,
       pendingSuites: await this.pendingSuitesOf({ get, owner, repo, headSha: args.headSha }),
+      missingRequired: await this.missingRequiredOf({
+        token: args.token,
+        owner,
+        repo,
+        baseBranch: args.baseBranch,
+        reportedNames: checks?.names,
+      }),
     }
+  }
+
+  private async missingRequiredOf(args: {
+    token: string
+    owner: string
+    repo: string
+    baseBranch: string | null
+    reportedNames: readonly string[] | undefined
+  }): Promise<readonly string[] | undefined> {
+    if (args.baseBranch === null || args.reportedNames === undefined) return undefined
+    const read = await this.requiredChecks.read({
+      source: EGithubCallSource.SubscriptionResolve,
+      token: args.token,
+      owner: args.owner,
+      repo: args.repo,
+      branch: args.baseBranch,
+    })
+    if (read.requiredContexts === null) return undefined
+    return missingRequiredContextsOf({
+      requiredContexts: read.requiredContexts,
+      reportedContexts: args.reportedNames,
+    })
   }
 
   private async checksOf(args: {
@@ -156,14 +203,17 @@ export class GithubSubscriptionTargetStates implements SubscriptionTargetStates 
     owner: string
     repo: string
     headSha: string
-  }): Promise<PullRequestChecks | undefined> {
+  }): Promise<{ counted: PullRequestChecks; names: readonly string[] } | undefined> {
     try {
       const { checks } = await readHeadChecks(args)
       return {
-        tally: checksTally(checks.map((check) => check.outcome)),
-        failedNames: checks
-          .filter((check) => check.outcome === ECheckOutcome.Failed)
-          .map((check) => check.name),
+        counted: {
+          tally: checksTally(checks.map((check) => check.outcome)),
+          failedNames: checks
+            .filter((check) => check.outcome === ECheckOutcome.Failed)
+            .map((check) => check.name),
+        },
+        names: checks.map((check) => check.name),
       }
     } catch {
       return undefined
