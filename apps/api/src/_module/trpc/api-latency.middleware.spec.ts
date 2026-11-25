@@ -1,10 +1,11 @@
+import { BadRequestException, PreconditionFailedException } from '@nestjs/common'
 import { describe, expect, it } from 'bun:test'
 import { ProductAnalytics } from '@dltech/atlas-observability'
-import { ECallFailure, ECallStatus } from '@dltech/atlas-protocol'
+import { ECallFailure, EPodNotReady, POD_PARKED_MESSAGE } from '@dltech/atlas-protocol'
+import { TRPCError } from '@trpc/server'
 import type { MiddlewareOptions } from 'nestjs-trpc'
 
 import type { AuthenticatedRequest } from '../../api/api-latency.interceptor'
-import { PodNotReadyError, podFailureError } from '../../api/platform/sessions/pod-errors'
 import { ApiLatencyMiddleware } from './api-latency.middleware'
 
 type Captured = { userId: string; event: string; properties: Record<string, unknown> }
@@ -49,6 +50,23 @@ const flushMicrotasks = async (): Promise<void> => {
   await Promise.resolve()
   await Promise.resolve()
 }
+
+const podNotReadyOf = (): TRPCError =>
+  new TRPCError({
+    code: 'PRECONDITION_FAILED',
+    message: POD_PARKED_MESSAGE,
+    cause: new PreconditionFailedException({
+      code: EPodNotReady.NotReady,
+      message: POD_PARKED_MESSAGE,
+    }),
+  })
+
+const podFailureOf = (args: { code: string; message: string }): TRPCError =>
+  new TRPCError({
+    code: 'BAD_REQUEST',
+    message: args.message,
+    cause: new BadRequestException({ message: args.message, podFailure: args.code }),
+  })
 
 const setup = (times: { at: number }) => {
   const analytics = new FakeAnalytics()
@@ -139,7 +157,7 @@ describe('ApiLatencyMiddleware', () => {
     const pending = middleware.use(
       optionsOf({
         path: 'files.tree',
-        next: async () => ({ ok: false, error: new PodNotReadyError() }),
+        next: async () => ({ ok: false, error: podNotReadyOf() }),
       }),
     )
     times.at = 4
@@ -165,10 +183,9 @@ describe('ApiLatencyMiddleware', () => {
         path: 'files.tree',
         next: async () => ({
           ok: false,
-          error: podFailureError({
-            status: ECallStatus.Failed,
-            op: 'readDirectory',
-            error: { code: ECallFailure.PermissionDenied, message: '/work/secret EACCES' },
+          error: podFailureOf({
+            code: ECallFailure.PermissionDenied,
+            message: '/work/secret EACCES',
           }),
         }),
       }),
