@@ -23,7 +23,7 @@ type PrEventDraft = Extract<EventBody, { type: 'pr-event' }>
 
 type Tally = Pick<
   Row<'GithubPrState'>,
-  'checksPassed' | 'checksFailed' | 'checksRunning' | 'baseBranch'
+  'checksPassed' | 'checksFailed' | 'checksRunning' | 'baseBranch' | 'mergeQueued'
 >
 
 const CORE_KIND: Record<EApiPrEventKind, ECorePrEventKind> = {
@@ -63,6 +63,7 @@ export const prEventBodyOf = (args: {
   const verdict = verdictOf(payload.verdict)
   const checks = checksOf(args.tally)
   const baseBranch = args.tally?.baseBranch ?? ''
+  const stillQueued = verdict === EPrVerdict.Failed && args.tally?.mergeQueued === true
   return {
     type: 'pr-event',
     repo: `github.com/${args.event.repoFullName}`,
@@ -88,6 +89,7 @@ export const prEventBodyOf = (args: {
     ...(payload.diffHunk === undefined ? {} : { diffHunk: payload.diffHunk }),
     ...(payload.inReplyTo === undefined ? {} : { inReplyTo: payload.inReplyTo }),
     ...(checks === undefined ? {} : { checks }),
+    ...(stillQueued ? { mergeQueued: true } : {}),
   }
 }
 
