@@ -11,6 +11,8 @@ spans. The core tiers depend on the ports. Only the node tier imports a vendor S
 - `ProductAnalytics`: `capture({ userId, event, properties? })` sends one product event, and
   `flush()` sends the batch at shutdown. `capture` never throws and never waits on the network.
   `ProductAnalyticsProperties` types the `properties`.
+- `ErrorReporter`: `report({ error, properties })` sends one server error to PostHog error
+  tracking.
 - The telemetry policy, and the classifiers that turn a tool name or a reason into a class.
 - The PostHog exporters in the node tier, and `RecordingTracer` for specs.
 
@@ -64,11 +66,21 @@ await trace.span({ name: ESpan.Turn, root: true, run: () => turn() })
 - `ELogSeverity`, `LogEntry`: the entry shape. The `source` is a dot-scoped name.
 - `logFieldsOf({ error })`: gives the `error` and `stack` fields of a caught error.
 
+### Report a server error
+
+- `ErrorReporter`: `report({ error, properties })` sends one error to server error tracking. The
+  `properties` are string, number or boolean values.
+- `NullErrorReporter`: an `ErrorReporter` that does nothing.
+- `PosthogErrorReporter({ client })`: the PostHog implementation. It calls `captureException`
+  under the fixed `atlas-server` distinct id, so the daily telemetry routine finds it among
+  `$exception` events. It never throws.
+
 ### Use a real exporter
 
 - `posthogObservability({ distinctId, version, env })`: gives an `Observability` of PostHog
   telemetry and tracer. It gives the null implementation when PostHog fails to start.
 - `serverObservability(args)`, `PosthogTracer`, `PosthogProductAnalytics`, `PosthogTelemetry`.
+  `serverObservability` returns `analytics`, `errors` and `traceFor` over one PostHog client.
 - `telemetryDistinctId(args)`, `persistedTelemetryDistinctId({ atlasHome })`: the stable id, kept in
   `telemetry.json`.
 - `Observability`, `nullObservability()`: the pair of ports.

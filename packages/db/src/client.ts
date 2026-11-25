@@ -1,6 +1,6 @@
 import postgres from '@prisma/orm-postgres/runtime'
 import { contractFromJson } from '@prisma/orm-postgres/static'
-import { createPool, type Pool } from './pool'
+import { createPool, type Pool, type PoolOptions } from './pool'
 import type { Contract } from './prisma/schema/contract'
 import contractJson from './prisma/schema/contract.json' with { type: 'json' }
 
@@ -15,13 +15,20 @@ export type Tx = Parameters<Parameters<Db['transaction']>[0]>[0]
 
 let sharedPoolInstance: Pool | undefined
 let sharedDbInstance: Db | undefined
+let sharedPoolOptions: PoolOptions | undefined
+
+export function configureSharedPool(options: PoolOptions): void {
+  if (sharedPoolInstance !== undefined)
+    throw new Error('configureSharedPool must be called before the shared pool is first used')
+  sharedPoolOptions = options
+}
 
 export function sharedPool(): Pool {
   if (sharedPoolInstance !== undefined) return sharedPoolInstance
   const connectionString = process.env.DATABASE_URL
   if (!connectionString)
     throw new Error('DATABASE_URL is not set — run through the env:inject script')
-  sharedPoolInstance = createPool(connectionString)
+  sharedPoolInstance = createPool(connectionString, sharedPoolOptions)
   return sharedPoolInstance
 }
 

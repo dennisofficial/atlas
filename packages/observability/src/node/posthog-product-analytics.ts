@@ -5,6 +5,7 @@ import {
   ProductAnalytics,
   type ProductAnalyticsProperties,
 } from '../analytics/product-analytics'
+import { ErrorReporter, NullErrorReporter } from '../errors/error-reporter'
 import { NullTracer, type TracePort } from '../trace/trace.port'
 import { telemetryEnabled } from '../telemetry/telemetry-policy'
 import {
@@ -14,6 +15,7 @@ import {
   POSTHOG_HOST,
   POSTHOG_KEY,
 } from './posthog-config'
+import { PosthogErrorReporter } from './posthog-error-reporter'
 import { PosthogTracer } from './posthog-tracer'
 
 const FLUSH_TIMEOUT_MS = 2000
@@ -57,16 +59,21 @@ export const serverTraceOptions = (version: string) => ({
 
 export type ServerObservability = {
   readonly analytics: ProductAnalytics
+  readonly errors: ErrorReporter
   traceFor(distinctId: string): TracePort
 }
 
-/** The v2 server's PostHog client: one queue feeding both product events and turn traces. */
+/** The v2 server's PostHog client: one queue feeding product events, error reports and turn traces. */
 export function serverObservability(args: {
   version: string
   env?: Record<string, string | undefined>
 }): ServerObservability {
   if (!telemetryEnabled(args.env ?? process.env)) {
-    return { analytics: new NullProductAnalytics(), traceFor: () => new NullTracer() }
+    return {
+      analytics: new NullProductAnalytics(),
+      errors: new NullErrorReporter(),
+      traceFor: () => new NullTracer(),
+    }
   }
   try {
     const client = new PostHog(POSTHOG_KEY, {
@@ -75,6 +82,7 @@ export function serverObservability(args: {
     })
     return {
       analytics: new PosthogProductAnalytics({ client, version: args.version }),
+      errors: new PosthogErrorReporter({ client }),
       traceFor: (distinctId) =>
         new PosthogTracer({
           client,
@@ -83,6 +91,10 @@ export function serverObservability(args: {
         }),
     }
   } catch {
-    return { analytics: new NullProductAnalytics(), traceFor: () => new NullTracer() }
+    return {
+      analytics: new NullProductAnalytics(),
+      errors: new NullErrorReporter(),
+      traceFor: () => new NullTracer(),
+    }
   }
 }

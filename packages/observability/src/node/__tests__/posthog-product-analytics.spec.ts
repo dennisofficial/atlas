@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import type { PostHog } from 'posthog-node'
 
 import { NullProductAnalytics } from '../../analytics/product-analytics'
+import { NullErrorReporter } from '../../errors/error-reporter'
 import {
   PosthogProductAnalytics,
   serverObservability,
@@ -98,6 +99,7 @@ describe('serverObservability', () => {
     const observability = serverObservability({ version: '1.2.3', env: { NODE_ENV: 'test' } })
 
     expect(observability.analytics).toBeInstanceOf(NullProductAnalytics)
+    expect(observability.errors).toBeInstanceOf(NullErrorReporter)
   })
 
   it('honours an explicit telemetry opt-out', () => {
@@ -107,5 +109,6 @@ describe('serverObservability', () => {
     })
 
     expect(observability.analytics).toBeInstanceOf(NullProductAnalytics)
+    expect(observability.errors).toBeInstanceOf(NullErrorReporter)
   })
 })

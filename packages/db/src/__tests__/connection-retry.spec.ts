@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import { isRetryableConnectionLoss, retryOnConnectionLoss } from '../connection-retry'
+import { TransactionDeadlineError } from '../pool'
 
 const withFields = (message: string, fields: Record<string, unknown>, cause?: unknown): Error =>
   Object.assign(new Error(message, cause === undefined ? undefined : { cause }), fields)
@@ -45,6 +46,18 @@ describe('isRetryableConnectionLoss', () => {
   it('never retries a failed commit, even when its cause is a dropped link', () => {
     expect(isRetryableConnectionLoss(commitFailed(sqlConnectionError()))).toBe(false)
     expect(isRetryableConnectionLoss(commitFailed(withFields('x', { code: '57P01' })))).toBe(false)
+  })
+
+  it('never retries a transaction killed by the transaction deadline', () => {
+    const deadline = new TransactionDeadlineError({
+      durationMs: 30_010,
+      timeoutMs: 30_000,
+      statements: 3,
+      topStatementCount: 3,
+    })
+    expect(isRetryableConnectionLoss(deadline)).toBe(false)
+    expect(isRetryableConnectionLoss(commitFailed(deadline))).toBe(false)
+    expect(isRetryableConnectionLoss(new Error('rollback failed', { cause: deadline }))).toBe(false)
   })
 
   it('finds the marker on a nested cause', () => {

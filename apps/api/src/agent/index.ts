@@ -44,7 +44,7 @@ export { analyticsAppendHook } from './analytics/append-hook'
 export { AnalyticsModule } from './analytics/analytics.module'
 export { digestTimingProperties } from './analytics/digest-timings'
 export { serverAnalytics } from './analytics/singleton'
-export { PRODUCT_ANALYTICS, TRACE_FOR } from './analytics/tokens'
+export { PRODUCT_ANALYTICS, TRACE_FOR, ERROR_REPORTER } from './analytics/tokens'
 export {
   MCP_OAUTH_BEGIN,
   OPERATOR_ANSWERS,

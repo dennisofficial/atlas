@@ -1,9 +1,23 @@
 import pg from 'pg'
 
+import {
+  DEFAULT_TRANSACTION_TIMEOUT_MS,
+  deadlineClientOf,
+  logTransactionTimeout,
+  type TransactionTimeoutReport,
+} from './transaction-deadline'
+
 export type Pool = pg.Pool
 
 const DEFAULT_POOL_MAX = 10
 const IDLE_TIMEOUT_MS = 5_000
+
+export {
+  DEFAULT_TRANSACTION_TIMEOUT_MS,
+  TransactionDeadlineError,
+  transactionDeadlineMessage,
+  type TransactionTimeoutReport,
+} from './transaction-deadline'
 
 export function poolMaxOf(raw: string | undefined): number {
   const parsed = Number(raw)
@@ -48,50 +62,8 @@ function evictDeadOnCheckout(pool: pg.Pool): pg.Pool['connect'] {
 export type PoolOptions = {
   queryTimeoutMs?: number
   minIdle?: number
-}
-
-// pg's query_timeout rejects the hung query but keeps the deaf connection; pg-pool then hands
-// the same client to the next waiter (acquire is LIFO), so the pool never recovers from a
-// half-open link. Ending the client makes pg-pool remove it on release.
-// https://github.com/brianc/node-postgres/blob/pg@8.22.0/packages/pg/lib/client.js#L660
-class TimeoutDiscardingClient extends pg.Client {
-  override query<T extends pg.Submittable>(queryStream: T): T
-  override query<R extends any[] = any[], I = any[]>(
-    queryConfig: pg.QueryArrayConfig<I>,
-    values?: pg.QueryConfigValues<I>,
-  ): Promise<pg.QueryArrayResult<R>>
-  override query<R extends pg.QueryResultRow = any, I = any>(
-    queryConfig: pg.QueryConfig<I>,
-  ): Promise<pg.QueryResult<R>>
-  override query<R extends pg.QueryResultRow = any, I = any[]>(
-    queryTextOrConfig: string | pg.QueryConfig<I>,
-    values?: pg.QueryConfigValues<I>,
-  ): Promise<pg.QueryResult<R>>
-  override query<R extends any[] = any[], I = any[]>(
-    queryConfig: pg.QueryArrayConfig<I>,
-    callback: (err: Error, result: pg.QueryArrayResult<R>) => void,
-  ): void
-  override query<R extends pg.QueryResultRow = any, I = any[]>(
-    queryTextOrConfig: string | pg.QueryConfig<I>,
-    callback: (err: Error, result: pg.QueryResult<R>) => void,
-  ): void
-  override query<R extends pg.QueryResultRow = any, I = any[]>(
-    queryText: string,
-    values: pg.QueryConfigValues<I>,
-    callback: (err: Error, result: pg.QueryResult<R>) => void,
-  ): void
-  override query(...args: unknown[]): unknown {
-    const result: unknown = Reflect.apply(super.query, this, args)
-    if (result instanceof Promise) {
-      return result.catch((error: unknown) => this.discardAfterTimeout(error))
-    }
-    return result
-  }
-
-  private discardAfterTimeout(error: unknown): never {
-    if (error instanceof Error && error.message === 'Query read timeout') void this.end()
-    throw error
-  }
+  transactionTimeoutMs?: number
+  onTransactionTimeout?: (report: TransactionTimeoutReport) => void
 }
 
 export function createPool(connectionString: string, options?: PoolOptions): Pool {
@@ -104,7 +76,10 @@ export function createPool(connectionString: string, options?: PoolOptions): Poo
     keepAliveInitialDelayMillis: 1_000,
     query_timeout: options?.queryTimeoutMs,
     ...(options?.minIdle === undefined ? {} : { min: options.minIdle }),
-    ...(options?.queryTimeoutMs === undefined ? {} : { Client: TimeoutDiscardingClient }),
+    Client: deadlineClientOf({
+      timeoutMs: options?.transactionTimeoutMs ?? DEFAULT_TRANSACTION_TIMEOUT_MS,
+      onTimeout: options?.onTransactionTimeout ?? logTransactionTimeout,
+    }),
   })
   pool.connect = evictDeadOnCheckout(pool)
   pool.on('error', (error) => {
