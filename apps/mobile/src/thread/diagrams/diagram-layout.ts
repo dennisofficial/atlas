@@ -71,7 +71,7 @@ export const fitDiagramHeight = ({
   targetWidth: number
 }): number => {
   if (size.width <= 0 || size.height <= 0 || targetWidth <= 0) return DIAGRAM_ESTIMATE_HEIGHT
-  return Math.round((size.height * targetWidth) / size.width)
+  return Math.round(size.height * Math.min(1, targetWidth / size.width))
 }
 
 export const clampDiagramHeight = (height: number): { height: number; clamped: boolean } => ({

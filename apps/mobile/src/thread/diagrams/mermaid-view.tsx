@@ -139,7 +139,6 @@ export default function MermaidView({
         node.style.width = '100%'
         node.style.height = 'auto'
         node.style.margin = '0 auto'
-        if (!interactive) node.style.maxWidth = 'none'
         const rect = node.getBoundingClientRect()
         const current = transformRef.current.scale <= 0 ? 1 : transformRef.current.scale
         const size = { width: rect.width / current, height: rect.height / current }

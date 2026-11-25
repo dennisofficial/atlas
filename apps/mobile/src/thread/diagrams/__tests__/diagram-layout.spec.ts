@@ -26,6 +26,10 @@ describe('fitDiagramHeight', () => {
     expect(fitDiagramHeight({ size: { width: 300, height: 150 }, targetWidth: 200 })).toBe(100)
   })
 
+  test('keeps a narrow diagram at its natural height', () => {
+    expect(fitDiagramHeight({ size: { width: 120, height: 190 }, targetWidth: 390 })).toBe(190)
+  })
+
   test('falls back to the estimate when a size is missing', () => {
     expect(fitDiagramHeight({ size: { width: 0, height: 150 }, targetWidth: 200 })).toBe(
       DIAGRAM_ESTIMATE_HEIGHT,
