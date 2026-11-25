@@ -71,6 +71,7 @@ export function createWebUpdater({
 }): IWebUpdater {
   let status: IWebPayloadStatus = { state: EWebPayloadState.Idle }
   let pending: string | undefined
+  let running: string | undefined
   let timer: ReturnType<typeof setInterval> | undefined
 
   const fail = (message: string): IWebPayloadStatus => {
@@ -104,7 +105,7 @@ export function createWebUpdater({
         appVersion,
       })
       if (!result.installed) return fail(`the payload did not install: ${result.reason}`)
-      await prune({ home, ports })
+      await prune({ home, ports, running })
       pending = result.hash
       status = { state: EWebPayloadState.Ready, ...buildOf(manifest) }
       return status
@@ -129,17 +130,21 @@ export function createWebUpdater({
     status: () => status,
     pending: () => pending,
     applied: () => {
+      running = pending
       pending = undefined
       if (status.state === EWebPayloadState.Ready)
         status = { ...status, state: EWebPayloadState.Idle }
     },
     installedRoot: async () => {
       const state: IPayloadState = await ports.fs.readState(home)
-      if (state.appVersion !== appVersion) return undefined
-      return selectedPayload({
-        state,
-        isComplete: (hash) => ports.fs.isComplete({ home, hash }),
-      })
+      running =
+        state.appVersion !== appVersion
+          ? undefined
+          : selectedPayload({
+              state,
+              isComplete: (hash) => ports.fs.isComplete({ home, hash }),
+            })
+      return running
     },
     installedVersion: async () => {
       const state: IPayloadState = await ports.fs.readState(home)
@@ -148,14 +153,23 @@ export function createWebUpdater({
     fail: async ({ hash }) => {
       const state = await ports.fs.readState(home)
       await ports.fs.writeState({ home, state: failedState({ state, hash }) })
+      if (running === hash) running = undefined
       pending = undefined
       status = { state: EWebPayloadState.Idle, error: 'the new interface could not start' }
     },
   }
 }
 
-async function prune({ home, ports }: { home: string; ports: IWebUpdaterPorts }): Promise<void> {
+async function prune({
+  home,
+  ports,
+  running,
+}: {
+  home: string
+  ports: IWebUpdaterPorts
+  running: string | undefined
+}): Promise<void> {
   const state = await ports.fs.readState(home)
-  for (const hash of stalePayloads({ dirs: ports.fs.list(home), state }))
+  for (const hash of stalePayloads({ dirs: ports.fs.list(home), state, running }))
     ports.fs.discard({ home, hash })
 }

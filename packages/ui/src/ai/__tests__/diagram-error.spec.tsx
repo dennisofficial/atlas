@@ -5,6 +5,9 @@ import { renderToStaticMarkup } from 'react-dom/server'
 
 import { DiagramError, type DiagramRepairArgs } from '../diagram-error'
 import { summarizeDiagramError } from '../internal/diagram-error-summary'
+import { isStaleBundleError } from '../internal/stale-bundle'
+
+const CHUNK_ERROR = 'Failed to load chunk /_next/static/chunks/44e481n96lq2a.js from module 991481'
 
 const CHART = 'flowchart LR\n  A[Start --> B{Check'
 const ERROR =
@@ -31,6 +34,21 @@ describe('summarizeDiagramError', () => {
 
   it('falls back to the raw text when the message starts with the token list', () => {
     expect(summarizeDiagramError({ error: "Expecting 'SQE'" })).toBe("Expecting 'SQE'")
+  })
+})
+
+describe('isStaleBundleError', () => {
+  it.each([
+    CHUNK_ERROR,
+    'ChunkLoadError: Loading chunk 123 failed.',
+    'Failed to fetch dynamically imported module: http://127.0.0.1/_next/static/chunks/a.js',
+    'Importing a module script failed.',
+  ])('recognises %s', (error) => {
+    expect(isStaleBundleError(error)).toBe(true)
+  })
+
+  it('leaves a parse error alone', () => {
+    expect(isStaleBundleError(ERROR)).toBe(false)
   })
 })
 
@@ -125,6 +143,18 @@ describe('DiagramError repair', () => {
     await act(async () => finish())
     await settle()
 
+    expect(view.container.textContent).not.toContain('Fixing diagram…')
+    await view.unmount()
+  })
+
+  it('asks for a reload instead of a repair when the renderer did not load', async () => {
+    const onRepair = mock(() => Promise.resolve())
+    const view = await mount(<DiagramError chart={CHART} error={CHUNK_ERROR} onRepair={onRepair} />)
+
+    await settle()
+
+    expect(onRepair).not.toHaveBeenCalled()
+    expect(view.container.textContent).toContain('Reload')
     expect(view.container.textContent).not.toContain('Fixing diagram…')
     await view.unmount()
   })

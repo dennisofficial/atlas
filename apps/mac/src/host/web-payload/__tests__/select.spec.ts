@@ -45,4 +45,14 @@ describe('stalePayloads', () => {
       }),
     ).toEqual([third, '.staging-4444444444444444'])
   })
+
+  test('keeps the payload the window runs even when the state moved past it', () => {
+    expect(
+      stalePayloads({
+        dirs: [first, second, third],
+        state: { current: third, previous: second },
+        running: first,
+      }),
+    ).toEqual([])
+  })
 })
