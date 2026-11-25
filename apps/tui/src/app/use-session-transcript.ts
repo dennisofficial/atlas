@@ -27,6 +27,15 @@ const NOT_CONNECTED = ESessionConnection.Reconnecting
 
 const NO_EVENTS: readonly Event[] = Object.freeze([])
 
+const NO_FOLDABLE: readonly RecordEvent[] = Object.freeze([])
+
+type SessionLive = {
+  sessionId: string
+  foldable: readonly RecordEvent[]
+  pending: PendingInputsState
+  loaded: boolean
+}
+
 type ShellTails = SessionSnapshot['shells']
 
 export type SessionTranscript = {
@@ -39,6 +48,8 @@ export type SessionTranscript = {
   loadOlder: () => Promise<number>
   events: readonly Event[]
   rawEvents: readonly RecordEvent[]
+  foldable: readonly RecordEvent[]
+  loaded: boolean
   quickStops: readonly QuickStopEvidence[]
   status: SessionStatusOutput | undefined
   pending: PendingInputsState
@@ -76,7 +87,12 @@ export function useSessionTranscript(args: {
   const [rawEvents, setRawEvents] = useState<readonly RecordEvent[]>([])
   const [quickStops, setQuickStops] = useState<readonly QuickStopEvidence[]>([])
   const [status, setStatus] = useState<SessionStatusOutput | undefined>(undefined)
-  const [pending, setPending] = useState<PendingInputsState>(EMPTY_PENDING)
+  const [live, setLive] = useState<SessionLive>({
+    sessionId,
+    foldable: NO_FOLDABLE,
+    pending: EMPTY_PENDING,
+    loaded: false,
+  })
   const [working, setWorking] = useState(false)
   const [panes, setPanes] = useState<{ view: SessionViewOutput | undefined; shells: ShellTails }>({
     view: undefined,
@@ -114,7 +130,18 @@ export function useSessionTranscript(args: {
       setRawEvents(snapshot.events)
       setQuickStops(snapshot.quickStops)
       setStatus(snapshot.status)
-      setPending(snapshot.pending)
+      setLive((current) => {
+        const loaded = snapshot.cursor !== undefined || snapshot.status !== undefined
+        if (
+          current.sessionId === sessionId &&
+          current.foldable === snapshot.foldable &&
+          current.pending === snapshot.pending &&
+          current.loaded === loaded
+        ) {
+          return current
+        }
+        return { sessionId, foldable: snapshot.foldable, pending: snapshot.pending, loaded }
+      })
       setWorking(isSessionWorking(snapshot.status))
       setPanes((current) =>
         current.view === snapshot.view && current.shells === snapshot.shells
@@ -149,9 +176,11 @@ export function useSessionTranscript(args: {
     loadOlder,
     events,
     rawEvents,
+    foldable: live.sessionId === sessionId ? live.foldable : NO_FOLDABLE,
     quickStops,
     status,
-    pending,
+    pending: live.sessionId === sessionId ? live.pending : EMPTY_PENDING,
+    loaded: live.sessionId === sessionId ? live.loaded : false,
     working,
     view: panes.view,
     shells: panes.shells,

@@ -28,6 +28,8 @@ import { useSession } from './use-session'
 import { useSessionRows } from './use-session-rows'
 import { useSessionCommands, type SessionCommands } from './use-session-commands'
 import { useOperatorRequest, type OperatorRequestControl } from './use-operator-request'
+import { useQueuedWithdraw } from './use-queued-withdraw'
+import type { QueuedRestore } from './withdraw-queued'
 
 const TICK_MS = 1_000
 
@@ -53,6 +55,8 @@ export type SessionScreen = ThreadView & {
   restored: { token: number; text: string; attachments: readonly Attachment[] } | undefined
   notice: string | undefined
   loadOlder: () => Promise<number>
+  withdrawEdit: (inboxId: number) => void
+  withdrawRemove: (inboxId: number) => void
   send: (message: { text: string; attachments: Attachment[] }) => Promise<boolean>
   stop: () => void
   retry: () => Promise<void>
@@ -117,28 +121,6 @@ export function useSessionScreen(args: {
   }, [view.working, blocking])
 
   useEffect(() => {
-    if (staged.length === 0) return
-    const settlement = settlementOf({ staged, events: snapshot.events, unread })
-    if (
-      settlement.kept.length === staged.length &&
-      settlement.restored.length === 0 &&
-      settlement.notices.length === 0
-    ) {
-      return
-    }
-    setStaged(settlement.kept)
-    if (settlement.restored.length > 0) {
-      restoreToken.current += 1
-      setRestored({
-        token: restoreToken.current,
-        text: settlement.restored.map((entry) => entry.text).join('\n\n'),
-        attachments: settlement.restored.flatMap((entry) => [...entry.attachments]),
-      })
-    }
-    if (settlement.notices.length > 0) setNotice(settlement.notices.join('\n'))
-  }, [staged, snapshot.events, unread])
-
-  useEffect(() => {
     const pending = quickStopRestoresToApply({
       quickStops: snapshot.quickStops,
       clientIds: [...sent.current],
@@ -161,7 +143,50 @@ export function useSessionScreen(args: {
     () => (staged.length === 0 ? [] : stagedRowsOf({ snapshot, staged, now })),
     [snapshot, staged, now],
   )
-  const queued = useMemo(() => queuedDockOf({ snapshot, staged, now }), [snapshot, staged, now])
+  const restoreQueued = useCallback((restored: QueuedRestore) => {
+    restoreToken.current += 1
+    setRestored({ token: restoreToken.current, ...restored })
+  }, [])
+  const reportNotice = useCallback((notice: string) => setNotice(notice), [])
+  const withdraw = useQueuedWithdraw({
+    api,
+    sessionId,
+    pending: snapshot.pending,
+    foldable: snapshot.foldable,
+    onRestore: restoreQueued,
+    onNotice: reportNotice,
+  })
+
+  useEffect(() => {
+    if (staged.length === 0) return
+    const settlement = settlementOf({
+      staged,
+      events: snapshot.events,
+      unread,
+      ownedInboxIds: withdraw.ownedInboxIds,
+    })
+    if (
+      settlement.kept.length === staged.length &&
+      settlement.restored.length === 0 &&
+      settlement.notices.length === 0
+    ) {
+      return
+    }
+    setStaged(settlement.kept)
+    if (settlement.restored.length > 0) {
+      restoreToken.current += 1
+      setRestored({
+        token: restoreToken.current,
+        text: settlement.restored.map((entry) => entry.text).join('\n\n'),
+        attachments: settlement.restored.flatMap((entry) => [...entry.attachments]),
+      })
+    }
+    if (settlement.notices.length > 0) setNotice(settlement.notices.join('\n'))
+  }, [staged, snapshot.events, unread, withdraw.ownedInboxIds])
+  const queued = useMemo(
+    () => queuedDockOf({ snapshot, staged, now, hiddenInboxIds: withdraw.hiddenInboxIds }),
+    [snapshot, staged, now, withdraw.hiddenInboxIds],
+  )
   const turnStartedAt = useMemo(
     () => turnStartedAtOf({ events: snapshot.foldable, status: snapshot.status }),
     [snapshot.foldable, snapshot.status],
@@ -250,6 +275,8 @@ export function useSessionScreen(args: {
     restored,
     notice,
     loadOlder,
+    withdrawEdit: withdraw.edit,
+    withdrawRemove: withdraw.remove,
     send,
     stop,
     retry,

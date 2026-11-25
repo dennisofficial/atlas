@@ -7,7 +7,7 @@ import { join } from 'node:path'
 import type { StreamSessionRow } from '@dltech/atlas-protocol'
 import { mintEvents } from '@dltech/atlas-client/stream-fixture'
 
-import { frameShowing, frameWhen } from '../../ui/__tests__/waiting'
+import { frameSettled, frameShowing, frameWhen } from '../../ui/__tests__/waiting'
 import { teardown } from '../../ui/markdown/__tests__/harness'
 import { ACCOUNT_FILE_VERSION, writeAccount, type AccountFile } from '../account/account-file'
 import { AppNext, type SessionClientFactory } from '../app-next'
@@ -129,6 +129,13 @@ describe('the queue of a v2 session', () => {
       })
 
       expect(client.calls.withdraw[0]).toEqual({ sessionId: SESSION_ID, inboxId: 3 })
+      const optimistic = await frameWhen({
+        setup: mounted.setup,
+        holds: (frame) => frame.split(QUEUED).length - 1 === 1,
+        within: WITHIN,
+        describe: 'the queued row to go and the draft to hold the text once',
+      })
+      expect(optimistic).toContain(QUEUED)
 
       client.pushEvents({
         sessionId: SESSION_ID,
@@ -139,6 +146,27 @@ describe('the queue of a v2 session', () => {
       })
       await frameShowing({ setup: mounted.setup, text: QUEUED, within: WITHIN })
     } finally {
+      await teardown(mounted.setup)
+    }
+  }, 30_000)
+
+  test('up ignores a message that is still sending', async () => {
+    const mounted = await open()
+    const client = clientOf(mounted)
+
+    try {
+      client.holdPost(true)
+      await mounted.setup.mockInput.typeText(QUEUED)
+      mounted.setup.mockInput.pressEnter()
+      await frameShowing({ setup: mounted.setup, text: 'sending…', within: WITHIN })
+
+      mounted.setup.mockInput.pressArrow('up')
+      const frame = await frameSettled({ setup: mounted.setup, within: WITHIN })
+
+      expect(frame).toContain('sending…')
+      expect(client.calls.withdraw).toEqual([])
+    } finally {
+      client.releasePost()
       await teardown(mounted.setup)
     }
   }, 30_000)

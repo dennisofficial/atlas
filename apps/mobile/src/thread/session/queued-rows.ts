@@ -1,3 +1,4 @@
+import { operatorSaidOf } from '@dltech/atlas-client/session'
 import { deriveTranscript } from '@dltech/atlas-client/transcript'
 import {
   ENoticeStage,
@@ -18,7 +19,7 @@ import { rowsOf, type ThreadRow } from '../rows'
 import { entryFolds } from './registered-plugins'
 import type { StagedSend } from './staged-send'
 
-export type QueuedRow = { id: string; row: ThreadRow }
+export type QueuedRow = { id: string; row: ThreadRow; withdrawInboxId?: number }
 
 const QUEUED_ID = 'queued'
 
@@ -95,16 +96,23 @@ const rowOfEvent = (args: { event: Event; now: number }): ThreadRow | null => {
   return rows.at(-1) ?? null
 }
 
+const operatorMessageOf = (input: PendingInput): boolean =>
+  input.message !== undefined && operatorSaidOf(input.message)
+
 const pendingRowsOf = (args: {
   pending: PendingInputsState
   events: readonly Event[]
   now: number
+  hiddenInboxIds: ReadonlySet<number>
 }): QueuedRow[] =>
   args.pending.pending.flatMap((input) => {
+    if (args.hiddenInboxIds.has(input.inboxId)) return []
     const stamped = stampedInputOf({ input, events: args.events })
     if (stamped === null) return []
     const row = rowOfEvent({ event: stamped.event, now: args.now })
-    return row === null ? [] : [{ id: stamped.id, row }]
+    if (row === null) return []
+    if (!operatorMessageOf(input)) return [{ id: stamped.id, row }]
+    return [{ id: stamped.id, row, withdrawInboxId: input.inboxId }]
   })
 
 const stagedRowsOf = (args: {
@@ -127,7 +135,13 @@ export const queuedRowsOf = (args: {
   events: readonly Event[]
   staged: readonly StagedSend[]
   now: number
+  hiddenInboxIds: ReadonlySet<number>
 }): QueuedRow[] => [
-  ...pendingRowsOf({ pending: args.pending, events: args.events, now: args.now }),
+  ...pendingRowsOf({
+    pending: args.pending,
+    events: args.events,
+    now: args.now,
+    hiddenInboxIds: args.hiddenInboxIds,
+  }),
   ...stagedRowsOf({ staged: args.staged, events: args.events, now: args.now }),
 ]

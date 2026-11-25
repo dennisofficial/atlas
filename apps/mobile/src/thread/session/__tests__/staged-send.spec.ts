@@ -20,6 +20,10 @@ const eventsOf = (events: readonly unknown[]) => events.map((event) => eventSche
 
 const STAGED = [{ clientId: 'client-a', text: 'first', attachments: [] }]
 
+const NOT_OWNED: ReadonlySet<number> = new Set()
+
+const OWNED = new Set([1])
+
 describe('clientIdOfSend', () => {
   it('keeps the id of a failed post so the retry does not land twice', () => {
     const minted: string[] = []
@@ -35,7 +39,7 @@ describe('clientIdOfSend', () => {
 
 describe('settlementOf', () => {
   it('keeps a staged message while the log has nothing for its client id', () => {
-    const settlement = settlementOf({ staged: STAGED, events: [] })
+    const settlement = settlementOf({ staged: STAGED, events: [], ownedInboxIds: NOT_OWNED })
     expect(settlement.kept).toEqual(STAGED)
     expect(settlement.restored).toEqual([])
     expect(settlement.notices).toEqual([])
@@ -47,6 +51,7 @@ describe('settlementOf', () => {
       events: eventsOf([
         { ...envelope(1), type: 'user-said', text: 'first', clientId: 'client-a' },
       ]),
+      ownedInboxIds: NOT_OWNED,
     })
     expect(settlement.kept).toEqual([])
     expect(settlement.restored).toEqual([])
@@ -64,13 +69,14 @@ describe('settlementOf', () => {
           reason: 'session is archived',
         },
       ]),
+      ownedInboxIds: NOT_OWNED,
     })
     expect(settlement.kept).toEqual([])
     expect(settlement.restored).toEqual([{ text: 'first', attachments: [] }])
     expect(settlement.notices).toEqual(['session is archived'])
   })
 
-  it('restores the text of a withdrawn message without a notice', () => {
+  it('settles a withdrawn message without putting the text back, because the withdraw did', () => {
     const settlement = settlementOf({
       staged: STAGED,
       events: eventsOf([
@@ -84,9 +90,10 @@ describe('settlementOf', () => {
         },
         { ...envelope(2), type: 'input-withdrawn', inboxId: 1 },
       ]),
+      ownedInboxIds: OWNED,
     })
     expect(settlement.kept).toEqual([])
-    expect(settlement.restored).toEqual([{ text: 'first', attachments: [] }])
+    expect(settlement.restored).toEqual([])
     expect(settlement.notices).toEqual([])
   })
 
@@ -111,6 +118,7 @@ describe('settlementOf', () => {
         },
         { ...envelope(2), type: 'input-consumed', inboxId: 1, consumed: 'discarded' },
       ]),
+      ownedInboxIds: NOT_OWNED,
     })
     expect(settlement.kept).toEqual([])
     expect(settlement.restored).toEqual([{ text: 'first', attachments: [shot] }])
@@ -121,7 +129,12 @@ describe('settlementOf', () => {
     const posted = eventsOf([
       { ...envelope(1), type: 'user-said', text: 'first', clientId: 'client-a' },
     ])
-    const unread = settlementOf({ staged: STAGED, events: posted, unread: new Set(['client-a']) })
+    const unread = settlementOf({
+      staged: STAGED,
+      events: posted,
+      unread: new Set(['client-a']),
+      ownedInboxIds: NOT_OWNED,
+    })
 
     expect(unread.kept).toEqual(STAGED)
     expect(unread.restored).toEqual([])
@@ -131,10 +144,17 @@ describe('settlementOf', () => {
       { ...envelope(2), type: 'input-consumed', inboxId: 1, consumed: 'message' },
     ])
 
-    expect(settlementOf({ staged: STAGED, events: consumed, unread: new Set() }).kept).toEqual([])
+    expect(
+      settlementOf({
+        staged: STAGED,
+        events: consumed,
+        unread: new Set(),
+        ownedInboxIds: NOT_OWNED,
+      }).kept,
+    ).toEqual([])
   })
 
-  it('treats a losing withdraw as already sent', () => {
+  it('stays silent when the withdraw path owns the refusal of the same target', () => {
     const settlement = settlementOf({
       staged: STAGED,
       events: eventsOf([
@@ -148,15 +168,23 @@ describe('settlementOf', () => {
         },
         {
           ...envelope(2),
+          type: 'input-consumed',
+          inboxId: 1,
+          consumed: 'message',
+        },
+        {
+          ...envelope(3),
           type: 'input-refused',
           inboxId: 1,
           targetInboxId: 1,
           reason: 'already-sent',
         },
       ]),
+      ownedInboxIds: OWNED,
     })
+    expect(settlement.kept).toEqual([])
     expect(settlement.restored).toEqual([])
-    expect(settlement.notices).toEqual(['Already sent'])
+    expect(settlement.notices).toEqual([])
   })
 })
 

@@ -1,20 +1,21 @@
-import type { PendingInputsState } from '@dltech/atlas-core'
+import type { Attachment, PendingInput, PendingInputsState, RecordEvent } from '@dltech/atlas-core'
 import { pendingMessagesOf } from '@dltech/atlas-core'
-import { EWithdrawRefusal } from '@dltech/atlas-protocol'
-import { useCallback, useRef } from 'react'
+import {
+  operatorSaidOf,
+  requestWithdraw,
+  withdrawStore,
+  type WithdrawIntent,
+} from '@dltech/atlas-client/session'
+import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react'
 
+import type { ComposerRestore } from './composer-restore'
 import type { DraftControls } from '../ui/hooks/use-draft'
-import type { DraftTokens } from '../ui/hooks/use-draft-tokens'
 import type { SessionApi } from './session-api'
-import type { StagedState } from './staged-messages'
-
-export const ALREADY_SENT_NOTICE = 'Already sent'
-
-export const WITHDRAW_UNKNOWN_NOTICE = 'That message is no longer queued'
 
 export type TakeBack = {
   handleTakeBack: () => boolean
   canTakeBack: boolean
+  hiddenInboxIds: ReadonlySet<number>
 }
 
 export const mergeWithdrawnIntoDraft = (args: { withdrawn: string; draft: string }): string =>
@@ -23,68 +24,100 @@ export const mergeWithdrawnIntoDraft = (args: { withdrawn: string; draft: string
 const messageOf = (failure: unknown): string =>
   failure instanceof Error ? failure.message : String(failure)
 
+const NO_IDS: ReadonlySet<number> = new Set()
+
+const NO_INTENTS: readonly WithdrawIntent[] = []
+
+export type TakeBackTarget = {
+  targetInboxId: number
+  text: string
+  attachments: readonly Attachment[]
+}
+
+const operatorMessagesOf = (pending: PendingInputsState): readonly PendingInput[] =>
+  pendingMessagesOf(pending).filter(
+    (input) => input.message !== undefined && operatorSaidOf(input.message),
+  )
+
+export const takeBackOf = (pending: PendingInputsState): TakeBackTarget | undefined => {
+  const lastQueued = operatorMessagesOf(pending).at(-1)
+  if (lastQueued === undefined) return undefined
+  return {
+    targetInboxId: lastQueued.inboxId,
+    text: lastQueued.message?.text ?? '',
+    attachments: lastQueued.message?.attachments ?? [],
+  }
+}
+
 export function usePendingTakeBack(args: {
   api: SessionApi
   sessionId: string | null
   pending: PendingInputsState
-  staged: StagedState
+  foldable: readonly RecordEvent[]
   draft: DraftControls
-  tokens: Pick<DraftTokens, 'restore'>
+  restore: ComposerRestore
   onProblem: (reason: string) => void
 }): TakeBack {
+  const { sessionId } = args
   const latest = useRef(args)
   latest.current = args
-  const inFlight = useRef(false)
 
-  const putBack = useCallback((text: string) => {
-    const { draft, tokens } = latest.current
-    tokens.restore({
-      text: mergeWithdrawnIntoDraft({ withdrawn: text, draft: draft.value }),
-      images: [],
-    })
-  }, [])
+  const subscribe = useCallback(
+    (listener: () => void) =>
+      sessionId === null ? () => undefined : withdrawStore.subscribe({ sessionId, listener }),
+    [sessionId],
+  )
+  const getIntents = useCallback(
+    () => (sessionId === null ? NO_INTENTS : withdrawStore.intentsOf(sessionId)),
+    [sessionId],
+  )
+  const intents = useSyncExternalStore(subscribe, getIntents, getIntents)
+  const hiddenInboxIds = useMemo(
+    () => (intents.length === 0 ? NO_IDS : new Set(intents.map((entry) => entry.targetInboxId))),
+    [intents],
+  )
+
+  useEffect(() => {
+    if (sessionId === null) return
+    const settled = withdrawStore.takeSettlements({ sessionId, events: args.foldable })
+    for (const entry of settled) {
+      if (entry.status === 'refused') latest.current.onProblem(entry.notice)
+    }
+  }, [sessionId, args.foldable, intents])
+
+  useEffect(
+    () => () => {
+      if (sessionId !== null) withdrawStore.clear(sessionId)
+    },
+    [sessionId],
+  )
 
   const handleTakeBack = useCallback((): boolean => {
-    if (inFlight.current) return true
     const current = latest.current
     if (current.sessionId === null) return false
-
-    const lastStaged = current.staged.staged.at(-1)
-    if (lastStaged !== undefined) {
-      current.staged.withdraw(lastStaged.clientId)
-      putBack(lastStaged.text)
-      return true
-    }
-
-    const lastQueued = pendingMessagesOf(current.pending).at(-1)
-    if (lastQueued === undefined) return false
-
-    inFlight.current = true
-    void current.api
-      .withdraw({ sessionId: current.sessionId, inboxId: lastQueued.inboxId })
-      .then((result) => {
-        if (result.ok) {
-          putBack(lastQueued.message?.text ?? '')
-          return
-        }
-        latest.current.onProblem(
-          result.reason === EWithdrawRefusal.AlreadyConsumed
-            ? ALREADY_SENT_NOTICE
-            : WITHDRAW_UNKNOWN_NOTICE,
-        )
-      })
-      .catch((failure: unknown) => {
-        latest.current.onProblem(messageOf(failure))
-      })
-      .finally(() => {
-        inFlight.current = false
-      })
-
+    const target = takeBackOf(current.pending)
+    if (target === undefined) return false
+    const request = requestWithdraw({
+      api: current.api,
+      intents: withdrawStore,
+      target: { sessionId: current.sessionId, targetInboxId: target.targetInboxId },
+    })
+    if (!request.recorded) return true
+    current.restore({
+      text: mergeWithdrawnIntoDraft({ withdrawn: target.text, draft: current.draft.value }),
+      attachments: target.attachments,
+      reason: undefined,
+    })
+    void request.outcome.then((outcome) => {
+      if (outcome.kind === 'refused') latest.current.onProblem(outcome.notice)
+      if (outcome.kind === 'failed') latest.current.onProblem(messageOf(outcome.failure))
+    })
     return true
-  }, [putBack])
+  }, [])
 
   return {
     handleTakeBack,
-    canTakeBack: args.staged.staged.length > 0 || pendingMessagesOf(args.pending).length > 0,
+    canTakeBack: takeBackOf(args.pending) !== undefined,
+    hiddenInboxIds,
   }
 }
