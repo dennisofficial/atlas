@@ -23,6 +23,9 @@ const CHECK_RUNS_URL = `https://api.github.com/repos/dltech/atlas/commits/${HEAD
 const STATUS_URL = `https://api.github.com/repos/dltech/atlas/commits/${HEAD}/status`
 const SUITES_URL = `https://api.github.com/repos/dltech/atlas/commits/${HEAD}/check-suites?per_page=100`
 const REVIEWS_URL = 'https://api.github.com/repos/dltech/atlas/pulls/7/reviews?per_page=100'
+const RULES_URL = 'https://api.github.com/repos/dltech/atlas/rules/branches/main'
+const PROTECTION_URL =
+  'https://api.github.com/repos/dltech/atlas/branches/main/protection/required_status_checks'
 
 const checkRun = (id: number, name: string, conclusion: string) => ({
   id,
@@ -162,7 +165,15 @@ describe('GithubSubscriptionTargetStates', () => {
         next: 'No CI notice comes for this head. The next notices are a new push, a comment or review, or a merge or close.',
       },
     })
-    expect(urls).toEqual([PULL_URL, CHECK_RUNS_URL, STATUS_URL, SUITES_URL, REVIEWS_URL])
+    expect(urls).toEqual([
+      PULL_URL,
+      CHECK_RUNS_URL,
+      STATUS_URL,
+      SUITES_URL,
+      RULES_URL,
+      PROTECTION_URL,
+      REVIEWS_URL,
+    ])
   })
 
   it('counts a queued check suite as CI still running when no check run has started', async () => {
