@@ -35,10 +35,6 @@ function sealedOf(row: Row<'PreviewTunnel'>): boolean {
   return row.state === EPreviewTunnelState.Ready && hasSealOf(row)
 }
 
-function sealedWhileWeWaited(args: { row: Row<'PreviewTunnel'>; restoreState: string }): boolean {
-  return args.restoreState === EPreviewTunnelState.Creating && hasSealOf(args.row)
-}
-
 export async function sealPreviewTunnel(args: {
   deps: PreviewSealDeps
   podSessionId: string
@@ -67,10 +63,7 @@ async function createUnderClaim(args: {
   restoreState: string
 }): Promise<PreviewSealOutcome> {
   const row = await tunnelRowOf(args)
-  if (
-    args.seal === EPreviewSeal.Reuse &&
-    sealedWhileWeWaited({ row, restoreState: args.restoreState })
-  ) {
+  if (args.seal === EPreviewSeal.Reuse && hasSealOf(row)) {
     return sealedReplyOf({ row, cipher: args.deps.cipher })
   }
   try {

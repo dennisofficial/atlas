@@ -103,8 +103,9 @@ export class PreviewTunnels {
       if (existing.state !== EPreviewTunnelState.Deleting) return existing
       await tx.orm.public.PreviewTunnel.where({ id: existing.id }).updateAndCount({
         state: EPreviewTunnelState.Pending,
+        sealedTunnelToken: '',
       })
-      return { ...existing, state: EPreviewTunnelState.Pending }
+      return { ...existing, state: EPreviewTunnelState.Pending, sealedTunnelToken: '' }
     })
   }
 
