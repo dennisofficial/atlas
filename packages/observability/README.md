@@ -77,8 +77,6 @@ await trace.span({ name: ESpan.Turn, root: true, run: () => turn() })
 
 ### Use a real exporter
 
-- `posthogObservability({ distinctId, version, env })`: gives an `Observability` of PostHog
-  telemetry and tracer. It gives the null implementation when PostHog fails to start.
 - `serverObservability(args)`, `PosthogTracer`, `PosthogProductAnalytics`, `PosthogTelemetry`.
   `serverObservability` returns `analytics`, `errors` and `traceFor` over one PostHog client.
 - `telemetryDistinctId(args)`, `persistedTelemetryDistinctId({ atlasHome })`: the stable id, kept in
