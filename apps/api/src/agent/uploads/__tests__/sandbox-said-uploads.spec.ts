@@ -138,19 +138,13 @@ describe('SandboxSaidUploads', () => {
     expect(log.stat).toEqual([])
   })
 
-  it('throws a fetch failure for a current upload and degrades an older one', async () => {
+  it('throws a fetch failure for a current upload', async () => {
     const upload = uploadOf(ID_A)
     const sizes = { [upload.pathname]: 5 }
     const current = setup({ sizes, fetchFails: true })
     await expect(
       placeOf({ uploads: current.uploads, upload, current: new Set([ID_A]) }),
     ).rejects.toThrow('boom')
-    const older = setup({ sizes, fetchFails: true })
-    expect(await placeOf({ uploads: older.uploads, upload, current: new Set() })).toEqual({
-      state: EUploadState.Missing,
-    })
-    await older.uploads.place({ threadId, uploads: [upload], currentFileIds: new Set() })
-    expect(older.log.fetch).toHaveLength(2)
   })
 
   it('places several uploads in one call', async () => {

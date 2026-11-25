@@ -71,7 +71,11 @@ sequenceDiagram
   `Missing`; remembered → that; already a file at the target → `Ready`; blob head null →
   `Missing`; else sign a GET for the pathname and call the daemon's new `fetchToFile
   { url, path, size }`, which streams to `<path>.part`, checks the size and renames. A failure
-  throws for an upload of the current message and is `Missing` for an older one (v1's rule). The
+  throws for an upload of the current message. A step waits only on the files of the current
+  message. A file of an older message that the host has not checked yet is named at its target
+  path at once, and the host checks it (and fetches it when the sandbox lost it) in the
+  background, so a take-over or a sleeping pod never holds the first model call. A failed
+  background check is tried again on the next step. The
   bytes go Blob → sandbox and never cross the agent host.
 - **Stored pictures too**: a picture the model is shown by url (`media-urls.md`) is placed the same
   way, keyed by its content hash, so every attachment is a file the sandbox can open.
