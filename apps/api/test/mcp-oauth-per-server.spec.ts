@@ -1,16 +1,15 @@
 import { randomUUID } from 'node:crypto'
 import { db } from '@dltech/atlas-db'
-import { seedThread, seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
+import { seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
 import { seedProject } from '../src/test/web-settings.fake-db'
-import { EMcpOauthAccessOutcome, EMcpOauthGrantStatus, EMcpServerSource } from '@dltech/atlas-wire'
+import { EMcpOauthGrantStatus, EMcpServerSource } from '@dltech/atlas-wire'
 import { describe, expect, it } from 'bun:test'
 import { EnvService } from '../src/_core/config/env/env.service'
 import { SecretCipherService } from '../src/_lib/crypto/secret-cipher.service'
-import { PgRefreshLock } from '../src/_lib/refresh-lock/pg-refresh-lock'
-import { McpOauthAccessService } from '../src/api/cloud/mcp-oauth/mcp-oauth-access.service'
 import { McpOauthService } from '../src/api/cloud/mcp-oauth/mcp-oauth.service'
 import { FakeMcpFetcher } from '../src/api/cloud/mcp-oauth/mcp-oauth.fakes'
 import { sealJson, type SealedGrant } from '../src/agent'
+import { mcpOauthGatewayOf } from '../src/agent/mcp-oauth/gateway'
 import { EGrantRowStatus, McpOauthClock } from '../src/api/cloud/mcp-oauth/mcp-oauth.types'
 import { PrismaMcpOauthStore } from '../src/api/cloud/mcp-oauth/prisma-mcp-oauth.store'
 import { McpServersService } from '../src/api/cloud/mcp-servers/mcp-servers.service'
@@ -43,17 +42,16 @@ describe('per-server mcp oauth over real PostgreSQL', () => {
     return {
       store,
       oauth: new McpOauthService(store, cipher, new RealClock(), fetcher, config),
-      access: new McpOauthAccessService(
-        store,
-        cipher,
-        new RealClock(),
-        fetcher,
-        config,
-        new PgRefreshLock(),
-      ),
       servers: new McpServersService(cipher),
     }
   }
+  const gateway = () =>
+    mcpOauthGatewayOf({
+      db: database().db,
+      cipher,
+      publicUrl: 'https://api.test',
+      allowLocalTargets: true,
+    })
   const sealedTokens = (accessToken: string) =>
     sealJson({
       cipher,
@@ -64,25 +62,11 @@ describe('per-server mcp oauth over real PostgreSQL', () => {
         redirectUri: config.redirectUri,
       } satisfies SealedGrant,
     })
-  const accessIn = (args: { name: string; threadId?: string }) => ({
-    userId: ownerId,
-    name: args.name,
-    source: EMcpServerSource.Cloud,
-    url: SERVER_URL,
-    ...(args.threadId === undefined ? {} : { threadId: args.threadId }),
-  })
-
   it('two project rows with the same url hold independent grants', async () => {
     await seedUser({ db: database().db, id: ownerId })
     await seedProject({ id: projectA, ownerUserId: ownerId })
     await seedProject({ id: projectB, ownerUserId: ownerId })
-    const { store, oauth, access, servers } = services()
-    await seedThread({
-      db: database().db,
-      id: `thr-a-${runId}`,
-      userId: ownerId,
-      projectId: projectA,
-    })
+    const { store, oauth, servers } = services()
 
     const putSpec = {
       transport: { kind: EMcpTransportKind.Http, url: SERVER_URL },
@@ -112,15 +96,22 @@ describe('per-server mcp oauth over real PostgreSQL', () => {
     expect(listedA[0]?.status).toBe(EMcpOauthGrantStatus.Connected)
     expect(listedB[0]?.status).toBe(EMcpOauthGrantStatus.None)
 
-    const granted = await access.accessToken(
-      accessIn({ name: 'posthog', threadId: `thr-a-${runId}` }),
-    )
-    expect(granted).toMatchObject({
-      outcome: EMcpOauthAccessOutcome.Granted,
-      accessToken: 'token-a',
+    const granted = await gateway().refresh({
+      userId: ownerId,
+      projectId: projectA,
+      source: EMcpServerSource.Cloud,
+      name: 'posthog',
+      url: SERVER_URL,
     })
-    const outsideThread = await access.accessToken(accessIn({ name: 'posthog' }))
-    expect(outsideThread.outcome).toBe(EMcpOauthAccessOutcome.NeedsAuth)
+    expect(granted).toMatchObject({ ok: true, accessToken: 'token-a' })
+    const outsideProject = await gateway().refresh({
+      userId: ownerId,
+      projectId: projectB,
+      source: EMcpServerSource.Cloud,
+      name: 'posthog',
+      url: SERVER_URL,
+    })
+    expect(outsideProject).toMatchObject({ ok: false, signIn: true })
     expect(servers).toBeDefined()
   })
 

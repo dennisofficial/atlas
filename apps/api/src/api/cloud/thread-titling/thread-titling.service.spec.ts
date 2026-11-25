@@ -8,11 +8,11 @@ const serviceWith = (namer: SessionNamer): ThreadTitlingService => new ThreadTit
 
 describe('ThreadTitlingService', () => {
   it('names a session through the namer under a timeout signal', async () => {
-    const namer = vi.fn(async () => 'Fix login')
+    const namer = vi.fn(async (_ask: { text: string; signal: AbortSignal }) => 'Fix login')
     const service = serviceWith(namer as unknown as SessionNamer)
 
     expect(await service.nameOf(REQUEST)).toBe('Fix login')
-    const ask = namer.mock.calls[0]?.[0] as { text: string; signal: AbortSignal } | undefined
+    const ask = namer.mock.calls[0]?.[0]
     expect(ask?.text).toBe('fix login')
     expect(ask?.signal).toBeInstanceOf(AbortSignal)
     expect(TITLING_TIMEOUT_MS).toBeGreaterThan(0)

@@ -54,7 +54,7 @@ describe('createApp credentialed CORS', () => {
 
   const preflight = (origin: string) =>
     request(app.getHttpServer())
-      .options('/v1/trpc/threads.list')
+      .options('/v1/trpc/settings.list')
       .set('Origin', origin)
       .set('Access-Control-Request-Method', 'POST')
 

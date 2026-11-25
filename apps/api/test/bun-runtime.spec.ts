@@ -116,22 +116,12 @@ describeWithHost('api under the bun runtime', () => {
   })
 
   it('answers 401 on a session-only procedure without a session', async () => {
-    const input = encodeURIComponent(JSON.stringify({ project: '/repo' }))
-    const response = await fetch(`${base}/v1/trpc/threads.recent?input=${input}`)
-    expect(response.status).toBe(401)
-  })
-
-  it('answers 401 on a retired sandbox procedure', async () => {
-    const response = await fetch(`${base}/v1/trpc/sandboxSelf.events`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ events: [] }),
-    })
+    const response = await fetch(`${base}/v1/trpc/settings.list`)
     expect(response.status).toBe(401)
   })
 
   it('refuses a tRPC body over the global JSON cap with 413', async () => {
-    const response = await fetch(`${base}/v1/trpc/sandboxSelf.stop`, {
+    const response = await fetch(`${base}/v1/trpc/settings.patch`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ sessionId: 'x'.repeat(JSON_BODY_CAP_BYTES) }),

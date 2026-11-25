@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { createServer, type Server } from 'node:http'
 import { db } from '@dltech/atlas-db'
 import { EOauthProvider } from '@dltech/atlas-wire'
-import { seedThread, seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
+import { seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'bun:test'
 import { EnvService } from '../src/_core/config/env/env.service'
 import { SecretCipherService } from '../src/_lib/crypto/secret-cipher.service'
@@ -42,8 +42,6 @@ describe('oauth connection authority over real PostgreSQL and a fake HTTP issuer
   )
   const database = useTestDatabase()
   const connectionRow = (id: string) => db.orm.public.OauthConnection.first({ id })
-  const assignmentCount = async (where: { connectionId: string } | { sandboxId: string }) =>
-    (await db.orm.public.OauthConnectionSandbox.where(where).all()).length
   let issuerServer: Server
   let currentRefreshToken = ''
   let exchanges: string[] = []
@@ -60,12 +58,8 @@ describe('oauth connection authority over real PostgreSQL and a fake HTTP issuer
       connectionId,
       draft: { provider: EOauthProvider.Anthropic, tokens: grant(`refresh-${connectionId}-0`) },
     })
-  const issue = (connectionId: string, via = 0, sandboxId?: string) =>
-    instances[via]!.issueAccessToken({
-      userId: ownerId,
-      connectionId,
-      ...(sandboxId === undefined ? {} : { sandboxId }),
-    })
+  const issue = (connectionId: string, via = 0) =>
+    instances[via]!.issueAccessToken({ userId: ownerId, connectionId })
   const startNewConnection = async () => {
     const id = `conn-${randomUUID()}`
     currentRefreshToken = `refresh-${id}-0`
@@ -189,52 +183,5 @@ describe('oauth connection authority over real PostgreSQL and a fake HTTP issuer
     expect(row).toMatchObject({ status: 'expired', refreshAttempt: null })
     await expect(issue(id, 1)).rejects.toMatchObject({ status: 409 })
     expect(exchanges).toHaveLength(1)
-  })
-
-  it('scopes sandbox issuance to assignments and cascades on sandbox and connection removal', async () => {
-    const id = await startNewConnection()
-    const at = new Date('2026-10-01T00:00:00.000Z')
-    const sandboxes = [`sbx-${randomUUID()}`, `sbx-${randomUUID()}`]
-    for (const sandboxId of sandboxes) {
-      await seedThread({ db, id: `thr-${sandboxId}`, userId: ownerId })
-      await db.orm.public.CloudSandbox.create({
-        id: sandboxId,
-        sessionId: `ses_thr-${sandboxId}`,
-        userId: ownerId,
-        sandboxId: `p-${sandboxId}`,
-        name: sandboxId,
-        region: 'iad1',
-        state: 'running',
-        tokenHash: sandboxId,
-        lastActivityAt: at,
-        createdAt: at,
-        updatedAt: at,
-      })
-    }
-    const [assigned, other] = sandboxes as [string, string]
-    await expect(issue(id, 0, assigned)).rejects.toMatchObject({ status: 404 })
-    await instances[0]!.assignSandbox({
-      userId: ownerId,
-      connectionId: id,
-      threadId: `thr-${assigned}`,
-    })
-    await instances[1]!.assignSandbox({
-      userId: ownerId,
-      connectionId: id,
-      threadId: `thr-${assigned}`,
-    })
-    await expect(issue(id, 1, assigned)).resolves.toMatchObject({ generation: 1 })
-    await expect(issue(id, 1, other)).rejects.toMatchObject({ status: 404 })
-    expect(await assignmentCount({ connectionId: id })).toBe(1)
-
-    await db.orm.public.CloudSandbox.where({ id: assigned }).delete()
-    expect(await assignmentCount({ connectionId: id })).toBe(0)
-    await instances[0]!.assignSandbox({
-      userId: ownerId,
-      connectionId: id,
-      threadId: `thr-${other}`,
-    })
-    await instances[0]!.remove({ userId: ownerId, connectionId: id })
-    expect(await assignmentCount({ sandboxId: other })).toBe(0)
   })
 })
