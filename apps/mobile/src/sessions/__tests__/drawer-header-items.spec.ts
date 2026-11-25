@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'bun:test'
 
-import { drawerBarItemsOf, drawerSearchBarPropsOf } from '../drawer-header-items'
+import { ESessionsListLayout } from '../../layout/posture'
+import {
+  drawerBarItemsOf,
+  drawerSearchBarPropsOf,
+  showsNewSessionButtonOf,
+} from '../drawer-header-items'
 
 const noop = () => {}
 
@@ -19,11 +24,13 @@ describe('drawerBarItemsOf', () => {
   it('puts account on the left only when the controls sit in the bottom bar', () => {
     const withAccount = drawerBarItemsOf({
       showsAccount: true,
+      showsNewSession: true,
       onAccount: noop,
       onNewSession: noop,
     })
     const withoutAccount = drawerBarItemsOf({
       showsAccount: false,
+      showsNewSession: true,
       onAccount: noop,
       onNewSession: noop,
     })
@@ -34,6 +41,7 @@ describe('drawerBarItemsOf', () => {
   it('always offers a plus button on the right', () => {
     const { right } = drawerBarItemsOf({
       showsAccount: false,
+      showsNewSession: true,
       onAccount: noop,
       onNewSession: noop,
     })
@@ -47,10 +55,21 @@ describe('drawerBarItemsOf', () => {
     ])
   })
 
+  it('drops the plus button so an expanded search fits the fixed panel', () => {
+    const { right } = drawerBarItemsOf({
+      showsAccount: false,
+      showsNewSession: false,
+      onAccount: noop,
+      onNewSession: noop,
+    })
+    expect(right).toEqual([])
+  })
+
   it('runs the account action when the account button is pressed', () => {
     let pressed = 0
     const { left } = drawerBarItemsOf({
       showsAccount: true,
+      showsNewSession: true,
       onAccount: () => {
         pressed += 1
       },
@@ -61,5 +80,28 @@ describe('drawerBarItemsOf', () => {
     item.onPress()
     expect(pressed).toBe(1)
     expect(item.accessibilityLabel).toBe('Settings')
+  })
+})
+
+describe('showsNewSessionButtonOf', () => {
+  it('keeps the plus button while the fixed panel is not searching', () => {
+    expect(
+      showsNewSessionButtonOf({ listLayout: ESessionsListLayout.Panel, searching: false }),
+    ).toBe(true)
+  })
+
+  it('hides the plus button only while the fixed panel searches', () => {
+    expect(
+      showsNewSessionButtonOf({ listLayout: ESessionsListLayout.Panel, searching: true }),
+    ).toBe(false)
+  })
+
+  it('keeps the plus button while a drawer searches', () => {
+    expect(
+      showsNewSessionButtonOf({ listLayout: ESessionsListLayout.Overlay, searching: true }),
+    ).toBe(true)
+    expect(
+      showsNewSessionButtonOf({ listLayout: ESessionsListLayout.Stacked, searching: true }),
+    ).toBe(true)
   })
 })

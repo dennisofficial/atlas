@@ -1,5 +1,7 @@
 import type { HeaderBarButtonItem, SearchBarProps } from 'react-native-screens'
 
+import { ESessionsListLayout } from '../layout/posture'
+
 export const drawerSearchBarPropsOf = (): Pick<
   SearchBarProps,
   'allowToolbarIntegration' | 'autoCapitalize' | 'placeholder' | 'placement'
@@ -24,15 +26,25 @@ const newSessionBarItemOf = ({ onPress }: { onPress: () => void }): HeaderBarBut
   type: 'button',
 })
 
+export const showsNewSessionButtonOf = ({
+  listLayout,
+  searching,
+}: {
+  listLayout: ESessionsListLayout
+  searching: boolean
+}): boolean => listLayout !== ESessionsListLayout.Panel || !searching
+
 export const drawerBarItemsOf = ({
   showsAccount,
+  showsNewSession,
   onAccount,
   onNewSession,
 }: {
   showsAccount: boolean
+  showsNewSession: boolean
   onAccount: () => void
   onNewSession: () => void
 }): { left: HeaderBarButtonItem[]; right: HeaderBarButtonItem[] } => ({
   left: showsAccount ? [accountBarItemOf({ onPress: onAccount })] : [],
-  right: [newSessionBarItemOf({ onPress: onNewSession })],
+  right: showsNewSession ? [newSessionBarItemOf({ onPress: onNewSession })] : [],
 })

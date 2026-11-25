@@ -20,6 +20,7 @@ import { KeyboardDock } from '../../../layout/keyboard-dock'
 import { usePosture } from '../../../layout/use-posture'
 import { EHeaderLeadingItem, sessionHeaderLeadingOf } from '../../../navigation/header-leading'
 import { leadingHeaderOptionsOf } from '../../../navigation/header-options'
+import { SessionsButton } from '../../../navigation/sessions-button'
 import { CommandListSheet } from '../../../thread/composer/command-list-sheet'
 import { Composer } from '../../../thread/composer/composer'
 import { ContextReading } from '../../../thread/composer/context-reading'
@@ -81,11 +82,9 @@ export default function SessionScreen() {
 
   const showsSessions = sessionHeaderLeadingOf({ posture }).includes(EHeaderLeadingItem.Sessions)
   const sessionsHeaderItem = {
-    type: 'button' as const,
-    label: 'Sessions',
-    icon: { type: 'sfSymbol' as const, name: 'sidebar.left' as const },
-    accessibilityLabel: 'Sessions',
-    onPress: handleOpenSessions,
+    type: 'custom' as const,
+    element: <SessionsButton onPress={handleOpenSessions} />,
+    hidesSharedBackground: false,
   }
 
   return (
