@@ -4,6 +4,7 @@ export enum ERouteNavigationOutcome {
   Committed = 'committed',
   Superseded = 'superseded',
   TimedOut = 'timed_out',
+  Abandoned = 'abandoned',
 }
 
 export interface RscTiming {
@@ -16,19 +17,26 @@ export interface RscTiming {
   nextHopProtocol: string
 }
 
+export interface RouteNavigationTrackArgs {
+  event: string
+  props: Record<string, unknown>
+  atUnload: boolean
+}
+
 export interface RouteNavigationPorts {
   now: () => number
   schedule: (args: { delayMs: number; run: () => void }) => () => void
   openStreams: () => number
   currentPathname: () => string
   origin: string
-  track: (event: string, props: Record<string, unknown>) => void
+  track: (args: RouteNavigationTrackArgs) => void
 }
 
 export interface RouteNavigationTracker {
   start: (args: { url: string; navigationType: string }) => void
   commit: (pathname: string) => void
   handleRscTiming: (timing: RscTiming) => void
+  abandon: () => void
 }
 
 export const ROUTE_NAVIGATED_EVENT = 'route_navigated'
@@ -45,6 +53,7 @@ interface Navigation {
   navigationType: string
   startedAt: number
   openStreams: number
+  samePattern: boolean
 }
 
 interface Pending extends Navigation {
@@ -98,6 +107,7 @@ export function routeNavigatedProps(args: {
 }): Record<string, unknown> {
   return {
     route: routePatternOf(args.navigation.path),
+    same_pattern: args.navigation.samePattern,
     navigation_type: args.navigation.navigationType,
     outcome: args.outcome,
     ms_to_commit: elapsedMs({ from: args.navigation.startedAt, to: args.endedAt }),
@@ -121,22 +131,35 @@ export function createRouteNavigationTracker(ports: RouteNavigationPorts): Route
     timing.startTime >= navigation.startedAt - RSC_START_SLACK_MS &&
     pathOf({ url: timing.name, origin: ports.origin }) === navigation.path
 
-  const report = (navigation: Settling): void => {
+  const report = ({
+    navigation,
+    atUnload = false,
+  }: {
+    navigation: Settling
+    atUnload?: boolean
+  }): void => {
     if (!settling.delete(navigation)) return
     navigation.cancelSettle()
     const rsc = rscTimings.find((timing) => matches({ navigation, timing }))
-    ports.track(
-      ROUTE_NAVIGATED_EVENT,
-      routeNavigatedProps({
+    ports.track({
+      event: ROUTE_NAVIGATED_EVENT,
+      props: routeNavigatedProps({
         navigation,
         outcome: navigation.outcome,
         endedAt: navigation.endedAt,
         rsc,
       }),
-    )
+      atUnload,
+    })
   }
 
-  const finish = (outcome: ERouteNavigationOutcome): void => {
+  const finish = ({
+    outcome,
+    atUnload = false,
+  }: {
+    outcome: ERouteNavigationOutcome
+    atUnload?: boolean
+  }): void => {
     if (pending === undefined) return
     const { cancelTimeout, ...navigation } = pending
     pending = undefined
@@ -148,41 +171,48 @@ export function createRouteNavigationTracker(ports: RouteNavigationPorts): Route
       cancelSettle: () => undefined,
     }
     settling.add(ended)
-    if (rscTimings.some((timing) => matches({ navigation: ended, timing }))) {
-      report(ended)
+    if (atUnload || rscTimings.some((timing) => matches({ navigation: ended, timing }))) {
+      report({ navigation: ended, atUnload })
       return
     }
-    ended.cancelSettle = ports.schedule({ delayMs: RSC_SETTLE_MS, run: () => report(ended) })
+    ended.cancelSettle = ports.schedule({
+      delayMs: RSC_SETTLE_MS,
+      run: () => report({ navigation: ended }),
+    })
   }
 
   return {
     start: ({ url, navigationType }) => {
       const path = pathOf({ url, origin: ports.origin })
       if (path === undefined || path === ports.currentPathname()) return
-      if (routePatternOf(path) === lastCommittedPattern) return
-      finish(ERouteNavigationOutcome.Superseded)
+      finish({ outcome: ERouteNavigationOutcome.Superseded })
       pending = {
         path,
         navigationType,
         startedAt: ports.now(),
         openStreams: ports.openStreams(),
+        samePattern: routePatternOf(path) === lastCommittedPattern,
         cancelTimeout: ports.schedule({
           delayMs: NAVIGATION_TIMEOUT_MS,
-          run: () => finish(ERouteNavigationOutcome.TimedOut),
+          run: () => finish({ outcome: ERouteNavigationOutcome.TimedOut }),
         }),
       }
     },
     commit: (pathname) => {
       if (pending?.path !== pathname) return
-      finish(ERouteNavigationOutcome.Committed)
+      finish({ outcome: ERouteNavigationOutcome.Committed })
       lastCommittedPattern = routePatternOf(pathname)
     },
     handleRscTiming: (timing) => {
       rscTimings.push(timing)
       if (rscTimings.length > RSC_TIMING_LIMIT) rscTimings.shift()
       for (const navigation of settling) {
-        if (matches({ navigation, timing })) report(navigation)
+        if (matches({ navigation, timing })) report({ navigation })
       }
+    },
+    abandon: () => {
+      finish({ outcome: ERouteNavigationOutcome.Abandoned, atUnload: true })
+      for (const navigation of [...settling]) report({ navigation, atUnload: true })
     },
   }
 }

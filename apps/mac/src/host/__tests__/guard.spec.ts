@@ -1,20 +1,55 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
+import { once } from 'node:events'
+import { connect, type ClientHttp2Session, type IncomingHttpHeaders } from 'node:http2'
+
 import { createDesktopHost, type IDesktopHost } from '../index'
 
 const SECRET = 'a'.repeat(64)
 let host: IDesktopHost
+let secure: ClientHttp2Session
 
-beforeAll(() => {
-  host = createDesktopHost({
+beforeAll(async () => {
+  host = await createDesktopHost({
     appOrigin: 'http://127.0.0.1:1',
     apiOrigin: 'http://127.0.0.1:1',
     secret: SECRET,
   })
+  secure = connect(host.secureUrl, { rejectUnauthorized: false })
+  secure.on('error', () => undefined)
+  await once(secure, 'connect')
 })
 
 afterAll(async () => {
+  secure.destroy()
   await host.stop()
 })
+
+async function secureGet({
+  path,
+  cookie,
+  authority,
+}: {
+  path: string
+  cookie?: string
+  authority?: string
+}): Promise<{ status: number; location?: string | undefined; headers: IncomingHttpHeaders }> {
+  const stream = secure.request({
+    ':path': path,
+    ':method': 'GET',
+    ...(authority === undefined ? {} : { ':authority': authority }),
+    ...(cookie === undefined ? {} : { cookie }),
+  })
+  stream.on('data', () => undefined)
+  const ended = once(stream, 'end')
+  const [headers] = (await once(stream, 'response')) as [IncomingHttpHeaders, number]
+  await ended
+  const location = headers.location
+  return {
+    status: Number(headers[':status']),
+    location: typeof location === 'string' ? location : undefined,
+    headers,
+  }
+}
 
 async function sessionCookie(): Promise<string> {
   const res = await fetch(`${host.url}/desktop/session?secret=${SECRET}`, { redirect: 'manual' })
@@ -61,5 +96,42 @@ describe('desktop guard', () => {
   test('unknown desktop route behind the guard is 404', async () => {
     const cookie = await sessionCookie()
     expect((await fetch(`${host.url}/desktop/nope`, { headers: { cookie } })).status).toBe(404)
+  })
+})
+
+describe('the https listener', () => {
+  test('is served next to the plain listener on its own port', () => {
+    expect(host.secureUrl).toBe(`https://127.0.0.1:${host.securePort}`)
+    expect(host.securePort).not.toBe(host.port)
+    expect(host.certFingerprint).toStartWith('sha256/')
+  })
+
+  test('puts the session cookie on a redirect over HTTP/2', async () => {
+    const reply = await secureGet({ path: `/desktop/session?secret=${SECRET}` })
+    expect(reply.status).toBe(302)
+    expect(reply.location).toBe('/')
+    expect(String(reply.headers['set-cookie'])).toContain('HttpOnly')
+  })
+
+  test('passes the guard when the request names the https listener', async () => {
+    const cookie = await sessionCookie()
+    const reply = await secureGet({ path: '/desktop/health', cookie })
+    expect(reply.status).toBe(200)
+  })
+
+  test('refuses a request whose authority names the plain listener', async () => {
+    const cookie = await sessionCookie()
+    const reply = await secureGet({
+      path: '/desktop/health',
+      cookie,
+      authority: `127.0.0.1:${host.port}`,
+    })
+    expect(reply.status).toBe(403)
+  })
+
+  test('refuses a foreign authority', async () => {
+    const cookie = await sessionCookie()
+    const reply = await secureGet({ path: '/desktop/health', cookie, authority: 'evil.example' })
+    expect(reply.status).toBe(403)
   })
 })
