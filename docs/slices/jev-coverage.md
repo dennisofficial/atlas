@@ -403,8 +403,9 @@ New-rule candidates, all general and visible in the scope and the diff, none cau
 2. **Misleading name**: a function or variable name says one thing, the body does another.
 3. **Duplicated logic**: the scope repeats a block that it or the file already has.
 
-Known false positive to fix at once with a general exception: a class whose shape a framework
-fixes (migrations, framework entry classes). That is the 1 real nudge we have.
+Known false positive: a class whose shape a framework fixes (migrations). A text exception was
+tried in #2958 and parked: it lost 6 warranted notification trials, and one lifecycle class lost
+all 3 trials. See §11.5. The case moves into the SRP v2 eval (S6).
 
 **Target.** At least 20 real (non-probe) nudges per week across all policies, at precision ≥ 0.95
 (lower bound ≥ 0.85) and recall ≥ 0.6 on labelled real code. Today: about 1 real nudge per day,
@@ -421,7 +422,9 @@ precision 0/1.
 | S3  | `quality nudge reaction`, replacing `quality finding ignored`                                                                                                             | S1         |
 | S4  | Score definitions and datasets; routine prompt with §6.2; `eval:jev-real` loader and offline-experiment publish                                                           | S2         |
 | S5  | Dashboard insights §5.4                                                                                                                                                   | S1–S3      |
-| S6  | After 2 weeks of labels: thresholds, module scope, framework-shape exception, first new rule                                                                              | S4         |
+| S6  | SRP v2: atomic Choice predicates composed in code, pinned model; eval against SRP v1 on the real set (§11.1)                                                              | S4         |
+| S7  | Verifier stage: narrow Jev questions with retrieved context confirm each candidate; publish only verified findings (§11.3)                                                | S4, S6     |
+| S8  | One new rule with concrete evidence, then thresholds and module scope (§11.4)                                                                                             | S4, S7     |
 
 Each slice ships with specs in `plugins/quality/src/**/__tests__/` and a live check in a real
 session: the event lands in PostHog with the expected properties and no raw session id.
@@ -446,7 +449,70 @@ session: the event lands in PostHog with the expected properties and no raw sess
 
 ## 10. Out of scope
 
+- Long-context mode (`TypeSafe-Danger-Zone-Long-Context`) until it is measured on the real set (§11.2).
+
 - Tracing the agent's own model calls, conversations or any session content.
 - Reviewing `bash` writes. Only counted (§5.3).
 - Online LLM-judge evaluations (they need a BYOK key and AI data approval).
 - The dropped silent-failure and open/closed rules (`quality-rules.md` §7).
+
+---
+
+## 11. Research findings (2026-11-25) and what they change
+
+Sources: docs.typesafe.ai (`/model-jaggedness`, `/concepts/how-to-build-with-system-one`,
+`/primitives/choice`, `/confidence`, `/models`); cursor.com/blog (`building-bugbot`,
+`bugbot-learning`); the Semgrep blog (2025, "96%").
+
+### 11.1 The SRP questions have the shape Jev does badly
+
+TypeSafe documents three weak spots: counting, abstract multi-hop judgments, and the calibration
+of Score levels. "Does this scope mix independently changing responsibilities" needs all three.
+This probably explains the low concern scores (most reviews score 0.0–0.3, §2).
+
+SRP v2 (slice S6):
+- Atomic, literal, observable predicates. For example: "does the scope call a network or HTTP
+  client", "does it write files", "does it build SQL or a schema", "does it render markup",
+  "does it format an outbound message". Each predicate is a Choice with contrastive criteria:
+  what qualifies, what does not, and one example of each.
+- Code composes the answers deterministically. For example, two or more unrelated concern
+  families in one class or function, and the edit added one of them.
+- Threshold the probability of the relevant option. Do not use a Score expectation or
+  `confidence`.
+- Pin the model version (`jev-1.14.0`), not the `jev-latest` alias, so a model release cannot
+  move the thresholds.
+- Ship bar: against SRP v1, on the labelled real set (§6), at the §7 bar.
+
+### 11.2 Long context
+
+The default limits are 32k tokens per question (state plus one question) and 64k per request.
+TypeSafe calls the 262k long-context mode experimental and less accurate, and publishes no
+accuracy numbers for it. So S1b sets the bounds to the default limits in tokens. Above them, Jev
+reviews an excerpt of the changed region (S1b). Long context stays off until it is measured on
+the labelled set.
+
+### 11.3 Two stages
+
+Bugbot's main precision lever: a permissive screen finds candidates, and a separate verifier
+looks for evidence for each one. Only verified findings reach the agent. For Jev (slice S7), the
+screen is the S6 predicates at a lower threshold. The verifier is a second set of narrow Jev
+questions per candidate, with the context it needs retrieved (callers, the convention in the
+sibling files). It does not use long context.
+
+### 11.4 Next rules
+
+Rules with concrete evidence in the code do better than abstract design judgments: a contract
+mismatch, a missing failure branch, a resource without cleanup, a boundary condition, an exposed
+credential. "Narrating comment" (§7) stays first only if its eval passes gate 1 and gate 2.
+Otherwise the next rule comes from this list.
+
+### 11.5 Metrics
+
+- `quality nudge reaction` (fixed or not) measures usefulness, not precision. The precision bar
+  stays on human and agent labels (§6).
+- Dedupe repeated findings across writes: count one finding (`finding_id`, `episode`) once in
+  every rate.
+- #2958 (framework-shape text exception) is parked. Live eval, 3 trials: warranted notification
+  trials went from 15/27 to 11/27. 7 notifications were lost and 2 gained. One lifecycle class
+  lost all 3 trials, with impact probability falling from 0.86–0.89 to 0.57–0.64. A text exception
+  that names a broad category leaks into nearby cases. That is one more reason for §11.1.
