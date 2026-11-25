@@ -9,7 +9,7 @@ import {
   GITHUB_WORKFLOW_RUN_PROVIDER_KIND,
   PULL_REQUEST_PROVIDER_KIND,
 } from '../../platform/sessions/thread-subscriptions'
-import { liveUntilOf, nextExpiry } from '@dltech/atlas-github'
+import { nextExpiry } from '@dltech/atlas-github'
 import {
   PULL_REQUEST_KIND,
   WORKFLOW_RUN_KIND,
@@ -17,7 +17,6 @@ import {
   workflowBranchOf,
 } from '@dltech/atlas-github'
 import { GithubSubscriptionsService } from '@dltech/atlas-github'
-import { threadActivityAt } from './github-thread-activity'
 
 type LinkTarget = {
   repoFullName: string
@@ -145,11 +144,6 @@ export class GithubPrSubscriptionLinks extends PrSubscriptionLinks {
   }): Promise<void> {
     try {
       const expiresAt = nextExpiry()
-      const activity = await threadActivityAt({ threadIds: [args.threadId] })
-      const liveUntil = liveUntilOf({
-        expiresAt,
-        sandboxLastActivityAt: activity.get(args.threadId) ?? null,
-      })
       await db.orm.public.GithubSubscription.upsert({
         conflictOn: {
           userId: args.userId,
@@ -166,14 +160,14 @@ export class GithubPrSubscriptionLinks extends PrSubscriptionLinks {
           events: [...args.events],
           pollBacked: true,
           expiresAt,
-          liveUntil,
+          liveUntil: expiresAt,
           threadId: args.threadId,
         },
         update: {
           prNumber: args.target.prNumber,
           events: [...args.events],
           expiresAt,
-          liveUntil,
+          liveUntil: expiresAt,
         },
       })
     } catch (failure) {

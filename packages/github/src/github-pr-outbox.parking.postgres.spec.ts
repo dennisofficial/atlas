@@ -2,7 +2,6 @@ import { randomUUID } from 'node:crypto'
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { describe, expect, it } from 'bun:test'
-import { recordingSignals } from './testing/thread-signals.fixture'
 import { GithubPrOutboxDispatcher } from './github-pr-outbox'
 import {
   claimPrOutboxRows,
@@ -11,17 +10,16 @@ import {
   prOutboxBackoffMs,
 } from './github-pr-outbox-lease'
 import { GithubHttpBudgetUnavailable } from './github-request-budget'
-import { legacyOf } from './github-legacy-effects.fixture'
 
 const AT = new Date('2026-11-18T10:00:00Z')
 
-const signalRow = (args: { createdAt: Date }) => ({
+const fanoutRow = (args: { createdAt: Date }) => ({
   id: `out_${randomUUID()}`,
-  kind: 'thread-signal',
+  kind: 'fanout',
   repoFullName: 'compai/app',
   prNumber: 42,
-  payload: { threadId: 'thr_1' },
-  dedupeKey: `thread-signal:${randomUUID()}`,
+  payload: { userIds: ['usr-a'], state: { repoFullName: 'compai/app', prNumber: 42 } },
+  dedupeKey: `fanout:${randomUUID()}`,
   createdAt: args.createdAt,
   dispatchedAt: null,
   attempts: 0,
@@ -29,7 +27,7 @@ const signalRow = (args: { createdAt: Date }) => ({
 })
 
 const reconcileRow = (args: { createdAt: Date }) => ({
-  ...signalRow(args),
+  ...fanoutRow(args),
   kind: 'reconcile-checks',
   payload: { repoFullName: 'compai/app', headSha: 'abc123' },
 })
@@ -38,7 +36,7 @@ const parkedRow = (args: { id?: string; attempts?: number; now: Date }) => {
   const parkedAt = new Date(args.now.getTime() - PR_OUTBOX_PARK_EXPIRE_MS - 1_000)
 
   return {
-    ...signalRow({ createdAt: parkedAt }),
+    ...fanoutRow({ createdAt: parkedAt }),
     ...(args.id === undefined ? {} : { id: args.id }),
     attempts: args.attempts ?? 0,
     nextAttemptAt: args.now,
@@ -47,17 +45,15 @@ const parkedRow = (args: { id?: string; attempts?: number; now: Date }) => {
 }
 
 function rig(args: { now: () => Date; reconcile: () => Promise<void> }) {
-  const { signals, changedThreads } = recordingSignals()
   const dispatcher = new GithubPrOutboxDispatcher({
     fanout: { push: () => undefined, pushEvent: () => undefined },
-    legacy: legacyOf({ signals: signals, wake: { notifyEvent: async () => undefined } }),
     reconcile: args.reconcile,
     mergeability: async () => undefined,
     logger: { warn: () => undefined },
     now: args.now,
   })
 
-  return { dispatcher, changedThreads }
+  return { dispatcher }
 }
 
 const reload = (id: string) => db.orm.public.GithubPrOutbox.where({ id }).first()
@@ -70,7 +66,7 @@ describe('GithubPrOutboxDispatcher parked rows', () => {
     const retriedOnce = await db.orm.public.GithubPrOutbox.create(
       parkedRow({ now: AT, attempts: 1 }),
     )
-    const live = await db.orm.public.GithubPrOutbox.create(signalRow({ createdAt: AT }))
+    const live = await db.orm.public.GithubPrOutbox.create(fanoutRow({ createdAt: AT }))
 
     const claim = await claimPrOutboxRows({ now: AT, limit: 32 })
 
@@ -88,15 +84,14 @@ describe('GithubPrOutboxDispatcher parked rows', () => {
 
   it('runs the live row and retires the parked one in the same drain', async () => {
     const retired = await db.orm.public.GithubPrOutbox.create(parkedRow({ now: AT }))
-    const live = await db.orm.public.GithubPrOutbox.create(signalRow({ createdAt: AT }))
-    const { dispatcher, changedThreads } = rig({
+    const live = await db.orm.public.GithubPrOutbox.create(fanoutRow({ createdAt: AT }))
+    const { dispatcher } = rig({
       now: () => AT,
       reconcile: async () => undefined,
     })
 
     expect(await dispatcher.drain()).toBe(1)
 
-    expect(changedThreads).toHaveLength(1)
     const executed = await reload(live.id)
     expect(executed).toMatchObject({ attempts: 0, deadLetteredAt: null, parkedSince: null })
     expect(executed?.dispatchedAt).not.toBeNull()

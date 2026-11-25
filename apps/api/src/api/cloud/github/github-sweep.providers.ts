@@ -7,7 +7,6 @@ import { GithubPollSweeperService } from '@dltech/atlas-github'
 import { GithubPrStore } from '@dltech/atlas-github'
 import { GithubRequestCoordinator } from '@dltech/atlas-github'
 import { GithubSubscriptionsService } from '@dltech/atlas-github'
-import { threadActivityAt } from './github-thread-activity'
 import { GithubUserReads } from '@dltech/atlas-github'
 import { GithubService } from '@dltech/atlas-github'
 
@@ -28,16 +27,7 @@ export const pollSweeperProvider: Provider = {
     coordinator: GithubRequestCoordinator,
     headReads: GithubHeadReads,
     store: GithubPrStore,
-  ) =>
-    new GithubPollSweeperService(
-      github,
-      reads,
-      hooks,
-      coordinator,
-      headReads,
-      store,
-      threadActivityAt,
-    ),
+  ) => new GithubPollSweeperService(github, reads, hooks, coordinator, headReads, store),
 }
 
 export const subscriptionsServiceProvider: Provider = {
@@ -68,6 +58,5 @@ export const subscriptionsServiceProvider: Provider = {
       coordinator,
       installations,
       store,
-      threadActivityAt,
     ),
 }

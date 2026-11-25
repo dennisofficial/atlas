@@ -19,8 +19,9 @@ and better-auth's `/api/auth/*`.
 **The API provisions Atlas Cloud sandboxes on the thread owner's own Vercel credentials.**
 `threads.create` with a `firstMessage` writes the Thread, its first `user-said` Event and the
 `CloudSandbox` claim in one transaction. It then dispatches the `pod-provision` trigger.dev task
-(`src/api/cloud/sandbox-provisioning/`, worker `src/trigger/pod-provision/`). That task exits if its
-`wakeClaim` was superseded. `threadSandbox.provision` is Retry. Without `firstMessage`
+(`src/api/cloud/sandbox-provisioning/`). That task exits if its `wakeClaim` was superseded. Both the
+dispatch and the task are v1 and go with the v1 request lanes (slice 4 of
+`docs/v2/slices/v1-retirement.md`). `threadSandbox.provision` is Retry. Without `firstMessage`
 the procedure is unchanged for the TUI. A thread is API-provisioned when it has `SandboxBootStep`
 rows. A web send or Retry never takes over a TUI BYO row, which has none. A TUI local pod registers
 only its `LocalPodLease`. It never gets a `Thread` row, `Event` rows or a checkpoint row. The send and
@@ -240,12 +241,8 @@ shows up on the health check instead of as 500s. A database that the health chec
 
 Work that must outlive the request goes to `BackgroundWork.keepAlive`
 (`src/_core/ports/background-work.ts`), bound to `ProcessBackgroundWork`. It tracks every promise and
-waits for them at shutdown, capped at 5 s (`BACKGROUND_WORK_SHUTDOWN_CAP_MS`). GitHub wake boots run on
-it: `GithubSandboxWakeService` hands every tracked lookup and boot to `keepAlive`, debounced by
-`WAKE_DEBOUNCE_MS`. Web-thread provisioning
-runs in the `pod-provision` trigger.dev task
-instead. Both paths share `VercelSandboxWakeBoot`. It mounts, launches serve, and rolls back a
-sandbox it created when the boot fails.
+waits for them at shutdown, capped at 5 s (`BACKGROUND_WORK_SHUTDOWN_CAP_MS`). The GitHub App hook
+keeps its installation sync on it.
 
 ## Auth
 
@@ -298,8 +295,8 @@ interface field. Then add the key line in every tier file, commented with a reco
 a tier does not supply it. Then run `dotenvx set` to fill values in place. Typed access is
 `env.get('KEY')` via `EnvService`. Never read `process.env` in app code. Code that runs before Nest DI
 exists builds one with `validatedEnvService()`. The sanctioned exceptions are `auth.server.ts`, which
-constructs before Nest DI exists, and the tier loaders `src/api/hydrate-env.ts` and
-`src/trigger/tier-env.ts`, which fill `process.env` before anything can validate it.
+constructs before Nest DI exists, and the tier loaders `src/api/hydrate-env.ts`, which fills `process.env` before anything
+can validate it.
 
 Local boot: `bun run db:up` (docker Postgres on 5433), `bun run db:migrate`, `bun run db:seed`,
 `bun run dev`. An existing local database migrated by Prisma 7 first needs a one-off
@@ -334,52 +331,26 @@ behaviour there. `client()` and `duplicate()` throw rather than reach for localh
 
 ## Background jobs
 
-trigger.dev is a required platform for this package, not an optional add-on. Tasks live under
-`src/trigger/<feature>/`, and `trigger.config.ts` configures them (`dirs: ['./src/trigger']`, runtime
-`node-24`, `maxDuration: 300`). The project is **Atlas** (`proj_yvwotwceptrneuuasamk`, org DL
-Technologies LLC). The SDK, `@trigger.dev/build` and the `trigger.dev` CLI are pinned together at
-one exact version. Bump all three at once.
+trigger.dev is a required platform for this package, not an optional add-on, but this package
+deploys no worker. The v1 project (`proj_yvwotwceptrneuuasamk`, org DL Technologies LLC) has no code
+left, and every task lives in `apps/trigger`, which `.github/workflows/trigger-v2.yml` deploys.
+`@trigger.dev/sdk` stays a dependency for the dispatch seam.
 - **One dispatch seam.** API code enqueues work through `JobDispatcher`
   (`src/_core/ports/job-dispatcher.ts`), bound globally by `TriggerModule`
   (`src/_lib/trigger/`). `dispatch({ task, payload, idempotencyKey, tags })` returns `{ runId }`.
   An SDK failure throws `JobDispatchError` carrying the task id. A payload the contract's schema rejects
   throws the same error. Nothing ever falls back to running the work in-process. `trigger-job-dispatcher.ts` is
-  the only file in `src/api` or `src/_lib` that imports `@trigger.dev/sdk`. Nothing outside
-  `src/trigger` imports worker code. `src/api/trigger-boundary.spec.ts` enforces both rules.
+  the only file in `src/api` or `src/_lib` that imports `@trigger.dev/sdk`.
+  `src/api/trigger-boundary.spec.ts` enforces that rule.
+- **Two projects, two keys.** `JobsProjectDispatcher` carries `TRIGGER_JOBS_SECRET_KEY`, the v2
+  project's key, and queues every v2 task. `JobDispatcher` carries `TRIGGER_SECRET_KEY`, the retired
+  v1 project's key, and still queues the v1 lanes that the v1 request-lane slice deletes. Both keys
+  are required, and a missing one fails boot. Local uses the dev keys (`tr_dev_…`); specs and the CI
+  image probe use a fixture.
 - **Contracts are owned by the caller.** A task's id, zod payload schema and
-  `Task<id, payload, output>` type live in a contract file next to the feature that dispatches it.
-  The file exports them as a `TaskContract`. The worker task `satisfies` that type, so the two stay in step
-  without the API depending on the worker's graph. `src/trigger/smoke/smoke.contract.ts` is the
-  exception: only CI dispatches `atlas-smoke`, so its contract sits beside the task.
-- **`TRIGGER_SECRET_KEY` is required.** A missing key fails boot. Local uses the dev-environment
-  key (`tr_dev_…`) and production uses the prod key. Specs and the CI image probe use a fixture.
-- **Worker env is the tier.** `trigger-tier-extension.ts` ships `.env.production.enc` in
-  the worker bundle. `src/trigger/init.ts` decrypts it into `process.env` before any task
-  loads. `tier-env.ts` is fatal on a missing file or any value left `encrypted:`. The dashboard
-  holds only `DOTENV_PRIVATE_KEY_PRODUCTION_ENC`. Never paste an app secret into it.
-- **Tasks build their service graph by hand**, outside Nest DI and once per run
-  (`src/trigger/github/github-sweep-graph.ts`): plain constructor chains over an `EnvService` built
-  from the validated `process.env`. The fan-out gets a `RedisPrFrameBus` when the tier carries
-  `REDIS_URL`, else a `LocalPrFrameBus`. A worker only publishes, since it never calls `openStream`.
-  Test a task by calling its run function directly with a stubbed graph or db
-  (`pod-provision-graph.spec.ts`, `smoke.task.spec.ts`).
-- **The GitHub sweeps run in apps/trigger.** `github-hook-sweep`, `github-poll-sweep` and
-  `github-webhook-reconcile` read `@dltech/atlas-github` from the v2 project. This project keeps one
-  task, `github-v1-wake-sweep`, over the trimmed graph: it refreshes `liveUntil` from v1 thread
-  activity, retries failed v1 wakes, and drains the v1-only outbox kinds.
-- **Local dev.** `bun run dev` runs the API and `trigger dev --profile atlas` together under one
-  `env:inject`. When either exits, both stop. Dispatched runs execute only while that worker is up.
-  `bun run dev:no-trigger` is the API alone, for work that dispatches nothing.
-  `trigger:dev` runs only the worker.
-- **No automatic deploy.** v1 is being retired, so CI no longer deploys this project; only
-  `apps/trigger` (v2) deploys, through `.github/workflows/trigger-v2.yml`. A manual deploy is
-  `bun run trigger:deploy` with a personal token of the org that owns this project, followed by
-  `scripts/trigger-smoke.ts`, which dispatches `atlas-smoke` (`SELECT 1` through the worker's db).
-- **Bundling:** `@dltech/atlas-wire` resolves through its `bun` export condition, so
-  `trigger.config.ts` sets `conditions: ['bun']`. `@dltech/atlas-db`, `@prisma/orm-postgres`, `pg`
-  and ioredis bundle. Prisma 8 has no query engine or wasm to keep external, and its
-  `TimestamptzJsDate` columns need no `Temporal`, which Node 24 lacks. `bun run trigger:deploy -- --dry-run` proves the build but not the runtime.
-  The smoke step is what proves the runtime.
+  `Task<id, payload, output>` type live in a contract file next to the feature that dispatches it
+  (`src/_lib/trigger/notify-send.contract.ts`). The file exports them as a `TaskContract`, so the
+  two stay in step without the API depending on a worker's graph.
 - **Timers run only where asked.** `GithubSweepSchedulerService` owns the 30 s and 60 s
   intervals. It starts them on bootstrap only when `EnvService` reads `GITHUB_SWEEPS_IN_PROCESS=1`,
   which the `dev` script sets. `bun run dev` keeps sweeping, while the Render service and trigger.dev

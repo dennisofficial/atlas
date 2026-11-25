@@ -1,7 +1,6 @@
 export * from './github-seed'
 export * from './fake-timers'
 export * from './real-redis.fixture'
-export * from './thread-signals.fixture'
 export * from './drain.fixture'
 export * from '../github-app-sync.fixture'
 export * from '../github-delivery.checks.fixture'
@@ -17,7 +16,6 @@ export {
   seedHook,
   serviceWith,
 } from '../github-delivery.fixture'
-export * from '../github-legacy-effects.fixture'
 export * from '../github-linked-pr.fixture'
 export * from '../github-pr-apply.fixture'
 export * from '../github-pr-checks.fixture'

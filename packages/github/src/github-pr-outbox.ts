@@ -11,23 +11,17 @@ import {
   type PrOutboxKindScope,
 } from './github-pr-outbox-lease'
 import { failPrOutboxRow } from './github-pr-outbox-failure'
-import {
-  type GithubLegacyEffects,
-  type GithubWakeEventNotice,
-  type GithubWakePrEvent,
-  LEGACY_OUTBOX_KINDS,
-} from './github-legacy-effects'
 import { noticeV2Sessions } from './github-v2-notice'
 import type { GithubPrEventDto, GithubPrStateDto } from './github-realtime.types'
 
 export const PR_OUTBOX_BATCH = 32
 export const PR_OUTBOX_DRAIN_BATCHES = 8
 export const PR_OUTBOX_RETENTION_MS = 24 * 60 * 60 * 1_000
+const V1_OUTBOX_KINDS: readonly string[] = ['thread-signal', 'wake']
 
 export type PrOutboxLogger = { warn(message: string): void }
 
 type OutboxPayload = Row<'GithubPrOutbox'>['payload']
-type WakePayload = { notice: GithubWakeEventNotice; event: GithubWakePrEvent }
 type FanoutPayload =
   | { userIds: readonly string[]; state: GithubPrStateDto }
   | { userIds: readonly string[]; event: GithubPrEventDto; ackId: string }
@@ -36,8 +30,6 @@ export type PrOutboxWithin = { tx: Tx; effects: PrEffectCollector }
 
 export type PrOutboxEffect =
   | { kind: 'fanout'; payload: FanoutPayload; dedupeKey: string }
-  | { kind: 'thread-signal'; payload: { threadId: string }; dedupeKey: string }
-  | { kind: 'wake'; payload: WakePayload; dedupeKey: string }
   | { kind: 'v2-notice'; payload: { eventId: string }; dedupeKey: string }
   | {
       kind: 'reconcile-checks'
@@ -49,6 +41,8 @@ export type PrOutboxEffect =
       payload: { repoFullName: string; prNumber: number }
       dedupeKey: string
     }
+
+const V1_SCOPE: PrOutboxKindScope = { excludeKinds: V1_OUTBOX_KINDS }
 
 export type PrReconcileRun = (args: { repoFullName: string; headSha: string }) => Promise<void>
 
@@ -101,7 +95,6 @@ export class GithubPrOutboxDispatcher {
   constructor(
     private readonly deps: {
       fanout: Pick<GithubPrFanoutService, 'push' | 'pushEvent'>
-      legacy?: GithubLegacyEffects
       reconcile: PrReconcileRun
       mergeability: PrMergeabilityRun
       logger?: PrOutboxLogger
@@ -115,23 +108,12 @@ export class GithubPrOutboxDispatcher {
   async dispatch(ids: readonly string[]): Promise<void> {
     if (ids.length === 0) return
     await this.runClaim(
-      await claimPrOutboxRows({ now: this.now(), limit: ids.length, ids, ...this.kindScope() }),
+      await claimPrOutboxRows({ now: this.now(), limit: ids.length, ids, ...V1_SCOPE }),
     )
   }
 
   drain(): Promise<number> {
-    return this.drainScoped(this.kindScope())
-  }
-
-  drainLegacy(): Promise<number> {
-    if (this.deps.legacy === undefined) {
-      throw new Error('the pr outbox cannot drain v1 effects without the legacy effects port')
-    }
-    return this.drainScoped({ onlyKinds: LEGACY_OUTBOX_KINDS })
-  }
-
-  private kindScope(): PrOutboxKindScope {
-    return this.deps.legacy === undefined ? { excludeKinds: LEGACY_OUTBOX_KINDS } : {}
+    return this.drainScoped(V1_SCOPE)
   }
 
   private async drainScoped(scope: PrOutboxKindScope): Promise<number> {
@@ -214,26 +196,7 @@ export class GithubPrOutboxDispatcher {
     return true
   }
 
-  private legacyEffects(): GithubLegacyEffects {
-    if (this.deps.legacy === undefined) {
-      throw new Error('a v1 pr outbox effect was claimed without the legacy effects port')
-    }
-    return this.deps.legacy
-  }
-
   private async perform(row: Row<'GithubPrOutbox'>): Promise<void> {
-    if (row.kind === 'thread-signal') {
-      const payload = row.payload as { threadId: string }
-      this.legacyEffects().threadChanged({ threadId: payload.threadId })
-
-      return
-    }
-    if (row.kind === 'wake') {
-      const payload = row.payload as WakePayload
-      await this.legacyEffects().notifyEvent(payload.notice, payload.event)
-
-      return
-    }
     if (row.kind === 'v2-notice') {
       const event = await db.orm.public.GithubPrEvent.where({
         id: (row.payload as { eventId: string }).eventId,

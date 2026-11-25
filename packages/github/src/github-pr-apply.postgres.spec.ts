@@ -3,7 +3,6 @@ import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it, vi } from 'bun:test'
 import { seedSubscription } from './testing/github-seed'
-import { recordingSignals } from './testing/thread-signals.fixture'
 import {
   checkRunInputOf,
   commitChecksTally,
@@ -13,8 +12,6 @@ import { applyArgs, pull, rig } from './github-pr-apply.fixture'
 import type { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrOutboxDispatcher } from './github-pr-outbox'
 import { inertMergeabilityRefresh, inertReconcile } from './github-pr-store.fixture'
-import type { WakeStub } from './github-legacy-effects.fixture'
-import { legacyOf } from './github-legacy-effects.fixture'
 
 const seedSettledCheck = (args: { outcome: string } = { outcome: 'passed' }) =>
   recordCommitChecksLocked({
@@ -73,7 +70,6 @@ describe('GithubPrStore.apply', () => {
   it('writes no row, outbox or event when the transition delivery throws', async () => {
     await seedSettledCheck()
     const push = vi.fn()
-    const notifyEvent = vi.fn()
     const mailbox = {
       record: async () => {
         throw new Error('mailbox down')
@@ -87,7 +83,6 @@ describe('GithubPrStore.apply', () => {
     expect(await db.orm.public.GithubPrOutbox.all()).toHaveLength(0)
     expect(await db.orm.public.GithubPrEvent.all()).toHaveLength(0)
     expect(push).not.toHaveBeenCalled()
-    expect(notifyEvent).not.toHaveBeenCalled()
   })
 
   it('drains a committed effect exactly once after the dispatcher dies', async () => {
@@ -99,20 +94,12 @@ describe('GithubPrStore.apply', () => {
     await store.apply(applyArgs([pull()]))
 
     const pending = await db.orm.public.GithubPrOutbox.all()
-    const kinds = pending.map((row) => row.kind).sort()
-    expect(kinds).toEqual(['fanout', 'thread-signal'])
-    const fanoutRow = pending.find((row) => row.kind === 'fanout')
-    const signalRow = pending.find((row) => row.kind === 'thread-signal')
-    expect(fanoutRow).toMatchObject({ dispatchedAt: null, attempts: 1 })
-    expect(signalRow?.dispatchedAt).not.toBeNull()
+    expect(pending.map((row) => row.kind)).toEqual(['fanout'])
+    expect(pending[0]).toMatchObject({ dispatchedAt: null, attempts: 1 })
 
     const received: unknown[] = []
     const healthy = new GithubPrOutboxDispatcher({
       fanout: { push: (args) => void received.push(args), pushEvent: vi.fn() },
-      legacy: legacyOf({
-        signals: recordingSignals().signals,
-        wake: { notifyEvent: vi.fn() } as unknown as WakeStub,
-      }),
       reconcile: inertReconcile(),
       mergeability: inertMergeabilityRefresh(),
       now: () => new Date(Date.now() + 60_000),
@@ -217,8 +204,8 @@ describe('GithubPrStore.apply', () => {
 describe('GithubPrStore.apply on a tracked head nobody subscribed to', () => {
   useTestDatabase()
 
-  it('derives the row but writes no event, delivery, inbox or wake', async () => {
-    const { store, wake, changedThreads } = rig()
+  it('derives the row but writes no event, delivery or inbox', async () => {
+    const { store } = rig()
 
     const applied = await store.apply(applyArgs([pull()]))
 
@@ -227,8 +214,6 @@ describe('GithubPrStore.apply on a tracked head nobody subscribed to', () => {
     expect(await db.orm.public.GithubPrEvent.all()).toHaveLength(0)
     expect(await db.orm.public.GithubPrEventDelivery.all()).toHaveLength(0)
     expect(await db.orm.public.GithubWebhookInbox.all()).toHaveLength(0)
-    expect(wake.notifyEvent).not.toHaveBeenCalled()
-    expect(changedThreads).toHaveLength(0)
     expect((await db.orm.public.GithubPrOutbox.all()).map((row) => row.kind)).toEqual(['fanout'])
   })
 })

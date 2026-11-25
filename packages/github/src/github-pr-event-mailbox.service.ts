@@ -137,12 +137,6 @@ export class GithubPrEventMailboxService {
         consumedAt: null,
         createdAt,
       }
-      const notice = {
-        userId,
-        repoFullName: args.repoFullName,
-        prNumber: args.prNumber,
-      }
-      const wakeEvent = { ...notice, kind: args.kind, payload: args.payload, eventId: row.id }
       if (args.wake !== false) {
         args.effects.add({
           kind: 'v2-notice',
@@ -155,13 +149,6 @@ export class GithubPrEventMailboxService {
         payload: { userIds: [userId], event: eventDtoOf(row), ackId: row.id },
         dedupeKey: `fanout-event:${row.id}`,
       })
-      if (args.wake !== false) {
-        args.effects.add({
-          kind: 'wake',
-          payload: { notice, event: wakeEvent },
-          dedupeKey: `wake:${row.id}`,
-        })
-      }
     }
   }
 

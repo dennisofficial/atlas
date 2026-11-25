@@ -62,8 +62,6 @@ const GRANDFATHERED_V1 = new Set([
   'src/api/platform/sessions/teammate-archive-stop.ts',
   'src/api/platform/sessions/thread-archive.router.fixture.ts',
   'src/api/platform/sessions/thread-archive.service.spec.ts',
-  'src/trigger/sandbox-provisioning/archived-sandbox-sweep-graph.ts',
-  'src/trigger/thread-archive/thread-archive-cleanup-graph.ts',
   'test/runtime-checkpoint-live.spec.ts',
 ])
 

@@ -3,38 +3,26 @@ import { RecordingDrain } from './testing/drain.fixture'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it } from 'bun:test'
 import { ensureUsers, prEventRows, seedSubscription } from './testing/github-seed'
-import { inertSignals } from './testing/thread-signals.fixture'
 import { inertMergeabilityRefresh, inertReconcile } from './github-pr-store.fixture'
 import { GithubPrDiscussionDeliveryService } from './github-pr-discussion-delivery.service'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { GithubPrOutboxDispatcher } from './github-pr-outbox'
 import { EPrEventKind } from './github-realtime.types'
-import type { WakeStub } from './github-legacy-effects.fixture'
-import { legacyOf } from './github-legacy-effects.fixture'
 
 function rig(): {
   fanout: GithubPrFanoutService
-  wake: WakeStub
-  wakes: unknown[]
   dispatcher: GithubPrOutboxDispatcher
   mailbox: GithubPrEventMailboxService
 } {
   const fanout = new GithubPrFanoutService(new RecordingDrain())
-  const wakes: unknown[] = []
-  const wake = {
-    notifyEvent: (notice: unknown) => wakes.push(notice),
-  } as unknown as WakeStub
   const dispatcher = new GithubPrOutboxDispatcher({
     fanout,
-    legacy: legacyOf({ signals: inertSignals(), wake: wake }),
     reconcile: inertReconcile(),
     mergeability: inertMergeabilityRefresh(),
   })
   return {
     fanout,
-    wake,
-    wakes,
     dispatcher,
     mailbox: new GithubPrEventMailboxService(fanout, dispatcher),
   }
@@ -66,23 +54,22 @@ describe('GithubPrEventMailboxService outbox', () => {
     await ensureUsers('usr-a', 'usr-b')
   })
 
-  it('a committed discussion delivery writes its outbox rows and wakes once after the commit', async () => {
+  it('a committed discussion delivery writes its outbox rows and notifies once after the commit', async () => {
     await seedSubscription({ userId: 'usr-a', prNumber: 42 })
-    const { mailbox, wakes } = rig()
+    const { mailbox } = rig()
     const discussion = new GithubPrDiscussionDeliveryService(mailbox)
 
     await discussion.handleIssueComment(ISSUE_COMMENT)
 
     expect(await prEventRows()).toHaveLength(1)
-    expect(wakes).toHaveLength(1)
     const rows = await outboxRows()
-    expect(rows.map((row) => row.kind).sort()).toEqual(['fanout', 'v2-notice', 'wake'])
+    expect(rows.map((row) => row.kind).sort()).toEqual(['fanout', 'v2-notice'])
     expect(rows.every((row) => row.dispatchedAt !== null)).toBe(true)
     expect(rows.every((row) => row.attempts === 0)).toBe(true)
   })
 
-  it('a record whose transaction rolls back leaves no event row, no outbox row and no wake', async () => {
-    const { mailbox, wakes } = rig()
+  it('a record whose transaction rolls back leaves no event row and no outbox row', async () => {
+    const { mailbox } = rig()
 
     await expect(
       mailbox.record({
@@ -100,11 +87,10 @@ describe('GithubPrEventMailboxService outbox', () => {
 
     expect(await prEventRows()).toHaveLength(0)
     expect(await outboxRows()).toHaveLength(0)
-    expect(wakes).toHaveLength(0)
   })
 
   it('a dispatch that throws after commit leaves the rows pending and the drain delivers them once', async () => {
-    const { fanout, wake, wakes } = rig()
+    const { fanout } = rig()
     const offline = {
       dispatch: async () => {
         throw new Error('dispatch down')
@@ -123,20 +109,16 @@ describe('GithubPrEventMailboxService outbox', () => {
     ).rejects.toThrow('dispatch down')
 
     expect(await prEventRows()).toHaveLength(1)
-    expect(await outboxRows()).toHaveLength(3)
+    expect(await outboxRows()).toHaveLength(2)
     expect((await outboxRows()).every((row) => row.dispatchedAt === null)).toBe(true)
-    expect(wakes).toHaveLength(0)
 
     const dispatcher = new GithubPrOutboxDispatcher({
       fanout,
-      legacy: legacyOf({ signals: inertSignals(), wake: wake }),
       reconcile: inertReconcile(),
       mergeability: inertMergeabilityRefresh(),
     })
-    expect(await dispatcher.drain()).toBe(3)
-    expect(wakes).toHaveLength(1)
+    expect(await dispatcher.drain()).toBe(2)
     expect(await dispatcher.drain()).toBe(0)
-    expect(wakes).toHaveLength(1)
     expect((await outboxRows()).every((row) => row.dispatchedAt !== null)).toBe(true)
   })
 })

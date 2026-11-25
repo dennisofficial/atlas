@@ -1,4 +1,3 @@
-import { Logger } from '@nestjs/common'
 import type { ThreadId } from '@dltech/atlas-core'
 import { ESpan, spanWith, type TracePort } from '@dltech/atlas-observability'
 import type { Sandbox } from '@vercel/sandbox'
@@ -7,7 +6,6 @@ import {
   createServeLauncher,
   imageOptimizeRetry,
   isSandboxMissing,
-  liveSdk,
   mountWithRetries,
   routedUrlWithRetries,
   SANDBOX_QUICK_TIMEOUT_MS,
@@ -64,17 +62,6 @@ export type WakeBootResult = { serveUrl: string; created: boolean }
 
 export interface SandboxWakeBoot {
   boot(args: WakeBootArgs): Promise<WakeBootResult>
-}
-
-export const SANDBOX_WAKE_BOOT = Symbol('SANDBOX_WAKE_BOOT')
-
-export const sandboxWakeBootProvider = {
-  provide: SANDBOX_WAKE_BOOT,
-  useFactory: (): SandboxWakeBoot =>
-    new VercelSandboxWakeBoot({
-      sdk: liveSdk,
-      log: (line) => new Logger('VercelSandboxWakeBoot').log(line),
-    }),
 }
 
 export const failureText = (failure: unknown): string =>

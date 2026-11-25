@@ -11,7 +11,6 @@ import type { RestCheckRun, RestCommitStatus } from '@dltech/atlas-github'
 import { GithubSubscriptionsService } from '@dltech/atlas-github'
 import { GithubUserReads } from '@dltech/atlas-github'
 import type { GithubService } from '@dltech/atlas-github'
-import { threadActivityAt } from './github-thread-activity'
 
 const SHA = 'abc123'
 const ACTIONS = { slug: 'github-actions' }
@@ -94,7 +93,6 @@ function subscriptionsService(): GithubSubscriptionsService {
     localCoordinator(github),
     { coversRepo: async () => false } as never,
     storeFixture(),
-    threadActivityAt,
   )
 }
 

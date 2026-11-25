@@ -18,7 +18,6 @@ import { GithubSubscribeStateWriter } from '@dltech/atlas-github'
 import { GithubSubscribedPrResolver } from '@dltech/atlas-github'
 import { GithubUserReads } from '@dltech/atlas-github'
 import type { GithubService } from '@dltech/atlas-github'
-import { threadActivityAt } from './github-thread-activity'
 
 const SHA = 'abc123'
 const TOKEN = 'ghu_1'
@@ -144,7 +143,6 @@ describe('GithubPollSweeperService over a real read', () => {
       localCoordinator(github),
       new GithubHeadReads(),
       storeFixture({ fanout: fanoutOf() }),
-      threadActivityAt,
     )
   }
 
@@ -186,7 +184,6 @@ describe('GithubPollSweeperService over a real read', () => {
       localCoordinator(github),
       new GithubHeadReads(),
       store,
-      threadActivityAt,
     )
 
     const polled = service.handlePoll()

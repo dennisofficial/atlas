@@ -27,9 +27,7 @@ function controllerWith(args: { fail?: boolean } = {}): {
     },
   } as unknown as GithubDeliveryService
   return {
-    controller: new GithubHookController(deliveries, CIPHER, new GithubWebhookInboxService(), {
-      notifyEvent: () => undefined,
-    } as never),
+    controller: new GithubHookController(deliveries, CIPHER, new GithubWebhookInboxService()),
     handled,
   }
 }

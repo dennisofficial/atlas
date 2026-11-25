@@ -13,8 +13,6 @@ import { db } from '@dltech/atlas-db'
 import { beforeEach, describe, expect, it } from 'bun:test'
 
 import { ensureUsers, seedSubscription } from './testing/github-seed'
-import type { GithubWakeEventNotice } from './github-legacy-effects'
-import type { WakeStub } from './github-legacy-effects.fixture'
 import type { GithubWorkflowRunWebhookPayload } from './github-webhook.types'
 import { recordWorkflowRunFinished } from './github-workflow-run-webhook'
 
@@ -78,14 +76,6 @@ const payloadOf = (
   }
 }
 
-function wakeStub(): { wake: WakeStub; notices: GithubWakeEventNotice[] } {
-  const notices: GithubWakeEventNotice[] = []
-  const wake = {
-    notifyEvent: (notice: GithubWakeEventNotice) => notices.push(notice),
-  } as unknown as WakeStub
-  return { wake, notices }
-}
-
 const seedRunRow = (overrides: Parameters<typeof seedSubscription>[0] = {}) =>
   seedSubscription({
     userId: USER,
@@ -109,10 +99,9 @@ describe('recordWorkflowRunFinished', () => {
   it('posts the run notice once for a run selector, and a second delivery writes nothing', async () => {
     await seedV2Thread()
     await seedRunRow()
-    const { wake, notices } = wakeStub()
 
-    expect(await recordWorkflowRunFinished({ payload: payloadOf(), wake })).toBe(1)
-    expect(await recordWorkflowRunFinished({ payload: payloadOf(), wake })).toBe(0)
+    expect(await recordWorkflowRunFinished({ payload: payloadOf() })).toBe(1)
+    expect(await recordWorkflowRunFinished({ payload: payloadOf() })).toBe(0)
 
     const [entry] = await inboxEvents(V2_SESSION)
     if (entry === undefined) throw new Error('no inbox entry')
@@ -128,17 +117,15 @@ describe('recordWorkflowRunFinished', () => {
       conclusion: 'success',
       failedJobs: [],
     })
-    expect(notices).toEqual([{ userId: USER, repoFullName: 'compai/app', kind: 'workflow-run' }])
     expect(await rows()).toEqual([])
   })
 
   it('records that the one-shot run subscription ended, and only once', async () => {
     await seedV2Thread()
     const held = await seedRunRow()
-    const { wake } = wakeStub()
 
-    expect(await recordWorkflowRunFinished({ payload: payloadOf(), wake })).toBe(1)
-    expect(await recordWorkflowRunFinished({ payload: payloadOf(), wake })).toBe(0)
+    expect(await recordWorkflowRunFinished({ payload: payloadOf() })).toBe(1)
+    expect(await recordWorkflowRunFinished({ payload: payloadOf() })).toBe(0)
 
     const entries = await inboxEvents(V2_SESSION)
     const ended = entries.flatMap((entry) =>
@@ -161,18 +148,16 @@ describe('recordWorkflowRunFinished', () => {
   it('matches a workflow selector by run name and branch', async () => {
     await seedV2Thread()
     await seedRunRow({ branch: '#workflow:ci@main' })
-    const { wake, notices } = wakeStub()
 
-    expect(await recordWorkflowRunFinished({ payload: payloadOf({ name: 'ci' }), wake })).toBe(1)
-    expect(notices).toHaveLength(1)
+    expect(await recordWorkflowRunFinished({ payload: payloadOf({ name: 'ci' }) })).toBe(1)
+    expect(await inboxEvents(V2_SESSION)).toHaveLength(1)
   })
 
   it('matches a workflow selector by the workflow path basename', async () => {
     await seedV2Thread()
     await seedRunRow({ branch: '#workflow:ci.yml@main' })
-    const { wake } = wakeStub()
 
-    expect(await recordWorkflowRunFinished({ payload: payloadOf({ name: 'CI' }), wake })).toBe(1)
+    expect(await recordWorkflowRunFinished({ payload: payloadOf({ name: 'CI' }) })).toBe(1)
   })
 
   it('posts once per later-created run for a workflow selector, and not twice for the same run', async () => {
@@ -180,18 +165,16 @@ describe('recordWorkflowRunFinished', () => {
     const at = new Date()
     const watermark = new Date(at.getTime() - 60_000)
     await seedRunRow({ branch: '#workflow:ci@main', lastRunCreatedAt: watermark })
-    const { wake, notices } = wakeStub()
     const firstRun = payloadOf({
       runId: 9001,
       createdAt: new Date(at.getTime() - 30_000).toISOString(),
     })
     const laterRun = payloadOf({ runId: 9002, createdAt: at.toISOString() })
 
-    expect(await recordWorkflowRunFinished({ payload: firstRun, wake })).toBe(1)
-    expect(await recordWorkflowRunFinished({ payload: firstRun, wake })).toBe(0)
-    expect(await recordWorkflowRunFinished({ payload: laterRun, wake })).toBe(1)
+    expect(await recordWorkflowRunFinished({ payload: firstRun })).toBe(1)
+    expect(await recordWorkflowRunFinished({ payload: firstRun })).toBe(0)
+    expect(await recordWorkflowRunFinished({ payload: laterRun })).toBe(1)
 
-    expect(notices).toHaveLength(2)
     expect(await inboxEvents(V2_SESSION)).toHaveLength(2)
     const [row] = await rows()
     expect(row?.deliveredRunId).toBe('')
@@ -222,15 +205,16 @@ describe('recordWorkflowRunFinished', () => {
       lease,
       by: ESubscriptionActor.Agent,
     })
-    const { wake, notices } = wakeStub()
     const run = payloadOf({
       name: 'release',
       path: '.github/workflows/release.yml',
       createdAt: created.toISOString(),
     })
 
-    expect(await recordWorkflowRunFinished({ payload: run, wake })).toBe(1)
-    expect(notices).toHaveLength(1)
+    expect(await recordWorkflowRunFinished({ payload: run })).toBe(1)
+    expect(
+      (await inboxEvents(V2_SESSION)).filter((entry) => entry.kind === INBOX_KIND_EVENT),
+    ).toHaveLength(1)
 
     const again = await plane.subscribe({
       sessionId: V2_SESSION,
@@ -244,8 +228,10 @@ describe('recordWorkflowRunFinished', () => {
     })
 
     expect(again.updated).toBe(true)
-    expect(await recordWorkflowRunFinished({ payload: run, wake })).toBe(0)
-    expect(notices).toHaveLength(1)
+    expect(await recordWorkflowRunFinished({ payload: run })).toBe(0)
+    expect(
+      (await inboxEvents(V2_SESSION)).filter((entry) => entry.kind === INBOX_KIND_EVENT),
+    ).toHaveLength(1)
     const [row] = await rows()
     expect(row?.lastRunCreatedAt.getTime()).toBe(created.getTime())
   })
@@ -253,26 +239,23 @@ describe('recordWorkflowRunFinished', () => {
   it('matches a workflow selector regardless of the case of the run name or path', async () => {
     await seedV2Thread()
     await seedRunRow({ branch: '#workflow:release.yml@main' })
-    const { wake, notices } = wakeStub()
 
     expect(
       await recordWorkflowRunFinished({
         payload: payloadOf({ name: 'Release', path: '.github/workflows/Release.yaml' }),
-        wake,
       }),
     ).toBe(1)
-    expect(notices).toHaveLength(1)
+    expect(await inboxEvents(V2_SESSION)).toHaveLength(1)
   })
 
   it('posts nothing for a run created before the watermark of a workflow selector', async () => {
     await seedV2Thread()
     const at = new Date()
     await seedRunRow({ branch: '#workflow:ci@main', lastRunCreatedAt: at })
-    const { wake, notices } = wakeStub()
     const earlyRun = payloadOf({ createdAt: new Date(at.getTime() - 60_000).toISOString() })
 
-    expect(await recordWorkflowRunFinished({ payload: earlyRun, wake })).toBe(0)
-    expect(notices).toHaveLength(0)
+    expect(await recordWorkflowRunFinished({ payload: earlyRun })).toBe(0)
+    expect(await inboxEvents(V2_SESSION)).toHaveLength(0)
     const [row] = await rows()
     expect(row?.lastRunCreatedAt.getTime()).toBe(at.getTime())
   })
@@ -280,10 +263,9 @@ describe('recordWorkflowRunFinished', () => {
   it('leaves a workflow selector alone when the branch differs', async () => {
     await seedV2Thread()
     await seedRunRow({ branch: '#workflow:ci.yml@release' })
-    const { wake, notices } = wakeStub()
 
-    expect(await recordWorkflowRunFinished({ payload: payloadOf(), wake })).toBe(0)
-    expect(notices).toHaveLength(0)
+    expect(await recordWorkflowRunFinished({ payload: payloadOf() })).toBe(0)
+    expect(await inboxEvents(V2_SESSION)).toHaveLength(0)
     const [row] = await rows()
     expect(row?.deliveredRunId).toBe('')
   })
@@ -291,31 +273,26 @@ describe('recordWorkflowRunFinished', () => {
   it('writes nothing for a payload that is not a completed run', async () => {
     await seedV2Thread()
     await seedRunRow()
-    const { wake, notices } = wakeStub()
 
-    expect(
-      await recordWorkflowRunFinished({ payload: payloadOf({ action: 'requested' }), wake }),
-    ).toBe(0)
+    expect(await recordWorkflowRunFinished({ payload: payloadOf({ action: 'requested' }) })).toBe(0)
     expect(
       await recordWorkflowRunFinished({
         payload: payloadOf({ status: 'in_progress' }),
-        wake,
       }),
     ).toBe(0)
 
     expect(await inboxEvents(V2_SESSION)).toEqual([])
-    expect(notices).toHaveLength(0)
+    expect(await inboxEvents(V2_SESSION)).toHaveLength(0)
   })
 
   it('does not match a run of another repo', async () => {
     await seedV2Thread()
     await seedRunRow()
-    const { wake, notices } = wakeStub()
 
-    expect(
-      await recordWorkflowRunFinished({ payload: payloadOf({ repo: 'compai/other' }), wake }),
-    ).toBe(0)
-    expect(notices).toHaveLength(0)
+    expect(await recordWorkflowRunFinished({ payload: payloadOf({ repo: 'compai/other' }) })).toBe(
+      0,
+    )
+    expect(await inboxEvents(V2_SESSION)).toHaveLength(0)
     const [row] = await rows()
     expect(row?.deliveredRunId).toBe('')
   })
@@ -327,9 +304,8 @@ describe('recordWorkflowRunFinished', () => {
       branch: '#run:9001',
       liveUntil: new Date(Date.now() - 1),
     })
-    const { wake, notices } = wakeStub()
 
-    expect(await recordWorkflowRunFinished({ payload: payloadOf(), wake })).toBe(0)
-    expect(notices).toHaveLength(0)
+    expect(await recordWorkflowRunFinished({ payload: payloadOf() })).toBe(0)
+    expect(await inboxEvents(V2_SESSION)).toHaveLength(0)
   })
 })

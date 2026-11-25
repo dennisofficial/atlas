@@ -81,9 +81,6 @@ describe('shared real HTTP budget for API fills, authorization and worker queue'
     ).toBe('open')
     expect(http.calls.filter((call) => call.path === '/repos/compai/app/pulls/42')).toHaveLength(1)
     expect(http.calls.some((call) => call.path.endsWith('/pulls/77'))).toBe(false)
-    expect(worker.wakes).toEqual([
-      { repoFullName: 'compai/app', prNumber: 42, userId: 'usr-agent' },
-    ])
     await db.orm.public.GithubPrState.where({ repoFullName: 'compai/app', prNumber: 42 }).update({
       updatedAt: new Date(0),
     })

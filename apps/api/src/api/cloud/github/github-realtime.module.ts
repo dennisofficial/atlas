@@ -7,17 +7,11 @@ import { SessionsModule } from '../../platform/sessions/sessions.module'
 import { GithubAppHookController } from './github-app-hook.controller'
 import { GithubHookController } from './github-hook.controller'
 import { GithubSweepSchedulerService } from './github-sweep-scheduler'
-import { GithubSandboxWakeService } from './github-sandbox-wake.service'
-import { wakeDebounceProvider } from './github-sandbox-wake-debounce'
-import { sandboxWakeBootProvider } from './github-sandbox-wake-boot'
 import { GithubPrStreamRouter } from './github-pr-stream.router'
 import { GithubPrSubscriptionLinks } from './github-pr-subscription-links'
 import { GithubSubscriptionsRouter } from './github-subscriptions.router'
 import { GithubModule } from './github.module'
-import {
-  pollSweeperProvider,
-  subscriptionsServiceProvider,
-} from './github-thread-activity.providers'
+import { pollSweeperProvider, subscriptionsServiceProvider } from './github-sweep.providers'
 import {
   mailboxProvider,
   outboxDispatcherProvider,
@@ -64,7 +58,6 @@ import {
     githubWebhookInboxProvider,
     prFrameBusProvider,
     githubPrFanoutProvider,
-    GithubSandboxWakeService,
     githubAppInstallationsProvider,
     githubAppClientProvider,
     githubInstallationTokensProvider,
@@ -72,9 +65,7 @@ import {
     githubAppSyncServiceProvider,
     githubHookSweepProvider,
     githubAppInstallNoticeProvider,
-    sandboxWakeBootProvider,
     backgroundWorkProvider(),
-    wakeDebounceProvider(),
     githubUserReadsProvider,
   ],
 })
