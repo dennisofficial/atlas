@@ -42,11 +42,15 @@ export const tunnelFakes = () => {
     held.clear()
     for (const mock of Object.values(cloudflare)) mock.mockClear()
   }
+  const seed = (args: { name: string; tunnel: { id: string; token: string } }) => {
+    held.set(args.name, args.tunnel)
+  }
   return {
     cloudflare,
     counts,
     gates,
     reset,
+    seed,
     client: cloudflare as unknown as CloudflareTunnelClient,
   }
 }

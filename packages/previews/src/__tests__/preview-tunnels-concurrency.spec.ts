@@ -55,7 +55,7 @@ describe('PreviewTunnels under concurrency', () => {
     expect(await currentDb().db.orm.public.PreviewRoute.all()).toHaveLength(2)
   })
 
-  it('creates no second tunnel while the first expose is still recording the row', async () => {
+  it('creates no second tunnel while a foreign lock delays the claim', async () => {
     cloudflare.ensureTunnel.mockRejectedValueOnce(new Error('cf down'))
     await expect(
       previews.expose({
@@ -68,13 +68,19 @@ describe('PreviewTunnels under concurrency', () => {
     cloudflare.ensureTunnel.mockClear()
 
     const entered = Promise.withResolvers<void>()
-    const creating = Promise.withResolvers<void>()
+    const release = Promise.withResolvers<void>()
     fakes.gates.beforeCreate = async () => {
       entered.resolve()
-      await creating.promise
+      await release.promise
     }
     const signals = transactionSignals(currentDb().db)
-    const watched = new PreviewTunnels({
+    const first = new PreviewTunnels({
+      db: signals.db,
+      cipher: fakeCipher,
+      domain: 'byatlas.dev',
+      cloudflare: fakes.client,
+    })
+    const second = new PreviewTunnels({
       db: signals.db,
       cipher: fakeCipher,
       domain: 'byatlas.dev',
@@ -88,30 +94,30 @@ describe('PreviewTunnels under concurrency', () => {
         ['pod-1'],
       )
 
-      const first = watched.expose({
+      const firstExpose = first.expose({
         podSessionId: 'pod-1',
         threadId: 'thr-1',
         userId: 'usr-1',
         port: 3000,
       })
-      await entered.promise
-      creating.resolve()
-
-      const secondRead = signals.next()
-      const second = watched.expose({
+      await signals.next()
+      const secondExpose = second.expose({
         podSessionId: 'pod-1',
         threadId: 'thr-2',
         userId: 'usr-1',
         port: 4000,
       })
-      await secondRead
-      await currentDb().db.orm.public.PreviewRoute.all()
+      await signals.next()
       await holder.query('ROLLBACK')
 
-      const replies = await Promise.all([first, second])
+      await entered.promise
+      release.resolve()
+
+      const replies = await Promise.all([firstExpose, secondExpose])
 
       expect(cloudflare.ensureTunnel).toHaveBeenCalledTimes(1)
       expect(replies.map((reply) => reply.tunnelToken)).toEqual(['tok-1', 'tok-1'])
+      expect(await currentDb().db.orm.public.PreviewRoute.all()).toHaveLength(2)
     } finally {
       holder.release()
     }

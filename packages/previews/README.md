@@ -8,6 +8,8 @@ records that no row owns. The API's preview path and the `preview-reconcile` tri
 
 - `PreviewTunnels`: the row-keeping side. It reserves the tunnel row and a route row for each
   exposed port, and it seals the tunnel token with a caller-supplied cipher.
+- `PreviewTunnelClaims`: the claim on a pod's `PreviewTunnel` row. One process at a time creates a
+  pod's tunnel, and every other caller waits for it and reads the tunnel it sealed.
 - `CloudflareTunnelClient`: the Cloudflare API calls, with an injectable `fetch`.
 - `preview-reconciler.ts`: the one pass that makes Cloudflare match the rows, and the orphan
   sweep.
@@ -36,10 +38,11 @@ records that no row owns. The API's preview path and the `preview-reconcile` tri
 - `new PreviewTunnels({ db, cipher, domain, cloudflare, livePeersOf? })`: builds the service.
   `livePeersOf(podSessionId)` counts the pod's live sessions and defaults to `async () => 0`.
 - `expose({ podSessionId, threadId, userId, port })`: returns `{ url, tunnelToken }`. The first
-  call for a pod inserts a `Pending` row, creates the tunnel outside any transaction, seals its
-  token and moves the row to `Ready`. A call that arrives while that seal runs waits for the same
-  seal and makes no second Cloudflare call. A repeated port returns the same hostname and makes no
-  Cloudflare call.
+  call for a pod inserts a `Pending` row, claims the row, creates the tunnel outside any
+  transaction, seals its token and moves the row to `Ready`. A call that arrives while that seal
+  runs waits for the same seal and makes no second Cloudflare call. A second process waits for the
+  claim of the first, and throws `PreviewTunnelClaimedError` when the claim outlasts its wait. A
+  repeated port returns the same hostname and makes no Cloudflare call.
 - `markDeleting({ podSessionId })`, `clearDeleting({ podSessionId })`: one row update each, no
   Cloudflare call, safe to repeat.
 - `teardown({ podSessionId })`: marks the row deleting and runs one reconcile pass over it. It
@@ -50,11 +53,13 @@ records that no row owns. The API's preview path and the `preview-reconcile` tri
 ### Reconcile and sweep
 
 - `reconcilePreviewTunnel(deps, { podSessionId })`: one pod. A `Deleting` row deletes its DNS
-  records, then its tunnel, then its rows, and skips while a peer is live. A `Pending` or `Ready`
-  row adopts or creates the tunnel by name, re-seals a lost token, creates or repoints each
-  route's CNAME, writes the ingress, and stamps `syncedAt`.
-- `previewPodsNeedingWork({ db }, { limit })`: the pods whose row is `Pending`, is `Deleting`, or
-  was never synced, oldest `updatedAt` first.
+  records, then its tunnel, then its rows, and skips while a peer is live. A `Pending`, `Creating`
+  or `Ready` row claims the row, adopts or creates the tunnel by name, re-seals a lost token,
+  creates or repoints each route's CNAME, writes the ingress, and stamps `syncedAt`. It answers
+  `{ kind: 'skipped' }` while another process holds the claim, so the next pass is the retry.
+- `previewPodsNeedingWork({ db }, { limit })`: the pods whose row is `Pending`, is `Creating`, is
+  `Deleting`, or was never synced, oldest `updatedAt` first. A `Creating` row older than the claim
+  lifetime is retried, which converges a tunnel whose creating process died.
 - `runPreviewPass(deps, { log, limit?, podSessionIds? })`: the pass over those pods.
 - `sweepPreviewOrphans(deps, { graceMs, dryRun })`: plans, then deletes, every `atlas-` tunnel and
   preview hostname that no row owns and that is older than `graceMs`.
