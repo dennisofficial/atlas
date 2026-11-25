@@ -50,6 +50,7 @@ export class CrewRoom {
       ...this.childArgs(),
       agentType: args.agentType,
       intent: args.intent,
+      brief: args.prompt,
       groupHold: (draft) => this.holdOf(draft),
       postHold: (post) => this.postInOrder(post),
       ...(args.group === undefined ? {} : { group: args.group }),
@@ -57,31 +58,31 @@ export class CrewRoom {
       ...(args.worktree === undefined ? {} : { worktree: args.worktree }),
     })
     this.runs.set(run.agentId, run)
-    await run.say({ text: args.prompt })
+    await run.beginQueued()
     return run.snapshot()
   }
 
   private async spawnedForCall(callId: string | undefined): Promise<SubagentSnapshot | undefined> {
     if (callId === undefined) return undefined
-    const spawn = this.parentEvents().findLast(
+    const spawn = (await this.parentEvents()).findLast(
       (event): event is Extract<V2Event, { type: 'agent-spawned' }> =>
         event.type === 'agent-spawned' && event.callId === callId,
     )
     if (spawn === undefined) return undefined
     const kept = this.runs.get(spawn.agentId as ThreadId)
     if (kept !== undefined) return kept.snapshot()
-    const child = this.openChildOf(spawn.agentId as ThreadId)
+    const child = await this.openChildOf(spawn.agentId as ThreadId)
     if (child === undefined) return undefined
     await this.adopt(child)
     return this.runs.get(spawn.agentId as ThreadId)?.snapshot()
   }
 
-  private parentEvents(): readonly V2Event[] {
-    return this.args.parentRecord.eventCache().eventsAfter(0)
+  private async parentEvents(): Promise<readonly V2Event[]> {
+    return await this.args.parentRecord.ownEvents({ threadId: this.args.parentThreadId })
   }
 
-  private openChildOf(agentId: ThreadId): OpenChild | undefined {
-    const loopEvents = this.parentEvents().flatMap((event) => {
+  private async openChildOf(agentId: ThreadId): Promise<OpenChild | undefined> {
+    const loopEvents = (await this.parentEvents()).flatMap((event) => {
       const loop = toLoopEvent({ event })
       return loop === undefined ? [] : [loop]
     })
