@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 import { spawnSync } from 'node:child_process'
+import { readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import pg from 'pg'
 import { databaseUrl, laneUrl, quoteIdent } from '../testing/lane'
@@ -7,6 +8,12 @@ import { applyMigration, applyMigrations } from '../testing/migrations'
 import { signDatabase } from '../testing/sign'
 
 const MIGRATION = '20261125T0506_drop_v2_compat_views'
+const MIGRATIONS_DIR = join(import.meta.dirname, '..', '..', 'migrations', 'app')
+const LATER_MIGRATIONS = readdirSync(MIGRATIONS_DIR, { withFileTypes: true })
+  .filter((entry) => entry.isDirectory() && entry.name !== 'refs')
+  .map((entry) => entry.name)
+  .sort()
+  .filter((name) => name > MIGRATION)
 const DATABASE = `atlas_test_drop_v2_views_${process.pid}`
 const NEGATIVE = `atlas_test_drop_v2_views_negative_${process.pid}`
 const DB_ROOT = join(import.meta.dirname, '..', '..')
@@ -175,6 +182,7 @@ describe('the v2 compatibility view drop', () => {
   })
 
   it('passes prisma db verify --strict', async () => {
+    for (const directory of LATER_MIGRATIONS) await applyMigration({ client, directory })
     const url = databaseUrl({ lane: laneUrl(), name: DATABASE })
     signDatabase({ url })
     const verified = spawnSync('bunx', ['prisma', 'db', 'verify', '--strict'], {

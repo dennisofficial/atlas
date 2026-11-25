@@ -15127,7 +15127,7 @@
               "foreignKeys": [
                 {
                   "index": {
-                    "name": "V2SessionPullRequest_sessionId_idx_29f415d4"
+                    "primaryKey": true
                   },
                   "onDelete": "cascade",
                   "onUpdate": "cascade",
@@ -15155,13 +15155,6 @@
                   ],
                   "name": "V2SessionPullRequest_repoFullName_prNumber_idx_af81cccf",
                   "unique": false
-                },
-                {
-                  "columns": [
-                    "sessionId"
-                  ],
-                  "name": "V2SessionPullRequest_sessionId_idx_29f415d4",
-                  "unique": false
                 }
               ],
               "primaryKey": {
@@ -15169,7 +15162,8 @@
                   "sessionId",
                   "repoFullName",
                   "prNumber"
-                ]
+                ],
+                "name": "SessionPullRequest_pkey"
               },
               "uniques": []
             },
@@ -16329,7 +16323,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "f42fc9afa2a82c3afeffc94cdc6ed81c181325cd2eaae4b4d0e2dc2bccf31ac1"
+    "storageHash": "49cfe0bcc6c8d87db6f762e53cc306f42eda6e5e0ebde5e5aad54032999a12b9"
   },
   "execution": {
     "executionHash": "2177efb983de353ed275f943d06737e92fbddeac59ea03b9801f93db68d4ba53",
