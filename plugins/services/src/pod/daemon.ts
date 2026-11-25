@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto'
+
 import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 import {
   ECallStatus,
@@ -28,6 +30,23 @@ const run = async (args: {
 }
 
 export const newServiceId = (): string => `svc-${crypto.randomUUID().slice(0, 8)}`
+
+/**
+ * A service started by one tool call keeps its id when that call is replayed, so a re-run attaches to
+ * the pod's own record of it instead of starting a second process.
+ */
+export const serviceIdFor = (args: {
+  ctx: Pick<PluginPodContext, 'sessionId'> & Pick<Partial<PluginPodContext>, 'toolCallId'>
+  identity: string
+}): string => {
+  const callId = args.ctx.toolCallId?.()
+  if (callId === undefined) return newServiceId()
+  const digest = createHash('sha256')
+    .update(`${args.ctx.sessionId}\u0000${callId}\u0000${args.identity}`)
+    .digest('hex')
+    .slice(0, 8)
+  return `svc-${digest}`
+}
 
 export const startService = async (args: {
   ctx: Ctx

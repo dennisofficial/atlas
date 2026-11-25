@@ -2,7 +2,7 @@ import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 import { CallInterruptedError } from '@dltech/atlas-core'
 import { ECallFailure, ECallStatus, type CallOp, type CallResult } from '@dltech/atlas-protocol'
 
-import { nextKey } from '../calls/call-scope'
+import { scopedOpKey } from '../calls/call-scope'
 import { POD_WAIT_INTERRUPTED, type WorkspaceGate } from '../calls/workspace-gate'
 
 export const pluginCallOf = (args: {
@@ -38,9 +38,10 @@ export const pluginCallOf = (args: {
   return async (op, options) => {
     const refused = await gateOf(op, options?.signal)
     if (refused !== null) return refused
+    const resolved = await withEnv(op)
     return args.invoke({
-      key: nextKey(),
-      op: await withEnv(op),
+      key: scopedOpKey(resolved),
+      op: resolved,
       signal: options?.signal,
       onOutput: options?.onOutput,
     })

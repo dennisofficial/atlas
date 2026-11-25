@@ -4,14 +4,16 @@ import { AsyncLocalStorage } from 'node:async_hooks'
 
 import { ToolDispatcher, type DispatchArgs, type DispatchableCall } from '@dltech/atlas-agent'
 import { CallInterruptedError, type EventDraft } from '@dltech/atlas-core'
-import { callKeySchema } from '@dltech/atlas-protocol'
+import { callKeySchema, type CallOp } from '@dltech/atlas-protocol'
 
 import { interruptedMessage } from './errors'
+import { opIdentityOf } from './op-identity'
 
 type CallScope = {
   scopeKey: string
   callId?: string | undefined
   next: number
+  seen: Map<string, number>
   tool?: string | undefined
   dispatchedBootId?: string | undefined
   attachOnly?: boolean | undefined
@@ -46,6 +48,7 @@ export const runInCallScope = <T>(args: {
     {
       scopeKey: args.scopeKey,
       next: 0,
+      seen: new Map(),
       ...(args.attachOnly === undefined ? {} : { attachOnly: args.attachOnly }),
     },
     args.body,
@@ -61,6 +64,15 @@ export const nextKey = (): string => {
   return key
 }
 
+export const scopedOpKey = (op: CallOp): string => {
+  const identity = opIdentityOf(op)
+  const scope = storage.getStore()
+  if (scope === undefined) return `host-op-${identity}.0`
+  const seen = scope.seen.get(identity) ?? 0
+  scope.seen.set(identity, seen + 1)
+  return `${scope.scopeKey}.${identity}.${seen}`
+}
+
 export class ScopedToolDispatcher extends ToolDispatcher {
   constructor(private readonly inner: ToolDispatcher) {
     super()
@@ -71,6 +83,7 @@ export class ScopedToolDispatcher extends ToolDispatcher {
       scopeKey: scopeKeyOf({ runId: args.call.runId, callId: args.call.callId }),
       callId: args.call.callId,
       next: 0,
+      seen: new Map(),
       tool: args.call.name,
     }
     return storage.run(scope, async () => {

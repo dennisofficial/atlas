@@ -2,7 +2,7 @@ import type { ToolOutcome } from '@dltech/atlas-core'
 import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 import type { ServiceInfo } from '@dltech/atlas-protocol'
 
-import { newServiceId, startService } from './daemon'
+import { serviceIdFor, startService } from './daemon'
 import { exposeService } from './expose'
 import { renderStarted } from './render'
 import { serviceEnvOf } from './service-env'
@@ -74,7 +74,12 @@ export const launchTracked = async (
   args: LaunchArgs,
 ): Promise<{ ok: true; value: LaunchedService } | { ok: false; reason: string }> => {
   const { ctx, state } = args
-  const requestedId = newServiceId()
+  const requestedId = serviceIdFor({
+    ctx,
+    identity:
+      args.name ??
+      `${args.command}\u0000${args.cwd}\u0000${args.port === undefined ? '' : String(args.port)}`,
+  })
   let settled: () => void = () => undefined
   state.starting.set(
     requestedId,
