@@ -11,7 +11,7 @@ import {
   trpcQuery,
 } from '../session-trpc-test-app'
 import { GithubService } from '@dltech/atlas-github'
-import type { SkillLayers } from '@dltech/atlas-wire'
+import { EConfigLayer, type SkillLayers } from '@dltech/atlas-wire'
 import { GroupsService } from '../project-groups/project-groups.service'
 import { ProjectsService } from '../projects/projects.service'
 import { SkillUsageService } from './skill-usage.service'
@@ -654,7 +654,12 @@ describe('SkillsRouter', () => {
     }).expect(200)
     const layers = (dataOf(layered.body) as SkillLayers).layers
 
-    expect(layers.map((layer) => layer.layer)).toEqual(['built-in', 'personal', 'group', 'project'])
+    expect(layers.map((layer) => layer.layer)).toEqual([
+      EConfigLayer.BuiltIn,
+      EConfigLayer.Personal,
+      EConfigLayer.Group,
+      EConfigLayer.Project,
+    ])
     expect(layers.map((layer) => layer.owner)).toEqual([
       { id: null, name: 'built-ins' },
       { id: null, name: 'Personal' },

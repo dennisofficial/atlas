@@ -29,6 +29,7 @@ type ModelChoiceRow = {
 const repoSchema = z.object({ repo: z.string().min(1), branch: z.string().min(1).optional() })
 
 type ProjectRow = {
+  groupId: string | null
   repo: string | null
   baseBranch: string | null
   additionalRepos: unknown

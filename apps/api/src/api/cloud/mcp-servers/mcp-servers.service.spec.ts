@@ -5,7 +5,8 @@ import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { db } from '@dltech/atlas-db'
 import { seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
 import { EMcpServerScope } from '@dltech/atlas-wire'
-import { McpServersService } from './mcp-servers.service'
+import type { McpServersService } from './mcp-servers.service'
+import { mcpServersServiceOf } from './mcp-servers.service.fixture'
 import { EMcpTransportKind, type McpSpecDraft, type McpTransportDraft } from './mcp-servers.types'
 
 const HEX_KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
@@ -33,7 +34,7 @@ describe('McpServersService', () => {
 
   beforeEach(async () => {
     for (const id of [USER_A, USER_B]) await seedUser({ db: database().db, id })
-    service = new McpServersService(
+    service = mcpServersServiceOf(
       new SecretCipherService(new EnvService({ SECRETS_ENCRYPTION_KEY: HEX_KEY })),
     )
   })

@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { db } from '@dltech/atlas-db'
 import { seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
 import { seedProject } from '../src/test/web-settings.fake-db'
-import { EMcpOauthGrantStatus, EMcpServerSource } from '@dltech/atlas-wire'
+import { EMcpOauthGrantStatus, EMcpServerScope, EMcpServerSource } from '@dltech/atlas-wire'
 import { describe, expect, it } from 'bun:test'
 import { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
 import { EnvService } from '../src/_core/config/env/env.service'
@@ -13,7 +13,7 @@ import { sealJson, type SealedGrant } from '../src/agent'
 import { mcpOauthGatewayOf } from '../src/agent/mcp-oauth/gateway'
 import { EGrantRowStatus, McpOauthClock } from '../src/api/cloud/mcp-oauth/mcp-oauth.types'
 import { PrismaMcpOauthStore } from '../src/api/cloud/mcp-oauth/prisma-mcp-oauth.store'
-import { McpServersService } from '../src/api/cloud/mcp-servers/mcp-servers.service'
+import { mcpServersServiceOf } from '../src/api/cloud/mcp-servers/mcp-servers.service.fixture'
 import { EMcpTransportKind } from '../src/api/cloud/mcp-servers/mcp-servers.types'
 
 const HEX_KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
@@ -43,7 +43,7 @@ describe('per-server mcp oauth over real PostgreSQL', () => {
     return {
       store,
       oauth: new McpOauthService(store, cipher, new RealClock(), fetcher, config),
-      servers: new McpServersService(cipher),
+      servers: mcpServersServiceOf(cipher),
     }
   }
   const gateway = () =>
@@ -200,6 +200,7 @@ describe('per-server mcp oauth over real PostgreSQL', () => {
     await seedUser({ db: database().db, id: ownerId })
     const { store, servers } = services()
     await servers.put({
+      scope: EMcpServerScope.Personal,
       userId: ownerId,
       name: 'posthog',
       spec: { transport: { kind: EMcpTransportKind.Http, url: SERVER_URL } },
@@ -217,6 +218,7 @@ describe('per-server mcp oauth over real PostgreSQL', () => {
     })
 
     await servers.put({
+      scope: EMcpServerScope.Personal,
       userId: ownerId,
       name: 'posthog',
       spec: {
@@ -232,6 +234,7 @@ describe('per-server mcp oauth over real PostgreSQL', () => {
     expect(kept?.oauthSealed).not.toBeNull()
 
     await servers.put({
+      scope: EMcpServerScope.Personal,
       userId: ownerId,
       name: 'posthog',
       spec: { transport: { kind: EMcpTransportKind.Http, url: 'https://other.example.com/mcp' } },
