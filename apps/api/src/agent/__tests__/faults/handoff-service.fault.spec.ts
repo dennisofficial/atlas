@@ -1,6 +1,8 @@
 import { expect } from 'bun:test'
 
-import { callIdOf } from './fault-support'
+import { ECallStatus, EServiceRunStatus, type ServiceInfo } from '@dltech/atlas-protocol'
+
+import { callIdOf, daemonCall } from './fault-support'
 import { describeHandoff, waitUntil, type HandoffContext } from '../../testing/handoff-suite'
 import type { HostProcess } from '../../testing/fault-rig'
 
@@ -35,6 +37,28 @@ const startedIdsOf = async (ctx: HandoffContext): Promise<readonly string[]> =>
   (await ctx.record())
     .filter((row) => row.type === 'service-started')
     .map((row) => (row.event as { serviceId: string }).serviceId)
+
+let probeCount = 0
+
+const podCall = async (ctx: HandoffContext, op: Parameters<typeof daemonCall>[0]['op']) => {
+  probeCount += 1
+  const held = await ctx.rig.plane.currentLease({ sessionId: ctx.sessionId })
+  return daemonCall({
+    url: ctx.daemon.url,
+    sessionId: ctx.sessionId,
+    epoch: held.lease.epoch,
+    key: `${ctx.sessionId}.probe-${probeCount}`,
+    op,
+  })
+}
+
+const podServices = async (ctx: HandoffContext): Promise<readonly ServiceInfo[]> => {
+  const listed = await podCall(ctx, { op: 'services.list' })
+  if (listed.status !== ECallStatus.Ok || listed.op !== 'services.list') {
+    throw new Error(`the pod refused to list its services: ${JSON.stringify(listed)}`)
+  }
+  return listed.value
+}
 
 describeHandoff({
   name: 'a service start that outlives the turn',
@@ -104,7 +128,22 @@ describeHandoff({
     expect(result.error).toBeUndefined()
     const startedIds = await startedIdsOf(ctx)
     expect(startedIds).toHaveLength(1)
-    expect(result.output?.serviceId).toBe(startedIds[0])
+    const serviceId = result.output?.serviceId
+    expect(serviceId).toBe(startedIds[0])
+    if (serviceId === undefined) return
+
+    const listed = await podServices(ctx)
+    expect(listed.map((service) => service.serviceId)).toContain(serviceId)
+    expect(listed.find((service) => service.serviceId === serviceId)?.status).toBe(
+      EServiceRunStatus.Ready,
+    )
+
+    const stopped = await podCall(ctx, { op: 'services.stop', serviceId })
+    expect(stopped.status).toBe(ECallStatus.Ok)
+    const after = await podServices(ctx)
+    expect(after.find((service) => service.serviceId === serviceId)?.status).toBe(
+      EServiceRunStatus.Stopped,
+    )
   },
 
   async runs(ctx) {
