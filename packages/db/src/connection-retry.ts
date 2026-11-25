@@ -5,6 +5,7 @@ const SQL_CONNECTION_KIND = 'sql_connection'
 const CONNECTION_EXCEPTION_CLASS = '08'
 const ADMIN_SHUTDOWN_STATES: ReadonlySet<string> = new Set(['57P01', '57P02', '57P03'])
 const SOCKET_CODES: ReadonlySet<string> = new Set(['ECONNRESET', 'EPIPE', 'ETIMEDOUT'])
+const TRANSACTION_DEADLINE_ERROR_NAME = 'TransactionDeadlineError'
 
 const stringField = (error: unknown, field: string): string | undefined => {
   if (typeof error !== 'object' || error === null || !(field in error)) return undefined
@@ -33,8 +34,12 @@ const isConnectionLossLink = (link: unknown): boolean => {
   )
 }
 
+const isTransactionDeadlineLink = (link: unknown): boolean =>
+  link instanceof Error && link.name === TRANSACTION_DEADLINE_ERROR_NAME
+
 export function isRetryableConnectionLoss(error: unknown): boolean {
   const links = causesOf(error)
+  if (links.some(isTransactionDeadlineLink)) return false
   if (links.some((link) => stringField(link, 'code') === COMMIT_FAILED_CODE)) return false
   return links.some(isConnectionLossLink)
 }

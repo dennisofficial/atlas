@@ -36,7 +36,10 @@ Atlas Cloud's Postgres contract, migrations and runtime client, on Prisma 8. Ser
 - `db.orm.public.<Model>`: the native ORM query. There is no Prisma 7 shim.
 - `db.transaction(async (tx) => …)`: one transaction. A helper takes `tx: Tx`.
 - `createDb(pool)`, `sharedPool()`, `closeSharedDb()`.
-- `createPool(url, options?)`: the pool. The options are `queryTimeoutMs` and `minIdle`.
+- `createPool(url, options?)`: the pool. The options are `queryTimeoutMs`, `minIdle`,
+  `transactionTimeoutMs` and `onTransactionTimeout`.
+- `configureSharedPool(options)`: gives the shared pool its options. Call it before the first use
+  of `db`, `sharedPool()` or better-auth.
 - `contract`, `contractStorageHash`, `Models`, `Row`, `Scalars`, `Shape`, `Db`, `Tx`.
 - `and`, `not`, `or`: the query combinators.
 
@@ -45,7 +48,13 @@ Atlas Cloud's Postgres contract, migrations and runtime client, on Prisma 8. Ser
 - `isUniqueViolation(error)`: says if the error is the SQLSTATE 23505.
 - `violatedConstraint(error)`: the constraint name of a unique violation.
 - `databaseErrorCode(error)`, `isNoRows(error)`: the other checks.
-- `retryOnConnectionLoss`, `isRetryableConnectionLoss`: retry a lost connection.
+- `retryOnConnectionLoss`, `isRetryableConnectionLoss`: retry a lost connection. A transaction that
+  hit its deadline is never retried.
+- `TransactionDeadlineError`: a transaction stayed open past the whole-transaction deadline. It
+  carries `durationMs`, `timeoutMs`, `statements`, `lastStatement`, `topStatement` and
+  `topStatementCount`.
+- `DEFAULT_TRANSACTION_TIMEOUT_MS` (30 s), `transactionDeadlineMessage(report)`: the default the
+  pool applies, and the message the error and the default reporter share.
 
 ### Test against Postgres
 
