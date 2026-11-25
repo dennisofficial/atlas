@@ -3,10 +3,12 @@ import { describe, expect, it } from 'bun:test'
 import {
   EQualityFindingState,
   EQualityTransition,
+  toCallId,
   type CodeQualityReviewedBody,
   type RecordEventBody,
 } from '@dltech/atlas-core'
 
+import { reviewIdOf } from '../analytics/review-links'
 import { nudgeReactionProperties } from '../analytics/reaction-properties'
 import type { QualityReviewEventProperties } from '../analytics/review-properties'
 import {
@@ -20,7 +22,7 @@ import {
   turnStarted,
   wakeConsumed,
 } from './finding-fixtures'
-import { THREAD } from './support'
+import { CALL, THREAD } from './support'
 
 const REPLY = (text: string): RecordEventBody => ({
   type: 'assistant-said',
@@ -57,17 +59,13 @@ const episode = (args: { episode: number }): CodeQualityReviewedBody => ({
 const REACTION_ID1 = 'single-responsibility:scope-1:1'
 
 const reactions = (events: readonly RecordEventBody[]): readonly QualityReviewEventProperties[] =>
-  nudgeReactionProperties({
-    events: eventsOf(events),
-    threadId: THREAD,
-    reviewIds: new Map([[REACTION_ID1, 'review-1']]),
-  })
+  nudgeReactionProperties({ events: eventsOf(events), threadId: THREAD })
 
 describe('nudgeReactionProperties', () => {
   it('reports an untouched finding with its links and its counts', () => {
     expect(reactions([turnStarted, notified(), said])).toEqual([
       {
-        review_id: 'review-1',
+        review_id: reviewIdOf({ callId: CALL }),
         finding_id: REACTION_ID1,
         episode: 1,
         policy_id: 'single-responsibility',
@@ -108,14 +106,12 @@ describe('nudgeReactionProperties', () => {
     })
   })
 
-  it('reports a null review_id when the nudging review is unknown', () => {
-    const properties = nudgeReactionProperties({
-      events: eventsOf([turnStarted, notified(), said]),
-      threadId: THREAD,
-      reviewIds: new Map(),
-    })
+  it('derives the review id from the tool call of the notified record', () => {
+    const otherCall = { ...notified(), callId: toCallId('call-2') }
 
-    expect(properties[0]).toMatchObject({ review_id: null })
+    expect(reactions([turnStarted, otherCall, said])[0]).toMatchObject({
+      review_id: reviewIdOf({ callId: toCallId('call-2') }),
+    })
   })
 
   it('reports an empty list for a thread with no turn start', () => {

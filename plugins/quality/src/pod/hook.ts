@@ -13,9 +13,8 @@ import { CodeQualityReview } from '../review/engine'
 import { qualityRegistry } from '../review/registry'
 import { prepareQualityScopes } from '../review/source'
 import { closedFindingProperties } from './analytics/closed-properties'
-import { nudgingReviewIdsOf, rememberNudgedFindings } from './analytics/nudge-review'
 import { nudgeReactionProperties, QUALITY_NUDGE_REACTION } from './analytics/reaction-properties'
-import { newReviewId, type QualityNotified } from './analytics/review-links'
+import { reviewIdOf, type QualityNotified } from './analytics/review-links'
 import {
   QUALITY_FINDING_CLOSED,
   QUALITY_FINDING_RESOLVED,
@@ -101,7 +100,7 @@ export const qualityReviewHook = (args: {
       return {}
     }
 
-    const reviewId = newReviewId()
+    const reviewId = reviewIdOf({ callId: call.callId })
     const review = new CodeQualityReview({
       classifier: tracedClassifier({
         classifier: args.ctx.classifier,
@@ -147,12 +146,6 @@ export const qualityReviewHook = (args: {
       policyId: entry.policy.id,
       scopeId: entry.assessment.scopeId,
     }))
-    rememberNudgedFindings({
-      sessionId: args.ctx.sessionId,
-      reviewId,
-      findingIds: outcome.flagged.map(({ entry }) => entry.finding.id),
-    })
-
     for (const record of outcome.records) {
       const facts = record.scope === undefined ? undefined : factsById.get(record.scope.id)
       if (facts === undefined) continue
@@ -228,11 +221,7 @@ export const qualityNudgeReactionHook = (args: {
   name: 'quality-nudge-reaction',
   order: { stage: EStage.Observe, nudge: 20 },
   run: async ({ threadId }) => {
-    const properties = nudgeReactionProperties({
-      events: args.ctx.events(),
-      threadId,
-      reviewIds: nudgingReviewIdsOf({ sessionId: args.ctx.sessionId }),
-    })
+    const properties = nudgeReactionProperties({ events: args.ctx.events(), threadId })
     for (const held of properties) {
       args.ctx.analytics.capture({
         event: QUALITY_NUDGE_REACTION,

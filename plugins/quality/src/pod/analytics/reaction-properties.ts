@@ -8,6 +8,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { qualityRegistry } from '../../review/registry'
+import { reviewIdOf } from './review-links'
 import type { QualityReviewEventProperties } from './review-properties'
 import {
   lastTurnStartOf,
@@ -104,7 +105,6 @@ const mentionedInReply = (args: {
 export const nudgeReactionProperties = (args: {
   events: readonly RecordEvent[]
   threadId: ThreadId
-  reviewIds: ReadonlyMap<string, string>
 }): readonly QualityReviewEventProperties[] => {
   const thread = threadEventsOf({ events: args.events, threadId: args.threadId })
   const turnStartedAt = lastTurnStartOf({ events: thread })
@@ -123,7 +123,7 @@ export const nudgeReactionProperties = (args: {
       if (atNudge === undefined) continue
       const later = laterScopeRecordsOf({ records, index, scopeId: finding.scopeId })
       properties.push({
-        review_id: args.reviewIds.get(finding.id) ?? null,
+        review_id: reviewIdOf({ callId: record.callId }),
         finding_id: finding.id,
         episode: finding.episode,
         policy_id: finding.policyId,
