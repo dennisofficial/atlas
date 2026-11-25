@@ -96,6 +96,37 @@ describe('readEvents at a commit boundary', () => {
     expect(page.next).toBeUndefined()
   })
 
+  it('extends a page across a long run of input-posted in reads linear in the run', async () => {
+    const { store, plane, append } = await setup()
+    const run = 30
+    const inboxIds = Array.from({ length: run }, (_, index) => index + 1)
+    await append({ bodies: inboxIds.map((inboxId) => posted(inboxId, `m${inboxId}`)) })
+    await append({ bodies: inboxIds.map((inboxId) => said(inboxId, `m${inboxId}`)) })
+    let reads = 0
+    const transact = store.transact.bind(store)
+    store.transact = (work) =>
+      transact((tx) => {
+        const readEvents = tx.readEvents.bind(tx)
+        tx.readEvents = (params) => {
+          reads += 1
+          return readEvents(params)
+        }
+        return work(tx)
+      })
+
+    const page = await plane.readEvents({
+      threadId: THREAD,
+      afterSeq: 0,
+      limit: 1,
+      visible: true,
+    })
+
+    expect(page.events.map((event) => event.seq)).toEqual(
+      Array.from({ length: run + 1 }, (_, index) => index + 1),
+    )
+    expect(reads).toBeLessThanOrEqual(run + 2)
+  })
+
   it('stops a commit-extended page at the head rather than inventing a next', async () => {
     const { plane, append } = await setup()
     await append({ bodies: [posted(1, 'a'), said(1, 'a')] })

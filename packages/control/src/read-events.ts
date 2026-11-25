@@ -9,6 +9,8 @@ export type ReadEventsPage = { events: V2Event[]; next?: number }
 
 export const INPUT_POSTED = 'input-posted'
 
+const COMMIT_EXTENSION_PAGE = 64
+
 const endsCommit = (events: readonly V2Event[]): boolean =>
   events[events.length - 1]?.type !== INPUT_POSTED
 
@@ -67,17 +69,17 @@ const extendPastCommit = async (params: {
   while (!endsCommit(kept)) {
     const last = kept[kept.length - 1]
     if (last === undefined || last.seq >= row.headSeq) return kept
-    const page = await readEventsIn({
-      tx,
-      row,
+    const batch = await tx.readEvents({
+      threadId: row.threadId,
       afterSeq: last.seq,
-      limit: 1,
-      visible: false,
-      ...(params.eventSchema === undefined ? {} : { eventSchema: params.eventSchema }),
+      throughSeq: row.headSeq,
+      limit: COMMIT_EXTENSION_PAGE,
     })
-    const next = page.events[0]
-    if (next === undefined) return kept
-    kept.push(next)
+    if (batch.length === 0) return kept
+    for (const stored of batch) {
+      kept.push(decodeStoredEvent(stored, params.eventSchema))
+      if (endsCommit(kept)) return kept
+    }
   }
   return kept
 }
