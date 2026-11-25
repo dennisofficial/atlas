@@ -82,6 +82,8 @@ A main agent, a sub-agent and a teammate all run this loop. It knows nothing of 
   the failures a provider raises.
 - `TurnFault`, `causeChainOf(error)`, `runFailureWith({...})`: name the failure for the record.
 - `NormalizeFailure`: how a provider error becomes a `RunFailure`. `TurnDeps` requires one.
+- `safeFailureMessage(message)`, `blockedFailureOf(chain)`: remove secrets from a provider message,
+  and find an admission block in a cause chain.
 - `OPERATOR_STOP_REASON`: the abort reason that marks a turn stopped by the operator.
 - `guardRepeatLoop({...})`, `MAX_LOOP_CUTS_PER_TURN`: stop a loop that repeats itself.
 

@@ -46,7 +46,7 @@ timezone. The routines feature uses it in the web, in the API and in the Trigger
 
 ## Usage
 
-From `apps/trigger/src/trigger/routine/routine-cron.ts`:
+From `apps/trigger/src/routine/routine-cron.ts`:
 
 ```ts
 import {

@@ -1,6 +1,6 @@
 # @dltech/atlas-core
 
-Pure vocabulary and decisions shared by every v2 package: ids, the event envelope, request
+Pure vocabulary and decisions shared by every Atlas package: ids, the event envelope, request
 assembly, settings, ports, and the record folds. It imports `zod` and nothing else.
 
 ## Owns
@@ -95,7 +95,7 @@ assembly, settings, ports, and the record folds. It imports `zod` and nothing el
 ### Read the record and decide the next move
 
 - `Lease`, `startVerdict({...})`, `claimGrant({...})`, `revoke({...})`: the lease rules.
-- `consume({entry, seq})`, `takeBack(entry)`, `InboxEntry`: the inbox rules.
+- `consume({entry, seq})`, `InboxEntry`, `InboxRefusal`: the inbox rules. A consumed entry is refused.
 - `decideHeldAction({...})`, `HeldOutcome`, `EExecutionLocation`: the host's next action. `resumePointOf({events})`, `EResumePoint`: how a stopped turn resumes, or the reason it cannot; `resumeMarkedDraft({...})` stamps the resume.
 - `endingHeld({input, crew})`: whether a clean sub-agent ending waits for a sibling spawned in the same
   assistant step. `crew` holds `CrewRoomMember` values: `agentId`, `agentType`, `group` and `running`.

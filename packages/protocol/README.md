@@ -84,7 +84,7 @@ The ops are `exec`, `exec.background`, `stat`, `readFile`, `readBytes`, `readTex
 
 - `sessionListInputSchema`, `sessionSummarySchema`, `sessionListOutputSchema`: the session list.
 - `sessionCreateInputSchema`, `sessionPostInputSchema`, `sessionEventsOutputSchema`: create, post, read.
-- `sessionSubscriptionSchema`, `sessionSubscribeInputSchema`, `sessionUnsubscribeInputSchema`.
+- `sessionSubscriptionSchema`, `sessionSubscribeInputSchema`, `sessionUnsubscribeInputSchema`: a subscription has no expiry.
 - `ESandboxProvider`, `ECredentialSource`, `ESandboxStatus`: the sandbox provider, its source and status.
 - `usageReportInputSchema`, `usageReportDtoSchema`, `usageWindowDtoSchema`: a plan account's usage
   as the API reports it, by account id or by provider, with the age of the reading.

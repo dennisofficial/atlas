@@ -47,7 +47,7 @@ a higher out-of-memory score. `apps/daemon` calls it.
   group gets the total memory minus `max(reserve.minBytes, total * reserve.fraction)`.
 - `MemoryReserve`: `{ minBytes, fraction, protectedBytes }`, chosen by the caller.
 - `SERVE_MEMORY_RESERVE`: the v1 serve reserve, `max(1.5 GiB, 25%)`, with no `memory.min`.
-- `DAEMON_MEMORY_RESERVE`: the v2 daemon reserve. Commands may use the whole pod, so
+- `DAEMON_MEMORY_RESERVE`: the daemon reserve. Commands may use the whole pod, so
   `atlas-work/memory.max` is the pod total. The daemon group gets 384 MiB of `memory.min`, and its
   `oom_score_adj` of -900 against +800 for commands makes the kernel kill a command first.
 - `SERVE_GROUP`, `WORK_GROUP`: the cgroup names, `atlas-serve` and `atlas-work`.

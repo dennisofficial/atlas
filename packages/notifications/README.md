@@ -28,7 +28,7 @@ Redis and sends the pushes.
 | Import                               | Use it for                                                      |
 | ------------------------------------ | --------------------------------------------------------------- |
 | `@dltech/atlas-notifications`        | The device model, the payload keys and the transport interface. |
-| `@dltech/atlas-notifications/client` | The in-app notice and the presence loop.                        |
+| `@dltech/atlas-notifications/client` | The in-app notice, the Mac push reader and the presence loop.   |
 | `@dltech/atlas-notifications/server` | The presence store, the Web Push, Expo and APNs transports.     |
 
 ## Capabilities
@@ -84,8 +84,8 @@ Redis and sends the pushes.
 ### Send Web Push
 
 - `webPushTransport({ vapid, send })`: the `web-push` kind. `vapid` is `publicKey`, `privateKey` and `subject`; give `send` a fake in a spec.
-- `deliver` posts `{ type: 'notification', notification }` with a one-day TTL and a topic of the
-  session id, so a second moment replaces the first.
+- `deliver` posts `{ type: 'notification', notification }` with a one-day TTL and a topic made from
+  the session id, so a second moment replaces the first.
 - `clear` posts `{ type: 'clear', sessionId }`, and skips an Apple push host, which needs a visible
   notification for every push.
 - A `404` or a `410` reports the device `gone`, as does a secret with no subscription keys.

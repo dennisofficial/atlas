@@ -57,8 +57,9 @@ track a repository or a pull request. `apps/api` drives it through thin Nest ada
 - `GithubPrStore` writes a folded pull-request row and appends its event.
 - `GithubPrReconcile`, `GithubPrMergeabilityRefresh` and `applyObservedPull` decide what the row
   says next, and `foldStateOfRow` folds a stored row into the fold state.
-- `readCommitChecks` and `commitChecksTally` read and tally check runs and statuses, and
-  `failedChecksOfRows` gives the failed ones.
+- `readCommitChecks` and `commitChecksTally` read and tally check runs and statuses,
+  `failedChecksOfRows` gives the failed ones, and `pruneCommitChecks({ now })` deletes the rows
+  older than the retention window.
 
 ### Tracking, polling and subscriptions
 
@@ -79,7 +80,8 @@ track a repository or a pull request. `apps/api` drives it through thin Nest ada
 ### Connect a user account and read repositories
 
 - `GithubService` runs the OAuth device flow, stores the encrypted user token and reads the
-  connection.
+  connection. It takes a `GithubDeviceClient`, which makes the device-flow calls; a spec passes a
+  `fetchFn` to it.
 - `GithubRepoReads` lists repositories, branches and trees, and reads a file.
 
 ### Ports

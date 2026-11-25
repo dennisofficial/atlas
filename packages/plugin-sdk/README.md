@@ -19,10 +19,10 @@ author reads this package first. Every plugin in `plugins/*` builds its slots wi
 
 ## Entry points
 
-| Import                             | Use it for                                             |
-| ---------------------------------- | ------------------------------------------------------ |
-| `@dltech/atlas-plugin-sdk`         | The slots, `definePlugin`, `composePlugins` and types. |
-| `@dltech/atlas-plugin-sdk/testing` | A fixture plugin that exercises every slot.            |
+| Import                             | Use it for                                                |
+| ---------------------------------- | --------------------------------------------------------- |
+| `@dltech/atlas-plugin-sdk`         | The slots, `definePlugin`, `composePlugins` and types.    |
+| `@dltech/atlas-plugin-sdk/testing` | A fixture plugin, and `podControlStub` for a plugin spec. |
 
 ## The slot contract
 
@@ -79,8 +79,8 @@ A `PodSlot` declares:
 the capabilities `control`, `crew`, `messages`, `classifier`, `analytics`, `sessions`, `worktrees`,
 `resources`. `ctx.analytics.capture({event, properties})` sends a product event for the session's
 user; the host adds `session_id` and `thread_id`.
-`ctx.crew` is a `PodCrew`: `spawn` with a `group` wakes the parent once, after every member ends.
-`say({agentId, text})`, `stop({agentId})`, `list()` and `resume({agentId})` act on one sub-agent.
+`ctx.crew` is a `PodCrew`: `spawn` with a `group` wakes the parent once, after every member ends,
+`report({text})` answers the parent, and `say`, `stop`, `list` and `resume` act on one sub-agent.
 `ctx.control` is a `PodControl`: `exposePort({port})`, `settingsVersions()`, `memory`,
 `gateway` (`apiKey()`, `imageModel()`), `mcp`, `routines`, `subscriptions`.
 
@@ -94,18 +94,18 @@ adds a transactional side effect. It cannot rewrite the event. `ClientSlot` hold
 ### Load a resource
 
 A `PodResource<T>` needs a `name`, a `schema` and a `load({ctx, directory, signal})`. Five members are
-optional: `watch(directory)` names the paths to watch, `announce(value, ctx)` returns the events to
-append, `stale(value)` says if the value is out of date, `background` starts the load without blocking
-the step, and `cloud` names the settings it follows. Read a cloud setting through a resource: set
+optional: `watch(directory)` gives the roots and basenames to watch, `announce(value, ctx)` returns
+the events to append, `stale(value)` says if the value is out of date, `background` starts the load
+without blocking the step, and `cloud` names the settings it follows. To follow a cloud setting, set
 `cloud: [ECloudSetting.McpServers]`, `ECloudSetting.Skills` or `ECloudSetting.PersonalInstructions`,
 and compare `ctx.control.settingsVersions()` with `UNVERSIONED_SETTINGS`. Read the value with
 `readResource({ctx, resource})`, and reload it with `ctx.resources.reload(name)`.
 
 ## Capabilities
 
-- `definePlugin({name, ...slots})`: validate the slots and freeze the plugin.
-- `composePlugins(plugins)`: merge most slots; two plugins may not register the same tool, prompt
-  fragment, resource or command name. Collect `entryFolds` from each plugin yourself, as
+- `definePlugin({name, ...slots})`, `Plugin`, `PluginSlots`: validate the slots and freeze them.
+- `composePlugins(plugins)`: the `ComposedPlugins`. Two plugins may not register the same tool,
+  prompt fragment, resource or command name. Collect `entryFolds` yourself, as
   `apps/web/src/features/sessions/registered-plugins.ts` does.
 - `composePod(pods)`, `composePodCommands({factories, ctx})`: the merged pod slot and pod commands.
 - `eventSchemaOf(plugins)`, `eventTypesOf(plugins)`: the decoder and the type list for a session.
@@ -141,7 +141,7 @@ const shells = definePlugin({
   - `apps/api/src/agent/registered-plugins.ts` (runtime).
   - `packages/pods/src/control/registered-plugins.ts` (control).
   - `apps/web/src/features/sessions/registered-plugins.ts` (web).
-  - `apps/mobile/src/thread/v2/registered-plugins.ts` (mobile, which builds its own schema).
+  - `apps/mobile/src/thread/session/registered-plugins.ts` (mobile, which builds its own schema).
   - `apps/tui/src/app/registered-plugins.ts` (tui).
 
 ## See also

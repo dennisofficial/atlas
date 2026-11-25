@@ -40,7 +40,8 @@ only what it can rebuild or drop.
 - `SessionHolderArgs`: `HostPresence`, the control plane, `HostBus`, `HostTimers`,
   `SessionRuntimeFactory`, the ids, the commands and their handlers. It also takes the optional
   `PodControlClient`, MCP, operator, changes, context mirror, notify, `ParkArchivedPod`, turn-ended
-  hooks, the log, `PodPeers`, terminal and panel demand, and the two start-error classifiers.
+  hooks, the log, `PodPeers`, the plugin `podCommands`, `onHostIdChanged`, terminal and panel
+  demand, and the two start-error classifiers.
   `NotifyDispatch` tells another process that a turn ended or parked. `TurnEndedHook` reports it.
 - `SessionRuntime`, `PrepareResult`, `PrepareStepReporter`, `SetupLifecycle`, `CapturedBase`,
   `BootNotice`, `RoleModelRequest`, `RoleModelChoice`: the runtime a factory builds, what `prepare`

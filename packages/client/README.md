@@ -44,8 +44,8 @@ The headless client library that web, the TUI and the mobile app share.
   by default; `followSessions()` gives the live list.
 - `createSessionFollower(args)`: a session's follower, its connection state and snapshot.
   `HYDRATE_TIMEOUT_MS` bounds the first load. `createSessionsFeed({ follow, write })` holds the list.
-- `StreamTransport`, `StreamScheduler`, `systemStreamScheduler`, `browserNetworkSignal`: the ports
-  that a surface supplies.
+- `StreamTransport`, `StreamScheduler`, `StreamNetworkSignal`, `systemStreamScheduler`,
+  `browserNetworkSignal`: the ports that a surface supplies.
 - `nestPeers(rows)` nests each teammate under its spawner. `peerBucketOf({ row })` and
   `EPeerBucket` give a row's bucket; `splitTeammates(rows)` gives its active and done teammates.
   `isRecentProject(args)`, `lastActivityAt(args)` and `RECENT_PROJECT_WINDOW_MS` keep new projects.
@@ -65,6 +65,8 @@ The headless client library that web, the TUI and the mobile app share.
 
 - `createRemoteDeltaChannel(args)`: the delta channel to a pod's live session stream. `webSocketFactory`,
   `sessionSocketUrlOf`, `ChannelSocket`: the socket adapter. `encodeFrame`, `decodeClientFrame`, `EServeFrame`, `EClientFrame`: the client side of the frame codec.
+- `listSubscriptions({ channel })`, `subscribeTo(args)`, `setSubscriptionStatus(args)`,
+  `unsubscribeFrom(args)`, `readGitChanges({ channel, scope })`: the requests on a `RequestChannel`.
 - `EClientRequest`, `ChannelSignal`, `StepSignal`, `TurnOutcome`, `InFlightSlots`: the request names, the signals, a turn's outcome and the in-flight slots.
 
 ### Build the transcript
@@ -73,9 +75,9 @@ The headless client library that web, the TUI and the mobile app share.
   transcript rows and the durable rows of a thread; `pluginEntries` adds a plugin's rows. `summariesAtTarget(events)`: the events with each compaction summary at its target.
 - `turnsBySeq(args)`, `settledAtOf(entries)`, `turnEndedEntry(turn)`: the turn rows and the settled
   time. `turnStartedAtOf({ events, status? })`: the open turn's start, or a queued session's `since`. `TurnSpend`, `totalSpend`, `SpendTotals` and `NOTHING_SPENT`: what a turn spent.
-- `ECallState`, `ECallKind`, `callKindOf(name)`, `ToolCall`, `ToolRun`, `attachmentsOf`,
-  `qualityNoticeOf`, `qualityNoticeLine`, `EQualityNoticeTone`: the tool runs and a call's quality
-  line. `agentsOf(args)`, `agentOf(args)`, `agentLabelOf(agent)`: a sub-agent's type, intent, state.
+- `ECallState`, `ECallKind`, `callKindOf(name)`, `ToolCall`, `ToolRun`, `attachmentsOf`: the tool
+  runs and their attachments. `agentsOf(args)`, `agentOf(args)`, `agentLabelOf(agent)`: a
+  sub-agent's type, intent, state.
 - `noticeEntriesOf(event)`: one event's notice rows. `thinkingVisibilityOf`, `foldThoughts`, `toolsAboveThoughts`: the folds.
 - `revealedText({ key, text, gate })`, `runAttentionOf(args)`, `plural(many, one, rest?)`,
   `formatElapsed(ms)`: the revealed text and the helpers that a surface also uses.
@@ -108,8 +110,7 @@ The headless client library that web, the TUI and the mobile app share.
   `postInputOf(args)`: draft and post input. Ports: `MediaUploadApi`, `PutImage`, `UploadHandle`.
 - `EAttachmentStatus`, `HeldStatus`, `OCTET_STREAM`, `MAX_UPLOAD_MB`: the held attachment type and
   its limits. `planAttach({ files, held })`: `accepted`, `oversize` and `droppedOverflow`.
-  `withProgress`, `withFailed`, `withoutAttachment`, `readyAttachments`, `isUploading`, `hasFailed`:
-  the holder updates. `TOO_MANY_FILES`, `REMOVE_FAILED_FILES`, `tooLargeNotice(name)`, `uploadFailedNotice(name)`: the notices.
+  `withProgress`, `withFailed`, `withoutAttachment`, `readyAttachments`, `isUploading`, `hasFailed`: the holder updates. `TOO_MANY_FILES`, `REMOVE_FAILED_FILES`, `tooLargeNotice(name)`, `uploadFailedNotice(name)`: the notices.
 - `sessionCreateInputOf(args)`, `initialProjectIdOf(args)`: a new session's create input and project.
 - `composerSendStateOf`, `contextPercentOf`, `createDraftSync(args)`: send, context, draft write.
 - `queuedMessagesOf`, `queuedNoticesOf`, `stagedQueuedMessagesOf`, `optimisticPlacementOf(args)`: the queued rows.
@@ -117,8 +118,7 @@ The headless client library that web, the TUI and the mobile app share.
 ### Sign in to Atlas Cloud
 
 - `beginCloudLogin(args)`, `pollCloudLogin(args)`: the device-code ticket and the poll outcome.
-  `CLOUD_CLIENT_ID`, `CloudLoginTicket`, `ECloudLoginPoll` and `CloudLoginOutcome` are the grant and
-  its types. `DeviceLoginError` carries the HTTP `status`, `0` when the host is unreachable.
+  `CLOUD_CLIENT_ID`, `CloudLoginTicket`, `ECloudLoginPoll` and `CloudLoginOutcome` are the grant and its types. `DeviceLoginError` carries the HTTP `status`, `0` when the host is unreachable.
 
 ## Usage
 

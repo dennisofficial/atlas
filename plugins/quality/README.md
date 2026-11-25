@@ -45,14 +45,14 @@ The pod entry exports the first group only. The review modules below are the par
 
 ### Build a pod slot
 
-- `qualityPodOf({ settings, budgetMs, clock })`: makes the pod slot with the `quality-review` afterTool hook. `settings(ctx)` resolves `{ enabled, policies }` for the session.
+- `qualityPodOf({ settings, budgetMs, clock })`: makes the pod slot with the `quality-review` afterTool hook. `settings(ctx)` resolves `{ enabled, policies, examples }` for the session.
 - `QUALITY_REVIEW_BUDGET_MS`: the 1000 ms budget one review gets.
 - `qualityReviewHook({ ctx, options })`: the hook itself, for a caller that composes the pod differently.
 - `qualityIgnoredHook({ ctx })`: the afterTurn hook that reports the findings a turn left active.
 
 ### Review a write
 
-- `CodeQualityReview`: the engine. `review(args)` returns `{ records, notes, timings, language, inputTokens }`. `notes` holds one `{ key, content }` per reviewed file, keyed by the workspace-relative path; the list is empty when the review missed the deadline or found nothing to tell the model. `timings` splits the scope build and the classifier calls; `inputTokens` is the classifier usage the provider reported.
+- `CodeQualityReview`: the engine. `review(args)` returns `{ records, flagged, notes, timings, language, inputTokens }`. `records` holds the review records. `flagged` holds one `{ record, entry }` for each finding that produces an advisory note. `notes` holds one `{ key, content }` per reviewed file, keyed by the workspace-relative path; the list is empty when the review missed the deadline or found nothing to tell the model. `timings` splits the scope build and the classifier calls; `inputTokens` is the classifier usage the provider reported.
 - `CodeQualityReviewDeps`: the classifier, its requested model, the source adapter, the registry, the settings accessor, the clock and the deadline in milliseconds.
 - `qualitySwitches({ values })`: the `enabled` switch and the boolean policy flags of a setting map.
 - `QUALITY_POLICIES`, `qualityRegistry`: the default registry, which holds the single-responsibility policy.
@@ -84,7 +84,7 @@ The pod entry exports the first group only. The review modules below are the par
   `QualityNoticeLine`: the one-line indicator a tool row draws, and the failure wording for a review
   that missed its budget or could not decide.
 
-The `./core` entry imports `@dltech/atlas-core` and the policy descriptors only. It has no engine and
+The `./core` entry imports `@dltech/atlas-core` and the policy modules only. It has no engine and
 no TypeScript compiler.
 
 ## Plugin contributions
@@ -113,7 +113,7 @@ empty by default). Its properties are `policy_id`, `policy_version`, `status`, `
 `excerpt_truncated` says when it was cut. The hook sends nothing when the path is secret shaped
 (`.env`, keys, `.ssh`) or the excerpt names a secret literal.
 
-The hook asks for captured text only for a write or destructive call, while the classifier is on and the `quality.enabled` setting is true. When it asks for nothing, the tool captures nothing.
+The hook asks for captured text only for a call with the `write` effect, while the classifier is on and the `quality.enabled` setting is true. When it asks for nothing, the tool captures nothing.
 
 The hook returns the records as drafts, and each note as a `context-loaded` under the slot `quality-review`, keyed by the reviewed file path. A later review of the same file replaces its note; a review that finds nothing left to say about a file writes an empty note for that key, so the earlier note leaves the prompt. A file whose earlier note is current and whose review found a new problem keeps the note: one finding is told once.
 
@@ -135,7 +135,7 @@ const qualityPod = qualityPodOf({
 - A sub-agent and a teammate get the same afterTool hooks as the main agent, so their writes are reviewed too. No extra wiring is necessary.
 - The hook budget is 5 s, above the 1 s review deadline, so the hook returns its own deadline record.
 - Import `@dltech/atlas-plugin-quality/pod` in the pod only. It imports `@dltech/atlas-agent`, `@dltech/atlas-core`, `@dltech/atlas-plugin-sdk`, `typescript`, `node:path` and `node:crypto`, and the guards enforce it.
-- `@dltech/atlas-plugin-quality/core` stays pure: `@dltech/atlas-core` and the policy descriptors only.
+- `@dltech/atlas-plugin-quality/core` stays pure: `@dltech/atlas-core` and the policy modules only.
   A surface, a settings page or the agent's config may import it; nothing else in the engine is public
   to them.
 - Evals import the plugin through `@dltech/atlas-plugin-quality/review` only.

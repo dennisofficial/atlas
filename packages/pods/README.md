@@ -16,7 +16,8 @@ they read. `apps/api` and `apps/trigger` both use it. It has no framework import
 
 ## Does not own
 
-- The NestJS wiring, controllers, routers and trigger task definitions. `apps/api` owns them.
+- The NestJS wiring, controllers and routers. `apps/api` owns them. The trigger.dev task
+  definitions are in `apps/trigger`.
 - Task ids and payload schemas. `@dltech/atlas-jobs` owns them.
 - The control plane store and its transactions. `@dltech/atlas-control` owns them.
 
@@ -80,7 +81,9 @@ they read. `apps/api` and `apps/trigger` both use it. It has no framework import
 
 ### Compose one plugin list
 
-- `registeredPlugins` and `composedPlugins` are the one control-plane plugin list.
+- `registeredPlugins` and `composedPlugins` are the plugin list that the trigger.dev worker builds
+  a control plane from. `apps/api` builds its own list in
+  `apps/api/src/agent/registered-plugins.ts`.
 - `jobsControlPlaneOf({ db })` builds a `ControlPlane` over Postgres with that list.
 - `composedControlPlaneOver({ store })` builds the same `ControlPlane` over any store. A plane
   built without the list cannot read a stored plugin event.
@@ -106,4 +109,4 @@ await sleeper.sleep({ sandboxSessionId: 'ses_123' })
 ## See also
 
 - `packages/jobs` names the tasks these functions run under.
-- `apps/api/src/trigger` builds the graphs that call them today.
+- `apps/trigger/src` builds the graphs that call them today, such as `pod-power/pod-sleep-graph.ts`.

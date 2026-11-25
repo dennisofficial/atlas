@@ -38,11 +38,11 @@ reaches the API through this package. No client imports `apps/api`.
 ### Follow a session
 
 - `sessionStreamTransport({ client, surface?, handleUnauthorized? })`: returns a
-  `SessionStreamTransport`. `follow({ sessionId, threadId?, afterSeq?, afterHash? }, handlers)`
-  resumes from a sequence and hash. `list(handlers)` follows the session list.
-  `events({ sessionId, threadId?, afterSeq, limit })` reads one page of older events.
-- `SessionStreamFollowInput`, `SessionStreamOlderInput`, `SessionStreamOlderPage`: the follow
-  input, the request for an older page and the page.
+  `SessionStreamTransport`. The `follow` call takes `sessionId`, `threadId?`, `afterSeq?`,
+  `afterHash?` and `tailViewVersion?`, and it resumes from a sequence and hash. `list(handlers)`
+  follows the session list. `events({ sessionId, threadId?, afterSeq, limit })` reads one page of
+  older events, and returns the events and the next sequence.
+- `SessionStreamFollowInput`, `SessionStreamTransport`: the follow input and the transport type.
 - `SessionStreamHandlers`: `handleFrame`, `handleFailure` and `handleEnd`.
 - `SessionStreamSubscription`: `close()`.
 - The transport parses every frame with `streamServerMessageSchema` before it calls the handler.

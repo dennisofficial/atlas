@@ -41,7 +41,8 @@ Connects a session to the MCP servers that the operator and the repository confi
 
 ### Talk to a server
 
-- `McpClients` and `serverIdOf(entry)`: the connection pool that keeps one client for each server.
+- `McpClients` and `serverIdOf({ sessionId, name })`: the connection pool that keeps one client for
+  each server.
 - `StdioClient`, `HttpClient` and `ProxyClient`: the three transports.
 - `McpBridgeTool` and `MCP_NAME_PREFIX`: the model tool for one tool of one server, and the `mcp__` prefix of its name.
 - `McpSignInTool`: the `operator_mcp_sign_in` tool.

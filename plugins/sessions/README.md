@@ -65,10 +65,13 @@ is created.
 
 ### The slots
 
+`SESSION_TOOLS` holds the six tool names.
+
 `sessionsPod` gives the six tools and the `sessions.peers` prompt fragment.
 
 `sessionsCoreSlots` gives the `plan` view and no events or commands. The client tier gives
-functions, not a slot object; the API passes `client: { hooks: [] }`.
+functions, not a slot object; the API passes `client: { hooks: [] }`. The control tier is empty,
+and it re-exports the core tier.
 
 ## Usage
 

@@ -75,13 +75,14 @@ The worker registers the tasks. This package only names them and validates their
 - `notifyTestIdempotencyKey({ payload, now })`: gives `notify-test:<userId>:<minute>`, so repeated
   presses inside one minute send one test. `NOTIFY_TEST_WINDOW_MS` is that one-minute window.
 - `podSleepIdempotencyKey(payload)`: gives `pod-sleep:<sessionId>:<epoch>`.
-- `podResizeIdempotencyKey(payload)`: gives `pod-resize:<sessionId>:<generation>:<waits>`.
+- `podResizeIdempotencyKey(payload)`: gives `pod-resize:<sessionId>:<generation>:<waits>`. The key
+  ends with `0` when the payload has no `waits`.
 - `notifyClearIdempotencyKey({ sessionId, momentSeq })`: gives `notify-clear:<sessionId>:<momentSeq>`,
   so one moment clears the devices once.
 
 ## Usage
 
-From `apps/trigger/src/trigger/heartbeat.task.ts`:
+From `apps/trigger/src/heartbeat.task.ts`:
 
 ```ts
 import { HEARTBEAT_TASK_ID, type HeartbeatOutput, heartbeatOutputSchema } from '@dltech/atlas-jobs'
@@ -115,4 +116,5 @@ export const heartbeatTask = schedules.task({
 
 ## See also
 
-- `apps/trigger/src/trigger/routine/routine-run.task.ts` uses the routine payload and the key.
+- `apps/trigger/src/routine/routine-run.task.ts` uses the routine payload.
+- `apps/trigger/src/routine/routine-sweep.task.ts` sets the idempotency key of the run.

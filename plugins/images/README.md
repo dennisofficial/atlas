@@ -33,6 +33,7 @@ thread. The API composes it as the `images` plugin.
 
 ### Generate an image
 
+- `IMAGES_TOOLS`: the list that holds `image_generate`.
 - `generateWithGateway(args)`: one image from a prompt, and optional input images that it edits.
   It answers `{ ok: true, bytes, mediaType }` or `{ ok: false, refusal, reason }`.
 - `EGenerateRefusal`: `failed`, or `zero-data-retention` when the gateway refuses for ZDR.
@@ -44,7 +45,7 @@ thread. The API composes it as the `images` plugin.
 - `isZeroDataRetention(reason)`: says whether a gateway reason names Zero Data Retention.
 - `zdrImageModelsIn(payload)`: the image model ids the gateway lists with `zdr` other than `none`.
 - `zdrImageModels(signal)`: reads `GATEWAY_MODELS_URL`, and answers `ZDR_FALLBACK_MODELS` when the
-  lookup fails.
+  lookup fails or lists no Zero Data Retention model.
 
 ## Plugin contributions
 
@@ -84,5 +85,6 @@ export const imagesPlugin = definePlugin({
 
 ## Rules
 
-- Use the tool in the pod only. It calls the daemon for the session directory and the files.
+- Use the tool in the pod only. It reads the session directory from the pod environment, and reads
+  and writes the files through the daemon.
 - Do not hard-code a model list. Read `zdrImageModels` when a refusal names Zero Data Retention.
