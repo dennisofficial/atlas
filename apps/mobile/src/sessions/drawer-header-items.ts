@@ -2,14 +2,18 @@ import type { HeaderBarButtonItem, SearchBarProps } from 'react-native-screens'
 
 import { ESessionsListLayout } from '../layout/posture'
 
-export const drawerSearchBarPropsOf = (): Pick<
+export const drawerSearchBarPropsOf = ({
+  listLayout,
+}: {
+  listLayout: ESessionsListLayout
+}): Pick<
   SearchBarProps,
   'allowToolbarIntegration' | 'autoCapitalize' | 'placeholder' | 'placement'
 > => ({
   allowToolbarIntegration: false,
   autoCapitalize: 'none',
   placeholder: 'Search',
-  placement: 'integratedButton',
+  placement: listLayout === ESessionsListLayout.Panel ? 'stacked' : 'integratedButton',
 })
 
 const accountBarItemOf = ({ onPress }: { onPress: () => void }): HeaderBarButtonItem => ({
@@ -26,25 +30,15 @@ const newSessionBarItemOf = ({ onPress }: { onPress: () => void }): HeaderBarBut
   type: 'button',
 })
 
-export const showsNewSessionButtonOf = ({
-  listLayout,
-  searching,
-}: {
-  listLayout: ESessionsListLayout
-  searching: boolean
-}): boolean => listLayout !== ESessionsListLayout.Panel || !searching
-
 export const drawerBarItemsOf = ({
   showsAccount,
-  showsNewSession,
   onAccount,
   onNewSession,
 }: {
   showsAccount: boolean
-  showsNewSession: boolean
   onAccount: () => void
   onNewSession: () => void
 }): { left: HeaderBarButtonItem[]; right: HeaderBarButtonItem[] } => ({
   left: showsAccount ? [accountBarItemOf({ onPress: onAccount })] : [],
-  right: showsNewSession ? [newSessionBarItemOf({ onPress: onNewSession })] : [],
+  right: [newSessionBarItemOf({ onPress: onNewSession })],
 })
