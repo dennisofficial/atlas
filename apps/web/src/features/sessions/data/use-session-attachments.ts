@@ -1,10 +1,10 @@
 import { useCallback, useMemo } from 'react'
 import { toast } from 'sonner'
 
-import { TOAST_TOO_MANY_FILES } from '@/features/threads/data/composer-attachments'
 import type { useComposerAttachments } from '@/features/threads/data/use-composer-attachments'
 
 import type { Attachment } from '@dltech/atlas-core'
+import { TOO_MANY_FILES } from '@dltech/atlas-client/session'
 
 import { routeAttachments } from './session-attachments'
 import { restorePlanOf } from '@dltech/atlas-client/session'
@@ -24,7 +24,7 @@ export function useSessionAttachments({
   const attach = useCallback(
     (picked: File[]): void => {
       const routed = routeAttachments({ files: picked, held: heldCount })
-      if (routed.droppedOverflow) toast.error(TOAST_TOO_MANY_FILES)
+      if (routed.droppedOverflow) toast.error(TOO_MANY_FILES)
       if (routed.images.length > 0) media.attach(routed.images)
       if (routed.others.length > 0) files.attach(routed.others)
     },

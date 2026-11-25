@@ -1,30 +1,20 @@
 import { describe, expect, it } from 'bun:test'
 
-import {
-  EAttachmentStore,
-  MAX_INLINE_BYTES,
-  MAX_MESSAGE_UPLOADS,
-  MAX_UPLOAD_BYTES,
-} from '@dltech/atlas-core'
+import { EAttachmentStore, MAX_INLINE_BYTES } from '@dltech/atlas-core'
+
+import { EAttachmentStatus, withFailed } from '@dltech/atlas-client/session'
 
 import {
   attachRouteOf,
-  EAttachRoute,
-  EAttachmentStatus,
   attachmentsOf,
   describeBytes,
-  hasFailed,
-  isUploading,
-  planAttach,
+  EAttachRoute,
   restoredHeldOf,
-  withPreview,
   sendableOf,
   startedAttachment,
-  withFailed,
   withMediaReady,
-  withProgress,
+  withPreview,
   withReady,
-  withoutAttachment,
   type PickedFile,
 } from '../attachment-plan'
 
@@ -43,37 +33,6 @@ const uploadOf = (name: string) => ({
   name,
   size: 1024,
   mediaType: 'image/jpeg',
-})
-
-describe('planAttach', () => {
-  it('accepts files within the size and count limits', () => {
-    const plan = planAttach({ files: [picked('a.jpg'), picked('b.jpg')], held: 0 })
-    expect(plan.accepted.map((file) => file.name)).toEqual(['a.jpg', 'b.jpg'])
-    expect(plan.oversize).toEqual([])
-    expect(plan.droppedOverflow).toBe(false)
-  })
-
-  it('separates oversize files from accepted ones', () => {
-    const plan = planAttach({
-      files: [picked('a.jpg'), picked('huge.bin', MAX_UPLOAD_BYTES + 1)],
-      held: 0,
-    })
-    expect(plan.accepted.map((file) => file.name)).toEqual(['a.jpg'])
-    expect(plan.oversize.map((file) => file.name)).toEqual(['huge.bin'])
-  })
-
-  it('drops overflow once the message is full', () => {
-    const files = Array.from({ length: 3 }, (_, index) => picked(`f${index}.jpg`))
-    const plan = planAttach({ files, held: MAX_MESSAGE_UPLOADS - 2 })
-    expect(plan.accepted.map((file) => file.name)).toEqual(['f0.jpg', 'f1.jpg'])
-    expect(plan.droppedOverflow).toBe(true)
-  })
-
-  it('accepts nothing when the message is already full', () => {
-    const plan = planAttach({ files: [picked('a.jpg')], held: MAX_MESSAGE_UPLOADS })
-    expect(plan.accepted).toEqual([])
-    expect(plan.droppedOverflow).toBe(true)
-  })
 })
 
 describe('attachRouteOf', () => {
@@ -120,14 +79,6 @@ describe('held attachment status', () => {
     expect(attachmentsOf([started])).toEqual([])
   })
 
-  it('tracks progress only while uploading', () => {
-    const uploading = withProgress({ held: [started], id: 'one', progress: 0.4 })
-    expect(uploading[0]?.progress).toBe(0.4)
-    const ready = withReady({ held: uploading, id: 'one', upload: uploadOf('a.jpg') })
-    const late = withProgress({ held: ready, id: 'one', progress: 0.6 })
-    expect(late[0]?.progress).toBe(1)
-  })
-
   it('projects a ready upload into an upload-store attachment', () => {
     const ready = withReady({ held: [started], id: 'one', upload: uploadOf('a.jpg') })
     expect(attachmentsOf(ready)).toEqual([
@@ -143,17 +94,6 @@ describe('held attachment status', () => {
         },
       },
     ])
-  })
-
-  it('keeps a failed upload out of the send', () => {
-    const failed = withFailed({ held: [started], id: 'one' })
-    expect(hasFailed(failed)).toBe(true)
-    expect(attachmentsOf(failed)).toEqual([])
-  })
-
-  it('reports uploading and removes by id', () => {
-    expect(isUploading([started])).toBe(true)
-    expect(withoutAttachment({ held: [started], id: 'one' })).toEqual([])
   })
 })
 

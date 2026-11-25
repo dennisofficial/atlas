@@ -1,7 +1,15 @@
 import { ETextRole, EFontWeight, Text, useTheme, withAlpha } from '@dltech/atlas-ui-native'
 import { radius, space } from '@dltech/atlas-ui/tokens'
-import { FileText, ImagePlus, type LucideIcon } from 'lucide-react-native'
+import { Camera, FileText, ImagePlus, type LucideIcon } from 'lucide-react-native'
 import { Pressable, StyleSheet, View } from 'react-native'
+
+import { ATTACH_SOURCES, EAttachSource } from './attach-sources'
+
+const ICON: Record<EAttachSource, LucideIcon> = {
+  [EAttachSource.Camera]: Camera,
+  [EAttachSource.Library]: ImagePlus,
+  [EAttachSource.File]: FileText,
+}
 
 const Option = ({
   icon: Glyph,
@@ -35,7 +43,7 @@ const Option = ({
   )
 }
 
-export const AttachMenu = ({ onPhoto, onFile }: { onPhoto: () => void; onFile: () => void }) => {
+export const AttachMenu = ({ onPick }: { onPick: (source: EAttachSource) => void }) => {
   const theme = useTheme()
   return (
     <View
@@ -47,8 +55,14 @@ export const AttachMenu = ({ onPhoto, onFile }: { onPhoto: () => void; onFile: (
         },
       ]}
     >
-      <Option icon={ImagePlus} label="Photo library" onPress={onPhoto} />
-      <Option icon={FileText} label="Choose a file" onPress={onFile} />
+      {ATTACH_SOURCES.map((option) => (
+        <Option
+          key={option.source}
+          icon={ICON[option.source]}
+          label={option.label}
+          onPress={() => onPick(option.source)}
+        />
+      ))}
     </View>
   )
 }

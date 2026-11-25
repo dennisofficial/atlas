@@ -21,19 +21,19 @@ The headless client library that web, the TUI and the mobile app share.
 
 ## Entry points
 
-| Import                                          | Use it for                                                                                    |
-| ----------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `@dltech/atlas-client/stream`                   | The stream connection, the session follower, the log, the window and the overlay.             |
-| `@dltech/atlas-client/channel`                  | The pod delta channel, the frame codecs and the tool requests.                                |
-| `@dltech/atlas-client/chat`                     | The chat transport, the step chunks and the step messages.                                    |
-| `@dltech/atlas-client/crew`                     | The crew readout, the sub-agent state and the background work.                                |
-| `@dltech/atlas-client/session`                  | The session create input, the rewind, the image upload, the message input and the draft sync. |
-| `@dltech/atlas-client/account`                  | The Atlas Cloud device-code login.                                                            |
-| `@dltech/atlas-client/transcript`               | The transcript rows, the tool runs and the turn rows.                                         |
-| `@dltech/atlas-client/stream-fixture`           | A fake scheduler and transport, and the event factories, for a spec.                          |
-| `@dltech/atlas-client/transcript-fixture`       | The event drafts and the step signals of a transcript, for a spec.                            |
-| `@dltech/atlas-client/transcript-tool-fixture`  | The tool call and result drafts, for a spec.                                                  |
-| `@dltech/atlas-client/transcript-tools-fixture` | A sample tool call and shell call, for a spec or a prototype.                                 |
+| Import                                          | Use it for                                                                                                              |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `@dltech/atlas-client/stream`                   | The stream connection, the session follower, the log, the window and the overlay.                                       |
+| `@dltech/atlas-client/channel`                  | The pod delta channel, the frame codecs and the tool requests.                                                          |
+| `@dltech/atlas-client/chat`                     | The chat transport, the step chunks and the step messages.                                                              |
+| `@dltech/atlas-client/crew`                     | The crew readout, the sub-agent state and the background work.                                                          |
+| `@dltech/atlas-client/session`                  | The session create input, the rewind, the image upload, the composer attachments, the message input and the draft sync. |
+| `@dltech/atlas-client/account`                  | The Atlas Cloud device-code login.                                                                                      |
+| `@dltech/atlas-client/transcript`               | The transcript rows, the tool runs and the turn rows.                                                                   |
+| `@dltech/atlas-client/stream-fixture`           | A fake scheduler and transport, and the event factories, for a spec.                                                    |
+| `@dltech/atlas-client/transcript-fixture`       | The event drafts and the step signals of a transcript, for a spec.                                                      |
+| `@dltech/atlas-client/transcript-tool-fixture`  | The tool call and result drafts, for a spec.                                                                            |
+| `@dltech/atlas-client/transcript-tools-fixture` | A sample tool call and shell call, for a spec or a prototype.                                                           |
 
 ## Capabilities
 
@@ -64,15 +64,13 @@ The headless client library that web, the TUI and the mobile app share.
 ### Read the pod channel
 
 - `createRemoteDeltaChannel(args)`: the delta channel to a pod's live session stream. `webSocketFactory`,
-  `sessionSocketUrlOf`, `ChannelSocket`: the socket adapter. `encodeFrame`, `decodeClientFrame`,
-  `EServeFrame`, `EClientFrame`: the client side of the frame codec.
+  `sessionSocketUrlOf`, `ChannelSocket`: the socket adapter. `encodeFrame`, `decodeClientFrame`, `EServeFrame`, `EClientFrame`: the client side of the frame codec.
 - `EClientRequest`, `ChannelSignal`, `StepSignal`, `TurnOutcome`, `InFlightSlots`: the request names, the signals, a turn's outcome and the in-flight slots.
 
 ### Build the transcript
 
 - `deriveTranscript(args)`, `assembleTranscript(args)`, `durableEntries(args)`, `EEntryKind`: the
-  transcript rows and the durable rows of a thread; `pluginEntries` adds a plugin's rows. `summariesAtTarget(events)`: the events with
-  each compaction summary at its target.
+  transcript rows and the durable rows of a thread; `pluginEntries` adds a plugin's rows. `summariesAtTarget(events)`: the events with each compaction summary at its target.
 - `turnsBySeq(args)`, `settledAtOf(entries)`, `turnEndedEntry(turn)`: the turn rows and the settled
   time. `turnStartedAtOf({ events, status? })`: the open turn's start, or a queued session's `since`. `TurnSpend`, `totalSpend`, `SpendTotals` and `NOTHING_SPENT`: what a turn spent.
 - `ECallState`, `ECallKind`, `callKindOf(name)`, `ToolCall`, `ToolRun`, `attachmentsOf`,
@@ -98,8 +96,7 @@ The headless client library that web, the TUI and the mobile app share.
 ### Rewind a session
 
 - `seqByEventIdOf(events)`, `rewoundMessageOf(args)`, `rewindLanded(args)`, `rewindRefused(args)`,
-  `rewindKillsOf(args)`, `mergedDraftOf(args)`: the picked message, its sequence, the draft ahead of
-  the composer, and the work the rewind stops.
+  `rewindKillsOf(args)`, `mergedDraftOf(args)`: the picked message, its sequence, the draft ahead of the composer, and the work the rewind stops.
 - `restorePlanOf(attachments)`, `requestRewind(args)`: the attachments back in their composer
   stores, and the queued command. `RewindApi`, `RewoundMessage`, `RestorePlan`, `RestoredMedia`,
   `RewindKillRow`: the types.
@@ -109,6 +106,10 @@ The headless client library that web, the TUI and the mobile app share.
 - `sha256Hex(bytes)`, `supportedMediaTypeOf(mediaType)`, `storeImage(args)` (optional `hashOf`
   without `crypto.subtle`): hash, type, presign-put-confirm. `messageInputOf(args)`,
   `postInputOf(args)`: draft and post input. Ports: `MediaUploadApi`, `PutImage`, `UploadHandle`.
+- `EAttachmentStatus`, `HeldStatus`, `OCTET_STREAM`, `MAX_UPLOAD_MB`: the held attachment type and
+  its limits. `planAttach({ files, held })`: `accepted`, `oversize` and `droppedOverflow`.
+  `withProgress`, `withFailed`, `withoutAttachment`, `readyAttachments`, `isUploading`, `hasFailed`:
+  the holder updates. `TOO_MANY_FILES`, `REMOVE_FAILED_FILES`, `tooLargeNotice(name)`, `uploadFailedNotice(name)`: the notices.
 - `sessionCreateInputOf(args)`, `initialProjectIdOf(args)`: a new session's create input and project.
 - `composerSendStateOf`, `contextPercentOf`, `createDraftSync(args)`: send, context, draft write.
 - `queuedMessagesOf`, `queuedNoticesOf`, `stagedQueuedMessagesOf`, `optimisticPlacementOf(args)`: the queued rows.

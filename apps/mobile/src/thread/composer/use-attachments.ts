@@ -1,8 +1,17 @@
 import type { Attachment } from '@dltech/atlas-core'
-import { MAX_MESSAGE_UPLOADS } from '@dltech/atlas-core'
-import * as DocumentPicker from 'expo-document-picker'
+import {
+  EAttachmentStatus,
+  hasFailed,
+  isUploading,
+  planAttach,
+  TOO_MANY_FILES,
+  tooLargeNotice,
+  uploadFailedNotice,
+  withFailed,
+  withProgress,
+  withoutAttachment,
+} from '@dltech/atlas-client/session'
 import { randomUUID } from 'expo-crypto'
-import * as ImagePicker from 'expo-image-picker'
 import { useCallback, useMemo, useRef, useState } from 'react'
 
 import { useAuth } from '../../auth/auth-provider'
@@ -10,26 +19,17 @@ import {
   attachRouteOf,
   attachmentsOf,
   EAttachRoute,
-  EAttachmentStatus,
-  hasFailed,
-  isUploading,
-  OCTET_STREAM,
-  planAttach,
   restoredHeldOf,
   startedAttachment,
-  TOO_MANY_FILES,
-  tooLargeNotice,
-  uploadFailedNotice,
-  withFailed,
   withMediaReady,
-  withProgress,
   withReady,
-  withoutAttachment,
   withPreview,
   type HeldAttachment,
   type PickedFile,
 } from './attachment-plan'
+import { type EAttachSource, PICK_FAILED } from './attach-sources'
 import { pastedImageOf, pickedOfPasted } from './paste-image'
+import { pickFrom } from './pick-from'
 import { putBytes, sizeOfFile, type UploadHandle } from './put-bytes'
 import { storeMedia } from './store-media'
 import { writePasted } from './write-pasted'
@@ -40,8 +40,7 @@ export type ComposerAttachments = {
   uploading: boolean
   failed: boolean
   notice: string | null
-  pickPhotos: () => Promise<void>
-  pickFiles: () => Promise<void>
+  pick: (source: EAttachSource) => Promise<void>
   pasteImage: (data: string) => Promise<void>
   remove: (id: string) => void
   restore: (args: {
@@ -50,32 +49,6 @@ export type ComposerAttachments = {
   }) => void
   clear: () => void
 }
-
-const extensionOf = (mediaType: string): string => {
-  const subtype = mediaType.split('/')[1] ?? 'jpeg'
-  const clean = subtype.replace(/[^a-z0-9]/gi, '').toLowerCase()
-  if (clean === '' || clean === 'jpeg') return 'jpg'
-  return clean
-}
-
-const pickedPhoto = (asset: ImagePicker.ImagePickerAsset, index: number): PickedFile => {
-  const mediaType = asset.mimeType ?? 'image/jpeg'
-  return {
-    name: asset.fileName ?? `photo-${Date.now()}-${index}.${extensionOf(mediaType)}`,
-    size: asset.fileSize ?? asset.file?.size ?? 0,
-    mediaType,
-    uri: asset.uri,
-    ...(asset.file === undefined ? {} : { blob: asset.file }),
-  }
-}
-
-const pickedDocument = (asset: DocumentPicker.DocumentPickerAsset): PickedFile => ({
-  name: asset.name,
-  size: asset.size ?? asset.file?.size ?? 0,
-  mediaType: asset.mimeType ?? OCTET_STREAM,
-  uri: asset.uri,
-  ...(asset.file === undefined ? {} : { blob: asset.file }),
-})
 
 export function useAttachments(): ComposerAttachments {
   const { api } = useAuth()
@@ -215,29 +188,18 @@ export function useAttachments(): ComposerAttachments {
     [update, upload],
   )
 
-  const pickPhotos = useCallback(async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync()
-    if (!permission.granted) return
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsMultipleSelection: true,
-      selectionLimit: MAX_MESSAGE_UPLOADS,
-      quality: 1,
-      preferredAssetRepresentationMode:
-        ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
-    })
-    if (result.canceled) return
-    attach(result.assets.map(pickedPhoto))
-  }, [attach])
-
-  const pickFiles = useCallback(async () => {
-    const result = await DocumentPicker.getDocumentAsync({
-      multiple: true,
-      copyToCacheDirectory: true,
-    })
-    if (result.canceled) return
-    attach(result.assets.map(pickedDocument))
-  }, [attach])
+  const pick = useCallback(
+    async (source: EAttachSource) => {
+      try {
+        const outcome = await pickFrom(source)
+        if (outcome.notice !== null) setNotice(outcome.notice)
+        if (outcome.files.length > 0) attach(outcome.files)
+      } catch {
+        setNotice(PICK_FAILED)
+      }
+    },
+    [attach],
+  )
 
   const pasteImage = useCallback(
     async (data: string) => {
@@ -303,8 +265,7 @@ export function useAttachments(): ComposerAttachments {
     uploading: isUploading(held),
     failed: hasFailed(held),
     notice,
-    pickPhotos,
-    pickFiles,
+    pick,
     pasteImage,
     remove,
     restore,

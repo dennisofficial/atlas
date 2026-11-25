@@ -6,7 +6,7 @@ import * as realSonner from 'sonner'
 
 import { EPromptAttachmentStatus } from '@dltech/atlas-ui/ai/prompt-input'
 
-import { toastUploadFailed } from '@/features/threads/data/composer-attachments'
+import { uploadFailedNotice } from '@dltech/atlas-client/session'
 import * as realEncode from '@/features/threads/data/image-encode'
 
 const realSonnerExports = { ...realSonner }
@@ -108,6 +108,6 @@ describe('useSessionMedia on a file the browser cannot decode', () => {
     expect(api().composerProps.attachments.map((chip) => chip.status)).toEqual([
       EPromptAttachmentStatus.Failed,
     ])
-    expect(shownErrors).toEqual([toastUploadFailed('IMG_0042.HEIC')])
+    expect(shownErrors).toEqual([uploadFailedNotice('IMG_0042.HEIC')])
   })
 })

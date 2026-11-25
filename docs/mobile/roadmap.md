@@ -37,7 +37,7 @@ in the same PR.
 - [x] New session sheet: project, model, first message (`sessions.create`)
 - [x] Session screen basics: streamed transcript, composer, header state, Stop, Retry, queued messages
 - [x] Answer operator input: questions from `operator_input` and `operator_shell_input` (`operatorRequests.answer`)
-- [ ] Attachments: photos and files in the composer (`media.presign/confirm`)
+- [x] Attachments: photos, camera and files in the composer (`media.presign/confirm`)
 - [ ] Notifications: presence and Expo token on the shared push port
 - [ ] Session actions: archive, pin, withdraw a queued message
 - [ ] Model and effort per session

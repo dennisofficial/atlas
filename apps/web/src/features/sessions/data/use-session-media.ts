@@ -12,11 +12,11 @@ import {
 } from '@dltech/atlas-client/session'
 
 import {
-  TOAST_REMOVE_FAILED,
-  TOAST_TOO_MANY_FILES,
-  toastOverLimit,
-  toastUploadFailed,
-} from '@/features/threads/data/composer-attachments'
+  REMOVE_FAILED_FILES,
+  TOO_MANY_FILES,
+  tooLargeNotice,
+  uploadFailedNotice,
+} from '@dltech/atlas-client/session'
 import { putFile } from '@/features/threads/data/composer-uploads-api'
 import { encodeImage } from '@/features/threads/data/image-encode'
 import { api, cloudCall } from '@/lib/api-client'
@@ -83,7 +83,7 @@ export function useSessionMedia({
   const fail = useCallback(
     (args: { id: string; file: File }) => {
       update((current) => withMediaFailed({ held: current, id: args.id }))
-      toast.error(toastUploadFailed(args.file.name))
+      toast.error(uploadFailedNotice(args.file.name))
     },
     [update],
   )
@@ -141,8 +141,8 @@ export function useSessionMedia({
     (files: File[]): void => {
       const plan = planImageAttach({ files, held: heldRef.current.length })
       if (plan.rejected.length > 0) toast.error(TOAST_IMAGES_ONLY)
-      for (const file of plan.oversize) toast.error(toastOverLimit(file.name))
-      if (plan.droppedOverflow) toast.error(TOAST_TOO_MANY_FILES)
+      for (const file of plan.oversize) toast.error(tooLargeNotice(file.name))
+      if (plan.droppedOverflow) toast.error(TOO_MANY_FILES)
       if (plan.accepted.length === 0) return
       const added = plan.accepted.map((file) => ({
         file,
@@ -187,7 +187,7 @@ export function useSessionMedia({
   const failed = hasMediaFailed(held)
 
   const checkSendable = (): boolean => {
-    if (failed) toast.error(TOAST_REMOVE_FAILED)
+    if (failed) toast.error(REMOVE_FAILED_FILES)
     return !failed
   }
 

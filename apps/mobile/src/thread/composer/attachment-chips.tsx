@@ -4,12 +4,9 @@ import { Image } from 'expo-image'
 import { FileText, X } from 'lucide-react-native'
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native'
 
-import {
-  describeBytes,
-  EAttachmentStatus,
-  isImageMediaType,
-  type HeldAttachment,
-} from './attachment-plan'
+import { EAttachmentStatus } from '@dltech/atlas-client/session'
+
+import { describeBytes, isImageMediaType, type HeldAttachment } from './attachment-plan'
 
 const CHIP = 72
 

@@ -14,15 +14,22 @@ import {
   useTheme,
   withAlpha,
 } from '@dltech/atlas-ui-native'
-import { ArrowUp, Plus, Square } from 'lucide-react-native'
+import { ArrowUp, Square } from 'lucide-react-native'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { ScrollView, StyleSheet, View } from 'react-native'
 
 import { mergeIntoDraft } from '../session/staged-send'
 import { AttachmentChips } from './attachment-chips'
+import { AttachButton } from './attach-button'
 import { AttachMenu } from './attach-menu'
+import type { EAttachSource } from './attach-sources'
 import { PasteImageButton } from './paste-image-button'
-import { hasFailed, isUploading, readyAttachments, REMOVE_FAILED_FILES } from './attachment-plan'
+import {
+  hasFailed,
+  isUploading,
+  readyAttachments,
+  REMOVE_FAILED_FILES,
+} from '@dltech/atlas-client/session'
 import { SlashMenu } from './slash-menu'
 import { completedDraftOf, menuCandidatesOf, menuQueryOf, pickActionOf } from './slash-menu-model'
 import type { ComposerAttachments } from './use-attachments'
@@ -140,9 +147,9 @@ export const Composer = ({
     setDraft(completedDraftOf(entry.name))
   }
 
-  const handlePick = (pick: () => Promise<void>) => {
+  const handlePick = (source: EAttachSource) => {
     setChoosing(false)
-    void pick()
+    void attachments?.pick(source)
   }
 
   return (
@@ -150,12 +157,7 @@ export const Composer = ({
       {menuQueryOf(draft) === null || candidates.length === 0 ? null : (
         <SlashMenu entries={candidates} onPick={handleCommand} />
       )}
-      {choosing && attachments !== undefined ? (
-        <AttachMenu
-          onPhoto={() => handlePick(attachments.pickPhotos)}
-          onFile={() => handlePick(attachments.pickFiles)}
-        />
-      ) : null}
+      {choosing && attachments !== undefined ? <AttachMenu onPick={handlePick} /> : null}
       {attachments === undefined ? null : (
         <AttachmentChips held={attachments.held} onRemove={attachments.remove} />
       )}
@@ -187,13 +189,10 @@ export const Composer = ({
         />
         <View style={styles.bar}>
           {attachments === undefined ? null : (
-            <Button
-              label={choosing ? 'Close the attachment menu' : 'Attach a file'}
-              icon={Plus}
-              size={EButtonSize.Icon}
-              variant={EButtonVariant.Outline}
-              round
-              onPress={() => setChoosing((open) => !open)}
+            <AttachButton
+              open={choosing}
+              onPick={handlePick}
+              onToggle={() => setChoosing((open) => !open)}
             />
           )}
           {attachments === undefined ? null : (

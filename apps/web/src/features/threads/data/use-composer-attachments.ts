@@ -5,24 +5,27 @@ import type { SaidUpload } from '@dltech/atlas-core'
 import type { SaidImageWire } from '@dltech/atlas-wire/web'
 
 import {
-  chipOf,
-  fitsInline,
+  EAttachmentStatus,
   hasFailed,
-  attachmentsOf,
   isUploading,
   planAttach,
+  REMOVE_FAILED_FILES,
+  TOO_MANY_FILES,
+  tooLargeNotice,
+  uploadFailedNotice,
+  withFailed,
+  withProgress,
+} from '@dltech/atlas-client/session'
+
+import {
+  attachmentsOf,
+  chipOf,
+  fitsInline,
   restoredAttachmentsOf,
   startedAttachment,
-  toastOverLimit,
-  toastUploadFailed,
-  TOAST_REMOVE_FAILED,
-  TOAST_TOO_MANY_FILES,
   uploadsOf,
-  withFailed,
   withInline,
-  withProgress,
   withReady,
-  EAttachmentStatus,
   type HeldAttachment,
 } from './composer-attachments'
 import { isImageFile } from './composer-images'
@@ -89,7 +92,7 @@ export function useComposerAttachments() {
       } catch {
         if (!heldRef.current.some((entry) => entry.id === args.id)) return
         update((current) => withFailed({ held: current, id: args.id }))
-        toast.error(toastUploadFailed(args.file.name))
+        toast.error(uploadFailedNotice(args.file.name))
       } finally {
         handles.current.delete(args.id)
       }
@@ -100,8 +103,8 @@ export function useComposerAttachments() {
   const attach = useCallback(
     (files: File[]): void => {
       const plan = planAttach({ files, held: heldRef.current.length })
-      for (const file of plan.oversize) toast.error(toastOverLimit(file.name))
-      if (plan.droppedOverflow) toast.error(TOAST_TOO_MANY_FILES)
+      for (const file of plan.oversize) toast.error(tooLargeNotice(file.name))
+      if (plan.droppedOverflow) toast.error(TOO_MANY_FILES)
       if (plan.accepted.length === 0) return
       const added = plan.accepted.map((file) => ({
         file,
@@ -151,7 +154,7 @@ export function useComposerAttachments() {
   const failed = hasFailed(held)
 
   const checkSendable = (): boolean => {
-    if (failed) toast.error(TOAST_REMOVE_FAILED)
+    if (failed) toast.error(REMOVE_FAILED_FILES)
     return !failed
   }
 
