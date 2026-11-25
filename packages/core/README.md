@@ -43,8 +43,7 @@ assembly, settings, ports, and the record folds. It imports `zod` and nothing el
 - `eventsOfType({events, type})`: the events of one type, narrowed.
 - `openParkedCallsOf(events)`: the calls that still wait for a result.
 - `latestResourceOf({events, resource})`: the newest value of a loaded resource.
-- `isDurable(type)`: whether a replay keeps that row. `summaryTargetOf({events, throughSeq})`: the range a summary can cover. `unfinishedCommandIdsOf(events)`, `COMMAND_OUTCOMES`: the consumed commands that still owe an outcome, which a new holder replays; a pane command owes one `command-applied`.
-- `withholdPictureBytes(event)`: the copy a client may see, where an inline picture in a `tool-result` goes out as `bytes: {kind: 'withheld'}`. Every other event comes back as the same reference. `withheld` is a real `ImageBytes` variant so the compiler lists every consumer; it is never stored.
+- `isDurable(type)`: whether a replay keeps that row. `summaryTargetOf({events, throughSeq})`: the range a summary can cover. `unfinishedCommandIdsOf(events)`, `COMMAND_OUTCOMES`: the consumed commands that still owe an outcome, which a new holder replays; a pane command owes one `command-applied`. `withholdPictureBytes(event)`: the copy a client may see, where an inline picture in a `tool-result` goes out as `bytes: {kind: 'withheld'}`. Every other event comes back as the same reference. `withheld` is a real `ImageBytes` variant so the compiler lists every consumer; it is never stored.
 
 ### Assemble the model request
 

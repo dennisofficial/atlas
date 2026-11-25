@@ -84,8 +84,7 @@ The ops are `exec`, `exec.background`, `stat`, `readFile`, `readBytes`, `readTex
 
 - `sessionListInputSchema`, `sessionSummarySchema`, `sessionListOutputSchema`: the session list.
 - `sessionCreateInputSchema`, `sessionPostInputSchema`, `sessionEventsOutputSchema`: create, post, read.
-- `sessionSubscriptionSchema`, `sessionSubscribeInputSchema`, `sessionUnsubscribeInputSchema`: a subscription has no expiry.
-- `mediaPresignInputSchema`, `mediaConfirmInputSchema`, `mediaUrlInputSchema`, `mediaToolPictureInputSchema`: a composer upload, its confirmation, the signed read of a stored picture, and one inline picture a `tool-result` still carries (`{sessionId, threadId, seq, part}` answered as base64 `{mediaType, data}`).
+- `sessionSubscriptionSchema`, `sessionSubscribeInputSchema`, `sessionUnsubscribeInputSchema`: a subscription has no expiry. `mediaPresignInputSchema`, `mediaConfirmInputSchema`, `mediaUrlInputSchema`, `mediaToolPictureInputSchema`: a composer upload, its confirmation, the signed read of a stored picture, and one inline picture a `tool-result` still carries (`{sessionId, threadId, seq, part}` answered as base64 `{mediaType, data}`).
 - `ESandboxProvider`, `ECredentialSource`, `ESandboxStatus`: the sandbox provider, its source and status.
 - `usageReportInputSchema`, `usageReportDtoSchema`, `usageWindowDtoSchema`: a plan account's usage
   as the API reports it, by account id or by provider, with the age of the reading.
@@ -107,8 +106,7 @@ The ops are `exec`, `exec.background`, `stat`, `readFile`, `readBytes`, `readTex
 
 - `parseServerMessage(raw)`, `parseClientMessage(raw)`: parse a frame, or refuse it.
 - `STREAM_PROTOCOL_VERSION`, `STREAM_MAX_CLIENT_FRAME_BYTES`, `STREAM_TAIL_EVENTS`: the limits.
-- `EStreamClose`, `EStreamErrorCode`, `EStreamSurface`: the close reason, error and surface.
-- An `events` frame carries `cursor`: the stored `{seq, hash}` of its last event, which a client resumes from. The events themselves may be projected for egress, so a hash of the frame is not the stored one.
+- `EStreamClose`, `EStreamErrorCode`, `EStreamSurface`: the close reason, error and surface. An `events` frame carries `cursor`: the stored `{seq, hash}` of its last event, which a client resumes from. The events themselves may be projected for egress, so a hash of the frame is not the stored one.
 
 ### Run the daemon side of the link
 

@@ -113,8 +113,7 @@ The headless client library that web, the TUI and the mobile app share.
   `withProgress`, `withFailed`, `withoutAttachment`, `readyAttachments`, `isUploading`, `hasFailed`: the holder updates. `TOO_MANY_FILES`, `REMOVE_FAILED_FILES`, `tooLargeNotice(name)`, `uploadFailedNotice(name)`: the notices.
 - `sessionCreateInputOf(args)`, `initialProjectIdOf(args)`: a new session's create input and project.
 - `composerSendStateOf`, `contextPercentOf`, `createDraftSync(args)`: send, context, draft write.
-- `queuedMessagesOf`, `queuedNoticesOf`, `stagedQueuedMessagesOf`, `optimisticPlacementOf(args)`: the queued rows.
-- `createToolPictureLoader({fetch})`, `toolPictureDataUrl(args)`: the lazy bytes of a tool-result picture that the stream withheld, one in-flight fetch per `threadId:seq:part`. `WithheldToolPicture`, `ToolPictureFetch`: the picture it loads and the port that answers it. `ToolPicture` and `firstPictureIn(args)` (in `transcript`) read the picture a result carried: inline bytes, a media ref, or a withheld part.
+- `queuedMessagesOf`, `queuedNoticesOf`, `stagedQueuedMessagesOf`, `optimisticPlacementOf(args)`: the queued rows. `createToolPictureLoader({fetch})`, `toolPictureDataUrl(args)`: the lazy bytes of a tool-result picture that the stream withheld, one in-flight fetch per `threadId:seq:part`. `WithheldToolPicture`, `ToolPictureFetch`: the picture it loads and the port that answers it. `ToolPicture` and `firstPictureIn(args)` (in `transcript`) read the picture a result carried: inline bytes, a media ref, or a withheld part.
 
 ### Sign in to Atlas Cloud
 
