@@ -4,7 +4,7 @@
 
 1. `packages/plugin-sdk` type-depends upward on `agent` (`slots.ts:1`, `compose-pod.ts:1`), `client/transcript` (`slots.ts:2`), `control` (`slots.ts:17`). Move the shapes down or make slots generic.
 2. `packages/client/src/session/session-rewind.ts:10` types restored images as v1 `SaidImageWire`; core already has the identical `SaidImage`. Small.
-3. `apps/api/src/_module/trpc/api-latency.middleware.spec.ts:7` (infra) imports `api/platform/control/pod-errors`; `architecture.spec.ts` "shared infrastructure" fails on main, hidden by incremental CI.
+3. `apps/api/src/_module/trpc/api-latency.middleware.spec.ts:7` (infra) imports `api/platform/sessions/pod-errors`; `architecture.spec.ts` "shared infrastructure" fails on main, hidden by incremental CI.
 4. `packages/github` imports v1 `@dltech/atlas-wire` (`ERepoTracking`, `GithubPrStreamFrame`, device-code types) in 7 files. Move the vocabulary to core.
 5. `packages/client/src/channel/*` (~15 files) and `transcript/events-from-wire.ts` import `@dltech/atlas-wire/web`. Retarget onto `protocol` or split out a v1-compat module. Large.
 6. `apps/tui` imports `@dltech/atlas-wire` in 12 production files. `wire` survived the v1 deletion, so this is a live retarget onto `protocol`. Low value.

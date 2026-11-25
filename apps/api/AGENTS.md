@@ -21,7 +21,7 @@ and better-auth's `/api/auth/*`.
 `sandboxes`, `sandboxCheckpoint`, `sandboxRollover`, `podLeases`, `threadSandbox`, `threadPod`,
 `threadMessages`, `composerDrafts` and `sandboxConfig` routers with their services, and the Vercel
 sandbox provisioning behind them. A sandbox is a session pod: the agent host claims it
-(`src/agent`), and the control plane serves it through `platform/control`.
+(`src/agent`), and the control plane serves it through `platform/sessions`.
 
 **Sandbox storage ends six hours after a session is archived.** Archive parks the pod.
 `orphan-sandbox-sweep` (`apps/trigger`) soft-deletes the session rows at
@@ -112,7 +112,7 @@ src/
   _lib/       infra adapters (crypto). Framework-light.
   _module/    shared injectable modules (session middleware + verifier port, tRPC middlewares).
   api/        api.module.ts + feature modules in two layers —
-              platform/ (auth, accounts, control, previews, health) and cloud/ (secrets,
+              platform/ (auth, accounts, sessions, previews, health) and cloud/ (secrets,
               mcp-servers, user-context, github). One-way rule:
               cloud may import platform, platform never imports cloud;
               enforced by src/api/architecture.spec.ts.
