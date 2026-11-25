@@ -17,13 +17,19 @@ import {
 export type { PreviewSecretCipher } from './preview-rows'
 export { lockPreviews, newPreviewLabel, tunnelNameOf } from './preview-rows'
 
+function sealedOf(row: Row<'PreviewTunnel'>): boolean {
+  return (
+    row.state === EPreviewTunnelState.Ready && row.tunnelId !== '' && row.sealedTunnelToken !== ''
+  )
+}
+
 export class PreviewTunnels {
   private readonly db: Db
   private readonly cipher: PreviewSecretCipher
   private readonly domain: string
   private readonly cloudflare: CloudflareTunnelClient
   private readonly livePeersOf: (podSessionId: string) => Promise<number>
-  private readonly tunnelCalls = new Map<string, Promise<{ id: string; token: string }>>()
+  private readonly seals = new Map<string, Promise<string>>()
 
   constructor(args: {
     db: Db
@@ -45,11 +51,11 @@ export class PreviewTunnels {
     userId: string
     port: number
   }): Promise<{ url: string; tunnelToken: string }> {
-    const tunnel = await this.ensureTunnelRow(args)
-    const tunnelToken = await this.sealTunnel({ podSessionId: args.podSessionId, tunnel })
+    const row = await this.ensureTunnelRow(args)
+    const tunnelToken = await this.sealTunnel({ podSessionId: args.podSessionId, row })
     const hostname = await this.reserveRoute({
       podSessionId: args.podSessionId,
-      previewTunnelId: tunnel.id,
+      previewTunnelId: row.id,
       port: args.port,
     })
     return { url: `https://${hostname}`, tunnelToken }
@@ -111,20 +117,30 @@ export class PreviewTunnels {
     })
   }
 
-  private async sealTunnel(args: {
+  private sealTunnel(args: { podSessionId: string; row: Row<'PreviewTunnel'> }): Promise<string> {
+    const running = this.seals.get(args.row.id)
+    if (running !== undefined) return running
+    const call = this.sealOnce(args)
+    this.seals.set(args.row.id, call)
+    void call.then(
+      () => this.seals.delete(args.row.id),
+      () => this.seals.delete(args.row.id),
+    )
+    return call
+  }
+
+  private async sealOnce(args: {
     podSessionId: string
-    tunnel: Row<'PreviewTunnel'>
+    row: Row<'PreviewTunnel'>
   }): Promise<string> {
-    if (
-      args.tunnel.state === EPreviewTunnelState.Ready &&
-      args.tunnel.tunnelId !== '' &&
-      args.tunnel.sealedTunnelToken !== ''
-    ) {
-      return this.cipher.decrypt(args.tunnel.sealedTunnelToken)
-    }
+    const row = await this.db.orm.public.PreviewTunnel.where({ id: args.row.id }).first()
+    if (row === null) throw new Error(`preview tunnel ${args.row.id} disappeared`)
+    if (sealedOf(row)) return this.cipher.decrypt(row.sealedTunnelToken)
     try {
-      const tunnel = await this.cloudflareTunnel(args.podSessionId)
-      await this.db.orm.public.PreviewTunnel.where({ id: args.tunnel.id }).updateAndCount({
+      const tunnel = await this.cloudflare.ensureTunnel({
+        name: tunnelNameOf(args.podSessionId),
+      })
+      await this.db.orm.public.PreviewTunnel.where({ id: row.id }).updateAndCount({
         tunnelId: tunnel.id,
         sealedTunnelToken: this.cipher.encrypt(tunnel.token),
         state: EPreviewTunnelState.Ready,
@@ -132,23 +148,11 @@ export class PreviewTunnels {
       })
       return tunnel.token
     } catch (failure) {
-      await this.db.orm.public.PreviewTunnel.where({ id: args.tunnel.id }).updateAndCount({
+      await this.db.orm.public.PreviewTunnel.where({ id: row.id }).updateAndCount({
         lastError: messageOf(failure),
       })
       throw failure
     }
-  }
-
-  private cloudflareTunnel(podSessionId: string): Promise<{ id: string; token: string }> {
-    const running = this.tunnelCalls.get(podSessionId)
-    if (running !== undefined) return running
-    const call = this.cloudflare.ensureTunnel({ name: tunnelNameOf(podSessionId) })
-    this.tunnelCalls.set(podSessionId, call)
-    void call.then(
-      () => this.tunnelCalls.delete(podSessionId),
-      () => this.tunnelCalls.delete(podSessionId),
-    )
-    return call
   }
 
   private reserveRoute(args: {

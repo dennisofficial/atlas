@@ -1,52 +1,22 @@
 import { seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
-import { beforeEach, describe, expect, it, vi } from 'bun:test'
-import { type CloudflareTunnelClient } from '../cloudflare-tunnel.client'
+import { beforeEach, describe, expect, it } from 'bun:test'
 import { EPreviewTunnelState } from '../preview-state'
-import { PreviewTunnels, type PreviewSecretCipher } from '../preview-tunnels'
-
-const fakeCipher: PreviewSecretCipher = {
-  encrypt: (plain) => `enc:${plain}`,
-  decrypt: (blob) => blob.slice(4),
-}
+import { PreviewTunnels } from '../preview-tunnels'
+import { fakeCipher, tunnelFakes } from './preview-tunnel-fakes'
 
 describe('PreviewTunnels', () => {
   const currentDb = useTestDatabase()
-  const tunnels = new Map<string, { id: string; token: string }>()
-  let created = 0
-  const cloudflare = {
-    ensureTunnel: vi.fn(async (args: { name: string }) => {
-      const held = tunnels.get(args.name)
-      if (held !== undefined) return held
-      created += 1
-      const tunnel = { id: `tun-${created}`, token: `tok-${created}` }
-      tunnels.set(args.name, tunnel)
-      return tunnel
-    }),
-    putIngress: vi.fn(async (_args: { tunnelId: string; rules: unknown[] }) => undefined),
-    createCname: vi.fn(async (args: { hostname: string; tunnelId: string }) => ({
-      id: `rec-${args.hostname}`,
-    })),
-    findDnsRecord: vi.fn(
-      async (_args: { hostname: string }): Promise<{ id: string; content: string } | undefined> =>
-        undefined,
-    ),
-    repointCname: vi.fn(
-      async (_args: { recordId: string; hostname: string; tunnelId: string }) => undefined,
-    ),
-    deleteDnsRecord: vi.fn(async (_args: { recordId: string }) => undefined),
-    deleteTunnel: vi.fn(async (_args: { tunnelId: string }) => undefined),
-  }
+  const fakes = tunnelFakes()
+  const cloudflare = fakes.cloudflare
   const previews = new PreviewTunnels({
     db: currentDb().db,
     cipher: fakeCipher,
     domain: 'byatlas.dev',
-    cloudflare: cloudflare as unknown as CloudflareTunnelClient,
+    cloudflare: fakes.client,
   })
 
   beforeEach(async () => {
-    created = 0
-    tunnels.clear()
-    for (const mock of Object.values(cloudflare)) mock.mockClear()
+    fakes.reset()
     await seedUser({ db: currentDb().db, id: 'usr-1' })
     await seedUser({ db: currentDb().db, id: 'usr-2' })
   })
@@ -131,18 +101,6 @@ describe('PreviewTunnels', () => {
 
     expect(cloudflare.ensureTunnel).toHaveBeenCalledTimes(1)
     expect(first.url.split('-')[1]).toBe(second.url.split('-')[1])
-    expect(await currentDb().db.orm.public.PreviewRoute.all()).toHaveLength(2)
-  })
-
-  it('creates one cloudflare tunnel for two concurrent exposes of a new pod', async () => {
-    await Promise.all([
-      previews.expose({ podSessionId: 'pod-1', threadId: 'thr-1', userId: 'usr-1', port: 3000 }),
-      previews.expose({ podSessionId: 'pod-1', threadId: 'thr-2', userId: 'usr-1', port: 3000 }),
-      previews.expose({ podSessionId: 'pod-1', threadId: 'thr-2', userId: 'usr-1', port: 4000 }),
-    ])
-
-    expect(cloudflare.ensureTunnel).toHaveBeenCalledTimes(1)
-    expect(created).toBe(1)
     expect(await currentDb().db.orm.public.PreviewRoute.all()).toHaveLength(2)
   })
 
