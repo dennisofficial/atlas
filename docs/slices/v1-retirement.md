@@ -1,30 +1,49 @@
 # Spec: v1 retirement (roadmap slice 10)
 
 Status: **approved by Dennis 2026-11-24** (revision 3: no soft-delete step, D10 approved).
-Slices 1 to 8 are done; R1 to R5 are in progress.
+Done 2026-11-25: slices 1 to 8 and R1 to R5 are merged and live-checked in production.
 Anchors are `path:line` at `78e4d7a9e` (origin/main, 2026-11-24). Check an anchor again before you
 rely on it. The raw inventories behind this spec are in `docs/research/v1-retirement/`.
 
 ## What shipped
 
-| Slice  | PR      | What landed                                                                        |
-| ------ | ------- | ---------------------------------------------------------------------------------- |
-| spec   | #2865   | This document, its decisions and the inventories                                   |
-| 1      | #2881   | Web and Mac render v2 only; the v1 thread route and its 112 files are gone         |
-| 2      | #2877   | The Mac host drops the local-pods host and owns its token store                    |
-| 3      | #2883   | The API drops the v1 background lanes, the v1 trigger project and the env keys     |
-| 4a     | #2885   | The auth seam: the middleware keeps only the session principal                     |
-| 4b     | #2886   | Part of the v1 request lanes and their routers                                     |
-| 5      | #2887   | `apps/serve`, `packages/harness` and `packages/agent-v1` deleted                   |
-| 4c     | #2888   | The rest of the v1 request lanes; the API carries none                             |
-| 6      | #2891   | The sandbox image and the release drop the serve leftovers                         |
-| 7-prep | #2892   | Schema prep for the archive                                                        |
-| 7      | #2896   | The v1 tables move to the `v1_archive` schema                                      |
-| 8      | this    | The docs: the whole `v2` directory up to `docs/`, the v1 architecture docs retired |
-| R3     | this PR | The 24 compatibility views in schema `v2` and the schema itself are dropped        |
+| Slice  | PR    | What landed                                                                        |
+| ------ | ----- | ---------------------------------------------------------------------------------- |
+| spec   | #2865 | This document, its decisions and the inventories                                   |
+| 1      | #2881 | Web and Mac render v2 only; the v1 thread route and its 112 files are gone         |
+| 2      | #2877 | The Mac host drops the local-pods host and owns its token store                    |
+| 3      | #2883 | The API drops the v1 background lanes, the v1 trigger project and the env keys     |
+| 4a     | #2885 | The auth seam: the middleware keeps only the session principal                     |
+| 4b     | #2886 | Part of the v1 request lanes and their routers                                     |
+| 5      | #2887 | `apps/serve`, `packages/harness` and `packages/agent-v1` deleted                   |
+| 4c     | #2888 | The rest of the v1 request lanes; the API carries none                             |
+| 6      | #2891 | The sandbox image and the release drop the serve leftovers                         |
+| 7-prep | #2892 | Skill usage counts from v2 events; no test writes a v1 table                       |
+| 7      | #2896 | The v1 tables move to the `v1_archive` schema                                      |
+| 8      | #2897 | The docs: the whole `v2` directory up to `docs/`, the v1 architecture docs retired |
+| R1     | #2898 | Host presence takes `RETURNING id`, so every v2 statement works through a view     |
+| R2     | #2901 | The 24 v2 tables move to `public` without the prefix; views keep the old names     |
+| R3     | #2903 | The 24 compatibility views in schema `v2` and the schema itself are dropped        |
+| R4a    | #2904 | Package and plugin names lose the prefix; the record family takes `Record`         |
+| R4b    | #2905 | API and trigger names lose the prefix; the deploy workflow is `trigger.yml`        |
+| R4c    | #2906 | Client names and paths lose the prefix; mobile `thread/v2` is `thread/session`     |
+| R5     | #2907 | `apps/api/src/api/platform/control` is `platform/sessions`; routers unchanged      |
 
 Slice 5 shipped before 4c, though §4 draws it after 4: harness and serve called 73 v1 procedures
 through the typed router, so the routers could not go until their callers did.
+
+Kept on purpose, because a stored or external value depends on them: the localStorage key
+`atlas:sidebar-v2-sessions`, the outbox kind `v2-notice`, the Vercel sandbox prefix `atlas-v2-`, the
+Redis key prefix `atlas:v2:presence:`, the PostHog property `v2`, and the physical Postgres index names
+(`V2Session_pkey` and the like), which the contract pins with `map:`.
+
+Follow-ups this work found and did not fix:
+- `.agents/skills/atlas-traces/SKILL.md` describes the v1 serve span tree, and
+  `.atlas/relocation-redesign-contract.md` is a v1 design. Each needs a decision, not an edit.
+- The v1 artifact tools `artifact_push` and `artifact_pull` have no v2 tool; the API and storage stay.
+- `apps/api` boundary specs fail on main: `_module/trpc/api-latency.middleware.spec.ts:7` imports a
+  feature folder, and four `src/agent` files import `@dltech/atlas-plugin-quality/*`.
+- Dennis has to confirm on his Mac that the app stayed signed in after the token-store change (#2877).
 
 ## 1. Product contract
 
