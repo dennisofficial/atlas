@@ -67,7 +67,7 @@ const dyingClient = (args: { event: 'error' | 'end' }): PgPresenceClient & { end
     connect: () => Promise.resolve(),
     query: (text) => {
       if (text.includes('inet_server_port')) return Promise.resolve({ rows: [{ port: 5432 }] })
-      if (text.includes('nextval')) return Promise.resolve({ rows: [{ id: 42 }] })
+      if (text.includes('RETURNING id')) return Promise.resolve({ rows: [{ id: 42 }] })
       if (text.includes('pg_try_advisory_lock'))
         return Promise.resolve({ rows: [{ locked: true }] })
       if (text.includes('pg_notify')) {
