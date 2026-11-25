@@ -1,6 +1,6 @@
 import type { KeyEvent } from '@opentui/core'
 import type { CommandEntry, EClientAction } from '@dltech/atlas-commands'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 
 import type { DraftControls } from '../ui/hooks/use-draft'
 import { messageOf } from './app-next-support'
@@ -29,8 +29,8 @@ const takesArgument = (entry: CommandEntry): boolean => entry.argumentHint?.star
 
 export function useCommandMenu(args: {
   api: SessionApi
-  draft: Pick<DraftControls, 'value' | 'setValue' | 'clear'> & {
-    editor: DraftControls['editor']
+  draft: Pick<DraftControls, 'setValue' | 'clear'> & {
+    editor: RefObject<{ plainText: string } | null>
   }
   onAction: (action: EClientAction) => void
   onLocal: (name: string) => void
@@ -147,6 +147,12 @@ export function useCommandMenu(args: {
     [put],
   )
 
+  const syncedToDraft = useCallback((): SlashMenuState | null => {
+    const text = textNow()
+    if (text !== typed.current) handleText(text)
+    return held.current
+  }, [handleText, textNow])
+
   const handleOpen = useCallback(() => {
     const rows = known.current
     if (rows.length === 0) return
@@ -155,7 +161,7 @@ export function useCommandMenu(args: {
 
   const handleKey = useCallback(
     (key: KeyEvent): boolean => {
-      const current = held.current
+      const current = syncedToDraft()
       if (current === null) return false
 
       if (key.name === 'escape') {
@@ -190,7 +196,7 @@ export function useCommandMenu(args: {
 
       return false
     },
-    [put, runEntry],
+    [put, runEntry, syncedToDraft],
   )
 
   const handleSubmit = useCallback(
