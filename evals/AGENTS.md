@@ -32,6 +32,7 @@ bun run --cwd evals eval:import-history --session-dir <named-session-dir> [--ses
 ATLAS_EVAL_LIVE=1 bun run eval --suite code-quality/single-responsibility --live --dataset <manifest> --trials 3 --output-parent "$ATLAS_CONTEXT_DIR/evidence/evals"
 bun run --cwd evals eval:compare --baseline <run-dir> --candidate <run-dir>
 bun run --cwd evals eval:efficacy --run <run-dir> --dataset <manifest> --judgments <judgments.jsonl> --output-dir <new-report-dir>
+bun run --cwd evals eval:jev-real --items <dataset-items.jsonl> --out <results.jsonl> [--policy <id>]
 ```
 
 - The model defaults to the exported `JEV_QUALITY_MODEL` from `@dltech/atlas-plugin-quality/review`. A `--model`
@@ -45,6 +46,12 @@ bun run --cwd evals eval:efficacy --run <run-dir> --dataset <manifest> --judgmen
   reviewed independently. It uses the production finding ledger for fresh-episode notification. It
   writes `report.json` / `report.txt`. It is a diagnostic that cannot promote a change. Zero
   denominators mean insufficient evidence, not success.
+- `eval:jev-real` replays labelled real scopes: it sends the recorded request state verbatim to the pinned Jev
+  model through the AI gateway (`AI_GATEWAY_API_KEY`), reapplies the current policy interpretation and thresholds,
+  and writes one result row per item plus a summary. It reports precision, the Wilson 95% lower bound,
+  inclusion-weighted (Horvitz-Thompson) recall and the confusion counts. It never reads or writes the repository
+  dataset, and it does not publish to PostHog: the routine does that. Item input is the request state as Jev saw
+  it; only the state is replayed, so a prompt change is not exercised by this command.
 - `eval:import-history` reads ONLY `<session>/threads/*.events.jsonl` files that the command names
   explicitly. It writes raw, private source under a fresh 0700 directory. Its manifest marks that output unsanitized and not provider-ready.
 
