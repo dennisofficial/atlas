@@ -1,3 +1,5 @@
+import { oneLine } from '@dltech/atlas-core'
+
 export type PeekCandidate = {
   key: string
   top: number
@@ -19,7 +21,7 @@ export function peekAbove(args: {
 
 export function firstLineOf(text: string): string {
   for (const line of text.split('\n')) {
-    const collapsed = line.trim().replace(/\s+/g, ' ')
+    const collapsed = oneLine(line)
     if (collapsed.length > 0) return collapsed
   }
 

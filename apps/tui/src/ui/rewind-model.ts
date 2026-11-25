@@ -1,4 +1,10 @@
-import { attachmentsOf, inlineImagesOf, type Event, type SaidImage } from '@dltech/atlas-core'
+import {
+  attachmentsOf,
+  inlineImagesOf,
+  oneLine,
+  type Event,
+  type SaidImage,
+} from '@dltech/atlas-core'
 
 export const REWIND_ROWS = 5
 
@@ -168,7 +174,7 @@ const plural = (args: { count: number; noun: string }): string =>
 export function pointLabel(args: { point: RewindPoint }): string {
   if (args.point.kind === ERewindPointKind.Compacted) return COMPACT_LABEL
 
-  return args.point.text.slice(0, PREVIEW_CHARACTER_LIMIT).replace(/\s+/g, ' ').trim()
+  return oneLine(args.point.text.slice(0, PREVIEW_CHARACTER_LIMIT))
 }
 
 export function pointConsequence(args: { state: RewindState; index: number }): string {

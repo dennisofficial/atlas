@@ -7,6 +7,7 @@ import {
   EPathForm,
   EPathPresence,
   EToolEffect,
+  oneLine,
   ProcessPort,
   SchemaTool,
   type DeclaredPathField,
@@ -95,8 +96,7 @@ function pathsShownIn({
 const clampLine = (line: string): string =>
   line.length <= MAXIMUM_LINE_LENGTH ? line : line.slice(0, MAXIMUM_LINE_LENGTH)
 
-const complaintFrom = (stderr: string): string =>
-  stderr.replace(/\s+/g, ' ').trim().slice(0, MAXIMUM_COMPLAINT_LENGTH)
+const complaintFrom = (stderr: string): string => oneLine(stderr).slice(0, MAXIMUM_COMPLAINT_LENGTH)
 
 function renderModelText(args: {
   window: readonly string[]

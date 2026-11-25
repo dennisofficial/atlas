@@ -1,6 +1,11 @@
 import { createHash } from 'node:crypto'
 
-import { EQualityLanguage, EQualityScopeKind, type QualityLineRange } from '@dltech/atlas-core'
+import {
+  EQualityLanguage,
+  EQualityScopeKind,
+  oneLine,
+  type QualityLineRange,
+} from '@dltech/atlas-core'
 import ts from 'typescript'
 
 export const QUALITY_SOURCE_ADAPTER_VERSION = '1'
@@ -68,10 +73,6 @@ function hashText(text: string): string {
 
 export function hashScopeText(text: string): string {
   return hashText(text)
-}
-
-function normalizeStructuralBody(text: string): string {
-  return text.replace(/\s+/g, ' ').trim()
 }
 
 function structuralTextOf(node: ts.Node, sourceFile: ts.SourceFile, fullText: string): string {
@@ -191,9 +192,7 @@ function parseSourceFile(args: {
       start: node.getStart(sourceFile),
       end: node.getEnd(),
       lineRange: { start: startPosition.line + 1, end: endPosition.line + 1 },
-      structuralHash: hashText(
-        normalizeStructuralBody(structuralTextOf(node, sourceFile, args.text)),
-      ),
+      structuralHash: hashText(oneLine(structuralTextOf(node, sourceFile, args.text))),
       memberLabels,
     })
 
@@ -213,7 +212,7 @@ function parseSourceFile(args: {
     if (declared !== null) {
       evidenceLabels.push(declared.name)
       structuralHashes[declared.name] = hashText(
-        normalizeStructuralBody(structuralTextOf(statement, sourceFile, args.text)),
+        oneLine(structuralTextOf(statement, sourceFile, args.text)),
       )
       continue
     }
@@ -221,9 +220,7 @@ function parseSourceFile(args: {
       for (const declaration of statement.declarationList.declarations) {
         if (ts.isIdentifier(declaration.name)) {
           evidenceLabels.push(declaration.name.text)
-          structuralHashes[declaration.name.text] = hashText(
-            normalizeStructuralBody(statement.getText(sourceFile)),
-          )
+          structuralHashes[declaration.name.text] = hashText(oneLine(statement.getText(sourceFile)))
         }
       }
     }

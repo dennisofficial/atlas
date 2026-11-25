@@ -2,6 +2,7 @@ import {
   agentLabel,
   attachmentsOf,
   EAttachmentStore,
+  oneLine,
   type Attachment,
   type SaidUpload,
   type RecordEvent,
@@ -58,7 +59,7 @@ export const rewoundMessageOf = (args: {
 }
 
 const shellLabelOf = (event: { command: string; description?: string | undefined }): string =>
-  event.description?.trim() || event.command.replace(/\s+/g, ' ').trim()
+  event.description?.trim() || oneLine(event.command)
 
 export const rewindKillsOf = (args: {
   events: readonly RecordEvent[]

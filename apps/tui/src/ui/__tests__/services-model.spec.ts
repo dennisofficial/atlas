@@ -12,6 +12,7 @@ import {
   openServices,
   selectedService,
   selectService,
+  serviceNameLabel,
 } from '../services-model'
 
 const service = (over: { serviceId: string; status?: EServiceStatus }): ServiceRowView => ({
@@ -70,6 +71,20 @@ describe('selectService', () => {
 
     expect(selectService({ rows: rowsOf(services), key: 'svc_2' })).toEqual({ index: 1 })
     expect(selectService({ rows: rowsOf(services), key: 'svc_9' })).toEqual({ index: 0 })
+  })
+})
+
+describe('serviceNameLabel', () => {
+  it('prefers the trimmed description', () => {
+    expect(serviceNameLabel({ command: 'bun run dev', description: '  web  app ' })).toBe(
+      'web  app',
+    )
+  })
+
+  it('folds the command onto one trimmed line when the description is blank', () => {
+    expect(serviceNameLabel({ command: '\n bun run\t\tdev \n', description: '  ' })).toBe(
+      'bun run dev',
+    )
   })
 })
 

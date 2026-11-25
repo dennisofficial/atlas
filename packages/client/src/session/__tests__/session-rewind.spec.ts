@@ -189,6 +189,23 @@ describe('session rewind', () => {
       ])
     })
 
+    it('labels a shell by its trimmed description, else its command on one trimmed line', () => {
+      const events = eventsOf([
+        said('a'),
+        { type: 'background-shell-started', shellId: 'shell-1', command: '\n bun\t test \n' },
+        {
+          type: 'background-shell-started',
+          shellId: 'shell-2',
+          command: 'bun run dev',
+          description: '  dev  server ',
+        },
+      ])
+      expect(rewindKillsOf({ events, toSeq: 1 })).toEqual([
+        { kind: 'shell', label: 'bun test', running: true },
+        { kind: 'shell', label: 'dev  server', running: true },
+      ])
+    })
+
     it('leaves out what started before the picked message', () => {
       const events = eventsOf([
         { type: 'background-shell-started', shellId: 'shell-1', command: 'bun test' },

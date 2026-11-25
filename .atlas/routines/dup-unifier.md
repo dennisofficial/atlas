@@ -4,7 +4,7 @@
 
 - `formatTokens` (k/m/b): tui `ui/theme.ts` and web `threads/panel/details/details-model.ts` now use `@dltech/atlas-client/crew` (`packages/client/src/crew/readout.ts`).
 - `clipText` (`slice(0, limit - 1)…`): core `pr-event-block`, `loop-watch`, classifier `adjudicate`, `verdict`, `from-events` and client `pr-event-line` now use `@dltech/atlas-core` (`packages/core/src/text/clip-text.ts`).
-- `oneLine` (`\s+` → space, trim): tui `store/sidebar-text.ts`, `sidebar/crew.tsx`, `lost-children-model.ts`, `lost-shells-model.ts`, `shells-model.ts`, web `details/crew-model.ts`, `data/processes-model.ts` and core `shells/label.ts`, `shells/fallback-shell-name.ts`, `agents/name.ts`, `agents/label.ts`, `naming/session-title.ts`, `classifier/verdict.ts` now use `@dltech/atlas-core` (`packages/core/src/text/one-line.ts`).
+- `oneLine` (`\s+` → space, trim): also control `session-summary`, client `session-rewind`, tui `services-model`, `rewind-model`, `transcript-peek`, quality `typescript-parser`, api `agent-tools/grep`; tui `store/sidebar-text.ts`, `sidebar/crew.tsx`, `lost-children-model.ts`, `lost-shells-model.ts`, `shells-model.ts`, web `details/crew-model.ts`, `data/processes-model.ts` and core `shells/label.ts`, `shells/fallback-shell-name.ts`, `agents/name.ts`, `agents/label.ts`, `naming/session-title.ts`, `classifier/verdict.ts` now use `@dltech/atlas-core` (`packages/core/src/text/one-line.ts`).
 
 ## Ruled out (intentional divergence — do not re-investigate)
 
@@ -12,13 +12,14 @@
 - Relative time: web `settings/data/shared/relative-time.ts` (7-day weeks, years, `—` for invalid input) and prototype `new-project-repos.ts` (no week tier) differ on ages callers actually hit.
 - `clip` variants `core/compaction/render-range.ts` (keeps `limit` chars), `core/web/render.ts` (trimEnd) and `client/transcript/tools/reading.ts` (code-point safe) do different jobs.
 - `oneLine` in `core/memory/index-render.ts` (newlines only, no trim) does a different job from the `\s+` collapsers.
+- `\s+` folders that cannot call core: `packages/db` `transaction-deadline.ts` (no core dependency), `packages/ui` fixtures (no Atlas imports), `packages/github` query-count spec (no trim, test-only).
 - Byte formatters (tui `transfer-meter`, tui `push-text`, web `skill-format`, ui `queued-message-ops`): units, divisors and rounding all differ, so no single copy preserves every caller's output.
 - Agent status labels (web `crew-panel`, client `readout` `STATE_LABEL`, client `tools/agents` `STOP_NOTE`): different vocabularies on purpose.
 - Any pair across tiers that only looks similar (`agent` retry-ledger vs `client` connection-machine).
 
 ## Backlog (ranked)
 
-1. Remaining inline `replace(/\s+/g, ' ').trim()` that can call core `oneLine`: client `session/session-rewind.ts:61`, web `threads/data/rewind.ts:50`, control `session-summary.ts:9`, tui `ui/services-model.ts:173`, `ui/components/services.tsx:67`, `packages/quality` `typescript-parser.ts:74`. Then the "description, else folded command" shell-name fallback (core `shellLabel`, web `processNameOf`, tui `shellNameLabel`, client `shellLabelOf`, web `processLabel`): check `?? ''` vs `||` and the id fallback first.
+1. Shell-name fallback "description, else folded command" (core `shellLabel`, web `processNameOf`, tui `shellNameLabel` and `serviceNameLabel`, client `shellLabelOf`, web `processLabel`): check `?? ''` vs `||` and the id fallback first. Last inline folders: tui `ui/components/services.tsx:67` (needs a render spec to pin it first) and wire `upload-name.ts:15` (inside a longer cleaner chain).
 2. `contextLabelOf` (200k / 1M), byte-equivalent in web `threads/data/model-options.ts:67` and mobile `composer/model-options.ts:52`. Mobile `EFFORT_LADDER`/`EFFORT_LABELS` re-declare what `@dltech/atlas-ui` already exports.
 3. Relative time: mobile `lib/relative-time.ts` and web `settings/data/personal/relative-time.ts` give identical output (only the argument keys differ) → `packages/core`.
 4. `parseRepoInput`, identical in web and prototype `new-project-repos.ts`; no package is shared by both apps yet, so it needs a home decision.
@@ -55,3 +56,9 @@
 - Backlog item 1: 8 inline `\s+` folders (6 core, 1 web, 1 tui) now call core `oneLine`. Same expression, so the truth table is identical for every input.
 - Pinned with new core `shells/label` and web `processes-model` specs. Mutation-checked `oneLine` 2 ways (spaces-only fold, no trim): every caller's spec fails at least once; restored byte for byte.
 - Found 6 more inline copies and the shell-name fallback family; added as backlog item 1.
+
+### 2026-11-25
+
+- Open PRs #2918, #2917, #2914, #2913, #2872 touch none of these files. Web `threads/data/rewind.ts` no longer exists.
+- Backlog item 1: 7 inline `\s+` folders (control, client, quality, api, 3 tui) now call core `oneLine`. `trim()` before the fold (transcript-peek) gives the same output; each `slice` stays where it was.
+- Pinned with new specs: client shell label trim, tui `serviceNameLabel`, api grep stderr complaint. Mutation-checked `oneLine` 2 ways (no trim, spaces-only fold): every caller spec fails at least once; restored byte for byte.
