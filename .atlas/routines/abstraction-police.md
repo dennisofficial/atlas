@@ -3,17 +3,16 @@
 ## Backlog (ranked)
 
 1. `packages/plugin-sdk` type-depends upward on `agent` (`slots.ts:1`, `compose-pod.ts:1`), `client/transcript` (`slots.ts:2`), `control` (`slots.ts:17`). Move the shapes down or make slots generic.
-2. `packages/client/src/session/session-rewind.ts:10` types restored images as v1 `SaidImageWire`; core already has the identical `SaidImage`. Small.
-3. `apps/api/src/_module/trpc/api-latency.middleware.spec.ts:7` (infra) imports `api/platform/sessions/pod-errors`; `architecture.spec.ts` "shared infrastructure" fails on main, hidden by incremental CI.
-4. `packages/github` imports v1 `@dltech/atlas-wire` (`ERepoTracking`, `GithubPrStreamFrame`, device-code types) in 7 files. Move the vocabulary to core.
-5. `packages/client/src/channel/*` (~15 files) and `transcript/events-from-wire.ts` import `@dltech/atlas-wire/web`. Retarget onto `protocol` or split out a v1-compat module. Large.
-6. `apps/tui` imports `@dltech/atlas-wire` in 12 production files. `wire` survived the v1 deletion, so this is a live retarget onto `protocol`. Low value.
-7. `packages/api-router/src/generated/server.ts:16` pulls ~200 wire schemas.
-8. Test-only deep relative imports across package roots: `apps/api` specs → `packages/api-router/src/generated/server`, `apps/tui/scripts`, `apps/mac/scripts/pack-host.ts:4`. Add `exports` subpaths.
-9. `packages/host/__tests__/remote-calls-real.spec.ts:7` imports app `@dltech/atlas-daemon/testing`.
+2. `packages/github` imports v1 `@dltech/atlas-wire` (`ERepoTracking`, `GithubPrStreamFrame`, device-code types) in 7 files. Move the vocabulary to core.
+3. `packages/client/src/channel/*` (~15 files) and `transcript/events-from-wire.ts` import `@dltech/atlas-wire/web`. Retarget onto `protocol` or split out a v1-compat module. Large.
+4. `apps/tui` imports `@dltech/atlas-wire` in 12 production files. `wire` survived the v1 deletion, so this is a live retarget onto `protocol`. Low value.
+5. `packages/api-router/src/generated/server.ts:16` pulls ~200 wire schemas.
+6. Test-only deep relative imports across package roots: `apps/api` specs → `packages/api-router/src/generated/server`, `apps/tui/scripts`, `apps/mac/scripts/pack-host.ts:4`. Add `exports` subpaths.
+7. `packages/host/__tests__/remote-calls-real.spec.ts:7` imports app `@dltech/atlas-daemon/testing`.
 
 ## Ruled out
 
+- `apps/api/src/_module/trpc` importing `api/platform`: gone; `architecture.spec.ts` passes on main (2026-11-25).
 - `packages/core` purity, `packages/ui` Atlas imports, plugin→plugin imports, clients importing `apps/api`: all clean (2026-11-19 sweep).
 - `apps/tui` importing `core`/`client`/`observability`/`syntax`/`models`: v2 §7 lets apps compose tier packages.
 - `packages/client/src/__tests__/browser-safe.spec.ts` importing wire: deliberate guard.
@@ -22,6 +21,11 @@
 - `packages/plugin-sdk/src/memory.ts` duplicating the memory summary shape as string unions: structural, kept so plugins need no core enums.
 
 ## Log
+
+### 2026-11-25
+
+- Fixed: `packages/client/src/session/session-rewind.ts` typed restored composer images as v1 `SaidImageWire` from `@dltech/atlas-wire/web`. It now uses core `SaidImage`, which has the same shape. Client still depends on wire for `channel/*` (backlog 4).
+- Pinned in `session-rewind.spec.ts`: an inline upload preview restores as an image, and an image with no size has no size keys. Mutations: always emit `width` (fails 1), drop the inline upload preview (fails 1).
 
 ### 2026-11-24
 

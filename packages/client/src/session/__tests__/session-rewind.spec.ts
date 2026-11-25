@@ -159,6 +159,29 @@ describe('session rewind', () => {
         { path: 'pic.png', mediaType: 'image/png', data: 'BBB', width: 4, height: 5 },
       ])
     })
+
+    it('restores an inline upload preview as an image with no size keys when the size is unknown', () => {
+      const plan = restorePlanOf([
+        {
+          id: 'u',
+          name: 'shot.png',
+          mediaType: 'image/png',
+          size: 3,
+          content: { store: 'upload', uploadId: 'u', pathname: 'p/shot.png', inline: 'CCC' },
+        },
+        {
+          id: 'i',
+          name: 'pic.png',
+          mediaType: 'image/png',
+          size: 3,
+          content: { store: 'inline', data: 'DDD' },
+        },
+      ])
+      expect(plan.images).toStrictEqual([
+        { path: 'shot.png', mediaType: 'image/png', data: 'CCC' },
+        { path: 'pic.png', mediaType: 'image/png', data: 'DDD' },
+      ])
+    })
   })
 
   describe('rewindKillsOf', () => {
