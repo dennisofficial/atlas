@@ -6,13 +6,11 @@ const SRC_ROOT = import.meta.dirname
 const AGENT_ROOT = path.join(SRC_ROOT, 'agent')
 const AGENT_ENTRY = path.join(AGENT_ROOT, 'index.ts')
 const API_DIR = path.join(SRC_ROOT, 'api')
-const CALLER_DIRS = ['api', '_core', '_lib', '_module', 'trigger']
+const CALLER_DIRS = ['api', '_core', '_lib', '_module']
 
-// A trigger task bundle must not carry the agent barrel: it drags Nest's runtime packages into the
-// deployed task (see src/trigger/trigger-bundle.spec.ts). These graphs, and the api modules only they
-// load, therefore import the few agent values they construct their dependencies from out of their own
-// modules. An entry whose file stops importing agent internals fails the suite.
-const TRIGGER_VALUE_IMPORTS = new Set<string>(['api/cloud/mcp-servers/mcp-servers-put.ts'])
+// One api module reaches into the agent for the few values it builds its own dependencies from. An
+// entry whose file stops importing agent internals fails the suite.
+const VALUE_IMPORTS = new Set<string>(['api/cloud/mcp-servers/mcp-servers-put.ts'])
 
 const SPECIFIER_PATTERN = /(?:from\s+|import\s*\(\s*|import\s+)['"]([^'"]+)['"]/g
 
@@ -85,7 +83,7 @@ const reaching = ({ imports, dir }: { imports: Import[]; dir: string }): Import[
 const agentInternals = (imports: Import[]): Import[] =>
   reaching({ imports, dir: AGENT_ROOT }).filter((entry) => entry.resolved !== AGENT_ENTRY)
 
-const notTriggerValueImport = (entry: Import): boolean => !TRIGGER_VALUE_IMPORTS.has(entry.file)
+const notValueImport = (entry: Import): boolean => !VALUE_IMPORTS.has(entry.file)
 
 const describeImports = (imports: Import[]): string[] =>
   imports.map((entry) => `${entry.file}:${entry.line} imports ${entry.specifier}`)
@@ -97,25 +95,25 @@ describe('agent boundary', () => {
   it('lets the rest of the api reach the agent only through agent/index.ts', () => {
     const offenders = CALLER_DIRS.flatMap((dir) =>
       describeImports(
-        agentInternals(importsIn({ dir: path.join(SRC_ROOT, dir) })).filter(notTriggerValueImport),
+        agentInternals(importsIn({ dir: path.join(SRC_ROOT, dir) })).filter(notValueImport),
       ),
     )
 
     expect(
       offenders,
-      'src/api, src/_core, src/_lib, src/_module and src/trigger may import src/agent only through src/agent/index.ts',
+      'src/api, src/_core, src/_lib and src/_module may import src/agent only through src/agent/index.ts',
     ).toEqual([])
   })
 
-  it('keeps the trigger value-import list in sync with the code', () => {
+  it('keeps the value-import list in sync with the code', () => {
     const seen = new Set(
       CALLER_DIRS.flatMap((dir) =>
         agentInternals(importsIn({ dir: path.join(SRC_ROOT, dir) })).map((entry) => entry.file),
       ),
     )
-    const stale = [...TRIGGER_VALUE_IMPORTS].filter((file) => !seen.has(file))
+    const stale = [...VALUE_IMPORTS].filter((file) => !seen.has(file))
 
-    expect(stale, 'these trigger graphs no longer import agent internals; remove them').toEqual([])
+    expect(stale, 'these files no longer import agent internals; remove them').toEqual([])
   })
 
   it('keeps the agent independent of api code', () => {

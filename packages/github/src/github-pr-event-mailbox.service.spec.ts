@@ -6,21 +6,16 @@ import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { GithubPrOutboxDispatcher } from './github-pr-outbox'
 import { EPrEventKind } from './github-realtime.types'
-import type { WakeStub } from './github-legacy-effects.fixture'
 import { waitFor } from './testing/fake-timers'
-import { inertSignals } from './testing/thread-signals.fixture'
 import { inertMergeabilityRefresh, inertReconcile } from './github-pr-store.fixture'
-import { legacyOf } from './github-legacy-effects.fixture'
 
 function serviceWith(): {
   mailbox: GithubPrEventMailboxService
   fanout: GithubPrFanoutService
 } {
   const fanout = new GithubPrFanoutService(new RecordingDrain())
-  const wake = { notifyEvent: () => undefined } as unknown as WakeStub
   const dispatcher = new GithubPrOutboxDispatcher({
     fanout,
-    legacy: legacyOf({ signals: inertSignals(), wake: wake }),
     reconcile: inertReconcile(),
     mergeability: inertMergeabilityRefresh(),
   })

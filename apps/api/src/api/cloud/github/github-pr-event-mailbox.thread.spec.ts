@@ -14,18 +14,13 @@ import { GithubPrEventMailboxService } from '@dltech/atlas-github'
 import { GithubPrFanoutService } from '@dltech/atlas-github'
 import { GithubPrOutboxDispatcher } from '@dltech/atlas-github'
 import { EPrEventKind } from '@dltech/atlas-github'
-import type { GithubSandboxWakeService } from './github-sandbox-wake.service'
-import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
 import { inertMergeabilityRefresh, inertReconcile } from '@dltech/atlas-github/testing'
 import { replayThreadEvents } from './github-pr-event-thread-replay'
-import { legacyOf } from '@dltech/atlas-github/testing'
 
 function serviceWith(): { mailbox: GithubPrEventMailboxService; fanout: GithubPrFanoutService } {
   const fanout = new GithubPrFanoutService(new DrainStateService())
-  const wake = { notifyEvent: () => undefined } as unknown as GithubSandboxWakeService
   const dispatcher = new GithubPrOutboxDispatcher({
     fanout,
-    legacy: legacyOf({ signals: inertSignals(), wake: wake }),
     reconcile: inertReconcile(),
     mergeability: inertMergeabilityRefresh(),
   })

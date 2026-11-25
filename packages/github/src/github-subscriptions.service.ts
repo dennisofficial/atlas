@@ -1,10 +1,5 @@
 import { db } from '@dltech/atlas-db'
-import {
-  type GithubThreadActivity,
-  liveUntilOf,
-  nextExpiry,
-  subscriptionLiveWhere,
-} from './github-delivery-routing'
+import { nextExpiry, subscriptionLiveWhere } from './github-delivery-routing'
 import { cachedPrStates } from './github-linked-prs'
 import { GithubAppInstallNoticeService } from './github-app-install-notice.service'
 import { GithubAppInstallationsService } from './github-app-installations.service'
@@ -37,7 +32,6 @@ export class GithubSubscriptionsService {
     private readonly coordinator: GithubRequestCoordinator,
     private readonly installations: GithubAppInstallationsService,
     store: GithubPrStore,
-    private readonly activityOf: GithubThreadActivity,
   ) {
     this.prs = new GithubSubscribedPrResolver({ reads, coordinator })
     this.stateWriter = new GithubSubscribeStateWriter({ prs: this.prs, store })
@@ -86,7 +80,6 @@ export class GithubSubscriptionsService {
     const branch = args.branch ?? (prNumber === null ? '' : `#${prNumber}`)
     const threadId = args.threadId ?? ''
     const expiresAt = nextExpiry()
-    const liveUntil = await this.liveCeiling({ threadId, expiresAt })
 
     const state = await this.stateWriter.pullOnSubscribe({
       userId: args.userId,
@@ -106,14 +99,14 @@ export class GithubSubscriptionsService {
         branch,
         pollBacked,
         expiresAt,
-        liveUntil,
+        liveUntil: expiresAt,
         threadId,
       },
       update: {
         prNumber,
         pollBacked,
         expiresAt,
-        liveUntil,
+        liveUntil: expiresAt,
       },
       conflictOn: {
         userId: args.userId,
@@ -186,10 +179,9 @@ export class GithubSubscriptionsService {
       })
     }
     const expiresAt = nextExpiry()
-    const liveUntil = await this.liveCeiling({ threadId: subscription.threadId, expiresAt })
     const updated = await db.orm.public.GithubSubscription.where({ id: subscription.id }).update({
       expiresAt,
-      liveUntil,
+      liveUntil: expiresAt,
     })
     if (updated === null)
       throw new GithubHttpError({
@@ -272,15 +264,6 @@ export class GithubSubscriptionsService {
         }).updateAndCount({ idleSince: now })
       }
     }
-  }
-
-  private async liveCeiling(args: { threadId: string; expiresAt: Date }): Promise<Date> {
-    if (args.threadId === '') return args.expiresAt
-    const activity = await this.activityOf({ threadIds: [args.threadId] })
-    return liveUntilOf({
-      expiresAt: args.expiresAt,
-      sandboxLastActivityAt: activity.get(args.threadId) ?? null,
-    })
   }
 
   private async requireToken(args: { userId: string }): Promise<string> {

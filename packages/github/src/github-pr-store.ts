@@ -127,9 +127,6 @@ export class GithubPrStore {
         row,
       })
       const frame = `${repoFullName}#${args.prNumber}:${row.version}`
-      const threads = [...new Set(subscribers.map((held) => held.threadId))].filter(
-        (threadId) => threadId !== '',
-      )
       return await GithubPrOutboxWriter.write({
         tx: scope,
         repoFullName,
@@ -143,11 +140,6 @@ export class GithubPrStore {
             },
             dedupeKey: `fanout:${frame}`,
           },
-          ...threads.map((threadId) => ({
-            kind: 'thread-signal' as const,
-            payload: { threadId },
-            dedupeKey: `thread-signal:${frame}:${threadId}`,
-          })),
         ],
       })
     })
@@ -349,9 +341,6 @@ export class GithubPrStore {
     rechecks: readonly PrOutboxEffect[]
   }): readonly PrOutboxEffect[] {
     const frame = `${args.args.repoFullName}#${args.args.prNumber}:${args.row.version}`
-    const threads = [...new Set(args.subscribers.map((held) => held.threadId))].filter(
-      (threadId) => threadId !== '',
-    )
     return [
       {
         kind: 'fanout',
@@ -361,11 +350,6 @@ export class GithubPrStore {
         },
         dedupeKey: `fanout:${frame}`,
       },
-      ...threads.map((threadId) => ({
-        kind: 'thread-signal' as const,
-        payload: { threadId },
-        dedupeKey: `thread-signal:${frame}:${threadId}`,
-      })),
       ...args.effects.all(),
       ...args.rechecks,
     ]

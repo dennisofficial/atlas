@@ -11,7 +11,6 @@ import type { GithubAppInstallNoticeService } from '@dltech/atlas-github'
 import type { GithubHookLifecycleService } from '@dltech/atlas-github'
 import type { GithubUserReads } from '@dltech/atlas-github'
 import type { GithubService } from '@dltech/atlas-github'
-import { threadActivityAt } from './github-thread-activity'
 
 const SETTLED_FIELDS = {
   title: 'add the thing',
@@ -57,7 +56,6 @@ function serviceWith(args: {
     localCoordinator(github),
     { coversRepo: async () => false } as never,
     storeFixture(),
-    threadActivityAt,
   )
 }
 

@@ -1,14 +1,10 @@
 import { EPrSource, EPrState, type PrObservation, type PullSample } from '@dltech/atlas-core'
 import { RecordingDrain } from './testing/drain.fixture'
-import { vi } from 'bun:test'
-import { recordingSignals } from './testing/thread-signals.fixture'
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { GithubPrOutboxDispatcher } from './github-pr-outbox'
 import { GithubPrStore } from './github-pr-store'
 import { inertMergeabilityRefresh, inertReconcile } from './github-pr-store.fixture'
-import type { WakeStub } from './github-legacy-effects.fixture'
-import { legacyOf } from './github-legacy-effects.fixture'
 
 export const SAMPLE: PullSample = {
   repoFullName: 'compai/app',
@@ -45,11 +41,8 @@ export function rig(
   } = {},
 ) {
   const fanout = new GithubPrFanoutService(new RecordingDrain())
-  const wake = { notifyEvent: vi.fn() } as unknown as WakeStub
-  const { signals, changedThreads } = recordingSignals()
   const dispatcher = new GithubPrOutboxDispatcher({
     fanout: overrides.fanout ?? fanout,
-    legacy: legacyOf({ signals: signals, wake: wake }),
     reconcile: inertReconcile(),
     mergeability: inertMergeabilityRefresh(),
   })
@@ -58,8 +51,5 @@ export function rig(
   return {
     store: new GithubPrStore({ mailbox, dispatcher }),
     fanout,
-    wake,
-    signals,
-    changedThreads,
   }
 }

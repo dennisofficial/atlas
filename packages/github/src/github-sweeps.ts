@@ -4,14 +4,12 @@ import { GithubAppSyncGate } from './github-app-sync-gate'
 import { GithubAppSyncService } from './github-app-sync.service'
 import type { GithubConfig } from './github-config'
 import { GithubDeliveryService } from './github-delivery.service'
-import type { GithubThreadActivity } from './github-delivery-routing'
 import { GithubDeviceClient } from './github-device-client'
 import { GithubFillTokens } from './github-fill-token'
 import { GithubHeadReads } from './github-head-reads'
 import { GithubHookLifecycleService } from './github-hook-lifecycle.service'
 import { GithubHookSweepService } from './github-hook-sweep.service'
 import { GithubInstallationTokens } from './github-installation-tokens'
-import type { GithubLegacyEffects } from './github-legacy-effects'
 import { GithubPollSweeperService } from './github-poll-sweeper.service'
 import { buildPrApplyWiring } from './github-pr-apply-wiring'
 import { GithubPrDiscussionDeliveryService } from './github-pr-discussion-delivery.service'
@@ -40,8 +38,6 @@ export function buildGithubSweeps(args: {
   config: GithubConfig
   cipher: GithubSecretCipher
   redis: GithubRedis
-  legacy?: GithubLegacyEffects
-  activityOf?: GithubThreadActivity
 }): GithubSweeps {
   const bus: PrFrameBus = args.redis.isConfigured()
     ? new RedisPrFrameBus(args.redis)
@@ -60,7 +56,6 @@ export function buildGithubSweeps(args: {
     mailbox,
   } = buildPrApplyWiring({
     fanout,
-    ...(args.legacy === undefined ? {} : { legacy: args.legacy }),
     reads,
     budget: coordinator,
     fillTokenOf: (request) => fillTokens.find(request),
@@ -83,7 +78,6 @@ export function buildGithubSweeps(args: {
       coordinator,
       new GithubHeadReads(),
       store,
-      args.activityOf,
     ),
     hookSweep: new GithubHookSweepService(
       new GithubAppSyncService(appClient, installations, syncGate),

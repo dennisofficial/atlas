@@ -7,30 +7,19 @@ import { GithubPrDiscussionDeliveryService } from './github-pr-discussion-delive
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { GithubPrOutboxDispatcher } from './github-pr-outbox'
-import type { WakeStub } from './github-legacy-effects.fixture'
-import { inertSignals } from './testing/thread-signals.fixture'
 import { inertMergeabilityRefresh, inertReconcile } from './github-pr-store.fixture'
-import { legacyOf } from './github-legacy-effects.fixture'
 
-function discussionWith(): {
-  discussion: GithubPrDiscussionDeliveryService
-  wakes: unknown[]
-} {
-  const wakes: unknown[] = []
-  const wake = {
-    notifyEvent: (args: unknown) => wakes.push(args),
-  } as unknown as WakeStub
+function discussionWith(): { discussion: GithubPrDiscussionDeliveryService } {
   const fanout = new GithubPrFanoutService(new RecordingDrain())
   const mailbox = new GithubPrEventMailboxService(
     fanout,
     new GithubPrOutboxDispatcher({
       fanout,
-      legacy: legacyOf({ signals: inertSignals(), wake: wake }),
       reconcile: inertReconcile(),
       mergeability: inertMergeabilityRefresh(),
     }),
   )
-  return { discussion: new GithubPrDiscussionDeliveryService(mailbox), wakes }
+  return { discussion: new GithubPrDiscussionDeliveryService(mailbox) }
 }
 
 const REPOSITORY = { full_name: 'compai/app' }
@@ -144,22 +133,6 @@ describe('GithubPrDiscussionDeliveryService edited comments', () => {
         headSha: 'abc123',
       },
     })
-  })
-
-  it('edits never wake a sandbox, created comments do', async () => {
-    const { discussion, wakes } = discussionWith()
-
-    await discussion.handleIssueComment(
-      issueComment({
-        action: 'edited',
-        body: 'b',
-        changes: { body: { from: 'a' } },
-      }),
-    )
-    expect(wakes).toHaveLength(0)
-
-    await discussion.handleIssueComment(issueComment({ action: 'created', body: 'hi' }))
-    expect(wakes).toHaveLength(1)
   })
 
   it('a created comment carries its commentId and the sender as author', async () => {

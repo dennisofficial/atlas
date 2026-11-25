@@ -29,17 +29,6 @@ export function subscriptionLiveWhere(args: {
   return (subscription) => subscription.liveUntil.gt(args.now)
 }
 
-/**
- * The materialized liveness ceiling for a subscription: the later of its heartbeat TTL and its
- * linked sandbox's park-wake window. Written on subscribe/heartbeat; the sweeper recomputes it so
- * sandbox activity keeps a parked-linked row live without heartbeats.
- */
-export function liveUntilOf(args: { expiresAt: Date; sandboxLastActivityAt: Date | null }): Date {
-  if (args.sandboxLastActivityAt === null) return args.expiresAt
-  const sandboxCeiling = new Date(args.sandboxLastActivityAt.getTime() + PARK_WAKE_WINDOW_MS)
-  return sandboxCeiling > args.expiresAt ? sandboxCeiling : args.expiresAt
-}
-
 export function subscriberWhereOf(args: {
   repoFullName: string
   prNumber: number
@@ -107,7 +96,3 @@ export function dtoOf(row: Row<'GithubPrState'>): GithubPrStateDto {
     updatedAt: row.updatedAt.toISOString(),
   }
 }
-
-export type GithubThreadActivity = (args: {
-  threadIds: readonly string[]
-}) => Promise<Map<string, Date>>

@@ -1,4 +1,3 @@
-import type { GithubLegacyEffects } from './github-legacy-effects'
 import type { GithubPrFanoutService } from './github-pr-fanout.service'
 import {
   GithubPrEventMailboxService,
@@ -19,7 +18,6 @@ export type PrApplyWiring = {
 
 export function buildPrApplyWiring(args: {
   fanout: GithubPrFanoutService
-  legacy?: GithubLegacyEffects
   replayThread?: GithubThreadReplay
   reads: Pick<GithubUserReads, 'readHeadChecksOf' | 'readPullRequestObservation'>
   budget: GithubHttpBudget
@@ -47,7 +45,6 @@ export function buildPrApplyWiring(args: {
   })
   const dispatcher = new GithubPrOutboxDispatcher({
     fanout: args.fanout,
-    ...(args.legacy === undefined ? {} : { legacy: args.legacy }),
     reconcile: (run) => reconcile.run(run),
     mergeability: (run) => mergeability.run(run),
   })

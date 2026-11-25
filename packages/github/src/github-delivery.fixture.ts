@@ -8,7 +8,6 @@ import {
   seedSubscription as seedSubscriptionRow,
 } from './testing/github-seed'
 import type { GithubSecretCipher } from './github-ports'
-import { inertSignals } from './testing/thread-signals.fixture'
 import { inertReconcile } from './github-pr-store.fixture'
 import { GithubPrMergeabilityRefresh } from './github-pr-mergeability-refresh'
 import { GithubPrStore } from './github-pr-store'
@@ -20,12 +19,10 @@ import { GithubPrDiscussionDeliveryService } from './github-pr-discussion-delive
 import { GithubPrEventMailboxService } from './github-pr-event-mailbox.service'
 import { GithubPrFanoutService } from './github-pr-fanout.service'
 import { GithubPrOutboxDispatcher } from './github-pr-outbox'
-import type { WakeStub } from './github-legacy-effects.fixture'
 import type { PullRequestCacheFields } from './github-pull-request-mapping'
 import { type CommitCheckInput, restCommitChecksOf } from './github-commit-checks'
 import type { GithubUserReads } from './github-user-reads'
 import type { GithubService } from './github.service'
-import { legacyOf } from './github-legacy-effects.fixture'
 
 export const PULL_REQUEST_PAYLOAD = {
   action: 'opened',
@@ -201,9 +198,6 @@ export function serviceWith(args: {
   } as unknown as GithubUserReads
   const fanout = new GithubPrFanoutService(new RecordingDrain())
   const cipher = {} as GithubSecretCipher
-  const wake = {
-    notifyEvent: () => undefined,
-  } as unknown as WakeStub
   const budget = args.coordinator ?? localCoordinator(github)
   const fillTokens = new GithubFillTokens({ github, appTokens: args.appTokens })
   let store: GithubPrStore
@@ -215,7 +209,6 @@ export function serviceWith(args: {
   })
   const dispatcher = new GithubPrOutboxDispatcher({
     fanout,
-    legacy: legacyOf({ signals: inertSignals(), wake: wake }),
     reconcile: inertReconcile(),
     mergeability: (run) => mergeability.run(run),
   })
