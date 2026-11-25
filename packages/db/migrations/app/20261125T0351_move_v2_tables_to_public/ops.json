@@ -44,7 +44,10 @@
       }
     ],
     "postcheck": [
-      "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"Blob\"')) = 'r' AS \"result\""
+      {
+        "description": "ensure public.\"Blob\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"Blob\"')) = 'r' AS \"result\""
+      }
     ]
   },
   {
@@ -67,7 +70,10 @@
       }
     ],
     "postcheck": [
-      "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"BlobRef\"')) = 'r' AS \"result\""
+      {
+        "description": "ensure public.\"BlobRef\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"BlobRef\"')) = 'r' AS \"result\""
+      }
     ]
   },
   {
@@ -90,7 +96,10 @@
       }
     ],
     "postcheck": [
-      "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"ChangeBlob\"')) = 'r' AS \"result\""
+      {
+        "description": "ensure public.\"ChangeBlob\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"ChangeBlob\"')) = 'r' AS \"result\""
+      }
     ]
   },
   {
@@ -113,7 +122,10 @@
       }
     ],
     "postcheck": [
-      "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"SessionDraft\"')) = 'r' AS \"result\""
+      {
+        "description": "ensure public.\"SessionDraft\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"SessionDraft\"')) = 'r' AS \"result\""
+      }
     ]
   },
   {
@@ -136,7 +148,10 @@
       }
     ],
     "postcheck": [
-      "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"ContextFile\"')) = 'r' AS \"result\""
+      {
+        "description": "ensure public.\"ContextFile\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"ContextFile\"')) = 'r' AS \"result\""
+      }
     ]
   },
   {
@@ -159,7 +174,10 @@
       }
     ],
     "postcheck": [
-      "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"DiagramRepair\"')) = 'r' AS \"result\""
+      {
+        "description": "ensure public.\"DiagramRepair\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"DiagramRepair\"')) = 'r' AS \"result\""
+      }
     ]
   },
   {
@@ -182,7 +200,10 @@
       }
     ],
     "postcheck": [
-      "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"Event\"')) = 'r' AS \"result\""
+      {
+        "description": "ensure public.\"Event\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"Event\"')) = 'r' AS \"result\""
+      }
     ]
   },
   {
@@ -205,7 +226,10 @@
       }
     ],
     "postcheck": [
-      "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"Host\"')) = 'r' AS \"result\""
+      {
+        "description": "ensure public.\"Host\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"Host\"')) = 'r' AS \"result\""
+      }
     ]
   },
   {
@@ -228,7 +252,10 @@
       }
     ],
     "postcheck": [
-      "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"InboxEntry\"')) = 'r' AS \"result\""
+      {
+        "description": "ensure public.\"InboxEntry\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"InboxEntry\"')) = 'r' AS \"result\""
+      }
     ]
   },
   {
@@ -251,7 +278,10 @@
       }
     ],
     "postcheck": [
-      "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"Lease\"')) = 'r' AS \"result\""
+      {
+        "description": "ensure public.\"Lease\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"Lease\"')) = 'r' AS \"result\""
+      }
     ]
   },
   {
@@ -274,7 +304,10 @@
       }
     ],
     "postcheck": [
-      "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"Media\"')) = 'r' AS \"result\""
+      {
+        "description": "ensure public.\"Media\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"Media\"')) = 'r' AS \"result\""
+      }
     ]
   },
   {
@@ -297,7 +330,10 @@
       }
     ],
     "postcheck": [
-      "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"MediaSigningWindow\"')) = 'r' AS \"result\""
+      {
+        "description": "ensure public.\"MediaSigningWindow\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"MediaSigningWindow\"')) = 'r' AS \"result\""
+      }
     ]
   },
   {
@@ -320,7 +356,10 @@
       }
     ],
     "postcheck": [
-      "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"PushDevice\"')) = 'r' AS \"result\""
+      {
+        "description": "ensure public.\"PushDevice\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"PushDevice\"')) = 'r' AS \"result\""
+      }
     ]
   },
   {
@@ -343,7 +382,10 @@
       }
     ],
     "postcheck": [
-      "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"Routine\"')) = 'r' AS \"result\""
+      {
+        "description": "ensure public.\"Routine\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"Routine\"')) = 'r' AS \"result\""
+      }
     ]
   },
   {
@@ -366,7 +408,10 @@
       }
     ],
     "postcheck": [
-      "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"RoutineRun\"')) = 'r' AS \"result\""
+      {
+        "description": "ensure public.\"RoutineRun\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"RoutineRun\"')) = 'r' AS \"result\""
+      }
     ]
   },
   {
@@ -389,7 +434,10 @@
       }
     ],
     "postcheck": [
-      "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"SandboxRun\"')) = 'r' AS \"result\""
+      {
+        "description": "ensure public.\"SandboxRun\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"SandboxRun\"')) = 'r' AS \"result\""
+      }
     ]
   },
   {
@@ -412,7 +460,10 @@
       }
     ],
     "postcheck": [
-      "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"Session\"')) = 'r' AS \"result\""
+      {
+        "description": "ensure public.\"Session\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"Session\"')) = 'r' AS \"result\""
+      }
     ]
   },
   {
@@ -435,7 +486,10 @@
       }
     ],
     "postcheck": [
-      "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"SessionBranch\"')) = 'r' AS \"result\""
+      {
+        "description": "ensure public.\"SessionBranch\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"SessionBranch\"')) = 'r' AS \"result\""
+      }
     ]
   },
   {
@@ -458,7 +512,10 @@
       }
     ],
     "postcheck": [
-      "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"SessionPullRequest\"')) = 'r' AS \"result\""
+      {
+        "description": "ensure public.\"SessionPullRequest\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"SessionPullRequest\"')) = 'r' AS \"result\""
+      }
     ]
   },
   {
@@ -481,7 +538,10 @@
       }
     ],
     "postcheck": [
-      "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"SessionView\"')) = 'r' AS \"result\""
+      {
+        "description": "ensure public.\"SessionView\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"SessionView\"')) = 'r' AS \"result\""
+      }
     ]
   },
   {
@@ -504,7 +564,10 @@
       }
     ],
     "postcheck": [
-      "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"Terminal\"')) = 'r' AS \"result\""
+      {
+        "description": "ensure public.\"Terminal\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"Terminal\"')) = 'r' AS \"result\""
+      }
     ]
   },
   {
@@ -527,7 +590,10 @@
       }
     ],
     "postcheck": [
-      "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"Thread\"')) = 'r' AS \"result\""
+      {
+        "description": "ensure public.\"Thread\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"Thread\"')) = 'r' AS \"result\""
+      }
     ]
   },
   {
@@ -550,7 +616,10 @@
       }
     ],
     "postcheck": [
-      "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"WorktreeChangedFile\"')) = 'r' AS \"result\""
+      {
+        "description": "ensure public.\"WorktreeChangedFile\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"WorktreeChangedFile\"')) = 'r' AS \"result\""
+      }
     ]
   },
   {
@@ -573,7 +642,10 @@
       }
     ],
     "postcheck": [
-      "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"WorktreeChanges\"')) = 'r' AS \"result\""
+      {
+        "description": "ensure public.\"WorktreeChanges\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"WorktreeChanges\"')) = 'r' AS \"result\""
+      }
     ]
   },
   {
@@ -596,7 +668,10 @@
       }
     ],
     "postcheck": [
-      "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2Blob\"')) = 'v' AS \"result\""
+      {
+        "description": "ensure v2.\"V2Blob\" has relkind v",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2Blob\"')) = 'v' AS \"result\""
+      }
     ]
   },
   {
@@ -619,7 +694,10 @@
       }
     ],
     "postcheck": [
-      "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2BlobRef\"')) = 'v' AS \"result\""
+      {
+        "description": "ensure v2.\"V2BlobRef\" has relkind v",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2BlobRef\"')) = 'v' AS \"result\""
+      }
     ]
   },
   {
@@ -642,7 +720,10 @@
       }
     ],
     "postcheck": [
-      "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2ChangeBlob\"')) = 'v' AS \"result\""
+      {
+        "description": "ensure v2.\"V2ChangeBlob\" has relkind v",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2ChangeBlob\"')) = 'v' AS \"result\""
+      }
     ]
   },
   {
@@ -665,7 +746,10 @@
       }
     ],
     "postcheck": [
-      "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2ComposerDraft\"')) = 'v' AS \"result\""
+      {
+        "description": "ensure v2.\"V2ComposerDraft\" has relkind v",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2ComposerDraft\"')) = 'v' AS \"result\""
+      }
     ]
   },
   {
@@ -688,7 +772,10 @@
       }
     ],
     "postcheck": [
-      "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2ContextFile\"')) = 'v' AS \"result\""
+      {
+        "description": "ensure v2.\"V2ContextFile\" has relkind v",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2ContextFile\"')) = 'v' AS \"result\""
+      }
     ]
   },
   {
@@ -711,7 +798,10 @@
       }
     ],
     "postcheck": [
-      "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2DiagramRepair\"')) = 'v' AS \"result\""
+      {
+        "description": "ensure v2.\"V2DiagramRepair\" has relkind v",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2DiagramRepair\"')) = 'v' AS \"result\""
+      }
     ]
   },
   {
@@ -734,7 +824,10 @@
       }
     ],
     "postcheck": [
-      "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2Event\"')) = 'v' AS \"result\""
+      {
+        "description": "ensure v2.\"V2Event\" has relkind v",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2Event\"')) = 'v' AS \"result\""
+      }
     ]
   },
   {
@@ -757,7 +850,10 @@
       }
     ],
     "postcheck": [
-      "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2Host\"')) = 'v' AS \"result\""
+      {
+        "description": "ensure v2.\"V2Host\" has relkind v",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2Host\"')) = 'v' AS \"result\""
+      }
     ]
   },
   {
@@ -780,7 +876,10 @@
       }
     ],
     "postcheck": [
-      "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2InboxEntry\"')) = 'v' AS \"result\""
+      {
+        "description": "ensure v2.\"V2InboxEntry\" has relkind v",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2InboxEntry\"')) = 'v' AS \"result\""
+      }
     ]
   },
   {
@@ -803,7 +902,10 @@
       }
     ],
     "postcheck": [
-      "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2Lease\"')) = 'v' AS \"result\""
+      {
+        "description": "ensure v2.\"V2Lease\" has relkind v",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2Lease\"')) = 'v' AS \"result\""
+      }
     ]
   },
   {
@@ -826,7 +928,10 @@
       }
     ],
     "postcheck": [
-      "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"Media\"')) = 'v' AS \"result\""
+      {
+        "description": "ensure v2.\"Media\" has relkind v",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"Media\"')) = 'v' AS \"result\""
+      }
     ]
   },
   {
@@ -849,7 +954,10 @@
       }
     ],
     "postcheck": [
-      "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"MediaSigningWindow\"')) = 'v' AS \"result\""
+      {
+        "description": "ensure v2.\"MediaSigningWindow\" has relkind v",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"MediaSigningWindow\"')) = 'v' AS \"result\""
+      }
     ]
   },
   {
@@ -872,7 +980,10 @@
       }
     ],
     "postcheck": [
-      "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2PushDevice\"')) = 'v' AS \"result\""
+      {
+        "description": "ensure v2.\"V2PushDevice\" has relkind v",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2PushDevice\"')) = 'v' AS \"result\""
+      }
     ]
   },
   {
@@ -895,7 +1006,10 @@
       }
     ],
     "postcheck": [
-      "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2Routine\"')) = 'v' AS \"result\""
+      {
+        "description": "ensure v2.\"V2Routine\" has relkind v",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2Routine\"')) = 'v' AS \"result\""
+      }
     ]
   },
   {
@@ -918,7 +1032,10 @@
       }
     ],
     "postcheck": [
-      "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2RoutineRun\"')) = 'v' AS \"result\""
+      {
+        "description": "ensure v2.\"V2RoutineRun\" has relkind v",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2RoutineRun\"')) = 'v' AS \"result\""
+      }
     ]
   },
   {
@@ -941,7 +1058,10 @@
       }
     ],
     "postcheck": [
-      "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2SandboxRun\"')) = 'v' AS \"result\""
+      {
+        "description": "ensure v2.\"V2SandboxRun\" has relkind v",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2SandboxRun\"')) = 'v' AS \"result\""
+      }
     ]
   },
   {
@@ -964,7 +1084,10 @@
       }
     ],
     "postcheck": [
-      "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2Session\"')) = 'v' AS \"result\""
+      {
+        "description": "ensure v2.\"V2Session\" has relkind v",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2Session\"')) = 'v' AS \"result\""
+      }
     ]
   },
   {
@@ -987,7 +1110,10 @@
       }
     ],
     "postcheck": [
-      "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2SessionBranch\"')) = 'v' AS \"result\""
+      {
+        "description": "ensure v2.\"V2SessionBranch\" has relkind v",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2SessionBranch\"')) = 'v' AS \"result\""
+      }
     ]
   },
   {
@@ -1010,7 +1136,10 @@
       }
     ],
     "postcheck": [
-      "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2SessionPullRequest\"')) = 'v' AS \"result\""
+      {
+        "description": "ensure v2.\"V2SessionPullRequest\" has relkind v",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2SessionPullRequest\"')) = 'v' AS \"result\""
+      }
     ]
   },
   {
@@ -1033,7 +1162,10 @@
       }
     ],
     "postcheck": [
-      "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2SessionView\"')) = 'v' AS \"result\""
+      {
+        "description": "ensure v2.\"V2SessionView\" has relkind v",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2SessionView\"')) = 'v' AS \"result\""
+      }
     ]
   },
   {
@@ -1056,7 +1188,10 @@
       }
     ],
     "postcheck": [
-      "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2Terminal\"')) = 'v' AS \"result\""
+      {
+        "description": "ensure v2.\"V2Terminal\" has relkind v",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2Terminal\"')) = 'v' AS \"result\""
+      }
     ]
   },
   {
@@ -1079,7 +1214,10 @@
       }
     ],
     "postcheck": [
-      "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2Thread\"')) = 'v' AS \"result\""
+      {
+        "description": "ensure v2.\"V2Thread\" has relkind v",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2Thread\"')) = 'v' AS \"result\""
+      }
     ]
   },
   {
@@ -1102,7 +1240,10 @@
       }
     ],
     "postcheck": [
-      "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2WorktreeChangedFile\"')) = 'v' AS \"result\""
+      {
+        "description": "ensure v2.\"V2WorktreeChangedFile\" has relkind v",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2WorktreeChangedFile\"')) = 'v' AS \"result\""
+      }
     ]
   },
   {
@@ -1125,7 +1266,10 @@
       }
     ],
     "postcheck": [
-      "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2WorktreeChanges\"')) = 'v' AS \"result\""
+      {
+        "description": "ensure v2.\"V2WorktreeChanges\" has relkind v",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2WorktreeChanges\"')) = 'v' AS \"result\""
+      }
     ]
   },
   {
@@ -1167,7 +1311,10 @@
       }
     },
     "precheck": [
-      "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"Event\"')) = 'r' AS \"result\""
+      {
+        "description": "ensure public.\"Event\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"Event\"')) = 'r' AS \"result\""
+      }
     ],
     "execute": [
       {
@@ -1190,7 +1337,10 @@
       }
     },
     "precheck": [
-      "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"Event\"')) = 'r' AS \"result\""
+      {
+        "description": "ensure public.\"Event\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"Event\"')) = 'r' AS \"result\""
+      }
     ],
     "execute": [
       {
@@ -1217,7 +1367,10 @@
       }
     },
     "precheck": [
-      "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"Event\"')) = 'r' AS \"result\""
+      {
+        "description": "ensure public.\"Event\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"Event\"')) = 'r' AS \"result\""
+      }
     ],
     "execute": [
       {

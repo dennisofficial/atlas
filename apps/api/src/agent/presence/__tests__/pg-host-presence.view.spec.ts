@@ -30,7 +30,7 @@ describe('the v2 V2Host view over the public Host table', () => {
 
   it('accepts the statement the old image runs and returns the id it wrote', async () => {
     const inserted = await admin.query<{ id: number }>(
-      'INSERT INTO "public"."Host" (label, "startedAt") VALUES ($1, now()) RETURNING id',
+      'INSERT INTO "v2"."V2Host" (label, "startedAt") VALUES ($1, now()) RETURNING id',
       ['view-host'],
     )
     const id = inserted.rows[0]?.id

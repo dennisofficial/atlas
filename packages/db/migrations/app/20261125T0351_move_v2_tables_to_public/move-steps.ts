@@ -33,8 +33,10 @@ const tableTarget = (schema: string, table: string) => ({
   id: 'postgres',
   details: { schema, objectType: 'table' as const, name: table },
 })
-const relkindCheck = (schema: string, table: string, kind: string) =>
-  `SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass(${literal(`${schema}.${quote(table)}`)})) = ${literal(kind)} AS "result"`
+const relkindCheck = (schema: string, table: string, kind: string) => ({
+  description: `ensure ${schema}.${quote(table)} has relkind ${kind}`,
+  sql: `SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass(${literal(`${schema}.${quote(table)}`)})) = ${literal(kind)} AS "result"`,
+})
 
 const timeouts = rawSql({
   id: 'v2-to-public.timeouts',

@@ -38,49 +38,49 @@ const MOVED_TABLES = [
 ] as const
 
 const SEEDS = [
-  `INSERT INTO "public"."Session" (id, "userId", "mainThreadId", "nextInboxId", "createdAt", "modelRef", "modelEffort", "modelFast")
+  `INSERT INTO "v2"."V2Session" (id, "userId", "mainThreadId", "nextInboxId", "createdAt", "modelRef", "modelEffort", "modelFast")
    VALUES ('ses_1', 'u', 'thr_1', 1, now(), 'anthropic/claude', 'medium', false)`,
-  `INSERT INTO "public"."Thread" (id, "sessionId", "headSeq", "headHash", visibility, "createdAt")
+  `INSERT INTO "v2"."V2Thread" (id, "sessionId", "headSeq", "headHash", visibility, "createdAt")
    VALUES ('thr_1', 'ses_1', 1, 'genesis', '{"spans":[]}', now())`,
-  `INSERT INTO "public"."Event" ("threadId", seq, id, epoch, type, "runId", at, "prevHash", hash, canonical)
+  `INSERT INTO "v2"."V2Event" ("threadId", seq, id, epoch, type, "runId", at, "prevHash", hash, canonical)
    VALUES ('thr_1', 1, 'evt_1', 1, 'message', 'run_1', now(), 'genesis', 'h1', '{}')`,
-  `INSERT INTO "public"."InboxEntry" ("sessionId", "inboxId", kind, payload, "postedAt")
+  `INSERT INTO "v2"."V2InboxEntry" ("sessionId", "inboxId", kind, payload, "postedAt")
    VALUES ('ses_1', 1, 'user', '{}', now()), ('ses_1', 2, 'user', '{}', now())`,
-  `INSERT INTO "public"."Lease" ("sessionId", epoch, "holderHostId", "wantsHolder", attempts)
+  `INSERT INTO "v2"."V2Lease" ("sessionId", epoch, "holderHostId", "wantsHolder", attempts)
    VALUES ('ses_1', 1, NULL, false, 0)`,
-  `INSERT INTO "public"."Host" (label, "startedAt") VALUES ('sweep-host', now())`,
-  `INSERT INTO "public"."SandboxRun" (id, "sessionId", "userId", provider, vcpus, "memoryGb", "diskGb", "startedAt")
+  `INSERT INTO "v2"."V2Host" (label, "startedAt") VALUES ('sweep-host', now())`,
+  `INSERT INTO "v2"."V2SandboxRun" (id, "sessionId", "userId", provider, vcpus, "memoryGb", "diskGb", "startedAt")
    VALUES ('run_1', 'ses_1', 'u', 'vercel', 2, 4, 8, now())`,
-  `INSERT INTO "public"."Terminal" ("sessionId", "terminalId", ordinal, name, state, "createdAt")
+  `INSERT INTO "v2"."V2Terminal" ("sessionId", "terminalId", ordinal, name, state, "createdAt")
    VALUES ('ses_1', 'term_1', 1, 'shell', 'open', now())`,
-  `INSERT INTO "public"."Routine" (id, "userId", "projectId", name, prompt, cron, timezone, "nextRunAt", "createdAt", "updatedAt")
+  `INSERT INTO "v2"."V2Routine" (id, "userId", "projectId", name, prompt, cron, timezone, "nextRunAt", "createdAt", "updatedAt")
    VALUES ('rt_1', 'u', 'p', 'nightly', 'p', '0 0 * * *', 'UTC', now(), now(), now())`,
-  `INSERT INTO "public"."RoutineRun" (id, "routineId", "scheduledFor", outcome, at)
+  `INSERT INTO "v2"."V2RoutineRun" (id, "routineId", "scheduledFor", outcome, at)
    VALUES ('rr_1', 'rt_1', now(), 'ok', now())`,
-  `INSERT INTO "public"."PushDevice" (id, "userId", kind, token, "clientId", label, "lastSeenAt", "createdAt")
+  `INSERT INTO "v2"."V2PushDevice" (id, "userId", kind, token, "clientId", label, "lastSeenAt", "createdAt")
    VALUES ('dev_1', 'u', 'ios', 'expo-token', 'client', 'phone', now(), now())`,
-  `INSERT INTO "public"."SessionDraft" ("userId", "scopeKey", "sessionId", text, attachments, "updatedAt")
+  `INSERT INTO "v2"."V2ComposerDraft" ("userId", "scopeKey", "sessionId", text, attachments, "updatedAt")
    VALUES ('u', 'scope', 'ses_1', 'draft', '[]', now())`,
-  `INSERT INTO "public"."ContextFile" (id, "sessionId", path, digest, size, mime, kind, "mtimeMs", "updatedAt")
+  `INSERT INTO "v2"."V2ContextFile" (id, "sessionId", path, digest, size, mime, kind, "mtimeMs", "updatedAt")
    VALUES ('cf_1', 'ses_1', 'AGENTS.md', 'digest', 4, 'text/plain', 'file', 1.5, now())`,
-  `INSERT INTO "public"."DiagramRepair" ("sessionId", "sourceHash", source, "modelRef")
+  `INSERT INTO "v2"."V2DiagramRepair" ("sessionId", "sourceHash", source, "modelRef")
    VALUES ('ses_1', 'sha', 'graph TD', 'anthropic/claude')`,
-  `INSERT INTO "public"."Media" ("userId", hash, "mediaType", size, width, height)
+  `INSERT INTO "v2"."Media" ("userId", hash, "mediaType", size, width, height)
    VALUES ('u', 'media-hash', 'image/png', 10, 4, 4)`,
-  `INSERT INTO "public"."MediaSigningWindow" ("windowStart", "validUntil", sealed)
+  `INSERT INTO "v2"."MediaSigningWindow" ("windowStart", "validUntil", sealed)
    VALUES (date_trunc('hour', now()), now() + interval '1 hour', 'sealed')`,
-  `INSERT INTO "public"."Blob" (hash, bytes, size, "createdAt") VALUES ('blob-hash', '\\x00'::bytea, 1, now())`,
-  `INSERT INTO "public"."BlobRef" ("sessionId", hash) VALUES ('ses_1', 'blob-hash')`,
-  `INSERT INTO "public"."ChangeBlob" (hash, size, "createdAt") VALUES ('change-hash', 1, now())`,
-  `INSERT INTO "public"."WorktreeChanges" (id, "sessionId", repo, "worktreePath", fingerprint, "updatedAt")
+  `INSERT INTO "v2"."V2Blob" (hash, bytes, size, "createdAt") VALUES ('blob-hash', '\\x00'::bytea, 1, now())`,
+  `INSERT INTO "v2"."V2BlobRef" ("sessionId", hash) VALUES ('ses_1', 'blob-hash')`,
+  `INSERT INTO "v2"."V2ChangeBlob" (hash, size, "createdAt") VALUES ('change-hash', 1, now())`,
+  `INSERT INTO "v2"."V2WorktreeChanges" (id, "sessionId", repo, "worktreePath", fingerprint, "updatedAt")
    VALUES ('wt_1', 'ses_1', 'o/r', '/tmp/wt', 'fp', now())`,
-  `INSERT INTO "public"."WorktreeChangedFile" ("checkoutId", path, status, additions, deletions, "binary")
+  `INSERT INTO "v2"."V2WorktreeChangedFile" ("checkoutId", path, status, additions, deletions, "binary")
    VALUES ('wt_1', 'src/a.ts', 'modified', 1, 2, false)`,
-  `INSERT INTO "public"."SessionBranch" ("sessionId", "headRepo", branch, "firstSeenSeq")
+  `INSERT INTO "v2"."V2SessionBranch" ("sessionId", "headRepo", branch, "firstSeenSeq")
    VALUES ('ses_1', 'o/r', 'atlas/work', 1)`,
-  `INSERT INTO "public"."SessionPullRequest" ("sessionId", "repoFullName", "prNumber")
+  `INSERT INTO "v2"."V2SessionPullRequest" ("sessionId", "repoFullName", "prNumber")
    VALUES ('ses_1', 'o/r', 12)`,
-  `INSERT INTO "public"."SessionView" ("sessionId", "threadId", "atSeq", version, state, "updatedAt")
+  `INSERT INTO "v2"."V2SessionView" ("sessionId", "threadId", "atSeq", version, state, "updatedAt")
    VALUES ('ses_1', 'thr_1', 1, 1, '{}', now())`,
 ]
 
@@ -160,7 +160,7 @@ describe('the v2 table move to public', () => {
 
   it('keeps the old upsert, lock and presence statements working through the views', async () => {
     const upsert = await client.query<{ sessionId: string; epoch: number; attempts: number }>(
-      `INSERT INTO "public"."Lease" ("sessionId", epoch, "holderHostId", "wantsHolder", attempts)
+      `INSERT INTO "v2"."V2Lease" ("sessionId", epoch, "holderHostId", "wantsHolder", attempts)
        VALUES ('ses_1', 2, 7, true, 3)
        ON CONFLICT ("sessionId") DO UPDATE
          SET epoch = EXCLUDED.epoch, "holderHostId" = EXCLUDED."holderHostId",
@@ -171,32 +171,32 @@ describe('the v2 table move to public', () => {
 
     await client.query('BEGIN')
     const claimed = await client.query<{ inboxId: number }>(
-      `SELECT "inboxId" FROM "public"."InboxEntry"
+      `SELECT "inboxId" FROM "v2"."V2InboxEntry"
         WHERE "consumedSeq" IS NULL ORDER BY "inboxId" LIMIT 1 FOR UPDATE SKIP LOCKED`,
     )
     const locked = await client.query(
-      `SELECT 1 FROM "public"."InboxEntry" l FOR UPDATE OF l SKIP LOCKED`,
+      `SELECT 1 FROM "v2"."V2InboxEntry" l FOR UPDATE OF l SKIP LOCKED`,
     )
     await client.query('COMMIT')
     expect(claimed.rows).toEqual([{ inboxId: 1 }])
     expect(locked.rowCount).toBe(2)
 
     const host = await client.query<{ id: number }>(
-      'INSERT INTO "public"."Host" (label, "startedAt") VALUES (\'presence\', now()) RETURNING id',
+      'INSERT INTO "v2"."V2Host" (label, "startedAt") VALUES (\'presence\', now()) RETURNING id',
     )
     expect(typeof host.rows[0]?.id).toBe('number')
   })
 
   it('keeps Event append-only through the view', async () => {
     const appended = await client.query<{ id: string }>(
-      `INSERT INTO "public"."Event" ("threadId", seq, id, epoch, type, "runId", at, "prevHash", hash, canonical)
+      `INSERT INTO "v2"."V2Event" ("threadId", seq, id, epoch, type, "runId", at, "prevHash", hash, canonical)
        VALUES ('thr_1', 2, 'evt_2', 1, 'message', 'run_1', now(), 'h1', 'h2', '{}') RETURNING id`,
     )
     expect(appended.rows).toEqual([{ id: 'evt_2' }])
     await expect(
-      client.query(`UPDATE "public"."Event" SET type = 'x' WHERE id = 'evt_2'`),
+      client.query(`UPDATE "v2"."V2Event" SET type = 'x' WHERE id = 'evt_2'`),
     ).rejects.toThrow(/append-only/)
-    await expect(client.query(`DELETE FROM "public"."Event" WHERE id = 'evt_2'`)).rejects.toThrow(
+    await expect(client.query(`DELETE FROM "v2"."V2Event" WHERE id = 'evt_2'`)).rejects.toThrow(
       /append-only/,
     )
     expect(await countsOf(client, 'public', 'Event')).toBe(2)
