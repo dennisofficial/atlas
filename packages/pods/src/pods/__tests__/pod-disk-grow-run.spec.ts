@@ -120,6 +120,35 @@ describe('runPodDiskGrow', () => {
     expect(order).toEqual(['closeRun', 'grow', 'recordDisk', 'notice'])
   })
 
+  it('reports the pod that restarted for its bigger disk with the size it grew from and to', async () => {
+    const starts: Array<{ sessionId: string; diskGbFrom: number; diskGbTo: number }> = []
+    const { deps } = fakeDeps({
+      pods: [podOf({ podSessionId: 'pod-1', usedGb: 17, limitGb: 20 })],
+      started: async (startedArgs) => {
+        starts.push(startedArgs)
+      },
+    })
+    await runPodDiskGrow({ deps, maxGb: 100 })
+
+    expect(starts).toEqual([{ sessionId: 'pod-1', diskGbFrom: 20, diskGbTo: 40 }])
+  })
+
+  it('grows a pod whose restart report fails, and says so', async () => {
+    const { deps, lines } = fakeDeps({
+      pods: [podOf({ podSessionId: 'pod-1', usedGb: 17, limitGb: 20 })],
+      started: async () => {
+        throw new Error('posthog is down')
+      },
+    })
+    expect(await runPodDiskGrow({ deps, maxGb: 100 })).toEqual({
+      checked: 1,
+      grown: 1,
+      waiting: 0,
+      nudged: 0,
+    })
+    expect(lines.join('\n')).toContain('posthog is down')
+  })
+
   it('skips a pod whose Agent37 metrics are still empty, and says so', async () => {
     const { deps, calls, lines } = fakeDeps({
       pods: [podOf({ podSessionId: 'pod-1' })],

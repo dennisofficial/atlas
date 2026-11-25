@@ -4,14 +4,16 @@ import {
   EQualitySkipReason,
   EQualityTransition,
   type CodeQualityReviewedBody,
-  type QualityAssessment,
-  type ThreadId,
   type RecordEvent,
+  type ThreadId,
 } from '@dltech/atlas-core'
 import type { PodAnalyticsRecord, PodAnalyticsValue } from '@dltech/atlas-plugin-sdk'
 
 import type { QualityReviewMetrics } from '../../review/engine'
-import { qualityRecordsOf, notifyIndexOf, stepsAfter, threadEventsOf, turnsAfter } from './timeline'
+import { extensionOf } from './paths'
+import { wasNotified, type QualityNotified } from './review-links'
+import { notifyIndexOf, qualityRecordsOf, stepsAfter, threadEventsOf, turnsAfter } from './timeline'
+import { strongerVerdictOf, verdictOf, type EQualityVerdict } from './verdict'
 
 export const QUALITY_REVIEW_COMPLETED = 'quality review completed'
 export const QUALITY_FINDING_RESOLVED = 'quality finding resolved'
@@ -20,19 +22,7 @@ export const QUALITY_FINDING_CLOSED = 'quality finding closed'
 
 export type QualityReviewEventStatus = 'completed' | 'skipped' | 'deadline' | 'operational_error'
 
-export type QualityPolicyOutcome = 'new_finding' | 'tracked_debt' | 'resolved' | 'clean'
-
 export type QualityReviewEventProperties = Readonly<Record<string, PodAnalyticsValue>>
-
-const OUTCOME_PRECEDENCE: readonly QualityPolicyOutcome[] = [
-  'new_finding',
-  'tracked_debt',
-  'resolved',
-  'clean',
-]
-
-const stronger = (left: QualityPolicyOutcome, right: QualityPolicyOutcome): QualityPolicyOutcome =>
-  OUTCOME_PRECEDENCE.indexOf(left) <= OUTCOME_PRECEDENCE.indexOf(right) ? left : right
 
 export const reviewStatusOf = (args: {
   records: readonly CodeQualityReviewedBody[]
@@ -53,47 +43,54 @@ export const reviewStatusOf = (args: {
 const skipReasonOf = (records: readonly CodeQualityReviewedBody[]): EQualitySkipReason | null =>
   records.find((record) => record.reason !== undefined)?.reason ?? null
 
-const wasNotified = (args: {
-  record: CodeQualityReviewedBody
-  assessment: QualityAssessment
-}): boolean =>
-  args.record.findings.some(
-    (finding) =>
-      finding.policyId === args.assessment.policyId &&
-      finding.scopeId === args.assessment.scopeId &&
-      finding.notified,
-  )
+const skipReasonsOf = (records: readonly CodeQualityReviewedBody[]): readonly string[] =>
+  [
+    ...new Set(records.flatMap((record) => (record.reason === undefined ? [] : [record.reason]))),
+  ].sort()
 
-const outcomeOf = (args: {
-  record: CodeQualityReviewedBody
-  assessment: QualityAssessment
-}): QualityPolicyOutcome => {
-  const { assessment } = args
-  if (assessment.transition === EQualityTransition.Introduce && wasNotified(args))
-    return 'new_finding'
-  if (assessment.transition === EQualityTransition.TrackDebt) return 'tracked_debt'
-  if (assessment.transition === EQualityTransition.Resolve) return 'resolved'
-  return 'clean'
-}
+const extensionsOf = (records: readonly CodeQualityReviewedBody[]): readonly string[] =>
+  [
+    ...new Set(
+      records.map((record) => extensionOf({ path: record.path })).filter((held) => held !== ''),
+    ),
+  ].sort()
+
+const scopeIdsOf = (args: {
+  records: readonly CodeQualityReviewedBody[]
+  selected: boolean
+}): readonly string[] => [
+  ...new Set(
+    args.records.flatMap((record) => {
+      if (record.scope === undefined) return []
+      if (args.selected && record.requestedModel === undefined) return []
+      return [record.scope.id]
+    }),
+  ),
+]
 
 export const policiesOf = (args: {
   records: readonly CodeQualityReviewedBody[]
+  notified: readonly QualityNotified[]
 }): readonly PodAnalyticsRecord[] => {
-  const byPolicy = new Map<
-    string,
-    { outcome: QualityPolicyOutcome; maxConfidence: number | null }
-  >()
+  const byPolicy = new Map<string, { verdict: EQualityVerdict; maxConcern: number | null }>()
   for (const record of args.records) {
     for (const assessment of record.assessments) {
-      const outcome = outcomeOf({ record, assessment })
-      const held = byPolicy.get(assessment.policyId) ?? { outcome, maxConfidence: null }
-      const confidence = assessment.currentConcernProbability
+      const verdict = verdictOf({
+        assessment,
+        notified: wasNotified({
+          notified: args.notified,
+          policyId: assessment.policyId,
+          scopeId: assessment.scopeId,
+        }),
+      })
+      const held = byPolicy.get(assessment.policyId) ?? { verdict, maxConcern: null }
+      const concern = assessment.currentConcernProbability
       byPolicy.set(assessment.policyId, {
-        outcome: stronger(held.outcome, outcome),
-        maxConfidence:
-          confidence !== null && (held.maxConfidence === null || confidence > held.maxConfidence)
-            ? confidence
-            : held.maxConfidence,
+        verdict: strongerVerdictOf({ left: held.verdict, right: verdict }),
+        maxConcern:
+          concern !== null && (held.maxConcern === null || concern > held.maxConcern)
+            ? concern
+            : held.maxConcern,
       })
     }
   }
@@ -101,27 +98,37 @@ export const policiesOf = (args: {
     .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
     .map(([policyId, held]) => ({
       policy_id: policyId,
-      outcome: held.outcome,
-      max_confidence: held.maxConfidence,
+      verdict: held.verdict,
+      max_concern: held.maxConcern,
     }))
 }
 
 export const reviewCompletedProperties = (args: {
+  reviewId: string
   records: readonly CodeQualityReviewedBody[]
   metrics: QualityReviewMetrics
   files: number
   notified: boolean
+  nudged: readonly QualityNotified[]
+  tool: string
   classifier: { model: string; provider: string }
   events: readonly RecordEvent[]
 }): QualityReviewEventProperties => {
-  const policies = policiesOf({ records: args.records })
+  const policies = policiesOf({ records: args.records, notified: args.nudged })
+  const skipped = skipReasonsOf(args.records)
   return {
+    review_id: args.reviewId,
     status: reviewStatusOf({ records: args.records }),
     skip_reason: skipReasonOf(args.records),
+    skip_reasons: skipped,
     policy_ids: policies.map((policy) => String(policy.policy_id)),
     policies,
     files: args.files,
     notified: args.notified,
+    tool: args.tool,
+    scopes_total: scopeIdsOf({ records: args.records, selected: false }).length,
+    scopes_selected: scopeIdsOf({ records: args.records, selected: true }).length,
+    extensions: extensionsOf(args.records),
     classifier_model: args.classifier.model,
     classifier_provider: args.classifier.provider,
     scope_build_ms: args.metrics.timings.scopeBuildMs,
@@ -134,6 +141,7 @@ export const reviewCompletedProperties = (args: {
 }
 
 export const resolvedFindingProperties = (args: {
+  reviewId: string
   records: readonly CodeQualityReviewedBody[]
   events: readonly RecordEvent[]
   threadId: ThreadId
@@ -159,6 +167,7 @@ export const resolvedFindingProperties = (args: {
       const index = notifyIndexOf({ events: thread, findingId: finding.id })
       if (index === null) continue
       properties.push({
+        review_id: args.reviewId,
         policy_id: finding.policyId,
         steps_after_nudge: stepsAfter({ events: thread, index }),
         turns_after_nudge: turnsAfter({ events: thread, index }),

@@ -7,7 +7,7 @@ import {
   EQualityTransition,
   type RecordEventBody,
 } from '@dltech/atlas-core'
-import type { PodAnalyticsValue } from '@dltech/atlas-plugin-sdk'
+import { EAnalyticsLinks, type PodAnalyticsValue } from '@dltech/atlas-plugin-sdk'
 
 import { resolvedFindingProperties } from '../analytics/review-properties'
 import {
@@ -20,14 +20,28 @@ import {
   turnStarted,
   wakeConsumed,
 } from './finding-fixtures'
-import { FILE, THREAD, analyticsRecorder, createRig, wroteNothing } from './support'
+import { FILE, THREAD, analyticsRecorder, completedOf, createRig, wroteNothing } from './support'
+
+const REVIEW_ID = 'review-1'
 
 describe('resolvedFindingProperties', () => {
   const events = eventsOf([notified(), said, said])
 
   it('counts the steps and the turns since the record that notified the finding', () => {
-    expect(resolvedFindingProperties({ records: [resolved()], events, threadId: THREAD })).toEqual([
-      { policy_id: 'single-responsibility', steps_after_nudge: 2, turns_after_nudge: 0 },
+    expect(
+      resolvedFindingProperties({
+        reviewId: REVIEW_ID,
+        records: [resolved()],
+        events,
+        threadId: THREAD,
+      }),
+    ).toEqual([
+      {
+        review_id: REVIEW_ID,
+        policy_id: 'single-responsibility',
+        steps_after_nudge: 2,
+        turns_after_nudge: 0,
+      },
     ])
   })
 
@@ -35,7 +49,12 @@ describe('resolvedFindingProperties', () => {
     const withTurn = eventsOf([notified(), said, turnStarted, said])
 
     expect(
-      resolvedFindingProperties({ records: [resolved()], events: withTurn, threadId: THREAD })[0],
+      resolvedFindingProperties({
+        reviewId: REVIEW_ID,
+        records: [resolved()],
+        events: withTurn,
+        threadId: THREAD,
+      })[0],
     ).toMatchObject({ steps_after_nudge: 2, turns_after_nudge: 1 })
   })
 
@@ -43,7 +62,12 @@ describe('resolvedFindingProperties', () => {
     const subagent = eventsOf([briefSaid, notified(), said, wakeConsumed, said])
 
     expect(
-      resolvedFindingProperties({ records: [resolved()], events: subagent, threadId: THREAD })[0],
+      resolvedFindingProperties({
+        reviewId: REVIEW_ID,
+        records: [resolved()],
+        events: subagent,
+        threadId: THREAD,
+      })[0],
     ).toMatchObject({ steps_after_nudge: 2, turns_after_nudge: 1 })
   })
 
@@ -62,7 +86,12 @@ describe('resolvedFindingProperties', () => {
     })
 
     expect(
-      resolvedFindingProperties({ records: [record], events: unnotified, threadId: THREAD }),
+      resolvedFindingProperties({
+        reviewId: REVIEW_ID,
+        records: [record],
+        events: unnotified,
+        threadId: THREAD,
+      }),
     ).toEqual([])
   })
 
@@ -71,6 +100,7 @@ describe('resolvedFindingProperties', () => {
 
     expect(
       resolvedFindingProperties({
+        reviewId: REVIEW_ID,
         records: [resolved()],
         events: alreadyResolved,
         threadId: THREAD,
@@ -93,28 +123,49 @@ const stringsOf = (properties: Readonly<Record<string, PodAnalyticsValue>>): rea
   Object.values(properties).flatMap((value) => stringsIn(value))
 
 describe('the completed review event', () => {
-  it('reports status, policies, files and the classifier that answered', async () => {
+  it('reports status, verdicts, extents and the classifier that answered', async () => {
     const { captured, analytics } = analyticsRecorder()
     const rig = createRig({ analytics })
 
     await rig.run()
 
-    expect(captured).toHaveLength(1)
-    expect(captured[0]?.event).toBe('quality review completed')
-    expect(captured[0]?.properties).toMatchObject({
+    const completed = completedOf(captured)
+    expect(completed?.properties).toMatchObject({
       status: 'completed',
       skip_reason: null,
+      skip_reasons: [],
       policy_ids: ['single-responsibility'],
-      policies: [
-        { policy_id: 'single-responsibility', outcome: 'new_finding', max_confidence: 0.9 },
-      ],
+      policies: [{ policy_id: 'single-responsibility', verdict: 'nudged', max_concern: 0.9 }],
       files: 1,
       notified: true,
+      tool: 'write',
+      scopes_total: 1,
+      scopes_selected: 1,
+      extensions: ['.ts'],
       classifier_model: 'jev-latest',
       classifier_provider: 'jev',
       language: 'typescript',
       input_tokens: null,
       first_review_in_session: true,
+    })
+    expect(String(completed?.properties.review_id)).toMatch(/^[0-9a-f-]{36}$/)
+    expect(completed?.links).toBe(EAnalyticsLinks.Hashed)
+  })
+
+  it('counts every skip reason of the run', async () => {
+    const { captured, analytics } = analyticsRecorder()
+    const rig = createRig({ analytics })
+
+    await rig.run({ projectDirectory: '/elsewhere' })
+
+    const completed = completedOf(captured)
+    expect(completed?.properties).toMatchObject({
+      status: 'skipped',
+      skip_reason: EQualitySkipReason.OutsideWorkspace,
+      skip_reasons: [EQualitySkipReason.OutsideWorkspace],
+      scopes_total: 0,
+      scopes_selected: 0,
+      extensions: ['.ts'],
     })
   })
 
@@ -128,12 +179,12 @@ describe('the completed review event', () => {
 
     await rig.run()
 
-    expect(captured[0]?.properties).toMatchObject({
+    expect(completedOf(captured)?.properties).toMatchObject({
       status: 'deadline',
       skip_reason: EQualitySkipReason.ReviewDeadline,
       notified: false,
     })
-    expect(Number(captured[0]?.properties.total_ms)).toBeGreaterThan(0)
+    expect(Number(completedOf(captured)?.properties.total_ms)).toBeGreaterThan(0)
   })
 
   it('reports an operational error when the classifier fails', async () => {
@@ -149,7 +200,7 @@ describe('the completed review event', () => {
 
     await rig.run()
 
-    expect(captured[0]?.properties).toMatchObject({ status: 'operational_error' })
+    expect(completedOf(captured)?.properties).toMatchObject({ status: 'operational_error' })
   })
 
   it('reports a review skipped outside the workspace', async () => {
@@ -158,7 +209,7 @@ describe('the completed review event', () => {
 
     await rig.run({ projectDirectory: '/elsewhere' })
 
-    expect(captured[0]?.properties).toMatchObject({
+    expect(completedOf(captured)?.properties).toMatchObject({
       status: 'skipped',
       skip_reason: EQualitySkipReason.OutsideWorkspace,
     })
@@ -170,7 +221,7 @@ describe('the completed review event', () => {
 
     await rig.run()
 
-    expect(captured[0]?.properties).toMatchObject({ first_review_in_session: false })
+    expect(completedOf(captured)?.properties).toMatchObject({ first_review_in_session: false })
   })
 
   it('sends only ids, enums, numbers and booleans', async () => {
@@ -179,7 +230,7 @@ describe('the completed review event', () => {
 
     await rig.run()
 
-    const strings = stringsOf(captured[0]?.properties ?? {})
+    const strings = stringsOf(completedOf(captured)?.properties ?? {})
     expect(strings).not.toContain(FILE)
     expect(strings).not.toContain('Widget')
     for (const value of strings) expect(value).toMatch(/^[a-z0-9_.:-]+$/i)
@@ -209,19 +260,15 @@ describe('the ignored event through the after-turn hook', () => {
 
     await turnRig.ignored.run({ threadId: THREAD })
 
-    expect(captured).toEqual([
-      {
-        event: 'quality review completed',
-        properties: expect.objectContaining({ status: 'completed' }),
+    expect(captured).toContainEqual({
+      event: 'quality finding ignored',
+      properties: {
+        policy_id: 'single-responsibility',
+        steps_after_nudge: 1,
+        turns_after_nudge: 0,
       },
-      {
-        event: 'quality finding ignored',
-        properties: {
-          policy_id: 'single-responsibility',
-          steps_after_nudge: 1,
-          turns_after_nudge: 0,
-        },
-      },
-    ])
+      links: EAnalyticsLinks.Hashed,
+    })
+    expect(completedOf(captured)?.properties).toMatchObject({ status: 'completed' })
   })
 })

@@ -6,6 +6,7 @@ import { type ChangesCheckout, ChangesSnapshotter, ESnapshotTrigger } from './ch
 import { runGit } from './checkouts/git'
 import { ContextMirror } from './context/context-mirror'
 import type { OomObserver } from './oom-observer'
+import type { PodSampleObserver } from './pod-sample-observer'
 import { logDriveFault } from './held-runner'
 import type { HeldSessionDeps } from './held-session-deps'
 import type { SessionRuntime } from './ports'
@@ -82,6 +83,7 @@ export class HeldObservation {
   private readonly runtime: SessionRuntime
   private readonly branches: BranchObserver
   private readonly oom: OomObserver | undefined
+  private readonly podSamples: PodSampleObserver | undefined
   private readonly changes: ChangesSnapshotter | undefined
   private readonly context: ContextMirror | undefined
   private unsubscribeCheckouts: (() => void) | undefined
@@ -93,11 +95,13 @@ export class HeldObservation {
     threadId: ThreadId
     branches: BranchObserver
     oom?: OomObserver | undefined
+    podSamples?: PodSampleObserver | undefined
   }) {
     this.deps = args.deps
     this.runtime = args.runtime
     this.branches = args.branches
     this.oom = args.oom
+    this.podSamples = args.podSamples
     this.changes = createChangesSnapshotter(args)
     this.context = createContextMirror(args)
   }
@@ -112,9 +116,14 @@ export class HeldObservation {
     this.context?.start()
   }
 
-  turnEnded(): void {
+  turnStarted(): Promise<void> {
+    return this.podSamples?.turnStarted() ?? Promise.resolve()
+  }
+
+  async turnEnded(): Promise<void> {
     void this.changes?.snapshotNow(ESnapshotTrigger.TurnEnd)
     void this.context?.rescanNow()
+    await this.podSamples?.turnEnded()
   }
 
   refreshBranches(): void {
@@ -124,6 +133,7 @@ export class HeldObservation {
   drain(): void {
     this.branches.stop()
     this.oom?.stop()
+    void this.podSamples?.stop()
     this.releaseCheckouts()
     void this.changes?.stop()
     void this.context?.stop()
@@ -132,6 +142,7 @@ export class HeldObservation {
   async stop(): Promise<void> {
     this.branches.stop()
     this.oom?.stop()
+    void this.podSamples?.stop()
     this.releaseCheckouts()
     await this.withinStopDeadline(this.stopping())
   }

@@ -127,6 +127,7 @@ export type SpanFields = {
   readonly sizes?: Readonly<Record<string, number>> | undefined
   readonly hashes?: Readonly<Record<string, string>> | undefined
   readonly timings?: Readonly<Record<string, number>> | undefined
+  readonly extra?: Readonly<Record<string, string | number | boolean>> | undefined
 }
 
 export type SpanHandle = {
@@ -189,8 +190,9 @@ export const spanAttributesOf = (
   fields: SpanFields | undefined,
 ): Record<string, string | number | boolean> => {
   if (fields === undefined) return {}
-  const { sizes, hashes, timings, ...rest } = fields
+  const { sizes, hashes, timings, extra, ...rest } = fields
   return {
+    ...extra,
     ...Object.fromEntries(
       Object.entries(rest).filter(
         (entry): entry is [string, string | number | boolean] => entry[1] !== undefined,

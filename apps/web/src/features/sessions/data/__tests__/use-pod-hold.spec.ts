@@ -75,8 +75,10 @@ describe('usePodHold', () => {
     expect(calls).toEqual([])
 
     Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' })
-    document.dispatchEvent(new Event('visibilitychange'))
-    expect(calls).toEqual([SESSION])
+    await act(async () => {
+      document.dispatchEvent(new Event('visibilitychange'))
+      expect(calls).toEqual([SESSION])
+    })
     await unmount()
   })
 

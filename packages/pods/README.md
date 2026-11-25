@@ -48,6 +48,8 @@ they read. `apps/api` and `apps/trigger` both use it. It has no framework import
   source for a pod. Both throw `SandboxNotConfiguredError` when the session has no usable
   credential.
 - `sandboxLiveCpuMs({ sessionId })` reads the Vercel CPU series from a 30 s cache.
+- A `DaemonEndpoint` carries `start`: `EPodStart` says the wake created the pod, woke it,
+  repaired a crash loop, or found it already `running`.
 
 ### Read the sandbox config
 
@@ -75,6 +77,8 @@ they read. `apps/api` and `apps/trigger` both use it. It has no framework import
   leaves for its session.
 - `POD_DISK_CEILING_LIFETIME_STEPS` and `podDiskCeilingNotice({ usedBytes, limitBytes, percent })`
   are the inbox nudge a pod at the 100 GB ceiling leaves for its session at 85% and 95% full.
+- `PodDiskGrowDeps.started` reports the pod a successful grow restarted, with the disk it grew
+  from and to.
 
 ### Sweep pods
 

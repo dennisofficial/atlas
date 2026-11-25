@@ -19,8 +19,20 @@ describe('closedFindingProperties', () => {
   it('reports a notified finding whose scope this write retired', () => {
     const events = eventsOf([notified(), said, turnStarted, said])
 
-    expect(closedFindingProperties({ records: [retired()], events, threadId: THREAD })).toEqual([
-      { policy_id: 'single-responsibility', steps_after_nudge: 2, turns_after_nudge: 1 },
+    expect(
+      closedFindingProperties({
+        reviewId: 'review-1',
+        records: [retired()],
+        events,
+        threadId: THREAD,
+      }),
+    ).toEqual([
+      {
+        review_id: 'review-1',
+        policy_id: 'single-responsibility',
+        steps_after_nudge: 2,
+        turns_after_nudge: 1,
+      },
     ])
   })
 
@@ -35,6 +47,7 @@ describe('closedFindingProperties', () => {
 
     expect(
       closedFindingProperties({
+        reviewId: 'review-1',
         records: [retired({ notified: false })],
         events,
         threadId: THREAD,
@@ -45,15 +58,34 @@ describe('closedFindingProperties', () => {
   it('says nothing for a finding that was already resolved', () => {
     const events = eventsOf([notified(), said, resolved()])
 
-    expect(closedFindingProperties({ records: [retired()], events, threadId: THREAD })).toEqual([])
+    expect(
+      closedFindingProperties({
+        reviewId: 'review-1',
+        records: [retired()],
+        events,
+        threadId: THREAD,
+      }),
+    ).toEqual([])
   })
 
   it('leaves a classifier resolve to the resolved event alone', () => {
     const events = eventsOf([notified(), said])
 
-    expect(closedFindingProperties({ records: [resolved()], events, threadId: THREAD })).toEqual([])
     expect(
-      resolvedFindingProperties({ records: [resolved()], events, threadId: THREAD }),
+      closedFindingProperties({
+        reviewId: 'review-1',
+        records: [resolved()],
+        events,
+        threadId: THREAD,
+      }),
+    ).toEqual([])
+    expect(
+      resolvedFindingProperties({
+        reviewId: 'review-1',
+        records: [resolved()],
+        events,
+        threadId: THREAD,
+      }),
     ).toHaveLength(1)
   })
 })

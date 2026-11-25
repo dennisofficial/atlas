@@ -8,7 +8,7 @@ import {
   type ToolOutcome,
 } from '@dltech/atlas-core'
 
-import { NO_REVIEW_METRICS, type QualityReviewResult } from '../../review/engine'
+import { NO_REVIEW_METRICS, NO_REVIEW_RESULT, type QualityReviewResult } from '../../review/engine'
 import type { QualityNote } from '../../review/review-records'
 import type { ReviewArgs } from '../../review/review-context'
 import { outcomeOf, reviewWithinBudget, type QualityReviewRun } from '../review-outcome'
@@ -36,7 +36,7 @@ const noteOf = (content: string): QualityNote => ({ key: 'src/widget.ts', conten
 const resultOf = (args: {
   records: QualityReviewResult['records']
   notes: QualityReviewResult['notes']
-}): QualityReviewResult => ({ ...NO_REVIEW_METRICS, ...args, flagged: [] })
+}): QualityReviewResult => ({ ...NO_REVIEW_RESULT, ...args })
 
 const reviewerThat = (
   work: (args: ReviewArgs) => Promise<QualityReviewResult>,

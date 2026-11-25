@@ -7,12 +7,14 @@ import {
   type Event,
   type RecordEvent,
 } from '@dltech/atlas-core'
-import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
+import { EAnalyticsLinks, type PluginPodContext } from '@dltech/atlas-plugin-sdk'
 
 import { CodeQualityReview } from '../review/engine'
 import { qualityRegistry } from '../review/registry'
 import { prepareQualityScopes } from '../review/source'
 import { closedFindingProperties } from './analytics/closed-properties'
+import { ignoredFindingProperties } from './analytics/ignored-properties'
+import { newReviewId, type QualityNotified } from './analytics/review-links'
 import {
   QUALITY_FINDING_CLOSED,
   QUALITY_FINDING_IGNORED,
@@ -21,8 +23,13 @@ import {
   resolvedFindingProperties,
   reviewCompletedProperties,
 } from './analytics/review-properties'
-import { QUALITY_EXAMPLE_FLAGGED, exampleFlaggedProperties } from './analytics/example-properties'
-import { ignoredFindingProperties } from './analytics/ignored-properties'
+import { QUALITY_SCOPE_ASSESSED, scopeAssessedProperties } from './analytics/scope-properties'
+import {
+  EQualityUnavailableReason,
+  QUALITY_REVIEW_UNAVAILABLE,
+  reportUnavailableOnce,
+  unavailableProperties,
+} from './analytics/unavailable'
 import { noteDraftsOf, retirementDraftsOf } from './notes'
 import { reviewWithinBudget } from './review-outcome'
 
@@ -31,7 +38,6 @@ export const QUALITY_REVIEW_BUDGET_MS = 1000
 export type QualitySettings = {
   enabled: boolean
   policies: Readonly<Record<string, boolean>>
-  examples: boolean
 }
 
 export type QualityReviewOptions = {
@@ -47,6 +53,18 @@ const coreEventsOf = (events: readonly RecordEvent[]): readonly Event[] =>
     return []
   })
 
+const captureUnavailable = (args: {
+  ctx: PluginPodContext
+  reason: EQualityUnavailableReason
+}): void => {
+  if (!reportUnavailableOnce({ sessionId: args.ctx.sessionId, reason: args.reason })) return
+  args.ctx.analytics.capture({
+    event: QUALITY_REVIEW_UNAVAILABLE,
+    properties: unavailableProperties({ reason: args.reason }),
+    links: EAnalyticsLinks.Hashed,
+  })
+}
+
 export const qualityReviewHook = (args: {
   ctx: PluginPodContext
   options: QualityReviewOptions
@@ -55,18 +73,32 @@ export const qualityReviewHook = (args: {
   order: { stage: EStage.Observe, nudge: 20 },
   capturesFileChanges: async ({ call }) => {
     if (call.effect !== EToolEffect.Write) return false
-    if (!args.ctx.classifier.status().on) return false
-    return (await args.options.settings(args.ctx)).enabled
+    if (!args.ctx.classifier.status().on) {
+      captureUnavailable({ ctx: args.ctx, reason: EQualityUnavailableReason.ClassifierOff })
+      return false
+    }
+    if (!(await args.options.settings(args.ctx)).enabled) {
+      captureUnavailable({ ctx: args.ctx, reason: EQualityUnavailableReason.SettingOff })
+      return false
+    }
+    return true
   },
   run: async ({ call, result, projectDirectory, signal }) => {
     const status = args.ctx.classifier.status()
-    if (!status.on || !result.ok) return {}
+    if (!status.on) {
+      captureUnavailable({ ctx: args.ctx, reason: EQualityUnavailableReason.ClassifierOff })
+      return {}
+    }
+    if (!result.ok) return {}
     const changes = result.fileChanges ?? []
     const captureFaults = result.fileChangeFaults ?? []
     if (changes.length === 0 && captureFaults.length === 0) return {}
 
     const settings = await args.options.settings(args.ctx)
-    if (!settings.enabled) return {}
+    if (!settings.enabled) {
+      captureUnavailable({ ctx: args.ctx, reason: EQualityUnavailableReason.SettingOff })
+      return {}
+    }
 
     const review = new CodeQualityReview({
       classifier: args.ctx.classifier,
@@ -78,6 +110,7 @@ export const qualityReviewHook = (args: {
       deadlineMs: args.options.budgetMs,
     })
 
+    const reviewId = newReviewId()
     const events = args.ctx.events()
     const startedAt = args.options.clock()
     const attempted = await reviewWithinBudget({
@@ -102,42 +135,69 @@ export const qualityReviewHook = (args: {
           }
         : attempted
 
+    const factsById = new Map(outcome.scopes.map((facts) => [facts.scopeId, facts]))
+    const nudged: readonly QualityNotified[] = outcome.flagged.map(({ entry }) => ({
+      policyId: entry.policy.id,
+      scopeId: entry.assessment.scopeId,
+    }))
+
+    for (const record of outcome.records) {
+      const facts = record.scope === undefined ? undefined : factsById.get(record.scope.id)
+      if (facts === undefined) continue
+      for (const assessment of record.assessments) {
+        args.ctx.analytics.capture({
+          event: QUALITY_SCOPE_ASSESSED,
+          properties: scopeAssessedProperties({
+            reviewId,
+            record,
+            assessment,
+            facts,
+            notified: nudged,
+          }),
+          links: EAnalyticsLinks.Hashed,
+        })
+      }
+    }
+
     args.ctx.analytics.capture({
       event: QUALITY_REVIEW_COMPLETED,
       properties: reviewCompletedProperties({
+        reviewId,
         records: outcome.records,
         metrics: outcome,
         files: changes.length,
         notified: outcome.notes.length > 0,
+        nudged,
+        tool: call.name.toLowerCase(),
         classifier: { model: status.model, provider: status.provider },
         events,
       }),
+      links: EAnalyticsLinks.Hashed,
     })
-    if (settings.examples) {
-      for (const example of outcome.flagged) {
-        const properties = exampleFlaggedProperties({
-          example,
-          projectDirectory,
-          classifierModel: status.model,
-        })
-        if (properties !== null) {
-          args.ctx.analytics.capture({ event: QUALITY_EXAMPLE_FLAGGED, properties })
-        }
-      }
-    }
+
     for (const properties of resolvedFindingProperties({
+      reviewId,
       records: outcome.records,
       events,
       threadId: call.threadId,
     })) {
-      args.ctx.analytics.capture({ event: QUALITY_FINDING_RESOLVED, properties })
+      args.ctx.analytics.capture({
+        event: QUALITY_FINDING_RESOLVED,
+        properties,
+        links: EAnalyticsLinks.Hashed,
+      })
     }
     for (const properties of closedFindingProperties({
+      reviewId,
       records: outcome.records,
       events,
       threadId: call.threadId,
     })) {
-      args.ctx.analytics.capture({ event: QUALITY_FINDING_CLOSED, properties })
+      args.ctx.analytics.capture({
+        event: QUALITY_FINDING_CLOSED,
+        properties,
+        links: EAnalyticsLinks.Hashed,
+      })
     }
 
     return {
@@ -156,7 +216,11 @@ export const qualityIgnoredHook = (args: { ctx: PluginPodContext }): RegisteredH
   run: async ({ threadId }) => {
     const events = args.ctx.events()
     for (const properties of ignoredFindingProperties({ events, threadId })) {
-      args.ctx.analytics.capture({ event: QUALITY_FINDING_IGNORED, properties })
+      args.ctx.analytics.capture({
+        event: QUALITY_FINDING_IGNORED,
+        properties,
+        links: EAnalyticsLinks.Hashed,
+      })
     }
     return {}
   },

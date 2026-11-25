@@ -38,6 +38,22 @@ class InterruptedTool extends ToolDefinition {
   }
 }
 
+class DetailedTool extends ToolDefinition {
+  readonly name = 'slow'
+  readonly description = 'a tool that reports how its command ran'
+  readonly effect = EToolEffect.Read
+  readonly inputSchema = z.unknown()
+
+  async invoke(_args: ToolInvocation): Promise<ToolOutcome> {
+    return {
+      ok: true,
+      output: 'done',
+      modelText: 'done',
+      spanDetail: { 'exec.outcome': 'exit', 'exec.exitCode': 2, 'exec.program': 'make' },
+    }
+  }
+}
+
 const dispatchUnder = async (args: {
   signal: AbortSignal
   tool?: ToolDefinition | undefined
@@ -107,5 +123,20 @@ describe('the tool span outcome', () => {
     })
 
     expect(trace.named(ESpan.Tool)[0]?.fields.outcome).toBe(ESpanOutcome.Error)
+  })
+
+  it('carries the span detail a tool result reported, next to its outcome', async () => {
+    const trace = await dispatchUnder({
+      signal: new AbortController().signal,
+      tool: new DetailedTool(),
+    })
+    const tool = trace.named(ESpan.Tool)[0]
+
+    expect(tool?.fields.extra).toEqual({
+      'exec.outcome': 'exit',
+      'exec.exitCode': 2,
+      'exec.program': 'make',
+    })
+    expect(tool?.fields.outcome).toBe(ESpanOutcome.Ok)
   })
 })

@@ -36,6 +36,7 @@ import {
   ESpanOutcome,
   spanWith,
   type LogPort,
+  type SpanHandle,
   type TracePort,
 } from '@dltech/atlas-observability'
 
@@ -116,7 +117,7 @@ export class HookedToolDispatcher extends ToolDispatcher {
       },
       run: async (span) => {
         try {
-          const drafts = await this.dispatchTraced(args)
+          const drafts = await this.dispatchTraced(args, span)
           span.set({
             outcome: outcomeOf({
               drafts,
@@ -141,7 +142,10 @@ export class HookedToolDispatcher extends ToolDispatcher {
     })
   }
 
-  private async dispatchTraced(args: DispatchArgs): Promise<readonly EventDraft[]> {
+  private async dispatchTraced(
+    args: DispatchArgs,
+    span: SpanHandle,
+  ): Promise<readonly EventDraft[]> {
     const {
       call,
       signal,
@@ -249,6 +253,8 @@ export class HookedToolDispatcher extends ToolDispatcher {
     if (isParkedOutcome(result)) {
       return [...drafts, parkedDraftOf({ call, result })]
     }
+
+    if (result.spanDetail !== undefined) span.set({ extra: result.spanDetail })
 
     const afterTool = await spanWith(this.trace, {
       name: ESpan.ToolAfterHooks,
