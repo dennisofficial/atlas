@@ -102,7 +102,7 @@ describe.skipIf(REDIS_URL === undefined)('a daemon restart brings declared servi
         threadId,
         want: (rows) =>
           startedWithName(rows, 'web').length === 2 &&
-          endedWithCause(rows, EShellEndCause.SandboxStopped).length === 1,
+          endedWithCause(rows, EShellEndCause.PodRestarted).length === 1,
         timeoutMs: 120_000,
       })
       .catch((error: unknown) => {
@@ -114,7 +114,7 @@ describe.skipIf(REDIS_URL === undefined)('a daemon restart brings declared servi
 
     const starts = startedWithName(after, 'web')
     expect(starts).toHaveLength(2)
-    expect(endedWithCause(after, EShellEndCause.SandboxStopped)).toHaveLength(1)
+    expect(endedWithCause(after, EShellEndCause.PodRestarted)).toHaveLength(1)
     const hashes = starts.map((row) => (row.event as { declarationHash?: string }).declarationHash)
     expect(hashes[0]).toBeDefined()
     expect(hashes[1]).toBe(hashes[0])

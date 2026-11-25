@@ -36,9 +36,15 @@ export const shellsPod: PodSlot = {
       if (frame.event.type === 'shells.ended') state.live.forget(frame.event.shellId)
     })
     reconcileShells({ ctx, state }).catch((error: unknown) =>
-      ctx.log(`shells: takeover reconcile failed: ${String(error)}`),
+      ctx.log(`shells: reconcile failed: ${String(error)}`),
     )
     return { afterTool: [adoptedShellHook({ ctx, state })] }
+  },
+  onDaemonReady: ({ ctx, hello }) => {
+    if (!hello.restart) return
+    reconcileShells({ ctx, state: stateFor(ctx) }).catch((error: unknown) =>
+      ctx.log(`shells: restart reconcile failed: ${String(error)}`),
+    )
   },
   prompts: [new BackgroundShellsFragment()],
   commands: (ctx) => new Map([[shellKill.inboxKind, shellKillHandlerOf(ctx)]]),

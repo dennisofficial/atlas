@@ -35,7 +35,7 @@ const depsOf = (args: {
       return await readPodRebootFacts({ plane: args.plane, session })
     },
     closeRun: async (closeArgs) => {
-      await recordSandboxRunClose({ sessionId: closeArgs.podSessionId, sandboxStopped: true })
+      await recordSandboxRunClose({ sessionId: closeArgs.podSessionId })
     },
     grow: (growArgs) => args.disk.grow(growArgs),
     recordDisk: async (recordArgs) => {

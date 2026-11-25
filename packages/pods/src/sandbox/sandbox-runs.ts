@@ -1,12 +1,7 @@
 import { randomUUID } from 'node:crypto'
 
 import { ESandboxCostProvider, type SandboxCompute } from '@dltech/atlas-core'
-import {
-  PostgresSandboxRunStore,
-  postQuietEndingsOf,
-  sandboxRunRecorderOf,
-} from '@dltech/atlas-control'
-import { PostgresControlStore } from '@dltech/atlas-control/postgres'
+import { PostgresSandboxRunStore, sandboxRunRecorderOf } from '@dltech/atlas-control'
 import { ESandboxProvider } from '@dltech/atlas-protocol'
 import { db } from '@dltech/atlas-db'
 
@@ -22,23 +17,6 @@ export const sandboxRuns = sandboxRunRecorderOf({
   ids: () => randomUUID(),
   now: () => Date.now(),
 })
-
-const quietEndingStore = new PostgresControlStore(db)
-
-const postQuietEndings = async (sessionId: string): Promise<void> => {
-  try {
-    const session = await db.orm.public.Session.first({ id: sessionId })
-    if (session === undefined || session === null) return
-    await postQuietEndingsOf({
-      store: quietEndingStore,
-      sessionId,
-      mainThreadId: session.mainThreadId,
-      at: new Date().toISOString(),
-    })
-  } catch {
-    return
-  }
-}
 
 export const costProviderOf = (provider: ESandboxProvider): ESandboxCostProvider =>
   provider === ESandboxProvider.Agent37 ? ESandboxCostProvider.Agent37 : ESandboxCostProvider.Vercel
@@ -135,7 +113,6 @@ export const recordSandboxRunClose = async (args: {
   sessionId: string
   cpuCumulativeMs?: number | undefined
   at?: number | undefined
-  sandboxStopped?: boolean | undefined
 }): Promise<void> => {
   try {
     await sandboxRuns.close({
@@ -146,7 +123,6 @@ export const recordSandboxRunClose = async (args: {
   } catch {
     return
   }
-  if (args.sandboxStopped !== false) await postQuietEndings(args.sessionId)
 }
 
 export const recordSandboxRunCloseForInstance = async (args: {
@@ -160,7 +136,6 @@ export const recordSandboxRunCloseForInstance = async (args: {
   } catch {
     return
   }
-  await postQuietEndings(session.id)
 }
 
 export const recordSandboxRunReopenForInstance = async (args: {

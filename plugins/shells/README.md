@@ -50,11 +50,14 @@ its roster view.
 
 ### The slots
 
-`shellsPod` gives the four tools, the after-tool hook, the daemon listener and the
+`shellsPod` gives the four tools, the after-tool hook, the daemon listener, the reconcile and the
 `shells.background` prompt fragment.
 - `shells-adopted-bash` (afterTool): drafts `background-shell-started` when a `bash` call returns
   a backgrounded shell, and records that the shell has a stdin.
 - The daemon listener: records a shell ending, and publishes the shell output as it arrives.
+- The reconcile runs when a host takes the session over and when the daemon restarts under the same
+  host. It adopts each open shell the daemon still lists and records one ending for a shell it does
+  not, so a pod that only slept and woke posts no ending.
 
 `shell_output` marks a shell that waits for input and sends the `background-shell-awaiting-input`
 notice.

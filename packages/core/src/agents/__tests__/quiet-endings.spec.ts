@@ -46,11 +46,11 @@ const envelope = (body: EventDraft, seq: number): Event =>
 
 describe('an ending written because the sandbox stopped', () => {
   it('hands the turn to the model for a shell, so an agent that waits on it wakes', () => {
-    expect(isTurnTaking(shellEnded({ cause: EShellEndCause.SandboxStopped }))).toBe(true)
+    expect(isTurnTaking(shellEnded({ cause: EShellEndCause.PodRestarted }))).toBe(true)
   })
 
   it('does not hand the turn to the model for a service', () => {
-    expect(isTurnTaking(serviceEnded({ cause: EShellEndCause.SandboxStopped }))).toBe(false)
+    expect(isTurnTaking(serviceEnded({ cause: EShellEndCause.PodRestarted }))).toBe(false)
   })
 
   it('leaves every other ending waking the model, flagged or legacy', () => {
@@ -61,9 +61,9 @@ describe('an ending written because the sandbox stopped', () => {
   it('still counts as the ending of what the record held open', () => {
     const events = [
       envelope({ type: 'background-shell-started', shellId: 'bash_1', command: 'bun test' }, 1),
-      envelope({ ...shellEnded({ cause: EShellEndCause.SandboxStopped }) }, 2),
+      envelope({ ...shellEnded({ cause: EShellEndCause.PodRestarted }) }, 2),
       envelope({ type: 'service-started', serviceId: 'svc_1', command: 'bun dev' }, 3),
-      envelope({ ...serviceEnded({ cause: EShellEndCause.SandboxStopped }) }, 4),
+      envelope({ ...serviceEnded({ cause: EShellEndCause.PodRestarted }) }, 4),
     ]
 
     expect(lostShellsOf(events)).toEqual([])
