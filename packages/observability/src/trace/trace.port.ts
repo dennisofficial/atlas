@@ -24,6 +24,13 @@ export enum ESpan {
   ResourceArm = 'resource.arm',
   ResourceLoad = 'resource.load',
   ResourceAppend = 'resource.append',
+  ResourceWait = 'resource.wait',
+}
+
+export enum EResourceWait {
+  InitialRefresh = 'initial-refresh',
+  BackgroundLoad = 'background-load',
+  Settle = 'settle',
 }
 
 export enum ESpanMark {
@@ -69,6 +76,7 @@ export type SpanFields = {
   readonly hook?: string | undefined
   readonly resource?: string | undefined
   readonly phase?: string | undefined
+  readonly waitFor?: EResourceWait | undefined
   readonly status?: string | undefined
   readonly failureKind?: string | undefined
   readonly verdict?: string | undefined

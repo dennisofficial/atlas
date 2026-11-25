@@ -3,7 +3,8 @@ import { EStage, type AfterTurn, type BeforeTurn } from '@dltech/atlas-core'
 import type { PluginPodContext, PodResource } from '@dltech/atlas-plugin-sdk'
 
 import { messageOf } from './plugin-resource-probes'
-import { loadedDraftsOf, RELOADED } from './plugin-resource-refresh'
+import { loadedDraftsOf } from './plugin-resource-loads'
+import { RELOADED } from './plugin-resource-refresh'
 import type { ResourceSync } from './plugin-resource-sync'
 
 type Ctx = PluginPodContext
