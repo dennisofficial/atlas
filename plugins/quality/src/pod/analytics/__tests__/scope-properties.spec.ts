@@ -11,7 +11,7 @@ import {
   type QualityAssessment,
 } from '@dltech/atlas-core'
 
-import type { QualityScopeFacts } from '../../../review/engine'
+import type { QualityScopeFacts } from '../../../review/scope-facts'
 import { scopeAssessedProperties } from '../scope-properties'
 
 const RECORD: CodeQualityReviewedBody = {

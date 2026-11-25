@@ -11,7 +11,7 @@ import {
   QUESTION_FOCUS,
   QUESTION_IMPACT,
 } from '../../policies/single-responsibility/keys'
-import type { QualityScopeFacts } from '../../review/engine'
+import type { QualityScopeFacts } from '../../review/scope-facts'
 import { extensionOf } from './paths'
 import { wasNotified, type QualityNotified } from './review-links'
 import type { QualityReviewEventProperties } from './review-properties'
