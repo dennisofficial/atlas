@@ -3,6 +3,8 @@ import { createHash } from 'node:crypto'
 import { ECloudSetting, type PluginPodContext, type ResourceWatch } from '@dltech/atlas-plugin-sdk'
 import { ECallStatus } from '@dltech/atlas-protocol'
 
+import { ReadyTimeoutError, SandboxUnavailableError } from '../calls/errors'
+
 const WATCH_DEBOUNCE_MS = 150
 const UNKNOWN = 'unknown'
 const WATCH_ID_CHARS = 24
@@ -11,6 +13,9 @@ type Ctx = PluginPodContext
 
 export const messageOf = (failure: unknown): string =>
   failure instanceof Error ? failure.message : String(failure)
+
+export const unreachableOf = (failure: unknown): boolean =>
+  failure instanceof ReadyTimeoutError || failure instanceof SandboxUnavailableError
 
 export const watchIdOf = (watch: ResourceWatch): string => {
   const spec = JSON.stringify({
@@ -54,11 +59,17 @@ export const cloudStringOf = (args: {
     .join('|')
 }
 
+export type WatchStatus = {
+  readonly instance: string
+  readonly seqs: ReadonlyMap<string, number>
+  readonly unreachable: boolean
+}
+
 export const statusOf = async (args: {
   ctx: Ctx
   watchIds: readonly string[]
-}): Promise<{ instance: string; seqs: ReadonlyMap<string, number> }> => {
-  if (args.watchIds.length === 0) return { instance: UNKNOWN, seqs: new Map() }
+}): Promise<WatchStatus> => {
+  if (args.watchIds.length === 0) return { instance: UNKNOWN, seqs: new Map(), unreachable: false }
   try {
     const result = await args.ctx.call({ op: 'watch.status', watchIds: [...args.watchIds] })
     if (result.status !== ECallStatus.Ok) throw new Error(result.error.message)
@@ -66,10 +77,11 @@ export const statusOf = async (args: {
     return {
       instance: result.value.instance,
       seqs: new Map(result.value.watches.map((entry) => [entry.watchId, entry.seq])),
+      unreachable: false,
     }
   } catch (failure) {
     args.ctx.log(`plugin resources could not read watch status: ${messageOf(failure)}`)
-    return { instance: UNKNOWN, seqs: new Map() }
+    return { instance: UNKNOWN, seqs: new Map(), unreachable: unreachableOf(failure) }
   }
 }
 
@@ -77,7 +89,7 @@ export const armOf = async (args: {
   ctx: Ctx
   watchId: string
   watch: ResourceWatch
-}): Promise<void> => {
+}): Promise<boolean> => {
   try {
     await args.ctx.call({
       op: 'watch.start',
@@ -86,7 +98,9 @@ export const armOf = async (args: {
       debounceMs: WATCH_DEBOUNCE_MS,
       ...(args.watch.basenames === undefined ? {} : { basenames: [...args.watch.basenames] }),
     })
+    return true
   } catch (failure) {
     args.ctx.log(`plugin resources could not watch ${args.watchId}: ${messageOf(failure)}`)
+    return !unreachableOf(failure)
   }
 }

@@ -48,11 +48,15 @@ hook                            one per hook (hook, phase)
 └ resource.status / resource.versions
 └ resource.arm
 └ resource.load               (resource, phase)
+└ resource.wait               (waitFor, resource)
 └ resource.append             (drafts)
 ```
 
 The `resource.*` spans are plugin resources refreshing. They also appear under `tool.invoke` when
-a tool triggers the refresh.
+a tool triggers the refresh. `resource.wait` times what a reload or a turn-start waited for: the
+initial refresh, a background load of one resource, or every attempt to settle. It is recorded in
+the waiting context, so it appears under the `turn` or `hook` that waited even when the refresh
+itself started before that turn, outside any trace.
 
 Two more root spans carry the same service:
 
@@ -88,6 +92,7 @@ one back.
 | `provider`, `model` | `turn`, `model.call`, `model.resolve` | Which model ran |
 | `auth` | `model.call` | `oauth` or the API-key kind |
 | `phase` | `model.resolve`, `resource.load`, `resource.status` | `kept`, `timed-out` or `read-failed` on a resolve; the refresh reason on a resource span |
+| `waitFor` | `resource.wait` | What the caller waited for: `initial-refresh`, `background-load` or `settle`; `resource` names the resource for a background load |
 | `first_chunk_ms` | `model.call` | Request to the first streamed chunk of any kind |
 | `first_reasoning_ms` | `model.call` | Request to the first thinking chunk; absent when the model did not think |
 | `first_output_ms` | `model.call` | Request to the first visible text or tool-call chunk |
@@ -153,6 +158,15 @@ PostHog has no self-time column, and a child's time counts inside its parent. A 
 large duration and small children is an untraced gap: add a span where that time goes. In the
 example above the 3052 s turn is 240-295 s `bash` calls. Look at `tool` rows first; a large
 `tool.invoke` is the command, and a large `tool` with a small `tool.invoke` is the hooks.
+
+**A resumed turn waits on the handed-over tool first.** A `turn` with `entry=resume` and
+`wake=cold` usually starts with a `tool` span for a call that was in flight when the old host let
+go. The new host takes over the same daemon call (same `callId`, the command runs once) and waits
+for it, so turn start to first `model.call` is the rest of that command, not overhead. The same
+`callId` then has a `tool` span on each host, and the old one closes with outcome `handoff`. To
+measure the resume itself, subtract the longest `tool` span that starts before the first
+`model.call`. `queuedMs` and `firstTokenMs` on a resume count from the original prompt post, so
+they include the earlier turn.
 
 **Slow model calls.** Compare the p50 and p95 of both marks per model:
 
