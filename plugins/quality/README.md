@@ -52,7 +52,7 @@ The pod entry exports the first group only. The review modules below are the par
 
 ### Review a write
 
-- `CodeQualityReview`: the engine. `review(args)` returns `{ records, flagged, notes, scopes, timings, language, inputTokens }`. `records` holds the review records. `flagged` holds one `{ record, entry }` for each finding that produces an advisory note. `notes` holds one `{ key, content }` per reviewed file, keyed by the workspace-relative path; the list is empty when the review missed the deadline or found nothing to tell the model. `scopes` holds one `QualityScopeFacts` per reviewed scope: the change kind, the scope and diff sizes, the request bytes actually sent, the classifier time and whether the deadline bit. `timings` splits the scope build and the classifier calls; `inputTokens` is the classifier usage the provider reported.
+- `CodeQualityReview`: the engine. `review(args)` returns `{ records, flagged, notes, scopes, timings, language, inputTokens }`. `records` holds the review records. `flagged` holds one `{ record, entry }` for each finding that produces an advisory note. `notes` holds one `{ key, content }` per reviewed file, keyed by the workspace-relative path; the list is empty when the review missed the deadline or found nothing to tell the model. `timings` splits the scope build and the classifier calls; `inputTokens` is the classifier usage the provider reported.
 - `CodeQualityReviewDeps`: the classifier, its requested model, the source adapter, the registry, the settings accessor, the clock and the deadline in milliseconds.
 - `qualitySwitches({ values })`: the `enabled` switch and the boolean policy flags of a setting map.
 - `QUALITY_POLICIES`, `qualityRegistry`: the default registry, which holds the single-responsibility policy.
@@ -96,36 +96,11 @@ no TypeScript compiler.
 | Hook | `quality-review`          | afterTool, observe stage, nudge 20. Captures the changed text, then records a review. |
 | Hook | `quality-finding-ignored` | afterTurn, observe stage, nudge 20. Reports the findings the turn left active.        |
 
-The hooks send product events through `ctx.analytics` with ids, enums, numbers and booleans only.
-Every one of them asks the host for hashed links, so a capture carries `session_hash` and
-`thread_hash` (the first 16 hex characters of the SHA-256 of the id), and `thread_kind` (`main`,
-`sub_agent` or `teammate`), never a raw session id, thread id or title. The same run's events carry
-one `review_id`, a UUID minted per after-tool run. The "Jev quality" PostHog dashboard reads them:
-https://us.posthog.com/project/411591/dashboard/2407147.
-
-`quality scope assessed` fires once for each scope and policy the run scored. Its properties are
-`review_id`, `scope_id`, `policy_id`, `policy_version`, `scope_kind`, `change_kind` (`created` or
-`edited`), `language`, `extension`, `scope_lines`, `scope_bytes`, `diff_lines`, `request_bytes`,
-`concern_score`, `impact`, `impact_confidence`, `focus_confident`, `transition`, `verdict`,
-`near_miss`, `concern_threshold`, `impact_threshold`, `deadline_missed` and `classifier_ms`. The
-verdict is `nudged` (introduced and notified now), `repeat` (introduced on a finding already
-notified), `tracked_debt`, `near_miss` (not nudged and a concern of 0.5 or more), `clean` or
-`inconclusive`. `near_miss` is true for a scope that was not nudged and either sits at a concern of
-0.5 or more or is tracked debt. `impact_confidence` and `focus_confident` read the
-single-responsibility policy's question keys.
-
-`quality review completed` fires once per run: `review_id`, `status`, `skip_reason`, `skip_reasons`
-(every distinct reason of the run), `policy_ids`, `policies` (`policy_id`, `verdict`,
-`max_concern`), `files`, `notified`, `tool`, `scopes_total`, `scopes_selected`, `extensions`,
-`classifier_model`, `classifier_provider`, `scope_build_ms`, `classifier_ms`, `total_ms`,
-`input_tokens`, `language` and `first_review_in_session`.
-
-`quality review unavailable` fires once per session and reason, `classifier_off` or `setting_off`,
-when a `write` call asks for captured text and the review cannot run. The plugin keeps the claim of
-a session and a reason in memory, so a host that restarts or hands the session over can report the
-same reason once more.
-
-A finding event carries `review_id`, `policy_id`, `steps_after_nudge` and `turns_after_nudge`.
+The hooks send product events through `ctx.analytics` with ids, enums, numbers and booleans only. Each one asks the host for hashed links: `session_hash`, `thread_hash` (the first 16 hex characters of the SHA-256 of the id) and `thread_kind` (`main`, `sub_agent`, `teammate`). One `review_id` per after-tool run links its events. The "Jev quality" PostHog dashboard reads them: https://us.posthog.com/project/411591/dashboard/2407147.
+- `quality scope assessed`: one event per scored scope and policy, with `review_id`, `scope_id`, `policy_id`, `policy_version`, `scope_kind`, `change_kind` (`created` or `edited`), `language`, `extension`, `scope_lines`, `scope_bytes`, `diff_lines`, `request_bytes`, `concern_score`, `impact`, `impact_confidence`, `focus_confident`, `transition`, `verdict`, `near_miss`, `concern_threshold`, `impact_threshold`, `deadline_missed` and `classifier_ms`. The verdict is `nudged` (introduced and notified now), `repeat` (introduced on a finding already notified), `tracked_debt`, `near_miss` (not nudged, and a concern of 0.5 or more), `clean` or `inconclusive`.
+- `quality review completed`: `review_id`, `status`, `skip_reason`, `skip_reasons`, `policy_ids`, `policies` (`policy_id`, `verdict`, `max_concern`), `files`, `notified`, `tool`, `scopes_total`, `scopes_selected`, `extensions`, `classifier_model`, `classifier_provider`, `scope_build_ms`, `classifier_ms`, `total_ms`, `input_tokens`, `language` and `first_review_in_session`.
+- `quality review unavailable`: `classifier_off` or `setting_off`, once per session and reason. The claim lives in the pod's memory, so a restart can report the same reason once more.
+- A finding event: `review_id`, `policy_id`, `steps_after_nudge` and `turns_after_nudge`.
 
 The hook asks for captured text only for a call with the `write` effect, while the classifier is on and the `quality.enabled` setting is true. When it asks for nothing, the tool captures nothing.
 
