@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
+import { EDaemonAnswer } from '@dltech/atlas-core'
 import { ECallFailure, ECallStatus, type CallResult } from '@dltech/atlas-protocol'
 
 import { openCall, type CallLane } from '../call-open'
@@ -27,7 +28,7 @@ const laneOf = (args: {
     gone: () => false,
     linkReady: () => args.disconnected !== true,
     bootId: () => BOOT,
-    ready: async () => ({ bootId: BOOT, restart: false }),
+    ready: async () => ({ bootId: BOOT, version: 'test', restart: false }),
     arrived: () => undefined,
     flushAcks: () => 0,
     logged: () => undefined,
@@ -75,7 +76,7 @@ const interrupted = (results: readonly CallResult[]): boolean =>
 describe('a setup call that re-joins the pod after a handoff', () => {
   it('performs the first run when the pod never saw it on the boot it was dispatched on', async () => {
     const { runs, settled } = await attachOnly({
-      answer: 'never-seen',
+      answer: EDaemonAnswer.NeverSeen,
       dispatchedBootId: BOOT,
     })
     expect(settled).toHaveLength(0)
@@ -83,13 +84,16 @@ describe('a setup call that re-joins the pod after a handoff', () => {
   })
 
   it('reports the setup interrupted only when the pod booted after the dispatch', async () => {
-    const { runs, settled } = await attachOnly({ answer: 'never-seen', dispatchedBootId: OLD_BOOT })
+    const { runs, settled } = await attachOnly({
+      answer: EDaemonAnswer.NeverSeen,
+      dispatchedBootId: OLD_BOOT,
+    })
     expect(runs).toHaveLength(0)
     expect(interrupted(settled)).toBe(true)
   })
 
   it('waits instead of guessing when no dispatch boot is recorded', async () => {
-    const { runs, settled } = await attachOnly({ answer: 'never-seen' })
+    const { runs, settled } = await attachOnly({ answer: EDaemonAnswer.NeverSeen })
     expect(settled).toHaveLength(0)
     expect(runs).toHaveLength(0)
   })

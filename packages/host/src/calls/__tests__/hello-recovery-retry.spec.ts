@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
+import { EDaemonAnswer } from '@dltech/atlas-core'
 import { ECallFailure, ECallStatus, type CallResult } from '@dltech/atlas-protocol'
 
 import type { CallLane } from '../call-open'
@@ -29,7 +30,7 @@ const laneOf = (args: {
     gone: () => false,
     linkReady: () => true,
     bootId: () => bootId,
-    ready: async () => ({ bootId: bootId ?? '', restart: false }),
+    ready: async () => ({ bootId: bootId ?? '', version: 'test', restart: false }),
     arrived: (frame: { bootId: string; version: string }) => {
       bootId = frame.bootId
     },
@@ -74,7 +75,7 @@ const interrupted = (results: readonly CallResult[]): boolean =>
 
 describe('a handoff whose recovery answer never arrives', () => {
   it('retries the recovery on the next hello and never re-runs the operation blind', async () => {
-    const rig = laneOf({ answers: ['unavailable', 'never-seen'] })
+    const rig = laneOf({ answers: ['unavailable', EDaemonAnswer.NeverSeen] })
     rig.pending.set('run-1:call-1.abc.0', sentCall('boot-a'))
 
     handleHello(rig.lane, { bootId: 'boot-b', version: 'test' })
@@ -89,7 +90,7 @@ describe('a handoff whose recovery answer never arrives', () => {
   })
 
   it('holds a call whose dispatch carries no boot instead of interrupting it', async () => {
-    const rig = laneOf({ answers: ['never-seen'] })
+    const rig = laneOf({ answers: [EDaemonAnswer.NeverSeen] })
     rig.pending.set('run-1:call-1.abc.0', sentCall(undefined))
 
     handleHello(rig.lane, { bootId: 'boot-b', version: 'test' })
@@ -99,7 +100,7 @@ describe('a handoff whose recovery answer never arrives', () => {
   })
 
   it('runs the operation again when the pod answers that the same boot never saw it', async () => {
-    const rig = laneOf({ answers: ['never-seen'] })
+    const rig = laneOf({ answers: [EDaemonAnswer.NeverSeen] })
     rig.pending.set('run-1:call-1.abc.0', sentCall('boot-a'))
 
     handleHello(rig.lane, { bootId: 'boot-a', version: 'test' })

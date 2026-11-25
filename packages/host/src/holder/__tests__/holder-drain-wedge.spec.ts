@@ -5,7 +5,7 @@ import { InMemoryControlStore } from '@dltech/atlas-control/testing'
 import { FakeTool, ScriptedModel } from '@dltech/atlas-agent/testing'
 import type { ToolOutcome } from '@dltech/atlas-core'
 
-import { DRAIN_DETACH_CAP_MS, DRAIN_IN_FLIGHT_CAP_MS } from '../drain-cap'
+import { DRAIN_IN_FLIGHT_CAP_MS, DRAIN_TOOL_CALL_CAP_MS } from '../drain-cap'
 import { FakeClock, flushUntil, makeRig, seedSession, SESSION } from './holder-rig'
 
 class StallingPlane extends ControlPlane {
@@ -70,7 +70,7 @@ describe('SessionHolder drain while a record append never settles', () => {
     await a.flush()
     clock.advance(DRAIN_IN_FLIGHT_CAP_MS)
     await a.flush()
-    clock.advance(DRAIN_DETACH_CAP_MS)
+    clock.advance(DRAIN_TOOL_CALL_CAP_MS)
 
     expect(await flushUntil({ check: () => drained })).toBe(true)
     const { lease } = await a.plane.currentLease({ sessionId: SESSION })
@@ -101,7 +101,7 @@ describe('SessionHolder drain while a record append never settles', () => {
     plane.refusing = true
     clock.advance(DRAIN_IN_FLIGHT_CAP_MS)
     await a.flush()
-    clock.advance(DRAIN_DETACH_CAP_MS)
+    clock.advance(DRAIN_TOOL_CALL_CAP_MS)
 
     expect(await flushUntil({ check: () => drained })).toBe(true)
     const { lease } = await a.plane.currentLease({ sessionId: SESSION })
@@ -142,7 +142,7 @@ describe('SessionHolder drain while a record append never settles', () => {
     await a.flush()
     clock.advance(1_000)
     await a.flush()
-    clock.advance(DRAIN_DETACH_CAP_MS)
+    clock.advance(DRAIN_TOOL_CALL_CAP_MS)
 
     expect(await flushUntil({ check: () => drained })).toBe(true)
     const { lease } = await a.plane.currentLease({ sessionId: SESSION })

@@ -78,7 +78,13 @@ export class CrewRoom {
   }
 
   private async parentEvents(): Promise<readonly V2Event[]> {
-    return await this.args.parentRecord.ownEvents({ threadId: this.args.parentThreadId })
+    const page = await this.args.deps.plane.readEvents({
+      threadId: this.args.parentThreadId,
+      afterSeq: 0,
+      limit: 4_000,
+      visible: false,
+    })
+    return page.events
   }
 
   private async openChildOf(agentId: ThreadId): Promise<OpenChild | undefined> {
