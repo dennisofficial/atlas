@@ -376,7 +376,6 @@ jobs:
     if: ${{ !cancelled() && github.ref == 'refs/heads/main' && needs.ci.result == 'success' }}
     permissions:
       contents: write
-      actions: write
     concurrency:
       group: release-${{ github.ref }}
       cancel-in-progress: true

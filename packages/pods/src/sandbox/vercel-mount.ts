@@ -74,7 +74,7 @@ export async function mountWithRetries(args: {
       }
       if (isImageOptimizeFailure(failure)) {
         throw new VercelFailure(
-          `sandbox image ${args.image} failed Vercel's optimization, and Vercel pins that failure to the published digest — waiting cannot fix it. Re-running the release's sandbox-image retag publishes the same tag under a fresh digest.`,
+          `sandbox image ${args.image} failed Vercel's optimization, and Vercel pins that failure to the published digest — waiting cannot fix it. A change to infra/sandbox-image publishes the image under a fresh digest.`,
         )
       }
       if (isImageOptimizeLag(failure)) {
