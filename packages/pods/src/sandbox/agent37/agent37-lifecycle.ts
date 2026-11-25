@@ -1,5 +1,6 @@
 import { isAgent37Missing, type Agent37Client } from './agent37-client'
 import { waitForAgent37Instance } from './agent37-daemon'
+import { pollPause } from './agent37-poll'
 import type { Agent37Health, Agent37Instance } from './agent37-types'
 
 const POLL_MS = 2_000
@@ -16,8 +17,6 @@ const ASLEEP_STATUSES: ReadonlySet<string> = new Set(['sleeping', 'stopped'])
 export const AGENT37_WEDGED_RESTARTS = 3
 export const AGENT37_SETTLE_BUDGET_MS = 10 * 60_000
 
-const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
-
 const secondsOf = (ms: number): number => Math.floor(ms / 1000)
 
 export const agent37WedgedOf = (health: Agent37Health | null): boolean =>
@@ -31,12 +30,14 @@ export const settleAgent37Instance = async (args: {
   id: string
   budgetMs?: number | undefined
   pollMs?: number | undefined
+  signal?: AbortSignal | undefined
   log?: ((line: string) => void) | undefined
 }): Promise<Agent37Instance> => {
   const budgetMs = args.budgetMs ?? AGENT37_SETTLE_BUDGET_MS
   const pollMs = args.pollMs ?? POLL_MS
   const deadline = Date.now() + budgetMs
   for (;;) {
+    args.signal?.throwIfAborted()
     const instance = await args.client.get({ id: args.id })
     if (!TRANSIENT_STATUSES.has(instance.status)) return instance
     if (Date.now() >= deadline) {
@@ -47,7 +48,7 @@ export const settleAgent37Instance = async (args: {
       )
     }
     args.log?.(`agent37 instance ${args.id} is ${instance.status}; waiting for it to settle`)
-    await sleep(pollMs)
+    await pollPause({ ms: pollMs, signal: args.signal })
   }
 }
 
@@ -60,6 +61,7 @@ export const repairAgent37IfWedged = async (args: {
   id: string
   budgetMs?: number | undefined
   pollMs?: number | undefined
+  signal?: AbortSignal | undefined
   log?: ((line: string) => void) | undefined
 }): Promise<boolean> => {
   const budgetMs = args.budgetMs ?? AGENT37_SETTLE_BUDGET_MS
@@ -70,15 +72,18 @@ export const repairAgent37IfWedged = async (args: {
   args.log?.(
     `agent37 instance ${args.id} crash-loops (restart_count ${restarts}); resetting its os layer`,
   )
+  args.signal?.throwIfAborted()
   await args.client.update({ id: args.id })
   await waitForAgent37Instance({
     client: args.client,
     instanceId: args.id,
     budgetMs,
+    signal: args.signal,
     ...(args.log === undefined ? {} : { log: args.log }),
   })
   const deadline = Date.now() + budgetMs
   for (;;) {
+    args.signal?.throwIfAborted()
     if ((await args.client.logs({ id: args.id })).health?.running === true) return true
     if (Date.now() >= deadline) {
       throw new Error(
@@ -87,7 +92,7 @@ export const repairAgent37IfWedged = async (args: {
         )}s`,
       )
     }
-    await sleep(pollMs)
+    await pollPause({ ms: pollMs, signal: args.signal })
   }
 }
 
@@ -100,14 +105,17 @@ export const readyAgent37Instance = async (args: {
   client: Agent37Client
   id: string
   pollMs?: number | undefined
+  signal?: AbortSignal | undefined
   log?: ((line: string) => void) | undefined
 }): Promise<void> => {
   const instance = await settleAgent37Instance(args)
   if (ASLEEP_STATUSES.has(instance.status)) {
+    args.signal?.throwIfAborted()
     await args.client.start({ id: args.id })
     await waitForAgent37Instance({
       client: args.client,
       instanceId: args.id,
+      signal: args.signal,
       ...(args.log === undefined ? {} : { log: args.log }),
     })
     return
@@ -119,6 +127,7 @@ export const sleepAgent37Instance = async (args: {
   client: Agent37Client
   id: string
   pollMs?: number | undefined
+  signal?: AbortSignal | undefined
   log?: ((line: string) => void) | undefined
 }): Promise<void> => {
   let instance: Agent37Instance

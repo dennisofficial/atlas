@@ -9,6 +9,7 @@ import {
 } from '@dltech/atlas-protocol'
 
 import type { Agent37Client } from './agent37-client'
+import { pollPause } from './agent37-poll'
 
 const DEFAULT_LISTEN_BUDGET_MS = 3 * 60_000
 const LISTEN_POLL_MS = 1_000
@@ -37,8 +38,6 @@ export type Agent37DaemonWant = {
   protocol?: number | undefined
   minProtocol?: number | undefined
 }
-
-const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
 
 export const agent37BundleVersionOf = async (path: string): Promise<string> =>
   createHash('sha256')
@@ -85,12 +84,14 @@ export const waitForAgent37Instance = async (args: {
   client: Agent37Client
   instanceId: string
   budgetMs?: number | undefined
+  signal?: AbortSignal | undefined
   log?: ((line: string) => void) | undefined
 }): Promise<void> => {
   const budgetMs = args.budgetMs ?? AGENT37_READY_BUDGET_MS
   const deadline = Date.now() + budgetMs
   let status = 'unknown'
   for (;;) {
+    args.signal?.throwIfAborted()
     const instance = await args.client.get({ id: args.instanceId })
     status = instance.status
     if (status === 'running') {
@@ -99,7 +100,7 @@ export const waitForAgent37Instance = async (args: {
     }
     if (status === 'stopped') break
     if (Date.now() >= deadline) break
-    await sleep(READY_POLL_MS)
+    await pollPause({ ms: READY_POLL_MS, signal: args.signal })
   }
   throw new Error(
     `agent37 instance ${args.instanceId} did not reach a running status within ${Math.floor(
@@ -153,6 +154,7 @@ export const waitForAgent37Daemon = async (args: {
   pollMs?: number | undefined
   repairAfterMs?: number | undefined
   repair?: (() => Promise<boolean>) | undefined
+  signal?: AbortSignal | undefined
   log?: ((line: string) => void) | undefined
 }): Promise<void> => {
   const budgetMs = args.budgetMs ?? DEFAULT_LISTEN_BUDGET_MS
@@ -164,6 +166,7 @@ export const waitForAgent37Daemon = async (args: {
   let restarted = false
   let repaired = false
   for (;;) {
+    args.signal?.throwIfAborted()
     const report = await daemonReportOf(args)
     running = report?.version
     if (report === undefined && !repaired) {
@@ -206,7 +209,7 @@ export const waitForAgent37Daemon = async (args: {
       }
     }
     if (Date.now() >= deadline) break
-    await sleep(pollMs)
+    await pollPause({ ms: pollMs, signal: args.signal })
   }
   throw new Error(
     `agent37 instance ${args.instanceId} daemon did not answer version ${
