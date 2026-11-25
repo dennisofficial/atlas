@@ -10,6 +10,7 @@ import { daemonToken } from '@dltech/atlas-protocol/engine'
 import type { VercelSdk } from '../vercel-sdk'
 
 import { sandboxNameOf } from '../vercel-names'
+import { EPodStart } from '../sandbox-provider'
 import { VercelSandboxProvider, WAKE_DEADLINE_MS } from '../vercel-sandbox-provider'
 
 const CREDENTIALS = {
@@ -26,7 +27,7 @@ const bundle = (): { bundle: { path: string }; cleanup: () => void } => {
   return { bundle: { path }, cleanup: () => rmSync(dir, { recursive: true }) }
 }
 
-const fakeSdk = () => {
+const fakeSdk = (args: { onCreate?: boolean } = {}) => {
   const creates: Record<string, unknown>[] = []
   const sandbox = {
     name: '',
@@ -44,6 +45,9 @@ const fakeSdk = () => {
   const sdk: VercelSdk = {
     getOrCreate: async (params) => {
       creates.push(params as Record<string, unknown>)
+      if (args.onCreate !== false) {
+        await (params as { onCreate?: () => Promise<void> }).onCreate?.()
+      }
       const name = (params as { name: string }).name
       return { ...sandbox, name } as never
     },
@@ -76,6 +80,7 @@ describe('VercelSandboxProvider.wake', () => {
       expect(endpoint.sandboxName).toBe('atlas-v2-s1')
       expect(endpoint.url).toBe('wss://route-47300.vercel.run')
       expect(endpoint.token).toBe(daemonToken({ secret: 'top-secret', sandboxName: 'atlas-v2-s1' }))
+      expect(endpoint.start).toBe(EPodStart.Created)
 
       expect(creates.length).toBe(1)
       const env = (creates[0] as { env: Record<string, string> }).env
@@ -84,6 +89,28 @@ describe('VercelSandboxProvider.wake', () => {
       expect(envText).not.toContain('top-secret')
       expect(envText).not.toContain(endpoint.token)
       expect(env.VERCEL_TOKEN).toBeUndefined()
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('reports a sandbox that already existed as running', async () => {
+    const { bundle: b, cleanup } = bundle()
+    const { sdk } = fakeSdk({ onCreate: false })
+    try {
+      const provider = new VercelSandboxProvider({
+        image: 'atlas-sandbox:latest',
+        daemonBundle: b,
+        daemonSecret: 'top-secret',
+        cloudUrl: 'https://api.test',
+        sdk,
+      })
+      const endpoint = await provider.wake({
+        target: { sandboxSessionId: 's1', credentials: CREDENTIALS },
+        signal: AbortSignal.timeout(5000),
+      })
+
+      expect(endpoint.start).toBe(EPodStart.Running)
     } finally {
       cleanup()
     }

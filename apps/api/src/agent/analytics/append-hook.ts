@@ -1,4 +1,4 @@
-import { EFinishReason, type RecordEvent } from '@dltech/atlas-core'
+import { EFinishReason, programNameOf, type RecordEvent } from '@dltech/atlas-core'
 import type { AppendHook, ControlTx } from '@dltech/atlas-control'
 import type { ProductAnalytics, ProductAnalyticsProperties } from '@dltech/atlas-observability'
 import { reasonClassOf } from '@dltech/atlas-observability'
@@ -13,6 +13,8 @@ const TRACKED: ReadonlySet<EventType> = new Set<EventType>([
   'agent-spawned',
   'agent-ended',
   'pull-request-linked',
+  'pod-ran-out-of-memory',
+  'background-shell-ended',
 ])
 
 type EventType = RecordEvent['type']
@@ -87,6 +89,28 @@ const mappedOf = (event: RecordEvent): Mapped | undefined => {
       return {
         event: 'pull_request_linked',
         properties: { repo: event.repo, number: event.number },
+      }
+    case 'pod-ran-out-of-memory':
+      return {
+        event: 'pod_oom',
+        properties: {
+          scope: event.scope,
+          processes: event.processes,
+          command_limit_bytes: event.memory.commandLimitBytes,
+          pod_bytes: event.memory.podBytes,
+          ...(event.command === undefined ? {} : { program: programNameOf(event.command) }),
+        },
+      }
+    case 'background-shell-ended':
+      return {
+        event: 'shell_ended',
+        properties: {
+          status: event.status,
+          killed_by: event.killedBy ?? null,
+          exit_code: event.exitCode ?? null,
+          cause: event.cause ?? null,
+          program: programNameOf(event.command),
+        },
       }
     default:
       return undefined

@@ -166,9 +166,10 @@ describe('BashTool', () => {
     })
     setTimeout(() => controller.abort(), 100)
 
-    expect(await outcome).toEqual({
+    expect(await outcome).toMatchObject({
       ok: false,
       reason: 'the operator interrupted the turn while the command was running',
+      spanDetail: { 'exec.outcome': 'cancelled', 'exec.program': 'sleep' },
     })
   }, 15_000)
 })

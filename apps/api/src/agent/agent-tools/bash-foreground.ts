@@ -5,6 +5,7 @@ import {
   type ThreadId,
   type ToolOutcome,
   type ToolOutputChunk,
+  type ToolSpanDetail,
 } from '@dltech/atlas-core'
 
 import {
@@ -13,6 +14,7 @@ import {
   renderBackgroundedText,
   renderModelText,
 } from './bash-output'
+import { bashExecOutcomeOf, bashSpanDetailOf, EBashExecOutcome } from './bash-span-detail'
 import {
   messageOf,
   readShell,
@@ -88,6 +90,18 @@ export async function runForeground(args: {
   signal: AbortSignal
   onOutput?: ((chunk: ToolOutputChunk) => void) | undefined
 }): Promise<ToolOutcome> {
+  const startedAt = performance.now()
+  const detailOf = (exec: {
+    outcome: EBashExecOutcome
+    exitCode?: number | undefined
+  }): ToolSpanDetail =>
+    bashSpanDetailOf({
+      command: args.command,
+      outcome: exec.outcome,
+      exitCode: exec.exitCode,
+      durationMs: performance.now() - startedAt,
+    })
+
   const started = startShell({
     command: args.command,
     cwd: args.cwd,
@@ -95,7 +109,7 @@ export async function runForeground(args: {
     env: () => args.env,
     threadId: args.threadId,
   })
-  if (!started.ok) return started
+  if (!started.ok) return { ...started, spanDetail: detailOf({ outcome: EBashExecOutcome.Exit }) }
 
   const shellId = newShellId()
   let waited: { read: ShellOutput; deadlineFired: boolean }
@@ -109,7 +123,11 @@ export async function runForeground(args: {
     })
   } catch (error) {
     if (error instanceof CallInterruptedError) throw error
-    return { ok: false, reason: `the command could not be read back: ${messageOf(error)}` }
+    return {
+      ok: false,
+      reason: `the command could not be read back: ${messageOf(error)}`,
+      spanDetail: detailOf({ outcome: EBashExecOutcome.Exit }),
+    }
   }
 
   const { read, deadlineFired } = waited
@@ -134,6 +152,7 @@ export async function runForeground(args: {
         merged: merged.text,
         timeoutMs: args.timeoutMs,
       }),
+      spanDetail: detailOf({ outcome: EBashExecOutcome.Timeout }),
     }
   }
 
@@ -145,6 +164,7 @@ export async function runForeground(args: {
     return {
       ok: false,
       reason: 'the operator interrupted the turn while the command was running',
+      spanDetail: detailOf({ outcome: EBashExecOutcome.Cancelled }),
     }
   }
 
@@ -152,11 +172,15 @@ export async function runForeground(args: {
     return {
       ok: false,
       reason: `the command could not be run to completion (${read.outcome.code}): ${read.outcome.message}`,
+      spanDetail: detailOf({ outcome: EBashExecOutcome.Exit }),
     }
   }
 
   const exitCode =
     read.outcome.kind === EProcessOutcome.Exited ? read.outcome.code : OOM_KILLED_EXIT_CODE
+  const exec = bashExecOutcomeOf({ oomKilled, timedOut, exitCode })
+  const withExitCode =
+    exec === EBashExecOutcome.Ok || exec === EBashExecOutcome.Exit || exec === EBashExecOutcome.Oom
 
   return {
     ok: true,
@@ -179,6 +203,10 @@ export async function runForeground(args: {
       memory,
       timeoutMs: args.timeoutMs,
       maximumTimeoutMs: args.maximumTimeoutMs,
+    }),
+    spanDetail: detailOf({
+      outcome: exec,
+      ...(withExitCode ? { exitCode } : {}),
     }),
   }
 }

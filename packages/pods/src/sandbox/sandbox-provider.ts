@@ -14,6 +14,15 @@ export type DaemonEndpoint = {
   vcpus?: number | undefined
   memoryGb?: number | undefined
   diskGb?: number | undefined
+  start?: EPodStart | undefined
+}
+
+/** How the pod came to answer this wake. `Running` is a pod that was already up. */
+export enum EPodStart {
+  Created = 'created',
+  Woke = 'woke',
+  Repaired = 'repaired',
+  Running = 'running',
 }
 
 export type PodResizeOutcome = 'restarted' | 'unchanged' | 'stored' | 'absent'
