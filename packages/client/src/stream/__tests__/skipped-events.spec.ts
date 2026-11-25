@@ -85,3 +85,52 @@ describe('a client whose schema is behind the host', () => {
     expect(follower.getSnapshot().skipped).toBe(1)
   })
 })
+
+describe('a page this client cannot read at all', () => {
+  const unreadablePage = (): StreamServerMessage => ({
+    type: 'events',
+    id: 's1',
+    events: [{ seq: 35, type: 'from-the-future' }],
+    head: { seq: 35, hash: 'hash-35' },
+    cursor: { seq: 35, hash: 'hash-35' },
+    live: true,
+  })
+
+  it('leaves the skeleton by taking the page cursor', () => {
+    const { follower } = setup()
+    follower.setServerEventTypes(['from-the-future'])
+    follower.setConnection(EStreamConnectionState.Open)
+    follower.handleMessage(unreadablePage())
+    const snapshot = follower.getSnapshot()
+    expect(snapshot.cursor).toEqual({ seq: 35, hash: 'hash-35' })
+    expect(snapshot.events).toEqual([])
+    expect(snapshot.skipped).toBe(1)
+  })
+
+  it('takes the page head when the server sends no cursor', () => {
+    const { follower } = setup()
+    follower.setConnection(EStreamConnectionState.Open)
+    follower.handleMessage({
+      type: 'events',
+      id: 's1',
+      events: [{ seq: 35, type: 'from-the-future' }],
+      head: { seq: 35, hash: 'hash-35' },
+      live: true,
+    })
+    expect(follower.getSnapshot().cursor).toEqual({ seq: 35, hash: 'hash-35' })
+  })
+
+  it('loads a session whose page carries no events', () => {
+    const { follower } = setup()
+    follower.setConnection(EStreamConnectionState.Open)
+    follower.handleMessage({
+      type: 'events',
+      id: 's1',
+      events: [],
+      head: { seq: 0, hash: 'hash-0' },
+      live: true,
+    })
+    expect(follower.getSnapshot().cursor).toEqual({ seq: 0, hash: 'hash-0' })
+    expect(follower.getSnapshot().skipped).toBe(0)
+  })
+})

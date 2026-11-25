@@ -7,7 +7,8 @@ import {
   memorySessionLog,
   type StreamScheduler,
 } from '@dltech/atlas-client/stream'
-import { eventsMessage, mintEvents, userSaid } from '@dltech/atlas-client/stream-fixture'
+import { eventsMessage, headOf, mintEvents, userSaid } from '@dltech/atlas-client/stream-fixture'
+import { streamServerMessageSchema } from '@dltech/atlas-protocol'
 
 import { registeredPluginNames, eventSchema, eventTypes } from '../registered-plugins'
 
@@ -64,5 +65,37 @@ describe('the plugins this app reads', () => {
     follower.handleMessage(eventsMessage({ id: 's1', events, live: true }))
 
     expect(follower.getSnapshot().skipped).toBe(0)
+  })
+})
+
+describe('the page frame the API sends', () => {
+  it('loads the screen when the frame carries a field this build does not know', () => {
+    const events = mintEvents({ bodies: [userSaid('Say hi in one word.')] })
+    const head = headOf(events)
+    const wire = JSON.stringify({
+      type: 'events',
+      id: 'sub-1',
+      events,
+      head,
+      cursor: head,
+      live: true,
+      tailVersion: 14,
+    })
+    const frame = streamServerMessageSchema.parse(JSON.parse(wire))
+    const follower = createSessionFollower({
+      sessionId: 'thread-1',
+      log: memorySessionLog(),
+      scheduler,
+      onResnap: () => undefined,
+      eventSchema: eventSchema,
+      knownEventTypes: eventTypes,
+    })
+
+    follower.handleMessage(frame)
+
+    const snapshot = follower.getSnapshot()
+    expect(snapshot.events.map((event) => event.seq)).toEqual([1])
+    expect(snapshot.cursor).toEqual(head)
+    expect(snapshot.skipped).toBe(0)
   })
 })

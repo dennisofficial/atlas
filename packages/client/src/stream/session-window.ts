@@ -141,7 +141,14 @@ export const applyPageOutcome = (args: {
     after: window.cursor?.seq ?? 0,
     eventSchema: args.eventSchema ?? recordEventSchema,
   })
-  if (last === undefined) return { window, fresh: [], skipped, issue }
+  if (last === undefined) {
+    return {
+      window: { ...window, cursor: window.cursor ?? page.cursor ?? page.head },
+      fresh: [],
+      skipped,
+      issue,
+    }
+  }
   const events = fresh.map(({ event }) => event)
   const unfolded = events.filter((event) => event.seq > window.foldedThrough)
   const visibility = unfolded.reduce(
