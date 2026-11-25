@@ -30,10 +30,10 @@ fetched from an instruction it must follow.
   (`nudge-block`, `subscription-block`, `agent-reported-block`, `pr-event-block`, `run-event-block`,
   …) and each block decides its own tag and wording. It works, but nothing makes a new block choose
   correctly.
-- **Tool output is inconsistent.** `browser` (`plugins/web/src/pod/browser-tool.ts:81`) and
-  `web_fetch` (`fetch-tool.ts:128`) wrap their pages in `untrustedEnvelope`. `bash` returns plain
-  text (`apps/agent-host/src/agent-tools/bash-output.ts`) — the largest untrusted input in the system
-  is the one source that is not marked.
+- **Tool output is inconsistent.** `web_fetch` (`fetch-tool.ts:128`) wraps its page in
+  `untrustedEnvelope`. `bash` returns plain text (`apps/agent-host/src/agent-tools/bash-output.ts`),
+  and a page the agent opens in `agent-browser` arrives through it — the largest untrusted input in
+  the system is the one source that is not marked.
 - **The lane vocabulary is duplicated.** `agentSenderOf` in
   `packages/core/src/assembly/rules/messages-from-events.ts:163-166` and the speaker table in
   `packages/core/src/compaction/render-range.ts:130-140` both name lanes, in different words, and
@@ -72,7 +72,7 @@ export const envelopeOf = (args: Envelope): string => …
 - **Event blocks:** each block returns `{ lane, source, body }` instead of a rendered string;
   `messages-from-events` renders. A block that returns text is a type error.
 - **Tools:** a tool result names its lane. Read-only external text (`bash`, `grep` output, `web_fetch`,
-  `browser`, MCP tool results) is `Untrusted` with the tool and command as the source; Atlas's own
+  MCP tool results) is `Untrusted` with the tool and command as the source; Atlas's own
   tools (`read`, `task_write`) stay plain, because they are the model's own data, not a stranger's.
 - **Hook slots:** the slot becomes the source; the sentence per slot moves into the same table as the
   lane names, and an unknown slot still renders the generic provenance.

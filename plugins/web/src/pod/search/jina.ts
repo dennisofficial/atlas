@@ -51,7 +51,7 @@ const resultsOf = (payload: Record<string, unknown> | undefined): readonly WebSe
   })
 
 const SEARCH_ELSEWHERE =
-  'web_search stays down until the operator fixes it, so open a search page with the browser tool instead.'
+  'web_search stays down until the operator fixes it, so open a search page with `agent-browser` through bash instead.'
 
 const statusFailure = (status: number): string => {
   if (status === 401 || status === 403)

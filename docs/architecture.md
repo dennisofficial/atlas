@@ -318,9 +318,13 @@ sandbox image.)
 
 **R2. The daemon keeps CPU and process slots.** At every boot (create and resume) the pod empties the root cgroup into an
 `atlas-serve` group (high `cpu.weight`) and spawns every workload into `atlas-work` (low
-`cpu.weight`, `pids.max`), so a fork bomb hits its cap instead of the pod's pid table. Stop kills
-every pid in `atlas-work` for the thread, so a workload that calls `setsid` cannot escape it. Workload output is read in bounded chunks so a noisy process cannot monopolise the
-daemon's event loop.
+`cpu.weight`, `pids.max`), so a fork bomb hits its cap instead of the pod's pid table. Every call
+gets its own box under `atlas-work`, and the daemon kills that box when it kills the process — a
+cancelled or timed-out call, a stopped shell or service, a terminal — so a workload the daemon kills
+takes its whole tree with it. A call that ends on its own only has its process group killed, so a
+process that detaches with `setsid` — `agent-browser`'s Chrome daemon — survives the call that
+started it and serves the next one, as it would in an ordinary shell. Workload output is read in
+bounded chunks so a noisy process cannot monopolise the daemon's event loop.
 
 **R3. Workloads have a memory ceiling.** `memory.max` on the workload group (measured available)
 makes the kernel OOM-kill inside `atlas-work` before the sandbox runs out, so the daemon never competes
