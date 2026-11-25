@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { ref } from '../../media/__tests__/media-ref.spec'
+import { ref } from '../../media/__tests__/fixture'
 import type { EventDraft } from '../body'
 import { toCallId } from '../ids'
 import { eventBodySchema } from '../schema'

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { ref } from '../../../media/__tests__/media-ref.spec'
+import { ref } from '../../../media/__tests__/fixture'
 import { toCallId } from '../../../events/ids'
 import type { Assembled } from '../../assembled'
 import { contextFor, log, operatorSaidAs } from '../../__tests__/log-fixture'
