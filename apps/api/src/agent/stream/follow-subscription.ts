@@ -219,6 +219,7 @@ export class FollowSubscription implements FollowTarget {
         limit: STREAM_PAGE_EVENTS,
         visible: false,
         maxBytes: FOLLOW_PAGE_BYTES,
+        withholdPictures: true,
       })
       if (this.stopped) return
       const last = page.events[page.events.length - 1]
@@ -229,7 +230,7 @@ export class FollowSubscription implements FollowTarget {
         if (this.stopped) return
       }
       const live = page.next === undefined && (this.cursor ?? 0) >= head.seq
-      const cursor = pageCursorOf(last)
+      const cursor = pageCursorOf(page)
       this.sendMetered({
         type: 'events',
         id: this.id,
