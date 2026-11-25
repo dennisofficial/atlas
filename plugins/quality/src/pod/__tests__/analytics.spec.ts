@@ -9,6 +9,7 @@ import {
 } from '@dltech/atlas-core'
 import { EAnalyticsLinks, type PodAnalyticsValue } from '@dltech/atlas-plugin-sdk'
 
+import { forgetNudgedFindings } from '../analytics/nudge-review'
 import { resolvedFindingProperties } from '../analytics/review-properties'
 import {
   briefSaid,
@@ -246,11 +247,13 @@ describe('the completed review event', () => {
   })
 })
 
-describe('the ignored event through the after-turn hook', () => {
-  it('fires once at the end of the turn that carried the nudge', async () => {
+describe('the nudge reaction through the after-turn hook', () => {
+  it('reports the reaction once, linked to the review that nudged', async () => {
+    forgetNudgedFindings()
     const { captured, analytics } = analyticsRecorder()
     const reviewRig = createRig({ analytics })
     const outcome = await reviewRig.run()
+    const reviewId = completedOf(captured)?.properties['review_id']
     const events = eventsOf([
       turnStarted,
       ...((outcome.drafts ?? []) as readonly RecordEventBody[]),
@@ -260,10 +263,12 @@ describe('the ignored event through the after-turn hook', () => {
 
     await turnRig.ignored.run({ threadId: THREAD })
 
-    expect(captured).toContainEqual({
-      event: 'quality finding ignored',
+    expect(captured.find((one) => one.event === 'quality nudge reaction')).toMatchObject({
       properties: {
+        review_id: reviewId,
         policy_id: 'single-responsibility',
+        reaction: 'untouched',
+        mentioned_in_reply: false,
         steps_after_nudge: 1,
         turns_after_nudge: 0,
       },

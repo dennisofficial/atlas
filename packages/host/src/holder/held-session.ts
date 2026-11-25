@@ -73,8 +73,9 @@ export class HeldSession {
       runningChildren: () => this.crew?.runningCount() ?? 0,
       ...(deps.log === undefined ? {} : { log: deps.log }),
     })
+    this.turns.onTurnStart = () => void this.observation?.turnStarted()
     this.turns.onTurnEnd = async () => {
-      this.observation?.turnEnded()
+      void this.observation?.turnEnded()
       await this.rotation.maybeAutoRotate()
       this.reconciler?.request()
     }
@@ -227,20 +228,28 @@ export class HeldSession {
       onLeaseLost: (error) => this.ending.lose(lostOutcome(error)),
     })
     this.crew = crew
-    const { runner, branches, oom, branchesStarted, recoverCommands, runCommands, logStaged } =
-      wireHeldLoop({
-        deps,
-        runtime,
-        record,
-        turns: this.turns,
-        threadId,
-        signal: this.lifetimeAbort.signal,
-        epoch: lease.epoch,
-        crew: crew.port(),
-        crewRunning: () => crew.runningCount(),
-        isDraining: () => this.draining,
-        childrenRunning: () => this.crew?.runningCount() ?? 0,
-      })
+    const {
+      runner,
+      branches,
+      oom,
+      podSamples,
+      branchesStarted,
+      recoverCommands,
+      runCommands,
+      logStaged,
+    } = wireHeldLoop({
+      deps,
+      runtime,
+      record,
+      turns: this.turns,
+      threadId,
+      signal: this.lifetimeAbort.signal,
+      epoch: lease.epoch,
+      crew: crew.port(),
+      crewRunning: () => crew.runningCount(),
+      isDraining: () => this.draining,
+      childrenRunning: () => this.crew?.runningCount() ?? 0,
+    })
     this.observation = new HeldObservation({
       deps,
       runtime,
@@ -248,6 +257,7 @@ export class HeldSession {
       threadId,
       branches,
       oom,
+      podSamples,
     })
     this.observation.start()
     takeOver.observationStarted()

@@ -156,7 +156,7 @@ export const waitForAgent37Daemon = async (args: {
   repair?: (() => Promise<boolean>) | undefined
   signal?: AbortSignal | undefined
   log?: ((line: string) => void) | undefined
-}): Promise<void> => {
+}): Promise<boolean> => {
   const budgetMs = args.budgetMs ?? DEFAULT_LISTEN_BUDGET_MS
   const pollMs = args.pollMs ?? LISTEN_POLL_MS
   const repairAfterMs = args.repairAfterMs ?? DEFAULT_REPAIR_AFTER_MS
@@ -165,6 +165,7 @@ export const waitForAgent37Daemon = async (args: {
   let running: string | undefined
   let restarted = false
   let repaired = false
+  let didRepair = false
   for (;;) {
     args.signal?.throwIfAborted()
     const report = await daemonReportOf(args)
@@ -177,14 +178,17 @@ export const waitForAgent37Daemon = async (args: {
             (Date.now() - startedAt) / 1000,
           )}s; checking whether its container crash-loops`,
         )
-        if (await args.repair()) deadline = Date.now() + budgetMs
+        if (await args.repair()) {
+          didRepair = true
+          deadline = Date.now() + budgetMs
+        }
       }
     }
     if (report !== undefined) {
       const skew = daemonSkewOf({ report, want: args.want })
       if (skew === EDaemonSkew.Compatible) {
         args.log?.(`agent37 instance ${args.instanceId} runs daemon ${report.version}`)
-        return
+        return didRepair
       }
       if (skew === EDaemonSkew.HostTooOld) {
         throw new Error(

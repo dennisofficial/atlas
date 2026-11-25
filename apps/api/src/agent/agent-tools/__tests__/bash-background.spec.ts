@@ -90,9 +90,10 @@ describe('a bash call that outlives its wait window', () => {
       idempotencyKey: 'bash-2',
     })
 
-    expect(outcome).toEqual({
+    expect(outcome).toMatchObject({
       ok: false,
       reason: 'the operator interrupted the turn while the command was running',
+      spanDetail: { 'exec.outcome': 'cancelled', 'exec.program': 'sleep' },
     })
     expect(port.terminated).toHaveLength(1)
     expect(port.adopted).toEqual([])

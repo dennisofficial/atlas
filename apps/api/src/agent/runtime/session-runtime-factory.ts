@@ -43,7 +43,7 @@ import { PrepareSteps } from './prepare-steps'
 import { prepareControllerOf } from './session-prepare'
 import { countRunningShells } from './running-shells'
 import { startKeepAlive } from './keep-alive'
-import { daemonSessionOf } from './daemon-session'
+import { daemonSessionOf, type WakeReport } from './daemon-session'
 import { githubIdentityLookup } from '@dltech/atlas-plugin-github/pod'
 import type { ComposedPlugins } from '@dltech/atlas-plugin-sdk'
 import { agentHostPrompt } from './prompt'
@@ -60,7 +60,7 @@ import { pathEnvironmentOf, sessionPathsOf, shellEnvironmentOf } from './session
 import { fastRefusalHandler, type FastRefusalSessions } from './fast-refusal'
 import { sessionModelsOf, type SessionModels } from './model-port'
 import { modelLabelOf } from '../config/model-labels'
-import { podAnalyticsOf } from './pod-analytics'
+import { podAnalyticsOf, podLifecycleCaptureOf } from './pod-analytics'
 import { workspaceRepoMap } from './workspace-repo-map'
 
 export { SandboxNotConfiguredError }
@@ -143,6 +143,15 @@ export const createSessionRuntimeFactory = (
     const desiredMemoryGb =
       podSize?.desiredVcpus === undefined ? config.sandbox.memoryGb : podSize.desiredMemoryGb
     const desiredDiskGb = config.sandbox.diskGb
+    const analytics = podAnalyticsOf({
+      analytics: args.analytics,
+      userId: config.userId,
+    })
+    const lifecycle = podLifecycleCaptureOf({
+      analytics,
+      provider: config.sandbox.provider,
+      sessionId,
+    })
     // A resize writes its desired size and generation on the pod row while this runtime is still
     // the one waking its sandbox, so the size is read at wake time: the snapshot taken when the
     // runtime was built predates the resize, and a pod never resized has no snapshot at all.
@@ -204,7 +213,9 @@ export const createSessionRuntimeFactory = (
         ...(endpoint.diskGb === undefined ? {} : { diskGb: endpoint.diskGb }),
       })
     }
-    const onWake = async (endpoint: DaemonEndpoint): Promise<void> => {
+    const onWake = async (report: WakeReport): Promise<void> => {
+      const { endpoint, wakeMs } = report
+      lifecycle.woke({ start: endpoint.start, wakeMs })
       await recordDisk(endpoint)
       await recordApplied(endpoint)
       await recordRun(endpoint)
@@ -219,6 +230,7 @@ export const createSessionRuntimeFactory = (
       ...(desiredMemoryGb === undefined ? {} : { memoryGb: desiredMemoryGb }),
       ...(desiredDiskGb === undefined ? {} : { diskGb: desiredDiskGb }),
       onWake,
+      onHello: lifecycle.greeted,
       daemonSecret: args.daemonSecret,
       timers: args.timers,
       signal,
@@ -325,10 +337,6 @@ export const createSessionRuntimeFactory = (
           })
 
     const trace = args.traceFor?.(config.userId)
-    const analytics = podAnalyticsOf({
-      analytics: args.analytics,
-      userId: config.userId,
-    })
     let models: SessionModels
     try {
       models = sessionModelsOf({

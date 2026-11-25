@@ -12,6 +12,7 @@ import { composePodCommands } from '@dltech/atlas-plugin-sdk'
 import { ScopedToolDispatcher } from '../calls/call-scope'
 import { BranchObserver } from './branch-observer'
 import { oomObserverOf, type OomObserver } from './oom-observer'
+import { podSampleObserverOf, type PodSampleObserver } from './pod-sample-observer'
 import { hookedToolsOf } from './hooked-tools'
 import { pluginPodOf } from './plugin-pod'
 import type { HeldSessionDeps } from './held-session-deps'
@@ -247,6 +248,7 @@ export const wireHeldLoop = (args: {
   runner: LoopTurnRunner
   branches: BranchObserver
   oom: OomObserver
+  podSamples: PodSampleObserver
   branchesStarted: Promise<void>
   recoverCommands(): Promise<void>
   runCommands(entries: readonly InboxEntry[]): Promise<boolean>
@@ -262,12 +264,18 @@ export const wireHeldLoop = (args: {
     signal: args.signal,
   })
   oom.start()
+  const podSamples = podSampleObserverOf({
+    deps: args.deps,
+    runtime: args.runtime,
+    threadId: args.threadId,
+  })
   const prepared = () => args.record.eventCache().bookkeeping().workspace().prepared
   const branchesStarted = branches.start()
   return {
     runner,
     branches,
     oom,
+    podSamples,
     branchesStarted,
     recoverCommands: () => intake.recoverUnfinished(),
     runCommands: (entries) => intake.runCommands(entries),

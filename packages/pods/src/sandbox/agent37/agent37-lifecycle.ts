@@ -1,3 +1,4 @@
+import { EPodStart } from '../sandbox-provider'
 import { isAgent37Missing, type Agent37Client } from './agent37-client'
 import { waitForAgent37Instance } from './agent37-daemon'
 import { pollPause } from './agent37-poll'
@@ -96,6 +97,16 @@ export const repairAgent37IfWedged = async (args: {
   }
 }
 
+export const agent37StartOf = (args: {
+  created: boolean
+  ready: EPodStart
+  repairedLater: boolean
+}): EPodStart => {
+  if (args.created) return EPodStart.Created
+  if (args.ready === EPodStart.Repaired || args.repairedLater) return EPodStart.Repaired
+  return args.ready
+}
+
 /**
  * https://www.agent37.com/docs/agents-api/instances/start — a checkpointed instance answers nothing
  * on its ports until it is started, so a wake that only waited for the daemon spent its budget on a
@@ -107,7 +118,7 @@ export const readyAgent37Instance = async (args: {
   pollMs?: number | undefined
   signal?: AbortSignal | undefined
   log?: ((line: string) => void) | undefined
-}): Promise<void> => {
+}): Promise<EPodStart> => {
   const instance = await settleAgent37Instance(args)
   if (ASLEEP_STATUSES.has(instance.status)) {
     args.signal?.throwIfAborted()
@@ -118,9 +129,13 @@ export const readyAgent37Instance = async (args: {
       signal: args.signal,
       ...(args.log === undefined ? {} : { log: args.log }),
     })
-    return
+    return EPodStart.Woke
   }
-  if (instance.status === 'running') await repairAgent37IfWedged(args)
+  if (instance.status === 'running') {
+    const repaired = await repairAgent37IfWedged(args)
+    return repaired ? EPodStart.Repaired : EPodStart.Running
+  }
+  return EPodStart.Running
 }
 
 export const sleepAgent37Instance = async (args: {

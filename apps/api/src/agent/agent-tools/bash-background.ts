@@ -1,7 +1,8 @@
-import type { ToolOutcome } from '@dltech/atlas-core'
+import type { ToolOutcome, ToolSpanDetail } from '@dltech/atlas-core'
 
 import { newShellId } from './bash-foreground'
 import { renderStartedText } from './bash-output'
+import { bashSpanDetailOf, EBashExecOutcome } from './bash-span-detail'
 import type { ShellLauncher } from './shell-launcher'
 
 export async function startBackgroundShell(args: {
@@ -15,6 +16,7 @@ export async function startBackgroundShell(args: {
   movedForInput: boolean
   signal: AbortSignal
 }): Promise<ToolOutcome> {
+  const startedAt = performance.now()
   const shellId = newShellId()
   const launched = await args.launcher.launch({
     shellId,
@@ -25,7 +27,13 @@ export async function startBackgroundShell(args: {
     input: args.input,
     signal: args.signal,
   })
-  if (!launched.ok) return launched
+  const detailOf = (outcome: EBashExecOutcome): ToolSpanDetail =>
+    bashSpanDetailOf({
+      command: args.command,
+      outcome,
+      durationMs: performance.now() - startedAt,
+    })
+  if (!launched.ok) return { ...launched, spanDetail: detailOf(EBashExecOutcome.Exit) }
 
   return {
     ok: true,
@@ -44,5 +52,6 @@ export async function startBackgroundShell(args: {
       input: args.input,
       movedForInput: args.movedForInput,
     }),
+    spanDetail: detailOf(EBashExecOutcome.Backgrounded),
   }
 }

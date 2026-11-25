@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'bun:test'
 
+import { EPodStart } from '../../sandbox-provider'
 import { Agent37Error, type Agent37Client } from '../agent37-client'
 import {
   AGENT37_WEDGED_RESTARTS,
+  agent37StartOf,
   agent37WedgedOf,
   readyAgent37Instance,
   repairAgent37IfWedged,
@@ -201,7 +203,7 @@ describe('readyAgent37Instance', () => {
     const { get } = statusesOf(['sleeping', 'running'])
     const { client, started } = clientOf({ get })
 
-    await readyAgent37Instance({ client, id: 'inst-1' })
+    expect(await readyAgent37Instance({ client, id: 'inst-1' })).toBe(EPodStart.Woke)
 
     expect(started).toEqual(['inst-1'])
   })
@@ -217,9 +219,29 @@ describe('readyAgent37Instance', () => {
       },
     })
 
-    await readyAgent37Instance({ client, id: 'inst-1' })
+    expect(await readyAgent37Instance({ client, id: 'inst-1' })).toBe(EPodStart.Repaired)
 
     expect(updates).toEqual(['inst-1'])
     expect(started).toEqual([])
+  })
+})
+
+describe('agent37StartOf', () => {
+  it('reports a fresh instance as created over anything else', () => {
+    expect(agent37StartOf({ created: true, ready: EPodStart.Repaired, repairedLater: true })).toBe(
+      EPodStart.Created,
+    )
+  })
+
+  it('reports a repair over the wake that preceded it', () => {
+    expect(agent37StartOf({ created: false, ready: EPodStart.Woke, repairedLater: true })).toBe(
+      EPodStart.Repaired,
+    )
+  })
+
+  it('keeps the ready verdict when nothing was repaired later', () => {
+    expect(agent37StartOf({ created: false, ready: EPodStart.Running, repairedLater: false })).toBe(
+      EPodStart.Running,
+    )
   })
 })

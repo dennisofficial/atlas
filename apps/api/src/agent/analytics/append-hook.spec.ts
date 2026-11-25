@@ -6,7 +6,11 @@ import {
   EAgentStart,
   EAgentStatus,
   EFinishReason,
+  EKilledBy,
+  EOomScope,
   ERunFailureKind,
+  EShellEndCause,
+  EShellStatus,
   toCallId,
   toRunId,
   toThreadId,
@@ -254,6 +258,78 @@ describe('analytics append hook', () => {
       reason_class: 'write-refusal',
     })
     expect(JSON.stringify(analytics.captured)).not.toContain('.ssh')
+  })
+
+  it('maps a pod OOM to pod_oom with the program name and never the command text', async () => {
+    const epoch = await seed(plane)
+    await append(plane, epoch, [
+      {
+        type: 'pod-ran-out-of-memory',
+        incidentId: 'oom-1',
+        scope: EOomScope.Pod,
+        processes: 3,
+        memory: { commandLimitBytes: 4 * 1024 ** 3, podBytes: 16 * 1024 ** 3 },
+      },
+      {
+        type: 'pod-ran-out-of-memory',
+        incidentId: 'oom-2',
+        scope: EOomScope.Command,
+        command: 'node --max-old-space-size=4096 scripts/build.ts --token s3cr3t',
+        processes: 1,
+        memory: { commandLimitBytes: 4 * 1024 ** 3, podBytes: 16 * 1024 ** 3 },
+      },
+    ])
+
+    expect(analytics.captured[0]).toEqual({
+      userId: USER,
+      event: 'pod_oom',
+      properties: {
+        session_id: SESSION,
+        project_id: PROJECT,
+        scope: EOomScope.Pod,
+        processes: 3,
+        command_limit_bytes: 4 * 1024 ** 3,
+        pod_bytes: 16 * 1024 ** 3,
+      },
+    })
+    expect(analytics.captured[1]?.properties).toMatchObject({
+      scope: EOomScope.Command,
+      processes: 1,
+      program: 'node',
+    })
+    expect(JSON.stringify(analytics.captured)).not.toContain('s3cr3t')
+  })
+
+  it('maps a background shell ending to shell_ended without its output', async () => {
+    const epoch = await seed(plane)
+    await append(plane, epoch, [
+      {
+        type: 'background-shell-ended',
+        shellId: 'shell-1',
+        command: 'bun run build --token s3cr3t',
+        status: EShellStatus.Killed,
+        killedBy: EKilledBy.OutOfMemory,
+        cause: EShellEndCause.PodRestarted,
+        output: 'memory exhausted after writing s3cr3t',
+        droppedCharacters: 0,
+        remainingCharacters: 0,
+      },
+    ])
+
+    expect(analytics.captured[0]).toEqual({
+      userId: USER,
+      event: 'shell_ended',
+      properties: {
+        session_id: SESSION,
+        project_id: PROJECT,
+        status: EShellStatus.Killed,
+        killed_by: EKilledBy.OutOfMemory,
+        exit_code: null,
+        cause: EShellEndCause.PodRestarted,
+        program: 'bun run',
+      },
+    })
+    expect(JSON.stringify(analytics.captured)).not.toContain('s3cr3t')
   })
 
   it('never throws when capture throws', async () => {

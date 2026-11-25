@@ -23,6 +23,7 @@ import { isSandboxMissing } from './vercel-errors'
 import { launchDaemon, type DaemonBundle } from './daemon-launch'
 import { daemonCpuUsecOf } from './daemon-cpu'
 import {
+  EPodStart,
   SandboxProvider,
   type DaemonEndpoint,
   type PodResizeOutcome,
@@ -117,6 +118,7 @@ export class VercelSandboxProvider extends SandboxProvider {
     const sandboxSessionId = args.target.sandboxSessionId
     const sandboxName = sandboxNameOf(sandboxSessionId)
     const token = daemonToken({ secret: this.args.daemonSecret, sandboxName })
+    let created = false
     const sandbox = await mountWithRetries({
       sdk: this.sdk,
       cloudUrl: this.args.cloudUrl,
@@ -130,7 +132,10 @@ export class VercelSandboxProvider extends SandboxProvider {
       token: randomUUID(),
       ...(args.vcpus === undefined ? {} : { vcpus: args.vcpus }),
       environment: { ATLAS_SANDBOX_NAME: sandboxName },
-      onCreate: () => Promise.resolve(),
+      onCreate: () => {
+        created = true
+        return Promise.resolve()
+      },
       signal: args.signal,
     })
     await launchDaemon({
@@ -154,6 +159,7 @@ export class VercelSandboxProvider extends SandboxProvider {
       url: routed.replace(/^https:/, 'wss:'),
       token,
       sandboxName,
+      start: created ? EPodStart.Created : EPodStart.Running,
       ...(vcpus === undefined ? {} : { vcpus }),
       ...(vcpus === undefined ? {} : { memoryGb: vcpus * SANDBOX_MEMORY_GB_PER_VCPU }),
     }

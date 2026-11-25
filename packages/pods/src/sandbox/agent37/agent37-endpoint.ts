@@ -1,6 +1,6 @@
 import { DAEMON_PORT } from '@dltech/atlas-protocol'
 
-import type { DaemonEndpoint } from '../sandbox-provider'
+import type { DaemonEndpoint, EPodStart } from '../sandbox-provider'
 
 import type { Agent37Client } from './agent37-client'
 
@@ -19,6 +19,7 @@ export const agent37EndpointOf = async (args: {
   vcpus?: number | undefined
   memoryGb?: number | undefined
   diskGb?: number | undefined
+  start?: EPodStart | undefined
 }): Promise<DaemonEndpoint> => {
   const signed = await args.client.signedUrl({
     id: args.instanceId,
@@ -32,5 +33,6 @@ export const agent37EndpointOf = async (args: {
     ...(args.vcpus === undefined ? {} : { vcpus: args.vcpus }),
     ...(args.memoryGb === undefined ? {} : { memoryGb: args.memoryGb }),
     ...(args.diskGb === undefined ? {} : { diskGb: args.diskGb }),
+    ...(args.start === undefined ? {} : { start: args.start }),
   }
 }

@@ -5,8 +5,8 @@ The advisory code-quality review. After a successful file write or edit, the plu
 ## Owns
 
 - The `quality-review` afterTool hook: it asks the tool to capture the changed text, bounds the review at 1000 ms and returns the records and the finding.
-- The `quality-finding-ignored` afterTurn hook: it reports, from the log alone, each finding the model was nudged about and left active.
-- The product events `quality review completed`, `quality scope assessed`, `quality review unavailable`, `quality finding resolved`, `quality finding closed` and `quality finding ignored`. `resolved` means the classifier saw the problem go away. `closed` means a nudged finding ended because a later write removed its scope (deleted, moved or renamed with a changed body), so the log cannot tell a fix from a move.
+- The `quality-nudge-reaction` afterTurn hook: it reports, from the log alone, how the agent reacted to each finding it was nudged about in the turn.
+- The product events `quality review completed`, `quality scope assessed`, `quality review unavailable`, `quality finding resolved`, `quality finding closed` and `quality nudge reaction`. `resolved` means the classifier saw the problem go away. `closed` means a nudged finding ended because a later write removed its scope (deleted, moved or renamed with a changed body), so the log cannot tell a fix from a move.
 - The review engine: scope preparation, policy selection, request planning, the size bounds and the excerpt.
 - The budget: one deadline for a review, with a settlement grace for a cooperative classifier.
 - The review records (`code-quality-reviewed`), the finding fold and the per-file note text.
@@ -48,7 +48,7 @@ The pod entry exports the first group only. The review modules below are the par
 - `qualityPodOf({ settings, budgetMs, clock })`: makes the pod slot with the `quality-review` afterTool hook. `settings(ctx)` resolves `{ enabled, policies }` for the session.
 - `QUALITY_REVIEW_BUDGET_MS`: the 1000 ms budget one review gets.
 - `qualityReviewHook({ ctx, options })`: the hook itself, for a caller that composes the pod differently.
-- `qualityIgnoredHook({ ctx })`: the afterTurn hook that reports the findings a turn left active.
+- `qualityNudgeReactionHook({ ctx })`: the afterTurn hook that reports how the turn reacted to its nudges.
 
 ### Review a write
 
@@ -95,10 +95,10 @@ no TypeScript compiler.
 
 ### Pod tier (`qualityPodOf`)
 
-| Kind | Name                      | What it adds                                                                          |
-| ---- | ------------------------- | ------------------------------------------------------------------------------------- |
-| Hook | `quality-review`          | afterTool, observe stage, nudge 20. Captures the changed text, then records a review. |
-| Hook | `quality-finding-ignored` | afterTurn, observe stage, nudge 20. Reports the findings the turn left active.        |
+| Kind | Name                     | What it adds                                                                          |
+| ---- | ------------------------ | ------------------------------------------------------------------------------------- |
+| Hook | `quality-review`         | afterTool, observe stage, nudge 20. Captures the changed text, then records a review. |
+| Hook | `quality-nudge-reaction` | afterTurn, observe stage, nudge 20. Reports how the turn reacted to each nudge.       |
 
 The hooks send product events through `ctx.analytics` with ids, enums, numbers and booleans only. Each one asks the host for hashed links: `session_hash`, `thread_hash` (the first 16 hex characters of the SHA-256 of the id) and `thread_kind` (`main`, `sub_agent`, `teammate`). One `review_id` per after-tool run links its events. The "Jev quality" PostHog dashboard reads them: https://us.posthog.com/project/411591/dashboard/2407147.
 - `quality scope assessed`: one event per scored scope and policy, with `review_id`, `scope_id`, `policy_id`, `policy_version`, `scope_kind`, `change_kind` (`created` or `edited`), `language`, `extension`, `scope_lines`, `scope_bytes`, `diff_lines`, `request_bytes`, `concern_score`, `impact`, `impact_confidence`, `focus_confident`, `transition`, `verdict`, `near_miss`, `concern_threshold`, `impact_threshold`, `deadline_missed` and `classifier_ms`. The verdict is `nudged` (introduced and notified now), `repeat` (introduced on a finding already notified), `tracked_debt`, `near_miss` (not nudged, and a concern of 0.5 or more), `clean` or `inconclusive`.
@@ -106,6 +106,7 @@ The hooks send product events through `ctx.analytics` with ids, enums, numbers a
 - `quality review unavailable`: `classifier_off` or `setting_off`, once per session and reason. The claim lives in the pod's memory, so a restart can report the same reason once more.
 - `$ai_generation`: one PostHog LLM-analytics event per classifier call, with `$ai_trace_id` set to the review id, the request state and the answers as `$ai_input` and `$ai_output_choices`, the tokens, `$ai_latency`, the costs, `review_id`, `scope_id`, `policy_ids`, `path`, `line_start`, `line_end` and `code_withheld` (`null` or `secret`). When the path or the code trips the secret filter, the event keeps its metadata and drops both payloads.
 - A finding event: `review_id`, `policy_id`, `steps_after_nudge` and `turns_after_nudge`.
+- `quality nudge reaction`: once per finding nudged in the turn, at the end of it. `reaction` is `fixed` (the finding resolved or closed later in the turn), `edited_still_flagged` (a later review in the turn assessed the same scope and the finding stayed active) or `untouched` (no later write to the scope in the turn). `mentioned_in_reply` is true when the agent's text after the nudge names the scope or the policy title, case aside; the pod compares the text and sends none. It also carries `finding_id`, `episode`, `concern_at_nudge`, `concern_at_end`, `review_id`, `policy_id` and the counts. One event per `finding_id` and `episode`, so a finding nudged once and written again never gets a second one. It measures usefulness, not precision.
 
 The hook asks for captured text only for a call with the `write` effect, while the classifier is on and the `quality.enabled` setting is true. When it asks for nothing, the tool captures nothing.
 

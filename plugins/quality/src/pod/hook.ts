@@ -13,11 +13,11 @@ import { CodeQualityReview } from '../review/engine'
 import { qualityRegistry } from '../review/registry'
 import { prepareQualityScopes } from '../review/source'
 import { closedFindingProperties } from './analytics/closed-properties'
-import { ignoredFindingProperties } from './analytics/ignored-properties'
+import { nudgingReviewIdsOf, rememberNudgedFindings } from './analytics/nudge-review'
+import { nudgeReactionProperties, QUALITY_NUDGE_REACTION } from './analytics/reaction-properties'
 import { newReviewId, type QualityNotified } from './analytics/review-links'
 import {
   QUALITY_FINDING_CLOSED,
-  QUALITY_FINDING_IGNORED,
   QUALITY_FINDING_RESOLVED,
   QUALITY_REVIEW_COMPLETED,
   resolvedFindingProperties,
@@ -147,6 +147,11 @@ export const qualityReviewHook = (args: {
       policyId: entry.policy.id,
       scopeId: entry.assessment.scopeId,
     }))
+    rememberNudgedFindings({
+      sessionId: args.ctx.sessionId,
+      reviewId,
+      findingIds: outcome.flagged.map(({ entry }) => entry.finding.id),
+    })
 
     for (const record of outcome.records) {
       const facts = record.scope === undefined ? undefined : factsById.get(record.scope.id)
@@ -217,15 +222,21 @@ export const qualityReviewHook = (args: {
   },
 })
 
-export const qualityIgnoredHook = (args: { ctx: PluginPodContext }): RegisteredHook<AfterTurn> => ({
-  name: 'quality-finding-ignored',
+export const qualityNudgeReactionHook = (args: {
+  ctx: PluginPodContext
+}): RegisteredHook<AfterTurn> => ({
+  name: 'quality-nudge-reaction',
   order: { stage: EStage.Observe, nudge: 20 },
   run: async ({ threadId }) => {
-    const events = args.ctx.events()
-    for (const properties of ignoredFindingProperties({ events, threadId })) {
+    const properties = nudgeReactionProperties({
+      events: args.ctx.events(),
+      threadId,
+      reviewIds: nudgingReviewIdsOf({ sessionId: args.ctx.sessionId }),
+    })
+    for (const held of properties) {
       args.ctx.analytics.capture({
-        event: QUALITY_FINDING_IGNORED,
-        properties,
+        event: QUALITY_NUDGE_REACTION,
+        properties: held,
         links: EAnalyticsLinks.Hashed,
       })
     }

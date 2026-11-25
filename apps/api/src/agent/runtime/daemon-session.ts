@@ -21,6 +21,8 @@ export type DaemonSession = {
   wake(): Promise<DaemonEndpoint>
 }
 
+export type WakeReport = { endpoint: DaemonEndpoint; wakeMs: number }
+
 export const daemonSessionOf = (args: {
   sessionId: string
   epoch: number
@@ -29,7 +31,8 @@ export const daemonSessionOf = (args: {
   vcpus?: number | undefined
   memoryGb?: number | undefined
   diskGb?: number | undefined
-  onWake?: ((endpoint: DaemonEndpoint) => Promise<void>) | undefined
+  onWake?: ((report: WakeReport) => Promise<void>) | undefined
+  onHello?: ((hello: { restart: boolean }) => void) | undefined
   daemonSecret: string
   timers: HostTimers
   signal: AbortSignal
@@ -40,6 +43,7 @@ export const daemonSessionOf = (args: {
 }): DaemonSession => {
   let current: DaemonEndpoint | undefined
   const wake = async (): Promise<DaemonEndpoint> => {
+    const startedAt = args.timers.now()
     const endpoint = await args.provider.wake({
       target: args.target,
       signal: args.signal,
@@ -48,7 +52,7 @@ export const daemonSessionOf = (args: {
       ...(args.diskGb === undefined ? {} : { diskGb: args.diskGb }),
     })
     current = endpoint
-    await args.onWake?.(endpoint)
+    await args.onWake?.({ endpoint, wakeMs: Math.max(0, args.timers.now() - startedAt) })
     return endpoint
   }
   args.steps.report({ step: EWorkspaceStep.Sandbox, state: EWorkspaceStepState.Started })
@@ -77,6 +81,7 @@ export const daemonSessionOf = (args: {
     timers: args.timers,
     now: () => args.timers.now(),
     onFenced: () => {},
+    ...(args.onHello === undefined ? {} : { onReady: args.onHello }),
     ...(args.pingMs === undefined ? {} : { pingMs: args.pingMs }),
     ...(args.log === undefined ? {} : { log: args.log }),
     ...(args.probeResize === undefined ? {} : { probeResize: args.probeResize }),

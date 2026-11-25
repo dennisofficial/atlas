@@ -76,6 +76,9 @@ export type ToolCall = {
 
 export type ModelPart = UserContentPart
 
+/** Names, ids and counts only: a tool's span detail is never sent to the model. */
+export type ToolSpanDetail = Readonly<Record<string, string | number | boolean>>
+
 export type ParkedToolOutcome = {
   ok: false
   reason: string
@@ -91,8 +94,14 @@ export type ToolOutcome =
       modelParts?: readonly ModelPart[] | undefined
       fileChanges?: readonly CapturedFileChange[] | undefined
       fileChangeFaults?: readonly QualityCoverageDiagnostic[] | undefined
+      spanDetail?: ToolSpanDetail | undefined
     }
-  | { ok: false; reason: string; parked?: false | undefined }
+  | {
+      ok: false
+      reason: string
+      parked?: false | undefined
+      spanDetail?: ToolSpanDetail | undefined
+    }
   | ParkedToolOutcome
 
 export const isParkedOutcome = (outcome: ToolOutcome): outcome is ParkedToolOutcome =>

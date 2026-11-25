@@ -9,7 +9,7 @@ import { daemonToken } from '@dltech/atlas-protocol/engine'
 
 import { SandboxUnavailableError } from '@dltech/atlas-host'
 
-import type { SandboxTarget } from '../../sandbox-provider'
+import { EPodStart, type SandboxTarget } from '../../sandbox-provider'
 import {
   Agent37Error,
   type Agent37Client,
@@ -171,6 +171,7 @@ describe('Agent37SandboxProvider.wake', () => {
       expect(seeded.map((seed) => [seed.podSessionId, seed.status])).toEqual([['pod-1', 'running']])
       expect(endpoint.url).toBe('wss://inst-1-47300.agent37.app/?a37_token=a37')
       expect(endpoint.sandboxName).toBe(agent37InstanceNameOf('pod-1'))
+      expect(endpoint.start).toBe(EPodStart.Created)
       expect(endpoint.token).toBe(
         daemonToken({ secret: 'secret', sandboxName: agent37InstanceNameOf('pod-1') }),
       )
@@ -247,9 +248,10 @@ describe('Agent37SandboxProvider.wake', () => {
     })
     const { provider } = providerOf({ client, bundlePath: b.path, stored: 'inst-9' })
     try {
-      await provider.wake({ target: TARGET, signal: new AbortController().signal })
+      const endpoint = await provider.wake({ target: TARGET, signal: new AbortController().signal })
 
       expect(updated).toEqual(['inst-9'])
+      expect(endpoint.start).toBe(EPodStart.Repaired)
     } finally {
       cleanup()
     }
@@ -266,6 +268,7 @@ describe('Agent37SandboxProvider.wake', () => {
       expect(started).toEqual(['inst-9'])
       expect(creates).toHaveLength(0)
       expect(endpoint.url).toContain('inst-9-47300')
+      expect(endpoint.start).toBe(EPodStart.Woke)
     } finally {
       cleanup()
     }
@@ -277,9 +280,10 @@ describe('Agent37SandboxProvider.wake', () => {
     const { client, started } = fakeClient({ version, status: 'running' })
     const { provider } = providerOf({ client, bundlePath: b.path, stored: 'inst-9' })
     try {
-      await provider.wake({ target: TARGET, signal: new AbortController().signal })
+      const endpoint = await provider.wake({ target: TARGET, signal: new AbortController().signal })
 
       expect(started).toEqual([])
+      expect(endpoint.start).toBe(EPodStart.Running)
     } finally {
       cleanup()
     }
