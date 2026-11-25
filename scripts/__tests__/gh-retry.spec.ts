@@ -110,9 +110,10 @@ describe('decideNext', () => {
     )
   })
 
-  it('treats a create that finds the release as done and an upload that finds the asset as retryable', () => {
+  it('treats a create that finds the release an earlier attempt made as done and an upload that finds the asset as retryable', () => {
     const existing = http({ status: 422, alreadyExists: true })
-    expect(decideNext({ call: ECall.Create, attempt: 1, failure: existing })).toBe(ENext.Succeed)
+    expect(decideNext({ call: ECall.Create, attempt: 1, failure: existing })).toBe(ENext.Fail)
+    expect(decideNext({ call: ECall.Create, attempt: 2, failure: existing })).toBe(ENext.Succeed)
     expect(decideNext({ call: ECall.Upload, attempt: 1, failure: existing })).toBe(ENext.Retry)
     expect(decideNext({ call: ECall.Upload, attempt: 3, failure: existing })).toBe(ENext.Fail)
   })
@@ -207,8 +208,9 @@ describe('runGh', () => {
     expect(fake.sleeps).toEqual([2000, 4000])
   })
 
-  it('counts a create that finds the release as done', async () => {
+  it('counts a create that finds the release after a 5xx as done', async () => {
     const fake = harness([
+      { code: 1, output: 'HTTP 502: Server Error (https://api.github.com/o/r/releases)' },
       {
         code: 1,
         output: 'HTTP 422: Validation Failed (https://api.github.com/o/r/releases) already_exists',
@@ -220,8 +222,8 @@ describe('runGh', () => {
       spawn: fake.spawn,
       sleep: fake.sleep,
     })
-    expect(fake.calls).toHaveLength(1)
-    expect(fake.sleeps).toEqual([])
+    expect(fake.calls).toHaveLength(2)
+    expect(fake.sleeps).toEqual([2000])
   })
 })
 

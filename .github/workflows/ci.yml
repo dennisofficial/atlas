@@ -422,19 +422,7 @@ jobs:
           if [[ -n "$PREV_TAG" ]]; then
             args+=(--notes-start-tag "$PREV_TAG")
           fi
-          bun ../scripts/gh-retry.ts --call=create -- gh release create "tui-v${VERSION}" "${args[@]}"
-
-      # The assets are a step of their own so the two calls retry with the policy each one needs: a
-      # create repeated after a 5xx finds its own release and stops, while an upload repeated after a
-      # 5xx finds the half asset it left and replaces it with --clobber (scripts/gh-retry.ts).
-      - name: upload the binaries to the release
-        if: steps.version.outputs.skip != 'true'
-        working-directory: apps/tui
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          set -euo pipefail
-          bun ../scripts/gh-retry.ts --call=upload -- gh release upload "tui-v${VERSION}" dist/* --clobber --repo "$GITHUB_REPOSITORY"
+          bun ../../scripts/gh-retry.ts --call=create -- gh release create "tui-v${VERSION}" dist/* "${args[@]}"
 
       # Three readers resolve releases/latest/download by name and none of them may 404: install.sh
       # with no version fetches the tui binaries, the site's download button fetches

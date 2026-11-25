@@ -78,13 +78,16 @@ const isRetryable = (args: { call: ECall; failure: Failure }): boolean => {
 const withinAttempts = (attempt: number): ENext =>
   attempt < MAX_ATTEMPTS ? ENext.Retry : ENext.Fail
 
+const createdByAnEarlierAttempt = (attempt: number): ENext =>
+  attempt > 1 ? ENext.Succeed : ENext.Fail
+
 // A 5xx upload leaves its asset behind, so the next attempt answers 422 already_exists and must
 // delete it and upload again (goreleaser/goreleaser#2746). An upload also answers 404 just after its
 // release exists, including a --clobber delete that raced the overwrite (cli/cli#10361).
 export const decideNext = (args: { call: ECall; attempt: number; failure: Failure }): ENext => {
   const { call, attempt, failure } = args
   if (isAlreadyExists(failure))
-    return call === ECall.Create ? ENext.Succeed : withinAttempts(attempt)
+    return call === ECall.Create ? createdByAnEarlierAttempt(attempt) : withinAttempts(attempt)
   if (isRetryable({ call, failure })) return withinAttempts(attempt)
   return ENext.Fail
 }
