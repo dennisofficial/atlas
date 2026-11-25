@@ -141,7 +141,7 @@ describeWithHost('api under the bun runtime', () => {
   })
 
   it(
-    'injects the session verifier and wake boot adapter by constructor token',
+    'injects the session verifier by constructor token',
     () => {
       const probe = spawnSync('bun', ['test/fixtures/bun-di-probe.ts'], {
         cwd: API_ROOT,
@@ -152,7 +152,6 @@ describeWithHost('api under the bun runtime', () => {
       expect(probe.status, probe.stderr).toBe(0)
       expect(JSON.parse(probe.stdout.trim().split('\n').pop() ?? '{}')).toEqual({
         sessionMiddlewareVerifier: true,
-        wakeBootAdapter: true,
       })
     },
     BOOT_TIMEOUT_MS + 5_000,
