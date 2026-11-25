@@ -1,6 +1,5 @@
 import { FRESH_SESSION_WINDOW_MS } from '../../_module/session/fresh-session'
 import type { INestApplication, Provider } from '@nestjs/common'
-import { ForbiddenException, UnauthorizedException } from '@nestjs/common'
 import type { NestExpressApplication } from '@nestjs/platform-express'
 import { Test } from '@nestjs/testing'
 import { ThrottlerModule } from '@nestjs/throttler'
@@ -17,7 +16,6 @@ import { HttpErrorMiddleware } from '../../_module/trpc/http-error.middleware'
 import { ThrottleMiddleware } from '../../_module/trpc/throttle.middleware'
 import { apiErrorFormatter } from '../../_module/trpc/trpc-error-formatter'
 import { fakeEnvModule, UNTHROTTLED_RATE_LIMIT } from '../../_module/trpc/trpc-middleware.fixture'
-import { SandboxesService } from '../platform/sandboxes/sandboxes.service'
 const HEX_KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
 
 export const testCipher = (): SecretCipherService =>
@@ -31,42 +29,9 @@ export const SESSIONS: Record<string, string> = {
   'session-c': 'user-c',
 }
 
-export type PrincipalFixture = { id?: string; threadId: string; userId: string }
-
-type TokenPrincipal =
-  | { kind: 'sandbox'; id: string; threadId: string; userId: string }
-  | { kind: 'pod'; threadId: string; userId: string }
-
-const bearerOf = (req: { headers: { authorization?: string } }): string =>
-  (req.headers.authorization ?? '').replace(/^Bearer /i, '')
-
-const principalOf = (args: {
-  token: string
-  sandboxTokens: Record<string, PrincipalFixture>
-  podTokens: Record<string, PrincipalFixture>
-}): TokenPrincipal => {
-  const pod = args.podTokens[args.token]
-  if (pod !== undefined) {
-    return { kind: 'pod', threadId: pod.threadId, userId: pod.userId }
-  }
-  const sandbox = args.sandboxTokens[args.token]
-  if (sandbox === undefined) throw new UnauthorizedException()
-  return {
-    kind: 'sandbox',
-    id: sandbox.id ?? `sbx-${sandbox.threadId}`,
-    threadId: sandbox.threadId,
-    userId: sandbox.userId,
-  }
-}
-
 export async function buildSessionTrpcApp(args: {
   providers: Provider[]
-  sandboxTokens?: Record<string, PrincipalFixture>
-  podTokens?: Record<string, PrincipalFixture>
-  threadFamilies?: Record<string, readonly string[]>
 }): Promise<INestApplication> {
-  const sandboxTokens = args.sandboxTokens ?? {}
-  const podTokens = args.podTokens ?? {}
   const module = await Test.createTestingModule({
     imports: [
       fakeEnvModule(UNTHROTTLED_RATE_LIMIT),
@@ -88,7 +53,7 @@ export async function buildSessionTrpcApp(args: {
         provide: SESSION_VERIFIER,
         useValue: {
           async verify(req: { headers: { authorization?: string } }) {
-            const token = bearerOf(req)
+            const token = (req.headers.authorization ?? '').replace(/^Bearer /i, '')
             const stale = token.startsWith(STALE_PREFIX)
             const userId = SESSIONS[stale ? token.slice(STALE_PREFIX.length) : token]
             if (userId === undefined) return null
@@ -97,21 +62,6 @@ export async function buildSessionTrpcApp(args: {
               sessionId: 'ses',
               email: '',
               sessionCreatedAt: new Date(Date.now() - (stale ? 2 : 0) * FRESH_SESSION_WINDOW_MS),
-            }
-          },
-        },
-      },
-      {
-        provide: SandboxesService,
-        useValue: {
-          async verifyTokenPrincipal(query: { token: string }) {
-            return principalOf({ token: query.token, sandboxTokens, podTokens })
-          },
-          async assertThreadInFamily(query: { sandboxThreadId: string; threadId: string }) {
-            const family = args.threadFamilies?.[query.sandboxThreadId]
-            if (family === undefined) throw new Error('no route in this app takes a threadId')
-            if (!family.includes(query.threadId)) {
-              throw new ForbiddenException('thread is outside this sandbox family')
             }
           },
         },

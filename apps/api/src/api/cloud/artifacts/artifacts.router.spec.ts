@@ -71,11 +71,6 @@ describe('ArtifactsRouter', () => {
       ])
     })
 
-    it('accepts a sandbox token', async () => {
-      const granted = await beginPublish({ app, token: 'sandbox-token-a' })
-      expect(granted.subdomain).toBe(await subdomainOf(granted.artifactId))
-    })
-
     it('rejects an over-limit publish and a path outside the tree', async () => {
       const many = Array.from({ length: 2001 }, (_, index) => ({
         ...DEFAULT_INPUT.entries[0],

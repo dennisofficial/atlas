@@ -14,10 +14,6 @@ import { FakeBundleBlobStore } from './published-bundles.fakes'
 import { PublishedBundlesRouter } from './published-bundles.router'
 import { PublishedBundlesService } from './published-bundles.service'
 
-const POD_TOKENS = {
-  'pod-token-a': { threadId: 'thread-pod-a', userId: 'user-a' },
-  'pod-token-c': { threadId: 'thread-pod-c', userId: 'user-c' },
-}
 const SHA = 'a'.repeat(64)
 const MANIFEST = { skills: ['.agents/x'], instructions: ['ATLAS.md'] }
 
@@ -54,7 +50,6 @@ describe('PublishedBundlesRouter', () => {
     await seedSessionUsers()
     blobs.reset()
     app = await buildSessionTrpcApp({
-      podTokens: POD_TOKENS,
       providers: [
         PublishedBundlesRouter,
         PublishedBundlesService,

@@ -19,11 +19,6 @@ import { createFakeGithub } from './ssh-signing-key.fakes'
 import { SshSigningKeyRouter } from './ssh-signing-key.router'
 import { SshSigningKeyService } from './ssh-signing-key.service'
 
-const POD_TOKENS = {
-  'pod-token-a': { threadId: 'thread-pod-a', userId: 'user-a' },
-  'pod-token-c': { threadId: 'thread-pod-c', userId: 'user-c' },
-}
-
 describe('SshSigningKeyRouter', () => {
   useTestDatabase()
   let app: INestApplication
@@ -48,7 +43,6 @@ describe('SshSigningKeyRouter', () => {
       })
     }
     app = await buildSessionTrpcApp({
-      podTokens: POD_TOKENS,
       providers: [
         SshSigningKeyRouter,
         SshSigningKeyService,
@@ -69,36 +63,12 @@ describe('SshSigningKeyRouter', () => {
 
   afterEach(() => app.close())
 
-  it('leases the key to a pod bearer for its own user', async () => {
-    const lease = await query('lease', 'pod-token-a').expect(200)
-
-    expect(lease.headers['cache-control']).toBe('no-store')
-    expect(dataOf(lease.body)).toEqual({
-      publicKey: key.publicLine,
-      privateKey: key.privateKey,
-      userName: 'octocat',
-      userEmail: '4242+octocat@users.noreply.github.com',
-    })
-  })
-
   it('leases the key to a session', async () => {
     await query('lease', 'session-a').expect(200)
   })
 
-  it("answers 404 to a pod whose owner has no key, even when another user's key exists", async () => {
-    await query('lease', 'pod-token-c').expect(404)
+  it("answers 404 when the owner has no key, even when another user's key exists", async () => {
     await query('lease', 'session-b').expect(404)
-  })
-
-  it('refuses a pod bearer on status, register, rotate and revoke', async () => {
-    const pod = 'pod-token-a'
-    const input = { privateKey: key.privateKey }
-
-    await query('status', pod).expect(401)
-    await mutate('register', pod, input).expect(401)
-    await mutate('rotate', pod, input).expect(401)
-    await mutate('revoke', pod).expect(401)
-    expect(await db.orm.public.SshSigningKey.all()).toHaveLength(1)
   })
 
   it('serves status, rotate and revoke to the owning session', async () => {

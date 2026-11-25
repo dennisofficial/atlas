@@ -116,13 +116,13 @@ describeWithHost('api under the bun runtime', () => {
     })
   })
 
-  it('injects the session verifier into SessionOrSandboxMiddleware', async () => {
+  it('answers 401 on a session-only procedure without a session', async () => {
     const input = encodeURIComponent(JSON.stringify({ project: '/repo' }))
     const response = await fetch(`${base}/v1/trpc/threads.recent?input=${input}`)
     expect(response.status).toBe(401)
   })
 
-  it('answers 401 on a tRPC procedure without a sandbox token', async () => {
+  it('answers 401 on a retired sandbox procedure', async () => {
     const response = await fetch(`${base}/v1/trpc/sandboxSelf.events`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },

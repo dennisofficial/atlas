@@ -13,9 +13,6 @@ import { seedSessionUsers } from '../../../test/web-settings.fake-db'
 import { UserFilesRouter } from './user-files.router'
 import { UserFilesService } from './user-files.service'
 
-const SANDBOX_TOKENS = { 'sandbox-a': { threadId: 'thread-sbx-a', userId: 'user-a' } }
-const POD_TOKENS = { 'pod-a': { threadId: 'thread-pod-a', userId: 'user-a' } }
-
 const encode = (bytes: Uint8Array) => Buffer.from(bytes).toString('base64')
 const hashOf = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex')
 const fileOf = (text: string) => {
@@ -33,8 +30,6 @@ describe('UserFilesRouter', () => {
 
   beforeAll(async () => {
     app = await buildSessionTrpcApp({
-      sandboxTokens: SANDBOX_TOKENS,
-      podTokens: POD_TOKENS,
       providers: [UserFilesRouter, UserFilesService],
     })
   })

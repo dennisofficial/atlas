@@ -9,6 +9,7 @@ import {
   UNTHROTTLED_RATE_LIMIT,
 } from '../../../_module/trpc/trpc-middleware.fixture'
 import { cipher } from './sandboxes.fixture'
+import { RetiredSandboxTokenMiddleware } from './retired-sandbox-token.middleware'
 import { SandboxCheckpointRouter } from './sandbox-checkpoint.router'
 import { SandboxesRouter } from './sandboxes.router'
 import { SandboxesService } from './sandboxes.service'
@@ -19,10 +20,6 @@ import { ThreadSignalsService } from '../sessions/thread-signals.service'
 export const USER_HEADER = 'x-test-user'
 
 export const asUser = (userId: string): Record<string, string> => ({ [USER_HEADER]: userId })
-
-export const asBearer = (token: string): { authorization: string } => ({
-  authorization: `Bearer ${token}`,
-})
 
 export const checkpointPath = (procedure: 'get' | 'put'): string =>
   `/v1/trpc/sandboxCheckpoint.${procedure}`
@@ -56,6 +53,7 @@ export function createSandboxRoutersApp(
       SandboxCheckpointRouter,
       { provide: ThreadSignalsService, useValue: inertSignals() },
       SessionMiddleware,
+      RetiredSandboxTokenMiddleware,
       { provide: SESSION_VERIFIER, useValue: verifier },
       { provide: SandboxesService, useValue: service },
     ],
@@ -73,18 +71,4 @@ export const getCheckpoint = ({
 }) => {
   const call = request(app.getHttpServer()).get(`${checkpointPath('get')}${queryOf({ threadId })}`)
   return userId === undefined ? call : call.set(asUser(userId))
-}
-
-export const putCheckpoint = ({
-  app,
-  token,
-  body,
-}: {
-  app: INestApplication
-  token: string | undefined
-  body: unknown
-}) => {
-  const call = request(app.getHttpServer()).post(checkpointPath('put'))
-  const authed = token === undefined ? call : call.set(asBearer(token))
-  return authed.send(body as object)
 }
