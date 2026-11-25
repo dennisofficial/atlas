@@ -19,16 +19,10 @@ import {
   type ArtifactUnpublishOutput,
 } from '@dltech/atlas-wire'
 import { Ctx, Input, Mutation, Query, Router, UseMiddlewares } from 'nestjs-trpc'
-import { meta } from '../../../_module/trpc/procedure-meta'
-import {
-  SessionOrSandboxMiddleware,
-  type SessionOrSandboxTrpcCtx,
-} from '../../platform/sessions/session-or-sandbox.middleware'
+import { SessionMiddleware, type SessionTrpcCtx } from '../../../_module/session/session.middleware'
 import { ArtifactLifecycleService } from './artifact-lifecycle.service'
 import { ArtifactLibraryService } from './artifact-library.service'
 import { ArtifactsService } from './artifacts.service'
-
-const reachable = meta({ podReachable: true, sandboxReachable: true })
 
 @Router({ alias: 'artifacts' })
 export class ArtifactsRouter {
@@ -41,12 +35,11 @@ export class ArtifactsRouter {
   @Mutation({
     input: artifactBeginPublishInputSchema,
     output: artifactBeginPublishOutputSchema,
-    meta: reachable,
   })
-  @UseMiddlewares(SessionOrSandboxMiddleware)
+  @UseMiddlewares(SessionMiddleware)
   beginPublish(
     @Input() input: ArtifactBeginPublishInput,
-    @Ctx() ctx: SessionOrSandboxTrpcCtx,
+    @Ctx() ctx: SessionTrpcCtx,
   ): Promise<ArtifactBeginPublishOutput> {
     return this.artifacts.beginPublish({ userId: ctx.auth.userId, body: input })
   }
@@ -54,27 +47,26 @@ export class ArtifactsRouter {
   @Mutation({
     input: artifactCommitPublishInputSchema,
     output: artifactCommitPublishOutputSchema,
-    meta: reachable,
   })
-  @UseMiddlewares(SessionOrSandboxMiddleware)
+  @UseMiddlewares(SessionMiddleware)
   commitPublish(
     @Input() input: ArtifactCommitPublishInput,
-    @Ctx() ctx: SessionOrSandboxTrpcCtx,
+    @Ctx() ctx: SessionTrpcCtx,
   ): Promise<ArtifactCommitPublishOutput> {
     return this.artifacts.commitPublish({ userId: ctx.auth.userId, body: input })
   }
 
-  @Query({ output: artifactListOutputSchema, meta: reachable })
-  @UseMiddlewares(SessionOrSandboxMiddleware)
-  list(@Ctx() ctx: SessionOrSandboxTrpcCtx): Promise<ArtifactListOutput> {
+  @Query({ output: artifactListOutputSchema })
+  @UseMiddlewares(SessionMiddleware)
+  list(@Ctx() ctx: SessionTrpcCtx): Promise<ArtifactListOutput> {
     return this.library.list({ userId: ctx.auth.userId })
   }
 
-  @Query({ input: artifactSubdomainInputSchema, output: artifactGetOutputSchema, meta: reachable })
-  @UseMiddlewares(SessionOrSandboxMiddleware)
+  @Query({ input: artifactSubdomainInputSchema, output: artifactGetOutputSchema })
+  @UseMiddlewares(SessionMiddleware)
   get(
     @Input() input: ArtifactSubdomainInput,
-    @Ctx() ctx: SessionOrSandboxTrpcCtx,
+    @Ctx() ctx: SessionTrpcCtx,
   ): Promise<ArtifactGetOutput> {
     return this.library.get({ userId: ctx.auth.userId, subdomain: input.subdomain })
   }
@@ -82,12 +74,11 @@ export class ArtifactsRouter {
   @Query({
     input: artifactSubdomainInputSchema,
     output: artifactSourceExportOutputSchema,
-    meta: reachable,
   })
-  @UseMiddlewares(SessionOrSandboxMiddleware)
+  @UseMiddlewares(SessionMiddleware)
   sourceExport(
     @Input() input: ArtifactSubdomainInput,
-    @Ctx() ctx: SessionOrSandboxTrpcCtx,
+    @Ctx() ctx: SessionTrpcCtx,
   ): Promise<ArtifactSourceExportOutput> {
     return this.library.sourceExport({ userId: ctx.auth.userId, subdomain: input.subdomain })
   }
@@ -95,12 +86,11 @@ export class ArtifactsRouter {
   @Mutation({
     input: artifactSubdomainInputSchema,
     output: artifactUnpublishOutputSchema,
-    meta: reachable,
   })
-  @UseMiddlewares(SessionOrSandboxMiddleware)
+  @UseMiddlewares(SessionMiddleware)
   unpublish(
     @Input() input: ArtifactSubdomainInput,
-    @Ctx() ctx: SessionOrSandboxTrpcCtx,
+    @Ctx() ctx: SessionTrpcCtx,
   ): Promise<ArtifactUnpublishOutput> {
     return this.lifecycle.unpublish({ userId: ctx.auth.userId, subdomain: input.subdomain })
   }

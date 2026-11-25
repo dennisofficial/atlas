@@ -49,7 +49,6 @@ import {
 import { z } from 'zod'
 import { PrSubscriptionLinks } from '../../../_core/ports/pr-subscription-links'
 import { podSessionIdOfSandboxName } from '../../../agent'
-import { meta } from '../../../_module/trpc/procedure-meta'
 import { NotificationsService } from '../notifications/notifications.service'
 import { podSessionOf } from '../sessions/session-of-thread'
 import { lockThread } from '../sessions/thread-head'
@@ -63,8 +62,11 @@ import { endPodTerminals } from '@dltech/atlas-pods'
 import { applyPodEvents, truncatePodEvents } from './pod-events'
 import { assertWithinSandboxFamily } from './pod-family'
 import { keepaliveFrames } from './sandbox-watch-keepalive'
-import { SandboxTokenMiddleware, type SandboxTrpcCtx } from './sandbox-token.middleware'
-import { PreviewTunnelService } from './preview-tunnel.service'
+import {
+  RetiredSandboxTokenMiddleware,
+  type SandboxTrpcCtx,
+} from './retired-sandbox-token.middleware'
+import { PreviewTunnelService } from '../previews/preview-tunnel.service'
 import { VercelSandboxClient } from './vercel-sandbox.client'
 
 const WATCH_QUEUE_LIMIT = 64
@@ -83,7 +85,7 @@ async function identityOf(ctx: SandboxTrpcCtx): Promise<SandboxIdentity> {
 }
 
 @Router({ alias: 'sandboxSelf' })
-@UseMiddlewares(SandboxTokenMiddleware)
+@UseMiddlewares(RetiredSandboxTokenMiddleware)
 export class SandboxSelfRouter {
   constructor(
     private readonly vercel: VercelSandboxClient,
@@ -100,7 +102,6 @@ export class SandboxSelfRouter {
   @Mutation({
     input: sandboxExposePortRequestSchema,
     output: sandboxExposePortReplySchema,
-    meta: meta({ podReachable: true }),
   })
   async exposePort(
     @Input() input: SandboxExposePortRequest,
@@ -233,7 +234,6 @@ export class SandboxSelfRouter {
   @Mutation({
     input: sandboxActivityPostSchema,
     output: z.void(),
-    meta: meta({ podReachable: true }),
   })
   async activity(@Input() input: SandboxActivityPost, @Ctx() ctx: SandboxTrpcCtx): Promise<void> {
     const { threadId: requested, ...activity } = input

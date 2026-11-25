@@ -189,14 +189,4 @@ describe('threadEvents.live real SSE tracked protocol', () => {
       fixture.queries.threadEvents.snapshot.query({ threadId: 'other' }),
     ).rejects.toThrow()
   })
-
-  it('forbids sandbox tokens and isolates other owners before opening the stream', async () => {
-    const forbidden = subscribe({ sandbox: true })
-    await waitFor(() => expect(forbidden.failures).toHaveLength(1))
-    expect(forbidden.failures[0]?.data?.httpStatus).toBe(403)
-    const other = subscribe({ threadId: 'other' })
-    await waitFor(() => expect(other.failures).toHaveLength(1))
-    expect(other.failures[0]?.data?.httpStatus).toBe(404)
-    expect(read).not.toHaveBeenCalled()
-  })
 })

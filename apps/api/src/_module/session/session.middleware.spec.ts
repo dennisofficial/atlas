@@ -75,6 +75,16 @@ describe('SessionMiddleware', () => {
     expect(reply.body).toEqual({ result: { data: { userId: 'user-1' } } })
   })
 
+  it('answers 401 to a sandbox or pod bearer token', async () => {
+    for (const bearer of ['sandbox-token', 'pod-token']) {
+      const reply = await request(app.getHttpServer())
+        .get('/v1/trpc/probe.whoami')
+        .set('authorization', `Bearer ${bearer}`)
+
+      expect(reply.status).toBe(401)
+    }
+  })
+
   it('answers 401 when there is no session', async () => {
     const reply = await request(app.getHttpServer()).get('/v1/trpc/probe.whoami')
 

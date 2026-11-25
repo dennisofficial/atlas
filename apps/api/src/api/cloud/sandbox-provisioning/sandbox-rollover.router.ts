@@ -6,13 +6,13 @@ import {
 } from '@dltech/atlas-wire'
 import { Ctx, Input, Mutation, Router, UseMiddlewares } from 'nestjs-trpc'
 import {
-  SandboxTokenMiddleware,
+  RetiredSandboxTokenMiddleware,
   type SandboxTrpcCtx,
-} from '../../platform/sandboxes/sandbox-token.middleware'
+} from '../../platform/sandboxes/retired-sandbox-token.middleware'
 import { PodLaunchService } from './pod-launch.service'
 
 @Router({ alias: 'sandboxRollover' })
-@UseMiddlewares(SandboxTokenMiddleware)
+@UseMiddlewares(RetiredSandboxTokenMiddleware)
 export class SandboxRolloverRouter {
   constructor(private readonly pods: PodLaunchService) {}
 

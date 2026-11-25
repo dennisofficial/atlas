@@ -6,7 +6,7 @@ import { JobDispatcher, type AnyTask, type JobDispatch } from '../../../_core/po
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { DrainStateService } from '../health/drain-state.service'
 import { CloudflareTunnelClient } from '@dltech/atlas-previews'
-import { PreviewTunnelService } from '../sandboxes/preview-tunnel.service'
+import { PreviewTunnelService } from '../previews/preview-tunnel.service'
 import { podSessionOf } from './session-of-thread'
 import { SandboxesService } from '../sandboxes/sandboxes.service'
 import { VercelSandboxClient } from '../sandboxes/vercel-sandbox.client'
@@ -67,7 +67,7 @@ export async function createArchiveRouterFixture() {
   const deleteDnsRecord = spyOn(cloudflare, 'deleteDnsRecord').mockResolvedValue(undefined)
   const deleteTunnel = spyOn(cloudflare, 'deleteTunnel').mockResolvedValue(undefined)
   const previews = new PreviewTunnelService(env, cipher, cloudflare)
-  const sandboxes = new SandboxesService(vercel, cipher, signals, env)
+  const sandboxes = new SandboxesService(vercel, cipher, signals)
   const dispatcher = new ArchiveCleanupQueue({
     park: (args) => sandboxes.park(args),
     teardownPreviews: (args) => previews.teardown(args),

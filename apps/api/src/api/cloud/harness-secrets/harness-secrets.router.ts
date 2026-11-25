@@ -11,11 +11,6 @@ import {
 import { Ctx, Input, Mutation, Query, Router, UseMiddlewares } from 'nestjs-trpc'
 import { z } from 'zod'
 import { SessionMiddleware, type SessionTrpcCtx } from '../../../_module/session/session.middleware'
-import { meta } from '../../../_module/trpc/procedure-meta'
-import {
-  SessionOrSandboxMiddleware,
-  type SessionOrSandboxTrpcCtx,
-} from '../../platform/sessions/session-or-sandbox.middleware'
 import { HarnessSecretsService } from './harness-secrets.service'
 
 @Router({ alias: 'harnessSecrets' })
@@ -24,10 +19,9 @@ export class HarnessSecretsRouter {
 
   @Query({
     output: harnessSecretListSchema,
-    meta: meta({ podReachable: true, sandboxReachable: true }),
   })
-  @UseMiddlewares(SessionOrSandboxMiddleware)
-  async list(@Ctx() ctx: SessionOrSandboxTrpcCtx): Promise<HarnessSecretList> {
+  @UseMiddlewares(SessionMiddleware)
+  async list(@Ctx() ctx: SessionTrpcCtx): Promise<HarnessSecretList> {
     return { secrets: await this.harnessSecrets.list({ userId: ctx.auth.userId }) }
   }
 

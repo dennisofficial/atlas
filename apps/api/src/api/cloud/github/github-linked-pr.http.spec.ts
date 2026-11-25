@@ -21,7 +21,7 @@ import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { createMixedApp } from '../../platform/accounts/accounts.router.fixture'
 import { DrainStateService } from '../../platform/health/drain-state.service'
 import { SandboxesService } from '../../platform/sandboxes/sandboxes.service'
-import { SessionOrSandboxMiddleware } from '../../platform/sessions/session-or-sandbox.middleware'
+import { SessionMiddleware } from '../../../_module/session/session.middleware'
 import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import type { GithubAppInstallNoticeService } from '@dltech/atlas-github'
 import { PULL_REQUEST_PAYLOAD } from '@dltech/atlas-github/testing'
@@ -147,7 +147,7 @@ describe('linked PR states across real HTTP, Redis and Postgres', () => {
       },
       providers: [
         GithubPrStreamRouter,
-        SessionOrSandboxMiddleware,
+        SessionMiddleware,
         { provide: DrainStateService, useValue: new DrainStateService() },
         { provide: GithubPrFanoutService, useValue: api.fanout },
         { provide: GithubRequestCoordinator, useValue: api.coordinator },

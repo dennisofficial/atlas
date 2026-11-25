@@ -7,8 +7,6 @@ const throttleSchema = z.union([
 
 const apiProcedureMetaSchema = z.object({
   awaitingAccessAllowed: z.literal(true).optional(),
-  podReachable: z.literal(true).optional(),
-  sandboxReachable: z.literal(true).optional(),
   public: z.literal(true).optional(),
   throttle: throttleSchema.optional(),
 })

@@ -12,49 +12,37 @@ import {
 } from '@dltech/atlas-wire'
 import { Ctx, Input, Mutation, Router, UseMiddlewares } from 'nestjs-trpc'
 import { z } from 'zod'
-import { meta } from '../../../_module/trpc/procedure-meta'
-import {
-  SessionOrSandboxMiddleware,
-  type SessionOrSandboxTrpcCtx,
-} from '../../platform/sessions/session-or-sandbox.middleware'
+import { SessionMiddleware, type SessionTrpcCtx } from '../../../_module/session/session.middleware'
 import { GithubSubscriptionsService } from '@dltech/atlas-github'
 
-const threadLinkOf = (ctx: SessionOrSandboxTrpcCtx): { threadId?: string } => {
-  const threadId = ctx.sandbox?.threadId ?? ctx.pod?.threadId
-  return threadId === undefined ? {} : { threadId }
-}
-
 @Router({ alias: 'githubSubscriptions' })
-@UseMiddlewares(SessionOrSandboxMiddleware)
+@UseMiddlewares(SessionMiddleware)
 export class GithubSubscriptionsRouter {
   constructor(private readonly subscriptions: GithubSubscriptionsService) {}
 
   @Mutation({
     input: githubSubscribeInputSchema,
     output: githubSubscriptionSchema,
-    meta: meta({ podReachable: true, sandboxReachable: true }),
   })
   subscribe(
     @Input() input: GithubSubscribeInput,
-    @Ctx() ctx: SessionOrSandboxTrpcCtx,
+    @Ctx() ctx: SessionTrpcCtx,
   ): Promise<GithubSubscription> {
     return this.subscriptions.subscribe({
       userId: ctx.auth.userId,
       repoFullName: input.repoFullName,
       ...(input.prNumber === undefined ? {} : { prNumber: input.prNumber }),
       ...(input.branch === undefined ? {} : { branch: input.branch }),
-      ...threadLinkOf(ctx),
     })
   }
 
   @Mutation({
     input: githubSubscriptionIdInputSchema,
     output: z.void(),
-    meta: meta({ podReachable: true, sandboxReachable: true }),
   })
   async unsubscribe(
     @Input() input: GithubSubscriptionIdInput,
-    @Ctx() ctx: SessionOrSandboxTrpcCtx,
+    @Ctx() ctx: SessionTrpcCtx,
   ): Promise<void> {
     await this.subscriptions.unsubscribe({ userId: ctx.auth.userId, subscriptionId: input.id })
   }
@@ -62,11 +50,10 @@ export class GithubSubscriptionsRouter {
   @Mutation({
     input: githubDismissAppInstallNoticeInputSchema,
     output: z.void(),
-    meta: meta({ sandboxReachable: true }),
   })
   async dismissAppInstallNotice(
     @Input() input: GithubDismissAppInstallNoticeInput,
-    @Ctx() ctx: SessionOrSandboxTrpcCtx,
+    @Ctx() ctx: SessionTrpcCtx,
   ): Promise<void> {
     await this.subscriptions.dismissAppInstallNotice({
       userId: ctx.auth.userId,
@@ -77,16 +64,14 @@ export class GithubSubscriptionsRouter {
   @Mutation({
     input: githubSubscriptionIdInputSchema,
     output: githubHeartbeatSchema,
-    meta: meta({ podReachable: true, sandboxReachable: true }),
   })
   heartbeat(
     @Input() input: GithubSubscriptionIdInput,
-    @Ctx() ctx: SessionOrSandboxTrpcCtx,
+    @Ctx() ctx: SessionTrpcCtx,
   ): Promise<GithubHeartbeat> {
     return this.subscriptions.heartbeat({
       userId: ctx.auth.userId,
       subscriptionId: input.id,
-      ...threadLinkOf(ctx),
     })
   }
 }

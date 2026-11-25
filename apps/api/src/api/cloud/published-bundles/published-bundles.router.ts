@@ -10,11 +10,6 @@ import {
 } from '@dltech/atlas-wire'
 import { Ctx, Input, Mutation, Query, Router, UseMiddlewares } from 'nestjs-trpc'
 import { SessionMiddleware, type SessionTrpcCtx } from '../../../_module/session/session.middleware'
-import { meta } from '../../../_module/trpc/procedure-meta'
-import {
-  SessionOrSandboxMiddleware,
-  type SessionOrSandboxTrpcCtx,
-} from '../../platform/sessions/session-or-sandbox.middleware'
 import { PublishedBundlesService } from './published-bundles.service'
 
 @Router({ alias: 'publishedBundles' })
@@ -38,10 +33,9 @@ export class PublishedBundlesRouter {
 
   @Query({
     output: publishedBundleCurrentSchema,
-    meta: meta({ podReachable: true, sandboxReachable: true }),
   })
-  @UseMiddlewares(SessionOrSandboxMiddleware)
-  current(@Ctx() ctx: SessionOrSandboxTrpcCtx): Promise<PublishedBundleCurrent> {
+  @UseMiddlewares(SessionMiddleware)
+  current(@Ctx() ctx: SessionTrpcCtx): Promise<PublishedBundleCurrent> {
     return this.bundles.current({ userId: ctx.auth.userId })
   }
 }

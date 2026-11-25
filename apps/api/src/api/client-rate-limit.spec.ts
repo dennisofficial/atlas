@@ -52,7 +52,6 @@ describe('the first-party read routes', () => {
     ['sandboxes.claim', SandboxesRouter.prototype.claim],
     ['sandboxes.destroy', SandboxesRouter.prototype.destroy],
     ['sandboxCheckpoint.get', SandboxCheckpointRouter.prototype.get],
-    ['sandboxCheckpoint.put', SandboxCheckpointRouter.prototype.put],
   ] as const) {
     it(`raises the throttle on ${label} above the app-wide default`, () => {
       expect(procedureMetaOf(handler).throttle).toEqual(READ_THROTTLE)
@@ -72,14 +71,5 @@ describe('the serve-facing control-plane routes', () => {
   it('leaves the append and replace procedures throttled', () => {
     expect(procedureMetaOf(ThreadEventsRouter.prototype.append).throttle).not.toBe(false)
     expect(procedureMetaOf(ThreadEventsRouter.prototype.replace).throttle).not.toBe(false)
-  })
-})
-
-describe('sandbox reachability of the thread procedures', () => {
-  it('lets a sandbox token reach only create and open without naming a thread', () => {
-    expect(procedureMetaOf(ThreadsRouter.prototype.create).sandboxReachable).toBe(true)
-    expect(procedureMetaOf(ThreadsRouter.prototype.open).sandboxReachable).toBe(true)
-    expect(procedureMetaOf(ThreadsRouter.prototype.list).sandboxReachable).toBeUndefined()
-    expect(procedureMetaOf(ThreadsRouter.prototype.recent).sandboxReachable).toBeUndefined()
   })
 })

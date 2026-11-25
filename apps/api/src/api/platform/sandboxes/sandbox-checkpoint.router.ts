@@ -15,7 +15,10 @@ import { meta } from '../../../_module/trpc/procedure-meta'
 import { CLIENT_READ_LIMIT_PER_MINUTE } from '../../client-rate-limit'
 import { ThreadSignalsService } from '../sessions/thread-signals.service'
 import { storedCheckpointOf } from './sandbox-checkpoint'
-import { SandboxTokenMiddleware, type SandboxTrpcCtx } from './sandbox-token.middleware'
+import {
+  RetiredSandboxTokenMiddleware,
+  type SandboxTrpcCtx,
+} from './retired-sandbox-token.middleware'
 import { hashSessionToken } from './sandbox-tokens'
 
 const CHECKPOINT_COLUMNS = ['userId', 'runtimeCheckpoint', 'runtimeCheckpointRevision'] as const
@@ -62,7 +65,7 @@ export class SandboxCheckpointRouter {
     output: readRuntimeCheckpointReplySchema,
     meta: clientRead,
   })
-  @UseMiddlewares(SandboxTokenMiddleware)
+  @UseMiddlewares(RetiredSandboxTokenMiddleware)
   async put(
     @Input() input: RuntimeCheckpoint,
     @Ctx() ctx: SandboxTrpcCtx,

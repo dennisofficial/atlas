@@ -11,20 +11,15 @@ import {
 import { Ctx, Input, Mutation, Query, Router, UseMiddlewares } from 'nestjs-trpc'
 import { z } from 'zod'
 import { SessionMiddleware, type SessionTrpcCtx } from '../../../_module/session/session.middleware'
-import { meta } from '../../../_module/trpc/procedure-meta'
-import {
-  SessionOrSandboxMiddleware,
-  type SessionOrSandboxTrpcCtx,
-} from '../../platform/sessions/session-or-sandbox.middleware'
 import { SettingsService } from './settings.service'
 
 @Router({ alias: 'settings' })
 export class SettingsRouter {
   constructor(private readonly settings: SettingsService) {}
 
-  @Query({ output: settingListSchema, meta: meta({ podReachable: true, sandboxReachable: true }) })
-  @UseMiddlewares(SessionOrSandboxMiddleware)
-  async list(@Ctx() ctx: SessionOrSandboxTrpcCtx): Promise<SettingList> {
+  @Query({ output: settingListSchema })
+  @UseMiddlewares(SessionMiddleware)
+  async list(@Ctx() ctx: SessionTrpcCtx): Promise<SettingList> {
     return { settings: await this.settings.list({ userId: ctx.auth.userId }) }
   }
 
@@ -37,26 +32,18 @@ export class SettingsRouter {
   @Mutation({
     input: personalSettingSetSchema,
     output: z.void(),
-    meta: meta({ sandboxReachable: true }),
   })
-  @UseMiddlewares(SessionOrSandboxMiddleware)
-  async set(
-    @Input() input: PersonalSettingSet,
-    @Ctx() ctx: SessionOrSandboxTrpcCtx,
-  ): Promise<void> {
+  @UseMiddlewares(SessionMiddleware)
+  async set(@Input() input: PersonalSettingSet, @Ctx() ctx: SessionTrpcCtx): Promise<void> {
     await this.settings.set({ userId: ctx.auth.userId, key: input.key, value: input.value })
   }
 
   @Mutation({
     input: personalSettingKeySchema,
     output: z.void(),
-    meta: meta({ sandboxReachable: true }),
   })
-  @UseMiddlewares(SessionOrSandboxMiddleware)
-  async remove(
-    @Input() input: PersonalSettingKey,
-    @Ctx() ctx: SessionOrSandboxTrpcCtx,
-  ): Promise<void> {
+  @UseMiddlewares(SessionMiddleware)
+  async remove(@Input() input: PersonalSettingKey, @Ctx() ctx: SessionTrpcCtx): Promise<void> {
     await this.settings.remove({ userId: ctx.auth.userId, key: input.key })
   }
 }

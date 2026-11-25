@@ -190,17 +190,6 @@ describe('PublishedBundlesRouter', () => {
       })
     })
 
-    it("serves the user's own pod", async () => {
-      const res = await current('pod-token-a').expect(200)
-
-      expect(summaryOf(res.body).version).toBe(2)
-    })
-
-    it("answers 404 to another user's pod and to a user with no bundle", async () => {
-      await current('pod-token-c').expect(404)
-      await current('session-b').expect(404)
-    })
-
     it('requires a bearer', async () => {
       await current().expect(401)
     })

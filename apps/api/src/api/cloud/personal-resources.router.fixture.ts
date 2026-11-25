@@ -11,9 +11,6 @@ import {
   UNTHROTTLED_RATE_LIMIT,
 } from '../../_module/trpc/trpc-middleware.fixture'
 import { SandboxesService } from '../platform/sandboxes/sandboxes.service'
-import { ETokenPrincipalKind } from '../platform/sandboxes/token-principal'
-import { SessionOrSandboxMiddleware } from '../platform/sessions/session-or-sandbox.middleware'
-
 const HEX_KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
 
 const STALE_PREFIX = 'stale:'
@@ -42,7 +39,7 @@ export const createPersonalApp = (providers: Provider[]): Promise<INestApplicati
     providers: [
       ...providers,
       SessionMiddleware,
-      SessionOrSandboxMiddleware,
+      SessionMiddleware,
       { provide: SecretCipherService, useValue: cipher },
       {
         provide: SESSION_VERIFIER,
@@ -66,9 +63,9 @@ export const createPersonalApp = (providers: Provider[]): Promise<INestApplicati
         useValue: {
           async verifyTokenPrincipal(args: { token: string }) {
             const pod = POD_TOKENS[args.token]
-            if (pod !== undefined) return { kind: ETokenPrincipalKind.Pod, ...pod }
+            if (pod !== undefined) return { kind: 'pod', ...pod }
             const sandbox = SANDBOX_TOKENS[args.token]
-            if (sandbox !== undefined) return { kind: ETokenPrincipalKind.Sandbox, ...sandbox }
+            if (sandbox !== undefined) return { kind: 'sandbox', ...sandbox }
             throw new UnauthorizedException()
           },
           async assertThreadInFamily() {

@@ -7,7 +7,6 @@ import { InProcessRefreshLock, RefreshLock } from '../../../_lib/refresh-lock/re
 import { SESSION_VERIFIER } from '../../../_core/ports/session-verifier'
 import { SessionMiddleware } from '../../../_module/session/session.middleware'
 import { SandboxesService } from '../../platform/sandboxes/sandboxes.service'
-import { SessionOrSandboxMiddleware } from '../../platform/sessions/session-or-sandbox.middleware'
 import {
   createOauthApp,
   mutate,
@@ -84,7 +83,7 @@ describe('McpOauthRouter authorization', () => {
       McpOauthService,
       McpOauthAccessService,
       SessionMiddleware,
-      SessionOrSandboxMiddleware,
+      SessionMiddleware,
       { provide: McpOauthStore, useValue: store },
       { provide: McpOauthClock, useValue: new FakeMcpClock(Date.now()) },
       { provide: McpOauthFetcher, useValue: fetcher },
@@ -147,17 +146,6 @@ describe('McpOauthRouter authorization', () => {
       name: 'posthog',
       status: 'connected',
     })
-  })
-
-  it('lets a sandbox mint a token scoped to its owner', async () => {
-    const res = await mutate({
-      app,
-      procedure: 'mcpOauth.accessToken',
-      token: 'sandbox-token-1',
-      body: accessBody,
-    })
-    expect(res.status).toBe(200)
-    expect(res.body.result.data).toMatchObject({ outcome: 'granted', accessToken: 'tok-a' })
   })
 
   it('answers needs-auth to a different user', async () => {

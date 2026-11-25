@@ -127,15 +127,6 @@ describe('UserFilesRouter', () => {
     })
   })
 
-  it('reaches a sandbox token for its own user and refuses a pod lease token on list', async () => {
-    await put('session-a', { tree: 'memory', path: 'm.md', ...fileOf('m') }).expect(200)
-
-    const sandbox = await list('sandbox-a', { tree: 'memory' }).expect(200)
-    expect(dataOf(sandbox.body)).toMatchObject({ files: [{ path: 'm.md' }] })
-    await list('pod-a', { tree: 'memory' }).expect(403)
-    await list(undefined, { tree: 'memory' }).expect(401)
-  })
-
   it('answers 409 when the base revision is stale', async () => {
     await put('session-a', { tree: 'instructions', path: 'c.md', ...fileOf('c') }).expect(200)
 

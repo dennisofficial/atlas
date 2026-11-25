@@ -115,15 +115,11 @@ GitHub webhooks, and the agent's `/healthz` and `/mcp-oauth/callback`.
   from `@dltech/atlas-wire`. The generated file may import only `@trpc/server`, `zod` and wire.
   `packages/api-router/src/__tests__/generated-imports.spec.ts` fails a procedure without `output`.
   Input objects are `z.strictObject`.
-- Authenticate with `@UseMiddlewares(SessionMiddleware)` (a user session) or
-  `@UseMiddlewares(SessionOrSandboxMiddleware)` (a session, a sandbox token or a pod lease token).
-  A procedure opts token kinds in with `meta({ podReachable: true, sandboxReachable: true })`. It
-  tunes the throttle with `meta({ throttle: { limit, ttlMs } | false })`
-  (`src/_module/trpc/procedure-meta.ts`). A sandbox token reaches any procedure whose
-  input names a `threadId` in its own thread family. It also reaches a threadless procedure marked
-  `sandboxReachable`. A pod token reaches only `podReachable` procedures. It never reaches a
-  thread-family procedure. Mark a procedure `podReachable` only for a threadless, user-scoped
-  capability that a local pod uses (decision 0015).
+- Authenticate with `@UseMiddlewares(SessionMiddleware)` (a user session). That is the only
+  principal. It arrives from `SessionModule` (`src/_module/session`), which every module reaches
+  as a global provider. A procedure tunes the throttle with
+  `meta({ throttle: { limit, ttlMs } | false })` (`src/_module/trpc/procedure-meta.ts`) and opts
+  out of the session with `meta({ public: true })`.
 - The generated `AppRouter` (`packages/api-router/src/generated/server.ts`) is committed. The
   pre-commit hook regenerates it when api or wire sources are staged. The CI `check` job fails on
   drift. `nestjs-trpc watch` keeps it current in `bun run dev`. Commit what the hook writes.
@@ -155,7 +151,7 @@ src/
   _lib/       infra adapters (crypto). Framework-light.
   _module/    shared injectable modules (session middleware + verifier port, tRPC middlewares).
   api/        the v1 app: api.module.ts + feature modules in two layers —
-              platform/ (auth, accounts, sessions, sandboxes, health) and cloud/ (secrets,
+              platform/ (auth, accounts, sessions, sandboxes, previews, health) and cloud/ (secrets,
               mcp-servers, user-context, github). One-way rule:
               cloud may import platform, platform never imports cloud;
               enforced by src/api/architecture.spec.ts.
@@ -250,9 +246,16 @@ better-auth is mounted through `@thallesp/nestjs-better-auth` in `src/api/platfo
 with the `bearer` and `deviceAuthorization` plugins. Middlewares and guards never import
 better-auth. They depend on the `SESSION_VERIFIER` port (`src/_core/ports/session-verifier.ts`),
 bound by `SessionModule.withVerifier(...)`. Every procedure is protected by
-its router's `SessionMiddleware` or `SessionOrSandboxMiddleware`. `meta({ public: true })` opts
-one out. The remaining REST controllers carry no session guard: health is open and the webhooks
-verify an HMAC. `ClientVersionGuard` and `ThrottlerGuard` stay global for those REST routes.
+its router's `SessionMiddleware`, and a bearer that `SESSION_VERIFIER` does not recognise is a 401.
+`meta({ public: true })` opts one out. The remaining REST controllers carry no session guard:
+health is open and the webhooks verify an HMAC. `ClientVersionGuard` and `ThrottlerGuard` stay
+global for those REST routes. The retired v1 sandbox and local-pod lease tokens authenticate
+nothing: their principals, their lookup cache and the `sandboxReachable`/`podReachable` procedure
+meta are gone (slice 4a of `docs/v2/slices/v1-retirement.md`). `sandboxSelf`, `sandboxConfig.get`,
+`sandboxCheckpoint.put` and `sandboxRollover` stay registered only so `apps/serve` and
+`packages/harness` keep typechecking against the generated `AppRouter` until slice 5. They sit
+behind `RetiredSandboxTokenMiddleware` (`src/api/platform/sandboxes`), which answers 401 to every
+caller, and slice 4b deletes them.
 
 The device-authorization flow is how the TUI logs in. The pages live in `apps/web` (Vercel,
 `byatlas.io`). The API only exposes the better-auth endpoints. `WEB_ORIGIN` is what points

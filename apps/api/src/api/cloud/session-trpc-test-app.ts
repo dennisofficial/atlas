@@ -18,9 +18,6 @@ import { ThrottleMiddleware } from '../../_module/trpc/throttle.middleware'
 import { apiErrorFormatter } from '../../_module/trpc/trpc-error-formatter'
 import { fakeEnvModule, UNTHROTTLED_RATE_LIMIT } from '../../_module/trpc/trpc-middleware.fixture'
 import { SandboxesService } from '../platform/sandboxes/sandboxes.service'
-import { ETokenPrincipalKind, type TokenPrincipal } from '../platform/sandboxes/token-principal'
-import { SessionOrSandboxMiddleware } from '../platform/sessions/session-or-sandbox.middleware'
-
 const HEX_KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2'
 
 export const testCipher = (): SecretCipherService =>
@@ -36,6 +33,10 @@ export const SESSIONS: Record<string, string> = {
 
 export type PrincipalFixture = { id?: string; threadId: string; userId: string }
 
+type TokenPrincipal =
+  | { kind: 'sandbox'; id: string; threadId: string; userId: string }
+  | { kind: 'pod'; threadId: string; userId: string }
+
 const bearerOf = (req: { headers: { authorization?: string } }): string =>
   (req.headers.authorization ?? '').replace(/^Bearer /i, '')
 
@@ -46,12 +47,12 @@ const principalOf = (args: {
 }): TokenPrincipal => {
   const pod = args.podTokens[args.token]
   if (pod !== undefined) {
-    return { kind: ETokenPrincipalKind.Pod, threadId: pod.threadId, userId: pod.userId }
+    return { kind: 'pod', threadId: pod.threadId, userId: pod.userId }
   }
   const sandbox = args.sandboxTokens[args.token]
   if (sandbox === undefined) throw new UnauthorizedException()
   return {
-    kind: ETokenPrincipalKind.Sandbox,
+    kind: 'sandbox',
     id: sandbox.id ?? `sbx-${sandbox.threadId}`,
     threadId: sandbox.threadId,
     userId: sandbox.userId,
@@ -81,7 +82,7 @@ export async function buildSessionTrpcApp(args: {
     providers: [
       ...args.providers,
       SessionMiddleware,
-      SessionOrSandboxMiddleware,
+      SessionMiddleware,
       { provide: SecretCipherService, useValue: testCipher() },
       {
         provide: SESSION_VERIFIER,
