@@ -441,7 +441,7 @@ export const fakeSessionClient = (args: {
       return null
     },
     saveDraft: async (input) => {
-      calls.saveDraft.push({ scope: input.scope, text: input.text, uploads: [] })
+      calls.saveDraft.push({ scope: input.scope, text: input.text })
     },
     clearDraft: async (scope) => {
       calls.clearDraft.push(scope)

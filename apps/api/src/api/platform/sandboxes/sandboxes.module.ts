@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common'
-import { NotificationsModule } from '../notifications/notifications.module'
 import { PreviewsModule } from '../previews/previews.module'
 import { ThreadSignalsModule } from '../sessions/thread-signals.module'
 import { RetiredSandboxTokenMiddleware } from './retired-sandbox-token.middleware'
@@ -11,7 +10,7 @@ import { SandboxesService } from './sandboxes.service'
 import { VercelSandboxClient } from './vercel-sandbox.client'
 
 @Module({
-  imports: [ThreadSignalsModule, NotificationsModule, PreviewsModule],
+  imports: [ThreadSignalsModule, PreviewsModule],
   providers: [
     SandboxesService,
     SandboxEndpointService,
