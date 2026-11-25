@@ -10,5 +10,13 @@ const LABEL: Record<ESessionDisplay, string> = {
   [ESessionDisplay.Failed]: 'Failed',
 }
 
+const SHOWN_BY_ICON_ALONE: ReadonlySet<ESessionDisplay> = new Set([
+  ESessionDisplay.Working,
+  ESessionDisplay.Idle,
+])
+
 export const sessionStatusLabelOf = (display: ESessionDisplay | undefined): string | undefined =>
   display === undefined ? undefined : LABEL[display]
+
+export const rowStatusLabelOf = (display: ESessionDisplay | undefined): string | undefined =>
+  display === undefined || SHOWN_BY_ICON_ALONE.has(display) ? undefined : LABEL[display]

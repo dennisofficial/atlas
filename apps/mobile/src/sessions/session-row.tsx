@@ -15,7 +15,7 @@ import { Pressable } from 'react-native-gesture-handler'
 import { relativeTime } from '../lib/relative-time'
 import type { ISessionEntry } from './session-groups'
 import { rowFillOf } from './session-row-fill'
-import { sessionStatusLabelOf } from './session-status-label'
+import { rowStatusLabelOf } from './session-status-label'
 import { StatusIcon } from './status-icon'
 import { WorkSummary } from './work-summary'
 
@@ -37,7 +37,6 @@ const statusToneOf = (status: ESessionDisplay | undefined): ETextTone =>
 export const SessionRow = ({
   entry,
   now,
-  depth = 0,
   selected = false,
   archived = false,
   onPress,
@@ -45,7 +44,6 @@ export const SessionRow = ({
 }: {
   entry: ISessionEntry
   now: number
-  depth?: number
   selected?: boolean
   archived?: boolean
   onPress: () => void
@@ -53,7 +51,7 @@ export const SessionRow = ({
 }) => {
   const theme = useTheme()
   const dark = useIsDark()
-  const status = sessionStatusLabelOf(entry.status)
+  const status = rowStatusLabelOf(entry.status)
   const fill = rowFillOf({ dark })
   const selectedFill = withAlpha({ color: theme[fill.selected.color], alpha: fill.selected.alpha })
   const pressedFill = withAlpha({ color: theme[fill.pressed.color], alpha: fill.pressed.alpha })
@@ -74,7 +72,6 @@ export const SessionRow = ({
       onPress={onPress}
       style={({ pressed }) => [
         styles.row,
-        depth > 0 ? { paddingLeft: space(2) + depth * space(4) } : null,
         selected ? { backgroundColor: selectedFill } : null,
         selected ? null : pressed ? { backgroundColor: pressedFill } : null,
       ]}
@@ -86,7 +83,9 @@ export const SessionRow = ({
         </Text>
       </View>
       <View style={styles.secondary}>
-        {status === undefined ? null : (
+        {status === undefined ? (
+          <View style={styles.status} />
+        ) : (
           <Text
             size={ETextRole.Xs}
             tone={statusToneOf(entry.status)}

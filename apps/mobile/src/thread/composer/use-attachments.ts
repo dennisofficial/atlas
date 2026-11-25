@@ -28,11 +28,11 @@ import {
   type PickedFile,
 } from './attachment-plan'
 import { type EAttachSource, PICK_FAILED } from './attach-sources'
-import { pastedImageOf, pickedOfPasted } from './paste-image'
 import { pickFrom } from './pick-from'
 import { putBytes, sizeOfFile, type UploadHandle } from './put-bytes'
 import { storeMedia } from './store-media'
-import { writePasted } from './write-pasted'
+
+const ATTACH_FAILED = "Couldn't attach the file"
 
 export type ComposerAttachments = {
   held: readonly HeldAttachment[]
@@ -41,7 +41,7 @@ export type ComposerAttachments = {
   failed: boolean
   notice: string | null
   pick: (source: EAttachSource) => Promise<void>
-  pasteImage: (data: string) => Promise<void>
+  attachFiles: (files: readonly PickedFile[]) => void
   remove: (id: string) => void
   restore: (args: {
     attachments: readonly Attachment[]
@@ -202,15 +202,13 @@ export function useAttachments(): ComposerAttachments {
     [attach],
   )
 
-  const pasteImage = useCallback(
-    async (data: string) => {
-      const image = pastedImageOf({ data, at: Date.now() })
-      if (image === null) return
-      try {
-        attach([pickedOfPasted({ image, uri: await writePasted(image) })])
-      } catch {
-        setNotice(uploadFailedNotice(image.name))
-      }
+  const attachFiles = useCallback(
+    (files: readonly PickedFile[]) => {
+      if (files.length === 0) return
+      const sized = files.map(async (file) =>
+        file.size > 0 ? file : { ...file, size: await sizeOfFile(file.uri) },
+      )
+      Promise.all(sized).then(attach, () => setNotice(ATTACH_FAILED))
     },
     [attach],
   )
@@ -267,7 +265,7 @@ export function useAttachments(): ComposerAttachments {
     failed: hasFailed(held),
     notice,
     pick,
-    pasteImage,
+    attachFiles,
     remove,
     restore,
     clear,
