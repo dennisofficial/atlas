@@ -436,12 +436,6 @@ jobs:
           fi
           gh release create "tui-v${VERSION}" dist/* "${args[@]}"
 
-      - name: dispatch sandbox image retag
-        if: steps.version.outputs.skip != 'true'
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
-        run: gh workflow run sandbox-image.yml -f release_tag="tui-v${VERSION}" -f release_sha="$TARGET_SHA"
-
       # Three readers resolve releases/latest/download by name and none of them may 404: install.sh
       # with no version fetches the tui binaries, the site's download button fetches
       # macos-arm64-Atlas.dmg, and the installed Mac app fetches latest-mac.yml. latest must not move
