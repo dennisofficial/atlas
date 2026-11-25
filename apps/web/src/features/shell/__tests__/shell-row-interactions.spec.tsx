@@ -94,7 +94,6 @@ describe('shared sidebar row interactions', () => {
     const row = view.link('local')
     expect(row.querySelector('[data-thread-line="primary"] [aria-label="Unread"]')).not.toBeNull()
     expect(row.querySelector('[data-thread-line="secondary"] [aria-label="Unread"]')).toBeNull()
-    expect(row.querySelector('[aria-label="This Mac"]')).not.toBeNull()
     expect(view.container?.querySelector('[aria-label="Pinned"]')).not.toBeNull()
     await view.click('button[aria-label="Archive thread"]')
     expect(view.archived).toEqual([thread])

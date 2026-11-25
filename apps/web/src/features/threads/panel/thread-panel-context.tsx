@@ -5,11 +5,11 @@ import { createContext, useContext } from 'react'
 import type { PodStatus } from '@dltech/atlas-wire/web'
 
 import type { DetailsInput } from './details/details-input'
-import type { ServeChannel } from '../data/live-thread-view'
+import type { LiveChannel } from '../data/live-channel'
 
 export type ThreadPanelValue = {
   threadId: string
-  channel: ServeChannel | null
+  channel: LiveChannel | null
   pod: PodStatus | null
   details: DetailsInput
   loaded: boolean

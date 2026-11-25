@@ -81,20 +81,6 @@ export function nestPeers(rows: readonly ShellSessionNode[]): ShellSessionNode[]
   return (nestPeerRows(ordered) as readonly Childed[]).map(nodeOf)
 }
 
-export function v2SessionIdsOf(
-  entries: readonly ProjectThreads[] | undefined,
-): ReadonlySet<string> {
-  const ids = new Set<string>()
-  const visit = (session: ShellSessionNode) => {
-    if (isV2Session(session)) ids.add(session.id)
-    for (const peer of session.teammates) visit(peer)
-  }
-  for (const { sessions } of entries ?? []) {
-    for (const session of sessions) visit(session)
-  }
-  return ids
-}
-
 export function withV2Sessions(args: {
   entries: ProjectThreads[]
   sessions: readonly V2SessionSummary[]

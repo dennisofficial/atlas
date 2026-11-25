@@ -39,7 +39,7 @@ export function AppSidebar({
   activeRoutineId = null,
   activeNav,
 }: AppSidebarProps) {
-  const query = useShellEntries(activeThreadId)
+  const query = useShellEntries()
   const { user } = useSessionUser()
   const [searchOpen, setSearchOpen] = useState(false)
   const initials = user === null ? '?' : initialsOf(user.name)

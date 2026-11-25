@@ -168,17 +168,4 @@ describe('v1 sidebar row', () => {
         model: { ref: 'anthropic/claude-opus-5-5' },
       }),
     )
-
-  it('marks the row v1 and never as a v2 session', () => {
-    const html = renderToStaticMarkup(
-      <SidebarProvider>
-        <ThreadActionsContext.Provider value={{ onToggleArchive: () => undefined }}>
-          <ThreadRow session={v1Row('t1')} projectName="atlas" activeThreadId={null} />
-        </ThreadActionsContext.Provider>
-      </SidebarProvider>,
-    )
-    expect(html).toContain('data-engine-tag="v1"')
-    expect(html).toContain('>v1<')
-    expect(html).not.toContain('data-sandbox-provider')
-  })
 })

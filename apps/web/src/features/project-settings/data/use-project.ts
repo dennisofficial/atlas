@@ -2,7 +2,7 @@
 
 import { useCallback } from 'react'
 
-import { PROJECTS_KEY, SHELL_THREADS_KEY } from '@/lib/cloud-keys'
+import { PROJECTS_KEY } from '@/lib/cloud-keys'
 import { useInvalidateCloud } from '@/lib/use-invalidate-cloud'
 import { useCloudQuery, type CloudQuery } from '@/lib/use-cloud-query'
 
@@ -22,7 +22,7 @@ export function useProject(projectId: string): ProjectResource {
     async (body: SaveProjectBody) => {
       await saveProject({ projectId, body })
       reload()
-      void invalidateCloud([PROJECTS_KEY, SHELL_THREADS_KEY])
+      void invalidateCloud([PROJECTS_KEY])
     },
     [projectId, reload, invalidateCloud],
   )

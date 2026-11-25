@@ -1,6 +1,6 @@
 import type { SessionRetryInput, SessionRetryOutput } from '@dltech/atlas-protocol'
 
-import { messageOf } from '@/features/threads/data/use-send'
+import { messageOf } from '@/features/threads/data/message-of'
 
 export type RetryApi = {
   retry(input: SessionRetryInput): Promise<SessionRetryOutput>

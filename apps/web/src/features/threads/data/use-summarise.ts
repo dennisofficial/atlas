@@ -13,7 +13,7 @@ import {
   SUMMARISE_NEEDS_SANDBOX,
   SUMMARISING,
 } from './summarise'
-import { messageOf } from './use-send'
+import { messageOf } from './message-of'
 
 export type TranscriptSummarise = {
   points: ReadonlyMap<string, SummariseReach>

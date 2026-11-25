@@ -16,7 +16,6 @@ export type SearchItem =
       label: string
       projectName: string
       status: EThreadStatus
-      v2?: true
     }
   | { kind: ESearchKind.Project; id: string; label: string }
 
@@ -38,7 +37,6 @@ export function searchItemsOf(entries: readonly ProjectThreads[]): {
           label: thread.title ?? UNTITLED,
           projectName: projectNameOf(project),
           status: threadStatusOf(thread),
-          ...(session.v2 === true ? { v2: true as const } : {}),
         })
       }
     }
@@ -48,9 +46,7 @@ export function searchItemsOf(entries: readonly ProjectThreads[]): {
 
 export const searchHrefOf = (item: SearchItem): string =>
   item.kind === ESearchKind.Thread
-    ? item.v2 === true
-      ? v2SessionHref(item.id)
-      : `/threads/${encodeURIComponent(item.id)}`
+    ? v2SessionHref(item.id)
     : `/threads/new?project=${encodeURIComponent(item.id)}`
 
 export const searchScoreOf = (args: { search: string; keywords: readonly string[] }): number => {

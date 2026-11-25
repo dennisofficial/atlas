@@ -7,25 +7,12 @@ import { renderToString } from 'react-dom/server'
 
 import { memorySessionLog } from '@dltech/atlas-client/stream'
 
-import { resetDesktopCapabilities } from '@/features/desktop/desktop-wire'
-
-import type { LiveListHandlers } from '../live-stream'
-import type { ProjectThreads } from '../thread-partition'
 import type { V2SessionSummary } from '../v2-rows'
-import {
-  readV2SessionsCache,
-  SIDEBAR_CACHE_KEY,
-  V2_SESSIONS_CACHE_KEY,
-  writeSidebarCache,
-  writeV2SessionsCache,
-} from '../sidebar-cache'
-import { agoIso, projectOf, sessionOf, threadOf } from './fixtures'
+import { readV2SessionsCache, V2_SESSIONS_CACHE_KEY, writeV2SessionsCache } from '../sidebar-cache'
+import { agoIso, projectOf } from './fixtures'
 
-const threadsApi = await import('@/features/threads/data/threads-api')
-
-mock.module('@/features/threads/data/threads-api', () => ({
-  ...threadsApi,
-  subscribeThreadsLive: (_next: LiveListHandlers) => ({ unsubscribe: () => undefined }),
+mock.module('@/features/projects/data/projects-api', () => ({
+  fetchProjects: () => Promise.resolve([projectOf('p1')]),
 }))
 
 const sessionsApi = await import('@/features/sessions/data/sessions-api')
@@ -94,8 +81,6 @@ beforeEach(() => {
   window.localStorage.clear()
   followers.reset()
   pending = []
-  resetDesktopCapabilities()
-  globalThis.fetch = (() => Promise.reject(new Error('not a desktop host'))) as typeof fetch
 })
 
 afterEach(async () => {
@@ -126,7 +111,7 @@ function Probe() {
 }
 
 function ShellProbe() {
-  const query = useShellEntries(null)
+  const query = useShellEntries()
   return (
     <p>
       {query.data === undefined
@@ -144,13 +129,15 @@ async function mountShell(client: QueryClient = createTestQueryClient()) {
   document.body.append(container)
   const root = createRoot(container)
   roots.push(root)
-  await act(async () =>
+  await act(async () => {
     root.render(
       <TestQueryProvider client={client}>
         <ShellProbe />
       </TestQueryProvider>,
-    ),
-  )
+    )
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    await new Promise((resolve) => setTimeout(resolve, 0))
+  })
   return { container, client }
 }
 
@@ -254,23 +241,20 @@ describe('useV2Sessions sidebar cache', () => {
   })
 })
 
-describe('useShellEntries with both sidebar caches', () => {
-  const v1Entries = (title: string): ProjectThreads[] => [
-    { project: projectOf('p1'), sessions: [sessionOf(threadOf({ id: title, title }))] },
-  ]
-
-  it('paints v1 rows and cached v2 sessions on the first frame', async () => {
-    writeSidebarCache(v1Entries('v1-cached'))
+describe('useShellEntries', () => {
+  it('builds sidebar rows from the projects query and the cached v2 sessions', async () => {
     writeV2SessionsCache([summary('v2-cached', { title: 'v2-cached' })])
-    const { container } = await mountShell()
-    expect(container.textContent).toContain('v1-cached')
-    expect(container.textContent).toContain('v2-cached')
+    const client = createTestQueryClient()
+    client.setQueryData(['projects'], { value: [projectOf('p1')] })
+    const { container } = await mountShell(client)
+    expect(container.textContent).toBe('v2-cached')
   })
 
-  it('stays loading when only the v2 cache is warm', async () => {
-    expect(window.localStorage.getItem(SIDEBAR_CACHE_KEY)).toBeNull()
-    writeV2SessionsCache([summary('v2-cached', { title: 'v2-cached' })])
-    const { container } = await mountShell()
-    expect(container.textContent).toBe('loading')
+  it('lists a project with no v2 sessions as an empty group', async () => {
+    const client = createTestQueryClient()
+    client.setQueryData(['projects'], { value: [projectOf('p1'), projectOf('p2')] })
+    client.setQueryData([V2_SESSIONS_KEY], [summary('v2-a', { title: 'v2-a' })])
+    const { container } = await mountShell(client)
+    expect(container.textContent).toBe('v2-a')
   })
 })

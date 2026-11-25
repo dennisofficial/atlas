@@ -122,16 +122,6 @@ describe('ThreadRow with teammates', () => {
     const titleClassOf = (html: string): string =>
       html.match(/<span aria-live="polite"[^>]*class="([^"]*)"/)?.[1] ?? ''
 
-    it('grows the title so the local icon sits at the trailing edge', () => {
-      const html = render(
-        null,
-        sessionOf(threadOf({ id: 'mac', title: 'On Mac', runner: 'local' })),
-      )
-      expect(titleClassOf(html).split(' ')).toContain('flex-1')
-      expect(html).toContain('aria-label="This Mac"')
-      expect(html.indexOf('On Mac')).toBeLessThan(html.indexOf('aria-label="This Mac"'))
-    })
-
     it('grows the cloud title too and shows no local icon', () => {
       const html = render(
         null,

@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { SidebarMenuSub, SidebarMenuSubItem } from '@dltech/atlas-ui/components/sidebar'
 import { cn } from '@dltech/atlas-ui/lib/utils'
 import type { WireThread } from '@dltech/atlas-wire/web'
-import type { SessionNode } from '@/features/threads/data/threads-api'
+import type { SessionNode } from './thread-partition'
 
 import { TeammateRow } from './shell-teammate-row'
 import { groupTeammates } from './teammate-display'

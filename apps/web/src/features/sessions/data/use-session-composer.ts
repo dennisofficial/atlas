@@ -6,7 +6,7 @@ import { postInputOf } from '@dltech/atlas-client/session'
 import { placementOf } from '@dltech/atlas-client/stream'
 
 import { useComposerAttachments } from '@/features/threads/data/use-composer-attachments'
-import { messageOf } from '@/features/threads/data/use-send'
+import { messageOf } from '@/features/threads/data/message-of'
 
 import { sessionsApi } from './sessions-api'
 import { useSessionAttachments } from './use-session-attachments'

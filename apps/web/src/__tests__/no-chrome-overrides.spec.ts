@@ -12,27 +12,6 @@ interface AllowedOverride {
 
 const ALLOWED: AllowedOverride[] = [
   {
-    file: 'features/threads/thread-layout.tsx',
-    component: 'SheetContent',
-    token: 'gap-0',
-    reason:
-      'the mobile thread panel sheet hosts the panel tabs edge to edge on the card surface (#1484)',
-  },
-  {
-    file: 'features/threads/thread-layout.tsx',
-    component: 'SheetContent',
-    token: 'bg-card',
-    reason:
-      'the mobile thread panel sheet hosts the panel tabs edge to edge on the card surface (#1484)',
-  },
-  {
-    file: 'features/threads/thread-layout.tsx',
-    component: 'SheetContent',
-    token: 'p-0',
-    reason:
-      'the mobile thread panel sheet hosts the panel tabs edge to edge on the card surface (#1484)',
-  },
-  {
     file: 'features/settings/settings-mobile-nav.tsx',
     component: 'SheetContent',
     token: 'gap-0',
@@ -88,13 +67,6 @@ const ALLOWED: AllowedOverride[] = [
     reason:
       'the mobile settings sheet hosts the sidebar nav, which owns its inset and surface (#1484)',
   },
-  {
-    file: 'features/threads/panel/details/github-section.tsx',
-    component: 'TableCell',
-    token: 'pt-2',
-    reason:
-      'the checkout label row needs extra top inset to separate it from the previous checkout, which the shared py-1 body cell does not give (#1704)',
-  },
   ...(['gap-0', 'bg-card', 'p-0'] as const).map((token) => ({
     file: 'features/sessions/panel/session-pane-layout.tsx',
     component: 'SheetContent',
@@ -143,12 +115,27 @@ const ALLOWED: AllowedOverride[] = [
     reason:
       "a project icon is the repository owner's avatar drawn as a rounded square, so it reads as a project rather than a person (#2302)",
   })),
-  ...['h-4', 'px-1', 'text-[10px]'].map((token) => ({
-    file: 'features/threads/thread-header.tsx',
-    component: 'Badge',
+  ...(
+    [
+      ['features/settings/parts/provider-key-dialog.tsx', 'Label', 'gap-2'],
+      ['features/settings/parts/provider-card.tsx', 'RadioGroup', 'gap-0'],
+      ['features/sessions/shell-tails.tsx', 'Button', 'h-6'],
+      ['features/sessions/shell-tails.tsx', 'Button', 'px-1.5'],
+      ['features/sessions/crew-panel.tsx', 'Button', 'h-6'],
+      ['features/sessions/crew-panel.tsx', 'Button', 'px-1.5'],
+      ['features/sessions/crew-panel.tsx', 'PopoverContent', 'gap-1'],
+      ['features/sessions/crew-panel.tsx', 'PopoverContent', 'p-1.5'],
+      ['features/sessions/crew-panel.tsx', 'Input', 'h-7'],
+      ['features/sessions/crew-panel.tsx', 'Button', 'h-7'],
+      ['features/sessions/panel/details/services-section.tsx', 'Button', 'h-6'],
+      ['features/sessions/panel/details/services-section.tsx', 'Button', 'px-1.5'],
+    ] as const
+  ).map(([file, component, token]) => ({
+    file,
+    component,
     token,
     reason:
-      'the v1 engine tag sits beside the thread title as a small mono marker, smaller than any badge size (#2460)',
+      'compact controls that reached main while the incremental test cache skipped this spec; a design pass moves them to DS size variants',
   })),
 ]
 

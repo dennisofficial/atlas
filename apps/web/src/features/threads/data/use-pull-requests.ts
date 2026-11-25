@@ -5,7 +5,7 @@ import { useCallback, useMemo } from 'react'
 import { ESubscriptionStatusWire, type WireThread } from '@dltech/atlas-wire/web'
 
 import type { ApiPrStatesSubscribe } from './api-pr-states-source'
-import type { ServeChannel } from './live-thread-view'
+import type { LiveChannel } from './live-channel'
 import { pullRequestListOf, type PullRequestRow } from './pull-request-rows'
 import {
   pullRequestBellsOf,
@@ -29,7 +29,7 @@ export type PullRequestsView = {
 
 export function usePullRequests(args: {
   threadId: string
-  channel: ServeChannel | null
+  channel: LiveChannel | null
   thread: WireThread | undefined
   family?: readonly WireThread[]
   subscribe?: ApiPrStatesSubscribe
