@@ -57,25 +57,32 @@ describe('claimedTargets', () => {
   })
 
   it('serves every due target across sweeps instead of reselecting the oldest batch', async () => {
-    for (let index = 0; index < 500; index += 1)
-      await seedTarget({ branch: `b${index}`, nextDueAt: new Date(NOW - 1_000 + index) })
+    const sweeps = 10
+    const limit = 6
+    await Promise.all(
+      Array.from({ length: sweeps * limit }, (_, index) =>
+        seedTarget({ branch: `b${index}`, nextDueAt: new Date(NOW - 1_000 + index) }),
+      ),
+    )
 
     const served = new Set<string>()
-    for (let sweep = 0; sweep < 10; sweep += 1) {
-      const claimed = await claimedTargets({ now: new Date(NOW), limit: 50 })
+    for (let sweep = 0; sweep < sweeps; sweep += 1) {
+      const claimed = await claimedTargets({ now: new Date(NOW), limit })
       for (const row of claimed) served.add(row.branch)
-      const nextDueAt = new Date(NOW + 60_000)
-      for (const row of claimed)
-        await releaseTarget({
-          id: row.id,
-          leaseToken: row.leaseToken,
-          attemptedAt: new Date(NOW),
-          nextDueAt,
-          failures: 0,
-        })
+      await Promise.all(
+        claimed.map((row) =>
+          releaseTarget({
+            id: row.id,
+            leaseToken: row.leaseToken,
+            attemptedAt: new Date(NOW),
+            nextDueAt: new Date(NOW + 60_000),
+            failures: 0,
+          }),
+        ),
+      )
     }
 
-    expect(served.size).toBe(500)
+    expect(served.size).toBe(sweeps * limit)
   })
 
   it('reclaims a crashed sweep target once its lease runs out', async () => {
