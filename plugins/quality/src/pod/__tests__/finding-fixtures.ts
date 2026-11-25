@@ -115,3 +115,14 @@ export const resolved = (): CodeQualityReviewedBody =>
 
 export const briefSaid: RecordEventBody = { type: 'user-said', text: 'build it', inboxId: 1 }
 export const wakeConsumed: RecordEventBody = { type: 'input-consumed', inboxId: 2 }
+
+export const retired = (args: { notified: boolean } = { notified: true }) => ({
+  ...reviewed({
+    state: EQualityFindingState.Resolved,
+    notified: args.notified,
+    transition: EQualityTransition.None,
+  }),
+  afterHash: null,
+  detail: 'scope deleted',
+  assessments: [],
+})

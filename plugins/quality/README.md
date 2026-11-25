@@ -6,7 +6,7 @@ The advisory code-quality review. After a successful file write or edit, the plu
 
 - The `quality-review` afterTool hook: it asks the tool to capture the changed text, bounds the review at 1000 ms and returns the records and the finding.
 - The `quality-finding-ignored` afterTurn hook: it reports, from the log alone, each finding the model was nudged about and left active.
-- The product events `quality review completed`, `quality finding resolved` and `quality finding ignored`.
+- The product events `quality review completed`, `quality finding resolved`, `quality finding closed` and `quality finding ignored`. `resolved` means the classifier saw the problem go away. `closed` means a nudged finding ended because a later write removed its scope (deleted, moved or renamed with a changed body), so the log cannot tell a fix from a move.
 - The review engine: scope preparation, policy selection, request planning and the size bounds.
 - The budget: one deadline for a review, with a settlement grace for a cooperative classifier.
 - The review records (`code-quality-reviewed`), the finding fold and the per-file note text.
