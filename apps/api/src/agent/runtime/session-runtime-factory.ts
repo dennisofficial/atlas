@@ -305,7 +305,11 @@ export const createSessionRuntimeFactory = (
     const tools = [
       ...daemonToolList,
       new TaskWriteTool(),
-      ...configToolsOf({ store: args.configWrites, projectId: config.projectId }),
+      ...configToolsOf({
+        store: args.configWrites,
+        projectId: config.projectId,
+        userId: config.userId,
+      }),
     ]
     const registry = new InMemoryToolRegistry(tools)
     const byName = new Map(tools.map((tool) => [tool.name, tool]))

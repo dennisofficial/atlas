@@ -1,7 +1,7 @@
 import { EProjectFileState, type ProjectFileOutcome } from './project-files'
 
 const CLOSING_LINE =
-  'Atlas writes the Cloud files again on every sandbox start, so a change you make to them during a session is lost. Change them in the Access settings of Atlas Cloud.'
+  'Atlas writes the Cloud files again on every sandbox start, so a change you make to them during a session is lost. Change them in the Access settings of Atlas Cloud, or with the cloud_config tool when the operator asks.'
 
 const pathsIn = (args: {
   outcomes: readonly ProjectFileOutcome[]

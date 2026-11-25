@@ -14,7 +14,7 @@ const rowsOf = (overrides: Partial<AccessRows> = {}): AccessRows => ({
 })
 
 const EMPTY_NOTICE =
-  'Atlas Cloud gives you no secrets or access grants in this session. The operator adds them in the Access settings of Atlas Cloud.'
+  'Atlas Cloud gives you no secrets or access grants in this session. When the operator approves an access change, it appears here.'
 
 const INTRO = 'Atlas Cloud gives you this access. The operator wrote each description.'
 
@@ -22,7 +22,7 @@ const SECRET_USE =
   'Use a secret by name, for example "$NAME" in a command. Do not ask the operator for the values. Never print, log or commit them.'
 
 const SETTINGS =
-  'The operator changes this access in the Access settings of Atlas Cloud. A secret change reaches new shells without a restart. A file change reaches the sandbox at its next start.'
+  'The operator changes this access in the Access settings of Atlas Cloud, or you change it with the cloud_config tool when the operator asks. A secret change reaches new shells without a restart. A file change reaches the sandbox at its next start.'
 
 describe('accessNoticeOf', () => {
   it('groups project secrets and project files under their grant', () => {

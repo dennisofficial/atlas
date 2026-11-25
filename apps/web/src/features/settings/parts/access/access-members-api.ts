@@ -3,11 +3,11 @@ import { EAccessScope, type AccessScope } from '@dltech/atlas-wire/web'
 import { api, cloudCall } from '@/lib/api-client'
 
 export type AccessMemberApi = {
-  setSecret: (args: { grantId?: string; name: string; value: string }) => Promise<void>
+  setSecret: (args: { grantId: string; name: string; value: string }) => Promise<void>
   removeSecret: (name: string) => Promise<void>
   revealSecret: (name: string) => Promise<string>
   setFile: (args: {
-    grantId?: string
+    grantId: string
     path: string
     contents: string
     mode: number
@@ -16,13 +16,10 @@ export type AccessMemberApi = {
   revealFile: (path: string) => Promise<string>
 }
 
-const grantIdOf = (grantId: string | undefined): { grantId?: string } =>
-  grantId === undefined ? {} : { grantId }
-
 const personalApi: AccessMemberApi = {
   setSecret: (args) =>
     cloudCall(
-      api.secrets.set.mutate({ name: args.name, value: args.value, ...grantIdOf(args.grantId) }),
+      api.secrets.set.mutate({ name: args.name, value: args.value, grantId: args.grantId }),
     ),
   removeSecret: (name) => cloudCall(api.secrets.remove.mutate({ name })),
   revealSecret: async (name) => (await cloudCall(api.secrets.reveal.query({ name }))).value,
@@ -32,7 +29,7 @@ const personalApi: AccessMemberApi = {
         path: args.path,
         contents: args.contents,
         mode: args.mode,
-        ...grantIdOf(args.grantId),
+        grantId: args.grantId,
       }),
     ),
   removeFile: (path) => cloudCall(api.personalFileMounts.remove.mutate({ path })),
@@ -47,7 +44,7 @@ const projectApiOf = (projectId: string): AccessMemberApi => ({
         projectId,
         name: args.name,
         value: args.value,
-        ...grantIdOf(args.grantId),
+        grantId: args.grantId,
       }),
     ),
   removeSecret: (name) => cloudCall(api.projectResources.removeSecret.mutate({ projectId, name })),
@@ -60,7 +57,7 @@ const projectApiOf = (projectId: string): AccessMemberApi => ({
         path: args.path,
         contents: args.contents,
         mode: args.mode,
-        ...grantIdOf(args.grantId),
+        grantId: args.grantId,
       }),
     ),
   removeFile: (path) => cloudCall(api.projectResources.removeFileMount.mutate({ projectId, path })),
