@@ -81,6 +81,7 @@
     "@vercel/blob": "2.8.2",
     "@vercel/sandbox": "^3.3.0",
     "ai": "^7.0.180",
+    "async-sema": "3.1.1",
     "better-auth": "^1.6.29",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",

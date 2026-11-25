@@ -11,6 +11,7 @@ import {
   type UploadPlacement,
 } from '@dltech/atlas-core'
 import type { DaemonFileSystemPort } from '@dltech/atlas-host'
+import { Sema } from 'async-sema'
 
 import type { UploadBlobs } from './upload-blobs'
 
@@ -94,13 +95,17 @@ export class SandboxSaidUploads extends SaidUploadsPort {
     files: PlaceableFile[]
     placements: Map<string, UploadPlacement>
   }): Promise<void> {
-    const queue = [...args.files]
-    const worker = async (): Promise<void> => {
-      for (let next = queue.shift(); next !== undefined; next = queue.shift()) {
-        args.placements.set(next.fileId, await this.placeOne({ ...args.args, file: next }))
-      }
-    }
-    await Promise.all(Array.from({ length: Math.min(CONCURRENCY, queue.length) }, worker))
+    const sema = new Sema(CONCURRENCY)
+    await Promise.all(
+      args.files.map(async (file) => {
+        await sema.acquire()
+        try {
+          args.placements.set(file.fileId, await this.placeOne({ ...args.args, file }))
+        } finally {
+          sema.release()
+        }
+      }),
+    )
   }
 
   private targetOf(file: PlaceableFile): string {

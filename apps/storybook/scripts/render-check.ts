@@ -1,6 +1,7 @@
 import { appendFileSync } from 'node:fs'
 import { join, normalize } from 'node:path'
 
+import { Sema } from 'async-sema'
 import { chromium, type Browser } from 'playwright'
 
 import {
@@ -140,16 +141,19 @@ async function renderAll(params: { ids: string[] }): Promise<StoryFailure[]> {
   const server = serveStatic()
   const browser = await chromium.launch()
   const failures: StoryFailure[] = []
-  const queue = [...params.ids]
+  const sema = new Sema(CONCURRENCY)
   const origin = `http://localhost:${server.port}`
-  const handleWorker = async (): Promise<void> => {
-    for (let id = queue.shift(); id !== undefined; id = queue.shift()) {
+  const handleStory = async (id: string): Promise<void> => {
+    await sema.acquire()
+    try {
       const failure = await renderStory({ browser, origin, id })
       if (failure) failures.push(failure)
+    } finally {
+      sema.release()
     }
   }
   try {
-    await Promise.all(Array.from({ length: CONCURRENCY }, handleWorker))
+    await Promise.all(params.ids.map(handleStory))
   } finally {
     await browser.close()
     await server.stop(true)
