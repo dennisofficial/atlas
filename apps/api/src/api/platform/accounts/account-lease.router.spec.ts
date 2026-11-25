@@ -6,8 +6,7 @@ import { seedUsers } from '../../../../test/session-seed'
 import { SESSION_VERIFIER } from '../../../_core/ports/session-verifier'
 import { as, createMiddlewareApp } from '../../../_module/trpc/trpc-middleware.fixture'
 import { SandboxesService } from '../sandboxes/sandboxes.service'
-import { ETokenPrincipalKind } from '../sandboxes/token-principal'
-import { SessionOrSandboxMiddleware } from '../sessions/session-or-sandbox.middleware'
+import { SessionMiddleware } from '../../../_module/session/session.middleware'
 import { AccountLeaseRouter } from './account-lease.router'
 import { AccountsService } from './accounts.service'
 
@@ -23,7 +22,7 @@ describe('AccountLeaseRouter', () => {
       rateLimit: 100_000,
       providers: [
         AccountLeaseRouter,
-        SessionOrSandboxMiddleware,
+        SessionMiddleware,
         {
           provide: AccountsService,
           useValue: {
@@ -62,11 +61,11 @@ describe('AccountLeaseRouter', () => {
           useValue: {
             async verifyTokenPrincipal(args: { token: string }) {
               if (args.token === 'pod') {
-                return { kind: ETokenPrincipalKind.Pod, threadId: 'thr-1', userId: 'user-p' }
+                return { kind: 'pod', threadId: 'thr-1', userId: 'user-p' }
               }
               if (args.token === 'sandbox') {
                 return {
-                  kind: ETokenPrincipalKind.Sandbox,
+                  kind: 'sandbox',
                   id: 'sbx-1',
                   threadId: 'thr-1',
                   userId: 'user-x',
@@ -101,16 +100,6 @@ describe('AccountLeaseRouter', () => {
     })
     expect(reply.body.result.data.active).toEqual([{ provider: 'openrouter', accountId: 'acc_1' }])
     expect(asked).toEqual(['user-s'])
-  })
-
-  it('leases to a pod token and to a sandbox token without a thread id', async () => {
-    const pod = await request(app.getHttpServer()).get(LEASE).set(as('pod'))
-    const sandbox = await request(app.getHttpServer()).get(LEASE).set(as('sandbox'))
-
-    expect(pod.status).toBe(200)
-    expect(sandbox.status).toBe(200)
-    expect(sandbox.headers['cache-control']).toBe('no-store')
-    expect(asked).toEqual(['user-p', 'user-x'])
   })
 
   it('answers 401 without a credential and for an unknown bearer', async () => {

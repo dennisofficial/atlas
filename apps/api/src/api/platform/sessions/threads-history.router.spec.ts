@@ -3,9 +3,6 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'bun:t
 import {
   createSessionsRouterApp,
   mutate,
-  pod,
-  sandbox,
-  SANDBOX_THREAD,
   session,
   USER_ID,
   WIRE_THREAD,
@@ -50,31 +47,6 @@ describe('ThreadsRouter history mutations', () => {
       })
 
       expect(reply.status).toBe(200)
-    })
-
-    it('serves a sandbox token for its own thread only', async () => {
-      const own = await mutate({
-        app,
-        procedure,
-        headers: sandbox,
-        body: { threadId: SANDBOX_THREAD, ...body },
-      })
-      const other = await mutate({
-        app,
-        procedure,
-        headers: sandbox,
-        body: { threadId: 'thr-other', ...body },
-      })
-
-      expect(own.status).toBe(200)
-      expect(other.status).toBe(401)
-    })
-
-    it('refuses a pod token for its own thread and an anonymous caller', async () => {
-      const full = { threadId: SANDBOX_THREAD, ...body }
-
-      expect((await mutate({ app, procedure, headers: pod, body: full })).status).toBe(403)
-      expect((await mutate({ app, procedure, body: full })).status).toBe(401)
     })
 
     it('rejects an invalid body', async () => {

@@ -11,8 +11,6 @@ import {
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { InProcessRefreshLock, RefreshLock } from '../../../_lib/refresh-lock/refresh-lock'
 import { SandboxesService } from '../sandboxes/sandboxes.service'
-import { ETokenPrincipalKind } from '../sandboxes/token-principal'
-import { SessionOrSandboxMiddleware } from '../sessions/session-or-sandbox.middleware'
 import { FakeClock, FakeIssuer, FakeStore } from './oauth-connections.fakes'
 import { OauthConnectionsRouter } from './oauth-connections.router'
 import { OauthConnectionsService } from './oauth-connections.service'
@@ -49,13 +47,13 @@ export const principalSandboxes = (args: {
 
 export const SANDBOX_PRINCIPALS = {
   'sandbox-token-1': {
-    kind: ETokenPrincipalKind.Sandbox,
+    kind: 'sandbox',
     id: 'sbx-1',
     threadId: 'thread-1',
     userId: 'user-a',
   },
   'sandbox-token-2': {
-    kind: ETokenPrincipalKind.Sandbox,
+    kind: 'sandbox',
     id: 'sbx-2',
     threadId: 'thread-2',
     userId: 'user-a',
@@ -70,7 +68,7 @@ export const oauthProviders = (args: {
   OauthConnectionsRouter,
   OauthConnectionsService,
   SessionMiddleware,
-  SessionOrSandboxMiddleware,
+  SessionMiddleware,
   { provide: OauthConnectionStore, useValue: args.store },
   { provide: OauthIssuer, useValue: new FakeIssuer() },
   { provide: OauthClock, useValue: new FakeClock(START) },

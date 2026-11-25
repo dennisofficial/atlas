@@ -67,17 +67,4 @@ describe('HarnessSecretsRouter', () => {
     const other = await query('list', 'session-b').expect(200)
     expect(other.body.result.data.secrets).toEqual([])
   })
-
-  it('lets a pod or sandbox read list but not names or writes', async () => {
-    await set('session-a', { name: 'search.jina', value: 'a' }).expect(200)
-
-    const pod = await query('list', 'pod-token-a').expect(200)
-    expect(pod.body.result.data.secrets).toHaveLength(1)
-    await query('list', 'sandbox-token-a').expect(200)
-    await query('list').expect(401)
-    await query('names', 'pod-token-a').expect(401)
-    await set('pod-token-a', { name: 'search.x', value: 'x' }).expect(401)
-    await remove('pod-token-a', 'search.jina').expect(401)
-    expect(await rows()).toHaveLength(1)
-  })
 })

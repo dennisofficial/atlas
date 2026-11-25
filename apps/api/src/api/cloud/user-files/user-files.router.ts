@@ -13,28 +13,23 @@ import {
   type UserFilesListRequest,
 } from '@dltech/atlas-wire'
 import { Ctx, Input, Mutation, Query, Router, UseMiddlewares } from 'nestjs-trpc'
-import { meta } from '../../../_module/trpc/procedure-meta'
-import { SessionOrSandboxMiddleware } from '../../platform/sessions/session-or-sandbox.middleware'
-import type { SessionOrSandboxTrpcCtx } from '../../platform/sessions/session-or-sandbox.middleware'
+import { SessionMiddleware } from '../../../_module/session/session.middleware'
+import type { SessionTrpcCtx } from '../../../_module/session/session.middleware'
 import { UserFilesService } from './user-files.service'
 import type { UserFileContentListDto, UserFileListDto } from './user-files.types'
 
-const SANDBOX_REACHABLE = meta({ sandboxReachable: true })
-const POD_REACHABLE = meta({ podReachable: true, sandboxReachable: true })
-
 @Router({ alias: 'userFiles' })
-@UseMiddlewares(SessionOrSandboxMiddleware)
+@UseMiddlewares(SessionMiddleware)
 export class UserFilesRouter {
   constructor(private readonly files: UserFilesService) {}
 
   @Query({
     input: userFilesListRequestSchema,
     output: userFilesListReplySchema,
-    meta: SANDBOX_REACHABLE,
   })
   async list(
     @Input() input: UserFilesListRequest,
-    @Ctx() ctx: SessionOrSandboxTrpcCtx,
+    @Ctx() ctx: SessionTrpcCtx,
   ): Promise<UserFileListDto> {
     const files = await this.files.list({
       userId: ctx.auth.userId,
@@ -47,11 +42,10 @@ export class UserFilesRouter {
   @Mutation({
     input: userFilesGetRequestSchema,
     output: userFilesGetReplySchema,
-    meta: POD_REACHABLE,
   })
   async get(
     @Input() input: UserFilesGetRequest,
-    @Ctx() ctx: SessionOrSandboxTrpcCtx,
+    @Ctx() ctx: SessionTrpcCtx,
   ): Promise<UserFileContentListDto> {
     const files = await this.files.getMany({
       userId: ctx.auth.userId,
@@ -64,12 +58,8 @@ export class UserFilesRouter {
   @Mutation({
     input: userFilePutRequestSchema,
     output: userFileRevisionSchema,
-    meta: SANDBOX_REACHABLE,
   })
-  put(
-    @Input() input: UserFilePutRequest,
-    @Ctx() ctx: SessionOrSandboxTrpcCtx,
-  ): Promise<UserFileRevision> {
+  put(@Input() input: UserFilePutRequest, @Ctx() ctx: SessionTrpcCtx): Promise<UserFileRevision> {
     return this.files.put({
       userId: ctx.auth.userId,
       tree: input.tree,
@@ -83,11 +73,10 @@ export class UserFilesRouter {
   @Mutation({
     input: userFileRemoveRequestSchema,
     output: userFileRevisionSchema,
-    meta: SANDBOX_REACHABLE,
   })
   remove(
     @Input() input: UserFileRemoveRequest,
-    @Ctx() ctx: SessionOrSandboxTrpcCtx,
+    @Ctx() ctx: SessionTrpcCtx,
   ): Promise<UserFileRevision> {
     return this.files.remove({
       userId: ctx.auth.userId,

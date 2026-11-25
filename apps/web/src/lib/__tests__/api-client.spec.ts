@@ -31,7 +31,7 @@ const errorEnvelope = (args: {
 
 const failureOf = async (fetchFn: typeof fetch): Promise<unknown> => {
   const client = createApiClient({ baseUrl: '', fetchFn })
-  return cloudCall(client.sandboxSelf.stop.mutate({})).then(
+  return cloudCall(client.account.me.query({})).then(
     () => undefined,
     (failure: unknown) => failure,
   )

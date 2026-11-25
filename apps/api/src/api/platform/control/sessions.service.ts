@@ -70,7 +70,7 @@ import {
   sandboxLiveCpuMs,
   type PodOps,
 } from '../../../agent'
-import { PreviewTeardownService } from '../sandboxes/preview-teardown.service'
+import { PreviewTeardownService } from '../previews/preview-teardown.service'
 import { PodPowerService, type PodPower } from './pod-power.service'
 import { PodSizingService, type PodSizing } from './pod-sizing.service'
 import { COMMAND_REGISTRY, postCommand } from './command-registry'

@@ -1,13 +1,6 @@
-import {
-  Injectable,
-  Logger,
-  UnauthorizedException,
-  type OnModuleDestroy,
-  type OnModuleInit,
-} from '@nestjs/common'
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common'
 import type { RegisterSandboxMetadata } from '@dltech/atlas-wire'
 import { db, type Row } from '@dltech/atlas-db'
-import { EnvService } from '../../../_core/config/env/env.service'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { ThreadSignalsService } from '../sessions/thread-signals.service'
 import { podSessionOf } from '../sessions/session-of-thread'
@@ -16,16 +9,12 @@ import { toSandboxDto } from './rows'
 import { claimSandboxRow } from './sandbox-claim'
 import { sandboxStateOf } from './sandbox-lifecycle'
 import { SandboxEndpointService } from './sandbox-endpoint'
-import { SandboxPrincipalCache } from './sandbox-principal-cache'
-import { lookupTokenPrincipal, type TokenLookup } from './sandbox-principal-lookup'
-import { PrincipalRevocations } from './sandbox-principal-revocations'
 import { registerSandbox, type RegisterSandboxArgs } from './sandbox-register'
 import { findOrCreateClaimThread } from './sandbox-thread'
-import { hashSessionToken, mintSessionToken, tokenMatches } from './sandbox-tokens'
+import { mintSessionToken, tokenMatches } from './sandbox-tokens'
 import type { SandboxAttachmentDto, SandboxListEntryDto, SandboxStatusDto } from './sandboxes.types'
 import { ESandboxState } from './sandboxes.types'
 import { SANDBOX_REGION, VercelSandboxClient } from './vercel-sandbox.client'
-import { ETokenPrincipalKind, type TokenPrincipal } from './token-principal'
 
 type ClaimArgs = {
   userId: string
@@ -42,44 +31,17 @@ const messageOf = (failure: unknown): string =>
   failure instanceof Error ? failure.message : String(failure)
 
 @Injectable()
-export class SandboxesService implements OnModuleInit, OnModuleDestroy {
+export class SandboxesService {
   private readonly logger = new Logger(SandboxesService.name)
 
   private readonly endpoints: SandboxEndpointService
-
-  private readonly principals = new SandboxPrincipalCache()
-
-  /** Swappable so a spec can hold a lookup open across a revoking write. */
-  lookupPrincipal: TokenLookup = lookupTokenPrincipal
-
-  private readonly revocations: PrincipalRevocations
 
   constructor(
     private readonly vercel: VercelSandboxClient,
     private readonly cipher: SecretCipherService,
     private readonly signals: ThreadSignalsService,
-    env: EnvService,
   ) {
     this.endpoints = new SandboxEndpointService(vercel, cipher)
-    this.revocations = new PrincipalRevocations({
-      cache: this.principals,
-      log: (line, error) =>
-        this.logger.warn(error === undefined ? line : `${line}: ${messageOf(error)}`),
-      databaseUrl: env.get('DATABASE_URL'),
-    })
-  }
-
-  onModuleInit(): void {
-    this.startPrincipalWatch()
-  }
-
-  /** Exposed for a process that builds the service by hand, and for the specs that stand up two. */
-  startPrincipalWatch(): void {
-    this.revocations.start()
-  }
-
-  onModuleDestroy(): Promise<void> {
-    return this.revocations.close()
   }
 
   /**
@@ -122,7 +84,6 @@ export class SandboxesService implements OnModuleInit, OnModuleDestroy {
         : { sealedGitToken: this.cipher.encrypt(args.gitToken) }),
       ...(args.contextPending === undefined ? {} : { contextPending: args.contextPending }),
     })
-    await this.revocations.revoke(thread.sessionId)
     return {
       threadId: args.threadId,
       name: row.name,
@@ -142,7 +103,6 @@ export class SandboxesService implements OnModuleInit, OnModuleDestroy {
    */
   private async register(args: RegisterSandboxArgs): Promise<SandboxAttachmentDto> {
     const attachment = await registerSandbox({ ...args, cipher: this.cipher })
-    await this.revocations.revokeAll()
     return attachment
   }
 
@@ -192,7 +152,6 @@ export class SandboxesService implements OnModuleInit, OnModuleDestroy {
     await ownedSandbox(args)
     const sessionId = await podSessionOf({ reader: db, threadId: args.threadId })
     await db.orm.public.CloudSandbox.where({ sessionId }).delete()
-    await this.revocations.revoke(sessionId)
     await this.signals.podChanged({ threadId: args.threadId })
   }
 
@@ -205,32 +164,6 @@ export class SandboxesService implements OnModuleInit, OnModuleDestroy {
       throw new UnauthorizedException('a valid sandbox session token is required')
     }
     return { userId: row.userId }
-  }
-
-  /**
-   * One indexed read resolves the bearer either way: the sandbox row joined to its session, or the
-   * local-pod lease. A cached sandbox principal answers without touching the database at all; a
-   * miss is a single round trip.
-   */
-  async verifyTokenPrincipal(args: { token: string }): Promise<TokenPrincipal> {
-    const tokenHash = hashSessionToken(args.token)
-    const cached = this.principals.get(tokenHash)
-    if (cached !== null) return { kind: ETokenPrincipalKind.Sandbox, ...cached }
-    const lookup = this.principals.beginLookup()
-    const resolved = await this.lookupPrincipal(tokenHash)
-    if (resolved.sandbox !== null && resolved.pod !== null) {
-      throw new UnauthorizedException('a valid sandbox session token is required')
-    }
-    if (resolved.sandbox !== null) {
-      const principal = this.principals.rememberResolved({
-        resolved: resolved.sandbox,
-        tokenHash,
-        lookup,
-      })
-      return { kind: ETokenPrincipalKind.Sandbox, ...principal }
-    }
-    if (resolved.pod !== null) return { kind: ETokenPrincipalKind.Pod, ...resolved.pod }
-    throw new UnauthorizedException('a valid sandbox session token is required')
   }
 
   /**
@@ -271,7 +204,6 @@ export class SandboxesService implements OnModuleInit, OnModuleDestroy {
       runtimeCheckpointRevision: null,
       updatedAt: new Date(),
     })
-    await this.revocations.revoke(args.row.sessionId)
     await this.signals.podChanged({ threadId: args.threadId })
   }
 

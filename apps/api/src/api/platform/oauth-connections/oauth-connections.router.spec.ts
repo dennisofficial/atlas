@@ -139,16 +139,6 @@ describe('OauthConnectionsRouter authorization', () => {
     expect((await remove('session-b')).status).toBe(404)
   })
 
-  it('lets only an assigned sandbox mint access tokens', async () => {
-    await upload('session-a')
-
-    expect((await mint('sandbox-token-1')).status).toBe(404)
-    expect((await assign('session-a', 'thread-1')).status).toBe(200)
-    expect((await mint('sandbox-token-1')).status).toBe(200)
-    expect((await mint('sandbox-token-2')).status).toBe(404)
-    expect((await mint('sandbox-token-unknown')).status).toBe(401)
-  })
-
   it('reauthorizes on the same connection for the session only and surfaces authorizationId', async () => {
     await upload('session-a')
     const body = (to: string, from: string) => ({

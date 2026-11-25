@@ -58,7 +58,6 @@ export async function prepareSandboxes(): Promise<{
     client as unknown as VercelSandboxClient,
     cipher,
     inertSignals(),
-    databaseEnv(),
   )
   return { client, service }
 }

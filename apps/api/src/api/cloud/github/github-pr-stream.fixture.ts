@@ -4,13 +4,12 @@ import type { GithubRequestCoordinator } from '@dltech/atlas-github'
 import type { GithubPrEventDto, GithubPrStateDto } from '@dltech/atlas-github'
 import { EPrEventKind } from '@dltech/atlas-github'
 import { DrainStateService } from '../../platform/health/drain-state.service'
-import type { SessionOrSandboxTrpcCtx } from '../../platform/sessions/session-or-sandbox.middleware'
+import type { SessionTrpcCtx } from '../../../_module/session/session.middleware'
 import { GithubPrEventMailboxService } from '@dltech/atlas-github'
 import { GithubPrFanoutService } from '@dltech/atlas-github'
 import { GithubPrStreamRouter } from './github-pr-stream.router'
 import type { GithubSubscriptionsService } from '@dltech/atlas-github'
 import type { GithubService } from '@dltech/atlas-github'
-import type { SandboxesService } from '../../platform/sandboxes/sandboxes.service'
 import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 
 export const fakeGithub = (tokens: Record<string, string> = { usr_1: 'ghu_1' }) =>
@@ -58,25 +57,11 @@ export const VERDICT_EVENT: GithubPrEventDto = {
   createdAt: '2026-10-08T11:00:00.000Z',
 }
 
-export const ctxFor = (userId: string): SessionOrSandboxTrpcCtx => ({
+export const ctxFor = (userId: string): SessionTrpcCtx => ({
   req: request,
   bearerToken: undefined,
   clientVersion: undefined,
   auth: { userId, sessionId: 'ses', email: '' },
-})
-
-export const podCtxFor = (args: { userId: string; threadId: string }): SessionOrSandboxTrpcCtx => ({
-  ...ctxFor(args.userId),
-  pod: { threadId: args.threadId },
-})
-
-export const sandboxCtxFor = (args: {
-  userId: string
-  sandboxId: string
-  threadId: string
-}): SessionOrSandboxTrpcCtx => ({
-  ...ctxFor(args.userId),
-  sandbox: { sandboxId: args.sandboxId, threadId: args.threadId },
 })
 
 export const optionsFor = (signal?: AbortSignal) => ({
@@ -155,7 +140,6 @@ export function routerWith(fakes: StreamFakes = {}): {
     drain,
     mailbox,
     coordinator,
-    fakeSandboxes({ root: 'thr_1' }) as unknown as SandboxesService,
     github,
     signals,
   )

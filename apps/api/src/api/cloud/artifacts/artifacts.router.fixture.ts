@@ -20,8 +20,6 @@ export const ARTIFACT_DOMAIN = 'artifacts.test'
 
 export const OWNER = 'session-a'
 
-export const SANDBOX_TOKENS = { 'sandbox-token-a': { threadId: 'thread-a', userId: 'user-a' } }
-
 export const SOURCE_BODIES: Record<string, string> = {
   'index.html': '<h1>hello</h1>',
   'app.css': 'h1{color:red}',
@@ -78,7 +76,6 @@ export const buildArtifactsApp = (args: {
   blobs: FakeArtifactBlobStore
 }): Promise<INestApplication> =>
   buildSessionTrpcApp({
-    sandboxTokens: SANDBOX_TOKENS,
     providers: [
       ArtifactsRouter,
       ArtifactsService,

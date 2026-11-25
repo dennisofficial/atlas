@@ -1,16 +1,16 @@
 import { EThreadLiveFrame, type ThreadLiveFrame } from '@dltech/atlas-wire'
-import { ForbiddenException, ServiceUnavailableException } from '@nestjs/common'
+import { ServiceUnavailableException } from '@nestjs/common'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { request } from 'express'
 import { describe, expect, it } from 'bun:test'
 import { seedThreadRow, seedUsers, USER_A } from '../../../../test/session-seed'
 import { DrainStateService } from '../health/drain-state.service'
-import type { SessionOrSandboxTrpcCtx } from './session-or-sandbox.middleware'
+import type { SessionTrpcCtx } from '../../../_module/session/session.middleware'
 import { InProcessThreadSignalBus } from './thread-signal.bus'
 import { ThreadSignalsService } from './thread-signals.service'
 import { ThreadsRouter } from './threads.router'
 
-const ctxFor = (extra: Partial<SessionOrSandboxTrpcCtx> = {}): SessionOrSandboxTrpcCtx => ({
+const ctxFor = (extra: Partial<SessionTrpcCtx> = {}): SessionTrpcCtx => ({
   req: request,
   bearerToken: undefined,
   clientVersion: undefined,
@@ -95,15 +95,6 @@ describe('threads.live', () => {
     if (otherSnapshot?.type !== EThreadLiveFrame.Snapshot) throw new Error('no snapshot')
     expect(otherSnapshot.rows).toEqual([])
     expect(other.seen.filter((frame) => frame.type === EThreadLiveFrame.Upsert)).toEqual([])
-  })
-
-  it('refuses sandbox and pod principals', () => {
-    const { router } = routerWith()
-    const sandbox = ctxFor({ sandbox: { sandboxId: 'sbx_1', threadId: 'thr_1' } })
-    const pod = ctxFor({ pod: { threadId: 'thr_1' } })
-
-    expect(() => router.live(sandbox, optionsFor())).toThrow(ForbiddenException)
-    expect(() => router.live(pod, optionsFor())).toThrow(ForbiddenException)
   })
 
   it('closes open live streams on drain and refuses new ones', async () => {

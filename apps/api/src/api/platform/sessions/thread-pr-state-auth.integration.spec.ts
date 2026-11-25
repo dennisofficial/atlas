@@ -11,7 +11,7 @@ import { createMixedApp } from '../accounts/accounts.router.fixture'
 import { DrainStateService } from '../health/drain-state.service'
 import { SandboxesService } from '../sandboxes/sandboxes.service'
 import { EventsService } from './events.service'
-import { SessionOrSandboxMiddleware } from './session-or-sandbox.middleware'
+import { SessionMiddleware } from '../../../_module/session/session.middleware'
 import { ThreadArchiveService } from './thread-archive.service'
 import { ThreadEventsRouter } from './thread-events.router'
 import { ThreadReadService } from './thread-read.service'
@@ -40,7 +40,7 @@ describe('initial PR cache visibility with authenticated accounts', () => {
       providers: [
         ThreadsRouter,
         ThreadEventsRouter,
-        SessionOrSandboxMiddleware,
+        SessionMiddleware,
         { provide: SESSION_VERIFIER, useValue: new BetterAuthSessionVerifier({ db }) },
         { provide: SandboxesService, useValue: {} },
         { provide: ThreadsService, useValue: new ThreadsService(signals) },

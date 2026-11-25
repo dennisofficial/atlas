@@ -2,7 +2,6 @@ import { MCP_OAUTH_CALLBACK_PATH } from '@dltech/atlas-wire'
 import { Module } from '@nestjs/common'
 import { EnvService } from '../../../_core/config/env/env.service'
 import { RefreshLockModule } from '../../../_lib/refresh-lock/refresh-lock.module'
-import { SessionsModule } from '../../platform/sessions/sessions.module'
 import { McpOauthAccessService } from './mcp-oauth-access.service'
 import { McpOauthCallbackController } from './mcp-oauth-callback.controller'
 import { McpOauthRouter } from './mcp-oauth.router'
@@ -11,7 +10,7 @@ import { McpOauthClock, McpOauthConfig, McpOauthFetcher, McpOauthStore } from '.
 import { PrismaMcpOauthStore } from './prisma-mcp-oauth.store'
 
 @Module({
-  imports: [SessionsModule, RefreshLockModule],
+  imports: [RefreshLockModule],
   controllers: [McpOauthCallbackController],
   providers: [
     McpOauthService,

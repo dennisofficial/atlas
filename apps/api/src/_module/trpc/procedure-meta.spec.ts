@@ -3,9 +3,12 @@ import { meta, metaOf } from './procedure-meta'
 
 describe('metaOf', () => {
   it('returns the typed keys it was given', () => {
-    const value = meta({ podReachable: true, throttle: { limit: 5, ttlMs: 1000 } })
+    const value = meta({ awaitingAccessAllowed: true, throttle: { limit: 5, ttlMs: 1000 } })
 
-    expect(metaOf(value)).toEqual({ podReachable: true, throttle: { limit: 5, ttlMs: 1000 } })
+    expect(metaOf(value)).toEqual({
+      awaitingAccessAllowed: true,
+      throttle: { limit: 5, ttlMs: 1000 },
+    })
   })
 
   it('keeps throttle: false', () => {
@@ -18,7 +21,7 @@ describe('metaOf', () => {
       null,
       'x',
       4,
-      { podReachable: false },
+      { awaitingAccessAllowed: false },
       { throttle: { limit: 0 } },
     ]) {
       expect(metaOf(raw)).toEqual({})

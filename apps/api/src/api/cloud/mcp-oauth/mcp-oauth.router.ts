@@ -20,11 +20,6 @@ import { MCP_OAUTH_BEGIN, type McpOauthBeginService } from '../../../agent'
 import { Ctx, Input, Mutation, Query, Router, UseMiddlewares } from 'nestjs-trpc'
 import { z } from 'zod'
 import { SessionMiddleware, type SessionTrpcCtx } from '../../../_module/session/session.middleware'
-import { meta } from '../../../_module/trpc/procedure-meta'
-import {
-  SessionOrSandboxMiddleware,
-  type SessionOrSandboxTrpcCtx,
-} from '../../platform/sessions/session-or-sandbox.middleware'
 import { HOST_ABSENT } from '../operator-input/operator-requests.router'
 import { McpOauthAccessService } from './mcp-oauth-access.service'
 import { McpOauthService } from './mcp-oauth.service'
@@ -112,14 +107,13 @@ export class McpOauthRouter {
   @Mutation({
     input: mcpOauthAccessInputSchema,
     output: mcpOauthAccessResultSchema,
-    meta: meta({ podReachable: true, sandboxReachable: true }),
   })
-  @UseMiddlewares(SessionOrSandboxMiddleware)
+  @UseMiddlewares(SessionMiddleware)
   accessToken(
     @Input() input: McpOauthAccessInput,
-    @Ctx() ctx: SessionOrSandboxTrpcCtx,
+    @Ctx() ctx: SessionTrpcCtx,
   ): Promise<McpOauthAccessResult> {
-    const threadId = ctx.sandbox?.threadId ?? ctx.pod?.threadId
+    const threadId = undefined
     return this.access.accessToken({
       userId: ctx.auth.userId,
       ...(threadId === undefined ? {} : { threadId }),

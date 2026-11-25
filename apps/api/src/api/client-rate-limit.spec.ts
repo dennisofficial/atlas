@@ -1,7 +1,6 @@
 import 'reflect-metadata'
 import { describe, expect, it } from 'bun:test'
 import { CLIENT_READ_LIMIT_PER_MINUTE } from './client-rate-limit'
-import { ProjectWorkspaceRouter } from './cloud/projects/project-workspace.router'
 import { SandboxCheckpointRouter } from './platform/sandboxes/sandbox-checkpoint.router'
 import { SandboxesRouter } from './platform/sandboxes/sandboxes.router'
 import { procedureMetaOf } from './platform/sessions/procedure-meta.fixture'
@@ -52,7 +51,6 @@ describe('the first-party read routes', () => {
     ['sandboxes.claim', SandboxesRouter.prototype.claim],
     ['sandboxes.destroy', SandboxesRouter.prototype.destroy],
     ['sandboxCheckpoint.get', SandboxCheckpointRouter.prototype.get],
-    ['sandboxCheckpoint.put', SandboxCheckpointRouter.prototype.put],
   ] as const) {
     it(`raises the throttle on ${label} above the app-wide default`, () => {
       expect(procedureMetaOf(handler).throttle).toEqual(READ_THROTTLE)
@@ -61,10 +59,6 @@ describe('the first-party read routes', () => {
 })
 
 describe('the serve-facing control-plane routes', () => {
-  it('skips the app-wide throttle on the projectWorkspace.get procedure serve polls', () => {
-    expect(procedureMetaOf(ProjectWorkspaceRouter.prototype.get).throttle).toBe(false)
-  })
-
   it('skips the app-wide throttle on the events-read procedure serve polls mid-turn', () => {
     expect(procedureMetaOf(ThreadEventsRouter.prototype.read).throttle).toBe(false)
   })
@@ -72,14 +66,5 @@ describe('the serve-facing control-plane routes', () => {
   it('leaves the append and replace procedures throttled', () => {
     expect(procedureMetaOf(ThreadEventsRouter.prototype.append).throttle).not.toBe(false)
     expect(procedureMetaOf(ThreadEventsRouter.prototype.replace).throttle).not.toBe(false)
-  })
-})
-
-describe('sandbox reachability of the thread procedures', () => {
-  it('lets a sandbox token reach only create and open without naming a thread', () => {
-    expect(procedureMetaOf(ThreadsRouter.prototype.create).sandboxReachable).toBe(true)
-    expect(procedureMetaOf(ThreadsRouter.prototype.open).sandboxReachable).toBe(true)
-    expect(procedureMetaOf(ThreadsRouter.prototype.list).sandboxReachable).toBeUndefined()
-    expect(procedureMetaOf(ThreadsRouter.prototype.recent).sandboxReachable).toBeUndefined()
   })
 })

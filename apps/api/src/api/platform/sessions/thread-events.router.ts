@@ -26,7 +26,7 @@ import {
   type ThreadStreamFrame,
   type ThreadStreamInput,
 } from '@dltech/atlas-wire'
-import { ForbiddenException, ServiceUnavailableException } from '@nestjs/common'
+import { ServiceUnavailableException } from '@nestjs/common'
 import {
   Ctx,
   Input,
@@ -43,12 +43,7 @@ import { meta } from '../../../_module/trpc/procedure-meta'
 import { CLIENT_READ_LIMIT_PER_MINUTE } from '../../client-rate-limit'
 import { DrainStateService } from '../health/drain-state.service'
 import { EventsService } from './events.service'
-import {
-  liveOnly,
-  sandboxOwnThread,
-  SessionOrSandboxMiddleware,
-  type SessionOrSandboxTrpcCtx,
-} from './session-or-sandbox.middleware'
+import { SessionMiddleware, type SessionTrpcCtx } from '../../../_module/session/session.middleware'
 import type { EventDto } from './sessions.types'
 import { ThreadSignalsService } from './thread-signals.service'
 import { attachThreadStream } from './thread-stream'
@@ -60,7 +55,7 @@ const readMeta = meta({ throttle: { limit: CLIENT_READ_LIMIT_PER_MINUTE, ttlMs: 
 const unthrottledMeta = meta({ throttle: false })
 
 @Router({ alias: 'threadEvents' })
-@UseMiddlewares(SessionOrSandboxMiddleware)
+@UseMiddlewares(SessionMiddleware)
 export class ThreadEventsRouter {
   constructor(
     private readonly events: EventsService,
@@ -69,29 +64,22 @@ export class ThreadEventsRouter {
   ) {}
 
   @Mutation({ input: appendEventsInputSchema, output: z.array(wireEventSchema), meta: readMeta })
-  append(
-    @Input() input: AppendEventsInput,
-    @Ctx() ctx: SessionOrSandboxTrpcCtx,
-  ): Promise<EventDto[]> {
+  append(@Input() input: AppendEventsInput, @Ctx() ctx: SessionTrpcCtx): Promise<EventDto[]> {
     return this.events.append({ userId: ctx.auth.userId, threadId: input.threadId, draft: input })
   }
 
   @Mutation({ input: replaceEventsInputSchema, output: z.array(wireEventSchema), meta: readMeta })
-  replace(
-    @Input() input: ReplaceEventsInput,
-    @Ctx() ctx: SessionOrSandboxTrpcCtx,
-  ): Promise<EventDto[]> {
+  replace(@Input() input: ReplaceEventsInput, @Ctx() ctx: SessionTrpcCtx): Promise<EventDto[]> {
     return this.events.replace({ userId: ctx.auth.userId, threadId: input.threadId, draft: input })
   }
 
   @Query({ input: readEventsInputSchema, output: z.array(wireEventSchema), meta: unthrottledMeta })
-  read(@Input() input: ReadEventsInput, @Ctx() ctx: SessionOrSandboxTrpcCtx): Promise<EventDto[]> {
+  read(@Input() input: ReadEventsInput, @Ctx() ctx: SessionTrpcCtx): Promise<EventDto[]> {
     const args = {
       userId: ctx.auth.userId,
       threadId: input.threadId,
       fromSeq: input.fromSeq,
       upTo: input.upTo,
-      ...liveOnly(sandboxOwnThread({ ctx, threadId: input.threadId })),
     }
     if (input.own === true) return this.events.readOwn(args)
     return this.events.read(args)
@@ -104,7 +92,7 @@ export class ThreadEventsRouter {
   })
   snapshot(
     @Input() input: ThreadEventsSnapshotInput,
-    @Ctx() ctx: SessionOrSandboxTrpcCtx,
+    @Ctx() ctx: SessionTrpcCtx,
   ): Promise<ThreadEventsSnapshot> {
     return readThreadEventsSnapshot({ ...input, userId: ctx.auth.userId })
   }
@@ -116,19 +104,15 @@ export class ThreadEventsRouter {
   })
   async live(
     @Input() input: ThreadEventsLiveInput,
-    @Ctx() ctx: SessionOrSandboxTrpcCtx,
+    @Ctx() ctx: SessionTrpcCtx,
     @Options() opts: ProcedureOptions,
   ) {
-    if (ctx.sandbox !== undefined || ctx.pod !== undefined) {
-      throw new ForbiddenException('only the thread owner can subscribe to a thread')
-    }
     if (this.drain.isDraining()) {
       throw new ServiceUnavailableException('the api is restarting — retry the stream')
     }
     await this.events.head({
       userId: ctx.auth.userId,
       threadId: input.threadId,
-      ...liveOnly(sandboxOwnThread({ ctx, threadId: input.threadId })),
     })
     return orderedThreadEvents({
       threadId: input.threadId,
@@ -147,11 +131,8 @@ export class ThreadEventsRouter {
   @Mutation({ input: importEventsInputSchema, output: podEventsReplySchema, meta: readMeta })
   async import(
     @Input() input: ImportEventsInput,
-    @Ctx() ctx: SessionOrSandboxTrpcCtx,
+    @Ctx() ctx: SessionTrpcCtx,
   ): Promise<PodEventsReply> {
-    if (ctx.sandbox !== undefined || ctx.pod !== undefined) {
-      throw new ForbiddenException('only the thread owner can import events')
-    }
     return this.events.importEvents({
       userId: ctx.auth.userId,
       threadId: input.threadId,
@@ -160,10 +141,7 @@ export class ThreadEventsRouter {
   }
 
   @Query({ input: threadIdInputSchema, output: threadHeadReplySchema, meta: readMeta })
-  head(
-    @Input() input: ThreadIdInput,
-    @Ctx() ctx: SessionOrSandboxTrpcCtx,
-  ): Promise<ThreadHeadReply> {
+  head(@Input() input: ThreadIdInput, @Ctx() ctx: SessionTrpcCtx): Promise<ThreadHeadReply> {
     return this.events.head({ userId: ctx.auth.userId, threadId: input.threadId })
   }
 
@@ -174,12 +152,9 @@ export class ThreadEventsRouter {
   })
   async stream(
     @Input() input: ThreadStreamInput,
-    @Ctx() ctx: SessionOrSandboxTrpcCtx,
+    @Ctx() ctx: SessionTrpcCtx,
     @Options() opts: ProcedureOptions,
   ): Promise<AsyncGenerator<ThreadStreamFrame>> {
-    if (ctx.sandbox !== undefined || ctx.pod !== undefined) {
-      throw new ForbiddenException('only the thread owner can subscribe to a thread')
-    }
     if (this.drain.isDraining()) {
       throw new ServiceUnavailableException('the api is restarting — retry the stream')
     }
@@ -189,7 +164,6 @@ export class ThreadEventsRouter {
         await this.events.head({
           userId: ctx.auth.userId,
           threadId,
-          ...liveOnly(sandboxOwnThread({ ctx, threadId })),
         })
       ).head
     await readHead()

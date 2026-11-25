@@ -12,19 +12,14 @@ import { Ctx, Input, Query, Router, UseMiddlewares } from 'nestjs-trpc'
 import { meta } from '../../../_module/trpc/procedure-meta'
 import { CLIENT_READ_LIMIT_PER_MINUTE } from '../../client-rate-limit'
 import { ownedThread } from './ownership'
-import {
-  liveOnly,
-  sandboxOwnThread,
-  SessionOrSandboxMiddleware,
-  type SessionOrSandboxTrpcCtx,
-} from './session-or-sandbox.middleware'
+import { SessionMiddleware, type SessionTrpcCtx } from '../../../_module/session/session.middleware'
 
 const readMeta = meta({ throttle: { limit: CLIENT_READ_LIMIT_PER_MINUTE, ttlMs: 60_000 } })
 
 const refused = (reason: string): ContextFileContentWire => ({ type: 'refused', reason })
 
 @Router({ alias: 'contextFiles' })
-@UseMiddlewares(SessionOrSandboxMiddleware)
+@UseMiddlewares(SessionMiddleware)
 export class ContextFilesRouter {
   @Query({
     input: contextFilesListInputSchema,
@@ -33,13 +28,12 @@ export class ContextFilesRouter {
   })
   async list(
     @Input() input: ContextFilesListInput,
-    @Ctx() ctx: SessionOrSandboxTrpcCtx,
+    @Ctx() ctx: SessionTrpcCtx,
   ): Promise<{ entries: { name: string; isDirectory: boolean }[] }> {
     await ownedThread({
       reader: db,
       userId: ctx.auth.userId,
       threadId: input.threadId,
-      ...liveOnly(sandboxOwnThread({ ctx, threadId: input.threadId })),
     })
     const rows = await db.orm.public.ContextFile.where({ threadId: input.threadId })
       .select('path')
@@ -71,13 +65,12 @@ export class ContextFilesRouter {
   })
   async read(
     @Input() input: ContextFileReadInput,
-    @Ctx() ctx: SessionOrSandboxTrpcCtx,
+    @Ctx() ctx: SessionTrpcCtx,
   ): Promise<{ file: ContextFileContentWire }> {
     await ownedThread({
       reader: db,
       userId: ctx.auth.userId,
       threadId: input.threadId,
-      ...liveOnly(sandboxOwnThread({ ctx, threadId: input.threadId })),
     })
     const row = await db.orm.public.ContextFile.where({
       threadId: input.threadId,

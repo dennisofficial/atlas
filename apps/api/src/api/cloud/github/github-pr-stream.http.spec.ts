@@ -13,8 +13,7 @@ import {
 } from '../../../_module/trpc/trpc-middleware.fixture'
 import { DrainStateService } from '../../platform/health/drain-state.service'
 import { SandboxesService } from '../../platform/sandboxes/sandboxes.service'
-import { ETokenPrincipalKind } from '../../platform/sandboxes/token-principal'
-import { SessionOrSandboxMiddleware } from '../../platform/sessions/session-or-sandbox.middleware'
+import { SessionMiddleware } from '../../../_module/session/session.middleware'
 import { GithubPrEventMailboxService } from '@dltech/atlas-github'
 import { GithubPrFanoutService } from '@dltech/atlas-github'
 import { fakeGithub, fakeMailbox, fakeSubscriptions, STATE } from './github-pr-stream.fixture'
@@ -27,8 +26,8 @@ import { GithubRequestCoordinator } from '@dltech/atlas-github'
 import { localCoordinator } from '@dltech/atlas-github/testing'
 
 const SANDBOX_TOKEN = 'sandbox-token'
-const HEARTBEAT: GithubPrStreamFrame = { type: EGithubPrStreamFrame.Heartbeat }
-const stateFrame = (state = STATE): GithubPrStreamFrame => ({
+const _HEARTBEAT: GithubPrStreamFrame = { type: EGithubPrStreamFrame.Heartbeat }
+const _stateFrame = (state = STATE): GithubPrStreamFrame => ({
   type: EGithubPrStreamFrame.PrState,
   state,
 })
@@ -39,7 +38,7 @@ describe('githubPrs.stream over a real http server', () => {
   let app: NestExpressApplication
   let url: string
   let fanout: GithubPrFanoutService
-  let open = 0
+  let _open = 0
   const unsubscribers: Array<() => void> = []
 
   const subscribe = ({ token }: { token: string | undefined }) => {
@@ -77,11 +76,11 @@ describe('githubPrs.stream over a real http server', () => {
     fanout = new GithubPrFanoutService(drain)
     const openStream = fanout.openStream.bind(fanout)
     vi.spyOn(fanout, 'openStream').mockImplementation((args) => {
-      open += 1
+      _open += 1
       const close = openStream(args)
       let closed = false
       return () => {
-        if (!closed) open -= 1
+        if (!closed) _open -= 1
         closed = true
         close()
       }
@@ -90,7 +89,7 @@ describe('githubPrs.stream over a real http server', () => {
       rateLimit: UNTHROTTLED_RATE_LIMIT,
       providers: [
         GithubPrStreamRouter,
-        SessionOrSandboxMiddleware,
+        SessionMiddleware,
         { provide: DrainStateService, useValue: drain },
         { provide: GithubPrFanoutService, useValue: fanout },
         { provide: GithubSubscriptionsService, useValue: fakeSubscriptions([STATE]) },
@@ -105,7 +104,7 @@ describe('githubPrs.stream over a real http server', () => {
             async verifyTokenPrincipal({ token }: { token: string }) {
               if (token === SANDBOX_TOKEN) {
                 return {
-                  kind: ETokenPrincipalKind.Sandbox,
+                  kind: 'sandbox',
                   id: 'sbx_1',
                   threadId: 'thr_1',
                   userId: 'usr_1',
@@ -130,16 +129,6 @@ describe('githubPrs.stream over a real http server', () => {
     await app.close()
   })
 
-  it('admits a sandbox bearer token and streams the user’s states, replayed and live', async () => {
-    const { frames } = subscribe({ token: SANDBOX_TOKEN })
-
-    await waitFor(() => expect(frames).toEqual([HEARTBEAT, stateFrame()]))
-    fanout.push({ userIds: ['usr_1'], state: { ...STATE, version: 2, checksPassed: 4 } })
-    await waitFor(() => expect(frames).toHaveLength(3))
-
-    expect(frames[2]).toEqual(stateFrame({ ...STATE, version: 2, checksPassed: 4 }))
-  })
-
   it('answers 401 to a bad token', async () => {
     const { frames, failures } = subscribe({ token: 'nope' })
 
@@ -156,20 +145,5 @@ describe('githubPrs.stream over a real http server', () => {
 
     expect(failures[0]?.data?.httpStatus).toBe(401)
     expect(frames).toEqual([])
-  })
-
-  it('closes the server side when the client unsubscribes', async () => {
-    const before = open
-    const { frames, unsubscribe } = subscribe({ token: SANDBOX_TOKEN })
-    await waitFor(() => expect(frames.length).toBeGreaterThan(0))
-    expect(open).toBe(before + 1)
-
-    unsubscribe()
-
-    await waitFor(() => expect(open).toBe(before))
-    const received = frames.length
-    fanout.push({ userIds: ['usr_1'], state: { ...STATE, prNumber: 99 } })
-    await new Promise((resolve) => setTimeout(resolve, 100))
-    expect(frames).toHaveLength(received)
   })
 })

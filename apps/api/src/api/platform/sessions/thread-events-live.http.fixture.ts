@@ -10,9 +10,8 @@ import {
 } from '../../../_module/trpc/trpc-middleware.fixture'
 import { DrainStateService } from '../health/drain-state.service'
 import { SandboxesService } from '../sandboxes/sandboxes.service'
-import { ETokenPrincipalKind } from '../sandboxes/token-principal'
 import { EventsService } from './events.service'
-import { SessionOrSandboxMiddleware } from './session-or-sandbox.middleware'
+import { SessionMiddleware } from '../../../_module/session/session.middleware'
 import { ThreadEventsRouter } from './thread-events.router'
 import { ThreadSignalsService } from './thread-signals.service'
 
@@ -28,7 +27,7 @@ export async function createLiveEventApp() {
     rateLimit: UNTHROTTLED_RATE_LIMIT,
     providers: [
       ThreadEventsRouter,
-      SessionOrSandboxMiddleware,
+      SessionMiddleware,
       { provide: DrainStateService, useValue: drain },
       { provide: ThreadSignalsService, useValue: signals },
       { provide: EventsService, useValue: { head } },
@@ -43,7 +42,7 @@ export async function createLiveEventApp() {
         provide: SandboxesService,
         useValue: {
           verifyTokenPrincipal: async () => ({
-            kind: ETokenPrincipalKind.Sandbox,
+            kind: 'sandbox',
             id: 'sbx_1',
             threadId: 'thr_1',
             userId: 'usr_1',

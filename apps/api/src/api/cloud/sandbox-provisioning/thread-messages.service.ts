@@ -171,7 +171,6 @@ export class ThreadMessagesService {
         ...(appended === undefined ? {} : { appended: appended.appended }),
       }
     })
-    await this.pod.revokeAfterCommit(staged.claim)
     return staged
   }
 }

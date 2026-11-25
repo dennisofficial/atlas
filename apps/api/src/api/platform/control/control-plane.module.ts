@@ -39,7 +39,7 @@ import { SessionsService } from './sessions.service'
 import { PodMetricsService } from './pod-metrics.service'
 import { PodPowerService } from './pod-power.service'
 import { PodSizingService } from './pod-sizing.service'
-import { SandboxesModule } from '../sandboxes/sandboxes.module'
+import { PreviewsModule } from '../previews/previews.module'
 import { RedisModule } from '../../../_lib/redis/redis.module'
 import { NotificationsRouter } from './notifications.router'
 import { NotifyDevicesService } from './notify-devices.service'
@@ -66,7 +66,7 @@ export const controlPlaneProvider: Provider = {
 }
 
 @Module({
-  imports: [AnalyticsModule, SandboxesModule, RedisModule],
+  imports: [AnalyticsModule, PreviewsModule, RedisModule],
   providers: [
     controlPlaneProvider,
     { provide: ProjectAccess, useClass: DbProjectAccess },

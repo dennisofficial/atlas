@@ -37,12 +37,8 @@ import {
 import { BadGatewayException, NotFoundException } from '@nestjs/common'
 import { Ctx, Input, Mutation, Query, Router, UseMiddlewares } from 'nestjs-trpc'
 import { z } from 'zod'
-import type { SessionTrpcCtx } from '../../../_module/session/session.middleware'
-import { meta } from '../../../_module/trpc/procedure-meta'
-import {
-  SessionOrSandboxMiddleware,
-  type SessionOrSandboxTrpcCtx,
-} from '../../platform/sessions/session-or-sandbox.middleware'
+import { SessionMiddleware, type SessionTrpcCtx } from '../../../_module/session/session.middleware'
+import { assertFreshSession } from '../../../_module/session/fresh-session'
 import { EGithubCallSource } from '@dltech/atlas-github'
 import { GithubRepoReads } from '@dltech/atlas-github'
 import { isGithubBudgetParked, withGithubRequestBudget } from '@dltech/atlas-github'
@@ -50,12 +46,11 @@ import { GithubRequestCoordinator } from '@dltech/atlas-github'
 import { GithubUserReadFailed } from '@dltech/atlas-github'
 import { ProjectFileMountsService } from './project-file-mounts.service'
 import { ProjectResourcesService } from './project-resources.service'
-import { assertProjectReach, assertRevealAllowed } from './project-reach'
 import { ProjectSettingsService } from './project-settings.service'
 import { ProjectsService } from './projects.service'
 
 @Router({ alias: 'projectResources' })
-@UseMiddlewares(SessionOrSandboxMiddleware)
+@UseMiddlewares(SessionMiddleware)
 export class ProjectResourcesRouter {
   constructor(
     private readonly resources: ProjectResourcesService,
@@ -69,13 +64,11 @@ export class ProjectResourcesRouter {
   @Query({
     input: projectIdInputSchema,
     output: settingListSchema,
-    meta: meta({ sandboxReachable: true }),
   })
   async listSettings(
     @Input() input: ProjectIdInput,
-    @Ctx() ctx: SessionOrSandboxTrpcCtx,
+    @Ctx() ctx: SessionTrpcCtx,
   ): Promise<SettingList> {
-    await assertProjectReach({ ctx, projectId: input.projectId })
     const settings = await this.settings.list({ userId: ctx.auth.userId, ...input })
     return { settings }
   }
@@ -83,13 +76,11 @@ export class ProjectResourcesRouter {
   @Mutation({
     input: projectSettingsPatchSchema,
     output: z.void(),
-    meta: meta({ sandboxReachable: true }),
   })
   async patchSettings(
     @Input() input: ProjectSettingsPatch,
-    @Ctx() ctx: SessionOrSandboxTrpcCtx,
+    @Ctx() ctx: SessionTrpcCtx,
   ): Promise<void> {
-    await assertProjectReach({ ctx, projectId: input.projectId })
     await this.settings.patch({ userId: ctx.auth.userId, ...input })
   }
 
@@ -110,13 +101,11 @@ export class ProjectResourcesRouter {
   @Query({
     input: projectIdInputSchema,
     output: projectSecretListSchema,
-    meta: meta({ sandboxReachable: true }),
   })
   async listSecrets(
     @Input() input: ProjectIdInput,
-    @Ctx() ctx: SessionOrSandboxTrpcCtx,
+    @Ctx() ctx: SessionTrpcCtx,
   ): Promise<ProjectSecretList> {
-    await assertProjectReach({ ctx, projectId: input.projectId })
     const secrets = await this.resources.listSecrets({ userId: ctx.auth.userId, ...input })
     return { secrets }
   }
@@ -124,14 +113,12 @@ export class ProjectResourcesRouter {
   @Query({
     input: projectSecretKeySchema,
     output: projectSecretValueSchema,
-    meta: meta({ sandboxReachable: true }),
   })
   async revealSecret(
     @Input() input: ProjectSecretKey,
-    @Ctx() ctx: SessionOrSandboxTrpcCtx,
+    @Ctx() ctx: SessionTrpcCtx,
   ): Promise<ProjectSecretValue> {
-    await assertProjectReach({ ctx, projectId: input.projectId })
-    assertRevealAllowed({ ctx })
+    assertFreshSession({ auth: ctx.auth })
     const value = await this.resources.revealSecret({ userId: ctx.auth.userId, ...input })
     return { value }
   }
@@ -139,39 +126,27 @@ export class ProjectResourcesRouter {
   @Mutation({
     input: projectSecretSetSchema,
     output: z.void(),
-    meta: meta({ sandboxReachable: true }),
   })
-  async setSecret(
-    @Input() input: ProjectSecretSet,
-    @Ctx() ctx: SessionOrSandboxTrpcCtx,
-  ): Promise<void> {
-    await assertProjectReach({ ctx, projectId: input.projectId })
+  async setSecret(@Input() input: ProjectSecretSet, @Ctx() ctx: SessionTrpcCtx): Promise<void> {
     await this.resources.setSecret({ userId: ctx.auth.userId, ...input })
   }
 
   @Mutation({
     input: projectSecretKeySchema,
     output: z.void(),
-    meta: meta({ sandboxReachable: true }),
   })
-  async removeSecret(
-    @Input() input: ProjectSecretKey,
-    @Ctx() ctx: SessionOrSandboxTrpcCtx,
-  ): Promise<void> {
-    await assertProjectReach({ ctx, projectId: input.projectId })
+  async removeSecret(@Input() input: ProjectSecretKey, @Ctx() ctx: SessionTrpcCtx): Promise<void> {
     await this.resources.removeSecret({ userId: ctx.auth.userId, ...input })
   }
 
   @Query({
     input: projectIdInputSchema,
     output: projectFileMountListSchema,
-    meta: meta({ sandboxReachable: true }),
   })
   async listFileMounts(
     @Input() input: ProjectIdInput,
-    @Ctx() ctx: SessionOrSandboxTrpcCtx,
+    @Ctx() ctx: SessionTrpcCtx,
   ): Promise<ProjectFileMountList> {
-    await assertProjectReach({ ctx, projectId: input.projectId })
     const mounts = await this.fileMounts.list({ userId: ctx.auth.userId, ...input })
     return { mounts }
   }
@@ -179,14 +154,12 @@ export class ProjectResourcesRouter {
   @Query({
     input: projectFileMountKeySchema,
     output: projectFileMountContentsSchema,
-    meta: meta({ sandboxReachable: true }),
   })
   async revealFileMount(
     @Input() input: ProjectFileMountKey,
-    @Ctx() ctx: SessionOrSandboxTrpcCtx,
+    @Ctx() ctx: SessionTrpcCtx,
   ): Promise<ProjectFileMountContents> {
-    await assertProjectReach({ ctx, projectId: input.projectId })
-    assertRevealAllowed({ ctx })
+    assertFreshSession({ auth: ctx.auth })
     const contents = await this.fileMounts.reveal({ userId: ctx.auth.userId, ...input })
     return { contents }
   }
@@ -194,26 +167,22 @@ export class ProjectResourcesRouter {
   @Mutation({
     input: projectFileMountSetSchema,
     output: z.void(),
-    meta: meta({ sandboxReachable: true }),
   })
   async setFileMount(
     @Input() input: ProjectFileMountSetInput,
-    @Ctx() ctx: SessionOrSandboxTrpcCtx,
+    @Ctx() ctx: SessionTrpcCtx,
   ): Promise<void> {
-    await assertProjectReach({ ctx, projectId: input.projectId })
     await this.fileMounts.set({ userId: ctx.auth.userId, ...input })
   }
 
   @Mutation({
     input: projectFileMountKeySchema,
     output: z.void(),
-    meta: meta({ sandboxReachable: true }),
   })
   async removeFileMount(
     @Input() input: ProjectFileMountKey,
-    @Ctx() ctx: SessionOrSandboxTrpcCtx,
+    @Ctx() ctx: SessionTrpcCtx,
   ): Promise<void> {
-    await assertProjectReach({ ctx, projectId: input.projectId })
     await this.fileMounts.remove({ userId: ctx.auth.userId, ...input })
   }
 
@@ -252,13 +221,11 @@ export class ProjectResourcesRouter {
   @Query({
     input: projectIdInputSchema,
     output: resourceMcpServerListSchema,
-    meta: meta({ sandboxReachable: true }),
   })
   async listMcpServers(
     @Input() input: ProjectIdInput,
-    @Ctx() ctx: SessionOrSandboxTrpcCtx,
+    @Ctx() ctx: SessionTrpcCtx,
   ): Promise<ResourceMcpServerList> {
-    await assertProjectReach({ ctx, projectId: input.projectId })
     const servers = await this.resources.listMcpServers({ userId: ctx.auth.userId, ...input })
     return { servers }
   }
@@ -266,13 +233,11 @@ export class ProjectResourcesRouter {
   @Mutation({
     input: projectMcpServerPutSchema,
     output: z.void(),
-    meta: meta({ sandboxReachable: true }),
   })
   async putMcpServer(
     @Input() input: ProjectMcpServerPut,
-    @Ctx() ctx: SessionOrSandboxTrpcCtx,
+    @Ctx() ctx: SessionTrpcCtx,
   ): Promise<void> {
-    await assertProjectReach({ ctx, projectId: input.projectId })
     const { projectId, name, ...spec } = input
     await this.resources.putMcpServer({ userId: ctx.auth.userId, projectId, name, spec })
   }
@@ -280,13 +245,11 @@ export class ProjectResourcesRouter {
   @Mutation({
     input: projectMcpServerKeySchema,
     output: z.void(),
-    meta: meta({ sandboxReachable: true }),
   })
   async removeMcpServer(
     @Input() input: ProjectMcpServerKey,
-    @Ctx() ctx: SessionOrSandboxTrpcCtx,
+    @Ctx() ctx: SessionTrpcCtx,
   ): Promise<void> {
-    await assertProjectReach({ ctx, projectId: input.projectId })
     await this.resources.removeMcpServer({ userId: ctx.auth.userId, ...input })
   }
 }

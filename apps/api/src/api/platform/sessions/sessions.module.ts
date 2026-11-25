@@ -4,7 +4,6 @@ import { NotificationsModule } from '../notifications/notifications.module'
 import { SandboxesModule } from '../sandboxes/sandboxes.module'
 import { ContextFilesRouter } from './context-files.router'
 import { EventsService } from './events.service'
-import { SessionOrSandboxMiddleware } from './session-or-sandbox.middleware'
 import { TeammateArchiveStopService } from './teammate-archive-stop'
 import { ThreadArchiveService } from './thread-archive.service'
 import { ThreadEventsRouter } from './thread-events.router'
@@ -30,8 +29,7 @@ import { TurnsService } from './turns.service'
     ThreadEventsRouter,
     ThreadTurnsRouter,
     ContextFilesRouter,
-    SessionOrSandboxMiddleware,
   ],
-  exports: [SessionOrSandboxMiddleware, SandboxesModule, ThreadsService, ThreadSignalsModule],
+  exports: [SandboxesModule, ThreadsService, ThreadSignalsModule],
 })
 export class SessionsModule {}

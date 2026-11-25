@@ -1,11 +1,10 @@
 import { Module } from '@nestjs/common'
-import { SessionsModule } from '../../platform/sessions/sessions.module'
+import { RetiredSandboxTokenMiddleware } from '../../platform/sandboxes/retired-sandbox-token.middleware'
 import { SandboxConfigRouter } from './sandbox-config.router'
 import { ScopedConfigService } from './scoped-config.service'
 
 @Module({
-  imports: [SessionsModule],
-  providers: [ScopedConfigService, SandboxConfigRouter],
+  providers: [ScopedConfigService, SandboxConfigRouter, RetiredSandboxTokenMiddleware],
   exports: [ScopedConfigService],
 })
 export class ScopedConfigModule {}

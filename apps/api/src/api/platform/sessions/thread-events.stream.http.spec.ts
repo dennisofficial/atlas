@@ -14,9 +14,8 @@ import {
 } from '../../../_module/trpc/trpc-middleware.fixture'
 import { DrainStateService } from '../health/drain-state.service'
 import { SandboxesService } from '../sandboxes/sandboxes.service'
-import { ETokenPrincipalKind } from '../sandboxes/token-principal'
 import { EventsService } from './events.service'
-import { SessionOrSandboxMiddleware } from './session-or-sandbox.middleware'
+import { SessionMiddleware } from '../../../_module/session/session.middleware'
 import { ThreadEventsRouter } from './thread-events.router'
 import { ThreadSignalsService } from './thread-signals.service'
 import * as streamState from './thread-stream-state'
@@ -92,7 +91,7 @@ describe('threadEvents.stream over a real http server', () => {
       rateLimit: UNTHROTTLED_RATE_LIMIT,
       providers: [
         ThreadEventsRouter,
-        SessionOrSandboxMiddleware,
+        SessionMiddleware,
         { provide: DrainStateService, useValue: drain },
         { provide: ThreadSignalsService, useValue: signals },
         { provide: EventsService, useValue: events },
@@ -112,7 +111,7 @@ describe('threadEvents.stream over a real http server', () => {
             async verifyTokenPrincipal({ token }: { token: string }) {
               if (token !== SANDBOX_TOKEN) throw new UnauthorizedException('bad token')
               return {
-                kind: ETokenPrincipalKind.Sandbox,
+                kind: 'sandbox',
                 id: 'sbx_1',
                 threadId: OWNED,
                 userId: 'usr_1',
@@ -170,15 +169,6 @@ describe('threadEvents.stream over a real http server', () => {
     await waitFor(() => expect(failures).toHaveLength(1))
 
     expect(failures[0]?.data?.httpStatus).toBe(404)
-    expect(frames).toEqual([])
-  })
-
-  it('answers 403 to a sandbox token', async () => {
-    const { frames, failures } = subscribe({ threadId: OWNED, token: SANDBOX_TOKEN })
-
-    await waitFor(() => expect(failures).toHaveLength(1))
-
-    expect(failures[0]?.data?.httpStatus).toBe(403)
     expect(frames).toEqual([])
   })
 
