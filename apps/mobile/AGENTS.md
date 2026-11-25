@@ -44,3 +44,6 @@ when no native one exists, and say why in the PR.
   hashes but keeps the old names in their `requires`, and the export fails with `Asset not found:
   _expo/static/js/web/__common-<hash>.js`. The native bundle does not split, so the flag changes
   only the DOM bundles.
+- `eas/posthog_upload_sourcemaps` reads `dist/_expo/static/js/ios` only. A DOM component also
+  exports a web bundle, and its map carries a debug id but no `x_hermes_function_offsets`, so
+  posthog-cli's Hermes upload stops on it with `Map is not a hermes sourcemap`.
