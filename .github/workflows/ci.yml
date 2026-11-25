@@ -158,6 +158,26 @@ jobs:
   # for this ref, then main's. GitHub scopes caches by ref, so a PR reads main's cache but main never
   # reads a PR's — never move this to pull_request_target.
   # tests-nightly.yml runs everything nightly and fails if the cache ever hid a failure.
+  slash-menu-repeat:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        run: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2.2.0
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+      - run: bun install
+      - name: slash menu specs under cpu load
+        working-directory: apps/tui
+        run: |
+          yes > /dev/null &
+          yes > /dev/null &
+          bun test src/app/__tests__/app-slash-menu.spec.tsx src/app/__tests__/use-command-menu.spec.tsx --rerun-each 5
+
   test:
     runs-on: ubuntu-latest
     env:
