@@ -7,7 +7,8 @@ The advisory code-quality review. After a successful file write or edit, the plu
 - The `quality-review` afterTool hook: it asks the tool to capture the changed text, bounds the review at 1000 ms and returns the records and the finding.
 - The `quality-finding-ignored` afterTurn hook: it reports, from the log alone, each finding the model was nudged about and left active.
 - The product events `quality review completed`, `quality finding resolved`, `quality finding closed` and `quality finding ignored`. `resolved` means the classifier saw the problem go away. `closed` means a nudged finding ended because a later write removed its scope (deleted, moved or renamed with a changed body), so the log cannot tell a fix from a move.
-- The review engine: scope preparation, policy selection, request planning and the size bounds.
+- The review engine: scope preparation, policy selection, request planning, the size bounds and the
+  excerpt a scope over the bound is reviewed as.
 - The budget: one deadline for a review, with a settlement grace for a cooperative classifier.
 - The review records (`code-quality-reviewed`), the finding fold and the per-file note text.
 - The coverage records: a skip, a retirement or a fault, each with its reason.
@@ -15,8 +16,8 @@ The advisory code-quality review. After a successful file write or edit, the plu
 - The default policy registry: the single-responsibility policy and its settings key.
 - The single-responsibility policy itself: its descriptor, scope selection, its three questions, their
   interpretation and its coaching text. The policy is split across `src/policies/single-responsibility`.
-- The question request and answer interpretation that every policy shares: `prepareQualityRequest`,
-  `interpretQualityResponse` and their size bounds.
+- The question request and answer interpretation that every policy shares: `prepareQualityRequest`
+  (with the optional excerpt the planner attaches), `interpretQualityResponse` and their size bounds.
 - The finding ledger: the episode table, its transitions and the fold from records.
 - The indicator notice a surface draws on a reviewed tool call: `qualityNoticeOf`, `qualityNoticeLine`
   and `EQualityNoticeTone`.
@@ -67,7 +68,11 @@ The pod entry exports the first group only. The review modules below are the par
 ### Prepare the changed scopes
 
 - `prepareQualityScopes({ change, projectDirectory, workspaceNamespace, previousScopes })`: the changed scopes of one captured file, plus the diagnostics that stopped a scope.
-- `MAX_STATE_AND_LONGEST_QUESTION_BYTES`, `MAX_STATE_AND_ALL_QUESTIONS_BYTES`: the request bounds.
+- `MAX_STATE_AND_LONGEST_QUESTION_BYTES`, `MAX_STATE_AND_ALL_QUESTIONS_BYTES`: the request bounds. A
+  scope over them is requested again as an excerpt, and skipped only when the excerpt is over them too.
+- `excerptOf({ scope, contextLines })`: the changed lines with their context, the member outline and a
+  trimmed evidence list, with `QualityScopeExcerpt` naming what was dropped. `EXCERPT_CONTEXT_LINES`,
+  `MAX_EXCERPT_LINES`, `MAX_OUTLINE_ENTRIES` and `MAX_EVIDENCE_ENTRIES` size it.
 - `QualitySourceAdapter`: the one method the engine calls to get the scopes of a change.
 - `captureText`, `makeChange`, `captureUnavailableFault`: text capture with its diagnostics.
 - `parseQualitySource`, `scriptKindForPath`, `hashScopeText`, `renderScopeDiff`: the parser helpers.

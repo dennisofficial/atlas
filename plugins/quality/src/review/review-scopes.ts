@@ -13,6 +13,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { prepareQualityRequest, type QualityDecisionRequest } from './request'
+import { excerptOf } from './source/scope-excerpt'
 
 export const MAX_STATE_AND_LONGEST_QUESTION_BYTES = 24 * 1024
 export const MAX_STATE_AND_ALL_QUESTIONS_BYTES = 48 * 1024
@@ -132,18 +133,29 @@ export function selectPolicyScopes({
 
 const byteLength = (text: string): number => Buffer.byteLength(text, 'utf8')
 
-function fitsBounds({ request }: { request: QualityDecisionRequest }): boolean {
-  const state = byteLength(request.state)
+type RequestSize = { state: number; longest: number; total: number }
+
+function sizeOf({ request }: { request: QualityDecisionRequest }): RequestSize {
   const sizes = Object.values(request.questions).map((question) =>
     byteLength(JSON.stringify(question)),
   )
-  const longest = sizes.reduce((max, size) => Math.max(max, size), 0)
-  const total = sizes.reduce((sum, size) => sum + size, 0)
+  return {
+    state: byteLength(request.state),
+    longest: sizes.reduce((max, size) => Math.max(max, size), 0),
+    total: sizes.reduce((sum, size) => sum + size, 0),
+  }
+}
+
+function fitsBounds({ request }: { request: QualityDecisionRequest }): boolean {
+  const size = sizeOf({ request })
   return (
-    state + longest <= MAX_STATE_AND_LONGEST_QUESTION_BYTES &&
-    state + total <= MAX_STATE_AND_ALL_QUESTIONS_BYTES
+    size.state + size.longest <= MAX_STATE_AND_LONGEST_QUESTION_BYTES &&
+    size.state + size.total <= MAX_STATE_AND_ALL_QUESTIONS_BYTES
   )
 }
+
+const describeSize = (size: RequestSize): string =>
+  `state ${size.state} + longest question ${size.longest} + all questions ${size.total} bytes`
 
 function tryRequest({
   scope,
@@ -155,11 +167,18 @@ function tryRequest({
   try {
     const request = prepareQualityRequest({ scope, policies })
     if (fitsBounds({ request })) return { request }
+    const excerpted = excerptOf({ scope })
+    const excerpt = prepareQualityRequest({
+      scope: excerpted.scope,
+      policies,
+      excerpt: excerpted.excerpt,
+    })
+    if (fitsBounds({ request: excerpt })) return { request: excerpt }
     return {
       rejected: {
         status: EQualityReviewStatus.Skipped,
         reason: EQualitySkipReason.OversizedRequest,
-        detail: `request for ${policies.map((policy) => policy.id).join(', ')} exceeds the review size bound`,
+        detail: `request for ${policies.map((policy) => policy.id).join(', ')} exceeds the review size bound: ${describeSize(sizeOf({ request }))} full, ${describeSize(sizeOf({ request: excerpt }))} excerpted`,
       },
     }
   } catch (error) {
