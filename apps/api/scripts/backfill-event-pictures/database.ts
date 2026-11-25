@@ -120,8 +120,11 @@ export const insertMedia = async (args: {
   )
 }
 
-const recreateAppendOnlyTrigger = async (tx: SQL): Promise<void> => {
+const dropAppendOnlyTrigger = async (tx: SQL): Promise<void> => {
   await tx.unsafe('DROP TRIGGER "Event_append_only" ON "public"."Event"')
+}
+
+const createAppendOnlyTrigger = async (tx: SQL): Promise<void> => {
   await tx.unsafe(
     `CREATE TRIGGER "Event_append_only"
      BEFORE UPDATE OR DELETE ON "public"."Event"
@@ -162,13 +165,13 @@ export const applyRewrite = async (args: {
       args.sessionId,
     ])
     await tx.unsafe(
-      `INSERT INTO archive."EventPictures20261125"
+      `INSERT INTO archive."EventPictures20261125" (${EVENT_COLUMNS})
        SELECT ${EVENT_COLUMNS} FROM "public"."Event"
        WHERE "threadId" = $1 AND "seq" BETWEEN $2 AND $3
        ON CONFLICT ("threadId", "seq") DO NOTHING`,
       [args.threadId, args.archiveFrom, args.archiveThrough],
     )
-    await recreateAppendOnlyTrigger(tx)
+    await dropAppendOnlyTrigger(tx)
     for (const row of args.rows) {
       await tx.unsafe(
         `UPDATE "public"."Event" SET "prevHash" = $1, "hash" = $2, "canonical" = $3
@@ -180,5 +183,6 @@ export const applyRewrite = async (args: {
       args.headHash,
       args.threadId,
     ])
+    await createAppendOnlyTrigger(tx)
     return { kind: 'applied' } as const
   })
