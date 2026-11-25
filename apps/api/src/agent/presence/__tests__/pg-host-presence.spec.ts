@@ -132,7 +132,7 @@ describe('pg host presence', () => {
     const hostId = await presence.register()
     await settle(150)
     const { rows } = await listener.query<{ label: string }>(
-      'SELECT label FROM "v2"."V2Host" WHERE id = $1',
+      'SELECT label FROM "public"."Host" WHERE id = $1',
       [hostId],
     )
     expect(rows).toEqual([{ label: 'row-host' }])
@@ -140,7 +140,7 @@ describe('pg host presence', () => {
 
     await presence.close()
     await settle(150)
-    const gone = await listener.query('SELECT 1 FROM "v2"."V2Host" WHERE id = $1', [hostId])
+    const gone = await listener.query('SELECT 1 FROM "public"."Host" WHERE id = $1', [hostId])
     expect(gone.rows).toEqual([])
     expect(payloads).toEqual([String(hostId), String(hostId)])
   })

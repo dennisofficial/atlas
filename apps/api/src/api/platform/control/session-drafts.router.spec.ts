@@ -115,7 +115,7 @@ describe('SessionDraftsRouter', () => {
     })
     expect(typeof draft?.updatedAt).toBe('string')
 
-    const rows = await db.orm.v2.V2ComposerDraft.all()
+    const rows = await db.orm.public.SessionDraft.all()
     expect(rows).toHaveLength(1)
     expect(JSON.parse(rows[0]?.attachments ?? '[]')[0].content.inline).toBeUndefined()
   })
@@ -123,14 +123,14 @@ describe('SessionDraftsRouter', () => {
   it('keeps one row when the same scope is put twice', async () => {
     await put('s1', { sessionId: 'ses-a', text: 'first', attachments: [] })
     await put('s1', { sessionId: 'ses-a', text: 'second', attachments: [] })
-    expect(await db.orm.v2.V2ComposerDraft.all()).toHaveLength(1)
+    expect(await db.orm.public.SessionDraft.all()).toHaveLength(1)
     const back = await get('s1', { sessionId: 'ses-a' })
     expect(sessionDraftGetOutputSchema.parse(dataOf(back.body)).draft?.text).toBe('second')
   })
 
   it('stores the new-session composer under the new scope key', async () => {
     await put('s1', { sessionId: null, text: 'unborn', attachments: [] })
-    const rows = await db.orm.v2.V2ComposerDraft.all()
+    const rows = await db.orm.public.SessionDraft.all()
     expect(rows[0]).toMatchObject({ scopeKey: 'new', sessionId: null, text: 'unborn' })
     const back = await get('s1', { sessionId: null })
     const draft = sessionDraftGetOutputSchema.parse(dataOf(back.body)).draft
@@ -144,7 +144,7 @@ describe('SessionDraftsRouter', () => {
   })
 
   it('answers a null draft for a malformed stored row', async () => {
-    await db.orm.v2.V2ComposerDraft.create({
+    await db.orm.public.SessionDraft.create({
       userId: 'user-a',
       scopeKey: 'ses-a',
       sessionId: 'ses-a',
@@ -166,7 +166,7 @@ describe('SessionDraftsRouter', () => {
     expect(sessionDraftGetOutputSchema.parse(dataOf(back.body)).draft).toBeNull()
     const second = await clear('s1', { sessionId: 'ses-a' })
     expect(second.status).toBe(200)
-    expect(await db.orm.v2.V2ComposerDraft.all()).toHaveLength(0)
+    expect(await db.orm.public.SessionDraft.all()).toHaveLength(0)
   })
 
   it('refuses a session the caller does not own', async () => {
@@ -191,7 +191,7 @@ describe('SessionDraftsRouter', () => {
 
   it('drops the draft when its session is deleted', async () => {
     await put('s1', { sessionId: 'ses-a', text: 'x', attachments: [] })
-    await db.orm.v2.V2Session.where({ id: 'ses-a' }).delete()
-    expect(await db.orm.v2.V2ComposerDraft.all()).toHaveLength(0)
+    await db.orm.public.Session.where({ id: 'ses-a' }).delete()
+    expect(await db.orm.public.SessionDraft.all()).toHaveLength(0)
   })
 })

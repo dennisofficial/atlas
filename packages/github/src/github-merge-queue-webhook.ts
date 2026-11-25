@@ -102,7 +102,7 @@ export async function notifyMergeQueueMove(args: {
   const { repoFullName, prNumber, move } = args
   const threadIds = await subscribedThreadIds({ repoFullName, prNumber })
   if (threadIds.length === 0) return 0
-  const threads = await db.orm.v2.V2Thread.where((thread) => thread.id.in(threadIds)).all()
+  const threads = await db.orm.public.Thread.where((thread) => thread.id.in(threadIds)).all()
   if (threads.length === 0) return 0
   const payload = mergeQueueEventOf({ repoFullName, prNumber, move })
   const at = new Date().toISOString()

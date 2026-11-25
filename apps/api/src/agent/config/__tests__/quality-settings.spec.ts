@@ -17,8 +17,8 @@ const fakeDb = (args: {
 }): Db =>
   ({
     orm: {
-      v2: { V2Session: { first: async () => args.session } },
       public: {
+        Session: { first: async () => args.session },
         UserSetting: { where: () => ({ all: async () => rowsOf(args.user ?? {}) }) },
         ProjectSetting: { where: () => ({ all: async () => rowsOf(args.project ?? {}) }) },
       },

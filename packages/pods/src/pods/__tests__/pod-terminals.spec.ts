@@ -7,7 +7,7 @@ import { endPodTerminals } from '../pod-terminals'
 const NOW = new Date('2026-11-19T06:00:00Z')
 
 const v2Session = async (args: { id: string; podSessionId?: string }): Promise<void> => {
-  await db.orm.v2.V2Session.create({
+  await db.orm.public.Session.create({
     id: args.id,
     userId: 'user-a',
     mainThreadId: `thr_${args.id}`,
@@ -26,7 +26,7 @@ const terminal = async (args: {
   ordinal: number
   state: 'open' | 'ended'
 }): Promise<void> => {
-  await db.orm.v2.V2Terminal.create({
+  await db.orm.public.Terminal.create({
     sessionId: args.sessionId,
     terminalId: args.terminalId,
     ordinal: args.ordinal,
@@ -38,7 +38,7 @@ const terminal = async (args: {
 }
 
 const terminalRowsOf = (sessionId: string) =>
-  db.orm.v2.V2Terminal.where({ sessionId }).select('terminalId', 'state', 'endedReason').all()
+  db.orm.public.Terminal.where({ sessionId }).select('terminalId', 'state', 'endedReason').all()
 
 describe('endPodTerminals', () => {
   useTestDatabase()

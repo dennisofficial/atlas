@@ -18,7 +18,7 @@ export const readSessionViewIn = async (params: {
   tx: Tx
   sessionId: string
 }): Promise<SessionViewRow | undefined> => {
-  const row = await params.tx.orm.v2.V2SessionView.first({ sessionId: params.sessionId })
+  const row = await params.tx.orm.public.SessionView.first({ sessionId: params.sessionId })
   if (row === null) return undefined
   return {
     sessionId: row.sessionId,
@@ -34,7 +34,7 @@ export const readSessionViewsIn = async (params: {
   sessionIds: readonly string[]
 }): Promise<SessionViewRow[]> => {
   if (params.sessionIds.length === 0) return []
-  const rows = await params.tx.orm.v2.V2SessionView.where((view) =>
+  const rows = await params.tx.orm.public.SessionView.where((view) =>
     view.sessionId.in([...params.sessionIds]),
   ).all()
   return rows.map((row) => ({
@@ -58,7 +58,7 @@ export const writeSessionViewIn = async (params: {
     state: row.state,
     updatedAt: new Date(),
   }
-  await params.tx.orm.v2.V2SessionView.upsert({
+  await params.tx.orm.public.SessionView.upsert({
     conflictOn: { sessionId: row.sessionId },
     create: { sessionId: row.sessionId, ...fields },
     update: fields,
@@ -74,13 +74,13 @@ export const insertSessionBranchesIn = async (params: {
     await tx.execute(
       row.firstSeenAt === null
         ? tx.raw
-            .sql`INSERT INTO "v2"."V2SessionBranch" ("sessionId", "headRepo", "branch", "firstSeenSeq")
+            .sql`INSERT INTO "public"."SessionBranch" ("sessionId", "headRepo", "branch", "firstSeenSeq")
             VALUES (${row.sessionId}, ${row.headRepo}, ${row.branch}, ${row.firstSeenSeq})
             ON CONFLICT ("sessionId", "headRepo", "branch") DO NOTHING`
             .affectedCount()
             .build()
         : tx.raw
-            .sql`INSERT INTO "v2"."V2SessionBranch" ("sessionId", "headRepo", "branch", "firstSeenSeq", "firstSeenAt")
+            .sql`INSERT INTO "public"."SessionBranch" ("sessionId", "headRepo", "branch", "firstSeenSeq", "firstSeenAt")
             VALUES (${row.sessionId}, ${row.headRepo}, ${row.branch}, ${row.firstSeenSeq}, ${row.firstSeenAt}::timestamptz)
             ON CONFLICT ("sessionId", "headRepo", "branch") DO NOTHING`
             .affectedCount()
@@ -96,7 +96,7 @@ export const insertSessionPullRequestsIn = async (params: {
   const { tx } = params
   for (const row of params.rows) {
     await tx.execute(
-      tx.raw.sql`INSERT INTO "v2"."V2SessionPullRequest" ("sessionId", "repoFullName", "prNumber")
+      tx.raw.sql`INSERT INTO "public"."SessionPullRequest" ("sessionId", "repoFullName", "prNumber")
         VALUES (${row.sessionId}, ${repoFullNameOf(row.repo)}, ${row.number})
         ON CONFLICT ("sessionId", "repoFullName", "prNumber") DO NOTHING`
         .affectedCount()
@@ -110,7 +110,7 @@ export const sessionsTrackingHeadIn = async (params: {
   headRepo: string
   branch: string
 }): Promise<string[]> => {
-  const rows = await params.tx.orm.v2.V2SessionBranch.where({
+  const rows = await params.tx.orm.public.SessionBranch.where({
     headRepo: params.headRepo,
     branch: params.branch,
   }).all()
@@ -122,7 +122,7 @@ export const sessionsTrackingPullRequestIn = async (params: {
   repo: string
   number: number
 }): Promise<string[]> => {
-  const rows = await params.tx.orm.v2.V2SessionPullRequest.where({
+  const rows = await params.tx.orm.public.SessionPullRequest.where({
     repoFullName: repoFullNameOf(params.repo),
     prNumber: params.number,
   }).all()
@@ -134,7 +134,7 @@ const sessionBranchesIn = async (params: {
   sessionIds: readonly string[]
 }): Promise<SessionBranchRow[]> => {
   if (params.sessionIds.length === 0) return []
-  const rows = await params.tx.orm.v2.V2SessionBranch.where((branch) =>
+  const rows = await params.tx.orm.public.SessionBranch.where((branch) =>
     or(...params.sessionIds.map((sessionId) => branch.sessionId.eq(sessionId))),
   ).all()
   return rows.map((row) => ({
@@ -151,7 +151,7 @@ const sessionPullRequestsIn = async (params: {
   sessionIds: readonly string[]
 }): Promise<SessionPullRequestRow[]> => {
   if (params.sessionIds.length === 0) return []
-  const rows = await params.tx.orm.v2.V2SessionPullRequest.where((pullRequest) =>
+  const rows = await params.tx.orm.public.SessionPullRequest.where((pullRequest) =>
     or(...params.sessionIds.map((sessionId) => pullRequest.sessionId.eq(sessionId))),
   ).all()
   return rows.map((row) => ({

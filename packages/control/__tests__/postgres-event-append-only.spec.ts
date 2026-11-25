@@ -9,7 +9,7 @@ describe('V2Event append-only trigger', () => {
 
   async function seedEvent() {
     const { db } = testDb()
-    await db.orm.v2.V2Session.create({
+    await db.orm.public.Session.create({
       id: 'ses_1',
       userId: 'user_1',
       mainThreadId: 'thr_1',
@@ -19,7 +19,7 @@ describe('V2Event append-only trigger', () => {
       modelEffort: 'medium',
       modelFast: false,
     })
-    await db.orm.v2.V2Thread.create({
+    await db.orm.public.Thread.create({
       id: 'thr_1',
       sessionId: 'ses_1',
       headSeq: 1,
@@ -27,7 +27,7 @@ describe('V2Event append-only trigger', () => {
       visibility: '{"spans":[]}',
       createdAt: NOW,
     })
-    await db.orm.v2.V2Event.create({
+    await db.orm.public.Event.create({
       threadId: 'thr_1',
       seq: 1,
       id: 'evt_1',
@@ -45,27 +45,27 @@ describe('V2Event append-only trigger', () => {
     const { pool } = testDb()
     await seedEvent()
     await expect(
-      pool.query('UPDATE "v2"."V2Event" SET canonical = $1 WHERE id = $2', [
+      pool.query('UPDATE "public"."Event" SET canonical = $1 WHERE id = $2', [
         '{"rewritten":1}',
         'evt_1',
       ]),
-    ).rejects.toThrow(/V2Event is append-only/)
+    ).rejects.toThrow(/Event is append-only/)
   })
 
   it('rejects DELETE of an appended row', async () => {
     const { pool } = testDb()
     await seedEvent()
-    await expect(pool.query('DELETE FROM "v2"."V2Event" WHERE id = $1', ['evt_1'])).rejects.toThrow(
-      /V2Event is append-only/,
-    )
-    const kept = await pool.query<{ n: string }>('SELECT count(*) AS n FROM "v2"."V2Event"')
+    await expect(
+      pool.query('DELETE FROM "public"."Event" WHERE id = $1', ['evt_1']),
+    ).rejects.toThrow(/Event is append-only/)
+    const kept = await pool.query<{ n: string }>('SELECT count(*) AS n FROM "public"."Event"')
     expect(kept.rows[0]?.n).toBe('1')
   })
 
   it('still appends new rows', async () => {
     const { db, pool } = testDb()
     await seedEvent()
-    await db.orm.v2.V2Event.create({
+    await db.orm.public.Event.create({
       threadId: 'thr_1',
       seq: 2,
       id: 'evt_2',
@@ -77,7 +77,7 @@ describe('V2Event append-only trigger', () => {
       hash: 'h2',
       canonical: '{}',
     })
-    const count = await pool.query<{ n: string }>('SELECT count(*) AS n FROM "v2"."V2Event"')
+    const count = await pool.query<{ n: string }>('SELECT count(*) AS n FROM "public"."Event"')
     expect(count.rows[0]?.n).toBe('2')
   })
 })

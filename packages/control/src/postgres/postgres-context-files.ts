@@ -41,7 +41,8 @@ export const upsertContextFilesIn = async (params: {
   if (params.files.length === 0) return
   const rows = params.files.map((file) => ({ id: randomUUID(), ...file }))
   await params.tx.execute(
-    params.tx.raw.sql`INSERT INTO "v2"."V2ContextFile" ("id", "sessionId", "path", "digest", "size",
+    params.tx.raw
+      .sql`INSERT INTO "public"."ContextFile" ("id", "sessionId", "path", "digest", "size",
         "mime", "kind", "mtimeMs", "updatedAt")
       SELECT f."id", ${params.sessionId}, f."path", f."digest", f."size", f."mime", f."kind",
         f."mtimeMs", clock_timestamp()
@@ -64,7 +65,7 @@ export const removeContextFilesIn = async (params: {
 }): Promise<void> => {
   if (params.paths.length === 0) return
   await params.tx.execute(
-    params.tx.raw.sql`DELETE FROM "v2"."V2ContextFile"
+    params.tx.raw.sql`DELETE FROM "public"."ContextFile"
       WHERE "sessionId" = ${params.sessionId}
         AND "path" IN (SELECT jsonb_array_elements_text(${JSON.stringify(params.paths)}::jsonb))`
       .affectedCount()
@@ -76,7 +77,7 @@ export const listContextFilesIn = async (params: {
   tx: Tx
   sessionId: string
 }): Promise<ContextFileRow[]> => {
-  const rows = await params.tx.orm.v2.V2ContextFile.where({ sessionId: params.sessionId })
+  const rows = await params.tx.orm.public.ContextFile.where({ sessionId: params.sessionId })
     .orderBy((row) => row.path.asc())
     .all()
   return rows.map(rowOf)
@@ -87,7 +88,7 @@ export const contextFileIn = async (params: {
   sessionId: string
   path: string
 }): Promise<ContextFileRow | null> => {
-  const row = await params.tx.orm.v2.V2ContextFile.first({
+  const row = await params.tx.orm.public.ContextFile.first({
     sessionId: params.sessionId,
     path: params.path,
   })
@@ -100,7 +101,7 @@ export const contextDigestsReferencedIn = async (params: {
 }): Promise<ReadonlySet<string>> => {
   if (params.digests.length === 0) return new Set()
   const rows = await params.tx.query(
-    params.tx.raw.sql`SELECT DISTINCT "digest" FROM "v2"."V2ContextFile"
+    params.tx.raw.sql`SELECT DISTINCT "digest" FROM "public"."ContextFile"
       WHERE "digest" IN (SELECT jsonb_array_elements_text(${JSON.stringify([...params.digests])}::jsonb))`
       .returnsRow({ digest: 'pg/text@1' })
       .build(),

@@ -17,7 +17,7 @@ const v2Session = async (args: {
   archivedAt?: Date
 }): Promise<void> => {
   const at = new Date('2026-11-09T00:00:00Z')
-  await db.orm.v2.V2Session.create({
+  await db.orm.public.Session.create({
     id: args.id,
     userId: 'user-a',
     projectId: 'prj-1',
@@ -35,7 +35,7 @@ const v2Session = async (args: {
 }
 
 const v2Lease = async (args: { sessionId: string; holderHostId: number | null }): Promise<void> => {
-  await db.orm.v2.V2Lease.create({
+  await db.orm.public.Lease.create({
     sessionId: args.sessionId,
     epoch: 0,
     holderHostId: args.holderHostId,
@@ -46,7 +46,7 @@ const v2Lease = async (args: { sessionId: string; holderHostId: number | null })
 }
 
 const openSandboxRun = async (args: { id: string; sessionId: string }): Promise<void> => {
-  await db.orm.v2.V2SandboxRun.create({
+  await db.orm.public.SandboxRun.create({
     id: args.id,
     sessionId: args.sessionId,
     userId: 'user-a',
@@ -96,7 +96,7 @@ describe('v2Pods', () => {
     expect(await podStillRetirable({ podSessionId: 'v2-unknown', now: NOW })).toBe(true)
     expect(await podStillRetirable({ podSessionId: 'v2-fresh', now: NOW })).toBe(false)
 
-    await db.orm.v2.V2Session.where({ id: 'v2-b' }).updateAndCount({ archivedAt: null })
+    await db.orm.public.Session.where({ id: 'v2-b' }).updateAndCount({ archivedAt: null })
     expect(await podStillRetirable({ podSessionId: 'v2-a', now: NOW })).toBe(false)
   })
 

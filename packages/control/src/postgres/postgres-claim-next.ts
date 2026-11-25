@@ -20,7 +20,7 @@ export const claimNeedingIn = async (params: {
   const sessionIds = await claimableSessionIdsIn({ tx, now: params.now, limit: params.limit })
   const claimed: Lease[] = []
   for (const sessionId of sessionIds) {
-    const row = await tx.orm.v2.V2Lease.first({ sessionId })
+    const row = await tx.orm.public.Lease.first({ sessionId })
     if (row === null) continue
     const current = toLease(row)
     const next = claimGrant({ lease: current, hostId: params.hostId, now: params.now })

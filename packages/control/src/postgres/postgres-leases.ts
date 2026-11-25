@@ -7,7 +7,7 @@ export const writeLeaseIn = async (params: {
   expectedEpoch: number
 }): Promise<boolean> => {
   const { tx, lease } = params
-  const existing = await tx.orm.v2.V2Lease.first({ sessionId: lease.sessionId })
+  const existing = await tx.orm.public.Lease.first({ sessionId: lease.sessionId })
   const data = {
     epoch: lease.epoch,
     holderHostId: lease.holderHostId,
@@ -18,14 +18,14 @@ export const writeLeaseIn = async (params: {
   if (existing === null) {
     if (params.expectedEpoch !== 0) return false
     try {
-      await tx.orm.v2.V2Lease.create({ sessionId: lease.sessionId, ...data })
+      await tx.orm.public.Lease.create({ sessionId: lease.sessionId, ...data })
     } catch (error) {
       if (isUniqueViolation(error)) return false
       throw error
     }
     return true
   }
-  const changed = await tx.orm.v2.V2Lease.where({
+  const changed = await tx.orm.public.Lease.where({
     sessionId: lease.sessionId,
     epoch: params.expectedEpoch,
   }).updateAndCount(data)

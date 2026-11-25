@@ -8,13 +8,13 @@ const SKIPPED_DIRECTORIES = new Set(['node_modules', '__tests__', 'migrations', 
 const SOURCE_FILE = /\.tsx?$/
 
 const FORBIDDEN: { pattern: RegExp; what: string }[] = [
-  { pattern: /\bV2Event\s*\.\s*update\s*\(/, what: 'V2Event.update(' },
-  { pattern: /\bV2Event\s*\.\s*updateAndCount\s*\(/, what: 'V2Event.updateAndCount(' },
-  { pattern: /\bV2Event\s*\.\s*upsert\s*\(/, what: 'V2Event.upsert(' },
-  { pattern: /\bV2Event\s*\.\s*delete\s*\(/, what: 'V2Event.delete(' },
-  { pattern: /\bV2Event\s*\.\s*deleteAndCount\s*\(/, what: 'V2Event.deleteAndCount(' },
-  { pattern: /UPDATE\s+"v2"\."V2Event"/i, what: 'raw SQL UPDATE "v2"."V2Event"' },
-  { pattern: /DELETE\s+FROM\s+"v2"\."V2Event"/i, what: 'raw SQL DELETE FROM "v2"."V2Event"' },
+  { pattern: /\bEvent\s*\.\s*update\s*\(/, what: 'Event.update(' },
+  { pattern: /\bEvent\s*\.\s*updateAndCount\s*\(/, what: 'Event.updateAndCount(' },
+  { pattern: /\bEvent\s*\.\s*upsert\s*\(/, what: 'Event.upsert(' },
+  { pattern: /\bEvent\s*\.\s*delete\s*\(/, what: 'Event.delete(' },
+  { pattern: /\bEvent\s*\.\s*deleteAndCount\s*\(/, what: 'Event.deleteAndCount(' },
+  { pattern: /UPDATE\s+"public"\."Event"/i, what: 'raw SQL UPDATE "public"."Event"' },
+  { pattern: /DELETE\s+FROM\s+"public"\."Event"/i, what: 'raw SQL DELETE FROM "public"."Event"' },
 ]
 
 function sourceFiles(directory: string): string[] {
@@ -34,7 +34,7 @@ function sourceFiles(directory: string): string[] {
   return found
 }
 
-describe('the V2Event log is append-only', () => {
+describe('the Event log is append-only', () => {
   it('has no source outside __tests__ that updates, upserts or deletes event rows', () => {
     const offences: string[] = []
     for (const root of SOURCE_ROOTS) {

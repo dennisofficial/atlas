@@ -25,8 +25,8 @@ async function seedSessionLink(args: {
   repo: string
 }): Promise<void> {
   const sessionId = `ses_${args.threadId}`
-  if ((await db.orm.v2.V2Session.first({ id: sessionId })) === null) {
-    await db.orm.v2.V2Session.create({
+  if ((await db.orm.public.Session.first({ id: sessionId })) === null) {
+    await db.orm.public.Session.create({
       id: sessionId,
       userId: args.userId,
       projectId: null,
@@ -46,7 +46,7 @@ async function seedSessionLink(args: {
       podSessionId: null,
     })
   }
-  await db.orm.v2.V2SessionPullRequest.create({
+  await db.orm.public.SessionPullRequest.create({
     sessionId,
     repoFullName: normalizedRepo(args.repo),
     prNumber: args.number,

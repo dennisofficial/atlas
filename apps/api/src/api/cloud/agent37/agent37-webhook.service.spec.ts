@@ -24,7 +24,7 @@ const statusAt = (status: ESandboxStatus, at: string): Promise<boolean> =>
   service().applyStatus({ instanceId: INSTANCE, status, at })
 
 const seedSession = async (): Promise<void> => {
-  await db.orm.v2.V2Session.create({
+  await db.orm.public.Session.create({
     id: SESSION,
     userId: USER,
     mainThreadId: `thr_${SESSION}`,
@@ -40,7 +40,7 @@ const seedSession = async (): Promise<void> => {
 }
 
 const seedOpenRun = async (): Promise<void> => {
-  await db.orm.v2.V2SandboxRun.create({
+  await db.orm.public.SandboxRun.create({
     id: 'run-open',
     sessionId: SESSION,
     userId: USER,
@@ -54,7 +54,7 @@ const seedOpenRun = async (): Promise<void> => {
   })
 }
 
-const rowsOf = () => db.orm.v2.V2SandboxRun.where({ sessionId: SESSION }).all()
+const rowsOf = () => db.orm.public.SandboxRun.where({ sessionId: SESSION }).all()
 const openRowsOf = async () => (await rowsOf()).filter((row) => row.endedAt === null)
 
 describe('Agent37WebhookService sandbox runs', () => {

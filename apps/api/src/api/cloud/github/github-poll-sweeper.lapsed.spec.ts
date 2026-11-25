@@ -19,7 +19,7 @@ const PAST = () => new Date(Date.now() - 60_000)
 const subscriptions = () => db.orm.public.GithubSubscription.where({ userId: USER }).all()
 
 const inboxRecords = async (): Promise<number> => {
-  const entries = await db.orm.v2.V2InboxEntry.all()
+  const entries = await db.orm.public.InboxEntry.all()
   return entries.filter((entry) => {
     if (entry.kind !== INBOX_KIND_RECORD) return false
     const read = inboxEventOf(entry.payload)
@@ -43,7 +43,7 @@ const seedV2Thread = async (args: { sessionId: string; threadId: string }): Prom
 const perRowThreadReadsOf = (statements: readonly string[]): string[] =>
   statements.filter(
     (statement) =>
-      statement.includes('"v2"."V2Thread"') && !statement.includes('"GithubSubscription"'),
+      statement.includes('"public"."Thread"') && !statement.includes('"GithubSubscription"'),
   )
 
 describe('GithubPollSweeperService lapsed subscriptions', () => {

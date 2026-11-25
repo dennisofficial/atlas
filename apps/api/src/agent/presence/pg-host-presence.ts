@@ -78,7 +78,7 @@ export const createPgHostPresence = (args: {
 
   const claim = async (client: PgPresenceClient): Promise<number> => {
     const inserted = await client.query(
-      'INSERT INTO "v2"."V2Host" (label, "startedAt") VALUES ($1, now()) RETURNING id',
+      'INSERT INTO "public"."Host" (label, "startedAt") VALUES ($1, now()) RETURNING id',
       [args.label],
     )
     const hostId = Number(firstValue(inserted, 'id'))
@@ -87,7 +87,7 @@ export const createPgHostPresence = (args: {
       hostId,
     ])
     if (firstValue(locked, 'locked') !== true) {
-      await client.query('DELETE FROM "v2"."V2Host" WHERE id = $1', [hostId])
+      await client.query('DELETE FROM "public"."Host" WHERE id = $1', [hostId])
       throw new Error(`presence lock for host ${hostId} is already held`)
     }
     await client.query('SELECT pg_notify($1, $2)', [PG_HOST_CHANGE_CHANNEL, String(hostId)])
@@ -140,7 +140,7 @@ export const createPgHostPresence = (args: {
       live.clear()
       for (const [hostId, client] of closing) {
         await client
-          .query('DELETE FROM "v2"."V2Host" WHERE id = $1', [hostId])
+          .query('DELETE FROM "public"."Host" WHERE id = $1', [hostId])
           .then(() =>
             client.query('SELECT pg_notify($1, $2)', [PG_HOST_CHANGE_CHANNEL, String(hostId)]),
           )

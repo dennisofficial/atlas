@@ -42,13 +42,13 @@ const sessionRow = () => ({
   podWaitingSince: null,
 })
 
-describe('v2 namespace client', () => {
+describe('the session tables in public', () => {
   const testDb = useTestDatabase()
 
   async function seedThread() {
     const { db } = testDb()
-    await db.orm.v2.V2Session.create(sessionRow())
-    await db.orm.v2.V2Thread.create({
+    await db.orm.public.Session.create(sessionRow())
+    await db.orm.public.Thread.create({
       id: 'thr_1',
       sessionId: 'ses_1',
       headSeq: 0,
@@ -58,16 +58,16 @@ describe('v2 namespace client', () => {
     })
   }
 
-  it('creates and reads a session through db.orm.v2', async () => {
+  it('creates and reads a session through db.orm.public', async () => {
     const { db } = testDb()
-    await db.orm.v2.V2Session.create(sessionRow())
-    expect(await db.orm.v2.V2Session.first({ id: 'ses_1' })).toEqual(sessionRow())
+    await db.orm.public.Session.create(sessionRow())
+    expect(await db.orm.public.Session.first({ id: 'ses_1' })).toEqual(sessionRow())
   })
 
   it('round-trips canonical text containing \\u0000 and lone surrogate escapes byte-identical', async () => {
     const { db, pool } = testDb()
     await seedThread()
-    await db.orm.v2.V2Event.create({
+    await db.orm.public.Event.create({
       threadId: 'thr_1',
       seq: 1,
       id: 'evt_1',
@@ -79,33 +79,33 @@ describe('v2 namespace client', () => {
       hash: 'h1',
       canonical: NUL_ESCAPE,
     })
-    const row = await db.orm.v2.V2Event.first({ id: 'evt_1' })
+    const row = await db.orm.public.Event.first({ id: 'evt_1' })
     expect(row?.canonical).toBe(NUL_ESCAPE)
     expect(row?.canonical.length).toBe(NUL_ESCAPE.length)
     const raw = await pool.query<{ canonical: string }>(
-      'SELECT canonical FROM "v2"."V2Event" WHERE id = $1',
+      'SELECT canonical FROM "public"."Event" WHERE id = $1',
       ['evt_1'],
     )
     expect(raw.rows[0]?.canonical).toBe(NUL_ESCAPE)
   })
 
-  it('truncateAll empties every v2 table', async () => {
+  it('truncateAll empties every public table', async () => {
     const { db, pool } = testDb()
     await seedThread()
-    await db.orm.v2.V2InboxEntry.create({
+    await db.orm.public.InboxEntry.create({
       sessionId: 'ses_1',
       inboxId: 1,
       kind: 'user',
       payload: '{}',
       postedAt: NOW,
     })
-    await db.orm.v2.V2Lease.create({
+    await db.orm.public.Lease.create({
       sessionId: 'ses_1',
       epoch: 1,
       holderHostId: null,
       wantsHolder: false,
     })
-    await db.orm.v2.V2Event.create({
+    await db.orm.public.Event.create({
       threadId: 'thr_1',
       seq: 1,
       id: 'evt_1',
@@ -119,8 +119,8 @@ describe('v2 namespace client', () => {
     })
     const { truncateAll } = await import('../testing')
     await truncateAll()
-    for (const table of ['V2Session', 'V2Thread', 'V2Event', 'V2InboxEntry', 'V2Lease']) {
-      const count = await pool.query<{ n: string }>(`SELECT count(*) AS n FROM "v2"."${table}"`)
+    for (const table of ['Session', 'Thread', 'Event', 'InboxEntry', 'Lease']) {
+      const count = await pool.query<{ n: string }>(`SELECT count(*) AS n FROM "public"."${table}"`)
       expect(count.rows[0]?.n).toBe('0')
     }
   })

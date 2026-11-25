@@ -11,10 +11,10 @@ export const sessionBucketCountsIn = async (
   const rows = await params.tx.query(
     params.tx.raw.sql`SELECT
         (COUNT(*) FILTER (WHERE s."archivedAt" IS NOT NULL))::int AS "archived"
-      FROM "v2"."V2Session" s
+      FROM "public"."Session" s
       LEFT JOIN LATERAL (
         SELECT left(i."payload"::jsonb ->> 'text', 400) AS "text"
-          FROM "v2"."V2InboxEntry" i
+          FROM "public"."InboxEntry" i
           WHERE i."sessionId" = s."id" AND i."kind" = 'message'
           ORDER BY i."inboxId" ASC LIMIT 1
       ) first ON true

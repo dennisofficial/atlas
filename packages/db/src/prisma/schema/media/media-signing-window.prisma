@@ -1,0 +1,7 @@
+// use prisma-8
+model MediaSigningWindow {
+  windowStart TimestamptzJsDate(3) @id
+  validUntil  TimestamptzJsDate(3)
+  sealed      String
+  createdAt   TimestamptzJsDate(3) @default(now())
+}

@@ -4,7 +4,7 @@ import type { BlobRefWrite, BlobRow, BlobWrite } from '../port'
 
 export const insertBlobRows = async (tx: Tx, rows: readonly BlobWrite[]): Promise<void> => {
   for (const row of rows) {
-    const statement = tx.raw.sql`INSERT INTO "v2"."V2Blob" ("hash", "bytes", "size", "createdAt")
+    const statement = tx.raw.sql`INSERT INTO "public"."Blob" ("hash", "bytes", "size", "createdAt")
       VALUES (${row.hash}, ${Buffer.from(row.bytes)}, ${row.bytes.byteLength}, clock_timestamp())
       ON CONFLICT ("hash") DO NOTHING`
       .affectedCount()
@@ -16,7 +16,7 @@ export const insertBlobRows = async (tx: Tx, rows: readonly BlobWrite[]): Promis
 export const readBlobRow = async (tx: Tx, hash: string): Promise<BlobRow | undefined> => {
   const [row] = await tx.query(
     tx.raw.sql`SELECT "size", encode("bytes", 'base64') AS "b64"
-      FROM "v2"."V2Blob" WHERE "hash" = ${hash}`
+      FROM "public"."Blob" WHERE "hash" = ${hash}`
       .returnsRow({ size: 'pg/int4@1', b64: 'pg/text@1' })
       .build(),
   )
@@ -29,7 +29,7 @@ export const blobHashesPresent = async (
   hashes: readonly string[],
 ): Promise<ReadonlySet<string>> => {
   if (hashes.length === 0) return new Set()
-  const rows = await tx.orm.v2.V2Blob.select('hash')
+  const rows = await tx.orm.public.Blob.select('hash')
     .where((b) => b.hash.in([...hashes]))
     .all()
   return new Set(rows.map((row) => row.hash))
@@ -37,7 +37,7 @@ export const blobHashesPresent = async (
 
 export const insertBlobRefRows = async (tx: Tx, rows: readonly BlobRefWrite[]): Promise<void> => {
   for (const row of rows) {
-    const statement = tx.raw.sql`INSERT INTO "v2"."V2BlobRef" ("sessionId", "hash")
+    const statement = tx.raw.sql`INSERT INTO "public"."BlobRef" ("sessionId", "hash")
       VALUES (${row.sessionId}, ${row.hash})
       ON CONFLICT ("sessionId", "hash") DO NOTHING`
       .affectedCount()
@@ -50,6 +50,6 @@ export const blobReferencedIn = async (
   tx: Tx,
   params: { sessionId: string; hash: string },
 ): Promise<boolean> => {
-  const row = await tx.orm.v2.V2BlobRef.first({ sessionId: params.sessionId, hash: params.hash })
+  const row = await tx.orm.public.BlobRef.first({ sessionId: params.sessionId, hash: params.hash })
   return row !== null
 }

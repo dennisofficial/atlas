@@ -29,7 +29,7 @@ const SESSION = 'ses_v2'
 const THREAD = 'thr_v2'
 
 const inboxOf = async (sessionId: string) => {
-  const rows = await db.orm.v2.V2InboxEntry.where({ sessionId }).all()
+  const rows = await db.orm.public.InboxEntry.where({ sessionId }).all()
   return rows.map((row) => ({ kind: row.kind, read: inboxEventOf(row.payload) }))
 }
 

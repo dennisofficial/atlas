@@ -76,7 +76,7 @@ export const mcpControlOf = (args: {
   const ownerFor = async (sessionId: string): Promise<Owner | null> => {
     const cached = owners.get(sessionId)
     if (cached !== undefined) return await cached
-    const read = args.db.orm.v2.V2Session.first({ id: sessionId }).then((session) =>
+    const read = args.db.orm.public.Session.first({ id: sessionId }).then((session) =>
       session === null || session === undefined
         ? null
         : {

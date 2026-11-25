@@ -114,7 +114,9 @@ describe('pod size on postgres', () => {
 
   it('reports the cpu of a pod recorded before its memory was stored', async () => {
     const control = await seeded()
-    await testDb().db.orm.v2.V2Session.where({ id: SESSION }).updateAndCount({ podActualVcpus: 4 })
+    await testDb()
+      .db.orm.public.Session.where({ id: SESSION })
+      .updateAndCount({ podActualVcpus: 4 })
 
     expect(await podOf(control)).toEqual({
       shape: { vcpus: 4, memoryGb: null },

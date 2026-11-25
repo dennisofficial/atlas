@@ -35,7 +35,7 @@ export const prismaUsageAccounts = ({ db }: { db: Db }): UsageAccounts => ({
     return chosen?.row ?? null
   },
   async sessionOwner({ sessionId }) {
-    const session = await db.orm.v2.V2Session.first({ id: sessionId })
+    const session = await db.orm.public.Session.first({ id: sessionId })
     if (session === null) return null
     return { userId: session.userId, provider: providerOfRef(session.modelRef) }
   },

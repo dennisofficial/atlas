@@ -9,7 +9,7 @@ export const podPeersPlacedIn = async (params: {
 }): Promise<number> => {
   const rows = await params.tx.query(
     params.tx.raw.sql`SELECT count(*)::int AS "count"
-      FROM "v2"."V2Session" s
+      FROM "public"."Session" s
       WHERE COALESCE(s."podSessionId", s."id") = ${params.podSessionId}
         AND s."id" <> ${params.excludeSessionId}`
       .returnsRow({ count: 'pg/int4@1' })
@@ -24,7 +24,7 @@ export const podSessionsPlacedIn = async (params: {
 }): Promise<PodPlacedSession[]> => {
   const rows = await params.tx.query(
     params.tx.raw.sql`SELECT s."id" AS "sessionId", s."archivedAt" AS "archivedAt"
-      FROM "v2"."V2Session" s
+      FROM "public"."Session" s
       WHERE COALESCE(s."podSessionId", s."id") = ${params.podSessionId}`
       .returnsRow({
         sessionId: 'pg/text@1',

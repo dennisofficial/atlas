@@ -14,7 +14,7 @@ export async function lapsedSubscriptionsWithThread(args: {
           held."deadline" < ${args.at}::timestamptz
           OR (held."expiresAt" < ${args.at}::timestamptz AND held."liveUntil" < ${args.at}::timestamptz)
         )
-        AND EXISTS (SELECT 1 FROM "v2"."V2Thread" AS thread WHERE thread.id = held."threadId")
+        AND EXISTS (SELECT 1 FROM "public"."Thread" AS thread WHERE thread.id = held."threadId")
     `
       .returnsRow({ subscriptionId: 'pg/text@1', threadId: 'pg/text@1' })
       .build(),
@@ -35,7 +35,7 @@ export async function dropLapsedSubscriptionsWithoutThread(args: { at: string })
           held."deadline" < ${args.at}::timestamptz
           OR held."expiresAt" < ${args.at}::timestamptz
         )
-        AND NOT EXISTS (SELECT 1 FROM "v2"."V2Thread" AS thread WHERE thread.id = held."threadId")
+        AND NOT EXISTS (SELECT 1 FROM "public"."Thread" AS thread WHERE thread.id = held."threadId")
     `
       .affectedCount()
       .build(),

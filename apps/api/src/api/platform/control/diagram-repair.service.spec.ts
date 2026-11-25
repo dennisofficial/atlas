@@ -66,7 +66,7 @@ describe('DiagramRepairService', () => {
     expect(first).toEqual({ kind: EDiagramRepair.Repaired, repaired: REPAIRED })
     expect(second).toEqual(first)
     expect(calls).toHaveLength(1)
-    expect(await db.orm.v2.V2DiagramRepair.all()).toHaveLength(1)
+    expect(await db.orm.public.DiagramRepair.all()).toHaveLength(1)
   })
 
   it('keeps a trimmed copy of the source that keys the row', async () => {
@@ -76,7 +76,7 @@ describe('DiagramRepairService', () => {
 
     await service.repair({ userId: 'user-1', input: { ...INPUT, source: `\n ${SOURCE} \n` } })
 
-    const rows = await db.orm.v2.V2DiagramRepair.all()
+    const rows = await db.orm.public.DiagramRepair.all()
     expect(rows[0]?.source).toBe(SOURCE)
     expect(rows[0]?.modelRef).toBe('anthropic/claude-opus-4-1')
     expect(rows[0]?.repaired).toBe(REPAIRED)
@@ -121,7 +121,7 @@ describe('DiagramRepairService', () => {
       reason: 'the model returned the diagram unchanged',
     })
     expect(calls).toHaveLength(1)
-    const rows = await db.orm.v2.V2DiagramRepair.all()
+    const rows = await db.orm.public.DiagramRepair.all()
     expect(rows[0]?.reason).toBe('the model returned the diagram unchanged')
     expect(rows[0]?.repaired).toBeNull()
   })
@@ -139,7 +139,7 @@ describe('DiagramRepairService', () => {
       kind: EDiagramRepair.Failed,
       reason: 'This request would exceed your account monthly spend limit',
     })
-    expect(await db.orm.v2.V2DiagramRepair.all()).toHaveLength(0)
+    expect(await db.orm.public.DiagramRepair.all()).toHaveLength(0)
   })
 
   it('refuses a session that belongs to another user', async () => {

@@ -16,7 +16,7 @@ export const insertChangeBlobRows = async (params: {
 }): Promise<void> => {
   const { tx } = params
   for (const row of params.rows) {
-    const statement = tx.raw.sql`INSERT INTO "v2"."V2ChangeBlob" ("hash", "size", "createdAt")
+    const statement = tx.raw.sql`INSERT INTO "public"."ChangeBlob" ("hash", "size", "createdAt")
       VALUES (${row.hash}, ${row.size}, clock_timestamp())
       ON CONFLICT ("hash") DO NOTHING`
       .affectedCount()
@@ -30,7 +30,7 @@ export const changeBlobHashesPresentIn = async (
   hashes: readonly string[],
 ): Promise<ReadonlySet<string>> => {
   if (hashes.length === 0) return new Set()
-  const rows = await tx.orm.v2.V2ChangeBlob.select('hash')
+  const rows = await tx.orm.public.ChangeBlob.select('hash')
     .where((b) => b.hash.in([...hashes]))
     .all()
   return new Set(rows.map((row) => row.hash))
@@ -84,7 +84,7 @@ export const diffChangedFiles = (params: {
 }
 
 const storedFilesIn = async (tx: Tx, checkoutId: string): Promise<ChangedFileWrite[]> => {
-  const rows = await tx.orm.v2.V2WorktreeChangedFile.where({ checkoutId }).all()
+  const rows = await tx.orm.public.WorktreeChangedFile.where({ checkoutId }).all()
   return rows.map(fileOf)
 }
 
@@ -95,7 +95,7 @@ const removeChangedFilesIn = async (params: {
 }): Promise<void> => {
   if (params.paths.length === 0) return
   await params.tx.execute(
-    params.tx.raw.sql`DELETE FROM "v2"."V2WorktreeChangedFile"
+    params.tx.raw.sql`DELETE FROM "public"."WorktreeChangedFile"
       WHERE "checkoutId" = ${params.checkoutId}
         AND "path" IN (SELECT jsonb_array_elements_text(${JSON.stringify(params.paths)}::jsonb))`
       .affectedCount()
@@ -110,7 +110,7 @@ const writeChangedFilesIn = async (params: {
 }): Promise<void> => {
   if (params.files.length === 0) return
   await params.tx.execute(
-    params.tx.raw.sql`INSERT INTO "v2"."V2WorktreeChangedFile" ("checkoutId", "path", "oldPath",
+    params.tx.raw.sql`INSERT INTO "public"."WorktreeChangedFile" ("checkoutId", "path", "oldPath",
         "status", "additions", "deletions", "binary", "baseHash", "currentHash", "size")
       SELECT ${params.checkoutId}, f."path", f."oldPath", f."status", f."additions", f."deletions",
         f."binary", f."baseHash", f."currentHash", f."size"
@@ -144,7 +144,7 @@ export const upsertChangesIn = async (params: {
     fingerprint: write.fingerprint,
     updatedAt,
   }
-  await tx.orm.v2.V2WorktreeChanges.upsert({
+  await tx.orm.public.WorktreeChanges.upsert({
     conflictOn: { id: write.checkoutId },
     create: { id: write.checkoutId, ...fields },
     update: fields,
@@ -164,7 +164,7 @@ const filesByCheckoutIn = async (
 ): Promise<Map<string, ChangedFileWrite[]>> => {
   const grouped = new Map<string, ChangedFileWrite[]>()
   if (checkoutIds.length === 0) return grouped
-  const rows = await tx.orm.v2.V2WorktreeChangedFile.where((row) =>
+  const rows = await tx.orm.public.WorktreeChangedFile.where((row) =>
     row.checkoutId.in([...checkoutIds]),
   )
     .orderBy((row) => row.path.asc())
@@ -181,7 +181,7 @@ export const readChangesSummaryIn = async (params: {
   tx: Tx
   sessionId: string
 }): Promise<WorktreeChangesSummary[]> => {
-  const checkouts = await params.tx.orm.v2.V2WorktreeChanges.where({
+  const checkouts = await params.tx.orm.public.WorktreeChanges.where({
     sessionId: params.sessionId,
   })
     .orderBy((row) => row.updatedAt.desc())
@@ -219,12 +219,12 @@ export const readChangeFileIn = async (params: {
   path: string
 }): Promise<ChangedFileWrite | undefined> => {
   const { tx } = params
-  const checkout = await tx.orm.v2.V2WorktreeChanges.first({
+  const checkout = await tx.orm.public.WorktreeChanges.first({
     id: params.checkoutId,
     sessionId: params.sessionId,
   })
   if (checkout === null) return undefined
-  const row = await tx.orm.v2.V2WorktreeChangedFile.first({
+  const row = await tx.orm.public.WorktreeChangedFile.first({
     checkoutId: params.checkoutId,
     path: params.path,
   })
@@ -235,7 +235,7 @@ export const changesUpdatedAtIn = async (params: {
   tx: Tx
   sessionId: string
 }): Promise<number | null> => {
-  const checkouts = await params.tx.orm.v2.V2WorktreeChanges.where({
+  const checkouts = await params.tx.orm.public.WorktreeChanges.where({
     sessionId: params.sessionId,
   }).all()
   if (checkouts.length === 0) return null
@@ -250,17 +250,17 @@ export const changeBlobsUnreferencedIn = async (params: {
   const { tx } = params
   const cutoff = new Date(Date.now() - params.olderThanMs).toISOString()
   const rows = await tx.query(
-    tx.raw.sql`SELECT b."hash", b."size", b."createdAt" FROM "v2"."V2ChangeBlob" b
+    tx.raw.sql`SELECT b."hash", b."size", b."createdAt" FROM "public"."ChangeBlob" b
       WHERE b."createdAt" < ${cutoff}
         AND NOT EXISTS (
-          SELECT 1 FROM "v2"."V2WorktreeChangedFile" f
+          SELECT 1 FROM "public"."WorktreeChangedFile" f
           WHERE f."baseHash" = b."hash" OR f."currentHash" = b."hash"
         )
       ORDER BY b."createdAt" LIMIT ${params.limit}`
       .returnsRow({
         hash: 'pg/text@1',
         size: 'pg/int4@1',
-        createdAt: tx.sql.v2.V2ChangeBlob.columns.createdAt,
+        createdAt: tx.sql.public.ChangeBlob.columns.createdAt,
       })
       .build(),
   )
@@ -278,7 +278,7 @@ export const deleteChangeBlobRowsIn = async (params: {
   const { tx } = params
   for (const hash of params.hashes) {
     await tx.execute(
-      tx.raw.sql`DELETE FROM "v2"."V2ChangeBlob" WHERE "hash" = ${hash}`.affectedCount().build(),
+      tx.raw.sql`DELETE FROM "public"."ChangeBlob" WHERE "hash" = ${hash}`.affectedCount().build(),
     )
   }
 }

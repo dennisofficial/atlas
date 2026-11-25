@@ -6,7 +6,7 @@ export async function referencedByDraft(args: {
   pathname: string
 }): Promise<boolean> {
   const reader = args.reader ?? db
-  const referencing = await reader.orm.v2.V2ComposerDraft.where({ userId: args.userId })
+  const referencing = await reader.orm.public.SessionDraft.where({ userId: args.userId })
     .where((draft) => draft.attachments.like(`%${args.pathname}%`))
     .first()
   return referencing !== null

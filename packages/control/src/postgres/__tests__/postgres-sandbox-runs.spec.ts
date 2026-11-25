@@ -12,7 +12,7 @@ const USER = 'usr_runs'
 const AT = Date.parse('2026-11-23T19:50:00.000Z')
 
 const seedSession = async (): Promise<void> => {
-  await db.orm.v2.V2Session.create({
+  await db.orm.public.Session.create({
     id: SESSION,
     userId: USER,
     mainThreadId: `thr_${SESSION}`,
@@ -37,7 +37,7 @@ const runParams = {
   at: AT,
 }
 
-const rowsOf = () => db.orm.v2.V2SandboxRun.where({ sessionId: SESSION }).all()
+const rowsOf = () => db.orm.public.SandboxRun.where({ sessionId: SESSION }).all()
 
 describe('PostgresSandboxRunStore', () => {
   useTestDatabase()

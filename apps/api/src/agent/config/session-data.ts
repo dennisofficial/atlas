@@ -15,7 +15,7 @@ export type SessionData = {
 }
 
 const ownerOf = async (args: { db: Db; sessionId: string }): Promise<SessionOwner | null> => {
-  const session = await args.db.orm.v2.V2Session.first({ id: args.sessionId })
+  const session = await args.db.orm.public.Session.first({ id: args.sessionId })
   if (session === null || session === undefined) return null
   return { userId: session.userId, projectId: session.projectId }
 }

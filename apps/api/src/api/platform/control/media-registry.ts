@@ -22,7 +22,7 @@ export class DbMediaRegistry extends MediaRegistry {
 
   async findMany(args: { userId: string; hashes: readonly string[] }): Promise<MediaRef[]> {
     if (args.hashes.length === 0) return []
-    const rows = await db.orm.v2.Media.select('hash', 'mediaType', 'size', 'width', 'height')
+    const rows = await db.orm.public.Media.select('hash', 'mediaType', 'size', 'width', 'height')
       .where((m) => and(m.userId.eq(args.userId), m.hash.in([...args.hashes])))
       .all()
     return rows.map((row) => mediaRefSchema.parse(row))
@@ -30,7 +30,7 @@ export class DbMediaRegistry extends MediaRegistry {
 
   async insertIfAbsent(args: { userId: string; media: MediaRef }): Promise<void> {
     const { hash, mediaType, size, width, height } = args.media
-    const statement = db.raw.sql`INSERT INTO "v2"."Media"
+    const statement = db.raw.sql`INSERT INTO "public"."Media"
       ("userId", "hash", "mediaType", "size", "width", "height")
       VALUES (${args.userId}, ${hash}, ${mediaType}, ${size}, ${width}, ${height})
       ON CONFLICT ("userId", "hash") DO NOTHING`

@@ -59,8 +59,8 @@ describe('SkillsRouter', () => {
     const sessionId = `ses-${args.userId}-${args.projectId ?? 'personal'}`
     const threadId = `thr-${args.userId}-${args.projectId ?? 'personal'}`
     const at = new Date()
-    if ((await db.orm.v2.V2Session.first({ id: sessionId })) === null) {
-      await db.orm.v2.V2Session.create({
+    if ((await db.orm.public.Session.first({ id: sessionId })) === null) {
+      await db.orm.public.Session.create({
         id: sessionId,
         userId: args.userId,
         projectId: args.projectId ?? null,
@@ -72,8 +72,8 @@ describe('SkillsRouter', () => {
         modelFast: false,
       })
     }
-    if ((await db.orm.v2.V2Thread.first({ id: threadId })) === null) {
-      await db.orm.v2.V2Thread.create({
+    if ((await db.orm.public.Thread.first({ id: threadId })) === null) {
+      await db.orm.public.Thread.create({
         id: threadId,
         sessionId,
         headSeq: 0,
@@ -85,7 +85,7 @@ describe('SkillsRouter', () => {
     let seq = 0
     for (const event of args.events) {
       seq += 1
-      await db.orm.v2.V2Event.create({
+      await db.orm.public.Event.create({
         threadId,
         seq,
         id: `evt-${threadId}-${seq}`,

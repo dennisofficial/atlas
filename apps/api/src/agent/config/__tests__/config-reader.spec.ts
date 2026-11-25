@@ -99,7 +99,7 @@ describe('ConfigReader', () => {
   it('reports a retired gap for a session still pinned to its owner byok credential', async () => {
     const { db } = testDb()
     await seedOwner(db)
-    await db.orm.v2.V2Session.where({ id: 's-1' }).update({
+    await db.orm.public.Session.where({ id: 's-1' }).update({
       credentialSource: ECredentialSource.Byok,
     })
     expect((await readerOver(db, PLATFORM).read({ sessionId: 's-1' })).sandbox).toEqual({
@@ -115,7 +115,7 @@ describe('ConfigReader', () => {
     await seedApiKeyAccount(db)
     await seedApiKeyAccount({ db, id: 'acct-2', provider: 'openai', apiKey: 'sk-openai' })
     await seedSetting({ db, scope: 'user', value: 'anthropic/claude-sonnet-4-5' })
-    await db.orm.v2.V2Session.where({ id: 's-1' }).update({
+    await db.orm.public.Session.where({ id: 's-1' }).update({
       modelRef: 'openai/gpt-5',
       modelEffort: 'low',
       modelFast: true,
@@ -193,7 +193,7 @@ describe('ConfigReader', () => {
   it('reads the platform agent37 key for a session pinned to agent37', async () => {
     const { db } = testDb()
     await seedOwner(db)
-    await db.orm.v2.V2Session.where({ id: 's-1' }).update({
+    await db.orm.public.Session.where({ id: 's-1' }).update({
       sandboxProvider: ESandboxProvider.Agent37,
     })
     expect((await readerOver(db, PLATFORM).read({ sessionId: 's-1' })).sandbox).toEqual({
@@ -344,7 +344,7 @@ describe('ConfigReader', () => {
   it('carries the pod size a resize asked for, memory included', async () => {
     const { db } = testDb()
     await seedOwner(db)
-    await db.orm.v2.V2Session.where({ id: 's-1' }).update({
+    await db.orm.public.Session.where({ id: 's-1' }).update({
       podDesiredVcpus: 4,
       podDesiredMemoryGb: 16,
       podSizeGeneration: 3,
@@ -395,7 +395,7 @@ describe('ConfigReader', () => {
     await seedSetting({ db, scope: 'project', key: 'agents.type.builder', value: 'openai/gpt-5' })
     await seedSkill({ db, name: 'user-one', scope: 'user' })
     await seedSkill({ db, name: 'project-one', scope: 'project' })
-    await db.orm.v2.V2Session.where({ id: 's-1' }).update({ projectId: null })
+    await db.orm.public.Session.where({ id: 's-1' }).update({ projectId: null })
     const recording = recordingDb({ url: testDb().url })
     const config = await readerOver(recording.db).read({ sessionId: 's-1' })
     await recording.end()
@@ -485,7 +485,7 @@ describe('ConfigReader model read', () => {
       configured: true,
       ref: { providerId: 'anthropic', modelId: 'claude-haiku-4-5' },
     })
-    await db.orm.v2.V2Session.where({ id: 's-1' }).update({
+    await db.orm.public.Session.where({ id: 's-1' }).update({
       modelRef: 'openai/gpt-5',
       modelEffort: 'low',
     })
@@ -495,7 +495,7 @@ describe('ConfigReader model read', () => {
       effort: EEffort.Low,
       accountId: 'acct-oa',
     })
-    await db.orm.v2.V2Session.where({ id: 's-1' }).update({
+    await db.orm.public.Session.where({ id: 's-1' }).update({
       modelRef: 'anthropic/claude-opus-5',
       modelFast: true,
     })
@@ -512,7 +512,7 @@ describe('ConfigReader model read', () => {
     await seedOwner(db)
     await seedApiKeyAccount(db)
     await seedApiKeyAccount({ db, id: 'acct-oa', provider: 'openai', apiKey: 'sk-oa' })
-    await db.orm.v2.V2Session.where({ id: 's-1' }).update({
+    await db.orm.public.Session.where({ id: 's-1' }).update({
       modelRef: 'anthropic/claude-opus-5',
       modelEffort: 'low',
       modelFast: false,

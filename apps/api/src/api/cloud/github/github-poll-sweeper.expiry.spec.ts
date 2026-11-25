@@ -37,7 +37,7 @@ const seedV2Thread = async () => {
 const subscriptions = () => db.orm.public.GithubSubscription.where({ userId: USER }).all()
 
 const endedRecordsOf = async () => {
-  const entries = await db.orm.v2.V2InboxEntry.where({ sessionId: SESSION }).all()
+  const entries = await db.orm.public.InboxEntry.where({ sessionId: SESSION }).all()
   return entries.flatMap((entry) => {
     if (entry.kind !== INBOX_KIND_RECORD) return []
     const read = inboxEventOf(entry.payload)

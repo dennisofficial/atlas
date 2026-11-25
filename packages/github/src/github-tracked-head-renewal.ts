@@ -15,9 +15,9 @@ export async function renewTrackedHeadTargets(args: { now?: Date } = {}): Promis
       WHERE target.id IN (
         SELECT due.id
         FROM "GithubTrackingTarget" AS due
-        JOIN "v2"."V2Session" AS session
+        JOIN "public"."Session" AS session
           ON session."userId" = due."userId" AND session."archivedAt" IS NULL
-        JOIN "v2"."V2SessionBranch" AS branch
+        JOIN "public"."SessionBranch" AS branch
           ON branch."sessionId" = session.id
          AND branch."headRepo" = lower(due."repoFullName")
          AND branch."branch" = due."branch"

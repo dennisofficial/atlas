@@ -24,7 +24,7 @@ export const createSessionIn = async (params: {
   routineId?: string | undefined
   at: string
 }): Promise<void> => {
-  await params.tx.orm.v2.V2Session.create({
+  await params.tx.orm.public.Session.create({
     id: params.sessionId,
     userId: params.userId,
     projectId: params.projectId,
@@ -48,7 +48,7 @@ export const createSessionIn = async (params: {
     podSessionId: params.podSessionId ?? null,
     routineId: params.routineId ?? null,
   })
-  await params.tx.orm.v2.V2Lease.create({
+  await params.tx.orm.public.Lease.create({
     sessionId: params.sessionId,
     epoch: 0,
     holderHostId: null,
@@ -63,7 +63,7 @@ export const readSessionIn = async (params: {
   sessionId: string
   lock: boolean
 }): Promise<ControlSessionRow | undefined> => {
-  const query = params.tx.orm.v2.V2Session.where({ id: params.sessionId })
+  const query = params.tx.orm.public.Session.where({ id: params.sessionId })
   const row = await (params.lock ? query.forNoKeyUpdate() : query).first()
   return row === null ? undefined : toSessionRow(row)
 }
@@ -72,7 +72,7 @@ export const readNestedChildrenIn = async (params: {
   tx: Tx
   sessionId: string
 }): Promise<ControlSessionRow[]> => {
-  const rows = await params.tx.orm.v2.V2Session.where({
+  const rows = await params.tx.orm.public.Session.where({
     spawnedBySessionId: params.sessionId,
     nested: true,
   }).all()
@@ -85,12 +85,12 @@ export const softDeleteArchivedSessionsIn = async (params: {
   at: Date
 }): Promise<number> => {
   const rows = await params.tx.query(
-    params.tx.raw.sql`UPDATE "v2"."V2Session" s
+    params.tx.raw.sql`UPDATE "public"."Session" s
         SET "deletedAt" = ${params.at.toISOString()}::timestamptz
         WHERE s."archivedAt" < ${params.cutoff.toISOString()}::timestamptz
           AND s."deletedAt" IS NULL
           AND NOT EXISTS (
-            SELECT 1 FROM "v2"."V2Session" peer
+            SELECT 1 FROM "public"."Session" peer
             WHERE COALESCE(peer."podSessionId", peer."id") = COALESCE(s."podSessionId", s."id")
               AND peer."archivedAt" IS NULL
           )
@@ -108,7 +108,7 @@ export const setSessionModelIn = async (params: {
   modelEffort: string
   modelFast: boolean
 }): Promise<boolean> => {
-  const changed = await params.tx.orm.v2.V2Session.where({
+  const changed = await params.tx.orm.public.Session.where({
     id: params.sessionId,
   }).updateAndCount({
     modelRef: params.modelRef,
@@ -123,7 +123,7 @@ export const setSandboxInstanceIdIn = async (params: {
   sessionId: string
   sandboxInstanceId: string | null
 }): Promise<boolean> => {
-  const changed = await params.tx.orm.v2.V2Session.where({
+  const changed = await params.tx.orm.public.Session.where({
     id: params.sessionId,
   }).updateAndCount({ sandboxInstanceId: params.sandboxInstanceId })
   return changed === 1
@@ -137,7 +137,7 @@ export const setSandboxStatusIn = async (params: {
   at: string
 }): Promise<boolean> => {
   const rows = await params.tx.query(
-    params.tx.raw.sql`UPDATE "v2"."V2Session"
+    params.tx.raw.sql`UPDATE "public"."Session"
       SET "sandboxStatus" = ${params.status},
         "sandboxStatusReason" = NULLIF(${params.reason ?? ''}, ''),
         "sandboxStatusAt" = ${params.at}::timestamptz
@@ -160,7 +160,7 @@ export const setSessionPodWaitCancelledIn = async (params: {
   vcpus: number | null
   memoryGb: number | null
 }): Promise<boolean> => {
-  const changed = await params.tx.orm.v2.V2Session.where({
+  const changed = await params.tx.orm.public.Session.where({
     id: params.sessionId,
   }).updateAndCount({
     podDesiredVcpus: params.vcpus,
@@ -182,7 +182,7 @@ export const setSessionArchivedIn = async (params: {
   if (params.archivedAt === null) {
     await lockPodRetireOfSessionIn({ tx: params.tx, sessionId: params.sessionId })
   }
-  const changed = await params.tx.orm.v2.V2Session.where({
+  const changed = await params.tx.orm.public.Session.where({
     id: params.sessionId,
   }).updateAndCount({
     archivedAt: params.archivedAt === null ? null : new Date(params.archivedAt),
@@ -196,7 +196,7 @@ export const setSessionTitleIfUntitledIn = async (params: {
   title: string
   fromInboxId: number | null
 }): Promise<boolean> => {
-  const changed = await params.tx.orm.v2.V2Session.where({
+  const changed = await params.tx.orm.public.Session.where({
     id: params.sessionId,
     title: null,
   }).updateAndCount({
@@ -211,7 +211,7 @@ export const setSessionTitleIn = async (params: {
   sessionId: string
   title: string
 }): Promise<boolean> => {
-  const changed = await params.tx.orm.v2.V2Session.where({
+  const changed = await params.tx.orm.public.Session.where({
     id: params.sessionId,
   }).updateAndCount({ title: params.title, titledFromInboxId: null })
   return changed === 1
@@ -222,7 +222,7 @@ export const clearTitleFromIn = async (params: {
   sessionId: string
   inboxId: number
 }): Promise<boolean> => {
-  const changed = await params.tx.orm.v2.V2Session.where({
+  const changed = await params.tx.orm.public.Session.where({
     id: params.sessionId,
     titledFromInboxId: params.inboxId,
   }).updateAndCount({ title: null, titledFromInboxId: null })
@@ -235,7 +235,7 @@ export const setSessionReadSeqIn = async (params: {
   seq: number
 }): Promise<number | undefined> => {
   const [row] = await params.tx.query(
-    params.tx.raw.sql`UPDATE "v2"."V2Session"
+    params.tx.raw.sql`UPDATE "public"."Session"
         SET "readSeq" = GREATEST(COALESCE("readSeq", -1), ${params.seq})
         WHERE "id" = ${params.sessionId} AND "deletedAt" IS NULL
         RETURNING "readSeq"`
@@ -253,7 +253,7 @@ export const setSessionPodDesiredIn = async (params: {
   diskGb?: number | undefined
   generation: number
 }): Promise<boolean> => {
-  const changed = await params.tx.orm.v2.V2Session.where({
+  const changed = await params.tx.orm.public.Session.where({
     id: params.sessionId,
   }).updateAndCount({
     podDesiredVcpus: params.vcpus,
@@ -273,7 +273,7 @@ export const setSessionPodAppliedIn = async (params: {
   memoryGb: number
   generation: number
 }): Promise<boolean> => {
-  const changed = await params.tx.orm.v2.V2Session.where({
+  const changed = await params.tx.orm.public.Session.where({
     id: params.sessionId,
     podSizeGeneration: params.generation,
   }).updateAndCount({
@@ -291,7 +291,7 @@ export const setSessionPodDiskIn = async (params: {
   sessionId: string
   diskGb: number
 }): Promise<boolean> => {
-  const changed = await params.tx.orm.v2.V2Session.where({
+  const changed = await params.tx.orm.public.Session.where({
     id: params.sessionId,
   }).updateAndCount({ podDesiredDiskGb: params.diskGb })
   return changed === 1
@@ -303,7 +303,7 @@ export const setSessionPodFailedIn = async (params: {
   generation: number
   error: string
 }): Promise<boolean> => {
-  const changed = await params.tx.orm.v2.V2Session.where({
+  const changed = await params.tx.orm.public.Session.where({
     id: params.sessionId,
     podSizeGeneration: params.generation,
   }).updateAndCount({ podResizeError: params.error, podWaitingSince: null })
@@ -316,7 +316,7 @@ export const setSessionPodWaitingIn = async (params: {
   generation: number
   since: string | null
 }): Promise<boolean> => {
-  const changed = await params.tx.orm.v2.V2Session.where({
+  const changed = await params.tx.orm.public.Session.where({
     id: params.sessionId,
     podSizeGeneration: params.generation,
   }).updateAndCount({

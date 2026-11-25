@@ -1,0 +1,24 @@
+// use prisma-8
+enum ETerminalState {
+  @@type("pg/text@1")
+  Opening = "opening"
+  Open    = "open"
+  Ended   = "ended"
+}
+
+model Terminal {
+  sessionId   String
+  terminalId  String
+  ordinal     Int
+  name        String
+  state       ETerminalState
+  exitCode    Int?
+  signal      String?
+  endedReason String?
+  createdAt   TimestamptzJsDate(3)
+  endedAt     TimestamptzJsDate(3)?
+  session     Session @relation(fields: [sessionId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "V2Terminal_pkey")
+
+  @@id([sessionId, terminalId], map: "V2Terminal_pkey")
+  @@unique([sessionId, ordinal])
+}

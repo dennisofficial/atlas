@@ -123,7 +123,7 @@ export const hostIdsByLabel = async (args: { url: string }): Promise<Record<stri
   await client.connect()
   try {
     const { rows } = await client.query<{ id: number; label: string }>(
-      'SELECT id, label FROM "v2"."V2Host" ORDER BY id',
+      'SELECT id, label FROM "public"."Host" ORDER BY id',
     )
     return Object.fromEntries(rows.map((row) => [row.label, row.id]))
   } finally {

@@ -41,7 +41,7 @@ const saveUserSetting = async (args: { db: Db; key: string; value: string }): Pr
 }
 
 const modelRowOf = async ({ db, sessionId }: { db: Db; sessionId: string }) => {
-  const row = await db.orm.v2.V2Session.where({ id: sessionId }).first()
+  const row = await db.orm.public.Session.where({ id: sessionId }).first()
   if (row === null) throw new Error(`no session ${sessionId}`)
   return { modelRef: row.modelRef, modelEffort: row.modelEffort, modelFast: row.modelFast }
 }

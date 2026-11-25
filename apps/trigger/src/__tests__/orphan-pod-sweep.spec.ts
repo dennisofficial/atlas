@@ -37,7 +37,7 @@ const depsOf = (overrides: Partial<OrphanPodSweepDeps>): OrphanPodSweepDeps => (
 
 const archivedSession = async (args: { id: string; archivedAt: Date }): Promise<void> => {
   await seedUser({ db, id: 'user-a' })
-  await db.orm.v2.V2Session.create({
+  await db.orm.public.Session.create({
     id: args.id,
     userId: 'user-a',
     mainThreadId: `thr_${args.id}`,
@@ -54,7 +54,7 @@ const archivedSession = async (args: { id: string; archivedAt: Date }): Promise<
 
 const expiredSession = async (): Promise<void> => {
   await seedUser({ db, id: 'user-a' })
-  await db.orm.v2.V2Session.create({
+  await db.orm.public.Session.create({
     id: 'ses-expired',
     userId: 'user-a',
     mainThreadId: 'thr_ses-expired',

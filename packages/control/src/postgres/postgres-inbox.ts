@@ -5,16 +5,16 @@ import { toInbox } from './postgres-rows'
 
 export const allocateInboxIdIn = async (params: { tx: Tx; sessionId: string }): Promise<number> => {
   const { tx, sessionId } = params
-  const session = await tx.orm.v2.V2Session.where({ id: sessionId }).forNoKeyUpdate().first()
+  const session = await tx.orm.public.Session.where({ id: sessionId }).forNoKeyUpdate().first()
   if (session === null) throw new Error(`unknown session ${sessionId}`)
-  await tx.orm.v2.V2Session.where({ id: sessionId }).updateAndCount({
+  await tx.orm.public.Session.where({ id: sessionId }).updateAndCount({
     nextInboxId: session.nextInboxId + 1,
   })
   return session.nextInboxId
 }
 
 export const insertInboxEntryIn = async (params: { tx: Tx; entry: InboxEntry }): Promise<void> => {
-  await params.tx.orm.v2.V2InboxEntry.create({
+  await params.tx.orm.public.InboxEntry.create({
     ...params.entry,
     postedAt: new Date(params.entry.postedAt),
   })
@@ -25,7 +25,7 @@ export const readInboxEntryIn = async (params: {
   sessionId: string
   inboxId: number
 }): Promise<InboxEntry | undefined> => {
-  const row = await params.tx.orm.v2.V2InboxEntry.first({
+  const row = await params.tx.orm.public.InboxEntry.first({
     sessionId: params.sessionId,
     inboxId: params.inboxId,
   })
@@ -38,7 +38,7 @@ export const markInboxConsumedIn = async (params: {
   inboxId: number
   seq: number
 }): Promise<boolean> => {
-  const changed = await params.tx.orm.v2.V2InboxEntry.where((e) =>
+  const changed = await params.tx.orm.public.InboxEntry.where((e) =>
     and(e.sessionId.eq(params.sessionId), e.inboxId.eq(params.inboxId), e.consumedSeq.isNull()),
   ).updateAndCount({ consumedSeq: params.seq })
   return changed === 1
@@ -49,7 +49,7 @@ export const deleteInboxEntryIn = async (params: {
   sessionId: string
   inboxId: number
 }): Promise<boolean> => {
-  const changed = await params.tx.orm.v2.V2InboxEntry.where((e) =>
+  const changed = await params.tx.orm.public.InboxEntry.where((e) =>
     and(e.sessionId.eq(params.sessionId), e.inboxId.eq(params.inboxId)),
   ).deleteAndCount()
   return changed === 1
@@ -63,7 +63,7 @@ export const readInboxEntriesIn = async (params: {
   excludeKind?: string | undefined
   forThread: ThreadId | null
 }): Promise<InboxEntry[]> => {
-  const rows = await params.tx.orm.v2.V2InboxEntry.where((e) =>
+  const rows = await params.tx.orm.public.InboxEntry.where((e) =>
     and(
       e.sessionId.eq(params.sessionId),
       e.inboxId.gt(params.afterId),
@@ -83,7 +83,7 @@ export const firstUnconsumedMessagesIn = async (params: {
   sessionIds: readonly string[]
 }): Promise<InboxEntry[]> => {
   if (params.sessionIds.length === 0) return []
-  const rows = await params.tx.orm.v2.V2InboxEntry.where((entry) =>
+  const rows = await params.tx.orm.public.InboxEntry.where((entry) =>
     and(
       entry.sessionId.in([...params.sessionIds]),
       entry.consumedSeq.isNull(),
@@ -107,7 +107,7 @@ export const recentInboxEntriesIn = async (params: {
   limit: number
   forThread: ThreadId | null
 }): Promise<InboxEntry[]> => {
-  const rows = await params.tx.orm.v2.V2InboxEntry.where((e) =>
+  const rows = await params.tx.orm.public.InboxEntry.where((e) =>
     and(
       e.sessionId.eq(params.sessionId),
       params.forThread === null ? e.threadId.isNull() : e.threadId.eq(params.forThread),

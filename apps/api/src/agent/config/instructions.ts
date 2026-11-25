@@ -14,7 +14,7 @@ export type InstructionsPort = {
 }
 
 const personalOf = async (args: { db: Db; sessionId: string }): Promise<string | null> => {
-  const session = await args.db.orm.v2.V2Session.first({ id: args.sessionId })
+  const session = await args.db.orm.public.Session.first({ id: args.sessionId })
   if (session === null || session === undefined) return null
   const file = await args.db.orm.public.UserFile.first({
     userId: session.userId,

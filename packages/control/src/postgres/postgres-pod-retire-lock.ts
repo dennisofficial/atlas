@@ -18,7 +18,7 @@ export const lockPodRetireOfSessionIn = async (params: {
   await params.tx.query(
     params.tx.raw
       .sql`SELECT pg_advisory_xact_lock(${POD_RETIRE_LOCK_NAMESPACE}::int, hashtext('pod-retire:' || COALESCE(s."podSessionId", s."id"))::int)::text AS "locked"
-        FROM "v2"."V2Session" s
+        FROM "public"."Session" s
         WHERE s."id" = ${params.sessionId}`
       .returnsRow({ locked: 'pg/text@1' })
       .build(),

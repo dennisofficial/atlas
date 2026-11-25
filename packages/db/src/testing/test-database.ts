@@ -88,7 +88,7 @@ export function ensureTestDatabase(): Promise<void> {
   return ready
 }
 
-const TRUNCATED_SCHEMAS = ['public', 'v2']
+const TRUNCATED_SCHEMAS = ['public']
 
 export async function truncateAll(): Promise<void> {
   const pool = sharedPool()

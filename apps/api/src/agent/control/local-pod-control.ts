@@ -70,11 +70,11 @@ const sessionOfThreadOf = async (args: {
   db: Db
   threadId: string
 }): Promise<{ sessionId: string }> => {
-  const main = await args.db.orm.v2.V2Session.where({ mainThreadId: args.threadId })
+  const main = await args.db.orm.public.Session.where({ mainThreadId: args.threadId })
     .select('id')
     .first()
   if (main !== null) return { sessionId: main.id }
-  const thread = await args.db.orm.v2.V2Thread.where({ id: args.threadId })
+  const thread = await args.db.orm.public.Thread.where({ id: args.threadId })
     .select('sessionId')
     .first()
   if (thread === null) throw new Error(`unknown thread ${args.threadId}`)
