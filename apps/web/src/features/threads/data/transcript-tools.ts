@@ -105,11 +105,10 @@ const fileNameOf = (path: string): string => path.split('/').at(-1) || path
 
 const naturalSizeOf = (
   picture: ToolPicture,
-): { width?: number | undefined; height?: number | undefined } => {
-  if (picture.kind === 'media') return { width: picture.media.width, height: picture.media.height }
-  if (picture.kind === 'withheld') return { width: picture.width, height: picture.height }
-  return {}
-}
+): { width?: number | undefined; height?: number | undefined } => ({
+  width: picture.media.width,
+  height: picture.media.height,
+})
 
 function pictureOf(call: ToolCall): ToolPictureItem | undefined {
   const read = imageOf(call)

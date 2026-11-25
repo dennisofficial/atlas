@@ -175,7 +175,16 @@ describe('ThreadTranscript read images', () => {
             image: {
               id: 'c1#image',
               alt: 'shot.png',
-              picture: { kind: 'inline', data: 'iVBOR', mediaType: 'image/png' },
+              picture: {
+                kind: 'media',
+                media: {
+                  hash: 'a'.repeat(64),
+                  mediaType: 'image/png',
+                  size: 4,
+                  width: 8,
+                  height: 6,
+                },
+              },
             },
           },
         ],
@@ -203,8 +212,8 @@ describe('ThreadTranscript read images', () => {
       },
     ])
 
-    const picture = document.body.querySelector('img')
-    expect(picture?.getAttribute('src')).toBe('data:image/png;base64,iVBOR')
+    const picture = document.body.querySelector('[data-slot="tool-picture"]')
+    expect(picture).not.toBeNull()
     expect(document.body.textContent).not.toContain('Read shot.png')
     const text = document.body.textContent ?? ''
     expect(text.match(/Worked for/g)).toHaveLength(2)

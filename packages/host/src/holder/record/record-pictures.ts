@@ -40,6 +40,11 @@ const asMediaPart = (args: { part: ImagePart; media: MediaRef }): MediaPart => (
     : { providerOptions: args.part.providerOptions }),
 })
 
+const notKeptPart = (args: { part: ImagePart; reason: string }): UserContentPart => ({
+  type: 'text',
+  text: `[picture not kept: ${args.reason}: ${args.part.source ?? args.part.mediaType}]`,
+})
+
 const boundedStore = async (args: {
   pictures: PictureStore
   bytes: Uint8Array
@@ -73,40 +78,73 @@ const errorTextOf = (error: unknown): string =>
 
 const storedPart = async (args: {
   part: UserContentPart
-  pictures: PictureStore
+  pictures?: PictureStore | undefined
   timers: HostTimers
   timeoutMs: number
   log?: LogPort | undefined
 }): Promise<UserContentPart> => {
   if (!isInlineImage(args.part)) return args.part
-  const bytes = new Uint8Array(Buffer.from(args.part.bytes.data, 'base64'))
+  const part = args.part
+  const bytes = new Uint8Array(Buffer.from(part.bytes.data, 'base64'))
+  if (args.pictures === undefined) {
+    warningOf({
+      log: args.log,
+      part,
+      bytes,
+      message: 'a tool picture was dropped: no picture store is wired',
+    })
+    return notKeptPart({ part, reason: 'no picture store' })
+  }
   const attempt = await boundedStore({
     pictures: args.pictures,
     bytes,
-    mediaType: args.part.mediaType,
+    mediaType: part.mediaType,
     timers: args.timers,
     timeoutMs: args.timeoutMs,
   })
   if (attempt.kind === 'stored' && attempt.media !== null)
-    return asMediaPart({ part: args.part, media: attempt.media })
+    return asMediaPart({ part, media: attempt.media })
   if (attempt.kind === 'stored') {
-    args.log?.warn({
-      source: LOG_SOURCE,
-      message: 'a tool picture was refused by the store; the event keeps its inline bytes',
-      data: { mediaType: args.part.mediaType, size: bytes.byteLength },
-    })
-    return args.part
+    warningOf({ log: args.log, part, bytes, message: 'a tool picture was refused by the store' })
+    return notKeptPart({ part, reason: 'refused by the store' })
   }
+  if (attempt.kind === 'timedOut') {
+    warningOf({
+      log: args.log,
+      part,
+      bytes,
+      message: 'a tool picture was not stored within its deadline',
+    })
+    return notKeptPart({ part, reason: 'the store timed out' })
+  }
+  warningOf({
+    log: args.log,
+    part,
+    bytes,
+    message: 'a tool picture could not be stored',
+    error: errorTextOf(attempt.error),
+  })
+  return notKeptPart({ part, reason: 'the store failed' })
+}
+
+const warningOf = (args: {
+  log?: LogPort | undefined
+  part: ImagePart
+  bytes: Uint8Array
+  message: string
+  error?: string | undefined
+}): void =>
   args.log?.warn({
     source: LOG_SOURCE,
-    message:
-      attempt.kind === 'timedOut'
-        ? 'a tool picture was not stored within its deadline; the event keeps its inline bytes'
-        : 'a tool picture could not be stored; the event keeps its inline bytes',
-    ...(attempt.kind === 'failed' ? { error: errorTextOf(attempt.error) } : {}),
-    data: { mediaType: args.part.mediaType, size: bytes.byteLength },
+    message: args.message,
+    ...(args.error === undefined ? {} : { error: args.error }),
+    data: { mediaType: args.part.mediaType, size: args.bytes.byteLength },
   })
-  return args.part
+
+const withoutInlinePictures = (parts: readonly UserContentPart[]): readonly UserContentPart[] => {
+  const inline = parts.some((part) => part.type === 'image' && part.bytes.kind === 'inline')
+  if (inline) throw new Error('a tool result still carries inline picture bytes')
+  return parts
 }
 
 export const storePictures = async (args: {
@@ -116,8 +154,6 @@ export const storePictures = async (args: {
   timeoutMs?: number | undefined
   log?: LogPort | undefined
 }): Promise<RecordEventBody> => {
-  const pictures = args.pictures
-  if (pictures === undefined) return args.body
   if (args.body.type !== 'tool-result') return args.body
   const parts = args.body.modelParts
   if (parts === undefined || parts.length === 0) return args.body
@@ -125,13 +161,14 @@ export const storePictures = async (args: {
     parts.map((part) =>
       storedPart({
         part,
-        pictures,
+        pictures: args.pictures,
         timers: args.timers,
         timeoutMs: args.timeoutMs ?? PICTURE_STORE_TIMEOUT_MS,
         ...(args.log === undefined ? {} : { log: args.log }),
       }),
     ),
   )
-  if (stored.every((part, index) => part === parts[index])) return args.body
-  return { ...args.body, modelParts: stored }
+  const checked = withoutInlinePictures(stored)
+  if (checked.every((part, index) => part === parts[index])) return args.body
+  return { ...args.body, modelParts: checked }
 }

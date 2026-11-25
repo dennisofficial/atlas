@@ -13,7 +13,7 @@ import {
   FOLLOW_SLOW_CONSUMER_MS,
 } from './follow-limits'
 import { tailBaseOf } from './base-frame'
-import { pageCursorOf, withheldEvents } from './withheld-events'
+import { pageCursorOf } from './page-cursor'
 import { CatchupMeter, ECatchupStart } from './catchup-meter'
 import type { FollowConnection, FollowDeps, FollowTarget, SubscriptionIndex } from './follow-types'
 import { resolveStart, type StartRequest } from './resolve-start'
@@ -219,7 +219,6 @@ export class FollowSubscription implements FollowTarget {
         limit: STREAM_PAGE_EVENTS,
         visible: false,
         maxBytes: FOLLOW_PAGE_BYTES,
-        withholdPictures: true,
       })
       if (this.stopped) return
       const last = page.events[page.events.length - 1]
@@ -234,7 +233,7 @@ export class FollowSubscription implements FollowTarget {
       this.sendMetered({
         type: 'events',
         id: this.id,
-        events: withheldEvents(page.events),
+        events: page.events,
         head: { seq: head.seq, hash: head.hash },
         ...(cursor === undefined ? {} : { cursor }),
         live,

@@ -40,7 +40,10 @@ const read = (id: string, at: string): TranscriptItem => ({
       label: 'shot.png',
       image: {
         id: `${id}-0#image`,
-        picture: { kind: 'inline', data: 'iVBOR', mediaType: 'image/png' },
+        picture: {
+          kind: 'media',
+          media: { hash: 'f'.repeat(64), mediaType: 'image/png', size: 4, width: 2, height: 2 },
+        },
         alt: 'shot.png',
       },
     },
