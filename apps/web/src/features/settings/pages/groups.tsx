@@ -51,7 +51,6 @@ function AddProjectMenu({
   projects: readonly Project[]
   onAssign: (projectId: string) => Promise<void>
 }) {
-  if (projects.length === 0) return null
   return (
     <DropdownMenu>
       <DropdownMenuTrigger render={<Button variant="outline" size="sm" />}>
@@ -114,7 +113,13 @@ function GroupCard({
         </>
       }
     >
-      <SettingsCard footer={<AddProjectMenu projects={candidates} onAssign={onAssign} />}>
+      <SettingsCard
+        footer={
+          candidates.length === 0 ? undefined : (
+            <AddProjectMenu projects={candidates} onAssign={onAssign} />
+          )
+        }
+      >
         {members.map((project) => (
           <SettingsRow
             key={project.id}

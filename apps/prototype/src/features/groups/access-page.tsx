@@ -1,3 +1,5 @@
+'use client'
+
 import { AccessGrantsList } from '../shared/access/access-grants-list'
 import { PROJECT_GRANTS } from '../shared/access/fixtures'
 import { SettingsPage } from '../settings/settings-layout'

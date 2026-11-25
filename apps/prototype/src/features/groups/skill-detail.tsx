@@ -1,3 +1,5 @@
+'use client'
+
 import { SkillDetailView } from '../settings/pages/skills'
 
 export function GroupSkillDetailPage({ groupId, skillId }: { groupId: string; skillId: string }) {

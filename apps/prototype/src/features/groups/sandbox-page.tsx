@@ -1,3 +1,5 @@
+'use client'
+
 import { SandboxPage } from '../project-settings/sandbox-page'
 import { SettingsPage } from '../settings/settings-layout'
 import { InheritedLayersPreview, PERSONAL_SANDBOX_LAYER } from './inherited-layers-preview'

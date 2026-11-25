@@ -1,3 +1,5 @@
+'use client'
+
 import { SkillsListView } from '../settings/pages/skills'
 import { InheritedLayersPreview, PERSONAL_SKILLS_LAYER } from './inherited-layers-preview'
 
