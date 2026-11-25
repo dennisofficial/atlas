@@ -33,7 +33,6 @@ describe('readAgentHostEnv', () => {
     expect(env.githubApp).toEqual({ appId: undefined, appPrivateKey: undefined })
     expect(env.sandboxImage).toBe('atlas-sandbox:latest')
     expect(env.daemonBundlePath.endsWith('apps/daemon/bin/daemon.js')).toBe(true)
-    expect(env.qualityExampleUsers).toEqual([])
     expect(env.jinaApiKey).toBeUndefined()
   })
 
@@ -172,14 +171,5 @@ describe('readAgentHostEnv', () => {
     expect(set.port).toBe(8080)
     expect(set.trustedOrigins).toEqual(['https://a.example', 'https://b.example'])
     expect(() => readAgentHostEnv({ ...complete, PORT: 'x' })).toThrow(AgentHostEnvError)
-  })
-
-  it('reads the jev example allowlist from ATLAS_QUALITY_EXAMPLE_USERS', () => {
-    const set = readAgentHostEnv({
-      ...complete,
-      ATLAS_QUALITY_EXAMPLE_USERS: 'user-1, user-2 ,,',
-    })
-
-    expect(set.qualityExampleUsers).toEqual(['user-1', 'user-2'])
   })
 })

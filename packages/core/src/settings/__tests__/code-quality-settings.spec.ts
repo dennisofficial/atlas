@@ -31,9 +31,8 @@ describe('the code quality settings', () => {
     expect(definition?.description).toContain('off without one')
   })
 
-  it('no longer offers example recording', () => {
+  it('offers the master switch alone', () => {
     const rows = definitionsOfPage({ definitions: ATLAS_SETTINGS, page: ESettingPage.CodeQuality })
     expect(rows.map((row) => row.id)).toEqual([ESettingId.QualityEnabled])
-    expect(ATLAS_SETTINGS.some((row) => row.id === ESettingId.QualityRecordExamples)).toBe(false)
   })
 })

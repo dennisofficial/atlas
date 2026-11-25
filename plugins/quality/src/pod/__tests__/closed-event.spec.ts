@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import type { RecordEventBody } from '@dltech/atlas-core'
+import { EAnalyticsLinks } from '@dltech/atlas-plugin-sdk'
 
 import { eventsOf, said } from './finding-fixtures'
 import { FILE, analyticsRecorder, createRig, wroteWithChanges } from './support'
@@ -28,16 +29,14 @@ describe('the closed event through the after-tool hook', () => {
   it('fires once when the next write removes the nudged class', async () => {
     const { closed, resolved } = await secondWrite('export const version = 1\n')
 
-    expect(closed).toEqual([
-      {
-        event: 'quality finding closed',
-        properties: {
-          policy_id: 'single-responsibility',
-          steps_after_nudge: 1,
-          turns_after_nudge: 0,
-        },
-      },
-    ])
+    expect(closed).toHaveLength(1)
+    expect(closed[0]?.properties).toMatchObject({
+      policy_id: 'single-responsibility',
+      steps_after_nudge: 1,
+      turns_after_nudge: 0,
+    })
+    expect(typeof closed[0]?.properties.review_id).toBe('string')
+    expect(closed[0]?.links).toBe(EAnalyticsLinks.Hashed)
     expect(resolved).toEqual([])
   })
 

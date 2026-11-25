@@ -38,9 +38,9 @@ export function outcomeOf(args: {
     if (parsed.data.callId !== args.callId) return undefined
     records.push(parsed.data)
   }
-  const { notes, flagged } = args.value
+  const { notes, flagged, scopes } = args.value
   if (notes.some((note) => note.content.trim() === '')) return undefined
-  return { ...metricsOf(args.value), records, flagged, notes }
+  return { ...metricsOf(args.value), scopes, records, flagged, notes }
 }
 
 const metricsOf = (value: QualityReviewResult): QualityReviewMetrics => ({
@@ -140,9 +140,11 @@ export async function reviewWithinBudget(args: {
       const late =
         valid?.records.filter((record) => record.status !== EQualityReviewStatus.Completed) ?? []
       const metrics = metricsOf(raced.value)
-      if (late.length > 0) return { ...metrics, records: late, flagged: [], notes: [] }
+      const scopes = raced.value.scopes
+      if (late.length > 0) return { ...metrics, scopes, records: late, flagged: [], notes: [] }
       return {
         ...metrics,
+        scopes,
         records: [deadlineBookkeeping({ ...bookkeepingFacts, budgetMs: args.budgetMs })],
         flagged: [],
         notes: [],
@@ -154,6 +156,7 @@ export async function reviewWithinBudget(args: {
     )
     return {
       ...NO_REVIEW_METRICS,
+      scopes: [],
       records: [
         bookkeeping({
           ...bookkeepingFacts,
@@ -169,6 +172,7 @@ export async function reviewWithinBudget(args: {
   if (raced.kind === 'deadline') {
     return {
       ...NO_REVIEW_METRICS,
+      scopes: [],
       records: [deadlineBookkeeping({ ...bookkeepingFacts, budgetMs: args.budgetMs })],
       flagged: [],
       notes: [],
@@ -178,6 +182,7 @@ export async function reviewWithinBudget(args: {
   if (raced.kind === 'aborted') {
     return {
       ...NO_REVIEW_METRICS,
+      scopes: [],
       records: [
         bookkeeping({
           ...bookkeepingFacts,
@@ -194,6 +199,7 @@ export async function reviewWithinBudget(args: {
   args.log?.(`the quality review of the ${call.name} call threw: ${messageOf(raced.error)}`)
   return {
     ...NO_REVIEW_METRICS,
+    scopes: [],
     records: [
       bookkeeping({
         ...bookkeepingFacts,
