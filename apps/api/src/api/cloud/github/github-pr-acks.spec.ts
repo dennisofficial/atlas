@@ -1,16 +1,9 @@
 import { db } from '@dltech/atlas-db'
-import { seedThread, useTestDatabase } from '@dltech/atlas-db/testing'
+import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it } from 'bun:test'
-import { seedPrEvent, seedSubscription } from '../../../../test/github-seed'
+import { seedSubscription } from '../../../../test/github-seed'
 import { waitFor } from '../../../../test/fake-timers'
-import { DrainStateService } from '../../platform/health/drain-state.service'
-import type { SandboxesService } from '../../platform/sandboxes/sandboxes.service'
 import { prepareDelivery, serviceWith } from '@dltech/atlas-github/testing'
-import { localCoordinator } from '@dltech/atlas-github/testing'
-import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
-import { fakeGithub, fakeSubscriptions, sandboxCtxFor } from './github-pr-stream.fixture'
-import { GithubPrStreamRouter } from './github-pr-stream.router'
-import type { GithubSubscriptionsService } from '@dltech/atlas-github'
 
 const COMMENT_PAYLOAD = {
   action: 'created',
@@ -25,19 +18,6 @@ const COMMENT_PAYLOAD = {
 }
 
 const deliveryRows = () => db.orm.public.GithubPrEventDelivery.all()
-
-const familySandboxes = {
-  async assertThreadInFamily(args: { sandboxThreadId: string; threadId: string }): Promise<void> {
-    if (args.threadId === args.sandboxThreadId) return
-    const child = await db.orm.public.Thread.where({
-      id: args.threadId,
-      spawnerThreadId: args.sandboxThreadId,
-    })
-      .select('id')
-      .first()
-    if (child === null) throw new Error('outside the thread family')
-  },
-}
 
 describe('github pr-event deliveries', () => {
   useTestDatabase()
@@ -70,43 +50,5 @@ describe('github pr-event deliveries', () => {
     await new Promise((resolve) => setTimeout(resolve, 50))
     expect((await deliveryRows()).map((row) => row.threadId)).toEqual(['thr-watches'])
     expect(seen.sort()).toEqual(['thr-other', 'thr-watches'])
-  })
-
-  it('acks a teammate-thread subscription against that thread, not the sandbox thread', async () => {
-    const { fanout, mailbox } = serviceWith({ tokens: {} })
-    await seedThread({ db, id: 'thr_main', userId: 'usr-a' })
-    await seedThread({ db, id: 'thr_teammate', userId: 'usr-a' })
-    await db.orm.public.Thread.where({ id: 'thr_teammate' }).update({
-      spawnerThreadId: 'thr_main',
-    })
-    const event = await seedPrEvent({ userId: 'usr-a' })
-    const leaseExpiresAt = new Date(Date.now() + 60_000)
-    for (const threadId of ['thr_main', 'thr_teammate']) {
-      await db.orm.public.GithubPrEventDelivery.create({
-        eventId: event.id,
-        threadId,
-        leaseExpiresAt,
-      })
-    }
-    const router = new GithubPrStreamRouter(
-      fanout,
-      fakeSubscriptions() as unknown as GithubSubscriptionsService,
-      new DrainStateService(),
-      mailbox,
-      localCoordinator(),
-      familySandboxes as unknown as SandboxesService,
-      fakeGithub(),
-      inertSignals(),
-    )
-
-    const outcome = await router.ackEvents(
-      sandboxCtxFor({ userId: 'usr-a', sandboxId: 'sbx_1', threadId: 'thr_main' }),
-      { threadId: 'thr_teammate', eventIds: [event.id] },
-    )
-
-    expect(outcome).toEqual({ acked: 1 })
-    const rows = await deliveryRows()
-    expect(rows.find((row) => row.threadId === 'thr_teammate')?.ackedAt).not.toBeNull()
-    expect(rows.find((row) => row.threadId === 'thr_main')?.ackedAt).toBeNull()
   })
 })

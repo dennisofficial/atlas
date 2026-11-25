@@ -64,20 +64,6 @@ export const ctxFor = (userId: string): SessionTrpcCtx => ({
   auth: { userId, sessionId: 'ses', email: '' },
 })
 
-export const podCtxFor = (args: { userId: string; threadId: string }): SessionTrpcCtx => ({
-  ...ctxFor(args.userId),
-  pod: { threadId: args.threadId },
-})
-
-export const sandboxCtxFor = (args: {
-  userId: string
-  sandboxId: string
-  threadId: string
-}): SessionTrpcCtx => ({
-  ...ctxFor(args.userId),
-  sandbox: { sandboxId: args.sandboxId, threadId: args.threadId },
-})
-
 export const optionsFor = (signal?: AbortSignal) => ({
   ctx: undefined,
   input: undefined,

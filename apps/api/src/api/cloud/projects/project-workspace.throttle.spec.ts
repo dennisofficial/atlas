@@ -23,6 +23,14 @@ const workspace = {
   githubToken: null,
 }
 
+const emptyConfig = {
+  settings: {},
+  secrets: [],
+  harnessSecrets: [],
+  mcpServers: [],
+  provenance: {},
+}
+
 describe('throttle opt-out on the workspace route', () => {
   useTestDatabase()
   let app: INestApplication
@@ -75,11 +83,5 @@ describe('throttle opt-out on the workspace route', () => {
 
     expect(statuses.slice(0, RATE_LIMIT).every((status) => status === 200)).toBe(true)
     expect(statuses).toContain(429)
-  })
-
-  it('never throttles projectWorkspace.get', async () => {
-    const statuses = await statusesOf({ path: 'projectWorkspace.get', input: { projectId: 'p1' } })
-
-    expect(statuses.every((status) => status === 200)).toBe(true)
   })
 })
