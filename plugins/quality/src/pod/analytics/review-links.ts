@@ -1,8 +1,11 @@
-import { randomUUID } from 'node:crypto'
+import { createHash } from 'node:crypto'
+
+import type { CallId } from '@dltech/atlas-core'
 
 export type QualityNotified = { policyId: string; scopeId: string }
 
-export const newReviewId = (): string => randomUUID()
+export const reviewIdOf = ({ callId }: { callId: CallId }): string =>
+  createHash('sha256').update(callId).digest('hex').slice(0, 32)
 
 export const wasNotified = (args: {
   notified: readonly QualityNotified[]

@@ -9,7 +9,6 @@ import {
 } from '@dltech/atlas-core'
 import { EAnalyticsLinks, type PodAnalyticsValue } from '@dltech/atlas-plugin-sdk'
 
-import { forgetNudgedFindings } from '../analytics/nudge-review'
 import { resolvedFindingProperties } from '../analytics/review-properties'
 import {
   briefSaid,
@@ -149,7 +148,7 @@ describe('the completed review event', () => {
       input_tokens: null,
       first_review_in_session: true,
     })
-    expect(String(completed?.properties.review_id)).toMatch(/^[0-9a-f-]{36}$/)
+    expect(String(completed?.properties.review_id)).toMatch(/^[0-9a-f]{32}$/)
     expect(completed?.links).toBe(EAnalyticsLinks.Hashed)
   })
 
@@ -249,7 +248,6 @@ describe('the completed review event', () => {
 
 describe('the nudge reaction through the after-turn hook', () => {
   it('reports the reaction once, linked to the review that nudged', async () => {
-    forgetNudgedFindings()
     const { captured, analytics } = analyticsRecorder()
     const reviewRig = createRig({ analytics })
     const outcome = await reviewRig.run()
