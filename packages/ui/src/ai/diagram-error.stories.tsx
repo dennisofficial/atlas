@@ -35,6 +35,14 @@ export const Repairing: Story = {
   },
 }
 
+export const RendererNotLoaded: Story = {
+  args: {
+    chart: CHART,
+    error: 'Failed to load chunk /_next/static/chunks/44e481n96lq2a.js from module 991481',
+    onRepair: () => Promise.resolve(),
+  },
+}
+
 export const RepairFails: Story = {
   args: {
     chart: CHART,

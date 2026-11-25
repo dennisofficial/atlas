@@ -202,6 +202,55 @@ describe('createWebUpdater', () => {
     expect(fake.payloadFs.calls).toContain(`discard:${'e'.repeat(16)}`)
   })
 
+  test('keeps the running payload while newer ones wait to be applied', async () => {
+    const running = 'f'.repeat(16)
+    const fake = fakePorts({
+      state: { current: running, appVersion: '1.0.0' },
+      complete: [running],
+    })
+    const updater = updaterOf(fake)
+    expect(await updater.installedRoot()).toBe(running)
+    for (const hash of ['e'.repeat(16), 'd'.repeat(16), 'c'.repeat(16)]) {
+      fake.setManifest(manifestOf({ hash, artifact: `web-${hash}.tar.gz` }))
+      await updater.check()
+    }
+    expect(fake.payloadFs.calls).not.toContain(`discard:${running}`)
+    expect(fake.payloadFs.calls).toContain(`discard:${'e'.repeat(16)}`)
+  })
+
+  test('keeps the swapped-in payload and releases the one it replaced', async () => {
+    const launched = 'f'.repeat(16)
+    const swapped = 'e'.repeat(16)
+    const fake = fakePorts({
+      state: { current: launched, appVersion: '1.0.0' },
+      complete: [launched],
+    })
+    const updater = updaterOf(fake)
+    await updater.installedRoot()
+    fake.setManifest(manifestOf({ hash: swapped, artifact: 'web-eeeeeeeeeeeeeeee.tar.gz' }))
+    await updater.check()
+    updater.applied()
+    for (const hash of ['d'.repeat(16), 'c'.repeat(16)]) {
+      fake.setManifest(manifestOf({ hash, artifact: `web-${hash}.tar.gz` }))
+      await updater.check()
+    }
+    expect(fake.payloadFs.calls).not.toContain(`discard:${swapped}`)
+    expect(fake.payloadFs.calls).toContain(`discard:${launched}`)
+  })
+
+  test('releases a launched payload that failed to start', async () => {
+    const broken = 'f'.repeat(16)
+    const fake = fakePorts({ state: { current: broken, appVersion: '1.0.0' }, complete: [broken] })
+    const updater = updaterOf(fake)
+    await updater.installedRoot()
+    await updater.fail({ hash: broken })
+    for (const hash of ['e'.repeat(16), 'd'.repeat(16)]) {
+      fake.setManifest(manifestOf({ hash, artifact: `web-${hash}.tar.gz` }))
+      await updater.check()
+    }
+    expect(fake.payloadFs.calls).toContain(`discard:${broken}`)
+  })
+
   test('checks on launch and on the interval, and stops on request', async () => {
     const fake = fakePorts()
     const updater = updaterOf(fake)

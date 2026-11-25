@@ -17,7 +17,6 @@ import { strongerVerdictOf, verdictOf, type EQualityVerdict } from './verdict'
 
 export const QUALITY_REVIEW_COMPLETED = 'quality review completed'
 export const QUALITY_FINDING_RESOLVED = 'quality finding resolved'
-export const QUALITY_FINDING_IGNORED = 'quality finding ignored'
 export const QUALITY_FINDING_CLOSED = 'quality finding closed'
 
 export type QualityReviewEventStatus = 'completed' | 'skipped' | 'deadline' | 'operational_error'
