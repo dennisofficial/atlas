@@ -3,6 +3,7 @@ import type { TranscriptEntryFold } from '@dltech/atlas-client/transcript'
 import type { CommandHandler, ControlCommandHandler } from '@dltech/atlas-commands'
 import { EClassifierFault } from '@dltech/atlas-core'
 import type {
+  ClassifierCallContext,
   ClassifierOutcome,
   ClassifierQuestion,
   ClassifierStatus,
@@ -125,6 +126,7 @@ export type PodClassifier = {
     state: string
     questions: Record<string, ClassifierQuestion>
     signal: AbortSignal
+    context?: ClassifierCallContext | undefined
   }): Promise<ClassifierOutcome>
 }
 

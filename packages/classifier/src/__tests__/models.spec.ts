@@ -1,7 +1,13 @@
 import { EAuthProvider, parseRef } from '@dltech/atlas-core'
 import { describe, expect, it } from 'bun:test'
 
-import { DECISION_MODELS, EClassifierTransport, decisionModelOf, refKeyOf } from '../models'
+import {
+  DECISION_MODELS,
+  EClassifierTransport,
+  decisionModelOf,
+  pricingOf,
+  refKeyOf,
+} from '../models'
 
 describe('DECISION_MODELS', () => {
   it('gives every entry a unique ref', () => {
@@ -32,6 +38,22 @@ describe('DECISION_MODELS', () => {
     const gateway = decisionModelOf('gateway/typesafe-ai/jev')
     expect(gateway?.model).toBe('typesafe-ai/jev-1.14.0')
     expect(DECISION_MODELS.every((model) => model.model !== 'typesafe-ai/jev')).toBe(true)
+  })
+
+  it('prices every entry per million tokens', () => {
+    for (const model of DECISION_MODELS) {
+      expect(model.inputUsdPerMillion).toBeGreaterThan(0)
+      expect(model.outputUsdPerMillion).toBeGreaterThanOrEqual(0)
+    }
+  })
+
+  it('reads the Jev prices and endpoint back from the table', () => {
+    const jev = decisionModelOf('gateway/typesafe-ai/jev')
+    expect(jev === undefined ? undefined : pricingOf(jev)).toEqual({
+      endpoint: 'https://ai-gateway.vercel.sh/typesafe',
+      inputUsdPerMillion: 0.042,
+      outputUsdPerMillion: 0,
+    })
   })
 })
 
