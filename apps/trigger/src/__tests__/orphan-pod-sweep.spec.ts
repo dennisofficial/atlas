@@ -29,7 +29,7 @@ const softDeleteArchived = (args: { cutoff: Date; at: Date }): Promise<number> =
 
 const depsOf = (overrides: Partial<OrphanPodSweepDeps>): OrphanPodSweepDeps => ({
   pods: async () => emptyPods,
-  v2Scopes: async () => [],
+  podScopes: async () => [],
   softDeleteArchived,
   markPreviewDeleting: async () => undefined,
   ...overrides,
@@ -72,7 +72,7 @@ const expiredSession = async (): Promise<void> => {
 describe('runOrphanPodSweep', () => {
   useTestDatabase()
 
-  it('soft-deletes past the grace when the v2 scope cannot build its scopes', async () => {
+  it('soft-deletes past the grace when the pod scope cannot build its scopes', async () => {
     await expiredSession()
 
     const result = await runOrphanPodSweep({
@@ -80,18 +80,18 @@ describe('runOrphanPodSweep', () => {
       log: () => undefined,
       fail: () => undefined,
       deps: depsOf({
-        v2Scopes: async () => {
+        podScopes: async () => {
           throw new Error('the platform credential could not be read')
         },
       }),
     })
 
-    expect(result.failedScopes).toEqual(['v2 pods'])
-    expect(result.v2).toBeNull()
+    expect(result.failedScopes).toEqual(['pods'])
+    expect(result.sweep).toBeNull()
     expect(result.softDeleted).toBe(1)
   })
 
-  it('reports a successful run when the v2 scope failed but retention succeeded', async () => {
+  it('reports a successful run when the pod scope failed but retention succeeded', async () => {
     const result = await runOrphanPodSweep({
       now: NOW,
       log: () => undefined,
@@ -103,8 +103,8 @@ describe('runOrphanPodSweep', () => {
       }),
     })
 
-    expect(result.failedScopes).toEqual(['v2 pods'])
-    expect(result.v2).toBeNull()
+    expect(result.failedScopes).toEqual(['pods'])
+    expect(result.sweep).toBeNull()
     expect(result.softDeleted).toBe(0)
   })
 
@@ -124,7 +124,7 @@ describe('runOrphanPodSweep', () => {
     })
 
     await expect(attempt).rejects.toThrow(
-      'orphan-pod-sweep could not run any scope: v2 pods, archive retention',
+      'orphan-pod-sweep could not run any scope: pods, archive retention',
     )
   })
 
@@ -142,7 +142,7 @@ describe('runOrphanPodSweep', () => {
           retirable: new Map([['pod-retired', hoursBefore(7).getTime()]]),
           sessionIdsByPod: new Map([['pod-retired', ['pod-retired']]]),
         }),
-        v2Scopes: async () => [
+        podScopes: async () => [
           scope(
             new FakeSandboxProvider({ listings: [listing({ sandboxSessionId: 'pod-retired' })] }),
           ),
@@ -153,7 +153,7 @@ describe('runOrphanPodSweep', () => {
       }),
     })
 
-    expect(result.v2?.deleted).toBe(1)
+    expect(result.sweep?.deleted).toBe(1)
     expect(marked).toEqual(['pod-retired'])
   })
 
@@ -163,7 +163,7 @@ describe('runOrphanPodSweep', () => {
       log: () => undefined,
       fail: () => undefined,
       deps: depsOf({
-        v2Scopes: async () => [
+        podScopes: async () => [
           {
             label: 'platform/agent37',
             credentials: AGENT37_CREDENTIALS,

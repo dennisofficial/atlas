@@ -15,13 +15,13 @@ import { seedSubscription } from '../../../../test/github-seed'
 import { preparePollSweeper, serviceWith } from './github-poll-sweeper.fixture'
 
 const USER = 'usr_1'
-const SESSION = 'ses_v2_expiry'
-const THREAD = 'thr_v2_expiry'
+const SESSION = 'ses_expiry'
+const THREAD = 'thr_expiry'
 
 const PAST = () => new Date(Date.now() - 60_000)
 const FUTURE = () => new Date(Date.now() + 3_600_000)
 
-const seedV2Thread = async () => {
+const seedThread = async () => {
   const plane = new ControlPlane({
     store: new PostgresControlStore(db),
     eventSchema: createRecordEventSchema({ pluginBodies: [] }),
@@ -50,7 +50,7 @@ describe('GithubPollSweeperService expiry', () => {
 
   beforeEach(async () => {
     await preparePollSweeper()
-    await seedV2Thread()
+    await seedThread()
   })
 
   it('ends a lapsed row of a session thread as expired by the clock', async () => {

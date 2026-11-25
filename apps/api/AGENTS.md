@@ -20,11 +20,11 @@ and better-auth's `/api/auth/*`.
 `docs/slices/v1-retirement.md` deleted the `threads`, `threadEvents`, `threadTurns`, `sandboxSelf`,
 `sandboxes`, `sandboxCheckpoint`, `sandboxRollover`, `podLeases`, `threadSandbox`, `threadPod`,
 `threadMessages`, `composerDrafts` and `sandboxConfig` routers with their services, and the Vercel
-sandbox provisioning behind them. A sandbox is a v2 session pod: the agent host claims it
+sandbox provisioning behind them. A sandbox is a session pod: the agent host claims it
 (`src/agent`), and the control plane serves it through `platform/control`.
 
 **Sandbox storage ends six hours after a session is archived.** Archive parks the pod.
-`orphan-sandbox-sweep` (`apps/trigger`) soft-deletes the v2 session rows at
+`orphan-sandbox-sweep` (`apps/trigger`) soft-deletes the session rows at
 `ARCHIVED_SANDBOX_GRACE_MS` (6 h), measured from `archivedAt`. A sandbox is addressed only by name, so
 a name that no unarchived session resolves is unreachable storage. The session rows stay for
 analytics. The API also provides identity, remote-control rendezvous, session discovery, backup sync
@@ -116,7 +116,7 @@ src/
               mcp-servers, user-context, github). One-way rule:
               cloud may import platform, platform never imports cloud;
               enforced by src/api/architecture.spec.ts.
-  agent/      v2 sessions at runtime: claims them, wakes their sandboxes, drives the loop and
+  agent/      sessions at runtime: claims them, wakes their sandboxes, drives the loop and
               publishes live frames. agent.module.ts is its Nest module, index.ts the only
               entry src/api may import.
   app.module.ts  the root — ApiModule + AgentModule + HealthModule + the drain hook.
@@ -164,7 +164,7 @@ between services takes effect when it is attached to the new one (about 2 s of 4
 
 `.github/workflows/release.yml` runs on every push to main, one release at a time. Its `render-live`
 job waits for the Render deploy of `GITHUB_SHA` to go live, or to be superseded by a newer deploy. It
-then probes `https://api.byatlas.io/healthz`. `.github/workflows/trigger-v2.yml` and `web-ota.yml`
+then probes `https://api.byatlas.io/healthz`. `.github/workflows/trigger.yml` and `web-ota.yml`
 wait for the same live deploy, so trigger tasks and the Mac web payload never run ahead of the
 migrated schema.
 
@@ -293,7 +293,7 @@ behaviour there. `client()` and `duplicate()` throw rather than reach for localh
 
 trigger.dev is a required platform for this package, not an optional add-on, but this package
 deploys no worker. The v1 project (`proj_yvwotwceptrneuuasamk`, org DL Technologies LLC) has no code
-left, and every task lives in `apps/trigger`, which `.github/workflows/trigger-v2.yml` deploys.
+left, and every task lives in `apps/trigger`, which `.github/workflows/trigger.yml` deploys.
 `@trigger.dev/sdk` stays a dependency for the dispatch seam.
 - **One dispatch seam.** API code enqueues work through `JobDispatcher`
   (`src/_core/ports/job-dispatcher.ts`), bound globally by `TriggerModule`
@@ -302,7 +302,7 @@ left, and every task lives in `apps/trigger`, which `.github/workflows/trigger-v
   throws the same error. Nothing ever falls back to running the work in-process. `trigger-job-dispatcher.ts` is
   the only file in `src/api` or `src/_lib` that imports `@trigger.dev/sdk`.
   `src/api/trigger-boundary.spec.ts` enforces that rule.
-- **One project, one key.** `JobsProjectDispatcher` carries `TRIGGER_JOBS_SECRET_KEY`, the v2
+- **One project, one key.** `JobsProjectDispatcher` carries `TRIGGER_JOBS_SECRET_KEY`, the jobs
   project's key, and queues every task. The key is required, and a missing one fails boot. Local uses
   the dev key (`tr_dev_…`); specs and the CI image probe use a fixture. The v1 project's
   `TRIGGER_SECRET_KEY` and its dispatcher went with the v1 request lanes (slice 4c).
