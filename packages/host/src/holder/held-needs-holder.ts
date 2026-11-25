@@ -26,7 +26,8 @@ import {
   understandsCommand,
   waitingInputIdsOf,
 } from './held-inbox'
-import { childrenAtWorkOf, spawnedChildrenOf } from './crew/open-children'
+import { childrenAtWorkOf } from './crew/child-reads'
+import { spawnedChildrenOf } from './crew/open-children'
 import type { HeldSessionDeps } from './held-session-deps'
 import type { SessionRecord } from './record/record-adapter'
 

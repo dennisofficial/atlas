@@ -7,12 +7,9 @@ import {
   inboxEventOf,
   isSurviving,
   lifecycleOf,
-  loopStateOf,
-  owesEndingOf,
   pendingInputsOf,
   recordsLifecycle,
   stepVisibility,
-  toLoopEvent,
   unendedSpawns,
   type Event,
   type EventOfType,
@@ -22,10 +19,15 @@ import {
 import type { ControlPlane } from '@dltech/atlas-control'
 import type { WorktreeEntryInfo } from '@dltech/atlas-plugin-sdk'
 
-import { logPendingInputIdsOf, readInboxPages, readThreadInbox } from '../held-inbox'
+import { readInboxPages } from '../held-inbox'
 import type { SessionRecord } from '../record/record-adapter'
-
-const READ_LIMIT = 1000
+import {
+  CHILD_READ_CONCURRENCY,
+  childWaitsOnInput,
+  loopEventsOf,
+  threadEventsOf,
+} from './child-reads'
+import { pooledMap } from './pooled-map'
 
 export type ChildSettlement = { status: EAgentStatus; endedAt: string }
 
@@ -126,32 +128,6 @@ export const settledChildOf = (args: {
   return { ...openChildOf(spawn), status: agent.status, endedAt: agent.endedAt }
 }
 
-const loopEventsOf = (events: readonly RecordEvent[]): Event[] =>
-  events.flatMap((event) => {
-    const loop = toLoopEvent({ event })
-    return loop === undefined ? [] : [loop]
-  })
-
-const threadEventsOf = async (args: {
-  plane: ControlPlane
-  threadId: ThreadId
-  visible: boolean
-}): Promise<RecordEvent[]> => {
-  const events: RecordEvent[] = []
-  let afterSeq = 0
-  for (;;) {
-    const page = await args.plane.readEvents({
-      threadId: args.threadId,
-      afterSeq,
-      limit: READ_LIMIT,
-      visible: args.visible,
-    })
-    events.push(...page.events)
-    if (page.next === undefined) return events
-    afterSeq = page.next
-  }
-}
-
 const wasCompacted = (events: readonly RecordEvent[]): boolean =>
   events.some((event) => event.type === 'history-summarised')
 
@@ -166,43 +142,6 @@ const survivingEventsOf = async (args: {
     : cached
   const visibility = events.reduce(stepVisibility, EMPTY_VISIBILITY)
   return events.filter((event) => isSurviving(visibility, event))
-}
-
-const childOwesEnding = async (args: { plane: ControlPlane; child: OpenChild }): Promise<boolean> =>
-  threadEventsOf({ plane: args.plane, threadId: args.child.agentId, visible: true })
-    .then((events) => owesEndingOf(loopStateOf({ events: loopEventsOf(events) })))
-    .catch(() => true)
-
-const childHasQueued = async (args: {
-  plane: ControlPlane
-  sessionId: string
-  child: OpenChild
-}): Promise<boolean> =>
-  readThreadInbox({
-    plane: args.plane,
-    sessionId: args.sessionId,
-    threadId: args.child.agentId,
-  })
-    .then((entries) => entries.length > 0)
-    .catch(() => true)
-
-const childWaitsOnInput = async (args: {
-  plane: ControlPlane
-  sessionId: string
-  child: OpenChild
-}): Promise<boolean> => {
-  try {
-    const events = await threadEventsOf({
-      plane: args.plane,
-      threadId: args.child.agentId,
-      visible: true,
-    })
-    if (events.length === 0) return false
-    if (logPendingInputIdsOf(events).length > 0) return true
-    return await childHasQueued(args)
-  } catch {
-    return false
-  }
 }
 
 const pendingSettlementsOf = async (args: {
@@ -252,36 +191,29 @@ export const openChildren = async (args: {
           sessionId: args.sessionId,
           events,
         })
-  const driveable: OpenChild[] = []
-  for (const child of children) {
-    const awaited = pending.get(child.agentId)
-    if (child.settled === undefined && awaited === undefined) {
-      driveable.push(child)
-      continue
-    }
-    const waitsOnInput = await childWaitsOnInput({ ...args, child })
-    if (child.settled !== undefined) {
-      if (waitsOnInput) driveable.push(child)
-      continue
-    }
-    driveable.push({ ...child, settled: awaited, keepIdle: !waitsOnInput })
-  }
-  return driveable
+  const checked = await pooledMap({
+    items: children,
+    limit: CHILD_READ_CONCURRENCY,
+    work: (child) =>
+      driveableOf({
+        plane: args.plane,
+        sessionId: args.sessionId,
+        child,
+        awaited: pending.get(child.agentId),
+      }),
+  })
+  return checked.filter((child): child is OpenChild => child !== undefined)
 }
 
-export const childrenAtWorkOf = async (args: {
+const driveableOf = async (args: {
   plane: ControlPlane
   sessionId: string
-  children: readonly OpenChild[]
-}): Promise<number> => {
-  let atWork = 0
-  for (const child of args.children) {
-    if (child.settled !== undefined) {
-      if (await childWaitsOnInput({ ...args, child })) atWork += 1
-      continue
-    }
-    const queued = await childHasQueued({ ...args, child })
-    if (queued || (await childOwesEnding({ plane: args.plane, child }))) atWork += 1
-  }
-  return atWork
+  child: OpenChild
+  awaited: ChildSettlement | undefined
+}): Promise<OpenChild | undefined> => {
+  const { child, awaited } = args
+  if (child.settled === undefined && awaited === undefined) return child
+  const waitsOnInput = await childWaitsOnInput(args)
+  if (child.settled !== undefined) return waitsOnInput ? child : undefined
+  return { ...child, settled: awaited, keepIdle: !waitsOnInput }
 }
