@@ -31,8 +31,9 @@ describeHandoff({
     const runs = ctx.path('runs')
     const held = ctx.path('held')
     const hold = ctx.gate('hold')
-    writeFileSync(script, `echo $$ > ${pidFile}\nexec sleep 60\n`)
-    const command = `setsid /bin/sh ${script} >/dev/null 2>&1 & echo run >> ${runs}`
+    const ready = ctx.gate('ready')
+    writeFileSync(script, `echo $$ > ${pidFile}\necho ready > ${ready}\nexec sleep 60\n`)
+    const command = `setsid /bin/sh ${script} >/dev/null 2>&1 & cat ${ready}; echo run >> ${runs}`
     const hostA = await ctx.rig.spawnHost({
       label: 'host-a',
       daemonUrl: ctx.daemon.url,
