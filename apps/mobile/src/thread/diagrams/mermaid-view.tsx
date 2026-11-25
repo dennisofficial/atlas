@@ -3,6 +3,14 @@
 import mermaid from 'mermaid'
 import { type CSSProperties, useEffect, useRef, useState } from 'react'
 
+import {
+  DIAGRAM_MIN_SCALE,
+  fitScale,
+  type IDiagramTransform,
+  minScaleFor,
+  zoomAbout,
+} from './diagram-layout'
+
 const THEME_CSS = `
 .node rect, .node polygon, .node circle, .node ellipse, .node path, .cluster rect { fill: var(--card) !important; stroke: var(--border) !important; }
 .nodeLabel, .nodeLabel p, .label, .label text, .edgeLabel, .edgeLabel p, text, text.actor > tspan, .noteText > tspan { fill: var(--foreground) !important; color: var(--foreground) !important; }
@@ -13,8 +21,7 @@ rect.actor, rect.note, .labelBox { fill: var(--card) !important; stroke: var(--b
 .arrowheadPath, marker path { fill: var(--muted-foreground) !important; stroke: var(--muted-foreground) !important; }
 `
 
-const MIN_SCALE = 0.4
-const MAX_SCALE = 5
+const RESTING_TRANSFORM: IDiagramTransform = { scale: 1, x: 0, y: 0 }
 const INTERACTIVE_HINT = 'Pinch to zoom, drag to pan, double-tap to fit'
 
 export interface IMermaidColors {
@@ -42,8 +49,6 @@ export interface IMermaidViewProps {
   onRendered?: (size: IMermaidSize) => Promise<void>
   onError?: (message: string) => Promise<void>
 }
-
-const clampScale = (scale: number): number => Math.min(Math.max(scale, MIN_SCALE), MAX_SCALE)
 
 const varsOf = ({ colors, font }: { colors: IMermaidColors; font: string }): CSSProperties =>
   ({
@@ -83,10 +88,28 @@ export default function MermaidView({
   const callbacks = useRef({ onRendered, onError })
   callbacks.current = { onRendered, onError }
   const renderId = useRef(`mermaid-${Math.random().toString(36).slice(2)}`)
+  const content = useRef<IMermaidSize | undefined>(undefined)
+  const minScale = useRef(DIAGRAM_MIN_SCALE)
   const [error, setError] = useState<string>()
-  const [transform, setTransform] = useState({ scale: 1, x: 0, y: 0 })
+  const [transform, setTransform] = useState<IDiagramTransform>(RESTING_TRANSFORM)
+  const transformRef = useRef(transform)
+  transformRef.current = transform
   const [touched, setTouched] = useState(false)
   const themeKey = `${colors.card}|${colors.border}|${colors.foreground}|${colors.mutedForeground}|${font}`
+
+  const fittedTransform = (): IDiagramTransform => {
+    const box = viewport.current?.getBoundingClientRect()
+    const size = content.current
+    if (!interactive || box === undefined || size === undefined) return RESTING_TRANSFORM
+    return {
+      scale: fitScale({
+        viewport: { width: box.width, height: box.height },
+        content: size,
+      }),
+      x: 0,
+      y: 0,
+    }
+  }
 
   useEffect(() => {
     document.body.style.margin = '0'
@@ -111,15 +134,24 @@ export default function MermaidView({
         const node = target.querySelector('svg')
         if (node === null) throw new Error('The diagram rendered empty.')
         node.removeAttribute('height')
-        node.style.maxWidth = '100%'
-        node.style.height = 'auto'
+        node.style.display = 'block'
         node.style.background = 'transparent'
-        setError(undefined)
-        setTransform({ scale: 1, x: 0, y: 0 })
+        node.style.width = '100%'
+        node.style.height = 'auto'
+        node.style.margin = '0 auto'
+        if (!interactive) node.style.maxWidth = 'none'
         const rect = node.getBoundingClientRect()
+        const current = transformRef.current.scale <= 0 ? 1 : transformRef.current.scale
+        const size = { width: rect.width / current, height: rect.height / current }
+        content.current = size
+        const next = fittedTransform()
+        minScale.current = minScaleFor(next.scale)
+        setError(undefined)
+        setTransform(next)
+        setTouched(false)
         await callbacks.current.onRendered?.({
-          width: target.clientWidth,
-          height: Math.round(rect.height),
+          width: Math.round(size.width),
+          height: Math.round(size.height),
         })
       } catch (cause) {
         if (cancelled) return
@@ -132,13 +164,18 @@ export default function MermaidView({
     return () => {
       cancelled = true
     }
-  }, [source, font, themeKey])
+  }, [source, font, themeKey, interactive])
 
   useEffect(() => {
     const node = viewport.current
     if (!interactive || node === null) return
     const pointers = new Map<number, { x: number; y: number }>()
     let pinch: number | undefined
+
+    const centreOf = () => {
+      const box = node.getBoundingClientRect()
+      return { x: box.left + box.width / 2, y: box.top + box.height / 2 }
+    }
 
     const handleDown = (event: PointerEvent) => {
       node.setPointerCapture?.(event.pointerId)
@@ -164,11 +201,15 @@ export default function MermaidView({
       const distance = Math.hypot(first.x - second.x, first.y - second.y)
       const last = pinch
       pinch = distance
-      if (last === undefined || last === 0) return
-      setTransform((current) => ({
-        ...current,
-        scale: clampScale(current.scale * (distance / last)),
-      }))
+      if (last === undefined || last === 0 || distance === 0) return
+      const centre = centreOf()
+      const focus = {
+        x: (first.x + second.x) / 2 - centre.x,
+        y: (first.y + second.y) / 2 - centre.y,
+      }
+      setTransform((current) =>
+        zoomAbout({ transform: current, factor: distance / last, focus, min: minScale.current }),
+      )
     }
 
     const handleUp = (event: PointerEvent) => {
@@ -178,27 +219,35 @@ export default function MermaidView({
 
     const handleWheel = (event: WheelEvent) => {
       event.preventDefault()
-      setTransform((current) => ({
-        ...current,
-        scale: clampScale(current.scale * Math.exp(-event.deltaY / 300)),
-      }))
+      const centre = centreOf()
+      setTransform((current) =>
+        zoomAbout({
+          transform: current,
+          factor: Math.exp(-event.deltaY / 300),
+          focus: { x: event.clientX - centre.x, y: event.clientY - centre.y },
+          min: minScale.current,
+        }),
+      )
     }
 
-    const handleReset = () => setTransform({ scale: 1, x: 0, y: 0 })
+    const handleFit = () => {
+      const next = fittedTransform()
+      setTransform(next)
+    }
 
     node.addEventListener('pointerdown', handleDown)
     node.addEventListener('pointermove', handleMove)
     node.addEventListener('pointerup', handleUp)
     node.addEventListener('pointercancel', handleUp)
     node.addEventListener('wheel', handleWheel, { passive: false })
-    node.addEventListener('dblclick', handleReset)
+    node.addEventListener('dblclick', handleFit)
     return () => {
       node.removeEventListener('pointerdown', handleDown)
       node.removeEventListener('pointermove', handleMove)
       node.removeEventListener('pointerup', handleUp)
       node.removeEventListener('pointercancel', handleUp)
       node.removeEventListener('wheel', handleWheel)
-      node.removeEventListener('dblclick', handleReset)
+      node.removeEventListener('dblclick', handleFit)
     }
   }, [interactive])
 
@@ -228,6 +277,8 @@ export default function MermaidView({
         <div
           ref={host}
           style={{
+            width: '100%',
+            transformOrigin: 'center center',
             transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
             transition: touched ? 'none' : 'transform 120ms ease-out',
           }}

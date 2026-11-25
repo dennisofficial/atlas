@@ -12,29 +12,41 @@ import {
 import { radius, space } from '@dltech/atlas-ui/tokens'
 import { router } from 'expo-router'
 import { Maximize2 } from 'lucide-react-native'
-import { useCallback, useState } from 'react'
+import { useCallback, useReducer, useState } from 'react'
 import { type LayoutChangeEvent, Pressable, StyleSheet, View } from 'react-native'
 
 import {
   cacheDiagramHeight,
   cachedDiagramHeight,
   clampDiagramHeight,
+  diagramCardKey,
   DIAGRAM_ESTIMATE_HEIGHT,
+  EDiagramCardEvent,
   fitDiagramHeight,
   type IDiagramSize,
+  initialDiagramCardState,
   MERMAID_FONT,
+  diagramCardReducer,
 } from './diagram-layout'
 import { putDiagramSource } from './diagram-store'
 import MermaidView from './mermaid-view'
 
 const FADE_HEIGHT = space(14)
 
-export const DiagramCard = ({ source, closed }: { source: string; closed: boolean }) => {
+interface IDiagramCardProps {
+  source: string
+  closed: boolean
+}
+
+export const DiagramCard = ({ source, closed }: IDiagramCardProps) => (
+  <DiagramCardView key={diagramCardKey(source)} source={source} closed={closed} />
+)
+
+const DiagramCardView = ({ source, closed }: IDiagramCardProps) => {
   const theme = useTheme()
   const dark = useIsDark()
   const [width, setWidth] = useState(0)
-  const [rendered, setRendered] = useState<IDiagramSize>()
-  const [error, setError] = useState<string>()
+  const [state, dispatch] = useReducer(diagramCardReducer, initialDiagramCardState)
 
   const colors = {
     card: theme.card,
@@ -50,7 +62,7 @@ export const DiagramCard = ({ source, closed }: { source: string; closed: boolea
 
   const handleRendered = useCallback(
     async (size: IDiagramSize) => {
-      setRendered(size)
+      dispatch({ type: EDiagramCardEvent.Rendered, size })
       if (width <= 0) return
       cacheDiagramHeight({
         source,
@@ -62,32 +74,35 @@ export const DiagramCard = ({ source, closed }: { source: string; closed: boolea
   )
 
   const handleError = useCallback(async (message: string) => {
-    setError(message)
+    dispatch({ type: EDiagramCardEvent.Failed, message })
   }, [])
 
   const handleOpen = useCallback(() => {
     router.push({ pathname: '/diagram', params: { id: putDiagramSource({ source }) } })
   }, [source])
 
-  if (!closed || error !== undefined) {
+  if (!closed || state.error !== undefined) {
     return (
       <View style={styles.fallback}>
         <CodeBlock block={{ language: 'mermaid', value: source }} />
         <Text size={ETextRole.Xs} tone={ETextTone.Muted}>
-          {error ?? 'Diagram appears when complete'}
+          {state.error ?? 'Diagram appears when complete'}
         </Text>
       </View>
     )
   }
 
   const measured =
-    rendered !== undefined && rendered.width > 0 && width > 0
-      ? fitDiagramHeight({ size: rendered, targetWidth: width })
+    state.size !== undefined && state.size.width > 0 && width > 0
+      ? fitDiagramHeight({ size: state.size, targetWidth: width })
       : (cachedDiagramHeight({ source, width }) ?? DIAGRAM_ESTIMATE_HEIGHT)
   const { height, clamped } = clampDiagramHeight(measured)
 
   return (
-    <View
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Open the diagram"
+      onPress={handleOpen}
       style={[
         styles.card,
         {
@@ -125,14 +140,8 @@ export const DiagramCard = ({ source, closed }: { source: string; closed: boolea
             </Text>
           </View>
         ) : null}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Open the diagram"
-          onPress={handleOpen}
-          style={StyleSheet.absoluteFill}
-        />
       </View>
-    </View>
+    </Pressable>
   )
 }
 
