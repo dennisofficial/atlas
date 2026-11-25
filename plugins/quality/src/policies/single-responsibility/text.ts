@@ -11,6 +11,7 @@ export const SRP_EXCEPTIONS: readonly string[] = [
   'Orchestration that intentionally composes responsibilities, where the orchestrator only sequences collaborator calls and holds no independent implementation (no schema details, no protocol handling, no filesystem layout, no external-API specifics).',
   'Tightly cohesive methods implementing one business capability.',
   'Temporary refactor states with insufficient evidence.',
+  'A class whose shape the framework or runtime fixes — a database migration with its up and down steps, a framework entry point, a lifecycle class — when every member serves that one unit of work. The fixed members and the steps they perform are stages of that one unit, not independently changing responsibilities. A member that also owns a separate responsibility (outbound mail, a third-party API protocol, unrelated bookkeeping) is still a violation.',
 ]
 
 export const IMPACT_CRITERIA: Record<EQualityImpact, string> = {

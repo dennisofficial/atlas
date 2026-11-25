@@ -40,6 +40,7 @@ describe('single responsibility descriptor', () => {
     })
     expect(exceptions.join(' ')).toContain('facade')
     expect(exceptions.join(' ')).toContain('cohesive')
+    expect(exceptions.join(' ')).toContain('shape the framework or runtime fixes')
   })
 })
 

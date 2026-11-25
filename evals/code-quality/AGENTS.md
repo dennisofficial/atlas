@@ -19,7 +19,11 @@ Each case's `expected` is either:
   abstention, never as decided accuracy.
 
 Labels are drafted offline under the versioned SRP rubric. A separate reviewer verifies them blind before
-`eval:label-review` accepts them. When the workflow uses reasoning agents, the reviewer sees only the sanitized
+`eval:label-review` accepts them. Expected labels apply the exceptions the policy ships, including the
+framework-shape exception: a class whose shape the framework or runtime fixes (a database migration with its
+up and down steps, a framework entry point, a lifecycle class) is cohesive when every member serves that one
+unit of work, and is still a violation when a member also owns outbound mail, a third-party API protocol or
+unrelated bookkeeping. When the workflow uses reasoning agents, the reviewer sees only the sanitized
 input and the rubric. The reviewer never sees the drafter's judgment or the output of the evaluated model. The
 reviewer records the actual identity and model, or records honestly that the agent API exposes no model identity.
 The reviewer also records the reasoning, the disagreement and the uncertainty. Such a result is machine-reviewed
