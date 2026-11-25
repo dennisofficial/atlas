@@ -6,7 +6,7 @@ import {
 } from '@dltech/atlas-core'
 
 export const SANDBOX_UNREACHABLE_GUIDANCE =
-  "The sandbox did not answer, so more tool calls this turn will not help. Stop making sandbox tool calls, tell the operator what failed, and end your turn. Do not call the sandbox offline or down: the operator's next message tries to wake it again."
+  "The sandbox did not answer, so more tool calls this turn will not help. Stop making sandbox tool calls, tell the operator what failed, and end your turn. The operator's next message wakes the sandbox again."
 
 export class SandboxUnavailableError extends Error {
   constructor(reason: string) {

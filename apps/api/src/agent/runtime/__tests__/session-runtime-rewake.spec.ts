@@ -139,8 +139,8 @@ describe('sandbox loss while held', () => {
     expect(outcome).toBeInstanceOf(SandboxUnavailableError)
     expect(String(outcome)).toContain(`after ${REWAKES_BEFORE_GIVING_UP} wakes`)
     expect(String(outcome)).toContain(SANDBOX_UNREACHABLE_GUIDANCE)
-    expect(String(outcome)).not.toContain('is offline')
-    expect(String(outcome)).not.toContain('is down')
+    expect(String(outcome)).not.toContain('offline')
+    expect(String(outcome)).not.toContain(' down')
     expect(sandbox.wakes).toBe(1 + REWAKES_BEFORE_GIVING_UP)
 
     const retried = await runtime.remoteCalls.ready().then(
