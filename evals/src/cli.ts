@@ -119,6 +119,10 @@ async function handleDispatch(): Promise<number> {
       const { handleEfficacyCommand } = await import('./efficacy-cli')
       return handleEfficacyCommand({ argv: rest })
     }
+    case 'jev-real': {
+      const { handleJevRealCommand } = await import('./jev-real-cli')
+      return handleJevRealCommand({ argv: rest })
+    }
     case 'export-examples':
     case 'curate':
     case 'label-review':
@@ -128,7 +132,7 @@ async function handleDispatch(): Promise<number> {
     }
     default:
       throw new ArgParseError(
-        `unknown command "${command ?? ''}"; expected run|validate|compare|efficacy-report|export-examples|curate|label-review|import-history`,
+        `unknown command "${command ?? ''}"; expected run|validate|compare|efficacy-report|jev-real|export-examples|curate|label-review|import-history`,
       )
   }
 }
