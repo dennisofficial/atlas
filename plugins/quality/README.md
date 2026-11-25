@@ -6,7 +6,7 @@ The advisory code-quality review. After a successful file write or edit, the plu
 
 - The `quality-review` afterTool hook: it asks the tool to capture the changed text, bounds the review at 1000 ms and returns the records and the finding.
 - The `quality-finding-ignored` afterTurn hook: it reports, from the log alone, each finding the model was nudged about and left active.
-- The product events `quality review completed`, `quality finding resolved`, `quality finding closed` and `quality finding ignored`. `resolved` means the classifier saw the problem go away. `closed` means a nudged finding ended because a later write removed its scope (deleted, moved or renamed with a changed body), so the log cannot tell a fix from a move.
+- The product events `quality review completed`, `quality scope assessed`, `quality review unavailable`, `quality finding resolved`, `quality finding closed` and `quality finding ignored`. `resolved` means the classifier saw the problem go away. `closed` means a nudged finding ended because a later write removed its scope (deleted, moved or renamed with a changed body), so the log cannot tell a fix from a move.
 - The review engine: scope preparation, policy selection, request planning, the size bounds and the excerpt.
 - The budget: one deadline for a review, with a settlement grace for a cooperative classifier.
 - The review records (`code-quality-reviewed`), the finding fold and the per-file note text.
@@ -45,14 +45,14 @@ The pod entry exports the first group only. The review modules below are the par
 
 ### Build a pod slot
 
-- `qualityPodOf({ settings, budgetMs, clock })`: makes the pod slot with the `quality-review` afterTool hook. `settings(ctx)` resolves `{ enabled, policies, examples }` for the session.
+- `qualityPodOf({ settings, budgetMs, clock })`: makes the pod slot with the `quality-review` afterTool hook. `settings(ctx)` resolves `{ enabled, policies }` for the session.
 - `QUALITY_REVIEW_BUDGET_MS`: the 1000 ms budget one review gets.
 - `qualityReviewHook({ ctx, options })`: the hook itself, for a caller that composes the pod differently.
 - `qualityIgnoredHook({ ctx })`: the afterTurn hook that reports the findings a turn left active.
 
 ### Review a write
 
-- `CodeQualityReview`: the engine. `review(args)` returns `{ records, flagged, notes, timings, language, inputTokens }`. `records` holds the review records. `flagged` holds one `{ record, entry }` for each finding that produces an advisory note. `notes` holds one `{ key, content }` per reviewed file, keyed by the workspace-relative path; the list is empty when the review missed the deadline or found nothing to tell the model. `timings` splits the scope build and the classifier calls; `inputTokens` is the classifier usage the provider reported.
+- `CodeQualityReview`: the engine. `review(args)` returns `{ records, flagged, notes, scopes, timings, language, inputTokens }`. `records` holds the review records. `flagged` holds one `{ record, entry }` for each finding that produces an advisory note. `notes` holds one `{ key, content }` per reviewed file, keyed by the workspace-relative path; the list is empty when the review missed the deadline or found nothing to tell the model. `timings` splits the scope build and the classifier calls; `inputTokens` is the classifier usage the provider reported.
 - `CodeQualityReviewDeps`: the classifier, its requested model, the source adapter, the registry, the settings accessor, the clock and the deadline in milliseconds.
 - `qualitySwitches({ values })`: the `enabled` switch and the boolean policy flags of a setting map.
 - `QUALITY_POLICIES`, `qualityRegistry`: the default registry, which holds the single-responsibility policy.
@@ -100,22 +100,11 @@ no TypeScript compiler.
 | Hook | `quality-review`          | afterTool, observe stage, nudge 20. Captures the changed text, then records a review. |
 | Hook | `quality-finding-ignored` | afterTurn, observe stage, nudge 20. Reports the findings the turn left active.        |
 
-The hooks send product events through `ctx.analytics` with ids, enums, numbers and booleans only:
-`status`, `skip_reason`, `policy_ids`, `policies` (`policy_id`, `outcome`, `max_confidence`), `files`,
-`notified`, `classifier_model`, `classifier_provider`, `scope_build_ms`, `classifier_ms`, `total_ms`,
-`input_tokens`, `language`, `first_review_in_session`, and for a finding `policy_id`,
-`steps_after_nudge` and `turns_after_nudge`. The host adds `session_id` and `thread_id`.
-The "Jev quality" PostHog dashboard reads them: https://us.posthog.com/project/411591/dashboard/2407147.
-
-The one exception is `quality example flagged`, which carries code text. The hook sends it once for
-each finding that produces the advisory note, and only when the settings say `examples`, which the
-API turns on for a session owner on the `ATLAS_QUALITY_EXAMPLE_USERS` allowlist (comma separated,
-empty by default). Its properties are `policy_id`, `policy_version`, `status`, `impact`,
-`transition`, `concern_score`, `finding_id`, `episode`, `path` (relative to the project directory),
-`scope_name`, `scope_kind`, `language`, `line_start`, `line_end`, `excerpt`, `excerpt_truncated` and
-`classifier_model`. The excerpt is the scope's after text cut to 4000 characters, and
-`excerpt_truncated` says when it was cut. The hook sends nothing when the path is secret shaped
-(`.env`, keys, `.ssh`) or the excerpt names a secret literal.
+The hooks send product events through `ctx.analytics` with ids, enums, numbers and booleans only. Each one asks the host for hashed links: `session_hash`, `thread_hash` (the first 16 hex characters of the SHA-256 of the id) and `thread_kind` (`main`, `sub_agent`, `teammate`). One `review_id` per after-tool run links its events. The "Jev quality" PostHog dashboard reads them: https://us.posthog.com/project/411591/dashboard/2407147.
+- `quality scope assessed`: one event per scored scope and policy, with `review_id`, `scope_id`, `policy_id`, `policy_version`, `scope_kind`, `change_kind` (`created` or `edited`), `language`, `extension`, `scope_lines`, `scope_bytes`, `diff_lines`, `request_bytes`, `concern_score`, `impact`, `impact_confidence`, `focus_confident`, `transition`, `verdict`, `near_miss`, `concern_threshold`, `impact_threshold`, `deadline_missed` and `classifier_ms`. The verdict is `nudged` (introduced and notified now), `repeat` (introduced on a finding already notified), `tracked_debt`, `near_miss` (not nudged, and a concern of 0.5 or more), `clean` or `inconclusive`.
+- `quality review completed`: `review_id`, `status`, `skip_reason`, `skip_reasons`, `policy_ids`, `policies` (`policy_id`, `verdict`, `max_concern`), `files`, `notified`, `tool`, `scopes_total`, `scopes_selected`, `extensions`, `classifier_model`, `classifier_provider`, `scope_build_ms`, `classifier_ms`, `total_ms`, `input_tokens`, `language` and `first_review_in_session`.
+- `quality review unavailable`: `classifier_off` or `setting_off`, once per session and reason. The claim lives in the pod's memory, so a restart can report the same reason once more.
+- A finding event: `review_id`, `policy_id`, `steps_after_nudge` and `turns_after_nudge`.
 
 The hook asks for captured text only for a call with the `write` effect, while the classifier is on and the `quality.enabled` setting is true. When it asks for nothing, the tool captures nothing.
 

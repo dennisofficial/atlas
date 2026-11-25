@@ -33,6 +33,7 @@ const classifierResolved = (args: {
   )
 
 export const closedFindingProperties = (args: {
+  reviewId: string
   records: readonly CodeQualityReviewedBody[]
   events: readonly RecordEvent[]
   threadId: ThreadId
@@ -48,6 +49,7 @@ export const closedFindingProperties = (args: {
       const index = notifyIndexOf({ events: thread, findingId: finding.id })
       if (index === null) continue
       properties.push({
+        review_id: args.reviewId,
         policy_id: finding.policyId,
         steps_after_nudge: stepsAfter({ events: thread, index }),
         turns_after_nudge: turnsAfter({ events: thread, index }),

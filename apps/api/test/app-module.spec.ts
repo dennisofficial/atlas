@@ -23,7 +23,6 @@ const agentEnv: AgentHostEnv = {
   port: 3400,
   publicUrl: 'https://api.byatlas.io',
   trustedOrigins: [],
-  qualityExampleUsers: [],
   jinaApiKey: undefined,
 }
 

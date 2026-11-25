@@ -29,7 +29,6 @@ export type AgentHostEnv = PodsEnv & {
   githubApp: { appId: string | undefined; appPrivateKey: string | undefined }
   port: number
   trustedOrigins: string[]
-  qualityExampleUsers: string[]
   jinaApiKey: string | undefined
 }
 
@@ -121,7 +120,6 @@ export const readAgentHostEnv = (
     port: parsePort(take(env, 'PORT')),
     publicUrl: publicUrlOf(env),
     trustedOrigins: parseList(take(env, 'TRUSTED_ORIGINS')),
-    qualityExampleUsers: parseList(take(env, 'ATLAS_QUALITY_EXAMPLE_USERS')),
     jinaApiKey: take(env, 'JINA_API_KEY'),
   }
 }

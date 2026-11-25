@@ -18,6 +18,7 @@ import {
   type RecordEvent,
 } from '@dltech/atlas-core'
 import {
+  EAnalyticsLinks,
   EMPTY_ANALYTICS,
   EMPTY_CREW,
   EMPTY_MCP_CONTROL,
@@ -108,9 +109,7 @@ export const introducing = async (args: ClassifyArgs): Promise<ClassifierOutcome
 export type RigOptions = {
   classifierOn?: boolean
   classify?: ((args: ClassifyArgs) => Promise<ClassifierOutcome>) | undefined
-  settings?:
-    | { enabled: boolean; policies: Readonly<Record<string, boolean>>; examples: boolean }
-    | undefined
+  settings?: { enabled: boolean; policies: Readonly<Record<string, boolean>> } | undefined
   budgetMs?: number | undefined
   events?: readonly Event[] | undefined
   analytics?: PodAnalytics | undefined
@@ -124,7 +123,7 @@ export const monotonicClock = (): (() => number) => {
 export function createRig(options: RigOptions = {}) {
   const logs: string[] = []
   const classifyCalls: ClassifyArgs[] = []
-  const settings = options.settings ?? { enabled: true, policies: {}, examples: false }
+  const settings = options.settings ?? { enabled: true, policies: {} }
   const scripted = options.classify ?? introducing
   const classifier: PodClassifier = {
     status: () =>
@@ -217,6 +216,7 @@ export function createRig(options: RigOptions = {}) {
 export type Captured = {
   event: string
   properties: Readonly<Record<string, PodAnalyticsValue>>
+  links?: EAnalyticsLinks | undefined
 }
 
 export const analyticsRecorder = (): { captured: Captured[]; analytics: PodAnalytics } => {
@@ -225,6 +225,12 @@ export const analyticsRecorder = (): { captured: Captured[]; analytics: PodAnaly
 }
 
 export type Rig = ReturnType<typeof createRig>
+
+export const completedOf = (captured: readonly Captured[]): Captured | undefined =>
+  captured.find((one) => one.event === 'quality review completed')
+
+export const scopesOf = (captured: readonly Captured[]): readonly Captured[] =>
+  captured.filter((one) => one.event === 'quality scope assessed')
 
 export const recordsOf = (drafts: readonly EventDraft[]): readonly CodeQualityReviewedBody[] =>
   drafts.filter((draft): draft is CodeQualityReviewedBody => draft.type === 'code-quality-reviewed')

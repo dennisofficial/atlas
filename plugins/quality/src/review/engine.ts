@@ -30,6 +30,7 @@ import {
   type ReviewItem,
 } from './review-records'
 import { normalizeWorkspacePath, type QualitySourceAdapter } from './review-scopes'
+import { factsOf, type QualityScopeFacts } from './scope-facts'
 import { deadlineFailure, recordScope, reviewScopeJob, type ScopeJob } from './scope-review'
 import { qualitySwitches } from './settings'
 
@@ -64,6 +65,7 @@ export type QualityReviewResult = QualityReviewMetrics & {
   records: readonly CodeQualityReviewedBody[]
   flagged: readonly FlaggedExample[]
   notes: readonly QualityNote[]
+  scopes: readonly QualityScopeFacts[]
 }
 
 export const NO_REVIEW_METRICS: QualityReviewMetrics = {
@@ -77,9 +79,15 @@ export const NO_REVIEW_RESULT: QualityReviewResult = {
   records: [],
   flagged: [],
   notes: [],
+  scopes: [],
 }
 
-type ScopeRun = { item: ReviewItem; classifierMs: number; inputTokens: number | null }
+type ScopeRun = {
+  item: ReviewItem
+  classifierMs: number
+  inputTokens: number | null
+  facts: QualityScopeFacts
+}
 
 const describeError = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
@@ -134,6 +142,7 @@ export class CodeQualityReview {
 
     const classifiers = await Promise.all(jobs.map((job) => this.runJob({ ctx, job })))
     for (const classifier of classifiers) items.push(classifier.item)
+    const scopes = classifiers.map((classifier) => classifier.facts)
     const metrics: QualityReviewMetrics = {
       timings: {
         scopeBuildMs,
@@ -143,21 +152,24 @@ export class CodeQualityReview {
       language: jobs[0]?.scope.language ?? null,
       inputTokens: sumTokens({ tokens: classifiers.map(({ inputTokens }) => inputTokens) }),
     }
-    return this.finish({ items, signal: args.signal, metrics })
+    return this.finish({ items, scopes, signal: args.signal, metrics })
   }
 
   private finish({
     items,
+    scopes,
     signal,
     metrics,
   }: {
     items: readonly ReviewItem[]
+    scopes: readonly QualityScopeFacts[]
     signal: AbortSignal
     metrics: QualityReviewMetrics
   }): QualityReviewResult {
     const validated = items.map((item) => validateItem({ item }))
     return {
       ...metrics,
+      scopes,
       records: validated.map(({ record }) => record),
       flagged: validated.flatMap(({ record, notifiable }) =>
         notifiable.map((entry): FlaggedExample => ({ record, entry })),
@@ -226,6 +238,7 @@ export class CodeQualityReview {
       )
       const results =
         deadline !== undefined && timedOut ? [deadlineFailure({ error: deadline })] : reviewed
+      const classifierMs = this.deps.clock() - classifierStarted
       return {
         item: recordScope({
           callId: ctx.call.callId,
@@ -235,10 +248,12 @@ export class CodeQualityReview {
           durationMs: this.deps.clock() - ctx.started,
           requestedModel: this.deps.requestedModel,
         }).item,
-        classifierMs: this.deps.clock() - classifierStarted,
+        classifierMs,
         inputTokens: sumTokens({ tokens: results.flatMap((result) => result.inputTokens) }),
+        facts: factsOf({ job, results, classifierMs }),
       }
     } catch (error) {
+      const classifierMs = this.deps.clock() - classifierStarted
       return {
         item: this.skip({
           ctx,
@@ -247,8 +262,9 @@ export class CodeQualityReview {
           reason: EQualitySkipReason.DecisionUnavailable,
           detail: describeError(error),
         }),
-        classifierMs: this.deps.clock() - classifierStarted,
+        classifierMs,
         inputTokens: null,
+        facts: factsOf({ job, results: [], classifierMs }),
       }
     }
   }
