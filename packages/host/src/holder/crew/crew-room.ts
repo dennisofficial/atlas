@@ -207,6 +207,10 @@ export class CrewRoom {
     this.disposeAll()
   }
 
+  handoffAll(): void {
+    for (const run of this.runs.values()) run.handoff()
+  }
+
   disposeAll(): void {
     for (const run of this.runs.values()) run.dispose()
   }

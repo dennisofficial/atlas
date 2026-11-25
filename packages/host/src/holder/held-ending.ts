@@ -34,6 +34,7 @@ export class HeldEnding {
       lifetimeAbort: AbortController
       turns: HeldTurns
       isDraining(): boolean
+      childrenHandoff(): void
       branches(): BranchObserver | undefined
       record(): SessionRecord | undefined
       runtime(): SessionRuntime | undefined
@@ -78,7 +79,8 @@ export class HeldEnding {
     this.args.branches()?.stop()
     this.args.record()?.fence()
     this.args.runtime()?.remoteCalls.handoff()
-    this.args.turns.abort()
+    this.args.turns.abort('handoff')
+    this.args.childrenHandoff()
     this.args.lifetimeAbort.abort()
     this.args.runtime()?.remoteCalls.close()
     this.finish(kind)

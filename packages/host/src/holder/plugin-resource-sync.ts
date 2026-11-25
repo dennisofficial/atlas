@@ -1,5 +1,5 @@
 import { latestResourceOf, loadedUnderCloudOf, type RecordEvent } from '@dltech/atlas-core'
-import { ESpan, spanWith, type TracePort } from '@dltech/atlas-observability'
+import { EResourceWait, ESpan, spanWith, type TracePort } from '@dltech/atlas-observability'
 import type { ECloudSetting, PluginPodContext, PodResource } from '@dltech/atlas-plugin-sdk'
 
 import { cloudStringOf, messageOf, versionsKnownOf, versionsOf } from './plugin-resource-probes'
@@ -63,7 +63,10 @@ export class ResourceSync {
 
   async turnStart(): Promise<void> {
     if (!this.args.resources.every((resource) => this.recordedOf(resource))) {
-      await (this.initial ?? this.refreshStart())
+      await this.waitOn({
+        waitFor: EResourceWait.InitialRefresh,
+        work: () => this.initial ?? this.refreshStart(),
+      })
       return
     }
     await this.reloadCloudChanged()
@@ -78,7 +81,10 @@ export class ResourceSync {
       const running = [...this.running.values()]
       if (this.refreshing !== undefined) running.push(this.refreshing)
       if (running.length === 0) return
-      await Promise.all(running.map((attempt) => attempt.catch(() => undefined)))
+      await this.waitOn({
+        waitFor: EResourceWait.Settle,
+        work: () => Promise.all(running.map((attempt) => attempt.catch(() => undefined))),
+      })
     }
   }
 
@@ -112,8 +118,18 @@ export class ResourceSync {
     resource: PodResource<unknown>
     versions: Versions
   }): Promise<void> {
-    await this.initial
-    await this.backgroundLoads.get(args.resource.name)
+    const initial = this.initial
+    if (initial !== undefined) {
+      await this.waitOn({ waitFor: EResourceWait.InitialRefresh, work: () => initial })
+    }
+    const loading = this.backgroundLoadOf(args.resource.name)
+    if (loading !== undefined) {
+      await this.waitOn({
+        waitFor: EResourceWait.BackgroundLoad,
+        resource: args.resource.name,
+        work: () => loading,
+      })
+    }
     if (!this.cloudChangedOf(args)) return
     await this.reload({
       resource: args.resource,
@@ -170,6 +186,21 @@ export class ResourceSync {
     return this.backgroundLoads.get(name)
   }
 
+  private waitOn<T>(args: {
+    waitFor: EResourceWait
+    resource?: string | undefined
+    work: () => Promise<T>
+  }): Promise<T> {
+    return spanWith(this.args.trace, {
+      name: ESpan.ResourceWait,
+      fields: {
+        waitFor: args.waitFor,
+        ...(args.resource === undefined ? {} : { resource: args.resource }),
+      },
+      run: args.work,
+    })
+  }
+
   private busyOf(name: string): boolean {
     return this.running.has(name) || this.backgroundLoads.has(name)
   }
@@ -220,9 +251,20 @@ export class ResourceSync {
     reason: ELoadReason
   }): Promise<void> {
     const initial = this.initial
-    if (initial !== undefined) await initial.catch(() => undefined)
+    if (initial !== undefined) {
+      await this.waitOn({
+        waitFor: EResourceWait.InitialRefresh,
+        work: () => initial.catch(() => undefined),
+      })
+    }
     const background = this.backgroundLoadOf(args.resource.name)
-    if (background !== undefined) await background.catch(() => undefined)
+    if (background !== undefined) {
+      await this.waitOn({
+        waitFor: EResourceWait.BackgroundLoad,
+        resource: args.resource.name,
+        work: () => background.catch(() => undefined),
+      })
+    }
     await reloadOne({
       ctx: this.args.ctx,
       trace: this.args.trace,
