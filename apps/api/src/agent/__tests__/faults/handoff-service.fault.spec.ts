@@ -132,18 +132,25 @@ describeHandoff({
     expect(serviceId).toBe(startedIds[0])
     if (serviceId === undefined) return
 
-    const listed = await podServices(ctx)
-    expect(listed.map((service) => service.serviceId)).toContain(serviceId)
-    expect(listed.find((service) => service.serviceId === serviceId)?.status).toBe(
-      EServiceRunStatus.Ready,
-    )
+    await waitUntil({
+      what: 'the pod to report the service it was asked for',
+      check: async () =>
+        (await podServices(ctx)).some(
+          (service) =>
+            service.serviceId === serviceId && service.status === EServiceRunStatus.Ready,
+        ),
+    })
 
     const stopped = await podCall(ctx, { op: 'services.stop', serviceId })
     expect(stopped.status).toBe(ECallStatus.Ok)
-    const after = await podServices(ctx)
-    expect(after.find((service) => service.serviceId === serviceId)?.status).toBe(
-      EServiceRunStatus.Stopped,
-    )
+    await waitUntil({
+      what: 'the pod to report the service stopped',
+      check: async () =>
+        (await podServices(ctx)).some(
+          (service) =>
+            service.serviceId === serviceId && service.status === EServiceRunStatus.Stopped,
+        ),
+    })
   },
 
   async runs(ctx) {

@@ -59,10 +59,12 @@ const declaredYaml = (args: { workspace: string; gate: string }): string =>
     `    port: ${DB_PORT}`,
     '  api:',
     '    command: |',
-    `      echo run >> ${args.workspace}/api-runs; cat ${args.gate}; exec bun -e 'Bun.serve({ port: Number(process.env.PORT), fetch: () => new Response("api") })'`,
+    `      echo run >> ${args.workspace}/api-runs; exec bun -e 'Bun.serve({ port: Number(process.env.PORT), fetch: () => new Response("api") })'`,
     `    port: ${API_PORT}`,
     '    needs:',
     '      - db',
+    '    setup:',
+    `      - cat ${args.gate}`,
     '',
   ].join('\n')
 
@@ -111,7 +113,7 @@ describeHandoff({
   },
 
   async inFlight(ctx) {
-    expect(await resultsOf(ctx)).toHaveLength(1)
+    expect(await resultsOf(ctx)).toHaveLength(0)
     expect(await dispatchesOf(ctx)).toHaveLength(1)
   },
 
