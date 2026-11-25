@@ -6,7 +6,7 @@ export enum ESkillFileKind {
 }
 
 export const SKILL_PRECEDENCE_COPY =
-  'In a session, a skill in the repository overrides a project skill, which overrides a personal skill with the same name.'
+  'In a session, a skill in the repository overrides a project skill, which overrides a group skill, which overrides a personal skill with the same name.'
 
 const TEXT_EXTENSIONS = new Set<string>(SKILL_TEXT_EXTENSIONS)
 

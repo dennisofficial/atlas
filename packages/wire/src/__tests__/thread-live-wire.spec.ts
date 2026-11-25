@@ -26,6 +26,7 @@ const project = {
   repo: 'dennisofficial/atlas',
   baseBranch: null,
   additionalRepos: [],
+  groupId: null,
   description: '',
   createdAt: '2026-10-31T00:00:00.000Z',
   updatedAt: '2026-10-31T00:00:00.000Z',

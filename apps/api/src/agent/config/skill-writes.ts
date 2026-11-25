@@ -51,11 +51,15 @@ const TEXT_EXTENSIONS: readonly string[] = [
 
 const NO_PROJECT_SKILLS = 'this session has no project, so it has no project skills'
 
+const NO_GROUP_SKILLS = "this session's project has no group, so it has no group skills"
+
 const ownerWhere = (args: {
   owner: SkillOwner
   scope: SkillScopeName
 }): Record<string, string> | null => {
   if (args.scope === 'user') return { userId: args.owner.userId }
+  if (args.scope === 'group')
+    return args.owner.groupId === null ? null : { groupId: args.owner.groupId }
   return args.owner.projectId === null ? null : { projectId: args.owner.projectId }
 }
 
@@ -238,7 +242,11 @@ const writeSkill = async (args: {
     name: request.name,
     description: request.description ?? '',
   })
-  if (skillId === null) return refusal({ reason: NO_PROJECT_SKILLS, current: null })
+  if (skillId === null)
+    return refusal({
+      reason: request.scope === 'group' ? NO_GROUP_SKILLS : NO_PROJECT_SKILLS,
+      current: null,
+    })
   const stored = await storeFile({ db: args.db, skillId, request, baseRevision })
   if (!stored.ok) return stored
 
@@ -267,7 +275,9 @@ const removeSkill = async (args: {
       reason:
         args.scope === 'project' && args.owner.projectId === null
           ? NO_PROJECT_SKILLS
-          : `no ${args.scope} skill is named ${args.name}`,
+          : args.scope === 'group' && args.owner.groupId === null
+            ? NO_GROUP_SKILLS
+            : `no ${args.scope} skill is named ${args.name}`,
       current: null,
     })
 

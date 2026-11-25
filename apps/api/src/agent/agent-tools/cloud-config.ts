@@ -54,15 +54,16 @@ type Input = z.output<typeof cloudConfigInputSchema>
 export type CloudConfigAccess = {
   personal: CloudConfigClient
   project?: ProjectCloudConfigClient | undefined
+  group?: CloudConfigClient | undefined
 }
 
 const description = [
-  'Manage Atlas Cloud configuration. scope is project (the project this session runs in) or personal (every project). A project value with the same name or path wins over a personal one. kind is setting, secret, file or grant. action is list, read, set or remove.',
+  'Manage Atlas Cloud configuration. scope is project (the project this session runs in), group (the group that project belongs to) or personal (every project). A project value with the same name or path wins over a group one, which wins over a personal one. kind is setting, secret, file or grant. action is list, read, set or remove.',
   'Every secret and file belongs to a grant. Create the grant first with kind grant and give it an instruction that says what the access is for. A new secret or file must name its grant. A secret or file set again without a grant keeps its grant.',
   'A setting is an Atlas setting key; environment variables are secrets, not settings. A secret is an environment variable exported to the agent shells, named like FOO_BAR. list shows each name with its grant. Values are write-only: read is refused, set replaces.',
   'A file is mounted at path. A project path is relative to the repository. A personal path starts with ~/ or @/. set writes contents (text up to 64 KiB) with mode, an octal string like "0600" (the default) or "644".',
   'A grant is a name, an instruction and its members. read shows one grant with its members. remove deletes the grant with its secrets and files.',
-  'Settings and secrets apply before the next turn. Files are written on the next sandbox start. Without a project, only scope personal works.',
+  'Settings and secrets apply before the next turn. Files are written on the next sandbox start. Without a project, only scope personal works; scope group needs a project that belongs to a group.',
 ].join(' ')
 
 const OCTAL_RADIX = 8
@@ -79,8 +80,8 @@ const clientOf = (args: {
   input: Input
 }): CloudConfigClient | ToolOutcome => {
   if (args.input.scope === EAccessScope.Personal) return args.access.personal
-  const project = args.access.project
-  return project === undefined ? fail('this session has no project; use scope personal') : project
+  const client = args.input.scope === EAccessScope.Group ? args.access.group : args.access.project
+  return client === undefined ? fail('this session has no project; use scope personal') : client
 }
 
 const settings = async (args: {

@@ -8,9 +8,9 @@ export type MergedMcp = {
   rejections: readonly McpRejection[]
 }
 
-// Sources arrive in increasing priority: cloud user, cloud project, repo `.atlas/mcp.json`, repo
-// `.mcp.json`. A later source outranks an earlier one of the same name, which is what makes a repo
-// file beat a cloud project row. Claude's compat file never beats a native definition of a name.
+// Sources arrive in increasing priority: cloud user, cloud group, cloud project, repo
+// `.atlas/mcp.json`, repo `.mcp.json`. A later source outranks an earlier one of the same name, which
+// is what makes a repo file beat a cloud project row. Claude's compat file never beats a native one.
 export const mergeMcpSources = (args: { sources: readonly McpSourceInput[] }): MergedMcp => {
   const nativeNames = new Set(
     args.sources

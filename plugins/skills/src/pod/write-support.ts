@@ -9,6 +9,7 @@ import { SKILL_ENTRY_PATH } from './repo-writes'
 
 export enum ESkillWriteLayer {
   User = 'user',
+  Group = 'group',
   Project = 'project',
   Repo = 'repo',
 }
@@ -66,8 +67,12 @@ export const isBuiltInSkillName = (name: string): boolean => builtInNames.has(na
 
 const NO_CLOUD = 'this session cannot write cloud skills'
 
-const scopeOf = (layer: ESkillWriteLayer): SkillScopeName | null =>
-  layer === ESkillWriteLayer.User ? 'user' : layer === ESkillWriteLayer.Project ? 'project' : null
+const scopeOf = (layer: ESkillWriteLayer): SkillScopeName | null => {
+  if (layer === ESkillWriteLayer.User) return 'user'
+  if (layer === ESkillWriteLayer.Group) return 'group'
+  if (layer === ESkillWriteLayer.Project) return 'project'
+  return null
+}
 
 const nameProblem = (name: string): string | undefined => {
   if (name === '') return 'a skill needs a name'
@@ -86,6 +91,7 @@ const pathProblem = (path: string): string | undefined =>
 const LAYER_OF_ORIGIN: Readonly<Partial<Record<ESkillOrigin, ESkillWriteLayer>>> = {
   [ESkillOrigin.Repo]: ESkillWriteLayer.Repo,
   [ESkillOrigin.CloudUser]: ESkillWriteLayer.User,
+  [ESkillOrigin.CloudGroup]: ESkillWriteLayer.Group,
   [ESkillOrigin.CloudProject]: ESkillWriteLayer.Project,
 }
 

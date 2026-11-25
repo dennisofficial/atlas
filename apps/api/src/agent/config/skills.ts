@@ -41,7 +41,12 @@ const sourceOf = (args: {
       const db = args.db()
       const [texts, index] = await Promise.all([
         skillFrontmattersOf({ db, owner }),
-        skillIndexOf({ db, userId: owner.userId, projectId: owner.projectId }),
+        skillIndexOf({
+          db,
+          userId: owner.userId,
+          projectId: owner.projectId,
+          groupId: owner.groupId,
+        }),
       ])
       entries = index
       return texts

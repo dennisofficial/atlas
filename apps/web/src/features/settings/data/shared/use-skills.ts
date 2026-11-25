@@ -23,8 +23,11 @@ export type { SkillScopeTarget }
 
 export const EMPTY_SKILL_MD = `---\nname: \ndescription: \n---\n\n`
 
-export const keyOfSkills = (target: SkillScopeTarget): string =>
-  target.projectId === undefined ? 'skills:personal' : `skills:project:${target.projectId}`
+export const keyOfSkills = (target: SkillScopeTarget): string => {
+  if (target.groupId !== undefined) return `skills:group:${target.groupId}`
+  if (target.projectId !== undefined) return `skills:project:${target.projectId}`
+  return 'skills:personal'
+}
 
 const putBase64 = async (
   target: SkillScopeTarget & { skill: string; path: string; baseRevision?: number },
@@ -44,7 +47,7 @@ export function useSkills(target: SkillScopeTarget) {
       skills: await listSkills(target),
       fetchedAt: Date.now(),
     }),
-    [target.scope, target.projectId],
+    [target.scope, target.projectId, target.groupId],
   )
   const query = useCloudQuery<SkillsSnapshot>({ key: keyOfSkills(target), load })
   const { reload } = query
@@ -54,7 +57,7 @@ export function useSkills(target: SkillScopeTarget) {
       await putBase64({ ...target, skill: name, path: 'SKILL.md' }, toBase64Utf8(EMPTY_SKILL_MD))
       reload()
     },
-    [reload, target.scope, target.projectId],
+    [reload, target.scope, target.projectId, target.groupId],
   )
 
   const deleteSkills = useCallback(
@@ -62,7 +65,7 @@ export function useSkills(target: SkillScopeTarget) {
       for (const name of names) await removeSkill({ ...target, skill: name })
       reload()
     },
-    [reload, target.scope, target.projectId],
+    [reload, target.scope, target.projectId, target.groupId],
   )
 
   return { query, createSkill, deleteSkills }
@@ -71,7 +74,7 @@ export function useSkills(target: SkillScopeTarget) {
 export function useSkillFiles(target: SkillScopeTarget & { skill: string }) {
   const load = useCallback(
     () => listSkillFiles(target),
-    [target.scope, target.projectId, target.skill],
+    [target.scope, target.projectId, target.groupId, target.skill],
   )
   const query = useCloudQuery<SkillFileMeta[]>({
     key: `${keyOfSkills(target)}:${target.skill}`,
@@ -84,7 +87,7 @@ export function useSkillFiles(target: SkillScopeTarget & { skill: string }) {
       const file = await getSkillFile({ ...target, path })
       return { content: fromBase64Utf8(file.content), revision: file.revision }
     },
-    [target.scope, target.projectId, target.skill],
+    [target.scope, target.projectId, target.groupId, target.skill],
   )
 
   const deletePath = useCallback(
@@ -96,7 +99,7 @@ export function useSkillFiles(target: SkillScopeTarget & { skill: string }) {
       }
       reload()
     },
-    [reload, target.scope, target.projectId, target.skill],
+    [reload, target.scope, target.projectId, target.groupId, target.skill],
   )
 
   const addTextFile = useCallback(
@@ -104,7 +107,7 @@ export function useSkillFiles(target: SkillScopeTarget & { skill: string }) {
       await putBase64({ ...target, path }, toBase64Utf8(''))
       reload()
     },
-    [reload, target.scope, target.projectId, target.skill],
+    [reload, target.scope, target.projectId, target.groupId, target.skill],
   )
 
   const uploadFile = useCallback(
@@ -112,7 +115,7 @@ export function useSkillFiles(target: SkillScopeTarget & { skill: string }) {
       await putBase64({ ...target, path }, await fileToBase64(file))
       reload()
     },
-    [reload, target.scope, target.projectId, target.skill],
+    [reload, target.scope, target.projectId, target.groupId, target.skill],
   )
 
   const renamePath = useCallback(
@@ -132,7 +135,7 @@ export function useSkillFiles(target: SkillScopeTarget & { skill: string }) {
       }
       reload()
     },
-    [reload, target.scope, target.projectId, target.skill],
+    [reload, target.scope, target.projectId, target.groupId, target.skill],
   )
 
   return { query, readTextFile, deletePath, addTextFile, uploadFile, renamePath }

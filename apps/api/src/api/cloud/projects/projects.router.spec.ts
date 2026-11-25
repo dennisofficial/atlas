@@ -123,6 +123,23 @@ describe('projects router', () => {
     }).expect(400)
   })
 
+  it('names the project group on get and list and leaves it null until the project joins one', async () => {
+    const id = await createProjectAs({ app, token: 'session-a', body: BODY })
+    const read = (path: string, input?: object) =>
+      trpcQuery({ app, path, token: 'session-a', input })
+
+    const before = await read('projects.get', { projectId: id }).expect(200)
+    expect(dataOf(before.body)).toMatchObject({ groupId: null })
+
+    const group = await db.orm.public.ProjectGroup.create({ userId: 'user-a', name: 'Comp AI' })
+    await db.orm.public.Project.where({ id }).update({ groupId: group.id })
+
+    const after = await read('projects.get', { projectId: id }).expect(200)
+    expect(dataOf(after.body)).toMatchObject({ groupId: group.id })
+    const listed = await read('projects.list').expect(200)
+    expect(dataOf(listed.body)).toMatchObject([{ groupId: group.id }])
+  })
+
   it('rejects an unknown body property with 400', async () => {
     await create('session-a', { ...BODY, owner: 'user-b' }).expect(400)
     await trpcMutation({

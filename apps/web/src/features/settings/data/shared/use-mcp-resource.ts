@@ -1,12 +1,20 @@
 'use client'
 
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 
-import type { McpServerWire, McpUpsertWire } from '@dltech/atlas-wire/web'
+import {
+  EMcpServerScope,
+  type McpServerScope,
+  type McpServerWire,
+  type McpUpsertWire,
+} from '@dltech/atlas-wire/web'
 
+import { api, cloudCall } from '@/lib/api-client'
 import { useCloudQuery, type CloudQuery } from '@/lib/use-cloud-query'
 
-import { deleteMcpServer, listMcpServers, putMcpServer } from './resource-api'
+export type McpResourceScope =
+  | { readonly kind: 'project'; readonly projectId: string }
+  | { readonly kind: 'group'; readonly groupId: string }
 
 export type McpResource = {
   query: CloudQuery<McpServerWire[]>
@@ -14,23 +22,40 @@ export type McpResource = {
   remove: (name: string) => Promise<void>
 }
 
-export function useMcpResource(projectId: string): McpResource {
-  const load = useCallback(() => listMcpServers(projectId), [projectId])
-  const query = useCloudQuery({ key: `mcp:${projectId}`, load })
+export const mcpScopeInputOf = (scope: McpResourceScope): McpServerScope =>
+  scope.kind === 'project'
+    ? { scope: EMcpServerScope.Project, projectId: scope.projectId }
+    : { scope: EMcpServerScope.Group, groupId: scope.groupId }
+
+const scopeIdOf = (scope: McpResourceScope): string =>
+  scope.kind === 'project' ? scope.projectId : scope.groupId
+
+const mcpResourceKeyOf = (scope: McpResourceScope): string =>
+  `mcp:${scope.kind}:${scopeIdOf(scope)}`
+
+export function useMcpResource(scope: McpResourceScope): McpResource {
+  const kind = scope.kind
+  const id = scopeIdOf(scope)
+  const input = useMemo(() => mcpScopeInputOf(scope), [kind, id])
+  const load = useCallback(
+    async () => (await cloudCall(api.mcpServers.list.query(input))).servers,
+    [input],
+  )
+  const query = useCloudQuery({ key: mcpResourceKeyOf(scope), load })
   const { reload } = query
   const put = useCallback(
     async (args: { name: string; spec: McpUpsertWire }) => {
-      await putMcpServer({ projectId, ...args })
+      await cloudCall(api.mcpServers.put.mutate({ ...input, name: args.name, ...args.spec }))
       reload()
     },
-    [projectId, reload],
+    [input, reload],
   )
   const remove = useCallback(
     async (name: string) => {
-      await deleteMcpServer({ projectId, name })
+      await cloudCall(api.mcpServers.remove.mutate({ ...input, name }))
       reload()
     },
-    [projectId, reload],
+    [input, reload],
   )
   return { query, put, remove }
 }

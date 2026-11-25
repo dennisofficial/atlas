@@ -17,6 +17,7 @@ const SETTINGS =
 
 enum EGrantScope {
   Project = 'project',
+  Group = 'group',
   User = 'user',
 }
 
@@ -37,26 +38,24 @@ const grantKeyOf = (grant: { scope: EGrantScope; id: string }): string =>
 
 const grantsOf = (rows: AccessRows): readonly Grant[] => {
   const project = rows.projectGrants.map((grant) => ({ ...grant, scope: EGrantScope.Project }))
+  const group = rows.groupGrants.map((grant) => ({ ...grant, scope: EGrantScope.Group }))
   const user = rows.userGrants.map((grant) => ({ ...grant, scope: EGrantScope.User }))
-  return [...project.sort(byName), ...user.sort(byName)]
+  return [...project.sort(byName), ...group.sort(byName), ...user.sort(byName)]
 }
 
 const effectiveSecretsOf = (rows: AccessRows): readonly EffectiveSecret[] => {
   const secretByName = new Map<string, EffectiveSecret>()
-  for (const secret of rows.userSecrets) {
-    if (isExportedSecretName(secret.name)) {
+  const layers = [
+    { scope: EGrantScope.User, secrets: rows.userSecrets },
+    { scope: EGrantScope.Group, secrets: rows.groupSecrets },
+    { scope: EGrantScope.Project, secrets: rows.projectSecrets },
+  ]
+  for (const layer of layers) {
+    for (const secret of layer.secrets) {
+      if (!isExportedSecretName(secret.name)) continue
       secretByName.set(secret.name, {
         name: secret.name,
-        scope: EGrantScope.User,
-        grantId: secret.grantId,
-      })
-    }
-  }
-  for (const secret of rows.projectSecrets) {
-    if (isExportedSecretName(secret.name)) {
-      secretByName.set(secret.name, {
-        name: secret.name,
-        scope: EGrantScope.Project,
+        scope: layer.scope,
         grantId: secret.grantId,
       })
     }
@@ -65,16 +64,18 @@ const effectiveSecretsOf = (rows: AccessRows): readonly EffectiveSecret[] => {
 }
 
 const effectiveFilesOf = (rows: AccessRows): readonly EffectiveFile[] => {
-  const project = rows.projectFiles.map((file) => ({
-    path: file.path,
-    scope: EGrantScope.Project,
-    grantId: file.grantId,
-  }))
-  const hidden = new Set(project.map((file) => file.path))
-  const user = rows.userFiles
-    .filter((file) => !hidden.has(file.path))
-    .map((file) => ({ path: file.path, scope: EGrantScope.User, grantId: file.grantId }))
-  return [...project, ...user].sort(byPath)
+  const fileByPath = new Map<string, EffectiveFile>()
+  const layers = [
+    { scope: EGrantScope.User, files: rows.userFiles },
+    { scope: EGrantScope.Group, files: rows.groupFiles },
+    { scope: EGrantScope.Project, files: rows.projectFiles },
+  ]
+  for (const layer of layers) {
+    for (const file of layer.files) {
+      fileByPath.set(file.path, { path: file.path, scope: layer.scope, grantId: file.grantId })
+    }
+  }
+  return [...fileByPath.values()].sort(byPath)
 }
 
 type Members = {
@@ -122,6 +123,16 @@ const grantSectionOf = (args: {
   ].join('\n')
 }
 
+const withGroupHeading = (args: {
+  rows: AccessRows
+  sections: readonly string[]
+}): readonly string[] => {
+  if (args.rows.group === null || args.rows.groupGrants.length === 0) return args.sections
+  const heading = `${args.rows.group.name} group`
+  const split = args.rows.projectGrants.length
+  return [...args.sections.slice(0, split), heading, ...args.sections.slice(split)]
+}
+
 export const accessNoticeOf = (rows: AccessRows): string => {
   const grants = grantsOf(rows)
   const secrets = effectiveSecretsOf(rows)
@@ -137,5 +148,10 @@ export const accessNoticeOf = (rows: AccessRows): string => {
   })
   if (sections.length === 0) return NO_ACCESS
 
-  return [INTRO, ...sections, ...(secrets.length === 0 ? [] : [SECRET_USE]), SETTINGS].join('\n\n')
+  return [
+    INTRO,
+    ...withGroupHeading({ rows, sections }),
+    ...(secrets.length === 0 ? [] : [SECRET_USE]),
+    SETTINGS,
+  ].join('\n\n')
 }

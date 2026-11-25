@@ -1,4 +1,4 @@
-export type SkillScopeName = 'user' | 'project'
+export type SkillScopeName = 'user' | 'group' | 'project'
 
 export type CloudSkillEntry = { name: string; description: string; scope: SkillScopeName }
 

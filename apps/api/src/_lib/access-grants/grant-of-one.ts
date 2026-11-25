@@ -50,6 +50,23 @@ export const createProjectGrant = async (args: {
   return row.id
 }
 
+export const createGroupGrant = async (args: {
+  tx: Tx
+  groupId: string
+  label: string
+}): Promise<string> => {
+  const rows = await args.tx.orm.public.GroupAccessGrant.where({ groupId: args.groupId })
+    .select('name')
+    .all()
+  const name = grantNameOf({ taken: rows.map((row) => row.name), label: args.label })
+  const row = await args.tx.orm.public.GroupAccessGrant.upsert({
+    conflictOn: { groupId: args.groupId, name },
+    create: { id: `gag_${randomUUID()}`, groupId: args.groupId, name, instruction: '' },
+    update: { name },
+  })
+  return row.id
+}
+
 export const cleanupPersonalGrant = async (args: {
   tx: Tx
   userId: string
@@ -86,6 +103,23 @@ export const cleanupProjectGrant = async (args: {
   await args.tx.orm.public.ProjectAccessGrant.where({
     id: args.grantId,
     projectId: args.projectId,
+    instruction: '',
+  }).deleteAndCount()
+}
+
+export const cleanupGroupGrant = async (args: {
+  tx: Tx
+  groupId: string
+  grantId: string
+}): Promise<void> => {
+  const [secrets, mounts] = await Promise.all([
+    args.tx.orm.public.GroupSecret.where({ groupId: args.groupId, grantId: args.grantId }).all(),
+    args.tx.orm.public.GroupFileMount.where({ groupId: args.groupId, grantId: args.grantId }).all(),
+  ])
+  if (secrets.length + mounts.length > 0) return
+  await args.tx.orm.public.GroupAccessGrant.where({
+    id: args.grantId,
+    groupId: args.groupId,
     instruction: '',
   }).deleteAndCount()
 }

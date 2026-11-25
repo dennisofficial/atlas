@@ -2,10 +2,10 @@ import { describe, expect, it } from 'bun:test'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 
 import { skillFrontmattersOf, skillTextOf } from '../skill-body'
-import { seedOwner, seedSkill } from './config-reader.fixture'
+import { seedGroup, seedOwner, seedSkill } from './config-reader.fixture'
 
 const testDb = useTestDatabase()
-const OWNER = { userId: 'user-1', projectId: 'proj-1' }
+const OWNER = { userId: 'user-1', projectId: 'proj-1', groupId: null }
 
 const seedFile = async (args: {
   db: ReturnType<typeof testDb>['db']
@@ -39,6 +39,21 @@ describe('skillTextOf', () => {
       text: 'body',
       revision: 1,
     })
+  })
+
+  it('reads a group skill by group scope and lists it beside the user and project rows', async () => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await seedGroup(db)
+    await seedSkill({ db, name: 'gamma', scope: 'group' })
+
+    const owner = { userId: 'user-1', projectId: 'proj-1', groupId: 'grp-1' }
+    expect(await skillTextOf({ db, owner, scope: 'group', name: 'gamma' })).toMatchObject({
+      text: 'body',
+      revision: 1,
+    })
+    const texts = await skillFrontmattersOf({ db, owner })
+    expect(texts.map((text) => [text.scope, text.name])).toEqual([['group', 'gamma']])
   })
 
   it('reads one bundled file by path and matches the entry name case-insensitively', async () => {

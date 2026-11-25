@@ -27,6 +27,7 @@ export function projectOf(id: string): Project {
     repo: null,
     baseBranch: null,
     additionalRepos: [],
+    groupId: null,
     description: '',
     shipBehavior: 'open-pull-request' as Project['shipBehavior'],
     createdAt: agoIso(1000),

@@ -36,6 +36,7 @@ import { SessionStreamModule } from './cloud/stream/session-stream.module'
 import { TerminalStreamModule } from './cloud/stream/terminal-stream.module'
 import { ProviderSignInModule } from './platform/provider-sign-in/provider-sign-in.module'
 import { DesktopAuthModule } from './platform/desktop-auth/desktop-auth.module'
+import { ProjectGroupsModule } from './cloud/project-groups/project-groups.module'
 import { ProjectsModule } from './cloud/projects/projects.module'
 import { AccessGrantsModule } from './cloud/access-grants/access-grants.module'
 import { ComposerUploadsModule } from './cloud/composer-uploads/composer-uploads.module'
@@ -86,6 +87,7 @@ import { SessionTitlerModule } from './cloud/thread-titling/session-titler.modul
     HarnessSecretsModule,
     SettingsModule,
     ProjectsModule,
+    ProjectGroupsModule,
     UserFilesModule,
     UserFileMountsModule,
     SkillCatalogueModule,

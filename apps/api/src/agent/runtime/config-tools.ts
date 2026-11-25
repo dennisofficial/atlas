@@ -14,8 +14,9 @@ export const configToolsOf = (args: {
   if (args.projectId === null) return [new CloudConfigTool({ personal })]
   const projectId = args.projectId
   const project = args.store.forProject(projectId)
+  const group = args.store.forGroupOfProject(projectId)
   return [
-    new CloudConfigTool({ personal, project }),
+    new CloudConfigTool({ personal, project, group }),
     new McpEditTool({ client: project, projectId }),
   ]
 }

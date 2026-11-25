@@ -6,6 +6,7 @@ import {
   skillListReplySchema,
   skillListRequestSchema,
   skillFileContentSchema,
+  skillLayersSchema,
   skillPutRequestSchema,
   skillRemovedReplySchema,
   skillRemoveRequestSchema,
@@ -31,6 +32,14 @@ export class SkillsRouter {
   async list(@Input() input: SkillScopeArgs, @Ctx() ctx: SessionTrpcCtx) {
     const skills = await this.skills.list({ userId: ctx.auth.userId, ...input })
     return { skills }
+  }
+
+  @Query({
+    input: skillListRequestSchema,
+    output: skillLayersSchema,
+  })
+  layered(@Input() input: SkillScopeArgs, @Ctx() ctx: SessionTrpcCtx) {
+    return this.skills.layered({ userId: ctx.auth.userId, ...input })
   }
 
   @Query({
@@ -81,4 +90,8 @@ export class SkillsRouter {
   }
 }
 
-type SkillScopeArgs = { scope: ESkillScope; projectId?: string | undefined }
+type SkillScopeArgs = {
+  scope: ESkillScope
+  projectId?: string | undefined
+  groupId?: string | undefined
+}

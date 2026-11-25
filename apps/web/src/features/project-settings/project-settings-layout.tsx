@@ -16,6 +16,7 @@ import {
 } from '@dltech/atlas-ui/components/empty'
 
 import { LoadFailed, LoadingRegion } from '@/features/settings/data/shared/query-gate'
+import { SettingsScopeProvider } from '@/features/settings/scope/settings-scope'
 import { EQueryState } from '@/lib/use-cloud-query'
 
 import { ProjectProvider } from './data/project-context'
@@ -65,9 +66,16 @@ export function ProjectSettingsLayout({
         active={section}
         title={identityOf(query.data).slug}
       >
-        <ProjectProvider projectId={projectId} project={query.data} save={save}>
-          {children}
-        </ProjectProvider>
+        <SettingsScopeProvider scope={{ kind: 'project', projectId }}>
+          <ProjectProvider
+            projectId={projectId}
+            project={query.data}
+            save={save}
+            reload={query.reload}
+          >
+            {children}
+          </ProjectProvider>
+        </SettingsScopeProvider>
       </ProjectSettingsShell>
     )
   }

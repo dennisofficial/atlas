@@ -20,6 +20,7 @@ import {
   saveBodyOf,
   type OverviewDraft,
 } from './data/project-mapping'
+import { GroupPicker } from './group-picker'
 import { DangerZone } from './overview-danger-zone'
 import { AdditionalRepositories, RepositoryControls } from './overview-repositories'
 import {
@@ -32,7 +33,7 @@ import {
 import { ShipRow } from './ship-row'
 
 export function OverviewPage() {
-  const { project, identity, save } = useProjectContext()
+  const { project, identity, save, reload } = useProjectContext()
   const saved = overviewDraftOf(project)
   const [draft, setDraft] = useState<OverviewDraft>(saved)
   const [saving, setSaving] = useState(false)
@@ -121,6 +122,12 @@ export function OverviewPage() {
             description="Threads clone this repository into their sandbox."
           >
             <RepositoryControls identity={identity} />
+          </SettingsRow>
+          <SettingsRow
+            title="Group"
+            description="Projects in a group inherit its secrets, files, settings, skills and MCP servers."
+          >
+            <GroupPicker projectId={project.id} groupId={project.groupId} onAssigned={reload} />
           </SettingsRow>
           <SettingsRow
             title="Base branch"

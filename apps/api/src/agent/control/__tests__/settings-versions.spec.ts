@@ -17,17 +17,23 @@ const PROJECT = 'proj-1'
 const versionOf = (args: { count: number; touchedAt: Date | null }): string =>
   `${args.count}:${args.touchedAt?.getTime() ?? 0}`
 
-const seedSkill = async (args: { db: Db; name: string; owner: 'user' | 'project' }) =>
+const OWNER_WHERE = {
+  user: { userId: USER },
+  group: { groupId: 'grp-1' },
+  project: { projectId: PROJECT },
+} as const
+
+const seedSkill = async (args: { db: Db; name: string; owner: 'user' | 'group' | 'project' }) =>
   await args.db.orm.public.Skill.create({
     name: args.name,
     description: `${args.name} description`,
-    ...(args.owner === 'user' ? { userId: USER } : { projectId: PROJECT }),
+    ...OWNER_WHERE[args.owner],
   })
 
 const seedMcp = async (args: {
   db: Db
   name: string
-  owner?: 'user' | 'project'
+  owner?: 'user' | 'group' | 'project'
   source?: 'cloud' | 'repo'
   oauthUpdatedAt?: Date
 }) =>
@@ -38,7 +44,7 @@ const seedMcp = async (args: {
     ...(args.source === 'repo'
       ? { repoUrl: 'https://mcp.example.com/mcp', lastSeenAt: new Date() }
       : { sealedSpec: 'sealed' }),
-    ...(args.owner === 'project' ? { projectId: PROJECT } : { userId: USER }),
+    ...OWNER_WHERE[args.owner ?? 'user'],
     ...(args.oauthUpdatedAt === undefined
       ? {}
       : {
@@ -81,6 +87,23 @@ describe('settingsVersionsOf', () => {
         ),
       }),
       [ECloudSetting.PersonalInstructions]: versionOf({ count: 1, touchedAt: file.updatedAt }),
+    })
+  })
+
+  it('counts the group rows of the thread owner project', async () => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await db.orm.public.ProjectGroup.create({ id: 'grp-1', userId: USER, name: 'Comp AI' })
+    await db.orm.public.Project.where({ id: PROJECT }).update({ groupId: 'grp-1' })
+    const skill = await seedSkill({ db, name: 'one', owner: 'group' })
+    const server = await seedMcp({ db, name: 'docs', owner: 'group' })
+
+    const versions = await versionsOf(db)
+
+    expect(versions).toEqual({
+      [ECloudSetting.McpServers]: versionOf({ count: 1, touchedAt: server.updatedAt }),
+      [ECloudSetting.Skills]: versionOf({ count: 1, touchedAt: skill.updatedAt }),
+      [ECloudSetting.PersonalInstructions]: versionOf({ count: 0, touchedAt: null }),
     })
   })
 

@@ -11,7 +11,7 @@ import {
   type SkillsChanged,
 } from '../core'
 import { BUILT_IN_SKILLS } from './builtin.generated'
-import type { CloudSkillSource, CloudSkillText } from './port'
+import type { CloudSkillSource, CloudSkillText, SkillScopeName } from './port'
 import { discoverRepoSkills } from './repo-source'
 import type {
   BuiltInCatalogueSkill,
@@ -97,7 +97,7 @@ const cloudSkills = async (cloud: CloudSkillSource): Promise<readonly CloudCatal
       userInvocable: parsed?.userInvocable ?? true,
       modelInvocable: parsed?.modelInvocable ?? true,
       argumentHint: parsed?.argumentHint,
-      origin: entry.scope === 'project' ? ESkillOrigin.CloudProject : ESkillOrigin.CloudUser,
+      origin: CLOUD_ORIGIN[entry.scope],
       directory: null,
       scope: entry.scope,
       warnings:
@@ -118,7 +118,15 @@ export const skillsChangedOf = (catalogue: SkillCatalogue): SkillsChanged => ({
     })),
 })
 
-export const SKILL_SCOPE = ['user', 'project'] as const
+export const SKILL_SCOPE = ['user', 'group', 'project'] as const
+
+type CloudOrigin = ESkillOrigin.CloudUser | ESkillOrigin.CloudGroup | ESkillOrigin.CloudProject
+
+const CLOUD_ORIGIN: Readonly<Record<SkillScopeName, CloudOrigin>> = {
+  user: ESkillOrigin.CloudUser,
+  group: ESkillOrigin.CloudGroup,
+  project: ESkillOrigin.CloudProject,
+}
 
 const warningSchema = z.object({ code: z.enum(ESkillWarning), detail: z.string() })
 
@@ -142,6 +150,12 @@ const snapshottedSkillSchema = z.discriminatedUnion('origin', [
   z.object({
     ...skillFields,
     origin: z.literal(ESkillOrigin.CloudUser),
+    directory: z.null(),
+    scope: z.enum(SKILL_SCOPE),
+  }),
+  z.object({
+    ...skillFields,
+    origin: z.literal(ESkillOrigin.CloudGroup),
     directory: z.null(),
     scope: z.enum(SKILL_SCOPE),
   }),

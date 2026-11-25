@@ -33,6 +33,11 @@ export const PERSONAL_PAGE_STATUS = {
     status: EPageStatus.Live,
     detail: 'Delivered to every cloud thread at the start of its next turn.',
   },
+  [ESettingsPage.Groups]: {
+    status: EPageStatus.Live,
+    detail:
+      'A group shares its secrets, files, settings, skills and MCP servers with every project in it.',
+  },
   [ESettingsPage.Appearance]: {
     status: EPageStatus.Stored,
     detail:

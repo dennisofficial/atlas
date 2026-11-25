@@ -1,11 +1,15 @@
 import {
   accessGrantKeySchema,
+  accessGrantLayeredInputSchema,
+  accessGrantLayeredListSchema,
   accessGrantListInputSchema,
   accessGrantListSchema,
   accessGrantMoveSchema,
   accessGrantSaveSchema,
   accessGrantSavedSchema,
   type AccessGrantKey,
+  type AccessGrantLayeredInput,
+  type AccessGrantLayeredList,
   type AccessGrantList,
   type AccessGrantListInput,
   type AccessGrantMove,
@@ -28,6 +32,15 @@ export class AccessGrantsRouter {
     @Ctx() ctx: SessionTrpcCtx,
   ): Promise<AccessGrantList> {
     return { grants: await this.grants.list({ userId: ctx.auth.userId, scope: input.scope }) }
+  }
+
+  @Query({ input: accessGrantLayeredInputSchema, output: accessGrantLayeredListSchema })
+  @UseMiddlewares(SessionMiddleware)
+  async layered(
+    @Input() input: AccessGrantLayeredInput,
+    @Ctx() ctx: SessionTrpcCtx,
+  ): Promise<AccessGrantLayeredList> {
+    return this.grants.layers({ userId: ctx.auth.userId, scope: input.scope })
   }
 
   @Mutation({ input: accessGrantSaveSchema, output: accessGrantSavedSchema })

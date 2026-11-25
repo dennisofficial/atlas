@@ -42,7 +42,11 @@ describe('envSecretsRefresher', () => {
       cell,
       source: sourceOf(async (lookup) => {
         seen.push(lookup)
-        return exportEnvSecretsOf({ user: [], project: [{ name: 'API_KEY', value: 'k' }] })
+        return exportEnvSecretsOf({
+          user: [],
+          group: [],
+          project: [{ name: 'API_KEY', value: 'k' }],
+        })
       }),
     })
 
@@ -54,7 +58,9 @@ describe('envSecretsRefresher', () => {
 
   it('keeps the previous set and logs without a value when the read fails', async () => {
     const cell = cellOf()
-    cell.setSecrets(exportEnvSecretsOf({ user: [{ name: 'API_KEY', value: 'old' }], project: [] }))
+    cell.setSecrets(
+      exportEnvSecretsOf({ user: [{ name: 'API_KEY', value: 'old' }], group: [], project: [] }),
+    )
     const log = new RecordingLog()
     const refresher = refresherOf({
       cell,

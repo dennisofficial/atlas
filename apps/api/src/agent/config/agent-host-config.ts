@@ -33,7 +33,7 @@ export type VercelConfig =
   | { configured: true; token: string; teamId: string; projectId: string }
   | { configured: false; gap: string }
 
-export type SkillScope = 'user' | 'project'
+export type SkillScope = 'user' | 'group' | 'project'
 
 export type { SandboxConfig } from '@dltech/atlas-pods/config/sandbox-config'
 

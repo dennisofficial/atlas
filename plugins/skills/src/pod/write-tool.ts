@@ -14,7 +14,7 @@ import { ESkillAction, requiredRefusal, skillManageSchema } from './write-suppor
 const description = [
   'Manage one installed skill: install it, replace one of its files, or delete it.',
   'action install writes a whole SKILL.md, frontmatter and all. action edit replaces one file. action delete removes the skill from one layer.',
-  'layer is user, project or repo. user covers every project of the operator. project covers this repository. repo writes <repo>/.agents/skills/<name>/SKILL.md in the clone this session works in.',
+  "layer is user, group, project or repo. user covers every project of the operator. group covers the projects of this project's group. project covers this project. repo writes <repo>/.agents/skills/<name>/SKILL.md in the clone this session works in.",
   'name is the folder the skill lives in, lowercase. body is the whole text of the file. Write the frontmatter as strict YAML and double-quote any value that contains ": ".',
   'action edit writes SKILL.md, or the file named by path inside the skill directory. A cloud edit needs baseRevision, the revision the body it replaces was at. The skill tool reports that revision when it loads the skill. A stale revision is refused with the current revision and hash, so the edit is not lost; read the skill again and retry. layer repo needs no revision.',
   'install refuses a cloud skill that already exists rather than overwriting it.',

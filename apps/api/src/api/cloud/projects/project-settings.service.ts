@@ -1,7 +1,10 @@
 import { randomUUID } from 'node:crypto'
+import { EConfigLayer, type LayeredSettings } from '@dltech/atlas-wire'
 import { isProjectSettingKey, validateProjectSetting } from '@dltech/atlas-wire/web'
 import { BadRequestException, Injectable } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
+import { PERSONAL_LAYER_OWNER } from '../../../_lib/config-layers/layer-owner'
+import { layeredSettingsOf } from '../../../_lib/config-layers/layered-settings'
 import type { SettingDto } from '../settings/settings.types'
 import { ProjectsService } from './projects.service'
 
@@ -40,6 +43,44 @@ export class ProjectSettingsService {
       value: row.value,
       updatedAt: row.updatedAt.toISOString(),
     }))
+  }
+
+  async layered(args: Scope): Promise<LayeredSettings> {
+    const project = await this.projects.editable(args)
+    const [user, group, settings] = await Promise.all([
+      db.orm.public.UserSetting.where({ userId: args.userId })
+        .orderBy((row) => row.key.asc())
+        .all(),
+      project.groupId === null
+        ? null
+        : db.orm.public.ProjectGroup.where({ id: project.groupId, userId: args.userId }).first(),
+      db.orm.public.ProjectSetting.where({ projectId: project.id })
+        .orderBy((row) => row.key.asc())
+        .all(),
+    ])
+    const groupSettings =
+      group === null
+        ? []
+        : await db.orm.public.GroupSetting.where({ groupId: group.id })
+            .orderBy((row) => row.key.asc())
+            .all()
+    return layeredSettingsOf([
+      { layer: EConfigLayer.Personal, owner: PERSONAL_LAYER_OWNER, values: user },
+      ...(group === null
+        ? []
+        : [
+            {
+              layer: EConfigLayer.Group,
+              owner: { id: group.id, name: group.name },
+              values: groupSettings,
+            },
+          ]),
+      {
+        layer: EConfigLayer.Project,
+        owner: { id: project.id, name: project.name },
+        values: settings,
+      },
+    ])
   }
 
   async patch(args: Scope & { values: Record<string, string | null> }): Promise<void> {

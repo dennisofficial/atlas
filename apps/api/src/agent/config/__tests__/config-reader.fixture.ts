@@ -70,14 +70,24 @@ export const seedSetting = async (args: {
   })
 }
 
+export const seedGroup = async (db: Db): Promise<void> => {
+  await db.orm.public.ProjectGroup.create({ id: 'grp-1', userId: 'user-1', name: 'Comp AI' })
+  await db.orm.public.Project.where({ id: 'proj-1' }).update({ groupId: 'grp-1' })
+}
+
 export const seedSkill = async (args: {
   db: Db
   name: string
-  scope: 'user' | 'project'
+  scope: 'user' | 'group' | 'project'
   description?: string
   entryPath?: string
 }): Promise<void> => {
-  const owner = args.scope === 'user' ? { userId: 'user-1' } : { projectId: 'proj-1' }
+  const owner =
+    args.scope === 'user'
+      ? { userId: 'user-1' }
+      : args.scope === 'group'
+        ? { groupId: 'grp-1' }
+        : { projectId: 'proj-1' }
   const skill = await args.db.orm.public.Skill.create({
     name: args.name,
     description: args.description ?? `${args.name} description`,

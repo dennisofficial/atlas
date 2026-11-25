@@ -1,0 +1,18 @@
+// use prisma-8
+model ProjectGroup {
+  id           String               @id @onCreate(cuid(2))
+  userId       String
+  name         String
+  createdAt    TimestamptzJsDate(3) @default(now())
+  updatedAt    TimestamptzJsDate(3) @onCreate(now()) @onUpdate(now())
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "ProjectGroup_userId_name_key")
+  projects     Project[]
+  accessGrants GroupAccessGrant[]
+  secrets      GroupSecret[]
+  fileMounts   GroupFileMount[]
+  settings     GroupSetting[]
+  skills       Skill[]
+  mcpServers   McpServer[]
+
+  @@unique([userId, name], map: "ProjectGroup_userId_name_key")
+}

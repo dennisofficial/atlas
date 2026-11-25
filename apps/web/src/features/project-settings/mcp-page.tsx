@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { ArrowUpRightIcon, EllipsisIcon, GlobeIcon, PlugIcon, TerminalIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
+import { EConfigLayer, EMcpTransportKind } from '@dltech/atlas-wire/web'
 import { Badge } from '@dltech/atlas-ui/components/badge'
 import { Button } from '@dltech/atlas-ui/components/button'
 import { CardRow } from '@dltech/atlas-ui/components/card'
@@ -23,21 +24,30 @@ import {
 import { Switch } from '@dltech/atlas-ui/components/switch'
 import { cn } from '@dltech/atlas-ui/lib/utils'
 
-import { EMcpTransportKind, type McpOauthServer } from '@dltech/atlas-wire/web'
-
-import type { McpRow } from '@/features/settings/data/shared/mcp-mapping'
 import { QueryGate } from '@/features/settings/data/shared/query-gate'
 import { lastUsedOf } from '@/features/settings/data/shared/mcp-oauth'
-import { McpPageSkeleton } from './project-skeletons'
+import { rowOfServer, type McpRow } from '@/features/settings/data/shared/mcp-mapping'
 import { runAction } from '@/features/settings/data/shared/run-action'
-
+import { useMcpLayers } from '@/features/settings/data/shared/use-layers'
+import { useMcpOauth, type McpOauth } from '@/features/settings/data/shared/use-mcp-oauth'
+import type { McpOauthServer } from '@dltech/atlas-wire/web'
+import {
+  InheritedLayers,
+  InheritedRow,
+  OverriddenBadge,
+} from '@/features/settings/parts/layers/inherited-layer-section'
 import { McpOauthControl, McpSignOutItem } from '@/features/settings/parts/mcp-oauth-control'
 import { McpOauthReturn } from '@/features/settings/parts/mcp-oauth-return'
-import { useMcpOauth, type McpOauth } from '@/features/settings/data/shared/use-mcp-oauth'
+import {
+  sectionHrefOf,
+  useSettingsScope,
+  type SettingsScope,
+} from '@/features/settings/scope/settings-scope'
+import { EQueryState } from '@/lib/use-cloud-query'
 
-import { useProjectContext } from './data/project-context'
-import { useProjectMcp } from './data/use-project-mcp'
+import { useScopedMcp, type ScopedMcp } from './data/use-scoped-mcp'
 import { AddMcpServerDialog, type McpServerDraft } from './mcp-add-dialog'
+import { McpPageSkeleton } from './project-skeletons'
 import { SettingsCard, SettingsSection } from './settings-layout'
 
 function ServerRow({
@@ -49,9 +59,10 @@ function ServerRow({
   server: McpRow
   onToggle: (enabled: boolean) => void
   onRemove: () => void
-  auth: McpOauth
+  auth: McpOauth | null
 }) {
   const TransportIcon = server.kind === EMcpTransportKind.Stdio ? TerminalIcon : GlobeIcon
+  const connected = auth === null || !server.enabled ? undefined : auth.cloudServer(server.id)
   return (
     <CardRow className={cn('flex-row items-center', !server.enabled && 'opacity-60')}>
       <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
@@ -68,11 +79,7 @@ function ServerRow({
         </span>
         <span className="truncate font-mono text-xs text-muted-foreground">{server.target}</span>
       </div>
-      <McpOauthControl
-        serverId={server.id}
-        server={server.enabled ? auth.cloudServer(server.id) : undefined}
-        auth={auth}
-      />
+      <McpOauthControl serverId={server.id} server={connected} auth={auth} />
       <Switch
         aria-label={`Enable ${server.id}`}
         checked={server.enabled}
@@ -85,7 +92,7 @@ function ServerRow({
           <EllipsisIcon />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-44">
-          <McpSignOutItem server={auth.cloudServer(server.id)} auth={auth} />
+          <McpSignOutItem server={connected} auth={auth} />
           <DropdownMenuItem variant="destructive" onClick={onRemove}>
             Remove
           </DropdownMenuItem>
@@ -149,40 +156,81 @@ function ServersEmpty() {
         <EmptyMedia variant="icon">
           <PlugIcon />
         </EmptyMedia>
-        <EmptyTitle>No project MCP servers</EmptyTitle>
+        <EmptyTitle>No MCP servers yet</EmptyTitle>
         <EmptyDescription>
-          Add one here to make it available to every thread in this project.
+          Add one here to make it available to every thread in this scope.
         </EmptyDescription>
       </EmptyHeader>
     </Empty>
   )
 }
 
-function McpContent({ servers }: { servers: McpRow[] }) {
-  const { projectId } = useProjectContext()
-  const mcp = useProjectMcp(projectId)
-  const auth = useMcpOauth({ projectId })
+function InheritedMcp({ scope }: { scope: SettingsScope }) {
+  const layers = useMcpLayers(scope)
+  if (layers.state !== EQueryState.Ready) return null
+  const own = scope.kind === 'project' ? EConfigLayer.Project : EConfigLayer.Group
+  return (
+    <InheritedLayers
+      layers={layers.data.filter((entry) => entry.layer !== own)}
+      keyOf={(server) => server.name}
+      editHrefOf={({ layer, owner }) => {
+        if (layer === EConfigLayer.Personal) return '/settings/integrations'
+        if (layer !== EConfigLayer.Group || owner.id === null) return null
+        return sectionHrefOf({ scope: { kind: 'group', groupId: owner.id }, section: 'mcp' })
+      }}
+      renderRow={({ item }) => {
+        const row = rowOfServer(item)
+        return (
+          <InheritedRow key={item.name} shadow={item.overriddenBy}>
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+              {row.kind === EMcpTransportKind.Stdio ? (
+                <TerminalIcon className="size-4" />
+              ) : (
+                <GlobeIcon className="size-4" />
+              )}
+            </span>
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
+              <span className="font-mono text-sm font-medium">{item.name}</span>
+              <span className="truncate font-mono text-xs text-muted-foreground">{row.target}</span>
+            </div>
+            {item.overriddenBy === null ? null : <OverriddenBadge shadow={item.overriddenBy} />}
+          </InheritedRow>
+        )
+      }}
+    />
+  )
+}
 
+function McpContent({
+  scope,
+  servers,
+  mcp,
+  auth,
+}: {
+  scope: SettingsScope
+  servers: readonly McpRow[]
+  mcp: ScopedMcp
+  auth: McpOauth | null
+}) {
   const handleAdd = (draft: McpServerDraft) =>
-    void runAction({
-      work: () => mcp.add(draft),
-      success: `Saved ${draft.id}`,
-    })
+    void runAction({ work: () => mcp.add(draft), success: `Saved ${draft.id}` })
   const handleToggle = (args: { id: string; enabled: boolean }) =>
     void runAction({ work: () => mcp.toggle(args) })
   const handleRemove = (id: string) =>
     void runAction({ work: () => mcp.remove(id), success: `Removed ${id}` })
-
+  const description =
+    scope.kind === 'project'
+      ? 'Project servers override your group and personal servers.'
+      : 'Group servers reach every project in this group and override your personal servers.'
   return (
     <SettingsSection
       title="MCP"
-      description="Project servers override your personal servers."
+      description={description}
       actions={
         <>
           <Button
             variant="ghost"
             size="sm"
-            className="text-muted-foreground"
             nativeButton={false}
             render={<Link href="/settings/integrations" />}
           >
@@ -193,7 +241,7 @@ function McpContent({ servers }: { servers: McpRow[] }) {
         </>
       }
     >
-      <McpOauthReturn reload={auth.reload} />
+      {auth === null ? null : <McpOauthReturn reload={auth.reload} />}
       <SettingsCard>
         {servers.length === 0 ? (
           <ServersEmpty />
@@ -209,7 +257,7 @@ function McpContent({ servers }: { servers: McpRow[] }) {
           ))
         )}
       </SettingsCard>
-      {auth.repoServers.length > 0 ? (
+      {auth === null || auth.repoServers.length === 0 ? null : (
         <SettingsSection
           title="From repo"
           description="Servers defined in a repository's .mcp.json. Removed automatically after 30 days unused."
@@ -220,17 +268,30 @@ function McpContent({ servers }: { servers: McpRow[] }) {
             ))}
           </SettingsCard>
         </SettingsSection>
-      ) : null}
+      )}
     </SettingsSection>
   )
 }
 
-export function McpPage() {
-  const { projectId } = useProjectContext()
-  const { query } = useProjectMcp(projectId)
+function McpScopePage({ scope, auth }: { scope: SettingsScope; auth: McpOauth | null }) {
+  const mcp = useScopedMcp(scope)
   return (
-    <QueryGate query={query} label="project MCP servers" skeleton={<McpPageSkeleton />}>
-      {(servers) => <McpContent servers={servers} />}
-    </QueryGate>
+    <>
+      <InheritedMcp scope={scope} />
+      <QueryGate query={mcp.query} label="MCP servers" skeleton={<McpPageSkeleton />}>
+        {(rows) => <McpContent scope={scope} servers={rows} mcp={mcp} auth={auth} />}
+      </QueryGate>
+    </>
   )
+}
+
+function ProjectMcpPage({ projectId }: { projectId: string }) {
+  const auth = useMcpOauth({ projectId })
+  return <McpScopePage scope={{ kind: 'project', projectId }} auth={auth} />
+}
+
+export function McpPage() {
+  const scope = useSettingsScope()
+  if (scope.kind === 'group') return <McpScopePage scope={scope} auth={null} />
+  return <ProjectMcpPage projectId={scope.projectId} />
 }

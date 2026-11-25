@@ -120,6 +120,22 @@
       "model": "GithubWebhookInbox",
       "namespace": "public"
     },
+    "GroupAccessGrant": {
+      "model": "GroupAccessGrant",
+      "namespace": "public"
+    },
+    "GroupFileMount": {
+      "model": "GroupFileMount",
+      "namespace": "public"
+    },
+    "GroupSecret": {
+      "model": "GroupSecret",
+      "namespace": "public"
+    },
+    "GroupSetting": {
+      "model": "GroupSetting",
+      "namespace": "public"
+    },
     "Host": {
       "model": "Host",
       "namespace": "public"
@@ -174,6 +190,10 @@
     },
     "ProjectFileMount": {
       "model": "ProjectFileMount",
+      "namespace": "public"
+    },
+    "ProjectGroup": {
+      "model": "ProjectGroup",
       "namespace": "public"
     },
     "ProjectSecret": {
@@ -4031,6 +4051,474 @@
               "table": "GithubWebhookInbox"
             }
           },
+          "GroupAccessGrant": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "groupId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "instruction": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "name": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              }
+            },
+            "relations": {
+              "fileMounts": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "grantId"
+                  ]
+                },
+                "to": {
+                  "model": "GroupFileMount",
+                  "namespace": "public"
+                }
+              },
+              "group": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "groupId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "ProjectGroup",
+                  "namespace": "public"
+                }
+              },
+              "secrets": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "grantId"
+                  ]
+                },
+                "to": {
+                  "model": "GroupSecret",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "groupId": {
+                  "column": "groupId"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "instruction": {
+                  "column": "instruction"
+                },
+                "name": {
+                  "column": "name"
+                },
+                "updatedAt": {
+                  "column": "updatedAt"
+                }
+              },
+              "namespaceId": "public",
+              "table": "GroupAccessGrant"
+            }
+          },
+          "GroupFileMount": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "grantId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "groupId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "mode": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "path": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "sealedContents": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              }
+            },
+            "relations": {
+              "grant": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "grantId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "GroupAccessGrant",
+                  "namespace": "public"
+                }
+              },
+              "group": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "groupId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "ProjectGroup",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "grantId": {
+                  "column": "grantId"
+                },
+                "groupId": {
+                  "column": "groupId"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "mode": {
+                  "column": "mode"
+                },
+                "path": {
+                  "column": "path"
+                },
+                "sealedContents": {
+                  "column": "sealedContents"
+                },
+                "updatedAt": {
+                  "column": "updatedAt"
+                }
+              },
+              "namespaceId": "public",
+              "table": "GroupFileMount"
+            }
+          },
+          "GroupSecret": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "grantId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "groupId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "name": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "sealedValue": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              }
+            },
+            "relations": {
+              "grant": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "grantId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "GroupAccessGrant",
+                  "namespace": "public"
+                }
+              },
+              "group": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "groupId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "ProjectGroup",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "grantId": {
+                  "column": "grantId"
+                },
+                "groupId": {
+                  "column": "groupId"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "name": {
+                  "column": "name"
+                },
+                "sealedValue": {
+                  "column": "sealedValue"
+                },
+                "updatedAt": {
+                  "column": "updatedAt"
+                }
+              },
+              "namespaceId": "public",
+              "table": "GroupSecret"
+            }
+          },
+          "GroupSetting": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "groupId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "key": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "value": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "group": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "groupId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "ProjectGroup",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "groupId": {
+                  "column": "groupId"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "key": {
+                  "column": "key"
+                },
+                "updatedAt": {
+                  "column": "updatedAt"
+                },
+                "value": {
+                  "column": "value"
+                }
+              },
+              "namespaceId": "public",
+              "table": "GroupSetting"
+            }
+          },
           "Host": {
             "fields": {
               "id": {
@@ -4442,6 +4930,13 @@
                   }
                 }
               },
+              "groupId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "id": {
                 "nullable": false,
                 "type": {
@@ -4574,6 +5069,22 @@
               }
             },
             "relations": {
+              "group": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "groupId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "ProjectGroup",
+                  "namespace": "public"
+                }
+              },
               "pendingSignIns": {
                 "cardinality": "1:N",
                 "on": {
@@ -4626,6 +5137,9 @@
               "fields": {
                 "createdAt": {
                   "column": "createdAt"
+                },
+                "groupId": {
+                  "column": "groupId"
                 },
                 "id": {
                   "column": "id"
@@ -5431,6 +5945,13 @@
                   "kind": "scalar"
                 }
               },
+              "groupId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "id": {
                 "nullable": false,
                 "type": {
@@ -5552,6 +6073,22 @@
                   "namespace": "public"
                 }
               },
+              "group": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "groupId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "ProjectGroup",
+                  "namespace": "public"
+                }
+              },
               "mcpServers": {
                 "cardinality": "1:N",
                 "on": {
@@ -5645,6 +6182,9 @@
                 },
                 "description": {
                   "column": "description"
+                },
+                "groupId": {
+                  "column": "groupId"
                 },
                 "id": {
                   "column": "id"
@@ -5933,6 +6473,195 @@
               },
               "namespaceId": "public",
               "table": "ProjectFileMount"
+            }
+          },
+          "ProjectGroup": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "name": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "userId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "accessGrants": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "groupId"
+                  ]
+                },
+                "to": {
+                  "model": "GroupAccessGrant",
+                  "namespace": "public"
+                }
+              },
+              "fileMounts": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "groupId"
+                  ]
+                },
+                "to": {
+                  "model": "GroupFileMount",
+                  "namespace": "public"
+                }
+              },
+              "mcpServers": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "groupId"
+                  ]
+                },
+                "to": {
+                  "model": "McpServer",
+                  "namespace": "public"
+                }
+              },
+              "projects": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "groupId"
+                  ]
+                },
+                "to": {
+                  "model": "Project",
+                  "namespace": "public"
+                }
+              },
+              "secrets": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "groupId"
+                  ]
+                },
+                "to": {
+                  "model": "GroupSecret",
+                  "namespace": "public"
+                }
+              },
+              "settings": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "groupId"
+                  ]
+                },
+                "to": {
+                  "model": "GroupSetting",
+                  "namespace": "public"
+                }
+              },
+              "skills": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "groupId"
+                  ]
+                },
+                "to": {
+                  "model": "Skill",
+                  "namespace": "public"
+                }
+              },
+              "user": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "userId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "name": {
+                  "column": "name"
+                },
+                "updatedAt": {
+                  "column": "updatedAt"
+                },
+                "userId": {
+                  "column": "userId"
+                }
+              },
+              "namespaceId": "public",
+              "table": "ProjectGroup"
             }
           },
           "ProjectSecret": {
@@ -7746,6 +8475,13 @@
                   "kind": "scalar"
                 }
               },
+              "groupId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "id": {
                 "nullable": false,
                 "type": {
@@ -7801,6 +8537,22 @@
                   "namespace": "public"
                 }
               },
+              "group": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "groupId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "ProjectGroup",
+                  "namespace": "public"
+                }
+              },
               "project": {
                 "cardinality": "N:1",
                 "nullable": true,
@@ -7841,6 +8593,9 @@
                 },
                 "description": {
                   "column": "description"
+                },
+                "groupId": {
+                  "column": "groupId"
                 },
                 "id": {
                   "column": "id"
@@ -8775,6 +9530,21 @@
                 },
                 "to": {
                   "model": "PreviewTunnel",
+                  "namespace": "public"
+                }
+              },
+              "projectGroups": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "userId"
+                  ]
+                },
+                "to": {
+                  "model": "ProjectGroup",
                   "namespace": "public"
                 }
               },
@@ -13031,6 +13801,435 @@
               },
               "uniques": []
             },
+            "GroupAccessGrant": {
+              "columns": {
+                "createdAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "groupId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "instruction": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "default": {
+                    "kind": "literal",
+                    "value": ""
+                  },
+                  "nullable": false
+                },
+                "name": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "updatedAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "foreignKeys": [
+                {
+                  "index": {
+                    "name": "GroupAccessGrant_groupId_idx_e2fb5578"
+                  },
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "groupId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "GroupAccessGrant"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "ProjectGroup"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "groupId"
+                  ],
+                  "name": "GroupAccessGrant_groupId_idx_e2fb5578",
+                  "prefix": "GroupAccessGrant_groupId_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "groupId",
+                    "name"
+                  ],
+                  "name": "GroupAccessGrant_groupId_name_key"
+                }
+              ]
+            },
+            "GroupFileMount": {
+              "columns": {
+                "createdAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "grantId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "groupId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "mode": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "default": {
+                    "kind": "literal",
+                    "value": 384
+                  },
+                  "nullable": false
+                },
+                "path": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "sealedContents": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "updatedAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "foreignKeys": [
+                {
+                  "index": {
+                    "unique": [
+                      "groupId",
+                      "path"
+                    ]
+                  },
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "groupId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "GroupFileMount"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "ProjectGroup"
+                  }
+                },
+                {
+                  "index": {
+                    "name": "GroupFileMount_grantId_idx_2360ae61"
+                  },
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "grantId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "GroupFileMount"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "GroupAccessGrant"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "grantId"
+                  ],
+                  "name": "GroupFileMount_grantId_idx_2360ae61",
+                  "prefix": "GroupFileMount_grantId_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "groupId",
+                    "path"
+                  ],
+                  "name": "GroupFileMount_groupId_path_key"
+                }
+              ]
+            },
+            "GroupSecret": {
+              "columns": {
+                "createdAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "grantId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "groupId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "name": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "sealedValue": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "updatedAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "foreignKeys": [
+                {
+                  "index": {
+                    "unique": [
+                      "groupId",
+                      "name"
+                    ]
+                  },
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "groupId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "GroupSecret"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "ProjectGroup"
+                  }
+                },
+                {
+                  "index": {
+                    "name": "GroupSecret_grantId_idx_2360ae61"
+                  },
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "grantId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "GroupSecret"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "GroupAccessGrant"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "grantId"
+                  ],
+                  "name": "GroupSecret_grantId_idx_2360ae61",
+                  "prefix": "GroupSecret_grantId_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "groupId",
+                    "name"
+                  ],
+                  "name": "GroupSecret_groupId_name_key"
+                }
+              ]
+            },
+            "GroupSetting": {
+              "columns": {
+                "createdAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "groupId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "key": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "updatedAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "value": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "index": {
+                    "unique": [
+                      "groupId",
+                      "key"
+                    ]
+                  },
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "groupId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "GroupSetting"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "ProjectGroup"
+                  }
+                }
+              ],
+              "indexes": [],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "groupId",
+                    "key"
+                  ],
+                  "name": "GroupSetting_groupId_key_key"
+                }
+              ]
+            },
             "Host": {
               "columns": {
                 "id": {
@@ -13387,8 +14586,8 @@
                   "prefix": "McpServer_oauth_whole"
                 },
                 {
-                  "expression": "(\"userId\" IS NULL) <> (\"projectId\" IS NULL)",
-                  "name": "McpServer_one_scope_67d0cc6e",
+                  "expression": "(\"userId\" IS NOT NULL)::int + (\"projectId\" IS NOT NULL)::int + (\"groupId\" IS NOT NULL)::int = 1",
+                  "name": "McpServer_one_scope_1e7116ff",
                   "prefix": "McpServer_one_scope"
                 },
                 {
@@ -13409,6 +14608,11 @@
                   "typeParams": {
                     "precision": 3
                   }
+                },
+                "groupId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
                 },
                 "id": {
                   "codecId": "pg/text@1",
@@ -13563,6 +14767,31 @@
                     "namespaceId": "public",
                     "tableName": "Project"
                   }
+                },
+                {
+                  "index": {
+                    "unique": [
+                      "groupId",
+                      "source",
+                      "name"
+                    ]
+                  },
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "groupId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "McpServer"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "ProjectGroup"
+                  }
                 }
               ],
               "indexes": [
@@ -13581,6 +14810,14 @@
                 ]
               },
               "uniques": [
+                {
+                  "columns": [
+                    "groupId",
+                    "source",
+                    "name"
+                  ],
+                  "name": "McpServer_groupId_source_name_key"
+                },
                 {
                   "columns": [
                     "projectId",
@@ -14227,6 +15464,11 @@
                   },
                   "nullable": false
                 },
+                "groupId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
                 "id": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
@@ -14292,6 +15534,27 @@
               "foreignKeys": [
                 {
                   "index": {
+                    "name": "Project_groupId_idx_e2fb5578"
+                  },
+                  "onDelete": "setNull",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "groupId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Project"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "ProjectGroup"
+                  }
+                },
+                {
+                  "index": {
                     "name": "Project_ownerUserId_idx_f93ae154"
                   },
                   "onDelete": "cascade",
@@ -14340,6 +15603,14 @@
                   ],
                   "name": "Project_createdById_idx_8bf640ed",
                   "prefix": "Project_createdById_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "groupId"
+                  ],
+                  "name": "Project_groupId_idx_e2fb5578",
+                  "prefix": "Project_groupId_idx",
                   "unique": false
                 },
                 {
@@ -14578,6 +15849,86 @@
                     "path"
                   ],
                   "name": "ProjectFileMount_projectId_path_key"
+                }
+              ]
+            },
+            "ProjectGroup": {
+              "columns": {
+                "createdAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "name": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "updatedAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "userId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "index": {
+                    "unique": [
+                      "userId",
+                      "name"
+                    ]
+                  },
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "userId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "ProjectGroup"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "User"
+                  }
+                }
+              ],
+              "indexes": [],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "userId",
+                    "name"
+                  ],
+                  "name": "ProjectGroup_userId_name_key"
                 }
               ]
             },
@@ -15949,8 +17300,8 @@
             "Skill": {
               "checks": [
                 {
-                  "expression": "(\"userId\" IS NULL) <> (\"projectId\" IS NULL)",
-                  "name": "Skill_owner_check_67d0cc6e",
+                  "expression": "(\"userId\" IS NOT NULL)::int + (\"projectId\" IS NOT NULL)::int + (\"groupId\" IS NOT NULL)::int = 1",
+                  "name": "Skill_owner_check_1e7116ff",
                   "prefix": "Skill_owner_check"
                 }
               ],
@@ -15975,6 +17326,11 @@
                     "value": ""
                   },
                   "nullable": false
+                },
+                "groupId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
                 },
                 "id": {
                   "codecId": "pg/text@1",
@@ -16053,6 +17409,30 @@
                     "namespaceId": "public",
                     "tableName": "Project"
                   }
+                },
+                {
+                  "index": {
+                    "unique": [
+                      "groupId",
+                      "name"
+                    ]
+                  },
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "groupId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Skill"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "ProjectGroup"
+                  }
                 }
               ],
               "indexes": [],
@@ -16062,6 +17442,13 @@
                 ]
               },
               "uniques": [
+                {
+                  "columns": [
+                    "groupId",
+                    "name"
+                  ],
+                  "name": "Skill_groupId_name_key"
+                },
                 {
                   "columns": [
                     "projectId",
@@ -17258,10 +18645,10 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "b8bdb59b76c5bf1cf9ac5de976d5a40e93a37924ef1ca187fffd2bff7b085aca"
+    "storageHash": "8d7bb4c0a917ecd62f0a95660731171b1ffaf8ed69846ad2993cb1b7261082b0"
   },
   "execution": {
-    "executionHash": "1098cac9712897ca057b8d40fcf584499c8cc457234f0a41e36dadb4f6d7f0c6",
+    "executionHash": "dcc645688ebf8fba728af7bd88677133c3398047d6f8561e9d75dff312d17728",
     "mutations": {
       "defaults": [
         {
@@ -17509,6 +18896,66 @@
             "kind": "generator"
           },
           "ref": {
+            "entry": "GroupAccessGrant",
+            "field": "updatedAt",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "onUpdate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "GroupFileMount",
+            "field": "updatedAt",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "onUpdate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "GroupSecret",
+            "field": "updatedAt",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "onUpdate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "GroupSetting",
+            "field": "updatedAt",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "onUpdate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
             "entry": "McpServer",
             "field": "updatedAt",
             "namespace": "public"
@@ -17659,6 +19106,32 @@
           },
           "ref": {
             "entry": "ProjectFileMount",
+            "field": "updatedAt",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "cuid2",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "ProjectGroup",
+            "field": "id",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "onUpdate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "ProjectGroup",
             "field": "updatedAt",
             "namespace": "public"
           }

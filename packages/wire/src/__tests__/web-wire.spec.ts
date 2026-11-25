@@ -79,9 +79,11 @@ describe('web wire schemas', () => {
       repo: null,
       baseBranch: null,
       additionalRepos: [],
+      groupId: null,
       createdAt: 'a',
       updatedAt: 'b',
     })
+    expect(parsed.groupId).toBeNull()
     expect(parsed.description).toBe('')
     expect(parsed.shipBehavior).toBe(EShipBehavior.OpenPullRequest)
   })

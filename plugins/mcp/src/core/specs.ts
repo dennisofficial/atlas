@@ -246,10 +246,15 @@ export const parseMcpText = (args: {
   })
 }
 
-export type McpCloudRow = { source: 'user' | 'project'; spec: unknown; accessToken?: string }
+export type McpCloudRow = {
+  source: 'user' | 'group' | 'project'
+  spec: unknown
+  accessToken?: string
+}
 
 const CLOUD_ORIGIN: Readonly<Record<McpCloudRow['source'], EDefinitionOrigin>> = {
   user: EDefinitionOrigin.User,
+  group: EDefinitionOrigin.Group,
   project: EDefinitionOrigin.Project,
 }
 

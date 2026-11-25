@@ -21,6 +21,7 @@ const fakeDb = (args: {
         Session: { first: async () => args.session },
         UserSetting: { where: () => ({ all: async () => rowsOf(args.user ?? {}) }) },
         ProjectSetting: { where: () => ({ all: async () => rowsOf(args.project ?? {}) }) },
+        Project: { first: async () => null },
       },
     },
   }) as unknown as Db

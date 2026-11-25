@@ -22,7 +22,7 @@ export type CloudCatalogueSkill = {
   userInvocable: boolean
   modelInvocable: boolean
   argumentHint: string | undefined
-  origin: ESkillOrigin.CloudUser | ESkillOrigin.CloudProject
+  origin: ESkillOrigin.CloudUser | ESkillOrigin.CloudGroup | ESkillOrigin.CloudProject
   directory: null
   scope: SkillScopeName
   warnings: readonly SkillWarning[]

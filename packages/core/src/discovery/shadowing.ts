@@ -3,7 +3,8 @@ import { EDefinitionOrigin } from './origin'
 const SHADOWING_RANK: Readonly<Record<EDefinitionOrigin, number>> = {
   [EDefinitionOrigin.BuiltIn]: 0,
   [EDefinitionOrigin.User]: 1,
-  [EDefinitionOrigin.Project]: 2,
+  [EDefinitionOrigin.Group]: 2,
+  [EDefinitionOrigin.Project]: 3,
 }
 
 export type OriginatedDefinition = { readonly origin: EDefinitionOrigin }

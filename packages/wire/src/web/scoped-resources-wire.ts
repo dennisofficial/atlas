@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 import { projectIdInputSchema } from '../project-wire'
+import { configLayerOwnerSchema, configLayerSchema } from '../project-group-wire'
 import { mcpServerSchema, mcpUpsertSchema } from './mcp-wire'
 import { projectSandboxSchema } from './project-settings-wire'
 import { secretSetSchema, secretSummarySchema, secretValueSchema } from './secrets-wire'
@@ -45,3 +46,20 @@ export const sandboxConfigInputSchema = z
   .strictObject({ projectId: z.string().optional() })
   .optional()
 export type SandboxConfigInput = z.infer<typeof sandboxConfigInputSchema>
+
+export const layeredSettingValueSchema = z.object({
+  key: z.string(),
+  value: z.string(),
+  overriddenBy: configLayerSchema.nullable(),
+})
+export type LayeredSettingValue = z.infer<typeof layeredSettingValueSchema>
+
+export const layeredSettingLayerSchema = z.object({
+  layer: configLayerSchema,
+  owner: configLayerOwnerSchema,
+  values: z.array(layeredSettingValueSchema),
+})
+export type LayeredSettingLayer = z.infer<typeof layeredSettingLayerSchema>
+
+export const layeredSettingsSchema = z.object({ layers: z.array(layeredSettingLayerSchema) })
+export type LayeredSettings = z.infer<typeof layeredSettingsSchema>

@@ -12,6 +12,7 @@ export type SealedFileMountRow = { path: string; sealedContents: string; mode: n
 
 export type ProjectFileRows = {
   projectMounts(args: { projectId: string }): Promise<readonly SealedFileMountRow[]>
+  groupMounts(args: { projectId: string }): Promise<readonly SealedFileMountRow[]>
   userMounts(args: { userId: string }): Promise<readonly SealedFileMountRow[]>
 }
 
@@ -41,10 +42,12 @@ const mountsOf = (args: {
 
 export const mergedFileMounts = (args: {
   projectMounts: readonly ScopedFileMount[]
+  groupMounts: readonly ScopedFileMount[]
   userMounts: readonly ScopedFileMount[]
 }): readonly ScopedFileMount[] => {
   const byPath = new Map<string, ScopedFileMount>()
   for (const mount of args.userMounts) byPath.set(mount.path, mount)
+  for (const mount of args.groupMounts) byPath.set(mount.path, mount)
   for (const mount of args.projectMounts) byPath.set(mount.path, mount)
   return [...byPath.values()].sort((left, right) => left.path.localeCompare(right.path))
 }
@@ -55,12 +58,14 @@ export const readProjectFiles = async (args: {
   userId: string
   projectId: string | null
 }): Promise<readonly ScopedFileMount[]> => {
-  const [projectRows, userRows] = await Promise.all([
+  const [projectRows, groupRows, userRows] = await Promise.all([
     args.projectId === null ? [] : args.rows.projectMounts({ projectId: args.projectId }),
+    args.projectId === null ? [] : args.rows.groupMounts({ projectId: args.projectId }),
     args.rows.userMounts({ userId: args.userId }),
   ])
   return mergedFileMounts({
     projectMounts: mountsOf({ rows: projectRows, cipher: args.cipher }),
+    groupMounts: mountsOf({ rows: groupRows, cipher: args.cipher }),
     userMounts: mountsOf({ rows: userRows, cipher: args.cipher }),
   })
 }
@@ -87,6 +92,13 @@ export const projectFilesSourceOf = (): ProjectFilesSource => {
             await db.orm.public.ProjectFileMount.where({ projectId: lookup.projectId })
               .orderBy((row) => row.path.asc())
               .all(),
+          groupMounts: async (lookup) => {
+            const project = await db.orm.public.Project.first({ id: lookup.projectId })
+            if (project === null || project.groupId === null) return []
+            return await db.orm.public.GroupFileMount.where({ groupId: project.groupId })
+              .orderBy((row) => row.path.asc())
+              .all()
+          },
           userMounts: async (lookup) =>
             await db.orm.public.UserFileMount.where({ userId: lookup.userId })
               .orderBy((row) => row.path.asc())

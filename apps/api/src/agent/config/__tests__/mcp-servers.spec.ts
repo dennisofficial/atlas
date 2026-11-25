@@ -15,7 +15,7 @@ const seedServer = async (args: {
   db: ReturnType<typeof testDb>['db']
   id: string
   name: string
-  scope: { userId: string } | { projectId: string }
+  scope: { userId: string } | { groupId: string } | { projectId: string }
   spec?: unknown
   sealedSpec?: string
   over?: Record<string, unknown>
@@ -253,6 +253,29 @@ describe('the cloud rows through the MCP config', () => {
       read: async (path) => files[path] ?? null,
     })
     expect(fromRepo.servers.map((server) => server.transport)).toEqual([stdio('repo-server')])
+  })
+
+  it('reads the group rows of the session project between the user and the project rows', async () => {
+    const { db } = testDb()
+    await seedOwner(db)
+    await db.orm.public.ProjectGroup.create({ id: 'grp-1', userId: 'user-1', name: 'Comp AI' })
+    await db.orm.public.Project.where({ id: 'proj-1' }).update({ groupId: 'grp-1' })
+
+    await seedServer({ db, id: 'srv-user', name: 'docs', scope: { userId: 'user-1' } })
+    await seedServer({ db, id: 'srv-group', name: 'docs', scope: { groupId: 'grp-1' } })
+    await seedServer({ db, id: 'srv-project', name: 'docs', scope: { projectId: 'proj-1' } })
+
+    const cloud = await readerOver(db).read({ sessionId: 's-1' })
+    expect(cloud.rows.map((row) => row.source)).toEqual(['user', 'group', 'project'])
+    expect(cloud.rows[1]?.accessToken).toBeUndefined()
+
+    const groupOnly = await loadMcpConfig({
+      cloud: { rows: cloud.rows.slice(0, 2), rejections: [] },
+      directory: '/repo',
+      read: noFiles,
+    })
+    expect(groupOnly.servers.map((server) => server.transport)).toEqual([stdio('srv-group')])
+    expect(groupOnly.servers[0]?.origin).toBe(EDefinitionOrigin.Group)
   })
 
   it('carries a rejection from the sealed rows into the merged config', async () => {

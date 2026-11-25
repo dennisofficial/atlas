@@ -48,6 +48,27 @@ export const PROTO_SAMPLES: Record<string, ProtoSample[]> = {
     { label: 'atlas', path: '/projects/atlas/settings/pull-requests' },
     { label: 'rs-crm', path: '/projects/rs-crm/settings/pull-requests' },
   ],
+  '/groups/[groupId]/settings': [
+    { label: 'Comp AI', path: '/groups/comp-ai/settings' },
+    { label: 'Client work', path: '/groups/client-work/settings' },
+  ],
+  '/groups/[groupId]/settings/overview': [
+    { label: 'Comp AI', path: '/groups/comp-ai/settings/overview' },
+    { label: 'Client work', path: '/groups/client-work/settings/overview' },
+  ],
+  '/groups/[groupId]/settings/sandbox': [
+    { label: 'Comp AI', path: '/groups/comp-ai/settings/sandbox' },
+  ],
+  '/groups/[groupId]/settings/access': [
+    { label: 'Comp AI', path: '/groups/comp-ai/settings/access' },
+  ],
+  '/groups/[groupId]/settings/skills': [
+    { label: 'Comp AI', path: '/groups/comp-ai/settings/skills' },
+  ],
+  '/groups/[groupId]/settings/skills/[skillId]': [
+    { label: 'Comp AI', path: '/groups/comp-ai/settings/skills/code-review' },
+  ],
+  '/groups/[groupId]/settings/mcp': [{ label: 'Comp AI', path: '/groups/comp-ai/settings/mcp' }],
   '/settings/skills/[skillId]': [
     { label: 'code-review', path: '/settings/skills/code-review' },
     { label: 'commit', path: '/settings/skills/commit' },

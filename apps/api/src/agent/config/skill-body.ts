@@ -1,8 +1,8 @@
 import type { Db } from '@dltech/atlas-db'
 
-export type SkillOwner = { userId: string; projectId: string | null }
+export type SkillOwner = { userId: string; projectId: string | null; groupId: string | null }
 
-export type SkillScopeName = 'user' | 'project'
+export type SkillScopeName = 'user' | 'group' | 'project'
 
 const ENTRY_PATH = 'SKILL.md'
 
@@ -13,6 +13,8 @@ const ownerWhere = (args: {
   scope: SkillScopeName
 }): Record<string, string> | null => {
   if (args.scope === 'user') return { userId: args.owner.userId }
+  if (args.scope === 'group')
+    return args.owner.groupId === null ? null : { groupId: args.owner.groupId }
   return args.owner.projectId === null ? null : { projectId: args.owner.projectId }
 }
 
@@ -67,12 +69,17 @@ const skillRowsOf = async (args: {
 }): Promise<readonly { id: string; name: string; scope: SkillScopeName }[]> => {
   const skills = args.db.orm.public.Skill
   const user = await skills.where({ userId: args.owner.userId }).select('id', 'name').all()
+  const group =
+    args.owner.groupId === null
+      ? []
+      : await skills.where({ groupId: args.owner.groupId }).select('id', 'name').all()
   const project =
     args.owner.projectId === null
       ? []
       : await skills.where({ projectId: args.owner.projectId }).select('id', 'name').all()
   return [
     ...user.map((row) => ({ id: row.id, name: row.name, scope: 'user' as const })),
+    ...group.map((row) => ({ id: row.id, name: row.name, scope: 'group' as const })),
     ...project.map((row) => ({ id: row.id, name: row.name, scope: 'project' as const })),
   ]
 }

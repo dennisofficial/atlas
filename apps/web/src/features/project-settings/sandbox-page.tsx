@@ -9,16 +9,20 @@ import { Label } from '@dltech/atlas-ui/components/label'
 import { Textarea } from '@dltech/atlas-ui/components/textarea'
 
 import { QueryGate } from '@/features/settings/data/shared/query-gate'
-import { useCloudSettings } from '@/lib/cloud-settings'
+import { useSettingLayers } from '@/features/settings/data/shared/use-layers'
+import { InheritedSettings } from '@/features/settings/parts/layers/inherited-settings-section'
 import { defaultDiskGbOf, SandboxDiskSection } from '@/features/settings/parts/sandbox-disk-section'
 import {
   DEFAULT_SANDBOX_SIZE,
-  type SandboxSize,
   SandboxSizeSection,
 } from '@/features/settings/parts/sandbox-size-section'
+import { useSettingsScope } from '@/features/settings/scope/settings-scope'
+import { EConfigLayer } from '@dltech/atlas-wire/web'
+import { EQueryState } from '@/lib/use-cloud-query'
 import { SandboxPageSkeleton } from './project-skeletons'
 import { runAction } from '@/features/settings/data/shared/run-action'
 
+import { inheritedSandboxOf, SANDBOX_SETTING_KEYS } from './data/inherited-sandbox'
 import { useProjectContext } from './data/project-context'
 import { useSandbox } from './data/use-sandbox'
 import {
@@ -92,18 +96,13 @@ function SetupScript({
 
 export function SandboxPage() {
   const { projectId } = useProjectContext()
+  const scope = useSettingsScope()
   const { query, save } = useSandbox(projectId)
-  const personal = useCloudSettings()
-  const storedDiskGb = personal.query.data?.get('sandbox.diskGb')
-  const storedVcpus = personal.query.data?.get('sandbox.vcpus')
-  const storedMemoryGb = personal.query.data?.get('sandbox.memoryGb')
-  const inherited: SandboxSize = {
-    vcpus: typeof storedVcpus === 'number' ? storedVcpus : DEFAULT_SANDBOX_SIZE.vcpus,
-    memoryGb: typeof storedMemoryGb === 'number' ? storedMemoryGb : DEFAULT_SANDBOX_SIZE.memoryGb,
-  }
-  const inheritedDiskGb = defaultDiskGbOf(
-    typeof storedDiskGb === 'number' ? storedDiskGb : undefined,
-  )
+  const layers = useSettingLayers(scope)
+  const below =
+    layers.state === EQueryState.Ready
+      ? inheritedSandboxOf({ layers: layers.data, own: EConfigLayer.Project })
+      : { size: DEFAULT_SANDBOX_SIZE, diskGb: defaultDiskGbOf(undefined) }
   return (
     <QueryGate query={query} label="sandbox settings" skeleton={<SandboxPageSkeleton />}>
       {(sandbox) => {
@@ -119,7 +118,7 @@ export function SandboxPage() {
               value={
                 sandbox.vcpus === null ? null : { vcpus: sandbox.vcpus, memoryGb: sandbox.memoryGb }
               }
-              inherited={inherited}
+              inherited={below.size}
               withAccountDefault
               onSave={(size) =>
                 handleSave({ vcpus: size?.vcpus ?? null, memoryGb: size?.memoryGb ?? null })
@@ -128,7 +127,7 @@ export function SandboxPage() {
             <SandboxDiskSection
               key={`disk-${sandbox.diskGb}`}
               value={sandbox.diskGb}
-              inheritedDiskGb={inheritedDiskGb}
+              inheritedDiskGb={below.diskGb}
               withAccountDefault
               onSave={(diskGb) => handleSave({ diskGb })}
             />
@@ -137,6 +136,7 @@ export function SandboxPage() {
               saved={sandbox.setupScript}
               onSave={(setupScript) => handleSave({ setupScript })}
             />
+            <InheritedSettings scope={scope} section="sandbox" keys={SANDBOX_SETTING_KEYS} />
           </>
         )
       }}

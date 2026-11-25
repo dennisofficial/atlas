@@ -4,11 +4,15 @@ import type { AccessRows } from '../../config/access-rows'
 import { accessNoticeOf } from '../access-notice'
 
 const rowsOf = (overrides: Partial<AccessRows> = {}): AccessRows => ({
+  group: null,
   userGrants: [],
+  groupGrants: [],
   projectGrants: [],
   userSecrets: [],
+  groupSecrets: [],
   projectSecrets: [],
   userFiles: [],
+  groupFiles: [],
   projectFiles: [],
   ...overrides,
 })
@@ -56,6 +60,28 @@ describe('accessNoticeOf', () => {
         SETTINGS,
       ].join('\n\n'),
     )
+  })
+
+  it('lists the group grants under the group heading between the project and the personal ones', () => {
+    const notice = accessNoticeOf(
+      rowsOf({
+        group: { id: 'group-1', name: 'Comp AI' },
+        projectGrants: [{ id: 'grant-project', name: 'Project', instruction: '' }],
+        groupGrants: [{ id: 'grant-group', name: 'Group', instruction: '' }],
+        userGrants: [{ id: 'grant-personal', name: 'Personal', instruction: '' }],
+        projectSecrets: [{ name: 'SHARED_KEY', grantId: 'grant-project' }],
+        groupSecrets: [
+          { name: 'SHARED_KEY', grantId: 'grant-group' },
+          { name: 'GROUP_KEY', grantId: 'grant-group' },
+        ],
+        userSecrets: [{ name: 'PERSONAL_KEY', grantId: 'grant-personal' }],
+      }),
+    )
+
+    expect(notice).toContain(['Project', 'Environment variables: SHARED_KEY'].join('\n'))
+    expect(notice).toContain('Comp AI group\n\nGroup\nEnvironment variables: GROUP_KEY')
+    expect(notice).toContain(['Personal', 'Environment variables: PERSONAL_KEY'].join('\n'))
+    expect(notice.match(/SHARED_KEY/g)).toHaveLength(1)
   })
 
   it('lists personal files under their personal grant', () => {

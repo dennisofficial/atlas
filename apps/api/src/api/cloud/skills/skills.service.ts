@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { SKILL_NAME_MAX_LENGTH } from '@dltech/atlas-core'
+import { SKILL_NAME_MAX_LENGTH, EConfigLayer, type LayerItems } from '@dltech/atlas-core'
 import {
   BadRequestException,
   ConflictException,
@@ -19,9 +19,13 @@ import {
   SKILL_TEXT_EXTENSIONS,
   type SkillFileContent,
   type SkillFileMeta,
+  type SkillLayers,
   type SkillSummary,
   type SkillUsage,
 } from '@dltech/atlas-wire'
+import { PERSONAL_LAYER_OWNER } from '../../../_lib/config-layers/layer-owner'
+import { layeredItemsOf } from '../layers/layered-items'
+import { GroupsService } from '../project-groups/project-groups.service'
 import { ProjectsService } from '../projects/projects.service'
 import { SkillUsageService } from './skill-usage.service'
 import { readBuiltInFile } from './builtin-skill-source'
@@ -30,11 +34,31 @@ const SKILL_NAME_PATTERN = /^[a-z0-9][a-z0-9-]*$/
 const MAX_PATH_LENGTH = 500
 const BASE64_PATTERN = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/
 const SKILL_FILE_KEY_CONSTRAINT = 'SkillFile_skillId_path_key'
+const SKILL_OWNER_CONSTRAINTS: readonly string[] = [
+  'Skill_userId_name_key',
+  'Skill_groupId_name_key',
+  'Skill_projectId_name_key',
+]
 const SKILL_ENTRY = 'SKILL.md'
 
-type Scope = { scope: ESkillScope; projectId?: string | undefined }
+type Scope = { scope: ESkillScope; projectId?: string | undefined; groupId?: string | undefined }
 
-const SKILL_OWNER_MISSING = 'scope=project requires a projectId'
+type Owner = { userId: string } | { projectId: string } | { groupId: string }
+
+type Placement = {
+  group: { id: string; name: string } | null
+  project: { id: string; name: string } | null
+}
+
+const SKILL_PROJECT_MISSING = 'scope=project requires a projectId'
+
+const SKILL_GROUP_MISSING = 'scope=group requires a groupId'
+
+const ORIGIN_OF_SCOPE: Readonly<Record<ESkillScope, ESkillOrigin>> = {
+  [ESkillScope.Personal]: ESkillOrigin.Personal,
+  [ESkillScope.Group]: ESkillOrigin.Group,
+  [ESkillScope.Project]: ESkillOrigin.Project,
+}
 
 function assertValidPath(path: string): void {
   if (path.length === 0 || path.length > MAX_PATH_LENGTH) {
@@ -102,6 +126,7 @@ function conflictOf(current: { revision: number; contentHash: string }): Conflic
 export class SkillsService {
   constructor(
     private readonly projects: ProjectsService,
+    private readonly groups: GroupsService,
     private readonly usage: SkillUsageService,
   ) {}
 
@@ -109,20 +134,50 @@ export class SkillsService {
     args: Scope & { userId: string; skill: string },
   ): Promise<Row<'Skill'>> {
     const skill = args.skill.toLowerCase()
-    const filter =
-      args.scope === ESkillScope.Personal
-        ? { userId: args.userId }
-        : { projectId: await this.projectIdOf(args) }
-    const row = await db.orm.public.Skill.first({ ...filter, name: skill })
+    const row = await db.orm.public.Skill.first({ ...(await this.ownerOf(args)), name: skill })
     if (row === null) throw new NotFoundException('skill not found')
     return row
   }
 
+  private async ownerOf(args: Scope & { userId: string }): Promise<Owner> {
+    if (args.scope === ESkillScope.Personal) return { userId: args.userId }
+    if (args.scope === ESkillScope.Group) return { groupId: await this.groupIdOf(args) }
+    return { projectId: await this.projectIdOf(args) }
+  }
+
   private async projectIdOf(args: Scope & { userId: string }): Promise<string> {
-    if (args.scope !== ESkillScope.Project) throw new BadRequestException(SKILL_OWNER_MISSING)
-    if (args.projectId === undefined) throw new BadRequestException(SKILL_OWNER_MISSING)
+    if (args.projectId === undefined) throw new BadRequestException(SKILL_PROJECT_MISSING)
     await this.projects.read({ userId: args.userId, projectId: args.projectId })
     return args.projectId
+  }
+
+  private async groupIdOf(args: Scope & { userId: string }): Promise<string> {
+    if (args.groupId === undefined) throw new BadRequestException(SKILL_GROUP_MISSING)
+    await this.groups.owned({ userId: args.userId, groupId: args.groupId })
+    return args.groupId
+  }
+
+  private async placementOf(args: Scope & { userId: string }): Promise<Placement> {
+    if (args.scope === ESkillScope.Personal) return { group: null, project: null }
+    if (args.scope === ESkillScope.Group) {
+      const group = await this.groups.owned({
+        userId: args.userId,
+        groupId: await this.groupIdOf(args),
+      })
+      return { group: { id: group.id, name: group.name }, project: null }
+    }
+    const project = await this.projects.read({
+      userId: args.userId,
+      projectId: await this.projectIdOf(args),
+    })
+    const group =
+      project.groupId === null
+        ? null
+        : await db.orm.public.ProjectGroup.first({ id: project.groupId })
+    return {
+      group: group === null ? null : { id: group.id, name: group.name },
+      project: { id: project.id, name: project.name },
+    }
   }
 
   private assertNotBuiltIn(skill: string): void {
@@ -147,11 +202,26 @@ export class SkillsService {
   }
 
   async list(args: Scope & { userId: string }): Promise<SkillSummary[]> {
-    const filter =
-      args.scope === ESkillScope.Personal
-        ? { userId: args.userId }
-        : { projectId: await this.projectIdOf(args) }
-    const skills = await db.orm.public.Skill.where(filter)
+    const rows = await this.summariesOf({
+      owner: await this.ownerOf(args),
+      userId: args.userId,
+      scope: args.scope,
+      projectId: args.projectId,
+      groupId: args.groupId,
+    })
+    if (args.scope !== ESkillScope.Personal) return rows
+    const ownedNames = new Set(rows.map((row) => row.name))
+    return [...rows, ...this.builtInSummaries({ usage: new Map(), ownedNames })]
+  }
+
+  private async summariesOf(args: {
+    owner: Owner
+    userId: string
+    scope: ESkillScope
+    projectId?: string | undefined
+    groupId?: string | undefined
+  }): Promise<SkillSummary[]> {
+    const skills = await db.orm.public.Skill.where(args.owner)
       .orderBy((skill) => skill.name.asc())
       .all()
     const names = skills.map((skill) => skill.name)
@@ -163,14 +233,14 @@ export class SkillsService {
         userId: args.userId,
         scope: args.scope,
         ...(args.projectId === undefined ? {} : { projectId: args.projectId }),
+        ...(args.groupId === undefined ? {} : { groupId: args.groupId }),
         skillNames: names,
       }),
     ])
     const descriptions = await Promise.all(skills.map((skill) => this.fillDescription(skill)))
     const descriptionById = new Map(skills.map((skill, index) => [skill.id, descriptions[index]]))
-    const origin =
-      args.scope === ESkillScope.Personal ? ESkillOrigin.Personal : ESkillOrigin.Project
-    const rows: SkillSummary[] = skills.map((skill) => {
+    const origin = ORIGIN_OF_SCOPE[args.scope]
+    return skills.map((skill) => {
       const own = files.filter((file) => file.skillId === skill.id)
       return {
         name: skill.name,
@@ -183,17 +253,77 @@ export class SkillsService {
         overridesBuiltIn: isBuiltInSkillName(skill.name),
       }
     })
-    if (args.scope !== ESkillScope.Personal) return rows
-    const ownedNames = new Set(names)
-    const builtInRows = builtInSkills()
-      .filter((skill) => !ownedNames.has(skill.name))
-      .map((skill) => this.builtInSummary({ skill, usage }))
-    return [...rows, ...builtInRows]
+  }
+
+  async layered(args: Scope & { userId: string }): Promise<SkillLayers> {
+    const placement = await this.placementOf(args)
+    const layers: LayerItems<SkillSummary>[] = [
+      {
+        layer: EConfigLayer.BuiltIn,
+        items: this.builtInSummaries({ usage: new Map(), ownedNames: new Set() }),
+      },
+      {
+        layer: EConfigLayer.Personal,
+        items: await this.summariesOf({
+          owner: { userId: args.userId },
+          userId: args.userId,
+          scope: ESkillScope.Personal,
+        }),
+      },
+    ]
+    if (placement.group !== null) {
+      layers.push({
+        layer: EConfigLayer.Group,
+        items: await this.summariesOf({
+          owner: { groupId: placement.group.id },
+          userId: args.userId,
+          scope: ESkillScope.Group,
+          groupId: placement.group.id,
+        }),
+      })
+    }
+    if (placement.project !== null) {
+      layers.push({
+        layer: EConfigLayer.Project,
+        items: await this.summariesOf({
+          owner: { projectId: placement.project.id },
+          userId: args.userId,
+          scope: ESkillScope.Project,
+          projectId: placement.project.id,
+        }),
+      })
+    }
+    return {
+      layers: layeredItemsOf({
+        layers,
+        ownerOf: (layer) => {
+          if (layer === EConfigLayer.BuiltIn) return { id: null, name: 'built-ins' }
+          if (layer === EConfigLayer.Personal) return PERSONAL_LAYER_OWNER
+          if (layer === EConfigLayer.Group) {
+            return placement.group === null
+              ? { id: null, name: '' }
+              : { id: placement.group.id, name: placement.group.name }
+          }
+          return placement.project === null
+            ? { id: null, name: '' }
+            : { id: placement.project.id, name: placement.project.name }
+        },
+      }),
+    }
+  }
+
+  private builtInSummaries(args: {
+    usage: ReadonlyMap<string, SkillUsage>
+    ownedNames: ReadonlySet<string>
+  }): SkillSummary[] {
+    return builtInSkills()
+      .filter((skill) => !args.ownedNames.has(skill.name))
+      .map((skill) => this.builtInSummary({ skill, usage: args.usage }))
   }
 
   private builtInSummary(args: {
     skill: ReturnType<typeof builtInSkills>[number]
-    usage: Map<string, SkillUsage>
+    usage: ReadonlyMap<string, SkillUsage>
   }): SkillSummary {
     const { skill } = args
     return {
@@ -373,29 +503,20 @@ export class SkillsService {
         `a skill name must match ${SKILL_NAME_PATTERN.source} and be at most ${SKILL_NAME_MAX_LENGTH} characters`,
       )
     }
-    const owner =
-      args.scope === ESkillScope.Personal
-        ? ({ userId: args.userId } as const)
-        : ({ projectId: await this.projectIdOf(args) } as const)
+    const owner = await this.ownerOf(args)
     const existing = await db.orm.public.Skill.first({ ...owner, name: args.skill })
     if (existing !== null) return existing
     this.assertNotBuiltIn(args.skill)
     return this.createSkill({ ...owner, name: args.skill })
   }
 
-  private async createSkill(input: {
-    userId?: string
-    projectId?: string
-    name: string
-  }): Promise<Row<'Skill'>> {
+  private async createSkill(input: Owner & { name: string }): Promise<Row<'Skill'>> {
     try {
       return await db.orm.public.Skill.create(input)
     } catch (failure) {
       if (!isUniqueViolation(failure)) throw failure
       const constraint = violatedConstraint(failure)
-      if (constraint !== 'Skill_userId_name_key' && constraint !== 'Skill_projectId_name_key') {
-        throw failure
-      }
+      if (!SKILL_OWNER_CONSTRAINTS.includes(constraint ?? '')) throw failure
       const raced = await db.orm.public.Skill.first(input)
       if (raced === null) throw failure
       return raced

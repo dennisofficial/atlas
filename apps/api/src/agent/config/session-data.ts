@@ -7,17 +7,24 @@ const QUERY_TIMEOUT_MS = 10_000
 
 const OWNER_CACHE_LIMIT = 500
 
-export type SessionOwner = { userId: string; projectId: string | null }
+export type SessionOwner = { userId: string; projectId: string | null; groupId: string | null }
 
 export type SessionData = {
   db(): Db
   owner(sessionId: string): Promise<SessionOwner | null>
 }
 
+const groupOf = async (args: { db: Db; projectId: string }): Promise<string | null> => {
+  const project = await args.db.orm.public.Project.first({ id: args.projectId })
+  return project?.groupId ?? null
+}
+
 const ownerOf = async (args: { db: Db; sessionId: string }): Promise<SessionOwner | null> => {
   const session = await args.db.orm.public.Session.first({ id: args.sessionId })
   if (session === null || session === undefined) return null
-  return { userId: session.userId, projectId: session.projectId }
+  const groupId =
+    session.projectId === null ? null : await groupOf({ db: args.db, projectId: session.projectId })
+  return { userId: session.userId, projectId: session.projectId, groupId }
 }
 
 export const sessionDataOf = (args: { db?: Db | undefined } = {}): SessionData => {

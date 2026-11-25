@@ -13,6 +13,7 @@ import {
   projectSecretListSchema,
   projectSecretSetSchema,
   projectSecretValueSchema,
+  layeredSettingsSchema,
   projectSettingsPatchSchema,
   resourceMcpServerListSchema,
   settingListSchema,
@@ -30,6 +31,7 @@ import {
   type ProjectSecretList,
   type ProjectSecretSet,
   type ProjectSecretValue,
+  type LayeredSettings,
   type ProjectSettingsPatch,
   type ResourceMcpServerList,
   type SettingList,
@@ -82,6 +84,14 @@ export class ProjectResourcesRouter {
     @Ctx() ctx: SessionTrpcCtx,
   ): Promise<void> {
     await this.settings.patch({ userId: ctx.auth.userId, ...input })
+  }
+
+  @Query({ input: projectIdInputSchema, output: layeredSettingsSchema })
+  async layeredSettings(
+    @Input() input: ProjectIdInput,
+    @Ctx() ctx: SessionTrpcCtx,
+  ): Promise<LayeredSettings> {
+    return this.settings.layered({ userId: ctx.auth.userId, ...input })
   }
 
   @Query({ input: projectIdInputSchema, output: projectSandboxSchema })

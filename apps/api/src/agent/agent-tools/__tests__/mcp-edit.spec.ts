@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { toThreadId, type ToolOutcome } from '@dltech/atlas-core'
+import { EMcpServerScope } from '@dltech/atlas-wire/web'
 
 import { McpEditTool } from '../mcp-edit'
 import { fakeCloudConfig, type FakeCloudConfig } from './support-cloud-config'
@@ -41,6 +42,37 @@ describe('McpEditTool', () => {
 
     const list = await invoke(tool, { action: 'list' })
     expect(textOf(list)).toBe('mcp servers:\ndocs http https://mcp.example.com/mcp')
+  })
+
+  it('writes the group layer when the scope is group and reports a project with no group', async () => {
+    const calls: (EMcpServerScope | undefined)[] = []
+    const client = {
+      projectId: 'proj-1',
+      listMcpServers: async (scope?: EMcpServerScope) => {
+        calls.push(scope)
+        return []
+      },
+      readMcpServer: async () => null,
+      putMcpServer: async (_server: { name: string }, scope?: EMcpServerScope) => {
+        calls.push(scope)
+        if (scope === EMcpServerScope.Group) {
+          throw new Error('this project has no group, so it has no group mcp servers')
+        }
+      },
+      removeMcpServer: async () => false,
+    }
+    const tool = new McpEditTool({ client, projectId: 'proj-1' })
+
+    expect((await invoke(tool, { action: 'list', scope: 'group' })).ok).toBe(true)
+    expect(calls).toEqual([EMcpServerScope.Group])
+
+    const added = await invoke(tool, {
+      action: 'add',
+      name: 'docs',
+      transport: HTTP,
+      scope: 'group',
+    })
+    expect(textOf(added)).toBe('this project has no group, so it has no group mcp servers')
   })
 
   it('requires a transport to add a server', async () => {

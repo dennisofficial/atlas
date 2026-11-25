@@ -14,9 +14,11 @@ const row = (name: string, value: string): SealedSecretRow => ({
 
 const rowsOf = (args: {
   user?: readonly SealedSecretRow[]
+  group?: readonly SealedSecretRow[]
   project?: readonly SealedSecretRow[]
 }): EnvSecretRows => ({
   userSecrets: async () => args.user ?? [],
+  groupSecrets: async () => args.group ?? [],
   projectSecrets: async () => args.project ?? [],
 })
 
@@ -38,6 +40,22 @@ describe('readEnvSecrets', () => {
     })
   })
 
+  it('takes the group value over the personal one and the project value over the group one', async () => {
+    const overGroup = await read(
+      rowsOf({ user: [row('API_KEY', 'personal')], group: [row('API_KEY', 'group')] }),
+    )
+    expect(overGroup.env).toEqual({ API_KEY: 'group' })
+
+    const overBoth = await read(
+      rowsOf({
+        user: [row('API_KEY', 'personal')],
+        group: [row('API_KEY', 'group')],
+        project: [row('API_KEY', 'project')],
+      }),
+    )
+    expect(overBoth.env).toEqual({ API_KEY: 'project' })
+  })
+
   it('takes the project value over the personal one of the same name', async () => {
     const exported = await read(
       rowsOf({ user: [row('API_KEY', 'personal')], project: [row('API_KEY', 'project')] }),
@@ -50,6 +68,10 @@ describe('readEnvSecrets', () => {
     const asked: unknown[] = []
     const rows: EnvSecretRows = {
       userSecrets: async () => [row('PERSONAL_TOKEN', 'personal')],
+      groupSecrets: async (lookup) => {
+        asked.push(lookup)
+        return []
+      },
       projectSecrets: async (lookup) => {
         asked.push(lookup)
         return []

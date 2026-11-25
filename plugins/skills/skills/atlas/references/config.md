@@ -15,7 +15,7 @@ environment. Use current workspace reminders; do not assume the repository's mai
 | Settings     | `<atlas-home>/settings.json`                            | `<project>/.atlas/settings.json`                                          |
 | MCP          | `<atlas-home>/mcp.json`                                 | `<project>/.atlas/mcp.json`, `<project>/.mcp.json`                        |
 | Instructions | Atlas Cloud personal instructions (Settings → Instructions) | `AGENTS.md` from the repo root down to the project directory, plus nested |
-| Skills       | Atlas Cloud user skills                                 | `<project>/.agents/skills`                                                |
+| Skills       | Atlas Cloud user skills                                 | Atlas Cloud group and project skills, `<project>/.agents/skills`          |
 | Agent types  | built-in types                                          | `<project>/.agents/agents`                                                |
 
 Personal instructions are edited in the web app's Settings → Instructions and live in Atlas Cloud,
@@ -66,12 +66,14 @@ they reload: both are read every turn.
 
 ## Skills
 
-Install skills with `skill_install`. The operator's user skills and the project's skills are Atlas
-Cloud rows, edited in the app's Skills settings. A repository's own skills live in `.agents/skills`,
-read from the clone with symlinks followed; nothing under `.atlas/` is a skill root.
+Install skills with `skill_install`. The operator's user skills, the group's skills and the project's
+skills are Atlas Cloud rows, edited in the app's Skills settings. A project inherits the skills of the
+group it belongs to. A repository's own skills live in `.agents/skills`, read from the clone with
+symlinks followed; nothing under `.atlas/` is a skill root.
 
 Write `<repo>/.agents/skills/<name>/SKILL.md` or a flat `<repo>/.agents/skills/<name>.md`. A repo
-skill overrides a Cloud skill of the same name, which overrides a built-in. `/skills` reloads and
+skill overrides a project skill of the same name, which overrides a group skill, which overrides a
+user skill, which overrides a built-in. `/skills` reloads and
 reports changes.
 
 Put `name` and `description` in YAML frontmatter, followed by the Markdown procedure. Write the
@@ -110,7 +112,7 @@ Stdio example: `{"local": {"transport": {"kind": "stdio", "command": "my-mcp-ser
 
 Entries support `transport` and optional `disabled`; a disabled stub may omit transport. HTTP accepts
 `headers`; stdio accepts `args` and `env`. Names contain letters, digits, `_`, or `-`.
-Project native entries override user native entries. Project-root `.mcp.json` accepts Claude-compatible
+Group native entries override user native entries, and project native entries override group ones. Project-root `.mcp.json` accepts Claude-compatible
 `command`/`args`/`env` or `type`/`url`/`headers` entries, only for names no valid native file defines.
 It is a compatibility fallback, not an override of native configuration.
 
@@ -122,7 +124,8 @@ Enable/disable replace the entry, so supply its transport to preserve it. Restar
 
 ## Change and verify
 
-1. Choose user scope for personal configuration or project scope for repository-shared configuration.
+1. Choose user scope for personal configuration, group scope for every project of a group, or project
+   scope for one project.
 2. Inspect the existing file without exposing secrets; preserve unrelated keys in the smallest edit.
 3. Validate JSON without printing it (`jq empty <file>`). Use verified file ids/values;
    use `/settings` itself when the installed version's file schema is not known.

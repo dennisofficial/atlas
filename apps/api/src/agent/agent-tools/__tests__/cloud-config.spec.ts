@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { toThreadId, type ToolOutcome } from '@dltech/atlas-core'
+import { EAccessScope } from '@dltech/atlas-wire/web'
 
 import { CloudConfigTool } from '../cloud-config'
 import {
@@ -28,6 +29,30 @@ const toolFor = (
 const textOf = (outcome: ToolOutcome): string => (outcome.ok ? outcome.modelText : outcome.reason)
 
 describe('CloudConfigTool', () => {
+  it('writes a group setting through the project group client', async () => {
+    const personal = fakePersonalConfig()
+    const project = fakeCloudConfig()
+    const group = fakePersonalConfig()
+    const tool = new CloudConfigTool({
+      personal: personal.client,
+      project: project.client,
+      group: { ...group.client, scope: EAccessScope.Group },
+    })
+
+    const set = await invoke(tool, {
+      scope: 'group',
+      kind: 'setting',
+      action: 'set',
+      name: 'model.fast',
+      value: 'true',
+    })
+
+    expect(textOf(set)).toBe('Set setting model.fast.')
+    expect(group.state.settings.has('model.fast')).toBe(true)
+    expect(project.settings.size).toBe(0)
+    expect(personal.state.settings.size).toBe(0)
+  })
+
   it('is the cloud_config tool', () => {
     expect(toolFor().name).toBe('cloud_config')
   })

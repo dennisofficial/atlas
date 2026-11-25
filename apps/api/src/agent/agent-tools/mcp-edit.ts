@@ -6,6 +6,7 @@ import {
   type ToolRun,
 } from '@dltech/atlas-core'
 import { mcpTransportSchema, type McpTransport } from '@dltech/atlas-plugin-mcp/core'
+import { EMcpServerScope } from '@dltech/atlas-wire/web'
 import { z } from 'zod'
 
 import type { McpConfigClient, McpServerView } from '../config/cloud-config-store'
@@ -24,6 +25,7 @@ export const mcpEditInputSchema = z.strictObject({
   name: z.string().min(1).optional(),
   transport: mcpTransportSchema.optional(),
   proxy: z.boolean().optional(),
+  scope: z.enum(EMcpServerScope).default(EMcpServerScope.Project),
 })
 
 type Input = z.output<typeof mcpEditInputSchema>
@@ -31,6 +33,7 @@ type Input = z.output<typeof mcpEditInputSchema>
 const description = [
   'List and change the MCP servers this project’s sessions load from Atlas.',
   'action is list, add, remove, disable or enable.',
+  'scope is project or group. project servers load for this project alone; group servers load for every project of this project’s group.',
   'name is the server name.',
   'transport is stdio {command, args, env} or http {url, headers}.',
   'add writes a server with a transport.',
@@ -75,41 +78,50 @@ const change = async (args: {
 }): Promise<ToolOutcome> => {
   const { client, input, name } = args
   if (input.action === EMcpEditAction.Remove) {
-    const removed = await client.removeMcpServer(name)
+    const removed = await client.removeMcpServer(name, input.scope)
     return removed
       ? done({ text: `Removed mcp server ${name}. ${APPLIES}` })
       : fail(`there is no mcp server "${name}"`)
   }
   if (input.action === EMcpEditAction.Add) {
     if (input.transport === undefined) return fail('transport is required to add a server')
-    await client.putMcpServer({
-      name,
-      transport: input.transport,
-      disabled: false,
-      proxy: input.proxy === true,
-    })
+    await client.putMcpServer(
+      {
+        name,
+        transport: input.transport,
+        disabled: false,
+        proxy: input.proxy === true,
+      },
+      input.scope,
+    )
     return done({ text: `Set mcp server ${name}. ${APPLIES}` })
   }
-  const existing = await client.readMcpServer(name)
+  const existing = await client.readMcpServer(name, input.scope)
   if (existing === null) return fail(`there is no mcp server "${name}"`)
   if (input.action === EMcpEditAction.Disable) {
-    await client.putMcpServer({
-      name,
-      transport: existing.transport,
-      disabled: true,
-      proxy: existing.proxy,
-    })
+    await client.putMcpServer(
+      {
+        name,
+        transport: existing.transport,
+        disabled: true,
+        proxy: existing.proxy,
+      },
+      input.scope,
+    )
     return done({ text: `Disabled mcp server ${name}. ${APPLIES}` })
   }
   if (existing.transport === undefined) {
     return fail(`mcp server "${name}" has no transport. Add a transport to enable it.`)
   }
-  await client.putMcpServer({
-    name,
-    transport: existing.transport,
-    disabled: false,
-    proxy: existing.proxy,
-  })
+  await client.putMcpServer(
+    {
+      name,
+      transport: existing.transport,
+      disabled: false,
+      proxy: existing.proxy,
+    },
+    input.scope,
+  )
   return done({ text: `Enabled mcp server ${name}. ${APPLIES}` })
 }
 
@@ -135,7 +147,7 @@ export class McpEditTool extends SchemaTool<typeof mcpEditInputSchema> {
       if (input.action === EMcpEditAction.List) {
         return listing({
           title: 'mcp servers',
-          lines: (await client.listMcpServers()).map(rowLine),
+          lines: (await client.listMcpServers(input.scope)).map(rowLine),
         })
       }
       const name = need({ value: input.name, field: 'name' })
