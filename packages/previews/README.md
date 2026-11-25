@@ -37,7 +37,8 @@ records that no row owns. The API's preview path and the `preview-reconcile` tri
   `livePeersOf(podSessionId)` counts the pod's live sessions and defaults to `async () => 0`.
 - `expose({ podSessionId, threadId, userId, port })`: returns `{ url, tunnelToken }`. The first
   call for a pod inserts a `Pending` row, creates the tunnel outside any transaction, seals its
-  token and moves the row to `Ready`. A repeated port returns the same hostname and makes no
+  token and moves the row to `Ready`. A call that arrives while that seal runs waits for the same
+  seal and makes no second Cloudflare call. A repeated port returns the same hostname and makes no
   Cloudflare call.
 - `markDeleting({ podSessionId })`, `clearDeleting({ podSessionId })`: one row update each, no
   Cloudflare call, safe to repeat.
@@ -121,7 +122,8 @@ await tunnels.markDeleting({ podSessionId: 'ses_pod' })
 ## Rules
 
 - Keep one tunnel for each pod, named `atlas-<podSessionId>`. `expose` takes a per-pod advisory
-  lock, so two concurrent calls make one tunnel and one route per port.
+  lock for the row, and one pod's concurrent calls share a single seal, so two concurrent calls
+  make one tunnel and one route per port.
 - Rows are desired state. Only the reconciler creates CNAMEs, writes ingress and deletes
   anything, and it runs its Cloudflare calls outside any transaction.
 - Two drivers call the pass: the agent host after a row write, awaited, and the
@@ -132,5 +134,6 @@ await tunnels.markDeleting({ podSessionId: 'ses_pod' })
 ## See also
 
 - `apps/trigger/src/previews/preview-reconcile.ts` for the pass's timer.
-- `packages/previews/src/__tests__/preview-tunnels.spec.ts` and
+- `packages/previews/src/__tests__/preview-tunnels.spec.ts`,
+  `packages/previews/src/__tests__/preview-tunnels-concurrency.spec.ts` and
   `packages/previews/src/__tests__/preview-reconciler.spec.ts` for the behaviour of each path.
