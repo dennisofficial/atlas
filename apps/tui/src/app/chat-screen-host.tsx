@@ -25,6 +25,7 @@ import { useSessionTranscript } from './use-session-transcript'
 import { useSessionCommands } from './use-session-commands'
 import { useSessionWake } from './use-session-wake'
 import { useTranscriptPanels } from './use-transcript-panels'
+import { useToolPictureSession } from '../ui/use-tool-picture-session'
 import { MIN_TRANSCRIPT_WIDTH } from '../ui/theme'
 import { sidebarWidth } from '../ui/sidebar-width-store'
 import { problemOf } from './app-next-support'
@@ -38,6 +39,7 @@ export function ChatScreenHost(props: ChatScreenHostProps): React.ReactNode {
     now: props.now,
   })
 
+  useToolPictureSession({ api: props.client.api, sessionId: props.sessionId })
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const contentWidth = sidebarOpen
     ? Math.max(MIN_TRANSCRIPT_WIDTH, props.width - sidebarWidth())

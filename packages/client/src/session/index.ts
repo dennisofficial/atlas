@@ -1,4 +1,5 @@
 export * from './session-media'
+export * from './tool-pictures'
 export * from './session-rewind'
 export * from './quick-stop-restore'
 export * from './session-create'

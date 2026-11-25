@@ -188,6 +188,7 @@ function AgentPanelBody({
           <ThreadPanelProvider value={nestedPanel}>
             <SessionDiagramRepairProvider repairDiagram={repairDiagram}>
               <ThreadTranscript
+                sessionId={sessionId}
                 items={transcriptItems}
                 failureCard={null}
                 failedLabel={null}

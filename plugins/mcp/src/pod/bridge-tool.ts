@@ -8,7 +8,7 @@ import {
 } from '@dltech/atlas-core'
 import { z } from 'zod'
 
-import { renderCall } from './render'
+import { contentWithoutPictureData, renderCall } from './render'
 import {
   McpUnauthorizedError,
   McpUnavailableError,
@@ -93,7 +93,7 @@ export class McpBridgeTool extends ToolDefinition {
         tool: this.tool,
         ...(result.structuredContent !== undefined
           ? { structuredContent: result.structuredContent }
-          : { content: result.content }),
+          : { content: contentWithoutPictureData(result.content) }),
       },
       modelText: rendered.text,
       ...(parts.length > 0 ? { modelParts: parts } : {}),

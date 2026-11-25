@@ -363,6 +363,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
               <div className="min-h-0 flex-1">
                 <SessionDiagramRepairProvider repairDiagram={repairDiagram}>
                   <ThreadTranscript
+                    sessionId={sessionId}
                     items={queuedTranscript.transcript}
                     failureCard={failure.card}
                     repairCard={failure.repairCard}

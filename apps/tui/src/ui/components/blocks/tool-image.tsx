@@ -11,6 +11,7 @@ import '../../images/transcript-image'
 import { tailOfPath } from '../../paths'
 import { defaultOpenImage, type OpenImage } from '../../open-image'
 import { theme } from '../../theme'
+import { useToolPictureBytes } from '../../tool-picture-store'
 import { useTranscriptRows } from '../../viewport-rows-store'
 import type { Expander } from './more-toggle'
 
@@ -32,10 +33,16 @@ export function ToolImage(props: {
   const rows = useTranscriptRows()
   const covered = useTranscriptCovered()
   const image = imageOf(props.call)
-  const bytes = React.useMemo(
-    () => (image?.data == null ? null : Buffer.from(image.data, 'base64')),
-    [image?.data],
+  const toolPicture = props.call.image
+  const loaded = useToolPictureBytes(
+    toolPicture !== undefined && toolPicture.kind !== 'inline' ? toolPicture : undefined,
   )
+  const bytes = React.useMemo(() => {
+    if (toolPicture?.kind === 'inline')
+      return toolPicture.data.length === 0 ? null : Buffer.from(toolPicture.data, 'base64')
+    return loaded === undefined || loaded === null ? null : Buffer.from(loaded)
+  }, [toolPicture, loaded])
+  const source = bytes ?? (toolPicture === undefined ? (image?.path ?? null) : null)
   const summary = imageSummary({ call: props.call, cwd: props.cwd })
   const collapsible = props.expand?.onToggle !== undefined
   const shown = props.expand?.expanded ?? true
@@ -46,7 +53,7 @@ export function ToolImage(props: {
       openImage({
         path: image.path,
         mediaType: image.mediaType,
-        data: image.data,
+        data: bytes?.toString('base64') ?? image.data,
       })
   }
   const picture = useClickRegion(image === null ? undefined : handleOpen)
@@ -80,10 +87,10 @@ export function ToolImage(props: {
             fg={theme.hint}
           >{`${INDENT}Not sent to the model: ${image.notSentReason ?? ''}`}</span>
         </text>
-      ) : !shown || span === null || span.columns < 1 || span.rows < 1 ? null : (
+      ) : !shown || span === null || source === null || span.columns < 1 || span.rows < 1 ? null : (
         <box paddingLeft={INDENT.length} flexShrink={0} {...picture.handlers}>
           <transcript-image
-            source={bytes ?? image.path}
+            source={source}
             protocol="auto"
             fit="fit"
             style={{ width: span.columns, height: span.rows }}

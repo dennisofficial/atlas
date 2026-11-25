@@ -140,11 +140,11 @@ describe('toolCallItemOf image', () => {
         input: { path: '/repo/shot.png' },
         output: { path: '/repo/shot.png', mediaType: 'image/png' },
       }),
-      image: { data: 'iVBOR', mediaType: 'image/png' },
+      image: { kind: 'inline', data: 'iVBOR', mediaType: 'image/png' },
     })
     expect(item.image).toEqual({
       id: 'c1#image',
-      src: 'data:image/png;base64,iVBOR',
+      picture: { kind: 'inline', data: 'iVBOR', mediaType: 'image/png' },
       alt: 'shot.png',
     })
   })

@@ -1,7 +1,7 @@
 import { deflateSync, inflateSync } from 'node:zlib'
 import { encodePng, mediaPathname } from '@dltech/atlas-core'
 import { MediaService } from './media.service'
-import { sha256Hex } from './media-validation'
+import { sha256Hex } from '@dltech/atlas-media'
 import { setupSessionsService } from './sessions.service.fixture'
 
 export const pngBytes = (args: { width: number; height: number; shade?: number }): Uint8Array => {

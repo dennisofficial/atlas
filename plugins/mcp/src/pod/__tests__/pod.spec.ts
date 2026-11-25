@@ -161,6 +161,47 @@ describe('bridge tools from a recorded snapshot', () => {
       }),
     ).toEqual({ ok: false, reason: "the 'gone' MCP server is not connected" })
   })
+
+  it('keeps a picture once, in the model parts, and not a second time in the output', async () => {
+    const png =
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+    const tool = new McpBridgeTool({
+      server: 'docs',
+      info: { name: 'shot' },
+      caller: () => ({
+        name: 'docs',
+        call: async () => ({
+          content: [
+            { type: 'text', text: 'the artboard' },
+            { type: 'image', data: png, mimeType: 'image/png' },
+          ],
+        }),
+      }),
+    })
+
+    const outcome = await tool.invoke({
+      input: {},
+      signal: new AbortController().signal,
+      idempotencyKey: 'k',
+      projectDirectory: '/repo',
+      threadId: 't1' as never,
+    })
+    if (!outcome.ok) throw new Error('the call was expected to succeed')
+
+    expect(JSON.stringify(outcome.output)).not.toContain(png)
+    expect(outcome.output).toEqual({
+      server: 'docs',
+      tool: 'shot',
+      content: [
+        { type: 'text', text: 'the artboard' },
+        { type: 'image', mimeType: 'image/png', withheld: true },
+      ],
+    })
+    expect(outcome.modelParts).toEqual([
+      { type: 'text', text: 'the artboard' },
+      { type: 'image', bytes: { kind: 'inline', data: png }, mediaType: 'image/png' },
+    ])
+  })
 })
 
 describe('rowsOf', () => {

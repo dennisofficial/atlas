@@ -69,3 +69,13 @@ export const renderContent = (raw: unknown): RenderedResult => {
 
 export const renderCall = (result: McpCallResult): RenderedResult =>
   renderContent(result.structuredContent ?? result.content)
+
+const withoutInlineData = (block: unknown): unknown => {
+  const record = asRecord(block)
+  if (record === undefined || imageBlockOf(block) === undefined) return block
+  const { data: _data, ...rest } = record
+  return { ...rest, withheld: true }
+}
+
+export const contentWithoutPictureData = (raw: unknown): unknown =>
+  Array.isArray(raw) ? raw.map(withoutInlineData) : raw

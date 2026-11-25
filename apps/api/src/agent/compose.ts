@@ -34,6 +34,7 @@ import type { SigningKeyReader } from './tokens/signing-key-reader'
 import type { ConfigSource } from './config/agent-host-config'
 import type { AgentHostEnv } from './config/env'
 import type { MediaSigner } from './media/media-signer'
+import type { MediaStore } from '@dltech/atlas-media'
 import type { SandboxProviderRegistry } from '@dltech/atlas-pods/sandbox/provider-registry'
 import { systemTimers, type HostBus, type HostTimers } from '@dltech/atlas-host'
 import { SessionNotFoundError } from './config/config-reader'
@@ -67,6 +68,7 @@ export type ComposeAgentHostArgs = {
   traceFor?: ((distinctId: string) => TracePort) | undefined
   analytics?: ProductAnalytics | undefined
   media?: MediaSigner | undefined
+  mediaStore?: MediaStore | undefined
   changes?: { content: ChangeContentStore } | undefined
   contextMirror?:
     | { content: ContextContentStore; contextDir: (sessionId: string) => string }
@@ -105,6 +107,7 @@ export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
       ...(args.traceFor === undefined ? {} : { traceFor: args.traceFor }),
       ...(args.analytics === undefined ? {} : { analytics: args.analytics }),
       media: args.media,
+      ...(args.mediaStore === undefined ? {} : { mediaStore: args.mediaStore }),
       plugins: composedPlugins,
       configWrites: cloudConfigStore(),
       envSecrets: envSecretsReader(),

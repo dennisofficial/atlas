@@ -57,6 +57,7 @@ export const childRecordOf = (spec: RecordArgs): Promise<SessionRecord> =>
     timers: spec.args.deps.timers,
     remoteCalls: spec.args.runtime.remoteCalls,
     daemonTools: spec.args.runtime.daemonTools,
+    ...(spec.args.runtime.pictures === undefined ? {} : { pictures: spec.args.runtime.pictures }),
     appendRetryMs: spec.args.deps.appendRetryMs,
     onLeaseLost: spec.onLeaseLost,
     nowIso: () => new Date(spec.args.deps.timers.now()).toISOString(),

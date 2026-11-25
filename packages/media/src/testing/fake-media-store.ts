@@ -6,7 +6,12 @@ export class FakeMediaStore extends MediaStore {
   readonly contents = new Map<string, Uint8Array>()
   readonly deleted: string[] = []
 
-  put(args: { pathname: string; bytes: Uint8Array }): void {
+  async put(args: {
+    pathname: string
+    bytes: Uint8Array
+    mediaType?: string | undefined
+    signal?: AbortSignal | undefined
+  }): Promise<void> {
     this.blobs.set(args.pathname, args.bytes.byteLength)
     this.contents.set(args.pathname, args.bytes)
   }

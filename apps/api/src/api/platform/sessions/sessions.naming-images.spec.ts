@@ -3,7 +3,7 @@ import { mediaPathname } from '@dltech/atlas-core'
 import type { FakeMediaStore } from '@dltech/atlas-media/testing'
 import { pngBytes } from './media.fixture'
 import type { FakeMediaRegistry } from './media-registry.fake'
-import { sha256Hex } from './media-validation'
+import { sha256Hex } from '@dltech/atlas-media'
 import { listedSession, setupNaming } from './sessions.naming.fixture'
 
 const uploadImage = async (args: { registry: FakeMediaRegistry; mediaStore: FakeMediaStore }) => {

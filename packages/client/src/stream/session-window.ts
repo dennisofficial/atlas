@@ -50,7 +50,11 @@ export type SessionWindow = {
   foldedThrough: number
 }
 
-export type EventsPage = { events: readonly unknown[]; head: SessionCursor }
+export type EventsPage = {
+  events: readonly unknown[]
+  head: SessionCursor
+  cursor?: SessionCursor | undefined
+}
 
 export const EMPTY_WINDOW: SessionWindow = {
   events: [],
@@ -118,9 +122,10 @@ const readPage = (args: {
 }
 
 const cursorAfter = (args: { page: EventsPage; last: Seen }): SessionCursor =>
-  args.last.seq === args.page.head.seq
+  args.page.cursor ??
+  (args.last.seq === args.page.head.seq
     ? args.page.head
-    : { seq: args.last.seq, hash: wireHashOf(args.last.raw) }
+    : { seq: args.last.seq, hash: wireHashOf(args.last.raw) })
 
 export const applyPageOutcome = (args: {
   window: SessionWindow

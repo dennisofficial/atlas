@@ -112,6 +112,7 @@ export class TakeOver {
       timers: deps.timers,
       remoteCalls: runtime.remoteCalls,
       daemonTools: runtime.daemonTools,
+      ...(runtime.pictures === undefined ? {} : { pictures: runtime.pictures }),
       appendRetryMs: deps.appendRetryMs,
       nowIso: () => new Date(deps.timers.now()).toISOString(),
       onLeaseLost: args.onLeaseLost,

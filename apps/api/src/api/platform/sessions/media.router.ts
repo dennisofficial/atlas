@@ -4,12 +4,16 @@ import {
   mediaConfirmOutputSchema,
   mediaPresignInputSchema,
   mediaPresignOutputSchema,
+  mediaToolPictureInputSchema,
+  mediaToolPictureOutputSchema,
   mediaUrlInputSchema,
   mediaUrlOutputSchema,
   type MediaConfirmInput,
   type MediaConfirmOutput,
   type MediaPresignInput,
   type MediaPresignOutput,
+  type MediaToolPictureInput,
+  type MediaToolPictureOutput,
   type MediaUrlInput,
   type MediaUrlOutput,
 } from '@dltech/atlas-protocol'
@@ -46,5 +50,13 @@ export class MediaRouter {
   @Query({ input: mediaUrlInputSchema, output: mediaUrlOutputSchema })
   url(@Input() input: MediaUrlInput, @Ctx() ctx: SessionTrpcCtx): Promise<MediaUrlOutput> {
     return this.media.url({ userId: ctx.auth.userId, ...input })
+  }
+
+  @Query({ input: mediaToolPictureInputSchema, output: mediaToolPictureOutputSchema })
+  toolPicture(
+    @Input() input: MediaToolPictureInput,
+    @Ctx() ctx: SessionTrpcCtx,
+  ): Promise<MediaToolPictureOutput> {
+    return this.media.toolPicture({ userId: ctx.auth.userId, ...input })
   }
 }
