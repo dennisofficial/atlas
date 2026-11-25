@@ -74,7 +74,7 @@ export async function runOrphanPodSweep(args: {
             )
           const sessionIds = pods.sessionIdsByPod.get(podSessionId) ?? []
           if (sessionIds.length === 0) return
-          await db.orm.v2.V2Session.where((session) => session.id.in(sessionIds))
+          await db.orm.public.Session.where((session) => session.id.in(sessionIds))
             .where((session) => session.archivedAt.isNotNull())
             .updateAndCount({ podRetiredAt: new Date() })
         },

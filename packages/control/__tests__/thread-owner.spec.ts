@@ -20,7 +20,7 @@ const seedThread = async (args: {
     createdById: 'usr-1',
     repo: args.repo,
   })
-  await args.db.orm.v2.V2Session.create({
+  await args.db.orm.public.Session.create({
     id: 'ses-1',
     userId: 'usr-1',
     projectId: 'prj-1',
@@ -67,7 +67,7 @@ describe('threadOwnerOf', () => {
   it('resolves a sub-agent thread through the session that holds it', async () => {
     const { db } = currentDb()
     await seedThread({ db, threadId: 'thr-1', repo: 'dennisofficial/atlas' })
-    await db.orm.v2.V2Thread.create({
+    await db.orm.public.Thread.create({
       id: 'brn-1',
       sessionId: 'ses-1',
       headSeq: 0,

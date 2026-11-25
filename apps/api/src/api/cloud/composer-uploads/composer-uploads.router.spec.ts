@@ -64,7 +64,7 @@ describe('ComposerUploadsRouter', () => {
     const PATHNAME = 'composer-uploads/user-a/x/f.txt'
 
     const seedDraft = async (args: { userId: string; pathname: string }) =>
-      db.orm.v2.V2ComposerDraft.create({
+      db.orm.public.SessionDraft.create({
         userId: args.userId,
         scopeKey: 'new',
         text: 'see the file',

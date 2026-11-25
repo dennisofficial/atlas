@@ -7,41 +7,51 @@ import { createPgHostPresence } from '../pg-host-presence'
 
 const testDb = useTestDatabase()
 
-const BASE_TABLE = '"v2"."V2Host_base"'
+const HOST_TABLE = 'public."Host"'
 
-describe('pg host presence through an auto-updatable view', () => {
+describe('the v2 V2Host view over the public Host table', () => {
   const admin = new pg.Client(testDb().url)
 
   beforeAll(async () => {
     await admin.connect()
-    await admin.query(`ALTER TABLE "v2"."V2Host" RENAME TO "V2Host_base"`)
-    await admin.query(`CREATE VIEW "v2"."V2Host" AS SELECT * FROM ${BASE_TABLE}`)
   })
 
   afterAll(async () => {
-    await admin.query('DROP VIEW "v2"."V2Host"')
-    await admin.query(`ALTER TABLE ${BASE_TABLE} RENAME TO "V2Host"`)
     await admin.end()
   })
 
-  it('has no sequence behind the view, so the insert leaves the id to the column default', async () => {
-    const { rows } = await admin.query<{ sequence: string | null }>(
-      `SELECT pg_get_serial_sequence('"v2"."V2Host"', 'id') AS sequence`,
+  it('hides the sequence behind the view while the table keeps its own', async () => {
+    const { rows } = await admin.query<{ view: string | null; table: string | null }>(
+      `SELECT pg_get_serial_sequence('"v2"."V2Host"', 'id') AS "view",
+              pg_get_serial_sequence('public."Host"', 'id') AS "table"`,
     )
-    expect(rows).toEqual([{ sequence: null }])
+    expect(rows).toEqual([{ view: null, table: 'public."V2Host_id_seq"' }])
   })
 
-  it('registers and closes through the view', async () => {
+  it('accepts the statement the old image runs and returns the id it wrote', async () => {
+    const inserted = await admin.query<{ id: number }>(
+      'INSERT INTO "v2"."V2Host" (label, "startedAt") VALUES ($1, now()) RETURNING id',
+      ['view-host'],
+    )
+    const id = inserted.rows[0]?.id
+    const { rows } = await admin.query<{ label: string }>(
+      `SELECT label FROM ${HOST_TABLE} WHERE id = $1`,
+      [id],
+    )
+    expect(rows).toEqual([{ label: 'view-host' }])
+  })
+
+  it('registers and closes through the public table', async () => {
     const presence = createPgHostPresence({ url: testDb().url, label: 'view-host' })
     const hostId = await presence.register()
     const { rows } = await admin.query<{ label: string }>(
-      `SELECT label FROM ${BASE_TABLE} WHERE id = $1`,
+      `SELECT label FROM ${HOST_TABLE} WHERE id = $1`,
       [hostId],
     )
     expect(rows).toEqual([{ label: 'view-host' }])
 
     await presence.close()
-    const gone = await admin.query(`SELECT 1 FROM ${BASE_TABLE} WHERE id = $1`, [hostId])
+    const gone = await admin.query(`SELECT 1 FROM ${HOST_TABLE} WHERE id = $1`, [hostId])
     expect(gone.rows).toEqual([])
   })
 })

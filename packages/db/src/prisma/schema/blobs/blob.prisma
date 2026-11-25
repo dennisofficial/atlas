@@ -1,0 +1,7 @@
+// use prisma-8
+model Blob {
+  hash      String @id
+  bytes     Bytes
+  size      Int
+  createdAt TimestamptzJsDate(3)
+}

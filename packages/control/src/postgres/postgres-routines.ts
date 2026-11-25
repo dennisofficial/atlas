@@ -12,7 +12,7 @@ export const lockRoutineIn = async (params: {
   tx: Tx
   routineId: string
 }): Promise<RoutineRow | undefined> => {
-  const row = await params.tx.orm.v2.V2Routine.where({ id: params.routineId })
+  const row = await params.tx.orm.public.Routine.where({ id: params.routineId })
     .forNoKeyUpdate()
     .first()
   return row === null ? undefined : toRoutineRow(row)
@@ -22,14 +22,14 @@ export const readRoutineIn = async (params: {
   tx: Tx
   routineId: string
 }): Promise<RoutineRow | undefined> => {
-  const row = await params.tx.orm.v2.V2Routine.first({ id: params.routineId })
+  const row = await params.tx.orm.public.Routine.first({ id: params.routineId })
   return row === null ? undefined : toRoutineRow(row)
 }
 
 export const advanceRoutineIn = async (
   params: AdvanceRoutineParams & { tx: Tx },
 ): Promise<boolean> => {
-  const changed = await params.tx.orm.v2.V2Routine.where({
+  const changed = await params.tx.orm.public.Routine.where({
     id: params.routineId,
     nextRunAt: new Date(params.expectedNextRunAt),
   }).updateAndCount({
@@ -44,7 +44,7 @@ export const advanceRoutineIn = async (
 export const insertRoutineRunIn = async (
   params: InsertRoutineRunParams & { tx: Tx },
 ): Promise<void> => {
-  await params.tx.orm.v2.V2RoutineRun.create({
+  await params.tx.orm.public.RoutineRun.create({
     id: params.id,
     routineId: params.routineId,
     scheduledFor: new Date(params.scheduledFor),
@@ -60,7 +60,7 @@ export const dueRoutinesIn = async (params: {
   now: string
   limit: number
 }): Promise<RoutineRow[]> => {
-  const rows = await params.tx.orm.v2.V2Routine.where((routine) =>
+  const rows = await params.tx.orm.public.Routine.where((routine) =>
     and(routine.enabled.eq(true), routine.nextRunAt.lte(new Date(params.now))),
   )
     .orderBy((routine) => routine.nextRunAt.asc())
@@ -70,18 +70,18 @@ export const dueRoutinesIn = async (params: {
 }
 
 export const insertRoutineIn = async (params: { tx: Tx; row: RoutineRow }): Promise<void> => {
-  await params.tx.orm.v2.V2Routine.create(fromRoutineRow(params.row))
+  await params.tx.orm.public.Routine.create(fromRoutineRow(params.row))
 }
 
 export const updateRoutineIn = async (params: { tx: Tx; row: RoutineRow }): Promise<void> => {
-  await params.tx.orm.v2.V2Routine.where({ id: params.row.routineId }).update(
+  await params.tx.orm.public.Routine.where({ id: params.row.routineId }).update(
     fromRoutineRow(params.row),
   )
 }
 
 export const deleteRoutineIn = async (params: { tx: Tx; routineId: string }): Promise<void> => {
-  await params.tx.orm.v2.V2RoutineRun.where({ routineId: params.routineId }).deleteAll()
-  await params.tx.orm.v2.V2Routine.where({ id: params.routineId }).delete()
+  await params.tx.orm.public.RoutineRun.where({ routineId: params.routineId }).deleteAll()
+  await params.tx.orm.public.Routine.where({ id: params.routineId }).delete()
 }
 
 export const userRoutinesIn = async (params: {
@@ -89,7 +89,7 @@ export const userRoutinesIn = async (params: {
   userId: string
   projectId?: string | undefined
 }): Promise<RoutineRow[]> => {
-  const rows = await params.tx.orm.v2.V2Routine.where((routine) =>
+  const rows = await params.tx.orm.public.Routine.where((routine) =>
     params.projectId === undefined
       ? routine.userId.eq(params.userId)
       : and(routine.userId.eq(params.userId), routine.projectId.eq(params.projectId)),
@@ -104,7 +104,7 @@ export const userRoutineIn = async (params: {
   routineId: string
   userId: string
 }): Promise<RoutineRow | undefined> => {
-  const row = await params.tx.orm.v2.V2Routine.first({
+  const row = await params.tx.orm.public.Routine.first({
     id: params.routineId,
     userId: params.userId,
   })
@@ -116,7 +116,7 @@ export const routineRunsIn = async (params: {
   routineId: string
   limit: number
 }): Promise<RoutineRunRow[]> => {
-  const rows = await params.tx.orm.v2.V2RoutineRun.where({ routineId: params.routineId })
+  const rows = await params.tx.orm.public.RoutineRun.where({ routineId: params.routineId })
     .orderBy([(run) => run.at.desc(), (run) => run.id.desc()])
     .limit(params.limit)
     .all()

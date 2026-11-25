@@ -14,7 +14,7 @@ const SESSION = 'session-changes-diff'
 const UPDATED_AT = Date.parse('2026-11-23T09:00:00.000Z')
 const hashOf = (seed: string): string => seed.repeat(64).slice(0, 64)
 
-const FILE_WRITE = /(insert into|delete from|update) "?v2"?\."?V2WorktreeChangedFile/i
+const FILE_WRITE = /(insert into|delete from|update) "?public"?\."?WorktreeChangedFile/i
 
 const planeOf = (): ControlPlane =>
   new ControlPlane({ store: new PostgresControlStore(testDb().db) })

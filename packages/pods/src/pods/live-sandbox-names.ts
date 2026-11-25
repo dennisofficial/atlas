@@ -16,7 +16,7 @@ async function sessionsInUseIn(args: {
   sessionIds: readonly string[]
 }): Promise<ReadonlySet<string>> {
   if (args.sessionIds.length === 0) return new Set()
-  const openRuns = await args.tx.orm.v2.V2SandboxRun.where((run) =>
+  const openRuns = await args.tx.orm.public.SandboxRun.where((run) =>
     run.sessionId.in([...args.sessionIds]),
   )
     .where((run) => run.endedAt.isNull())
@@ -48,7 +48,7 @@ const sessionsInUse = (args: { sessionIds: readonly string[] }): Promise<Readonl
  */
 export async function v2Pods(args: { now: Date }): Promise<V2Pods> {
   const cutoff = args.now.getTime() - ARCHIVED_SANDBOX_GRACE_MS
-  const sessions = await db.orm.v2.V2Session.select('id', 'podSessionId', 'archivedAt').all()
+  const sessions = await db.orm.public.Session.select('id', 'podSessionId', 'archivedAt').all()
   const byPod = new Map<string, PodEntry>()
   for (const session of sessions) {
     const pod = session.podSessionId ?? session.id
@@ -77,7 +77,7 @@ export async function podStillRetirableIn(args: {
   now: Date
 }): Promise<boolean> {
   const cutoff = args.now.getTime() - ARCHIVED_SANDBOX_GRACE_MS
-  const sessions = await args.tx.orm.v2.V2Session.where((session) =>
+  const sessions = await args.tx.orm.public.Session.where((session) =>
     or(session.id.eq(args.podSessionId), session.podSessionId.eq(args.podSessionId)),
   )
     .select('id', 'archivedAt')

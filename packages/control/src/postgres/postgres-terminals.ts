@@ -57,7 +57,7 @@ export const listTerminalsIn = async (params: {
   const rows = await params.tx.query(
     params.tx.raw.sql`SELECT "sessionId", "terminalId", "ordinal", "name", "state", "exitCode",
         "signal", "endedReason", "createdAt", "endedAt"
-      FROM "v2"."V2Terminal"
+      FROM "public"."Terminal"
       WHERE "sessionId" = ${params.sessionId} ORDER BY "ordinal" ASC`
       .returnsRow(columns)
       .build(),
@@ -73,7 +73,7 @@ export const readTerminalIn = async (params: {
   const rows = await params.tx.query(
     params.tx.raw.sql`SELECT "sessionId", "terminalId", "ordinal", "name", "state", "exitCode",
         "signal", "endedReason", "createdAt", "endedAt"
-      FROM "v2"."V2Terminal"
+      FROM "public"."Terminal"
       WHERE "sessionId" = ${params.sessionId} AND "terminalId" = ${params.terminalId}`
       .returnsRow(columns)
       .build(),
@@ -86,14 +86,14 @@ export const createTerminalIn = async (
   params: { tx: Tx } & CreateTerminalParams,
 ): Promise<ControlTerminalRow | undefined> => {
   const rows = await params.tx.query(
-    params.tx.raw.sql`INSERT INTO "v2"."V2Terminal"
+    params.tx.raw.sql`INSERT INTO "public"."Terminal"
         ("sessionId", "terminalId", "ordinal", "name", "state", "createdAt")
       SELECT ${params.sessionId}, ${params.terminalId}, n."next", 'Terminal ' || n."next",
           'opening', clock_timestamp()
       FROM (
         SELECT COALESCE(MAX("ordinal"), 0) + 1 AS "next",
             COUNT(*) FILTER (WHERE "state" <> 'ended') AS "live"
-        FROM "v2"."V2Terminal" WHERE "sessionId" = ${params.sessionId}
+        FROM "public"."Terminal" WHERE "sessionId" = ${params.sessionId}
       ) n
       WHERE n."live" < ${params.limit}
       RETURNING "sessionId", "terminalId", "ordinal", "name", "state", "exitCode", "signal",
@@ -111,7 +111,7 @@ export const renameTerminalIn = async (params: {
   terminalId: string
   name: string
 }): Promise<ControlTerminalRow | undefined> => {
-  const changed = await params.tx.orm.v2.V2Terminal.where({
+  const changed = await params.tx.orm.public.Terminal.where({
     sessionId: params.sessionId,
     terminalId: params.terminalId,
   }).updateAndCount({ name: params.name })
@@ -123,7 +123,7 @@ export const markTerminalOpenIn = async (params: {
   sessionId: string
   terminalId: string
 }): Promise<void> => {
-  await params.tx.orm.v2.V2Terminal.where({
+  await params.tx.orm.public.Terminal.where({
     sessionId: params.sessionId,
     terminalId: params.terminalId,
     state: 'opening',
@@ -133,7 +133,7 @@ export const markTerminalOpenIn = async (params: {
 export const endTerminalIn = async (
   params: { tx: Tx } & EndTerminalParams,
 ): Promise<ControlTerminalRow | undefined> => {
-  const changed = await params.tx.orm.v2.V2Terminal.where({
+  const changed = await params.tx.orm.public.Terminal.where({
     sessionId: params.sessionId,
     terminalId: params.terminalId,
   }).updateAndCount({
@@ -151,7 +151,7 @@ export const endSessionTerminalsIn = async (params: {
   sessionId: string
   reason: TerminalEndedReason
 }): Promise<number> =>
-  params.tx.orm.v2.V2Terminal.where({
+  params.tx.orm.public.Terminal.where({
     sessionId: params.sessionId,
     state: 'open',
   }).updateAndCount({ state: 'ended', endedReason: params.reason, endedAt: new Date() })
@@ -161,7 +161,7 @@ export const deleteTerminalIn = async (params: {
   sessionId: string
   terminalId: string
 }): Promise<void> => {
-  await params.tx.orm.v2.V2Terminal.where({
+  await params.tx.orm.public.Terminal.where({
     sessionId: params.sessionId,
     terminalId: params.terminalId,
   }).deleteAndCount()

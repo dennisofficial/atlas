@@ -4,7 +4,7 @@ import type { SurfaceRecord } from './follow-types'
 
 export const recordSessionSurface = (args: { db: Db; log?: (error: unknown) => void }) => {
   return (record: SurfaceRecord): void => {
-    const statement = args.db.raw.sql`UPDATE "v2"."V2Session"
+    const statement = args.db.raw.sql`UPDATE "public"."Session"
       SET "lastSurface" = ${record.surface}
       WHERE "id" = ${record.sessionId}
         AND "userId" = ${record.userId}

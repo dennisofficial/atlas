@@ -21,7 +21,7 @@ export async function postRunNoticeV2Sessions(args: {
 }): Promise<boolean> {
   const { tx, subscription } = args
   if (subscription.threadId === '') return false
-  const thread = await tx.orm.v2.V2Thread.where({ id: subscription.threadId }).first()
+  const thread = await tx.orm.public.Thread.where({ id: subscription.threadId }).first()
   if (thread === null) return false
   const at = new Date()
   const payload = inboxEventPayloadOf({

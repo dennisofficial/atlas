@@ -1,0 +1,22 @@
+// use prisma-8
+model Routine {
+  id            String                @id
+  userId        String
+  projectId     String
+  name          String
+  prompt        String
+  cron          String
+  timezone      String
+  enabled       Boolean               @default(true)
+  modelRef      String?
+  modelEffort   String?
+  modelFast     Boolean?
+  nextRunAt     TimestamptzJsDate(3)
+  lastRunAt     TimestamptzJsDate(3)?
+  lastSessionId String?
+  createdAt     TimestamptzJsDate(3)
+  updatedAt     TimestamptzJsDate(3)
+
+  @@index([enabled, nextRunAt], map: "V2Routine_enabled_nextRunAt_idx_a011dd38")
+  @@index([userId], map: "V2Routine_userId_idx_a489d58a")
+}

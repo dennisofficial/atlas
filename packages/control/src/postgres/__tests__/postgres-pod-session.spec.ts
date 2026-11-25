@@ -8,7 +8,7 @@ import { podSessionIdOfThreadIn } from '../postgres-pod-session'
 const AT = new Date('2026-11-23T20:00:00.000Z')
 
 const seedSession = async (args: { id: string; podSessionId: string | null }): Promise<void> => {
-  await db.orm.v2.V2Session.create({
+  await db.orm.public.Session.create({
     id: args.id,
     userId: 'usr_pod',
     mainThreadId: `thr_main_${args.id}`,
@@ -22,7 +22,7 @@ const seedSession = async (args: { id: string; podSessionId: string | null }): P
 }
 
 const seedThread = async (args: { id: string; sessionId: string }): Promise<void> => {
-  await db.orm.v2.V2Thread.create({
+  await db.orm.public.Thread.create({
     id: args.id,
     sessionId: args.sessionId,
     headSeq: 0,

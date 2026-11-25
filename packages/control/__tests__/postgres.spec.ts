@@ -155,7 +155,7 @@ describeControlPlaneRoutines({
   ...conformanceParams,
   seedRoutine: async (row: RoutineRow) => {
     await testDb().pool.query(
-      `INSERT INTO "v2"."V2Routine" ("id", "userId", "projectId", "name", "prompt", "cron", "timezone", "enabled", "modelRef", "modelEffort", "modelFast", "nextRunAt", "lastRunAt", "lastSessionId", "createdAt", "updatedAt")
+      `INSERT INTO "public"."Routine" ("id", "userId", "projectId", "name", "prompt", "cron", "timezone", "enabled", "modelRef", "modelEffort", "modelFast", "nextRunAt", "lastRunAt", "lastSessionId", "createdAt", "updatedAt")
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
       [
         row.routineId,

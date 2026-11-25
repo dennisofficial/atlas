@@ -6,7 +6,7 @@ import { db } from '@dltech/atlas-db'
  */
 async function sessionIdsOnPods(args: { podSessionIds: readonly string[] }): Promise<string[]> {
   const pods = new Set(args.podSessionIds)
-  const sessions = await db.orm.v2.V2Session.select('id', 'podSessionId').all()
+  const sessions = await db.orm.public.Session.select('id', 'podSessionId').all()
   return sessions
     .filter((session) => pods.has(session.podSessionId ?? session.id))
     .map((session) => session.id)
@@ -21,7 +21,7 @@ export async function endPodTerminals(args: { podSessionIds: readonly string[] }
   const endedAt = new Date()
   let ended = 0
   for (const sessionId of await sessionIdsOnPods({ podSessionIds: args.podSessionIds })) {
-    ended += await db.orm.v2.V2Terminal.where({ sessionId, state: 'open' }).updateAndCount({
+    ended += await db.orm.public.Terminal.where({ sessionId, state: 'open' }).updateAndCount({
       state: 'ended',
       endedReason: 'pod-slept',
       endedAt,

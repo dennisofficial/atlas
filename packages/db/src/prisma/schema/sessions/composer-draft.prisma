@@ -1,0 +1,13 @@
+// use prisma-8
+model SessionDraft {
+  userId      String
+  scopeKey    String
+  sessionId   String?
+  text        String
+  attachments String
+  updatedAt   TimestamptzJsDate(3)
+  session     Session? @relation(fields: [sessionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@id([userId, scopeKey])
+  @@index([sessionId], map: "V2ComposerDraft_sessionId_idx_29f415d4")
+}

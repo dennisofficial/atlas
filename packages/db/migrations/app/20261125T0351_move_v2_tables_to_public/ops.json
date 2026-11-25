@@ -1,0 +1,1413 @@
+[
+  {
+    "id": "v2-to-public.timeouts",
+    "label": "Fail the deploy instead of waiting behind a long lock",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "table",
+        "name": "V2Session"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "bound the wait for ACCESS EXCLUSIVE locks",
+        "sql": "SET LOCAL lock_timeout = '5s'"
+      },
+      {
+        "description": "bound the whole transaction",
+        "sql": "SET LOCAL statement_timeout = '60s'"
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "v2-to-public.move.V2Blob",
+    "label": "Move v2.\"V2Blob\" to public.\"Blob\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "table",
+        "name": "V2Blob"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "rename and move \"V2Blob\" when it is still a table in v2",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('v2.\"V2Blob\"') IS NOT NULL\n     AND (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2Blob\"')) = 'r' THEN\n    EXECUTE 'ALTER TABLE v2.\"V2Blob\" RENAME TO \"Blob\"';\n    EXECUTE 'ALTER TABLE v2.\"Blob\" SET SCHEMA public';\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "ensure public.\"Blob\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"Blob\"')) = 'r' AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "v2-to-public.move.V2BlobRef",
+    "label": "Move v2.\"V2BlobRef\" to public.\"BlobRef\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "table",
+        "name": "V2BlobRef"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "rename and move \"V2BlobRef\" when it is still a table in v2",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('v2.\"V2BlobRef\"') IS NOT NULL\n     AND (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2BlobRef\"')) = 'r' THEN\n    EXECUTE 'ALTER TABLE v2.\"V2BlobRef\" RENAME TO \"BlobRef\"';\n    EXECUTE 'ALTER TABLE v2.\"BlobRef\" SET SCHEMA public';\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "ensure public.\"BlobRef\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"BlobRef\"')) = 'r' AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "v2-to-public.move.V2ChangeBlob",
+    "label": "Move v2.\"V2ChangeBlob\" to public.\"ChangeBlob\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "table",
+        "name": "V2ChangeBlob"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "rename and move \"V2ChangeBlob\" when it is still a table in v2",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('v2.\"V2ChangeBlob\"') IS NOT NULL\n     AND (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2ChangeBlob\"')) = 'r' THEN\n    EXECUTE 'ALTER TABLE v2.\"V2ChangeBlob\" RENAME TO \"ChangeBlob\"';\n    EXECUTE 'ALTER TABLE v2.\"ChangeBlob\" SET SCHEMA public';\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "ensure public.\"ChangeBlob\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"ChangeBlob\"')) = 'r' AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "v2-to-public.move.V2ComposerDraft",
+    "label": "Move v2.\"V2ComposerDraft\" to public.\"SessionDraft\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "table",
+        "name": "V2ComposerDraft"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "rename and move \"V2ComposerDraft\" when it is still a table in v2",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('v2.\"V2ComposerDraft\"') IS NOT NULL\n     AND (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2ComposerDraft\"')) = 'r' THEN\n    EXECUTE 'ALTER TABLE v2.\"V2ComposerDraft\" RENAME TO \"SessionDraft\"';\n    EXECUTE 'ALTER TABLE v2.\"SessionDraft\" SET SCHEMA public';\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "ensure public.\"SessionDraft\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"SessionDraft\"')) = 'r' AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "v2-to-public.move.V2ContextFile",
+    "label": "Move v2.\"V2ContextFile\" to public.\"ContextFile\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "table",
+        "name": "V2ContextFile"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "rename and move \"V2ContextFile\" when it is still a table in v2",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('v2.\"V2ContextFile\"') IS NOT NULL\n     AND (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2ContextFile\"')) = 'r' THEN\n    EXECUTE 'ALTER TABLE v2.\"V2ContextFile\" RENAME TO \"ContextFile\"';\n    EXECUTE 'ALTER TABLE v2.\"ContextFile\" SET SCHEMA public';\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "ensure public.\"ContextFile\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"ContextFile\"')) = 'r' AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "v2-to-public.move.V2DiagramRepair",
+    "label": "Move v2.\"V2DiagramRepair\" to public.\"DiagramRepair\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "table",
+        "name": "V2DiagramRepair"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "rename and move \"V2DiagramRepair\" when it is still a table in v2",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('v2.\"V2DiagramRepair\"') IS NOT NULL\n     AND (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2DiagramRepair\"')) = 'r' THEN\n    EXECUTE 'ALTER TABLE v2.\"V2DiagramRepair\" RENAME TO \"DiagramRepair\"';\n    EXECUTE 'ALTER TABLE v2.\"DiagramRepair\" SET SCHEMA public';\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "ensure public.\"DiagramRepair\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"DiagramRepair\"')) = 'r' AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "v2-to-public.move.V2Event",
+    "label": "Move v2.\"V2Event\" to public.\"Event\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "table",
+        "name": "V2Event"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "rename and move \"V2Event\" when it is still a table in v2",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('v2.\"V2Event\"') IS NOT NULL\n     AND (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2Event\"')) = 'r' THEN\n    EXECUTE 'ALTER TABLE v2.\"V2Event\" RENAME TO \"Event\"';\n    EXECUTE 'ALTER TABLE v2.\"Event\" SET SCHEMA public';\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "ensure public.\"Event\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"Event\"')) = 'r' AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "v2-to-public.move.V2Host",
+    "label": "Move v2.\"V2Host\" to public.\"Host\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "table",
+        "name": "V2Host"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "rename and move \"V2Host\" when it is still a table in v2",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('v2.\"V2Host\"') IS NOT NULL\n     AND (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2Host\"')) = 'r' THEN\n    EXECUTE 'ALTER TABLE v2.\"V2Host\" RENAME TO \"Host\"';\n    EXECUTE 'ALTER TABLE v2.\"Host\" SET SCHEMA public';\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "ensure public.\"Host\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"Host\"')) = 'r' AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "v2-to-public.move.V2InboxEntry",
+    "label": "Move v2.\"V2InboxEntry\" to public.\"InboxEntry\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "table",
+        "name": "V2InboxEntry"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "rename and move \"V2InboxEntry\" when it is still a table in v2",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('v2.\"V2InboxEntry\"') IS NOT NULL\n     AND (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2InboxEntry\"')) = 'r' THEN\n    EXECUTE 'ALTER TABLE v2.\"V2InboxEntry\" RENAME TO \"InboxEntry\"';\n    EXECUTE 'ALTER TABLE v2.\"InboxEntry\" SET SCHEMA public';\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "ensure public.\"InboxEntry\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"InboxEntry\"')) = 'r' AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "v2-to-public.move.V2Lease",
+    "label": "Move v2.\"V2Lease\" to public.\"Lease\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "table",
+        "name": "V2Lease"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "rename and move \"V2Lease\" when it is still a table in v2",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('v2.\"V2Lease\"') IS NOT NULL\n     AND (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2Lease\"')) = 'r' THEN\n    EXECUTE 'ALTER TABLE v2.\"V2Lease\" RENAME TO \"Lease\"';\n    EXECUTE 'ALTER TABLE v2.\"Lease\" SET SCHEMA public';\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "ensure public.\"Lease\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"Lease\"')) = 'r' AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "v2-to-public.move.Media",
+    "label": "Move v2.\"Media\" to public.\"Media\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "table",
+        "name": "Media"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "rename and move \"Media\" when it is still a table in v2",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('v2.\"Media\"') IS NOT NULL\n     AND (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"Media\"')) = 'r' THEN\n    \n    EXECUTE 'ALTER TABLE v2.\"Media\" SET SCHEMA public';\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "ensure public.\"Media\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"Media\"')) = 'r' AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "v2-to-public.move.MediaSigningWindow",
+    "label": "Move v2.\"MediaSigningWindow\" to public.\"MediaSigningWindow\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "table",
+        "name": "MediaSigningWindow"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "rename and move \"MediaSigningWindow\" when it is still a table in v2",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('v2.\"MediaSigningWindow\"') IS NOT NULL\n     AND (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"MediaSigningWindow\"')) = 'r' THEN\n    \n    EXECUTE 'ALTER TABLE v2.\"MediaSigningWindow\" SET SCHEMA public';\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "ensure public.\"MediaSigningWindow\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"MediaSigningWindow\"')) = 'r' AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "v2-to-public.move.V2PushDevice",
+    "label": "Move v2.\"V2PushDevice\" to public.\"PushDevice\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "table",
+        "name": "V2PushDevice"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "rename and move \"V2PushDevice\" when it is still a table in v2",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('v2.\"V2PushDevice\"') IS NOT NULL\n     AND (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2PushDevice\"')) = 'r' THEN\n    EXECUTE 'ALTER TABLE v2.\"V2PushDevice\" RENAME TO \"PushDevice\"';\n    EXECUTE 'ALTER TABLE v2.\"PushDevice\" SET SCHEMA public';\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "ensure public.\"PushDevice\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"PushDevice\"')) = 'r' AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "v2-to-public.move.V2Routine",
+    "label": "Move v2.\"V2Routine\" to public.\"Routine\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "table",
+        "name": "V2Routine"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "rename and move \"V2Routine\" when it is still a table in v2",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('v2.\"V2Routine\"') IS NOT NULL\n     AND (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2Routine\"')) = 'r' THEN\n    EXECUTE 'ALTER TABLE v2.\"V2Routine\" RENAME TO \"Routine\"';\n    EXECUTE 'ALTER TABLE v2.\"Routine\" SET SCHEMA public';\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "ensure public.\"Routine\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"Routine\"')) = 'r' AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "v2-to-public.move.V2RoutineRun",
+    "label": "Move v2.\"V2RoutineRun\" to public.\"RoutineRun\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "table",
+        "name": "V2RoutineRun"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "rename and move \"V2RoutineRun\" when it is still a table in v2",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('v2.\"V2RoutineRun\"') IS NOT NULL\n     AND (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2RoutineRun\"')) = 'r' THEN\n    EXECUTE 'ALTER TABLE v2.\"V2RoutineRun\" RENAME TO \"RoutineRun\"';\n    EXECUTE 'ALTER TABLE v2.\"RoutineRun\" SET SCHEMA public';\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "ensure public.\"RoutineRun\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"RoutineRun\"')) = 'r' AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "v2-to-public.move.V2SandboxRun",
+    "label": "Move v2.\"V2SandboxRun\" to public.\"SandboxRun\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "table",
+        "name": "V2SandboxRun"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "rename and move \"V2SandboxRun\" when it is still a table in v2",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('v2.\"V2SandboxRun\"') IS NOT NULL\n     AND (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2SandboxRun\"')) = 'r' THEN\n    EXECUTE 'ALTER TABLE v2.\"V2SandboxRun\" RENAME TO \"SandboxRun\"';\n    EXECUTE 'ALTER TABLE v2.\"SandboxRun\" SET SCHEMA public';\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "ensure public.\"SandboxRun\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"SandboxRun\"')) = 'r' AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "v2-to-public.move.V2Session",
+    "label": "Move v2.\"V2Session\" to public.\"Session\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "table",
+        "name": "V2Session"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "rename and move \"V2Session\" when it is still a table in v2",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('v2.\"V2Session\"') IS NOT NULL\n     AND (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2Session\"')) = 'r' THEN\n    EXECUTE 'ALTER TABLE v2.\"V2Session\" RENAME TO \"Session\"';\n    EXECUTE 'ALTER TABLE v2.\"Session\" SET SCHEMA public';\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "ensure public.\"Session\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"Session\"')) = 'r' AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "v2-to-public.move.V2SessionBranch",
+    "label": "Move v2.\"V2SessionBranch\" to public.\"SessionBranch\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "table",
+        "name": "V2SessionBranch"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "rename and move \"V2SessionBranch\" when it is still a table in v2",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('v2.\"V2SessionBranch\"') IS NOT NULL\n     AND (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2SessionBranch\"')) = 'r' THEN\n    EXECUTE 'ALTER TABLE v2.\"V2SessionBranch\" RENAME TO \"SessionBranch\"';\n    EXECUTE 'ALTER TABLE v2.\"SessionBranch\" SET SCHEMA public';\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "ensure public.\"SessionBranch\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"SessionBranch\"')) = 'r' AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "v2-to-public.move.V2SessionPullRequest",
+    "label": "Move v2.\"V2SessionPullRequest\" to public.\"SessionPullRequest\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "table",
+        "name": "V2SessionPullRequest"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "rename and move \"V2SessionPullRequest\" when it is still a table in v2",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('v2.\"V2SessionPullRequest\"') IS NOT NULL\n     AND (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2SessionPullRequest\"')) = 'r' THEN\n    EXECUTE 'ALTER TABLE v2.\"V2SessionPullRequest\" RENAME TO \"SessionPullRequest\"';\n    EXECUTE 'ALTER TABLE v2.\"SessionPullRequest\" SET SCHEMA public';\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "ensure public.\"SessionPullRequest\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"SessionPullRequest\"')) = 'r' AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "v2-to-public.move.V2SessionView",
+    "label": "Move v2.\"V2SessionView\" to public.\"SessionView\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "table",
+        "name": "V2SessionView"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "rename and move \"V2SessionView\" when it is still a table in v2",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('v2.\"V2SessionView\"') IS NOT NULL\n     AND (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2SessionView\"')) = 'r' THEN\n    EXECUTE 'ALTER TABLE v2.\"V2SessionView\" RENAME TO \"SessionView\"';\n    EXECUTE 'ALTER TABLE v2.\"SessionView\" SET SCHEMA public';\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "ensure public.\"SessionView\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"SessionView\"')) = 'r' AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "v2-to-public.move.V2Terminal",
+    "label": "Move v2.\"V2Terminal\" to public.\"Terminal\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "table",
+        "name": "V2Terminal"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "rename and move \"V2Terminal\" when it is still a table in v2",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('v2.\"V2Terminal\"') IS NOT NULL\n     AND (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2Terminal\"')) = 'r' THEN\n    EXECUTE 'ALTER TABLE v2.\"V2Terminal\" RENAME TO \"Terminal\"';\n    EXECUTE 'ALTER TABLE v2.\"Terminal\" SET SCHEMA public';\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "ensure public.\"Terminal\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"Terminal\"')) = 'r' AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "v2-to-public.move.V2Thread",
+    "label": "Move v2.\"V2Thread\" to public.\"Thread\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "table",
+        "name": "V2Thread"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "rename and move \"V2Thread\" when it is still a table in v2",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('v2.\"V2Thread\"') IS NOT NULL\n     AND (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2Thread\"')) = 'r' THEN\n    EXECUTE 'ALTER TABLE v2.\"V2Thread\" RENAME TO \"Thread\"';\n    EXECUTE 'ALTER TABLE v2.\"Thread\" SET SCHEMA public';\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "ensure public.\"Thread\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"Thread\"')) = 'r' AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "v2-to-public.move.V2WorktreeChangedFile",
+    "label": "Move v2.\"V2WorktreeChangedFile\" to public.\"WorktreeChangedFile\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "table",
+        "name": "V2WorktreeChangedFile"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "rename and move \"V2WorktreeChangedFile\" when it is still a table in v2",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('v2.\"V2WorktreeChangedFile\"') IS NOT NULL\n     AND (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2WorktreeChangedFile\"')) = 'r' THEN\n    EXECUTE 'ALTER TABLE v2.\"V2WorktreeChangedFile\" RENAME TO \"WorktreeChangedFile\"';\n    EXECUTE 'ALTER TABLE v2.\"WorktreeChangedFile\" SET SCHEMA public';\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "ensure public.\"WorktreeChangedFile\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"WorktreeChangedFile\"')) = 'r' AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "v2-to-public.move.V2WorktreeChanges",
+    "label": "Move v2.\"V2WorktreeChanges\" to public.\"WorktreeChanges\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "v2",
+        "objectType": "table",
+        "name": "V2WorktreeChanges"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "rename and move \"V2WorktreeChanges\" when it is still a table in v2",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('v2.\"V2WorktreeChanges\"') IS NOT NULL\n     AND (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2WorktreeChanges\"')) = 'r' THEN\n    EXECUTE 'ALTER TABLE v2.\"V2WorktreeChanges\" RENAME TO \"WorktreeChanges\"';\n    EXECUTE 'ALTER TABLE v2.\"WorktreeChanges\" SET SCHEMA public';\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "ensure public.\"WorktreeChanges\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"WorktreeChanges\"')) = 'r' AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "v2-to-public.view.V2Blob",
+    "label": "Keep v2.\"V2Blob\" readable and writable as a view over public.\"Blob\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Blob"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "create view v2.\"V2Blob\" when no relation holds that name",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('v2.\"V2Blob\"') IS NULL THEN\n    EXECUTE 'CREATE VIEW v2.\"V2Blob\" AS SELECT * FROM public.\"Blob\"';\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "ensure v2.\"V2Blob\" has relkind v",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2Blob\"')) = 'v' AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "v2-to-public.view.V2BlobRef",
+    "label": "Keep v2.\"V2BlobRef\" readable and writable as a view over public.\"BlobRef\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "BlobRef"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "create view v2.\"V2BlobRef\" when no relation holds that name",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('v2.\"V2BlobRef\"') IS NULL THEN\n    EXECUTE 'CREATE VIEW v2.\"V2BlobRef\" AS SELECT * FROM public.\"BlobRef\"';\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "ensure v2.\"V2BlobRef\" has relkind v",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2BlobRef\"')) = 'v' AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "v2-to-public.view.V2ChangeBlob",
+    "label": "Keep v2.\"V2ChangeBlob\" readable and writable as a view over public.\"ChangeBlob\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "ChangeBlob"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "create view v2.\"V2ChangeBlob\" when no relation holds that name",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('v2.\"V2ChangeBlob\"') IS NULL THEN\n    EXECUTE 'CREATE VIEW v2.\"V2ChangeBlob\" AS SELECT * FROM public.\"ChangeBlob\"';\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "ensure v2.\"V2ChangeBlob\" has relkind v",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2ChangeBlob\"')) = 'v' AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "v2-to-public.view.V2ComposerDraft",
+    "label": "Keep v2.\"V2ComposerDraft\" readable and writable as a view over public.\"SessionDraft\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "SessionDraft"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "create view v2.\"V2ComposerDraft\" when no relation holds that name",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('v2.\"V2ComposerDraft\"') IS NULL THEN\n    EXECUTE 'CREATE VIEW v2.\"V2ComposerDraft\" AS SELECT * FROM public.\"SessionDraft\"';\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "ensure v2.\"V2ComposerDraft\" has relkind v",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2ComposerDraft\"')) = 'v' AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "v2-to-public.view.V2ContextFile",
+    "label": "Keep v2.\"V2ContextFile\" readable and writable as a view over public.\"ContextFile\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "ContextFile"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "create view v2.\"V2ContextFile\" when no relation holds that name",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('v2.\"V2ContextFile\"') IS NULL THEN\n    EXECUTE 'CREATE VIEW v2.\"V2ContextFile\" AS SELECT * FROM public.\"ContextFile\"';\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "ensure v2.\"V2ContextFile\" has relkind v",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2ContextFile\"')) = 'v' AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "v2-to-public.view.V2DiagramRepair",
+    "label": "Keep v2.\"V2DiagramRepair\" readable and writable as a view over public.\"DiagramRepair\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "DiagramRepair"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "create view v2.\"V2DiagramRepair\" when no relation holds that name",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('v2.\"V2DiagramRepair\"') IS NULL THEN\n    EXECUTE 'CREATE VIEW v2.\"V2DiagramRepair\" AS SELECT * FROM public.\"DiagramRepair\"';\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "ensure v2.\"V2DiagramRepair\" has relkind v",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2DiagramRepair\"')) = 'v' AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "v2-to-public.view.V2Event",
+    "label": "Keep v2.\"V2Event\" readable and writable as a view over public.\"Event\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Event"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "create view v2.\"V2Event\" when no relation holds that name",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('v2.\"V2Event\"') IS NULL THEN\n    EXECUTE 'CREATE VIEW v2.\"V2Event\" AS SELECT * FROM public.\"Event\"';\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "ensure v2.\"V2Event\" has relkind v",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2Event\"')) = 'v' AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "v2-to-public.view.V2Host",
+    "label": "Keep v2.\"V2Host\" readable and writable as a view over public.\"Host\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Host"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "create view v2.\"V2Host\" when no relation holds that name",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('v2.\"V2Host\"') IS NULL THEN\n    EXECUTE 'CREATE VIEW v2.\"V2Host\" AS SELECT * FROM public.\"Host\"';\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "ensure v2.\"V2Host\" has relkind v",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2Host\"')) = 'v' AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "v2-to-public.view.V2InboxEntry",
+    "label": "Keep v2.\"V2InboxEntry\" readable and writable as a view over public.\"InboxEntry\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "InboxEntry"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "create view v2.\"V2InboxEntry\" when no relation holds that name",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('v2.\"V2InboxEntry\"') IS NULL THEN\n    EXECUTE 'CREATE VIEW v2.\"V2InboxEntry\" AS SELECT * FROM public.\"InboxEntry\"';\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "ensure v2.\"V2InboxEntry\" has relkind v",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2InboxEntry\"')) = 'v' AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "v2-to-public.view.V2Lease",
+    "label": "Keep v2.\"V2Lease\" readable and writable as a view over public.\"Lease\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Lease"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "create view v2.\"V2Lease\" when no relation holds that name",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('v2.\"V2Lease\"') IS NULL THEN\n    EXECUTE 'CREATE VIEW v2.\"V2Lease\" AS SELECT * FROM public.\"Lease\"';\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "ensure v2.\"V2Lease\" has relkind v",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2Lease\"')) = 'v' AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "v2-to-public.view.Media",
+    "label": "Keep v2.\"Media\" readable and writable as a view over public.\"Media\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Media"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "create view v2.\"Media\" when no relation holds that name",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('v2.\"Media\"') IS NULL THEN\n    EXECUTE 'CREATE VIEW v2.\"Media\" AS SELECT * FROM public.\"Media\"';\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "ensure v2.\"Media\" has relkind v",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"Media\"')) = 'v' AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "v2-to-public.view.MediaSigningWindow",
+    "label": "Keep v2.\"MediaSigningWindow\" readable and writable as a view over public.\"MediaSigningWindow\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "MediaSigningWindow"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "create view v2.\"MediaSigningWindow\" when no relation holds that name",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('v2.\"MediaSigningWindow\"') IS NULL THEN\n    EXECUTE 'CREATE VIEW v2.\"MediaSigningWindow\" AS SELECT * FROM public.\"MediaSigningWindow\"';\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "ensure v2.\"MediaSigningWindow\" has relkind v",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"MediaSigningWindow\"')) = 'v' AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "v2-to-public.view.V2PushDevice",
+    "label": "Keep v2.\"V2PushDevice\" readable and writable as a view over public.\"PushDevice\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "PushDevice"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "create view v2.\"V2PushDevice\" when no relation holds that name",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('v2.\"V2PushDevice\"') IS NULL THEN\n    EXECUTE 'CREATE VIEW v2.\"V2PushDevice\" AS SELECT * FROM public.\"PushDevice\"';\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "ensure v2.\"V2PushDevice\" has relkind v",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2PushDevice\"')) = 'v' AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "v2-to-public.view.V2Routine",
+    "label": "Keep v2.\"V2Routine\" readable and writable as a view over public.\"Routine\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Routine"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "create view v2.\"V2Routine\" when no relation holds that name",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('v2.\"V2Routine\"') IS NULL THEN\n    EXECUTE 'CREATE VIEW v2.\"V2Routine\" AS SELECT * FROM public.\"Routine\"';\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "ensure v2.\"V2Routine\" has relkind v",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2Routine\"')) = 'v' AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "v2-to-public.view.V2RoutineRun",
+    "label": "Keep v2.\"V2RoutineRun\" readable and writable as a view over public.\"RoutineRun\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "RoutineRun"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "create view v2.\"V2RoutineRun\" when no relation holds that name",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('v2.\"V2RoutineRun\"') IS NULL THEN\n    EXECUTE 'CREATE VIEW v2.\"V2RoutineRun\" AS SELECT * FROM public.\"RoutineRun\"';\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "ensure v2.\"V2RoutineRun\" has relkind v",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2RoutineRun\"')) = 'v' AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "v2-to-public.view.V2SandboxRun",
+    "label": "Keep v2.\"V2SandboxRun\" readable and writable as a view over public.\"SandboxRun\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "SandboxRun"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "create view v2.\"V2SandboxRun\" when no relation holds that name",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('v2.\"V2SandboxRun\"') IS NULL THEN\n    EXECUTE 'CREATE VIEW v2.\"V2SandboxRun\" AS SELECT * FROM public.\"SandboxRun\"';\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "ensure v2.\"V2SandboxRun\" has relkind v",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2SandboxRun\"')) = 'v' AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "v2-to-public.view.V2Session",
+    "label": "Keep v2.\"V2Session\" readable and writable as a view over public.\"Session\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Session"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "create view v2.\"V2Session\" when no relation holds that name",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('v2.\"V2Session\"') IS NULL THEN\n    EXECUTE 'CREATE VIEW v2.\"V2Session\" AS SELECT * FROM public.\"Session\"';\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "ensure v2.\"V2Session\" has relkind v",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2Session\"')) = 'v' AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "v2-to-public.view.V2SessionBranch",
+    "label": "Keep v2.\"V2SessionBranch\" readable and writable as a view over public.\"SessionBranch\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "SessionBranch"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "create view v2.\"V2SessionBranch\" when no relation holds that name",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('v2.\"V2SessionBranch\"') IS NULL THEN\n    EXECUTE 'CREATE VIEW v2.\"V2SessionBranch\" AS SELECT * FROM public.\"SessionBranch\"';\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "ensure v2.\"V2SessionBranch\" has relkind v",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2SessionBranch\"')) = 'v' AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "v2-to-public.view.V2SessionPullRequest",
+    "label": "Keep v2.\"V2SessionPullRequest\" readable and writable as a view over public.\"SessionPullRequest\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "SessionPullRequest"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "create view v2.\"V2SessionPullRequest\" when no relation holds that name",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('v2.\"V2SessionPullRequest\"') IS NULL THEN\n    EXECUTE 'CREATE VIEW v2.\"V2SessionPullRequest\" AS SELECT * FROM public.\"SessionPullRequest\"';\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "ensure v2.\"V2SessionPullRequest\" has relkind v",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2SessionPullRequest\"')) = 'v' AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "v2-to-public.view.V2SessionView",
+    "label": "Keep v2.\"V2SessionView\" readable and writable as a view over public.\"SessionView\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "SessionView"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "create view v2.\"V2SessionView\" when no relation holds that name",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('v2.\"V2SessionView\"') IS NULL THEN\n    EXECUTE 'CREATE VIEW v2.\"V2SessionView\" AS SELECT * FROM public.\"SessionView\"';\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "ensure v2.\"V2SessionView\" has relkind v",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2SessionView\"')) = 'v' AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "v2-to-public.view.V2Terminal",
+    "label": "Keep v2.\"V2Terminal\" readable and writable as a view over public.\"Terminal\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Terminal"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "create view v2.\"V2Terminal\" when no relation holds that name",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('v2.\"V2Terminal\"') IS NULL THEN\n    EXECUTE 'CREATE VIEW v2.\"V2Terminal\" AS SELECT * FROM public.\"Terminal\"';\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "ensure v2.\"V2Terminal\" has relkind v",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2Terminal\"')) = 'v' AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "v2-to-public.view.V2Thread",
+    "label": "Keep v2.\"V2Thread\" readable and writable as a view over public.\"Thread\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Thread"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "create view v2.\"V2Thread\" when no relation holds that name",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('v2.\"V2Thread\"') IS NULL THEN\n    EXECUTE 'CREATE VIEW v2.\"V2Thread\" AS SELECT * FROM public.\"Thread\"';\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "ensure v2.\"V2Thread\" has relkind v",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2Thread\"')) = 'v' AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "v2-to-public.view.V2WorktreeChangedFile",
+    "label": "Keep v2.\"V2WorktreeChangedFile\" readable and writable as a view over public.\"WorktreeChangedFile\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "WorktreeChangedFile"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "create view v2.\"V2WorktreeChangedFile\" when no relation holds that name",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('v2.\"V2WorktreeChangedFile\"') IS NULL THEN\n    EXECUTE 'CREATE VIEW v2.\"V2WorktreeChangedFile\" AS SELECT * FROM public.\"WorktreeChangedFile\"';\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "ensure v2.\"V2WorktreeChangedFile\" has relkind v",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2WorktreeChangedFile\"')) = 'v' AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "v2-to-public.view.V2WorktreeChanges",
+    "label": "Keep v2.\"V2WorktreeChanges\" readable and writable as a view over public.\"WorktreeChanges\"",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "WorktreeChanges"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "create view v2.\"V2WorktreeChanges\" when no relation holds that name",
+        "sql": "DO $$\nBEGIN\n  IF to_regclass('v2.\"V2WorktreeChanges\"') IS NULL THEN\n    EXECUTE 'CREATE VIEW v2.\"V2WorktreeChanges\" AS SELECT * FROM public.\"WorktreeChanges\"';\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "ensure v2.\"V2WorktreeChanges\" has relkind v",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('v2.\"V2WorktreeChanges\"')) = 'v' AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "v2-to-public.rename.terminal-state-check",
+    "label": "Rename the Terminal state check to the name its model derives",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Terminal"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "rename the constraint when it still carries the old table prefix",
+        "sql": "DO $$\nBEGIN\n  IF EXISTS (SELECT 1 FROM pg_constraint\n              WHERE conname = 'V2Terminal_state_check_5a2da7a7'\n                AND conrelid = 'public.\"Terminal\"'::regclass) THEN\n    EXECUTE 'ALTER TABLE public.\"Terminal\" RENAME CONSTRAINT \"V2Terminal_state_check_5a2da7a7\" TO \"Terminal_state_check_5a2da7a7\"';\n  END IF;\nEND\n$$"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "the check now carries the new name",
+        "sql": "SELECT EXISTS (SELECT 1 FROM pg_constraint\n                         WHERE conname = 'Terminal_state_check_5a2da7a7'\n                           AND conrelid = 'public.\"Terminal\"'::regclass) AS \"result\""
+      }
+    ]
+  },
+  {
+    "id": "v2-to-public.event-append-only-function",
+    "label": "Recreate the append-only guard function in public",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Event"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure public.\"Event\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"Event\"')) = 'r' AS \"result\""
+      }
+    ],
+    "execute": [
+      {
+        "description": "create public.Event_append_only() raising on any row mutation",
+        "sql": "CREATE OR REPLACE FUNCTION public.\"Event_append_only\"() RETURNS trigger\nLANGUAGE plpgsql AS $$\nBEGIN\n  RAISE EXCEPTION 'Event is append-only: % refused for thread % seq %', TG_OP, OLD.\"threadId\", OLD.\"seq\"\n    USING ERRCODE = 'restrict_violation';\nEND;\n$$"
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "v2-to-public.event-append-only-trigger",
+    "label": "Guard public.\"Event\" against UPDATE and DELETE before the old trigger goes",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Event"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure public.\"Event\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"Event\"')) = 'r' AS \"result\""
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop any previous trigger of the new name",
+        "sql": "DROP TRIGGER IF EXISTS \"Event_append_only\" ON public.\"Event\""
+      },
+      {
+        "description": "create the BEFORE UPDATE OR DELETE row trigger on public.\"Event\"",
+        "sql": "CREATE TRIGGER \"Event_append_only\"\nBEFORE UPDATE OR DELETE ON public.\"Event\"\nFOR EACH ROW EXECUTE FUNCTION public.\"Event_append_only\"()"
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "v2-to-public.event-append-only-cleanup",
+    "label": "Drop the v2-era trigger and its function",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Event"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure public.\"Event\" has relkind r",
+        "sql": "SELECT (SELECT relkind FROM pg_class WHERE oid = to_regclass('public.\"Event\"')) = 'r' AS \"result\""
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop the trigger that followed the table out of v2",
+        "sql": "DROP TRIGGER IF EXISTS \"V2Event_append_only\" ON public.\"Event\""
+      },
+      {
+        "description": "drop the v2 function",
+        "sql": "DROP FUNCTION IF EXISTS v2.\"V2Event_append_only\"()"
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "v2-to-public.postcheck.empty-schema",
+    "label": "Prove no base table is left in the v2 schema",
+    "operationClass": "data",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Session"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "nothing to change: this operation only proves the end state",
+        "sql": "SELECT 1"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "the v2 schema holds views only",
+        "sql": "SELECT count(*) = 0 AS \"result\"\n  FROM pg_class c\n  JOIN pg_namespace n ON n.oid = c.relnamespace\n WHERE n.nspname = 'v2' AND c.relkind = 'r'"
+      }
+    ]
+  }
+]

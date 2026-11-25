@@ -105,7 +105,7 @@ export const buildNotifyGraph = (
   return {
     session: {
       read: async (args) => {
-        const row = await db.orm.v2.V2Session.select(
+        const row = await db.orm.public.Session.select(
           'userId',
           'title',
           'readSeq',
@@ -118,7 +118,7 @@ export const buildNotifyGraph = (
     },
     turns: {
       startedAfter: async (args) => {
-        const rows = await db.orm.v2.V2Event.where((event) =>
+        const rows = await db.orm.public.Event.where((event) =>
           and(
             event.threadId.eq(args.threadId),
             event.type.eq('turn-started'),
@@ -139,7 +139,7 @@ export const buildNotifyGraph = (
     },
     devices: {
       listEnabled: async (args) => {
-        const rows = await db.orm.v2.V2PushDevice.where({ userId: args.userId }).all()
+        const rows = await db.orm.public.PushDevice.where({ userId: args.userId }).all()
         return rows
           .filter((row) => row.disabledAt === null)
           .map((row) => ({
@@ -150,12 +150,12 @@ export const buildNotifyGraph = (
           }))
       },
       touch: async (args) => {
-        await db.orm.v2.V2PushDevice.where({ id: args.deviceId }).update({
+        await db.orm.public.PushDevice.where({ id: args.deviceId }).update({
           lastSeenAt: new Date(args.now),
         })
       },
       remove: async (args) => {
-        await db.orm.v2.V2PushDevice.where({ id: args.deviceId }).delete()
+        await db.orm.public.PushDevice.where({ id: args.deviceId }).delete()
       },
     },
     presence: redis === null ? { read: async () => [] } : presenceOf(redis),

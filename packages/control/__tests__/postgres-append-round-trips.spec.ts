@@ -178,7 +178,7 @@ describe('control append round trips (postgres)', () => {
     })
     const { epoch } = await plane.grant({ sessionId: second, hostId: 9001 })
     await testDb().pool.query(
-      `INSERT INTO "v2"."V2Event" ("threadId", "seq", "id", "epoch", "type", "runId", "at",
+      `INSERT INTO "public"."Event" ("threadId", "seq", "id", "epoch", "type", "runId", "at",
         "prevHash", "hash", "canonical")
        VALUES ($1, 99, $2, $3, 'user-said', 'run-1', $4, $5, $6, '{}')`,
       [THREAD, `${secondThread}:1`, epoch, T0, GENESIS_HASH, 'planted'],

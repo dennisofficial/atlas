@@ -87,13 +87,13 @@ export async function inWatchScope(scope: WatchScope): Promise<boolean> {
         ) AS hit
         UNION ALL
         SELECT 1 FROM pulls, LATERAL (
-          SELECT 1 FROM "v2"."V2SessionPullRequest" AS tracked
+          SELECT 1 FROM "public"."SessionPullRequest" AS tracked
           WHERE tracked."repoFullName" = ${repoFullName} AND tracked."prNumber" = pulls."prNumber"
           LIMIT 1
         ) AS hit
         UNION ALL
         SELECT 1 FROM heads, LATERAL (
-          SELECT 1 FROM "v2"."V2SessionBranch" AS tracked
+          SELECT 1 FROM "public"."SessionBranch" AS tracked
           WHERE tracked."headRepo" = heads."repoFullName" AND tracked."branch" = heads."branch"
           LIMIT 1
         ) AS hit

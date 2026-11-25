@@ -36,7 +36,7 @@ const seedV2Thread = async () => {
 }
 
 const inboxEvents = async (sessionId: string) => {
-  const entries = await db.orm.v2.V2InboxEntry.where({ sessionId }).all()
+  const entries = await db.orm.public.InboxEntry.where({ sessionId }).all()
   return entries.map((entry) => ({ kind: entry.kind, read: inboxEventOf(entry.payload) }))
 }
 

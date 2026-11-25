@@ -27,7 +27,7 @@ const quietEndingStore = new PostgresControlStore(db)
 
 const postQuietEndings = async (sessionId: string): Promise<void> => {
   try {
-    const session = await db.orm.v2.V2Session.first({ id: sessionId })
+    const session = await db.orm.public.Session.first({ id: sessionId })
     if (session === undefined || session === null) return
     await postQuietEndingsOf({
       store: quietEndingStore,
@@ -153,7 +153,7 @@ export const recordSandboxRunCloseForInstance = async (args: {
   sandboxInstanceId: string
   at: number
 }): Promise<void> => {
-  const session = await db.orm.v2.V2Session.first({ sandboxInstanceId: args.sandboxInstanceId })
+  const session = await db.orm.public.Session.first({ sandboxInstanceId: args.sandboxInstanceId })
   if (session === undefined || session === null) return
   try {
     await sandboxRuns.close({ sessionId: session.id, at: args.at })
@@ -167,7 +167,7 @@ export const recordSandboxRunReopenForInstance = async (args: {
   sandboxInstanceId: string
   at: number
 }): Promise<void> => {
-  const session = await db.orm.v2.V2Session.first({ sandboxInstanceId: args.sandboxInstanceId })
+  const session = await db.orm.public.Session.first({ sandboxInstanceId: args.sandboxInstanceId })
   if (session === undefined || session === null) return
   try {
     if ((await sandboxRunStore.openRunOf(session.id)) !== undefined) return

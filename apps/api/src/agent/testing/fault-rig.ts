@@ -126,7 +126,7 @@ export const startRig = async (args: {
   const labelOf = async (hostId: number | null): Promise<string | undefined> => {
     if (hostId === null) return undefined
     const result = await pool.query<{ label: string }>(
-      'SELECT "label" FROM "v2"."V2Host" WHERE "id" = $1',
+      'SELECT "label" FROM "public"."Host" WHERE "id" = $1',
       [hostId],
     )
     return result.rows[0]?.label

@@ -17,7 +17,7 @@ const RETRY_CAP_MS = 5_000
 
 const SESSION_SETTINGS = ['SET statement_timeout = 0', 'SET lock_timeout = 0']
 
-const SUCCESSOR_SQL = `SELECT id FROM "v2"."V2Host" WHERE id <> $1::int
+const SUCCESSOR_SQL = `SELECT id FROM "public"."Host" WHERE id <> $1::int
   ORDER BY (id < $1::int), id LIMIT 1`
 
 const newWatchClient = (url: string): pg.Client =>
@@ -106,7 +106,7 @@ export const startHostWatch = (args: {
 
   const reapDead = async (params: { owner: PgPresenceClient; successor: number }) => {
     try {
-      await params.owner.query('DELETE FROM "v2"."V2Host" WHERE id = $1', [params.successor])
+      await params.owner.query('DELETE FROM "public"."Host" WHERE id = $1', [params.successor])
       await params.owner.query('SELECT pg_notify($1, $2)', [
         PG_HOST_CHANGE_CHANNEL,
         String(params.successor),

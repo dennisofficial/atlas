@@ -60,7 +60,7 @@ export class DiagramRepairService {
     input: DiagramRepairListInput
   }): Promise<DiagramRepairListOutput> {
     await this.requireOwnedSession({ userId: args.userId, sessionId: args.input.sessionId })
-    const rows = await db.orm.v2.V2DiagramRepair.where({ sessionId: args.input.sessionId }).all()
+    const rows = await db.orm.public.DiagramRepair.where({ sessionId: args.input.sessionId }).all()
     return { repairs: rows.map((row) => ({ source: row.source, outcome: outcomeOf(row) })) }
   }
 
@@ -110,7 +110,7 @@ export class DiagramRepairService {
       modelRef: args.modelRef,
     }
     try {
-      return await db.orm.v2.V2DiagramRepair.create(row)
+      return await db.orm.public.DiagramRepair.create(row)
     } catch (failure) {
       if (!isUniqueViolation(failure)) throw failure
       const stored = await this.stored({
@@ -125,7 +125,7 @@ export class DiagramRepairService {
     sessionId: string
     sourceHash: string
   }): Promise<StoredOutcome | undefined> {
-    const row = await db.orm.v2.V2DiagramRepair.first({
+    const row = await db.orm.public.DiagramRepair.first({
       sessionId: args.sessionId,
       sourceHash: args.sourceHash,
     })

@@ -124,7 +124,7 @@ export class McpServerReader {
   constructor(private readonly args: { db: Db; cipher: SecretCipher }) {}
 
   async read({ sessionId }: { sessionId: string }): Promise<McpCloudRead> {
-    const session = await this.args.db.orm.v2.V2Session.first({ id: sessionId })
+    const session = await this.args.db.orm.public.Session.first({ id: sessionId })
     if (session === null) return { rows: [], rejections: [] }
     const servers = this.args.db.orm.public.McpServer
     const [user, project] = await Promise.all([

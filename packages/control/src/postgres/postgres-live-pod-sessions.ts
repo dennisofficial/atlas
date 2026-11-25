@@ -6,7 +6,7 @@ export const livePodSessionsIn = async (params: {
 }): Promise<number> => {
   const rows = await params.tx.query(
     params.tx.raw.sql`SELECT count(*)::int AS "count"
-      FROM "v2"."V2Session" s
+      FROM "public"."Session" s
       WHERE COALESCE(s."podSessionId", s."id") = ${params.podSessionId}
         AND s."archivedAt" IS NULL
         AND s."deletedAt" IS NULL`

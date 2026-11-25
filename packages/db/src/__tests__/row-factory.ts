@@ -28,6 +28,7 @@ const OVERRIDES: Record<string, Record<string, unknown>> = {
 const LITERALS: Record<string, Record<string, unknown>> = {
   McpServer: { source: 'repo', repoUrl: 'https://mcp.example.com/mcp' },
   GithubTrackingTarget: { kind: 'head' },
+  Terminal: { state: 'open' },
 }
 
 function literalFor({
@@ -42,6 +43,7 @@ function literalFor({
   if (column.many !== undefined) return []
   if (column.codecId === TIMESTAMP_CODEC) return new Date('2026-10-22T02:02:04.222Z')
   if (column.codecId === 'pg/int4@1' || column.codecId === 'pg/int8@1') return 1
+  if (column.codecId === 'pg/float8@1') return 1
   if (column.codecId === 'pg/bool@1') return false
   if (column.codecId === 'pg/jsonb@1') return JSON.stringify({})
   if (column.codecId === 'pg/bytea@1') return Buffer.from('x')

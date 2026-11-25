@@ -1,0 +1,12 @@
+// use prisma-8
+model RoutineRun {
+  id           String                @id
+  routineId    String
+  scheduledFor TimestamptzJsDate(3)
+  outcome      String
+  reason       String?
+  sessionId    String?
+  at           TimestamptzJsDate(3)
+
+  @@index([routineId, at], map: "V2RoutineRun_routineId_at_idx_d4a1c233")
+}

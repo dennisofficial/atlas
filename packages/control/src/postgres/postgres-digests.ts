@@ -68,11 +68,11 @@ export const sessionDigestsIn = async (
         s."podSizeGeneration",
         s."podActualVcpus", s."podActualMemoryGb",
         s."podAppliedGeneration", s."podResizeError", s."podWaitingSince", s."routineId", s."readSeq",
-        (SELECT e."at" FROM "v2"."V2Event" e
+        (SELECT e."at" FROM "public"."Event" e
           WHERE e."threadId" = s."mainThreadId" ORDER BY e."seq" DESC LIMIT 1) AS "lastEventAt",
-        COALESCE((SELECT MAX(e."seq") FROM "v2"."V2Event" e
+        COALESCE((SELECT MAX(e."seq") FROM "public"."Event" e
           WHERE e."threadId" = s."mainThreadId" AND e."type" = 'assistant-said'), 0) AS "lastAssistantSeq",
-        COALESCE((SELECT MAX(e."seq") FROM "v2"."V2Event" e
+        COALESCE((SELECT MAX(e."seq") FROM "public"."Event" e
           WHERE e."threadId" = s."mainThreadId"), 0) AS "headSeq",
         last."seq" AS "lastTurnSeq",
         last."canonical" ->> 'outcome' AS "lastTurnOutcome",
@@ -80,16 +80,16 @@ export const sessionDigestsIn = async (
         last."at" AS "lastTurnAt",
         last."canonical" ->> 'notify' AS "lastTurnNotify",
         first."text" AS "firstMessageText", first."postedAt" AS "firstMessageAt"
-      FROM "v2"."V2Session" s
+      FROM "public"."Session" s
       LEFT JOIN LATERAL (
         SELECT e."seq", e."at", e."canonical"::jsonb AS "canonical"
-          FROM "v2"."V2Event" e
+          FROM "public"."Event" e
           WHERE e."threadId" = s."mainThreadId" AND e."type" = 'turn-ended'
           ORDER BY e."seq" DESC LIMIT 1
       ) last ON true
       LEFT JOIN LATERAL (
         SELECT left(i."payload"::jsonb ->> 'text', ${FIRST_MESSAGE_CHARS}) AS "text", i."postedAt"
-          FROM "v2"."V2InboxEntry" i
+          FROM "public"."InboxEntry" i
           WHERE i."sessionId" = s."id" AND i."kind" = 'message'
           ORDER BY i."inboxId" ASC LIMIT 1
       ) first ON true

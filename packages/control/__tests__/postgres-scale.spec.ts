@@ -81,7 +81,7 @@ describe.skipIf(!enabled)('postgres scale (ATLAS_SCALE_TESTS=1)', () => {
     const readTail = await readP50(head.seq - 500)
 
     const plan = await pool.query<{ 'QUERY PLAN': string }>(
-      `EXPLAIN SELECT * FROM "v2"."V2Event" WHERE "threadId" = $1 AND "seq" > $2 AND "seq" <= $3 ORDER BY "seq" LIMIT 500`,
+      `EXPLAIN SELECT * FROM "public"."Event" WHERE "threadId" = $1 AND "seq" > $2 AND "seq" <= $3 ORDER BY "seq" LIMIT 500`,
       [THREAD, head.seq - 500, head.seq],
     )
     const planText = plan.rows.map((row) => row['QUERY PLAN']).join('\n')

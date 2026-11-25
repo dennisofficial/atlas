@@ -55,8 +55,8 @@ const fakeDb = (args: { rows: Row[]; beforeUpdate?: (rows: Row[]) => void }): Db
     args.rows.find(matcherOf(filter)) ?? null
   return {
     orm: {
-      v2: {
-        V2Session: {
+      public: {
+        Session: {
           first,
           where: (filter: Filter) => ({
             updateAndCount: async (values: Partial<Row>) => {

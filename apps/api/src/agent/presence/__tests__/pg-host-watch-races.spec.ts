@@ -48,7 +48,7 @@ const makeFleet = (args: { peers: number[]; notifyFails?: boolean; endGate?: Pro
             reject = fail
           })
         }
-        if (text.includes('"v2"."V2Host" WHERE id <>')) {
+        if (text.includes('"public"."Host" WHERE id <>')) {
           target = [...alive].sort((a, b) => a - b)[0]
           return Promise.resolve({ rows: target === undefined ? [] : [{ id: target }] })
         }

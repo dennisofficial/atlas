@@ -1,0 +1,15 @@
+// use prisma-8
+model PushDevice {
+  id         String                @id
+  userId     String
+  kind       String
+  token      String                @unique
+  secret     String?
+  clientId   String
+  label      String
+  disabledAt TimestamptzJsDate(3)?
+  lastSeenAt TimestamptzJsDate(3)
+  createdAt  TimestamptzJsDate(3)
+
+  @@index([userId], map: "V2PushDevice_userId_idx_a489d58a")
+}

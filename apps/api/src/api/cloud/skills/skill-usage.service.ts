@@ -6,9 +6,9 @@ const usageStatement = (args: { userId: string; projectId?: string }) => {
   if (args.projectId === undefined) {
     return db.raw.sql`WITH loads AS (
       SELECT e."at" AS at, e."type" AS type, e."canonical"::jsonb AS body
-        FROM "v2"."V2Event" e
-        JOIN "v2"."V2Thread" t ON t."id" = e."threadId"
-        JOIN "v2"."V2Session" s ON s."id" = t."sessionId"
+        FROM "public"."Event" e
+        JOIN "public"."Thread" t ON t."id" = e."threadId"
+        JOIN "public"."Session" s ON s."id" = t."sessionId"
         WHERE s."userId" = ${args.userId} AND e."type" IN ('context-loaded', 'tool-called')
           AND e."at" > now() - interval '30 days' AND pg_input_is_valid(e."canonical", 'jsonb')
     ) SELECT u.key AS key, count(*)::int AS "usedCount30d", max(u.at) AS "lastUsedAt" FROM (
@@ -21,9 +21,9 @@ const usageStatement = (args: { userId: string; projectId?: string }) => {
   }
   return db.raw.sql`WITH loads AS (
     SELECT e."at" AS at, e."type" AS type, e."canonical"::jsonb AS body
-      FROM "v2"."V2Event" e
-      JOIN "v2"."V2Thread" t ON t."id" = e."threadId"
-      JOIN "v2"."V2Session" s ON s."id" = t."sessionId"
+      FROM "public"."Event" e
+      JOIN "public"."Thread" t ON t."id" = e."threadId"
+      JOIN "public"."Session" s ON s."id" = t."sessionId"
       WHERE s."userId" = ${args.userId} AND e."type" IN ('context-loaded', 'tool-called')
         AND e."at" > now() - interval '30 days' AND s."projectId" = ${args.projectId}
         AND pg_input_is_valid(e."canonical", 'jsonb')

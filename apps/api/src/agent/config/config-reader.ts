@@ -51,7 +51,7 @@ export const sessionModelSourceOf = async (args: {
   cipher: SecretCipher
   sessionId: string
 }): Promise<{ userId: string; models: ModelSource }> => {
-  const session = await args.db.orm.v2.V2Session.first({ id: args.sessionId })
+  const session = await args.db.orm.public.Session.first({ id: args.sessionId })
   if (session === null) throw new SessionNotFoundError(args.sessionId)
   const { userId, projectId } = session
   const [accounts, activeAccounts, settings] = await Promise.all([
@@ -85,7 +85,7 @@ export class ConfigReader implements ConfigSource {
 
   async read({ sessionId }: { sessionId: string }): Promise<AgentHostConfig> {
     const { db } = this.args
-    const session = await db.orm.v2.V2Session.first({ id: sessionId })
+    const session = await db.orm.public.Session.first({ id: sessionId })
     if (session === null) throw new SessionNotFoundError(sessionId)
     const { userId, projectId } = session
     const [project, accounts, activeAccounts, settings, skills, sandbox] = await Promise.all([

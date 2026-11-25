@@ -171,7 +171,7 @@ export class PostgresTx implements ControlTx {
   async now(): Promise<string> {
     const [row] = await this.tx.query(
       this.tx.raw.sql`SELECT clock_timestamp() AS "at"`
-        .returnsRow({ at: this.tx.sql.v2.V2Session.columns.createdAt })
+        .returnsRow({ at: this.tx.sql.public.Session.columns.createdAt })
         .build(),
     )
     if (row === undefined) throw new Error('database returned no clock reading')
@@ -330,7 +330,7 @@ export class PostgresTx implements ControlTx {
     visibility: string
     at: string
   }): Promise<void> {
-    await this.tx.orm.v2.V2Thread.create({
+    await this.tx.orm.public.Thread.create({
       id: params.threadId,
       sessionId: params.sessionId,
       headSeq: 0,
@@ -349,18 +349,20 @@ export class PostgresTx implements ControlTx {
   }
 
   async lockThread(threadId: string): Promise<ThreadRow | undefined> {
-    const row = await this.tx.orm.v2.V2Thread.where({ id: threadId }).forNoKeyUpdate().first()
+    const row = await this.tx.orm.public.Thread.where({ id: threadId }).forNoKeyUpdate().first()
     return row === null ? undefined : toThreadRow(row)
   }
 
   async readThread(threadId: string): Promise<ThreadRow | undefined> {
-    const row = await this.tx.orm.v2.V2Thread.first({ id: threadId })
+    const row = await this.tx.orm.public.Thread.first({ id: threadId })
     return row === null ? undefined : toThreadRow(row)
   }
 
   async readThreads(threadIds: readonly string[]): Promise<ThreadRow[]> {
     if (threadIds.length === 0) return []
-    const rows = await this.tx.orm.v2.V2Thread.where((thread) => thread.id.in([...threadIds])).all()
+    const rows = await this.tx.orm.public.Thread.where((thread) =>
+      thread.id.in([...threadIds]),
+    ).all()
     return rows.map(toThreadRow)
   }
 
@@ -469,20 +471,20 @@ export class PostgresTx implements ControlTx {
   }
 
   async readLease(sessionId: string): Promise<Lease | undefined> {
-    const row = await this.tx.orm.v2.V2Lease.first({ sessionId })
+    const row = await this.tx.orm.public.Lease.first({ sessionId })
     return row === null ? undefined : toLease(row)
   }
 
   async readLeases(sessionIds: readonly string[]): Promise<Lease[]> {
     if (sessionIds.length === 0) return []
-    const rows = await this.tx.orm.v2.V2Lease.where((lease) =>
+    const rows = await this.tx.orm.public.Lease.where((lease) =>
       lease.sessionId.in([...sessionIds]),
     ).all()
     return rows.map(toLease)
   }
 
   async leasesHeldBy(params: { hostId: number; limit: number }): Promise<Lease[]> {
-    const rows = await this.tx.orm.v2.V2Lease.where({ holderHostId: params.hostId })
+    const rows = await this.tx.orm.public.Lease.where({ holderHostId: params.hostId })
       .orderBy((l) => l.sessionId.asc())
       .limit(params.limit)
       .all()
@@ -490,12 +492,12 @@ export class PostgresTx implements ControlTx {
   }
 
   async lockLease(sessionId: string): Promise<Lease | undefined> {
-    const row = await this.tx.orm.v2.V2Lease.where({ sessionId }).forNoKeyUpdate().first()
+    const row = await this.tx.orm.public.Lease.where({ sessionId }).forNoKeyUpdate().first()
     return row === null ? undefined : toLease(row)
   }
 
   async shareLease(sessionId: string): Promise<Lease | undefined> {
-    const row = await this.tx.orm.v2.V2Lease.where({ sessionId }).forShare().first()
+    const row = await this.tx.orm.public.Lease.where({ sessionId }).forShare().first()
     return row === null ? undefined : toLease(row)
   }
 

@@ -1,0 +1,18 @@
+// use prisma-8
+model WorktreeChangedFile {
+  checkoutId  String
+  path        String
+  oldPath     String?
+  status      String
+  additions   Int
+  deletions   Int
+  binary      Boolean
+  baseHash    String?
+  currentHash String?
+  size        Int?
+  changes     WorktreeChanges @relation(fields: [checkoutId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "V2WorktreeChangedFile_pkey")
+
+  @@id([checkoutId, path], map: "V2WorktreeChangedFile_pkey")
+  @@index([baseHash], map: "V2WorktreeChangedFile_baseHash_idx_4f00325f")
+  @@index([currentHash], map: "V2WorktreeChangedFile_currentHash_idx_4da01d65")
+}

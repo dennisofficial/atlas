@@ -1,0 +1,8 @@
+// use prisma-8
+model ChangeBlob {
+  hash      String  @id
+  size      Int
+  createdAt TimestamptzJsDate(3)
+
+  @@index([createdAt], map: "V2ChangeBlob_createdAt_idx_9575dbd7")
+}

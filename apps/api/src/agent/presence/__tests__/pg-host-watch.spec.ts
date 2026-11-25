@@ -84,7 +84,7 @@ describe('pg host watch', () => {
 
   const hostRows = async (): Promise<number[]> => {
     const { rows } = await (await sql()).query<{ id: number }>(
-      'SELECT id FROM "v2"."V2Host" ORDER BY id',
+      'SELECT id FROM "public"."Host" ORDER BY id',
     )
     return rows.map((row) => row.id)
   }

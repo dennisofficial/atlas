@@ -1,0 +1,12 @@
+// use prisma-8
+model Media {
+  userId    String
+  hash      String
+  mediaType String
+  size      Int
+  width     Int
+  height    Int
+  createdAt TimestamptzJsDate(3) @default(now())
+
+  @@id([userId, hash])
+}

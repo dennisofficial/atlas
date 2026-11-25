@@ -10,15 +10,15 @@ const owningSessionOf = async (args: {
   handle: Db | Tx
   threadId: string
 }): Promise<OwningSession | null> => {
-  const main = await args.handle.orm.v2.V2Session.where({ mainThreadId: args.threadId })
+  const main = await args.handle.orm.public.Session.where({ mainThreadId: args.threadId })
     .select('userId', 'projectId')
     .first()
   if (main !== null) return main
-  const thread = await args.handle.orm.v2.V2Thread.where({ id: args.threadId })
+  const thread = await args.handle.orm.public.Thread.where({ id: args.threadId })
     .select('sessionId')
     .first()
   if (thread === null) return null
-  return await args.handle.orm.v2.V2Session.where({ id: thread.sessionId })
+  return await args.handle.orm.public.Session.where({ id: thread.sessionId })
     .select('userId', 'projectId')
     .first()
 }

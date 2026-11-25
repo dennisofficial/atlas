@@ -28,7 +28,7 @@ const seedTarget = (args: {
 
 const seedSession = async (id: string): Promise<void> => {
   await ensureUsers('usr_1')
-  await db.orm.v2.V2Session.create({
+  await db.orm.public.Session.create({
     id,
     userId: 'usr_1',
     mainThreadId: `thr_${id}`,
@@ -90,7 +90,7 @@ describe('inWatchScope', () => {
 
   it('answers true for a session that still holds the pull request link', async () => {
     await seedSession('ses_pr')
-    await db.orm.v2.V2SessionPullRequest.create({
+    await db.orm.public.SessionPullRequest.create({
       sessionId: 'ses_pr',
       repoFullName: REPO,
       prNumber: 42,
@@ -101,7 +101,7 @@ describe('inWatchScope', () => {
 
   it('answers true for a session that still holds the branch link', async () => {
     await seedSession('ses_branch')
-    await db.orm.v2.V2SessionBranch.create({
+    await db.orm.public.SessionBranch.create({
       sessionId: 'ses_branch',
       headRepo: REPO,
       branch: 'dennis/add-the-thing',

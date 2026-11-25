@@ -68,7 +68,7 @@ export class PostgresSandboxRunStore implements SandboxRunStore {
   constructor(private readonly db: Db) {}
 
   private get runs() {
-    return this.db.orm.v2.V2SandboxRun
+    return this.db.orm.public.SandboxRun
   }
 
   private async rowsForSession(sessionId: string): Promise<RunRow[]> {
@@ -87,17 +87,17 @@ export class PostgresSandboxRunStore implements SandboxRunStore {
   async insertRun(params: OpenSandboxRunParams & { id: string }): Promise<void> {
     await this.db.transaction(async (tx) => {
       await lockSessionRuns({ tx, sessionId: params.sessionId })
-      const open = (await tx.orm.v2.V2SandboxRun.where({ sessionId: params.sessionId }).all()).find(
-        (row) => row.endedAt === null,
-      )
+      const open = (
+        await tx.orm.public.SandboxRun.where({ sessionId: params.sessionId }).all()
+      ).find((row) => row.endedAt === null)
       if (open !== undefined) return
       const session =
         params.userId === undefined
-          ? await tx.orm.v2.V2Session.first({ id: params.sessionId })
+          ? await tx.orm.public.Session.first({ id: params.sessionId })
           : undefined
       const userId = params.userId ?? session?.userId
       if (userId === undefined) return
-      await tx.orm.v2.V2SandboxRun.create({
+      await tx.orm.public.SandboxRun.create({
         id: params.id,
         sessionId: params.sessionId,
         userId,

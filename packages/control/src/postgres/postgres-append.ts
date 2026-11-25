@@ -55,9 +55,9 @@ export const openAppendIn = async (params: {
   const rows = await tx.query(
     tx.raw.sql`WITH t AS (
         SELECT "id", "sessionId", "headSeq", "headHash", "visibility"
-          FROM "v2"."V2Thread" WHERE "id" = ${params.threadId} FOR NO KEY UPDATE
+          FROM "public"."Thread" WHERE "id" = ${params.threadId} FOR NO KEY UPDATE
       ), l AS (
-        SELECT l.* FROM "v2"."V2Lease" l JOIN t ON l."sessionId" = t."sessionId" FOR SHARE OF l
+        SELECT l.* FROM "public"."Lease" l JOIN t ON l."sessionId" = t."sessionId" FOR SHARE OF l
       )
       SELECT t."id" AS "id", t."sessionId" AS "sessionId", t."headSeq" AS "headSeq",
         t."headHash" AS "headHash", t."visibility" AS "visibility",
@@ -68,9 +68,9 @@ export const openAppendIn = async (params: {
         v."sessionId" AS "viewSessionId", v."threadId" AS "viewThreadId",
         v."atSeq" AS "atSeq", v."version" AS "version", v."state" AS "state"
         FROM t
-        JOIN "v2"."V2Session" s ON s."id" = t."sessionId"
+        JOIN "public"."Session" s ON s."id" = t."sessionId"
         LEFT JOIN l ON true
-        LEFT JOIN "v2"."V2SessionView" v ON v."sessionId" = t."sessionId"`
+        LEFT JOIN "public"."SessionView" v ON v."sessionId" = t."sessionId"`
       .returnsRow(openingRow)
       .build(),
   )
@@ -102,7 +102,7 @@ export const commitAppendIn = async (params: { tx: Tx } & AppendCommit): Promise
   try {
     const rows = await tx.query(
       tx.raw.sql`WITH inserted AS (
-          INSERT INTO "v2"."V2Event" ("threadId", "seq", "id", "epoch", "type", "runId", "at",
+          INSERT INTO "public"."Event" ("threadId", "seq", "id", "epoch", "type", "runId", "at",
             "prevHash", "hash", "canonical")
           SELECT e."threadId", e."seq", e."id", e."epoch", e."type", e."runId", e."at",
             e."prevHash", e."hash", e."canonical"
@@ -110,13 +110,13 @@ export const commitAppendIn = async (params: { tx: Tx } & AppendCommit): Promise
               "threadId" text, "seq" int4, "id" text, "epoch" int4, "type" text, "runId" text,
               "at" timestamptz, "prevHash" text, "hash" text, "canonical" text)
         ), head AS (
-          UPDATE "v2"."V2Thread"
+          UPDATE "public"."Thread"
             SET "headSeq" = ${head.headSeq}, "headHash" = ${head.headHash},
               "visibility" = ${head.visibility}
             WHERE "id" = ${head.threadId} AND "headSeq" = ${head.expectedHeadSeq}
             RETURNING "id", "sessionId"
         ), view AS (
-          INSERT INTO "v2"."V2SessionView" ("sessionId", "threadId", "atSeq", "version", "state",
+          INSERT INTO "public"."SessionView" ("sessionId", "threadId", "atSeq", "version", "state",
             "updatedAt")
           SELECT h."sessionId", ${view.threadId}, ${view.atSeq}, ${view.version}, ${view.state},
             clock_timestamp()

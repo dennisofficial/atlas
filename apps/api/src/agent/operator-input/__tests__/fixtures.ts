@@ -14,7 +14,7 @@ export const NOW = new Date(NOW_MS)
 export const VALUE = 'marked-value-6f2a'
 
 export const seedSession = async (db: Db, args: { id: string; userId: string }): Promise<void> => {
-  await db.orm.v2.V2Session.create({
+  await db.orm.public.Session.create({
     id: args.id,
     userId: args.userId,
     projectId: 'proj-1',

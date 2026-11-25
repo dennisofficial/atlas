@@ -18,9 +18,9 @@ export class NotifyDevicesService {
   }): Promise<{ id: string }> {
     const { input, userId } = args
     const now = new Date()
-    const existing = await db.orm.v2.V2PushDevice.where({ token: input.token }).first()
+    const existing = await db.orm.public.PushDevice.where({ token: input.token }).first()
     if (existing === null) {
-      const created = await db.orm.v2.V2PushDevice.create({
+      const created = await db.orm.public.PushDevice.create({
         id: randomUUID(),
         userId,
         kind: input.kind,
@@ -33,7 +33,7 @@ export class NotifyDevicesService {
       })
       return { id: created.id }
     }
-    const updated = await db.orm.v2.V2PushDevice.where({ id: existing.id }).update({
+    const updated = await db.orm.public.PushDevice.where({ id: existing.id }).update({
       userId,
       kind: input.kind,
       secret: input.secret,
@@ -47,14 +47,14 @@ export class NotifyDevicesService {
   }
 
   async unregister(args: { userId: string; input: UnregisterNotifyDeviceInput }): Promise<void> {
-    await db.orm.v2.V2PushDevice.where({
+    await db.orm.public.PushDevice.where({
       id: args.input.deviceId,
       userId: args.userId,
     }).delete()
   }
 
   async list(args: { userId: string }): Promise<NotifyDeviceView[]> {
-    const rows = await db.orm.v2.V2PushDevice.where({ userId: args.userId }).all()
+    const rows = await db.orm.public.PushDevice.where({ userId: args.userId }).all()
     return rows.map((row) => ({
       id: row.id,
       kind: notifyDeviceKindSchema.parse(row.kind),
@@ -66,14 +66,14 @@ export class NotifyDevicesService {
 
   async setEnabled(args: { userId: string; input: SetNotifyDeviceEnabledInput }): Promise<void> {
     const disabledAt = args.input.enabled ? null : new Date()
-    await db.orm.v2.V2PushDevice.where({
+    await db.orm.public.PushDevice.where({
       id: args.input.deviceId,
       userId: args.userId,
     }).update({ disabledAt })
   }
 
   async enabledCount(args: { userId: string }): Promise<number> {
-    const rows = await db.orm.v2.V2PushDevice.where({ userId: args.userId }).all()
+    const rows = await db.orm.public.PushDevice.where({ userId: args.userId }).all()
     return rows.filter((row) => row.disabledAt === null).length
   }
 }

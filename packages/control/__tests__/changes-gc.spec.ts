@@ -59,7 +59,7 @@ const seedCheckout = async (blobs: readonly { hash: string; size: number }[]): P
 
 const ageRow = async (hash: string, ageMs: number): Promise<void> => {
   await testDb()
-    .db.orm.v2.V2ChangeBlob.where({ hash })
+    .db.orm.public.ChangeBlob.where({ hash })
     .updateAndCount({ createdAt: new Date(Date.now() - ageMs) })
 }
 

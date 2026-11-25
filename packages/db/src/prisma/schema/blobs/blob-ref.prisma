@@ -1,0 +1,7 @@
+// use prisma-8
+model BlobRef {
+  sessionId String
+  hash      String
+
+  @@id([sessionId, hash])
+}

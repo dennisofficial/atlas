@@ -110,7 +110,7 @@ const subscribedV2Sessions = async (args: {
   )
   if (subscriptions.length === 0) return []
   const threadIds = [...new Set(subscriptions.map((subscription) => subscription.threadId))]
-  const threads = await tx.orm.v2.V2Thread.where((thread) => thread.id.in(threadIds)).all()
+  const threads = await tx.orm.public.Thread.where((thread) => thread.id.in(threadIds)).all()
   return threads.map((thread) => ({
     threadId: thread.id,
     sessionId: thread.sessionId,

@@ -71,7 +71,7 @@ export class SessionDraftsService {
     await this.requireOwnedSession({ userId, sessionId: input.sessionId })
     const scopeKey = scopeKeyOf(input.sessionId)
     const attachments = input.attachments.map(withoutInline)
-    const row = await db.orm.v2.V2ComposerDraft.upsert({
+    const row = await db.orm.public.SessionDraft.upsert({
       conflictOn: { userId, scopeKey },
       create: {
         userId,
@@ -99,7 +99,7 @@ export class SessionDraftsService {
   async get(args: { userId: string; input: SessionDraftGetInput }): Promise<SessionDraft | null> {
     const { userId, input } = args
     await this.requireOwnedSession({ userId, sessionId: input.sessionId })
-    const row = await db.orm.v2.V2ComposerDraft.where({
+    const row = await db.orm.public.SessionDraft.where({
       userId,
       scopeKey: scopeKeyOf(input.sessionId),
     }).first()
@@ -109,7 +109,7 @@ export class SessionDraftsService {
   async clear(args: { userId: string; input: SessionDraftClearInput }): Promise<void> {
     const { userId, input } = args
     await this.requireOwnedSession({ userId, sessionId: input.sessionId })
-    await db.orm.v2.V2ComposerDraft.where({
+    await db.orm.public.SessionDraft.where({
       userId,
       scopeKey: scopeKeyOf(input.sessionId),
     }).delete()

@@ -12,8 +12,10 @@ data on Prisma 8 is stale. After a Prisma bump, run `bunx prisma skills sync`. T
 
 - One model per file under `src/prisma/schema/<domain>/<model>.prisma`. Every file's first line is
   `// use prisma-8`. `contract emit` silently skips a file without that line.
-- Domains: `auth`, `projects`, `threads`, `sandboxes`, `provider-accounts`, `github`,
-  `user-config`, `artifacts`. Relations resolve across files.
+- Domains: `auth`, `projects`, `sessions`, `hosts`, `media`, `blobs`, `routines`, `changes`,
+  `sandboxes`, `provider-accounts`, `github`, `user-config`, `artifacts`. Relations resolve across
+  files. The v2 record tables live in `public` under plain names (`Session`, `Thread`, `Event`, …),
+  with the `v2` schema kept only as a set of compatibility views for the deploy that moved them.
 - After any edit, run `bun run contract:emit`. The emitted `src/prisma/schema/contract.{json,d.ts}`
   are committed. There is no generate step. CI fails when they are stale.
 - Every timestamp is `TimestamptzJsDate(3)`: a JS `Date` in and out, and ISO 8601 in JSON. It needs

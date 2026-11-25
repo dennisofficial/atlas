@@ -93,7 +93,7 @@ export const readSandboxConfig = async (args: {
   platform: SandboxPlatform
   sessionId: string
 }): Promise<SandboxConfig> => {
-  const session = await args.db.orm.v2.V2Session.first({ id: args.sessionId })
+  const session = await args.db.orm.public.Session.first({ id: args.sessionId })
   if (session === null) throw new SessionNotFoundError(args.sessionId)
   const project =
     session.projectId === null

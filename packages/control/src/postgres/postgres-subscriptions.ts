@@ -151,10 +151,10 @@ export const threadIdsOfSessionIn = async (params: {
   tx: Tx
   sessionId: string
 }): Promise<string[]> => {
-  const session = await params.tx.orm.v2.V2Session.where({ id: params.sessionId })
+  const session = await params.tx.orm.public.Session.where({ id: params.sessionId })
     .select('mainThreadId')
     .first()
-  const threads = await params.tx.orm.v2.V2Thread.where({ sessionId: params.sessionId })
+  const threads = await params.tx.orm.public.Thread.where({ sessionId: params.sessionId })
     .select('id')
     .all()
   return [

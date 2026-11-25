@@ -1,0 +1,6 @@
+// use prisma-8
+model Host {
+  id        Int                  @id @default(autoincrement())
+  label     String
+  startedAt TimestamptzJsDate(3)
+}

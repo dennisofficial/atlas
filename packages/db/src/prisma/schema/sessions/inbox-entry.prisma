@@ -1,0 +1,16 @@
+// use prisma-8
+model InboxEntry {
+  sessionId   String
+  inboxId     Int
+  kind        String
+  payload     String
+  postedAt    TimestamptzJsDate(3)
+  consumedSeq Int?
+  threadId    String?
+  senderSessionId String?
+  session     Session             @relation(fields: [sessionId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "V2InboxEntry_pkey")
+
+  @@id([sessionId, inboxId], map: "V2InboxEntry_pkey")
+  @@index([consumedSeq, sessionId], map: "V2InboxEntry_consumedSeq_sessionId_idx_58d8d6fc")
+  @@index([threadId, sessionId, consumedSeq], map: "V2InboxEntry_thread_open")
+}

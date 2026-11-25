@@ -4,9 +4,16 @@ import { join } from 'node:path'
 import pg from 'pg'
 import { databaseUrl, laneUrl, quoteIdent } from '../testing/lane'
 import { applyMigration, applyMigrations } from '../testing/migrations'
+import { readdirSync } from 'node:fs'
 import { signDatabase } from '../testing/sign'
 
 const ARCHIVE_MIGRATION = '20261125T0307_archive_v1_tables'
+const MIGRATIONS_DIR = join(import.meta.dirname, '..', '..', 'migrations', 'app')
+const LATER_MIGRATIONS = readdirSync(MIGRATIONS_DIR, { withFileTypes: true })
+  .filter((entry) => entry.isDirectory() && entry.name !== 'refs')
+  .map((entry) => entry.name)
+  .sort()
+  .filter((name) => name > ARCHIVE_MIGRATION)
 const DATABASE = `atlas_test_archive_${process.pid}`
 const DB_ROOT = join(import.meta.dirname, '..', '..')
 
@@ -194,6 +201,7 @@ describe('the v1 table archive migration', () => {
   })
 
   it('passes prisma db verify --strict', async () => {
+    for (const directory of LATER_MIGRATIONS) await applyMigration({ client, directory })
     const url = databaseUrl({ lane: laneUrl(), name: DATABASE })
     signDatabase({ url })
     const verified = spawnSync('bunx', ['prisma', 'db', 'verify', '--strict'], {
