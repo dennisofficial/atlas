@@ -17,6 +17,12 @@ import {
 export type { PreviewSecretCipher } from './preview-rows'
 export { lockPreviews, newPreviewLabel, tunnelNameOf } from './preview-rows'
 
+function sealedOf(row: Row<'PreviewTunnel'>): boolean {
+  return (
+    row.state === EPreviewTunnelState.Ready && row.tunnelId !== '' && row.sealedTunnelToken !== ''
+  )
+}
+
 export class PreviewTunnels {
   private readonly db: Db
   private readonly cipher: PreviewSecretCipher
@@ -127,18 +133,14 @@ export class PreviewTunnels {
     podSessionId: string
     row: Row<'PreviewTunnel'>
   }): Promise<string> {
-    if (
-      args.row.state === EPreviewTunnelState.Ready &&
-      args.row.tunnelId !== '' &&
-      args.row.sealedTunnelToken !== ''
-    ) {
-      return this.cipher.decrypt(args.row.sealedTunnelToken)
-    }
+    const row = await this.db.orm.public.PreviewTunnel.where({ id: args.row.id }).first()
+    if (row === null) throw new Error(`preview tunnel ${args.row.id} disappeared`)
+    if (sealedOf(row)) return this.cipher.decrypt(row.sealedTunnelToken)
     try {
       const tunnel = await this.cloudflare.ensureTunnel({
         name: tunnelNameOf(args.podSessionId),
       })
-      await this.db.orm.public.PreviewTunnel.where({ id: args.row.id }).updateAndCount({
+      await this.db.orm.public.PreviewTunnel.where({ id: row.id }).updateAndCount({
         tunnelId: tunnel.id,
         sealedTunnelToken: this.cipher.encrypt(tunnel.token),
         state: EPreviewTunnelState.Ready,
@@ -146,7 +148,7 @@ export class PreviewTunnels {
       })
       return tunnel.token
     } catch (failure) {
-      await this.db.orm.public.PreviewTunnel.where({ id: args.row.id }).updateAndCount({
+      await this.db.orm.public.PreviewTunnel.where({ id: row.id }).updateAndCount({
         lastError: messageOf(failure),
       })
       throw failure
