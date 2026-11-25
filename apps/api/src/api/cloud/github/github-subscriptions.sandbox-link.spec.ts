@@ -1,11 +1,10 @@
-import { db, type Row } from '@dltech/atlas-db'
+import type { Row } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { unstubAllGlobals } from '@dltech/bun-test-shims'
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import {
   ensureUsers,
   repoHookRows,
-  seedCloudSandbox,
   seedPrState,
   seedRepoHook,
   seedSubscription,
@@ -13,7 +12,7 @@ import {
 } from '../../../../test/github-seed'
 import { serviceWith } from './github-subscriptions.fixture'
 
-describe('sandbox link and park survival', () => {
+describe('thread link and liveness survival', () => {
   useTestDatabase()
 
   beforeEach(async () => {
@@ -31,21 +30,8 @@ describe('sandbox link and park survival', () => {
       ...overrides,
     })
 
-  const sandboxRow = (overrides: Partial<Parameters<typeof seedCloudSandbox>[0]> = {}) =>
-    seedCloudSandbox({
-      id: 'sbx_row_1',
-      threadId: 'thr_1',
-      userId: 'usr_1',
-      sandboxId: 'sbx_1',
-      name: 'atlas-thr_1',
-      state: 'parked',
-      lastActivityAt: new Date(),
-      ...overrides,
-    })
-
-  it('subscribe with a sandbox principal records the thread link', async () => {
+  it('subscribe with a thread id records the thread link', async () => {
     const service = serviceWith({ token: 'ghu_1' })
-    await sandboxRow()
 
     await service.subscribe({
       userId: 'usr_1',
@@ -57,7 +43,7 @@ describe('sandbox link and park survival', () => {
     expect((await subscriptionRows())[0]).toMatchObject({ threadId: 'thr_1' })
   })
 
-  it('subscribe without a sandbox principal leaves the link empty', async () => {
+  it('subscribe without a thread id leaves the link empty', async () => {
     const service = serviceWith({ token: 'ghu_1' })
 
     await service.subscribe({ userId: 'usr_1', repoFullName: 'compai/app', prNumber: 42 })
@@ -67,8 +53,6 @@ describe('sandbox link and park survival', () => {
 
   it('subscribing the same pull request from two threads keeps both rows', async () => {
     const service = serviceWith({ token: 'ghu_1' })
-    await sandboxRow()
-    await sandboxRow({ id: 'sbx_row_2', threadId: 'thr_2', sandboxId: 'sbx_2' })
     await service.subscribe({
       userId: 'usr_1',
       repoFullName: 'compai/app',
@@ -90,7 +74,6 @@ describe('sandbox link and park survival', () => {
 
   it('heartbeat from another thread cannot repoint a linked subscription', async () => {
     const service = serviceWith({ token: 'ghu_1' })
-    await sandboxRow()
     const dto = await service.subscribe({
       userId: 'usr_1',
       repoFullName: 'compai/app',
@@ -109,7 +92,6 @@ describe('sandbox link and park survival', () => {
 
   it('an expired subscription whose liveUntil covers the wake window still counts as live', async () => {
     const service = serviceWith({ token: 'ghu_1' })
-    await sandboxRow()
     await expiredRow({
       threadId: 'thr_1',
       liveUntil: new Date(Date.now() + 23 * 60 * 60 * 1_000),
@@ -128,27 +110,16 @@ describe('sandbox link and park survival', () => {
     expect(states[0]?.prNumber).toBe(42)
   })
 
-  it('an expired subscription whose sandbox fell out of the wake window is dead', async () => {
+  it('an expired subscription whose liveUntil has passed is dead', async () => {
     const service = serviceWith({ token: 'ghu_1' })
-    await sandboxRow({ lastActivityAt: new Date(Date.now() - 25 * 60 * 60 * 1_000) })
     await expiredRow({ threadId: 'thr_1' })
 
     expect(await service.liveSubscriptions({ userId: 'usr_1' })).toHaveLength(0)
     expect(await service.currentStates({ userId: 'usr_1' })).toHaveLength(0)
   })
 
-  it('an expired subscription with a threadId but no sandbox row is dead', async () => {
+  it('a live thread-linked subscription keeps its repo hook out of the idle drain', async () => {
     const service = serviceWith({ token: 'ghu_1' })
-    await sandboxRow({ threadId: 'thr_gone' })
-    await expiredRow({ threadId: 'thr_gone' })
-    await db.orm.public.CloudSandbox.where({ sessionId: 'ses_thr_gone' }).deleteAndCount()
-
-    expect(await service.liveSubscriptions({ userId: 'usr_1' })).toHaveLength(0)
-  })
-
-  it('a parked-linked subscription keeps its repo hook out of the idle drain', async () => {
-    const service = serviceWith({ token: 'ghu_1' })
-    await sandboxRow()
     await expiredRow({
       threadId: 'thr_1',
       liveUntil: new Date(Date.now() + 23 * 60 * 60 * 1_000),

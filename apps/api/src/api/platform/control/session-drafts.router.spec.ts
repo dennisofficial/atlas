@@ -2,7 +2,7 @@ import { ControlPlane } from '@dltech/atlas-control'
 import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import { EAttachmentStore, type Attachment } from '@dltech/atlas-core'
 import { db } from '@dltech/atlas-db'
-import { useTestDatabase } from '@dltech/atlas-db/testing'
+import { seedUser, useTestDatabase } from '@dltech/atlas-db/testing'
 import { sessionDraftGetOutputSchema, sessionDraftSchema } from '@dltech/atlas-protocol'
 import type { NestExpressApplication } from '@nestjs/platform-express'
 import request from 'supertest'
@@ -14,7 +14,6 @@ import {
   createMiddlewareApp,
   UNTHROTTLED_RATE_LIMIT,
 } from '../../../_module/trpc/trpc-middleware.fixture'
-import { seedUsers } from '../../../../test/session-seed'
 import { SessionDraftsRouter } from './session-drafts.router'
 import { SessionDraftsService } from './session-drafts.service'
 
@@ -57,7 +56,7 @@ describe('SessionDraftsRouter', () => {
     authed(request(app.getHttpServer()).post('/v1/trpc/sessionDrafts.clear'), token).send(input)
 
   beforeEach(async () => {
-    await seedUsers('user-a', 'user-b')
+    for (const id of ['user-a', 'user-b']) await seedUser({ db, id })
     const plane = new ControlPlane({ store: new PostgresControlStore(db) })
     await plane.createSession({
       sessionId: 'ses-a',

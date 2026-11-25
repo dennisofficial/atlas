@@ -1,12 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { db, type Row } from '@dltech/atlas-db'
-import { seedThread } from '@dltech/atlas-db/testing'
-
-type JsonColumn = NonNullable<Row<'CloudSandbox'>['runtimeCheckpoint']>
 
 const FAR = 60_000
-
-export const asJson = (value: unknown): JsonColumn => JSON.parse(JSON.stringify(value))
 
 export async function ensureUser(id: string): Promise<void> {
   await db.orm.public.User.upsert({
@@ -112,38 +107,6 @@ export async function seedConnection(
     scopes: 'repo',
     sealedToken: 'sealed',
     ...partial,
-  })
-}
-
-export async function seedCloudSandbox(
-  partial: Partial<Omit<Row<'CloudSandbox'>, 'runtimeCheckpoint'>> & {
-    threadId: string
-    runtimeCheckpoint?: unknown
-  },
-): Promise<Row<'CloudSandbox'>> {
-  const userId = partial.userId ?? 'usr_1'
-  await ensureUser(userId)
-  if ((await db.orm.public.Thread.first({ id: partial.threadId })) === null) {
-    await seedThread({ db, id: partial.threadId, userId })
-  }
-  const { runtimeCheckpoint, threadId, ...columns } = partial
-  const owner = await db.orm.public.Thread.select('sessionId').first({ id: threadId })
-  const sessionId = columns.sessionId ?? owner?.sessionId ?? `ses_${threadId}`
-  const at = new Date()
-  return db.orm.public.CloudSandbox.create({
-    id: `sbx_row_${threadId}`,
-    userId,
-    sandboxId: 'vsbx-1',
-    name: `atlas-${threadId}`,
-    region: 'iad1',
-    state: 'parked',
-    lastActivityAt: at,
-    tokenHash: `hash-${threadId}`,
-    createdAt: at,
-    updatedAt: at,
-    ...columns,
-    sessionId,
-    ...(runtimeCheckpoint === undefined ? {} : { runtimeCheckpoint: asJson(runtimeCheckpoint) }),
   })
 }
 
