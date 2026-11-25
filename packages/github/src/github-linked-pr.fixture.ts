@@ -1,5 +1,4 @@
 import { db } from '@dltech/atlas-db'
-import { seedThread } from '@dltech/atlas-db/testing'
 import { ensureUser } from './testing/github-seed'
 import { normalizedRepo } from './github-pr-identity'
 
@@ -11,28 +10,6 @@ export async function seedLinkedPr(
   const number = args.number ?? 42
   const repo = args.repo ?? 'github.com/compai/app'
   await ensureUser(userId)
-  if ((await db.orm.public.Thread.first({ id: threadId })) === null) {
-    await seedThread({ db, id: threadId, userId })
-  }
-  const prior = await db.orm.public.Event.where({ threadId })
-    .orderBy((event) => event.seq.desc())
-    .first()
-  await db.orm.public.Event.create({
-    id: `evt-${threadId}-${(prior?.seq ?? 0) + 1}`,
-    userId,
-    runId: 'run-link',
-    depth: 0,
-    threadId,
-    seq: (prior?.seq ?? 0) + 1,
-    type: 'pull-request-linked',
-    body: JSON.stringify({
-      number,
-      repo,
-      branch: 'dennis/add-the-thing',
-      url: `https://github.com/compai/app/pull/${number}`,
-    }),
-    at: new Date(),
-  })
   await seedSessionLink({ userId, threadId, number, repo })
 }
 

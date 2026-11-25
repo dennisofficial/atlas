@@ -1,7 +1,7 @@
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { EGithubCallSource } from '@dltech/atlas-github'
 import { beforeEach, describe, expect, it, vi } from 'bun:test'
-import { repoHookRows, seedCloudSandbox, seedRepoHook } from '../../../../test/github-seed'
+import { repoHookRows, seedRepoHook } from '../../../../test/github-seed'
 import {
   preparePollSweeper,
   REST_FIELDS,
@@ -44,17 +44,9 @@ describe('GithubPollSweeperService parked-subscription survival', () => {
 
   beforeEach(preparePollSweeper)
 
-  it('polls an expired subscription whose sandbox is inside the wake window', async () => {
+  it('polls an expired subscription whose liveUntil covers the wake window', async () => {
     const readPullRequest = vi.fn(async () => REST_FIELDS)
     const { service } = serviceWith({ tokens: { usr_1: 'ghu_1' }, readPullRequest })
-    await seedCloudSandbox({
-      id: 'sbx_row_1',
-      threadId: 'thr_1',
-      userId: 'usr_1',
-      name: 'atlas-thr_1',
-      state: 'parked',
-      lastActivityAt: new Date(Date.now() - 60 * 60 * 1_000),
-    })
     await seedSubscription({
       id: 'sub-parked',
       prNumber: 7,
@@ -73,17 +65,9 @@ describe('GithubPollSweeperService parked-subscription survival', () => {
     })
   })
 
-  it('skips an expired subscription whose sandbox fell out of the wake window', async () => {
+  it('skips an expired subscription whose liveUntil has passed', async () => {
     const readPullRequest = vi.fn(async () => REST_FIELDS)
     const { service } = serviceWith({ tokens: { usr_1: 'ghu_1' }, readPullRequest })
-    await seedCloudSandbox({
-      id: 'sbx_row_1',
-      threadId: 'thr_1',
-      userId: 'usr_1',
-      name: 'atlas-thr_1',
-      state: 'parked',
-      lastActivityAt: new Date(Date.now() - 25 * 60 * 60 * 1_000),
-    })
     await seedSubscription({
       id: 'sub-stale',
       prNumber: 7,

@@ -1,4 +1,3 @@
-import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 import { beforeEach, describe, expect, it } from 'bun:test'
 import type { GithubPrStateDto } from '@dltech/atlas-github'
@@ -9,7 +8,6 @@ import {
   seedSubscription as seedSubscriptionRow,
   serviceWith,
 } from '@dltech/atlas-github/testing'
-import { seedCloudSandbox } from '../../../../test/github-seed'
 
 describe('GithubDeliveryService parked-subscription survival', () => {
   useTestDatabase()
@@ -32,21 +30,7 @@ describe('GithubDeliveryService parked-subscription survival', () => {
       threadId: args.threadId,
     })
 
-  const sandboxAt = (args: { userId: string; lastActivityAt: Date }): Promise<unknown> =>
-    seedCloudSandbox({
-      id: 'sbx_row_1',
-      threadId: 'thr_1',
-      userId: args.userId,
-      sandboxId: 'sbx_1',
-      name: 'atlas-thr_1',
-      state: 'parked',
-      lastActivityAt: args.lastActivityAt,
-    })
-
-  const sandboxWithinWindow = (): Promise<unknown> =>
-    sandboxAt({ userId: 'usr-parked', lastActivityAt: new Date(Date.now() - 60 * 60 * 1_000) })
-
-  it('a delivery fans out to an expired subscription whose sandbox is inside the wake window', async () => {
+  it('a delivery fans out to an expired subscription whose liveUntil covers the wake window', async () => {
     const { service, fanout } = serviceWith({ tokens: {} })
     const pushes: GithubPrStateDto[] = []
     fanout.openStream({
@@ -55,7 +39,6 @@ describe('GithubDeliveryService parked-subscription survival', () => {
       eventHandler: () => {},
       onClosed: () => {},
     })
-    await sandboxWithinWindow()
     await parkSubscription({
       userId: 'usr-parked',
       threadId: 'thr_1',
@@ -69,7 +52,7 @@ describe('GithubDeliveryService parked-subscription survival', () => {
     expect((await prEventRows()).filter((row) => row.userId === 'usr-parked')).toHaveLength(0)
   })
 
-  it('a delivery skips an expired subscription whose sandbox fell out of the wake window', async () => {
+  it('a delivery skips an expired subscription whose liveUntil has passed', async () => {
     const { service, fanout } = serviceWith({ tokens: { 'usr-stale': 'ghu_1' } })
     const pushes: GithubPrStateDto[] = []
     fanout.openStream({
@@ -77,10 +60,6 @@ describe('GithubDeliveryService parked-subscription survival', () => {
       handler: (state) => pushes.push(state),
       eventHandler: () => {},
       onClosed: () => {},
-    })
-    await sandboxAt({
-      userId: 'usr-stale',
-      lastActivityAt: new Date(Date.now() - 25 * 60 * 60 * 1_000),
     })
     await parkSubscription({
       userId: 'usr-stale',
@@ -94,30 +73,8 @@ describe('GithubDeliveryService parked-subscription survival', () => {
     expect((await prEventRows()).filter((row) => row.userId === 'usr-stale')).toHaveLength(0)
   })
 
-  it('a delivery skips an expired subscription with a threadId but no sandbox row', async () => {
-    const { service, fanout } = serviceWith({ tokens: { 'usr-gone': 'ghu_1' } })
-    const pushes: GithubPrStateDto[] = []
-    fanout.openStream({
-      userId: 'usr-gone',
-      handler: (state) => pushes.push(state),
-      eventHandler: () => {},
-      onClosed: () => {},
-    })
-    await seedCloudSandbox({ threadId: 'thr_gone', userId: 'usr-gone' })
-    await parkSubscription({
-      userId: 'usr-gone',
-      threadId: 'thr_gone',
-      expiresAt: new Date(Date.now() - 60_000),
-    })
-    await db.orm.public.CloudSandbox.where({ sessionId: 'ses_thr_gone' }).deleteAndCount()
-    await service.handle({ event: 'pull_request', payload: PULL_REQUEST_PAYLOAD })
-
-    expect(pushes).toHaveLength(0)
-  })
-
-  it('a discussion delivery records a mailbox row for an in-window parked subscriber', async () => {
+  it('a discussion delivery records a mailbox row for a subscriber inside the wake window', async () => {
     const { service } = serviceWith({ tokens: { 'usr-parked': 'ghu_1' } })
-    await sandboxWithinWindow()
     await parkSubscription({
       userId: 'usr-parked',
       threadId: 'thr_1',
