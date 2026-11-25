@@ -9,6 +9,7 @@ import { CodeBlockCopyButton } from '#components/code-block'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '#components/collapsible'
 import { Spinner } from '#components/spinner'
 import { summarizeDiagramError } from './internal/diagram-error-summary'
+import { isStaleBundleError } from './internal/stale-bundle'
 
 export type DiagramRepairArgs = { chart: string; error: string }
 
@@ -24,7 +25,31 @@ function messageOf(reason: unknown): string {
   return reason instanceof Error ? reason.message : String(reason)
 }
 
+function handleReload() {
+  window.location.reload()
+}
+
+function StaleBundleNotice() {
+  return (
+    <Alert data-slot="diagram-error" className="my-4">
+      <TriangleAlertIcon className="text-muted-foreground" />
+      <AlertTitle>Reload to see this diagram</AlertTitle>
+      <AlertDescription>Atlas was updated while this window was open.</AlertDescription>
+      <div className="col-start-2 mt-2">
+        <Button variant="outline" size="xs" onClick={handleReload}>
+          Reload
+        </Button>
+      </div>
+    </Alert>
+  )
+}
+
 export function DiagramError({ chart, error, onRepair }: DiagramErrorProps) {
+  if (isStaleBundleError(error)) return <StaleBundleNotice />
+  return <ParseErrorNotice chart={chart} error={error} onRepair={onRepair} />
+}
+
+function ParseErrorNotice({ chart, error, onRepair }: DiagramErrorProps) {
   const [sourceOpen, setSourceOpen] = useState(false)
   const requested = useRef<string | undefined>(undefined)
   const [pendingChart, setPendingChart] = useState<string | undefined>(undefined)
