@@ -1,6 +1,7 @@
 import type { ApiClient } from '@dltech/atlas-api-router'
+import type { SessionSummary } from '@dltech/atlas-protocol'
 
-import type { IProjectSummary, SessionSummary } from './session-groups'
+import type { IProjectSummary } from './session-groups'
 import { listSessions } from './list-sessions'
 
 export type LoadedSessions = {

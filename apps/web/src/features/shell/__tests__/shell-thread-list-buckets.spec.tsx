@@ -8,7 +8,7 @@ import type { SessionSummary } from '@dltech/atlas-protocol'
 import { rowOf } from '../session-rows'
 import { ThreadList } from '../shell-thread-list'
 import { ThreadActionsContext } from '../thread-actions-context'
-import { agoIso, threadOf } from './fixtures'
+import { agoIso, sessionOf, threadOf } from './fixtures'
 
 beforeAll(() => {
   registerDom()
