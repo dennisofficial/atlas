@@ -18,6 +18,7 @@ export const pendingRowsOf = (args: {
   staged: readonly StagedMessage[]
   refused: readonly StagedMessage[]
   working: boolean
+  hiddenInboxIds?: ReadonlySet<number> | undefined
 }): readonly PendingRow[] => {
   const shown = new Set([
     ...args.staged.map((message) => message.clientId),
@@ -25,6 +26,7 @@ export const pendingRowsOf = (args: {
   ])
 
   const queued = pendingMessagesOf(args.pending).flatMap((input): readonly PendingRow[] => {
+    if (args.hiddenInboxIds?.has(input.inboxId) === true) return []
     const clientId = input.message?.clientId
     if (clientId !== undefined && shown.has(clientId)) return []
     const via = input.message?.via

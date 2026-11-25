@@ -174,6 +174,24 @@ describe('queuedDockOf', () => {
     expect(queuedLabelOf(dock)).toBe('Waits for the summary')
   })
 
+  it('offers Edit and Remove for an operator message only', () => {
+    const dock = dockOf({ pending, staged: STAGED, status: working })
+    const withdrawOf = (id: string) => dock.rows.find((row) => row.id === id)?.withdrawInboxId
+    expect(withdrawOf('web-1')).toBe(4)
+    expect(withdrawOf('queued-6')).toBeUndefined()
+    expect(withdrawOf('phone-1')).toBeUndefined()
+  })
+
+  it('drops the row of a message the operator is withdrawing', () => {
+    const dock = queuedDockOf({
+      snapshot: { pending, events: [], status: working },
+      staged: STAGED,
+      now: NOW,
+      hiddenInboxIds: new Set([4]),
+    })
+    expect(dock.rows.map((row) => row.id)).toEqual(['queued-6', 'queued-5', 'phone-1'])
+  })
+
   it('derives a queued notice to the notice row', () => {
     const dock = dockOf({
       pending: { pending: [pending.pending[2]!] },

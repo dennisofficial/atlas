@@ -28,6 +28,8 @@ import { useSession } from './use-session'
 import { useSessionRows } from './use-session-rows'
 import { useSessionCommands, type SessionCommands } from './use-session-commands'
 import { useOperatorRequest, type OperatorRequestControl } from './use-operator-request'
+import { useQueuedWithdraw } from './use-queued-withdraw'
+import type { QueuedRestore } from './withdraw-queued'
 
 const TICK_MS = 1_000
 
@@ -53,6 +55,8 @@ export type SessionScreen = ThreadView & {
   restored: { token: number; text: string; attachments: readonly Attachment[] } | undefined
   notice: string | undefined
   loadOlder: () => Promise<number>
+  withdrawEdit: (inboxId: number) => void
+  withdrawRemove: (inboxId: number) => void
   send: (message: { text: string; attachments: Attachment[] }) => Promise<boolean>
   stop: () => void
   retry: () => Promise<void>
@@ -161,7 +165,23 @@ export function useSessionScreen(args: {
     () => (staged.length === 0 ? [] : stagedRowsOf({ snapshot, staged, now })),
     [snapshot, staged, now],
   )
-  const queued = useMemo(() => queuedDockOf({ snapshot, staged, now }), [snapshot, staged, now])
+  const restoreQueued = useCallback((restored: QueuedRestore) => {
+    restoreToken.current += 1
+    setRestored({ token: restoreToken.current, ...restored })
+  }, [])
+  const reportNotice = useCallback((notice: string) => setNotice(notice), [])
+  const withdraw = useQueuedWithdraw({
+    api,
+    sessionId,
+    pending: snapshot.pending,
+    foldable: snapshot.foldable,
+    onRestore: restoreQueued,
+    onNotice: reportNotice,
+  })
+  const queued = useMemo(
+    () => queuedDockOf({ snapshot, staged, now, hiddenInboxIds: withdraw.hiddenInboxIds }),
+    [snapshot, staged, now, withdraw.hiddenInboxIds],
+  )
   const turnStartedAt = useMemo(
     () => turnStartedAtOf({ events: snapshot.foldable, status: snapshot.status }),
     [snapshot.foldable, snapshot.status],
@@ -250,6 +270,8 @@ export function useSessionScreen(args: {
     restored,
     notice,
     loadOlder,
+    withdrawEdit: withdraw.edit,
+    withdrawRemove: withdraw.remove,
     send,
     stop,
     retry,

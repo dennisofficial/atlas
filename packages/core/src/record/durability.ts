@@ -77,8 +77,8 @@ export const EVENT_DURABILITY = {
   'command-applied': false,
   'input-posted': false,
   'input-consumed': false,
-  'input-withdrawn': false,
-  'input-refused': false,
+  'input-withdrawn': true,
+  'input-refused': true,
   'idle-released': false,
   'fact-recorded': false,
 } as const satisfies Record<CoreType, boolean>

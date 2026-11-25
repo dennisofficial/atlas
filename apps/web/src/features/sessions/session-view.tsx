@@ -219,6 +219,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     sessionId,
     pending: snapshot.pending,
     events: snapshot.events,
+    foldable: snapshot.foldable,
     staged: stagedRun.staged,
     items: transcriptItems,
     sessionNameOf,

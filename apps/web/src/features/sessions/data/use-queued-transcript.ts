@@ -1,8 +1,14 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useCallback, useSyncExternalStore } from 'react'
 import { toast } from 'sonner'
 
-import { pendingMessagesOf, type Attachment, type PendingInputsState } from '@dltech/atlas-core'
-import { queuedMessagesOf } from '@dltech/atlas-client/session'
+import type { Attachment, PendingInputsState } from '@dltech/atlas-core'
+import {
+  queuedMessagesOf,
+  requestWithdraw,
+  withdrawStore,
+  type WithdrawApi,
+  type WithdrawIntent,
+} from '@dltech/atlas-client/session'
 import {
   optimisticPlacementOf,
   transcriptEventsOf,
@@ -14,15 +20,16 @@ import { mediaUrls } from '@/features/threads/data/media-urls'
 import { messageOf } from '@/features/threads/data/message-of'
 
 import { sessionEventTypes } from '../registered-plugins'
-import type { StagedMessage } from './queued-messages'
+import './withdraw-persistence'
+import { mergeWithdrawnIntoDraft, type StagedMessage } from './queued-messages'
 import { optimisticUserItemsOf, queuedRowsOf } from './queued-transcript'
 import { sessionsApi } from './sessions-api'
-import { EWithdrawOutcome, withdrawQueued } from './withdraw-queued'
 
 export function useQueuedTranscript(args: {
   sessionId: string
   pending: PendingInputsState
   events: SessionSnapshot['events']
+  foldable: SessionSnapshot['foldable']
   staged: readonly StagedMessage[]
   items: readonly TranscriptRow[]
   sessionNameOf?: SessionNameOf | undefined
@@ -32,10 +39,21 @@ export function useQueuedTranscript(args: {
     attachments: readonly Attachment[]
     previewOf: (hash: string) => Promise<string>
   }) => void
+  api?: WithdrawApi
 }) {
-  const { sessionId, pending, events, staged, items: listed, draft } = args
+  const { sessionId, pending, events, foldable, staged, items: listed, draft } = args
   const { onDraftChange, onRestoreAttachments, sessionNameOf } = args
-  const pendingInputs = useMemo(() => pendingMessagesOf(pending), [pending])
+  const api = args.api ?? sessionsApi
+  const subscribe = useCallback(
+    (listener: () => void) => withdrawStore.subscribe({ sessionId, listener }),
+    [sessionId],
+  )
+  const getIntents = useCallback(() => withdrawStore.intentsOf(sessionId), [sessionId])
+  const intents = useSyncExternalStore(subscribe, getIntents, getIntents)
+  const hiddenInboxIds = useMemo(
+    () => new Set(intents.map((intent) => intent.targetInboxId)),
+    [intents],
+  )
   const placement = useMemo(
     () => optimisticPlacementOf({ staged, events, pending }),
     [staged, events, pending],
@@ -47,52 +65,56 @@ export function useQueuedTranscript(args: {
         pending,
         events: transcriptEvents,
         staged: placement.queue,
-        hiddenInboxIds: placement.hiddenInboxIds,
+        hiddenInboxIds,
         ...(sessionNameOf === undefined ? {} : { sessionNameOf }),
       }),
-    [pending, transcriptEvents, placement, sessionNameOf],
+    [pending, transcriptEvents, placement, hiddenInboxIds, sessionNameOf],
   )
   const items = useMemo(() => optimisticUserItemsOf(placement.transcript), [placement])
   const transcript = useMemo(() => [...listed, ...items], [listed, items])
   const queued = useMemo(() => queuedMessagesOf(pending), [pending])
-  const withdrawIds = useMemo(
-    () => new Set(pendingInputs.map((input) => String(input.inboxId))),
-    [pendingInputs],
-  )
 
-  const withdraw = async (params: { id: string; restoreText: boolean }) => {
-    const entry = queued.find((candidate) => candidate.id === params.id)
+  useEffect(() => {
+    const settled = withdrawStore.takeSettlements({ sessionId, events: foldable })
+    for (const entry of settled) {
+      if (entry.status === 'refused') toast(entry.notice)
+    }
+  }, [sessionId, foldable])
+
+  const withdraw = async (params: { inboxId: string; restoreText: boolean }) => {
+    const entry = queued.find((candidate) => candidate.id === params.inboxId)
     if (entry === undefined) return
-    try {
-      const result = await withdrawQueued({
-        api: sessionsApi,
-        sessionId,
-        inboxId: Number(entry.id),
-        text: entry.text,
-        attachments: entry.attachments,
-        draft,
-        restoreText: params.restoreText,
-      })
-      if (result.outcome === EWithdrawOutcome.Refused) {
-        toast(result.notice)
-        return
+    const intent: WithdrawIntent = { sessionId, targetInboxId: Number(entry.id) }
+    if (!withdrawStore.request(intent)) return
+    if (params.restoreText) {
+      onDraftChange(mergeWithdrawnIntoDraft({ withdrawn: entry.text, draft }))
+      if (entry.attachments.length > 0) {
+        onRestoreAttachments({
+          attachments: entry.attachments,
+          previewOf: (hash) => mediaUrls.urlOf({ sessionId, hash }),
+        })
       }
-      onDraftChange(result.draft)
-      if (result.attachments.length === 0) return
-      onRestoreAttachments({
-        attachments: result.attachments,
-        previewOf: (hash) => mediaUrls.urlOf({ sessionId, hash }),
+    }
+    try {
+      const outcome = await requestWithdraw({
+        api,
+        sessionId,
+        targetInboxId: intent.targetInboxId,
       })
+      if (outcome.accepted) return
+      withdrawStore.discard(intent)
+      toast(outcome.notice)
     } catch (failure) {
+      withdrawStore.discard(intent)
       toast.error(messageOf(failure))
     }
   }
 
   const handleEdit = (inboxId: string) => {
-    if (withdrawIds.has(inboxId)) void withdraw({ id: inboxId, restoreText: true })
+    void withdraw({ inboxId, restoreText: true })
   }
   const handleRemove = (inboxId: string) => {
-    if (withdrawIds.has(inboxId)) void withdraw({ id: inboxId, restoreText: false })
+    void withdraw({ inboxId, restoreText: false })
   }
 
   return {

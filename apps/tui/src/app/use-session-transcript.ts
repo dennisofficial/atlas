@@ -39,6 +39,7 @@ export type SessionTranscript = {
   loadOlder: () => Promise<number>
   events: readonly Event[]
   rawEvents: readonly RecordEvent[]
+  foldable: readonly RecordEvent[]
   quickStops: readonly QuickStopEvidence[]
   status: SessionStatusOutput | undefined
   pending: PendingInputsState
@@ -82,6 +83,7 @@ export function useSessionTranscript(args: {
     view: undefined,
     shells: {},
   })
+  const [foldable, setFoldable] = useState<readonly RecordEvent[]>([])
 
   const mapped = useRef<{ source: readonly RecordEvent[]; events: Event[] } | null>(null)
 
@@ -112,6 +114,7 @@ export function useSessionTranscript(args: {
       store.setEvents({ events: mapped.current.events })
       setConnection(snapshot.connection)
       setRawEvents(snapshot.events)
+      setFoldable(snapshot.foldable)
       setQuickStops(snapshot.quickStops)
       setStatus(snapshot.status)
       setPending(snapshot.pending)
@@ -149,6 +152,7 @@ export function useSessionTranscript(args: {
     loadOlder,
     events,
     rawEvents,
+    foldable,
     quickStops,
     status,
     pending,

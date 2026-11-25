@@ -114,9 +114,9 @@ export function ChatScreenHost(props: ChatScreenHostProps): React.ReactNode {
     api: props.client.api,
     sessionId: props.sessionId,
     pending: transcript.pending,
-    staged,
+    foldable: transcript.foldable,
     draft: composer.draft,
-    tokens: composer.tokens,
+    restore: (restored) => restoreText.current(restored),
     onProblem: problemOf,
   })
 
@@ -207,8 +207,15 @@ export function ChatScreenHost(props: ChatScreenHostProps): React.ReactNode {
         staged: staged.staged,
         refused: staged.refused,
         working: transcript.working,
+        hiddenInboxIds: takeBack.hiddenInboxIds,
       }),
-    [staged.refused, staged.staged, transcript.pending, transcript.working],
+    [
+      staged.refused,
+      staged.staged,
+      takeBack.hiddenInboxIds,
+      transcript.pending,
+      transcript.working,
+    ],
   )
 
   const handleKey = useChatKeys({

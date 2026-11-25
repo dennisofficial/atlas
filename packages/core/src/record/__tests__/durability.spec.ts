@@ -68,6 +68,11 @@ describe('durable events', () => {
     expect(isDurable('user-said')).toBe(false)
   })
 
+  it('keeps the holder answer to a withdraw durable', () => {
+    expect(isDurable('input-withdrawn')).toBe(true)
+    expect(isDurable('input-refused')).toBe(true)
+  })
+
   it('keeps every lifecycle start and its ending durable together', () => {
     const pairs = [
       ['workspace-attempt-started', 'workspace-prepared'],

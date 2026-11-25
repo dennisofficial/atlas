@@ -15,6 +15,8 @@ export type QueuedDockState = {
   blocking: BlockingCommand | undefined
 }
 
+const NO_IDS: ReadonlySet<number> = new Set()
+
 export const QUEUED_LABEL = 'Queued'
 
 export const QUEUED_ROW_OPACITY = 0.5
@@ -26,6 +28,7 @@ export const queuedDockOf = (args: {
   snapshot: Pick<SessionSnapshot, 'pending' | 'events' | 'status'>
   staged: readonly StagedSend[]
   now: number
+  hiddenInboxIds?: ReadonlySet<number> | undefined
 }): QueuedDockState => {
   const placement = stagedPlacementOf({
     staged: args.staged,
@@ -38,6 +41,7 @@ export const queuedDockOf = (args: {
       events: transcriptEventsOf(args.snapshot.events),
       staged: placement.queue,
       now: args.now,
+      hiddenInboxIds: args.hiddenInboxIds ?? NO_IDS,
     }),
     blocking: blockingCommandOf(args.snapshot.status),
   }
