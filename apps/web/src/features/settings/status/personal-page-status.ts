@@ -29,11 +29,6 @@ export const PERSONAL_PAGE_STATUS = {
     status: EPageStatus.Live,
     detail: 'Saved to your account and read by every new session.',
   },
-  [ESettingsPage.Secrets]: {
-    status: EPageStatus.Live,
-    detail:
-      'Every cloud thread gets these as environment variables. A project value with the same name wins.',
-  },
   [ESettingsPage.Access]: {
     status: EPageStatus.Live,
     detail: 'Delivered to every cloud thread at the start of its next turn.',

@@ -8,6 +8,7 @@ model UserAccessGrant {
   updatedAt   TimestamptzJsDate(3) @onCreate(now()) @onUpdate(now())
   user        User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   secrets     UserSecret[]
+  fileMounts  UserFileMount[]
 
   @@unique([userId, name])
 }

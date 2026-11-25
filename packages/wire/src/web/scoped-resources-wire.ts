@@ -20,7 +20,10 @@ export type ResourceMcpServerList = z.infer<typeof resourceMcpServerListSchema>
 export const projectSecretKeySchema = projectIdInputSchema.extend(resourceNameShape)
 export type ProjectSecretKey = z.infer<typeof projectSecretKeySchema>
 
-export const projectSecretSetSchema = secretSetSchema.extend(projectSecretKeySchema.shape)
+export const projectSecretSetSchema = secretSetSchema.extend({
+  ...projectSecretKeySchema.shape,
+  grantId: z.string().min(1).optional(),
+})
 export type ProjectSecretSet = z.infer<typeof projectSecretSetSchema>
 
 export const projectMcpServerKeySchema = projectSecretKeySchema

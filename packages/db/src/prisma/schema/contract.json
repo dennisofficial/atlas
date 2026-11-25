@@ -260,6 +260,10 @@
       "model": "UserFile",
       "namespace": "public"
     },
+    "UserFileMount": {
+      "model": "UserFileMount",
+      "namespace": "public"
+    },
     "UserHarnessSecret": {
       "model": "UserHarnessSecret",
       "namespace": "public"
@@ -5814,7 +5818,7 @@
                 }
               },
               "grantId": {
-                "nullable": true,
+                "nullable": false,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
@@ -5869,7 +5873,7 @@
             "relations": {
               "grant": {
                 "cardinality": "N:1",
-                "nullable": true,
+                "nullable": false,
                 "on": {
                   "localFields": [
                     "grantId"
@@ -5944,7 +5948,7 @@
                 }
               },
               "grantId": {
-                "nullable": true,
+                "nullable": false,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
@@ -5992,7 +5996,7 @@
             "relations": {
               "grant": {
                 "cardinality": "N:1",
-                "nullable": true,
+                "nullable": false,
                 "on": {
                   "localFields": [
                     "grantId"
@@ -8563,6 +8567,21 @@
                   "namespace": "public"
                 }
               },
+              "fileMounts": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "userId"
+                  ]
+                },
+                "to": {
+                  "model": "UserFileMount",
+                  "namespace": "public"
+                }
+              },
               "githubConnection": {
                 "cardinality": "1:1",
                 "nullable": true,
@@ -8919,6 +8938,21 @@
               }
             },
             "relations": {
+              "fileMounts": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "grantId"
+                  ]
+                },
+                "to": {
+                  "model": "UserFileMount",
+                  "namespace": "public"
+                }
+              },
               "secrets": {
                 "cardinality": "1:N",
                 "on": {
@@ -9113,6 +9147,136 @@
               "table": "UserFile"
             }
           },
+          "UserFileMount": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "grantId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "mode": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "path": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "sealedContents": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "userId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "grant": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "grantId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "UserAccessGrant",
+                  "namespace": "public"
+                }
+              },
+              "user": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "userId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "grantId": {
+                  "column": "grantId"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "mode": {
+                  "column": "mode"
+                },
+                "path": {
+                  "column": "path"
+                },
+                "sealedContents": {
+                  "column": "sealedContents"
+                },
+                "updatedAt": {
+                  "column": "updatedAt"
+                },
+                "userId": {
+                  "column": "userId"
+                }
+              },
+              "namespaceId": "public",
+              "table": "UserFileMount"
+            }
+          },
           "UserHarnessSecret": {
             "fields": {
               "createdAt": {
@@ -9220,7 +9384,7 @@
                 }
               },
               "grantId": {
-                "nullable": true,
+                "nullable": false,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
@@ -9268,7 +9432,7 @@
             "relations": {
               "grant": {
                 "cardinality": "N:1",
-                "nullable": true,
+                "nullable": false,
                 "on": {
                   "localFields": [
                     "grantId"
@@ -14305,7 +14469,7 @@
                 "grantId": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
-                  "nullable": true
+                  "nullable": false
                 },
                 "id": {
                   "codecId": "pg/text@1",
@@ -14374,7 +14538,7 @@
                   "index": {
                     "name": "ProjectFileMount_grantId_idx_2360ae61"
                   },
-                  "onDelete": "setNull",
+                  "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
                     "columns": [
@@ -14434,7 +14598,7 @@
                 "grantId": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
-                  "nullable": true
+                  "nullable": false
                 },
                 "id": {
                   "codecId": "pg/text@1",
@@ -14494,7 +14658,7 @@
                   "index": {
                     "name": "ProjectSecret_grantId_idx_2360ae61"
                   },
-                  "onDelete": "setNull",
+                  "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
                     "columns": [
@@ -15145,7 +15309,7 @@
                 "grantId": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
-                  "nullable": true
+                  "nullable": false
                 },
                 "id": {
                   "codecId": "pg/text@1",
@@ -15205,7 +15369,7 @@
                   "index": {
                     "name": "SecretEntry_grantId_idx_2360ae61"
                   },
-                  "onDelete": "setNull",
+                  "onDelete": "cascade",
                   "onUpdate": "cascade",
                   "source": {
                     "columns": [
@@ -16604,6 +16768,135 @@
                 }
               ]
             },
+            "UserFileMount": {
+              "columns": {
+                "createdAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "grantId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "mode": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "default": {
+                    "kind": "literal",
+                    "value": 384
+                  },
+                  "nullable": false
+                },
+                "path": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "sealedContents": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "updatedAt": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "userId": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "index": {
+                    "unique": [
+                      "userId",
+                      "path"
+                    ]
+                  },
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "userId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "UserFileMount"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "User"
+                  }
+                },
+                {
+                  "index": {
+                    "name": "UserFileMount_grantId_idx_2360ae61"
+                  },
+                  "onDelete": "cascade",
+                  "onUpdate": "cascade",
+                  "source": {
+                    "columns": [
+                      "grantId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "UserFileMount"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "UserAccessGrant"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "grantId"
+                  ],
+                  "name": "UserFileMount_grantId_idx_2360ae61",
+                  "prefix": "UserFileMount_grantId_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "userId",
+                    "path"
+                  ],
+                  "name": "UserFileMount_userId_path_key"
+                }
+              ]
+            },
             "UserHarnessSecret": {
               "columns": {
                 "createdAt": {
@@ -16965,10 +17258,10 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "b2ceade6147a05e0909288afc4005d74bfe3aad56dfa8a9358395b0f86b90930"
+    "storageHash": "b8bdb59b76c5bf1cf9ac5de976d5a40e93a37924ef1ca187fffd2bff7b085aca"
   },
   "execution": {
-    "executionHash": "be031766f8425fedf7a26ba5219ab70266df2274ff76321ea82b5e3f3ee7be4f",
+    "executionHash": "1098cac9712897ca057b8d40fcf584499c8cc457234f0a41e36dadb4f6d7f0c6",
     "mutations": {
       "defaults": [
         {
@@ -17556,6 +17849,21 @@
           },
           "ref": {
             "entry": "UserFile",
+            "field": "updatedAt",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "onUpdate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "UserFileMount",
             "field": "updatedAt",
             "namespace": "public"
           }

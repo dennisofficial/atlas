@@ -9,10 +9,11 @@ import { ACCESS_KEY, ACCESS_SLOT, accessNoticeOf } from '../access-notice'
 const THREAD_ID = toThreadId('thread-access')
 
 const ROWS: AccessRows = {
-  userGrants: [],
+  userGrants: [{ id: 'grant-1', name: 'Personal', instruction: '' }],
   projectGrants: [],
-  userSecrets: [{ name: 'API_KEY', grantId: null }],
+  userSecrets: [{ name: 'API_KEY', grantId: 'grant-1' }],
   projectSecrets: [],
+  userFiles: [],
   projectFiles: [],
 }
 

@@ -4,28 +4,27 @@ import { useMemo } from 'react'
 
 import { EAccessScope } from '@dltech/atlas-wire/web'
 
-import { useCloudQuery } from '@/lib/use-cloud-query'
-
 import { QueryPage } from '../data/personal/query-boundary'
-import { fetchSecretSummaries } from '../data/personal/secrets-api'
 import { AccessGrantsContent, AccessGrantsSkeleton } from '../parts/access/access-grants-content'
+import { accessMemberApiOf } from '../parts/access/access-members-api'
 import { useAccessGrants } from '../parts/access/use-access-grants'
 import { SettingsPage } from '../settings-layout'
 
 const TITLE = 'Access'
 
 const DESCRIPTION =
-  'Tell the agent what each secret and file gives it access to. Atlas sends this to every session.'
+  'Secrets and files for every project. A project value with the same name or path wins.'
+
+const SECRET_DESCRIPTION = 'Available to every cloud thread you start as an environment variable.'
 
 export function AccessPage() {
   const scope = useMemo(() => ({ kind: EAccessScope.Personal }) as const, [])
-  const grants = useAccessGrants(scope)
-  const secrets = useCloudQuery({ key: 'personal-secrets', load: fetchSecretSummaries })
-  const secretNames = secrets.data?.map((secret) => secret.name) ?? []
+  const members = useMemo(() => accessMemberApiOf(scope), [scope])
+  const { query, actions } = useAccessGrants({ scope, members })
 
   return (
     <QueryPage
-      query={grants.query}
+      query={query}
       title={TITLE}
       description={DESCRIPTION}
       skeleton={<AccessGrantsSkeleton />}
@@ -34,9 +33,11 @@ export function AccessPage() {
         <SettingsPage title={TITLE} description={DESCRIPTION}>
           <AccessGrantsContent
             grants={snapshot.grants}
-            secretNames={secretNames}
-            onSave={grants.save}
-            onRemove={grants.remove}
+            now={snapshot.fetchedAt}
+            personal
+            entries={[]}
+            secretDescription={SECRET_DESCRIPTION}
+            actions={actions}
           />
         </SettingsPage>
       )}

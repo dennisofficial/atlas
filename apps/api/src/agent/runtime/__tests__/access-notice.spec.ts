@@ -8,12 +8,13 @@ const rowsOf = (overrides: Partial<AccessRows> = {}): AccessRows => ({
   projectGrants: [],
   userSecrets: [],
   projectSecrets: [],
+  userFiles: [],
   projectFiles: [],
   ...overrides,
 })
 
 const EMPTY_NOTICE =
-  'Atlas Cloud gives you no secrets or access grants in this session. The operator adds them in the Secrets, Files and Access settings of Atlas Cloud.'
+  'Atlas Cloud gives you no secrets or access grants in this session. The operator adds them in the Access settings of Atlas Cloud.'
 
 const INTRO = 'Atlas Cloud gives you this access. The operator wrote each description.'
 
@@ -21,10 +22,10 @@ const SECRET_USE =
   'Use a secret by name, for example "$NAME" in a command. Do not ask the operator for the values. Never print, log or commit them.'
 
 const SETTINGS =
-  'The operator changes this access in the Secrets, Files and Access settings of Atlas Cloud. A secret change reaches new shells without a restart. A file change reaches the sandbox at its next start.'
+  'The operator changes this access in the Access settings of Atlas Cloud. A secret change reaches new shells without a restart. A file change reaches the sandbox at its next start.'
 
 describe('accessNoticeOf', () => {
-  it('groups secrets and files under their grant, lists ungrouped secrets, and states the rules once', () => {
+  it('groups project secrets and project files under their grant', () => {
     const notice = accessNoticeOf(
       rowsOf({
         projectGrants: [
@@ -37,7 +38,6 @@ describe('accessNoticeOf', () => {
         projectSecrets: [
           { name: 'PLANETSCALE_SERVICE_TOKEN', grantId: 'grant-planetscale' },
           { name: 'PLANETSCALE_SERVICE_TOKEN_ID', grantId: 'grant-planetscale' },
-          { name: 'AGENT37_API_KEY', grantId: null },
         ],
         projectFiles: [{ path: 'apps/api/.env.keys', grantId: 'grant-planetscale' }],
       }),
@@ -52,11 +52,40 @@ describe('accessNoticeOf', () => {
           'Files: apps/api/.env.keys',
           'Use it for database work.',
         ].join('\n'),
-        ['Other secrets', 'Environment variables: AGENT37_API_KEY'].join('\n'),
         SECRET_USE,
         SETTINGS,
       ].join('\n\n'),
     )
+  })
+
+  it('lists personal files under their personal grant', () => {
+    const notice = accessNoticeOf(
+      rowsOf({
+        userGrants: [{ id: 'grant-notes', name: 'Notes', instruction: 'Read them once.' }],
+        userFiles: [{ path: '~/notes.md', grantId: 'grant-notes' }],
+      }),
+    )
+
+    expect(notice).toContain(['Notes', 'Files: ~/notes.md', 'Read them once.'].join('\n'))
+    expect(notice).not.toContain(SECRET_USE)
+  })
+
+  it('hides a personal file behind a project file of the same path, because the project file wins', () => {
+    const notice = accessNoticeOf(
+      rowsOf({
+        userGrants: [{ id: 'grant-personal', name: 'Personal', instruction: '' }],
+        projectGrants: [{ id: 'grant-project', name: 'Project', instruction: '' }],
+        userFiles: [
+          { path: '~/notes.md', grantId: 'grant-personal' },
+          { path: '~/.npmrc', grantId: 'grant-personal' },
+        ],
+        projectFiles: [{ path: '~/notes.md', grantId: 'grant-project' }],
+      }),
+    )
+
+    expect(notice).toContain(['Project', 'Files: ~/notes.md'].join('\n'))
+    expect(notice).toContain(['Personal', 'Files: ~/.npmrc'].join('\n'))
+    expect(notice.match(/~/g)).toHaveLength(2)
   })
 
   it('lets the project secret of a name win and attributes it to the project grant', () => {
@@ -77,11 +106,12 @@ describe('accessNoticeOf', () => {
   it('drops names an env var cannot hold and Atlas-owned names', () => {
     const notice = accessNoticeOf(
       rowsOf({
+        userGrants: [{ id: 'grant-mixed', name: 'Mixed', instruction: '' }],
         userSecrets: [
-          { name: 'ATLAS_HOME', grantId: null },
-          { name: 'search.brave', grantId: null },
-          { name: '2LEADING_DIGIT', grantId: null },
-          { name: 'GOOD_NAME', grantId: null },
+          { name: 'ATLAS_HOME', grantId: 'grant-mixed' },
+          { name: 'search.brave', grantId: 'grant-mixed' },
+          { name: '2LEADING_DIGIT', grantId: 'grant-mixed' },
+          { name: 'GOOD_NAME', grantId: 'grant-mixed' },
         ],
       }),
     )
@@ -104,10 +134,14 @@ describe('accessNoticeOf', () => {
     expect(notice).not.toContain(SECRET_USE)
   })
 
-  it('sorts the files of a grant and trims its instruction', () => {
+  it('sorts the members of a grant by name and path, and trims its instruction', () => {
     const notice = accessNoticeOf(
       rowsOf({
         projectGrants: [{ id: 'grant-files', name: 'Files', instruction: '  Read them.  ' }],
+        projectSecrets: [
+          { name: 'Z_TOKEN', grantId: 'grant-files' },
+          { name: 'A_TOKEN', grantId: 'grant-files' },
+        ],
         projectFiles: [
           { path: 'z/.env', grantId: 'grant-files' },
           { path: 'a/.env', grantId: 'grant-files' },
@@ -115,12 +149,19 @@ describe('accessNoticeOf', () => {
       }),
     )
 
-    expect(notice).toContain(['Files', 'Files: a/.env, z/.env', 'Read them.'].join('\n'))
+    expect(notice).toContain(
+      [
+        'Files',
+        'Environment variables: A_TOKEN, Z_TOKEN',
+        'Files: a/.env, z/.env',
+        'Read them.',
+      ].join('\n'),
+    )
   })
 
-  it('does not list a file mount that belongs to no grant', () => {
+  it('leaves out a member whose grant is not in the rows', () => {
     const notice = accessNoticeOf(
-      rowsOf({ projectFiles: [{ path: 'apps/api/.env.keys', grantId: null }] }),
+      rowsOf({ projectFiles: [{ path: 'apps/api/.env.keys', grantId: 'grant-gone' }] }),
     )
 
     expect(notice).toBe(EMPTY_NOTICE)
@@ -156,9 +197,23 @@ describe('accessNoticeOf', () => {
       { name: 'B_TOKEN', grantId: 'grant-1' },
       { name: 'A_TOKEN', grantId: 'grant-1' },
     ]
+    const files = [
+      { path: '~/b.md', grantId: 'grant-1' },
+      { path: '~/a.md', grantId: 'grant-1' },
+    ]
 
-    expect(accessNoticeOf(rowsOf({ projectGrants: [grant], projectSecrets: secrets }))).toBe(
-      accessNoticeOf(rowsOf({ projectGrants: [grant], projectSecrets: [...secrets].reverse() })),
+    expect(
+      accessNoticeOf(
+        rowsOf({ projectGrants: [grant], projectSecrets: secrets, projectFiles: files }),
+      ),
+    ).toBe(
+      accessNoticeOf(
+        rowsOf({
+          projectGrants: [grant],
+          projectSecrets: [...secrets].reverse(),
+          projectFiles: [...files].reverse(),
+        }),
+      ),
     )
   })
 })

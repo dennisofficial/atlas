@@ -12,6 +12,13 @@ import {
   savedId,
 } from './access-grants.router.fixture'
 
+const OTHER_PROJECT = {
+  name: 'other',
+  repo: 'dennisofficial/other',
+  baseBranch: 'main',
+  additionalRepos: [],
+}
+
 describe('access grants router at project scope', () => {
   useTestDatabase()
   let app: INestApplication
@@ -20,6 +27,8 @@ describe('access grants router at project scope', () => {
 
   const projectSecret = (name: string) =>
     db.orm.public.ProjectSecret.where((row) => row.name.eq(name)).first()
+  const projectGrant = (name: string) =>
+    db.orm.public.ProjectAccessGrant.where((row) => row.name.eq(name)).first()
 
   beforeEach(async () => {
     await seedSessionUsers()
@@ -32,150 +41,213 @@ describe('access grants router at project scope', () => {
     await app.close()
   })
 
-  it('round trips a project grant with secrets and file mounts', async () => {
-    await api.projectCall({
-      procedure: 'setSecret',
-      input: { projectId, name: 'PROJ_TOKEN', value: 'v' },
-    })
-    await api.projectCall({
-      procedure: 'setFileMount',
-      input: { projectId, path: '~/.npmrc', contents: '//registry' },
-    })
-
-    const saved = await api
-      .save({
-        input: {
-          scope: projectScope(projectId),
-          name: 'npm',
-          instruction: '',
-          secretNames: ['PROJ_TOKEN'],
-          filePaths: ['~/.npmrc'],
-        },
+  it('gives a new secret and a new file mount a grant of their own', async () => {
+    await api
+      .projectCall({
+        procedure: 'setSecret',
+        input: { projectId, name: 'PROJ_TOKEN', value: 'v' },
       })
       .expect(200)
-    const id = savedId(saved.body)
-    expect(id.startsWith('pag_')).toBe(true)
-
-    expect(await api.list({ scope: projectScope(projectId) })).toMatchObject([
-      { id, name: 'npm', secretNames: ['PROJ_TOKEN'], filePaths: ['~/.npmrc'] },
-    ])
-    expect((await projectSecret('PROJ_TOKEN'))?.grantId).toBe(id)
-  })
-
-  it('renames a grant, moves a member out of another grant and ungroups it', async () => {
-    for (const name of ['A_TOKEN', 'B_TOKEN']) {
-      await api.projectCall({ procedure: 'setSecret', input: { projectId, name, value: 'v' } })
-    }
-    const scope = projectScope(projectId)
-    const a = savedId(
-      (
-        await api
-          .save({
-            input: {
-              scope,
-              name: 'alpha',
-              instruction: '',
-              secretNames: ['A_TOKEN'],
-              filePaths: [],
-            },
-          })
-          .expect(200)
-      ).body,
-    )
-    const b = savedId(
-      (
-        await api
-          .save({
-            input: {
-              scope,
-              name: 'beta',
-              instruction: '',
-              secretNames: ['B_TOKEN'],
-              filePaths: [],
-            },
-          })
-          .expect(200)
-      ).body,
-    )
-
     await api
-      .save({
-        input: {
-          scope,
-          id: a,
-          name: 'alpha-renamed',
-          instruction: 'all of it',
-          secretNames: ['A_TOKEN', 'B_TOKEN'],
-          filePaths: [],
-        },
+      .projectCall({
+        procedure: 'setFileMount',
+        input: { projectId, path: '~/.npmrc', contents: '//registry' },
       })
       .expect(200)
 
-    expect(await api.list({ scope })).toMatchObject([
-      {
-        id: a,
-        name: 'alpha-renamed',
-        instruction: 'all of it',
-        secretNames: ['A_TOKEN', 'B_TOKEN'],
-      },
-      { id: b, name: 'beta', secretNames: [] },
-    ])
-    expect((await projectSecret('B_TOKEN'))?.grantId).toBe(a)
-
-    await api
-      .save({
-        input: {
-          scope,
-          id: a,
-          name: 'alpha-renamed',
-          instruction: 'all of it',
-          secretNames: ['A_TOKEN'],
-          filePaths: [],
-        },
-      })
-      .expect(200)
-    expect((await projectSecret('B_TOKEN'))?.grantId).toBeNull()
+    const grants = await api.list({ scope: projectScope(projectId) })
+    expect(grants.map((grant) => grant.name)).toEqual(['PROJ_TOKEN', '~/.npmrc'])
+    const tokenGrant = grants[0]
+    expect(tokenGrant?.secrets.map((secret) => secret.name)).toEqual(['PROJ_TOKEN'])
+    const fileGrant = grants[1]
+    expect(fileGrant?.files).toMatchObject([{ path: '~/.npmrc', mode: 384 }])
+    expect(typeof fileGrant?.files[0]?.updatedAt).toBe('string')
+    expect((await projectSecret('PROJ_TOKEN'))?.grantId).toBe(tokenGrant?.id)
   })
 
-  it('rejects an unknown secret and an unknown file path', async () => {
-    const scope = projectScope(projectId)
-    await api
-      .save({
-        input: { scope, name: 'x', instruction: '', secretNames: ['MISSING'], filePaths: [] },
-      })
-      .expect(400)
-    await api
-      .save({
-        input: { scope, name: 'x', instruction: '', secretNames: [], filePaths: ['missing.txt'] },
-      })
-      .expect(400)
-    expect(await api.list({ scope })).toEqual([])
-  })
-
-  it('answers 409 for a duplicate name in one project', async () => {
-    const body = {
-      scope: projectScope(projectId),
-      name: 'twice',
-      instruction: '',
-      secretNames: [],
-      filePaths: [],
-    }
-    await api.save({ input: body }).expect(200)
-    await api.save({ input: body }).expect(409)
-  })
-
-  it('hides another user’s project grants', async () => {
-    const scope = projectScope(projectId)
+  it('keeps a chosen grant on a plain re-set and moves it when asked', async () => {
     const id = savedId(
       (
         await api
+          .save({ input: { scope: projectScope(projectId), name: 'npm', instruction: '' } })
+          .expect(200)
+      ).body,
+    )
+    await api
+      .projectCall({
+        procedure: 'setSecret',
+        input: { projectId, name: 'NPM_TOKEN', value: 'one', grantId: id },
+      })
+      .expect(200)
+    await api
+      .projectCall({
+        procedure: 'setSecret',
+        input: { projectId, name: 'NPM_TOKEN', value: 'two' },
+      })
+      .expect(200)
+    expect((await api.list({ scope: projectScope(projectId) }))[0]?.secrets).toMatchObject([
+      { name: 'NPM_TOKEN' },
+    ])
+
+    const other = savedId(
+      (
+        await api
+          .save({ input: { scope: projectScope(projectId), name: 'other', instruction: '' } })
+          .expect(200)
+      ).body,
+    )
+    await api
+      .projectCall({
+        procedure: 'setSecret',
+        input: { projectId, name: 'NPM_TOKEN', value: 'two', grantId: other },
+      })
+      .expect(200)
+    const grants = await api.list({ scope: projectScope(projectId) })
+    expect(grants.map((grant) => grant.name)).toEqual(['other'])
+    expect(grants[0]?.secrets.map((secret) => secret.name)).toEqual(['NPM_TOKEN'])
+  })
+
+  it('answers 404 for a grant of another project or another user', async () => {
+    const otherProjectId = await createProjectAs({
+      app,
+      token: 'session-a',
+      body: OTHER_PROJECT,
+    })
+    const elsewhere = savedId(
+      (
+        await api
           .save({
-            input: { scope, name: 'mine', instruction: '', secretNames: [], filePaths: [] },
+            input: { scope: projectScope(otherProjectId), name: 'elsewhere', instruction: '' },
           })
           .expect(200)
       ).body,
     )
+    await api
+      .projectCall({
+        procedure: 'setSecret',
+        input: { projectId, name: 'MISPLACED', value: 'v', grantId: elsewhere },
+      })
+      .expect(404)
 
+    const mine = savedId(
+      (
+        await api
+          .save({ input: { scope: projectScope(projectId), name: 'mine', instruction: '' } })
+          .expect(200)
+      ).body,
+    )
+    await api
+      .projectCall({
+        procedure: 'setSecret',
+        input: { projectId, name: 'THEIRS', value: 'v', grantId: mine },
+        token: 'session-b',
+      })
+      .expect(404)
+  })
+
+  it('deletes the members of a removed grant', async () => {
+    const id = savedId(
+      (
+        await api
+          .save({ input: { scope: projectScope(projectId), name: 'gone', instruction: 'gone' } })
+          .expect(200)
+      ).body,
+    )
+    await api
+      .projectCall({
+        procedure: 'setSecret',
+        input: { projectId, name: 'GONE_SECRET', value: 'v', grantId: id },
+      })
+      .expect(200)
+    await api
+      .projectCall({
+        procedure: 'setFileMount',
+        input: { projectId, path: '~/.gone', contents: 'v', grantId: id },
+      })
+      .expect(200)
+
+    await api.remove({ scope: projectScope(projectId), id }).expect(200)
+    expect(await api.list({ scope: projectScope(projectId) })).toEqual([])
+    expect(await projectSecret('GONE_SECRET')).toBeNull()
+    expect(
+      await db.orm.public.ProjectFileMount.where({ projectId, path: '~/.gone' }).first(),
+    ).toBeNull()
+  })
+
+  it('deletes an emptied auto grant but keeps a described one', async () => {
+    await api
+      .projectCall({
+        procedure: 'setSecret',
+        input: { projectId, name: 'AUTO', value: 'v' },
+      })
+      .expect(200)
+    const described = savedId(
+      (
+        await api
+          .save({
+            input: { scope: projectScope(projectId), name: 'described', instruction: 'keep me' },
+          })
+          .expect(200)
+      ).body,
+    )
+    await api
+      .projectCall({
+        procedure: 'setSecret',
+        input: { projectId, name: 'KEPT', value: 'v', grantId: described },
+      })
+      .expect(200)
+
+    await api.projectCall({ procedure: 'removeSecret', input: { projectId, name: 'AUTO' } })
+    expect(await projectGrant('AUTO')).toBeNull()
+
+    await api.projectCall({ procedure: 'removeSecret', input: { projectId, name: 'KEPT' } })
+    expect(await projectGrant('described')).not.toBeNull()
+  })
+
+  it('moves a secret and a file mount between grants', async () => {
+    await api.projectCall({
+      procedure: 'setSecret',
+      input: { projectId, name: 'A_TOKEN', value: 'a' },
+    })
+    await api.projectCall({
+      procedure: 'setFileMount',
+      input: { projectId, path: '~/.a', contents: 'a' },
+    })
+    const target = (await projectGrant('~/.a'))?.id ?? ''
+    const scope = projectScope(projectId)
+
+    await api
+      .moveMember({
+        input: { scope, grantId: target, member: { kind: 'secret', name: 'A_TOKEN' } },
+      })
+      .expect(200)
+    await api
+      .moveMember({
+        input: { scope, grantId: target, member: { kind: 'file', path: '~/.missing' } },
+      })
+      .expect(404)
+    await api
+      .moveMember({
+        input: { scope, grantId: 'pag_missing', member: { kind: 'file', path: '~/.a' } },
+      })
+      .expect(404)
+
+    const grants = await api.list({ scope })
+    expect(grants).toHaveLength(1)
+    expect(grants[0]?.secrets.map((secret) => secret.name)).toEqual(['A_TOKEN'])
+    expect(grants[0]?.files.map((file) => file.path)).toEqual(['~/.a'])
+    expect(await projectGrant('A_TOKEN')).toBeNull()
+  })
+
+  it('renames a grant, answers 409 on a duplicate and hides it from another user', async () => {
+    const scope = projectScope(projectId)
+    const id = savedId(
+      (await api.save({ input: { scope, name: 'first', instruction: '' } }).expect(200)).body,
+    )
+    await api.save({ input: { scope, id, name: 'renamed', instruction: 'note' } }).expect(200)
+    expect((await api.list({ scope }))[0]).toMatchObject({ name: 'renamed', instruction: 'note' })
+
+    await api.save({ input: { scope, name: 'renamed', instruction: '' } }).expect(409)
     await trpcQuery({
       app,
       path: 'accessGrants.list',
@@ -183,39 +255,8 @@ describe('access grants router at project scope', () => {
       input: { scope },
     }).expect(404)
     await api
-      .save({
-        token: 'session-b',
-        input: { scope, name: 'theirs', instruction: '', secretNames: [], filePaths: [] },
-      })
+      .save({ token: 'session-b', input: { scope, name: 'theirs', instruction: '' } })
       .expect(404)
     await api.remove({ token: 'session-b', scope, id }).expect(404)
-    expect(await api.list({ scope })).toHaveLength(1)
-  })
-
-  it('drops a deleted secret from the grant and keeps the grant of a re-set secret', async () => {
-    for (const name of ['DROP', 'ROTATE']) {
-      await api.projectCall({ procedure: 'setSecret', input: { projectId, name, value: 'one' } })
-    }
-    const scope = projectScope(projectId)
-    await api
-      .save({
-        input: {
-          scope,
-          name: 'both',
-          instruction: '',
-          secretNames: ['DROP', 'ROTATE'],
-          filePaths: [],
-        },
-      })
-      .expect(200)
-
-    await api.projectCall({
-      procedure: 'setSecret',
-      input: { projectId, name: 'ROTATE', value: 'two' },
-    })
-    expect((await api.list({ scope }))[0]?.secretNames).toEqual(['DROP', 'ROTATE'])
-
-    await api.projectCall({ procedure: 'removeSecret', input: { projectId, name: 'DROP' } })
-    expect((await api.list({ scope }))[0]?.secretNames).toEqual(['ROTATE'])
   })
 })

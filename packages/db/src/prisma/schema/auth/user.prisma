@@ -30,6 +30,7 @@ model User {
   publishedBundles         PublishedBundle[]
   secrets                  UserSecret[]
   accessGrants             UserAccessGrant[]
+  fileMounts               UserFileMount[]
   harnessSecrets           UserHarnessSecret[]
   authSessions             AuthSession[]
   sshSigningKey            SshSigningKey?

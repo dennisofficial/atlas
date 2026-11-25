@@ -38,7 +38,7 @@ export const accessSourceOf = (): AccessSource => {
   return {
     read: async (args) => {
       const orm = connection().orm.public
-      const [userGrants, projectGrants, userSecrets, projectSecrets, projectFiles] =
+      const [userGrants, projectGrants, userSecrets, projectSecrets, userFiles, projectFiles] =
         await Promise.all([
           orm.UserAccessGrant.select('id', 'name', 'instruction')
             .where({ userId: args.userId })
@@ -60,6 +60,10 @@ export const accessSourceOf = (): AccessSource => {
                 .where({ projectId: args.projectId })
                 .orderBy((row) => row.name.asc())
                 .all(),
+          orm.UserFileMount.select('path', 'grantId')
+            .where({ userId: args.userId })
+            .orderBy((row) => row.path.asc())
+            .all(),
           args.projectId === null
             ? []
             : orm.ProjectFileMount.select('path', 'grantId')
@@ -72,6 +76,7 @@ export const accessSourceOf = (): AccessSource => {
         projectGrants: projectGrants.map(grantOf),
         userSecrets: userSecrets.map(secretOf),
         projectSecrets: projectSecrets.map(secretOf),
+        userFiles: userFiles.map(fileOf),
         projectFiles: projectFiles.map(fileOf),
       } satisfies AccessRows
     },

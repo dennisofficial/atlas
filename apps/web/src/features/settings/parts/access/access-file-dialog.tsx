@@ -17,37 +17,57 @@ import {
 import { Field, FieldDescription, FieldError, FieldLabel } from '@dltech/atlas-ui/components/field'
 import { Input } from '@dltech/atlas-ui/components/input'
 import { Textarea } from '@dltech/atlas-ui/components/textarea'
-import { fileMountPathProblem, MAX_FILE_MOUNT_BYTES } from '@dltech/atlas-wire/web'
+import {
+  fileMountPathProblem,
+  MAX_FILE_MOUNT_BYTES,
+  personalFileMountPathProblem,
+} from '@dltech/atlas-wire/web'
 
-import { DEFAULT_MODE_TEXT, parseFileMode, type TreeEntry } from './data/file-mount-helpers'
-import { FilePathPicker } from './file-path-picker'
+import {
+  DEFAULT_MODE_TEXT,
+  parseFileMode,
+  type TreeEntry,
+} from '@/features/project-settings/data/file-mount-helpers'
+import { FilePathPicker } from '@/features/project-settings/file-path-picker'
 
-export type FileDraft = { path: string; contents: string; mode: number }
+export type AccessFileDraft = { path: string; contents: string; mode: number }
 
 export type EditingFile = { path: string; contents: string; modeText: string }
 
-export function FileMountDialog({
+export function AccessFileDialog({
+  personal,
   entries,
   editing,
+  defaultOpen = false,
+  hideTrigger = false,
   onClosed,
   onSave,
 }: {
+  personal: boolean
   entries: readonly TreeEntry[]
   editing?: EditingFile
+  defaultOpen?: boolean
+  hideTrigger?: boolean
   onClosed?: () => void
-  onSave: (draft: FileDraft) => Promise<boolean>
+  onSave: (draft: AccessFileDraft) => Promise<boolean>
 }) {
   const fieldId = useId()
-  const [open, setOpen] = useState(editing !== undefined)
+  const [open, setOpen] = useState(defaultOpen || editing !== undefined)
   const [path, setPath] = useState(editing?.path ?? '')
   const [contents, setContents] = useState(editing?.contents ?? '')
   const [modeText, setModeText] = useState(editing?.modeText ?? DEFAULT_MODE_TEXT)
   const [saving, setSaving] = useState(false)
-  const pathProblem = path === '' ? null : fileMountPathProblem(path.trim())
+  const pathProblem =
+    path === ''
+      ? null
+      : personal
+        ? personalFileMountPathProblem(path.trim())
+        : fileMountPathProblem(path.trim())
   const mode = parseFileMode(modeText)
   const contentsTooLarge = new TextEncoder().encode(contents).byteLength > MAX_FILE_MOUNT_BYTES
   const canSave =
     path.trim() !== '' && pathProblem === null && mode !== null && !contentsTooLarge && !saving
+  const picksFromTree = !personal && editing === undefined
 
   const handleOpenChange = (next: boolean) => {
     setOpen(next)
@@ -67,22 +87,24 @@ export function FileMountDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      {editing === undefined ? (
-        <DialogTrigger render={<Button size="sm" />}>
+      {hideTrigger ? null : (
+        <DialogTrigger render={<Button variant="outline" size="sm" />}>
           <PlusIcon data-icon="inline-start" />
           Add file
         </DialogTrigger>
-      ) : null}
+      )}
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{editing === undefined ? 'Add a file' : 'Edit file'}</DialogTitle>
           <DialogDescription>
-            Written into every sandbox of this project when it starts.
+            {personal
+              ? 'Written into every sandbox of every project when it starts. Start the path with ~/ or @/.'
+              : 'Written into every sandbox of this project when it starts. Start with ~/ for the home folder.'}
           </DialogDescription>
         </DialogHeader>
         <Field data-invalid={pathProblem !== null || undefined}>
           <FieldLabel htmlFor={`${fieldId}-path`}>Path</FieldLabel>
-          {editing === undefined ? (
+          {picksFromTree ? (
             <FilePathPicker
               id={`${fieldId}-path`}
               entries={entries}
@@ -91,11 +113,24 @@ export function FileMountDialog({
               onPathChange={setPath}
             />
           ) : (
-            <Input id={`${fieldId}-path`} className="font-mono" value={path} disabled readOnly />
+            <Input
+              id={`${fieldId}-path`}
+              className="font-mono"
+              placeholder="~/.config/gh/hosts.yml"
+              autoComplete="off"
+              spellCheck={false}
+              aria-invalid={pathProblem !== null || undefined}
+              disabled={editing !== undefined}
+              readOnly={editing !== undefined}
+              value={path}
+              onChange={(event) => setPath(event.target.value)}
+            />
           )}
           {pathProblem === null ? (
             <FieldDescription>
-              Relative to the repository root. Start with ~/ for the home folder
+              {personal
+                ? 'A path inside the home folder, starting with ~/ or @/'
+                : 'Relative to the repository root, or starting with ~/'}
             </FieldDescription>
           ) : (
             <FieldError>{pathProblem}</FieldError>
@@ -114,7 +149,7 @@ export function FileMountDialog({
           {contentsTooLarge ? (
             <FieldError>Over 64 KiB</FieldError>
           ) : (
-            <FieldDescription>Text only, up to 64 KiB. Encrypted at rest</FieldDescription>
+            <FieldDescription>Text only, up to 64 KiB. Encrypted at rest.</FieldDescription>
           )}
         </Field>
         <Field data-invalid={mode === null || undefined}>
@@ -131,7 +166,7 @@ export function FileMountDialog({
           {mode === null ? (
             <FieldError>Use three octal digits, like 0600</FieldError>
           ) : (
-            <FieldDescription>Octal permissions. 0600 is owner only</FieldDescription>
+            <FieldDescription>Octal permissions. 0600 is owner only.</FieldDescription>
           )}
         </Field>
         <DialogFooter>

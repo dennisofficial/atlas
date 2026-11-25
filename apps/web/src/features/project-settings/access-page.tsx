@@ -9,11 +9,12 @@ import {
   AccessGrantsContent,
   AccessGrantsSkeleton,
 } from '@/features/settings/parts/access/access-grants-content'
+import { accessMemberApiOf } from '@/features/settings/parts/access/access-members-api'
 import { useAccessGrants } from '@/features/settings/parts/access/use-access-grants'
+import { EQueryState } from '@/lib/use-cloud-query'
 
 import { useProjectContext } from './data/project-context'
-import { useProjectFileMounts } from './data/use-project-file-mounts'
-import { useProjectSecrets } from './data/use-project-secrets'
+import { useRepoTreeEntries } from './data/use-repo-tree'
 import { SettingsSection } from './settings-layout'
 
 const TITLE = 'Access'
@@ -21,25 +22,27 @@ const TITLE = 'Access'
 const DESCRIPTION =
   'Tell the agent what each secret and file gives it access to. Atlas sends this to every session.'
 
+const SECRET_DESCRIPTION = 'Available to every thread in this project as an environment variable.'
+
 export function AccessPage() {
   const { projectId } = useProjectContext()
   const scope = useMemo(() => ({ kind: EAccessScope.Project, projectId }) as const, [projectId])
-  const grants = useAccessGrants(scope)
-  const secrets = useProjectSecrets(projectId)
-  const mounts = useProjectFileMounts(projectId)
-  const secretNames = secrets.query.data?.secrets.map((secret) => secret.name) ?? []
-  const filePaths = mounts.query.data?.mounts.map((mount) => mount.path) ?? []
+  const members = useMemo(() => accessMemberApiOf(scope), [scope])
+  const { query, actions } = useAccessGrants({ scope, members })
+  const tree = useRepoTreeEntries(projectId)
+  const entries = tree.state === EQueryState.Ready ? tree.data : []
 
   return (
     <SettingsSection title={TITLE} description={DESCRIPTION}>
-      <QueryGate query={grants.query} label="access grants" skeleton={<AccessGrantsSkeleton />}>
+      <QueryGate query={query} label="access grants" skeleton={<AccessGrantsSkeleton />}>
         {(snapshot) => (
           <AccessGrantsContent
             grants={snapshot.grants}
-            secretNames={secretNames}
-            filePaths={filePaths}
-            onSave={grants.save}
-            onRemove={grants.remove}
+            now={snapshot.fetchedAt}
+            personal={false}
+            entries={entries}
+            secretDescription={SECRET_DESCRIPTION}
+            actions={actions}
           />
         )}
       </QueryGate>

@@ -91,12 +91,45 @@ export type ProjectFileMountKey = z.infer<typeof projectFileMountKeySchema>
 export const projectFileMountSetSchema = projectFileMountKeySchema.extend({
   contents: fileMountContentsSchema,
   mode: fileMountModeSchema.default(DEFAULT_FILE_MOUNT_MODE),
+  grantId: z.string().min(1).optional(),
 })
 export type ProjectFileMountSet = z.input<typeof projectFileMountSetSchema>
 export type ProjectFileMountSetInput = z.output<typeof projectFileMountSetSchema>
 
 export const projectFileMountContentsSchema = z.object({ contents: z.string() })
 export type ProjectFileMountContents = z.infer<typeof projectFileMountContentsSchema>
+
+export const personalFileMountPathProblem = (path: string): string | null =>
+  path.startsWith(HOME_MOUNT_PREFIX) || path.startsWith(ATLAS_HOME_MOUNT_PREFIX)
+    ? fileMountPathProblem(path)
+    : 'Start the path with ~/ or @/'
+
+export const personalFileMountPathSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(MAX_FILE_MOUNT_PATH_LENGTH)
+  .superRefine((path, context) => {
+    const problem = personalFileMountPathProblem(path)
+    if (problem !== null) context.addIssue({ code: 'custom', message: problem })
+  })
+
+export const personalFileMountListSchema = z.object({ mounts: z.array(fileMountSummarySchema) })
+export type PersonalFileMountList = z.infer<typeof personalFileMountListSchema>
+
+export const personalFileMountKeySchema = z.strictObject({ path: personalFileMountPathSchema })
+export type PersonalFileMountKey = z.infer<typeof personalFileMountKeySchema>
+
+export const personalFileMountSetSchema = personalFileMountKeySchema.extend({
+  contents: fileMountContentsSchema,
+  mode: fileMountModeSchema.default(DEFAULT_FILE_MOUNT_MODE),
+  grantId: z.string().min(1).optional(),
+})
+export type PersonalFileMountSet = z.input<typeof personalFileMountSetSchema>
+export type PersonalFileMountSetInput = z.output<typeof personalFileMountSetSchema>
+
+export const personalFileMountContentsSchema = z.object({ contents: z.string() })
+export type PersonalFileMountContents = z.infer<typeof personalFileMountContentsSchema>
 
 export const projectRepoTreeSchema = z.object({
   entries: z.array(z.object({ path: z.string(), kind: z.enum(ERepoTreeEntryKind) })),

@@ -3,9 +3,7 @@
 import { useId, useState } from 'react'
 import { PlusIcon } from 'lucide-react'
 
-import { Badge } from '@dltech/atlas-ui/components/badge'
 import { Button } from '@dltech/atlas-ui/components/button'
-import { Checkbox } from '@dltech/atlas-ui/components/checkbox'
 import {
   Dialog,
   DialogClose,
@@ -16,14 +14,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@dltech/atlas-ui/components/dialog'
-import {
-  Field,
-  FieldDescription,
-  FieldError,
-  FieldLabel,
-  FieldLegend,
-  FieldSet,
-} from '@dltech/atlas-ui/components/field'
+import { Field, FieldDescription, FieldError, FieldLabel } from '@dltech/atlas-ui/components/field'
 import { Input } from '@dltech/atlas-ui/components/input'
 import { Textarea } from '@dltech/atlas-ui/components/textarea'
 import {
@@ -32,107 +23,27 @@ import {
   type AccessGrant,
 } from '@dltech/atlas-wire/web'
 
-import {
-  EMemberKind,
-  memberOptions,
-  toggledMember,
-  type MemberOption,
-} from './access-grant-helpers'
 import type { AccessGrantDraft } from './use-access-grants'
 
-function MemberChecklist({
-  kind,
-  id,
-  legend,
-  emptyText,
-  options,
-  selected,
-  onToggle,
-}: {
-  kind: EMemberKind
-  id: string
-  legend: string
-  emptyText: string
-  options: readonly MemberOption[]
-  selected: readonly string[]
-  onToggle: (name: string) => void
-}) {
-  return (
-    <FieldSet>
-      <FieldLegend variant="label" className="mb-0">
-        {legend}
-      </FieldLegend>
-      {options.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{emptyText}</p>
-      ) : (
-        <div className="flex max-h-44 flex-col gap-2 overflow-y-auto rounded-lg border p-3">
-          {options.map((option) => {
-            const optionId = `${id}-${kind}-${option.name}`
-            return (
-              <div key={option.name} className="flex min-w-0 items-center gap-2">
-                <Checkbox
-                  id={optionId}
-                  checked={selected.includes(option.name)}
-                  onCheckedChange={() => onToggle(option.name)}
-                />
-                <label
-                  htmlFor={optionId}
-                  className="min-w-0 flex-1 truncate font-mono text-xs"
-                  title={option.name}
-                >
-                  {option.name}
-                </label>
-                {option.holder === null ? null : (
-                  <Badge variant="outline" className="shrink-0">
-                    in {option.holder}
-                  </Badge>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      )}
-    </FieldSet>
-  )
-}
-
 export function AccessGrantDialog({
-  grants,
-  secretNames,
-  filePaths,
   editing,
+  defaultOpen = false,
   hideTrigger = false,
   onClosed,
   onSave,
 }: {
-  grants: readonly AccessGrant[]
-  secretNames: readonly string[]
-  filePaths?: readonly string[]
   editing?: AccessGrant
+  defaultOpen?: boolean
   hideTrigger?: boolean
   onClosed?: () => void
   onSave: (draft: AccessGrantDraft) => Promise<void>
 }) {
   const fieldId = useId()
-  const [open, setOpen] = useState(editing !== undefined)
+  const [open, setOpen] = useState(defaultOpen || editing !== undefined)
   const [name, setName] = useState(editing?.name ?? '')
   const [instruction, setInstruction] = useState(editing?.instruction ?? '')
-  const [secrets, setSecrets] = useState<readonly string[]>(editing?.secretNames ?? [])
-  const [files, setFiles] = useState<readonly string[]>(editing?.filePaths ?? [])
   const [saving, setSaving] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
-  const otherGrants =
-    editing === undefined ? grants : grants.filter((grant) => grant.id !== editing.id)
-  const secretOptions = memberOptions({
-    grants: otherGrants,
-    kind: EMemberKind.Secret,
-    names: secretNames,
-  })
-  const fileOptions = memberOptions({
-    grants: otherGrants,
-    kind: EMemberKind.File,
-    names: filePaths ?? [],
-  })
   const canSave = name.trim() !== '' && !saving
 
   const handleOpenChange = (next: boolean) => {
@@ -140,8 +51,6 @@ export function AccessGrantDialog({
     if (next) return
     setName('')
     setInstruction('')
-    setSecrets([])
-    setFiles([])
     setFailure(null)
     onClosed?.()
   }
@@ -154,8 +63,6 @@ export function AccessGrantDialog({
         ...(editing === undefined ? {} : { id: editing.id }),
         name: name.trim(),
         instruction,
-        secretNames: [...secrets],
-        filePaths: [...files],
       })
       handleOpenChange(false)
     } catch (error) {
@@ -179,7 +86,7 @@ export function AccessGrantDialog({
             {editing === undefined ? 'New access grant' : 'Edit access grant'}
           </DialogTitle>
           <DialogDescription>
-            Group the secrets and files one job needs, and say what they unlock.
+            Name one job the agent must do, then say what its secrets and files unlock.
           </DialogDescription>
         </DialogHeader>
         <Field data-invalid={failure === null ? undefined : true}>
@@ -211,26 +118,6 @@ export function AccessGrantDialog({
             </span>
           </div>
         </Field>
-        <MemberChecklist
-          kind={EMemberKind.Secret}
-          id={fieldId}
-          legend="Secrets"
-          emptyText="No secrets in this scope yet. Add them on the Secrets page first."
-          options={secretOptions}
-          selected={secrets}
-          onToggle={(member) => setSecrets((current) => toggledMember(current, member))}
-        />
-        {filePaths === undefined ? null : (
-          <MemberChecklist
-            kind={EMemberKind.File}
-            id={fieldId}
-            legend="Files"
-            emptyText="No files mounted in this project yet. Mount them on the Files page first."
-            options={fileOptions}
-            selected={files}
-            onToggle={(member) => setFiles((current) => toggledMember(current, member))}
-          />
-        )}
         <DialogFooter>
           <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
           <Button disabled={!canSave} onClick={() => void handleSubmit()}>

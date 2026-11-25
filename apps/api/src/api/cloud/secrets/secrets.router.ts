@@ -55,6 +55,7 @@ export class SecretsRouter {
       userId: ctx.auth.userId,
       name: input.name,
       value: input.value,
+      grantId: input.grantId,
     })
   }
 

@@ -1,8 +1,6 @@
 import {
   BoxIcon,
-  FileKeyIcon,
   GitPullRequestIcon,
-  KeyRoundIcon,
   LayoutDashboardIcon,
   LockKeyholeIcon,
   PlugIcon,
@@ -13,8 +11,6 @@ import {
 export enum EProjectSettingsSection {
   Overview = 'overview',
   Sandbox = 'sandbox',
-  Secrets = 'secrets',
-  Files = 'files',
   Access = 'access',
   Skills = 'skills',
   Mcp = 'mcp',
@@ -30,8 +26,6 @@ export type ProjectNavItem = {
 export const PROJECT_NAV: readonly ProjectNavItem[] = [
   { section: EProjectSettingsSection.Overview, label: 'Overview', icon: LayoutDashboardIcon },
   { section: EProjectSettingsSection.Sandbox, label: 'Sandbox', icon: BoxIcon },
-  { section: EProjectSettingsSection.Secrets, label: 'Secrets & Env Vars', icon: KeyRoundIcon },
-  { section: EProjectSettingsSection.Files, label: 'Files', icon: FileKeyIcon },
   { section: EProjectSettingsSection.Access, label: 'Access', icon: LockKeyholeIcon },
   { section: EProjectSettingsSection.Skills, label: 'Skills', icon: SparklesIcon },
   { section: EProjectSettingsSection.Mcp, label: 'MCP', icon: PlugIcon },

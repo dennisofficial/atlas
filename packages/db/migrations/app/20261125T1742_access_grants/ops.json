@@ -82,6 +82,47 @@
     ]
   },
   {
+    "id": "table.UserFileMount",
+    "label": "Create table \"UserFileMount\"",
+    "summary": "Creates table \"UserFileMount\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "UserFileMount"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"UserFileMount\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"UserFileMount\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"UserFileMount\"",
+        "sql": "CREATE TABLE \"public\".\"UserFileMount\" (\n  \"createdAt\" timestamptz(3) DEFAULT (now()) NOT NULL,\n  \"grantId\" text NOT NULL,\n  \"id\" text NOT NULL,\n  \"mode\" int4 DEFAULT 384 NOT NULL,\n  \"path\" text NOT NULL,\n  \"sealedContents\" text NOT NULL,\n  \"updatedAt\" timestamptz(3) NOT NULL,\n  \"userId\" text NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"UserFileMount\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"UserFileMount\"",
+          "r",
+          "p"
+        ]
+      }
+    ]
+  },
+  {
     "id": "column.public.ProjectFileMount.grantId",
     "label": "Add column \"grantId\" to \"ProjectFileMount\"",
     "operationClass": "additive",
@@ -238,6 +279,234 @@
     ]
   },
   {
+    "id": "data.secret-entry-grant-backfill",
+    "label": "Give every user secret a personal access grant named after it",
+    "operationClass": "data",
+    "target": {
+      "id": "table.SecretEntry",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "SecretEntry"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "Create one UserAccessGrant per user secret and link it",
+        "sql": "\nDO $$\nDECLARE\n  r RECORD;\n  base text;\n  candidate text;\n  suffix text;\n  counter int;\n  new_id text;\nBEGIN\n  FOR r IN\n    SELECT id, \"userId\", \"name\" AS label\n    FROM \"public\".\"SecretEntry\"\n    WHERE \"grantId\" IS NULL\n    ORDER BY \"createdAt\", id\n  LOOP\n    base := left(r.label, 80);\n    candidate := base;\n    counter := 1;\n    WHILE EXISTS (\n      SELECT 1 FROM \"public\".\"UserAccessGrant\"\n      WHERE \"userId\" = r.\"userId\" AND name = candidate\n    ) LOOP\n      counter := counter + 1;\n      suffix := ' ' || counter::text;\n      candidate := left(base, 80 - length(suffix)) || suffix;\n    END LOOP;\n    new_id := 'uag_' || gen_random_uuid()::text;\n    INSERT INTO \"public\".\"UserAccessGrant\" (id, \"userId\", name, instruction, \"createdAt\", \"updatedAt\")\n    VALUES (new_id, r.\"userId\", candidate, '', now(), now());\n    UPDATE \"public\".\"SecretEntry\" SET \"grantId\" = new_id WHERE id = r.id;\n  END LOOP;\nEND $$;"
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "data.project-secret-grant-backfill",
+    "label": "Give every project secret a project access grant named after it",
+    "operationClass": "data",
+    "target": {
+      "id": "table.ProjectSecret",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "ProjectSecret"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "Create one ProjectAccessGrant per project secret and link it",
+        "sql": "\nDO $$\nDECLARE\n  r RECORD;\n  base text;\n  candidate text;\n  suffix text;\n  counter int;\n  new_id text;\nBEGIN\n  FOR r IN\n    SELECT id, \"projectId\", \"name\" AS label\n    FROM \"public\".\"ProjectSecret\"\n    WHERE \"grantId\" IS NULL\n    ORDER BY \"createdAt\", id\n  LOOP\n    base := left(r.label, 80);\n    candidate := base;\n    counter := 1;\n    WHILE EXISTS (\n      SELECT 1 FROM \"public\".\"ProjectAccessGrant\"\n      WHERE \"projectId\" = r.\"projectId\" AND name = candidate\n    ) LOOP\n      counter := counter + 1;\n      suffix := ' ' || counter::text;\n      candidate := left(base, 80 - length(suffix)) || suffix;\n    END LOOP;\n    new_id := 'pag_' || gen_random_uuid()::text;\n    INSERT INTO \"public\".\"ProjectAccessGrant\" (id, \"projectId\", name, instruction, \"createdAt\", \"updatedAt\")\n    VALUES (new_id, r.\"projectId\", candidate, '', now(), now());\n    UPDATE \"public\".\"ProjectSecret\" SET \"grantId\" = new_id WHERE id = r.id;\n  END LOOP;\nEND $$;"
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "data.project-file-mount-grant-backfill",
+    "label": "Give every project file mount a project access grant named after its path",
+    "operationClass": "data",
+    "target": {
+      "id": "table.ProjectFileMount",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "ProjectFileMount"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "Create one ProjectAccessGrant per project file mount and link it",
+        "sql": "\nDO $$\nDECLARE\n  r RECORD;\n  base text;\n  candidate text;\n  suffix text;\n  counter int;\n  new_id text;\nBEGIN\n  FOR r IN\n    SELECT id, \"projectId\", \"path\" AS label\n    FROM \"public\".\"ProjectFileMount\"\n    WHERE \"grantId\" IS NULL\n    ORDER BY \"createdAt\", id\n  LOOP\n    base := left(r.label, 80);\n    candidate := base;\n    counter := 1;\n    WHILE EXISTS (\n      SELECT 1 FROM \"public\".\"ProjectAccessGrant\"\n      WHERE \"projectId\" = r.\"projectId\" AND name = candidate\n    ) LOOP\n      counter := counter + 1;\n      suffix := ' ' || counter::text;\n      candidate := left(base, 80 - length(suffix)) || suffix;\n    END LOOP;\n    new_id := 'pag_' || gen_random_uuid()::text;\n    INSERT INTO \"public\".\"ProjectAccessGrant\" (id, \"projectId\", name, instruction, \"createdAt\", \"updatedAt\")\n    VALUES (new_id, r.\"projectId\", candidate, '', now(), now());\n    UPDATE \"public\".\"ProjectFileMount\" SET \"grantId\" = new_id WHERE id = r.id;\n  END LOOP;\nEND $$;"
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "alterNullability.setNotNull.ProjectFileMount.grantId",
+    "label": "Set NOT NULL on \"ProjectFileMount\".\"grantId\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "grantId",
+        "table": "ProjectFileMount"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"grantId\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "ProjectFileMount",
+          "grantId"
+        ]
+      },
+      {
+        "description": "ensure no NULL values in \"grantId\"",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"public\".\"ProjectFileMount\" WHERE \"grantId\" IS NULL) AS \"result\"",
+        "params": [],
+        "meta": {
+          "requiredColumn": {
+            "table": "ProjectFileMount",
+            "column": "grantId",
+            "reason": "nullValues"
+          }
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "set NOT NULL on \"grantId\"",
+        "sql": "ALTER TABLE \"public\".\"ProjectFileMount\" ALTER COLUMN \"grantId\" SET NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"grantId\" is NOT NULL",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "ProjectFileMount",
+          "grantId",
+          "NO"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "alterNullability.setNotNull.ProjectSecret.grantId",
+    "label": "Set NOT NULL on \"ProjectSecret\".\"grantId\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "grantId",
+        "table": "ProjectSecret"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"grantId\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "ProjectSecret",
+          "grantId"
+        ]
+      },
+      {
+        "description": "ensure no NULL values in \"grantId\"",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"public\".\"ProjectSecret\" WHERE \"grantId\" IS NULL) AS \"result\"",
+        "params": [],
+        "meta": {
+          "requiredColumn": {
+            "table": "ProjectSecret",
+            "column": "grantId",
+            "reason": "nullValues"
+          }
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "set NOT NULL on \"grantId\"",
+        "sql": "ALTER TABLE \"public\".\"ProjectSecret\" ALTER COLUMN \"grantId\" SET NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"grantId\" is NOT NULL",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "ProjectSecret",
+          "grantId",
+          "NO"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "alterNullability.setNotNull.SecretEntry.grantId",
+    "label": "Set NOT NULL on \"SecretEntry\".\"grantId\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "grantId",
+        "table": "SecretEntry"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"grantId\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "SecretEntry",
+          "grantId"
+        ]
+      },
+      {
+        "description": "ensure no NULL values in \"grantId\"",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"public\".\"SecretEntry\" WHERE \"grantId\" IS NULL) AS \"result\"",
+        "params": [],
+        "meta": {
+          "requiredColumn": {
+            "table": "SecretEntry",
+            "column": "grantId",
+            "reason": "nullValues"
+          }
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "set NOT NULL on \"grantId\"",
+        "sql": "ALTER TABLE \"public\".\"SecretEntry\" ALTER COLUMN \"grantId\" SET NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"grantId\" is NOT NULL",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "SecretEntry",
+          "grantId",
+          "NO"
+        ]
+      }
+    ]
+  },
+  {
     "id": "unique.ProjectAccessGrant.ProjectAccessGrant_projectId_name_key",
     "label": "Add unique constraint on \"ProjectAccessGrant\" (projectId, name)",
     "operationClass": "additive",
@@ -321,6 +590,50 @@
           "\"public\".\"UserAccessGrant\"",
           "u",
           "[\"userId\",\"name\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.UserFileMount.UserFileMount_userId_path_key",
+    "label": "Add unique constraint on \"UserFileMount\" (userId, path)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "UserFileMount_userId_path_key",
+        "table": "UserFileMount"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"UserFileMount_userId_path_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "UserFileMount_userId_path_key",
+          "public",
+          "\"public\".\"UserFileMount\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"UserFileMount_userId_path_key\"",
+        "sql": "ALTER TABLE \"public\".\"UserFileMount\" ADD CONSTRAINT \"UserFileMount_userId_path_key\" UNIQUE (\"userId\", \"path\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"UserFileMount_userId_path_key\" exists on (userId, path)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "UserFileMount_userId_path_key",
+          "public",
+          "\"public\".\"UserFileMount\"",
+          "u",
+          "[\"userId\",\"path\"]"
         ]
       }
     ]
@@ -546,6 +859,50 @@
     ]
   },
   {
+    "id": "index.UserFileMount.UserFileMount_grantId_idx_2360ae61",
+    "label": "Create index \"UserFileMount_grantId_idx_2360ae61\" on \"UserFileMount\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "UserFileMount_grantId_idx_2360ae61",
+        "table": "UserFileMount"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"UserFileMount_grantId_idx_2360ae61\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"UserFileMount_grantId_idx_2360ae61\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"UserFileMount_grantId_idx_2360ae61\"",
+        "sql": "CREATE INDEX \"UserFileMount_grantId_idx_2360ae61\" ON \"public\".\"UserFileMount\" (\"grantId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"UserFileMount_grantId_idx_2360ae61\" exists on \"UserFileMount\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"UserFileMount_grantId_idx_2360ae61\"",
+          "i",
+          "I",
+          "\"public\".\"UserFileMount\"",
+          "btree",
+          "[\"grantId\"]"
+        ]
+      }
+    ]
+  },
+  {
     "id": "foreignKey.ProjectAccessGrant.ProjectAccessGrant_projectId_fkey",
     "label": "Add foreign key \"ProjectAccessGrant_projectId_fkey\" on \"ProjectAccessGrant\"",
     "operationClass": "additive",
@@ -620,7 +977,7 @@
     "execute": [
       {
         "description": "add FK \"ProjectFileMount_grantId_fkey\"",
-        "sql": "ALTER TABLE \"public\".\"ProjectFileMount\"\nADD CONSTRAINT \"ProjectFileMount_grantId_fkey\"\nFOREIGN KEY (\"grantId\")\nREFERENCES \"public\".\"ProjectAccessGrant\" (\"id\")\nON DELETE SET NULL\nON UPDATE CASCADE"
+        "sql": "ALTER TABLE \"public\".\"ProjectFileMount\"\nADD CONSTRAINT \"ProjectFileMount_grantId_fkey\"\nFOREIGN KEY (\"grantId\")\nREFERENCES \"public\".\"ProjectAccessGrant\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
       }
     ],
     "postcheck": [
@@ -635,7 +992,7 @@
           "[\"grantId\"]",
           "\"public\".\"ProjectAccessGrant\"",
           "[\"id\"]",
-          "n",
+          "c",
           "c"
         ]
       }
@@ -668,7 +1025,7 @@
     "execute": [
       {
         "description": "add FK \"ProjectSecret_grantId_fkey\"",
-        "sql": "ALTER TABLE \"public\".\"ProjectSecret\"\nADD CONSTRAINT \"ProjectSecret_grantId_fkey\"\nFOREIGN KEY (\"grantId\")\nREFERENCES \"public\".\"ProjectAccessGrant\" (\"id\")\nON DELETE SET NULL\nON UPDATE CASCADE"
+        "sql": "ALTER TABLE \"public\".\"ProjectSecret\"\nADD CONSTRAINT \"ProjectSecret_grantId_fkey\"\nFOREIGN KEY (\"grantId\")\nREFERENCES \"public\".\"ProjectAccessGrant\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
       }
     ],
     "postcheck": [
@@ -683,7 +1040,7 @@
           "[\"grantId\"]",
           "\"public\".\"ProjectAccessGrant\"",
           "[\"id\"]",
-          "n",
+          "c",
           "c"
         ]
       }
@@ -764,7 +1121,7 @@
     "execute": [
       {
         "description": "add FK \"SecretEntry_grantId_fkey\"",
-        "sql": "ALTER TABLE \"public\".\"SecretEntry\"\nADD CONSTRAINT \"SecretEntry_grantId_fkey\"\nFOREIGN KEY (\"grantId\")\nREFERENCES \"public\".\"UserAccessGrant\" (\"id\")\nON DELETE SET NULL\nON UPDATE CASCADE"
+        "sql": "ALTER TABLE \"public\".\"SecretEntry\"\nADD CONSTRAINT \"SecretEntry_grantId_fkey\"\nFOREIGN KEY (\"grantId\")\nREFERENCES \"public\".\"UserAccessGrant\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
       }
     ],
     "postcheck": [
@@ -779,7 +1136,103 @@
           "[\"grantId\"]",
           "\"public\".\"UserAccessGrant\"",
           "[\"id\"]",
-          "n",
+          "c",
+          "c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.UserFileMount.UserFileMount_userId_fkey",
+    "label": "Add foreign key \"UserFileMount_userId_fkey\" on \"UserFileMount\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "UserFileMount_userId_fkey",
+        "table": "UserFileMount"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"UserFileMount_userId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "UserFileMount_userId_fkey",
+          "public",
+          "\"public\".\"UserFileMount\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"UserFileMount_userId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"UserFileMount\"\nADD CONSTRAINT \"UserFileMount_userId_fkey\"\nFOREIGN KEY (\"userId\")\nREFERENCES \"public\".\"User\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"UserFileMount_userId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "UserFileMount_userId_fkey",
+          "public",
+          "\"public\".\"UserFileMount\"",
+          "f",
+          "[\"userId\"]",
+          "\"public\".\"User\"",
+          "[\"id\"]",
+          "c",
+          "c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.UserFileMount.UserFileMount_grantId_fkey",
+    "label": "Add foreign key \"UserFileMount_grantId_fkey\" on \"UserFileMount\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "UserFileMount_grantId_fkey",
+        "table": "UserFileMount"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"UserFileMount_grantId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "UserFileMount_grantId_fkey",
+          "public",
+          "\"public\".\"UserFileMount\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"UserFileMount_grantId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"UserFileMount\"\nADD CONSTRAINT \"UserFileMount_grantId_fkey\"\nFOREIGN KEY (\"grantId\")\nREFERENCES \"public\".\"UserAccessGrant\" (\"id\")\nON DELETE CASCADE\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"UserFileMount_grantId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "UserFileMount_grantId_fkey",
+          "public",
+          "\"public\".\"UserFileMount\"",
+          "f",
+          "[\"grantId\"]",
+          "\"public\".\"UserAccessGrant\"",
+          "[\"id\"]",
+          "c",
           "c"
         ]
       }

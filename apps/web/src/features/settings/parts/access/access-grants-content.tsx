@@ -1,22 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import { FileKeyIcon, KeyRoundIcon, LockKeyholeIcon } from 'lucide-react'
+import { LockKeyholeIcon } from 'lucide-react'
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@dltech/atlas-ui/components/alert-dialog'
-import { Badge } from '@dltech/atlas-ui/components/badge'
+import { Button } from '@dltech/atlas-ui/components/button'
 import { Card, CardRow } from '@dltech/atlas-ui/components/card'
 import {
   Empty,
+  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
@@ -25,10 +16,16 @@ import {
 import { Skeleton } from '@dltech/atlas-ui/components/skeleton'
 import type { AccessGrant } from '@dltech/atlas-wire/web'
 
-import { runAction } from '../../data/shared/run-action'
-import { LibraryRowMenu } from '../library-row-menu'
+import type { TreeEntry } from '@/features/project-settings/data/file-mount-helpers'
+import { runAction } from '@/features/settings/data/shared/run-action'
+
+import { BulkAddDialog, AddSecretDialog, type SecretPair } from '../env-secrets-dialogs'
+import { LibraryConfirmDialog } from '../library-confirm-dialog'
+import { AccessFileDialog } from './access-file-dialog'
+import { AccessGrantCard } from './access-grant-card'
 import { AccessGrantDialog } from './access-grant-dialog'
-import type { AccessGrantDraft } from './use-access-grants'
+import { deleteGrantDescription } from './access-grant-helpers'
+import type { AccessGrantsActions } from './use-access-grants'
 
 const SKELETON_KEYS = ['a', 'b', 'c']
 
@@ -51,87 +48,42 @@ export function AccessGrantsSkeleton() {
   )
 }
 
-function GrantMembers({ grant }: { grant: AccessGrant }) {
-  if (grant.secretNames.length === 0 && grant.filePaths.length === 0) {
-    return (
-      <p className="text-xs text-muted-foreground">No members: the instruction stands alone.</p>
-    )
-  }
-  return (
-    <div className="flex flex-wrap gap-1.5">
-      {grant.secretNames.map((name) => (
-        <Badge key={`secret:${name}`} variant="secondary" className="font-mono">
-          <KeyRoundIcon data-icon="inline-start" />
-          {name}
-        </Badge>
-      ))}
-      {grant.filePaths.map((path) => (
-        <Badge key={`file:${path}`} variant="outline" className="font-mono">
-          <FileKeyIcon data-icon="inline-start" />
-          {path}
-        </Badge>
-      ))}
-    </div>
-  )
-}
-
-function GrantRow({
-  grant,
-  onEdit,
-  onDelete,
-}: {
-  grant: AccessGrant
-  onEdit: () => void
-  onDelete: () => void
-}) {
-  return (
-    <CardRow>
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex min-w-0 flex-col gap-2">
-          <h3 className="text-sm font-medium">{grant.name}</h3>
-          {grant.instruction === '' ? (
-            <p className="text-sm text-muted-foreground">No instruction</p>
-          ) : (
-            <p className="line-clamp-2 max-w-prose text-sm text-muted-foreground">
-              {grant.instruction}
-            </p>
-          )}
-          <GrantMembers grant={grant} />
-        </div>
-        <LibraryRowMenu
-          label={grant.name}
-          actions={[
-            { label: 'Edit', onSelect: onEdit },
-            { label: 'Delete', onSelect: onDelete, destructive: true },
-          ]}
-        />
-      </div>
-    </CardRow>
-  )
-}
-
 export function AccessGrantsContent({
   grants,
-  secretNames,
-  filePaths,
-  onSave,
-  onRemove,
+  now,
+  personal,
+  entries,
+  secretDescription,
+  actions,
 }: {
   grants: readonly AccessGrant[]
-  secretNames: readonly string[]
-  filePaths?: readonly string[]
-  onSave: (draft: AccessGrantDraft) => Promise<void>
-  onRemove: (id: string) => Promise<void>
+  now: number
+  personal: boolean
+  entries: readonly TreeEntry[]
+  secretDescription: string
+  actions: AccessGrantsActions
 }) {
   const [editing, setEditing] = useState<AccessGrant | null>(null)
   const [deleting, setDeleting] = useState<AccessGrant | null>(null)
+  const [bulkOpen, setBulkOpen] = useState(false)
 
+  const handleQuickAddSecret = (pair: SecretPair) => {
+    void runAction({
+      work: () => actions.setSecret({ name: pair.name, value: pair.value }),
+      success: `Saved ${pair.name}`,
+    })
+  }
+  const handleBulkAdd = (pairs: readonly SecretPair[]) => {
+    void runAction({
+      work: async () => {
+        for (const pair of pairs) await actions.setSecret({ name: pair.name, value: pair.value })
+      },
+      success: `Saved ${pairs.length} ${pairs.length === 1 ? 'secret' : 'secrets'}`,
+    })
+  }
   const handleDelete = (grant: AccessGrant) => {
     setDeleting(null)
-    void runAction({
-      work: () => onRemove(grant.id),
-      success: `Deleted ${grant.name}`,
-    })
+    void runAction({ work: () => actions.remove(grant.id), success: `Deleted ${grant.name}` })
   }
 
   if (grants.length === 0) {
@@ -143,98 +95,98 @@ export function AccessGrantsContent({
           </EmptyMedia>
           <EmptyTitle>No access grants yet</EmptyTitle>
           <EmptyDescription>
-            Group a secret or a mounted file with a note that tells the agent what it unlocks. Every
+            Group the secrets and files one job needs, then tell the agent what they unlock. Every
             session here reads the grants at the start of its next turn.
           </EmptyDescription>
         </EmptyHeader>
-        <AccessGrantDialog
-          grants={grants}
-          secretNames={secretNames}
-          filePaths={filePaths}
-          onSave={onSave}
-        />
+        <EmptyContent>
+          <AccessGrantDialog onSave={actions.save} />
+        </EmptyContent>
       </Empty>
     )
   }
 
   return (
     <>
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="text-sm font-medium">
           Grants
           <span className="ml-2 font-mono text-xs text-muted-foreground">{grants.length}</span>
         </h3>
-        <AccessGrantDialog
-          grants={grants}
-          secretNames={secretNames}
-          filePaths={filePaths}
-          onSave={onSave}
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={() => setBulkOpen(true)}>
+            Bulk add
+          </Button>
+          <AddSecretDialog
+            description={secretDescription}
+            triggerLabel="Add secret"
+            triggerVariant="outline"
+            onAdd={handleQuickAddSecret}
+          />
+          <AccessFileDialog
+            personal={personal}
+            entries={entries}
+            onSave={(draft) =>
+              runAction({
+                work: () => actions.setFile(draft),
+                success: `Saved ${draft.path}`,
+              })
+            }
+          />
+          <AccessGrantDialog onSave={actions.save} />
+        </div>
       </div>
-      <Card variant="list">
+      <p className="text-xs text-muted-foreground">
+        A quick add makes a grant of one, named after the secret or the path.
+      </p>
+      <div className="flex flex-col gap-4">
         {grants.map((grant) => (
-          <GrantRow
+          <AccessGrantCard
             key={grant.id}
             grant={grant}
-            onEdit={() => setEditing(grant)}
-            onDelete={() => setDeleting(grant)}
+            grants={grants}
+            now={now}
+            personal={personal}
+            entries={entries}
+            secretDescription={secretDescription}
+            actions={actions}
+            onEditGrant={() => setEditing(grant)}
+            onDeleteGrant={() => setDeleting(grant)}
           />
         ))}
-      </Card>
+      </div>
+      {bulkOpen ? (
+        <BulkAddDialog
+          defaultOpen
+          hideTrigger
+          onAdd={(pairs) => {
+            setBulkOpen(false)
+            handleBulkAdd(pairs)
+          }}
+        />
+      ) : null}
       {editing === null ? null : (
         <AccessGrantDialog
           key={editing.id}
           hideTrigger
+          defaultOpen
           editing={editing}
-          grants={grants}
-          secretNames={secretNames}
-          filePaths={filePaths}
           onClosed={() => setEditing(null)}
-          onSave={onSave}
+          onSave={actions.save}
         />
       )}
-      <AccessGrantDeleteDialog
-        grant={deleting}
-        onClosed={() => setDeleting(null)}
-        onConfirm={handleDelete}
+      <LibraryConfirmDialog
+        open={deleting !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleting(null)
+        }}
+        title={`Delete ${deleting?.name ?? 'the grant'}?`}
+        description={deleting === null ? '' : deleteGrantDescription(deleting)}
+        confirmLabel="Delete grant"
+        onConfirm={() => {
+          if (deleting !== null) handleDelete(deleting)
+        }}
       />
     </>
-  )
-}
-
-export function AccessGrantDeleteDialog({
-  grant,
-  onClosed,
-  onConfirm,
-}: {
-  grant: AccessGrant | null
-  onClosed: () => void
-  onConfirm: (grant: AccessGrant) => void
-}) {
-  const handleOpenChange = (open: boolean) => {
-    if (!open) onClosed()
-  }
-  return (
-    <AlertDialog open={grant !== null} onOpenChange={handleOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Delete {grant?.name}?</AlertDialogTitle>
-          <AlertDialogDescription>
-            Its secrets and files stay. They are no longer grouped.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction
-            variant="destructive"
-            onClick={() => {
-              if (grant !== null) onConfirm(grant)
-            }}
-          >
-            Delete grant
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
   )
 }

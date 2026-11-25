@@ -60,14 +60,13 @@ export const prepareControllerOf = (args: {
   const { sessionId, userId, launchDirectory, calls, processes, files, steps, shellEnv } = args
   const projectFileMounts = async (signal: AbortSignal): Promise<readonly ScopedFileMount[]> => {
     const source = args.projectFiles
-    const projectId = args.projectId
-    if (source === undefined || projectId === null) return []
+    if (source === undefined) return []
     try {
-      return await abortable(source.read({ projectId }), signal)
+      return await abortable(source.read({ userId, projectId: args.projectId }), signal)
     } catch (error) {
       args.log?.error({
         source: 'runtime.project-files',
-        message: `reading project file mounts for ${sessionId} failed; the sandbox starts without them`,
+        message: `reading Cloud file mounts for ${sessionId} failed; the sandbox starts without them`,
         ...logFieldsOf({ error }),
       })
       return []

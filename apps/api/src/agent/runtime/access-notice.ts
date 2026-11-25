@@ -1,11 +1,11 @@
-import type { AccessFileRow, AccessGrantRow, AccessRows } from '../config/access-rows'
+import type { AccessGrantRow, AccessRows } from '../config/access-rows'
 import { isExportedSecretName } from './env-secrets'
 
 export const ACCESS_SLOT = 'access'
 export const ACCESS_KEY = 'current'
 
 const NO_ACCESS =
-  'Atlas Cloud gives you no secrets or access grants in this session. The operator adds them in the Secrets, Files and Access settings of Atlas Cloud.'
+  'Atlas Cloud gives you no secrets or access grants in this session. The operator adds them in the Access settings of Atlas Cloud.'
 
 const INTRO = 'Atlas Cloud gives you this access. The operator wrote each description.'
 
@@ -13,7 +13,7 @@ const SECRET_USE =
   'Use a secret by name, for example "$NAME" in a command. Do not ask the operator for the values. Never print, log or commit them.'
 
 const SETTINGS =
-  'The operator changes this access in the Secrets, Files and Access settings of Atlas Cloud. A secret change reaches new shells without a restart. A file change reaches the sandbox at its next start.'
+  'The operator changes this access in the Access settings of Atlas Cloud. A secret change reaches new shells without a restart. A file change reaches the sandbox at its next start.'
 
 enum EGrantScope {
   Project = 'project',
@@ -22,10 +22,15 @@ enum EGrantScope {
 
 type Grant = AccessGrantRow & { scope: EGrantScope }
 
-type EffectiveSecret = { name: string; scope: EGrantScope; grantId: string | null }
+type EffectiveSecret = { name: string; scope: EGrantScope; grantId: string }
+
+type EffectiveFile = { path: string; scope: EGrantScope; grantId: string }
 
 const byName = (left: { name: string }, right: { name: string }): number =>
   left.name.localeCompare(right.name)
+
+const byPath = (left: { path: string }, right: { path: string }): number =>
+  left.path.localeCompare(right.path)
 
 const grantKeyOf = (grant: { scope: EGrantScope; id: string }): string =>
   `${grant.scope}:${grant.id}`
@@ -59,32 +64,42 @@ const effectiveSecretsOf = (rows: AccessRows): readonly EffectiveSecret[] => {
   return [...secretByName.values()].sort(byName)
 }
 
+const effectiveFilesOf = (rows: AccessRows): readonly EffectiveFile[] => {
+  const project = rows.projectFiles.map((file) => ({
+    path: file.path,
+    scope: EGrantScope.Project,
+    grantId: file.grantId,
+  }))
+  const hidden = new Set(project.map((file) => file.path))
+  const user = rows.userFiles
+    .filter((file) => !hidden.has(file.path))
+    .map((file) => ({ path: file.path, scope: EGrantScope.User, grantId: file.grantId }))
+  return [...project, ...user].sort(byPath)
+}
+
 type Members = {
   names: Map<string, string[]>
   paths: Map<string, string[]>
-  ungrouped: string[]
 }
+
+const memberKeyOf = (member: { scope: EGrantScope; grantId: string }): string =>
+  grantKeyOf({ scope: member.scope, id: member.grantId })
 
 const membersOf = (args: {
   grants: readonly Grant[]
   secrets: readonly EffectiveSecret[]
-  files: readonly AccessFileRow[]
+  files: readonly EffectiveFile[]
 }): Members => {
   const known = new Set(args.grants.map(grantKeyOf))
-  const members: Members = { names: new Map(), paths: new Map(), ungrouped: [] }
+  const members: Members = { names: new Map(), paths: new Map() }
   for (const secret of args.secrets) {
-    const key =
-      secret.grantId === null ? null : grantKeyOf({ scope: secret.scope, id: secret.grantId })
-    if (key === null || !known.has(key)) {
-      members.ungrouped.push(secret.name)
-      continue
-    }
+    const key = memberKeyOf(secret)
+    if (!known.has(key)) continue
     members.names.set(key, [...(members.names.get(key) ?? []), secret.name])
   }
   for (const file of args.files) {
-    const key =
-      file.grantId === null ? null : grantKeyOf({ scope: EGrantScope.Project, id: file.grantId })
-    if (key === null || !known.has(key)) continue
+    const key = memberKeyOf(file)
+    if (!known.has(key)) continue
     members.paths.set(key, [...(members.paths.get(key) ?? []), file.path])
   }
   return members
@@ -110,24 +125,16 @@ const grantSectionOf = (args: {
 export const accessNoticeOf = (rows: AccessRows): string => {
   const grants = grantsOf(rows)
   const secrets = effectiveSecretsOf(rows)
-  const members = membersOf({ grants, secrets, files: rows.projectFiles })
+  const members = membersOf({ grants, secrets, files: effectiveFilesOf(rows) })
 
-  const sections: string[] = []
-  for (const grant of grants) {
+  const sections = grants.map((grant) => {
     const key = grantKeyOf(grant)
-    sections.push(
-      grantSectionOf({
-        grant,
-        names: members.names.get(key) ?? [],
-        paths: (members.paths.get(key) ?? []).sort((left, right) => left.localeCompare(right)),
-      }),
-    )
-  }
-  if (members.ungrouped.length > 0) {
-    sections.push(
-      ['Other secrets', ...memberLine('Environment variables', members.ungrouped)].join('\n'),
-    )
-  }
+    return grantSectionOf({
+      grant,
+      names: members.names.get(key) ?? [],
+      paths: members.paths.get(key) ?? [],
+    })
+  })
   if (sections.length === 0) return NO_ACCESS
 
   return [INTRO, ...sections, ...(secrets.length === 0 ? [] : [SECRET_USE]), SETTINGS].join('\n\n')

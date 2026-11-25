@@ -4,6 +4,10 @@ import { projectSandboxSchema } from '@dltech/atlas-wire/web'
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { db } from '@dltech/atlas-db'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
+import {
+  cleanupProjectGrant,
+  resolveProjectGrantId,
+} from '../access-grants/access-grant-membership'
 import { assertMcpServerName, openMcpServer, sealMcpSpec } from '../mcp-servers/mcp-sealed'
 import { putCloudServer } from '../mcp-servers/mcp-servers-put'
 import type { McpServerDto, McpSpecDraft } from '../mcp-servers/mcp-servers.types'
@@ -73,29 +77,64 @@ export class ProjectResourcesService {
     return openSecretValue({ cipher: this.cipher, sealed: row.sealedValue })
   }
 
-  async setSecret(args: Scope & { name: string; value: string }): Promise<void> {
+  async setSecret(
+    args: Scope & { name: string; value: string; grantId?: string | undefined },
+  ): Promise<void> {
     assertEnvName(args.name)
     await this.projects.read(args)
     const sealedValue = sealSecretValue({ cipher: this.cipher, value: args.value })
-    await db.orm.public.ProjectSecret.upsert({
-      conflictOn: { projectId: args.projectId, name: args.name },
-      create: {
-        id: `psec_${randomUUID()}`,
+    await db.transaction(async (tx) => {
+      const existing = await tx.orm.public.ProjectSecret.where({
         projectId: args.projectId,
         name: args.name,
-        sealedValue,
-      },
-      update: { sealedValue },
+      }).first()
+      const grantId = await resolveProjectGrantId({
+        tx,
+        projectId: args.projectId,
+        requestedGrantId: args.grantId,
+        existingGrantId: existing === null ? null : existing.grantId,
+        label: args.name,
+      })
+      await tx.orm.public.ProjectSecret.upsert({
+        conflictOn: { projectId: args.projectId, name: args.name },
+        create: {
+          id: `psec_${randomUUID()}`,
+          projectId: args.projectId,
+          name: args.name,
+          sealedValue,
+          grantId,
+        },
+        update: { sealedValue, grantId },
+      })
+      if (existing !== null && existing.grantId !== grantId) {
+        await cleanupProjectGrant({
+          tx,
+          projectId: args.projectId,
+          grantId: existing.grantId,
+        })
+      }
     })
   }
 
   async removeSecret(args: Scope & { name: string }): Promise<void> {
     assertEnvName(args.name)
     await this.projects.read(args)
-    await db.orm.public.ProjectSecret.where({
-      projectId: args.projectId,
-      name: args.name,
-    }).deleteAndCount()
+    await db.transaction(async (tx) => {
+      const existing = await tx.orm.public.ProjectSecret.where({
+        projectId: args.projectId,
+        name: args.name,
+      }).first()
+      if (existing === null) return
+      await tx.orm.public.ProjectSecret.where({
+        projectId: args.projectId,
+        name: args.name,
+      }).deleteAndCount()
+      await cleanupProjectGrant({
+        tx,
+        projectId: args.projectId,
+        grantId: existing.grantId,
+      })
+    })
   }
 
   async listMcpServers(args: Scope): Promise<McpServerDto[]> {

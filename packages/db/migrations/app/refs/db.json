@@ -1,5 +1,5 @@
 {
-  "hash": "b2ceade6147a05e0909288afc4005d74bfe3aad56dfa8a9358395b0f86b90930",
+  "hash": "b8bdb59b76c5bf1cf9ac5de976d5a40e93a37924ef1ca187fffd2bff7b085aca",
   "invariants": [
     "pg-squeeze-github-webhook-inbox",
     "drop-v2-compat-views"

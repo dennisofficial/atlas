@@ -2,7 +2,6 @@ import { Skeleton } from '@dltech/atlas-ui/components/skeleton'
 
 import { SettingsCard, SettingsSection } from '../settings-layout'
 import { ERowControl, Line, SettingsRowSkeleton } from './primitives'
-import { EnvSecretsSkeleton } from './table-skeletons'
 
 export function MemorySearchSkeleton() {
   return <Skeleton className="h-8 w-full rounded-lg sm:w-48" />
@@ -89,10 +88,6 @@ export function ProvidersSkeleton() {
       </SettingsSection>
     </>
   )
-}
-
-export function SecretsSkeleton() {
-  return <EnvSecretsSkeleton />
 }
 
 export function SecurityDevicesSkeleton() {

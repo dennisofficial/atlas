@@ -10,7 +10,7 @@ describe('projectFileNoticeOf', () => {
       { path: '~/notes.md', state: EProjectFileState.Written },
     ])
 
-    expect(notice).toContain('Atlas wrote the project files: apps/api/.env.keys, ~/notes.md.')
+    expect(notice).toContain('Atlas wrote the Cloud files: apps/api/.env.keys, ~/notes.md.')
     expect(notice).toContain('every sandbox start')
   })
 
@@ -32,7 +32,7 @@ describe('projectFileNoticeOf', () => {
     ])
 
     expect(notice).toContain(
-      'Atlas could not write these project files: a.txt — the path leaves its folder.',
+      'Atlas could not write these files: a.txt — the path leaves its folder.',
     )
   })
 

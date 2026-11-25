@@ -46,6 +46,7 @@ import { UsageModule } from './platform/usage/usage.module'
 import { SshSigningKeyModule } from './cloud/ssh-signing-key/ssh-signing-key.module'
 import { SkillCatalogueModule } from './cloud/skill-catalogue/skill-catalogue.module'
 import { SkillsModule } from './cloud/skills/skills.module'
+import { UserFileMountsModule } from './cloud/user-file-mounts/user-file-mounts.module'
 import { UserFilesModule } from './cloud/user-files/user-files.module'
 import { ControlPlaneModule } from './platform/sessions/control-plane.module'
 import { SessionTitlerModule } from './cloud/thread-titling/session-titler.module'
@@ -86,6 +87,7 @@ import { SessionTitlerModule } from './cloud/thread-titling/session-titler.modul
     SettingsModule,
     ProjectsModule,
     UserFilesModule,
+    UserFileMountsModule,
     SkillCatalogueModule,
     SkillsModule,
     McpServersModule,
