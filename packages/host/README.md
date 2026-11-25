@@ -79,8 +79,9 @@ only what it can rebuild or drop.
 - `RecordCache`: keeps the events of a thread in memory while the holder holds the session.
 - `RecordOnceLedger`: the `OnceLedger` backed by the record cache.
 - `PictureStore`, `storePictures`: the port that moves a tool result's inline pictures into the
-  media store at append, so the chained event holds a `MediaPart` and never the bytes. The store
-  is best effort and bounded: a store that outlasts its 15 s deadline leaves the bytes inline.
+  media store at append, so the chained event holds a `MediaPart` and never the bytes. A picture
+  the store does not take (absent, refused, failed, or past its 15 s deadline) becomes a
+  `[picture not kept: …]` text part.
 - `LeaseLostError`, `RecordCorruptionError`: the two failures a record raises.
 - `InboxIntake`, `INBOX_KIND_STOP`: turn the inbox into the agent's input.
 

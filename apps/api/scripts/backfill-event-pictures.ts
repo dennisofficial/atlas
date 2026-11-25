@@ -195,7 +195,7 @@ const main = async (): Promise<void> => {
     if (options.apply) await ensureArchive({ sql })
     const threads = await affectedThreads({ sql, threadId: options.threadId })
     report(options.apply ? 'applying' : 'dry run', { threads: threads.length })
-    const store = token === undefined ? undefined : new VercelMediaStore({ token })
+    const store = options.apply && token !== undefined ? new VercelMediaStore({ token }) : undefined
     let total = EMPTY_TALLY
     for (const thread of threads)
       total = addTally(total, await processThread({ sql, thread, store, apply: options.apply }))
