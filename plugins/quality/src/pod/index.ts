@@ -2,14 +2,14 @@ import { EMPTY_POD, type PluginPodContext, type PodSlot } from '@dltech/atlas-pl
 
 import {
   QUALITY_REVIEW_BUDGET_MS,
-  qualityIgnoredHook,
+  qualityNudgeReactionHook,
   qualityReviewHook,
   type QualitySettings,
 } from './hook'
 
 export {
   QUALITY_REVIEW_BUDGET_MS,
-  qualityIgnoredHook,
+  qualityNudgeReactionHook,
   qualityReviewHook,
   type QualitySettings,
 } from './hook'
@@ -33,6 +33,6 @@ export const qualityPodOf = (options: QualityPodOptions): PodSlot => ({
         },
       }),
     ],
-    afterTurn: [qualityIgnoredHook({ ctx })],
+    afterTurn: [qualityNudgeReactionHook({ ctx })],
   }),
 })
