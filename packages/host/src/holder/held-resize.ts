@@ -2,8 +2,12 @@ import {
   EInputConsumed,
   inboxEventOf,
   openPodResize,
+  pendingInputsOf,
+  pendingNoticesOf,
+  pendingRecordsOf,
   resizeSettledIn,
   type InboxEntry,
+  type RecordEvent,
   type RunId,
 } from '@dltech/atlas-core'
 
@@ -22,6 +26,18 @@ export type ResizeCalls = Pick<
   'armResize' | 'resizeStarted' | 'resizeSettled' | 'resizeHeld'
 >
 
+const postedResizeSettledIn = (args: {
+  events: readonly RecordEvent[]
+  generation: number
+}): boolean => {
+  const pending = pendingInputsOf(args.events)
+  for (const input of [...pendingNoticesOf(pending), ...pendingRecordsOf(pending)]) {
+    const event = input.event
+    if (event?.type === 'pod-resized' && (event.generation ?? 0) >= args.generation) return true
+  }
+  return false
+}
+
 export const reconcileResizeGate = (args: {
   record: SessionRecord | undefined
   runtime: { remoteCalls: ResizeCalls } | undefined
@@ -31,6 +47,10 @@ export const reconcileResizeGate = (args: {
   const events = args.record.eventCache().eventsAfter(0)
   const open = openPodResize(events)
   if (open !== undefined) {
+    if (postedResizeSettledIn({ events, generation: open.generation })) {
+      calls.resizeSettled({ generation: open.generation })
+      return
+    }
     calls.armResize({ open, reason: resizeInterruptReason(open) })
     return
   }

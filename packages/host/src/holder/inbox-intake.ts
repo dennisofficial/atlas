@@ -32,7 +32,12 @@ import {
   type ControlHandlers,
 } from './command-intake'
 import { EIntakeScope, intakeThreadOf, skipsInChildScope } from './intake-scope'
-import { fetchInboxEntries, INBOX_INTAKE_MAX_PAGES, logPendingInputIdsOf } from './held-inbox'
+import {
+  fetchInboxEntries,
+  INBOX_INTAKE_MAX_PAGES,
+  isResizeEntry,
+  logPendingInputIdsOf,
+} from './held-inbox'
 import { drainEntries } from './intake-entries'
 import { consumedInboxIdsOf, loggedDrainablesOf, skillsForPassOf } from './logged-drainables'
 import {
@@ -112,20 +117,20 @@ export class InboxIntake implements AgentIntake {
 
   async logStaged(
     args: { willDrain?: (() => boolean) | undefined; prepared?: (() => boolean) | undefined } = {},
-  ): Promise<void> {
+  ): Promise<readonly InboxEntry[] | undefined> {
     const child = this.args.scope === EIntakeScope.Child
-    await this.serial(async () => {
-      await logStagedInputs({
+    return await this.serial(async () =>
+      logStagedInputs({
         fetch: () => this.fetch(),
         willDrain: args.willDrain,
         prepared: args.prepared,
         resolveWithdraws: (entries) => this.withdrawsOf(entries),
-        skips: child ? skipsInChildScope : undefined,
+        skips: (entry) => isResizeEntry(entry) || (child && skipsInChildScope(entry)),
         postedDraftsOf: (entry) => this.postedDraftsOf(entry),
         appendDrafts: (drafts) => this.appendDrafts(drafts),
         log: this.args.log,
-      })
-    })
+      }),
+    )
   }
 
   async prepare(): Promise<PendingDrain> {
