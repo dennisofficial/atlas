@@ -2,10 +2,11 @@ import {
   EToolEffect,
   SchemaTool,
   TAKES_NO_PATHS,
+  type ActiveWorktree,
   type ToolOutcome,
   type ToolRun,
 } from '@dltech/atlas-core'
-import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
+import type { PluginPodContext, WorktreeEntryInfo } from '@dltech/atlas-plugin-sdk'
 import { z } from 'zod'
 
 import {
@@ -20,6 +21,18 @@ import { discoverRepoAgentTypes, type RepoAgentTypes } from './repo-agent-types'
 import { repoAgentTypesOf } from './resource'
 import { spawnsInStepOf, spawnStepKeyOf } from './spawn-group'
 import { planTarget, provenanceIn } from './worktree-plan'
+
+const sharedWorktreeOf = (args: {
+  parent: ActiveWorktree | undefined
+}): WorktreeEntryInfo | undefined => {
+  if (args.parent === undefined) return undefined
+  return {
+    path: args.parent.path,
+    branch: args.parent.branch,
+    adopted: true,
+    ...(args.parent.base === undefined ? {} : { base: args.parent.base }),
+  }
+}
 
 const inputSchema = z.strictObject({
   agentType: z.string().min(1),
@@ -142,6 +155,8 @@ export class AgentSpawnTool extends SchemaTool<typeof inputSchema> {
             target: input.worktree,
           })
     if (target !== undefined && !target.ok) return { ok: false, reason: target.reason }
+    const worktree =
+      target === undefined ? sharedWorktreeOf({ parent: activeWorktree }) : target.entry
 
     const events = this.ctx.events()
     const groupSize = spawnsInStepOf(events)
@@ -153,7 +168,7 @@ export class AgentSpawnTool extends SchemaTool<typeof inputSchema> {
         intent: input.intent,
         prompt: planned.prompt,
         ...(group === undefined ? {} : { group }),
-        ...(target === undefined ? {} : { worktree: target.entry }),
+        ...(worktree === undefined ? {} : { worktree }),
       })
       return {
         ok: true,
@@ -166,9 +181,9 @@ export class AgentSpawnTool extends SchemaTool<typeof inputSchema> {
         modelText: [
           'Started a sub-agent.',
           `${snapshot.agentId}  ${snapshot.agentType}  ${snapshot.intent}`,
-          ...(target === undefined
+          ...(worktree === undefined
             ? []
-            : [`It works in ${target.entry.path} on branch ${target.entry.branch}.`]),
+            : [`It works in ${worktree.path} on branch ${worktree.branch}.`]),
           groupSize >= 2 ? groupedEnding(groupSize) : soloEnding,
         ].join('\n'),
       }
