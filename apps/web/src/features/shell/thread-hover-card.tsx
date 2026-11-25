@@ -76,11 +76,14 @@ export function ThreadHoverCard({
             className="relative z-10 col-start-2 row-start-1 self-start pt-1 group-data-[collapsible=icon]:hidden"
           >
             {indicator ? (
-              <div className="flex h-6 items-center group-hover/thread:hidden group-focus-within/thread:hidden group-data-popup-open/thread:hidden pointer-coarse:hidden">
+              <div className="flex h-6 items-center group-hover/thread:hidden group-focus-within/thread:hidden group-data-popup-open/thread:hidden group-has-[[data-popup-open]]/thread:hidden pointer-coarse:hidden">
                 {indicator}
               </div>
             ) : null}
-            <div className="hidden h-6 items-center group-hover/thread:flex group-focus-within/thread:flex group-data-popup-open/thread:flex pointer-coarse:flex">
+            <div
+              className="hidden h-6 items-center group-hover/thread:flex group-focus-within/thread:flex group-data-popup-open/thread:flex group-has-[[data-popup-open]]/thread:flex pointer-coarse:flex"
+              data-row-actions
+            >
               {actions ? <div className="flex items-center pr-1">{actions}</div> : null}
               <PopoverTrigger
                 ref={detailsButton}

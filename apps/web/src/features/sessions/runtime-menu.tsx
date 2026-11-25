@@ -17,30 +17,19 @@ import {
 export enum ERuntime {
   Agent37 = 'agent37',
   Vercel = 'vercel',
-  V1 = 'v1',
-}
-
-export enum EEngine {
-  V1 = 'v1',
-  V2 = 'v2',
 }
 
 export const DEFAULT_RUNTIME = ERuntime.Agent37
 
-export type RuntimeTarget =
-  | { engine: EEngine.V2; provider: ESandboxProvider }
-  | { engine: EEngine.V1 }
+export type RuntimeTarget = { provider: ESandboxProvider }
 
-export const runtimeTargetOf = (runtime: ERuntime): RuntimeTarget => {
-  if (runtime === ERuntime.V1) return { engine: EEngine.V1 }
-  if (runtime === ERuntime.Vercel) return { engine: EEngine.V2, provider: ESandboxProvider.Vercel }
-  return { engine: EEngine.V2, provider: ESandboxProvider.Agent37 }
-}
+export const runtimeTargetOf = (runtime: ERuntime): RuntimeTarget => ({
+  provider: runtime === ERuntime.Vercel ? ESandboxProvider.Vercel : ESandboxProvider.Agent37,
+})
 
 const RUNTIME_LABELS: Record<ERuntime, string> = {
   [ERuntime.Agent37]: 'Agent37',
   [ERuntime.Vercel]: 'Vercel',
-  [ERuntime.V1]: 'v1',
 }
 
 const isRuntime = (value: unknown): value is ERuntime =>
@@ -73,16 +62,10 @@ export function RuntimeMenu({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuGroup>
-          <DropdownMenuLabel>v2 sandbox</DropdownMenuLabel>
+          <DropdownMenuLabel>Sandbox</DropdownMenuLabel>
           <DropdownMenuRadioGroup value={value} onValueChange={handleValueChange}>
             <DropdownMenuRadioItem value={ERuntime.Agent37}>Agent37</DropdownMenuRadioItem>
             <DropdownMenuRadioItem value={ERuntime.Vercel}>Vercel (fallback)</DropdownMenuRadioItem>
-          </DropdownMenuRadioGroup>
-        </DropdownMenuGroup>
-        <DropdownMenuGroup>
-          <DropdownMenuLabel>Engine</DropdownMenuLabel>
-          <DropdownMenuRadioGroup value={value} onValueChange={handleValueChange}>
-            <DropdownMenuRadioItem value={ERuntime.V1}>v1</DropdownMenuRadioItem>
           </DropdownMenuRadioGroup>
         </DropdownMenuGroup>
       </DropdownMenuContent>

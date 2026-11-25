@@ -25,7 +25,7 @@ import {
   fetchAccounts,
   replaceApiKey,
 } from '@/features/settings/data/personal/accounts-api'
-import { messageOf } from '@/features/threads/data/use-send'
+import { messageOf } from '@/features/threads/data/message-of'
 import type { RepairCardProps } from '@/features/threads/transcript/repair-card'
 import { EQueryState, useCloudQuery } from '@/lib/use-cloud-query'
 

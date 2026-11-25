@@ -1,8 +1,6 @@
 import { chmodSync, cpSync, existsSync, mkdirSync, renameSync, rmSync, statSync } from 'node:fs'
 import { basename, join, resolve } from 'node:path'
 
-import { writeSupervisorBundle } from '../../../packages/harness/src/shells/supervisor-bundle'
-
 const APP_ROOT = resolve(import.meta.dir, '..')
 const REPO_ROOT = resolve(APP_ROOT, '..', '..')
 const HOST_ENTRY = join(APP_ROOT, 'src', 'desktop-host', 'index.ts')
@@ -72,8 +70,6 @@ export async function buildWebStandalone({ bun, root = REPO_ROOT, standalone = W
 export async function packHost({ bun, out = DIST, standalone = WEB_STANDALONE, rebuild }) {
   rmSync(out, { recursive: true, force: true })
   mkdirSync(out, { recursive: true })
-
-  await writeSupervisorBundle()
 
   await run({ args: [bun, ...hostBuildArgs({ entry: HOST_ENTRY, outdir: out })], cwd: REPO_ROOT })
   const host = join(out, 'host.js')

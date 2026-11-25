@@ -56,7 +56,7 @@ describe('searchHrefOf', () => {
   it('routes threads to their page and projects to a new thread', () => {
     const thread = { kind: ESearchKind.Thread, id: 'a b' } as SearchItem
     const project = { kind: ESearchKind.Project, id: 'p/1' } as SearchItem
-    expect(searchHrefOf(thread)).toBe('/threads/a%20b')
+    expect(searchHrefOf(thread)).toBe('/sessions/a%20b')
     expect(searchHrefOf(project)).toBe('/threads/new?project=p%2F1')
   })
 })

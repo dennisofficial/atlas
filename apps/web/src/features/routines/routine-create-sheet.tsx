@@ -24,8 +24,8 @@ import {
   routineTimezoneOf,
 } from '@/features/settings/data/personal/routine-settings'
 import { useModelPicker } from '@/features/threads/data/use-model-picker'
-import { fetchProjects } from '@/features/threads/data/threads-api'
-import { messageOf } from '@/features/threads/data/use-send'
+import { fetchProjects } from '@/features/projects/data/projects-api'
+import { messageOf } from '@/features/threads/data/message-of'
 import { ModelPickerControls } from '@/features/threads/model-picker'
 import { useCloudSettings } from '@/lib/cloud-settings'
 import { PROJECTS_KEY } from '@/lib/cloud-keys'

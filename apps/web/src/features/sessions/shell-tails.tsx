@@ -8,7 +8,7 @@ import type { ShellRoster } from '@dltech/atlas-plugin-shells/client'
 import { Button } from '@dltech/atlas-ui/components/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@dltech/atlas-ui/components/popover'
 
-import { messageOf } from '@/features/threads/data/use-send'
+import { messageOf } from '@/features/threads/data/message-of'
 
 import { killShell } from './data/shell-actions'
 import { sessionsApi } from './data/sessions-api'

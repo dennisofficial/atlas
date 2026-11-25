@@ -2,7 +2,7 @@ import { Skeleton } from '@dltech/atlas-ui/components/skeleton'
 
 import { SettingsCard, SettingsSection } from '../settings-layout'
 import { ERowControl, Line, SettingsRowSkeleton } from './primitives'
-import { EnvSecretsSkeleton, SandboxTableSkeleton } from './table-skeletons'
+import { EnvSecretsSkeleton } from './table-skeletons'
 
 export function MemorySearchSkeleton() {
   return <Skeleton className="h-8 w-full rounded-lg sm:w-48" />
@@ -107,19 +107,6 @@ export function SecurityDevicesSkeleton() {
         />
       ))}
     </SettingsCard>
-  )
-}
-
-export function UsageSandboxesSkeleton() {
-  return (
-    <>
-      <SettingsSection title="Currently running">
-        <SandboxTableSkeleton rows={2} />
-      </SettingsSection>
-      <div className="flex h-4 items-center">
-        <Skeleton className="h-3 w-96 max-w-full" />
-      </div>
-    </>
   )
 }
 

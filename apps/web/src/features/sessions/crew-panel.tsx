@@ -11,7 +11,7 @@ import { Input } from '@dltech/atlas-ui/components/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@dltech/atlas-ui/components/popover'
 
 import { useOptionalThreadPanel } from '@/features/threads/panel/thread-panel-context'
-import { messageOf } from '@/features/threads/data/use-send'
+import { messageOf } from '@/features/threads/data/message-of'
 
 import { agentAlive, sayToAgent, stopAgent } from './data/crew-actions'
 import { crewStatusLabelOf } from './data/crew-status-label'

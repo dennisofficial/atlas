@@ -13,10 +13,8 @@ import { isAuthorized, startSession } from './guard'
 import { createMacLinkClient, type MacFrameSink } from './mac-link/client'
 import { createDeviceId } from './mac-link/device-id'
 import type { IPanePort } from './pane-routes'
+import { defaultDesktopHome } from './desktop-home'
 import { isProxyPath, proxyToApp, proxyToApi } from './proxy'
-import type { IPodHostConfig } from './pods/config'
-import { defaultDesktopHome } from './pods/config'
-import { createPodsHandler } from './pods/routes'
 import { startOnStablePort } from './stable-port'
 import type { IDesktopUpdatesPort } from './update-routes'
 import type { IDesktopWindowPort } from './window-routes'
@@ -27,7 +25,6 @@ export interface ICreateDesktopHostOptions {
   appOrigin: string | (() => string)
   secret: string
   apiOrigin?: string
-  pods?: IPodHostConfig
   auth?: Omit<IAuthConfig, 'home'> & { home?: string }
   updates?: IDesktopUpdatesPort | undefined
   window?: IDesktopWindowPort
@@ -51,7 +48,6 @@ export function createDesktopHost({
   port,
   stablePortHome,
   secret,
-  pods,
   auth,
   updates,
   window,
@@ -109,17 +105,12 @@ export function createDesktopHost({
   }
   authService.onChange(syncLink)
   syncLink()
-  const podsHandler =
-    pods === undefined
-      ? undefined
-      : createPodsHandler({ config: { apiOrigin: origin, ...pods }, bearer })
   const desktopRouter = createDesktopRouter({
     updates,
     window,
     app,
     pane,
     auth: createAuthHandler({ auth: authService }),
-    pods: podsHandler,
     apns: apns.handler,
   })
 
@@ -168,7 +159,6 @@ export function createDesktopHost({
     port: boundPort,
     stop: () => {
       link.stop()
-      podsHandler?.close()
       return server.stop(true)
     },
   }

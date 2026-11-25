@@ -74,15 +74,6 @@ async function toggle(thread: WireThread & { teammate?: boolean }): Promise<stri
 }
 
 describe('useThreadArchive', () => {
-  it('passes the actual local runner to the mutation', async () => {
-    await toggle({ ...threadOf(null), runner: ERunner.Local })
-    expect(setThreadArchived).toHaveBeenCalledWith({
-      threadId: 'thr_1',
-      archived: true,
-      runner: ERunner.Local,
-    })
-  })
-
   it('rolls back optimistic archive and restore when persistence fails', async () => {
     const { createRoot } = await import('react-dom/client')
     for (const archivedAt of [null, '2026-10-01T00:00:00.000Z']) {

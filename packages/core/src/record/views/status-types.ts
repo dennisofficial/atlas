@@ -21,11 +21,33 @@ export type SessionStatus = {
   since?: string | undefined
 }
 
-const SETTLED_STATES: ReadonlySet<ESessionStatus> = new Set([
-  ESessionStatus.Idle,
-  ESessionStatus.SetupFailed,
-  ESessionStatus.StartFailed,
-  ESessionStatus.Failed,
-])
+export enum ESessionActivity {
+  Setup = 'setup',
+  Turn = 'turn',
+  Command = 'command',
+  Waiting = 'waiting',
+  Settled = 'settled',
+}
 
-export const isSettledStatus = (state: ESessionStatus): boolean => SETTLED_STATES.has(state)
+const ACTIVITY_OF_STATUS: Record<ESessionStatus, ESessionActivity> = {
+  [ESessionStatus.Preparing]: ESessionActivity.Setup,
+  [ESessionStatus.Queued]: ESessionActivity.Turn,
+  [ESessionStatus.Thinking]: ESessionActivity.Turn,
+  [ESessionStatus.RunningTool]: ESessionActivity.Turn,
+  [ESessionStatus.WaitingToRetry]: ESessionActivity.Turn,
+  [ESessionStatus.Resuming]: ESessionActivity.Turn,
+  [ESessionStatus.RunningCommand]: ESessionActivity.Command,
+  [ESessionStatus.WaitingForCredentials]: ESessionActivity.Waiting,
+  [ESessionStatus.WaitingForOperator]: ESessionActivity.Waiting,
+  [ESessionStatus.WaitingForBackground]: ESessionActivity.Waiting,
+  [ESessionStatus.Idle]: ESessionActivity.Settled,
+  [ESessionStatus.SetupFailed]: ESessionActivity.Settled,
+  [ESessionStatus.StartFailed]: ESessionActivity.Settled,
+  [ESessionStatus.Failed]: ESessionActivity.Settled,
+}
+
+export const sessionActivityOf = (state: ESessionStatus): ESessionActivity =>
+  ACTIVITY_OF_STATUS[state]
+
+export const isSettledStatus = (state: ESessionStatus): boolean =>
+  sessionActivityOf(state) === ESessionActivity.Settled

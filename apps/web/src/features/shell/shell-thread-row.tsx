@@ -1,11 +1,10 @@
 import { SidebarMenuItem } from '@dltech/atlas-ui/components/sidebar'
 import type { WireThread } from '@dltech/atlas-wire/web'
-import type { SessionNode } from '@/features/threads/data/threads-api'
 
 import { TeammateList } from './shell-teammate-folder'
 import { ThreadFamilyProvider } from './shell-thread-family'
 import { ThreadRowBody } from './shell-thread-row-body'
-import { mainThreadsOf, type ShellSessionNode } from './thread-partition'
+import { mainThreadsOf, type SessionNode, type ShellSessionNode } from './thread-partition'
 import { isV2Session } from './v2-rows'
 
 export interface ThreadRowProps {

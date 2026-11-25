@@ -11,7 +11,7 @@ import {
 
 import type { SessionNameOf, TranscriptRow } from '@/features/threads/data/transcript-items'
 import { mediaUrls } from '@/features/threads/data/media-urls'
-import { messageOf } from '@/features/threads/data/use-send'
+import { messageOf } from '@/features/threads/data/message-of'
 
 import { sessionEventTypes } from '../registered-plugins'
 import type { StagedMessage } from './queued-messages'

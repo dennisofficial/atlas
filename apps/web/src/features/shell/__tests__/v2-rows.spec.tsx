@@ -1,28 +1,13 @@
-import { afterEach, describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'bun:test'
 import { renderToStaticMarkup } from 'react-dom/server'
 
 import { SidebarProvider } from '@dltech/atlas-ui/components/sidebar'
 
-import { fakeFetch, mutationUrl, trpcOk } from '@/features/threads/data/__tests__/trpc-fake'
-
-import { archiveThread } from '../archive-thread'
-import { searchHrefOf, searchItemsOf } from '../search-items'
 import { ThreadRow } from '../shell-thread-row'
 import { partitionThreads, projectNameOf, type ShellSessionNode } from '../thread-partition'
 import { ThreadActionsContext } from '../thread-actions-context'
-import {
-  v2RowOf,
-  v2SessionHref,
-  v2SessionIdsOf,
-  withV2Sessions,
-  type V2SessionSummary,
-} from '../v2-rows'
+import { v2RowOf, v2SessionHref, withV2Sessions, type V2SessionSummary } from '../v2-rows'
 import { agoIso, NOW, projectOf, sessionOf, threadOf } from './fixtures'
-
-const realFetch = globalThis.fetch
-afterEach(() => {
-  globalThis.fetch = realFetch
-})
 
 const summary = (overrides: Partial<V2SessionSummary> = {}): V2SessionSummary => ({
   sessionId: 'v2-a',
@@ -76,15 +61,6 @@ describe('v2RowOf', () => {
     const partition = partitionThreads({ entries: merged, now: NOW })
     expect(partition.archived[0]?.sessions.map((s) => s.id)).toEqual(['v2-a'])
     expect(v2RowOf(summary()).mainThread.archivedAt).toBeNull()
-  })
-
-  it('collects the ids of v2 rows only', () => {
-    const merged = withV2Sessions({
-      entries: entries(),
-      sessions: [summary()],
-    })
-    expect([...v2SessionIdsOf(merged)]).toEqual(['v2-a'])
-    expect(v2SessionIdsOf(undefined).size).toBe(0)
   })
 
   it('leaves the title unset when the session has none', () => {
@@ -227,34 +203,6 @@ describe('withV2Sessions placement', () => {
     expect(html).toContain('href="/sessions/peer"')
   })
 
-  it('collects a nested peer and its children as v2 sessions', () => {
-    const merged = withV2Sessions({
-      entries: entries(),
-      sessions: [root, peer, grandchild],
-    })
-    expect([...v2SessionIdsOf(merged)].sort()).toEqual(['grand', 'peer', 'root'])
-  })
-
-  it('archives a nested peer through the v2 sessions route', async () => {
-    const merged = withV2Sessions({
-      entries: entries(),
-      sessions: [root, peer],
-    })
-    const calls = fakeFetch(() => trpcOk({ archivedAt: null }))
-    await archiveThread({
-      threadId: 'peer',
-      archived: true,
-      v2: v2SessionIdsOf(merged).has('peer'),
-    })
-    expect(calls).toEqual([
-      {
-        url: mutationUrl('sessions.archive'),
-        method: 'POST',
-        body: { sessionId: 'peer', archived: true },
-      },
-    ])
-  })
-
   it('draws the indent instead of a provenance label', () => {
     const rows = rowsOf([root, peer])
     const html = render(rows.find((row) => row.id === 'root') as ShellSessionNode)
@@ -284,17 +232,21 @@ describe('withV2Sessions placement', () => {
   })
 })
 
+describe('withV2Sessions rows', () => {
+  it('marks every sidebar row as a v2 session', () => {
+    const merged = withV2Sessions({
+      entries: [{ project: projectOf('p1'), sessions: [] }],
+      sessions: [summary()],
+    })
+    const rows = merged.flatMap((entry) => entry.sessions)
+    expect(rows.length).toBe(1)
+    expect(rows[0]?.v2).toBe(true)
+  })
+})
+
 describe('v2 links', () => {
   it('links a session to /sessions/<id>', () => {
     expect(v2SessionHref('a b')).toBe('/sessions/a%20b')
-  })
-
-  it('routes v2 search results to the session page', () => {
-    const { threads } = searchItemsOf(withV2Sessions({ entries: entries(), sessions: [summary()] }))
-    const v2 = threads.find((t) => t.id === 'v2-a')
-    const v1 = threads.find((t) => t.id === 'v1-old')
-    expect(v2 && searchHrefOf(v2)).toBe('/sessions/v2-a')
-    expect(v1 && searchHrefOf(v1)).toBe('/threads/v1-old')
   })
 })
 
@@ -321,13 +273,5 @@ describe('ThreadRow for a v2 session', () => {
 
   it('marks the row current when it is the active session', () => {
     expect(render(v2RowOf(summary()), 'v2-a')).toContain('aria-current="page"')
-  })
-
-  it('tags a v1 row and never a sandbox provider', () => {
-    const html = render(sessionOf(threadOf({ id: 'solo', title: 'Solo' })))
-    expect(html).toContain('data-engine-tag="v1"')
-    expect(html).not.toContain('data-sandbox-provider')
-    expect(html).toContain('href="/threads/solo"')
-    expect(html).toContain('Archive thread')
   })
 })

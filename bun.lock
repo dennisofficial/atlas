@@ -142,7 +142,6 @@
       "dependencies": {
         "@dltech/atlas-api-router": "workspace:*",
         "@dltech/atlas-core": "workspace:*",
-        "@dltech/atlas-harness": "workspace:*",
         "@dltech/atlas-notifications": "workspace:*",
         "@dltech/atlas-protocol": "workspace:*",
         "@dltech/atlas-wire": "workspace:*",
@@ -385,7 +384,6 @@
         "@dltech/atlas-client": "workspace:*",
         "@dltech/atlas-commands": "workspace:*",
         "@dltech/atlas-core": "workspace:*",
-        "@dltech/atlas-harness": "workspace:*",
         "@dltech/atlas-models": "workspace:*",
         "@dltech/atlas-notifications": "workspace:*",
         "@dltech/atlas-plugin-crew": "workspace:*",

@@ -4,8 +4,6 @@ import { catalogOf, findCard, tallySpend, type SpendTally } from '@dltech/atlas-
 import { generatedCards } from '@dltech/atlas-models'
 import { readTurnsReplySchema, type WireTurn } from '@dltech/atlas-wire/web'
 
-import { api, cloudCall } from '@/lib/api-client'
-
 export type SpendChannel = Pick<RemoteDeltaChannel, 'request' | 'onReady' | 'onReload'>
 
 let catalog: ReturnType<typeof catalogOf> | undefined
@@ -33,10 +31,6 @@ export async function readSpend(args: {
     }),
   )
   return spendOf([...reply.own, ...reply.delegated])
-}
-
-export async function readSpendFromApi(args: { threadId: string }): Promise<SpendTally> {
-  return spendOf(await cloudCall(api.threadTurns.list.query({ threadId: args.threadId })))
 }
 
 type SpendWatch = { stop: () => void; refresh: () => void }
@@ -81,18 +75,6 @@ export function watchSpend(args: {
     },
   })
   const offs = [channel.onReady(watch.refresh), channel.onReload(watch.refresh)]
-  watch.refresh()
-  return watch
-}
-
-export function watchApiSpend(args: {
-  threadId: string
-  onSpend: (spend: SpendTally) => void
-}): SpendWatch {
-  const watch = latestSpendWatch({
-    read: () => readSpendFromApi({ threadId: args.threadId }),
-    onSpend: args.onSpend,
-  })
   watch.refresh()
   return watch
 }

@@ -1,4 +1,9 @@
-import { EDaemonAnswer, recoverCall, type RecoverAction } from '@dltech/atlas-core'
+import {
+  EDaemonAnswer,
+  interruptedByRestartMessage,
+  recoverCall,
+  type RecoverAction,
+} from '@dltech/atlas-core'
 
 export const SANDBOX_OFFLINE_GUIDANCE =
   'The sandbox is offline, so retrying tool calls will not help: stop making sandbox tool calls, tell the operator the sandbox is down and why, and end your turn.'
@@ -51,9 +56,6 @@ export const resizeInterruptReason = (args: { vcpus: number; memoryGb: number })
 
 export const resizeInterruptedMessage = (args: { reason: string }): string =>
   `This call was interrupted because ${args.reason}. Try again now: the next call waits until the resize finishes.`
-
-const crashedCallMessage = (op: string): string =>
-  `${op} was interrupted by a process restart before its result was recorded; its effects are unknown — check before repeating it`
 
 export type DaemonAnswer = EDaemonAnswer | 'unavailable'
 
@@ -110,7 +112,7 @@ export const callLostAcrossBoot = (args: {
   }).rerun
 }
 
-export const interruptedMessage = crashedCallMessage
+export const interruptedMessage = interruptedByRestartMessage
 
 export class ReadyTimeoutError extends Error {
   constructor(timeoutMs: number) {

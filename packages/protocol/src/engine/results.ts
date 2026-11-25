@@ -1,3 +1,5 @@
+import { interruptedByRestartMessage } from '@dltech/atlas-core'
+
 import {
   ECallFailure,
   ECallStatus,
@@ -23,7 +25,7 @@ export const interruptedByRestart = (op: OpName): CallResult =>
   failedResult({
     op,
     code: ECallFailure.Interrupted,
-    message: `${op} was interrupted by a daemon restart before its result was recorded; its effects are unknown — check before repeating it`,
+    message: interruptedByRestartMessage(op),
   })
 
 export const invokeOp = async (args: {
