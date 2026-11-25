@@ -56,17 +56,17 @@ export class CrewRoom {
   }
 
   async adoptAll(children: readonly OpenChild[]): Promise<void> {
-    const adopted: ChildRun[] = []
+    const adopted: { run: ChildRun; child: OpenChild }[] = []
     for (const child of children) {
       const run = await this.openAdopted(child)
-      if (run !== undefined) adopted.push(run)
+      if (run !== undefined) adopted.push({ run, child })
     }
-    for (const run of adopted) await this.startAdopted(run)
+    for (const { run, child } of adopted) await this.startAdopted({ run, child })
   }
 
   async adopt(child: OpenChild): Promise<void> {
     const run = await this.openAdopted(child)
-    if (run !== undefined) await this.startAdopted(run)
+    if (run !== undefined) await this.startAdopted({ run, child })
   }
 
   private async openAdopted(child: OpenChild): Promise<ChildRun | undefined> {
@@ -90,9 +90,10 @@ export class CrewRoom {
     return adopted.run
   }
 
-  private async startAdopted(run: ChildRun): Promise<void> {
-    await run.finishAdopted()
-    await run.continueTurn()
+  private async startAdopted(args: { run: ChildRun; child: OpenChild }): Promise<void> {
+    await args.run.finishAdopted()
+    if (args.child.keepIdle === true) return
+    await args.run.continueTurn()
   }
 
   async say(args: {
