@@ -26,7 +26,6 @@ import {
   INBOX_KIND_RETRY,
   INBOX_KIND_STOP,
   type Attachment,
-  withholdPictureBytes,
 } from '@dltech/atlas-core'
 import { MediaStore } from '@dltech/atlas-media'
 import type { ProductAnalytics, TracePort } from '@dltech/atlas-observability'
@@ -476,38 +475,11 @@ export class SessionsService {
       limit: args.limit ?? STATUS_EVENT_LIMIT,
       visible: true,
       maxBytes: args.maxBytes ?? EVENTS_DEFAULT_MAX_BYTES,
-      withholdPictures: true,
     })
     return {
-      events: page.events.map((event) => toPageEvent(withholdPictureBytes(event))),
+      events: page.events.map((event) => toPageEvent(event)),
       ...(page.next === undefined ? {} : { next: page.next }),
     }
-  }
-
-  async toolPicture(args: {
-    userId: string
-    sessionId: string
-    threadId: string
-    seq: number
-    part: number
-  }): Promise<{ mediaType: string; data: string }> {
-    const session = await this.requireOwnedSession(args)
-    const threadId = await this.threadOf({ session, threadId: args.threadId })
-    const page = await this.plane.readEvents({
-      threadId,
-      afterSeq: args.seq - 1,
-      limit: 1,
-      visible: false,
-    })
-    const event = page.events[0]
-    if (event === undefined || event.type !== 'tool-result' || event.seq !== args.seq) {
-      throw new NotFoundException('picture not found')
-    }
-    const part = event.modelParts?.[args.part]
-    if (part === undefined || part.type !== 'image' || part.bytes.kind !== 'inline') {
-      throw new NotFoundException('picture not found')
-    }
-    return { mediaType: part.mediaType, data: part.bytes.data }
   }
 
   private async threadOf(args: {

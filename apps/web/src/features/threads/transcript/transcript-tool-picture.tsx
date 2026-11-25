@@ -6,7 +6,6 @@ import { EMessageImageSize, MessageImageThumb } from '@dltech/atlas-ui/ai/messag
 
 import { mediaUrls } from '../data/media-urls'
 import type { ToolPictureItem } from '../data/transcript-tools'
-import { toolPictures } from '../data/tool-pictures'
 import { useToolPictureSession } from './tool-picture-session'
 
 type Resolved = { kind: 'src'; src: string } | { kind: 'pending' } | { kind: 'failed' }
@@ -27,54 +26,29 @@ export const toolPictureBox = (size: {
   return { width: Math.round(width * scale), height: Math.round(height * scale) }
 }
 
-const naturalOf = (
-  picture: ToolPictureItem['picture'],
-): { width?: number | undefined; height?: number | undefined } => {
-  if (picture.kind === 'media') return { width: picture.media.width, height: picture.media.height }
-  if (picture.kind === 'withheld') return { width: picture.width, height: picture.height }
-  return {}
-}
-
 const boxStyleOf = (box: Box): CSSProperties => ({
   width: box.width,
   height: box.height,
   maxWidth: '100%',
 })
 
-const inlineSrcOf = (picture: ToolPictureItem['picture']): string | undefined =>
-  picture.kind === 'inline' ? `data:${picture.mediaType};base64,${picture.data}` : undefined
-
-const initialOf = (picture: ToolPictureItem['picture']): Resolved => {
-  const src = inlineSrcOf(picture)
-  return src === undefined ? { kind: 'pending' } : { kind: 'src', src }
-}
-
 export function TranscriptToolPicture({ id, picture, alt, width, height }: ToolPictureItem) {
   const sessionId = useToolPictureSession()
-  const [resolved, setResolved] = useState<Resolved>(() => initialOf(picture))
-  const natural = naturalOf(picture)
-  const box = toolPictureBox({ width: width ?? natural.width, height: height ?? natural.height })
+  const [resolved, setResolved] = useState<Resolved>({ kind: 'pending' })
+  const box = toolPictureBox({
+    width: width ?? picture.media.width,
+    height: height ?? picture.media.height,
+  })
   const style = boxStyleOf(box)
 
   useEffect(() => {
-    const direct = inlineSrcOf(picture)
-    if (direct !== undefined) {
-      setResolved({ kind: 'src', src: direct })
-      return
-    }
     setResolved({ kind: 'pending' })
     if (sessionId === null) return
     let cancelled = false
-    const loaded =
-      picture.kind === 'media'
-        ? mediaUrls.urlOf({ sessionId, hash: picture.media.hash })
-        : picture.kind === 'withheld'
-          ? toolPictures.dataUrlOf({ sessionId, ...picture })
-          : Promise.resolve(undefined)
-    loaded
+    mediaUrls
+      .urlOf({ sessionId, hash: picture.media.hash })
       .then((src) => {
-        if (cancelled) return
-        setResolved(src === undefined ? { kind: 'failed' } : { kind: 'src', src })
+        if (!cancelled) setResolved({ kind: 'src', src })
       })
       .catch(() => {
         if (!cancelled) setResolved({ kind: 'failed' })

@@ -1,7 +1,4 @@
-import { withholdPictureBytes, type RecordEvent } from '@dltech/atlas-core'
-
-export const withheldEvents = (events: readonly RecordEvent[]): RecordEvent[] =>
-  events.map((event) => withholdPictureBytes(event))
+import type { RecordEvent } from '@dltech/atlas-core'
 
 export const pageCursorOf = (page: {
   events: readonly RecordEvent[]

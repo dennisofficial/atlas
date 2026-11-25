@@ -64,7 +64,6 @@ const anchorEvent = (throughSeq: number): RecordEventBody => ({
   throughSeq,
   anchor: ECompactionAnchor.Prefix,
   summary: 'the opening work',
-  replaced: throughSeq,
 })
 
 describe('fact-recorded in the record cache', () => {

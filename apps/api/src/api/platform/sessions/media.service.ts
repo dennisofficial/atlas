@@ -1,12 +1,7 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common'
 import { MAX_INLINE_BYTES, mediaPathname, type MediaRef } from '@dltech/atlas-core'
 import { MediaStore, validateMediaBytes } from '@dltech/atlas-media'
-import type {
-  MediaConfirmOutput,
-  MediaPresignOutput,
-  MediaToolPictureOutput,
-  MediaUrlOutput,
-} from '@dltech/atlas-protocol'
+import type { MediaConfirmOutput, MediaPresignOutput, MediaUrlOutput } from '@dltech/atlas-protocol'
 import { MediaRegistry } from './media-registry'
 import { SessionsService } from './sessions.service'
 
@@ -69,16 +64,6 @@ export class MediaService {
       validUntil,
     })
     return { url }
-  }
-
-  async toolPicture(args: {
-    userId: string
-    sessionId: string
-    threadId: string
-    seq: number
-    part: number
-  }): Promise<MediaToolPictureOutput> {
-    return this.sessions.toolPicture(args)
   }
 
   async refsOf(args: {

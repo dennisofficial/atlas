@@ -12,7 +12,7 @@ import {
 import { MediaRouter } from './media.router'
 import { MediaService } from './media.service'
 
-const media = { presign: vi.fn(), confirm: vi.fn(), url: vi.fn(), toolPicture: vi.fn() }
+const media = { presign: vi.fn(), confirm: vi.fn(), url: vi.fn() }
 const HASH = 'a'.repeat(64)
 
 describe('MediaRouter', () => {
@@ -64,16 +64,6 @@ describe('MediaRouter', () => {
     ).toBe(401)
     expect((await post('confirm', undefined, { hash: HASH })).status).toBe(401)
     expect((await url(undefined, { sessionId: 's', hash: HASH })).status).toBe(401)
-    expect(
-      (
-        await query('toolPicture', undefined, {
-          sessionId: 's',
-          threadId: 't',
-          seq: 1,
-          part: 0,
-        })
-      ).status,
-    ).toBe(401)
     for (const fn of Object.values(media)) expect(fn).not.toHaveBeenCalled()
   })
 
@@ -93,7 +83,6 @@ describe('MediaRouter', () => {
       },
     })
     media.url.mockResolvedValue({ url: 'https://b.example/y' })
-    media.toolPicture.mockResolvedValue({ mediaType: 'image/png', data: 'aGVsbG8=' })
 
     const input = { hash: HASH, size: 1, mediaType: 'image/png' }
     expect((await post('presign', 'session-a', input)).status).toBe(200)
@@ -109,9 +98,6 @@ describe('MediaRouter', () => {
       sessionId: 's1',
       hash: HASH,
     })
-    const picture = { sessionId: 's1', threadId: 't1', seq: 2, part: 1 }
-    expect((await query('toolPicture', 'session-a', picture)).status).toBe(200)
-    expect(media.toolPicture).toHaveBeenCalledWith({ userId: 'user-a', ...picture })
   })
 
   it('rejects a presign for a type outside the supported images', async () => {
