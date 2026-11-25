@@ -1,5 +1,6 @@
 import { isTeammateType } from '../../agents/kind'
 import { agentLabel } from '../../agents/label'
+import { supersededEndingIds } from '../../agents/superseded-endings'
 import { systemNotice } from '../../context/envelope'
 import { agentEnding, countedNoun, EAgentStatus } from '../../agents/status'
 import { NO_CONTENT_TEXT } from '../../events/empty-step'
@@ -163,7 +164,11 @@ export function agentEndingsBlock(): Rule {
   return defineRule({
     name: 'agentEndingsBlock',
     apply: (input, ctx) => {
-      const blocks = ctx.events.filter(carriesEnding).map((event) => blockOf(event))
+      const superseded = supersededEndingIds(ctx.events)
+      const blocks = ctx.events
+        .filter(carriesEnding)
+        .filter((event) => !superseded.has(event.id))
+        .map((event) => blockOf(event))
       if (blocks.length === 0) return input
 
       return { system: input.system, messages: mergeBySeq({ messages: input.messages, blocks }) }

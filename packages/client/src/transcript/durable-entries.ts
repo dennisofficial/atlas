@@ -9,6 +9,7 @@ import {
   latestTldrPerAnchor,
   podResizedLine,
   saidBy,
+  supersededEndingIds,
   type ConsumedCommand,
   type Event,
 } from '@dltech/atlas-core'
@@ -45,7 +46,7 @@ export function durableEntries(args: {
   pluginEntries?: readonly TranscriptEntryFold[] | undefined
 }): TranscriptEntry[] {
   const events = summariesAtTarget(args.events.filter((event) => !isNoticeArrival(event)))
-  const repeated = redundantEndingIds(events)
+  const repeated = new Set([...redundantEndingIds(events), ...supersededEndingIds(events)])
   const opened = new Map<string, ToolRun>(toolRuns(events).map((run) => [run.openedBy, run]))
   const steers = saidWhileToolsWereOutstanding(events)
   const { attached, folded } = contextLoadedWith(events)
