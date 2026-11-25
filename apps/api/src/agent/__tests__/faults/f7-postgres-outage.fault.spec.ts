@@ -1,4 +1,4 @@
-import { closeSync, constants, openSync, readFileSync, writeSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
@@ -6,7 +6,14 @@ import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 
 import { startRig, type FaultRig, type HostProcess, type ReadEvent } from '../../testing/fault-rig'
-import { callIdOf, expectLeaseSettled, isDoneResult, makeFifo, waitForFile } from './fault-support'
+import {
+  callIdOf,
+  expectLeaseSettled,
+  isDoneResult,
+  makeFifo,
+  releaseFifo,
+  waitForFile,
+} from './fault-support'
 
 const APPEND_RETRY_MS = 2_500
 
@@ -33,20 +40,8 @@ const waitForLog = async (args: {
   }
 }
 
-const releaseFifo = (path: string): boolean => {
-  try {
-    const fd = openSync(path, constants.O_WRONLY | constants.O_NONBLOCK)
-    writeSync(fd, 'go\n')
-    closeSync(fd)
-    return true
-  } catch {
-    return false
-  }
-}
-
 type Scenario = {
   events: ReadEvent[]
-  released: boolean
   stoppedAt: number
   epochA: number
   runsFile: string
@@ -93,7 +88,7 @@ const runOutage = async (args: { rig: FaultRig; sessionId: string }): Promise<Sc
 
   aDb.set({ refuse: true })
   const releasedAt = Date.now()
-  const released = releaseFifo(gateFifo)
+  await releaseFifo({ path: gateFifo })
 
   let hostB: HostProcess | undefined
   try {
@@ -132,7 +127,7 @@ const runOutage = async (args: { rig: FaultRig; sessionId: string }): Promise<Sc
     await sleep(1_500)
     const events = await rig.waitForSeq({ threadId, want: () => true })
 
-    return { events, released, stoppedAt, epochA, runsFile }
+    return { events, stoppedAt, epochA, runsFile }
   } finally {
     for (const host of [hostA, hostB]) {
       if (host === undefined) continue
@@ -198,7 +193,6 @@ describe.skipIf(REDIS_URL === undefined)(
 
     it('F7 healthy bash survives an append stop', async () => {
       const scenario = await runOutage({ rig, sessionId: 'fault-f7-2' })
-      expect(scenario.released).toBe(true)
       const results = scenario.events.filter(
         (row) => row.type === 'tool-result' && callIdOf(row) === 'c1',
       )
