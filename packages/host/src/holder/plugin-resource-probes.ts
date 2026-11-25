@@ -54,11 +54,17 @@ export const cloudStringOf = (args: {
     .join('|')
 }
 
+export type WatchStatus = {
+  instance: string
+  seqs: ReadonlyMap<string, number>
+  reached: boolean
+}
+
 export const statusOf = async (args: {
   ctx: Ctx
   watchIds: readonly string[]
-}): Promise<{ instance: string; seqs: ReadonlyMap<string, number> }> => {
-  if (args.watchIds.length === 0) return { instance: UNKNOWN, seqs: new Map() }
+}): Promise<WatchStatus> => {
+  if (args.watchIds.length === 0) return { instance: UNKNOWN, seqs: new Map(), reached: true }
   try {
     const result = await args.ctx.call({ op: 'watch.status', watchIds: [...args.watchIds] })
     if (result.status !== ECallStatus.Ok) throw new Error(result.error.message)
@@ -66,10 +72,11 @@ export const statusOf = async (args: {
     return {
       instance: result.value.instance,
       seqs: new Map(result.value.watches.map((entry) => [entry.watchId, entry.seq])),
+      reached: true,
     }
   } catch (failure) {
     args.ctx.log(`plugin resources could not read watch status: ${messageOf(failure)}`)
-    return { instance: UNKNOWN, seqs: new Map() }
+    return { instance: UNKNOWN, seqs: new Map(), reached: false }
   }
 }
 

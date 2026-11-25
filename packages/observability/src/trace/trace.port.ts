@@ -23,6 +23,8 @@ export enum ESpan {
   ResourceArm = 'resource.arm',
   ResourceLoad = 'resource.load',
   ResourceAppend = 'resource.append',
+  ResourceRefresh = 'resource.refresh',
+  ResourceWait = 'resource.wait',
 }
 
 export enum ESpanMark {
@@ -67,7 +69,12 @@ export type SpanFields = {
   readonly tool?: string | undefined
   readonly hook?: string | undefined
   readonly resource?: string | undefined
+  readonly resources?: string | undefined
   readonly phase?: string | undefined
+  readonly trigger?: string | undefined
+  readonly reason?: string | undefined
+  readonly pod?: string | undefined
+  readonly reached?: boolean | undefined
   readonly status?: string | undefined
   readonly failureKind?: string | undefined
   readonly verdict?: string | undefined

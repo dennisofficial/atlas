@@ -4,7 +4,8 @@ import type { PluginPodContext, PodResource } from '@dltech/atlas-plugin-sdk'
 
 import { armOf, cloudStringOf, messageOf, statusOf, versionsOf } from './plugin-resource-probes'
 import { ELoadReason } from './plugin-resource-reason'
-import { appendOf, loadedDraftsOf, watchOf } from './plugin-resource-refresh'
+import { appendOf, loadedDraftsOf } from './plugin-resource-drafts'
+import { watchOf } from './plugin-resource-refresh'
 
 type Ctx = PluginPodContext
 
@@ -14,6 +15,7 @@ export const reloadOne = async (args: {
   resource: PodResource<unknown>
   directory: string
   reason: ELoadReason
+  onUnreached?: (() => void) | undefined
 }): Promise<void> => {
   const watch = watchOf({ resource: args.resource, directory: args.directory })
   const [status, versions] = await Promise.all([
@@ -26,6 +28,10 @@ export const reloadOne = async (args: {
       run: () => versionsOf({ ctx: args.ctx, needed: args.resource.cloud !== undefined }),
     }),
   ])
+  if (!status.reached && watch !== undefined) {
+    args.onUnreached?.()
+    return
+  }
   let seq = watch === undefined ? undefined : status.seqs.get(watch.id)
   if (watch !== undefined && seq === undefined) {
     await spanWith(args.trace, {

@@ -242,6 +242,9 @@ export const resourceSyncOf = (args: {
       }),
     trace: args.runtime.trace,
     shared: args.shared,
+    podReady: () =>
+      (args.runtime.workspaceGate?.settled ?? 'prepared') === 'prepared' &&
+      args.runtime.remoteCalls.linked(),
     reconnect: (listener) =>
       args.runtime.remoteCalls.onReady((hello) => {
         listener({ restart: hello.restart })

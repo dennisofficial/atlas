@@ -45,11 +45,21 @@ A hook is its own span. It nests in `turn.hooks`, `tool.hooks`, `tool.after-hook
 
 ```
 hook                            one per hook (hook, phase)
+└ resource.wait               (reason, resources, pod)
 └ resource.status / resource.versions
 └ resource.arm
 └ resource.load               (resource, phase)
 └ resource.append             (drafts)
+
+resource.refresh                a root span per plugin resource refresh round (trigger, reached)
+└ resource.status / resource.versions
+└ resource.arm
+└ resource.load / resource.append
 ```
+
+A turn that starts from a recorded snapshot emits `resource.wait` only when it actually blocks: on a
+snapshot it has never written (`reason=missing`) or on a cloud setting that changed since
+(`reason=cloud`). `pod=waking` means the turn started from the old snapshot instead of waiting.
 
 The `resource.*` spans are plugin resources refreshing. They also appear under `tool.invoke` when
 a tool triggers the refresh.
@@ -88,6 +98,8 @@ one back.
 | `provider`, `model` | `turn`, `model.call`, `model.resolve` | Which model ran |
 | `auth` | `model.call` | `oauth` or the API-key kind |
 | `phase` | `model.resolve`, `resource.load`, `resource.status` | `kept`, `timed-out` or `read-failed` on a resolve; the refresh reason on a resource span |
+| `trigger`, `reached` | `resource.refresh` | What started the round (`start`, `reconnect`, `after-turn`); whether the daemon answered its watch status |
+| `reason`, `resources`, `pod` | `resource.wait` | Why the turn blocked (`missing`, `cloud`), which resources it waited on, and whether the pod was `ready` or `waking` |
 | `first_chunk_ms` | `model.call` | Request to the first streamed chunk of any kind |
 | `first_reasoning_ms` | `model.call` | Request to the first thinking chunk; absent when the model did not think |
 | `first_output_ms` | `model.call` | Request to the first visible text or tool-call chunk |

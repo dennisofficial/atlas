@@ -49,7 +49,8 @@ describe('the plugin resources load at startup and on a push', () => {
     await turn.settled()
 
     expect(turn.calls.map((call) => call.op)).toEqual(['watch.status'])
-    expect(loads).toEqual(['skills', 'crew', 'skills'])
+    expect(loads.filter((name) => name === 'crew')).toHaveLength(1)
+    expect(loads.filter((name) => name === 'skills')).toHaveLength(2)
     expect(readResource({ ctx: turn.ctx, resource: crew })).toBe('crew')
   })
 
