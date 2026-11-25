@@ -29,8 +29,8 @@ jobs:
       - name: bump the pinned version and open a PR on drift
         run: |
           set -euo pipefail
-          (cd packages/harness && bun run generate:claude-code-version)
-          attribution=packages/harness/src/providers/anthropic-subscription-attribution.ts
+          (cd apps/api && bun run generate:claude-code-version)
+          attribution=apps/api/src/agent/model/providers/anthropic-subscription-attribution.ts
           if git diff --quiet -- "$attribution"; then
             echo "claude code attribution version is fresh"
             exit 0
@@ -39,9 +39,9 @@ jobs:
           branch="claude-code-version/$version"
           .github/scripts/api-commit.sh \
             --branch "$branch" \
-            --message "fix(harness): bump claude code attribution version to $version" \
+            --message "fix(api): bump claude code attribution version to $version" \
             -- "$attribution"
           gh pr create --head "$branch" --base main \
-            --title "fix(harness): bump claude code attribution version to $version" \
+            --title "fix(api): bump claude code attribution version to $version" \
             --body "Automated bump of \`CLAUDE_CODE_VERSION\` to the latest \`@anthropic-ai/claude-code\` release ($version). Queued for auto-merge; lands once ci is green."
           gh pr merge --squash --auto "$(gh pr list --head "$branch" --json number --jq '.[0].number')"

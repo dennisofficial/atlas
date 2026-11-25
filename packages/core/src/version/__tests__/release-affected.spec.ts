@@ -9,23 +9,17 @@ import {
 } from '../release-affected'
 
 const manifests: readonly WorkspaceManifest[] = [
-  { dir: 'apps/tui', name: '@dltech/atlas', dependencies: ['@dltech/atlas-harness'] },
-  { dir: 'apps/serve', name: '@dltech/atlas-serve', dependencies: ['@dltech/atlas-harness'] },
+  { dir: 'apps/tui', name: '@dltech/atlas', dependencies: ['@dltech/atlas-client'] },
   {
     dir: 'apps/mac',
     name: '@dltech/atlas-mac',
-    dependencies: [
-      '@dltech/atlas-api-router',
-      '@dltech/atlas-core',
-      '@dltech/atlas-harness',
-      '@dltech/atlas-wire',
-    ],
+    dependencies: ['@dltech/atlas-api-router', '@dltech/atlas-core', '@dltech/atlas-wire'],
   },
   { dir: 'apps/web', name: 'web', dependencies: ['@dltech/atlas-ui', '@dltech/atlas-wire'] },
   { dir: 'apps/api', name: '@dltech/atlas-api', dependencies: ['@dltech/atlas-db'] },
   {
-    dir: 'packages/harness',
-    name: '@dltech/atlas-harness',
+    dir: 'packages/client',
+    name: '@dltech/atlas-client',
     dependencies: ['@dltech/atlas-core', 'zod'],
   },
   { dir: 'packages/core', name: '@dltech/atlas-core', dependencies: [] },
@@ -37,12 +31,18 @@ const manifests: readonly WorkspaceManifest[] = [
 const affected = (changedPaths: readonly string[]): readonly string[] =>
   affectedApps({ manifests, apps: SHIPPED_APP_DIRS, changedPaths })
 
+describe('SHIPPED_APP_DIRS', () => {
+  it('ships the TUI and the Mac app', () => {
+    expect(SHIPPED_APP_DIRS).toEqual(['apps/tui', 'apps/mac'])
+  })
+})
+
 describe('workspaceClosure', () => {
   it('follows workspace dependencies transitively and ignores external ones', () => {
     expect(workspaceClosure({ manifests, rootDir: 'apps/tui' }).toSorted()).toEqual([
       'apps/tui',
+      'packages/client',
       'packages/core',
-      'packages/harness',
     ])
   })
 })
@@ -67,7 +67,7 @@ describe('affectedApps', () => {
   })
 
   it('marks every app reaching a deep dependency', () => {
-    expect(affected(['packages/core/src/index.ts'])).toEqual(['apps/tui', 'apps/serve', 'apps/mac'])
+    expect(affected(['packages/core/src/index.ts'])).toEqual(['apps/tui', 'apps/mac'])
   })
 
   it('marks every app for a lockfile, root manifest or patch change', () => {

@@ -16,8 +16,8 @@ import {
   type ExportedScope,
 } from './exported-example'
 
-// Mirrors the file QualityExampleSink writes (packages/harness/src/quality/example-sink.ts exampleContent);
-// schemaVersion there is the string '1', distinct from this workspace's numeric export schema version.
+// Mirrors the example file the retired v1 harness wrote; its schemaVersion is the string '1',
+// distinct from this workspace's numeric export schema version.
 export const sinkRecordSchema = z.strictObject({
   schemaVersion: z.literal(SINK_SCHEMA_VERSION),
   adapterVersion: identifier,

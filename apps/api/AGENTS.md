@@ -252,10 +252,9 @@ health is open and the webhooks verify an HMAC. `ClientVersionGuard` and `Thrott
 global for those REST routes. The retired v1 sandbox and local-pod lease tokens authenticate
 nothing: their principals, their lookup cache and the `sandboxReachable`/`podReachable` procedure
 meta are gone (slice 4a of `docs/v2/slices/v1-retirement.md`). `sandboxSelf`, `sandboxConfig.get`,
-`sandboxCheckpoint.put` and `sandboxRollover` stay registered only so `apps/serve` and
-`packages/harness` keep typechecking against the generated `AppRouter` until slice 5. They sit
-behind `RetiredSandboxTokenMiddleware` (`src/api/platform/sandboxes`), which answers 401 to every
-caller, and slice 4b deletes them.
+`sandboxCheckpoint.put` and `sandboxRollover` have no caller since slice 5 deleted the v1 packages
+that used them. They sit behind `RetiredSandboxTokenMiddleware` (`src/api/platform/sandboxes`),
+which answers 401 to every caller, and slice 4c deletes them.
 
 The device-authorization flow is how the TUI logs in. The pages live in `apps/web` (Vercel,
 `byatlas.io`). The API only exposes the better-auth endpoints. `WEB_ORIGIN` is what points

@@ -57,25 +57,6 @@ jobs:
             exit 1
           fi
 
-      - name: generated plugin types match the sources
-        run: |
-          bun run --cwd packages/harness plugin-types:generate
-          if [ -n "$(git status --porcelain packages/harness/src/plugin-types)" ]; then
-            git --no-pager diff packages/harness/src/plugin-types
-            echo "::error::packages/harness/src/plugin-types is stale; run 'bun run --cwd packages/harness plugin-types:generate' and commit it"
-            exit 1
-          fi
-
-      - name: generated plugin manifest and skills match the sources
-        run: |
-          bun run --cwd packages/harness plugins:generate
-          bun packages/harness/scripts/generate-skills.ts
-          if [ -n "$(git status --porcelain packages/harness/src/plugins packages/harness/src/skills)" ]; then
-            git --no-pager diff packages/harness/src/plugins packages/harness/src/skills
-            echo "::error::the harness plugin manifest or skills bundle is stale; run 'bun run --cwd packages/harness plugins:generate' and 'bun packages/harness/scripts/generate-skills.ts' and commit the output"
-            exit 1
-          fi
-
   # Compiled in its own job: a five-minute compile in `check` serialized behind lint and typecheck,
   # and put the whole PR's latency behind work most PRs cannot break. The reach gate is the same
   # dependency-closure question the release asks (`scripts/app-reach.ts`), so a web-only change
@@ -110,7 +91,7 @@ jobs:
 
       - name: do these binaries need building
         id: reach
-        run: bun scripts/app-reach.ts --base "$REACH_BASE" --app apps/tui --app apps/serve >> "$GITHUB_OUTPUT"
+        run: bun scripts/app-reach.ts --base "$REACH_BASE" --app apps/tui >> "$GITHUB_OUTPUT"
 
       - name: build binary
         if: steps.reach.outputs.run == 'true'
@@ -123,19 +104,9 @@ jobs:
         run: ./bin/atlas --version
         working-directory: apps/tui
 
-      - name: build serve binary
-        if: steps.reach.outputs.run == 'true'
-        run: bun run build:serve
-        working-directory: apps/serve
-
       - name: fetch every platform's optional binaries
         if: steps.reach.outputs.run == 'true'
         run: bun install --os='*' --cpu='*'
-
-      - name: build serve binary (linux-arm64)
-        if: steps.reach.outputs.run == 'true'
-        run: bun run build:serve -- --target bun-linux-arm64 --outfile "$RUNNER_TEMP/atlas-serve-linux-arm64"
-        working-directory: apps/serve
 
   # The Mac app serves its own Next build, so "the interface compiles" is a merge gate; until now the
   # only job that proved it was the macOS rehearsal, because the app bundles that build. This does it
@@ -448,18 +419,6 @@ jobs:
             shasum -a 256 "dist/${asset}" > "dist/${asset}.sha256"
           done
 
-      - name: build serve binary
-        if: steps.version.outputs.skip != 'true'
-        working-directory: apps/serve
-        env:
-          ATLAS_VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          set -euo pipefail
-          bun run build:serve -- --target bun-linux-x64 --outfile dist/atlas-serve-linux-x64
-          bun run build:serve -- --target bun-linux-arm64 --outfile dist/atlas-serve-linux-arm64
-          shasum -a 256 dist/atlas-serve-linux-x64 > dist/atlas-serve-linux-x64.sha256
-          shasum -a 256 dist/atlas-serve-linux-arm64 > dist/atlas-serve-linux-arm64.sha256
-
       - name: create release
         if: steps.version.outputs.skip != 'true'
         working-directory: apps/tui
@@ -475,10 +434,7 @@ jobs:
           if [[ -n "$PREV_TAG" ]]; then
             args+=(--notes-start-tag "$PREV_TAG")
           fi
-          gh release create "tui-v${VERSION}" dist/* \
-            ../serve/dist/atlas-serve-linux-x64 ../serve/dist/atlas-serve-linux-x64.sha256 \
-            ../serve/dist/atlas-serve-linux-arm64 ../serve/dist/atlas-serve-linux-arm64.sha256 \
-            "${args[@]}"
+          gh release create "tui-v${VERSION}" dist/* "${args[@]}"
 
       - name: dispatch sandbox image retag
         if: steps.version.outputs.skip != 'true'
@@ -487,7 +443,7 @@ jobs:
         run: gh workflow run sandbox-image.yml -f release_tag="tui-v${VERSION}" -f release_sha="$TARGET_SHA"
 
       # Three readers resolve releases/latest/download by name and none of them may 404: install.sh
-      # with no version fetches the tui binaries and atlas-serve, the site's download button fetches
+      # with no version fetches the tui binaries, the site's download button fetches
       # macos-arm64-Atlas.dmg, and the installed Mac app fetches latest-mac.yml. latest must not move
       # without those Mac files. All three read the same paths from install.byatlas.io, which the
       # step after this one mirrors and verifies there. This release has no Mac build of its own,

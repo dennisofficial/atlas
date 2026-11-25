@@ -1,7 +1,28 @@
-import { eventBodySchema, eventEnvelopeSchema } from '@dltech/atlas-core'
+import { eventBodySchema, eventEnvelopeSchema, type EventEnvelope } from '@dltech/atlas-core'
 
-import { encodeEventLine } from '../../../../packages/harness/src/store/sessions/lines'
-import { renderUnifiedDiff } from '../../../../packages/harness/src/tools/builtin/unified-diff'
+import { renderUnifiedDiff } from '@dltech/atlas-plugin-quality/review'
+
+const EVENT_LINE_VERSION = 1
+
+const encodeEventLine = ({
+  draft,
+  envelope,
+}: {
+  draft: { type: string }
+  envelope: EventEnvelope
+}): string =>
+  JSON.stringify({
+    v: EVENT_LINE_VERSION,
+    id: envelope.id,
+    seq: envelope.seq,
+    threadId: envelope.threadId,
+    runId: envelope.runId,
+    ...(envelope.parentRunId === undefined ? {} : { parentRunId: envelope.parentRunId }),
+    depth: envelope.depth,
+    at: envelope.at,
+    type: draft.type,
+    body: draft,
+  })
 
 type Body = Record<string, unknown>
 

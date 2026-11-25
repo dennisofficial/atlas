@@ -1,6 +1,6 @@
 import type { Questions } from '@typesafe-ai/sdk'
 
-import type { JevSystemOne } from '../../packages/harness/src/classifier/jev-client'
+import type { JevSystemOne } from '../code-quality/jev-decision-client'
 
 export type FakeTransportRule = {
   matchState?: string | undefined

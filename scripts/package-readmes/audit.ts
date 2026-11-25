@@ -4,7 +4,7 @@ export type PackageManifest = {
   readonly exports: readonly string[]
 }
 
-export const README_EXEMPT = ['packages/agent-v1', 'packages/harness'] as const
+export const README_EXEMPT = [] as const
 
 export const README_MAX_LINES = 150
 

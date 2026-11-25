@@ -102,7 +102,7 @@ describe('apiImageContextProblems', () => {
     const committed = await Bun.file(
       new URL(`../../${API_IMAGE_IGNORE_PATH}`, import.meta.url),
     ).text()
-    expect(committed.split('\n')).toContain('packages/harness/*')
+    expect(committed.split('\n')).toContain('packages/api-router/*')
     expect(apiImageContextProblems({ ignoreLines: committed.split('\n'), workspaces })).toEqual([])
   })
 })

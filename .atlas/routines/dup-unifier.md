@@ -18,7 +18,7 @@
 
 ## Backlog (ranked)
 
-1. Remaining inline `replace(/\s+/g, ' ').trim()` that can call core `oneLine`: client `session/session-rewind.ts:61`, web `threads/data/rewind.ts:50`, control `session-summary.ts:9`, tui `ui/services-model.ts:173`, `ui/components/services.tsx:67`, `packages/quality` `typescript-parser.ts:74`. Skip v1 harness. Then the "description, else folded command" shell-name fallback (core `shellLabel`, web `processNameOf`, tui `shellNameLabel`, client `shellLabelOf`, web `processLabel`): check `?? ''` vs `||` and the id fallback first.
+1. Remaining inline `replace(/\s+/g, ' ').trim()` that can call core `oneLine`: client `session/session-rewind.ts:61`, web `threads/data/rewind.ts:50`, control `session-summary.ts:9`, tui `ui/services-model.ts:173`, `ui/components/services.tsx:67`, `packages/quality` `typescript-parser.ts:74`. Then the "description, else folded command" shell-name fallback (core `shellLabel`, web `processNameOf`, tui `shellNameLabel`, client `shellLabelOf`, web `processLabel`): check `?? ''` vs `||` and the id fallback first.
 2. `contextLabelOf` (200k / 1M), byte-equivalent in web `threads/data/model-options.ts:67` and mobile `composer/model-options.ts:52`. Mobile `EFFORT_LADDER`/`EFFORT_LABELS` re-declare what `@dltech/atlas-ui` already exports.
 3. Relative time: mobile `lib/relative-time.ts` and web `settings/data/personal/relative-time.ts` give identical output (only the argument keys differ) → `packages/core`.
 4. `parseRepoInput`, identical in web and prototype `new-project-repos.ts`; no package is shared by both apps yet, so it needs a home decision.
@@ -26,7 +26,7 @@
 6. PR state → icon/label/tone tables (5 web copies plus mobile and tui): aria labels and unknown-state handling diverge.
 7. `trpcBodyOf` test decoder, 3 identical copies: harness `cloud/__tests__/trpc-body.ts`, serve `__tests__/trpc-body.ts`, tui `composition/__tests__/trpc-body.ts` (all v1 side; `api-router` spec has a fourth inline variant).
 8. `repoFullNameOf`: control `repo-name.ts` (case-insensitive, lowercases) vs core `pr-failed-checks-lines.ts:10`.
-9. Remaining `clipText` copies outside core/client: tui `classify-report.ts:23`, `crash-report.ts:40`; web `errors/error-report.ts:14` (`truncate`, default limit), `threads/data/preview-ports.ts:12`; `packages/github` `github-check-annotations.ts:31`; core `failed-check.ts:49` (trims first, `undefined` for blank — keep its wrapper). Skip v1 harness copies.
+9. Remaining `clipText` copies outside core/client: tui `classify-report.ts:23`, `crash-report.ts:40`; web `errors/error-report.ts:14` (`truncate`, default limit), `threads/data/preview-ports.ts:12`; `packages/github` `github-check-annotations.ts:31`; core `failed-check.ts:49` (trims first, `undefined` for blank — keep its wrapper).
 
 ## Runs
 

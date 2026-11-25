@@ -8,6 +8,7 @@ export {
 export { prepareQualityScopes } from './scope-adapter'
 export { moduleScopeId, scopeIdOf } from './scope-build'
 export { renderScopeDiff } from './scope-diff'
+export { renderUnifiedDiff } from './unified-diff'
 export { EScopeMatchKind, matchScopes, type ScopeMatch } from './scope-matching'
 export {
   QUALITY_SOURCE_ADAPTER_VERSION,

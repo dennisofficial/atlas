@@ -144,5 +144,3 @@ const qualityPod = qualityPodOf({
 
 - [`docs/v2/slices/jev-quality.md`](../../docs/v2/slices/jev-quality.md) explains the design and the state it dropped.
 - [`packages/core/src/quality`](../../packages/core/src/quality) holds the shared types and the record schema.
-- v1's `packages/harness` keeps a frozen copy of the pure logic it reads in
-  `packages/harness/src/quality/core-logic`; it does not import this plugin.

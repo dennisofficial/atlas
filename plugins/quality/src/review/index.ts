@@ -55,6 +55,7 @@ export {
   parseQualitySource,
   prepareQualityScopes,
   renderScopeDiff,
+  renderUnifiedDiff,
   scopeIdOf,
   scriptKindForPath,
 } from './source'

@@ -1,8 +1,8 @@
 import { db } from '@dltech/atlas-db'
 import type { PrVerdictTiming } from './github-pr-event-transitions'
 
-// Harness settings upload envelope: packages/harness/src/cloud/sync-settings.ts encodes values
-// as `atlas-setting:v1:` + JSON before writing them to CloudSetting; readers must unwrap.
+// Stored setting values are encoded as `atlas-setting:v1:` + JSON before they reach CloudSetting;
+// readers must unwrap.
 const SETTING_VALUE_PREFIX = 'atlas-setting:v1:'
 
 export const VERDICT_TIMING_SETTING_KEY = 'github.prEvents.verdictTiming'
