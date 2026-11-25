@@ -1,8 +1,6 @@
 import { Module } from '@nestjs/common'
 import { HealthModule } from '../health/health.module'
-import { NotificationsModule } from '../notifications/notifications.module'
 import { SandboxesModule } from '../sandboxes/sandboxes.module'
-import { ContextFilesRouter } from './context-files.router'
 import { EventsService } from './events.service'
 import { TeammateArchiveStopService } from './teammate-archive-stop'
 import { ThreadArchiveService } from './thread-archive.service'
@@ -16,7 +14,7 @@ import { ThreadsService } from './threads.service'
 import { TurnsService } from './turns.service'
 
 @Module({
-  imports: [SandboxesModule, HealthModule, NotificationsModule, ThreadSignalsModule],
+  imports: [SandboxesModule, HealthModule, ThreadSignalsModule],
   providers: [
     ThreadsService,
     TeammateArchiveStopService,
@@ -28,7 +26,6 @@ import { TurnsService } from './turns.service'
     ThreadsRouter,
     ThreadEventsRouter,
     ThreadTurnsRouter,
-    ContextFilesRouter,
   ],
   exports: [SandboxesModule, ThreadsService, ThreadSignalsModule],
 })

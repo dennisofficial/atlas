@@ -3,7 +3,6 @@ import { serverAnalytics } from '../../../agent'
 import { createEmailSender } from '../../../_lib/email/email-sender'
 import { captureSignedIn, captureSignedUp } from './auth-analytics'
 import { createAuthEmailHooks } from './auth-email-hooks'
-import { deletePushDevicesOfSession } from './auth-session-hooks'
 import { sessionStorageFromEnv } from './auth-session-storage'
 import { missingTrustedOrigins } from './trusted-origins'
 import { betterAuth } from 'better-auth'
@@ -112,7 +111,6 @@ export const auth = betterAuth({
         after: async (session, context) =>
           captureSignedIn(serverAnalytics().analytics, session, context),
       },
-      delete: { after: deletePushDevicesOfSession },
     },
   },
   plugins: [

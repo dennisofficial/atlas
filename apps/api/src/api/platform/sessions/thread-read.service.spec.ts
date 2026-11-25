@@ -1,7 +1,6 @@
 import { db } from '@dltech/atlas-db'
 import { useTestDatabase } from '@dltech/atlas-db/testing'
-import { beforeEach, describe, expect, it, vi } from 'bun:test'
-import type { NotificationsService } from '../notifications/notifications.service'
+import { beforeEach, describe, expect, it } from 'bun:test'
 import { seedThreadRow, seedUsers, USER_A, USER_B } from '../../../../test/session-seed'
 import { recordingSignals } from './thread-signals.fixture'
 import { nextReadSeq, ThreadReadService } from './thread-read.service'
@@ -24,10 +23,7 @@ describe('nextReadSeq', () => {
 describe('ThreadReadService.markRead', () => {
   useTestDatabase()
   const recorder = recordingSignals()
-  const dismissThread = vi.fn(async () => undefined)
-  const service = new ThreadReadService(recorder.signals, {
-    dismissThread,
-  } as unknown as NotificationsService)
+  const service = new ThreadReadService(recorder.signals)
 
   beforeEach(async () => {
     await seedUsers(USER_A, USER_B)
@@ -41,23 +37,6 @@ describe('ThreadReadService.markRead', () => {
     await service.markRead({ userId: USER_A, threadId: 'thr-1', seq: 2 })
 
     expect(frames).toEqual(['thr-1'])
-  })
-
-  it('dismisses the thread notification when the marker advances', async () => {
-    dismissThread.mockClear()
-
-    await service.markRead({ userId: USER_A, threadId: 'thr-1', seq: 2 })
-
-    expect(dismissThread).toHaveBeenCalledWith({ userId: USER_A, threadId: 'thr-1' })
-  })
-
-  it('does not dismiss when the marker does not move', async () => {
-    await service.markRead({ userId: USER_A, threadId: 'thr-1', seq: 3 })
-    dismissThread.mockClear()
-
-    await service.markRead({ userId: USER_A, threadId: 'thr-1', seq: 3 })
-
-    expect(dismissThread).not.toHaveBeenCalled()
   })
 
   it('does not signal when the stored marker does not move', async () => {
