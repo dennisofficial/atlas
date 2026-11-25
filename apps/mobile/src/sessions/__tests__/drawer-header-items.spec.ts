@@ -1,18 +1,33 @@
 import { describe, expect, it } from 'bun:test'
 
 import { ESessionsListLayout } from '../../layout/posture'
-import { drawerBarItemsOf, drawerSearchBarPropsOf } from '../drawer-header-items'
+import {
+  drawerBarItemsOf,
+  drawerSearchBarPropsOf,
+  usesNativeSearchOf,
+} from '../drawer-header-items'
 
 const noop = () => {}
 
 describe('drawerSearchBarPropsOf', () => {
   it('asks for the round glass search button that expands into the field', () => {
-    expect(drawerSearchBarPropsOf({ listLayout: ESessionsListLayout.Stacked })).toEqual({
+    expect(drawerSearchBarPropsOf()).toEqual({
       allowToolbarIntegration: false,
       autoCapitalize: 'none',
       placeholder: 'Search',
       placement: 'integratedButton',
     })
+  })
+})
+
+describe('usesNativeSearchOf', () => {
+  it('keeps the native bar search off the fixed panel, which cannot fit it', () => {
+    expect(usesNativeSearchOf({ listLayout: ESessionsListLayout.Panel })).toBe(false)
+  })
+
+  it('keeps the native bar search on every other layout', () => {
+    expect(usesNativeSearchOf({ listLayout: ESessionsListLayout.Stacked })).toBe(true)
+    expect(usesNativeSearchOf({ listLayout: ESessionsListLayout.Overlay })).toBe(true)
   })
 })
 
@@ -62,13 +77,5 @@ describe('drawerBarItemsOf', () => {
     item.onPress()
     expect(pressed).toBe(1)
     expect(item.accessibilityLabel).toBe('Settings')
-  })
-})
-
-describe('drawerSearchBarPropsOf in the fixed panel', () => {
-  it('keeps the field under the title so it fits the narrow panel', () => {
-    expect(drawerSearchBarPropsOf({ listLayout: ESessionsListLayout.Panel }).placement).toBe(
-      'stacked',
-    )
   })
 })

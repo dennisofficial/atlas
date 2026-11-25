@@ -42,7 +42,13 @@ export const SessionsDrawerShell = ({
         <SearchField value={query} onChangeText={setQuery} />
       </View>
       <View style={styles.list}>
-        <SessionsList activeId={activeId} onOpen={onOpen} query={query} />
+        <SessionsList
+          activeId={activeId}
+          onOpen={onOpen}
+          onQueryChange={setQuery}
+          query={query}
+          showsSearchField={false}
+        />
       </View>
     </View>
   )

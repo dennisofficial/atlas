@@ -11,6 +11,7 @@ import type { ISessionEntry } from './session-groups'
 import { SectionHeader } from './section-header'
 import { BucketProjectLabel, SessionRow } from './session-row'
 import { EItemKind, sectionsOf } from './session-sections'
+import { SearchField } from './search-field'
 import { SwipeableSessionRow } from './swipeable-session-row'
 import { useArchiveSession } from './use-archive-session'
 import { ELoadState, useSessions } from './use-sessions'
@@ -54,11 +55,15 @@ const ListStatusView = ({ status, onRetry }: { status: EListStatus; onRetry: () 
 export const SessionsList = ({
   activeId,
   onOpen,
+  onQueryChange,
   query,
+  showsSearchField,
 }: {
   activeId: string | null
   onOpen: (entry: ISessionEntry) => void
+  onQueryChange: (text: string) => void
   query: string
+  showsSearchField: boolean
 }) => {
   const theme = useTheme()
   const posture = usePosture()
@@ -85,6 +90,17 @@ export const SessionsList = ({
     searching: query.trim().length > 0,
   })
 
+  const header = (
+    <View style={styles.header}>
+      {showsSearchField ? <SearchField value={query} onChangeText={onQueryChange} /> : null}
+      {failure === null ? null : (
+        <Text size={ETextRole.Sm} tone={ETextTone.Destructive}>
+          {failure}
+        </Text>
+      )}
+    </View>
+  )
+
   return (
     <SectionList
       style={{ backgroundColor: theme.sidebar }}
@@ -95,20 +111,12 @@ export const SessionsList = ({
           paddingBottom: space(8) + posture.clearance.bottom,
         },
       ]}
-      keyboardDismissMode="on-drag"
+      keyboardDismissMode={showsSearchField ? 'on-drag' : 'none'}
       contentInsetAdjustmentBehavior="automatic"
       sections={sections}
       keyExtractor={(item) => item.key}
       stickySectionHeadersEnabled={false}
-      ListHeaderComponent={
-        failure === null ? undefined : (
-          <View style={styles.header}>
-            <Text size={ETextRole.Sm} tone={ETextTone.Destructive}>
-              {failure}
-            </Text>
-          </View>
-        )
-      }
+      ListHeaderComponent={header}
       ListFooterComponent={<ListStatusView status={status} onRetry={() => void refresh()} />}
       refreshControl={
         <RefreshControl

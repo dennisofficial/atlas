@@ -2,18 +2,17 @@ import type { HeaderBarButtonItem, SearchBarProps } from 'react-native-screens'
 
 import { ESessionsListLayout } from '../layout/posture'
 
-export const drawerSearchBarPropsOf = ({
-  listLayout,
-}: {
-  listLayout: ESessionsListLayout
-}): Pick<
+export const usesNativeSearchOf = ({ listLayout }: { listLayout: ESessionsListLayout }): boolean =>
+  listLayout !== ESessionsListLayout.Panel
+
+export const drawerSearchBarPropsOf = (): Pick<
   SearchBarProps,
   'allowToolbarIntegration' | 'autoCapitalize' | 'placeholder' | 'placement'
 > => ({
   allowToolbarIntegration: false,
   autoCapitalize: 'none',
   placeholder: 'Search',
-  placement: listLayout === ESessionsListLayout.Panel ? 'stacked' : 'integratedButton',
+  placement: 'integratedButton',
 })
 
 const accountBarItemOf = ({ onPress }: { onPress: () => void }): HeaderBarButtonItem => ({
