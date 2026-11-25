@@ -38,6 +38,7 @@ export type SandboxSaidUploadsDeps = {
 
 export class SandboxSaidUploads extends SaidUploadsPort {
   private readonly settled = new Map<string, UploadPlacement>()
+  private readonly checking = new Set<string>()
 
   constructor(private readonly deps: SandboxSaidUploadsDeps) {
     super()
@@ -45,14 +46,65 @@ export class SandboxSaidUploads extends SaidUploadsPort {
 
   async place(args: PlaceArgs): Promise<ReadonlyMap<string, UploadPlacement>> {
     const placements = new Map<string, UploadPlacement>()
-    const queue = this.filesOf(args)
+    const current: PlaceableFile[] = []
+    const older: PlaceableFile[] = []
+    for (const file of this.filesOf(args)) {
+      const known = this.knownPlacementOf(file)
+      if (known !== undefined) placements.set(file.fileId, known)
+      else if (args.currentFileIds?.has(file.fileId) ?? true) current.push(file)
+      else placements.set(file.fileId, this.assumePlaced({ args, file, older }))
+    }
+    this.checkInBackground({ args, files: older })
+    await this.placeAll({ args, files: current, placements })
+    return placements
+  }
+
+  private knownPlacementOf(file: PlaceableFile): UploadPlacement | undefined {
+    if (!file.owned || this.deps.blobs === null) return MISSING
+    return this.settled.get(file.fileId)
+  }
+
+  private assumePlaced(args: {
+    args: PlaceArgs
+    file: PlaceableFile
+    older: PlaceableFile[]
+  }): UploadPlacement {
+    if (!this.checking.has(args.file.fileId)) {
+      this.checking.add(args.file.fileId)
+      args.older.push(args.file)
+    }
+    return { state: EUploadState.Ready, path: this.targetOf(args.file) }
+  }
+
+  private checkInBackground(args: { args: PlaceArgs; files: PlaceableFile[] }): void {
+    if (args.files.length === 0) return
+    void this.placeAll({
+      args: { ...args.args, signal: undefined },
+      files: args.files,
+      placements: new Map(),
+    })
+      .catch(() => undefined)
+      .finally(() => {
+        for (const file of args.files) this.checking.delete(file.fileId)
+      })
+  }
+
+  private async placeAll(args: {
+    args: PlaceArgs
+    files: PlaceableFile[]
+    placements: Map<string, UploadPlacement>
+  }): Promise<void> {
+    const queue = [...args.files]
     const worker = async (): Promise<void> => {
       for (let next = queue.shift(); next !== undefined; next = queue.shift()) {
-        placements.set(next.fileId, await this.placeOne({ ...args, file: next }))
+        args.placements.set(next.fileId, await this.placeOne({ ...args.args, file: next }))
       }
     }
     await Promise.all(Array.from({ length: Math.min(CONCURRENCY, queue.length) }, worker))
-    return placements
+  }
+
+  private targetOf(file: PlaceableFile): string {
+    return `${this.deps.home}/${uploadPathOf({ fileId: file.fileId, name: file.name })}`
   }
 
   private filesOf(args: PlaceArgs): PlaceableFile[] {
@@ -79,13 +131,12 @@ export class SandboxSaidUploads extends SaidUploadsPort {
 
   private async placeOne(args: PlaceArgs & { file: PlaceableFile }): Promise<UploadPlacement> {
     const { file } = args
-    if (!file.owned) return MISSING
-    const remembered = this.settled.get(file.fileId)
-    if (remembered !== undefined) return remembered
+    const known = this.knownPlacementOf(file)
+    if (known !== undefined) return known
     const { blobs } = this.deps
     if (blobs === null) return MISSING
 
-    const target = `${this.deps.home}/${uploadPathOf({ fileId: file.fileId, name: file.name })}`
+    const target = this.targetOf(file)
     try {
       const placement = (await this.isPresent(target))
         ? { state: EUploadState.Ready as const, path: target }
