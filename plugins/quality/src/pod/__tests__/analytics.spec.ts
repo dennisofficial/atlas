@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'bun:test'
 
 import {
   EClassifierFault,
@@ -10,7 +10,6 @@ import {
 import { EAnalyticsLinks, type PodAnalyticsValue } from '@dltech/atlas-plugin-sdk'
 
 import { resolvedFindingProperties } from '../analytics/review-properties'
-import { forgetUnavailableReports } from '../analytics/unavailable'
 import {
   briefSaid,
   eventsOf,
@@ -21,28 +20,9 @@ import {
   turnStarted,
   wakeConsumed,
 } from './finding-fixtures'
-import {
-  FILE,
-  THREAD,
-  analyticsRecorder,
-  createRig,
-  readCall,
-  wroteNothing,
-  writeCall,
-  type Captured,
-} from './support'
+import { FILE, THREAD, analyticsRecorder, completedOf, createRig, wroteNothing } from './support'
 
 const REVIEW_ID = 'review-1'
-
-const completedOf = (captured: readonly Captured[]): Captured | undefined =>
-  captured.find((one) => one.event === 'quality review completed')
-
-const scopesOf = (captured: readonly Captured[]): readonly Captured[] =>
-  captured.filter((one) => one.event === 'quality scope assessed')
-
-beforeEach(() => {
-  forgetUnavailableReports()
-})
 
 describe('resolvedFindingProperties', () => {
   const events = eventsOf([notified(), said, said])
@@ -261,89 +241,6 @@ describe('the completed review event', () => {
     const rig = createRig({ analytics })
 
     await rig.run({ result: wroteNothing() })
-
-    expect(captured).toEqual([])
-  })
-})
-
-describe('the scope assessed event', () => {
-  it('sends one event for the single scope and policy the review scored', async () => {
-    const { captured, analytics } = analyticsRecorder()
-    const rig = createRig({ analytics })
-
-    await rig.run()
-
-    const scopes = scopesOf(captured)
-    expect(scopes).toHaveLength(1)
-    const reviewId = String(completedOf(captured)?.properties.review_id)
-    expect(scopes[0]?.properties).toMatchObject({
-      review_id: reviewId,
-      policy_id: 'single-responsibility',
-      policy_version: '1',
-      change_kind: 'edited',
-      concern_score: 0.9,
-      impact: 'introduced',
-      impact_confidence: 0.9,
-      transition: 'introduce',
-      verdict: 'nudged',
-      near_miss: false,
-      concern_threshold: 0.8,
-      impact_threshold: 0.8,
-      deadline_missed: false,
-    })
-    expect(scopes[0]?.properties.extension).toBe('.ts')
-    expect(Number(scopes[0]?.properties.scope_bytes)).toBeGreaterThan(0)
-    expect(Number(scopes[0]?.properties.request_bytes)).toBeGreaterThan(0)
-    expect(scopes[0]?.links).toBe(EAnalyticsLinks.Hashed)
-  })
-
-  it('sends no scope event for a scope the engine did not score', async () => {
-    const { captured, analytics } = analyticsRecorder()
-    const rig = createRig({ analytics })
-
-    await rig.run({ projectDirectory: '/elsewhere' })
-
-    expect(scopesOf(captured)).toEqual([])
-  })
-})
-
-describe('the unavailable event', () => {
-  it('reports a write that the classifier is off for once per session', async () => {
-    const { captured, analytics } = analyticsRecorder()
-    const rig = createRig({ analytics, classifierOn: false })
-
-    await rig.captures(writeCall())
-    await rig.captures(writeCall())
-
-    expect(captured).toEqual([
-      {
-        event: 'quality review unavailable',
-        properties: { reason: 'classifier_off' },
-        links: EAnalyticsLinks.Hashed,
-      },
-    ])
-  })
-
-  it('reports the setting being off for a write', async () => {
-    const { captured, analytics } = analyticsRecorder()
-    const rig = createRig({ analytics, settings: { enabled: false, policies: {} } })
-
-    await rig.captures(writeCall())
-
-    expect(captured).toEqual([
-      {
-        event: 'quality review unavailable',
-        properties: { reason: 'setting_off' },
-        links: EAnalyticsLinks.Hashed,
-      },
-    ])
-  })
-
-  it('reports nothing for a read call', async () => {
-    const { captured, analytics } = analyticsRecorder()
-    const rig = createRig({ analytics, classifierOn: false })
-
-    await rig.captures(readCall())
 
     expect(captured).toEqual([])
   })

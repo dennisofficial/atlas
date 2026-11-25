@@ -226,6 +226,12 @@ export const analyticsRecorder = (): { captured: Captured[]; analytics: PodAnaly
 
 export type Rig = ReturnType<typeof createRig>
 
+export const completedOf = (captured: readonly Captured[]): Captured | undefined =>
+  captured.find((one) => one.event === 'quality review completed')
+
+export const scopesOf = (captured: readonly Captured[]): readonly Captured[] =>
+  captured.filter((one) => one.event === 'quality scope assessed')
+
 export const recordsOf = (drafts: readonly EventDraft[]): readonly CodeQualityReviewedBody[] =>
   drafts.filter((draft): draft is CodeQualityReviewedBody => draft.type === 'code-quality-reviewed')
 
