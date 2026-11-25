@@ -4,7 +4,7 @@ import {
   type PodSample,
   type ThreadId,
 } from '@dltech/atlas-core'
-import type { PodAnalytics } from '@dltech/atlas-plugin-sdk'
+import { EAnalyticsThreadKind, type PodAnalytics } from '@dltech/atlas-plugin-sdk'
 import { logFieldsOf, type LogPort } from '@dltech/atlas-observability'
 import { metricsSampleEventSchema } from '@dltech/atlas-protocol'
 
@@ -244,6 +244,7 @@ export const podSampleObserverOf = (args: {
             analytics: args.runtime.analytics,
             sessionId: args.deps.sessionId,
             threadId: args.threadId,
+            threadKind: EAnalyticsThreadKind.Main,
           }),
     timers: args.deps.timers,
     ...(args.deps.log === undefined ? {} : { log: args.deps.log }),
