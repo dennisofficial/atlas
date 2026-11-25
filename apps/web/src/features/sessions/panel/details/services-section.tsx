@@ -60,8 +60,7 @@ function ServiceVerbs(props: { sessionId: string; service: ServiceRow }) {
       <Button
         type="button"
         variant="ghost"
-        size="sm"
-        className="h-6 px-1.5 text-xs"
+        size="row"
         data-service-stop={props.service.serviceId}
         onClick={handleStop}
       >
@@ -70,8 +69,7 @@ function ServiceVerbs(props: { sessionId: string; service: ServiceRow }) {
       <Button
         type="button"
         variant="ghost"
-        size="sm"
-        className="h-6 px-1.5 text-xs"
+        size="row"
         data-service-restart={props.service.serviceId}
         onClick={handleRestart}
       >

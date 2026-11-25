@@ -70,15 +70,16 @@ function CrewMessage({ agentId, sessionId }: { agentId: string; sessionId: strin
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
         data-crew-message={agentId}
-        render={<Button type="button" variant="ghost" size="sm" className="h-6 px-1.5 text-xs" />}
+        render={<Button type="button" variant="ghost" size="row" />}
       >
         Message
       </PopoverTrigger>
-      <PopoverContent align="end" className="flex w-72 items-center gap-1 p-1.5">
+      <PopoverContent align="end" className="items-center" size="sm">
         <Input
           data-crew-message-text
           aria-label={`Message ${agentId}`}
-          className="h-7 text-xs"
+          size="sm"
+          className="text-xs"
           value={text}
           onChange={(event) => setText(event.target.value)}
           onKeyDown={(event) => {
@@ -88,7 +89,7 @@ function CrewMessage({ agentId, sessionId }: { agentId: string; sessionId: strin
         <Button
           type="button"
           size="sm"
-          className="h-7 text-xs"
+          className="text-xs"
           data-crew-message-send
           onClick={handleSend}
         >
@@ -112,8 +113,7 @@ function CrewRowActions({ row, sessionId }: { row: CrewRow; sessionId: string })
       <Button
         type="button"
         variant="ghost"
-        size="sm"
-        className="h-6 px-1.5 text-xs"
+        size="row"
         data-crew-stop={row.agentId}
         onClick={handleStop}
       >

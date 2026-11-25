@@ -14,7 +14,7 @@ type Story = StoryObj<typeof meta>
 
 const variants = ['default', 'outline', 'secondary', 'ghost', 'destructive', 'link'] as const
 
-const sizes = ['xs', 'sm', 'default', 'lg'] as const
+const sizes = ['xs', 'row', 'sm', 'default', 'lg'] as const
 
 export const Default: Story = {}
 
@@ -41,6 +41,8 @@ export const Variants: Story = {
 }
 
 export const ExtraSmall: Story = { args: { size: 'xs', children: 'xs' } }
+
+export const Row: Story = { args: { size: 'row', children: 'row' } }
 
 export const Small: Story = { args: { size: 'sm', children: 'sm' } }
 

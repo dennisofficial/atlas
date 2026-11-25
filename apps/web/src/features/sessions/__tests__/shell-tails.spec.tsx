@@ -5,10 +5,14 @@ import type { Root } from 'react-dom/client'
 
 import type { ShellRoster } from '@dltech/atlas-plugin-shells/client'
 
+import * as realSessionsApi from '../data/sessions-api'
+
 const calls: unknown[] = []
 
 mock.module('../data/sessions-api', () => ({
+  ...realSessionsApi,
   sessionsApi: {
+    ...realSessionsApi.sessionsApi,
     command: async (input: unknown) => {
       calls.push(input)
       return {}
