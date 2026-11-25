@@ -7,7 +7,6 @@ import type {
   FilesTreeOutput,
   MediaConfirmInput,
   MediaPresignInput,
-  MediaToolPictureInput,
   MediaUrlInput,
   SessionChangesInput,
   SessionChangesOutput,
@@ -85,7 +84,6 @@ export type FakeCalls = {
   presignMedia: MediaPresignInput[]
   confirmMedia: MediaConfirmInput[]
   mediaUrl: MediaUrlInput[]
-  toolPicture: MediaToolPictureInput[]
   presignUpload: UploadPresignBody[]
   discardUpload: string[]
   loadDraft: string[]
@@ -299,7 +297,6 @@ export const fakeSessionClient = (args: {
     presignMedia: [],
     confirmMedia: [],
     mediaUrl: [],
-    toolPicture: [],
     presignUpload: [],
     discardUpload: [],
     loadDraft: [],
@@ -438,10 +435,6 @@ export const fakeSessionClient = (args: {
     mediaUrl: async (input) => {
       calls.mediaUrl.push(input)
       return { url: 'https://media.example.test/picture' }
-    },
-    toolPicture: async (input) => {
-      calls.toolPicture.push(input)
-      return { mediaType: 'image/png', data: '' }
     },
     presignUpload: async (input): Promise<UploadPresignReply> => {
       calls.presignUpload.push(input)

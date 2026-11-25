@@ -6,14 +6,14 @@ const SECRET = 'c'.repeat(64)
 let host: IDesktopHost
 let bare: IDesktopHost
 
-beforeAll(() => {
-  host = createDesktopHost({
+beforeAll(async () => {
+  host = await createDesktopHost({
     appOrigin: 'http://127.0.0.1:1',
     apiOrigin: 'http://127.0.0.1:1',
     secret: SECRET,
     app: { version: '1.42.0', channel: 'stable', chromium: true },
   })
-  bare = createDesktopHost({
+  bare = await createDesktopHost({
     appOrigin: 'http://127.0.0.1:1',
     apiOrigin: 'http://127.0.0.1:1',
     secret: SECRET,

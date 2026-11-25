@@ -34,14 +34,11 @@ export function ToolImage(props: {
   const covered = useTranscriptCovered()
   const image = imageOf(props.call)
   const toolPicture = props.call.image
-  const loaded = useToolPictureBytes(
-    toolPicture !== undefined && toolPicture.kind !== 'inline' ? toolPicture : undefined,
+  const loaded = useToolPictureBytes(toolPicture)
+  const bytes = React.useMemo(
+    () => (loaded === undefined || loaded === null ? null : Buffer.from(loaded)),
+    [loaded],
   )
-  const bytes = React.useMemo(() => {
-    if (toolPicture?.kind === 'inline')
-      return toolPicture.data.length === 0 ? null : Buffer.from(toolPicture.data, 'base64')
-    return loaded === undefined || loaded === null ? null : Buffer.from(loaded)
-  }, [toolPicture, loaded])
   const source = bytes ?? (toolPicture === undefined ? (image?.path ?? null) : null)
   const summary = imageSummary({ call: props.call, cwd: props.cwd })
   const collapsible = props.expand?.onToggle !== undefined
@@ -53,7 +50,7 @@ export function ToolImage(props: {
       openImage({
         path: image.path,
         mediaType: image.mediaType,
-        data: bytes?.toString('base64') ?? image.data,
+        data: bytes?.toString('base64') ?? null,
       })
   }
   const picture = useClickRegion(image === null ? undefined : handleOpen)

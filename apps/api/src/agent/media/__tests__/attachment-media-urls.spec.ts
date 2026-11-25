@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import {
+  EUploadState,
   SIGN_WINDOW_MS,
   attachmentsOf,
   messagesFromEvents,
@@ -11,6 +12,7 @@ import {
   uploadBlobPathnameOf,
   type EventOfType,
   type RuleContext,
+  type UploadPlacement,
 } from '@dltech/atlas-core'
 import { FakeMediaStore } from '@dltech/atlas-media/testing'
 
@@ -23,18 +25,28 @@ const threadId = toThreadId('thread-1')
 
 const UPLOAD_ID = '11111111-1111-4111-8111-111111111111'
 
+const HASH = 'a'.repeat(64)
+
 const AT = 3 * SIGN_WINDOW_MS + 1000
 
-const setup = (opts: { now?: () => number } = {}) => {
-  const store = new FakeMediaStore()
-  const signer = new MediaSigner({
+const signerFor = (store: FakeMediaStore) =>
+  new MediaSigner({
     store,
     windows: new MemoryMediaSigningWindows(),
     cipher: new SecretCipher('a'.repeat(64)),
     now: () => AT,
   })
-  const urls = signerAttachmentUrls({ signer, userId: 'u1', now: opts.now ?? (() => AT) })
-  return { store, urls }
+
+const setup = () => {
+  const store = new FakeMediaStore()
+  const urls = signerAttachmentUrls({ signer: signerFor(store), userId: 'u1' })
+  let heads = 0
+  const head = store.head.bind(store)
+  store.head = async (args) => {
+    heads += 1
+    return head(args)
+  }
+  return { store, urls, heads: () => heads }
 }
 
 const uploadRef = (userId: string) => ({
@@ -43,72 +55,56 @@ const uploadRef = (userId: string) => ({
   pathname: uploadBlobPathnameOf({ userId, uploadId: UPLOAD_ID, name: 'a.png' }),
 })
 
-const stored = (store: FakeMediaStore, userId: string) => {
-  store.blobs.set(uploadRef(userId).pathname, 4)
-}
+const placementsOf = (args: {
+  fileId: string
+  placement: UploadPlacement
+}): ReadonlyMap<string, UploadPlacement> => new Map([[args.fileId, args.placement]])
 
 describe('signerAttachmentUrls', () => {
-  it('signs a media hash', async () => {
-    const url = await setup().urls.urlOf({ ref: { hash: 'a'.repeat(64) }, threadId })
+  it('signs a media hash without asking the store', async () => {
+    const { urls, heads } = setup()
 
-    expect(url).toContain(`media/u1/${'a'.repeat(64)}`)
+    const url = await urls.urlOf({ ref: { hash: HASH }, threadId })
+
+    expect(url).toContain(`media/u1/${HASH}`)
+    expect(heads()).toBe(0)
   })
 
-  it('signs an upload id the user owns', async () => {
-    const { store, urls } = setup()
-    stored(store, 'u1')
+  it('signs an upload id the user owns without asking the store', async () => {
+    const { urls, heads } = setup()
 
     const url = await urls.urlOf({ ref: uploadRef('u1'), threadId })
 
     expect(url).toContain(UPLOAD_ID)
+    expect(heads()).toBe(0)
   })
 
   it('refuses an upload that belongs to someone else', async () => {
-    const { store, urls } = setup()
-    stored(store, 'u2')
+    const { urls } = setup()
 
     await expect(urls.urlOf({ ref: uploadRef('u2'), threadId })).rejects.toThrow(/not owned/)
   })
 
-  it('refuses an upload whose blob is gone', async () => {
-    await expect(setup().urls.urlOf({ ref: uploadRef('u1'), threadId })).rejects.toThrow(/no blob/)
+  it('refuses a file whose placement fact says it is missing', async () => {
+    const { urls, heads } = setup()
+    const placements = placementsOf({
+      fileId: UPLOAD_ID,
+      placement: { state: EUploadState.Missing },
+    })
+
+    await expect(urls.urlOf({ ref: uploadRef('u1'), threadId, placements })).rejects.toThrow(
+      /no longer available/,
+    )
+    expect(heads()).toBe(0)
   })
 
-  it('keeps calling a deleted upload missing without asking the store again', async () => {
-    const { store, urls } = setup()
-    let heads = 0
-    const head = store.head.bind(store)
-    store.head = async (args) => {
-      heads += 1
-      return head(args)
-    }
+  it('refuses a stored picture whose placement fact says it is missing', async () => {
+    const { urls } = setup()
+    const placements = placementsOf({ fileId: HASH, placement: { state: EUploadState.Missing } })
 
-    await expect(urls.urlOf({ ref: uploadRef('u1'), threadId })).rejects.toThrow(/no blob/)
-    stored(store, 'u1')
-
-    await expect(urls.urlOf({ ref: uploadRef('u1'), threadId })).rejects.toThrow(/no blob/)
-    expect(heads).toBe(1)
-  })
-
-  it('holds a present blob for the cached window and checks again past it', async () => {
-    let now = AT
-    const { store, urls } = setup({ now: () => now })
-    stored(store, 'u1')
-    let heads = 0
-    const head = store.head.bind(store)
-    store.head = async (args) => {
-      heads += 1
-      return head(args)
-    }
-
-    await urls.urlOf({ ref: uploadRef('u1'), threadId })
-    now = AT + 30_000
-    await urls.urlOf({ ref: uploadRef('u1'), threadId })
-    expect(heads).toBe(1)
-
-    now = AT + 61_000
-    await urls.urlOf({ ref: uploadRef('u1'), threadId })
-    expect(heads).toBe(2)
+    await expect(urls.urlOf({ ref: { hash: HASH }, threadId, placements })).rejects.toThrow(
+      /no longer available/,
+    )
   })
 })
 
@@ -136,12 +132,16 @@ const saidEvent = (userId: string): EventOfType<'user-said'> => ({
   ],
 })
 
-const picturePartsOf = async (store: FakeMediaStore): Promise<unknown[]> => {
+const picturePartsOf = async (args: {
+  store: FakeMediaStore
+  placements?: ReadonlyMap<string, UploadPlacement> | undefined
+}): Promise<unknown[]> => {
   const event = saidEvent('u1')
   const mediaUrls = await resolveMediaUrls({
     attachments: attachmentsOf(event),
     threadId,
-    resolver: signerAttachmentUrls({ signer: signerFor(store), userId: 'u1', now: () => AT }),
+    resolver: signerAttachmentUrls({ signer: signerFor(args.store), userId: 'u1' }),
+    ...(args.placements === undefined ? {} : { placements: args.placements }),
   })
   const ctx: RuleContext = {
     events: [event],
@@ -155,36 +155,30 @@ const picturePartsOf = async (store: FakeMediaStore): Promise<unknown[]> => {
   return (messages[0]?.message.content ?? []).filter((part) => part.type === 'image')
 }
 
-const signerFor = (store: FakeMediaStore) =>
-  new MediaSigner({
-    store,
-    windows: new MemoryMediaSigningWindows(),
-    cipher: new SecretCipher('a'.repeat(64)),
-    now: () => AT,
+describe('a said picture with no placement fact', () => {
+  it('hands the model a signed url without checking the blob', async () => {
+    const parts = await picturePartsOf({ store: new FakeMediaStore() })
+
+    expect(parts).toEqual([
+      expect.objectContaining({ type: 'image', bytes: { kind: 'url', url: expect.any(String) } }),
+    ])
   })
+})
 
-describe('a said picture whose upload blob is gone', () => {
+describe('a said picture whose placement fact says it is missing', () => {
   it('hands the model the bytes the event carries instead of a url', async () => {
-    const store = new FakeMediaStore()
+    const placements = placementsOf({
+      fileId: UPLOAD_ID,
+      placement: { state: EUploadState.Missing },
+    })
 
-    const parts = await picturePartsOf(store)
+    const parts = await picturePartsOf({ store: new FakeMediaStore(), placements })
 
     expect(parts).toEqual([
       expect.objectContaining({
         type: 'image',
         bytes: { kind: 'inline', data: PNG },
       }),
-    ])
-  })
-
-  it('hands the model the url while the blob is there', async () => {
-    const store = new FakeMediaStore()
-    store.blobs.set(uploadRef('u1').pathname, 68)
-
-    const parts = await picturePartsOf(store)
-
-    expect(parts).toEqual([
-      expect.objectContaining({ type: 'image', bytes: { kind: 'url', url: expect.any(String) } }),
     ])
   })
 })

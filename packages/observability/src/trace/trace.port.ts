@@ -6,6 +6,7 @@ export enum ESpan {
   TurnHooks = 'turn.hooks',
   Hook = 'hook',
   ContextPrepare = 'context.prepare',
+  UploadsPlace = 'uploads.place',
   ModelCall = 'model.call',
   ModelResolve = 'model.resolve',
   ModelBackoff = 'model.backoff',
@@ -107,6 +108,8 @@ export type SpanFields = {
   readonly delayMs?: number | undefined
   readonly drafts?: number | undefined
   readonly events?: number | undefined
+  readonly files?: number | undefined
+  readonly fetched?: number | undefined
   readonly toolCalls?: number | undefined
   readonly inputTokens?: number | undefined
   readonly outputTokens?: number | undefined

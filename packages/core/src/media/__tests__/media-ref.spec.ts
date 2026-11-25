@@ -1,15 +1,8 @@
 import { describe, expect, it } from 'bun:test'
 
 import { MAX_INLINE_BYTES } from '../../images/limits'
-import { mediaRefSchema, type MediaRef } from '../media-ref'
-
-export const ref: MediaRef = {
-  hash: 'a'.repeat(64),
-  mediaType: 'image/png',
-  size: 1234,
-  width: 640,
-  height: 480,
-}
+import { mediaRefSchema } from '../media-ref'
+import { ref } from './media-ref-fixture'
 
 describe('mediaRefSchema', () => {
   it('accepts a well-formed reference', () => {

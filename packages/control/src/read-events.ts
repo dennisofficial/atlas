@@ -63,7 +63,6 @@ const extendPastCommit = async (params: {
   row: ThreadRow
   events: RecordEvent[]
   lastHash?: string | undefined
-  withholdPictures?: boolean | undefined
   eventSchema?: z.ZodType<RecordEvent> | undefined
 }): Promise<{ events: RecordEvent[]; lastHash?: string | undefined }> => {
   const { tx, row } = params
@@ -81,7 +80,6 @@ const extendPastCommit = async (params: {
       afterSeq: last.seq,
       throughSeq: row.headSeq,
       limit: COMMIT_EXTENSION_PAGE,
-      withholdPictures: params.withholdPictures,
     })
     if (batch.length === 0) return done()
     for (const stored of batch) {
@@ -131,7 +129,6 @@ export const readEventsIn = async (params: {
   hiddenTypes?: readonly RecordEventType[] | undefined
   onlyTypes?: readonly RecordEventType[] | undefined
   maxBytes?: number | undefined
-  withholdPictures?: boolean | undefined
   eventSchema?: z.ZodType<RecordEvent> | undefined
 }): Promise<ReadEventsPage> => {
   const { tx, row } = params
@@ -154,7 +151,6 @@ export const readEventsIn = async (params: {
       throughSeq: segment.throughSeq,
       limit: params.limit - rows.length,
       onlyTypes: segment.onlyTypes,
-      withholdPictures: params.withholdPictures,
     })
     rows.push(...batch)
   }
@@ -171,7 +167,6 @@ export const readEventsIn = async (params: {
           row,
           events,
           lastHash: tail?.hash,
-          withholdPictures: params.withholdPictures,
           eventSchema: params.eventSchema,
         })
       : { events, lastHash: tail?.hash }

@@ -4,18 +4,18 @@ import type { MacClientFrame } from '@dltech/atlas-protocol/mac-link'
 
 import type { IDesktopAppInfo } from './app-info'
 import { resolveApiOrigin, resolveWebOrigin } from './api-origin'
-import { CALLBACK_PATH, createAuthService, type IAuthConfig } from './auth/auth-service'
-import { callbackResponse } from './auth/callback-page'
 import { createApnsRoutes } from './apns-routes'
+import { createAuthService, type IAuthConfig } from './auth/auth-service'
 import { createAuthHandler } from './auth/routes'
 import { createDesktopRouter } from './desktop-routes'
-import { isAuthorized, startSession } from './guard'
 import { createMacLinkClient, type MacFrameSink } from './mac-link/client'
 import { createDeviceId } from './mac-link/device-id'
 import type { IPanePort } from './pane-routes'
 import { defaultDesktopHome } from './desktop-home'
-import { isProxyPath, proxyToApp, proxyToApi } from './proxy'
-import { startOnStablePort } from './stable-port'
+import { createHostHandler } from './router'
+import { HOST_TLS_PORT_FILE, startOnStablePort, startOnStablePortAsync } from './stable-port'
+import { serveHttp2 } from './http2-server'
+import { createSelfSignedCert } from './tls/self-signed'
 import type { IDesktopUpdatesPort } from './update-routes'
 import type { IDesktopWindowPort } from './window-routes'
 
@@ -38,11 +38,14 @@ export interface ICreateDesktopHostOptions {
 
 export interface IDesktopHost {
   url: string
+  secureUrl: string
   port: number
+  securePort: number
+  certFingerprint: string
   stop: () => Promise<void>
 }
 
-export function createDesktopHost({
+export async function createDesktopHost({
   appOrigin,
   apiOrigin,
   port,
@@ -55,14 +58,16 @@ export function createDesktopHost({
   previewViews,
   pane,
   macMcp,
-}: ICreateDesktopHostOptions): IDesktopHost {
+}: ICreateDesktopHostOptions): Promise<IDesktopHost> {
   const origin = apiOrigin ?? resolveApiOrigin(process.env)
   const appOriginOf = typeof appOrigin === 'function' ? appOrigin : () => appOrigin
+  let boundPort = 0
+  let selfHost = ''
   const authService = createAuthService({
     config: { ...auth, home: auth?.home ?? defaultDesktopHome() },
     apiOrigin: origin,
     webOrigin: auth?.webOrigin ?? resolveWebOrigin(process.env),
-    port: () => server.port as number,
+    port: () => boundPort,
   })
   const bearer = () => authService.token()
   const deviceId = createDeviceId({
@@ -114,52 +119,59 @@ export function createDesktopHost({
     apns: apns.handler,
   })
 
-  const serveOn = (bindPort: number) =>
-    Bun.serve({
+  const handle = createHostHandler({
+    auth: authService,
+    desktop: desktopRouter,
+    apiOrigin: origin,
+    secret,
+    bearer,
+    appOrigin: appOriginOf,
+    previewViews,
+  })
+  const serveOn = (bindPort: number) => {
+    const started = Bun.serve({
       hostname: '127.0.0.1',
       port: bindPort,
       idleTimeout: 0,
-      async fetch(request) {
-        const url = new URL(request.url)
-        const { pathname } = url
-        if (pathname === CALLBACK_PATH && request.method === 'GET') {
-          if (request.headers.get('host') !== `127.0.0.1:${server.port}`) {
-            return new Response('Forbidden', { status: 403 })
-          }
-          return callbackResponse(await authService.callback(url))
-        }
-        if (pathname === '/desktop/session') return startSession({ url, secret })
-        if (pathname === '/desktop' || pathname.startsWith('/desktop/')) {
-          if (!isAuthorized({ request, secret, port: server.port as number })) {
-            return new Response('Forbidden', { status: 403 })
-          }
-          return desktopRouter(request, pathname)
-        }
-        if (isProxyPath(pathname))
-          return proxyToApi({
-            request,
-            apiOrigin: origin,
-            bearer,
-            onSignIn: authService.adopt,
-          })
-        if (request.method === 'GET' && request.headers.get('sec-fetch-dest') === 'document') {
-          previewViews?.clear()
-        }
-        return proxyToApp({ request, appOrigin: appOriginOf() })
-      },
+      fetch: (request: Request): Promise<Response> => handle({ request, selfHost }),
     })
+    boundPort = started.port as number
+    selfHost = `127.0.0.1:${boundPort}`
+    return started
+  }
   const server =
     stablePortHome === undefined
       ? serveOn(port ?? 0)
       : startOnStablePort({ home: stablePortHome, start: serveOn })
 
-  const boundPort = server.port as number
+  const tls = createSelfSignedCert({ now: Date.now() })
+  let secureSelfHost = ''
+  const serveSecure = (bindPort: number) =>
+    serveHttp2({
+      hostname: '127.0.0.1',
+      port: bindPort,
+      tls: { cert: tls.certPem, key: tls.keyPem },
+      fetch: (request: Request) => handle({ request, selfHost: secureSelfHost }),
+    })
+  const secure =
+    stablePortHome === undefined
+      ? await serveSecure(0)
+      : await startOnStablePortAsync({
+          home: stablePortHome,
+          file: HOST_TLS_PORT_FILE,
+          start: serveSecure,
+        })
+  secureSelfHost = `127.0.0.1:${secure.port}`
+
   return {
-    url: `http://127.0.0.1:${boundPort}`,
+    url: `http://${selfHost}`,
+    secureUrl: `https://${secureSelfHost}`,
     port: boundPort,
-    stop: () => {
+    securePort: secure.port,
+    certFingerprint: tls.fingerprint,
+    stop: async () => {
       link.stop()
-      return server.stop(true)
+      await Promise.all([server.stop(true), secure.stop()])
     },
   }
 }

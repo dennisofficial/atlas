@@ -16,8 +16,12 @@ export interface SuperProps {
   interface_version: string
 }
 
+export interface TrackOptions {
+  transport?: 'sendBeacon'
+}
+
 export interface AnalyticsClient {
-  capture: (event: string, props: Record<string, unknown>) => void
+  capture: (event: string, props: Record<string, unknown>, options?: TrackOptions) => void
   identify: (userId: string, props: Record<string, unknown>) => void
   reset: () => void
   captureException: (error: unknown, props?: Record<string, unknown>) => void
@@ -73,7 +77,7 @@ const dropBenignExceptions = (event: CaptureResult | null): CaptureResult | null
   event === null || isBenignException(event) ? null : event
 
 const posthogClient: AnalyticsClient = {
-  capture: (event, props) => posthog.capture(event, props),
+  capture: (event, props, options) => posthog.capture(event, props, options),
   identify: (userId, props) => posthog.identify(userId, props),
   reset: () => posthog.reset(),
   captureException: (error, props) => posthog.captureException(error, props),
@@ -105,6 +109,10 @@ export function initAnalytics(options: { enabled?: boolean; client?: AnalyticsCl
 
 export function track(event: string, props: Record<string, unknown> = {}): void {
   client?.capture(event, props)
+}
+
+export function trackBeforeUnload(event: string, props: Record<string, unknown> = {}): void {
+  client?.capture(event, props, { transport: 'sendBeacon' })
 }
 
 export function identifyUser(userId: string, props: Record<string, unknown> = {}): void {

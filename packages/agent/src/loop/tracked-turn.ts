@@ -186,6 +186,7 @@ export async function runTrackedTurn(
       preparedThrough = (await record.loopState({ threadId })).lastSeq
       const prepared = await prepareStepAssembly(preparedAssembly, {
         threadId,
+        runId,
         events: (await deps.modelContext.read({ threadId })).events,
         step: position.modelSteps,
         previous: undefined,
@@ -197,6 +198,7 @@ export async function runTrackedTurn(
 
     const prepared = await prepareStepAssembly(preparedAssembly, {
       threadId,
+      runId,
       events: (await deps.modelContext.read({ threadId })).events,
       step: position.modelSteps,
       previous: position.previous,

@@ -8,8 +8,8 @@ let status: IDesktopUpdateStatus = { state: EDesktopUpdateState.Idle }
 let restarts = 0
 let checks = 0
 
-beforeAll(() => {
-  host = createDesktopHost({
+beforeAll(async () => {
+  host = await createDesktopHost({
     appOrigin: 'http://127.0.0.1:1',
     apiOrigin: 'http://127.0.0.1:1',
     secret: SECRET,

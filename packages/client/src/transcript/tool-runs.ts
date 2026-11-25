@@ -98,11 +98,7 @@ function settlesOf(events: readonly Event[]): Map<CallId, Settle> {
         output: event.output,
         modelText: event.modelText ?? '',
         note: event.error?.message ?? null,
-        image: firstPictureIn({
-          parts: event.modelParts,
-          threadId: event.threadId,
-          seq: event.seq,
-        }),
+        image: firstPictureIn({ parts: event.modelParts }),
         qualityReviews: event.qualityReviews ?? [],
       })
     }

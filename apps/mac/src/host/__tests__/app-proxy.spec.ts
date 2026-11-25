@@ -6,7 +6,7 @@ let app: ReturnType<typeof Bun.serve>
 let host: IDesktopHost
 let seen: { method: string; url: string; host: string | null; rsc: string | null } | undefined
 
-beforeAll(() => {
+beforeAll(async () => {
   app = Bun.serve({
     hostname: '127.0.0.1',
     port: 0,
@@ -25,7 +25,7 @@ beforeAll(() => {
       return new Response('missing', { status: 404 })
     },
   })
-  host = createDesktopHost({ appOrigin: `http://127.0.0.1:${app.port}`, secret: 's' })
+  host = await createDesktopHost({ appOrigin: `http://127.0.0.1:${app.port}`, secret: 's' })
 })
 
 afterAll(async () => {
@@ -64,7 +64,7 @@ describe('app proxy', () => {
   })
 
   test('returns 502 when the app server is down', async () => {
-    const dead = createDesktopHost({ appOrigin: 'http://127.0.0.1:1', secret: 's' })
+    const dead = await createDesktopHost({ appOrigin: 'http://127.0.0.1:1', secret: 's' })
     const res = await fetch(`${dead.url}/threads/abc`)
     expect(res.status).toBe(502)
     await dead.stop()
