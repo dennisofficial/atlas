@@ -12,6 +12,7 @@ import { EListStatus, listStatusOf } from './list-status'
 import type { ISessionEntry } from './session-groups'
 import { SectionHeader } from './section-header'
 import { BucketProjectLabel, SessionRow } from './session-row'
+import { LIST_ROW_GAP } from './session-row-layout'
 import { EItemKind, sectionsOf } from './session-sections'
 import { SearchField } from './search-field'
 import { SwipeableSessionRow } from './swipeable-session-row'
@@ -173,7 +174,7 @@ const styles = StyleSheet.create({
     gap: space(1),
   },
   list: {
-    gap: space(0.5),
+    gap: LIST_ROW_GAP,
     padding: space(2),
   },
   status: {

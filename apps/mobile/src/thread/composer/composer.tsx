@@ -1,11 +1,14 @@
 import { clientActionOfEntries, EClientAction, type CommandEntry } from '@dltech/atlas-commands'
-import { composerSendStateOf } from '@dltech/atlas-client/session'
+import {
+  composerSendStateOf,
+  hasFailed,
+  isUploading,
+  readyAttachments,
+  REMOVE_FAILED_FILES,
+} from '@dltech/atlas-client/session'
 import type { Attachment } from '@dltech/atlas-core'
 import { radius, readingType, space } from '@dltech/atlas-ui/tokens'
 import {
-  Button,
-  EButtonSize,
-  EButtonVariant,
   ETextRole,
   ETextTone,
   Input,
@@ -15,23 +18,16 @@ import {
   withAlpha,
 } from '@dltech/atlas-ui-native'
 import { type PasteEventPayload, TextInputWrapper } from 'expo-paste-input'
-import { ArrowUp, Square } from 'lucide-react-native'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
-import { ScrollView, StyleSheet, View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 
 import { mergeIntoDraft } from '../session/staged-send'
 import { AttachmentChips } from './attachment-chips'
-import { AttachButton } from './attach-button'
 import { AttachMenu } from './attach-menu'
 import type { EAttachSource } from './attach-sources'
+import { ComposerControls } from './composer-controls'
 import { ComposerDropZone } from './composer-drop-zone'
 import { pastedFileOf } from './paste-image'
-import {
-  hasFailed,
-  isUploading,
-  readyAttachments,
-  REMOVE_FAILED_FILES,
-} from '@dltech/atlas-client/session'
 import { SlashMenu } from './slash-menu'
 import { completedDraftOf, menuCandidatesOf, menuQueryOf, pickActionOf } from './slash-menu-model'
 import type { ComposerAttachments } from './use-attachments'
@@ -160,6 +156,22 @@ export const Composer = ({
     attachments?.attachFiles(payload.uris.map((uri, index) => pastedFileOf({ uri, at, index })))
   }
 
+  const controls = (
+    <ComposerControls
+      attach={
+        attachments === undefined
+          ? undefined
+          : { open: choosing, onPick: handlePick, onToggle: () => setChoosing((open) => !open) }
+      }
+      sending={sending}
+      canSend={canSend}
+      onStop={showsStop ? onStop : undefined}
+      onSend={() => void handleSend()}
+    >
+      {children}
+    </ComposerControls>
+  )
+
   return (
     <View style={[styles.dock, joined ? styles.joinedDock : null]}>
       {menuQueryOf(draft) === null || candidates.length === 0 ? null : (
@@ -184,6 +196,7 @@ export const Composer = ({
         ]}
         borderColor={theme.input}
         onFiles={attachments?.attachFiles}
+        controls={controls}
       >
         <TextInputWrapper onPaste={attachments === undefined ? undefined : handlePaste}>
           <Input
@@ -198,46 +211,6 @@ export const Composer = ({
             style={styles.input}
           />
         </TextInputWrapper>
-        <View style={styles.bar}>
-          {attachments === undefined ? null : (
-            <AttachButton
-              open={choosing}
-              onPick={handlePick}
-              onToggle={() => setChoosing((open) => !open)}
-            />
-          )}
-          {children === undefined ? null : (
-            <ScrollView
-              horizontal
-              keyboardShouldPersistTaps="handled"
-              showsHorizontalScrollIndicator={false}
-              style={styles.slot}
-              contentContainerStyle={styles.slotContent}
-            >
-              {children}
-            </ScrollView>
-          )}
-          {showsStop ? (
-            <Button
-              label="Stop"
-              icon={Square}
-              size={EButtonSize.Icon}
-              variant={EButtonVariant.Secondary}
-              round
-              onPress={onStop}
-            />
-          ) : (
-            <Button
-              label={sending ? 'Sending…' : 'Send'}
-              icon={ArrowUp}
-              size={EButtonSize.Icon}
-              round
-              disabled={!canSend}
-              loading={sending}
-              onPress={() => void handleSend()}
-            />
-          )}
-        </View>
       </ComposerDropZone>
     </View>
   )
@@ -272,23 +245,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 0,
     paddingVertical: 0,
     textAlignVertical: 'top',
-  },
-  bar: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: space(2),
-    justifyContent: 'space-between',
-    paddingBottom: space(2.5),
-    paddingTop: space(1),
-  },
-  slot: {
-    flex: 1,
-    minWidth: 0,
-  },
-  slotContent: {
-    alignItems: 'center',
-    gap: space(1),
-    paddingRight: space(1),
   },
   notice: {
     paddingBottom: space(1),

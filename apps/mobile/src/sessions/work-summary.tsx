@@ -1,5 +1,4 @@
 import { EFontFamily, ETextRole, ETextTone, Icon, Text, useTheme } from '@dltech/atlas-ui-native'
-import { space } from '@dltech/atlas-ui/tokens'
 import { GitBranch } from 'lucide-react-native'
 import { StyleSheet, View } from 'react-native'
 
@@ -36,8 +35,8 @@ const styles = StyleSheet.create({
   row: {
     alignItems: 'center',
     flexDirection: 'row',
+    flexShrink: 1,
     gap: 6,
-    marginTop: space(1),
     minWidth: 0,
   },
   label: {

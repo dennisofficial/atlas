@@ -8,13 +8,14 @@ import {
   useTheme,
   withAlpha,
 } from '@dltech/atlas-ui-native'
-import { radius, space } from '@dltech/atlas-ui/tokens'
+import { radius, space, typeScale } from '@dltech/atlas-ui/tokens'
 import { type AccessibilityActionEvent, StyleSheet, View } from 'react-native'
 import { Pressable } from 'react-native-gesture-handler'
 
 import { relativeTime } from '../lib/relative-time'
 import type { ISessionEntry } from './session-groups'
 import { rowFillOf } from './session-row-fill'
+import { ROW_LINE_GAP, ROW_PADDING_Y } from './session-row-layout'
 import { rowStatusLabelOf } from './session-status-label'
 import { StatusIcon } from './status-icon'
 import { WorkSummary } from './work-summary'
@@ -77,29 +78,26 @@ export const SessionRow = ({
       ]}
     >
       <View style={styles.primary}>
-        <StatusIcon status={entry.status} unread={entry.unread} />
+        <View style={styles.iconSlot}>
+          <StatusIcon status={entry.status} unread={entry.unread} />
+        </View>
         <Text size={ETextRole.Base} numberOfLines={2} style={styles.title}>
           {entry.title}
         </Text>
       </View>
       <View style={styles.secondary}>
-        {status === undefined ? (
-          <View style={styles.status} />
-        ) : (
-          <Text
-            size={ETextRole.Xs}
-            tone={statusToneOf(entry.status)}
-            numberOfLines={1}
-            style={styles.status}
-          >
-            {status}
-          </Text>
-        )}
+        <View style={styles.details}>
+          {status === undefined ? null : (
+            <Text size={ETextRole.Xs} tone={statusToneOf(entry.status)} numberOfLines={1}>
+              {status}
+            </Text>
+          )}
+          <WorkSummary work={entry.work} />
+        </View>
         <Text size={ETextRole.Xs} family={EFontFamily.Mono} tone={ETextTone.Muted}>
           {relativeTime({ at: entry.updatedAt, now })}
         </Text>
       </View>
-      <WorkSummary work={entry.work} />
     </Pressable>
   )
 }
@@ -113,14 +111,17 @@ export const BucketProjectLabel = ({ name }: { name: string }) => (
 const styles = StyleSheet.create({
   row: {
     borderRadius: radius(0.8),
-    minHeight: 64,
     paddingHorizontal: space(2),
-    paddingVertical: space(1.5),
+    paddingVertical: ROW_PADDING_Y,
   },
   primary: {
-    alignItems: 'center',
+    alignItems: 'flex-start',
     flexDirection: 'row',
     gap: space(2),
+  },
+  iconSlot: {
+    height: typeScale[ETextRole.Base].lineHeight,
+    justifyContent: 'center',
   },
   title: {
     flex: 1,
@@ -129,11 +130,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     gap: space(1.5),
-    justifyContent: 'space-between',
-    marginTop: space(0.5),
+    marginTop: ROW_LINE_GAP,
   },
-  status: {
+  details: {
+    alignItems: 'center',
     flex: 1,
+    flexDirection: 'row',
+    gap: space(1.5),
+    minWidth: 0,
   },
   projectLabel: {
     paddingHorizontal: space(2),
