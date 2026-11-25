@@ -71,24 +71,9 @@ describe('a read that came back as a picture', () => {
 })
 
 describe('the bytes and the refusal a read carries', () => {
-  it('keeps the inlined bytes the result handed the model', () => {
-    const withBytes = aCall({
-      name: 'read',
-      input: { path: `${CWD}/docs/shot.png` },
-      output: {
-        path: `${CWD}/docs/shot.png`,
-        mediaType: 'image/png',
-        byteLength: 412 * 1024,
-        width: 1024,
-        height: 768,
-        inlined: true,
-      },
-      image: { kind: 'inline', data: 'aGVsbG8td29ybGQ=', mediaType: 'image/png' },
-    })
-
-    expect(imageOf(withBytes)?.data).toBe('aGVsbG8td29ybGQ=')
-    expect(imageOf(withBytes)?.inlined).toBe(true)
-    expect(imageOf(withBytes)?.notSentReason).toBeNull()
+  it('reports that the result inlined the picture for the model', () => {
+    expect(imageOf(settled)?.inlined).toBe(true)
+    expect(imageOf(settled)?.notSentReason).toBeNull()
   })
 
   it('reads the refusal out of the sentence the model was handed', () => {
@@ -109,7 +94,6 @@ describe('the bytes and the refusal a read carries', () => {
 
     expect(imageOf(textOnly)?.inlined).toBe(false)
     expect(imageOf(textOnly)?.notSentReason).toBe('20.0 MB is too large to inline')
-    expect(imageOf(textOnly)?.data).toBeNull()
   })
 
   it('says something even when an older log kept no reason', () => {

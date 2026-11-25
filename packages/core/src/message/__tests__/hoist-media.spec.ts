@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { ref } from '../../media/__tests__/media-ref.spec'
+import { ref } from '../../media/__tests__/media-ref-fixture'
 import { hoistToolResultFiles } from '../hoist-tool-files'
 import type { Message } from '../message'
 

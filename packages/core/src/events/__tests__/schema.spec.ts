@@ -626,19 +626,4 @@ describe('a tool result image part', () => {
 
     expect(parse(part)).toMatchObject({ modelParts: [part] })
   })
-
-  it('reads an event logged with the legacy data field as inline bytes', () => {
-    expect(
-      parse({ type: 'image', data: 'iVBOR', mediaType: 'image/png', source: 's' }),
-    ).toMatchObject({
-      modelParts: [
-        {
-          type: 'image',
-          bytes: { kind: 'inline', data: 'iVBOR' },
-          mediaType: 'image/png',
-          source: 's',
-        },
-      ],
-    })
-  })
 })

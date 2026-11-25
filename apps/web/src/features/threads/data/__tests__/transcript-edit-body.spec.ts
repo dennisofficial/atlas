@@ -140,12 +140,20 @@ describe('toolCallItemOf image', () => {
         input: { path: '/repo/shot.png' },
         output: { path: '/repo/shot.png', mediaType: 'image/png' },
       }),
-      image: { kind: 'inline', data: 'iVBOR', mediaType: 'image/png' },
+      image: {
+        kind: 'media',
+        media: { hash: 'a'.repeat(64), mediaType: 'image/png', size: 4, width: 8, height: 6 },
+      },
     })
     expect(item.image).toEqual({
       id: 'c1#image',
-      picture: { kind: 'inline', data: 'iVBOR', mediaType: 'image/png' },
+      picture: {
+        kind: 'media',
+        media: { hash: 'a'.repeat(64), mediaType: 'image/png', size: 4, width: 8, height: 6 },
+      },
       alt: 'shot.png',
+      width: 8,
+      height: 6,
     })
   })
 

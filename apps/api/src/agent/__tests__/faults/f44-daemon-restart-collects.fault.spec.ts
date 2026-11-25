@@ -1,38 +1,28 @@
-import { readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 
 import { useTestDatabase } from '@dltech/atlas-db/testing'
 
-import { startRig, type FaultRig } from '../../testing/fault-rig'
+import { startRig, type FaultRig, type ReadEvent } from '../../testing/fault-rig'
 import {
   callIdOf,
   expectOneResultPerDispatch,
   isDoneResult,
   makeFifo,
   readEvents,
+  waitForCallDone,
   waitForFile,
 } from './fault-support'
 
 const REDIS_URL = process.env.ATLAS_TEST_REDIS_URL
 
-const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
-
-const waitForDoneJournal = async (args: { home: string; timeoutMs: number }): Promise<string> => {
-  const root = join(args.home, 'daemon', 'calls')
-  const deadline = Date.now() + args.timeoutMs
-  while (Date.now() < deadline) {
-    for (const entry of readdirSync(root, { withFileTypes: true })) {
-      if (!entry.isDirectory()) continue
-      const path = join(root, entry.name, 'state.json')
-      try {
-        if (readFileSync(path, 'utf8').includes('"state":"done"')) return path
-      } catch {}
-    }
-    await sleep(50)
-  }
-  throw new Error(`no done journal under ${root} within ${args.timeoutMs} ms`)
+const runIdOfCall = (rows: readonly ReadEvent[], callId: string): string => {
+  const dispatch = rows.find((row) => row.type === 'tool-dispatched' && callIdOf(row) === callId)
+  const runId = (dispatch?.event as { runId?: string } | undefined)?.runId
+  if (runId === undefined) throw new Error(`the record never dispatched ${callId}`)
+  return runId
 }
 
 describe.skipIf(REDIS_URL === undefined)('F44 a finished call survives a daemon restart', () => {
@@ -71,7 +61,7 @@ describe.skipIf(REDIS_URL === undefined)('F44 a finished call survives a daemon 
       },
     })
     await rig.claim({ sessionId, label: 'host-a', timeoutMs: 30_000 })
-    await rig.waitForSeq({
+    const dispatched = await rig.waitForSeq({
       threadId,
       want: (rows) => rows.some((row) => row.type === 'tool-dispatched' && callIdOf(row) === 'c1'),
       timeoutMs: 30_000,
@@ -80,7 +70,12 @@ describe.skipIf(REDIS_URL === undefined)('F44 a finished call survives a daemon 
 
     daemon.proxy.set({ holdDownstream: true })
     writeFileSync(gateFifo, 'go\n')
-    await waitForDoneJournal({ home: daemon.home, timeoutMs: 30_000 })
+    await waitForCallDone({
+      daemonHome: daemon.home,
+      runId: runIdOfCall(dispatched, 'c1'),
+      callId: 'c1',
+      timeoutMs: 30_000,
+    })
 
     const mid = await readEvents({ plane: rig.plane, threadId })
     expect(mid.some((row) => row.type === 'tool-result' && callIdOf(row) === 'c1')).toBe(false)

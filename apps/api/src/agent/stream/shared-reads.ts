@@ -29,7 +29,6 @@ const readKey = (params: ReadEventsParams): string =>
     params.visible,
     params.maxBytes,
     params.hiddenTypes,
-    params.withholdPictures,
   ])
 
 export const sharedReads = (plane: FollowPlane): FollowPlane => ({

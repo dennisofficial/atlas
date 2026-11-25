@@ -1,5 +1,3 @@
-import { withholdPictureText } from '@dltech/atlas-core'
-
 import { SeqConflictError, type ReadEventsParams, type StoredEvent } from '../../port'
 import { bisectAfter } from './memory-helpers'
 import type { State } from './memory-state'
@@ -27,11 +25,7 @@ export const readEventsIn = (params: { state: State } & ReadEventsParams): Store
     const row = log[index] as StoredEvent
     if (row.seq > params.throughSeq || out.length >= params.limit) break
     if (params.onlyTypes !== undefined && !params.onlyTypes.includes(row.type)) continue
-    out.push(
-      params.withholdPictures === true && row.type === 'tool-result'
-        ? { ...row, canonical: withholdPictureText(row.canonical) }
-        : row,
-    )
+    out.push(row)
   }
   return out
 }

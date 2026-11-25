@@ -12,8 +12,6 @@ import type {
   MediaConfirmOutput,
   MediaPresignInput,
   MediaPresignOutput,
-  MediaToolPictureInput,
-  MediaToolPictureOutput,
   MediaUrlInput,
   MediaUrlOutput,
   SessionChangesInput,
@@ -94,7 +92,6 @@ export type SessionApi = {
   presignMedia(input: MediaPresignInput): Promise<MediaPresignOutput>
   confirmMedia(input: MediaConfirmInput): Promise<MediaConfirmOutput>
   mediaUrl(input: MediaUrlInput): Promise<MediaUrlOutput>
-  toolPicture(input: MediaToolPictureInput): Promise<MediaToolPictureOutput>
   presignUpload(input: UploadPresignBody): Promise<UploadPresignReply>
   discardUpload(pathname: string): Promise<void>
   loadDraft(scope: string): Promise<string | null>
@@ -171,7 +168,6 @@ export const sessionApiOf = (args: {
     presignMedia: (input) => guarded(() => args.api.media.presign.mutate(input)),
     confirmMedia: (input) => guarded(() => args.api.media.confirm.mutate(input)),
     mediaUrl: (input) => guarded(() => args.api.media.url.query(input)),
-    toolPicture: (input) => guarded(() => args.api.media.toolPicture.query(input)),
     presignUpload: (input) => guarded(() => args.api.composerUploads.presign.mutate(input)),
     discardUpload: async (pathname) => {
       await guarded(() => args.api.composerUploads.discard.mutate({ pathname }))

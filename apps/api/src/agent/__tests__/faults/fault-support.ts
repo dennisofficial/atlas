@@ -1,9 +1,11 @@
 import { spawnSync } from 'node:child_process'
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
 
 import { expect } from 'bun:test'
 
 import type { ControlPlane } from '@dltech/atlas-control'
+import { scopeKeyOf } from '@dltech/atlas-host'
 
 import type { FaultRig, ReadEvent } from '../../testing/fault-rig'
 
@@ -65,6 +67,38 @@ export const releaseFifo = async (args: { path: string; timeoutMs?: number }): P
     child.kill('SIGKILL')
     await child.exited.catch(() => undefined)
     throw new Error(`timed out releasing ${args.path}`)
+  }
+}
+
+export const callJournalOf = (args: {
+  daemonHome: string
+  runId: string
+  callId: string
+}): string =>
+  join(
+    args.daemonHome,
+    'daemon',
+    'calls',
+    `${scopeKeyOf({ runId: args.runId, callId: args.callId })}.0`,
+    'state.json',
+  )
+
+export const waitForCallDone = async (args: {
+  daemonHome: string
+  runId: string
+  callId: string
+  timeoutMs: number
+}): Promise<string> => {
+  const path = callJournalOf(args)
+  const deadline = Date.now() + args.timeoutMs
+  for (;;) {
+    try {
+      if (readFileSync(path, 'utf8').includes('"state":"done"')) return path
+    } catch {}
+    if (Date.now() > deadline) {
+      throw new Error(`no done journal at ${path} within ${args.timeoutMs} ms`)
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50))
   }
 }
 
