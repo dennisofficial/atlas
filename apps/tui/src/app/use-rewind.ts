@@ -138,7 +138,7 @@ export function useRewind(args: {
 
   const { rawEvents, draft, attachments, onProblem } = args
 
-  const handleKey = useCallback(
+  const actOnKey = useCallback(
     (key: KeyEvent): boolean => {
       const current = held.current
       if (current === null) return false
@@ -177,6 +177,15 @@ export function useRewind(args: {
       return false
     },
     [handleDismiss, handlePick, put],
+  )
+
+  const handleKey = useCallback(
+    (key: KeyEvent): boolean => {
+      const handled = actOnKey(key)
+      if (handled) key.preventDefault()
+      return handled
+    },
+    [actOnKey],
   )
 
   useEffect(() => {
