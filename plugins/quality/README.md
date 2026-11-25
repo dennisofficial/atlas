@@ -67,10 +67,11 @@ The pod entry exports the first group only. The review modules below are the par
 ### Prepare the changed scopes
 
 - `prepareQualityScopes({ change, projectDirectory, workspaceNamespace, previousScopes })`: the changed scopes of one captured file, plus the diagnostics that stopped a scope.
-- `MAX_STATE_AND_LONGEST_QUESTION_BYTES`, `MAX_STATE_AND_ALL_QUESTIONS_BYTES`: the request bounds; a
-  scope over them is requested again as an `excerptOf` excerpt.
-- `excerptOf({ scope, contextLines })`, `QualityScopeExcerpt`: the changed lines with context, the
-  member outline and a trimmed evidence list, sized by `MAX_EXCERPT_LINES` and `MAX_OUTLINE_ENTRIES`.
+- `MAX_STATE_AND_LONGEST_QUESTION_BYTES`, `MAX_STATE_AND_ALL_QUESTIONS_BYTES`: the request bounds, derived
+  from Jev's 262k-token long-context limit; a scope inside them is sent whole, with the long-context header
+  when it exceeds the default 32k/64k limits, and one over them is requested again as an `excerptOf` excerpt.
+- `excerptOf({ scope, contextLines })`, `QualityScopeExcerpt`: the changed lines with context, the member
+  outline and a trimmed evidence list, sized by `MAX_EXCERPT_LINES` and `MAX_OUTLINE_ENTRIES`.
 - `QualitySourceAdapter`: the one method the engine calls to get the scopes of a change.
 - `captureText`, `makeChange`, `captureUnavailableFault`: text capture with its diagnostics.
 - `parseQualitySource`, `scriptKindForPath`, `hashScopeText`, `renderScopeDiff`: the parser helpers.

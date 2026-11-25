@@ -5,6 +5,8 @@ import { EQualitySkipReason, type QualityScope } from '@dltech/atlas-core'
 import { singleResponsibilityPolicy } from '../../policies'
 
 import {
+  CONSERVATIVE_BYTES_PER_TOKEN,
+  JEV_LONG_CONTEXT_TOKENS,
   MAX_STATE_AND_ALL_QUESTIONS_BYTES,
   MAX_STATE_AND_LONGEST_QUESTION_BYTES,
   planRequests,
@@ -59,6 +61,14 @@ describe('request bounds', () => {
 
     expect(state + longest).toBeLessThanOrEqual(MAX_STATE_AND_LONGEST_QUESTION_BYTES)
     expect(state + total).toBeLessThanOrEqual(MAX_STATE_AND_ALL_QUESTIONS_BYTES)
+    expect(unit.longContext).toBe(false)
+  })
+
+  it('derives the byte bounds from the long-context token limit', () => {
+    expect(MAX_STATE_AND_ALL_QUESTIONS_BYTES).toBe(
+      Math.floor(JEV_LONG_CONTEXT_TOKENS * 0.95 * CONSERVATIVE_BYTES_PER_TOKEN),
+    )
+    expect(MAX_STATE_AND_LONGEST_QUESTION_BYTES).toBe(MAX_STATE_AND_ALL_QUESTIONS_BYTES)
   })
 })
 
@@ -120,10 +130,9 @@ describe('oversized scopes', () => {
     expect(direct.state).not.toContain('"excerpt"')
   })
 
-  it('reviews a 40 KB class as an excerpt within the bound', () => {
-    const before = classText({ rows: 1300, marker: 'old' })
-    const after = classText({ rows: 1300, marker: 'new' })
-    expect(Buffer.byteLength(after, 'utf8')).toBeGreaterThan(40 * 1024)
+  it('sends a 3,000-line class whole, under the long-context limit, with the flag', () => {
+    const before = classText({ rows: 3000, marker: 'old' })
+    const after = classText({ rows: 3000, marker: 'new' })
 
     const scope = ledgerScope({ before, after })
     const plan = planRequests({ scope, policies: [singleResponsibilityPolicy] })
@@ -132,7 +141,27 @@ describe('oversized scopes', () => {
     expect(plan.units).toHaveLength(1)
     const unit = plan.units[0]
     if (unit === undefined) throw new Error('expected one unit')
-    expect(byteLength(unit.request.state)).toBeLessThan(MAX_STATE_AND_LONGEST_QUESTION_BYTES / 2)
+    const state = byteLength(unit.request.state)
+    expect(unit.longContext).toBe(true)
+    expect(unit.request.state).not.toContain('"excerpt"')
+    expect(state).toBeGreaterThan(MAX_STATE_AND_ALL_QUESTIONS_BYTES / 3)
+    expect(state).toBeLessThanOrEqual(MAX_STATE_AND_ALL_QUESTIONS_BYTES)
+  })
+
+  it('reviews a scope above the long-context limit as an excerpt', () => {
+    const before = classText({ rows: 10000, marker: 'old' })
+    const after = classText({ rows: 10000, marker: 'new' })
+    const scope = ledgerScope({ before, after })
+
+    const full = prepareQualityRequest({ scope, policies: [singleResponsibilityPolicy] })
+    expect(byteLength(full.state)).toBeGreaterThan(MAX_STATE_AND_ALL_QUESTIONS_BYTES)
+
+    const plan = planRequests({ scope, policies: [singleResponsibilityPolicy] })
+
+    expect(plan.rejected).toHaveLength(0)
+    const unit = plan.units[0]
+    if (unit === undefined) throw new Error('expected one unit')
+    expect(unit.longContext).toBe(false)
     expect(unit.request.state).toContain('"excerpt":{"reason":"oversized"')
     expect(unit.request.state).toContain('Ledger.load')
   })

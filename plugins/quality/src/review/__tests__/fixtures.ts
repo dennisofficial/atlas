@@ -169,6 +169,7 @@ export type ClassifyArgs = {
   state: string
   questions: Record<string, ClassifierQuestion>
   signal: AbortSignal
+  longContext?: boolean | undefined
 }
 
 export type RigOptions = {

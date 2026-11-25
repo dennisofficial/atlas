@@ -1,8 +1,8 @@
 import {
   ClassifierPort,
   EClassifierFault,
+  type ClassifierCall,
   type ClassifierOutcome,
-  type ClassifierQuestion,
   type ClassifierStatus,
 } from '@dltech/atlas-core'
 
@@ -25,11 +25,7 @@ class OffClassifier extends ClassifierPort {
     super()
   }
 
-  async classify(args: {
-    state: string
-    questions: Record<string, ClassifierQuestion>
-    signal: AbortSignal
-  }): Promise<ClassifierOutcome> {
+  async classify(args: ClassifierCall): Promise<ClassifierOutcome> {
     return { ok: false, fault: EClassifierFault.Unavailable, detail: this.reason }
   }
 }

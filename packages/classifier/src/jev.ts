@@ -1,14 +1,15 @@
 import {
   ClassifierPort,
   EClassifierFault,
+  type ClassifierCall,
   type ClassifierOutcome,
-  type ClassifierQuestion,
   type ClassifierUsage,
 } from '@dltech/atlas-core'
 
 import { jevAnswersOf, jevRequestOf } from './translate'
 
 export const JEV_TIMEOUT_MS = 2000
+export const JEV_LONG_CONTEXT_HEADER = 'TypeSafe-Danger-Zone-Long-Context'
 
 export type JevClassifierArgs = {
   endpoint: string
@@ -47,11 +48,7 @@ export class JevClassifier extends ClassifierPort {
     this.timeoutMs = args.timeoutMs ?? JEV_TIMEOUT_MS
   }
 
-  async classify(args: {
-    state: string
-    questions: Record<string, ClassifierQuestion>
-    signal: AbortSignal
-  }): Promise<ClassifierOutcome> {
+  async classify(args: ClassifierCall): Promise<ClassifierOutcome> {
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), this.timeoutMs)
     const abort = (): void => controller.abort()
@@ -64,6 +61,7 @@ export class JevClassifier extends ClassifierPort {
         headers: {
           Authorization: `Bearer ${this.args.apiKey}`,
           'Content-Type': 'application/json',
+          ...(args.longContext === true ? { [JEV_LONG_CONTEXT_HEADER]: 'true' } : {}),
         },
         body: JSON.stringify({
           model: this.args.model,

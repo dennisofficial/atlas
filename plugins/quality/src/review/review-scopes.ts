@@ -15,8 +15,21 @@ import {
 import { prepareQualityRequest, type QualityDecisionRequest } from './request'
 import { excerptOf } from './source/scope-excerpt'
 
-export const MAX_STATE_AND_LONGEST_QUESTION_BYTES = 24 * 1024
-export const MAX_STATE_AND_ALL_QUESTIONS_BYTES = 48 * 1024
+export const JEV_DEFAULT_QUESTION_TOKENS = 32_000
+export const JEV_DEFAULT_REQUEST_TOKENS = 64_000
+export const JEV_LONG_CONTEXT_TOKENS = 262_144
+export const CONSERVATIVE_BYTES_PER_TOKEN = 2.4
+
+const TOKEN_HEADROOM = 0.05
+
+const bytesForTokens = (tokens: number): number =>
+  Math.floor(tokens * (1 - TOKEN_HEADROOM) * CONSERVATIVE_BYTES_PER_TOKEN)
+
+const MAX_STATE_AND_LONGEST_QUESTION_DEFAULT_BYTES = bytesForTokens(JEV_DEFAULT_QUESTION_TOKENS)
+const MAX_STATE_AND_ALL_QUESTIONS_DEFAULT_BYTES = bytesForTokens(JEV_DEFAULT_REQUEST_TOKENS)
+
+export const MAX_STATE_AND_LONGEST_QUESTION_BYTES = bytesForTokens(JEV_LONG_CONTEXT_TOKENS)
+export const MAX_STATE_AND_ALL_QUESTIONS_BYTES = bytesForTokens(JEV_LONG_CONTEXT_TOKENS)
 
 export type QualitySourceAdapter = {
   prepareQualityScopes(args: {
@@ -31,7 +44,11 @@ export type ScopeSelection = { scope: QualityScope; policies: readonly QualityPo
 
 export type SelectionFault = { scope: QualityScope | undefined; detail: string }
 
-export type RequestUnit = { policies: readonly QualityPolicy[]; request: QualityDecisionRequest }
+export type RequestUnit = {
+  policies: readonly QualityPolicy[]
+  request: QualityDecisionRequest
+  longContext: boolean
+}
 
 export type RejectedRequest = {
   status: EQualityReviewStatus
@@ -135,6 +152,8 @@ const byteLength = (text: string): number => Buffer.byteLength(text, 'utf8')
 
 type RequestSize = { state: number; longest: number; total: number }
 
+type RequestFit = 'default' | 'long' | 'over'
+
 function sizeOf({ request }: { request: QualityDecisionRequest }): RequestSize {
   const sizes = Object.values(request.questions).map((question) =>
     byteLength(JSON.stringify(question)),
@@ -146,16 +165,38 @@ function sizeOf({ request }: { request: QualityDecisionRequest }): RequestSize {
   }
 }
 
-function fitsBounds({ request }: { request: QualityDecisionRequest }): boolean {
+function fitOf({ request }: { request: QualityDecisionRequest }): RequestFit {
   const size = sizeOf({ request })
-  return (
-    size.state + size.longest <= MAX_STATE_AND_LONGEST_QUESTION_BYTES &&
-    size.state + size.total <= MAX_STATE_AND_ALL_QUESTIONS_BYTES
+  const longest = size.state + size.longest
+  const all = size.state + size.total
+  if (
+    longest <= MAX_STATE_AND_LONGEST_QUESTION_DEFAULT_BYTES &&
+    all <= MAX_STATE_AND_ALL_QUESTIONS_DEFAULT_BYTES
   )
+    return 'default'
+  if (longest <= MAX_STATE_AND_LONGEST_QUESTION_BYTES && all <= MAX_STATE_AND_ALL_QUESTIONS_BYTES)
+    return 'long'
+  return 'over'
 }
 
-const describeSize = (size: RequestSize): string =>
-  `state ${size.state} + longest question ${size.longest} + all questions ${size.total} bytes`
+const estimateTokens = (bytes: number): number => Math.ceil(bytes / CONSERVATIVE_BYTES_PER_TOKEN)
+
+const describeSize = (size: RequestSize): string => {
+  const longest = size.state + size.longest
+  const all = size.state + size.total
+  return `state ${size.state} + longest question ${size.longest} + all questions ${size.total} bytes (about ${estimateTokens(longest)} tokens with the longest question, ${estimateTokens(all)} with all of them)`
+}
+
+function unitOf({
+  request,
+  policies,
+}: {
+  request: QualityDecisionRequest
+  policies: readonly QualityPolicy[]
+}): RequestUnit | undefined {
+  const fit = fitOf({ request })
+  return fit === 'over' ? undefined : { policies, request, longContext: fit === 'long' }
+}
 
 function tryRequest({
   scope,
@@ -163,22 +204,24 @@ function tryRequest({
 }: {
   scope: QualityScope
   policies: readonly QualityPolicy[]
-}): { request: QualityDecisionRequest } | { rejected: RejectedRequest } {
+}): { unit: RequestUnit } | { rejected: RejectedRequest } {
   try {
     const request = prepareQualityRequest({ scope, policies })
-    if (fitsBounds({ request })) return { request }
+    const full = unitOf({ request, policies })
+    if (full !== undefined) return { unit: full }
     const excerpted = excerptOf({ scope })
     const excerpt = prepareQualityRequest({
       scope: excerpted.scope,
       policies,
       excerpt: excerpted.excerpt,
     })
-    if (fitsBounds({ request: excerpt })) return { request: excerpt }
+    const reduced = unitOf({ request: excerpt, policies })
+    if (reduced !== undefined) return { unit: reduced }
     return {
       rejected: {
         status: EQualityReviewStatus.Skipped,
         reason: EQualitySkipReason.OversizedRequest,
-        detail: `request for ${policies.map((policy) => policy.id).join(', ')} exceeds the review size bound: ${describeSize(sizeOf({ request }))} full, ${describeSize(sizeOf({ request: excerpt }))} excerpted`,
+        detail: `request for ${policies.map((policy) => policy.id).join(', ')} exceeds the classifier limit: ${describeSize(sizeOf({ request }))} full, ${describeSize(sizeOf({ request: excerpt }))} excerpted`,
       },
     }
   } catch (error) {
@@ -202,14 +245,14 @@ export function planRequests({
 }): RequestPlan {
   if (policies.length > 1) {
     const shared = tryRequest({ scope, policies })
-    if ('request' in shared) return { units: [{ policies, request: shared.request }], rejected: [] }
+    if ('unit' in shared) return { units: [shared.unit], rejected: [] }
   }
 
   const units: RequestUnit[] = []
   const rejected: RejectedRequest[] = []
   for (const policy of policies) {
     const attempt = tryRequest({ scope, policies: [policy] })
-    if ('request' in attempt) units.push({ policies: [policy], request: attempt.request })
+    if ('unit' in attempt) units.push(attempt.unit)
     else rejected.push(attempt.rejected)
   }
   return { units, rejected }

@@ -1,8 +1,8 @@
 import {
   ClassifierPort,
   EClassifierFault,
+  type ClassifierCall,
   type ClassifierOutcome,
-  type ClassifierQuestion,
   type ClassifierUsage,
 } from '@dltech/atlas-core'
 
@@ -44,11 +44,7 @@ export class OpenAiClassifier extends ClassifierPort {
     this.timeoutMs = args.timeoutMs ?? OPENAI_DECISIONS_TIMEOUT_MS
   }
 
-  async classify(args: {
-    state: string
-    questions: Record<string, ClassifierQuestion>
-    signal: AbortSignal
-  }): Promise<ClassifierOutcome> {
+  async classify(args: ClassifierCall): Promise<ClassifierOutcome> {
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), this.timeoutMs)
     const abort = (): void => controller.abort()

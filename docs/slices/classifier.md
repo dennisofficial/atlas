@@ -319,7 +319,8 @@ already read them. The narrowing is the `Extract<>` above.
 | OpenAI Decisions              | `POST /v1/decisions`, `Bearer` OpenAI API key, model `gpt-6-luna`                               | `predicate` probability, `choice` with `probabilities`, `score`; a `refusal` answer type | [developers.openai.com/api/docs/guides/decisions](https://developers.openai.com/api/docs/guides/decisions)                             |
 
 Facts that shape the design:
-- Jev prices **input only**: $42 per million tokens, output free, 64k per request, 32k per question
+- Jev prices **input only**: $0.042 per million tokens ($42 per billion), output free, 64k per request,
+  32k per question; 262k for both with the `TypeSafe-Danger-Zone-Long-Context: true` header
   (`docs.typesafe.ai/models`). Questions fan out in parallel inside one request, so N questions cost
   N evaluations of the same state.
 - OpenAI `gpt-6-luna` prices **$0.10 per 1M uncached input tokens**, output free, up to 400
