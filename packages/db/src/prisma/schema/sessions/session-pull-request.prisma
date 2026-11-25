@@ -3,9 +3,8 @@ model SessionPullRequest {
   sessionId    String
   repoFullName String
   prNumber     Int
-  session      Session @relation(fields: [sessionId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "V2SessionPullRequest_sessionId_idx_29f415d4")
+  session      Session @relation(fields: [sessionId], references: [id], onDelete: Cascade, onUpdate: Cascade, index: "SessionPullRequest_pkey")
 
-  @@id([sessionId, repoFullName, prNumber])
-  @@index([sessionId], map: "V2SessionPullRequest_sessionId_idx_29f415d4")
+  @@id([sessionId, repoFullName, prNumber], map: "SessionPullRequest_pkey")
   @@index([repoFullName, prNumber], map: "V2SessionPullRequest_repoFullName_prNumber_idx_af81cccf")
 }

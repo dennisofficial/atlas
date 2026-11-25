@@ -1,0 +1,41 @@
+[
+  {
+    "id": "dropIndex.SessionPullRequest.V2SessionPullRequest_sessionId_idx_29f415d4",
+    "label": "Drop index \"V2SessionPullRequest_sessionId_idx_29f415d4\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "V2SessionPullRequest_sessionId_idx_29f415d4",
+        "table": "SessionPullRequest"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"V2SessionPullRequest_sessionId_idx_29f415d4\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"V2SessionPullRequest_sessionId_idx_29f415d4\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop index \"V2SessionPullRequest_sessionId_idx_29f415d4\"",
+        "sql": "DROP INDEX \"public\".\"V2SessionPullRequest_sessionId_idx_29f415d4\"",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"V2SessionPullRequest_sessionId_idx_29f415d4\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"V2SessionPullRequest_sessionId_idx_29f415d4\""
+        ]
+      }
+    ]
+  }
+]

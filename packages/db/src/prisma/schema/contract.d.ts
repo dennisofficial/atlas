@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'f42fc9afa2a82c3afeffc94cdc6ed81c181325cd2eaae4b4d0e2dc2bccf31ac1'>;
+  StorageHashBase<'49cfe0bcc6c8d87db6f762e53cc306f42eda6e5e0ebde5e5aad54032999a12b9'>;
 export type ExecutionHash =
   ExecutionHashBase<'2177efb983de353ed275f943d06737e92fbddeac59ea03b9801f93db68d4ba53'>;
 export type ProfileHash =
@@ -6303,17 +6303,15 @@ type ContractBase = Omit<
                   readonly many: false;
                 };
               };
-              primaryKey: { readonly columns: readonly ['sessionId', 'repoFullName', 'prNumber'] };
+              primaryKey: {
+                readonly columns: readonly ['sessionId', 'repoFullName', 'prNumber'];
+                readonly name: 'SessionPullRequest_pkey';
+              };
               uniques: readonly [];
               indexes: readonly [
                 {
                   readonly name: 'V2SessionPullRequest_repoFullName_prNumber_idx_af81cccf';
                   readonly columns: readonly ['repoFullName', 'prNumber'];
-                  readonly unique: false;
-                },
-                {
-                  readonly name: 'V2SessionPullRequest_sessionId_idx_29f415d4';
-                  readonly columns: readonly ['sessionId'];
                   readonly unique: false;
                 },
               ];
