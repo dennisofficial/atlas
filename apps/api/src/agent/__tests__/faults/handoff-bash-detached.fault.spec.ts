@@ -29,10 +29,10 @@ describeHandoff({
     pidFile = ctx.path('detached-pid')
     statusFile = ctx.path('detached-status')
     const runs = ctx.path('runs')
-    const gate = ctx.gate('gate')
+    const held = ctx.path('held')
     const hold = ctx.gate('hold')
     writeFileSync(script, `echo $$ > ${pidFile}\nexec sleep 60\n`)
-    const command = `setsid /bin/sh ${script} >/dev/null 2>&1 & echo run >> ${runs}; cat ${gate}`
+    const command = `setsid /bin/sh ${script} >/dev/null 2>&1 & echo run >> ${runs}`
     const hostA = await ctx.rig.spawnHost({
       label: 'host-a',
       daemonUrl: ctx.daemon.url,
@@ -53,7 +53,7 @@ describeHandoff({
               {
                 callId: HOLD_CALL_ID,
                 name: 'bash',
-                input: { description: 'hold the turn', command: `cat ${hold}` },
+                input: { description: 'hold the turn', command: `touch ${held}; cat ${hold}` },
               },
             ],
           },
@@ -63,15 +63,11 @@ describeHandoff({
     })
     await ctx.rig.claim({ sessionId: ctx.sessionId, label: 'host-a', timeoutMs: 30_000 })
     await waitUntil({
-      what: 'the bash call to be dispatched',
+      what: 'the detached process to start',
       check: async () =>
-        (await rowsOf({ ctx, type: 'tool-dispatched', callId: START_CALL_ID })).length === 1,
+        (await rowsOf({ ctx, type: 'tool-result', callId: START_CALL_ID })).length === 1,
     })
-    await waitUntil({
-      what: 'the turn to still hold the session open',
-      check: async () =>
-        (await rowsOf({ ctx, type: 'tool-dispatched', callId: HOLD_CALL_ID })).length === 1,
-    })
+    await ctx.waitFor('held', 30_000)
     await ctx.waitFor('detached-pid', 30_000)
     return hostA
   },
@@ -97,20 +93,19 @@ describeHandoff({
   },
 
   async inFlight(ctx) {
-    expect(await rowsOf({ ctx, type: 'tool-result', callId: START_CALL_ID })).toHaveLength(0)
-    expect(await rowsOf({ ctx, type: 'tool-dispatched', callId: HOLD_CALL_ID })).toHaveLength(1)
+    expect(await rowsOf({ ctx, type: 'tool-result', callId: START_CALL_ID })).toHaveLength(1)
+    expect(await rowsOf({ ctx, type: 'tool-result', callId: HOLD_CALL_ID })).toHaveLength(0)
   },
 
   async release(ctx) {
-    await ctx.release('gate')
     await ctx.release('hold')
   },
 
   async settled(ctx) {
     await waitUntil({
-      what: 'the bash call to report its end',
+      what: 'the held bash call to report its end',
       check: async () =>
-        (await rowsOf({ ctx, type: 'tool-result', callId: START_CALL_ID })).length === 1,
+        (await rowsOf({ ctx, type: 'tool-result', callId: HOLD_CALL_ID })).length === 1,
     })
     await waitUntil({
       what: 'the new host to check the detached process',
