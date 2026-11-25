@@ -11,6 +11,7 @@ import { ToolRunBlock } from '../components/blocks/tool-run-block'
 import { teardown } from '../markdown/__tests__/harness'
 import { applyImageRows, SHIPPED_IMAGE_ROWS } from '../image-rows-store'
 import { encodePng } from '../images/__tests__/png-fixture'
+import { applyToolPictureSession, type ToolPictureSession } from '../tool-picture-store'
 import { applyTranscriptRows } from '../viewport-rows-store'
 import { frameWhen } from './waiting'
 
@@ -104,6 +105,24 @@ const read = (path: string, lines: number): ToolCall =>
     input: { path: `${CWD}/${path}` },
     output: { path: `${CWD}/${path}`, lines },
   })
+
+async function paintedFrameOf(run: ToolRun): Promise<string> {
+  const setup = await testRender(<ToolRunBlock run={run} width={WIDTH} cwd={CWD} />, {
+    width: WIDTH,
+    height: HEIGHT,
+  })
+  return frameWhen({
+    setup,
+    holds: painted,
+    describe: 'the stored picture to paint',
+  }).finally(() => teardown(setup))
+}
+
+const storedSession = (args: { sessionId: string }): ToolPictureSession => ({
+  sessionId: args.sessionId,
+  mediaUrl: async () => ({ url: 'https://media.test/picture' }),
+  toolPicture: async () => ({ mediaType: 'image/png', data: PNG }),
+})
 
 describe('a run of tool calls in the transcript', () => {
   it('says what a stretch of gathering added up to', async () => {
@@ -594,7 +613,7 @@ describe('a run of tool calls in the transcript', () => {
         height: 8,
         inlined: true,
       },
-      image: { data: PNG, mediaType: 'image/png' },
+      image: { kind: 'inline', data: PNG, mediaType: 'image/png' },
     })
     const run = runOf([shot])
 
@@ -611,6 +630,80 @@ describe('a run of tool calls in the transcript', () => {
     // The path does not exist on this machine, so a path-sourced image would paint nothing at all.
     expect(frame).toContain('▾ /somewhere/inside/the/sandbox/shot.png')
     expect(painted(frame)).toBe(true)
+  })
+
+  it('paints a stored picture fetched through its media url, not the file on this machine', async () => {
+    const original = globalThis.fetch
+    globalThis.fetch = (async () =>
+      new Response(new Uint8Array(Buffer.from(PNG, 'base64')))) as unknown as typeof fetch
+    applyToolPictureSession(storedSession({ sessionId: 'session-media' }))
+    try {
+      const run = runOf([
+        call({
+          name: 'read',
+          input: { path: '/elsewhere/in/the/sandbox/shot.png' },
+          output: {
+            path: '/elsewhere/in/the/sandbox/shot.png',
+            mediaType: 'image/png',
+            byteLength: 412,
+            width: 8,
+            height: 8,
+            inlined: true,
+          },
+          image: {
+            kind: 'media',
+            media: {
+              hash: 'a'.repeat(64),
+              mediaType: 'image/png',
+              size: 412,
+              width: 8,
+              height: 8,
+            },
+          },
+        }),
+      ])
+
+      const frame = await paintedFrameOf(run)
+      expect(frame).toContain('▾ /elsewhere/in/the/sandbox/shot.png')
+      expect(painted(frame)).toBe(true)
+    } finally {
+      applyToolPictureSession(undefined)
+      globalThis.fetch = original
+    }
+  })
+
+  it('paints a withheld picture loaded from its session, not the file on this machine', async () => {
+    applyToolPictureSession(storedSession({ sessionId: 'session-withheld' }))
+    try {
+      const run = runOf([
+        call({
+          name: 'read',
+          input: { path: '/elsewhere/in/the/sandbox/shot.png' },
+          output: {
+            path: '/elsewhere/in/the/sandbox/shot.png',
+            mediaType: 'image/png',
+            byteLength: 412,
+            width: 8,
+            height: 8,
+            inlined: true,
+          },
+          image: {
+            kind: 'withheld',
+            threadId: 'thread-1',
+            seq: 2,
+            part: 1,
+            mediaType: 'image/png',
+            width: 8,
+            height: 8,
+          },
+        }),
+      ])
+
+      const frame = await paintedFrameOf(run)
+      expect(painted(frame)).toBe(true)
+    } finally {
+      applyToolPictureSession(undefined)
+    }
   })
 
   it('says why a text-only read never reached the model, in place of the picture', async () => {

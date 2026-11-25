@@ -19,6 +19,13 @@ export abstract class MediaStore {
     validUntil: number
   }): Promise<string>
 
+  abstract put(args: {
+    pathname: string
+    bytes: Uint8Array
+    mediaType: string
+    signal?: AbortSignal | undefined
+  }): Promise<void>
+
   abstract head(args: { pathname: string }): Promise<{ size: number } | null>
 
   abstract read(args: { pathname: string }): Promise<Uint8Array | null>

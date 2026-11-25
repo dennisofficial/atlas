@@ -50,6 +50,7 @@ export const streamServerMessageSchema = z.discriminatedUnion('type', [
     id: idSchema,
     events: z.array(sessionEventsOutputSchema.shape.events.element),
     head: z.strictObject({ seq: z.number().int().min(0), hash: z.string().min(1) }),
+    cursor: z.strictObject({ seq: z.number().int().min(0), hash: z.string().min(1) }).optional(),
     live: z.boolean(),
   }),
   z.strictObject({

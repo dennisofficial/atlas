@@ -104,4 +104,5 @@ export {
   type SessionRecordArgs,
 } from './holder/record/record-adapter'
 export { RecordCache } from './holder/record/record-cache'
+export { storePictures, type PictureStore } from './holder/record/record-pictures'
 export { RecordOnceLedger } from './holder/record/record-once-ledger'

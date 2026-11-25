@@ -12,8 +12,10 @@ import {
   NOTHING_ATTACHED,
   type ContextAttachment,
 } from './tool-attachments'
+import { firstPictureIn, type ToolPicture } from './tool-picture'
 
 export { attachmentsOf, type ContextAttachment }
+export { firstPictureIn, type ToolPicture }
 
 export enum ECallState {
   Pending = 'pending',
@@ -23,25 +25,13 @@ export enum ECallState {
   Denied = 'denied',
 }
 
-/**
- * One call, with the tool's OUTPUT still attached.
- *
- * The previous model dropped it at this boundary and kept a handful of derived totals instead, which
- * meant a transcript could never say what a call actually did — only how many of them there were.
- * Everything downstream of here reads the output: what the call is called, what it counts, and which
- * renderer it opens into.
- */
 export type ToolCall = {
   callId: CallId
   name: string
   input: unknown
   output: unknown
   modelText: string
-  /**
-   * The bytes of the image the model was handed, when the result inlined one. The transcript renders
-   * from these, not from the file's path — the file can live inside a sandbox, or be gone entirely.
-   */
-  image?: { data: string; mediaType: string } | undefined
+  image?: ToolPicture | undefined
   state: ECallState
   /** The error or denial reason, when there is one. */
   note: string | null
@@ -56,13 +46,6 @@ export type ToolCall = {
   qualityReviews?: readonly CodeQualityReviewedBody[] | undefined
 }
 
-/**
- * A maximal stretch of adjacent calls, in the order they were made.
- *
- * Not grouped by verb, and not grouped at all: grouping is a decision about meaning that belongs to
- * `tools/aggregate`, which reads a classification this layer knows nothing about. What the store
- * owes the renderer is the run and its order.
- */
 export type ToolRun = { key: string; openedBy: CallId; calls: readonly ToolCall[] }
 
 export type LiveToolCall = {
@@ -115,7 +98,11 @@ function settlesOf(events: readonly Event[]): Map<CallId, Settle> {
         output: event.output,
         modelText: event.modelText ?? '',
         note: event.error?.message ?? null,
-        image: firstImageIn(event.modelParts),
+        image: firstPictureIn({
+          parts: event.modelParts,
+          threadId: event.threadId,
+          seq: event.seq,
+        }),
         qualityReviews: event.qualityReviews ?? [],
       })
     }
@@ -134,24 +121,6 @@ function settlesOf(events: readonly Event[]): Map<CallId, Settle> {
   }
 
   return settles
-}
-
-/** The first picture part a result carried, if any — the read image itself. */
-function firstImageIn(
-  parts: EventOfType<'tool-result'>['modelParts'],
-): { data: string; mediaType: string } | undefined {
-  if (parts === undefined) return undefined
-
-  const part = parts.find(
-    (entry) =>
-      entry.type === 'image' &&
-      entry.bytes.kind === 'inline' &&
-      entry.bytes.data.length > 0 &&
-      entry.mediaType.length > 0,
-  )
-  if (part === undefined || part.type !== 'image' || part.bytes.kind !== 'inline') return undefined
-
-  return { data: part.bytes.data, mediaType: part.mediaType }
 }
 
 type CallSeed = { callId: CallId; name: string; input: unknown; at: string | null }

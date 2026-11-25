@@ -1,11 +1,10 @@
-import type { MessageImage } from '@dltech/atlas-ui/ai/message'
-
 import {
   ETranscriptKind,
   type ReportItem,
   type SpawnItem,
   type TranscriptRow,
 } from './transcript-items'
+import type { ToolPictureItem } from './transcript-tools'
 
 type ItemOf<TKind extends ETranscriptKind> = Extract<TranscriptRow, { kind: TKind }>
 type AgentItem = ItemOf<ETranscriptKind.Agent>
@@ -47,7 +46,7 @@ export type MessageSegment = {
 export type ImagesSegment = {
   kind: ESegmentKind.Images
   id: string
-  images: MessageImage[]
+  images: ToolPictureItem[]
   at?: string
 }
 
@@ -137,7 +136,7 @@ const finishedAtOf = (item: WorkItem): string | undefined =>
     ? latestOf([item.at, ...item.calls.flatMap((call) => [call.at, call.settledAt])])
     : item.at
 
-const imagesReadIn = (item: WorkItem): MessageImage[] =>
+const imagesReadIn = (item: WorkItem): ToolPictureItem[] =>
   item.kind === ETranscriptKind.Tools
     ? item.calls.flatMap((call) => (call.image === undefined ? [] : [call.image]))
     : []

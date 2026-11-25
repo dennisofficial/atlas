@@ -1,6 +1,7 @@
 import type { StreamServerMessage } from '@dltech/atlas-protocol'
 
 import type { FollowPlane } from './follow-types'
+import { withheldEvents } from './withheld-events'
 
 export const tailBaseOf = async (args: {
   plane: FollowPlane
@@ -23,8 +24,8 @@ export const tailBaseOf = async (args: {
       cursor: base.cursor,
       visibility: base.visibility,
       view: base.view,
-      durable: base.durable.map((event) => ({ ...event })),
-      commandLog: base.commandLog.map((event) => ({ ...event })),
+      durable: withheldEvents(base.durable),
+      commandLog: withheldEvents(base.commandLog),
     },
   }
 }

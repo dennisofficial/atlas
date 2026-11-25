@@ -13,6 +13,7 @@ import {
   FOLLOW_SLOW_CONSUMER_MS,
 } from './follow-limits'
 import { tailBaseOf } from './base-frame'
+import { pageCursorOf, withheldEvents } from './withheld-events'
 import { CatchupMeter, ECatchupStart } from './catchup-meter'
 import type { FollowConnection, FollowDeps, FollowTarget, SubscriptionIndex } from './follow-types'
 import { resolveStart, type StartRequest } from './resolve-start'
@@ -228,11 +229,13 @@ export class FollowSubscription implements FollowTarget {
         if (this.stopped) return
       }
       const live = page.next === undefined && (this.cursor ?? 0) >= head.seq
+      const cursor = pageCursorOf(last)
       this.sendMetered({
         type: 'events',
         id: this.id,
-        events: page.events,
+        events: withheldEvents(page.events),
         head: { seq: head.seq, hash: head.hash },
+        ...(cursor === undefined ? {} : { cursor }),
         live,
       })
       this.meter?.notePage(page.events.length)

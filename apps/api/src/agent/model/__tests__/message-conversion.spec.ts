@@ -560,6 +560,39 @@ describe('toModelMessage with a media part', () => {
       ])
     })
 
+    it('sends a tool-result media part as inline bytes to a bytes-only model', () => {
+      const message: ToolMessage = {
+        role: 'tool',
+        content: [
+          {
+            type: 'tool-result',
+            toolCallId: 'call-1',
+            toolName: 'read',
+            output: { type: 'content', value: [{ type: 'media', media }] },
+          },
+        ],
+      }
+
+      expect(toModelMessages([message], { mediaBytes: new Map([[media.hash, PIXEL]]) })).toEqual([
+        {
+          role: 'tool',
+          content: [
+            {
+              type: 'tool-result',
+              toolCallId: 'call-1',
+              toolName: 'read',
+              output: {
+                type: 'content',
+                value: [
+                  { type: 'file', data: { type: 'data', data: PIXEL }, mediaType: 'image/png' },
+                ],
+              },
+            },
+          ],
+        },
+      ])
+    })
+
     it('keeps the text line for a hash the map does not hold', () => {
       const message: UserMessage = {
         role: 'user',

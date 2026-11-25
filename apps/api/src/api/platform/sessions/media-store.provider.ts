@@ -19,6 +19,10 @@ export class UnconfiguredMediaStore extends MediaStore {
     return notConfigured()
   }
 
+  put(): Promise<void> {
+    return notConfigured()
+  }
+
   head(): Promise<{ size: number } | null> {
     return notConfigured()
   }

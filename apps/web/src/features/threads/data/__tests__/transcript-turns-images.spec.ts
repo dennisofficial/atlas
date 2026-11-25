@@ -38,7 +38,11 @@ const read = (id: string, at: string): TranscriptItem => ({
       kind: EToolKind.Read,
       state: EToolState.Done,
       label: 'shot.png',
-      image: { id: `${id}-0#image`, src: 'data:image/png;base64,iVBOR', alt: 'shot.png' },
+      image: {
+        id: `${id}-0#image`,
+        picture: { kind: 'inline', data: 'iVBOR', mediaType: 'image/png' },
+        alt: 'shot.png',
+      },
     },
   ],
   at,

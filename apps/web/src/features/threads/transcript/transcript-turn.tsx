@@ -4,7 +4,6 @@ import { memo } from 'react'
 import { ZapIcon } from 'lucide-react'
 
 import { AgentMessage } from '@dltech/atlas-ui/ai/message'
-import { EMessageImageSize, MessageImageThumb } from '@dltech/atlas-ui/ai/message-images'
 import { Reasoning } from '@dltech/atlas-ui/ai/reasoning'
 import { WorkSummary } from '@dltech/atlas-ui/ai/work-summary'
 import { formatElapsed, messageTimeOf } from '@dltech/atlas-client/transcript'
@@ -30,6 +29,7 @@ import { TranscriptNotice } from './transcript-notice'
 import { TranscriptRequest } from './transcript-request'
 import { TranscriptSignIn } from './transcript-sign-in'
 import { TranscriptMarkdown } from './transcript-markdown'
+import { TranscriptToolPicture } from './transcript-tool-picture'
 import { ToolRow } from './transcript-tool-row'
 import { StoppedLine, workResume, workStopped, type TranscriptResume } from './stopped-line'
 import { UserTurnView, type QueuedTurnActions } from './transcript-user-turn'
@@ -183,7 +183,7 @@ function SegmentView({
     return (
       <div className="flex flex-col items-start gap-2">
         {segment.images.map((image) => (
-          <MessageImageThumb key={image.id} image={image} size={EMessageImageSize.Preview} />
+          <TranscriptToolPicture key={image.id} {...image} />
         ))}
       </div>
     )

@@ -17,7 +17,10 @@ import {
 } from '@dltech/atlas-observability'
 import { ESandboxProvider } from '@dltech/atlas-protocol'
 
+import type { MediaStore } from '@dltech/atlas-media'
+
 import type { MediaSigner } from '../media/media-signer'
+import { DbPictureRegistry, pictureStoreOf } from '../media/picture-store'
 import { attachmentUrlBinding } from '../media/media-urls'
 import { normalizeProviderFailure } from '../model/failure'
 import type { ModelTokenService } from '../tokens/model-token-service'
@@ -78,6 +81,7 @@ export type SessionRuntimeFactoryArgs = {
   analytics?: ProductAnalytics | undefined
   pingMs?: number | undefined
   media?: MediaSigner | undefined
+  mediaStore?: MediaStore | undefined
   githubFetch?: typeof fetch | undefined
   plugins?: ComposedPlugins | undefined
   configWrites?: CloudConfigStore | undefined
@@ -391,6 +395,15 @@ export const createSessionRuntimeFactory = (
         blobs: args.media === undefined ? null : signerUploadBlobs(args.media),
       }),
       ...attachmentUrlBinding({ signer: args.media, userId: config.userId }),
+      ...(args.mediaStore === undefined
+        ? {}
+        : {
+            pictures: pictureStoreOf({
+              store: args.mediaStore,
+              registry: new DbPictureRegistry(),
+              userId: config.userId,
+            }),
+          }),
       normalizeFailure: normalizeProviderFailure,
       launchDirectory,
       watchedRepos: () => gitWatch.watchedRepos(),

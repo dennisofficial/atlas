@@ -174,8 +174,8 @@ describe('ThreadTranscript read images', () => {
             label: 'shot.png',
             image: {
               id: 'c1#image',
-              src: 'data:image/png;base64,iVBOR',
               alt: 'shot.png',
+              picture: { kind: 'inline', data: 'iVBOR', mediaType: 'image/png' },
             },
           },
         ],

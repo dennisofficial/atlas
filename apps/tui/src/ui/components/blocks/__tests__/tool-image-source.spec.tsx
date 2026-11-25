@@ -29,7 +29,7 @@ const call = {
     byteLength: picture.length,
     inlined: true,
   },
-  image: { mediaType: 'image/png', data: Buffer.from(picture).toString('base64') },
+  image: { kind: 'inline', mediaType: 'image/png', data: Buffer.from(picture).toString('base64') },
   settled: true,
   failed: false,
 } as unknown as ToolCall

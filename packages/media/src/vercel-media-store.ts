@@ -1,4 +1,12 @@
-import { BlobNotFoundError, del, get, head, issueSignedToken, presignUrl } from '@vercel/blob'
+import {
+  BlobNotFoundError,
+  del,
+  get,
+  head,
+  issueSignedToken,
+  presignUrl,
+  put as putBlob,
+} from '@vercel/blob'
 
 import { MediaStore, type ReadDelegation } from './media-store'
 
@@ -61,6 +69,22 @@ export class VercelMediaStore extends MediaStore {
       ...constraints,
     })
     return presignedUrl
+  }
+
+  async put(args: {
+    pathname: string
+    bytes: Uint8Array
+    mediaType: string
+    signal?: AbortSignal | undefined
+  }): Promise<void> {
+    await putBlob(args.pathname, Buffer.from(args.bytes), {
+      access: 'private',
+      token: this.token,
+      contentType: args.mediaType,
+      addRandomSuffix: false,
+      allowOverwrite: true,
+      ...(args.signal === undefined ? {} : { abortSignal: args.signal }),
+    })
   }
 
   async head(args: { pathname: string }): Promise<{ size: number } | null> {

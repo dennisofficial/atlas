@@ -22,6 +22,7 @@ import type { SessionLog } from './session-log'
 import { applyShellOutput, withoutEndedShells } from './shell-tails'
 import { applyPageOutcome, EMPTY_WINDOW, RENDER_LIMIT, type SessionCursor } from './session-window'
 import { defaultKnownEventTypes } from './known-event-types'
+import { logHeadOf } from './log-head'
 import type { OlderFetch } from './session-older'
 import type { StreamScheduler } from './stream-ports'
 
@@ -121,14 +122,14 @@ export const createSessionFollower = (args: SessionFollowerArgs): SessionFollowe
   const handleEvents = (message: Extract<StreamServerMessage, { type: 'events' }>): void => {
     const { window, fresh, skipped, issue } = applyPageOutcome({
       window: inner.window,
-      page: { events: message.events, head: message.head },
+      page: { events: message.events, head: message.head, cursor: message.cursor },
       eventSchema: args.eventSchema,
       renderLimit,
       views: args.views,
     })
     if (fresh.length > 0) {
       logHasEvents = true
-      writer.append({ events: fresh, head: message.head })
+      writer.append({ events: fresh, head: logHeadOf({ message, fresh }) })
     }
     const overlay = closeOverlayForEvents({ state: inner.overlay, events: window.events })
     if (skipped > 0) {

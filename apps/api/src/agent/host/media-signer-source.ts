@@ -1,5 +1,5 @@
 import type { Db } from '@dltech/atlas-db'
-import { VercelMediaStore } from '@dltech/atlas-media'
+import { VercelMediaStore, type MediaStore } from '@dltech/atlas-media'
 
 import type { AgentHostEnv } from '../config/env'
 import type { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
@@ -14,14 +14,17 @@ export type MediaSignerSourceArgs = {
 
 export class MediaSignerSource {
   readonly signer: MediaSigner | undefined
+  readonly store: MediaStore | undefined
 
   constructor(args: MediaSignerSourceArgs) {
     const token = args.env.mediaBlobToken
+    const store = token === null ? undefined : new VercelMediaStore({ token })
+    this.store = store
     this.signer =
-      token === null
+      store === undefined
         ? undefined
         : new MediaSigner({
-            store: new VercelMediaStore({ token }),
+            store,
             windows: new PgMediaSigningWindows(args.db),
             cipher: args.cipher,
             now: () => Date.now(),

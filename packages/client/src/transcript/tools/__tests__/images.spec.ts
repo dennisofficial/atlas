@@ -83,7 +83,7 @@ describe('the bytes and the refusal a read carries', () => {
         height: 768,
         inlined: true,
       },
-      image: { data: 'aGVsbG8td29ybGQ=', mediaType: 'image/png' },
+      image: { kind: 'inline', data: 'aGVsbG8td29ybGQ=', mediaType: 'image/png' },
     })
 
     expect(imageOf(withBytes)?.data).toBe('aGVsbG8td29ybGQ=')

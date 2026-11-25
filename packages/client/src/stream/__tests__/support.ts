@@ -15,6 +15,7 @@ import type {
   StreamSubscriptionHandlers,
   StreamTransport,
 } from '../stream-ports'
+import type { SessionCursor } from '../session-window'
 
 const NOW = '2026-11-05T10:00:00.000Z'
 
@@ -52,11 +53,13 @@ export const eventsMessage = (params: {
   id: string
   events: readonly RecordEvent[]
   live: boolean
+  cursor?: SessionCursor | undefined
 }): StreamServerMessage => ({
   type: 'events',
   id: params.id,
   events: params.events.map((event) => ({ ...event })),
   head: headOf(params.events),
+  ...(params.cursor === undefined ? {} : { cursor: params.cursor }),
   live: params.live,
 })
 

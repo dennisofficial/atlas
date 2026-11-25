@@ -6,8 +6,8 @@ for specs.
 
 ## Owns
 
-- `MediaStore`: the port with a read delegation, presigned get and put URLs, `head`, `read` and
-  `delete`.
+- `MediaStore`: the port with a read delegation, presigned get and put URLs, a direct `put`,
+  `head`, `read` and `delete`.
 - `VercelMediaStore`: the Vercel Blob implementation.
 - `listBlobsOlderThan`: the pathnames under a prefix that were uploaded before a cutoff.
 - `FakeMediaStore`: an in-memory store for a spec.
@@ -30,7 +30,7 @@ for specs.
 
 ### Define a store
 
-- `MediaStore`: the abstract class. A new backend extends it and implements all six methods.
+- `MediaStore`: the abstract class. A new backend extends it and implements all seven methods.
 - `ReadDelegation`: `{ delegationToken, clientSigningToken, validUntil }`. It lets a client sign
   its own read URLs until `validUntil`.
 
@@ -41,6 +41,9 @@ for specs.
 - `presignGet({ delegation, pathname, validUntil })`: returns a read URL.
 - `presignPut({ pathname, maximumSizeInBytes, validUntil })`: returns an upload URL that refuses an
   overwrite.
+- `put({ pathname, bytes, mediaType, signal })`: writes the bytes from the server. The pathname is
+  content-addressed, so an overwrite is harmless. `signal` aborts an upload its caller stopped
+  waiting for.
 - `head({ pathname })`: returns `{ size }`, or `null` when the blob does not exist.
 - `read({ pathname })`: returns the bytes, or `null`.
 - `delete({ pathnames })`: deletes the blobs. An empty list does nothing.
@@ -54,7 +57,7 @@ for specs.
 ### Test against the fake store
 
 - `new FakeMediaStore()`: creates an empty store with the same contract.
-- `put({ pathname, bytes })`: seeds a blob.
+- `put({ pathname, bytes })`: writes a blob, as the port does, and seeds one.
 - `blobs`, `contents`, `deleted`, `issued`: the recorded state.
 - `presignGet` and `presignPut` return a `https://blob.fake/...` URL.
 

@@ -33,6 +33,7 @@ import {
   type TranscriptSummarise,
 } from './transcript/transcript-turn'
 import type { TranscriptResume } from './transcript/stopped-line'
+import { ToolPictureSessionProvider } from './transcript/tool-picture-session'
 
 export type { TranscriptResume, TranscriptRewind, TranscriptSummarise }
 
@@ -80,6 +81,7 @@ function BootEntryItem({ entry, onRetry }: { entry: BootEntry; onRetry: () => vo
 }
 
 export function ThreadTranscript({
+  sessionId,
   items,
   failureCard,
   repairCard,
@@ -97,6 +99,7 @@ export function ThreadTranscript({
   onLoadOlder,
   onOpenPodSize,
 }: {
+  sessionId: string
   items: readonly TranscriptRow[]
   failureCard: RunFailureCardProps | null
   repairCard?: RepairCardProps | null
@@ -145,60 +148,62 @@ export function ThreadTranscript({
   const lastUserTurn = turns.findLast((turn) => turn.kind === ETurnKind.User)
   const lastUserTurnId = lastUserTurn === undefined ? null : chatKeyOf(lastUserTurn)
   return (
-    <Chat jumpKey={lastUserTurnId} {...(onLoadOlder === undefined ? {} : { onLoadOlder })}>
-      {sessionBoot === undefined || sessionBoot === null ? null : (
-        <ChatItem id="session-boot">
-          <TickingSandboxBoot view={sessionBoot} onRetry={onRetryBoot} />
-        </ChatItem>
-      )}
-      {bootAfter(-1)}
-      {turns.flatMap((turn, index) => [
-        <ChatItem key={chatKeyOf(turn)} id={turn.id}>
-          <TurnView
-            turn={turn}
-            now={isLiveTurn(turn) ? now : 0}
-            models={models}
-            userName={userName}
-            actions={actions}
-          />
-        </ChatItem>,
-        ...bootAfter(index),
-      ])}
-      {repairCard === undefined || repairCard === null ? null : (
-        <ChatItem id="turn-failure">
-          <RepairCard {...repairCard} />
-        </ChatItem>
-      )}
-      {failureCard !== null ? (
-        <ChatItem id="turn-failure">
-          <RunFailureCard {...failureCard} />
-        </ChatItem>
-      ) : failedLabel === null ? null : (
-        <ChatItem id="turn-failure">
-          <RunFailedMarker label={failedLabel} />
-        </ChatItem>
-      )}
-      {working || !isWaiting(background) ? null : (
-        <ChatItem id="background-wait">
-          <BackgroundWaitLine work={background} settledAt={settledAt} />
-        </ChatItem>
-      )}
-      {queued === undefined
-        ? null
-        : queued.rows.map((row) => (
-            <ChatItem key={row.id} id={row.id}>
-              <QueuedRowItem
-                row={row}
-                now={now}
-                models={models}
-                userName={userName}
-                actions={actions}
-                waitLabel={queued.waitLabel}
-                onEdit={queued.onEdit}
-                onRemove={queued.onRemove}
-              />
-            </ChatItem>
-          ))}
-    </Chat>
+    <ToolPictureSessionProvider value={sessionId}>
+      <Chat jumpKey={lastUserTurnId} {...(onLoadOlder === undefined ? {} : { onLoadOlder })}>
+        {sessionBoot === undefined || sessionBoot === null ? null : (
+          <ChatItem id="session-boot">
+            <TickingSandboxBoot view={sessionBoot} onRetry={onRetryBoot} />
+          </ChatItem>
+        )}
+        {bootAfter(-1)}
+        {turns.flatMap((turn, index) => [
+          <ChatItem key={chatKeyOf(turn)} id={turn.id}>
+            <TurnView
+              turn={turn}
+              now={isLiveTurn(turn) ? now : 0}
+              models={models}
+              userName={userName}
+              actions={actions}
+            />
+          </ChatItem>,
+          ...bootAfter(index),
+        ])}
+        {repairCard === undefined || repairCard === null ? null : (
+          <ChatItem id="turn-failure">
+            <RepairCard {...repairCard} />
+          </ChatItem>
+        )}
+        {failureCard !== null ? (
+          <ChatItem id="turn-failure">
+            <RunFailureCard {...failureCard} />
+          </ChatItem>
+        ) : failedLabel === null ? null : (
+          <ChatItem id="turn-failure">
+            <RunFailedMarker label={failedLabel} />
+          </ChatItem>
+        )}
+        {working || !isWaiting(background) ? null : (
+          <ChatItem id="background-wait">
+            <BackgroundWaitLine work={background} settledAt={settledAt} />
+          </ChatItem>
+        )}
+        {queued === undefined
+          ? null
+          : queued.rows.map((row) => (
+              <ChatItem key={row.id} id={row.id}>
+                <QueuedRowItem
+                  row={row}
+                  now={now}
+                  models={models}
+                  userName={userName}
+                  actions={actions}
+                  waitLabel={queued.waitLabel}
+                  onEdit={queued.onEdit}
+                  onRemove={queued.onRemove}
+                />
+              </ChatItem>
+            ))}
+      </Chat>
+    </ToolPictureSessionProvider>
   )
 }

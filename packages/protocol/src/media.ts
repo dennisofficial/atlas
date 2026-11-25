@@ -48,6 +48,18 @@ export const mediaUrlInputSchema = z.strictObject({
 
 export const mediaUrlOutputSchema = z.strictObject({ url: z.url() })
 
+export const mediaToolPictureInputSchema = z.strictObject({
+  sessionId: z.string().min(1),
+  threadId: z.string().min(1),
+  seq: z.number().int().positive(),
+  part: z.number().int().nonnegative(),
+})
+
+export const mediaToolPictureOutputSchema = z.strictObject({
+  mediaType: z.string().min(1),
+  data: z.string(),
+})
+
 export type SessionPostMedia = z.infer<typeof sessionPostMediaSchema>
 export type InboxMedia = z.infer<typeof inboxMediaSchema>
 export type MediaPresignInput = z.infer<typeof mediaPresignInputSchema>
@@ -56,3 +68,5 @@ export type MediaConfirmInput = z.infer<typeof mediaConfirmInputSchema>
 export type MediaConfirmOutput = z.infer<typeof mediaConfirmOutputSchema>
 export type MediaUrlInput = z.infer<typeof mediaUrlInputSchema>
 export type MediaUrlOutput = z.infer<typeof mediaUrlOutputSchema>
+export type MediaToolPictureInput = z.infer<typeof mediaToolPictureInputSchema>
+export type MediaToolPictureOutput = z.infer<typeof mediaToolPictureOutputSchema>

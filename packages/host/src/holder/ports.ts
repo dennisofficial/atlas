@@ -25,6 +25,7 @@ import type { LiveFrame } from '@dltech/atlas-protocol'
 
 import type { RemoteCalls } from '../calls/remote-calls'
 import type { WorkspaceGate } from '../calls/workspace-gate'
+import type { PictureStore } from './record/record-pictures'
 
 export type HostBus = {
   onWake(listener: (sessionId: string) => void): () => void
@@ -105,6 +106,7 @@ export type SessionRuntime = {
     files: readonly SpawnFile[]
   }) => Promise<{ written: number; refused: readonly string[] }>
   mediaUrls?: MediaUrlResolver | undefined
+  pictures?: PictureStore | undefined
   normalizeFailure: NormalizeFailure
   launchDirectory: string
   watchedRepos(): Promise<readonly string[]>

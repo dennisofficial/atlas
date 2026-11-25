@@ -138,32 +138,36 @@ const toModelToolResultPart = ({ part, media }: { part: ToolResultPart; media: M
 })
 
 const toModelImagePart = (part: ImagePart) =>
-  part.bytes.kind === 'url'
-    ? {
-        type: 'image' as const,
-        image: new URL(part.bytes.url),
-        mediaType: part.mediaType,
-        ...carriedProviderOptions(part.providerOptions),
-      }
-    : {
-        type: 'file' as const,
-        data: { type: 'data' as const, data: part.bytes.data },
-        mediaType: part.mediaType,
-        ...carriedProviderOptions(part.providerOptions),
-      }
+  part.bytes.kind === 'withheld'
+    ? { type: 'text' as const, text: missingImageLine(part.source ?? 'picture') }
+    : part.bytes.kind === 'url'
+      ? {
+          type: 'image' as const,
+          image: new URL(part.bytes.url),
+          mediaType: part.mediaType,
+          ...carriedProviderOptions(part.providerOptions),
+        }
+      : {
+          type: 'file' as const,
+          data: { type: 'data' as const, data: part.bytes.data },
+          mediaType: part.mediaType,
+          ...carriedProviderOptions(part.providerOptions),
+        }
 
 const toModelResultImagePart = (part: ImagePart) =>
-  part.bytes.kind === 'url'
-    ? {
-        type: 'file' as const,
-        data: { type: 'url' as const, url: new URL(part.bytes.url) },
-        mediaType: part.mediaType,
-      }
-    : {
-        type: 'file' as const,
-        data: { type: 'data' as const, data: part.bytes.data },
-        mediaType: part.mediaType,
-      }
+  part.bytes.kind === 'withheld'
+    ? { type: 'text' as const, text: missingImageLine(part.source ?? 'picture') }
+    : part.bytes.kind === 'url'
+      ? {
+          type: 'file' as const,
+          data: { type: 'url' as const, url: new URL(part.bytes.url) },
+          mediaType: part.mediaType,
+        }
+      : {
+          type: 'file' as const,
+          data: { type: 'data' as const, data: part.bytes.data },
+          mediaType: part.mediaType,
+        }
 
 const toModelFilePart = (part: FilePart) => ({
   type: 'file' as const,

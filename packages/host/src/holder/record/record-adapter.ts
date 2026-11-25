@@ -18,6 +18,7 @@ import type { HostTimers } from '../ports'
 import { AppendRetry, type DaemonAck } from './append-retry'
 import { LeaseLostError } from './lease-lost-error'
 import { RecordCache } from './record-cache'
+import { storePictures, type PictureStore } from './record-pictures'
 import { spillForAppend } from './record-spill'
 import { abortErrorOf, abortedOnHandoff, toRecordBody, type AppendBody } from './append-drafts'
 import { RecordCorruptionError } from './append-drafts'
@@ -53,6 +54,7 @@ export type SessionRecordArgs = {
   timers: HostTimers
   remoteCalls: RemoteCalls
   daemonTools: ReadonlySet<string>
+  pictures?: PictureStore | undefined
   blobSpillBytes?: number | undefined
   preloaded?: RecordCache | undefined
   appendRetryMs?: number | undefined
@@ -211,8 +213,14 @@ export class SessionRecord implements AgentRecordPort, ModelContextPort {
         abortedOnHandoff(raw, this.draining),
       )
       if (draft === undefined) continue
-      const spilled = spillForAppend({
+      const body = await storePictures({
         body: toRecordBody(draft),
+        pictures: this.args.pictures,
+        timers: this.args.timers,
+        ...(this.args.log === undefined ? {} : { log: this.args.log }),
+      })
+      const spilled = spillForAppend({
+        body,
         thresholdBytes: this.args.blobSpillBytes ?? BLOB_SPILL_BYTES,
         ...(this.args.log === undefined ? {} : { log: this.args.log }),
       })

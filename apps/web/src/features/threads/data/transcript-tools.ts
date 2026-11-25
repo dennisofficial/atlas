@@ -10,8 +10,8 @@ import {
   str,
   targetOf,
   type ToolCall,
+  type ToolPicture,
 } from '@dltech/atlas-client/transcript'
-import type { MessageImage } from '@dltech/atlas-ui/ai/message'
 import type { CodeQualityReviewedBody } from '@dltech/atlas-core'
 import { EToolKind, EToolState } from '@dltech/atlas-ui/ai/tool'
 
@@ -27,6 +27,14 @@ export enum EToolFamily {
   Other = 'other',
 }
 
+export type ToolPictureItem = {
+  id: string
+  picture: ToolPicture
+  alt: string
+  width?: number | undefined
+  height?: number | undefined
+}
+
 export type ToolCallItem = {
   id: string
   kind: EToolKind
@@ -38,7 +46,7 @@ export type ToolCallItem = {
   family?: EToolFamily
   path?: string
   change?: EditBody
-  image?: MessageImage
+  image?: ToolPictureItem
   at?: string
   settledAt?: string
   output?: string
@@ -95,13 +103,26 @@ export function editPathOf(call: ToolCall): string | undefined {
 
 const fileNameOf = (path: string): string => path.split('/').at(-1) || path
 
-function pictureOf(call: ToolCall): MessageImage | undefined {
+const naturalSizeOf = (
+  picture: ToolPicture,
+): { width?: number | undefined; height?: number | undefined } => {
+  if (picture.kind === 'media') return { width: picture.media.width, height: picture.media.height }
+  if (picture.kind === 'withheld') return { width: picture.width, height: picture.height }
+  return {}
+}
+
+function pictureOf(call: ToolCall): ToolPictureItem | undefined {
   const read = imageOf(call)
   if (call.image === undefined || read === null) return undefined
+  const natural = naturalSizeOf(call.image)
+  const width = natural.width ?? read.width ?? undefined
+  const height = natural.height ?? read.height ?? undefined
   return {
     id: `${call.callId}#image`,
-    src: `data:${call.image.mediaType};base64,${call.image.data}`,
+    picture: call.image,
     alt: fileNameOf(read.path),
+    ...(width === undefined ? {} : { width }),
+    ...(height === undefined ? {} : { height }),
   }
 }
 

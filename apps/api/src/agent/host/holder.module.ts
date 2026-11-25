@@ -114,6 +114,7 @@ const holderProvider: Provider = {
       turnEnded: (args) => usage.refreshAfterTurn({ sessionId: args.sessionId }),
       onHostIdChanged: () => watch.recompute(),
       ...(media.signer === undefined ? {} : { media: media.signer }),
+      ...(media.store === undefined ? {} : { mediaStore: media.store }),
       ...(content instanceof UnavailableChangeContentStore ? {} : { changes: { content } }),
       ...(context instanceof UnavailableContextContentStore
         ? {}

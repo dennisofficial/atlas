@@ -10,7 +10,10 @@ export type ReasoningPart = {
   providerOptions?: ProviderOptions | undefined
 }
 
-export type ImageBytes = { kind: 'inline'; data: string } | { kind: 'url'; url: string }
+export type ImageBytes =
+  | { kind: 'inline'; data: string }
+  | { kind: 'url'; url: string }
+  | { kind: 'withheld' }
 
 export type ImagePart = {
   type: 'image'

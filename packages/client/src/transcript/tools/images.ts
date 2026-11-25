@@ -31,7 +31,7 @@ export function imageOf(call: ToolCall): ReadImage | null {
     width: num(output.width) ?? null,
     height: num(output.height) ?? null,
     byteLength: num(output.byteLength) ?? null,
-    data: call.image?.data ?? null,
+    data: call.image?.kind === 'inline' ? call.image.data : null,
     inlined,
     notSentReason: inlined
       ? null
