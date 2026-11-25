@@ -172,7 +172,7 @@ describe('jina search port', () => {
     }
 
     const elsewhere =
-      'web_search stays down until the operator fixes it, so open a search page with the browser tool instead.'
+      'web_search stays down until the operator fixes it, so open a search page with `agent-browser` through bash instead.'
     expect(await reasonFor(401)).toBe(`Jina refused the platform search key. ${elsewhere}`)
     expect(await reasonFor(403)).toBe(`Jina refused the platform search key. ${elsewhere}`)
     expect(await reasonFor(402)).toBe(

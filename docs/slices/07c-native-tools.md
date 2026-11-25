@@ -135,32 +135,21 @@ the final URL, and tells the model to fetch the file with `bash` + `curl -o` whe
 in the pod. Adding a bytes write op to the protocol for this one case is not worth it; if large-file
 work becomes common it is a daemon change, not a tool change.
 
-## 3. `browser`
+## 3. The browser: `agent-browser` through bash
 
-Ported into the same package as a pod tool over `exec`: one call is
-`agent-browser --session atlas-<sessionId> batch "<command>" … "close"`, the session id comes from
-`PluginPodContext`, the page comes back wrapped in the untrusted envelope with v1's truncation, and
-each call defaults to a 120 s timeout capped at 600 s.
+The first port was a `browser` tool over `exec`: one call ran an `agent-browser … batch` script and
+closed Chrome at the end, because every exec owned a cgroup box and the box was killed when the exec
+exited. The tool is gone. The model drives the same command line through `bash`, and the image sets
+its viewport (`AGENT_BROWSER_ARGS=--window-size=1920,1223` in `infra/sandbox-image/Dockerfile`).
 
-Chrome cannot persist between calls. Every exec runs in its own cgroup box
-(`apps/daemon/src/ops/exec/index.ts:31-32`) and `killWorkloadBox` kills that box when the exec exits
-(`packages/sandbox/src/workload-cgroups.ts:169-180`), so the long-lived browser daemon `agent-browser`
-forks dies with the call that launched it: a later call with the same `--session` silently launches a
-fresh Chrome and answers `about:blank`, with no error. A shared browser daemon outside the exec box
-would be the only way to reuse one, which is a daemon change, not a tool change. So the input is
-`commands` — the script one call runs, through `batch`, against a single browser — the tool appends
-`close`, and a call costs a Chrome launch of roughly half a second.
+Chrome now persists between calls. Every call still gets its own box
+(`apps/daemon/src/ops/exec/index.ts`), but the box is killed only when the daemon kills the call —
+cancel, timeout, stop — so `agent-browser`'s daemon, which leaves the process group with `setsid`,
+survives the call that launched it and serves the next one. A plain `&` child still dies with its
+call, because the call's process group is killed on every exit.
 
-Two v1 details change for v2's shape:
-- The tool always passes `--session`, so a browser is per session, and a caller's own `--session` flag
-  inside a command is still refused.
-- The tool reports the missing binary as a failed call rather than a crash: the image bakes it, but a
-  session in an older image must be told, not broken.
-- A failed step reports the exit status, the script that ran, and everything the binary printed;
-  the daemon merges stdout and stderr onto one channel, so the two arrive interleaved.
-
-`browser` is `Destructive` and not concurrency-safe, as in v1: two calls driving one browser at once
-interleave.
+`plugins/web` keeps the `web.browser` prompt fragment that names the command line. The tool, and the
+untrusted envelope it put around a page, went with it.
 
 ## 4. `task_write`, the tool the prompt already promises
 
