@@ -261,6 +261,7 @@ export type ReadEventsParams = {
   throughSeq: number
   limit: number
   onlyTypes?: readonly string[] | undefined
+  withholdPictures?: boolean | undefined
 }
 
 export type AppendOpening = {

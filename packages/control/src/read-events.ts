@@ -5,7 +5,7 @@ import type { z } from 'zod'
 import type { ControlTx, StoredEvent, ThreadRow } from './port'
 import { decodeStoredEvent, decodeVisibility } from './stored-event'
 
-export type ReadEventsPage = { events: RecordEvent[]; next?: number }
+export type ReadEventsPage = { events: RecordEvent[]; next?: number; lastHash?: string | undefined }
 
 export const INPUT_POSTED = 'input-posted'
 
@@ -62,26 +62,35 @@ const extendPastCommit = async (params: {
   tx: ControlTx
   row: ThreadRow
   events: RecordEvent[]
+  lastHash?: string | undefined
+  withholdPictures?: boolean | undefined
   eventSchema?: z.ZodType<RecordEvent> | undefined
-}): Promise<RecordEvent[]> => {
+}): Promise<{ events: RecordEvent[]; lastHash?: string | undefined }> => {
   const { tx, row } = params
   const kept = [...params.events]
+  let lastHash = params.lastHash
+  const done = (): { events: RecordEvent[]; lastHash?: string | undefined } => ({
+    events: kept,
+    lastHash,
+  })
   while (!endsCommit(kept)) {
     const last = kept[kept.length - 1]
-    if (last === undefined || last.seq >= row.headSeq) return kept
+    if (last === undefined || last.seq >= row.headSeq) return done()
     const batch = await tx.readEvents({
       threadId: row.threadId,
       afterSeq: last.seq,
       throughSeq: row.headSeq,
       limit: COMMIT_EXTENSION_PAGE,
+      withholdPictures: params.withholdPictures,
     })
-    if (batch.length === 0) return kept
+    if (batch.length === 0) return done()
     for (const stored of batch) {
       kept.push(decodeStoredEvent(stored, params.eventSchema))
-      if (endsCommit(kept)) return kept
+      lastHash = stored.hash
+      if (endsCommit(kept)) return done()
     }
   }
-  return kept
+  return done()
 }
 
 const narrowToTypes = (args: {
@@ -122,6 +131,7 @@ export const readEventsIn = async (params: {
   hiddenTypes?: readonly RecordEventType[] | undefined
   onlyTypes?: readonly RecordEventType[] | undefined
   maxBytes?: number | undefined
+  withholdPictures?: boolean | undefined
   eventSchema?: z.ZodType<RecordEvent> | undefined
 }): Promise<ReadEventsPage> => {
   const { tx, row } = params
@@ -144,26 +154,32 @@ export const readEventsIn = async (params: {
       throughSeq: segment.throughSeq,
       limit: params.limit - rows.length,
       onlyTypes: segment.onlyTypes,
+      withholdPictures: params.withholdPictures,
     })
     rows.push(...batch)
   }
-  const bounded =
+  const boundaries =
     params.maxBytes === undefined
       ? { kept: rows, stoppedEarly: false }
       : boundRowsByBytes(rows, params.maxBytes)
-  const events = bounded.kept.map((stored) => decodeStoredEvent(stored, params.eventSchema))
+  const events = boundaries.kept.map((stored) => decodeStoredEvent(stored, params.eventSchema))
+  const tail = boundaries.kept[boundaries.kept.length - 1]
   const extended =
     params.onlyTypes === undefined
       ? await extendPastCommit({
           tx,
           row,
           events,
+          lastHash: tail?.hash,
+          withholdPictures: params.withholdPictures,
           eventSchema: params.eventSchema,
         })
-      : events
-  const last = extended[extended.length - 1]
+      : { events, lastHash: tail?.hash }
+  const last = extended.events[extended.events.length - 1]
   const more =
     last !== undefined &&
-    (bounded.stoppedEarly || (extended.length >= params.limit && last.seq < row.headSeq))
-  return more ? { events: extended, next: last.seq } : { events: extended }
+    (boundaries.stoppedEarly || (extended.events.length >= params.limit && last.seq < row.headSeq))
+  return more
+    ? { events: extended.events, next: last.seq, lastHash: extended.lastHash }
+    : { events: extended.events, lastHash: extended.lastHash }
 }

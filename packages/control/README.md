@@ -53,8 +53,10 @@ a thread's event log.
 - `createThread({ sessionId, threadId })`, `head({ threadId })`, `readThread({ threadId })`.
 - `append({ threadId, epoch, events, blobs? })`: returns an `AppendOutcome`. A refused append
   carries its `refusal` and the current head.
-- `readEvents({ threadId, afterSeq, limit, visible, hiddenTypes?, maxBytes? })`, `readBlob`,
-  `blobReferencedBy`. `MAX_READ_LIMIT` and `MAX_SESSION_LIST_LIMIT` cap a read.
+- `readEvents({ threadId, afterSeq, limit, visible, hiddenTypes?, maxBytes?, withholdPictures? })`,
+  `readBlob`, `blobReferencedBy`. `MAX_READ_LIMIT` and `MAX_SESSION_LIST_LIMIT` cap a read.
+  `withholdPictures` projects inline picture bytes out inside the store, so a byte-bounded page
+  counts what it sends; the page's `lastHash` is the stored hash of its last row, for a resume.
 - `AppendHook`, `ChangeFeed`: the hooks that an append calls, and the change pointer it sends.
 
 ### Read a session view

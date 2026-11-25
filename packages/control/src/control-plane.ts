@@ -510,6 +510,7 @@ export class ControlPlane {
     visible: boolean
     hiddenTypes?: readonly RecordEventType[] | undefined
     maxBytes?: number | undefined
+    withholdPictures?: boolean | undefined
   }): Promise<ReadEventsPage> {
     const limit = clampLimit(params.limit)
     return this.store.transact(async (tx) => {
@@ -522,6 +523,7 @@ export class ControlPlane {
         visible: params.visible,
         hiddenTypes: params.hiddenTypes,
         maxBytes: params.maxBytes,
+        withholdPictures: params.withholdPictures,
         eventSchema: this.eventSchema,
       })
     })

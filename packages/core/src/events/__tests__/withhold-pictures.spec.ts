@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import type { UserContentPart } from '../../message/parts'
-import { withholdPictureBytes } from '../withhold-pictures'
+import { canonicalJson } from '../../record/canonical'
+import { withholdPictureBytes, withholdPictureText } from '../withhold-pictures'
 
 const IMAGE: UserContentPart = {
   type: 'image',
@@ -105,5 +106,34 @@ describe('withholdPictureBytes on an MCP result under the spill threshold', () =
     } as const
 
     expect(withholdPictureBytes(event)).toBe(event)
+  })
+})
+
+describe('withholdPictureText', () => {
+  const imageGenerateResult = () => ({
+    type: 'tool-result',
+    seq: 12,
+    threadId: 'thread-1',
+    modelParts: [IMAGE],
+    output: {
+      content: [
+        { type: 'text', text: 'made it' },
+        { type: 'image', data: MCP_PNG, mimeType: 'image/png' },
+      ],
+    },
+  })
+
+  it('matches the object projection for a read, an image_generate and an MCP result', () => {
+    for (const event of [toolResult([IMAGE]), imageGenerateResult(), mcpResult()]) {
+      expect(JSON.parse(withholdPictureText(canonicalJson(event)))).toEqual(
+        withholdPictureBytes(event),
+      )
+    }
+  })
+
+  it('keeps a canonical text without pictures byte for byte', () => {
+    const canonical = canonicalJson(toolResult([{ type: 'text', text: 'no picture here' }]))
+
+    expect(withholdPictureText(canonical)).toBe(canonical)
   })
 })

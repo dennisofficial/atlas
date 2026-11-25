@@ -58,7 +58,8 @@ describe('sharedReads', () => {
     void shared.readEvents({ ...read(5), visible: true })
     void shared.readEvents({ ...read(5), maxBytes: 2048 })
     void shared.readEvents({ ...read(5), limit: 10 })
-    expect(calls).toHaveLength(5)
+    void shared.readEvents({ ...read(5), withholdPictures: true })
+    expect(calls).toHaveLength(6)
   })
 
   it('reads again once the first read has settled', async () => {

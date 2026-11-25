@@ -40,6 +40,24 @@ const withheldOutput = (output: unknown): unknown => {
   return { ...record, content: content.map(withheldBlock) }
 }
 
+export const PICTURE_BYTES_PATTERN = '"bytes":\\{"data":"[A-Za-z0-9+/=]*","kind":"inline"\\}'
+
+export const PICTURE_BLOCK_PATTERN =
+  '\\{"data":"[A-Za-z0-9+/=]*",("mimeType":"[^"]*"),"type":"image"\\}'
+
+const WITHHELD_BYTES_TEXT = '"bytes":{"kind":"withheld"}'
+
+const WITHHELD_BLOCK_TEXT = '{$1,"type":"image","withheld":true}'
+
+const PICTURE_BYTES_REGEX = new RegExp(PICTURE_BYTES_PATTERN, 'g')
+
+const PICTURE_BLOCK_REGEX = new RegExp(PICTURE_BLOCK_PATTERN, 'g')
+
+export const withholdPictureText = (canonical: string): string =>
+  canonical
+    .replace(PICTURE_BYTES_REGEX, WITHHELD_BYTES_TEXT)
+    .replace(PICTURE_BLOCK_REGEX, WITHHELD_BLOCK_TEXT)
+
 const withheldParts = (
   parts: readonly UserContentPart[] | undefined,
 ): readonly UserContentPart[] | undefined => {

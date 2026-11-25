@@ -476,6 +476,7 @@ export class SessionsService {
       limit: args.limit ?? STATUS_EVENT_LIMIT,
       visible: true,
       maxBytes: args.maxBytes ?? EVENTS_DEFAULT_MAX_BYTES,
+      withholdPictures: true,
     })
     return {
       events: page.events.map((event) => toPageEvent(withholdPictureBytes(event))),
