@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'bun:test'
 
-import type { Attachment, PendingInputsState } from '@dltech/atlas-core'
+import {
+  chainEvents,
+  EInputConsumed,
+  toRunId,
+  toThreadId,
+  type Attachment,
+  type PendingInputsState,
+  type RecordEvent,
+  type RecordEventBody,
+} from '@dltech/atlas-core'
+import { createWithdrawStore } from '@dltech/atlas-client/session'
 
 import { queuedWithdrawPlanOf, withdrawalNoticesOf } from '../withdraw-queued'
 
@@ -55,5 +65,51 @@ describe('withdrawalNoticesOf', () => {
         { targetInboxId: 5, status: 'refused', notice: 'Already sent — the agent got it' },
       ]),
     ).toEqual(['Already sent — the agent got it'])
+  })
+})
+
+const eventsOf = (bodies: readonly RecordEventBody[]): readonly RecordEvent[] =>
+  chainEvents({
+    threadId: toThreadId('thread-1'),
+    runId: toRunId('run-1'),
+    epoch: 1,
+    at: '2026-11-25T10:00:00.000Z',
+    from: undefined,
+    bodies,
+  })
+
+const POSTED: RecordEventBody = {
+  type: 'input-posted',
+  inboxId: 4,
+  kind: 'message',
+  postedAt: '2026-11-25T10:00:00.000Z',
+  message: { text: 'ship it' },
+}
+
+const CONSUMED: RecordEventBody = {
+  type: 'input-consumed',
+  inboxId: 4,
+  consumed: EInputConsumed.Message,
+}
+
+const REFUSED: RecordEventBody = {
+  type: 'input-refused',
+  inboxId: 9,
+  targetInboxId: 4,
+  reason: 'already-sent',
+}
+
+describe('a message the operator edited before the agent took it', () => {
+  it('notices the refusal exactly once after the target leaves the queue', () => {
+    const store = createWithdrawStore()
+    store.request({ sessionId: 'ses-1', targetInboxId: 4 })
+    expect(
+      store.takeSettlements({ sessionId: 'ses-1', events: eventsOf([POSTED, CONSUMED]) }),
+    ).toEqual([])
+    const settled = store.takeSettlements({
+      sessionId: 'ses-1',
+      events: eventsOf([POSTED, CONSUMED, REFUSED]),
+    })
+    expect(withdrawalNoticesOf(settled)).toEqual(['Already sent — the agent got it'])
   })
 })

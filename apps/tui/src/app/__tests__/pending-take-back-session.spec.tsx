@@ -49,7 +49,6 @@ function Harness(props: { client: FakeSessionClient; sessionId: string }): React
     sessionId: props.sessionId,
     pending: transcript.pending,
     foldable: transcript.foldable,
-    queueKnown: transcript.loaded,
     draft: {
       value: '',
       editor,

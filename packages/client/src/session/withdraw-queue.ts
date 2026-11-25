@@ -1,4 +1,4 @@
-import type { RecordEvent } from '@dltech/atlas-core'
+import { EMessageOrigin, saidBy, type RecordEvent } from '@dltech/atlas-core'
 import {
   EWithdrawRefusal,
   type SessionWithdrawInput,
@@ -36,6 +36,28 @@ export type WithdrawRequestOutcome =
 export type WithdrawRequest = {
   recorded: boolean
   outcome: Promise<WithdrawRequestOutcome>
+}
+
+export type SaidLike = {
+  via?: EMessageOrigin | undefined
+  sender?: { session: string } | undefined
+}
+
+export const operatorSaidOf = (said: SaidLike): boolean =>
+  said.sender === undefined && saidBy(said) === EMessageOrigin.Operator
+
+export const withdrawOwnedInboxIdsOf = (args: {
+  events: readonly RecordEvent[]
+  intents: readonly WithdrawIntent[]
+}): ReadonlySet<number> => {
+  const owned = new Set(args.intents.map((intent) => intent.targetInboxId))
+  for (const event of args.events) {
+    if (event.type === 'input-withdrawn') owned.add(event.inboxId)
+    if (event.type === 'input-refused' && event.targetInboxId !== undefined) {
+      owned.add(event.targetInboxId)
+    }
+  }
+  return owned
 }
 
 export const withdrawRefusalNoticeOf = (reason: string): string =>

@@ -29,7 +29,6 @@ export function useQueuedTranscript(args: {
   pending: PendingInputsState
   events: SessionSnapshot['events']
   foldable: SessionSnapshot['foldable']
-  queueKnown: boolean
   staged: readonly StagedMessage[]
   items: readonly TranscriptRow[]
   sessionNameOf?: SessionNameOf | undefined
@@ -41,7 +40,7 @@ export function useQueuedTranscript(args: {
   }) => void
   api?: WithdrawApi
 }) {
-  const { sessionId, pending, events, foldable, queueKnown, staged, items: listed, draft } = args
+  const { sessionId, pending, events, foldable, staged, items: listed, draft } = args
   const { onDraftChange, onRestoreAttachments, sessionNameOf } = args
   const api = args.api ?? sessionsApi
   const subscribe = useCallback(
@@ -50,13 +49,13 @@ export function useQueuedTranscript(args: {
   )
   const getIntents = useCallback(() => withdrawStore.intentsOf(sessionId), [sessionId])
   const intents = useSyncExternalStore(subscribe, getIntents, getIntents)
-  const hiddenInboxIds = useMemo(
-    () => new Set(intents.map((intent) => intent.targetInboxId)),
-    [intents],
-  )
   const placement = useMemo(
     () => optimisticPlacementOf({ staged, events, pending }),
     [staged, events, pending],
+  )
+  const hiddenInboxIds = useMemo(
+    () => new Set([...placement.hiddenInboxIds, ...intents.map((intent) => intent.targetInboxId)]),
+    [placement, intents],
   )
   const transcriptEvents = useMemo(() => transcriptEventsOf(events, sessionEventTypes), [events])
   const rows = useMemo(
@@ -73,19 +72,15 @@ export function useQueuedTranscript(args: {
   const items = useMemo(() => optimisticUserItemsOf(placement.transcript), [placement])
   const transcript = useMemo(() => [...listed, ...items], [listed, items])
   const queued = useMemo(() => queuedMessagesOf(pending), [pending])
-  const queuedInboxIds = useMemo(() => new Set(queued.map((entry) => Number(entry.id))), [queued])
 
   useEffect(() => {
-    const settled = withdrawStore.takeSettlements({
-      sessionId,
-      events: foldable,
-      queuedInboxIds,
-      queueKnown,
-    })
+    const settled = withdrawStore.takeSettlements({ sessionId, events: foldable })
     for (const entry of settled) {
       if (entry.status === 'refused') toast(entry.notice)
     }
-  }, [sessionId, foldable, intents, queuedInboxIds, queueKnown])
+  }, [sessionId, foldable, intents])
+
+  useEffect(() => () => withdrawStore.clear(sessionId), [sessionId])
 
   const withdraw = async (params: { inboxId: string; restoreText: boolean }) => {
     const entry = queued.find((candidate) => candidate.id === params.inboxId)

@@ -14,8 +14,6 @@ export type WithdrawStore = WithdrawIntentPort & {
   takeSettlements: (args: {
     sessionId: string
     events: readonly RecordEvent[]
-    queuedInboxIds: ReadonlySet<number>
-    queueKnown: boolean
   }) => readonly WithdrawSettlement[]
   clear: (sessionId: string) => void
   subscribe: (args: { sessionId: string; listener: () => void }) => () => void
@@ -56,16 +54,12 @@ export const createWithdrawStore = (): WithdrawStore => {
     },
     holds,
     intentsOf,
-    takeSettlements: ({ sessionId, events, queuedInboxIds, queueKnown }) => {
+    takeSettlements: ({ sessionId, events }) => {
       const intents = intentsOf(sessionId)
       if (intents.length === 0) return []
       const settlements = withdrawSettlementsOf({ intents, events })
       const settled = new Set(settlements.map((entry) => entry.targetInboxId))
-      const kept = intents.filter(
-        (entry) =>
-          !settled.has(entry.targetInboxId) &&
-          (!queueKnown || queuedInboxIds.has(entry.targetInboxId)),
-      )
+      const kept = intents.filter((entry) => !settled.has(entry.targetInboxId))
       if (kept.length !== intents.length) replace(sessionId, kept)
       return settlements
     },

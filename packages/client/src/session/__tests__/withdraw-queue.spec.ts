@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import {
   chainEvents,
+  EMessageOrigin,
   toRunId,
   toThreadId,
   type RecordEvent,
@@ -12,7 +13,9 @@ import { createWithdrawStore } from '../withdraw-store'
 import {
   ALREADY_SENT_NOTICE,
   WITHDRAW_UNKNOWN_NOTICE,
+  operatorSaidOf,
   requestWithdraw,
+  withdrawOwnedInboxIdsOf,
   withdrawRefusalNoticeOf,
   withdrawSettlementsOf,
   type WithdrawIntent,
@@ -115,8 +118,6 @@ describe('withdrawRefusalNoticeOf', () => {
   })
 })
 
-const QUEUED: ReadonlySet<number> = new Set([4])
-
 describe('requestWithdraw', () => {
   it('records the intent before it asks the API', async () => {
     const store = createWithdrawStore()
@@ -171,12 +172,7 @@ describe('requestWithdraw', () => {
     })
 
     expect(
-      store.takeSettlements({
-        sessionId: 'ses-1',
-        events: eventsOf([POSTED, REFUSED]),
-        queuedInboxIds: QUEUED,
-        queueKnown: true,
-      }),
+      store.takeSettlements({ sessionId: 'ses-1', events: eventsOf([POSTED, REFUSED]) }),
     ).toEqual([{ targetInboxId: 4, status: 'refused', notice: ALREADY_SENT_NOTICE }])
     expect(await request.outcome).toEqual({ kind: 'ignored' })
   })
@@ -193,12 +189,7 @@ describe('requestWithdraw', () => {
       intent,
     })
 
-    store.takeSettlements({
-      sessionId: 'ses-1',
-      events: eventsOf([POSTED, WITHDRAWN]),
-      queuedInboxIds: QUEUED,
-      queueKnown: true,
-    })
+    store.takeSettlements({ sessionId: 'ses-1', events: eventsOf([POSTED, WITHDRAWN]) })
     expect(await request.outcome).toEqual({ kind: 'ignored' })
   })
 
@@ -217,5 +208,35 @@ describe('requestWithdraw', () => {
 
     expect(await request.outcome).toEqual({ kind: 'failed', failure })
     expect(store.intentsOf('ses-1')).toEqual([])
+  })
+})
+
+describe('operatorSaidOf', () => {
+  it('accepts a message the operator typed', () => {
+    expect(operatorSaidOf({})).toBe(true)
+  })
+
+  it('rejects a message a teammate or another agent wrote', () => {
+    expect(
+      operatorSaidOf({ via: EMessageOrigin.ChildAgent, sender: { session: 'ses-child' } }),
+    ).toBe(false)
+    expect(operatorSaidOf({ sender: { session: 'ses-child' } })).toBe(false)
+    expect(operatorSaidOf({ via: EMessageOrigin.Routine })).toBe(false)
+  })
+})
+
+describe('withdrawOwnedInboxIdsOf', () => {
+  it('owns every target an intent waits on', () => {
+    expect([...withdrawOwnedInboxIdsOf({ events: [], intents: [intent] })]).toEqual([4])
+  })
+
+  it('owns a target the holder withdrew or refused', () => {
+    const events = eventsOf([POSTED, WITHDRAWN, { ...REFUSED, targetInboxId: 5 }])
+    expect([...withdrawOwnedInboxIdsOf({ events, intents: [] })].sort()).toEqual([4, 5])
+  })
+
+  it('does not own a message the holder refused on its own', () => {
+    const events = eventsOf([{ type: 'input-refused', inboxId: 9, reason: 'no-credential' }])
+    expect([...withdrawOwnedInboxIdsOf({ events, intents: [] })]).toEqual([])
   })
 })

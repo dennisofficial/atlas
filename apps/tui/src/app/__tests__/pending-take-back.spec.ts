@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import type { Attachment, PendingInputsState } from '@dltech/atlas-core'
+import { EMessageOrigin, type Attachment, type PendingInputsState } from '@dltech/atlas-core'
 
 import { takeBackOf } from '../use-pending-take-back'
 
@@ -41,6 +41,51 @@ describe('the message Up takes back', () => {
       text: 'ship it',
       attachments: [attachment],
     })
+  })
+
+  it('is nothing for a message a teammate wrote', () => {
+    const pending: PendingInputsState = {
+      pending: [
+        {
+          inboxId: 9,
+          seq: 9,
+          at: '2026-11-25T10:00:00.000Z',
+          kind: 'message',
+          message: {
+            text: 'report ready',
+            via: EMessageOrigin.ChildAgent,
+            sender: { session: 'ses-child' },
+          },
+        } as never,
+      ],
+    }
+    expect(takeBackOf(pending)).toBeUndefined()
+  })
+
+  it('skips a teammate message and takes the operator message below it', () => {
+    const pending: PendingInputsState = {
+      pending: [
+        {
+          inboxId: 3,
+          seq: 3,
+          at: '2026-11-25T10:00:00.000Z',
+          kind: 'message',
+          message: { text: 'ship it' },
+        },
+        {
+          inboxId: 9,
+          seq: 9,
+          at: '2026-11-25T10:00:01.000Z',
+          kind: 'message',
+          message: {
+            text: 'report ready',
+            via: EMessageOrigin.ChildAgent,
+            sender: { session: 'ses-child' },
+          },
+        } as never,
+      ],
+    }
+    expect(takeBackOf(pending)).toEqual({ targetInboxId: 3, text: 'ship it', attachments: [] })
   })
 
   it('is nothing for a queued command', () => {

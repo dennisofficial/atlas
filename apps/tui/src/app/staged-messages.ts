@@ -1,11 +1,17 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
 import type { Attachment, PendingInputsState, RecordEvent } from '@dltech/atlas-core'
+import {
+  withdrawOwnedInboxIdsOf,
+  withdrawStore,
+  type WithdrawIntent,
+} from '@dltech/atlas-client/session'
 import {
   ALREADY_SENT_REASON,
   EStagedOutcome,
   stagedOutcomesOf,
   stagedPlacementOf,
+  stagedWithdrawOwnedIdsOf,
 } from '@dltech/atlas-client/stream'
 
 export type StagedMessage = { clientId: string; text: string; attachments: readonly Attachment[] }
@@ -38,6 +44,12 @@ export function useStagedMessages(args: {
   const [refused, setRefused] = useState<readonly StagedMessage[]>(() => [])
   const restore = useRef(args.onRestore)
   restore.current = args.onRestore
+  const subscribe = useCallback(
+    (listener: () => void) => withdrawStore.subscribe({ sessionId, listener }),
+    [sessionId],
+  )
+  const getIntents = useCallback(() => withdrawStore.intentsOf(sessionId), [sessionId])
+  const intents = useSyncExternalStore<readonly WithdrawIntent[]>(subscribe, getIntents, getIntents)
 
   const put = useCallback(
     (next: readonly StagedMessage[]) => {
@@ -94,6 +106,16 @@ export function useStagedMessages(args: {
     [pending],
   )
 
+  const owned = useMemo(
+    () =>
+      stagedWithdrawOwnedIdsOf({
+        events,
+        clientIds: staged.map((entry) => entry.clientId),
+        ownedInboxIds: withdrawOwnedInboxIdsOf({ events, intents }),
+      }),
+    [events, intents, staged],
+  )
+
   useEffect(() => {
     if (staged.length === 0) return
 
@@ -114,6 +136,7 @@ export function useStagedMessages(args: {
       handled.current.add(entry.clientId)
       done.push(entry.clientId)
 
+      if (owned.has(entry.clientId)) continue
       if (outcome.outcome === EStagedOutcome.Discarded) {
         restore.current({ text: entry.text, attachments: entry.attachments, reason: undefined })
         continue
@@ -134,7 +157,7 @@ export function useStagedMessages(args: {
       setRefused((current) => [...current, ...added.map(({ entry }) => entry)])
     }
     if (done.length > 0) settle(new Set(done))
-  }, [outcomes, settle, staged, unread])
+  }, [outcomes, owned, settle, staged, unread])
 
   const placement = useMemo(
     () => stagedPlacementOf({ staged, events, working }),

@@ -111,6 +111,19 @@ export const stagedOutcomesOf = (args: {
 export const placementOf = (args: { working: boolean }): EOutgoingPlacement =>
   args.working ? EOutgoingPlacement.Queue : EOutgoingPlacement.Transcript
 
+export const stagedWithdrawOwnedIdsOf = (args: {
+  events: readonly RecordEvent[]
+  clientIds: readonly string[]
+  ownedInboxIds: ReadonlySet<number>
+}): ReadonlySet<string> => {
+  const wanted = new Set(args.clientIds)
+  const owned = new Set<string>()
+  for (const [inboxId, clientId] of clientIdByInbox(args.events)) {
+    if (args.ownedInboxIds.has(inboxId) && wanted.has(clientId)) owned.add(clientId)
+  }
+  return owned
+}
+
 export const pendingStagedOf = <TStaged extends StagedInput>(args: {
   staged: readonly TStaged[]
   events: readonly RecordEvent[]

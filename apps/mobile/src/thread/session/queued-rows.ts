@@ -1,9 +1,8 @@
+import { operatorSaidOf } from '@dltech/atlas-client/session'
 import { deriveTranscript } from '@dltech/atlas-client/transcript'
 import {
-  EMessageOrigin,
   ENoticeStage,
   isMessageInputKind,
-  saidBy,
   stampEvent,
   toEventId,
   toRunId,
@@ -98,9 +97,7 @@ const rowOfEvent = (args: { event: Event; now: number }): ThreadRow | null => {
 }
 
 const operatorMessageOf = (input: PendingInput): boolean =>
-  input.message !== undefined &&
-  input.message.sender === undefined &&
-  saidBy(input.message) === EMessageOrigin.Operator
+  input.message !== undefined && operatorSaidOf(input.message)
 
 const pendingRowsOf = (args: {
   pending: PendingInputsState

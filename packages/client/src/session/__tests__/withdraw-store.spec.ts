@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 
 import {
   chainEvents,
+  EInputConsumed,
   toRunId,
   toThreadId,
   type RecordEvent,
@@ -9,7 +10,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { createWithdrawStore } from '../withdraw-store'
-import type { WithdrawIntent } from '../withdraw-queue'
+import { ALREADY_SENT_NOTICE, type WithdrawIntent } from '../withdraw-queue'
 
 const eventsOf = (bodies: readonly RecordEventBody[]): readonly RecordEvent[] =>
   chainEvents({
@@ -31,6 +32,12 @@ const POSTED: RecordEventBody = {
 
 const WITHDRAWN: RecordEventBody = { type: 'input-withdrawn', inboxId: 4 }
 
+const CONSUMED: RecordEventBody = {
+  type: 'input-consumed',
+  inboxId: 4,
+  consumed: EInputConsumed.Message,
+}
+
 const REFUSED: RecordEventBody = {
   type: 'input-refused',
   inboxId: 9,
@@ -39,8 +46,6 @@ const REFUSED: RecordEventBody = {
 }
 
 const intent: WithdrawIntent = { sessionId: 'ses-1', targetInboxId: 4 }
-
-const QUEUED: ReadonlySet<number> = new Set([4])
 
 describe('the withdraw store', () => {
   it('records one intent per target', () => {
@@ -54,33 +59,16 @@ describe('the withdraw store', () => {
     const store = createWithdrawStore()
     store.request(intent)
     const settled = eventsOf([POSTED, WITHDRAWN])
-    expect(
-      store.takeSettlements({
-        sessionId: 'ses-1',
-        events: settled,
-        queuedInboxIds: QUEUED,
-        queueKnown: true,
-      }),
-    ).toEqual([{ targetInboxId: 4, status: 'withdrawn' }])
-    expect(
-      store.takeSettlements({
-        sessionId: 'ses-1',
-        events: settled,
-        queuedInboxIds: QUEUED,
-        queueKnown: true,
-      }),
-    ).toEqual([])
+    expect(store.takeSettlements({ sessionId: 'ses-1', events: settled })).toEqual([
+      { targetInboxId: 4, status: 'withdrawn' },
+    ])
+    expect(store.takeSettlements({ sessionId: 'ses-1', events: settled })).toEqual([])
   })
 
   it('forgets an intent once settled', () => {
     const store = createWithdrawStore()
     store.request(intent)
-    store.takeSettlements({
-      sessionId: 'ses-1',
-      events: eventsOf([POSTED, REFUSED]),
-      queuedInboxIds: QUEUED,
-      queueKnown: true,
-    })
+    store.takeSettlements({ sessionId: 'ses-1', events: eventsOf([POSTED, REFUSED]) })
     expect(store.intentsOf('ses-1')).toEqual([])
   })
 
@@ -92,29 +80,25 @@ describe('the withdraw store', () => {
     expect(store.holds(intent)).toBe(false)
   })
 
-  it('drops an unanswered intent once the queue no longer holds its target', () => {
+  it('keeps an unanswered intent after its target leaves the queue', () => {
     const store = createWithdrawStore()
     store.request(intent)
     const settled = store.takeSettlements({
       sessionId: 'ses-1',
-      events: eventsOf([POSTED]),
-      queuedInboxIds: new Set(),
-      queueKnown: true,
+      events: eventsOf([POSTED, CONSUMED]),
     })
     expect(settled).toEqual([])
-    expect(store.intentsOf('ses-1')).toEqual([])
+    expect(store.intentsOf('ses-1')).toEqual([intent])
   })
 
-  it('keeps an unanswered intent until the queue is known', () => {
+  it('refuses a target that left the queue before the refusal arrived', () => {
     const store = createWithdrawStore()
     store.request(intent)
-    store.takeSettlements({
-      sessionId: 'ses-1',
-      events: [],
-      queuedInboxIds: new Set(),
-      queueKnown: false,
-    })
-    expect(store.intentsOf('ses-1')).toEqual([intent])
+    store.takeSettlements({ sessionId: 'ses-1', events: eventsOf([POSTED, CONSUMED]) })
+    expect(
+      store.takeSettlements({ sessionId: 'ses-1', events: eventsOf([POSTED, CONSUMED, REFUSED]) }),
+    ).toEqual([{ targetInboxId: 4, status: 'refused', notice: ALREADY_SENT_NOTICE }])
+    expect(store.intentsOf('ses-1')).toEqual([])
   })
 
   it('settles an intent for one session and never another', () => {
@@ -122,12 +106,7 @@ describe('the withdraw store', () => {
     const other: WithdrawIntent = { sessionId: 'ses-2', targetInboxId: 4 }
     store.request(intent)
     store.request(other)
-    store.takeSettlements({
-      sessionId: 'ses-1',
-      events: eventsOf([POSTED, WITHDRAWN]),
-      queuedInboxIds: QUEUED,
-      queueKnown: true,
-    })
+    store.takeSettlements({ sessionId: 'ses-1', events: eventsOf([POSTED, WITHDRAWN]) })
     expect(store.intentsOf('ses-1')).toEqual([])
     expect(store.intentsOf('ses-2')).toEqual([other])
   })

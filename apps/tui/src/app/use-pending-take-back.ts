@@ -1,6 +1,11 @@
-import type { Attachment, PendingInputsState, RecordEvent } from '@dltech/atlas-core'
+import type { Attachment, PendingInput, PendingInputsState, RecordEvent } from '@dltech/atlas-core'
 import { pendingMessagesOf } from '@dltech/atlas-core'
-import { requestWithdraw, withdrawStore, type WithdrawIntent } from '@dltech/atlas-client/session'
+import {
+  operatorSaidOf,
+  requestWithdraw,
+  withdrawStore,
+  type WithdrawIntent,
+} from '@dltech/atlas-client/session'
 import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react'
 
 import type { ComposerRestore } from './composer-restore'
@@ -29,8 +34,13 @@ export type TakeBackTarget = {
   attachments: readonly Attachment[]
 }
 
+const operatorMessagesOf = (pending: PendingInputsState): readonly PendingInput[] =>
+  pendingMessagesOf(pending).filter(
+    (input) => input.message !== undefined && operatorSaidOf(input.message),
+  )
+
 export const takeBackOf = (pending: PendingInputsState): TakeBackTarget | undefined => {
-  const lastQueued = pendingMessagesOf(pending).at(-1)
+  const lastQueued = operatorMessagesOf(pending).at(-1)
   if (lastQueued === undefined) return undefined
   return {
     targetInboxId: lastQueued.inboxId,
@@ -44,7 +54,6 @@ export function usePendingTakeBack(args: {
   sessionId: string | null
   pending: PendingInputsState
   foldable: readonly RecordEvent[]
-  queueKnown: boolean
   draft: DraftControls
   restore: ComposerRestore
   onProblem: (reason: string) => void
@@ -68,23 +77,20 @@ export function usePendingTakeBack(args: {
     [intents],
   )
 
-  const queuedInboxIds = useMemo(
-    () => new Set(pendingMessagesOf(args.pending).map((input) => input.inboxId)),
-    [args.pending],
-  )
-
   useEffect(() => {
     if (sessionId === null) return
-    const settled = withdrawStore.takeSettlements({
-      sessionId,
-      events: args.foldable,
-      queuedInboxIds,
-      queueKnown: args.queueKnown,
-    })
+    const settled = withdrawStore.takeSettlements({ sessionId, events: args.foldable })
     for (const entry of settled) {
       if (entry.status === 'refused') latest.current.onProblem(entry.notice)
     }
-  }, [sessionId, args.foldable, intents, queuedInboxIds, args.queueKnown])
+  }, [sessionId, args.foldable, intents])
+
+  useEffect(
+    () => () => {
+      if (sessionId !== null) withdrawStore.clear(sessionId)
+    },
+    [sessionId],
+  )
 
   const handleTakeBack = useCallback((): boolean => {
     const current = latest.current
@@ -111,7 +117,7 @@ export function usePendingTakeBack(args: {
 
   return {
     handleTakeBack,
-    canTakeBack: pendingMessagesOf(args.pending).length > 0,
+    canTakeBack: takeBackOf(args.pending) !== undefined,
     hiddenInboxIds,
   }
 }

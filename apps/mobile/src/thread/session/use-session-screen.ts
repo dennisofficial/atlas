@@ -121,28 +121,6 @@ export function useSessionScreen(args: {
   }, [view.working, blocking])
 
   useEffect(() => {
-    if (staged.length === 0) return
-    const settlement = settlementOf({ staged, events: snapshot.events, unread })
-    if (
-      settlement.kept.length === staged.length &&
-      settlement.restored.length === 0 &&
-      settlement.notices.length === 0
-    ) {
-      return
-    }
-    setStaged(settlement.kept)
-    if (settlement.restored.length > 0) {
-      restoreToken.current += 1
-      setRestored({
-        token: restoreToken.current,
-        text: settlement.restored.map((entry) => entry.text).join('\n\n'),
-        attachments: settlement.restored.flatMap((entry) => [...entry.attachments]),
-      })
-    }
-    if (settlement.notices.length > 0) setNotice(settlement.notices.join('\n'))
-  }, [staged, snapshot.events, unread])
-
-  useEffect(() => {
     const pending = quickStopRestoresToApply({
       quickStops: snapshot.quickStops,
       clientIds: [...sent.current],
@@ -175,10 +153,36 @@ export function useSessionScreen(args: {
     sessionId,
     pending: snapshot.pending,
     foldable: snapshot.foldable,
-    queueKnown: snapshot.cursor !== undefined || snapshot.status !== undefined,
     onRestore: restoreQueued,
     onNotice: reportNotice,
   })
+
+  useEffect(() => {
+    if (staged.length === 0) return
+    const settlement = settlementOf({
+      staged,
+      events: snapshot.events,
+      unread,
+      ownedInboxIds: withdraw.ownedInboxIds,
+    })
+    if (
+      settlement.kept.length === staged.length &&
+      settlement.restored.length === 0 &&
+      settlement.notices.length === 0
+    ) {
+      return
+    }
+    setStaged(settlement.kept)
+    if (settlement.restored.length > 0) {
+      restoreToken.current += 1
+      setRestored({
+        token: restoreToken.current,
+        text: settlement.restored.map((entry) => entry.text).join('\n\n'),
+        attachments: settlement.restored.flatMap((entry) => [...entry.attachments]),
+      })
+    }
+    if (settlement.notices.length > 0) setNotice(settlement.notices.join('\n'))
+  }, [staged, snapshot.events, unread, withdraw.ownedInboxIds])
   const queued = useMemo(
     () => queuedDockOf({ snapshot, staged, now, hiddenInboxIds: withdraw.hiddenInboxIds }),
     [snapshot, staged, now, withdraw.hiddenInboxIds],

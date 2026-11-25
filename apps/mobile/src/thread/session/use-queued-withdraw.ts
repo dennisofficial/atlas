@@ -1,12 +1,18 @@
 import type { ApiClient } from '@dltech/atlas-api-router'
-import { pendingMessagesOf, type PendingInputsState, type RecordEvent } from '@dltech/atlas-core'
-import { requestWithdraw, withdrawStore, type WithdrawApi } from '@dltech/atlas-client/session'
+import type { PendingInputsState, RecordEvent } from '@dltech/atlas-core'
+import {
+  requestWithdraw,
+  withdrawOwnedInboxIdsOf,
+  withdrawStore,
+  type WithdrawApi,
+} from '@dltech/atlas-client/session'
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from 'react'
 
 import { queuedWithdrawPlanOf, withdrawalNoticesOf, type QueuedRestore } from './withdraw-queued'
 
 export type QueuedWithdraw = {
   hiddenInboxIds: ReadonlySet<number>
+  ownedInboxIds: ReadonlySet<number>
   edit: (inboxId: number) => void
   remove: (inboxId: number) => void
 }
@@ -18,11 +24,10 @@ export function useQueuedWithdraw(args: {
   sessionId: string
   pending: PendingInputsState
   foldable: readonly RecordEvent[]
-  queueKnown: boolean
   onRestore: (restored: QueuedRestore) => void
   onNotice: (notice: string) => void
 }): QueuedWithdraw {
-  const { api, sessionId, pending, foldable, queueKnown, onRestore, onNotice } = args
+  const { api, sessionId, pending, foldable, onRestore, onNotice } = args
   const subscribe = useCallback(
     (listener: () => void) => withdrawStore.subscribe({ sessionId, listener }),
     [sessionId],
@@ -33,21 +38,18 @@ export function useQueuedWithdraw(args: {
     () => new Set(intents.map((entry) => entry.targetInboxId)),
     [intents],
   )
-  const queuedInboxIds = useMemo(
-    () => new Set(pendingMessagesOf(pending).map((input) => input.inboxId)),
-    [pending],
+  const ownedInboxIds = useMemo(
+    () => withdrawOwnedInboxIdsOf({ events: foldable, intents }),
+    [foldable, intents],
   )
 
   useEffect(() => {
-    const settled = withdrawStore.takeSettlements({
-      sessionId,
-      events: foldable,
-      queuedInboxIds,
-      queueKnown,
-    })
+    const settled = withdrawStore.takeSettlements({ sessionId, events: foldable })
     const notices = withdrawalNoticesOf(settled)
     if (notices.length > 0) onNotice(notices.join('\n'))
-  }, [sessionId, foldable, intents, queuedInboxIds, queueKnown, onNotice])
+  }, [sessionId, foldable, intents, onNotice])
+
+  useEffect(() => () => withdrawStore.clear(sessionId), [sessionId])
 
   const withdraw = useCallback(
     async (params: { inboxId: number; restoreText: boolean }) => {
@@ -88,5 +90,5 @@ export function useQueuedWithdraw(args: {
     [withdraw],
   )
 
-  return { hiddenInboxIds, edit, remove }
+  return { hiddenInboxIds, ownedInboxIds, edit, remove }
 }

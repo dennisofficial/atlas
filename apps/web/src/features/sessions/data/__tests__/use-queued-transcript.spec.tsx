@@ -5,6 +5,7 @@ import type { Root } from 'react-dom/client'
 import * as realSonner from 'sonner'
 
 import { withdrawStore } from '@dltech/atlas-client/session'
+import { EOutgoingPlacement } from '@dltech/atlas-client/stream'
 import {
   chainEvents,
   toRunId,
@@ -26,6 +27,8 @@ mock.module('sonner', () => ({
 }))
 
 const { useQueuedTranscript } = await import('../use-queued-transcript')
+
+type StagedMessage = import('../queued-messages').StagedMessage
 
 const SESSION = 'ses-withdraw'
 
@@ -125,6 +128,7 @@ type Harness = {
   drafts: string[]
   restored: (readonly Attachment[])[]
   rows: () => number
+  transcript: () => number
   wants: () => number
   edit: () => void
   remove: () => void
@@ -134,6 +138,8 @@ type Harness = {
 const mount = async (args: {
   pending: PendingInputsState
   draft?: string
+  staged?: readonly StagedMessage[]
+  events?: readonly RecordEvent[]
   onWithdraw?: () => Promise<{ ok: true } | { ok: false; reason: 'already-consumed' | 'unknown' }>
 }): Promise<Harness> => {
   const { createRoot } = await import('react-dom/client')
@@ -142,10 +148,9 @@ const mount = async (args: {
   const props = {
     sessionId: SESSION,
     pending: args.pending,
-    events: eventsOf([POSTED]),
-    foldable: eventsOf([POSTED]),
-    queueKnown: true,
-    staged: [],
+    events: args.events ?? eventsOf([POSTED]),
+    foldable: args.events ?? eventsOf([POSTED]),
+    staged: args.staged ?? [],
     items: [],
     draft: args.draft ?? 'a draft',
     api: { withdraw: args.onWithdraw ?? (async () => ({ ok: true as const })) },
@@ -181,6 +186,7 @@ const mount = async (args: {
     drafts,
     restored,
     rows: () => probeOf().queued.rows.length,
+    transcript: () => probeOf().transcript.length,
     wants: () => calls.wants,
     edit: () => probeOf().queued.onEdit('4'),
     remove: () => probeOf().queued.onRemove('4'),
@@ -286,5 +292,48 @@ describe('withdrawing a queued message on web', () => {
 
     expect(shown).toEqual(['Already sent — the agent got it'])
     expect(withdrawStore.intentsOf(SESSION)).toEqual([])
+  })
+})
+
+describe('placing a staged send on web', () => {
+  const stagedMessage: StagedMessage = {
+    clientId: 'client-a',
+    text: 'ship it',
+    attachments: [],
+    placement: EOutgoingPlacement.Transcript,
+    at: '2026-11-25T10:00:00.000Z',
+  }
+
+  const postedStaged = eventsOf([
+    {
+      type: 'input-posted',
+      inboxId: 4,
+      kind: 'message',
+      postedAt: '2026-11-25T10:00:00.000Z',
+      message: { text: 'ship it', clientId: 'client-a' },
+    },
+  ])
+
+  const pendingStaged: PendingInputsState = {
+    pending: [
+      {
+        inboxId: 4,
+        seq: 4,
+        at: '2026-11-25T10:00:00.000Z',
+        kind: 'message',
+        message: { text: 'ship it', clientId: 'client-a' },
+      },
+    ],
+  }
+
+  it('shows one transcript item and no queue row for an idle send the record already posted', async () => {
+    const harness = await mount({
+      pending: pendingStaged,
+      staged: [stagedMessage],
+      events: postedStaged,
+    })
+
+    expect(harness.transcript()).toBe(1)
+    expect(harness.rows()).toBe(0)
   })
 })

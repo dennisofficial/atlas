@@ -1,5 +1,10 @@
 import type { Attachment, RecordEvent } from '@dltech/atlas-core'
-import { ALREADY_SENT_REASON, EStagedOutcome, stagedOutcomesOf } from '@dltech/atlas-client/stream'
+import {
+  ALREADY_SENT_REASON,
+  EStagedOutcome,
+  stagedOutcomesOf,
+  stagedWithdrawOwnedIdsOf,
+} from '@dltech/atlas-client/stream'
 
 export type StagedSend = { clientId: string; text: string; attachments: readonly Attachment[] }
 
@@ -21,11 +26,15 @@ export const settlementOf = (args: {
   staged: readonly StagedSend[]
   events: readonly RecordEvent[]
   unread?: ReadonlySet<string> | undefined
+  ownedInboxIds: ReadonlySet<number>
 }): StagedSettlement => {
   const unread = args.unread ?? new Set<string>()
-  const outcomes = stagedOutcomesOf({
+  const clientIds = args.staged.map((entry) => entry.clientId)
+  const outcomes = stagedOutcomesOf({ events: args.events, clientIds })
+  const owned = stagedWithdrawOwnedIdsOf({
     events: args.events,
-    clientIds: args.staged.map((entry) => entry.clientId),
+    clientIds,
+    ownedInboxIds: args.ownedInboxIds,
   })
   const settlement: StagedSettlement = { kept: [], restored: [], notices: [] }
   for (const entry of args.staged) {
@@ -38,6 +47,7 @@ export const settlementOf = (args: {
       if (unread.has(entry.clientId)) settlement.kept.push(entry)
       continue
     }
+    if (outcome.outcome === EStagedOutcome.Withdrawn || owned.has(entry.clientId)) continue
     if (outcome.reason === ALREADY_SENT_REASON) {
       settlement.notices.push('Already sent')
       continue
