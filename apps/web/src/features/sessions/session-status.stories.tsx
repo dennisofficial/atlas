@@ -3,7 +3,8 @@ import { SidebarProvider } from '@dltech/atlas-ui/components/sidebar'
 
 import { ThreadRow } from '@/features/shell/shell-thread-row'
 import { ThreadActionsContext } from '@/features/shell/thread-actions-context'
-import { v2RowOf, type V2SessionSummary } from '@/features/shell/v2-rows'
+import type { SessionSummary } from '@dltech/atlas-protocol'
+import { rowOf } from '@/features/shell/session-rows'
 
 import { SessionHeader } from './session-header'
 import { StartFailedCard } from './start-failed-card'
@@ -21,7 +22,7 @@ const entry = (overrides: Partial<PullRequestEntry> = {}): PullRequestEntry => (
   repo: 'owner/atlas',
   number: 128,
   url: 'https://github.com/owner/atlas/pull/128',
-  branch: 'dennis/v2-views-web',
+  branch: 'dennis/session-views',
   state: 'open',
   checksRunning: 2,
   checksPassed: 5,
@@ -68,17 +69,17 @@ export const StartFailed = {
 }
 
 export const HeaderOpenPrChecksRunning = {
-  render: () => header({ branch: 'dennis/v2-views-web', entries: [entry()] }),
+  render: () => header({ branch: 'dennis/session-views', entries: [entry()] }),
 }
 
 export const HeaderMergedPr = {
-  render: () => header({ branch: 'dennis/v2-views-web', entries: [entry({ state: 'merged' })] }),
+  render: () => header({ branch: 'dennis/session-views', entries: [entry({ state: 'merged' })] }),
 }
 
 export const HeaderClosedPr = {
   render: () =>
     header({
-      branch: 'dennis/v2-views-web',
+      branch: 'dennis/session-views',
       entries: [
         entry({
           state: 'closed',
@@ -94,7 +95,7 @@ export const HeaderClosedPr = {
 export const HeaderUnknownState = {
   render: () =>
     header({
-      branch: 'dennis/v2-views-web',
+      branch: 'dennis/session-views',
       entries: [
         entry({
           state: undefined,
@@ -107,8 +108,8 @@ export const HeaderUnknownState = {
     }),
 }
 
-const summary = (overrides: Partial<V2SessionSummary>): V2SessionSummary => ({
-  sessionId: 'v2-a',
+const summary = (overrides: Partial<SessionSummary>): SessionSummary => ({
+  sessionId: 'ses-a',
   projectId: 'p1',
   title: 'Show v2 session status',
   naming: false,
@@ -128,7 +129,7 @@ export const SidebarRows = {
           {[
             summary({
               status: { state: ESessionStatus.Thinking },
-              primaryBranch: 'dennis/v2-views-web',
+              primaryBranch: 'dennis/session-views',
               pullRequest: {
                 repo: 'owner/atlas',
                 number: 128,
@@ -139,16 +140,16 @@ export const SidebarRows = {
               },
             }),
             summary({
-              sessionId: 'v2-b',
+              sessionId: 'ses-b',
               title: 'Fix the build',
               status: { state: ESessionStatus.StartFailed },
               primaryBranch: 'fix/build',
             }),
-            summary({ sessionId: 'v2-c', title: 'No status yet' }),
+            summary({ sessionId: 'ses-c', title: 'No status yet' }),
           ].map((row) => (
             <ThreadRow
               key={row.sessionId}
-              session={v2RowOf(row)}
+              session={rowOf(row)}
               projectName="atlas"
               activeThreadId={null}
             />

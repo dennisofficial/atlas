@@ -29,7 +29,7 @@ const checkoutScope = (checkoutId: string | undefined) =>
 
 const rootScope = (root: EFilesRoot | undefined) => (root === undefined ? {} : { root })
 
-export const v2FileSource = (args: {
+export const fileSource = (args: {
   sessionId: string
   checkoutId?: string | undefined
   root?: EFilesRoot | undefined

@@ -14,7 +14,7 @@ import {
 import { EMessageAuthor, ERowKind, type SessionNameOf, type ThreadRow } from '../rows'
 import { useKeyboard } from '../../layout/use-keyboard'
 import { EScrollSignal, FOLLOWING_TAIL, tailFollowAfter, type TTailFollow } from '../tail-follow'
-import type { AgentLinks } from '../v2/agent-links'
+import type { AgentLinks } from '../session/agent-links'
 import { ThreadRowView } from './thread-row'
 
 const NEAR_TOP_PX = 400

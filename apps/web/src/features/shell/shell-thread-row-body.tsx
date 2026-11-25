@@ -21,8 +21,8 @@ import { latestThreadPullRequestOf, threadPullRequestsOf } from './thread-pull-r
 import { PullRequestMergeMarker } from '@/features/threads/pull-request-merge-marker'
 import { CompactWorkIcon, ThreadWorkSummary } from './thread-pr-presentation'
 import { EThreadStatus, isUnread, isWorking, threadStatusOf } from './thread-status'
-import { v2SessionHref } from './v2-rows'
-import { v2IsUnread, v2StatusIconOf, type V2RowView } from './v2-status'
+import { sessionHref } from './session-rows'
+import { isSessionUnread, statusIconOf, type RowView } from './row-status'
 
 const MARKER_CLASS =
   'h-4 shrink-0 px-1 font-mono text-[10px] font-normal text-muted-foreground group-data-[collapsible=icon]:hidden'
@@ -35,8 +35,7 @@ export interface ThreadRowBodyProps {
   teammateParents?: ReadonlyMap<string, WireThread>
   parent?: WireThread | undefined
   collapsed?: boolean
-  v2?: boolean
-  v2View?: V2RowView | undefined
+  view?: RowView | undefined
   listedNaming?: boolean
 }
 
@@ -48,8 +47,7 @@ export function ThreadRowBody({
   teammateParents,
   parent,
   collapsed = false,
-  v2 = false,
-  v2View,
+  view,
   listedNaming = false,
 }: ThreadRowBodyProps) {
   const { onToggleArchive } = useThreadActions()
@@ -57,19 +55,20 @@ export function ThreadRowBody({
   const states = useSidebarPrStates()
   const compact = density === ESidebarDensity.Compact
   const family = useThreadFamily()
-  const entries = v2
-    ? v2View?.pullRequest === undefined
-      ? []
-      : [v2View.pullRequest]
-    : threadPullRequestsOf({ thread, teammates, collapsed, states, family })
-  const statusIcon = v2 ? v2StatusIconOf(v2View) : threadStatusOf(thread)
-  const branch = v2 ? v2View?.branch : currentBranchOf(thread)
-  const working = v2 ? statusIcon === EThreadStatus.Running : isWorking(thread)
+  const entries =
+    view === undefined
+      ? threadPullRequestsOf({ thread, teammates, collapsed, states, family })
+      : view.pullRequest === undefined
+        ? []
+        : [view.pullRequest]
+  const statusIcon = view === undefined ? threadStatusOf(thread) : statusIconOf(view)
+  const branch = view === undefined ? currentBranchOf(thread) : view.branch
+  const working = view === undefined ? isWorking(thread) : statusIcon === EThreadStatus.Running
   const latest = latestThreadPullRequestOf(entries)
   const pinned = thread.pinnedAt !== null && thread.pinnedAt !== undefined
   const archived = thread.archivedAt !== null && thread.archivedAt !== undefined
   const unread =
-    v2 && v2View !== undefined ? v2IsUnread({ view: v2View, active }) : isUnread({ thread, active })
+    view === undefined ? isUnread({ thread, active }) : isSessionUnread({ view, active })
   const naming = rowNamingOf({
     listedTitle: thread.title ?? null,
     listedNaming,
@@ -95,7 +94,7 @@ export function ThreadRowBody({
       states={states}
       actions={
         <>
-          {v2 ? <RenameAction sessionId={thread.id} title={naming.title} /> : null}
+          {view === undefined ? null : <RenameAction sessionId={thread.id} title={naming.title} />}
           <RowAction label={archiveLabel} onClick={handleArchive}>
             {teammate ? (
               archived ? (
@@ -126,7 +125,9 @@ export function ThreadRowBody({
       )}
     >
       <Link
-        href={v2 ? v2SessionHref(thread.id) : `/threads/${encodeURIComponent(thread.id)}`}
+        href={
+          view === undefined ? `/threads/${encodeURIComponent(thread.id)}` : sessionHref(thread.id)
+        }
         aria-current={active ? 'page' : undefined}
         data-density={density}
         className={cn(
@@ -158,12 +159,12 @@ export function ThreadRowBody({
               className={cn('flex-1', working && 'shimmer motion-reduce:shimmer-none')}
             />
           </span>
-          {v2 && v2View?.sandboxProvider === ESandboxProvider.Vercel ? (
+          {view?.sandboxProvider === ESandboxProvider.Vercel ? (
             <Badge variant="outline" data-sandbox-provider="vercel" className={MARKER_CLASS}>
               Vercel
             </Badge>
           ) : null}
-          {v2View?.routineId === undefined ? null : (
+          {view?.routineId === undefined ? null : (
             <CalendarClock
               data-engine-tag="routine"
               role="img"
@@ -177,7 +178,7 @@ export function ThreadRowBody({
             data-thread-line="secondary"
             className="col-span-2 mt-1 flex min-w-0 items-center gap-1.5 px-2 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden"
           >
-            {v2 && branch === undefined && latest === undefined ? null : (
+            {view !== undefined && branch === undefined && latest === undefined ? null : (
               <ThreadWorkSummary entries={entries} branch={branch} />
             )}
             <time dateTime={thread.updatedAt} className="ml-auto shrink-0 font-mono">

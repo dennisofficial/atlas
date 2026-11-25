@@ -6,7 +6,7 @@ import {
   type StreamConnection,
 } from '@dltech/atlas-client/stream'
 
-import { v2EventSchema, v2EventTypes } from './registered-plugins'
+import { eventSchema, eventTypes } from './registered-plugins'
 
 export { clearSessionLog, sessionLog } from './session-cache'
 
@@ -22,8 +22,8 @@ export const sessionStream = (client: ApiClient): StreamConnection => {
     transport: sessionStreamTransport({ client, surface: EStreamSurface.Ios }),
     scheduler: systemStreamScheduler,
     networkSignal: () => () => {},
-    eventSchema: v2EventSchema,
-    knownEventTypes: v2EventTypes,
+    eventSchema: eventSchema,
+    knownEventTypes: eventTypes,
   })
   held = { client, connection }
   connection.connect()

@@ -10,7 +10,7 @@ import type { Routine } from '@dltech/atlas-protocol'
 import { Button } from '@dltech/atlas-ui/components/button'
 
 import { useClock } from '@/features/shell/use-clock'
-import { useV2Sessions } from '@/features/shell/use-v2-sessions'
+import { useSessions } from '@/features/shell/use-sessions'
 import { useModelPicker } from '@/features/threads/data/use-model-picker'
 import { messageOf } from '@/features/threads/data/message-of'
 import { EQueryState } from '@/lib/use-cloud-query'
@@ -36,7 +36,7 @@ export function RoutineDetail({ routine }: { routine: Routine }) {
   const router = useRouter()
   const now = useClock()
   const timeZone = routine.timezone
-  const sessions = useV2Sessions()
+  const sessions = useSessions()
   const sessionState = pushedSessionStateOf({ sessionId: routine.lastSessionId, sessions })
   const runs = useRoutineRuns(routine.routineId)
   const update = useUpdateRoutine()

@@ -29,5 +29,5 @@ export type TerminalTransportOf = (
   args: Omit<TerminalTransportArgs, 'api' | 'subscribe'>,
 ) => TerminalTransport
 
-export const v2TerminalTransport: TerminalTransportOf = (args) =>
+export const terminalTransport: TerminalTransportOf = (args) =>
   createTerminalTransport({ ...args, api: webTerminalApi, subscribe })

@@ -9,7 +9,7 @@ import { EStreamSurface } from '@dltech/atlas-protocol'
 import { EventSource } from 'eventsource'
 
 import { authWatchingTransport } from './auth-transport'
-import { v2EventSchema, v2EventTypes, v2Views } from './registered-plugins'
+import { eventSchema, eventTypes, views } from './registered-plugins'
 import { sessionApiOf, type SessionApi } from './session-api'
 
 export type AuthRefusal = 401 | 403
@@ -51,9 +51,9 @@ export const createSessionClient = (args: {
     transport,
     scheduler: systemStreamScheduler,
     networkSignal: NO_NETWORK_SIGNAL,
-    eventSchema: v2EventSchema,
-    knownEventTypes: v2EventTypes,
-    views: v2Views,
+    eventSchema: eventSchema,
+    knownEventTypes: eventTypes,
+    views: views,
   })
 
   return {

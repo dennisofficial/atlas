@@ -4,7 +4,7 @@ import { ESessionStatus } from '@dltech/atlas-core'
 import { ESessionConnection, type SessionSnapshot } from '@dltech/atlas-client/stream'
 
 import { EMessageAuthor, ERowKind } from '../../rows'
-import { v2EventSchema } from '../registered-plugins'
+import { eventSchema } from '../registered-plugins'
 import { stagedRowsOf } from '../rows'
 
 const envelope = (seq: number) => ({
@@ -19,8 +19,8 @@ const envelope = (seq: number) => ({
 })
 
 const snapshotOf = (args: { events?: readonly unknown[]; working?: boolean }): SessionSnapshot => ({
-  events: (args.events ?? []).map((event) => v2EventSchema.parse(event)),
-  foldable: (args.events ?? []).map((event) => v2EventSchema.parse(event)),
+  events: (args.events ?? []).map((event) => eventSchema.parse(event)),
+  foldable: (args.events ?? []).map((event) => eventSchema.parse(event)),
   quickStops: [],
   pending: { pending: [] },
   cursor: undefined,

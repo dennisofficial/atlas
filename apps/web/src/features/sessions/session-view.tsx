@@ -17,7 +17,7 @@ import {
 import { turnStartedAtOf } from '@dltech/atlas-client/transcript'
 import { pendingOperatorRequestOf } from '@dltech/atlas-plugin-operator/client'
 
-import { useV2Sessions } from '@/features/shell/use-v2-sessions'
+import { useSessions } from '@/features/shell/use-sessions'
 import { messageOf } from '@/features/threads/data/message-of'
 import { ThreadPanelProvider } from '@/features/threads/panel/thread-panel-context'
 import { mediaUrls } from '@/features/threads/data/media-urls'
@@ -108,7 +108,7 @@ export function SessionView({ sessionId }: { sessionId: string }) {
     )
   }, [hasEvents, sessionId])
   useSessionMarkRead({ sessionId, head: snapshot.events.at(-1)?.seq })
-  const sessions = useV2Sessions()
+  const sessions = useSessions()
   const listed = sessions.find((session) => session.sessionId === sessionId)
   const sessionNameOf = useMemo(() => {
     const titles = new Map(

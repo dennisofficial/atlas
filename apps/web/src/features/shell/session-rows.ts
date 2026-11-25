@@ -1,20 +1,16 @@
 import { nestPeers as nestPeerRows } from '@dltech/atlas-client/stream'
-import type { SessionListOutput } from '@dltech/atlas-protocol'
+import type { SessionSummary } from '@dltech/atlas-protocol'
 import type { WireThread } from '@dltech/atlas-wire/web'
 
 import { rowPullRequestEntryOf } from '@/features/sessions/data/session-view-model'
 
 import type { ProjectThreads, ShellSessionNode } from './thread-partition'
-import type { V2RowView } from './v2-status'
+import type { RowView } from './row-status'
 
-export type V2SessionSummary = SessionListOutput['sessions'][number]
-
-export const v2SessionHref = (sessionId: string): string =>
+export const sessionHref = (sessionId: string): string =>
   `/sessions/${encodeURIComponent(sessionId)}`
 
-export const isV2Session = (session: ShellSessionNode): boolean => session.v2 === true
-
-const rowViewOf = (summary: V2SessionSummary): V2RowView => ({
+const rowViewOf = (summary: SessionSummary): RowView => ({
   status: summary.status?.state,
   sandboxStatus: summary.sandbox?.status,
   branch: summary.primaryBranch ?? undefined,
@@ -28,7 +24,7 @@ const rowViewOf = (summary: V2SessionSummary): V2RowView => ({
       : rowPullRequestEntryOf(summary.pullRequest),
 })
 
-export function v2RowOf(summary: V2SessionSummary): ShellSessionNode {
+export function rowOf(summary: SessionSummary): ShellSessionNode {
   const mainThread: WireThread = {
     id: summary.sessionId,
     sessionId: summary.sessionId,
@@ -45,9 +41,8 @@ export function v2RowOf(summary: V2SessionSummary): ShellSessionNode {
     id: summary.sessionId,
     mainThread,
     teammates: [],
-    v2: true,
     naming: summary.naming,
-    v2View: rowViewOf(summary),
+    view: rowViewOf(summary),
     ...(summary.spawnedBy === null || summary.spawnedBy === undefined
       ? {}
       : { spawnedBy: summary.spawnedBy }),
@@ -81,15 +76,15 @@ export function nestPeers(rows: readonly ShellSessionNode[]): ShellSessionNode[]
   return (nestPeerRows(ordered) as readonly Childed[]).map(nodeOf)
 }
 
-export function withV2Sessions(args: {
+export function mergeSessions(args: {
   entries: ProjectThreads[]
-  sessions: readonly V2SessionSummary[]
+  sessions: readonly SessionSummary[]
 }): ProjectThreads[] {
   if (args.sessions.length === 0) return args.entries
   return args.entries.map((entry) => {
     const projectId = entry.project?.id ?? null
     const rows = nestPeers(
-      args.sessions.filter((summary) => (summary.projectId ?? null) === projectId).map(v2RowOf),
+      args.sessions.filter((summary) => (summary.projectId ?? null) === projectId).map(rowOf),
     )
     return rows.length === 0 ? entry : { ...entry, sessions: [...entry.sessions, ...rows] }
   })

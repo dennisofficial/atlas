@@ -5,7 +5,6 @@ import { TeammateList } from './shell-teammate-folder'
 import { ThreadFamilyProvider } from './shell-thread-family'
 import { ThreadRowBody } from './shell-thread-row-body'
 import { mainThreadsOf, type SessionNode, type ShellSessionNode } from './thread-partition'
-import { isV2Session } from './v2-rows'
 
 export interface ThreadRowProps {
   session: ShellSessionNode
@@ -51,8 +50,7 @@ export function ThreadNodeRow({
         active={thread.id === activeThreadId}
         parent={parent}
         teammates={teammates}
-        v2={isV2Session(session)}
-        v2View={session.v2View}
+        view={session.view}
         listedNaming={session.naming ?? false}
         teammateParents={teammateParentsOf(session)}
         collapsed={teammates.length === 0}

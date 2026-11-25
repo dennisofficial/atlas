@@ -4,16 +4,15 @@ import { ESessionDisplay } from '@dltech/atlas-client/stream'
 import { ESessionStatus as CoreStatus } from '@dltech/atlas-core'
 
 import { EWorkKind, partitionSessions } from '../session-groups'
-import { listV2Sessions, type V2SessionSummary } from '../v2-sessions'
+import type { SessionSummary } from '@dltech/atlas-protocol'
+import { listSessions } from '../list-sessions'
 
 const NOW = Date.parse('2026-11-09T12:00:00.000Z')
 const hoursAgo = (hours: number): string => new Date(NOW - hours * 3_600_000).toISOString()
 
 const projects = [{ id: 'atlas', name: 'atlas', createdAt: hoursAgo(900) }]
 
-const summaryOf = (
-  overrides: Partial<V2SessionSummary> & { sessionId: string },
-): V2SessionSummary => ({
+const summaryOf = (overrides: Partial<SessionSummary> & { sessionId: string }): SessionSummary => ({
   projectId: 'atlas',
   title: null,
   naming: false,
@@ -25,10 +24,10 @@ const summaryOf = (
   ...overrides,
 })
 
-describe('listV2Sessions', () => {
+describe('listSessions', () => {
   it('asks for the newest sessions and returns them', async () => {
     const asked: { limit: number }[] = []
-    const sessions = await listV2Sessions({
+    const sessions = await listSessions({
       api: {
         sessions: {
           list: {
@@ -54,7 +53,7 @@ describe('partitionSessions with v2 sessions', () => {
           sessionId: 'ses_1',
           title: 'Ship mobile v2',
           status: { state: CoreStatus.Thinking },
-          primaryBranch: 'dennis/mobile-v2',
+          primaryBranch: 'dennis/mobile',
         }),
       ],
       now: NOW,
@@ -64,7 +63,7 @@ describe('partitionSessions with v2 sessions', () => {
       id: 'ses_1',
       title: 'Ship mobile v2',
       status: ESessionDisplay.Working,
-      work: { kind: EWorkKind.Branch, branch: 'dennis/mobile-v2' },
+      work: { kind: EWorkKind.Branch, branch: 'dennis/mobile' },
     })
   })
 

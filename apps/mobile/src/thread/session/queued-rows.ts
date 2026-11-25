@@ -15,7 +15,7 @@ import {
 } from '@dltech/atlas-core'
 
 import { rowsOf, type ThreadRow } from '../rows'
-import { v2EntryFolds } from './registered-plugins'
+import { entryFolds } from './registered-plugins'
 import type { StagedSend } from './staged-send'
 
 export type QueuedRow = { id: string; row: ThreadRow }
@@ -83,7 +83,7 @@ const rowOfEvent = (args: { event: Event; now: number }): ThreadRow | null => {
   const model = deriveTranscript({
     events: [args.event],
     signals: [],
-    pluginEntries: v2EntryFolds,
+    pluginEntries: entryFolds,
     now: () => new Date(args.now),
   })
   const rows = rowsOf({

@@ -1,5 +1,5 @@
 import { ERowKind, type SessionNameOf, type ThreadRow } from '../rows'
-import type { AgentLinks } from '../v2/agent-links'
+import type { AgentLinks } from '../session/agent-links'
 import { MessageRowView } from './message-row'
 import { NoticeRowView } from './notice-row'
 import { WorkRowView } from './work-row'

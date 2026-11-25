@@ -8,19 +8,19 @@ import { useSessionModelChoice } from './use-session-model-choice'
 
 const NO_COMMANDS: readonly CommandEntry[] = []
 
-export type V2SessionCommands = {
+export type SessionCommands = {
   entries: readonly CommandEntry[]
   clientActions: Record<EClientAction, () => void>
   model: ReturnType<typeof useSessionModelChoice> & { open: boolean; onClose: () => void }
   commandList: { open: boolean; onClose: () => void }
 }
 
-export const useV2SessionCommands = (args: {
+export const useSessionCommands = (args: {
   api: ApiClient | undefined
   sessionId: string
   events: readonly RecordEvent[]
   reportHidden: (name: string) => void
-}): V2SessionCommands => {
+}): SessionCommands => {
   const [commands, setCommands] = useState<readonly CommandEntry[]>(NO_COMMANDS)
   const [modelOpen, setModelOpen] = useState(false)
   const [listOpen, setListOpen] = useState(false)

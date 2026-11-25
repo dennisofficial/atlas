@@ -9,12 +9,12 @@ import type { ContextMirrorListOutput, ContextMirrorReadOutput } from '@dltech/a
 import type { TreeEntry } from '@/features/threads/data/file-tree-source'
 import { api, cloudCall } from '@/lib/api-client'
 
-export const contextMirrorKey = (sessionId: string) => ['v2-context-mirror', sessionId] as const
+export const contextMirrorKey = (sessionId: string) => ['context-mirror', sessionId] as const
 
 export const contextFileKey = (args: { sessionId: string; path: string }) =>
-  ['v2-context-file', args.sessionId, args.path] as const
+  ['context-file', args.sessionId, args.path] as const
 
-export const contextFilesKey = (sessionId: string) => ['v2-context-file', sessionId] as const
+export const contextFilesKey = (sessionId: string) => ['context-file', sessionId] as const
 
 export type ContextChange = { seq: number; paths: readonly string[] }
 

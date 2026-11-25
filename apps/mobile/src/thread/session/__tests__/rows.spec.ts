@@ -4,8 +4,8 @@ import { ESessionConnection, type SessionSnapshot } from '@dltech/atlas-client/s
 import { ESessionStatus } from '@dltech/atlas-core'
 
 import { EMessageAuthor, ERowKind } from '../../rows'
-import { v2EventSchema } from '../registered-plugins'
-import { v2ViewOf } from '../rows'
+import { eventSchema } from '../registered-plugins'
+import { viewOf } from '../rows'
 
 const NOW = Date.parse('2026-11-08T20:00:10.000Z')
 
@@ -21,8 +21,8 @@ const envelope = (seq: number) => ({
 })
 
 const snapshotOf = (raw: readonly unknown[]): SessionSnapshot => ({
-  events: raw.map((event) => v2EventSchema.parse(event)),
-  foldable: raw.map((event) => v2EventSchema.parse(event)),
+  events: raw.map((event) => eventSchema.parse(event)),
+  foldable: raw.map((event) => eventSchema.parse(event)),
   quickStops: [],
   pending: { pending: [] },
   cursor: undefined,
@@ -60,7 +60,7 @@ const requestAnswered = {
   output: { outcome: 'delivered', path: '/x', bytes: 4 },
 }
 
-describe('v2ViewOf', () => {
+describe('viewOf', () => {
   it('keeps the session busy but opens no turn while a command such as summarise runs', () => {
     const snapshot: SessionSnapshot = {
       ...snapshotOf([said, answered]),
@@ -71,7 +71,7 @@ describe('v2ViewOf', () => {
         lease: { epoch: 1, holderHostId: 1, live: true },
       },
     }
-    const view = v2ViewOf({ snapshot, now: NOW })
+    const view = viewOf({ snapshot, now: NOW })
     expect({ working: view.working, turnRunning: view.turnRunning }).toEqual({
       working: true,
       turnRunning: false,
@@ -79,7 +79,7 @@ describe('v2ViewOf', () => {
   })
 
   it('turns a page into message rows in order', () => {
-    const rows = v2ViewOf({ snapshot: snapshotOf([said, answered]), now: NOW }).rows
+    const rows = viewOf({ snapshot: snapshotOf([said, answered]), now: NOW }).rows
     expect(rows.map((row) => row.kind)).toEqual([ERowKind.Message, ERowKind.Message])
     expect(rows.map((row) => (row.kind === ERowKind.Message ? row.author : null))).toEqual([
       EMessageAuthor.You,
@@ -89,17 +89,17 @@ describe('v2ViewOf', () => {
 
   it('renders the rest of a page whose plugin body carries no row', () => {
     const ready = { ...envelope(2), type: 'service-ready', serviceId: 'svc-1' }
-    const rows = v2ViewOf({ snapshot: snapshotOf([said, ready]), now: NOW }).rows
+    const rows = viewOf({ snapshot: snapshotOf([said, ready]), now: NOW }).rows
     expect(rows).toHaveLength(1)
     expect(rows[0]?.kind).toBe(ERowKind.Message)
   })
 
   it('draws no transcript row for a request that is still parked', () => {
-    expect(v2ViewOf({ snapshot: snapshotOf([parked]), now: NOW }).rows).toEqual([])
+    expect(viewOf({ snapshot: snapshotOf([parked]), now: NOW }).rows).toEqual([])
   })
 
   it('draws the operator answer as a notice row once the call settles', () => {
-    const rows = v2ViewOf({
+    const rows = viewOf({
       snapshot: snapshotOf([parked, requestAnswered]),
       now: NOW,
     }).rows
@@ -113,6 +113,6 @@ describe('v2ViewOf', () => {
   })
 
   it('stays empty for an empty snapshot', () => {
-    expect(v2ViewOf({ snapshot: snapshotOf([]), now: NOW }).rows).toEqual([])
+    expect(viewOf({ snapshot: snapshotOf([]), now: NOW }).rows).toEqual([])
   })
 })

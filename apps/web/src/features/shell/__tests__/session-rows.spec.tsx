@@ -6,11 +6,12 @@ import { SidebarProvider } from '@dltech/atlas-ui/components/sidebar'
 import { ThreadRow } from '../shell-thread-row'
 import { partitionThreads, projectNameOf, type ShellSessionNode } from '../thread-partition'
 import { ThreadActionsContext } from '../thread-actions-context'
-import { v2RowOf, v2SessionHref, withV2Sessions, type V2SessionSummary } from '../v2-rows'
+import type { SessionSummary } from '@dltech/atlas-protocol'
+import { rowOf, sessionHref, mergeSessions } from '../session-rows'
 import { agoIso, NOW, projectOf, sessionOf, threadOf } from './fixtures'
 
-const summary = (overrides: Partial<V2SessionSummary> = {}): V2SessionSummary => ({
-  sessionId: 'v2-a',
+const summary = (overrides: Partial<SessionSummary> = {}): SessionSummary => ({
+  sessionId: 'ses-a',
   projectId: 'p1',
   title: 'Fix login',
   naming: false,
@@ -31,18 +32,17 @@ const entries = () => [
   { project: null, sessions: [] },
 ]
 
-describe('v2RowOf', () => {
+describe('rowOf', () => {
   it('carries the naming flag onto the row', () => {
-    expect(v2RowOf(summary({ title: null, naming: true })).naming).toBe(true)
-    expect(v2RowOf(summary()).naming).toBe(false)
+    expect(rowOf(summary({ title: null, naming: true })).naming).toBe(true)
+    expect(rowOf(summary()).naming).toBe(false)
   })
 
-  it('maps a summary onto a tagged row keyed by the session id', () => {
-    const row = v2RowOf(summary())
-    expect(row.v2).toBe(true)
-    expect(row.id).toBe('v2-a')
+  it('maps a summary onto a row keyed by the session id', () => {
+    const row = rowOf(summary())
+    expect(row.id).toBe('ses-a')
     expect(row.mainThread).toMatchObject({
-      id: 'v2-a',
+      id: 'ses-a',
       title: 'Fix login',
       updatedAt: agoIso(2),
       projectId: 'p1',
@@ -52,38 +52,38 @@ describe('v2RowOf', () => {
 
   it('carries the archive stamp so the row lands in the Archived bucket', () => {
     const stamp = agoIso(1)
-    const row = v2RowOf(summary({ archivedAt: stamp }))
+    const row = rowOf(summary({ archivedAt: stamp }))
     expect(row.mainThread.archivedAt).toBe(stamp)
-    const merged = withV2Sessions({
+    const merged = mergeSessions({
       entries: entries(),
       sessions: [summary({ archivedAt: stamp })],
     })
     const partition = partitionThreads({ entries: merged, now: NOW })
-    expect(partition.archived[0]?.sessions.map((s) => s.id)).toEqual(['v2-a'])
-    expect(v2RowOf(summary()).mainThread.archivedAt).toBeNull()
+    expect(partition.archived[0]?.sessions.map((s) => s.id)).toEqual(['ses-a'])
+    expect(rowOf(summary()).mainThread.archivedAt).toBeNull()
   })
 
   it('leaves the title unset when the session has none', () => {
-    expect(v2RowOf(summary({ title: null })).mainThread.title).toBeUndefined()
+    expect(rowOf(summary({ title: null })).mainThread.title).toBeUndefined()
   })
 })
 
-describe('withV2Sessions', () => {
+describe('mergeSessions', () => {
   it('adds each session to its project group and leaves others alone', () => {
     const base = entries()
-    const merged = withV2Sessions({
+    const merged = mergeSessions({
       entries: base,
-      sessions: [summary(), summary({ sessionId: 'v2-b', projectId: 'p2' })],
+      sessions: [summary(), summary({ sessionId: 'ses-b', projectId: 'p2' })],
     })
-    expect(merged[0]?.sessions.map((s) => s.id)).toEqual([`ses_v1-old`, 'v2-a'])
-    expect(merged[1]?.sessions.map((s) => s.id)).toEqual(['v2-b'])
+    expect(merged[0]?.sessions.map((s) => s.id)).toEqual([`ses_v1-old`, 'ses-a'])
+    expect(merged[1]?.sessions.map((s) => s.id)).toEqual(['ses-b'])
     expect(merged[2]).toBe(base[2])
   })
 
   it('ignores sessions of unknown projects and returns the same entries when empty', () => {
     const base = entries()
-    expect(withV2Sessions({ entries: base, sessions: [] })).toBe(base)
-    const merged = withV2Sessions({
+    expect(mergeSessions({ entries: base, sessions: [] })).toBe(base)
+    const merged = mergeSessions({
       entries: base,
       sessions: [summary({ projectId: 'gone' })],
     })
@@ -92,7 +92,7 @@ describe('withV2Sessions', () => {
 
   it('files a session with no project under the no-project group', () => {
     const base = entries()
-    const merged = withV2Sessions({
+    const merged = mergeSessions({
       entries: base,
       sessions: [summary({ sessionId: 'loose', projectId: null })],
     })
@@ -108,9 +108,9 @@ describe('withV2Sessions', () => {
   })
 
   it('nests a projectless peer under its projectless creator', () => {
-    const loose = (sessionId: string, overrides: Partial<V2SessionSummary> = {}) =>
+    const loose = (sessionId: string, overrides: Partial<SessionSummary> = {}) =>
       summary({ sessionId, projectId: null, ...overrides })
-    const merged = withV2Sessions({
+    const merged = mergeSessions({
       entries: entries(),
       sessions: [
         loose('loose-root', { createdAt: agoIso(9) }),
@@ -123,17 +123,17 @@ describe('withV2Sessions', () => {
   })
 
   it('keeps an old v2 session in its project group', () => {
-    const merged = withV2Sessions({
+    const merged = mergeSessions({
       entries: entries(),
       sessions: [summary({ updatedAt: agoIso(100), createdAt: agoIso(101) })],
     })
     const partition = partitionThreads({ entries: merged, now: NOW })
-    expect(partition.groups[0]?.sessions.map((s) => s.id)).toEqual(['v2-a', 'ses_v1-old'])
+    expect(partition.groups[0]?.sessions.map((s) => s.id)).toEqual(['ses-a', 'ses_v1-old'])
   })
 })
 
-const rowsOf = (sessions: readonly V2SessionSummary[]) =>
-  withV2Sessions({ entries: entries(), sessions })[0]?.sessions ?? []
+const rowsOf = (sessions: readonly SessionSummary[]) =>
+  mergeSessions({ entries: entries(), sessions })[0]?.sessions ?? []
 
 const findRow = (
   sessions: readonly ShellSessionNode[],
@@ -150,7 +150,7 @@ const findRow = (
 const childIdsOf = (sessions: readonly ShellSessionNode[], id: string): string[] =>
   findRow(sessions, id)?.teammates.map((peer) => peer.id) ?? []
 
-describe('withV2Sessions placement', () => {
+describe('mergeSessions placement', () => {
   const root = summary({ sessionId: 'root', createdAt: agoIso(9) })
   const peer = summary({
     sessionId: 'peer',
@@ -232,25 +232,25 @@ describe('withV2Sessions placement', () => {
   })
 })
 
-describe('withV2Sessions rows', () => {
-  it('marks every sidebar row as a v2 session', () => {
-    const merged = withV2Sessions({
+describe('mergeSessions rows', () => {
+  it('gives every sidebar row a session view', () => {
+    const merged = mergeSessions({
       entries: [{ project: projectOf('p1'), sessions: [] }],
       sessions: [summary()],
     })
     const rows = merged.flatMap((entry) => entry.sessions)
     expect(rows.length).toBe(1)
-    expect(rows[0]?.v2).toBe(true)
+    expect(rows[0]?.view).toBeDefined()
   })
 })
 
 describe('v2 links', () => {
   it('links a session to /sessions/<id>', () => {
-    expect(v2SessionHref('a b')).toBe('/sessions/a%20b')
+    expect(sessionHref('a b')).toBe('/sessions/a%20b')
   })
 })
 
-const render = (session: ReturnType<typeof v2RowOf>, activeId: string | null = null) =>
+const render = (session: ReturnType<typeof rowOf>, activeId: string | null = null) =>
   renderToStaticMarkup(
     <SidebarProvider>
       <ThreadActionsContext.Provider value={{ onToggleArchive: () => undefined }}>
@@ -261,17 +261,17 @@ const render = (session: ReturnType<typeof v2RowOf>, activeId: string | null = n
 
 describe('ThreadRow for a v2 session', () => {
   it('links to the session and offers archive and unarchive, without an engine tag', () => {
-    const html = render(v2RowOf(summary()))
-    expect(html).toContain('href="/sessions/v2-a"')
+    const html = render(rowOf(summary()))
+    expect(html).toContain('href="/sessions/ses-a"')
     expect(html).not.toContain('data-engine-tag')
     expect(html).toContain('Fix login')
     expect(html).toContain('Archive thread')
     expect(html).not.toContain('Pinned')
-    const archived = render(v2RowOf(summary({ archivedAt: agoIso(1) })))
+    const archived = render(rowOf(summary({ archivedAt: agoIso(1) })))
     expect(archived).toContain('Unarchive thread')
   })
 
   it('marks the row current when it is the active session', () => {
-    expect(render(v2RowOf(summary()), 'v2-a')).toContain('aria-current="page"')
+    expect(render(rowOf(summary()), 'ses-a')).toContain('aria-current="page"')
   })
 })

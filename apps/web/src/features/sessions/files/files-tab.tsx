@@ -15,7 +15,7 @@ import { EFilesRoot } from '@dltech/atlas-protocol'
 import { api, cloudCall } from '@/lib/api-client'
 import { nodesOf } from '@/features/threads/data/file-tree-nodes'
 import { pathWithin } from '@/features/threads/data/file-tree-source'
-import { v2FileSource, type FileSource } from '@/features/threads/data/file-source'
+import { fileSource, type FileSource } from '@/features/threads/data/file-source'
 import { EFileSearchStatus, useFileSearch } from '@/features/threads/data/use-file-search'
 import { EFileTreeStatus, useFileTree } from '@/features/threads/data/use-file-tree'
 import { useWorkspaceFile } from '@/features/threads/data/use-workspace-file'
@@ -153,7 +153,7 @@ function FilesBody(props: {
           <FileSearchResults
             hits={search.paths}
             active={0}
-            listId="v2-files-search"
+            listId="files-search"
             onSelect={handleSelect}
             onActiveChange={() => undefined}
           />
@@ -183,7 +183,7 @@ export function FilesTab(
   const [openPath, setOpenPath] = useState<string | undefined>(undefined)
   const [contextPath, setContextPath] = useState<string | undefined>(undefined)
   const handledOpen = useRef(0)
-  const sourceOf = props.sourceOf ?? v2FileSource
+  const sourceOf = props.sourceOf ?? fileSource
   const source = useMemo(
     () => (selectedId === undefined ? null : sourceOf({ sessionId, checkoutId: selectedId })),
     [sourceOf, sessionId, selectedId],

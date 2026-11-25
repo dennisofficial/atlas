@@ -13,13 +13,13 @@ describe('archiveThread', () => {
   it('sends a session to sessions.archive with the archive flag', async () => {
     const calls = fakeFetch(() => trpcOk({ archivedAt: null }))
     for (const archived of [true, false]) {
-      await archiveThread({ threadId: 'v2-a', archived })
+      await archiveThread({ threadId: 'ses-a', archived })
     }
     expect(calls).toEqual(
       [true, false].map((archived) => ({
         url: mutationUrl('sessions.archive'),
         method: 'POST',
-        body: { sessionId: 'v2-a', archived },
+        body: { sessionId: 'ses-a', archived },
       })),
     )
   })

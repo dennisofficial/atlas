@@ -2,7 +2,7 @@ import { UNTITLED } from '@/features/threads/data/untitled'
 
 import { mainThreadsOf, projectNameOf, type ProjectThreads } from './thread-partition'
 import { threadStatusOf, type EThreadStatus } from './thread-status'
-import { v2SessionHref } from './v2-rows'
+import { sessionHref } from './session-rows'
 
 export enum ESearchKind {
   Thread = 'thread',
@@ -46,7 +46,7 @@ export function searchItemsOf(entries: readonly ProjectThreads[]): {
 
 export const searchHrefOf = (item: SearchItem): string =>
   item.kind === ESearchKind.Thread
-    ? v2SessionHref(item.id)
+    ? sessionHref(item.id)
     : `/threads/new?project=${encodeURIComponent(item.id)}`
 
 export const searchScoreOf = (args: { search: string; keywords: readonly string[] }): number => {

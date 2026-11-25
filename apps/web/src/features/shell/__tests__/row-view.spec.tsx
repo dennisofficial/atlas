@@ -7,11 +7,12 @@ import { SidebarProvider } from '@dltech/atlas-ui/components/sidebar'
 
 import { ThreadRow } from '../shell-thread-row'
 import { ThreadActionsContext } from '../thread-actions-context'
-import { v2RowOf, type V2SessionSummary } from '../v2-rows'
-import { agoIso, sessionOf, threadOf } from './fixtures'
+import type { SessionSummary } from '@dltech/atlas-protocol'
+import { rowOf } from '../session-rows'
+import { agoIso } from './fixtures'
 
-const summary = (overrides: Partial<V2SessionSummary> = {}): V2SessionSummary => ({
-  sessionId: 'v2-a',
+const summary = (overrides: Partial<SessionSummary> = {}): SessionSummary => ({
+  sessionId: 'ses-a',
   projectId: 'p1',
   title: 'Fix login',
   naming: false,
@@ -23,15 +24,11 @@ const summary = (overrides: Partial<V2SessionSummary> = {}): V2SessionSummary =>
   ...overrides,
 })
 
-const render = (overrides: Partial<V2SessionSummary>) =>
+const render = (overrides: Partial<SessionSummary>) =>
   renderToStaticMarkup(
     <SidebarProvider>
       <ThreadActionsContext.Provider value={{ onToggleArchive: () => undefined }}>
-        <ThreadRow
-          session={v2RowOf(summary(overrides))}
-          projectName="atlas"
-          activeThreadId={null}
-        />
+        <ThreadRow session={rowOf(summary(overrides))} projectName="atlas" activeThreadId={null} />
       </ThreadActionsContext.Provider>
     </SidebarProvider>,
   )
@@ -157,15 +154,4 @@ describe('v2 sidebar row', () => {
     )
     expect(render({})).not.toContain('data-sandbox-provider')
   })
-})
-
-describe('v1 sidebar row', () => {
-  const v1Row = (id: string) =>
-    sessionOf(
-      threadOf({
-        id,
-        title: 'Legacy session',
-        model: { ref: 'anthropic/claude-opus-5-5' },
-      }),
-    )
 })

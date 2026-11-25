@@ -6,7 +6,7 @@ import type { PullRequestEntry } from '@/features/threads/data/pull-request-entr
 
 import { EThreadStatus } from './thread-status'
 
-export type V2RowView = {
+export type RowView = {
   status: ESessionStatus | undefined
   sandboxStatus: ESandboxStatus | undefined
   branch: string | undefined
@@ -27,16 +27,16 @@ const ICON: Record<ESessionDisplay, EThreadStatus> = {
   [ESessionDisplay.Failed]: EThreadStatus.Failed,
 }
 
-const displayOf = (view: V2RowView): ESessionDisplay | undefined =>
+const displayOf = (view: RowView): ESessionDisplay | undefined =>
   sessionDisplayOf({ state: view.status, sandboxStatus: view.sandboxStatus })
 
-export const v2StatusIconOf = (view: V2RowView | undefined): EThreadStatus | undefined => {
+export const statusIconOf = (view: RowView | undefined): EThreadStatus | undefined => {
   if (view === undefined) return undefined
   const display = displayOf(view)
   return display === undefined ? undefined : ICON[display]
 }
 
-export const v2IsUnread = (args: { view: V2RowView; active: boolean }): boolean => {
+export const isSessionUnread = (args: { view: RowView; active: boolean }): boolean => {
   if (args.active) return false
   return isSessionUnreadOf({
     display: displayOf(args.view),

@@ -2,7 +2,7 @@ import type { ApiClient } from '@dltech/atlas-api-router'
 import { useEffect, useState } from 'react'
 import { z } from 'zod'
 
-import { listV2Sessions } from '../../sessions/v2-sessions'
+import { listSessions } from '../../sessions/list-sessions'
 import { type IModelOption, type IModelSelection } from '../../composer/model-options'
 import { useModels } from '../../composer/use-models'
 import { usePinnedModels } from '../../composer/use-pinned-models'
@@ -35,7 +35,7 @@ export const useSessionModelChoice = (args: {
   useEffect(() => {
     if (!args.open || current !== undefined || args.api === undefined) return
     let cancelled = false
-    void listV2Sessions({ api: args.api })
+    void listSessions({ api: args.api })
       .then((sessions) => {
         if (cancelled) return
         setCurrent(

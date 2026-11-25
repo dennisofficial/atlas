@@ -28,7 +28,7 @@ const NOT_FOLLOWING: SessionSnapshot = {
 
 const notFollowingSnapshot = (): SessionSnapshot => NOT_FOLLOWING
 
-export function useV2Session(args: {
+export function useSession(args: {
   sessionId: string
   threadId?: string | undefined
   api: ApiClient | undefined

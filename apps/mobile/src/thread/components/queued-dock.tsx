@@ -2,7 +2,7 @@ import { space } from '@dltech/atlas-ui/tokens'
 import { StyleSheet, View } from 'react-native'
 
 import type { SessionNameOf } from '../rows'
-import { queuedLabelOf, QUEUED_ROW_OPACITY, type QueuedDockState } from '../v2/queued-dock'
+import { queuedLabelOf, QUEUED_ROW_OPACITY, type QueuedDockState } from '../session/queued-dock'
 import { ThreadRowView } from './thread-row'
 
 export const QueuedDock = ({

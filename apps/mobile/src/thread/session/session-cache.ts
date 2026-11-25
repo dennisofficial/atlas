@@ -5,7 +5,7 @@ import {
 } from '@dltech/atlas-client/stream'
 
 import { openSqliteExecutor } from '../../storage/sqlite-executor'
-import { v2EventSchema } from './registered-plugins'
+import { eventSchema } from './registered-plugins'
 import { queuedSessionLog, type QueuedSessionLog } from './session-cache-queue'
 
 export const SESSION_LOG_DATABASE = 'atlas-sessions'
@@ -16,7 +16,7 @@ let opening: Promise<QueuedSessionLog> | undefined
 const open = async (): Promise<SessionLog> => {
   try {
     const db = await openSqliteExecutor(SESSION_LOG_DATABASE)
-    const stored = createSqliteSessionLog({ db, eventSchema: v2EventSchema })
+    const stored = createSqliteSessionLog({ db, eventSchema: eventSchema })
     await stored.prepare()
     return stored
   } catch {

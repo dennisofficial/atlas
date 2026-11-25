@@ -4,9 +4,11 @@ import { act } from 'react'
 
 import { SidebarProvider } from '@dltech/atlas-ui/components/sidebar'
 
+import type { SessionSummary } from '@dltech/atlas-protocol'
+import { rowOf } from '../session-rows'
 import { ThreadList } from '../shell-thread-list'
 import { ThreadActionsContext } from '../thread-actions-context'
-import { sessionOf, threadOf } from './fixtures'
+import { agoIso, sessionOf, threadOf } from './fixtures'
 
 beforeAll(() => {
   registerDom()
@@ -16,6 +18,25 @@ beforeAll(() => {
 afterAll(async () => {
   await unregisterDom()
 })
+
+const summaryOf = (index: number): SessionSummary => ({
+  sessionId: `ses-${index}`,
+  projectId: null,
+  title: `archived ${index}`,
+  naming: false,
+  mainThreadId: `thr-${index}`,
+  model: { ref: 'anthropic/claude-opus-5-5', effort: 'high', fast: false },
+  createdAt: agoIso(5),
+  updatedAt: agoIso(2),
+  archivedAt: agoIso(1),
+})
+
+const sessionEntries = (count: number) => [
+  {
+    project: null,
+    sessions: Array.from({ length: count }, (_, index) => rowOf(summaryOf(index))),
+  },
+]
 
 const archivedEntries = (count: number) => [
   {
@@ -32,25 +53,9 @@ const archivedEntries = (count: number) => [
   },
 ]
 
-const v2ArchivedEntries = (count: number) => [
-  {
-    project: null,
-    sessions: Array.from({ length: count }, (_, index) => ({
-      ...sessionOf(
-        threadOf({
-          id: `v2-archived-${index}`,
-          title: `v2 archived ${index}`,
-          archivedAt: new Date().toISOString(),
-        }),
-      ),
-      v2: true,
-    })),
-  },
-]
-
 async function renderList(props: {
   counts?: { active: number; archived: number }
-  entries?: ReturnType<typeof archivedEntries>
+  entries?: ReturnType<typeof archivedEntries> | ReturnType<typeof sessionEntries>
 }) {
   const { createRoot } = await import('react-dom/client')
   const host = document.createElement('div')
@@ -89,10 +94,10 @@ describe('sidebar buckets', () => {
     }
   })
 
-  it('adds the v2 sessions the v1 stream does not count', async () => {
+  it('adds the sessions the stream does not count', async () => {
     const list = await renderList({
       counts: { active: 0, archived: 0 },
-      entries: v2ArchivedEntries(3),
+      entries: sessionEntries(3),
     })
     try {
       const header = list.host.querySelector('button[aria-expanded]')

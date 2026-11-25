@@ -3,7 +3,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef } from 'react'
 
-import { V2_SESSIONS_KEY } from '@/lib/cloud-keys'
+import { SESSIONS_KEY } from '@/lib/cloud-keys'
 import { closeSessionNotifications } from '@/lib/web-push'
 import { usePageVisible } from '@/lib/use-page-visible'
 import {
@@ -11,8 +11,8 @@ import {
   type MarkReadScheduler,
 } from '@/features/threads/data/mark-read-scheduler'
 
-import { markV2SessionRead } from './sessions-api'
-import type { V2SessionSummary } from '@/features/shell/v2-rows'
+import { markSessionRead } from './sessions-api'
+import type { SessionSummary } from '@dltech/atlas-protocol'
 
 export function useSessionMarkRead(args: { sessionId: string; head: number | undefined }) {
   const { sessionId, head } = args
@@ -28,11 +28,9 @@ export function useSessionMarkRead(args: { sessionId: string; head: number | und
     if (!visible) return undefined
     const created = createMarkReadScheduler({
       send: async (seq) => {
-        const { readSeq } = await markV2SessionRead({ sessionId, seq })
-        queryClient.setQueryData(
-          [V2_SESSIONS_KEY],
-          (rows: readonly V2SessionSummary[] | undefined) =>
-            rows?.map((row) => (row.sessionId === sessionId ? { ...row, readSeq } : row)),
+        const { readSeq } = await markSessionRead({ sessionId, seq })
+        queryClient.setQueryData([SESSIONS_KEY], (rows: readonly SessionSummary[] | undefined) =>
+          rows?.map((row) => (row.sessionId === sessionId ? { ...row, readSeq } : row)),
         )
       },
     })
