@@ -117,7 +117,7 @@ export function ProviderCard({
         aria-label={`${provider.name} account in use`}
         value={inUseId ?? ''}
         onValueChange={(value) => actions.onUse(String(value))}
-        className="gap-0 divide-y"
+        layout="rows"
       >
         {accounts.map((account) => (
           <ProviderAccountRow

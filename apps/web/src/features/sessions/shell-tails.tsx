@@ -30,14 +30,7 @@ function ShellStop({ shellId, sessionId }: { shellId: string; sessionId: string 
     })
   }
   return (
-    <Button
-      type="button"
-      variant="ghost"
-      size="sm"
-      className="h-6 shrink-0 px-1.5 text-xs"
-      data-shell-kill={shellId}
-      onClick={handleStop}
-    >
+    <Button type="button" variant="ghost" size="row" data-shell-kill={shellId} onClick={handleStop}>
       Stop
     </Button>
   )
