@@ -1,9 +1,8 @@
 import type { Project, ProjectSave, ProjectWorkspace } from '@dltech/atlas-wire'
-import { reposOf, toProject } from '../../platform/sessions/live-project'
 import { Injectable, NotFoundException } from '@nestjs/common'
 import { db, type Row } from '@dltech/atlas-db'
-import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
 import { GithubService } from '@dltech/atlas-github'
+import { reposOf, toProject } from './live-project'
 import { assertProjectRules } from './projects.rules'
 import { withRepoTracking } from './project-repo-tracking'
 
@@ -26,10 +25,7 @@ function columnsOf(input: ProjectSave) {
 
 @Injectable()
 export class ProjectsService {
-  constructor(
-    private readonly github: GithubService,
-    private readonly signals: ThreadSignalsService,
-  ) {}
+  constructor(private readonly github: GithubService) {}
 
   async list(args: { userId: string }): Promise<Project[]> {
     const rows = await db.orm.public.Project.where({ ownerUserId: args.userId })
@@ -44,9 +40,7 @@ export class ProjectsService {
       ownerUserId: args.userId,
       createdById: args.userId,
     })
-    const project = toProject(row)
-    await this.projectChanged({ userId: args.userId, project })
-    return project
+    return toProject(row)
   }
 
   async read(args: { userId: string; projectId: string }): Promise<Project> {
@@ -58,19 +52,12 @@ export class ProjectsService {
     await this.editable(args)
     const row = await db.orm.public.Project.where({ id: args.projectId }).update(columns)
     if (row === null) throw new NotFoundException(PROJECT_NOT_FOUND)
-    const project = toProject(row)
-    await this.projectChanged({ userId: args.userId, project })
-    return project
+    return toProject(row)
   }
 
   async remove(args: { userId: string; projectId: string }): Promise<void> {
     await this.editable(args)
     await db.orm.public.Project.where({ id: args.projectId }).delete()
-    await this.signals.publish({ userId: args.userId, projectId: args.projectId, removed: true })
-  }
-
-  private async projectChanged(args: { userId: string; project: Project }): Promise<void> {
-    await this.signals.publish({ userId: args.userId, project: args.project })
   }
 
   async workspace(args: { userId: string; projectId: string }): Promise<ProjectWorkspace> {

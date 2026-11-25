@@ -240,20 +240,15 @@ describe('OauthConnectionsService', () => {
     expect(issuer.calls).toEqual(['refresh-0', 'refresh-0'])
   })
 
-  it('assigns only a sandbox the user owns and gates sandbox issuance on the assignment', async () => {
+  it('gates sandbox issuance on the connection being assigned to that sandbox', async () => {
     await upload()
-    store.sandboxes.set('thread-1', { id: 'sbx-1', userId: OWNER })
-    store.sandboxes.set('thread-2', { id: 'sbx-2', userId: 'user-b' })
 
-    await expect(
-      service.assignSandbox({ userId: OWNER, connectionId: CONNECTION, threadId: 'thread-2' }),
-    ).rejects.toBeInstanceOf(NotFoundException)
     await expect(
       service.issueAccessToken({ userId: OWNER, connectionId: CONNECTION, sandboxId: 'sbx-1' }),
     ).rejects.toBeInstanceOf(NotFoundException)
 
-    await service.assignSandbox({ userId: OWNER, connectionId: CONNECTION, threadId: 'thread-1' })
-    await service.assignSandbox({ userId: OWNER, connectionId: CONNECTION, threadId: 'thread-1' })
+    await store.assign({ connectionId: CONNECTION, sandboxId: 'sbx-1' })
+    await store.assign({ connectionId: CONNECTION, sandboxId: 'sbx-1' })
     const dto = await service.issueAccessToken({
       userId: OWNER,
       connectionId: CONNECTION,

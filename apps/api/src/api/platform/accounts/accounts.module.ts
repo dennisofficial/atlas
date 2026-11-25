@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common'
-import { AccountLeaseRouter } from './account-lease.router'
 import { AccountsRouter } from './accounts.router'
 import { AccountsService } from './accounts.service'
 import {
@@ -12,7 +11,6 @@ import {
   providers: [
     AccountsService,
     AccountsRouter,
-    AccountLeaseRouter,
     { provide: ProviderKeyHttp, useClass: GlobalProviderKeyHttp },
     ProviderKeyCheckService,
   ],

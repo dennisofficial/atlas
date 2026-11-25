@@ -8,9 +8,8 @@ import {
   type ComposerUploadPresignReply,
 } from '@dltech/atlas-wire'
 import { db } from '@dltech/atlas-db'
-import { ownedThread } from '../../platform/sessions/ownership'
 import { ComposerUploadBlobStore } from './composer-upload-blob-store'
-import { referencedBySentMessage } from './referenced-uploads'
+import { referencedByDraft } from './referenced-uploads'
 
 const prefixOf = (userId: string): string => `${COMPOSER_UPLOADS_PREFIX}${userId}/`
 
@@ -53,7 +52,7 @@ export class ComposerUploadsService {
 
   async discard(args: { userId: string; pathname: string }): Promise<void> {
     assertOwnPathname(args)
-    const referenced = await referencedBySentMessage({
+    const referenced = await referencedByDraft({
       reader: db,
       userId: args.userId,
       pathname: args.pathname,
@@ -67,11 +66,6 @@ export class ComposerUploadsService {
     threadId: string
     pathname: string
   }): Promise<ComposerUploadDownloadReply> {
-    await ownedThread({
-      reader: db,
-      userId: args.userId,
-      threadId: args.threadId,
-    })
     assertOwnPathname(args)
     const blob = await this.blobs.head({ pathname: args.pathname })
     if (blob === null) return { found: false }

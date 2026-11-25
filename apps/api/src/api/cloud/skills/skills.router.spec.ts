@@ -12,15 +12,25 @@ import {
 } from '../session-trpc-test-app'
 import { GithubService } from '@dltech/atlas-github'
 import { ProjectsService } from '../projects/projects.service'
-import { appendStoredWithin } from '../../platform/sessions/append'
-import { ThreadSignalsService } from '../../platform/sessions/thread-signals.service'
-import { inertSignals } from '../../platform/sessions/thread-signals.fixture'
 import { SkillUsageService } from './skill-usage.service'
 import { SkillsRouter } from './skills.router'
 import { SkillsService } from './skills.service'
 
 const USER_A = 'user-a'
 const USER_B = 'user-b'
+
+const toolNameOf = (event: { type: string; body: string }): string | null => {
+  if (event.type !== 'tool-called') return null
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(event.body)
+  } catch {
+    return null
+  }
+  if (typeof parsed !== 'object' || parsed === null || !('name' in parsed)) return null
+  const name = parsed.name
+  return typeof name === 'string' ? name : null
+}
 
 const encode = (bytes: Uint8Array) => Buffer.from(bytes).toString('base64')
 const fileOf = (text: string) => {
@@ -87,25 +97,20 @@ describe('SkillsRouter', () => {
         })
       }
       seq += 1
-      await db.transaction((tx) =>
-        appendStoredWithin({
-          tx,
-          threadId,
-          userId: args.userId,
-          runId: `run-${seq}`,
-          drafts: [
-            {
-              type: event.type,
-              body: event.body,
-              ...(event.contextSlot === undefined ? {} : { contextSlot: event.contextSlot }),
-              ...(event.contextKey === undefined ? {} : { contextKey: event.contextKey }),
-            },
-          ],
-        }),
-      )
-      if (event.at !== undefined) {
-        await db.orm.public.Event.where({ threadId }).update({ at: event.at })
-      }
+      await db.orm.public.Event.create({
+        id: `evt-${args.userId}-${seq}`,
+        threadId,
+        seq,
+        runId: `run-${seq}`,
+        depth: 0,
+        at: event.at ?? new Date(),
+        type: event.type,
+        body: event.body,
+        toolName: toolNameOf({ type: event.type, body: event.body }),
+        userId: args.userId,
+        ...(event.contextSlot === undefined ? {} : { contextSlot: event.contextSlot }),
+        ...(event.contextKey === undefined ? {} : { contextKey: event.contextKey }),
+      })
     }
   }
 
@@ -116,7 +121,6 @@ describe('SkillsRouter', () => {
         SkillsService,
         SkillUsageService,
         ProjectsService,
-        { provide: ThreadSignalsService, useValue: inertSignals() },
         { provide: GithubService, useValue: { findToken: async () => undefined } },
       ],
     })

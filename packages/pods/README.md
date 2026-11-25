@@ -19,7 +19,6 @@ they read. `apps/api` and `apps/trigger` both use it. It has no framework import
 - The NestJS wiring, controllers, routers and trigger task definitions. `apps/api` owns them.
 - Task ids and payload schemas. `@dltech/atlas-jobs` owns them.
 - The control plane store and its transactions. `@dltech/atlas-control` owns them.
-- The v1 sandbox sweeps and the Vercel sandbox client. `apps/api` owns them.
 
 ## Entry points
 

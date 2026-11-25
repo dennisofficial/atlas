@@ -18,7 +18,6 @@ import { apiErrorFormatter } from '../_module/trpc/trpc-error-formatter'
 import { AccountsModule } from './platform/accounts/accounts.module'
 import { ClassifierModule } from './platform/classifier/classifier.module'
 import { AccountRouter } from './platform/auth/account.router'
-import { CredentialAvailabilityModule } from './platform/credential-availability/credential-availability.module'
 import { AuthModule } from './platform/auth/auth.module'
 import { Agent37WebhookModule } from './cloud/agent37/agent37-webhook.module'
 import { ArtifactsModule } from './cloud/artifacts/artifacts.module'
@@ -37,26 +36,18 @@ import { SessionStreamModule } from './cloud/stream/session-stream.module'
 import { TerminalStreamModule } from './cloud/stream/terminal-stream.module'
 import { ProviderSignInModule } from './platform/provider-sign-in/provider-sign-in.module'
 import { DesktopAuthModule } from './platform/desktop-auth/desktop-auth.module'
-import { PodLeasesModule } from './platform/pod-leases/pod-leases.module'
 import { ProjectsModule } from './cloud/projects/projects.module'
-import { PublishedBundlesModule } from './cloud/published-bundles/published-bundles.module'
-import { ComposerDraftsModule } from './cloud/composer-drafts/composer-drafts.module'
 import { ComposerUploadsModule } from './cloud/composer-uploads/composer-uploads.module'
-import { SandboxesModule } from './platform/sandboxes/sandboxes.module'
-import { SandboxCredentialsModule } from './cloud/sandbox-credentials/sandbox-credentials.module'
-import { SandboxProvisioningModule } from './cloud/sandbox-provisioning/sandbox-provisioning.module'
-import { ScopedConfigModule } from './cloud/scoped-config/scoped-config.module'
 import { SecretsModule } from './cloud/secrets/secrets.module'
 import { HarnessSecretsModule } from './cloud/harness-secrets/harness-secrets.module'
 import { SettingsModule } from './cloud/settings/settings.module'
-import { SessionsModule } from './platform/sessions/sessions.module'
 import { UsageModule } from './platform/usage/usage.module'
 import { SshSigningKeyModule } from './cloud/ssh-signing-key/ssh-signing-key.module'
 import { SkillCatalogueModule } from './cloud/skill-catalogue/skill-catalogue.module'
 import { SkillsModule } from './cloud/skills/skills.module'
 import { UserFilesModule } from './cloud/user-files/user-files.module'
-import { SessionTitlerModule } from './cloud/thread-titling/session-titler.module'
 import { ControlPlaneModule } from './platform/control/control-plane.module'
+import { SessionTitlerModule } from './cloud/thread-titling/session-titler.module'
 
 @Module({
   imports: [
@@ -85,11 +76,9 @@ import { ControlPlaneModule } from './platform/control/control-plane.module'
     AccountsModule,
     ClassifierModule,
     UsageModule,
-    CredentialAvailabilityModule,
     OauthConnectionsModule,
     ProviderSignInModule,
     ModelsModule,
-    PodLeasesModule,
     SecretsModule,
     HarnessSecretsModule,
     SettingsModule,
@@ -106,16 +95,9 @@ import { ControlPlaneModule } from './platform/control/control-plane.module'
     SshSigningKeyModule,
     MemoriesModule,
     ArtifactsModule,
-    PublishedBundlesModule,
     ComposerUploadsModule,
-    ComposerDraftsModule,
-    SessionsModule,
-    SandboxesModule,
     GithubRealtimeModule,
     Agent37WebhookModule,
-    ScopedConfigModule,
-    SandboxCredentialsModule,
-    SandboxProvisioningModule,
     ControlPlaneModule,
     SessionTitlerModule,
   ],

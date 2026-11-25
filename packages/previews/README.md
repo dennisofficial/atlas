@@ -130,7 +130,6 @@ await tunnels.markDeleting({ podSessionId: 'ses_pod' })
 
 ## See also
 
-- `apps/api/src/api/platform/sandboxes/preview-tunnel.service.ts` for the v1 caller.
 - `apps/trigger/src/trigger/previews/preview-reconcile.ts` for the pass's timer.
 - `packages/previews/src/__tests__/preview-tunnels.spec.ts` and
   `packages/previews/src/__tests__/preview-reconciler.spec.ts` for the behaviour of each path.

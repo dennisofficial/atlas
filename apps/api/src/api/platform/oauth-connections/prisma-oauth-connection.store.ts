@@ -3,7 +3,6 @@ import { db, isUniqueViolation } from '@dltech/atlas-db'
 import { Injectable } from '@nestjs/common'
 import { EConnectionStatus, OauthConnectionStore } from './oauth-connections.types'
 import type { AttemptFence, ConnectionRow } from './oauth-connections.types'
-import { podSessionOf } from '../sessions/session-of-thread'
 
 const fenceWhere = (fence: AttemptFence) => ({
   id: fence.id,
@@ -138,16 +137,6 @@ export class PrismaOauthConnectionStore implements OauthConnectionStore {
     for (const id of args.ids) {
       await db.orm.public.AgentAccount.where({ id }).update({ status: EAccountStatus.Expired })
     }
-  }
-
-  async ownedSandboxId(args: { userId: string; threadId: string }): Promise<string | null> {
-    const sessionId = await podSessionOf({ reader: db, threadId: args.threadId }).catch(() => null)
-    if (sessionId === null) return null
-    const row = await db.orm.public.CloudSandbox.select('id').first({
-      sessionId,
-      userId: args.userId,
-    })
-    return row?.id ?? null
   }
 
   async assign(args: { connectionId: string; sandboxId: string }): Promise<void> {

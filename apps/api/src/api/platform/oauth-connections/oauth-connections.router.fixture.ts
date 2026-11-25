@@ -1,4 +1,4 @@
-import { UnauthorizedException, type Provider } from '@nestjs/common'
+import type { Provider } from '@nestjs/common'
 import type { NestExpressApplication } from '@nestjs/platform-express'
 import request from 'supertest'
 import { EnvService } from '../../../_core/config/env/env.service'
@@ -10,9 +10,7 @@ import {
 } from '../../../_module/trpc/trpc-middleware.fixture'
 import { SecretCipherService } from '../../../_lib/crypto/secret-cipher.service'
 import { InProcessRefreshLock, RefreshLock } from '../../../_lib/refresh-lock/refresh-lock'
-import { SandboxesService } from '../sandboxes/sandboxes.service'
 import { FakeClock, FakeIssuer, FakeStore } from './oauth-connections.fakes'
-import { OauthConnectionsRouter } from './oauth-connections.router'
 import { OauthConnectionsService } from './oauth-connections.service'
 import { OauthClock, OauthConnectionStore, OauthIssuer } from './oauth-connections.types'
 
@@ -33,39 +31,7 @@ export const sessionVerifier = (sessions: Record<string, string>) => ({
   },
 })
 
-export const principalSandboxes = (args: {
-  principals: Record<string, unknown>
-  assertThreadInFamily?: (query: { sandboxThreadId: string; threadId: string }) => Promise<void>
-}) => ({
-  async verifyTokenPrincipal(query: { token: string }) {
-    const row = args.principals[query.token]
-    if (row === undefined) throw new UnauthorizedException()
-    return row
-  },
-  assertThreadInFamily: args.assertThreadInFamily ?? (async () => undefined),
-})
-
-export const SANDBOX_PRINCIPALS = {
-  'sandbox-token-1': {
-    kind: 'sandbox',
-    id: 'sbx-1',
-    threadId: 'thread-1',
-    userId: 'user-a',
-  },
-  'sandbox-token-2': {
-    kind: 'sandbox',
-    id: 'sbx-2',
-    threadId: 'thread-2',
-    userId: 'user-a',
-  },
-}
-
-export const oauthProviders = (args: {
-  store: FakeStore
-  sandboxes: ReturnType<typeof principalSandboxes>
-  extra?: Provider[]
-}): Provider[] => [
-  OauthConnectionsRouter,
+export const oauthProviders = (args: { store: FakeStore; extra?: Provider[] }): Provider[] => [
   OauthConnectionsService,
   SessionMiddleware,
   SessionMiddleware,
@@ -78,7 +44,6 @@ export const oauthProviders = (args: {
     useValue: new SecretCipherService(new EnvService({ SECRETS_ENCRYPTION_KEY: HEX_KEY })),
   },
   { provide: SESSION_VERIFIER, useValue: sessionVerifier(SESSIONS) },
-  { provide: SandboxesService, useValue: args.sandboxes },
   ...(args.extra ?? []),
 ]
 
