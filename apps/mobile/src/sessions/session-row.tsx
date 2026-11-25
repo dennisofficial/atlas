@@ -1,15 +1,38 @@
-import { EFontFamily, ETextRole, ETextTone, Text, useTheme } from '@dltech/atlas-ui-native'
+import { ESessionDisplay } from '@dltech/atlas-client/stream'
+import {
+  EFontFamily,
+  ETextRole,
+  ETextTone,
+  Text,
+  useIsDark,
+  useTheme,
+  withAlpha,
+} from '@dltech/atlas-ui-native'
 import { radius, space } from '@dltech/atlas-ui/tokens'
 import { type AccessibilityActionEvent, StyleSheet, View } from 'react-native'
 import { Pressable } from 'react-native-gesture-handler'
 
 import { relativeTime } from '../lib/relative-time'
 import type { ISessionEntry } from './session-groups'
+import { rowFillOf } from './session-row-fill'
 import { sessionStatusLabelOf } from './session-status-label'
 import { StatusIcon } from './status-icon'
 import { WorkSummary } from './work-summary'
 
 const ARCHIVE_ACTION = 'archive'
+
+const STATUS_TONE: Record<ESessionDisplay, ETextTone> = {
+  [ESessionDisplay.Starting]: ETextTone.Muted,
+  [ESessionDisplay.StartFailed]: ETextTone.Destructive,
+  [ESessionDisplay.Working]: ETextTone.Primary,
+  [ESessionDisplay.WaitingForYou]: ETextTone.Warning,
+  [ESessionDisplay.Idle]: ETextTone.Muted,
+  [ESessionDisplay.Parked]: ETextTone.Muted,
+  [ESessionDisplay.Failed]: ETextTone.Destructive,
+}
+
+const statusToneOf = (status: ESessionDisplay | undefined): ETextTone =>
+  status === undefined ? ETextTone.Muted : STATUS_TONE[status]
 
 export const SessionRow = ({
   entry,
@@ -29,7 +52,11 @@ export const SessionRow = ({
   onArchive?: () => void
 }) => {
   const theme = useTheme()
+  const dark = useIsDark()
   const status = sessionStatusLabelOf(entry.status)
+  const fill = rowFillOf({ dark })
+  const selectedFill = withAlpha({ color: theme[fill.selected.color], alpha: fill.selected.alpha })
+  const pressedFill = withAlpha({ color: theme[fill.pressed.color], alpha: fill.pressed.alpha })
   const handleAccessibilityAction = ({ nativeEvent }: AccessibilityActionEvent) => {
     if (onArchive === undefined || nativeEvent.actionName !== ARCHIVE_ACTION) return
     onArchive()
@@ -47,9 +74,9 @@ export const SessionRow = ({
       onPress={onPress}
       style={({ pressed }) => [
         styles.row,
-        selected ? { backgroundColor: theme.sidebarAccent } : null,
         depth > 0 ? { paddingLeft: space(2) + depth * space(4) } : null,
-        pressed ? { backgroundColor: theme.sidebarAccent } : null,
+        selected ? { backgroundColor: selectedFill } : null,
+        selected ? null : pressed ? { backgroundColor: pressedFill } : null,
       ]}
     >
       <View style={styles.primary}>
@@ -60,7 +87,12 @@ export const SessionRow = ({
       </View>
       <View style={styles.secondary}>
         {status === undefined ? null : (
-          <Text size={ETextRole.Xs} tone={ETextTone.Muted} numberOfLines={1} style={styles.status}>
+          <Text
+            size={ETextRole.Xs}
+            tone={statusToneOf(entry.status)}
+            numberOfLines={1}
+            style={styles.status}
+          >
             {status}
           </Text>
         )}

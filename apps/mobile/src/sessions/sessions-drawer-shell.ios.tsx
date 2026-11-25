@@ -1,20 +1,24 @@
 import { useTheme } from '@dltech/atlas-ui-native'
-import { router, usePathname } from 'expo-router'
+import { router } from 'expo-router'
 import { useRef, useState } from 'react'
 import { StyleSheet } from 'react-native'
 import {
   ScreenStack,
+  ScreenStackHeaderLeftView,
   ScreenStackHeaderSearchBarView,
   ScreenStackItem,
   SearchBar,
   type SearchBarCommands,
 } from 'react-native-screens'
 
-import { EControlsPlacement } from '../layout/posture'
 import { usePosture } from '../layout/use-posture'
-import { applyNavigation } from '../navigation/apply-navigation'
-import { accountNavigationOf } from '../navigation/root-navigation'
-import { drawerBarItemsOf, drawerSearchBarPropsOf, usesNativeSearchOf } from './drawer-header-items'
+import { AccountButton } from '../navigation/account-button'
+import {
+  drawerBarItemsOf,
+  drawerSearchBarPropsOf,
+  showsAccountViewOf,
+  usesNativeSearchOf,
+} from './drawer-header-items'
 import {
   emptyDrawerSearchOf,
   searchClearedOf,
@@ -42,13 +46,11 @@ export const SessionsDrawerShell = ({ activeId, onOpen }: TDrawerScreenProps) =>
 const DrawerScreen = ({ activeId, onOpen }: TDrawerScreenProps) => {
   const theme = useTheme()
   const posture = usePosture()
-  const pathname = usePathname()
   const searchBarRef = useRef<SearchBarCommands | null>(null)
   const [search, setSearch] = useState(emptyDrawerSearchOf)
   const nativeSearch = usesNativeSearchOf({ listLayout: posture.sessionsList })
+  const showsAccount = showsAccountViewOf({ controls: posture.controls })
 
-  const handleAccount = () =>
-    applyNavigation(accountNavigationOf({ controls: posture.controls, pathname }))
   const handleNewSession = () => router.push('/new')
   const handleSearchFocus = () => setSearch(searchFocusedOf)
   const handleSearchText = (text: string) =>
@@ -61,11 +63,7 @@ const DrawerScreen = ({ activeId, onOpen }: TDrawerScreenProps) => {
   }
   const handleSearchCancel = () => setSearch(searchClearedOf)
 
-  const items = drawerBarItemsOf({
-    showsAccount: posture.controls === EControlsPlacement.BottomBar,
-    onAccount: handleAccount,
-    onNewSession: handleNewSession,
-  })
+  const items = drawerBarItemsOf({ onNewSession: handleNewSession })
 
   return (
     <ScreenStackItem
@@ -73,21 +71,29 @@ const DrawerScreen = ({ activeId, onOpen }: TDrawerScreenProps) => {
       gestureEnabled={false}
       contentStyle={[styles.stack, { backgroundColor: theme.sidebar }]}
       headerConfig={{
-        children: nativeSearch ? (
-          <ScreenStackHeaderSearchBarView>
-            <SearchBar
-              ref={searchBarRef}
-              {...drawerSearchBarPropsOf()}
-              onBlur={handleSearchDismiss}
-              onCancelButtonPress={handleSearchCancel}
-              onFocus={handleSearchFocus}
-              onChangeText={(event) => handleSearchText(event.nativeEvent.text)}
-            />
-          </ScreenStackHeaderSearchBarView>
-        ) : undefined,
+        children: (
+          <>
+            {showsAccount ? (
+              <ScreenStackHeaderLeftView>
+                <AccountButton />
+              </ScreenStackHeaderLeftView>
+            ) : null}
+            {nativeSearch ? (
+              <ScreenStackHeaderSearchBarView>
+                <SearchBar
+                  ref={searchBarRef}
+                  {...drawerSearchBarPropsOf()}
+                  onBlur={handleSearchDismiss}
+                  onCancelButtonPress={handleSearchCancel}
+                  onFocus={handleSearchFocus}
+                  onChangeText={(event) => handleSearchText(event.nativeEvent.text)}
+                />
+              </ScreenStackHeaderSearchBarView>
+            ) : null}
+          </>
+        ),
         backgroundColor: theme.sidebar,
         color: theme.foreground,
-        headerLeftBarButtonItems: items.left,
         headerRightBarButtonItems: items.right,
         hideBackButton: true,
         title: 'Sessions',

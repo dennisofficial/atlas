@@ -6,6 +6,7 @@ import { ActivityIndicator, RefreshControl, SectionList, StyleSheet, View } from
 
 import { usePosture } from '../layout/use-posture'
 import { DoneToggle } from './done-toggle'
+import { EmptyProjectRow } from './empty-project-row'
 import { EListStatus, listStatusOf } from './list-status'
 import type { ISessionEntry } from './session-groups'
 import { SectionHeader } from './section-header'
@@ -130,6 +131,9 @@ export const SessionsList = ({
       )}
       renderItem={({ item }) => {
         if (item.kind === EItemKind.ProjectLabel) return <BucketProjectLabel name={item.name} />
+        if (item.kind === EItemKind.EmptyProject) {
+          return <EmptyProjectRow onStartSession={() => handleNewSession(item.projectId)} />
+        }
         if (item.kind === EItemKind.DoneToggle) {
           return (
             <DoneToggle
