@@ -1,12 +1,11 @@
 # Core contract
 
-This file describes v1 and predates the glossary: its "session" mostly names what
-[CONTEXT.md](../CONTEXT.md) calls a **thread**.
-
 The seams of `@dltech/atlas-core`. Derived from four spikes, not from argument — every clause below
-that carries a _why_ earned it by breaking in code. Evidence lives in `docs/research/`.
+that carries a _why_ earned it by breaking in code. Evidence lives in [research/](research/), and the
+architecture it sits inside is [architecture.md](architecture.md).
 
-Supersedes `docs/spike-contract.md`, which the spikes were briefed to attack and did.
+Terms are [CONTEXT.md](../CONTEXT.md)'s: a **session** holds a pod, and a **thread** is one log inside
+it. This file was written before those names settled, so its "session" is often a thread.
 
 ## The one rule
 
@@ -112,7 +111,7 @@ type EventBody =
   or Grep that path for complete output. Historical no-path events keep their original rendering. A shell that outlives
   its turn has to re-enter the thread somehow, and the two obvious shapes are both wrong: a
   `user-said` puts words in the operator's mouth and renders as their message, and a notice saying
-  "read it with `shell_output`" spends a whole model step fetching bytes the harness already held.
+  "read it with `shell_output`" spends a whole model step fetching bytes the loop already held.
   So the ending is its own arm, projected by `messagesFromEvents` as a `user`-role
   `<background-shell-ended>` block and rendered by the transcript as an event line. `EShellStatus`
   lives in `core/shells` for this reason: `core` owns the value unions its event bodies store.
@@ -212,7 +211,8 @@ re-earns the finding. Do not implement against it as though reference forking we
 
 The projection renders only the **latest** event per `(slot, key)`, so a changed file supersedes
 rather than accumulates, and arrives at maximum recency. `core/context/supersede.ts` owns that; the
-storage-level identity lives in `harness/store/append-plan.ts`, which digests the content rather than
+storage-level identity lives in the record's append rules (`packages/core/src/record`, applied by
+`packages/control/src/append-ops.ts`), which digest the content rather than
 keying on it directly so the unique index stays narrow.
 
 ## Log
@@ -271,7 +271,8 @@ It reports what the log held, unvalidated.
 The fallback is deliberately not an arm of `EventBody`. That union is switched exhaustively —
 assembly rules, projections, rewind targets, exchange shape, the TUI's transcript derivation — and
 a row the storage layer could not parse is a storage fact, not something the domain has an opinion
-about. So the split lives at the decode boundary in `harness`: decoding rows yields
+about. So the split lives at the decode boundary in the control plane: `packages/control/src/parse-append.ts`
+decodes rows and yields
 `{ events, unreadable }`, `read` returns `events` for callers that only want the log, and callers
 that reason about `seq` — a rewind guard above all — can ask for both, because a guard cannot refuse
 a gap it cannot see.
@@ -325,10 +326,9 @@ type AssemblyPipeline = { rules: readonly Rule[]; annotators: readonly Annotator
 
 **Rules and annotators travel as one `AssemblyPipeline`.** They are not independently chosen: an
 annotator reads the shape the rules produced, so a caller holding one without the other is holding
-half a decision. As two loose fields the two composition roots — `buildHarness` and the shared
-`composeHarness` in `harness/src/composition` (which the TUI's `compose.ts` wraps) — each had to
-remember both, and adding the first annotator meant editing both roots.
-`defaultPipeline(workspace)` is the one thing either root asks for.
+half a decision. As two loose fields every composition root had to remember both, and adding the
+first annotator meant editing each of them; `apps/api/src/agent/compose.ts` is the one root the
+service has. `defaultPipeline(workspace)` is the one thing a root asks for.
 
 **Rules are pure and synchronous.** Not for testability — because re-running a cheap pure pipeline is
 free, which makes fixpoint search over assembly parameters trivial (see the budget controller). Async
@@ -458,7 +458,7 @@ type ToolCall = { callId: string; name: string; input: unknown; effect: EToolEff
   they throw. And a throwing hook is caught at the registry, unlike every other phase, because the
   caller underneath it is a dying process rather than a loop that could carry the failure anywhere.
   `EndedShell` is core-owned for the same reason `EShellStatus` is: the phase must not hand a `core`
-  consumer a `harness` type. The chain reaches the registry as a thunk
+  consumer an agent package's type. The chain reaches the registry as a thunk
   (`HookChainSourceToken`) — hooks resolve tools, tools resolve the registry — the same cycle break
   `ChildRunnerDepsToken` makes for the agent supervisor.
 - **`OnThreadOpen` is the second phase no turn drives.** Opening a thread runs no turn, so a
@@ -517,7 +517,7 @@ type ToolCall = { callId: string; name: string; input: unknown; effect: EToolEff
 - **A batch has no size limit.** `partitionToolCalls` takes no cap: admission is the predicate and
   nothing else. A number here would only ever bite a step the model deliberately fanned out, and the
   effect rule already means every call in a batch is read-only.
-- **Input threading is order-dependent even though the verdict is not.** Any harness letting hooks
+- **Input threading is order-dependent even though the verdict is not.** Any loop letting hooks
   rewrite tool input needs a stated normalisation contract — two individually-correct hooks disagreed
   about whether a path was `/var` or `/private/var` and silently killed context injection on every
   write.
@@ -530,11 +530,13 @@ every hook is consulted, none short-circuits, deny > allow, `dissenters` names e
 returned Deny, and input threads sequentially so the winning Allow carries the last Allow's
 input. `orderHooks` in `core/hooks` is the stage-then-nudge-then-**name** ordering; the name tiebreak
 is not garnish, it is what stops two authors both picking nudge 50 and getting an ordering decided by
-array-literal position. `harness/tools/dispatch.ts` is the only caller of either. It is now the `ToolDispatcher` port with a
-`HookedToolDispatcher` adapter, and it dispatches `BeforeTool` and `AfterTool`. The remaining phases
-are wired elsewhere rather than unwired: `harness/hooks/registry.ts` is a `HookChain` class whose
-`beforeTurn`, `beforeStep`, `beforeRequest`, `onChunk` and `afterTurn` methods are called by
-`LoopTurnRunner` and `AiSdkModelPort`, and its `afterShell` method by `BunShellRegistry`.
+array-literal position. `packages/agent/src/tools/dispatch.ts` is the only caller of either: the
+`ToolDispatcher` port with a `HookedToolDispatcher` adapter, which dispatches `BeforeTool` and
+`AfterTool`. The remaining phases are wired elsewhere rather than unwired:
+`packages/agent/src/hooks/registry.ts` is a `HookChain` class whose `beforeTurn`, `beforeStep`,
+`beforeRequest`, `onChunk` and `afterTurn` methods are called by the turn runner and
+`AiSdkModelPort` (`apps/api/src/agent/model/ai-sdk-model-port.ts`), and its `afterShell` method by
+the shell registry.
 
 **`dissenters` is computed and currently discarded.** `tool-denied` carries only `reason`, so the
 "UI can say who blocked what" purpose is unmet until that event grows a field. Recorded so it reads
@@ -590,7 +592,8 @@ and the tool validates what the _hooks_ produced.
 model's arguments against the declared schema and throws `InvalidToolInputError`, but
 `parseToolCall`'s outer catch swallows it and emits a normal `tool-call` part carrying
 `invalid: true`, `error`, and the raw input — or the raw _string_, when the arguments were not valid
-JSON. `harness/model/chunk-conversion.ts` then maps the valid and invalid branches identically. So
+JSON. The model adapter in `packages/agent/src/model` then maps the valid and invalid branches
+identically. So
 Atlas's parse is not the first validation, it is the first **enforcement**, and the SDK is not a line
 of defence to lean on while discarding its output. Carrying `invalid`/`error` through `Chunk` would
 fail the call at the boundary instead of re-deriving the verdict; `repairToolCall` is also available
@@ -674,8 +677,8 @@ point must never leave a thread whose first event is `assistant-said` or `tool-c
 
 ## Settled: core owns its message type
 
-`Assembled` holds **core's own** message type, not the AI SDK's `ModelMessage`, and `harness/model/`
-converts. This was the leaning; it is now implemented. Swapping the model layer leaves the domain
+`Assembled` holds **core's own** message type, not the AI SDK's `ModelMessage`, and
+`packages/agent/src/model` converts. This was the leaning; it is now implemented. Swapping the model layer leaves the domain
 untouched, which is the difference between model-agnostic being true and aspirational.
 
 Three consequences worth knowing before touching it:
@@ -704,7 +707,7 @@ Three consequences worth knowing before touching it:
   `ToolCallPart`, `ToolResultPart`, `AssistantContent`, `UserContent`, `ToolContent` — as of ai@7.0.78.
   It does **not** re-export `ProviderOptions` or `ReasoningPart`. `@ai-sdk/provider` covers the rest
   (`SharedV4ProviderMetadata`, `JSONValue`, `LanguageModelV4StreamPart`, `getErrorMessage`), so the
-  conversion layer needs no dependency beyond what `harness` already declares.
+  conversion layer needs no dependency beyond what `packages/agent` already declares.
 - **`@ai-sdk/provider`'s `JSONObject` admits `undefined`; core's `JsonValue` does not.** SDK provider
   metadata is therefore not assignable to core's provider options, and the conversion strips undefined
   values recursively. This is what keeps the boundary cast-free.

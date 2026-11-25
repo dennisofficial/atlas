@@ -83,4 +83,4 @@ export const nextOccurrenceFrom = (params: {
 
 ## See also
 
-- `docs/v2/slices/` documents the routines feature that uses this package.
+- `docs/slices/` documents the routines feature that uses this package.

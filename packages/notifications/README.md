@@ -145,5 +145,5 @@ const nextTimerAt = earliestDueAt(scan.held)
 
 ## See also
 
-- `docs/v2/slices/notifications.md` gives the design.
+- `docs/slices/notifications.md` gives the design.
 - `@dltech/atlas-core` gives `AtlasNotification`, `notifyPlanOf` and `inAppNoticeOf`.

@@ -104,6 +104,6 @@ definePlugin({
 
 ## See also
 
-- `docs/v2/architecture.md`
+- `docs/architecture.md`
 - `docs/decisions/0020-v2-sub-agent-worktrees-and-peer-sessions.md`
 - `packages/plugin-sdk/src/slots.ts` for the `PodSlot` contract.

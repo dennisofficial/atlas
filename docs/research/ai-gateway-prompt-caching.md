@@ -2,7 +2,7 @@
 
 Research date: 2026-11-10. Primary sources: Vercel AI Gateway docs (page `last_updated` quoted per
 claim) and the installed `@ai-sdk/gateway@4.0.125` (`packages/harness/package.json:27`,
-`apps/agent-host/package.json:18`), whose `docs/00-ai-gateway.mdx` is the AI SDK provider reference
+`apps/agent-host/package.json:18`), whose `00-ai-gateway.mdx` is the AI SDK provider reference
 for AI Gateway. DeepSeek's own API docs are used only for its server-side cache semantics.
 
 Motivation: on the DeepSeek route (`deepseek/deepseek-v4.1-flash-1017-fast`), per-call prompt-cache
@@ -99,7 +99,7 @@ Two secondary constraints that also break automatic prefix caches:
 ## 4. Routing controls and what actually pins a request
 
 Exact names and accepted values, from `GatewayProviderOptions` exported by `@ai-sdk/gateway@4.0.125`
-(`dist/index.d.ts:21-97`, mirrored in `docs/00-ai-gateway.mdx` "Gateway Provider Options"):
+(`dist/index.d.ts:21-97`, mirrored in `00-ai-gateway.mdx` "Gateway Provider Options"):
 
 | option                                                                                                                              | type                                                                                                                                     | effect                                                                     |
 | ----------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
@@ -146,7 +146,7 @@ Yes to both, but the SDK types only partially declare it.
   of the prompt from cache. A zero count can mean a cache miss, an ineligible prompt, or unavailable
   provider usage details.") — https://vercel.com/docs/ai-gateway/models-and-providers/automatic-caching.
   Server-side, `getGenerationInfo(generationId)` returns `providerName`, `isByok`, `cachedTokens`,
-  `cacheCreationTokens`, `latency` (`docs/00-ai-gateway.mdx` "Generation Lookup").
+  `cacheCreationTokens`, `latency` (`00-ai-gateway.mdx` "Generation Lookup").
 - Type caveat: `GatewayProviderMetadata` in 4.0.125 declares only `asyncJob` plus
   `readonly [key: string]: JSONValue | undefined` (`dist/index.d.ts:1440-1449`), so the routing fields
   are present but untyped: reading them needs a cast. `usage.inputTokenDetails.cacheReadTokens`

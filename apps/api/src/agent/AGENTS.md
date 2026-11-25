@@ -39,8 +39,8 @@ no tiers of its own. A service holds only `DOTENV_PRIVATE_KEY_PRODUCTION_ENC`. A
 | `PORT`                               | no       | 10000 (Render sets it)               |
 | `TRUSTED_ORIGINS`                    | no       | empty: any Origin; else a comma list |
 
-`ATLAS_API_ORIGIN` is handed to each sandbox as `ATLAS_CLOUD_URL`. The v1 serve inside it still calls
-the API. The agent itself calls the API for nothing. `CLOUDFLARE_*` is what the agent uses to mint preview
+`ATLAS_API_ORIGIN` is handed to each sandbox as `ATLAS_CLOUD_URL`. The agent itself calls the API for
+nothing. `CLOUDFLARE_*` is what the agent uses to mint preview
 tunnels and DNS routes for `exposePort`. `AGENT_HOST_PUBLIC_URL` seals the MCP OAuth `redirect_uri`,
 so production keeps it at `https://api.byatlas.io`.
 

@@ -7,6 +7,10 @@ push wins. There is no version history, no server-side build and no CI.
 
 When an app outgrows that, the agent pulls it and moves it into a real repository.
 
+**Status:** the API (`apps/api/src/api/cloud/artifacts`), `packages/artifacts` and
+`apps/artifacts-host` are live. The tool half went with v1; §Pieces and the flows below describe the
+service a tool drives.
+
 ## Pieces
 
 ```mermaid
@@ -42,8 +46,9 @@ flowchart LR
   Web --> API
 ```
 
-- **Tools** live in `packages/harness/src/tools/builtin/artifact-*.ts`; they reach the API through
-  `CloudArtifactPort` (`packages/harness/src/artifacts`).
+- **Tools**: `artifact_push` and `artifact_pull` were v1 tools and were deleted with the v1 agent
+  host. No v2 plugin implements them, so nothing reaches the API's push path today; the API, the
+  storage and the host below are live and unchanged.
 - **API** is `apps/api/src/api/cloud/artifacts`: it hands out presigned URLs, records versions and
   switches the live version.
 - **Storage paths and the manifest** are shared code in `packages/artifacts`.

@@ -24,7 +24,7 @@ permissions:
 # The Agent37 template and the VCR `latest` image follow the image's digest, pinned by the run
 # that published it. Serve is not baked in and no longer downloaded per release, so nothing about
 # this image is version-specific and no release re-pins it (decision D5,
-# docs/v2/slices/v1-retirement.md).
+# docs/slices/v1-retirement.md).
 
 env:
   IMAGE: ghcr.io/${{ github.repository_owner }}/atlas-sandbox

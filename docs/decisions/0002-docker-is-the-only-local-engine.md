@@ -2,6 +2,9 @@
 
 Accepted 2026-10-19.
 
+Status: the code this record describes was v1 and was deleted in the v1 retirement
+([slices/v1-retirement.md](../slices/v1-retirement.md)). The decision stands as history.
+
 ## Context
 
 Local pods needed an engine. The candidates were Docker Desktop, Podman and Apple `container`,
@@ -10,8 +13,9 @@ run Docker inside it, expose ports opened after boot, and change CPU and memory 
 
 ## Decision
 
-One local driver, `DockerPodDriver` (`packages/harness/src/cloud/local-pod/driver.ts`), talking to
-the Docker Engine API over its Unix socket (`packages/harness/src/execution/docker/engine-http.ts`).
+One local driver, `DockerPodDriver` (a v1 path, `packages/harness/src/cloud/local-pod/driver.ts`),
+talking to the Docker Engine API over its Unix socket (a v1 path,
+`packages/harness/src/execution/docker/engine-http.ts`).
 No Podman-specific driver and no Apple `container` driver.
 
 ## Why

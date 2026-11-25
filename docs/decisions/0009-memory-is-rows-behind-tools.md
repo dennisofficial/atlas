@@ -12,13 +12,11 @@ laptops would need conflict handling for every write.
 
 Memory is the `Memory` table in Atlas Cloud (`apps/api/prisma/schema.prisma`): scope, project,
 name, description, type, body and revision. The model reaches it only through four tools,
-`read_memory`, `write_memory`, `edit_memory` and `delete_memory`
-(`packages/harness/src/tools/builtin/memory-*.ts`), over `CloudMemoryPort`
-(`packages/harness/src/memory/cloud-memory-port.ts`) and `/v1/memories`. `edit_memory` applies
-old/new strings on the server and fails on a stale revision. A before-turn hook lists the rows and
-renders the index into the system prompt, once and again after a failed load
-(`packages/harness/src/hooks/load-memory.ts`, `packages/core/src/memory/index-render.ts`); the model
-never writes an index. Existing memory files are not imported.
+`read_memory`, `write_memory`, `edit_memory` and `delete_memory` (`plugins/memory/src/pod`), over
+the memory domain package and the API's memory route. `edit_memory` applies old/new strings on the
+server and fails on a stale revision. A before-turn hook lists the rows and renders the index into
+the system prompt, once and again after a failed load (`plugins/memory/src/pod/index-hook.ts`,
+`packages/core/src/memory/index-render.ts`); the model never writes an index. Existing memory files are not imported.
 
 ## Why
 

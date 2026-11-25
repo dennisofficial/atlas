@@ -21,4 +21,4 @@
 - [ ] Release
   - [ ] The PR title type sizes the release (`feat` only for something a user can do that they couldn't before)
   - [ ] Setup-breaking changes are called out above
-  - [ ] An API change the released serve or TUI can't talk to is titled `fix` or `feat`
+  - [ ] An API change the released TUI or Mac cannot talk to is titled `fix` or `feat`

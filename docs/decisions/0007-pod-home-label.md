@@ -2,6 +2,9 @@
 
 Accepted 2026-10-19.
 
+Status: the code this record describes was v1 and was deleted in the v1 retirement
+([slices/v1-retirement.md](../slices/v1-retirement.md)). The decision stands as history.
+
 ## Context
 
 At boot the TUI reaps local pods whose thread it no longer knows. Several Atlas homes can share one

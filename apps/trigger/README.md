@@ -10,7 +10,7 @@ imports `apps/api`, and `apps/api` never imports this one. See
 
 This app deploys to the trigger.dev project **Atlas v2** (`proj_wcjbubibkotgsclldnyz`, org
 Comp AI), configured in `trigger.config.ts`. It is the only trigger.dev project Atlas deploys: v1's
-`proj_yvwotwceptrneuuasamk` has no code to deploy any more (see `docs/v2/slices/v1-retirement.md`,
+`proj_yvwotwceptrneuuasamk` has no code to deploy any more (see `docs/slices/v1-retirement.md`,
 slice 3).
 
 ## Operator steps
@@ -68,8 +68,8 @@ pass to run against the existing leaked tunnels.
 ## How the API starts a task
 
 The API starts `pod-sleep` and `pod-resize` by id with this project's key,
-`TRIGGER_JOBS_SECRET_KEY` in the API's tier files. `TRIGGER_SECRET_KEY` stays the retired v1
-project's key until the last v1 dispatch leaves `apps/api` (slice 4 of the retirement). A task here
+`TRIGGER_JOBS_SECRET_KEY` in the API's tier files. `TRIGGER_SECRET_KEY` belonged to the retired v1
+project and went with the v1 request lanes; the API holds `TRIGGER_JOBS_SECRET_KEY` only. A task here
 that queues another task uses the SDK's `tasks.trigger`, which needs no key inside a worker.
 
 ## Local

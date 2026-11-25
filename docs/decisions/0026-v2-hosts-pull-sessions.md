@@ -2,12 +2,12 @@
 
 Accepted 2026-11-06 (proposed 2026-11-05). Amends [0025](0025-v2-connection-bound-leases.md) (the wake path and the ring scan
 become doorbells, not the source of work) and the held-session loop in
-[architecture §13](../v2/architecture.md). The epoch, the fence and connection-bound presence are
+[architecture §13](../architecture.md). The epoch, the fence and connection-bound presence are
 unchanged.
 
 ## Context
 
-The slice 3 live tests and the [recovery audit](../v2/research/slice-3/recovery-audit.md) found sessions that got stuck on a live host. Three
+The slice 3 live tests and the [recovery audit](../research/slice-3/recovery-audit.md) found sessions that got stuck on a live host. Three
 fixes were merged: #1904 (every exit settles the lease), #1903 (a 20 s sweep plus an own-lease audit) and
 #1908 (start failures are recorded and bounded). They work, but #1903 is a repair loop for states the
 design lets happen. The states come from three choices:

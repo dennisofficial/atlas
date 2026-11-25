@@ -11,15 +11,15 @@ the API), nine API paths that allocate event seqs, and twelve kinds of change ei
 start. On 2026-11-01 the API's send path and the pod's local log both minted seq 466 within four
 seconds. The API refused the pod's row, nothing healed the fork, and 560 events of derived state
 (PR link, branch, worktree) froze while the session looked alive.
-Evidence: [docs/v2/research/](../v2/research/incident-2026-11-01-seq466.md).
+Evidence: [docs/research/](../research/incident-2026-11-01-seq466.md).
 
 ## Decision
 
 v2 is a full redesign of the state and protocol architecture as client ⇄ control plane ⇄ pod, with
 local and cloud as placements of the same shape. The business logic (loop, tools, providers,
 assembly, prompts, hooks, skills, sub-agents) carries over. The design is
-[docs/v2/architecture.md](../v2/architecture.md); the ordered slices are
-[docs/v2/roadmap.md](../v2/roadmap.md).
+[docs/architecture.md](../architecture.md); the ordered slices are
+[docs/roadmap.md](../roadmap.md).
 - **D1.** The durable record lives in the control plane. The holder pod is the only writer of
   seqs. Clients and pods are agnostic to where the other is.
 - **D3.** The log is append-only. History edits (rewind, summarise, compact, loop-cut) are appended

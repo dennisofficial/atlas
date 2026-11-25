@@ -17,7 +17,7 @@ GitHub webhook controllers (`POST /v1/github/hooks/:repo`, `POST /v1/github/app/
 and better-auth's `/api/auth/*`.
 
 **The API carries no v1 thread or sandbox lane.** Slice 4c of
-`docs/v2/slices/v1-retirement.md` deleted the `threads`, `threadEvents`, `threadTurns`, `sandboxSelf`,
+`docs/slices/v1-retirement.md` deleted the `threads`, `threadEvents`, `threadTurns`, `sandboxSelf`,
 `sandboxes`, `sandboxCheckpoint`, `sandboxRollover`, `podLeases`, `threadSandbox`, `threadPod`,
 `threadMessages`, `composerDrafts` and `sandboxConfig` routers with their services, and the Vercel
 sandbox provisioning behind them. A sandbox is a v2 session pod: the agent host claims it
@@ -36,9 +36,9 @@ with the live Codex list (`CodexModelsCatalogue`). The catalogue is cached per u
 revalidated with `If-None-Match`. A Codex failure returns the static list plus `liveError`. The code lives in
 `@dltech/atlas-models`, and the provider sign-in helpers live in `@dltech/atlas-credentials/provider-oauth`. Session titles
 come from `src/agent/naming`, which calls the quick model through the same provider stack as the agent host. The API
-imports nothing of harness. `src/api/cloud/mcp-oauth` uses the agent's MCP OAuth helpers (`src/agent/mcp-oauth`)
+imports nothing of the agent host. `src/api/cloud/mcp-oauth` uses the agent's MCP OAuth helpers (`src/agent/mcp-oauth`)
 through `src/agent/index.ts`, and the skills API reads built-ins and the catalogue from `@dltech/atlas-plugin-skills`.
-`src/api/harness-boundary.spec.ts` and `architecture.spec.ts` enforce that rule.
+`src/api/architecture.spec.ts` enforces that rule.
 
 ## One app: `src/api` and `src/agent`
 
@@ -85,7 +85,7 @@ GitHub webhooks, and the agent's `/healthz` and `/mcp-oauth/callback`.
   pre-commit hook regenerates it when api or wire sources are staged. The CI `check` job fails on
   drift. `nestjs-trpc watch` keeps it current in `bun run dev`. Commit what the hook writes.
 - Clients import `AppRouter` types from `@dltech/atlas-api-router`. They never import them from `apps/api`. Web
-  uses its `api` client, harness uses `createHarnessApiClient`, and everything else uses `createApiClient`.
+  uses its `api` client, and everything else uses `createApiClient`.
 - Test a router with `createMixedApp` (`src/api/platform/accounts/accounts.router.fixture.ts`) or
   the feature's `*.router.fixture.ts`. Use supertest against `/v1/trpc/<alias>.<procedure>`.
   Queries are GET with `?input=<json>`, mutations POST the input as the JSON body.
@@ -136,7 +136,7 @@ them at least once. Relative imports work everywhere. Do not reintroduce them.
 
 The API stores no context archives. Context goes straight into the sandbox from the client, and
 the old upload endpoints are gone. The global JSON body cap is 4 MB (`JSON_BODY_LIMIT` in
-`src/_lib/body-limits.ts`) for every route. User-layer uploads fit because the harness skips files
+`src/_lib/body-limits.ts`) for every route. User-layer uploads fit because the agent skips files
 over 3,000,000 bytes (`MAX_USER_LAYER_FILE_BYTES`). A file of 3,000,000 bytes has a base64 body of 4,000,000 bytes.
 
 ## Deploy
@@ -212,7 +212,7 @@ its router's `SessionMiddleware`, and a bearer that `SESSION_VERIFIER` does not 
 health is open and the webhooks verify an HMAC. `ClientVersionGuard` and `ThrottlerGuard` stay
 global for those REST routes. The retired v1 sandbox and local-pod lease tokens authenticate
 nothing: their principals, their lookup cache and the `sandboxReachable`/`podReachable` procedure
-meta are gone (slice 4a of `docs/v2/slices/v1-retirement.md`).
+meta are gone (slice 4a of `docs/slices/v1-retirement.md`).
 
 The device-authorization flow is how the TUI logs in. The pages live in `apps/web` (Vercel,
 `byatlas.io`). The API only exposes the better-auth endpoints. `WEB_ORIGIN` is what points

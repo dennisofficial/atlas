@@ -79,6 +79,6 @@ definePlugin({
 
 ## See also
 
-- `docs/v2/architecture.md`
+- `docs/architecture.md`
 - `docs/decisions/0019-v2-package-map.md`
 - `packages/plugin-sdk/src/routines.ts` for the `PodRoutines` port.

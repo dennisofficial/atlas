@@ -58,7 +58,7 @@ The tradeoff is another state model. Atlas should keep the graph state deliberat
 
 ## Recommended parity architecture
 
-See the concrete TypeScript reference in [full-parity-harness.ts](./examples/full-parity-harness.ts). It keeps tool execution outside AI SDK, places the human interrupt before side effects, records snapshot IDs, and uses idempotency keys for replay safety.
+See the concrete TypeScript reference in `full-parity-harness.ts`. It keeps tool execution outside AI SDK, places the human interrupt before side effects, records snapshot IDs, and uses idempotency keys for replay safety.
 
 ```text
 OpenTUI
