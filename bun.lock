@@ -135,6 +135,14 @@
         "@vscode/ripgrep": "^1.18.0",
       },
     },
+    "apps/github-hook-relay": {
+      "name": "@dltech/atlas-github-hook-relay",
+      "version": "0.1.0",
+      "devDependencies": {
+        "@dotenvx/dotenvx": "^1.71.0",
+        "@types/bun": "latest",
+      },
+    },
     "apps/mac": {
       "name": "@dltech/atlas-mac",
       "version": "0.1.0",
@@ -1579,6 +1587,8 @@
     "@dltech/atlas-evals": ["@dltech/atlas-evals@workspace:evals"],
 
     "@dltech/atlas-github": ["@dltech/atlas-github@workspace:packages/github"],
+
+    "@dltech/atlas-github-hook-relay": ["@dltech/atlas-github-hook-relay@workspace:apps/github-hook-relay"],
 
     "@dltech/atlas-host": ["@dltech/atlas-host@workspace:packages/host"],
 

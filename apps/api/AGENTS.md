@@ -13,6 +13,7 @@ access tokens only. Local TUI sessions keep the loopback flow. Memory is never a
 Every Atlas-owned client calls the API through tRPC under `/v1/trpc` (`sessions.create`,
 `models.list` and the rest of the generated `AppRouter`). Only these routes stay REST: the
 GitHub webhook controllers (`POST /v1/github/hooks/:repo`, `POST /v1/github/app/hook`,
+`POST /v1/github/app/relayed-hook` (fed by `apps/github-hook-relay`),
 `GET /v1/github/app/callback`), `GET /v1/health`, the agent's `GET /healthz`, `GET /mcp-oauth/callback`,
 and better-auth's `/api/auth/*`.
 
