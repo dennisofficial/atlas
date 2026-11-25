@@ -14,9 +14,17 @@ export function selectedPayload({
   return undefined
 }
 
-export function stalePayloads({ dirs, state }: { dirs: string[]; state: IPayloadState }): string[] {
+export function stalePayloads({
+  dirs,
+  state,
+  running,
+}: {
+  dirs: string[]
+  state: IPayloadState
+  running?: string | undefined
+}): string[] {
   const keep = new Set(
-    [state.current, state.previous].filter((hash): hash is string => hash !== undefined),
+    [state.current, state.previous, running].filter((hash): hash is string => hash !== undefined),
   )
   return dirs.filter((dir) => !keep.has(dir))
 }
