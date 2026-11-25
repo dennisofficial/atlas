@@ -240,7 +240,30 @@ export class FollowRig {
   }
 
   async settled(): Promise<void> {
-    await Bun.sleep(30)
+    let quietTurns = 0
+    let last = this.progress()
+    for (let turn = 0; turn < 1_000; turn += 1) {
+      await new Promise((resolve) => setImmediate(resolve))
+      const now = this.progress()
+      quietTurns = now === last ? quietTurns + 1 : 0
+      last = now
+      if (quietTurns === 3) return
+    }
+    throw new Error('the follow pipeline never went quiet')
+  }
+
+  private progress(): string {
+    return [
+      this.sent.length,
+      this.closedWith.length,
+      this.surfaces.length,
+      this.analytics.captures.length,
+      this.reads,
+      this.headReads,
+      this.statusReads,
+      this.digestReads,
+      this.tailBaseReads,
+    ].join(':')
   }
 
   async untilSeq(seq: number): Promise<void> {
