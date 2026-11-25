@@ -34,19 +34,19 @@ understand if it's actually working well or not."
 
 All reviews came from one user (Dennis). 85% ran in sub-agent threads (3,130 of 3,698).
 
-| Step                                         | Count | Share | Source                                      |
-| -------------------------------------------- | ----- | ----- | ------------------------------------------- |
-| Write tool calls with a captured file change | n/a   |       | not sent (gap G1)                           |
-| Reviews recorded                             | 3,697 | 100%  | `quality review completed`                  |
-| Skipped: `outside_workspace`                 | 649   | 17.6% | correct (routine run 1: context, `/tmp`)    |
-| Skipped: `unsupported_language`              | 350   | 9.5%  | extension not sent (gap G2)                 |
-| Skipped: `oversized_request`                 | 189   | 5.1%  | request over 24 KB / 48 KB                  |
-| Skipped: `invalid_syntax`                    | 67    | 1.8%  |                                             |
-| Skipped: other, deadline                     | 2     | 0.1%  | 1 `source_unavailable`, 1 `review_deadline` |
-| Completed, no scope selected                 | 936   | 25.3% | module-only change, never sent to Jev       |
-| Completed, at least one scope scored (SRP)   | 1,504 | 40.7% |                                             |
-| Max concern ≥ 0.8                            | 9     | 0.24% | 5 `new_finding`, 4 `tracked_debt`           |
-| Nudged                                       | 5     | 0.14% | 4 probes, 1 false positive                  |
+| Step                                         | Count | Share | Source                                             |
+| -------------------------------------------- | ----- | ----- | -------------------------------------------------- |
+| Write tool calls with a captured file change | n/a   |       | not sent (gap G1)                                  |
+| Reviews recorded                             | 3,697 | 100%  | `quality review completed`                         |
+| Skipped: `outside_workspace`                 | 649   | 17.6% | correct (routine run 1: context, `/tmp`)           |
+| Skipped: `unsupported_language`              | 350   | 9.5%  | extension not sent (gap G2)                        |
+| Skipped: `oversized_request`                 | 189   | 5.1%  | request over the 24 KB / 48 KB bound in force then |
+| Skipped: `invalid_syntax`                    | 67    | 1.8%  |                                                    |
+| Skipped: other, deadline                     | 2     | 0.1%  | 1 `source_unavailable`, 1 `review_deadline`        |
+| Completed, no scope selected                 | 936   | 25.3% | module-only change, never sent to Jev              |
+| Completed, at least one scope scored (SRP)   | 1,504 | 40.7% |                                                    |
+| Max concern ≥ 0.8                            | 9     | 0.24% | 5 `new_finding`, 4 `tracked_debt`                  |
+| Nudged                                       | 5     | 0.14% | 4 probes, 1 false positive                         |
 
 Concern distribution of every scored review (`max_confidence`, the highest concern over the
 review's scopes; per-scope scores are not sent, G4):
@@ -77,8 +77,9 @@ Other facts:
    never selects the module scope or a method on its own
    (`plugins/quality/src/policies/single-responsibility/select.ts:29-61`). A file of object
    literals, types, constants or `export default` arrows reaches no classifier. That is the 936.
-5. Request bound: state + longest question ≤ 24 KB, state + all ≤ 48 KB
-   (`plugins/quality/src/review/review-scopes.ts:17-18`).
+5. Request bound: Jev's default limits, 32k tokens per question and 64k per request, expressed as
+   72,960 bytes for `state + longest question` and 145,920 bytes for `state + all questions`
+   (`plugins/quality/src/review/review-scopes.ts:18-28`).
 6. Budget 1000 ms + 10 ms grace (`hook.ts:29`, `plugins/quality/src/review/deadline.ts:1`). A late
    review is recorded and never nudges (`plugins/quality/src/pod/review-outcome.ts:137-192`).
 7. Nudge only on `introduce`: concern ≥ 0.8 **and** impact confidence ≥ 0.8 **and** impact
@@ -143,7 +144,8 @@ Facts that shape the design:
   `events`. Datasets expire after 90 days with no write.
 - 100k `$ai_*` events per month are free, then $0.00035 per event and less at volume. Jev makes
   about 1,500 calls per day today: about 45k per month.
-- The regular capture limit is 1 MB per event. A Jev request is at most 48 KB.
+- The regular capture limit is 1 MB per event. A Jev request carries at most 143 KiB of state and
+  questions together, and is usually a few KB.
 
 What our own product events still must cover: the review funnel (skips and their reasons, which
 never reach a model), the nudge decision, the agent's reaction, and the link from a label to the
@@ -237,6 +239,95 @@ The backbone for score distributions, near-misses and per-policy rates.
 | `review_id`, `policy_id`, hashes                                               | links                                                                                                                |
 
 `quality finding resolved` and `quality finding closed` stay as the lifecycle events, with hashes.
+
+#### S1b: oversized scopes
+
+Measured 2026-11-25 against production, then against the live classifier. The 28 h window holds 200
+`oversized_request` skips (5.4% of 3,697 reviews) and 0 `oversized_source`. Every one is a
+single-policy (SRP) request: 148 class scopes, 52 function scopes. The scope's line span is p50 509,
+p90 1,540, max 1,855.
+
+30 of the 200 were rebuilt exactly and checked against the record's before and after hashes. Their
+request state is 20.4–92.3 KB (p50 28.5 KB, p90 54.5 KB), with before p50 8.1 KB and after p50
+8.6 KB. All 30 failed the old 24 KB bound (`state + longest question`), and 5 also failed the 48 KB
+bound, so with one policy the 24 KB bound was the binding one.
+
+**The classifier's limits.** Default context is **32k tokens per question** (state + any one question)
+and **64k per request** (state + all questions), input at **$0.042 per million tokens**, output free
+(`docs.typesafe.ai/models`). TypeSafe offers a 262k-token mode behind the
+`TypeSafe-Danger-Zone-Long-Context: true` header, and the gateway forwards it, but it is not used:
+TypeSafe calls that mode experimental and less accurate, says it is "not reliable enough to endorse for
+production", and publishes no accuracy numbers for it (`docs.typesafe.ai/models`,
+`docs.typesafe.ai/model-jaggedness`). A scope that needs more than the default limits is reviewed as
+an excerpt instead. That is Dennis's decision of 2026-11-25.
+
+The production model is pinned to **`typesafe-ai/jev-1.14.0`** (`packages/classifier/src/models.ts`),
+not the moving `typesafe-ai/jev` alias; both ids answer 200 on the gateway, and `typesafe-ai/jev-latest`
+is a 404 there. The model ref stays `gateway/typesafe-ai/jev`, so a stored `ClassifierModel` setting
+keeps resolving and no account has to pick the model again.
+
+**Live probe, 2026-11-25.** Requests built with the real source adapter and `prepareQualityRequest`
+from a synthetic `Ledger` class whose one changed line sits in the middle, and posted to
+`https://ai-gateway.vercel.sh/typesafe/v1/systemone` with the pinned model and no header. Latency is
+the median of 5 runs (3 for the last row), one client at a time.
+
+| Source lines | State bytes | Input tokens | Median ms |
+| -----------: | ----------: | -----------: | --------: |
+|          398 |      27,667 |       11,386 |       335 |
+|          783 |      53,847 |       20,626 |       364 |
+|        1,053 |      72,289 |       27,188 |       361 |
+|        1,169 |      80,409 |       30,204 |       472 |
+|  3 questions |      38,139 |       50,960 |       710 |
+
+The last row is the largest legal request: a 14k-token state with three 12.5k-token questions, which
+is 26.5k per question and 51k in total. **Measured 2.44 bytes per token at the small end, 2.66 in the
+range that matters**, and 2.91 on real code (`packages/db/migrations/app/20261022T0209_baseline/migration.ts`,
+70 KB, a 1,739-line module scope at 145,691 bytes and 50,010 tokens).
+
+**The bounds.** `plugins/quality/src/review/review-scopes.ts:18-28`:
+- `MAX_STATE_AND_LONGEST_QUESTION_BYTES` = `floor(32,000 × 0.95 × 2.4)` = **72,960 bytes**.
+- `MAX_STATE_AND_ALL_QUESTIONS_BYTES` = `floor(64,000 × 0.95 × 2.4)` = **145,920 bytes**.
+- The 0.95 headroom and the 2.4 bytes per token are the safety margin: at the bound the request is about
+  27.2k tokens by the measured ratio (85% of 32k), and 30.4k tokens if the tokenizer is as dense as
+  2.4.
+- The 1 MiB source cap stays. It is not the binding limit: a scope over the request bound is excerpted
+  long before a file reaches 1 MiB.
+
+A request inside the bounds is sent whole. One above them is rebuilt by `source/scope-excerpt.ts` as the
+changed lines with 25 lines of context (capped at 90 per side), the member outline (capped at 60
+entries) and the changed evidence (capped at 32), and the state flags `scope.excerpt` with the context
+size, the start line and the omitted line counts so the labelling loop can measure that stratum. An
+excerpt that still does not fit is skipped as `oversized_request`, as before; that now needs a single
+line over 70 KB, because the excerpt cuts by line.
+
+**Latency and the budget.** Every legal request measured finishes inside the 1,000 ms review budget
+(`plugins/quality/src/pod/hook.ts:29`): 361 ms at the per-question bound and 710 ms at the largest
+legal request. The budget is therefore not the constraint at these limits, and `JEV_TIMEOUT_MS` 2,000 ms
+is not either.
+
+**Cost.** Production on 2026-11-25 (about 21 h, PostHog `quality review completed.input_tokens`): 1,003
+reviews, 5.76M input tokens, p50 4,516 and p95 15,545 tokens per review → **about $0.24/day, about
+$7–10/month**. Per review: p50 $0.00019, p95 $0.00065.
+
+The newly reviewed scopes are those 200 skips in 28 h, about 171 a day. At the population's line span
+and 108.8 bytes of state per line, about 6 in 10 fit whole (a mean of roughly 45 KB of state, or 17k
+tokens) and 4 in 10 go as an excerpt (about 4k tokens). That is about 2.0M tokens a day → **about
+$0.08/day, about $2.50/month**, with a range of $2.50–4.40 across the rebuilt sample and the population
+projection. Total projected: **about $10–13 a month**.
+
+**Before and after.** Rebuilt set, 30 cases. Every one is reviewed now; how many go whole follows
+from the 72,960-byte bound, and the sample's p90 state of 54.5 KB puts at most 3 of the 30 (those above
+the p90, up to the 92.3 KB max) on the excerpt path:
+
+| Path                        | Before | After                                     |
+| --------------------------- | ------ | ----------------------------------------- |
+| Sent whole                  | 0      | at least 27 (state at the p90 is 54.5 KB) |
+| Sent as an excerpt          | 0      | at most 3 (state up to 92.3 KB)           |
+| Skipped `oversized_request` | 30     | 0                                         |
+
+Population: the 200 skips become 0 unless a scope's excerpt cannot fit, which needs one line over
+70 KB. No scope that fits today changes: the planner returns its request byte-identical and a spec pins
+it. A pathological 900 KB single-line change is still skipped as `oversized_request`.
 
 ### 5.4 Dashboard "Jev quality" (2407147) — insights to add
 

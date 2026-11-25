@@ -19,6 +19,14 @@ export type {
 export { activeFindings, applyAssessments, findingId, foldQualityFindings } from './ledger'
 export type { QualityFindingKey, QualityLedgerStep } from './ledger'
 export { singleResponsibilityPolicy } from '../policies'
+export {
+  EXCERPT_CONTEXT_LINES,
+  MAX_EVIDENCE_ENTRIES,
+  MAX_EXCERPT_LINES,
+  MAX_OUTLINE_ENTRIES,
+  excerptOf,
+} from './source/scope-excerpt'
+export type { ExcerptedScope, QualityScopeExcerpt } from './source/scope-excerpt'
 export { qualityReviewsOf } from './quality-reviews'
 export { createQualityRegistry, QUALITY_POLICIES, qualityRegistry } from './registry'
 export type { QualityRegistry } from './registry'

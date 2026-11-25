@@ -58,7 +58,7 @@ describe('classifierConfigOf', () => {
       on: true,
       transport: EClassifierTransport.Jev,
       endpoint: 'https://ai-gateway.vercel.sh/typesafe',
-      model: 'typesafe-ai/jev',
+      model: 'typesafe-ai/jev-1.14.0',
       apiKey: 'gateway-key',
     })
   })
