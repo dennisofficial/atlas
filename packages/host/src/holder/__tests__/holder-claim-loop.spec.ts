@@ -3,11 +3,9 @@ import { describe, expect, it } from 'bun:test'
 import { retryDelayMs } from '@dltech/atlas-core'
 
 import { CLAIM_BATCH } from '../claim-loop'
-import { flushUntil, makeRig, seedSession, SESSION, THREAD_ID, type HolderRig } from './holder-rig'
+import { flushUntil, makeRig, seedSession, SESSION, type HolderRig } from './holder-rig'
 
 const SWEEP_MS = 20_000
-const SECOND = 'session-second'
-const SECOND_THREAD = 'thread-second'
 
 const typesOf = async (rig: HolderRig): Promise<string[]> =>
   (await rig.events()).map((event) => event.type)
@@ -162,7 +160,6 @@ describe('SessionHolder start backoff on the lease row', () => {
     })
     expect(answeredAgain).toBe(true)
     expect((await typesOf(a)).filter((type) => type === 'session-start-failed')).toHaveLength(1)
-    expect(THREAD_ID).toBeDefined()
   })
 
   it('a peer takes a crashed holder session as soon as its backoff ends, with no tick due', async () => {

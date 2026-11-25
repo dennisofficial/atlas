@@ -27,8 +27,22 @@ const tick = () => new Promise<void>((resolve) => setTimeout(resolve, 0))
 describe('createBootReporter batching', () => {
   it('returns from report before the sink resolves', async () => {
     const blocker = gate()
-    const reporter = createBootReporter({ sink: () => blocker.promise })
-    await reporter.report(event(EBootStep.Provision, EBootStepState.Running))
+    const delivered: BootStepEvent[][] = []
+    const reporter = createBootReporter({
+      sink: (events) => {
+        delivered.push([...events])
+        return blocker.promise
+      },
+    })
+    const first = await Promise.race([
+      reporter.report(event(EBootStep.Provision, EBootStepState.Running)).then(() => 'returned'),
+      tick().then(() => 'still waiting'),
+    ])
+    await tick()
+    expect({ first, delivered }).toEqual({
+      first: 'returned',
+      delivered: [[event(EBootStep.Provision, EBootStepState.Running)]],
+    })
     blocker.open()
     await reporter.flush()
   })
