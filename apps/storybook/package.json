@@ -22,6 +22,7 @@
     "@types/bun": "latest",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "async-sema": "3.1.1",
     "next": "16.3.5",
     "playwright": "1.64.1",
     "storybook": "10.6.0",

@@ -1,4 +1,5 @@
 import { ESandboxProvider } from '@dltech/atlas-protocol'
+import { Sema } from 'async-sema'
 import type {
   SandboxCredentials,
   SandboxListing,
@@ -92,11 +93,17 @@ async function runBounded<T>(args: {
   items: readonly T[]
   task: (item: T) => Promise<void>
 }): Promise<void> {
-  const queue = [...args.items]
-  const worker = async (): Promise<void> => {
-    for (let item = queue.shift(); item !== undefined; item = queue.shift()) await args.task(item)
-  }
-  await Promise.all(Array.from({ length: WORK_CONCURRENCY }, worker))
+  const sema = new Sema(WORK_CONCURRENCY)
+  await Promise.all(
+    args.items.map(async (item) => {
+      await sema.acquire()
+      try {
+        await args.task(item)
+      } finally {
+        sema.release()
+      }
+    }),
+  )
 }
 
 export async function sweepPods(args: {
