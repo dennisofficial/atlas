@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { ref } from '../../../media/__tests__/media-ref.spec'
+import { ref } from '../../../media/__tests__/media-ref-fixture'
 import { toEventId } from '../../../events/ids'
 import type { MediaPart } from '../../../message/parts'
 import type { Assembled, AssembledMessage } from '../../assembled'
