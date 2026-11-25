@@ -6,7 +6,7 @@ import { PauseIcon, RefreshCwIcon, Trash2Icon } from 'lucide-react'
 import { Button } from '@dltech/atlas-ui/components/button'
 import { Skeleton } from '@dltech/atlas-ui/components/skeleton'
 
-import { DEFAULT_SANDBOX_DISK_GB, DEFAULT_SANDBOX_VCPUS } from '@dltech/atlas-wire/web'
+import { DEFAULT_SANDBOX_DISK_GB } from '@dltech/atlas-wire/web'
 
 import { useCloudQuery } from '@/lib/use-cloud-query'
 
@@ -17,7 +17,7 @@ import { useSaveAction } from '../data/personal/use-save-action'
 import type { SandboxRow } from '../fixtures/settings-usage-rows'
 import { useCloudSettings } from '@/lib/cloud-settings'
 import { SandboxDiskSection } from '../parts/sandbox-disk-section'
-import { SandboxSizeSection } from '../parts/sandbox-size-section'
+import { DEFAULT_SANDBOX_SIZE, SandboxSizeSection } from '../parts/sandbox-size-section'
 import { UsageSandboxEmpty } from '../parts/usage-sandbox-empty'
 import { UsageSandboxTable } from '../parts/usage-sandbox-table'
 import { SettingsPage, SettingsSection } from '../settings-layout'
@@ -29,14 +29,19 @@ function PersonalSandboxSize() {
   const settings = useCloudSettings()
   const { data } = settings.query
   if (data === undefined) return null
-  const stored = data.get('sandbox.vcpus')
+  const storedVcpus = data.get('sandbox.vcpus')
+  const storedMemoryGb = data.get('sandbox.memoryGb')
   return (
     <SandboxSizeSection
-      key={`size-${String(stored)}`}
-      value={typeof stored === 'number' ? stored : DEFAULT_SANDBOX_VCPUS}
-      onSave={async (vcpus) => {
-        if (vcpus === null) return
-        await settings.save({ 'sandbox.vcpus': vcpus })
+      key={`size-${String(storedVcpus)}-${String(storedMemoryGb)}`}
+      value={{
+        vcpus: typeof storedVcpus === 'number' ? storedVcpus : DEFAULT_SANDBOX_SIZE.vcpus,
+        memoryGb:
+          typeof storedMemoryGb === 'number' ? storedMemoryGb : DEFAULT_SANDBOX_SIZE.memoryGb,
+      }}
+      onSave={async (size) => {
+        if (size === null || size.memoryGb === null) return
+        await settings.save({ 'sandbox.vcpus': size.vcpus, 'sandbox.memoryGb': size.memoryGb })
       }}
     />
   )

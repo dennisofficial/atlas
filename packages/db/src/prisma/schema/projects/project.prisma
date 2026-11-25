@@ -8,6 +8,7 @@ model Project {
   description     String               @default("")
   shipBehavior    String               @default("open-pr")
   sandboxVcpus    Int?
+  sandboxMemoryGb Int?
   sandboxDiskGb   Int?
   setupScript     String               @default("")
   ownerUserId     String

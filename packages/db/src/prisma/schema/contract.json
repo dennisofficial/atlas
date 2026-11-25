@@ -5532,6 +5532,13 @@
                   "kind": "scalar"
                 }
               },
+              "sandboxMemoryGb": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
               "sandboxVcpus": {
                 "nullable": true,
                 "type": {
@@ -5719,6 +5726,9 @@
                 },
                 "sandboxDiskGb": {
                   "column": "sandboxDiskGb"
+                },
+                "sandboxMemoryGb": {
+                  "column": "sandboxMemoryGb"
                 },
                 "sandboxVcpus": {
                   "column": "sandboxVcpus"
@@ -16078,6 +16088,11 @@
                   "dataType": "pg/int4",
                   "nullable": true
                 },
+                "sandboxMemoryGb": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": true
+                },
                 "sandboxVcpus": {
                   "codecId": "pg/int4@1",
                   "dataType": "pg/int4",
@@ -20295,7 +20310,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "f14deed4b0f53291f5db262e9f79d1b19487fd654b4842787af371390390c4bd"
+    "storageHash": "cc41152adc40314d3a65a4dcfa9f1377281450f71fae9b89d6dc22eb6b0cec30"
   },
   "execution": {
     "executionHash": "fd19c5954d71f00e27e0c02be3f06b71374f3b34bfb9f582b985590708b7518f",

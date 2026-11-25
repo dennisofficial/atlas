@@ -113,6 +113,7 @@ export class ConfigReader implements ConfigSource {
       sandbox,
       podSize: {
         desiredVcpus: session.podDesiredVcpus ?? undefined,
+        desiredMemoryGb: session.podDesiredMemoryGb ?? undefined,
         generation: session.podSizeGeneration,
       },
       skills,

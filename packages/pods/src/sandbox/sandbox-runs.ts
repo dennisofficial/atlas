@@ -10,7 +10,7 @@ import { PostgresControlStore } from '@dltech/atlas-control/postgres'
 import { ESandboxProvider } from '@dltech/atlas-protocol'
 import { db } from '@dltech/atlas-db'
 
-import { agent37ShapeOfVcpus } from './agent37/agent37-resize'
+import { agent37ShapeOfSetting } from './agent37/agent37-resize'
 import type { SandboxProvider, SandboxTarget } from './sandbox-provider'
 
 export const VERCEL_MEMORY_GB_PER_VCPU = 2
@@ -46,10 +46,14 @@ export const costProviderOf = (provider: ESandboxProvider): ESandboxCostProvider
 export const sandboxPodSizeOf = (args: {
   provider: ESandboxCostProvider
   vcpus: number
+  memoryGb?: number | undefined
   diskGb?: number | undefined
 }): { vcpus: number; memoryGb: number; diskGb: number } => {
   if (args.provider === ESandboxCostProvider.Agent37) {
-    const shape = agent37ShapeOfVcpus(args.vcpus)
+    const shape = agent37ShapeOfSetting({
+      vcpus: args.vcpus,
+      ...(args.memoryGb === undefined ? {} : { memoryGb: args.memoryGb }),
+    })
     return { vcpus: shape.cpu, memoryGb: shape.memory, diskGb: args.diskGb ?? 0 }
   }
   return {
@@ -93,6 +97,7 @@ export const recordSandboxRunOpen = async (args: {
   sessionId: string
   provider: ESandboxProvider
   vcpus: number
+  memoryGb?: number | undefined
   sandbox: SandboxProvider
   target: SandboxTarget
   diskGb?: number | undefined
@@ -101,6 +106,7 @@ export const recordSandboxRunOpen = async (args: {
   const size = sandboxPodSizeOf({
     provider,
     vcpus: args.vcpus,
+    ...(args.memoryGb === undefined ? {} : { memoryGb: args.memoryGb }),
     diskGb: args.diskGb ?? diskGbOf(args.sandbox),
   })
   const [baseline, sandboxInstanceId] = await Promise.all([
