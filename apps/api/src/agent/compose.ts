@@ -24,7 +24,7 @@ import { projectFilesSourceOf } from './config/project-files'
 import { mcpControlPort } from './config/mcp-control'
 import type { MacLink } from './mac-link/port'
 import { SecretCipher } from '@dltech/atlas-pods/config/secret-cipher'
-import { composedPlugins } from './registered-plugins'
+import { composedPluginsOf } from './registered-plugins'
 import type { ChangeContentStore, ContextContentStore, ControlPlane } from '@dltech/atlas-control'
 import type { LogPort, ProductAnalytics, TracePort } from '@dltech/atlas-observability'
 
@@ -88,6 +88,7 @@ export const composeAgentHost = (args: ComposeAgentHostArgs): SessionHolder => {
   const cipher = new SecretCipher(args.env.secretsEncryptionKey)
   const terminalDemand = new TerminalDemand()
   const panelDemand = new PanelDemand()
+  const composedPlugins = composedPluginsOf(args.env)
   return new SessionHolder({
     presence: args.presence,
     plane: args.plane,

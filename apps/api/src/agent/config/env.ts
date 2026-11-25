@@ -30,6 +30,7 @@ export type AgentHostEnv = PodsEnv & {
   port: number
   trustedOrigins: string[]
   qualityExampleUsers: string[]
+  jinaApiKey: string | undefined
 }
 
 const DEFAULT_PORT = 10_000
@@ -121,5 +122,6 @@ export const readAgentHostEnv = (
     publicUrl: publicUrlOf(env),
     trustedOrigins: parseList(take(env, 'TRUSTED_ORIGINS')),
     qualityExampleUsers: parseList(take(env, 'ATLAS_QUALITY_EXAMPLE_USERS')),
+    jinaApiKey: take(env, 'JINA_API_KEY'),
   }
 }

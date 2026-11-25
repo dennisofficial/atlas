@@ -24,6 +24,7 @@ const agentEnv: AgentHostEnv = {
   publicUrl: 'https://api.byatlas.io',
   trustedOrigins: [],
   qualityExampleUsers: [],
+  jinaApiKey: undefined,
 }
 
 const AGENT_ENV_KEYS = {

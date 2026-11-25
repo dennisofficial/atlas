@@ -4,10 +4,12 @@ import { InMemoryToolRegistry } from '@dltech/atlas-agent'
 import { deferredDeclarationsOf } from '@dltech/atlas-core'
 import { eventTypesOf } from '@dltech/atlas-plugin-sdk'
 
-import { composedPlugins, registeredPlugins } from '../registered-plugins'
+import { composedPluginsOf, registeredPlugins } from '../registered-plugins'
 import { podContextOf } from '../testing/pod-context'
 
 describe('the agent host plugin composition', () => {
+  const composedPlugins = composedPluginsOf({ jinaApiKey: undefined })
+
   it('registers crew beside the other native plugins', () => {
     expect(composedPlugins.names).toContain('crew')
   })

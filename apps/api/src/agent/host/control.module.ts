@@ -14,7 +14,7 @@ import { createRedisLiveFrames, type RedisLiveFrames } from '../bus/redis-live-f
 import { createRedisPodCallBus } from '../bus/redis-pod-call-bus'
 import { databaseUrlWithTls } from '../config/database-url'
 import type { AgentHostEnv } from '../config/env'
-import { composedPlugins, controlEventSchema } from '../registered-plugins'
+import { composedPluginsOf, controlEventSchema } from '../registered-plugins'
 import { FollowStack } from './follow-stack'
 import {
   AGENT_HOST_ENV,
@@ -30,14 +30,16 @@ import {
 
 const controlPlaneProvider: Provider = {
   provide: CONTROL_PLANE,
-  useFactory: (db: Db, analytics: ProductAnalytics, env: AgentHostEnv): ControlPlane =>
-    new ControlPlane({
+  useFactory: (db: Db, analytics: ProductAnalytics, env: AgentHostEnv): ControlPlane => {
+    const composedPlugins = composedPluginsOf(env)
+    return new ControlPlane({
       store: new PostgresControlStore(db),
       eventSchema: controlEventSchema,
       pluginViews: composedPlugins.views,
       appendHooks: [...composedPlugins.control.hooks, analyticsAppendHook(analytics)],
       targetStates: githubAppTargetStatesOf(env.githubApp),
-    }),
+    })
+  },
   inject: [DB, PRODUCT_ANALYTICS, AGENT_HOST_ENV],
 }
 
