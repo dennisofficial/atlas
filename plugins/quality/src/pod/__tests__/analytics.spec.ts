@@ -3,119 +3,24 @@ import { describe, expect, it } from 'bun:test'
 import {
   EClassifierFault,
   EQualityFindingState,
-  EQualityImpact,
-  EQualityLanguage,
-  EQualityReviewStatus,
-  EQualityScopeKind,
   EQualitySkipReason,
   EQualityTransition,
-  ETurnCause,
-  toEventId,
-  toRunId,
-  type CodeQualityReviewedBody,
-  type Hash,
-  type QualityScopeIdentity,
   type RecordEventBody,
-  type RecordEvent,
 } from '@dltech/atlas-core'
 import type { PodAnalyticsValue } from '@dltech/atlas-plugin-sdk'
 
-import { ignoredFindingProperties } from '../analytics/ignored-properties'
 import { resolvedFindingProperties } from '../analytics/review-properties'
-import { CALL, FILE, PROJECT, THREAD, analyticsRecorder, createRig, wroteNothing } from './support'
-
-const HASH = 'a'.repeat(64) as Hash
-
-const eventsOf = (bodies: readonly RecordEventBody[]): readonly RecordEvent[] =>
-  bodies.map(
-    (body, index) =>
-      ({
-        ...body,
-        id: toEventId(`event-${index + 1}`),
-        seq: index + 1,
-        threadId: THREAD,
-        runId: toRunId('run-1'),
-        depth: 0,
-        at: '2026-11-23T00:00:00.000Z',
-        epoch: 1,
-        prevHash: HASH,
-      }) as RecordEvent,
-  )
-
-const SCOPE: QualityScopeIdentity = {
-  id: 'scope-1',
-  workspaceNamespace: PROJECT,
-  path: 'src/widget.ts',
-  language: EQualityLanguage.TypeScript,
-  kind: EQualityScopeKind.Class,
-  name: 'Widget',
-  adapterVersion: 'ts-1',
-  structuralHash: 'sh-1',
-  parentScopeId: null,
-  lineRange: null,
-}
-
-const reviewed = (args: {
-  state: EQualityFindingState
-  notified: boolean
-  transition: EQualityTransition
-}): CodeQualityReviewedBody => ({
-  type: 'code-quality-reviewed',
-  callId: CALL,
-  workspaceNamespace: PROJECT,
-  path: 'src/widget.ts',
-  scope: SCOPE,
-  beforeHash: null,
-  afterHash: 'a1',
-  status: EQualityReviewStatus.Completed,
-  assessments: [
-    {
-      policyId: 'single-responsibility',
-      policyVersion: '1',
-      scopeId: 'scope-1',
-      status: EQualityReviewStatus.Completed,
-      impact: EQualityImpact.Introduced,
-      currentConcernProbability: 0.9,
-      transition: args.transition,
-      evidenceIds: [],
-      rawAnswers: {},
-    },
-  ],
-  findings: [
-    {
-      id: 'single-responsibility:scope-1:1',
-      policyId: 'single-responsibility',
-      scopeId: 'scope-1',
-      episode: 1,
-      state: args.state,
-      notified: args.notified,
-      lastAfterHash: 'a1',
-      policyVersion: '1',
-    },
-  ],
-  durationMs: 5,
-})
-
-const said: RecordEventBody = { type: 'assistant-said', parts: [{ type: 'text', text: 'done' }] }
-const turnStarted: RecordEventBody = {
-  type: 'turn-started',
-  turnId: 'turn-1',
-  cause: ETurnCause.Input,
-}
-
-const notified = (): CodeQualityReviewedBody =>
-  reviewed({
-    state: EQualityFindingState.Active,
-    notified: true,
-    transition: EQualityTransition.Introduce,
-  })
-
-const resolved = (): CodeQualityReviewedBody =>
-  reviewed({
-    state: EQualityFindingState.Resolved,
-    notified: true,
-    transition: EQualityTransition.Resolve,
-  })
+import {
+  briefSaid,
+  eventsOf,
+  notified,
+  resolved,
+  reviewed,
+  said,
+  turnStarted,
+  wakeConsumed,
+} from './finding-fixtures'
+import { FILE, THREAD, analyticsRecorder, createRig, wroteNothing } from './support'
 
 describe('resolvedFindingProperties', () => {
   const events = eventsOf([notified(), said, said])
@@ -131,6 +36,14 @@ describe('resolvedFindingProperties', () => {
 
     expect(
       resolvedFindingProperties({ records: [resolved()], events: withTurn, threadId: THREAD })[0],
+    ).toMatchObject({ steps_after_nudge: 2, turns_after_nudge: 1 })
+  })
+
+  it('counts a sub-agent run woken after the nudge as a turn', () => {
+    const subagent = eventsOf([briefSaid, notified(), said, wakeConsumed, said])
+
+    expect(
+      resolvedFindingProperties({ records: [resolved()], events: subagent, threadId: THREAD })[0],
     ).toMatchObject({ steps_after_nudge: 2, turns_after_nudge: 1 })
   })
 
@@ -163,36 +76,6 @@ describe('resolvedFindingProperties', () => {
         threadId: THREAD,
       }),
     ).toEqual([])
-  })
-})
-
-describe('ignoredFindingProperties', () => {
-  it('reports a finding notified in the turn and still active at its end', () => {
-    const events = eventsOf([turnStarted, notified(), said])
-
-    expect(ignoredFindingProperties({ events, threadId: THREAD })).toEqual([
-      { policy_id: 'single-responsibility', steps_after_nudge: 1, turns_after_nudge: 0 },
-    ])
-  })
-
-  it('says nothing when the finding was resolved before the turn ended', () => {
-    const events = eventsOf([turnStarted, notified(), said, resolved()])
-
-    expect(ignoredFindingProperties({ events, threadId: THREAD })).toEqual([])
-  })
-
-  it('says nothing for a finding notified before the turn started', () => {
-    const events = eventsOf([notified(), turnStarted, said])
-
-    expect(ignoredFindingProperties({ events, threadId: THREAD })).toEqual([])
-  })
-
-  it('does not fire again when a later turn only re-records the same nudge', () => {
-    const firstTurn = eventsOf([turnStarted, notified(), said])
-    const secondTurn = eventsOf([turnStarted, notified(), said, turnStarted, notified(), said])
-
-    expect(ignoredFindingProperties({ events: firstTurn, threadId: THREAD })).toHaveLength(1)
-    expect(ignoredFindingProperties({ events: secondTurn, threadId: THREAD })).toEqual([])
   })
 })
 

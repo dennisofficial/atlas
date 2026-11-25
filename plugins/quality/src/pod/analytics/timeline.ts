@@ -36,19 +36,25 @@ export const countAfter = (args: {
 }): number =>
   args.events.filter((event, index) => index > args.index && args.types.includes(event.type)).length
 
-export const lastIndexOfType = (args: {
+const SUBAGENT_RUN_STARTS: readonly RecordEvent['type'][] = ['user-said', 'input-consumed']
+
+const indicesOfTypes = (args: {
   events: readonly RecordEvent[]
-  type: RecordEvent['type']
-}): number => {
-  let found = -1
-  args.events.forEach((event, index) => {
-    if (event.type === args.type) found = index
-  })
-  return found
+  types: readonly RecordEvent['type'][]
+}): readonly number[] =>
+  args.events.flatMap((event, index) => (args.types.includes(event.type) ? [index] : []))
+
+export const turnStartIndicesOf = (args: { events: readonly RecordEvent[] }): readonly number[] => {
+  const turns = indicesOfTypes({ events: args.events, types: ['turn-started'] })
+  if (turns.length > 0) return turns
+  return indicesOfTypes({ events: args.events, types: SUBAGENT_RUN_STARTS })
 }
+
+export const lastTurnStartOf = (args: { events: readonly RecordEvent[] }): number =>
+  turnStartIndicesOf(args).at(-1) ?? -1
 
 export const stepsAfter = (args: { events: readonly RecordEvent[]; index: number }): number =>
   countAfter({ ...args, types: ['assistant-said'] })
 
 export const turnsAfter = (args: { events: readonly RecordEvent[]; index: number }): number =>
-  countAfter({ ...args, types: ['turn-started'] })
+  turnStartIndicesOf(args).filter((start) => start > args.index).length
