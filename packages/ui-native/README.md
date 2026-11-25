@@ -6,8 +6,8 @@ palette and one type scale. `apps/mobile` is the only consumer.
 
 ## Owns
 
-- The native components: `Alert`, `Avatar`, `Bubble`, `Button`, `Card`, `HarnessNotice`, `Icon`,
-  `Input`, `Markdown`, `Reasoning`, `Separator`, `Text`, `Trace`, `AtlasMark` and `BrandMark`.
+- The native components: `Alert`, `Avatar`, `Bubble`, `Button`, `Card`, `CodeBlock`, `HarnessNotice`,
+  `Icon`, `Input`, `Markdown`, `Reasoning`, `Separator`, `Text`, `Trace`, `AtlasMark` and `BrandMark`.
 - The native theme hooks: `useTheme`, `useScheme`, `useIsDark`.
 - The native type enums `ETextRole`, `ETextTone`, `EFontFamily`, `EFontWeight`.
 - A small markdown renderer with no web view.
@@ -43,7 +43,10 @@ palette and one type scale. `apps/mobile` is the only consumer.
   family and a weight.
 - `ETextRole`, `ETextTone`, `EFontFamily`, `EFontWeight`: the values of those props.
 - `Markdown`: a markdown string as native blocks, including code and tables. The props are
-  `value`, `selectable`, `breaks` and `tone`.
+  `value`, `selectable`, `breaks`, `tone` and `renderDiagram`. `renderDiagram` takes
+  `{ source, closed }` for a fenced block whose language is `mermaid`, so the app can draw a real
+  diagram in place of the code. Without it, a mermaid fence draws as code.
+- `CodeBlock`: a fenced code block with its language header and a horizontal scroll body.
 
 ### Draw an action or an entry
 

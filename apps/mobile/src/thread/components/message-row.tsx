@@ -5,6 +5,7 @@ import {
   ETextRole,
   ETextTone,
   Icon,
+  type IRenderDiagramArgs,
   Markdown,
   MessageFooter,
   Text,
@@ -15,6 +16,8 @@ import { space } from '@dltech/atlas-ui/tokens'
 import { Terminal } from 'lucide-react-native'
 import { StyleSheet, View } from 'react-native'
 
+import { DiagramCard } from '../diagrams/diagram-card'
+import { hasMermaidFence } from '../diagrams/diagram-layout'
 import {
   EMessageAuthor,
   senderLabelOf,
@@ -23,6 +26,10 @@ import {
   type SessionNameOf,
 } from '../rows'
 import { MessageAttachments } from './message-attachments'
+
+const renderDiagram = ({ source, closed }: IRenderDiagramArgs) => (
+  <DiagramCard source={source} closed={closed} />
+)
 
 const SentAt = ({ at, align }: { at: string | undefined; align?: 'start' | 'end' }) => {
   const clock = messageTimeOf({ at, now: Date.now() })
@@ -94,13 +101,15 @@ export const MessageRowView = ({
             {caption}
           </Text>
         )}
-        <Markdown value={row.text} selectable />
+        <Markdown value={row.text} selectable renderDiagram={renderDiagram} />
         <SentAt at={row.at} />
       </View>
     )
   }
 
   if (row.command !== undefined) return <CommandMessage command={row.command} at={row.at} />
+
+  const bubbleStyle = hasMermaidFence(row.text) ? styles.diagramBubble : undefined
 
   if (row.staged === true) {
     return (
@@ -111,8 +120,8 @@ export const MessageRowView = ({
           attachments={row.attachments}
         />
         {row.text.trim().length > 0 ? (
-          <Bubble>
-            <Markdown value={row.text} breaks selectable />
+          <Bubble style={bubbleStyle}>
+            <Markdown value={row.text} breaks selectable renderDiagram={renderDiagram} />
           </Bubble>
         ) : null}
       </View>
@@ -123,8 +132,8 @@ export const MessageRowView = ({
     <View style={styles.you}>
       <MessageAttachments threadId={threadId} sessionId={sessionId} attachments={row.attachments} />
       {row.text.trim().length > 0 ? (
-        <Bubble>
-          <Markdown value={row.text} breaks selectable />
+        <Bubble style={bubbleStyle}>
+          <Markdown value={row.text} breaks selectable renderDiagram={renderDiagram} />
         </Bubble>
       ) : null}
       {queuedLabel === undefined ? (
@@ -148,6 +157,9 @@ export const MessageRowView = ({
 const styles = StyleSheet.create({
   staged: {
     opacity: 0.45,
+  },
+  diagramBubble: {
+    alignSelf: 'stretch',
   },
   message: {
     gap: space(2),

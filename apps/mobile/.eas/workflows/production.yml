@@ -60,7 +60,7 @@ jobs:
     steps:
       - uses: eas/checkout
       - uses: eas/install_node_modules
-      - run: npx eas-cli@latest update --channel production --platform ios --environment production --auto --non-interactive
+      - run: EXPO_NO_BUNDLE_SPLITTING=1 npx eas-cli@latest update --channel production --platform ios --environment production --auto --non-interactive
       - uses: eas/posthog_upload_sourcemaps
         with:
           directory: dist

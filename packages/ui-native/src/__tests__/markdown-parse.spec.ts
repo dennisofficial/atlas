@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 
-import { EMdBlock, EMdSpan, parseMarkdown } from '../markdown/parse'
+import { EMdBlock, EMdSpan, isMermaidBlock, parseMarkdown } from '../markdown/parse'
 
 const text = (value: string) => ({ type: EMdSpan.Text, value }) as const
 
@@ -58,7 +58,12 @@ describe('parseMarkdown blocks', () => {
 
   test('fenced code keeps its content verbatim and its language', () => {
     expect(parseMarkdown('```ts\nconst a = **b**\n# not a heading\n```')).toEqual([
-      { type: EMdBlock.Code, language: 'ts', value: 'const a = **b**\n# not a heading' },
+      {
+        type: EMdBlock.Code,
+        language: 'ts',
+        value: 'const a = **b**\n# not a heading',
+        closed: true,
+      },
     ])
   })
 
@@ -73,7 +78,9 @@ describe('parseMarkdown blocks', () => {
   })
 
   test('fenced code without a language omits it', () => {
-    expect(parseMarkdown('```\nx\n```')).toEqual([{ type: EMdBlock.Code, value: 'x' }])
+    expect(parseMarkdown('```\nx\n```')).toEqual([
+      { type: EMdBlock.Code, value: 'x', closed: true },
+    ])
   })
 
   test('quotes parse their inner blocks', () => {
@@ -170,7 +177,7 @@ describe('parseMarkdown streaming partials', () => {
 
   test('an unterminated fence closes at end of input and keeps its content', () => {
     expect(parseMarkdown('```py\nprint(1)\nprint(2)')).toEqual([
-      { type: EMdBlock.Code, language: 'py', value: 'print(1)\nprint(2)' },
+      { type: EMdBlock.Code, language: 'py', value: 'print(1)\nprint(2)', closed: false },
     ])
   })
 
@@ -194,5 +201,26 @@ describe('parseMarkdown streaming partials', () => {
 
   test('empty input yields no blocks', () => {
     expect(parseMarkdown('')).toEqual([])
+  })
+})
+
+describe('mermaid fences', () => {
+  test('a closed mermaid fence reports closed', () => {
+    expect(parseMarkdown('```mermaid\ngraph TD\nA-->B\n```')).toEqual([
+      { type: EMdBlock.Code, language: 'mermaid', value: 'graph TD\nA-->B', closed: true },
+    ])
+  })
+
+  test('an open mermaid fence reports not closed', () => {
+    expect(parseMarkdown('```mermaid\ngraph TD\nA-->B')).toEqual([
+      { type: EMdBlock.Code, language: 'mermaid', value: 'graph TD\nA-->B', closed: false },
+    ])
+  })
+
+  test('isMermaidBlock matches the language case-insensitively', () => {
+    const [upper] = parseMarkdown('```Mermaid\ngraph TD\n```')
+    const [plain] = parseMarkdown('```ts\nconst a = 1\n```')
+    expect(upper !== undefined && isMermaidBlock(upper)).toBe(true)
+    expect(plain !== undefined && isMermaidBlock(plain)).toBe(false)
   })
 })

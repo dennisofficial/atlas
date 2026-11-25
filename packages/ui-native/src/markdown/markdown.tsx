@@ -1,27 +1,36 @@
+import type { ReactNode } from 'react'
 import { View } from 'react-native'
 
 import { ETextTone } from '../text-style'
 import { useTheme } from '../use-theme'
 import { CodeBlock, List, Table } from './blocks'
 import { Inline } from './spans'
-import { EMdBlock, type MdBlock, parseMarkdown } from './parse'
+import { EMdBlock, type MdBlock, isMermaidBlock, parseMarkdown } from './parse'
 import { BODY, FALLBACK_HEADING, HEADINGS, type IInlineStyle, styles } from './styles'
+
+export interface IRenderDiagramArgs {
+  source: string
+  closed: boolean
+}
 
 export interface IMarkdownProps {
   value: string
   selectable?: boolean
   breaks?: boolean
   tone?: ETextTone
+  renderDiagram?: (args: IRenderDiagramArgs) => ReactNode
 }
 
 const Block = ({
   block,
   selectable,
   tone = ETextTone.Foreground,
+  renderDiagram,
 }: {
   block: MdBlock
   selectable: boolean
   tone?: ETextTone
+  renderDiagram?: ((args: IRenderDiagramArgs) => ReactNode) | undefined
 }) => {
   const theme = useTheme()
   const style: IInlineStyle = { ...BODY, tone }
@@ -41,7 +50,12 @@ const Block = ({
   if (block.type === EMdBlock.List) {
     return <List block={block} selectable={selectable} style={style} />
   }
-  if (block.type === EMdBlock.Code) return <CodeBlock block={block} />
+  if (block.type === EMdBlock.Code) {
+    if (renderDiagram !== undefined && isMermaidBlock(block)) {
+      return <>{renderDiagram({ source: block.value, closed: block.closed })}</>
+    }
+    return <CodeBlock block={block} />
+  }
   if (block.type === EMdBlock.Table) {
     return <Table block={block} selectable={selectable} style={style} />
   }
@@ -56,6 +70,7 @@ const Block = ({
           block={inner}
           selectable={selectable}
           tone={ETextTone.Muted}
+          renderDiagram={renderDiagram}
         />
       ))}
     </View>
@@ -67,10 +82,17 @@ export const Markdown = ({
   selectable = false,
   breaks = false,
   tone = ETextTone.Foreground,
+  renderDiagram,
 }: IMarkdownProps) => (
   <View style={styles.root}>
     {parseMarkdown(value, { breaks }).map((block, index) => (
-      <Block key={`${block.type}-${index}`} block={block} selectable={selectable} tone={tone} />
+      <Block
+        key={`${block.type}-${index}`}
+        block={block}
+        selectable={selectable}
+        tone={tone}
+        renderDiagram={renderDiagram}
+      />
     ))}
   </View>
 )

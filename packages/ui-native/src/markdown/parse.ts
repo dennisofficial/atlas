@@ -20,7 +20,7 @@ export type MdBlock =
   | { type: EMdBlock.Paragraph; spans: MdSpan[] }
   | { type: EMdBlock.Heading; level: number; spans: MdSpan[] }
   | { type: EMdBlock.List; ordered: boolean; items: IMdListItem[] }
-  | { type: EMdBlock.Code; language?: string; value: string }
+  | { type: EMdBlock.Code; language?: string; value: string; closed: boolean }
   | { type: EMdBlock.Quote; blocks: MdBlock[] }
   | { type: EMdBlock.Rule }
   | { type: EMdBlock.Table; header: MdSpan[][]; rows: MdSpan[][][] }
@@ -76,8 +76,11 @@ const readFence = ({ lines, start }: IReadArgs): IRead | null => {
     index++
   }
   const value = body.join('\n')
+  const closed = index < lines.length
   const block: MdBlock =
-    language === '' ? { type: EMdBlock.Code, value } : { type: EMdBlock.Code, language, value }
+    language === ''
+      ? { type: EMdBlock.Code, value, closed }
+      : { type: EMdBlock.Code, language, value, closed }
   return { block, next: index + 1 }
 }
 
@@ -266,6 +269,9 @@ const parseBlocks = ({
   }
   return blocks
 }
+
+export const isMermaidBlock = (block: MdBlock): boolean =>
+  block.type === EMdBlock.Code && block.language?.toLowerCase() === 'mermaid'
 
 export const parseMarkdown = (text: string, options?: { breaks?: boolean }): MdBlock[] =>
   parseBlocks({

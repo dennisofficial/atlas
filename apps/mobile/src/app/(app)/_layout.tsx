@@ -66,6 +66,14 @@ const AppStack = () => {
         options={{ title: 'Sub-agent', ...pushedHeaderOptions }}
       />
       <Stack.Screen
+        name="diagram"
+        options={{
+          title: 'Diagram',
+          presentation: 'fullScreenModal',
+          ...pushedHeaderOptions,
+        }}
+      />
+      <Stack.Screen
         name="settings"
         options={{ title: 'Settings', ...pushedHeaderOptions, ...settingsRootOptions }}
       />

@@ -9,7 +9,7 @@ import { listItemIndent, listTextLayout } from './layout'
 import { EMdBlock, type MdBlock } from './parse'
 import { type IInlineStyle, styles } from './styles'
 
-const CodeBlock = ({ block }: { block: Extract<MdBlock, { type: EMdBlock.Code }> }) => {
+const CodeBlock = ({ block }: { block: { language?: string; value: string } }) => {
   const theme = useTheme()
   const dark = useIsDark()
   return (
