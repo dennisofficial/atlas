@@ -12,7 +12,9 @@ import type { PluginPodContext } from '@dltech/atlas-plugin-sdk'
 import { CodeQualityReview } from '../review/engine'
 import { qualityRegistry } from '../review/registry'
 import { prepareQualityScopes } from '../review/source'
+import { closedFindingProperties } from './analytics/closed-properties'
 import {
+  QUALITY_FINDING_CLOSED,
   QUALITY_FINDING_IGNORED,
   QUALITY_FINDING_RESOLVED,
   QUALITY_REVIEW_COMPLETED,
@@ -129,6 +131,13 @@ export const qualityReviewHook = (args: {
       threadId: call.threadId,
     })) {
       args.ctx.analytics.capture({ event: QUALITY_FINDING_RESOLVED, properties })
+    }
+    for (const properties of closedFindingProperties({
+      records: outcome.records,
+      events,
+      threadId: call.threadId,
+    })) {
+      args.ctx.analytics.capture({ event: QUALITY_FINDING_CLOSED, properties })
     }
 
     return {

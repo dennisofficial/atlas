@@ -22,7 +22,7 @@ export const AttachButton = ({ onPick }: AttachButtonProps) => {
   const theme = useTheme()
   const dark = useIsDark()
   return (
-    <Host colorScheme={dark ? 'dark' : 'light'} style={styles.host}>
+    <Host colorScheme={dark ? 'dark' : 'light'} alignment="center" style={styles.host}>
       <Menu
         label={<Image systemName="plus" size={16} color={theme.foreground} />}
         modifiers={[

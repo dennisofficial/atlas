@@ -232,8 +232,10 @@ describe('handing a PR event to the model', () => {
     )
     const unknown = prEventBlock(eventOf({ kind: EPrEventKind.MergeQueue }))
 
-    expect(entered).toContain('entered the merge queue.')
-    expect(left).toContain('left the merge queue.')
+    expect(entered).toContain(
+      'entered the merge queue. GitHub merges it when the queue checks pass. If GitHub removes it, a "left the merge queue" notice follows.',
+    )
+    expect(left).toContain('left the merge queue and will not merge on its own.')
     expect(unknown).toContain('merge queue membership changed.')
   })
 
@@ -342,6 +344,19 @@ describe('naming the checks behind a failed verdict', () => {
 
     expect(block).toContain(`CI finished, a check failed. ${URL}`)
     expect(block).toContain('    3 errors: src/a.ts:1 no-unused-vars')
+  })
+
+  it('says a PR still in the merge queue stays there after a failed check', () => {
+    const settled = failed({ settled: true, mergeQueued: true })
+    const running = failed({ settled: false, mergeQueued: true })
+
+    expect(settled).toContain(
+      `CI finished, checks failed. The PR is still in the merge queue. A failed check on the PR head does not remove it. A notice follows when it merges or leaves the queue. ${URL}`,
+    )
+    expect(running).toContain(
+      'another notice follows when it finishes. The PR is still in the merge queue.',
+    )
+    expect(failed({ settled: true })).not.toContain('merge queue')
   })
 
   it('lists failure annotations under the check with their location', () => {

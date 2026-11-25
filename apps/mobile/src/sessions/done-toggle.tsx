@@ -6,12 +6,10 @@ import { Pressable, StyleSheet, View } from 'react-native'
 export const DoneToggle = ({
   count,
   open,
-  depth,
   onPress,
 }: {
   count: number
   open: boolean
-  depth: number
   onPress: () => void
 }) => {
   const theme = useTheme()
@@ -24,7 +22,6 @@ export const DoneToggle = ({
       onPress={onPress}
       style={({ pressed }) => [
         styles.row,
-        depth > 0 ? { paddingLeft: space(2) + depth * space(4) } : null,
         pressed ? { backgroundColor: theme.sidebarAccent } : null,
       ]}
     >

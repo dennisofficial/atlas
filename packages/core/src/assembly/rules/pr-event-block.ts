@@ -38,17 +38,23 @@ const tipSuffix = (event: PrEvent): string =>
     ? ''
     : ` on ${event.headSha.slice(0, SHORT_SHA_LENGTH)}`
 
+const STILL_QUEUED =
+  ' The PR is still in the merge queue. A failed check on the PR head does not remove it. A notice follows when it merges or leaves the queue.'
+
+const queuedSuffix = (event: PrEvent): string => (event.mergeQueued === true ? STILL_QUEUED : '')
+
 const failedVerdictSentence = (event: PrEvent): string => {
   const failed = event.failedChecks ?? []
+  const queued = queuedSuffix(event)
   if (event.settled === true) {
     const lead = failed.length === 0 ? 'checks failed' : failedChecksCountPhrase(failed)
-    return `CI finished, ${lead}${tallySuffix(event)}${tipSuffix(event)}. ${event.url}`
+    return `CI finished, ${lead}${tallySuffix(event)}${tipSuffix(event)}.${queued} ${event.url}`
   }
   if (event.settled === false) {
     const lead = failed.length === 0 ? 'a check failed' : failedChecksCountPhrase(failed)
-    return `${lead}${tallySuffix(event)}${tipSuffix(event)}. CI is still running, and another notice follows when it finishes. ${event.url}`
+    return `${lead}${tallySuffix(event)}${tipSuffix(event)}. CI is still running, and another notice follows when it finishes.${queued} ${event.url}`
   }
-  return `checks failed${tallySuffix(event)}${tipSuffix(event)}. ${event.url}`
+  return `checks failed${tallySuffix(event)}${tipSuffix(event)}.${queued} ${event.url}`
 }
 
 const verdictSentence = (event: PrEvent): string => {
@@ -79,8 +85,12 @@ const stateSentence = (event: PrEvent): string => {
 }
 
 const mergeQueueSentence = (event: PrEvent): string => {
-  if (event.queue === EMergeQueueMove.Entered) return 'entered the merge queue.'
-  if (event.queue === EMergeQueueMove.Left) return 'left the merge queue.'
+  if (event.queue === EMergeQueueMove.Entered) {
+    return 'entered the merge queue. GitHub merges it when the queue checks pass. If GitHub removes it, a "left the merge queue" notice follows.'
+  }
+  if (event.queue === EMergeQueueMove.Left) {
+    return 'left the merge queue and will not merge on its own.'
+  }
   return 'merge queue membership changed.'
 }
 

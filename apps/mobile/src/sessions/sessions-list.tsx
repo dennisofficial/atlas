@@ -7,6 +7,7 @@ import { ActivityIndicator, RefreshControl, SectionList, StyleSheet, View } from
 import { usePosture } from '../layout/use-posture'
 import { DoneToggle } from './done-toggle'
 import { EmptyProjectRow } from './empty-project-row'
+import { IndentGuides } from './indent-guides'
 import { EListStatus, listStatusOf } from './list-status'
 import type { ISessionEntry } from './session-groups'
 import { SectionHeader } from './section-header'
@@ -136,29 +137,31 @@ export const SessionsList = ({
         }
         if (item.kind === EItemKind.DoneToggle) {
           return (
-            <DoneToggle
-              count={item.count}
-              open={item.open}
-              depth={item.depth}
-              onPress={() => handleToggle(item.key)}
-            />
+            <IndentGuides depth={item.depth}>
+              <DoneToggle
+                count={item.count}
+                open={item.open}
+                onPress={() => handleToggle(item.key)}
+              />
+            </IndentGuides>
           )
         }
         const archived = item.entry.archivedAt !== null
         const handleRowArchive = () =>
           void handleArchive({ entry: item.entry, archived: !archived })
         return (
-          <SwipeableSessionRow archived={archived} onArchive={handleRowArchive}>
-            <SessionRow
-              entry={item.entry}
-              now={now}
-              depth={item.depth}
-              selected={item.entry.id === activeId}
-              archived={archived}
-              onPress={() => onOpen(item.entry)}
-              onArchive={handleRowArchive}
-            />
-          </SwipeableSessionRow>
+          <IndentGuides depth={item.depth}>
+            <SwipeableSessionRow archived={archived} onArchive={handleRowArchive}>
+              <SessionRow
+                entry={item.entry}
+                now={now}
+                selected={item.entry.id === activeId}
+                archived={archived}
+                onPress={() => onOpen(item.entry)}
+                onArchive={handleRowArchive}
+              />
+            </SwipeableSessionRow>
+          </IndentGuides>
         )
       }}
     />
