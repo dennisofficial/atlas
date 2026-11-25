@@ -4,7 +4,7 @@ One file per durable decision: context, decision, reason, consequences. Records 
 the order they were accepted and are not edited once a later record replaces them; the later one
 says what it supersedes. Tactical choices and decisions that were later reversed are not recorded.
 
-`docs/pods.md` describes the system these decisions produced.
+`docs/architecture.md` describes the system these decisions produced, and the v1 design they replaced is history.
 
 | #                                                         | Decision                                                                                                               |
 | --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |

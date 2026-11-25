@@ -106,6 +106,6 @@ const builtinEntries = nativeCommands.map((command) =>
 
 ## See also
 
-- `docs/v2/architecture.md`
+- `docs/architecture.md`
 - `docs/decisions/0019-v2-package-map.md`
 - `packages/commands/README.md` for the `CommandSpec` contract.

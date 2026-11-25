@@ -278,7 +278,7 @@ deletion test asks whether deleting it makes complexity vanish or reappear acros
   "LWW" is implemented as server-revision CAS, prefer-remote on pull, pull-then-retry on push; no
   wall clock is consulted. Strictly better than the letter of the decision; the section doc should
   say so.
-- **[worth-fixing] `MEMORY.md` union-merge keys exactly on the real `- [Title](file.md)` format**
+- **[worth-fixing] `MEMORY.md` union-merge keys exactly on the real `- \[Title\](file.md)` format**
   (`packages/core/src/user-layer/memory-index-merge.ts:13`) but drops blank lines and appends the
   losing side's new entries at end-of-file regardless of `##` section — functionally fine (the
   model reads the index flat), cosmetically lossy across successive merges.

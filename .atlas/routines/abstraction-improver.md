@@ -5,8 +5,8 @@
 1. `packages/client/src/transcript/service-ended-line.ts` `serviceEndingFailed` — rename of core `serviceFailed`; 2 callers + tui re-export.
 2. `apps/tui/src/ui/exit-guard-model.ts` — 4 wrapper fns and 3 row aliases over `stop-guard-model`; dead `EXIT_GUARD_INSET`/`exitGuardCells` in `components/exit-guard.tsx`.
 3. `apps/tui/src/build/info.ts` `clientVersionHeader` / `versionLabel` — `xOf(buildInfo())` conveniences, many callers; low value.
-4. `packages/core/src/ports/file-capabilities.port.ts` `acceptsFileParts` — always `true`; guard in `apps/api/src/agent/agent-tools/read.ts` never fires. Remaining impl lives in harness.
-5. After harness deletion: `packages/core/src/quality/registry.ts` (only ever one policy), `PortBindings`/`ComposedPortBindings` in `packages/core/src/ports/registry.ts`.
+4. `packages/core/src/ports/file-capabilities.port.ts` `acceptsFileParts` — always `true`; guard in `apps/api/src/agent/agent-tools/read.ts` never fires. The remaining implementation was in the v1 harness and went with it.
+5. `packages/core/src/quality/registry.ts` (only ever one policy).
 6. Small: `packages/client/src/stream/plugin-views.ts` `pluginViewOf` (no production caller); `packages/ui-native/src/use-theme.ts` `useScheme`.
 
 ## Ruled out (earn their keep)

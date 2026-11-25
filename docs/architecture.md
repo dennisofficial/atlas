@@ -1,13 +1,17 @@
 # Atlas architecture
 
-This file describes v1 and predates the glossary: its "session", "conversation" and "thread" mostly
-name what [CONTEXT.md](../CONTEXT.md) calls a **thread**.
-
 Authoritative. Where the code disagrees about _mechanism_, the code wins; where it disagrees about
-_intent_, change the code. Every load-bearing claim here was established by a spike, not by argument
-— evidence in `docs/research/`, seams in `docs/core-contract.md`.
+_intent_, change the code. Every load-bearing claim here was established by a spike, not by
+argument — the evidence is in [research/](research/), and the loop's seams are in
+[core-contract.md](core-contract.md).
 
-The v2 redesign (pod-first state ownership) is designed in `docs/v2/`; this file describes v1.
+The decisions this design applies are recorded in
+[0018](decisions/0018-v2-pod-first-architecture.md) and
+[0021](decisions/0021-v2-loop-runs-on-the-agent-host.md): the loop runs on the agent host, and
+sandboxes only execute. One decision, D2 (the local control plane), is still open and is marked
+where it matters.
+
+Anchors in [research/](research/) are `file:line` at the commit each file names and may have drifted.
 
 ## What Atlas is
 
@@ -17,1915 +21,581 @@ human is asked, what happens on rewind. Because the calls are raw, Atlas is mode
 construction; Claude and Codex subscription credentials are one provider implementation, not a
 foundation.
 
-## The two rules
+## 1. Why the architecture was rewritten
 
-**1. The model never sees stored state. It sees a projection built fresh for every step.**
+v1 was born as one process: the TUI owned the loop, the log, the metadata and the UI. Rule 2 ("One
+record", below) held because there was one place to write. Pods moved the loop into a container, and
+every piece of state that used to have one home got two or three, joined by best-effort replication
+with no ownership rules: six places assigned thread seqs, nine API code paths appended to the log
+beside about sixty in the pod, twelve kinds of change could be started by either tier, five protocols
+connected three tiers, and many "alive" signals advanced independently of the transcript, so a frozen
+transcript looked healthy. On 2026-11-01 a cloud session lost about 560 events of visible state to a
+sequence-number fork between the API and the pod
+([incident](research/incident-2026-11-01-seq466.md)). Patching each seam kept the fork; the rewrite
+changed who owns what and kept the business logic. The v1 code is gone, and its tables are frozen in
+the `v1_archive` schema ([data/v1-archive.md](data/v1-archive.md)).
+
+## 2. What stays
+
+- `core` stays pure. Context is still a fresh projection of the log on every step (rule 1).
+- The event log is still the one record of a thread (rule 2), now enforced across tiers.
+- The loop, tools, providers, assembly, compaction logic, prompts, hooks, skills and sub-agent
+  semantics moved over and were not rewritten.
+- The port idea, now the plugin contract (P8): every capability declares its runtime slot and its
+  transport.
+- Wire version negotiation ([0017](decisions/0017-wire-protocol-skew.md)).
+
+## 3. The tiers
 
 ```
-EventLog (append-only, canonical) → assemble(rules) → annotate → Assembled → one model step
+  clients             control plane                       runtimes
+  web / mac / tui <-> record + inbox + leases + views <-> agent hosts run the loop (cloud: Render, one app with the API, 0030)
+                      (cloud: NestJS + Postgres;          sandboxes execute only:
+                       local: atlasd over SQLite [D2, open]) cloud Vercel sandbox daemon | local docker | in-process
 ```
 
-There is no accumulating `messages[]` anywhere. Thinking-block tailing, context injection, image
-downgrading, compaction, redaction, token budgeting, rewind, fork, and steering are all the same
-mechanism: a rule over the log.
+| Tier                   | Owns                                                                                                                                                                                                                                                                                  | Does not own                                                                 |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| **Client**             | Rendering views, sending commands, caches. It owns drafts: the CP keeps a copy of each composer draft so a draft survives leaving the app                                                                                                                                             | Any fact. It never infers state with heuristics                              |
+| **Control plane (CP)** | The durable record, the inbox, holder leases, materialized views, external observations (GitHub), config, credentials, identity                                                                                                                                                       | Allocating thread seqs; the workspace                                        |
+| **Runtime**            | Split by [0021](decisions/0021-v2-loop-runs-on-the-agent-host.md): the **agent host** runs the loop for the sessions it holds and allocates thread seqs; the **sandbox** holds the world (workspace, git, processes, files) and executes what the agent host calls through its daemon | The durable record. A sandbox disk is a cache of the record plus world state |
 
-**2. One record.**
+Clients and pods are agnostic to where the other is: a client talks to _a_ control plane, a pod
+talks to _a_ control plane, and neither needs to know whether the other is local or cloud.
 
-If a checkpoint and the log are two records of the same run, keeping them from drifting on rewind is
-permanent work. This is the whole reason no graph framework is used. LangGraph's checkpointer and
-Mastra's `agentic-loop` snapshot are each a second, un-forkable record of loop position — and the
-event log already provides durable resume, so it would be bought twice.
+"Local" is a placement, not a different architecture. An in-process TUI session is a pod that runs
+inside the TUI's process and speaks the same protocol over loopback.
 
-## The loop
+**A session lives in exactly one control plane and never syncs between them.** Cloud sessions
+live in the cloud CP; local sessions live in the local CP. There is no replication between control
+planes.
 
-```ts
-async function runTurn({ threadId, signal }: { threadId: string; signal: AbortSignal }) {
-  let modelSteps = 0
-  let settleAttempted: string | undefined
+**D2 (open): the local control plane.** Recommended: a daemon, `atlasd`, running the same
+`control` library over SQLite. The Mac host and the TUI connect to it or start it, and local pods
+treat it like any control plane. The alternative, requiring cloud sign-in and using the cloud CP
+for local sessions, loses offline work and makes local a different shape. The daemon is built
+after the cloud slice, so nothing in the cloud slices depends on the answer; the `control` library
+is storage-agnostic so that either answer fits.
 
-  await log.append({ threadId, drafts: await hooks.beforeTurn({ threadId }) })
+### The pod boundary
 
-  for (;;) {
-    const events = await log.read({ threadId })
+A cloud pod is an Agent37 VM (`type: 'vm'`, region `us`) from the sandbox template, with the Atlas
+home mounted at `/atlas` and auto-sleep after 1800 idle seconds
+(`packages/pods/src/sandbox/agent37/agent37-create.ts:18-50`). The image is a runtime toolkit with
+nothing Atlas-versioned baked in (`infra/sandbox-image/README.md`); the daemon arrives as a bundle
+the API serves at `GET /agent/daemon/bundle` (`apps/api/src/agent/AGENTS.md:83`).
 
-    const waiting = outstandingApproval(events)
-    if (waiting) return { status: Paused, callId: waiting }
+**What crosses at birth** is one object, the create body's `env`
+(`packages/pods/src/sandbox/agent37/agent37-create.ts:44-50`):
+- `DAEMON_TOKEN`, a per-pod secret the agent host presents on every daemon call.
+- `ATLAS_DAEMON_BUNDLE_URL` and `ATLAS_DAEMON_HOME`, where the daemon comes from and where it lives.
+- `ATLAS_SANDBOX_NAME`, the pod's name in logs and metrics.
+- `DAEMON_PORT`, the port the daemon listens on.
 
-    const pending = pendingCalls(events)[0]
-    if (pending) {
-      if (pending.callId === settleAttempted) return { status: Failed, message: stalled(pending) }
+No model credential, API token, user secret or repository enters the pod at birth. The daemon
+removes `DAEMON_TOKEN` from its own environment before it starts a workload
+(`apps/daemon/src/index.ts:40`, `apps/daemon/src/ops/terminal/pty.ts:28`), so a shell the agent runs
+does not inherit the credential the host uses to drive it. Credentials, settings and the record
+reach a session as control-plane state, and every tool call arrives over the daemon: a pod holds the
+world, the control plane holds the record (0021).
 
-      settleAttempted = pending.callId
-      const settled = await settlePending({ threadId, signal })
-      if (settled.paused) return settled.paused
-      continue
-    }
+## 4. Ownership principles
 
-    const waiting = await drainPending()
-    if (waiting.length > 0) await log.append({ threadId, drafts: waiting })
+**P1. One writer per fact.** Every piece of state names exactly one writer. Everything else is a
+replica that says how far behind it may be. Each row in the §6 table follows this rule.
 
-    const { assembled: projected, trace } = assemble({ events, rules, annotators, ctx })
-    const assembled = await hooks.beforeStep({ assembled: projected, trace })
+**P2. Two streams per session: inbox in, log out.**
+- _Inbox_: operator inputs (send, take-back, stop, model change, rename, rewind request). Only the
+  CP creates inbox entries, each with a monotonic inbox id (D4). The holder consumes entries and
+  records the inbox id it consumed in the log (`input-consumed{inboxId}`). Take-back of an entry
+  the holder has not consumed is a CP-only delete. Once the holder has consumed it, take-back is a
+  request to the holder.
+- _Log_: only the current holder allocates seqs (D1). The CP stores the durable copy and accepts
+  an append only when `epoch == current && seq == head+1 && prevHash` matches. Under this rule the
+  seq-466 interleaving cannot happen: two sends become inbox ids 1 and 2, and the holder turns them
+  into seqs 466 and 467.
 
-    const faults = exchangeFaults(assembled)
-    if (faults.length > 0) return { status: Failed, message: report(faults) }
+**P3. Event identity is end to end.** The pod mints `id` at append time and every copy keeps it.
+Each event carries `prevHash`, the hash of the previous event, so "are these two copies the same
+up to seq N" is one comparison. Hydration verifies the hash instead of trusting the head number.
+This replaces the three equality notions found in v1 (API content equality, host pod-copy id
+equality, checkpoint digest of id+seq+type).
 
-    modelSteps += 1
-    settleAttempted = undefined
-    const { parts, toolCalls } = await modelStep({ assembled, tools, signal })
+**P4. Epoch fencing replaces liveness guessing.** The CP grants one holder lease per session at
+epoch N. The holder is an agent host ([0021](decisions/0021-v2-loop-runs-on-the-agent-host.md)).
+Every move, wake, resize, rollover or recreation increments the epoch. The CP rejects
+writes from an older epoch. A holder that loses its lease stops its loop. Parking becomes: flush the
+log, release the lease. The fence replaces the wake-claim CAS, checkpoint revision races, the
+`park-refused unflushed` guard and most of the runtime checkpoint's job.
 
-    if (parts.length > 0)
-      await log.append({ threadId, drafts: [{ type: 'assistant-said', parts }] })
-    for (const [ordinal, call] of toolCalls.entries()) {
-      await log.append({ threadId, drafts: [{ type: 'tool-called', ordinal, ...call }] })
-    }
-    if (toolCalls.length > 0) continue
-    if (arrivedUnseen() || (await drainPending()).length > 0) continue
+**P5. The log only grows (D3).** Rewind, summarise, compact and loop-cut become appended events
+(`history-rewound{toSeq}`, `history-summarised{range}`) that the assembly rules and view folds
+interpret. Nothing truncates or replaces history, so replication is append-only and no rebase path
+exists to forget. Garbage collection of dead branches is a storage policy, not semantics. This
+changes how rewind is implemented, not what the user sees.
 
-    await log.append({ threadId, drafts: await hooks.afterTurn({ threadId }) })
-    return { status: Completed }
-  }
-}
+**P6. Views are pure folds in core, materialized by the CP.** Branch, worktree, PR links, status,
+unread, subscriptions summary, title, model: each is a function `fold(log[, observations]) -> view`
+in `core`. The CP computes each view at a log position and ships it with that position. Clients
+render views and never re-fold or guess. The branch-match PR fallback and the project-baseBranch
+checkout fallback (the reason the incident thread showed `staging`) disappear: an unknown value is
+shown as unknown. Session status is `fold(log) ∧ holder lease liveness`, not a separately written
+`working` column.
 
-const resume = runTurn
+**P7. Commands are durable through the CP. Only ephemeral data goes direct.** A client may keep a
+direct socket to the pod, but that socket carries only ephemeral things: token deltas, live tool
+output, the PTY, file browsing and an interrupt _hint_. Anything that must survive goes through the
+inbox or comes from the record. A
+stop is both: a direct hint for latency and a durable inbox entry for truth.
+
+**P8. Features are modules with a contract.** A feature (GitHub/PR, subscriptions, shells,
+services, sub-agents, memory, previews) declares:
+`events` (schemas it emits) · `views` (pure folds) · `commands` (inbox entries it accepts) ·
+`pod` (pod handlers) · `control` (CP handlers: observations, side effects) · `client` (headless
+client state) · `transport` (none, or which stream). It is registered the way ports are today, and
+typecheck fails if a slot is missing. Native plugins and native commands are built on this
+contract. §7 gives the package shape.
+
+## 5. Protocol: one, three directions
+
+| Direction                                 | Carries                                                                                                                                                                                                                                                                                                                                                  | Mechanism                                                                                                                           |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| **Client ⇄ CP**                           | Commands and queries; one ordered session stream per open session (`{log suffix \| view updates}` with a cursor `(epoch, seq)`); the sidebar as one stream of view rows                                                                                                                                                                                  | tRPC plus SSE                                                                                                                       |
+| **Pod → CP**                              | `append(epoch, event)`, one transaction per event, hash-chained; `lease.renew`; observation reports. The agent host holds the control library, so these are Postgres writes, not HTTP, and it calls the API for nothing: memory and previews are shared domain packages it evaluates in-process ([0027](decisions/0027-both-backends-own-their-work.md)) | Postgres, direct                                                                                                                    |
+| **CP → pod**                              | Inbox entries and lease revocations                                                                                                                                                                                                                                                                                                                      | A `pg_notify` wake in the write transaction; the agent host `LISTEN`s and reads the inbox. No stream is held open (wake path below) |
+| **Client ⇄ pod** (direct, ephemeral only) | Deltas, PTY, file tree, interrupt hint                                                                                                                                                                                                                                                                                                                   | WebSocket, authorized by a CP-minted ticket as today                                                                                |
+- Streams reconnect with cursors. The API is a long-lived service
+  ([0030](decisions/0030-api-and-agent-host-are-one-render-service.md)), not a serverless function,
+  but a deploy or a dropped connection still makes reconnect the normal case, not an error path.
+- Version negotiation carries over from [0017](decisions/0017-wire-protocol-skew.md). The skew
+  check is extended to cover schema structure, not only versions and three enums.
+- A log reader never stops at an event body it cannot parse. It skips that event, advances its
+  cursor past it, keeps the rest of the page, and reports how many parts it skipped — so a pod that
+  has just deployed a new event type costs an older client a few rows, never the session. The agent
+  host announces the body types it can write on the ready frame, which lets a client tell "written
+  by a newer Atlas" from "corrupt". A surface that registers fewer plugins than the writer builds is
+  the bug to fix; the skip is what keeps a rollout from being one.
+- Cursor spaces stay distinct: the durable `(epoch, seq)`, and any transport replay cursor. The old
+  design conflated three (see [wire-surface](research/wire-surface.md)); this one does not.
+- The HTTP prefix `/v1` is the API's route prefix (`/v1/trpc`, `/v1/health`). It names no engine.
+
+**The wake path, as built in slice 3.** The agent host is the holder, so the CP-to-holder direction is a
+wake, not a stream the pod holds open:
+- A wake is written in the same transaction as what it announces. Posting an inbox entry (message or
+  stop), creating a session, and revoking a lease that still has work each call `pg_notify` on one
+  channel (`atlas_session_wake`, payload the session id) inside the write. Postgres delivers the
+  notification only on commit, so a rolled-back write wakes nobody.
+- Each agent host `LISTEN`s on one direct Postgres connection (`DATABASE_DIRECT_URL`; PgBouncer's
+  transaction mode cannot `LISTEN`). A wake for a held session re-runs that session's loop; a wake for an
+  unheld one rings the host's claim loop.
+- A notification is lost while the connection is down, so every (re)connect emits a resync: the host
+  rings its claim loop and every held session re-reads its inbox. A lost doorbell costs at most one tick.
+- A crashed holder emits no event, so hosts watch each other in a ring. Each host orders the live
+  `V2Host` ids, picks its successor (the next id above its own, wrapping to the lowest) and blocks one
+  dedicated direct connection in `pg_advisory_lock_shared` on that successor's presence lock. The wait
+  returns when the successor's connection dies. The watcher then deletes the successor's `V2Host` row,
+  notifies `atlas_host_change`, rings its own claim loop, and retargets to the
+  next successor; a dead successor's successor returns at once, so the ring keeps walking. Any
+  `atlas_host_change`, a host re-registering under a new id, or a (re)connect of the LISTEN connection
+  recomputes the successor. A host also runs the same scan once at start-up, which covers an empty fleet
+  and a single host. No timer or scheduled job is involved.
+- Redis carries live frames only (token deltas, tool output). Nothing durable and no wake depends on it,
+  so an outage costs live streaming and nothing else.
+
+## 6. Where each piece of state moves
+
+| State                                    | Writers before this design                                            | Single writer                                                            | Replicas                                                                 |
+| ---------------------------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------ |
+| Thread events / seq                      | pod (4 allocators) + API (send, append, open, wake, archive, history) | holder (an agent host, 0021)                                             | CP record (durable), clients (views, log suffix)                         |
+| Operator input                           | WS send (pod intake) + API send (Postgres append)                     | CP inbox                                                                 | pod consumes; `input-consumed` in log                                    |
+| History edits                            | API rewind/replace/summarise/fork + pod rewind/compact/loop-cut       | holder, as appended events (P5)                                          | none needed                                                              |
+| Child / teammate threads                 | API create/open + pod spawn + registerChild                           | holder mints and logs `agent-spawned`; CP materializes rows from the log | CP rows are a view                                                       |
+| Title, model                             | API rename/chooseModel + serve requests + forwarding + home copy      | inbox command → holder logs `title-set` / `model-set`                    | view                                                                     |
+| PR links, branch, worktree               | events + session meta + client heuristics                             | pod-logged changes to the git ref set (`refs/heads`, worktrees; 0020)    | view: local branches except the default, with PR state joined by github  |
+| Subscriptions                            | runtime registry + event projection + GithubSubscription rows         | CP, in the request transaction                                           | clients (announced view); the log gets a `record`                        |
+| PR state / checks                        | GitHub → CP cache, pod cache, client merge                            | CP observation store                                                     | joined into views; pod reads it                                          |
+| Activity / status                        | pod → Thread.working etc., checkpoint, boot steps                     | fold(log) + lease liveness                                               | view                                                                     |
+| Runtime checkpoint                       | pod file + API mirror                                                 | mostly gone; lease + log replace it                                      | none                                                                     |
+| Accounts, secrets, settings, MCP         | CP + pod whole-file rewrite + harness writes                          | CP                                                                       | pod gets a read-only, revisioned lease; the pod never writes these files |
+| Workspace, git, processes, context files | pod (world) + API/home mirrors                                        | pod                                                                      | mirrors labelled with as-of position, never read as truth                |
+| Read cursor                              | API, Mac, TUI separately                                              | CP                                                                       | none                                                                     |
+| Drafts, uploads                          | CP (last write wins)                                                  | CP                                                                       | none                                                                     |
+| Spend ledger                             | pod + Turn upsert                                                     | holder logs `turn-ended{usage}`                                          | CP view                                                                  |
+
+The `GithubSubscription` row is the truth for a subscription. The control plane writes it in the
+request transaction. The log holds only an informational `record` of the change. A subscription
+does not roll back on rewind, and a fork does not copy it.
+
+## 7. Package shape
+
+Fixed by [0019](decisions/0019-v2-package-map.md), which amends D5. Foundations live in
+`packages/`; native plugins in a top-level `plugins/`; native commands in a top-level `commands/`.
+Bun runs TypeScript raw, so a package costs no build step; the maintainer prefers a few large,
+cohesive packages where each feature's code sits in one place.
+
+**Foundation packages (`packages/`)**
+
+| Package         | Owns                                                                                                                        |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `core`          | Pure shared vocabulary: ids, event envelope, assembly, and the record rules (log, inbox, lease, history folds)              |
+| `protocol`      | Wire schemas for the three directions (today's `wire`, without sandbox provisioning I/O or the ticket HMAC implementation)  |
+| `agent`         | The loop every agent runs: turn runner, retries, intake, tool dispatch, model port. Knows nothing about pods or leases      |
+| `pod`           | Hosts agents in a pod: holds the lease, local record cache, replication, inbox consumption (0018 called this `runtime`)     |
+| `control`       | The CP library: record, inbox, leases, view materialization. Adapters: Postgres (hosted by `apps/api`), SQLite (D2)         |
+| `client`        | The client SDK and headless React hooks shared by web, TUI and Mac: session stream, view cache, commands                    |
+| `plugin-sdk`    | The plugin contract (slots), the type-level registries and the loader; native and repo plugins share it                     |
+| `commands`      | The command contract: spec, arguments, registry, dispatch as inbox commands, the shared command menu and its hooks          |
+| `settings`      | Settings schema and resolution (pure) plus per-tier subpaths; plugins contribute keys                                       |
+| `observability` | Telemetry, operational log and (soon) tracing ports; exporters on `/node` ([0023](decisions/0023-observability-package.md)) |
+
+`ui`, `db` and `models` are unchanged.
+
+**Plugins (`plugins/<name>/`).** One workspace package per native plugin (github, subscriptions,
+shells, services, crew, sessions, memory, previews). Every plugin has the same subpaths:
+
+| Subpath    | Holds                                                         |
+| ---------- | ------------------------------------------------------------- |
+| `/core`    | The plugin's events, pure folds (views) and command specs     |
+| `/pod`     | Pod-side handlers: tools, hooks, inbox command handlers       |
+| `/control` | CP-side handlers: observations, side effects                  |
+| `/client`  | Headless client state and hooks; rendering in `web` and `tui` |
+
+**Commands (`commands/`).** One workspace package with a folder per native session command: `spec.ts`,
+`pod.ts` (the handler, run in the pod from an inbox command), `client.ts` (headless hooks),
+`web.tsx` and `tui.tsx` (rendering; Mac renders the web build). A command that belongs to a feature
+lives in that plugin on the same contract.
+
+Rules:
+- Plugins never import each other. Anything two plugins share belongs in a foundation package.
+- Every command is an inbox command handled in the pod, so it behaves identically on every client.
+- Apps compose: each app imports the tier subpaths it needs and registers them. The type-level
+  registry (P8) fails typecheck if a plugin is registered without its slots.
+- Tier boundaries are enforced by subpath exports plus a restricted-import lint rule.
+- Before any feature event leaves `core`, `plugin-sdk` provides a type-level event registry so the
+  exhaustive switches over `EventBody` stay exhaustive.
+
+## 8. Order of work
+
+[roadmap.md](roadmap.md) has the slices, their exit criteria, the current state and the
+one-slice-per-run workflow. Each slice gets a spec in [slices/](slices/) before it is built, and
+merges to `main` on its own. The first milestone was a real cloud session from the web, with a
+working thread and tools; what remains is the hardening the roadmap tracks.
+
+## 9. Risks
+
+| Risk                                   | Why it matters                                                                                                                                | Mitigation                                                                                                                                                                                                                                                 |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sub-agent families                     | One session holds several thread logs under one lease. Each log needs the same append rules, and spawn and ending must be events in both logs | Narrowed by [0020](decisions/0020-v2-sub-agent-worktrees-and-peer-sessions.md): teammates become peer sessions, so only short-lived sub-agents with no PR or CI share a lease. Settled in the crew spec; the record core must not assume one log per lease |
+| Rewind as append-only (P5)             | Touches assembly rules and `docs/core-contract.md`; the highest-semantic-risk change                                                          | Specified and property-tested in slice 1, before the pod host depends on it                                                                                                                                                                                |
+| One service runs the API and the loop  | A deploy cuts every running turn, and an API merge restarts held sessions mid-turn                                                            | The handoff pauses and resumes at once (#2314, [0021](decisions/0021-v2-loop-runs-on-the-agent-host.md)); recovery is the next merge, since the Vercel path is deleted ([0030](decisions/0030-api-and-agent-host-are-one-render-service.md))               |
+| D2 stays open too long                 | The local slices cannot be specified                                                                                                          | D2 is needed only at the local slice; cloud slices do not depend on it                                                                                                                                                                                     |
+| A saturated sandbox starves the daemon | Tool calls slow or stall, and a lease can look stale while the sandbox is only saturated                                                      | §10: OOM and CPU priority, a memory watchdog, lease renewal and stop that do not wait on the loop                                                                                                                                                          |
+| Long threads (~20k events, tens of MB) | A whole-log fold per append, step, request or refresh cannot hold this size ([log-scale](research/log-scale.md))                              | §11: ranged reads only, current state as checkpoints, artifacts out of line, tail-first clients                                                                                                                                                            |
+| A pod dies and nobody notices          | An idle dead sandbox is never flagged when liveness is inferred from activity rather than from the holder                                     | §12: the lease is liveness; one reconciler per session acts on expiry                                                                                                                                                                                      |
+
+## 10. Pod resources: the daemon outranks its workloads
+
+The loop no longer runs in the sandbox ([0021](decisions/0021-v2-loop-runs-on-the-agent-host.md)),
+so what must survive saturation is the **daemon**: the small in-sandbox process that executes what
+the agent host calls (exec, files, grep, background shells, services, stdio MCP, terminal). A sandbox
+runs two kinds of process: the **daemon** and the **workloads** the agent starts (shells, services,
+test runs, builds). They share the sandbox's CPU, memory and disk. When a workload saturates the
+sandbox, every tool call the agent host makes through the daemon slows. In the old design the in-sandbox process was also the
+kernel's first OOM victim: it had the largest footprint, at `oom_score_adj` 500. This is OS-level
+isolation, not a package boundary.
+
+What a Vercel pod allows (measured 2026-11-02, as root, [pod-saturation](research/pod-saturation.md)):
+`oom_score_adj` and negative nice work. Child cgroups with `cpu` and `pids` work **once the root
+cgroup is emptied** (every process, pid 1 included, moved into a child first), and a `pids.max` on
+the workload group fully contains a fork bomb that otherwise wedges the VM. `memory` delegates the
+same way, and `memory.max` on the workload group OOM-kills inside that group only. The layout is
+boot state: snapshot/resume is a fresh boot that discards it, so it is applied on every boot. There is no PSI (`/proc/pressure`). #1657 (OOM ordering and
+nice) is measured to protect the in-sandbox process from memory exhaustion, not from a fork bomb.
+
+**R1. The daemon survives.** The daemon runs at a strongly negative `oom_score_adj`; every
+workload starts with a high one, so the kernel kills workloads first. (#1657, carried into the
+sandbox image.)
+
+**R2. The daemon keeps CPU and process slots.** At every boot (create and resume) the pod empties the root cgroup into an
+`atlas-serve` group (high `cpu.weight`) and spawns every workload into `atlas-work` (low
+`cpu.weight`, `pids.max`), so a fork bomb hits its cap instead of the pod's pid table. Stop kills
+every pid in `atlas-work` for the thread, so a workload that calls `setsid` cannot escape it. Workload output is read in bounded chunks so a noisy process cannot monopolise the
+daemon's event loop.
+
+**R3. Workloads have a memory ceiling.** `memory.max` on the workload group (measured available)
+makes the kernel OOM-kill inside `atlas-work` before the sandbox runs out, so the daemon never competes
+with a hog for the last page. The daemon reads `memory.events` and reports which
+workload was killed and why, so the agent sees it in its context and the operator in the thread view.
+The kill scope (one shared group or a child per thread or workload) is fixed in the slice 3 spec.
+
+**R4. Liveness does not wait on the loop.** The agent host renews the lease on its own timer,
+independent of turn progress, and its TTL is sized for a saturated sandbox, so a busy sandbox is
+never fenced as dead.
+Stop (the operator's stop/interrupt button) arrives twice (P7): the direct hint aborts the turn and
+kills the running tool's process group, and the inbox entry is the durable record of it. An abort
+already kills the tool's process group; what fails under load is the daemon reaching the hint late
+because a workload holds the CPU, which R2 prevents.
+
+**If the holder dies anyway**, the design absorbs it: the record is in the control plane, the
+lease expires, and a new agent host resumes at the next epoch with nothing forked. At most the unflushed
+tail is lost, bounded by the flush cadence. In the old design the same death wedged or lost the
+session.
+
+Thresholds, TTLs and the priority mechanism are fixed in the slice 3 spec and measured on a
+saturated sandbox, not chosen here.
+
+## 11. Log scale: history is an archive, current state is a checkpoint
+
+v2 must run its longest realistic thread as smoothly as a fresh one. Production on 2026-11-02: the
+longest thread was 7,989 events and 8 MB of bodies (one day of work), p50/p90/p99 per thread
+177/637/2,056 events, the largest single event 2.9 MB; sessions last hours to days. The design
+target is **~20k events (tens of MB) per thread**. The rules below remove whole-log work where
+doing so is trivial; they are not tuning for sizes Atlas does not reach, and the nearer limit is a
+single large event against the 4 MB API body cap (L5). The
+[log-scale census](research/log-scale.md) found that the old design failed this everywhere for one
+reason: it used the log as its state database, re-deriving current state by folding history from
+seq 0 on every append, step, request and refresh. The rules below separate the two. **The log is an
+archive that is
+only ever read in ranges; the running session works from current-state checkpoints plus a bounded
+tail.**
+
+**L1. Every read is bounded.** Ports expose `readRange({ afterSeq, maxEvents, maxBytes })` and
+`readTail({ maxEvents, maxBytes })`, returning `{ events, nextCursor, head }`. There is no "read
+all" on any port. `head()` and identity are metadata, never a transcript read. Range bounds have
+one convention (exclusive `afterSeq`) across every tier.
+
+**L2. Append is O(batch).** Head seq and head hash live on the thread record and are compared and
+swapped there; nothing scans to append. Local storage repairs a torn tail by reading only the final
+record, never the file.
+
+**L3. Current state is materialized, not refolded.** Every fold that the loop, the pod or the CP
+needs per step or per request (pending calls and approvals, model wait, worktree and checkout,
+live contexts, agents, shells and services, subscriptions, owed notices, token totals, the
+visible-history mapping of P5) is an incremental step function. Its state is kept at a known
+`(epoch, seq)`, advanced in the same transaction as the append, and resumed as checkpoint plus
+suffix. This generalizes P6: a view is a fold, and a fold always runs incrementally.
+
+**L4. Assembly reads the model's context, not the transcript.** A step reads the latest summary,
+the live context records and the uncompacted tail, so covered history is never converted into
+messages, stringified or token-counted. The full log stays available for browsing and rewind.
+Compaction planning uses per-event token estimates kept with the record (prefix sums), not
+repeated scans.
+
+**L5. Large payloads live out of line.** Tool outputs, images and raw provider data above a size
+threshold are stored as artifacts. The event carries a reference, byte length, hash, and a bounded
+preview and model-facing summary. Limits are in bytes, not just event counts: 500 events can still
+be gigabytes.
+
+**L6. Replication and verification are incremental.** Pull and flush move from a known cursor in
+bounded pages until caught up. Chain verification checks a fetched suffix against a trusted head
+hash. A history edit knows its affected range; nothing serializes whole logs to find what changed.
+
+**L7. Clients are tail-first with eviction.** Every client follows the TUI's existing window
+(`apps/tui/src/composition/thread-reads.ts`: 1500-event pages, 3000 retained, eviction): open at
+the tail, page older history on demand, evict distant pages, append by touching only new rows.
+Projections run over the window, seeded from CP views, never over the whole history. Rendering is
+virtualized below the turn, so one huge turn cannot defeat it.
+
+**L8. Lookups by key are indexed.** Idempotency keys, wake dedupe and subscription ids are columns
+with indexes, not `LIKE` searches of event bodies.
+
+Every slice's exit criterion includes a scale check against a seeded long thread, sized to what the
+slice touches: append and ranged reads (slice 1), a pod step and resume (slice 3), view
+materialization (slice 4), opening and following a session (slice 5).
+
+## 12. Liveness and lifecycle: what the control plane knows about a pod
+
+**Why the lease replaced the clock.** The old design learned that a pod had died only indirectly: a
+five-minute sweep looked at running sandboxes whose activity was stale and that held an unanswered
+message, then probed the pod's health route. A pod that died mid-turn could look alive for about
+fifteen minutes, a pod that died idle was noticed only when someone next connected or woke it, and
+nothing in the pod reported its own death.
+
+**The design.** The holder lease (P4) is the liveness signal. The control plane knows a holder is gone
+when its lease is not renewed within the TTL, whatever the cause: crash, OOM kill, an agent host deploy,
+a stopped sandbox. Status is `fold(log) ∧ lease liveness`, so a dead holder shows as dead within
+one TTL, and the reconciler (below) acts on it.
+
+**Kubernetes practices v2 follows.** Atlas's control plane and pods are a small orchestrator, and
+these are the parts of Kubernetes' design that fit:
+
+| Kubernetes                                                                                                                                                   | v2                                                                                                                                                                                                                                                                |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Lease objects](https://kubernetes.io/docs/concepts/architecture/leases/): holder, duration, renew time, transition count                                    | The P4 holder lease; the transition count is the epoch                                                                                                                                                                                                            |
+| [Liveness, readiness and startup probes](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/) are distinct | Lease renewal is liveness (R4). Readiness is "booted, hydrated, consuming the inbox", and only a ready pod is sent work. Boot has its own deadline, so a slow boot is not mistaken for a dead pod                                                                 |
+| [Controllers](https://kubernetes.io/docs/concepts/architecture/controller/) reconcile desired state to observed state                                        | One CP reconciler per session: "has unconsumed inbox entries and no live holder" → grant a lease to an agent host and provision a sandbox. It replaces v1's scattered wake claims, rotation recovery and cron sweeps. Every step is idempotent and safe to repeat |
+| Restart with backoff (CrashLoopBackOff)                                                                                                                      | Reprovisioning backs off exponentially and is shown as a status with a reason, never a silent loop                                                                                                                                                                |
+| [QoS classes set `oom_score_adj`](https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/)                                           | R1: the daemon runs like a Guaranteed pod, workloads like BestEffort                                                                                                                                                                                              |
+| Requests and limits are cgroup settings                                                                                                                      | R2/R3: `atlas-serve` and `atlas-work` cgroups with `cpu.weight`, `pids.max`, and `memory.max` if it proves available                                                                                                                                              |
+| [Graceful termination](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-termination): SIGTERM, a grace period, then kill                | Park = flush the log, release the lease within a grace period; past it, the CP fences the epoch and moves on                                                                                                                                                      |
+| Pod conditions with a reason and a transition time                                                                                                           | Views expose status as conditions (`Ready`, `Holding`, `Degraded` with reason and since), not bare booleans                                                                                                                                                       |
+
+Not adopted: running Kubernetes itself. Vercel Sandbox is the runtime; v2 copies the control
+patterns, not the platform.
+
+**The held-session loop, as built ([0026](decisions/0026-v2-hosts-pull-sessions.md)).** Each agent host runs
+one claim loop (`packages/host/src/holder`). A doorbell (a wake, a resync, a dead peer found by the host
+watch, a settled session, a due `retryAfter`) or a 20 s ± 20 % tick runs `claimNext` with `limit` = free
+slots; rings coalesce into one call in flight and one queued. The database is the work queue: `claimNext`
+is the only way a host takes a session, and the "needs a holder" predicate lives once, inside the claim.
+Each claimed lease runs through `runHeld` and then `settle`, the only place a lease is released. A settle
+that fails is retried by the loop before it claims more. Retry state (`attempts`, `retryAfter`) lives on
+the lease row, so every host honours the backoff and it survives a restart.
+
+Inside `runHeld`, a session's reconciler runs one step at a time and coalesces requests that arrive
+meanwhile. A step is three moves:
+1. Snapshot: read the inbox once, fold the log into the workspace state, and note whether a turn runs, a
+   stop is pending, a message is pending and the idle deadline has passed.
+2. Decide: a pure function in `core` (`decideHeldAction`) maps the snapshot to exactly one action: abort the
+   turn, consume a stop, prepare the workspace, start a turn, release, or wait.
+3. Act, then wait for the next event.
+
+The timers that remain each guard something other than finding work: the claim loop's tick, the daemon
+ping, one idle-release deadline armed only while idle, and the handoff deadline during a drain. Model retry
+backoff is not an in-memory timer: it is a recorded deadline (0021).
+
+**Session lifecycle.**
+- **New session: prepare first, then the first turn.** Creating a session wakes a host, which claims the
+  lease, wakes the sandbox and runs the prepare ceremony: wait for the daemon, clone the repositories, run
+  the project's setup script. The first turn starts only after `workspace-prepared` is appended. Status is
+  `preparing` until then, or `setup-failed` with a reason (`workspace-prepare-failed{reason, inboxHead}`).
+  Messages at or below the failure's `inboxHead` keep their place and do not retry the prepare. A newer
+  message retries on a fresh runtime. Each clone step leaves a marker, so a retry redoes only what is
+  missing. A message never waits for the pod: it is an inbox entry, and the turn reads it when the
+  workspace is ready.
+- **Session prepared before: the turn starts at once.** A session whose record holds `workspace-prepared`
+  (a parked or sleeping sandbox) starts the model turn as soon as the record is open, while the wake runs
+  beside it. Only a call that needs the pod waits: it waits on the workspace gate, then on the daemon link,
+  and the acknowledgement of earlier tool results runs in the background. The gate resolves when the
+  current wake succeeds and fails the call with the reason when it fails, so a failed wake never hangs the
+  turn. A newer message retries a failed wake. Plugin resources (instructions, skills, MCP tools) are
+  loaded from the record at turn start, so nothing in the turn waits for the pod.
+- **Stop is the same at any time.** A stop aborts the turn and interrupts a call that waits on the gate. It
+  does not cancel the wake: the pod finishes waking, the prepare records its result, and the normal idle
+  release then applies. A stop only marks a first prepare of a brand-new session as stopped.
+- **Deploy drain keeps idle sessions parked.** On SIGTERM a host hands off the sessions that have work: a
+  running turn, a resumable thread, an actionable inbox entry, or a workspace that is unprepared, preparing
+  or failed with a retry pending. An idle, prepared session is released without a wake. The next message
+  wakes it through `NOTIFY`, so a deploy no longer wakes every sandbox and restarts every idle clock. The
+  handoff never waits for a turn: it detaches the daemon calls that keep running, aborts the model stream
+  immediately and settles the lease, so only the in-flight provider request is lost.
+
+**Connection-bound leases (accepted in [0025](decisions/0025-v2-connection-bound-leases.md)).** Renewal
+and the reconcile task exist because liveness is something the control plane has to infer from a clock.
+Postgres already knows when a connection is gone, so 0025 makes that the liveness signal and
+removes every timer that proves or looks for it.
+- **One presence lock per host.** An agent host opens a dedicated direct connection (`DATABASE_DIRECT_URL`,
+  kernel keepalive on, no statement or idle timeouts) and takes
+  `pg_try_advisory_lock(PRESENCE, hostId)` on it, then inserts its `V2Host` row. The lease row is
+  `{sessionId, epoch, holderHostId, wantsHolder}`. A lease is live iff its holder's presence lock is
+  granted exclusively. A host with 200 sessions uses one lock slot, not 200.
+- **The epoch fences; the lock says when a claim is allowed.** Appends compare the epoch under
+  `FOR SHARE` on the lease row and never read `pg_locks`. A claim locks the row, refuses if the current
+  holder is present or if the claimer is not, and writes `epoch + 1`.
+- **Lose the lock connection, lose every lease.** The host stops appending, pauses its loops, registers a
+  new host id and reclaims through the normal path. Postgres has already freed the old lock.
+- **Death is an event.** Each host keeps one connection blocked in
+  `pg_advisory_lock_shared(PRESENCE, successor)`, where the successor is the next host id in a ring. It
+  returns when the successor's connection dies; the waker then rings its own host's claim loop, whose
+  `claimNext` takes sessions whose holder is not present. The start-up ring covers an empty fleet.
+
+```mermaid
+flowchart LR
+  H1[host 1] -- "waits on" --> H2[host 2]
+  H2 -- "waits on" --> H3[host 3]
+  H3 -- "waits on" --> H1
+  H2 -. "connection dies: lock freed" .-> H1
+  H1 --> Scan["scan: sessions whose holder is not present"]
+  Scan --> Wake["pg_notify per session"]
+  Wake --> Claim["claim race at epoch + 1"]
 ```
 
-**A turn never returns `Completed` with an unanswered message behind it.** There are three edges back
-to the read, not one: a settlement finished, the step emitted tool calls, and — before the hooks that
-close the turn — something the model has not seen arrived while the last step was running. A message
-the developer typed mid-turn is pulled from the composer's queue at the boundary _before_ assembling,
-never appended when it was typed: a message not yet consumed is a draft the developer may still edit
-or take back, and an append-only log cannot represent that. Draining at the boundary also puts the
-message after the assistant turn it followed, which is what keeps the prompt from ending on the
-assistant. `AfterTurn` runs once, at the end, on the far side of that check — hooks that append
-turn-taking drafts would otherwise restart the loop they were called to close.
-
-**`BeforeTurn` runs once, before the loop, and is not gated the way `AfterTurn` is.** It exists to put
-context in the prompt the turn opens with, so anything running after the first `assemble` is too late,
-and the hazard that pushed `AfterTurn` behind the awaits-a-reply check does not exist at the start of a
-turn. A turn that reads the log and returns `Idle` has therefore already fired its `BeforeTurn`; that
-costs nothing for the intended use, because a hook's `additionalContext` becomes a `context-loaded`
-draft the log dedupes on content.
-
-**A turn has no step ceiling.** A coding agent works for as long as the work takes, and every bound
-Atlas tried — a model-step budget, an iteration backstop — ended turns that were making progress,
-handing the developer a resume button for a loop that should never have stopped. Supervision is the
-real bound: the developer watches the turn and interrupts it, which the abort signal already carries.
-What replaces the backstop is narrower and answers a different question. A `dispatch` that returns
-without settling the call it was handed makes no progress at all, and an unbounded loop would spin on
-it forever, so the loop remembers which call it last tried to settle and fails naming that call when
-the same one comes back around. That is a stuck detector, not a budget: it cannot fire on a turn that
-is still working. `modelSteps` survives only as the index handed to rules as `ctx.step`, counting
-model calls rather than loop iterations because `nudge.lifetimeSteps` is specified in model steps.
-
-**A run of identical calls is cut out of the log, not argued with.** A model that calls the same
-tool with the same input and gets the same result, three times running with nothing in between, is
-polling — and a generative model repeats whatever its own history shows, so a reminder appended
-_after_ the run just joins the pattern it was meant to break. `loopCutPlan` (`core/events/loop-cut`)
-instead finds the run at the tail — one or more rounds repeating as a unit, every call settled,
-every result byte-identical — and the loop rewinds the thread to just after the _first_ occurrence:
-the information stays, the repetition goes. Two guards keep the cut honest. The unit's calls must
-all be `repeatable` — a declared Read tool, or a `bash` command the classifier's own reading proves
-read-only deed by deed, never a backgrounded one — and the store re-verifies before deleting: a
-tail that moved since detection, a `rewindTarget` refusal, or a `rewindPlan` that would destroy a
-creation each decline the cut, because an automatic rewind never earns the confirmation an operator
-one does. A cut lands as a real rewind plus one `nudge` saying what was removed and why not to
-resume it; the nudge is a barrier, so a model that loops again starts a fresh run, and the third
-detection in one turn fails it naming the call — the same stuck-detector shape as
-`settleAttempted`, never a budget.
-
-**`settlePending` is built by the loop, not injected into it.** `TurnDeps` takes `dispatch`; the loop
-constructs `settlePending` from `dispatch` and the log it already holds. Injecting a pre-built
-`settlePending` meant it closed over a _different_ log than the loop wrote through — two logs writing
-one thread in a single turn, which the delta-publishing wrapper makes reachable. Absent `dispatch`,
-the loop pauses on a pending call exactly as it did before tools existed, which is what a subagent
-given no tools needs.
-
-**Tool results are stamped with the run that emitted the call**, not the run that settles it. That is
-what makes a turn which paused and resumed produce a log identical to one that completed in a single
-pass — the property the whole event-log design exists to protect.
-
-**Resume is almost not implemented.** `resume` _is_ `runTurn`, because position is a pure function of
-the log. Proven by serializing the log, discarding every in-memory object, rebuilding with a
-different model script, and completing the turn. A durable pause is `return`.
-
-The one thing it cannot derive is a turn stopped while the model still held the floor. An interrupt
-mid-reply leaves `assistant-said { interrupted: true }` as the last turn-taking event, so
-`awaitsReply` is false and the next `runTurn` returns `Idle` rather than answering the model's own
-half-sentence. `resume` therefore appends a `nudge` — and only then, which `core/events/resumePlan`
-decides. Every other stopping place already gives the loop somewhere to go: a failed step appends
-nothing, a call the developer stopped before it ran is settled as denied, and one aborted in flight
-gets a result carrying the abort, so all three tails are turn-taking and resume appends nothing at
-all. `nudge` is what makes this cost one event rather than a second record of loop position: it is
-in the prompt for `lifetimeSteps` model steps and then gone, so a resumed turn leaves a log a
-completed one could also have produced.
-
-A call the loop recorded but never dispatched — a later batch that the abort reached first — is
-re-dispatched by resume, which is correct rather than a hazard: `settlePending` only skips runs it
-never entered, so nothing that started is missing its result. That is the same shape rewind refuses,
-for the opposite reason: rewind is undoing the call, resume is completing it.
-
-**A step's calls settle in batches, not one at a time.** `settlePending` folds the pending calls
-into runs of consecutive concurrency-safe ones — each unsafe call a run of its own — and dispatches a
-run with `Promise.all`. **An unsafe call is a barrier**, so reads either side of a write never join
-across it. Results are appended in call order once the whole batch has drained, whatever order it
-finished in, and each is still stamped with the run that emitted its own call. Two consequences worth
-naming: the model prompt is unaffected, because `messagesFromEvents` already matches settlements to
-calls by `callId` rather than by log adjacency; and with no tool declarations to consult, every call is
-unsafe and the loop settles sequentially exactly as it did before, which is what keeps every existing
-test honest.
-
-**There is no concurrency cap.** Admission is the safety predicate and nothing else, which is what
-Claude Code's streaming executor settled on after its legacy path capped at ten. A cap would only ever
-bite a step the model deliberately fanned out, and every call in a batch is read-only by construction.
-
-**Concurrency safety is a property of the parsed input, not of the tool** — `read` of a file is safe,
-and a future `bash` of `ls` may be while `bash` of `rm -rf` is not. It is declared as an optional
-`isConcurrencySafe(input)` on `ToolDefinition`, defaults to unsafe, and fails closed on a schema-parse
-failure or a throwing predicate. **Effect outranks the predicate**: a Write or Destructive tool is
-never batched even if it declares itself safe. Direct file tools capture their before/after text under
-the existing per-path write lock, so serial writes must see the prior call's settled state rather than
-each other's half-applied changes. This guard also keeps two `write` calls to one path out of a single
-batch. Settlement snapshots the pending call list once but rereads events before each run, preserving
-fresh guard and quality-finding history without rediscovering calls mid-settlement.
-
-**Partitioning necessarily reads pre-hook input.** It happens before `dispatch`, so a `BeforeTool` hook
-that rewrites input cannot move a call between batches. Accepted: the parse it runs is the tool's own
-schema, and the alternative is dispatching to learn whether dispatch may be parallel.
-
-**`bash` stays unsafe in every form, including backgrounded.** The classifier that will answer "may
-this command run concurrently" is the same shell parse that answers "does this command need approval",
-and there should be one of it, not two.
-
-## Message intake
-
-`harness/src/intake` owns per-thread delivery and wake scheduling. Operator drafts, child reports,
-background-shell notices, and service exits enter through source adapters, then cross the same
-prepare → append → acknowledge seam. Preparation retains the source input; a successful append
-acknowledges exactly the captured batch. Failed preparation or append releases any reservation and
-leaves the input available for retry. Shell attention acknowledges durable journal references, not output. A shell's model read cursor
-advances only through its output-read operation; watch and ending notifications do not consume it. Typed drafts remain editable until reserved for commit; immutable
-notices never acquire an operator's edit or cancellation affordance.
-
-Local TUI and serve drivers register with this intake and announce transitions back to idle. The
-scheduler rechecks all pending sources on those transitions, not only when a notice first arrives.
-Child roster changes trigger the same recheck, so a child's late shell notice cannot strand itself
-behind that child's final drain. Asynchronous wakes are reserved per thread, with a bounded retry
-for a turn that fails before its first drain. A teammate's `Finished` ending is durable bookkeeping
-and never wakes a parent; explicit teammate reports use the normal speech path.
-
-A model request that fails yields back to intake before another attempt. The next attempt drains,
-re-reads, and reassembles the durable log with the same context and exchange checks as an ordinary
-step. Healthy streaming is not interrupted by incoming messages. The transcript distinguishes
-pending rows below the working indicator from committed rows above it, using the same notice
-component with a pending variant. Committed does not mean the provider has successfully answered.
-
-Recovery settles unresolved work from earlier boots, never a current-boot job or one whose live
-registry still holds its ending. Concurrent recovery joins one per-thread reconciliation, and a
-failed reconciliation is retryable. Teardown flushes bookkeeping as well as speech through
-prepare/acknowledge; lifecycle settlement remains distinct from a fresh message to the model.
-
-## Background shells
-
-A command the model backgrounds returns a shell id immediately and keeps running after the turn that
-started it ends. `bash({ runInBackground: true })` registers the process with a session-scoped
-`ShellRegistryPort`; `shell_output` reads what it has printed since the last read, `shell_list` says
-what exists, and `shell_kill` stops it. The developer gets the same three through the sidebar's SHELLS
-section and the `ctrl+t` panel, which reads a shell by `peek` rather than `read` so that looking at one
-never consumes output the model has yet to see. The panel scrolls that peek: it holds the last 64k
-characters, wrapped to at most a thousand rows, in a scrollbox that sticks to the newest line until a
-reader pages away from it. That window is shorter than what the registry retains because every row is a
-renderable the tail rewrites each time the shell prints. `harness/src/shells/` owns the lifecycle and the bash tool is a caller, which is why the
-process primitives live there rather than under `tools/builtin/`.
-
-**Background output is an append-only file owned by a durable supervisor.** Each command has one
-supervisor that owns its stdin and child wait, redirects stdout and stderr directly into `spool.out`,
-and atomically records terminal status before exiting. Atlas reads byte ranges; it is not in the raw
-output write path. A restart can reconnect to live output and input, or ingest a real exit code recorded
-while Atlas was absent. The model receives the output path and can Read or Grep complete history.
-
-The spool lives at `<atlasHome>/sessions/<session>/threads/<thread>/shells/<unique-shell-id>/`, beside
-its owner's existing flat event log. The session registry resolves that root for main agents,
-sub-agents, and teammates. `ATLAS_SESSION_DIR` and `ATLAS_THREAD_DIR` are per-command environment
-values, joined by `ATLAS_CONTEXT_DIR`, the session-shared `context/` folder under the session
-directory for plans and working notes; a background command also has `ATLAS_SHELL_DIR`. This does
-not change `TMPDIR`.
-
-**Context files have a surface reader, not another agent tool.** The TUI's Context sidebar is an
-inline tree: folders expand in place, children are indented, folders sort before files, and numeric
-names sort naturally. Only expanded, visible directory levels are read; refresh preserves expansion
-and selection. Clicking a folder toggles it; clicking a file opens the transcript/composer pane's
-viewer using the tool blocks' code rows, line-number gutter and syntax highlighting. The tree owns
-arrow/Enter navigation only while focused; Tab or clicking the pane returns focus to the viewer or
-composer. The conversation stays mounted while hidden so returning preserves its draft and scroll
-state. The harness resolves the session root through the thread registry, including for teammates. Local readers use filesystem notifications; serve pushes
-`context-changed` signals and answers `list-context-files`/`read-context-file` requests through the
-same reader. Reads stay inside `context/`, refuse binary files and files over 2 MiB, and return
-complete text rather than the mention browser's truncated preview. The viewer only mounts visible
-code rows plus an overscan window. Clients and sandboxes negotiate a session wire protocol range
-(decision 0017).
-
-The default kernel file-size limit is 5 GiB and there is no rotation, so byte offsets stay valid.
-The limit applies to each regular file the command writes, not only its spool and not total disk use.
-See `docs/research/durable-shells.md` for the process, storage, and recovery contracts.
-
-**Every shell fact has one journal writer.** Starts, matches, input prompts, and endings are appended
-at occurrence through one serialized writer per shell. After terminal output is captured and
-after-shell hooks finish, the writer appends the ending and hook drafts to the durable log. The
-shell's log adapter publishes `events-appended` without closing a model step that is still streaming.
-Only after the append succeeds does the registry queue an owner-scoped wake bell. Shared intake
-acknowledges that bell without appending another ending; its wake meaning is independent of new
-drafts. The loop rereads the log for a draft-free wake and continues if it arrives at the final drain.
-An ending recorded during a model reply precedes that reply in the chronological log. If the step
-had not seen it, a pure core decision supplies a one-step continuation nudge after the reply, also
-on interruption. This hands the floor back without moving history or recording the ending twice.
-The ending is a `background-shell-ended` event carrying
-the shell's output, not a `user-said` carrying a sentence about it: a `user-said` puts words in the
-operator's mouth and renders as their message, and a notice saying "read it with `shell_output`" spends
-a whole model step fetching bytes the harness already held. `context-loaded` looks like the right event
-and is not: the projection renders only the **latest** event per `(slot, key)`, so keying on the shell id
-would let a completion notice supersede that shell's earlier stall notice and erase it from the model's
-view. `context-loaded` means "here is the current content of X" — right for CLAUDE.md, wrong for a
-stream of point-in-time events about one shell.
-
-**The ending captures output at settle without consuming the read cursor.** The event carries the
-captured output, and the first later `shell_output` read can still return it. The wake bell carries
-no output and changes no cursor; dropping or acknowledging it cannot erase the durable ending.
-
-**A model-requested kill follows the same occurrence-write path.** `shell_kill` waits for settlement
-and returns a read of the captured ending. The durable event remains the announcement; assembly
-suppresses a redundant model-facing telling when a successful kill result already supplied it.
-
-**Supervision survives attachment loss.** Explicit command deadlines and the existing silence ceiling
-are enforced by the supervisor. Prompt-shaped output can notify the owning thread; `shell_input`
-answers through the reconnectable stdin pipe. This is not a pseudo-terminal. Periodic still-running
-check-ins are removed; old events remain readable. A supervisor-owned unclaimed timeout bounds work
-that nobody reattaches to. There is no independent spool-directory sweep.
-
-**Every ending notifies, and the model does not get a say.** There was a `notifyOnExit` axis —
-`always` / `on-failure` / `never` — and it is gone. An option nobody should choose should not exist:
-a model that opted out of hearing about a shell reasons about a dev server that died ten minutes ago,
-and a shell a _human_ killed is the case where the model most needs telling and the one an
-outcome-shaped policy stayed quietest about. So a kill notifies, a failure notifies, a clean exit
-notifies, and teardown notifies.
-
-**An ending that finds no turn running starts one.** Shared message intake schedules that wake for
-the owning thread. Inside a running turn, the loop acknowledges the wake bell and reads the already
-committed ending at its next safe boundary, including between failed model attempts. The transcript
-can show the durable ending immediately even when an overlay blocks the model wake. The scheduler
-rechecks when a driver becomes idle, so an arrival after the final drain cannot strand itself. A
-stable pending witness bounds repeated wakes that fail before their first drain.
-
-**Normal exit detaches; an explicit stop records what it kills.** The local quit guard defaults to
-keeping shells, while agents and services still stop. `detachAll()` closes observations and releases
-Atlas-owned power assertions without signalling children or fabricating endings. `closeAll()` is the
-intentional kill operation and awaits durable endings. The disposal backstop also detaches, so it
-cannot undo the quit choice. Caffeinate remains tied to Atlas, not an invisible supervisor.
-
-**A shell belongs to the thread that started it.** The registry is one object for the process, but every
-read is scoped to an owner: `start` records the thread, and `list`, `read`, `peek`, `kill`,
-`pendingNotices` and `drainNotifications` all take one. A thread is therefore never told about, and
-cannot kill, a shell another thread is running — the model asking `shell_list` in B does not learn
-about a `bash_3` it never started. Endings route to the owning thread's log rather than to whichever
-turn drains first, which is why switching threads keeps a queued ending instead of discarding it.
-Two reads stay deliberately global: `listEverywhere`, because the exit guard must name
-every shell affected by the quit decision whoever started it, and `closeAll`, for an explicit
-process-wide stop.
-
-**Recovery is owned by the shells module.** A start without an ending is unresolved work, not proof
-that the process died. Recovery inspects durable status and reconnects through an authenticated
-supervisor identity, retaining the shell id and cursor. The supervisor never writes the conversation
-log. Intentional rewind and location moves still stop the affected process groups before discarding
-history or transferring files. Imported session metadata never grants control over a foreign PID.
-
-## Composer file mentions
-
-Composer `@` mentions read through the owning runtime's `MentionReader`, including directory
-completion, existence confirmation and file/folder context attached on send. Local readers follow
-the conversation's effective project directory; cloud readers request fresh reads from serve,
-which resolves paths against the addressed thread's own workspace and worktree events. Cloud home
-and absolute paths are interpreted in the sandbox, never expanded against the terminal's home.
-Folder mentions remain one-level listings and text retains the existing bounded attachment size.
-
-A cloud reader never falls back to the terminal's filesystem. An unbound cloud owner exposes an
-unavailable reader rather than its inherited local browser. Runtime changes invalidate pending
-listings and confirmed highlights; sending checks the files afresh rather than depending on an
-asynchronous highlight. A failed context read refuses the submission while preserving its draft. During preparation the
-draft stays visible with a reading notice; duplicate submissions of that draft are ignored, and an
-edited newer submission can supersede an unresolved read.
-Explicit pasted and uploaded attachments remain operator input, separate from file mentions.
-The three mention read operations use session wire protocol 20, requiring matching client and
-sandbox runtimes.
-
-## Operator input
-
-`operator_input` asks the operator for a paste without routing that text through chat or asking the
-model to reproduce it. The model chooses a new file or a FIFO and sets up its CLI reader first.
-The harness publishes a value-free request through the session channel; the surface supplies the
-paste through an answer operation. The tool waits until destination delivery finishes and returns
-only the UTF-8 byte count or an actionable failure. Text is preserved exactly; `appendNewline`
-explicitly opts a line-oriented CLI into adding a missing final newline.
-
-Delivery uses the thread-routed filesystem and process ports on host, Docker, and cloud. A private,
-short-lived staging file feeds the recipient without putting the value into a model tool argument;
-cleanup runs after delivery, cancellation, or timeout. Existing regular files are not overwritten.
-A FIFO without a reader has a bounded delivery timeout, and interrupt cancels the waiting request
-or blocked write. Request and settlement events carry metadata only, never the pasted value.
-Requests are made in the main conversation; supervised children receive a refusal directing them
-to ask their parent rather than waiting on a card the operator cannot answer.
-
-The live pending request is replayable on remount and sent as a fresh snapshot after socket
-backfill, so reconnect cannot strand the input card behind an evicted frame. An answer is not a
-redrivable operation: duplicate and stale request IDs are refused rather than written twice.
-A process restart is not a reconnect to a running login; the agent must restart an expired CLI
-flow rather than feed its old one-time code to a new process.
-
-## Services
-
-A background shell is work the model is waiting on; a **service** is infrastructure the model works
-_against_ — a dev server, a watcher, anything that should stay up while the work continues. The
-registries are separate because the lifetimes are: a service never times out, never holds a turn
-open, has no watch and no awaiting-input, and nothing about it is scoped to the thread that started
-it. `harness/src/services/` mirrors `harness/src/shells/` member for member over those axioms —
-the same notice-queue → wake → drainPending pipeline, the same process-group lifecycle, the same
-teardown-records-what-it-kills rule — and where a question has no answer here, the answer is
-whatever `ShellRegistryPort` does.
-
-**Output is a file, not a buffer.** A dev server prints unboundedly for hours, which a retained
-window and an overflow kill cannot serve. So stdout and stderr share one append-mode fd under
-`<atlasHome>/services/<id>.log` — interleaving in the log matches interleaving in time — and the
-model reads it with the file tools it already has. There is no `service_output` tool: the
-`service_start` reply names the path, and an ending carries a tail read _at handover_, so a notice
-dropped rather than delivered loses nothing. This is the legacy registry's shape
-(`deprecated/tui`'s `ServiceRegistryService`) carried forward where the shell buffer's shape does
-not fit.
-
-**Every ending notifies, as it does for shells.** Legacy deliberately stayed silent — "a service
-has no completion semantics" — but legacy held backgrounded turns open, so the model was always
-around to notice. Here the ending is a `service-ended` event routing to the log of the thread that
-started it, phrased as infrastructure rather than completed work, with the same `EKilledBy`
-attribution so a user-stopped server is never re-started by a helpful model.
-
-**Listing and stopping are session-global; only endings are owned.** Any thread may `service_list`
-or `service_stop` what any thread started — a thread opened after the stack came up must be
-able to discover it, and the running-services reminder at the prompt tail is what keeps the model
-from polling to find out. `stop` escalates by pure rule (`core/services/lifecycle`): first stop
-SIGTERMs the process group, every stop after SIGKILLs, and a confirmed-dead service is answered in
-prose without signalling, because a reaped pgid can be reissued to a stranger. `killed` is recorded
-on signal delivery, not death.
-
-**A start that was never viable is not a start.** `service_start` waits a 250 ms settle —
-explicitly not a health check — so `command not found` comes back as an immediate exit with the
-log tail rather than a lying "Started". Health-checking past that is the model's job: read the
-log, hit the endpoint.
-
-**Nothing outlives Atlas.** Quitting reaps every service through the same `closeAll` path as
-shells, the exit guard counts live services alongside shells and agents, and no state persists
-across a restart. Declared services are the exception: they are re-ensured after a pod resume (below).
-
-**Declared services.** A repository lists its services in `.atlas/services.yaml`
-(`loadDeclaredServices`, schema in `core/services/declaration`), and the file is load-bearing: the
-agent, the preview agent and the operator all start, stop and restart services through one harness
-path, and what runs always matches the file. `service_start({ name })` brings reality to the file — it starts
-the service and its dependencies (`needs` plus `url`/`port` env references) in order, runs each service's `setup` once per registry lifetime, waits on
-health only for fresh starts (GET path 2xx/3xx, else TCP accept, 60 s budget; a running, unchanged service returns ready at once), restarts a stale service, and returns each
-URL, flagged not-ready rather than withheld on timeout. Every service gets `PORT` and
-`ATLAS_THREAD_ID`; a service with a `portal` also gets `PUBLIC_URL` and the Vite allowed-hosts
-variable, and `portals` add extra links. Env values may reference another service
-(`${services.<name>.url|publicUrl|port}`); `needs` and the `url`/`port` references decide start order (`publicUrl` does not pull its target in), and a cycle or
-missing target is rejected before anything starts. Ports are the declared one or a stable pick from
-20000-29999 derived from the service name alone, since each cloud thread is its own pod; the
-free-port probe remains only for in-process sessions sharing a host. A service is **stale** when its
-own parsed declaration (a per-service canonical hash, not the file text) changed since its running
-instance started. `restart` of a declared service re-reads the file, and a removed or invalid
-declaration fails the restart without stopping anything. `service_start` of a declared name with no command runs the declaration through the same path; a command, workdir or port on a declared name is refused.
-Public exposure is a service concern, not a bash one: URLs are `https://<port>-<rand>.byatlas.dev`
-through a Cloudflare tunnel that keeps the Host and adds `X-Forwarded-Proto`. Declared services are
-supervised — restart with 1/2/4/8/16 s backoff, crash-looping after more than 5 crashes in 120 s —
-and a crash that is being restarted raises no notice until the supervisor gives up; services are resumed at serve boot and TUI reopen.
-
-Surfaces render, they do not decide. `ServiceRegistryPort.declared()` returns a
-`DeclaredServicesView` (every declared service with state, port, URLs, links and reason, plus
-rejections); serve exposes it with the `ListDeclaredServices`, `EnsureDeclaredServices` and
-`RestartService` channel ops, and the web Details sidebar and the TUI list it with Start, Stop and
-Restart. The harness watches `.atlas/services.yaml` and bumps the services change feed, so clients
-refetch the view on every roster push. A workspace prompt fragment lists declared names and loader
-rejections, and the `atlas` skill carries the procedure.
-
-## Browsers
-
-**Two different things share one tab, and say so.** The right-hand pane is **Preview** on web: sandboxed
-iframes for the session's preview ports and any URL that allows framing, routed through the preview
-worker (`apps/preview-worker`), with the desktop preview-origin gate deciding which origins the Mac
-window's own webview may frame. On Mac it is **Browser**: one Electron `WebContentsView` per open target
-in the app window (`apps/mac/panes.js`), Chromium like the rest of the app. Chromium is not a preference:
-a WKWebView child view sends a user agent sites answer with their legacy pages, and it can only run
-WebAuthn for domains the app itself is entitled to, so passkeys and modern sites are unreachable there.
-The pane layer is chosen by probing the host's `/desktop/pane` route
-(`apps/web/src/features/threads/panel/preview/desktop/pane-client.ts`), with the iframe Preview layer as
-the fallback, and each target gets its own view and its own partition; nothing sniffs the platform or
-user agent.
-
-**One browser profile for the app.** The pane keeps a single persistent profile — `persist:atlas-browser`
-under Chromium, `persist:<uuid>` on the WKWebView fallback, which only accepts a UUID there — so signing
-into a site once outlives sessions, projects and app restarts. There is no per-project or per-session
-cookie jar, and none of it is shared with the agent's browser.
-
-**A tab's page outlives the tab you are looking at.** Every opened tab in every session keeps its view
-mounted, hidden rather than destroyed (`toggleHidden`), so switching tabs or sessions returns to the page
-where it was, with no reload. A native view paints above the host page and CSS cannot cover it, so the
-native layer masks small popovers (`masks` selectors), hides the whole view while a dialog or sheet is
-open, and pins four fixed clip strips to the panel's rect; the view exists exactly as long as its tab is
-open, so a host reload cannot strand one.
-
-**Agents get a browser too, a different one.** The `browser` tool drives the `agent-browser` CLI that the
-sandbox image bakes in (`infra/sandbox-image/Dockerfile`), one `--session atlas-<threadId>` per
-thread so agents never share a daemon, with page output wrapped as untrusted data. It is Chrome in the
-pod, not the operator's Mac pane.
-
-## Sub-agents
-
-**A sub-agent is a first-class Atlas thread that Atlas spawned**, not `runTurn` called recursively
-with different arguments. It has its own thread row, its own event log, its own loop and its own context window;
-it runs in the background; it is listed in its spawner's Agents pane while it runs; and the operator
-can open it, read it and type into it exactly as they read the main thread. A sub-agent is a
-thread inside its spawner's session, never a session of its own, so the session list (the web
-sidebar) never shows it. A teammate is the exception: it is its own session, managed by the session
-that spawned it, and the sidebar nests it under that session. Every one of those properties
-is already true of a background shell, which is why `harness/src/agents/registry/` reads as a
-sibling of `harness/src/shells/` — the notice queue, the wake path, the ownership scoping and the
-exit guard are the same machinery over a thread instead of a process. When a question here has no
-answer, the answer is almost always whatever `ShellRegistryPort` does.
-
-**Two things distinguish a child from the main agent, and there are no others.** Its tool group:
-`buildChildRunner` filters the parent's registry through `SUB_AGENT_DENIED`, which withholds the
-`agent_*` tools, `subscribe`, `operator_input` and the memory writes — and nothing else, since the
-agent type it was spawned as never narrows tools. Its system prompt:
-`subAgentPrompt` compiles the fragment registry with `EPromptAgent.Sub` and prepends the agent
-type's own prose, which stands in place of the identity fragment — `AtlasIdentityFragment` is the
-only fragment that reads the axis, and it is Main-only, so a child never reads "You are Atlas" and
-never reads instructions about a tool it does not have. Everything else — the loop, the hooks, the
-workspace, the write access — is identical.
-
-### The speech model
-
-**How a child's speech reaches its parent is a property of the agent type, declared once and read
-everywhere — never a branch on the type's name.** `AgentType.speaks` (harness/agents/types) is an
-`ESpeech`. `OnEnd` — the default, every built-in type but one: the ending _is_ the report, so the
-notice wakes the parent, `agentEndingsBlock` renders it to the model as `<agents-ended>`, it counts
-as turn-taking, and the transcript shows the ending line. `ByReport` — `teammate`: the child is a
-peer session whose turns end for reasons of its own, so it speaks only by calling `report_to_main`
-(which lands as `agent-reported` and renders as `<teammate-reported>`). Its `Finished`
-`agent-ended` is still written to the parent's log — roster rebuild, rewind survival, and the
-compaction cut-set all read it there — but it is bookkeeping, recorded as `relayed: false`: it never
-wakes the thread, never renders to the model, and never counts as turn-taking. A teammate that
-`Failed` or is `Stopped` speaks like any other child, so a crashed teammate is never silent.
-Because the event alone must say whether it renders, `relayed: false` rides on the `agent-ended`
-body instead of assembly looking the type up.
-
-**A sub-agent is held, not ended, while it owns a running background bash shell.** When an `OnEnd`
-child finishes a turn with a shell of its own still running, `ChildSteps` leaves it `Running` but
-idle (`steppingSince` cleared), sets `waitingOn` to `bash "<description or command>"`, writes no
-`agent-ended` and queues no notice. The shell's own ending notice wakes the child through intake
-and it steps again; the one `agent-ended` is written when a turn ends with no shell left. Nothing
-else holds a child: services outlive it by design (their notices move to the parent on settle) and
-CI belongs to the main agent. `agent_stop` on a held child, and session close, settle it as
-`Stopped`; a held child whose process died has a spawn and no ending, and rebuilds as `Stopped`.
-Teammates are never held. `waitingOn` crosses the wire on the roster snapshot.
-
-**Saying anything to a settled child restarts it.** There is no resume tool: `agent_say` is the
-retry, and the `<agents-ended>` section for a `Failed` or `Stopped` child says so. The registry's
-internal `resumeChild` remains because relocation restarts children through it. Teammates do not
-message each other; coordination goes through the main agent. `EMessageOrigin.PeerAgent` and
-`EAgentRestart.Resume` stay in the schema so old logs parse.
-
-**One projection decides, and the turn loop trusts it.** `isTurnTaking` (core/agents/kind) is the
-single function that says whether an event hands the turn to the assistant; `awaitsReply` and the
-loop's drain-continuation both read it, so a bookkeeping ending cannot keep a turn stepping past the
-assistant's reply — which is the failure that motivated the seam: a drained bookkeeping event used
-to count as "something changed," and the next step assembled a prompt ending in the assistant's
-own speech, which `exchangeFaults` rightly refuses to send.
-
-**There is no "sub-agent teammate."** The two kinds render distinctly in the transcript —
-"Sub-agent … finished" versus "Teammate … reported" — because conflating them implies a wake and
-a speech path that deliberate-report agents do not have.
-
-**There are no read-only agent types, and that is a decision rather than an omission.** `explore`
-and `reviewer` are briefed by `REPORT_ONLY_CONTRACT` not to change anything, and nothing enforces
-it: an agent type narrows no tools, so the read-only guarantee is a **briefing, not a mechanism** —
-say so out loud, because `filteredToolRegistry` accepting a `maxEffect` ceiling otherwise reads as
-enforcement. What it buys is that a reviewer which finds a one-line fix can simply be told to make
-it, instead of reporting a fix somebody else has to apply.
-
-**Coordination between parallel children is a briefing too.** Builders running in parallel share
-one working tree, and nothing arbitrates which one may touch a file — the contract lives in the
-prompts. The parent decomposes a change into file-disjoint slices and names the files in each
-brief, and a builder that needs a file outside its slice stops and reports rather than editing
-it. `withPathLock` (below) closes the write race between two children, but semantic ownership is
-the orchestrator's job, stated in prose rather than enforced by a claims registry. Git state is
-deliberately unaddressed: no prompt tells a child whether it may commit, so its own judgment and
-the brief decide.
-
-**A child works in the directory the parent was in when it spawned.** The worktree tools are denied
-to children, so a child's own log never holds a `worktree-entered`, and folding it with the process
-launch directory would anchor a child to a checkout the session has since left — its prompt, its
-relative path resolution and the outside-project nudge would all name the wrong directory. The
-supervisor therefore snapshots `projectDirectoryOf` over the _parent's_ log at spawn and hands it
-down as the child's `launchDirectory`, so the fold every consumer already runs lands on the session's
-real directory. The snapshot does not follow a parent that moves worktrees mid-child: children are
-briefed against the directory at spawn and are short-lived.
-
-**What the model has seen of a file is per thread, and delegation is what forced it.**
-`ToolCall` carries a required `threadId` and `FileReadStatePort` keys its views on
-`{ threadId, path }`, so a child reading a file no longer vouches for its parent's write. Sharing
-one map meant a sub-agent's read satisfied the read-before-write guard on a thread that had never
-seen the file — the guard reporting a fact about a conversation that did not hold it.
-
-**The guard is three separate properties, and one verb does not cover them.**
-
-_Exclusion, which eliminates the agent-versus-agent race._ `withPathLock` is a per-path in-process
-async mutex, and `FileWriteGuardPort.underLock` takes the lock, re-verifies against **that thread's**
-recorded view, and only then writes — the whole read-modify-write inside the lock, rather than a
-decision in the hook and a write in the tool with nothing holding the file between. Because every
-sub-agent runs in this one process, that closes the race outright rather than shrinking it. It is
-proven concurrently and not sequentially: two writes raced through `Promise.all` yield exactly one
-success and one refusal.
-
-_Detection, which closes the content-blind predicate._ `FileView` carries a `digest`, and
-`movedSince` consults it only when `mtimeMs` and `size` both agree — precisely the coarse-filesystem
-case the old predicate missed, where a same-size edit inside one timestamp tick read as unchanged.
-Unconditional rather than size-thresholded, deliberately: a threshold would put a silent hole on
-exactly the large generated files a formatter is most likely to rewrite. Measured at 0.8 ms on a
-10 MB file, against tool calls in the tens of milliseconds.
-
-_Neither, for a concurrent external editor._ That one is only **narrowed**. No in-process lock can
-see another OS process, and a pre-rename re-stat was deliberately not added — it would shrink the
-window to a syscall gap and never to zero, which is a worse trade than saying plainly that the
-window exists. `writeFileAtomically` is a fourth thing again, solving neither: it guarantees no
-reader sees a half-written file and that a throwing write leaves the original intact.
-
-**`movedSince` is the single definition of "this file moved"**, shared by the hook and the
-write-time re-verification so the two cannot drift into disagreeing about staleness — which would
-be the worst outcome, a guard that refuses one path and permits the other. One residue is
-accepted: a blind `edit` of a file nothing has read has no recorded view to judge, so the guard
-must allow it. The lock still applies, so two concurrent blind edits both land rather than one
-being silently lost.
-
-The rest follows structurally from being a thread: a thread row carrying
-`agent: { spawnedBy, type }`, a fresh log whose first row is its own `user-said` carrying the brief,
-supervisor-driven stepping that nobody awaits, its own `AbortController` replaced at the top of each
-step, a per-child steering queue drained as `user-said` at the loop's own drain boundary, and an
-ending that lands on the **parent's** log carrying the child's final prose.
-
-**Depth is capped at one by construction, not by a counter.** Denying the agent tools is the whole
-mechanism: `filteredToolRegistry.find()` returns `undefined` for a denied name, so a child that
-emits `agent_spawn` anyway takes the dispatcher's unknown-tool path and is told, truthfully, which
-tools it actually has. Nothing counts hops and nothing needs to. The envelope still carries
-`runId`, `parentRunId` and `depth` — they are load-bearing for run provenance — but "nesting is
-never foreclosed" is no longer the design. Recursion was foreclosed on purpose.
-
-**Nothing per-run belongs in the DI container; wanting a child container is a smell that
-run-varying config got injected instead of passed.** A child's runner is constructed at spawn time
-with its own registry, dispatcher, model and assembly. The supervisor holds a _thunk_ for those
-deps rather than the deps themselves, because `agent_spawn` is a `ToolDefinition` the registry
-constructs and resolving a child's tools eagerly would close the cycle.
-
-**A child is built through `PublishingTurnRunner`, not as a bare `LoopTurnRunner`** — the same
-wrapper the root thread runs under, so `buildChildRunner` differs from the composition root only in
-the deps it hands over. A child that skipped it took its steps in silence: it appended to the log
-and nothing on the `DeltaChannel` ever said a step had opened, so a reader of the child could only
-re-read its log whenever the roster happened to settle, and its transcript could not stream and
-could not show that it was working. Publishing is per `threadId`, which is what keeps this on the
-right side of the counted-never-quoted rule: a child publishes under its own id, and a subscriber
-watching the parent hears nothing.
-
-**The supervisor stamps `steppingSince` when it hands a child a step**, cleared when the step
-settles. `startedAt` is the spawn instant and does not move when a child is steered, so it cannot
-answer "how long has this been working"; the reading has to survive the operator closing the child's
-view and opening it again, which a clock kept in the view cannot do.
-
-### A delegate's work is counted, never quoted
-
-This is the one rule inherited from legacy Atlas, and it was learned the hard way. The old harness
-let a child's prose persist as the parent's own, because frames arrived interleaved on one stream
-and transport was mistaken for authorship — a thread that delegated a fifteen-file sweep _in order
-not to read fifteen files_ ended up with all fifteen reads in its scrollback, and
-`deprecated/tui/scripts/backfill-delegate-prose.ts` exists to delete what that bug wrote.
-
-**Never append a child's events to the parent's log.** New Atlas is structurally immune — a child's
-rows carry the child's `threadId` — and it must stay that way. What the parent gets is one
-`agent-spawned` row, live counts on it, and one `agent-ended` carrying the child's final prose.
-
-**The same rule has a second door, and `agentEndingsBlock` is what shuts it.** Twenty children
-finishing is twenty `agent-ended` rows each carrying prose, so the rule groups _contiguous_ endings
-into a wave and renders one `<agents-ended>` block per wave. The headline states the count and then
-says the quiet part out loud — none of the children's own steps are in the parent's history and
-none are coming, so what is quoted here is all of it. Some endings carry an extra sentence of
-advice, because the status alone invites the wrong response: one the user stopped, one that was
-lost, one that failed on a named error, and any `Failed` or `Stopped` child, which is told to
-`agent_say` to it to retry. Bookkeeping endings (`relayed: false`, including those older logs wrote
-for a child that still held live work) are not rendered at all.
-
-**A wave is spliced in at its anchor, not appended after the conversation.** `mergeBySeq` places
-each block at the seq of the last ending it collapses, so the report sits where it happened,
-between the turns either side of it. There was never a trade-off between conversational placement
-and wave collapsing — a per-event rule would have had the first and structurally could not have had
-the second.
-
-**Its slot in `defaultRules` is load-bearing in both directions.** It runs _after_
-`messagesFromEvents`, because it merges into `input.messages` and there is nothing to merge into
-before that. It runs _before_ `compactedHistory`, because the block carries the anchor ending's
-seq: placed after, an ending that compaction had already replaced would be spliced back in on top
-of the summary that replaced it, and the same report would return forever. Both were verified by
-perturbation, not by reading.
-
-**`agent-spawned` renders as nothing, deliberately.** It is not in `TURN_TAKING` and no rule emits
-it. The `agent_spawn` tool result already told the model what it started, and a second telling is
-noise in the one place noise is most expensive.
-
-**What it has out is stated once per step, rather than left to be asked for.** `agent-spawned`
-renders as nothing and an ending has not arrived yet, so between the two the parent held no standing
-statement that six children were still running — and an agent without one builds it by polling
-`agent_list`. Observed, with six audits out: it announced that it would stop polling and let the
-agents wake it four times, each announcement in the same step as another `agent_list` call, because
-a step carrying any tool call continues the loop and only a text-only step ends the turn. So
-`runningAgentsBlock` appends a tail reminder naming the running children — the sibling of
-`runningShellsBlock`, sharing `appendedAtTail` with it — and it states the mechanism rather than only
-forbidding the poll: ending the turn _is_ the wait, because an ending that lands while nothing is
-running opens the turn that delivers it.
-
-**The roster carries nothing that moves.** agentId, type and intent, and no turn count, no tool-call
-count, no last tool; `agent_list` drops those same counters for a child that is still running and
-keeps them for one that has ended, where the count is part of the report. So two looks at a working
-child return identical bytes. That is the point: a status line that changes on every read is a
-status line that earns another read, which is the loop the reminder exists to end.
-
-### Two lineage axes, deliberately not one
-
-`parentThreadId` / `forkSeq` / `forkMode` record a **fork**. `spawnerThreadId` / `agentType` record
-**supervision**. They are different relations with different meanings and they are stored as
-different columns with different self-relations (`ThreadFork` and `ThreadSupervision`, both
-`onDelete: Restrict`).
-
-Overloading one column for both was the tempting version and it is wrong in both directions. A
-spawned child is not a fork: it inherits no rows, so `inheritedPrefixOf` must not walk to it — and
-it does not, because it terminates on anything but `forkMode === EForkMode.Reference`. And a fork
-is not a delegation: `/resume` lists the conversations the operator started, so `threads-model`
-hides any thread carrying an `agent` while showing every fork, which one overloaded column could
-not express. `ThreadStorePort.fork` accordingly nulls the agent fields on the thread it returns — a
-fork of a child is a conversation, not a second child.
-
-In Atlas Cloud a third relation sits above both: a `Session` owns a main thread, the sub-agent
-threads spawned inside it, and the pod (`CloudSandbox`, `SandboxBootStep`), plus the per-conversation
-fields (project, repo, workspace, execution location, title, pin, archive). A fork starts a new
-session. A teammate starts a new session whose `managedBySessionId` points at its manager's; until
-teammates get pods of their own it runs in the manager's pod, and pod lookups walk that link.
-
-### Agent types
-
-An agent type is a name, the `whenToUse` prose that teaches `agent_spawn` when to choose it, the
-system prompt the child runs under, and an optional `model` pin — never a tool set, because the
-tools an agent holds follow what it _is_, not which type spawned it. Frontmatter lines that would
-narrow tools (`tools`, `disallowed-tools`, `max-effect`) are ignored rather than refused, so a
-Claude Code agent file drops in unchanged. Four ship embedded — `general-purpose`, `explore`,
-`builder`, `reviewer` — and `agent_spawn`'s description is generated from the registered set rather
-than written, because a type the model cannot see is a type that does not exist.
-
-Discovery is the shape `harness/src/skills/` already uses, sharing `splitFrontmatter` and
-`resolveShadowing` with it: embedded built-ins, then `~/.atlas/agents/*.md`, then
-`<project>/.atlas/agents/*.md`, project over user over built-in on a name collision.
-
-**A definition that will not load is refused, not dropped.** A malformed file must not stop Atlas
-booting, but silence is the wrong other extreme: the operator writes an agent type, it never
-appears, and nothing anywhere says why. So `parseAgentType` returns an `EAgentTypeRefusal` —
-empty, bad name, no description, no prompt, unusable model, unreadable — and
-`AgentTypeSource.load` returns `{ types, refusals }` rather than a bare list. `AgentTypeCatalog`
-also reports what was `shadowed`, because a project type silently overriding a user type is the
-other way to be confused about which prose is running. A _missing_ directory stays silent, since
-not having written any agent types is not a mistake; an unreadable one is a refusal.
-
-**`model:` is honoured and validated**, which reverses an earlier deferral. The reasoning that
-deferred it — `modelIsReachable` hard-codes Anthropic, so pinning is pointless — confused two
-things: `compose.ts` already pins the titler and the summariser, so pinning works and the
-constraint is only which vendor answers. A pin that cannot resolve takes the whole agent type as a
-refusal rather than silently falling back to the parent's model.
-
-**The only tool denials are structural.** `buildChildRunner` filters every registry through
-`SUB_AGENT_DENIED` — the `agent_*` tools, `subscribe`, `operator_input` and the memory writes —
-because those are the parent's instruments, not because of the type that asked for the child. A
-teammate keeps them — it runs sub-agents of its own — and loses only `operator_input`. Nothing a
-definition writes adds to or subtracts from either list.
-
-### The supervisor
-
-`AgentRegistryPort` mirrors `ShellRegistryPort` member for member, so the TUI's wake path, notice
-draining and exit guard understood it before it existed. Five facts about the implementation are
-worth knowing because they are decisions rather than mechanics:
-
-**A step is never awaited.** `spawn`, `say` and `resume` return the moment the child exists or the
-step is scheduled; `ChildSteps` tracks the promise only so it cannot reject unobserved. `spawn`
-awaits exactly one thing — the child's thread and its seeded brief — because the id it returns must
-be real.
-
-**Every read is scoped to the spawner**, exactly as a shell is scoped to its owner. A thread cannot
-see, steer or stop a child it did not spawn, and an ending routes to the owning thread's log rather
-than to whichever turn drains first.
-
-**Steering is a mailbox, not an interrupt.** `agent_say` submits running-child steering to shared
-per-thread intake and returns. The child's loop commits it at the next safe boundary, preserving
-its message origin. An explicit message to a stopped child holds automatic wakes while committing
-the queued input and recording the deliberate restart. The operator typing into an open child uses
-the same supervised route; a child's private steering adapter remains only for standalone runners.
-
-**A queued notice wakes a stopped child.** Shell, service and child-report notices address their
-owner. Shared intake resolves a child's driver through the supervisor and rechecks every pending
-source when the roster changes, including when a child finishes. A notice that arrived during
-settlement therefore gets another chance after the child becomes idle. The supervisor reserves
-asynchronous wake startup and checks explicit starts or stops before taking the step. A deliberately
-stopped child (`killedBy` set) is never resurrected by a notice; an explicit message can restart it.
-
-**Ordering at spawn is the invariant, and the transaction covers the child but not the parent.**
-`createWithFirstEvents` writes the thread row and the brief together, so a child never exists
-without its own first `user-said` — without it `awaitsReply` reads the child as nobody's turn and
-its first `runTurn` returns `Idle` without a model call. The parent's `agent-spawned` is a separate
-append, on purpose; why the transaction stops where it does is under attribution below.
-
-**Recovery is lazy and read-triggered, not a boot pass.** `list()` hydrates a thread's roster from
-its own log the first time anyone asks, because hydrating at construction would make a container
-resolve block on disk. `agentRoster` rewrites exactly one status on the way through:
-`Running` becomes `Stopped`, because `Running` is a claim about a process that no longer exists.
-`Blocked` survives recovery unchanged, and the asymmetry is the point — the approval a blocked child
-is waiting on is a row in the child's own log, and it is still there after a restart.
-
-**There is no cap on how many children may be stepping at once.** A spawned child starts
-immediately however many are already running, which is parity with background shells — Atlas caps
-nothing else, and a queue is a second piece of state to reason about at exactly the moment the
-operator wants to know why nothing is happening. The counter-argument was the measured one:
-appends serialize per session on the registry's write queue, so a wide enough fan-out makes
-siblings wait on one another's writes. That risk is accepted rather than denied, and the mitigation
-if it bites is the event-log read path, not a pool.
-
-### The five tools
-
-`agent_spawn` starts exactly one child per call and returns its id at once, never blocking; it
-declares itself concurrency-safe, so a model that emits five spawn calls in one step genuinely fans
-out through `Promise.all`. One agent per call is deliberate: a wave form let a model split one
-completion's output budget across several briefs, and dual-form schemas (flat fields or an `agents`
-array) made models trained on all-properties-required schemas fill in both and fail. `agent_say` steers a running child and restarts a settled one. `agent_list` reports the caller's
-own children. `agent_stop` aborts one, which still delivers an ending. A child gets none of the four.
-
-**`agent_stop` reports two different facts under two different names, and they must not be
-unified.** A child still stepping returns `stopRequestedBy` — a request whose outcome is
-undetermined, because the abort lands after the current step. A child already settled returns
-`killedBy` — a recorded outcome. `attributedStop` is what gates the second on the child having
-actually settled. They can legitimately **disagree**, and that disagreement is the feature: it is
-how a model learns the operator stopped an agent before it got there. Collapsing them into one
-field reads like a tidy-up and destroys the only signal that distinguishes "I asked" from "it
-happened, and not because of me".
-
-### Who stopped it, and how the parent finds out
-
-**A model reading "was stopped" with no attribution assumes it stopped the child itself**, or that
-something failed, and re-spawns it to finish the job — which is exactly the wrong response to a
-human pressing stop. Shells solved this first and the vocabulary is shared rather than duplicated:
-`EKilledBy` carries `User | Model | SessionEnd | Unrecorded`, and both `shellEnding` and
-`agentEnding` phrase every case.
-
-The chain runs end to end. `ctrl+k` while reading a child stops it as `EKilledBy.User`, `agent_stop`
-passes `Model`, teardown stamps `SessionEnd` on anything still stepping. The supervisor records it
-on the child, `agent-ended` carries it, and `attributedStop` drops it on any status but `Stopped`,
-so a child that failed or finished is never described as stopped by anyone. `agentEndingsBlock`
-then adds the sentence the status cannot carry: that the user stopped this one deliberately,
-nothing went wrong, and not to re-spawn it unless asked.
-
-**`Unrecorded` is the fourth member and it is named for what is provable.** Not `Crash`, not
-`ProcessLoss` — Atlas does not observe a process dying, it observes that no ending was ever
-written. It reads as _"was lost before anything recorded how it ended"_: never the word "stopped",
-never an actor, because inventing either would be the same lie in the other direction. The status
-stays `Stopped`, and the advice note tells the parent the work may be half-applied and to check
-before redoing it. The name generalises to any reconstructed ending, not only a crash.
-
-**Reconstruction is explicit, awaited, and separate from reading.** `ChildRecovery` splits the two:
-read-only roster rebuilding stays lazy behind `hydrate`, while `recordLostAgents` — which _writes_
-the missing `agent-ended` — is called once per conversation from `openConversation`, never from a
-render or a `getSnapshot`. Nothing auto-resumes a recovered child. That is the operator's call,
-because one that died mid-`bash` may have left the tree changed.
-
-**A restart is recorded, because an unrecorded one rebuilds as the stale ending before it.**
-A message to a settled child, a queued-notice wake, and a relocation each append
-one `agent-restarted` row to the parent's log before the child steps again. Without it, a process
-that dies mid-restart leaves the parent's log saying the child _ended_ — and the rebuilt roster
-shows that stale ending with its old counts, which the sidebar and `agent_list` then report as
-fact while the model concludes the resume never happened. With it, the rebuild reads an un-ended
-child, `recordLostAgents` settles it as `Unrecorded` on open, and the transcript says what is
-true: the child was restarted and nothing recorded how that ended. A rewind treats a cut restart
-like a cut spawn — the child it revived is a creation of the cut region and is destroyed with it.
-
-**A settled loss needs no second surface, and did not get one.** `settleLostChildren` writes a real
-`agent-ended` carrying `Unrecorded`, `openConversation` does that _before_ reading events, and the
-transcript renders it like any other ending — so reopening a conversation already says a sub-agent
-"was lost before anything recorded how it ended, after N turns and M tool calls". A notice would
-have carried less than that row does and would not have persisted in scrollback.
-
-**The unlogged case is different, and gets a veil panel on open.** A child thread that exists in
-the store while the parent's log holds no `agent-spawned` cannot be rendered as a transcript row,
-because the conversation holds no record to render. So `unloggedChildren` names and times them in
-a report-only panel with no affordance — deliberately no affordance, since `agent_say`
-would answer `unknownAgent` for a child the parent never recorded.
-
-**Healing one by forging the missing row was considered and rejected.** `@@unique([threadId, seq])`
-means a reconstructed `agent-spawned` can only land at `head + 1`, where it would read as a spawn the
-operator made just now — and a rewind to the head would then destroy a child the thread never
-recorded. Fabricating history to paper over a gap in history costs more than the gap. Store-only
-orphans are therefore reported, never invented.
-
-**A rewind that deletes a creation destroys it — after one confirmation.** A cut below an
-`agent-spawned`, a background start, or a `service_start` deletes the rows that record the thing,
-so the thing must go with them: anything less strands a live child stepping into a thread its
-parent no longer records, and recovery would report it as an orphan forever, a false alarm for
-history the operator deliberately cut. But destroying in-flight work is the one rewind outcome
-worth a second look, so `rewindThread` answers a non-empty cut list with `needsConfirmation`
-naming what dies — children, shells and services alike, running or not — and only a confirmed
-rewind proceeds. The supervisor then forgets the child, aborting it first whether it is on its
-first step or resumed, and drops any ending it queued; the store deletes the child's thread in the
-same transaction as the parent's rows, events and turns cascading. A child
-that was forked from cannot be deleted — the fork relation is `onDelete: Restrict` because a
-reference fork reads the child's rows — so it survives detached, its supervision attribution
-cleared, an ordinary conversation rather than a phantom. A child whose spawn sits at or below the
-target keeps its thread, and a thread the parent never recorded (the crash-window orphan above) is
-never touched: removal follows the deleted spawn rows, nothing else.
-
-**The window that produces them is a live trade, not residue.**
-`ThreadStorePort.createWithFirstEvents` makes the thread row and its opening events atomic, so a
-child never exists without its brief — but the parent's `agent-spawned` is deliberately left
-outside that transaction, and it stays outside. `retryOnWriteConflict` re-runs the closure on
-`SQLITE_BUSY`, so a transaction widened across both threads would lose the race against the
-parent's live turn: retrying forever against a `P2002` it cannot clear, or minting a fresh child on
-every attempt. Widening it would convert a crash-sized window into a contention-sized one, which is
-the worse of the two. This is a standing decision to re-argue on its merits, not a gap someone
-forgot to close.
-
-### Not built yet, and the shape each will take
-
-**A message's origin is written but never read.** `user-said` carries an optional
-`via: EMessageOrigin`, resolved through the single `saidBy` reader that defaults it to `Operator`,
-and the spawn brief and every `agent_say` stamp `ParentAgent`. Nothing in production consults it
-yet — it is groundwork for the sub-agent prompt and a transcript label, not a behaviour change.
-Two members and not three: the brief is the parent's voice like any other steer, and its separate
-role as the standing objective is an axis already carried by its position at the head of the log.
-
-**Delegated spend is one thread-level line, not a per-turn column.** A child's turns carry no
-parent `runId`, so attaching their cost to whichever parent turn happened to be open would be an
-invented attribution — and one that double-counts as soon as two children overlap. So
-`forThreadTree` surfaces in the session header, for the thread as a whole: the counter up
-top is the session's cost, sub-agents included.
-
-**It is a tri-state rather than a number.** `ESpendReading` is `Counted` with totals or
-`Unavailable`, and a failed read renders "could not be totalled" rather than zero, because zero is
-a claim and it is the wrong one — it reads as "the sub-agents were free". `readThreadSpend` falls
-back to `forThread` so the thread still opens carrying its own turns, and raises a warn
-notice naming the cause. `SupervisionTreeTooDeep` is unreachable while depth is capped at one; the
-catch exists so that the day the cap moves, the failure is a missing cost line rather than a
-thread that will not open. The catch is insurance, not evidence that the throw is routine.
-
-## Compaction
-
-A long thread walks into the context ceiling, so `assemble` re-deriving the whole prompt from the
-log every step is not sustainable on its own. Compaction is what bounds it, and the shape it takes is
-decided by one question: does it destroy the rows it compacts?
-
-**One thread, one log.** The log _is_ the thread, so every operation that adjusts context acts on the
-current log rather than producing a second thread. Rewind truncates it. Compaction replaces a range of it with a summary.
-A sub-agent may one day inherit its parent's prefix **by reference**, which would be safe precisely
-because that child is read-only over the inherited rows and its depth is bounded by agent nesting
-rather than by how many times a human pressed undo. **Inheritance would be the spawning agent's
-decision, not a property of sub-agents** — a sub-agent sent to read one file wants an empty log,
-while one continuing the parent's line of work wants the context already in it, and only the caller
-knows which. `EForkMode` is the vocabulary for it and the substrate is built.
-
-**None of that is reachable today.** `EAgentStart` ships one member, `Fresh`, and every child starts
-with an empty log holding only its brief. The reason is not caution about the invariants below —
-it is that the spawn site cannot fork at all: a child forked from inside `agent_spawn`'s own tool
-call is refused by `forkTarget`'s `UnsettledToolCall` guard, and bypassing that guard puts the
-parent's dangling `tool_use` in the child's assembled prefix, where `exchangeFaults` fails the turn
-before the model is called. Choosing a fork seq _before_ the call does not help, because a parallel
-batch leaves siblings unsettled at any seq. Reference forking is therefore its own effort, and it
-needs an assembly answer first rather than a store one.
-
-**Forking is the only operation that copies**, because it is the only one whose output is a second
-conversation the user can reach and keep. Copying anywhere else buys storage nobody can navigate to:
-thirty rewinds of a multi-megabyte thread is tens of megabytes of rows with no way to reference them.
-So the operation is `ThreadStorePort.fork({ from, seq, mode, title })`, returning the new thread. It sits
-on the thread store rather than the event log because it has to write the thread row and the event rows in
-one transaction, which is the same reason `rewind` lives there. `EventLogPort.forkFrom` — which only ever
-threw — is gone, and `readOwn` takes its place beside `read`: `read` returns the composed view a reference
-fork implies, `readOwn` returns only the rows the thread itself holds.
-
-**Six invariants stop holding the moment a child inherits rows it does not own**, because two things
-that were true everywhere stop being true: `seq` no longer starts at 1, and `read({ threadId })` can
-return events whose `threadId` is a different thread. An audit of every consumer found these. Five are
-now closed — four of them by the fresh-only sub-agent work, which needed the same guarantees for a
-different reason — and the list is kept because it is the acceptance criteria reference forking will
-be held to:
-1. **Closed. The loop reads `readOwn` for control flow.** `pendingCalls`, `outstandingApproval` and
-   `awaitsReply` all read `rowsOwnedBy` rather than the composed list. Over a composed read they saw the
-   _parent's_ state, and a child forked from inside a tool call inherits an unsettled `tool-called` by
-   construction: it would either pause forever awaiting a tool it never called, or re-dispatch the
-   spawning tool and fork again. An inherited unanswered approval wedges a child the same way, because
-   the answer can only be written on the parent above the fork point, where the child can never see it.
-2. **Closed. A child is seeded with its own `user-said` in the same transaction that creates it.**
-   `createWithFirstEvents` writes the thread row and the brief atomically, and only then does
-   `openChildThread` append `agent-spawned` to the parent; without the brief, `awaitsReply` reads the
-   child as nobody's turn and its first `runTurn` returns `Idle`. The parent's row is outside the
-   transaction deliberately, which leaves one narrow window: a crash between the two makes a child the
-   parent's log never mentions. That is reported, never fabricated — see the sub-agent section.
-3. **Closed, and since loosened. A rewind below a spawn confirms rather than refuses.** The guard
-   began as `ERewindRefusal.UnendedSubAgent`, a hard refusal that stranded the operator whose intent —
-   taking the delegation back — was already clear. `rewindPlan` now names every creation the cut would
-   destroy, and `rewindThread` holds the write until the operator confirms. A child whose spawn sits at
-   or below the target keeps its thread, and its `agent-ended` above the cut is re-appended rather than
-   deleted — the treatment shell and service notices already had, so a surviving source never loses
-   its record. Crash residue — an orphaned spawn, unended forever — is destroyed on confirmation like
-   anything else the cut removes.
-4. **Closed. Both self-relations are declared `onDelete: Restrict`.** `ThreadFork` on `parentThreadId`
-   and `ThreadSupervision` on `spawnerThreadId`. There is still no thread-delete path; when one lands, a
-   cascade would have stripped the parent's rows and left the child silently reading as though it never
-   had a parent.
-5. **Closed. The TUI's fake event log holds many threads.** It keeps rows and heads per thread, reserves
-   sequences per thread, and implements `readOwn`, so a composition test can drive a parent and a child
-   at once. It previously derived `seq` from array length and returned one thread's rows, which meant no
-   composition test could express a sub-agent at all.
-6. **Open, and moot until a child inherits.** An untitled child's sidebar title, turn count and live tool
-   calls would all describe the parent, because `deriveSidebar` reads the composed list. A fresh child
-   owns every row it holds, so there is nothing to confuse today.
-
-Rewind is already guarded: `rewindTarget` takes a `floorSeq` and refuses `BelowInheritedPrefix`, which
-`rewindThread` derives from the thread's own first sequence — not from `forkSeq`, because a **copy** fork
-records a parent link yet owns every row it holds and may legitimately rewind past the fork point.
-
-**It does. Compaction deletes the rows it compacts and puts one `history-compacted` event carrying
-`{ throughSeq, summary, replaced }` in their place, at the sequence the range ended on.** The transcript
-therefore shows exactly what the model can read, which is the property that decided it: a UI that scrolls
-back past the boundary is showing the operator a conversation the agent no longer has, and every question
-"why doesn't it remember that" then has two possible answers. One record, one view.
-
-What that costs, stated plainly: a compaction cannot be undone. The rows are gone, so rewinding past the
-watermark is not a recovery path. The guard is the only protection, which is why it refuses rather than
-truncates when a range is unsafe.
-
-**`context-loaded` is exempt from the delete.** It means "here is the current content of X", not history,
-so compacting it away would strip a thread's `CLAUDE.md` permanently — and `append`'s content-keyed
-idempotency means an unchanged re-offer resolves to the row that is no longer there. The delete therefore
-spares `context-loaded`, the assembly rule renders those messages _ahead_ of the summary, and the
-summariser's transcript render leaves them out so they are not duplicated into the prose. Instructions,
-then the compacted history, then the live turns.
-
-**Compaction has two anchors, and they are not symmetric.** A _prefix_ compaction replaces the oldest
-turns and puts the summary at the high end of the range it replaced, immediately before the survivors. A
-_suffix_ compaction — the operator pointing at a message and saying "summarise from here" — replaces the
-newest turns and puts the summary at the low end, immediately after the survivors. `ECompactionAnchor`
-records which, explicitly rather than by inference, because two things downstream need to tell them apart.
-
-The first is the rewind floor. `compactedThrough` counts only prefix compactions: a suffix compaction
-deletes the tail and leaves everything below it intact, so it must not stop the operator rewinding into
-rows that are still there. The second is the guard. A prefix cut orphans a tool _result_ whose call it
-removed, which the provider rejects; a suffix cut strands a dispatched _call_ whose result it summarised
-away, so the next turn runs the tool a second time. Those are different failures found by different
-projections, which is why `suffixCompactionTarget` is its own function rather than a parameter on the
-first.
-
-`compactedHistory` therefore splices each summary in at its own sequence rather than prepending. That is
-what lets a prefix and a suffix summary coexist on one thread and each read in the right place, and it is
-also why the rule needs no special case for `context-loaded`: those events carry low sequences and fall
-ahead of a prefix summary on their own.
-
-**Only the prompt is shortened; control flow is unaffected.** `pendingCalls` and `outstandingApproval`
-read the log, and the guard refuses any watermark that would strip a tool call while keeping the result it
-answers — so a compaction can never leave a dispatched call the loop would run twice. There is no
-`splits-approval` refusal because approval events never render into the prompt at all.
-
-**Compaction rewrites message content, which costs one cold conversation and nothing else.** Anthropic's
-cache tiers are invalidated top-down: a message-content change drops the messages cache but leaves the
-tools and system entries intact. Since `cacheBreakpoints` spends its expensive 1h marker on the last
-system block, and compaction never touches `system`, the entry worth protecting survives. What does move
-is every message-cache anchor after the watermark, because anchors are absolute positions counted from the
-front — so expect one cold turn, and prefer compacting rarely and deeply over often and shallowly.
-
-**Summarising is I/O, so it is not a rule.** `core/compaction` decides _whether_ a watermark is safe
-(`compactionTarget`) and _where_ it should go (`planCompaction`); `harness/store/compact.ts` performs the
-operation, and the summary itself comes from a one-shot model call shaped like the session titler.
-`core/budget/resolveBudget` is the controller above the pipeline: it re-runs the pure assembly against
-each rung of a recency ladder, measuring candidates by actually re-assembling them rather than by
-arithmetic, and reports `fits`, `compact` or `exhausted`. It is built and tested; nothing in the loop
-calls it yet, so compaction today is the operator pressing the chord.
-
-**Explicit compaction follows the transcript owner.** `CompactionPort` carries `/compact` scope
-and summarise-around anchor/sequence intent. Its local adapter invokes the shared compaction
-functions; its cloud adapter requests the same operation from serve, where the owning harness
-selects the range, runs its compaction model, applies the guards, and writes its own stores.
-The terminal never tries to mutate a cloud transcript through read-only store adapters. Serve
-holds turn admission and intake during summarisation, refuses overlapping history edits in either
-arrival order, and acknowledges operator messages into the pending queue rather than writing them
-mid-summary. Cancellation races the owning model call and is rechecked before writing, so an
-abort-ignoring provider cannot keep history editing reserved or commit a late result. Explicit
-shutdown aborts the summary and waits for mutation settlement before disposing the app; attachment
-loss does neither. Mutations are not replayed after a lost reply, and errors do not claim that
-history stayed unchanged when the commit outcome is unknown. Successful operations buffer a
-reload before the next channel signal, so reconnect and late greet also verify rewritten history,
-including a destructive summary whose head sequence did not change. Protocol version 19 requires
-matching client and sandbox runtimes.
-
-**Compaction guidance arrives with the summary.** The stable system prompt carries no compaction
-notice; `compactedHistory` supplies continuation context when a summary replaces earlier turns.
-
-Server-side context management was priced and rejected for the primary path. Anthropic's `compact_20260112`
-returns an opaque compaction block that must be echoed back on every request, which would put the provider
-in charge of what the model sees and give Atlas a prompt it cannot re-derive from its own log — both
-against the two rules. `clear_tool_uses_20250919` is cheap to reimplement as a pure rule if it is ever
-wanted, and would then work on every provider.
-
-## Advisory code quality
-
-The shared harness composes Code Quality for main agents, sub-agents, teammates and serve sessions.
-Successful direct `write`, `edit` and `multi_edit` calls may carry transient immutable before/after
-text captured under their existing write lock. The source adapter prepares complete named TypeScript
-and JavaScript scopes with the TypeScript compiler; unsupported languages, unavailable source,
-ambiguous scope identity and bounded-size skips are reported as coverage gaps, never clean reviews.
-Shell, MCP and external-editor writes are not attributed by this module.
-
-Registered policies own scope selection, atomic questions, interpretation and deterministic coaching.
-The first policy is single responsibility. In v2 these live in `plugins/quality`
-(`@dltech/atlas-plugin-quality`): the engine in `src/review`, the policy, its questions and their
-interpretation in `src/policies`, and the indicator notice in `src/core`. The v1 harness keeps a frozen
-copy of the same pure logic in `packages/harness/src/quality/core-logic` and does not import the plugin. The engine uses the shared `DecisionPort` and the same gateway-compatible `jev-latest` route as
-other Jev features, not a prose-generating fallback. This alias is not an immutable model version;
-eval artifacts record the requested and returned identities without claiming version-pinned efficacy. One joined review deadline/turn-abort bounds advisory
-work; reviewer faults, invalid drafts and timeouts cannot replace a committed write's successful result.
-The dispatcher returns the result, compact review bookkeeping and any one-step nudge in order.
-
-`code-quality-reviewed` records hold source-free assessments and finding episodes. They survive
-destructive summary and reopen, follow normal rewind/fork history, and do not become transcript rows
-or permanent prompt context. Only a newly notifiable episode emits finite coaching; existing debt does
-not recursively nudge the agent. Workspace namespaces use normalized repository identity plus branch
-and repo-relative worktree identity through the thread's execution backend, not absolute host paths.
-
-Settings register policy toggles from descriptors and read live values. The master switch defaults off
-pending independently verified real-session efficacy evidence; example collection is separately opt-in.
-Examples are local immutable scope records under the owning thread's session data, not retained source
-in event bookkeeping. The settings surface reads shared harness health for the active runtime and
-labels it last-recorded status, not a continuously running scan. The existing protocol 19 already supports strict quality event decoding; integration adds no
-quality-specific frame or compatibility bump.
-
-`evals/` is a development-only shared Evalite workspace. It builds supervised Node adapters that reuse
-production request preparation and interpretation, validates exact case/trial coverage and writes fresh
-artifacts with separate quality, operational-failure and latency dimensions. Default tests and evals
-are fake/no-network; live provider calls require explicit flags and configuration. Synthetic smoke
-proves integration, not policy efficacy. No eval framework enters the shipped TUI or serve dependency
-graph, and an empty real corpus cannot justify calibrated detection claims or default enablement.
-
-## Skills
-
-Skills are authored under `plugins/skills/skills` and discovered through the shared harness's
-skill registry. Project definitions shadow user definitions, which shadow embedded built-ins. A
-skill's description is listed in the prompt; its body is loaded through the `skill` tool only when
-needed. Supporting Markdown files and images are resources, never additional skill definitions.
-
-**Built-in bundles travel inside both binaries.** The shared skill generator emits entry text and
-native Bun file loaders for accompanying resources. Bundle-backed skills materialize into a
-content-addressed directory under `<atlasHome>/bin/skills`, outside discovery roots and inside the
-Atlas-home subtree mounted into Docker. The tool returns that real directory so ordinary file tools
-can read relative reference and image paths. Text-only built-ins retain their existing behavior.
-Neither a source checkout nor the original PDF/video package is required at runtime. A failed
-bundle load reports a warning through the session's notice port and leaves other built-ins available;
-standalone sources report to the console. Test-owned Atlas homes are removed after each test so
-materialized bundles do not accumulate across fixture runs.
-
-**`ui-design` is the default UI entry point.** When it is model-invocable, the shared skill-listing
-fragment instructs main agents, sub-agents, and teammates to load it for UI design, implementation,
-changes, and review, alongside relevant specialized skills. This standing instruction is independent
-of the optional relevance hint, not a tool-execution gate or a new setting. Existing skill shadowing
-and model-invocation controls still apply. The skill routes directly to focused references rather
-than preloading its source library; source text, page images, palette data, and timestamped
-walkthroughs remain available on demand.
-
-## Memory
-
-Memory is rows in Atlas Cloud, reached only through tools. A `Memory` row has a scope (`global` or
-`project`), a project key (the GitHub `owner/repo`, lowercased, derived from the normalized origin identity
-and empty for global rows), a `name`, a one-line `description`, a `type` (`user`, `feedback`, `project`,
-`reference`), a `body` and a `revision`. Nothing lives on disk and nothing lands in the repository. A session
-with no GitHub remote has no project scope: project calls fail with a plain reason and global memory still
-works.
-
-**Four tools, one port.** `read_memory`, `write_memory`, `edit_memory` and `delete_memory` call a harness
-`MemoryPort`. `CloudMemoryPort` is the implementation for every session kind: in a pod it authenticates with
-the serve token, locally with the Atlas Cloud session. There is no cache and no offline mode — signed out,
-the tools refuse with a reason and the index says memory is unavailable.
-
-**The name is the memory's identity.** A memory named for the claim it makes (`bun-deflate-is-raw-not-zlib`)
-is superseded by writing that name again, which upserts and bumps the revision. This is the cheap version of
-a result from the shared-memory literature: contradictions are on average _more_ similar to the original than
-duplicates are, so no similarity threshold separates "restates" from "overturns" — you need a stable identity
-key instead. `edit_memory` carries the revision the model read and the server refuses a stale one, so a
-concurrent writer is never silently overwritten.
-
-**The index is rendered, not stored.** Core's pure `renderMemoryIndex` turns `list()` into a global section
-and a project section, capped at 200 entry lines with a line telling the model to consolidate when it
-overflows. A `LoadMemoryIndexHook` loads it once per session — on the first turn, retried on a later turn if
-the load failed — and `MemoryFragment`, a volatile prompt fragment, puts it in the system prompt under the
-standing memory instructions. It is deliberately not refreshed after the model's own writes: the model knows
-what it wrote, and a refresh would break the cached prefix on every save. A new session loads it fresh.
-
-**Sub-agents read but never write.** `MemoryFragment.applies` withholds the instructions from
-`EPromptAgent.Sub`, and the child runner denies a sub-agent `write_memory`, `edit_memory` and
-`delete_memory` while leaving `read_memory`, so several children finishing at once cannot become
-concurrent writers. Teammates are full sessions and keep all four.
-
-Memory is data, not instruction. The fragment says so in as many words, because the failure mode is not only
-a poisoned entry — a benign memory recalled out of context will happily dictate tool calls it was never
-meant to.
-
-Not built: extraction at turn end. `AfterTurnHook` is wired and has no implementations, and it fires only
-on cleanly Completed turns — never on an interrupt, which is exactly where corrective feedback lives. Nor
-is there a relevance selector; `titleFor` and `summaryFor` show the shape an out-of-band call would take,
-and a Haiku model is already provisioned, so the seam is there when the index stops being enough.
-
-## Three timelines
-
-| Timeline                                                | Owner                                | Restored by                   |
-| ------------------------------------------------------- | ------------------------------------ | ----------------------------- |
-| **Thread** — messages, reasoning, tool calls, approvals | EventLog (per-session JSONL)         | move the thread head          |
-| **Control** — pending tool, retries, interrupt reason   | _derived from the log_               | re-read the log               |
-| **World** — files, git index, worktree, subprocesses    | Execution ports and external systems | not restored by thread rewind |
-
-The middle row is where frameworks want to sell you a checkpointer. We don't have one because we
-don't need one.
-
-Rewind moves the thread head and, after confirmation, destroys creations cut from the conversation.
-It does not restore file contents or the Git index. Fork creates a new thread with copied or referenced
-history; neither operation treats a historical snapshot as authority over the current workspace.
-Tool dispatch carries `idempotencyKey: ${runId}:${callId}` independently of these history operations.
-
-### Where the session is, is its thread
-
-There are two directories, and they answer different questions.
-
-The **launch directory** is fixed for the life of the process: it is what `--cwd` named, and it is
-the only one held in the container, as `WorkspaceRoot`. The **project directory** is where the
-session is working — the session's home directory, or the worktree it has entered. Home starts as
-the launch directory and moves only when a `worktree-exited` records a `returnTo`, which is what
-leaving a worktree the session was _launched_ inside does: the session is re-homed to the
-repository's main checkout rather than sent back to a checkout it just left. The project directory
-is the single anchor: it anchors `.atlas/settings.json`, project skills, the instruction-file
-descent, every relative path a tool is given, and the directory every bash command starts in.
-
-There is deliberately no second, movable directory. A shell that can `cd` its way somewhere the file
-tools do not follow gives the model two roots to keep straight, and the only way to make that
-survivable is to keep telling it which is which. opencode and pi both refuse the split — one
-anchor, and the shell is told where to run rather than allowed to wander. Atlas follows them.
-Claude Code takes the other branch, letting one cwd move and paying for it in validation: seven
-read-back rejections, forced approval for compound `cd`, per-subagent cwd pinning.
-
-`bash` therefore takes a **`workdir`** parameter instead of tracking `cd`. It is a declared
-`EPathForm.Absolute` path field, so `ResolveProjectPathsHook` resolves it against the project
-directory like every other path, and a command runs where it is told without anything being
-remembered afterwards. A `cd` inside a command still works, and still moves only the process that
-ran it — which ends with the call.
-
-The project directory is not held anywhere: it is
-`projectDirectoryOf({ events, launchDirectory })`, the path of the last unclosed `worktree-entered`
-in the log, falling back to `homeDirectoryOf` over the same log — the latest `returnTo`, or the
-launch directory when no exit has recorded one. That fold sits in the Thread row so that
-rewind, fork and resume agree about it without a second record to keep in step; a mutable holder in
-the container would have been the checkpointer the two rules exist to refuse. `enter_worktree`
-moves it the only way anything moves here — tool output an `AfterTool` hook turns into an event,
-never a setter.
-
-A session _launched_ inside a worktree holds no `worktree-entered` at all, so "is this session in a
-worktree" cannot be read from the log alone — the old guard did exactly that, and such a session
-could never leave. When the log is silent, `exit_worktree` asks git instead: `probeWorkspace`
-resolves the launch directory's toplevel, and `repositoryAt` confirms that toplevel is a listed
-linked worktree — which also keeps a launch inside a submodule from being misread as a worktree of
-its superproject. The exit stamps `returnTo` with the main checkout, releases the lock
-`claimLaunchWorktree` took at boot, and treats the worktree as adopted for removal: Atlas did not
-create it, so `remove` downgrades to `keep`. From then on the home fold is what every later exit
-lands on, so entering and leaving further worktrees returns to the main checkout, not to a
-worktree the developer already watched the session leave.
-
-Resolving tool paths against the project directory is also what makes rewind honest. A path resolved
-against a cursor the conversation can move means a different file when the same log replays from a
-different point, and the log is supposed to be the one record. `ResolveProjectPathsHook` makes every
-declared `EPathForm.Absolute` field absolute at `EStage.Guard, nudge -1` — before anything downstream
-keys on a path, so read-before-write cannot see the same file under two spellings.
-
-Shells are spawned fresh per call, so nothing in the process survives it — an exported variable, a
-shell function, a background job, a `cd`. Nothing is tracked out of band to make the directory an
-exception.
-
-**Workspace facts stay outside the system prefix.** The system prompt describes execution at a
-high level; runtime reminders supply the effective project directory, active worktree, and current
-execution location. A worktree or host/Docker transition keeps system text and prior conversation
-messages unchanged, preserving the reusable prefix of a long conversation. `cacheBreakpoints` still
-marks the last stable system block and conversation anchors. The date changes daily; deliberate
-model, skill-roster, or instruction changes can still invalidate cached prefixes.
-
-**A worktree is either created or adopted, and the difference outlives the entry.** `enter_worktree`
-takes `name` or `path`. `name` cuts a new branch from a freshly fetched origin default and is Atlas's
-to dispose of. `path` adopts one that already exists — including one the developer made by hand, and
-including a switch straight from another worktree — so there is no base it was cut from, only an
-upstream it may track, and the entry reports what it walked into: the branch, that upstream, and what
-is uncommitted or unpushed there. Adoption also refuses what is not a checkout to work in: the
-repository's own main checkout, a bare worktree, a prunable one, a detached HEAD.
-
-`worktree-entered` therefore carries `adopted`, and `base` is optional because an adopted worktree
-may have neither an upstream nor a base. That flag is the whole point of recording it: `exit_worktree`
-will not remove a worktree Atlas did not create, whatever action it is asked for, because a clean
-fully-pushed checkout passes the uncommitted-work guard and would otherwise be deleted along with its
-branch. Tools learn it the same way they learn the project directory — `settle-pending` folds the log
-into an `ActiveWorktree` and a home directory and hands both down with each dispatch, so rewind and
-fork agree about ownership as they already agree about location.
-
-That fold is also what makes the removal guard honest. "Commits you would lose" is unanswerable from
-the worktree alone: with no upstream set, counting `<branch>..HEAD` compares the branch against
-itself and always yields zero, so a branch cut from a local `main` in a repository with no origin
-reported clean and was deleted with its commits. The ref the branch was cut from is only knowable at
-creation, which is exactly what `worktree-entered.base` recorded and had no way to reach the exit
-until the fold carried it there.
-
-**The worktree lock protects against deletion, not against sharing.** Entering claims it with `git worktree lock`, whose
-reason is a legible ownership token — `atlas thread <id> (pid <n> start <t>)`. The start time is
-load-bearing: a pid alone is reusable, so a recycled pid would read as a live owner forever. It is
-read from `ps`, falling back to `/proc` so a sandbox image without `ps` (or a Cloud sandbox, where
-pids recycle across restarts) still writes a comparable start time. Reading
-it back is a four-way verdict rather than a flag check, and only the pure part lives in `core`
-(`worktreeLockHolder`) with the process probing in `harness`, because "is that pid alive" is I/O and
-"what does this reason mean" is not.
-
-A lock this session already holds is ours. A lock naming a live process is left in place and the
-session enters as a guest: several sessions may work one worktree in parallel, and the reply tells
-the model another session is there so it commits only its own files and pulls before pushing.
-A lock naming a process that is gone, or whose start time no longer matches, is stale and gets
-cleared and retaken. Anything that does not parse as an Atlas token is a person's own
-`git worktree lock`, which is left exactly where it is while the session works in the worktree as a
-guest — the same as when the registry cannot be read at all. A guest never unlocks what it did not
-lock, so the holder's protection outlives the guest's exit, and `exit_worktree remove` fails on a
-worktree another live session holds because git will not remove a locked worktree without a second
-`--force`.
-
-Leaving releases the lock, and so does switching straight to another worktree, so the one being left
-does not stay wedged. A thread whose ending is recorded hands back any worktree it claimed of its
-own — in a shared serve process the whole thread family is one pid, so a teammate's claim would
-otherwise outlive the teammate by the lifetime of the process. A cloud birth releases the origin
-checkout's claim: the session now runs in the sandbox, and the origin's
-release paths never fire again. Removal releases first because git will not remove a locked
-worktree — which is also the cost of this scheme: a session that dies takes its lock with it, and
-the checkout stays locked until some later Atlas session reclaims it or the developer runs
-`git worktree unlock`.
-
-Thread opens re-claim under one exception. A teammate spawns in its spawner's worktree by
-inheritance, and while it has not moved out of it the spawner's own claim already covers it — the
-thread's open claims nothing, so the lock label is never rewritten per thread. Once the teammate
-enters its own worktree it claims like any other thread. The guest report fires at most once per
-directory per process, so opening several children that all sit where another session holds does not
-pile the same warning into the transcript.
-
-It is a rule over the log rather than a `context-loaded` event on purpose. An event renders at its own
-seq, so a move at seq 13 of a 133-event thread scrolls away and the model is left inferring its own
-location — which it answers by defensively prefixing `cd <abs> &&` onto every command. Supersession
-would not have saved it either: it is keyed on `(slot, key)` in the projection and on a content digest
-in the store, so an A→B→A walk cannot re-file the notice at the tail.
-
-Neither directory walls the filesystem off. There was a containment guard that refused any declared
-path outside the project directory, and it was deleted rather than kept: `bash` declares no path
-fields, so it never applied there, and an agent that can `cat` a file it may not `edit` is being told
-which tool to use, not being made safe.
-
-What stands in the wall's place is a nudge. `OutsideProjectHook` watches successful calls with
-`EToolEffect.Write` — `write`, `edit`, `multi_edit`, and any future file tool, since the gate is the
-effect and a `path` in the input rather than a name list — and when the target lands outside the
-project directory, and outside the temp roots and the dot-paths straight under home (where memory,
-skills and one-off config writes legitimately live), it returns `additionalContext` naming the path
-it wrote and the session's actual directory, and pointing at `enter_worktree`. The decision is pure
-(`core/policy/outside-project`), so the exemption list is tested rather than remembered, and the
-delivery rides the `context-loaded` seam, so a repeated slip to the same path dedupes instead of
-stacking.
-
-**Two stores sit outside all three timelines, and neither is ever read back to rebuild state.**
-
-The **spend ledger** is one `Turn` row per turn: token counts in four tiers, the model that billed
-them, the terminal status, and the span. It is accounting, so it is deliberately not a timeline — no
-rewind consults it, and a failed write is reported and swallowed rather than failing the turn. It
-stores tokens, never money: cost is derived from the counts and `modelId` at read time, so a
-corrected rate applies to history instead of only to turns run after the correction. Cache reads and
-cache writes are counted _inside_ `inputTokens` rather than on top of it, which is why
-`contextTokens()` sums input and output alone and the ledger keeps all four tiers — "how full is the
-window" and "what did this cost" are different questions over the same numbers.
-
-Recorded status is a plain string, not `ETurnStatus`, and that is load-bearing twice over. A turn
-that throws out of the loop records `crashed`, which is not a `TurnOutcome` any caller can return —
-conflating it with `Failed` would make the ledger lie about whether the turn ended or died. And the
-ledger settles from a `finally` around the loop rather than before each `return`, because the loop
-has nine terminal exits and a tenth is one refactor away.
-
-The **raw tape** is every provider stream part, verbatim, as JSONL — tapped _above_ `toCoreChunk`, so
-a part the conversion drops to `null` is still recorded, which is the failure class the tape exists to
-catch. Off unless `ATLAS_RAW_TAPE` is set, one file per process, closed by the disposal registry
-rather than by the stream function that taps it. It rotates at a segment cap instead of falling
-silent, and marks its own ending: `rotated` names the next segment, `closed` means orderly teardown,
-and no marker at all means the process died hard and a flush window is missing. Nothing reads it
-back — it exists because the conversion layer is ours, and `core-contract.md` already documents two
-traps in it that are only diagnosable against the original bytes.
-
-## Durable events vs streaming
-
-Durable events are **coarse** — one `assistant-said` per model step, not one per delta. Writing every
-token to the log is absurd.
-
-Live streaming goes to an in-memory channel the UI subscribes to, replaced by the durable event when
-the step completes. So the UI has two inputs: the log (history, authoritative) and the delta channel
-(the current step, ephemeral). `OnChunk` hooks run on the channel — which is why redaction ordering
-there is a security constraint, not a preference.
-
-An append that closes no step still says so, as `events-appended`. Otherwise a message steered into a
-running turn is durable the moment the loop drains it but invisible until the next step ends, and the
-operator watches what they sent disappear for the length of a model call.
-
-## Startup
-
-The renderer comes up **before** the harness does. `bootAtlas` starts `openSession` — compose the
-container, read credentials, register grammars, open the conversation — and then, without waiting on
-it, creates the `CliRenderer` and renders `BootScreen`. What fills the terminal for the length of the
-boot is the curtain, not an empty screen and not a half-built workspace.
-
-Two ordering rules hold that together, and both are load-bearing.
-
-**Appearance is applied before anything mounts.** `openSession` resolves the accent and the block
-density out of the settings snapshot and writes them into the live palette while it still holds the
-terminal alone. Applied from an effect instead — which is what `useSettings` alone did — the first
-committed frame paints in the shipped clay at comfort density and the next one corrects it, a
-whole-screen repaint of a screen the operator has already started reading. `useSettings` still
-applies appearance on every change, because a setting edited at runtime has to land; it is a no-op
-when the value is already the one in force.
-
-**The workspace mounts under the curtain, not after it.** `BootScreen` renders `<App>` as soon as the
-session is ready and holds the curtain over it until the ink has laid down and the workspace has had
-a beat to settle. So what the curtain hides is real settling — sticky scroll finding the bottom,
-tree-sitter highlighting arriving off-thread — rather than work deferred until someone can watch it.
-
-`<App covered>` takes the composer's focus with it: the terminal cursor is not part of the character
-grid, so a focused textarea would draw its caret straight through the curtain. It swallows keys for
-the same reason — while the curtain is up the only key that reaches anything is the one that lifts
-it. Before the harness exists nothing can lift it at all, because there would be nothing behind it;
-only ctrl+c is answered there, since the renderer holds raw mode from the first frame and a boot that
-hangs must still be abandonable.
-
-`ui/startup-model.ts` owns the choreography as pure data — ink, hold, lift, gone — so the timing is
-tested without a terminal, and `Startup` only draws whatever frame it is handed.
-
-**The curtain lifts onto a conversation that does not exist yet.** A launch with no `--resume` and
-no `--continue` gets an `unstartedConversation`: a `ThreadId` handed out by `IdPort` and nothing
-written. `openConversation` no longer calls `threads.create`, and neither does `/new`. The first
-drafts open the thread and land in the same transaction, through
-`ThreadStorePort.createWithFirstEvents` carrying the id already in play — the same primitive a
-sub-agent's thread is opened with. So a session someone opened, looked at and closed leaves nothing
-behind, and `/resume` lists conversations rather than the empty rooms of every launch since.
-
-That makes the welcome screen a state rather than a block in an empty transcript. `ui/welcome-state.ts`
-decides it from what is on screen — nothing said, nothing streaming, no failure, not addressing a
-child — because a resumed thread rewound to zero is as unstarted to look at as one never written.
-While it holds, the sidebar is not merely empty but absent, the transcript is not mounted, and the
-wordmark and composer are centred with the whole terminal to themselves, picking up where the boot
-curtain's own centred wordmark left off. The title of a conversation is asked for the moment the
-first message is sent but written only once the thread that carries it exists, since that thread is
-opened by the very turn the title was taken from.
-
-## Credentials and accounts
-
-Atlas holds **accounts**, not a credential. One per login, several per provider, each with a status
-and a label, and one of them marked as the one that answers for its provider. `AccountStorePort` in
-`core` is the contract; the vault is `~/.atlas/auth.json` at mode 0600, written temp-and-renamed,
-with every secret sealed by aes-256-gcm under `~/.atlas/key`. A file rather than the OS keychain,
-because the keychain is one platform's and the vault is not.
-
-Every client that manages accounts manages all of them: the TUI's accounts drawer and the web/Mac
-Providers page list each login a provider holds, switch which one answers, and add another by
-signing in again. The mobile app carries no provider management; it edits model defaults only.
-
-**The model port asks for a credential per request.** `createAnthropicOauthModel` resolves one inside
-`doStream`, so a token that goes stale mid-session is refreshed by the next step rather than failing
-the turn — nothing above the port has to know a refresh happened.
-
-Credential decisions are pure and live in `core/credentials/`, tested with plain data:
-- `refreshDecision` — fresh, due inside a five-minute skew, or unrefreshable.
-- `chooseAccount` — which account answers. An `expired` account is ranked last but never excluded,
-  because a refresh is the only thing that clears that status and excluding it makes the door
-  one-way.
-- The provider registry — what each provider supports, how one signs in to it, and which
-  environment variable carries its key. Anthropic, OpenAI, OpenRouter and inference.net are all
-  wired and answer `reachable: true`; a provider only dims to `⚠ no key` in the switcher once the
-  accounts say nothing holds a key for it. The switcher dims the row but keeps it listed, since its
-  keyboard rows are a fixed ladder; the web and mobile pickers do not list a provider's models at
-  all until one of its accounts holds a key, and a thread already on such a provider keeps only its
-  own model, marked `no key` so it reads as the reason the turn cannot run rather than as a choice.
-
-**One provider OAuth grant has one refresh owner.** Before cloud handoff, the local vault owns
-renewal. Signing in to Atlas Cloud transfers Atlas-native Claude/Codex grants to dedicated encrypted
-OAuth connections in the API. A persistent authority marker in the local OAuth secret fences local
-refresh before upload; the same connection ID makes retrying a lost handoff response idempotent.
-After acceptance, the local refresh token is removed. Local sessions and detached sandboxes obtain
-access tokens from that authority; model requests still go directly to the provider.
-
-**Cloud ownership is not sign-in state.** The authority marker survives signout, API outages and
-process restarts. A usable cached access token may keep working until expiry; without renewal,
-Atlas reports the affected connection rather than refreshing an obsolete local seed. A fresh native
-provider login creates a new grant and can be handed off again. API keys, ordinary secrets, settings
-and the user MCP configuration remain local unless explicitly backed up or transferred.
-
-**Refresh exclusion precedes provider redemption.** The API claims a durable refresh attempt before
-sending the issuer request, using the connection generation to fence competing replicas. Contenders
-reread the stored successor rather than redeeming the predecessor. A delayed refusal of an older
-access token cannot force another rotation. Refresh begins before expiry; the margin is capped for
-short-lived tokens. A lost response or crashed attempt is uncertain, not permission to retry the
-same refresh token. Reauthorization recovers a grant whose successor cannot be proven.
-
-**A cloud birth carries access-only authority references.** Renewable provider grants never enter
-the portable snapshot. A sandbox receives a narrowly scoped assignment to the carried connections
-before its serve runtime starts; its own sandbox token can request those access tokens, not read the
-operator's account/secret backup endpoints. Provider OAuth across a cloud birth requires Atlas Cloud
-handoff. An API-key-only birth retains its API-independent path. MCP OAuth credentials remain local
-and excluded from detached snapshots; provider ownership does not silently change the separate MCP
-OAuth flow.
-
-**Atlas does not import or synchronize other tools' logins.** Claude Code and Codex credential-store
-readers and token write-back are removed. Atlas uses its own native browser/device sign-in flows.
-Legacy CLI-imported rows require fresh Atlas authorization before cloud management, without deleting
-or revoking the external CLI's credentials. Environment API-key discovery remains supported.
-
-**Upgrade and re-birth older sessions.** The account vault reads version 1 and writes version 2;
-older Atlas builds refuse the newer vault instead of ignoring its ownership marker. Update running
-local clients before handing off OAuth. Existing sandboxes with old access-only snapshots install
-authority references on their next rebirth — a session that never returns to the cloud keeps its
-legacy path until the sandbox is retired. Fresh native logins while signed in replace
-the grant behind the same connection using an authorization-ID fence, so current sandbox assignments
-survive and old refresh workers cannot overwrite the new login.
-
-The provider-support and synthetic-evidence limits in `docs/research/local-first-token-refresh.md`
-remain relevant: centralized rotation solves coordination, not provider eligibility or atomicity
-between an issuer's token endpoint and our database.
-
-**Cloud sync is explicit backup and transfer.** Upload and download copy accounts, secrets, user
-settings and MCP configuration only when the operator requests them. A failed sync leaves local
-operation intact. Existing cloud-only installations recover their data through an explicit
-download; previously archived local files are restored without replacing live files. Memory is
-not a synced domain: it lives in Atlas Cloud and pods read it through the memory tools.
-
-**Sessions originate on the operator's machine.** An iOS remote-control client asks a connected
-laptop to start a session; an offline laptop cannot receive that request. The laptop asks Atlas
-Cloud for the Vercel sandbox, and the API provisions it on the platform's own Vercel account and
-hands the session's configuration and copyable credentials across at birth. Atlas Cloud owns
-identity, remote-control rendezvous, thread discovery, PR/CI webhook delivery, cloud-managed
-provider OAuth renewal and sandbox provisioning, not the model request path. Unsigned local-only
-accounts and API-key credentials do not require the API.
-
-## Pods
-
-A pod is the external runtime a session runs in, local Docker or Vercel. v2 has no flag: every
-new thread is born in one. The v1 `experimental.pods` row lives in
-`packages/harness/src/settings/v1-only-definitions.ts`. `docs/pods.md` describes how pods are born, boot, park and are
-secured, and what they pull from Atlas Cloud. `docs/decisions/` holds one record per durable
-decision behind them. Where the cloud-birth sections below disagree with `docs/pods.md` about what
-crosses at birth, `docs/pods.md` is current.
-
-## Born-placed sessions and the cloud birth
-
-Sessions are born-placed: a thread starts where it is created — the cloud when this machine can
-provision a sandbox, the host otherwise — and it never moves afterwards. There is no lift and no
-descend: the workspace tar capture/upload/restore subsystem, the transcript-archive lane, and the
-move engine that sequenced them are deleted. `/container cloud` on a host-born thread refuses and
-points at `/new`; a cloud-born thread answers every `/container` target the same way. The only
-switch left is the tool environment of a host-born thread (host ↔ docker), which moves no
-conversation state.
-
-A cloud birth carries exactly three things, all across machinery that predates the deletion. The
-workspace spec (`workspace-spec.json`) names the repository's remote URL, and the sandbox clones
-the default branch from origin credentialed by the brokered GitHub token (`gh auth token` handed
-over the wire, disarmed from the remote URL once the clone lands). No local files, git state,
-worktrees, or uncommitted work cross: the remote is the only truth at birth, so a stale or dirty
-local checkout cannot leak into the cloud. Portable state (`local-state.json`) carries vault
-accounts, secrets, `settings.json`, and `mcp.json`, staged in the sandbox and installed into the
-sandbox's Atlas home before serve composes. The OAuth handoff rides the Cloud API as before.
-Portable state and the context archive are deleted: a pod now pulls its accounts, settings and
-secrets from Atlas Cloud at boot, its MCP servers from the Cloud account and project MCP
-rows plus the repository, and its skills and instructions from the `atlas push` bundle ([pods](pods.md)). There is no transcript at birth — the thread's history
-starts in the sandbox.
-
-A birth that cannot finish — the credentials missing, the sandbox refusing, the attach failing —
-falls back to a host birth and says why. The cloud chip retires itself the first time the thread
-is spoken into; until then the operator can flip the unstarted thread between host and cloud.
-
-## Workspace layout in the sandbox
-
-A cloud birth clones the primary repository at `/atlas/workspaces/<repo-name>`, using the repo's
-directory name, and agents can clone additional repositories beside it under `/atlas/workspaces`.
-Those adjacent clones are ephemeral: sandbox teardown deletes them, so their work must be pushed
-or moved into the primary repository. Worktrees the session creates hang beneath the primary
-repository and live and die with the sandbox's filesystem.
-
-Work that never gets pushed dies with the sandbox. The sandbox's persistent filesystem is the only
-retention — deleted seven days after the last recorded activity by the startup reaper — and there is no sync-back:
-the agent pushes branches, and the operator pulls them. This is documented, not engineered around.
-
-A harness-owned session owner selects the complete runtime binding: runner, channel, stores,
-registries, workspace anchor, and message intake. Location chrome reads the same owner. The
-placement record commits at birth and is never rewritten afterwards; a placement flip is not a
-log append, so the TUI republishes on the placement change rather than waiting for an event.
-
-## Cloud execution lifetime and attachment
-
-Serve diagnostics append to `/atlas/home/operational/atlas-serve.log` on the sandbox filesystem,
-alongside durable session data, so a stop and resume preserves prior boot and turn evidence.
-The serve binary, token, PID and process lock remain under `/opt/atlas` on the runtime filesystem.
-
-User skills also live under `/atlas/home`: Atlas skills under `/atlas/home/skills`, compatibility skills
-under `/atlas/home/.agents/skills` and `/atlas/home/.claude/skills`. Serve configures the shared
-harness's user skill home to `/atlas/home`; local sessions retain their ordinary OS home. This
-changes only skill discovery, not shell home, credentials or agent-type discovery. Returned skill
-and asset paths point at the persistent locations, so edits and deletions there survive recreation.
-Cloud installers must target these persistent roots (or use `skill_install`); new files placed only
-under the sandbox's ordinary `$HOME/.agents/skills` or `$HOME/.claude/skills` are not discovered.
-
-The context receipt records this persistent skill layout. Older receipts trigger compatibility-only
-recovery: surviving ordinary-home skill roots are imported, and absent roots recover from the
-bootstrap archive or legacy bundle. Present roots are authoritative even when empty. Existing
-persistent files win, and recovery never replays instructions, MCP configuration or Atlas
-skills. Failed recovery remains retryable without upgrading the receipt. A current receipt skips
-bootstrap replay, preserving runtime changes. Compatibility edits already lost with an older
-sandbox's ephemeral home cannot be reconstructed beyond the original bootstrap copy.
-
-A cloud client owns its attachment, not the execution it observes. Closing, restarting, or losing
-that client cannot interrupt the sandbox's turn, children, shells, or services. Local process shutdown stops agents and services but detaches durable shells by default;
-actual sandbox destruction still stops sandbox processes. Explicit stop
-and rewind remain execution controls, never consequences of transport recovery.
-
-Runtime upgrades are a harness-owned recreation ceremony, not a drift warning. An outdated
-runtime is drained at a confirmed family-pause seam: parent commits and
-the current model/tool step finish, every descendant pauses or genuinely completes, and their
-outcomes persist before preparation is acknowledged. Queued inputs and endings are appended before a final checkpoint and preparation
-receipt are written to the sandbox's `/atlas/home`. Only then may the client swap serve in place on
-the same sandbox and attach. Progress is
-projected by the TUI; pause, persistence, and recovery belong to the harness and serve.
-
-An absent socket, a timeout, an unsupported preparation endpoint, or failed persistence is never
-permission to destroy a live sandbox. The client checks the preparation capability before asking
-an older serve to drain, and verifies a saved receipt naming the current provider session before
-deletion. A lost HTTP reply can be repaired by reading that receipt. A stopped provider session
-can be replaced without executing its old runtime. Build-version drift and protocol mismatch use
-this same ceremony; the protocol check is independent of release-version pinning.
-
-Parking requires thirty continuous minutes without outstanding work: turns, children, shells,
-services, queued intake, and durable settlement all prevent it. Admission closes before the final
-idle check and metadata capture, so newly submitted work cannot race shutdown. A normal park
-stops nothing in flight because there is nothing in flight.
-
-Sandbox lifecycle, client connection, and transcript freshness are independent facts. Provider
-inspection does not wake a sandbox. Transport loss marks the client projection stale, not the
-agent failed. Reconnection clears staleness only after authoritative history has been applied.
-
-Operational metadata lives outside conversation history and never stores loop position. A
-recreation intent records only whether automatic continuation is owed. The replacement reads it
-before autonomous child adoption or intake wakes, resumes the parent and children from their
-authoritative logs, and retains that intent until a real terminal outcome is durable. An intent
-still being prepared is distinct from the sealed receipt that permits source destruction.
-Serve persists a versioned checkpoint under `/atlas/home`, identifying its runtime, provider session,
-and transcript identity. Progress and finalized idle parking are distinct reports. An optional
-API mirror stores reports without controlling execution or making successful publication a
-condition of parking. Missing or unreliable metadata means freshness is unknown.
-
-A finalized parking report can prove an already-applied client transcript complete only for the
-same provider session, with a matching full-history identity. Sequence equality alone is not
-proof: rewinding and regrowing history can reuse a head. A parked runtime does not reopen work in
-that provider session after publishing its finalized report; waking requires a new session.
-
-## Which model answers
-
-**Two preferences, one picker.** A thread carries the model it was last switched to, in
-`Thread.modelRef` / `Thread.modelEffort`; the models settings page carries `model.id` /
-`model.effort`, which is only what a thread with nothing of its own begins on. The switcher
-(`ctrl+p`, `/model`) writes the thread. Every model row on the models page opens the same
-picker set on that row, and writes that instead.
-
-The split exists because the old arrangement had exactly one remembered pair for the whole machine,
-so two terminals on two threads fought over it — switching one to Haiku switched the other on
-its next launch. A thread column and not an event, because a model is how a thread is being
-worked rather than something that happened in it: rewinding past a switch should not undo it, and a
-fork carries the parent's pair forward.
-
-Resolution order, most specific first: `--model` for the thread the process launches on, then
-the thread's own pair, then the settings default, then `fallbackRef` — the shipped Anthropic
-default when its provider is set up, the first reachable provider's first card when it is not,
-because a default nobody can run is no default at all. A thread naming a model that left the
-catalogue — or whose account is gone — falls back _whole_, so an effort never outlives the model
-that offered it.
-
-**A child's model and effort are chosen at spawn and change only by an explicit operator pick.**
-Model and effort resolve along two separate chains, because a type may want a different model
-without changing how hard it thinks: the model walks type settings row, definition pin, sub-agent
-role row, spawner; the effort walks type effort row, sub-agent effort row, spawner's effort, main
-thread. An effort row left on `inherit` is still resolved at spawn and saved with the pair,
-so it costs nothing to leave every row unset. Teammates skip both sub-agent role rows and inherit
-the main agent's current pair unless explicitly set. A teammate's sub-agents inherit the teammate's
-pair, not the main thread's. The chosen pair is stored in the child's existing thread
-metadata before the spawn is published, and the runner builds a fixed model and prompt from it.
-Changing the parent or settings affects new children only; steering, waking, resuming, and
-relocating a child retain its saved pair. Older children with no recorded pair resolve and save
-one on their first re-entry. An unavailable saved model fails rather than silently choosing another.
-
-The operator's child picker writes a deliberate `retarget: true`, locally or over the cloud
-channel. It saves the full model/effort pair and announces the choice immediately without
-interrupting an active child run. The new choice takes effect when the child's runner is next
-rebuilt, including a restart or relocation; it never re-pins the main loop or existing siblings.
-Serve accepts a child retarget only when its supervision ancestry reaches the served,
-non-supervised root; missing threads, foreign roots, broken ancestry, and cycles are refused
-before writing. A supervised thread served as the root still cannot be re-pinned. An
-omitted or false override leaves supervised agents frozen. The optional wire field preserves
-existing main-thread requests; an older sandbox still refuses child picks and must be rebuilt
-on an updated runtime to support them.
-
-**Every background call has a role, and every role has a row.** The tl;dr footer, the session
-titler and the nudge judge share the quick-calls row (`model.quickModel`); compaction has its own
-(`model.compactionModel`); sub-agents have theirs (`agents.subagentModel`), with one dynamically
-registered row per loaded sub-agent type beneath it. The teammate row sits with the main model
-settings and follows the main agent, independently of the sub-agent role. A role left empty follows
-the default model — there is no hardcoded model id anywhere in the chain, because no provider can be assumed set up.
-Utility calls re-read the settings per call and children per spawn, so a pick lands mid-session,
-and a role whose pick cannot run
-(provider account gone, model dropped from the catalogue) raises a standing notice that clears
-itself when the row is fixed. A first launch with no settings file and no reachable provider is
-held at an onboarding screen until the four picks are made.
-
-`useThreadModel` reads the default where a thread is adopted rather than following it, so raising
-the default reaches the next thread instead of the one on screen. A thread is written
-down the moment its thread row exists, which is why an untouched new thread still records what
-it actually ran on rather than re-deriving it from a default that may have moved since.
-
-## Notices
-
-Everything the TUI says _about_ the app rather than _in_ the conversation — copied, a plugin that
-refused to load, the nudge classifier gone unreachable, sub-agents a dead process never recorded —
-goes through one notice system, so no feature hand-rolls its own toast, pill or pop-up again.
-
-**The queue is pure and lives in `core/notices`.** A notice is keyed by its producer
-(`copy`, `classifier-offline`, `plugin:<id>`), and posting an existing key replaces it in place
-rather than stacking a twin — that is what lets a source re-report a standing condition on every
-render pass without the stack filling with copies of itself. Expiry is a function of `now`, which
-the caller passes in: `expireNotices` and `nextExpiryAtMs` decide, and `ui/notice-store` holds the
-one timer, scheduled at the earliest deadline rather than one timeout per notice.
-
-**Two lifetimes, no third.** A notice either carries a TTL and fades, or is sticky (`ttlMs: null`)
-and stands until the condition that raised it clears the key — there is no manual-dismiss gesture,
-because a notice never owns the keyboard. Anything that needs a keypress is an overlay, not a
-notice: the exit guard and the switcher stay drawers, and the lost-children card stays
-a panel the notice only points at.
-
-**The stack floats above the composer**, anchored to the bottom of the transcript region rather
-than set into the composer's chrome, so it survives the welcome state (where the transcript is not
-mounted) and never moves text the operator is reading. Rendering stays per-feature in the text
-itself; tone only picks the glyph and the ink.
-
-## Packages
-
-The v2 package map is in `docs/decisions/0019-v2-package-map.md`. Each package in `packages/*`,
-each plugin in `plugins/*` and `commands/` carries a `README.md` for a consumer, with the template
-in `docs/package-readmes.md`. `bun scripts/check-package-readmes.ts` enforces it.
-
-`deprecated/` is not a Bun workspace member. It is read for prior art and never imported.
-
-`api` runs on Bun like every other member, as ESM with no build step (`bun src/main.ts`, Nest 12),
-and tests with `bun test`. It also performs no model calls —
-it holds users and sealed credentials, and clients (the TUI first) fetch from it
-over HTTP. Its own conventions live in `apps/api/AGENTS.md`.
-
-`core` performs **no I/O**. When something is hard to test, that is the signal to move the decision
-into `core`, not to add a mock. `tui` never imports `store` or `providers` directly — it talks to
-`harness` through its ports, and the composition root is the only place that knows which
-implementation is bound.
-
-**The composition root is shared, and lives in `harness/src/composition`.** `composeHarness`
-assembles a whole session — container, settings policy, model selection, execution routing, sandbox,
-skills/MCP/agent types, credentials, turn wiring — knowing nothing about who asked. A surface (the
-TUI today; a serve mode or web app later) injects its half through `HarnessSurfaceBinding`: a
-`NoticePort` to report through, an optional `TldrFeed` to stream turn summaries into, and a `bind`
-callback for its own container registrations (the TUI's warp reporter and GitHub footer surface), which
-runs after every built-in registration and before the instance-cached `HookChain`/`ToolRegistry`
-first resolve. What `bind` returns rides out on `HarnessApp.surface`. The TUI's `composeAtlas` is
-that wrapper; anything UI-shaped — notice stores, plugin surfaces, argv parsing — stays in the app.
-
-A package boundary is worth it only where the compiler should enforce a dependency rule: `core` has
-no I/O, `harness` is importable without a terminal, `ui` imports nothing from Atlas. `store` and
-`providers` stay folders until something forces them out.
-
-`ui` is the design system for the future web app: tokens are the source of truth in pure TS
-(three layers — primitive, semantic, component), `tools/generate-css.ts` derives
-`src/styles/theme.css` (Tailwind v4 `@theme` + light/dark CSS variables), and a test fails if the
-stylesheet drifts from the tokens. The palette is dark-first — dark is `:root`, light is opt-in
-via `[data-theme="day"]`/`.light` — and every color traces to a value the TUI ships. Atoms are
-web components (Radix + CVA); the pure `/tokens` subpath is the only contract a future Expo app
-consumes, because atoms cannot be shared across DOM and native anyway.
-
-### Folder structure
-
-```
-packages/core/src/
-  events/        Event union, EventDraft, envelope, branded ids
-  events/        projections: pendingCalls, outstandingApproval, answeredApproval
-  agents/        EAgentStatus, EAgentStart, the ending's prose, the roster fold
-  prompt/        EPromptAgent — the main/sub axis the fragment registry selects on
-  assembly/      Assembled, Rule, Annotator, RuleContext, assemble, trace, AssemblyPipeline
-  assembly/      exchange-shape: the faults a provider would reject, reported not thrown
-  assembly/rules/        content policy — compacted history, thinking tail, loaded context, images
-  assembly/annotators/   cacheBreakpoints (built); provenance (not built)
-  budget/        resolveBudget: the fixpoint controller (pure: takes a rebuild function)
-  compaction/    the watermark guard, the range plan, the summariser's transcript render
-  hooks/         phase types and outcome types only — no container
-  policy/        BeforeTool severity resolution, tool-call partitioning
-  tools/         ToolCall, ToolOutcome, EToolEffect, EContentAccess, definition types
-  ports/         EventLogPort, ModelPort, WorkspacePort, CredentialPort, AccountStorePort,
-                 ClockPort, IdPort, SettingsStorePort
-  credentials/   accounts, provider specs, and the pure decisions: refresh, adoption, selection
-  settings/      definitions, layered resolution with provenance, edit operations, the registry
-  notices/       the notice queue: keyed replace, TTL expiry, stack cap — pure, no clock
-  message/       Atlas's own message type (see below)
-
-packages/harness/src/
-  composition/   the shared composition root: composeHarness, surface binding, model/execution
-                 selection, sandbox and settings wiring, pending-input queues live in pending/
-  loop/          runTurn, settlePending
-  model/         ModelPort over AI SDK; the stream accumulator
-  providers/     ProviderAdapter impls, one per vendor: anthropic, openai, openrouter, inference
-  models/        the generated model catalogue, one JSON slice per provider
-  credentials/   the account vault, the refreshing CredentialPort, OAuth clients, and the
-                 sources a login can be imported from and written back to
-  files/         what the model has seen of each file on disk, for the read-before-write guard
-  store/         the sessions store: per-session directories of append-only JSONL event logs,
-                 JSON metadata documents, and a PID+start-time ownership lock; sessions/ holds
-                 the implementation
-  tools/         registry, dispatcher, builtin tools
-  agents/types/     the agent-type definition, frontmatter parsing, built-ins, directory sources
-  agents/registry/  AgentRegistryPort, the supervisor, the roster, notices, the child runner
-  shells/        shell journal, durable supervision, spool cursors, recovery and attachment lifetime
-  hooks/         hook implementations — claude-md injection, read-before-write,
-                 file-state recording
-  settings/      SettingsStorePort backends: user and project files, in memory; the layer service
-  workspace/     git snapshot and restore
-  discovery/     glob at dev time, generated manifest for --compile
-
-apps/tui/src/
-  main.tsx
-  composition/   the surface wrapper: binds terminal stores into the shared root
-  store/         ConversationStore: log + delta channel → useSyncExternalStore
-  ui/            components, pages
-  ui/markdown/            segmenter, prose, tables, fenced blocks; the renderer registry
-  ui/markdown/renderers/  one FencedRenderer per fence kind: diff, lexical, code, plain
-  ui/markdown/lexical-rows.ts  styled runs from a lexical scan, in OpenTUI style definitions
-  ui/markdown/themes/     capture name → semantic role → colour, for both tiers
-```
-
-Max 300 lines per file. Tests in a sibling `__tests__/` as `*.spec.ts`.
-
-## Decisions
-
-| Concern                  | Decision                                                                                                               |
-| ------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
-| Loop substrate           | **Hand-rolled.** No LangGraph, no Mastra                                                                               |
-| Canonical record         | Append-only event log — `messages[]` with types                                                                        |
-| Prompt                   | Derived per step by `assemble`; never accumulated                                                                      |
-| Checkpoints              | None. Position is derived                                                                                              |
-| Storage                  | Per-session JSONL files (`<home>/sessions/<id>/`); no database                                                         |
-| Model layer              | AI SDK, `streamText` one step, as normalization only                                                                   |
-| Provider interface       | `LanguageModelV4`                                                                                                      |
-| Context operations       | Ours, model-agnostic                                                                                                   |
-| Sub-agents               | A spawned thread, not a recursive call. Depth capped at one by the child's tool registry                               |
-| DI                       | **tsyringe.** Class tokens, `@injectAll` for the hook and tool sets — see `.scratch/tsyringe-di/spec.md`               |
-| Hook discovery           | Glob at dev time, generated manifest for `--compile`                                                                   |
-| Format evolution         | Versioned event payloads; readers tolerate every historical shape; a newer `format` in a session's meta refuses loudly |
-| Packages                 | `core`, `harness`, `apps/tui` — raw TS source, no build step                                                           |
-| Runtime                  | Bun — runtime and package manager; tests run `bun test` (`evals` stays on Vitest, as evalite is a vitest harness)      |
-| Task runner              | **Turborepo.** `turbo run typecheck \| test \| build`; per-package scripts stay `tsc` / `bun test`                     |
-| Fenced-code highlighting | **Two tiers.** tree-sitter wasm where a small maintainer build exists; a declarative lexer for the long tail           |
-
-**`core` owns its own message type.** `Assembled` cannot hold `ModelMessage` without `core` depending
-on the AI SDK, which would make model-agnosticism aspirational rather than real — and AI SDK ships
-V2/V3/V4 simultaneously, so `core` would churn on their versioning. The type is deliberately _thin_
-and structurally close to `ModelMessage`, with
-`providerOptions: Record<string, Record<string, JsonValue>>` passed through opaquely, so conversion in
-`harness/model/` is near-identity and no provider capability needs modelling in `core`. The nesting is
-load-bearing rather than incidental: a flat `Record<string, unknown>` is not assignable to the SDK's
-provider options, so conversion would need a cast or a validator, and it leaves the metadata merge
-ill-defined at exactly the depth where the signature lives. **That passthrough must never be dropped** — Anthropic thinking signatures ride
-in it, and losing them fails silently.
-
-**Syntax highlighting is two tiers, and the tiers must not overlap.** A tree-sitter language costs
-0.2–3.3 MB of `.wasm`, committed and embedded in `bin/atlas` by `bun build --compile`. That price is
-worth paying where a parse tells you something a token stream cannot — which type a name refers to,
-whether `<T>` opens a generic or a JSX element. It is not worth paying forty more times for languages
-whose highlighting is entirely lexical, and for most of them the question is moot: their maintainers
-publish no `.wasm` at all.
-
-So `packages/syntax/src/lexical/` (`@dltech/atlas-syntax/lexical`) holds a second highlighter — a pure single-pass scanner over a
-declarative `LanguageSpec` of comment forms, string forms, keyword sets and an identifier alphabet,
-about a kilobyte of source per language. It is not a fallback for tier 1's failures; it is the right
-answer for a token-shaped language.
-
-The seam that makes this cheap already existed. A tree-sitter highlight pass returns
-`[start, end, captureName]` triples and the theme maps `captureName` to a colour, so the lexer emits
-the same triples under the same nvim-treesitter names and inherits every theme unchanged. Adding a
-theme still means editing one file. `lexicalRenderer` is registered ahead of `codeRenderer` in the
-fenced-renderer registry, because the code renderable claims every non-empty language; a test in
-`packages/syntax/src/lexical/__tests__/registry.spec.ts` holds the two language sets disjoint so a lexical spec can never
-silently outrank a real grammar.
-
-The lexer is also synchronous, which the tree-sitter path is not. A `CodeRenderable` clears to plain
-text and paints its highlight a worker round trip later, so a streaming fence flashes; a lexical fence
-has no round trip to wait for.
-
-## Adopted from the rejected options
-
-- Mastra's `BeforeStep` / `BeforeRequest` split — the first persists to the record, the second is a
-  transient per-provider rewrite. Our contract had conflated them.
-- Mastra's approval-suspend payload shape.
-- LangGraph's hard lesson: nothing derivable goes in durable state. Its predecessor in this codebase
-  had a `@deprecated` field it could not delete because live checkpoints contained it.
-
-## Why tsyringe and not Nest
-
-The extension domain is **sets** — hooks per phase, tools in a registry — and tsyringe has `@injectAll`
-as a primitive. Nest has no multi-provider, so a set is emulated with
-`{ provide: HOOKS, useFactory: (...i) => i, inject: classes }`: untyped, order-coupled, and edited once
-per set member, which is exactly the one-file property the hooks spike was measuring. Module
-encapsulation would redraw a boundary `core` / `harness` / `apps/tui` and their barrels already enforce.
-And Nest's optional peers do not bundle — `bun build --compile` needs eight `--external` flags, and each
-upgrade can add another.
-
-Startup cost is not the argument. The spike measured ~50 ms for the Nest import, and Atlas is a
-long-lived process that amortises it away.
-
-What Nest would have given us is ordered teardown. tsyringe has no lifecycle at all, so disposal is an
-explicit registry the composition root owns.
-
-**Ports are `abstract class`, not `interface`,** so the token _is_ the contract — no symbol table, no
-stringly-typed `@inject`. `core` therefore emits runtime values, which costs it nothing: still zero
-dependencies, still no I/O.
-
-**The async edges stay outside the container.** `container.resolve()` is synchronous and tsyringe
-has no async provider, so every await — the workspace probe, account and model binding, plugin
-load — runs in the composition root itself, the results registered as `useValue` tokens. The store
-needs no async open at all: the per-session JSONL event log and thread store are plain constructors.
-
-## Deferred, deliberately
-
-Phases and phase briefs, reference-forked sub-agents, session rotation across accounts, MCP server lifecycle,
-skills precedence against `CLAUDE.md`, container/sandbox isolation, PR shipping. Each is an assembly
-rule, a hook, or a port implementation — none requires reopening a decision above.
-
-Known gaps in the contract, accepted: a hook cannot fail the turn or annul a tool result, and hooks
-see one call at a time rather than a batch.
+| Measured, 4,000 leases, append = lease read + head update + event insert | 23 locks held |     600 |   3,000 |
+| ------------------------------------------------------------------------ | ------------: | ------: | ------: |
+| Epoch check only, 8 clients                                              |       1.66 ms | 0.83 ms | 0.59 ms |
+| Plus a `pg_locks` read, 8 clients                                        |       1.97 ms | 2.56 ms | 5.22 ms |
+| Plus `pg_try_advisory_xact_lock_shared`, 8 clients                       |       1.79 ms | 1.10 ms | 0.99 ms |
+
+The `pg_locks` read scales with every lock in the cluster, so it stays off the append path. Connections
+per host are the pool plus three (`LISTEN`, lock, one waiter), independent of fleet size; one waiter per
+peer would need N(N−1) backends against a limit of 50. What the lock connection must survive, and what
+the host does for each case, is the failure table in [0025](decisions/0025-v2-connection-bound-leases.md).
+
+**Build plan** (each a reviewable PR):
+1. **Verify on PlanetScale** (done 2026-11-05; numbers in 0025 Consequences). A test-only script against the real role: `SET tcp_keepalives_*` is allowed,
+   no idle-session reaping, a killed connection frees the lock, a transaction-mode URL is detectable.
+   Amend 0025 with the numbers.
+2. **Presence.** `V2Host` table, a `HostPresence` port with Postgres and in-memory implementations
+   (conformance spec shared), the lock connection with `error`/`end` handling and the pooler refusal.
+3. **Lease row and fence.** Drop `renewedAt`/`ttlMs`, add `holderHostId`; `claim` and `acceptAppend` in `core`
+   take presence as input; `FOR SHARE` in append and `FOR NO KEY UPDATE` in claim; delete `lease-expired`
+   and `renew`. A race spec: append against a concurrent claim.
+4. **Host.** Delete `LeaseRenewal` and its timers; lock-connection loss fences every held session and
+   re-registers; an append transport failure past its deadline closes the lock connection.
+5. **Watch ring.** The waiter, successor recompute on `atlas_host_change`, the claim loop's ring on start and on
+   wake, and `claimNext` on presence. Delete `reconcile-holders` and its trigger task.
+6. **Fault rig.** Cases for SIGKILL, `pg_terminate_backend` of the lock connection, a stalled pool with a
+   live lock connection, a partition (`iptables` drop, the proxy frees the lock in about 60 s), a primary restart, and
+   three hosts dying in sequence around the ring.
+
+## 13. Archive is read-only, and an archived session costs nothing
+
+**Why archive needed the rules below.** The old archive was not read-only: a send unarchived and
+booted the sandbox, Retry ignored the archived flag, a teammate session on the same pod kept its
+subscriptions and could wake it, and storage was never freed, so every archived session kept a
+stopped sandbox and its latest snapshot until a sweep deleted it hours later.
+
+**v2.** Archive is the operator inbox command of [slices/03-teammates.md](slices/03-teammates.md),
+logged as `session-archived`. Because the record lives in the CP and a sandbox is only a cache of
+record plus world state (0021), deleting an archived sandbox loses nothing the session needs.
+
+**A1. Archived is a state the CP enforces.** While the latest archive event is `session-archived`,
+the command handlers accept only `unarchive` and reads. Every other command — say, retry, resize,
+model change, subscribe, a peer's `send_message`, PR/CI deliveries — is refused with a typed
+`Archived` rejection. Sending does not unarchive; unarchive is an explicit operator command.
+`apps/api/src/api/platform/control/session-archived.ts` holds the guard that refuses the
+holder-bound calls (`post`, `retry`, `wake`, `wakePod`, `holdPod`) and every command but `rename`
+with `SessionArchivedError`. Rename stays allowed because a title is sidebar metadata the archived
+session never runs.
+
+**A2. The reconciler never places an archived session.** §12's rule becomes "unconsumed inbox
+entries, no live holder, and not archived". Archiving increments the epoch, so a worker mid-turn
+stops at its next append and the turn ends with an `archived` outcome. The claim query skips an
+archived session outright
+(`packages/control/src/postgres/postgres-claim-candidates.ts`), so a message posted to one waits
+in its inbox without waking it, and the session gains a holder only by being unarchived. Unarchive
+takes the pod's retirement lock first
+(`packages/control/src/postgres/postgres-pod-retire-lock.ts`), so it waits for a retirement in
+flight and the sweep re-reads the pod inside that lock before it stops or deletes it.
+
+**A3. Archive ends what the session owns.** The control plane ends every subscription row of the
+session with reason `archived` and posts an informational `record`. Owed notices are dropped;
+shells and services stop. Peers placed on the same pod are unaffected; the pod is released only
+when no placed session holds it.
+
+**A4. Archive stops the sandbox; retention deletes it.** The sandbox stops at archive, and the
+archive parks the pod. Six hours after archive the sandbox and its snapshots are deleted; the
+record, artifacts and views stay.
+There is no unsaved-work guard: uncommitted or unpushed work in an archived sandbox is the
+operator's to lose. Unarchive after deletion provisions a fresh sandbox and re-clones from the
+session's checkout view (slice 4), like any lost sandbox.
+
+**A5. Retention is reconciled, not dispatched once.** A CP reconciler pass ("archived, sandbox
+exists, grace elapsed → delete") replaces v1's fire-once cleanup. It is idempotent, so a failed
+delete is retried on the next pass.
+
+**A6. Auto-archive.** A session with no inbox activity and no live holder for 72 hours — the web
+sidebar's Inactive window (`apps/web/src/features/shell/thread-partition.ts`, `INACTIVE_AFTER_MS`)
+— is archived by the CP with actor `clock`. Pinned sessions are exempt.
+
+**A7. Sandboxes stop sooner.** The loop runs on the worker (0021), so a sandbox is needed only while
+tools, shells or services run. Its idle stop is 5–10 minutes rather than the old 30; slice 3
+measures resume latency before the number is fixed. The worker keeps the lease and the running thread, and the next tool call reprovisions.
+
+| Slice                 | Owns                                                                                 |
+| --------------------- | ------------------------------------------------------------------------------------ |
+| 3 worker host         | A2 epoch fence on archive; sandbox stop at archive; A7 idle stop and its measurement |
+| 4 views               | Archived state in the session view; the checkout view a re-clone starts from         |
+| 6 commands            | `archive` / `unarchive` inbox commands; the A1 rejection on web and TUI              |
+| 7 subscriptions       | A3 subscription teardown and refused deliveries                                      |
+| CP reconciler (3 / 8) | A4/A5 retention pass; A6 auto-archive                                                |

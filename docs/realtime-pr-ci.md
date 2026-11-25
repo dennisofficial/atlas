@@ -1,7 +1,10 @@
 # Real-time PR/CI: design spec
 
-Status: shipped. The PR/CI event stack and the server-side parked-sandbox wake landed as
-#1196, #1201, #1202, #1203, and #1205 on 2026-10-09.
+Status: shipped as a v1 feature on 2026-10-09 (#1196, #1201, #1202, #1203, #1205). The agent-host
+half and the server-side sandbox wake retired with v1; what a session sees now is
+[slices/pr-tracking.md](slices/pr-tracking.md), where tracking never wakes the agent and only
+`subscribe` delivers an external event to it. What follows is the event stack that still runs in the
+API, and, in the sections marked as v1, the design as it shipped.
 Supersedes: the webhook-fed Neon cache + app-installation design that the current
 `apps/api/src/api/cloud/github` module implements (see "Migration" below).
 
@@ -45,11 +48,11 @@ installation, no org-wide grant, no client-side GitHub polling in cloud mode.
   run `gh pr view` on a timer.
 - **TUI session (local, signed out):** unchanged — the `GhPullRequestPort` polls `gh`.
   This is degraded mode and stays.
-- **Cloud/serve session (sandbox):** subscribes through the same harness port; the sandbox
-  has no local `gh` fallback, so SSE is its only source.
+- **A v2 session:** receives a PR event only through `subscribe`, which the control plane turns
+  into an inbox entry and a wake ([architecture §5](architecture.md)). Tracking alone wakes nothing.
 - **API:** holds subscriptions, hooks, and last-known PR state in Postgres; verifies webhook
   deliveries; fans out to connected SSE streams.
-- **The LLM:** receives PR/CI transitions as harness-seeded context (see "LLM seeding").
+- **The LLM:** receives PR/CI transitions as injected context (see "LLM notification").
 
 ## GitHub auth: OAuth app, not GitHub App
 
@@ -115,13 +118,10 @@ mailbox written by deliveries and subscribe-pulls, not a read-through cache with
 
 ## API surface (apps/api, NestJS; tRPC under `/v1/trpc`, the webhook receiver under `/v1`)
 
-Every procedure requires a caller the session layer recognizes — a better-auth session or a
-thread-scoped sandbox token (`SessionOrSandboxMiddleware` + `meta({ sandboxReachable: true })`, the
-middleware resolving the sandbox to its owning user so everything downstream still acts as that
-user) — except the webhook receiver, which is a plain REST controller. The serve process inside a container holds only the sandbox token, and these
-routes are exactly why it exists: when the realtime stack shipped (2026-09-28) they were
-session-only, the serve's every call 401ed, and cloud sessions went silently untracked until
-this guard opened to it.
+Every procedure requires a signed-in session, except the webhook receiver, which is a plain REST
+controller. The v1 agent host in a sandbox called these routes with a thread-scoped sandbox token
+(`sandboxReachable`); that principal and its opt-in are deleted, and a v2 session reaches PR state
+through the control plane.
 
 ### Subscriptions (client-facing)
 
@@ -202,13 +202,13 @@ subscribe-pull. No delivery ever fails for lack of a token.
 - **Never block a subscribe on teardown races.** Hook creation tolerates "hook already
   exists" (GitHub 422) by adopting the existing row.
 
-## Client (harness + TUI)
+## The v1 client
 
-### The port
+This half was the v1 agent host in the TUI and in the sandbox, and it went with v1. The API it
+talked to still runs; the port, the TUI forwarder and the sandbox wake below did not survive.
 
-`PullRequestPort` gains a pushing implementation: `SsePullRequestPort`
-(`packages/harness/src/cloud/`), `pushes: true`. Constructed when the session has cloud
-credentials (signed in or serve); the `gh` poller stays for signed-out sessions.
+`PullRequestPort` gained a pushing implementation, `SsePullRequestPort`, constructed when the
+session had cloud credentials; the `gh` poller stays for signed-out sessions.
 - On `read({ checkout })` / `readLinked({ repo, number })`: subscribe (idempotent), answer
   from the pull-on-subscribe response, and from then on the service's readings are fed by
   the stream.
@@ -281,24 +281,15 @@ re-pull, so the API stores a durable per-user mailbox (`GithubPrEvent`,
 `github-pr-event-mailbox.service.ts`) in Postgres. Every reconnect/resubscribe replays what
 the session missed, which covers deploys, dead sandboxes, and detached clients uniformly.
 
-Wake is **server-side** (#1205): the moment a mailbox row lands, `GithubSandboxWakeService` in
-the realtime module resolves the subscription's thread link (#1202 stores `threadId`/
-`sandboxId` on the subscription row) to the parked sandbox, and — when its
-`CloudSandbox.lastActivityAt` sits inside the 24h `PARK_WAKE_WINDOW_MS`
-(`github-delivery-routing.ts`) — resumes the sandbox and boots its serve through the shared
-boot machinery in `@dltech/atlas-wire` (resume the persistent sandbox from its snapshot, launch
-serve under the token sealed onto the row, at the registry row's `serveVersion`). Per-thread debounce makes a check-run storm boot once; a failed wake leaves
-the mailbox row and logs. The TUI forwarder (`pr-event-forwarder.ts`) is the attached-client
-fast path: an open TUI routes the event into the parked thread as ordinary input, which
-unparks without waiting for the boot.
+Wake was **server-side** in v1 (#1205): the moment a mailbox row landed, `GithubSandboxWakeService`
+resolved the subscription's thread link to the parked sandbox, resumed it inside a 24h window, and
+booted its serve under the token sealed onto the row. Both the service and the boot machinery went
+with v1.
 
-The chain completes on boot: a serve process with no surface resubscribes the tracked PR
-eagerly (#1201) instead of waiting for a turn, and the subscription row itself survives the
-park — the liveness predicate in `github-delivery-routing.ts` treats a row as live when its
-heartbeat is fresh OR it is thread-linked to a sandbox inside the wake window — so the woken
-sandbox's subscriptions are still there and the mailbox replays what arrived while it was
-down. A sandbox older than the 24h window is never woken: its events accumulate in the mailbox
-and replay on the next natural open.
+In v2 a delivery never wakes a session by itself. The control plane stores the delivery, and a
+session that `subscribe`d to the PR gets it as an inbox entry, which wakes the holder
+([slices/pr-tracking.md](slices/pr-tracking.md) §1.7, [architecture §5](architecture.md)). The
+mailbox row is still the durable record, so a session that was down replays what it missed.
 
 ### Signed-out parity
 
@@ -323,7 +314,7 @@ through the same BeforeTool phase, so background shells are covered without a se
 
 In the same PR series:
 1. Add the new models + endpoints alongside the old module.
-2. Switch the harness port to SSE; `PullRequestsClient` (`/v1/github/prs` polling) is
+2. Switch the agent host's port to SSE; `PullRequestsClient` (`/v1/github/prs` polling) is
    deleted once nothing references it.
 3. Delete `GithubAppService`, `GithubInstallationReads`, the old webhook controller/service,
    the `GithubPullRequest`/`GithubWebhookEvent` models, and the `GITHUB_APP_*` /
@@ -338,30 +329,28 @@ state instead.
 
 ## Fallbacks and failure modes
 
-| Failure                                                        | Behavior                                                                                                                                                                                                                                                                                                    |
-| -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Signed out                                                     | `gh` polling, unchanged (degraded mode)                                                                                                                                                                                                                                                                     |
-| Serve holds only a thread-scoped sandbox token                 | The realtime procedures accept it through `SessionOrSandboxMiddleware` + `sandboxReachable` and act as the owning user; a future removal of that opt-in kills cloud tracking silently — the port now logs a warn the moment the API starts refusing it                                                      |
-| Direct (never-lifted) cloud arrival                            | The arrival's `location-changed` carries the restored checkout's `remoteUrl`/`branch` (probed server-side), so the cloud-checkout fold can build a tracked checkout without a lift marker                                                                                                                   |
-| Cloud session dead (401)                                       | Tile shows last-known state muted; re-sign-in restores                                                                                                                                                                                                                                                      |
-| User not repo admin (hook create 403/404)                      | Subscription marked poll-backed: the API polls GitHub as the user every 30s for that repo's subscribed PRs, pushes diffs over the same SSE stream                                                                                                                                                           |
-| PR/CI event with the sandbox parked                            | The API wakes it: `GithubSandboxWakeService` recreates the sandbox and boots serve through the shared `@dltech/atlas-wire` boot machinery under a fresh token; an attached TUI forwards the event as input and wins the race. A boot failure leaves the mailbox row, which replays on the next natural open |
-| Sandbox parked longer than the 24h `PARK_WAKE_WINDOW_MS`       | Never woken; events accumulate in the mailbox and replay on the next natural open                                                                                                                                                                                                                           |
-| Lost webhook delivery (deploy kill, 5xx, GitHub never retries) | Re-anchor sweep: a hook-backed PR whose state row went 10 min without webhook writes (or has none at all) gets one REST read as the subscribing user, which also recreates the missing row that would blind later check events for that PR                                                                  |
-| Hook deleted on the GitHub side                                | Next subscribe verifies the row against GitHub (memoized 5 min) and recreates the hook                                                                                                                                                                                                                      |
-| OAuth token revoked mid-session                                | Subscriptions keep receiving payload-derived state; computed fields gap until re-auth; next subscribe-pull fails loudly in settings                                                                                                                                                                         |
-| API restart                                                    | Stateless handler; subscriptions/hooks read back from Postgres; drain completes open SSE streams and 503s new ones, so clients reconnect to the new instance and catch up                                                                                                                                   |
-| Delivery storm (100s of check_runs)                            | `GithubPrState` upsert is idempotent; SSE push coalesced per PR to latest state within a 1s window                                                                                                                                                                                                          |
-| Multi-instance API (future)                                    | Fan-out is in-process for now (one DO instance); the seam is a fan-out publisher interface, Neon `LISTEN/NOTIFY` when a second instance ships                                                                                                                                                               |
+| Failure                                                        | Behavior                                                                                                                                                                                                                                   |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Signed out                                                     | `gh` polling, unchanged (degraded mode)                                                                                                                                                                                                    |
+| Direct (never-lifted) cloud arrival                            | The arrival's `location-changed` carries the restored checkout's `remoteUrl`/`branch` (probed server-side), so the cloud-checkout fold can build a tracked checkout without a lift marker                                                  |
+| Cloud session dead (401)                                       | Tile shows last-known state muted; re-sign-in restores                                                                                                                                                                                     |
+| User not repo admin (hook create 403/404)                      | Subscription marked poll-backed: the API polls GitHub as the user every 30s for that repo's subscribed PRs, pushes diffs over the same SSE stream                                                                                          |
+| PR/CI event while the holder is gone                           | The row stays in the mailbox and wakes the session when `subscribe` delivers it; nothing is lost while no holder exists                                                                                                                    |
+| Lost webhook delivery (deploy kill, 5xx, GitHub never retries) | Re-anchor sweep: a hook-backed PR whose state row went 10 min without webhook writes (or has none at all) gets one REST read as the subscribing user, which also recreates the missing row that would blind later check events for that PR |
+| Hook deleted on the GitHub side                                | Next subscribe verifies the row against GitHub (memoized 5 min) and recreates the hook                                                                                                                                                     |
+| OAuth token revoked mid-session                                | Subscriptions keep receiving payload-derived state; computed fields gap until re-auth; next subscribe-pull fails loudly in settings                                                                                                        |
+| API restart                                                    | Stateless handler; subscriptions/hooks read back from Postgres; drain completes open SSE streams and 503s new ones, so clients reconnect to the new instance and catch up                                                                  |
+| Delivery storm (100s of check_runs)                            | `GithubPrState` upsert is idempotent; SSE push coalesced per PR to latest state within a 1s window                                                                                                                                         |
+| Multi-instance API (future)                                    | Fan-out is in-process for now (one DO instance); the seam is a fan-out publisher interface, Neon `LISTEN/NOTIFY` when a second instance ships                                                                                              |
 
 ## Slices
 
 1. **API:** schema + OAuth-scope swap + subscription/SSE endpoints + hook lifecycle + delivery fan-out + poll-backed fallback sweeper.
-2. **Harness:** `SsePullRequestPort` + `@microsoft/fetch-event-source` client + port selection change + reconnect/catch-up.
-3. **Harness:** local reading cache (`pull-request-state` event + projection) and LLM transition seeding.
+2. **v1 agent host:** `SsePullRequestPort` + `@microsoft/fetch-event-source` client + port selection change + reconnect/catch-up.
+3. **v1 agent host:** local reading cache (`pull-request-state` event + projection) and LLM transition seeding.
 4. **TUI:** `/resume` and tile render from the projection; signed-out path untouched.
 5. **Cleanup:** delete the app module, old models, old env keys (separate PR, after 1–4 are live).
 
 Testing: API slices are `bun test` unit specs (no DB in CI) plus handler-level specs with a fake
-Prisma; harness slices are `bun test` with a fake SSE transport; the SSE client itself gets a
+Prisma; the agent-host slices were `bun test` with a fake SSE transport; the SSE client itself got a
 local-server spec (the repo's established pattern for network ports).

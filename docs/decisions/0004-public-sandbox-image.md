@@ -9,14 +9,14 @@ needed a GitHub token, and the plan carried a fallback that logged Docker in wit
 
 ## Decision
 
-The GHCR package is public. Pods pull it anonymously: `DockerEngine.createContainer` asks the
-daemon for `/images/create?fromImage=...` with no registry credentials
-(`packages/harness/src/execution/docker/engine.ts`,
-`packages/harness/src/execution/docker/image-pull.ts`).
+The GHCR package is public. Pods pull it anonymously: the v1 puller (`DockerEngine.createContainer`
+asked the Docker daemon for `/images/create?fromImage=...` with no registry credentials) is gone with
+v1, and the v2 providers create a pod from the image with no registry credential either
+(`packages/pods/src/sandbox`).
 
 ## Why
 
-The image is a runtime toolkit with nothing secret or Atlas-versioned in it; serve is downloaded
+The image is a runtime toolkit with nothing secret or Atlas-versioned in it; the daemon is fetched
 into the pod at boot. Anonymous pulls remove a credential dependency from every pod birth.
 
 ## Consequences

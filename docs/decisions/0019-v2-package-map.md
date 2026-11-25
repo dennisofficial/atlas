@@ -1,7 +1,7 @@
 # 0019. v2 package map: foundations in `packages/`, plugins and commands in their own roots
 
 Proposed 2026-11-02; accepted when the operator merges the PR that adds it. Amends D5 of [0018](0018-v2-pod-first-architecture.md); replaces the package
-list in [docs/v2/architecture.md §7](../v2/architecture.md#7-package-shape).
+list in [docs/architecture.md §7](../architecture.md#7-package-shape).
 
 ## Context
 

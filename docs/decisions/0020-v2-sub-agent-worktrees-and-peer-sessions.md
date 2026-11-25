@@ -2,7 +2,7 @@
 
 Proposed 2026-11-02; accepted when the operator merges the PR that adds it. Amends the crew plugin
 of [0019](0019-v2-package-map.md) and settles the "sub-agent families" risk in
-[docs/v2/architecture.md §10](../v2/architecture.md#10-risks).
+[docs/architecture.md §10](../architecture.md#10-risks).
 
 ## Context
 
