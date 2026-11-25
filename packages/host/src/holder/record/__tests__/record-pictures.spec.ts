@@ -118,30 +118,34 @@ describe('storePictures', () => {
     ])
   })
 
-  it('leaves the body byte-identical when no store is wired', async () => {
+  it('keeps no bytes but says so when no store is wired', async () => {
     const body = toolResultWith({
       type: 'image',
       bytes: { kind: 'inline', data: PNG },
       mediaType: 'image/png',
     })
+    const stored = await storePictures({ body, timers })
 
-    expect(await storePictures({ body, timers })).toBe(body as never)
+    expect(stored.type === 'tool-result' ? stored.modelParts : undefined).toEqual([
+      { type: 'text', text: '[picture not kept: no picture store: image/png]' },
+    ])
   })
 
-  it('keeps the picture inline when the store refuses it', async () => {
+  it('names the picture when the store refuses it', async () => {
     const body = toolResultWith({
       type: 'image',
       bytes: { kind: 'inline', data: PNG },
       mediaType: 'image/png',
+      source: 'shot.png',
     })
     const stored = await storePictures({ body, timers, pictures: { store: async () => null } })
 
     expect(stored.type === 'tool-result' ? stored.modelParts : undefined).toEqual([
-      { type: 'image', bytes: { kind: 'inline', data: PNG }, mediaType: 'image/png' },
+      { type: 'text', text: '[picture not kept: refused by the store: shot.png]' },
     ])
   })
 
-  it('keeps the picture inline when the store throws', async () => {
+  it('keeps no bytes when the store throws', async () => {
     const body = toolResultWith({
       type: 'image',
       bytes: { kind: 'inline', data: PNG },
@@ -158,7 +162,7 @@ describe('storePictures', () => {
     })
 
     expect(stored.type === 'tool-result' ? stored.modelParts : undefined).toEqual([
-      { type: 'image', bytes: { kind: 'inline', data: PNG }, mediaType: 'image/png' },
+      { type: 'text', text: '[picture not kept: the store failed: image/png]' },
     ])
   })
 
@@ -191,7 +195,7 @@ describe('storePictures', () => {
     })
 
     expect(stored.type === 'tool-result' ? stored.modelParts : undefined).toEqual([
-      { type: 'image', bytes: { kind: 'inline', data: PNG }, mediaType: 'image/png' },
+      { type: 'text', text: '[picture not kept: the store timed out: image/png]' },
     ])
     expect(signals.map((signal) => signal.aborted)).toEqual([true])
   })
@@ -220,7 +224,7 @@ describe('SessionRecord pictures', () => {
     expect(event?.type).toBe('tool-result')
     expect(
       event !== undefined && event.type === 'tool-result' ? event.modelParts : undefined,
-    ).toEqual([{ type: 'image', bytes: { kind: 'inline', data: PNG }, mediaType: 'image/png' }])
+    ).toEqual([{ type: 'text', text: '[picture not kept: the store timed out: image/png]' }])
   })
 
   it('commits the tool result with the media part and no inline bytes', async () => {

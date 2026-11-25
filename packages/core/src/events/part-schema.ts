@@ -36,7 +36,6 @@ export const assistantPartSchema = z.discriminatedUnion('type', [
 const imageBytesSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('inline'), data: z.string() }),
   z.object({ kind: z.literal('url'), url: z.string() }),
-  z.object({ kind: z.literal('withheld') }),
 ])
 
 const imagePartSchema = z.object({

@@ -8,8 +8,6 @@ export type ReadImage = {
   width: number | null
   height: number | null
   byteLength: number | null
-  /** The picture's base64 bytes, when the result inlined them for the model. */
-  data: string | null
   /** Whether the bytes went to the model at all — a read can be text-only and still succeed. */
   inlined: boolean
   /** Why a text-only read stayed text-only, in the tool's own words. */
@@ -31,7 +29,6 @@ export function imageOf(call: ToolCall): ReadImage | null {
     width: num(output.width) ?? null,
     height: num(output.height) ?? null,
     byteLength: num(output.byteLength) ?? null,
-    data: call.image?.kind === 'inline' ? call.image.data : null,
     inlined,
     notSentReason: inlined
       ? null

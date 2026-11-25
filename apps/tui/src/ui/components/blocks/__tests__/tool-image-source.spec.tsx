@@ -5,6 +5,7 @@ import { act, useState } from 'react'
 
 import type { ToolCall } from '../../../../store'
 import { applyTranscriptCovered } from '../../../covered-store'
+import { applyToolPictureSession } from '../../../tool-picture-store'
 import { TranscriptImageRenderable } from '../../../images/transcript-image'
 import { encodePng } from '../../../images/__tests__/png-fixture'
 import { ToolImage } from '../tool-image'
@@ -29,7 +30,16 @@ const call = {
     byteLength: picture.length,
     inlined: true,
   },
-  image: { kind: 'inline', mediaType: 'image/png', data: Buffer.from(picture).toString('base64') },
+  image: {
+    kind: 'media',
+    media: {
+      hash: 'a'.repeat(64),
+      mediaType: 'image/png',
+      size: picture.length,
+      width: 16,
+      height: 32,
+    },
+  },
   settled: true,
   failed: false,
 } as unknown as ToolCall
@@ -43,8 +53,26 @@ const imageIn = (node: Renderable): TranscriptImageRenderable | null => {
   return null
 }
 
+const waitForImage = async (
+  scene: Awaited<ReturnType<typeof testRender>>,
+): Promise<TranscriptImageRenderable> => {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    await scene.renderOnce()
+    const node = imageIn(scene.renderer.root)
+    if (node !== null) return node
+    await Bun.sleep(5)
+  }
+  throw new Error('transcript image was not mounted')
+}
+
 test('keeps the decoded image source stable across unrelated React renders', async () => {
   applyTranscriptCovered(false)
+  const original = globalThis.fetch
+  globalThis.fetch = (async () => new Response(new Uint8Array(picture))) as unknown as typeof fetch
+  applyToolPictureSession({
+    sessionId: 'session-source',
+    mediaUrl: async () => ({ url: 'https://media.test/picture' }),
+  })
   const controls: { handleResize: () => void } = { handleResize: () => undefined }
   function Fixture() {
     const [inner, setInner] = useState(40)
@@ -53,9 +81,7 @@ test('keeps the decoded image source stable across unrelated React renders', asy
   }
   const scene = await testRender(<Fixture />, { width: 44, height: 24 })
   try {
-    await scene.renderOnce()
-    const node = imageIn(scene.renderer.root)
-    if (node === null) throw new Error('transcript image was not mounted')
+    const node = await waitForImage(scene)
     await node.loadPromise
     await scene.renderOnce()
     const source = node.source
@@ -68,5 +94,7 @@ test('keeps the decoded image source stable across unrelated React renders', asy
   } finally {
     await act(async () => scene.renderer.destroy())
     applyTranscriptCovered(false)
+    applyToolPictureSession(undefined)
+    globalThis.fetch = original
   }
 })

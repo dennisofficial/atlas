@@ -121,42 +121,6 @@ describe('a call parked on an approval', () => {
 })
 
 describe('a result that handed the model a picture', () => {
-  it('keeps the image bytes on the call, so the transcript need not touch the file', () => {
-    const events = log([
-      called({ n: 1, name: 'read', input: { path: '/repo/docs/shot.png' } }),
-      {
-        type: 'tool-result',
-        callId: callId(1),
-        name: 'read',
-        output: {
-          path: '/repo/docs/shot.png',
-          mediaType: 'image/png',
-          byteLength: 412 * 1024,
-          width: 8,
-          height: 8,
-          inlined: true,
-        },
-        modelText: '/repo/docs/shot.png — image/png, 8×8, 412 KB.',
-        modelParts: [
-          { type: 'text', text: '/repo/docs/shot.png — image/png, 8×8, 412 KB.' },
-          {
-            type: 'image',
-            bytes: { kind: 'inline', data: 'aGVsbG8td29ybGQ=' },
-            mediaType: 'image/png',
-            source: '/repo/docs/shot.png',
-          },
-        ],
-      },
-    ])
-
-    const call = onlyCall(events)
-    expect(call.image).toEqual({
-      kind: 'inline',
-      data: 'aGVsbG8td29ybGQ=',
-      mediaType: 'image/png',
-    })
-  })
-
   it('carries no image when the result never inlined one', () => {
     const events = log([
       called({ n: 1, name: 'read', input: { path: '/repo/docs/huge.png' } }),
@@ -181,40 +145,6 @@ describe('a result that handed the model a picture', () => {
 
 describe('the picture a result carried', () => {
   const HASH = 'f'.repeat(64)
-
-  it('reads a withheld legend as a picture the client must load', () => {
-    const call = onlyCall(
-      log([
-        called({ n: 1, name: 'read' }),
-        {
-          type: 'tool-result',
-          callId: callId(1),
-          name: 'read',
-          output: { path: '/repo/a.png', mediaType: 'image/png' },
-          modelParts: [
-            { type: 'text', text: 'a.png' },
-            {
-              type: 'image',
-              bytes: { kind: 'withheld' },
-              mediaType: 'image/png',
-              width: 8,
-              height: 6,
-            },
-          ],
-        },
-      ]),
-    )
-
-    expect(call.image).toEqual({
-      kind: 'withheld',
-      threadId: 'thread-approval',
-      seq: 2,
-      part: 1,
-      mediaType: 'image/png',
-      width: 8,
-      height: 6,
-    })
-  })
 
   it('reads a media part as the ref a signed url can resolve', () => {
     const media = { hash: HASH, mediaType: 'image/png', size: 4, width: 2, height: 2 } as const

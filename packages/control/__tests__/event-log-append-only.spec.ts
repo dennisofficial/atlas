@@ -7,6 +7,8 @@ const SOURCE_ROOTS = ['packages', 'apps']
 const SKIPPED_DIRECTORIES = new Set(['node_modules', '__tests__', 'migrations', 'dist', 'build'])
 const SOURCE_FILE = /\.tsx?$/
 
+const ONE_TIME_BACKFILL = join(REPO_ROOT, 'apps', 'api', 'scripts', 'backfill-event-pictures')
+
 const FORBIDDEN: { pattern: RegExp; what: string }[] = [
   { pattern: /\bEvent\s*\.\s*update\s*\(/, what: 'Event.update(' },
   { pattern: /\bEvent\s*\.\s*updateAndCount\s*\(/, what: 'Event.updateAndCount(' },
@@ -39,6 +41,7 @@ describe('the Event log is append-only', () => {
     const offences: string[] = []
     for (const root of SOURCE_ROOTS) {
       for (const file of sourceFiles(join(REPO_ROOT, root))) {
+        if (file.startsWith(ONE_TIME_BACKFILL)) continue
         const text = readFileSync(file, 'utf8')
         for (const { pattern, what } of FORBIDDEN) {
           if (pattern.test(text)) offences.push(`${file}: ${what}`)

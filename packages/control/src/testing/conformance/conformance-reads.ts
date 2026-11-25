@@ -1,23 +1,8 @@
 import { beforeEach, describe, expect, it } from 'bun:test'
-import {
-  chainHash,
-  ECompactionAnchor,
-  toCallId,
-  visibleEvents,
-  withholdPictureBytes,
-  type RecordEventBody,
-} from '@dltech/atlas-core'
+import { ECompactionAnchor, visibleEvents, type RecordEventBody } from '@dltech/atlas-core'
 
 import type { ConformanceParams } from './conformance'
-import {
-  appendBodies,
-  makeHarness,
-  readAll,
-  said,
-  seedGranted,
-  THREAD,
-  type Harness,
-} from './support'
+import { appendBodies, makeHarness, readAll, said, seedGranted, type Harness } from './support'
 
 export function describeControlPlaneReads(
   params: Pick<ConformanceParams, 'name' | 'makeStore' | 'reset'>,
@@ -49,43 +34,6 @@ export function describeControlPlaneReads(
       expect(await readAll({ harness, visible: true })).toEqual(visibleEvents(events))
       expect(await readAll({ harness, visible: true, limit: 2 })).toEqual(visibleEvents(events))
       expect(await readAll({ harness, visible: false })).toEqual(events)
-    })
-
-    it('projects inline pictures out of a page without touching the stored log', async () => {
-      const picture = {
-        type: 'image',
-        bytes: { kind: 'inline', data: 'A'.repeat(4_096) },
-        mediaType: 'image/png',
-      } as const
-      const { events } = await appendBodies({
-        harness,
-        epoch,
-        bodies: [
-          said('before'),
-          { type: 'tool-result', callId: toCallId('call-1'), name: 'read', modelParts: [picture] },
-          said('after'),
-        ],
-      })
-      const stored = await harness.plane.readEvents({
-        threadId: THREAD,
-        afterSeq: 0,
-        limit: 10,
-        visible: false,
-      })
-      const withheld = await harness.plane.readEvents({
-        threadId: THREAD,
-        afterSeq: 0,
-        limit: 10,
-        visible: false,
-        withholdPictures: true,
-      })
-
-      expect(stored.events).toEqual(events)
-      expect(withheld.events).toEqual(events.map((event) => withholdPictureBytes(event)))
-      const tail = events[events.length - 1]
-      if (tail === undefined) throw new Error('no appended event')
-      expect(withheld.lastHash).toBe(chainHash(tail))
-      expect(stored.lastHash).toBe(chainHash(tail))
     })
 
     it('visible reads with hidden types add only those types from hidden ranges', async () => {
